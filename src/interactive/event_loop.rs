@@ -24,7 +24,7 @@ use super::adaptive::{
 };
 use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::{FrameMode, HudState};
-use super::input::{handle_keybinding, PasteBurstGuard};
+use super::input::{handle_keybinding, is_unmodified_or_shift, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
 
@@ -645,8 +645,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // HUD toggle ('i'): check BEFORE screensaver exit to prevent
                         // self-exit on Android/Termux. v30: lowercase-only. Toggling
                         // OFF calls force_draw_everything() to clear stale HUD residue.
-                        // Bug fix: reject Ctrl+I — only bare 'i' toggles HUD.
-                        if k.modifiers.is_empty()
+                        // Modifier allowlist: only bare 'i' or Shift+'I' (which falls
+                        // through to no-op since there's no Char('I') arm). Rejects
+                        // Ctrl/Super/Alt/Hyper/Meta+'i'. See is_unmodified_or_shift().
+                        if is_unmodified_or_shift(k.modifiers)
                             && matches!((k.code, k.modifiers), (KeyCode::Char('i'), _))
                         {
                             let now_visible = hud_state.toggle();
@@ -667,8 +669,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         // 'h': toggle HUD position. v30: lowercase-only (uppercase
                         // 'H' removed; lowercase works on all keyboards including Android).
-                        // Bug fix: reject Ctrl+H — only bare 'h' moves HUD.
-                        if k.modifiers.is_empty()
+                        // Modifier allowlist: only bare 'h' or Shift+'H' (which falls
+                        // through to no-op since there's no Char('H') arm). Rejects
+                        // Ctrl/Super/Alt/Hyper/Meta+'h'. See is_unmodified_or_shift().
+                        if is_unmodified_or_shift(k.modifiers)
                             && matches!((k.code, k.modifiers), (KeyCode::Char('h'), _))
                         {
                             if hud_state.toggle_position() {

@@ -976,4 +976,465 @@ mod cases {
             "user_override_since_ambient must default to false"
         );
     }
+
+    // ── Modifier rejection tests (v50 alpha.3) ─────────────────────────────
+    //
+    // Owner-reported bug: Super+C still cycled colors on modern terminals
+    // (kitty, wezterm, foot) that report the kitty keyboard protocol's
+    // enhanced modifier bits. crossterm 0.29 exposes SUPER/HYPER/META as
+    // separate KeyModifiers bits. The previous denylist only blocked
+    // CONTROL|ALT, leaving SUPER/HYPER/META unguarded.
+    //
+    // The fix uses an allowlist: only NONE (bare key) or SHIFT (for S/C
+    // capitals) are accepted. All other modifiers are rejected. These
+    // tests verify every shortcut rejects every non-allowed modifier.
+
+    fn key_with_mod(ch: char, mods: KeyModifiers) -> KeyEvent {
+        KeyEvent::new(KeyCode::Char(ch), mods)
+    }
+
+    fn arrow_with_mod(code: KeyCode, mods: KeyModifiers) -> KeyEvent {
+        KeyEvent::new(code, mods)
+    }
+
+    /// Returns the color scheme before the keypress, for later comparison.
+    /// ColorScheme derives PartialEq, so direct comparison works.
+    fn color_scheme_of(cloud: &Cloud) -> crate::runtime::ColorScheme {
+        cloud.color_scheme()
+    }
+
+    #[test]
+    fn super_c_does_not_cycle_color() {
+        // Owner-reported bug: Super+C still cycled colors.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('c', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Super+C must NOT cycle colors (owner-reported bug)"
+        );
+    }
+
+    #[test]
+    fn super_q_does_not_quit() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let raining_before = cloud.raining;
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('q', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.raining, raining_before,
+            "Super+Q must NOT quit (only bare 'q' quits)"
+        );
+    }
+
+    #[test]
+    fn super_x_does_not_cycle_scene() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('x', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(scene_name, "monolith", "Super+X must NOT cycle scene");
+    }
+
+    #[test]
+    fn super_s_does_not_cycle_charset() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let mut scene_name = String::from("monolith");
+        let mut scene_generation: u64 = 0;
+        let before = charset_preset.clone();
+
+        call_handle_keybinding_with_scene(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('s', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &mut scene_name,
+            &mut scene_generation,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(charset_preset, before, "Super+S must NOT cycle charset");
+    }
+
+    #[test]
+    fn super_p_does_not_toggle_pause() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let paused_before = cloud.pause;
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('p', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(cloud.pause, paused_before, "Super+P must NOT toggle pause");
+    }
+
+    #[test]
+    fn super_space_does_not_reset() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        // force_draw_everything is set by Space (reset). Capture pre-state
+        // via the public getter.
+        let force_draw_before = cloud.is_force_draw_everything();
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod(' ', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.is_force_draw_everything(),
+            force_draw_before,
+            "Super+Space must NOT trigger reset"
+        );
+    }
+
+    #[test]
+    fn super_arrow_up_does_not_change_speed() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let speed_before = cloud.chars_per_sec;
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &arrow_with_mod(KeyCode::Up, KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.chars_per_sec, speed_before,
+            "Super+ArrowUp must NOT change speed"
+        );
+    }
+
+    #[test]
+    fn super_arrow_down_does_not_change_speed() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let speed_before = cloud.chars_per_sec;
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &arrow_with_mod(KeyCode::Down, KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            cloud.chars_per_sec, speed_before,
+            "Super+ArrowDown must NOT change speed"
+        );
+    }
+
+    #[test]
+    fn super_brackets_do_not_change_density() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let density_before = cloud.droplet_density;
+
+        // Super+[
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('[', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+        assert_eq!(
+            cloud.droplet_density, density_before,
+            "Super+[ must NOT decrease density"
+        );
+
+        // Super+]
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod(']', KeyModifiers::SUPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+        assert_eq!(
+            cloud.droplet_density, density_before,
+            "Super+] must NOT increase density"
+        );
+    }
+
+    #[test]
+    fn hyper_c_does_not_cycle_color() {
+        // HYPER (0b10000) is a separate modifier bit from SUPER — verify
+        // the allowlist catches it too.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('c', KeyModifiers::HYPER),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Hyper+C must NOT cycle colors"
+        );
+    }
+
+    #[test]
+    fn meta_c_does_not_cycle_color() {
+        // META (0b100000) is a separate modifier bit from SUPER and HYPER.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('c', KeyModifiers::META),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Meta+C must NOT cycle colors"
+        );
+    }
+
+    #[test]
+    fn control_c_does_not_cycle_color() {
+        // Regression guard: CONTROL was already blocked by the old denylist.
+        // Verify the new allowlist still blocks it.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('c', KeyModifiers::CONTROL),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Ctrl+C must NOT cycle colors"
+        );
+    }
+
+    #[test]
+    fn alt_c_does_not_cycle_color() {
+        // Regression guard: ALT was already blocked by the old denylist.
+        // Verify the new allowlist still blocks it.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('c', KeyModifiers::ALT),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Alt+C must NOT cycle colors"
+        );
+    }
+
+    #[test]
+    fn control_shift_c_does_not_cycle_color() {
+        // Ctrl+Shift+C produces Char('C') with CONTROL | SHIFT modifiers.
+        // The allowlist must reject this because modifiers is not empty
+        // and not == SHIFT (CONTROL bit is also set).
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('C', KeyModifiers::CONTROL | KeyModifiers::SHIFT),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Ctrl+Shift+C must NOT cycle colors (CONTROL bit blocks despite SHIFT)"
+        );
+    }
+
+    #[test]
+    fn super_shift_c_does_not_cycle_color() {
+        // Super+Shift+C produces Char('C') with SUPER | SHIFT modifiers.
+        // Even though SHIFT is set, the SUPER bit must trigger rejection.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('C', KeyModifiers::SUPER | KeyModifiers::SHIFT),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_eq!(
+            color_scheme_of(&cloud),
+            before,
+            "Super+Shift+C must NOT cycle colors (SUPER bit blocks despite SHIFT)"
+        );
+    }
+
+    #[test]
+    fn bare_c_still_cycles_color_forward() {
+        // Sanity guard: bare 'c' (no modifiers) must still cycle colors.
+        // This protects against the allowlist being too aggressive.
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key('c'),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_ne!(
+            color_scheme_of(&cloud),
+            before,
+            "Bare 'c' must still cycle colors forward"
+        );
+    }
+
+    #[test]
+    fn shift_c_still_cycles_color_reverse() {
+        // Sanity guard: Shift+C (capital 'C' with SHIFT modifier) must
+        // still cycle colors in reverse. This is the only SHIFT-allowed
+        // path — protects against the allowlist being too aggressive.
+        // (Complementary to uppercase_c_reverses_color_cycle above.)
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut charset_preset = String::from("binary");
+        let before = color_scheme_of(&cloud);
+
+        call_handle_keybinding(
+            &mut cloud,
+            &mut frame,
+            &key_with_mod('C', KeyModifiers::SHIFT),
+            &mut charset_preset,
+            &make_test_config(),
+            #[cfg(unix)]
+            &Arc::new(AtomicBool::new(false)),
+        );
+
+        assert_ne!(
+            color_scheme_of(&cloud),
+            before,
+            "Shift+C must still cycle colors in reverse"
+        );
+    }
 }

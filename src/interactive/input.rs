@@ -75,6 +75,23 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
         && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
 }
 
+/// Returns true if the key event's modifiers are in the "safe" allowlist:
+/// only bare keys (KeyModifiers::NONE) or SHIFT (for capital S/C reverse-
+/// cycle bindings). Rejects ALL other modifier bits: CONTROL, ALT, SUPER,
+/// HYPER, META.
+///
+/// This is the canonical modifier guard for all cosmostrix shortcuts.
+/// Use this instead of ad-hoc `is_empty()` or `intersects(CONTROL | ALT)`
+/// checks so the rules stay consistent across handle_keybinding(),
+/// event_loop.rs HUD toggles, and any future shortcut handlers.
+///
+/// CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
+/// which Char the terminal reports ('c' → 'C' when CapsLock is on,
+/// with modifiers=NONE). It is inherently allowed by this check.
+pub(super) fn is_unmodified_or_shift(modifiers: crossterm::event::KeyModifiers) -> bool {
+    modifiers.is_empty() || modifiers == crossterm::event::KeyModifiers::SHIFT
+}
+
 // Runtime key handling coordinates cloud, frame, scene, charset, and terminal
 // recovery state in one dispatch point; splitting would obscure side effects.
 //
@@ -94,30 +111,36 @@ pub(super) fn handle_keybinding(
     _cfg: &CloudConfig,
     #[cfg(unix)] _term_reinit: &Arc<AtomicBool>,
 ) -> bool {
-    use crossterm::event::{KeyCode, KeyModifiers};
+    use crossterm::event::KeyCode;
 
-    // Bug fix: reject Ctrl+key and Alt+key combinations. The match arms
-    // below use (KeyCode::Char('x'), _) which matches ANY modifier —
-    // including CONTROL. This caused Ctrl+C to cycle colors (the _ wildcard
-    // in (Char('c'), _) matched Ctrl+C's code=Char('c') + modifiers=CONTROL).
+    // Modifier allowlist: accept ONLY bare keys (KeyModifiers::NONE) or
+    // SHIFT (for capital S/C reverse-cycle bindings). Reject ALL other
+    // modifier bits: CONTROL, ALT, SUPER, HYPER, META.
     //
-    // Root cause: crossterm delivers Ctrl+C as KeyCode::Char('c') with
-    // KeyModifiers::CONTROL. The _ wildcard accepted it. Same vulnerability
-    // applied to ALL char-based shortcuts: Ctrl+Q would quit, Ctrl+S would
-    // change charset, Ctrl+X would cycle scene, etc.
+    // Owner-reported bug: Super+C still cycled colors on modern terminals
+    // (kitty, wezterm, foot) that report the kitty keyboard protocol's
+    // enhanced modifier bits. crossterm 0.29 exposes SUPER (0b1000),
+    // HYPER (0b10000), and META (0b100000) as separate KeyModifiers bits
+    // — the previous denylist only blocked CONTROL | ALT, leaving
+    // SUPER/HYPER/META unguarded. Same vulnerability applied to every
+    // char-based shortcut: Super+Q would quit, Super+X would cycle scene,
+    // Super+S would change charset, etc.
     //
-    // Fix: block only CONTROL and ALT modifiers. SHIFT must be allowed
-    // through because Shift+'c' produces KeyCode::Char('C') (uppercase)
-    // with KeyModifiers::SHIFT — the uppercase match arms (Char('C'), _)
-    // and (Char('S'), _) handle reverse cycling and are dead code if SHIFT
-    // is blocked. Only CONTROL and ALT are dangerous (Ctrl+C, Alt+C, etc.).
+    // The allowlist approach is future-proof: if crossterm adds new
+    // modifier bits (e.g. FUNCTION), they are rejected by default — no
+    // silent passthrough. This matches the already-correct pattern in
+    // is_plain_printable_key() above (empty || SHIFT).
+    //
+    // CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
+    // which Char the terminal reports ('c' → 'C' when CapsLock is on,
+    // with modifiers=NONE). It is inherently allowed by the allowlist
+    // because no modifier bit is set. Shift inverts CapsLock state, but
+    // is also allowed because SHIFT is in the allowlist.
     //
     // Note: CONTROL+Shift+'c' (Ctrl+Shift+C) produces Char('C') with
-    // CONTROL | SHIFT modifiers — this is correctly rejected because the
-    // CONTROL bit is set.
-    if k.modifiers
-        .intersects(KeyModifiers::CONTROL | KeyModifiers::ALT)
-    {
+    // CONTROL | SHIFT modifiers — correctly rejected because the
+    // modifiers field is not empty and not == SHIFT.
+    if !is_unmodified_or_shift(k.modifiers) {
         return false;
     }
 
