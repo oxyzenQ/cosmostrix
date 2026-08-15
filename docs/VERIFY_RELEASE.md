@@ -24,12 +24,12 @@ gpg --keyserver keys.openpgp.org --recv-keys 47A50AEF4B65AAC2
 
 **Key details**:
 - Master key (ed25519): `47A50AEF4B65AAC2` — Certify + Sign, never expires
-- Signing subkey (ed25519): `F8E50CFF84765C30` — Sign only, expires 2029-08-09
+- Signing subkey (ed25519): `56B96F3109F4B924` — Sign only, expires 2029-08-09
 - UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`
 
 ### Signing key expiry policy
 
-The signing subkey (`F8E50CFF84765C30`) has a **1-year expiry cycle** for security hygiene — the master key generates a fresh subkey before the current one expires, and the new subkey is published to the keyservers.
+The signing subkey (`56B96F3109F4B924`) has a **1-year expiry cycle** for security hygiene — the master key generates a fresh subkey before the current one expires, and the new subkey is published to the keyservers.
 
 **What happens when the signing subkey expires:**
 

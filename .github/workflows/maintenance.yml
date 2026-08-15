@@ -58,7 +58,6 @@ jobs:
 
           WARN=false
           NOW=$(date +%s)
-          WARN_SECS=$((GPG_EXPIRY_WARN_DAYS * 86400))
 
           while IFS= read -r line; do
             # GPG colon-delimited format: sub:usage:validity:start:expiry:...
