@@ -22,8 +22,76 @@ env:
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
   RUST_VERSION: "1.97.1"
+  # GPG signing key fingerprint (master key).
+  GPG_KEY_FINGERPRINT: "47A50AEF4B65AAC2"
+  # Warn this many days before the signing subkey expires.
+  GPG_EXPIRY_WARN_DAYS: 30
 
 jobs:
+  gpg-key-check:
+    name: Cosmic Dragon - GPG Signing Key Expiry Check
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Fetch public key and check expiry
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # Import the signing key from a public keyserver
+          gpg --batch --keyserver keys.openpgp.org \
+            --recv-keys "${GPG_KEY_FINGERPRINT}" 2>/dev/null || \
+          gpg --batch --keyserver keyserver.ubuntu.com \
+            --recv-keys "${GPG_KEY_FINGERPRINT}" 2>/dev/null || {
+            echo "::warning::Could not fetch GPG key ${GPG_KEY_FINGERPRINT} from keyservers"
+            exit 0  # non-fatal — network glitch should not break the pipeline
+          }
+
+          # Extract signing subkey expiry dates (skip master key [SCEA])
+          EXPIRY_LINES=$(gpg --batch --with-colons --list-keys "${GPG_KEY_FINGERPRINT}" \
+            | grep '^sub:' | grep -v '^\[revoked\]' || true)
+
+          if [[ -z "$EXPIRY_LINES" ]]; then
+            echo "No signing subkeys found (master key may have no subkeys)"
+            exit 0
+          fi
+
+          WARN=false
+          NOW=$(date +%s)
+          WARN_SECS=$((GPG_EXPIRY_WARN_DAYS * 86400))
+
+          while IFS= read -r line; do
+            # GPG colon-delimited format: sub:usage:validity:start:expiry:...
+            EXPIRY=$(echo "$line" | cut -d: -f6)
+            KEY_ID=$(echo "$line" | cut -d: -f5)
+
+            if [[ -z "$EXPIRY" || "$EXPIRY" == "" ]]; then
+              echo "Subkey ${KEY_ID}: no expiry (never expires)"
+              continue
+            fi
+
+            # GPG expiry is UNIX epoch
+            EXPIRY_SEC=$(date -d "@${EXPIRY}" +%s 2>/dev/null || echo "0")
+            REMAINING=$(( (EXPIRY_SEC - NOW) / 86400 ))
+            EXPIRY_DATE=$(date -d "@${EXPIRY}" +%Y-%m-%d 2>/dev/null || echo "unknown")
+
+            if [[ "$REMAINING" -le 0 ]]; then
+              echo "::error::GPG signing subkey ${KEY_ID} EXPIRED on ${EXPIRY_DATE} (${REMAINING} days ago). Renew immediately."
+              WARN=true
+            elif [[ "$REMAINING" -le "$GPG_EXPIRY_WARN_DAYS" ]]; then
+              echo "::warning::GPG signing subkey ${KEY_ID} expires on ${EXPIRY_DATE} (${REMAINING} days remaining). Renew within ${GPG_EXPIRY_WARN_DAYS} days."
+              WARN=true
+            else
+              echo "GPG signing subkey ${KEY_ID}: expires ${EXPIRY_DATE} (${REMAINING} days remaining) — OK"
+            fi
+          done <<< "$EXPIRY_LINES"
+
+          if $WARN; then
+            echo ""
+            echo "Action required: rotate the signing subkey and update keyservers."
+            echo "See docs/VERIFY_RELEASE.md for the renewal procedure."
+          fi
+
   validate:
     name: Cosmic Dragon - Dependency Validate
     runs-on: ubuntu-latest

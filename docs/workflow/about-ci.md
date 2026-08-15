@@ -176,6 +176,7 @@ git push origin v4.0.0
 
 #### What it does
 
+- **GPG signing key expiry check**: fetches the public key from keyservers and checks all signing subkeys for expiry. Emits `::warning::` if a subkey expires within 30 days, `::error::` if already expired. Non-fatal on network failure (keyserver unreachable should not break the pipeline).
 - Runs `cargo update`
 - Runs `cargo +stable audit` and `cargo +stable deny check all`
 - Runs `cargo fmt -- --check` and basic build/test/clippy on toolchain `1.97.1`

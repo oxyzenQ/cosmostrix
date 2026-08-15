@@ -27,6 +27,26 @@ gpg --keyserver keys.openpgp.org --recv-keys 47A50AEF4B65AAC2
 - Signing subkey (ed25519): `F8E50CFF84765C30` — Sign only, expires 2029-08-09
 - UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`
 
+### Signing key expiry policy
+
+The signing subkey (`F8E50CFF84765C30`) has a **1-year expiry cycle** for security hygiene — the master key generates a fresh subkey before the current one expires, and the new subkey is published to the keyservers.
+
+**What happens when the signing subkey expires:**
+
+1. **Signatures made before expiry remain cryptographically valid forever.** GPG verifies them against the public key at the time of signing — the expiry only prevents *new* signatures, not validation of old ones.
+2. GPG may print `WARNING: signature key expired` alongside the `Good signature` line. **This is expected and safe.** The signature is still valid; the warning just means the subkey has passed its expiry date.
+3. Import the latest public key from the keyserver to suppress the warning:
+
+```bash
+gpg --keyserver keys.openpgp.org --recv-keys 47A50AEF4B65AAC2
+```
+
+**If GPG refuses to verify at all** (rare, only with very old GPG versions):
+
+Use checksum verification (section 2) as a fallback — it does not depend on GPG key state. All three hash families (SHA-512, BLAKE2b, SHAKE256) provide independent integrity verification.
+
+**Renewal timeline**: the maintainer rotates the signing subkey at least 30 days before expiry. The updated public key appears on keyservers within minutes of renewal. CI monitors key expiry automatically (see `maintenance.yml`).
+
 ### Verify the signature
 
 ```bash
