@@ -236,16 +236,53 @@ pub(crate) const BENCH_WARMUP_MAX_FRAMES: u64 = 200;
 /// Maximum concurrent Quantum Ripple particles. Pre-allocated once at
 /// Cloud init; reused via free-list. 32 covers the peak case of 2-3
 /// rapid clicks (each spawns up to 25) with overlap.
-pub(crate) const QUANTUM_RIPPLE_POOL_SIZE: usize = 64;
+///
+/// v50 masterclass retune: lifespan extended from 0.8s → 2.5s. Three
+/// overlapping clicks (60 active) can now coexist with one extra click
+/// in flight (20) → 80 worst case. Pool raised from 64 → 96 to absorb
+/// this without silent drops during rapid multi-click bursts.
+pub(crate) const QUANTUM_RIPPLE_POOL_SIZE: usize = 96;
 
 /// Particles spawned per click (fixed 20 for determinism).
 pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
 
-/// Particle lifespan in seconds (0.8s midpoint).
-pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 0.8;
+/// Particle lifespan in seconds.
+///
+/// v50 masterclass retune (owner feedback 8/10): the original 0.8s
+/// lifespan was reported as "too fast dead" — the cohort vanished
+/// before the eye could register the ricochet trajectory. Raised to
+/// 2.5s so a click produces a multi-bounce shower that the eye reads
+/// as a deliberate visual effect, then fades out gracefully via the
+/// smoothstep + tail brightness curve (see `apply_quantum_ripple`).
+///
+/// 2.5s was chosen so that:
+///  - At the default speed (9 cells/sec) the particle travels ~22
+///    cells in its lifetime — enough to cross a 20-col viewport once
+///    or ricochet twice, matching the "masterclass" aesthetic.
+///  - Three rapid clicks (60 active particles) all coexist for most
+///    of their lifespan without exhausting the 96-slot pool.
+///  - The fade curve's "tail" segment (last 30% of life = 0.75s) is
+///    long enough to read as a graceful decay rather than a flicker.
+///
+/// Lower values (1.0–1.5s) restore the "too fast dead" complaint.
+/// Higher values (3.5–5s) make the effect linger after the user has
+/// mentally moved on, becoming visual noise.
+pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 2.5;
 
 /// Particle outward radial speed (cells/sec).
-pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 18.0;
+///
+/// v50 masterclass retune: lowered from 18.0 → 9.0. The original 18
+/// cells/sec combined with the 0.8s lifespan meant particles crossed
+/// the viewport in ~1 second and died on the opposite edge (pre-bounce
+/// fix) or ricocheted violently (post-bounce fix). At 9 cells/sec with
+/// the new 2.5s lifespan, motion reads as a smooth drift outward —
+/// the eye can follow individual particles instead of seeing a blur.
+///
+/// Combined with the narrower spawn-speed variance (0.9..1.1 instead
+/// of 0.8..1.2), this produces a visually coherent cohort where all
+/// particles travel at similar perceived speeds — the "masterclass"
+/// look the owner requested.
+pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 9.0;
 
 /// Brand purple RGB (same as logo color) for Quantum effects.
 pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;
@@ -304,22 +341,61 @@ pub(crate) const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;
 /// is the mirror of the pre-bounce direction (true specular reflection)
 /// scaled by `DAMPING`.
 ///
-/// `0.85` was chosen so that:
-///  - After 1 bounce, the particle keeps 85% of its speed — visually
-///    still energetic, clearly still "alive".
-///  - After 3 bounces, ~61% — slowing down enough that the eye reads
+/// `0.78` was chosen so that (with the v50 masterclass 2.5s lifespan):
+///  - After 1 bounce, 78% speed retained — still clearly energetic.
+///  - After 3 bounces, ~47% — slowing down enough that the eye reads
 ///    the trajectory as decaying without it abruptly stopping.
-///  - After 5 bounces, ~44% — combined with the age-based brightness
-///    fade (`fade * fade` over the 0.8s lifespan), the particle is
-///    both dim AND slow, naturally fading out.
+///  - After 5 bounces, ~29% — combined with the smoothstep+tail
+///    brightness fade over the 2.5s lifespan, the particle is both
+///    dim AND slow, naturally fading out by end-of-life.
 ///
-/// Lower values (0.6–0.75) make bounces die too quickly — the second
-/// bounce already reads as a stop. Higher values (0.95–1.0) make the
-/// cohort ricochet forever within the lifespan, which feels chaotic
-/// and can mask the underlying rain on small viewports.
+/// The previous value (0.85) was tuned for the old 0.8s lifespan —
+/// with 2.5s the cohort would ricochet too elastically, masking the
+/// underlying rain. 0.78 keeps the ricochet visible but visibly
+/// decelerating across the longer lifespan.
+///
+/// Lower values (0.6–0.7) make bounces die too quickly — the second
+/// bounce already reads as a stop, wasting the 2.5s lifespan budget.
+/// Higher values (0.9–1.0) make the cohort ricochet nearly elastically
+/// for the full 2.5s, which feels chaotic and can mask the rain on
+/// small viewports.
 ///
 /// See `cloud::rain_post::apply_quantum_ripple` for the bounce math.
-pub(crate) const QUANTUM_RIPPLE_BOUNCE_DAMPING: f32 = 0.85;
+pub(crate) const QUANTUM_RIPPLE_BOUNCE_DAMPING: f32 = 0.78;
+
+/// Brightness curve segment boundary — end of the "head" segment where
+/// the particle is at full brightness, start of the smoothstep ramp-down.
+///
+/// v50 masterclass retune (owner feedback 8/10): the original fade
+/// curve was `fade * fade` (quadratic from 1.0 → 0 across the full
+/// lifespan). At 0.8s lifespan this was acceptable — the cohort was
+/// only visible for ~0.4s anyway. At 2.5s lifespan the quadratic
+/// curve spends 50% of its time below 25% brightness, making the
+/// particle effectively invisible for the second half of its life —
+/// the "smoothness" complaint.
+///
+/// The new curve has three segments:
+///  1. HEAD (0 → HEAD_END_FRAC of life): full brightness (1.0). The
+///     particle is at peak visibility during the initial burst outward.
+///  2. BODY (HEAD_END_FRAC → TAIL_START_FRAC): smoothstep from 1.0
+///     down to ~0.35. The particle visibly dims but stays clearly
+///     visible — the "drifting" phase.
+///  3. TAIL (TAIL_START_FRAC → 1.0): linear fade from ~0.35 → 0. The
+///     particle gracefully fades out — the "fade out gone" the owner
+///     requested.
+///
+/// `0.15` means: the first 15% of life (0.375s at 2.5s lifespan) is
+/// full brightness. After that the smoothstep ramp begins.
+pub(crate) const QUANTUM_RIPPLE_HEAD_END_FRAC: f32 = 0.15;
+
+/// Brightness curve segment boundary — start of the TAIL segment
+/// (linear fade to zero). See `QUANTUM_RIPPLE_HEAD_END_FRAC` for the
+/// full curve description.
+///
+/// `0.70` means: the last 30% of life (0.75s at 2.5s lifespan) is
+/// the linear tail fade. This is long enough to read as a graceful
+/// decay rather than a flicker.
+pub(crate) const QUANTUM_RIPPLE_TAIL_START_FRAC: f32 = 0.70;
 
 // Message overlay limits
 

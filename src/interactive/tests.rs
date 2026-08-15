@@ -690,10 +690,13 @@ mod cases {
     // silently discarding the return value. When the cloud was idle (30s
     // no input), a click did NOT trigger force_draw_everything or
     // next_frame=now. The click effect rendered at the throttled 30 FPS
-    // idle cadence, causing the 0.8s quantum ripple lifespan to expire
-    // before the effect was fully visible — the "click effect immediately
-    // gone" bug. Key presses already had the wake-on-idle behavior; mouse
-    // clicks now match.
+    // idle cadence, causing the quantum ripple lifespan to expire before
+    // the effect was fully visible — the "click effect immediately gone"
+    // bug. Key presses already had the wake-on-idle behavior; mouse
+    // clicks now match. (Note: lifespan is now 2.5s as of v50 masterclass
+    // retune — the regression was originally filed against the 0.8s
+    // lifespan, but the wake-on-idle fix is still required because the
+    // 30 FPS idle cadence would visibly stutter the ripple motion.)
     //
     // This test verifies the register_activity contract: a click during
     // idle returns true (caller should force_draw + advance next_frame).

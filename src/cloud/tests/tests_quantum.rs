@@ -29,8 +29,9 @@ use super::super::Cloud;
 use crate::constants::{
     COLOR_TRANSITION_DURATION_MS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_POOL_SIZE,
     QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R,
-    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_LIFETIME_SECS, QUANTUM_RIPPLE_PARTICLE_COUNT,
-    QUANTUM_RIPPLE_SPEED,
+    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_LIFETIME_SECS,
+    QUANTUM_RIPPLE_PARTICLE_COUNT, QUANTUM_RIPPLE_POOL_SIZE, QUANTUM_RIPPLE_SPEED,
+    QUANTUM_RIPPLE_TAIL_START_FRAC,
 };
 use crate::frame::Frame;
 use crate::palette::decode_color;
@@ -785,7 +786,7 @@ fn flash_wave_pool_size_constant_is_reasonable() {
 
 /// Sanity: the bounce damping constant sits in a perceptible range.
 /// Below 0.5 the second bounce dies too quickly; above 0.95 the cohort
-/// ricochets nearly elastically within the 0.8s lifespan, which feels
+/// ricochets nearly elastically within the 2.5s lifespan, which feels
 /// chaotic. The sweet spot is [0.7, 0.9].
 #[test]
 fn quantum_bounce_damping_constant_in_sweet_spot() {
@@ -805,6 +806,12 @@ fn quantum_bounce_damping_constant_in_sweet_spot() {
 /// position + velocity so the bounce can be verified exactly. Returns
 /// the index of the pinned particle in `quantum_particles`.
 ///
+/// All OTHER particles spawned by the click are DEACTIVATED so they
+/// don't interfere with the pinned particle's render (e.g., overlapping
+/// at the same cell and cascading blend reads). This is essential for
+/// brightness-curve tests where we pre-set the cell's base color and
+/// need the pinned particle to be the ONLY one reading that base.
+///
 /// `col`/`line` are the cell coordinates (u16, matching
 /// `Cloud::set_mouse_click`); internally the particle's float position
 /// is set to `col + 0.5` / `line + 0.5` to mirror `spawn_quantum_ripple`'s
@@ -819,10 +826,9 @@ fn pin_one_particle(
 ) -> usize {
     cloud.set_mouse_click(col, line);
     // The pool is now populated with up to QUANTUM_RIPPLE_PARTICLE_COUNT
-    // active particles. Pin the first one to deterministic values so the
-    // bounce assertion can be exact. Other particles keep their random
-    // velocities — they don't affect this test because we only inspect
-    // the pinned index.
+    // active particles. Pin the first one to deterministic values, then
+    // DEACTIVATE all others so they don't cascade-blend over the pinned
+    // particle's cell.
     let idx = cloud
         .quantum_particles
         .iter()
@@ -837,6 +843,19 @@ fn pin_one_particle(
                           // Anchor the quantum update clock so dt is deterministic.
     cloud.last_quantum_update_time = spawn_time;
     cloud.last_phosphor_time = spawn_time;
+    // Deactivate all other active particles so only the pinned one
+    // renders. Without this, 20 overlapping particles at (col, line)
+    // would cascade-blend: the 2nd particle reads the 1st's output as
+    // cell.fg, the 3rd reads the 2nd's output, etc. — converging to
+    // the particle snapshot color regardless of brightness.
+    let mut deactivated = 0usize;
+    for (i, other) in cloud.quantum_particles.iter_mut().enumerate() {
+        if i != idx && other.active {
+            other.active = false;
+            deactivated += 1;
+        }
+    }
+    cloud.quantum_active_count = cloud.quantum_active_count.saturating_sub(deactivated);
     idx
 }
 
@@ -1123,5 +1142,324 @@ fn quantum_particle_bounces_off_corner_both_axes() {
         "position must be inside bounds after corner bounce, got x={}, y={}",
         p.x,
         p.y
+    );
+}
+
+// ─── v50 masterclass retune: brightness curve + lifespan regression tests ──
+//
+// Owner feedback 8/10 reported two issues:
+//  1. "dies too fast" — particles died too fast (0.8s lifespan).
+//  2. "not smooth when particles move" — motion felt jerky,
+//     partially caused by the `fade*fade` quadratic brightness curve
+//     spending 50% of lifespan below 25% brightness (so the particle
+//     was effectively invisible for the second half).
+//
+// The retune:
+//  - Lifespan 0.8s → 2.5s (the "a few seconds masterclass" request).
+//  - Speed 18 → 9 cells/sec (slower drift, easier to follow by eye).
+//  - Spawn speed variance 0.8..1.2 → 0.9..1.1 (coherent cohort).
+//  - Bounce damping 0.85 → 0.78 (more deceleration over longer life).
+//  - Brightness curve `fade*fade` → HEAD/BODY/TAIL three-segment fade.
+//
+// These tests guard the new behavior.
+
+/// Sanity: lifespan must be in the "masterclass" range. Below 1.5s the
+/// effect reads as a flicker; above 3.5s it lingers as visual noise
+/// after the user has moved on. The sweet spot is [2.0, 3.0].
+#[test]
+fn quantum_lifespan_constant_in_masterclass_range() {
+    assert!(
+        (2.0..=3.0).contains(&QUANTUM_RIPPLE_LIFETIME_SECS),
+        "QUANTUM_RIPPLE_LIFETIME_SECS = {QUANTUM_RIPPLE_LIFETIME_SECS} is outside [2.0, 3.0] \
+         — owner requested 'a few seconds masterclass then fade out gone'"
+    );
+    // Compile-time guards: lifespan must be positive and at most 10s
+    // (beyond 10s the pool exhaustion risk during rapid clicks becomes
+    // unacceptable — 10s / 96 slots / 20-per-click = ~5 overlapping
+    // clicks tolerated, which is the human maximum click rate anyway).
+    const _: () = assert!(QUANTUM_RIPPLE_LIFETIME_SECS > 0.0);
+    const _: () = assert!(QUANTUM_RIPPLE_LIFETIME_SECS <= 10.0);
+}
+
+/// Sanity: speed must be in the "smooth drift" range. Above 15 cells/sec
+/// the motion reads as a blur (the original 18.0 complaint); below 5
+/// the particle appears static. The sweet spot is [6, 12].
+#[test]
+fn quantum_speed_constant_in_smooth_drift_range() {
+    assert!(
+        (6.0..=12.0).contains(&QUANTUM_RIPPLE_SPEED),
+        "QUANTUM_RIPPLE_SPEED = {QUANTUM_RIPPLE_SPEED} is outside [6, 12] \
+         — owner requested smooth motion (was 18.0, too fast)"
+    );
+    const _: () = assert!(QUANTUM_RIPPLE_SPEED > 0.0);
+}
+
+/// Sanity: HEAD_END must precede TAIL_START, both within [0, 1], and
+/// the BODY segment (between them) must be wide enough to read as a
+/// smooth ramp (at least 30% of life).
+#[test]
+fn quantum_brightness_curve_segments_well_ordered() {
+    assert!(
+        QUANTUM_RIPPLE_HEAD_END_FRAC > 0.0 && QUANTUM_RIPPLE_HEAD_END_FRAC < 1.0,
+        "HEAD_END_FRAC must be in (0, 1), got {}",
+        QUANTUM_RIPPLE_HEAD_END_FRAC
+    );
+    assert!(
+        QUANTUM_RIPPLE_TAIL_START_FRAC > 0.0 && QUANTUM_RIPPLE_TAIL_START_FRAC < 1.0,
+        "TAIL_START_FRAC must be in (0, 1), got {}",
+        QUANTUM_RIPPLE_TAIL_START_FRAC
+    );
+    assert!(
+        QUANTUM_RIPPLE_HEAD_END_FRAC < QUANTUM_RIPPLE_TAIL_START_FRAC,
+        "HEAD_END_FRAC ({}) must precede TAIL_START_FRAC ({})",
+        QUANTUM_RIPPLE_HEAD_END_FRAC,
+        QUANTUM_RIPPLE_TAIL_START_FRAC
+    );
+    let body_width = QUANTUM_RIPPLE_TAIL_START_FRAC - QUANTUM_RIPPLE_HEAD_END_FRAC;
+    assert!(
+        body_width >= 0.30,
+        "BODY segment width = {body_width} (must be >= 0.30 for smooth ramp)"
+    );
+}
+
+/// Verify the three-segment brightness curve end-to-end. A pinned
+/// particle is rendered at four life fractions (HEAD peak, BODY mid,
+/// TAIL mid, near-end) and the rendered pixel brightness is asserted
+/// against the expected curve value.
+///
+/// To isolate brightness from the blend-with-cell-fg math, we pre-set
+/// the particle's cell to a known neutral color (mid-gray 100,100,100)
+/// before render. The blend formula is:
+///   rendered = base + (target - base) * brightness
+/// where base = 100,100,100 (our pre-set cell) and target = body *
+/// TONE_DOWN (the dimmed particle snapshot). By varying brightness via
+/// life_frac, we get distinct expected rendered colors per segment.
+#[test]
+fn quantum_brightness_curve_three_segments_render_correctly() {
+    use crate::cell::Cell;
+
+    let cloud = make_truecolor_cloud(ColorScheme::Green);
+    let body = palette_body_rgb(&cloud);
+    let tone_down = QUANTUM_BODY_TONE_DOWN;
+    // Dimmed snapshot (target color used by blend).
+    let target = (
+        (body.0 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+        (body.1 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+        (body.2 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+    );
+    // Pre-set base color: mid-gray, distinct from target so blend is
+    // observable. We pick 100,100,100 — far enough from both body and
+    // target to make brightness differences visible.
+    const BASE_R: u8 = 100;
+    const BASE_G: u8 = 100;
+    const BASE_B: u8 = 100;
+
+    // We test four life fractions:
+    //  - HEAD_END * 0.5 (deep in HEAD → brightness = 1.0)
+    //  - (HEAD_END + TAIL_START) / 2 (BODY midpoint → smoothstep = 0.5
+    //    at t=0.5 → brightness = 1.0 - 0.5*(1-0.35) = 0.675)
+    //  - (TAIL_START + 1.0) / 2 (TAIL midpoint → linear 0.5 → brightness
+    //    = 0.35 * 0.5 = 0.175)
+    //  - 0.99 (near end of TAIL → brightness ≈ 0)
+    let head_frac = QUANTUM_RIPPLE_HEAD_END_FRAC * 0.5;
+    let body_frac = (QUANTUM_RIPPLE_HEAD_END_FRAC + QUANTUM_RIPPLE_TAIL_START_FRAC) * 0.5;
+    let tail_frac = (QUANTUM_RIPPLE_TAIL_START_FRAC + 1.0) * 0.5;
+    let end_frac = 0.99;
+
+    let expected_brightness = |frac: f32| -> f32 {
+        if frac < QUANTUM_RIPPLE_HEAD_END_FRAC {
+            1.0
+        } else if frac < QUANTUM_RIPPLE_TAIL_START_FRAC {
+            let body_t = (frac - QUANTUM_RIPPLE_HEAD_END_FRAC)
+                / (QUANTUM_RIPPLE_TAIL_START_FRAC - QUANTUM_RIPPLE_HEAD_END_FRAC);
+            let s = body_t * body_t * (3.0 - 2.0 * body_t);
+            1.0 - s * (1.0 - 0.35)
+        } else {
+            let tail_t =
+                (frac - QUANTUM_RIPPLE_TAIL_START_FRAC) / (1.0 - QUANTUM_RIPPLE_TAIL_START_FRAC);
+            0.35 * (1.0 - tail_t)
+        }
+    };
+
+    for &frac in &[head_frac, body_frac, tail_frac, end_frac] {
+        let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+        let spawn_time = Instant::now();
+        // Pin a stationary particle (vx=vy=0) so position doesn't drift
+        // — we want to test brightness in isolation.
+        let idx = pin_one_particle(&mut cloud, 10, 5, 0.0, 0.0, spawn_time);
+
+        let frame_time = spawn_time
+            + Duration::from_millis((frac * QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64);
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        // Pre-set the particle's cell to the base color so the blend
+        // produces an observable result (base != target). Without this,
+        // a blank cell with transparent bg causes the blend to collapse
+        // to `nr = pr` regardless of brightness, hiding curve bugs.
+        let base_cell = Cell {
+            ch: ' ',
+            fg: Some(Color::Rgb {
+                r: BASE_R,
+                g: BASE_G,
+                b: BASE_B,
+            }),
+            bg: None,
+            bold: false,
+        };
+        frame.set(10, 5, base_cell);
+
+        // Call apply_quantum_ripple directly instead of rain_at —
+        // rain_at spawns droplets that may overwrite our pre-set cell,
+        // defeating the brightness isolation. apply_quantum_ripple is
+        // pub(super) so accessible from this submodule.
+        cloud.apply_quantum_ripple(&mut frame, frame_time);
+
+        let p = &cloud.quantum_particles[idx];
+        // Particle must still be active for all tested fracs (< 1.0).
+        // At frac=0.99 the particle is in the TAIL but has not yet
+        // crossed LIFETIME_SECS, so it must still be active.
+        assert!(
+            p.active,
+            "particle must be active at life_frac={frac} (less than LIFETIME_SECS)"
+        );
+
+        let col = p.x as u16;
+        let line = p.y as u16;
+        let cell_idx = frame
+            .index(col, line)
+            .unwrap_or_else(|| panic!("frame index for ({col},{line}) must exist"));
+        let cell = frame.cell_at_index(cell_idx);
+        let fg = cell
+            .fg
+            .unwrap_or_else(|| panic!("cell at ({col},{line}) must have a fg color"));
+        let rendered = decode_color(fg).unwrap_or((0, 0, 0));
+
+        let brightness = expected_brightness(frac);
+        // Expected rendered = base + (target - base) * brightness.
+        // blend_toward uses integer math: (c + (target - c) * (b*256) + 128) / 256.
+        // We compute the f32 reference and allow ±2 tolerance per channel.
+        let exp_r = (BASE_R as f32 + (target.0 as f32 - BASE_R as f32) * brightness)
+            .round()
+            .clamp(0.0, 255.0) as u8;
+        let exp_g = (BASE_G as f32 + (target.1 as f32 - BASE_G as f32) * brightness)
+            .round()
+            .clamp(0.0, 255.0) as u8;
+        let exp_b = (BASE_B as f32 + (target.2 as f32 - BASE_B as f32) * brightness)
+            .round()
+            .clamp(0.0, 255.0) as u8;
+
+        // ±2 tolerance per channel for rounding + integer blend math.
+        let dr = (rendered.0 as i16 - exp_r as i16).unsigned_abs() as u8;
+        let dg = (rendered.1 as i16 - exp_g as i16).unsigned_abs() as u8;
+        let db = (rendered.2 as i16 - exp_b as i16).unsigned_abs() as u8;
+        assert!(
+            dr <= 2 && dg <= 2 && db <= 2,
+            "life_frac={frac}: brightness={brightness:.4}, expected rendered ≈ ({exp_r},{exp_g},{exp_b}) \
+             [base=({BASE_R},{BASE_G},{BASE_B}) target={target:?}], got ({rendered:?}) \
+             — body={body:?}, tone_down={tone_down}"
+        );
+    }
+}
+
+/// Verify HEAD brightness is monotonically non-increasing: a particle
+/// rendered at life_frac=0.05 must be at least as bright as the same
+/// particle at life_frac=0.10, which must be at least as bright as at
+/// 0.20, etc. This catches the inverse regression where the curve
+/// accidentally brightens mid-life.
+#[test]
+fn quantum_brightness_curve_is_monotonically_non_increasing() {
+    use crate::cell::Cell;
+
+    let body = palette_body_rgb(&make_truecolor_cloud(ColorScheme::Green));
+    let target_r = (body.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8;
+    // Base color distinct from target so blend produces observable
+    // brightness variation. For Green, target_r ≈ 49 < BASE_R=100,
+    // so as brightness DECREASES, rendered.r moves toward BASE (higher).
+    const BASE_R: u8 = 100;
+
+    // Initialize to BASE_R (the value rendered approaches as brightness → 0).
+    // The first sample (frac=0, brightness=1.0) should produce rendered.r
+    // close to target_r (~49), which is < BASE_R. We track the maximum
+    // rendered.r seen so far and assert each new sample is >= max - tol.
+    let mut max_rendered_r: f32 = 0.0;
+    // Sample at 5% steps across the full lifespan.
+    for step in 0..21u32 {
+        let frac = step as f32 * 0.05;
+        let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+        let spawn_time = Instant::now();
+        let idx = pin_one_particle(&mut cloud, 10, 5, 0.0, 0.0, spawn_time);
+
+        let frame_time = spawn_time
+            + Duration::from_millis((frac * QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64);
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        // Pre-set base color so blend is observable.
+        frame.set(
+            10,
+            5,
+            Cell {
+                ch: ' ',
+                fg: Some(Color::Rgb {
+                    r: BASE_R,
+                    g: BASE_R,
+                    b: BASE_R,
+                }),
+                bg: None,
+                bold: false,
+            },
+        );
+        // Call apply_quantum_ripple directly to bypass rain spawn
+        // (which would overwrite our pre-set base cell).
+        cloud.apply_quantum_ripple(&mut frame, frame_time);
+
+        let p = &cloud.quantum_particles[idx];
+        if !p.active {
+            // Particle has expired (only happens at frac=1.0 or beyond).
+            assert!(frac >= 0.999, "particle must be active at life_frac={frac}");
+            continue;
+        }
+
+        let col = p.x as u16;
+        let line = p.y as u16;
+        let cell_idx = frame.index(col, line).expect("frame index must exist");
+        let cell = frame.cell_at_index(cell_idx);
+        let fg = cell.fg.expect("cell must have fg");
+        let rendered = decode_color(fg).unwrap_or((0, 0, 0));
+
+        // brightness direction: when brightness decreases, rendered
+        // moves toward BASE (100). When brightness increases, rendered
+        // moves toward target (body*tone_down). Since target < BASE
+        // (Green body*tone_down ≈ 49 < 100), lower brightness → higher
+        // rendered.r. So across life_frac, rendered.r should be
+        // non-decreasing (brightness non-increasing). We track the
+        // maximum and assert monotonic non-decrease with tolerance.
+        assert!(
+            rendered.0 as f32 >= max_rendered_r - 3.0,
+            "brightness must be non-increasing: at frac={frac}, rendered.r={} \
+             < previous max {max_rendered_r:.1} - tolerance (lower rendered.r means HIGHER brightness, \
+             which is the inverse regression)",
+            rendered.0
+        );
+        if rendered.0 as f32 > max_rendered_r {
+            max_rendered_r = rendered.0 as f32;
+        }
+        // Suppress unused: target_r documented for clarity.
+        let _ = target_r;
+    }
+}
+
+/// Verify the pool size accommodates the longer lifespan: at 2.5s
+/// lifespan with up to 20 particles per click, three rapid overlapping
+/// clicks must all coexist without silent drops. Pool size 96 / 20-per-
+/// click = 4.8 → 4 simultaneous clicks tolerated.
+#[test]
+fn quantum_pool_size_accommodates_masterclass_lifespan() {
+    // Sanity: pool must hold at least 3 simultaneous clicks (60 active)
+    // to support the v50 masterclass retune. At 0.8s lifespan the old
+    // pool of 64 was fine; at 2.5s three overlapping clicks are now
+    // realistic for rapid-click scenarios.
+    let pool_capacity_clicks = QUANTUM_RIPPLE_POOL_SIZE / QUANTUM_RIPPLE_PARTICLE_COUNT;
+    assert!(
+        pool_capacity_clicks >= 3,
+        "pool size {QUANTUM_RIPPLE_POOL_SIZE} / {QUANTUM_RIPPLE_PARTICLE_COUNT}-per-click = \
+         {pool_capacity_clicks} — must support at least 3 simultaneous clicks (v50 masterclass)"
     );
 }

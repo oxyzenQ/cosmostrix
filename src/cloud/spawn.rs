@@ -814,7 +814,14 @@ impl Cloud {
                 continue;
             }
             let angle: f32 = self.rand_chance.sample(&mut self.mt) * std::f32::consts::TAU;
-            let speed = QUANTUM_RIPPLE_SPEED * (0.8 + self.rand_chance.sample(&mut self.mt) * 0.4);
+            // v50 masterclass retune: narrower speed variance (0.9..1.1
+            // instead of 0.8..1.2). At the old 0.8s lifespan the variance
+            // didn't matter — particles died before speed differences
+            // became visible. At the new 2.5s lifespan, particles with
+            // 1.2x speed would visibly outpace 0.8x peers, breaking the
+            // "coherent cohort" aesthetic. 0.9..1.1 keeps ±10% variance
+            // (enough for organic feel) without visible stratification.
+            let speed = QUANTUM_RIPPLE_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
 
             let char_idx = (self.rand_chance.sample(&mut self.mt) * chars.len() as f32) as usize;
             p.active = true;

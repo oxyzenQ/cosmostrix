@@ -13,7 +13,8 @@ use crossterm::style::Color;
 
 use crate::constants::{
     CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
-    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_LIFETIME_SECS,
+    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_LIFETIME_SECS,
+    QUANTUM_RIPPLE_TAIL_START_FRAC,
 };
 use crate::frame::Frame;
 
@@ -148,20 +149,19 @@ impl Cloud {
         }
     }
 
-    /// Update + render Quantum Ripple particles (v25 masterclass).
+    /// Update + render Quantum Ripple particles (v25 masterclass, v50 retune).
     ///
-    /// Active particles move outward radially, fade based on age
-    /// (bright at birth → dim at lifespan end), and are rendered as
-    /// glyphs (*, +, ·) tinted by each particle's snapshot of the
-    /// palette body color captured at spawn time. The body stop is the
-    /// middle index of `palette.colors` — the saturated hue the eye
-    /// reads as "the rain color" (the head/last stop is intentionally
-    /// near-white to give droplets their bright leading edge, which is
-    /// why we don't snapshot it). When the user switches color theme
-    /// mid-flight, the existing cohort keeps fading in its original
-    /// body color while only newly-spawned particles pick up the new
-    /// body color — a natural crossfade. Expired particles are
-    /// deactivated (returned to the free-list).
+    /// Active particles move outward radially, fade based on age, and are
+    /// rendered as glyphs (*, +, ·) tinted by each particle's snapshot of
+    /// the palette body color captured at spawn time. The body stop is the
+    /// middle index of `palette.colors` — the saturated hue the eye reads
+    /// as "the rain color" (the head/last stop is intentionally near-white
+    /// to give droplets their bright leading edge, which is why we don't
+    /// snapshot it). When the user switches color theme mid-flight, the
+    /// existing cohort keeps fading in its original body color while only
+    /// newly-spawned particles pick up the new body color — a natural
+    /// crossfade. Expired particles are deactivated (returned to the
+    /// free-list).
     ///
     /// v50 stabilization (owner-requested): particles now **bounce**
     /// off the four screen edges instead of dying on border crossing.
@@ -171,13 +171,20 @@ impl Cloud {
     /// is unchanged: bouncing keeps a particle alive within its
     /// `QUANTUM_RIPPLE_LIFETIME_SECS` window, but does not extend it.
     ///
+    /// v50 masterclass retune (owner feedback 8/10): the brightness
+    /// curve is now a three-segment HEAD/BODY/TAIL fade (see
+    /// `QUANTUM_RIPPLE_HEAD_END_FRAC` / `QUANTUM_RIPPLE_TAIL_START_FRAC`)
+    /// replacing the old `fade*fade` quadratic. Combined with the
+    /// longer 2.5s lifespan and slower 9 cells/sec speed, this produces
+    /// the smooth drift + graceful fade-out the owner requested.
+    ///
     /// Runs O(active_particles) per frame. Cost is negligible —
-    /// typically 0-20 active particles, peaking at ~40 during rapid
-    /// multi-click bursts.
+    /// typically 0-20 active particles, peaking at ~60-80 during rapid
+    /// multi-click bursts (96-slot pool absorbs this).
     pub(super) fn apply_quantum_ripple(&mut self, frame: &mut Frame, now: Instant) {
         // PERF: O(1) early-out when no particles are active. This is the
         // common case in interactive rendering (no recent clicks) and in
-        // benchmark mode (no clicks at all). Avoids the 64-element pool
+        // benchmark mode (no clicks at all). Avoids the 96-element pool
         // scan + palette color decode + per-particle Instant math.
         if self.quantum_active_count == 0 {
             // Keep the timestamp fresh so the first frame after a click
@@ -191,7 +198,7 @@ impl Cloud {
         // update (not hardcoded 1/60), clamped to 1/30 to prevent teleport
         // after pause/resume or window focus loss. At 60 FPS this matches
         // the old behavior; at 30 FPS particles now travel 2x per frame,
-        // preserving intended speed across the 0.8s lifespan.
+        // preserving intended speed across the 2.5s lifespan.
         //
         // scale by resume_blend so ripple motion eases in lockstep
         // with spawn/droplet/phosphor during pause-deceleration and
@@ -223,7 +230,7 @@ impl Cloud {
             // consistent regardless of frame rate. At 60 FPS this matches
             // the old `1/60` behavior exactly; at 30 FPS particles now
             // travel twice as far per frame, preserving the intended
-            // visual speed across the full 0.8s lifespan.
+            // visual speed across the full 2.5s lifespan.
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
@@ -277,8 +284,45 @@ impl Cloud {
             p.y = p.y.clamp(0.0, max_y);
 
             let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
-            let fade = 1.0 - life_frac;
-            let brightness = fade * fade;
+
+            // v50 masterclass brightness curve (owner feedback 8/10):
+            // three-segment fade replacing the old `fade*fade` quadratic.
+            // The quadratic spent 50% of lifespan below 25% brightness —
+            // at the new 2.5s lifespan that meant 1.25s of nearly invisible
+            // drift, the "not smooth" complaint.
+            //
+            // Segment layout (life_frac ∈ [0, 1]):
+            //  - HEAD  [0, HEAD_END_FRAC):           brightness = 1.0
+            //  - BODY  [HEAD_END_FRAC, TAIL_START):  smoothstep 1.0 → TAIL_FLOOR
+            //  - TAIL  [TAIL_START, 1]:              linear TAIL_FLOOR → 0.0
+            //
+            // TAIL_FLOOR is the brightness at the BODY→TAIL handoff.
+            // Empirically 0.35 keeps the particle clearly visible through
+            // the BODY segment while leaving enough headroom for the TAIL
+            // to fade perceptibly. Higher (0.5) makes the TAIL segment
+            // too short to read as a "fade out"; lower (0.2) makes the
+            // BODY segment too dim.
+            const TAIL_FLOOR: f32 = 0.35;
+            let brightness = if life_frac < QUANTUM_RIPPLE_HEAD_END_FRAC {
+                // HEAD: full brightness. The particle is at peak visibility
+                // during the initial burst outward.
+                1.0
+            } else if life_frac < QUANTUM_RIPPLE_TAIL_START_FRAC {
+                // BODY: smoothstep from 1.0 down to TAIL_FLOOR.
+                // Normalize life_frac into [0, 1] within the BODY segment.
+                let body_t = (life_frac - QUANTUM_RIPPLE_HEAD_END_FRAC)
+                    / (QUANTUM_RIPPLE_TAIL_START_FRAC - QUANTUM_RIPPLE_HEAD_END_FRAC);
+                // smoothstep: t*t*(3 - 2t), C1 continuous at both ends.
+                // At body_t=0 → 0 (brightness = 1.0); at body_t=1 → 1
+                // (brightness = TAIL_FLOOR).
+                let s = body_t * body_t * (3.0 - 2.0 * body_t);
+                1.0 - s * (1.0 - TAIL_FLOOR)
+            } else {
+                // TAIL: linear fade from TAIL_FLOOR down to 0.
+                let tail_t = (life_frac - QUANTUM_RIPPLE_TAIL_START_FRAC)
+                    / (1.0 - QUANTUM_RIPPLE_TAIL_START_FRAC);
+                TAIL_FLOOR * (1.0 - tail_t)
+            };
 
             let col = p.x as u16;
             let line = p.y as u16;
