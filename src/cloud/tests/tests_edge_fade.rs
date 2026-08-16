@@ -358,11 +358,11 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     use crate::droplet::rain_shadow_factor;
 
     let lines: u16 = 40;
-    // The shadow zone is the bottom RAIN_SHADOW_PCT (15%) of the screen.
-    // For lines=40, threshold = (1.0 - 0.15) * 40 = 34. Rows 34..=39 are
+    // The shadow zone is the bottom RAIN_SHADOW_PCT (10%) of the screen.
+    // For lines=40, threshold = (1.0 - 0.10) * 40 = 36. Rows 36..=39 are
     // in the shadow zone.
     let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
-    assert_eq!(threshold, 34, "shadow threshold for 40-line terminal");
+    assert_eq!(threshold, 36, "shadow threshold for 40-line terminal");
 
     // Every row in the shadow zone must stay >= RAIN_SHADOW_FLOOR.
     for line in threshold..lines {
@@ -378,10 +378,10 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
 
     // The bottom row (line = lines-1) is the closest to the floor for
     // this terminal size. Compute the expected value:
-    //   span = 40 - 34 = 6
-    //   t = (39 - 34) / 6 = 5/6
-    //   1 - t^2 = 1 - 25/36 = 11/36
-    //   factor = 0.5 + 0.5 * 11/36 = 0.5 + 0.1528 = 0.6528
+    //   span = 40 - 36 = 4
+    //   t = (39 - 36) / 4 = 3/4
+    //   1 - t^2 = 1 - 9/16 = 7/16
+    //   factor = 0.5 + 0.5 * 7/16 = 0.5 + 0.2188 = 0.7188
     let span = (lines - threshold) as f32;
     let bottom_t = (lines - 1 - threshold) as f32 / span;
     let expected_bottom =
@@ -428,14 +428,17 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     }
 
     // Asymptotic floor check: a tall terminal (lines=400) should get its
-    // bottom row very close to RAIN_SHADOW_FLOOR (within 0.02). This
-    // verifies the floor actually binds as the screen grows.
+    // bottom row close to RAIN_SHADOW_FLOOR (within 0.04). With
+    // RAIN_SHADOW_PCT=0.10 the shadow zone is 40 rows, so the bottom
+    // row reaches t=39/40=0.975, factor ~ 0.525 -- the tolerance is
+    // wider than the pre-v50 value (0.02) because fewer rows means
+    // the asymptote is approached more slowly.
     let tall_lines: u16 = 400;
     let tall_threshold = ((1.0 - RAIN_SHADOW_PCT) * tall_lines as f32) as u16;
     let tall_bottom = rain_shadow_factor(tall_lines - 1, tall_lines);
     assert!(
-        tall_bottom <= RAIN_SHADOW_FLOOR + 0.02,
-        "tall terminal (lines={}) bottom row factor {} should be within 0.02 of RAIN_SHADOW_FLOOR ({})",
+        tall_bottom <= RAIN_SHADOW_FLOOR + 0.04,
+        "tall terminal (lines={}) bottom row factor {} should be within 0.04 of RAIN_SHADOW_FLOOR ({})",
         tall_lines,
         tall_bottom,
         RAIN_SHADOW_FLOOR
@@ -607,25 +610,26 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
     // Bottom-center (col=cols/2): vignette_factor is 1.0 (inside inner
     // radius), so compounded = shadow * edge * 1.0 * crt.
-    //   shadow = 0.653 (lines=40, t=5/6, remapped)
-    //   edge   = 0.45  (EDGE_FADE_BOTTOM_MIN)
-    //   crt    = 0.82  (CRT_VIGNETTE_EDGE_FACTOR)
-    //   product = 0.653 * 0.45 * 0.82 = 0.241
+    //   shadow = 0.719 (lines=40, t=3/4, remapped)
+    //   edge   = 0.55  (EDGE_FADE_BOTTOM_MIN)
+    //   crt    = 0.90  (CRT_VIGNETTE_EDGE_FACTOR)
+    //   product = 0.719 * 0.55 * 0.90 = 0.356
     let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
     assert!(
-        (bottom_center - 0.241).abs() < 0.005,
-        "bottom-center compounded brightness {} should be ~0.241 (documented  target)",
+        (bottom_center - 0.356).abs() < 0.005,
+        "bottom-center compounded brightness {} should be ~0.356 (documented  target)",
         bottom_center
     );
 
-    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.713
-    // (corner radial dimming), so compounded = shadow * edge * 0.713 * crt.
-    //   product = 0.653 * 0.45 * 0.713 * 0.82 = 0.172
+    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.80
+    // (corner radial dimming, VIGNETTE_INTENSITY=0.20), so compounded =
+    // shadow * edge * 0.80 * crt.
+    //   product = 0.719 * 0.55 * 0.80 * 0.90 = 0.285
     for col in [0u16, cols - 1] {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
         assert!(
-            (brightness - 0.172).abs() < 0.005,
-            "bottom-corner col {} compounded brightness {} should be ~0.172 (documented  target)",
+            (brightness - 0.285).abs() < 0.005,
+            "bottom-corner col {} compounded brightness {} should be ~0.285 (documented  target)",
             col,
             brightness
         );

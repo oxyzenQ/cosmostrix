@@ -184,11 +184,11 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 /// gate from `< 1.0` to `!= 1.0` so the front boost 1.05 now actually
 /// applies (was a silent no-op before).
 ///
-/// Back effective visibility = 0.48 × 0.50 × (1−0.45) ≈ 0.132.
-///   - Back  (0): 0.48 (dimmed — sits in soft fog)
+/// Back effective visibility = 0.52 × 0.50 × (1−0.50) ≈ 0.130.
+///   - Back  (0): 0.52 (dimmed — sits in soft fog)
 ///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
 ///   - Front (2): 1.10 (boosted — front reads as the hero layer, Option F)
-pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.10];
+pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.80, 1.10];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
@@ -325,10 +325,10 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 /// 0.12→0.18 (slight haze bump to complement lower density — mid
 /// reads as sitting behind a thin veil); front kept at 0.0 (sharp,
 /// hero layer has no haze).
-///   - Back  (0): 0.55 (visible rain through soft fog, Option F)
+///   - Back  (0): 0.50 (visible rain through soft fog, Option F)
 ///   - Mid   (1): 0.18 (slight veil — depth cue without milking out)
 ///   - Front (2): 0.0 (sharp foreground — hero pops clean)
-pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.18, 0.0];
+pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.50, 0.18, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 
@@ -394,7 +394,7 @@ pub(crate) const TRANSITION_VELOCITY_BOOST: f32 = 0.05;
 pub(crate) const TRANSITION_ENERGY_DURATION_SECS: f32 = 1.5;
 
 /// Saturation boost during the energy surge.
-pub(crate) const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.15;
+pub(crate) const TRANSITION_ENERGY_SATURATION_BOOST: f32 = 0.25;
 
 /// Head glow boost during the energy surge.
 pub(crate) const TRANSITION_HEAD_GLOW_BOOST: f32 = 0.2;
@@ -480,7 +480,7 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
 /// (compounding math, brightness curves, professional references).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.82;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.90;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -499,7 +499,7 @@ pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 // ─── Cinematic radial vignette (edge darkening) ────────────────────────────
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
-pub(crate) const VIGNETTE_INTENSITY: f32 = 0.30;
+pub(crate) const VIGNETTE_INTENSITY: f32 = 0.20;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
 pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.7;
@@ -513,7 +513,7 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 // ─── Rain shadow (bottom quadratic fade-out) ───────────────────────────────
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
-pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.10;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
@@ -585,7 +585,7 @@ pub(crate) const MOUSE_GLOW_RADIUS_COLS: f32 = 7.0;
 pub(crate) const MOUSE_GLOW_RADIUS_LINES: f32 = 5.0;
 
 /// Intensity of the mouse hover glow (0.0 = disabled in default mode).
-pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.0;
+pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.25;
 
 /// Speed of the mouse-click flash ring expansion (cells/sec).
 pub(crate) const MOUSE_FLASH_SPEED: f32 = 32.0;
@@ -924,7 +924,7 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.65;
 /// - 0.20 (v30): 80% dim — destructive when compounded with vignette
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.45;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.55;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
