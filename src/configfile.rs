@@ -579,10 +579,13 @@ fn config_file_path_from_env(
 #[must_use]
 pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
-
+#
 # Override priority: CLI flags > config.toml > scene defaults.
 # Validate after editing: cosmostrix --testconf
 # File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
+#
+# Catalog: 17 scenes, 44 color themes, 22 charset presets
+#          (see --list-scenes, --list-colors, --list-charsets)
 
 # ── Standard Settings ──
 # All values shown are defaults. Uncomment to override.
@@ -648,11 +651,28 @@ pub(crate) fn dump_config_text() -> &'static str {
 # bg = "#0a0a0a"
 # rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
+# [colors-custom.cyberpunk_2077]
+# bg = "#0a0a0a"
+# rain = []
+
+# [colors-custom.tron_legacy]
+# bg = "#050510"
+# rain = ["#0033ff", "#0066ff", "#0099ff", "#00ccff", "#33ffff", "#66ffff", "#ffffff"]
+
 # ── Custom Character Sets ──
 # Define named charsets, reference via: charset-custom = <name>
+# Rules: single-width printable chars only (no emoji, no CJK, no controls).
+#        max 256 characters per set. TOML is UTF-8 — type the actual glyphs.
+# Activate: cosmostrix --charset <name>  or  charset = "<name>"
 
 # [charset-custom.zen]
 # set = "|"
+
+# [charset-custom.cyberpunk_2077]
+# set = "⌘⌥⌃⏎⎋⌫⌦⏏⏺⏻⏼⏽⏾␛␤␡␢␣␦␧␨␩␪"
+
+# [charset-custom.tron_legacy]
+# set = "─│╱╲▐▌┌┐└┘├┤┬┴┼═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧╨╩╪╫╬"
 
 # ── Ambient Phase Scheduler ──
 # Time-of-day scene switches. Config-only (no CLI flag).
