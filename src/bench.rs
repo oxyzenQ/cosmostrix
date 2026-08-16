@@ -1000,7 +1000,7 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     // On fast systems, some frames complete within a single clock tick
     // (elapsed = 0.0). The silent capture path does not collect frame_times,
     // so peak_fps is always 0.0 here.
-    let peak_fps = 0.0; // silent capture: frame_times not available
+    let peak_fps = 0.0; // not measured: silent capture has no frame_times array
     let avg_frame_time = if total_frames > 0 {
         perf_work_sum_s * 1000.0 / total_frames as f64
     } else {
@@ -1075,10 +1075,10 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         max_frame_time: 0.0,
         p99_9_frame_time: 0.0,
         jitter_classification: "not measured (silent capture)",
-        median_fps: 0.0,
+        median_fps: 0.0, // not measured: requires sorted frame_times
         frame_time_stability: "not measured (silent capture)",
         jitter_std: 0.0,
-        active_frame_ratio: 100.0,
+        active_frame_ratio: if total_frames > 0 { (dirty_all_frames as f64 / total_frames as f64) * 100.0 } else { 100.0 },
         avg_dirty_cells_per_frame,
         max_dirty_cells,
         avg_dirty_cell_ratio_percent: if total_cells > 0 {

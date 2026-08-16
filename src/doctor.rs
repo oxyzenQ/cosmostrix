@@ -498,7 +498,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
             }
         }
         s.advice(
-            "lifecycle contract: see docs/TERMINAL_LIFECYCLE_MATRIX.md for all 14 terminal paths",
+            "lifecycle contract: see docs/TERMINAL_LIFECYCLE_MATRIX.md for all terminal paths",
         );
 
         // If no advice was added, add the all-clear

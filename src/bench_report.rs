@@ -399,7 +399,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         let s = r.section("COSMIC DRAGON ENGINE METRICS");
         s.field(
             "engine",
-            "The Cosmic Dragon Diff-Based Rendering Engine (diff-based + RLE + phosphor)",
+            "The Cosmic Dragon Diff-Based Rendering Engine (diff-based + phosphor)",
         );
         s.field("version", env!("CARGO_PKG_VERSION"));
         // disclose the active scene so users can interpret FPS
@@ -625,7 +625,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     // ── Sub-component timing breakdown ─────────────────────────────────
-    // Distinguishes "benchmark mainan" from "profiling tool": shows where
+    // Distinguishes "benchmark tool" from "profiling tool": shows where
     // frame time is actually spent. sim = raindrop physics, render = frame
     // mutations, io = dirty-tracking + bookkeeping (NO real terminal IO in
     // benchmark mode — labeled honestly).
@@ -759,14 +759,12 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "plan_reason",
             "single-thread renderer — cosmostrix optimized for single-core execution",
         );
-        s.field("actual_execution", "single-threaded-renderer");
+        s.field(
+            "actual_execution",
+            "single-threaded-renderer",
+        );
         s.field("terminal_writer", "single-owner");
     }
-
-    // Atmosphere Engine subsystem eliminated (Dragon Hunt v2 Phase 6 Tier E
-    // item 31 — full elimination). The entire ATMOSPHERE diagnostic section
-    // has been removed. Design knowledge preserved in
-    // docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
 
     if data.color_mode == ColorMode::Color16
         && data.avg_dirty_cell_ratio_percent >= (100.0 / DIRTY_THRESHOLD_RATIO as f64)

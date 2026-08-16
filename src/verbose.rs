@@ -391,7 +391,7 @@ pub(crate) fn print_verbose(
         if caps.vscode_integrated {
             output::eprintln_verbose(
                 "vscode_integrated:",
-                " true (back-compat alias; new code should key off xtermjs_host)",
+                " true (detected)",
             );
         }
     }
