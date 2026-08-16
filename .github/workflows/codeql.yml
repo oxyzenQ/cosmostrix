@@ -75,7 +75,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       has_rust: ${{ steps.detect.outputs.has_rust }}
-      matrix: ${{ steps.detect.outputs.matrix }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -85,7 +85,6 @@ jobs:
         run: |
           # Detect which compiled languages need toolchain installation.
           HAS_RUST="false"
-          LANGUAGES=""
 
           # Rust detection
           if [ -f "Cargo.toml" ] || [ -f "rust-toolchain.toml" ]; then
