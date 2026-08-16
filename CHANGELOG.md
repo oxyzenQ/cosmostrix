@@ -1825,7 +1825,7 @@ Full Atmosphere Engine groundwork and signature Monolith Rain maturation release
 
 Highlights:
 - Signature Monolith Rain as the production default, with refined sparse data pillars, subtle phase variation, clean afterglow, and bounded residue behavior.
-- Zactrix Core / Zactrix Engine / Zactrix Cache groundwork for adaptive rendering architecture, while terminal writes remain single-owner.
+- Cosmic Dragon Core / Cosmic Dragon Engine / Cosmic Dragon Cache groundwork for adaptive rendering architecture, while terminal writes remain single-owner.
 - Atmosphere engine internal model, verifier, controlled-live config gate, visual whisper, shadow metrics, and A/B safety smoke tests.
 - Terminal compatibility lab, doctor guidance, reset safety, color capability diagnostics, and clean terminal recovery.
 - User scene/profile config with controlled atmosphere profile keys.
@@ -1847,7 +1847,7 @@ Internal v4.0.0 ground-work phase. No public API or visual behavior changes.
 
 - Atmosphere visual whisper engine with bounded A/B smoke testing
 - Whisper wiring guard and runtime shadow metrics
-- Zactrix Core eBPF-inspired architecture discipline
+- Cosmic Dragon Core eBPF-inspired architecture discipline
 - Self-referential guard string avoidance pattern
 - Phase 10.5: atmosphere config honesty + profile smoke hardening (27 new tests)
 - Added v4 demo poster and MP4 assets for README preview

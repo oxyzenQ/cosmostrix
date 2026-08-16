@@ -57,7 +57,7 @@ mod tests {
             "elapsed",
             "total_frames",
             "drawn_frames",
-            // ZACTRIX ENGINE
+            // COSMIC DRAGON ENGINE
             "planned_mode",
             "planned_worker_budget",
             "plan_reason",

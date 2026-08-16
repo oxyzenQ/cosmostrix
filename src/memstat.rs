@@ -97,7 +97,7 @@ fn macos_rss_kb() -> Option<u64> {
         // `resident_size` is in bytes. Convert to KiB.
         // Round to nearest to match Linux's kB reporting convention.
         let bytes = info.resident_size as u64;
-        Some((bytes + 512) / 1024)
+        Some((bytes + 1024 / 2) / 1024)
     }
 }
 

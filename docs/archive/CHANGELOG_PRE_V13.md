@@ -324,7 +324,7 @@ as GPL-3.0-only across all 171 source/doc/config files.
 - `monolith_breathing_factor` computed once per stream, passed to both
   `draw_spine` and `draw_segments` — eliminated redundant cross-module
   call
-- `zactrix monolith_*` functions marked `#[inline]` for cross-module
+- `cosmic-dragon monolith_*` functions marked `#[inline]` for cross-module
   inlining
 
 ### Performance — Phase 2: Structural (+1.6% FPS)
@@ -500,12 +500,12 @@ hot-path behavior changes and no benchmark output field changes.
 
 ## v4.8.0
 
-Zactrix Integration + Terminal Cleanup Hardening. Color pipeline optimization
-from the zactrix lab with signal-exit terminal cleanup fixes. No default
+Cosmic Dragon Integration + Terminal Cleanup Hardening. Color pipeline optimization
+from the cosmic-dragon lab with signal-exit terminal cleanup fixes. No default
 visual behavior change and no active parallel compute.
 
-- Integrated accepted zactrix color pipeline optimization from lab source
-  `e7253e7` (`zactrix-20k-lab`) via manual adaptation. No direct lab merge.
+- Integrated accepted cosmic-dragon color pipeline optimization from lab source
+  `e7253e7` (`cosmic-dragon-20k-lab`) via manual adaptation. No direct lab merge.
   Commit `ce8dc81`.
 - Single RGB decode path and integer brightness blend path replace
   redundant per-cell color computation, reducing pipeline overhead while
@@ -514,7 +514,7 @@ visual behavior change and no active parallel compute.
   during stream spawning.
 - `set_force` cleanup optimization removes unnecessary work on cells
   that are already marked dirty.
-- 50k FPS lab (`zactrix-50k-lab`) documented as not reached and not a
+- 50k FPS lab (`cosmic-dragon-50k-lab`) documented as not reached and not a
   release promise. Rejected optimization attempts stay rejected.
 - Signal-exit cleanup hardening (Phase 4): signal handler threads no
   longer race on stdout with the main loop's buffered writer.
@@ -556,7 +556,7 @@ active parallel compute.
 - Default remains disabled/protected/identity. No live atmosphere enabled by
   default.
 - Terminal writer remains single-owner. Compute parallelism remains disabled.
-- No zactrix-20k-lab merge.
+- No cosmic-dragon-20k-lab merge.
 - 858 deterministic tests, all passing.
 
 ## v4.6.0
@@ -583,14 +583,14 @@ parallel compute.
 - Default remains disabled/protected/identity. No live atmosphere enabled by
   default.
 - Storm unavailable. Terminal writer remains single-owner.
-- No zactrix-20k-lab merge.
+- No cosmic-dragon-20k-lab merge.
 
 ## v4.5.0
 
-Zactrix Foundation + Depth Regression. Architecture and test infrastructure release with no default visual behavior change and no active parallel compute.
+Cosmic Dragon Foundation + Depth Regression. Architecture and test infrastructure release with no default visual behavior change and no active parallel compute.
 
-- Split Zactrix Engine architecture into core/cache/render/system/scheduler/metrics modules.
-- Added honest ZACTRIX SYSTEM diagnostics (runtime_mode, cpu_budget, render_plan, compute_parallelism, idle_policy).
+- Split Cosmic Dragon Engine architecture into core/cache/render/system/scheduler/metrics modules.
+- Added honest COSMIC DRAGON SYSTEM diagnostics (runtime_mode, cpu_budget, render_plan, compute_parallelism, idle_policy).
 - Added depth regression lab for Monolith Rain visual stability (15 categories, deterministic guards).
 - Split docs, monolith, and scene regression tests into focused module directories to keep all files under 1000 LOC.
 - Added roadmap closure docs covering v4.6/v4.7/v4.8/v5 release trajectory.
@@ -612,7 +612,7 @@ Full Atmosphere Engine groundwork and signature Monolith Rain maturation release
 
 Highlights:
 - Signature Monolith Rain as the production default, with refined sparse data pillars, subtle phase variation, clean afterglow, and bounded residue behavior.
-- Zactrix Core / Zactrix Engine / Zactrix Cache groundwork for adaptive rendering architecture, while terminal writes remain single-owner.
+- Cosmic Dragon Core / Cosmic Dragon Engine / Cosmic Dragon Cache groundwork for adaptive rendering architecture, while terminal writes remain single-owner.
 - Atmosphere engine internal model, verifier, controlled-live config gate, visual whisper, shadow metrics, and A/B safety smoke tests.
 - Terminal compatibility lab, doctor guidance, reset safety, color capability diagnostics, and clean terminal recovery.
 - User scene/profile config with controlled atmosphere profile keys.
@@ -633,7 +633,7 @@ Internal v4.0.0 ground-work phase. No public API or visual behavior changes.
 
 - Atmosphere visual whisper engine with bounded A/B smoke testing
 - Whisper wiring guard and runtime shadow metrics
-- Zactrix Core eBPF-inspired architecture discipline
+- Cosmic Dragon Core eBPF-inspired architecture discipline
 - Self-referential guard string avoidance pattern
 - Phase 10.5: atmosphere config honesty + profile smoke hardening (27 new tests)
 - Added v4 demo poster and MP4 assets for README preview

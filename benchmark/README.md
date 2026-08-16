@@ -76,7 +76,7 @@ Both examples are comfortably above the 60 FPS simulation target. The
 dirty-cell coverage is not a quality score by itself; it reflects how much of
 the frame changes under the current cinematic renderer and terminal redraw
 threshold. All measurements use the `actual_execution: single-threaded-renderer`
-path (Zactrix engine runs single-threaded in headless benchmark mode).
+path (Cosmic Dragon engine runs single-threaded in headless benchmark mode).
 
 ## Competitor Comparison
 
@@ -526,7 +526,7 @@ All benchmarks: 120×40, `--bench-duration 10`, headless mode.
 
 Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 2026-07-02). Default 120×40 terminal size. Cinematic visual quality push
-+ zactrix engine dead code removal (1562 lines deleted).
++ cosmic-dragon engine dead code removal (1562 lines deleted).
 
 - Binary version: `v11.0.0`
 - Commit: `06799dd`
@@ -548,7 +548,7 @@ Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 
 ### Changes
 
-- Zactrix engine dead code removed (1562 lines, 5 modules deleted)
+- Cosmic Dragon engine dead code removed (1562 lines, 5 modules deleted)
 - Cosmos palette brightened (30% → 45% avg luminance)
 - Head white blend 12% → 45% (cinematic head pop)
 - Phosphor decay 3.0→5.0 (crisp 400ms trail, was 1094ms)
@@ -557,7 +557,7 @@ Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 - Default density 0.75→0.85 (denser rain)
 - Head shimmer 0.12s→0.10s (more chaotic)
 - `[charset-custom.<name>]` blocks in config (replaces `--charset-file`)
-- 10 stale/zactrix docs deleted
+- 10 stale/cosmic-dragon docs deleted
 
 ---
 
@@ -794,9 +794,9 @@ many frames the renderer can compute per second in a tight loop, not the FPS
 the user will see at runtime.  Treat stability, p95, and p99 as far more
 important than raw FPS.
 
-## Zactrix Integration + Terminal Cleanup Hardening
+## Cosmic Dragon Integration + Terminal Cleanup Hardening
 
-integrates the Zactrix color pipeline optimization and hardens terminal
+integrates the Cosmic Dragon color pipeline optimization and hardens terminal
 cleanup on signal exit (fork-guard stdout race fix, viewport clear before
 alternate screen switch). 5-run release benchmark from `pro-linux-v3` binary
 (commit `ec1214b`), default 120x40 terminal size.

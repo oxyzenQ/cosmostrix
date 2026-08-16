@@ -5,7 +5,7 @@
 //!
 //! Extracted from `bench.rs` to reduce file pressure before Phase 6
 //! visual work. Contains all benchmark output formatting helpers,
-//! metric meaning constants, ZACTRIX ENGINE diagnostics formatting,
+//! metric meaning constants, COSMIC DRAGON ENGINE diagnostics formatting,
 //! and the premium benchmark report builder.
 //!
 //! Behavior is unchanged — all fields, labels, and values remain identical
@@ -21,6 +21,13 @@ use crate::report::Report;
 use crate::runtime::ColorMode;
 
 use super::{color_mode_label, detect_color_mode_auto};
+
+/// Drift percentage above which a benchmark run is classified as "significant drift".
+const DRIFT_SIGNIFICANT_PERCENT: f64 = 10.0;
+/// Maximum dirty-cell ratio (%) for "stable" classification.
+const STABILITY_DIRTY_RATIO_MAX: f64 = 5.0;
+/// Maximum jitter std for "stable" classification.
+const STABILITY_JITTER_STD_MAX: f64 = 0.5;
 
 // Re-export the meaning constants so external modules (e.g.,
 // cloud/tests/tests_visual_depth.rs, bench.rs tests) can keep using
@@ -272,7 +279,7 @@ pub(crate) struct BenchReportData {
 ///
 /// This is the cold-path formatting function. It constructs a `Report`
 /// with all required sections (SYSTEM, RENDERER, CONFIG, PERFORMANCE,
-/// THROUGHPUT, TIMING, ZACTRIX ENGINE) and prints it to
+/// THROUGHPUT, TIMING, COSMIC DRAGON ENGINE) and prints it to
 /// stdout. The caller is responsible for cleaning up the live progress
 /// UI before calling this function.
 pub(crate) fn build_premium_report(data: &BenchReportData) {
@@ -714,9 +721,9 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 s.field("second_half_fps", &format!("{:.2}", s2));
                 s.field("fps_drift_percent", &format!("{:+.2}%", d));
                 // Interpret the drift value for the user.
-                let interpretation = if d > 10.0 {
+                let interpretation = if d > DRIFT_SIGNIFICANT_PERCENT {
                     "degraded — possible thermal throttle / allocator pressure / cache pollution"
-                } else if d < -10.0 {
+                } else if d < -DRIFT_SIGNIFICANT_PERCENT {
                     "improved — warmup may have been insufficient; consider longer --bench-duration"
                 } else {
                     "stable — no significant drift detected"
@@ -775,7 +782,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             );
     }
 
-    if data.avg_dirty_cell_ratio_percent < 5.0 && data.jitter_std < 0.5 {
+    if data.avg_dirty_cell_ratio_percent < STABILITY_DIRTY_RATIO_MAX && data.jitter_std < STABILITY_JITTER_STD_MAX {
         r.section("STABILITY NOTES")
             .advice("Frame time stability is good (std < 0.5ms).")
             .advice("avg FPS alone is not enough; always check p99/p95 frame times.")

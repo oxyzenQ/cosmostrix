@@ -7,6 +7,7 @@ use std::env;
 
 use crate::charset::{charset_from_str, Charset};
 use crate::config::{Args, ColorBg};
+use crate::constants::{DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES};
 use crate::diagnostics;
 use crate::renderer_info;
 use crate::report::Report;
@@ -102,7 +103,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // v17: CAPACITY section (merged from --info — uses actual terminal size)
     {
         let s = r.section("CAPACITY");
-        let (tw, th) = crossterm::terminal::size().unwrap_or((120, 40));
+        let (tw, th) = crossterm::terminal::size().unwrap_or((DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES));
         s.field("terminal_size", &format!("{tw}x{th}"));
         s.field(
             "est_memory_per_frame",

@@ -6,6 +6,8 @@
 
 use std::env;
 
+use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
+
 // --- Branding signature ---
 
 /// Embedded build signature.
@@ -265,6 +267,8 @@ or shader path that silently regresses an invariant fails CI.
 PERFORMANCE PROFILE
 -------------------
 
+// NOTE: These numbers are from a specific benchmark run and may drift
+// across hardware, compiler versions, or workloads.
 On an AMD Ryzen 7 5800HS (8C/16T, 3.2 GHz baseline):
 
   Screen size   avg_fps   ns/cell   I/O share   allocs/frame   peak_rss
@@ -331,12 +335,12 @@ pub(super) fn estimate_memory_budget(w: u16, h: u16) -> usize {
     let cell_size = std::mem::size_of::<crate::cell::Cell>();
     let frame_cells = (w as usize) * (h as usize) * cell_size;
 
-    // Cloud internal buffers: char_pool (2048), glitch_pool (1024), color_map, glitch_map
-    let cloud_pools = 2048 * 4 + 1024 * 4;
+    // Cloud internal buffers: char_pool (CHAR_POOL_SIZE), glitch_pool (GLITCH_POOL_SIZE), color_map, glitch_map
+    let cloud_pools = CHAR_POOL_SIZE * 4 + GLITCH_POOL_SIZE * 4;
     let cloud_maps = (w as usize) * (h as usize) * 2; // color_map + glitch_map
 
-    // Droplets: ~1.5 * cols droplets, each ~100 bytes
-    let droplet_count = (1.5 * w as f32) as usize;
+    // Droplets: ~DROPLET_COUNT_FACTOR * cols droplets, each ~100 bytes
+    let droplet_count = (DROPLET_COUNT_FACTOR * w as f32) as usize;
     let droplets_size = droplet_count * std::mem::size_of::<crate::droplet::Droplet>().max(100);
 
     // Terminal: LastFrame + row_dirty + touched_rows

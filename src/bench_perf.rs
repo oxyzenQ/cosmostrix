@@ -133,8 +133,8 @@ mod linux {
         // variable. The fd was previously validated as >= 0 (returning
         // early above if not) and points to a valid perf_event counter
         // file descriptor. The buffer is a stack u64 with proper alignment.
-        let ret = unsafe { libc::read(fd, &mut value as *mut u64 as *mut libc::c_void, 8) };
-        if ret != 8 {
+        let ret = unsafe { libc::read(fd, &mut value as *mut u64 as *mut libc::c_void, std::mem::size_of::<u64>()) };
+        if ret != std::mem::size_of::<u64>() as isize {
             return 0;
         }
         value

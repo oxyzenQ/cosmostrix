@@ -74,6 +74,10 @@ pub(crate) fn current_cpu_ns() -> Option<u64> {
 
 // ── Linux: /proc/self/stat ──────────────────────────────────────────────────
 
+/// Read buffer size for /proc files.
+#[cfg(target_os = "linux")]
+const PROC_READ_BUF_SIZE: usize = 4096;
+
 #[cfg(target_os = "linux")]
 fn linux_cpu_ns() -> Option<u64> {
     // /proc/self/stat is a single line. Fields (1-indexed):
@@ -83,7 +87,7 @@ fn linux_cpu_ns() -> Option<u64> {
     // (0-indexed). The comm field (2) is wrapped in parens and may
     // contain spaces, so we skip it by finding the last ')' first.
     let mut file = std::fs::File::open("/proc/self/stat").ok()?;
-    let mut buf = [0u8; 4096];
+    let mut buf = [0u8; PROC_READ_BUF_SIZE];
     let n = file.read(&mut buf).ok()?;
     let text = std::str::from_utf8(&buf[..n]).ok()?;
 

@@ -235,7 +235,7 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose(
         "glitch:",
         &format!(
-            " {} ({glitch_pct:.0}%, {glitch_low}-{glitch_high}ms)",
+            " {} ({glitch_pct:.1}%, {glitch_low}-{glitch_high}ms)",
             glitch_enabled
         ),
     );
@@ -298,7 +298,7 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose(
         "  palette_drift:",
         &format!(
-            " {palette_drift_label} ({drift_pct:.0}% chance per {tick_secs:.0}s tick, {cooldown_secs:.0}s cooldown between events)"
+            " {palette_drift_label} ({drift_pct:.1}% chance per {tick_secs:.1}s tick, {cooldown_secs:.1}s cooldown between events)"
         ),
     );
     if bench_mode && auto_drift {
@@ -340,7 +340,7 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose(
             "auto_snapback:",
             &format!(
-                " {idle_secs:.0}s idle threshold, {snapback_secs:.0}s snapback delay (user overrides via 'c'/'C'/'x'/'s' revert after {snapback_secs:.0}s)"
+                " {idle_secs:.1}s idle threshold, {snapback_secs:.1}s snapback delay (user overrides via 'c'/'C'/'x'/'s' revert after {snapback_secs:.1}s)"
             ),
         );
     }

@@ -2,16 +2,23 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Cinematic math helpers for monolith breathing, hero pulse, and benchmark
-//! classification. These are the only zactrix-origin functions that survived
+//! classification. These are the only cosmic-dragon-origin functions that survived
 //! the v11 cleanup — everything else was diagnostic overhead.
 
 use crate::constants::MONOLITH_BREATHING_AMPLITUDE;
 
+/// Jitter std below this is classified as "ultra-stable" (ms).
+const JITTER_ULTRA_STABLE_MS: f64 = 0.3;
+/// Jitter std below this is classified as "stable" (ms).
+const JITTER_STABLE_MS: f64 = 0.5;
+/// Jitter std below this is classified as "moderate" (ms).
+const JITTER_MODERATE_MS: f64 = 2.0;
+
 #[must_use]
 pub(crate) fn classify_frame_jitter(jitter_std_ms: f64) -> &'static str {
-    if jitter_std_ms < 0.5 {
+    if jitter_std_ms < JITTER_STABLE_MS {
         "low"
-    } else if jitter_std_ms < 2.0 {
+    } else if jitter_std_ms < JITTER_MODERATE_MS {
         "medium"
     } else {
         "high"
@@ -20,11 +27,11 @@ pub(crate) fn classify_frame_jitter(jitter_std_ms: f64) -> &'static str {
 
 #[must_use]
 pub(crate) fn classify_frame_time_stability(jitter_std_ms: f64) -> &'static str {
-    if jitter_std_ms < 0.3 {
+    if jitter_std_ms < JITTER_ULTRA_STABLE_MS {
         "excellent"
-    } else if jitter_std_ms < 0.5 {
+    } else if jitter_std_ms < JITTER_STABLE_MS {
         "good"
-    } else if jitter_std_ms < 2.0 {
+    } else if jitter_std_ms < JITTER_MODERATE_MS {
         "moderate"
     } else {
         "high"

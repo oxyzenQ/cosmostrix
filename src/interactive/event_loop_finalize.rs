@@ -76,7 +76,7 @@ pub(crate) fn finalize_session(
     SHUTDOWN.store(true, Ordering::Release);
 
     let final_elapsed = stats.start_time.elapsed();
-    let final_elapsed_s = final_elapsed.as_secs_f64().max(0.000_001);
+    let final_elapsed_s = final_elapsed.as_secs_f64().max(BENCH_ELAPSED_MIN_S);
     let final_avg_fps = (stats.perf_frames as f64) / final_elapsed_s;
     let last_work_ms = stats.frame_time_tracker.rolling_avg_ms();
     let final_instant_fps = if last_work_ms > 0.0 {
