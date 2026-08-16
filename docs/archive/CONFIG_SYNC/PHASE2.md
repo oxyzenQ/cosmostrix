@@ -3,12 +3,12 @@
 # Config Sync Audit — Phase 2: Failure Mode Catalog
 
 **Scope:** Field-by-field failure mode catalog. for each CLI flag /
-`config.toml` key / runtime field, katalogkan: invalid value behavior,
+`config.toml` key / runtime field, catalog: invalid value behavior,
 error message quality, silent coercion, edge cases (NaN/infinity/negative/
 zero/max/empty/whitespace), combination conflicts.
 
 **Method:** Source-code audit with evidence `file:line`. Anchor in 12
-priority gaps from Phase 1. Tidak exists code change in phase this — pure
+priority gaps from Phase 1. No code changes in this phase — pure
 catalog.
 
 **Audit layer:** Same 11 files as Phase 1 (~7,439 LOC) + `src/safepath.rs`
@@ -19,8 +19,8 @@ warnings).
 
 ## 1. Executive Summary
 
-Phase 2 -katalogkan **24 field/flag groups** with failure modes.
-Ditemukan **9 new findings** (in luar 12 Phase 1 gaps), total **21
+Phase 2 catalogs **24 field/flag groups** with failure modes.
+Discovered **9 new findings** (outside 12 Phase 1 gaps), total **21
 actionable items** for Phase 5.
 
 **Key themes:**
@@ -28,13 +28,13 @@ actionable items** for Phase 5.
 1. **testconf ↔ runtime canonical parser divergence** — `testconf.rs`
  uses `v.parse::<f64>()` (stdlib, lenient) while runtime
  `parse_canonical_f64_range` uses `is_canonical_decimal` (strict).
- Hasil: `fps = "inf"`, `density = "1e2"`, `fps = "+10"`, `fps = "010"`
+ Result: `fps = "inf"`, `density = "1e2"`, `fps = "+10"`, `fps = "010"`
  PASS `--testconf` but FAIL in runtime apply → **silent fallback**
  (error printed, value dropped, clap default used).
 
 2. **Case-sensitivity asymmetry** — CLI `ValueEnum` is case-insensitive,
  `testconf.rs` strict lowercase, runtime `from_str(&v, true)` is
- case-insensitive. Hasil: `--intro Logo` works, `intro = "Logo"`
+ case-insensitive. Result: `--intro Logo` works, `intro = "Logo"`
  rejected, runtime would accept. 3 enums affected (intro,
  monolith-size, glitch-level).
 
@@ -53,7 +53,7 @@ actionable items** for Phase 5.
 5. **Profile/scene-custom warn-vs-reject divergence** —
  `profile.rs:207-387` uses `warn_invalid` (WARN + continue with
  default) for invalid field values. Top-level uses strict REJECT
- (exit 2). Hasil: `scene-custom.foo.color = "typo"` warns and uses
+ (exit 2). Result: `scene-custom.foo.color = "typo"` warns and uses
  default color; `color = "typo"` at top-level exits with error.
 
 6. **`--glitch-pct` always overridden by `--glitch-level`** —
@@ -1254,7 +1254,7 @@ Phase 5.
 
 **Next:** Phase 3 (Silent Error & Warning Sweep) — hunt for swallowed
 errors, missing warnings, footgun combinations. Inline small fixes for
-obvious cases. Estimasi 2-3 sesi.
+obvious cases. Estimated 2-3 sessions.
 
 ---
 

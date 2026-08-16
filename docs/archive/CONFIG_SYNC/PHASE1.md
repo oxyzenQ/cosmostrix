@@ -5,11 +5,11 @@
 **Scope:** CLI flags, `config.toml` keys, runtime `CloudConfig` fields, and the
 precedence chain that merges them.
 
-**Goal:** Peta lengkap semua CLI flag, `config.toml` key, dan runtime field,
-plus 3-way sync status. Identifikasi gap, conflict, dan silent override.
+**Goal:** Complete map of all CLI flags, `config.toml` keys, and runtime fields,
+plus 3-way sync status. Identify gaps, conflicts, and silent overrides.
 
-**Method:** Source-code audit with evidence `file:line`. Tidak exists code
-change in phase this — pure inventory.
+**Method:** Source-code audit with evidence `file:line`. No code
+changes in this phase — pure inventory.
 
 **Audit layer files (11 files, ~7,109 LOC):**
 
@@ -32,28 +32,28 @@ change in phase this — pure inventory.
 
 ## 1. Executive Summary
 
-Audit menemukan **12 priority gaps** dibagi 4 tier severity. Dua critical
-issues related with **stale documentation** dan **runtime bypass** which
-can causes silent override — both not crash/fatal, but
-misleading for user dan can trigger surprise behavior.
+Audit found **12 priority gaps** divided into 4 severity tiers. Two critical
+issues related to **stale documentation** and **runtime bypass** which
+can cause silent overrides — neither crash/fatal, but
+misleading to users and can trigger surprise behavior.
 
-**Health signals positif:**
+**Health signals (positive):**
 
 - Zero `TODO` / `FIXME` / `HACK` in production code (bugs in-track in
  `KNOWN_ISSUES.md`, not inline)
 - Zero `unreachable!()` in production code
 - Zero `unwrap()` in production code (3 `expect()` in `configfile.rs:1067`,
- `live_config.rs`, `interactive/event_loop.rs` — semua safe-by-construction
+ `live_config.rs`, `interactive/event_loop.rs` — all safe-by-construction
  with invariant comment)
 - 14 removed CLI flags properly intercepted in `validation.rs:23-88` with
  migration messages which actionable
-- 16 invariant tests in `cosmic_dragon_lock_tests.rs` ngunci engine contract
-- `config.toml` parser punya 3-layer strict validation in startup
+- 16 invariant tests in `cosmic_dragon_lock_tests.rs` lock the engine contract
+- `config.toml` parser has 3-layer strict validation in startup
  (`config_apply.rs:177-225`): malformed lines → unknown keys → invalid values
 
-**Health signals negatif:**
+**Health signals (negative):**
 
-- 5 from 10 documented precedence levels not actually wired sebagai
+- 5 of 10 documented precedence levels not actually wired as
  separate functions (stale doc comment from v14/v17/v20 purges)
 - `adaptive-custom` runs regardless of `atmosphere-mode = disabled`
  (intentional by design but undocumented in `--help`)
@@ -68,7 +68,7 @@ misleading for user dan can trigger surprise behavior.
 
 ### 2.1 CLI Fields (61 total)
 
-Sumber: `src/config.rs:170-712` (`Args` struct).
+Source: `src/config.rs:170-712` (`Args` struct).
 
 **Categorized:**
 
@@ -90,7 +90,7 @@ Sumber: `src/config.rs:170-712` (`Args` struct).
 
 ### 2.2 `config.toml` Published Keys (18 top-level)
 
-Sumber: `src/configfile.rs:32-52` (`USER_CONFIG_KEYS` const).
+Source: `src/configfile.rs:32-52` (`USER_CONFIG_KEYS` const).
 
 ```
 scene, color, charset, fps, speed, density, monolith-size, glitch-level,
@@ -103,7 +103,7 @@ effectively 17 keys + 1 prefix pattern = 18 published surfaces.)
 
 ### 2.3 `config.toml` Section Patterns (4)
 
-Sumber: `src/configfile.rs:54-57` (hint constants), `src/profile.rs:27-39`,
+Source: `src/configfile.rs:54-57` (hint constants), `src/profile.rs:27-39`,
 `src/scene_custom.rs`, `src/atmosphere_custom.rs`.
 
 | Section | Pattern | Fields | Validator |
@@ -115,7 +115,7 @@ Sumber: `src/configfile.rs:54-57` (hint constants), `src/profile.rs:27-39`,
 | `[adaptive-custom.HH-MM]` | `adaptive-custom.HH-MM = <color>, <scene>, [k=v, ...]` | 5 fields (`speed`, `density`, `fps`, `charset`, `glitch-level`) | `atmosphere_custom::parse_custom_time_map` |
 
 **Note:** `profile` supports `density-map`, `scene-custom` supports
-`density-map`, but top-level `USER_CONFIG_KEYS` TIDAK punya `density-map`.
+`density-map`, but top-level `USER_CONFIG_KEYS` does NOT have `density-map`.
 this gap #6 (Medium).
 
 ### 2.4 Precedence Chain — Documented vs Actual
@@ -157,14 +157,14 @@ this gap #6 (Medium).
 | 2. Scene defaults | ✓ wired | `apply_default_scene_values:236` |
 | 3. Config file values | ✓ wired | `apply_config_values:228` |
 | 4. **Config preset** | ✗ **NOT WIRED** | No `apply_config_preset` function exists. `--preset` was removed in v14 (`validation.rs:57-59`). Dead concept. |
-| 5. **Config profile** | ⚠ **MIS-ROUTED** | `profile::apply_profile_layer` exists (`profile.rs:115`) but ONLY called from `scene_custom.rs:116` — invoked via scene-custom, not sebagai layer terpisah. |
+| 5. **Config profile** | ⚠ **MIS-ROUTED** | `profile::apply_profile_layer` exists (`profile.rs:115`) but ONLY called from `scene_custom.rs:116` — invoked via scene-custom, not as a separate layer. |
 | 6. **CLI preset** | ✗ **NOT WIRED** | `--preset` removed v14 (`validation.rs:57-59`). |
 | 7. CLI scene | ✓ wired | `apply_scene_values:241,255` |
 | 8. **CLI profile** | ✗ **NOT WIRED** | `--profile` removed v14 (`validation.rs:61-63`). Profile logic absorbed into `scene-custom`. |
 | 9. **Low-power values** | ✗ **NOT WIRED** | `--low-power` removed v14 (`validation.rs:53-55`). Low-power is now a scene (`--scene low-power`). |
 | 10. Explicit CLI flags | ✓ implicit | `is_explicit(matches, ...)` checks in each apply function |
 
-**Verdict:** 5 from 10 documented levels adalah **stale references** to
+**Verdict:** 5 of 10 documented levels are **stale references** to
 features that were removed in v14 (preset, profile, low-power as CLI
 flags). Doc comment in `config_apply.rs:6-22` needs in-rewrite for
 match actual 5-level chain.
@@ -187,10 +187,10 @@ match actual 5-level chain.
  `--preset`, `--profile`, `--low-power`)
 - Level 5 (config profile) mis-routed: `profile::apply_profile_layer`
  (`profile.rs:115`) only called from `scene_custom.rs:116`, not
- sebagai standalone layer in `config_apply.rs`
+ as a standalone layer in `config_apply.rs`
 
 **Impact:**
-- Misleading for maintainer baru which baca doc comment expecting 10 layers
+- Misleading for new maintainers who read the doc comment expecting 10 layers
 - Phase 2-5 audit can waste time hunting for dead layers
 - Future contributor might "fix" missing layer with re-implementing
  v14-removed behavior
@@ -227,7 +227,7 @@ match actual 5-level chain.
  to stop → adaptive-custom schedule still mutates `cloud` state every 30s
 - Surprise: `speed`, `density`, `color`, `scene` change silently over hours
 - Debug difficulty: verbose log mentions the bypass, but `--help` and
- `--docs` TIDAK document this
+ `--docs` does NOT document this
 
 **Status:** Intentional by design (comment in `config_apply.rs:152-164`
 implies this is deliberate — "defining them is an opt-in"), but
@@ -569,7 +569,7 @@ zero-cost cell access in hot render loop). Documented in source.
 
 ### Phase 2 — Failure Mode Catalog
 
-for each field in inventory, katalogkan:
+for each field in the inventory, catalog:
 
 1. **Invalid value behavior** (panic / silent ignore / error / fallback)
 2. **Error message quality** (clear vs misleading)
@@ -670,14 +670,14 @@ src/constants.rs:
 
 ## 7. Phase 1 Status
 
-**Complete.** Inventory dan mismatch map in-deliver. 12 priority gaps
-identified with file:line evidence. Health signals positif (zero
-TODO/FIXME/unwrap/unreachable in production). Health signals negatif
+**Complete.** Inventory and mismatch map delivered. 12 priority gaps
+identified with file:line evidence. Health signals positive (zero
+TODO/FIXME/unwrap/unreachable in production). Health signals negative
 (stale doc, runtime bypass, type asymmetry, hint coverage gaps).
 
 **Next:** Phase 2 (Failure Mode Catalog) — anchor on 12 gaps, hunt
 edge cases (NaN/infinity/negative/zero/max/empty), combination conflicts.
-Estimasi 2-3 sesi.
+Estimated 2-3 sessions.
 
 ---
 
