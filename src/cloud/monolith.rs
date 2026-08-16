@@ -338,7 +338,8 @@ impl MonolithRain {
         }
 
         let deficit = target - self.active_count;
-        let spawn_rate = (target as f32 * MONOLITH_SPAWN_RATE_MULT + MONOLITH_SPAWN_RATE_FLOOR) * params.spawn_scale;
+        let spawn_rate = (target as f32 * MONOLITH_SPAWN_RATE_MULT + MONOLITH_SPAWN_RATE_FLOOR)
+            * params.spawn_scale;
         let budget =
             elapsed.as_secs_f32() * spawn_rate + (*spawn_remainder).min(SPAWN_REMAINDER_CAP);
         if !budget.is_finite() || budget <= 0.0 {
@@ -975,8 +976,8 @@ pub(super) fn target_active_count(lanes: usize, density: f32) -> usize {
     if lanes == 0 {
         return 0;
     }
-    let ratio =
-        (MONOLITH_ACTIVE_BASE + density.clamp(0.01, 5.0) * MONOLITH_ACTIVE_DENSITY_MULT).clamp(0.02, MONOLITH_ACTIVE_MAX);
+    let ratio = (MONOLITH_ACTIVE_BASE + density.clamp(0.01, 5.0) * MONOLITH_ACTIVE_DENSITY_MULT)
+        .clamp(0.02, MONOLITH_ACTIVE_MAX);
     ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
 }
 
@@ -992,7 +993,8 @@ fn varied_span(lines: u16, roll: f32) -> u16 {
     let max = MONOLITH_MAX_STREAM_SPAN
         .min(lines.saturating_add(8))
         .max(MONOLITH_MIN_STREAM_SPAN);
-    let span = MONOLITH_MIN_STREAM_SPAN as f32 + roll.clamp(0.0, 1.0) * (max - MONOLITH_MIN_STREAM_SPAN) as f32;
+    let span = MONOLITH_MIN_STREAM_SPAN as f32
+        + roll.clamp(0.0, 1.0) * (max - MONOLITH_MIN_STREAM_SPAN) as f32;
     span.round() as u16
 }
 

@@ -652,12 +652,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 # rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
 # [colors-custom.cyberpunk_2077]
-# bg = "#0a0a0a"
-# rain = []
+# bg = "#00060E"
+# rain = ["#FCE300", "#00FFFF"]
 
 # [colors-custom.tron_legacy]
-# bg = "#050510"
-# rain = ["#0033ff", "#0066ff", "#0099ff", "#00ccff", "#33ffff", "#66ffff", "#ffffff"]
+# bg = "#080C0E"
+# rain = ["#7DFDFE", "#18CAE6", "#0EF8F8", "#66FBFB", "#FFFFFE"]
 
 # ── Custom Character Sets ──
 # Define named charsets, reference via: charset-custom = <name>
@@ -669,10 +669,10 @@ pub(crate) fn dump_config_text() -> &'static str {
 # set = "|"
 
 # [charset-custom.cyberpunk_2077]
-# set = "⌘⌥⌃⏎⎋⌫⌦⏏⏺⏻⏼⏽⏾␛␤␡␢␣␦␧␨␩␪"
+# set = "0123456789ABCDEFｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
 
 # [charset-custom.tron_legacy]
-# set = "─│╱╲▐▌┌┐└┘├┤┬┴┼═║╒╓╔╕╖╗╘╙╚╛╜╝╞╟╠╡╢╣╤╥╦╧╨╩╪╫╬"
+# set = "─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▐▌┄┅┈┉╱╲"
 
 # ── Ambient Phase Scheduler ──
 # Time-of-day scene switches. Config-only (no CLI flag).

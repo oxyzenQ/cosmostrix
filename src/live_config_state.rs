@@ -96,5 +96,3 @@ pub fn drain_validation_rejections() -> Vec<String> {
         .map(|mut guard| std::mem::take(&mut *guard))
         .unwrap_or_default()
 }
-
-
