@@ -1,0 +1,96 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# CodeQL security analysis for cosmostrix.
+#
+# Runs on every push to main and on pull requests that change Rust source
+# code or build configuration. Uses the github/codeql-action to perform
+# static analysis for security vulnerabilities (CWE detection, unsafe
+# Rust audit paths, integer overflow, etc.).
+#
+# Design decisions:
+# - Separate workflow from ci.yml so CodeQL results appear in the
+#   GitHub Security tab without cluttering the main CI status.
+# - Runs in parallel with Cosmic Dragon - CI; does not gate merges.
+# - Uses `languages: rust` — CodeQL's Rust support covers unsafe blocks,
+#   integer overflow, and common CWE patterns.
+# - `analysis-mode: traversal` for PRs (fast, diff-aware), full analysis
+#   on push to main for complete coverage.
+
+name: CodeQL
+
+'on':
+  push:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+  schedule:
+    # Weekly full scan on Monday 03:00 UTC (off-peak, low queue).
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  RUST_VERSION: "1.97.1"
+
+jobs:
+  analyze:
+    name: CodeQL Analyze (Rust)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2.9.1
+        with:
+          cache-on-ailure: true
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: rust
+          # Full analysis on main/schedule; traversal (fast) on PRs.
+          analysis-mode: ${{ github.event_name == 'pull_request' && 'traversal' || 'full' }}
+          # Category for SARIF upload differentiation.
+          category: /rust
+
+      - name: Build (autobuild)
+        uses: github/codeql-action/autobuild@v3
+        # CodeQL autobuild for Rust invokes `cargo build`. If the
+        # toolchain is already installed (step above), this succeeds
+        # without additional setup. The build provides the compilation
+        # database CodeQL needs for precise analysis.
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: /rust
+          # Upload results to GitHub Security tab.
+          upload: true
