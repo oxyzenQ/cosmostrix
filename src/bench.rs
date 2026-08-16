@@ -190,10 +190,10 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
 
     // ── Phase 3-6: Initialize measurement collectors ──────────────────
-    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
-    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    // perf counters must be opened before warmup (fd + ENABLE ioctl), but
+    // the baseline read is taken AFTER warmup so the delta only covers the
+    // measurement window — matching total_elapsed_s and total_frames scope.
     let perf_handle = crate::bench_perf::open_counters();
-    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
     let mut visual_sampler = crate::bench_visual::VisualSampler::new(10);
 
     // ── Warmup phase ─────────────────────────────────────────────────────
@@ -224,6 +224,13 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         progress.warmup_tick();
     }
     progress.warmup_done();
+
+    // ── Baseline snapshots (scope = measurement phase only) ─────────────
+    // Taken AFTER warmup so the delta excludes warmup cycles/energy/allocs,
+    // matching total_elapsed_s and total_frames which also exclude warmup.
+    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
+    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
 
     // ── Measurement phase ────────────────────────────────────────────────
     let mut frame_times: [f64; FRAME_TIME_SAMPLES] = [0.0; FRAME_TIME_SAMPLES];
@@ -860,11 +867,10 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         None
     };
 
-    // Phase 3-6: measurement collectors
-    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
-    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    // perf counters must be opened before warmup (fd + ENABLE ioctl), but
+    // the baseline read is taken AFTER warmup so the delta only covers the
+    // measurement window — matching total_elapsed_s and total_frames scope.
     let perf_handle = crate::bench_perf::open_counters();
-    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
     let mut visual_sampler = crate::bench_visual::VisualSampler::new(10);
 
     // Warmup
@@ -883,6 +889,13 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         }
         frame.clear_dirty();
     }
+
+    // Baseline snapshots (scope = measurement phase only)
+    // Taken AFTER warmup so the delta excludes warmup cycles/energy/allocs,
+    // matching total_elapsed_s and total_frames which also exclude warmup.
+    let alloc_before = crate::alloc_trace::AllocSnapshot::now();
+    let energy_before = crate::bench_energy::EnergySnapshot::now();
+    let perf_before = perf_handle.as_ref().map(|h| h.read()).unwrap_or_default();
 
     // Measurement
     let start = Instant::now();
