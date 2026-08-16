@@ -4,20 +4,19 @@
 # CodeQL security analysis for cosmostrix.
 #
 # Auto-detects all languages in the repository and runs CodeQL analysis
-# for each. No hardcoded language list — if Python, JavaScript, or any
-# other language is added in the future, CodeQL picks it up automatically.
+# for each. No hardcoded language list — future-proof.
 #
-# Design decisions:
-# - Separate workflow from ci.yml so CodeQL results appear in the
-#   GitHub Security tab without cluttering the main CI status.
-# - Runs in parallel with Cosmic Dragon - CI; does not gate merges.
-# - `languages` omitted → CodeQL auto-detects from repo contents.
-# - Toolchains installed before autobuild so compiled languages build
-#   successfully (Rust, C/C++, Go, etc.). Interpreted languages
-#   (Python, JS) skip compilation naturally.
-# - Dynamic path triggers: watches src/, scripts/, and all config
-#   files so any language change triggers the scan.
-# - Weekly scheduled scan Monday 03:00 UTC for full coverage.
+# Detection strategy:
+#   1. Scan repo for file extensions: .rs, .py, .js, .ts, .sh, .go, etc.
+#   2. Check language markers: Cargo.toml, pyproject.toml, package.json, etc.
+#   3. Install toolchains for compiled languages (Rust, Go) conditionally.
+#   4. CodeQL init with no `languages` input → auto-detect from repo.
+#
+# Note: CodeQL supports C/C++, C#, Go, Java, JS/TS, Python, Ruby, Rust,
+# Swift. Bash/shell is NOT a CodeQL language — but .sh changes still
+# trigger this workflow (path filter) so shellcheck in ci.yml covers them.
+#
+# Weekly scheduled scan Monday 03:00 UTC for full coverage.
 
 name: CodeQL
 
@@ -25,37 +24,60 @@ name: CodeQL
   push:
     branches: ["main"]
     paths:
+      # Rust
       - 'src/**'
-      - 'scripts/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
       - 'rust-toolchain.toml'
       - '.cargo/**'
+      # Shell scripts
+      - 'scripts/**'
+      - '*.sh'
+      # Python
       - 'pyproject.toml'
       - 'requirements.txt'
-      - 'package.json'
+      - 'setup.py'
       - '*.py'
+      # JavaScript / TypeScript
+      - 'package.json'
       - '*.js'
       - '*.ts'
+      # Go
+      - 'go.mod'
+      - '*.go'
+      # C/C++
+      - 'Makefile'
+      - 'CMakeLists.txt'
+      - '*.c'
+      - '*.h'
+      - '*.cpp'
   pull_request:
     branches: ["main"]
     paths:
       - 'src/**'
-      - 'scripts/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
       - 'rust-toolchain.toml'
       - '.cargo/**'
+      - 'scripts/**'
+      - '*.sh'
       - 'pyproject.toml'
       - 'requirements.txt'
-      - 'package.json'
+      - 'setup.py'
       - '*.py'
+      - 'package.json'
       - '*.js'
       - '*.ts'
+      - 'go.mod'
+      - '*.go'
+      - 'Makefile'
+      - 'CMakeLists.txt'
+      - '*.c'
+      - '*.h'
+      - '*.cpp'
   schedule:
-    # Weekly full scan on Monday 03:00 UTC (off-peak, low queue).
     - cron: '0 3 * * 1'
   workflow_dispatch:
 
@@ -75,7 +97,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       has_rust: ${{ steps.detect.outputs.has_rust }}
-
+      detected: ${{ steps.detect.outputs.detected }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -83,29 +105,58 @@ jobs:
       - name: Detect languages from repo
         id: detect
         run: |
-          # Detect which compiled languages need toolchain installation.
           HAS_RUST="false"
+          DETECTED=""
 
-          # Rust detection
-          if [ -f "Cargo.toml" ] || [ -f "rust-toolchain.toml" ]; then
+          # ── Rust ──
+          if [ -f "Cargo.toml" ] || find . -maxdepth 3 -name "*.rs" -print -quit 2>/dev/null | grep -q .; then
             HAS_RUST="true"
-            echo "::notice::Rust detected (Cargo.toml present)"
+            DETECTED="${DETECTED}rust,"
+            echo "::notice::Rust detected"
           fi
 
-          # Python detection
-          if [ -f "pyproject.toml" ] || [ -f "requirements.txt" ] || \
+          # ── Python ──
+          if [ -f "pyproject.toml" ] || [ -f "requirements.txt" ] || [ -f "setup.py" ] || \
              find . -maxdepth 3 -name "*.py" -print -quit 2>/dev/null | grep -q .; then
+            DETECTED="${DETECTED}python,"
             echo "::notice::Python detected"
           fi
 
-          # JavaScript/TypeScript detection
+          # ── JavaScript / TypeScript ──
           if [ -f "package.json" ] || \
              find . -maxdepth 3 \( -name "*.js" -o -name "*.ts" \) -print -quit 2>/dev/null | grep -q .; then
+            DETECTED="${DETECTED}javascript,"
             echo "::notice::JavaScript/TypeScript detected"
           fi
 
+          # ── Go ──
+          if [ -f "go.mod" ] || find . -maxdepth 3 -name "*.go" -print -quit 2>/dev/null | grep -q .; then
+            DETECTED="${DETECTED}go,"
+            echo "::notice::Go detected"
+          fi
+
+          # ── C / C++ ──
+          if [ -f "Makefile" ] || [ -f "CMakeLists.txt" ] || \
+             find . -maxdepth 3 \( -name "*.c" -o -name "*.cpp" -o -name "*.h" \) -print -quit 2>/dev/null | grep -q .; then
+            DETECTED="${DETECTED}cpp,"
+            echo "::notice::C/C++ detected"
+          fi
+
+          # ── Shell (not a CodeQL language, but tracked for info) ──
+          SHELL_COUNT=$(find . -maxdepth 3 -name "*.sh" 2>/dev/null | wc -l)
+          if [ "$SHELL_COUNT" -gt 0 ]; then
+            DETECTED="${DETECTED}shell(${SHELL_COUNT}),"
+            echo "::notice::Shell scripts detected: ${SHELL_COUNT} files (covered by shellcheck in ci.yml)"
+          fi
+
+          # Trim trailing comma
+          DETECTED="${DETECTED%,}"
           echo "has_rust=${HAS_RUST}" >> "$GITHUB_OUTPUT"
-          echo "Detection complete: has_rust=${HAS_RUST}"
+          echo "detected=${DETECTED}" >> "$GITHUB_OUTPUT"
+          echo "::group::Detection summary"
+          echo "Languages: ${DETECTED}"
+          echo "has_rust:  ${HAS_RUST}"
+          echo "::endgroup::"
 
   analyze:
     name: CodeQL Analyze
@@ -118,7 +169,6 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       # Install Rust toolchain only if Rust is detected.
-      # CodeQL autobuild needs a working compiler for compiled languages.
       - name: Install Rust toolchain
         if: needs.detect-languages.outputs.has_rust == 'true'
         uses: dtolnay/rust-toolchain@stable
@@ -131,9 +181,13 @@ jobs:
         with:
           cache-on-failure: true
 
-      # CodeQL auto-detect: no `languages` input → scans all languages
-      # found in the repo (Rust, Python, JS, etc.). This is future-proof
-      # — adding any new language requires zero workflow changes.
+      - name: Report detected languages
+        run: |
+          echo "CodeQL will auto-detect and analyze: ${{ needs.detect-languages.outputs.detected }}"
+          echo "Shell scripts (.sh) are not a CodeQL language — covered by shellcheck in ci.yml."
+
+      # CodeQL auto-detect: no `languages` input → scans all CodeQL-supported
+      # languages found in the repo. Adding any new language = zero changes.
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
@@ -141,9 +195,6 @@ jobs:
 
       - name: Build (autobuild)
         uses: github/codeql-action/autobuild@v4
-        # CodeQL autobuild compiles each detected language. For Rust it
-        # invokes `cargo build`; for Python/JS it's a no-op. Toolchains
-        # installed above ensure compiled languages build successfully.
 
       - name: Perform CodeQL analysis
         uses: github/codeql-action/analyze@v4
