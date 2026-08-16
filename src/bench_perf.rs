@@ -112,7 +112,7 @@ mod linux {
                 // PERF_EVENT_IOC_ENABLE = _IOW('$', 0, __u32) = 0x2400.
                 // Not yet exported by libc 0.2.x; defined per Linux perf_event.h.
                 const PERF_EVENT_IOC_ENABLE: libc::c_ulong = 0x2400;
-                if libc::ioctl(fd, PERF_EVENT_IOC_ENABLE, 0) < 0 {
+                if libc::ioctl(fd, PERF_EVENT_IOC_ENABLE as _, 0) < 0 {
                     // SAFETY: fd is a valid open file descriptor just obtained
                     // from syscall above; close it to avoid fd leak.
                     libc::close(fd);

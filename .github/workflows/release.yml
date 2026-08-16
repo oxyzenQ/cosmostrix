@@ -859,7 +859,7 @@ jobs:
         uses: vmactions/freebsd-vm@v1
         with:
           release: "14.2"
-          usesh: true
+          usesh: false
           mem: 4096
           prepare: |
             pkg install -y curl ca_root_nss
