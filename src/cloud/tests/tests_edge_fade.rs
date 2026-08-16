@@ -117,9 +117,12 @@ fn viewport_edge_fade_with_small_terminal() {
 }
 
 #[test]
-fn viewport_edge_fade_bottom_more_aggressive_than_top() {
-    // The bottom edge should be more aggressively faded than the top
-    // to prevent the bright-head residue artifact at the terminal border.
+fn viewport_edge_fade_top_more_aggressive_than_bottom() {
+    // Cinema Noir profile: the top edge fade (EDGE_FADE_TOP_MIN=0.45) is
+    // more aggressive than the bottom (EDGE_FADE_BOTTOM_MIN=0.65). Rain
+    // enters from deep shadow at the top, then dissolves gently at the
+    // bottom. The overall bottom is still dimmer than the top when rain
+    // shadow is compounded — but the edge fade alone is inverted.
     use crate::droplet::viewport_edge_fade;
 
     let lines: u16 = 20;
@@ -127,10 +130,10 @@ fn viewport_edge_fade_bottom_more_aggressive_than_top() {
     let fade_bottom = viewport_edge_fade(lines - 1, lines);
 
     assert!(
-        fade_bottom < fade_top,
-        "bottom edge fade ({}) should be more aggressive than top ({})",
-        fade_bottom,
-        fade_top
+        fade_top < fade_bottom,
+        "top edge fade ({}) should be more aggressive than bottom ({})",
+        fade_top,
+        fade_bottom
     );
 }
 
@@ -330,7 +333,7 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
 // ───  masterclass: rain shadow floor + SSOT compounded brightness ──────
 //
 // The following tests guard the  retune:
-// 1. rain_shadow_factor floors at RAIN_SHADOW_FLOOR (0.50) instead of 0.0
+// 1. rain_shadow_factor floors at RAIN_SHADOW_FLOOR (0.55) instead of 0.0
 // 2. crt_vignette_factor (extracted SSOT) returns expected smoothstep
 // 3. compounded_brightness models all 4 dimming effects multiplicatively
 //
@@ -343,7 +346,7 @@ fn high_speed_bottom_edge_cells_clear_bounded() {
 #[test]
 fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     // The previously curve faded to 0.0 (full black) at the bottom row.
-    // caps the floor at RAIN_SHADOW_FLOOR (0.50) so the compounded
+    // caps the floor at RAIN_SHADOW_FLOOR (0.55) so the compounded
     // bottom-row brightness stays above the rain-visibility threshold
     // (~10%) when shadow multiplies with edge fade + radial vignette +
     // CRT vignette.
@@ -351,18 +354,18 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     // Note: the floor is ASYMPTOTIC — the bottom row of a discrete
     // terminal reaches t = (lines-1-threshold)/span, which is always
     // < 1.0. For lines=40, threshold=34, span=6, the bottom row (line=39)
-    // gets t = 5/6 ≈ 0.833, so factor = 0.5 + 0.5*(1 - 0.694) ≈ 0.653.
-    // The floor (0.50) is only reached in the limit as lines → ∞. For
+    // gets t = 5/6 ≈ 0.833, so factor = 0.55 + 0.45*(1 - 0.694) ≈ 0.688.
+    // The floor (0.55) is only reached in the limit as lines → ∞. For
     // a tall terminal (lines=400), the bottom row gets t = 59/60 ≈ 0.983,
-    // factor ≈ 0.517 — very close to the floor.
+    // factor ≈ 0.567 — very close to the floor.
     use crate::droplet::rain_shadow_factor;
 
     let lines: u16 = 40;
-    // The shadow zone is the bottom RAIN_SHADOW_PCT (10%) of the screen.
-    // For lines=40, threshold = (1.0 - 0.10) * 40 = 36. Rows 36..=39 are
+    // The shadow zone is the bottom RAIN_SHADOW_PCT (15%) of the screen.
+    // For lines=40, threshold = (1.0 - 0.15) * 40 = 34. Rows 34..=39 are
     // in the shadow zone.
     let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
-    assert_eq!(threshold, 36, "shadow threshold for 40-line terminal");
+    assert_eq!(threshold, 34, "shadow threshold for 40-line terminal");
 
     // Every row in the shadow zone must stay >= RAIN_SHADOW_FLOOR.
     for line in threshold..lines {
@@ -378,10 +381,10 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
 
     // The bottom row (line = lines-1) is the closest to the floor for
     // this terminal size. Compute the expected value:
-    //   span = 40 - 36 = 4
-    //   t = (39 - 36) / 4 = 3/4
-    //   1 - t^2 = 1 - 9/16 = 7/16
-    //   factor = 0.5 + 0.5 * 7/16 = 0.5 + 0.2188 = 0.7188
+    //   span = 40 - 34 = 6
+    //   t = (39 - 34) / 6 = 5/6
+    //   1 - t^2 = 1 - 25/36 = 11/36
+    //   factor = 0.55 + 0.45 * 11/36 = 0.55 + 0.1375 = 0.6875
     let span = (lines - threshold) as f32;
     let bottom_t = (lines - 1 - threshold) as f32 / span;
     let expected_bottom =
@@ -429,8 +432,8 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
 
     // Asymptotic floor check: a tall terminal (lines=400) should get its
     // bottom row close to RAIN_SHADOW_FLOOR (within 0.04). With
-    // RAIN_SHADOW_PCT=0.10 the shadow zone is 40 rows, so the bottom
-    // row reaches t=39/40=0.975, factor ~ 0.525 -- the tolerance is
+    // RAIN_SHADOW_PCT=0.15 the shadow zone is 60 rows, so the bottom
+    // row reaches t=59/60=0.983, factor ~ 0.567 -- the tolerance is
     // wider than the pre-v50 value (0.02) because fewer rows means
     // the asymptote is approached more slowly.
     let tall_lines: u16 = 400;
@@ -581,11 +584,11 @@ fn crt_vignette_factor_skipped_on_short_terminal() {
 
 #[test]
 fn compounded_brightness_bottom_row_above_visibility_threshold() {
-    // THE  REGRESSION GUARD: the bottom row of an 80x40 terminal
+    // THE REGRESSION GUARD: the bottom row of an 80x40 terminal
     // must stay above the rain-visibility threshold (~10%) after all 4
-    // dimming effects compound. Pre- the compounded brightness was
-    // 0.080 (8%, rain invisible); RAIN_SHADOW_FLOOR cap brings
-    // it to ~0.172 at the corner / ~0.241 at the center (rain visible).
+    // dimming effects compound. Cinema Noir v2 (RAIN_SHADOW_FLOOR=0.55,
+    // PCT=0.15, EDGE_FADE_BOTTOM_MIN=0.65, CRT=0.85) yields
+    // ~0.380 at center / ~0.305 at the corner (rain clearly visible).
     //
     // The threshold of 0.10 is the perceptual floor — anything below
     // reads as "no rain" to the eye at typical terminal brightness.
@@ -610,26 +613,26 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
     // Bottom-center (col=cols/2): vignette_factor is 1.0 (inside inner
     // radius), so compounded = shadow * edge * 1.0 * crt.
-    //   shadow = 0.719 (lines=40, t=3/4, remapped)
-    //   edge   = 0.55  (EDGE_FADE_BOTTOM_MIN)
-    //   crt    = 0.90  (CRT_VIGNETTE_EDGE_FACTOR)
-    //   product = 0.719 * 0.55 * 0.90 = 0.356
+    //   shadow = 0.688 (lines=40, PCT=0.15, t=5/6, remapped)
+    //   edge   = 0.65  (EDGE_FADE_BOTTOM_MIN, Cinema Noir)
+    //   crt    = 0.85  (CRT_VIGNETTE_EDGE_FACTOR, Cinema Noir)
+    //   product = 0.688 * 0.65 * 1.0 * 0.85 ≈ 0.380
     let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
     assert!(
-        (bottom_center - 0.356).abs() < 0.005,
-        "bottom-center compounded brightness {} should be ~0.356 (documented  target)",
+        (bottom_center - 0.380).abs() < 0.005,
+        "bottom-center compounded brightness {} should be ~0.380 (documented target)",
         bottom_center
     );
 
-    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.80
+    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.804
     // (corner radial dimming, VIGNETTE_INTENSITY=0.20), so compounded =
-    // shadow * edge * 0.80 * crt.
-    //   product = 0.719 * 0.55 * 0.80 * 0.90 = 0.285
+    // shadow * edge * 0.804 * crt.
+    //   product = 0.688 * 0.65 * 0.804 * 0.85 ≈ 0.305
     for col in [0u16, cols - 1] {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
         assert!(
-            (brightness - 0.285).abs() < 0.005,
-            "bottom-corner col {} compounded brightness {} should be ~0.285 (documented  target)",
+            (brightness - 0.305).abs() < 0.005,
+            "bottom-corner col {} compounded brightness {} should be ~0.305 (documented target)",
             col,
             brightness
         );
