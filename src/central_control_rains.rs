@@ -433,7 +433,7 @@ pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
 /// v30 (visual mode): reduced from 4 → 3 per owner request — shorter
 /// dimmer zones at top and bottom borders.
 ///
-/// v31: disabled (FOG_MIN_FACTOR = 1.0). Depth fog was redundant with
+/// v50 (alpha.2): disabled (FOG_MIN_FACTOR = 1.0). Depth fog was redundant with
 /// viewport_edge_fade + CRT vignette — all three dim the same top/bottom
 /// rows and compound destructively. With fog at 0.45, the compounded
 /// top row reached 0.24 (76% dim) and bottom row 0.07 (93% dim).
@@ -444,7 +444,7 @@ pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
 pub(crate) const FOG_ROWS: u16 = 3;
 
 /// Minimum brightness factor at the extreme edge row.
-/// v31: set to 1.0 (disabled). See FOG_ROWS comment for rationale.
+/// v50 (alpha.2): set to 1.0 (disabled). See FOG_ROWS comment for rationale.
 /// When 1.0, the fog_factor == 1.0 gate in droplet.rs skips the
 /// brightness multiply entirely — zero runtime cost, zero visual impact.
 pub(crate) const FOG_MIN_FACTOR: f32 = 1.0;

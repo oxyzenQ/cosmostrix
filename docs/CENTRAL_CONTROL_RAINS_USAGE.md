@@ -202,17 +202,18 @@ rather than bright pixels.
 - **Smaller, harder pinprick heads**: lower `HEAD_BLOOM_SIGMA` from 1.2 → 0.8 and `HEAD_BLOOM_CELLS` from 2 → 1.
 - **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.30 → 1.45 (pushes head pop ratio above 9× back).
 
-### 3.4 Atmospheric depth & fog (lines 433–470)
+### 3.4 Atmospheric depth & edge effects (lines 433–510)
 
-Controls top/bottom row dimming, vignette, and the depth fog that
-makes the back layer read as "rain in haze".
+Controls top/bottom row dimming, cinematic CRT vignette, radial
+vignette, and rain shadow. Depth fog is disabled in v50 alpha.2
+(see notes below).
 
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
-| `FOG_ROWS` | u16 | 4 | How many top rows get fog blend. |
-| `FOG_MIN_FACTOR` | f32 | 0.65 | Minimum fog brightness at the very top row (0.65 = 65% of full). |
-| `CRT_VIGNETTE_HEIGHT` | u16 | 5 | Top/bottom vignette band height. |
-| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.9 | Edge darkness factor (0.9 = 10% darker at edges). |
+| `FOG_ROWS` | u16 | 3 | Rows affected by depth fog (disabled: FOG_MIN_FACTOR=1.0). |
+| `FOG_MIN_FACTOR` | f32 | **1.0** | Minimum fog brightness (**1.0 = disabled**). Was 0.45; disabled in v50 alpha.2 because depth fog compounded destructively with viewport_edge_fade + CRT vignette, producing 76%/93% dim at edges. |
+| `CRT_VIGNETTE_HEIGHT` | u16 | 3 | Top/bottom vignette band height. |
+| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.82 | Edge darkness factor (0.82 = 18% dim at edges). |
 | `CRT_VIGNETTE_PERF_THRESHOLD` | f32 | 0.5 | Performance gate — below this FPS, vignette is skipped. |
 | `VIGNETTE_INTENSITY` | f32 | 0.30 | Radial vignette strength (0–1). |
 | `VIGNETTE_INNER_RADIUS` | f32 | 0.7 | Inner radius where vignette starts (0–1 of screen). |
@@ -462,11 +463,11 @@ HEAD_BLOOM_SIGMA                   = 1.2
 HEAD_BLOOM_INTENSITY               = 0.40
 HEAD_BLOOM_CELLS                   = 2
 
-=== Atmospheric depth & fog ===
-FOG_ROWS                           = 4
-FOG_MIN_FACTOR                     = 0.65
-CRT_VIGNETTE_HEIGHT                = 5
-CRT_VIGNETTE_EDGE_FACTOR           = 0.9
+=== Atmospheric depth & edge effects ===
+FOG_ROWS                           = 3
+FOG_MIN_FACTOR                     = 1.0 (disabled)
+CRT_VIGNETTE_HEIGHT                = 3
+CRT_VIGNETTE_EDGE_FACTOR           = 0.82
 CRT_VIGNETTE_PERF_THRESHOLD        = 0.5
 VIGNETTE_INTENSITY                 = 0.30
 VIGNETTE_INNER_RADIUS              = 0.7
@@ -836,7 +837,7 @@ pub const VIGNETTE_INTENSITY: f32 = 0.50;
 pub const CRT_VIGNETTE_HEIGHT: u16 = 8;
 pub const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.75;
 pub const FOG_ROWS: u16 = 6;
-pub const FOG_MIN_FACTOR: f32 = 0.55;
+pub const FOG_MIN_FACTOR: f32 = 1.0;  // disabled — use edge_fade + CRT vig only
 ```
 
 Trade-off: heads may clip on bright themes (white-bg). Best on
