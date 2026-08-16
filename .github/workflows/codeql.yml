@@ -14,8 +14,8 @@
 # - Runs in parallel with Cosmic Dragon - CI; does not gate merges.
 # - Uses `languages: rust` — CodeQL's Rust support covers unsafe blocks,
 #   integer overflow, and common CWE patterns.
-# - `analysis-mode: traversal` for PRs (fast, diff-aware), full analysis
-#   on push to main for complete coverage.
+# - PRs get faster diff-aware analysis; full analysis on push to main
+#   for complete coverage.
 
 name: CodeQL
 
@@ -70,16 +70,12 @@ jobs:
       - name: Setup cache
         uses: Swatinem/rust-cache@v2.9.1
         with:
-          cache-on-ailure: true
+          cache-on-failure: true
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
         with:
           languages: rust
-          # Full analysis on main/schedule; traversal (fast) on PRs.
-          analysis-mode: ${{ github.event_name == 'pull_request' && 'traversal' || 'full' }}
-          # Category for SARIF upload differentiation.
-          category: /rust
 
       - name: Build (autobuild)
         uses: github/codeql-action/autobuild@v3
