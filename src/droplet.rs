@@ -43,7 +43,7 @@ use crate::constants::{
     ADVANCE_REMAINDER_CAP, DROPLET_GRAVITY, DROPLET_TERMINAL_VELOCITY_MULT,
     EDGE_FADE_BOLD_THRESHOLD, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP,
     FRACTIONAL_HEAD_BRIGHTNESS_AMP, HEAD_BLOOM_CELLS, HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA,
-    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_INTENSITY,
+    HEAD_LINGER_BRIGHTNESS_MS, HEAD_SELFBLOOM_BASE, HEAD_SHIMMER_PERIOD_SECS, MOUSE_FLASH_INTENSITY,
     MOUSE_FLASH_RING_WIDTH, MOUSE_FLASH_SECONDARY_FRAC, MOUSE_GLOW_INTENSITY,
     MOUSE_GLOW_RADIUS_COLS, MOUSE_GLOW_RADIUS_LINES, PARALLAX_BRIGHTNESS_MULT,
     PARALLAX_CONTRAST_REDUCTION, PARALLAX_GLYPH_DIM, PARALLAX_HEAD_BLOOM_MULT,
@@ -872,7 +872,7 @@ impl Droplet {
                     // audit proposed a future perceptual OKLab L lift variant
                     // for the chroma path, but that is a separate behavior
                     // change requiring owner approval.
-                    const HEAD_BOOST: f32 = 60.0 / 256.0; // ~0.234 — was i32=60
+                    const HEAD_BOOST: f32 = HEAD_SELFBLOOM_BASE; // ~0.234 — centralized
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize];
                     let wf = HEAD_BOOST * layer_selfbloom;
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {

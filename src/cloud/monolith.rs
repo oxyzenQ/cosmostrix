@@ -17,7 +17,19 @@ use crate::cinematic::{
 };
 use crate::constants::EDGE_FADE_BOLD_THRESHOLD;
 use crate::constants::MAX_PALETTE_SLOTS;
+use crate::constants::MONOLITH_ACTIVE_BASE;
+use crate::constants::MONOLITH_ACTIVE_DENSITY_MULT;
+use crate::constants::MONOLITH_ACTIVE_MAX;
+use crate::constants::MONOLITH_CORE_WHITE_BLEND;
+use crate::constants::MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE;
 use crate::constants::MONOLITH_LAYER_BRIGHTNESS;
+use crate::constants::MONOLITH_MAX_STREAM_SPAN;
+use crate::constants::MONOLITH_MIN_STREAM_SPAN;
+use crate::constants::MONOLITH_SPAWN_RATE_FLOOR;
+use crate::constants::MONOLITH_SPAWN_RATE_MULT;
+use crate::constants::MONOLITH_SPINE_BRIGHTNESS;
+use crate::constants::MONOLITH_SPINE_PERIOD;
+use crate::constants::MONOLITH_WHITE_BOOST_CAP;
 use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::frame::Frame;
 use crate::palette;
@@ -27,17 +39,11 @@ use crate::terminal::blank_cell;
 use super::monolith_glyphs::{segment_char, spine_char};
 use super::render::DrawCtx;
 
+// All tuning constants now centralized in central_control_rains.rs.
+// MAX_SEGMENTS is kept as a local structural const because Rust requires
+// a concrete integer literal in [expr; N] repeat expressions within struct
+// defaults. Value must match MONOLITH_MAX_SEGMENTS in central_control_rains.rs.
 const MAX_SEGMENTS: usize = 9;
-const MIN_STREAM_SPAN: u16 = 14;
-const MAX_STREAM_SPAN: u16 = 30;
-const ACTIVE_BASE: f32 = 0.06;
-const ACTIVE_DENSITY_MULT: f32 = 0.28;
-const ACTIVE_MAX: f32 = 0.35;
-const SPAWN_RATE_MULT: f32 = 1.4;
-const SPAWN_RATE_FLOOR: f32 = 2.0;
-const SPINE_PERIOD: u16 = 3;
-const SPINE_BRIGHTNESS: f32 = 0.07;
-const DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 
 #[derive(Clone, Copy, Debug)]
 pub(super) enum SegmentKind {
@@ -123,7 +129,7 @@ impl MonolithStream {
             head: 0.0,
             speed_mult: 1.0,
             phase: 0.0,
-            span: MIN_STREAM_SPAN,
+            span: MONOLITH_MIN_STREAM_SPAN,
             palette_slot: 0,
             layer: 0,
             segments: [Segment::empty(); MAX_SEGMENTS],
@@ -138,7 +144,7 @@ impl MonolithStream {
         self.head = 0.0;
         self.speed_mult = 1.0;
         self.phase = 0.0;
-        self.span = MIN_STREAM_SPAN;
+        self.span = MONOLITH_MIN_STREAM_SPAN;
         self.palette_slot = 0;
         self.layer = 0;
         self.segment_count = 0;
@@ -226,7 +232,7 @@ impl MonolithRain {
             for lane in 0..lane_count {
                 self.streams.push(MonolithStream::new(lane as u16));
             }
-            let reserve = lane_count.saturating_mul(DRAWN_CELLS_PER_LANE_RESERVE);
+            let reserve = lane_count.saturating_mul(MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE);
             self.previous_cells = Vec::with_capacity(reserve);
             self.current_cells = Vec::with_capacity(reserve);
         } else {
@@ -333,7 +339,7 @@ impl MonolithRain {
         }
 
         let deficit = target - self.active_count;
-        let spawn_rate = (target as f32 * SPAWN_RATE_MULT + SPAWN_RATE_FLOOR) * params.spawn_scale;
+        let spawn_rate = (target as f32 * MONOLITH_SPAWN_RATE_MULT + MONOLITH_SPAWN_RATE_FLOOR) * params.spawn_scale;
         let budget =
             elapsed.as_secs_f32() * spawn_rate + (*spawn_remainder).min(SPAWN_REMAINDER_CAP);
         if !budget.is_finite() || budget <= 0.0 {
@@ -675,7 +681,7 @@ fn draw_spine_cell(
         return;
     }
     let line = line_i as u16;
-    let cadence = tone.cadence.max(SPINE_PERIOD);
+    let cadence = tone.cadence.max(MONOLITH_SPINE_PERIOD);
     if !(line + stream.col + segment_offset).is_multiple_of(cadence) {
         return;
     }
@@ -688,7 +694,7 @@ fn draw_spine_cell(
         stream.col,
         BrightnessLevel::Ghost,
         edge_fade
-            * SPINE_BRIGHTNESS
+            * MONOLITH_SPINE_BRIGHTNESS
             * MONOLITH_LAYER_BRIGHTNESS[stream.layer as usize]
             * 0.72
             * tone.breath,
@@ -893,7 +899,7 @@ pub(super) fn color_for_level(
     if factor > 1.0 {
         // v17 mastery: raised white_factor cap from 0.12 to 0.20 for
         // stronger pulse/breath brightness boost on Core/Hot cells.
-        let white_factor = (factor - 1.0).min(0.20);
+        let white_factor = (factor - 1.0).min(MONOLITH_WHITE_BOOST_CAP);
         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
             crate::chroma::palette::blend_toward_white_rgb(r, g, b, white_factor)
         } else {
@@ -904,14 +910,11 @@ pub(super) fn color_for_level(
         b = nb;
     }
     if matches!(level, BrightnessLevel::Core) {
-        // v17 mastery: CORE_WF = 140 (0.55 white blend). Was 115 (0.45).
-        // Head/core cell is dramatically brighter than body/tail —
-        // the high-contrast vivid hierarchy the owner wants.
-        const CORE_WF: f32 = 140.0 / 256.0; // 0.546875 — was i32=140
+        // CORE_WF centralized as MONOLITH_CORE_WHITE_BLEND.
         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-            crate::chroma::palette::blend_toward_white_rgb(r, g, b, CORE_WF)
+            crate::chroma::palette::blend_toward_white_rgb(r, g, b, MONOLITH_CORE_WHITE_BLEND)
         } else {
-            crate::chroma::legacy::blend_toward_white(r, g, b, CORE_WF)
+            crate::chroma::legacy::blend_toward_white(r, g, b, MONOLITH_CORE_WHITE_BLEND)
         };
         r = nr;
         g = ng;
@@ -974,7 +977,7 @@ pub(super) fn target_active_count(lanes: usize, density: f32) -> usize {
         return 0;
     }
     let ratio =
-        (ACTIVE_BASE + density.clamp(0.01, 5.0) * ACTIVE_DENSITY_MULT).clamp(0.02, ACTIVE_MAX);
+        (MONOLITH_ACTIVE_BASE + density.clamp(0.01, 5.0) * MONOLITH_ACTIVE_DENSITY_MULT).clamp(0.02, MONOLITH_ACTIVE_MAX);
     ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
 }
 
@@ -987,10 +990,10 @@ fn varied_speed_mult(roll: f32) -> f32 {
 }
 
 fn varied_span(lines: u16, roll: f32) -> u16 {
-    let max = MAX_STREAM_SPAN
+    let max = MONOLITH_MAX_STREAM_SPAN
         .min(lines.saturating_add(8))
-        .max(MIN_STREAM_SPAN);
-    let span = MIN_STREAM_SPAN as f32 + roll.clamp(0.0, 1.0) * (max - MIN_STREAM_SPAN) as f32;
+        .max(MONOLITH_MIN_STREAM_SPAN);
+    let span = MONOLITH_MIN_STREAM_SPAN as f32 + roll.clamp(0.0, 1.0) * (max - MONOLITH_MIN_STREAM_SPAN) as f32;
     span.round() as u16
 }
 

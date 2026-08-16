@@ -196,6 +196,7 @@ rather than bright pixels.
 | `HEAD_BLOOM_CELLS` | u16 | 2 | How many cells around the head get bloom (radius). |
 | `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.30] | Per-layer head bloom multiplier (Option F hero lever). |
 | `PARALLAX_HEAD_SELFBLOOM_MULT` | [f32; 3] | [0.38, 0.68, 1.20] | Per-layer self-bloom halo multiplier. |
+| `HEAD_SELFBLOOM_BASE` | f32 | ~0.234 | Base head self-bloom intensity (fraction of white-blend). |
 
 **Tuning recipes**:
 - **Bigger, softer halos**: raise `HEAD_BLOOM_SIGMA` from 1.2 → 1.8 and `HEAD_BLOOM_CELLS` from 2 → 3.
@@ -397,6 +398,19 @@ streams.
 |----------|------|--------:|--------|
 | `MONOLITH_LAYER_BRIGHTNESS` | [f32; 3] | [0.48, 0.78, 1.0] | Per-layer monolith brightness. |
 | `MONOLITH_BREATHING_AMPLITUDE` | [f32; 3] | [0.018, 0.026, 0.034] | Per-layer breathing ±%. |
+| `MONOLITH_CORE_WHITE_BLEND` | f32 | ~0.547 | Core cell white-blend for head pop. |
+| `MONOLITH_WHITE_BOOST_CAP` | f32 | 0.20 | Max pulse/breathing white-blend cap. |
+| `MONOLITH_MAX_SEGMENTS` | usize | 9 | Max segments per stream (local alias in monolith.rs). |
+| `MONOLITH_MIN_STREAM_SPAN` | u16 | 14 | Min stream span (rows). |
+| `MONOLITH_MAX_STREAM_SPAN` | u16 | 30 | Max stream span (rows). |
+| `MONOLITH_ACTIVE_BASE` | f32 | 0.06 | Base active-lane ratio. |
+| `MONOLITH_ACTIVE_DENSITY_MULT` | f32 | 0.28 | Density multiplier for active lanes. |
+| `MONOLITH_ACTIVE_MAX` | f32 | 0.35 | Max active-lane ratio cap. |
+| `MONOLITH_SPAWN_RATE_MULT` | f32 | 1.4 | Spawn rate multiplier. |
+| `MONOLITH_SPAWN_RATE_FLOOR` | f32 | 2.0 | Min spawns per tick. |
+| `MONOLITH_SPINE_PERIOD` | u16 | 3 | Spine repeat period (rows). |
+| `MONOLITH_SPINE_BRIGHTNESS` | f32 | 0.07 | Spine brightness relative to segments. |
+| `MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE` | usize | 32 | Reserved cell capacity per lane. |
 
 ### 3.14 RNG & character pools (lines 794–810)
 
@@ -462,6 +476,7 @@ PHOSPHOR_BOTTOM_DECAY_MULT         = 3.0
 HEAD_BLOOM_SIGMA                   = 1.2
 HEAD_BLOOM_INTENSITY               = 0.40
 HEAD_BLOOM_CELLS                   = 2
+HEAD_SELFBLOOM_BASE                = ~0.234
 
 === Atmospheric depth & edge effects ===
 FOG_ROWS                           = 3
@@ -655,6 +670,19 @@ GLITCH_DIM_RATIO                   = 0.75
 === Monolith ===
 MONOLITH_LAYER_BRIGHTNESS          = [0.48, 0.78, 1.0]
 MONOLITH_BREATHING_AMPLITUDE       = [0.018, 0.026, 0.034]
+MONOLITH_CORE_WHITE_BLEND          = ~0.547
+MONOLITH_WHITE_BOOST_CAP           = 0.20
+MONOLITH_MAX_SEGMENTS              = 9
+MONOLITH_MIN_STREAM_SPAN           = 14
+MONOLITH_MAX_STREAM_SPAN           = 30
+MONOLITH_ACTIVE_BASE               = 0.06
+MONOLITH_ACTIVE_DENSITY_MULT        = 0.28
+MONOLITH_ACTIVE_MAX                 = 0.35
+MONOLITH_SPAWN_RATE_MULT            = 1.4
+MONOLITH_SPAWN_RATE_FLOOR           = 2.0
+MONOLITH_SPINE_PERIOD               = 3
+MONOLITH_SPINE_BRIGHTNESS           = 0.07
+MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE = 32
 ```
 
 ---

@@ -59,6 +59,8 @@
 //! | Edge fade                | Viewport entry/exit taper                           |
 //! | Anomaly events           | Rare visual corruption events                       |
 //! | Quantum & ghost          | Quantum ripple + phosphor ghost spawn rates         |
+//! | Head self-bloom base     | Base white-blend for head self-bloom intensity      |
+//! | Monolith structure       | Core white-blend, boost cap, stream geometry        |
 //!
 //! ## Calibration history (most recent first)
 //!
@@ -1077,3 +1079,84 @@ pub(crate) const MONOLITH_LAYER_BRIGHTNESS: [f32; PARALLAX_LAYERS] = [0.48, 0.78
 ///   - Mid   (1): 0.026 (±2.6% — moderate)
 ///   - Front (2): 0.034 (±3.4% — visible foreground pulse)
 pub(crate) const MONOLITH_BREATHING_AMPLITUDE: [f32; PARALLAX_LAYERS] = [0.018, 0.026, 0.034];
+
+// ─── Head self-bloom base intensity ───────────────────────────────────────
+//
+// The base white-blend factor for head self-bloom. Combined with
+// per-layer PARALLAX_HEAD_SELFBLOOM_MULT, this determines how much
+// the head cell is boosted toward white (glow effect).
+//
+// Previously hardcoded in droplet.rs as `60.0 / 256.0`. Centralized
+// here so all rain visual tuning lives in a single file.
+
+/// Base head self-bloom intensity (fraction of white-blend applied to
+/// head cells). Per-layer scaling via PARALLAX_HEAD_SELFBLOOM_MULT.
+///
+/// Effective per-layer white-blend:
+/// - Back  (0): 0.234 × 0.38 = 0.089 (9% — ambient distant glow)
+/// - Mid   (1): 0.234 × 0.68 = 0.159 (16% — clearly present)
+/// - Front (2): 0.234 × 1.20 = 0.281 (28% — cinematic hero glow)
+pub(crate) const HEAD_SELFBLOOM_BASE: f32 = 60.0 / 256.0; // ~0.234
+
+// ─── Monolith scene brightness & structure ─────────────────────────────────
+//
+// Core/head cell white-blend, boost cap, and stream geometry for the
+// Monolith scene. Previously hardcoded in monolith.rs. Centralized
+// here per the single-source-of-truth principle.
+
+/// Core cell white-blend factor for the Monolith scene.
+///
+/// Applied to Core-level cells (brightest tier) as an extra blend toward
+/// white on top of the normal brightness scaling. Produces the dramatic
+/// head/core brightness that makes the monolith's focal glyphs pop.
+///
+/// v17 mastery: raised from 115/256 (0.45) → 140/256 (0.55) for
+/// higher-contrast vivid hierarchy.
+pub(crate) const MONOLITH_CORE_WHITE_BLEND: f32 = 140.0 / 256.0; // ~0.547
+
+/// Maximum white-blend cap for Monolith pulse/breathing boost.
+///
+/// When the monolith's brightness factor exceeds 1.0 (pulse/breathing),
+/// the excess is blended toward white but capped at this value to prevent
+/// clipping into pure white noise.
+///
+/// v17 mastery: raised from 0.12 → 0.20 for stronger pulse visibility.
+pub(crate) const MONOLITH_WHITE_BOOST_CAP: f32 = 0.20;
+
+/// Maximum segments per monolith stream.
+///
+/// Kept as the single source of truth even though a local `MAX_SEGMENTS`
+/// const in monolith.rs is required for Rust's `[T; N]` repeat expression
+/// in struct defaults. Both must match.
+#[allow(dead_code)]
+pub(crate) const MONOLITH_MAX_SEGMENTS: usize = 9;
+
+/// Minimum monolith stream span (rows).
+pub(crate) const MONOLITH_MIN_STREAM_SPAN: u16 = 14;
+
+/// Maximum monolith stream span (rows).
+pub(crate) const MONOLITH_MAX_STREAM_SPAN: u16 = 30;
+
+/// Base active-lane ratio for monolith density scaling.
+pub(crate) const MONOLITH_ACTIVE_BASE: f32 = 0.06;
+
+/// Density multiplier for monolith active-lane calculation.
+pub(crate) const MONOLITH_ACTIVE_DENSITY_MULT: f32 = 0.28;
+
+/// Maximum active-lane ratio cap.
+pub(crate) const MONOLITH_ACTIVE_MAX: f32 = 0.35;
+
+/// Spawn rate multiplier for monolith stream generation.
+pub(crate) const MONOLITH_SPAWN_RATE_MULT: f32 = 1.4;
+
+/// Spawn rate floor (minimum spawns per tick).
+pub(crate) const MONOLITH_SPAWN_RATE_FLOOR: f32 = 2.0;
+
+/// Spine repeat period (rows between spine characters).
+pub(crate) const MONOLITH_SPINE_PERIOD: u16 = 3;
+
+/// Spine brightness relative to surrounding segments.
+pub(crate) const MONOLITH_SPINE_BRIGHTNESS: f32 = 0.07;
+
+/// Reserved drawn-cell capacity per monolith lane.
+pub(crate) const MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
