@@ -60,6 +60,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
+    // Bug-fix: no ambient phase has fired yet, so the user's CLI/config
+    // choices ARE the authoritative state. Without this, the first live
+    // reload would incorrectly re-apply scene defaults (cinematic/zen/
+    // energyzen) via the empty-schedule handler, overriding the user's
+    // explicit --charset, --color, and config.toml values. With
+    // user_override_since_ambient = true, the preserve_user_override
+    // branch correctly restores the user's state after each rebuild.
+    cloud.user_override_since_ambient = true;
 
     // Build color byte cache so the draw hot path emits pre-formatted SGR.
     term.set_color_cache(ColorCache::new(&cloud.palette));
