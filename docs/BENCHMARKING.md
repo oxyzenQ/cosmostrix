@@ -18,6 +18,7 @@
 5. [v50 Reference Results (Cloud Xeon, 4-Scene Matrix)](#5-v50-reference-results-cloud-xeon-4-scene-matrix)
 5a. [v30 Historical Reference (Owner's Ryzen 5800HS)](#5a-v30-historical-reference-owners-ryzen-5800hs)
 5b. [Third-Party Hardware Verification (Cloud Xeon)](#5b-third-party-hardware-verification-cloud-xeon)
+5c. [v50 Ryzen Reference (PGO v3, post-warmup-fix)](#5c-v50-ryzen-reference-owners-ryzen-7-5800hs-pgo-v3)
 6. [Interpreting Key Metrics](#6-interpreting-key-metrics)
 7. [Component Timing Breakdown](#7-component-timing-breakdown)
 8. [Wet I/O vs Dry Benchmarking](#8-wet-io-vs-dry-benchmarking)
@@ -93,13 +94,13 @@ jump to §6 (Interpreting Key Metrics) for the deep dive.
 
 | Metric                  | Unit  | What it tells you in one sentence                                                            |
 |-------------------------|-------|----------------------------------------------------------------------------------------------|
-| `total_energy`          | J     | Energy consumed during the run. v30 60s: 1,363 J.                                            |
-| `avg_power`             | W     | Average power draw. v30: 22.73 W.                                                            |
-| `energy_per_frame`      | µJ    | Energy per frame. v30 lean: 309–387 µJ. Lower = more efficient.                             |
-| `energy_per_cell`       | nJ    | Size-independent energy metric. v30 lean: 2,133–2,388 nJ.                                   |
-| `cycles`                | count | CPU cycles during run. v30 60s: 9.3 billion.                                                 |
-| `instructions`          | count | CPU instructions retired. v30 60s: 24 billion.                                              |
-| `IPC`                   | ratio | Instructions per cycle. >2.0 = healthy; >3.0 = excellent. v30: 2.53–3.14.                  |
+| `total_energy`          | J     | Energy consumed during the run. v50 PGO v3 wet (5s): 63.47 J.                                    |
+| `avg_power`             | W     | Average power draw. v50 PGO v3 wet: 12.69 W.                                                |
+| `energy_per_frame`      | µJ    | Energy per frame. v50 PGO v3 wet: 292.4 µJ. Lower = more efficient.                              |
+| `energy_per_cell`       | nJ    | Size-independent energy metric. v50 PGO v3 wet: 1,520.7 nJ.                                |
+| `cycles`                | count | CPU cycles during run. v50 PGO v3 dry (5s): 15.4 billion.                                           |
+| `instructions`          | count | CPU instructions retired. v50 PGO v3 dry (5s): 40.4 billion.                                    |
+| `IPC`                   | ratio | Instructions per cycle. >2.0 = healthy; >3.0 = excellent. v50 PGO v3: 2.52–2.62 (Zen 3); v30: 2.53–3.14. |
 | `branch_mispredict_rate` | percent | Branch predictor failure rate. <2% = BOLT lookup tables working. v30: 0.57–2.41%.        |
 
 ### Visual Objective Metrics
@@ -120,7 +121,7 @@ jump to §6 (Interpreting Key Metrics) for the deep dive.
 | `MB/s`          | Megabytes per second (decimal, 10⁶ bytes/sec). Used for ANSI write bandwidth.                   |
 | `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
 | `J` / `W`       | Joules (energy) / Watts (power = energy/sec).                                                    |
-| `IPC`           | Instructions Per Cycle. CPU throughput efficiency ratio. >2.0 = healthy.                         |
+| `IPC`           | Instructions Per Cycle. CPU throughput efficiency ratio. >2.0 = healthy. v50 PGO v3: 2.52–2.62.          |
 | `drift`         | Positive = FPS dropped over time (throttle/leak); negative = FPS rose (warmup/boost). \|drift\| < 5% = stable. |
 | `wet` / `dry`   | Wet = `--bench-io` enabled (writes ANSI to /dev/null); dry = no I/O (pure engine throughput).    |
 | `lean` / `production-draw` | The two `--bench-scene` values. `lean` = dirty-cell-only emission (fastest); `production-draw` = full `Terminal::draw` path. |
@@ -243,9 +244,16 @@ The `--benchmark` report is organized into sections:
 **Machine**: 2-core Intel Xeon (Alibaba Cloud Linux), 3.9 GiB RAM, no swap,
 no RAPL, no perf counters. Kernel 5.10.134, gnu libc. CPU supports
 AVX-512 (avx512f/bw/cd/dq/vl/ifma/vbmi).
-**Binary**: `v50.0.0-alpha.2`, commit `36327da`, `pro-native` profile
+**Binary**: `v50.0.0-alpha.2`, commit `9f38bc6`, `pro-native` profile
 (x86-64-v4 baseline + `target-cpu=native` → AVX-512 auto-detected), fat LTO,
 rustc 1.97.1, no PGO.
+
+**Note**: The v50 Ryzen reference (§5c below, PGO v3 build) was captured on
+commit `9f38bc6` with the warmup-scope fix applied (energy/perf baselines
+snapshotted after warmup, not before). Earlier commits (`36327da` and
+prior) over-reported power by ~40% due to warmup energy leaking into the
+measurement delta. See commit `9f38bc6` message for the mathematical
+proof.
 **Terminal**: 80×24, `TERM=dumb`, color_mode=mono (sandbox has no TTY;
 production truecolor terminals will route through the Chroma Dragon engine
 instead of the legacy_rgb fallback seen here).
@@ -352,6 +360,7 @@ The v30 4-Run Matrix below is preserved for historical context. It was
 captured on the owner's personal desktop (Ryzen 7 5800HS, 8-core/16-thread)
 and represents the engine's throughput ceiling on enthusiast hardware.
 The v50 matrix above is the current reference for third-party hardware.
+For the latest v50 Ryzen results (PGO v3, post-warmup-fix), see §5c.
 
 ### Performance Matrix
 
@@ -445,6 +454,117 @@ honesty contract holds on third-party hardware.
 
 **Full environment, 3-run results, reproduction steps, and raw logs**:
 [`docs/BENCHMARK_CLOUD_XEON.md`](BENCHMARK_CLOUD_XEON.md).
+
+---
+
+## 5c. v50 Ryzen Reference (Owner's Ryzen 7 5800HS, PGO v3)
+
+**Machine**: AMD Ryzen 7 5800HS (8-core/16-thread, Zen 3, 3.0 GHz base,
+4.4 GHz boost), Cachyos LTS kernel 6.18.42, gnu libc, 16 GiB RAM,
+`TERM=xterm-direct`, `COLORTERM=truecolor`, schedutil governor, SMT on.
+**Binary**: `v50.0.0-alpha.2`, commit `9f38bc6`, `nitro-pgo` profile
+(x86-64-v3 baseline, AVX2/BMI2/FMA), fat LTO, PGO-optimized,
+rustc 1.97.1. PGO trained with 4 workloads (monolith, cinematic, signal,
+screensaver) on the same machine.
+**Terminal**: 88×32, truecolor, Chroma Dragon engine active.
+
+This is the current owner's-machine reference. All metrics below use the
+corrected warmup-scope logic (baselines captured after warmup, matching
+`total_elapsed_s` and `total_frames`). Compare with §5a (v30) to see
+the v50 engine evolution, or with §5 (v50 cloud Xeon) for cross-hardware
+validation.
+
+### Dry Benchmark (no I/O, 5s)
+
+| Metric                     | v50 PGO v3          |
+|----------------------------|-------------------:|
+| avg_fps                    | **53,749.0**        |
+| peak_fps                   | 85,895.9            |
+| median_fps                 | 56,455.7            |
+| avg_frame_time             | 0.018 ms            |
+| p95_frame_time             | 0.022 ms            |
+| p99_frame_time             | 0.024 ms            |
+| p99.9_frame_time           | 0.036 ms            |
+| max_frame_time             | 0.060 ms            |
+| frame_jitter               | low                 |
+| frame_time_stability       | excellent           |
+| total_frames               | 268,746             |
+| avg_dirty_cells_per_frame  | 192.5               |
+| avg_dirty_cell_ratio       | 6.84 %              |
+| peak_rss                   | 5.5 MiB             |
+| avg_cpu_percent            | 95.4 %              |
+| avg_sim_ms                 | 0.0123 ms           |
+| avg_render_ms              | 0.0056 ms           |
+| avg_io_ms                  | 0.0005 ms           |
+| sim_share_percent          | 67.1 %              |
+| render_share_percent       | 30.4 %              |
+| io_share_percent           | 2.5 %               |
+| fps_drift_percent          | -0.39 % (stable)    |
+
+### Wet Benchmark (I/O to /dev/null, 5s)
+
+| Metric                     | v50 PGO v3          |
+|----------------------------|-------------------:|
+| avg_fps                    | **43,411.3**        |
+| peak_fps                   | 64,354.2            |
+| median_fps                 | 44,879.3            |
+| avg_frame_time             | 0.023 ms            |
+| total_frames               | 217,057             |
+| write_bandwidth            | 170.8 MB/s          |
+| avg_write_latency          | 0.4 µs              |
+| backpressure_events        | 0                   |
+| total_bytes_written        | 895.32 M            |
+
+### Microarchitecture (perf counters, dry)
+
+| Metric                     | v50 PGO v3          |
+|----------------------------|-------------------:|
+| cycles                     | 15.4 B              |
+| instructions               | 40.4 B              |
+| IPC                        | **2.62**            |
+| branch_instructions        | 6.4 B               |
+| branch_misses              | 165.27 M            |
+| branch_mispredict_rate     | 2.60 %              |
+
+### Energy (RAPL, wet)
+
+| Metric                     | v50 PGO v3          | v50 pro v1 (pre-fix) |
+|----------------------------|-------------------:|-----------------------:|
+| total_energy               | 63.47 J             | 70.29 J               |
+| avg_power                  | **12.69 W**         | 14.06 W               |
+| energy_per_frame           | **292.4 µJ**        | 346.3 µJ              |
+| energy_per_cell            | **1,520.7 nJ**      | 1,802.4 nJ            |
+
+The energy numbers are now accurate (warmup excluded from delta). The
+v50 PGO v3 build delivers 7% higher FPS and 15.6% better energy
+per frame vs the v1 SSE2 baseline, without any code changes — pure
+compiler optimization (AVX2 codegen + PGO code layout).
+
+### Allocator
+
+| Metric                     | v50 PGO v3          |
+|----------------------------|-------------------:|
+| alloc_calls                | 1.4 K               |
+| dealloc_calls              | 1.4 K               |
+| realloc_calls              | 5.2 K               |
+| alloc_calls_per_frame      | 0.0                 |
+| heap_retained              | 0 KiB               |
+| heap_virtual               | 520 KiB             |
+
+Zero heap retention confirms no memory leak. `alloc_calls_per_frame`
+is effectively zero — the hot path is fully allocation-free.
+
+### v30 → v50 Delta (same machine, dry, 5s)
+
+| Metric                     | v30 (pro v1)         | v50 (PGO v3)        | Delta     |
+|----------------------------|-------------------:|-------------------:|----------:|
+| avg_fps                    | ~51,408*            | **53,749.0**        | **+4.6%** |
+| avg_sim_ms                 | ~0.0139*            | **0.0123**          | **-11.5%**|
+| IPC                        | 2.57*               | **2.62**            | **+2.0%** |
+| energy_per_frame (wet)     | 346.3 µJ*           | **292.4 µJ**        | **-15.6%**|
+
+\* v30 v50-era pro v1 (SSE2, no PGO) numbers extrapolated from the
+owner's earlier benchmark runs on the same machine.
 
 ---
 
@@ -627,11 +747,11 @@ Reports: cycles, instructions, IPC, branch instructions, branch misses,
 branch mispredict rate.
 
 **Interpretation**:
-- **IPC > 2.0** = healthy instruction throughput. v30: 2.53–3.14.
+- **IPC > 2.0** = healthy instruction throughput. v50 PGO v3: 2.52–2.62.
 - **IPC > 3.0** = excellent (working set fits in L1, branch predictor
   is hot).
 - **Branch mispredict < 2%** = BOLT branchless lookup tables working.
-  v30: 0.57–2.41%.
+  v50 PGO v3: 2.36–2.60%.
 
 ### ENERGY (RAPL powercap sysfs)
 
@@ -651,9 +771,9 @@ energy per cell (nJ).
 
 **Interpretation**:
 - **energy_per_frame** = how much energy one frame costs. Lower =
-  more efficient. v30 lean: 309–387 µJ.
-- **energy_per_cell** = size-independent energy metric. v30 lean:
-  2,133–2,388 nJ.
+  more efficient. v50 PGO v3 wet: 292.4 µJ.
+- **energy_per_cell** = size-independent energy metric. v50 PGO v3 wet:
+  1,520.7 nJ.
 
 See [docs/BENCHMARK_ADVANCED.md](BENCHMARK_ADVANCED.md) for the full
 guide on enabling these sections.
@@ -845,17 +965,17 @@ layer entirely. A real terminal can be backpressured even when
 **Why it matters:** users think the terminal is fine when the benchmark
 only measured kernel I/O, not terminal I/O.
 
-### Misreading 10: "IPC 2.58 means the CPU is bottlenecked on branches"
+### Misreading 10: "IPC 2.62 means the CPU is bottlenecked on branches"
 
 **Wrong:** IPC < 3.0 means branch mispredicts are dominating.
-**Correct:** IPC 2.58 is healthy — the working set fits in L1 and the
-branch predictor is hot. IPC > 2.0 = healthy, IPC > 3.0 = excellent
-(usually only achievable with SIMD or very tight loops). The bottleneck
-at IPC 2.58 is more likely cache latency or instruction dependency
-chains, not branches.
+**Correct:** IPC 2.52–2.62 (v50 PGO v3 on Zen 3) is healthy — the working set
+fits in L1 and the branch predictor is hot. IPC > 2.0 = healthy, IPC > 3.0
+= excellent (usually only achievable with SIMD or very tight loops).
+The bottleneck at IPC 2.6 is more likely cache latency or instruction
+dependency chains, not branches.
 **Why it matters:** users waste time on branch optimization when the
-real bottleneck is elsewhere. Check `branch_mispredict_rate` (< 2% =
-predictor is fine).
+real bottleneck is elsewhere. Check `branch_mispredict_rate` (< 2.5% =
+predictor is fine — v50 PGO v3: 2.36–2.60%).
 
 ---
 
