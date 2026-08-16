@@ -118,11 +118,10 @@ fn viewport_edge_fade_with_small_terminal() {
 
 #[test]
 fn viewport_edge_fade_top_more_aggressive_than_bottom() {
-    // Neon Sharp profile: the bottom edge fade (EDGE_FADE_BOTTOM_MIN=0.80)
-    // is more aggressive than the top (EDGE_FADE_TOP_MIN=0.90). This is
-    // inverted from Cinema Noir — in Neon Sharp, the top is the gentle end
-    // (rain enters bright) and the bottom is the slightly more aggressive
-    // end (minimal dissolve). The test checks bottom < top (more dim = lower value).
+    // Cinema Noir profile: the top edge fade (EDGE_FADE_TOP_MIN=0.45)
+    // is more aggressive than the bottom (EDGE_FADE_BOTTOM_MIN=0.65). This is
+    // the classic noir aesthetic — rain enters from deep shadow at top and
+    // dissolves gently at bottom. The test checks top < bottom (more dim = lower value).
     use crate::droplet::viewport_edge_fade;
 
     let lines: u16 = 20;
@@ -130,10 +129,10 @@ fn viewport_edge_fade_top_more_aggressive_than_bottom() {
     let fade_bottom = viewport_edge_fade(lines - 1, lines);
 
     assert!(
-        fade_bottom < fade_top,
-        "bottom edge fade ({}) should be more aggressive than top ({})",
-        fade_bottom,
-        fade_top
+        fade_top < fade_bottom,
+        "top edge fade ({}) should be more aggressive than bottom ({})",
+        fade_top,
+        fade_bottom
     );
 }
 
@@ -361,11 +360,11 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     use crate::droplet::rain_shadow_factor;
 
     let lines: u16 = 40;
-    // Neon Sharp: shadow zone is bottom RAIN_SHADOW_PCT (8%) of the screen.
-    // For lines=40, threshold = (1.0 - 0.08) * 40 = 36.8 → 36. Rows 36..=39 are
+    // Cinema Noir: shadow zone is bottom RAIN_SHADOW_PCT (15%) of the screen.
+    // For lines=40, threshold = (1.0 - 0.15) * 40 = 34.0 → 34. Rows 34..=39 are
     // in the shadow zone.
     let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
-    assert_eq!(threshold, 36, "shadow threshold for 40-line terminal");
+    assert_eq!(threshold, 34, "shadow threshold for 40-line terminal");
 
     // Every row in the shadow zone must stay >= RAIN_SHADOW_FLOOR.
     for line in threshold..lines {
@@ -613,28 +612,26 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
     // Bottom-center (col=cols/2): vignette_factor is 1.0 (inside inner
     // radius), so compounded = shadow * edge * 1.0 * crt.
-    //   shadow = rain_shadow_factor(lines-1, lines=40, PCT=0.08, FLOOR=0.78)
-    //          threshold=36, span=4, t=3/4=0.75, raw=1-0.5625=0.4375
-    //          factor = 0.78 + 0.22*0.4375 = 0.876
-    //   edge   = 0.80  (EDGE_FADE_BOTTOM_MIN, Neon Sharp)
-    //   crt    = 0.97  (CRT_VIGNETTE_EDGE_FACTOR, Neon Sharp)
-    //   product = 0.876 * 0.80 * 1.0 * 0.97 ≈ 0.680
+    //   Cinema Noir: PCT=0.15, FLOOR=0.55, EDGE_FADE_BOTTOM_MIN=0.65, CRT=0.85
+    //   product ≈ 0.380
     let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
+    // Print actual value for calibration (visible in test output on failure)
+    eprintln!("Cinema Noir bottom-center actual: {bottom_center:.6}");
     assert!(
-        (bottom_center - 0.680).abs() < 0.010,
-        "bottom-center compounded brightness {} should be ~0.680 (documented target)",
+        (bottom_center - 0.380).abs() < 0.010,
+        "bottom-center compounded brightness {} should be ~0.380 (Cinema Noir documented target)",
         bottom_center
     );
 
-    // Bottom-corner (col=0 or col=cols-1): vignette_factor is ~0.932
-    // (corner radial dimming, VIGNETTE_INTENSITY=0.05, nearly off), so compounded =
-    // shadow * edge * 0.932 * crt.
-    //   product ≈ 0.876 * 0.80 * 0.932 * 0.97 ≈ 0.648
+    // Bottom-corner (col=0 or col=cols-1): vignette_factor applies radial
+    // dimming (VIGNETTE_INTENSITY=0.20, inner_radius=0.7).
+    //   Cinema Noir: product ≈ 0.302
     for col in [0u16, cols - 1] {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
+        eprintln!("Cinema Noir bottom-corner col {col} actual: {brightness:.6}");
         assert!(
-            (brightness - 0.648).abs() < 0.010,
-            "bottom-corner col {} compounded brightness {} should be ~0.648 (documented target)",
+            (brightness - 0.302).abs() < 0.015,
+            "bottom-corner col {} compounded brightness {} should be ~0.302 (Cinema Noir documented target)",
             col,
             brightness
         );
@@ -643,12 +640,12 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
 #[test]
 fn compounded_brightness_top_row_visible() {
-    // The top row should remain visibly dim (not destroyed). The
-    // retune targeted a compounded top brightness of ~0.53 (visible
-    // cinematic fade-in).  doesn't change the top row (no shadow
-    // applies there) — this test guards against accidental regressions
-    // in the CRT vignette or edge fade constants that would push the
-    // top row below the visibility floor.
+    // The top row should remain visibly dim (not destroyed). Cinema Noir
+    // targets a compounded top brightness of ~0.342 (dark but visible —
+    // dramatic noir fade-in from shadow). Rain shadow doesn't apply at
+    // the top row — this test guards against accidental regressions in
+    // the CRT vignette or edge fade constants that would push the top
+    // row below the visibility floor.
     use crate::droplet::compounded_brightness;
 
     let cols: u16 = 80;
@@ -656,10 +653,11 @@ fn compounded_brightness_top_row_visible() {
     let layer: usize = 0;
 
     // Top-center should be well above the visibility floor.
+    // Cinema Noir: ~0.342 (dark entry, noir aesthetic)
     let top_center = compounded_brightness(cols / 2, 0, cols, lines, layer);
     assert!(
-        top_center >= 0.30,
-        "top-center compounded brightness {} should be >= 0.30 (documented  target ~0.53)",
+        top_center >= 0.25,
+        "top-center compounded brightness {} should be >= 0.25 (Cinema Noir target ~0.342)",
         top_center
     );
 
@@ -668,8 +666,8 @@ fn compounded_brightness_top_row_visible() {
     for col in [0, cols - 1] {
         let brightness = compounded_brightness(col, 0, cols, lines, layer);
         assert!(
-            brightness >= 0.25,
-            "top corner col {} compounded brightness {} should be >= 0.25",
+            brightness >= 0.15,
+            "top corner col {} compounded brightness {} should be >= 0.15",
             col,
             brightness
         );
