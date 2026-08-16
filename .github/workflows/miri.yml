@@ -28,6 +28,9 @@ name: miri
   # Manual trigger from the Actions tab.
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 env:
   RUST_BACKTRACE: 1
   CARGO_TERM_COLOR: always
