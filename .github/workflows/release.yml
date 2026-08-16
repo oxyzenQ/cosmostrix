@@ -1061,30 +1061,68 @@ jobs:
           # changed since the last build).
           TAG="${{ steps.ver.outputs.tag }}"
           IS_PRERELEASE="${{ steps.ver.outputs.prerelease }}"
+
+          # --- Determine PREV_TAG (for diff log) ---
           if [ "$IS_PRERELEASE" = "true" ]; then
-            # Pre-release: use the most recent tag of any kind.
             PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1 || true)
           else
-            # Final release: skip pre-release tags when finding prev.
-            # Pre-release tags match: v*-alpha*, v*-beta*, v*-rc*, v*-pre*
             PREV_TAG=$(git tag --sort=-creatordate \
               | grep -v "^${TAG}$" \
               | grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)[\.\-]' \
               | head -1 || true)
           fi
+
+          # --- Count commit types from PREV_TAG..TAG ---
+          if [ -n "$PREV_TAG" ]; then
+            TOTAL_COMMITS=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | wc -l | tr -d ' ')
+            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^fix')
+            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^feat')
+            OTHERS_COUNT=$((TOTAL_COMMITS - FIX_COUNT - FEAT_COUNT))
+          else
+            TOTAL_COMMITS=0
+            FIX_COUNT=0
+            FEAT_COUNT=0
+            OTHERS_COUNT=0
+          fi
+
+          # --- Build release body ---
           {
-            if [ -n "$PREV_TAG" ]; then
-              echo "## What's Changed"
+            echo "## What's Changed"
+            echo ""
+
+            # Color-coded stability notice
+            if [ "$IS_PRERELEASE" = "true" ]; then
+              echo "> [!WARNING]"
+              echo "> **Pre-release build — not a stable release. Expect bugs.**"
               echo ""
-              if [ "$IS_PRERELEASE" = "true" ]; then
-                echo "> **Pre-release build** — not a stable release. Expect bugs."
-                echo ""
-              fi
+            else
+              echo "> [!TIP]"
+              echo "> **Stable release.**"
+              echo ""
+            fi
+
+            if [ -n "$PREV_TAG" ] && [ "$TOTAL_COMMITS" -gt 0 ]; then
+              # Commit summary stats
+              echo "**${TOTAL_COMMITS} commits** since \`${PREV_TAG}\`"
+              echo ""
+              echo "> [!NOTE]"
+              echo "> **Total achievements:**"
+              echo "> - 🐛 fix × ${FIX_COUNT} — [click here to see changelog fix](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG})"
+              echo "> - ✨ feat × ${FEAT_COUNT}"
+              echo "> - 📋 others × ${OTHERS_COUNT}"
+              echo ""
+
+              # Full commit log
+              echo "<details>"
+              echo "<summary>Full changelog</summary>"
+              echo ""
               git log --no-merges --pretty=format:'- %s (%h)' "${PREV_TAG}..${TAG}"
               echo ""
+              echo "</details>"
             else
               echo "Initial release."
             fi
+
             echo ""
             echo "## Verification"
             echo ""
