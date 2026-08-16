@@ -40,9 +40,8 @@ use super::monolith_glyphs::{segment_char, spine_char};
 use super::render::DrawCtx;
 
 // All tuning constants now centralized in central_control_rains.rs.
-// MAX_SEGMENTS is kept as a local structural const because Rust requires
-// a concrete integer literal in [expr; N] repeat expressions within struct
-// defaults. Value must match MONOLITH_MAX_SEGMENTS in central_control_rains.rs.
+// MAX_SEGMENTS is a local structural const — Rust requires a concrete
+// integer literal in [expr; N] repeat expressions within struct defaults.
 const MAX_SEGMENTS: usize = 9;
 
 #[derive(Clone, Copy, Debug)]

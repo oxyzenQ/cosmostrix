@@ -235,6 +235,7 @@ pub struct Cloud {
 
     pub(super) anomaly_zones: Vec<AnomalyZone>,
 
+    #[allow(dead_code)] // reserved: future profile selector reads this field
     pub(super) profile: BehaviorProfile,
     pub(super) profile_current: ProfileParams,
     pub(super) profile_target: ProfileParams,
@@ -513,14 +514,6 @@ impl Cloud {
     #[must_use]
     pub fn rain_style(&self) -> RainStyle {
         self.rain_style
-    }
-
-    pub fn profile(&self) -> BehaviorProfile {
-        self.profile
-    }
-
-    pub fn profile_name(&self) -> &'static str {
-        self.profile.name()
     }
 
     #[must_use]

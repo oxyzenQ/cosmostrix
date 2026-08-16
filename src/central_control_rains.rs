@@ -1123,14 +1123,6 @@ pub(crate) const MONOLITH_CORE_WHITE_BLEND: f32 = 140.0 / 256.0; // ~0.547
 /// v17 mastery: raised from 0.12 → 0.20 for stronger pulse visibility.
 pub(crate) const MONOLITH_WHITE_BOOST_CAP: f32 = 0.20;
 
-/// Maximum segments per monolith stream.
-///
-/// Kept as the single source of truth even though a local `MAX_SEGMENTS`
-/// const in monolith.rs is required for Rust's `[T; N]` repeat expression
-/// in struct defaults. Both must match.
-#[allow(dead_code)]
-pub(crate) const MONOLITH_MAX_SEGMENTS: usize = 9;
-
 /// Minimum monolith stream span (rows).
 pub(crate) const MONOLITH_MIN_STREAM_SPAN: u16 = 14;
 

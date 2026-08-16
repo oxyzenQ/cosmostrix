@@ -193,12 +193,6 @@ impl Cloud {
         self.semantic_invalidate = true;
     }
 
-    /// Current glitch intensity (0.0 = off, 0.25 = intense).
-    #[must_use]
-    pub fn glitch_pct(&self) -> f32 {
-        self.glitch_pct
-    }
-
     pub fn set_glitch_pct(&mut self, pct: f32) {
         self.glitch_pct = pct;
         self.fill_glitch_map();

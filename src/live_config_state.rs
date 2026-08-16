@@ -12,7 +12,7 @@
 //!   from the live-reload path (e.g. deprecated `.stops` alias). Buffered
 //!   during the rain loop to avoid alt-screen leak (AB-10), drained post-exit.
 
-use std::sync::atomic::{AtomicU8, Ordering};
+use std::sync::atomic::AtomicU8;
 use std::sync::Mutex;
 
 /// Global exit code set by live-reload when invalid config is detected.
@@ -97,8 +97,4 @@ pub fn drain_validation_rejections() -> Vec<String> {
         .unwrap_or_default()
 }
 
-// Re-export with a stable name so existing `live_config::LIVE_RELOAD_EXIT_CODE`
-// references still resolve. The statics are defined here for cohesion; the
-// public API surface stays unchanged.
-#[allow(unused_imports)]
-use Ordering as _OrderingPlaceholder;
+

@@ -10,8 +10,8 @@
 //!
 //! ## Design principles
 //!
-//! 1. **Type aliases over traits** — We use type aliases (`TermReinit`,
-//!    `SignalExit`) rather than trait objects or enums. This keeps zero
+//! 1. **Type aliases over traits** — We use type aliases (`TermReinit`)
+//!    rather than trait objects or enums. This keeps zero
 //!    overhead on all platforms and avoids vtable indirection. The cfg gate
 //!    lives in one place (this file) instead of dozens.
 //!
@@ -61,14 +61,6 @@ pub(crate) fn default_term_reinit() -> TermReinit {
 #[inline]
 #[must_use]
 pub(crate) fn default_term_reinit() -> TermReinit {}
-
-/// Type alias for the "signal received → exit" flag.
-///
-/// Same semantics on all platforms: `Arc<AtomicBool>`. Kept as an alias
-/// for consistency and to allow future platform-specific changes (e.g.
-/// Windows might use a different sync primitive if ctrlc changes).
-#[allow(dead_code)]
-pub(crate) type SignalExit = std::sync::Arc<std::sync::atomic::AtomicBool>;
 
 /// Swap the `term_reinit` flag and return the old value.
 ///

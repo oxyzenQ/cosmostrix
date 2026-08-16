@@ -131,7 +131,7 @@ impl PerformanceSelfHealer {
     /// floor) and disables glitches — the user's visual settings are never
     /// touched. This constant is kept so the audit trail is visible and
     /// future contributors understand what the old behavior was.
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub(crate) const FALLBACK_SCENE: &'static str = "low-power";
 
     pub(crate) fn new() -> Self {

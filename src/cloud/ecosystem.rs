@@ -19,6 +19,7 @@ use crate::runtime::ColorScheme;
 /// fundamentally alter how the renderer feels, moves, and breathes.
 /// These are NOT simple recolors; each profile defines a behavioral ecosystem.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(dead_code)] // Void/Neural/Decay/Eclipse/Static/Pulse reserved for future profiles
 pub enum BehaviorProfile {
     Monolith,
     Void,
@@ -30,6 +31,7 @@ pub enum BehaviorProfile {
 }
 
 impl BehaviorProfile {
+    #[allow(dead_code)] // reserved for future profile display/logging
     pub(super) fn name(self) -> &'static str {
         match self {
             BehaviorProfile::Monolith => "Monolith",
