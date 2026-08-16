@@ -30,7 +30,7 @@ pub(crate) fn format_rss_kb(kib: u64) -> String {
     if kib >= GIB {
         format!("{:.2} GiB", kib as f64 / GIB as f64)
     } else if kib >= MIB {
-        format!("{:.1} MiB", kib as f64 / MIB as f64)
+        format!("{:.2} MiB", kib as f64 / MIB as f64)
     } else {
         format!("{kib} KiB")
     }
@@ -51,8 +51,8 @@ mod tests {
         assert_eq!(format_rss_kb(0), "0 KiB");
         assert_eq!(format_rss_kb(512), "512 KiB");
         assert_eq!(format_rss_kb(1023), "1023 KiB");
-        assert_eq!(format_rss_kb(1024), "1.0 MiB");
-        assert_eq!(format_rss_kb(2048), "2.0 MiB");
+        assert_eq!(format_rss_kb(1024), "1.00 MiB");
+        assert_eq!(format_rss_kb(2048), "2.00 MiB");
         assert_eq!(format_rss_kb(1_572_864), "1.50 GiB");
         assert!(format_rss_kb(1_048_576).ends_with("GiB"));
     }

@@ -430,31 +430,31 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
 
     {
         let s = r.section("PERFORMANCE");
-        s.field("avg_fps", &format!("{:.1}", data.avg_fps));
-        s.field("peak_fps", &format!("{:.1}", data.peak_fps));
-        s.field("avg_frame_time", &format!("{:.3}ms", data.avg_frame_time));
-        s.field("p95_frame_time", &format!("{:.3}ms", data.p95_frame_time));
-        s.field("p99_frame_time", &format!("{:.3}ms", data.p99_frame_time));
+        s.field("avg_fps", &format!("{:.2}", data.avg_fps));
+        s.field("peak_fps", &format!("{:.2}", data.peak_fps));
+        s.field("avg_frame_time", &format!("{:.4}ms", data.avg_frame_time));
+        s.field("p95_frame_time", &format!("{:.4}ms", data.p95_frame_time));
+        s.field("p99_frame_time", &format!("{:.4}ms", data.p99_frame_time));
         s.field(
             "p99_9_frame_time",
-            &format!("{:.3}ms", data.p99_9_frame_time),
+            &format!("{:.4}ms", data.p99_9_frame_time),
         );
-        s.field("max_frame_time", &format!("{:.3}ms", data.max_frame_time));
+        s.field("max_frame_time", &format!("{:.4}ms", data.max_frame_time));
         s.field(
             "max_frame_time_meaning",
             "worst single-frame spike; what users perceive as jank",
         );
         s.field("frame_jitter", data.jitter_classification);
-        s.field("median_fps", &format!("{:.1}", data.median_fps));
+        s.field("median_fps", &format!("{:.2}", data.median_fps));
         s.field("frame_time_stability", data.frame_time_stability);
         s.field(
             "active_frame_ratio_percent",
-            &format!("{:.1}%", data.active_frame_ratio),
+            &format!("{:.2}%", data.active_frame_ratio),
         );
         s.field(
             "active_frame_ratio",
             &format!(
-                "{:.1}% (frames with >=1 dirty cell)",
+                "{:.2}% (frames with >=1 dirty cell)",
                 data.active_frame_ratio
             ),
         );
@@ -653,15 +653,15 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         if total_avg > 0.0 {
             s.field(
                 "sim_share_percent",
-                &format!("{:.1}", data.avg_sim_ms / total_avg * 100.0),
+                &format!("{:.2}", data.avg_sim_ms / total_avg * 100.0),
             );
             s.field(
                 "render_share_percent",
-                &format!("{:.1}", data.avg_render_ms / total_avg * 100.0),
+                &format!("{:.2}", data.avg_render_ms / total_avg * 100.0),
             );
             s.field(
                 "io_share_percent",
-                &format!("{:.1}", data.avg_io_ms / total_avg * 100.0),
+                &format!("{:.2}", data.avg_io_ms / total_avg * 100.0),
             );
         }
     }
@@ -683,12 +683,12 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field(
             "render_ns_per_cell",
-            &format!("{:.1}", data.render_ns_per_cell),
+            &format!("{:.2}", data.render_ns_per_cell),
         );
-        s.field("io_ns_per_cell", &format!("{:.1}", data.io_ns_per_cell));
+        s.field("io_ns_per_cell", &format!("{:.2}", data.io_ns_per_cell));
         s.field(
             "total_ns_per_cell",
-            &format!("{:.1}", data.total_ns_per_cell),
+            &format!("{:.2}", data.total_ns_per_cell),
         );
         s.field(
             "ns_per_cell_meaning",
@@ -710,8 +710,8 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             data.fps_drift_percent,
         ) {
             (Some(f), Some(s2), Some(d)) => {
-                s.field("first_half_fps", &format!("{:.1}", f));
-                s.field("second_half_fps", &format!("{:.1}", s2));
+                s.field("first_half_fps", &format!("{:.2}", f));
+                s.field("second_half_fps", &format!("{:.2}", s2));
                 s.field("fps_drift_percent", &format!("{:+.2}%", d));
                 // Interpret the drift value for the user.
                 let interpretation = if d > 10.0 {
@@ -801,7 +801,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 );
                 s.field(
                     "avg_write_latency",
-                    &format!("{:.1} µs", io.avg_latency_us()),
+                    &format!("{:.2} µs", io.avg_latency_us()),
                 );
                 s.field("backpressure_events", &io.backpressure_events.to_string());
                 s.field(
@@ -830,11 +830,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 s.field("avg_power", &format!("{:.2} W", e.avg_power_watts));
                 s.field(
                     "energy_per_frame",
-                    &format!("{:.1} µJ", e.energy_per_frame_uj),
+                    &format!("{:.2} µJ", e.energy_per_frame_uj),
                 );
                 s.field(
                     "energy_per_cell",
-                    &format!("{:.1} nJ", e.energy_per_cell_nj),
+                    &format!("{:.2} nJ", e.energy_per_cell_nj),
                 );
             }
             _ => {

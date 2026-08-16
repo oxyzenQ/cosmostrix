@@ -135,7 +135,7 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
             .map(|i| format!("{i:.2}"))
             .unwrap_or_else(|| "—".to_string());
         println!(
-            "  {:<8} {:>6} {:>10} {:>10.1} {:>6} {:>8.1} {:>8.2} {:>8.4}",
+            "  {:<8} {:>6} {:>10} {:>10.2} {:>6} {:>8.1} {:>8.2} {:>8.4}",
             size_str,
             crate::humanize::humanize(r.cells),
             fps_str,

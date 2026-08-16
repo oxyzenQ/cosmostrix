@@ -1098,7 +1098,8 @@ jobs:
 
             # One-line summary with inline stats
             if [ "$TOTAL_COMMITS" -gt 0 ] && [ -n "$PREV_TAG" ]; then
-              echo "**${TOTAL_COMMITS} commits** since \`${PREV_TAG}\` — fix ${FIX_COUNT} / feat ${FEAT_COUNT} / other ${OTHERS_COUNT} [diff](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG})"
+              DIFF_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG}"
+              echo "**${TOTAL_COMMITS} commits** since \`${PREV_TAG}\` — fix ${FIX_COUNT} / feat ${FEAT_COUNT} / other ${OTHERS_COUNT} [diff](${DIFF_URL})"
               echo ""
             else
               echo "Initial release."

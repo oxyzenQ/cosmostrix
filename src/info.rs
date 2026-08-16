@@ -347,12 +347,15 @@ pub(super) fn estimate_memory_budget(w: u16, h: u16) -> usize {
 
 #[must_use]
 pub(super) fn format_bytes(bytes: usize) -> String {
-    if bytes < 1024 {
+    let b = bytes as f64;
+    if b < 1024.0 {
         format!("{} B", bytes)
-    } else if bytes < 1024 * 1024 {
-        format!("{:.1} KiB", bytes as f64 / 1024.0)
+    } else if b < 1024.0 * 1024.0 {
+        format!("{:.2} KiB", b / 1024.0)
+    } else if b < 1024.0 * 1024.0 * 1024.0 {
+        format!("{:.2} MiB", b / (1024.0 * 1024.0))
     } else {
-        format!("{:.1} MiB", bytes as f64 / (1024.0 * 1024.0))
+        format!("{:.2} GiB", b / (1024.0 * 1024.0 * 1024.0))
     }
 }
 

@@ -117,7 +117,7 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     println!("  cols: {}", w);
     println!("  lines: {}", h);
     println!("  frames: {}", bench_frames);
-    println!("  elapsed_s: {:.6}", elapsed_s);
+    println!("  elapsed_s: {:.3}", elapsed_s);
     println!("  frames_per_s: {:.3}", fps);
     Ok(())
 }

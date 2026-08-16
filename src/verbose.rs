@@ -167,7 +167,7 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose(
             "  chroma_features:",
             &format!(
-                " oklab_gradient, perceptual_blend, climate_post_fx, head_halo(factor={halo_factor}), l_smoothing, subpixel_jitter(amplitude={jitter_amp})"
+                " oklab_gradient, perceptual_blend, climate_post_fx, head_halo(factor={halo_factor:.2}), l_smoothing, subpixel_jitter(amplitude={jitter_amp})"
             ),
         );
     } else if let Some(reason) = pipeline.disable_reason(color_mode) {
@@ -235,7 +235,7 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose(
         "glitch:",
         &format!(
-            " {} ({glitch_pct}%, {glitch_low}-{glitch_high}ms)",
+            " {} ({glitch_pct:.0}%, {glitch_low}-{glitch_high}ms)",
             glitch_enabled
         ),
     );

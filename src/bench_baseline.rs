@@ -117,7 +117,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
                 }
 
                 println!(
-                    "  {:<25} {:>12} {:>12} {:>+9.1}% {:>8}",
+                    "  {:<25} {:>12} {:>12} {:>+9.2}% {:>8}",
                     label,
                     crate::humanize::humanize_f64(bv),
                     crate::humanize::humanize_f64(cv),
