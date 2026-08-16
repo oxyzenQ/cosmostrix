@@ -73,19 +73,20 @@ jobs:
           cache-on-failure: true
 
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@v3
+        uses: github/codeql-action/init@v4
         with:
           languages: rust
+          config-file: .github/codeql/codeql-config.yml
 
       - name: Build (autobuild)
-        uses: github/codeql-action/autobuild@v3
+        uses: github/codeql-action/autobuild@v4
         # CodeQL autobuild for Rust invokes `cargo build`. If the
         # toolchain is already installed (step above), this succeeds
         # without additional setup. The build provides the compilation
         # database CodeQL needs for precise analysis.
 
       - name: Perform CodeQL analysis
-        uses: github/codeql-action/analyze@v3
+        uses: github/codeql-action/analyze@v4
         with:
           category: /rust
           # Upload results to GitHub Security tab.

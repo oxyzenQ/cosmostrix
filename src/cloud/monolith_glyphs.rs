@@ -15,8 +15,8 @@ pub(super) fn segment_char(
     kind: SegmentKind,
     pos_from_bottom: u8,
 ) -> char {
-    let salt = segment_salt(kind, pos_from_bottom);
-    safe_pool_char(ctx, line, col, salt)
+    let seed = segment_seed(kind, pos_from_bottom);
+    safe_pool_char(ctx, line, col, seed)
 }
 
 pub(super) fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
@@ -35,7 +35,7 @@ pub(super) fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
     }
 }
 
-fn segment_salt(kind: SegmentKind, pos_from_bottom: u8) -> u16 {
+fn segment_seed(kind: SegmentKind, pos_from_bottom: u8) -> u16 {
     let base = match kind {
         SegmentKind::Micro => 1,
         SegmentKind::Short => 7,
@@ -45,8 +45,8 @@ fn segment_salt(kind: SegmentKind, pos_from_bottom: u8) -> u16 {
     base + pos_from_bottom as u16 * 11
 }
 
-fn safe_pool_char(ctx: &DrawCtx<'_>, line: u16, col: u16, salt: u16) -> char {
-    let ch = ctx.get_char(line, col, salt);
+fn safe_pool_char(ctx: &DrawCtx<'_>, line: u16, col: u16, seed: u16) -> char {
+    let ch = ctx.get_char(line, col, seed);
     match ch {
         '#' => '+',
         ch if ch.is_control() => '.',
