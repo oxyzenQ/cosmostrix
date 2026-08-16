@@ -432,12 +432,22 @@ pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
 /// Number of rows at top and bottom affected by depth fog.
 /// v30 (visual mode): reduced from 4 → 3 per owner request — shorter
 /// dimmer zones at top and bottom borders.
+///
+/// v31: disabled (FOG_MIN_FACTOR = 1.0). Depth fog was redundant with
+/// viewport_edge_fade + CRT vignette — all three dim the same top/bottom
+/// rows and compound destructively. With fog at 0.45, the compounded
+/// top row reached 0.24 (76% dim) and bottom row 0.07 (93% dim).
+/// Disabling fog leaves edge_fade + CRT vignette as the sole edge dim
+/// pair, matching the masterclass calibration target of 0.533 top / 0.369
+/// bottom. FOG_ROWS kept at 3 for code structure; the factor=1.0 gate
+/// in droplet.rs skips the brightness multiply entirely (zero cost).
 pub(crate) const FOG_ROWS: u16 = 3;
 
 /// Minimum brightness factor at the extreme edge row.
-/// v30 (visual mode): reduced from 0.65 → 0.45 per owner request —
-/// darker top/bottom border (55% dim at extreme edge, was 35%).
-pub(crate) const FOG_MIN_FACTOR: f32 = 0.45;
+/// v31: set to 1.0 (disabled). See FOG_ROWS comment for rationale.
+/// When 1.0, the fog_factor == 1.0 gate in droplet.rs skips the
+/// brightness multiply entirely — zero runtime cost, zero visual impact.
+pub(crate) const FOG_MIN_FACTOR: f32 = 1.0;
 
 // ─── Cinematic CRT vignette (top & bottom edge dim) ────────────────────────
 
