@@ -465,7 +465,7 @@ fn extract_template_fingerprint_from_legacy_v50_header() {
 fn extract_template_fingerprint_missing_header() {
     // Hand-written config with no fingerprint line.
     let content = "# cosmostrix configuration\n# some random config\ncolor = green\n";
-    let fp = extract_template_fingerprint(&content);
+    let fp = extract_template_fingerprint(content);
     assert!(fp.is_none(), "should return None when no fingerprint line");
 }
 
@@ -473,7 +473,7 @@ fn extract_template_fingerprint_missing_header() {
 fn extract_template_fingerprint_invalid_hex() {
     // Fingerprint line with invalid (too short) hex.
     let content = "# template-fingerprint: deadbeef\n# rest of file\n";
-    let fp = extract_template_fingerprint(&content);
+    let fp = extract_template_fingerprint(content);
     assert!(fp.is_none(), "should reject fingerprint with wrong length");
 }
 

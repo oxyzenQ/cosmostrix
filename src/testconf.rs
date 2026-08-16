@@ -92,7 +92,10 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         Some(fp) => {
             println!("testconf: template-fingerprint: {fp}");
             if fp == &current_template_hash {
-                println!("testconf: template drift: none (matches built-in v50 template)");
+                println!(
+                    "testconf: template drift: none (matches built-in v{} template)",
+                    env!("CARGO_PKG_VERSION")
+                );
             } else {
                 println!("testconf: template drift: detected — header fingerprint differs from built-in template");
                 println!("testconf:   built-in hash: {current_template_hash}");
@@ -102,7 +105,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             }
         }
         None => {
-            println!("testconf: template-fingerprint: (not found in header — config may be hand-written or pre-v50)");
+            println!("testconf: template-fingerprint: (not found in header — config may be hand-written or older)");
         }
     }
 
