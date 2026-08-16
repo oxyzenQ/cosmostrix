@@ -21,13 +21,12 @@ use crate::constants::{
 /// - Smooth rain exit at the bottom (tails fade out before the terminal border)
 /// - Prevention of bright head tips lingering on the bottom border
 ///
-/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.65 vs
-/// EDGE_FADE_BOTTOM_MIN=0.55) ensure the bottom fade is more aggressive
-/// to prevent the phosphor ghost residue artifact where dying droplet
-/// heads burn into the bottom row. The asymmetry is preserved across
-/// retunes (pre-v30: 0.70/0.35; v30: 0.45/0.20;  masterclass:
-/// 0.65/0.45; v50 alpha.2: 0.65/0.55) — see `docs/research/VISUAL_MODE_AUDIT.md` for the
-/// compounding math that drove the  values.
+/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.45 vs
+/// EDGE_FADE_BOTTOM_MIN=0.65) reflect the Cinema Noir profile: the top
+/// fade is more aggressive (rain enters from deep shadow) while the
+/// bottom fade is gentler (rain dissolves gracefully). The asymmetry is
+/// inverted from previous retunes — see `docs/research/VISUAL_MODE_AUDIT.md`
+/// for the compounding math that drove the Cinema Noir values.
 #[inline]
 pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
     if lines == 0 || EDGE_FADE_ROWS == 0 {

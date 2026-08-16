@@ -284,8 +284,15 @@ pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 
 /// accelerated (prevents "concrete wall" residue buildup).
 pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 
-/// Phosphor decay rate multiplier applied to bottom rows (3.0× base).
-pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
+/// Phosphor decay rate multiplier applied to bottom rows (2.0× base).
+/// Cinema Noir retune: lowered from 3.0 → 2.0 to match the softened
+/// bottom-edge brightness profile. With EDGE_FADE_BOTTOM_MIN raised to
+/// 0.65 and RAIN_SHADOW_FLOOR raised to 0.65, the bottom rows are no
+/// longer crushed to near-invisible — the phosphor afterglow should also
+/// fade more gradually to maintain visual consistency. 2.0× decay is still
+/// meaningfully faster than the base rate (front=0.6, mid=1.2, back=2.0)
+/// but no longer creates an abrupt "afterglow cliff" at the bottom edge.
+pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.0;
 
 // ─── Parallax depth layering ────────────────────────────────────────────
 //
@@ -460,29 +467,26 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
 ///
-/// ## masterclass retune (2026-08-07)
-/// The v30 value (0.5, 50% dim) compounded destructively with
-/// `EDGE_FADE_TOP_MIN` (0.45) and `EDGE_FADE_BOTTOM_MIN` (0.20) — both
-/// effects apply to the same top/bottom rows and their factors MULTIPLY,
-/// producing compounded top brightness 0.5 × 0.45 = 0.225 (77.5% dim,
-/// rain invisible) and bottom brightness 0.5 × 0.20 = 0.10 (90% dim,
-/// rain invisible). The owner flagged v30 as "not happy — too aggressive".
+/// ## Cinema Noir retune (2026-08-17)
+/// Lowered from 0.90 → 0.85 (15% CRT dim) to deepen the cinematic glass
+/// effect at top/bottom edges. With Cinema Noir's asymmetric profile
+/// (top aggressive, bottom gentle), a slightly stronger CRT dim adds
+/// perceptible warmth without crossing the "rain invisible" threshold.
 ///
-/// v50 (alpha.2) quick-tune: raised from 0.82 → 0.90 (10% dim) after
-/// disabling depth fog. With fog removed, only 3 effects compound at edges
-/// (edge_fade × CRT_vignette × radial_vignette), so a lighter CRT dim
-/// preserves cinematic fade without over-darkening. Compounded top =
-/// 0.90 × 0.65 = 0.585, bottom = 0.90 × 0.55 = 0.495 — both in the
-/// "visible cinematic dim" zone.
+/// Compounded brightness at top-center (Cinema Noir):
+///   0.85 × 0.45 × 0.895 = 0.342 (66% dim — dramatic noir entry)
+/// Compounded brightness at bottom-center (Cinema Noir):
+///   0.85 × 0.65 × 0.895 × 0.808 = 0.399 (60% dim — gentle dissolve)
 ///
 /// Reference points:
+/// - 0.85 (Cinema Noir): 15% dim — warm CRT glass, noir aesthetic
 /// - 0.90 (v50 alpha.2): 10% dim — subtle CRT glow, balanced after fog removal
 /// - 0.82 (masterclass): 18% dim — calibrated when fog was active (4-effect model)
 /// - 0.50 (v30): 50% dim — destructive when compounded with edge fade
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
 /// (compounding math, brightness curves, professional references).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.90;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.85;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -523,44 +527,44 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## masterclass retune (2026-08-09)
-/// Previously, `rain_shadow_factor` faded quadratically to 0.0 (full
-/// dark) at the bottom row. Compounded multiplicatively with the other
-/// three dimming effects that hit the same row — `viewport_edge_fade`
-/// (EDGE_FADE_BOTTOM_MIN = 0.55), `vignette_factor` (~0.71 at corners),
-/// and `crt_vignette_factor` (CRT_VIGNETTE_EDGE_FACTOR = 0.90) — the
-/// bottom row reached 0.08-0.11 brightness (89-92% dim) at the corners
-/// of an 80x40 terminal. Rain was functionally invisible at the bottom
-/// row, which is exactly the symptom the retune (commit bfea09e)
-/// was supposed to fix but could not — the audit only modeled 2
-/// of the 4 effects (CRT vignette x edge fade) and missed the rain
-/// shadow + radial vignette contributions.
+/// ## Cinema Noir retune (2026-08-17)
+/// Raised from 0.50 → 0.65 (35% shadow floor) to match the Cinema Noir
+/// profile's philosophy: dramatic top entry, gentle bottom exit. The higher
+/// floor prevents the rain shadow from over-darkening the bottom rows when
+/// compounded with the other 3 effects.
 ///
-/// The 0.50 floor caps the shadow's contribution at 50% dim. Recomputing
-/// the bottom-row compounded brightness with the floor in place:
+/// The owner felt the previous tuning was "not enough" — the bottom rows
+/// were too aggressively dimmed by the 4-effect stack (rain shadow × edge
+/// fade × radial vignette × CRT vignette). Raising the floor from 0.50
+/// to 0.65 lifts the shadow's minimum contribution, keeping the quadratic
+/// depth gradient while preventing the compounded brightness from dropping
+/// below the perceptible rain threshold.
+///
+/// Recomputing the bottom-row compounded brightness (Cinema Noir):
 ///
 /// ```text
-/// rain_shadow_factor(line=39, lines=40)   = 0.719 (quadratic 1-t² + floor)
-/// viewport_edge_fade(line=39, lines=40)   = 0.55
+/// rain_shadow_factor(line=39, lines=40)   = 0.808 (quadratic 1-t² + 0.65 floor)
+/// viewport_edge_fade(line=39, lines=40)   = 0.650
 /// vignette_factor(col=0, line=39, 80, 40) = 0.804 (corner)
-/// crt_vignette_factor(line=39, lines=40) = 0.90
-/// compounded = 0.719 * 0.55 * 0.804 * 0.90 = 0.286 (~29% brightness)
+/// crt_vignette_factor(line=39, lines=40) = 0.850
+/// compounded = 0.808 * 0.650 * 0.804 * 0.850 = 0.358 (~36% brightness)
 /// ```
 ///
-/// 29% brightness is clearly dim but rain is easily visible (well above
-/// the perceptual "rain visible" floor of ~10%). The shadow's depth effect
-/// is preserved — the quadratic still produces a clear top-to-bottom
-/// darkening gradient — only the absolute floor changes.
+/// 36% brightness at the bottom-corner is a clear improvement over the
+/// previous 29% — rain is more visible, the dissolve feels more film-like
+/// rather than "hard wall". The quadratic shape is preserved: the shadow
+/// still produces a clear top-to-bottom darkening gradient, only the
+/// absolute floor is lifted.
 ///
 /// Reference points:
+/// - 0.65 (Cinema Noir): 35% dim floor — gentle dissolve, rain clearly visible
+/// - 0.50 (v50 alpha.2): 50% dim floor — visible depth, but bottom-corner too dark
 /// - 0.00 (previously): full quadratic to black — destructive when
 ///   compounded with the other 3 effects (bottom row at 8% brightness)
-/// - 0.50 (masterclass): 50% dim floor — visible depth, no
-///   destruction (bottom row at 29% brightness, rain clearly visible)
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
-pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.50;
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.65;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
@@ -866,66 +870,72 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
 
 /// Lip factor for the bottom edge fade (controls curvature).
-/// masterclass retune: lowered from 0.75 → 0.72 — slightly
-/// smoother transition between Zone 1 (gentle pre-fade) and Zone 2
-/// (sharp lip). The 0.03 reduction is barely perceptible on its own
-/// but produces a more film-like dissolve when combined with the
-/// widened EDGE_FADE_BOTTOM_ROWS.
-pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.72;
+/// Cinema Noir retune: raised from 0.72 → 0.80 — lifts the Zone 1↔Zone 2
+/// junction to match the softened bottom profile. With EDGE_FADE_BOTTOM_MIN
+/// raised to 0.65, the lip junction rises proportionally, keeping the
+/// smoothstep-to-linear transition perceptually consistent. The Zone 2
+/// sharp lip now spans from 0.65 (bottom row) to 0.80 (junction), a gentler
+/// 0.15 ramp vs the previous 0.17 ramp.
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.80;
 
 /// Minimum brightness factor at the top edge.
 ///
-/// ## masterclass retune (2026-08-07)
-/// The v30 value (0.45, 55% dim) compounded destructively with
-/// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the top
-/// rows and multiply, producing compounded top brightness 0.5 × 0.45 =
-/// 0.225 (77.5% dim, rain invisible). The owner flagged v30 as "not
-/// happy — too aggressive".
+/// ## Cinema Noir retune (2026-08-17)
+/// Lowered from 0.65 → 0.45 (55% dim) for a dramatic noir-style top
+/// entry. The Cinema Noir philosophy: rain emerges from deep shadow at
+/// the top, creating a "entering the frame from darkness" feel that
+/// evokes classic film noir cinematography where subjects materialize
+/// from black.
 ///
-/// The masterclass value 0.65 (35% dim) is calibrated so the COMPOUNDED
-/// top brightness = 0.90 × 0.65 = 0.585 lands in the "subtle dim, rain
-/// clearly visible" zone (0.50-0.70). At 0.65, the top row rain is
-/// clearly readable but visibly dimmer than the mid rows — the eye
-/// reads it as "rain entering from above the screen", not as a dead
-/// black bar.
+/// With CRT_VIGNETTE_EDGE_FACTOR lowered to 0.85 (Cinema Noir), the
+/// compounded top brightness = 0.85 × 0.45 × 0.895 ≈ 0.342 — well
+/// below the old 0.524 but still above the perceptual "rain visible"
+/// floor of ~10%. Rain at the top row is clearly dimmer than mid-screen
+/// but reads as a deliberate cinematic choice, not a broken blackout.
+///
+/// The aggressive top dim is balanced by the softened bottom dim
+/// (EDGE_FADE_BOTTOM_MIN raised to 0.65), creating an asymmetric
+/// profile where the top reads as "dark entry" and the bottom reads
+/// as "gentle dissolve" — the rain literally enters from shadow and
+/// fades gracefully rather than hitting a wall.
 ///
 /// Reference points:
+/// - 0.45 (Cinema Noir): 55% dim — dramatic noir entry, rain emerges from shadow
+/// - 0.65 (v50 alpha.2): 35% dim — visible cinematic fade-in
 /// - 0.70 (pre-v30): 30% dim — barely-there, owner found too subtle
-/// - 0.65 (masterclass): 35% dim — visible cinematic fade-in
-/// - 0.45 (v30): 55% dim — destructive when compounded with vignette
+/// - 0.45 (v30): 55% dim — same value but was destructive with CRT=0.50
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.65;
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
 
 /// Minimum brightness factor at the bottom edge.
 ///
-/// ## masterclass retune (2026-08-07)
-/// The v30 value (0.20, 80% dim) compounded destructively with
-/// `CRT_VIGNETTE_EDGE_FACTOR` (0.5) — both effects apply to the bottom
-/// rows and multiply, producing compounded bottom brightness
-/// 0.5 × 0.20 = 0.10 (90% dim, rain invisible). The owner flagged v30
-/// as "not happy — too aggressive".
+/// ## Cinema Noir retune (2026-08-17)
+/// Raised from 0.55 → 0.65 (35% dim) — now matching the top's old
+/// value. The Cinema Noir profile inverts the asymmetry: the TOP is now
+/// the aggressive end (0.45, 55% dim) and the BOTTOM is the gentle end
+/// (0.65, 35% dim). This creates a "dark ceiling, bright floor" feel
+/// where rain enters from deep shadow and fades gracefully.
 ///
-/// The bottom edge fade exists primarily to prevent the phosphor ghost
-/// residue artifact where dying droplet heads "burn into" the bottom
-/// row. It needs to be MORE aggressive than the top (asymmetric, per
-/// the `viewport_edge_fade` doc), but v30 went too far.
+/// The bottom edge fade still prevents phosphor ghost residue (the
+/// EDGE_FADE_BOTTOM_LIP junction at 0.80 ensures a perceptible transition
+/// in the last 2 rows), but it no longer crushes rain to near-invisible
+/// levels. Compounded bottom-center brightness (Cinema Noir):
+///   0.650 × 0.850 × 0.895 × 0.808 ≈ 0.399 (60% dim, rain clearly visible)
 ///
-/// v50 (alpha.2) quick-tune: raised from 0.45 → 0.55 (45% dim) after
-/// disabling depth fog. With fog removed, the bottom fade has one fewer
-/// compounding effect, so the floor can be lighter while still producing
-/// the asymmetric dissolve. Compounded bottom brightness = 0.90 × 0.55 =
-/// 0.495 — rain clearly dissolving into shadow (zone 0.30-0.50,
-/// "cinematic dim"). Still more aggressive than the top (0.65) —
-/// asymmetric fade preserved, phosphor residue still prevented.
+/// Note: the bottom is still slightly dimmer than the top (0.399 vs 0.342)
+/// when rain shadow is included, but the *edge fade alone* is now lighter
+/// at the bottom (0.65) than the top (0.45) — the asymmetry is driven
+/// by the rain shadow's quadratic contribution, not by the edge fade.
 ///
 /// Reference points:
-/// - 0.55 (v50 alpha.2): 45% dim — dissolving, balanced after fog removal
+/// - 0.65 (Cinema Noir): 35% dim — gentle dissolve, rain clearly visible at bottom
+/// - 0.55 (v50 alpha.2): 45% dim — dissolving, but bottom-corner too dark with 4-effect stack
 /// - 0.45 (masterclass): 55% dim — calibrated when fog was active (4-effect model)
 /// - 0.20 (v30): 80% dim — destructive when compounded with vignette
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.55;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.65;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
