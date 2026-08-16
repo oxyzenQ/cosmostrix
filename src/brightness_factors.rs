@@ -22,11 +22,11 @@ use crate::constants::{
 /// - Prevention of bright head tips lingering on the bottom border
 ///
 /// The asymmetric min values (EDGE_FADE_TOP_MIN=0.65 vs
-/// EDGE_FADE_BOTTOM_MIN=0.45) ensure the bottom fade is more aggressive
+/// EDGE_FADE_BOTTOM_MIN=0.55) ensure the bottom fade is more aggressive
 /// to prevent the phosphor ghost residue artifact where dying droplet
 /// heads burn into the bottom row. The asymmetry is preserved across
 /// retunes (pre-v30: 0.70/0.35; v30: 0.45/0.20;  masterclass:
-/// 0.65/0.45) — see `docs/research/VISUAL_MODE_AUDIT.md` for the
+/// 0.65/0.45; v50 alpha.2: 0.65/0.55) — see `docs/research/VISUAL_MODE_AUDIT.md` for the
 /// compounding math that drove the  values.
 #[inline]
 pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {

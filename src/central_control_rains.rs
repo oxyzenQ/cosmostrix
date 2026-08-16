@@ -466,16 +466,16 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 /// rain invisible) and bottom brightness 0.5 × 0.20 = 0.10 (90% dim,
 /// rain invisible). The owner flagged v30 as "not happy — too aggressive".
 ///
-/// The masterclass value 0.82 (18% dim) is calibrated against the
-/// compounded brightness target of 0.50-0.55 at the top extreme (cinematic
-/// but visible). At 0.82, the compounded top = 0.82 × 0.65 = 0.533 and
-/// compounded bottom = 0.82 × 0.45 = 0.369 — both land in the "subtle dim,
-/// rain clearly visible" zone (0.50-0.70 and 0.30-0.50 respectively per
-/// the masterclass interpretation table in `docs/research/VISUAL_MODE_AUDIT.md`).
+/// v50 (alpha.2) quick-tune: raised from 0.82 → 0.90 (10% dim) after
+/// disabling depth fog. With fog removed, only 3 effects compound at edges
+/// (edge_fade × CRT_vignette × radial_vignette), so a lighter CRT dim
+/// preserves cinematic fade without over-darkening. Compounded top =
+/// 0.90 × 0.65 = 0.585, bottom = 0.90 × 0.55 = 0.495 — both in the
+/// "visible cinematic dim" zone.
 ///
 /// Reference points:
-/// - 0.90 (pre-v30): 10% dim — barely-there, owner found too subtle
-/// - 0.82 (masterclass): 18% dim — subtle CRT glow, doesn't compound destructively
+/// - 0.90 (v50 alpha.2): 10% dim — subtle CRT glow, balanced after fog removal
+/// - 0.82 (masterclass): 18% dim — calibrated when fog was active (4-effect model)
 /// - 0.50 (v30): 50% dim — destructive when compounded with edge fade
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
@@ -525,8 +525,8 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Previously, `rain_shadow_factor` faded quadratically to 0.0 (full
 /// dark) at the bottom row. Compounded multiplicatively with the other
 /// three dimming effects that hit the same row — `viewport_edge_fade`
-/// (EDGE_FADE_BOTTOM_MIN = 0.45), `vignette_factor` (~0.71 at corners),
-/// and `crt_vignette_factor` (CRT_VIGNETTE_EDGE_FACTOR = 0.82) — the
+/// (EDGE_FADE_BOTTOM_MIN = 0.55), `vignette_factor` (~0.71 at corners),
+/// and `crt_vignette_factor` (CRT_VIGNETTE_EDGE_FACTOR = 0.90) — the
 /// bottom row reached 0.08-0.11 brightness (89-92% dim) at the corners
 /// of an 80x40 terminal. Rain was functionally invisible at the bottom
 /// row, which is exactly the symptom the retune (commit bfea09e)
@@ -538,24 +538,23 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// the bottom-row compounded brightness with the floor in place:
 ///
 /// ```text
-/// rain_shadow_factor(line=39, lines=40)   = 0.50  (was 0.306)
-/// viewport_edge_fade(line=39, lines=40)   = 0.45
-/// vignette_factor(col=0, line=39, 80, 40) = 0.706 (corner)
-/// crt_vignette_factor(line=39, lines=40) = 0.82
-/// compounded = 0.50 * 0.45 * 0.706 * 0.82 = 0.130 (~13% brightness)
+/// rain_shadow_factor(line=39, lines=40)   = 0.719 (quadratic 1-t² + floor)
+/// viewport_edge_fade(line=39, lines=40)   = 0.55
+/// vignette_factor(col=0, line=39, 80, 40) = 0.804 (corner)
+/// crt_vignette_factor(line=39, lines=40) = 0.90
+/// compounded = 0.719 * 0.55 * 0.804 * 0.90 = 0.286 (~29% brightness)
 /// ```
 ///
-/// 13% brightness is still dim, but rain is now visible (the prior
-/// 0.08 = 8% was below the perceptual "rain visible" floor of ~10%).
-/// The shadow's depth effect is preserved — the quadratic still
-/// produces a clear top-to-bottom darkening gradient — only the
-/// absolute floor changes.
+/// 29% brightness is clearly dim but rain is easily visible (well above
+/// the perceptual "rain visible" floor of ~10%). The shadow's depth effect
+/// is preserved — the quadratic still produces a clear top-to-bottom
+/// darkening gradient — only the absolute floor changes.
 ///
 /// Reference points:
 /// - 0.00 (previously): full quadratic to black — destructive when
 ///   compounded with the other 3 effects (bottom row at 8% brightness)
 /// - 0.50 (masterclass): 50% dim floor — visible depth, no
-///   destruction (bottom row at 13% brightness, rain visible)
+///   destruction (bottom row at 29% brightness, rain clearly visible)
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
@@ -882,7 +881,7 @@ pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.72;
 /// happy — too aggressive".
 ///
 /// The masterclass value 0.65 (35% dim) is calibrated so the COMPOUNDED
-/// top brightness = 0.82 × 0.65 = 0.533 lands in the "subtle dim, rain
+/// top brightness = 0.90 × 0.65 = 0.585 lands in the "subtle dim, rain
 /// clearly visible" zone (0.50-0.70). At 0.65, the top row rain is
 /// clearly readable but visibly dimmer than the mid rows — the eye
 /// reads it as "rain entering from above the screen", not as a dead
@@ -908,19 +907,19 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.65;
 /// The bottom edge fade exists primarily to prevent the phosphor ghost
 /// residue artifact where dying droplet heads "burn into" the bottom
 /// row. It needs to be MORE aggressive than the top (asymmetric, per
-/// the `viewport_edge_fade` doc), but v30 went too far. The masterclass
-/// value 0.45 (55% dim) is calibrated so:
-/// - Compounded bottom brightness = 0.82 × 0.45 = 0.369 — rain dissolves
-///   into shadow but is NOT destroyed (zone 0.30-0.50, "cinematic dim").
-/// - Still more aggressive than the top (0.65) — asymmetric fade
-///   preserved, phosphor residue still prevented.
-/// - Midpoint between pre-v30 (0.35) and v30 (0.20), leaning toward
-///   v30's intent of "more aggressive bottom" but stopping short of
-///   destruction.
+/// the `viewport_edge_fade` doc), but v30 went too far.
+///
+/// v50 (alpha.2) quick-tune: raised from 0.45 → 0.55 (45% dim) after
+/// disabling depth fog. With fog removed, the bottom fade has one fewer
+/// compounding effect, so the floor can be lighter while still producing
+/// the asymmetric dissolve. Compounded bottom brightness = 0.90 × 0.55 =
+/// 0.495 — rain clearly dissolving into shadow (zone 0.30-0.50,
+/// "cinematic dim"). Still more aggressive than the top (0.65) —
+/// asymmetric fade preserved, phosphor residue still prevented.
 ///
 /// Reference points:
-/// - 0.35 (pre-v30): 65% dim — owner wanted more aggressive
-/// - 0.45 (masterclass): 55% dim — dissolving, not destroyed
+/// - 0.55 (v50 alpha.2): 45% dim — dissolving, balanced after fog removal
+/// - 0.45 (masterclass): 55% dim — calibrated when fog was active (4-effect model)
 /// - 0.20 (v30): 80% dim — destructive when compounded with vignette
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.

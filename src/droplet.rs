@@ -433,8 +433,8 @@ impl Droplet {
         // previous inline form.
         //
         // Factor range: t = 1.0 - age/duration (in [0, 1]) multiplied by
-        // TRANSITION_ENERGY_SATURATION_BOOST = 0.15, so the blend factor
-        // is in [0, 0.15] -- well within the chroma helper's [0, 1] clamp.
+        // TRANSITION_ENERGY_SATURATION_BOOST = 0.25, so the blend factor
+        // is in [0, 0.25] -- well within the chroma helper's [0, 1] clamp.
         let is_new_generation = self.palette_slot == ctx.active_palette_slot && ctx.transitioning;
         let transition_wf: Option<f32> = if is_new_generation {
             self.last_time.and_then(|birth| {
@@ -655,10 +655,10 @@ impl Droplet {
                 // is bit-identical between the two paths; the difference is
                 // auditability (single source of truth in chroma::palette).
                 //
-                // Factor safety: PARALLAX_CONTRAST_REDUCTION = [0.55, 0.18, 0.0]
+                // Factor safety: PARALLAX_CONTRAST_REDUCTION = [0.50, 0.18, 0.0]
                 // and the block is gated on \`contrast_reduction > 0.0\`, so the
                 // active layers (0, 1) always produce factor = 1.0 - cr in
-                // [0.45, 0.82] -- well within the chroma helper's [0, 1] clamp.
+                // [0.50, 0.82] -- well within the chroma helper's [0, 1] clamp.
                 let contrast_reduction = PARALLAX_CONTRAST_REDUCTION[self.layer as usize];
                 if contrast_reduction > 0.0 {
                     let factor = 1.0 - contrast_reduction;
@@ -694,10 +694,9 @@ impl Droplet {
                     // paths: \`((c * fi + 128) >> 8).clamp(0, 255)\` where
                     // fi = (fog_factor * 256) as i32.
                     //
-                    // Factor safety: fog_factor is gated to < 1.0 here, and
-                    // the smoothstep ramp above produces values in
-                    // [FOG_MIN_FACTOR=0.45, 1.0). Always within the chroma
-                    // helper's [0, 1] clamp.
+                    // Factor safety: fog_factor is gated to < 1.0 here, but
+                    // FOG_MIN_FACTOR=1.0 (disabled), so this block is dead
+                    // code — fog_factor is always 1.0 and the gate never enters.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
                         crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, fog_factor)

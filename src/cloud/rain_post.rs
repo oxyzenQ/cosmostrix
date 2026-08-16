@@ -30,8 +30,8 @@ impl Cloud {
     /// eases out via smoothstep so the inner boundary is imperceptible
     /// (no hard cutoff).
     ///
-    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.82,
-    /// masterclass retune) at the extreme edge row to 1.0 (no dim) at
+    /// The factor goes from `CRT_VIGNETTE_EDGE_FACTOR` (0.90,
+    /// v50 alpha.2 quick-tune) at the extreme edge row to 1.0 (no dim) at
     /// row `CRT_VIGNETTE_HEIGHT` inward from the edge:
     ///
     ///   t = row_index / CRT_VIGNETTE_HEIGHT          (0 → 1)

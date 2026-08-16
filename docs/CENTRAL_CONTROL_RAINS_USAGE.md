@@ -150,14 +150,14 @@ is the section Option F tunes.**
 |----------|------|--------:|--------|
 | `PARALLAX_LAYERS` | usize | 3 | Layer count. Do not change without major refactor — every consumer assumes 3 layers. |
 | `PARALLAX_SPEED_MULT` | [f32; 3] | [0.35, 1.0, 1.7] | Per-layer motion speed. Back recedes (0.35×), front whooshes (1.7×). |
-| `PARALLAX_BRIGHTNESS_MULT` | [f32; 3] | [0.48, 0.80, 1.10] | Per-droplet luminance. The hero pop lever for front. |
+| `PARALLAX_BRIGHTNESS_MULT` | [f32; 3] | [0.52, 0.80, 1.10] | Per-droplet luminance. The hero pop lever for front. |
 | `PARALLAX_SATURATION_MULT` | [f32; 3] | [0.50, 0.84, 1.12] | Color vividness. The neon signature lever for front. |
 | `PARALLAX_HEAD_BLOOM_MULT` | [f32; 3] | [0.48, 0.74, 1.30] | Head glow falloff. The eye-lock trigger. |
 | `PARALLAX_HEAD_SELFBLOOM_MULT` | [f32; 3] | [0.38, 0.68, 1.20] | Head self-illumination halo width. |
 | `PARALLAX_LENGTH_MULT` | [f32; 3] | [0.5, 1.0, 1.4] | Droplet streak length per layer. |
 | `PARALLAX_DENSITY_MULT` | [f32; 3] | [0.45, 0.62, 0.85] | Per-layer spawn density. |
 | `PARALLAX_GLYPH_DIM` | [f32; 3] | [1.0, 1.0, 1.0] | Per-layer glyph brightness (rarely tuned — keep at 1.0). |
-| `PARALLAX_CONTRAST_REDUCTION` | [f32; 3] | [0.55, 0.18, 0.0] | Depth-of-field fog blend. Back haze depth. |
+| `PARALLAX_CONTRAST_REDUCTION` | [f32; 3] | [0.50, 0.18, 0.0] | Depth-of-field fog blend. Back haze depth. |
 
 **Tuning recipe pattern**: most "looks" you'd want to design are a
 combination of edits in this section. See §6 for named recipes.
@@ -213,17 +213,17 @@ vignette, and rain shadow. Depth fog is disabled in v50 alpha.2
 | `FOG_ROWS` | u16 | 3 | Rows affected by depth fog (disabled: FOG_MIN_FACTOR=1.0). |
 | `FOG_MIN_FACTOR` | f32 | **1.0** | Minimum fog brightness (**1.0 = disabled**). Was 0.45; disabled in v50 alpha.2 because depth fog compounded destructively with viewport_edge_fade + CRT vignette, producing 76%/93% dim at edges. |
 | `CRT_VIGNETTE_HEIGHT` | u16 | 3 | Top/bottom vignette band height. |
-| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.82 | Edge darkness factor (0.82 = 18% dim at edges). |
+| `CRT_VIGNETTE_EDGE_FACTOR` | f32 | 0.90 | Edge darkness factor (0.90 = 10% dim at edges). |
 | `CRT_VIGNETTE_PERF_THRESHOLD` | f32 | 0.5 | Performance gate — below this FPS, vignette is skipped. |
-| `VIGNETTE_INTENSITY` | f32 | 0.30 | Radial vignette strength (0–1). |
+| `VIGNETTE_INTENSITY` | f32 | 0.20 | Radial vignette strength (0–1). |
 | `VIGNETTE_INNER_RADIUS` | f32 | 0.7 | Inner radius where vignette starts (0–1 of screen). |
 | `VIGNETTE_LAYER_MULT` | [f32; 3] | [1.0, 1.0, 0.0] | Per-layer vignette (front exempt). |
-| `RAIN_SHADOW_PCT` | f32 | 0.15 | Bottom 15% of screen gets quadratic fade. |
+| `RAIN_SHADOW_PCT` | f32 | 0.10 | Bottom 10% of screen gets quadratic fade. |
 | `RAIN_SHADOW_LAYER_MULT` | [f32; 3] | [1.0, 1.0, 0.0] | Per-layer rain shadow (front exempt). |
 
 **Tuning recipes**:
 - **No vignette (flat full-screen)**: set `VIGNETTE_INTENSITY = 0.0` and `CRT_VIGNETTE_EDGE_FACTOR = 1.0`.
-- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.30 → 0.50 and `CRT_VIGNETTE_HEIGHT` from 5 → 8.
+- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.20 → 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 → 8.
 - **Front layer also vignetted (uniform depth)**: change `VIGNETTE_LAYER_MULT` from `[1.0, 1.0, 0.0]` → `[1.0, 1.0, 1.0]`.
 
 ### 3.5 Velocity & motion (lines 405–422)
@@ -375,7 +375,7 @@ over the rain.
 |----------|------|--------:|--------|
 | `MOUSE_GLOW_RADIUS_COLS` | f32 | 7.0 | Glow radius in columns. |
 | `MOUSE_GLOW_RADIUS_LINES` | f32 | 5.0 | Glow radius in lines. |
-| `MOUSE_GLOW_INTENSITY` | f32 | 0.0 | Static glow intensity (0 = off by default). |
+| `MOUSE_GLOW_INTENSITY` | f32 | 0.25 | Static glow intensity (0.25 = subtle on by default). |
 | `MOUSE_FLASH_SPEED` | f32 | 32.0 | Flash expansion speed. |
 | `MOUSE_FLASH_RING_WIDTH` | f32 | 8.0 | Flash ring width. |
 | `MOUSE_FLASH_INTENSITY` | f32 | 0.85 | Flash peak intensity. |
@@ -418,10 +418,10 @@ or for users who want the same rain every launch.
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
 | `EDGE_FADE_ROWS` | u16 | 3 | Top edge fade rows. |
-| `EDGE_FADE_BOTTOM_ROWS` | u16 | 12 | Bottom edge fade rows. |
-| `EDGE_FADE_BOTTOM_LIP` | f32 | 0.75 | Bottom lip fade factor. |
+| `EDGE_FADE_BOTTOM_ROWS` | u16 | 10 | Bottom edge fade rows. |
+| `EDGE_FADE_BOTTOM_LIP` | f32 | 0.72 | Bottom lip fade factor. |
 | `EDGE_FADE_TOP_MIN` | f32 | 0.70 | Top min brightness. |
-| `EDGE_FADE_BOTTOM_MIN` | f32 | 0.35 | Bottom min brightness. |
+| `EDGE_FADE_BOTTOM_MIN` | f32 | 0.55 | Bottom min brightness. |
 | `EDGE_FADE_BOLD_THRESHOLD` | f32 | 0.5 | Brightness below which bold is suppressed at edges. |
 | `PHOSPHOR_EDGE_ENERGY_CAP` | u8 | 64 | Edge phosphor energy cap. |
 | `PHOSPHOR_EDGE_ROW_TAPER` | u8 | 8 | Edge row taper count. |
@@ -440,14 +440,14 @@ Use this as a quick lookup when designing a custom tuning.
 === Parallax depth layers ===
 PARALLAX_LAYERS                    = 3
 PARALLAX_SPEED_MULT                = [0.35, 1.0, 1.7]
-PARALLAX_BRIGHTNESS_MULT           = [0.48, 0.80, 1.10]
+PARALLAX_BRIGHTNESS_MULT           = [0.52, 0.80, 1.10]
 PARALLAX_SATURATION_MULT           = [0.50, 0.84, 1.12]
 PARALLAX_HEAD_BLOOM_MULT           = [0.48, 0.74, 1.30]
 PARALLAX_HEAD_SELFBLOOM_MULT       = [0.38, 0.68, 1.20]
 PARALLAX_LENGTH_MULT               = [0.5, 1.0, 1.4]
 PARALLAX_DENSITY_MULT              = [0.45, 0.62, 0.85]
 PARALLAX_GLYPH_DIM                 = [1.0, 1.0, 1.0]
-PARALLAX_CONTRAST_REDUCTION        = [0.55, 0.18, 0.0]
+PARALLAX_CONTRAST_REDUCTION        = [0.50, 0.18, 0.0]
 
 === Phosphor persistence ===
 PHOSPHOR_DECAY_RATE                = 5.0
@@ -467,12 +467,12 @@ HEAD_BLOOM_CELLS                   = 2
 FOG_ROWS                           = 3
 FOG_MIN_FACTOR                     = 1.0 (disabled)
 CRT_VIGNETTE_HEIGHT                = 3
-CRT_VIGNETTE_EDGE_FACTOR           = 0.82
+CRT_VIGNETTE_EDGE_FACTOR           = 0.90
 CRT_VIGNETTE_PERF_THRESHOLD        = 0.5
-VIGNETTE_INTENSITY                 = 0.30
+VIGNETTE_INTENSITY                 = 0.20
 VIGNETTE_INNER_RADIUS              = 0.7
 VIGNETTE_LAYER_MULT                = [1.0, 1.0, 0.0]
-RAIN_SHADOW_PCT                    = 0.15
+RAIN_SHADOW_PCT                    = 0.10
 RAIN_SHADOW_LAYER_MULT             = [1.0, 1.0, 0.0]
 
 === Velocity & motion ===
@@ -561,10 +561,10 @@ PAUSE_EASE_DURATION_SECS           = 0.30
 
 === Edge fade ===
 EDGE_FADE_ROWS                     = 3
-EDGE_FADE_BOTTOM_ROWS              = 12
-EDGE_FADE_BOTTOM_LIP               = 0.75
+EDGE_FADE_BOTTOM_ROWS              = 10
+EDGE_FADE_BOTTOM_LIP               = 0.72
 EDGE_FADE_TOP_MIN                  = 0.70
-EDGE_FADE_BOTTOM_MIN               = 0.35
+EDGE_FADE_BOTTOM_MIN               = 0.55
 EDGE_FADE_BOLD_THRESHOLD           = 0.5
 PHOSPHOR_EDGE_ENERGY_CAP           = 64
 PHOSPHOR_EDGE_ROW_TAPER            = 8
@@ -572,7 +572,7 @@ PHOSPHOR_EDGE_ROW_TAPER            = 8
 === Mouse ===
 MOUSE_GLOW_RADIUS_COLS             = 7.0
 MOUSE_GLOW_RADIUS_LINES            = 5.0
-MOUSE_GLOW_INTENSITY               = 0.0
+MOUSE_GLOW_INTENSITY               = 0.25
 MOUSE_FLASH_SPEED                  = 32.0
 MOUSE_FLASH_RING_WIDTH             = 8.0
 MOUSE_FLASH_INTENSITY              = 0.85
@@ -604,7 +604,7 @@ COLOR_TRANSITION_INITIAL_VISIBLE_PCT = 0.12
 CHARSET_TRANSITION_DURATION_MS     = 500
 TRANSITION_VELOCITY_BOOST          = 0.05
 TRANSITION_ENERGY_DURATION_SECS    = 1.5
-TRANSITION_ENERGY_SATURATION_BOOST = 0.15
+TRANSITION_ENERGY_SATURATION_BOOST = 0.25
 TRANSITION_HEAD_GLOW_BOOST         = 0.2
 
 === Glyph entry ramp ===
