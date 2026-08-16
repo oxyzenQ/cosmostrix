@@ -185,7 +185,7 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 ///   - Back  (0): 0.48 (deep fog — atmospheric haze)
 ///   - Mid   (1): 0.80 (slightly dim — vivid streaks)
 ///   - Front (2): 1.15 (boosted hero — maximum neon pop)
-pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.15];
+pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.80, 1.10];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
@@ -195,7 +195,7 @@ pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80,
 ///   - Back  (0): 0.45 (heavy haze blend)
 ///   - Mid   (1): 0.85 (slightly vivid)
 ///   - Front (2): 1.15 (oversaturated neon — maximum color pop)
-pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.85, 1.15];
+pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -204,7 +204,7 @@ pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.85,
 ///   - Back  (0): 0.40 (suppressed — stays in fog)
 ///   - Mid   (1): 0.70 (moderate pop)
 ///   - Front (2): 1.40 (NEON BLOOM — maximum head pop)
-pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.40];
+pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -240,7 +240,7 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 ///
 /// Neon Sharp preset: 7.0 (~285ms afterglow). Fast, snappy, no ghosting.
 /// Every droplet is crisp and distinct — trails don't linger.
-pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 7.0;
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///
@@ -265,7 +265,7 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 ///   - Back  (0): 2.5 (instant flicker — gone fast)
 ///   - Mid   (1): 1.5 (fast — clean, no smearing)
 ///   - Front (2): 0.5 (brief snappy trail)
-pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.5, 1.5, 0.5];
+pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
@@ -275,7 +275,7 @@ pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 ///
 /// Neon Sharp preset: 3.0 — aggressive bottom decay for clean exit.
 /// No afterglow residue at bottom. Rain cuts off cleanly.
-pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
+pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.0;
 
 // ─── Parallax depth layering ────────────────────────────────────────────
 //
@@ -314,7 +314,7 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 ///   - Back  (0): 0.55 (heavy fog — back dissolves into haze)
 ///   - Mid   (1): 0.15 (slight veil)
 ///   - Front (2): 0.0 (razor sharp — no compromise)
-pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.15, 0.0];
+pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.50, 0.18, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 
@@ -410,7 +410,7 @@ pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
 ///
 /// Neon Sharp preset: 0.55 — strong bloom for neon head pop.
-pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.55;
+pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.40;
 
 /// Number of cells on each side of the head that receive bloom glow.
 pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
@@ -459,7 +459,7 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
 /// (compounding math, brightness curves, professional references).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.97;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.85;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -481,13 +481,13 @@ pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 ///
 /// Neon Sharp preset: 0.05 (5% corner — nearly off). Anti-vignette
 /// philosophy — no lens, no monitor frame. Corners stay bright.
-pub(crate) const VIGNETTE_INTENSITY: f32 = 0.05;
+pub(crate) const VIGNETTE_INTENSITY: f32 = 0.20;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
 ///
 /// Neon Sharp preset: 0.85 — vignette starts very late, almost no area
 /// affected. Combined with INTENSITY=0.05, radial vignette is negligible.
-pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.85;
+pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.7;
 
 /// Per-layer vignette multiplier (0.0 = no dimming, 1.0 = full dimming).
 ///
@@ -501,7 +501,7 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 ///
 /// Neon Sharp preset: 0.08 (8% of screen height) — minimal shadow zone.
 /// On a 40-line terminal this is ~3 rows. Keeps rain bright to the edge.
-pub(crate) const RAIN_SHADOW_PCT: f32 = 0.08;
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
@@ -522,7 +522,7 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
-pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.78;
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.55;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
@@ -820,14 +820,14 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 ///
 /// Neon Sharp preset: 6 — narrow dissolve zone. Tight, crisp exit.
 /// No soft fade — rain fills to the edge and cuts off cleanly.
-pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 6;
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
 
 /// Lip factor for the bottom edge fade (controls curvature).
 ///
 /// Neon Sharp preset: 0.88 — high lip, barely-there transition.
 /// The Zone 1↔Zone 2 junction is close to 1.0, making the fade
 /// almost imperceptible until the very last rows.
-pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.88;
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.80;
 
 /// Minimum brightness factor at the top edge.
 ///
@@ -840,7 +840,7 @@ pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.88;
 /// - 0.65 (v50 alpha.2): 35% dim — visible cinematic fade-in
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.90;
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
 
 /// Minimum brightness factor at the bottom edge.
 ///
@@ -855,7 +855,7 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.90;
 /// - 0.45 (masterclass): 55% dim — calibrated when fog was active
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.80;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.65;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
