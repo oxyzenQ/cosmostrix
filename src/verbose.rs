@@ -389,10 +389,7 @@ pub(crate) fn print_verbose(
             ),
         );
         if caps.vscode_integrated {
-            output::eprintln_verbose(
-                "vscode_integrated:",
-                " true (detected)",
-            );
+            output::eprintln_verbose("vscode_integrated:", " true (detected)");
         }
     }
     output::eprintln_verbose(

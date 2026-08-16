@@ -759,10 +759,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "plan_reason",
             "single-thread renderer — cosmostrix optimized for single-core execution",
         );
-        s.field(
-            "actual_execution",
-            "single-threaded-renderer",
-        );
+        s.field("actual_execution", "single-threaded-renderer");
         s.field("terminal_writer", "single-owner");
     }
 

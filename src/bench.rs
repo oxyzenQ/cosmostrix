@@ -1078,7 +1078,11 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         median_fps: 0.0, // not measured: requires sorted frame_times
         frame_time_stability: "not measured (silent capture)",
         jitter_std: 0.0,
-        active_frame_ratio: if total_frames > 0 { (dirty_all_frames as f64 / total_frames as f64) * 100.0 } else { 100.0 },
+        active_frame_ratio: if total_frames > 0 {
+            (dirty_all_frames as f64 / total_frames as f64) * 100.0
+        } else {
+            100.0
+        },
         avg_dirty_cells_per_frame,
         max_dirty_cells,
         avg_dirty_cell_ratio_percent: if total_cells > 0 {
