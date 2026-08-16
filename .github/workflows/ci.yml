@@ -6,8 +6,30 @@ name: Cosmic Dragon - CI
 'on':
   push:
     branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+      - 'scripts/**'
+      - 'deny.toml'
+      - '.github/workflows/ci.yml'
+      - '.codespellrc'
   pull_request:
     branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+      - 'scripts/**'
+      - 'deny.toml'
+      - '.github/workflows/ci.yml'
+      - '.codespellrc'
 
 permissions:
   contents: read
@@ -764,7 +786,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6.0.2
 
       - name: Install lint tools
         run: |

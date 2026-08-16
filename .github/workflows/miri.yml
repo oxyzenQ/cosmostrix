@@ -15,6 +15,13 @@ name: miri
 'on':
   push:
     branches: [main]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
   schedule:
     # Sunday 03:00 UTC — picks up the week's commits in one shot.
     - cron: '0 3 * * 0'
