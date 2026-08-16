@@ -137,7 +137,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field(
             "phosphor_persistence",
             &format!(
-                "yes (tail_residual={}, decay_rate={:.1}, bottom_rows={})",
+                "yes (tail_residual={}, decay_rate={:.2}, bottom_rows={})",
                 crate::constants::PHOSPHOR_TAIL_RESIDUAL,
                 crate::constants::PHOSPHOR_DECAY_RATE,
                 crate::constants::PHOSPHOR_BOTTOM_ROWS,
@@ -162,7 +162,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field(
             "click_wave",
             &format!(
-                "yes (speed={:.0} cells/s, intensity={:.2}, duration={:.1}s, ring_width={:.0})",
+                "yes (speed={:.0} cells/s, intensity={:.2}, duration={:.2}s, ring_width={:.0})",
                 crate::constants::MOUSE_FLASH_SPEED,
                 crate::constants::MOUSE_FLASH_INTENSITY,
                 crate::constants::MOUSE_FLASH_DURATION_SECS,
@@ -241,7 +241,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         );
         match sf.cpu_ema() {
             Some(cpu) => {
-                s.field("cpu_ema_percent", &format!("{:.1}", cpu));
+                s.field("cpu_ema_percent", &format!("{:.2}", cpu));
             }
             None => {
                 s.field("cpu_ema_percent", "n/a (no sample yet)");
