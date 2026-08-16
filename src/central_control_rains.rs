@@ -179,43 +179,32 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// .0 differential depth tuning + silent override bug fix: back
-/// dimmed 0.55→0.48 to push deeper into atmospheric haze; mid dimmed
-/// 0.88→0.80 for slight presence reduction; front boosted 1.00→1.05
-/// for more prominence. Bug fix in droplet.rs changed the brightness
-/// gate from `< 1.0` to `!= 1.0` so the front boost 1.05 now actually
-/// applies (was a silent no-op before).
-///
-/// Back effective visibility = 0.52 × 0.50 × (1−0.50) ≈ 0.130.
-///   - Back  (0): 0.52 (dimmed — sits in soft fog)
-///   - Mid   (1): 0.80 (slightly dim — fewer droplets, each vivid)
-///   - Front (2): 1.10 (boosted — front reads as the hero layer, Option F)
-pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.80, 1.10];
+/// Neon Sharp preset: extreme depth differential. Back pushed deep into
+/// fog (0.48), front boosted beyond 1.0 for maximum neon dominance (1.15).
+/// The front layer is THE hero — every droplet reads as crisp neon.
+///   - Back  (0): 0.48 (deep fog — atmospheric haze)
+///   - Mid   (1): 0.80 (slightly dim — vivid streaks)
+///   - Front (2): 1.15 (boosted hero — maximum neon pop)
+pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.80, 1.15];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// .0 differential + silent override bug fix: back desaturated
-/// further 0.55→0.50 (more "rain in fog" feel); mid slightly
-/// desaturated 0.90→0.84 to match the dimmer brightness; front pushed
-/// 1.00→1.05 for richer neon. Bug fix in droplet.rs changed the
-/// saturation gate from `< 1.0` to `!= 1.0` so the front boost 1.05
-/// now actually applies (was a silent no-op before — oversaturation
-/// pushes colors away from gray, making neon pop more).
-///   - Back  (0): 0.50 (more haze blend)
-///   - Mid   (1): 0.84 (slightly less vivid to match dimmer brightness)
-///   - Front (2): 1.12 (richer neon — front pops as hero, Option F)
-pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
+/// Neon Sharp preset: front oversaturated for maximum neon pop. Back
+/// desaturated heavily (0.45) for deep haze contrast. Front at 1.15
+/// pushes colors hard away from gray — neon VIVID.
+///   - Back  (0): 0.45 (heavy haze blend)
+///   - Mid   (1): 0.85 (slightly vivid)
+///   - Front (2): 1.15 (oversaturated neon — maximum color pop)
+pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.45, 0.85, 1.15];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// .0 differential: back dimmed 0.55→0.48 (distant heads stay as
-/// soft glow, never pop as bright pinpricks); mid reduced 0.82→0.74
-/// (slightly less bloom to match lower density); front boosted 1.0→1.15
-/// (more cinematic head pop, hero layer reads first).
-///   - Back  (0): 0.48 (soft distant glow)
-///   - Mid   (1): 0.74 (gentle pop, not noisy)
-///   - Front (2): 1.30 (boosted — cinematic head pop, Option F)
-pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
+/// Neon Sharp preset: front head BLOOMS (1.40) — maximum neon head pop.
+/// Every front-layer head reads as a bright neon point. Back suppressed.
+///   - Back  (0): 0.40 (suppressed — stays in fog)
+///   - Mid   (1): 0.70 (moderate pop)
+///   - Front (2): 1.40 (NEON BLOOM — maximum head pop)
+pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.40, 0.70, 1.40];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -249,9 +238,9 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 
 /// Per-cell phosphor energy decay rate (higher = faster fade).
 ///
-/// At 5.0, afterglow lasts ~400ms (still 2× film Matrix's ~200ms, but
-/// 2.7× faster than the old 1094ms afterglow).
-pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.0;
+/// Neon Sharp preset: 7.0 (~285ms afterglow). Fast, snappy, no ghosting.
+/// Every droplet is crisp and distinct — trails don't linger.
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 7.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///
@@ -270,29 +259,23 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// .0 differential: back raised 1.8→2.0 (trails fade even faster —
-/// distant rain reads as brief flicker, not lingering streaks); mid
-/// raised 1.0→1.2 (slightly faster fade to complement lower density —
-/// fewer but cleaner streaks); front lowered 0.5→0.4 (slower fade —
-/// trails linger longer for stronger cinematic presence).
-///   - Back  (0): 2.0 (fast fade — brief distant flicker)
-///   - Mid   (1): 1.2 (slightly faster fade — clean streaks)
-///   - Front (2): 0.6 (slow fade — long cinematic trails, Option F)
-pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
+/// Neon Sharp preset: fast decay across all layers. Back: 2.5 (instant
+/// flicker), mid: 1.5 (clean streaks), front: 0.5 (brief trail — snappy).
+/// Effective rates: back=17.5, mid=10.5, front=3.5. No lingering.
+///   - Back  (0): 2.5 (instant flicker — gone fast)
+///   - Mid   (1): 1.5 (fast — clean, no smearing)
+///   - Front (2): 0.5 (brief snappy trail)
+pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.5, 1.5, 0.5];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
 pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 
-/// Phosphor decay rate multiplier applied to bottom rows (2.0× base).
-/// Cinema Noir retune: lowered from 3.0 → 2.0 to match the softened
-/// bottom-edge brightness profile. With EDGE_FADE_BOTTOM_MIN raised to
-/// 0.65 and RAIN_SHADOW_FLOOR raised to 0.65, the bottom rows are no
-/// longer crushed to near-invisible — the phosphor afterglow should also
-/// fade more gradually to maintain visual consistency. 2.0× decay is still
-/// meaningfully faster than the base rate (front=0.6, mid=1.2, back=2.0)
-/// but no longer creates an abrupt "afterglow cliff" at the bottom edge.
-pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.0;
+/// Phosphor decay rate multiplier applied to bottom rows.
+///
+/// Neon Sharp preset: 3.0 — aggressive bottom decay for clean exit.
+/// No afterglow residue at bottom. Rain cuts off cleanly.
+pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 3.0;
 
 // ─── Parallax depth layering ────────────────────────────────────────────
 //
@@ -325,19 +308,13 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// Blends fg color toward black (background) by this fraction. The
-/// terminal equivalent of DoF blur — back layer reads as "behind a
-/// haze", front layer is sharp.
-///
-/// .0 differential: back raised 0.40→0.45 (slightly more fog
-/// blend to push back deeper into atmospheric depth); mid raised
-/// 0.12→0.18 (slight haze bump to complement lower density — mid
-/// reads as sitting behind a thin veil); front kept at 0.0 (sharp,
-/// hero layer has no haze).
-///   - Back  (0): 0.50 (visible rain through soft fog, Option F)
-///   - Mid   (1): 0.18 (slight veil — depth cue without milking out)
-///   - Front (2): 0.0 (sharp foreground — hero pops clean)
-pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.50, 0.18, 0.0];
+/// Neon Sharp preset: back heavily fogged (0.55) for extreme depth
+/// contrast, front razor sharp (0.0). The contrast between foggy back
+/// and razor front is what makes Neon Sharp feel "zero compromise".
+///   - Back  (0): 0.55 (heavy fog — back dissolves into haze)
+///   - Mid   (1): 0.15 (slight veil)
+///   - Front (2): 0.0 (razor sharp — no compromise)
+pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.55, 0.15, 0.0];
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 
@@ -431,7 +408,9 @@ pub(crate) const STARTUP_EASE_TAU: f32 = 0.30;
 pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
-pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.40;
+///
+/// Neon Sharp preset: 0.55 — strong bloom for neon head pop.
+pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.55;
 
 /// Number of cells on each side of the head that receive bloom glow.
 pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
@@ -467,26 +446,20 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
 ///
-/// ## Cinema Noir retune (2026-08-17)
-/// Lowered from 0.90 → 0.85 (15% CRT dim) to deepen the cinematic glass
-/// effect at top/bottom edges. With Cinema Noir's asymmetric profile
-/// (top aggressive, bottom gentle), a slightly stronger CRT dim adds
-/// perceptible warmth without crossing the "rain invisible" threshold.
-///
-/// Compounded brightness at top-center (Cinema Noir):
-///   0.85 × 0.45 × 0.895 = 0.342 (66% dim — dramatic noir entry)
-/// Compounded brightness at bottom-center (Cinema Noir):
-///   0.85 × 0.65 × 0.895 × 0.808 = 0.399 (60% dim — gentle dissolve)
+/// ## Neon Sharp preset (2026-08-17)
+/// Set to 0.97 (3% dim) — essentially off. The Neon Sharp philosophy:
+/// no lens, no monitor frame, no CRT glass. The screen IS the world.
+/// Maximum edge brightness keeps rain visible right to the border.
 ///
 /// Reference points:
+/// - 0.97 (Neon Sharp): 3% dim — essentially off, screen = world
 /// - 0.85 (Cinema Noir): 15% dim — warm CRT glass, noir aesthetic
-/// - 0.90 (v50 alpha.2): 10% dim — subtle CRT glow, balanced after fog removal
-/// - 0.82 (masterclass): 18% dim — calibrated when fog was active (4-effect model)
-/// - 0.50 (v30): 50% dim — destructive when compounded with edge fade
+/// - 0.82 (masterclass): 18% dim — calibrated when fog was active
+/// - 0.50 (v30): 50% dim — destructive when compounded
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
 /// (compounding math, brightness curves, professional references).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.85;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.97;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -505,10 +478,16 @@ pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 // ─── Cinematic radial vignette (edge darkening) ────────────────────────────
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
-pub(crate) const VIGNETTE_INTENSITY: f32 = 0.20;
+///
+/// Neon Sharp preset: 0.05 (5% corner — nearly off). Anti-vignette
+/// philosophy — no lens, no monitor frame. Corners stay bright.
+pub(crate) const VIGNETTE_INTENSITY: f32 = 0.05;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
-pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.7;
+///
+/// Neon Sharp preset: 0.85 — vignette starts very late, almost no area
+/// affected. Combined with INTENSITY=0.05, radial vignette is negligible.
+pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.85;
 
 /// Per-layer vignette multiplier (0.0 = no dimming, 1.0 = full dimming).
 ///
@@ -519,12 +498,10 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 // ─── Rain shadow (bottom quadratic fade-out) ───────────────────────────────
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
-/// Cinema Noir retune: widened from 0.10 → 0.15 (10% → 15% of screen height)
-/// to make the bottom fade more perceptible. On a 40-line terminal this
-/// extends the shadow from 4 rows to 6 rows, giving the quadratic more
-/// room to produce a visible darkening gradient as rain approaches the
-/// bottom border.
-pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
+///
+/// Neon Sharp preset: 0.08 (8% of screen height) — minimal shadow zone.
+/// On a 40-line terminal this is ~3 rows. Keeps rain bright to the edge.
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.08;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
@@ -532,40 +509,20 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## Cinema Noir v2 retune (2026-08-17)
-/// Owner tested v1 (floor=0.65, PCT=0.10) and found the bottom fade
-/// "not felt" — too subtle, rain reached the bottom border without
-/// visible darkening. v2 widens the shadow zone (0.10 → 0.15) so the
-/// quadratic covers 6 rows instead of 4, and deepens the floor
-/// (0.65 → 0.55) for a more perceptible gradient. Top unchanged.
-///
-/// Recomputing the bottom-row compounded brightness (Cinema Noir v2):
-///
-/// ```text
-/// rain_shadow_factor(line=39, lines=40)   = 0.679 (quadratic 1-t² + 0.55 floor, PCT=0.15)
-/// viewport_edge_fade(line=39, lines=40)   = 0.650
-/// vignette_factor(col=0, line=39, 80, 40) = 0.804 (corner)
-/// crt_vignette_factor(line=39, lines=40) = 0.850
-/// compounded = 0.679 * 0.650 * 0.804 * 0.850 = 0.302 (~30% brightness)
-/// ```
-///
-/// At bottom-center (no corner vignette):
-///   0.679 * 0.650 * 0.895 * 0.850 = 0.336 (~34% brightness)
-///
-/// The widened shadow zone (15% = 6 rows on 40-line) makes the fade visible
-/// earlier — rain starts darkening at line 34 instead of line 36 — while
-/// the 0.55 floor keeps the bottom-row above the "invisible" threshold.
+/// ## Neon Sharp preset (2026-08-17)
+/// Set to 0.78 (22% dim floor) — barely-there shadow. Rain stays bright
+/// right to the bottom border. Combined with PCT=0.08, the shadow is
+/// minimal: just a hint of depth at the very last 3 rows.
 ///
 /// Reference points:
-/// - 0.55 (Cinema Noir v2): 45% dim floor — visible fade gradient, rain still visible
-/// - 0.65 (Cinema Noir v1): 35% dim floor — too subtle, fade not felt
-/// - 0.50 (v50 alpha.2): 50% dim floor — visible depth, but bottom-corner too dark
-/// - 0.00 (previously): full quadratic to black — destructive when
-///   compounded with the other 3 effects (bottom row at 8% brightness)
+/// - 0.78 (Neon Sharp): 22% dim floor — barely-there, rain stays bright
+/// - 0.55 (Cinema Noir v2): 45% dim floor — visible fade gradient
+/// - 0.50 (v50 alpha.2): 50% dim floor — visible depth
+/// - 0.00 (previously): full quadratic to black — destructive
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
-pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.55;
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.78;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
@@ -860,83 +817,45 @@ pub(crate) const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
 pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 
 /// Number of rows at the bottom affected by edge fade.
-/// v30 (visual mode): reduced from 12 → 8 per owner request — shorter
-/// bottom dimmer zone. Must stay >= EDGE_FADE_ROWS for the Zone-1
-/// pre-fade math to make sense.
-/// masterclass retune (2026-08-07): widened from 8 → 10 for a
-/// smoother dissolve ramp — the v30 8-row zone produced a slightly
-/// abrupt transition where the gentle pre-fade met the sharp lip.
-/// 10 rows gives the smoothstep more room to ease in. See
-/// `docs/research/VISUAL_MODE_AUDIT.md`.
-pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
+///
+/// Neon Sharp preset: 6 — narrow dissolve zone. Tight, crisp exit.
+/// No soft fade — rain fills to the edge and cuts off cleanly.
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 6;
 
 /// Lip factor for the bottom edge fade (controls curvature).
-/// Cinema Noir retune: raised from 0.72 → 0.80 — lifts the Zone 1↔Zone 2
-/// junction to match the softened bottom profile. With EDGE_FADE_BOTTOM_MIN
-/// raised to 0.65, the lip junction rises proportionally, keeping the
-/// smoothstep-to-linear transition perceptually consistent. The Zone 2
-/// sharp lip now spans from 0.65 (bottom row) to 0.80 (junction), a gentler
-/// 0.15 ramp vs the previous 0.17 ramp.
-pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.80;
+///
+/// Neon Sharp preset: 0.88 — high lip, barely-there transition.
+/// The Zone 1↔Zone 2 junction is close to 1.0, making the fade
+/// almost imperceptible until the very last rows.
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.88;
 
 /// Minimum brightness factor at the top edge.
 ///
-/// ## Cinema Noir retune (2026-08-17)
-/// Lowered from 0.65 → 0.45 (55% dim) for a dramatic noir-style top
-/// entry. The Cinema Noir philosophy: rain emerges from deep shadow at
-/// the top, creating a "entering the frame from darkness" feel that
-/// evokes classic film noir cinematography where subjects materialize
-/// from black.
-///
-/// With CRT_VIGNETTE_EDGE_FACTOR lowered to 0.85 (Cinema Noir), the
-/// compounded top brightness = 0.85 × 0.45 × 0.895 ≈ 0.342 — well
-/// below the old 0.524 but still above the perceptual "rain visible"
-/// floor of ~10%. Rain at the top row is clearly dimmer than mid-screen
-/// but reads as a deliberate cinematic choice, not a broken blackout.
-///
-/// The aggressive top dim is balanced by the softened bottom dim
-/// (EDGE_FADE_BOTTOM_MIN raised to 0.65), creating an asymmetric
-/// profile where the top reads as "dark entry" and the bottom reads
-/// as "gentle dissolve" — the rain literally enters from shadow and
-/// fades gracefully rather than hitting a wall.
+/// Neon Sharp preset: 0.90 (10% dim) — minimal, rain clearly visible
+/// right to the top border. No dramatic fade-in. Rain fills the screen.
 ///
 /// Reference points:
-/// - 0.45 (Cinema Noir): 55% dim — dramatic noir entry, rain emerges from shadow
+/// - 0.90 (Neon Sharp): 10% dim — rain fills to edge
+/// - 0.45 (Cinema Noir): 55% dim — dramatic noir entry
 /// - 0.65 (v50 alpha.2): 35% dim — visible cinematic fade-in
-/// - 0.70 (pre-v30): 30% dim — barely-there, owner found too subtle
-/// - 0.45 (v30): 55% dim — same value but was destructive with CRT=0.50
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.90;
 
 /// Minimum brightness factor at the bottom edge.
 ///
-/// ## Cinema Noir retune (2026-08-17)
-/// Raised from 0.55 → 0.65 (35% dim) — now matching the top's old
-/// value. The Cinema Noir profile inverts the asymmetry: the TOP is now
-/// the aggressive end (0.45, 55% dim) and the BOTTOM is the gentle end
-/// (0.65, 35% dim). This creates a "dark ceiling, bright floor" feel
-/// where rain enters from deep shadow and fades gracefully.
-///
-/// The bottom edge fade still prevents phosphor ghost residue (the
-/// EDGE_FADE_BOTTOM_LIP junction at 0.80 ensures a perceptible transition
-/// in the last 2 rows), but it no longer crushes rain to near-invisible
-/// levels. Compounded bottom-center brightness (Cinema Noir):
-///   0.650 × 0.850 × 0.895 × 0.808 ≈ 0.399 (60% dim, rain clearly visible)
-///
-/// Note: the bottom is still slightly dimmer than the top (0.399 vs 0.342)
-/// when rain shadow is included, but the *edge fade alone* is now lighter
-/// at the bottom (0.65) than the top (0.45) — the asymmetry is driven
-/// by the rain shadow's quadratic contribution, not by the edge fade.
+/// Neon Sharp preset: 0.80 (20% dim) — minimal dissolve. Rain stays
+/// bright right to the bottom. No phosphor prevention needed at this
+/// brightness level — the fade is so gentle that ghost residue isn't
+/// an issue.
 ///
 /// Reference points:
-/// - 0.65 (Cinema Noir): 35% dim — gentle dissolve, rain clearly visible at bottom
-/// - 0.55 (v50 alpha.2): 45% dim — dissolving, but bottom-corner too dark with 4-effect stack
-/// - 0.45 (masterclass): 55% dim — calibrated when fog was active (4-effect model)
-/// - 0.20 (v30): 80% dim — destructive when compounded with vignette
+/// - 0.80 (Neon Sharp): 20% dim — rain fills to bottom edge
+/// - 0.65 (Cinema Noir): 35% dim — gentle dissolve
+/// - 0.45 (masterclass): 55% dim — calibrated when fog was active
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.65;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.80;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;
