@@ -519,7 +519,12 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 // ─── Rain shadow (bottom quadratic fade-out) ───────────────────────────────
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
-pub(crate) const RAIN_SHADOW_PCT: f32 = 0.10;
+/// Cinema Noir retune: widened from 0.10 → 0.15 (10% → 15% of screen height)
+/// to make the bottom fade more perceptible. On a 40-line terminal this
+/// extends the shadow from 4 rows to 6 rows, giving the quadratic more
+/// room to produce a visible darkening gradient as rain approaches the
+/// bottom border.
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
@@ -527,44 +532,40 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## Cinema Noir retune (2026-08-17)
-/// Raised from 0.50 → 0.65 (35% shadow floor) to match the Cinema Noir
-/// profile's philosophy: dramatic top entry, gentle bottom exit. The higher
-/// floor prevents the rain shadow from over-darkening the bottom rows when
-/// compounded with the other 3 effects.
+/// ## Cinema Noir v2 retune (2026-08-17)
+/// Owner tested v1 (floor=0.65, PCT=0.10) and found the bottom fade
+/// "not felt" — too subtle, rain reached the bottom border without
+/// visible darkening. v2 widens the shadow zone (0.10 → 0.15) so the
+/// quadratic covers 6 rows instead of 4, and deepens the floor
+/// (0.65 → 0.55) for a more perceptible gradient. Top unchanged.
 ///
-/// The owner felt the previous tuning was "not enough" — the bottom rows
-/// were too aggressively dimmed by the 4-effect stack (rain shadow × edge
-/// fade × radial vignette × CRT vignette). Raising the floor from 0.50
-/// to 0.65 lifts the shadow's minimum contribution, keeping the quadratic
-/// depth gradient while preventing the compounded brightness from dropping
-/// below the perceptible rain threshold.
-///
-/// Recomputing the bottom-row compounded brightness (Cinema Noir):
+/// Recomputing the bottom-row compounded brightness (Cinema Noir v2):
 ///
 /// ```text
-/// rain_shadow_factor(line=39, lines=40)   = 0.808 (quadratic 1-t² + 0.65 floor)
+/// rain_shadow_factor(line=39, lines=40)   = 0.679 (quadratic 1-t² + 0.55 floor, PCT=0.15)
 /// viewport_edge_fade(line=39, lines=40)   = 0.650
 /// vignette_factor(col=0, line=39, 80, 40) = 0.804 (corner)
 /// crt_vignette_factor(line=39, lines=40) = 0.850
-/// compounded = 0.808 * 0.650 * 0.804 * 0.850 = 0.358 (~36% brightness)
+/// compounded = 0.679 * 0.650 * 0.804 * 0.850 = 0.302 (~30% brightness)
 /// ```
 ///
-/// 36% brightness at the bottom-corner is a clear improvement over the
-/// previous 29% — rain is more visible, the dissolve feels more film-like
-/// rather than "hard wall". The quadratic shape is preserved: the shadow
-/// still produces a clear top-to-bottom darkening gradient, only the
-/// absolute floor is lifted.
+/// At bottom-center (no corner vignette):
+///   0.679 * 0.650 * 0.895 * 0.850 = 0.336 (~34% brightness)
+///
+/// The widened shadow zone (15% = 6 rows on 40-line) makes the fade visible
+/// earlier — rain starts darkening at line 34 instead of line 36 — while
+/// the 0.55 floor keeps the bottom-row above the "invisible" threshold.
 ///
 /// Reference points:
-/// - 0.65 (Cinema Noir): 35% dim floor — gentle dissolve, rain clearly visible
+/// - 0.55 (Cinema Noir v2): 45% dim floor — visible fade gradient, rain still visible
+/// - 0.65 (Cinema Noir v1): 35% dim floor — too subtle, fade not felt
 /// - 0.50 (v50 alpha.2): 50% dim floor — visible depth, but bottom-corner too dark
 /// - 0.00 (previously): full quadratic to black — destructive when
 ///   compounded with the other 3 effects (bottom row at 8% brightness)
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
-pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.65;
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.55;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
