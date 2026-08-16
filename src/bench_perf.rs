@@ -85,13 +85,15 @@ mod linux {
                 config,
                 ..Default::default()
             };
-            // pid=0 (this process), cpu=0 (specific core — needed for perf_event_open),
-            // group_fd=-1, flags=0
+            // pid=0 (this process), cpu=-1 (any core — follow process
+            // migration across cores; cpu=0 would only count when
+            // scheduled on core 0, missing ~99.9% of cycles on
+            // multi-core systems).
             let fd = libc::syscall(
                 SYS_PERF_EVENT_OPEN,
                 &attr as *const PerfEventAttr as *mut PerfEventAttr,
                 0i32,  // pid=0: measure this process
-                0i32,  // cpu=0: specific core (perf requires this, not -1)
+                -1i32, // cpu=-1: any core (follows scheduler migration)
                 -1i32, // group_fd=-1: standalone
                 0u64,  // flags=0
             );
