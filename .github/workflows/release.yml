@@ -1107,9 +1107,9 @@ jobs:
               echo ""
               echo "> [!NOTE]"
               echo "> **Total achievements:**"
-              echo "> - 🐛 fix × ${FIX_COUNT} — [click here to see changelog fix](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG})"
-              echo "> - ✨ feat × ${FEAT_COUNT}"
-              echo "> - 📋 others × ${OTHERS_COUNT}"
+              echo "> - fix × ${FIX_COUNT} — [click here to see changelog fix](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG})"
+              echo "> - feat × ${FEAT_COUNT}"
+              echo "> - others × ${OTHERS_COUNT}"
               echo ""
 
               # Full commit log
