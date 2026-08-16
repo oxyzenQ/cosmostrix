@@ -535,19 +535,20 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let elapsed_s = total_elapsed_s.max(BENCH_ELAPSED_MIN_S);
 
     let avg_fps = (total_frames as f64) / elapsed_s;
-    // Guard against the (rare) coarse-monotonic-clock case where two
-    // successive Instant::now() calls return the same value, yielding
-    // frame_time_ms = 0.0 and peak_fps = +inf (printed as "inf").
-    let min_ft = frame_times[..ft_index]
-        .iter()
-        .copied()
-        .fold(f64::MAX, f64::min);
-    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
     let avg_frame_time = frame_times[..ft_index].iter().sum::<f64>() / (ft_index as f64).max(1.0);
 
     // p99 frame time — trim top/bottom 1% outliers for stability
     let mut sorted_ft: Vec<f64> = frame_times[..ft_index].to_vec();
     sorted_ft.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+
+    // peak_fps: derived from the minimum non-zero frame time.
+    // On fast systems (FreeBSD, high-frequency clocks), some frames complete
+    // within a single clock tick, yielding elapsed = 0.0. A naive fold would
+    // pick min_ft = 0.0, producing peak_fps = 0.0 (wrong) or +inf (also wrong).
+    // Instead, scan sorted_ft for the first entry > 0 — that is the fastest
+    // *measurable* frame. If all samples are zero, fall back to 0.0.
+    let min_ft = sorted_ft.iter().copied().find(|&t| t > 0.0).unwrap_or(0.0);
+    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
     let trim_count = (ft_index as f64 * 0.01) as usize;
     let trimmed_start = trim_count.min(ft_index);
     let trimmed_end = ft_index.saturating_sub(trim_count).max(trimmed_start);
@@ -995,14 +996,11 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
 
     // Compute summary metrics
     let avg_fps = (total_frames as f64) / elapsed_s;
-    // Guard against the (rare) coarse-monotonic-clock case where two
-    // successive Instant::now() calls return the same value, yielding
-    // frame_time_ms = 0.0 and peak_fps = +inf (printed as "inf").
-    let min_ft = frame_times[..ft_index]
-        .iter()
-        .copied()
-        .fold(f64::MAX, f64::min);
-    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
+    // peak_fps: derived from the minimum non-zero frame time.
+    // On fast systems, some frames complete within a single clock tick
+    // (elapsed = 0.0). The silent capture path does not collect frame_times,
+    // so peak_fps is always 0.0 here.
+    let peak_fps = 0.0; // silent capture: frame_times not available
     let avg_frame_time = if total_frames > 0 {
         perf_work_sum_s * 1000.0 / total_frames as f64
     } else {
