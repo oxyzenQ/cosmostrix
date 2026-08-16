@@ -862,7 +862,7 @@ jobs:
           usesh: false
           mem: 4096
           prepare: |
-            pkg install -y curl ca_root_nss
+            pkg install -y curl ca_root_nss python3
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup component add clippy rustfmt
