@@ -1075,8 +1075,8 @@ jobs:
           # --- Count commit types from PREV_TAG..TAG ---
           if [ -n "$PREV_TAG" ]; then
             TOTAL_COMMITS=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | wc -l | tr -d ' ')
-            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^fix')
-            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^feat')
+            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^fix' || true)
+            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^feat' || true)
             OTHERS_COUNT=$((TOTAL_COMMITS - FIX_COUNT - FEAT_COUNT))
           else
             TOTAL_COMMITS=0
