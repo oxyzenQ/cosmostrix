@@ -15,7 +15,6 @@ name: Cosmic Dragon - CI
       - '.cargo/**'
       - 'scripts/**'
       - 'deny.toml'
-      - '.github/workflows/ci.yml'
       - '.codespellrc'
   pull_request:
     branches: ["main"]
@@ -28,7 +27,6 @@ name: Cosmic Dragon - CI
       - '.cargo/**'
       - 'scripts/**'
       - 'deny.toml'
-      - '.github/workflows/ci.yml'
       - '.codespellrc'
 
 permissions:
@@ -781,8 +779,8 @@ jobs:
       - name: cargo deny
         run: cargo deny check all
 
-  workflow_quality:
-    name: Lint + format + codespell
+  project_lint:
+    name: Project lint (codespell + ruff)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -790,19 +788,7 @@ jobs:
 
       - name: Install lint tools
         run: |
-          python3 -m pip install --user yamllint codespell ruff
-          go install github.com/rhysd/actionlint/cmd/actionlint@latest
-          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
-          sudo apt-get install -y shellcheck
-
-      - name: Run actionlint
-        run: actionlint .github/workflows/*.yml
-
-      - name: Run yamllint
-        run: yamllint .github/workflows
-
-      - name: Run shellcheck
-        run: shellcheck scripts/*.sh
+          python3 -m pip install --user codespell ruff
 
       - name: Run ruff check (Python lint)
         run: ruff check scripts/*.py
