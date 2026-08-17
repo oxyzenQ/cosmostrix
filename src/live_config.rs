@@ -639,6 +639,24 @@ pub(crate) fn rebuild_cloud_config(
     // defaults; user config values win.
     if !cli.scene {
         if let Some(v) = cfg.get("scene") {
+            // v50 fix: update new.scene_name to match the config's scene
+            // value. Without this, the live-reload path left scene_name at
+            // base.scene_name (the previous value), so the HUD 'scn:' line
+            // showed the old scene even though the rain style had already
+            // switched. The event_loop.rs schedule-empty preserve/else
+            // branch compares new_cfg.scene_name against preserved_scene_name
+            // to decide whether to re-apply scene runtime — both values MUST
+            // reflect the config's scene for that branch to fire correctly.
+            // This is the source-of-truth fix; the event_loop.rs else branch
+            // (commit 51ccafe) is the consumer-side mirror.
+            //
+            // Normalization: scene names are case-insensitive at lookup
+            // (scene::get_scene lowercases internally), but the HUD displays
+            // the exact string the user typed. We preserve the original
+            // casing from config for display, matching the startup path in
+            // main.rs (args.scene.as_deref().unwrap_or(DEFAULT_SCENE)).
+            lr_trace!("apply scene='{}' (updating scene_name)", v);
+            new.scene_name = v.clone();
             if let Some(scene_info) = crate::scene::get_scene(v) {
                 new.rain_style = scene_info.config.rain_style;
                 if let Some(color) = scene_info.config.color {

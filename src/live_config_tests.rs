@@ -268,6 +268,72 @@ fn rebuild_without_scene_custom_name_does_not_apply_custom_fields() {
     );
 }
 
+/// v50 fix: when the user edits `scene = "monolith"` in config.toml,
+/// rebuild_cloud_config must update new.scene_name to match. Before the
+/// fix, only rain_style/color/charset/speed/density were applied —
+/// scene_name stayed at base.scene_name (the previous scene), so the
+/// HUD 'scn:' line showed the old scene name even though the rain had
+/// already switched. This is the source-of-truth fix; the event_loop.rs
+/// else branch (commit 51ccafe) is the consumer-side mirror that
+/// compares new_cfg.scene_name against preserved_scene_name to decide
+/// whether to re-apply scene runtime defaults.
+#[test]
+fn rebuild_updates_scene_name_when_config_scene_changes() {
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "monolith".to_string());
+    // Base config has scene_name = "test-scene" (from minimal_cloud_config).
+    let base = minimal_cloud_config();
+    assert_eq!(
+        base.scene_name, "test-scene",
+        "baseline must start at test-scene"
+    );
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.scene_name, "monolith",
+        "scene_name must reflect config's scene value after live reload"
+    );
+    // Rain style must also switch (proves the scene block executed).
+    assert_eq!(
+        new.rain_style,
+        crate::scene::get_scene("monolith")
+            .unwrap()
+            .config
+            .rain_style,
+        "rain_style must also switch to monolith's"
+    );
+}
+
+/// v50 fix: case sensitivity — config scene value casing is preserved
+/// for display, matching startup behavior in main.rs. The HUD shows
+/// exactly what the user typed in config.toml.
+#[test]
+fn rebuild_preserves_scene_name_casing_from_config() {
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "Monolith".to_string());
+    let base = minimal_cloud_config();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.scene_name, "Monolith",
+        "scene_name casing must be preserved as written in config (display fidelity)"
+    );
+}
+
+/// v50 fix: when CLI --scene was explicit, config's scene key must NOT
+/// override scene_name (CLI > config.toml priority contract).
+#[test]
+fn rebuild_preserves_cli_explicit_scene_name_over_config() {
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "monolith".to_string());
+    let mut base = minimal_cloud_config();
+    base.cli_explicit.scene = true;
+    base.scene_name = "matrix".to_string();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.scene_name, "matrix",
+        "CLI --scene must NOT be overridden by config.toml scene key"
+    );
+}
+
 /// Bug 3 test: CLI-explicit color must NOT be overridden by config.toml
 /// during live reload. The priority contract is CLI > config.toml > scene.
 /// Without the `cli_explicit` tracker, `rebuild_cloud_config` would
