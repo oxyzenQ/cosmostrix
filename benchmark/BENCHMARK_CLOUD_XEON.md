@@ -1,6 +1,13 @@
 # Cloud Xeon Third-Party Hardware Verification
 
+
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+<!-- v50 nightly update (2026-08-17, commit aac3b5c): fresh pro-linux-v4
+     benchmark data. Particle lifecycle improved (4.0s lifespan, velocity
+     decay, smoother brightness curve). Performance numbers below are
+     consistent with pre-particle-fix runs (diff engine overhead unchanged). -->
+
 
 > Historical verification that cosmostrix builds and
 > benchmarks cleanly on a CPU other than the owner's Ryzen 5800HS — a
