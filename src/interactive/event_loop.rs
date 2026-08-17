@@ -402,9 +402,32 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         cloud.color_scheme = preserved_color_scheme;
                     }
                     // v50 fix: same pattern for scene_name — only preserve
-                    // if the config didn't explicitly change the scene.
+                    // if the config didn't explicitly change the scene. When
+                    // the config DID change the scene (new != preserved),
+                    // respect it by applying the new scene's runtime defaults
+                    // (mirrors the non-preserve branch below). Without this
+                    // else branch, the local `scene_name` variable — the
+                    // HUD's source of truth (line 925: set_scene_name) — was
+                    // left stale at the old value, so the `scn:` HUD line
+                    // showed the previous scene even after the user edited
+                    // config.toml. Unlike `cloud.color_scheme` (a Cloud field
+                    // auto-refreshed by `cloud = new_cloud` at line 297),
+                    // `scene_name` is a local variable and must be explicitly
+                    // updated here.
                     if new_cfg.scene_name == preserved_scene_name {
                         scene_name = preserved_scene_name;
+                    } else {
+                        scene_name = new_cfg.scene_name.clone();
+                        scene_generation = scene_generation.wrapping_add(1);
+                        charset_preset = cloud.apply_scene_runtime(
+                            &scene_name,
+                            &charset_preset,
+                            &user_ranges,
+                            def_ascii,
+                        );
+                        term.set_color_cache(ColorCache::new(&cloud.palette));
+                        frame = Frame::new(w, h, cloud.palette.bg);
+                        super::fill_terminal_bg(cloud.palette.bg);
                     }
                 } else {
                     scene_name = new_cfg.scene_name.clone();
