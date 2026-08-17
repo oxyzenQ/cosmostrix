@@ -10,6 +10,19 @@ and whether the test is measuring headless simulation or real terminal I/O.
 Use benchmark output to compare builds on the same machine, not as a portable
 promise.
 
+## Fresh Results (v50 nightly.1, pro-linux-v4, 2026-08-17)
+
+| Screen  | avg_fps  | p95 (ms) | p99 (ms) | max (ms) | dirty cells/frame | stability |
+|---------|----------|----------|----------|----------|---------------------|-----------|
+| 80x24   | 97,793   | 0.012    | 0.014    | 0.031    | 56.8 (2.96%)        | excellent |
+| 120x40  | 57,062   | 0.022    | 0.024    | 2.720    | 107.3               | excellent |
+| 400x200 | 13,625   | 0.085    | 0.091    | 0.751    | 511.9               | excellent |
+
+All runs: monolith scene, 5s duration, headless dry I/O, zero per-frame heap allocations.
+Build: pro-linux-v4 (target-cpu=x86-64-v4), commit aac3b5c.
+
+---
+
 ## Current Benchmark Model
 
 Cosmostrix exposes these benchmark paths and modifiers:
