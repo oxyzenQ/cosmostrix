@@ -34,13 +34,36 @@ Terminal::drop() runs, which:
 2. Resets text attributes and colors
 3. Shows cursor
 4. Enables line wrap
-5. Leaves alternate screen (revealing original terminal content)
-6. Disables raw mode
-7. Flushes the buffered writer
+5. Emits SYNC_END if sync_output is enabled (closes sync mode on alt screen)
+6. **Flushes the BufWriter BEFORE LeaveAlternateScreen** (v50 fix — see below)
+7. Leaves alternate screen (revealing original terminal content)
+8. Disables raw mode
+9. Flushes the buffered writer
 
 No screen clear, no scrollback modification. The original terminal content
 is preserved underneath the alternate screen buffer. Normal exit does NOT
 clear the visible screen and is intentionally non-destructive.
+
+#### v50 TTY Scrollback Fix (2026-08-17)
+
+**Bug**: On TTY terminals (and terminals where `sync_output` is false),
+the terminal screen was cleared after quit/'q' — the user's previous
+terminal history (e.g., `echo hello`) was gone.
+
+**Root cause**: The `flush()` before `LeaveAlternateScreen` was inside
+the `if self.term_caps.sync_output` block. When `sync_output` was false
+(which is the case for TTY terminals, Linux VTs, and many terminal
+emulators), no flush was performed before the screen switch. This meant
+any pending rain content in the BufWriter (from the last frame's draw())
+was flushed AFTER `LeaveAlternateScreen` (in the final flush at the end
+of `cleanup_terminal`), landing on the MAIN screen and overwriting the
+user's terminal history.
+
+**Fix**: Moved `flush()` OUTSIDE the `if sync_output` block — it now
+always runs before `LeaveAlternateScreen`, regardless of sync_output
+capability. This ensures ALL pending content is sent to the alt screen
+BEFORE the screen switch, so the main screen is untouched when
+`LeaveAlternateScreen` reveals it.
 
 ### Signal Exit (SIGTERM / SIGHUP / SIGQUIT)
 

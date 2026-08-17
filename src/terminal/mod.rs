@@ -839,8 +839,20 @@ impl Terminal {
                 // alt screen, so the main screen is never touched by a
                 // sync-end sequence.
                 let _ = self.stdout.write_all(crate::termdetect::SYNC_END);
-                let _ = self.stdout.flush();
             }
+            // v50 TTY scrollback fix: ALWAYS flush before LeaveAlternateScreen,
+            // not just when sync_output is true. On TTY terminals (and
+            // terminals where sync_output is false), the BufWriter may have
+            // pending rain content from the last frame's draw() that wasn't
+            // fully flushed. Without this flush, the pending content gets
+            // sent to the terminal AFTER LeaveAlternateScreen (in the final
+            // flush at the end of cleanup_terminal), which means it lands on
+            // the MAIN screen — overwriting the user's terminal history.
+            //
+            // Flushing here ensures ALL pending content is sent to the alt
+            // screen BEFORE the screen switch, so the main screen is
+            // untouched when LeaveAlternateScreen reveals it.
+            let _ = self.stdout.flush();
             let _ = self
                 .stdout
                 .execute(crossterm_terminal::LeaveAlternateScreen);
