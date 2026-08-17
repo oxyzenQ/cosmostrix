@@ -185,7 +185,8 @@ pub(crate) struct HudState {
     charset_preset: String,
     /// Current droplet density multiplier (e.g. 1.0, 1.5, 2.0). Drives
     /// the `dsty:` HUD line for `[` / `]` adjustment feedback. Owner
-    /// explicitly mandated the `dsty` label (NOT `den` — "buruk sekali").
+    /// explicitly mandated the `dsty` label (NOT `den` — owner judged
+    /// `den` as ugly/unsuitable for the density multiplier label).
     droplet_density: f32,
     /// Current chars-per-second speed (e.g. 14.0, 25.5). Drives the
     /// `sped:` HUD line for `↑` / `↓` adjustment feedback.
@@ -1049,8 +1050,10 @@ fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Co
     // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 16 HUD
     // rows → 5+ rows sharing the same color block). The owner explicitly
     // flagged this category as inconsistent with the chroma dragon smoothness
-    // mandate: "audit mana saja yang belum optimal menggunakan chroma dragon
-    // colornya ... bisa inconsistent kalo ngak menyatu".
+    // mandate: "audit which color-processing sites are not yet using
+    // chroma dragon interpolation optimally ... can look inconsistent
+    // if not unified". Every visible color surface must route through
+    // the chroma dragon pipeline for consistency.
     //
     // With interpolation, every HUD row gets a smoothly-varying color even
     // when the palette is small — matching the border message's smooth

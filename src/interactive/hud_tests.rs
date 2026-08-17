@@ -891,7 +891,7 @@ fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
 // are called and `update_metrics` runs the 1 Hz text reformat. The
 // layout matches owner's Option S mandate: ehs/prs/sped/dsty/scn/chr/
 // clr at rows 6-12, with the density label explicitly set to `dsty`
-// (NOT `den` — owner: "buruk sekali").
+// (NOT `den` — owner judged `den` as ugly/unsuitable).
 
 #[test]
 fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
@@ -954,9 +954,9 @@ fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
 #[test]
 fn hud_density_label_is_dsty_not_den() {
     // Owner explicitly mandated the `dsty` label for density (NOT `den`):
-    // "untuk densitas namannya jangan 'den' buruk sekali, harusnya dsty".
-    // This regression test locks the label in so a future rename would
-    // fail loudly. The value formatting is verified separately.
+    // owner judged `den` as ugly/unsuitable for the density multiplier
+    // label. This regression test locks the label in so a future rename
+    // would fail loudly. The value formatting is verified separately.
     let mut h = HudState::new();
     h.toggle();
     h.set_droplet_density(2.5);
@@ -976,7 +976,7 @@ fn hud_density_label_is_dsty_not_den() {
     );
     assert!(
         !dsty_line.starts_with(" den"),
-        "density label must NOT be ' den' (owner: 'buruk sekali'), got: {dsty_line:?}"
+        "density label must NOT be ' den' (owner judged `den` as ugly/unsuitable), got: {dsty_line:?}"
     );
 }
 

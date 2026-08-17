@@ -298,13 +298,26 @@ pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
 }
 
 /// Linear interpolation between two RGB triples.
+///
+/// v50 (2026-08-17) LTS chroma dragon sync: delegates to
+/// `chroma::legacy::blend_toward_rgb` for consistency with the chroma
+/// engine's per-channel blend convention (integer math with +128
+/// rounding offset, half-up convention). The previous inline
+/// implementation used `(lerp(...).round().clamp(0.0, 255.0)) as u8`
+/// per channel — same equation but float math. The integer-math version
+/// is faster (no float-to-int conversion) and matches the chroma
+/// dragon's blend convention so the intro animation's particle colors
+/// stay consistent with the rain color's chroma dragon output.
+///
+/// Owner mandate: every color-processing site must route through the
+/// chroma dragon pipeline (primary), with legacy fallback for non-
+/// TrueColor terminals. The intro animation is the first thing the user
+/// sees — its colors should be indistinguishable from the rain color
+/// that follows, so the cinematic intro dissolves seamlessly into the
+/// rain matrix without a visible color shift.
 #[inline]
 pub(super) fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    (
-        (lerp(a.0 as f32, b.0 as f32, t)).round().clamp(0.0, 255.0) as u8,
-        (lerp(a.1 as f32, b.1 as f32, t)).round().clamp(0.0, 255.0) as u8,
-        (lerp(a.2 as f32, b.2 as f32, t).round().clamp(0.0, 255.0)) as u8,
-    )
+    crate::chroma::legacy::blend_toward_rgb(a.0, a.1, a.2, b.0, b.1, b.2, t)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
