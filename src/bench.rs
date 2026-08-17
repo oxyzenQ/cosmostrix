@@ -53,6 +53,65 @@ const FRAME_TIME_SAMPLES: usize = 10_000;
 
 use super::{effective_density, CloudConfig};
 
+/// Compute `peak_fps` from a sorted (ascending) slice of frame-time samples
+/// in milliseconds.
+///
+/// Returns the FPS derived from the **p1 (1st percentile)** frame time —
+/// the fastest 1% of frames — NOT the absolute single minimum.
+///
+/// # Why p1, not min?
+///
+/// On fast systems (FreeBSD, high-frequency clocks), the absolute minimum
+/// sample is dominated by outliers: a single frame preempted by the OS
+/// scheduler mid-bench, or a cache-aligned lucky hit, can finish in ~280ns
+/// while the average is ~33,000ns (118× ratio). Reporting
+/// `1000 / 0.000279 = 3,584,229 FPS` is mathematically correct but
+/// statistically meaningless — it does not represent any sustainable
+/// throughput the engine can actually deliver.
+///
+/// p1 mirrors the trimming philosophy already used for p99/p95 (which
+/// trim 1% from each tail). The fastest 1% of frames is a robust
+/// "best-case sustained" estimate: it ignores the single most extreme
+/// outlier while still capturing genuine fast-path performance.
+///
+/// # Zero-sample handling
+///
+/// On systems where the clock resolution is coarser than the frame time,
+/// `Instant::elapsed()` returns `0.0` for some samples. We skip those by
+/// scanning for the first non-zero entry at or above the p1 index. If ALL
+/// samples in the p1+ range are zero, we fall back to `0.0` (honest
+/// "not measurable" answer).
+///
+/// # Arguments
+///
+/// * `sorted_ft` - Frame times in ms, sorted ascending. Caller is
+///   responsible for sorting (this fn does NOT re-sort, to avoid O(n log n)
+///   on every call when the caller already has a sorted slice for p99/p95).
+/// * `count` - Number of valid samples in `sorted_ft` (may be less than
+///   `sorted_ft.len()` if the buffer is a fixed-size array partially filled).
+///
+/// # Returns
+///
+/// `peak_fps` in frames-per-second. `0.0` if no non-zero samples exist
+/// at or above the p1 index, or if `count == 0`.
+pub(crate) fn compute_peak_fps(sorted_ft: &[f64], count: usize) -> f64 {
+    if count == 0 {
+        return 0.0;
+    }
+    let p1_count = (count as f64 * 0.01) as usize;
+    let p1_idx = p1_count.min(count.saturating_sub(1));
+    let min_ft = sorted_ft[p1_idx..count]
+        .iter()
+        .copied()
+        .find(|&t| t > 0.0)
+        .unwrap_or(0.0);
+    if min_ft > 0.0 {
+        1000.0 / min_ft
+    } else {
+        0.0
+    }
+}
+
 /// Legacy CI benchmark: run N frames and print results in the original format.
 /// Output format is preserved for backwards compatibility.
 pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -541,14 +600,32 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut sorted_ft: Vec<f64> = frame_times[..ft_index].to_vec();
     sorted_ft.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
 
-    // peak_fps: derived from the minimum non-zero frame time.
-    // On fast systems (FreeBSD, high-frequency clocks), some frames complete
-    // within a single clock tick, yielding elapsed = 0.0. A naive fold would
-    // pick min_ft = 0.0, producing peak_fps = 0.0 (wrong) or +inf (also wrong).
-    // Instead, scan sorted_ft for the first entry > 0 — that is the fastest
-    // *measurable* frame. If all samples are zero, fall back to 0.0.
-    let min_ft = sorted_ft.iter().copied().find(|&t| t > 0.0).unwrap_or(0.0);
-    let peak_fps = if min_ft > 0.0 { 1000.0 / min_ft } else { 0.0 };
+    // peak_fps: derived from the p1 (1st percentile) frame time — the
+    // fastest 1% of frames, NOT the absolute single minimum.
+    //
+    // Why not min? On fast systems (FreeBSD, high-frequency clocks), the
+    // absolute minimum sample is dominated by outliers: a single frame
+    // preempted by the OS scheduler mid-bench, or a cache-aligned lucky
+    // hit, can finish in ~280ns while the average is ~33,000ns (118×
+    // ratio). Reporting 1000/0.000279 = 3,584,229 FPS is mathematically
+    // correct but statistically meaningless — it does not represent any
+    // sustainable throughput the engine can actually deliver.
+    //
+    // p1 mirrors the trimming philosophy already used for p99/p95 (which
+    // trim 1% from each tail). The fastest 1% of frames is a robust
+    // "best-case sustained" estimate: it ignores the single most extreme
+    // outlier while still capturing the genuine fast-path performance.
+    //
+    // Zero-sample handling: on systems where the clock resolution is
+    // coarser than the frame time, `Instant::elapsed()` returns 0.0 for
+    // some samples. We skip those by scanning for the first non-zero entry
+    // at or above the p1 index. If ALL samples in the p1+ range are zero,
+    // we fall back to 0.0 (same honest "not measurable" answer as before).
+    //
+    // v50 LTS stabilization: this fixes the "absurd peak_fps" reports on
+    // FreeBSD (3.5M FPS) and tightens the Linux reports (57K → closer to
+    // 2× avg, which is the expected ceiling for a healthy renderer).
+    let peak_fps = compute_peak_fps(&sorted_ft, ft_index);
     let trim_count = (ft_index as f64 * 0.01) as usize;
     let trimmed_start = trim_count.min(ft_index);
     let trimmed_end = ft_index.saturating_sub(trim_count).max(trimmed_start);
