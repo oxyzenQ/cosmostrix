@@ -63,33 +63,24 @@ pub(crate) use watchdog::clear_mouse_capture_flag;
 #[cfg(unix)]
 pub(crate) use watchdog::request_graceful_shutdown;
 
-use std::sync::Mutex;
+use std::sync::{Mutex, OnceLock};
 
 // Final runtime state — stored as Strings to avoid enum discriminant issues
-// with 52 ColorScheme variants. Set by event loop before returning.
-static FINAL_COLOR: Mutex<Option<String>> = Mutex::new(None);
-static FINAL_SCENE: Mutex<Option<String>> = Mutex::new(None);
-static FINAL_CHARSET: Mutex<Option<String>> = Mutex::new(None);
-static FINAL_SPEED: Mutex<Option<f32>> = Mutex::new(None);
-static FINAL_DENSITY: Mutex<Option<f32>> = Mutex::new(None);
+// with 52 ColorScheme variants. Set once by event loop before returning.
+// OnceLock eliminates mutex overhead for write-once-read-many semantics.
+static FINAL_COLOR: OnceLock<String> = OnceLock::new();
+static FINAL_SCENE: OnceLock<String> = OnceLock::new();
+static FINAL_CHARSET: OnceLock<String> = OnceLock::new();
+static FINAL_SPEED: OnceLock<f32> = OnceLock::new();
+static FINAL_DENSITY: OnceLock<f32> = OnceLock::new();
 
 /// Store final runtime state for post-exit verbose summary.
 pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f32, density: f32) {
-    if let Ok(mut g) = FINAL_COLOR.lock() {
-        *g = Some(color.to_string());
-    }
-    if let Ok(mut g) = FINAL_SCENE.lock() {
-        *g = Some(scene.to_string());
-    }
-    if let Ok(mut g) = FINAL_CHARSET.lock() {
-        *g = Some(charset.to_string());
-    }
-    if let Ok(mut g) = FINAL_SPEED.lock() {
-        *g = Some(speed);
-    }
-    if let Ok(mut g) = FINAL_DENSITY.lock() {
-        *g = Some(density);
-    }
+    let _ = FINAL_COLOR.set(color.to_string());
+    let _ = FINAL_SCENE.set(scene.to_string());
+    let _ = FINAL_CHARSET.set(charset.to_string());
+    let _ = FINAL_SPEED.set(speed);
+    let _ = FINAL_DENSITY.set(density);
 }
 
 /// AB-10 (rain-screen cleanliness): emit pre-alt-screen warnings to stderr
@@ -141,46 +132,34 @@ pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro
 
 /// Get the final color scheme name after the rain loop exited.
 pub(crate) fn last_color_scheme() -> String {
-    FINAL_COLOR
-        .lock()
-        .ok()
-        .and_then(|g| g.clone())
-        .unwrap_or_else(|| "cosmos".to_string())
+    FINAL_COLOR.get().cloned().unwrap_or_else(|| "cosmos".to_string())
 }
 
 /// Get the final scene name after the rain loop exited.
 pub(crate) fn last_scene_name() -> String {
-    FINAL_SCENE
-        .lock()
-        .ok()
-        .and_then(|g| g.clone())
-        .unwrap_or_else(|| "monolith".to_string())
+    FINAL_SCENE.get().cloned().unwrap_or_else(|| "monolith".to_string())
 }
 
 /// Get the final charset preset after the rain loop exited.
 pub(crate) fn last_charset_preset() -> String {
-    FINAL_CHARSET
-        .lock()
-        .ok()
-        .and_then(|g| g.clone())
-        .unwrap_or_else(|| "binary".to_string())
+    FINAL_CHARSET.get().cloned().unwrap_or_else(|| "binary".to_string())
 }
 
 /// Get the final rain speed after the rain loop exited.
 pub(crate) fn last_speed() -> f32 {
-    FINAL_SPEED.lock().ok().and_then(|g| *g).unwrap_or(9.0)
+    *FINAL_SPEED.get().unwrap_or(&9.0)
 }
 
 /// Get the final density after the rain loop exited.
 pub(crate) fn last_density() -> f32 {
-    FINAL_DENSITY.lock().ok().and_then(|g| *g).unwrap_or(0.75)
+    *FINAL_DENSITY.get().unwrap_or(&0.75)
 }
 
 // startup ambient info — stored in a static so main.rs can print
 // it AFTER Terminal::drop exits the alternate screen. Printing inside
 // event_loop is invisible because the terminal is in alternate screen
 // mode and the output is discarded on exit.
-static STARTUP_AMBIENT_INFO: Mutex<Option<String>> = Mutex::new(None);
+static STARTUP_AMBIENT_INFO: OnceLock<String> = OnceLock::new();
 
 // AB-04 diagnostics: ambient apply path counters + last scene-change source.
 // Used in exit summary to identify which code path re-applied ambient.
@@ -267,13 +246,11 @@ pub(crate) fn ambient_diag_summary() -> String {
 /// is the fully-formatted verbose line (without the `[verbose]` prefix,
 /// which `eprintln_verbose_raw` adds).
 pub(crate) fn set_startup_ambient_info(info: &str) {
-    if let Ok(mut g) = STARTUP_AMBIENT_INFO.lock() {
-        *g = Some(info.to_string());
-    }
+    let _ = STARTUP_AMBIENT_INFO.set(info.to_string());
 }
 
 /// Get the stored startup ambient info (None if no ambient schedule active
 /// or if event_loop never ran). Used by main.rs post-exit verbose dump.
 pub(crate) fn startup_ambient_info() -> Option<String> {
-    STARTUP_AMBIENT_INFO.lock().ok().and_then(|g| g.clone())
+    STARTUP_AMBIENT_INFO.get().cloned()
 }

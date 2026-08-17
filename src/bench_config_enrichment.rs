@@ -5,18 +5,15 @@
 
 use crate::app::CloudConfig;
 
-/// Compute the CONFIG-enrichment fields from a CloudConfig.
+/// CONFIG-enrichment fields derived from CloudConfig for benchmark reports.
 ///
-/// Returns a tuple of (color_mode_label, custom_palette_name, custom_palette_bg_hex,
-/// color_bg_label, color_tune_summary, async_mode, glitch_enabled, glitch_level,
-/// glitch_pct, auto_color_drift, color_pipeline_label, chroma_in_benchmark) — all
-/// derived from `cfg` so both the `run_premium_benchmark` and
-/// `run_premium_benchmark_silent` construction sites emit identical values
-/// without duplicating the derivation logic.
+/// All fields are derived from `cfg` so both `run_premium_benchmark` and
+/// `run_premium_benchmark_silent` emit identical values without duplicating
+/// the derivation logic.
 ///
-/// (chroma dragon audit): the last two tuple fields disclose (a) which
-/// color pipeline the run is using (`chroma_dragon` or `legacy_rgb`) and
-/// (b) what the chroma engine status is during benchmarking. Owner question:
+/// (chroma dragon audit): `color_pipeline` and `chroma_in_benchmark` disclose
+/// (a) which color pipeline the run is using (`chroma_dragon` or `legacy_rgb`)
+/// and (b) the chroma engine status during benchmarking. Owner question:
 /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
 /// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
 /// palette *drift* is disabled (see `cloud.auto_color_drift = false` in
@@ -24,26 +21,40 @@ use crate::app::CloudConfig;
 /// through `resolve_cell_color` + `apply_climate`. The `chroma_in_benchmark`
 /// field makes this explicit in the report so the user does not have to read
 /// the source to find out.
+pub(crate) struct ConfigEnrichment {
+    /// Resolved color mode label ("truecolor", "256", etc.).
+    pub color_mode_label: &'static str,
+    /// Custom palette name, if active.
+    pub custom_palette_name: Option<String>,
+    /// Custom palette background as hex string, if palette defines one.
+    pub custom_palette_bg_hex: Option<String>,
+    /// Resolved color background label.
+    pub color_bg_label: &'static str,
+    /// Compact color-tune summary string.
+    pub color_tune_summary: String,
+    /// Whether async mode is enabled.
+    pub async_mode: bool,
+    /// Whether glitch is enabled.
+    pub glitch_enabled: bool,
+    /// Glitch level label ("none", "subtle", "default", "intense").
+    pub glitch_level: &'static str,
+    /// Glitch percentage.
+    pub glitch_pct: f32,
+    /// Auto color drift (always false in benchmark mode for deterministic p99/max).
+    pub auto_color_drift: bool,
+    /// Active color pipeline label.
+    pub color_pipeline: &'static str,
+    /// Chroma engine status during benchmark.
+    pub chroma_in_benchmark: &'static str,
+}
+
+/// Compute the CONFIG-enrichment fields from a CloudConfig.
 ///
 /// Kept as a free function (not a method on CloudConfig) so it can be unit-tested
 /// in isolation and stays out of the hot measurement path.
-#[allow(clippy::type_complexity)]
 pub(crate) fn compute_config_enrichment(
     cfg: &CloudConfig,
-) -> (
-    &'static str,
-    Option<String>,
-    Option<String>,
-    &'static str,
-    String,
-    bool,
-    bool,
-    &'static str,
-    f32,
-    bool,
-    &'static str,
-    &'static str,
-) {
+) -> ConfigEnrichment {
     use crate::cli::color_mode_label;
     use crate::palette;
     use crate::runtime::ColorPipeline;
@@ -132,7 +143,7 @@ pub(crate) fn compute_config_enrichment(
         "legacy fallback (color mode lacks truecolor; no chroma engine in benchmark either)"
     };
 
-    (
+    ConfigEnrichment {
         color_mode_label,
         custom_palette_name,
         custom_palette_bg_hex,
@@ -143,7 +154,7 @@ pub(crate) fn compute_config_enrichment(
         glitch_level,
         glitch_pct,
         auto_color_drift,
-        color_pipeline_label,
+        color_pipeline: color_pipeline_label,
         chroma_in_benchmark,
-    )
+    }
 }

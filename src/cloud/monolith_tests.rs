@@ -2,7 +2,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Monolith rain tests extracted from monolith.rs.
-#![cfg_attr(not(test), allow(dead_code))]
 
 #[cfg(test)]
 mod tests {
