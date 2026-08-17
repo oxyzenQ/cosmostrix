@@ -26,6 +26,10 @@ use std::time::{Duration, Instant};
 use crossterm::style::Color;
 
 use super::super::Cloud;
+// v50 (2026-08-17) enhanced color cycling: import the interpolation
+// helper + a brighten_color test helper so tests can compute the
+// expected brightened cycled color at a given life_frac.
+use crate::cloud::interpolate_palette_color;
 use crate::constants::{
     COLOR_TRANSITION_DURATION_MS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_POOL_SIZE,
     QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R,
@@ -573,23 +577,40 @@ fn quantum_snapshot_unchanged_by_tone_down_factor() {
 /// the tone-down from `apply_quantum_ripple` but keeps the snapshot
 /// logic intact — the snapshot tests would still pass but the visual
 /// "too bright" complaint would return.
+/// HSV value scaling to TARGET_V=200 (matches apply_quantum_ripple's brighten).
+fn brighten_color(r: u8, g: u8, b: u8) -> (u8, u8, u8) {
+    const TARGET_V: u32 = 200;
+    let max = r.max(g).max(b) as u32;
+    if max >= TARGET_V {
+        (r, g, b)
+    } else if max == 0 {
+        (120, 120, 120)
+    } else {
+        let scale = (TARGET_V * 100).saturating_div(max);
+        (
+            ((r as u32 * scale) / 100) as u8,
+            ((g as u32 * scale) / 100) as u8,
+            ((b as u32 * scale) / 100) as u8,
+        )
+    }
+}
+
 #[test]
 fn quantum_rendered_pixel_is_dimmed_by_tone_down_factor() {
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
 
-    // v50 (2026-08-17) revert: pure white particles. The rendered color
-    // is now white * tone_down (constant, no palette dependency). The
-    // snapshot body color is still stored on the particle for backward-
-    // compat with the crossfade regression tests, but is NOT used for
-    // rendering.
-    let white = (255u8, 255u8, 255u8);
-    // Expected rendered color after tone-down (within ±1 for rounding).
-    // Chroma path uses integer math: 255 * (0.72*256) / 256 = 183.
-    // The .round() computation gives 184 — within ±1 tolerance.
+    // v50 (2026-08-17) enhanced color cycling: expected = brighten(palette[0]) * tone_down.
+    let palette_first = cloud
+        .palette
+        .colors
+        .first()
+        .and_then(|c| decode_color(*c))
+        .unwrap_or_else(|| palette_body_rgb(&cloud));
+    let brightened = brighten_color(palette_first.0, palette_first.1, palette_first.2);
     let expected = (
-        (white.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-        (white.1 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-        (white.2 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (brightened.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (brightened.1 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (brightened.2 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
     );
 
     // Spawn a click at (5, 5).
@@ -621,8 +642,8 @@ fn quantum_rendered_pixel_is_dimmed_by_tone_down_factor() {
                 let db = (rendered.2 as i16 - expected.2 as i16).unsigned_abs() as u8;
                 assert!(
                     dr <= 1 && dg <= 1 && db <= 1,
-                    "rendered color {rendered:?} must equal white*tone_down \
-                     {expected:?} within ±1 per channel (white={white:?}, tone_down={QUANTUM_BODY_TONE_DOWN})"
+                    "rendered color {rendered:?} must equal brighten(palette[0])*tone_down \
+                     {expected:?} within ±1 per channel (palette[0]={palette_first:?}, brightened={brightened:?}, tone_down={QUANTUM_BODY_TONE_DOWN})"
                 );
                 found = true;
             }
@@ -1250,12 +1271,7 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
     use crate::cell::Cell;
 
     let tone_down = QUANTUM_BODY_TONE_DOWN;
-    // v50 (2026-08-17) revert: pure white particles. target is now a
-    // FIXED value (white * tone_down), computed inside the loop per-frac.
-    // The fixed `target` block + outer `body`/`cloud` are removed.
-    // Pre-set base color: mid-gray, distinct from target so blend is
-    // observable. We pick 100,100,100 — far enough from both white*tone_down
-    // (approx 183) and target to make brightness differences visible.
+    // v50 (2026-08-17) enhanced color cycling: target = brighten(cycled(frac)) * tone_down.
     const BASE_R: u8 = 100;
     const BASE_G: u8 = 100;
     const BASE_B: u8 = 100;
@@ -1289,14 +1305,15 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
 
     for &frac in &[head_frac, body_frac, tail_frac, end_frac] {
         let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-        // v50 (2026-08-17) revert: pure white particles. target is now a
-        // FIXED value (white * tone_down), not a function of life_frac.
-        // The cycled color computation is removed.
-        let white = (255u8, 255u8, 255u8);
+        // v50 enhanced color cycling: target = brighten(cycled(frac)) * tone_down.
+        let cycled = interpolate_palette_color(cloud.palette.colors.as_slice(), frac)
+            .and_then(decode_color)
+            .unwrap_or((0, 0, 0));
+        let brightened = brighten_color(cycled.0, cycled.1, cycled.2);
         let target = (
-            (white.0 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
-            (white.1 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
-            (white.2 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (brightened.0 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (brightened.1 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (brightened.2 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
         );
         let spawn_time = Instant::now();
         // Pin a stationary particle (vx=vy=0) so position doesn't drift
@@ -1370,7 +1387,7 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
             dr <= 2 && dg <= 2 && db <= 2,
             "life_frac={frac}: brightness={brightness:.4}, expected rendered ≈ ({exp_r},{exp_g},{exp_b}) \
              [base=({BASE_R},{BASE_G},{BASE_B}) target={target:?}], got ({rendered:?}) \
-             — white=(255,255,255), tone_down={tone_down}"
+             — brightened={brightened:?}, tone_down={tone_down}"
         );
     }
 }

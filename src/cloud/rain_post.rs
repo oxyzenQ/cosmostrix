@@ -412,43 +412,40 @@ impl Cloud {
             // decode_color round-trip — saves ~9 cycles/call. The call-site
             // guard (factor is a const in [0,1]) means the unclamped variant
             // is bit-identical to the clamped one here.
-            // v50 (2026-08-17) revert: pure white particles for maximum
-            // click "pop". Owner feedback after C7 color cycling: the
-            // cycled palette sweep made particles feel "submerged/dimmed"
-            // (terendam/terpendam) because the color swept through dark
-            // palette stops (palette[0] is near-black on most schemes).
-            // The click effect needs to READ as a bright spark/flash,
-            // not a subtle palette shimmer.
+            // v50 (2026-08-17) enhanced color cycling: restore the
+            // interpolate_palette_color sweep (from C7) BUT apply a
+            // brighten step (HSV value scaling to TARGET_V=200, same
+            // logic as the HUD's brighten_color) BEFORE the tone_down.
             //
-            // Reverted to pure white (255,255,255) for the particle splash.
-            // The snapshot (p.r/p.g/p.b) is preserved on the struct for
-            // backward-compat with the crossfade regression tests, but
-            // is NOT used for rendering — the rendered color is now
-            // always white * tone_down, regardless of palette.
-            //
-            // The flash wave (C8 chromatic shockwave) still uses the
-            // palette HEAD color — owner did not complain about the
-            // flash wave, only the particle splash. The flash wave is
-            // a ring (not a particle) and reads as a different visual
-            // element, so the palette-tied hue is appropriate there.
-            //
-            // Trail particles (C9) automatically use white too — they
-            // share the (pr, pg, pb) color variable with the main
-            // particle. The comet trail now reads as a white streak
-            // behind a white spark, maximizing the "click flash" feel.
-            //
-            // LTS stability: pure white is a constant — no NaN/Inf
-            // concern, no palette dependency, no upstream-bug surface.
-            // The TONE_DOWN scale is still applied to match the rain's
-            // perceived average brightness (white * 0.72 = (183,183,183)
-            // — bright enough to "pop" against the rain without being
-            // jarring).
-            let (cycle_r, cycle_g, cycle_b) = (255u8, 255u8, 255u8);
+            // Owner feedback: C11 pure-white revert was wrong — owner
+            // wanted color cycling ENHANCED (brighter), not removed.
+            // Root cause: palette[0] (start of sweep) is near-black on
+            // most schemes. Brighten scales the max channel to 200,
+            // preserving hue — RGB(0,30,10) becomes RGB(0,200,67),
+            // visible from spawn.
+            let (cycle_r, cycle_g, cycle_b) =
+                crate::cloud::interpolate_palette_color(self.palette.colors.as_slice(), life_frac)
+                    .and_then(crate::palette::decode_color)
+                    .unwrap_or((p.r, p.g, p.b));
+            const BRIGHTEN_TARGET_V: u32 = 200;
+            let max_ch = cycle_r.max(cycle_g).max(cycle_b) as u32;
+            let (bright_r, bright_g, bright_b) = if max_ch >= BRIGHTEN_TARGET_V {
+                (cycle_r, cycle_g, cycle_b)
+            } else if max_ch == 0 {
+                (120u8, 120u8, 120u8)
+            } else {
+                let scale = (BRIGHTEN_TARGET_V * 100).saturating_div(max_ch);
+                (
+                    ((cycle_r as u32 * scale) / 100) as u8,
+                    ((cycle_g as u32 * scale) / 100) as u8,
+                    ((cycle_b as u32 * scale) / 100) as u8,
+                )
+            };
             let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
                 crate::chroma::palette::apply_brightness_rgb_unclamped(
-                    cycle_r,
-                    cycle_g,
-                    cycle_b,
+                    bright_r,
+                    bright_g,
+                    bright_b,
                     QUANTUM_BODY_TONE_DOWN,
                 )
             } else {
@@ -456,13 +453,13 @@ impl Cloud {
                 // (NOT legacy::scale_rgb, which uses integer >> 8 math).
                 // The difference vs chroma is ±1 per channel for QUANTUM_BODY_TONE_DOWN.
                 (
-                    (cycle_r as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (bright_r as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
-                    (cycle_g as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (bright_g as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
-                    (cycle_b as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (bright_b as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
                 )
