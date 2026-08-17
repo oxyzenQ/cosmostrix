@@ -26,9 +26,6 @@ use std::time::{Duration, Instant};
 use crossterm::style::Color;
 
 use super::super::Cloud;
-// v50 (2026-08-17) C7 color cycling: import the interpolation helper so
-// tests can compute the expected cycled color at a given life_frac.
-use crate::cloud::interpolate_palette_color;
 use crate::constants::{
     COLOR_TRANSITION_DURATION_MS, MOUSE_FLASH_DURATION_SECS, MOUSE_FLASH_POOL_SIZE,
     QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B, QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R,
@@ -580,24 +577,19 @@ fn quantum_snapshot_unchanged_by_tone_down_factor() {
 fn quantum_rendered_pixel_is_dimmed_by_tone_down_factor() {
     let mut cloud = make_truecolor_cloud(ColorScheme::Green);
 
-    // v50 (2026-08-17) C7 color cycling: at spawn (life_frac ≈ 0), the
-    // cycled color = interpolate_palette_color(palette, 0.0) = palette[0]
-    // (the first/darkest stop, boundary branch returns exact stop).
-    // The snapshot body color (palette[mid]) is still stored on the
-    // particle for backward-compat with the crossfade regression tests,
-    // but the RENDERED color now uses the cycled value. So expected
-    // rendered = palette[0] * tone_down (within ±1 for rounding).
-    let palette_first = cloud
-        .palette
-        .colors
-        .first()
-        .and_then(|c| decode_color(*c))
-        .unwrap_or_else(|| palette_body_rgb(&cloud));
+    // v50 (2026-08-17) revert: pure white particles. The rendered color
+    // is now white * tone_down (constant, no palette dependency). The
+    // snapshot body color is still stored on the particle for backward-
+    // compat with the crossfade regression tests, but is NOT used for
+    // rendering.
+    let white = (255u8, 255u8, 255u8);
     // Expected rendered color after tone-down (within ±1 for rounding).
+    // Chroma path uses integer math: 255 * (0.72*256) / 256 = 183.
+    // The .round() computation gives 184 — within ±1 tolerance.
     let expected = (
-        (palette_first.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-        (palette_first.1 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
-        (palette_first.2 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (white.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (white.1 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
+        (white.2 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
     );
 
     // Spawn a click at (5, 5).
@@ -629,8 +621,8 @@ fn quantum_rendered_pixel_is_dimmed_by_tone_down_factor() {
                 let db = (rendered.2 as i16 - expected.2 as i16).unsigned_abs() as u8;
                 assert!(
                     dr <= 1 && dg <= 1 && db <= 1,
-                    "rendered color {rendered:?} must equal palette[0]*tone_down \
-                     {expected:?} within ±1 per channel (palette[0]={palette_first:?}, tone_down={QUANTUM_BODY_TONE_DOWN})"
+                    "rendered color {rendered:?} must equal white*tone_down \
+                     {expected:?} within ±1 per channel (white={white:?}, tone_down={QUANTUM_BODY_TONE_DOWN})"
                 );
                 found = true;
             }
@@ -1257,15 +1249,13 @@ fn quantum_brightness_curve_segments_well_ordered() {
 fn quantum_brightness_curve_three_segments_render_correctly() {
     use crate::cell::Cell;
 
-    let cloud = make_truecolor_cloud(ColorScheme::Green);
-    let body = palette_body_rgb(&cloud);
     let tone_down = QUANTUM_BODY_TONE_DOWN;
-    // v50 (2026-08-17) C7 color cycling: target is now a function of
-    // life_frac (cycled_color * tone_down), computed inside the loop
-    // per-frac. The fixed `target` block is removed.
+    // v50 (2026-08-17) revert: pure white particles. target is now a
+    // FIXED value (white * tone_down), computed inside the loop per-frac.
+    // The fixed `target` block + outer `body`/`cloud` are removed.
     // Pre-set base color: mid-gray, distinct from target so blend is
-    // observable. We pick 100,100,100 — far enough from both body and
-    // target to make brightness differences visible.
+    // observable. We pick 100,100,100 — far enough from both white*tone_down
+    // (approx 183) and target to make brightness differences visible.
     const BASE_R: u8 = 100;
     const BASE_G: u8 = 100;
     const BASE_B: u8 = 100;
@@ -1299,17 +1289,14 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
 
     for &frac in &[head_frac, body_frac, tail_frac, end_frac] {
         let mut cloud = make_truecolor_cloud(ColorScheme::Green);
-        // v50 (2026-08-17) C7 color cycling: compute the cycled target
-        // color for THIS life_frac. cycled_color = interpolate_palette_color(palette, frac)
-        // decodes to RGB. target = cycled_color * tone_down (matches the
-        // implementation in apply_quantum_ripple).
-        let cycled = interpolate_palette_color(cloud.palette.colors.as_slice(), frac)
-            .and_then(decode_color)
-            .unwrap_or(body);
+        // v50 (2026-08-17) revert: pure white particles. target is now a
+        // FIXED value (white * tone_down), not a function of life_frac.
+        // The cycled color computation is removed.
+        let white = (255u8, 255u8, 255u8);
         let target = (
-            (cycled.0 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
-            (cycled.1 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
-            (cycled.2 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (white.0 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (white.1 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
+            (white.2 as f32 * tone_down).round().clamp(0.0, 255.0) as u8,
         );
         let spawn_time = Instant::now();
         // Pin a stationary particle (vx=vy=0) so position doesn't drift
@@ -1383,7 +1370,7 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
             dr <= 2 && dg <= 2 && db <= 2,
             "life_frac={frac}: brightness={brightness:.4}, expected rendered ≈ ({exp_r},{exp_g},{exp_b}) \
              [base=({BASE_R},{BASE_G},{BASE_B}) target={target:?}], got ({rendered:?}) \
-             — body={body:?}, tone_down={tone_down}"
+             — white=(255,255,255), tone_down={tone_down}"
         );
     }
 }
@@ -1397,12 +1384,15 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
 fn quantum_brightness_curve_is_monotonically_non_increasing() {
     use crate::cell::Cell;
 
-    let body = palette_body_rgb(&make_truecolor_cloud(ColorScheme::Green));
-    let target_r = (body.0 as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8;
-    // Base color distinct from target so blend produces observable
-    // brightness variation. For Green, target_r ≈ 49 < BASE_R=100,
-    // so as brightness DECREASES, rendered.r moves toward BASE (higher).
-    const BASE_R: u8 = 100;
+    // v50 (2026-08-17) revert: pure white particles. target_r is now
+    // white * tone_down = 184 (.round()) or 183 (chroma integer math).
+    // The tolerance in the assertion covers this ±1 difference.
+    let target_r = (255.0 * QUANTUM_BODY_TONE_DOWN).round() as u8; // = 184
+                                                                   // Base color distinct from target so blend produces observable
+                                                                   // brightness variation. For white*tone_down, target_r ≈ 184 < BASE_R=220,
+                                                                   // so as brightness DECREASES, rendered.r moves toward BASE (higher).
+                                                                   // This preserves the original non-decreasing logic.
+    const BASE_R: u8 = 220;
 
     // Initialize to BASE_R (the value rendered approaches as brightness → 0).
     // The first sample (frac=0, brightness=1.0) should produce rendered.r

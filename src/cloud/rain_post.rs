@@ -412,36 +412,38 @@ impl Cloud {
             // decode_color round-trip — saves ~9 cycles/call. The call-site
             // guard (factor is a const in [0,1]) means the unclamped variant
             // is bit-identical to the clamped one here.
-            // v50 (2026-08-17) peak optimize #3 — color cycling:
-            // replace the fixed snapshot color (p.r/p.g/p.b) with a
-            // smoothly-cycling palette sweep driven by the particle's
-            // age. As life_frac goes 0 → 1 over the 2.5s lifespan, the
-            // color sweeps palette[0] → palette[last] via the same
-            // interpolate_palette_color helper used by the border
-            // message (C4), HUD chroma gradient (C5), and rain shader
-            // (C6). The result is a "rainbow fade" — each particle
-            // shimmers through the full palette chroma dragon gradient
-            // as it ages, instead of being locked to its spawn-time
-            // body color.
+            // v50 (2026-08-17) revert: pure white particles for maximum
+            // click "pop". Owner feedback after C7 color cycling: the
+            // cycled palette sweep made particles feel "submerged/dimmed"
+            // (terendam/terpendam) because the color swept through dark
+            // palette stops (palette[0] is near-black on most schemes).
+            // The click effect needs to READ as a bright spark/flash,
+            // not a subtle palette shimmer.
             //
+            // Reverted to pure white (255,255,255) for the particle splash.
             // The snapshot (p.r/p.g/p.b) is preserved on the struct for
-            // backward-compatibility with the crossfade regression tests
-            // (quantum_particle_retains_snapshot_after_palette_switch
-            // etc.) and for any future code path that wants the
-            // spawn-time color. The RENDERED color now uses the cycled
-            // value — the snapshot is no longer the source of truth for
-            // what the user sees.
+            // backward-compat with the crossfade regression tests, but
+            // is NOT used for rendering — the rendered color is now
+            // always white * tone_down, regardless of palette.
             //
-            // LTS stability: interpolate_palette_color is NaN/Inf-safe
-            // (returns first stop defensively), so a future upstream
-            // palette bug cannot crash the ripple or produce garbage
-            // colors. The TONE_DOWN scale is still applied to the
-            // cycled color to match the rain's perceived average
-            // brightness.
-            let (cycle_r, cycle_g, cycle_b) =
-                crate::cloud::interpolate_palette_color(self.palette.colors.as_slice(), life_frac)
-                    .and_then(crate::palette::decode_color)
-                    .unwrap_or((p.r, p.g, p.b));
+            // The flash wave (C8 chromatic shockwave) still uses the
+            // palette HEAD color — owner did not complain about the
+            // flash wave, only the particle splash. The flash wave is
+            // a ring (not a particle) and reads as a different visual
+            // element, so the palette-tied hue is appropriate there.
+            //
+            // Trail particles (C9) automatically use white too — they
+            // share the (pr, pg, pb) color variable with the main
+            // particle. The comet trail now reads as a white streak
+            // behind a white spark, maximizing the "click flash" feel.
+            //
+            // LTS stability: pure white is a constant — no NaN/Inf
+            // concern, no palette dependency, no upstream-bug surface.
+            // The TONE_DOWN scale is still applied to match the rain's
+            // perceived average brightness (white * 0.72 = (183,183,183)
+            // — bright enough to "pop" against the rain without being
+            // jarring).
+            let (cycle_r, cycle_g, cycle_b) = (255u8, 255u8, 255u8);
             let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
                 crate::chroma::palette::apply_brightness_rgb_unclamped(
                     cycle_r,
