@@ -267,7 +267,12 @@ pub(crate) const QUANTUM_RIPPLE_PARTICLE_COUNT: usize = 20;
 /// Lower values (1.0–1.5s) restore the "too fast dead" complaint.
 /// Higher values (3.5–5s) make the effect linger after the user has
 /// mentally moved on, becoming visual noise.
-pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 2.5;
+/// v50 masterclass: 4.0s — longer life so particles coast to a natural
+/// stop and fade smoothly. Combined with QUANTUM_RIPPLE_VELOCITY_DECAY,
+/// particles decelerate exponentially and drift to a halt over ~3s,
+/// then fade out over the remaining ~1s. The previous 2.5s was too
+/// short — particles disappeared "gone fast" per owner feedback.
+pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 4.0;
 
 /// Particle outward radial speed (cells/sec).
 ///
@@ -390,16 +395,28 @@ pub(crate) const QUANTUM_RIPPLE_BOUNCE_DAMPING: f32 = 0.78;
 ///
 /// `0.15` means: the first 15% of life (0.375s at 2.5s lifespan) is
 /// full brightness. After that the smoothstep ramp begins.
-pub(crate) const QUANTUM_RIPPLE_HEAD_END_FRAC: f32 = 0.15;
+/// v50 masterclass: 0.10 — shorter peak (10% of life) so particles
+/// start fading sooner, giving a longer BODY+TAIL for smooth decay.
+pub(crate) const QUANTUM_RIPPLE_HEAD_END_FRAC: f32 = 0.10;
 
 /// Brightness curve segment boundary — start of the TAIL segment
 /// (linear fade to zero). See `QUANTUM_RIPPLE_HEAD_END_FRAC` for the
 /// full curve description.
 ///
-/// `0.70` means: the last 30% of life (0.75s at 2.5s lifespan) is
-/// the linear tail fade. This is long enough to read as a graceful
-/// decay rather than a flicker.
-pub(crate) const QUANTUM_RIPPLE_TAIL_START_FRAC: f32 = 0.70;
+/// v50 masterclass: 0.50 — TAIL starts at 50% of life (was 70%),
+/// giving a much longer linear fade-out. Combined with lower
+/// TAIL_FLOOR (0.25), the fade from BODY to invisible is smoother
+/// and more gradual. The previous 0.70 made the TAIL segment only 30%
+/// of life, causing particles to disappear too quickly.
+pub(crate) const QUANTUM_RIPPLE_TAIL_START_FRAC: f32 = 0.50;
+
+/// v50 masterclass: velocity decay per second. Particles decelerate
+/// exponentially: v *= (1 - decay * dt) each frame. At 0.35/sec,
+/// particles lose ~35% velocity per second — they coast to a natural
+/// stop over ~3s (fitting the 4.0s lifespan). This replaces the
+/// previous behavior where particles maintained full speed until
+/// they expired (only bounce damping slowed them).
+pub(crate) const QUANTUM_RIPPLE_VELOCITY_DECAY: f32 = 0.35;
 
 // ── v50 (2026-08-17) trail particles masterclass effect ──
 //

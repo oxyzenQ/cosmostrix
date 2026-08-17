@@ -15,6 +15,7 @@ use crate::constants::{
     CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
     QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_LIFETIME_SECS,
     QUANTUM_RIPPLE_TAIL_START_FRAC, QUANTUM_RIPPLE_TRAIL_DECAY, QUANTUM_RIPPLE_TRAIL_LEN,
+    QUANTUM_RIPPLE_VELOCITY_DECAY,
 };
 use crate::frame::Frame;
 
@@ -268,6 +269,16 @@ impl Cloud {
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
+            // v50 masterclass: velocity decay — particles gradually
+            // decelerate over their lifetime. v *= (1 - decay * dt).
+            // This makes particles "coast to a natural stop" instead
+            // of maintaining full speed until they expire. Combined
+            // with the longer 4.0s lifespan and the 50% TAIL start,
+            // particles drift slowly and fade smoothly.
+            let decay_factor = (1.0 - QUANTUM_RIPPLE_VELOCITY_DECAY * dt).max(0.0);
+            p.vx *= decay_factor;
+            p.vy *= decay_factor;
+
             // Bounce off the four screen edges (owner-requested v50
             // stabilization — previously particles died as soon as they
             // crossed the border, which clipped the burst on small
@@ -336,7 +347,7 @@ impl Cloud {
             // to fade perceptibly. Higher (0.5) makes the TAIL segment
             // too short to read as a "fade out"; lower (0.2) makes the
             // BODY segment too dim.
-            const TAIL_FLOOR: f32 = 0.35;
+            const TAIL_FLOOR: f32 = 0.25;
             let brightness = if life_frac < QUANTUM_RIPPLE_HEAD_END_FRAC {
                 // HEAD: full brightness. The particle is at peak visibility
                 // during the initial burst outward.
