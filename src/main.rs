@@ -977,52 +977,47 @@ fn main() -> std::io::Result<()> {
         let verbose_ambient_schedule = crate::ambient::collect_ambient_schedule(
             &configfile::load_config_file(args.config.as_deref()),
         );
-        verbose::print_verbose(
-            env!("CARGO_PKG_VERSION"),
-            args.scene.as_deref(),
+        verbose::print_verbose(&verbose::VerboseCtx {
+            version: env!("CARGO_PKG_VERSION"),
+            scene_name: args.scene.as_deref(),
             rain_style,
             color_scheme,
             color_mode,
             color_tune,
-            args.color_bg,
-            custom_palette.as_ref().and_then(|p| p.bg),
-            &charset_preset,
-            &chars,
+            color_bg: args.color_bg,
+            custom_palette_bg: custom_palette.as_ref().and_then(|p| p.bg),
+            charset_preset: &charset_preset,
+            chars: &chars,
             target_fps,
             fps_precedence,
             speed,
             base_density,
             density_auto,
-            args.monolith_size,
-            effective_async,
+            monolith_size: args.monolith_size,
+            async_mode: effective_async,
             bold_mode,
             shading_mode,
-            // v30 simplify: --noglitch CLI flag removed; derive glitch_enabled
-            // from glitch_level. None => disabled, anything else => enabled.
-            args.glitch_level != crate::config::GlitchLevel::None,
+            glitch_enabled: args.glitch_level != crate::config::GlitchLevel::None,
             glitch_pct,
             glitch_low,
             glitch_high,
-            &format!("{:?}", args.glitch_level),
-            args.screensaver,
-            args.auto_color_drift,
-            args.message.as_deref(),
-            args.message_border,
-            args.duration,
+            glitch_level: &format!("{:?}", args.glitch_level),
+            screensaver: args.screensaver,
+            auto_drift: args.auto_color_drift,
+            message: args.message.as_deref(),
+            message_border: args.message_border,
+            duration: args.duration,
             screen_size,
-            custom_palette_name.as_deref(),
-            &args.scene,
-            args.config.as_deref(),
+            custom_palette_name: custom_palette_name.as_deref(),
+            scene_arg: &args.scene,
+            config_path: args.config.as_deref(),
             cli_explicit_color,
-            intro_label,
+            intro_type_label: intro_label,
             commit_sha,
-            // v30: pass bench_mode so verbose discloses the palette-drift
-            // override before the benchmark report contradicts it.
             bench_mode,
-            // v40: disclose --scene-custom + ambient schedule.
-            args.scene_custom.as_deref(),
-            &verbose_ambient_schedule,
-        );
+            scene_custom: args.scene_custom.as_deref(),
+            ambient_schedule: &verbose_ambient_schedule,
+        });
     }
     // v14 Peak Monolith: resolve per-column density map from the active
     // scene-custom block (if any). The map sculpts monolith pillar formation.

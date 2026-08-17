@@ -235,7 +235,9 @@ pub struct Cloud {
 
     pub(super) anomaly_zones: Vec<AnomalyZone>,
 
-    #[allow(dead_code)] // reserved: future profile selector reads this field
+    // Profile identity — currently always Monolith. Retained for future
+    // profile selector (Void, Neural, etc.) which will read this field.
+    #[allow(dead_code)]
     pub(super) profile: BehaviorProfile,
     pub(super) profile_current: ProfileParams,
     pub(super) profile_target: ProfileParams,

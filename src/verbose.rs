@@ -20,6 +20,61 @@ use crate::runtime::{BoldMode, ColorMode, ColorPipeline, MonolithSize, ShadingMo
 use crate::{configfile, scene};
 use crossterm::style::Color;
 
+/// Aggregated context for `print_verbose()`.
+///
+/// Replaces the former 30+ parameter list. Construct this in main.rs
+/// and pass a single reference — extending verbose output is now O(1)
+/// at the call site (add a field to this struct, update the print body).
+pub(crate) struct VerboseCtx<'a> {
+    pub version: &'a str,
+    pub scene_name: Option<&'a str>,
+    pub rain_style: RainStyle,
+    pub color_scheme: crate::runtime::ColorScheme,
+    pub color_mode: ColorMode,
+    pub color_tune: ColorTune,
+    pub color_bg: ColorBg,
+    pub custom_palette_bg: Option<Color>,
+    pub charset_preset: &'a str,
+    pub chars: &'a [char],
+    pub target_fps: f64,
+    /// Which resolution layer produced target_fps.
+    /// One of: cli / scene / config / dynamic_default / xtermjs_cap.
+    pub fps_precedence: &'static str,
+    pub speed: f32,
+    pub base_density: f32,
+    pub density_auto: bool,
+    pub monolith_size: MonolithSize,
+    pub async_mode: bool,
+    pub bold_mode: BoldMode,
+    pub shading_mode: ShadingMode,
+    pub glitch_enabled: bool,
+    pub glitch_pct: f32,
+    pub glitch_low: u16,
+    pub glitch_high: u16,
+    pub glitch_level: &'a str,
+    pub screensaver: bool,
+    pub auto_drift: bool,
+    pub message: Option<&'a str>,
+    pub message_border: bool,
+    pub duration: Option<f64>,
+    pub screen_size: Option<(u16, u16)>,
+    pub custom_palette_name: Option<&'a str>,
+    pub scene_arg: &'a Option<String>,
+    pub config_path: Option<&'a std::path::Path>,
+    pub cli_explicit_color: bool,
+    pub intro_type_label: &'a str,
+    pub commit_sha: &'a str,
+    /// --benchmark forces auto_color_drift=false (palette rebuild injects
+    /// timing spikes, breaks p99/max determinism). Pass bench_mode so
+    /// verbose can disclose the override BEFORE the benchmark report
+    /// prints `auto_color_drift: false`.
+    pub bench_mode: bool,
+    /// Active custom scene (--scene-custom <name>).
+    pub scene_custom: Option<&'a str>,
+    /// Ambient schedule (time-of-day scene switching).
+    pub ambient_schedule: &'a crate::ambient::AmbientSchedule,
+}
+
 /// Determine color provenance for verbose annotation.
 /// Returns None when a custom palette is active (it has its own line).
 #[must_use]
@@ -53,66 +108,54 @@ fn resolve_color_source(
     }
 }
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn print_verbose(
-    version: &str,
-    scene_name: Option<&str>,
-    rain_style: RainStyle,
-    color_scheme: crate::runtime::ColorScheme,
-    color_mode: ColorMode,
-    color_tune: ColorTune,
-    color_bg: ColorBg,
-    custom_palette_bg: Option<Color>,
-    charset_preset: &str,
-    chars: &[char],
-    target_fps: f64,
-    // which resolution layer produced target_fps. One of:
-    // cli / scene / config / dynamic_default / xtermjs_cap.
-    fps_precedence: &'static str,
-    speed: f32,
-    base_density: f32,
-    density_auto: bool,
-    monolith_size: MonolithSize,
-    async_mode: bool,
-    bold_mode: BoldMode,
-    shading_mode: ShadingMode,
-    // v30 simplify: was `noglitch: bool` (inverse polarity). Renamed to
-    // `glitch_enabled` for clarity and consistency with CloudConfig.
-    glitch_enabled: bool,
-    glitch_pct: f32,
-    glitch_low: u16,
-    glitch_high: u16,
-    glitch_level: &str,
-    screensaver: bool,
-    auto_drift: bool,
-    message: Option<&str>,
-    message_border: bool,
-    duration: Option<f64>,
-    screen_size: Option<(u16, u16)>,
-    custom_palette_name: Option<&str>,
-    scene_arg: &Option<String>,
-    config_path: Option<&std::path::Path>,
-    cli_explicit_color: bool,
-    intro_type_label: &str,
-    commit_sha: &str,
-    // v30 (Bug #1 doc): --benchmark forces auto_color_drift=false (palette
-    // rebuild injects timing spikes, breaks p99/max determinism). Pass
-    // bench_mode so verbose can disclose the override BEFORE the benchmark
-    // report prints `auto_color_drift: false` (otherwise the user sees
-    // `auto_drift: true` in verbose and thinks it's a bug).
-    bench_mode: bool,
-    // v40 (verbose completeness audit): disclose the active custom scene
-    // (--scene-custom <name>) and the ambient schedule (time-of-day scene
-    // switching). Without these the user cannot tell from --verbose that
-    // a custom scene is in effect or that scenes will auto-switch.
-    scene_custom: Option<&str>,
-    ambient_schedule: &crate::ambient::AmbientSchedule,
-) {
-    let color_source = resolve_color_source(
+pub(crate) fn print_verbose(ctx: &VerboseCtx) {
+    let VerboseCtx {
+        version,
+        scene_name,
+        rain_style,
+        color_scheme,
+        color_mode,
+        color_tune,
+        color_bg,
+        custom_palette_bg,
+        charset_preset,
+        chars,
+        target_fps,
+        fps_precedence,
+        speed,
+        base_density,
+        density_auto,
+        monolith_size,
+        async_mode,
+        bold_mode,
+        shading_mode,
+        glitch_enabled,
+        glitch_pct,
+        glitch_low,
+        glitch_high,
+        glitch_level,
+        screensaver,
+        auto_drift,
+        message,
+        message_border,
+        duration,
+        screen_size,
         custom_palette_name,
-        cli_explicit_color,
         scene_arg,
         config_path,
+        cli_explicit_color,
+        intro_type_label,
+        commit_sha,
+        bench_mode,
+        scene_custom,
+        ambient_schedule,
+    } = ctx;
+
+    let color_source = resolve_color_source(
+        *custom_palette_name,
+        *cli_explicit_color,
+        scene_arg,
+        *config_path,
     );
     eprintln!(
         "{}",
@@ -125,9 +168,6 @@ pub(crate) fn print_verbose(
     // ── Scene & Color ──────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Scene & Color ──"));
     output::eprintln_verbose("scene:", &format!(" {}", scene_name.unwrap_or("default")));
-    // v40 (verbose completeness): disclose --scene-custom <name> so the user
-    // can tell a custom scene is in effect (otherwise `scene:` shows "default"
-    // even though the custom scene's parameters ARE applied via config_apply).
     if let Some(name) = scene_custom {
         output::eprintln_verbose(
             "scene_custom:",
@@ -143,25 +183,12 @@ pub(crate) fn print_verbose(
         output::eprintln_verbose("color_scheme:", &format!(" {color_scheme:?}"));
     }
     output::eprintln_verbose("color_mode:", &format!(" {color_mode:?}"));
-    // (chroma dragon audit): disclose the active color pipeline so the
-    // user can verify "is the chroma dragon engine running, or did I fall
-    // back to legacy sRGB-linear?". Owner directive: "all color -> chroma
-    // dragon first -> fallback legacy rgb/srgb". The pipeline label and its
-    // feature description go right under `color_mode:` so a user reading
-    // top-to-bottom sees the full color story in three lines: mode -> pipeline
-    // -> tune. Without this disclosure the user had to guess from the color
-    // mode alone, which was misleading (a TrueColor terminal could still be
-    // running a chroma-bypass effect that did raw RGB math).
-    let pipeline = ColorPipeline::detect(color_mode);
+    let pipeline = ColorPipeline::detect(*color_mode);
     output::eprintln_verbose(
         "color_pipeline:",
         &format!(" {} ({})", pipeline.label(), pipeline.description()),
     );
     if pipeline.is_chroma() {
-        // v50 (honesty audit): dynamically format chroma features with their
-        // actual tuning constants, not a bare hardcoded list. If someone
-        // changes SUBPIXEL_JITTER_AMPLITUDE or HEAD_HALO_FACTOR, this output
-        // updates automatically — no stale strings lying to the user.
         let jitter_amp = crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE;
         let halo_factor = crate::chroma::tuning::HEAD_HALO_FACTOR;
         output::eprintln_verbose(
@@ -170,7 +197,7 @@ pub(crate) fn print_verbose(
                 " oklab_gradient, perceptual_blend, climate_post_fx, head_halo(factor={halo_factor:.2}), l_smoothing, subpixel_jitter(amplitude={jitter_amp})"
             ),
         );
-    } else if let Some(reason) = pipeline.disable_reason(color_mode) {
+    } else if let Some(reason) = pipeline.disable_reason(*color_mode) {
         output::eprintln_verbose(
             "  chroma_features:",
             " disabled -- legacy sRGB-linear fallback in effect for this color mode",
@@ -188,12 +215,7 @@ pub(crate) fn print_verbose(
             color_tune.tail
         ),
     );
-    // (verbose ambiguity fix): previously printed just `true`/`false`,
-    // which was ambiguous — `false` could mean "solid black" OR "custom palette
-    // bg from config.toml like `bg = \"#0a0a12\"`". Now we print a descriptive
-    // label that distinguishes all three cases so users can verify at a glance
-    // which background actually got applied.
-    let bg_label = describe_color_bg(color_bg, custom_palette_name, custom_palette_bg);
+    let bg_label = describe_color_bg(*color_bg, *custom_palette_name, *custom_palette_bg);
     output::eprintln_verbose("color_bg:", &format!(" {bg_label}"));
 
     // ── Glyphs ────────────────────────────────────────────────────
@@ -206,9 +228,6 @@ pub(crate) fn print_verbose(
     // ── Motion ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
-    // show which detection layer set the dynamic fps default.
-    // also show fps_precedence (which RESOLUTION layer won:
-    // cli / scene / config / dynamic_default / xtermjs_cap).
     let caps_for_source = crate::termdetect::detect();
     output::eprintln_verbose(
         "fps_source:",
@@ -221,7 +240,7 @@ pub(crate) fn print_verbose(
         &format!(" {base_density:.2} (auto: {density_auto})"),
     );
     output::eprintln_verbose("monolith:", &format!(" {monolith_size:?}"));
-    let async_desc = if async_mode {
+    let async_desc = if *async_mode {
         "on (variable column speeds)"
     } else {
         "off (uniform column speeds)"
@@ -260,38 +279,15 @@ pub(crate) fn print_verbose(
     }
 
     // ── Color Climate ────────────────────────────────────────────────
-    // v30: renamed from "── Atmosphere ──" to "── Color Climate ──" to
-    // disambiguate from the deleted atmosphere engine subsystem. The
-    // fields below describe the surviving ColorEcosystem drift (luminance/
-    // saturation/hue accumulation) and the palette-scheme replacement flag —
-    // none of these have any relation to the deleted AtmosphereRuntimeModulation.
     eprintln!("{}", output::brand_bold("  ── Color Climate ──"));
-    // Phase D Strengthen #12: expand drift disclosure. Previously only
-    // `auto_drift: bool` was shown, which was misleading — climate drift
-    // (luminance/saturation/hue) is ALWAYS ON regardless of the flag.
-    // The flag only gates palette scheme replacement. Now verbose honestly
-    // discloses both: the flag state + the always-on climate drift + the
-    // cooldown (Phase D Bug #7 fix).
     output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
-    // v30 (Bug #1 doc clarification): when --benchmark is active, the
-    // benchmark loop forces palette drift OFF regardless of the user's
-    // config/CLI value (see bench.rs::run_benchmark line ~201). Without
-    // this notice, the verbose output here shows `auto_drift: true` (from
-    // config) while the benchmark report later prints
-    // `auto_color_drift: false` — the mismatch looked like a bug. The
-    // benchmark override is intentional (palette rebuilds inject
-    // non-deterministic timing spikes that corrupt p99/max metrics), so
-    // we disclose it here instead of changing the behavior.
-    let palette_drift_label = if bench_mode && auto_drift {
+    let palette_drift_label = if *bench_mode && *auto_drift {
         "enabled (overridden to disabled in benchmark mode — see note below)"
-    } else if auto_drift {
+    } else if *auto_drift {
         "enabled"
     } else {
         "disabled"
     };
-    // v50 (honesty audit): format drift parameters from source-of-truth
-    // constants, not hardcoded strings. If someone retunes the constants,
-    // this output updates automatically.
     let drift_pct = crate::central_control_rains::AUTONOMOUS_PALETTE_DRIFT_CHANCE * 100.0;
     let tick_secs = crate::central_control_rains::COLOR_ECOSYSTEM_TICK_SECS;
     let cooldown_secs = crate::central_control_rains::PALETTE_DRIFT_COOLDOWN_SECS;
@@ -301,7 +297,7 @@ pub(crate) fn print_verbose(
             " {palette_drift_label} ({drift_pct:.1}% chance per {tick_secs:.1}s tick, {cooldown_secs:.1}s cooldown between events)"
         ),
     );
-    if bench_mode && auto_drift {
+    if *bench_mode && *auto_drift {
         output::eprintln_verbose(
             "  bench_override:",
             " palette drift forced OFF during benchmark for deterministic p99/max metrics; report will show `auto_color_drift: false`",
@@ -313,9 +309,6 @@ pub(crate) fn print_verbose(
     );
 
     // ── Ambient ───────────────────────────────────────────────────
-    // v40 (verbose completeness): disclose the ambient schedule so the user
-    // can verify time-of-day scene switches are loaded. Without this, a user
-    // debugging "why did my scene change at 15:00?" has zero visibility.
     eprintln!("{}", output::brand_bold("  ── Ambient ──"));
     let entries = &ambient_schedule.entries;
     if entries.is_empty() {
@@ -332,9 +325,6 @@ pub(crate) fn print_verbose(
             "schedule:",
             &format!(" {} entries [{}]", entries.len(), summary.join(", ")),
         );
-        // v50 (honesty audit): format idle threshold from source-of-truth
-        // constant, not hardcoded "30s". Matches --doctor which already
-        // uses crate::constants::IDLE_THRESHOLD_SECS dynamically.
         let idle_secs = crate::central_control_dragon_power::IDLE_THRESHOLD_SECS;
         let snapback_secs = crate::central_control_dragon_power::AUTO_SNAPBACK_DELAY_SECS;
         output::eprintln_verbose(
@@ -348,7 +338,7 @@ pub(crate) fn print_verbose(
     // ── Terminal ──────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Terminal ──"));
     let (sw, sh, size_mode) = match screen_size {
-        Some((w, h)) => (w, h, "fixed"),
+        Some((w, h)) => (*w, *h, "fixed"),
         None => {
             let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
             (tw, th, "auto")
@@ -373,11 +363,6 @@ pub(crate) fn print_verbose(
     output::eprintln_verbose("isatty(stdout):", &format!(" {is_stdout_tty}"));
     let is_android = configfile::is_termux_environment();
     output::eprintln_verbose("android:", &format!(" {is_android}"));
-    // v30 (VSCode crash fix) + Tier 2 (xterm.js host extension): disclose
-    // terminal capability detection so the user can see why sync_output /
-    // FPS cap / byte-budget backpressure changed. This is especially
-    // important for xterm.js hosts where the cap is applied silently in
-    // non-verbose mode via the warning in main.rs.
     let caps = crate::termdetect::detect();
     if caps.xtermjs_host {
         let host_name = std::env::var("TERM_PROGRAM").unwrap_or_default();
@@ -402,18 +387,9 @@ pub(crate) fn print_verbose(
 
     // ── Config ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Config ──"));
-    // Show the ACTUALLY-RESOLVED config path (falls back to system
-    // config at /etc/cosmostrix/config.toml when user config doesn't
-    // exist), not just the default user path. Without this, verbose
-    // output after a --system install misleadingly shows
-    // ~/.config/cosmostrix/config.toml with "config exists: false"
-    // even though /etc/cosmostrix/config.toml [exists] is in the
-    // candidates list and was actually used.
     let resolved_config_path = if let Some(p) = config_path {
         p.to_path_buf()
     } else {
-        // Use resolve_watcher_config_path which implements the same
-        // multi-candidate fallback as load_config_file_full.
         let (resolved, _) = configfile::resolve_watcher_config_path(None);
         resolved
     };
@@ -425,10 +401,6 @@ pub(crate) fn print_verbose(
         "config exists:",
         &format!(" {}", resolved_config_path.exists()),
     );
-    // Termux fix: show ALL candidate paths the live-reload watcher
-    // considers, so users can verify which file is being watched. This is
-    // critical for Termux debugging where XDG_CONFIG_HOME may point to a
-    // different location than $HOME/.config.
     let candidates = configfile::config_candidate_paths();
     output::eprintln_verbose(
         "config candidates:",

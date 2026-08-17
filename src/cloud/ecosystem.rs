@@ -18,32 +18,17 @@ use crate::runtime::ColorScheme;
 /// Cinematic runtime behavior profiles — atmospheric identities that
 /// fundamentally alter how the renderer feels, moves, and breathes.
 /// These are NOT simple recolors; each profile defines a behavioral ecosystem.
+///
+/// Only Monolith is currently wired into the production render path.
+/// #[non_exhaustive] reserves the right to add future profiles (Void,
+/// Neural, Decay, Eclipse, Static, Pulse) without a semver break.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[allow(dead_code)] // Void/Neural/Decay/Eclipse/Static/Pulse reserved for future profiles
+#[non_exhaustive]
 pub enum BehaviorProfile {
     Monolith,
-    Void,
-    Neural,
-    Decay,
-    Eclipse,
-    Static,
-    Pulse,
 }
 
 impl BehaviorProfile {
-    #[allow(dead_code)] // reserved for future profile display/logging
-    pub(super) fn name(self) -> &'static str {
-        match self {
-            BehaviorProfile::Monolith => "Monolith",
-            BehaviorProfile::Void => "Void",
-            BehaviorProfile::Neural => "Neural",
-            BehaviorProfile::Decay => "Decay",
-            BehaviorProfile::Eclipse => "Eclipse",
-            BehaviorProfile::Static => "Static",
-            BehaviorProfile::Pulse => "Pulse",
-        }
-    }
-
     pub(super) fn params(self) -> ProfileParams {
         match self {
             BehaviorProfile::Monolith => ProfileParams {
@@ -57,78 +42,6 @@ impl BehaviorProfile {
                 entropy_rate: 0.3,
                 short_pct: 0.2,
                 linger_mult: 2.0,
-            },
-            BehaviorProfile::Void => ProfileParams {
-                speed_mult: 0.7,
-                density_mult: 0.4,
-                turbulence_mult: 0.1,
-                phosphor_decay_mult: 1.5,
-                anomaly_freq_mult: 0.2,
-                luminance_offset: -0.1,
-                persistence_boost: -0.1,
-                entropy_rate: 0.2,
-                short_pct: 0.7,
-                linger_mult: 0.5,
-            },
-            BehaviorProfile::Neural => ProfileParams {
-                speed_mult: 1.5,
-                density_mult: 1.6,
-                turbulence_mult: 2.0,
-                phosphor_decay_mult: 0.8,
-                anomaly_freq_mult: 2.0,
-                luminance_offset: 0.1,
-                persistence_boost: 0.1,
-                entropy_rate: 1.5,
-                short_pct: 0.5,
-                linger_mult: 0.8,
-            },
-            BehaviorProfile::Decay => ProfileParams {
-                speed_mult: 0.6,
-                density_mult: 0.7,
-                turbulence_mult: 0.5,
-                phosphor_decay_mult: 0.3,
-                anomaly_freq_mult: 0.6,
-                luminance_offset: -0.05,
-                persistence_boost: 0.4,
-                entropy_rate: 0.5,
-                short_pct: 0.6,
-                linger_mult: 1.5,
-            },
-            BehaviorProfile::Eclipse => ProfileParams {
-                speed_mult: 0.8,
-                density_mult: 1.0,
-                turbulence_mult: 1.0,
-                phosphor_decay_mult: 0.6,
-                anomaly_freq_mult: 1.5,
-                luminance_offset: 0.0,
-                persistence_boost: 0.2,
-                entropy_rate: 0.8,
-                short_pct: 0.4,
-                linger_mult: 1.2,
-            },
-            BehaviorProfile::Static => ProfileParams {
-                speed_mult: 0.2,
-                density_mult: 0.3,
-                turbulence_mult: 0.05,
-                phosphor_decay_mult: 0.2,
-                anomaly_freq_mult: 0.1,
-                luminance_offset: -0.1,
-                persistence_boost: 0.5,
-                entropy_rate: 0.1,
-                short_pct: 0.9,
-                linger_mult: 3.0,
-            },
-            BehaviorProfile::Pulse => ProfileParams {
-                speed_mult: 1.2,
-                density_mult: 1.1,
-                turbulence_mult: 1.3,
-                phosphor_decay_mult: 0.9,
-                anomaly_freq_mult: 1.0,
-                luminance_offset: 0.05,
-                persistence_boost: 0.15,
-                entropy_rate: 1.2,
-                short_pct: 0.3,
-                linger_mult: 1.0,
             },
         }
     }
