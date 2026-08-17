@@ -29,16 +29,23 @@
 //!   drift, live-config reload) is reflected on the very next frame, with
 //!   no perceptible delay. The 1 Hz rate limit only governs text
 //!   reformatting (p99 sort, format! calls, RSS string).
-//! - **Rain-aesthetic color gradient**: the HUD's 9 lines form a vertical
+//! - **Rain-aesthetic color gradient**: the HUD's 16 lines form a vertical
 //!   brightness gradient that mirrors a falling rain droplet — the bottom
-//!   line (screensize) is the brightest `head` (palette last-stop, the
-//!   rain's leading bright character), the top line (fps) is the dimmest
-//!   `tail` (palette index 1, the rain's trailing fade). Mid lines span
-//!   `trail` and `mid` so the eye reads the HUD as a small rain column
-//!   hanging in the corner, not as a flat block of text. This inverts
-//!   the original mapping where `fps`/`tgt`/`max` were the brightest —
-//!   the user explicitly flagged the inversion: 'rain tail is dim head
-//!   is white' (head leads at the bottom of a falling stream).
+//!   line (cid) is the brightest `head` (palette last-stop, the rain's
+//!   leading bright character), the top line (fps) is the dimmest `tail`
+//!   (palette index 1, the rain's trailing fade). Mid lines span `trail`
+//!   and `mid` so the eye reads the HUD as a small rain column hanging in
+//!   the corner, not as a flat block of text. This inverts the original
+//!   mapping where `fps`/`tgt`/`max` were the brightest — the user
+//!   explicitly flagged the inversion: 'rain tail is dim head is white'
+//!   (head leads at the bottom of a falling stream).
+//! - **v50 (2026-08-17) HUD expansion**: rows 9-15 are reserved for the 7
+//!   owner-mandated metrics (scene / color / density / speed / endurance-
+//!   health-score / effective-pressure / charset). The structural bump
+//!   (array 9 -> 16 + chroma gradient 9-stop -> 16-stop) lands as a
+//!   no-behavior-change micro-commit — `write_to_frame` skips empty-text
+//!   rows so the 7 reserved entries render nothing until populated by the
+//!   follow-up data-plumbing commit.
 //! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 
@@ -181,12 +188,17 @@ pub(crate) struct HudState {
     screen_size: (u16, u16, bool),
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    /// 9 lines: fps / tgt / max / p99 / cpu / rss / up / screensize /
-    /// commit-id (cid). The cid line is static (compile-time git SHA
-    /// injected by build.rs via `COSMOSTRIX_GIT_SHA`), so its text is
-    /// set once in `new()` and only its color is refreshed by
-    /// `refresh_colors` every frame.
-    cached_lines: [(Color, String); 9],
+    /// 16 lines: fps / tgt / max / p99 / cpu / rss / up / screensize /
+    /// commit-id (cid) at rows 0-8 (active), plus 7 reserved rows 9-15
+    /// for the v50 HUD expansion (scene / color / density / speed / ehs
+    /// / prs / charset — populated by the follow-up data-plumbing
+    /// commit). The cid line is static (compile-time git SHA injected by
+    /// build.rs via `COSMOSTRIX_GIT_SHA`), so its text is set once in
+    /// `new()` and only its color is refreshed by `refresh_colors` every
+    /// frame. The 7 reserved rows initialize as empty strings;
+    /// `write_to_frame` skips empty-text rows so they render nothing
+    /// until populated.
+    cached_lines: [(Color, String); 16],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -256,6 +268,26 @@ impl HudState {
                 // `refresh_colors` (head stop, brightest) every frame;
                 // the text never changes so `update_metrics` skips it.
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
+                // v50 (2026-08-17) HUD expansion: rows 9-15 reserved for
+                // the 7 owner-mandated metrics (scene / color / density /
+                // speed / endurance-health-score / effective-pressure /
+                // charset). Initialized as empty strings so the structural
+                // bump (array 9 -> 16 + chroma gradient 9-stop -> 16-stop)
+                // lands as a no-behavior-change micro-commit — the
+                // `write_to_frame` skip-empty guard prevents these blank
+                // rows from rendering as space-padded rows. The follow-up
+                // data-plumbing commit will populate them with real
+                // metrics, wire setters into the event loop, and reorder
+                // the entire HUD to its final layout (cid moves to row 15,
+                // screensize to row 14, up to row 13, new metrics span
+                // rows 6-12).
+                (Color::DarkGrey, String::new()), // 9:  reserved (ehs)
+                (Color::DarkGrey, String::new()), // 10: reserved (prs)
+                (Color::DarkGrey, String::new()), // 11: reserved (sped)
+                (Color::DarkGrey, String::new()), // 12: reserved (dsty)
+                (Color::DarkGrey, String::new()), // 13: reserved (scn)
+                (Color::DarkGrey, String::new()), // 14: reserved (chr)
+                (Color::DarkGrey, String::new()), // 15: reserved (clr)
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,
@@ -459,28 +491,39 @@ impl HudState {
     /// colors update every frame.
     ///
     /// ## Rain-aesthetic gradient (top dim → bottom bright)
-    /// The 8 HUD lines form a vertical brightness gradient that mirrors
-    /// a falling rain droplet. In the rain visual, the leading character
+    /// The 16 HUD rows form a vertical brightness gradient that mirrors a
+    /// falling rain droplet. In the rain visual, the leading character
     /// (the `head`) is the bright white at the BOTTOM of the stream, and
     /// the trailing fade (the `tail`) is dim at the TOP. The HUD adopts
     /// the same orientation:
     ///
     /// ```text
-    ///   row 0  fps          ← dim      (tail — palette index 1)
-    ///   row 1  tgt          ← dim
-    ///   row 2  max          ← trail    (palette index n/4)
-    ///   row 3  p99          ← trail
-    ///   row 4  cpu          ← mid      (palette index n/2)
-    ///   row 5  rss          ← mid
-    ///   row 6  up           ← head     (palette last stop, brightest)
-    ///   row 7  screensize   ← head     (rain head — leading white)
-    ///   row 8  cid          ← head     (build identity — same head stop)
+    ///   row 0   fps           ← dim      (tail — palette index 1)
+    ///   row 1   tgt           ← dim
+    ///   row 2   max           ← trail    (palette index n/4)
+    ///   row 3   p99           ← trail
+    ///   row 4   cpu           ← mid      (palette index n/2)
+    ///   row 5   rss           ← mid
+    ///   row 6   up            ← head     (palette last stop, brightest)
+    ///   row 7   screensize    ← head     (rain head — leading white)
+    ///   row 8   cid           ← head     (build identity — same head stop)
+    ///   row 9   reserved      ← (ehs)     populated by data-plumbing commit
+    ///   row 10  reserved      ← (prs)     populated by data-plumbing commit
+    ///   row 11  reserved      ← (sped)    populated by data-plumbing commit
+    ///   row 12  reserved      ← (dsty)    populated by data-plumbing commit
+    ///   row 13  reserved      ← (scn)     populated by data-plumbing commit
+    ///   row 14  reserved      ← (chr)     populated by data-plumbing commit
+    ///   row 15  reserved      ← (clr)     populated by data-plumbing commit
     /// ```
     ///
-    /// The cid line (row 8) shares the head stop with screensize so the
-    /// build identity is the most prominent entry — the owner needs to
-    /// read the commit hash without quitting cosmostrix, so it earns the
-    /// brightest position alongside the screen size.
+    /// The final v50 layout (after the data-plumbing commit) will move cid
+    /// to row 15, screensize to row 14, up to row 13, and place the 7 new
+    /// metrics at rows 6-12 so the chroma gradient sweeps continuously
+    /// from the dim tail at the top to the bright head at the bottom.
+    /// The cid line shares the head stop with screensize so the build
+    /// identity is the most prominent entry — the owner needs to read the
+    /// commit hash without quitting cosmostrix, so it earns the brightest
+    /// position alongside the screen size.
     ///
     /// This inverts the original mapping (where `fps`/`tgt`/`max` were
     /// brightest at the TOP). The owner explicitly flagged the inversion:
@@ -501,20 +544,20 @@ impl HudState {
         if !self.visible {
             return;
         }
-        // HD-01 (HUD chroma dragon integration): 8-stop sweep across the
-        // active palette, mapping each of the 8 HUD lines to a distinct
-        // palette stop. Line 0 (fps, top) → palette[0], line 7 (screensize,
+        // HD-01 (HUD chroma dragon integration): 16-stop sweep across the
+        // active palette, mapping each of the 16 HUD rows to a distinct
+        // palette stop. Row 0 (fps, top) → palette[0], row 15 (reserved clr,
         // bottom) → palette[n-1]. The full chroma dragon gradient is now
         // visible across the HUD — matching the border message gradient's
         // per-cell sweep philosophy, but applied per-LINE to preserve text
-        // readability (each line keeps one consistent color).
+        // readability (each row keeps one consistent color).
         //
         // `brighten_color` floor (TARGET_V=200) guarantees every stop is
         // legible on a black background, including palette[0] which is
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_9(palette_colors);
+        let colors = compute_chroma_gradient_16(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -558,10 +601,10 @@ impl HudState {
         // from the event loop (between metric ticks), so a runtime palette
         // change appears on the next frame instead of up to 1 second later.
         //
-        // HD-01 (HUD chroma dragon integration): 8-stop sweep — each line
+        // HD-01 (HUD chroma dragon integration): 16-stop sweep — each row
         // gets a distinct palette stop. Index math: `palette_colors`
-        // sampled at `(i / 7.0 * (n-1)).round()` for i ∈ [0..8].
-        let colors = compute_chroma_gradient_9(palette_colors);
+        // sampled at `(i / 15.0 * (n-1)).round()` for i ∈ [0..16].
+        let colors = compute_chroma_gradient_16(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -696,6 +739,18 @@ impl HudState {
         let start_col = self.position.start_col(cols, w);
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
+            // v50 (2026-08-17) HUD expansion: skip rows whose text is still
+            // empty. The 7 reserved rows 9-15 initialize as empty strings
+            // and must NOT render as space-padded rows — otherwise the HUD
+            // would grow vertically by 7 blank lines before the
+            // data-plumbing commit populates them with real metrics. Once
+            // a row is populated, this guard is a no-op (the text is
+            // non-empty). The padding loop below only runs for rows that
+            // already have visible content, so existing clear-on-shrink
+            // behavior (HB-01) is preserved.
+            if text.is_empty() {
+                continue;
+            }
             // Write the text characters.
             for (col_offset, ch) in text.chars().enumerate() {
                 let x = start_col + col_offset as u16;
@@ -745,30 +800,39 @@ fn format_rss_kb(kib: u64) -> String {
 }
 
 // HD-01 (HUD chroma dragon integration): the previous 4-stop
-// `compute_rain_gradient` helper has been replaced by the 9-stop
-// `compute_chroma_gradient_9` helper above. The old design paired 2 HUD
-// lines per palette stop (dim/trail/mid/head × 2 = 8 lines); the new
-// design gives each line its own palette stop, sweeping the full chroma
-// dragon gradient top→bottom. This matches the border message's per-cell
-// chroma sweep philosophy, applied per-LINE for text readability.
-// v50: bumped from 8 → 9 stops after adding the `cid:` (commit id) line
-// at row 8. The cid line shares the head stop (palette[n-1], brightest)
-// with screensize — both are "definitive identity" lines that the owner
-// reads to verify the build, so they earn the most prominent position.
+// `compute_rain_gradient` helper has been replaced by the 16-stop
+// `compute_chroma_gradient_16` helper above. The old design paired 2 HUD
+// rows per palette stop (dim/trail/mid/head × 2 = 8 rows); the new design
+// gives each row its own palette stop, sweeping the full chroma dragon
+// gradient top→bottom. This matches the border message's per-cell chroma
+// sweep philosophy, applied per-LINE for text readability.
+// v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
+// (commit id) line at row 8.
+// v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15 for
+// the 7 owner-mandated HUD expansion metrics (scene / color / density /
+// speed / endurance-health-score / effective-pressure / charset). The cid
+// line shares the head stop (palette[n-1], brightest) with screensize —
+// both are "definitive identity" lines that the owner reads to verify the
+// build, so they earn the most prominent position.
 
-/// HD-01 (HUD chroma dragon integration): compute a 9-stop chroma gradient
-/// sweeping the active palette's full color range across all 9 HUD lines.
+/// HD-01 (HUD chroma dragon integration): compute a 16-stop chroma gradient
+/// sweeping the active palette's full color range across all 16 HUD rows.
 ///
-/// Each line `i ∈ [0..9]` samples `palette_colors[(i / 8.0 * (n-1)).round()]`,
-/// so line 0 (fps, top) → palette[0] and line 8 (cid, bottom) →
+/// Each row `i ∈ [0..16]` samples `palette_colors[(i / 15.0 * (n-1)).round()]`,
+/// so row 0 (fps, top) → palette[0] and row 15 (reserved clr, bottom) →
 /// palette[n-1]. This mirrors the border message's per-cell clockwise sweep
 /// (`cloud/mod.rs::draw_message` BC-02) — applied per-LINE here to preserve
-/// text readability (each line keeps one consistent color, unlike per-cell
+/// text readability (each row keeps one consistent color, unlike per-cell
 /// which would rainbow-ize words).
 ///
-/// v50: bumped from 8 → 9 stops after adding the `cid:` (commit id) line
-/// at row 8. The cid line shares the head stop (palette[n-1], brightest)
-/// with screensize — both are "definitive identity" lines.
+/// v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
+/// (commit id) line at row 8.
+/// v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15 for the
+/// 7 owner-mandated HUD expansion metrics (scene / color / density / speed
+/// / endurance-health-score / effective-pressure / charset). The final
+/// layout (after the data-plumbing commit) places cid at row 15 and
+/// screensize at row 14, so both share the head stop (palette[n-1],
+/// brightest) — they are "definitive identity" lines.
 ///
 /// `brighten_color` floor (TARGET_V=200) guarantees every stop is legible on
 /// a black background, including palette[0] which is typically a near-black
@@ -776,10 +840,17 @@ fn format_rss_kb(kib: u64) -> String {
 /// black, preserving readability without losing the palette's hue identity
 /// for non-black stops.
 ///
-/// Returns a fixed-size `[Color; 9]` array (no allocation, stack-only).
-fn compute_chroma_gradient_9(palette_colors: &[crossterm::style::Color]) -> [Color; 9] {
+/// Returns a fixed-size `[Color; 16]` array (no allocation, stack-only).
+fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Color; 16] {
     let n = palette_colors.len();
     let mut out = [
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
@@ -795,7 +866,7 @@ fn compute_chroma_gradient_9(palette_colors: &[crossterm::style::Color]) -> [Col
     }
     let last = (n - 1) as f32;
     for (i, slot) in out.iter_mut().enumerate() {
-        let t = i as f32 / 8.0;
+        let t = i as f32 / 15.0;
         let pos = (t * last).round() as usize;
         *slot = brighten_color(
             palette_colors
