@@ -599,6 +599,7 @@ fn build_segments(
         let gap = segment_gap(size, rand_chance.sample(rng));
         cursor = cursor.saturating_add(len as u16).saturating_add(gap);
     }
+    debug_assert!(count <= u8::MAX as usize, "segment_count must fit u8");
     stream.segment_count = count as u8;
 }
 
@@ -742,7 +743,11 @@ fn draw_segments(
                 continue;
             }
             let line = line_i as u16;
-            let pos_from_bottom = (bottom - line_i) as u8;
+            let pos_from_bottom = {
+                let v = bottom - line_i;
+                debug_assert!(v <= 255, "pos_from_bottom must fit u8");
+                v as u8
+            };
             let level = segment_level(segment.kind, pos_from_bottom);
             let edge_fade = ctx.edge_fade(line);
             let pulse = if matches!(level, BrightnessLevel::Hot | BrightnessLevel::Core) {

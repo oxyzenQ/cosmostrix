@@ -193,6 +193,11 @@ fn sample_range_duration<R: Rng>(rng: &mut R, min_secs: f64, max_secs: f64) -> D
 /// windows. Output is always in `[DENSITY_NOISE_MIN, DENSITY_NOISE_MAX]`.
 #[inline]
 pub(super) fn column_density_modifier(col: u16, elapsed_secs: f64) -> f32 {
+    // v50 audit S-5: u32 overflow at ~13.6 years continuous runtime
+    // (DENSITY_NOISE_PERIOD_SECS=10 → 2^32/10 ≈ 4.3 billion seconds ≈
+    // 136 years / 10 = 13.6 years). Accepted as LTS ceiling — on overflow
+    // the density pattern recycles (not a crash). Changing to u64 would
+    // break the hash output and existing tests for no practical benefit.
     let seed = (elapsed_secs / DENSITY_NOISE_PERIOD_SECS).floor() as u32;
     let mixed = (col as u32).wrapping_mul(DENSITY_NOISE_HASH_K)
         ^ seed.wrapping_mul(DENSITY_NOISE_HASH_SEED_K);

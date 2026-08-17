@@ -77,8 +77,13 @@ pub(crate) fn read_self_voluntary_ctxt() -> u64 {
         Some(idx) => &stat[idx + 1..],
         None => return 0,
     };
-    let fields: Vec<&str> = after_paren.split_whitespace().collect();
-    fields.get(17).and_then(|s| s.parse().ok()).unwrap_or(0)
+    // v50 audit C-4: use .nth(17) instead of collecting into Vec (saves
+    // one heap allocation per call at 1 Hz cadence).
+    after_paren
+        .split_whitespace()
+        .nth(17)
+        .and_then(|s| s.parse().ok())
+        .unwrap_or(0)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

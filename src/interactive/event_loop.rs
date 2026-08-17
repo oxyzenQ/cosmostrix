@@ -633,8 +633,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Event::Key(k) => {
                         // Android/Termux: accept Press+Repeat, skip Release (Press-only
                         // guard silently dropped 'i' on Android). Desktop: Press-only.
-                        let is_android = std::env::var("TERMUX_VERSION").is_ok()
-                            || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"));
+                        // v50 audit C-3: cache Termux detection via OnceLock
+                        // (was per-keypress std::env::var x2 — ~30 mutex
+                        // locks/sec on held-key auto-repeat).
+                        static IS_TERMUX: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+                        let is_android = *IS_TERMUX.get_or_init(|| {
+                            std::env::var("TERMUX_VERSION").is_ok()
+                                || std::env::var("PREFIX").is_ok_and(|p| p.contains("com.termux"))
+                        });
                         if is_android {
                             if k.kind == KeyEventKind::Release {
                                 continue;
