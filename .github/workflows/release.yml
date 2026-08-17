@@ -36,7 +36,10 @@ jobs:
       - id: detect
         run: |
           tag="${GITHUB_REF_NAME}"
-          if [[ "$tag" =~ -(alpha|beta|rc)\. ]]; then
+          # v50 (2026-08-17) nightly support: added 'nightly' and 'pre'
+          # to the pre-release channel list so vX.Y.Z-nightly.N and
+          # vX.Y.Z-pre.N tags are correctly marked as GitHub prereleases.
+          if [[ "$tag" =~ -(alpha|beta|rc|pre|nightly)\. ]]; then
             echo "prerelease=true" >> "$GITHUB_OUTPUT"
           else
             echo "prerelease=false" >> "$GITHUB_OUTPUT"

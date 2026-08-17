@@ -682,7 +682,7 @@ print_summary() {
 #
 # Pre-release version validation
 #
-# Accepts: X.Y.Z-alpha.N, X.Y.Z-beta.N, X.Y.Z-rc.N, X.Y.Z-pre.N
+# Accepts: X.Y.Z-alpha.N, X.Y.Z-beta.N, X.Y.Z-rc.N, X.Y.Z-pre.N, X.Y.Z-nightly.N
 # Rejects: anything else (including stable X.Y.Z — use validate_version for that)
 validate_prerelease_version() {
     local ver="$1"
@@ -694,9 +694,9 @@ validate_prerelease_version() {
     if [[ "${ver}" == v* ]]; then
         ver="${ver#v}"
     fi
-    if ! [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)\.[0-9]+$ ]]; then
+    if ! [[ "${ver}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre|nightly)\.[0-9]+$ ]]; then
         log_err "Invalid pre-release version: ${ver}"
-        log_err "Expected: X.Y.Z-{alpha|beta|rc|pre}.N (e.g. 50.0.0-alpha.2)"
+        log_err "Expected: X.Y.Z-{alpha|beta|rc|pre|nightly}.N (e.g. 50.0.0-alpha.2, 50.0.0-nightly.1)"
         exit 1
     fi
 }
