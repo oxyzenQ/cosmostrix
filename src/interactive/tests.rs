@@ -15,7 +15,8 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{
-        handle_keybinding, runtime_speed_clamp, should_auto_snapback, PasteBurstGuard,
+        handle_keybinding, runtime_speed_clamp, should_auto_snapback, KeybindingCtx,
+        PasteBurstGuard,
     };
     use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
 
@@ -318,16 +319,18 @@ mod cases {
     ) -> bool {
         let user_ranges: [(char, char); 0] = [];
         handle_keybinding(
-            cloud,
-            frame,
+            &mut KeybindingCtx {
+                cloud,
+                frame,
+                charset_preset,
+                scene_name,
+                scene_generation,
+                user_ranges: &user_ranges,
+                def_ascii: true,
+                cfg,
+                term_reinit,
+            },
             key,
-            charset_preset,
-            scene_name,
-            scene_generation,
-            &user_ranges,
-            true,
-            cfg,
-            term_reinit,
         )
     }
 

@@ -56,8 +56,8 @@ mod tests;
 
 // Re-export public API for the rest of the crate
 pub(crate) use ambient_diag::{
-    ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_rx,
-    ambient_diag_reapply, ambient_diag_scene_change, ambient_diag_schedule_empty,
+    ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_reapply,
+    ambient_diag_rx, ambient_diag_scene_change, ambient_diag_schedule_empty,
     ambient_diag_schedule_reload, ambient_diag_snapback, ambient_diag_snapback_guard,
     ambient_diag_snapback_killed, ambient_diag_startup, ambient_diag_summary,
 };
@@ -139,17 +139,26 @@ pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro
 
 /// Get the final color scheme name after the rain loop exited.
 pub(crate) fn last_color_scheme() -> String {
-    FINAL_COLOR.get().cloned().unwrap_or_else(|| "cosmos".to_string())
+    FINAL_COLOR
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "cosmos".to_string())
 }
 
 /// Get the final scene name after the rain loop exited.
 pub(crate) fn last_scene_name() -> String {
-    FINAL_SCENE.get().cloned().unwrap_or_else(|| "monolith".to_string())
+    FINAL_SCENE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "monolith".to_string())
 }
 
 /// Get the final charset preset after the rain loop exited.
 pub(crate) fn last_charset_preset() -> String {
-    FINAL_CHARSET.get().cloned().unwrap_or_else(|| "binary".to_string())
+    FINAL_CHARSET
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "binary".to_string())
 }
 
 /// Get the final rain speed after the rain loop exited.

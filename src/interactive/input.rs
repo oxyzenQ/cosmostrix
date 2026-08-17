@@ -111,10 +111,7 @@ pub(super) struct KeybindingCtx<'a> {
     pub term_reinit: &'a TermReinit,
 }
 
-pub(super) fn handle_keybinding(
-    ctx: &mut KeybindingCtx,
-    k: &crossterm::event::KeyEvent,
-) -> bool {
+pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::KeyEvent) -> bool {
     let cloud = &mut *ctx.cloud;
     let frame = &mut *ctx.frame;
     let charset_preset = &mut *ctx.charset_preset;

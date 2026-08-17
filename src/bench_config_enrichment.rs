@@ -52,9 +52,7 @@ pub(crate) struct ConfigEnrichment {
 ///
 /// Kept as a free function (not a method on CloudConfig) so it can be unit-tested
 /// in isolation and stays out of the hot measurement path.
-pub(crate) fn compute_config_enrichment(
-    cfg: &CloudConfig,
-) -> ConfigEnrichment {
+pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
     use crate::cli::color_mode_label;
     use crate::palette;
     use crate::runtime::ColorPipeline;
