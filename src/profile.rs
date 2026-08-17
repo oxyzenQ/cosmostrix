@@ -466,16 +466,20 @@ fn apply_profile_overrides(
             None => warn_invalid(name, "async", value, "true, false"),
         }
     }
-    // `colors-custom` and `charset-custom` resolve to the SAME args fields
-    // as `color` / `charset` (the value is a name that gets resolved
-    // downstream). Apply them only if `color` / `charset` wasn't already
-    // set by this profile (avoids last-writer-wins confusion).
+    // `colors-custom` resolves to `args.colors_custom` (the `--colors-custom`
+    // CLI equivalent), NOT `args.color`. Setting `args.color` to a custom
+    // palette name caused `parse_color_scheme()` to fail downstream because
+    // it only recognizes the 44 built-in color names. The correct path is
+    // `args.colors_custom = Some(name)` so the palette is loaded via
+    // `colors_custom::load_custom_palette()` in main.rs.
+    // Apply only if `--colors-custom` wasn't set on the CLI and `color`
+    // wasn't already set by this profile (avoids last-writer-wins confusion).
     if let Some(value) = profile.colors_custom.as_deref() {
-        if !is_explicit(matches, "color") && profile.color.is_none() {
+        if !is_explicit(matches, "colors_custom") && profile.color.is_none() {
             // Validate the name exists as a [colors-custom.<name>] block.
             if is_colors_custom_name(cfg, value) {
-                args.color = value.to_string();
-                modified.insert("color");
+                args.colors_custom = Some(value.to_string());
+                modified.insert("colors_custom");
             } else {
                 warn_invalid(name, "colors-custom", value, "see [colors-custom.*] blocks");
             }
