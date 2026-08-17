@@ -32,6 +32,7 @@ use crate::frame::Frame;
 use crate::palette::color_to_rgb;
 use crate::terminal::{is_terminal_gone, Terminal};
 
+use super::input::is_unmodified_or_shift;
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -375,6 +376,23 @@ pub(super) fn rng_freehand() -> f32 {
 /// setting [`GRACEFUL_SHUTDOWN`], so we don't need to match them here.
 #[inline]
 fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
+    // Modifier allowlist: accept ONLY bare 'q' (KeyModifiers::NONE) or
+    // Shift+'Q' (KeyModifiers::SHIFT). Reject ALL other modifier bits:
+    // CONTROL, ALT, SUPER, HYPER, META. Uses the canonical guard from
+    // input.rs::is_unmodified_or_shift() so the rules stay consistent
+    // across all key handling paths (handle_keybinding, HUD toggles, intro).
+    //
+    // Without this guard, Super+Q / Ctrl+Q / Alt+Q would skip the intro,
+    // which is inconsistent with the main event loop where those combos
+    // are silently rejected. The user must press bare 'q' (or Shift+Q
+    // which produces 'Q' with SHIFT modifier) to skip.
+    //
+    // CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
+    // which Char the terminal reports ('q' → 'Q' when CapsLock is on,
+    // with modifiers=NONE). It is inherently allowed.
+    if !is_unmodified_or_shift(key_event.modifiers) {
+        return false;
+    }
     if let crossterm::event::KeyCode::Char(c) = key_event.code {
         c == 'q' || c == 'Q'
     } else {
@@ -688,6 +706,62 @@ mod tests {
         use crossterm::event::KeyCode::*;
         assert!(!is_skip_key(&key(Tab)));
         assert!(!is_skip_key(&key(Backspace)));
+    }
+
+    // ── modifier guard (allowlist: NONE | SHIFT only) ──────────────────
+    //
+    // Super+Q / Ctrl+Q / Alt+Q must NOT skip the intro. Only bare 'q'
+    // or Shift+'Q' are allowed. This matches the main event loop's
+    // is_unmodified_or_shift() guard.
+
+    fn key_with_mod(
+        code: crossterm::event::KeyCode,
+        mods: crossterm::event::KeyModifiers,
+    ) -> crossterm::event::KeyEvent {
+        crossterm::event::KeyEvent::new(code, mods)
+    }
+
+    #[test]
+    fn skip_key_rejects_super_q() {
+        assert!(!is_skip_key(&key_with_mod(
+            crossterm::event::KeyCode::Char('q'),
+            crossterm::event::KeyModifiers::SUPER
+        )));
+    }
+
+    #[test]
+    fn skip_key_rejects_ctrl_q() {
+        assert!(!is_skip_key(&key_with_mod(
+            crossterm::event::KeyCode::Char('q'),
+            crossterm::event::KeyModifiers::CONTROL
+        )));
+    }
+
+    #[test]
+    fn skip_key_rejects_alt_q() {
+        assert!(!is_skip_key(&key_with_mod(
+            crossterm::event::KeyCode::Char('q'),
+            crossterm::event::KeyModifiers::ALT
+        )));
+    }
+
+    #[test]
+    fn skip_key_accepts_shift_q() {
+        // Shift+Q → 'Q' with SHIFT modifier — this IS allowed (CapsLock
+        // equivalent on physical keyboard).
+        assert!(is_skip_key(&key_with_mod(
+            crossterm::event::KeyCode::Char('Q'),
+            crossterm::event::KeyModifiers::SHIFT
+        )));
+    }
+
+    #[test]
+    fn skip_key_rejects_ctrl_shift_q() {
+        // Ctrl+Shift+Q must NOT skip — CONTROL bit is present.
+        assert!(!is_skip_key(&key_with_mod(
+            crossterm::event::KeyCode::Char('Q'),
+            crossterm::event::KeyModifiers::CONTROL | crossterm::event::KeyModifiers::SHIFT
+        )));
     }
 
     // ── intro type bypass ────────────────────────────────────────────────
