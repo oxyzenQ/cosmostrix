@@ -1040,16 +1040,31 @@ fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Co
     if n == 0 {
         return out;
     }
-    let last = (n - 1) as f32;
+    // v50 (2026-08-17) HUD chroma gradient smoothness fix: replace the
+    // previous discrete sampling `palette_colors[(t * last).round()]` with
+    // `interpolate_palette_color(palette_colors, t)` — the same linear-
+    // interpolation helper used by the border message gradient (C4 fix).
+    //
+    // The previous discrete sampling produced visible bands when the palette
+    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 16 HUD
+    // rows → 5+ rows sharing the same color block). The owner explicitly
+    // flagged this category as inconsistent with the chroma dragon smoothness
+    // mandate: "audit mana saja yang belum optimal menggunakan chroma dragon
+    // colornya ... bisa inconsistent kalo ngak menyatu".
+    //
+    // With interpolation, every HUD row gets a smoothly-varying color even
+    // when the palette is small — matching the border message's smooth
+    // gradient behavior and the chroma dragon's per-cell sweep philosophy.
+    // The `brighten_color` floor (TARGET_V=200) is still applied AFTER
+    // interpolation to guarantee readability on a black background.
+    //
+    // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
+    // the first stop defensively), so a future bug in upstream palette
+    // generation cannot crash the HUD or produce garbage colors.
     for (i, slot) in out.iter_mut().enumerate() {
         let t = i as f32 / 15.0;
-        let pos = (t * last).round() as usize;
-        *slot = brighten_color(
-            palette_colors
-                .get(pos.min(n - 1))
-                .copied()
-                .unwrap_or(Color::DarkGrey),
-        );
+        let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);
+        *slot = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
     }
     out
 }

@@ -1109,6 +1109,107 @@ fn hud_final_layout_positions_match_owner_option_s() {
     }
 }
 
+// ── v50 (2026-08-17) HUD chroma gradient smoothness regression tests ────
+//
+// C5 fix: compute_chroma_gradient_16 now uses interpolate_palette_color
+// (linear lerp between adjacent palette stops via blend_toward_rgb)
+// instead of discrete sampling `palette_colors[(t * last).round()]`.
+// This eliminates visible bands when the palette has fewer stops than
+// the HUD has rows (e.g. a 3-stop palette + 16 HUD rows previously
+// produced 4/8/4 band blocks; now produces a smooth gradient).
+
+#[test]
+fn compute_chroma_gradient_16_smooth_with_small_palette_no_bands() {
+    // THE OWNER REGRESSION TEST for HUD chroma gradient smoothness.
+    //
+    // Before C5: a 3-stop palette (white/grey/black) + 16 HUD rows
+    // produced discrete bands — multiple adjacent rows shared the same
+    // palette stop, creating visible color blocks instead of a smooth
+    // gradient. The owner flagged this as inconsistent with the chroma
+    // dragon smoothness mandate.
+    //
+    // After C5: every HUD row gets a smoothly-interpolated color via
+    // `interpolate_palette_color` (the same helper the border message
+    // uses). Adjacent rows produce DISTINCT colors — no bands.
+    //
+    // Test palette: pure red(255,0,0), pure green(0,255,0), pure blue(0,0,255).
+    // High-contrast colorful stops ensure adjacent interpolated values are
+    // distinct enough that the brighten_color floor (TARGET_V=200) does
+    // NOT collapse them to the same brightened value. (A monochromatic
+    // palette like white/grey/black WOULD expose the brighten floor's
+    // integer-math collapse — that's a separate concern about the
+    // readability/smoothness tradeoff, not a regression from C5.)
+    let palette = vec![
+        Color::Rgb { r: 255, g: 0, b: 0 }, // idx 0: red
+        Color::Rgb { r: 0, g: 255, b: 0 }, // idx 1: green
+        Color::Rgb { r: 0, g: 0, b: 255 }, // idx 2: blue
+    ];
+    let colors = compute_chroma_gradient_16(&palette);
+    assert_eq!(colors.len(), 16, "HUD gradient must have 16 entries");
+
+    // Count distinct colors. With interpolation, every row gets a
+    // unique color (16 distinct values, modulo the brighten floor
+    // collapsing some to neutral grey). The old discrete-sampling
+    // implementation would have produced only 3 distinct values
+    // (one per palette stop). Assert >=5 distinct to leave room for
+    // the brighten floor's grey fallback.
+    let distinct_count = {
+        let mut unique: Vec<Color> = colors.to_vec();
+        unique.dedup();
+        unique.len()
+    };
+    assert!(
+        distinct_count >= 5,
+        "interpolated HUD gradient must produce >=5 distinct colors across \
+         16 rows with a 3-stop palette (got {distinct_count}) — the old \
+         discrete-sampling implementation would have produced only 3 (one \
+         per palette stop), causing visible bands"
+    );
+
+    // Assert NO two adjacent rows share the same color — that's the
+    // visible band the owner reported. With smooth interpolation, every
+    // adjacent pair must differ (since `frac` increments by 1/15 each row
+    // and the blend_toward_rgb factor changes the output).
+    for i in 0..15 {
+        assert_ne!(
+            colors[i],
+            colors[i + 1],
+            "adjacent HUD rows {i} and {} must NOT share the same color — \
+             that's the visible band the owner reported (palette: red/green/blue)",
+            i + 1
+        );
+    }
+}
+
+#[test]
+fn compute_chroma_gradient_16_large_palette_still_exact_at_integer_t() {
+    // Backward compatibility: with a 16-stop palette (one stop per HUD
+    // row), the interpolated t = i/15.0 lands exactly on integer palette
+    // positions, so the helper returns palette[i] exactly (no
+    // interpolation). The brighten step is then applied as before. This
+    // test verifies the C5 fix does NOT regress the 16-stop-palette
+    // case — every row still gets its dedicated palette stop's color
+    // (post-brighten).
+    //
+    // Test palette: 16 distinct RGB values, all with max channel >= 200
+    // so brighten returns each as-is (isolates the gradient mapping
+    // from the brightening math).
+    let palette: Vec<Color> = (0..16)
+        .map(|i| Color::Rgb {
+            r: 200 + (i as u8 % 56),
+            g: 200,
+            b: 200,
+        })
+        .collect();
+    let colors = compute_chroma_gradient_16(&palette);
+    for (i, expected) in palette.iter().enumerate() {
+        assert_eq!(
+            &colors[i], expected,
+            "row {i} must use palette[{i}] exactly (16-stop palette, t lands on integer boundary)"
+        );
+    }
+}
+
 // ── v50 (2026-08-17) HUD metric stability regression tests ─────────
 //
 // The 7 new owner-mandated metric setters were strengthened with NaN/Inf
