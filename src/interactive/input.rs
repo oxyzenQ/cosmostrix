@@ -95,19 +95,36 @@ pub(super) fn is_unmodified_or_shift(modifiers: crossterm::event::KeyModifiers) 
 // `scene_generation` is bumped on every reassignment of `scene_name` so the
 // event loop can detect "scene changed during this frame" with a u64 compare
 // instead of cloning the String per frame (~60 allocs/sec saved).
-#[allow(clippy::too_many_arguments)]
+/// Aggregated context for `handle_keybinding()`.
+///
+/// Bundles the mutable references and values that the keybinding handler
+/// needs, replacing the former 10-parameter list.
+pub(super) struct KeybindingCtx<'a> {
+    pub cloud: &'a mut Cloud,
+    pub frame: &'a mut Frame,
+    pub charset_preset: &'a mut String,
+    pub scene_name: &'a mut String,
+    pub scene_generation: &'a mut u64,
+    pub user_ranges: &'a [(char, char)],
+    pub def_ascii: bool,
+    pub cfg: &'a CloudConfig,
+    pub term_reinit: &'a TermReinit,
+}
+
 pub(super) fn handle_keybinding(
-    cloud: &mut Cloud,
-    frame: &mut Frame,
+    ctx: &mut KeybindingCtx,
     k: &crossterm::event::KeyEvent,
-    charset_preset: &mut String,
-    scene_name: &mut String,
-    scene_generation: &mut u64,
-    user_ranges: &[(char, char)],
-    def_ascii: bool,
-    _cfg: &CloudConfig,
-    _term_reinit: &TermReinit,
 ) -> bool {
+    let cloud = &mut *ctx.cloud;
+    let frame = &mut *ctx.frame;
+    let charset_preset = &mut *ctx.charset_preset;
+    let scene_name = &mut *ctx.scene_name;
+    let scene_generation = &mut *ctx.scene_generation;
+    let user_ranges = ctx.user_ranges;
+    let def_ascii = ctx.def_ascii;
+    let _cfg = ctx.cfg;
+    let _term_reinit = ctx.term_reinit;
+
     use crossterm::event::KeyCode;
 
     // Modifier allowlist: accept ONLY bare keys (KeyModifiers::NONE) or

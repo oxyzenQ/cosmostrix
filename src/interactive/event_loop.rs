@@ -24,7 +24,7 @@ use super::adaptive::{
 };
 use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::{FrameMode, HudState};
-use super::input::{handle_keybinding, is_unmodified_or_shift, PasteBurstGuard};
+use super::input::{handle_keybinding, is_unmodified_or_shift, KeybindingCtx, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
 
@@ -711,16 +711,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
                         // i/I, h/H) work even in --screensaver mode.
                         let redraw_needed = handle_keybinding(
-                            &mut cloud,
-                            &mut frame,
+                            &mut KeybindingCtx {
+                                cloud: &mut cloud,
+                                frame: &mut frame,
+                                charset_preset: &mut charset_preset,
+                                scene_name: &mut scene_name,
+                                scene_generation: &mut scene_generation,
+                                user_ranges: &user_ranges,
+                                def_ascii,
+                                cfg,
+                                term_reinit: &term_reinit,
+                            },
                             &k,
-                            &mut charset_preset,
-                            &mut scene_name,
-                            &mut scene_generation,
-                            &user_ranges,
-                            def_ascii,
-                            cfg,
-                            &term_reinit,
                         );
                         if cfg.screensaver {
                             // Screensaver: recognized keys process+continue; others ignored.

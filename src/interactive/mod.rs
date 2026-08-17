@@ -39,6 +39,7 @@
 
 mod activity;
 mod adaptive;
+mod ambient_diag;
 mod bg_fill;
 mod event_loop;
 mod event_loop_finalize;
@@ -54,6 +55,12 @@ mod watchdog;
 mod tests;
 
 // Re-export public API for the rest of the crate
+pub(crate) use ambient_diag::{
+    ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_rx,
+    ambient_diag_reapply, ambient_diag_scene_change, ambient_diag_schedule_empty,
+    ambient_diag_schedule_reload, ambient_diag_snapback, ambient_diag_snapback_guard,
+    ambient_diag_snapback_killed, ambient_diag_startup, ambient_diag_summary,
+};
 pub(crate) use bg_fill::fill_terminal_bg;
 pub(crate) use event_loop::run_interactive;
 // `clear_mouse_capture_flag` is called cross-platform (terminal.rs:508).
@@ -63,7 +70,7 @@ pub(crate) use watchdog::clear_mouse_capture_flag;
 #[cfg(unix)]
 pub(crate) use watchdog::request_graceful_shutdown;
 
-use std::sync::{Mutex, OnceLock};
+use std::sync::OnceLock;
 
 // Final runtime state — stored as Strings to avoid enum discriminant issues
 // with 52 ColorScheme variants. Set once by event loop before returning.
@@ -155,91 +162,11 @@ pub(crate) fn last_density() -> f32 {
     *FINAL_DENSITY.get().unwrap_or(&0.75)
 }
 
-// startup ambient info — stored in a static so main.rs can print
+// Startup ambient info — stored in a static so main.rs can print
 // it AFTER Terminal::drop exits the alternate screen. Printing inside
 // event_loop is invisible because the terminal is in alternate screen
 // mode and the output is discarded on exit.
 static STARTUP_AMBIENT_INFO: OnceLock<String> = OnceLock::new();
-
-// AB-04 diagnostics: ambient apply path counters + last scene-change source.
-// Used in exit summary to identify which code path re-applied ambient.
-use std::sync::atomic::{AtomicU64, Ordering};
-static AMBIENT_SNAPBACK_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_RX_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_REAPPLY_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_STARTUP_COUNT: AtomicU64 = AtomicU64::new(0);
-static LAST_SCENE_CHANGE: Mutex<Option<String>> = Mutex::new(None);
-// AB-06: snapback guard state diagnostics — capture why snapback fired
-// despite user disabling ambient.
-static AMBIENT_SNAPBACK_GUARD_SKED_LEN: AtomicU64 = AtomicU64::new(999);
-static AMBIENT_SNAPBACK_GUARD_LAST_APPLIED: AtomicU64 = AtomicU64::new(999);
-static AMBIENT_SCHEDULE_RELOAD_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_SCHEDULE_EMPTY_COUNT: AtomicU64 = AtomicU64::new(0);
-// AB-07: post-rebuild consistency fix + permanent snapback kill diagnostics.
-static AMBIENT_CONFIG_REBUILD_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_CONSISTENCY_FIX_COUNT: AtomicU64 = AtomicU64::new(0);
-static AMBIENT_SNAPBACK_KILLED: AtomicU64 = AtomicU64::new(0);
-
-pub(crate) fn ambient_diag_snapback() {
-    AMBIENT_SNAPBACK_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_rx() {
-    AMBIENT_RX_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_reapply() {
-    AMBIENT_REAPPLY_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_startup() {
-    AMBIENT_STARTUP_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_scene_change(source: &str) {
-    if let Ok(mut g) = LAST_SCENE_CHANGE.lock() {
-        *g = Some(source.to_string());
-    }
-}
-// AB-06: record snapback guard state at call site.
-pub(crate) fn ambient_diag_snapback_guard(sked_len: u64, last_applied_is_some: bool) {
-    AMBIENT_SNAPBACK_GUARD_SKED_LEN.store(sked_len, Ordering::Relaxed);
-    AMBIENT_SNAPBACK_GUARD_LAST_APPLIED
-        .store(if last_applied_is_some { 1 } else { 0 }, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_schedule_reload() {
-    AMBIENT_SCHEDULE_RELOAD_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_schedule_empty() {
-    AMBIENT_SCHEDULE_EMPTY_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_config_rebuild() {
-    AMBIENT_CONFIG_REBUILD_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_consistency_fix() {
-    AMBIENT_CONSISTENCY_FIX_COUNT.fetch_add(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_snapback_killed() {
-    AMBIENT_SNAPBACK_KILLED.store(1, Ordering::Relaxed);
-}
-pub(crate) fn ambient_diag_summary() -> String {
-    let snap = AMBIENT_SNAPBACK_COUNT.load(Ordering::Relaxed);
-    let rx = AMBIENT_RX_COUNT.load(Ordering::Relaxed);
-    let reapply = AMBIENT_REAPPLY_COUNT.load(Ordering::Relaxed);
-    let startup = AMBIENT_STARTUP_COUNT.load(Ordering::Relaxed);
-    let guard_sked_len = AMBIENT_SNAPBACK_GUARD_SKED_LEN.load(Ordering::Relaxed);
-    let guard_last = AMBIENT_SNAPBACK_GUARD_LAST_APPLIED.load(Ordering::Relaxed);
-    let reloads = AMBIENT_SCHEDULE_RELOAD_COUNT.load(Ordering::Relaxed);
-    let empties = AMBIENT_SCHEDULE_EMPTY_COUNT.load(Ordering::Relaxed);
-    let cfg_rebuilds = AMBIENT_CONFIG_REBUILD_COUNT.load(Ordering::Relaxed);
-    let consistency_fixes = AMBIENT_CONSISTENCY_FIX_COUNT.load(Ordering::Relaxed);
-    let snapback_killed = AMBIENT_SNAPBACK_KILLED.load(Ordering::Relaxed);
-    let last = LAST_SCENE_CHANGE
-        .lock()
-        .ok()
-        .and_then(|g| g.clone())
-        .unwrap_or_else(|| "none".to_string());
-    format!(
-        "ambient_diag: startup={} rx={} reapply={} snapback={} cfg_rebuilds={} sked_reloads={} sked_empties={} consistency_fixes={} snapback_killed={} snapback_guard_sked_len={} snapback_guard_last_applied={} last_scene_change={}",
-        startup, rx, reapply, snap, cfg_rebuilds, reloads, empties, consistency_fixes, snapback_killed, guard_sked_len, guard_last, last
-    )
-}
 
 /// Store the startup ambient phase info for post-exit verbose summary.
 /// Called from event_loop right after `apply_startup_ambient`. The string
