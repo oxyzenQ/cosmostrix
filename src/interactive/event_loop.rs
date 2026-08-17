@@ -390,7 +390,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // AB-05: full visual-state restore when schedule emptied.
             if new_cfg.ambient_schedule.entries.is_empty() {
                 if preserve_user_override {
-                    cloud.color_scheme = preserved_color_scheme;
+                    // v50 fix: only preserve the user's color override if
+                    // the new config did NOT explicitly change the color
+                    // scheme. If the config's color_scheme differs from
+                    // the preserved value, the user edited config.toml to
+                    // change the color — respect that change instead of
+                    // reverting to the old scheme. This fixes the bug
+                    // where editing config.toml (e.g. color to "greens")
+                    // left the HUD showing the old scheme name.
+                    if new_cfg.color_scheme == preserved_color_scheme {
+                        cloud.color_scheme = preserved_color_scheme;
+                    }
                     scene_name = preserved_scene_name;
                 } else {
                     scene_name = new_cfg.scene_name.clone();
