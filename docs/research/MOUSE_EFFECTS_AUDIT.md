@@ -2,6 +2,42 @@
 
 # Mouse Effects System — Deep Audit
 
+> ## v50.0.0-alpha.5 Update Note (2026-08-17)
+>
+> The audit below documents the ORIGINAL mouse effects pipeline (pre-v50).
+> Three owner-approved masterclass-tier upgrades have since been applied
+> (see CHANGELOG.md v50.0.0-alpha.5 for the full description):
+>
+> 1. **Quantum ripple color cycling** (peak optimize #3): the rendered
+>    particle color now sweeps palette[0] -> palette[last] over the
+>    particle's 2.5s lifespan via `interpolate_palette_color`, instead
+>    of being locked to the spawn-time snapshot body color. The snapshot
+>    is preserved on the struct for backward-compat with the crossfade
+>    regression tests, but is no longer the source of truth for the
+>    RENDERED color.
+>
+> 2. **Chromatic shockwave** (alternative for flash wave): the flash
+>    wave now blends each cell toward the active palette's HEAD color
+>    (`palette[last]`) instead of pure white `(255,255,255)`. For most
+>    schemes the head is near-white so the visual difference is subtle;
+>    for saturated schemes (Red, Fire, Cosmos) the flash takes on a
+>    distinctly-colored hue tied to the active palette.
+>
+> 3. **Trail particles** (alternative for quantum ripple): each particle
+>    now leaves a "comet trail" of its last `QUANTUM_RIPPLE_TRAIL_LEN=6`
+>    positions, rendered with the cycled color + diminishing brightness
+>    via `QUANTUM_RIPPLE_TRAIL_DECAY=0.55`. Adds cinematic motion blur
+>    to the click-triggered particle burst.
+>
+> All three effects route through the chroma dragon pipeline (primary)
+> with legacy fallback (non-TrueColor terminals) — consistent with
+> the LTS-wide chroma dragon sync mandate (C4-C6). The audit's
+> description of the original pipeline architecture is preserved
+> below for historical reference; the implementation details
+> (constants, struct fields, blend paths) have changed.
+>
+> ---
+
 **Task ID**: `mouse-effects-audit-1`
 **Agent**: mouse-effects-audit-1 (general-purpose sub-agent)
 **Scope**: Peak-optimization audit of the mouse effects pipeline (cursor glow + dual-ring click flash wave + Quantum Ripple particle burst).

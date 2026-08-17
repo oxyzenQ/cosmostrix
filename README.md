@@ -125,7 +125,7 @@ The Dragon's roar is not loud — it is precise.
 - Adaptive throttling — reduces CPU usage when idle (30s no-input → 0.5× FPS factor)
 - Live config reload via filesystem watch (optional, `notify` crate) — full Cloud rebuild with strict validation on save
 - Screensaver mode — only `q` exits; all runtime keys (`c`/`C`, `s`/`S`, `p`, `x`, `[`/`]`, `Up`/`Down`, `Space`, `i`) still work for interactive control. Unrecognized keys (`a`, `m`, `g`, `b`/`B`, `Tab`, `Ctrl+Z`, function keys, etc.) are silently ignored — no accidental exit
-- Always-on mouse glow + click wave effects (cursor halo + dual-ring ripple). Note: always-on mouse reporting blocks text selection in all modes
+- Always-on mouse glow + click wave effects (cursor halo + dual-ring chromatic shockwave + quantum ripple with color cycling + comet trail). All effects route through the chroma dragon pipeline. Note: always-on mouse reporting blocks text selection in all modes
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). The logo intro fades in character-by-character, a spark falls and ignites the logo on impact, then the logo dissolves into Matrix rain. The cosmic intro bursts a singularity into spiraling particles. Plays in all modes including `--screensaver`. Skipped only on terminals smaller than 80×24
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
 - 5-layer destructive terminal recovery (`--reset-terminal`)
