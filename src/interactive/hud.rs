@@ -56,6 +56,7 @@ use crossterm::style::Color;
 use crate::cpustat;
 use crate::interactive::activity::FrameTimeTracker;
 use crate::memstat;
+use crate::runtime::ColorScheme;
 
 /// Minimum interval between HUD metric recomputation (1 Hz).
 ///
@@ -186,6 +187,42 @@ pub(crate) struct HudState {
     /// Screen size for HUD display. Updated by event_loop when terminal
     /// resizes or --screen-size is set. Format: (width, height, is_fixed).
     screen_size: (u16, u16, bool),
+    // v50 (2026-08-17) HUD expansion — 7 new owner-mandated metrics.
+    // All fed by setters called from the event loop whenever the value
+    // changes (key press, scene cycle, color cycle, config reload) or
+    // sampled every frame at 1 Hz (effective_pressure, ehs). The text
+    // is rendered into cached_lines[6..=12] on the 1 Hz metric tick.
+    /// Active scene name (e.g. "cinematic", "matrix", custom). Drives
+    /// the `scn:` HUD line so the owner sees confirmation when cycling
+    /// scenes with `x` — previously the user had to guess from visuals.
+    scene_name: String,
+    /// Active color scheme (e.g. NeonGreen, FancyDiamond). Rendered via
+    /// Debug format (matches `verbose.rs` convention). Drives the `clr:`
+    /// HUD line so the owner sees confirmation when cycling colors with
+    /// `c` / `C`.
+    color_scheme: ColorScheme,
+    /// Active charset preset name (e.g. "binary", "zen", custom). Drives
+    /// the `chr:` HUD line for `s` / `S` cycle confirmation.
+    charset_preset: String,
+    /// Current droplet density multiplier (e.g. 1.0, 1.5, 2.0). Drives
+    /// the `dsty:` HUD line for `[` / `]` adjustment feedback. Owner
+    /// explicitly mandated the `dsty` label (NOT `den` — "buruk sekali").
+    droplet_density: f32,
+    /// Current chars-per-second speed (e.g. 14.0, 25.5). Drives the
+    /// `sped:` HUD line for `↑` / `↓` adjustment feedback.
+    chars_per_sec: f32,
+    /// Endurance Health Score (0.0-100.0). Long-endurance process
+    /// stability metric combining RSS variance, frame-time jitter, and
+    /// context-switch rate. Drives the `ehs:` HUD line so the owner can
+    /// answer "why is the rain behaving this way?" without quitting
+    /// cosmostrix. Source: `EnduranceHealth::score()` called from the
+    /// event loop's 1 Hz adaptive tick.
+    endurance_health_score: f64,
+    /// Effective pressure (0.0-1.0, clamped). Drives the spawn rate,
+    /// sim factor, and self-healer. Drives the `prs:` HUD line so the
+    /// owner can see when adaptive throttling is engaging. Source:
+    /// `PowerManager::effective_pressure()` called from the event loop.
+    effective_pressure: f32,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     /// 16 lines: fps / tgt / max / p99 / cpu / rss / up / screensize /
@@ -248,46 +285,61 @@ impl HudState {
             target_fps: 60.0,
             frame_mode: FrameMode::Active,
             screen_size: (0, 0, false),
+            // v50 (2026-08-17) HUD expansion — initialize the 7 new metrics
+            // to neutral defaults. The event loop calls the setters at
+            // startup with the resolved values (from cfg / power_manager /
+            // endurance_health) so the HUD shows real data from frame 1.
+            scene_name: String::new(),
+            color_scheme: ColorScheme::Green,
+            charset_preset: String::new(),
+            droplet_density: 1.0,
+            chars_per_sec: 8.0,
+            endurance_health_score: 100.0,
+            effective_pressure: 0.0,
             cached_lines: [
-                (Color::Cyan, String::new()),
-                (Color::Cyan, String::new()), // tgt line — uses `dim` (tail) at runtime
+                // ── Performance core (rows 0-5) — unchanged from v50 ──
+                (Color::Cyan, String::new()), // 0: fps
+                (Color::Cyan, String::new()), // 1: tgt — uses `dim` (tail) at runtime
                 // v50 (2026-08-15): rows 2-5 reordered intra-pair to match
                 // htop/btop convention — extreme before representative
                 // (max before p99), active before passive (cpu before rss).
                 // Brightness gradient stop assignments are unchanged —
                 // colors[i] still maps to cached_lines[i]. Only the content
                 // at each index changed.
-                (Color::Magenta, String::new()), // max line (was row 3)
-                (Color::Yellow, String::new()),  // p99 line (was row 2)
-                (Color::Cyan, String::new()),    // cpu line — uses `mid` at runtime (was row 5)
-                (Color::Green, String::new()),   // rss line (was row 4)
-                (Color::DarkCyan, String::new()),
-                (Color::DarkCyan, String::new()),
-                // cid line — commit short SHA, static for the entire
-                // process lifetime. Color is refreshed by
-                // `refresh_colors` (head stop, brightest) every frame;
-                // the text never changes so `update_metrics` skips it.
+                (Color::Magenta, String::new()), // 2: max line (was row 3)
+                (Color::Yellow, String::new()),  // 3: p99 line (was row 2)
+                (Color::Cyan, String::new()),    // 4: cpu line — uses `mid` at runtime (was row 5)
+                (Color::Green, String::new()),   // 5: rss line (was row 4)
+                // ── Health / pressure (rows 6-7) — v50 HUD expansion ──
+                // ehs (Endurance Health Score) before prs (Effective Pressure):
+                // health is the summary, pressure is the live driver. Reading
+                // order matches the diagnostic flow — "how is it" then "why".
+                (Color::Yellow, String::new()), // 6: ehs  — endurance health score (NEW)
+                (Color::Yellow, String::new()), // 7: prs  — effective pressure (NEW)
+                // ── User-adjustable live controls (rows 8-12) — v50 HUD expansion ──
+                // Ordering: speed → density → scene → charset → color.
+                // Speed/density are numeric (adjust via arrows/brackets),
+                // scene/charset/color are categorical (cycle via single keys).
+                // Owner explicitly mandated `dsty` for density (NOT `den`).
+                (Color::Magenta, String::new()), // 8: sped — chars/sec speed (↑↓) (NEW)
+                (Color::Magenta, String::new()), // 9: dsty — density multiplier ([/]) (NEW)
+                (Color::Cyan, String::new()),    // 10: scn  — scene name (x cycle) (NEW)
+                (Color::Cyan, String::new()),    // 11: chr  — charset preset (s/S cycle) (NEW)
+                (Color::Cyan, String::new()),    // 12: clr  — color scheme (c/C cycle) (NEW)
+                // ── Session / diagnostic / build identity (rows 13-15) ──
+                // v50 (2026-08-17): moved up/screensize/cid to the bottom
+                // (cid is now row 15 — owner-mandated). up at row 13, screensize
+                // at row 14, cid at row 15. The chroma gradient sweeps from
+                // dim tail (palette[0]) at the top to bright head (palette[n-1])
+                // at the bottom, so the build identity earns the brightest stop.
+                (Color::DarkCyan, String::new()), // 13: up  — session uptime (moved from row 6)
+                (Color::DarkCyan, String::new()), // 14: screensize (moved from row 7)
+                // cid line — commit short SHA, static for the entire process
+                // lifetime. Color is refreshed by `refresh_colors` (head stop,
+                // brightest) every frame; the text never changes so
+                // `update_metrics` skips it. v50: moved from row 8 to row 15
+                // per owner's Option S mandate ("commit tetap paling bawah").
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
-                // v50 (2026-08-17) HUD expansion: rows 9-15 reserved for
-                // the 7 owner-mandated metrics (scene / color / density /
-                // speed / endurance-health-score / effective-pressure /
-                // charset). Initialized as empty strings so the structural
-                // bump (array 9 -> 16 + chroma gradient 9-stop -> 16-stop)
-                // lands as a no-behavior-change micro-commit — the
-                // `write_to_frame` skip-empty guard prevents these blank
-                // rows from rendering as space-padded rows. The follow-up
-                // data-plumbing commit will populate them with real
-                // metrics, wire setters into the event loop, and reorder
-                // the entire HUD to its final layout (cid moves to row 15,
-                // screensize to row 14, up to row 13, new metrics span
-                // rows 6-12).
-                (Color::DarkGrey, String::new()), // 9:  reserved (ehs)
-                (Color::DarkGrey, String::new()), // 10: reserved (prs)
-                (Color::DarkGrey, String::new()), // 11: reserved (sped)
-                (Color::DarkGrey, String::new()), // 12: reserved (dsty)
-                (Color::DarkGrey, String::new()), // 13: reserved (scn)
-                (Color::DarkGrey, String::new()), // 14: reserved (chr)
-                (Color::DarkGrey, String::new()), // 15: reserved (clr)
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,
@@ -471,6 +523,71 @@ impl HudState {
     /// v30 (2026-08-05): added alongside set_target_fps.
     pub(crate) fn set_frame_mode(&mut self, mode: FrameMode) {
         self.frame_mode = mode;
+    }
+
+    // ── v50 (2026-08-17) HUD expansion setters ───────────────────────────
+    //
+    // Each setter is called from the event loop whenever the corresponding
+    // value changes (key press / scene cycle / color cycle / config reload
+    // / 1 Hz adaptive tick). The text is rendered into cached_lines[6..=12]
+    // on the 1 Hz metric tick (see `update_metrics` below). Setters are
+    // cheap (one field write, no format! call) so the event loop can call
+    // them on every frame without measurable cost.
+
+    /// Set the active scene name. Drives the `scn:` HUD line (row 10) for
+    /// `x` cycle confirmation. Called by event_loop on init and whenever
+    /// the user cycles scenes.
+    pub(crate) fn set_scene_name(&mut self, name: &str) {
+        self.scene_name.clear();
+        self.scene_name.push_str(name);
+    }
+
+    /// Set the active color scheme. Drives the `clr:` HUD line (row 12)
+    /// for `c` / `C` cycle confirmation. Called by event_loop on init and
+    /// whenever the user cycles colors. Rendered via Debug format (matches
+    /// `verbose.rs` convention — e.g. `NeonGreen`, `FancyDiamond`).
+    pub(crate) fn set_color_scheme(&mut self, scheme: ColorScheme) {
+        self.color_scheme = scheme;
+    }
+
+    /// Set the active charset preset name. Drives the `chr:` HUD line
+    /// (row 11) for `s` / `S` cycle confirmation. Called by event_loop on
+    /// init and whenever the user cycles charsets.
+    pub(crate) fn set_charset_preset(&mut self, preset: &str) {
+        self.charset_preset.clear();
+        self.charset_preset.push_str(preset);
+    }
+
+    /// Set the current droplet density multiplier. Drives the `dsty:` HUD
+    /// line (row 9) for `[` / `]` adjustment feedback. Called by event_loop
+    /// on init and whenever the user adjusts density or live-config reloads.
+    /// Owner explicitly mandated the `dsty` label (NOT `den`).
+    pub(crate) fn set_droplet_density(&mut self, density: f32) {
+        self.droplet_density = density;
+    }
+
+    /// Set the current chars-per-second speed. Drives the `sped:` HUD line
+    /// (row 8) for `↑` / `↓` adjustment feedback. Called by event_loop on
+    /// init and whenever the user adjusts speed or live-config reloads.
+    pub(crate) fn set_chars_per_sec(&mut self, cps: f32) {
+        self.chars_per_sec = cps;
+    }
+
+    /// Set the Endurance Health Score (0.0-100.0). Drives the `ehs:` HUD
+    /// line (row 6) so the owner can answer "why is the rain behaving this
+    /// way?" without quitting cosmostrix. Called by event_loop on the 1 Hz
+    /// adaptive tick (alongside `endurance_health.recompute()`).
+    pub(crate) fn set_endurance_health_score(&mut self, score: f64) {
+        self.endurance_health_score = score;
+    }
+
+    /// Set the effective pressure (0.0-1.0, clamped). Drives the `prs:` HUD
+    /// line (row 7) so the owner can see when adaptive throttling engages.
+    /// Called by event_loop every frame (cheap — one field write) so the
+    /// pressure value tracks the live adaptive state with no perceptible
+    /// delay. Source: `PowerManager::effective_pressure()`.
+    pub(crate) fn set_effective_pressure(&mut self, pressure: f32) {
+        self.effective_pressure = pressure;
     }
 
     /// Refresh HUD line colors from the current palette. Called every
@@ -689,10 +806,44 @@ impl HudState {
         };
         self.cached_lines[4] = (colors[4], format!(" cpu: {cpu_str}"));
         self.cached_lines[5] = (colors[5], format!(" rss: {rss_str}"));
-        self.cached_lines[6] = (colors[6], format!(" up: {uptime_str}"));
+        // v50 (2026-08-17) HUD expansion — populate the 7 new owner-mandated
+        // metrics at rows 6-12. All values come from HudState fields that
+        // are written by the corresponding setters (called by event_loop).
+        // The text is rebuilt here at the 1 Hz tick so number flicker is
+        // avoided (matches the fps/p99/max/rss cadence). Color refresh is
+        // handled separately by `refresh_colors` every frame.
+        //
+        // ehs (Endurance Health Score): 0-100 integer. Shows long-endurance
+        // process stability. 100 = perfectly stable, <50 = degraded.
+        let ehs_val = self.endurance_health_score.round() as i32;
+        self.cached_lines[6] = (colors[6], format!(" ehs: {ehs_val}"));
+        // prs (Effective Pressure): 0.00-1.00, 2 decimals. Drives spawn rate
+        // + sim factor + self-healer. 0.0 = no pressure, 1.0 = max throttle.
+        let prs_clamped = self.effective_pressure.clamp(0.0, 1.0);
+        self.cached_lines[7] = (colors[7], format!(" prs: {prs_clamped:.2}"));
+        // sped (chars-per-sec speed): 1 decimal. User adjusts via ↑/↓.
+        let sped_val = self.chars_per_sec;
+        self.cached_lines[8] = (colors[8], format!(" sped: {sped_val:.1}"));
+        // dsty (droplet density multiplier): 2 decimals. User adjusts via
+        // [/]. Owner explicitly mandated `dsty` label (NOT `den`).
+        let dsty_val = self.droplet_density;
+        self.cached_lines[9] = (colors[9], format!(" dsty: {dsty_val:.2}"));
+        // scn (scene name): string, no format. User cycles via `x`.
+        self.cached_lines[10] = (colors[10], format!(" scn: {}", self.scene_name));
+        // chr (charset preset): string, no format. User cycles via `s`/`S`.
+        self.cached_lines[11] = (colors[11], format!(" chr: {}", self.charset_preset));
+        // clr (color scheme): Debug format (matches verbose.rs convention).
+        // e.g. `NeonGreen`, `FancyDiamond`, `Cosmos`.
+        self.cached_lines[12] = (colors[12], format!(" clr: {:?}", self.color_scheme));
+        // v50 (2026-08-17) HUD expansion reorder: up/screensize/cid moved
+        // from rows 6/7/8 to rows 13/14/15 per owner's Option S mandate.
+        // cid stays static (set in `new()`); only up + screensize are
+        // rewritten here on the 1 Hz tick (uptime changes every second,
+        // screensize changes only on terminal resize).
+        self.cached_lines[13] = (colors[13], format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[7] = (colors[7], format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[14] = (colors[14], format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self

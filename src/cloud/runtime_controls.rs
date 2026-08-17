@@ -170,6 +170,26 @@ impl Cloud {
         self.recalc_droplets_per_sec();
     }
 
+    /// Read-only accessor for the current droplet density multiplier.
+    /// v50 (2026-08-17) HUD expansion: feeds the `dsty:` HUD line so the
+    /// owner can see the actual density value while adjusting it via
+    /// `[` / `]` keys — previously the value was invisible to the user.
+    /// Returns the sanitized value (set_droplet_density writes the raw
+    /// value, density itself is not sanitized — only speed is).
+    pub fn droplet_density(&self) -> f32 {
+        self.droplet_density
+    }
+
+    /// Read-only accessor for the current chars-per-second speed.
+    /// v50 (2026-08-17) HUD expansion: feeds the `sped:` HUD line so the
+    /// owner can see the actual speed value while adjusting it via `↑`
+    /// / `↓` keys — previously the value was invisible to the user.
+    /// Returns the sanitized value (set_chars_per_sec applies
+    /// `sanitize_speed_for_style` for the active rain style).
+    pub fn chars_per_sec(&self) -> f32 {
+        self.chars_per_sec
+    }
+
     pub fn set_glitchy(&mut self, on: bool) {
         self.glitchy = on;
         // (Glitch-BUG6): when disabling glitch, clear in-flight anomaly

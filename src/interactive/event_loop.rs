@@ -900,6 +900,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             FrameMode::Active
         };
         hud_state.set_frame_mode(frame_mode);
+        // v50 (2026-08-17) HUD expansion — push 6 dynamic values to the HUD
+        // every frame so the 7 new owner-mandated metric lines (rows 6-12)
+        // always reflect the live state. Setters are cheap (single field
+        // write; String setters use clear+push_str on an existing
+        // allocation so they don't reallocate once the cap is warmed up).
+        // The text is rendered at the 1 Hz metric tick in `update_metrics`
+        // (matches the fps/p99/max/rss cadence — avoids number flicker).
+        hud_state.set_scene_name(&scene_name);
+        hud_state.set_color_scheme(cloud.color_scheme);
+        hud_state.set_charset_preset(&charset_preset);
+        hud_state.set_droplet_density(cloud.droplet_density());
+        hud_state.set_chars_per_sec(cloud.chars_per_sec());
+        hud_state.set_effective_pressure(power_manager.effective_pressure());
         cloud.set_perf_pressure(power_manager.effective_pressure());
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
@@ -1046,6 +1059,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 last_ctxt_sample = work_start;
             }
             endurance_health.recompute();
+            // v50 (2026-08-17) HUD expansion — push the recomputed
+            // Endurance Health Score to the HUD so the `ehs:` line (row 6)
+            // always reflects the latest long-endurance stability metric.
+            // Runs on the 1 Hz adaptive tick (alongside recompute) so the
+            // score update cadence matches the metric recompute cadence.
+            hud_state.set_endurance_health_score(endurance_health.score());
         }
         perf_rss_samples = perf_rss_samples.saturating_add(1);
 

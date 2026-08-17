@@ -407,27 +407,29 @@ fn refresh_colors_updates_colors_without_touching_text() {
 
 #[test]
 fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
-    // HD-01: 16-stop chroma gradient sweep. The BOTTOM row (reserved clr,
-    // idx 15) is the brightest `head` color (palette last stop), and
-    // the TOP row (fps, idx 0) is the dimmest `dim` color (palette
-    // first stop, brightened to readable floor). This inverts the
-    // original mapping where fps/tgt/max were brightest at the top —
-    // the owner explicitly flagged the inversion: 'rain tail is dim
-    // head is white' (head leads at the bottom of a falling stream).
+    // HD-01: 16-stop chroma gradient sweep. The BOTTOM row (cid, idx 15)
+    // is the brightest `head` color (palette last stop), and the TOP
+    // row (fps, idx 0) is the dimmest `dim` color (palette first stop,
+    // brightened to readable floor). This inverts the original mapping
+    // where fps/tgt/max were brightest at the top — the owner explicitly
+    // flagged the inversion: 'rain tail is dim head is white' (head
+    // leads at the bottom of a falling stream).
     //
     // v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
-    // line at row 8. The cid line shares the head stop with screensize.
+    // line at row 8. The cid line shared the head stop with screensize.
     //
-    // v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15
-    // for the 7 owner-mandated HUD expansion metrics. The final layout
-    // (after the data-plumbing commit) will move cid to row 15 (current
-    // reserved clr slot) so it shares the head stop with the new bottom
-    // row. For now, the head is at row 15 (reserved clr slot).
+    // v50 (2026-08-17): bumped from 9 → 16 stops + reordered the entire
+    // HUD per owner's Option S mandate. The final layout places the 7
+    // new owner-mandated metrics at rows 6-12 (ehs/prs/sped/dsty/scn/chr/
+    // clr), moves up to row 13, screensize to row 14, and cid to row 15
+    // (owner-mandated bottom). The chroma gradient sweeps continuously
+    // from palette[0] (dim tail) at the top to palette[n-1] (bright head)
+    // at the bottom.
     //
     // We use a palette where head is pure white RGB(255,255,255) so the
-    // assertion is unambiguous, and dim is a dark green RGB(0,50,0)
-    // that brightens to RGB(0,200,0). The bottom row must be white
-    // (head); the top row must be green (dim).
+    // assertion is unambiguous, and dim is a dark green RGB(0,50,0) that
+    // brightens to RGB(0,200,0). The bottom row (cid) must be white
+    // (head); the top row (fps) must be green (dim).
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -503,8 +505,10 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         Color::Rgb { r: 0, g: 200, b: 0 },
         "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
     );
-    // Row 7 (screensize, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
-    // >= TARGET_V(200), returned as-is.
+    // Row 7 (prs, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
+    // >= TARGET_V(200), returned as-is. v50 (2026-08-17) HUD expansion:
+    // row 7 is now the `prs:` line (effective pressure NEW metric), not
+    // screensize (which moved to row 14).
     assert_eq!(
         h.cached_lines[7].0,
         Color::Rgb {
@@ -512,9 +516,13 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 240,
             b: 150
         },
-        "row 7 (screensize) must use palette[7] — near head but not the head"
+        "row 7 (prs) must use palette[7] — near head but not the head"
     );
-    // Bottom row (reserved clr, idx 15) = palette[15] = RGB(255,255,255) — head
+    // Bottom row (cid, idx 15) = palette[15] = RGB(255,255,255) — head.
+    // v50 (2026-08-17) HUD expansion reorder: cid moved from row 8 to
+    // row 15 (owner-mandated bottom per Option S). The chroma gradient
+    // assigns the brightest head stop to the bottom row so the build
+    // identity (commit hash) earns the most prominent position.
     assert_eq!(
         h.cached_lines[15].0,
         Color::Rgb {
@@ -522,7 +530,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 255,
             b: 255
         },
-        "bottom row (reserved clr) must use palette[15] (head) — bright head at bottom"
+        "bottom row (cid) must use palette[15] (head) — bright head at bottom"
     );
     // Middle rows should NOT be white — they should be the intermediate
     // green stops, not the head.
@@ -690,13 +698,17 @@ fn refresh_colors_gradient_uses_sixteen_distinct_stops() {
 
 #[test]
 fn hud_cid_line_contains_commit_sha_or_unknown() {
-    // v50: the cid line at index [8] must contain the compile-time
-    // git short SHA injected by build.rs via `COSMOSTRIX_GIT_SHA`,
-    // falling back to "unknown" when the build had no .git dir.
-    // The text is set once in `new()` and never mutated — the owner
-    // needs to read the commit hash without quitting cosmostrix.
+    // v50 (2026-08-15): the cid line was at index [8].
+    // v50 (2026-08-17) HUD expansion reorder: the cid line moved from
+    // index [8] to index [15] (owner-mandated bottom row per Option S).
+    // The line must contain the compile-time git short SHA injected by
+    // build.rs via `COSMOSTRIX_GIT_SHA`, falling back to "unknown" when
+    // the build had no .git dir. The text is set once in `new()` and
+    // never mutated — `update_metrics` skips row 15 entirely so the
+    // commit hash remains stable across the entire process lifetime.
+    // The owner needs to read the commit hash without quitting cosmostrix.
     let h = HudState::new();
-    let (_, cid_line) = &h.cached_lines[8];
+    let (_, cid_line) = &h.cached_lines[15];
     assert!(
         cid_line.starts_with(" cid: "),
         "cid line must start with ' cid: ' prefix, got: {cid_line:?}"
@@ -870,4 +882,229 @@ fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
         "cell (13,1) must be blanked — was residual 'e' bug"
     );
     assert!(cleared.fg.is_none(), "cell (13,1) fg must be None");
+}
+
+// ── v50 (2026-08-17) HUD expansion content tests ───────────────────
+//
+// The following tests verify the 7 new owner-mandated metric lines
+// (rows 6-12) render the correct text after the corresponding setters
+// are called and `update_metrics` runs the 1 Hz text reformat. The
+// layout matches owner's Option S mandate: ehs/prs/sped/dsty/scn/chr/
+// clr at rows 6-12, with the density label explicitly set to `dsty`
+// (NOT `den` — owner: "buruk sekali").
+
+#[test]
+fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
+    // Verify all 7 new owner-mandated metric lines render with the
+    // expected label prefix + value formatting after their setters are
+    // called and `update_metrics` runs. The chroma gradient is fed an
+    // arbitrary palette so the colors[i] sweep is exercised too.
+    let mut h = HudState::new();
+    h.toggle(); // visible + forces next update_metrics to execute
+    h.set_endurance_health_score(87.4);
+    h.set_effective_pressure(0.123);
+    h.set_chars_per_sec(14.0);
+    h.set_droplet_density(1.0);
+    h.set_scene_name("cinematic");
+    h.set_charset_preset("binary");
+    h.set_color_scheme(ColorScheme::NeonGreen);
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50,
+        };
+        16
+    ];
+    h.update_metrics(&palette);
+
+    // Row 6 — ehs: integer rounded (87.4 -> 87)
+    let (_, ehs_line) = &h.cached_lines[6];
+    assert_eq!(ehs_line, " ehs: 87", "row 6 (ehs) content mismatch");
+
+    // Row 7 — prs: 2 decimals, clamped 0.0-1.0
+    let (_, prs_line) = &h.cached_lines[7];
+    assert_eq!(prs_line, " prs: 0.12", "row 7 (prs) content mismatch");
+
+    // Row 8 — sped: 1 decimal
+    let (_, sped_line) = &h.cached_lines[8];
+    assert_eq!(sped_line, " sped: 14.0", "row 8 (sped) content mismatch");
+
+    // Row 9 — dsty: 2 decimals. Owner mandated `dsty` (NOT `den`).
+    let (_, dsty_line) = &h.cached_lines[9];
+    assert!(
+        dsty_line.starts_with(" dsty: "),
+        "row 9 must start with ' dsty: ', got: {dsty_line:?}"
+    );
+    assert_eq!(dsty_line, " dsty: 1.00", "row 9 (dsty) content mismatch");
+
+    // Row 10 — scn: scene name string
+    let (_, scn_line) = &h.cached_lines[10];
+    assert_eq!(scn_line, " scn: cinematic", "row 10 (scn) content mismatch");
+
+    // Row 11 — chr: charset preset string
+    let (_, chr_line) = &h.cached_lines[11];
+    assert_eq!(chr_line, " chr: binary", "row 11 (chr) content mismatch");
+
+    // Row 12 — clr: Debug format of ColorScheme
+    let (_, clr_line) = &h.cached_lines[12];
+    assert_eq!(clr_line, " clr: NeonGreen", "row 12 (clr) content mismatch");
+}
+
+#[test]
+fn hud_density_label_is_dsty_not_den() {
+    // Owner explicitly mandated the `dsty` label for density (NOT `den`):
+    // "untuk densitas namannya jangan 'den' buruk sekali, harusnya dsty".
+    // This regression test locks the label in so a future rename would
+    // fail loudly. The value formatting is verified separately.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_droplet_density(2.5);
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+    h.update_metrics(&palette);
+    let (_, dsty_line) = &h.cached_lines[9];
+    assert!(
+        dsty_line.starts_with(" dsty: "),
+        "density label must be ' dsty: ' (NOT ' den: ' per owner mandate), got: {dsty_line:?}"
+    );
+    assert!(
+        !dsty_line.starts_with(" den"),
+        "density label must NOT be ' den' (owner: 'buruk sekali'), got: {dsty_line:?}"
+    );
+}
+
+#[test]
+fn hud_effective_pressure_clamps_to_unity_range() {
+    // The `prs:` line clamps the underlying f32 to [0.0, 1.0] before
+    // formatting. Values outside this range (e.g., a 1.5 thermal spike
+    // or a -0.1 jitter) are rendered as 1.00 / 0.00 respectively. This
+    // matches the `effective_pressure()` downstream contract.
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // Above 1.0 — clamps to 1.00
+    h.set_effective_pressure(1.5);
+    h.update_metrics(&palette);
+    let (_, prs_line) = &h.cached_lines[7];
+    assert_eq!(prs_line, " prs: 1.00", "prs must clamp > 1.0 to 1.00");
+
+    // Below 0.0 — clamps to 0.00
+    h.set_effective_pressure(-0.5);
+    // Force the next metric tick to execute immediately.
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, prs_line) = &h.cached_lines[7];
+    assert_eq!(prs_line, " prs: 0.00", "prs must clamp < 0.0 to 0.00");
+
+    // In-range — exact 2-decimal format
+    h.set_effective_pressure(0.347);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, prs_line) = &h.cached_lines[7];
+    assert_eq!(
+        prs_line, " prs: 0.35",
+        "prs must format in-range value with 2 decimals"
+    );
+}
+
+#[test]
+fn hud_endurance_health_score_rounds_to_integer() {
+    // The `ehs:` line rounds the f64 score to the nearest integer so
+    // the HUD reads as a calm 0-100 number (matches htop/mangoHUD
+    // convention for summary metrics — sub-integer precision would
+    // cause flicker without adding diagnostic value).
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    h.set_endurance_health_score(87.4);
+    h.update_metrics(&palette);
+    let (_, ehs_line) = &h.cached_lines[6];
+    assert_eq!(ehs_line, " ehs: 87", "ehs must round 87.4 to 87");
+
+    h.set_endurance_health_score(87.6);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, ehs_line) = &h.cached_lines[6];
+    assert_eq!(ehs_line, " ehs: 88", "ehs must round 87.6 to 88");
+
+    h.set_endurance_health_score(100.0);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, ehs_line) = &h.cached_lines[6];
+    assert_eq!(ehs_line, " ehs: 100", "ehs must render 100 as-is");
+}
+
+#[test]
+fn hud_final_layout_positions_match_owner_option_s() {
+    // Regression guard for the v50 (2026-08-17) HUD expansion final
+    // layout per owner's Option S mandate. Locks in the position of
+    // every row so a future reorder would fail loudly. The owner
+    // explicitly required: cid at the very bottom, screensize kept,
+    // density label = `dsty` (NOT `den`), the 7 new metrics merged in.
+    //
+    // Layout (16 rows):
+    //   0   fps
+    //   1   tgt
+    //   2   max
+    //   3   p99
+    //   4   cpu
+    //   5   rss
+    //   6   ehs    (NEW)
+    //   7   prs    (NEW)
+    //   8   sped   (NEW)
+    //   9   dsty   (NEW)
+    //   10  scn    (NEW)
+    //   11  chr    (NEW)
+    //   12  clr    (NEW)
+    //   13  up
+    //   14  screensize
+    //   15  cid    (owner-mandated bottom)
+    let h = HudState::new();
+    // Row 0-5: performance core (active content set by update_metrics).
+    // For this test we only assert on the static label structure of
+    // the cid line (row 15) — the dynamic lines are tested above.
+    let (_, cid_line) = &h.cached_lines[15];
+    assert!(
+        cid_line.starts_with(" cid: "),
+        "row 15 must be the cid line per owner Option S mandate, got: {cid_line:?}"
+    );
+    // The 14 rows above cid (rows 0-14) must NOT contain the cid prefix
+    // — the cid line is static and lives only at row 15.
+    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(15) {
+        assert!(
+            !text.starts_with(" cid: "),
+            "row {i} must NOT contain the cid prefix — cid is exclusive to row 15, got: {text:?}"
+        );
+    }
 }
