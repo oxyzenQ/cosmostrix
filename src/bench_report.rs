@@ -782,7 +782,9 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             );
     }
 
-    if data.avg_dirty_cell_ratio_percent < STABILITY_DIRTY_RATIO_MAX && data.jitter_std < STABILITY_JITTER_STD_MAX {
+    if data.avg_dirty_cell_ratio_percent < STABILITY_DIRTY_RATIO_MAX
+        && data.jitter_std < STABILITY_JITTER_STD_MAX
+    {
         r.section("STABILITY NOTES")
             .advice("Frame time stability is good (std < 0.5ms).")
             .advice("avg FPS alone is not enough; always check p99/p95 frame times.")

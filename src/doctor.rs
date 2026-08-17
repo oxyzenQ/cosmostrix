@@ -103,7 +103,8 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // v17: CAPACITY section (merged from --info — uses actual terminal size)
     {
         let s = r.section("CAPACITY");
-        let (tw, th) = crossterm::terminal::size().unwrap_or((DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES));
+        let (tw, th) = crossterm::terminal::size()
+            .unwrap_or((DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES));
         s.field("terminal_size", &format!("{tw}x{th}"));
         s.field(
             "est_memory_per_frame",
