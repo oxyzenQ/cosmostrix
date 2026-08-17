@@ -4,6 +4,7 @@
 //! Core tests for the cloud module (rain, pause/resume, transitions, spawn).
 
 mod tests_anomaly;
+mod tests_border_gradient;
 mod tests_color_stability;
 mod tests_edge_fade;
 mod tests_monolith;
@@ -18,6 +19,10 @@ use crossterm::style::Color;
 
 use super::render::DrawCtx;
 use super::Cloud;
+// v50 (2026-08-17) border gradient fix: expose the interpolation helper to
+// the test submodule so tests/tests_border_gradient.rs can verify the smooth
+// gradient produces interpolated colors at non-integer `t` values.
+pub(super) use super::interpolate_palette_color;
 use crate::constants::{
     CHARSET_TRANSITION_DURATION_MS, COLOR_TRANSITION_DURATION_MS,
     COLOR_TRANSITION_INITIAL_VISIBLE_PCT, FULL_REDRAW_INTERVAL_FRAMES, MAX_PALETTE_SLOTS,
