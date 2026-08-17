@@ -30,7 +30,7 @@ cargo build --release      # optimized release build
 ### Verify Your Build
 
 ```bash
-cargo test --all --locked      # run full test suite (1,476 tests)
+cargo test --all --locked      # run full test suite
 ./scripts/build.sh check-all   # full gatekeeper (fmt + clippy + test + audit)
 ```
 
@@ -89,7 +89,7 @@ Examples:
 
 ### Pull request checklist
 
-- [ ] All 1,476 tests pass (`cargo test --all --locked`)
+- [ ] All tests pass (`cargo test --all --locked`)
 - [ ] Gatekeeper passes (`./scripts/build.sh check-all`)
 - [ ] No new `unwrap()` in non-test code
 - [ ] No new `unsafe` without SAFETY comment

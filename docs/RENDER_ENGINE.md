@@ -215,9 +215,10 @@ let dirty_is_large = dirty_count >= total_cells / DIRTY_THRESHOLD_RATIO;
 let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
 ```
 
-`DIRTY_THRESHOLD_RATIO` (in `constants.rs`) is set so that once >X% of
-cells are dirty, the per-cell overhead of the diff path exceeds the
-amortized cost of a full redraw. The threshold was tuned empirically.
+`DIRTY_THRESHOLD_RATIO = 8` (in `constants.rs`) is set so that once
+>12.5% of cells are dirty, the per-cell overhead of the diff path
+exceeds the amortized cost of a full redraw. The threshold was tuned
+empirically.
 
 ### 2.4 Run-Length Encoding on the diff path
 
@@ -254,9 +255,10 @@ diff path's `emit_sgr()` checks the cache first; only cache misses
 fall through to `write_sgr_colors_buf()` (which formats the SGR
 on-the-fly via `push_u8` — no heap allocation).
 
-For the 52 built-in palettes, the cache hit rate varies significantly
+For the 44 built-in palettes, the cache hit rate varies significantly
 by scene and visual effects enabled. Measured on AMD Ryzen 7 5800HS
-with `--perf-stats` (v13.3.0+):
+with `--perf-stats` (historical — see `docs/BENCHMARKING.md` §5 for
+the current v50 4-scene reference matrix):
 
 | Configuration | Hit Rate | Notes |
 |---------------|---------:|-------|
@@ -608,7 +610,7 @@ academic work or another project, please cite:
   title        = {Cosmostrix: Professional-grade cinematic Matrix rain renderer},
   year         = {2026},
   url          = {https://github.com/oxyzenQ/cosmostrix},
-  note         = {Diff-based terminal rendering engine, v14.x},
+  note         = {Diff-based terminal rendering engine, v50.x},
 }
 ```
 

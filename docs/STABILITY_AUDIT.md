@@ -3,7 +3,7 @@
 
 **Date**: Section C audit  
 **Scope**: Terminal safety, input safety, redraw safety, pause/resume, resize, signal handling  
-**Files analyzed**: `terminal.rs`, `interactive/event_loop.rs`, `interactive/input.rs`, `main.rs`, plus supporting modules (`watchdog.rs`, `cloud/mod.rs`, `cloud/rain.rs`, `frame.rs`, `constants.rs`, `activity.rs`)
+**Files analyzed**: `terminal/mod.rs` (split from the historical flat `terminal.rs` in a pre-v30 refactor — line references in this audit point at the pre-split file and may now live in `terminal/mod.rs`, `terminal/draw.rs`, `terminal/last_frame.rs`, or `terminal/p5_tests.rs`), `interactive/event_loop.rs`, `interactive/input.rs`, `main.rs`, plus supporting modules (`watchdog.rs`, `cloud/mod.rs`, `cloud/rain.rs`, `frame.rs`, `constants.rs`, `activity.rs`)
 
 ---
 
@@ -67,7 +67,7 @@ In the event loop (event_loop.rs:243–254), suppressed keys still trigger `regi
 
 Control character handling is straightforward:
 - **Ctrl+C**: Silently ignored — only `q` quits (prevents accidental exit from Ctrl+C muscle memory). SIGINT is also deprecated at the signal level — no longer in the graceful-shutdown signal list.
-- **Ctrl+Z**: Explicitly mapped to SIGSTOP with full terminal restore (input.rs), identical behavior to SIGTSTP signal handler
+- **Ctrl+Z**: In-app suspend keybind was REMOVED (see `docs/RULES.md` §CLI Flag Policy). Only OS-driven SIGTSTP works via `signal_handlers.rs`.
 - **Escape**: Silently ignored — only `q` quits (prevents accidental exit from terminal menu Esc)
 - **Tab/BackTab**: Explicitly ignored with detailed comment explaining the historical bug that motivated this: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` → `semantic_invalidate` → `invalidate_semantic()` → frame clear without clearing `phosphor_base_ch`
 
@@ -128,7 +128,7 @@ Active trail cells repopulate their `phosphor_base_ch` entries through the norma
 
 ### Dirty Threshold for Full Redraw
 
-When differential rendering is active, if the number of dirty cells exceeds `total_cells / DIRTY_THRESHOLD_RATIO` (ratio of 3, `constants.rs:128`), the renderer switches to a full redraw automatically (terminal.rs:259–261). This prevents pathological cases where nearly every cell is dirty but differential rendering incurs more overhead than a full redraw due to per-cell cursor movement.
+When differential rendering is active, if the number of dirty cells exceeds `total_cells / DIRTY_THRESHOLD_RATIO` (ratio of 8, `constants.rs` — bumped from 3 → 8 based on the `threshold_sweep` cosmic dragon egg benchmark), the renderer switches to a full redraw automatically. This prevents pathological cases where nearly every cell is dirty but differential rendering incurs more overhead than a full redraw due to per-cell cursor movement.
 
 ### Assessment
 

@@ -2,10 +2,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and
-GitHub Releases use a leading `v` (e.g. `v4.0.0`). Stable releases do not use
+GitHub Releases use a leading `v` (e.g. `v50.0.0`). Stable releases do not use
 `-stable.N` suffixes. Do not bump the version or create a tag until the release
-phase is explicitly authorized. Phase 12.1 bumps version metadata to 4.0.0 but
-does not create a tag.
+phase is explicitly authorized.
 
 ## Required Commands
 
@@ -43,7 +42,7 @@ Expected defaults:
 - `runtime_application`: identity
 - `actual_execution`: single-threaded-renderer
 
-v11.1.0+ benchmark output must include the following section headers
+v50+ benchmark output must include the following section headers
 (grep to verify):
 
 ```bash
@@ -64,10 +63,10 @@ Must print `valid JSON`. The JSON object must contain 13 top-level keys:
 status, system, renderer, config, environment, performance, memory, cpu,
 resource, component_timing, drift, throughput, timing.
 
-## v11.x Benchmark & HUD RC Checklist
+## Benchmark & HUD RC Checklist
 
-Additional smoke checks for the v11.1.0 benchmark depth + theme tuning
-release. All must pass before tagging v11.1.0.
+Additional smoke checks for benchmark depth + theme tuning.
+All must pass before tagging a release.
 
 ### `--bench-duration` validation
 
@@ -128,7 +127,7 @@ platforms they emit `unsupported` with a reason field.
 
 Then press `i` and verify:
 
-- A top-right overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `up`, `screensize`.
+- A top-left overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `ehs`, `prs`, `sped`, `dsty`, `scn`, `chr`, `clr`, `up`, `screensize`, `cid` (16 rows, v50 layout).
 - The overlay updates ~1 time per second without flickering.
 - Press `i` again — the overlay disappears cleanly.
 - Press `q` — clean exit, terminal restored.
@@ -144,7 +143,9 @@ automate this.
 - README must link to CHANGELOG.md.
 - README must not contain release notes sections.
 - README must not contain old version-history headings (v2.x.x).
-- README must stay under 350 lines.
+- README must stay scannable (no hard line cap — current README is ~700 lines
+  covering dual-engine narrative, full CLI reference, 18 scenes, configuration,
+  5-platform install, GPG verification, benchmarking).
 - CHANGELOG is the dedicated release history document.
 - Canonical tagline must be aligned across Cargo.toml, README.md, clap about,
   runtime identity, and AUR pkgdesc.
@@ -171,8 +172,8 @@ Run these interactively and verify clean exit with `q`:
 For the last command, verify the rain renders with visibly boosted
 saturation + brightness compared to `--color green` alone.
 
-Also test the live HUD overlay (v11.1.0+): launch `"$BIN"`, press `i`,
-verify a top-right overlay showing fps/avg/p99/max/rss appears; press
+Also test the live HUD overlay (v50+): launch `"$BIN"`, press `i`,
+verify a top-left overlay showing the 16-row HUD appears; press
 `i` again to dismiss; verify clean exit with `q`.
 
 Verify:

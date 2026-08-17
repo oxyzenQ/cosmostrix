@@ -6,7 +6,7 @@
 > you come back to the project after a long break — every doc, every key
 > source module, and every "where do I find X?" question is answered here.
 >
-> **Last updated: v50.0.0-alpha.2 (commit `5e9cff8`, 2026-08-11)
+> **Last updated: v50.0.0-nightly.1 (commit `bfb42c0`, 2026-08-17)**
 
 ## Quick Navigation
 
@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines**:
 
 2. **The Chroma Dragon Coloring Engine** — owns *what color a cell
    becomes*. Lives under `src/chroma/` (`palette`, `catalog`,
-   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-B.
+   `gradient`, `shaders`, `post`, `tuning`). Locked at Phase 9-D.
    Invariant tests in `src/chroma/lock_tests.rs` lock the engine's
    contract.
 
@@ -63,8 +63,8 @@ the results.
 
 | Doc | What it covers |
 |-----|---------------|
-| [BENCHMARKING.md](BENCHMARKING.md) | **Start here.** Full independent benchmarking guide — how to run, interpret, compare, strict `--bench-scene` validation, v30 reference results (peak 102K FPS) |
-| [BENCHMARK_CLOUD_XEON.md](BENCHMARK_CLOUD_XEON.md) | Third-party hardware verification — same commit `c97ba87` built and benchmarked on a 2-core Intel Xeon cloud VM (116K avg FPS, 1.58× the owner's Ryzen) |
+| [BENCHMARKING.md](BENCHMARKING.md) | **Start here.** Full independent benchmarking guide — how to run, interpret, compare, strict `--bench-scene` validation, v50 4-scene reference matrix (peak 103K FPS monolith on cloud Xeon) |
+| [BENCHMARK_CLOUD_XEON.md](../benchmark/BENCHMARK_CLOUD_XEON.md) | Third-party hardware verification — same commit `c97ba87` built and benchmarked on a 2-core Intel Xeon cloud VM (116K avg FPS, 1.58× the owner's Ryzen) |
 | [BENCHMARK_ADVANCED.md](BENCHMARK_ADVANCED.md) | Enabling MICROARCHITECTURE and ENERGY metrics (Linux `perf_event_open` + RAPL) |
 | [PERFORMANCE_ACROSS_SCALES.md](PERFORMANCE_ACROSS_SCALES.md) | How FPS scales with screen size (6×6 → 200×60) |
 | [ENDURANCE.md](ENDURANCE.md) | Long-run endurance testing and resource monitoring (memory leak detection) |
@@ -122,7 +122,7 @@ These docs cover *how color works* in cosmostrix.
 
 | Doc | What it covers | Key source files |
 |-----|---------------|-----------------|
-| [../README.md § About — The Chroma Dragon Coloring Engine](../README.md#the-chroma-dragon-coloring-engine) | High-level overview of the Chroma Dragon, Phase 9-B lock, the 9 phases | `src/chroma/` |
+| [../README.md § About — The Chroma Dragon Coloring Engine](../README.md#the-chroma-dragon-coloring-engine) | High-level overview of the Chroma Dragon, Phase 9-D lock, the 9 phases | `src/chroma/` |
 | [src/chroma/mod.rs](../src/chroma/mod.rs) | Module doc — Chroma Dragon phase history, module map | `src/chroma/mod.rs` |
 | [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth for ALL color schemes. To add a new theme: add a variant to `ColorScheme` enum in `runtime.rs`, then add one `ThemeDef` entry to the `THEMES` array. `--list-colors`, `--color <name>`, and `build_palette()` all auto-discover from this registry. | `src/chroma/catalog.rs` |
 | [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction — RGB gradient stops, OKLab interpolation, Color16/ANSI fallbacks | `src/chroma/palette.rs` |
@@ -256,7 +256,7 @@ where a feature lives.
 | `src/chroma/tuning.rs` | `--color-tune` key=value tuning |
 | `src/chroma/shaders/` | Cell-color decision logic (`resolve_cell_color`) |
 | `src/chroma/post/` | Atmospheric post-processing, anomaly halos |
-| `src/chroma/lock_tests.rs` | Invariant tests (Phase 9-B lock) |
+| `src/chroma/lock_tests.rs` | Invariant tests (Phase 9-D lock) |
 
 ### Atmosphere Engine (REMOVED 2026-08-05)
 

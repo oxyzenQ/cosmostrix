@@ -95,7 +95,7 @@ storm, calm, cosmos), not their performance tier.
 
 ## 5. Visual Identity Locked
 
-Per `docs/ROADMAP.md`, the visual identity must remain identical to
+Per project convention, the visual identity must remain identical to
 v3.9.0. The rain is character-grid text, not photorealistic images. This
 is a non-negotiable invariant — any change that breaks the character-grid
 aesthetic is rejected, regardless of the performance or visual gain.

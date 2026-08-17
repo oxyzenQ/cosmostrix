@@ -4,7 +4,7 @@
 
 **Audit date**: 2026-08-05
 **Auditor**: Super Z (main agent) + 1 parallel Explore agent
-**Subject**: `cosmostrix` v50.0.0-alpha.2
+**Subject**: `cosmostrix` v50.0.0-nightly.1
 **Commit**: `ebca662` (post-CI-fix) + this commit
 **Scope**: full source tree (`src/`, `build.rs`, `scripts/`, `.github/workflows/`, `aur/`)
 **Methodology**: automated `rg` sweeps for every sensitive capability class + manual review of every match
@@ -338,11 +338,11 @@ V8 hits an OOM assertion → SIGTRAP.
 
 **Tier 1 Fix** (3 layers, defense-in-depth):
 
-1. **VSCode detection** (`src/termdetect.rs`): read `TERM_PROGRAM=vscode`,
+1. **VSCode detection** (`src/termdetect/mod.rs` + `src/termdetect/hosts.rs`): read `TERM_PROGRAM=vscode`,
    set `vscode_integrated: bool` on `TerminalCaps`.
 2. **Disable sync_output for VSCode**: xterm.js's mode 2026 buffer
    amplifies memory pressure.
-3. **FPS cap**: VSCode gets 30 FPS max (vs 240 for native terminals).
+3. **FPS cap**: VSCode gets 30 FPS max (vs the 1–240 cap range on native terminals, where the default is 60 or 144 on high-perf terminals).
    The cap is disclosed via warning + verbose output, not silently
    applied. Benchmark mode skips the cap.
 4. **Write-latency backpressure** (`src/terminal/` + `src/interactive/event_loop.rs`):
@@ -350,7 +350,7 @@ V8 hits an OOM assertion → SIGTRAP.
    period, feed it into `perf_pressure` so the self-healer downgrades
    the scene before the consumer OOMs.
 
-**Verification**: build clean (zero warnings), 1511 tests pass, clippy
+**Verification**: build clean (zero warnings), full test suite passes, clippy
 clean. The fix is transparent to native terminals (Alacritty, Kitty,
 etc.) — they get the same 240 FPS cap and sync_output enabled as before.
 
@@ -363,7 +363,7 @@ cosmostrix inside these hosts were silently unprotected.
 
 **Tier 2 Fix** (4 layers, extends Tier 1):
 
-1. **Multi-host detection** (`src/termdetect.rs`): `vscode_integrated`
+1. **Multi-host detection** (`src/termdetect/mod.rs` + `src/termdetect/hosts.rs`): `vscode_integrated`
    becomes a back-compat alias; new primary signal is `xtermjs_host: bool`
    which is true for ANY of: `vscode`, `Hyper`, `WaveTerminal`, `Tabby`,
    `WarpTerminal`. The `XTERMJS_HOSTS` const list is the single source

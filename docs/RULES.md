@@ -109,8 +109,8 @@ those entries are immutable historical record and remain valid forever.
 ```rust
 // ALLOWED — verifies CHANGELOG has an entry for a historical release.
 let changelog = include_str!("../CHANGELOG.md");
-assert!(changelog.contains("## v4.0.0"));
-assert!(changelog.contains("## v5.0.0"));
+assert!(changelog.contains("## v13.0.0"));
+assert!(changelog.contains("## v50.0.0-alpha.5"));
 ```
 
 ### Enforcement
@@ -195,12 +195,13 @@ Subsystems that still share the "atmosphere" name but were NOT deleted
   - `Up` / `Down`    Speed up / slow down
   - `[` / `]`        Density down / up
   - `i`              Toggle live HUD (uppercase `I` is a no-op)
-  - `h`              Move HUD to opposite corner (uppercase `H` is a no-op)
 - Screensaver mode: all the above keys work normally. Only `q` exits.
 - Removed legacy keybinds (now silently ignored via catch-all, were
   never documented in `--help`):
   - `-` `_` `+` `=` (density aliases for `[` / `]`)
   - `Ctrl+Z` (in-app suspend — OS SIGTSTP still works)
+  - `h` (HUD move-to-opposite-corner — HUD now always renders flush-left
+    at column 0, per v50.0.0-alpha.4; see `docs/HUD.md`)
   - `Tab` / `BackTab` explicit no-op arm (now catch-all; historical
     shading-mode toggle that caused phosphor ghost flood — see
     `tests.rs::tab_*` regression suite)

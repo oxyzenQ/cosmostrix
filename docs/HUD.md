@@ -340,13 +340,13 @@ out to grey.
 
 ### Rain-aesthetic gradient (top dim → bottom bright)
 
-The 8 HUD lines form a vertical brightness gradient that mirrors a
-falling rain droplet — the bottom line (screensize) is the brightest
-`head` (palette last-stop, the rain's leading bright character), and
-the top line (fps) is the dimmest `tail` (palette index 1, the rain's
-trailing fade). Mid lines span `trail` and `mid` so the eye reads the
-HUD as a small rain column hanging in the corner, not as a flat block
-of equally-bright text.
+The 16 HUD lines form a vertical brightness gradient that mirrors a
+falling rain droplet — the bottom lines (`cid`, `screensize`, `up`) are
+the brightest `head` (palette last-stop, the rain's leading bright
+character), and the top lines (`fps`, `tgt`) are the dimmest `tail`
+(palette index 1, the rain's trailing fade). Mid lines span `trail` and
+`mid` so the eye reads the HUD as a small rain column hanging in the
+corner, not as a flat block of equally-bright text.
 
 | Row | Line         | Color level | Palette position         |
 |-----|--------------|-------------|--------------------------|
@@ -356,11 +356,19 @@ of equally-bright text.
 | 3   | `p99`        | trail       | palette index n/4        |
 | 4   | `cpu`        | mid         | palette index n/2 (body) |
 | 5   | `rss`        | mid         | palette index n/2 (body) |
-| 6   | `up`         | head        | palette last stop        |
-| 7   | `screensize` | head        | palette last stop        |
+| 6   | `ehs`        | mid         | palette index n/2 (body) |
+| 7   | `prs`        | mid         | palette index n/2 (body) |
+| 8   | `sped`       | trail       | palette index n/4        |
+| 9   | `dsty`       | trail       | palette index n/4        |
+| 10  | `scn`        | trail       | palette index n/4        |
+| 11  | `chr`        | trail       | palette index n/4        |
+| 12  | `clr`        | trail       | palette index n/4        |
+| 13  | `up`         | head        | palette last stop        |
+| 14  | `screensize` | head        | palette last stop        |
+| 15  | `cid`        | head        | palette last stop        |
 
-This inverts the original v16-v29 mapping where `fps`/`tgt`/`max` were
-the brightest at the TOP. The owner explicitly flagged the inversion:
+This inverts the original pre-v50-alpha.4 mapping where `fps`/`tgt`/`max`
+were the brightest at the TOP. The owner explicitly flagged the inversion:
 "rain tail is dim head is white" — the bright head must lead at the
 bottom, matching a real falling rain stream.
 

@@ -132,8 +132,10 @@ classic terminal displays and deep-space visuals.
 
 Use monospace fonts for all code, CLI output, and technical references:
 
-- **Primary**: `JetBrains Mono`, `Fira Code`, or system monospace
+- **Primary**: `JetBrains Mono` (or `Iosevka` / `Monaspace Krypton` — see README §Recommended Fonts)
 - **Fallback**: `Consolas`, `Monaco`, `monospace`
+
+> Avoid `Fira Code` (ligatures disrupt `0`/`1` rain) and system defaults (Consolas, Menlo) which lack full Unicode coverage for box-drawing + braille charsets.
 
 ### 5.2. Documentation and prose
 
@@ -174,8 +176,9 @@ technically precise but not cold, confident but not arrogant.
 ### 6.2. Examples
 
 **Good**:
-> Cosmostrix renders cinematic terminal visuals at 240 FPS with AVX-512
-> optimized rendering and adaptive CPU throttling.
+> Cosmostrix renders cinematic terminal visuals at practical terminal-bounded
+> FPS (60–240 on modern terminals) using diff-based rendering with adaptive
+> CPU throttling.
 
 **Avoid**:
 > Cosmostrix is the world's most revolutionary groundbreaking terminal

@@ -328,7 +328,8 @@ inside Chromium.
 **What cosmostrix already does (Tier 2 defenses, in place since
 SECURITY_AUDIT §12a):**
 
-1. **FPS cap at 30** (vs 240 on native terminals) — caps the
+1. **FPS cap at 30** (vs the 1–240 cap range on native terminals, where the
+   default is 60 or 144 on high-perf terminals) — caps the
    instantaneous byte rate at ~7 MB/sec worst case.
 2. **Synchronized output disabled** — xterm.js's mode 2026 buffer
    implementation amplifies memory pressure, so mode 2026 is never
@@ -437,7 +438,7 @@ None of these are cosmostrix's to build.
    from xterm.js and amplify stutter. Closing unrelated panes helps.
 
 **Note on mouse glow:** the cursor-follow glow and click-wave effects
-are always on (the `--n` flag was removed in v17 — see
+are always on (the `--mouse` flag was removed in v17 — see
 `src/verbose.rs`). There is no CLI toggle to disable them, so they
 contribute to the per-frame byte cost on every terminal, including
 Electron hosts. If a future cosmostrix release reintroduces a

@@ -42,7 +42,7 @@ When upgrading Rust:
 2. Update `Cargo.toml` `rust-version` to the new MSRV (if changed)
 3. Update all CI workflows (`.github/workflows/*.yml`) `toolchain:` refs
 4. Run `./scripts/build.sh check-all` — all quality checks must pass
-5. Run `cargo test --all --locked` — all 1,469 tests must pass
+5. Run `cargo test --all --locked` — all tests must pass
 6. Commit with message: `chore: bump Rust toolchain to X.Y.Z`
 
 ### Dependencies

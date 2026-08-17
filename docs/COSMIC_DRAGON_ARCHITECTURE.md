@@ -3,7 +3,7 @@
 
 # Deep Cosmic Dragon Architecture
 
-Cosmostrix v15 "The Cosmic Dragon" is built on a **defense-in-depth** philosophy.
+Cosmostrix "The Cosmic Dragon" is built on a **defense-in-depth** philosophy.
 Every critical path has multiple recovery layers, so if one fails, the next
 catches it. This document maps the Cosmic Dragon's anatomy to the actual codebase
 layers and explains how the "deep" structure provides world-class reliability.
@@ -29,9 +29,9 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Event loop, HUD, input, watchdog, adaptive pacing              │
 │  → Only 'q' quits (consistent policy, no accidental exit)       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 3: Atmosphere Engine (src/atmosphere_*.rs)               │
-│  Adaptive time-driven modulation, custom time mapping            │
-│  → Disabled by default (opt-in via config)                      │
+│  Layer 3: Ambient Scheduler (src/ambient*.rs)                  │
+│  Time-driven scene scheduling, low-rate adaptive modulation    │
+│  → Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 2: Cloud Renderer (src/cloud/)                           │
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
@@ -222,7 +222,7 @@ Consistent with the "only q quits" policy:
 | `[` / `]`                             | Density down / up    | Density down / up   |
 | `Up` / `Down`                         | Speed up / down      | Speed up / down     |
 | `Space`                               | Reset animation      | Reset animation     |
-| `i`, `h`                      | HUD toggle / move    | HUD toggle / move   |
+| `i`                       | HUD toggle           | HUD toggle          |
 | `a`, `m`, `g`, `B`/`b`, `z`, Tab, F1-F12, Home/End, PageUp/Down, Esc, Ctrl+C, Ctrl+Z | Silently ignored | Silently ignored |
 | Mouse click                           | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |
 
@@ -243,16 +243,16 @@ The Cosmic Dragon's codebase is organized by responsibility:
 
 | Layer | Modules | LOC | Tests |
 |-------|---------|-----|-------|
-| Terminal I/O | terminal.rs, frame.rs, color_cache.rs, sgr_format.rs, termdetect.rs | ~2,500 | 50+ |
-| Cloud Renderer | cloud/ (12 files) | ~5,000 | 100+ |
-| Atmosphere Engine | atmosphere_*.rs (17 files) | ~3,000 | 80+ |
-| Interactive Engine | interactive/ (7 files) | ~2,500 | 60+ |
+| Terminal I/O | terminal/, frame.rs, color_cache.rs, sgr_format.rs, termdetect/ | ~2,500 | 50+ |
+| Cloud Renderer | cloud/ (18 files + tests/) | ~5,000 | 100+ |
+| Ambient Scheduler | ambient*.rs | ~1,000 | 20+ |
+| Interactive Engine | interactive/ (17 files) | ~2,500 | 60+ |
 | Config System | config.rs, config_apply.rs, configfile.rs, testconf.rs, safepath.rs | ~2,500 | 100+ |
 | CLI + Helpers | cli.rs, output.rs, help_detail.rs, info.rs, ux.rs, verbose.rs | ~1,500 | 30+ |
 | Diagnostics | bench*.rs (16 files), doctor.rs, report.rs | ~4,000 | 40+ |
 | Cosmic Dragon Incubator | cosmic_dragon/ (egg/) | ~200 | 2 |
 
-**Total: 166 files, ~71K LOC, 1414 tests.**
+**Total: ~85K LOC, 1500+ tests — see `cargo test --all` for the current count.**
 
 ## The Cosmic Dragon's Promise
 

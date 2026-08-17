@@ -254,7 +254,7 @@ The single source of truth for the package version is `Cargo.toml`'s `[package] 
 Bump the repo with `./scripts/version-to.sh`, then trigger a build separately with `./scripts/build.sh`:
 
 ```bash
-./scripts/version-to.sh v50.0.0-alpha.2         # bump to v50.0.0-alpha.2 across all active files
+./scripts/version-to.sh v50.0.0-beta.1          # bump to v50.0.0-beta.1 across all active files
 ./scripts/build.sh release              # then build a release binary
 ./scripts/build.sh pgo --auto           # or a PGO nitro build
 ./scripts/build.sh version-sync         # verify all version refs agree (no build)
@@ -265,11 +265,11 @@ If the repo is already at the requested version, `version-to.sh` is a no-op (ver
 ### What version-to.sh updates
 
 ```bash
-./scripts/version-to.sh 50.0.0-alpha.2
+./scripts/version-to.sh 50.0.0-beta.1
 git diff
-git commit -m "chore: bump version to v50.0.0-alpha.2"
-git tag v50.0.0-alpha.2
-git push origin main v50.0.0-alpha.2
+git commit -m "chore: bump version to v50.0.0-beta.1"
+git tag v50.0.0-beta.1
+git push origin main v50.0.0-beta.1
 ```
 
 The script updates:
@@ -280,7 +280,7 @@ The script updates:
 - `README.md` (active version examples)
 - `docs/workflow/about-ci.md` (active version examples)
 
-It skips changelog headings (e.g. `### v50.0.0-alpha.2`) to preserve historical release notes, and audits workflow files for hardcoded versions (workflows should derive versions dynamically from `GITHUB_REF_NAME`).
+It skips changelog headings (e.g. `### v50.0.0-beta.1`) to preserve historical release notes, and audits workflow files for hardcoded versions (workflows should derive versions dynamically from `GITHUB_REF_NAME`).
 
 Verify the current version without making changes:
 

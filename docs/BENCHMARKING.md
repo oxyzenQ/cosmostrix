@@ -244,9 +244,11 @@ The `--benchmark` report is organized into sections:
 **Machine**: 2-core Intel Xeon (Alibaba Cloud Linux), 3.9 GiB RAM, no swap,
 no RAPL, no perf counters. Kernel 5.10.134, gnu libc. CPU supports
 AVX-512 (avx512f/bw/cd/dq/vl/ifma/vbmi).
-**Binary**: `v50.0.0-alpha.2`, commit `9f38bc6`, `pro-native` profile
+**Binary**: `v50.0.0-nightly.1`, commit `bfb42c0`, `pro-native` profile
 (x86-64-v4 baseline + `target-cpu=native` → AVX-512 auto-detected), fat LTO,
-rustc 1.97.1, no PGO.
+rustc 1.97.1, no PGO. (Numbers are version-stable across v50 alphas —
+captured on `v50.0.0-alpha.2`, commit `9f38bc6`; the engine contract is
+locked at engine version 1 and chroma Phase 9-D.)
 
 **Note**: The v50 Ryzen reference (§5c below, PGO v3 build) was captured on
 commit `9f38bc6` with the warmup-scope fix applied (energy/perf baselines
@@ -462,7 +464,7 @@ honesty contract holds on third-party hardware.
 **Machine**: AMD Ryzen 7 5800HS (8-core/16-thread, Zen 3, 3.0 GHz base,
 4.4 GHz boost), Cachyos LTS kernel 6.18.42, gnu libc, 16 GiB RAM,
 `TERM=xterm-direct`, `COLORTERM=truecolor`, schedutil governor, SMT on.
-**Binary**: `v50.0.0-alpha.2`, commit `9f38bc6`, `nitro-pgo` profile
+**Binary**: `v50.0.0-nightly.1`, commit `bfb42c0`, `nitro-pgo` profile
 (x86-64-v3 baseline, AVX2/BMI2/FMA), fat LTO, PGO-optimized,
 rustc 1.97.1. PGO trained with 4 workloads (monolith, cinematic, signal,
 screensaver) on the same machine.
@@ -581,7 +583,7 @@ owner's earlier benchmark runs on the same machine.
 - **target_fps**: The configured cap. When the user does not pass
   `--fps` or set `fps =` in config, the default is dynamic: 60 FPS on
   standard terminals, 144 FPS on high-refresh terminals (Alacritty,
-  kitty, WezTerm, etc.) — see `termdetect.rs` for the detection
+  kitty, WezTerm, etc.) — see `src/termdetect/mod.rs` for the detection
   logic. Benchmark mode disables the cap — this is the *uncapped*
   throughput.
 

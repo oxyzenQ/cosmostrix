@@ -49,15 +49,14 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 - **`cell.rs::Cell`** (16 bytes, `Copy`): `ch: char`, `fg: Option<Color>`,
   `bg: Option<Color>`, `bold: bool` — heterogeneous enum payloads prevent
   SIMD packing.
-- **`frame.rs::Frame`**: `Vec<Cell>` (row-major), `Vec<u32>` (generation),
-  `BitVec` (dirty map), `SmallVec<[usize; 64]>` (dirty indices).
+- **`frame.rs::Frame`**: `Vec<Cell>` (row-major), `cell_gen: Vec<u32>` (content generation), `dirty_cell_gen: Vec<u32>` (dirty generation — O(1) clear via counter bump), `SmallVec<[usize; 64]>` (dirty indices).
 - **Phosphor arrays** (column-major `Vec`): `Vec<u8>` (energy), `Vec<Option<Color>>`
   (base_fg), `Vec<char>` (base_ch), `BitVec` (fresh flags).
 
 ### 2.3 Constraints (per `docs/RULES.md`)
 
 Rust 1.97.1 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
-unless explicitly audited, source files under 1,200 lines.
+unless explicitly audited, source files under 1,500 lines.
 
 ---
 

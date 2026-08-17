@@ -83,8 +83,8 @@ subsystem in this module.
 | #  | Feature                    | Owner submodule / file                | Modifies                          |
 |----|----------------------------|---------------------------------------|-----------------------------------|
 | 1  | auto-color-drift          | `control_color_drift.rs` (external)   | palette scheme + climate drift    |
-| 2  | dynamic-default-fps       | `termdetect.rs`, `main.rs` (external) | base_target_fps                   |
-| 3  | xterm.js cap + Tier 2     | `termdetect.rs`, `tier2.rs` (external)| base_target_fps + ANSI bytes      |
+| 2  | dynamic-default-fps       | `termdetect/`, `main.rs` (external) | base_target_fps                   |
+| 3  | xterm.js cap + Tier 2     | `termdetect/`, `tier2.rs` (external)| base_target_fps + ANSI bytes      |
 | 4  | adaptive throttling       | `power_manager.rs`                    | frame_period (idle × 0.5)         |
 | 5  | phase predictor (P1)      | `phase_predictor.rs`                  | is_idle (OR'd with reactive)      |
 | 6  | adaptive resync (P2)      | `reclaim_state.rs`                    | resync interval (20s/60s/120s)    |
@@ -127,7 +127,7 @@ resolves in this order:
 
 The upstream precedence chain (CLI > config > `dynamic_default` >
 xterm.js cap) is **not** re-resolved by `PowerManager`. That chain
-runs in `termdetect.rs` / `main.rs` and produces a single
+runs in `termdetect/mod.rs` / `main.rs` and produces a single
 `base_target_fps` value, which `PowerManager::new(base_target_fps,
 now)` consumes at startup. Live config reload calls
 `PowerManager::set_target_fps(new_fps)`.

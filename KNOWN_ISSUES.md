@@ -55,11 +55,13 @@ Pick whichever applies to your setup:
    time, droplet count) is also available in `--benchmark --json`
    output for scripted collection.
 
-2. **Change the HUD toggle key.** Edit your config file
-   (`cosmostrix --dump-config > ~/.config/cosmostrix/config.toml`) and
-   remap the HUD toggle to a function key or `Ctrl+H` under the
-   `[keybindings]` section. Function keys (`F1`–`F12`) are delivered
-   more reliably than printable keys on the affected platforms.
+2. **Change the HUD toggle key.** cosmostrix does NOT currently
+   expose a config-level keybinding remap for the HUD toggle — the
+   `i`/`I` binding is hardcoded in `src/interactive/input.rs`. As a
+   workaround on affected platforms, run cosmostrix inside `tmux`
+   (see option 5 below) which normalizes key event delivery, or use
+   `--benchmark` mode (option 3) which does not enter the interactive
+   event loop at all.
 
 3. **Use `--benchmark` instead of interactive mode** for any
    measurement where you need guaranteed stability. Benchmark mode does
@@ -85,7 +87,7 @@ implausible timing (e.g. an EOF arriving <1ms after a printable
 KeyEvent). This requires careful testing across crossterm versions and
 platforms to avoid regressing legitimate fast-keypress scenarios.
 
-Tracking: planned for v16.0.0 milestone.
+Tracking: no fix currently scheduled — see workaround above.
 
 ---
 
