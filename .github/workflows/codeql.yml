@@ -191,6 +191,14 @@ jobs:
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v4
         with:
+          # v50: explicitly list languages instead of auto-detect.
+          # The benchmark/research/ directory contains .c and .py files
+          # for comparison purposes — CodeQL auto-detected C/C++ and
+          # tried to autobuild it, failing because there's no C build
+          # system (the .c file is compiled manually with gcc for
+          # benchmarking, not part of the project build). Restricting
+          # to rust only fixes the autobuild failure.
+          languages: rust
           config-file: .github/codeql/codeql-config.yml
 
       - name: Build (autobuild)
