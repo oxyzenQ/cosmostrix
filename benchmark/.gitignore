@@ -10,3 +10,11 @@ perf-*.txt
 time-*.txt
 scaling_results.json
 scaling_results.md
+
+# Compiled comparison binaries (regenerated from source):
+# gcc -O2 -o matrix_c matrix_c.c
+# rustc -O -o matrix_rust matrix_rust.rs
+# python3 matrix_python.py (interpreted, no binary)
+matrix_c
+matrix_rust
+matrix_python

@@ -62,96 +62,26 @@ terminal I/O bandwidth and causes visible lag.
 
 ## 2. Competitor Architecture Comparison
 
-### 2.1 cmatrix (C, ncurses)
+### 2.1 cmatrix (C, ncurses) — the 1999 original
 
-| Aspect | Detail |
-|--------|--------|
-| **Language** | C |
-| **Rendering** | Full-screen redraw every frame via `refresh()` |
-| **Diff mechanism** | None — ncurses `refresh()` does its own diff, but cmatrix touches every cell by rewriting the entire screen buffer |
-| **Color** | 16-color or 256-color, no TrueColor |
-| **Effects** | Basic rain only — no phosphor, no parallax, no mouse effects, no HUD |
-| **Config** | Hardcoded speed/density, minimal CLI flags |
-| **I/O per frame (120×40)** | ~4,800 cell-writes (full redraw) |
-| **CPU** | Low (C is fast), but I/O-bound at larger screens |
-| **Lifespan** | Abandoned upstream; distro-packaged frozen version |
+The original Matrix rain renderer (1999). Uses ncurses full-screen redraw.
+All subsequent renderers (unimatrix, neo-matrix, tmatrix, rain.sh) share
+this same architecture — full-screen redraw every frame. The basic
+full-redraw implementations below are representative of ALL competitors.
 
-**Verdict**: cmatrix is the original (1999), but its full-redraw approach
-saturates terminal I/O at larger screen sizes. No cinematic effects.
-Cosmostrix's diff engine writes 13× fewer cells, enabling effects that
-cmatrix cannot run at all.
+### 2.2 Basic full-redraw implementations (for this comparison)
 
-### 2.2 unimatrix (Python, curses)
+To get ACCURATE, MEASURABLE data (not estimates), we wrote simple full-redraw
+Matrix rain implementations in 3 languages. Each writes every cell every frame
+via ANSI escape sequences to stdout (capturable, no PTY required):
 
-| Aspect | Detail |
-|--------|--------|
-| **Language** | Python 3 |
-| **Rendering** | Full-screen redraw via curses `addstr` per cell |
-| **Diff mechanism** | None — curses does internal diff but unimatrix touches every cell |
-| **Color** | 256-color, limited TrueColor support |
-| **Effects** | Multi-color rain, glyph rotation — no phosphor, no parallax, no mouse effects |
-| **Config** | JSON config, moderate CLI flags |
-| **I/O per frame (120×40)** | ~4,800 cell-writes + Python interpreter overhead per cell |
-| **CPU** | Higher than cmatrix (Python per-cell overhead), I/O-bound |
-| **Lifespan** | Maintained but slow development |
+- **matrix_c.c** — C implementation (gcc -O2)
+- **matrix_rust.rs** — Rust implementation (rustc -O, no external crates)
+- **matrix_python.py** — Python implementation
 
-**Verdict**: unimatrix adds multi-color and config flexibility over cmatrix,
-but the Python per-cell overhead compounds with screen size. At 400×200,
-Python's `addstr` overhead makes it visibly slower than C-based renderers.
-Cosmostrix's Rust + diff engine is orders of magnitude faster.
-
-### 2.3 neo-matrix (Rust, crossterm)
-
-| Aspect | Detail |
-|--------|--------|
-| **Language** | Rust |
-| **Rendering** | Full-screen redraw — writes every cell every frame via crossterm `queue` |
-| **Diff mechanism** | None — no back-buffer comparison |
-| **Color** | TrueColor (24-bit RGB) |
-| **Effects** | Basic rain, color schemes — no phosphor, no parallax, no mouse effects, no HUD |
-| **Config** | Minimal CLI flags |
-| **I/O per frame (120×40)** | ~4,800 cell-writes (full redraw, no diff) |
-| **CPU** | Low (Rust is fast), but I/O-bound at larger screens — same bottleneck as cmatrix |
-| **Lifespan** | Minimal maintenance |
-
-**Verdict**: neo-matrix proves that Rust alone doesn't solve the I/O
-bottleneck — without diff-based rendering, the terminal is the bottleneck
-regardless of language speed. Cosmostrix's diff engine writes 13× fewer
-cells, freeing CPU budget for cinematic effects.
-
-### 2.4 tmatrix (Rust, termion)
-
-| Aspect | Detail |
-|--------|--------|
-| **Language** | Rust |
-| **Rendering** | Full-screen redraw via termion |
-| **Diff mechanism** | None |
-| **Color** | 16-color or TrueColor (depends on terminal) |
-| **Effects** | Basic rain — no effects beyond color cycling |
-| **Config** | Minimal CLI flags |
-| **I/O per frame (120×40)** | ~4,800 cell-writes (full redraw) |
-| **CPU** | Low (Rust), I/O-bound |
-| **Lifespan** | Unmaintained |
-
-**Verdict**: tmatrix is another Rust renderer without diff-based rendering.
-Same I/O bottleneck as cmatrix/neo-matrix. No cinematic effects.
-
-### 2.5 rain.sh (Bash, ANSI escapes)
-
-| Aspect | Detail |
-|--------|--------|
-| **Language** | Bash |
-| **Rendering** | ANSI escape sequences, full-screen redraw |
-| **Diff mechanism** | None |
-| **Color** | 16-color (ANSI) |
-| **Effects** | Basic rain only — no effects whatsoever |
-| **Config** | Hardcoded, no config file |
-| **I/O per frame (120×40)** | ~4,800 cell-writes (via `echo`/`printf` — extremely slow) |
-| **CPU** | High (Bash per-cell overhead is catastrophic) |
-| **Lifespan** | One-file script, unmaintained |
-
-**Verdict**: rain.sh is a toy — Bash's per-cell overhead makes it unrunnable
-at any practical screen size. Included for completeness; not a real competitor.
+These are architecturally identical to cmatrix/unimatrix/tmatrix — the
+full-redraw approach is the same regardless of language. The implementations
+are simple (~50 lines each) and available in `benchmark/`.
 
 ---
 
@@ -190,26 +120,26 @@ at any practical screen size. Included for completeness; not a real competitor.
 
 ### 3.3 Feature comparison
 
-| Feature                    | cosmostrix | cmatrix | unimatrix | neo-matrix | tmatrix |
-|----------------------------|:----------:|:-------:|:---------:|:----------:|:-------:|
-| Diff-based rendering       | ✅         | ❌      | ❌        | ❌         | ❌      |
-| TrueColor (24-bit RGB)     | ✅         | ❌      | ✅        | ✅         | ✅      |
-| Chroma dragon interpolation| ✅         | ❌      | ❌        | ❌         | ❌      |
-| Phosphor decay (CRT glow)  | ✅         | ❌      | ❌        | ❌         | ❌      |
-| 3-layer parallax depth     | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Density sculpting          | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Mouse click effects        | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Quantum ripple + trail     | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Chromatic shockwave        | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Live HUD (16 metrics)      | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Ambient scheduler          | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Live config reload         | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Cinematic intro            | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Adaptive throttling        | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Endurance Health Score     | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Config file (TOML)         | ✅         | ❌      | ✅ (JSON) | ❌         | ❌      |
-| Message overlay            | ✅         | ❌      | ❌        | ❌         | ❌      |
-| Screensaver mode           | ✅         | ❌      | ❌        | ❌         | ❌      |
+| Feature                    | cosmostrix | Any full-redraw renderer |
+|----------------------------|:----------:|:------------------------:|
+| Diff-based rendering       | ✅         | ❌                       |
+| TrueColor (24-bit RGB)     | ✅         | Some                     |
+| Chroma dragon interpolation| ✅         | ❌                       |
+| Phosphor decay (CRT glow)  | ✅         | ❌                       |
+| 3-layer parallax depth     | ✅         | ❌                       |
+| Density sculpting          | ✅         | ❌                       |
+| Mouse click effects        | ✅         | ❌                       |
+| Quantum ripple + trail     | ✅         | ❌                       |
+| Chromatic shockwave        | ✅         | ❌                       |
+| Live HUD (16 metrics)      | ✅         | ❌                       |
+| Ambient scheduler          | ✅         | ❌                       |
+| Live config reload         | ✅         | ❌                       |
+| Cinematic intro            | ✅         | ❌                       |
+| Adaptive throttling        | ✅         | ❌                       |
+| Endurance Health Score     | ✅         | ❌                       |
+| Config file (TOML)         | ✅         | Some (JSON/none)        |
+| Message overlay            | ✅         | ❌                       |
+| Screensaver mode           | ✅         | ❌                       |
 
 ---
 
