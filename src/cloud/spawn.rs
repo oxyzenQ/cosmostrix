@@ -856,6 +856,12 @@ impl Cloud {
             p.r = body_r;
             p.g = body_g;
             p.b = body_b;
+            // v50 (2026-08-17) trail particles: reset trail_count so the
+            // reused pool slot starts with no trail. trail_x/trail_y
+            // contents are stale from the previous spawn but will be
+            // overwritten as the particle moves — trail_count=0 ensures
+            // the trail render loop reads 0 entries on the first frame.
+            p.trail_count = 0;
             spawned += 1;
         }
         // Increment active count — tracked incrementally so

@@ -14,7 +14,7 @@ use crossterm::style::Color;
 use crate::constants::{
     CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
     QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_LIFETIME_SECS,
-    QUANTUM_RIPPLE_TAIL_START_FRAC,
+    QUANTUM_RIPPLE_TAIL_START_FRAC, QUANTUM_RIPPLE_TRAIL_DECAY, QUANTUM_RIPPLE_TRAIL_LEN,
 };
 use crate::frame::Frame;
 
@@ -238,6 +238,33 @@ impl Cloud {
             // the old `1/60` behavior exactly; at 30 FPS particles now
             // travel twice as far per frame, preserving the intended
             // visual speed across the full 2.5s lifespan.
+            //
+            // v50 (2026-08-17) trail particles: push the CURRENT position
+            // (before update) to the trail ring buffer. The trail stores
+            // the last QUANTUM_RIPPLE_TRAIL_LEN positions and is rendered
+            // below as a "comet trail" with diminishing brightness.
+            //
+            // Shift-left layout: trail[0] = oldest, trail[trail_count-1]
+            // = most recent past. When full, drop trail[0] (oldest) by
+            // shifting left, then append the new position at the end.
+            // O(TRAIL_LEN) per push — for TRAIL_LEN=6, 5 moves per frame
+            // per active particle. Negligible cost (96-slot pool, typical
+            // 0-20 active).
+            if p.trail_count as usize >= QUANTUM_RIPPLE_TRAIL_LEN {
+                // Trail is full — shift left (drop oldest at trail[0]).
+                for i in 0..QUANTUM_RIPPLE_TRAIL_LEN - 1 {
+                    p.trail_x[i] = p.trail_x[i + 1];
+                    p.trail_y[i] = p.trail_y[i + 1];
+                }
+                p.trail_x[QUANTUM_RIPPLE_TRAIL_LEN - 1] = p.x;
+                p.trail_y[QUANTUM_RIPPLE_TRAIL_LEN - 1] = p.y;
+            } else {
+                // Trail not full — append at trail_count, then increment.
+                let idx = p.trail_count as usize;
+                p.trail_x[idx] = p.x;
+                p.trail_y[idx] = p.y;
+                p.trail_count += 1;
+            }
             p.x += p.vx * dt;
             p.y += p.vy * dt;
 
@@ -466,6 +493,70 @@ impl Cloud {
                 g: ng,
                 b: nb,
             };
+
+            // v50 (2026-08-17) trail particles masterclass effect: render
+            // the trail (past positions) with the SAME cycled color (pr,pg,pb)
+            // and diminishing brightness via QUANTUM_RIPPLE_TRAIL_DECAY.
+            // Trail[0] is the oldest position (dimmest), trail[trail_count-1]
+            // is the most recent past (brightest among trail). Render order
+            // is oldest-first so newer positions override older cells with
+            // their brighter values.
+            //
+            // trail_brightness = brightness * DECAY^(trail_count - i)
+            //   i=0 (oldest):            brightness * DECAY^trail_count (dimmest)
+            //   i=trail_count-1 (newest): brightness * DECAY^1 (brightest trail)
+            //
+            // LTS stability: trail positions are clamped to viewport bounds
+            // via saturating cast + bounds check (same defensive pattern as
+            // the main particle render). Bounced/overshoot positions are
+            // skipped rather than rendered out-of-bounds.
+            let trail_count = p.trail_count as usize;
+            for i in 0..trail_count {
+                let trail_b =
+                    brightness * QUANTUM_RIPPLE_TRAIL_DECAY.powi((trail_count - i) as i32);
+                if trail_b <= 0.0 {
+                    continue; // dimmer than renderable, skip
+                }
+                let tx = p.trail_x[i] as u16;
+                let ty = p.trail_y[i] as u16;
+                if tx >= cols || ty >= lines {
+                    continue; // out of bounds (bounced/overshoot), skip
+                }
+                let Some(t_idx) = frame.index(tx, ty) else {
+                    continue;
+                };
+                let t_cell = frame.cell_at_index(t_idx);
+                // Base color for trail cell: cell's fg if present, else bg,
+                // else cycled color (so trail is visible on transparent bg).
+                let (tbr, tbg_, tbb) = if let Some(fg) = t_cell.fg {
+                    crate::palette::decode_color(fg).unwrap_or((pr, pg, pb))
+                } else if let Some(bg_color) = bg {
+                    crate::palette::decode_color(bg_color).unwrap_or((pr, pg, pb))
+                } else {
+                    (pr, pg, pb)
+                };
+                // Blend toward cycled color with trail brightness.
+                let (tnr, tng, tnb) = if self.color_pipeline.is_chroma() {
+                    crate::chroma::palette::blend_toward_bg_rgb(tbr, tbg_, tbb, pr, pg, pb, trail_b)
+                } else {
+                    crate::chroma::legacy::blend_toward_rgb(tbr, tbg_, tbb, pr, pg, pb, trail_b)
+                };
+                let trail_new_fg = Color::Rgb {
+                    r: tnr,
+                    g: tng,
+                    b: tnb,
+                };
+                frame.set_force(
+                    tx,
+                    ty,
+                    crate::cell::Cell {
+                        ch: p.ch,
+                        fg: Some(trail_new_fg),
+                        bg: t_cell.bg,
+                        bold: true,
+                    },
+                );
+            }
             // Use force-set so the particle always writes, even if the
             // cell was blank. This ensures visibility on transparent bg.
             // The next frame's clear_with_bg() will clean the cell.

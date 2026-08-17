@@ -401,6 +401,30 @@ pub(crate) const QUANTUM_RIPPLE_HEAD_END_FRAC: f32 = 0.15;
 /// decay rather than a flicker.
 pub(crate) const QUANTUM_RIPPLE_TAIL_START_FRAC: f32 = 0.70;
 
+// ── v50 (2026-08-17) trail particles masterclass effect ──
+//
+// Owner-approved alternative masterclass effect for the quantum ripple:
+// each particle leaves a "comet trail" of its last N positions, rendered
+// with diminishing brightness + cycled color (from C7). The trail is
+// pushed every frame in apply_quantum_ripple, creating a streaking
+// effect behind the moving particle.
+
+/// Number of past positions stored per particle for the trail effect.
+/// 6 positions at 60 FPS = ~100ms of trail history — enough to read as
+/// a streak without being so long that it clutters the screen during
+/// rapid multi-click bursts. Larger values (8-10) make the trail
+/// dominate the visual; smaller values (3-4) read as a "ghost" rather
+/// than a streak.
+pub(crate) const QUANTUM_RIPPLE_TRAIL_LEN: usize = 6;
+
+/// Per-step brightness decay for trail positions. Each trail position i
+/// (0 = most recent past, TRAIL_LEN-1 = oldest) renders at
+/// `brightness * TRAIL_DECAY^(i+1)`. A value of 0.55 produces a clear
+/// streak that fades smoothly to invisible by the trail's oldest entry.
+/// Higher values (0.7+) make the trail too uniform; lower values (0.35)
+/// make it disappear too quickly to read as a streak.
+pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
+
 // Message overlay limits
 
 /// Maximum message text length (characters). Prevents excessively long

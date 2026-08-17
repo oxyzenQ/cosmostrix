@@ -77,6 +77,21 @@ pub(super) struct QuantumParticle {
     pub r: u8,
     pub g: u8,
     pub b: u8,
+    // v50 (2026-08-17) trail particles masterclass effect: ring-buffer
+    // of the last QUANTUM_RIPPLE_TRAIL_LEN positions, rendered with
+    // diminishing brightness + cycled color (from C7). The trail is
+    // pushed every frame in apply_quantum_ripple BEFORE the position
+    // update, creating a streaking "comet trail" behind the moving
+    // particle.
+    //
+    // Layout: trail_x[i] / trail_y[i] store the i-th most recent past
+    // position. trail_count is the number of valid entries (0..=TRAIL_LEN).
+    // The trail is rendered oldest-first so the most recent past position
+    // (closest to the current particle) is drawn LAST and overrides any
+    // older trail cells with its (brighter) value.
+    pub trail_x: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
+    pub trail_y: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
+    pub trail_count: u8,
 }
 
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
@@ -405,6 +420,9 @@ impl Cloud {
                     r: QUANTUM_BRAND_PURPLE_R,
                     g: QUANTUM_BRAND_PURPLE_G,
                     b: QUANTUM_BRAND_PURPLE_B,
+                    trail_x: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
+                    trail_y: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
+                    trail_count: 0,
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
             ],
