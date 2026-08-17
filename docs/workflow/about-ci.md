@@ -136,8 +136,67 @@ shasum -a 512 -c cosmostrix-bin-v1.0.0-darwin-aarch64-native.tar.gz.sha512sum
 The `publish_release` job:
 
 - downloads all build artifacts
-- generates release notes from git history (since previous `v*` tag)
+- auto-detects the previous `v*` tag from git history (no hardcoded base tag)
+- generates release notes via `scripts/generate-release-notes.sh`
 - creates a GitHub Release and uploads all `*.tar.gz`, `*.tar.gz.sha512sum`, `*.zip`, and `*.zip.sha512sum` files
+
+#### Release note format
+
+Release notes follow the cosmostrix cold, silent, cosmic dragon aesthetic:
+
+- **Zero emoji** — no decorative characters anywhere
+- **Clickable sections** — each category is an HTML `<details>` block; click the
+  summary to expand the commit list
+- **Others grouped** — `chore`, `style`, and unrecognized conventional-commit
+  types are merged into a single "Others" section instead of scattering
+- **Conventional commit mapping**:
+  `feat` -> Features, `fix` -> Bug Fixes, `perf` -> Performance,
+  `refactor` -> Refactor, `docs` -> Documentation, `test` -> Tests,
+  `ci` -> CI, `build` -> Build, everything else -> Others
+- **Commit links** — each entry is a clickable GitHub commit URL
+- **Checksums** — a collapsible section at the bottom with SHA-512 verification
+  commands for all platforms
+
+Example output structure (rendered on GitHub):
+
+```markdown
+## v50.0.0
+
+42 commits since previous release.
+
+<details>
+<summary><strong>Features</strong> (5)</summary>
+
+- [`a1b2c3d`](...) renderer: add parallax depth layer
+- [`e4f5g6h`](...) config: support TOML includes
+...
+
+</details>
+
+<details>
+<summary><strong>Bug Fixes</strong> (3)</summary>
+
+- [`i7j8k9l`](...) **windows**: correct ANSI escape on conhost
+...
+
+</details>
+
+<details>
+<summary><strong>Others</strong> (10)</summary>
+
+- [`m0n1o2p`](...) chore: update cargo dependencies
+- [`q3r4s5t`](...) style: normalize trailing whitespace
+...
+
+</details>
+
+<details>
+<summary><strong>Checksums</strong></summary>
+
+Verify downloads with SHA-512:
+...
+</details>
+```
 
 ## Typical release flow
 

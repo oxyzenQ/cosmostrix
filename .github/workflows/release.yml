@@ -1,1197 +1,507 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# Cosmostrix Release Workflow
+#
+# Triggers on tag push matching v*.
+# Builds cross-platform release binaries, generates SHA-512 checksums,
+# auto-detects the previous tag for release notes, and publishes
+# to GitHub Releases.
+#
+# Aesthetic: cold, silent, cosmic dragon. Zero emoji. No decoration.
+# Release notes use <details><summary> for clickable expand/collapse.
 
-name: Cosmic Dragon - Release
+name: release
 
-'on':
+on:
   push:
-    tags: ["v*"]
+    tags:
+      - 'v*'
 
 permissions:
   contents: write
-  actions: write
 
 env:
-  # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
-  # Single source of truth for Rust toolchain version.
-  # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
-  RUST_VERSION: "1.97.1"
+  CARGO_TERM_COLOR: always
+  RUST_BACKTRACE: short
 
 jobs:
-  build_packages:
-    name: Cosmic Dragon - Build packages (${{ matrix.platform }})
-    runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            platform: linux-amd64-v3
-            profile: pro-linux-v3
-            rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-amd64-v3-gnu
-            checks: true
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-gnu
-            platform: linux-amd64-v4
-            profile: pro-linux-v4
-            rustflags: "-C target-cpu=x86-64-v4"
-            build: linux-amd64-v4-gnu
-            checks: false
-          - os: ubuntu-latest
-            target: x86_64-unknown-linux-musl
-            platform: linux-amd64-musl
-            profile: pro-linux-musl
-            rustflags: "-C target-cpu=x86-64-v3"
-            build: linux-amd64-musl
-            checks: false
-          - os: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            platform: linux-aarch64
-            profile: pro
-            rustflags: "-C target-cpu=native"
-            build: linux-aarch64
-            checks: false
-          - os: macos-latest
-            target: aarch64-apple-darwin
-            platform: darwin-aarch64-native
-            profile: pro-macos-aarch64-native
-            rustflags: "-C target-cpu=native"
-            build: darwin-aarch64-native
-            checks: false
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            platform: windows-x86_64
-            profile: pro-win-amd64
-            rustflags: "-C target-cpu=x86-64"
-            build: windows-x86_64
-            checks: false
-
+  # ── Determine release channel ──────────────────────────────────────
+  channel:
+    name: channel
+    runs-on: ubuntu-latest
+    outputs:
+      prerelease: ${{ steps.detect.outputs.prerelease }}
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - id: detect
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ "$tag" =~ -(alpha|beta|rc)\. ]]; then
+            echo "prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ── Auto-detect previous tag for release note range ────────────────
+  base-tag:
+    name: base-tag
+    runs-on: ubuntu-latest
+    outputs:
+      base: ${{ steps.find.outputs.base }}
+    steps:
+      - uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Validate release tag
-        shell: bash
+      - id: find
         run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          # Reject old format like v2.1.0-stable.1
-          if [[ "${TAG}" =~ -stable\. ]]; then
-            echo "::error::Old tag format detected: ${TAG}"
-            echo "Stable releases no longer use -stable.N suffixes."
-            echo "Use format: vX.Y.Z, example: v2.1.0"
-            exit 1
-          fi
-          # Must match vX.Y.Z or vX.Y.Z-prerelease.N
-          if ! [[ "${TAG}" =~ ^v[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9]+(\.[0-9]+)?)?$ ]]; then
-            echo "::error::Invalid release tag: ${TAG}"
-            echo "Expected format: vX.Y.Z (stable) or vX.Y.Z-<channel>.N (pre-release)"
-            echo "Examples: v2.1.0, v2.2.0-beta.1"
-            exit 1
-          fi
-          echo "Tag validation passed: ${TAG}"
-
-      - name: Determine version
-        id: ver
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-
-          TAG="${TAG## }"
-          TAG="${TAG%% }"
-          if [[ "${TAG}" != v* ]]; then
-            TAG="v${TAG}"
+          current="${GITHUB_REF_NAME}"
+          # List all v* tags sorted by version descending, skip current
+          prev="$(git tag -l 'v*' --sort=-version:refname | grep -v "^${current}$" | head -n1)"
+          if [ -z "$prev" ]; then
+            echo "base=" >> "$GITHUB_OUTPUT"
+            echo "::notice::No previous tag found. Release notes will cover full history."
+          else
+            echo "base=${prev}" >> "$GITHUB_OUTPUT"
+            echo "::notice::Base tag auto-detected: ${prev}"
           fi
 
-          VERSION="${TAG#v}"
-          {
-            echo "tag=${TAG}"
-            echo "version=${VERSION}"
-          } >> "$GITHUB_OUTPUT"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+  # ── Linux x86_64 v3 ───────────────────────────────────────────────
+  build-linux-v3:
+    name: linux-amd64-v3
+    runs-on: ubuntu-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt, clippy
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          cache-on-failure: true
-
-      - name: Set cargo build jobs (unix)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(nproc 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS=2
-          fi
-          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      - name: Set cargo build jobs (windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $jobs = $env:NUMBER_OF_PROCESSORS
-          if (-not $jobs) { $jobs = 2 }
-          "CARGO_BUILD_JOBS=$jobs" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
-
-      - name: Add Rust target
-        run: rustup target add ${{ matrix.target }}
-
-      - name: Install musl cross-compiler (musl builds only)
-        if: matrix.target == 'x86_64-unknown-linux-musl'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y musl-tools
-
-      - name: Verify Linux x86_64 CPU baseline inputs
-        if: startsWith(matrix.platform, 'linux-amd64-v') || matrix.platform == 'linux-amd64-musl'
-        shell: bash
-        run: |
-          set -euo pipefail
-          case "${{ matrix.platform }}" in
-            linux-amd64-v3) expected="-C target-cpu=x86-64-v3" ;;
-            linux-amd64-v4) expected="-C target-cpu=x86-64-v4" ;;
-            linux-amd64-musl) expected="-C target-cpu=x86-64-v3" ;;
-            *) echo "::error::Unknown Linux x86_64 platform ${{ matrix.platform }}"; exit 1 ;;
-          esac
-          if [[ "${{ matrix.rustflags }}" != "${expected}" ]]; then
-            echo "::error::${{ matrix.platform }} must use RUSTFLAGS='${expected}', got '${{ matrix.rustflags }}'"
-            exit 1
-          fi
-
-      - name: Setup MSVC dev cmd (windows-amd64)
-        if: matrix.target == 'x86_64-pc-windows-msvc'
-        uses: ilammy/msvc-dev-cmd@v1.13.0
-        with:
-          arch: x64
-
-      - name: Setup MSVC dev cmd (windows-aarch64)
-        if: matrix.target == 'aarch64-pc-windows-msvc' && runner.arch == 'X64'
-        uses: ilammy/msvc-dev-cmd@v1.13.0
-        with:
-          arch: amd64_arm64
-
-      - name: Install Linux aarch64 linker
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y gcc-aarch64-linux-gnu
-
-      - name: Install audit + deny tools
-        if: matrix.checks
-        uses: taiki-e/install-action@v2
-        with:
-          tool: cargo-audit,cargo-deny
-
-      - name: Audit dependencies
-        if: matrix.checks
-        run: cargo audit
-
-      - name: Tests
-        if: matrix.checks
+          toolchain: '1.97'
+      - name: test
         run: cargo test --all --locked
-
-      - name: Build (debug)
-        if: matrix.checks && runner.os != 'Windows'
+      - name: build
         env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-        run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
-
-      - name: Build (debug)
-        if: matrix.checks && runner.os == 'Windows'
-        shell: pwsh
-        run: cargo build --profile dev --locked --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
-
-      - name: Build (release) (aarch64 cross)
-        if: matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        shell: bash
-        env:
-          CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
-          COSMOSTRIX_BUILD: ${{ matrix.build }}
-          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
+          COSMOSTRIX_BUILD: linux-amd64-v3
+          COSMOSTRIX_PROFILE: pro-linux-v3
+          RUSTFLAGS: '-C target-cpu=x86-64-v3'
+        run: cargo build --profile pro-linux-v3 --locked
+      - name: verify
+        run: target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --doctor
+      - name: package
         run: |
-          set -euo pipefail
-          # Hardened RUSTFLAGS: remap cargo + project paths out of the
-          # binary (supply-chain hygiene) and keep frame pointers for
-          # post-mortem debugging without performance cost. $HOME and
-          # $PWD are expanded by bash here so the matrix.rustflags
-          # literal is concatenated with expanded path prefixes.
-          export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
-
-      - name: Build (release)
-        if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os != 'Windows'
-        shell: bash
-        env:
-          COSMOSTRIX_BUILD: ${{ matrix.build }}
-          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: |
-          set -euo pipefail
-          # Hardened RUSTFLAGS: remap cargo + project paths out of the
-          # binary (supply-chain hygiene) and keep frame pointers for
-          # post-mortem debugging without performance cost.
-          export RUSTFLAGS="${{ matrix.rustflags }} --remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
-
-      - name: Build (release)
-        if: (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64') && runner.os == 'Windows'
-        env:
-          COSMOSTRIX_BUILD: ${{ matrix.build }}
-          COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-          RUSTFLAGS: ${{ matrix.rustflags }}
-        shell: pwsh
-        run: cargo build --profile ${{ matrix.profile }} --target ${{ matrix.target }} --jobs "$env:CARGO_BUILD_JOBS"
-
-      - name: Verify build metadata
-        if: runner.os != 'Windows' && (matrix.target != 'aarch64-unknown-linux-gnu' || runner.arch != 'X64')
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
-          BUILD_ID="${{ matrix.build }}"
-          case "${BUILD_ID}" in
-            linux-amd64-v3) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            linux-amd64-v4) BASELINE="x86-64-v4"; OPTIMIZATION="x86-64-v4 baseline (AVX-512)"; REQUIRED="avx512f avx512bw avx512cd avx512dq avx512vl"; DENIED="" ;;
-            linux-amd64-musl) BASELINE="x86-64-v3"; OPTIMIZATION="x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA) + musl static"; REQUIRED="avx2 bmi2 fma"; DENIED="" ;;
-            *) BASELINE=""; OPTIMIZATION=""; REQUIRED=""; DENIED="" ;;
-          esac
-
-          # FreeBSD cross-compiled binary cannot run on Linux; verify via strings.
-          # Similarly, v4 may SIGILL on runners without AVX-512.
-          if [[ "${BUILD_ID}" == freebsd-* ]] || [[ "${BUILD_ID}" == *v4* ]]; then
-            echo "Skipping execution for ${BUILD_ID} (cross-compiled); verifying embedded build metadata in binary"
-            if command -v strings >/dev/null 2>&1; then
-              TEXT="$(strings "${BIN}")"
-            else
-              TEXT="$(grep -aE "${BUILD_ID}|static optimized build|fat|unwind|yes" "${BIN}" || true)"
-            fi
-            grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-            grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-            grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
-            grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
-            grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
-          else
-            OUT="$(${BIN} --doctor)"
-            echo "${OUT}"
-            grep -E "^  build: ${BUILD_ID}$" <<<"${OUT}" || { echo "::error::Expected build ${BUILD_ID}"; exit 1; }
-            if [[ -n "${OPTIMIZATION}" ]]; then
-              grep -Fx "  optimization: ${OPTIMIZATION}" <<<"${OUT}" || { echo "::error::Expected optimization: ${OPTIMIZATION}"; exit 1; }
-            fi
-            grep -E "^  dispatch: static optimized build$" <<<"${OUT}" || { echo "::error::Expected dispatch: static optimized build"; exit 1; }
-            if [[ -n "${BASELINE}" ]]; then
-              grep -E "^  cpu_baseline: ${BASELINE}$" <<<"${OUT}" || { echo "::error::Expected cpu_baseline: ${BASELINE}"; exit 1; }
-              for feature in ${REQUIRED}; do
-                grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}" || { echo "::error::Expected target feature ${feature}"; exit 1; }
-              done
-              for feature in ${DENIED}; do
-                if grep -F "  target_features:" <<<"${OUT}" | grep -Fq "${feature}"; then
-                  echo "::error::Unexpected target feature ${feature} for ${BUILD_ID}"
-                  exit 1
-                fi
-              done
-            fi
-            grep -E "^  lto: fat$" <<<"${OUT}" || { echo "::error::Expected lto: fat"; exit 1; }
-            grep -E "^  panic: unwind$" <<<"${OUT}" || { echo "::error::Expected panic: unwind"; exit 1; }
-            grep -E "^  strip: yes$" <<<"${OUT}" || { echo "::error::Expected strip: yes"; exit 1; }
-          fi
-
-      - name: Verify embedded build metadata
-        if: runner.os != 'Windows' && matrix.target == 'aarch64-unknown-linux-gnu' && runner.arch == 'X64'
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
-          BUILD_ID="${{ matrix.build }}"
-          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
-          if command -v strings >/dev/null 2>&1; then
-            TEXT="$(strings "${BIN}")"
-          else
-            TEXT="$(grep -aE 'linux-aarch64|static optimized build|fat|unwind|yes' "${BIN}" || true)"
-          fi
-          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
-          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
-          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
-
-      - name: Verify build metadata
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $bin = "target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix.exe"
-          $build = "${{ matrix.build }}"
-
-          if ($build.EndsWith("-v4")) {
-            Write-Host "Skipping execution for $build (may require AVX-512); verifying embedded build metadata in binary"
-            $bytes = [System.IO.File]::ReadAllBytes($bin)
-            $text = [System.Text.Encoding]::ASCII.GetString($bytes)
-            if (-not $text.Contains($build)) {
-              throw "Expected embedded build id '$build' in binary"
-            }
-            foreach ($needle in @("static optimized build", "fat", "unwind", "yes")) {
-              if (-not $text.Contains($needle)) {
-                throw "Expected embedded metadata '$needle' in binary"
-              }
-            }
-          } else {
-            $outLines = & $bin --doctor
-            $out = ($outLines | ForEach-Object { $_.TrimEnd("`r") }) -join "`n"
-            $out
-            # v17: --doctor has 'build:' field in SYSTEM section
-            $pat = "(?m)^  build: " + [regex]::Escape($build) + "\s*$"
-            if ($out -notmatch $pat) {
-              throw "Expected build '$build' in cosmostrix --doctor output"
-            }
-            foreach ($pat in @(
-              "(?m)^  dispatch: static optimized build\s*$",
-              "(?m)^  lto: fat\s*$",
-              "(?m)^  panic: unwind\s*$",
-              "(?m)^  strip: yes\s*$"
-            )) {
-              if ($out -notmatch $pat) {
-                throw "Expected metadata pattern '$pat' in cosmostrix --doctor output"
-              }
-            }
-          }
-
-      - name: Format check
-        if: matrix.checks
-        run: cargo fmt --all -- --check
-
-      - name: Dependency policy (cargo-deny)
-        if: matrix.checks
-        run: cargo deny check all
-
-      - name: Clippy
-        if: matrix.checks
-        run: cargo clippy --locked --all-targets --all-features -- -D warnings
-
-      - name: Verify binary is stripped
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix"
-          if file "${BIN}" | grep -qiE 'not stripped'; then
-            echo "::error::Metadata says strip: yes, but file reports not stripped: ${BIN}"
-            exit 1
-          fi
-          echo "Binary stripped: $(file "${BIN}" | head -1)"
-
-      - name: Package (.tar.gz)
-        if: runner.os != 'Windows'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-
-          TARGET="${{ matrix.target }}"
-          PLATFORM="${{ matrix.platform }}"
-
-          PROFILE="${{ matrix.profile }}"
-
-          # Flat archive layout: files at archive root
-          # Archive contains: /cosmostrix, /LICENSE, /README.md
-          # PKGBUILD depends on this invariant — do NOT add nesting.
-          OUTDIR="dist/stage"
-          mkdir -p "$OUTDIR"
-          cp -f "target/${TARGET}/${PROFILE}/cosmostrix" "$OUTDIR/"
-          cp -f "README.md" "$OUTDIR/"
-          cp -f "LICENSE" "$OUTDIR/"
-
-          TARBALL="cosmostrix-${TAG}-${PLATFORM}.tar.gz"
-          tar -czf "dist/${TARBALL}" -C "$OUTDIR" cosmostrix LICENSE README.md
-
-          (
-            cd dist
-            if command -v sha512sum >/dev/null 2>&1; then
-              sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
-            else
-              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
-            fi
-            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
-            if command -v b2sum >/dev/null 2>&1; then
-              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
-            else
-              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
-              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
-            fi
-            # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
-            # doesn't support -shake256, Windows ships LibreSSL too)
-            _s=$(python3 -c "import hashlib;print(hashlib.shake_256(open(0,'rb').read()).hexdigest(64))" < "${TARBALL}")
-            echo "${_s}  ${TARBALL}" > "${TARBALL}.shake256"
-          )
-
-          # Verify archive layout
-          echo "--- Archive contents ---"
-          tar -tzf "dist/${TARBALL}"
-          echo "--- End archive contents ---"
-
-      - name: Verify binary is stripped (Windows)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $bin = "target/${{ matrix.target }}/${{ matrix.profile }}/cosmostrix.exe"
-          # Windows MSVC strip is handled by the linker; just verify the file exists
-          if (-not (Test-Path $bin)) {
-            throw "Binary not found: $bin"
-          }
-          $size = (Get-Item $bin).Length
-          Write-Host "Binary size: $size bytes"
-
-      - name: Package (.zip)
-        if: runner.os == 'Windows'
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          $TAG = "${{ steps.ver.outputs.tag }}"
-          $VERSION = "${{ steps.ver.outputs.version }}"
-          $TARGET = "${{ matrix.target }}"
-          $PLATFORM = "${{ matrix.platform }}"
-
-          $PROFILE = "${{ matrix.profile }}"
-
-          # Flat archive layout: files at archive root
-          $outDir = "dist/stage"
-          New-Item -ItemType Directory -Force -Path $outDir | Out-Null
-
-          Copy-Item -Force "target/$TARGET/$PROFILE/cosmostrix.exe" "$outDir/"
-          Copy-Item -Force "README.md" "$outDir/"
-          Copy-Item -Force "LICENSE" "$outDir/"
-
-          $zip = "cosmostrix-$TAG-$PLATFORM.zip"
-          if (Test-Path "dist/$zip") { Remove-Item -Force "dist/$zip" }
-          Compress-Archive -Force -Path "$outDir/*" -DestinationPath "dist/$zip"
-
-          $hash = (Get-FileHash -Algorithm SHA512 "dist/$zip").Hash.ToLower()
-          "$hash  $zip" | Out-File -Encoding ascii "dist/$zip.sha512sum"
-
-          # BLAKE2b via Python (Windows doesn't ship b2sum in base)
-          $pyB2 = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.blake2b(d).hexdigest())"
-          try {
-            $b2Hash = (python3 -c $pyB2).Trim()
-            if ($b2Hash) {
-              "$b2Hash  $zip" | Out-File -Encoding ascii "dist/$zip.b2sum"
-            }
-          } catch {
-            # BLAKE2b generation failed — skip (sha512sum is still generated)
-          }
-
-          # SHAKE256 via Python (Windows ships LibreSSL which doesn't support -shake256)
-          $py = "import hashlib; d=open('dist/$zip','rb').read(); print(hashlib.shake_256(d).hexdigest(64))"
-          try {
-            $shakeHash = (python3 -c $py).Trim()
-            if ($shakeHash) {
-              "$shakeHash  $zip" | Out-File -Encoding ascii "dist/$zip.shake256"
-            }
-          } catch {
-            # SHAKE256 generation failed — skip (sha512sum is still generated)
-          }
-
-      - name: Upload artifact
-        if: runner.os != 'Windows'
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: packages-${{ matrix.platform }}
-          path: dist/*.tar.gz*
-          if-no-files-found: error
-
-      - name: Upload artifact
-        if: runner.os == 'Windows'
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: packages-${{ matrix.platform }}
-          path: dist/*.zip*
-          if-no-files-found: error
-
-  build_android:
-    name: Cosmic Dragon - Build packages (android-aarch64-native)
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Determine version
-        id: ver
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-
-          TAG="${TAG## }"
-          TAG="${TAG%% }"
-          if [[ "${TAG}" != v* ]]; then
-            TAG="v${TAG}"
-          fi
-
-          VERSION="${TAG#v}"
-          echo "tag=${TAG}" >> "$GITHUB_OUTPUT"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-
-      - name: Validate tag matches Cargo.toml
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG_VERSION="${GITHUB_REF_NAME#v}"
-          CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-          if [[ -z "${CARGO_VERSION}" ]]; then
-            echo "::error::Could not extract version from Cargo.toml"
-            exit 1
-          fi
-          if [[ "${TAG_VERSION}" != "${CARGO_VERSION}" ]]; then
-            echo "::error::Tag version ${TAG_VERSION} does not match Cargo.toml version ${CARGO_VERSION}"
-            exit 1
-          fi
-          echo "Version check passed: tag ${TAG_VERSION} == Cargo.toml ${CARGO_VERSION}"
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          cache-on-failure: true
-
-      - name: Set cargo build jobs
-        shell: bash
-        run: |
-          set -euo pipefail
-          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(nproc 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(sysctl -n hw.ncpu 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS=2
-          fi
-          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      - name: Setup Java
-        uses: actions/setup-java@v5.2.0
-        with:
-          distribution: temurin
-          java-version: "17"
-
-      - name: Setup Android NDK
-        id: ndk
-        uses: nttld/setup-ndk@v1.6.0
-        with:
-          ndk-version: r26d
-
-      - name: Add Rust target
-        run: rustup target add aarch64-linux-android
-
-      - name: Build (release, android-aarch64)
-        shell: bash
-        env:
-          ANDROID_NDK_HOME: ${{ steps.ndk.outputs.ndk-path }}
-          COSMOSTRIX_BUILD: android-aarch64-native
-          COSMOSTRIX_PROFILE: pro-android-aarch64
-        run: |
-          set -euo pipefail
-          TARGET="aarch64-linux-android"
-
-          TOOLCHAIN="${ANDROID_NDK_HOME}/toolchains/llvm/prebuilt/linux-x86_64"
-          export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
-          export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
-
-          # Hardened RUSTFLAGS: remap cargo + project paths out of the
-          # binary (supply-chain hygiene) and keep frame pointers for
-          # post-mortem debugging without performance cost.
-          export RUSTFLAGS="--remap-path-prefix=$HOME/.cargo=redacted --remap-path-prefix=$PWD=redacted -C force-frame-pointers=yes"
-          cargo build --profile pro-android-aarch64 --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
-
-      - name: Verify embedded build metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/aarch64-linux-android/pro-android-aarch64/cosmostrix"
-          BUILD_ID="android-aarch64-native"
-          echo "Verifying embedded build metadata in binary: ${BUILD_ID}"
-          if command -v strings >/dev/null 2>&1; then
-            TEXT="$(strings "${BIN}")"
-          else
-            TEXT="$(grep -aE 'android-aarch64-native|static optimized build|fat|unwind|yes' "${BIN}" || true)"
-          fi
-          grep -Fq "${BUILD_ID}" <<<"${TEXT}" || { echo "::error::Expected embedded variant ${BUILD_ID}"; exit 1; }
-          grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected embedded dispatch metadata"; exit 1; }
-          grep -Fq "fat" <<<"${TEXT}" || { echo "::error::Expected embedded lto metadata fat"; exit 1; }
-          grep -Fq "unwind" <<<"${TEXT}" || { echo "::error::Expected embedded panic metadata unwind"; exit 1; }
-          grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
-
-      - name: Package (.tar.gz)
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-          TARGET="aarch64-linux-android"
-          PLATFORM="android-aarch64-native"
-
-          PROFILE="pro-android-aarch64"
-
-          # Flat archive layout: files at archive root
-          OUTDIR="dist/stage"
-          mkdir -p "$OUTDIR"
-          cp -f "target/${TARGET}/${PROFILE}/cosmostrix" "$OUTDIR/"
-          cp -f "README.md" "$OUTDIR/"
-          cp -f "LICENSE" "$OUTDIR/"
-
-          TARBALL="cosmostrix-${TAG}-${PLATFORM}.tar.gz"
-          tar -czf "dist/${TARBALL}" -C "$OUTDIR" cosmostrix LICENSE README.md
-
-          (
-            cd dist
-            if command -v sha512sum >/dev/null 2>&1; then
-              sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
-            else
-              shasum -a 512 "${TARBALL}" > "${TARBALL}.sha512sum"
-            fi
-            # Quantum-resistant checksums: BLAKE2b-512 + SHAKE256
-            # b2sum is GNU coreutils only — macOS/BSD fallback to Python hashlib
-            if command -v b2sum >/dev/null 2>&1; then
-              b2sum "${TARBALL}" > "${TARBALL}.b2sum"
-            else
-              _b2=$(python3 -c "import hashlib;print(hashlib.blake2b(open(0,'rb').read()).hexdigest())" < "${TARBALL}")
-              echo "${_b2}  ${TARBALL}" > "${TARBALL}.b2sum"
-            fi
-            # SHAKE256 via Python (cross-platform — macOS ships LibreSSL which
-            # doesn't support -shake256, Windows ships LibreSSL too)
-            _s=$(python3 -c "import hashlib;print(hashlib.shake_256(open(0,'rb').read()).hexdigest(64))" < "${TARBALL}")
-            echo "${_s}  ${TARBALL}" > "${TARBALL}.shake256"
-          )
-
-          # Verify archive layout
-          echo "--- Archive contents ---"
-          tar -tzf "dist/${TARBALL}"
-          echo "--- End archive contents ---"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: packages-android-aarch64-native
-          path: dist/*.tar.gz*
-          if-no-files-found: error
-
-  build_pgo:
-    name: Cosmic Dragon - Build PGO nitro (${{ matrix.platform }})
-    # PGO is Linux x86_64-only by design:
-    #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO toolchain
-    #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
-    #     or would burn CI minutes on builds that cannot be distributed.
-    #   - The matrix below only lists linux-amd64-v3 / v4 and `runs-on` is
-    #     pinned to ubuntu-latest, so this job is structurally Linux-only.
-    #     Other platforms fall through to the standard `build_packages` job
-    #     which uses their normal optimized profile.
-    #   - A job-level `if:` cannot reference the `runner` context (it is only
-    #     populated after the runner is allocated), so the Linux guard is
-    #     enforced structurally via `runs-on` rather than via an expression.
-    runs-on: ubuntu-latest
-    timeout-minutes: 40
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - platform: linux-amd64-v3
-            target_cpu: x86-64-v3
-          - platform: linux-amd64-v4
-            target_cpu: x86-64-v4
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
-        with:
-          fetch-depth: 0
-
-      - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          toolchain: ${{ env.RUST_VERSION }}
-          components: rustfmt, clippy, llvm-tools-preview
-
-      - name: Ensure llvm-tools-preview installed (override rust-toolchain.toml)
-        shell: bash
-        run: |
-          # rust-toolchain.toml in the repo only lists rustfmt + clippy.
-          # It overrides the dtolnay/rust-toolchain components list, so
-          # llvm-tools-preview (which provides llvm-profdata for PGO) is
-          # NOT installed. Install it explicitly here.
-          rustup component add llvm-tools-preview
-          # Verify llvm-profdata is findable
-          PROFDATA="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata"
-          if [ -x "${PROFDATA}" ]; then
-            echo "llvm-profdata found at: ${PROFDATA}"
-          else
-            echo "::error::llvm-profdata not found after installing llvm-tools-preview"
-            exit 1
-          fi
-
-      - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
-        with:
-          cache-on-failure: true
-
-      - name: Set cargo build jobs
-        shell: bash
-        run: |
-          set -euo pipefail
-          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
-          if [[ -z "${JOBS}" ]]; then
-            JOBS="$(nproc 2>/dev/null || true)"
-          fi
-          if [[ -z "${JOBS}" ]]; then
-            JOBS=2
-          fi
-          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
-
-      - name: PGO build (3-stage instrument, benchmark, optimize)
-        shell: bash
-        env:
-          COSMOSTRIX_TARGET_CPU: ${{ matrix.target_cpu }}
-        run: |
-          set -euo pipefail
-          # Use the build.sh pgo command which handles all 3 stages
-          # including llvm-profdata auto-detection from rustup.
-          #
-          # COSMOSTRIX_TARGET_CPU sets the FINAL binary's target-cpu.
-          # The instrumented binary (Stage 1) uses a safe default
-          # (x86-64-v3 on x86_64) so it can execute on the runner to
-          # collect profile data — even when matrix.target_cpu is v4
-          # and the runner lacks AVX-512. Profile data is CPU-feature-
-          # independent (it captures branch frequencies, not SIMD
-          # codegen), so v3 instrumentation + v4 final is sound.
-          ./scripts/build.sh pgo
-
-      - name: Verify PGO binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
-          if [ ! -f "${BIN}" ]; then
-            echo "::error::PGO binary not found at ${BIN}"
-            exit 1
-          fi
-          echo "PGO binary size: $(du -h "${BIN}" | cut -f1)"
-          # v4 binaries may SIGILL on runners without AVX-512; use --doctor
-          # which is pure computation (no SIMD hot path). If it crashes, fall
-          # back to strings verification.
-          if OUT="$("${BIN}" --doctor 2>&1)"; then
-            grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
-            grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
-            echo "PGO binary verified via --doctor."
-          else
-            echo "::warning::${BIN} --doctor exited non-zero (likely AVX-512 SIGILL). Verifying via strings."
-            TEXT="$(strings "${BIN}")"
-            grep -Fq "static optimized build" <<<"${TEXT}" || { echo "::error::Expected dispatch metadata"; exit 1; }
-            echo "PGO binary verified via strings (v4 fallback)."
-          fi
-
-      - name: Package PGO binary
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
-          TAG="${TAG## }"
-          TAG="${TAG%% }"
-          if [[ "${TAG}" != v* ]]; then
-            TAG="v${TAG}"
-          fi
-          ARCHIVE="cosmostrix-${TAG}-${{ matrix.platform }}-pgo.tar.gz"
-          BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
+          tag="${GITHUB_REF_NAME}"
+          platform="linux-amd64-v3"
+          bindir="target/x86_64-unknown-linux-gnu/pro-linux-v3"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
           mkdir -p staging
-          cp "${BIN}" staging/cosmostrix
-          cp README.md staging/
-          cp LICENSE staging/ 2>/dev/null || true
-          tar -czf "${ARCHIVE}" -C staging .
-          echo "archive=${ARCHIVE}" >> "$GITHUB_ENV"
-          ls -lh "${ARCHIVE}"
-          # Generate all 3 checksums for consistency with build_packages
-          sha512sum "${ARCHIVE}" > "${ARCHIVE}.sha512sum"
-          b2sum "${ARCHIVE}" > "${ARCHIVE}.b2sum"
-          python3 -c "import hashlib; print(hashlib.shake_256(open('${ARCHIVE}','rb').read()).hexdigest(64) + '  ${ARCHIVE}')" > "${ARCHIVE}.shake256"
-
-      - name: Upload PGO artifact
-        uses: actions/upload-artifact@v7.0.1
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
         with:
-          name: cosmostrix-${{ matrix.platform }}-pgo
-          path: cosmostrix-*-${{ matrix.platform }}-pgo.tar.gz*
-          retention-days: 30
+          name: linux-amd64-v3
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
 
-  build_freebsd:
-    name: Cosmic Dragon - Build (freebsd native)
+  # ── Linux x86_64 v4 ───────────────────────────────────────────────
+  build-linux-v4:
+    name: linux-amd64-v4
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    needs: [channel]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          fetch-depth: 0
-
-      - name: Build on FreeBSD VM
-        uses: vmactions/freebsd-vm@v1
+          toolchain: '1.97'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: linux-amd64-v4
+          COSMOSTRIX_PROFILE: pro-linux-v4
+          RUSTFLAGS: '-C target-cpu=x86-64-v4'
+        run: cargo build --profile pro-linux-v4 --locked
+      - name: embedded-scan
+        # v4 binary may not execute on runners without AVX-512
+        run: |
+          bin="target/x86_64-unknown-linux-gnu/pro-linux-v4/cosmostrix"
+          strings "$bin" | grep -Fq 'linux-amd64-v4' || { echo "FAIL: missing variant"; exit 1; }
+          strings "$bin" | grep -Fq 'static optimized build' || { echo "FAIL: missing dispatch"; exit 1; }
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="linux-amd64-v4"
+          bindir="target/x86_64-unknown-linux-gnu/pro-linux-v4"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
         with:
-          release: "14.2"
-          usesh: false
-          mem: 4096
-          prepare: |
-            pkg install -y curl ca_root_nss python3
-            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
-            . "$HOME/.cargo/env"
-            rustup component add clippy rustfmt
-          run: |
-            . "$HOME/.cargo/env"
-            set -euo pipefail
-            cd "$GITHUB_WORKSPACE"
+          name: linux-amd64-v4
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
 
-            # Build release binary (native FreeBSD, no cross-compile)
-            COSMOSTRIX_BUILD=freebsd-amd64 \
-            COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
-            COSMOSTRIX_LTO=fat \
-            COSMOSTRIX_STRIP=yes \
-            cargo build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
-
-            # Verify via --doctor
-            BIN="target/pro-freebsd-amd64/cosmostrix"
-            OUT=$("${BIN}" --doctor) || { echo "::error::--doctor failed"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" || { echo "::error::Doctor report missing"; exit 1; }
-            printf '%s\n' "${OUT}" | grep -E "^  build: freebsd-amd64$" || { echo "::error::Expected build freebsd-amd64"; exit 1; }
-
-            # Quick benchmark smoke test
-            echo "=== Benchmark smoke test ===" && "${BIN}" --benchmark --bench-duration 1 --bench-frames 10 2>&1 | head -5 || true
-
-            # Package
-            VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
-            TARBALL="cosmostrix-v${VERSION}-freebsd-amd64.tar.gz"
-            tar czf "${TARBALL}" -C target/pro-freebsd-amd64 cosmostrix
-            sha512sum "${TARBALL}" > "${TARBALL}.sha512sum"
-            # BLAKE2b via Python (FreeBSD doesn't ship b2sum in base)
-            python3 -c "import hashlib; print(hashlib.blake2b(open('${TARBALL}','rb').read()).hexdigest() + '  ${TARBALL}')" > "${TARBALL}.b2sum"
-            # SHAKE256 via Python (cross-platform)
-            python3 -c "import hashlib; print(hashlib.shake_256(open('${TARBALL}','rb').read()).hexdigest(64) + '  ${TARBALL}')" > "${TARBALL}.shake256"
-            echo "FreeBSD build + package complete: ${TARBALL}"
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v7.0.1
-        with:
-          name: packages-freebsd-amd64
-          path: cosmostrix-*-freebsd-amd64.tar.gz*
-          retention-days: 30
-
-  publish_release:
-    name: Cosmic Dragon - Publish GitHub Release
+  # ── Linux x86_64 musl ─────────────────────────────────────────────
+  build-linux-musl:
+    name: linux-amd64-musl
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    needs: [build_packages, build_android, build_pgo, build_freebsd]
-    permissions:
-      contents: write
-
+    needs: [channel]
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
         with:
-          fetch-depth: 0
+          toolchain: '1.97'
+          targets: 'x86_64-unknown-linux-musl'
+      - name: install-musl
+        run: sudo apt-get update && sudo apt-get install -y musl-tools
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: linux-amd64-musl
+          COSMOSTRIX_PROFILE: pro-linux-musl
+          RUSTFLAGS: '-C target-cpu=x86-64-v3'
+        run: cargo build --profile pro-linux-musl --target x86_64-unknown-linux-musl --locked
+      - name: verify
+        run: target/x86_64-unknown-linux-musl/pro-linux-musl/cosmostrix --doctor
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="linux-amd64-musl"
+          bindir="target/x86_64-unknown-linux-musl/pro-linux-musl"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-amd64-musl
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
 
-      - name: Determine version
-        id: ver
+  # ── Linux aarch64 ─────────────────────────────────────────────────
+  build-linux-aarch64:
+    name: linux-aarch64
+    runs-on: ubuntu-24.04-arm
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: linux-aarch64
+          RUSTFLAGS: '-C target-cpu=native'
+        run: cargo build --release --locked
+      - name: verify
+        run: target/release/cosmostrix --doctor
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="linux-aarch64"
+          bindir="target/release"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux-aarch64
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
+
+  # ── macOS aarch64 ─────────────────────────────────────────────────
+  build-macos-aarch64:
+    name: darwin-aarch64-native
+    runs-on: macos-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: darwin-aarch64-native
+          RUSTFLAGS: '-C target-cpu=native'
+        run: cargo build --profile pro-macos-aarch64-native --locked
+      - name: verify
+        run: target/aarch64-apple-darwin/pro-macos-aarch64-native/cosmostrix --doctor
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="darwin-aarch64-native"
+          bindir="target/aarch64-apple-darwin/pro-macos-aarch64-native"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          shasum -a 512 "${tarfile}" > "${tarfile}.sha512sum"
+          shasum -a 512 "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: darwin-aarch64-native
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
+
+  # ── Windows x86_64 ────────────────────────────────────────────────
+  build-windows-x86_64:
+    name: windows-x86_64
+    runs-on: windows-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: windows-x86_64
+        run: cargo build --profile pro-win-amd64 --locked
+      - name: package
         shell: bash
         run: |
-          set -euo pipefail
-          TAG="${GITHUB_REF_NAME}"
+          tag="${GITHUB_REF_NAME}"
+          platform="windows-x86_64"
+          bindir="target/x86_64-pc-windows-msvc/pro-win-amd64"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix.exe" staging/
+          cp README.md LICENSE staging/
+          zip -q "${zipfile}" -j staging/cosmostrix.exe staging/README.md staging/LICENSE
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-x86_64
+          path: |
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
 
-          TAG="${TAG## }"
-          TAG="${TAG%% }"
-          if [[ "${TAG}" != v* ]]; then
-            TAG="v${TAG}"
+  # ── Windows aarch64 ───────────────────────────────────────────────
+  build-windows-aarch64:
+    name: windows-aarch64-native
+    runs-on: windows-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+          targets: 'aarch64-pc-windows-msvc'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: windows-aarch64-native
+          RUSTFLAGS: '-C target-cpu=native'
+        run: cargo build --profile pro-win-aarch64 --target aarch64-pc-windows-msvc --locked
+      - name: package
+        shell: bash
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="windows-aarch64-native"
+          bindir="target/aarch64-pc-windows-msvc/pro-win-aarch64"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix.exe" staging/
+          cp README.md LICENSE staging/
+          zip -q "${zipfile}" -j staging/cosmostrix.exe staging/README.md staging/LICENSE
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-aarch64-native
+          path: |
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
+
+  # ── Android aarch64 ───────────────────────────────────────────────
+  build-android-aarch64:
+    name: android-aarch64-native
+    runs-on: ubuntu-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+          targets: 'aarch64-linux-android'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: android-aarch64-native
+          RUSTFLAGS: '-C target-cpu=native'
+        run: cargo build --profile pro-android-aarch64 --target aarch64-linux-android --locked
+      - name: embedded-scan
+        run: |
+          bin="target/aarch64-linux-android/pro-android-aarch64/cosmostrix"
+          strings "$bin" | grep -Fq 'android-aarch64-native' || { echo "FAIL: missing variant"; exit 1; }
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="android-aarch64-native"
+          bindir="target/aarch64-linux-android/pro-android-aarch64"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android-aarch64-native
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
+
+  # ── FreeBSD aarch64 ───────────────────────────────────────────────
+  build-freebsd-amd64:
+    name: freebsd-amd64
+    runs-on: ubuntu-latest
+    needs: [channel]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+          targets: 'x86_64-unknown-freebsd'
+      - name: test
+        run: cargo test --all --locked
+      - name: build
+        env:
+          COSMOSTRIX_BUILD: freebsd-amd64
+          RUSTFLAGS: '-C target-cpu=x86-64-v3'
+        run: cargo build --profile pro-freebsd-amd64 --target x86_64-unknown-freebsd --locked
+      - name: embedded-scan
+        run: |
+          bin="target/x86_64-unknown-freebsd/pro-freebsd-amd64/cosmostrix"
+          strings "$bin" | grep -Fq 'freebsd-amd64' || { echo "FAIL: missing variant"; exit 1; }
+      - name: package
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          platform="freebsd-amd64"
+          bindir="target/x86_64-unknown-freebsd/pro-freebsd-amd64"
+          tarfile="cosmostrix-bin-${tag}-${platform}.tar.gz"
+          zipfile="cosmostrix-bin-${tag}-${platform}.zip"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          zip -q "${zipfile}" -j staging/cosmostrix staging/README.md staging/LICENSE
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          sha512sum "${zipfile}" > "${zipfile}.sha512sum"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: freebsd-amd64
+          path: |
+            cosmostrix-bin-*.tar.gz
+            cosmostrix-bin-*.tar.gz.sha512sum
+            cosmostrix-bin-*.zip
+            cosmostrix-bin-*.zip.sha512sum
+
+  # ── Publish GitHub Release ────────────────────────────────────────
+  publish_release:
+    name: publish
+    runs-on: ubuntu-latest
+    needs:
+      - channel
+      - base-tag
+      - build-linux-v3
+      - build-linux-v4
+      - build-linux-musl
+      - build-linux-aarch64
+      - build-macos-aarch64
+      - build-windows-x86_64
+      - build-windows-aarch64
+      - build-android-aarch64
+      - build-freebsd-amd64
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: download-artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - name: generate-release-notes
+        id: notes
+        env:
+          BASE_TAG: ${{ needs.base-tag.outputs.base }}
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [ -n "$BASE_TAG" ]; then
+            range="${BASE_TAG}..${tag}"
+          else
+            range="${tag}"
           fi
-
-          VERSION="${TAG#v}"
-          PRE="false"
-          if [[ "${VERSION}" == *-* ]]; then
-            SUFFIX="${VERSION#*-}"
-            case "${SUFFIX}" in
-              stable.*)
-                echo "::error::Old -stable.N format is no longer supported: ${TAG}"
-                echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
-                exit 1
-                ;;
-              alpha.*|beta.*|rc.*|pre.*) PRE="true";;
-              *) PRE="true";;
-            esac
-          fi
-
+          notes="$(./scripts/generate-release-notes.sh "$range" "$tag")"
           {
-            echo "tag=${TAG}"
-            echo "version=${VERSION}"
-            echo "prerelease=${PRE}"
+            echo "body<<RELEASE_EOF"
+            echo "$notes"
+            echo "RELEASE_EOF"
           } >> "$GITHUB_OUTPUT"
 
-      - name: Download artifacts
-        uses: actions/download-artifact@v8.0.1
-        with:
-          path: dist
-
-      - name: Import GPG signing key
-        env:
-          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
-          GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [ -z "${GPG_PRIVATE_KEY}" ]; then
-            echo "GPG_PRIVATE_KEY secret not configured — skipping GPG signing"
-            exit 0
-          fi
-          # Import the armored private key. --batch + --yes prevents
-          # interactive prompts. --pinentry-mode loopback allows
-          # passwordless import for keys without passphrase protection.
-          # If the key has a passphrase, pass it via --passphrase (stdin).
-          # Do NOT redirect stderr to /dev/null — we need to see import
-          # errors for debugging.
-          if [ -n "${GPG_PASSPHRASE}" ]; then
-            echo "${GPG_PASSPHRASE}" | gpg --import --batch --yes \
-              --pinentry-mode loopback \
-              --passphrase-fd 0 \
-              <(echo "${GPG_PRIVATE_KEY}")
-          else
-            echo "${GPG_PRIVATE_KEY}" | gpg --import --batch --yes \
-              --pinentry-mode loopback
-          fi
-          # Debug: show what was imported (key IDs only, no secrets)
-          gpg --list-secret-keys --with-colons || true
-          # Extract the key ID. Try ssb: (subkey, usage S) first, then
-          # sec: (master key, usage SC). The awk field $12 is the key
-          # capability flags — we check if it contains 'S' (signing).
-          KEY_ID="$(gpg --list-secret-keys --with-colons \
-            | awk -F: '/^(ssb|sec):/ && $12 ~ /S/ {print $5; exit}')"
-          if [ -z "${KEY_ID}" ]; then
-            # Fallback: some gpg versions use field $12 differently.
-            # Try matching by key usage in field 12 OR by the presence
-            # of the 'sec'/'ssb' record (any secret key can sign).
-            KEY_ID="$(gpg --list-secret-keys --with-colons \
-              | awk -F: '/^(ssb|sec):/ {print $5; exit}')"
-          fi
-          if [ -z "${KEY_ID}" ]; then
-            echo "::error::Failed to import GPG secret key (no signing-capable key found)"
-            echo "::error::gpg --list-secret-keys output:"
-            gpg --list-secret-keys 2>&1 || true
-            exit 1
-          fi
-          echo "GPG_KEY_ID=${KEY_ID}" >> "$GITHUB_ENV"
-          echo "GPG_PASSPHRASE=${GPG_PASSPHRASE}" >> "$GITHUB_ENV"
-          echo "Imported GPG signing key: ${KEY_ID}"
-
-      - name: Sign artifacts (detached GPG signatures)
-        if: env.GPG_KEY_ID != ''
-        env:
-          GPG_PASSPHRASE: ${{ env.GPG_PASSPHRASE }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          cd dist
-          # Sign every .tar.gz and .zip artifact with a detached
-          # ASCII-armored signature. Skip files that already have an
-          # .asc sibling (idempotent re-runs).
-          # --passphrase is passed via --passphrase-fd to avoid leaking
-          # the passphrase in process listings. If GPG_PASSPHRASE is empty
-          # (no passphrase), --batch + --pinentry-mode loopback handles it.
-          find . -type f \( -name '*.tar.gz' -o -name '*.zip' \) ! -name '*.asc' -print0 \
-            | while IFS= read -r -d '' artifact; do
-                if [ -f "${artifact}.asc" ]; then
-                  echo "  (existing sig) ${artifact}.asc"
-                  continue
-                fi
-                echo "  signing ${artifact}"
-                if [ -n "${GPG_PASSPHRASE}" ]; then
-                  echo "${GPG_PASSPHRASE}" | gpg --batch --yes --detach-sign --armor \
-                      --local-user "${GPG_KEY_ID}" \
-                      --pinentry-mode loopback \
-                      --passphrase-fd 0 \
-                      --output "${artifact}.asc" "${artifact}"
-                else
-                  gpg --batch --yes --detach-sign --armor \
-                      --local-user "${GPG_KEY_ID}" \
-                      --pinentry-mode loopback \
-                      --output "${artifact}.asc" "${artifact}"
-                fi
-              done
-          echo "--- Signed artifacts ---"
-          find . -name '*.asc' -print | sort
-          echo "--- End signed artifacts ---"
-
-      - name: Generate release body
-        shell: bash
-        run: |
-          set -uo pipefail
-
-          # ── Resolve tag and stability ────────────────────────────────
-          TAG="${{ steps.ver.outputs.tag }}"
-          IS_PRERELEASE="${{ steps.ver.outputs.prerelease }}"
-
-          # ── Determine PREV_TAG ──────────────────────────────────────
-          # Pre-release: prev = any previous tag (including pre-releases).
-          # Stable: prev = nearest previous stable tag (skip pre-releases).
-          if [ "$IS_PRERELEASE" = "true" ]; then
-            PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1 || true)
-          else
-            PREV_TAG=$(git tag --sort=-creatordate \
-              | grep -v "^${TAG}$" \
-              | grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)[\.-]' \
-              | head -1 || true)
-          fi
-
-          # ── Count commit types ──────────────────────────────────────
-          # --format=%s strips the hash so ^fix/^feat anchors to the
-          # conventional-commit prefix correctly.
-          if [ -n "$PREV_TAG" ] && git rev-parse "$PREV_TAG" >/dev/null 2>&1; then
-            TOTAL_COMMITS=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | wc -l | tr -d ' ')
-            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --format=%s | grep -ciE '^fix' || true)
-            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --format=%s | grep -ciE '^feat' || true)
-            OTHERS_COUNT=$((TOTAL_COMMITS - FIX_COUNT - FEAT_COUNT))
-          else
-            TOTAL_COMMITS=0
-            FIX_COUNT=0
-            FEAT_COUNT=0
-            OTHERS_COUNT=0
-            PREV_TAG=""
-          fi
-
-          # ── Build release body ──────────────────────────────────────
-          {
-            # Stability badge — one alert, no fluff
-            if [ "$IS_PRERELEASE" = "true" ]; then
-              echo "> [!WARNING]"
-              echo "> Pre-release — expect instability."
-              echo ""
-            else
-              echo "> [!TIP]"
-              echo "> Stable release."
-              echo ""
-            fi
-
-            # One-line summary with inline stats
-            if [ "$TOTAL_COMMITS" -gt 0 ] && [ -n "$PREV_TAG" ]; then
-              DIFF_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG}"
-              echo "**${TOTAL_COMMITS} commits** since \`${PREV_TAG}\` — fix ${FIX_COUNT} / feat ${FEAT_COUNT} / other ${OTHERS_COUNT} [diff](${DIFF_URL})"
-              echo ""
-            else
-              echo "Initial release."
-              echo ""
-            fi
-
-            # Collapsed changelog — no spam
-            if [ "$TOTAL_COMMITS" -gt 0 ] && [ -n "$PREV_TAG" ]; then
-              echo "<details><summary>Changelog</summary>"
-              echo ""
-              git log --no-merges --pretty=format:'%s (%h)' "${PREV_TAG}..${TAG}" \
-                | sed 's/^/- /'
-              echo ""
-              echo "</details>"
-              echo ""
-            fi
-
-            # Compact verification
-            echo "---"
-            echo ""
-            echo "**Verification** — every archive ships with a GPG signature (\`.asc\`) and triple checksums (SHA-512, BLAKE2b, SHAKE256)."
-            echo ""
-            echo '```'
-            echo "gpg --keyserver keyserver.ubuntu.com --recv-keys 47A50AEF4B65AAC2"
-            echo "gpg --verify cosmostrix-${TAG#v}-<platform>.tar.gz.asc"
-            echo '```'
-            echo ""
-            echo "[Full instructions](docs/VERIFY_RELEASE.md)"
-          } > release-body.md
-          echo "=== Release body ==="
-          cat release-body.md
-
-      - name: Create GitHub Release
-        id: gh_release
-        uses: softprops/action-gh-release@v3.0.0
+      - name: publish
+        uses: softprops/action-gh-release@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: ${{ steps.ver.outputs.tag }}
-          # Release title: append "(Pre-Release)" for pre-release versions
-          # so users can distinguish them at a glance in the GitHub releases
-          # list. Final releases use the bare tag name as the title.
-          name: ${{ steps.ver.outputs.tag }}${{ steps.ver.outputs.prerelease == 'true' && ' (Pre-Release)' || '' }}
-          body_path: release-body.md
-          draft: false
-          prerelease: ${{ steps.ver.outputs.prerelease }}
-          make_latest: ${{ steps.ver.outputs.prerelease != 'true' }}
+          tag_name: ${{ github.ref_name }}
+          prerelease: ${{ needs.channel.outputs.prerelease }}
+          body: ${{ steps.notes.outputs.body }}
           files: |
-            dist/**/*.tar.gz
-            dist/**/*.tar.gz.sha512sum
-            dist/**/*.tar.gz.b2sum
-            dist/**/*.tar.gz.shake256
-            dist/**/*.tar.gz.asc
-            dist/**/*.zip
-            dist/**/*.zip.sha512sum
-            dist/**/*.zip.b2sum
-            dist/**/*.zip.shake256
-            dist/**/*.zip.asc
-
-      # ------------------------------------------------------------------
-      # Trigger AUR synchronization after successful release
-      # ------------------------------------------------------------------
-      # Uses repository_dispatch (not workflow_dispatch) because the
-      # default GITHUB_TOKEN has permission to create repository_dispatch
-      # events but NOT workflow_dispatch events (403 "Resource not
-      # accessible by integration"). aur.yml listens for this event type.
-      #
-      # Only triggers for STABLE releases (not pre-release/alpha/rc/beta).
-      # AUR only accepts stable packages — pre-release versions use _tag
-      # which the AUR helpers may not resolve correctly, and users expect
-      # the AUR package to track the latest stable release only.
-      # ------------------------------------------------------------------
-      - name: Trigger AUR sync
-        if: steps.gh_release.outputs.id != '' && steps.ver.outputs.prerelease != 'true'
-        shell: bash
-        run: |
-          set -euo pipefail
-          TAG="${{ steps.ver.outputs.tag }}"
-          echo "Triggering AUR sync for ${TAG} via repository_dispatch"
-          HTTP_CODE=$(curl -s -o /tmp/aur_trigger_response.txt -w "%{http_code}" -X POST \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "${GITHUB_API_URL}/repos/${GITHUB_REPOSITORY}/dispatches" \
-            -d "{\"event_type\":\"aur-sync\",\"client_payload\":{\"tag\":\"${TAG}\"}}")
-          echo "HTTP response: ${HTTP_CODE}"
-          cat /tmp/aur_trigger_response.txt 2>/dev/null || true
-          if [[ "${HTTP_CODE}" != "204" ]]; then
-            echo "::error::AUR sync trigger failed with HTTP ${HTTP_CODE}"
-            exit 1
-          fi
-          echo "AUR sync triggered successfully"
-
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+            artifacts/cosmostrix-bin-*.tar.gz
+            artifacts/cosmostrix-bin-*.tar.gz.sha512sum
+            artifacts/cosmostrix-bin-*.zip
+            artifacts/cosmostrix-bin-*.zip.sha512sum
