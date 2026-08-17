@@ -857,6 +857,28 @@ impl Terminal {
                 .stdout
                 .execute(crossterm_terminal::LeaveAlternateScreen);
             self.alternate_screen_enabled = false;
+
+            // v50 stabilization: defensive post-LeaveAlternateScreen
+            // cursor positioning + flush. On TTY terminals where the screen
+            // is cleared as a side effect of the alt screen switch, this
+            // ensures the shell prompt appears on a clean line at the
+            // bottom of the screen. On properly-restoring terminals (GNOME
+            // Terminal, Alacritty, kitty), the cursor is already at the
+            // correct position — the MoveTo + "\n\n" adds 2 blank lines
+            // which is negligible (the shell prompt pushes down 2 lines).
+            //
+            // The flush AFTER LeaveAlternateScreen ensures the screen-switch
+            // sequence is actually sent to the terminal BEFORE raw mode is
+            // disabled. Without this flush, the LeaveAlternateScreen might
+            // be buffered in the BufWriter and only flushed at the final
+            // flush — after raw mode is already disabled, which could cause
+            // a brief window where the terminal is in raw mode but showing
+            // the main screen (user input might not be echoed during this
+            // window).
+            let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
+            let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
+            let _ = self.stdout.write_all(b"\n\n");
+            let _ = self.stdout.flush();
         } else if !self.term_caps.has_alternate_screen {
             // No alternate screen was entered (terminal doesn't support it).
             // We ran on the main screen directly. Scrollback-safe exit:
