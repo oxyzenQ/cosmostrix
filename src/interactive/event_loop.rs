@@ -401,7 +401,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     if new_cfg.color_scheme == preserved_color_scheme {
                         cloud.color_scheme = preserved_color_scheme;
                     }
-                    scene_name = preserved_scene_name;
+                    // v50 fix: same pattern for scene_name — only preserve
+                    // if the config didn't explicitly change the scene.
+                    if new_cfg.scene_name == preserved_scene_name {
+                        scene_name = preserved_scene_name;
+                    }
                 } else {
                     scene_name = new_cfg.scene_name.clone();
                     scene_generation = scene_generation.wrapping_add(1);
