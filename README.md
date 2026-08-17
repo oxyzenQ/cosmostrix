@@ -118,11 +118,13 @@ The Dragon's roar is not loud — it is precise.
 - Auto color drift — cycle color scheme over time (`--auto-color-drift` / `auto-color-drift = true` in config)
 - Message overlay — display custom text on the rain (`--message "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
-- Live HUD — real-time FPS, p99, max frame-time, RSS, and uptime overlay (toggle with `i`, move with `h`)
+- Live HUD — real-time FPS, p99, max frame-time, RSS, endurance health score,
+  effective pressure, speed/density/scene/charset/color confirmation, uptime,
+  terminal size, and build commit overlay (toggle with `i`)
 - **Phase-aware endurance subsystem** — EMA-based activity prediction (PAP), idle coalescing (IPAC), memory reclaim hints (MPAR via `madvise` on Linux), and Endurance Health Score (EHS, 0–100) for long-running sessions. RSS and context-switch sampling are Linux-only; other platforms get frame-jitter-only EHS
 - Adaptive throttling — reduces CPU usage when idle (30s no-input → 0.5× FPS factor)
 - Live config reload via filesystem watch (optional, `notify` crate) — full Cloud rebuild with strict validation on save
-- Screensaver mode — only `q` exits; all runtime keys (`c`/`C`, `s`/`S`, `p`, `x`, `[`/`]`, `Up`/`Down`, `Space`, `i`, `h`) still work for interactive control. Unrecognized keys (`a`, `m`, `g`, `b`/`B`, `Tab`, `Ctrl+Z`, function keys, etc.) are silently ignored — no accidental exit
+- Screensaver mode — only `q` exits; all runtime keys (`c`/`C`, `s`/`S`, `p`, `x`, `[`/`]`, `Up`/`Down`, `Space`, `i`) still work for interactive control. Unrecognized keys (`a`, `m`, `g`, `b`/`B`, `Tab`, `Ctrl+Z`, function keys, etc.) are silently ignored — no accidental exit
 - Always-on mouse glow + click wave effects (cursor halo + dual-ring ripple). Note: always-on mouse reporting blocks text selection in all modes
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). The logo intro fades in character-by-character, a spark falls and ignites the logo on impact, then the logo dissolves into Matrix rain. The cosmic intro bursts a singularity into spiraling particles. Plays in all modes including `--screensaver`. Skipped only on terminals smaller than 80×24
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking at exact dimensions or rendering independent of terminal resize
@@ -173,7 +175,7 @@ Cosmostrix renders glyphs the terminal emulator draws — your font choice shape
 
 Avoid `Fira Code` (ligatures disrupt `0`/`1` rain) and system defaults (Consolas, Menlo) which lack full Unicode coverage for box-drawing + braille charsets.
 
-The chroma dragon border gradient (`--message` overlay) and HUD chroma gradient (8-stop sweep) look best on a font with crisp, high-contrast glyph edges.
+The chroma dragon border gradient (`--message` overlay) and HUD chroma gradient (16-stop sweep) look best on a font with crisp, high-contrast glyph edges.
 
 ## Installation
 
@@ -413,8 +415,8 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   c / C         Cycle theme       s / S      Cycle charset
   x             Cycle scene       [ / ]      Density
   Up / Down     Speed             Space      Reseed animation
-  i             Toggle live HUD (FPS / max / p99 / CPU% / RSS / uptime)
-  h             Move HUD to opposite corner (left ↔ right)
+  i             Toggle live HUD (FPS / max / p99 / CPU% / RSS / EHS / PRS / speed /
+                density / scene / charset / color / uptime / screensize / cid)
 ```
 
 ## Scenes

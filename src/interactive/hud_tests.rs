@@ -1108,3 +1108,283 @@ fn hud_final_layout_positions_match_owner_option_s() {
         );
     }
 }
+
+// ── v50 (2026-08-17) HUD metric stability regression tests ─────────
+//
+// The 7 new owner-mandated metric setters were strengthened with NaN/Inf
+// handling, range clamping, and string sanitization. These tests verify
+// the sanitization at the setter level so a future code path that
+// bypasses the setter still gets sanitized output via `update_metrics`.
+
+#[test]
+fn hud_set_endurance_health_score_clamps_nan_inf_and_range() {
+    // The `ehs:` setter must clamp NaN, +Inf, -Inf to 0.0 (rendered as
+    // `ehs: 0` — visibly degraded, forcing investigation). In-range
+    // values are clamped to [0.0, 100.0]. This is the defense-in-depth
+    // layer that complements `update_metrics` (which also clamps).
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // NaN → 0
+    h.set_endurance_health_score(f64::NAN);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[6];
+    assert_eq!(line, " ehs: 0", "NaN ehs must render as 0");
+
+    // +Inf → 0
+    h.set_endurance_health_score(f64::INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[6];
+    assert_eq!(line, " ehs: 0", "+Inf ehs must render as 0");
+
+    // -Inf → 0
+    h.set_endurance_health_score(f64::NEG_INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[6];
+    assert_eq!(line, " ehs: 0", "-Inf ehs must render as 0");
+
+    // Negative → clamp to 0
+    h.set_endurance_health_score(-42.0);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[6];
+    assert_eq!(line, " ehs: 0", "negative ehs must clamp to 0");
+
+    // Above 100 → clamp to 100
+    h.set_endurance_health_score(250.0);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[6];
+    assert_eq!(line, " ehs: 100", "ehs above 100 must clamp to 100");
+}
+
+#[test]
+fn hud_set_effective_pressure_clamps_nan_inf_and_range() {
+    // The `prs:` setter must clamp NaN, +Inf, -Inf to 0.0 (rendered as
+    // `prs: 0.00`). In-range values are clamped to [0.0, 1.0]. This is
+    // the defense-in-depth layer that complements the existing clamp
+    // in `update_metrics`.
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // NaN → 0
+    h.set_effective_pressure(f32::NAN);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[7];
+    assert_eq!(line, " prs: 0.00", "NaN prs must render as 0.00");
+
+    // +Inf → 0
+    h.set_effective_pressure(f32::INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[7];
+    assert_eq!(line, " prs: 0.00", "+Inf prs must render as 0.00");
+
+    // -Inf → 0
+    h.set_effective_pressure(f32::NEG_INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[7];
+    assert_eq!(line, " prs: 0.00", "-Inf prs must render as 0.00");
+
+    // Below 0 → 0
+    h.set_effective_pressure(-0.5);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[7];
+    assert_eq!(line, " prs: 0.00", "negative prs must clamp to 0.00");
+
+    // Above 1 → 1
+    h.set_effective_pressure(2.5);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[7];
+    assert_eq!(line, " prs: 1.00", "prs above 1 must clamp to 1.00");
+}
+
+#[test]
+fn hud_set_chars_per_sec_clamps_nan_and_negative() {
+    // The `sped:` setter must clamp NaN, +Inf, -Inf, and negative values
+    // to 0.0 (rendered as `sped: 0.0` — visibly broken, forcing
+    // investigation rather than hiding the issue). This is the
+    // defense-in-depth layer for the chars-per-second speed metric.
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // NaN → 0
+    h.set_chars_per_sec(f32::NAN);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[8];
+    assert_eq!(line, " sped: 0.0", "NaN sped must render as 0.0");
+
+    // +Inf → 0
+    h.set_chars_per_sec(f32::INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[8];
+    assert_eq!(line, " sped: 0.0", "+Inf sped must render as 0.0");
+
+    // -Inf → 0
+    h.set_chars_per_sec(f32::NEG_INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[8];
+    assert_eq!(line, " sped: 0.0", "-Inf sped must render as 0.0");
+
+    // Negative → 0
+    h.set_chars_per_sec(-25.0);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[8];
+    assert_eq!(line, " sped: 0.0", "negative sped must clamp to 0.0");
+}
+
+#[test]
+fn hud_set_droplet_density_clamps_nan_and_negative() {
+    // The `dsty:` setter must clamp NaN, +Inf, -Inf, and negative values
+    // to 0.0 (rendered as `dsty: 0.00` — visibly broken, forcing
+    // investigation). Owner explicitly mandated `dsty` label (NOT `den`).
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // NaN → 0
+    h.set_droplet_density(f32::NAN);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[9];
+    assert_eq!(line, " dsty: 0.00", "NaN dsty must render as 0.00");
+
+    // +Inf → 0
+    h.set_droplet_density(f32::INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[9];
+    assert_eq!(line, " dsty: 0.00", "+Inf dsty must render as 0.00");
+
+    // -Inf → 0
+    h.set_droplet_density(f32::NEG_INFINITY);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[9];
+    assert_eq!(line, " dsty: 0.00", "-Inf dsty must render as 0.00");
+
+    // Negative → 0
+    h.set_droplet_density(-2.0);
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&palette);
+    let (_, line) = &h.cached_lines[9];
+    assert_eq!(line, " dsty: 0.00", "negative dsty must clamp to 0.00");
+}
+
+#[test]
+fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
+    // The `scn:` and `chr:` setters must truncate input to 14 chars (by
+    // char count, preserving UTF-8 boundaries) so a very long custom
+    // scene name or charset preset cannot blow past the HUD_MAX_WIDTH
+    // (22 cols) budget. The ` scn: ` prefix is 6 chars (so 6 + 14 = 20
+    // ≤ 22); the ` chr: ` prefix is also 6 chars (so 6 + 14 = 20 ≤ 22).
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // Long scene name (30 chars) → truncated to 14
+    let long_name = "abcdefghijklmnopqrstuvwxyz1234"; // 30 chars
+    h.set_scene_name(long_name);
+    h.update_metrics(&palette);
+    let (_, scn_line) = &h.cached_lines[10];
+    assert_eq!(
+        scn_line, " scn: abcdefghijklmn",
+        "scn line must truncate to first 14 chars of long scene name"
+    );
+    assert_eq!(
+        scn_line.chars().count(),
+        20,
+        "truncated scn line must be 6 + 14 = 20 chars (prefix ' scn: ' is 6 chars)"
+    );
+
+    // Long charset preset (26 chars) → truncated to 14
+    let long_preset = "PRESET0123456789abcdefghij"; // 26 chars
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.set_charset_preset(long_preset);
+    h.update_metrics(&palette);
+    let (_, chr_line) = &h.cached_lines[11];
+    assert_eq!(
+        chr_line, " chr: PRESET01234567",
+        "chr line must truncate to first 14 chars of long charset preset"
+    );
+    assert_eq!(
+        chr_line.chars().count(),
+        20,
+        "truncated chr line must be 6 + 14 = 20 chars (prefix ' chr: ' is 6 chars)"
+    );
+}

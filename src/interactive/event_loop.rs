@@ -127,7 +127,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let (mut perf_utilization_sum, mut perf_utilization_max) = (0.0_f64, 0.0_f32);
     let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
 
-    // Live HUD overlay ('i' toggles, 'h' moves corner). Zero cost when off.
+    // Live HUD overlay ('i' toggles). Zero cost when off.
     let mut hud_state: HudState = HudState::new();
     hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
     hud_state.set_target_fps(cfg.target_fps); // seed so `tgt:` is right from frame 1
@@ -669,27 +669,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-                        // 'h': toggle HUD position. v30: lowercase-only (uppercase
-                        // 'H' removed; lowercase works on all keyboards including Android).
-                        // Modifier guard: only bare 'h' (NONE). Rejects Shift+'h'
-                        // (which produces 'H', no binding) and all other modifiers
-                        // (Ctrl/Super/Alt/Hyper/Meta+'h'). See is_unmodified().
-                        if is_unmodified(k.modifiers) && matches!(k.code, KeyCode::Char('h')) {
-                            if hud_state.toggle_position() {
-                                cloud.force_draw_everything();
-                            }
-                            let _ = register_activity(
-                                &mut power_manager,
-                                &mut last_resync_time,
-                                activity_time,
-                                is_idle,
-                                false,
-                            );
-                            // v16 audit: Update next_frame for immediate redraw
-                            // (same fix as 'i' handler — see comment above).
-                            next_frame = activity_time;
-                            continue;
-                        }
+                        // v50 (2026-08-17): 'h' HUD position toggle removed — unused
+                        // maintenance cost per owner mandate. The HUD now always
+                        // renders flush-left at column 0 (the previous default
+                        // position). The HudPosition enum + toggle_position
+                        // method + start_col() helper have been purged from
+                        // hud.rs; docs updated to reflect the simplified
+                        // model.
                         // Any user input resets idle timer for adaptive throttling.
                         if register_activity(
                             &mut power_manager,

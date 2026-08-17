@@ -119,30 +119,9 @@ pub(crate) enum FrameMode {
     Paused,
 }
 
-/// HUD position: left or right corner.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum HudPosition {
-    Left,
-    Right,
-}
-
-impl HudPosition {
-    /// Compute the start column for this position given terminal width
-    /// and the current dynamic HUD width.
-    fn start_col(self, cols: u16, hud_width: u16) -> u16 {
-        match self {
-            // Left: flush against the edge (column 0).
-            Self::Left => 0,
-            // Right: flush against the right border.
-            Self::Right => cols.saturating_sub(hud_width),
-        }
-    }
-}
-
 /// Live HUD overlay state.
 pub(crate) struct HudState {
     visible: bool,
-    position: HudPosition,
     /// Session start time for uptime display.
     session_start: Instant,
     frame_times: FrameTimeTracker,
@@ -261,7 +240,6 @@ impl HudState {
         let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
         Self {
             visible: false,
-            position: HudPosition::Left,
             session_start: Instant::now(),
             frame_times: FrameTimeTracker::new(),
             last_metric_update: Instant::now()
@@ -368,17 +346,6 @@ impl HudState {
             // (fps/p99/rss) show data instantly, and CPU must too.
         }
         self.visible
-    }
-
-    /// Toggle HUD position between left and right corners.
-    /// Returns true to signal the event loop that a full redraw is
-    /// needed to clear the old HUD position's residue from the frame.
-    pub(crate) fn toggle_position(&mut self) -> bool {
-        self.position = match self.position {
-            HudPosition::Left => HudPosition::Right,
-            HudPosition::Right => HudPosition::Left,
-        };
-        true
     }
 
     /// Whether the HUD is currently visible. Test-only — production
@@ -537,9 +504,16 @@ impl HudState {
     /// Set the active scene name. Drives the `scn:` HUD line (row 10) for
     /// `x` cycle confirmation. Called by event_loop on init and whenever
     /// the user cycles scenes.
+    ///
+    /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
+    /// chars (by char count, preserving UTF-8 boundaries) so a very
+    /// long custom scene name cannot blow past the HUD_MAX_WIDTH (22
+    /// cols) budget. The ` scn: ` prefix is 5 chars, so 5 + 14 = 19 ≤ 22.
     pub(crate) fn set_scene_name(&mut self, name: &str) {
         self.scene_name.clear();
-        self.scene_name.push_str(name);
+        const SCENE_NAME_MAX_CHARS: usize = 14;
+        self.scene_name
+            .extend(name.chars().take(SCENE_NAME_MAX_CHARS));
     }
 
     /// Set the active color scheme. Drives the `clr:` HUD line (row 12)
@@ -553,32 +527,66 @@ impl HudState {
     /// Set the active charset preset name. Drives the `chr:` HUD line
     /// (row 11) for `s` / `S` cycle confirmation. Called by event_loop on
     /// init and whenever the user cycles charsets.
+    ///
+    /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
+    /// chars so a very long custom charset preset name cannot blow past
+    /// the HUD_MAX_WIDTH (22 cols) budget. The ` chr: ` prefix is 6
+    /// chars, so 6 + 14 = 20 ≤ 22.
     pub(crate) fn set_charset_preset(&mut self, preset: &str) {
         self.charset_preset.clear();
-        self.charset_preset.push_str(preset);
+        const CHARSET_PRESET_MAX_CHARS: usize = 14;
+        self.charset_preset
+            .extend(preset.chars().take(CHARSET_PRESET_MAX_CHARS));
     }
 
     /// Set the current droplet density multiplier. Drives the `dsty:` HUD
     /// line (row 9) for `[` / `]` adjustment feedback. Called by event_loop
     /// on init and whenever the user adjusts density or live-config reloads.
     /// Owner explicitly mandated the `dsty` label (NOT `den`).
+    ///
+    /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or negative
+    /// values map to 0.0 so a runtime bug cannot produce a runaway
+    /// density or garbage HUD output. Rendered as `dsty: 0.00` (visibly
+    /// broken, forcing investigation rather than hiding the issue).
     pub(crate) fn set_droplet_density(&mut self, density: f32) {
-        self.droplet_density = density;
+        self.droplet_density = if density.is_finite() && density >= 0.0 {
+            density
+        } else {
+            0.0
+        };
     }
 
     /// Set the current chars-per-second speed. Drives the `sped:` HUD line
     /// (row 8) for `↑` / `↓` adjustment feedback. Called by event_loop on
     /// init and whenever the user adjusts speed or live-config reloads.
+    ///
+    /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or negative
+    /// values map to 0.0 so a runtime bug cannot produce a runaway
+    /// speed or garbage HUD output. Rendered as `sped: 0.0` (visibly
+    /// broken, forcing investigation rather than hiding the issue).
     pub(crate) fn set_chars_per_sec(&mut self, cps: f32) {
-        self.chars_per_sec = cps;
+        self.chars_per_sec = if cps.is_finite() && cps >= 0.0 {
+            cps
+        } else {
+            0.0
+        };
     }
 
     /// Set the Endurance Health Score (0.0-100.0). Drives the `ehs:` HUD
     /// line (row 6) so the owner can answer "why is the rain behaving this
     /// way?" without quitting cosmostrix. Called by event_loop on the 1 Hz
     /// adaptive tick (alongside `endurance_health.recompute()`).
+    ///
+    /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or
+    /// out-of-range values map to 0.0 (rendered as `ehs: 0` — visibly
+    /// degraded, forcing investigation rather than hiding the issue).
+    /// In-range values are clamped to [0.0, 100.0].
     pub(crate) fn set_endurance_health_score(&mut self, score: f64) {
-        self.endurance_health_score = score;
+        self.endurance_health_score = if score.is_finite() {
+            score.clamp(0.0, 100.0)
+        } else {
+            0.0
+        };
     }
 
     /// Set the effective pressure (0.0-1.0, clamped). Drives the `prs:` HUD
@@ -586,8 +594,18 @@ impl HudState {
     /// Called by event_loop every frame (cheap — one field write) so the
     /// pressure value tracks the live adaptive state with no perceptible
     /// delay. Source: `PowerManager::effective_pressure()`.
+    ///
+    /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or
+    /// out-of-range values map to 0.0 (rendered as `prs: 0.00`).
+    /// `update_metrics` also clamps at format-time, so the dual clamp
+    /// (setter + format) is defense-in-depth — a future code path that
+    /// bypasses the setter still gets sanitized output.
     pub(crate) fn set_effective_pressure(&mut self, pressure: f32) {
-        self.effective_pressure = pressure;
+        self.effective_pressure = if pressure.is_finite() {
+            pressure.clamp(0.0, 1.0)
+        } else {
+            0.0
+        };
     }
 
     /// Refresh HUD line colors from the current palette. Called every
@@ -621,22 +639,23 @@ impl HudState {
     ///   row 3   p99           ← trail
     ///   row 4   cpu           ← mid      (palette index n/2)
     ///   row 5   rss           ← mid
-    ///   row 6   up            ← head     (palette last stop, brightest)
-    ///   row 7   screensize    ← head     (rain head — leading white)
-    ///   row 8   cid           ← head     (build identity — same head stop)
-    ///   row 9   reserved      ← (ehs)     populated by data-plumbing commit
-    ///   row 10  reserved      ← (prs)     populated by data-plumbing commit
-    ///   row 11  reserved      ← (sped)    populated by data-plumbing commit
-    ///   row 12  reserved      ← (dsty)    populated by data-plumbing commit
-    ///   row 13  reserved      ← (scn)     populated by data-plumbing commit
-    ///   row 14  reserved      ← (chr)     populated by data-plumbing commit
-    ///   row 15  reserved      ← (clr)     populated by data-plumbing commit
+    ///   row 6   ehs           ← mid      (NEW: endurance health score)
+    ///   row 7   prs           ← trail    (NEW: effective pressure)
+    ///   row 8   sped          ← mid      (NEW: chars/sec speed)
+    ///   row 9   dsty          ← mid      (NEW: density multiplier)
+    ///   row 10  scn           ← mid      (NEW: scene name)
+    ///   row 11  chr           ← mid      (NEW: charset preset)
+    ///   row 12  clr           ← mid      (NEW: color scheme)
+    ///   row 13  up            ← head     (palette last stop, brightest)
+    ///   row 14  screensize    ← head     (rain head — leading white)
+    ///   row 15  cid           ← head     (build identity — same head stop)
     /// ```
     ///
-    /// The final v50 layout (after the data-plumbing commit) will move cid
-    /// to row 15, screensize to row 14, up to row 13, and place the 7 new
-    /// metrics at rows 6-12 so the chroma gradient sweeps continuously
-    /// from the dim tail at the top to the bright head at the bottom.
+    /// v50 (2026-08-17) HUD expansion: rows 6-12 are the 7 owner-mandated
+    /// metrics (ehs / prs / sped / dsty / scn / chr / clr) populated by
+    /// the data-plumbing commit. Cid at row 15 (owner-mandated bottom).
+    /// The chroma gradient sweeps continuously from palette[0] (dim tail)
+    /// at the top to palette[n-1] (bright head) at the bottom.
     /// The cid line shares the head stop with screensize so the build
     /// identity is the most prominent entry — the owner needs to read the
     /// commit hash without quitting cosmostrix, so it earns the brightest
@@ -887,7 +906,13 @@ impl HudState {
         // seconds. `Frame::set` short-circuits on content equality, so
         // cells already holding blanks incur zero dirty-mark overhead.
         let w = self.current_width.max(self.prev_width);
-        let start_col = self.position.start_col(cols, w);
+        // v50 (2026-08-17): HUD always renders flush-left at column 0.
+        // The previous HudPosition enum + toggle_position method +
+        // start_col() helper have been purged — the 'h' shortkey that
+        // toggled between Left and Right corners was unused maintenance
+        // cost per owner mandate. The literal 0 here replaces the
+        // `self.position.start_col(cols, w)` call.
+        let start_col = 0u16;
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
             // v50 (2026-08-17) HUD expansion: skip rows whose text is still

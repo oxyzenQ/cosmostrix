@@ -3,11 +3,16 @@
 # Live HUD Overlay
 
 The HUD is cosmostrix's live performance overlay for interactive mode.
-Toggle it with the `i` key; move it between corners with `h`. Zero cost
-when off (all methods short-circuit on `visible == false`). Metrics
-recompute at 1 Hz (matches htop, mangoHUD, Steam FPS counter, and
-`nvidia-smi` — faster rates cause number flicker without improving
-diagnostic value).
+Toggle it with the `i` key. Zero cost when off (all methods short-circuit
+on `visible == false`). Metrics recompute at 1 Hz (matches htop,
+mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
+number flicker without improving diagnostic value).
+
+v50 (2026-08-17) HUD expansion: the HUD grew from 9 rows to 16 rows,
+adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
+chr / clr). The `h` shortkey that previously toggled the HUD position
+(left ↔ right corner) has been removed — unused maintenance cost. The
+HUD now always renders flush-left at column 0.
 
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to
@@ -31,9 +36,16 @@ each line means without reading the full reference below.
 | 3   | ` p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
 | 4   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
 | 5   | ` rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
-| 6   | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
-| 7   | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
-| 8   | ` cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
+| 6   | ` ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
+| 7   | ` prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
+| 8   | ` sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `↑`/`↓`. Confirms the actual sanitized value (matches `--speed`). |
+| 9   | ` dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
+| 10  | ` scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
+| 11  | ` chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
+| 12  | ` clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`). Confirms `c`/`C` cycle. |
+| 13  | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
+| 14  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
+| 15  | ` cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
 
 **Symbol legend:**
 
@@ -52,35 +64,43 @@ each line means without reading the full reference below.
 
 ## Annotated HUD Layout
 
-What you actually see in the corner after pressing `i` (left position
-shown; right position mirrors to the right edge). All 9 lines are
-visible at once; this mockup annotates each:
+What you actually see in the top-left corner after pressing `i`. All 16
+rows are visible at once; this mockup annotates each:
 
 ```text
 ┌─────────────────────────┐
-│ fps: 451      ◄── 0. render-work throughput (NOT the cap)
-│ tgt: 60       ◄── 1. your --fps cap, "60" = sixty FPS target
-│ max: 1.204ms  ◄── 2. worst frame in last 60s (auto-resets)
-│ p99: 0.832ms  ◄── 3. slowest 1% of frames (spike detector)
-│ cpu: 1.43%    ◄── 4. process CPU% (one core = 100%)
-│ rss: 8.2MiB   ◄── 5. process memory (leak detector)
-│ up: 03:42     ◄── 6. session uptime (MM:SS under 1h)
-│ 200x50 auto   ◄── 7. terminal size + mode (auto/fix)
-│ cid: 6ed244b  ◄── 8. build commit id (verify without quitting)
+│ fps: 451      ◄── 0.  render-work throughput (NOT the cap)
+│ tgt: 60       ◄── 1.  your --fps cap, "60" = sixty FPS target
+│ max: 1.204ms  ◄── 2.  worst frame in last 60s (auto-resets)
+│ p99: 0.832ms  ◄── 3.  slowest 1% of frames (spike detector)
+│ cpu: 1.43%    ◄── 4.  process CPU% (one core = 100%)
+│ rss: 8.2MiB   ◄── 5.  process memory (leak detector)
+│ ehs: 87       ◄── 6.  endurance health score (0-100, 100=stable)
+│ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
+│ sped: 14.0    ◄── 8.  chars/sec speed (↑/↓ adjustable)
+│ dsty: 1.00    ◄── 9.  density multiplier ([/]) — `dsty` per owner mandate
+│ scn: cinematic ◄── 10. scene name (x cycle confirmation)
+│ chr: binary   ◄── 11. charset preset (s/S cycle confirmation)
+│ clr: NeonGreen ◄── 12. color scheme (c/C cycle confirmation)
+│ up: 03:42     ◄── 13. session uptime (MM:SS under 1h)
+│ 200x50 auto   ◄── 14. terminal size + mode (auto/fix)
+│ cid: 6ed244b  ◄── 15. build commit id (verify without quitting)
 └─────────────────────────┘
 ```
 
 **Color gradient (top dim → bottom bright):** the HUD mirrors a falling
-rain droplet — the bottom two lines (`screensize` and `cid`) share the
-brightest `head` stop (rain leading character), the top line (`fps`) is
-the dimmest `tail` (rain trailing fade). The `cid` line earns the head
-position because the build identity is the most definitive info the
-owner reads to verify which commit is running. See [HUD Color Scheme](#hud-color-scheme)
+rain droplet — the bottom row (`cid`) earns the brightest `head` stop
+(rain leading character), the top row (`fps`) is the dimmest `tail`
+(rain trailing fade). The `cid` line earns the head position because the
+build identity is the most definitive info the owner reads to verify
+which commit is running. See [HUD Color Scheme](#hud-color-scheme)
 below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
 22 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
-the width out; short values like `fps: 30` let it shrink.
+the width out; short values like `fps: 30` let it shrink. The 7 new
+metric rows (ehs/prs/sped/dsty/scn/chr/clr) are all ≤ 18 chars so
+they never dominate the width budget.
 
 ---
 
@@ -119,8 +139,11 @@ diagnostic recipes for specific symptoms.
 
 ## HUD Lines (top-to-bottom)
 
-The HUD writes 9 lines into the frame buffer at the chosen corner
-(left default, or right after pressing `h`). Each line is one metric.
+The HUD writes 16 rows into the frame buffer at the top-left corner
+(column 0). Each row is one metric. Rows 0-5 are the performance core
+(unchanged from v50), rows 6-12 are the 7 owner-mandated HUD expansion
+metrics (ehs / prs / sped / dsty / scn / chr / clr), and rows 13-15
+are session/diagnostic/build identity (up / screensize / cid).
 
 ### 1. ` fps: <N>`
 
@@ -247,9 +270,10 @@ HUD is visible.
 
 **Why the text never changes:** the SHA is baked into the binary at
 compile time. The line is set once in `HudState::new()` and only its
-color is refreshed by `refresh_colors` every frame (it shares the head
-stop with `screensize`, the brightest position — both are "definitive
-identity" lines).
+color is refreshed by `refresh_colors` every frame (it occupies the
+head stop — palette last-stop, the brightest position — because the
+build identity is the most definitive info the owner reads to verify
+which commit is running).
 
 **Cross-reference:** the same SHA is printed by `cosmostrix --version`
 and emitted in `--benchmark` JSON output as the `git_sha` field.
@@ -408,7 +432,7 @@ the HUD is showing something unexpected and you need a starting point.
 | `cpu:` > 100%                                      | Multi-threaded build spilling onto another core      | Build flags (single-threaded vs multi-threaded)           | Brief spikes are normal. Sustained >100% suggests worker threads are saturated.                 |
 | `up:` shows wrong uptime                           | `session_start` set at HUD creation, not process start | Process start time vs HUD toggle-on time                  | `up:` measures time since the `HudState` was constructed (process startup), not since `i` press. |
 | Screensize shows `200x50 fix` when terminal resized | `--screen-size WxH` was passed, locking the size     | CLI flags / config.toml                                   | Remove `--screen-size` to let the size follow terminal resize (`auto` mode).                    |
-| HUD does not appear after pressing `i`             | HUD is at the opposite corner from where you looked   | Press `h` to toggle corner, or check both corners         | Press `h` to move HUD between left and right corners.                                           |
+| HUD does not appear after pressing `i`             | HUD is off; or terminal width too small for the HUD_MIN_WIDTH floor (12 cols) | Check terminal size, or toggle off/on again          | The HUD always renders at column 0 (top-left). If invisible, verify the terminal width is ≥ 12 cols. |
 | HUD numbers flicker / change too fast              | Expected at 1 Hz — if faster, check for a regression | `HUD_METRIC_INTERVAL` constant in `src/interactive/hud.rs` | 1 Hz is the world-class standard (htop, mangoHUD). Do not increase the rate.                    |
 | HUD colors look grey / washed out                  | Palette has very dim stops; brighten fallback engaged | Active palette (`c`/`C` to cycle, or check config)        | Pure-black palette stops fall back to neutral grey RGB(120,120,120). Use a palette with non-black stops. |
 

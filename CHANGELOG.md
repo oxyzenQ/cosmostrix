@@ -9,6 +9,112 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v50.0.0-alpha.4 — HUD Expansion (Option S) + `h` Shortkey Purge + HUD Metric Stability
+
+### Headline
+
+Owner-mandated HUD expansion: grew the live HUD overlay from 9 rows to 16
+rows, merging in 7 new high-value metrics (ehs / prs / sped / dsty / scn /
+chr / clr) per the owner's "Option S" layout. The `h` shortkey that
+previously toggled the HUD position (left ↔ right corner) has been removed
+as unused maintenance cost — the HUD now always renders flush-left at
+column 0. All HUD metric setters were strengthened with NaN/Inf handling,
+range clamping, and string sanitization for long-running stability.
+
+### HUD Expansion — 7 New Owner-Mandated Metrics (Option S)
+
+The previous 9-row HUD covered performance + resources (fps / tgt / max /
+p99 / cpu / rss / up / screensize / cid) but gave zero feedback for the
+user-adjustable live controls (speed, density, scene, charset, color)
+and zero visibility into the long-endurance stability drivers
+(endurance_health_score, effective_pressure). The owner's Option S
+mandate merges in 7 new rows at positions 6-12, with `cid` moved to
+row 15 (owner-mandated bottom):
+
+| Row | Label  | Source                                   | Purpose                                              |
+|-----|--------|------------------------------------------|------------------------------------------------------|
+| 6   | `ehs:` | `EnduranceHealth::score()` (0-100 f64)   | Long-endurance stability summary (RSS+jitter+ctxt)   |
+| 7   | `prs:` | `PowerManager::effective_pressure()` (0-1)| Live adaptive pressure driver (spawn/sim/self-heal)  |
+| 8   | `sped:`| `Cloud::chars_per_sec()` (f32)           | Speed confirmation for `↑`/`↓` adjustment            |
+| 9   | `dsty:`| `Cloud::droplet_density()` (f32)          | Density confirmation for `[`/`]` (label is `dsty` per owner — NOT `den`) |
+| 10  | `scn:` | `scene_name` local in event_loop         | Scene confirmation for `x` cycle                     |
+| 11  | `chr:` | `charset_preset` local in event_loop     | Charset confirmation for `s`/`S` cycle               |
+| 12  | `clr:` | `cloud.color_scheme` (Debug format)      | Color scheme confirmation for `c`/`C` cycle           |
+
+Existing rows reordered: `up` moved 6 → 13, `screensize` moved 7 → 14,
+`cid` moved 8 → 15. The chroma gradient bumped from 9-stop to 16-stop
+(divisor 8.0 → 15.0) so each row gets its own palette stop, sweeping
+continuously from palette[0] (dim tail) at the top to palette[n-1]
+(bright head) at the bottom.
+
+### `h` Shortkey Purge
+
+The `h` key previously toggled the HUD position between the left and
+right corners. The owner flagged this as unused maintenance cost — the
+default left position covered 100% of the actual use cases, and the
+right-corner code path added complexity (HudPosition enum, toggle_position
+method, start_col() helper, modifier guards, full-redraw signaling)
+without earning its keep. All references have been purged:
+
+- `src/interactive/event_loop.rs`: removed the `KeyCode::Char('h')` handler
+  block + the comment "Live HUD overlay ('i' toggles, 'h' moves corner)".
+- `src/interactive/hud.rs`: removed `HudPosition` enum + impl block,
+  `position: HudPosition` field, `position: HudPosition::Left` initializer,
+  `toggle_position()` method. `write_to_frame` now uses `let start_col = 0u16;`
+  (literal) instead of `self.position.start_col(cols, w)`.
+- `src/help_detail.rs`: removed the `h  Move HUD to opposite corner` line
+  from the `--help` output; updated the `i` HUD description to list all
+  16 metric labels.
+- `README.md`: removed `move with 'h'` from the HUD feature mention;
+  removed the `h` line from the keybindings table; updated the HUD
+  keybinding line to list all 16 metrics; updated "8-stop sweep" to
+  "16-stop sweep" in the font recommendation section; removed `h` from
+  the screensaver-mode runtime keys list.
+- `docs/HUD.md`: removed `move it between corners with 'h'` from the
+  intro; updated Quick Reference table to 16 rows; updated Annotated
+  HUD Layout to 16-row mockup; updated "9 lines" → "16 rows"; updated
+  troubleshooting row "HUD does not appear" to drop the `h` advice.
+
+### HUD Metric Stability Hardening
+
+All 7 new metric setters now sanitize their inputs defensively so a
+runtime NaN/Inf/out-of-range value cannot crash the HUD or produce
+garbage output:
+
+- `set_endurance_health_score(f64)`: clamps to `[0.0, 100.0]`; NaN/Inf
+  map to 0.0 (rendered as `ehs: 0` — visibly degraded, forcing
+  investigation rather than hiding the issue).
+- `set_effective_pressure(f32)`: clamps to `[0.0, 1.0]`; NaN/Inf map
+  to 0.0 (matches the existing clamp in `update_metrics`).
+- `set_chars_per_sec(f32)`: clamps to `[0.0, +inf)`; NaN/negative map
+  to 0.0 (rendered as `sped: 0.0` — visibly broken, not a runaway).
+- `set_droplet_density(f32)`: same as `sped` — clamps to `[0.0, +inf)`.
+- `set_scene_name(&str)`: truncates to 14 chars so a very long custom
+  scene name cannot blow past the HUD_MAX_WIDTH (22 cols) budget.
+- `set_charset_preset(&str)`: same — truncates to 14 chars.
+- `set_color_scheme(ColorScheme)`: enum is already bounded, no
+  sanitization needed.
+
+The `ColorScheme` enum has no NaN/Inf concern (it's a Rust enum with
+fixed variants). The clamps are exercised by new regression tests in
+`hud_tests.rs`.
+
+### Verification
+
+- Light gatekeeper all green: `cargo fmt --check`, `cargo clippy --bin
+  cosmostrix --all-targets -- -D warnings` (zero warnings),
+  `scripts/check-headers.sh` (298 files SPDX-clean),
+  `scripts/check-rs-loc.sh` (196 files ≤ 1500 lines),
+  `scripts/check-rust-version-sync.sh` (MSRV 1.97 in sync),
+  `scripts/check-version-anti-patterns.sh` (no violations).
+- `cargo test --bin cosmostrix hud`: 38/38 PASS (28 existing + 5 v50
+  expansion content tests from alpha.3 + 5 new stability regression
+  tests added in this alpha.4).
+- Full `cargo test` suite + `cargo audit` deferred to CI per owner
+  instruction (heavy on 85K LoC + 1500+ tests).
+
+---
+
 ## v50.0.0-alpha.1 — Cosmic Dragon Stability + Rain-Screen Cleanliness + IP Tightening
 
 ### Headline
