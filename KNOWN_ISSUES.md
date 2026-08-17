@@ -114,6 +114,80 @@ for fix; the `--reset-terminal` recovery path is the official remedy.
 
 ## Reporting new issues
 
+## TTY / Linux VT: screen cleared after quit ('q')
+
+### Symptom
+
+After running cosmostrix on a real TTY (Linux virtual console, e.g.
+Ctrl+Alt+F1) and pressing 'q' to quit, the terminal screen is cleared.
+Previous terminal history (e.g., `echo hello` output) is gone — the
+screen is blank with only the shell prompt visible.
+
+### Affected platforms
+
+- **Linux virtual console** (TTY1-TTY6, TERM=linux): screen clear after
+  quit is a terminal-level behavior. The Linux VT's alternate screen
+  buffer implementation (vt.c, kernel 2.6.x+) may clear the visible
+  screen content when switching back from the alternate screen, even
+  though cosmostrix does NOT emit Clear(All) during cleanup.
+
+### Root cause
+
+This is a **terminal-level limitation**, not a cosmostrix bug. cosmostrix
+performs the following scrollback-safe cleanup on normal exit (see
+`docs/TERMINAL_KILL_CLEANUP.md` for the full sequence):
+
+1. Disable mouse capture, bracketed paste, focus events
+2. Reset text attributes and colors
+3. Show cursor, enable line wrap
+4. Emit SYNC_END (if sync_output supported)
+5. Flush BufWriter BEFORE LeaveAlternateScreen (v50 fix)
+6. LeaveAlternateScreen (restores main screen buffer)
+7. Disable raw mode
+8. Final flush
+
+No `Clear(All)` (`\x1b[2J`), no RIS (`\x1bc`), no scrollback-modifying
+sequences are emitted during normal exit. The cleanup is intentionally
+non-destructive.
+
+However, some TTY/terminal implementations clear the visible screen as
+a side effect of the alternate screen switch (`\x1b[?1049l`). This is
+terminal-level behavior that cosmostrix cannot control — the escape
+sequence for leaving the alternate screen is standardized, but how each
+terminal implements the screen restoration varies.
+
+### Previous fix attempts
+
+Multiple fix attempts were made across sessions:
+1. Removed `Clear(All)` before `LeaveAlternateScreen` — addressed VTE
+   scrollback-clear but did not fix TTY screen clear.
+2. Fixed SYNC_START/END ordering (emit SYNC_END before
+   `LeaveAlternateScreen`, not after) — addressed sync-mode leak but
+   did not fix TTY screen clear.
+3. Removed SYNC_START at init time — addressed main-screen sync open
+   but did not fix TTY screen clear.
+4. Moved `flush()` outside `if sync_output` block to always flush before
+   `LeaveAlternateScreen` — addressed BufWriter content leaking to main
+   screen but did not fix TTY screen clear.
+
+None of these fixes resolved the TTY screen clear because the root cause
+is the terminal's own behavior when processing `LeaveAlternateScreen`, not
+any sequence cosmostrix emits.
+
+### Workaround
+
+No workaround available. This is a terminal-level limitation of the Linux
+VT's alternate screen implementation. On terminal emulators (GNOME Terminal,
+Alacritty, kitty, etc.) that properly implement alternate screen buffers,
+the screen is restored correctly after quit.
+
+### Status
+
+**Accepted as a known limitation.** No further fix planned — the issue
+is in the terminal, not in cosmostrix.
+
+---
+
 If you encounter an issue not listed here, please open a GitHub issue
 at <https://github.com/oxyzenQ/cosmostrix/issues> with:
 
