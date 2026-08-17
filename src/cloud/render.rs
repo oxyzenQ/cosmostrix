@@ -49,6 +49,11 @@ pub(crate) struct FlashWaveCtx {
     /// Squared max reach for early-out: (max(primary, secondary) + ring_width)².
     /// Cells with dist_sq > max_reach_sq skip the wave entirely (no sqrt needed).
     pub max_reach_sq: f32,
+    /// v50 audit C-1: precomputed palette HEAD color (RGB tuple) for the
+    /// chromatic shockwave (C8). Decoded once per wave from the active
+    /// palette's last stop, instead of per-cell × per-wave in droplet.rs.
+    /// Falls back to (255,255,255) pure white if palette is empty.
+    pub head_rgb: (u8, u8, u8),
 }
 
 /// Runtime state of a mouse-click flash wave slot (v30 fix: bounded pool).

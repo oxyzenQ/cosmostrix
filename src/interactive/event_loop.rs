@@ -182,6 +182,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // (by any path), auto-snapback is disabled until a new rx event is
     // applied from a non-empty schedule.
     let mut ambient_snapback_killed: bool = false;
+    // v50 audit C-2: rate-limit the ground-truth file re-read to 1 per 5s
+    // instead of per-frame. The previous code read + TOML-parsed the config
+    // file every frame when ambient was active — ~60 reads/sec + 60 parses/sec.
+    // The 30s idle-snapback latency tolerates 5s staleness.
+    let mut last_ground_truth_check: Instant = Instant::now();
     // AB-08: config file path for ground-truth re-read. The watcher can
     // lose events, leaving all cached state stale. File on disk is truth.
     let config_path_for_ground_truth = base_cfg.config_path_for_watcher.clone();
@@ -420,7 +425,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // AB-08: ground-truth guard — if config file on disk says 0 entries
         // but we got an rx event, the event is stale (watcher missed the
         // change). Discard + nuke all ambient state.
-        if last_ambient_entry.is_some() {
+        // v50 audit C-2: rate-limit to 1 check per 5s (was per-frame).
+        if last_ambient_entry.is_some()
+            && last_ground_truth_check.elapsed() >= std::time::Duration::from_secs(5)
+        {
+            last_ground_truth_check = Instant::now();
             if let Some(ref path) = config_path_for_ground_truth {
                 if let Ok(c) = std::fs::read_to_string(path) {
                     let pv = &crate::configfile::parse_config_text(&c).values;

@@ -638,6 +638,15 @@ impl Cloud {
                         secondary_radius,
                         fade,
                         max_reach_sq: max_reach * max_reach,
+                        // v50 audit C-1: precompute palette HEAD color
+                        // once per wave instead of per-cell in droplet.rs.
+                        head_rgb: self
+                            .palette
+                            .colors
+                            .last()
+                            .copied()
+                            .and_then(crate::palette::decode_color)
+                            .unwrap_or((255, 255, 255)),
                     });
                 }
             }
