@@ -27,6 +27,8 @@ pub(crate) use ancestor::ancestor_matches_high_perf;
 #[cfg(target_os = "linux")]
 pub(crate) use ancestor::parse_proc_ppid;
 #[cfg(test)]
+pub(crate) use ancestor::set_ancestor_walk_inhibited;
+#[cfg(test)]
 #[cfg(target_os = "linux")]
 pub(crate) use ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 #[cfg(test)]

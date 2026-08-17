@@ -3,6 +3,45 @@
 
 use crate::termdetect::hosts::HIGH_PERF_TERM_HINTS;
 
+#[cfg(test)]
+use std::cell::Cell;
+
+#[cfg(test)]
+thread_local! {
+    /// When set to true on the current thread, `ancestor_process_names`
+    /// short-circuits and returns an empty vec. This isolates tests that
+    /// assert on `detect()` results from the host machine's actual
+    /// terminal-emulator process ancestry.
+    ///
+    /// Without this, running `cargo test` from inside Alacritty/Kitty/
+    /// WezTerm/Ghostty/Foot/Konsole makes the test process's ancestor
+    /// chain contain the terminal name, firing Layer 5 of
+    /// `high_perf_detection_source` and Layer 4 of
+    /// `kitty_keyboard_supported`. That contaminates tests which set
+    /// `TERM=dumb` or `TERM=xterm-256color` (no high-perf hint) and
+    /// assert `!caps.kitty_keyboard` / `dynamic_default_fps == 60.0` —
+    /// they fail on the developer's machine but pass in CI/headless.
+    ///
+    /// Thread-local (not global) so that tests which DO want the real
+    /// walk (`ancestor_process_names_returns_nonempty_in_test_env`)
+    /// can run concurrently on their own thread without seeing the flag.
+    /// The flag is never set outside `#[cfg(test)]`, so production
+    /// behavior is unchanged.
+    static INHIBIT_ANCESTOR_WALK: Cell<bool> = const { Cell::new(false) };
+}
+
+/// Test-only: set the thread-local inhibit flag for `ancestor_process_names`.
+/// Returns the previous value so callers can restore it (RAII via `EnvGuard`
+/// in `tests.rs`). Has no effect in production builds (`#[cfg(test)]` only).
+#[cfg(test)]
+pub(crate) fn set_ancestor_walk_inhibited(inhibit: bool) -> bool {
+    INHIBIT_ANCESTOR_WALK.with(|flag| {
+        let prev = flag.get();
+        flag.set(inhibit);
+        prev
+    })
+}
+
 /// Parse the `ppid` field from a `/proc/<pid>/stat` line. The stat format
 /// is `pid (comm) state ppid ...` where `comm` can contain spaces and
 /// parens. We parse from the right of the LAST `)` to avoid ambiguity
@@ -43,6 +82,17 @@ pub(super) fn read_proc_comm(pid: i32) -> Option<String> {
 /// emulator process by name (e.g., "alacritty", "kitty", "ghostty").
 #[cfg(target_os = "linux")]
 pub(crate) fn ancestor_process_names(max_depth: usize) -> Vec<String> {
+    // Test isolation: when the current thread has set the inhibit flag
+    // (via EnvGuard in tests.rs), skip the /proc walk and return empty.
+    // This lets tests that mutate TERM/TERM_PROGRAM assert on `detect()`
+    // results without the host's actual terminal ancestry contaminating
+    // Layer 5 (high_perf_detection_source) or Layer 4 (kitty_keyboard).
+    // The flag is thread-local and `#[cfg(test)]`-only, so production
+    // behavior is unchanged.
+    #[cfg(test)]
+    if INHIBIT_ANCESTOR_WALK.with(|flag| flag.get()) {
+        return Vec::new();
+    }
     let mut names = Vec::with_capacity(max_depth);
     let mut pid = std::process::id() as i32;
     for _ in 0..max_depth {

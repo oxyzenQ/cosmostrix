@@ -13,26 +13,50 @@ static ENV_LOCK: Mutex<()> = Mutex::new(());
 /// Captures the prev values up-front and returns a closure that
 /// restores them when dropped (RAII). Eliminates the boilerplate
 /// `match prev_*` blocks that previously appeared in every test.
+///
+/// Also inhibits the `/proc` ancestor walk (`ancestor_process_names`)
+/// on the current thread for the lifetime of the guard. Without this,
+/// tests that set `TERM=dumb` or `TERM=xterm-256color` (no high-perf
+/// hint) and assert `!caps.kitty_keyboard` would fail when run inside
+/// Alacritty/Kitty/WezTerm/Ghostty/Foot/Konsole — the test process's
+/// ancestor chain contains the terminal name, firing Layer 4/5 of the
+/// detection chain and contaminating the result. The inhibit flag is
+/// thread-local, so concurrent tests that explicitly want the real
+/// walk (e.g. `ancestor_process_names_returns_nonempty_in_test_env`)
+/// are unaffected.
 struct EnvGuard {
     prev_term: Option<String>,
     prev_tp: Option<String>,
     prev_konsole_version: Option<String>,
     prev_wt_session: Option<String>,
+    prev_ancestor_inhibit: bool,
 }
 
 impl EnvGuard {
     fn capture() -> Self {
+        // Set the thread-local inhibit flag BEFORE reading any env var,
+        // so that any subsequent `detect()` call on this thread sees the
+        // flag and skips the /proc walk. Save the previous value so
+        // nested EnvGuards restore correctly.
+        let prev_ancestor_inhibit = set_ancestor_walk_inhibited(true);
         Self {
             prev_term: env::var("TERM").ok(),
             prev_tp: env::var("TERM_PROGRAM").ok(),
             prev_konsole_version: env::var("KONSOLE_VERSION").ok(),
             prev_wt_session: env::var("WT_SESSION").ok(),
+            prev_ancestor_inhibit,
         }
     }
 }
 
 impl Drop for EnvGuard {
     fn drop(&mut self) {
+        // Restore the inhibit flag FIRST, before restoring env vars, so
+        // that if another EnvGuard is being created concurrently on a
+        // different thread it doesn't see a stale flag. (The flag is
+        // thread-local, so this is only relevant for nested guards on
+        // the same thread, but the ordering is still correct.)
+        set_ancestor_walk_inhibited(self.prev_ancestor_inhibit);
         match self.prev_term.take() {
             Some(v) => env::set_var("TERM", v),
             None => env::remove_var("TERM"),
@@ -728,6 +752,38 @@ fn ancestor_process_names_returns_nonempty_in_test_env() {
          name on Linux — empty result means /proc is unavailable, which \
          would silently disable Layer 5 detection (the alacritty bug)"
     );
+}
+
+#[test]
+fn env_guard_inhibits_ancestor_walk_on_current_thread() {
+    // Regression guard for the "tests fail inside Alacritty/Kitty/WezTerm"
+    // bug. When a developer runs `cargo test` from inside a high-perf
+    // terminal, the test process's ancestor chain contains the terminal
+    // name, which makes `kitty_keyboard_supported` Layer 4 and
+    // `high_perf_detection_source` Layer 5 fire — contaminating tests
+    // that set `TERM=dumb` / `TERM=xterm-256color` and assert
+    // `!caps.kitty_keyboard` or `dynamic_default_fps == 60.0`.
+    //
+    // EnvGuard solves this by setting a thread-local inhibit flag that
+    // makes `ancestor_process_names` return empty. This test verifies
+    // that mechanism explicitly — without it, the bug would be invisible
+    // on headless CI (where the ancestor walk finds no high-perf
+    // terminal) and only manifest on developer machines.
+    //
+    // ENV_LOCK is required because EnvGuard::capture() reads env vars
+    // (TERM, TERM_PROGRAM, etc.) — without the lock, a concurrent test
+    // mutating env vars could cause our Drop to restore a stale value.
+    let _guard = ENV_LOCK.lock().unwrap();
+    let _env = EnvGuard::capture();
+    let names = ancestor_process_names(10);
+    assert!(
+        names.is_empty(),
+        "EnvGuard must inhibit the /proc ancestor walk on the current \
+         thread so detect() tests are isolated from the host's actual \
+         terminal ancestry. If this fails, EnvGuard is no longer setting \
+         the inhibit flag (check set_ancestor_walk_inhibited in ancestor.rs)."
+    );
+    // EnvGuard::Drop restores the inhibit flag to its previous value.
 }
 
 #[test]
