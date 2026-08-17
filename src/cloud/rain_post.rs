@@ -385,11 +385,41 @@ impl Cloud {
             // decode_color round-trip — saves ~9 cycles/call. The call-site
             // guard (factor is a const in [0,1]) means the unclamped variant
             // is bit-identical to the clamped one here.
+            // v50 (2026-08-17) peak optimize #3 — color cycling:
+            // replace the fixed snapshot color (p.r/p.g/p.b) with a
+            // smoothly-cycling palette sweep driven by the particle's
+            // age. As life_frac goes 0 → 1 over the 2.5s lifespan, the
+            // color sweeps palette[0] → palette[last] via the same
+            // interpolate_palette_color helper used by the border
+            // message (C4), HUD chroma gradient (C5), and rain shader
+            // (C6). The result is a "rainbow fade" — each particle
+            // shimmers through the full palette chroma dragon gradient
+            // as it ages, instead of being locked to its spawn-time
+            // body color.
+            //
+            // The snapshot (p.r/p.g/p.b) is preserved on the struct for
+            // backward-compatibility with the crossfade regression tests
+            // (quantum_particle_retains_snapshot_after_palette_switch
+            // etc.) and for any future code path that wants the
+            // spawn-time color. The RENDERED color now uses the cycled
+            // value — the snapshot is no longer the source of truth for
+            // what the user sees.
+            //
+            // LTS stability: interpolate_palette_color is NaN/Inf-safe
+            // (returns first stop defensively), so a future upstream
+            // palette bug cannot crash the ripple or produce garbage
+            // colors. The TONE_DOWN scale is still applied to the
+            // cycled color to match the rain's perceived average
+            // brightness.
+            let (cycle_r, cycle_g, cycle_b) =
+                crate::cloud::interpolate_palette_color(self.palette.colors.as_slice(), life_frac)
+                    .and_then(crate::palette::decode_color)
+                    .unwrap_or((p.r, p.g, p.b));
             let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
                 crate::chroma::palette::apply_brightness_rgb_unclamped(
-                    p.r,
-                    p.g,
-                    p.b,
+                    cycle_r,
+                    cycle_g,
+                    cycle_b,
                     QUANTUM_BODY_TONE_DOWN,
                 )
             } else {
@@ -397,13 +427,13 @@ impl Cloud {
                 // (NOT legacy::scale_rgb, which uses integer >> 8 math).
                 // The difference vs chroma is ±1 per channel for QUANTUM_BODY_TONE_DOWN.
                 (
-                    (p.r as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (cycle_r as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
-                    (p.g as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (cycle_g as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
-                    (p.b as f32 * QUANTUM_BODY_TONE_DOWN)
+                    (cycle_b as f32 * QUANTUM_BODY_TONE_DOWN)
                         .round()
                         .clamp(0.0, 255.0) as u8,
                 )
