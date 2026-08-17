@@ -5,7 +5,7 @@
 name = "cosmostrix"
 version = "50.0.0-alpha.3"
 edition = "2021"
-rust-version = "1.97"
+rust-version = "1.97.1"
 authors = ["rezky_nightky (oxyzenQ)"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
 license = "GPL-3.0-only"

@@ -79,7 +79,7 @@ The renderer is structured as five cooperating subsystems (Cosmic Dragon) plus t
 
 1. **Diff-based cell renderer** (`src/frame.rs`, `src/terminal/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation.
 2. **3-layer parallax** (`src/cloud/spawn.rs`, `src/cloud/rain.rs`; multipliers in `src/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
-3. **Phosphor persistence** (`src/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 3× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
+3. **Phosphor persistence** (`src/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 2× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
 4. **Density noise & wind gusts** (`src/cloud/living_rain.rs`, `src/cloud/monolith.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
 5. **Ambient scheduler** (`src/ambient_scheduler.rs`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase). Replaces the v30 atmosphere engine (eliminated) with a leaner, deterministic design.
 6. **Chroma Dragon coloring engine** (`src/chroma/`) — the coloring counterpart to the Cosmic Dragon. Owns palette construction, OKLab gradient interpolation, cell-color resolution, transition L+chroma smoothing, atmospheric post-processing, and palette-aware anomaly halos. Locked at Phase 9-D (see About section above).
@@ -110,7 +110,7 @@ The Dragon's roar is not loud — it is precise.
 - **Ambient scheduler** — `ambient."HH-MM" = "scene"` config entries define time-of-day scene scheduling (e.g. `ambient."22-10" = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
 - 44 built-in themes and 25 character sets (`--color-tune` turns all 44 into 44 × ∞ variants)
 - **3-layer parallax depth** — far/mid/near layers with per-layer speed `[0.35, 1.0, 1.7]`, brightness `[0.52, 0.80, 1.10]`, length `[0.5, 1.0, 1.4]`, density `[0.45, 0.62, 0.85]`, and phosphor decay `[2.0, 1.2, 0.6]`. 3 layers is the cinema-standard deep/mid/ground composition; more layers collapse perceptually in a 24-row terminal
-- **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 3× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
+- **Phosphor persistence (CRT afterglow)** — `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0` with per-layer decay mult, bottom-row 2× acceleration, and edge energy cap. Creates ~400ms afterglow per glyph — most terminal rain renderers have zero afterglow
 - **Depth fog** — 3-row bottom vignette (`FOG_MIN_FACTOR=1.0`, disabled in v50 alpha — redundant with per-layer contrast reduction) + per-layer contrast reduction `[0.50, 0.18, 0.0]` (depth-of-field perceptual blur for far layer only)
 - TrueColor gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
@@ -543,7 +543,7 @@ renderer can *compute* per second, not how many frames the terminal
 refresh rate, and ANSI output bandwidth. Use `i` (live HUD) during a
 real run to see actual interactive FPS.
 
-Use `--bench-duration N` (1–600s) for sustained drift / leak detection:
+Use `--bench-duration N` (min 1s, no maximum) for sustained drift / leak detection:
 
 ```bash
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60

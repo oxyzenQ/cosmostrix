@@ -594,7 +594,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # color = "energy-zen"         # See: cosmostrix --list-colors (cinematic default)
 # charset = "zen"              # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "default-background"  # or "black"
-# intro = "logo"               # logo | cosmic | none
+# intro = "logo"               # logo | cosmic | none (default: logo)
 
 # ── Motion ──
 
@@ -614,10 +614,10 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ── Color Tuning ──
 # [color.tune]
 # brightness = 1.0             # global (0.0-3.0, default 1.0)
-# saturation = 1.0             # 0.0 = grayscale
-# head = 1.0
-# body = 1.0
-# tail = 1.0
+# saturation = 1.0             # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
+# head = 1.0                   # 0.0-3.0
+# body = 1.0                    # 0.0-3.0
+# tail = 1.0                    # 0.0-3.0
 
 # ── Custom Scenes ──
 # Define named scenes, load with: cosmostrix --scene-custom <name>
@@ -636,7 +636,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # bold = 1                     # 0=off, 1=random, 2=all
 # shadingmode = 1             # 0=random, 1=cinematic
 # glitch-level = "intense"
-# density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights
+# density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights (each 0.0-1.0)
 # async = true                 # variable column speeds
 
 # ── Custom Color Palettes ──
@@ -661,8 +661,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # ── Custom Character Sets ──
 # Define named charsets, reference via: charset-custom = <name>
-# Rules: single-width printable chars only (no emoji, no CJK, no controls).
-#        max 256 characters per set. TOML is UTF-8 — type the actual glyphs.
+# Rules: printable chars only. Controls → error. Wide/zero-width (CJK, emoji) → silently skipped with warning.
+#        max 256 characters per set (exceeding = error at startup/--testconf). TOML is UTF-8 — type the actual glyphs.
 # Activate: cosmostrix --charset <name>  or  charset = "<name>"
 
 # [charset-custom.zen]
@@ -678,6 +678,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Time-of-day scene switches. Config-only (no CLI flag).
 # Format: ambient.<HH-MM> = <scene-name>  (24-hour, zero-padded)
 # Live reload: edits take effect on save.
+# Max 256 entries.
 
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
