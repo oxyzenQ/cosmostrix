@@ -804,17 +804,40 @@ impl Droplet {
                     }
 
                     if factor > 0.0 {
-                        // (chroma audit, A2): flash wave blends each
-                        // cell toward pure white (255,255,255) by `factor`.
-                        // The chroma path uses chroma::palette::blend_toward_white_rgb
-                        // (the tuple-in/tuple-out variant of blend_toward_white,
-                        // avoids the Color wrap + decode round-trip on the hot
-                        // path). The legacy fallback uses chroma::legacy::blend_toward_white.
-                        // Both produce bit-identical output (same equation).
+                        // v50 (2026-08-17) chromatic shockwave: flash wave
+                        // blends each cell toward the active palette's HEAD
+                        // color (palette[last]) instead of pure white
+                        // (255,255,255). This ties the flash to the active
+                        // palette hue — green-ish on a green palette, red-
+                        // ish on a red palette — making the wave chroma-
+                        // dragon-consistent with the surrounding rain color.
+                        //
+                        // The head color is the brightest stop in the
+                        // chroma-built palette. For most schemes the head is
+                        // near-white (Green head ≈ (201, 244, 210), Blue head
+                        // ≈ (190, 223, 242)) so the visual difference vs the
+                        // previous pure-white blend is subtle. For saturated
+                        // schemes (Red, Fire, Cosmos), the head is more
+                        // vivid, producing a distinctly-colored flash that
+                        // reads as an extension of the rain color rather than
+                        // an alien white shockwave.
+                        //
+                        // Fallback to pure white (255,255,255) if the palette
+                        // is empty or the head color cannot be decoded
+                        // (degenerate defensive case — preserves the
+                        // pre-C8 behavior under degenerate palettes).
+                        let active_slot = ctx.active_palette_slot as usize;
+                        let palette_slice =
+                            ctx.palette_slices.get(active_slot).copied().unwrap_or(&[]);
+                        let (hr, hg, hb) = palette_slice
+                            .last()
+                            .copied()
+                            .and_then(crate::palette::decode_color)
+                            .unwrap_or((255, 255, 255));
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                            crate::chroma::palette::blend_toward_bg_rgb(r, g, b, hr, hg, hb, factor)
                         } else {
-                            crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                            crate::chroma::legacy::blend_toward_rgb(r, g, b, hr, hg, hb, factor)
                         };
                         r = nr;
                         g = ng;
