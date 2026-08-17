@@ -72,15 +72,30 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
         && (key.modifiers.is_empty() || key.modifiers == KeyModifiers::SHIFT)
 }
 
+/// Returns true if the key event has NO modifier bits set.
+///
+/// Use for non-cycle shortcuts (q, c, s, x, i, h, p, [, ], space,
+/// arrows) that must only respond to bare keypresses — Shift+key
+/// (e.g. Shift+q → 'Q') and any other modifier combination are rejected.
+///
+/// CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
+/// which Char the terminal reports ('q' → 'Q' when CapsLock is on,
+/// with modifiers=NONE). It is inherently allowed by this check because
+/// the CapsLock-produced uppercase char simply doesn't match the lowercase
+/// KeyCode::Char('q') arm (it matches 'Q', which has no binding).
+pub(super) fn is_unmodified(modifiers: crossterm::event::KeyModifiers) -> bool {
+    modifiers.is_empty()
+}
+
 /// Returns true if the key event's modifiers are in the "safe" allowlist:
 /// only bare keys (KeyModifiers::NONE) or SHIFT (for capital S/C reverse-
 /// cycle bindings). Rejects ALL other modifier bits: CONTROL, ALT, SUPER,
 /// HYPER, META.
 ///
-/// This is the canonical modifier guard for all cosmostrix shortcuts.
-/// Use this instead of ad-hoc `is_empty()` or `intersects(CONTROL | ALT)`
-/// checks so the rules stay consistent across handle_keybinding(),
-/// event_loop.rs HUD toggles, and any future shortcut handlers.
+/// Use ONLY for cycle shortcuts (uppercase S, C) where Shift is a
+/// deliberate input (Shift+s → S = reverse charset cycle, Shift+c → C =
+/// reverse color cycle). Non-cycle shortcuts must use `is_unmodified()`
+/// instead.
 ///
 /// CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
 /// which Char the terminal reports ('c' → 'C' when CapsLock is on,
@@ -122,35 +137,39 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     let _cfg = ctx.cfg;
     let _term_reinit = ctx.term_reinit;
 
-    use crossterm::event::KeyCode;
+    use crossterm::event::{KeyCode, KeyModifiers};
 
-    // Modifier allowlist: accept ONLY bare keys (KeyModifiers::NONE) or
-    // SHIFT (for capital S/C reverse-cycle bindings). Reject ALL other
-    // modifier bits: CONTROL, ALT, SUPER, HYPER, META.
+    // Modifier fast-reject: block any key event that carries modifier bits
+    // beyond NONE and SHIFT. The per-arm match below then applies the final
+    // policy:
+    //  • Non-cycle shortcuts (lowercase q/c/s/x/p/[/]/space, arrows):
+    //    match only KeyModifiers::NONE — Shift+key is rejected (owner
+    //    requirement: only bare lowercase key, not uppercase variant).
+    //  • Cycle shortcuts (uppercase C/S):
+    //    match any modifier that passes this guard (NONE or SHIFT) — both
+    //    are valid: NONE = CapsLock produced the uppercase char, SHIFT =
+    //    Shift produced it.
     //
-    // Owner-reported bug: Super+C still cycled colors on modern terminals
-    // (kitty, wezterm, foot) that report the kitty keyboard protocol's
-    // enhanced modifier bits. crossterm 0.29 exposes SUPER (0b1000),
-    // HYPER (0b10000), and META (0b100000) as separate KeyModifiers bits
-    // — the previous denylist only blocked CONTROL | ALT, leaving
-    // SUPER/HYPER/META unguarded. Same vulnerability applied to every
-    // char-based shortcut: Super+Q would quit, Super+X would cycle scene,
-    // Super+S would change charset, etc.
+    // Owner-reported bug (v50 alpha.3): Super+C still cycled colors on
+    // modern terminals (kitty, wezterm, foot) that report the kitty
+    // keyboard protocol's enhanced modifier bits. crossterm 0.29 exposes
+    // SUPER (0b1000), HYPER (0b10000), and META (0b100000) as separate
+    // KeyModifiers bits — the previous denylist only blocked CONTROL |
+    // ALT, leaving SUPER/HYPER/META unguarded.
+    //
+    // Owner follow-up (v50 alpha.4): non-cycle shortcuts like 'q' must
+    // only respond to the bare lowercase key, NOT the Shift-produced
+    // uppercase variant. Previously Shift+q (CapsLock on) could trigger
+    // quit because the match arm used `_` for modifiers.
     //
     // The allowlist approach is future-proof: if crossterm adds new
     // modifier bits (e.g. FUNCTION), they are rejected by default — no
-    // silent passthrough. This matches the already-correct pattern in
-    // is_plain_printable_key() above (empty || SHIFT).
+    // silent passthrough.
     //
     // CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
     // which Char the terminal reports ('c' → 'C' when CapsLock is on,
     // with modifiers=NONE). It is inherently allowed by the allowlist
-    // because no modifier bit is set. Shift inverts CapsLock state, but
-    // is also allowed because SHIFT is in the allowlist.
-    //
-    // Note: CONTROL+Shift+'c' (Ctrl+Shift+C) produces Char('C') with
-    // CONTROL | SHIFT modifiers — correctly rejected because the
-    // modifiers field is not empty and not == SHIFT.
+    // because no modifier bit is set.
     if !is_unmodified_or_shift(k.modifiers) {
         return false;
     }
@@ -171,8 +190,11 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // regression suite in tests.rs::tab_* documents the historical bug
     // and verifies Tab remains a no-op.
     match (k.code, k.modifiers) {
-        (KeyCode::Char('q'), _) => cloud.raining = false,
-        (KeyCode::Char(' '), _) => {
+        // Non-cycle shortcuts: KeyModifiers::NONE only.
+        // Owner requirement: only bare lowercase key, not Shift-produced
+        // uppercase. E.g. 'q' quits, 'Q' does nothing.
+        (KeyCode::Char('q'), KeyModifiers::NONE) => cloud.raining = false,
+        (KeyCode::Char(' '), KeyModifiers::NONE) => {
             cloud.reset(frame.width, frame.height);
             cloud.force_draw_everything();
             // Restart message typewriter so Space gives a full cinematic
@@ -188,19 +210,22 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // is taking ownership of color) and sets `user_override_since_ambient`
         // (so the next ambient fire isn't deduped). See
         // docs/audits/AMBIENT_SCHEDULER_AUDIT.md §2.3.
-        (KeyCode::Char('c'), _) => {
+        (KeyCode::Char('c'), KeyModifiers::NONE) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);
             cloud.set_color_scheme(next);
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
+        // Cycle shortcut: uppercase 'C' accepts NONE (CapsLock) or SHIFT.
+        // The global guard already limits modifiers to NONE | SHIFT, so
+        // `_` here is safe and concise.
         (KeyCode::Char('C'), _) => {
             let prev = cycle_color_scheme(cloud.color_scheme(), -1);
             cloud.set_color_scheme(prev);
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
-        (KeyCode::Char('s'), _) => {
+        (KeyCode::Char('s'), KeyModifiers::NONE) => {
             let next = cycle_charset_preset(charset_preset, 1);
             *charset_preset = next.to_string();
             if let Ok(cs) = charset_from_str(charset_preset, def_ascii) {
@@ -212,6 +237,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             // isn't deduped.
             cloud.user_override_since_ambient = true;
         }
+        // Cycle shortcut: uppercase 'S' accepts NONE (CapsLock) or SHIFT.
         (KeyCode::Char('S'), _) => {
             let prev = cycle_charset_preset(charset_preset, -1);
             *charset_preset = prev.to_string();
@@ -222,10 +248,10 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             cloud.user_override_since_ambient = true;
         }
 
-        (KeyCode::Char('p'), _) => {
+        (KeyCode::Char('p'), KeyModifiers::NONE) => {
             return cloud.toggle_pause();
         }
-        (KeyCode::Char('x'), _) => {
+        (KeyCode::Char('x'), KeyModifiers::NONE) => {
             let next = scene::cycle_scene(scene_name, 1);
             *scene_name = next.to_string();
             *scene_generation = scene_generation.wrapping_add(1);
@@ -238,7 +264,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
-        (KeyCode::Up, _) => {
+        (KeyCode::Up, KeyModifiers::NONE) => {
             let mut cps = cloud.chars_per_sec;
             if cps <= 0.5 {
                 cps *= 2.0;
@@ -247,7 +273,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             }
             cloud.set_chars_per_sec(runtime_speed_clamp(cps, cloud.rain_style()));
         }
-        (KeyCode::Down, _) => {
+        (KeyCode::Down, KeyModifiers::NONE) => {
             let mut cps = cloud.chars_per_sec;
             if cps <= 1.0 {
                 cps /= 2.0;
@@ -261,11 +287,11 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // carried over from an older keymap and never documented in the
         // --help reference, so they only caused confusion. '[' and ']'
         // are the canonical density keys and the only ones documented.
-        (KeyCode::Char('['), _) => {
+        (KeyCode::Char('['), KeyModifiers::NONE) => {
             let d = (cloud.droplet_density - DENSITY_STEP).max(0.01);
             cloud.set_droplet_density(d);
         }
-        (KeyCode::Char(']'), _) => {
+        (KeyCode::Char(']'), KeyModifiers::NONE) => {
             let d = (cloud.droplet_density + DENSITY_STEP).min(5.0);
             cloud.set_droplet_density(d);
         }

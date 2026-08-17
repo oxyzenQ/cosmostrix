@@ -15,8 +15,8 @@ mod cases {
 
     use crate::interactive::activity::{idle_resync_due, is_runtime_idle, register_activity};
     use crate::interactive::input::{
-        handle_keybinding, runtime_speed_clamp, should_auto_snapback, KeybindingCtx,
-        PasteBurstGuard,
+        handle_keybinding, is_unmodified, is_unmodified_or_shift, runtime_speed_clamp,
+        should_auto_snapback, KeybindingCtx, PasteBurstGuard,
     };
     use crate::{cycle_charset_preset, cycle_color_scheme, CloudConfig, PowerManager};
 
@@ -1405,5 +1405,83 @@ mod cases {
             before,
             "Shift+C must still cycle colors in reverse"
         );
+    }
+
+    // ── Non-cycle SHIFT rejection (v50 alpha.4) ────────────────────────────
+    // Owner: non-cycle shortcuts only respond to bare lowercase keys (NONE).
+    // Shift+key rejected, preventing CapsLock+Shift scenarios from
+    // triggering unintended actions. Previously match arms used `_` for mods.
+
+    #[test]
+    #[rustfmt::skip]
+    fn shift_non_cycle_keys_are_no_ops() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut cp = String::from("binary");
+        let cfg = make_test_config(); let tri = default_term_reinit();
+        let color0 = color_scheme_of(&cloud); let density0 = cloud.droplet_density; let pause0 = cloud.pause;
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('q', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert!(cloud.raining, "Shift+q must NOT quit");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('c', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(color_scheme_of(&cloud), color0, "Shift+c no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('p', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.pause, pause0, "Shift+p no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('[', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.droplet_density, density0, "Shift+[ no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(']', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.droplet_density, density0, "Shift+] no-op");
+        cloud.force_draw_everything(); let fd0 = cloud.is_force_draw_everything();
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(' ', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.is_force_draw_everything(), fd0, "Shift+Space no-op");
+        let speed0 = cloud.chars_per_sec;
+        call_handle_keybinding(&mut cloud, &mut frame, &arrow_with_mod(KeyCode::Up, KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.chars_per_sec, speed0, "Shift+Up no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &arrow_with_mod(KeyCode::Down, KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.chars_per_sec, speed0, "Shift+Down no-op");
+    }
+
+    #[test]
+    #[rustfmt::skip]
+    fn shift_scene_keys_are_no_ops() {
+        let mut cloud = make_test_cloud();
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        let mut cp = String::from("binary"); let mut sn = String::from("monolith"); let mut sg: u64 = 0;
+        let cfg = make_test_config(); let tri = default_term_reinit(); let cp0 = cp.clone();
+        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('s', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
+        assert_eq!(cp, cp0, "Shift+s no-op");
+        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('x', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
+        assert_eq!(sn, "monolith", "Shift+x no-op");
+    }
+
+    #[test]
+    fn is_unmodified_accepts_only_none() {
+        assert!(is_unmodified(KeyModifiers::NONE));
+        for m in [
+            KeyModifiers::SHIFT,
+            KeyModifiers::CONTROL,
+            KeyModifiers::ALT,
+            KeyModifiers::SUPER,
+            KeyModifiers::HYPER,
+            KeyModifiers::META,
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+        ] {
+            assert!(!is_unmodified(m));
+        }
+    }
+
+    #[test]
+    fn is_unmodified_or_shift_accepts_none_and_shift() {
+        assert!(is_unmodified_or_shift(KeyModifiers::NONE));
+        assert!(is_unmodified_or_shift(KeyModifiers::SHIFT));
+        for m in [
+            KeyModifiers::CONTROL,
+            KeyModifiers::ALT,
+            KeyModifiers::SUPER,
+            KeyModifiers::HYPER,
+            KeyModifiers::META,
+            KeyModifiers::CONTROL | KeyModifiers::SHIFT,
+        ] {
+            assert!(!is_unmodified_or_shift(m));
+        }
     }
 }

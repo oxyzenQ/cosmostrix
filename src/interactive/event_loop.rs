@@ -24,7 +24,7 @@ use super::adaptive::{
 };
 use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::{FrameMode, HudState};
-use super::input::{handle_keybinding, is_unmodified_or_shift, KeybindingCtx, PasteBurstGuard};
+use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
 
@@ -649,12 +649,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // HUD toggle ('i'): check BEFORE screensaver exit to prevent
                         // self-exit on Android/Termux. v30: lowercase-only. Toggling
                         // OFF calls force_draw_everything() to clear stale HUD residue.
-                        // Modifier allowlist: only bare 'i' or Shift+'I' (which falls
-                        // through to no-op since there's no Char('I') arm). Rejects
-                        // Ctrl/Super/Alt/Hyper/Meta+'i'. See is_unmodified_or_shift().
-                        if is_unmodified_or_shift(k.modifiers)
-                            && matches!((k.code, k.modifiers), (KeyCode::Char('i'), _))
-                        {
+                        // Modifier guard: only bare 'i' (NONE). Rejects Shift+'i'
+                        // (which produces 'I', no binding) and all other modifiers
+                        // (Ctrl/Super/Alt/Hyper/Meta+'i'). See is_unmodified().
+                        if is_unmodified(k.modifiers) && matches!(k.code, KeyCode::Char('i')) {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
                                 cloud.force_draw_everything();
@@ -673,12 +671,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         // 'h': toggle HUD position. v30: lowercase-only (uppercase
                         // 'H' removed; lowercase works on all keyboards including Android).
-                        // Modifier allowlist: only bare 'h' or Shift+'H' (which falls
-                        // through to no-op since there's no Char('H') arm). Rejects
-                        // Ctrl/Super/Alt/Hyper/Meta+'h'. See is_unmodified_or_shift().
-                        if is_unmodified_or_shift(k.modifiers)
-                            && matches!((k.code, k.modifiers), (KeyCode::Char('h'), _))
-                        {
+                        // Modifier guard: only bare 'h' (NONE). Rejects Shift+'h'
+                        // (which produces 'H', no binding) and all other modifiers
+                        // (Ctrl/Super/Alt/Hyper/Meta+'h'). See is_unmodified().
+                        if is_unmodified(k.modifiers) && matches!(k.code, KeyCode::Char('h')) {
                             if hud_state.toggle_position() {
                                 cloud.force_draw_everything();
                             }
