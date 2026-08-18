@@ -345,7 +345,7 @@ impl Cloud {
         // path consistent: unknown values are silently ignored (mode unchanged)
         // rather than silently coerced to Random. Uses a labeled block so we
         // skip just the assignment, NOT the rest of the function (return would
-        // wrongly skip shadingmode/async/etc. fields below).
+        // wrongly skip shadingmode/async-mode/etc. fields below).
         if let Some(bold_str) = &custom.bold {
             if let Ok(n) = bold_str.trim().parse::<u8>() {
                 'bold: {
@@ -373,7 +373,7 @@ impl Cloud {
                 }
             }
         }
-        // async (true/false).
+        // async-mode (true/false).
         if let Some(async_str) = &custom.async_mode {
             let on = matches!(
                 async_str.trim().to_ascii_lowercase().as_str(),

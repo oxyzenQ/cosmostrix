@@ -575,7 +575,7 @@ fn parse_u8_profile(name: &str, field: &str, value: &str, min: u8, max: u8) -> O
 }
 
 /// parse a bool field ("true"/"false", case-insensitive, also accepts
-/// "1"/"0"). Used for the `async` scene-custom field.
+/// "1"/"0"). Used for the `async-mode` scene-custom/profile field.
 fn parse_bool(value: &str) -> Option<bool> {
     match value.trim().to_ascii_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Some(true),

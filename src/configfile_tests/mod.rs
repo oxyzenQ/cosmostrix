@@ -232,7 +232,7 @@ fn multiple_top_level_keys_all_promote() {
     // A realistic config with top-level keys, all written after a scene-custom
     // block. All should be promoted (they are NOT valid scene-custom fields).
     //
-    // `bold`, `shadingmode`, `async` ARE now valid scene-custom fields
+    // `bold`, `shadingmode`, `async-mode` ARE now valid scene-custom fields
     // per owner contract — so they no longer get promoted when written under
     // a `[scene-custom.*]` block. This test now uses fields that remain
     // FORBIDDEN in scene-custom (`intro`, `color-bg`,
