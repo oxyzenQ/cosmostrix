@@ -215,8 +215,11 @@ pub(crate) fn print_doctor_report(args: &Args) {
 
     // CRYSTAL DRAGON ENGINE section — ambient intelligence diagnostics.
     //
-    // Crystal Dragon Engine diagnostics: show the current sensor state
-    // so the user can verify what the engine sees (point, group, mode).
+    // Shows default config + fresh sensor probe. This is NOT the runtime
+    // sensor (which is owned by the event loop); it is a diagnostic probe
+    // that takes one CPU sample right now. The point/group will differ
+    // from runtime at any given moment — the purpose is to verify that
+    // the sensor subsystem works (CPU detection, fallback, etc.).
     {
         let s = r.section("CRYSTAL DRAGON ENGINE");
         let now = std::time::Instant::now();
@@ -244,6 +247,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         }
         s.field("polling_secs", &control.polling_secs.to_string());
         s.field("drift_chance", &control.drift_chance.to_string());
+        s.field("source", "diagnostic probe (not runtime state)");
     }
 
     // ENVIRONMENT section

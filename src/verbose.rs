@@ -53,7 +53,7 @@ pub(crate) struct VerboseCtx<'a> {
     pub glitch_high: u16,
     pub glitch_level: &'a str,
     pub screensaver: bool,
-    pub auto_drift: bool,
+    pub crystal_dragon: bool,
     pub message: Option<&'a str>,
     pub message_border: bool,
     pub duration: Option<f64>,
@@ -134,7 +134,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         glitch_high,
         glitch_level,
         screensaver,
-        auto_drift,
+        crystal_dragon,
         message,
         message_border,
         duration,
@@ -279,10 +279,10 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
 
     // ── Color Climate ────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Color Climate ──"));
-    output::eprintln_verbose("auto_drift:", &format!(" {auto_drift}"));
-    let palette_drift_label = if *bench_mode && *auto_drift {
+    output::eprintln_verbose("crystal_dragon:", &format!(" {crystal_dragon}"));
+    let palette_drift_label = if *bench_mode && *crystal_dragon {
         "enabled (overridden to disabled in benchmark mode — see note below)"
-    } else if *auto_drift {
+    } else if *crystal_dragon {
         "enabled"
     } else {
         "disabled"
@@ -292,7 +292,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         "  palette_drift:",
         &format!(" {palette_drift_label} (tick every {tick_secs:.1}s)"),
     );
-    if *bench_mode && *auto_drift {
+    if *bench_mode && *crystal_dragon {
         output::eprintln_verbose(
             "  bench_override:",
             " palette drift forced OFF during benchmark for deterministic p99/max metrics",
@@ -300,7 +300,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     }
     output::eprintln_verbose(
         "  climate_drift:",
-        " always-on (luminance/saturation/hue accumulate regardless of auto_drift flag)",
+        " always-on (luminance/saturation/hue accumulate regardless of crystal_dragon flag)",
     );
 
     // ── Ambient ───────────────────────────────────────────────────

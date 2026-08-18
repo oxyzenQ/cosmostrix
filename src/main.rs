@@ -1039,7 +1039,7 @@ fn main() -> std::io::Result<()> {
             glitch_high,
             glitch_level: &format!("{:?}", args.glitch_level),
             screensaver: args.screensaver,
-            auto_drift: args.crystal_dragon,
+            crystal_dragon: args.crystal_dragon,
             message: args.message.as_deref(),
             message_border: args.message_border,
             duration: args.duration,

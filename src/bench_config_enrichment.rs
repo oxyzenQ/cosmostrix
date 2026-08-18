@@ -15,9 +15,9 @@ use crate::app::CloudConfig;
 /// (a) which color pipeline the run is using (`chroma_dragon` or `legacy_rgb`)
 /// and (b) the chroma engine status during benchmarking. Owner question:
 /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
-/// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
-/// palette *drift* is disabled (see `cloud.crystal_dragon = false` in
-/// run_benchmark line ~201), the chroma engine itself still runs every cell. The `chroma_in_benchmark`
+/// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- crystal_dragon
+/// palette drift is forced OFF (see `cloud.crystal_dragon = false` in
+/// bench.rs entry points), the chroma engine itself still runs every cell. The `chroma_in_benchmark`
 /// field makes this explicit in the report so the user does not have to read
 /// the source to find out.
 pub(crate) struct ConfigEnrichment {
@@ -129,10 +129,12 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
     // dragon running during benchmark?" without reading the source.
     let pipeline = ColorPipeline::detect(cfg.color_mode);
     let color_pipeline_label = pipeline.label();
-    let chroma_in_benchmark: &'static str = if pipeline.is_chroma() {
-        "enabled (palette_drift off for determinism, climate_drift active)"
-    } else {
+    let chroma_in_benchmark: &'static str = if !pipeline.is_chroma() {
         "legacy fallback (color mode lacks truecolor; no chroma engine in benchmark either)"
+    } else if cfg.crystal_dragon {
+        "chroma enabled (crystal_dragon OFF for determinism, climate_drift active)"
+    } else {
+        "chroma enabled (crystal_dragon was already off, climate_drift active)"
     };
 
     ConfigEnrichment {

@@ -143,7 +143,7 @@ mod tests {
             glitch_pct: 3.0,
             color_pipeline: "chroma_dragon",
             chroma_in_benchmark:
-                "enabled (palette_drift off for determinism, climate_drift active)",
+                "chroma enabled (crystal_dragon OFF for determinism, climate_drift active)",
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,

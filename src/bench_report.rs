@@ -137,12 +137,12 @@ pub(crate) struct BenchReportData {
     pub color_pipeline: &'static str,
     /// (chroma dragon audit): human-readable chroma engine status
     /// during the benchmark run. Explains the relationship between
-    /// benchmark mode and the chroma engine (palette drift is disabled
-    /// for deterministic p99/max, but climate drift still runs because
-    /// it is deterministic and has no rebuild cost). The owner asked:
-    /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma
-    /// dragon enable/disable?" — this field answers that question in
-    /// the report itself.
+    /// benchmark mode and the chroma engine (crystal_dragon palette drift
+    /// is forced OFF for deterministic p99/max, but climate drift still
+    /// runs because it is deterministic and has no rebuild cost). The
+    /// owner asked: "when benchmarking mode 'cosmostrix --benchmark' is
+    /// the chroma dragon enable/disable?" — this field answers that
+    /// question in the report itself.
     pub chroma_in_benchmark: &'static str,
 
     // Performance
@@ -384,7 +384,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // the chroma engine status during benchmark. The owner's question
         // "is the chroma dragon enable/disable during --benchmark?" is
         // answered here in plain text. Chroma is ENABLED in benchmark mode
-        // — only palette `drift` is disabled (palette rebuilds inject
+        // — only crystal_dragon `drift` is disabled (palette rebuilds inject
         // timing spikes that break p99/max determinism). Climate drift
         // still runs because it is deterministic.
         s.field("color_pipeline", data.color_pipeline);
