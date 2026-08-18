@@ -17,8 +17,7 @@ use crate::app::CloudConfig;
 /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
 /// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
 /// palette *drift* is disabled (see `cloud.auto_color_drift = false` in
-/// run_benchmark line ~201), the chroma engine itself still runs every cell
-/// through `resolve_cell_color` + `apply_climate`. The `chroma_in_benchmark`
+/// run_benchmark line ~201), the chroma engine itself still runs every cell. The `chroma_in_benchmark`
 /// field makes this explicit in the report so the user does not have to read
 /// the source to find out.
 pub(crate) struct ConfigEnrichment {
@@ -40,8 +39,6 @@ pub(crate) struct ConfigEnrichment {
     pub glitch_level: &'static str,
     /// Glitch percentage.
     pub glitch_pct: f32,
-    /// Auto color drift (always false in benchmark mode for deterministic p99/max).
-    pub auto_color_drift: bool,
     /// Active color pipeline label.
     pub color_pipeline: &'static str,
     /// Chroma engine status during benchmark.
@@ -118,13 +115,10 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         "intense"
     };
     let glitch_pct = cfg.glitch_pct;
-    // v30 strengthen (Bug #12): benchmark mode always disables palette drift
-    // to keep p99/max metrics clean (see the `cloud.auto_color_drift = false`
-    // override in run_benchmark / run_premium_benchmark / run_premium_benchmark_silent).
-    // The report must reflect the actual cloud state, not the user's --auto-color-drift
-    // flag — otherwise the disclosure violates the honesty contract (report says
-    // drift is on when the cloud actually has it off).
-    let auto_color_drift = false;
+    // benchmark mode always disables palette drift
+    // to keep p99/max metrics clean.
+    // The report must reflect the actual cloud state, not the user's --crystal-dragon
+    // flag — otherwise the disclosure violates the honesty contract.
 
     // (chroma dragon audit): detect the active color pipeline from the
     // color mode. The chroma engine itself is NOT disabled in benchmark mode
@@ -151,7 +145,6 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         glitch_enabled,
         glitch_level,
         glitch_pct,
-        auto_color_drift,
         color_pipeline: color_pipeline_label,
         chroma_in_benchmark,
     }

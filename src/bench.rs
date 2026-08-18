@@ -152,7 +152,6 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
                                     // here so benchmarks are deterministic. Climate drift (luminance/
                                     // saturation/hue modulation) still runs because it is deterministic
                                     // (fixed RNG seed) and has no rebuild cost.
-    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -232,7 +231,6 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
                                     // here so benchmarks are deterministic. Climate drift (luminance/
                                     // saturation/hue modulation) still runs because it is deterministic
                                     // (fixed RNG seed) and has no rebuild cost.
-    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
 
@@ -810,7 +808,6 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         glitch_enabled: enrichment.glitch_enabled,
         glitch_level: enrichment.glitch_level,
         glitch_pct: enrichment.glitch_pct,
-        auto_color_drift: enrichment.auto_color_drift,
         color_pipeline: enrichment.color_pipeline,
         chroma_in_benchmark: enrichment.chroma_in_benchmark,
         avg_fps,
@@ -990,7 +987,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
                                     // here so benchmarks are deterministic. Climate drift (luminance/
                                     // saturation/hue modulation) still runs because it is deterministic
                                     // (fixed RNG seed) and has no rebuild cost.
-    cloud.auto_color_drift = false;
 
     let mut frame = Frame::new_bench(w, h, cloud.palette.bg);
     let target_period = Duration::from_secs_f64(1.0 / cfg.target_fps);
@@ -1188,7 +1184,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         glitch_enabled: enrichment.glitch_enabled,
         glitch_level: enrichment.glitch_level,
         glitch_pct: enrichment.glitch_pct,
-        auto_color_drift: enrichment.auto_color_drift,
         color_pipeline: enrichment.color_pipeline,
         chroma_in_benchmark: enrichment.chroma_in_benchmark,
         avg_fps,

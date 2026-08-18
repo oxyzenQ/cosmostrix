@@ -374,12 +374,13 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       In --benchmark mode the BenchReportData is always emitted; this
       flag is for interactive runs that want a final perf summary.
 
-  AUTO COLOR (advanced):
-  --auto-color-drift
-      Enable autonomous palette drift (default: off). Gates palette scheme
-      replacement only (3% chance per 3s tick, 30s cooldown between events).
-      Climate drift (luminance/saturation/hue) is always-on regardless.
-      Config: auto-color-drift = true
+  CRYSTAL DRAGON (advanced):
+  --crystal-dragon
+      Enable Crystal Dragon ambient color drift v2 (default: off).
+      Point-based temperature group system (Cold/Medium/Hot) with
+      probabilistic weighted theme selection. Polls every 60s with
+      300ms OKLab smooth transitions.
+      Config: crystal-dragon = true
       Note (Color-#6): suppressed when --colors-custom is set OR an
       ambient schedule is active (ambient_palette_locked gate); climate
       drift continues regardless. Edit config.toml to disable.
@@ -437,25 +438,15 @@ RENDERING PHILOSOPHY:
 // updating the help text, this test catches the drift.
 #[cfg(test)]
 mod honesty_tests {
-    use crate::central_control_rains::{
-        AUTONOMOUS_PALETTE_DRIFT_CHANCE, COLOR_ECOSYSTEM_TICK_SECS, PALETTE_DRIFT_COOLDOWN_SECS,
-    };
+    use crate::central_control_rains::COLOR_ECOSYSTEM_TICK_SECS;
 
     #[test]
     fn help_text_drift_params_match_constants() {
-        // The help text says "3% chance per 3s tick, 30s cooldown".
-        // Verify these match the actual constants.
-        assert_eq!(
-            AUTONOMOUS_PALETTE_DRIFT_CHANCE, 0.03,
-            "help text says 3% but AUTONOMOUS_PALETTE_DRIFT_CHANCE changed"
-        );
+        // The help text mentions the ecosystem tick rate.
+        // Verify it matches the actual constant.
         assert_eq!(
             COLOR_ECOSYSTEM_TICK_SECS, 3.0,
             "help text says 3s tick but COLOR_ECOSYSTEM_TICK_SECS changed"
-        );
-        assert_eq!(
-            PALETTE_DRIFT_COOLDOWN_SECS, 30.0,
-            "help text says 30s cooldown but PALETTE_DRIFT_COOLDOWN_SECS changed"
         );
     }
 }

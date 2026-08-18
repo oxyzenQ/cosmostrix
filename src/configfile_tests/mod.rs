@@ -235,7 +235,7 @@ fn multiple_top_level_keys_all_promote() {
     // `bold`, `shadingmode`, `async` ARE now valid scene-custom fields
     // per owner contract — so they no longer get promoted when written under
     // a `[scene-custom.*]` block. This test now uses fields that remain
-    // FORBIDDEN in scene-custom (`intro`, `auto-color-drift`, `color-bg`,
+    // FORBIDDEN in scene-custom (`intro`, `color-bg`,
     // `monolith-size`) to verify the promotion path still works.
     let content = "\
 [scene-custom.hacker-mode]
@@ -243,7 +243,7 @@ color = green
 speed = 28
 
 intro = cosmic
-auto-color-drift = on
+crystal-dragon = on
 color-bg = black
 monolith-size = large
 ";
@@ -255,7 +255,7 @@ monolith-size = large
     );
     assert_eq!(parsed.promoted_keys.len(), 4);
     // All 4 root-scope keys are stored.
-    for key in &["intro", "auto-color-drift", "color-bg", "monolith-size"] {
+    for key in &["intro", "crystal-dragon", "color-bg", "monolith-size"] {
         assert!(
             parsed.values.contains_key(*key),
             "expected promoted key {key} in values"

@@ -237,15 +237,8 @@ fn config_color_overridden_by_config_preset_is_precedence_not_drift() {
     // `scene = monolith` (also in config) wins because the scene handler
     // runs after the preset redirect. Scenes only fill UNSET keys, so
     // config `color = sun` is preserved (config wins over scene default).
-    // auto_color_drift must remain false — the color is from config, not drift.
-    let args = args_with_config(
-        "color = sun\npreset = cinematic\nscene = monolith\nauto-color-drift = false\n",
-        &[],
-    );
-    assert!(
-        !args.auto_color_drift,
-        "auto_color_drift must remain false; color is from config, not drift"
-    );
+    // color is from config, not drift.
+    let args = args_with_config("color = sun\npreset = cinematic\nscene = monolith\n", &[]);
     // v14.0.0: config color=sun wins over scene default (scenes only fill
     // unset keys, they do not override config-set keys).
     assert_eq!(
@@ -278,10 +271,7 @@ fn profile_color_resolves_sun_after_preset_and_scene() {
         args.color, "sun",
         "custom scene color must override config scene color per precedence"
     );
-    assert!(
-        !args.auto_color_drift,
-        "auto_color_drift must default false"
-    );
+    // auto_color_drift is gone; no assertion needed.
 }
 
 #[test]

@@ -397,20 +397,10 @@ fn apply_config_values(
             config_touched.insert("color_bg");
         }
     }
-    if let Some(v) = config_value(matches, cfg, "auto_color_drift", "auto-color-drift") {
-        if let Some(b) = parse_bool_config("auto-color-drift", &v) {
-            args.auto_color_drift = b;
-            config_touched.insert("auto_color_drift");
-        }
-    }
-    // Crystal Dragon Engine config (mutually exclusive with auto-color-drift;
-    // crystal-dragon wins if both are set).
+    // Crystal Dragon Engine config.
     if let Some(v) = config_value(matches, cfg, "crystal_dragon", "crystal-dragon") {
         if let Some(b) = parse_bool_config("crystal-dragon", &v) {
             args.crystal_dragon = b;
-            if b {
-                args.auto_color_drift = false;
-            }
             config_touched.insert("crystal_dragon");
         }
     }

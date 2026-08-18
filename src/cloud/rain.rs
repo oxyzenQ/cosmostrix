@@ -927,46 +927,28 @@ impl Cloud {
         }
 
         // --- Autonomous cinematic ecosystem tick ---
-        // 1. Color ecosystem drift (climate only — luminance/saturation/hue)
-        // The ecosystem always ticks for luminance/saturation/hue climate drift
-        // (safe — only modulates rendering params, not the palette scheme).
-        // Palette drift (scheme replacement) is now handled by either:
-        //   a) Crystal Dragon Engine (when crystal_dragon=true)
-        //   b) Legacy auto-color-drift (when auto_color_drift=true)
-        // Both are gated so explicit CLI/config/profile color remains sticky.
+        // 1. Color ecosystem climate drift (luminance/saturation/hue only)
+        // The ecosystem ticks unconditionally for climate drift — this only
+        // modulates rendering params, not the palette scheme.
         //
-        // v30 strengthen (Bug #4): when a custom palette is active, palette
-        // drift is suppressed even if auto_color_drift/crystal_dragon is true
-        // — otherwise set_color_scheme would overwrite the user's custom
-        // palette with a built-in one (silent data loss). Climate drift
-        // still runs because it only modulates rendering params, not the
-        // palette itself.
-        // The ecosystem.tick() call is unconditional so the climate state
-        // keeps evolving (and the RNG stream stays consistent); only the
-        // palette replacement is skipped.
+        // Palette drift (scheme replacement) is handled by the Crystal Dragon
+        // Engine (see step 1b below), gated so explicit CLI/config/profile
+        // color remains sticky.
         //
-        // ambient/auto-drift harmony: when ambient has asserted a palette
-        // (`ambient_palette_locked`), palette drift is suppressed even if
-        // auto_color_drift/crystal_dragon is true. Ambient specifies the
-        // WHAT (which palette), auto-drift specifies the HOW (climate
-        // variation on top). This prevents the two systems from fighting
-        // over the base palette. When the user manually overrides (presses
-        // 'c' or 'x'), the lock is cleared and palette drift resumes until
-        // the next ambient fire. See docs/audits/AMBIENT_SCHEDULER_AUDIT.md
-        // §1.3 + §3.
-        let maybe_drift = self
-            .color_ecosystem
-            .tick(now, &mut self.mt, self.color_scheme);
-        if self.auto_color_drift && !self.custom_palette_active && !self.ambient_palette_locked {
-            if let Some(new_scheme) = maybe_drift {
-                self.set_color_scheme(new_scheme);
-                // mark that auto-drift overrode ambient's palette. The
-                // event loop's ambient-event dedup uses this to avoid
-                // skipping the next ambient fire (which would re-assert the
-                // ambient palette).
-                self.user_override_since_ambient = true;
-            }
-        }
+        // v30 strengthen (Bug #4): when a custom palette is active, Crystal
+        // Dragon drift is suppressed — otherwise set_color_scheme would
+        // overwrite the user's custom palette with a built-in one (silent
+        // data loss). Climate drift still runs because it only modulates
+        // rendering params, not the palette itself.
+        //
+        // ambient/crystal-dragon harmony: when ambient has asserted a palette
+        // (`ambient_palette_locked`), Crystal Dragon drift is suppressed.
+        // Ambient specifies the WHAT (which palette), Crystal Dragon
+        // specifies the HOW (climate variation on top). When the user
+        // manually overrides (presses 'c' or 'x'), the lock is cleared
+        // and Crystal Dragon drift resumes until the next ambient fire.
+        // See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3 + §3.
+        self.color_ecosystem.tick(now, &mut self.mt);
 
         // 1b. Crystal Dragon Engine drift
         // When crystal_dragon is enabled (and custom_palette / ambient

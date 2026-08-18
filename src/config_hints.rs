@@ -155,7 +155,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     }
 
     // Pattern 5 (Phase 5 closure P1-#6): snake_case top-level key. The config
-    // surface is kebab-case (color-bg, monolith-size, auto-color-drift, etc.).
+    // surface is kebab-case (color-bg, monolith-size, crystal-dragon, etc.).
     // Users coming from Rust struct-field naming often write snake_case by
     // accident (color_bg, monolith_size). The edit distance from `color_bg`
     // to `color-bg` is 1 (replace `_` with `-`), so pattern 4 WOULD catch it,
@@ -827,11 +827,7 @@ mod tests {
         );
     }
 
-    #[test]
-    fn snake_case_auto_color_drift_suggests_kebab_case() {
-        let hint = suggest_for_unknown_key("auto_color_drift").expect("expected hint");
-        assert!(hint.contains("auto-color-drift"));
-    }
+    // removed: auto_color_drift → auto-color-drift test (key no longer exists)
 
     #[test]
     fn random_underscore_key_without_kebab_match_gets_no_snake_hint() {

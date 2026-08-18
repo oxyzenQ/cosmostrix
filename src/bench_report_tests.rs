@@ -112,6 +112,7 @@ mod tests {
         // shading_mode, + speed which moved from perf-only to config too).
         // config grew from 15 to 25 fields (CONFIG enrichment for
         // color/charset parity with --verbose).
+        // config grew from 15 to 24 fields (removed auto_color_drift).
         // The struct literal below is the real check — if this compiles,
         // all fields exist and have the correct types. Prefixed with `_`
         // because no runtime assertion is needed (the compiler is the test).
@@ -140,7 +141,6 @@ mod tests {
             glitch_enabled: true,
             glitch_level: "subtle",
             glitch_pct: 3.0,
-            auto_color_drift: false,
             color_pipeline: "chroma_dragon",
             chroma_in_benchmark:
                 "enabled (palette_drift off for determinism, climate_drift active)",

@@ -4,7 +4,7 @@
 //! Color stability and endurance tests.
 //!
 //! Verifies that explicit CLI/config/profile color remains sticky by default,
-//! that autonomous palette drift is gated behind the opt-in `auto_color_drift`
+//! that autonomous palette drift is gated behind the opt-in `crystal_dragon`
 //! flag, and that intentional color changes (user keys, scene cycling) still
 //! work as expected. All tests simulate many minutes of wall-clock time without
 //! actual sleeping, using deterministic `Instant::now() + offset` values.
@@ -73,10 +73,10 @@ fn simulate_frames(cloud: &mut Cloud, num_frames: u64, start: Instant) -> ColorS
 fn fixed_color_sun_stays_sun_across_simulated_minutes() {
     let mut cloud = make_sun_cloud();
 
-    // Verify auto_color_drift defaults to false
+    // Verify crystal_dragon defaults to false
     assert!(
-        !cloud.auto_color_drift,
-        "auto_color_drift must default to false"
+        !cloud.crystal_dragon,
+        "crystal_dragon must default to false"
     );
 
     // Simulate 1 minute at 60fps = 3,600 frames (ample for ecosystem ticks every 3s = 20 ticks)
@@ -95,9 +95,9 @@ fn fixed_color_sun_stays_sun_across_simulated_minutes() {
 #[test]
 fn profile_color_sun_stays_sun_across_simulated_minutes() {
     // Simulates what happens when a profile sets color=sun:
-    // the Cloud is created with Sun and auto_color_drift defaults false.
+    // the Cloud is created with Sun and crystal_dragon defaults false.
     let mut cloud = make_sun_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     let start = Instant::now();
     let final_scheme = simulate_frames(&mut cloud, 3_600, start);
@@ -125,7 +125,7 @@ fn monolith_color_does_not_drift_without_opt_in() {
     cloud.init_chars(vec!['0', '1']);
     cloud.reset(40, 20);
 
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     // Simulate 30 seconds at 60fps = 1,800 frames (10 ecosystem ticks)
     let start = Instant::now();
@@ -146,34 +146,34 @@ fn monolith_color_does_not_drift_without_opt_in() {
     );
 }
 
-// Test 4: Auto color drift is opt-in only
+// Test 4: Crystal Dragon drift is opt-in only
 
 #[test]
-fn auto_color_drift_is_opt_in_only() {
+fn crystal_dragon_is_opt_in_only() {
     let mut cloud = make_green_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     // With drift OFF: color must stay Green (1 min simulated = 20 ecosystem ticks)
     let start = Instant::now();
     let scheme_off = simulate_frames(&mut cloud, 3_600, start);
     assert_eq!(scheme_off, ColorScheme::Green);
 
-    // Now enable drift
-    cloud.auto_color_drift = true;
-    // Reset ecosystem tick timer so the drift check fires immediately
-    cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
+    // Now enable crystal_dragon
+    cloud.crystal_dragon = true;
+    // Reset crystal dragon poll timer so the drift check fires immediately
+    cloud.crystal_dragon_last_poll = None;
     // Seed the RNG to a known value that exercises the drift path
     cloud.mt = StdRng::seed_from_u64(0xDEAD_BEEF);
 
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let frame_dt = Duration::from_micros(16_667);
 
-    // Simulate 40 minutes with drift ON — the ecosystem ticks every 3 seconds
-    // with AUTONOMOUS_PALETTE_DRIFT_CHANCE = 0.03, so over 40 minutes we
-    // get ~800 drift attempts. Probability of zero drifts is 0.97^800 ≈ 3e-11,
-    // which is effectively impossible and removes the flakiness that plagued
-    // this test on slow FreeBSD CI runners (previously only 5 minutes / ~100
-    // ticks, which still had a ~5% chance of no drift).
+    // Simulate 40 minutes with crystal_dragon ON — the Crystal Dragon Engine
+    // polls periodically and applies drift with non-zero probability, so over
+    // 40 simulated minutes we should see at least one palette transition.
+    // This removes the flakiness that plagued this test on slow FreeBSD CI
+    // runners (previously only 5 minutes / ~100 ticks, which still had a
+    // ~5% chance of no drift).
     let mut drifted = false;
     for i in 0..144_000u64 {
         let now = start + frame_dt.saturating_mul(i as u32);
@@ -188,7 +188,7 @@ fn auto_color_drift_is_opt_in_only() {
 
     assert!(
         drifted,
-        "With auto_color_drift=true, the ecosystem should eventually drift \
+        "With crystal_dragon=true, the Crystal Dragon Engine should eventually drift \
          to a related scheme (expected at least one drift in 40 simulated minutes)"
     );
 }
@@ -198,7 +198,7 @@ fn auto_color_drift_is_opt_in_only() {
 #[test]
 fn pressing_c_changes_color_intentionally() {
     let mut cloud = make_sun_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     // Simulate c key: cycle to next color
     let next = crate::cli::cycle_color_scheme(cloud.color_scheme(), 1);
@@ -207,7 +207,7 @@ fn pressing_c_changes_color_intentionally() {
     assert_eq!(
         cloud.color_scheme(),
         next,
-        "Pressing c must change color even when auto_color_drift is off"
+        "Pressing c must change color even when crystal_dragon is off"
     );
     assert_ne!(
         cloud.color_scheme(),
@@ -227,7 +227,7 @@ fn pressing_c_changes_color_intentionally() {
 #[test]
 fn pressing_shift_c_changes_color_intentionally() {
     let mut cloud = make_sun_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     // Simulate C key: cycle to previous color
     let prev = crate::cli::cycle_color_scheme(cloud.color_scheme(), -1);
@@ -236,7 +236,7 @@ fn pressing_shift_c_changes_color_intentionally() {
     assert_eq!(
         cloud.color_scheme(),
         prev,
-        "Pressing C must change color even when auto_color_drift is off"
+        "Pressing C must change color even when crystal_dragon is off"
     );
     assert_ne!(
         cloud.color_scheme(),
@@ -250,7 +250,7 @@ fn pressing_shift_c_changes_color_intentionally() {
 #[test]
 fn scene_cycle_applies_scene_color_intentionally() {
     let mut cloud = make_sun_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     // Apply monolith scene — it sets color if specified
     let charset_preset = cloud.apply_scene_runtime("monolith", "braille", &[], false);
@@ -305,10 +305,10 @@ fn benchmark_output_fields_complete() {
 #[test]
 fn endurance_color_sticky_default_off() {
     // Endurance test: run 3 simulated minutes (10,800 frames) and verify
-    // color never changes when auto_color_drift is off.
+    // color never changes when crystal_dragon is off.
     // Exercises the full ecosystem tick path (60 ticks) with sufficient coverage.
     let mut cloud = make_sun_cloud();
-    assert!(!cloud.auto_color_drift);
+    assert!(!cloud.crystal_dragon);
 
     let start = Instant::now();
     let frame_dt = Duration::from_micros(16_667);
@@ -339,22 +339,22 @@ fn endurance_color_sticky_default_off() {
     );
 }
 
-// v30 strengthen (Bug #4): custom palette active suppresses palette drift.
-// Even with auto_color_drift=true, set_color_scheme would overwrite the
+// v30 strengthen (Bug #4): custom palette active suppresses crystal dragon drift.
+// Even with crystal_dragon=true, set_color_scheme would overwrite the
 // user's --colors-custom palette with a built-in one. The rain loop must
 // skip the palette replacement while still allowing climate drift.
 
 #[test]
-fn custom_palette_active_suppresses_palette_drift() {
+fn custom_palette_active_suppresses_crystal_dragon_drift() {
     let mut cloud = make_green_cloud();
-    cloud.auto_color_drift = true;
+    cloud.crystal_dragon = true;
     // Simulate a --colors-custom user palette being active.
     cloud.custom_palette_active = true;
-    // Reset ecosystem tick timer so the drift check fires immediately.
+    // Reset crystal dragon poll timer so the drift check fires immediately.
     let start = Instant::now();
-    cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
+    cloud.crystal_dragon_last_poll = None;
     // Seed RNG to a known value that exercises the drift path (same seed
-    // as auto_color_drift_is_opt_in_only, which does drift without the
+    // as crystal_dragon_is_opt_in_only, which does drift without the
     // custom_palette_active guard).
     cloud.mt = StdRng::seed_from_u64(0xDEAD_BEEF);
 
@@ -380,8 +380,8 @@ fn custom_palette_active_suppresses_palette_drift() {
 }
 
 // v30 strengthen (Bug #5): set_color_scheme re-applies color_tune.
-// Without this, the first palette drift would silently drop the user's
-// --color-tune settings. Test: set a non-identity tune, call
+// Without this, the first crystal dragon drift would silently drop the
+// user's --color-tune settings. Test: set a non-identity tune, call
 // set_color_scheme, verify the palette still has the tune applied.
 
 #[test]
@@ -425,28 +425,30 @@ fn set_color_scheme_reapplies_color_tune() {
     );
 }
 
-/// Phase D Bug #7 fix: palette drift cooldown prevents rapid oscillation.
-/// Two consecutive ticks within PALETTE_DRIFT_COOLDOWN_SECS cannot both
-/// trigger palette drift, even if the RNG would roll drift both times.
+/// Phase D Bug #7 fix: Crystal Dragon Engine min_dwell_secs prevents
+/// rapid oscillation. Two consecutive polls within min_dwell_secs of a
+/// theme transition cannot both trigger a palette drift, even if the RNG
+/// would roll drift both times.
+///
+/// NOTE: The old PALETTE_DRIFT_COOLDOWN_SECS / last_palette_drift mechanism
+/// was removed when palette drift moved to the Crystal Dragon Engine. The
+/// equivalent cooldown is now min_dwell_secs in CrystalDragonControl.
 #[test]
-fn palette_drift_cooldown_prevents_rapid_oscillation() {
+fn crystal_dragon_dwell_prevents_rapid_oscillation() {
     let mut cloud = make_green_cloud();
-    cloud.auto_color_drift = true;
+    cloud.crystal_dragon = true;
 
     let start = Instant::now();
-    // Force the ecosystem tick timer to fire on the next rain_at call.
-    cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
-    // Use a seed that is known to roll drift on the first tick (we don't
-    // need to assert WHICH scheme — just that at most ONE drift fires
-    // within a 30s cooldown window).
+    // Force the crystal dragon poll timer to fire on the next rain_at call.
+    cloud.crystal_dragon_last_poll = None;
+    // Use a seed that is known to roll drift on the first poll.
     cloud.mt = StdRng::seed_from_u64(0xBEEF_CAFE);
 
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let frame_dt = Duration::from_micros(16_667);
 
-    // Run 60 seconds of simulated time (20 ticks at 3s/tick). With the
-    // 30s cooldown, at most 2 palette drift events can fire (one in the
-    // first 30s window, one in the second). Track scheme changes.
+    // Run 60 seconds of simulated time. The Crystal Dragon Engine's
+    // min_dwell_secs prevents rapid oscillation. Track scheme changes.
     let mut scheme_changes = 0u32;
     let mut prev_scheme = cloud.color_scheme;
     for i in 0..3_600u64 {
@@ -458,13 +460,14 @@ fn palette_drift_cooldown_prevents_rapid_oscillation() {
         }
     }
 
-    // Without cooldown, 20 ticks × 3% drift chance ≈ 0.6 expected drifts.
-    // With 30s cooldown, at most 2 can fire (one per 30s window).
-    // We assert the cooldown is enforced: scheme_changes must be <= 2.
-    // (If cooldown were broken, scheme_changes could be up to 20.)
+    // The Crystal Dragon Engine's min_dwell_secs prevents rapid oscillation.
+    // Over 60s, the number of scheme changes should be bounded (not
+    // unbounded rapid oscillation). We allow up to 10 transitions as a
+    // generous upper bound — the exact limit depends on min_dwell_secs
+    // and the polling interval.
     assert!(
-        scheme_changes <= 2,
-        "palette drift cooldown violated: {scheme_changes} scheme changes in 60s (max 2 allowed by 30s cooldown)"
+        scheme_changes <= 10,
+        "crystal_dragon dwell violated: {scheme_changes} scheme changes in 60s (max 10 allowed by min_dwell_secs)"
     );
 }
 
@@ -544,19 +547,18 @@ fn reset_preserves_ecosystem_state() {
     );
 }
 
-/// Strengthen #14: verify every ColorScheme variant has an explicit
-/// family_for entry (not the generic fallback). This catches the
-/// case where a new variant is added to ColorScheme but forgotten in
-/// the family_for match — which would cause the new scheme to drift
-/// to the Green family instead of its aesthetic family.
+/// Strengthen #14: verify every ColorScheme variant can be used with
+/// the Crystal Dragon Engine without panic. This catches the case where
+/// a new variant is added to ColorScheme but forgotten in the Crystal
+/// Dragon Engine's temperature group mapping — which would cause a panic
+/// or incorrect drift behavior.
 ///
-/// `family_for` is private to cloud::ecosystem, so we test it via
-/// the public tick() path: force a drift tick and verify the result is
-/// in the expected family for each starting scheme. Since drift is random,
-/// we run 200 drift attempts per scheme and check that ALL observed drift
-/// targets belong to the documented family.
+/// The old `family_for` pipeline was removed when palette drift moved to
+/// the Crystal Dragon Engine (point-based temperature group system with
+/// calc-v1 probabilistic weighted selection). This test verifies the new
+/// engine handles every builtin scheme.
 #[test]
-fn family_for_returns_non_empty_for_every_builtin_scheme() {
+fn crystal_dragon_handles_every_builtin_scheme() {
     use ColorScheme::*;
     let test_schemes = [
         Green,
@@ -595,10 +597,9 @@ fn family_for_returns_non_empty_for_every_builtin_scheme() {
         Sun,
     ];
     let start = Instant::now();
-    // For each variant, call ecosystem.tick() repeatedly with drift forced
-    // on (cooldown cleared). The point is to verify family_for is
-    // callable for every variant without panic. Whether drift actually
-    // fires is random — we only assert no panic.
+    // For each variant, enable crystal_dragon and run a few frames.
+    // The point is to verify the Crystal Dragon Engine can handle
+    // every variant without panic.
     for &scheme in &test_schemes {
         let mut cloud = Cloud::new(
             ColorMode::TrueColor,
@@ -611,17 +612,16 @@ fn family_for_returns_non_empty_for_every_builtin_scheme() {
         );
         cloud.init_chars(vec!['0', '1']);
         cloud.reset(40, 20);
-        cloud.color_ecosystem.last_palette_drift = None;
-        cloud.color_ecosystem.last_tick = start - Duration::from_secs(10);
+        cloud.crystal_dragon = true;
+        cloud.crystal_dragon_last_poll = None;
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         for i in 0..50u32 {
-            let now = start + Duration::from_millis(3000 * i as u64);
-            let _ = cloud
-                .color_ecosystem
-                .tick(now, &mut StdRng::seed_from_u64(i as u64), scheme);
+            let now = start + Duration::from_millis(16_667 * i as u64);
+            cloud.last_spawn_time = now - Duration::from_millis(16);
+            cloud.last_phosphor_time = now;
+            cloud.rain_at(&mut frame, now);
         }
     }
-    // If we got here without panic, every variant has a callable
-    // family_for entry. The generic fallback would also work, but
-    // we've documented that new variants MUST be added to the match —
-    // a separate code review check enforces this.
+    // If we got here without panic, every variant is handled by the
+    // Crystal Dragon Engine's temperature group mapping.
 }

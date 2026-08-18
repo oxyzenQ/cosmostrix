@@ -179,21 +179,20 @@ pub(crate) fn print_doctor_report(args: &Args) {
             "color_tuning",
             "yes ([color.tune] config section: head/body/tail brightness & saturation)",
         );
-        // v30 strengthen (Bug #11): surface auto-color-drift state in --doctor.
+        // v30 strengthen (Bug #11): surface crystal-dragon state in --doctor.
         // Previously the doc claimed --doctor emitted it, but the actual
         // implementation did not. Now it does.
         s.field(
-            "auto_color_drift",
-            if args.auto_color_drift {
-                "on (palette drift enabled — long runs may cross palette transitions)"
+            "crystal_dragon",
+            if args.crystal_dragon {
+                "on (Crystal Dragon ambient color drift — point-based temperature group system)"
             } else {
                 "off (default — palette is sticky for the entire session)"
             },
         );
         s.field(
             "color_ecosystem",
-            "always-on (luminance/saturation/hue climate drift modulates rendering params; \
-             palette drift is gated behind auto_color_drift)",
+            "always-on (luminance/saturation/hue climate drift modulates rendering params)",
         );
     }
 
@@ -214,34 +213,28 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("build", cpu.build_variant);
     }
 
-    // SYSTEM FEELING section — signal-driven palette drift diagnostics.
+    // CRYSTAL DRAGON ENGINE section — ambient intelligence diagnostics.
     //
-    // Prints the current FeelingState, the CPU% reading (or "unsupported"
-    // on platforms without /proc or Mach task_info), the local hour, and
-    // the target ColorFamily that --auto-color-drift would drift toward.
-    // This makes the signal pipeline auditable: the user can verify exactly
-    // what the classifier sees and what it decided.
+    // Crystal Dragon Engine diagnostics: show the current sensor state
+    // so the user can verify what the engine sees (point, group, mode).
     {
-        let s = r.section("SYSTEM FEELING");
+        let s = r.section("CRYSTAL DRAGON ENGINE");
         let now = std::time::Instant::now();
-        let mut sf = crate::system_feeling::SystemFeeling::new(now);
-        // Take one sample so the EMA has a real reading to display.
-        sf.tick(now);
-        let hour = crate::system_feeling::current_local_hour();
-        let state = sf.current_state();
-        let family = crate::control_color_drift::family_for_state(state);
-        s.field("state", state.label());
-        s.field("target_family", family.label());
-        s.field("local_hour", &format!("{:.2}", hour));
+        let control = crate::crystal_dragon_engine::CrystalDragonControl::default();
+        let sensor = crate::crystal_dragon_engine::CrystalDragonSensor::new(now, control);
+        let point = sensor.current_point();
+        let group = sensor.current_group();
+        s.field("current_point", &point.to_string());
+        s.field("temperature_group", group.label());
         s.field(
-            "cpu_sampling",
-            if sf.cpu_supported() {
-                "supported"
+            "sensor_mode",
+            if sensor.cpu_supported() {
+                "cpu (primary)"
             } else {
-                "unsupported (time-only fallback)"
+                "clock (fallback — cpu unsupported)"
             },
         );
-        match sf.cpu_ema() {
+        match sensor.cpu_ema() {
             Some(cpu) => {
                 s.field("cpu_ema_percent", &format!("{:.2}", cpu));
             }
@@ -249,13 +242,8 @@ pub(crate) fn print_doctor_report(args: &Args) {
                 s.field("cpu_ema_percent", "n/a (no sample yet)");
             }
         }
-        // v30 audit: removed duplicate `auto_color_drift` field. It already
-        // appears in the FEATURES section above with a richer description
-        // (on/off + behavioral consequence). Repeating it here as a bare
-        // "enabled/disabled (default)" added noise without new information.
-        // The SYSTEM FEELING section now focuses on what the classifier
-        // actually sees (state, target_family, local_hour, cpu reading),
-        // not on which CLI flag gated the downstream consumer.
+        s.field("polling_secs", &control.polling_secs.to_string());
+        s.field("drift_chance", &control.drift_chance.to_string());
     }
 
     // ENVIRONMENT section

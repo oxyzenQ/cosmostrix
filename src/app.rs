@@ -99,10 +99,7 @@ pub struct CloudConfig {
     pub charset_preset: String,
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
-    pub auto_color_drift: bool,
-    /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
-    /// When true, overrides auto_color_drift with the point-based
-    /// temperature group system + calc-v1 probabilistic selection.
+    /// Crystal Dragon Engine: ambient intelligence for palette drift.
     pub crystal_dragon: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
@@ -157,15 +154,8 @@ pub(crate) struct CliExplicit {
     pub fps: bool,
     pub scene: bool,
     pub glitch_level: bool,
-    /// Phase D Bug #10 fix: track whether `--auto-color-drift` was set on
-    /// CLI. Without this, a user who starts with `--auto-color-drift` and
-    /// later adds `auto-color-drift = false` to config would have drift
-    /// silently turned OFF on the next live reload — defeating the CLI
-    /// intent. Now `rebuild_cloud_config` gates the auto-color-drift
-    /// producer with `if !cli.auto_color_drift { ... }`.
-    pub auto_color_drift: bool,
-    /// Track whether `--crystal-dragon` was set on CLI (same intent
-    /// preservation logic as auto_color_drift above).
+    /// Track whether `--crystal-dragon` was set on CLI (intent
+    /// preservation: CLI flag wins over config.toml on live reload).
     pub crystal_dragon: bool,
 }
 
@@ -252,18 +242,9 @@ impl CloudConfig {
         // text selection). cloud.mouse_enabled now always true.
         cloud.mouse_enabled = true;
 
-        // Color drift: disabled by default. When off, autonomous palette drift
-        // from ColorEcosystem is suppressed so that explicit CLI/config/profile
-        // color remains sticky across the entire session.
-        cloud.auto_color_drift = self.auto_color_drift;
-
-        // Crystal Dragon Engine: when enabled, overrides the legacy
-        // auto-color-drift with the point-based temperature group system.
-        // If both flags are set, crystal-dragon wins (mutual exclusion).
+        // Crystal Dragon Engine: when enabled, activates the point-based
+        // temperature group system for palette drift.
         cloud.crystal_dragon = self.crystal_dragon;
-        if self.crystal_dragon {
-            cloud.auto_color_drift = false;
-        }
         // crystal_dragon_sensor and crystal_dragon_control are already
         // initialized in Cloud::new() with default config. Future CLI
         // flags can override crystal_dragon_control here.
@@ -343,7 +324,6 @@ impl CloudConfig {
             charset_preset: self.charset_preset.clone(),
             user_ranges: self.user_ranges.clone(),
             def_ascii: self.def_ascii,
-            auto_color_drift: self.auto_color_drift,
             crystal_dragon: self.crystal_dragon,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark

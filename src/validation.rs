@@ -79,7 +79,6 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "duration",
     "perf-stats",
     "bench-frames",
-    "auto-color-drift",
     "crystal-dragon",
     "glitchms",
     "lingerms",
@@ -849,10 +848,10 @@ mod tests {
 /// or `None` if no flag is close enough. The threshold of 3 is slightly
 /// more generous than the config-key threshold (2) because CLI flag names
 /// tend to be longer and users are more likely to drop a hyphen or segment
-/// (e.g. `--auto-color-drifts` vs `--auto-color-drift`, distance 1).
+/// (e.g. `--crystal-dragons` vs `--crystal-dragon`, distance 1).
 ///
 /// Input should be the flag name WITHOUT the `--` prefix (e.g. pass
-/// `"auto-color-drifts"`, not `"--auto-color-drifts"`).
+/// `"crystal-dragons"`, not `"--crystal-dragons"`).
 #[must_use]
 pub(crate) fn suggest_cli_flag(input: &str) -> Option<&'static str> {
     let input_lower = input.to_ascii_lowercase();
@@ -913,20 +912,14 @@ mod suggest_cli_flag_tests {
 
     #[test]
     fn typo_suggests_closest() {
-        // --auto-color-drifts (extra 's') → --auto-color-drift
-        assert_eq!(
-            suggest_cli_flag("auto-color-drifts"),
-            Some("auto-color-drift")
-        );
+        // --crystal-dragns (typo) → --crystal-dragon
+        assert_eq!(suggest_cli_flag("crystal-dragns"), Some("crystal-dragon"));
     }
 
     #[test]
     fn missing_hyphen_suggests() {
-        // --autocolor-drift → --auto-color-drift (distance 1)
-        assert_eq!(
-            suggest_cli_flag("autocolor-drift"),
-            Some("auto-color-drift")
-        );
+        // --crystaldragon → --crystal-dragon (distance 1)
+        assert_eq!(suggest_cli_flag("crystaldragon"), Some("crystal-dragon"));
     }
 
     #[test]

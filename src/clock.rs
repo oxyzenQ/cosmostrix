@@ -22,8 +22,10 @@ pub(crate) fn now_hhmm() -> String {
 
 /// Current local wall-clock hour as f64 (with minute/second fraction).
 ///
-/// Used by `SystemFeeling::tick()` for time-of-day state classification.
+/// Retained for potential future use; previously used by system-feeling
+/// drift (now replaced by Crystal Dragon Engine).
 #[must_use]
+#[allow(dead_code)]
 pub(crate) fn current_local_hour() -> f64 {
     match crate::posix_time::local_tm() {
         Some(tm) => (tm.hour as f64) + (tm.minute as f64) / 60.0 + (tm.second as f64) / 3600.0,

@@ -128,10 +128,7 @@ pub(crate) struct BenchReportData {
     pub glitch_level: &'static str,
     /// Glitch trigger probability as a percentage (0.0–100.0).
     pub glitch_pct: f32,
-    /// Auto color drift flag. When true, the ColorEcosystem autonomously
-    /// rotates palettes — long benchmark runs may cross palette transitions.
-    pub auto_color_drift: bool,
-    /// (chroma dragon audit): the active color pipeline label
+    /// Active color pipeline label.
     /// (`chroma_dragon` or `legacy_rgb`). Mirrors the `color_pipeline:`
     /// line in `cosmostrix -v` and the `color_pipeline` field in
     /// `cosmostrix --doctor` RENDERER section. The benchmark report must
@@ -383,7 +380,6 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("glitch", &data.glitch_enabled.to_string());
         s.field("glitch_level", data.glitch_level);
         s.field("glitch_pct", &format!("{:.1}", data.glitch_pct));
-        s.field("auto_color_drift", &data.auto_color_drift.to_string());
         // (chroma dragon audit): disclose the active color pipeline and
         // the chroma engine status during benchmark. The owner's question
         // "is the chroma dragon enable/disable during --benchmark?" is

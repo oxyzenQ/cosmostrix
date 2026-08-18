@@ -64,10 +64,9 @@ pub(crate) struct VerboseCtx<'a> {
     pub cli_explicit_color: bool,
     pub intro_type_label: &'a str,
     pub commit_sha: &'a str,
-    /// --benchmark forces auto_color_drift=false (palette rebuild injects
+    /// --benchmark forces palette drift=false (palette rebuild injects
     /// timing spikes, breaks p99/max determinism). Pass bench_mode so
-    /// verbose can disclose the override BEFORE the benchmark report
-    /// prints `auto_color_drift: false`.
+    /// verbose can disclose the override BEFORE the benchmark report.
     pub bench_mode: bool,
     /// Active custom scene (--scene-custom <name>).
     pub scene_custom: Option<&'a str>,
@@ -288,19 +287,15 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     } else {
         "disabled"
     };
-    let drift_pct = crate::central_control_rains::AUTONOMOUS_PALETTE_DRIFT_CHANCE * 100.0;
     let tick_secs = crate::central_control_rains::COLOR_ECOSYSTEM_TICK_SECS;
-    let cooldown_secs = crate::central_control_rains::PALETTE_DRIFT_COOLDOWN_SECS;
     output::eprintln_verbose(
         "  palette_drift:",
-        &format!(
-            " {palette_drift_label} ({drift_pct:.1}% chance per {tick_secs:.1}s tick, {cooldown_secs:.1}s cooldown between events)"
-        ),
+        &format!(" {palette_drift_label} (tick every {tick_secs:.1}s)"),
     );
     if *bench_mode && *auto_drift {
         output::eprintln_verbose(
             "  bench_override:",
-            " palette drift forced OFF during benchmark for deterministic p99/max metrics; report will show `auto_color_drift: false`",
+            " palette drift forced OFF during benchmark for deterministic p99/max metrics",
         );
     }
     output::eprintln_verbose(

@@ -112,14 +112,9 @@ mod constants;
 mod cosmic_dragon;
 mod cpustat;
 // Crystal Dragon Engine — ambient intelligence for auto-color-drift v2.
-// Replaces the old --auto-color-drift system with a point-based
-// temperature group system (Cold/Medium/Hot) + calc-v1 probabilistic
-// weighted selection. See src/crystal_dragon_engine/ for the full engine.
+// Point-based temperature group system (Cold/Medium/Hot) + calc-v1
+// probabilistic weighted selection. See src/crystal_dragon_engine/.
 mod crystal_dragon_engine;
-// Legacy control file for --auto-color-drift system feeling.
-// Retained during Crystal Dragon transition — will be removed once
-// the old auto-color-drift engine is fully decommissioned.
-mod control_color_drift;
 mod diagnostics;
 #[cfg(test)]
 mod docs_tests;
@@ -160,13 +155,6 @@ mod safepath;
 mod scene;
 mod scene_custom;
 mod sgr_format;
-// Signal-driven palette drift classifier. Reads CPU% (cpustat) + local
-// wall-clock hour, classifies into a FeelingState (defined in
-// control_color_drift.rs), and feeds the state to ColorEcosystem::tick()
-// for family-targeted drift selection.
-mod system_feeling;
-#[cfg(test)]
-mod system_feeling_tests;
 mod termdetect;
 mod terminal;
 #[cfg(test)]
@@ -1005,12 +993,6 @@ fn main() -> std::io::Result<()> {
             matches.value_source("glitch_level"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
-        // Phase D Bug #10: track --auto-color-drift CLI intent so live
-        // reload doesn't silently override it with config.
-        auto_color_drift: matches!(
-            matches.value_source("auto_color_drift"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
         // Same intent tracking for --crystal-dragon.
         crystal_dragon: matches!(
             matches.value_source("crystal_dragon"),
@@ -1058,7 +1040,7 @@ fn main() -> std::io::Result<()> {
             glitch_high,
             glitch_level: &format!("{:?}", args.glitch_level),
             screensaver: args.screensaver,
-            auto_drift: args.auto_color_drift,
+            auto_drift: args.crystal_dragon,
             message: args.message.as_deref(),
             message_border: args.message_border,
             duration: args.duration,
@@ -1145,7 +1127,6 @@ fn main() -> std::io::Result<()> {
         charset_preset,
         user_ranges,
         def_ascii,
-        auto_color_drift: args.auto_color_drift,
         crystal_dragon: args.crystal_dragon,
         monolith_density_map,
         config_path_for_watcher: {

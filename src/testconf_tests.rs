@@ -465,17 +465,7 @@ fn boolean_keys_reject_non_bool() {
     // (matching parse_bool_config). Only truly invalid values are rejected.
     // (CLI-D-3): removed `mouse` assertions — mouse is no longer in
     // USER_CONFIG_KEYS (caught as unknown_key upstream). The bool validator
-    // arm now only covers `auto-color-drift` and `async-mode`.
-    assert!(validate_field_value("auto-color-drift", "maybe").is_some());
-    assert!(validate_field_value("auto-color-drift", "true").is_none());
-    assert!(validate_field_value("auto-color-drift", "yes").is_none());
-    assert!(validate_field_value("auto-color-drift", "on").is_none());
-    assert!(validate_field_value("auto-color-drift", "1").is_none());
-    assert!(validate_field_value("auto-color-drift", "false").is_none());
-    assert!(validate_field_value("auto-color-drift", "no").is_none());
-    assert!(validate_field_value("auto-color-drift", "off").is_none());
-    assert!(validate_field_value("auto-color-drift", "0").is_none());
-    assert!(validate_field_value("auto-color-drift", "YES").is_none()); // case-insensitive
+    // arm now only covers `async-mode`.
     assert!(validate_field_value("async-mode", "maybe").is_some());
     assert!(validate_field_value("async-mode", "true").is_none());
 }

@@ -265,10 +265,8 @@ pub struct Cloud {
 
     pub(super) glyph_entry_time: Option<Instant>,
 
-    pub(super) auto_color_drift: bool,
     /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
-    /// When true, replaces the old FeelingState-based drift with a
-    /// point-based temperature group system (Cold/Medium/Hot) and
+    /// Point-based temperature group system (Cold/Medium/Hot) +
     /// calc-v1 probabilistic weighted theme selection.
     pub(super) crystal_dragon: bool,
     /// Crystal Dragon sensor state (CPU/CLOCK polling + point tracking).
@@ -460,7 +458,6 @@ impl Cloud {
             memory: RendererMemory::new(now),
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
-            auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
             crystal_dragon: false,
             crystal_dragon_sensor: crate::crystal_dragon_engine::CrystalDragonSensor::new(
                 now,

@@ -42,7 +42,6 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "bold",
     "shadingmode",
     "color-bg",
-    "auto-color-drift",
     "crystal-dragon",
     "async-mode",
     // (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
@@ -608,7 +607,6 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ── Behavior ──
 
 # glitch-level = "subtle"      # none | subtle | default | intense (cinematic default)
-# auto-color-drift = false     # slow palette drift
 # crystal-dragon = false       # ambient intelligence color drift v2 (point-based temperature groups)
 # bold = 1                     # 0=off, 1=random, 2=all
 # shadingmode = 1             # 0=random, 1=cinematic

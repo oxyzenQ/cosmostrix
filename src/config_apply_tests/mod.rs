@@ -742,7 +742,7 @@ fn dump_config_mentions_supported_keys() {
         "bold",
         "shadingmode",
         "color-bg",
-        "auto-color-drift",
+        "crystal-dragon",
         "async-mode",
         "intro",
         // simplification: legacy/historical key mentions removed

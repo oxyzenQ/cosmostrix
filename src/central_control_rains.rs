@@ -655,23 +655,6 @@ pub(crate) const COLOR_SATURATION_CLIMATE_MIN: f32 = 0.7;
 /// Maximum climate saturation multiplier.
 pub(crate) const COLOR_SATURATION_CLIMATE_MAX: f32 = 1.0;
 
-/// Chance per tick of an autonomous palette drift event.
-pub(crate) const AUTONOMOUS_PALETTE_DRIFT_CHANCE: f32 = 0.03;
-
-/// Phase D Bug #7 fix: minimum cooldown seconds between palette drift
-/// events. Without this, drift can oscillate Green↔Green2 on consecutive
-/// ticks (3% chance per tick × 2 schemes = 1.5% chance of immediate
-/// reversal). Each transition triggers `apply_new_palette` (palette
-/// rebuild + color_map regen + force_draw_everything) — expensive + visually
-/// jarring. The cooldown prevents rapid oscillation while preserving the
-/// long-term drift behavior. At 30s cooldown, drift fires at most once per
-/// 10 ticks (3-sec tick × 10 = 30s), which is still frequent enough to be
-/// noticeable over a 10-minute session.
-pub(crate) const PALETTE_DRIFT_COOLDOWN_SECS: f32 = 30.0;
-
-/// Whether autonomous color drift is enabled by default.
-pub(crate) const AUTO_COLOR_DRIFT_DEFAULT: bool = false;
-
 // ─── Cinematic runtime behavior profiles ───────────────────────────────────
 
 /// Duration of the profile transition (sec).

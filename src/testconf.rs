@@ -657,7 +657,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // (true/yes/on/1/false/no/off/0, case-insensitive). (CLI-D-3):
         // removed dead `low-power` / `mouse` from this arm (no longer in
         // USER_CONFIG_KEYS — caught as unknown_keys upstream).
-        "auto-color-drift" | "async-mode" => {
+        "async-mode" => {
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
                 "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,

@@ -1104,7 +1104,7 @@ mod tests {
             "monolith-size",
             "color-bg",
             "ambient",
-            "auto-color-drift",
+            "crystal-dragon",
             "intro",
         ] {
             assert!(
@@ -1139,7 +1139,7 @@ mod tests {
             "monolith-size",
             "color-bg",
             "ambient",
-            "auto-color-drift",
+            "crystal-dragon",
             "intro",
         ] {
             let key = format!("scene-custom.test.{field}");
