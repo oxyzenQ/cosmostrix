@@ -193,7 +193,7 @@ fn density_map_quoted_empty_is_rejected() {
 
 #[test]
 fn density_map_quoted_non_numeric_is_rejected() {
-    // The error message should refer to the *unquoted* entry, not `"abc`.
+    // The error message should refer to the `unquoted` entry, not `"abc`.
     let err = validate_field_value("density-map", "\"abc,def\"").expect("should fail");
     assert!(err.contains("expected float"), "got: {err}");
     assert!(err.contains("abc"), "got: {err}");

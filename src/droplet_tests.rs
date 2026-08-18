@@ -156,8 +156,7 @@ fn selfbloom_fractional_multiplier_actually_applies() {
 
         // The OLD (buggy) arithmetic — `as i32` truncation + integer
         // division. Reproduces the original (broken) code path:
-        //   let layer_selfbloom = mult as i32;       // truncates
-        //   let wf = (HEAD_BOOST_I32 * layer_selfbloom) / 256;  // int div
+        //   layer_selfbloom = mult as i32 (truncates), wf = (HEAD_BOOST_I32 * layer_selfbloom) / 256 (int div)
         let layer_selfbloom_buggy = mult as i32;
         let wf_buggy = (HEAD_BOOST_I32 * layer_selfbloom_buggy) / 256;
         // The bug: wf_buggy is 0 for ALL three layers.

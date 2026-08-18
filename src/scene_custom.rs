@@ -1163,7 +1163,10 @@ mod tests {
                 "zen".to_string(),
             ),
             ("scene-custom.test.shadingmode".to_string(), "1".to_string()),
-            ("scene-custom.test.async-mode".to_string(), "true".to_string()),
+            (
+                "scene-custom.test.async-mode".to_string(),
+                "true".to_string(),
+            ),
         ]);
         let scenes = collect_custom_scenes(&cfg);
         let scene = &scenes["test"];

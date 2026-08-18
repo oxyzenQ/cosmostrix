@@ -105,7 +105,7 @@ pub(crate) fn vignette_factor(col: u16, line: u16, cols: u16, lines: u16) -> f32
     let dist = dist_sq.sqrt();
     // Corner of a square screen is at dist = sqrt(2) ≈ 1.414; of a typical
     // wide terminal (cols=2*lines), it's sqrt(1 + 0.25) ≈ 1.118. We
-    // normalize so the *corner of a square* maps to 1.0, which keeps the
+    // normalize so the `corner of a square` maps to 1.0, which keeps the
     // inner-radius cutoff intuitive on standard terminals.
     let normalized = dist * std::f32::consts::FRAC_1_SQRT_2;
     if normalized <= VIGNETTE_INNER_RADIUS {

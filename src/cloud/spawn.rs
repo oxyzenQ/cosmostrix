@@ -445,8 +445,8 @@ impl Cloud {
         //
         // v25 "cinematic depth" final calibration: [0.35, 0.30, 0.35].
         // Back and front layers share equal 35% spawn probability, mid
-        // is 30%. This balanced distribution creates depth via *speed*
-        // and *brightness* (PARALLAX_SPEED_MULT, PARALLAX_BRIGHTNESS_MULT)
+        // is 30%. This balanced distribution creates depth via `speed`
+        // and `brightness` (PARALLAX_SPEED_MULT, PARALLAX_BRIGHTNESS_MULT)
         // rather than via droplet count — the secret to a realistic,
         // organic, cinematic rain field where all three layers feel
         // equally alive.

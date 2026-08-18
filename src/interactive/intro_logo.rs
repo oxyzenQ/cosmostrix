@@ -373,7 +373,7 @@ pub(super) fn run_logo_intro(
     let palette_rgb = palette_target_rgb(cloud);
     let rain_charset = rain_chars(cloud);
 
-    // Logo placement: shift the bounding box so the *visual centroid*
+    // Logo placement: shift the bounding box so the `visual centroid`
     // sits at the terminal center, then clamp to keep the bbox fully
     // on-screen. Integer math with signed casts so truncation rounds
     // toward zero (correct for both even and odd terminal sizes).

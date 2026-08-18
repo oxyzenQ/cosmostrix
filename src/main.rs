@@ -1009,9 +1009,10 @@ fn main() -> std::io::Result<()> {
             crate::config::IntroType::None => "none",
         };
         let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
-        let verbose_ambient_schedule = crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
-            &configfile::load_config_file(args.config.as_deref()),
-        );
+        let verbose_ambient_schedule =
+            crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
+                &configfile::load_config_file(args.config.as_deref()),
+            );
         verbose::print_verbose(&verbose::VerboseCtx {
             version: env!("CARGO_PKG_VERSION"),
             scene_name: args.scene.as_deref(),
@@ -1161,9 +1162,9 @@ fn main() -> std::io::Result<()> {
         cli_explicit,
         // Ambient phase schedule (config-only). Collected from
         // `ambient.<HH-MM>` keys; empty = scheduler idles.
-        ambient_schedule: crate::crystal_dragon_engine::ambient::collect_ambient_schedule(&configfile::load_config_file(
-            args.config.as_deref(),
-        )),
+        ambient_schedule: crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
+            &configfile::load_config_file(args.config.as_deref()),
+        ),
     };
 
     // fps_user_set was computed earlier (before dynamic default) — USER intent.

@@ -384,7 +384,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // the chroma engine status during benchmark. The owner's question
         // "is the chroma dragon enable/disable during --benchmark?" is
         // answered here in plain text. Chroma is ENABLED in benchmark mode
-        // — only palette *drift* is disabled (palette rebuilds inject
+        // — only palette `drift` is disabled (palette rebuilds inject
         // timing spikes that break p99/max determinism). Climate drift
         // still runs because it is deterministic.
         s.field("color_pipeline", data.color_pipeline);

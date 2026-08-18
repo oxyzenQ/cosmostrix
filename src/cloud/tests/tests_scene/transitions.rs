@@ -228,8 +228,8 @@ fn repeated_uppercase_forward_cycle_never_blank() {
 //    [scene-custom.<name>] block, applies base-scene defaults first, then
 //    the block's own overrides.
 
-use crate::crystal_dragon_engine::ambient::AmbientEntry;
 use crate::cloud::Cloud;
+use crate::crystal_dragon_engine::ambient::AmbientEntry;
 use crate::runtime::ColorScheme;
 use std::collections::HashMap;
 
