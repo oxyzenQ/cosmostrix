@@ -103,7 +103,7 @@ pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 /// Owner contract (2026-08-07):
 /// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
 ///   `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`,
-///   `density`, `density-map`, `async`.
+///   `density`, `density-map`, `async-mode`.
 /// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
 ///   `ambient`, `crystal-dragon`, `color.tune`, `monolith-size`,
 ///   `intro`, `color-bg`.
@@ -129,7 +129,7 @@ pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
     "speed",
     "density",
     "density-map",
-    "async",
+    "async-mode",
 ];
 
 /// Returns `true` if `key` is a recognized `[scene-custom.<name>.<field>]` key.
@@ -186,7 +186,7 @@ pub(crate) fn collect_custom_scenes(
             "colors-custom" => scene.colors_custom = Some(value.clone()),
             "charset-custom" => scene.charset_custom = Some(value.clone()),
             "shadingmode" => scene.shading_mode = Some(value.clone()),
-            "async" => scene.async_mode = Some(value.clone()),
+            "async-mode" => scene.async_mode = Some(value.clone()),
             // monolith-size and color-bg are NOT in SCENE_CUSTOM_FIELDS,
             // so is_scene_custom_config_key already filtered them out.
             _ => {}
@@ -544,7 +544,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             }
             false
         }
-        "async" => {
+        "async-mode" => {
             new.async_mode = matches!(
                 value.trim().to_ascii_lowercase().as_str(),
                 "true" | "1" | "yes" | "on"
@@ -1088,7 +1088,7 @@ mod tests {
             "speed",
             "density",
             "density-map",
-            "async",
+            "async-mode",
         ] {
             assert!(
                 SCENE_CUSTOM_FIELDS.contains(field),
@@ -1121,7 +1121,7 @@ mod tests {
             "colors-custom",
             "charset-custom",
             "shadingmode",
-            "async",
+            "async-mode",
         ] {
             let key = format!("scene-custom.test.{field}");
             assert!(
@@ -1163,7 +1163,7 @@ mod tests {
                 "zen".to_string(),
             ),
             ("scene-custom.test.shadingmode".to_string(), "1".to_string()),
-            ("scene-custom.test.async".to_string(), "true".to_string()),
+            ("scene-custom.test.async-mode".to_string(), "true".to_string()),
         ]);
         let scenes = collect_custom_scenes(&cfg);
         let scene = &scenes["test"];

@@ -59,8 +59,8 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
 ];
 
 const PROFILE_CONFIG_KEY_HINT: &str =
-    "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|async>";
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async>";
+    "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|async-mode>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";
@@ -601,7 +601,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # fps = 60                     # 1-240 (default: dynamic — 60 or 144 on high-refresh)
 # speed = 9                    # 1-100 (cinematic default)
 # density = 0.75               # 0.01-5.0 (cinematic default)
-# async-mode = true            # variable column speeds (in scene-custom/profile blocks: async)
+# async-mode = true            # variable column speeds
 # monolith-size = "normal"     # small | normal | large (monolith scene only)
 
 # ── Behavior ──
@@ -637,7 +637,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # shadingmode = 1             # 0=random, 1=cinematic
 # glitch-level = "intense"
 # density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights (each 0.0-1.0)
-# async = true                 # variable column speeds (top-level key: async-mode)
+# async-mode = true             # variable column speeds
 
 # ── Custom Color Palettes ──
 # Define named palettes, reference via: colors-custom = <name>

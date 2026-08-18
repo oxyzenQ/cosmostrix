@@ -47,7 +47,7 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "colors-custom",
     "charset-custom",
     "shadingmode",
-    "async",
+    "async-mode",
 ];
 
 #[derive(Debug, Clone, Default, PartialEq)]
@@ -93,8 +93,7 @@ pub(crate) struct UserProfile {
     /// Shading mode: "0"=Random, "1"=DistanceFromHead — matches `shadingmode`
     /// top-level config key.
     pub shading_mode: Option<String>,
-    /// Async render toggle: "true"/"false" — matches `async-mode` top-level
-    /// config key (the scene-custom field name is `async` per owner spec).
+    /// Async render toggle: "true"/"false" — matches `async-mode` config key.
     pub async_mode: Option<String>,
 }
 
@@ -155,7 +154,7 @@ pub(crate) fn collect_profiles(
             "colors-custom" => profile.colors_custom = Some(value.clone()),
             "charset-custom" => profile.charset_custom = Some(value.clone()),
             "shadingmode" => profile.shading_mode = Some(value.clone()),
-            "async" => profile.async_mode = Some(value.clone()),
+            "async-mode" => profile.async_mode = Some(value.clone()),
             _ => {}
         }
     }
@@ -463,7 +462,7 @@ fn apply_profile_overrides(
                 args.async_mode = b;
                 modified.insert("async_mode");
             }
-            None => warn_invalid(name, "async", value, "true, false"),
+            None => warn_invalid(name, "async-mode", value, "true, false"),
         }
     }
     // `colors-custom` resolves to `args.colors_custom` (the `--colors-custom`

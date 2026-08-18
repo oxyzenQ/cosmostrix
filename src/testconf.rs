@@ -688,21 +688,10 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // (CLI-V-2): scene-custom `async` field validator — previously
-        // fell through to `_ => None`, so `async = "garbage"` silently passed
-        // --testconf then failed at runtime with only a stderr warning.
-        // (The `colors-custom` and `charset-custom` block-reference validators
-        //  live in `validate_field_value_with_cfg` below — they need cfg to
-        //  check whether the referenced block exists.)
-        "async" => {
-            let lower = v.trim().to_ascii_lowercase();
-            match lower.as_str() {
-                "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
-                _ => Some(format!(
-                    "expected true/false (or yes/no, on/off, 1/0), got '{v}'"
-                )),
-            }
-        }
+        // (CLI-V-2): scene-custom `async-mode` field validator — now unified
+        // with the top-level `async-mode` match arm above (same validation).
+        // Previously this was a separate `"async"` arm; renaming to `async-mode`
+        // merged the two into one match arm.
 
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.

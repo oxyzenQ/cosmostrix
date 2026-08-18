@@ -202,7 +202,7 @@ mod tests {
     fn cdf_select_produces_valid_indices() {
         let mut mt = seeded_rng();
         let themes = group_themes(TemperatureGroup::Cold);
-        let weights: Vec<f32> = themes.iter().enumerate().map(|(i, _)| 1.0).collect();
+        let weights: Vec<f32> = themes.iter().map(|_| 1.0).collect();
         let mut cdf = Vec::new();
         let mut cum = 0.0f32;
         for &w in &weights {
