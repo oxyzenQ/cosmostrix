@@ -10,6 +10,83 @@ use std::ffi::OsString;
 
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 
+// ── "Did you mean?" CLI flag suggestion ────────────────────────────────────
+//
+// When clap reports an unknown argument, we compute the edit distance from the
+// user's input to every known long flag (visible + hidden) and suggest the
+// closest match if distance ≤ 3. This mirrors the same "did you mean" UX
+// already used for config keys in `config_hints.rs`.
+//
+// The flag list is a static slice so the suggestion is zero-alloc beyond the
+// edit-distance scan (which operates on char iterators, no heap).
+
+/// All known long flags (visible + hidden) for "did you mean?" suggestions.
+///
+/// Kept in a single place so it stays in sync with the `Args` struct in
+/// `config.rs`. Aliases are included so typos against them also resolve
+/// (e.g. `--charset-custom` is an alias of `--charset`).
+pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
+    // COMMON OPTIONS
+    "color",
+    "colors-custom",
+    "color-tune",
+    "charset",
+    "charset-custom", // alias of --charset
+    "fps",
+    "speed",
+    "density",
+    "monolith-size",
+    "uniform",
+    "screensaver",
+    "intro",
+    "message",
+    "glitch-level",
+    "scene",
+    "scene-custom",
+    // CONFIG
+    "config",
+    "dump-config",
+    "force",
+    "config-path",
+    "testconf",
+    // DIAGNOSTICS
+    "doctor",
+    "docs",
+    "benchmark",
+    "bench-duration",
+    "screen-size",
+    "json",
+    "save-baseline",
+    "compare-baseline",
+    "bench-io",
+    "bench-all",
+    "bench-scene",
+    "reset-terminal",
+    "verbose",
+    // DISCOVERY
+    "list-colors",
+    "list-charsets",
+    "list-scenes",
+    "show-scene",
+    // HELP
+    "help",
+    "version",
+    "check-update",
+    "check-updated", // alias of --check-update
+    // HIDDEN (still valid CLI flags)
+    "bold",
+    "color-bg",
+    "duration",
+    "perf-stats",
+    "bench-frames",
+    "auto-color-drift",
+    "glitchms",
+    "lingerms",
+    "shadingmode",
+    "message-border",
+    "colormode",
+];
+
 /// Migration map for CLI flags removed across v14–v30.
 ///
 /// Each entry maps a removed long-flag name to a single-line migration message
@@ -762,5 +839,108 @@ mod tests {
             prevalidate_cli_args(&argv).is_ok(),
             "--dump-config + --force must pass prevalidate"
         );
+    }
+}
+
+/// Suggest the closest known long flag for a mistyped flag name.
+///
+/// Returns `Some(suggestion)` if the best match has edit distance ≤ 3,
+/// or `None` if no flag is close enough. The threshold of 3 is slightly
+/// more generous than the config-key threshold (2) because CLI flag names
+/// tend to be longer and users are more likely to drop a hyphen or segment
+/// (e.g. `--auto-color-drifts` vs `--auto-color-drift`, distance 1).
+///
+/// Input should be the flag name WITHOUT the `--` prefix (e.g. pass
+/// `"auto-color-drifts"`, not `"--auto-color-drifts"`).
+#[must_use]
+pub(crate) fn suggest_cli_flag(input: &str) -> Option<&'static str> {
+    let input_lower = input.to_ascii_lowercase();
+    let mut best: Option<(&'static str, usize)> = None;
+    for &candidate in KNOWN_LONG_FLAGS.iter() {
+        let dist = cli_edit_distance(&input_lower, candidate);
+        // Threshold ≤ 3 catches common typos while avoiding false positives.
+        // Very short flags (< 4 chars) use a tighter threshold of ≤ 1 to
+        // avoid spurious suggestions for short nonsense like `--fp` → `--fps`.
+        let threshold = if candidate.len() < 4 { 1 } else { 3 };
+        if dist <= threshold {
+            match best {
+                None => best = Some((candidate, dist)),
+                Some((_, best_dist)) if dist < best_dist => best = Some((candidate, dist)),
+                _ => {}
+            }
+        }
+    }
+    best.map(|(s, _)| s)
+}
+
+/// Compute Levenshtein edit distance between two strings.
+///
+/// Dedicated copy (not shared with `config_hints.rs`) to keep `validation.rs`
+/// self-contained — `config_hints` is only compiled for the config-parse path
+/// while `validation.rs` is always linked. The algorithm is identical.
+fn cli_edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr: Vec<usize> = vec![0; n + 1];
+    for i in 1..=m {
+        curr[0] = i;
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[n]
+}
+
+#[cfg(test)]
+mod suggest_cli_flag_tests {
+    use super::*;
+
+    #[test]
+    fn exact_match_zero_distance() {
+        assert_eq!(suggest_cli_flag("color"), Some("color"));
+    }
+
+    #[test]
+    fn typo_suggests_closest() {
+        // --auto-color-drifts (extra 's') → --auto-color-drift
+        assert_eq!(
+            suggest_cli_flag("auto-color-drifts"),
+            Some("auto-color-drift")
+        );
+    }
+
+    #[test]
+    fn missing_hyphen_suggests() {
+        // --autocolor-drift → --auto-color-drift (distance 1)
+        assert_eq!(
+            suggest_cli_flag("autocolor-drift"),
+            Some("auto-color-drift")
+        );
+    }
+
+    #[test]
+    fn nonsense_no_suggestion() {
+        // Completely unrelated flag → None
+        assert_eq!(suggest_cli_flag("xyzzy"), None);
+    }
+
+    #[test]
+    fn short_flag_tight_threshold() {
+        // --fp is distance 1 from --fps, fps < 4 chars so threshold is 1 → match
+        assert_eq!(suggest_cli_flag("fp"), Some("fps"));
+        // --fpx is also distance 1 from --fps (substitution), so it matches
+        assert_eq!(suggest_cli_flag("fpx"), Some("fps"));
+        // --fpxx is distance 2 from --fps, exceeds threshold 1 → None
+        assert_eq!(suggest_cli_flag("fpxx"), None);
     }
 }

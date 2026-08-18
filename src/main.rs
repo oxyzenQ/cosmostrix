@@ -194,7 +194,7 @@ use crate::runtime::{BoldMode, ShadingMode};
 use crate::terminal::reset_terminal_emergency;
 use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
-    prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
+    prevalidate_cli_args, suggest_cli_flag, validate_f32_range, validate_f64_range, validate_speed,
     validate_u16_range, validate_u8_range,
 };
 
@@ -376,6 +376,29 @@ pub fn spawn_kill9_terminal_guard() {
 #[cfg(not(unix))]
 pub fn spawn_kill9_terminal_guard() {}
 
+/// Extract the unknown flag name from a clap error message.
+///
+/// Clap's "unexpected argument" error has the format:
+///   `error: unexpected argument '--foo' found`
+///
+/// This function extracts `foo` (without the `--` prefix) so it can be
+/// passed to [`suggest_cli_flag`] for edit-distance matching.
+fn extract_unknown_flag(err_str: &str) -> Option<&str> {
+    // Look for the pattern: unexpected argument '--FLAG'
+    // or: unexpected argument 'FLAG' (short-flag form, less common)
+    if !err_str.contains("unexpected argument") {
+        return None;
+    }
+    // Find the single-quoted token after "unexpected argument"
+    let marker = "unexpected argument '";
+    let start = err_str.find(marker)? + marker.len();
+    let rest = &err_str[start..];
+    let end = rest.find('\'')?;
+    let token = &rest[..end];
+    // Strip the leading -- if present (long flag form)
+    Some(token.strip_prefix("--").unwrap_or(token))
+}
+
 fn main() -> std::io::Result<()> {
     // MUST be first — checks CPU features before any v3/v4 instructions execute
     #[cfg(target_arch = "x86_64")]
@@ -434,7 +457,29 @@ fn main() -> std::io::Result<()> {
         ux::die_input(e);
     }
 
-    let matches = cmd.get_matches_from(argv);
+    let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
+        // Intercept clap's "unexpected argument" errors and append a
+        // "Did you mean --<flag>?" suggestion based on edit distance.
+        // This turns a bare `error: unexpected argument '--auto-color-drifts'`
+        // into a helpful `Did you mean --auto-color-drift?` — matching the
+        // same UX already provided for config key typos in config_hints.rs.
+        let err_str = e.to_string();
+        // Clap's unknown-arg error contains "unexpected argument" and the
+        // flag name in quotes. Extract the flag name (without --) so we
+        // can compute a suggestion.
+        if let Some(flag_name) = extract_unknown_flag(&err_str) {
+            if let Some(suggestion) = suggest_cli_flag(flag_name) {
+                // Print clap's original error, then our suggestion line.
+                // We use e.print() for the original formatted error, then
+                // append the hint on a new line to stderr.
+                e.print().ok();
+                eprintln!("\n  Did you mean --{suggestion}?");
+                std::process::exit(2);
+            }
+        }
+        // No suggestion found — fall through to clap's default error display.
+        e.exit();
+    });
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
 
     // --help: print the full curated reference manual and exit.
