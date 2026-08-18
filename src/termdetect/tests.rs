@@ -755,6 +755,7 @@ fn ancestor_process_names_returns_nonempty_in_test_env() {
 }
 
 #[test]
+#[cfg(target_os = "linux")]
 fn env_guard_inhibits_ancestor_walk_on_current_thread() {
     // Regression guard for the "tests fail inside Alacritty/Kitty/WezTerm"
     // bug. When a developer runs `cargo test` from inside a high-perf
