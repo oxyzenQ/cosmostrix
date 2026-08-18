@@ -842,8 +842,30 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         } else {
             0.0
         },
+        // v50 LTS audit fix (Issue 1 residue): `total_ns_per_cell` was
+        // previously `(sim+render+io)*1e6/dirty_per_frame`. That formula
+        // was consistent with the OLD `avg_frame_time` (which also
+        // excluded loop bookkeeping), but is now inconsistent with the
+        // new `avg_frame_time = elapsed_s*1000/total_frames` (which
+        // includes bookkeeping). The cross-check formula
+        // `total_ns_per_cell = 1e9 / (avg_fps * dirty_per_frame)`
+        // failed by -0.6% to -9.7% on the bench-all silent path,
+        // exposing the residue.
+        //
+        // Fix: use `avg_frame_time` (the full per-frame wall-clock cost)
+        // as the numerator. This guarantees
+        // `total_ns_per_cell = avg_frame_time_ms * 1e6 / dirty_per_frame`,
+        // which is the contract users expect when cross-checking with
+        // `avg_fps`.
+        //
+        // Note: `render_ns_per_cell` and `io_ns_per_cell` are
+        // intentionally left using `avg_render_ms` / `avg_io_ms` — they
+        // are SUB-COMPONENT costs, not full-frame costs. The
+        // relationship `render_ns + io_ns + sim_ns < total_ns` is
+        // expected (the gap is bookkeeping), and now `total_ns` actually
+        // reflects the full frame.
         total_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
-            ((avg_sim_ms + avg_render_ms + avg_io_ms) * 1_000_000.0) / avg_dirty_cells_per_frame
+            (avg_frame_time * 1_000_000.0) / avg_dirty_cells_per_frame
         } else {
             0.0
         },
@@ -1214,8 +1236,12 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         } else {
             0.0
         },
+        // v50 LTS audit fix (Issue 1 residue): same fix as the visible
+        // capture path — use `avg_frame_time` (full per-frame wall-clock
+        // cost including bookkeeping) instead of `(sim+render+io)`.
+        // See the visible-path comment above for full explanation.
         total_ns_per_cell: if avg_dirty_cells_per_frame > 0.0 {
-            (avg_sim_ms + avg_render_ms + avg_io_ms) * 1_000_000.0 / avg_dirty_cells_per_frame
+            (avg_frame_time * 1_000_000.0) / avg_dirty_cells_per_frame
         } else {
             0.0
         },
