@@ -817,7 +817,7 @@ EOF
 # ── Version sync (verification only) ───────────────────────────────────
 # Version bumping is owned by ./scripts/version-to.sh — see its --help for
 # the full list of files it touches (Cargo.toml, Cargo.lock, PKGBUILD,
-# .SRCINFO, README.md, docs/workflow/about-ci.md). build.sh only exposes
+# .SRCINFO, README.md, docs/workflow/ABOUT_CI.md). build.sh only exposes
 # the `version-sync` subcommand, which verifies all active version refs
 # agree with Cargo.toml without writing anything.
 

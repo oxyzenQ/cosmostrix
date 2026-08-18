@@ -40,7 +40,7 @@ readonly CARGO_LOCK="${REPO_ROOT}/Cargo.lock"
 readonly PKGBUILD="${REPO_ROOT}/aur/cosmostrix-bin/PKGBUILD"
 readonly SRCINFO="${REPO_ROOT}/aur/cosmostrix-bin/.SRCINFO"
 readonly README="${REPO_ROOT}/README.md"
-readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/about-ci.md"
+readonly ABOUT_CI="${REPO_ROOT}/docs/workflow/ABOUT_CI.md"
 
 readonly ASSETS_DIR="${REPO_ROOT}/assets"
 
@@ -347,7 +347,7 @@ update_docs() {
     # doc file is the single `TAG="vX.Y.Z"` line in the README install
     # snippet. Every other version-shaped string in the docs is either
     # historical narrative (e.g. "variants were dropped in an earlier
-    # release") or an illustrative example (`docs/workflow/about-ci.md`
+    # release") or an illustrative example (`docs/workflow/ABOUT_CI.md`
     # shows `git tag v4.0.0` as a teaching example, not the current
     # release). Those must NOT be touched on a version bump.
     #
@@ -369,7 +369,7 @@ update_docs() {
             log_ok "  Updated $(basename "${f}"): ${old_tag} → ${new_tag}"
         else
             # Expected for doc files that have no install snippet
-            # (e.g. about-ci.md). Not an error — silently skipped.
+            # (e.g. ABOUT_CI.md). Not an error — silently skipped.
             log_info "  No TAG= line in $(basename "${f}") (skipped)"
         fi
     done
@@ -619,7 +619,7 @@ verify_version() {
     # desync would silently pass `version-to.sh --check` and only be
     # caught later by the Rust test suite (docs_tests::metadata).
     #
-    # Other doc files (about-ci.md) intentionally do NOT contain the
+    # Other doc files (ABOUT_CI.md) intentionally do NOT contain the
     # current version — they use illustrative examples (`git tag v4.0.0`)
     # that are not meant to track the release version. Step 7 below used
     # to require every doc file to reference vX.Y.Z at least once; that
@@ -827,7 +827,7 @@ main() {
 
     # 4. Update docs/examples (only the TAG= line is touched under the
     # strict-versioning policy). Only report a doc file as "changed" if
-    # update_docs actually modified it — about-ci.md has no TAG= line
+    # update_docs actually modified it — ABOUT_CI.md has no TAG= line
     # and is left untouched, so it should not appear in the summary.
     update_docs "${OLD_VER}" "${NEW_VER}"
     for f in "${DOC_FILES[@]}"; do

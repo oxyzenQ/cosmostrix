@@ -1,24 +1,13 @@
 # Contributing to cosmostrix
-
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-> cosmostrix is a professional-grade cinematic Matrix rain renderer built in
-> Rust. Contributions are welcome — especially bug fixes, platform
-> compatibility improvements, and documentation. See
-> [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy.
-
----
+> cosmostrix is a professional-grade cinematic Matrix rain renderer built in Rust. Contributions are welcome — especially bug fixes, platform compatibility improvements, and documentation. See [TRADEMARK.md](TRADEMARK.md) §4a for the contribution fork policy.
 
 ## 1. Getting Started
 
-### Prerequisites
+**Prerequisites**: Rust 1.97.1 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` (for the `./scripts/build.sh check-all` gatekeeper).
 
-- **Rust 1.97.1** (pinned in `rust-toolchain.toml` — `rustup` auto-installs it)
-- **Git**
-- **Linux/macOS** recommended (Windows works but some scripts need Git Bash)
-- **shellcheck** (for the `./scripts/build.sh check-all` gatekeeper)
-
-### Clone + Build
+**Clone + Build**:
 
 ```bash
 git clone https://github.com/oxyzenQ/cosmostrix.git
@@ -27,7 +16,7 @@ cargo build                # debug build
 cargo build --release      # optimized release build
 ```
 
-### Verify Your Build
+**Verify your build**:
 
 ```bash
 cargo test --all --locked      # run full test suite
@@ -36,36 +25,17 @@ cargo test --all --locked      # run full test suite
 
 All 11 gatekeeper checks must pass before any commit.
 
----
-
 ## 2. Coding Conventions
 
-### Rust
+**Rust**: formatting via `cargo fmt --all` (enforced by gatekeeper); linting via `cargo clippy -- -D warnings` (all warnings are errors); source cap 1,500 LOC per `.rs` file (1,000 for `cloud/mod.rs` — split large files using the `#[path = "..."] mod` pattern); no production `unwrap()` (all `.unwrap()` calls must be in `#[cfg(test)]` modules — production code uses `?`, `Option`, or `match Ok/Err`); no `unsafe` without SAFETY comment (every `unsafe` block must document why it's sound).
 
-- **Formatting**: `cargo fmt --all` — enforced by the gatekeeper
-- **Linting**: `cargo clippy -- -D warnings` — all warnings are errors
-- **Source cap**: 1,500 LOC per `.rs` file (1,000 for `cloud/mod.rs`).
-  Split large files using the `#[path = "..."] mod` pattern.
-- **No production `unwrap()`**: all `.unwrap()` calls must be in
-  `#[cfg(test)]` modules. Production code uses `?`, `Option`, or
-  `match Ok/Err`.
-- **No `unsafe` without SAFETY comment**: every `unsafe` block must
-  document why it's sound.
+**Shell scripts**: all `scripts/*.sh` must pass `shellcheck`; every file must have the copyright + SPDX header.
 
-### Shell scripts
-
-- **Shellcheck**: all `scripts/*.sh` must pass `shellcheck`
-- **SPDX header**: every file must have the copyright + SPDX header
-
-### Python scripts
-
-- **Ruff**: all `scripts/*.py` must pass `ruff check` + `ruff format --check`
-
----
+**Python scripts**: all `scripts/*.py` must pass `ruff check` + `ruff format --check`.
 
 ## 3. Commit + PR Guidelines
 
-### Commit message format
+**Commit message format**:
 
 ```
 type(scope): summary line
@@ -73,21 +43,11 @@ type(scope): summary line
 Body explaining what + why (not how).
 ```
 
-Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`
+Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fix(visual): internal independent QA — H1 resize color cache`, `refactor(split-E1): extract sanitize_message_text from main.rs to src/message.rs`, `docs(bench): add v50 reference matrix`.
 
-Examples:
-- `fix(visual): internal independent QA — H1 resize color cache`
-- `refactor(split-E1): extract sanitize_message_text from main.rs to src/message.rs`
-- `docs(bench): add v50 reference matrix`
+**Before committing**: (1) Run `./scripts/build.sh check-all` — all checks must pass; (2) Run `cargo fmt --all` if formatting issues; (3) Verify no debug `eprintln!` / `println!` in production code paths (use `push_runtime_warning` for diagnostics during rain — see AB-10).
 
-### Before committing
-
-1. Run `./scripts/build.sh check-all` — all checks must pass
-2. Run `cargo fmt --all` if formatting issues
-3. Verify no debug `eprintln!` / `println!` in production code paths
-   (use `push_runtime_warning` for diagnostics during rain — see AB-10)
-
-### Pull request checklist
+**Pull request checklist**:
 
 - [ ] All tests pass (`cargo test --all --locked`)
 - [ ] Gatekeeper passes (`./scripts/build.sh check-all`)
@@ -98,18 +58,10 @@ Examples:
 - [ ] SPDX header on new files
 - [ ] Commit message follows the format above
 
----
-
 ## 4. Forking Policy
 
-- **Contribution forks** (PRs back to upstream): allowed without permission.
-  Keep the cosmostrix name/logo/branding unchanged. See
-  [TRADEMARK.md §4a](TRADEMARK.md).
-- **Non-contribution forks** (rebrand, relaunch, derivative product):
-  require owner discussion first. See
-  [TRADEMARK.md §4b](TRADEMARK.md).
-
----
+- **Contribution forks** (PRs back to upstream): allowed without permission. Keep the cosmostrix name/logo/branding unchanged. See [TRADEMARK.md §4a](TRADEMARK.md).
+- **Non-contribution forks** (rebrand, relaunch, derivative product): require owner discussion first. See [TRADEMARK.md §4b](TRADEMARK.md).
 
 ## 5. Architecture Quick Reference
 
@@ -126,7 +78,5 @@ Examples:
 | Config | `src/configfile.rs`, `src/config*.rs` | TOML parser + validation |
 
 Full audit: [`docs/audits/COSMIC_DRAGON_AUDIT.md`](docs/audits/COSMIC_DRAGON_AUDIT.md)
-
----
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.

@@ -15,7 +15,7 @@ see the **Limitations** section of [README.md](README.md).
 
 ### Symptom
 
-Pressing `i` (lowercase) or `I` (uppercase) to toggle the live HUD
+Pressing `i` (lowercase only — uppercase `I` is a no-op) to toggle the live HUD
 during an interactive run sometimes causes cosmostrix to exit abruptly
 on **Windows** (Windows Terminal, ConHost, PowerShell) and **Android**
 (Termux). The exit is unexpected — no panic message, no error, just a
@@ -57,7 +57,8 @@ Pick whichever applies to your setup:
 
 2. **Change the HUD toggle key.** cosmostrix does NOT currently
    expose a config-level keybinding remap for the HUD toggle — the
-   `i`/`I` binding is hardcoded in `src/interactive/input.rs`. As a
+   `i` binding (lowercase only) is hardcoded in `src/interactive/event_loop.rs`
+   (not `input.rs`). As a
    workaround on affected platforms, run cosmostrix inside `tmux`
    (see option 5 below) which normalizes key event delivery, or use
    `--benchmark` mode (option 3) which does not enter the interactive

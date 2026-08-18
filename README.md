@@ -601,7 +601,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 - [SIMD Feasibility](docs/SIMD_FEASIBILITY.md) — SIMD optimization feasibility
 - [Advanced Benchmarking](docs/BENCHMARK_ADVANCED.md) — enable MICROARCHITECTURE and ENERGY metrics, interpret key benchmark fields
 - [Benchmarking Guide](docs/BENCHMARKING.md) — full independent benchmarking guide: how to run, interpret, compare, strict `--bench-scene` validation, v50 4-scene reference matrix (103,021 avg_fps monolith at 80×24, v50 nightly.1, pro-linux-v4 build)
-- [CI & Release Workflow](docs/workflow/about-ci.md) — CI pipeline and release process
+- [CI & Release Workflow](docs/workflow/ABOUT_CI.md) — CI pipeline and release process
 - [Maintenance Guide](docs/MAINTENANCE.md) — build/test/update procedures, security response, health-check log (for dormant mode)
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
 - [Comprehensive Audit](docs/audits/COSMIC_DRAGON_AUDIT.md) — visual quality, stability, power management, depth assessment
@@ -619,11 +619,11 @@ scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 
 ## Release Process
 
-Create a release by pushing a `v*` tag. See [docs/workflow/about-ci.md](docs/workflow/about-ci.md) for CI and release workflow details.
+Create a release by pushing a `v*` tag. See [docs/workflow/ABOUT_CI.md](docs/workflow/ABOUT_CI.md) for CI and release workflow details.
 
 ### Version bump + build
 
-Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/about-ci.md), then build:
+Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/ABOUT_CI.md), then build:
 
 ```bash
 ./scripts/version-to.sh vX.Y.Z             # bump to vX.Y.Z across all active files
