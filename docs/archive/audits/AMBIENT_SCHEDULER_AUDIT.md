@@ -3,7 +3,7 @@
 # Ambient Scheduler Engine — Deep Audit (v50.0.0-alpha.2)
 
 **Repo**: cosmostrix @ v50.0.0-alpha.2
-**Audit scope**: `src/ambient.rs`, `src/ambient_scheduler.rs`, `src/cloud/scene_runtime.rs::apply_ambient_entry`, `src/interactive/event_loop.rs` (ambient event path), `src/interactive/input.rs` (shortkey x/c/s + auto-snapback), `src/cloud/rain.rs` (auto-color-drift path), `src/cloud/ecosystem.rs::ColorEcosystem::tick`.
+**Audit scope**: `src/crystal_dragon_engine/ambient.rs`, `src/crystal_dragon_engine/ambient_scheduler.rs`, `src/cloud/scene_runtime.rs::apply_ambient_entry`, `src/interactive/event_loop.rs` (ambient event path), `src/interactive/input.rs` (shortkey x/c/s + auto-snapback), `src/cloud/rain.rs` (auto-color-drift path), `src/cloud/ecosystem.rs::ColorEcosystem::tick`.
 **Trigger**: Owner report of confused behavior — after pressing `x`/`c`/`s` at runtime, the ambient scheduler no longer re-asserts the configured scene (e.g. `ambient.22-10 = aurora` does not come back at 22:10 the next day). Owner also asked whether `--auto-color-drift` + ambient can conflict, and how to harmonize them.
 
 **Revision (post-audit)**: The the fix introduced an `'a'` shortkey for manual snap-back. The owner rejected this — wanted fully automatic behavior, no new shortcut. replaces the `'a'` key with an **idle-based auto-snapback**: after the user presses `x`/`c`/`s` and is idle for 30 seconds, the loop re-applies the current ambient phase automatically. No new shortcut, no new CLI flag — the existing `user_override_since_ambient` flag drives everything. See §2.2 for the patch.
@@ -22,7 +22,7 @@
 3. At 22:10 the next day, scheduler wakes. `current_phase = <22:10, aurora>`. `last_applied = <22:10, aurora>`. **Equal → no fire.**
 4. Owner expected `aurora` to be re-applied. **Bug.**
 
-**Root cause** (`src/ambient_scheduler.rs:217-231`):
+**Root cause** (`src/crystal_dragon_engine/ambient_scheduler.rs:217-231`):
 
 ```rust
 if let Some(entry) = &current_entry {
@@ -159,9 +159,9 @@ See §2.4 for the patch.
 
 ## 2. Fix design — surgical patches
 
-### 2.1 Patch A — Day-boundary refire in `src/ambient_scheduler.rs`
+### 2.1 Patch A — Day-boundary refire in `src/crystal_dragon_engine/ambient_scheduler.rs`
 
-Add a `current_yday()` helper in `src/ambient.rs` (mirrors
+Add a `current_yday()` helper in `src/crystal_dragon_engine/ambient.rs` (mirrors
 `current_minute_of_day`).
 
 In `scheduler_loop`, add `let mut last_fired_yday: i32 = -1;` before the loop.
@@ -174,7 +174,7 @@ day-boundary refire check:
 // This handles single-entry schedules where the same entry is "current"
 // across multiple days — without this, a user who presses 'x' after 22:10
 // would never see aurora re-asserted at 22:10 the next day.
-let today_yday = crate::ambient::current_yday();
+let today_yday = crate::crystal_dragon_engine::ambient::current_yday();
 if today_yday != last_fired_yday {
     if let Some(entry) = &current_entry {
         if entry.minutes_of_day() <= now_min {
@@ -339,7 +339,7 @@ This is the "synergy" the owner asked about: ambient and auto-drift no longer fi
 
 ## 4. Test plan
 
-1. **`src/ambient_scheduler.rs` unit tests**:
+1. **`src/crystal_dragon_engine/ambient_scheduler.rs` unit tests**:
    - `day_boundary_refire_single_entry`: synthetic clock, single entry, simulate day rollover, assert refire.
    - `day_boundary_no_refire_within_same_day`: synthetic clock, same day, assert no spurious refire.
 

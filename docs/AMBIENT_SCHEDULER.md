@@ -127,8 +127,8 @@ because the scheduler runs continuously).
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/ambient.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (`AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
-| `src/ambient_scheduler.rs` | Dynamic idle/wake scheduler thread, `AmbientSchedulerHandle`, `spawn_ambient_scheduler`, `reload` |
+| `src/crystal_dragon_engine/ambient.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (`AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
+| `src/crystal_dragon_engine/ambient_scheduler.rs` | Dynamic idle/wake scheduler thread, `AmbientSchedulerHandle`, `spawn_ambient_scheduler`, `reload` |
 | `src/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — delegates to `apply_scene_runtime_with_cfg`, which handles both built-in scenes (fast path) and custom scenes (looks up `[scene-custom.<name>]` block, applies `base-scene` defaults first, then the block's own overrides) |
 | `src/interactive/event_loop.rs` | Spawns scheduler at startup, polls `rx` each frame, pushes reload on config change |
 | `src/live_config.rs` | `rebuild_cloud_config` collects new schedule from config map; `apply_scene_custom_to_cloud_config` calls `scene_custom::apply_base_scene_to_cloud_config` for base-scene inheritance on live-reload |

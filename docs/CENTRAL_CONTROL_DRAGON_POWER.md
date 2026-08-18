@@ -91,7 +91,7 @@ subsystem in this module.
 | 7  | reclaim state (P4)        | `reclaim_state.rs`                    | madvise(MADV_DONTNEED)            |
 | 8  | endurance health (P5)     | `endurance_health.rs`                 | score (RSS+jitter+ctxt)           |
 | 9  | performance self-healer   | `self_healer.rs` + event_loop.rs      | scene + force_draw + madvise      |
-| 10 | ambient scheduler         | `ambient.rs` (external)               | scene + palette                   |
+| 10 | ambient scheduler         | `crystal_dragon_engine/ambient.rs` (external) | scene + palette                   |
 | 11 | climate post-FX           | `chroma/post/climate.rs` (external)   | per-cell RGB + spawn_scale        |
 | 12 | perf_pressure pipeline    | `power_manager.rs` + cloud/rain.rs    | spawn + sim + glitch + vignette   |
 

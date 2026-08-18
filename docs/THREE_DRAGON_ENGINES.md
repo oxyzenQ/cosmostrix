@@ -7,18 +7,12 @@ rendering concern. They never share mutable state; they communicate only
 through the immutable `Cloud` snapshot each frame.
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│                    Cloud (frame state)                     │
-│                                                           │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
-│  │  COSMIC 🔮  │  │  CHROMA 🎨  │  │ CRYSTAL ❄️  │      │
-│  │  Dragon     │  │  Dragon     │  │  Dragon     │      │
-│  │             │  │             │  │             │@│      │
-│  │ simulation  │  │ color       │  │ palette     │@│      │
-│  │ physics     │  │ palette     │  │ drift +     │ │      │
-│  │ behavior    │  │ OKLab       │  │ ambient     │ │      │
-│  └─────────────┘  └─────────────┘  └─────────────┘      │
-└──────────────────────────────────────────────────────────┘
+Cloud (frame state)
+
+  COSMIC Dragon      CHROMA Dragon      CRYSTAL Dragon
+  - simulation       - color            - palette
+  - physics          - palette          - drift +
+  - behavior         - OKLab            - ambient
 ```
 
 ## 1. Cosmic Dragon — `src/cosmic_dragon/`
