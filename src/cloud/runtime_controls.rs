@@ -315,4 +315,63 @@ impl Cloud {
         self.force_draw_everything = true;
         self.semantic_invalidate = true;
     }
+
+    // ── Crystal Dragon Engine ──────────────────────────────────────────
+
+    /// Tick the Crystal Dragon engine and maybe return a new color scheme.
+    ///
+    /// Polls the sensor (CPU or CLOCK) if the polling interval has elapsed,
+    /// then probabilistically selects a new color theme from the temperature
+    /// group (Cold/Medium/Hot) matching the current point.
+    ///
+    /// Returns `Some(new_scheme)` if a drift event should occur, or `None`
+    /// if the engine decides to stay on the current theme this tick.
+    ///
+    /// The caller (rain.rs) applies the new scheme via `set_color_scheme`,
+    /// which triggers the 300 ms OKLab wave transition via Chroma Dragon.
+    pub(crate) fn crystal_dragon_tick(&mut self, now: std::time::Instant) -> Option<ColorScheme> {
+        use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_DRIFT_CHANCE;
+        use crate::crystal_dragon_engine::point_system::calc_v1_select;
+
+        // Check if the polling interval has elapsed.
+        let elapsed_since_poll = match self.crystal_dragon_last_poll {
+            None => {
+                // First poll — initialize timestamp and poll immediately.
+                self.crystal_dragon_last_poll = Some(now);
+                self.crystal_dragon_sensor.poll(now);
+                0.0
+            }
+            Some(last) => now.saturating_duration_since(last).as_secs_f32(),
+        };
+
+        if elapsed_since_poll >= self.crystal_dragon_control.polling_secs {
+            self.crystal_dragon_last_poll = Some(now);
+            self.crystal_dragon_sensor.poll(now);
+        }
+
+        // Dwell hysteresis: don't drift if we haven't dwelled in the
+        // current theme long enough.
+        let dwell = now
+            .saturating_duration_since(self.crystal_dragon_sensor.theme_entered_at())
+            .as_secs_f32();
+        if dwell < self.crystal_dragon_control.min_dwell_secs {
+            return None;
+        }
+
+        // Probabilistic gate: drift only with CRYSTAL_DRAGON_DRIFT_CHANCE probability.
+        let chance_dist = Uniform::new(0.0f32, 1.0f32).expect("chance_dist always valid");
+        if chance_dist.sample(&mut self.mt) >= CRYSTAL_DRAGON_DRIFT_CHANCE {
+            return None;
+        }
+
+        // calc-v1: probabilistic weighted theme selection.
+        let current_point = self.crystal_dragon_sensor.current_point();
+        let new_scheme = calc_v1_select(current_point, self.color_scheme, &mut self.mt);
+
+        if new_scheme.is_some() {
+            self.crystal_dragon_sensor.record_theme_transition(now);
+        }
+
+        new_scheme
+    }
 }

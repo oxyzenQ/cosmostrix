@@ -821,10 +821,23 @@ pub(crate) fn rebuild_cloud_config(
 
     // Auto color drift — Phase D Bug #1/#10: canonical parse_bool_config +
     // gate with `!cli.auto_color_drift` so CLI is not silently overridden.
-    if !cli.auto_color_drift {
+    if !cli.auto_color_drift && !cli.crystal_dragon {
         if let Some(v) = cfg.get("auto-color-drift") {
             if let Some(b) = crate::config_apply::parse_bool_config("auto-color-drift", v) {
                 new.auto_color_drift = b;
+            }
+        }
+    }
+
+    // Crystal Dragon Engine — same intent preservation logic as auto-color-drift.
+    // Mutually exclusive: crystal-dragon wins over auto-color-drift.
+    if !cli.crystal_dragon {
+        if let Some(v) = cfg.get("crystal-dragon") {
+            if let Some(b) = crate::config_apply::parse_bool_config("crystal-dragon", v) {
+                new.crystal_dragon = b;
+                if b {
+                    new.auto_color_drift = false;
+                }
             }
         }
     }

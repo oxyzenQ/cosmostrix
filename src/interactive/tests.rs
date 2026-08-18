@@ -267,6 +267,7 @@ mod cases {
             user_ranges: vec![],
             def_ascii: true,
             auto_color_drift: false,
+            crystal_dragon: false,
             monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "monolith".to_string(),

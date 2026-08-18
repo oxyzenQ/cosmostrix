@@ -111,9 +111,14 @@ mod configfile_tests;
 mod constants;
 mod cosmic_dragon;
 mod cpustat;
-// Owner-editable control file for --auto-color-drift system feeling.
-// This is the single taste file: FeelingState enum, CPU/time thresholds,
-// and the state→ColorFamily mapping. Edit this to retune drift behavior.
+// Crystal Dragon Engine — ambient intelligence for auto-color-drift v2.
+// Replaces the old --auto-color-drift system with a point-based
+// temperature group system (Cold/Medium/Hot) + calc-v1 probabilistic
+// weighted selection. See src/crystal_dragon_engine/ for the full engine.
+mod crystal_dragon_engine;
+// Legacy control file for --auto-color-drift system feeling.
+// Retained during Crystal Dragon transition — will be removed once
+// the old auto-color-drift engine is fully decommissioned.
 mod control_color_drift;
 mod diagnostics;
 #[cfg(test)]
@@ -1006,6 +1011,11 @@ fn main() -> std::io::Result<()> {
             matches.value_source("auto_color_drift"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // Same intent tracking for --crystal-dragon.
+        crystal_dragon: matches!(
+            matches.value_source("crystal_dragon"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the
@@ -1136,6 +1146,7 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         auto_color_drift: args.auto_color_drift,
+        crystal_dragon: args.crystal_dragon,
         monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the

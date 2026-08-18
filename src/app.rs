@@ -100,6 +100,10 @@ pub struct CloudConfig {
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
     pub auto_color_drift: bool,
+    /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
+    /// When true, overrides auto_color_drift with the point-based
+    /// temperature group system + calc-v1 probabilistic selection.
+    pub crystal_dragon: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -160,6 +164,9 @@ pub(crate) struct CliExplicit {
     /// intent. Now `rebuild_cloud_config` gates the auto-color-drift
     /// producer with `if !cli.auto_color_drift { ... }`.
     pub auto_color_drift: bool,
+    /// Track whether `--crystal-dragon` was set on CLI (same intent
+    /// preservation logic as auto_color_drift above).
+    pub crystal_dragon: bool,
 }
 
 impl CloudConfig {
@@ -250,6 +257,17 @@ impl CloudConfig {
         // color remains sticky across the entire session.
         cloud.auto_color_drift = self.auto_color_drift;
 
+        // Crystal Dragon Engine: when enabled, overrides the legacy
+        // auto-color-drift with the point-based temperature group system.
+        // If both flags are set, crystal-dragon wins (mutual exclusion).
+        cloud.crystal_dragon = self.crystal_dragon;
+        if self.crystal_dragon {
+            cloud.auto_color_drift = false;
+        }
+        // crystal_dragon_sensor and crystal_dragon_control are already
+        // initialized in Cloud::new() with default config. Future CLI
+        // flags can override crystal_dragon_control here.
+
         // v30 strengthen (Bug #4): if a custom palette is active, drift's
         // set_color_scheme would overwrite the user's custom palette with a
         // built-in one (silent data loss). Track this so the rain loop can
@@ -326,6 +344,7 @@ impl CloudConfig {
             user_ranges: self.user_ranges.clone(),
             def_ascii: self.def_ascii,
             auto_color_drift: self.auto_color_drift,
+            crystal_dragon: self.crystal_dragon,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),

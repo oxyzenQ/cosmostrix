@@ -1,0 +1,172 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Crystal Dragon Engine configuration.
+//!
+//! Holds the tuning knobs that control how the Crystal Dragon engine
+//! samples the system and selects color themes. These are owner-editable
+//! constants — no runtime config file exposure yet (silent-elegant mode).
+
+use std::time::Duration;
+
+// ── Polling interval ─────────────────────────────────────────────────────
+
+/// Default sensor polling interval: 60 seconds.
+///
+/// The owner chose 60 s for the silent-elegant aesthetic (Option A).
+/// At 60 s, the engine checks CPU or CLOCK once per minute and may
+/// (probabilistically) transition to a new color theme. This is slow
+/// enough to feel organic rather than mechanical, and fast enough to
+/// react to real load changes within a minute.
+pub(crate) const CRYSTAL_DRAGON_POLLING_SECS: f32 = 60.0;
+
+/// Minimum dwell time in the current color theme before a transition
+/// is allowed. Prevents flicker when CPU% hovers near a group boundary.
+/// At 60 s, the theme can change at most once per minute even if
+/// the sensor reports a different group on consecutive polls.
+pub(crate) const CRYSTAL_DRAGON_MIN_DWELL_SECS: f32 = 60.0;
+
+// ── Probabilistic drift chance ───────────────────────────────────────────
+
+/// Probability (0..1) that a poll tick actually triggers a palette drift.
+///
+/// At 0.12 (12%), a drift event fires roughly once every 5 minutes
+/// (60 s poll × ~8.3 ticks per event). This keeps the rain visually
+/// dynamic without constant palette changes. The probabilistic gate
+/// also makes drift timing unpredictable — more cinematic than
+/// deterministic periodic switching.
+pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.12;
+
+// ── EMA smoothing ────────────────────────────────────────────────────────
+
+/// EMA alpha for CPU% smoothing. 0.0 = frozen, 1.0 = raw sample.
+/// 0.25 means ~75% weight on history, ~25% on new sample — smooths
+/// per-minute sampling jitter without lagging far behind real load.
+pub(crate) const CRYSTAL_DRAGON_CPU_EMA_ALPHA: f32 = 0.25;
+
+// ── Sensor mode ──────────────────────────────────────────────────────────
+
+/// Sensor input mode for the Crystal Dragon engine.
+///
+/// CPU mode is primary (reads process CPU% via sysinfo/procfs).
+/// CLOCK mode is the fallback (derives a point from UTC time-of-day)
+/// when CPU sampling is unsupported on the current platform.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CrystalDragonSensorMode {
+    /// Read process CPU% and map to point 1–99.
+    Cpu,
+    /// Derive point from UTC hour + minute (no CPU dependency).
+    Clock,
+}
+
+// ── Calc method ──────────────────────────────────────────────────────────
+
+/// Calculation method for theme selection within a temperature group.
+///
+/// The owner chose calc-v1 (probabilistic weighted selection) for the
+/// initial Crystal Dragon release. calc-v2 (pattern state machine with
+/// memory) is reserved for future implementation.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[allow(dead_code)]
+pub(crate) enum CrystalDragonCalcMethod {
+    /// Probabilistic weighted selection: themes closer to the current
+    /// point receive higher weight, but any theme in the group can be
+    /// selected. This produces organic, unpredictable transitions.
+    Calc,
+    /// Pattern state machine with memory (NOT YET IMPLEMENTED).
+    /// Reserved for calc-v2 future release.
+    CalcV2,
+}
+
+// ── Config struct ────────────────────────────────────────────────────────
+
+/// Configuration for the Crystal Dragon engine.
+///
+/// All fields use the owner-chosen defaults. This struct exists so
+/// future CLI/config-file exposure can override them without changing
+/// the engine code.
+#[derive(Clone, Copy, Debug)]
+#[allow(dead_code)]
+pub(crate) struct CrystalDragonControl {
+    /// Sensor polling interval in seconds.
+    pub polling_secs: f32,
+    /// Minimum seconds in current theme before transition allowed.
+    pub min_dwell_secs: f32,
+    /// Probability that a poll tick triggers a drift event.
+    pub drift_chance: f32,
+    /// EMA alpha for CPU% smoothing.
+    pub cpu_ema_alpha: f32,
+    /// Active sensor mode (CPU or CLOCK).
+    pub sensor_mode: CrystalDragonSensorMode,
+    /// Active calc method (Calc or CalcV2).
+    pub calc_method: CrystalDragonCalcMethod,
+}
+
+impl Default for CrystalDragonControl {
+    fn default() -> Self {
+        Self {
+            polling_secs: CRYSTAL_DRAGON_POLLING_SECS,
+            min_dwell_secs: CRYSTAL_DRAGON_MIN_DWELL_SECS,
+            drift_chance: CRYSTAL_DRAGON_DRIFT_CHANCE,
+            cpu_ema_alpha: CRYSTAL_DRAGON_CPU_EMA_ALPHA,
+            sensor_mode: CrystalDragonSensorMode::Cpu,
+            calc_method: CrystalDragonCalcMethod::Calc,
+        }
+    }
+}
+
+#[allow(dead_code)]
+impl CrystalDragonControl {
+    /// Polling interval as a `Duration`.
+    pub(crate) fn polling_duration(self) -> Duration {
+        Duration::from_secs_f32(self.polling_secs)
+    }
+
+    /// Minimum dwell as a `Duration`.
+    pub(crate) fn min_dwell_duration(self) -> Duration {
+        Duration::from_secs_f32(self.min_dwell_secs)
+    }
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn default_uses_owner_chosen_values() {
+        let cfg = CrystalDragonControl::default();
+        assert_eq!(cfg.polling_secs, 60.0);
+        assert_eq!(cfg.min_dwell_secs, 60.0);
+        assert!((cfg.drift_chance - 0.12).abs() < f32::EPSILON);
+        assert!((cfg.cpu_ema_alpha - 0.25).abs() < f32::EPSILON);
+        assert_eq!(cfg.sensor_mode, CrystalDragonSensorMode::Cpu);
+        assert_eq!(cfg.calc_method, CrystalDragonCalcMethod::Calc);
+    }
+
+    #[test]
+    fn polling_duration_matches_secs() {
+        let cfg = CrystalDragonControl::default();
+        assert_eq!(cfg.polling_duration(), Duration::from_secs(60));
+    }
+
+    #[test]
+    fn min_dwell_duration_matches_secs() {
+        let cfg = CrystalDragonControl::default();
+        assert_eq!(cfg.min_dwell_duration(), Duration::from_secs(60));
+    }
+
+    #[test]
+    fn sensor_mode_labels_are_stable() {
+        // Ensure the enum variants exist and are debug-printable.
+        assert_eq!(format!("{:?}", CrystalDragonSensorMode::Cpu), "Cpu");
+        assert_eq!(format!("{:?}", CrystalDragonSensorMode::Clock), "Clock");
+    }
+
+    #[test]
+    fn calc_method_labels_are_stable() {
+        assert_eq!(format!("{:?}", CrystalDragonCalcMethod::Calc), "Calc");
+        assert_eq!(format!("{:?}", CrystalDragonCalcMethod::CalcV2), "CalcV2");
+    }
+}

@@ -403,6 +403,17 @@ fn apply_config_values(
             config_touched.insert("auto_color_drift");
         }
     }
+    // Crystal Dragon Engine config (mutually exclusive with auto-color-drift;
+    // crystal-dragon wins if both are set).
+    if let Some(v) = config_value(matches, cfg, "crystal_dragon", "crystal-dragon") {
+        if let Some(b) = parse_bool_config("crystal-dragon", &v) {
+            args.crystal_dragon = b;
+            if b {
+                args.auto_color_drift = false;
+            }
+            config_touched.insert("crystal_dragon");
+        }
+    }
     // v17: --async flag removed (always on). Config key 'async-mode' still
     // respected for users who want to disable it via config. No is_explicit
     // check needed since the CLI flag is gone.

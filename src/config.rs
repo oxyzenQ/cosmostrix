@@ -650,6 +650,19 @@ pub struct Args {
     )]
     pub auto_color_drift: bool,
 
+    /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
+    ///
+    /// Maps system state (CPU or clock) to a temperature group (Cold/Medium/Hot)
+    /// and selects color themes via probabilistic weighted calculation.
+    /// Polls every 60 seconds with 300ms OKLab smooth transitions.
+    /// Mutually exclusive with --auto-color-drift (crystal-dragon wins).
+    #[arg(
+        long = "crystal-dragon",
+        hide = true,
+        help = "Enable Crystal Dragon ambient color drift v2 (default: off)"
+    )]
+    pub crystal_dragon: bool,
+
     #[arg(
         short = 'g',
         long = "glitchms",

@@ -80,6 +80,7 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "perf-stats",
     "bench-frames",
     "auto-color-drift",
+    "crystal-dragon",
     "glitchms",
     "lingerms",
     "shadingmode",

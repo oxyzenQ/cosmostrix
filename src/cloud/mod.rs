@@ -266,6 +266,17 @@ pub struct Cloud {
     pub(super) glyph_entry_time: Option<Instant>,
 
     pub(super) auto_color_drift: bool,
+    /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
+    /// When true, replaces the old FeelingState-based drift with a
+    /// point-based temperature group system (Cold/Medium/Hot) and
+    /// calc-v1 probabilistic weighted theme selection.
+    pub(super) crystal_dragon: bool,
+    /// Crystal Dragon sensor state (CPU/CLOCK polling + point tracking).
+    pub(super) crystal_dragon_sensor: crate::crystal_dragon_engine::CrystalDragonSensor,
+    /// Crystal Dragon control config (polling interval, drift chance, etc.).
+    pub(super) crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl,
+    /// Last Crystal Dragon poll timestamp. None until first poll.
+    pub(super) crystal_dragon_last_poll: Option<std::time::Instant>,
     /// v30 Bug #4: true when --colors-custom active → suppress palette drift.
     pub(super) custom_palette_active: bool,
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
@@ -450,6 +461,13 @@ impl Cloud {
             storytelling: StorytellingState::new(now),
             glyph_entry_time: None,
             auto_color_drift: AUTO_COLOR_DRIFT_DEFAULT,
+            crystal_dragon: false,
+            crystal_dragon_sensor: crate::crystal_dragon_engine::CrystalDragonSensor::new(
+                now,
+                crate::crystal_dragon_engine::CrystalDragonControl::default(),
+            ),
+            crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl::default(),
+            crystal_dragon_last_poll: None,
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
@@ -589,6 +607,10 @@ impl Cloud {
         self.color_ecosystem = other.color_ecosystem;
         self.entropy_drift = other.entropy_drift;
         self.start_anchor = other.start_anchor;
+        // Crystal Dragon sensor state survives live reload.
+        self.crystal_dragon_sensor = other.crystal_dragon_sensor;
+        self.crystal_dragon_control = other.crystal_dragon_control;
+        self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
     }
     #[must_use]
     pub fn active_scene(&self) -> &str {
@@ -638,6 +660,10 @@ impl Cloud {
                 self.next_glitch_time += elapsed;
                 self.last_reseed_time += elapsed;
                 self.color_ecosystem.shift_in_time(elapsed);
+                self.crystal_dragon_sensor.shift_in_time(elapsed);
+                if let Some(ref mut cd) = self.crystal_dragon_last_poll {
+                    *cd += elapsed;
+                }
                 self.entropy_drift.last_tick += elapsed;
                 self.memory.last_sample += elapsed;
                 self.storytelling.last_tick += elapsed;
