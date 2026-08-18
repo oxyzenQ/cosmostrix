@@ -97,6 +97,33 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
                 name = segments.get(1).copied().unwrap_or("<name>")
             ));
         }
+        // Pattern 2c: async-mode nested under [scene-custom.<name>]. The
+        // top-level config key is `async-mode`, but inside [scene-custom.*]
+        // and [profile.*] blocks the field name is just `async` (per owner
+        // spec). Users who write `async-mode = true` inside a custom scene
+        // block get a generic "unknown key" — this pattern tells them to
+        // use `async` instead.
+        if segments.len() == 3 && segments[2] == "async-mode" {
+            return Some(format!(
+                "'{key}': inside [scene-custom.<name>] and [profile.<name>] blocks, \
+                 the field name is 'async' (not 'async-mode'). \
+                 Write: async = true",
+            ));
+        }
+    }
+
+    // Pattern 2d: async-mode nested under [profile.<name>]. Same as
+    // Pattern 2c but for profile blocks. Inside [profile.*] the field
+    // name is 'async', not 'async-mode'.
+    if key.starts_with("profile.") {
+        let segments: Vec<&str> = key.split('.').collect();
+        if segments.len() == 3 && segments[2] == "async-mode" {
+            return Some(format!(
+                "'{key}': inside [profile.<name>] blocks, \
+                 the field name is 'async' (not 'async-mode'). \
+                 Write: async = true",
+            ));
+        }
     }
 
     // Pattern 3 (bug #8): invalid colors-custom field. Triggered
