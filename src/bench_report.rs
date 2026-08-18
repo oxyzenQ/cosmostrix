@@ -441,7 +441,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("peak_fps", &format!("{:.2}", data.peak_fps));
         s.field(
             "peak_fps_meaning",
-            "p1-derived (fastest 1% of frames); not absolute single-frame peak",
+            "p1-derived + 1µs floor (fastest plausible 1% of frames); not absolute single-frame peak",
         );
         s.field("avg_frame_time", &format!("{:.4}ms", data.avg_frame_time));
         s.field("p95_frame_time", &format!("{:.4}ms", data.p95_frame_time));

@@ -236,3 +236,113 @@ fn peak_fps_p1_index_never_exceeds_count() {
     // If we used min (samples[0] = 0.0001), peak would be 10M.
     assert_eq!(peak, 20_000.0, "p1 must skip single outlier at count=100");
 }
+
+// ─── v50.0.0-beta.2 regression: dense outlier cluster ────────────────
+//
+// The p1-only fix (commit 6b093f1) assumed outliers were sparse (< 1% of
+// samples). On FreeBSD's fast path, `Instant::elapsed()` can return
+// sub-microsecond deltas for hundreds of consecutive frames — TSC read
+// hits the same cycle, or the kernel clock rounds down. When the outlier
+// cluster exceeds 1% of samples, p1 trimming cannot remove it, and
+// peak_fps remains absurd (3.5M FPS observed in production even after
+// the p1 fix landed).
+//
+// The fix adds an absolute floor (PEAK_FPS_MIN_FRAME_MS = 0.001ms = 1µs).
+// Any sample below this is a clock artifact regardless of cluster density.
+// These tests reproduce the exact production scenario and pin the new
+// behavior so a future refactor cannot regress to absurd values.
+
+#[test]
+fn peak_fps_ignores_dense_outlier_cluster_freebsd_repro() {
+    // EXACT reproduction of the production bug: 10_000 samples, with
+    // 500 of them (5%, far exceeding p1's 1% trim) measuring ~280ns
+    // due to FreeBSD clock artifacts. The rest average ~33µs.
+    //
+    // Old p1-only code: p1_idx = 100 (1% of 10K). samples[100] is still
+    // a 280ns outlier (cluster has 500 entries) → peak = 3,584,229 FPS.
+    //
+    // New code with floor: samples[100] = 0.000279 < 0.001 floor →
+    // skipped. Scan continues until samples[500] = 0.033 → peak ≈ 30K.
+    let mut samples: Vec<f64> = vec![0.033; 10_000];
+    // 500 sub-microsecond outliers (5% of samples — exceeds p1 trim)
+    for s in samples.iter_mut().take(500) {
+        *s = 0.000279; // 279ns — the exact FreeBSD production value
+    }
+    samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let peak = compute_peak_fps(&samples, 10_000);
+    // Must NOT be the absurd 3,584,229 value.
+    assert!(
+        peak < 100_000.0,
+        "peak_fps must ignore dense outlier cluster, got {peak} (expected < 100K)"
+    );
+    // Must be derived from the real frame time (0.033ms → ~30,303 FPS).
+    assert!(
+        peak > 0.0,
+        "peak_fps must be positive when valid samples exist, got {peak}"
+    );
+    assert!(
+        (peak - 30_303.03).abs() < 1.0,
+        "peak_fps must equal 1000/0.033, got {peak}"
+    );
+}
+
+#[test]
+fn peak_fps_floor_eliminates_all_submicrosecond_samples() {
+    // Edge case: ALL samples are sub-microsecond clock artifacts.
+    // This happens on systems where Instant::now() resolution is
+    // coarser than the renderer's frame time on a fast path.
+    // Honest answer is 0.0 (not measurable), NOT +inf or NaN.
+    let mut samples: Vec<f64> = vec![0.0005; 1000]; // 500ns — all below floor
+    samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let peak = compute_peak_fps(&samples, 1000);
+    assert_eq!(
+        peak, 0.0,
+        "peak_fps must be 0.0 when all samples are below the 1µs floor, got {peak}"
+    );
+}
+
+#[test]
+fn peak_fps_floor_at_exact_boundary() {
+    // Boundary: sample exactly AT the floor (0.001ms) must be rejected
+    // (filter is `>`, not `>=`) to avoid reporting exactly 1,000,000 FPS
+    // which is the ceiling and not a real measurement. Sample just above
+    // the floor (0.001001ms) must be accepted.
+    let samples: Vec<f64> = vec![0.001, 0.001001, 0.05, 0.05];
+    let peak = compute_peak_fps(&samples, 4);
+    // p1_idx = 0 (1% of 4 = 0). Scan: 0.001 fails (> 0.001 is false),
+    // 0.001001 passes → peak = 1000/0.001001 ≈ 999,001 FPS.
+    assert!(
+        peak > 998_000.0 && peak < 1_000_000.0,
+        "peak_fps at floor boundary must use 0.001001ms sample, got {peak}"
+    );
+}
+
+#[test]
+fn peak_fps_mixed_real_and_artifact_samples() {
+    // Realistic FreeBSD workload: mix of zero samples (clock returned
+    // same value), sub-µs artifacts (TSC near-collisions), and real
+    // frame times. Must pick the smallest REAL frame time, not the
+    // smallest artifact.
+    let mut samples: Vec<f64> = Vec::with_capacity(1000);
+    // 200 zero samples (clock returned same value)
+    for _ in 0..200 {
+        samples.push(0.0);
+    }
+    // 300 sub-µs artifacts (TSC near-collisions)
+    for i in 0..300 {
+        samples.push(0.0001 + (i as f64) * 0.000001); // 100ns..400ns
+    }
+    // 500 real frame times (5µs to 50µs, distributed)
+    for i in 0..500 {
+        samples.push(0.005 + (i as f64) * 0.00009); // 5µs..50µs
+    }
+    samples.sort_by(|a, b| a.partial_cmp(b).unwrap_or(std::cmp::Ordering::Equal));
+    let peak = compute_peak_fps(&samples, 1000);
+    // p1_idx = 10 (1% of 1000). samples[10] is still in the artifact
+    // range (< 0.001). Floor filter skips artifacts. First sample above
+    // 0.001 floor is samples[500] = 0.005 → peak = 1000/0.005 = 200K.
+    assert_eq!(
+        peak, 200_000.0,
+        "peak_fps must skip all artifacts and use first real sample (0.005ms), got {peak}"
+    );
+}

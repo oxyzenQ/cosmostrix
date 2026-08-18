@@ -53,34 +53,47 @@ const FRAME_TIME_SAMPLES: usize = 10_000;
 
 use super::{effective_density, CloudConfig};
 
+/// Minimum plausible frame time in milliseconds. Samples below this are
+/// clock artifacts (TSC read returning the same value, kernel rounding
+/// down, etc.) and must be discarded — a real frame requires at least
+/// 2× `Instant::now()` calls (~40-100ns total) plus actual renderer work,
+/// so anything below 1µs is physically impossible.
+///
+/// At this floor, the maximum representable `peak_fps` is 1,000,000 —
+/// still well above any real renderer throughput, but eliminates absurd
+/// values like 3,584,229 FPS that percentile trimming alone cannot
+/// remove when outlier clusters exceed 1% of samples.
+const PEAK_FPS_MIN_FRAME_MS: f64 = 0.001; // 1µs
+
 /// Compute `peak_fps` from a sorted (ascending) slice of frame-time samples
 /// in milliseconds.
 ///
-/// Returns the FPS derived from the **p1 (1st percentile)** frame time —
-/// the fastest 1% of frames — NOT the absolute single minimum.
+/// Returns the FPS derived from the **fastest plausible** frame time —
+/// the smallest sample that survives BOTH:
+///   1. p1 percentile trim (skip fastest 1% to absorb sparse outliers), AND
+///   2. absolute floor of `PEAK_FPS_MIN_FRAME_MS` (skip clock artifacts
+///      that cluster densely enough to survive percentile trimming).
 ///
-/// # Why p1, not min?
+/// # Why both p1 AND a floor?
 ///
-/// On fast systems (FreeBSD, high-frequency clocks), the absolute minimum
-/// sample is dominated by outliers: a single frame preempted by the OS
-/// scheduler mid-bench, or a cache-aligned lucky hit, can finish in ~280ns
-/// while the average is ~33,000ns (118× ratio). Reporting
-/// `1000 / 0.000279 = 3,584,229 FPS` is mathematically correct but
-/// statistically meaningless — it does not represent any sustainable
-/// throughput the engine can actually deliver.
+/// The original p1-only fix (commit 6b093f1) assumed outliers were sparse
+/// (< 1% of samples). On FreeBSD's fast path this assumption fails: when
+/// `Instant::elapsed()` returns sub-microsecond deltas for hundreds of
+/// consecutive frames (TSC read hits the same cycle, or kernel clock
+/// rounds down), the outlier cluster exceeds 1% and survives the p1 trim.
+/// This produced absurd values like 3,584,229 FPS even AFTER the p1 fix.
 ///
-/// p1 mirrors the trimming philosophy already used for p99/p95 (which
-/// trim 1% from each tail). The fastest 1% of frames is a robust
-/// "best-case sustained" estimate: it ignores the single most extreme
-/// outlier while still capturing genuine fast-path performance.
+/// The absolute floor catches what percentile trimming cannot: any sample
+/// below 1µs is a clock artifact regardless of how many there are. This
+/// is a physics-based filter, not a statistical one — it cannot over-trim
+/// real frame times because no real frame completes in < 1µs.
 ///
 /// # Zero-sample handling
 ///
-/// On systems where the clock resolution is coarser than the frame time,
-/// `Instant::elapsed()` returns `0.0` for some samples. We skip those by
-/// scanning for the first non-zero entry at or above the p1 index. If ALL
-/// samples in the p1+ range are zero, we fall back to `0.0` (honest
-/// "not measurable" answer).
+/// Samples equal to `0.0` (clock resolution coarser than frame time) are
+/// also skipped by the `> PEAK_FPS_MIN_FRAME_MS` filter. If ALL samples
+/// are below the floor, we fall back to `0.0` (honest "not measurable"
+/// answer for coarse-clock systems).
 ///
 /// # Arguments
 ///
@@ -92,18 +105,21 @@ use super::{effective_density, CloudConfig};
 ///
 /// # Returns
 ///
-/// `peak_fps` in frames-per-second. `0.0` if no non-zero samples exist
-/// at or above the p1 index, or if `count == 0`.
+/// `peak_fps` in frames-per-second. `0.0` if no samples exceed the floor,
+/// or if `count == 0`.
 pub(crate) fn compute_peak_fps(sorted_ft: &[f64], count: usize) -> f64 {
     if count == 0 {
         return 0.0;
     }
     let p1_count = (count as f64 * 0.01) as usize;
     let p1_idx = p1_count.min(count.saturating_sub(1));
+    // Scan p1+ range for the first sample above the absolute floor.
+    // This skips BOTH zero samples AND sub-microsecond clock artifacts
+    // that survive percentile trimming on FreeBSD's fast path.
     let min_ft = sorted_ft[p1_idx..count]
         .iter()
         .copied()
-        .find(|&t| t > 0.0)
+        .find(|&t| t > PEAK_FPS_MIN_FRAME_MS)
         .unwrap_or(0.0);
     if min_ft > 0.0 {
         1000.0 / min_ft
