@@ -49,7 +49,7 @@ mod tests {
             "avg_dirty_cell_ratio_percent",
             "dirty_all_frames",
             // Throughput
-            "glyphs_per_second",
+            "glyphs_per_second_theoretical",
             "dirty_glyphs_per_second",
             "ansi_bytes_per_second",
             "active_streams_avg",
@@ -103,7 +103,10 @@ mod tests {
         // fields: color_mode_label, custom_palette_name, custom_palette_bg_hex,
         // color_bg_label, color_tune_summary, async_mode, glitch_enabled,
         // glitch_level, glitch_pct, auto_color_drift) + perf(8) + dirty(8)
-        // + throughput(6) + timing(3) = 51
+        // + throughput(5) + timing(3) = 50
+        // v50 LTS audit: throughput went from 6 → 5 fields
+        // (removed redundant `theoretical_full_frame_glyphs_per_second`,
+        // renamed `glyphs_per_second` → `glyphs_per_second_theoretical`).
         // config grew from 6 to 15 fields (color_scheme_name,
         // charset_preset, glyph_count, rain_style, monolith_size, bold_mode,
         // shading_mode, + speed which moved from perf-only to config too).
@@ -167,9 +170,8 @@ mod tests {
             perf: None,
             allocator: None,
             visual: None,
-            glyphs_per_second: 200_000,
+            glyphs_per_second_theoretical: 200_000,
             dirty_glyphs_per_second: 150_000,
-            theoretical_full_frame_glyphs_per_second: 200_000,
             ansi_bytes_per_second: 3_000_000,
             active_streams_avg: 800,
             total_drawn_cells: 600_000,

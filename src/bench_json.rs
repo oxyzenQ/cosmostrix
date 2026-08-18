@@ -191,15 +191,24 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     });
 
     // ── throughput ──
+    // v50 LTS audit (Issue 2): renamed `glyphs_per_second` →
+    // `glyphs_per_second_theoretical` in the JSON output to match the
+    // struct field. The old name implied actual throughput; the value
+    // is the theoretical upper bound. JSON consumers reading the old
+    // key must migrate to the new key. `dirty_glyphs_per_second`
+    // (already present) is the actual rendered throughput.
     json_object(&mut out, "throughput", |o| {
-        o.push_kv("glyphs_per_second", data.glyphs_per_second);
+        o.push_kv(
+            "glyphs_per_second_theoretical",
+            data.glyphs_per_second_theoretical,
+        );
         o.push_kv("dirty_glyphs_per_second", data.dirty_glyphs_per_second);
         o.push_kv("ansi_bytes_per_second", data.ansi_bytes_per_second);
         o.push_kv("active_streams_avg", data.active_streams_avg);
         o.push_kv("total_drawn_cells", data.total_drawn_cells);
         o.push_kv_str(
-            "glyphs_per_second_human",
-            &crate::humanize::humanize(data.glyphs_per_second),
+            "glyphs_per_second_theoretical_human",
+            &crate::humanize::humanize(data.glyphs_per_second_theoretical),
         );
         o.push_kv_str(
             "cells_drawn_total_human",

@@ -610,7 +610,32 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let elapsed_s = total_elapsed_s.max(BENCH_ELAPSED_MIN_S);
 
     let avg_fps = (total_frames as f64) / elapsed_s;
-    let avg_frame_time = frame_times[..ft_index].iter().sum::<f64>() / (ft_index as f64).max(1.0);
+    // v50 LTS audit fix: previously this was `sum(frame_times) / ft_index`,
+    // which measured only the `frame_start`→`clear_dirty` interval per
+    // frame. That interval misses loop bookkeeping between samples:
+    // 4–5 `Instant::now()` calls, `components.record`, `ft_index` update,
+    // `total_frames += 1`, the active-streams sample, `progress.tick`,
+    // and the non-blocking event poll. On Linux these add ~1–2 µs/frame
+    // (vDSO, ~20 ns/call); on FreeBSD `Instant::now()` is a real
+    // `clock_gettime` syscall (~2 µs/call), so the missing overhead
+    // reaches ~10 µs/frame — about 28 % of a 0.040 ms true interval on
+    // the FreeBSD 5 s run. The result was `avg_frame_time` reporting
+    // 0.0287 ms while `1000 / avg_fps` reported 0.0398 ms, an
+    // inconsistency visible to any user who cross-checks the two.
+    //
+    // LTS fix: derive `avg_frame_time` from the SAME wall-clock interval
+    // that backs `avg_fps`. This guarantees `avg_frame_time ≈ 1000 /
+    // avg_fps` (within f64 rounding) on every platform, which is the
+    // contract users expect. The `frame_times[]` array is still
+    // collected — percentiles (p95/p99/p99.9), `max_frame_time`, and
+    // `jitter_std` all come from it and are unaffected because they are
+    // computed from per-frame deltas (a constant bookkeeping overhead
+    // shifts the mean but not the shape of the distribution).
+    let avg_frame_time = if total_frames > 0 {
+        elapsed_s * 1000.0 / total_frames as f64
+    } else {
+        0.0
+    };
 
     // p99 frame time — trim top/bottom 1% outliers for stability
     let mut sorted_ft: Vec<f64> = frame_times[..ft_index].to_vec();
@@ -707,14 +732,32 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
 
     let total_cells_u64 = (w as u64) * (h as u64);
-    let theoretical_full_frame_glyphs_per_second = if drawn_frames > 0 {
+    // v50 LTS audit fix (Issue 2): the field previously named
+    // `glyphs_per_second` was misleading — the name implied "actual
+    // glyphs rendered per second", but the value is the theoretical
+    // upper bound (full-frame cell count × active-frame rate). The
+    // actual rendered throughput is `dirty_glyphs_per_second` (often
+    // 10–20× lower because the diff engine skips clean cells).
+    // Renamed to `glyphs_per_second_theoretical` so the name itself
+    // documents the semantics. The redundant
+    // `theoretical_full_frame_glyphs_per_second` field (which held the
+    // exact same value and only appeared in the premium report) was
+    // removed at the same time to eliminate the duplicate.
+    let glyphs_per_second_theoretical = if drawn_frames > 0 {
         ((drawn_frames * total_cells_u64) as f64 / elapsed_s).round() as u64
     } else {
         0
     };
-    let glyphs_per_second = theoretical_full_frame_glyphs_per_second;
     let dirty_glyphs_per_second = (total_drawn_cells as f64 / elapsed_s).round() as u64;
 
+    // v50 LTS audit fix (Issue 3): ansi_bytes_per_second is an ESTIMATE,
+    // not a measured value. It multiplies `total_drawn_cells` by the
+    // constant `ANSI_BYTES_PER_CELL_ESTIMATE` (19 bytes/cell, see
+    // constants.rs). The 19-byte figure accounts for SGR reset + fg/bg
+    // escapes + 1 char, amortized by ~0.65 run-compression. Real ANSI
+    // output varies by color mode (TrueColor ≈ 3× Color16) and run
+    // length, so this is a rough throughput indicator only. The basis
+    // note is emitted alongside the field in the premium report.
     let ansi_bytes_per_second = ((total_drawn_cells * ANSI_BYTES_PER_CELL_ESTIMATE) as f64
         / elapsed_s.max(0.000_001)) as u64;
     let active_streams_avg = active_streams_sum / streams_samples.max(1);
@@ -809,9 +852,8 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
         perf: Some(perf_metrics),
         allocator: Some(alloc_metrics),
         visual: Some(visual_metrics),
-        glyphs_per_second,
+        glyphs_per_second_theoretical,
         dirty_glyphs_per_second,
-        theoretical_full_frame_glyphs_per_second,
         ansi_bytes_per_second,
         active_streams_avg,
         total_drawn_cells,
@@ -988,8 +1030,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let mut total_drawn_cells = 0u64;
     let mut max_dirty_cells = 0u64;
     let mut dirty_all_frames = 0u64;
-    let mut perf_work_sum_s = 0.0f64;
-    let mut perf_work_max_s = 0.0f64;
     let mut components = ComponentTimer::new();
 
     let total_cells = (w as usize) * (h as usize);
@@ -1035,12 +1075,6 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
             ft_index += 1;
         }
         total_frames += 1;
-
-        let work_s = frame_start.elapsed().as_secs_f64();
-        perf_work_sum_s += work_s;
-        if work_s > perf_work_max_s {
-            perf_work_max_s = work_s;
-        }
     }
 
     let total_elapsed_s = start.elapsed().as_secs_f64().max(BENCH_ELAPSED_MIN_S);
@@ -1081,8 +1115,18 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     // (elapsed = 0.0). The silent capture path does not collect frame_times,
     // so peak_fps is always 0.0 here.
     let peak_fps = 0.0; // not measured: silent capture has no frame_times array
+    // v50 LTS audit fix: previously this was
+    // `perf_work_sum_s * 1000.0 / total_frames`, where `perf_work_sum_s`
+    // was the sum of per-frame `frame_start.elapsed()` measurements. That
+    // had the same FreeBSD `clock_gettime` syscall bias as the visible
+    // path: the ~10 µs/frame of loop bookkeeping was missed, so
+    // `avg_frame_time` came out ~28 % low and inconsistent with
+    // `avg_fps`. The dead `perf_work_sum_s` / `perf_work_max_s` collectors
+    // and the redundant second `frame_start.elapsed()` call per frame
+    // were removed at the same time — they were never read by any
+    // downstream consumer and only added measurement overhead.
     let avg_frame_time = if total_frames > 0 {
-        perf_work_sum_s * 1000.0 / total_frames as f64
+        elapsed_s * 1000.0 / total_frames as f64
     } else {
         0.0
     };
@@ -1180,9 +1224,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         perf: Some(perf_metrics),
         allocator: Some(alloc_metrics),
         visual: Some(visual_metrics),
-        glyphs_per_second: 0,
+        glyphs_per_second_theoretical: 0,
         dirty_glyphs_per_second: 0,
-        theoretical_full_frame_glyphs_per_second: 0,
         ansi_bytes_per_second: 0,
         active_streams_avg: 0,
         total_drawn_cells,

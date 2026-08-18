@@ -201,9 +201,17 @@ pub(crate) struct BenchReportData {
     pub visual: Option<crate::bench_visual::VisualMetrics>,
 
     // Throughput
-    pub glyphs_per_second: u64,
+    // v50 LTS audit (Issue 2): renamed `glyphs_per_second` →
+    // `glyphs_per_second_theoretical` because the value is the
+    // theoretical upper bound (full-frame cell count × active-frame
+    // rate), NOT the actual rendered throughput. Actual rendered
+    // throughput is `dirty_glyphs_per_second`. The old name misled
+    // users into thinking it was measured work; the new name makes
+    // the semantics self-documenting.
+    // The redundant `theoretical_full_frame_glyphs_per_second` field
+    // (which held the exact same value) was removed at the same time.
+    pub glyphs_per_second_theoretical: u64,
     pub dirty_glyphs_per_second: u64,
-    pub theoretical_full_frame_glyphs_per_second: u64,
     pub ansi_bytes_per_second: u64,
     pub active_streams_avg: u64,
     pub total_drawn_cells: u64,
@@ -489,22 +497,37 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
 
     {
         let s = r.section("THROUGHPUT");
-        s.field("glyphs_per_second", &data.glyphs_per_second.to_string());
+        // v50 LTS audit (Issue 2): renamed for self-documenting semantics.
+        // Old name `glyphs_per_second` implied actual throughput; the
+        // value is the theoretical upper bound if every cell were
+        // redrawn every frame. Use `dirty_glyphs_per_second` for actual.
         s.field(
-            "glyphs_per_second_basis",
-            "theoretical upper bound: full-frame cell count × active-frame rate",
+            "glyphs_per_second_theoretical",
+            &data.glyphs_per_second_theoretical.to_string(),
+        );
+        s.field(
+            "glyphs_per_second_theoretical_basis",
+            "theoretical upper bound: full-frame cell count × active-frame rate (NOT actual). Use dirty_glyphs_per_second for actual rendered throughput.",
         );
         s.field(
             "dirty_glyphs_per_second",
             &data.dirty_glyphs_per_second.to_string(),
         );
         s.field(
-            "theoretical_full_frame_glyphs_per_second",
-            &data.theoretical_full_frame_glyphs_per_second.to_string(),
+            "dirty_glyphs_per_second_basis",
+            "actual rendered glyphs/sec — total_drawn_cells / elapsed_s",
         );
         s.field(
             "ansi_bytes_per_second",
             &data.ansi_bytes_per_second.to_string(),
+        );
+        // v50 LTS audit (Issue 3): added basis note. The 19 bytes/cell
+        // figure is documented in constants.rs but was not surfaced in
+        // the report, leaving users no way to know the value is an
+        // estimate without grep-ping the source.
+        s.field(
+            "ansi_bytes_per_second_basis",
+            "estimated: total_drawn_cells × ANSI_BYTES_PER_CELL_ESTIMATE (19 bytes/cell) / elapsed_s. Actual varies by color mode (TrueColor ≈ 3× Color16) and run-compression; see constants.rs for the 19-byte derivation.",
         );
         s.field("active_streams_avg", &data.active_streams_avg.to_string());
         s.field("cells_drawn_total", &data.total_drawn_cells.to_string());

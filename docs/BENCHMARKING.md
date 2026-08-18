@@ -58,7 +58,7 @@ The `--benchmark` report is organized into sections: `BENCHMARK ENVIRONMENT` (sy
 | `p99_frame_time` | ms | 99th-percentile frame time — slowest 1% of frames. Catches spikes avg hides. |
 | `frame_time_stability` | label | `excellent` = p99 within 2× avg, max within 5×. |
 | `fps_drift_percent` | % | (first_half − second_half) / first_half × 100. Negative = warmup; positive = throttle/leak. \|drift\| < 5% = stable. |
-| `glyphs_per_second` | glyphs/sec | Total cells processed per second (dirty + clean). |
+| `glyphs_per_second_theoretical` | glyphs/sec | Theoretical upper bound: full-frame cell count × active-frame rate. NOT actual throughput — use `dirty_glyphs_per_second` for actual rendered work. |
 | `dirty_glyphs_per_second` | glyphs/sec | Changed cells per second — the work the diff engine actually emits. |
 | `peak_rss` | MiB | Peak resident set size. Steady growth across runs = possible leak. |
 | `avg_cpu_percent` | % | Process CPU%. ~99% = single-threaded, fully utilized. |

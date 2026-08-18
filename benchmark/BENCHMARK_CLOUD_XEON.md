@@ -3,6 +3,15 @@
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
+<!-- v50 LTS audit (2026-08-18): the `glyphs_per_second` field referenced
+     in the historical tables below was renamed to
+     `glyphs_per_second_theoretical` in the same audit. The values in
+     this file were captured BEFORE the rename and are preserved as
+     historical record. The semantics are unchanged: the field is the
+     theoretical upper bound (full-frame cell count × active-frame rate),
+     NOT actual rendered throughput — for that, see
+     `dirty_glyphs_per_second`. -->
+
 <!-- v50 nightly update (2026-08-17, commit aac3b5c): fresh pro-linux-v4
      benchmark data. Particle lifecycle improved (4.0s lifespan, velocity
      decay, smoother brightness curve). Performance numbers below are

@@ -9,6 +9,132 @@ All notable changes to this project are documented in this file.
 
 ---
 
+## v50.0.0 LTS pre-freeze audit — Benchmark metric integrity fixes
+
+### Headline
+
+Three misleading/incorrect metrics in the benchmark report were
+identified during the v50 LTS pre-freeze audit and fixed before the
+long-term-stability freeze. After this commit, every public metric
+in the JSON and premium-text report is either (a) directly measured
+from wall-clock intervals that are consistent with each other, or
+(b) clearly labeled as an estimate / theoretical bound via a
+`_basis` field.
+
+### Issue 1 (CRITICAL): `avg_frame_time` was biased low on FreeBSD
+
+**Root cause:** `avg_frame_time` was computed as
+`sum(per-frame frame_start.elapsed()) / sample_count`. The per-frame
+`frame_start.elapsed()` call measures only the `rain_at → clear_dirty`
+interval; it does NOT capture loop bookkeeping (4–5 `Instant::now()`
+calls, `components.record`, progress tick, event poll). On Linux these
+add ~1–2 µs/frame (vDSO, ~20 ns/call) so the bias was tolerable
+(<5 %). On FreeBSD, `Instant::now()` is a real `clock_gettime` syscall
+(~2 µs/call), pushing the missing overhead to ~10 µs/frame — about
+28 % of a 0.040 ms true interval. The result: `avg_frame_time`
+reported 0.0287 ms while `1000 / avg_fps` reported 0.0398 ms, an
+inconsistency visible to any user who cross-checks the two metrics.
+
+**Fix:** Both the visible and silent capture paths now derive
+`avg_frame_time = elapsed_s * 1000.0 / total_frames`, using the SAME
+wall-clock interval that backs `avg_fps`. This guarantees
+`avg_frame_time ≈ 1000 / avg_fps` (within f64 rounding) on every
+platform. The `frame_times[]` array is still collected — percentiles
+(p95/p99/p99.9), `max_frame_time`, and `jitter_std` all come from it
+and are unaffected because they are computed from per-frame deltas
+(a constant bookkeeping overhead shifts the mean but not the shape of
+the distribution).
+
+**Dead code removal:** The silent capture path also collected
+`perf_work_sum_s` and `perf_work_max_s` (and ran a redundant second
+`frame_start.elapsed()` call per frame to do so). These were never
+read by any downstream consumer and only added measurement overhead.
+Removed.
+
+### Issue 2 (MODERATE): `glyphs_per_second` was theoretical, not actual
+
+**Root cause:** The field was named `glyphs_per_second`, implying
+"actual glyphs rendered per second", but its value was
+`drawn_frames * total_cells / elapsed_s` — the theoretical upper
+bound if every cell were redrawn every frame. Actual rendered
+throughput is `dirty_glyphs_per_second` (typically 10–20× lower
+because the diff engine skips clean cells). The
+`glyphs_per_second_basis` field explained this in the premium
+report, but the field name itself was misleading — especially in
+the JSON output, which has no `_basis` companion.
+
+A second field, `theoretical_full_frame_glyphs_per_second`, held the
+exact same value and was emitted alongside `glyphs_per_second` in
+the premium report. The duplicate was pure noise.
+
+**Fix (BREAKING for JSON consumers):**
+- Renamed `glyphs_per_second` → `glyphs_per_second_theoretical` in
+  the `BenchReportData` struct, the JSON output, and the premium
+  text report. The new name makes the semantics self-documenting.
+- Renamed `glyphs_per_second_human` →
+  `glyphs_per_second_theoretical_human` in the JSON output.
+- Renamed `glyphs_per_second_basis` →
+  `glyphs_per_second_theoretical_basis` in the premium text report
+  and strengthened the wording.
+- Removed the redundant `theoretical_full_frame_glyphs_per_second`
+  field from the struct, JSON, and premium text report.
+- Added `dirty_glyphs_per_second_basis` to the premium text report
+  for symmetry (it was the only throughput field without one).
+
+**Migration for JSON consumers:** Replace `glyphs_per_second` with
+`glyphs_per_second_theoretical` in any script/parser that reads the
+`throughput` object. The semantics are unchanged; only the key name
+changed. If you wanted actual throughput, you should have been
+reading `dirty_glyphs_per_second` all along — that field is
+unchanged.
+
+### Issue 3 (LOW): `ansi_bytes_per_second` had no basis note
+
+**Root cause:** `ansi_bytes_per_second` is computed as
+`total_drawn_cells * ANSI_BYTES_PER_CELL_ESTIMATE / elapsed_s`, where
+`ANSI_BYTES_PER_CELL_ESTIMATE = 19` is a constant documented in
+`src/constants.rs`. The premium text report had no `_basis` field
+explaining that the value is an estimate, leaving users no way to
+know it was not directly measured without grep-ping the source.
+
+**Fix:** Added `ansi_bytes_per_second_basis` to the premium text
+report. The note explains the 19 bytes/cell derivation (SGR reset +
+fg/bg escapes + 1 char, amortized by ~0.65 run-compression) and
+warns that actual output varies by color mode (TrueColor ≈ 3×
+Color16) and run length.
+
+### Files touched
+
+- `src/bench.rs` — Issue 1 fix (both paths), Issue 2 rename, dead
+  code removal, basis comments.
+- `src/bench_report.rs` — Issue 2 struct rename + report field
+  rename, Issue 3 basis field added.
+- `src/bench_json.rs` — Issue 2 JSON key rename.
+- `src/bench_report_tests.rs` — Updated REQUIRED_FIELDS list and
+  struct literal to match new schema.
+- `docs/BENCHMARKING.md` — Updated field name and description.
+- `benchmark/BENCHMARK_CLOUD_XEON.md` — Added historical-data
+  rename notice (data values preserved as historical record).
+
+### LTS contract after this commit
+
+After v50.0.0 LTS freeze, the following invariants hold:
+
+1. `avg_frame_time ≈ 1000.0 / avg_fps` (within f64 rounding) on
+   every supported platform (Linux, FreeBSD, macOS, NetBSD).
+2. Every throughput field in the premium text report has a
+   corresponding `_basis` field explaining how the value was
+   derived.
+3. The JSON `throughput` object has exactly 7 keys:
+   `glyphs_per_second_theoretical`, `dirty_glyphs_per_second`,
+   `ansi_bytes_per_second`, `active_streams_avg`,
+   `total_drawn_cells`, `glyphs_per_second_theoretical_human`,
+   `cells_drawn_total_human`.
+4. No two fields in `BenchReportData` hold the same value unless
+   one is explicitly documented as an alias.
+
+---
+
 ## v50.0.0-alpha.5 — Mouse-Click Effects Masterclass + Chroma Dragon Sync
 
 ### Headline
