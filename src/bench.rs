@@ -1137,16 +1137,16 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     // (elapsed = 0.0). The silent capture path does not collect frame_times,
     // so peak_fps is always 0.0 here.
     let peak_fps = 0.0; // not measured: silent capture has no frame_times array
-    // v50 LTS audit fix: previously this was
-    // `perf_work_sum_s * 1000.0 / total_frames`, where `perf_work_sum_s`
-    // was the sum of per-frame `frame_start.elapsed()` measurements. That
-    // had the same FreeBSD `clock_gettime` syscall bias as the visible
-    // path: the ~10 µs/frame of loop bookkeeping was missed, so
-    // `avg_frame_time` came out ~28 % low and inconsistent with
-    // `avg_fps`. The dead `perf_work_sum_s` / `perf_work_max_s` collectors
-    // and the redundant second `frame_start.elapsed()` call per frame
-    // were removed at the same time — they were never read by any
-    // downstream consumer and only added measurement overhead.
+                        // v50 LTS audit fix: previously this was
+                        // `perf_work_sum_s * 1000.0 / total_frames`, where `perf_work_sum_s`
+                        // was the sum of per-frame `frame_start.elapsed()` measurements. That
+                        // had the same FreeBSD `clock_gettime` syscall bias as the visible
+                        // path: the ~10 µs/frame of loop bookkeeping was missed, so
+                        // `avg_frame_time` came out ~28 % low and inconsistent with
+                        // `avg_fps`. The dead `perf_work_sum_s` / `perf_work_max_s` collectors
+                        // and the redundant second `frame_start.elapsed()` call per frame
+                        // were removed at the same time — they were never read by any
+                        // downstream consumer and only added measurement overhead.
     let avg_frame_time = if total_frames > 0 {
         elapsed_s * 1000.0 / total_frames as f64
     } else {
