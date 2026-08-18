@@ -639,6 +639,26 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights (each 0.0-1.0)
 # async-mode = true             # variable column speeds
 
+# [scene-custom.cyberpunk_2077]
+# base-scene = "storm"        # inherit storm defaults (purple, cyberpunk)
+# colors-custom = "cyberpunk_2077"
+# charset-custom = "cyberpunk_2077"
+# speed = 12
+# density = 0.90
+# bold = 1
+# shadingmode = 1
+# glitch-level = "intense"
+
+# [scene-custom.tron_legacy]
+# base-scene = "signal"       # inherit signal defaults (aurora, retro)
+# colors-custom = "tron_legacy"
+# charset-custom = "tron_legacy"
+# speed = 8
+# density = 0.70
+# bold = 1
+# shadingmode = 1
+# glitch-level = "subtle"
+
 # ── Custom Color Palettes ──
 # Define named palettes, reference via: colors-custom = <name>
 # Hex values MUST be quoted: "#ff0000" (unquoted # = TOML comment).
@@ -652,12 +672,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 # rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
 # [colors-custom.cyberpunk_2077]
-# bg = "#00060E"
-# rain = ["#FCE300", "#00FFFF"]
+# bg = "#0A0008"
+# rain = ["#FFE100", "#FF6B00", "#FF0066", "#FF00CC", "#CC00FF", "#00FFFF", "#E0E0E0"]
 
 # [colors-custom.tron_legacy]
-# bg = "#080C0E"
-# rain = ["#7DFDFE", "#18CAE6", "#0EF8F8", "#66FBFB", "#FFFFFE"]
+# bg = "#02080C"
+# rain = ["#002B4D", "#0066AA", "#00BBEE", "#22DDFF", "#88EEFF", "#CCF4FF", "#FFFFFF"]
 
 # ── Custom Character Sets ──
 # Define named charsets, reference via: charset-custom = <name>
@@ -669,10 +689,10 @@ pub(crate) fn dump_config_text() -> &'static str {
 # set = "|"
 
 # [charset-custom.cyberpunk_2077]
-# set = "0123456789ABCDEFｱｲｳｴｵｶｷｸｹｺｻｼｽｾｿﾀﾁﾂﾃﾄﾅﾆﾇﾈﾉﾊﾋﾌﾍﾎﾏﾐﾑﾒﾓﾔﾕﾖﾗﾘﾙﾚﾛﾜﾝ"
+# set = "0123456789ABCDEF<>{}[]|=+*ｱｲｳｴｵﾊﾋﾌﾍﾎﾏ"
 
 # [charset-custom.tron_legacy]
-# set = "─│┌┐└┘├┤┬┴┼═║╔╗╚╝╠╣╦╩╬▐▌┄┅┈┉╱╲"
+# set = "0123456789ABCDEF←→↑↓█▌▐░▒▓│─┤├┬┴┼"
 
 # ── Ambient Phase Scheduler ──
 # Time-of-day scene switches. Config-only (no CLI flag).
