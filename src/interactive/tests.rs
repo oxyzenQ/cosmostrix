@@ -272,7 +272,7 @@ mod cases {
             scene_name: "monolith".to_string(),
             scene_custom_name: None,
             cli_explicit: crate::app::CliExplicit::default(),
-            ambient_schedule: crate::ambient::AmbientSchedule::default(),
+            ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
         }
     }
 

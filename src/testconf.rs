@@ -241,7 +241,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         // first ambient key to avoid re-running the same full validation.
         if key.starts_with("ambient.") {
             if !ambient_validated {
-                if let Err(msg) = crate::ambient::validate_ambient_entries(&parsed.values) {
+                if let Err(msg) = crate::crystal_dragon_engine::ambient::validate_ambient_entries(&parsed.values) {
                     crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
                     errors += 1;
                 }
@@ -362,7 +362,7 @@ pub(crate) fn validate_config_strictly(
             // (cross-references colors-custom and charset-custom names),
             // so we break after the first ambient key to avoid re-running
             // the same full validation.
-            crate::ambient::validate_ambient_entries(cfg)?;
+            crate::crystal_dragon_engine::ambient::validate_ambient_entries(cfg)?;
             break;
         }
         // v25: the top-level `charset` key may reference a custom charset

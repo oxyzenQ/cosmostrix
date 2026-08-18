@@ -71,7 +71,7 @@ pub(crate) struct VerboseCtx<'a> {
     /// Active custom scene (--scene-custom <name>).
     pub scene_custom: Option<&'a str>,
     /// Ambient schedule (time-of-day scene switching).
-    pub ambient_schedule: &'a crate::ambient::AmbientSchedule,
+    pub ambient_schedule: &'a crate::crystal_dragon_engine::ambient::AmbientSchedule,
 }
 
 /// Determine color provenance for verbose annotation.

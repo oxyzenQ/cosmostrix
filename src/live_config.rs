@@ -888,7 +888,7 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // Ambient: re-collect schedule. Event loop pushes to scheduler thread.
-    new.ambient_schedule = crate::ambient::collect_ambient_schedule(cfg);
+    new.ambient_schedule = crate::crystal_dragon_engine::ambient::collect_ambient_schedule(cfg);
     if !new.ambient_schedule.is_empty() {
         lr_trace!(
             "ambient: reloaded {} entries",

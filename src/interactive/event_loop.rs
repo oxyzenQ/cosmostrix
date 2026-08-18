@@ -174,10 +174,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // Ambient scheduler: idle/wake thread sends AmbientEntry via mpsc.
     let ambient_handle =
-        crate::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
+        crate::crystal_dragon_engine::ambient_scheduler::spawn_ambient_scheduler(base_cfg.ambient_schedule.clone());
     let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
     // last-applied ambient entry — re-applied after live-reload rebuilds.
-    let mut last_applied_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
+    let mut last_applied_ambient_entry: Option<crate::crystal_dragon_engine::ambient::AmbientEntry> = None;
     // AB-07: permanent snapback kill — once schedule is detected empty
     // (by any path), auto-snapback is disabled until a new rx event is
     // applied from a non-empty schedule.
@@ -200,7 +200,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         Some(initial_cfg_map.clone());
 
     // +hotfix: synchronous ambient apply at startup with REAL cfg map.
-    let (new_charset, startup_entry) = crate::ambient::apply_startup_ambient(
+    let (new_charset, startup_entry) = crate::crystal_dragon_engine::ambient::apply_startup_ambient(
         &mut cloud,
         &base_cfg.ambient_schedule,
         &charset_preset,
@@ -461,7 +461,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         }
         // AB-03+AB-04: poll ambient phase events. Empty schedule → drain.
         // Non-empty → discard events no longer in schedule (membership check).
-        let mut last_ambient_entry: Option<crate::ambient::AmbientEntry> = None;
+        let mut last_ambient_entry: Option<crate::crystal_dragon_engine::ambient::AmbientEntry> = None;
         if !last_ambient_schedule.entries.is_empty() {
             while let Ok(entry) = ambient_handle.rx.try_recv() {
                 if !last_ambient_schedule.entries.iter().any(|e| e == &entry) {
@@ -483,7 +483,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             if let Some(ref path) = config_path_for_ground_truth {
                 if let Ok(c) = std::fs::read_to_string(path) {
                     let pv = &crate::configfile::parse_config_text(&c).values;
-                    if crate::ambient::collect_ambient_schedule(pv)
+                    if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
                         .entries
                         .is_empty()
                     {
@@ -493,7 +493,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         cloud.ambient_palette_locked = false;
                         cloud.user_override_since_ambient = true;
                         ambient_snapback_killed = true;
-                        ambient_handle.reload(crate::ambient::AmbientSchedule::default());
+                        ambient_handle.reload(crate::crystal_dragon_engine::ambient::AmbientSchedule::default());
                         super::ambient_diag_schedule_empty();
                         super::ambient_diag_schedule_reload();
                         super::ambient_diag_snapback_killed();
@@ -542,7 +542,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 if let Some(ref path) = config_path_for_ground_truth {
                     if let Ok(c) = std::fs::read_to_string(path) {
                         let pv = &crate::configfile::parse_config_text(&c).values;
-                        if crate::ambient::collect_ambient_schedule(pv)
+                        if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
                             .entries
                             .is_empty()
                         {
@@ -560,7 +560,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.ambient_palette_locked = false;
             cloud.user_override_since_ambient = true;
             ambient_snapback_killed = true;
-            ambient_handle.reload(crate::ambient::AmbientSchedule::default());
+            ambient_handle.reload(crate::crystal_dragon_engine::ambient::AmbientSchedule::default());
             super::ambient_diag_schedule_empty();
             super::ambient_diag_schedule_reload();
             super::ambient_diag_snapback_killed();

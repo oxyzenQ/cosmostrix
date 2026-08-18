@@ -228,7 +228,7 @@ fn repeated_uppercase_forward_cycle_never_blank() {
 //    [scene-custom.<name>] block, applies base-scene defaults first, then
 //    the block's own overrides.
 
-use crate::ambient::AmbientEntry;
+use crate::crystal_dragon_engine::ambient::AmbientEntry;
 use crate::cloud::Cloud;
 use crate::runtime::ColorScheme;
 use std::collections::HashMap;
@@ -408,7 +408,7 @@ fn apply_ambient_entry_unknown_scene_is_noop() {
 // result: ambient never applied at startup until the user touched
 // config.toml (which triggered live-reload, which DOES pass the real cfg).
 
-use crate::ambient::{apply_startup_ambient, AmbientSchedule};
+use crate::crystal_dragon_engine::ambient::{apply_startup_ambient, AmbientSchedule};
 
 #[test]
 fn apply_startup_ambient_with_empty_cfg_is_noop_for_custom_scene() {

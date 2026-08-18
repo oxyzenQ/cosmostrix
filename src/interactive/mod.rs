@@ -39,7 +39,6 @@
 
 mod activity;
 mod adaptive;
-mod ambient_diag;
 mod bg_fill;
 mod event_loop;
 mod event_loop_finalize;
@@ -54,8 +53,8 @@ mod watchdog;
 #[cfg(test)]
 mod tests;
 
-// Re-export public API for the rest of the crate
-pub(crate) use ambient_diag::{
+// Re-export ambient_diag from crystal_dragon_engine
+pub(crate) use crate::crystal_dragon_engine::ambient_diag::{
     ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_reapply,
     ambient_diag_rx, ambient_diag_scene_change, ambient_diag_schedule_empty,
     ambient_diag_schedule_reload, ambient_diag_snapback, ambient_diag_snapback_guard,

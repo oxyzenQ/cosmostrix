@@ -145,7 +145,7 @@ fn minimal_cloud_config() -> crate::app::CloudConfig {
         scene_name: "test-scene".to_string(),
         scene_custom_name: Some("test-scene".to_string()),
         cli_explicit: crate::app::CliExplicit::default(),
-        ambient_schedule: crate::ambient::AmbientSchedule::default(),
+        ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
     }
 }
 

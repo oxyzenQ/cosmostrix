@@ -70,7 +70,7 @@ const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head
 /// Config-only (no CLI flag). Time-of-day phase entries that switch the
 /// active scene at scheduled times. Instant switch (no blend window).
 /// Dynamic idle/wake scheduler thread — zero CPU between phase boundaries.
-/// See `src/ambient.rs` and `src/ambient_scheduler.rs`.
+/// See `src/crystal_dragon_engine/ambient.rs` and `src/crystal_dragon_engine/ambient_scheduler.rs`.
 const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -814,7 +814,7 @@ fn is_known_key(key: &str) -> bool {
         || is_colors_custom_key(key)
         || is_charset_custom_key(key)
         || is_color_tune_key(key)
-        || crate::ambient::is_ambient_config_key(key)
+        || crate::crystal_dragon_engine::ambient::is_ambient_config_key(key)
 }
 
 /// v17: Check if key matches `color.tune.<field>` pattern.

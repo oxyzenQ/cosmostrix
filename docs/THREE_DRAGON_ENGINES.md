@@ -13,10 +13,10 @@ through the immutable `Cloud` snapshot each frame.
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────┐      │
 │  │  COSMIC 🔮  │  │  CHROMA 🎨  │  │ CRYSTAL ❄️  │      │
 │  │  Dragon     │  │  Dragon     │  │  Dragon     │      │
-│  │             │  │             │  │             │      │
-│  │ simulation  │  │ color       │  │ ambient     │      │
-│  │ physics     │  │ palette     │  │ drift       │      │
-│  │ behavior    │  │ OKLab       │  │ intelligence│      │
+│  │             │  │             │  │             │@│      │
+│  │ simulation  │  │ color       │  │ palette     │@│      │
+│  │ physics     │  │ palette     │  │ drift +     │ │      │
+│  │ behavior    │  │ OKLab       │  │ ambient     │ │      │
 │  └─────────────┘  └─────────────┘  └─────────────┘      │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -35,8 +35,9 @@ reload) delegates to `set_color_scheme()` → `apply_new_palette()` which
 advances the circular buffer and activates the wave.
 
 ## 3. Crystal Dragon — `src/crystal_dragon_engine/`
-The ambient intelligence engine. Maps system state → color temperature:
+The ambient intelligence engine. Two subsystems working in harmony:
 
+### 3a. Palette drift (CPU/CLOCK → theme)
 ```
 CPU% ──→ point (1-99) ──→ group ──→ weighted theme selection
   │                          │
@@ -51,6 +52,12 @@ CPU% ──→ point (1-99) ──→ group ──→ weighted theme selection
 Low CPU → Snow/Moon/Ocean (Cold). High CPU → Sun/Fire/Red (Hot).
 Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 
+### 3b. Ambient scheduler (time-of-day → scene)
+Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
+Fires at scheduled times, applies scene+palette, locks Crystal Dragon
+drift while active (`ambient_palette_locked`). User overrides (`c`/`x`
+keys) clear the lock; auto-snapback restores after 30s idle.
+
 ### File architecture
 | File | Role |
 |------|------|
@@ -59,6 +66,9 @@ Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 | `palette_groups.rs` | 44 themes → Cold/Medium/Hot partition |
 | `point_system.rs` | calc-v1: probabilistic weighted CDF selection |
 | `transition.rs` | Hook → Chroma Dragon `set_color_scheme()` |
+| `ambient.rs` | Schedule types, parsing, validation, startup apply |
+| `ambient_scheduler.rs` | Background thread: fire entries on schedule |
+| `ambient_diag.rs` | Diagnostics counters (exit summary) |
 
 ---
 

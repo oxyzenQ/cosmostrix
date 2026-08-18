@@ -1,13 +1,25 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Crystal Dragon Engine — ambient intelligence for palette drift.
+//! Crystal Dragon Engine — ambient intelligence for palette drift and
+//! time-of-day scene scheduling.
+//!
+//! ## Subsystems
+//!
+//! ### 1. Palette drift (CPU/CLOCK → theme)
 //!
 //! Maps system state (CPU usage or wall-clock time) to a **point** (1–99),
 //! classifies the point into a **temperature group** (Cold / Medium / Hot),
 //! and selects a color theme from that group via probabilistic weighted
 //! selection (calc-v1). The selected theme is handed to the Chroma Dragon
 //! engine for a smooth 300 ms OKLab wave transition.
+//!
+//! ### 2. Ambient scheduler (time-of-day → scene)
+//!
+//! Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
+//! Fires at scheduled times, applies scene+palette, locks Crystal Dragon
+//! drift while active. User overrides (`c`/`x` keys) clear the lock;
+//! auto-snapback restores it after idle.
 //!
 //! ## Architecture
 //!
@@ -18,6 +30,9 @@
 //! | `palette_groups` | 44 themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2) |
 //! | `point_system` | calc-v1: probabilistic weighted theme selection within a group |
 //! | `transition` | Hook into Chroma Dragon `set_color_scheme` for OKLab smooth fades |
+//! | `ambient` | Time-of-day schedule types, parsing, validation, startup apply |
+//! | `ambient_scheduler` | Background thread that fires schedule entries |
+//! | `ambient_diag` | Diagnostics counters (exit summary) |
 //!
 //! ## Owner decisions
 //!
@@ -46,6 +61,9 @@
 //! ```
 //! This produces low points in early morning, high points in the afternoon.
 
+pub(crate) mod ambient;
+pub(crate) mod ambient_diag;
+pub(crate) mod ambient_scheduler;
 pub(crate) mod crystal_dragon_control;
 pub(crate) mod palette_groups;
 pub(crate) mod point_system;

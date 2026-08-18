@@ -354,8 +354,8 @@ pub(super) fn try_auto_snapback(
     charset_preset: &mut String,
     scene_name: &mut String,
     scene_generation: &mut u64,
-    last_applied_ambient_entry: &mut Option<crate::ambient::AmbientEntry>,
-    schedule: &crate::ambient::AmbientSchedule,
+    last_applied_ambient_entry: &mut Option<crate::crystal_dragon_engine::ambient::AmbientEntry>,
+    schedule: &crate::crystal_dragon_engine::ambient::AmbientSchedule,
     last_cfg_map: &Option<std::collections::HashMap<String, String>>,
     user_ranges: &[(char, char)],
     def_ascii: bool,
@@ -388,7 +388,7 @@ pub(super) fn try_auto_snapback(
     ) {
         return false;
     }
-    let now_min = crate::ambient::current_minute_of_day();
+    let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
     let Some(entry) = schedule.current_phase(now_min).cloned() else {
         return false;
     };

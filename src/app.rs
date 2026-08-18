@@ -134,11 +134,11 @@ pub struct CloudConfig {
     /// the priority contract.
     pub(crate) cli_explicit: CliExplicit,
     /// Ambient phase schedule — collected from `ambient.<HH-MM>` config keys
-    /// by `crate::ambient::collect_ambient_schedule`. Empty = no ambient
+    /// by `crate::crystal_dragon_engine::ambient::collect_ambient_schedule`. Empty = no ambient
     /// entries (scheduler thread idles). The event loop spawns an
     /// `AmbientSchedulerHandle` from this and reloads it on every
     /// live-reload (see `event_loop.rs`).
-    pub(crate) ambient_schedule: crate::ambient::AmbientSchedule,
+    pub(crate) ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule,
 }
 
 /// Per-field record of which CloudConfig fields were set via CLI.

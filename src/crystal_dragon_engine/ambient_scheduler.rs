@@ -69,7 +69,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::Duration;
 
-use crate::ambient::{
+use super::ambient::{
     current_minute_of_day, current_second_of_minute, AmbientEntry, AmbientSchedule,
 };
 
@@ -260,7 +260,7 @@ fn scheduler_loop(
                     return;
                 }
                 last_applied = Some(entry.clone());
-                last_fired_yday = crate::ambient::current_yday();
+                last_fired_yday = super::ambient::current_yday();
             }
         } else {
             // AB-09: schedule is empty — clear last_applied so that re-adding
@@ -296,7 +296,7 @@ fn scheduler_loop(
         // boundary crossings (different entry), and the day-boundary check
         // is a no-op (`yday == last_fired_yday` after the first fire of the
         // day).
-        let today_yday = crate::ambient::current_yday();
+        let today_yday = super::ambient::current_yday();
         if today_yday != last_fired_yday {
             if let Some(entry) = &current_entry {
                 if entry.minutes_of_day() <= now_min && last_applied.as_ref() == Some(entry) {
@@ -377,7 +377,7 @@ fn scheduler_loop(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ambient::AmbientEntry;
+    use crate::crystal_dragon_engine::ambient::AmbientEntry;
     use std::collections::HashMap;
 
     /// Helper: build a minimal entry.
@@ -498,12 +498,12 @@ mod tests {
         cfg.insert("ambient.00-00".into(), "monolith".into());
         cfg.insert("ambient.06-00".into(), "matrix".into());
         cfg.insert("ambient.22-00".into(), "cinematic".into());
-        let s = crate::ambient::collect_ambient_schedule(&cfg);
+        let s = crate::crystal_dragon_engine::ambient::collect_ambient_schedule(&cfg);
         assert_eq!(s.entries.len(), 3);
         assert_eq!(s.entries[0].hour, 0);
         assert_eq!(s.entries[1].hour, 6);
         assert_eq!(s.entries[2].hour, 22);
-        assert!(crate::ambient::validate_ambient_entries(&cfg).is_ok());
+        assert!(crate::crystal_dragon_engine::ambient::validate_ambient_entries(&cfg).is_ok());
     }
 
     // ── scheduler entry-aware refire tests ──
@@ -617,7 +617,7 @@ mod tests {
     /// the helper doesn't panic and returns a sane value.
     #[test]
     fn current_yday_returns_sane_value() {
-        let yday = crate::ambient::current_yday();
+        let yday = crate::crystal_dragon_engine::ambient::current_yday();
         // tm_yday is 0..=365 on Unix; non-Unix fallback is (secs/86400)%366.
         // Either way, it must be in [0, 365] (366 would only occur on Dec 31
         // of a leap year on Unix, but the fallback mod 366 could produce it).
@@ -672,7 +672,7 @@ mod tests {
             "v35 day-boundary refire comment must exist"
         );
         assert!(
-            src.contains("crate::ambient::current_yday"),
+            src.contains("ambient::current_yday"),
             "v35 day-boundary refire must call current_yday"
         );
     }

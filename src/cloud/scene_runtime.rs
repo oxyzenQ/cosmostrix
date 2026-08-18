@@ -493,7 +493,7 @@ impl Cloud {
     /// current).
     pub fn apply_ambient_entry(
         &mut self,
-        entry: &crate::ambient::AmbientEntry,
+        entry: &crate::crystal_dragon_engine::ambient::AmbientEntry,
         current_charset_preset: &str,
         user_ranges: &[(char, char)],
         def_ascii: bool,
