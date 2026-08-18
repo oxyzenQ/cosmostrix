@@ -277,4 +277,42 @@ impl Cloud {
     pub fn force_draw_everything(&mut self) {
         self.force_draw_everything = true;
     }
+
+    /// Start a 300ms palette transition wave from a previous palette.
+    ///
+    /// Used by live config reload when the color scheme changes: the Cloud
+    /// rebuild already installed the new palette in slot 0, but without this
+    /// call the transition would be an instant jump (`transition_start = None`).
+    ///
+    /// This method:
+    /// 1. Stores `prev_palette` in the circular-buffer slot BEFORE the
+    ///    active slot, so the shader can read both old and new palettes
+    ///    during the 300ms wave.
+    /// 2. Sets `transition_start = Some(now)` to activate the wave.
+    /// 3. Sets `force_draw_everything` + `semantic_invalidate` so the
+    ///    first frame redraws everything under the new palette.
+    ///
+    /// **Precondition**: the caller must ensure that `prev_palette` is
+    /// genuinely different from `self.palette` (same-scheme no-op guard
+    /// is the caller's responsibility, matching the contract of
+    /// `set_color_scheme`).
+    pub fn start_transition_from_previous_palette(
+        &mut self,
+        prev_palette: crate::palette::Palette,
+    ) {
+        // Compute the "previous" slot in the circular buffer: one step
+        // backward from the active slot. This is where the shader reads
+        // the old palette during the transition wave (see rain.rs:451).
+        let prev_slot =
+            ((self.active_palette_slot as usize + MAX_PALETTE_SLOTS - 1) % MAX_PALETTE_SLOTS) as u8;
+        self.palette_table[prev_slot as usize] = Some(prev_palette);
+
+        // Activate the 300ms top-to-bottom wave transition.
+        self.transition_start = Some(std::time::Instant::now());
+
+        // Force full redraw so the new background fills the entire screen
+        // (matching apply_new_palette's behavior).
+        self.force_draw_everything = true;
+        self.semantic_invalidate = true;
+    }
 }

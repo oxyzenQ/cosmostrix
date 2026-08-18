@@ -291,6 +291,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // AB-02: capture override state for schedule-empty restore.
             let preserve_user_override = cloud.user_override_since_ambient;
             let preserved_color_scheme = cloud.color_scheme;
+            let preserved_palette = cloud.palette.clone();
             let preserved_scene_name = scene_name.clone();
             let mut new_cloud = new_cfg.create_cloud(density);
             new_cloud.inherit_ecosystem_state(&cloud);
@@ -298,6 +299,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
+            // Smooth palette transition on live config reload.
+            //
+            // Previously, the Cloud rebuild produced an instant color jump
+            // (transition_start = None on the fresh Cloud). Now, if the
+            // color scheme changed, we store the old palette in the circular
+            // buffer's previous slot and activate the 300ms wave — matching
+            // the smooth transition used by 'c' keypress, auto-color-drift,
+            // and scene runtime. The shader's apply_l_smoothing will
+            // interpolate between old and new via OKLab L + polar chroma.
+            if cloud.color_scheme != preserved_color_scheme {
+                cloud.start_transition_from_previous_palette(preserved_palette);
+            }
             // Fresh Cloud from rebuild — reset self-healer.
             self_healer.reset();
             // Rebuild color cache + frame + fill bg + charset.
