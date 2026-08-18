@@ -337,7 +337,7 @@ fn brighten_color_does_not_wash_vivid_colors_to_grey() {
 // ── refresh_colors + rain-aesthetic gradient tests ────────────────
 //
 // The HUD color refresh was split out of the 1 Hz `update_metrics`
-// tick so runtime palette changes (c/C key, auto-color-drift,
+// tick so runtime palette changes (c/C key, crystal-dragon,
 // live-config reload) appear on the very next frame, not up to 1
 // second later. The gradient was also inverted to follow the rain
 // aesthetic: dim tail at top → bright head at bottom. These tests

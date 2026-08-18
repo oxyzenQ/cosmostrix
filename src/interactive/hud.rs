@@ -417,7 +417,7 @@ impl HudState {
     /// rather than misleadingly showing `0.00%`.
     ///
     /// ## Why not reuse `system_feeling.rs`?
-    /// `system_feeling` is only active when `--auto-color-drift` is on.
+    /// `system_feeling` was removed. Crystal Dragon handles ambient drift.
     /// The HUD is independent (`i` toggles it any time) and must work
     /// without color drift. Decoupling also avoids sharing mutable state
     /// across subsystems on the hot frame path.

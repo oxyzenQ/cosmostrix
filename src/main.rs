@@ -111,7 +111,7 @@ mod configfile_tests;
 mod constants;
 mod cosmic_dragon;
 mod cpustat;
-// Crystal Dragon Engine — ambient intelligence for auto-color-drift v2.
+// Crystal Dragon Engine — ambient intelligence for palette drift.
 // Point-based temperature group system (Cold/Medium/Hot) + calc-v1
 // probabilistic weighted selection. See src/crystal_dragon_engine/.
 mod crystal_dragon_engine;
@@ -453,8 +453,8 @@ fn main() -> std::io::Result<()> {
     let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
         // Intercept clap's "unexpected argument" errors and append a
         // "Did you mean --<flag>?" suggestion based on edit distance.
-        // This turns a bare `error: unexpected argument '--auto-color-drifts'`
-        // into a helpful `Did you mean --auto-color-drift?` — matching the
+        // This turns a bare `error: unexpected argument '--crystal-dragons'`
+        // into a helpful `Did you mean --crystal-dragon?` — matching the
         // same UX already provided for config key typos in config_hints.rs.
         let err_str = e.to_string();
         // Clap's unknown-arg error contains "unexpected argument" and the

@@ -82,7 +82,7 @@ subsystem in this module.
 
 | #  | Feature                    | Owner submodule / file                | Modifies                          |
 |----|----------------------------|---------------------------------------|-----------------------------------|
-| 1  | auto-color-drift          | `control_color_drift.rs` (external)   | palette scheme + climate drift    |
+| 1  | crystal-dragon            | `crystal_dragon_engine/` (external)   | ambient palette drift             |
 | 2  | dynamic-default-fps       | `termdetect/`, `main.rs` (external) | base_target_fps                   |
 | 3  | xterm.js cap + Tier 2     | `termdetect/`, `tier2.rs` (external)| base_target_fps + ANSI bytes      |
 | 4  | adaptive throttling       | `power_manager.rs`                    | frame_period (idle × 0.5)         |
@@ -134,8 +134,8 @@ now)` consumes at startup. Live config reload calls
 
 ### Zone 2 — Scene / palette (3 writers, NOT power)
 
-**Status:** unchanged. Three writers (auto-color-drift, self-healer
-downgrade, ambient scheduler) compete for scene + palette. The
+**Status:** unchanged. Two writers (crystal-dragon, self-healer
+downgrade) compete for scene + palette. The
 `scene_generation` counter is the reactive guard — every writer
 increments it when it changes the scene, and downstream consumers
 invalidate their caches when they observe a generation bump. This is

@@ -54,7 +54,7 @@ impl Cloud {
         // palette (if any was loaded) is no longer the source of truth.
         // Without this clear, the `custom_palette_active` flag would stay
         // true after `--colors-custom X` + 'c' cycle, falsely blocking
-        // --auto-color-drift forever (the drift gate at rain.rs:923 reads
+        // --crystal-dragon forever (the drift gate at rain.rs reads
         // this flag). Note: the 'c' cycle path already calls this fn.
         self.custom_palette_active = false;
         use crate::palette::build_palette;

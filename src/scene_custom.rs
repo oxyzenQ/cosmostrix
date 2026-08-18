@@ -105,7 +105,7 @@ pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 ///   `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`,
 ///   `density`, `density-map`, `async`.
 /// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
-///   `ambient`, `auto-color-drift`, `color.tune`, `monolith-size`,
+///   `ambient`, `crystal-dragon`, `color.tune`, `monolith-size`,
 ///   `intro`, `color-bg`.
 ///
 /// `monolith-size` and `color-bg` were accepted (because the

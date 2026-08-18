@@ -78,7 +78,7 @@ tweaked without rebuilding the binary.
 | Bold mode | `--bold <0\|1\|2>` | `bold = 1` | Bold glyph style (0=off, 1=random, 2=all) |
 | Shading mode | `--shadingmode <0\|1>` | `shadingmode = 1` | Shading (0=random, 1=cinematic) |
 | Color mode | `--colormode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
-| Auto color drift | `--auto-color-drift` | `auto-color-drift = true` | Palette scheme drift (off by default; climate drift is always-on) |
+| Crystal Dragon | `--crystal-dragon` | `crystal-dragon = true` | Ambient palette drift from system state (off by default) |
 | Intro type | `--intro <logo\|cosmic\|none>` | `intro = "logo"` | Cinematic intro sequence |
 | Scene custom | (toml only) | `scene-custom.<name>.<field>` | Custom scene preset |
 | Colors custom | (toml only) | `colors-custom.<name>.<bg\|rain>` | Custom color palette |
@@ -280,8 +280,8 @@ emergent moments, gusts, atmosphere ticks.
 | `COLOR_CLIMATE_DRIFT_RATE` | f32 | 0.008 | Luminance climate drift speed. |
 | `COLOR_SATURATION_DRIFT_RATE` | f32 | 0.005 | Saturation climate drift speed. |
 | `COLOR_HUE_DRIFT_RATE` | f32 | 0.015 | Hue climate drift speed. |
-| `AUTONOMOUS_PALETTE_DRIFT_CHANCE` | f32 | 0.03 | Chance per ecosystem tick of autonomous palette change. |
-| `AUTO_COLOR_DRIFT_DEFAULT` | bool | false | Whether auto-color-drift is on by default (CLI flag overrides). |
+| `AUTONOMOUS_PALETTE_DRIFT_CHANCE` | f32 | 0.12 | Crystal Dragon drift chance per tick. |
+| `CRYSTAL_DRAGON_POLLING_SECS` | f32 | 60.0 | Crystal Dragon sensor polling interval. |
 | `EMERGENT_MOMENT_CHANCE` | f32 | 0.08 | Chance per storytelling tick of an emergent moment. |
 | `EMERGENT_MOMENT_DURATION_SECS` | f32 | 8.0 | How long an emergent moment lasts. |
 | `EMERGENT_MAX_MOMENTS` | usize | 1 | Max simultaneous emergent moments. |
@@ -522,8 +522,8 @@ COLOR_LUMINANCE_CLIMATE_MIN        = 0.75
 COLOR_LUMINANCE_CLIMATE_MAX        = 1.0
 COLOR_SATURATION_CLIMATE_MIN       = 0.7
 COLOR_SATURATION_CLIMATE_MAX       = 1.0
-AUTONOMOUS_PALETTE_DRIFT_CHANCE    = 0.03
-AUTO_COLOR_DRIFT_DEFAULT           = false
+AUTONOMOUS_PALETTE_DRIFT_CHANCE    = 0.12
+CRYSTAL_DRAGON_POLLING_SECS        = 60.0
 
 === Profile transitions ===
 PROFILE_TRANSITION_SECS            = 30.0

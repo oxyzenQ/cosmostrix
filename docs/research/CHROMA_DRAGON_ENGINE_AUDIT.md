@@ -19,7 +19,7 @@ The Chroma Dragon engine (`src/chroma/`) is the project's structured color pipel
 
 - **No "Color Pipeline mode" enum.** Nothing distinguishes "chroma active" from "legacy RGB fallback" at runtime.
 - **No fallback system.** The legacy sRGB-linear gradient path was *removed* (commits referenced in `palette.rs:250` and `gradient.rs:41`). The codebase has no fallback path — every effect either calls the chroma engine or it doesn't, with no graceful degradation.
-- **No verbose/doctor disclosure.** `cosmostrix -v` prints `color_mode:` (terminal color depth) but never `chroma_dragon_engine: active|fallback`. `cosmostrix --doctor` likewise. The benchmark report discloses `auto_color_drift: false` (palette rebuild disabled) but says nothing about chroma engine status.
+- **No verbose/doctor disclosure.** `cosmostrix -v` prints `color_mode:` (terminal color depth) but never `chroma_dragon_engine: active|fallback`. `cosmostrix --doctor` likewise. The benchmark report discloses `crystal_dragon: false` (palette rebuild disabled) but says nothing about chroma engine status.
 - **Outdated docs.** `info.rs:223` (`docs_report()` for `cosmostrix --docs`) still claims "OKLab interpolation (default) + sRGB-linear fallback + hue-preserving polar variant" — but the sRGB-linear fallback was deleted.
 
 The refactor proposal in §6 introduces a `ColorPipeline` enum (Chroma / LegacyRgb), wires every Category-A bypass through chroma first, falls back to legacy on `ColorMode::Color256 | Color16 | Mono` (or an explicit `--no-chroma` flag), and surfaces the active pipeline in `-v`, `--doctor`, and the benchmark report.
@@ -360,7 +360,7 @@ The doctor report has:
 **Files**: `src/bench.rs:180-244` (`run_benchmark`), `src/bench.rs:60-180` (`compute_config_enrichment`), `src/bench_report.rs` (BenchReportData)
 
 **Current behavior**:
-1. The benchmark loop sets `cloud.auto_color_drift = false` (line 201) to keep p99/max metrics deterministic (palette rebuilds inject timing spikes).
+1. The benchmark loop sets `cloud.crystal_dragon = false` (line 201) to keep p99/max metrics deterministic (palette rebuilds inject timing spikes).
 2. **Climate drift still runs** — the comment at line 196-200 says: "Climate drift (luminance/saturation/hue modulation) still runs because it is deterministic (fixed RNG seed) and has no rebuild cost."
 3. The Chroma Dragon engine itself is **NOT disabled**. Every cell still goes through `resolve_cell_color` → `apply_climate` → etc.
 
@@ -369,7 +369,7 @@ The doctor report has:
 - `custom_palette_name`
 - `color_bg_label`
 - `color_tune_summary`
-- `auto_color_drift: false` (with the `bench_override:` notice in verbose)
+- `crystal_dragon: false` (with the `bench_override:` notice in verbose)
 
 **The benchmark report does NOT disclose**:
 - Whether the chroma engine is active

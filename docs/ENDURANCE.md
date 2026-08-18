@@ -148,7 +148,7 @@ If no argument is given, the default target is `cosmostrix`.
 | Swap | Zero throughout run | Non-zero swap indicates memory pressure |
 | Crash / panic | None | Renderer must exit cleanly on duration expiry |
 | Clean exit | Exit code 0 | Confirms graceful shutdown path |
-| Color drift | None when `auto-color-drift` is off | Fixed colors must remain sticky |
+| Color drift | None when `crystal-dragon` is off | Fixed colors must remain sticky |
 
 ### Color stability endurance
 
@@ -157,21 +157,20 @@ if the session was started with an explicit color (e.g., `--color sun`),
 the color must remain unchanged for the entire duration. This is enforced
 by deterministic in-process tests that simulate many minutes of frames and
 assert the `ColorScheme` never changes. The color stability policy is
-enforced by `src/palette.rs` and `src/control_color_drift.rs`: palette is
-sticky for the entire session unless `--auto-color-drift` is explicitly
-opted in.
+enforced by `src/palette.rs`: palette is sticky for the entire session
+unless `--crystal-dragon` is explicitly opted in.
 
 To manually verify during a long endurance run, check that the `--color`
 value you passed at startup is still active at the end of the run. If
-`auto-color-drift` is enabled (opt-in), color changes are expected and
+`crystal-dragon` is enabled (opt-in), color changes are expected and
 acceptable.
 
 Use `--doctor` to confirm the drift state at any time:
 
 ```bash
-cosmostrix --doctor | rg "auto_color_drift"
-# auto_color_drift: false   <- default, no autonomous drift
-# auto_color_drift: true    <- opt-in, ecosystem may change color
+cosmostrix --doctor | rg "crystal_dragon"
+# crystal_dragon: false   <- default, no autonomous drift
+# crystal_dragon: true    <- opt-in, Crystal Dragon may change color
 ```
 
 ### Pass/fail logic

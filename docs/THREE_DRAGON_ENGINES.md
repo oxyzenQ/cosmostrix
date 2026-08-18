@@ -1,6 +1,6 @@
 # The Three Dragon Engines of Cosmostrix v50
 
-> v50.0.0-beta.6 — 2026-08-18
+> v50.0.0-alpha.6 — 2026-08-19
 
 Cosmostrix runs three independent dragon engines, each owning a distinct
 rendering concern. They never share mutable state; they communicate only
@@ -34,7 +34,7 @@ Every color-change path (keypress, Crystal Dragon, scene runtime, live
 reload) delegates to `set_color_scheme()` → `apply_new_palette()` which
 advances the circular buffer and activates the wave.
 
-## 3. Crystal Dragon — `src/crystal_dragon_engine/` *(NEW v50-alpha.6)*
+## 3. Crystal Dragon — `src/crystal_dragon_engine/`
 The ambient intelligence engine. Maps system state → color temperature:
 
 ```
@@ -59,11 +59,6 @@ Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 | `palette_groups.rs` | 44 themes → Cold/Medium/Hot partition |
 | `point_system.rs` | calc-v1: probabilistic weighted CDF selection |
 | `transition.rs` | Hook → Chroma Dragon `set_color_scheme()` |
-
-### What replaced the old engine
-`--auto-color-drift` (FeelingState→ColorFamily→family_members) is
-**gone**. No legacy. No duplicate. Crystal Dragon is the only
-autonomous palette drift engine in cosmostrix.
 
 ---
 

@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Crystal Dragon Engine — ambient intelligence for auto-color-drift v2.
+//! Crystal Dragon Engine — ambient intelligence for palette drift.
 //!
 //! Maps system state (CPU usage or wall-clock time) to a **point** (1–99),
 //! classifies the point into a **temperature group** (Cold / Medium / Hot),

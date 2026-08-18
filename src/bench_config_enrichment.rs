@@ -16,7 +16,7 @@ use crate::app::CloudConfig;
 /// and (b) the chroma engine status during benchmarking. Owner question:
 /// "when benchmarking mode 'cosmostrix --benchmark' is the chroma dragon
 /// enable/disable?" Answer: chroma is ENABLED in benchmark mode -- only
-/// palette *drift* is disabled (see `cloud.auto_color_drift = false` in
+/// palette *drift* is disabled (see `cloud.crystal_dragon = false` in
 /// run_benchmark line ~201), the chroma engine itself still runs every cell. The `chroma_in_benchmark`
 /// field makes this explicit in the report so the user does not have to read
 /// the source to find out.

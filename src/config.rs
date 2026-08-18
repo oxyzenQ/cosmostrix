@@ -650,8 +650,7 @@ pub struct Args {
     /// Polls every 60 seconds with 300ms OKLab smooth transitions.
     #[arg(
         long = "crystal-dragon",
-        hide = true,
-        help = "Enable Crystal Dragon ambient color drift v2 (default: off)"
+        help = "Enable Crystal Dragon ambient color drift (default: off)"
     )]
     pub crystal_dragon: bool,
 

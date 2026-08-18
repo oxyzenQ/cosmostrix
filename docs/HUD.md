@@ -381,7 +381,7 @@ delay. The 1 Hz rate limit only governs text reformatting (p99 sort,
 `format!` calls, RSS string) — that's what causes the numbers to update
 once per second, but the COLORS track the rain immediately.
 
-This matters for: `c`/`C` key color cycling, `--auto-color-drift`,
+This matters for: `c`/`C` key color cycling, `--crystal-dragon`,
 live-config reload (`config.toml` edit while running), and scene
 transitions (`x` key). All of these change the palette at runtime; the
 HUD must keep up without a visible "lag" where the rain has new colors

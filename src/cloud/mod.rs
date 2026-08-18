@@ -265,7 +265,7 @@ pub struct Cloud {
 
     pub(super) glyph_entry_time: Option<Instant>,
 
-    /// Crystal Dragon Engine: ambient intelligence for auto-color-drift v2.
+    /// Crystal Dragon Engine: ambient intelligence for palette drift.
     /// Point-based temperature group system (Cold/Medium/Hot) +
     /// calc-v1 probabilistic weighted theme selection.
     pub(super) crystal_dragon: bool,

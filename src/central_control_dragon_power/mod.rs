@@ -32,7 +32,7 @@
 //!
 //! | #  | Feature                    | Main file                       | Modifies                       |
 //! |----|----------------------------|---------------------------------|--------------------------------|
-//! | 1  | auto-color-drift          | control_color_drift.rs          | palette scheme + climate drift |
+//! | 1  | crystal-dragon            | crystal_dragon_engine/          | ambient palette drift          |
 //! | 2  | dynamic-default-fps       | termdetect.rs, main.rs          | target_fps                     |
 //! | 3  | xterm.js cap + Tier 2     | termdetect.rs, tier2.rs         | target_fps + ANSI bytes        |
 //! | 4  | adaptive throttling       | event_loop.rs, activity.rs      | frame_period (idle × 0.5)      |
@@ -66,7 +66,7 @@
 //!    `--fps` would create a precedence ambiguity (which user intent
 //!    wins?). The runtime layers (idle factor, pause period) are the
 //!    only runtime FPS modifiers.
-//! 2. **Scene / palette** — 3 writers (auto-color-drift, self-healer
+//! 2. **Scene / palette** — 2 writers (crystal-dragon, self-healer
 //!    downgrade, ambient scheduler). scene_generation counter is reactive
 //!    guard, not a mutex.
 //! 3. **Spawn rate / density** — 4 layered multipliers in cloud/rain.rs

@@ -115,7 +115,7 @@ The Dragon's roar is not loud — it is precise.
 - TrueColor gradients with luminous head glow
 - Configurable speed, density, FPS, and glitch intensity
 - Density map sculpting — per-column weight maps (0.0–1.0) for cinematic monolith formations (e.g. twin pillars, cascading waterfall, central throne)
-- Auto color drift — cycle color scheme over time (`--auto-color-drift` / `auto-color-drift = true` in config)
+- Crystal Dragon — ambient palette drift from system state (`--crystal-dragon` / `crystal-dragon = true` in config)
 - Message overlay — display custom text on the rain (`--message "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
 - Live HUD — real-time FPS, p99, max frame-time, RSS, endurance health score,

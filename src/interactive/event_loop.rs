@@ -305,7 +305,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // (transition_start = None on the fresh Cloud). Now, if the
             // color scheme changed, we store the old palette in the circular
             // buffer's previous slot and activate the 300ms wave — matching
-            // the smooth transition used by 'c' keypress, auto-color-drift,
+            // the smooth transition used by 'c' keypress, crystal-dragon,
             // and scene runtime. The shader's apply_l_smoothing will
             // interpolate between old and new via OKLab L + polar chroma.
             if cloud.color_scheme != preserved_color_scheme {

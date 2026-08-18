@@ -79,7 +79,7 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
     }
 }
 
-// ── Color family classification (removed — Crystal Dragon v2) ──────────
+// ── Color family classification (removed — Crystal Dragon) ──────────
 //
 // The old FeelingState→ColorFamily→family_members pipeline was the
 // auto-color-drift v1 engine. It has been replaced by the Crystal Dragon
@@ -176,7 +176,7 @@ impl ColorEcosystem {
 
     /// Climate-only tick: evolve luminance/saturation/hue climate drift.
     ///
-    /// Palette scheme selection (auto-color-drift) has been moved to the
+    /// Palette scheme selection has been moved to the
     /// Crystal Dragon Engine — see `crystal_dragon_tick()` in
     /// `runtime_controls.rs`. This method only handles climate modulation
     /// (luminance/saturation/hue) which is orthogonal to palette scheme.
