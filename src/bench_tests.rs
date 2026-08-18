@@ -324,10 +324,9 @@ fn peak_fps_mixed_real_and_artifact_samples() {
     // frame times. Must pick the smallest REAL frame time, not the
     // smallest artifact.
     let mut samples: Vec<f64> = Vec::with_capacity(1000);
-    // 200 zero samples (clock returned same value)
-    for _ in 0..200 {
-        samples.push(0.0);
-    }
+    // 200 zero samples (clock returned same value). Use extend+repeat_n
+    // instead of a push loop to satisfy clippy::same_item_push.
+    samples.extend(std::iter::repeat_n(0.0, 200));
     // 300 sub-µs artifacts (TSC near-collisions)
     for i in 0..300 {
         samples.push(0.0001 + (i as f64) * 0.000001); // 100ns..400ns
