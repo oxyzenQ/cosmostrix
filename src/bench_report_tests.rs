@@ -102,7 +102,7 @@ mod tests {
         // Count: status(1) + dims/config(15+10=25,  added 10 enrichment
         // fields: color_mode_label, custom_palette_name, custom_palette_bg_hex,
         // color_bg_label, color_tune_summary, async_mode, glitch_enabled,
-        // glitch_level, glitch_pct, auto_color_drift) + perf(8) + dirty(8)
+        // glitch_level, glitch_pct, crystal_dragon) + perf(8) + dirty(8)
         // + throughput(5) + timing(3) = 50
         // v50 LTS audit: throughput went from 6 → 5 fields
         // (removed redundant `theoretical_full_frame_glyphs_per_second`,
@@ -112,7 +112,7 @@ mod tests {
         // shading_mode, + speed which moved from perf-only to config too).
         // config grew from 15 to 25 fields (CONFIG enrichment for
         // color/charset parity with --verbose).
-        // config grew from 15 to 24 fields (removed auto_color_drift).
+        // config fields: auto_color_drift removed, crystal_dragon added.
         // The struct literal below is the real check — if this compiles,
         // all fields exist and have the correct types. Prefixed with `_`
         // because no runtime assertion is needed (the compiler is the test).

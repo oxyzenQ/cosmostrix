@@ -416,10 +416,9 @@ impl HudState {
     /// the HUD renders `cpu: —` to honestly signal "metric unavailable"
     /// rather than misleadingly showing `0.00%`.
     ///
-    /// ## Why not reuse `system_feeling.rs`?
-    /// `system_feeling` was removed. Crystal Dragon handles ambient drift.
-    /// The HUD is independent (`i` toggles it any time) and must work
-    /// without color drift. Decoupling also avoids sharing mutable state
+    /// ## Crystal Dragon independence
+    /// The HUD is independent from Crystal Dragon (`i` toggles it any time)
+    /// and must work without color drift. Decoupling also avoids sharing mutable state
     /// across subsystems on the hot frame path.
     #[inline]
     pub(crate) fn maybe_sample_cpu(&mut self) {

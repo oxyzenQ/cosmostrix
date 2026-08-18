@@ -73,13 +73,13 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "version",
     "check-update",
     "check-updated", // alias of --check-update
+    "crystal-dragon",
     // HIDDEN (still valid CLI flags)
     "bold",
     "color-bg",
     "duration",
     "perf-stats",
     "bench-frames",
-    "crystal-dragon",
     "glitchms",
     "lingerms",
     "shadingmode",

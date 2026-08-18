@@ -22,8 +22,7 @@ pub(crate) fn now_hhmm() -> String {
 
 /// Current local wall-clock hour as f64 (with minute/second fraction).
 ///
-/// Retained for potential future use; previously used by system-feeling
-/// drift (now replaced by Crystal Dragon Engine).
+/// Retained for Crystal Dragon Engine CLOCK fallback sensor.
 #[must_use]
 #[allow(dead_code)]
 pub(crate) fn current_local_hour() -> f64 {

@@ -826,7 +826,7 @@ mod tests {
         );
     }
 
-    // removed: auto_color_drift → auto-color-drift test (key no longer exists)
+    // removed key: auto-color-drift (replaced by crystal-dragon)
 
     #[test]
     fn random_underscore_key_without_kebab_match_gets_no_snake_hint() {

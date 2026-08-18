@@ -271,7 +271,7 @@ fn profile_color_resolves_sun_after_preset_and_scene() {
         args.color, "sun",
         "custom scene color must override config scene color per precedence"
     );
-    // auto_color_drift is gone; no assertion needed.
+    // removed fields: no assertion needed.
 }
 
 #[test]
