@@ -96,7 +96,11 @@ mod config;
 pub(crate) use config::*;
 mod constants;
 mod cosmic_dragon;
-mod cpustat;
+// cpustat.rs, memstat.rs, usagestat.rs, envstat.rs now live under sysstat/.
+// See sysstat/mod.rs for the re-export that keeps the 15 existing
+// `crate::cpustat::Foo` etc. call sites working unchanged.
+mod sysstat;
+pub(crate) use sysstat::*;
 // Crystal Dragon Engine — ambient intelligence for palette drift.
 // Point-based temperature group system (Cold/Medium/Hot) + calc-v1
 // probabilistic weighted selection. See src/crystal_dragon_engine/.
@@ -106,7 +110,6 @@ mod diagnostics;
 mod docs_tests;
 mod doctor;
 mod droplet;
-mod envstat;
 mod frame;
 mod help_detail;
 mod humanize;
@@ -119,7 +122,6 @@ mod interactive;
 // live_config inside config/mod.rs (enforced there).
 #[cfg(test)]
 mod loc_tests;
-mod memstat;
 mod message;
 mod output;
 mod panic_hook;
@@ -146,7 +148,6 @@ mod testconf;
 mod theme;
 mod tier2;
 mod update;
-mod usagestat;
 mod ux;
 mod validation;
 mod verbose;
