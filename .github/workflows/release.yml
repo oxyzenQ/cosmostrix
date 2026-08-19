@@ -11,7 +11,7 @@
 # Aesthetic: cold, silent, cosmic dragon. Zero emoji. No decoration.
 # Release notes use <details><summary> for clickable expand/collapse.
 
-name: release
+name: "Cosmic Dragon - Release"
 
 on:
   push:

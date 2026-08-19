@@ -18,7 +18,7 @@
 #
 # Weekly scheduled scan Monday 03:00 UTC for full coverage.
 
-name: CodeQL
+name: "Cosmic Dragon - CodeQL"
 
 'on':
   push:

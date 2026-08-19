@@ -10,7 +10,7 @@
 # the most recent local stamp file, NOT this CI run — contributors run
 # `./scripts/build.sh miri` locally to refresh their own stamp.
 
-name: miri
+name: "Cosmic Dragon - Miri"
 
 'on':
   push:
