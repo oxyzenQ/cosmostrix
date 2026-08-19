@@ -481,7 +481,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field(
             "max_dirty_cells_per_frame",
-            &data.max_dirty_cells.to_string(),
+            &format!(
+                "{} ({})",
+                humanize(data.max_dirty_cells),
+                data.max_dirty_cells
+            ),
         );
         s.field(
             "avg_dirty_cell_ratio_percent",
@@ -982,7 +986,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                     "color_transition_delta",
                     &format!("{:.2}", v.color_transition_delta_avg),
                 );
-                s.field("samples", &v.samples.to_string());
+                s.field(
+                    "samples",
+                    &format!("{} ({})", humanize(v.samples.into()), v.samples),
+                );
                 s.field(
                     "entropy_meaning",
                     "Shannon entropy of dirty-cell column distribution; higher = more uniform",
