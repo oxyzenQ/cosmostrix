@@ -53,6 +53,9 @@ mod watchdog;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod tests_v35;
+
 // Re-export ambient_diag from crystal_dragon_engine
 pub(crate) use crate::crystal_dragon_engine::ambient_diag::{
     ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_reapply,
