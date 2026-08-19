@@ -16,6 +16,7 @@ use std::env;
 use crate::bench_meta::{cpu_model_label, format_rss_kb};
 use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::diagnostics;
+use crate::humanize::humanize;
 use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::ColorMode;
@@ -499,7 +500,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // redrawn every frame. Use `dirty_glyphs_per_second` for actual.
         s.field(
             "glyphs_per_second_theoretical",
-            &data.glyphs_per_second_theoretical.to_string(),
+            &format!(
+                "{} ({})",
+                humanize(data.glyphs_per_second_theoretical),
+                data.glyphs_per_second_theoretical
+            ),
         );
         s.field(
             "glyphs_per_second_theoretical_basis",
@@ -507,7 +512,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field(
             "dirty_glyphs_per_second",
-            &data.dirty_glyphs_per_second.to_string(),
+            &format!(
+                "{} ({})",
+                humanize(data.dirty_glyphs_per_second),
+                data.dirty_glyphs_per_second
+            ),
         );
         s.field(
             "dirty_glyphs_per_second_basis",
@@ -515,7 +524,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field(
             "ansi_bytes_per_second",
-            &data.ansi_bytes_per_second.to_string(),
+            &format!(
+                "{} ({})",
+                humanize(data.ansi_bytes_per_second),
+                data.ansi_bytes_per_second
+            ),
         );
         // v50 LTS audit (Issue 3): added basis note. The 19 bytes/cell
         // figure is documented in constants.rs but was not surfaced in
@@ -526,14 +539,27 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "estimated: total_drawn_cells × ANSI_BYTES_PER_CELL_ESTIMATE (19 bytes/cell) / elapsed_s. Actual varies by color mode (TrueColor ≈ 3× Color16) and run-compression; see constants.rs for the 19-byte derivation.",
         );
         s.field("active_streams_avg", &data.active_streams_avg.to_string());
-        s.field("cells_drawn_total", &data.total_drawn_cells.to_string());
+        s.field(
+            "cells_drawn_total",
+            &format!(
+                "{} ({})",
+                humanize(data.total_drawn_cells),
+                data.total_drawn_cells
+            ),
+        );
     }
 
     {
         let s = r.section("TIMING");
         s.field("elapsed", &format!("{:.3}s", data.elapsed_s));
-        s.field("total_frames", &data.total_frames.to_string());
-        s.field("drawn_frames", &data.drawn_frames.to_string());
+        s.field(
+            "total_frames",
+            &format!("{} ({})", humanize(data.total_frames), data.total_frames),
+        );
+        s.field(
+            "drawn_frames",
+            &format!("{} ({})", humanize(data.drawn_frames), data.drawn_frames),
+        );
         // v30 strengthen (audit): removed `frames_with_changes` — it was an
         // exact duplicate of `drawn_frames` (same value, different label).
         // The `drawn_frames` field already means "frames with >=1 dirty cell",

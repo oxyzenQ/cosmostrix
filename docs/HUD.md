@@ -11,8 +11,8 @@ number flicker without improving diagnostic value).
 v50 (2026-08-17) HUD expansion: the HUD grew from 9 rows to 16 rows,
 adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr). The `h` shortkey that previously toggled the HUD position
-(left ↔ right corner) has been removed — unused maintenance cost. The
-HUD now always renders flush-left at column 0.
+(left ↔ right corner) was removed as unused maintenance cost; the HUD
+now always renders flush-left at column 0 (the previous default).
 
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to

@@ -741,13 +741,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-                        // v50 (2026-08-17): 'h' HUD position toggle removed — unused
-                        // maintenance cost per owner mandate. The HUD now always
-                        // renders flush-left at column 0 (the previous default
-                        // position). The HudPosition enum + toggle_position
-                        // method + start_col() helper have been purged from
-                        // hud.rs; docs updated to reflect the simplified
-                        // model.
+                        // v50 (2026-08-17): 'h' HUD position toggle removed.
+                        // HUD always renders flush-left at column 0.
                         // Any user input resets idle timer for adaptive throttling.
                         if register_activity(
                             &mut power_manager,

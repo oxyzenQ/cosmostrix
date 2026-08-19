@@ -59,6 +59,16 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 **Adding a new color theme**: add a variant to `ColorScheme` in `src/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
 
+## Ambient Intelligence (Crystal Dragon)
+
+| Doc | Covers |
+|-----|--------|
+| [CRYSTAL_DRAGON_ENGINE.md](CRYSTAL_DRAGON_ENGINE.md) | **Complete documentation** — source-code-as-truth reference for `src/crystal_dragon_engine/`. Covers all 8 subsystems, every constant, the calc-v1 algorithm, and the ambient scheduler. |
+| [AMBIENT_SCHEDULER.md](AMBIENT_SCHEDULER.md) | Focused doc on the ambient scheduler thread (time-of-day scene switching) |
+| [src/crystal_dragon_engine/mod.rs](../src/crystal_dragon_engine/mod.rs) | Top-level module doc — the canonical source-of-truth header |
+
+**Two subsystems, one engine**: (1) **Palette drift** — sensor (CPU%/CLOCK) → 1–99 point → temperature group → probabilistic weighted theme selection → 300 ms OKLab wave transition via Chroma Dragon. (2) **Ambient scheduler** — config-driven `ambient.HH-MM = <scene>` time-of-day scene switching via a dynamic idle/wake thread (zero CPU between phase boundaries).
+
 ## Terminal Compatibility & Recovery
 
 | Doc | Covers |

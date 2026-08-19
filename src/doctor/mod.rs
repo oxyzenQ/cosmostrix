@@ -119,7 +119,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         let s = r.section("FEATURES");
         s.field(
             "hud_overlay",
-            "yes (toggle with 'i' key, position with 'H')",
+            "yes (toggle with 'i' key; flush-left at column 0)",
         );
         s.field(
             "parallax_layers",
