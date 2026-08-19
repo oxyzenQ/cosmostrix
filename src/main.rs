@@ -86,14 +86,10 @@ mod color_cache;
 mod color_tune;
 mod colors_custom;
 mod config;
-mod config_apply;
-#[cfg(test)]
-mod config_apply_tests;
-mod config_hints;
-mod config_io;
-mod configfile;
-#[cfg(test)]
-mod configfile_tests;
+// All config*.rs and live_config*.rs files now live under src/config/.
+// The re-export below keeps the 92 existing `crate::config_X::Foo` and
+// `crate::live_config_X::Foo` call sites working unchanged.
+pub(crate) use config::*;
 mod constants;
 mod cosmic_dragon;
 mod cpustat;
@@ -112,15 +108,11 @@ mod help_detail;
 mod humanize;
 mod info;
 mod interactive;
-// live_config_trace MUST be declared before live_config so the
-// `lr_trace!` macro it exports is in scope for live_config.rs.
-// `#[macro_use]` re-exports the macro crate-wide as a defense-in-depth
-// (it is also `#[macro_export]`-ed from inside the module).
-#[macro_use]
-mod live_config_trace;
-mod live_config;
-mod live_config_poll;
-mod live_config_state;
+// All live_config*.rs files (including live_config_trace) now live under
+// src/config/. The `#[macro_use]` attribute is preserved on the submodule
+// declaration inside config/mod.rs so the `lr_trace!` macro remains in scope
+// for live_config.rs. Order: live_config_trace must be declared before
+// live_config inside config/mod.rs (enforced there).
 #[cfg(test)]
 mod loc_tests;
 mod memstat;

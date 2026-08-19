@@ -9,6 +9,30 @@
 //! - Advanced parameters remain fully functional but are intentionally hidden
 //!   from the casual user.
 
+// Submodule declarations: all config*.rs, live_config*.rs, and test
+// subdirs now live as siblings under src/config/. Re-exported as `pub`
+// so that `pub(crate) use config::*;` in main.rs keeps the 92 existing
+// `crate::config_X::Foo` and `crate::live_config_X::Foo` call sites
+// working unchanged.
+//
+// ORDER MATTERS: `live_config_trace` must be declared before `live_config`
+// so the `lr_trace!` macro is in scope when live_config.rs is parsed.
+// The `#[macro_use]` attribute is defense-in-depth (the macro is also
+// `#[macro_export]`-ed from inside live_config_trace itself).
+pub mod config_apply;
+#[cfg(test)]
+pub mod config_apply_tests;
+pub mod config_hints;
+pub mod config_io;
+pub mod configfile;
+#[cfg(test)]
+pub mod configfile_tests;
+#[macro_use]
+pub mod live_config_trace;
+pub mod live_config;
+pub mod live_config_poll;
+pub mod live_config_state;
+
 use std::io::IsTerminal;
 use std::path::PathBuf;
 use std::str::FromStr;
@@ -18,7 +42,7 @@ use clap::Parser;
 use crate::runtime::MonolithSize;
 use crate::scene;
 use crate::theme;
-use crate::{colors_custom, configfile, scene_custom};
+use crate::{colors_custom, scene_custom};
 
 #[must_use]
 pub(crate) fn color_enabled_stdout() -> bool {
