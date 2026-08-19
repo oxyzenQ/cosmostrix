@@ -584,63 +584,62 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Validate after editing: cosmostrix --testconf
 # File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
 #
-# Catalog: 18 scenes, 44 color themes, 25 charset presets
-#          (see --list-scenes, --list-colors, --list-charsets)
+# See --list-scenes, --list-colors, --list-charsets
 
-# ── Standard Settings ──
+# Standard Settings
 # All values shown are defaults. Uncomment to override.
 
-# scene = "cinematic"          # See: cosmostrix --list-scenes
-# color = "energy-zen"         # See: cosmostrix --list-colors (cinematic default)
-# charset = "zen"              # See: cosmostrix --list-charsets (cinematic default)
-# color-bg = "default-background"  # or "black"
-# intro = "logo"               # logo | cosmic | none (default: logo)
+# scene = "cinematic"               # See: cosmostrix --list-scenes
+# color = "energy-zen"              # See: cosmostrix --list-colors (cinematic default)
+# charset = "zen"                   # See: cosmostrix --list-charsets (cinematic default)
+# color-bg = "default-background"   # or "black"
+# intro = "logo"                    # logo | cosmic | none (default: logo)
 
-# ── Motion ──
+# Motion
 
-# fps = 60                     # 1-240 (default: dynamic — 60 or 144 on high-refresh)
-# speed = 9                    # 1-100 (cinematic default)
-# density = 0.75               # 0.01-5.0 (cinematic default)
-# async-mode = true            # variable column speeds
-# monolith-size = "normal"     # small | normal | large (monolith scene only)
+# fps = 60                          # 1-240 (default: dynamic — 60 or 144 on high-refresh)
+# speed = 9                         # 1-100 (cinematic default)
+# density = 0.75                    # 0.01-5.0 (cinematic default)
+# async-mode = true                 # variable column speeds
+# monolith-size = "normal"          # small | normal | large (monolith scene only)
 
-# ── Behavior ──
+# Behavior
 
-# glitch-level = "subtle"      # none | subtle | default | intense (cinematic default)
-# crystal-dragon = false       # Crystal Dragon ambient color drift (point-based temperature groups)
-# bold = 1                     # 0=off, 1=random, 2=all
-# shadingmode = 1             # 0=random, 1=cinematic
+# glitch-level = "subtle"           # none | subtle | default | intense (cinematic default)
+# crystal-dragon = false            # Crystal Dragon ambient color drift (point-based temperature groups)
+# bold = 1                          # 0=off, 1=random, 2=all
+# shadingmode = 1                   # 0=random, 1=cinematic
 
-# ── Color Tuning ──
+# Color Tuning
 # [color.tune]
-# brightness = 1.0             # global (0.0-3.0, default 1.0)
-# saturation = 1.0             # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
-# head = 1.0                   # 0.0-3.0
-# body = 1.0                    # 0.0-3.0
-# tail = 1.0                    # 0.0-3.0
+# brightness = 1.0                  # global (0.0-3.0, default 1.0)
+# saturation = 1.0                  # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
+# head = 1.0                        # 0.0-3.0
+# body = 1.0                        # 0.0-3.0
+# tail = 1.0                        # 0.0-3.0
 
-# ── Custom Scenes ──
+# Custom Scenes
 # Define named scenes, load with: cosmostrix --scene-custom <name>
 # Paired fields: `color`/`charset` = built-in name; `colors-custom`/`charset-custom`
 # = block reference. Don't mix — --testconf will hint if you do.
 
 # [scene-custom.hacker-mode]
-# base-scene = "matrix"       # inherit defaults from a built-in scene
-# color = "green"              # built-in color name
-# colors-custom = "neon"       # custom palette name (overrides color)
-# charset = "hacker"           # built-in charset preset
-# charset-custom = "myglyphs"  # custom charset name (overrides charset)
+# base-scene = "matrix"             # inherit defaults from a built-in scene
+# color = "green"                   # built-in color name
+# colors-custom = "neon"            # custom palette name (overrides color)
+# charset = "hacker"                # built-in charset preset
+# charset-custom = "myglyphs"       # custom charset name (overrides charset)
 # speed = 28
 # density = 1.2
-# fps = 60                     # 1-240
-# bold = 1                     # 0=off, 1=random, 2=all
-# shadingmode = 1             # 0=random, 1=cinematic
+# fps = 60                          # 1-240
+# bold = 1                          # 0=off, 1=random, 2=all
+# shadingmode = 1                   # 0=random, 1=cinematic
 # glitch-level = "intense"
 # density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights (each 0.0-1.0)
-# async-mode = true             # variable column speeds
+# async-mode = true                    # variable column speeds
 
 # [scene-custom.cyberpunk_2077]
-# base-scene = "storm"        # inherit storm defaults (purple, cyberpunk)
+# base-scene = "storm"                 # inherit storm defaults (purple, cyberpunk)
 # colors-custom = "cyberpunk_2077"
 # charset-custom = "cyberpunk_2077"
 # speed = 12
@@ -650,7 +649,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "intense"
 
 # [scene-custom.tron_legacy]
-# base-scene = "signal"       # inherit signal defaults (aurora, retro)
+# base-scene = "signal"                # inherit signal defaults (aurora, retro)
 # colors-custom = "tron_legacy"
 # charset-custom = "tron_legacy"
 # speed = 8
@@ -659,7 +658,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # shadingmode = 1
 # glitch-level = "subtle"
 
-# ── Custom Color Palettes ──
+# Custom Color Palettes
 # Define named palettes, reference via: colors-custom = <name>
 # Hex values MUST be quoted: "#ff0000" (unquoted # = TOML comment).
 # rain stops: min 2, no hard max — but the OKLab gradient engine expands
@@ -679,7 +678,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # bg = "#02080C"
 # rain = ["#002B4D", "#0066AA", "#00BBEE", "#22DDFF", "#88EEFF", "#CCF4FF", "#FFFFFF"]
 
-# ── Custom Character Sets ──
+# Custom Character Sets
 # Define named charsets, reference via: charset-custom = <name>
 # Rules: printable chars only. Controls → error. Wide/zero-width (CJK, emoji) → silently skipped with warning.
 #        max 256 characters per set (exceeding = error at startup/--testconf). TOML is UTF-8 — type the actual glyphs.
@@ -694,7 +693,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # [charset-custom.tron_legacy]
 # set = "0123456789ABCDEF←→↑↓█▌▐░▒▓│─┤├┬┴┼"
 
-# ── Ambient Phase Scheduler ──
+# Ambient Phase Scheduler
 # Time-of-day scene switches. Config-only (no CLI flag).
 # Format: ambient.<HH-MM> = <scene-name>  (24-hour, zero-padded)
 # Live reload: edits take effect on save.
@@ -704,7 +703,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
 
-# ── Removed Keys (rejected by --testconf) ──
+# Removed Keys (rejected by --testconf)
 # adaptive-custom.* — eliminated; use ambient.* instead.
 "##
 }
