@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # The Three Dragon Engines of Cosmostrix v50
 
 > v50.0.0-alpha.6 — 2026-08-19
