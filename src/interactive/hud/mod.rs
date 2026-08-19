@@ -25,7 +25,7 @@
 //!   HUD follows the rain's actual color scheme (green rain → green
 //!   HUD, amber rain → amber HUD) instead of washing out to grey.
 //!   Color refresh is split out of the 1 Hz metric tick — `refresh_colors`
-//!   runs every frame so a runtime palette change (`c`/`C` key, auto-color-
+//!   runs every frame so a runtime palette change (`c`/`C` key, Crystal Dragon
 //!   drift, live-config reload) is reflected on the very next frame, with
 //!   no perceptible delay. The 1 Hz rate limit only governs text
 //!   reformatting (p99 sort, format! calls, RSS string).
@@ -610,7 +610,7 @@ impl HudState {
 
     /// Refresh HUD line colors from the current palette. Called every
     /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
-    /// the HUD tracks palette changes (`c`/`C` key cycle, auto-color-
+    /// the HUD tracks palette changes (`c`/`C` key cycle, Crystal Dragon
     /// drift, live-config reload, scene transitions) on the very next
     /// frame, with no perceptible delay.
     ///
