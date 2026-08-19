@@ -122,8 +122,6 @@ mod interactive;
 // declaration inside config/mod.rs so the `lr_trace!` macro remains in scope
 // for live_config.rs. Order: live_config_trace must be declared before
 // live_config inside config/mod.rs (enforced there).
-#[cfg(test)]
-mod loc_tests;
 mod message;
 mod output;
 mod panic_hook;
@@ -131,8 +129,6 @@ mod panic_hook;
 mod platform;
 mod posix_time;
 mod profile;
-#[cfg(test)]
-mod property_tests;
 mod rain_style;
 mod renderer_info;
 mod report;
@@ -146,16 +142,18 @@ mod terminal;
 // Re-exported via `pub(crate) use terminal::{...};` below keeps the 7
 // existing `crate::terminal_tty::Foo` etc. call sites working unchanged.
 pub(crate) use terminal::{sgr_format, terminal_tty, tier2};
-#[cfg(test)]
-mod terminal_tests;
 mod testconf;
 mod theme;
 mod update;
 mod ux;
 mod validation;
 mod verbose;
+
+// Crate-level integration/regression tests (Pattern A → Pattern C
+// unification). Former root test files (loc_tests.rs, property_tests.rs,
+// terminal_tests.rs, width_guard_tests.rs) now live under src/tests/.
 #[cfg(test)]
-mod width_guard_tests;
+mod tests;
 
 use clap::{CommandFactory, FromArgMatches};
 
