@@ -20,7 +20,7 @@ use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::ColorMode;
 
-use super::{color_mode_label, detect_color_mode_auto};
+use crate::{color_mode_label, detect_color_mode_auto};
 
 /// Drift percentage above which a benchmark run is classified as "significant drift".
 const DRIFT_SIGNIFICANT_PERCENT: f64 = 10.0;

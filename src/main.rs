@@ -60,23 +60,11 @@ mod app;
 // subsystem and is KEPT. The `EntropyDrift` struct in
 // cloud/ecosystem.rs (drift/gust events) is also SEPARATE and KEPT.
 mod bench;
-mod bench_baseline;
-mod bench_comp;
-mod bench_config_enrichment;
-mod bench_cpu;
-mod bench_energy;
-mod bench_helpers;
-mod bench_io;
-mod bench_json;
-mod bench_mem;
-mod bench_meta;
-mod bench_perf;
-mod bench_progress;
-mod bench_report;
-#[cfg(test)]
-mod bench_report_tests;
-mod bench_scale;
-mod bench_visual;
+// All bench_*.rs submodules now live under src/bench/ and are declared
+// inside bench/mod.rs. The re-export below keeps the historical
+// `crate::bench_X::Foo` paths working unchanged for all 49 existing
+// call sites across main.rs, interactive/, cloud/, and bench/ itself.
+pub(crate) use bench::*;
 mod bolt;
 mod brightness_factors;
 mod cell;

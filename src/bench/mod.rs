@@ -8,7 +8,6 @@
 //! - `--bench-frames N`: Legacy CI/regression benchmark. Runs N frames in a
 //!   headless loop and prints results in a parseable `BENCH:` format. Suitable
 //!   for automated performance tracking and CI pipelines.
-//!
 //! - `--benchmark`: Premium user-facing benchmark. Runs for 5 seconds with
 //!   a 2-second warmup phase, live progress feedback, and a comprehensive
 //!   Report-engine output including avg/peak FPS, frame time percentiles,
@@ -25,6 +24,30 @@
 //!   frame times, avoiding flicker from per-frame variance.
 //! - **Interrupt support**: Ctrl+C gracefully stops the benchmark and reports
 //!   partial results with an "interrupted" status note.
+
+// Submodule declarations: all bench_*.rs files are now siblings under
+// src/bench/. Re-exported as `pub` so that `pub(crate) use bench::*;` in
+// main.rs keeps `crate::bench_X::Foo` paths working for the 49 existing
+// call sites without touching them.
+pub mod bench_baseline;
+pub mod bench_comp;
+pub mod bench_config_enrichment;
+pub mod bench_cpu;
+pub mod bench_energy;
+pub mod bench_helpers;
+pub mod bench_io;
+pub mod bench_json;
+pub mod bench_mem;
+pub mod bench_meta;
+pub mod bench_perf;
+pub mod bench_progress;
+pub mod bench_report;
+#[cfg(test)]
+pub mod bench_report_tests;
+pub mod bench_scale;
+#[cfg(test)]
+pub mod bench_tests;
+pub mod bench_visual;
 
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -51,7 +74,7 @@ pub(crate) use crate::bench_helpers::{validate_bench_scene_str, VALID_BENCH_SCEN
 /// Number of frame time samples for percentile calculations.
 const FRAME_TIME_SAMPLES: usize = 10_000;
 
-use super::{effective_density, CloudConfig};
+use crate::{effective_density, CloudConfig};
 
 /// Minimum plausible frame time in milliseconds. Samples below this are
 /// clock artifacts (TSC read returning the same value, kernel rounding
@@ -1277,7 +1300,3 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
 
     Ok(report_data)
 }
-
-#[cfg(test)]
-#[path = "bench_tests.rs"]
-mod bench_tests;
