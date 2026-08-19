@@ -1016,5 +1016,4 @@ impl Droplet {
 // multiplier produces a non-trivial delta on the output channel.
 
 #[cfg(test)]
-#[path = "droplet_tests.rs"]
-mod droplet_tests;
+mod tests;

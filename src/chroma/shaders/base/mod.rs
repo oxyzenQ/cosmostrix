@@ -897,13 +897,10 @@ pub(super) fn slot_array(palette: &[Color]) -> [&[Color]; MAX_PALETTE_SLOTS] {
 }
 
 #[cfg(test)]
-#[path = "base_tests.rs"]
 mod tests;
 
 #[cfg(test)]
-#[path = "base_tests_activation.rs"]
 mod tests_activation;
 
 #[cfg(test)]
-#[path = "bold_audit_tests.rs"]
-mod bold_audit_tests;
+mod tests_bold_audit;

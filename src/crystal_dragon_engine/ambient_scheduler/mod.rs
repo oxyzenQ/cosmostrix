@@ -375,5 +375,4 @@ fn scheduler_loop(
 }
 
 #[cfg(test)]
-#[path = "ambient_scheduler_tests.rs"]
 mod tests;

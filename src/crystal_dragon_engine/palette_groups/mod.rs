@@ -169,5 +169,4 @@ pub(crate) fn theme_weight(current_point: u8, theme_index: usize, group_size: us
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "palette_groups_tests.rs"]
 mod tests;

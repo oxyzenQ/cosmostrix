@@ -131,5 +131,4 @@ impl CrystalDragonControl {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "crystal_dragon_control_tests.rs"]
 mod tests;

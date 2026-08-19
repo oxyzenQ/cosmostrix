@@ -273,5 +273,4 @@ pub(crate) fn group_point_range(group: TemperatureGroup) -> (u8, u8) {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "sensor_tests.rs"]
 mod tests;

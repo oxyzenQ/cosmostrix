@@ -517,5 +517,4 @@ pub(crate) fn apply_startup_ambient(
 }
 
 #[cfg(test)]
-#[path = "ambient_tests.rs"]
 mod tests;

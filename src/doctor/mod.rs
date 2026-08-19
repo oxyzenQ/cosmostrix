@@ -580,5 +580,4 @@ fn should_advise_truecolor(term: &str, colorterm: &str, effective: ColorMode) ->
 }
 
 #[cfg(test)]
-#[path = "doctor_tests.rs"]
 mod tests;

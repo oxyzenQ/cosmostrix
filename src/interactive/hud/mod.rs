@@ -1136,9 +1136,7 @@ fn brighten_color(color: Color) -> Color {
 }
 
 #[cfg(test)]
-#[path = "hud_tests.rs"]
-mod hud_tests;
+mod tests;
 
 #[cfg(test)]
-#[path = "hud_brighten_tests.rs"]
-mod hud_brighten_tests;
+mod tests_brighten;

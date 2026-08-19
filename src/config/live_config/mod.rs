@@ -908,5 +908,4 @@ fn parse_range(s: &str) -> Option<(u16, u16)> {
 }
 
 #[cfg(test)]
-#[path = "live_config_tests.rs"]
-mod live_config_tests;
+mod tests;

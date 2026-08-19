@@ -341,5 +341,4 @@ pub(crate) fn apply_l_smoothing(
 // since v30 — Cartesian variant removed).
 
 #[cfg(test)]
-#[path = "transition_tests.rs"]
 mod tests;

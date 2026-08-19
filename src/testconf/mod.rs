@@ -809,5 +809,4 @@ pub(crate) fn validate_field_value_with_cfg(
 }
 
 #[cfg(test)]
-#[path = "testconf_tests.rs"]
-mod testconf_tests;
+mod tests;

@@ -56,6 +56,7 @@
 
 pub(crate) mod egg;
 
+// Tests now live in cosmic_dragon/tests/ subdir (Pattern C — dedicated tests/).
+// Was previously a #[path] declaration (Pattern B).
 #[cfg(test)]
-#[path = "lock_tests.rs"]
-mod lock_tests;
+mod tests;

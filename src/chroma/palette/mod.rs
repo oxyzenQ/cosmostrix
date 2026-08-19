@@ -752,13 +752,10 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
 }
 
 #[cfg(test)]
-#[path = "palette_audit_tests.rs"]
-mod palette_audit_tests;
+mod tests_audit;
 
 #[cfg(test)]
-#[path = "palette_blend_tests.rs"]
-mod palette_blend_tests;
+mod tests_blend;
 
 #[cfg(test)]
-#[path = "palette_floor_tests.rs"]
-mod palette_floor_tests;
+mod tests_floor;

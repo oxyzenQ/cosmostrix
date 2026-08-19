@@ -61,10 +61,7 @@ pub(crate) mod color_cache;
 pub(crate) mod color_tune;
 pub(crate) mod colors_custom;
 
+// Tests now live in chroma/tests/ subdir (Pattern C — dedicated tests/).
+// Was previously two separate #[path] declarations (Pattern B).
 #[cfg(test)]
-#[path = "color_detection_tests.rs"]
-pub(crate) mod color_detection_tests;
-
-#[cfg(test)]
-#[path = "lock_tests.rs"]
-mod lock_tests;
+mod tests;

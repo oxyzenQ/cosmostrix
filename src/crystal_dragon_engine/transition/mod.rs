@@ -47,5 +47,4 @@ impl CrystalDragonDrift {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "transition_tests.rs"]
 mod tests;

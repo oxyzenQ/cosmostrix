@@ -292,7 +292,7 @@ fn single_entry_no_spurious_refire_within_same_day() {
 /// next fire is applied, not deduped).
 #[test]
 fn day_boundary_refire_code_path_exists() {
-    let src = include_str!("ambient_scheduler.rs");
+    let src = include_str!("mod.rs");
     assert!(
         src.contains("last_fired_yday"),
         "v35 day-boundary refire tracker `last_fired_yday` must exist"

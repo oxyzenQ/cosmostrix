@@ -123,5 +123,4 @@ fn cdf_select(cdf: &[f32], themes: &[ColorScheme], mt: &mut rand::rngs::StdRng) 
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "point_system_tests.rs"]
 mod tests;
