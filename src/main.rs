@@ -75,6 +75,10 @@ mod charset_custom;
 mod chroma;
 pub use chroma::catalog;
 pub use chroma::palette;
+// Re-export the newly-moved color_* submodules so existing
+// `crate::color_cache::Foo`, `crate::color_tune::Foo`, and
+// `crate::colors_custom::Foo` call sites continue to resolve.
+pub(crate) use chroma::{color_cache, color_tune, colors_custom};
 mod central_control_dragon_power;
 mod central_control_rains;
 mod cinematic;
@@ -82,9 +86,9 @@ mod cli;
 mod cli_parse;
 mod clock;
 mod cloud;
-mod color_cache;
-mod color_tune;
-mod colors_custom;
+// color_cache.rs, color_tune.rs, colors_custom.rs now live under chroma/.
+// Re-exported below via `pub(crate) use chroma::*;` keeps the 22 existing
+// `crate::color_X::Foo` call sites working unchanged.
 mod config;
 // All config*.rs and live_config*.rs files now live under src/config/.
 // The re-export below keeps the 92 existing `crate::config_X::Foo` and
@@ -1300,6 +1304,3 @@ fn canonicalize_runtime_args(args: &mut Args) {
         args.color = canonical.to_string();
     }
 }
-
-#[cfg(test)]
-mod color_detection_tests;

@@ -53,6 +53,18 @@ pub(crate) mod post;
 pub(crate) mod shaders;
 pub(crate) mod tuning;
 
+// Newly relocated from src/ root (audit M2). Re-exported as `pub(crate)`
+// so the existing `crate::color_cache::Foo` / `crate::color_tune::Foo` /
+// `crate::colors_custom::Foo` call sites continue to resolve via the
+// `pub(crate) use chroma::{...}` re-export in main.rs.
+pub(crate) mod color_cache;
+pub(crate) mod color_tune;
+pub(crate) mod colors_custom;
+
+#[cfg(test)]
+#[path = "color_detection_tests.rs"]
+pub(crate) mod color_detection_tests;
+
 #[cfg(test)]
 #[path = "lock_tests.rs"]
 mod lock_tests;
