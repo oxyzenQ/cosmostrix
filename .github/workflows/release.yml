@@ -405,6 +405,140 @@ jobs:
             cosmostrix-bin-*.zip
             cosmostrix-bin-*.zip.sha512sum
 
+  # ── PGO nitro build (Linux x86_64 v3 + v4) ──────────────────────
+  # Profile-Guided Optimization: 3-stage pipeline (instrument →
+  # benchmark → recompile with profile data). Produces the fastest
+  # possible binary via real workload profiling.
+  #
+  # PGO is Linux x86_64-only by design:
+  #   - macOS, Windows, FreeBSD, and ARM targets either lack PGO
+  #     toolchain support, gain nothing from PGO (ARM is already
+  #     well-tuned by LLVM), or would burn CI minutes on builds that
+  #     cannot be distributed.
+  #   - The matrix below only lists linux-amd64-v3 / v4 and runs-on
+  #     is pinned to ubuntu-latest, so this job is structurally
+  #     Linux-only.
+  #
+  # RECOVERY 2026-08-19: this job was deleted by commit 71fdaa5
+  # ("ci(release): add release workflow and cold/silent release note
+  # generator"). The ai-x agent was asked to make the release notes
+  # "cold/silent" (no emoji) but instead rewrote the ENTIRE release.yml,
+  # deleting all build jobs including PGO. A later session re-added 9
+  # standard build jobs but did NOT restore the PGO job. This commit
+  # restores it from the pre-deletion state (71fdaa5~1) with style
+  # adjustments to match the current release.yml conventions.
+  build-pgo:
+    name: pgo-linux-${{ matrix.platform }}
+    runs-on: ubuntu-latest
+    needs: [channel]
+    timeout-minutes: 40
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: linux-amd64-v3
+            target_cpu: x86-64-v3
+          - platform: linux-amd64-v4
+            target_cpu: x86-64-v4
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.97'
+          components: rustfmt, clippy, llvm-tools-preview
+      - name: Ensure llvm-tools-preview installed
+        shell: bash
+        run: |
+          # rust-toolchain.toml in the repo only lists rustfmt + clippy.
+          # It overrides the dtolnay/rust-toolchain components list, so
+          # llvm-tools-preview (which provides llvm-profdata for PGO) is
+          # NOT installed. Install it explicitly here.
+          rustup component add llvm-tools-preview
+          PROFDATA="$(rustc --print sysroot)/lib/rustlib/$(rustc -vV | sed -n 's/^host: //p')/bin/llvm-profdata"
+          if [ -x "${PROFDATA}" ]; then
+            echo "llvm-profdata found at: ${PROFDATA}"
+          else
+            echo "::error::llvm-profdata not found after installing llvm-tools-preview"
+            exit 1
+          fi
+      - uses: Swatinem/rust-cache@v2.9.1
+        with:
+          cache-on-failure: true
+      - name: Set cargo build jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          JOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null || true)"
+          if [[ -z "${JOBS}" ]]; then
+            JOBS="$(nproc 2>/dev/null || true)"
+          fi
+          if [[ -z "${JOBS}" ]]; then
+            JOBS=2
+          fi
+          echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
+      - name: PGO build (3-stage instrument, benchmark, optimize)
+        shell: bash
+        env:
+          COSMOSTRIX_TARGET_CPU: ${{ matrix.target_cpu }}
+        run: |
+          set -euo pipefail
+          # Use build.sh pgo which handles all 3 stages including
+          # llvm-profdata auto-detection from rustup.
+          #
+          # COSMOSTRIX_TARGET_CPU sets the FINAL binary's target-cpu.
+          # The instrumented binary (Stage 1) uses a safe default
+          # (x86-64-v3 on x86_64) so it can execute on the runner to
+          # collect profile data — even when matrix.target_cpu is v4
+          # and the runner lacks AVX-512. Profile data is CPU-feature-
+          # independent (captures branch frequencies, not SIMD
+          # codegen), so v3 instrumentation + v4 final is sound.
+          ./scripts/build.sh pgo
+      - name: Verify PGO binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          BIN="target/x86_64-unknown-linux-gnu/pgo-use/cosmostrix"
+          if [ ! -f "${BIN}" ]; then
+            echo "::error::PGO binary not found at ${BIN}"
+            exit 1
+          fi
+          echo "PGO binary size: $(du -h "${BIN}" | cut -f1)"
+          # v4 binaries may SIGILL on runners without AVX-512; use --doctor
+          # which is pure computation (no SIMD hot path). Fall back to
+          # strings verification if doctor crashes.
+          if OUT="$("${BIN}" --doctor 2>&1)"; then
+            grep -Fq "COSMOSTRIX DIAGNOSTICS REPORT" <<<"${OUT}" || { echo "::error::Doctor report missing"; exit 1; }
+            grep -Fq "FEATURES" <<<"${OUT}" || { echo "::error::FEATURES section missing"; exit 1; }
+            echo "PGO binary verified via --doctor."
+          else
+            echo "::warning::${BIN} --doctor exited non-zero (likely AVX-512 SIGILL). Verifying via strings."
+            TEXT="$(strings "${BIN}")"
+            grep -Fq "Cosmic Dragon" <<<"${TEXT}" || { echo "::error::Expected build signature"; exit 1; }
+            echo "PGO binary verified via strings (v4 fallback)."
+          fi
+      - name: Package PGO binary
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          platform="${{ matrix.platform }}"
+          bindir="target/x86_64-unknown-linux-gnu/pgo-use"
+          tarfile="cosmostrix-bin-${tag}-${platform}-pgo.tar.gz"
+          mkdir -p staging
+          cp "${bindir}/cosmostrix" staging/
+          cp README.md LICENSE staging/
+          tar -czf "${tarfile}" -C staging .
+          sha512sum "${tarfile}" > "${tarfile}.sha512sum"
+          ls -lh "${tarfile}"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pgo-${{ matrix.platform }}
+          path: |
+            cosmostrix-bin-*-pgo.tar.gz
+            cosmostrix-bin-*-pgo.tar.gz.sha512sum
+
   # ── FreeBSD aarch64 ───────────────────────────────────────────────
   build-freebsd-amd64:
     name: freebsd-amd64
@@ -466,6 +600,7 @@ jobs:
       - build-windows-aarch64
       - build-android-aarch64
       - build-freebsd-amd64
+      - build-pgo
     steps:
       - uses: actions/checkout@v4
         with:
