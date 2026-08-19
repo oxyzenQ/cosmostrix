@@ -204,7 +204,7 @@ pub(crate) const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 /// verified that 0.20 doubles trail brightness to ~130 across most themes
 /// with **zero** themes hitting the `GLOBAL_MAX_FLOOR` cap (no v17-style
 /// washout). 0.25 would push 4 themes (Spectrum20, Stars, Pluto, Moon)
-/// into the cap; 0.30 maxes out at 180 for 42/43 themes (full v17
+/// into the cap; 0.30 maxes out at 180 for 42/44 themes (full v17
 /// regression). 0.20 is the empirical sweet spot.
 ///
 /// Lower values (0.08–0.15) preserve dark themes more aggressively but
@@ -241,7 +241,7 @@ pub(crate) const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// ratio scaling, same as the basic floor).
 ///
 /// `2.0` = trail must be at least 50% as bright as the next-brighter stop.
-/// Empirically verified across all 43 built-in themes — tightens the
+/// Empirically verified across all 44 built-in themes — tightens the
 /// body-tail step from 2.5x to 2.0x (20% reduction), killing the
 /// horizontal-line illusion at speed 100 while preserving head→body→trail
 /// hierarchy (head still 2-3x brighter than trail after continuity).
@@ -251,7 +251,7 @@ pub(crate) const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// illusion — the 2.5x brightness step was still perceptible as a hard
 /// band at high rain speed. The `phase7b_print_gap_ratio_sweep_audit`
 /// test in `palette_floor_tests.rs` verified the impact of each candidate
-/// gap target across all 43 themes:
+/// gap target across all 44 themes:
 ///
 ///   gap=2.5 (was):  trail ~130, max_step 2.51x — horizontal-line visible
 ///   gap=2.0 (now):  trail ~130, max_step 2.01x — step 20% tighter ✓

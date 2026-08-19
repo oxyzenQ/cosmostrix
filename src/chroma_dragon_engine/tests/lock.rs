@@ -13,7 +13,7 @@
 //! The engine is at its peak: Phase 4 (Dragon Awakening) innovations are
 //! always-on, Phase 5/8 transition smoothing is perceptually uniform, Phase
 //! 7-c/7-d palette floor + body-tail continuity is empirically tuned across
-//! all 43 themes, and Phase 9-C made the hue-preserving polar OKLab gradient
+//! all 44 themes, and Phase 9-C made the hue-preserving polar OKLab gradient
 //! the sole production path (Cartesian removed, `--polar-gradient` CLI flag
 //! removed). Nothing else is on the roadmap for the coloring engine.
 //!
@@ -28,7 +28,7 @@
 //! | ID    | Scope                | Assertion                                              |
 //! |-------|----------------------|--------------------------------------------------------|
 //! | INV-1 | Engine version       | `CHROMA_DRAGON_ENGINE_VERSION` matches the locked tag  |
-//! | INV-2 | 43-theme sweep       | Every built-in theme builds without panic              |
+//! | INV-2 | 44-theme sweep       | Every built-in theme builds without panic              |
 //! | INV-3 | Floor bounds         | Trail sum in `[ABSOLUTE_MIN_FLOOR, GLOBAL_MAX_FLOOR]`  |
 //! | INV-4 | Head→body→trail      | Head sum strictly > body sum ≥ trail sum (per palette) |
 //! | INV-5 | Hue preservation     | Floor + continuity preserve the dominant channel       |
@@ -54,7 +54,7 @@
 //!
 //! 1. Document the invariant in the table above.
 //! 2. Add a `#[test] fn lock_invXX_<short_name>()` function.
-//! 3. Assert the contract across all 43 themes (or the relevant scope).
+//! 3. Assert the contract across all 44 themes (or the relevant scope).
 //! 4. Bump `CHROMA_DRAGON_ENGINE_VERSION` if the invariant changes the
 //!    engine's public contract.
 //!
@@ -62,7 +62,7 @@
 //!
 //! Invariants are not removed — they are *relaxed* by editing the test's
 //! assertion bounds and bumping the engine version. This makes every
-//! contract change auditable in `git log -p src/chroma/lock_tests.rs`.
+//! contract change auditable in `git log -p src/chroma_dragon_engine/tests/lock.rs`.
 
 use crossterm::style::Color;
 
@@ -147,6 +147,7 @@ fn all_schemes() -> Vec<ColorScheme> {
         Stars,
         Mars,
         Venus,
+        EnergyZen,
         Mercury,
         Jupiter,
         Saturn,
@@ -189,7 +190,7 @@ fn lock_inv01_engine_version_sentinel() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// INV-2: 43-theme sweep (every theme builds without panic)
+// INV-2: 44-theme sweep (every theme builds without panic)
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// INV-2: every built-in theme builds without panic in every color mode.
@@ -202,8 +203,8 @@ fn lock_inv02_all_themes_build_without_panic() {
     let schemes = all_schemes();
     assert_eq!(
         schemes.len(),
-        43,
-        "Built-in theme count drifted from 43 — update this test and the README"
+        44,
+        "Built-in theme count drifted from 44 — update this test and the README"
     );
     for &scheme in &schemes {
         for &mode in &[
@@ -270,7 +271,7 @@ fn lock_inv03_floor_bounds_held_across_all_themes() {
 /// that would be v17 washout.
 ///
 /// Strict `>` is used (not `>=`) because the engine guarantees the
-/// hierarchy is preserved across all 43 themes — none of them have a
+/// hierarchy is preserved across all 44 themes — none of them have a
 /// head == trail (that would be a flat palette, not a gradient).
 #[test]
 fn lock_inv04_head_brighter_than_trail_across_all_themes() {
@@ -423,7 +424,7 @@ fn lock_inv07_continuity_never_exceeds_head() {
         "Continuity pushed trail ({trail_sum}) above head ({head_sum}) — hierarchy broken"
     );
 
-    // Also verify on all 43 themes: head is always strictly brighter than trail.
+    // Also verify on all 44 themes: head is always strictly brighter than trail.
     for &scheme in &all_schemes() {
         let stops = truecolor_stops(scheme);
         let head_sum = rgb_sum(*stops.last().unwrap());
@@ -758,7 +759,7 @@ fn lock_inv15_head_halo_factor_in_range() {
 /// INV-16: the Phase 7 tuning constants stay within their empirically
 /// validated ranges. The `phase7_print_ratio_sweep_audit` and
 /// `phase7b_print_gap_ratio_sweep_audit` tests in `palette_floor_tests.rs`
-/// verified these ranges across all 43 themes — drifting outside them
+/// verified these ranges across all 44 themes — drifting outside them
 /// risks either v17-style washout (ratio too high) or "tail too dark"
 /// regression (ratio too low).
 ///
@@ -779,7 +780,7 @@ fn lock_inv16_tuning_constants_in_sweet_spots() {
     assert!(
         PALETTE_FLOOR_RATIO >= 0.05 && PALETTE_FLOOR_RATIO <= 0.50,
         "PALETTE_FLOOR_RATIO={PALETTE_FLOOR_RATIO} is outside [0.05, 0.50] — \
-         outside the empirically validated sweet spot across all 43 themes"
+         outside the empirically validated sweet spot across all 44 themes"
     );
     assert!(
         BODY_TAIL_MAX_GAP_RATIO >= 1.5 && BODY_TAIL_MAX_GAP_RATIO <= 3.0,
@@ -896,7 +897,7 @@ fn lock_inv17_engine_lock_report() {
     eprintln!();
     eprintln!("  ── Invariants (19 total) ─────────────────────────────────────────");
     eprintln!("  INV-01  Engine version sentinel               [LOCKED]");
-    eprintln!("  INV-02  43-theme build sweep                  [LOCKED]");
+    eprintln!("  INV-02  44-theme build sweep                  [LOCKED]");
     eprintln!("  INV-03  Floor bounds                          [LOCKED]");
     eprintln!("  INV-04  Head→body→trail hierarchy             [LOCKED]");
     eprintln!("  INV-05  Hue preservation under floor          [LOCKED]");

@@ -125,7 +125,7 @@ cooperating rendering subsystems plus the Chroma Dragon color
 pipeline that together make cosmostrix possible.
 
 
-1. DIFF-BASED CELL RENDERER  (src/frame.rs, src/terminal.rs, src/terminal_tty.rs)
+1. DIFF-BASED CELL RENDERER  (src/cosmic_dragon_engine/frame.rs, src/cosmic_dragon_engine/terminal/mod.rs, src/cosmic_dragon_engine/terminal/terminal_tty.rs)
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
@@ -149,7 +149,7 @@ so the terminal receives the minimum bytes possible.
     when the rain is sparse, e.g. low-density scenes).
 
 
-2. THREE-LAYER PARALLAX  (src/cloud/spawn.rs, src/cloud/rain.rs)
+2. THREE-LAYER PARALLAX  (src/cosmic_dragon_engine/cloud/spawn.rs, src/cosmic_dragon_engine/cloud/rain.rs)
 -----------------------------------------------------------------
 
 Rain is rendered as three independent layers (far / mid / near) with
@@ -170,7 +170,7 @@ to the I/O layer. The per-layer multipliers live in `src/constants.rs`
 in `cloud::spawn::DropletSpawner` during droplet birth.
 
 
-3. PHOSPHOR PERSISTENCE  (src/cloud/phosphor.rs)
+3. PHOSPHOR PERSISTENCE  (src/cosmic_dragon_engine/cloud/phosphor.rs)
 -------------------------------------------------
 
 CRT afterglow: every glyph leaves a fading residual trail behind it.
@@ -189,7 +189,7 @@ into the back-buffer's color value, so the diff renderer treats it
 as a normal color change — no special I/O path.
 
 
-4. DENSITY NOISE & WIND GUSTS  (src/cloud/living_rain.rs, src/cloud/monolith.rs)
+4. DENSITY NOISE & WIND GUSTS  (src/cosmic_dragon_engine/cloud/living_rain.rs, src/cosmic_dragon_engine/cloud/monolith.rs)
 --------------------------------------------------------------------------------
 
 Per-column density maps sculpt the rain into cinematic shapes — twin
@@ -203,9 +203,9 @@ of constant-velocity rain without the cost of per-column physics.
 Gusts are opt-in (atmospheric event subsystem) and disabled by
 default in benchmark mode for reproducibility.
 
-The density-map monolith formations live in `src/cloud/monolith.rs`
+The density-map monolith formations live in `src/cosmic_dragon_engine/cloud/monolith.rs`
 (`MonolithConfig.density_map`); the per-column value-noise density
-+ wind-gust state machine lives in `src/cloud/living_rain.rs`
++ wind-gust state machine lives in `src/cosmic_dragon_engine/cloud/living_rain.rs`
 (`GustState`, `density_noise_at`).
 
 
@@ -221,12 +221,12 @@ Module layout (under `src/chroma_dragon_engine/`):
   palette    Palette struct, build_palette(), gradient + blend helpers,
              Phase 7 palette-relative brightness floor.
   catalog    THEMES registry, build_colors(), ThemeDef / ThemeColors.
-             Single source of truth for all 43 built-in themes.
+             Single source of truth for all 44 built-in themes.
   gradient   OKLab polar interpolation (sole production path since v30).
              Hue-preserving, perceptually uniform. The legacy sRGB-linear
              variant was removed in v30 (see palette.rs:250 / gradient.rs:41).
              Fallback behavior for non-truecolor terminals lives in the
-             `chroma::legacy` module ( audit) — same per-channel RGB
+             `chroma_dragon_engine::legacy` module — same per-channel RGB
              math the bypasses used to inline, now auditable side-by-side
              with the chroma engine.
   shaders    Base cell shader (resolve_cell_color), CharLoc enum,
@@ -239,7 +239,7 @@ Module layout (under `src/chroma_dragon_engine/`):
              PALETTE_FLOOR_RATIO, BODY_TAIL_MAX_GAP_RATIO,
              SUBPIXEL_JITTER_AMPLITUDE, HEAD_HALO_FACTOR, etc.
 
-Phase history (locked at Phase 9-B):
+Phase history (locked at Phase 9-D):
 
   Phase 1   Foundation: palette relocation (zero behavior change)
   Phase 2   Shader extraction: resolve_cell_color pulled out of DrawCtx
@@ -252,15 +252,18 @@ Phase history (locked at Phase 9-B):
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
   Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
-  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma_dragon_engine/lock_tests.rs
+  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma_dragon_engine/tests/lock.rs
+  Phase 9-C sRGB-linear fallback removal (sole OKLab path)
+  Phase 9-D ColorPipeline + chroma::legacy audit: INV-19 added (19 invariants total)
 
-The 18 invariants cover: engine version sentinel, 43-theme build sweep,
+The 19 invariants cover: engine version sentinel, 44-theme build sweep,
 floor bounds, head->body->trail hierarchy, hue preservation, body-tail
 gap contract, continuity ceiling, OKLab round-trip accuracy, polar
 gradient endpoints, polar midpoint saturation, blend normalization,
 L-smoothing bounds, polar chroma smoothing saturation, subpixel jitter
 amplitude, head halo factor range, tuning constants in sweet spots,
-and the lock report sentinel. Any change to a chroma constant, helper,
+the lock report sentinel, polar sole production path, and pipeline
+disclosure. Any change to a chroma constant, helper,
 or shader path that silently regresses an invariant fails CI.
 
 

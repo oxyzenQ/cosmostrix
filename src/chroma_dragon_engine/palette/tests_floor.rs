@@ -292,7 +292,7 @@ fn phase7_colors_from_stops_integration_bright_theme() {
     );
 }
 
-/// Phase 7: audit all 43 built-in themes — every trail stop must be
+/// Phase 7: audit all 44 built-in themes — every trail stop must be
 /// visible (sum >= ABSOLUTE_MIN_FLOOR). This is the regression guard:
 /// if a future change breaks the floor logic, this test catches it
 /// across the entire theme catalog.
@@ -511,7 +511,7 @@ fn phase7b_continuity_preserves_hierarchy() {
     assert!(body_sum < head_sum, "body {body_sum} < head {head_sum}");
 }
 
-/// Phase 7-b: continuity audit — all 43 themes have max adjacent gap ≤ 2.6x.
+/// Phase 7-b: continuity audit — all 44 themes have max adjacent gap ≤ 2.6x.
 /// This is the regression guard for the horizontal-line illusion fix.
 #[test]
 fn phase7b_all_themes_max_adjacent_gap_within_bounds() {
@@ -596,7 +596,7 @@ fn phase7b_all_themes_max_adjacent_gap_within_bounds() {
 }
 
 /// Phase 7 audit (informational, not a gate): print body-tail gap ratios
-/// for all 43 themes. Run with:
+/// for all 44 themes. Run with:
 ///   cargo test --release phase7_print_body_tail_gap_audit -- --nocapture
 ///
 /// Identifies themes where the body-tail brightness jump is large enough
@@ -724,7 +724,7 @@ fn phase7_print_body_tail_gap_audit() {
     results.sort_by(|a, b| b.max_adj_gap.partial_cmp(&a.max_adj_gap).unwrap());
 
     eprintln!();
-    eprintln!("=== Phase 7-b body-tail gap audit (43 themes) ===");
+    eprintln!("=== Phase 7-b body-tail gap audit (44 themes) ===");
     eprintln!(
         "{:<14} {:>3} {:>10} {:>9} {:>9} {:>10} {:>5}",
         "THEME", "N", "TRAIL_MAX", "BODY_MIN", "HEAD_MAX", "MAX_ADJ", "RISK"
@@ -766,7 +766,7 @@ fn phase7_print_body_tail_gap_audit() {
     eprintln!("  - All low + trails look washed out: lower PALETTE_FLOOR_RATIO or BODY_TAIL_MAX_GAP_RATIO");
 }
 
-/// Phase 7 ratio sweep audit (informational). For each of the 43 themes,
+/// Phase 7 ratio sweep audit (informational). For each of the 44 themes,
 /// prints the trail brightness + max adjacent gap that would result from
 /// each candidate `PALETTE_FLOOR_RATIO` in [0.15, 0.20, 0.25, 0.30].
 ///
@@ -798,7 +798,7 @@ fn phase7_print_ratio_sweep_audit() {
     let max_gap_prod = super::super::tuning::BODY_TAIL_MAX_GAP_RATIO;
 
     eprintln!();
-    eprintln!("=== Phase 7 PALETTE_FLOOR_RATIO sweep audit (43 themes) ===");
+    eprintln!("=== Phase 7 PALETTE_FLOOR_RATIO sweep audit (44 themes) ===");
     eprintln!(
         "Constants: ABSOLUTE_MIN_FLOOR={}, GLOBAL_MAX_FLOOR={}, BODY_TAIL_MAX_GAP_RATIO={:.2}",
         abs_min, global_max, max_gap_prod
@@ -953,7 +953,7 @@ fn phase7b_print_gap_ratio_sweep_audit() {
     let global_max = super::super::tuning::GLOBAL_MAX_FLOOR;
 
     eprintln!();
-    eprintln!("=== Phase 7-b BODY_TAIL_MAX_GAP_RATIO sweep audit (43 themes) ===");
+    eprintln!("=== Phase 7-b BODY_TAIL_MAX_GAP_RATIO sweep audit (44 themes) ===");
     eprintln!(
         "Constants: PALETTE_FLOOR_RATIO={:.2}, ABSOLUTE_MIN_FLOOR={}, GLOBAL_MAX_FLOOR={}",
         ratio, abs_min, global_max
