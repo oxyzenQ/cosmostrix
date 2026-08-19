@@ -329,5 +329,4 @@ pub(crate) fn compact_list_text() -> String {
 }
 
 #[cfg(test)]
-#[path = "theme_tests.rs"]
 mod tests;
