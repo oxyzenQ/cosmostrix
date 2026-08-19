@@ -12,6 +12,12 @@
 //! (see `chroma/shaders/transition.rs`).
 
 mod border;
+// Newly relocated from src/ root (audit M12). Re-exported as `pub(crate)`
+// so the 11 existing `crate::cinematic::Foo` and
+// `crate::brightness_factors::Foo` call sites continue to resolve via the
+// `pub(crate) use cloud::{...};` re-export in main.rs.
+pub(crate) mod brightness_factors;
+pub(crate) mod cinematic;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod ghost_events;

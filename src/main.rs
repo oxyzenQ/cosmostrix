@@ -66,7 +66,6 @@ mod bench;
 // call sites across main.rs, interactive/, cloud/, and bench/ itself.
 pub(crate) use bench::*;
 mod bolt;
-mod brightness_factors;
 mod cell;
 mod charset;
 mod charset_custom;
@@ -81,11 +80,14 @@ pub use chroma::palette;
 pub(crate) use chroma::{color_cache, color_tune, colors_custom};
 mod central_control_dragon_power;
 mod central_control_rains;
-mod cinematic;
 mod cli;
 mod cli_parse;
 mod clock;
 mod cloud;
+// cinematic.rs and brightness_factors.rs now live under cloud/.
+// Re-exported below keeps the 11 existing `crate::cinematic::Foo`
+// and `crate::brightness_factors::Foo` call sites working unchanged.
+pub(crate) use cloud::{brightness_factors, cinematic};
 // color_cache.rs, color_tune.rs, colors_custom.rs now live under chroma/.
 // Re-exported below via `pub(crate) use chroma::*;` keeps the 22 existing
 // `crate::color_X::Foo` call sites working unchanged.
