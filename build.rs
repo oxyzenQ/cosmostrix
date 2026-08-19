@@ -375,10 +375,11 @@ fn detected_x86_baseline(features: &HashSet<String>) -> &'static str {
         "x86-64-v4"
     } else if has_all_features(features, &["avx2", "bmi2", "fma"]) {
         "x86-64-v3"
-    } else if has_all_features(features, &["sse4.2", "popcnt"]) {
-        "x86-64-v2"
     } else {
-        "x86-64-v1"
+        // Below v3: no dedicated build profile (v1/v2 removed; only v3/v4
+        // exist in .cargo/config.toml + Cargo.toml). Report as generic
+        // baseline — users should use `pro` or `pro-native` for these CPUs.
+        "x86-64-baseline"
     }
 }
 
@@ -443,12 +444,13 @@ fn optimization_label(build_id: &str, baseline: &str, features: &HashSet<String>
                 "x86-64-v3 baseline (AVX/AVX2/BMI1/BMI2/FMA)"
             }
         }
-        "x86-64-v2"
-            if has_all_features(features, &["sse3", "ssse3", "sse4.1", "sse4.2", "popcnt"]) =>
-        {
-            "x86-64-v2 baseline (SSE3/SSSE3/SSE4.1/SSE4.2/POPCNT)"
+        // v1/v2 build profiles were removed; CPUs below v3 get a generic
+        // baseline label. Users with v1/v2-only CPUs should use `pro` or
+        // `pro-native` (generic + native tuning) instead of a v-specific profile.
+        "x86-64-baseline" if has_all_features(features, &["sse", "sse2"]) => {
+            "x86-64 baseline (SSE/SSE2 — use `pro` or `pro-native`)"
         }
-        "x86-64-v1" if has_all_features(features, &["sse", "sse2"]) => "x86-64 baseline (SSE/SSE2)",
+        "x86-64-baseline" => "x86-64 baseline (sub-SSE2 — use `pro` or `pro-native`)",
         "aarch64-native" => "aarch64 target build",
         "unknown" => "generic target build",
         _ => "generic CPU baseline build",
