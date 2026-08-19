@@ -82,7 +82,11 @@ mod central_control_dragon_power;
 mod central_control_rains;
 mod cli;
 mod cli_parse;
+// Clock subsystem: clock/ holds both high-level helpers (mod.rs) and
+// low-level POSIX FFI (posix_time.rs). Re-export posix_time so all
+// existing `crate::posix_time::Foo` call sites continue to resolve.
 mod clock;
+pub(crate) use clock::posix_time;
 // The Cosmic Dragon rendering engine (cloud/frame/runtime/terminal) now
 // lives under cosmic_dragon_engine/. The re-exports below make all 224
 // existing `crate::cloud::Foo` / `crate::frame::Foo` / `crate::runtime::Foo`
@@ -131,7 +135,7 @@ mod output;
 mod panic_hook;
 // `palette` now lives at `src/chroma_dragon_engine/palette/mod.rs`; re-exported above.
 mod platform;
-mod posix_time;
+// posix_time is now a submodule of clock/ — see clock/mod.rs.
 mod profile;
 mod rain_style;
 mod renderer_info;

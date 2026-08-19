@@ -1,11 +1,46 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Centralized wall-clock helpers (Hinnant-style minimal abstraction).
+//! # Clock Subsystem — Centralized Wall-Clock Helpers
 //!
-//! All POSIX FFI (`libc::time`, `localtime_r`, `gmtime_r`) is consolidated in
-//! `crate::posix_time`. This module consumes the parsed structs and exposes
-//! the public API used by the rest of cosmostrix.
+//! This module consolidates ALL time/clock code in cosmostrix into a single
+//! `src/clock/` directory. Before this consolidation, time code was scattered
+//! across 4 files (`clock.rs`, `posix_time.rs`, plus duplicated inline time
+//! math in `ambient.rs` and `phase_predictor.rs`). Owner mandate 2026-08-19:
+//! centralize for navigability + LTS stability.
+//!
+//! ## Module layout
+//!
+//! | File             | Role                                                                 |
+//! |------------------|----------------------------------------------------------------------|
+//! | `mod.rs`         | High-level helpers (Hinnant-style): `now_hhmm()`, `now_iso_utc()`, `current_local_hour()`. Consumes `posix_time` parsed structs. |
+//! | `posix_time.rs`  | Low-level POSIX FFI: `libc::time(NULL)` + `localtime_r` / `gmtime_r`. Single place for `unsafe` time code. Returns `LocalTm` / `UtcTm` parsed structs. |
+//!
+//! ## Why this consolidation
+//!
+//! Before: 6 copy-pasted `MaybeUninit<libc::tm>` + `tzset()` OnceLock +
+//! `assume_init()` blocks across 4 files. A bug in one site (e.g. missing
+//! `tzset()`, wrong NULL check) had to be fixed 6 times.
+//!
+//! After: single verified path in `posix_time.rs`. Callers (clock/mod.rs,
+//! `crystal_dragon_engine::ambient`, `central_control_dragon_power::
+//! phase_predictor`) get the broken-out fields they need without touching
+//! unsafe code.
+//!
+//! ## Platform coverage
+//!
+//! - **Unix (Linux/macOS/BSD/Termux)**: `libc::time + localtime_r/gmtime_r`
+//! - **Non-Unix (Windows)**: `SystemTime::now()` UTC-based fallback (less
+//!   accurate — no local timezone — but sufficient for scheduler + log-stamp)
+//!
+//! ## LTS stability
+//!
+//! - All `unsafe` FFI consolidated in `posix_time.rs` (single audit surface)
+//! - `tzset()` invoked once per process via `OnceLock` (idempotent, µs-cost)
+//! - All functions return `Option<T>` or `Default` — never panic on clock
+//!   unavailable (degrades gracefully to `[--:--]` or `0`)
+//! - No mutex/atomic (correct — single-threaded access from main thread)
+//! - Howard Hinnant minimal abstraction: pure functions, no state
 
 /// Get the current local time as `[HH:MM]` (24-hour, zero-padded).
 ///
@@ -119,3 +154,10 @@ mod tests {
         Some(())
     }
 }
+
+// ── POSIX FFI submodule ─────────────────────────────────────────────────
+//
+// Low-level FFI for libc::time + localtime_r / gmtime_r. Re-exported at
+// the crate root via `pub(crate) use clock::posix_time;` in main.rs so
+// all existing `crate::posix_time::Foo` call sites continue to resolve.
+pub(crate) mod posix_time;
