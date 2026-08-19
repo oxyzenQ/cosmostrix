@@ -180,6 +180,14 @@ See [`RULES.md`](RULES.md) in this directory for the UNLOCK protocol
 that MUST be followed if any file in this directory is modified after
 the lock.
 
+## UNLOCK History
+
+| Date (UTC) | Commit | Reason | Verdict |
+|------------|--------|--------|---------|
+| 2026-08-19T16:36:02Z | `809a897` | Stale path refs + EnergyZen missing from `all_schemes()` test helper (INV-2 silently skipped v50 masterclass theme). Real bug fix + 15+ doc updates. | ✅ PASS — 19/19 invariants, A/B NEUTRAL, visual preserved |
+
+See [`RULES.md`](RULES.md) § UNLOCK Log for the full detailed entry.
+
 ---
 
 **Lock signature:**

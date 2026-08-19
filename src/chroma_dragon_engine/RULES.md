@@ -167,4 +167,50 @@ code path modified.
 
 ---
 
-**No UNLOCK entries yet — engine is at locked state `69af079`.**
+### UNLOCK chroma-dragon at commit 809a897, 2026-08-19T16:36:02Z
+
+**Author**: oxyzenQ
+**Reason**: Deeper audit (task 1/6) found stale path references and
+outdated theme counts across chroma_dragon_engine/ source files.
+Specifically: `all_schemes()` test helper was missing `EnergyZen` (the
+v50 masterclass theme) — INV-2 lock test asserted `schemes.len() == 43`
+and passed, but silently skipped EnergyZen in every theme-sweep
+invariant. This was a REAL BUG: a future regression in EnergyZen's
+palette construction would NOT have been caught by the lock suite.
+Also fixed 15+ stale path refs (src/cloud/ → src/cosmic_dragon_engine/cloud/,
+chroma::legacy → chroma_dragon_engine::legacy, etc.) and outdated
+"43 themes" → "44 themes" + "Phase 9-B" → "Phase 9-D" + "18 invariants"
+→ "19 invariants" in doc comments.
+
+**Files changed**:
+- src/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ → src/cosmic_dragon_engine/cloud/)
+- src/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" → "44 themes" refs)
+- src/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 → 44 + git log path ref updated)
+- src/chroma_dragon_engine/tuning.rs (2 "43 themes" → "44 themes" refs)
+
+**A/B delta** (vs locked baseline `69af079`):
+- avg_fps: 85,555 → 84,457 (Δ -1.28% — within ±5% tolerance, hardware variance)
+- peak_rss: 4.32 MiB → 4.32 MiB (Δ 0%)
+- alloc_calls: 563 → 288 (Δ -48.8% — different bench duration 5s vs 10s, per-frame allocs unchanged at 0.0)
+- density_gini: 0.8961 → 0.8958 (Δ -0.03%)
+- color_transition_delta: 0.00 → 0.00 (Δ 0%)
+- stability signals: MATCH (frame_jitter=low, frame_time_stability=excellent, drift=stable)
+
+**Lock suite**: 19/19 invariants pass (INV-2 updated: theme count 43 → 44,
+EnergyZen now included in all theme-sweep invariants)
+
+**Visual audit**: PASS — masterclass brightness profile preserved
+(visual-mode-audit.py: top=0.533, bot=0.369 unchanged)
+
+**Tests**: 1594/1594 pass (was 1590 at lock; +4 tests from task 3
+auto-color-drift hints, unrelated to this unlock)
+
+**Notes**:
+- This unlock was RETROACTIVELY documented (commit 809a897 landed before
+  the UNLOCK entry was added). The lock protocol requires the UNLOCK
+  entry to be added in the SAME commit as the modification; this was
+  missed because the modification was part of a broader 6-task audit.
+  Future unlocks MUST include the UNLOCK entry in the same commit.
+- The EnergyZen bug was caught by this audit — without it, the lock
+  suite was providing false confidence (INV-2 "passed" but didn't
+  actually test all 44 themes).
