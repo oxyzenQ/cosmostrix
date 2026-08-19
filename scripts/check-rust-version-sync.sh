@@ -8,7 +8,7 @@
 # Verifies the Rust toolchain version is consistent across all sources:
 #   1. rust-toolchain.toml  (channel = "X.Y.Z" — authoritative source)
 #   2. Cargo.toml           (rust-version = "X.Y" — MSRV for downstream)
-#   3. scripts/pgo-runner/Cargo.toml (rust-version = "X.Y" — pgo-runner MSRV)
+#   3. pgo-runner/Cargo.toml (rust-version = "X.Y" — pgo-runner MSRV)
 #   4. .github/workflows/*.yml       (env: RUST_VERSION — CI install version)
 #
 # Fails if any source disagrees with the others.
@@ -54,8 +54,8 @@ else
     echo "OK: Cargo.toml rust-version = \"$CARGO_MSRV\""
 fi
 
-# ── 3. scripts/pgo-runner/Cargo.toml ──
-PGO_CARGO="scripts/pgo-runner/Cargo.toml"
+# ── 3. pgo-runner/Cargo.toml ──
+PGO_CARGO="pgo-runner/Cargo.toml"
 if [ -f "$PGO_CARGO" ]; then
     PGO_MSRV=$(grep '^rust-version = ' "$PGO_CARGO" | sed 's/rust-version = "\(.*\)".*/\1/')
     if [ "$PGO_MSRV" != "$MSRV_EXPECTED" ]; then
@@ -94,7 +94,7 @@ if [ "$FAILED" -gt 0 ]; then
     echo "To fix: update all sources to match, then rerun this check."
     echo "  rust-toolchain.toml  → channel = \"$FULL_VERSION\""
     echo "  Cargo.toml           → rust-version = \"$MSRV_EXPECTED\""
-    echo "  scripts/pgo-runner/Cargo.toml → rust-version = \"$MSRV_EXPECTED\""
+    echo "  pgo-runner/Cargo.toml → rust-version = \"$MSRV_EXPECTED\""
     echo "  .github/workflows/*.yml → RUST_VERSION: \"$FULL_VERSION\""
     exit 1
 else

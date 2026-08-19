@@ -16,12 +16,12 @@
 //! `.cargo/config.toml` is:
 //!
 //! ```toml
-//! use-pgo = "run --manifest-path scripts/pgo-runner/Cargo.toml --release --"
+//! use-pgo = "run --manifest-path pgo-runner/Cargo.toml --release --"
 //! ```
 //!
 //! When the user runs `cargo use-pgo`, cargo compiles this tiny binary
 //! (cached after the first invocation) and executes it. This binary then
-//! locates the project root (two levels up from `scripts/pgo-runner/`),
+//! locates the project root (one level up from `pgo-runner/`),
 //! invokes `./scripts/build.sh pgo --auto`, and forwards its exit code.
 //!
 //! The `--auto` flag triggers `detect_cpu_target()` inside build.sh, which
@@ -34,15 +34,15 @@ use std::path::PathBuf;
 use std::process::Command;
 
 fn main() -> ! {
-    // This crate lives at <project_root>/scripts/pgo-runner/src/main.rs.
+    // This crate lives at <project_root>/pgo-runner/src/main.rs.
     // Walk up to find the project root (the directory containing Cargo.toml
     // for the main cosmostrix crate, not this runner's Cargo.toml).
     let runner_manifest = env!("CARGO_MANIFEST_DIR");
     let runner_path = PathBuf::from(runner_manifest);
     let project_root = runner_path
         .ancestors()
-        .nth(2) // src/ -> pgo-runner/ -> scripts/ -> project_root
-        .expect("pgo-runner must live at <project_root>/scripts/pgo-runner/")
+        .nth(1) // pgo-runner/ -> project_root
+        .expect("pgo-runner must live at <project_root>/pgo-runner/")
         .to_path_buf();
 
     let build_script = project_root.join("scripts").join("build.sh");

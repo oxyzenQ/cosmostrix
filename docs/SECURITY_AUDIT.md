@@ -32,7 +32,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/SIMD_FEASIBI
 
 ## 4. Process Spawning — 4 Sites, All Defensive
 
-`src/update.rs:98` spawns `curl` (`--silent --max-time 15`) for `--update` flag only — no shell, explicit argv. `src/cosmic_dragon_engine/terminal/:1112`/`:1118`/`:1123` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `scripts/pgo-runner/src/main.rs:58` spawns `bash scripts/build.sh pgo --auto` — dev convenience alias, not part of shipped binary.
+`src/update.rs:98` spawns `curl` (`--silent --max-time 15`) for `--update` flag only — no shell, explicit argv. `src/cosmic_dragon_engine/terminal/:1112`/`:1118`/`:1123` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `pgo-runner/src/main.rs:58` spawns `bash scripts/build.sh pgo --auto` — dev convenience alias, not part of shipped binary.
 
 **No `sh -c`, no `bash -c`, no `shell=true`** anywhere. Every spawn uses explicit argv with no shell interpolation. The Linux-only `fork()` inside `main.rs:245` is NOT `process::Command` — it is a raw `libc::fork()` that immediately calls `prctl(PR_SET_PDEATHSIG)` and `sigwait()` in the child, never executing any external program. It exists solely to restore terminal modes if the parent is SIGKILLed.
 

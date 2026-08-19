@@ -136,9 +136,9 @@ pro-android-aarch64 = """!bash -lc 'set -euo pipefail; : "${ANDROID_NDK_HOME:?AN
 #
 # Equivalent to: ./scripts/build.sh pgo --auto
 #
-# Implementation note: we use a tiny runner crate (scripts/pgo-runner/)
+# Implementation note: we use a tiny runner crate (pgo-runner/)
 # instead of cargo's `!`-prefix shell-alias feature, because the latter
 # is not reliably available across cargo versions. The runner crate is
 # a standalone package (not a workspace member) so it only compiles when
 # the user actually invokes this alias.
-use-pgo = "run --manifest-path scripts/pgo-runner/Cargo.toml --release --"
+use-pgo = "run --manifest-path pgo-runner/Cargo.toml --release --"
