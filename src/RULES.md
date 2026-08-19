@@ -1,0 +1,104 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+# src/ Root Rules — Single-File Policy
+
+> **Owner mandate 2026-08-19**: `src/` root must contain ONLY `main.rs`.
+> All other modules live in subdirectories. This rule exists to keep the
+> codebase navigable for beginners, contributors, and maintainers.
+
+## The Rule
+
+**`src/` root must contain exactly one `.rs` file: `main.rs`.**
+
+No new `.rs` files may be placed directly at `src/` root. All new modules
+MUST be organized into subdirectories.
+
+## Why
+
+- **Navigability**: A new contributor opening `src/` sees a single entry
+  point (`main.rs`) + logically grouped directories. They don't need to
+  scan 30+ flat files to understand the codebase structure.
+- **Maintainability**: Each directory is a self-contained subsystem with
+  its own `mod.rs` + submodules + `tests.rs`. Adding a new feature means
+  adding to an existing directory or creating a new one — never adding a
+  flat file at the root.
+- **Consistency**: All existing modules already follow this pattern (bench/,
+  clock/, config/, cosmic_dragon_engine/, chroma_dragon_engine/,
+  crystal_dragon_engine/, etc.). This rule codifies the convention.
+
+## Current Structure (2026-08-19)
+
+```
+src/
+├── main.rs                    ← ONLY .rs file at root (entry point)
+├── RULES.md                   ← this file
+├── bench/                     ← benchmark subsystem (17 bench_*.rs files)
+├── bolt/                      ← cross-cutting utility module
+├── central_control_dragon_power/  ← power management, self-healer, thermal
+├── central_control_rains/     ← rain visual tuning constants
+├── chroma_dragon_engine/      ← coloring engine (palette, shaders, post-FX)
+├── cli/                       ← CLI args, parsing, help, app struct
+├── clock/                     ← wall-clock helpers (Howard Hinnant style)
+├── config/                    ← config.toml parsing, live-reload, hints
+├── cosmic_dragon_engine/      ← rendering engine (cloud, frame, terminal, runtime)
+├── cosmic_dragon_incubator/   ← experimental / concluded work
+├── crystal_dragon_engine/     ← ambient intelligence (palette drift, scheduler)
+├── diagnostics/               ← diagnostics, alloc_trace, info, humanize
+├── docs_tests/                ← integration tests for docs/README consistency
+├── doctor/                    ← --doctor diagnostics subsystem
+├── droplet/                   ← droplet rendering (parallax, brightness)
+├── interactive/               ← event loop, HUD, intro, input handling
+├── output/                    ← output, report, verbose, ux, message
+├── platform/                  ← platform detection, panic hook, update
+├── profile/                   ← profile presets
+├── safepath/                  ← path validation (security)
+├── scene/                     ← scene + charset + charset_custom
+├── scene_custom/              ← custom scene definitions
+├── sysstat/                   ← CPU/memory/env/usage stats
+├── termdetect/                ← terminal capability detection
+├── testconf/                  ← --testconf validation
+├── tests/                     ← crate-level integration tests
+├── theme/                     ← theme/cosmostrix-pro theme system
+├── types/                     ← constants, cell, rain_style, renderer_info
+└── validation/                ← input validation
+```
+
+## How to Add a New Module
+
+1. **Create a new subdirectory**: `src/<module_name>/`
+2. **Create `mod.rs`**: `src/<module_name>/mod.rs` with the module's code
+   (or a thin re-export shim if the module has submodules)
+3. **Declare in `main.rs`**: `mod <module_name>;` (+ `pub(crate) use
+   <module_name>::{...};` if re-exporting submodules)
+4. **Add tests**: `src/<module_name>/tests.rs` (Pattern C — dedicated
+   tests/ file)
+
+**NEVER**: create `src/<module_name>.rs` as a flat file at root.
+
+## Exceptions
+
+There are NO exceptions. Even small utility modules (e.g., `bolt/` at 225
+LOC) live in their own directory. The cost of one extra directory is
+negligible; the benefit of a flat-file-free root is significant.
+
+## Re-export Pattern
+
+When a module needs to be accessible as `crate::<name>::Foo` from other
+modules, use the re-export pattern in `main.rs`:
+
+```rust
+// main.rs
+mod my_group;
+pub(crate) use my_group::{submodule_a, submodule_b};
+```
+
+This allows `crate::submodule_a::Foo` to resolve even though the file
+lives at `src/my_group/submodule_a.rs`. All existing call sites continue
+to work unchanged.
+
+## Enforcement
+
+- **Code review**: PRs that add `.rs` files to `src/` root must be rejected.
+- **CI**: the `check-rs-loc.sh` script can be extended to verify root
+  cleanliness (future enhancement).
+- **This file**: serves as the canonical reference for the policy.

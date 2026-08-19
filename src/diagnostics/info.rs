@@ -36,12 +36,12 @@ pub(crate) const COSMIC_DRAGON_SIGNATURE: &str =
 /// All diagnostics (`--doctor`, `--benchmark`, `--info`) and
 /// `--version`/`-V` share this single source.
 #[must_use]
-pub(super) fn canonical_build_label() -> &'static str {
+pub(crate) fn canonical_build_label() -> &'static str {
     option_env!("COSMOSTRIX_BUILD").unwrap_or("unknown")
 }
 
 #[must_use]
-pub(super) fn build_commit_short() -> Option<&'static str> {
+pub(crate) fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {
         Some(s) if !s.is_empty() => Some(s),
         _ => None,
@@ -49,7 +49,7 @@ pub(super) fn build_commit_short() -> Option<&'static str> {
 }
 
 #[must_use]
-pub(super) fn version_report() -> String {
+pub(crate) fn version_report() -> String {
     let version = env!("CARGO_PKG_VERSION");
     let build = canonical_build_label();
     let commit = build_commit_short().unwrap_or("unknown");
@@ -111,7 +111,7 @@ pub(super) fn version_report() -> String {
 /// to avoid duplicate versioning — the user gets the version from
 /// `--version` / `-V`, which is the single source of truth.
 #[must_use]
-pub(super) fn docs_report() -> &'static str {
+pub(crate) fn docs_report() -> &'static str {
     "\
 COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
 ==========================================================
@@ -333,7 +333,7 @@ pub fn env_var_truthy(name: &str) -> bool {
 // --- Memory budget estimation ---
 
 #[must_use]
-pub(super) fn estimate_memory_budget(w: u16, h: u16) -> usize {
+pub(crate) fn estimate_memory_budget(w: u16, h: u16) -> usize {
     // Use actual Cell size rather than a magic number for accuracy
     let cell_size = std::mem::size_of::<crate::cell::Cell>();
     let frame_cells = (w as usize) * (h as usize) * cell_size;
@@ -353,7 +353,7 @@ pub(super) fn estimate_memory_budget(w: u16, h: u16) -> usize {
 }
 
 #[must_use]
-pub(super) fn format_bytes(bytes: usize) -> String {
+pub(crate) fn format_bytes(bytes: usize) -> String {
     let b = bytes as f64;
     if b < 1024.0 {
         format!("{} B", bytes)
@@ -374,7 +374,7 @@ pub(super) fn format_bytes(bytes: usize) -> String {
 /// compiled target level (v3 = AVX2, v4 = AVX-512). Prints a clear
 /// error message and exits instead of crashing with SIGILL.
 #[cfg(target_arch = "x86_64")]
-pub(super) fn check_cpu_features() {
+pub(crate) fn check_cpu_features() {
     let build = option_env!("COSMOSTRIX_BUILD").unwrap_or("");
 
     // Helper: print the FATAL header + CPU feature requirement.

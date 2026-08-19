@@ -227,3 +227,7 @@ mod tests {
         let _ = val;
     }
 }
+
+// Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod panic_hook;
+pub(crate) mod update;

@@ -738,3 +738,9 @@ mod tests {
         assert_eq!(reset_mono, "");
     }
 }
+
+// Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod message;
+pub(crate) mod report;
+pub(crate) mod ux;
+pub(crate) mod verbose;

@@ -27,7 +27,7 @@ fn readme_uses_canonical_tagline() {
 
 #[test]
 fn runtime_identity_uses_canonical_tagline() {
-    let ri = include_str!("../renderer_info.rs");
+    let ri = include_str!("../types/renderer_info.rs");
     assert!(
         ri.contains(
             "professional-grade cinematic Matrix rain renderer for serious terminal environments."

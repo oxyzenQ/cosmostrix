@@ -41,125 +41,115 @@
 // Phase 5: Global allocator tracing wrapper.
 #[global_allocator]
 static GLOBAL_ALLOC: crate::alloc_trace::TraceAlloc = crate::alloc_trace::TraceAlloc;
-mod alloc_trace;
-// Ambient phase scheduler — config-driven time-of-day scene/parameter
-// switching. Replaces the archived `adaptive-custom` subsystem with a
-// simpler contract: config-only (no CLI flag), instant switch (no blend
-// window), dynamic idle/wake scheduler thread (zero CPU between phase
-// boundaries). Moved into crystal_dragon_engine module.
-mod app;
-// Atmosphere engine subsystem fully eliminated (Dragon Hunt v2 Phase 6
-// Tier E item 31 — full elimination). Owner decided atmosphere engine
-// is not used in the future. All 14 atmosphere source files (~6.5k LOC)
-// and their CLI flags / config keys / profile fields / docs have been
-// removed. Design knowledge preserved in
-// docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
+// ── Module declarations (src/ root contains only main.rs) ──────────────────
 //
-// NOTE: src/chroma_dragon_engine/post/climate.rs (ClimateCtx — luminance/
-// saturation/instability shader) is a SEPARATE Chroma Dragon post-FX
-// subsystem and is KEPT. The `EntropyDrift` struct in
-// cloud/ecosystem.rs (drift/gust events) is also SEPARATE and KEPT.
+// Owner mandate 2026-08-19: src/ root must contain ONLY main.rs. All other
+// modules live in subdirectories. See src/RULES.md for the policy.
+//
+// Re-export pattern: each group declares `mod <group>;` + `pub(crate) use
+// <group>::{<submodules>};` so all existing `crate::<submodule>::Foo` call
+// sites continue to resolve unchanged.
+
+// Group: Bench subsystem (17 bench_*.rs files)
 mod bench;
-// All bench_*.rs submodules now live under src/bench/ and are declared
-// inside bench/mod.rs. The re-export below keeps the historical
-// `crate::bench_X::Foo` paths working unchanged for all 49 existing
-// call sites across main.rs, interactive/, cloud/, and bench/ itself.
 pub(crate) use bench::*;
-mod bolt;
-mod cell;
-mod charset;
-mod charset_custom;
-// Chroma Dragon coloring engine — Phase 1: relocated palette + catalog here.
-// Re-exports below keep the old `crate::palette::…` paths working unchanged.
+
+// Group: CLI subsystem (cli.rs → mod.rs, cli_parse.rs, app.rs, help_detail.rs)
+mod cli;
+pub(crate) use cli::{app, cli_parse, help_detail};
+
+// Group: Chroma Dragon coloring engine
 mod chroma_dragon_engine;
 pub use chroma_dragon_engine::catalog;
 pub use chroma_dragon_engine::palette;
-// Re-export the newly-moved color_* submodules so existing
-// `crate::color_cache::Foo`, `crate::color_tune::Foo`, and
-// `crate::colors_custom::Foo` call sites continue to resolve.
 pub(crate) use chroma_dragon_engine::{color_cache, color_tune, colors_custom};
+
+// Group: Central Control — Dragon Power + Rains
 mod central_control_dragon_power;
 mod central_control_rains;
-mod cli;
-mod cli_parse;
-// Clock subsystem: clock/ holds both high-level helpers (mod.rs) and
-// low-level POSIX FFI (posix_time.rs). Re-export posix_time so all
-// existing `crate::posix_time::Foo` call sites continue to resolve.
+
+// Group: Clock subsystem (mod.rs + posix_time.rs)
 mod clock;
 pub(crate) use clock::posix_time;
-// The Cosmic Dragon rendering engine (cloud/frame/runtime/terminal) now
-// lives under cosmic_dragon_engine/. The re-exports below make all 224
-// existing `crate::cloud::Foo` / `crate::frame::Foo` / `crate::runtime::Foo`
-// / `crate::terminal::Foo` call sites continue to resolve unchanged.
+
+// Group: Cosmic Dragon rendering engine (cloud/frame/runtime/terminal)
 mod cosmic_dragon_engine;
-pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};
-// cinematic.rs and brightness_factors.rs live under cloud/.
-// Re-exported below keeps the 11 existing `crate::cinematic::Foo`
-// and `crate::brightness_factors::Foo` call sites working unchanged.
 pub(crate) use cloud::{brightness_factors, cinematic};
-// color_cache.rs, color_tune.rs, colors_custom.rs now live under chroma/.
-// Re-exported below via `pub(crate) use chroma::*;` keeps the 22 existing
-// `crate::color_X::Foo` call sites working unchanged.
-mod config;
-// All config*.rs and live_config*.rs files now live under src/config/.
-// The re-export below keeps the 92 existing `crate::config_X::Foo` and
-// `crate::live_config_X::Foo` call sites working unchanged.
-pub(crate) use config::*;
-mod constants;
+pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};
+
+// Group: Cosmic Dragon incubator (experimental / concluded work)
 mod cosmic_dragon_incubator;
-// cpustat.rs, memstat.rs, usagestat.rs, envstat.rs now live under sysstat/.
-// See sysstat/mod.rs for the re-export that keeps the 15 existing
-// `crate::cpustat::Foo` etc. call sites working unchanged.
-mod sysstat;
-pub(crate) use sysstat::*;
-// Crystal Dragon Engine — ambient intelligence for palette drift.
-// Point-based temperature group system (Cold/Medium/Hot) + calc-v1
-// probabilistic weighted selection. See src/crystal_dragon_engine/.
+
+// Group: Config subsystem (config*.rs, live_config*.rs, config_hints)
+mod config;
+pub(crate) use config::*;
+
+// Group: Crystal Dragon ambient intelligence engine
 mod crystal_dragon_engine;
+
+// Group: Diagnostics subsystem (diagnostics.rs → mod.rs, alloc_trace.rs, info.rs, humanize.rs)
 mod diagnostics;
+pub(crate) use diagnostics::{alloc_trace, humanize, info};
+
+// Group: Doctor subsystem
+mod doctor;
+
+// Group: Docs tests (integration)
 #[cfg(test)]
 mod docs_tests;
-mod doctor;
-mod droplet;
-mod help_detail;
-mod humanize;
-mod info;
-mod interactive;
-// All live_config*.rs files (including live_config_trace) now live under
-// src/config/. The `#[macro_use]` attribute is preserved on the submodule
-// declaration inside config/mod.rs so the `lr_trace!` macro remains in scope
-// for live_config.rs. Order: live_config_trace must be declared before
-// live_config inside config/mod.rs (enforced there).
-mod message;
-mod output;
-mod panic_hook;
-// `palette` now lives at `src/chroma_dragon_engine/palette/mod.rs`; re-exported above.
-mod platform;
-// posix_time is now a submodule of clock/ — see clock/mod.rs.
-mod profile;
-mod rain_style;
-mod renderer_info;
-mod report;
-mod safepath;
-mod scene;
-mod scene_custom;
-mod termdetect;
-// terminal_tty.rs, sgr_format.rs, tier2.rs live under terminal/.
-// Re-exported via `pub(crate) use terminal::{...};` below keeps the 7
-// existing `crate::terminal_tty::Foo` etc. call sites working unchanged.
-pub(crate) use terminal::{sgr_format, terminal_tty, tier2};
-mod testconf;
-mod theme;
-mod update;
-mod ux;
-mod validation;
-mod verbose;
 
-// Crate-level integration/regression tests (Pattern A → Pattern C
-// unification). Former root test files (loc_tests.rs, property_tests.rs,
-// terminal_tests.rs, width_guard_tests.rs) now live under src/tests/.
+// Group: Droplet subsystem
+mod droplet;
+
+// Group: Interactive subsystem (event loop, HUD, intro, etc.)
+mod interactive;
+
+// Group: Output subsystem (output.rs → mod.rs, report.rs, verbose.rs, ux.rs, message.rs)
+mod output;
+pub(crate) use output::{message, report, ux, verbose};
+
+// Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
+mod platform;
+pub(crate) use platform::{panic_hook, update};
+
+// Group: Safepath subsystem
+mod safepath;
+
+// Group: Scene/Charset subsystem (scene.rs → mod.rs, charset.rs, charset_custom.rs)
+mod scene;
+pub(crate) use scene::{charset, charset_custom};
+
+// Group: Scene custom subsystem
+mod scene_custom;
+
+// Group: Sysstat subsystem (cpustat, memstat, usagestat, envstat)
+mod sysstat;
+pub(crate) use sysstat::*;
+
+// Group: Termdetect subsystem
+mod termdetect;
+
+// Group: Terminal subsystem (re-exported from cosmic_dragon_engine)
+pub(crate) use terminal::{sgr_format, terminal_tty, tier2};
+
+// Group: Testconf subsystem
+mod testconf;
+
+// Group: Tests (crate-level integration/regression tests)
 #[cfg(test)]
 mod tests;
+
+// Group: Theme subsystem
+mod theme;
+
+// Group: Types subsystem (constants.rs, cell.rs, rain_style.rs, renderer_info.rs)
+mod types;
+pub(crate) use types::{cell, constants, rain_style, renderer_info};
+
+// Standalone modules (file → dir, transparent resolution)
+mod bolt;
+mod profile;
+mod validation;
 
 use clap::{CommandFactory, FromArgMatches};
 

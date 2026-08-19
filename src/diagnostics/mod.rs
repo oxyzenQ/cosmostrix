@@ -139,3 +139,8 @@ fn macos_cpu_model() -> Option<String> {
         .filter(|s| !s.is_empty())
     }
 }
+
+// Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod alloc_trace;
+pub(crate) mod humanize;
+pub(crate) mod info;

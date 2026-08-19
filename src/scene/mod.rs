@@ -758,3 +758,7 @@ mod tests {
         );
     }
 }
+
+// Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod charset;
+pub(crate) mod charset_custom;

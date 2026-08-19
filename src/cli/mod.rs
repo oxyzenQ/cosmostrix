@@ -418,3 +418,8 @@ mod tests {
         }
     }
 }
+
+// Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod app;
+pub(crate) mod cli_parse;
+pub(crate) mod help_detail;
