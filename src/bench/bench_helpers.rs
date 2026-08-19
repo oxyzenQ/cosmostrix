@@ -336,8 +336,8 @@ mod tests {
 
     #[test]
     fn benchmark_docs_do_not_keep_stale_active_claims() {
-        let readme = include_str!("../README.md");
-        let benchmark_readme = include_str!("../benchmark/README.md");
+        let readme = include_str!("../../README.md");
+        let benchmark_readme = include_str!("../../benchmark/README.md");
         assert!(!readme.contains("7,000 FPS"));
         assert!(!readme.contains(">7,000 FPS"));
         assert!(!benchmark_readme.contains("v2.1.0 reference results"));
@@ -346,7 +346,7 @@ mod tests {
 
     #[test]
     fn benchmark_stability_field_exists() {
-        let readme = include_str!("../README.md");
+        let readme = include_str!("../../README.md");
         assert!(readme.to_lowercase().contains("throughput stability"));
     }
 
@@ -360,7 +360,7 @@ mod tests {
         // struct was extracted to bench_comp.rs to minimize growth here;
         // further sub-component work should also live in bench_comp.rs
         // rather than expand this file.
-        let source = include_str!("bench.rs");
+        let source = include_str!("mod.rs");
         let lines = source.lines().count();
         assert!(
             lines < 1500,

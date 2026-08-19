@@ -289,7 +289,7 @@ fn benchmark_output_fields_complete() {
     ];
 
     // Read the benchmark module source and verify field names exist
-    let source = include_str!("../../bench.rs");
+    let source = include_str!("../../bench/mod.rs");
 
     for field in required_fields {
         assert!(
