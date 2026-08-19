@@ -26,7 +26,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) | SIMD optimization feasibility (rejected; `src/bolt.rs`) |
 
-**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/frame.rs`, `src/terminal/`, `src/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma/`).
+**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/frame.rs`, `src/terminal/`, `src/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma_dragon_engine/`).
 
 ## Benchmarking & Performance
 
@@ -46,18 +46,18 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains.rs`) |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for rain depth stack |
 
-The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma/post/climate.rs`, `AtmosphericEvolution` in `src/cloud/ecosystem.rs`) are separate and remain live.
+The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma_dragon_engine/post/climate.rs`, `AtmosphericEvolution` in `src/cloud/ecosystem.rs`) are separate and remain live.
 
 ## Color & Theming (Chroma Dragon)
 
 | Doc | Covers |
 |-----|--------|
-| [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/chroma/`) |
-| [src/chroma/catalog.rs](../src/chroma/catalog.rs) | **Central color theme registry** — single source of truth |
-| [src/chroma/palette.rs](../src/chroma/palette.rs) | Palette construction, OKLab interpolation |
-| [src/chroma/tuning.rs](../src/chroma/tuning.rs) | `--color-tune` key=value tuning |
+| [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/chroma_dragon_engine/`) |
+| [src/chroma_dragon_engine/catalog.rs](../src/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
+| [src/chroma_dragon_engine/palette.rs](../src/chroma_dragon_engine/palette.rs) | Palette construction, OKLab interpolation |
+| [src/chroma_dragon_engine/tuning.rs](../src/chroma_dragon_engine/tuning.rs) | `--color-tune` key=value tuning |
 
-**Adding a new color theme**: add a variant to `ColorScheme` in `src/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
+**Adding a new color theme**: add a variant to `ColorScheme` in `src/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
 
 ## Terminal Compatibility & Recovery
 
@@ -95,6 +95,6 @@ cosmostrix --doctor && cosmostrix --benchmark --bench-duration 5s
 ```
 ## Key Invariants & Doc Maintenance
 
-**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon/lock_tests.rs`, `src/chroma/lock_tests.rs`) must pass on every commit.
+**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_engine/lock_tests.rs`, `src/chroma_dragon_engine/lock_tests.rs`) must pass on every commit.
 
 **Adding a doc**: place in `docs/` (or `docs/workflow/`), add to this index, add to README Documentation list, add SPDX header, cross-link from related docs. **Removing/renaming**: grep for old filename, update all cross-references, remove from this index and README list.

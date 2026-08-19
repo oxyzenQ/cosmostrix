@@ -294,8 +294,8 @@ throughput (bold glyphs use a different SGR sequence).
 | `src/runtime.rs:18-23` | BoldMode enum | `Off`, `Random`, `All` |
 | `src/cloud/render.rs:67, 333` | DrawCtx field | `bold_mode: BoldMode` carried in render context |
 | `src/cloud/rain.rs:603` | RainCtx field | `bold_mode` carried in rain context |
-| `src/chroma/shaders/base.rs:79` | Shader field | `bold_mode: BoldMode` |
-| `src/chroma/shaders/base.rs:449-450, 621-625` | Shader logic | `match shader.bold_mode { Off => bold = false, All => bold = true, Random => bold = ((line ^ val) % 2) == 1 }` |
+| `src/chroma_dragon_engine/shaders/base.rs:79` | Shader field | `bold_mode: BoldMode` |
+| `src/chroma_dragon_engine/shaders/base.rs:449-450, 621-625` | Shader logic | `match shader.bold_mode { Off => bold = false, All => bold = true, Random => bold = ((line ^ val) % 2) == 1 }` |
 | `src/cloud/monolith.rs` | Monolith rendering | Uses `bold_mode` |
 | `src/cloud/phosphor.rs` | Phosphor decay | Uses `bold_mode` |
 | `src/terminal.rs` | Terminal output | Uses `bold_mode` for SGR emission |
@@ -371,7 +371,7 @@ bold-mode control.** Unlike `--chars` (which has `[charset-custom]`),
 - **Low**: `src/config_apply_tests.rs:679` dump-config test fixture migrated.
 - **Low**: `src/configfile_promotion_tests.rs:118` test fixture migrated.
 - **Zero**: `BoldMode` enum STAYS (renderer still needs it). Only the CLI/config surface is removed.
-- **Zero**: `src/cloud/render.rs`, `rain.rs`, `chroma/shaders/base.rs`, etc. — unchanged (they consume `BoldMode`, not `args.bold`).
+- **Zero**: `src/cloud/render.rs`, `rain.rs`, `chroma_dragon_engine/shaders/base.rs`, etc. — unchanged (they consume `BoldMode`, not `args.bold`).
 
 Total LOC delta: ~30 lines deleted, ~10 lines added (REMOVED_FLAGS + test fixture migrations).
 
@@ -551,7 +551,7 @@ cargo test --workspace 2>&1 | tail -5
 | `src/runtime.rs` | §3.2 |
 | `src/cloud/render.rs` | §3.2 |
 | `src/cloud/rain.rs` | §3.2 |
-| `src/chroma/shaders/base.rs` | §3.2 |
+| `src/chroma_dragon_engine/shaders/base.rs` | §3.2 |
 | `src/config_hints.rs` | §3.2 |
 | `src/live_config.rs` | §1.2, §3.2 |
 | `src/validation.rs` | §2.6, §3.6 |

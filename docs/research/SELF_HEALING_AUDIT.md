@@ -422,7 +422,7 @@ overhead in steady state, 37 new unit tests (8 P3 + 7 P4 + 15 P1+P2 + 7 P5).
 | `docs/STABILITY_AUDIT.md` | Signal handlers, watchdog, force-draw safety, ghost glyph flood bug, regression test inventory |
 | `docs/TERMINAL_KILL_CLEANUP.md` | Fork-based SIGKILL guard, panic hook, cleanup ordering |
 | `docs/ENDURANCE.md` | 72-hour telemetry analysis, P1/P2/P4/P5 adaptive subsystems |
-| `docs/COSMIC_DRAGON_FINDINGS.md` | Architectural findings, cosmic_dragon/ incubator policy |
+| `docs/COSMIC_DRAGON_FINDINGS.md` | Architectural findings, cosmic_dragon_engine/ incubator policy |
 | `docs/RENDER_ENGINE.md` | Frame generation tracking, semantic invalidation, dirty-cell system |
 
 This audit complements those docs by focusing on the **self-healing** lens

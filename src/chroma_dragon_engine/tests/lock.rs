@@ -66,12 +66,14 @@
 
 use crossterm::style::Color;
 
-use crate::chroma::gradient::{
+use crate::chroma_dragon_engine::gradient::{
     gradient_from_stops_oklab, oklab_to_srgb, polar_chroma_lerp, srgb_to_oklab,
 };
-use crate::chroma::palette::{apply_body_tail_continuity_with, build_palette, color_to_rgb};
-use crate::chroma::shaders::transition::{apply_l_smoothing, TransitionLTable};
-use crate::chroma::tuning::{
+use crate::chroma_dragon_engine::palette::{
+    apply_body_tail_continuity_with, build_palette, color_to_rgb,
+};
+use crate::chroma_dragon_engine::shaders::transition::{apply_l_smoothing, TransitionLTable};
+use crate::chroma_dragon_engine::tuning::{
     ABSOLUTE_MIN_FLOOR, BODY_TAIL_MAX_GAP_RATIO, GLOBAL_MAX_FLOOR, HEAD_HALO_FACTOR,
     PALETTE_FLOOR_RATIO, SUBPIXEL_JITTER_AMPLITUDE,
 };
@@ -556,7 +558,7 @@ fn lock_inv10_polar_midpoint_stays_saturated_on_opposing_hues() {
 /// variant additions that bypass the normalization.
 #[test]
 fn lock_inv11_blend_toward_bg_normalizes_to_rgb() {
-    use crate::chroma::palette::blend_toward_bg;
+    use crate::chroma_dragon_engine::palette::blend_toward_bg;
     let bg = Color::Rgb {
         r: 10,
         g: 20,
@@ -818,7 +820,7 @@ fn lock_inv16_tuning_constants_in_sweet_spots() {
 /// will fail because the midpoint will differ from the polar baseline.
 #[test]
 fn lock_inv18_polar_is_sole_production_gradient_path() {
-    use crate::chroma::palette::gradient_from_stops;
+    use crate::chroma_dragon_engine::palette::gradient_from_stops;
 
     let stops = [(255, 0, 0), (0, 255, 255)];
     let steps = 3;

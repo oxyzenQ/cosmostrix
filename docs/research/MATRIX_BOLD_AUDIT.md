@@ -143,7 +143,7 @@ to bold. Specifically:
 
 - `src/config.rs:586` sets `default_value_t = 1` → `BoldMode::Random`
 - `src/main.rs:595-598` maps `1 → BoldMode::Random`
-- `src/chroma/shaders/base.rs:449-451` implements `BoldMode::Random`:
+- `src/chroma_dragon_engine/shaders/base.rs:449-451` implements `BoldMode::Random`:
   ```rust
   bold = (((line as u32) ^ (val as u32)) % 2) == 1;
   ```
@@ -152,7 +152,7 @@ to bold. Specifically:
 
 ### 3.2 Visual impact
 
-Per `src/chroma/shaders/bold_audit_tests.rs:5` (the existing audit
+Per `src/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` (the existing audit
 comment):
 
 > "switching --bold 0/1/2 visually looked identical in past testing."
@@ -282,7 +282,7 @@ can be added in a future release without conflict.
 - cosmostrix source:
   - `src/config.rs:586` — `default_value_t = 1`
   - `src/main.rs:595-598` — `1 → BoldMode::Random`
-  - `src/chroma/shaders/base.rs:449-451` — Random bold implementation
-  - `src/chroma/shaders/bold_audit_tests.rs:5` — "visually looked
+  - `src/chroma_dragon_engine/shaders/base.rs:449-451` — Random bold implementation
+  - `src/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` — "visually looked
     identical in past testing" comment
   - `src/runtime.rs:18-23` — `BoldMode` enum

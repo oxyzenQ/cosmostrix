@@ -109,7 +109,8 @@ impl CinematicEvent for GhostEvent {
         // ghost overlay and is acceptable per owner rule "all color ->
         // chroma dragon first -> fallback legacy rgb/srgb".
         let (r, g, b) = if ctx.color_pipeline.is_chroma() {
-            let scaled = crate::chroma::palette::apply_brightness_rgb(br, bg, bb, opacity);
+            let scaled =
+                crate::chroma_dragon_engine::palette::apply_brightness_rgb(br, bg, bb, opacity);
             crate::palette::decode_color(scaled).unwrap_or((br, bg, bb))
         } else {
             (

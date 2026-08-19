@@ -26,37 +26,43 @@
 //!
 //! ## Policy
 //!
-//! See `src/cosmic_dragon/README.md` for the full incubator policy. Summary:
+//! See `src/cosmic_dragon_engine/README.md` for the full incubator policy. Summary:
 //!
 //! 1. **All new v15+ features go here.** Patches to existing stable modules
 //!    stay in their flat `src/` paths — this namespace is for additive growth.
-//! 2. **Mature modules can graduate.** Once a `cosmic_dragon/` module stabilizes,
+//! 2. **Mature modules can graduate.** Once a `cosmic_dragon_engine/` module stabilizes,
 //!    it may be promoted to the flat `src/` structure. The reverse never
 //!    happens — stable code is never demoted back into the incubator.
-//! 3. **Never break the stable engine.** Code in `cosmic_dragon/` must not mutate
+//! 3. **Never break the stable engine.** Code in `cosmic_dragon_engine/` must not mutate
 //!    stable module internals. It may call stable APIs (`crate::cloud::*`,
-//!    `crate::chroma::post::climate::*` for the post-FX shader, etc.) but
+//!    `crate::chroma_dragon_engine::post::climate::*` for the post-FX shader, etc.) but
 //!    cannot reach into private fields. (v30 2026-08-05: the historical
 //!    `crate::atmosphere::*` reference was the eliminated atmosphere engine
-//!    subsystem; the live reference is now `crate::chroma::post::climate`.)
-//! 4. **Each subdirectory is self-contained.** A `cosmic_dragon/breath/` module
-//!    does not import from `cosmic_dragon/scale/` — they are siblings, not a stack.
+//!    subsystem; the live reference is now `crate::chroma_dragon_engine::post::climate`.)
+//! 4. **Each subdirectory is self-contained.** A `cosmic_dragon_engine/breath/` module
+//!    does not import from `cosmic_dragon_engine/scale/` — they are siblings, not a stack.
 //!    Cross-subsystem dependencies flow through the stable engine's public
-//!    API, not through `cosmic_dragon/` internals.
+//!    API, not through `cosmic_dragon_engine/` internals.
 //!
 //! ## History
 //!
-//! This namespace replaces the previous `src/cosmic_dragon_engine/` directory
-//! (commit `4e2ebe7`), which was a pure re-export wrapper with zero callers
-//! and was deleted in commit `46ba457` as dead code. The lesson: an
-//! incubator namespace must hold *real new code*, not re-exports of existing
-//! code. The first inhabitant is `egg/io_uring_rejected.rs` (moved from
-//! `src/cosmic_dragon_egg_io_uring.rs`), which is a real `#[cfg(test)]` benchmark
-//! with actual test callers.
+//! This namespace was originally named `src/cosmic_dragon/` (commit
+//! `4e2ebe7`'s descendant), replacing an even-earlier `src/cosmic_dragon_engine/`
+//! directory that was a pure re-export wrapper with zero callers and was
+//! deleted in commit `46ba457` as dead code.
+//!
+//! Renamed back to `cosmic_dragon_engine/` in 2026-08-19 to match the
+//! `crystal_dragon_engine/` and `chroma_dragon_engine/` naming convention
+//! (owner mandate for dragon-engine consistency). The lesson from the
+//! original deletion still applies: an incubator namespace must hold
+//! *real new code*, not re-exports of existing code. The first inhabitant
+//! is `egg/io_uring_rejected.rs` (moved from
+//! `src/cosmic_dragon_egg_io_uring.rs`), which is a real `#[cfg(test)]`
+//! benchmark with actual test callers.
 
 pub(crate) mod egg;
 
-// Tests now live in cosmic_dragon/tests/ subdir (Pattern C — dedicated tests/).
+// Tests now live in cosmic_dragon_engine/tests/ subdir (Pattern C — dedicated tests/).
 // Was previously a #[path] declaration (Pattern B).
 #[cfg(test)]
 mod tests;

@@ -89,8 +89,8 @@
 
 use crossterm::style::Color;
 
-use crate::chroma::gradient::{oklab_to_srgb, polar_chroma_lerp, srgb_to_oklab};
-use crate::chroma::palette::color_to_rgb;
+use crate::chroma_dragon_engine::gradient::{oklab_to_srgb, polar_chroma_lerp, srgb_to_oklab};
+use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 /// One stop's OKLab values in both the old and new palettes.
 ///

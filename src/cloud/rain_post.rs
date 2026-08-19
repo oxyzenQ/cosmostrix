@@ -453,7 +453,7 @@ impl Cloud {
                 )
             };
             let (pr, pg, pb) = if self.color_pipeline.is_chroma() {
-                crate::chroma::palette::apply_brightness_rgb_unclamped(
+                crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
                     bright_r,
                     bright_g,
                     bright_b,
@@ -494,9 +494,13 @@ impl Cloud {
             // blend_toward_rgb otherwise. Same equation both paths:
             // (c + (target - c) * (factor * 256) + 128) / 256 clamped.
             let (nr, ng, nb) = if self.color_pipeline.is_chroma() {
-                crate::chroma::palette::blend_toward_bg_rgb(br, bg_, bb, pr, pg, pb, brightness)
+                crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                    br, bg_, bb, pr, pg, pb, brightness,
+                )
             } else {
-                crate::chroma::legacy::blend_toward_rgb(br, bg_, bb, pr, pg, pb, brightness)
+                crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                    br, bg_, bb, pr, pg, pb, brightness,
+                )
             };
             let new_fg = Color::Rgb {
                 r: nr,
@@ -547,9 +551,13 @@ impl Cloud {
                 };
                 // Blend toward cycled color with trail brightness.
                 let (tnr, tng, tnb) = if self.color_pipeline.is_chroma() {
-                    crate::chroma::palette::blend_toward_bg_rgb(tbr, tbg_, tbb, pr, pg, pb, trail_b)
+                    crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                        tbr, tbg_, tbb, pr, pg, pb, trail_b,
+                    )
                 } else {
-                    crate::chroma::legacy::blend_toward_rgb(tbr, tbg_, tbb, pr, pg, pb, trail_b)
+                    crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                        tbr, tbg_, tbb, pr, pg, pb, trail_b,
+                    )
                 };
                 let trail_new_fg = Color::Rgb {
                     r: tnr,
@@ -638,9 +646,9 @@ fn apply_crt_dim_cell(
     // -- the difference is auditability. See
     // docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md §6.4.
     let new_fg = if pipeline.is_chroma() {
-        crate::chroma::palette::apply_brightness_rgb(r, g, b, factor)
+        crate::chroma_dragon_engine::palette::apply_brightness_rgb(r, g, b, factor)
     } else {
-        let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
+        let (nr, ng, nb) = crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor);
         Color::Rgb {
             r: nr,
             g: ng,

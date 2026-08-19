@@ -159,7 +159,9 @@ impl BenchIoWriter {
     /// active palette. Mirrors the production `Terminal::draw()` fast path —
     /// SGR sequences are pre-formatted once at construction, then memcpy'd
     /// per cell instead of being formatted on-the-fly.
-    pub(crate) fn with_palette(palette: &crate::chroma::palette::Palette) -> Option<Self> {
+    pub(crate) fn with_palette(
+        palette: &crate::chroma_dragon_engine::palette::Palette,
+    ) -> Option<Self> {
         Self::build(Some(ColorCache::new(palette)))
     }
 

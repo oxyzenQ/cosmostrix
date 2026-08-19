@@ -19,7 +19,7 @@ use super::Cloud;
 use smallvec::SmallVec;
 
 // Phase 3-G: atmospheric ctx for integrated post-processing.
-use crate::chroma::post::climate::ClimateCtx;
+use crate::chroma_dragon_engine::post::climate::ClimateCtx;
 
 impl Cloud {
     pub fn rain(&mut self, frame: &mut Frame) {
@@ -457,11 +457,11 @@ impl Cloud {
                     if prev_palette.is_empty() {
                         return None;
                     }
-                    crate::chroma::shaders::transition::TransitionLTable::build(
+                    crate::chroma_dragon_engine::shaders::transition::TransitionLTable::build(
                         prev_palette,
                         &self.palette.colors,
                         wave_line,
-                        crate::chroma::tuning::TRANSITION_L_SMOOTHING_WINDOW,
+                        crate::chroma_dragon_engine::tuning::TRANSITION_L_SMOOTHING_WINDOW,
                     )
                 });
 
@@ -511,7 +511,7 @@ impl Cloud {
             // darkest stop. Replaces the hardcoded (18, 22, 18) in ghost.rs —
             // ghosts now match the scene's color scheme.
             let ghost_base_color =
-                crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
+                crate::chroma_dragon_engine::post::ghost::ghost_base_color(&self.palette.colors);
             let pre_ctx = crate::cloud::ghost_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,
@@ -673,14 +673,14 @@ impl Cloud {
         let column_coherence_phase = now
             .saturating_duration_since(self.start_anchor)
             .as_secs_f32()
-            * crate::chroma::tuning::COLUMN_COHERENCE_FREQ;
+            * crate::chroma_dragon_engine::tuning::COLUMN_COHERENCE_FREQ;
         let cols_us = self.cols as usize;
         if self.column_coherence_lut.len() != cols_us {
             self.column_coherence_lut.resize(cols_us, 0);
         }
         for col in 0..cols_us {
             self.column_coherence_lut[col] =
-                crate::chroma::shaders::base::column_coherence_perturbation(
+                crate::chroma_dragon_engine::shaders::base::column_coherence_perturbation(
                     column_coherence_phase,
                     col as u16,
                 );
@@ -731,9 +731,11 @@ impl Cloud {
             // At ~12.9M Middle cells/sec this saves ~65M cycles/sec.
             // Always Some in production — the value is meaningful even
             // when small (and 0.0 is a valid no-op).
-            hue_drift_offset: Some(crate::chroma::shaders::base::hue_drift_offset(
-                self.color_ecosystem.hue_drift,
-            )),
+            hue_drift_offset: Some(
+                crate::chroma_dragon_engine::shaders::base::hue_drift_offset(
+                    self.color_ecosystem.hue_drift,
+                ),
+            ),
             // Phase 4-A (Dragon Awakening) + Phase D (hot-path): temporal
             // column hue coherence, now as a precomputed LUT. The LUT is
             // built once per frame from the time phase (COLUMN_COHERENCE_FREQ
@@ -748,7 +750,9 @@ impl Cloud {
             // conservative amplitude (SUBPIXEL_JITTER_AMPLITUDE = 3) for
             // subtle film-grain texture. Always Some in production — the
             // jitter is deterministic per (line, col) so it doesn't strobe.
-            subpixel_jitter_amplitude: Some(crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE),
+            subpixel_jitter_amplitude: Some(
+                crate::chroma_dragon_engine::tuning::SUBPIXEL_JITTER_AMPLITUDE,
+            ),
             // Phase 4-D (Dragon Awakening): activate head halo via background
             // blend (Innovation D). The blend_toward_bg helper landed in
             // Phase 3-D but had zero production callers. Phase 4-D wires it
@@ -756,7 +760,7 @@ impl Cloud {
             // (HEAD_HALO_FACTOR = 0.15) so the head dissolves into the scene
             // background. Always Some in production — the shader auto-no-ops
             // when bg is None or Color::Reset.
-            head_halo_factor: Some(crate::chroma::tuning::HEAD_HALO_FACTOR),
+            head_halo_factor: Some(crate::chroma_dragon_engine::tuning::HEAD_HALO_FACTOR),
             // Phase 5: perceptual L smoothing at the palette transition
             // wave line. Built once per frame when transition_start.is_some()
             // AND color_wave_line.is_some() — the table pre-computes the
@@ -909,7 +913,7 @@ impl Cloud {
         if !self.event_manager.is_empty() {
             // Phase 3-I: same palette-aware ghost color as the pre-rain pass.
             let ghost_base_color =
-                crate::chroma::post::ghost::ghost_base_color(&self.palette.colors);
+                crate::chroma_dragon_engine::post::ghost::ghost_base_color(&self.palette.colors);
             let event_ctx = crate::cloud::ghost_events::EventCtx {
                 cols: self.cols,
                 lines: self.lines,

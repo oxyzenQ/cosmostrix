@@ -80,7 +80,7 @@
 
 use crossterm::style::Color;
 
-use crate::chroma::tuning::ANOMALY_HALO_CYCLE_RATE;
+use crate::chroma_dragon_engine::tuning::ANOMALY_HALO_CYCLE_RATE;
 
 /// Discriminator for the anomaly halo target color derivation.
 ///
@@ -127,8 +127,8 @@ pub(crate) enum AnomalyHaloMode {
 /// ## Example
 ///
 /// ```ignore
-/// use crate::chroma::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
-/// use crate::chroma::palette::{blend_toward_bg, blend_toward_white};
+/// use crate::chroma_dragon_engine::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
+/// use crate::chroma_dragon_engine::palette::{blend_toward_bg, blend_toward_white};
 ///
 /// // LuminanceSurge: static target = palette's brightest stop
 /// let palette = [Color::Rgb { r: 0, g: 100, b: 0 }, Color::Rgb { r: 200, g: 255, b: 200 }];

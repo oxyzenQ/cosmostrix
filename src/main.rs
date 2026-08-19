@@ -55,7 +55,7 @@ mod app;
 // removed. Design knowledge preserved in
 // docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md.
 //
-// NOTE: src/chroma/post/climate.rs (ClimateCtx — luminance/
+// NOTE: src/chroma_dragon_engine/post/climate.rs (ClimateCtx — luminance/
 // saturation/instability shader) is a SEPARATE Chroma Dragon post-FX
 // subsystem and is KEPT. The `EntropyDrift` struct in
 // cloud/ecosystem.rs (drift/gust events) is also SEPARATE and KEPT.
@@ -71,13 +71,13 @@ mod charset;
 mod charset_custom;
 // Chroma Dragon coloring engine — Phase 1: relocated palette + catalog here.
 // Re-exports below keep the old `crate::palette::…` paths working unchanged.
-mod chroma;
-pub use chroma::catalog;
-pub use chroma::palette;
+mod chroma_dragon_engine;
+pub use chroma_dragon_engine::catalog;
+pub use chroma_dragon_engine::palette;
 // Re-export the newly-moved color_* submodules so existing
 // `crate::color_cache::Foo`, `crate::color_tune::Foo`, and
 // `crate::colors_custom::Foo` call sites continue to resolve.
-pub(crate) use chroma::{color_cache, color_tune, colors_custom};
+pub(crate) use chroma_dragon_engine::{color_cache, color_tune, colors_custom};
 mod central_control_dragon_power;
 mod central_control_rains;
 mod cli;
@@ -97,7 +97,7 @@ mod config;
 // `crate::live_config_X::Foo` call sites working unchanged.
 pub(crate) use config::*;
 mod constants;
-mod cosmic_dragon;
+mod cosmic_dragon_engine;
 // cpustat.rs, memstat.rs, usagestat.rs, envstat.rs now live under sysstat/.
 // See sysstat/mod.rs for the re-export that keeps the 15 existing
 // `crate::cpustat::Foo` etc. call sites working unchanged.
@@ -125,7 +125,7 @@ mod interactive;
 mod message;
 mod output;
 mod panic_hook;
-// `palette` now lives at `src/chroma/palette.rs`; re-exported above.
+// `palette` now lives at `src/chroma_dragon_engine/palette/mod.rs`; re-exported above.
 mod platform;
 mod posix_time;
 mod profile;

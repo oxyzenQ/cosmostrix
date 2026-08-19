@@ -543,9 +543,11 @@ impl Droplet {
                 // `(factor * 256.0) as i32` cast happens inside the helper.
                 if let Some(factor) = transition_wf {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                        crate::chroma_dragon_engine::palette::blend_toward_white_rgb(
+                            r, g, b, factor,
+                        )
                     } else {
-                        crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                        crate::chroma_dragon_engine::legacy::blend_toward_white(r, g, b, factor)
                     };
                     r = nr;
                     g = ng;
@@ -578,9 +580,11 @@ impl Droplet {
                         // within the chroma helper's [0, 1] clamp.
                         let factor = gaussian * bloom * frac_bloom * layer_bloom;
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, factor)
+                            crate::chroma_dragon_engine::palette::blend_toward_white_rgb(
+                                r, g, b, factor,
+                            )
                         } else {
-                            crate::chroma::legacy::blend_toward_white(r, g, b, factor)
+                            crate::chroma_dragon_engine::legacy::blend_toward_white(r, g, b, factor)
                         };
                         r = nr;
                         g = ng;
@@ -603,14 +607,14 @@ impl Droplet {
                     // because front layer combined_layer = 1.10 (BOOST > 1.0);
                     // clamped apply_brightness_rgb would regress fix.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
                             r,
                             g,
                             b,
                             combined_layer,
                         )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, combined_layer)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, combined_layer)
                     };
                     r = nr;
                     g = ng;
@@ -632,11 +636,13 @@ impl Droplet {
                     // Equation: out = c - (c - lum) * (1 - sat) = lerp(c, lum, 1-sat).
                     let factor = 1.0 - saturation_mult;
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::blend_toward_bg_rgb_unclamped(
+                        crate::chroma_dragon_engine::palette::blend_toward_bg_rgb_unclamped(
                             r, g, b, lum, lum, lum, factor,
                         )
                     } else {
-                        crate::chroma::legacy::blend_toward_rgb(r, g, b, lum, lum, lum, factor)
+                        crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                            r, g, b, lum, lum, lum, factor,
+                        )
                     };
                     r = nr;
                     g = ng;
@@ -666,9 +672,11 @@ impl Droplet {
                     // avoiding the Color wrap + decode_color round-trip. Bit-identical for
                     // factor ∈ [0,1] (call-site guard ensures this).
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, factor)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, factor,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, factor)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor)
                     };
                     r = nr;
                     g = ng;
@@ -699,9 +707,11 @@ impl Droplet {
                     // code — fog_factor is always 1.0 and the gate never enters.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, fog_factor)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, fog_factor,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, fog_factor)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, fog_factor)
                     };
                     r = nr;
                     g = ng;
@@ -731,9 +741,11 @@ impl Droplet {
                         let glow = (1.0 - dist_sq) * MOUSE_GLOW_INTENSITY;
                         // (A17): chroma-routed white-blend (dead code in prod).
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                            crate::chroma::palette::blend_toward_white_rgb(r, g, b, glow)
+                            crate::chroma_dragon_engine::palette::blend_toward_white_rgb(
+                                r, g, b, glow,
+                            )
                         } else {
-                            crate::chroma::legacy::blend_toward_white(r, g, b, glow)
+                            crate::chroma_dragon_engine::legacy::blend_toward_white(r, g, b, glow)
                         };
                         r = nr;
                         g = ng;
@@ -809,9 +821,13 @@ impl Droplet {
                         // FlashWaveCtx.head_rgb, once per wave in rain.rs).
                         let (hr, hg, hb) = w.head_rgb;
                         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                            crate::chroma::palette::blend_toward_bg_rgb(r, g, b, hr, hg, hb, factor)
+                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                r, g, b, hr, hg, hb, factor,
+                            )
                         } else {
-                            crate::chroma::legacy::blend_toward_rgb(r, g, b, hr, hg, hb, factor)
+                            crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                                r, g, b, hr, hg, hb, factor,
+                            )
                         };
                         r = nr;
                         g = ng;
@@ -828,9 +844,11 @@ impl Droplet {
                     let factor = 0.7 + 0.3 * head_bright;
                     // (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, factor)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, factor,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, factor)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor)
                     };
                     r = nr;
                     g = ng;
@@ -873,9 +891,9 @@ impl Droplet {
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize];
                     let wf = HEAD_BOOST * layer_selfbloom;
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::boost_rgb(r, g, b, wf)
+                        crate::chroma_dragon_engine::palette::boost_rgb(r, g, b, wf)
                     } else {
-                        crate::chroma::legacy::boost_rgb(r, g, b, wf)
+                        crate::chroma_dragon_engine::legacy::boost_rgb(r, g, b, wf)
                     };
                     r = nr;
                     g = ng;
@@ -903,9 +921,11 @@ impl Droplet {
                 if shadow < 1.0 {
                     // (Color-#5): apply_brightness_rgb_unclamped returns tuple directly.
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, shadow)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, shadow,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, shadow)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, shadow)
                     };
                     r = nr;
                     g = ng;
@@ -925,9 +945,11 @@ impl Droplet {
                 if edge_fade < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, edge_fade)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, edge_fade,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, edge_fade)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, edge_fade)
                     };
                     r = nr;
                     g = ng;
@@ -971,9 +993,11 @@ impl Droplet {
                 if vignette < 1.0 {
                     let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
                         // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
-                        crate::chroma::palette::apply_brightness_rgb_unclamped(r, g, b, vignette)
+                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                            r, g, b, vignette,
+                        )
                     } else {
-                        crate::chroma::legacy::scale_rgb(r, g, b, vignette)
+                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, vignette)
                     };
                     r = nr;
                     g = ng;

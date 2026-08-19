@@ -77,11 +77,11 @@ oversight waiting to be "fixed." Treat it that way.
 
 3. **Never break the stable engine.** Code in `cosmic_dragon/` must not mutate
    stable module internals. It may call stable APIs (`crate::cloud::*`,
-   `crate::chroma::post::climate` for the post-FX shader,
+   `crate::chroma_dragon_engine::post::climate` for the post-FX shader,
    `crate::interactive::*`, etc.) but cannot reach into private fields or
    break abstractions. (v30 2026-08-05: the historical `crate::atmosphere_*`
    reference was the eliminated atmosphere engine subsystem; the live
-   reference is now `crate::chroma::post::climate`.)
+   reference is now `crate::chroma_dragon_engine::post::climate`.)
 
 4. **Each subdirectory is self-contained.** A `cosmic_dragon/breath/` module
    does not import from `cosmic_dragon/scale/` — they are siblings, not a stack.
@@ -125,12 +125,12 @@ real `#[cfg(test)]` benchmark with actual test callers.
 
 When a `cosmic_dragon/` module is ready to graduate:
 
-1. Move the file from `src/cosmic_dragon/<anatomy>/<name>.rs` to `src/<name>.rs`.
-2. Update `src/cosmic_dragon/<anatomy>/mod.rs` to remove the now-empty module
+1. Move the file from `src/cosmic_dragon_engine/<anatomy>/<name>.rs` to `src/<name>.rs`.
+2. Update `src/cosmic_dragon_engine/<anatomy>/mod.rs` to remove the now-empty module
    declaration. If the anatomy directory becomes empty, delete its
    `mod.rs` and the directory itself.
-3. Update `src/cosmic_dragon/mod.rs` if the anatomy subdir is removed.
-4. Update any `crate::cosmic_dragon::<anatomy>::<name>` references to
+3. Update `src/cosmic_dragon_engine/mod.rs` if the anatomy subdir is removed.
+4. Update any `crate::cosmic_dragon_engine::<anatomy>::<name>` references to
    `crate::<name>`.
 5. Run `cargo test --all` and `./scripts/build.sh check-all`.
 

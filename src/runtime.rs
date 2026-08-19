@@ -11,7 +11,7 @@ pub enum ColorMode {
 
 /// Which color pipeline is active for the current run.
 ///
-/// The Chroma Dragon engine (`src/chroma/`) is the primary coloring
+/// The Chroma Dragon engine (`src/chroma_dragon_engine/`) is the primary coloring
 /// authority — it owns palette construction (OKLab gradient since v30),
 /// per-cell base shader (`resolve_cell_color`), atmospheric post-FX
 /// (`apply_climate`), palette-aware ghost color, and palette-aware

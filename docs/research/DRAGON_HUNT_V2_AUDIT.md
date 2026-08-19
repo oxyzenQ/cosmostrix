@@ -31,7 +31,7 @@
 | 6 | E (item 33) — vignette/rain_shadow LUTs | ⏸ DEFERRED | — | Visual shift risk, needs owner approval |
 | 6 | E (item 34) — `bitvec` dep replacement | ✅ DONE (SKIP) | — | Owner keeps `bitvec`, no comparison branch, no code change |
 
-**Item 16** (`cosmic_dragon/egg/io_uring_rejected.rs` demotion) was
+**Item 16** (`cosmic_dragon_engine/egg/io_uring_rejected.rs` demotion) was
 **INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:
 "When an experiment concludes, its findings are documented in
 `docs/COSMIC_DRAGON_FINDINGS.md` and the benchmark itself stays here as
@@ -97,7 +97,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 | 4 | `README.md:132` wrong `--duration 1h30m` doc | FIX — `--duration` is bare-float-only; compound format is `--bench-duration`'s feature | doc accuracy |
 | 5 | `src/configfile.rs:88` stale "Legacy `config` filename" comment | FIX — `CONFIG_FILE_NAME_LEGACY` was removed | doc accuracy |
 | 6 | `docs/research/FLAGS_AUDIT_dead_weight.md:10-19` stale "NOT YET FIXED" status | FIX — bug was fixed in commit `295a725` | doc accuracy |
-| 7 | 3× stale README refs to `src/cosmic_dragon_lock_tests.rs` (Task 4 fallout) | FIX — path is now `src/cosmic_dragon/lock_tests.rs` | doc accuracy |
+| 7 | 3× stale README refs to `src/cosmic_dragon_lock_tests.rs` (Task 4 fallout) | FIX — path is now `src/cosmic_dragon_engine/lock_tests.rs` | doc accuracy |
 | 8 | `Cargo.toml` `[profile.bench]` (5 lines) | DELETE — 0 `#[bench]` tests, 0 `cargo bench` invocations | -5 LOC |
 | 9 | `cloud/tests/tests_architecture.rs` (210 LOC) | DELETE or wire into `cloud/tests/mod.rs` — currently NOT mod-declared, never runs | -210 LOC or fix |
 | 10 | `cloud/ecosystem.rs:221-263` `related_schemes()` (43 LOC) | DELETE — "preserved as documentation", family-view already captures same clustering disjointly | -43 LOC |
@@ -111,7 +111,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 | 13 | `src/quantum_constants.rs` (71 LOC) | MERGE into `constants.rs` (only re-exported once) | -71 LOC, -1 file |
 | 14 | `atmosphere_probe.rs` (223 LOC) `evaluate_probe` method | DELETE — test-only API that never shipped | -223 LOC |
 | 15 | `atmosphere_presets.rs` — 4 dead fns (`expects_identity`, `expects_whisper`, `is_storm_preset_name`, ...) | DELETE | ~80 LOC |
-| 16 | `cosmic_dragon/egg/io_uring_rejected.rs` (161 LOC) | DEMOTE to `docs/research/io_uring_rejected.md` — concluded experiment, kept as historical note | -1 .rs file |
+| 16 | `cosmic_dragon_engine/egg/io_uring_rejected.rs` (161 LOC) | DEMOTE to `docs/research/io_uring_rejected.md` — concluded experiment, kept as historical note | -1 .rs file |
 | 17 | `assets/cosmostrix-v30-demo.gif` (16 MB) | RE-ENCODE to ~3 MB (saves 13 MB per clone) | -13 MB |
 
 ### Tier B — Doc archival (low risk, high LOC recovery)
@@ -139,7 +139,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 
 | # | Target | Action | Impact |
 |---|--------|--------|--------|
-| 29 | `chroma/shaders/base.rs:298` per-cell `sinf` | Precompute `Vec<i32>` of length `cols` once per frame; pass through `DrawCtx` | -65-130M cycles/sec |
+| 29 | `chroma_dragon_engine/shaders/base.rs:298` per-cell `sinf` | Precompute `Vec<i32>` of length `cols` once per frame; pass through `DrawCtx` | -65-130M cycles/sec |
 | 30 | `interactive/event_loop.rs:558` per-frame `String::clone` for scene_name | Replace with `u64` generation counter | -60 heap allocs/sec |
 
 ### Tier E — Decisions requiring owner input

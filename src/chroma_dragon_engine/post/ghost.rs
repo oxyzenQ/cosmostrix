@@ -43,7 +43,7 @@
 
 use crossterm::style::Color;
 
-use crate::chroma::palette::color_to_rgb;
+use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 /// Scaling factor for the ghost base color. The darkest palette stop is
 /// multiplied by this factor to produce a dim, ghostly color.

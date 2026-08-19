@@ -16,7 +16,7 @@ use crossterm::style::Color;
 
 use super::super::Cloud;
 use crate::cell::Cell;
-use crate::chroma::palette::{blend_toward_bg, blend_toward_white, color_to_rgb};
+use crate::chroma_dragon_engine::palette::{blend_toward_bg, blend_toward_white, color_to_rgb};
 use crate::constants::{ANOMALY_DURATION_SECS, ANOMALY_LUMINANCE_INTENSITY, ANOMALY_MAX_ZONES};
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
@@ -462,7 +462,8 @@ fn pulse_wave_uses_palette_cycled_stop_not_pure_white() {
 
         // Compute the expected palette-derived result.
         // Stop idx = (0.5 * 4.0) as usize % palette.len()
-        let stop_idx = (elapsed * crate::chroma::tuning::ANOMALY_HALO_CYCLE_RATE) as usize
+        let stop_idx = (elapsed * crate::chroma_dragon_engine::tuning::ANOMALY_HALO_CYCLE_RATE)
+            as usize
             % cloud.palette.colors.len();
         let palette_target = cloud.palette.colors[stop_idx];
         let expected_result = blend_toward_bg(known_fg, palette_target, intensity);

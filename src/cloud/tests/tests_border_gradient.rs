@@ -20,7 +20,7 @@
 //!
 //! ## blend_toward_rgb rounding convention
 //!
-//! `crate::chroma::legacy::blend_toward_rgb` uses integer math with a
+//! `crate::chroma_dragon_engine::legacy::blend_toward_rgb` uses integer math with a
 //! `+128` rounding offset (half-up convention):
 //! `out = src + (tgt - src) * wf / 256` where `wf = (factor * 256) as i32`
 //! and `+128` is added before the divide to round half-up.

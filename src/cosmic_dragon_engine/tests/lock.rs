@@ -5,7 +5,7 @@
 //!
 //! Comprehensive invariant suite that **locks** the Cosmic Dragon diff-based
 //! rendering engine at its v30 peak. Mirrors the Chroma Dragon lock suite
-//! (`src/chroma/lock_tests.rs`) — every public contract the render engine
+//! (`src/chroma_dragon_engine/lock_tests.rs`) — every public contract the render engine
 //! guarantees is asserted here, so any future change that silently regresses
 //! an invariant fails CI before it reaches `main`.
 //!

@@ -23,7 +23,7 @@ iconic shot. Secondary sources:
 
 Cosmostrix-side data is read directly from `src/central_control_rains.rs`,
 `src/cloud/phosphor.rs`, `src/cloud/spawn.rs`, `src/droplet.rs`,
-`src/chroma/catalog.rs`, and `src/chroma/tuning.rs` — all citations in
+`src/chroma_dragon_engine/catalog.rs`, and `src/chroma_dragon_engine/tuning.rs` — all citations in
 the comparison table below are file:line.
 
 ---
@@ -76,12 +76,12 @@ essence" — Japanese typographic texture, not actual code. The first
 | C3 | **Changing glyphs** | Each cell re-rolls its glyph from the char pool on every dirty frame. There is no 3-frame static period and no 50/50 opacity transition blend — the glyph just swaps. | `cloud/render.rs`, `cloud/phosphor.rs` |
 | C4 | **Changing-glyph sync** | No global sync. Each cell re-rolls independently. | (absent by design) |
 | C5 | **Deletion strings** | Not modeled. Cells become invisible only via phosphor decay or scene transitions. | (absent) |
-| C6 | **Highlighted glyph frequency** | Approximately 100% of strings have a head (the head IS the highlighted glyph by construction — `CharLoc::Head` always maps to the brightest stop). So every active droplet has a highlighted leading glyph. | `chroma/shaders/base.rs:522-619` |
+| C6 | **Highlighted glyph frequency** | Approximately 100% of strings have a head (the head IS the highlighted glyph by construction — `CharLoc::Head` always maps to the brightest stop). So every active droplet has a highlighted leading glyph. | `chroma_dragon_engine/shaders/base.rs:522-619` |
 | C7 | **Highlighted glyph count** | Exactly one per string (the head). | same |
 | C8 | **Highlighted glyph position** | Always the leading (bottom-most) glyph of the droplet. | same |
 | C9 | **Stammer event** | Not modeled as a global sync event. The closest analog is the per-droplet turbulence drift (`TURBULENCE_AMPLITUDE = 0.08`, `TURBULENCE_FREQ = 0.4 Hz`) and the wind-gust envelope (30-120s idle, 1-2s attack, 0.5-1s hold, 3-5s decay, 1.2-1.5× peak) — but these are continuous, not the discrete 1-row fall-behind of the film. | `central_control_rains.rs:516-522, 658-692` |
 | C10 | **Glyph set** | 25 built-in charsets (24 named + `auto`). Default `binary` = {0, 1}. `matrix` charset = half-width katakana (matches film F10 closely). `retro` adds Latin + symbols. Custom charsets via config. | `src/charset.rs` |
-| C11 | **Color** | Default `green` palette: 7 stops from `(0, 12, 1)` to `(201, 244, 210)`. Head stop is pale green-white (sum 655), NOT pure white. Self-bloom is hue-preserving (scales RGB, doesn't lerp to white). | `chroma/catalog.rs:79-90`, `droplet.rs:842-851` |
+| C11 | **Color** | Default `green` palette: 7 stops from `(0, 12, 1)` to `(201, 244, 210)`. Head stop is pale green-white (sum 655), NOT pure white. Self-bloom is hue-preserving (scales RGB, doesn't lerp to white). | `chroma_dragon_engine/catalog.rs:79-90`, `droplet.rs:842-851` |
 | C12 | **Speed feel** | Default 30 cps. Triangular async distribution `max(a,b)` on `[0.333, 1.0]`, mean ~0.78. 3-layer parallax speed mult `[0.35, 1.0, 1.7]` so back layer ~10.5 cps, front ~51 cps. | `config.rs:249`, `cloud/spawn.rs:332-346`, `central_control_rains.rs:176` |
 
 ---
@@ -147,7 +147,7 @@ glyph at body brightness (color_idx = `last - 1` instead of `last`).
 // central_control_rains.rs
 pub const HEAD_HIGHLIGHT_PCT: f32 = 0.20; // film-accurate
 
-// chroma/shaders/base.rs (CharLoc::Head arm)
+// chroma_dragon_engine/shaders/base.rs (CharLoc::Head arm)
 let is_highlighted = rng.gen::<f32>() < HEAD_HIGHLIGHT_PCT;
 let color_idx = if is_highlighted { last } else { last - 1 };
 ```
@@ -241,7 +241,7 @@ delta against current defaults:
 | `die_early_pct` | 0.3333 | 0.3333 (already matches) | same |
 | `--uniform` | off | on (film has near-uniform column speeds) | `config.rs:276-282` |
 | `--charset` | binary | matrix (katakana + 日 + numerals + Z + symbols) | `src/charset.rs` |
-| `--color` | green | `matrix_film` (new palette with whiter head) | new in `chroma/catalog.rs` |
+| `--color` | green | `matrix_film` (new palette with whiter head) | new in `chroma_dragon_engine/catalog.rs` |
 | `GLYPH_MUTATION_PERIOD_FRAMES` (new) | (1, per-frame) | 3 (with 1 blend frame) | new in `central_control_rains.rs` |
 
 With these deltas, cosmostrix would render at ~95% film accuracy. The
@@ -285,5 +285,5 @@ the architectural cost.
   <https://nofilmschool.com/matrix-digital-rain-origin>
 - Cosmostrix source: `src/central_control_rains.rs`,
   `src/cloud/phosphor.rs`, `src/cloud/spawn.rs`, `src/droplet.rs`,
-  `src/chroma/catalog.rs`, `src/chroma/tuning.rs`,
-  `src/chroma/shaders/base.rs`, `src/interactive/event_loop.rs`
+  `src/chroma_dragon_engine/catalog.rs`, `src/chroma_dragon_engine/tuning.rs`,
+  `src/chroma_dragon_engine/shaders/base.rs`, `src/interactive/event_loop.rs`

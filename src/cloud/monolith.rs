@@ -892,10 +892,11 @@ pub(super) fn color_for_level(
     // Stage 3: Core level -- extra blend toward white (CORE_WF = 0.55).
     if factor < 1.0 {
         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-            let scaled = crate::chroma::palette::apply_brightness_rgb(r, g, b, factor);
+            let scaled =
+                crate::chroma_dragon_engine::palette::apply_brightness_rgb(r, g, b, factor);
             palette::decode_color(scaled).unwrap_or((r, g, b))
         } else {
-            crate::chroma::legacy::scale_rgb(r, g, b, factor)
+            crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor)
         };
         r = nr;
         g = ng;
@@ -906,9 +907,9 @@ pub(super) fn color_for_level(
         // stronger pulse/breath brightness boost on Core/Hot cells.
         let white_factor = (factor - 1.0).min(MONOLITH_WHITE_BOOST_CAP);
         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-            crate::chroma::palette::blend_toward_white_rgb(r, g, b, white_factor)
+            crate::chroma_dragon_engine::palette::blend_toward_white_rgb(r, g, b, white_factor)
         } else {
-            crate::chroma::legacy::blend_toward_white(r, g, b, white_factor)
+            crate::chroma_dragon_engine::legacy::blend_toward_white(r, g, b, white_factor)
         };
         r = nr;
         g = ng;
@@ -917,9 +918,19 @@ pub(super) fn color_for_level(
     if matches!(level, BrightnessLevel::Core) {
         // CORE_WF centralized as MONOLITH_CORE_WHITE_BLEND.
         let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-            crate::chroma::palette::blend_toward_white_rgb(r, g, b, MONOLITH_CORE_WHITE_BLEND)
+            crate::chroma_dragon_engine::palette::blend_toward_white_rgb(
+                r,
+                g,
+                b,
+                MONOLITH_CORE_WHITE_BLEND,
+            )
         } else {
-            crate::chroma::legacy::blend_toward_white(r, g, b, MONOLITH_CORE_WHITE_BLEND)
+            crate::chroma_dragon_engine::legacy::blend_toward_white(
+                r,
+                g,
+                b,
+                MONOLITH_CORE_WHITE_BLEND,
+            )
         };
         r = nr;
         g = ng;

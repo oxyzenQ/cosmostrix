@@ -9,7 +9,7 @@ use crossterm::style::Color;
 use rand::distr::Distribution;
 
 use crate::cell::Cell;
-use crate::chroma::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
+use crate::chroma_dragon_engine::post::anomaly::{anomaly_halo_target, AnomalyHaloMode};
 use crate::constants::*;
 use crate::palette;
 use crate::rain_style::RainStyle;
@@ -45,7 +45,7 @@ fn phosphor_ghost_brightness(color: Color, factor: f32, is_chroma: bool) -> Colo
         if is_chroma {
             palette::apply_brightness_rgb(r, g, b, factor)
         } else {
-            let (nr, ng, nb) = crate::chroma::legacy::scale_rgb(r, g, b, factor);
+            let (nr, ng, nb) = crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor);
             Color::Rgb {
                 r: nr,
                 g: ng,
@@ -86,9 +86,11 @@ fn anomaly_halo_blend(
         let (nr, ng, nb) = match halo_target {
             Some(t) => {
                 let (tr, tg, tb) = palette::decode_color(t).unwrap_or((255, 255, 255));
-                crate::chroma::legacy::blend_toward_rgb(r, g, b, tr, tg, tb, intensity)
+                crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                    r, g, b, tr, tg, tb, intensity,
+                )
             }
-            None => crate::chroma::legacy::blend_toward_white(r, g, b, intensity),
+            None => crate::chroma_dragon_engine::legacy::blend_toward_white(r, g, b, intensity),
         };
         Color::Rgb {
             r: nr,

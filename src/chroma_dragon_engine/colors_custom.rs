@@ -20,7 +20,7 @@ use std::collections::{BTreeMap, HashMap};
 
 use crossterm::style::Color;
 
-use crate::chroma::palette::colors_from_stops;
+use crate::chroma_dragon_engine::palette::colors_from_stops;
 use crate::palette::Palette;
 use crate::runtime::ColorMode;
 
@@ -70,7 +70,7 @@ impl CustomPaletteDef {
         let stops_rgb: Vec<(u8, u8, u8)> = self
             .rain
             .iter()
-            .map(|c| crate::chroma::palette::color_to_rgb(*c))
+            .map(|c| crate::chroma_dragon_engine::palette::color_to_rgb(*c))
             .collect();
         // TrueColor is the only mode that makes sense for colors-custom:
         // user-supplied hex colors are by definition 24-bit. Mono mode would
@@ -468,7 +468,7 @@ mod tests {
     /// themes now share the identical code path.
     #[test]
     fn to_palette_matches_builtin_gradient_path() {
-        use crate::chroma::palette::{color_to_rgb, colors_from_stops};
+        use crate::chroma_dragon_engine::palette::{color_to_rgb, colors_from_stops};
         use crate::runtime::ColorMode;
 
         let stops = vec![

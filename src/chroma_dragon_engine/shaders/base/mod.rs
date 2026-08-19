@@ -139,7 +139,7 @@ pub(crate) struct ShaderCtx<'a> {
     /// `None` disables (cells render with raw palette colors). Production
     /// wires this through `DrawCtx` so the shader always applies atmospheric
     /// when factors are non-neutral.
-    pub atmospheric: Option<&'a crate::chroma::post::climate::ClimateCtx>,
+    pub atmospheric: Option<&'a crate::chroma_dragon_engine::post::climate::ClimateCtx>,
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
     ///
@@ -220,7 +220,8 @@ pub(crate) struct ShaderCtx<'a> {
     /// transitions show a hard brightness step at the wave line).
     /// Production wires this through `DrawCtx` only when
     /// `transition_start.is_some()` AND `color_wave_line.is_some()`.
-    pub transition_l_table: Option<&'a crate::chroma::shaders::transition::TransitionLTable>,
+    pub transition_l_table:
+        Option<&'a crate::chroma_dragon_engine::shaders::transition::TransitionLTable>,
 }
 
 /// Precomputed exponential decay lookup table for trail brightness.
@@ -365,7 +366,7 @@ fn apply_subpixel_jitter(color: Color, hash: u32, amplitude: u8) -> Color {
     if amplitude == 0 || matches!(color, Color::Reset) {
         return color;
     }
-    let (r, g, b) = crate::chroma::palette::color_to_rgb(color);
+    let (r, g, b) = crate::chroma_dragon_engine::palette::color_to_rgb(color);
     let amp = i32::from(amplitude);
     // Three independent 4-bit signed offsets in [-8, +7].
     let dr_raw = (hash & 0xF) as i32 - 8;
@@ -757,7 +758,9 @@ pub(crate) fn resolve_cell_color(
     // halo without an extra branch here.
     let fg = if is_head {
         fg.map(|c| match (shader.head_halo_factor, shader.bg) {
-            (Some(factor), Some(bg)) => crate::chroma::palette::blend_toward_bg(c, bg, factor),
+            (Some(factor), Some(bg)) => {
+                crate::chroma_dragon_engine::palette::blend_toward_bg(c, bg, factor)
+            }
             _ => c,
         })
     } else {
@@ -796,7 +799,7 @@ pub(crate) fn resolve_cell_color(
     // See `chroma::shaders::transition` for the full rationale and
     // the per-cell cost analysis.
     let fg = fg.map(|c| {
-        crate::chroma::shaders::transition::apply_l_smoothing(
+        crate::chroma_dragon_engine::shaders::transition::apply_l_smoothing(
             c,
             shader.transition_l_table,
             color_idx,
@@ -845,8 +848,9 @@ pub(crate) fn resolve_cell_color(
         if ctx.is_neutral() {
             return c;
         }
-        let (r, g, b) = crate::chroma::palette::color_to_rgb(c);
-        let (r, g, b) = crate::chroma::post::climate::apply_climate(r, g, b, line, col, ctx);
+        let (r, g, b) = crate::chroma_dragon_engine::palette::color_to_rgb(c);
+        let (r, g, b) =
+            crate::chroma_dragon_engine::post::climate::apply_climate(r, g, b, line, col, ctx);
         Color::Rgb { r, g, b }
     });
 

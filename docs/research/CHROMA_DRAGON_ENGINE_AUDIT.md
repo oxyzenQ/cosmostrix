@@ -13,7 +13,7 @@
 
 ## 0. TL;DR (10-second read)
 
-The Chroma Dragon engine (`src/chroma/`) is the project's structured color pipeline — palette construction (OKLab), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
+The Chroma Dragon engine (`src/chroma_dragon_engine/`) is the project's structured color pipeline — palette construction (OKLab), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
 
 **The inconsistency the owner found is real and structural.** While `resolve_cell_color` is the convergence point for *palette-stop selection*, **eleven other code paths bypass the chroma engine entirely** and emit `Color::Rgb { r, g, b }` by direct integer RGB math. These bypasses are not "fallbacks" — they are the *primary* coloring path for those effects, with no chroma-engine alternative. There is currently:
 
@@ -31,7 +31,7 @@ The refactor proposal in §6 introduces a `ColorPipeline` enum (Chroma / LegacyR
 ### 1.1 Module map
 
 ```
-src/chroma/                                ← the engine
+src/chroma_dragon_engine/                                ← the engine
 ├── mod.rs                                 ← declares submodules + Phase history
 ├── palette.rs                             ← Palette struct, build_palette, blend helpers
 ├── catalog.rs                             ← THEMES registry (43 themes), ThemeDef
@@ -83,7 +83,7 @@ src/chroma/                                ← the engine
 
 The audit was conducted by:
 
-1. **Reading the engine definition** — `chroma/mod.rs`, `chroma/shaders/base.rs` (full 784 LOC), `chroma/palette.rs`, `chroma/post/*`, `chroma/tuning.rs`, `chroma/gradient.rs`.
+1. **Reading the engine definition** — `chroma/mod.rs`, `chroma_dragon_engine/shaders/base.rs` (full 784 LOC), `chroma_dragon_engine/palette/mod.rs`, `chroma_dragon_engine/post/*`, `chroma_dragon_engine/tuning.rs`, `chroma/gradient.rs`.
 2. **Grepping for every direct `Color::Rgb { ... }` construction** across `src/` (250+ matches found; filtered to production non-test call sites).
 3. **Grepping for every direct integer RGB manipulation pattern** (`r as i32 + ...`, `r as f32 * scale`, `>> 8`). Found ~30+ production sites.
 4. **Tracing the quantum ripple and mouse-click pipelines** end-to-end (`cloud/spawn.rs::spawn_quantum_ripple` → `cloud/rain.rs::apply_quantum_ripple` → `droplet.rs` flash-wave render).
@@ -144,15 +144,15 @@ let new_fg = Color::Rgb { r: nr, g: ng, b: nb };   // ← direct construction, n
 ```rust
 // spawn: store Color, not (r,g,b)
 let body_color = self.palette.colors.get(body_idx).copied()
-    .unwrap_or(crate::chroma::catalog::default_body_color(self.color_scheme));
+    .unwrap_or(crate::chroma_dragon_engine::catalog::default_body_color(self.color_scheme));
 p.color = body_color;     // store Color, not (r,g,b)
 
 // render: blend through chroma engine
 let base = cell.fg.unwrap_or(p.color);
-let faded = crate::chroma::palette::blend_toward_bg(p.color, base, 1.0 - brightness);
+let faded = crate::chroma_dragon_engine::palette::blend_toward_bg(p.color, base, 1.0 - brightness);
 let atmospheric = {
-    let (r, g, b) = crate::chroma::palette::color_to_rgb(faded);
-    let (r, g, b) = crate::chroma::post::climate::apply_climate(r, g, b, line, col, climate_ctx);
+    let (r, g, b) = crate::chroma_dragon_engine::palette::color_to_rgb(faded);
+    let (r, g, b) = crate::chroma_dragon_engine::post::climate::apply_climate(r, g, b, line, col, climate_ctx);
     Color::Rgb { r, g, b }
 };
 frame.set_force(col, line, Cell { ch: p.ch, fg: Some(atmospheric), bg: cell.bg, bold: true });
@@ -392,10 +392,10 @@ The owner's question — *"when benchmarking mode 'cosmostrix --benchmark' is th
              hue-preserving polar variant (Phase 9-A).
 ```
 
-**Reality** (from `src/chroma/palette.rs:250-255`):
+**Reality** (from `src/chroma_dragon_engine/palette.rs:250-255`):
 > Historically this file held `srgb_to_linear`, `linear_to_srgb`, and `lerp_u8_gamma` — the gamma-correct sRGB interpolator used by ... [the] sole production path; **the legacy sRGB-linear path and the Cartesian [variant] have been removed**.
 
-**Reality** (from `src/chroma/gradient.rs:10-41`):
+**Reality** (from `src/chroma_dragon_engine/gradient.rs:10-41`):
 > The previous `lerp_u8_gamma` (sRGB → linear → sRGB) interpolated each [channel independently] ... **[the] variant and the legacy sRGB-linear variant have been removed.** The [sole production path is OKLab polar].
 
 The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in the binary for `strings(1)` discovery. The claim "sRGB-linear fallback" is false — there is no fallback. This must be corrected.
@@ -407,7 +407,7 @@ The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in
              the legacy path was removed (see palette.rs:250).
 ```
 
-### C2. `chroma/mod.rs` Phase history mentions "sRGB-linear" being removed but the docs_report still claims it exists
+### C2. `chroma_dragon_engine/mod.rs` Phase history mentions "sRGB-linear" being removed but the docs_report still claims it exists
 
 The chroma engine's own `mod.rs` Phase history is accurate (Phase 9-A says "sole production path"). The mismatch is only in `info.rs::docs_report` (which is user-facing via `--docs`).
 
@@ -427,7 +427,7 @@ The fallback is **never silent**. The user is told via `-v`, `--doctor`, and the
 
 ### 6.2 New `ColorPipeline` enum
 
-**Location**: `src/chroma/mod.rs` (new pub enum) or `src/runtime.rs` (alongside `ColorMode`).
+**Location**: `src/chroma_dragon_engine/mod.rs` (new pub enum) or `src/runtime.rs` (alongside `ColorMode`).
 
 ```rust
 /// Which color pipeline is active.
@@ -478,12 +478,12 @@ impl ColorPipeline {
 
 ### 6.3 New `chroma::legacy` module (the explicit fallback)
 
-**Location**: `src/chroma/legacy.rs` (new file, ~80 LOC).
+**Location**: `src/chroma_dragon_engine/legacy.rs` (new file, ~80 LOC).
 
 Houses the raw-RGB math that Category-A bypasses currently inline. Every function is the *exact* code that today lives inside `droplet.rs` / `rain.rs` / `spawn.rs` / `ghost.rs` — extracted as `pub(crate)` free functions so the bypass sites can call them when `ColorPipeline::LegacyRgb` is active.
 
 ```rust
-// src/chroma/legacy.rs
+// src/chroma_dragon_engine/legacy.rs
 //! Legacy sRGB-linear color math — the explicit fallback when the Chroma
 //! Dragon engine is not active. Each function is the verbatim code that
 //! used to be inlined in droplet.rs / rain.rs / spawn.rs / ghost.rs.
@@ -533,10 +533,10 @@ b = ((b as i32 * fi + 128) >> 8).clamp(0, 255) as u8;
 // AFTER (chroma first, legacy fallback)
 let (nr, ng, nb) = if pipeline.is_chroma() {
     // Chroma path: perceptual OKLab brightness scale (preserves hue+chroma)
-    crate::chroma::palette::scale_rgb_perceptual(r, g, b, factor)
+    crate::chroma_dragon_engine::palette::scale_rgb_perceptual(r, g, b, factor)
 } else {
     // Legacy fallback: linear sRGB scale (matches old behavior exactly)
-    crate::chroma::legacy::scale_rgb(r, g, b, factor)
+    crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor)
 };
 r = nr; g = ng; b = nb;
 ```
@@ -631,7 +631,7 @@ Add a `--no-chroma` flag that forces `ColorPipeline::LegacyRgb` regardless of `C
 | **P11** | Migrate A4 (head self-bloom) — needs new `boost_toward_white_perceptual` chroma helper (OKLab L lift). | +30 / -10 | Medium (new chroma helper, needs lock_tests invariant) |
 | **P12** | Migrate A10 (monolith render) — full audit of `cloud/monolith.rs` color pipeline. | TBD | High (monolith is complex) |
 | **P13** | Fix C1 (info.rs docs_report outdated sRGB-linear fallback claim). | +3 / -2 | Zero (docs only) |
-| **P14** | Add `INV-19: ColorPipeline disclosure` to `chroma/lock_tests.rs` — assert that verbose/doctor/bench all disclose the pipeline. | +60 | Zero (test only) |
+| **P14** | Add `INV-19: ColorPipeline disclosure` to `chroma_dragon_engine/tests/lock.rs` — assert that verbose/doctor/bench all disclose the pipeline. | +60 | Zero (test only) |
 
 **Total estimated delta**: +550 / -120 LOC across 14 microcommits.
 
@@ -639,7 +639,7 @@ Add a `--no-chroma` flag that forces `ColorPipeline::LegacyRgb` regardless of `C
 
 - **P1-P5** (disclosure): unit tests assert `ColorPipeline::detect` returns the right variant for each `(ColorMode, no_chroma)` combination.
 - **P6-P12** (migration): the existing regression tests in `tests_quantum.rs`, `tests_anomaly.rs`, `tests_visual_depth.rs`, `tests_monolith/depth.rs` must pass unchanged. The chroma path's output must be perceptually equivalent (within ±2 per channel) to the legacy path's output for the same inputs — verified by a new `tests_chroma_legacy_parity.rs`.
-- **P14** (lock test): the existing 18 invariants in `chroma/lock_tests.rs` continue to pass. Add INV-19 asserting that `verbose::print_verbose`, `doctor::print_doctor_report`, and `bench::compute_config_enrichment` all call `ColorPipeline::detect` and emit the `color_pipeline:` field.
+- **P14** (lock test): the existing 18 invariants in `chroma_dragon_engine/tests/lock.rs` continue to pass. Add INV-19 asserting that `verbose::print_verbose`, `doctor::print_doctor_report`, and `bench::compute_config_enrichment` all call `ColorPipeline::detect` and emit the `color_pipeline:` field.
 
 ### 6.8 Benchmark impact assessment
 
@@ -709,7 +709,7 @@ The structural invariant the owner's rule implies is: *every color-emitting call
 
 #### MEDIUM priority — 5 sites in `cloud/phosphor.rs` (the audit doc's "A11 partial migration" claim)
 
-The original §3 A11 entry said phosphor.rs was the **model** — "the only production module that consistently routes through the chroma engine for color manipulation". The second pass re-examined this claim and found it was structurally a **bypass** by the routing-pattern standard: phosphor.rs calls chroma helpers unconditionally, without the `is_chroma()` branch. Functionally this is correct in legacy mode (chroma helpers produce bit-identical output to legacy helpers per the parity contracts in `chroma/legacy.rs`), but it bypasses the routing pattern every other site follows.
+The original §3 A11 entry said phosphor.rs was the **model** — "the only production module that consistently routes through the chroma engine for color manipulation". The second pass re-examined this claim and found it was structurally a **bypass** by the routing-pattern standard: phosphor.rs calls chroma helpers unconditionally, without the `is_chroma()` branch. Functionally this is correct in legacy mode (chroma helpers produce bit-identical output to legacy helpers per the parity contracts in `chroma_dragon_engine/legacy.rs`), but it bypasses the routing pattern every other site follows.
 
 | ID | File:Line | Effect | Current | Migration |
 |---|---|---|---|---|

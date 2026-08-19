@@ -209,14 +209,14 @@ The density-map monolith formations live in `src/cloud/monolith.rs`
 (`GustState`, `density_noise_at`).
 
 
-5. CHROMA DRAGON COLORING ENGINE  (src/chroma/)
+5. CHROMA DRAGON COLORING ENGINE  (src/chroma_dragon_engine/)
 -----------------------------------------------
 
 The coloring counterpart to the Cosmic Dragon. Where the Cosmic Dragon
 owns the diff-based render loop and droplet simulation, the Chroma
 Dragon owns every decision about *what color a cell becomes*.
 
-Module layout (under `src/chroma/`):
+Module layout (under `src/chroma_dragon_engine/`):
 
   palette    Palette struct, build_palette(), gradient + blend helpers,
              Phase 7 palette-relative brightness floor.
@@ -252,7 +252,7 @@ Phase history (locked at Phase 9-B):
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
   Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
-  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma/lock_tests.rs
+  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma_dragon_engine/lock_tests.rs
 
 The 18 invariants cover: engine version sentinel, 43-theme build sweep,
 floor bounds, head->body->trail hierarchy, hue preservation, body-tail

@@ -14,7 +14,9 @@
 use bitvec::prelude::BitSlice;
 use crossterm::style::Color;
 
-use crate::chroma::shaders::base::{color_uses_previous_palette, resolve_cell_color, ShaderCtx};
+use crate::chroma_dragon_engine::shaders::base::{
+    color_uses_previous_palette, resolve_cell_color, ShaderCtx,
+};
 use crate::constants::*;
 use crate::runtime::BoldMode;
 
@@ -22,7 +24,7 @@ use crate::runtime::BoldMode;
 // or `crate::cloud::CharLoc` reference continues to resolve unchanged. The
 // `pub use` also brings `CharLoc` into local scope for use in `get_attr`'s
 // signature below.
-pub(crate) use crate::chroma::shaders::base::CharLoc;
+pub(crate) use crate::chroma_dragon_engine::shaders::base::CharLoc;
 
 /// Pre-computed view of an active mouse-click flash wave (v30 fix).
 ///
@@ -151,7 +153,7 @@ pub(crate) struct DrawCtx<'a> {
     /// applies atmospheric to each cell's resolved color BEFORE returning.
     /// (the old post-hoc `apply_climate_frame_effects` pass was
     /// deleted; climate is shader-only now.)
-    pub atmospheric: Option<crate::chroma::post::climate::ClimateCtx>,
+    pub atmospheric: Option<crate::chroma_dragon_engine::post::climate::ClimateCtx>,
 
     /// Phase 3-H (Chroma Dragon Innovation H): global hue drift.
     ///
@@ -240,7 +242,8 @@ pub(crate) struct DrawCtx<'a> {
     ///
     /// `None` disables (matches pre-Phase-5 behavior — palette
     /// transitions show a hard brightness step at the wave line).
-    pub transition_l_table: Option<&'a crate::chroma::shaders::transition::TransitionLTable>,
+    pub transition_l_table:
+        Option<&'a crate::chroma_dragon_engine::shaders::transition::TransitionLTable>,
 }
 
 impl DrawCtx<'_> {

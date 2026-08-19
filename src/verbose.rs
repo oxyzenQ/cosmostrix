@@ -188,8 +188,8 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         &format!(" {} ({})", pipeline.label(), pipeline.description()),
     );
     if pipeline.is_chroma() {
-        let jitter_amp = crate::chroma::tuning::SUBPIXEL_JITTER_AMPLITUDE;
-        let halo_factor = crate::chroma::tuning::HEAD_HALO_FACTOR;
+        let jitter_amp = crate::chroma_dragon_engine::tuning::SUBPIXEL_JITTER_AMPLITUDE;
+        let halo_factor = crate::chroma_dragon_engine::tuning::HEAD_HALO_FACTOR;
         output::eprintln_verbose(
             "  chroma_features:",
             &format!(

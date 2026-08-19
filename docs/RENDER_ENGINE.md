@@ -37,7 +37,7 @@ Foundations do not get relocated; they get maintained.
 A folder wrapper was tried once. `src/cosmic_dragon_engine/` was created
 in commit `4e2ebe7` as a pure re-export module. It had zero callers. It
 was deleted as dead code in commit `46ba457`. The lesson is now
-codified in `src/cosmic_dragon/README.md`:
+codified in `src/cosmic_dragon_engine/README.md`:
 
 > An incubator namespace must hold *real new code*, not re-exports of
 > existing code.
@@ -61,7 +61,7 @@ This is a hard policy, not a preference.
 2. **Patches land in place.** New rendering optimizations extend the
    existing files (under the 1,500-LOC cap, splitting if needed) —
    they do not branch into a new namespace.
-3. **Additive growth goes to `src/cosmic_dragon/`.** The incubator
+3. **Additive growth goes to `src/cosmic_dragon_engine/`.** The incubator
    namespace exists for new v15+ features. The flat engine is not
    v15+ — it is the foundation. Foundations are not relocated; they
    are maintained.
@@ -78,7 +78,7 @@ identity. That identity is expressed in:
 - `src/bench_report.rs` — the engine name printed in benchmark output
 - `docs/RENDER_ENGINE.md` — this document
 - `docs/COSMIC_DRAGON_ARCHITECTURE.md` — architectural narrative
-- `src/cosmic_dragon/README.md` — incubator policy
+- `src/cosmic_dragon_engine/README.md` — incubator policy
 - `CHANGELOG.md` — historical milestones
 - `README.md` — top-level project description
 

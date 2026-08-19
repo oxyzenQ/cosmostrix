@@ -790,7 +790,7 @@ fn phase7_print_body_tail_gap_audit() {
 ///                   (i.e. derived floor would have been > 180)
 #[test]
 fn phase7_print_ratio_sweep_audit() {
-    use crate::chroma::catalog::{ThemeColors, THEMES};
+    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
 
     let ratios: [f32; 4] = [0.15, 0.20, 0.25, 0.30];
     let abs_min = super::super::tuning::ABSOLUTE_MIN_FLOOR;
@@ -945,7 +945,7 @@ fn phase7_print_ratio_sweep_audit() {
 ///     SAT@g      — "*" if any channel hit 255 (continuity capped by u8 max)
 #[test]
 fn phase7b_print_gap_ratio_sweep_audit() {
-    use crate::chroma::catalog::{ThemeColors, THEMES};
+    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
 
     let gaps: [f32; 4] = [2.5, 2.0, 1.8, 1.5];
     let ratio = super::super::tuning::PALETTE_FLOOR_RATIO;

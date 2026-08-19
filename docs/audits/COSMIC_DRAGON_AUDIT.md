@@ -246,7 +246,7 @@ Two parallel audit tracks covering the complete rendering + coloring pipeline:
 1. **Cosmic Dragon** (rendering/simulation engine): `src/cloud/*`, `src/frame.rs`,
    `src/interactive/*`, `src/droplet.rs`, `src/central_control_rains.rs`,
    `src/central_control_dragon_power/*` — 196 production source files scanned.
-2. **Chroma Dragon** (coloring engine): `src/chroma/*` — palette, gradient,
+2. **Chroma Dragon** (coloring engine): `src/chroma_dragon_engine/*` — palette, gradient,
    shaders, post-FX, legacy, tuning — all modules scanned.
 
 ### Method

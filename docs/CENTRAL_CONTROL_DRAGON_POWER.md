@@ -92,7 +92,7 @@ subsystem in this module.
 | 8  | endurance health (P5)     | `endurance_health.rs`                 | score (RSS+jitter+ctxt)           |
 | 9  | performance self-healer   | `self_healer.rs` + event_loop.rs      | scene + force_draw + madvise      |
 | 10 | ambient scheduler         | `crystal_dragon_engine/ambient.rs` (external) | scene + palette                   |
-| 11 | climate post-FX           | `chroma/post/climate.rs` (external)   | per-cell RGB + spawn_scale        |
+| 11 | climate post-FX           | `chroma_dragon_engine/post/climate.rs` (external)   | per-cell RGB + spawn_scale        |
 | 12 | perf_pressure pipeline    | `power_manager.rs` + cloud/rain.rs    | spawn + sim + glitch + vignette   |
 
 Features 1, 2, 3, 10, and 11 are intentionally **outside** the dragon
@@ -170,7 +170,7 @@ practice; documented for completeness.
 
 **Status:** unchanged. Climate post-FX and atmospheric post-FX both
 modify per-cell RGB. They compose multiplicatively, and the
-interaction is documented in `chroma/post/climate.rs`. Visual
+interaction is documented in `chroma_dragon_engine/post/climate.rs`. Visual
 concern, not power; stays outside `PowerManager`.
 
 ---

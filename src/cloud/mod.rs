@@ -1016,7 +1016,9 @@ impl Cloud {
                                     crate::palette::apply_brightness_rgb(r, g, b, factor)
                                 } else {
                                     let (nr, ng, nb) =
-                                        crate::chroma::legacy::scale_rgb(r, g, b, factor);
+                                        crate::chroma_dragon_engine::legacy::scale_rgb(
+                                            r, g, b, factor,
+                                        );
                                     Color::Rgb {
                                         r: nr,
                                         g: ng,
@@ -1122,7 +1124,9 @@ pub(crate) fn interpolate_palette_color(palette: &[Color], t: f32) -> Option<Col
         (Some(a), Some(b)) if pos + 1 < n && frac > 0.0 => {
             let (ar, ag, ab) = crate::palette::decode_color(a).unwrap_or((0, 0, 0));
             let (br, bg_c, bb) = crate::palette::decode_color(b).unwrap_or((ar, ag, ab));
-            let (r, g, b) = crate::chroma::legacy::blend_toward_rgb(ar, ag, ab, br, bg_c, bb, frac);
+            let (r, g, b) = crate::chroma_dragon_engine::legacy::blend_toward_rgb(
+                ar, ag, ab, br, bg_c, bb, frac,
+            );
             Some(Color::Rgb { r, g, b })
         }
         // Boundary stops (pos == palette_last) or frac == 0.0: use the
