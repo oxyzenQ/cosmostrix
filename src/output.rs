@@ -519,15 +519,32 @@ mod tests {
     }
 
     // ── Phase 5 closure (P3-5): startup warning counter ──
+    //
+    // LTS audit 2026-08-19 (task 5/6): these 2 tests touch the global
+    // `STARTUP_WARNING_COUNT` atomic. When run in parallel with config
+    // apply tests that emit warnings (via `eprintln_warn_labeled`), the
+    // global state races — causing the flaky test failure observed in
+    // prior sessions (`output::tests::eprintln_warn_labeled_increments_counter`
+    // failed once on first run, passed on re-run).
+    //
+    // Fix: serialize the 2 tests via a Mutex guard. The production code
+    // path (single-threaded config apply) is unaffected — only the test
+    // parallelism is constrained.
+
+    /// Mutex guarding tests that touch `STARTUP_WARNING_COUNT`. Without
+    /// this, parallel test execution races on the global atomic.
+    static TEST_WARNING_COUNT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
     #[test]
     fn reset_clears_warning_count() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         reset_startup_warning_count();
         assert_eq!(startup_warning_count(), 0);
     }
 
     #[test]
     fn eprintln_warn_labeled_increments_counter() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         reset_startup_warning_count();
         // eprintln_warn_labeled writes to stderr; we only care about the
         // counter side-effect. Run it 3 times and verify the count matches.
