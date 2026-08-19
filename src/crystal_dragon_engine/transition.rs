@@ -47,24 +47,5 @@ impl CrystalDragonDrift {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn no_drift_returns_none() {
-        assert_eq!(CrystalDragonDrift::NoDrift.scheme(), None);
-    }
-
-    #[test]
-    fn drift_returns_scheme() {
-        let drift = CrystalDragonDrift::Drift(ColorScheme::Snow);
-        assert_eq!(drift.scheme(), Some(ColorScheme::Snow));
-    }
-
-    #[test]
-    fn drift_is_copy() {
-        let drift = CrystalDragonDrift::Drift(ColorScheme::Fire);
-        let copy = drift;
-        assert_eq!(copy.scheme(), Some(ColorScheme::Fire));
-    }
-}
+#[path = "transition_tests.rs"]
+mod tests;
