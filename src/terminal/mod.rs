@@ -84,6 +84,14 @@ mod last_frame;
 #[cfg(test)]
 mod p5_tests;
 
+// Newly relocated from src/ root (audit M4). Re-exported as `pub(crate)`
+// so the 7 existing `crate::terminal_tty::Foo` / `crate::sgr_format::Foo` /
+// `crate::tier2::Foo` call sites continue to resolve via the
+// `pub(crate) use terminal::{...};` re-export in main.rs.
+pub(crate) mod sgr_format;
+pub(crate) mod terminal_tty;
+pub(crate) mod tier2;
+
 use last_frame::LastFrame;
 
 /// Buffer size for stdout BufWriter (256 KiB). Large enough to batch an

@@ -138,15 +138,16 @@ mod runtime;
 mod safepath;
 mod scene;
 mod scene_custom;
-mod sgr_format;
 mod termdetect;
 mod terminal;
+// terminal_tty.rs, sgr_format.rs, tier2.rs now live under terminal/.
+// Re-exported via `pub(crate) use terminal::{...};` below keeps the 7
+// existing `crate::terminal_tty::Foo` etc. call sites working unchanged.
+pub(crate) use terminal::{sgr_format, terminal_tty, tier2};
 #[cfg(test)]
 mod terminal_tests;
-mod terminal_tty;
 mod testconf;
 mod theme;
-mod tier2;
 mod update;
 mod ux;
 mod validation;
