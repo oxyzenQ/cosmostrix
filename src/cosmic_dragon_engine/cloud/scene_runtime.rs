@@ -399,7 +399,7 @@ impl Cloud {
     /// both the old and new style to prevent ghosting or residue.
     /// For glyph styles, the droplet pool is re-allocated and warm-started
     /// so the first post-switch frame has visible content immediately.
-    pub(super) fn transition_rain_style(&mut self, new_style: RainStyle) {
+    pub(crate) fn transition_rain_style(&mut self, new_style: RainStyle) {
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
         }

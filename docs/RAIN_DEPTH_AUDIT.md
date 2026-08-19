@@ -99,7 +99,7 @@ field_energy = visibility × spawn_rate
 ```
 
 The `layer_distribution` is `[0.35, 0.30, 0.35]` (from
-[`src/cloud/spawn.rs`](../src/cloud/spawn.rs) — "cinematic depth"
+[`src/cosmic_dragon_engine/cloud/spawn.rs`](../src/cosmic_dragon_engine/cloud/spawn.rs) — "cinematic depth"
 calibration), meaning back and front share equal 35% spawn probability
 and mid gets 30%. This balanced distribution creates depth via *speed*
 and *brightness* rather than via droplet count. Option F does not

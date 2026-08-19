@@ -22,7 +22,7 @@ iconic shot. Secondary sources:
   (Simon Whiteley interview on design intent)
 
 Cosmostrix-side data is read directly from `src/central_control_rains.rs`,
-`src/cloud/phosphor.rs`, `src/cloud/spawn.rs`, `src/droplet.rs`,
+`src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/spawn.rs`, `src/droplet.rs`,
 `src/chroma_dragon_engine/catalog.rs`, and `src/chroma_dragon_engine/tuning.rs` — all citations in
 the comparison table below are file:line.
 
@@ -284,6 +284,6 @@ the architectural cost.
   Digital Rain*, No Film School, Aug 28 2025 —
   <https://nofilmschool.com/matrix-digital-rain-origin>
 - Cosmostrix source: `src/central_control_rains.rs`,
-  `src/cloud/phosphor.rs`, `src/cloud/spawn.rs`, `src/droplet.rs`,
+  `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/spawn.rs`, `src/droplet.rs`,
   `src/chroma_dragon_engine/catalog.rs`, `src/chroma_dragon_engine/tuning.rs`,
   `src/chroma_dragon_engine/shaders/base.rs`, `src/interactive/event_loop.rs`

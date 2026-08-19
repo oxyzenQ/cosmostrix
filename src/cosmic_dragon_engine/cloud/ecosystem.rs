@@ -28,7 +28,7 @@ pub enum BehaviorProfile {
 }
 
 impl BehaviorProfile {
-    pub(super) fn params(self) -> ProfileParams {
+    pub(crate) fn params(self) -> ProfileParams {
         match self {
             BehaviorProfile::Monolith => ProfileParams {
                 speed_mult: 0.5,
@@ -63,7 +63,7 @@ pub(crate) struct ProfileParams {
 }
 
 #[inline]
-pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) -> ProfileParams {
+pub(crate) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) -> ProfileParams {
     ProfileParams {
         speed_mult: a.speed_mult + (b.speed_mult - a.speed_mult) * t,
         density_mult: a.density_mult + (b.density_mult - a.density_mult) * t,
@@ -93,18 +93,18 @@ pub(super) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
 /// live-reload (Phase D Bug #9 fix in `Cloud::inherit_ecosystem_state`).
 /// All fields are plain f32 / Instant — trivially Copy.
 #[derive(Clone, Copy)]
-pub(super) struct ColorEcosystem {
-    pub(super) luminance_climate: f32,
-    pub(super) saturation_climate: f32,
-    pub(super) hue_drift: f32,
+pub(crate) struct ColorEcosystem {
+    pub(crate) luminance_climate: f32,
+    pub(crate) saturation_climate: f32,
+    pub(crate) hue_drift: f32,
     // Drift directions are BINARY (-1.0 or +1.0), not continuous. The
     // audit (Bug #6 "continuous direction") considered making these
     // floating-point (e.g. -0.3, +0.7) for smoother drift curves.
     // DEFERRED — see the risk note below the field list.
-    pub(super) luminance_direction: f32,
-    pub(super) saturation_direction: f32,
-    pub(super) hue_direction: f32,
-    pub(super) last_tick: Instant,
+    pub(crate) luminance_direction: f32,
+    pub(crate) saturation_direction: f32,
+    pub(crate) hue_direction: f32,
+    pub(crate) last_tick: Instant,
 }
 
 // ── Bug #6 (continuous direction) — DEFERRED ──────────────────────────────
@@ -151,7 +151,7 @@ pub(super) struct ColorEcosystem {
 //   require a higher rate to produce visible drift.
 
 impl ColorEcosystem {
-    pub(super) fn new(now: Instant) -> Self {
+    pub(crate) fn new(now: Instant) -> Self {
         Self {
             luminance_climate: 0.85,
             saturation_climate: 0.85,
@@ -166,7 +166,7 @@ impl ColorEcosystem {
     /// Shift all internal timestamps by `elapsed`. Called on resume
     /// from pause so the ecosystem doesn't interpret a long pause as
     /// a single long tick (which would trigger a massive climate drift).
-    pub(super) fn shift_in_time(&mut self, elapsed: Duration) {
+    pub(crate) fn shift_in_time(&mut self, elapsed: Duration) {
         self.last_tick += elapsed;
     }
 
@@ -176,7 +176,7 @@ impl ColorEcosystem {
     /// Crystal Dragon Engine — see `crystal_dragon_tick()` in
     /// `runtime_controls.rs`. This method only handles climate modulation
     /// (luminance/saturation/hue) which is orthogonal to palette scheme.
-    pub(super) fn tick(&mut self, now: Instant, mt: &mut StdRng) {
+    pub(crate) fn tick(&mut self, now: Instant, mt: &mut StdRng) {
         let elapsed = now.saturating_duration_since(self.last_tick).as_secs_f32();
         if elapsed < COLOR_ECOSYSTEM_TICK_SECS {
             return;
@@ -231,17 +231,17 @@ impl ColorEcosystem {
 /// Derives `Clone, Copy` so the evolution state can be carried across
 /// live-reload (Phase D Bug #9 fix in `Cloud::inherit_ecosystem_state`).
 #[derive(Clone, Copy)]
-pub(super) struct EntropyDrift {
-    pub(super) entropy_phase: f32,
-    pub(super) last_tick: Instant,
-    pub(super) density_offset: f32,
-    pub(super) luminance_offset: f32,
-    pub(super) anomaly_offset: f32,
-    pub(super) cycle_speed: f32,
+pub(crate) struct EntropyDrift {
+    pub(crate) entropy_phase: f32,
+    pub(crate) last_tick: Instant,
+    pub(crate) density_offset: f32,
+    pub(crate) luminance_offset: f32,
+    pub(crate) anomaly_offset: f32,
+    pub(crate) cycle_speed: f32,
 }
 
 impl EntropyDrift {
-    pub(super) fn new(now: Instant) -> Self {
+    pub(crate) fn new(now: Instant) -> Self {
         Self {
             entropy_phase: 0.0,
             last_tick: now,
@@ -252,7 +252,7 @@ impl EntropyDrift {
         }
     }
 
-    pub(super) fn tick(&mut self, now: Instant, profile_entropy_rate: f32) {
+    pub(crate) fn tick(&mut self, now: Instant, profile_entropy_rate: f32) {
         let elapsed = now.saturating_duration_since(self.last_tick).as_secs_f32();
         if elapsed < ATMOSPHERE_TICK_SECS {
             return;
@@ -274,17 +274,17 @@ impl EntropyDrift {
 
 /// Long-timescale renderer memory: historical influence on current rendering.
 /// Remembers anomaly history, density history, luminance pressure.
-pub(super) struct RendererMemory {
-    pub(super) anomaly_history: [f32; MEMORY_HISTORY_SAMPLES],
-    pub(super) density_history: [f32; MEMORY_HISTORY_SAMPLES],
-    pub(super) history_idx: usize,
-    pub(super) last_sample: Instant,
-    pub(super) instability_pressure: f32,
-    pub(super) persistence_richness: f32,
+pub(crate) struct RendererMemory {
+    pub(crate) anomaly_history: [f32; MEMORY_HISTORY_SAMPLES],
+    pub(crate) density_history: [f32; MEMORY_HISTORY_SAMPLES],
+    pub(crate) history_idx: usize,
+    pub(crate) last_sample: Instant,
+    pub(crate) instability_pressure: f32,
+    pub(crate) persistence_richness: f32,
 }
 
 impl RendererMemory {
-    pub(super) fn new(now: Instant) -> Self {
+    pub(crate) fn new(now: Instant) -> Self {
         Self {
             anomaly_history: [0.0; MEMORY_HISTORY_SAMPLES],
             density_history: [0.0; MEMORY_HISTORY_SAMPLES],
@@ -295,7 +295,7 @@ impl RendererMemory {
         }
     }
 
-    pub(super) fn record_sample(
+    pub(crate) fn record_sample(
         &mut self,
         now: Instant,
         anomaly_density: f32,
@@ -314,7 +314,7 @@ impl RendererMemory {
         self.history_idx = (self.history_idx + 1) % MEMORY_HISTORY_SAMPLES;
     }
 
-    pub(super) fn recompute_derived(&mut self) {
+    pub(crate) fn recompute_derived(&mut self) {
         let n = MEMORY_HISTORY_SAMPLES as f32;
         let avg_anomaly: f32 = self.anomaly_history.iter().sum::<f32>() / n;
 
@@ -325,7 +325,7 @@ impl RendererMemory {
 
 /// Kind of emergent visual moment.
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub(super) enum EmergentKind {
+pub(crate) enum EmergentKind {
     LuminanceSwell,
     DensityPulse,
     TemporalDilation,
@@ -333,10 +333,10 @@ pub(super) enum EmergentKind {
 
 /// An active emergent moment.
 #[derive(Clone, Debug)]
-pub(super) struct EmergentMoment {
-    pub(super) kind: EmergentKind,
-    pub(super) start_time: Instant,
-    pub(super) duration: f32,
+pub(crate) struct EmergentMoment {
+    pub(crate) kind: EmergentKind,
+    pub(crate) start_time: Instant,
+    pub(crate) duration: f32,
 }
 
 /// Current emergent effects applied to rendering.
@@ -349,14 +349,14 @@ pub(crate) struct EmergentEffects {
 
 /// Emergent visual storytelling system: watches for convergence conditions
 /// across other systems and occasionally produces emotionally resonant moments.
-pub(super) struct StorytellingState {
-    pub(super) moments: Vec<EmergentMoment>,
-    pub(super) last_tick: Instant,
-    pub(super) cooldown_until: Option<Instant>,
+pub(crate) struct StorytellingState {
+    pub(crate) moments: Vec<EmergentMoment>,
+    pub(crate) last_tick: Instant,
+    pub(crate) cooldown_until: Option<Instant>,
 }
 
 impl StorytellingState {
-    pub(super) fn new(now: Instant) -> Self {
+    pub(crate) fn new(now: Instant) -> Self {
         Self {
             moments: Vec::new(),
             last_tick: now,
@@ -364,7 +364,7 @@ impl StorytellingState {
         }
     }
 
-    pub(super) fn tick(
+    pub(crate) fn tick(
         &mut self,
         now: Instant,
         mt: &mut StdRng,
@@ -418,7 +418,7 @@ impl StorytellingState {
         None
     }
 
-    pub(super) fn active_effects(&self, now: Instant) -> EmergentEffects {
+    pub(crate) fn active_effects(&self, now: Instant) -> EmergentEffects {
         let mut effects = EmergentEffects::default();
         for moment in &self.moments {
             let elapsed = now
@@ -446,7 +446,7 @@ impl StorytellingState {
 
     /// Expire moments past their duration. Must be called separately since
     /// active_effects only borrows &self.
-    pub(super) fn expire_moments(&mut self, now: Instant) {
+    pub(crate) fn expire_moments(&mut self, now: Instant) {
         self.moments
             .retain(|m| now.saturating_duration_since(m.start_time).as_secs_f32() < m.duration);
     }

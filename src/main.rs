@@ -83,8 +83,13 @@ mod central_control_rains;
 mod cli;
 mod cli_parse;
 mod clock;
-mod cloud;
-// cinematic.rs and brightness_factors.rs now live under cloud/.
+// The Cosmic Dragon rendering engine (cloud/frame/runtime/terminal) now
+// lives under cosmic_dragon_engine/. The re-exports below make all 224
+// existing `crate::cloud::Foo` / `crate::frame::Foo` / `crate::runtime::Foo`
+// / `crate::terminal::Foo` call sites continue to resolve unchanged.
+mod cosmic_dragon_engine;
+pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};
+// cinematic.rs and brightness_factors.rs live under cloud/.
 // Re-exported below keeps the 11 existing `crate::cinematic::Foo`
 // and `crate::brightness_factors::Foo` call sites working unchanged.
 pub(crate) use cloud::{brightness_factors, cinematic};
@@ -112,7 +117,6 @@ mod diagnostics;
 mod docs_tests;
 mod doctor;
 mod droplet;
-mod frame;
 mod help_detail;
 mod humanize;
 mod info;
@@ -132,13 +136,11 @@ mod profile;
 mod rain_style;
 mod renderer_info;
 mod report;
-mod runtime;
 mod safepath;
 mod scene;
 mod scene_custom;
 mod termdetect;
-mod terminal;
-// terminal_tty.rs, sgr_format.rs, tier2.rs now live under terminal/.
+// terminal_tty.rs, sgr_format.rs, tier2.rs live under terminal/.
 // Re-exported via `pub(crate) use terminal::{...};` below keeps the 7
 // existing `crate::terminal_tty::Foo` etc. call sites working unchanged.
 pub(crate) use terminal::{sgr_format, terminal_tty, tier2};

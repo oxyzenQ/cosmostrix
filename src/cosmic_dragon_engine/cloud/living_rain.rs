@@ -44,7 +44,7 @@ use crate::constants::*;
 /// once per frame in `rain_at`. All durations are sampled from the
 /// `GUST_*_MIN_SECS` / `GUST_*_MAX_SECS` ranges when a transition fires.
 #[derive(Debug, Clone)]
-pub(super) struct GustState {
+pub(crate) struct GustState {
     /// Current phase: Idle / Attack / Hold / Decay.
     phase: GustPhase,
     /// Wall-clock timestamp at which the current phase started.
@@ -76,7 +76,7 @@ impl GustState {
     /// Build a fresh state machine in the IDLE phase. The first IDLE
     /// window samples from `[GUST_IDLE_MIN_SECS, GUST_IDLE_MAX_SECS]` so
     /// the first gust doesn't always arrive at the same time after launch.
-    pub(super) fn new(now: Instant) -> Self {
+    pub(crate) fn new(now: Instant) -> Self {
         let idle_dur = sample_idle_duration(&mut rand::rng());
         Self {
             phase: GustPhase::Idle,
@@ -94,7 +94,7 @@ impl GustState {
     /// we just compare `now - phase_start >= phase_duration`. When a
     /// phase completes, we sample the next phase's duration from its
     /// configured range and continue.
-    pub(super) fn tick<R: Rng>(&mut self, now: Instant, rng: &mut R) -> f32 {
+    pub(crate) fn tick<R: Rng>(&mut self, now: Instant, rng: &mut R) -> f32 {
         let elapsed = now.saturating_duration_since(self.phase_start);
         if elapsed < self.phase_duration {
             // Same phase — interpolate or pin the multiplier.
@@ -192,7 +192,7 @@ fn sample_range_duration<R: Rng>(rng: &mut R, min_secs: f64, max_secs: f64) -> D
 /// (the seed is `floor(elapsed / period)`), then re-rolls across
 /// windows. Output is always in `[DENSITY_NOISE_MIN, DENSITY_NOISE_MAX]`.
 #[inline]
-pub(super) fn column_density_modifier(col: u16, elapsed_secs: f64) -> f32 {
+pub(crate) fn column_density_modifier(col: u16, elapsed_secs: f64) -> f32 {
     // v50 audit S-5: u32 overflow at ~13.6 years continuous runtime
     // (DENSITY_NOISE_PERIOD_SECS=10 → 2^32/10 ≈ 4.3 billion seconds ≈
     // 136 years / 10 = 13.6 years). Accepted as LTS ceiling — on overflow

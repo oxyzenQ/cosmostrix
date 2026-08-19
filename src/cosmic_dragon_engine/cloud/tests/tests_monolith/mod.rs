@@ -17,20 +17,20 @@ mod residue;
 mod transitions;
 
 // Re-exports for submodule access via `super::`
-pub(super) use super::make_cloud;
-pub(super) use crate::charset::{build_chars, charset_from_str};
-pub(super) use crate::cloud::monolith::DrawnCellKind;
-pub(super) use crate::cloud::Cloud;
-pub(super) use crate::constants::CHARSET_TRANSITION_DURATION_MS;
-pub(super) use crate::frame::Frame;
-pub(super) use crate::rain_style::RainStyle;
-pub(super) use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
-pub(super) use std::collections::BTreeSet;
-pub(super) use std::time::{Duration, Instant};
+pub(crate) use super::make_cloud;
+pub(crate) use crate::charset::{build_chars, charset_from_str};
+pub(crate) use crate::cloud::monolith::DrawnCellKind;
+pub(crate) use crate::cloud::Cloud;
+pub(crate) use crate::constants::CHARSET_TRANSITION_DURATION_MS;
+pub(crate) use crate::frame::Frame;
+pub(crate) use crate::rain_style::RainStyle;
+pub(crate) use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
+pub(crate) use std::collections::BTreeSet;
+pub(crate) use std::time::{Duration, Instant};
 
 // -- Shared test helpers --
 
-pub(super) fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
+pub(crate) fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
         ShadingMode::Random,
@@ -48,7 +48,7 @@ pub(super) fn make_monolith_cloud(cols: u16, lines: u16) -> Cloud {
     cloud
 }
 
-pub(super) fn run_frames(cloud: &mut Cloud, frame: &mut Frame, frames: u32, step_ms: u64) {
+pub(crate) fn run_frames(cloud: &mut Cloud, frame: &mut Frame, frames: u32, step_ms: u64) {
     let start = Instant::now();
     cloud.last_spawn_time = start - Duration::from_secs(1);
     cloud.last_phosphor_time = start;
@@ -59,7 +59,7 @@ pub(super) fn run_frames(cloud: &mut Cloud, frame: &mut Frame, frames: u32, step
     }
 }
 
-pub(super) fn visible_cell_count(frame: &Frame) -> usize {
+pub(crate) fn visible_cell_count(frame: &Frame) -> usize {
     let mut count = 0usize;
     for line in 0..frame.height {
         for col in 0..frame.width {
@@ -72,7 +72,7 @@ pub(super) fn visible_cell_count(frame: &Frame) -> usize {
     count
 }
 
-pub(super) fn visible_chars(frame: &Frame) -> Vec<char> {
+pub(crate) fn visible_chars(frame: &Frame) -> Vec<char> {
     let mut chars = Vec::new();
     for line in 0..frame.height {
         for col in 0..frame.width {
@@ -85,11 +85,11 @@ pub(super) fn visible_chars(frame: &Frame) -> Vec<char> {
     chars
 }
 
-pub(super) fn visible_char_signature(frame: &Frame) -> BTreeSet<char> {
+pub(crate) fn visible_char_signature(frame: &Frame) -> BTreeSet<char> {
     visible_chars(frame).into_iter().collect()
 }
 
-pub(super) fn average_head_delta(before: &[f32], after: &[f32]) -> f32 {
+pub(crate) fn average_head_delta(before: &[f32], after: &[f32]) -> f32 {
     let len = before.len().min(after.len()).max(1);
     before
         .iter()
@@ -100,7 +100,7 @@ pub(super) fn average_head_delta(before: &[f32], after: &[f32]) -> f32 {
         / len as f32
 }
 
-pub(super) fn segment_draw_count(cloud: &Cloud) -> usize {
+pub(crate) fn segment_draw_count(cloud: &Cloud) -> usize {
     cloud
         .monolith_rain
         .drawn_cells_for_test()
@@ -109,7 +109,7 @@ pub(super) fn segment_draw_count(cloud: &Cloud) -> usize {
         .count()
 }
 
-pub(super) fn seed_stale_phosphor(cloud: &mut Cloud) {
+pub(crate) fn seed_stale_phosphor(cloud: &mut Cloud) {
     cloud.phosphor.fill(180);
     cloud
         .phosphor_base_fg
@@ -117,7 +117,7 @@ pub(super) fn seed_stale_phosphor(cloud: &mut Cloud) {
     cloud.phosphor_base_ch.fill('x');
 }
 
-pub(super) fn seeded_residue_count(cloud: &Cloud) -> usize {
+pub(crate) fn seeded_residue_count(cloud: &Cloud) -> usize {
     cloud
         .phosphor_base_ch
         .iter()
@@ -125,13 +125,13 @@ pub(super) fn seeded_residue_count(cloud: &Cloud) -> usize {
         .count()
 }
 
-pub(super) fn disable_monolith_spawning(cloud: &mut Cloud) {
+pub(crate) fn disable_monolith_spawning(cloud: &mut Cloud) {
     cloud.resume_blend = 0.0;
     cloud.resume_start = None;
     cloud.spawn_remainder = 0.0;
     cloud.monolith_rain.deactivate_all_for_test();
 }
 
-pub(super) fn phosphor_index(cloud: &Cloud, col: u16, line: u16) -> usize {
+pub(crate) fn phosphor_index(cloud: &Cloud, col: u16, line: u16) -> usize {
     col as usize * cloud.lines as usize + line as usize
 }

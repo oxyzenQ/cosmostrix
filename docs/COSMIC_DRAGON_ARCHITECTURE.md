@@ -33,11 +33,11 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Time-driven scene scheduling, low-rate adaptive modulation    │
 │  → Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 2: Cloud Renderer (src/cloud/)                           │
+│  Layer 2: Cloud Renderer (src/cosmic_dragon_engine/cloud/)                           │
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
 │  → Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 1: Terminal I/O (src/terminal/, frame.rs, color_cache) │
+│  Layer 1: Terminal I/O (src/cosmic_dragon_engine/terminal/, frame.rs, color_cache) │
 │  ANSI escape sequencing, diff-based rendering, sync output      │
 │  → 5-layer --reset-terminal recovery for SIGKILL survival       │
 └─────────────────────────────────────────────────────────────────┘

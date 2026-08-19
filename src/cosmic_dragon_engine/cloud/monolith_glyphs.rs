@@ -8,7 +8,7 @@ use super::render::DrawCtx;
 
 const SPINE_PERIOD: u16 = 3;
 
-pub(super) fn segment_char(
+pub(crate) fn segment_char(
     ctx: &DrawCtx<'_>,
     line: u16,
     col: u16,
@@ -19,7 +19,7 @@ pub(super) fn segment_char(
     safe_pool_char(ctx, line, col, seed)
 }
 
-pub(super) fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
+pub(crate) fn spine_char(ctx: &DrawCtx<'_>, line: u16, col: u16) -> char {
     let phase = ((line / SPINE_PERIOD) + col) % 3;
     // Use cached pool_is_binary from DrawCtx instead of iterating the
     // entire char pool on every call. This was the #2 per-cell bottleneck

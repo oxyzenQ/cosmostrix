@@ -45,7 +45,7 @@ use super::render::DrawCtx;
 const MAX_SEGMENTS: usize = 9;
 
 #[derive(Clone, Copy, Debug)]
-pub(super) enum SegmentKind {
+pub(crate) enum SegmentKind {
     Micro,
     Short,
     Medium,
@@ -53,7 +53,7 @@ pub(super) enum SegmentKind {
 }
 
 #[derive(Clone, Copy, Debug)]
-pub(super) enum BrightnessLevel {
+pub(crate) enum BrightnessLevel {
     Ghost,
     Dim,
     Mid,
@@ -62,16 +62,16 @@ pub(super) enum BrightnessLevel {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) enum DrawnCellKind {
+pub(crate) enum DrawnCellKind {
     Segment,
     Spine,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(super) struct DrawnCell {
-    pub(super) col: u16,
-    pub(super) line: u16,
-    pub(super) kind: DrawnCellKind,
+pub(crate) struct DrawnCell {
+    pub(crate) col: u16,
+    pub(crate) line: u16,
+    pub(crate) kind: DrawnCellKind,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -151,7 +151,7 @@ impl MonolithStream {
     }
 }
 
-pub(super) struct MonolithRain {
+pub(crate) struct MonolithRain {
     streams: Vec<MonolithStream>,
     previous_cells: Vec<DrawnCell>,
     current_cells: Vec<DrawnCell>,
@@ -173,15 +173,15 @@ pub(super) struct MonolithRain {
     active_count: usize,
 }
 
-pub(super) struct MonolithSpawnParams {
-    pub(super) cols: u16,
-    pub(super) lines: u16,
-    pub(super) density: f32,
-    pub(super) size: MonolithSize,
-    pub(super) active_palette_slot: u8,
-    pub(super) spawn_scale: f32,
-    pub(super) mouse_enabled: bool,
-    pub(super) mouse_col: u16,
+pub(crate) struct MonolithSpawnParams {
+    pub(crate) cols: u16,
+    pub(crate) lines: u16,
+    pub(crate) density: f32,
+    pub(crate) size: MonolithSize,
+    pub(crate) active_palette_slot: u8,
+    pub(crate) spawn_scale: f32,
+    pub(crate) mouse_enabled: bool,
+    pub(crate) mouse_col: u16,
     /// Optional per-column spawn probability weights (0.0..=1.0).
     ///
     /// When `Some`, the monolith spawner uses rejection sampling: a candidate
@@ -192,26 +192,26 @@ pub(super) struct MonolithSpawnParams {
     /// The slice length should match the lane count; if shorter, missing lanes
     /// are treated as `1.0` (always available). If longer, extra entries are
     /// ignored.
-    pub(super) density_map: Option<&'static [f64]>,
+    pub(crate) density_map: Option<&'static [f64]>,
 }
 
-pub(super) struct MonolithRandom<'a> {
-    pub(super) rng: &'a mut StdRng,
-    pub(super) rand_chance: &'a Uniform<f32>,
-    pub(super) rand_col: &'a Uniform<u16>,
+pub(crate) struct MonolithRandom<'a> {
+    pub(crate) rng: &'a mut StdRng,
+    pub(crate) rand_chance: &'a Uniform<f32>,
+    pub(crate) rand_col: &'a Uniform<u16>,
 }
 
-pub(super) struct MonolithCleanup<'a> {
-    pub(super) lines: u16,
-    pub(super) bg: Option<Color>,
-    pub(super) phosphor: &'a mut [u8],
-    pub(super) phosphor_base_fg: &'a mut [Option<Color>],
-    pub(super) phosphor_base_ch: &'a mut [char],
-    pub(super) phosphor_layer: &'a mut [u8],
+pub(crate) struct MonolithCleanup<'a> {
+    pub(crate) lines: u16,
+    pub(crate) bg: Option<Color>,
+    pub(crate) phosphor: &'a mut [u8],
+    pub(crate) phosphor_base_fg: &'a mut [Option<Color>],
+    pub(crate) phosphor_base_ch: &'a mut [char],
+    pub(crate) phosphor_layer: &'a mut [u8],
 }
 
 impl MonolithRain {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             streams: Vec::new(),
             previous_cells: Vec::new(),
@@ -223,7 +223,7 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn reset(&mut self, cols: u16) {
+    pub(crate) fn reset(&mut self, cols: u16) {
         let lane_count = lane_count(cols);
         if self.streams.len() != lane_count {
             self.streams.clear();
@@ -248,11 +248,11 @@ impl MonolithRain {
     }
 
     #[must_use]
-    pub(super) fn active_count(&self) -> usize {
+    pub(crate) fn active_count(&self) -> usize {
         self.active_count
     }
 
-    pub(super) fn adopt_palette_slot(&mut self, palette_slot: u8) {
+    pub(crate) fn adopt_palette_slot(&mut self, palette_slot: u8) {
         for stream in &mut self.streams {
             if stream.active {
                 stream.palette_slot = palette_slot;
@@ -267,7 +267,7 @@ impl MonolithRain {
     /// delta — but if a callsite ever computes a non-trivial dt before
     /// `resume_blend` ramps up, streams would teleport. Explicit shift
     /// removes that reliance.
-    pub(super) fn shift_active_streams_last_time(&mut self, elapsed: std::time::Duration) {
+    pub(crate) fn shift_active_streams_last_time(&mut self, elapsed: std::time::Duration) {
         for stream in &mut self.streams {
             if stream.active {
                 if let Some(t) = stream.last_time.as_mut() {
@@ -277,13 +277,13 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn clear_draw_history(&mut self) {
+    pub(crate) fn clear_draw_history(&mut self) {
         self.previous_cells.clear();
         self.current_cells.clear();
     }
 
     #[cfg(test)]
-    pub(super) fn deactivate_all_for_test(&mut self) {
+    pub(crate) fn deactivate_all_for_test(&mut self) {
         for stream in &mut self.streams {
             stream.active = false;
         }
@@ -291,17 +291,17 @@ impl MonolithRain {
     }
 
     #[cfg(test)]
-    pub(super) fn draw_history_count_for_test(&self) -> usize {
+    pub(crate) fn draw_history_count_for_test(&self) -> usize {
         self.previous_cells.len() + self.current_cells.len()
     }
 
     #[cfg(test)]
-    pub(super) fn drawn_cells_for_test(&self) -> &[DrawnCell] {
+    pub(crate) fn drawn_cells_for_test(&self) -> &[DrawnCell] {
         &self.previous_cells
     }
 
     #[cfg(test)]
-    pub(super) fn active_heads_for_test(&self) -> Vec<f32> {
+    pub(crate) fn active_heads_for_test(&self) -> Vec<f32> {
         self.streams
             .iter()
             .filter(|stream| stream.active)
@@ -309,7 +309,7 @@ impl MonolithRain {
             .collect()
     }
 
-    pub(super) fn clear_spine_phosphor(&self, cleanup: &mut MonolithCleanup<'_>) {
+    pub(crate) fn clear_spine_phosphor(&self, cleanup: &mut MonolithCleanup<'_>) {
         for cell in &self.previous_cells {
             if matches!(cell.kind, DrawnCellKind::Spine) {
                 clear_phosphor_metadata(cleanup, cell.col, cell.line);
@@ -317,7 +317,7 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn spawn(
+    pub(crate) fn spawn(
         &mut self,
         now: Instant,
         elapsed: Duration,
@@ -381,7 +381,7 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn advance(
+    pub(crate) fn advance(
         &mut self,
         now: Instant,
         lines: u16,
@@ -415,7 +415,7 @@ impl MonolithRain {
         }
     }
 
-    pub(super) fn draw(
+    pub(crate) fn draw(
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,
@@ -495,7 +495,7 @@ impl MonolithRain {
         self.active_count = self.streams.iter().filter(|stream| stream.active).count();
     }
 
-    pub(super) fn find_inactive_lane(
+    pub(crate) fn find_inactive_lane(
         &mut self,
         mouse_enabled: bool,
         mouse_col: u16,
@@ -819,7 +819,7 @@ fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> BrightnessLevel {
     }
 }
 
-pub(super) fn color_for_level(
+pub(crate) fn color_for_level(
     ctx: &DrawCtx<'_>,
     palette_slot: u8,
     line: u16,
@@ -988,7 +988,7 @@ fn visible_range(stream: &MonolithStream, lines: u16) -> Option<(u16, u16)> {
     }
 }
 
-pub(super) fn target_active_count(lanes: usize, density: f32) -> usize {
+pub(crate) fn target_active_count(lanes: usize, density: f32) -> usize {
     if lanes == 0 {
         return 0;
     }

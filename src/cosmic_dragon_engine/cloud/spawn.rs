@@ -211,7 +211,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn charset_wave_line_at(&self, now: Instant) -> Option<f32> {
+    pub(crate) fn charset_wave_line_at(&self, now: Instant) -> Option<f32> {
         let start = self.charset_transition_start?;
         let elapsed_ms = now.saturating_duration_since(start).as_millis() as f32;
         let progress = (elapsed_ms / CHARSET_TRANSITION_DURATION_MS as f32).clamp(0.0, 1.0);
@@ -223,7 +223,7 @@ impl Cloud {
     /// lines+1 over COLOR_TRANSITION_DURATION_MS, with the first
     /// COLOR_TRANSITION_INITIAL_VISIBLE_PCT of rows adopting immediately
     /// for responsive first-frame feedback.
-    pub(super) fn color_wave_line_at(&self, now: Instant) -> Option<f32> {
+    pub(crate) fn color_wave_line_at(&self, now: Instant) -> Option<f32> {
         let start = self.transition_start?;
         let elapsed_ms = now.saturating_duration_since(start).as_millis() as f32;
         let duration = COLOR_TRANSITION_DURATION_MS as f32;
@@ -242,7 +242,7 @@ impl Cloud {
         Some(wave_line)
     }
 
-    pub(super) fn rebuild_char_pools(&mut self, chars: Vec<char>) {
+    pub(crate) fn rebuild_char_pools(&mut self, chars: Vec<char>) {
         self.chars = chars;
         if self.chars.is_empty() {
             self.chars.push('0');
@@ -269,7 +269,7 @@ impl Cloud {
             !self.char_pool.is_empty() && self.char_pool.iter().all(|ch| matches!(ch, '0' | '1'));
     }
 
-    pub(super) fn reset_phosphor_state(&mut self) {
+    pub(crate) fn reset_phosphor_state(&mut self) {
         let total = (self.cols as usize) * (self.lines as usize);
         self.phosphor.clear();
         self.phosphor.resize(total, 0);
@@ -298,7 +298,7 @@ impl Cloud {
         self.phosphor_in_active.fill(false);
     }
 
-    pub(super) fn recalc_droplets_per_sec(&mut self) {
+    pub(crate) fn recalc_droplets_per_sec(&mut self) {
         if self.lines == 0 || self.cols == 0 {
             self.droplets_per_sec = 0.0;
             return;
@@ -312,7 +312,7 @@ impl Cloud {
         self.droplets_per_sec = if dps.is_finite() { dps.max(0.0) } else { 0.0 };
     }
 
-    pub(super) fn fill_glitch_map(&mut self) {
+    pub(crate) fn fill_glitch_map(&mut self) {
         if !self.glitchy {
             self.glitch_map.clear();
             return;
@@ -325,7 +325,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn fill_color_map(&mut self) {
+    pub(crate) fn fill_color_map(&mut self) {
         let size = self.lines as usize * self.cols as usize;
         self.color_map.resize(size, 0);
 
@@ -350,13 +350,13 @@ impl Cloud {
         }
     }
 
-    pub(super) fn set_column_spawn(&mut self, col: u16, b: bool) {
+    pub(crate) fn set_column_spawn(&mut self, col: u16, b: bool) {
         if let Some(cs) = self.col_stat.get_mut(col as usize) {
             cs.can_spawn = b;
         }
     }
 
-    pub(super) fn set_column_speeds(&mut self) {
+    pub(crate) fn set_column_speeds(&mut self) {
         for cs in &mut self.col_stat {
             cs.max_speed_pct = if self.async_mode {
                 // Organic speed distribution: take the max of two uniform
@@ -373,7 +373,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn update_droplet_speeds(&mut self) {
+    pub(crate) fn update_droplet_speeds(&mut self) {
         for d in &mut self.droplets {
             if !d.is_alive {
                 continue;
@@ -388,7 +388,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn time_for_glitch(&self, now: Instant) -> bool {
+    pub(crate) fn time_for_glitch(&self, now: Instant) -> bool {
         self.glitchy && now >= self.next_glitch_time
     }
 
@@ -411,7 +411,7 @@ impl Cloud {
         self.glitch_map[idx]
     }
 
-    pub(super) fn do_glitch_span(&mut self, start_line: u16, hp: u16, col: u16, cp_idx: u16) {
+    pub(crate) fn do_glitch_span(&mut self, start_line: u16, hp: u16, col: u16, cp_idx: u16) {
         if !self.glitchy {
             return;
         }
@@ -429,7 +429,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
+    pub(crate) fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
         let mut end_line = self.lines.saturating_sub(1);
         if self.rand_chance.sample(&mut self.mt) <= self.die_early_pct {
             end_line = self.rand_line.sample(&mut self.mt);
@@ -548,7 +548,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn maybe_reseed_rng(&mut self, now: Instant) {
+    pub(crate) fn maybe_reseed_rng(&mut self, now: Instant) {
         if now.saturating_duration_since(self.last_reseed_time)
             >= Duration::from_secs(RNG_RESEED_INTERVAL_SECS)
         {
@@ -564,7 +564,7 @@ impl Cloud {
         }
     }
 
-    pub(super) fn spawn_droplets(&mut self, now: Instant, scale: f32) {
+    pub(crate) fn spawn_droplets(&mut self, now: Instant, scale: f32) {
         let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
         if self.max_sim_delta > Duration::from_millis(0) {
             elapsed = elapsed.min(self.max_sim_delta);
@@ -714,7 +714,7 @@ impl Cloud {
     /// (glyph_entry_time) which scales spawn rate from
     /// GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 over
     /// GLYPH_ENTRY_RAMP_DURATION_MS.
-    pub(super) fn ensure_glyph_pool_and_warm_start(&mut self) {
+    pub(crate) fn ensure_glyph_pool_and_warm_start(&mut self) {
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
         self.droplets.resize_with(pool_size, Droplet::new);
@@ -788,7 +788,7 @@ impl Cloud {
     /// (each in the first inactive pool slot). The particle pool is
     /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the
     /// pool capacity are silently dropped (the flash wave still spawns).
-    pub(super) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
+    pub(crate) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
         let cx = col as f32 + 0.5;
         let cy = line as f32 + 0.5;
         let now = Instant::now();

@@ -695,7 +695,7 @@ because every one of them was learned the hard way.
 ### Rule 1 — Don't change `PARALLAX_LAYERS`
 
 `PARALLAX_LAYERS = 3` is assumed everywhere. The spawn distribution
-is hardcoded `[0.35, 0.30, 0.35]` in `src/cloud/spawn.rs`. Many
+is hardcoded `[0.35, 0.30, 0.35]` in `src/cosmic_dragon_engine/cloud/spawn.rs`. Many
 consumers index `[0]`, `[1]`, `[2]` directly. Changing this to 2 or
 4 will require a major refactor across multiple files. Do not touch.
 

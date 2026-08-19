@@ -99,7 +99,7 @@ Every site below emits `Color::Rgb { r, g, b }` by direct integer math, **withou
 
 ### A1. Quantum Ripple — particle color snapshot + render blend
 
-**Files**: `src/cloud/spawn.rs:748-797` (`spawn_quantum_ripple`), `src/cloud/rain.rs:1161-1297` (`apply_quantum_ripple`)
+**Files**: `src/cosmic_dragon_engine/cloud/spawn.rs:748-797` (`spawn_quantum_ripple`), `src/cosmic_dragon_engine/cloud/rain.rs:1161-1297` (`apply_quantum_ripple`)
 
 **Spawn path** (`spawn.rs:759-769`):
 ```rust
@@ -261,7 +261,7 @@ Same pattern — should call `apply_brightness_rgb`.
 
 ### A8. CRT Vignette Cell Dim (masterclass retune — `4780ad4`)
 
-**File**: `src/cloud/rain.rs:1310-1351` (`apply_crt_dim_cell`)
+**File**: `src/cosmic_dragon_engine/cloud/rain.rs:1310-1351` (`apply_crt_dim_cell`)
 
 ```rust
 let Some((r, g, b)) = crate::palette::decode_color(fg) else { return; };
@@ -276,7 +276,7 @@ Same pattern. Uses `decode_color` (chroma helper, good) but then does raw RGB ma
 
 ### A9. Ghost Event Render
 
-**File**: `src/cloud/events/ghost.rs:84-135`
+**File**: `src/cosmic_dragon_engine/cloud/events/ghost.rs:84-135`
 
 ```rust
 let (br, bg, bb) = ctx.ghost_base_color;     // ← from chroma::post::ghost, OK
@@ -296,7 +296,7 @@ frame.set_force(self.col, self.line, Cell {
 
 ### A10. Monolith Render
 
-**File**: `src/cloud/monolith.rs:894`
+**File**: `src/cosmic_dragon_engine/cloud/monolith.rs:894`
 
 ```rust
 Some(Color::Rgb { r, g, b })
@@ -306,7 +306,7 @@ Direct construction at the end of the monolith color pipeline. Need to audit the
 
 ### A11. Phosphor anomaly halos — partial chroma use
 
-**File**: `src/cloud/phosphor.rs:296, 318, 354, 489-497, 592-599`
+**File**: `src/cosmic_dragon_engine/cloud/phosphor.rs:296, 318, 354, 489-497, 592-599`
 
 The phosphor file is **half-migrated**:
 - Lines 296, 318, 354 call `palette::apply_brightness_rgb` ✓ (chroma helper)
@@ -427,7 +427,7 @@ The fallback is **never silent**. The user is told via `-v`, `--doctor`, and the
 
 ### 6.2 New `ColorPipeline` enum
 
-**Location**: `src/chroma_dragon_engine/mod.rs` (new pub enum) or `src/runtime.rs` (alongside `ColorMode`).
+**Location**: `src/chroma_dragon_engine/mod.rs` (new pub enum) or `src/cosmic_dragon_engine/runtime.rs` (alongside `ColorMode`).
 
 ```rust
 /// Which color pipeline is active.

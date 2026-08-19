@@ -57,7 +57,7 @@ impl Cloud {
     /// CRT_VIGNETTE_HEIGHT × 2) = 2000 cell reads/frame. Skipped entirely
     /// when `perf_pressure > CRT_VIGNETTE_PERF_THRESHOLD` to preserve
     /// rain throughput under sustained load.
-    pub(super) fn apply_crt_vignette(&mut self, frame: &mut Frame) {
+    pub(crate) fn apply_crt_vignette(&mut self, frame: &mut Frame) {
         // Bail early if the screen is too short for the vignette to make
         // sense (would dim the entire screen).
         if self.lines < 2 * CRT_VIGNETTE_HEIGHT {
@@ -182,7 +182,7 @@ impl Cloud {
     /// Runs O(active_particles) per frame. Cost is negligible —
     /// typically 0-20 active particles, peaking at ~60-80 during rapid
     /// multi-click bursts (96-slot pool absorbs this).
-    pub(super) fn apply_quantum_ripple(&mut self, frame: &mut Frame, now: Instant) {
+    pub(crate) fn apply_quantum_ripple(&mut self, frame: &mut Frame, now: Instant) {
         // PERF: O(1) early-out when no particles are active. This is the
         // common case in interactive rendering (no recent clicks) and in
         // benchmark mode (no clicks at all). Avoids the 96-element pool

@@ -117,7 +117,7 @@ impl Cloud {
     /// falling back to full-grid scan only when dirty_all is set (e.g. after
     /// clear_with_bg). This eliminates ~95% of redundant scans in the common
     /// case where only dirty cells need phosphor capture.
-    pub(super) fn phosphor_decay_pass(
+    pub(crate) fn phosphor_decay_pass(
         &mut self,
         frame: &mut crate::frame::Frame,
         elapsed_sec: f32,
@@ -467,7 +467,7 @@ impl Cloud {
     }
 
     /// Spawn a rare anomaly zone at a random position.
-    pub(super) fn spawn_anomaly(&mut self, now: Instant) {
+    pub(crate) fn spawn_anomaly(&mut self, now: Instant) {
         if self.anomaly_zones.len() >= ANOMALY_MAX_ZONES {
             return;
         }
@@ -520,7 +520,7 @@ impl Cloud {
     /// `Color::Reset` selected stop — rare edge cases), the branches
     /// fall back to `blend_toward_white`, preserving pre-Phase-6
     /// behavior for those degenerate cases.
-    pub(super) fn apply_anomalies(&mut self, frame: &mut crate::frame::Frame, now: Instant) {
+    pub(crate) fn apply_anomalies(&mut self, frame: &mut crate::frame::Frame, now: Instant) {
         if self.anomaly_zones.is_empty() {
             return;
         }
@@ -752,7 +752,7 @@ impl Cloud {
     ///
     /// O(W×H + droplets) per sweep. At 200×60 with ~100 active droplets,
     /// ≈12,100 ops every 60 s ≈ 200 ops/s — negligible.
-    pub(super) fn stuck_cell_sweep(&mut self, frame: &mut crate::frame::Frame) {
+    pub(crate) fn stuck_cell_sweep(&mut self, frame: &mut crate::frame::Frame) {
         // T1.1: independent gate. Default true; benchmark sets to false
         // so the sweep's Vec growth (droplet_ranges SmallVec + dirty-list
         // churn from set_force) does not pollute realloc counters.

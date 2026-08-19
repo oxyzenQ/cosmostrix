@@ -13,7 +13,7 @@ use super::state::MsgChr;
 /// Check if a character is a border character (not content).
 /// v25: includes rounded box-drawing chars.
 #[inline]
-pub(super) fn is_border_char(ch: char) -> bool {
+pub(crate) fn is_border_char(ch: char) -> bool {
     matches!(
         ch,
         ' ' | '+' | '-' | '|' | '╭' | '╮' | '╰' | '╯' | '─' | '│'
@@ -22,7 +22,7 @@ pub(super) fn is_border_char(ch: char) -> bool {
 
 /// Build clockwise-ordered list of border cell indices: top-left → top →
 /// top-right → right → bottom-right → bottom → bottom-left → left.
-pub(super) fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
+pub(crate) fn build_border_order(message: &[MsgChr]) -> Vec<usize> {
     if message.is_empty() {
         return Vec::new();
     }

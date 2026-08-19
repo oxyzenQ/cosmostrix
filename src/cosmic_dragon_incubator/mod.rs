@@ -4,22 +4,26 @@
 //! # Cosmic Dragon — v15+ Incubator
 //!
 //! This module is the **incubator namespace** for cosmostrix's v15+ features
-//! and experimental subsystems. It exists to keep the stable flat-structured
-//! engine (`src/cloud/`, `src/interactive/`, `src/chroma_dragon_engine/`, etc.)
-//! untouched while new Cosmic Dragon-era work lands in a clearly-branded home.
+//! and experimental subsystems. It exists to keep the substantive rendering
+//! engine (`src/cosmic_dragon_engine/`) and other stable modules untouched
+//! while new Cosmic Dragon-era experimental work lands in a clearly-branded
+//! home.
 //!
 //! ## Naming clarification
 //!
 //! The directory name `cosmic_dragon_incubator/` is intentionally distinct
-//! from the substantive dragon engines (`chroma_dragon_engine/`,
-//! `crystal_dragon_engine/`). Those contain thousands of LOC of production
-//! code; this directory contains experimental / concluded work only.
+//! from the substantive dragon engines (`cosmic_dragon_engine/`,
+//! `chroma_dragon_engine/`, `crystal_dragon_engine/`). Those contain
+//! thousands of LOC of production code; this directory contains experimental
+//! / concluded work only (~200 LOC).
 //!
-//! The actual Cosmic Dragon rendering engine code lives in:
-//! - `src/cloud/` (rain simulation, monolith, render pipeline, ecosystem)
-//! - `src/frame.rs` (frame buffer + dirty tracking)
-//! - `src/terminal/` (ANSI stream output, draw, last_frame)
-//! - `src/runtime.rs` (color mode detection, color pipeline enum)
+//! The actual Cosmic Dragon rendering engine code lives at
+//! `src/cosmic_dragon_engine/` with 4 subsystems: `cloud/`, `frame.rs`,
+//! `terminal/`, `runtime.rs`. These are re-exported at the crate root via
+//! `pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};`
+//! in main.rs so all `crate::cloud::Foo` / `crate::frame::Foo` /
+//! `crate::runtime::Foo` / `crate::terminal::Foo` call sites continue to
+//! resolve unchanged.
 //!
 //! ## Anatomy
 //!

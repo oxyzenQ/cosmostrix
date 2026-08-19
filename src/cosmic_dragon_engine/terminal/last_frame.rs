@@ -11,17 +11,17 @@
 use crate::cell::Cell;
 
 /// Previous-frame cell cache, used by the differential render path.
-pub(super) struct LastFrame {
-    pub(super) width: u16,
-    pub(super) height: u16,
-    pub(super) cells: Vec<Cell>,
+pub(crate) struct LastFrame {
+    pub(crate) width: u16,
+    pub(crate) height: u16,
+    pub(crate) cells: Vec<Cell>,
     /// Semantic generation this LastFrame was rendered with.
     /// A mismatch with `Frame::semantic_gen` forces a full redraw.
-    pub(super) semantic_gen: u32,
+    pub(crate) semantic_gen: u32,
 }
 
 impl LastFrame {
-    pub(super) fn new(width: u16, height: u16) -> Self {
+    pub(crate) fn new(width: u16, height: u16) -> Self {
         let len = width as usize * height as usize;
         Self {
             width,
@@ -47,7 +47,7 @@ impl LastFrame {
     /// old cell values (which contained previous-frame content) so the
     /// resulting Vec is uniformly blank. The underlying allocation is
     /// reused — only the length changes.
-    pub(super) fn reuse_or_new(existing: Option<Self>, width: u16, height: u16) -> Self {
+    pub(crate) fn reuse_or_new(existing: Option<Self>, width: u16, height: u16) -> Self {
         let Some(mut old) = existing else {
             return Self::new(width, height);
         };

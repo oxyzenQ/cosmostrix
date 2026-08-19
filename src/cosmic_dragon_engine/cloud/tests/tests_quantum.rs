@@ -1216,7 +1216,7 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
         // Call apply_quantum_ripple directly instead of rain_at —
         // rain_at spawns droplets that may overwrite our pre-set cell,
         // defeating the brightness isolation. apply_quantum_ripple is
-        // pub(super) so accessible from this submodule.
+        // pub(crate) so accessible from this submodule.
         cloud.apply_quantum_ripple(&mut frame, frame_time);
 
         let p = &cloud.quantum_particles[idx];

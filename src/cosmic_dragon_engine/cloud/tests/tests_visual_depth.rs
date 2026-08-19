@@ -15,7 +15,7 @@ use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
-pub(super) fn make_cloud_black_bg() -> Cloud {
+pub(crate) fn make_cloud_black_bg() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
         ShadingMode::DistanceFromHead,
@@ -30,7 +30,7 @@ pub(super) fn make_cloud_black_bg() -> Cloud {
     cloud
 }
 
-pub(super) fn make_cloud_default_bg() -> Cloud {
+pub(crate) fn make_cloud_default_bg() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
         ShadingMode::DistanceFromHead,

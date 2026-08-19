@@ -9,8 +9,8 @@ contributors, downstream TUI authors who want to cite or adapt the
 design, and reviewers evaluating cosmostrix against alternative
 rendering strategies.
 
-> **Scope**: interactive rendering path (`src/terminal/` `draw()`,
-> `src/frame.rs`, `src/cloud/rain.rs`). Benchmark mode (no terminal
+> **Scope**: interactive rendering path (`src/cosmic_dragon_engine/terminal/` `draw()`,
+> `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`). Benchmark mode (no terminal
 > writes) is out of scope.
 
 ---
@@ -22,10 +22,10 @@ the crate root**, and that is the end of the discussion.
 
 | File | LOC | Role |
 |------|----:|------|
-| `src/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/terminal/` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
+| `src/cosmic_dragon_engine/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/cosmic_dragon_engine/terminal/` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
 | `src/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
-| `src/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
+| `src/cosmic_dragon_engine/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
 
 Total: 1,992 LOC. Imported by **every render-path module** across `src/`
 (frame: 25 import lines, terminal: 10, runtime: 34). These are not a
@@ -66,7 +66,7 @@ This is a hard policy, not a preference.
    v15+ — it is the foundation. Foundations are not relocated; they
    are maintained.
 4. **A reorganization commit will be rejected at review.** If you
-   find yourself reaching for `git mv src/frame.rs src/engine/frame.rs`,
+   find yourself reaching for `git mv src/cosmic_dragon_engine/frame.rs src/engine/frame.rs`,
    stop. Read commit `46ba457`. Read this section. Open a doc issue
    instead.
 
@@ -121,7 +121,7 @@ style tuple are batched into a single SGR + raw-character run.
 ### 2.1 Data structures
 
 ```text
-Frame (src/frame.rs)
+Frame (src/cosmic_dragon_engine/frame.rs)
 ├── cells: Vec<Cell>              // current frame content (16 B/cell)
 ├── cell_gen: Vec<u32>            // 4 B/cell — content generation stamp
 ├── gen: u32                      // current content generation counter
@@ -131,7 +131,7 @@ Frame (src/frame.rs)
 ├── dirty: SmallVec<[usize; 64]> // queue of dirty cell indices (inline 64)
 └── dirty_all: bool               // fast-path flag for full redraw
 
-Terminal (src/terminal/)
+Terminal (src/cosmic_dragon_engine/terminal/)
 ├── last: Option<LastFrame>       // snapshot of last sent frame
 │   ├── cells: Vec<Cell>          // 16 B/cell, mirrors terminal state
 │   ├── semantic_gen: u32         // for invalidation detection
@@ -153,7 +153,7 @@ Cell (src/cell.rs) — 16 bytes
 ### 2.2 Cell equality — the fast path
 
 ```rust
-// src/frame.rs
+// src/cosmic_dragon_engine/frame.rs
 pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
     let cur = /* cell from previous frame, or blank */;
     if cur == cell {
@@ -209,7 +209,7 @@ The renderer does **not** scan all cells on `draw()`. It iterates
 full-redraw fast path (`dirty_all` flag).
 
 ```rust
-// src/terminal/draw.rs draw()
+// src/cosmic_dragon_engine/terminal/draw.rs draw()
 let dirty_count = frame.dirty_indices().len();
 let dirty_is_large = dirty_count >= total_cells / DIRTY_THRESHOLD_RATIO;
 let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
@@ -290,7 +290,7 @@ character even if `'1'` was the "same" logical position. The
 `semantic_gen` counter handles this:
 
 ```rust
-// src/frame.rs
+// src/cosmic_dragon_engine/frame.rs
 pub fn invalidate_semantic(&mut self, bg: Option<Color>) {
     self.semantic_gen = self.semantic_gen.wrapping_add(1);
     self.clear_with_bg(bg);  // bump gen, set dirty_all

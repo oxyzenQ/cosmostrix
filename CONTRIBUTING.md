@@ -67,9 +67,9 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 
 | Subsystem | Module | Purpose |
 |-----------|--------|---------|
-| Cosmic Dragon | `src/frame.rs`, `src/terminal/`, `src/runtime.rs` | Diff-based rendering engine |
+| Cosmic Dragon | `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs` | Diff-based rendering engine |
 | Chroma Dragon | `src/chroma_dragon_engine/` | OKLab color engine |
-| Cloud | `src/cloud/` | Rain simulation + spawn + render |
+| Cloud | `src/cosmic_dragon_engine/cloud/` | Rain simulation + spawn + render |
 | Droplet | `src/droplet.rs` | Per-droplet visual effects pipeline |
 | Power | `src/central_control_dragon_power/` | Self-healer + power management |
 | Ambient | `src/ambient*.rs` | Time-of-day scene scheduling |

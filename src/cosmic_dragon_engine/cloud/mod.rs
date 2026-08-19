@@ -38,7 +38,7 @@ mod state;
 #[cfg(test)]
 mod tests;
 
-pub(super) use render::{CharLoc, DrawCtx};
+pub(crate) use render::{CharLoc, DrawCtx};
 
 use border::is_border_char;
 
@@ -71,7 +71,7 @@ use ghost_events::GhostEventScheduler;
 use render::FlashWave;
 
 #[derive(Clone, Copy, Debug)]
-pub(super) struct QuantumParticle {
+pub(crate) struct QuantumParticle {
     pub active: bool,
     pub x: f32,
     pub y: f32,
@@ -102,131 +102,131 @@ pub(super) struct QuantumParticle {
 
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
 pub struct Cloud {
-    pub(super) lines: u16,
-    pub(super) cols: u16,
+    pub(crate) lines: u16,
+    pub(crate) cols: u16,
 
-    pub(super) palette: Palette,
-    pub(super) color_mode: ColorMode,
+    pub(crate) palette: Palette,
+    pub(crate) color_mode: ColorMode,
     /// cached `ColorPipeline::detect(color_mode)`.
-    pub(super) color_pipeline: ColorPipeline,
-    pub(super) rain_style: RainStyle,
+    pub(crate) color_pipeline: ColorPipeline,
+    pub(crate) rain_style: RainStyle,
     monolith_size: MonolithSize,
 
-    pub(super) shading_distance: bool,
-    pub(super) bold_mode: BoldMode,
+    pub(crate) shading_distance: bool,
+    pub(crate) bold_mode: BoldMode,
 
-    pub(super) async_mode: bool,
-    pub(super) raining: bool,
-    pub(super) pause: bool,
+    pub(crate) async_mode: bool,
+    pub(crate) raining: bool,
+    pub(crate) pause: bool,
 
-    pub(super) droplet_density: f32,
-    pub(super) monolith_density_map: Option<&'static [f64]>,
-    pub(super) droplets_per_sec: f32,
-    pub(super) chars_per_sec: f32,
+    pub(crate) droplet_density: f32,
+    pub(crate) monolith_density_map: Option<&'static [f64]>,
+    pub(crate) droplets_per_sec: f32,
+    pub(crate) chars_per_sec: f32,
 
-    pub(super) glitchy: bool,
-    pub(super) glitch_pct: f32,
-    pub(super) glitch_low_ms: u16,
-    pub(super) glitch_high_ms: u16,
+    pub(crate) glitchy: bool,
+    pub(crate) glitch_pct: f32,
+    pub(crate) glitch_low_ms: u16,
+    pub(crate) glitch_high_ms: u16,
 
-    pub(super) short_pct: f32,
-    pub(super) die_early_pct: f32,
-    pub(super) linger_low_ms: u16,
-    pub(super) linger_high_ms: u16,
+    pub(crate) short_pct: f32,
+    pub(crate) die_early_pct: f32,
+    pub(crate) linger_low_ms: u16,
+    pub(crate) linger_high_ms: u16,
 
-    pub(super) max_droplets_per_column: u8,
+    pub(crate) max_droplets_per_column: u8,
 
-    pub(super) droplets: Vec<Droplet>,
-    pub(super) monolith_rain: MonolithRain,
+    pub(crate) droplets: Vec<Droplet>,
+    pub(crate) monolith_rain: MonolithRain,
 
-    pub(super) chars: Vec<char>,
-    pub(super) char_pool: Vec<char>,
-    pub(super) previous_char_pool: Vec<char>,
-    pub(super) char_pool_is_binary: bool,
-    pub(super) charset_transition_start: Option<Instant>,
-    pub(super) glitch_pool: Vec<char>,
-    pub(super) glitch_pool_idx: usize,
+    pub(crate) chars: Vec<char>,
+    pub(crate) char_pool: Vec<char>,
+    pub(crate) previous_char_pool: Vec<char>,
+    pub(crate) char_pool_is_binary: bool,
+    pub(crate) charset_transition_start: Option<Instant>,
+    pub(crate) glitch_pool: Vec<char>,
+    pub(crate) glitch_pool_idx: usize,
 
-    pub(super) glitch_map: BitVec,
-    pub(super) color_map: Vec<u8>,
+    pub(crate) glitch_map: BitVec,
+    pub(crate) color_map: Vec<u8>,
 
-    pub(super) edge_fade_lut: Vec<f32>,
+    pub(crate) edge_fade_lut: Vec<f32>,
     /// Pre-baked 2D vignette factor LUT (flat: `line * cols + col`).
     /// Eliminates per-cell sqrt + smoothstep in Droplet::draw hot path.
     /// Rebuilt on resize alongside edge_fade_lut. ~27-48 KiB.
-    pub(super) vignette_lut: Vec<f32>,
+    pub(crate) vignette_lut: Vec<f32>,
     /// (cols, lines) used to build vignette_lut — skip rebuild if unchanged.
-    pub(super) vignette_lut_dims: (u16, u16),
+    pub(crate) vignette_lut_dims: (u16, u16),
 
     /// Phase D (hot-path): per-column hue-coherence perturbation LUT.
     /// Built once per frame in `rain_at`. Replaces per-cell
     /// `column_coherence_perturbation(phase, col)` (saves ~65-130M
     /// cycles/sec at 60 FPS on a 200-col viewport).
-    pub(super) column_coherence_lut: Vec<i32>,
+    pub(crate) column_coherence_lut: Vec<i32>,
 
-    pub(super) droplet_free_list: Vec<usize>,
+    pub(crate) droplet_free_list: Vec<usize>,
 
-    pub(super) col_stat: Vec<ColumnStatus>,
+    pub(crate) col_stat: Vec<ColumnStatus>,
 
-    pub(super) mt: StdRng,
+    pub(crate) mt: StdRng,
 
-    pub(super) rand_chance: Uniform<f32>,
-    pub(super) rand_line: Uniform<u16>,
-    pub(super) rand_cpidx: Uniform<u16>,
-    pub(super) rand_len: Uniform<u16>,
-    pub(super) rand_col: Uniform<u16>,
-    pub(super) rand_glitch_ms: Uniform<u16>,
-    pub(super) rand_linger_ms: Uniform<u16>,
-    pub(super) rand_speed: Uniform<f32>,
+    pub(crate) rand_chance: Uniform<f32>,
+    pub(crate) rand_line: Uniform<u16>,
+    pub(crate) rand_cpidx: Uniform<u16>,
+    pub(crate) rand_len: Uniform<u16>,
+    pub(crate) rand_col: Uniform<u16>,
+    pub(crate) rand_glitch_ms: Uniform<u16>,
+    pub(crate) rand_linger_ms: Uniform<u16>,
+    pub(crate) rand_speed: Uniform<f32>,
 
-    pub(super) last_glitch_time: Instant,
-    pub(super) next_glitch_time: Instant,
-    pub(super) last_spawn_time: Instant,
+    pub(crate) last_glitch_time: Instant,
+    pub(crate) next_glitch_time: Instant,
+    pub(crate) last_spawn_time: Instant,
     /// v30 Hinnant: process anchor captured at `Cloud::new()`, inherited
     /// across live-reload. Replaces `now.elapsed()` in `rain_at()`.
-    pub(super) start_anchor: Instant,
-    pub(super) spawn_remainder: f32,
-    pub(super) pause_time: Option<Instant>,
-    pub(super) resume_blend: f32,
-    pub(super) resume_start: Option<Instant>,
+    pub(crate) start_anchor: Instant,
+    pub(crate) spawn_remainder: f32,
+    pub(crate) pause_time: Option<Instant>,
+    pub(crate) resume_blend: f32,
+    pub(crate) resume_start: Option<Instant>,
     /// Starting resume_blend for the acceleration ramp (triple-tap 'p').
-    pub(super) resume_blend_start: f32,
-    pub(super) pause_start: Option<Instant>,
-    pub(super) force_draw_everything: bool,
-    pub(super) semantic_invalidate: bool,
-    pub(super) frames_since_full_redraw: u64,
+    pub(crate) resume_blend_start: f32,
+    pub(crate) pause_start: Option<Instant>,
+    pub(crate) force_draw_everything: bool,
+    pub(crate) semantic_invalidate: bool,
+    pub(crate) frames_since_full_redraw: u64,
 
     /// P4: frame counter for stuck-cell sweep (gated on enable_stuck_cell_sweep).
-    pub(super) frames_since_stuck_sweep: u64,
-    pub(super) perf_pressure: f32,
+    pub(crate) frames_since_stuck_sweep: u64,
+    pub(crate) perf_pressure: f32,
     /// AB-11: aggressive throttle flag (steeper spawn-scale, no glitches).
-    pub(super) aggressive_throttle: bool,
+    pub(crate) aggressive_throttle: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
-    pub(super) phosphor_skipped: bool,
-    pub(super) max_sim_delta: Duration,
+    pub(crate) phosphor_skipped: bool,
+    pub(crate) max_sim_delta: Duration,
 
-    pub(super) shading_mode: ShadingMode,
+    pub(crate) shading_mode: ShadingMode,
 
-    pub(super) message: Vec<MsgChr>,
-    pub(super) message_text: Option<String>,
-    pub(super) message_border: bool,
-    pub(super) message_start_time: Option<Instant>,
+    pub(crate) message: Vec<MsgChr>,
+    pub(crate) message_text: Option<String>,
+    pub(crate) message_border: bool,
+    pub(crate) message_start_time: Option<Instant>,
     /// BN-01/02 (Dragon Hunt v3): hoisted clockwise border-cell index list.
     /// Rebuilt only in `reset_message` (rare — once per `--message` invocation
     /// or border toggle). `draw_message` borrows this instead of calling
     /// `build_border_order` per frame (was O((W+H)×N) per frame; now O(1) borrow).
-    pub(super) border_order: Vec<usize>,
-    pub(super) color_scheme: ColorScheme,
-    pub(super) default_background: bool,
+    pub(crate) border_order: Vec<usize>,
+    pub(crate) color_scheme: ColorScheme,
+    pub(crate) default_background: bool,
     scene_name: String,
 
-    pub(super) palette_table: [Option<Palette>; MAX_PALETTE_SLOTS],
+    pub(crate) palette_table: [Option<Palette>; MAX_PALETTE_SLOTS],
 
-    pub(super) active_palette_slot: u8,
+    pub(crate) active_palette_slot: u8,
 
-    pub(super) transition_start: Option<Instant>,
+    pub(crate) transition_start: Option<Instant>,
 
-    pub(super) column_palette_slot: Vec<u8>,
+    pub(crate) column_palette_slot: Vec<u8>,
 
     pub mouse_col: u16,
 
@@ -234,57 +234,57 @@ pub struct Cloud {
 
     pub mouse_enabled: bool,
 
-    pub(super) flash_waves: [FlashWave; MOUSE_FLASH_POOL_SIZE],
+    pub(crate) flash_waves: [FlashWave; MOUSE_FLASH_POOL_SIZE],
 
-    pub(super) quantum_particles: Vec<QuantumParticle>,
+    pub(crate) quantum_particles: Vec<QuantumParticle>,
     /// Active quantum particle count (incremental, O(1) early-out).
-    pub(super) quantum_active_count: usize,
+    pub(crate) quantum_active_count: usize,
 
-    pub(super) last_reseed_time: Instant,
+    pub(crate) last_reseed_time: Instant,
 
-    pub(super) phosphor: Vec<u8>,
-    pub(super) phosphor_base_fg: Vec<Option<Color>>,
-    pub(super) phosphor_base_ch: Vec<char>,
-    pub(super) phosphor_layer: Vec<u8>,
-    pub(super) phosphor_fresh: BitVec,
-    pub(super) phosphor_in_active: BitVec,
-    pub(super) last_phosphor_time: Instant,
-    pub(super) last_quantum_update_time: Instant,
-    pub(super) phosphor_active: SmallVec<[usize; 256]>,
-    pub(super) phosphor_last_fresh: SmallVec<[usize; 256]>,
-    pub(super) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
+    pub(crate) phosphor: Vec<u8>,
+    pub(crate) phosphor_base_fg: Vec<Option<Color>>,
+    pub(crate) phosphor_base_ch: Vec<char>,
+    pub(crate) phosphor_layer: Vec<u8>,
+    pub(crate) phosphor_fresh: BitVec,
+    pub(crate) phosphor_in_active: BitVec,
+    pub(crate) last_phosphor_time: Instant,
+    pub(crate) last_quantum_update_time: Instant,
+    pub(crate) phosphor_active: SmallVec<[usize; 256]>,
+    pub(crate) phosphor_last_fresh: SmallVec<[usize; 256]>,
+    pub(crate) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
 
-    pub(super) anomaly_zones: Vec<AnomalyZone>,
+    pub(crate) anomaly_zones: Vec<AnomalyZone>,
 
     // Profile identity — currently always Monolith. Retained for future
     // profile selector (Void, Neural, etc.) which will read this field.
     #[allow(dead_code)]
-    pub(super) profile: BehaviorProfile,
-    pub(super) profile_current: ProfileParams,
-    pub(super) profile_target: ProfileParams,
-    pub(super) profile_transition_start: Option<Instant>,
+    pub(crate) profile: BehaviorProfile,
+    pub(crate) profile_current: ProfileParams,
+    pub(crate) profile_target: ProfileParams,
+    pub(crate) profile_transition_start: Option<Instant>,
 
-    pub(super) color_ecosystem: ColorEcosystem,
-    pub(super) entropy_drift: EntropyDrift,
-    pub(super) memory: RendererMemory,
-    pub(super) storytelling: StorytellingState,
+    pub(crate) color_ecosystem: ColorEcosystem,
+    pub(crate) entropy_drift: EntropyDrift,
+    pub(crate) memory: RendererMemory,
+    pub(crate) storytelling: StorytellingState,
 
-    pub(super) glyph_entry_time: Option<Instant>,
+    pub(crate) glyph_entry_time: Option<Instant>,
 
     /// Crystal Dragon Engine: ambient intelligence for palette drift.
     /// Point-based temperature group system (Cold/Medium/Hot) +
     /// calc-v1 probabilistic weighted theme selection.
-    pub(super) crystal_dragon: bool,
+    pub(crate) crystal_dragon: bool,
     /// Crystal Dragon sensor state (CPU/CLOCK polling + point tracking).
-    pub(super) crystal_dragon_sensor: crate::crystal_dragon_engine::CrystalDragonSensor,
+    pub(crate) crystal_dragon_sensor: crate::crystal_dragon_engine::CrystalDragonSensor,
     /// Crystal Dragon control config (polling interval, drift chance, etc.).
-    pub(super) crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl,
+    pub(crate) crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl,
     /// Last Crystal Dragon poll timestamp. None until first poll.
-    pub(super) crystal_dragon_last_poll: Option<std::time::Instant>,
+    pub(crate) crystal_dragon_last_poll: Option<std::time::Instant>,
     /// v30 Bug #4: true when --colors-custom active → suppress palette drift.
-    pub(super) custom_palette_active: bool,
+    pub(crate) custom_palette_active: bool,
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
-    pub(super) color_tune: crate::color_tune::ColorTune,
+    pub(crate) color_tune: crate::color_tune::ColorTune,
     /// true when ambient asserted palette → suppress auto-drift palette
     /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
     /// See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
@@ -295,21 +295,21 @@ pub struct Cloud {
     /// ambient fire (scheduler, `a` key, startup).
     pub(crate) user_override_since_ambient: bool,
 
-    pub(super) event_manager: GhostEventScheduler,
+    pub(crate) event_manager: GhostEventScheduler,
 
-    pub(super) gust: living_rain::GustState,
+    pub(crate) gust: living_rain::GustState,
 
-    pub(super) last_sim_ms: f64,
-    pub(super) last_render_ms: f64,
-    pub(super) enable_component_timing: bool,
+    pub(crate) last_sim_ms: f64,
+    pub(crate) last_render_ms: f64,
+    pub(crate) enable_component_timing: bool,
     /// T1.1: gate for stuck-cell sweep (default true; benchmark sets false).
     pub(crate) enable_stuck_cell_sweep: bool,
     /// Gate diagnostic stderr logs. Set from cfg.verbose.
-    pub(super) verbose: bool,
+    pub(crate) verbose: bool,
     /// Total stuck cells cleared across all sweeps.
-    pub(super) stuck_cells_cleared_total: u64,
+    pub(crate) stuck_cells_cleared_total: u64,
     /// Total sweeps that found at least one stuck cell.
-    pub(super) stuck_sweeps_with_clears: u64,
+    pub(crate) stuck_sweeps_with_clears: u64,
 }
 
 impl Cloud {
@@ -736,7 +736,7 @@ impl Cloud {
         self.force_draw_everything = false;
     }
 
-    pub(super) fn reset_message(&mut self) {
+    pub(crate) fn reset_message(&mut self) {
         let Some(text) = self.message_text.as_deref() else {
             return;
         };

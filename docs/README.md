@@ -21,12 +21,12 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 
 | Doc | Covers |
 |-----|--------|
-| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/frame.rs`, `src/terminal/`, `src/terminal_tty.rs`) |
+| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/terminal_tty.rs`) |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) | SIMD optimization feasibility (rejected; `src/bolt.rs`) |
 
-**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/frame.rs`, `src/terminal/`, `src/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma_dragon_engine/`).
+**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma_dragon_engine/`).
 
 ## Benchmarking & Performance
 
@@ -46,7 +46,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains.rs`) |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for rain depth stack |
 
-The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma_dragon_engine/post/climate.rs`, `AtmosphericEvolution` in `src/cloud/ecosystem.rs`) are separate and remain live.
+The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma_dragon_engine/post/climate.rs`, `AtmosphericEvolution` in `src/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.
 
 ## Color & Theming (Chroma Dragon)
 
@@ -57,7 +57,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [src/chroma_dragon_engine/palette.rs](../src/chroma_dragon_engine/palette.rs) | Palette construction, OKLab interpolation |
 | [src/chroma_dragon_engine/tuning.rs](../src/chroma_dragon_engine/tuning.rs) | `--color-tune` key=value tuning |
 
-**Adding a new color theme**: add a variant to `ColorScheme` in `src/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
+**Adding a new color theme**: add a variant to `ColorScheme` in `src/cosmic_dragon_engine/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
 
 ## Ambient Intelligence (Crystal Dragon)
 

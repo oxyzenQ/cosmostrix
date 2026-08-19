@@ -64,14 +64,14 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  2. STATE UPDATE                                                            │
-│  src/cloud/mod.rs:441-465  (Cloud::set_mouse_click)                         │
+│  src/cosmic_dragon_engine/cloud/mod.rs:441-465  (Cloud::set_mouse_click)                         │
 │  ────────────────────────────────────────────                               │
 │  • Scan self.flash_waves[MOUSE_FLASH_POOL_SIZE=4] for first inactive slot   │
 │  • If none inactive → evict slot with smallest `birth` (oldest)             │
 │  • Set slot = { active:true, col, line, birth:now }                         │
 │  • Call spawn_quantum_ripple(col, line)                                     │
 │                                                                              │
-│  src/cloud/spawn.rs:740-789  (Cloud::spawn_quantum_ripple)                 │
+│  src/cosmic_dragon_engine/cloud/spawn.rs:740-789  (Cloud::spawn_quantum_ripple)                 │
 │  ──────────────────────────────────────────────                             │
 │  • Snapshot palette body color (mid-index)                                  │
 │  • For up to QUANTUM_RIPPLE_PARTICLE_COUNT=20 particles:                    │
@@ -84,7 +84,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  3. PER-FRAME PRECOMPUTE  (runs every frame in rain_at)                    │
-│  src/cloud/rain.rs:583-595                                                  │
+│  src/cosmic_dragon_engine/cloud/rain.rs:583-595                                                  │
 │  ─────────────────────                                                      │
 │  let mut flash_waves_buf: SmallVec<[FlashWaveCtx; 4]> = SmallVec::new();   │
 │  for w in &self.flash_waves:                                                │
@@ -132,7 +132,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  5. POST-PROCESS  (after droplet draw, before phosphor)                    │
-│  src/cloud/rain.rs:732 + 1082-1218  (Cloud::apply_quantum_ripple)          │
+│  src/cosmic_dragon_engine/cloud/rain.rs:732 + 1082-1218  (Cloud::apply_quantum_ripple)          │
 │  ─────────────────────────────────────────────────────────────────────      │
 │  Early-out if quantum_active_count == 0                                     │
 │  Else: for each active particle:                                            │
@@ -146,7 +146,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
                                      ▼
 ┌──────────────────────────────────────────────────────────────────────────────┐
 │  6. EXPIRY SWEEP  (end of rain_at)                                          │
-│  src/cloud/rain.rs:939-945                                                  │
+│  src/cosmic_dragon_engine/cloud/rain.rs:939-945                                                  │
 │  ─────────────────────                                                      │
 │  for w in &mut self.flash_waves:                                            │
 │    if w.active && now - w.birth >= MOUSE_FLASH_DURATION_SECS:               │
@@ -160,20 +160,20 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 |---|---|
 | `src/interactive/event_loop.rs:852-881` | Event capture: dispatches `Event::Mouse` → `set_mouse_position` + `set_mouse_click` |
 | `src/interactive/input.rs` | Keyboard only — no mouse handling. (Verified: no `mouse`/`Mouse` references.) |
-| `src/cloud/mod.rs:436-465` | `set_mouse_position` + `set_mouse_click` (pool slot selection, eviction) |
-| `src/cloud/mod.rs:613-618` | Pause-time birth shift for flash waves |
-| `src/cloud/spawn.rs:740-789` | `spawn_quantum_ripple` (particle pool fill) |
-| `src/cloud/render.rs:27-54` | `FlashWaveCtx` (precomputed view) + `FlashWave` (runtime slot) types |
-| `src/cloud/render.rs:115` | `DrawCtx::flash_waves: &[FlashWaveCtx]` field |
-| `src/cloud/rain.rs:583-595` | Per-frame precompute of active flash waves into `SmallVec` |
-| `src/cloud/rain.rs:732` | Call to `apply_quantum_ripple` |
-| `src/cloud/rain.rs:939-945` | Per-frame expiry sweep |
-| `src/cloud/rain.rs:1082-1218` | `apply_quantum_ripple` (particle update + render) |
+| `src/cosmic_dragon_engine/cloud/mod.rs:436-465` | `set_mouse_position` + `set_mouse_click` (pool slot selection, eviction) |
+| `src/cosmic_dragon_engine/cloud/mod.rs:613-618` | Pause-time birth shift for flash waves |
+| `src/cosmic_dragon_engine/cloud/spawn.rs:740-789` | `spawn_quantum_ripple` (particle pool fill) |
+| `src/cosmic_dragon_engine/cloud/render.rs:27-54` | `FlashWaveCtx` (precomputed view) + `FlashWave` (runtime slot) types |
+| `src/cosmic_dragon_engine/cloud/render.rs:115` | `DrawCtx::flash_waves: &[FlashWaveCtx]` field |
+| `src/cosmic_dragon_engine/cloud/rain.rs:583-595` | Per-frame precompute of active flash waves into `SmallVec` |
+| `src/cosmic_dragon_engine/cloud/rain.rs:732` | Call to `apply_quantum_ripple` |
+| `src/cosmic_dragon_engine/cloud/rain.rs:939-945` | Per-frame expiry sweep |
+| `src/cosmic_dragon_engine/cloud/rain.rs:1082-1218` | `apply_quantum_ripple` (particle update + render) |
 | `src/droplet.rs:727-748` | Per-cell cursor glow (DEAD CODE — see §3.1) |
 | `src/droplet.rs:769-816` | Per-cell flash wave dual-ring blend |
 | `src/central_control_rains.rs:487-524` | All `MOUSE_*` constants |
 | `src/quantum_constants.rs` | All `QUANTUM_*` constants |
-| `src/cloud/tests/tests_quantum.rs:645-768` | fix regression tests |
+| `src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs:645-768` | fix regression tests |
 
 ---
 
@@ -204,7 +204,7 @@ Event::Mouse(m) => {
 
 - **P1 (perf, negligible):** `Instant::now()` is called once per mouse event for `activity_time`. This is fine — mouse events are infrequent (~10-100 Hz during fast motion).
 
-### 2.2 `src/cloud/mod.rs` — Click State Update
+### 2.2 `src/cosmic_dragon_engine/cloud/mod.rs` — Click State Update
 
 **Lines 441-465** (`set_mouse_click`):
 
@@ -245,7 +245,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
 
 - **V30 fix verification:** The pool design correctly handles double-click (verified by `flash_wave_pool_double_click_keeps_both_waves` test at tests_quantum.rs:684) and overflow (verified by `flash_wave_pool_overflow_evicts_oldest` at tests_quantum.rs:712). The fix is solid for the documented "2-3 rapid clicks" use case. Edge cases beyond 4 concurrent clicks are handled by eviction, which is acceptable per the design comment.
 
-### 2.3 `src/cloud/spawn.rs` — Quantum Ripple Spawner
+### 2.3 `src/cosmic_dragon_engine/cloud/spawn.rs` — Quantum Ripple Spawner
 
 **Lines 740-789** (`spawn_quantum_ripple`):
 
@@ -262,7 +262,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
 
 - **C6 (correctness, silent drop):** When the particle pool is full (3 active clicks + partial 4th), `spawn_quantum_ripple` silently drops the new particles — `spawned` stays below `QUANTUM_RIPPLE_PARTICLE_COUNT`. The doc comment acknowledges this: "clicks beyond the pool capacity are silently dropped (the flash wave still spawns)." This is by design, but the user gets no feedback that their click was partially dropped. The flash wave still appears, which is the more visually prominent effect, so this is acceptable.
 
-### 2.4 `src/cloud/render.rs` — DrawCtx & FlashWaveCtx Types
+### 2.4 `src/cosmic_dragon_engine/cloud/render.rs` — DrawCtx & FlashWaveCtx Types
 
 **Lines 27-54** + **Lines 109-115**:
 
@@ -278,7 +278,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
 
   **Recommended change:** extend `FlashWaveCtx` with `primary_radius`, `secondary_radius`, `fade` (or `fade × MOUSE_FLASH_INTENSITY`). Compute once in rain.rs:583-595.
 
-### 2.5 `src/cloud/rain.rs` — Per-Frame Precompute + Expiry Sweep
+### 2.5 `src/cosmic_dragon_engine/cloud/rain.rs` — Per-Frame Precompute + Expiry Sweep
 
 **Lines 583-595** (precompute) + **939-945** (expiry):
 
@@ -328,7 +328,7 @@ This is the most impactful file. See §3 (Performance Findings) for the full bre
 
 - **C7 (correctness, visual quality):** The flash wave color contribution is only applied to cells inside the per-droplet draw loop (`for line in start_line..=head_put_line`). Empty cells (no active droplet trail) get NO wave contribution. This means the wave's expanding ring is **invisible** in regions of the screen with no rain. Visually, the wave appears "broken" or "gappy" in sparse areas — only the parts of the ring that intersect active rain trails light up. This may be intentional (the wave "tints" existing rain rather than painting empty space), but it's a visual quality limitation worth flagging. The same applies to the cursor glow.
 
-### 2.7 `src/cloud/mod.rs:613-618` — Pause Birth Shift
+### 2.7 `src/cosmic_dragon_engine/cloud/mod.rs:613-618` — Pause Birth Shift
 
 ```rust
 // fix: shift ALL active flash wave births (was single slot).
@@ -356,7 +356,7 @@ for w in &mut self.flash_waves {
   }
   ```
 
-### 2.8 `src/cloud/spawn.rs:25-153` — `reset()` Does Not Clear Mouse State
+### 2.8 `src/cosmic_dragon_engine/cloud/spawn.rs:25-153` — `reset()` Does Not Clear Mouse State
 
 **Findings:**
 
@@ -499,7 +499,7 @@ flash_waves_buf.push(FlashWaveCtx {
 
 ### 3.4 [LOW] Per-frame `Instant::now()` in precompute loop
 
-**Location:** `src/cloud/rain.rs:586`
+**Location:** `src/cosmic_dragon_engine/cloud/rain.rs:586`
 
 ```rust
 let e = w.birth.elapsed().as_secs_f32();
@@ -521,7 +521,7 @@ Not strictly mouse-effect code, but in the same per-cell hot path. `vignette_fac
 
 ### 3.6 [LOW] Triple `Instant::now()` per click
 
-**Location:** `src/cloud/mod.rs:445, 447` + `src/cloud/spawn.rs:743`
+**Location:** `src/cosmic_dragon_engine/cloud/mod.rs:445, 447` + `src/cosmic_dragon_engine/cloud/spawn.rs:743`
 
 Three `Instant::now()` calls per click. Could be one. Saves ~40-80 ns/click. Negligible.
 
@@ -531,7 +531,7 @@ Three `Instant::now()` calls per click. Could be one. Saves ~40-80 ns/click. Neg
 
 ### 4.1 [MEDIUM] Quantum particles don't survive pause (BUG)
 
-**Location:** `src/cloud/mod.rs:toggle_pause` BRANCH 2 (lines 562-625)
+**Location:** `src/cosmic_dragon_engine/cloud/mod.rs:toggle_pause` BRANCH 2 (lines 562-625)
 
 Flash wave births are shifted by `elapsed` (line 614-618), but quantum particle births are NOT shifted. After a pause > `QUANTUM_RIPPLE_LIFETIME_SECS` (0.8s), all active particles instantly expire on unpause.
 
@@ -594,13 +594,13 @@ Event::FocusLost => {
 
 ### 4.5 [LOW] `reset()` does not clear mouse state
 
-**Location:** `src/cloud/spawn.rs:25-153`
+**Location:** `src/cosmic_dragon_engine/cloud/spawn.rs:25-153`
 
 After `reset()`, active flash waves and quantum particles continue to expand from their old positions (which may now be off-screen if the terminal was resized smaller). Self-expire within 1.8s / 0.8s. Not a bug per se, but a cleanliness issue. See §2.8.
 
 ### 4.6 [INFO] `oldest` initialization is fragile but correct
 
-**Location:** `src/cloud/mod.rs:447`
+**Location:** `src/cosmic_dragon_engine/cloud/mod.rs:447`
 
 The `oldest = (0usize, Instant::now())` initialization works because any past `birth` is < `Instant::now()`. But it relies on an implicit invariant. See §2.2 C4 for the cleaner pattern.
 
@@ -655,7 +655,7 @@ LLVM will constant-fold `GLOW_ENABLED = false` and eliminate the entire block at
 
 ### Quick Win #2: Precompute wave quantities in `FlashWaveCtx` (15 min, MEDIUM impact)
 
-**File:** `src/cloud/render.rs:33-41` + `src/cloud/rain.rs:583-595` + `src/droplet.rs:769-816`
+**File:** `src/cosmic_dragon_engine/cloud/render.rs:33-41` + `src/cosmic_dragon_engine/cloud/rain.rs:583-595` + `src/droplet.rs:769-816`
 
 **Change:** Add `primary_radius`, `secondary_radius`, `fade`, `max_reach_sq` to `FlashWaveCtx`. Compute once in rain.rs precompute loop. Use directly in droplet.rs hot loop.
 
@@ -671,7 +671,7 @@ Depends on Quick Win #2 for the `max_reach_sq` field (or compute it inline).
 
 ### Quick Win #4: Fix quantum particle pause-survival bug (5 min, CORRECTNESS)
 
-**File:** `src/cloud/mod.rs:613-618`
+**File:** `src/cosmic_dragon_engine/cloud/mod.rs:613-618`
 
 **Change:** Add after the flash wave birth shift:
 ```rust

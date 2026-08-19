@@ -65,25 +65,25 @@ pub(crate) fn has_dirty_cells(frame: &Frame) -> bool {
 #[test]
 fn all_rust_files_under_loc_cap() {
     let files = [
-        "src/cloud/mod.rs",
-        "src/cloud/spawn.rs",
-        "src/cloud/tests/mod.rs",
-        "src/cloud/tests/tests_scene/mod.rs",
-        "src/cloud/tests/tests_scene/cycle.rs",
-        "src/cloud/tests/tests_scene/transitions.rs",
-        "src/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/cloud/tests/tests_scene/residue.rs",
-        "src/cloud/tests/tests_scene/controls.rs",
-        "src/cloud/tests/tests_visual_depth.rs",
-        "src/cloud/tests/tests_monolith/mod.rs",
-        "src/cloud/tests/tests_monolith/core.rs",
-        "src/cloud/tests/tests_monolith/depth.rs",
-        "src/cloud/tests/tests_monolith/residue.rs",
-        "src/cloud/tests/tests_monolith/transitions.rs",
-        "src/cloud/tests/tests_monolith/charset.rs",
-        "src/cloud/scene_runtime.rs",
-        "src/cloud/runtime_controls.rs",
+        "src/cosmic_dragon_engine/cloud/mod.rs",
+        "src/cosmic_dragon_engine/cloud/spawn.rs",
+        "src/cosmic_dragon_engine/cloud/tests/mod.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_visual_depth.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
+        "src/cosmic_dragon_engine/cloud/scene_runtime.rs",
+        "src/cosmic_dragon_engine/cloud/runtime_controls.rs",
     ];
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
@@ -98,7 +98,8 @@ fn all_rust_files_under_loc_cap() {
 #[test]
 fn phase4_monolith_facade_stays_small() {
     let content =
-        std::fs::read_to_string("src/cloud/tests/tests_monolith/mod.rs").unwrap_or_default();
+        std::fs::read_to_string("src/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs")
+            .unwrap_or_default();
     let count = content.lines().count();
     assert!(
         count < 200,
@@ -110,12 +111,12 @@ fn phase4_monolith_facade_stays_small() {
 #[test]
 fn phase4_all_monolith_split_files_under_loc_cap() {
     let files = [
-        "src/cloud/tests/tests_monolith/mod.rs",
-        "src/cloud/tests/tests_monolith/core.rs",
-        "src/cloud/tests/tests_monolith/depth.rs",
-        "src/cloud/tests/tests_monolith/residue.rs",
-        "src/cloud/tests/tests_monolith/transitions.rs",
-        "src/cloud/tests/tests_monolith/charset.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
     ];
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
@@ -128,7 +129,8 @@ fn phase4_all_monolith_split_files_under_loc_cap() {
 #[test]
 fn phase4_depth_lab_monolith_tests_still_exist() {
     let depth_file =
-        std::fs::read_to_string("src/cloud/tests/tests_monolith/depth.rs").unwrap_or_default();
+        std::fs::read_to_string("src/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs")
+            .unwrap_or_default();
     let required_tests = [
         "depth_lab_monolith_sparse_lane_density_bounded_per_column",
         "depth_lab_monolith_empty_space_ratio_above_min_threshold",
@@ -147,11 +149,11 @@ fn phase4_depth_lab_monolith_tests_still_exist() {
 #[test]
 fn phase4_no_monolith_coverage_category_removed() {
     let all_files: String = [
-        "src/cloud/tests/tests_monolith/core.rs",
-        "src/cloud/tests/tests_monolith/depth.rs",
-        "src/cloud/tests/tests_monolith/residue.rs",
-        "src/cloud/tests/tests_monolith/transitions.rs",
-        "src/cloud/tests/tests_monolith/charset.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())
@@ -183,7 +185,9 @@ fn phase4_no_monolith_coverage_category_removed() {
 /// guards, and Phase 5 scene split integrity guards.
 #[test]
 fn phase5_scene_facade_stays_small() {
-    let content = std::fs::read_to_string("src/cloud/tests/tests_scene/mod.rs").unwrap_or_default();
+    let content =
+        std::fs::read_to_string("src/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs")
+            .unwrap_or_default();
     let count = content.lines().count();
     assert!(
         count < 300,
@@ -195,13 +199,13 @@ fn phase5_scene_facade_stays_small() {
 #[test]
 fn phase5_all_scene_split_files_under_loc_cap() {
     let files = [
-        "src/cloud/tests/tests_scene/mod.rs",
-        "src/cloud/tests/tests_scene/cycle.rs",
-        "src/cloud/tests/tests_scene/transitions.rs",
-        "src/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/cloud/tests/tests_scene/residue.rs",
-        "src/cloud/tests/tests_scene/controls.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
     ];
     for path in &files {
         let content = std::fs::read_to_string(path).unwrap_or_default();
@@ -214,12 +218,12 @@ fn phase5_all_scene_split_files_under_loc_cap() {
 #[test]
 fn phase5_no_scene_coverage_category_removed() {
     let all_files: String = [
-        "src/cloud/tests/tests_scene/cycle.rs",
-        "src/cloud/tests/tests_scene/transitions.rs",
-        "src/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/cloud/tests/tests_scene/residue.rs",
-        "src/cloud/tests/tests_scene/controls.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())
@@ -250,8 +254,8 @@ fn phase5_no_scene_coverage_category_removed() {
 #[test]
 fn phase5_depth_lab_scene_tests_still_exist() {
     let all_files: String = [
-        "src/cloud/tests/tests_scene/residue.rs",
-        "src/cloud/tests/tests_scene/transitions.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "src/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())

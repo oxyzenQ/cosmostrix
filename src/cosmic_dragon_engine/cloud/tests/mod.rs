@@ -23,7 +23,7 @@ use super::Cloud;
 // v50 (2026-08-17) border gradient fix: expose the interpolation helper to
 // the test submodule so tests/tests_border_gradient.rs can verify the smooth
 // gradient produces interpolated colors at non-integer `t` values.
-pub(super) use super::interpolate_palette_color;
+pub(crate) use super::interpolate_palette_color;
 use crate::constants::{
     CHARSET_TRANSITION_DURATION_MS, COLOR_TRANSITION_DURATION_MS,
     COLOR_TRANSITION_INITIAL_VISIBLE_PCT, FULL_REDRAW_INTERVAL_FRAMES, MAX_PALETTE_SLOTS,
@@ -33,7 +33,7 @@ use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, ShadingMode};
 
-pub(super) fn make_cloud() -> Cloud {
+pub(crate) fn make_cloud() -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
         ShadingMode::Random,

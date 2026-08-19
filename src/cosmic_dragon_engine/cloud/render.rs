@@ -64,7 +64,7 @@ pub(crate) struct FlashWaveCtx {
 /// ripple for `MOUSE_FLASH_DURATION_SECS`, then `active` flips to false.
 /// Pool size is `MOUSE_FLASH_POOL_SIZE`. Stored as a fixed array in `Cloud`.
 #[derive(Clone, Copy, Debug)]
-pub(super) struct FlashWave {
+pub(crate) struct FlashWave {
     pub active: bool,
     pub col: u16,
     pub line: u16,

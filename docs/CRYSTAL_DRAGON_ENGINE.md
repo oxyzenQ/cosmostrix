@@ -15,7 +15,7 @@ cooperating dragon engines:
 
 | Engine | Owns | Code Root |
 |--------|------|----------|
-| **Cosmic Dragon** (rendering) | "Did this cell change?" — diff-based render loop, dirty tracking, ANSI stream output | `src/cloud/`, `src/frame.rs`, `src/terminal/`, `src/runtime.rs` |
+| **Cosmic Dragon** (rendering) | "Did this cell change?" — diff-based render loop, dirty tracking, ANSI stream output | `src/cosmic_dragon_engine/cloud/`, `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs` |
 | **Chroma Dragon** (coloring) | "What color should this cell be now?" — palette construction, OKLab gradient, post-FX, anomaly halos | `src/chroma_dragon_engine/` |
 | **Crystal Dragon** (ambient) | "Should the palette drift, and to what?" — sensor sampling, temperature classification, weighted theme selection, time-of-day scene schedule | `src/crystal_dragon_engine/` (this module) |
 
@@ -485,4 +485,4 @@ Total: 2,910 LOC (production) + 1,108 LOC (tests) = 4,018 LOC
 - [`docs/THREE_DRAGON_ENGINES.md`](THREE_DRAGON_ENGINES.md) — High-level overview of all three dragon engines and how they cooperate.
 - [`docs/CENTRAL_CONTROL_DRAGON_POWER.md`](CENTRAL_CONTROL_DRAGON_POWER.md) — Power management / thermal / self-healing subsystem (separate from Crystal Dragon).
 - [`src/chroma_dragon_engine/mod.rs`](../src/chroma_dragon_engine/mod.rs) — The coloring engine that Crystal delegates transitions to.
-- [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/cloud/`, `src/frame.rs`, `src/terminal/`, `src/runtime.rs`).
+- [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/cosmic_dragon_engine/cloud/`, `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs`).
