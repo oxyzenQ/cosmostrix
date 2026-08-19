@@ -148,7 +148,7 @@ If no argument is given, the default target is `cosmostrix`.
 | Swap | Zero throughout run | Non-zero swap indicates memory pressure |
 | Crash / panic | None | Renderer must exit cleanly on duration expiry |
 | Clean exit | Exit code 0 | Confirms graceful shutdown path |
-| Color drift | None when `crystal-dragon` is off | Fixed colors must remain sticky |
+| Crystal Dragon palette drift | None when `crystal-dragon` is off | Fixed colors must remain sticky |
 
 ### Color stability endurance
 

@@ -763,7 +763,7 @@ mod cases {
     //
     // When the user presses x/c/s/C/S, two flags must be updated:
     //   - user_override_since_ambient = true  (so next ambient fire isn't deduped)
-    //   - ambient_palette_locked = false      (so auto-drift palette drift resumes)
+    //   - ambient_palette_locked = false      (so Crystal Dragon palette drift resumes)
     // (except 's'/'S' which only sets user_override, not the palette lock —
     // charset change doesn't affect palette).
 

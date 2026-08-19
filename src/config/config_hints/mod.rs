@@ -203,6 +203,37 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
+    // Pattern 6 (LTS audit 2026-08-19): removed v15-era `auto-color-drift`
+    // config key. v15 silently ignored unknown keys (a bug); v50 strict-
+    // rejects them. Users upgrading from v15 → v50 who still have the old
+    // `auto-color-drift` key in their config.toml get a targeted hint
+    // pointing them to the canonical v50 replacement: `crystal-dragon`.
+    //
+    // The hint also covers common variants users might write:
+    //   - auto-color-drift (kebab-case, the original v15 spelling)
+    //   - auto_color_drift (snake_case, common Rust-ism)
+    //   - autocolordrift  (no separator)
+    //   - auto-drift      (shortened form)
+    //
+    // Without this hint, users get a generic "unknown key (likely typo)"
+    // message that doesn't explain WHY the key was rejected or WHAT to use
+    // instead — confusing for users migrating from v15.
+    let lower = key.to_ascii_lowercase();
+    let is_auto_color_drift_variant = lower == "auto-color-drift"
+        || lower == "auto_color_drift"
+        || lower == "autocolordrift"
+        || lower == "auto-drift"
+        || lower == "auto_drift"
+        || lower == "autodrift";
+    if is_auto_color_drift_variant {
+        return Some(format!(
+            "'{key}': removed v15-era config key. The auto color drift feature \
+             was renamed to 'crystal-dragon' in v50 (point-based temperature \
+             group system, replaces the old pattern-based drift). Replace \
+             '{key} = <value>' with 'crystal-dragon = false' (or 'true' to enable)."
+        ));
+    }
+
     None
 }
 

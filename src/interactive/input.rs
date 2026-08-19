@@ -259,7 +259,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
                 cloud.apply_scene_runtime(next, charset_preset, user_ranges, def_ascii);
             // scene change is a user override — flag both. The palette
             // lock is cleared because the new scene may bring its own color
-            // (and auto-drift should be free to drift from there until the
+            // (and Crystal Dragon should be free to drift from there until the
             // next ambient fire re-locks).
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;

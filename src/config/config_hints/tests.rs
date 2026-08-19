@@ -528,3 +528,51 @@ fn density_map_snake_case_also_gets_section_hint() {
     assert!(hint.contains("section-only"));
     assert!(hint.contains("density-map")); // canonical form in the hint
 }
+
+// ── LTS audit 2026-08-19: removed v15-era `auto-color-drift` key ────────────
+//
+// Owner mandate: users migrating from v15 → v50 who still have the old
+// `auto-color-drift` config key must get a targeted "did you mean crystal-dragon"
+// hint, NOT a generic "unknown key (likely typo)" message. v15 silently
+// ignored unknown keys (a bug); v50 strict-rejects them. The hint must
+// explain WHY the key was rejected and WHAT to use instead.
+
+#[test]
+fn removed_auto_color_drift_kebab_suggests_crystal_dragon() {
+    let hint = suggest_for_unknown_key("auto-color-drift").expect("expected hint");
+    assert!(
+        hint.contains("crystal-dragon"),
+        "hint should suggest 'crystal-dragon' replacement: {hint}"
+    );
+    assert!(
+        hint.contains("removed") || hint.contains("renamed"),
+        "hint should explain the key was removed/renamed: {hint}"
+    );
+}
+
+#[test]
+fn removed_auto_color_drift_snake_suggests_crystal_dragon() {
+    let hint = suggest_for_unknown_key("auto_color_drift").expect("expected hint");
+    assert!(
+        hint.contains("crystal-dragon"),
+        "hint should suggest 'crystal-dragon' for snake_case variant: {hint}"
+    );
+}
+
+#[test]
+fn removed_auto_drift_short_form_suggests_crystal_dragon() {
+    let hint = suggest_for_unknown_key("auto-drift").expect("expected hint");
+    assert!(
+        hint.contains("crystal-dragon"),
+        "hint should suggest 'crystal-dragon' for shortened form: {hint}"
+    );
+}
+
+#[test]
+fn removed_autocolordrift_no_separator_suggests_crystal_dragon() {
+    let hint = suggest_for_unknown_key("autocolordrift").expect("expected hint");
+    assert!(
+        hint.contains("crystal-dragon"),
+        "hint should suggest 'crystal-dragon' for no-separator variant: {hint}"
+    );
+}

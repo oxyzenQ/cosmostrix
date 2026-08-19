@@ -285,12 +285,12 @@ pub struct Cloud {
     pub(crate) custom_palette_active: bool,
     /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
     pub(crate) color_tune: crate::color_tune::ColorTune,
-    /// true when ambient asserted palette → suppress auto-drift palette
+    /// true when ambient asserted palette → suppress Crystal Dragon palette drift
     /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
     /// See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
     pub(crate) ambient_palette_locked: bool,
     /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
-    /// or auto-drift picked new palette since last ambient fire. Prevents
+    /// or Crystal Dragon picked new palette since last ambient fire. Prevents
     /// event-loop dedup from skipping day-boundary refire. Cleared by
     /// ambient fire (scheduler, `a` key, startup).
     pub(crate) user_override_since_ambient: bool,

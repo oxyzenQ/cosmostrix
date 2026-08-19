@@ -607,7 +607,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ── Behavior ──
 
 # glitch-level = "subtle"      # none | subtle | default | intense (cinematic default)
-# crystal-dragon = false       # ambient intelligence color drift v2 (point-based temperature groups)
+# crystal-dragon = false       # Crystal Dragon ambient color drift (point-based temperature groups)
 # bold = 1                     # 0=off, 1=random, 2=all
 # shadingmode = 1             # 0=random, 1=cinematic
 

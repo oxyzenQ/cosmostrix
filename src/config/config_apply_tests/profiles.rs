@@ -229,7 +229,7 @@ fn default_plain_runtime_profile_remains_cinematic() {
     assert_eq!(args.speed, 9.0);
 }
 
-// Color precedence vs auto-drift clarity tests
+// Color precedence vs Crystal Dragon drift clarity tests
 
 #[test]
 fn config_color_overridden_by_config_preset_is_precedence_not_drift() {

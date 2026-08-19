@@ -421,7 +421,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
 
 #[test]
 fn refresh_colors_picks_up_runtime_palette_change_immediately() {
-    // HD-01 regression: palette change at runtime (c/C, auto-drift,
+    // HD-01 regression: palette change at runtime (c/C, Crystal Dragon drift,
     // live-config) must reflect on the next refresh_colors call — no
     // rate limit. With the old 4-level design + 1 Hz update_metrics,
     // the second call would have been a no-op.
