@@ -81,6 +81,12 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 **Emergency recovery**: `cosmostrix --reset-terminal` — 5-layer recovery (ANSI + crossterm + stty + reset). Restores the terminal from any state, including after `kill -9`.
 
+## Code Style
+
+| Doc | Covers |
+|-----|--------|
+| [COMMENT_STYLE.md](COMMENT_STYLE.md) | Rust source comment conventions — `///` vs `//`, rustdoc markdown (`*italic*`, `**bold**`, ` ```text ` code fences), semantic distinction between emphasis types. Audit 2026-08-19 confirmed codebase is consistent; this doc codifies the convention for future contributors. |
+
 ## Build, Release & CI
 
 | Doc | Covers |
