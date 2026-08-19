@@ -1,0 +1,205 @@
+COSMOSTRIX BENCHMARK
+────────────────────
+SYSTEM
+  variant: x86_64-v4
+  optimization: x86-64-v4 baseline (AVX-512)
+  build: linux-amd64-v4-gnu
+  rustc_version: rustc 1.97.1 (8bab26f4f 2026-07-14)
+  git_sha: 0d385c2
+  cpu_baseline: x86-64-v4
+  target_features: avx,avx2,avx512bw,avx512cd,avx512dq,avx512f,avx512vl,bmi1,bmi2,cmpxchg16b,f16c,fma,fxsr,lzcnt,movbe,popcnt,sse,sse2,sse3,sse4.1,sse4.2,ssse3,xsave
+  lto: fat
+  panic: unwind
+  strip: yes
+  pgo: no
+  cpu_model: Intel(R) Xeon(R) Processor
+
+RENDERER
+  backend: ansi-stream
+  pacing: adaptive
+  frame_strategy: differential
+  color_depth: mono
+  effective_color_mode: mono
+  auto_detected_color_mode: mono
+  io_strategy: crossterm-queue-batch
+  gpu_usage: not_applicable
+  gpu_basis: cosmostrix is a CPU + stdout renderer; no GPU context is ever created
+
+CONFIG
+  scene: monolith
+  color_scheme: energy-zen
+  color_mode: mono
+  color_bg: default-background
+  color_tune: sat=1.00 bright=1.00 head=1.00 body=1.00 tail=1.00
+  charset: zen
+  glyph_count: 1
+  rain_style: monolith
+  monolith_size: normal
+  bold: Random
+  shading: DistanceFromHead
+  async_mode: true
+  glitch: true
+  glitch_level: subtle
+  glitch_pct: 3.0
+  color_pipeline: legacy_rgb
+  chroma_in_benchmark: legacy fallback (color mode lacks truecolor; no chroma engine in benchmark either)
+  cols: 1920
+  lines: 540
+  target_fps: 60.0
+  density: 0.85
+  speed: 30.00
+  TERM: dumb
+  COLORTERM: (unset)
+
+BENCHMARK ENVIRONMENT
+  kernel_version: 5.10.134-013.8.3.kangaroo.al8.x86_64
+  libc_variant: gnu
+  term: dumb
+  term_program: (unset)
+  term_version: (unset)
+  cpu_governor: unsupported
+  smt_active: off
+  env_basis: kernel via uname; governor/SMT via /sys (Linux only); terminal via env vars
+  env_caveat: governor/SMT affect CPU frequency + throughput; same CPU can produce different results
+
+COSMIC DRAGON ENGINE METRICS
+  engine: The Cosmic Dragon Diff-Based Rendering Engine (diff-based + phosphor)
+  version: 50.0.0-beta.2
+  scene: monolith
+  scene_note: FPS varies significantly by scene. The default benchmark scene is 'monolith' (peak throughput). Override with --scene <name>. Other scenes (cinematic, signal, etc.) are heavier and run slower.
+
+PERFORMANCE
+  avg_fps: 4022.44
+  peak_fps: 4717.18
+  peak_fps_meaning: p1-derived + 1µs floor (fastest plausible 1% of frames); not absolute single-frame peak
+  avg_frame_time: 0.2486ms
+  p95_frame_time: 0.2946ms
+  p99_frame_time: 0.3129ms
+  p99_9_frame_time: 0.6652ms
+  max_frame_time: 4.0282ms
+  max_frame_time_meaning: worst single-frame spike; what users perceive as jank
+  frame_jitter: low
+  median_fps: 4146.33
+  frame_time_stability: excellent
+  active_frame_ratio_percent: 100.00%
+  active_frame_ratio: 100.00% (frames with >=1 dirty cell)
+  active_frame_ratio_meaning: frames that produced at least one dirty cell during measurement
+  avg_dirty_cells_per_frame: 1387.3
+  max_dirty_cells_per_frame: 1.7K (1696)
+  avg_dirty_cell_ratio_percent: 0.13%
+  avg_dirty_cell_ratio_meaning: average dirty-cell coverage across all measured frames
+  dirty_all_frames: 0
+  dirty_threshold_cells: 129600
+
+THROUGHPUT
+  glyphs_per_second_theoretical: 4.2B (4170467178)
+  glyphs_per_second_theoretical_basis: theoretical upper bound: full-frame cell count × active-frame rate (NOT actual). Use dirty_glyphs_per_second for actual rendered throughput.
+  dirty_glyphs_per_second: 5.58M (5580368)
+  dirty_glyphs_per_second_basis: actual rendered glyphs/sec — total_drawn_cells / elapsed_s
+  ansi_bytes_per_second: 106.03M (106026984)
+  ansi_bytes_per_second_basis: estimated: total_drawn_cells × ANSI_BYTES_PER_CELL_ESTIMATE (19 bytes/cell) / elapsed_s. Actual varies by color mode (TrueColor ≈ 3× Color16) and run-compression; see constants.rs for the 19-byte derivation.
+  active_streams_avg: 304
+  cells_drawn_total: 11.16M (11160898)
+
+TIMING
+  elapsed: 2.000s
+  total_frames: 8.0K (8045)
+  drawn_frames: 8.0K (8045)
+
+MEMORY
+  peak_rss: 61.54 MiB
+  avg_rss: 59.94 MiB
+  rss_samples: 21
+  rss_basis: resident set size sampled during measurement window
+  rss_caveat: RSS includes shared pages; treat as order-of-magnitude footprint
+
+CPU
+  avg_cpu_percent: 89.9%
+  peak_cpu_percent: 100.0%
+  cpu_samples: 10
+  cpu_basis: per-interval (cpu_ns_delta / wall_ns_delta) * 100; single-thread renderer
+  cpu_caveat: ~100% = one core saturated; >100% would indicate multi-threading or measurement error
+
+RESOURCE
+  minor_faults: 735
+  major_faults: 0
+  voluntary_ctxt: 0
+  involuntary_ctxt: 4
+  minor_faults_meaning: page reclaims from cache (no disk I/O); high values indicate memory pressure
+  major_faults_meaning: page faults requiring disk I/O; non-zero means memory not resident
+  voluntary_ctxt_meaning: process yielded CPU voluntarily (blocking syscall); high = IO-bound
+  involuntary_ctxt_meaning: process preempted by scheduler (time slice expired); high = CPU contention
+  resource_basis: getrusage(RUSAGE_SELF) deltas over the measurement window
+
+COMPONENT TIMING
+  avg_sim_ms: 0.1757
+  avg_render_ms: 0.0661
+  avg_io_ms: 0.0062
+  max_sim_ms: 1.3207
+  max_render_ms: 0.3671
+  max_io_ms: 3.7312
+  sim_meaning: cinematic events + spawn rate + droplet physics (cloud.rain_at pre-render)
+  render_meaning: phosphor decay + anomaly zones + climate fx + message box (frame mutations)
+  io_meaning: residual: BenchIoWriter write_frame (--bench-io: ANSI to /dev/null) + VisualSampler sampling + clear_dirty + loop bookkeeping
+  sim_share_percent: 70.82
+  render_share_percent: 26.67
+  io_share_percent: 2.51
+
+CELL EFFICIENCY
+  logical_cells_per_frame: 1.04M
+  dirty_cells_per_frame: 1387.3
+  render_ns_per_cell: 47.68
+  io_ns_per_cell: 4.49
+  total_ns_per_cell: 179.20
+  ns_per_cell_meaning: nanoseconds per dirty cell; lower = more efficient; size-independent
+
+DRIFT
+  bench_duration_secs: 2
+  first_half_fps: 3980.56
+  second_half_fps: 4064.33
+  fps_drift_percent: -2.10%
+  drift_interpretation: stable — no significant drift detected
+  drift_basis: first_half_fps vs second_half_fps; positive = FPS dropped over time
+
+ENGINE
+  planned_mode: single-core
+  planned_worker_budget: 0
+  plan_reason: single-thread renderer — cosmostrix optimized for single-core execution
+  actual_execution: single-threaded-renderer
+  terminal_writer: single-owner
+
+STABILITY NOTES
+  - Frame time stability is good (std < 0.5ms).
+  - avg FPS alone is not enough; always check p99/p95 frame times.
+  - dirty-cell ratio < 5% indicates efficient differential rendering.
+  - p95 frame time < 2x avg frame time confirms throughput stability.
+
+TERMINAL I/O
+  status: dry (use --bench-io for wet mode)
+
+ENERGY
+  status: not available (RAPL requires Linux + powercap)
+  hint: See docs/BENCHMARK_ADVANCED.md for setup instructions
+
+MICROARCHITECTURE
+  status: not available (perf counters require Linux x86)
+  hint: See docs/BENCHMARK_ADVANCED.md for setup instructions
+
+ALLOCATOR
+  alloc_calls: 123
+  dealloc_calls: 113
+  realloc_calls: 171
+  alloc_calls_per_frame: 0.0
+  dealloc_calls_per_frame: 0.0
+  bytes_allocated: 17.79M
+  bytes_deallocated: 124K
+  heap_retained: 17.66M
+  heap_virtual: 42268 KiB
+
+VISUAL OBJECTIVE
+  frame_entropy_bits: 7.23
+  density_gini: 0.9322
+  color_transition_delta: 0.00
+  samples: 804 (804)
+  entropy_meaning: Shannon entropy of dirty-cell column distribution; higher = more uniform
+  gini_meaning: 0 = perfectly uniform density, 1 = maximally concentrated
