@@ -12,7 +12,7 @@ layers and explains how the "deep" structure provides world-class reliability.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│  Layer 7: Cosmic Dragon Incubator (src/cosmic_dragon_engine/)                        │
+│  Layer 7: Cosmic Dragon Incubator (src/cosmic_dragon_incubator/)                        │
 │  Experimental features, future v15+ subsystems                  │
 │  → Never touches stable engine internals                         │
 ├─────────────────────────────────────────────────────────────────┤
@@ -250,7 +250,7 @@ The Cosmic Dragon's codebase is organized by responsibility:
 | Config System | config.rs, config_apply.rs, configfile.rs, testconf.rs, safepath.rs | ~2,500 | 100+ |
 | CLI + Helpers | cli.rs, output.rs, help_detail.rs, info.rs, ux.rs, verbose.rs | ~1,500 | 30+ |
 | Diagnostics | bench*.rs (16 files), doctor.rs, report.rs | ~4,000 | 40+ |
-| Cosmic Dragon Incubator | cosmic_dragon_engine/ (egg/) | ~200 | 2 |
+| Cosmic Dragon Incubator | cosmic_dragon_incubator/ (egg/) | ~200 | 2 |
 
 **Total: ~85K LOC, 1500+ tests — see `cargo test --all` for the current count.**
 

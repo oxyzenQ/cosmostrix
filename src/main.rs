@@ -97,7 +97,7 @@ mod config;
 // `crate::live_config_X::Foo` call sites working unchanged.
 pub(crate) use config::*;
 mod constants;
-mod cosmic_dragon_engine;
+mod cosmic_dragon_incubator;
 // cpustat.rs, memstat.rs, usagestat.rs, envstat.rs now live under sysstat/.
 // See sysstat/mod.rs for the re-export that keeps the 15 existing
 // `crate::cpustat::Foo` etc. call sites working unchanged.
