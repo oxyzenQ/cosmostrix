@@ -962,6 +962,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // (matches the fps/p99/max/rss cadence — avoids number flicker).
         hud_state.set_scene_name(&scene_name);
         hud_state.set_color_scheme(cloud.color_scheme);
+        // Show custom palette name on the clr: HUD line when active.
+        // cloud.custom_palette_active tracks whether the user loaded a
+        // --colors-custom palette. cfg.custom_palette_name holds the name.
+        hud_state.set_custom_palette_name(if cloud.custom_palette_active {
+            cfg.custom_palette_name.as_deref()
+        } else {
+            None
+        });
         hud_state.set_charset_preset(&charset_preset);
         hud_state.set_droplet_density(cloud.droplet_density());
         hud_state.set_chars_per_sec(cloud.chars_per_sec());

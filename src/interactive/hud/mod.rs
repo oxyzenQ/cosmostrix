@@ -178,8 +178,15 @@ pub(crate) struct HudState {
     /// Active color scheme (e.g. NeonGreen, FancyDiamond). Rendered via
     /// Debug format (matches `verbose.rs` convention). Drives the `clr:`
     /// HUD line so the owner sees confirmation when cycling colors with
-    /// `c` / `C`.
+    /// `c` / `C`. When a custom palette is active, `custom_palette_name`
+    /// is set and takes priority over the builtin scheme name.
     color_scheme: ColorScheme,
+    /// Active custom palette name (e.g. "cyberpunk_2077", "tron_legacy").
+    /// When `Some`, the `clr:` HUD line shows this name instead of the
+    /// builtin `ColorScheme` Debug format. When `None` (no custom palette
+    /// loaded, or user cycled to a builtin scheme), the Debug format is
+    /// used as before. Set by event_loop when --colors-custom is active.
+    custom_palette_name: Option<String>,
     /// Active charset preset name (e.g. "binary", "zen", custom). Drives
     /// the `chr:` HUD line for `s` / `S` cycle confirmation.
     charset_preset: String,
@@ -270,6 +277,7 @@ impl HudState {
             // endurance_health) so the HUD shows real data from frame 1.
             scene_name: String::new(),
             color_scheme: ColorScheme::Green,
+            custom_palette_name: None,
             charset_preset: String::new(),
             droplet_density: 1.0,
             chars_per_sec: 8.0,
@@ -522,6 +530,15 @@ impl HudState {
     /// `verbose.rs` convention — e.g. `NeonGreen`, `FancyDiamond`).
     pub(crate) fn set_color_scheme(&mut self, scheme: ColorScheme) {
         self.color_scheme = scheme;
+        // Clear custom palette name — user cycled to a builtin scheme.
+        self.custom_palette_name = None;
+    }
+
+    /// Set the active custom palette name. Takes priority over the builtin
+    /// `ColorScheme` Debug format for the `clr:` HUD line. Called by
+    /// event_loop when --colors-custom is active.
+    pub(crate) fn set_custom_palette_name(&mut self, name: Option<&str>) {
+        self.custom_palette_name = name.map(|s| s.to_string());
     }
 
     /// Set the active charset preset name. Drives the `chr:` HUD line
@@ -853,7 +870,15 @@ impl HudState {
         self.cached_lines[11] = (colors[11], format!(" chr: {}", self.charset_preset));
         // clr (color scheme): Debug format (matches verbose.rs convention).
         // e.g. `NeonGreen`, `FancyDiamond`, `Cosmos`.
-        self.cached_lines[12] = (colors[12], format!(" clr: {:?}", self.color_scheme));
+        // clr (color scheme): show custom palette name when active, otherwise
+        // the builtin ColorScheme Debug format. This fixes the bug where
+        // --colors-custom cyberpunk_2077 showed "clr: EnergyZen" (the
+        // underlying builtin scheme) instead of the custom palette name.
+        let clr_label = match &self.custom_palette_name {
+            Some(name) => name.clone(),
+            None => format!("{:?}", self.color_scheme),
+        };
+        self.cached_lines[12] = (colors[12], format!(" clr: {clr_label}"));
         // v50 (2026-08-17) HUD expansion reorder: up/screensize/cid moved
         // from rows 6/7/8 to rows 13/14/15 per owner's Option S mandate.
         // cid stays static (set in `new()`); only up + screensize are
