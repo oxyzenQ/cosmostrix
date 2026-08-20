@@ -28,7 +28,7 @@ The code in this directory has been audited for:
   temperature groups (Cold/Medium/Hot, 14 each) + 2 reserved (Rainbow,
   Spectrum20). calc-v1 probabilistic weighted selection (the locked
   algorithm; calc-v2 reserved for future).
-- **Stability** — 1587/1587 tests pass, 0 clippy warnings. Per-
+- **Stability** — 1594/1594 tests pass, 0 clippy warnings. Per-
   subsystem test files (`*/tests.rs`) cover all public contracts.
 
 ## Audit Findings (No Code Changes Required)
@@ -158,8 +158,7 @@ is the appropriate action.
 | `crystal_dragon_engine/transition/mod.rs` |     50 | Bridge to Chroma Dragon `Cloud::set_color_scheme()` for OKLab fades   |
 | `crystal_dragon_engine/mod.rs`            |     74 | Top-level module doc + re-exports                                    |
 
-**Total**: ~1,818 LOC of substantive ambient engine code + ~1,100 LOC
-test suite = ~2,918 LOC.
+**Total**: 1,818 LOC production + 1,108 LOC test suite = 2,926 LOC.
 
 ## Owner Decisions (Locked)
 
