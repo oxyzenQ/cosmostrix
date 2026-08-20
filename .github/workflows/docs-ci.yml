@@ -1,22 +1,33 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# Dedicated CI for documentation and text file changes.
+# Triggers on any *.md, *.txt, *.rst, LICENSE, NOTICE, AUTHORS change.
+#
+# Separated from ci.yml (source code CI) for strict path isolation:
+# - ci.yml           -> src/**, Cargo.*, scripts/*, etc.
+# - workflow-ci.yml   -> .github/** only
+# - shellcheck.yml    -> **.sh
+# - docs-ci.yml       -> *.md, *.txt, *.rst (this file)
+# - release.yml       -> tags only (v*)
+# - maintenance.yml   -> scheduled + manual
 
 name: Cosmic Dragon - Docs CI
 
 'on':
   push:
     paths:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.rst'
+      - '**.md'
+      - '**.txt'
+      - '**.rst'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
   pull_request:
     paths:
-      - '**/*.md'
-      - '**/*.txt'
-      - '**/*.rst'
+      - '**.md'
+      - '**.txt'
+      - '**.rst'
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
@@ -24,10 +35,14 @@ name: Cosmic Dragon - Docs CI
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
-  lint:
-    name: Docs Spelling Check
+  spelling:
+    name: Spelling (codespell)
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - name: Checkout
         uses: actions/checkout@v6.0.2
@@ -44,3 +59,28 @@ jobs:
             find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' \) -print0 \
               | xargs -0r codespell
           fi
+
+  markdown_lint:
+    name: Lint (markdownlint)
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install markdownlint
+        run: sudo npm install -g markdownlint-cli
+
+      - name: Lint markdown files
+        run: |
+          mapfile -t FILES < <(find . -name '*.md' -not -path './.git/*' | sort)
+          if [ "${#FILES[@]}" -eq 0 ]; then
+            echo "No .md files found — nothing to lint."
+            exit 0
+          fi
+          echo "Linting ${#FILES[@]} markdown file(s)"
+          markdownlint "${FILES[@]}"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true

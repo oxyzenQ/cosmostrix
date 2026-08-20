@@ -1,0 +1,21 @@
+# Markdownlint configuration for cosmostrix.
+# See: https://github.com/DavidAnson/markdownlint/blob/main/doc/Rules.md
+
+# Default state for all rules
+default: true
+
+# MD013/line-length — disabled: code blocks, tables, and long URLs
+# frequently exceed 80 chars in this repo.
+MD013: false
+
+# MD033/no-inline-html — disabled: SPDX comments use <!-- -->,
+# and some docs embed HTML tables.
+MD033: false
+
+# MD041/first-line-heading — disabled: some docs start with
+# copyright notices before the first heading.
+MD041: false
+
+# MD024/no-duplicate-heading — allow duplicate headings across
+# different files (only check within same file).
+MD024: false
