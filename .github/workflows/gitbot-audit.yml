@@ -15,6 +15,24 @@ name: "Cosmic Dragon - Security Audit"
 'on':
   schedule:
     - cron: "0 0 * * *"  # 00:00 UTC daily
+  push:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
+  pull_request:
+    branches: ["main"]
+    paths:
+      - 'src/**'
+      - 'Cargo.toml'
+      - 'Cargo.lock'
+      - 'build.rs'
+      - 'rust-toolchain.toml'
+      - '.cargo/**'
   workflow_dispatch:
     inputs:
       run_deny:
