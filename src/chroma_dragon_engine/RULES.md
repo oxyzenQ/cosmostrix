@@ -131,7 +131,7 @@ contract intentionally changed, in which case update the count)
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
 
-**Tests**: <N>/1587 pass (must be 1587/1587 or new total if tests added)
+**Tests**: <N>/1594 pass (must be 1594/1594 or new total if tests added)
 ```
 
 ### Example (hypothetical, to be deleted once the first real UNLOCK lands)
