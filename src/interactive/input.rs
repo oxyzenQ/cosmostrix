@@ -139,6 +139,26 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
 
     use crossterm::event::{KeyCode, KeyModifiers};
 
+    // Pause guard: when paused, ONLY 'p' (resume) and 'q' (quit) are
+    // processed. All other keys are silently ignored to prevent
+    // queued state changes from accumulating during pause and causing
+    // "stuck particles" or visual glitches on resume (owner-reported
+    // bug: rapid pause/unpause cycles left effects hanging).
+    if cloud.pause {
+        match (k.code, k.modifiers) {
+            (KeyCode::Char('p'), KeyModifiers::NONE) => {
+                return cloud.toggle_pause();
+            }
+            (KeyCode::Char('q'), KeyModifiers::NONE) => {
+                // Allow quit during pause
+            }
+            _ => {
+                // Silently ignore all other keys during pause
+                return false;
+            }
+        }
+    }
+
     // Modifier fast-reject: block any key event that carries modifier bits
     // beyond NONE and SHIFT. The per-arm match below then applies the final
     // policy:

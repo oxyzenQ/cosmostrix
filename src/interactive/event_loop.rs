@@ -814,8 +814,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             false,
                         );
                         // Hover/click visual effects are ALWAYS ON (--mouse deleted).
+                        // BUT: when paused, skip click wave effects to prevent
+                        // queued flash waves from accumulating and causing
+                        // "stuck particles" on resume (owner-reported bug:
+                        // rapid pause/unpause cycles left effects hanging).
+                        // Mouse position is still tracked (hover glow) and
+                        // the event is still consumed (blocks drag-select).
                         cloud.set_mouse_position(m.column, m.row);
-                        if is_click {
+                        if is_click && !cloud.pause {
                             cloud.set_mouse_click(m.column, m.row);
                             // Wake renderer immediately on idle→active click.
                             if was_idle {
