@@ -45,15 +45,15 @@ jobs:
       - name: Collect and lint shell scripts
         run: |
           set -euo pipefail
-          FILES=$(find . -name '*.sh' -not -path './.git/*' | sort)
-          if [ -z "${FILES}" ]; then
+          mapfile -t FILES < <(find . -name '*.sh' -not -path './.git/*' | sort)
+          if [ "${#FILES[@]}" -eq 0 ]; then
             echo "No .sh files found — nothing to lint."
             exit 0
           fi
-          echo "Linting $(echo "${FILES}" | wc -l) shell script(s):"
-          echo "${FILES}"
+          echo "Linting ${#FILES[@]} shell script(s):"
+          printf '%s\n' "${FILES[@]}"
           echo "---"
-          shellcheck ${FILES}
+          shellcheck "${FILES[@]}"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
