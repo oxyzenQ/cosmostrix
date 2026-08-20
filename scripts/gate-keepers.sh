@@ -48,7 +48,8 @@ header "Shellcheck"
 if command -v shellcheck >/dev/null 2>&1; then
     SHELL_FILES=$(find . -name '*.sh' -not -path './.git/*' -not -path './target/*' 2>/dev/null)
     if [ -n "$SHELL_FILES" ]; then
-        if shellcheck $SHELL_FILES 2>&1; then
+        # shellcheck disable=SC2086 # word splitting is intentional for file list
+        if shellcheck ${SHELL_FILES} 2>&1; then
             info "shellcheck: all .sh files pass"
             PASS=$((PASS + 1))
         else
@@ -67,7 +68,8 @@ header "Yamllint"
 if command -v yamllint >/dev/null 2>&1; then
     YAML_FILES=$(find .github aur .cargo -name '*.yml' -o -name '*.yaml' 2>/dev/null)
     if [ -n "$YAML_FILES" ]; then
-        if yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}" $YAML_FILES 2>&1; then
+        # shellcheck disable=SC2086 # word splitting is intentional for file list
+        if yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}" ${YAML_FILES} 2>&1; then
             info "yamllint: all YAML files pass"
             PASS=$((PASS + 1))
         else
@@ -88,12 +90,14 @@ if command -v markdownlint >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; th
     if ! command -v markdownlint >/dev/null 2>&1; then
         MD_LINT="npx --yes markdownlint-cli"
     fi
+    # shellcheck disable=SC2086 # MD_LINT may contain spaces (npx --yes ...)
     if $MD_LINT --config .markdownlint.yaml '**/*.md' --ignore 'docs/archive/**' --ignore 'target/**' --ignore '.git/**' 2>&1; then
         info "markdownlint: all .md files pass"
         PASS=$((PASS + 1))
     else
         if $FIX_MODE; then
             warn "markdownlint: auto-fixing..."
+            # shellcheck disable=SC2086 # MD_LINT may contain spaces
             $MD_LINT --fix --config .markdownlint.yaml '**/*.md' --ignore 'docs/archive/**' --ignore 'target/**' --ignore '.git/**' 2>&1 || true
             info "markdownlint: fixed (review changes)"
             PASS=$((PASS + 1))
