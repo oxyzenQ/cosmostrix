@@ -310,8 +310,11 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
         std::process::exit(2);
     } else if warnings > 0 {
-        println!("testconf: PASS (with warnings) — config is usable but review the warnings");
+        crate::output::eprintln_warn_labeled(
+            "testconf: PASS (with warnings) — config is usable but review the warnings",
+        );
     } else {
+        // Success: print to stdout (not stderr) so scripts can capture it.
         println!("testconf: PASS — config is valid");
     }
     Ok(())
