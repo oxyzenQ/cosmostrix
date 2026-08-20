@@ -379,6 +379,29 @@ fn apply_config_values(
             ),
         }
     }
+    // v50: intro-color config key. Allows the intro animation to use a
+    // different color theme than the rain. Value is a builtin theme name
+    // or custom palette name. When set, a separate Palette is built for
+    // the intro and passed to run_intro via CloudConfig.
+    // Uses cfg.get() directly (not config_value) because intro-color has
+    // no CLI flag (#[arg(skip)]) — config_value requires a clap arg ID.
+    if let Some(v) = cfg.get("intro-color").or_else(|| cfg.get("intro_color")) {
+        let v = v.clone();
+        // Validate: must be a known builtin theme name or a custom palette
+        // defined in [colors-custom.<name>]. Unknown names are rejected
+        // with a hint (same error path as --color).
+        if crate::theme::lookup_theme(&v).is_some()
+            || cfg.get(&format!("colors-custom.{v}.bg")).is_some()
+        {
+            args.intro_color = Some(v);
+            config_touched.insert("intro-color");
+        } else {
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid intro-color='{v}' — not a builtin theme or custom palette. \
+                 Use --list-colors to see available themes."
+            ));
+        }
+    }
     if let Some(v) = config_value(matches, cfg, "bold", "bold") {
         if let Some(n) = parse_u8_config("bold", &v, 0, 2) {
             args.bold = n;

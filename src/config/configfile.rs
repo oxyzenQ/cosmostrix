@@ -56,6 +56,12 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
     // Default: "logo". CLI --intro flag wins over this config key.
     "intro",
+    // v50: Intro color override. Allows the intro animation to use a
+    // different color theme than the rain. Values: any builtin theme
+    // name (e.g. "energy-zen", "neon-green") or custom palette name
+    // (e.g. "cyberpunk_2077"). Default: same as --color (rain color).
+    // Use --list-colors to see available builtin themes.
+    "intro-color",
 ];
 
 const PROFILE_CONFIG_KEY_HINT: &str =
@@ -594,6 +600,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # charset = "zen"                   # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "default-background"   # or "black"
 # intro = "logo"                    # logo | cosmic | none (default: logo)
+# intro-color = "energy-zen"        # intro color override (default: same as rain color)
 
 # Motion
 

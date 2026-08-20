@@ -135,6 +135,7 @@ fn minimal_cloud_config() -> crate::app::CloudConfig {
         perf_stats: false,
         screensaver: false,
         intro: crate::config::IntroType::None,
+        intro_color: None,
         mouse: false,
         charset_preset: "binary".to_string(),
         user_ranges: vec![],

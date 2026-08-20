@@ -95,6 +95,10 @@ pub struct CloudConfig {
     pub perf_stats: bool,
     pub screensaver: bool,
     pub intro: IntroType,
+    /// v50: Optional intro color override. When set, the intro animation
+    /// uses this color theme instead of the rain color. Config-only
+    /// (no CLI flag). Values: builtin theme name or custom palette name.
+    pub intro_color: Option<String>,
     pub mouse: bool,
     pub charset_preset: String,
     pub user_ranges: Vec<(char, char)>,
@@ -320,6 +324,7 @@ impl CloudConfig {
             perf_stats: false,
             screensaver: false,
             intro: IntroType::None,
+            intro_color: None,
             mouse: false,
             charset_preset: self.charset_preset.clone(),
             user_ranges: self.user_ranges.clone(),

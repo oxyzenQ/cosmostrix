@@ -261,6 +261,7 @@ mod cases {
             perf_stats: false,
             screensaver: false,
             intro: crate::config::IntroType::None,
+            intro_color: None,
             mouse: false,
             charset_preset: String::from("binary"),
             user_ranges: vec![],

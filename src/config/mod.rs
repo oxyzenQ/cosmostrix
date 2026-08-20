@@ -334,6 +334,14 @@ pub struct Args {
     )]
     pub intro: Option<IntroType>,
 
+    /// v50: intro color override (config-only, no CLI flag).
+    /// Set via `intro-color = "energy-zen"` in config.toml.
+    /// When set, the intro animation uses this color theme instead of
+    /// the rain color. Values: any builtin theme name (see --list-colors)
+    /// or custom palette name.
+    #[arg(skip)]
+    pub intro_color: Option<String>,
+
     // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
     // now ALWAYS ON (cursor glow + strong dual-ring click wave). Mouse reporting
     // is also always on (blocks text selection). No flag needed — the effect

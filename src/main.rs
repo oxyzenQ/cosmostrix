@@ -1104,6 +1104,7 @@ fn main() -> std::io::Result<()> {
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
         intro: args.intro.unwrap_or(crate::config::IntroType::Logo),
+        intro_color: args.intro_color.take(),
         mouse: true, // v17: always-on (--mouse flag deleted)
         charset_preset,
         user_ranges,
