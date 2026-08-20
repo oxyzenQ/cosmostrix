@@ -11,6 +11,71 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BENCH_DIR="$ROOT_DIR/benchmark"
 BINARY_NAME="${BINARY_NAME:-cosmostrix}"
 
+# ── CPU feature detection ──────────────────────────────────────────────────
+# Returns the best matching cargo build alias for the current host CPU.
+# Checks /proc/cpuinfo (Linux), sysctl (macOS/BSD), or falls back to
+# generic profiles.
+#
+# Detection order:
+#   AVX-512 (avx512f) → pro-linux-v4
+#   AVX2              → pro-linux-v3
+#   ARM NEON          → pro-native  (aarch64)
+#   Fallback          → pro
+
+auto_detect_build_profile() {
+        local arch
+        arch=$(uname -m 2>/dev/null || echo "unknown")
+
+        # ARM / AArch64 — use pro-native for -march=native
+        if [[ "$arch" == aarch64 || "$arch" == arm64 ]]; then
+                echo "pro-native"
+                return 0
+        fi
+
+        # x86_64 — probe CPU flags
+        if [[ "$arch" == x86_64 ]]; then
+                local flags=""
+                if [[ -f /proc/cpuinfo ]]; then
+                        flags=$(awk '/^flags[[:space:]]*:/ { print; exit }' /proc/cpuinfo 2>/dev/null || true)
+                elif command -v sysctl >/dev/null 2>&1; then
+                        # macOS / BSD fallback
+                        flags=$(sysctl -n machdep.cpu.features 2>/dev/null || true)
+                fi
+
+                if [[ "$flags" == *avx512f* ]]; then
+                        echo "pro-linux-v4"
+                        return 0
+                elif [[ "$flags" == *avx2* ]]; then
+                        echo "pro-linux-v3"
+                        return 0
+                fi
+        fi
+
+        # Generic fallback
+        echo "pro"
+}
+
+# Print detected CPU info for logging.
+print_cpu_info() {
+        local arch model flags_line
+        arch=$(uname -m 2>/dev/null || echo "unknown")
+        model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || true)
+        if [[ -z "$model" ]]; then
+                model=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "$arch")
+        fi
+
+        local feats=""
+        if [[ -f /proc/cpuinfo ]]; then
+                flags_line=$(awk '/^flags[[:space:]]*:/ { print; exit }' /proc/cpuinfo 2>/dev/null || true)
+                # Extract key SIMD features
+                feats=$(echo "$flags_line" | grep -oE 'avx512f|avx2|sse4_2|neon' 2>/dev/null | tr '\n' ' ' || true)
+        fi
+
+        echo "[auto] Arch: $arch"
+        echo "[auto] CPU:  $model"
+        [[ -n "$feats" ]] && echo "[auto] SIMD: $feats"
+}
+
 # ── Binary resolution ─────────────────────────────────────────────────────
 # All binary paths are discovered dynamically. No hardcoded profiles.
 #
@@ -145,14 +210,20 @@ get_jobs() {
 #   SWEEP_SCENE           - scene name (default: monolith)
 #   SWEEP_CHARSET         - charset    (default: zen)
 #   SWEEP_SCENES          - space-separated scene list (overrides SWEEP_SCENE)
-#   SWEEP_OUTPUT_DIR      - output directory (default: benchmark/cloud-xeon)
+#   SWEEP_OUTPUT_DIR      - output directory (default: benchmark/bench-labs)
 
 run_sweep() {
         local bin="${1:-}"
         local needs_build=false
         local build_alias=""
+        local auto_detect=false
 
-        if [[ "$bin" == "--build" ]]; then
+        if [[ "$bin" == "--auto" ]]; then
+                auto_detect=true
+                needs_build=true
+                build_alias=$(auto_detect_build_profile)
+                bin="${2:-}"
+        elif [[ "$bin" == "--build" ]]; then
                 needs_build=true
                 build_alias="${2:-}"
                 if [[ -z "$build_alias" ]]; then
@@ -171,6 +242,9 @@ run_sweep() {
         fi
 
         if [[ "$needs_build" == true ]]; then
+                if [[ "$auto_detect" == true ]]; then
+                        print_cpu_info
+                fi
                 echo "[sweep] Building: cargo $build_alias..."
                 local jobs
                 jobs="$(get_jobs)"
@@ -194,15 +268,18 @@ run_sweep() {
                 profile_label=$(bin_profile_label "$bin")
         fi
 
-        echo "[sweep] Binary: $bin"
+        echo "[sweep] Binary:  $bin"
         echo "[sweep] Profile: $profile_label"
+        if [[ "$auto_detect" == true ]]; then
+                echo "[sweep] Auto:    $build_alias (CPU-detected)"
+        fi
 
         local dur_s="${SWEEP_DURATION_SMALL:-5}"
         local dur_m="${SWEEP_DURATION_MEDIUM:-3}"
         local dur_l="${SWEEP_DURATION_LARGE:-2}"
         local scene="${SWEEP_SCENE:-monolith}"
         local charset="${SWEEP_CHARSET:-zen}"
-        local out_dir="${SWEEP_OUTPUT_DIR:-$BENCH_DIR/cloud-xeon}"
+        local out_dir="${SWEEP_OUTPUT_DIR:-$BENCH_DIR/bench-labs}"
         mkdir -p "$out_dir"
 
         # Size tiers: "cols lines" pairs from 4x4 (min) to 7680x4320 (8K UHD).
@@ -233,12 +310,16 @@ run_sweep() {
         local summary_file="$out_dir/sweep_${ts}.md"
         local csv_file="$out_dir/sweep_${ts}.csv"
 
+        local cpu_model=""
+        cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.brand_string 2>/dev/null || true)
+
         echo "# Cosmostrix Size Sweep" > "$summary_file"
         echo "" >> "$summary_file"
         echo "Binary: \`$(basename "$bin")\`" >> "$summary_file"
         echo "Date: \`$(date -Iseconds)\`" >> "$summary_file"
         echo "Profile: \`${profile_label}\`" >> "$summary_file"
         echo "Target: \`${HOST_TARGET}\`" >> "$summary_file"
+        [[ -n "$cpu_model" ]] && echo "CPU: \`${cpu_model}\`" >> "$summary_file"
         echo "" >> "$summary_file"
 
         # CSV header
@@ -350,14 +431,21 @@ case "${1:-}" in
                 # Default: original single-size benchmark flow
                 ;;
         *)
-                echo "Usage: $0 [sweep [BIN_PATH | --build <cargo-alias>]]" >&2
+                echo "Usage: $0 [sweep [BIN_PATH | --build <cargo-alias> | --auto]]" >&2
                 echo "" >&2
                 echo "  (no args)                   Run the original single-size benchmark" >&2
                 echo "  sweep                       Sweep 4x4 to 8K with auto-detected binary" >&2
+                echo "  sweep --auto                Auto-detect CPU, build optimal profile, sweep" >&2
                 echo "  sweep --build pro-linux-v4  Build then sweep" >&2
                 echo "  sweep --build pro          Build pro then sweep" >&2
                 echo "  sweep --build release      Build release then sweep" >&2
                 echo "  sweep ./target/pro/cosmostrix  Sweep with explicit binary" >&2
+                echo "" >&2
+                echo "  --auto detection order:" >&2
+                echo "    AVX-512 (avx512f)  -> pro-linux-v4" >&2
+                echo "    AVX2              -> pro-linux-v3" >&2
+                echo "    ARM NEON          -> pro-native" >&2
+                echo "    Fallback          -> pro" >&2
                 echo "" >&2
                 echo "Environment:" >&2
                 echo "  SWEEP_BIN   Override binary path" >&2
