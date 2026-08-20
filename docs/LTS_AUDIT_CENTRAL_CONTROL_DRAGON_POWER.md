@@ -58,16 +58,18 @@ Errors from `madvise` are intentionally ignored (best-effort reclaim).
 
 The single `.unwrap()` in `thermal_sampler.rs:249` is inside a
 `#[cfg(test)]` block:
+
 ```rust
 assert!(result.is_none() || result.unwrap() >= 0.0);
 ```
+
 This is safe — the `is_none()` short-circuits before `unwrap()` is
 reached. Not a production risk.
 
 ### 3. Float Comparison Audit
 
-✅ **No changes needed.** Grep for `f32 == `, `f64 == `, `f32 != `,
-`f64 != ` in production code returns **0 matches**. All float
+✅ **No changes needed.** Grep for `f32 ==`, `f64 ==`, `f32 !=`,
+`f64 !=` in production code returns **0 matches**. All float
 comparisons use the `.abs() < epsilon` pattern (verified in
 `power_manager/tests.rs:286` — `(t.pressure_high -
 SELF_HEAL_PRESSURE_HIGH).abs() < 1e-6`).
@@ -123,6 +125,7 @@ documents:
 > applies the action.
 
 This is the correct separation of concerns:
+
 - **Self-healer**: pure function, no side effects, easy to test
 - **Event loop**: applies the action, mutates state
 
@@ -185,6 +188,7 @@ a pure function (even though currently called single-threaded).
 - Full suite: 1594/1594 pass × 3 runs (0 flakes — fixed in Task 5)
 
 Test breakdown:
+
 - `audit_tests.rs` (497 LOC, 6 integration contract tests)
 - `power_manager/tests.rs` (364 LOC, ~30 unit tests)
 - `self_healer/tests.rs` (343 LOC, ~25 unit tests)

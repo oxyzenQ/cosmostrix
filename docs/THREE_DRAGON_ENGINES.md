@@ -18,11 +18,13 @@ Cloud (frame state)
 ```
 
 ## 1. Cosmic Dragon — `src/cosmic_dragon_incubator/`
+
 The simulation core. Owns droplet lifecycle, spawn physics, atmospheric
 evolution, cinematic behavior profiles, and the self-healer. Reads
 palette colors produced by Chroma Dragon; never writes palette state.
 
 ## 2. Chroma Dragon — `src/chroma_dragon_engine/`
+
 The coloring engine. Owns palette construction (OKLab gradients since
 v30), per-cell shader pipeline, climate post-FX (luminance/saturation/
 hue drift), L-smoothing, and the 300 ms top-to-bottom wave transition.
@@ -31,9 +33,11 @@ reload) delegates to `set_color_scheme()` → `apply_new_palette()` which
 advances the circular buffer and activates the wave.
 
 ## 3. Crystal Dragon — `src/crystal_dragon_engine/`
+
 The ambient intelligence engine. Two subsystems working in harmony:
 
 ### 3a. Palette drift (CPU/CLOCK → theme)
+
 ```
 CPU% ──→ point (1-99) ──→ group ──→ weighted theme selection
   │                          │
@@ -49,12 +53,14 @@ Low CPU → Snow/Moon/Ocean (Cold). High CPU → Sun/Fire/Red (Hot).
 Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 
 ### 3b. Ambient scheduler (time-of-day → scene)
+
 Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
 Fires at scheduled times, applies scene+palette, locks Crystal Dragon
 drift while active (`ambient_palette_locked`). User overrides (`c`/`x`
 keys) clear the lock; auto-snapback restores after 30s idle.
 
 ### File architecture
+
 | File | Role |
 |------|------|
 | `crystal_dragon_control.rs` | Config: polling 60s, calc-v1, CPU/CLOCK mode |

@@ -129,6 +129,7 @@ management, unpack) is proportionally significant.
 ### 4.2 What LLVM Auto-Vectorization Already Provides
 
 With x86-64-v3, LLVM's SLP and loop vectorizers handle:
+
 - `apply_brightness()` inner `r*f, g*f, b*f` (may fuse as FMA)
 - `dist2()` independent i32 multiply-adds (quantization paths)
 - Straight-line contiguous array arithmetic

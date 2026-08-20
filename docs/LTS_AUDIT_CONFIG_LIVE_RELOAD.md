@@ -59,6 +59,7 @@ let guard = match mutex.lock() {
 ```
 
 Specifically audited:
+
 - `LIVE_RELOAD_ERROR` lock (`live_config/mod.rs:111`): `match` on
   `Ok`/`Err`, falls back to `push_runtime_warning` on poison.
 - `last_processed_state` lock (`live_config/mod.rs:393, 406`): returns

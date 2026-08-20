@@ -90,11 +90,15 @@ Cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. 
 - Diff engine spec, competitor benchmark.
 
 ## v13.1.2 — HUD Toggle-Off Residue Fix
+
 ## v13.1.1 — Android HUD Toggle Fix
+
 ## v13.1.0 — Shell Completions + Verbose + Help Polish
+
 ## v13.0.0 — Alive Rain + Depth-of-Field + Security
 
 ## v4.0.0 — Initial v4 Release
+
 - Atmosphere whisper engine, Cosmic Dragon architecture.
 
 ## v3.9.0 — v4 Ground-Work

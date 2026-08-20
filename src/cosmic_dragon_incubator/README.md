@@ -17,6 +17,7 @@ thousands of LOC of production code; this directory contains experimental
 
 The actual Cosmic Dragon rendering engine code lives at
 `src/cosmic_dragon_engine/` with 4 subsystems:
+
 - `src/cosmic_dragon_engine/cloud/` (rain simulation, monolith, render
   pipeline, ecosystem, phosphor, ghost events)
 - `src/cosmic_dragon_engine/frame.rs` (frame buffer + dirty tracking)

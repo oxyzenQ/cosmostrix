@@ -885,7 +885,6 @@ impl Terminal {
             // window).
             let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
             let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
-            let _ = self.stdout.write_all(b"\n\n");
             let _ = self.stdout.flush();
         } else if !self.term_caps.has_alternate_screen {
             // No alternate screen was entered (terminal doesn't support it).
@@ -898,7 +897,6 @@ impl Terminal {
             // expected behavior — previous command output is preserved.
             let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
             let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
-            let _ = self.stdout.write_all(b"\n\n");
         }
         if self.raw_mode_enabled {
             let _ = crossterm_terminal::disable_raw_mode();

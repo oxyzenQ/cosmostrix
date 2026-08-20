@@ -643,3 +643,28 @@ jobs:
             artifacts/cosmostrix-bin-*.tar.gz.sha512sum
             artifacts/cosmostrix-bin-*.zip
             artifacts/cosmostrix-bin-*.zip.sha512sum
+
+      # ── AUR Sync trigger ───────────────────────────────────────────
+      # After the GitHub Release is published, trigger the AUR sync
+      # workflow via repository_dispatch. The aur.yml workflow picks up
+      # the tag from the client_payload and syncs PKGBUILD + .SRCINFO
+      # to the Arch User Repository.
+      #
+      # Only triggers on STABLE releases (pre-release tags are rejected
+      # by aur.yml itself — AUR policy requires stable versioning).
+      # The `if` guard here is a belt-and-suspenders check: skip the
+      # dispatch entirely for pre-releases to avoid unnecessary API calls.
+      - name: Trigger AUR sync
+        if: ${{ needs.channel.outputs.prerelease != 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="${GITHUB_REF_NAME}"
+          echo "Triggering AUR sync for stable release: ${TAG}"
+          curl --fail \
+            -X POST \
+            -H "Accept: application/vnd.github+json" \
+            -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+            "https://api.github.com/repos/${GITHUB_REPOSITORY}/dispatches" \
+            -d "{\"event_type\":\"aur-sync\",\"client_payload\":{\"tag\":\"${TAG}\"}}"

@@ -129,6 +129,7 @@ fade is purely cinematic (rain enters from beyond).
 | > 0.90                | no perceptible dim                          |
 
 The masterclass targets sit at:
+
 - Top: 0.533 (zone: subtle dim, rain clearly visible)
 - Bottom: 0.369 (zone: cinematic dim, rain barely visible — intentional, to dissolve heads)
 
@@ -203,6 +204,7 @@ row | vignette  edge_fade  COMBINED
 ```
 
 The masterclass curve hits every target:
+
 - Top extreme: 0.533 (target 0.50-0.55) ✓
 - Top +1: 0.715 (target 0.70-0.80) ✓
 - Top +2: 0.953 (target 0.90-0.95) ✓
@@ -243,6 +245,7 @@ primary dimming mechanism. At 0.50 (50% dim), it became the dominant
 dimming effect and compounded destructively with edge fade.
 
 0.82 (18% dim) is calibrated to:
+
 - Be perceptible on its own (the eye notices the dim without
   identifying it as a border).
 - Not compound destructively: 0.82 × 0.65 = 0.533 (top), 0.82 × 0.45
@@ -257,6 +260,7 @@ The top edge fade is purely cinematic — rain enters smoothly from
 rain entering, but dim enough that the eye reads it as "fade-in".
 
 0.65 (35% dim) is calibrated to:
+
 - Compounded top brightness 0.82 × 0.65 = 0.533 — clearly visible
   "subtle dim" zone.
 - Top row rain is readable but visibly dimmer than mid rows.
@@ -271,6 +275,7 @@ aesthetic. Dying droplet heads "burn into" the bottom row if the fade
 is too gentle.
 
 0.45 (55% dim) is calibrated to:
+
 - Compounded bottom brightness 0.82 × 0.45 = 0.369 — "cinematic dim,
   rain barely visible" zone. Rain dissolves into shadow but is NOT
   destroyed.
@@ -299,6 +304,7 @@ film-like dissolve when combined with the widened
 ## Test verification
 
 All edge fade tests pass with the new values:
+
 - `viewport_edge_fade_is_bounded_and_smooth` — interior rows return
   1.0, extremes return the new MIN constants.
 - `viewport_edge_fade_bottom_more_aggressive_than_top` — bottom
@@ -419,13 +425,14 @@ The retune takes a two-pronged approach:
    exemption logic for front-layer neon. Intended for audit/test use —
    the hot render path keeps its inline calls for perf. 8 regression
    tests in `tests_edge_fade.rs` verify:
-   - `rain_shadow_factor` floors at 0.50 (not 0.0)
-   - `crt_vignette_factor` returns the expected smoothstep curve
-   - `compounded_brightness` bottom-row stays above the 0.10 visibility
+
+- `rain_shadow_factor` floors at 0.50 (not 0.0)
+- `crt_vignette_factor` returns the expected smoothstep curve
+- `compounded_brightness` bottom-row stays above the 0.10 visibility
      threshold (was 0.08 previously, now 0.13 at corner / 0.18 at center)
-   - `compounded_brightness` interior = 1.0 (no dimming)
-   - `compounded_brightness` front-layer excludes shadow + radial
-   - `compounded_brightness` matches the inline render-path math
+- `compounded_brightness` interior = 1.0 (no dimming)
+- `compounded_brightness` front-layer excludes shadow + radial
+- `compounded_brightness` matches the inline render-path math
 
 **3. Extracted `crt_vignette_factor()` function** (in `droplet.rs`):
    the smoothstep math was inline in `cloud/rain.rs::apply_crt_vignette`.
@@ -491,8 +498,6 @@ just makes the 4-effect compounding queryable so future retunes don't
 repeat the prior mistake of auditing only 2 effects.
 
 ---
-
-
 
 ## See also
 

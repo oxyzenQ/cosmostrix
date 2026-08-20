@@ -156,13 +156,17 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 ## 3. Phased Execution Plan
 
 ### Phase 1 — Quick wins (Tier S, items 1-10)
+
 **Risk**: Zero. **Time**: ~2 hrs. **LOC recovered**: ~750.
+
 - All changes are deletions or doc fixes.
 - Each item committed separately with clear message.
 - `cargo build --release` + `cargo test` must pass after each commit.
 
 ### Phase 2 — Safe refactors (Tier A, items 11-17)
+
 **Risk**: Low (atmosphere triage is the only non-trivial part). **Time**: ~4 hrs.
+
 - Item 11 (atmosphere `#![allow(dead_code)]` triage) is the highest-value
   item in the entire audit. Each of the 29 surfaced warnings needs a
   triage decision: delete / wire-in / re-document.
@@ -170,7 +174,9 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 - Item 17 (GIF re-encode) requires `ffmpeg` or `gifsicle`.
 
 ### Phase 3 — Doc archival (Tier B, items 18-24)
+
 **Risk**: Low (files moved, not deleted). **Time**: ~1 hr.
+
 - Create `docs/archive/` structure.
 - Move (not delete) closed-phase docs.
 - Update `docs/README.md` index.
@@ -178,18 +184,24 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
   tripwires still pass (these enforce CHANGELOG content + asset presence).
 
 ### Phase 4 — Build optimization (Tier C, items 25-28)
+
 **Risk**: Medium (feature-flag changes can break compilation). **Time**: ~2 hrs.
+
 - Each Cargo.toml change is 1-line, but must `cargo build` after each.
 - `[lints]` table addition is mechanical.
 
 ### Phase 5 — Hot-path optimization (Tier D, items 29-30)
+
 **Risk**: Medium (visual output may shift). **Time**: ~3 hrs.
+
 - Item 29 (sinf LUT): should be visually identical (same math, just cached).
 - Item 30 (String::clone → u64): pure refactor, no visual change.
 - Both need `cargo bench` before/after comparison.
 
 ### Phase 6 — Owner decisions (Tier E, items 31, 33, 34)
+
 **Risk**: High. **Time**: Owner-dependent.
+
 - Pause and present findings to owner.
 
 **Item 31 — CLOSED 2026-08-05** with **Option C (archive) + code deletion**.

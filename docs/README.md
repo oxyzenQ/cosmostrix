@@ -109,6 +109,7 @@ git pull origin main && cargo build --release && cargo test --all --locked
 cargo fmt --all -- --check && cargo clippy --locked --all-targets --all-features -- -D warnings
 cosmostrix --doctor && cosmostrix --benchmark --bench-duration 5s
 ```
+
 ## Key Invariants & Doc Maintenance
 
 **Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/lock_tests.rs`, `src/chroma_dragon_engine/lock_tests.rs`) must pass on every commit.

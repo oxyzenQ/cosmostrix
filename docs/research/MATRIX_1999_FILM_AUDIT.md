@@ -197,7 +197,7 @@ blend frame, composite old+new at 50% opacity.
 
 This requires non-trivial state tracking per cell (last glyph, last
 mutation frame). Estimated complexity: ~50 lines in `cloud/render.rs`
-+ a new field in the cell struct. Mid-effort, high-impact.
+- a new field in the cell struct. Mid-effort, high-impact.
 
 **Caveat:** at 60 FPS, 3 frames = 50 ms. The film is 24 FPS, so 3
 frames = 125 ms. Cosmostrix's cadence would need to be FPS-scaled:

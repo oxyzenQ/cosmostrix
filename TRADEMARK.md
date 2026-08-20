@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 **Owner:** rezky_nightky (oxyzenQ)
-**Repository:** https://github.com/oxyzenQ/cosmostrix
+**Repository:** <https://github.com/oxyzenQ/cosmostrix>
 **Source license:** GPL-3.0-only
 
 ## 1. Copyright & Ownership
@@ -86,7 +86,7 @@ and legal action to protect the intellectual property.
 ## 6. Contact
 
 For trademark licensing inquiries or written permission requests, contact:
-**rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ
+**rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>
 
 ---
 

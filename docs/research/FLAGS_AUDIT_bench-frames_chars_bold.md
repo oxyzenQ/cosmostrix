@@ -5,6 +5,7 @@
 > **STATUS: EXECUTED** (commit `69ca2c6`, 2026-08-04).
 >
 > All three recommendations were applied:
+>
 > - **`--bench-frames`**: KEPT + 2 fixes (docs bug in `benchmark/README.md:339-356`,
 >   warn-matrix bug in `main.rs::collect_bench_noop_warnings` case 4).
 > - **`--chars`**: REMOVED. clap arg, parsing block, `parse_user_hex_chars` fn + test,
@@ -42,6 +43,7 @@
 ## 1. `--bench-frames N`
 
 ### 1.1 What it does
+
 Legacy CI/regression benchmark. Runs N headless frames in a tight loop and
 prints compact parseable `BENCH:` output. Distinct from `--benchmark`
 (premium 5s user-facing benchmark with full Report-engine output) and
@@ -108,6 +110,7 @@ independently of the keep/remove decision.
 ### 1.5 Alternatives if removed
 
 `--benchmark --bench-duration Ns` can replace time-based uses, but:
+
 - Frame-count-based measurement (the whole point of `--bench-frames`)
   has no equivalent. `--bench-duration` is time-based.
 - Output format differs: `--bench-frames` emits compact `BENCH:` block
@@ -142,6 +145,7 @@ external CI pipelines depend on. Removing it would break the project's
 own benchmark script.
 
 **Action items if KEPT** (independent fixes):
+
 1. Fix `benchmark/README.md:339-356` — remove `--bench-frames 30` from
    examples that already use `--benchmark` (the flag is ignored there).
 
@@ -150,6 +154,7 @@ own benchmark script.
 ## 2. `--chars <ranges>`
 
 ### 2.1 What it does
+
 Custom character pool override as hex Unicode ranges
 (e.g. `--chars "0x30-0x39,0x41-0x5A"`). Pairs must be even count.
 Feeds `user_ranges: Vec<(char, char)>` into `build_chars`.
@@ -277,6 +282,7 @@ config-file breakage (the `[charset-custom]` flow is unaffected).
 ## 3. `-b, --bold <0|1|2>`
 
 ### 3.1 What it does
+
 Bold style: 0=off, 1=random (default), 2=all. Controls whether the
 renderer emits bold SGR escape sequences per glyph. Affects glyph
 weight, which has a small but measurable impact on terminal rendering
@@ -383,6 +389,7 @@ to `shadingmode`, simplify `main.rs:635-639` to `let bold_mode =
 BoldMode::Random`. The commit message documents:
 
 > `--bold` removal (medium complexity — has config-key equivalent):
+>
 > - Delete Args::bold field (u8 with -b short) in config.rs
 > - Delete bold = 1 from USER_CONFIG_KEYS in configfile.rs
 > - Delete config_apply.rs block that set args.bold from config
@@ -394,6 +401,7 @@ BoldMode::Random`. The commit message documents:
 >   by renderer + tests. Only the CLI/config surface is gone.
 >
 > Verification:
+>
 > - 1533 → 1531 tests PASS (-2: parse_user_hex_chars_parses_hex_codepoints,
 >   color_tune_bold_hint_warns_about_value_type; both tests' fixtures
 >   became invalid after their target flag/key was removed)
@@ -431,6 +439,7 @@ control + test fixture migration + docs updates), the benefit is
 minimal (30 LOC savings).
 
 **Action items if KEPT** (independent improvements):
+
 1. Consider promoting `--bold` out of `hide = true` so it appears in
    clap's auto-generated help (currently only in the manual
    `print_help()` text). Same applies to `--chars` if kept.
@@ -488,6 +497,7 @@ Removing it would break the project's own benchmark script.
 ### 5.1 If the owner decides to remove `--chars` only
 
 Re-apply the `--chars` portions of reverted commit `9598f37`:
+
 - `src/config.rs:692-693` — delete clap arg
 - `src/main.rs:188, 728-743` — delete import + parsing block
 - `src/charset.rs:44-89, 265-269` — delete `parse_user_hex_chars` + test
@@ -505,6 +515,7 @@ Re-apply the `--bold` portions of reverted commit `9598f37` (see
 ### 5.3 If the owner decides to keep all three
 
 No code changes needed. Independent improvements that could be done:
+
 1. Fix `benchmark/README.md:339-356` docs bug (dead `--bench-frames`
    tokens in `--benchmark` examples).
 2. Consider promoting `--bold` out of `hide = true` (it's a

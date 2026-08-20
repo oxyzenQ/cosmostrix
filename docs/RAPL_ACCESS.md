@@ -103,6 +103,7 @@ If the directory is empty or doesn't exist:
 ### ENERGY still shows "not available" after setup
 
 Check:
+
 ```bash
 ls -la /sys/class/powercap/intel-rapl:0/energy_uj
 cat /sys/class/powercap/intel-rapl:0/energy_uj
@@ -114,11 +115,13 @@ The benchmark reads it at start and end of the run, computing the delta.
 ## Verification
 
 After setup, run:
+
 ```bash
 cosmostrix --benchmark --screen-size 120x40 --bench-duration 5s
 ```
 
 The ENERGY section should show:
+
 ```
 ENERGY
   status: available (RAPL)

@@ -178,6 +178,7 @@ passes. This is the "movie rain streak" signature.
 | `PHOSPHOR_BOTTOM_DECAY_MULT` | f32 | 3.0 | Bottom-row decay multiplier (3× faster fade at the bottom). |
 
 **Tuning recipes**:
+
 - **Longer cinematic trails**: lower `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 → 0.4 (front trails last ~1s instead of ~670ms). Warning: may smear on hero-bright fronts.
 - **Harder CRT look (shorter, sharper)**: raise `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 → 0.8. Heads stay very crisp.
 - **Brighter trail residual (glowing puddles)**: raise `PHOSPHOR_TAIL_RESIDUAL` from 160 → 200.
@@ -199,6 +200,7 @@ rather than bright pixels.
 | `HEAD_SELFBLOOM_BASE` | f32 | ~0.234 | Base head self-bloom intensity (fraction of white-blend). |
 
 **Tuning recipes**:
+
 - **Bigger, softer halos**: raise `HEAD_BLOOM_SIGMA` from 1.2 → 1.8 and `HEAD_BLOOM_CELLS` from 2 → 3.
 - **Smaller, harder pinprick heads**: lower `HEAD_BLOOM_SIGMA` from 1.2 → 0.8 and `HEAD_BLOOM_CELLS` from 2 → 1.
 - **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.30 → 1.45 (pushes head pop ratio above 9× back).
@@ -223,6 +225,7 @@ vignette, and rain shadow. Depth fog is disabled in v50 alpha.2
 | `RAIN_SHADOW_LAYER_MULT` | [f32; 3] | [1.0, 1.0, 0.0] | Per-layer rain shadow (front exempt). |
 
 **Tuning recipes**:
+
 - **No vignette (flat full-screen)**: set `VIGNETTE_INTENSITY = 0.0` and `CRT_VIGNETTE_EDGE_FACTOR = 1.0`.
 - **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.20 → 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 → 8.
 - **Front layer also vignetted (uniform depth)**: change `VIGNETTE_LAYER_MULT` from `[1.0, 1.0, 0.0]` → `[1.0, 1.0, 1.0]`.
@@ -241,6 +244,7 @@ Controls droplet motion physics.
 | `TURBULENCE_FREQ` | f32 | 0.4 | Drift oscillation frequency (Hz). |
 
 **Tuning recipes**:
+
 - **Faster rain (heavy downpour)**: raise `DROPLET_GRAVITY` from 2.0 → 3.0 and `DROPLET_TERMINAL_VELOCITY_MULT` from 1.8 → 2.5.
 - **Slower, dreamier rain**: lower `DROPLET_GRAVITY` from 2.0 → 1.2 and `STARTUP_EASE_TAU` from 0.30 → 0.60.
 - **More wind drift**: raise `TURBULENCE_AMPLITUDE` from 0.08 → 0.20.
@@ -260,6 +264,7 @@ than feeling mechanical.
 | `TRAIL_CYCLE_PROBABILITY` | f32 | 0.02 | Chance per tick of mid-trail character re-randomization. |
 
 **Tuning recipes**:
+
 - **Calmer (less flicker)**: lower `FRACTIONAL_HEAD_BRIGHTNESS_AMP` from 0.15 → 0.05.
 - **More glitchy / digital**: raise `TRAIL_CYCLE_PROBABILITY` from 0.02 → 0.10.
 - **Synchronous rain (visible bands)**: set `SPAWN_PHASE_JITTER = false`.
@@ -294,6 +299,7 @@ emergent moments, gusts, atmosphere ticks.
 | `GUST_PEAK_MAX` | f32 | 1.5 | Max gust speed multiplier. |
 
 **Tuning recipes**:
+
 - **Disable anomalies entirely**: set `ANOMALY_CHANCE_PER_SEC = 0.0`.
 - **Disable emergent moments**: set `EMERGENT_MOMENT_CHANCE = 0.0`.
 - **Disable gusts**: set `GUST_IDLE_MIN_SECS = 1e18` (effectively never).
@@ -316,6 +322,7 @@ Controls spawn rate mechanics — how droplets enter the field.
 | `WARM_START_SPAWN_DEBT` | f32 | 0.5 | Initial spawn debt (delays first new spawns slightly). |
 
 **Tuning recipes**:
+
 - **Faster field fill at startup**: raise `WARM_START_SEED_FRACTION` from 0.12 → 0.25.
 - **Slower, more cinematic fill**: lower `WARM_START_SEED_FRACTION` from 0.12 → 0.05.
 
@@ -330,6 +337,7 @@ Controls visual corruption — the "Matrix glitch" effect.
 | `GLITCH_DIM_RATIO` | f64 | 0.75 | Fraction of glitch cells that are dim. |
 
 **Tuning recipes**:
+
 - **More glitchy**: raise `GLITCH_THRESHOLD` from 0.35 → 0.20 (triggers more often) and adjust `GLITCH_BRIGHT_RATIO` from 0.25 → 0.40.
 - **Disable glitch**: set `GLITCH_THRESHOLD = 1.0` (never triggers).
 
@@ -344,6 +352,7 @@ Controls the long-stream tail allocation for the front layer.
 | `FRONT_LAYER_MAX_TAIL_STOPS` | u8 | 3 | Max brightness stops in tail gradient. |
 
 **Tuning recipes**:
+
 - **More long streaks**: raise `FRONT_LAYER_TAIL_PCT` from 0.45 → 0.70.
 - **Shorter max streaks**: lower `FRONT_LAYER_TAIL_MAX_CELLS` from 12 → 6.
 
@@ -385,6 +394,7 @@ over the rain.
 | `MOUSE_FLASH_SECONDARY_SPEED_FRAC` | f32 | 0.4 | Secondary flash speed fraction. |
 
 **Tuning recipes**:
+
 - **Always-on mouse glow**: set `MOUSE_GLOW_INTENSITY = 0.5`.
 - **Bigger flash**: raise `MOUSE_FLASH_RING_WIDTH` from 8.0 → 14.0.
 - **Disable flash entirely**: set `MOUSE_FLASH_INTENSITY = 0.0`.
@@ -945,6 +955,7 @@ below is the same one used to calibrate Option F.
 ### Step 1 — Define your visual target in one sentence
 
 Examples:
+
 - "I want sparse neon drips on a black background, no depth, calm."
 - "I want a dense cyberpunk wall with frequent glitches."
 - "I want a CRT-like rain with long trails and hard heads."

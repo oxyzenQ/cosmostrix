@@ -36,17 +36,20 @@ Before opening a PR that touches any locked file, you MUST:
 
 1. **Run the gatekeeper**: `./scripts/build.sh check-all` (or, if
    that's unavailable in the dev env: `cargo fmt + cargo clippy --tests
-   + cargo test --quiet`). All must pass before AND after your change.
+   - cargo test --quiet`). All must pass before AND after your change.
 
 2. **Run the lock suite explicitly**:
+
    ```bash
    cargo test --quiet chroma::tests::lock
    ```
+
    All 19 invariants must pass before AND after your change. If your
    change intentionally modifies a public contract, you MUST update the
    lock suite in the same commit.
 
 3. **Run an A/B benchmark**:
+
    ```bash
    cargo build --release --quiet
    ./target/release/cosmostrix --benchmark --bench-io --bench-duration 10s > /tmp/before.txt
@@ -183,12 +186,14 @@ chroma::legacy → chroma_dragon_engine::legacy, etc.) and outdated
 → "19 invariants" in doc comments.
 
 **Files changed**:
+
 - src/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ → src/cosmic_dragon_engine/cloud/)
 - src/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" → "44 themes" refs)
 - src/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 → 44 + git log path ref updated)
 - src/chroma_dragon_engine/tuning.rs (2 "43 themes" → "44 themes" refs)
 
 **A/B delta** (vs locked baseline `69af079`):
+
 - avg_fps: 85,555 → 84,457 (Δ -1.28% — within ±5% tolerance, hardware variance)
 - peak_rss: 4.32 MiB → 4.32 MiB (Δ 0%)
 - alloc_calls: 563 → 288 (Δ -48.8% — different bench duration 5s vs 10s, per-frame allocs unchanged at 0.0)
@@ -206,6 +211,7 @@ EnergyZen now included in all theme-sweep invariants)
 auto-color-drift hints, unrelated to this unlock)
 
 **Notes**:
+
 - This unlock was RETROACTIVELY documented (commit 809a897 landed before
   the UNLOCK entry was added). The lock protocol requires the UNLOCK
   entry to be added in the SAME commit as the modification; this was

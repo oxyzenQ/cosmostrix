@@ -162,6 +162,7 @@ terminal implements the screen restoration varies.
 ### Previous fix attempts
 
 Multiple fix attempts were made across sessions:
+
 1. Removed `Clear(All)` before `LeaveAlternateScreen` — addressed VTE
    scrollback-clear but did not fix TTY screen clear.
 2. Fixed SYNC_START/END ordering (emit SYNC_END before

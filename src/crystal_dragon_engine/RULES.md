@@ -35,16 +35,19 @@ Before opening a PR that touches any locked file, you MUST:
 
 1. **Run the gatekeeper**: `./scripts/build.sh check-all` (or, if
    that's unavailable in the dev env: `cargo fmt + cargo clippy --tests
-   + cargo test --quiet`). All must pass before AND after your change.
+   - cargo test --quiet`). All must pass before AND after your change.
 
 2. **Run crystal-specific tests**:
+
    ```bash
    cargo test --quiet crystal_dragon
    ```
+
    All crystal tests must pass before AND after your change.
 
 3. **Run an A/B benchmark** (Crystal Dragon's contribution to per-frame
    cost is zero, but ambient scheduler behavior must not regress):
+
    ```bash
    cargo build --release --quiet
    ./target/release/cosmostrix --benchmark --bench-io --bench-duration 10s > /tmp/before.txt

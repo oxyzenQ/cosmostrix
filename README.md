@@ -263,6 +263,7 @@ cosmostrix --dump-config ~/.config/cosmostrix/config.toml
 ```
 
 Config paths on Android/Termux:
+
 - **Default**: `~/.config/cosmostrix/config.toml` (Termux HOME)
 - **External storage**: `/sdcard/cosmostrix/config.toml` (accessible from other apps)
 
@@ -422,26 +423,32 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 ## Scenes
 
 **Core atmospheres** (interactive cycle with `x`):
+
 - `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
 - `matrix` — classic Matrix glyph rain
 - `monolith` — structured Cosmostrix Monolith Rain with sparse structured segments
 
 **Curated scenes** (via `--scene <name>`):
+
 - `signal`, `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`, `low-power`
 
 **Film homage scene**:
+
 - `matrix_film` — dense phosphor-green katakana rain tuned to the Matrix 1999 cinematic source (palette `neon-green` + charset `matrix` + speed 22 + density 0.85). Not a 1:1 reproduction: cosmostrix's parallax depth, phosphor decay, and head-bloom layer onto the film's foundational look. Distinct from the `matrix` scene (the modern organic cascade, density 0.65, speed 18.0). Use `cosmostrix --scene matrix_film`.
 
 **Milestone scene**:
+
 - `cosmic-dragon` — deep-space binary rain commemorating the temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% → 0.39%, FPS +280%). Use `cosmostrix --scene cosmic-dragon`.
 
 **Honor scenes**:
+
 - `dragon-crystal` — living crystal violet rain; honors the cosmostrix + oxyzenQ journey and the hardthinking-mode reward. Uses the `energy-zen` premium palette. `cosmostrix --scene dragon-crystal`.
 - `orange-cat` — warm amber-gold gentle rain; in memory of the owner's orange cat (2 Aug 2026). `cosmostrix --scene orange-cat`.
 - `north-stars` — sparse white-gold pinprick starlight; honors 3 AM stargazing. `cosmostrix --scene north-stars`.
 - `curiosity` — vibrant spectrum rainbow rain; honors the owner's wonder, the engine that built cosmostrix. `cosmostrix --scene curiosity`.
 
 **Tribute scene**:
+
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
 Press `x` while running to cycle core atmospheres (cinematic ↔ matrix ↔ monolith).
@@ -668,6 +675,6 @@ Support is optional. The project remains open-source.
 - **Contribution forks** (bug fixes, features, PRs back to upstream): allowed without permission. Keep the cosmostrix name, logo, and branding unchanged — no rename or rebrand required. Just open a PR.
 - **Non-contribution forks** (rebrand, relaunch, derivative product, commercial offering): require owner discussion first. MUST use a different project name + different branding. Open a GitHub Issue before public release.
 
-For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — https://github.com/oxyzenQ.
+For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>.
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.

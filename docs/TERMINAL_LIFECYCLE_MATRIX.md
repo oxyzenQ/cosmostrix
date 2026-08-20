@@ -119,6 +119,7 @@ and the child (noticing `getppid() == 1`) restores the original
 `restore_terminal_best_effort()`. This is best-effort only.
 
 The fork guard does NOT run if:
+
 - `COSMOSTRIX_NO_FORK_GUARD=1` is set.
 - stdin/stdout are not a TTY (e.g. piped, redirected, headless).
 - Not running on Linux (macOS/BSD are not covered).

@@ -134,7 +134,7 @@ This guard does NOT run if:
 If the main loop is truly stuck (deadlock inside a syscall, infinite loop
 that doesn't check `GRACEFUL_SHUTDOWN`), the watchdog thread detects the
 stuck state after 20 seconds and calls `restore_terminal_best_effort()`
-+ `process::exit(1)` as a last resort.
+- `process::exit(1)` as a last resort.
 
 ## Recovery Commands
 

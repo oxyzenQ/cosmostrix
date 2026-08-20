@@ -39,6 +39,7 @@ Cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 | `io_uring` | 5.1 (2019) | NOT used — cosmic-dragon-egg experiment only | No |
 
 **Practical minimum: Linux 2.6.27** (December 2008). This covers:
+
 - CentOS 6+ (2.6.32)
 - Ubuntu 10.04+ (2.6.32)
 - Debian 6+ (2.6.32)
@@ -203,6 +204,7 @@ miscompilation present since Rust 1.87 plus a segfault in 1.97.0.
 
 **`install.sh` auto-detects** the CPU microarchitecture level and builds
 the optimal profile (Linux only):
+
 - AVX-512 detected → `pro-linux-v4`
 - AVX2 detected → `pro-linux-v3`
 - Neither → `release` (v1 baseline, works everywhere)

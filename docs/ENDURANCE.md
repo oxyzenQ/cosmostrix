@@ -79,14 +79,14 @@ The recommended interval is 60 seconds (`INTERVAL=60`). For shorter test runs
 cargo build --release
 ```
 
-2. Launch Cosmostrix in the background with a duration cap:
+1. Launch Cosmostrix in the background with a duration cap:
 
 ```bash
 ./target/release/cosmostrix --duration 86400 &
 COSMO_PID=$!
 ```
 
-3. Start the monitor script (run from a separate terminal or via nohup):
+1. Start the monitor script (run from a separate terminal or via nohup):
 
 ```bash
 # Monitor by process name (resolves newest matching PID automatically)
@@ -105,7 +105,7 @@ OUT_DIR=../logs bash scripts/monitor-cosmostrix.sh cosmostrix
 The script writes a CSV file to `logs/<name>-resource-<pid>-<timestamp>.csv`
 by default. It exits automatically when the target process terminates.
 
-4. After the run, analyze with the summary script:
+1. After the run, analyze with the summary script:
 
 ```bash
 bash scripts/endurance-summary.sh "$CSV_PATH"

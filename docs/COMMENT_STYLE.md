@@ -31,7 +31,7 @@ and should be used when semantically appropriate**:
 |--------|---------|---------|-------------|
 | `*italic*` | Emphasis | `the *current* phase` | When calling attention to a word as a concept |
 | `**bold**` | Strong emphasis | `**WARNING**: panics on empty input` | For warnings, critical notes |
-| `` `code` `` | Inline code | `Returns `Option<Color>`` | For type names, function names, identifiers |
+| `` `code` `` | Inline code | `Returns`Option<Color>`` | For type names, function names, identifiers |
 | ` ```text ` | Plain-text code block | ASCII art, benchmark output | For non-syntax-highlighted blocks |
 | ` ```toml ` | TOML code block | Config examples | For `[section]` + `key = value` snippets |
 | ` ```rust ` | Rust code block (tested) | Doctest examples | For runnable examples — `cargo test` will execute |
@@ -53,6 +53,7 @@ and should be used when semantically appropriate**:
 - ` ```json ` for JSON output examples — `bench/bench_json.rs`
 
 **NOT acceptable**:
+
 - ` ```txt ` (short form) — use ` ```text ` (long form) for clarity. **0 instances in codebase — keep it that way.**
 - ` ``` ` (no language) for non-Rust blocks — always specify the language so syntax highlighters work.
 - ` ```ts ` or ` ```js ` (TypeScript/JavaScript) — this is a Rust project; no JS examples.
@@ -65,7 +66,7 @@ These three are **NOT interchangeable**. Each serves a distinct purpose:
 |---------------------------|-----|---------|
 | A concept or term | `*italic*` | `the *current* phase` |
 | A critical warning | `**bold**` | `**WARNING**: panics on empty input` |
-| A type/identifier/keyword | `` `code` `` | `Returns `Option<Color>`` |
+| A type/identifier/keyword | `` `code` `` | `Returns`Option<Color>`` |
 | A multi-line code sample | ` ```lang ` block | see above |
 
 **Do NOT** use `**bold**` for emphasis that should be `*italic*`, and
@@ -77,6 +78,7 @@ Line comments are for implementation notes only. They do NOT render in
 `cargo doc`, so markdown syntax has no effect.
 
 **Acceptable** in line comments:
+
 - Plain prose
 - ASCII diagrams (no code fence needed — just indent)
 - `NOTE:`, `TODO:`, `FIXME:` prefixes (searchable)
@@ -84,6 +86,7 @@ Line comments are for implementation notes only. They do NOT render in
 - References to commits (`commit 07b44b5`)
 
 **NOT acceptable** in line comments:
+
 - `*italic*` or `**bold**` markdown — it won't render, so it's just visual noise
 - ` ```text ` code fences — same reason
 - `// TODO:` without context — always explain WHY
@@ -141,6 +144,7 @@ For long doc comments (>30 lines), use `## Heading` to organize:
 ```
 
 **Standard section names** (rustdoc convention):
+
 - `# Examples` — runnable examples (doctests)
 - `# Panics` — conditions under which the fn panics
 - `# Errors` — for `Result`-returning fns

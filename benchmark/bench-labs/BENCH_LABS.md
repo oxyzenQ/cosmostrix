@@ -9,7 +9,7 @@ current host.
 ## Environment
 
 | Item | Value |
-|---|---|
+| --- | --- |
 | CPU | Intel(R) Xeon(R) Processor @ 3200 MHz (2 vCPUs, no SMT) |
 | RAM | 3.9 GiB, no swap |
 | OS | Alibaba Cloud Linux 5.10, glibc |
@@ -23,7 +23,7 @@ All sizes use `--bench-scene lean --scene monolith`. Duration is adaptive:
 5s for <5K cells, 3s for 5K-500K, 2s for >500K cells.
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
-|------|------:|--------:|---------:|---------:|---------------:|-----------:|----------|
+| ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
 | 4x4 | 16 | 1,448,741 | 987,167 | 0.001 | 0.5 | 4 | excellent |
 | 20x6 | 120 | 692,257 | 999,001 | 0.002 | 3.0 | 4 | excellent |
 | 80x24 | 1,920 | 96,971 | 133,815 | 0.015 | 56.7 | 4 | excellent |

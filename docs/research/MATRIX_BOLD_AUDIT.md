@@ -144,9 +144,11 @@ to bold. Specifically:
 - `src/config.rs:586` sets `default_value_t = 1` → `BoldMode::Random`
 - `src/main.rs:595-598` maps `1 → BoldMode::Random`
 - `src/chroma_dragon_engine/shaders/base.rs:449-451` implements `BoldMode::Random`:
+
   ```rust
   bold = (((line as u32) ^ (val as u32)) % 2) == 1;
   ```
+
   This bolds approximately 50% of body cells in a checkerboard-like
   pattern (gated by `line ^ val` parity).
 
@@ -223,6 +225,7 @@ This aligns cosmostrix with the film and every canonical competitor.
 and `--bold 2` for users who want them.
 
 **Blast radius:**
+
 - 1 LOC change in `src/config.rs`.
 - The `bold = 1` line in `src/configfile.rs` dump-config template should
   be updated to `# bold = 0` (commented-out default).

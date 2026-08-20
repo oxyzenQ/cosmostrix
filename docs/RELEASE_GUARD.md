@@ -206,9 +206,9 @@ Verify the binary checksum matches before updating the AUR package.
 
 * **Renderer invariants are non-negotiable.**  Every release must
   honestly report:
-  - `actual_execution: single-threaded-renderer`
-  - `terminal_writer: single-owner`
-  - `compute_parallelism: disabled`
+  * `actual_execution: single-threaded-renderer`
+  * `terminal_writer: single-owner`
+  * `compute_parallelism: disabled`
 
 * **Terminal lifecycle matrix is authoritative.**  The matrix in
   `docs/TERMINAL_LIFECYCLE_MATRIX.md` defines expected cleanup behavior
@@ -225,9 +225,11 @@ When preparing release N:
 
 1. Complete all feature work and validation.
 2. Run the benchmark report helper (Gate 4):
+
    ```bash
    ./scripts/release-benchmark-report.sh X.Y.Z > /tmp/bench-report.md
    ```
+
 3. Review the generated Markdown, then add it to
    `benchmark/README.md` (Gate 5).
 4. Add a docs guard test for the new version in

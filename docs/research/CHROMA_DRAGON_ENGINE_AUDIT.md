@@ -102,6 +102,7 @@ Every site below emits `Color::Rgb { r, g, b }` by direct integer math, **withou
 **Files**: `src/cosmic_dragon_engine/cloud/spawn.rs:748-797` (`spawn_quantum_ripple`), `src/cosmic_dragon_engine/cloud/rain.rs:1161-1297` (`apply_quantum_ripple`)
 
 **Spawn path** (`spawn.rs:759-769`):
+
 ```rust
 let body_idx = self.palette.colors.len() / 2;
 let (body_r, body_g, body_b) = self
@@ -122,6 +123,7 @@ The snapshot uses `palette::decode_color` (a chroma helper) — that part is cor
 2. **The particle stores `(r, g, b)` as raw u8 fields** (`p.r = body_r; p.g = body_g; p.b = body_b;`). The render path then does raw RGB math on those fields.
 
 **Render path** (`rain.rs:1247-1275`):
+
 ```rust
 let (pr, pg, pb) = (
     (p.r as f32 * QUANTUM_BODY_TONE_DOWN).round() as u8,
@@ -136,11 +138,13 @@ let new_fg = Color::Rgb { r: nr, g: ng, b: nb };   // ← direct construction, n
 ```
 
 **Why this is a problem (chroma-engine perspective)**:
+
 - The blend uses **linear sRGB interpolation** in `(r as i32 + (target - r) * wf) / 256` form. Linear sRGB interpolation produces the well-known "muddy midpoint" artifact — blending red→cyan passes through gray instead of through a perceptual mid-hue. The chroma engine's `blend_toward_bg` (which uses linear RGB too, but the palette construction uses OKLab) is at least consistent with the rest of the chroma pipeline. The ripple path is off doing its own thing.
 - The blend ignores `color_mode`. In `ColorMode::Color256` or `ColorMode::Color16`, the particle writes a truecolor `Color::Rgb` that the terminal cannot display natively (it gets quantized by crossterm downstream, but the chroma engine should have first-class awareness).
 - There is **no `apply_climate` call** on the particle. The rest of the frame gets atmospheric luminance/saturation drift, but the ripple particle does not — it sticks out as a "non-atmospheric" overlay.
 
 **Chroma-native replacement** (proposal, NOT yet implemented):
+
 ```rust
 // spawn: store Color, not (r,g,b)
 let body_color = self.palette.colors.get(body_idx).copied()
@@ -309,6 +313,7 @@ Direct construction at the end of the monolith color pipeline. Need to audit the
 **File**: `src/cosmic_dragon_engine/cloud/phosphor.rs:296, 318, 354, 489-497, 592-599`
 
 The phosphor file is **half-migrated**:
+
 - Lines 296, 318, 354 call `palette::apply_brightness_rgb` ✓ (chroma helper)
 - Lines 489-497 call `palette::blend_toward_bg` ✓ (chroma helper, palette-aware anomaly halo target)
 - Lines 592-599 also use `blend_toward_bg` with anomaly halo target ✓
@@ -326,6 +331,7 @@ This is the model the rest of the codebase should follow. Phosphor is the **only
 The verbose output prints `color_mode: TrueColor` (or `Color256`/`Color16`/`Mono`) but **never** discloses whether the Chroma Dragon engine is active. The user has no way to verify "is chroma running, or did something fall back?".
 
 Relevant existing fields:
+
 ```
   ── Scene & Color ──
 color_scheme: Green (CLI default)
@@ -335,10 +341,13 @@ color_bg: default-background (terminal native bg, no override)
 ```
 
 Missing field (proposed):
+
 ```
 color_pipeline: chroma_dragon (oklab gradient, perceptual blend, climate post-fx)
 ```
+
 …or on fallback:
+
 ```
 color_pipeline: legacy_rgb (color256 mode — chroma disabled, raw sRGB fallback)
 ```
@@ -348,6 +357,7 @@ color_pipeline: legacy_rgb (color256 mode — chroma disabled, raw sRGB fallback
 **File**: `src/doctor.rs:23-323`
 
 The doctor report has:
+
 - `RENDERER.color_depth` — terminal color depth (truecolor / 256-color / 16-color)
 - `TERMINAL.color_auto_detected` — auto-detected mode
 - `TERMINAL.color_forced` — `--colormode` override (only shown when set)
@@ -360,11 +370,13 @@ The doctor report has:
 **Files**: `src/bench.rs:180-244` (`run_benchmark`), `src/bench.rs:60-180` (`compute_config_enrichment`), `src/bench_report.rs` (BenchReportData)
 
 **Current behavior**:
+
 1. The benchmark loop sets `cloud.crystal_dragon = false` (line 201) to keep p99/max metrics deterministic (palette rebuilds inject timing spikes).
 2. **Climate drift still runs** — the comment at line 196-200 says: "Climate drift (luminance/saturation/hue modulation) still runs because it is deterministic (fixed RNG seed) and has no rebuild cost."
 3. The Chroma Dragon engine itself is **NOT disabled**. Every cell still goes through `resolve_cell_color` → `apply_climate` → etc.
 
 **The benchmark report discloses** (in the CONFIG block):
+
 - `color_mode_label` (e.g. "truecolor")
 - `custom_palette_name`
 - `color_bg_label`
@@ -372,6 +384,7 @@ The doctor report has:
 - `crystal_dragon: false` (with the `bench_override:` notice in verbose)
 
 **The benchmark report does NOT disclose**:
+
 - Whether the chroma engine is active
 - Whether any chroma bypasses (Category A) are running
 
@@ -401,6 +414,7 @@ The owner's question — *"when benchmarking mode 'cosmostrix --benchmark' is th
 The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in the binary for `strings(1)` discovery. The claim "sRGB-linear fallback" is false — there is no fallback. This must be corrected.
 
 **Proposed correction**:
+
 ```
   gradient   OKLab polar interpolation (sole production path).
              Hue-preserving, perceptually uniform. No sRGB-linear fallback —
@@ -420,6 +434,7 @@ The chroma engine's own `mod.rs` Phase history is accurate (Phase 9-A says "sole
 **Owner's rule**: "all color → chroma dragon first → fallback legacy rgb/srgb"
 
 **Operational definition**:
+
 - *Primary path*: every color-emitting code path calls a `chroma::*` function to produce its final `Color`.
 - *Fallback path*: when the chroma engine is not supported (or explicitly disabled), the same code path calls a `chroma::legacy::*` function that does raw sRGB-linear math — the *exact* math the bypasses currently inline.
 
@@ -600,6 +615,7 @@ let color_pipeline_label = color_pipeline.label();
 ```
 
 The benchmark report's CONFIG block then prints:
+
 ```
   color_pipeline: chroma_dragon
   chroma_in_benchmark: enabled (palette_drift off for determinism, climate_drift active)
@@ -610,6 +626,7 @@ The benchmark report's CONFIG block then prints:
 **Files**: `src/cli_parse.rs`, `src/cli.rs`, `src/config.rs`
 
 Add a `--no-chroma` flag that forces `ColorPipeline::LegacyRgb` regardless of `ColorMode`. Useful for:
+
 - Debugging (is the chroma engine causing a visual artifact?)
 - Terminals that report `COLORTERM=truecolor` but render OKLab-blended colors incorrectly (rare, but reported on some Windows Terminal versions)
 - A/B comparison screenshots

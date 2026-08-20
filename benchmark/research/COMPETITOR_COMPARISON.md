@@ -182,6 +182,7 @@ As screen size grows, the full-redraw I/O cost grows linearly (4,800 →
 80,000 at 400×200). The diff-based cost also grows, but at 1/13th the rate.
 
 At 400×200 (80,000 cells):
+
 - Full redraw: ~80,000 ANSI sequences/frame → ~800KB/frame at 60 FPS
   = ~48MB/sec — no terminal can sustain this.
 - cosmostrix: ~6,000 ANSI sequences/frame → ~60KB/frame at 60 FPS
@@ -224,6 +225,7 @@ Matrix rain renderer that uses diff-based rendering. Every competitor
 redraw, which is 13× more I/O per frame at every screen size.
 
 This architectural advantage enables:
+
 1. **13× less I/O** → runs on any terminal without saturation
 2. **13× more CPU budget** → cinematic effects (phosphor, parallax, density)
 3. **Zero per-frame heap allocation** → no memory leaks, no GC pressure

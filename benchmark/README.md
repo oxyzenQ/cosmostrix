@@ -539,7 +539,7 @@ All benchmarks: 120×40, `--bench-duration 10`, headless mode.
 
 Release benchmark from `pro-linux-v3` binary (commit `06799dd`,
 2026-07-02). Default 120×40 terminal size. Cinematic visual quality push
-+ cosmic-dragon engine dead code removal (1562 lines deleted).
+- cosmic-dragon engine dead code removal (1562 lines deleted).
 
 - Binary version: `v11.0.0`
 - Commit: `06799dd`
@@ -1169,25 +1169,25 @@ target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
 
 Record at minimum:
 
-* version / commit
-* build variant
-* terminal size
-* cpu_model (runtime-detected)
-* rustc_version (from SYSTEM section)
-* lto / pgo status (from SYSTEM section)
-* avg_fps
-* median_fps
-* p95_frame_time
-* p99_frame_time
-* p99_9_frame_time
-* max_frame_time
-* frame_time_stability
-* avg_dirty_cell_ratio_percent
-* actual_execution
-* peak_rss (Linux/macOS only)
-* avg_cpu_percent (Linux/macOS only)
-* fps_drift_percent (from the DRIFT section)
-* involuntary_ctxt (from the RESOURCE section — CPU contention indicator)
+- version / commit
+- build variant
+- terminal size
+- cpu_model (runtime-detected)
+- rustc_version (from SYSTEM section)
+- lto / pgo status (from SYSTEM section)
+- avg_fps
+- median_fps
+- p95_frame_time
+- p99_frame_time
+- p99_9_frame_time
+- max_frame_time
+- frame_time_stability
+- avg_dirty_cell_ratio_percent
+- actual_execution
+- peak_rss (Linux/macOS only)
+- avg_cpu_percent (Linux/macOS only)
+- fps_drift_percent (from the DRIFT section)
+- involuntary_ctxt (from the RESOURCE section — CPU contention indicator)
 
 For long-run drift verification, also run once with a longer duration:
 

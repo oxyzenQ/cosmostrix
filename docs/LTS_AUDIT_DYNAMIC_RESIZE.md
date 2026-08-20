@@ -19,11 +19,13 @@
 ### 1. Size Clamping (Defense-in-Depth) ✅
 
 `Cloud::reset()` clamps at TWO levels:
+
 ```rust
 // spawn.rs:29-30 (Cloud::reset)
 self.cols = cols.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);  // [4, 1024]
 self.lines = lines.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES); // [4, 500]
 ```
+
 ```rust
 // frame.rs:128-129 (Frame::new_with_bounds)
 let width = width.clamp(MIN_TERMINAL_COLS, max_cols);
@@ -89,6 +91,7 @@ if let Some((nw, nh)) = pending_resize {
 ```
 
 All dependent state is updated:
+
 - ✅ Cloud pools reallocated (droplets, monolith, col_stat, glitch_map, color_map)
 - ✅ Frame buffer reallocated
 - ✅ Density auto-recalculated for new width
@@ -143,6 +146,7 @@ of frames.
 
 **Dynamic resize handling is LTS-stable.** No code changes required.
 The resize pipeline is:
+
 - ✅ Size-clamped at 2 levels (Cloud + Frame)
 - ✅ Debounced (150ms coalescing)
 - ✅ Zero-size protected (max(1) + saturating_sub guards)

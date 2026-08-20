@@ -230,6 +230,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
 - **P2 (perf, minor):** `Instant::now()` called twice in this function (lines 445, 447) and a third time in `spawn_quantum_ripple` (spawn.rs:743). All three could share a single `now` passed down. On Linux this is a vDSO call (~20-40 ns), so the saving is ~60-80 ns per click. Negligible for human-speed clicking (~5-10 cps) but harmless to fix.
 
 - **C4 (correctness, subtle):** The `oldest` initialization `(0usize, Instant::now())` relies on the invariant "any past `w.birth` is strictly less than `Instant::now()`". This is true because `birth` was set in the past. However, the code's correctness depends on this implicit invariant. A cleaner pattern uses `Option<(usize, Instant)>`:
+
   ```rust
   let mut oldest: Option<usize> = None;
   for (i, w) in self.flash_waves.iter().enumerate() {
@@ -239,6 +240,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
       }
   }
   ```
+
   Not a bug, but the current code is fragile to refactoring.
 
 - **C5 (correctness, edge case):** If two clicks happen so fast that both record the same `birth` (sub-microsecond), the eviction policy picks index 0 (the `i == 0` short-circuit in the `||`). On supported platforms `Instant` has nanosecond resolution so this is unlikely, but on platforms with coarser clocks (older Windows builds: ~15 ms granularity) two rapid clicks could share a birth time, and the eviction would always pick index 0 — i.e., the same slot keeps getting evicted on each overflow click. The wave at slot 0 would never complete its 1.8s animation under sustained click storms. Realistically only an issue on Windows pre-Win10.
@@ -317,6 +319,7 @@ This is the most impactful file. See §3 (Performance Findings) for the full bre
 - **P10 (perf, MEDIUM IMPACT):** Wave-invariant quantities (`primary_radius`, `secondary_radius`, `fade`) are recomputed per cell. See §3.3.
 
 - **P11 (perf, LOW IMPACT):** The `col_dist` / `line_dist` computation uses `if/else` for abs-diff:
+
   ```rust
   let col_dist = if self.bound_col > w.col {
       (self.bound_col - w.col) as f32
@@ -324,6 +327,7 @@ This is the most impactful file. See §3 (Performance Findings) for the full bre
       (w.col - self.bound_col) as f32
   };
   ```
+
   `u16::abs_diff` would be cleaner and possibly 1 instruction shorter. Same applies to `mouse_col`/`mouse_line` in the cursor glow block.
 
 - **C7 (correctness, visual quality):** The flash wave color contribution is only applied to cells inside the per-droplet draw loop (`for line in start_line..=head_put_line`). Empty cells (no active droplet trail) get NO wave contribution. This means the wave's expanding ring is **invisible** in regions of the screen with no rain. Visually, the wave appears "broken" or "gappy" in sparse areas — only the parts of the ring that intersect active rain trails light up. This may be intentional (the wave "tints" existing rain rather than painting empty space), but it's a visual quality limitation worth flagging. The same applies to the cursor glow.
@@ -348,6 +352,7 @@ for w in &mut self.flash_waves {
   **Severity:** Minor visual bug — particles are short-lived (0.8s) so most users wouldn't notice. But it's an inconsistency between the flash wave (survives pause) and quantum ripple (doesn't survive pause).
 
   **Fix:** In `toggle_pause` BRANCH 2, add:
+
   ```rust
   for p in &mut self.quantum_particles {
       if p.active {
@@ -367,6 +372,7 @@ for w in &mut self.flash_waves {
   - `self.mouse_col` / `self.mouse_line` (cursor position may now be off-screen)
 
   The flash waves and particles self-expire within 1.8s / 0.8s, so the visual impact is bounded. The mouse position is invisible (MOUSE_GLOW_INTENSITY=0). But for cleanliness, `reset()` could clear these:
+
   ```rust
   for w in &mut self.flash_waves { w.active = false; }
   for p in &mut self.quantum_particles { p.active = false; }
@@ -390,6 +396,7 @@ pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.0;  // ← zero!
 ```
 
 The cursor glow block:
+
 ```rust
 if ctx.mouse_col != u16::MAX {
     let col_dist = ...; let line_dist = ...;
@@ -415,10 +422,12 @@ if ctx.mouse_col != u16::MAX {
 1. **Delete the block** if cursor glow is no longer a desired feature. The docstring at `central_control_rains.rs:495-496` says "Intensity of the mouse hover glow (0.0 = disabled in default mode)" — suggesting it's a disabled-by-default feature. If never to be re-enabled, delete.
 
 2. **Const-gate the block:**
+
    ```rust
    const GLOW_ENABLED: bool = MOUSE_GLOW_INTENSITY > 0.0;
    if GLOW_ENABLED && ctx.mouse_col != u16::MAX { ... }
    ```
+
    LLVM should compile out the entire block when `GLOW_ENABLED = false`. This preserves the code for future re-enablement.
 
 3. **Re-enable the glow** by raising `MOUSE_GLOW_INTENSITY` to e.g. `0.15`. The block then does actual visual work. Owner decision.
@@ -478,6 +487,7 @@ pub(crate) struct FlashWaveCtx {
 ```
 
 Compute once per wave in `rain.rs:583-595`:
+
 ```rust
 flash_waves_buf.push(FlashWaveCtx {
     col: w.col,
@@ -536,6 +546,7 @@ Three `Instant::now()` calls per click. Could be one. Saves ~40-80 ns/click. Neg
 Flash wave births are shifted by `elapsed` (line 614-618), but quantum particle births are NOT shifted. After a pause > `QUANTUM_RIPPLE_LIFETIME_SECS` (0.8s), all active particles instantly expire on unpause.
 
 **Reproduction:**
+
 1. Click → spawns 20 particles (lifespan 0.8s)
 2. Immediately press `p` to pause
 3. Wait 1 second
@@ -544,6 +555,7 @@ Flash wave births are shifted by `elapsed` (line 614-618), but quantum particle 
 6. **Expected:** particles continue their outward motion for their remaining lifespan
 
 **Fix:** Add to `toggle_pause` BRANCH 2, near line 618:
+
 ```rust
 for p in &mut self.quantum_particles {
     if p.active {
@@ -563,6 +575,7 @@ for p in &mut self.quantum_particles {
 **Currently invisible** because `MOUSE_GLOW_INTENSITY = 0.0` (see §3.1). If the glow is ever re-enabled, this becomes a visible glitch.
 
 **Fix:**
+
 ```rust
 if matches!(m.kind, MouseEventKind::Moved | MouseEventKind::Drag(_) | MouseEventKind::Down(_)) {
     cloud.set_mouse_position(m.column, m.row);
@@ -579,11 +592,13 @@ if matches!(m.kind, MouseEventKind::Down(_)) {
 The `_ => {}` catch-all swallows `Event::FocusLost`. The mouse position persists at its last in-window value, even after the user alt-tabs away. Same caveat as §4.2 — invisible while glow is disabled.
 
 **Fix:** Add a `FocusLost` arm that resets mouse position:
+
 ```rust
 Event::FocusLost => {
     cloud.set_mouse_position(u16::MAX, u16::MAX);
 }
 ```
+
 (Requires a `clear_mouse_position` method on Cloud, or making `set_mouse_position(u16::MAX, u16::MAX)` the canonical "clear".)
 
 ### 4.4 [LOW] Right-click and middle-click spawn flash waves
@@ -638,6 +653,7 @@ Says "32 covers the peak case of 2-3 rapid clicks (each spawns up to 25)" but th
 **File:** `src/droplet.rs:727`
 
 **Change:**
+
 ```rust
 // BEFORE:
 if ctx.mouse_col != u16::MAX {
@@ -674,6 +690,7 @@ Depends on Quick Win #2 for the `max_reach_sq` field (or compute it inline).
 **File:** `src/cosmic_dragon_engine/cloud/mod.rs:613-618`
 
 **Change:** Add after the flash wave birth shift:
+
 ```rust
 for p in &mut self.quantum_particles {
     if p.active {
@@ -689,6 +706,7 @@ This makes quantum particles survive pauses consistently with flash waves.
 **File:** `src/interactive/event_loop.rs:877`
 
 **Change:**
+
 ```rust
 // BEFORE:
 cloud.set_mouse_position(m.column, m.row);

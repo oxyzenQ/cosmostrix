@@ -200,6 +200,7 @@ add. At 200×60=12,000 cells, the old memset was ~150 AVX2 stores; the
 new bump is 1 add.
 
 Each `frame.set()` that actually changes a cell:
+
 1. Stamps `dirty_cell_gen[i] = dirty_gen` (4-byte write, O(1))
 2. Pushes the cell index onto `dirty: SmallVec<[usize; 64]>` (if not
    already stamped this frame — duplicate-skip via the stamp check)
@@ -327,6 +328,7 @@ rain didn't write this frame).
 | `terminal.draw()` — full redraw | O(W×H) | O(1) |
 
 Where:
+
 - W, H = terminal dimensions
 - D = number of dirty cells (D ≤ W×H)
 
@@ -364,7 +366,7 @@ Cosmostrix emits combined fg+bg SGR in a single escape:
 
 This is 19 bytes for true-color fg+bg. The `ColorCache` pre-formats
 these for all palette color pairs, so the hot path is a hashmap lookup
-+ `extend_from_slice`.
+- `extend_from_slice`.
 
 For ANSI-256 colors (when true-color isn't supported), the format is:
 
@@ -413,7 +415,7 @@ compound over time.
 ### 5.2 Per-droplet cursor targeting
 
 Track each droplet's head + tail position; emit only 2–3 cursor moves
-+ character writes per droplet per frame.
+- character writes per droplet per frame.
 
 - **Pro**: minimal bandwidth (~3 cells/droplet, no equality check)
 - **Con**: cannot represent background haze, phosphor afterglow, or

@@ -140,6 +140,7 @@ rendering code. The actual rendering hot path — `frame.rs`, `cloud/rain.rs`,
 allocation after the fix.
 
 **Before optimization:**
+
 ```
   Size       allocs/frame
   6x6           3.13       ← baseline
@@ -150,6 +151,7 @@ allocation after the fix.
 ```
 
 **After optimization:**
+
 ```
   Size       allocs/frame
   6x6           3.00       ← constant
@@ -214,6 +216,7 @@ shrinking fraction of the total.
 ### `src/cosmic_dragon_engine/cloud/phosphor.rs` — hoist `tracked_fresh` to reuse heap capacity
 
 **Before:**
+
 ```rust
 let mut tracked_fresh: smallvec::SmallVec<[usize; 256]> = smallvec::SmallVec::new();
 // ... push up to N fresh cells ...
@@ -225,6 +228,7 @@ Every frame allocated a new SmallVec. Once fresh-cell count exceeded 256
 frame, growing with screen area.
 
 **After:**
+
 ```rust
 let mut tracked_fresh = std::mem::take(&mut self.phosphor_last_fresh);
 tracked_fresh.clear();  // preserves heap capacity
@@ -406,6 +410,7 @@ done
 ```
 
 Or use the automation script:
+
 ```bash
 python3 scripts/run_scaling_benchmarks.py
 ```

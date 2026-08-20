@@ -30,29 +30,29 @@ each line means without reading the full reference below.
 
 | Row | Label        | Unit           | What it tells you in one sentence                                                                  |
 |-----|--------------|----------------|----------------------------------------------------------------------------------------------------|
-| 0   | ` fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
-| 1   | ` tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml`. The cap you configured, with optional `idle` / `paused` mode suffix. |
-| 2   | ` max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
-| 3   | ` p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
-| 4   | ` cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
-| 5   | ` rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
-| 6   | ` ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
-| 7   | ` prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
-| 8   | ` sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `↑`/`↓`. Confirms the actual sanitized value (matches `--speed`). |
-| 9   | ` dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
-| 10  | ` scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
-| 11  | ` chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
-| 12  | ` clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`). Confirms `c`/`C` cycle. |
-| 13  | ` up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
+| 0   | `fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
+| 1   | `tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml`. The cap you configured, with optional `idle` / `paused` mode suffix. |
+| 2   | `max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
+| 3   | `p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
+| 4   | `cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
+| 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
+| 6   | `ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
+| 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
+| 8   | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `↑`/`↓`. Confirms the actual sanitized value (matches `--speed`). |
+| 9   | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
+| 10  | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
+| 11  | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
+| 12  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`). Confirms `c`/`C` cycle. |
+| 13  | `up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
 | 14  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
-| 15  | ` cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
+| 15  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
 
 **Symbol legend:**
 
 | Symbol / Suffix | Meaning                                                                                          |
 |-----------------|--------------------------------------------------------------------------------------------------|
-| ` idle`         | After `tgt:` — adaptive idle throttle engaged (no input for 30s; effective FPS = `tgt × 0.5`).   |
-| ` paused`       | After `tgt:` — user pressed Space/P; loop ticking at 4 Hz just to keep event loop alive.         |
+| `idle`         | After `tgt:` — adaptive idle throttle engaged (no input for 30s; effective FPS = `tgt × 0.5`).   |
+| `paused`       | After `tgt:` — user pressed Space/P; loop ticking at 4 Hz just to keep event loop alive.         |
 | `ms`            | Milliseconds (frame time unit). 1ms = 0.001s. A 60 FPS target = 16.67ms budget per frame.        |
 | `KiB` / `MiB`   | 1024 bytes / 1024² bytes (binary, NOT decimal SI units).                                         |
 | `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
@@ -145,7 +145,7 @@ The HUD writes 16 rows into the frame buffer at the top-left corner
 metrics (ehs / prs / sped / dsty / scn / chr / clr), and rows 13-15
 are session/diagnostic/build identity (up / screensize / cid).
 
-### 1. ` fps: <N>`
+### 1. `fps: <N>`
 
 **Render-work throughput** = `1000 / rolling_avg_ms`.
 
@@ -165,11 +165,12 @@ behavior, not a bug.
 **To see the actual cap**, look at the `tgt:` line below.
 
 **Format rules:**
+
 - `fps >= 10000` → humanized (e.g. `11.0k`, `1.2M`) to fit HUD width
 - `fps >= 100` → integer (e.g. `451`)
 - `fps < 100` → 1 decimal (e.g. `59.8`)
 
-### 2. ` tgt: <N>[ idle| paused]`
+### 2. `tgt: <N>[ idle| paused]`
 
 **User-configured target FPS cap** (from `--fps` or config.toml `fps =`),
 with an optional mode suffix indicating whether the cap is currently in
@@ -179,11 +180,11 @@ render-work throughput (often far above the cap because loop sleep is
 excluded from `work_ms`). Read the two lines together: `tgt:` is the
 goal, `fps:` is the headroom.
 
-- ` tgt: 30` — active, loop targeting 30 FPS
-- ` tgt: 30 idle` — adaptive idle throttle engaged (effective rate is
+- `tgt: 30` — active, loop targeting 30 FPS
+- `tgt: 30 idle` — adaptive idle throttle engaged (effective rate is
   `target_fps * IDLE_FPS_FACTOR`, typically 0.5×, so ~15 FPS). Triggered
   after `IDLE_THRESHOLD_SECS` (30s) of no input.
-- ` tgt: 30 paused` — user pressed Space or `p`. Loop ticks at
+- `tgt: 30 paused` — user pressed Space or `p`. Loop ticks at
   `PAUSE_PERIOD_MS` (250ms = 4 Hz) just to keep the event loop alive.
 
 **Why this line exists:** before v30 (2026-08-05), the HUD only had
@@ -194,7 +195,7 @@ See `docs/archive/specs/ATMOSPHERE_ENGINE.md` for the original
 discussion (atmosphere engine archival — the HUD `tgt:` line was added
 in the same Dragon Hunt v2 Phase 6 window).
 
-### 3. ` max: <ms>`
+### 3. `max: <ms>`
 
 **Maximum frame time** observed in the last 60 seconds. Auto-resets
 every `MAX_RESET_INTERVAL_SECS` (60s) so a startup spike from 10
@@ -204,7 +205,7 @@ Use `max` together with `p99`: if `max` is much larger than `p99`,
 the spike was a one-off (likely a resize event, signal, or first-frame
 cold cache). If `max` is close to `p99`, the slow path is recurring.
 
-### 4. ` p99: <ms>`
+### 4. `p99: <ms>`
 
 **99th-percentile frame time** in milliseconds, computed from a ring
 buffer of recent frame times (stack-allocated sort, ~300ns, called
@@ -215,7 +216,7 @@ infrequent spikes that `avg` hides. A healthy p99 is `< 2× avg`. A p99
 that is `10× avg` means there are periodic stalls (GC pauses, kernel
 scheduling, terminal-emulator backpressure).
 
-### 5. ` cpu: <percent>`
+### 5. `cpu: <percent>`
 
 **Process CPU%** with 2-decimal precision. Sampled at 1 Hz as the
 delta between two `cpustat::current_cpu_ns()` readings (Linux:
@@ -230,7 +231,7 @@ display width safety.
 Shows `—` (em dash) on unsupported platforms (non-unix) or during the
 brief pre-delta window (first ~1s after HUD toggle-on).
 
-### 6. ` rss: <size>`
+### 6. `rss: <size>`
 
 **Process RSS** (resident set size) in KiB or MiB. Sampled at 1 Hz via
 `memstat::current_rss_kb()` (reads `/proc/self/status` on Linux,
@@ -240,9 +241,10 @@ On Linux, `rss` includes all resident pages (code + heap + mmap'd
 files). A growing `rss` over a long session suggests a memory leak
 — check `docs/ENDURANCE.md` for the leak-detection methodology.
 
-### 7. ` up: <duration>`
+### 7. `up: <duration>`
 
 **Session uptime** since the HUD was created (process startup). Format:
+
 - `< 1h`: `MM:SS` (e.g. `59:03`)
 - `< 1d`: `Xh:MM` (e.g. `1h:03`)
 - `>= 1d`: `Xd:YYh` (e.g. `2d:03h`)
@@ -250,10 +252,11 @@ files). A growing `rss` over a long session suggests a memory leak
 ### 8. `<W>x<H> <mode>`
 
 **Terminal size** as `columns x rows`, with mode:
+
 - `auto` — dynamic (follows terminal resize)
 - `fix` — fixed via `--screen-size WxH` (ignores resize)
 
-### 9. ` cid: <short-SHA>`
+### 9. `cid: <short-SHA>`
 
 **Build commit id** — the 7-character lowercase hex git short SHA
 injected at compile time by `build.rs` (via `git rev-parse --short=7
@@ -323,6 +326,7 @@ Without the `tgt:` line (pre-v30), the same display showed only
 `fps: 11000` and the user thought `--fps 30` was broken.
 
 **Rule of thumb:**
+
 - Use `tgt:` to verify your `--fps` setting was applied.
 - Use `fps:` to see how much headroom the renderer has. If `fps:`
   drops close to `tgt:`, the renderer is the bottleneck (work_ms

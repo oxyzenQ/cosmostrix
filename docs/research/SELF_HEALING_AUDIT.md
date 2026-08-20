@@ -47,6 +47,7 @@ The core "afterglow nurse." Three-pass algorithm running every frame:
 | 3 | Decay non-fresh cells with phosphor energy | Iterates `phosphor_active` (BitVec-tracked); fades color via `apply_brightness_rgb`; mutates glyphs via `TRAIL_CYCLE_PROBABILITY` (2% per step) |
 
 Key cells:
+
 - `phosphor_active: Vec<usize>` — swap-remove pattern, O(1) cleanup
 - `phosphor_in_active: BitVec` — O(1) membership check, prevents dupes
 - `phosphor_last_fresh: SmallVec` — incremental clear (avoids per-frame alloc)
@@ -113,6 +114,7 @@ overwritten by a droplet pass but wasn't due to a dirty-tracking edge case.
 
 **Why it's narrow**: The phosphor system already handles cells with
 `phosphor[i] > 0`. The risk is a cell where:
+
 - `cell_gen[i] == current_gen` (looks fresh)
 - `cell.fg.is_some()` (has a glyph)
 - But the glyph is stale because a droplet's tail_put_line was incorrectly
@@ -120,6 +122,7 @@ overwritten by a droplet pass but wasn't due to a dirty-tracking edge case.
 
 **Implementation (commit `4827ddb`)**: A periodic (every N=3600 frames,
 ~1 min at 60fps) debug-mode-only sweep that:
+
 1. Gates on `enable_component_timing` (i.e., `--perf-stats`) — zero cost
    in production interactive runs.
 2. Skips when a message box is active (overlay cells would be false positives).
@@ -197,6 +200,7 @@ std::thread::spawn(move || loop {
 ```
 
 Two-tier response:
+
 - First stuck check: warn to stderr (write_fmt, broken-pipe-safe)
 - Second stuck check: force restore + exit(1)
 
@@ -237,6 +241,7 @@ already handle the "stdout is broken" case at shutdown. The gap was
 failure.
 
 **Implementation (commit `22a2aa3`)**:
+
 1. `Terminal` gained `tty_fallback: Option<File>` (lazily opened, cached)
    and `tty_recoveries: u32` (capped at `STDOUT_FALLBACK_MAX_RECOVERIES = 3`).
 2. `flush_ansi` routes all writes through `write_with_recovery()`.
@@ -271,6 +276,7 @@ at 60fps), not per-frame. The isatty syscall is ≈1μs, amortized to
 0.0017 syscalls/sec — completely negligible.
 
 **Implementation (commit `feeac76`)**:
+
 1. New constant `FD_HEALTH_PROBE_INTERVAL_FRAMES = 3600` (matches P4
    stuck-cell sweep cadence — both are background hygiene passes on
    the same slow tick).
@@ -346,6 +352,7 @@ dropping frames.
 The score is pushed to HUD via `update_metrics()` for display AND now
 consumed by `PerformanceSelfHealer` to trigger mitigations when the
 score drops into the "investigate" band (score < 60):
+
 - Forces a `cloud.force_draw_everything()` (clears potential stuck state)
 - Bypasses ReclaimState's 1h min to issue an immediate madvise hint
 - Logs to stderr (write_fmt, broken-pipe-safe)
@@ -358,6 +365,7 @@ score drops into the "investigate" band (score < 60):
 lighter scene (e.g., storm → low-power). The user had to press a key.
 
 **Implementation (commit `35a6acd`)**:
+
 1. `PerformanceSelfHealer` struct tracks `sustained_high_pressure_secs`
    and `sustained_low_pressure_secs` with hysteresis (0.6 high, 0.3 low).
 2. When high pressure sustains for 30s: saves the current scene name to
@@ -381,6 +389,7 @@ Directly matches research vision item C.
 "degraded" / "investigate" but nothing acted on it.
 
 **Implementation (commit `35a6acd`)**:
+
 1. When `classification() == "investigate"` (score < 60):
    - Force a `cloud.force_draw_everything()` (clears potential stuck state)
    - Trigger `hint_reclaim_pages()` immediately (bypass ReclaimState's 1h min)

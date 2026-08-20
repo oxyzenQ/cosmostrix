@@ -20,3 +20,21 @@ MD041: false
 # MD024/no-duplicate-heading — allow duplicate headings across
 # different files (only check within same file).
 MD024: false
+
+# MD060: table-column-style is too strict for auto-generated tables
+MD060: false
+
+# MD040: fenced-code-language — lock signatures use ``` without language
+MD040: false
+
+# MD056: table-column-count — some tables have intentionally complex layouts
+MD056: false
+
+# MD032: blanks-around-lists — some lists are intentionally tight
+MD032: false
+
+# MD036: no-emphasis-as-heading — intentional emphasis for signatures
+MD036: false
+
+# MD028: no-blanks-blockquote — some blockquotes have intentional blank lines
+MD028: false
