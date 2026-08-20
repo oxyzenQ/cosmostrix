@@ -3,11 +3,13 @@
 #
 # Dedicated CI for all .github/ workflow and config changes.
 # Triggers on ANY modification under .github/ to ensure every workflow
-# file is validated through yamllint, actionlint, and shellcheck.
+# file is validated through yamllint and actionlint.
+# Shell scripts are linted by the dedicated shellcheck.yml workflow.
 #
 # Separated from ci.yml (source code CI) for strict path isolation:
 # - ci.yml           → src/**, Cargo.*, scripts/*, etc.
 # - workflow-ci.yml   → .github/** only
+# - shellcheck.yml    → **.sh (all shell scripts)
 # - docs-ci.yml       → *.md, *.txt, *.rst
 # - release.yml       → tags only (v*)
 # - maintenance.yml   → scheduled + manual
@@ -35,7 +37,7 @@ env:
 
 jobs:
   workflow_lint:
-    name: Workflow Lint (actionlint + yamllint + shellcheck)
+    name: Workflow Lint (actionlint + yamllint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -47,16 +49,12 @@ jobs:
           python3 -m pip install --user yamllint
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
-          sudo apt-get install -y shellcheck
 
       - name: Run actionlint
         run: actionlint .github/workflows/*.yml
 
       - name: Run yamllint
         run: yamllint .github/workflows
-
-      - name: Run shellcheck (inline shell scripts in workflows)
-        run: shellcheck scripts/*.sh
 
   workflow_syntax:
     name: Workflow Syntax Validation
