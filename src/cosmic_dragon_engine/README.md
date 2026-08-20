@@ -28,7 +28,7 @@ The code in this directory has been audited for:
   `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`,
   `panic = "unwind"`, `overflow-checks = false`, `strip = true`,
   `incremental = false`.
-- **Stability** — 1587/1587 tests pass, 0 clippy warnings, all
+- **Stability** — 1594/1594 tests pass, 0 clippy warnings, all
   stability signals match baseline (frame_jitter=low,
   frame_time_stability=excellent, drift=stable).
 
@@ -48,7 +48,7 @@ The audit confirmed the engine is already at peak. Specifically:
   at 60 FPS) — adds 3-month safety margin before overflow.
 - **7 functions marked `#[inline]`** for hot-path accessors.
 
-### 2. Cloud simulation (`cloud/`, ~6K LOC across 16 files)
+### 2. Cloud simulation (`cloud/`, ~8,858 LOC production + ~9,177 LOC tests)
 
 - **`rain_at()`** — the per-frame simulation entry point. Zero allocation
   on hot path (no `format!()`, no `to_string()`, no `Vec::push` outside
@@ -61,7 +61,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`tier2.rs`** — backpressure + RIS reset heuristics (`ByteWindow`
   sliding window), no allocation in hot path.
 
-### 3. Terminal output (`terminal/`, ~1.5K LOC across 7 files)
+### 3. Terminal output (`terminal/`, ~2,250 LOC production + ~189 LOC tests)
 
 - **`Terminal` struct** — 256 KiB BufWriter for single-syscall flush.
   `SYNC_START + ansi_buf + SYNC_END` concatenation eliminates per-frame
@@ -119,12 +119,14 @@ is the appropriate action.
 
 | Subsystem                                  | LOC    | Role                                                                  |
 |--------------------------------------------|-------:|-----------------------------------------------------------------------|
-| `cosmic_dragon_engine/cloud/`              | ~6,000 | Rain simulation, monolith, render pipeline, ecosystem, phosphor, ghost events |
+| `cosmic_dragon_engine/cloud/`              | ~8,858 | Rain simulation, monolith, render pipeline, ecosystem, phosphor, ghost events (production) |
+| `cosmic_dragon_engine/cloud/tests/`        | ~9,177 | Comprehensive test suite: scene, monolith, quantum, phosphor, edge fade, anomaly, visual depth, color stability |
 | `cosmic_dragon_engine/frame.rs`           |    404 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `cosmic_dragon_engine/terminal/`           | ~1,500 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, `/dev/tty` fallback |
+| `cosmic_dragon_engine/terminal/`           |  ~2,250 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, `/dev/tty` fallback (production) |
 | `cosmic_dragon_engine/runtime.rs`          |    312 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
+| `cosmic_dragon_engine/mod.rs`             |     62 | Top-level module doc + re-exports                                         |
 
-**Total**: ~8,200 LOC of substantive rendering engine code.
+**Total**: ~11,886 LOC production + ~9,366 LOC test suite = ~21,252 LOC.
 
 ## Modification Protocol
 
