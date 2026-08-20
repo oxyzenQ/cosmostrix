@@ -151,15 +151,24 @@ probe_bin() {
 
 # Extract profile label from binary path for reporting.
 # e.g. target/x86_64-unknown-linux-gnu/pro-linux-v4/cosmostrix → pro-linux-v4
-#      target/release/cosmostrix → release
+#      /abs/path/target/release/cosmostrix → release
 bin_profile_label() {
         local bin="$1"
-        local rel="${bin#$ROOT_DIR/target/}"
-        # Strip leading <triple>/ if present
+        local rel
+        # Try absolute ROOT_DIR/target/ prefix first
+        rel="${bin#$ROOT_DIR/target/}"
+        # If unchanged, strip leading "target/" or any path up to "/target/"
+        if [[ "$rel" == "$bin" ]]; then
+                rel="${bin#target/}"
+                # Also handle cases like ./target/ or /any/path/target/
+                if [[ "$rel" == "$bin" ]]; then
+                        rel="${bin##*/target/}"
+                fi
+        fi
+        # Strip leading <triple>/ if present (3+ path components)
         if [[ "$rel" == */*/* ]]; then
                 rel="${rel#*/}"
         fi
-        # Extract profile directory
         echo "${rel%%/*}"
 }
 
