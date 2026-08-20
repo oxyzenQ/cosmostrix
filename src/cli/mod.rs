@@ -266,7 +266,20 @@ pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
                 "error: unknown color '{s}'\n\n  Did you mean '{name}'?\n  Use --list-colors to see all available colors."
             )
         } else {
-            format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
+            // Hint: if the name isn't a builtin color, it might be a custom
+            // palette defined in config.toml. Custom palettes are loaded via
+            // --colors-custom, not --color / -c. This catches the common
+            // confusion where users type `-c cyberpunk_2077` instead of
+            // `--colors-custom cyberpunk_2077`.
+            let mut msg = format!(
+                "error: unknown color '{s}'\n\n  Use --list-colors to see available colors."
+            );
+            if s.contains('_') || s.contains('-') {
+                msg.push_str(&format!(
+                    "\n  If '{s}' is a custom palette defined in your config.toml,\n  use: cosmostrix --colors-custom {s}"
+                ));
+            }
+            msg
         }
     })
 }
