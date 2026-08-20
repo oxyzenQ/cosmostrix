@@ -1,16 +1,16 @@
-# Cloud Xeon Benchmark
+# Bench Labs
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-Third-party hardware verification: cosmostrix v50.0.0-beta.2 on a 2-vCPU
-Intel Xeon cloud VM (Alibaba Cloud Linux, kernel 5.10). Includes a
-full size sweep from 4x4 (engine minimum) to 7680x4320 (8K UHD).
+Hardware-verified benchmark results for cosmostrix. Covers a full size
+sweep from 4x4 (engine minimum) to 7680x4320 (8K UHD) on the
+current host.
 
 ## Environment
 
 | Item | Value |
 |---|---|
-| CPU | Intel Xeon @ 3200 MHz (2 vCPUs, no SMT) |
+| CPU | Intel(R) Xeon(R) Processor @ 3200 MHz (2 vCPUs, no SMT) |
 | RAM | 3.9 GiB, no swap |
 | OS | Alibaba Cloud Linux 5.10, glibc |
 | Rust | 1.97.1 |
@@ -23,42 +23,35 @@ All sizes use `--bench-scene lean --scene monolith`. Duration is adaptive:
 5s for <5K cells, 3s for 5K-500K, 2s for >500K cells.
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
-|------|------:|--------:|---------:|---------:|---------------:|-----------:|-----------|
-| 4x4 | 16 | 1,439,837 | 994,036 | 0.001 | 0.5 | 3.7 | excellent |
-| 20x6 | 120 | 665,888 | 999,001 | 0.002 | 3.0 | 3.7 | excellent |
-| 80x24 | 1,920 | 97,141 | 133,976 | 0.014 | 56.8 | 4.5 | excellent |
-| 120x40 | 4,800 | 56,803 | 73,000 | 0.023 | 107.4 | 4.5 | excellent |
-| 200x80 | 16,000 | 30,004 | 36,895 | 0.043 | 220.4 | 5.4 | excellent |
-| 480x160 | 76,800 | 11,260 | 13,019 | 0.110 | 597.1 | 9.0 | excellent |
-| 960x270 | 259,200 | 4,842 | 5,585 | 0.255 | 1,279.1 | 19.6 | excellent |
-| 1920x540 | 1,036,800 | 4,022 | 4,717 | 0.313 | 1,387.3 | 61.5 | excellent |
-| 3840x1080 | 4,147,200 | 3,962 | 4,686 | 0.324 | 1,376.7 | 216.6 | excellent |
-| 7680x4320 | 33,177,600 | 2,907 | 4,648 | 0.348 | 1,375.3 | 1,610 | high |
+|------|------:|--------:|---------:|---------:|---------------:|-----------:|----------|
+| 4x4 | 16 | 1,448,741 | 987,167 | 0.001 | 0.5 | 4 | excellent |
+| 20x6 | 120 | 692,257 | 999,001 | 0.002 | 3.0 | 4 | excellent |
+| 80x24 | 1,920 | 96,971 | 133,815 | 0.015 | 56.7 | 4 | excellent |
+| 120x40 | 4,800 | 55,899 | 73,584 | 0.023 | 107.3 | 4 | excellent |
+| 200x80 | 16,000 | 28,958 | 36,220 | 0.063 | 221.3 | 5 | excellent |
+| 480x160 | 76,800 | 11,369 | 12,963 | 0.110 | 596.9 | 9 | excellent |
+| 960x270 | 259,200 | 4,965 | 5,707 | 0.249 | 1,271.9 | 20 | excellent |
+| 1920x540 | 1,036,800 | 4,115 | 4,824 | 0.309 | 1,386.8 | 62 | excellent |
+| 3840x1080 | 4,147,200 | 4,098 | 4,774 | 0.313 | 1,384.1 | 218 | excellent |
+| 7680x4320 | 33,177,600 | 3,864 | 4,824 | 0.334 | 1,380.1 | 1,649 | moderate |
 
 FPS scales sub-linearly with cell count thanks to differential rendering.
-Dirty cell count plateaus ~1,375 cells/frame above 960x270 — the
+Dirty cell count plateaus ~1,380 cells/frame above 960x270 — the
 monolith scene produces a fixed number of active streams regardless
 of grid size, so larger grids just have more empty space.
 
-At 8K (33M cells), memory pressure shifts to the allocator (564 MiB
+At 8K (33M cells), memory pressure shifts to the allocator (538 MiB
 heap retained, 1.6 GiB RSS) and frame-time stability degrades to
-"high". This is a memory benchmark, not a render benchmark — the
+"moderate". This is a memory benchmark, not a render benchmark — the
 engine itself remains compute-bound at all practical sizes.
-
-## Scenario Comparison (120x40)
-
-| Scene | Avg FPS | p99 (ms) | Dirty cells/f | Heap retained |
-|---|---:|---:|---:|---:|
-| lean + monolith (zen) | 56,803 | 0.023 | 107.4 | 86 KiB |
-| lean + matrix (katakana) | 10,896 | 0.137 | 978.6 | 102 KiB |
-| production-draw (monolith) | 26,211 | 0.056 | 107.3 | 0 |
 
 ## Notes
 
 - Zero memory leaks across all sizes; `frame_time_stability: excellent` up to 4K.
 - RAPL energy and perf microarchitecture counters unavailable (cloud VM).
-- Raw logs: `sweep_*_20260819_201133.txt`, `run{1,2,3}_*.txt` in this directory.
-- Sweep CSV: `sweep_20260819_201133.csv`.
+- Regenerate with: `./benchmark/benchmark.sh sweep --auto` (requires Rust toolchain)
+  or `SWEEP_BIN=target/<triple>/pro-linux-v4/cosmostrix ./benchmark/benchmark.sh sweep`
+- Raw logs and CSV are generated alongside this file in `benchmark/bench-labs/`.
 
 ## See Also
 
