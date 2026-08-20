@@ -2,15 +2,21 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # Dedicated CI for documentation and text file changes.
-# Triggers on any *.md, *.txt, *.rst, LICENSE, NOTICE, AUTHORS change.
+# Triggers on any *.md, *.txt, *.rst change OR Rust source change.
+#
+# Rust source triggers spelling check because src/ contains doc
+# comments (///) that may introduce typos visible in rustdoc.
 #
 # Separated from ci.yml (source code CI) for strict path isolation:
 # - ci.yml           -> src/**, Cargo.*, scripts/*, etc.
 # - workflow-ci.yml   -> .github/** only
-# - shellcheck.yml    -> **.sh
-# - docs-ci.yml       -> *.md, *.txt, *.rst (this file)
+# - shellcheck.yml    -> **.sh + src/**
+# - docs-ci.yml       -> *.md, *.txt, *.rst + src/** (this file)
+# - miri.yml         -> src/** (weekly + push)
+# - codeql.yml       -> src/** + scripts + other langs
 # - release.yml       -> tags only (v*)
 # - maintenance.yml   -> scheduled + manual
+# - aur.yml           -> manual dispatch only
 
 name: Cosmic Dragon - Docs CI
 
@@ -23,6 +29,7 @@ name: Cosmic Dragon - Docs CI
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
+      - 'src/**'
   pull_request:
     paths:
       - '**.md'
@@ -31,6 +38,7 @@ name: Cosmic Dragon - Docs CI
       - 'LICENSE'
       - 'NOTICE'
       - 'AUTHORS'
+      - 'src/**'
 
 permissions:
   contents: read
@@ -53,10 +61,10 @@ jobs:
       - name: Check documentation files
         run: |
           if [ -f .codespellrc ]; then
-            find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' \) -print0 \
+            find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' -o -name '*.rs' \) -print0 \
               | xargs -0r codespell --config .codespellrc
           else
-            find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' \) -print0 \
+            find . -type f \( -name '*.md' -o -name '*.txt' -o -name '*.rst' -o -name '*.rs' \) -print0 \
               | xargs -0r codespell
           fi
 

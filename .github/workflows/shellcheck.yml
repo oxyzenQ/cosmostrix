@@ -2,12 +2,18 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # Shell lint CI — runs shellcheck on every *.sh file in the repository.
-# Triggers whenever any shell script is added, modified, or deleted.
+# Triggers whenever any shell script OR Rust source file is changed.
 #
 # Covers:
 #   scripts/*.sh          (build, install, check-*, generate-*, etc.)
 #   benchmark/*.sh        (benchmark runner)
 #   any future *.sh files
+#
+# Also triggers on src/** changes so that a full CI gate runs on every
+# Rust commit — owner wants all lints evaluated regardless of which
+# files changed.
+#
+# Excluded: aur.yml, release.yml (tag-only / manual dispatch).
 #
 # Separated from workflow-ci.yml (which lints workflow YAML) and ci.yml
 # (which compiles Rust) for strict path-isolated triggers.
@@ -19,10 +25,12 @@ name: Shell Lint
     branches: ["main"]
     paths:
       - '**.sh'
+      - 'src/**'
   pull_request:
     branches: ["main"]
     paths:
       - '**.sh'
+      - 'src/**'
 
 permissions:
   contents: read
