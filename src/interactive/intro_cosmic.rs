@@ -53,7 +53,7 @@ pub(crate) const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
 /// burst alternates gold (energy), purple (brand), and cyan (plasma).
 const COSMIC_COLORS_RGB: [(u8, u8, u8); 3] = [
     (255, 200, 0),  // bright gold
-    (168, 85, 247), // purple (brand)
+    (168, 85, 247), // purple (brand) — replaced by logo_color when intro-color is set
     (0, 255, 255),  // cyan
 ];
 
@@ -97,6 +97,7 @@ pub(super) fn run_cosmic_intro(
     cloud: &Cloud,
     w: u16,
     h: u16,
+    logo_color: (u8, u8, u8),
 ) -> std::io::Result<()> {
     let mut rng = seed_rng();
 
@@ -159,6 +160,7 @@ pub(super) fn run_cosmic_intro(
                         center_x,
                         center_y,
                         BURST_PARTICLE_COUNT,
+                        logo_color,
                     );
                 }
             }
@@ -283,15 +285,28 @@ pub(super) fn run_cosmic_intro(
 /// `[BURST_SPEED_MIN, BURST_SPEED_MAX)`, and a random spiral rate
 /// within `[SPIRAL_RATE_MIN, SPIRAL_RATE_MAX)`. Color is sampled from
 /// [`COSMIC_COLORS_RGB`]; glyph from [`BURST_CHARS`].
-fn spawn_burst(pool: &mut ParticlePool, rng: &mut XorShift, cx: f32, cy: f32, count: u32) {
+fn spawn_burst(
+    pool: &mut ParticlePool,
+    rng: &mut XorShift,
+    cx: f32,
+    cy: f32,
+    count: u32,
+    logo_color: (u8, u8, u8),
+) {
     for _ in 0..count {
         let angle = rng.next_f32() * std::f32::consts::TAU;
         let speed = lerp(BURST_SPEED_MIN, BURST_SPEED_MAX, rng.next_f32());
         let spiral_rate = lerp(SPIRAL_RATE_MIN, SPIRAL_RATE_MAX, rng.next_f32())
             * if rng.next_f32() < 0.5 { -1.0 } else { 1.0 };
         let (vx, vy) = (angle.cos() * speed, angle.sin() * speed);
-        let color_idx = (rng.next_u32() % COSMIC_COLORS_RGB.len() as u32) as usize;
-        let (r, g, b) = COSMIC_COLORS_RGB[color_idx];
+        // Build color array with logo_color replacing the default purple
+        let cosmic_colors = [
+            COSMIC_COLORS_RGB[0], // gold (accent, always default)
+            logo_color,           // brand color (purple by default, intro-color override when set)
+            COSMIC_COLORS_RGB[2], // cyan (accent, always default)
+        ];
+        let color_idx = (rng.next_u32() % cosmic_colors.len() as u32) as usize;
+        let (r, g, b) = cosmic_colors[color_idx];
         let ch = BURST_CHARS[(rng.next_u32() % BURST_CHARS.len() as u32) as usize];
         // Slight positional jitter so particles don't all overlap at spawn.
         let x = cx + (rng.next_f32() - 0.5) * 1.5;
@@ -648,7 +663,7 @@ mod tests {
     fn spawn_burst_populates_pool() {
         let mut pool = ParticlePool::new();
         let mut rng = XorShift::new(123);
-        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50);
+        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50, (168, 85, 247));
         assert_eq!(pool.active_count(), 50);
         // Each spawned particle should have valid polar + cartesian fields.
         for p in &pool.particles {
@@ -680,7 +695,7 @@ mod tests {
         }
         let mut rng = XorShift::new(456);
         // spawn_burst should silently bail when the pool is full.
-        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50);
+        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50, (168, 85, 247));
         // No new particles spawned — i.e., no particle should have
         // `active == true` since we filled the pool with INACTIVE (which
         // has `active: false`) and spawn_burst couldn't replace any of them.

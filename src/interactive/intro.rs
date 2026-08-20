@@ -147,6 +147,7 @@ pub(crate) fn run_intro(
     w: u16,
     h: u16,
     intro_type: IntroType,
+    logo_color: (u8, u8, u8),
 ) -> std::io::Result<()> {
     if intro_type == IntroType::None {
         return Ok(());
@@ -162,8 +163,10 @@ pub(crate) fn run_intro(
     }
 
     match intro_type {
-        IntroType::Cosmic => super::intro_cosmic::run_cosmic_intro(term, frame, cloud, w, h),
-        IntroType::Logo => super::intro_logo::run_logo_intro(term, frame, cloud, w, h),
+        IntroType::Cosmic => {
+            super::intro_cosmic::run_cosmic_intro(term, frame, cloud, w, h, logo_color)
+        }
+        IntroType::Logo => super::intro_logo::run_logo_intro(term, frame, cloud, w, h, logo_color),
         IntroType::None => Ok(()),
     }
 }

@@ -79,16 +79,26 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     if cfg.intro != crate::config::IntroType::None {
-        // v50: intro-color override — build a separate cloud with the
-        // intro color palette so the intro animation uses a different
-        // color than the rain. When intro_color is None, the intro uses
-        // the rain cloud's palette (current behavior, unchanged).
+        // v50: intro-color override — when set, the intro animation uses
+        // the specified color theme's head color as its brand color
+        // (replacing the default purple #A855F7). The intro cloud gets
+        // a separate palette built from the intro-color theme.
+        let default_logo_color: (u8, u8, u8) = (168, 85, 247); // brand purple
         if let Some(ref intro_color) = cfg.intro_color {
             let intro_scheme = crate::theme::lookup_theme(intro_color);
             if let Some(scheme) = intro_scheme {
                 let mut intro_cloud = cfg.create_cloud(density);
                 intro_cloud.set_color_scheme(scheme);
-                super::intro::run_intro(&mut term, &mut frame, &intro_cloud, w, h, cfg.intro)?;
+                let logo_color = super::intro::palette_target_rgb(&intro_cloud);
+                super::intro::run_intro(
+                    &mut term,
+                    &mut frame,
+                    &intro_cloud,
+                    w,
+                    h,
+                    cfg.intro,
+                    logo_color,
+                )?;
             } else {
                 // Custom palette — try loading from config
                 let cfg_map = crate::configfile::load_config_file(None);
@@ -97,14 +107,39 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 {
                     let mut intro_cloud = cfg.create_cloud(density);
                     intro_cloud.palette = palette;
-                    super::intro::run_intro(&mut term, &mut frame, &intro_cloud, w, h, cfg.intro)?;
+                    let logo_color = super::intro::palette_target_rgb(&intro_cloud);
+                    super::intro::run_intro(
+                        &mut term,
+                        &mut frame,
+                        &intro_cloud,
+                        w,
+                        h,
+                        cfg.intro,
+                        logo_color,
+                    )?;
                 } else {
                     // Fallback: use rain cloud (color validation failed silently)
-                    super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
+                    super::intro::run_intro(
+                        &mut term,
+                        &mut frame,
+                        &cloud,
+                        w,
+                        h,
+                        cfg.intro,
+                        default_logo_color,
+                    )?;
                 }
             }
         } else {
-            super::intro::run_intro(&mut term, &mut frame, &cloud, w, h, cfg.intro)?;
+            super::intro::run_intro(
+                &mut term,
+                &mut frame,
+                &cloud,
+                w,
+                h,
+                cfg.intro,
+                default_logo_color,
+            )?;
         }
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);

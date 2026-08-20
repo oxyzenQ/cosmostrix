@@ -109,6 +109,8 @@ const LOGO_ART: &str = concat!(
 /// (was test-only + had a tautology test asserting it equals the RGB
 /// tuple form). `LOGO_COLOR_RGB` is the single canonical form — when a
 /// `Color` is needed (rare), construct it inline: `Color::Rgb { r: 168, g: 85, b: 247 }`.
+/// Default brand purple — kept for reference. Replaced by the logo_color parameter at runtime.
+#[allow(dead_code)]
 const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -342,6 +344,7 @@ pub(super) fn run_logo_intro(
     cloud: &Cloud,
     w: u16,
     h: u16,
+    logo_color: (u8, u8, u8),
 ) -> std::io::Result<()> {
     let (lines, logo_w, logo_h) = parse_logo_art(w, h);
     // Defensive: parse_logo_art scales to fit, so this is a fallback.
@@ -487,7 +490,7 @@ pub(super) fn run_logo_intro(
                 }
                 let cell_brightness = base_brightness;
                 // Blend between white (impact) and purple (logo color).
-                let purple = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, cell_brightness.clamp(0.0, 1.0));
+                let purple = lerp_rgb((0, 0, 0), logo_color, cell_brightness.clamp(0.0, 1.0));
                 let color = lerp_rgb((255, 255, 255), purple, white_blend);
                 frame.set_force(
                     tx,
@@ -534,7 +537,7 @@ pub(super) fn run_logo_intro(
                     } else {
                         ('║', 0.2)
                     };
-                    let laser_color = lerp_rgb((0, 0, 0), LOGO_COLOR_RGB, brightness);
+                    let laser_color = lerp_rgb((0, 0, 0), logo_color, brightness);
                     let laser_color = if is_core && dist_from_tip == 0 {
                         lerp_rgb(laser_color, (255, 255, 255), 0.5)
                     } else {
