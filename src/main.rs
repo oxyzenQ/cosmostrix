@@ -675,6 +675,10 @@ fn main() -> std::io::Result<()> {
         args.scene = Some("monolith".to_string());
     }
 
+    // v50: Power Dragon defaults to true (protection enabled).
+    // config_apply can override to false via `power-dragon = false` in config.toml.
+    args.power_dragon = true;
+
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
         ux::die_config(e);
     }
@@ -1110,6 +1114,7 @@ fn main() -> std::io::Result<()> {
         user_ranges,
         def_ascii,
         crystal_dragon: args.crystal_dragon,
+        power_dragon: args.power_dragon,
         monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the

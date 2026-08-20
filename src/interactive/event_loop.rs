@@ -1005,7 +1005,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // 250ms cadence.
         // (Phase 3): PowerManager.effective_fps() replaces the
         // target_period / idle_period / pause_period Duration cascade.
-        let frame_period = Duration::from_secs_f64(1.0 / power_manager.effective_fps(cloud.pause));
+        let frame_period = Duration::from_secs_f64(
+            1.0 / power_manager.effective_fps(cloud.pause, cfg.power_dragon),
+        );
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
         // v30 (2026-08-05): announce frame pacing mode to the HUD so the
         // `tgt:` line can show an `idle` / `paused` suffix. Cheap (one enum
@@ -1289,7 +1291,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // spawn-scale + disables glitches. User's color/charset/
                 // density/speed/glitch_level are NEVER touched. Flag clears
                 // on pressure recovery.
-                if !self_healer.is_downgraded() {
+                // v50: when power_dragon is false, skip throttle entirely
+                // (owner Option D — user can disable adaptive protection).
+                if cfg.power_dragon && !self_healer.is_downgraded() {
                     self_healer.record_downgrade(&scene_name);
                     cloud.set_aggressive_throttle(true);
                     crate::live_config::push_runtime_warning(&format!(

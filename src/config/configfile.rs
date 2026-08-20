@@ -43,6 +43,10 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "shadingmode",
     "color-bg",
     "crystal-dragon",
+    // v50: Power Dragon toggle. When false, disables aggressive_throttle
+    // and idle FPS reduction — rain stays at user-configured density/speed
+    // regardless of CPU pressure. Default: true (protection enabled).
+    "power-dragon",
     "async-mode",
     // (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
     // The atmosphere engine was eliminated at commit 07b44b5 (2026-08-05),
@@ -614,6 +618,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # glitch-level = "subtle"           # none | subtle | default | intense (cinematic default)
 # crystal-dragon = false            # Crystal Dragon ambient color drift (point-based temperature groups)
+# power-dragon = true               # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings)
 # bold = 1                          # 0=off, 1=random, 2=all
 # shadingmode = 1                   # 0=random, 1=cinematic
 

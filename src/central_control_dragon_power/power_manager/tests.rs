@@ -34,7 +34,7 @@ fn power_manager_clamps_zero_base_fps_to_one() {
     let now = Instant::now();
     let pm = PowerManager::new(0.0, now);
     assert_eq!(pm.base_target_fps(), 1.0);
-    let fps = black_box(pm).effective_fps(false);
+    let fps = black_box(pm).effective_fps(false, true);
     assert!(fps.is_finite() && fps > 0.0);
 }
 
@@ -121,14 +121,14 @@ fn effective_fps_active_returns_base() {
     let now = Instant::now();
     let pm = PowerManager::new(144.0, now);
     // No idle (just constructed, was_active=true).
-    assert!((pm.effective_fps(false) - 144.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, true) - 144.0).abs() < 1e-6);
 }
 
 #[test]
 fn effective_fps_paused_returns_4_fps() {
     let now = Instant::now();
     let pm = PowerManager::new(144.0, now);
-    let paused_fps = black_box(pm).effective_fps(true);
+    let paused_fps = black_box(pm).effective_fps(true, true);
     let expected = 1000.0 / PAUSE_PERIOD_MS as f64;
     assert!((paused_fps - expected).abs() < 1e-6);
     // PAUSE_PERIOD_MS = 250 → 4 FPS.
@@ -144,7 +144,7 @@ fn effective_fps_idle_applies_idle_factor() {
     let is_idle = pm.begin_frame(later);
     assert!(is_idle, "should be idle after threshold+1s with no input");
 
-    let idle_fps = pm.effective_fps(false);
+    let idle_fps = pm.effective_fps(false, true);
     let expected = 60.0 * IDLE_FPS_FACTOR;
     assert!((idle_fps - expected).abs() < 1e-6);
 }
@@ -158,7 +158,7 @@ fn effective_fps_paused_overrides_idle() {
     assert!(pm.is_idle());
 
     // Paused must win over idle.
-    let fps = pm.effective_fps(true);
+    let fps = pm.effective_fps(true, true);
     assert!((fps - 4.0).abs() < 1e-6);
 }
 
@@ -166,10 +166,10 @@ fn effective_fps_paused_overrides_idle() {
 fn set_target_fps_updates_effective_fps() {
     let now = Instant::now();
     let mut pm = PowerManager::new(60.0, now);
-    assert!((pm.effective_fps(false) - 60.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, true) - 60.0).abs() < 1e-6);
 
     pm.set_target_fps(120.0);
-    assert!((pm.effective_fps(false) - 120.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, true) - 120.0).abs() < 1e-6);
 }
 
 // ── is_idle / begin_frame ─────────────────────────────────────────────
@@ -360,5 +360,5 @@ fn power_manager_uses_thresholds_for_idle_fps_factor() {
     assert!(pm.is_idle());
 
     // 60 * 0.25 = 15 FPS.
-    assert!((pm.effective_fps(false) - 15.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, true) - 15.0).abs() < 1e-6);
 }

@@ -54,7 +54,7 @@ fn audit_power_manager_owns_all_three_read_paths() {
 
     // All three reads are available through PowerManager.
     let _pressure: f32 = pm.effective_pressure();
-    let _fps: f64 = pm.effective_fps(false);
+    let _fps: f64 = pm.effective_fps(false, true);
     let _idle: bool = pm.is_idle();
 
     // The values are consistent with the construction state:
@@ -64,7 +64,7 @@ fn audit_power_manager_owns_all_three_read_paths() {
     assert_eq!(pm.effective_pressure(), 0.0, "pressure must start at 0");
     assert!(!pm.is_idle(), "must start active");
     assert!(
-        (pm.effective_fps(false) - 60.0).abs() < 1e-6,
+        (pm.effective_fps(false, true) - 60.0).abs() < 1e-6,
         "active fps must equal base"
     );
 }
@@ -78,10 +78,10 @@ fn audit_effective_fps_is_single_owner() {
     let mut pm = PowerManager::new(120.0, now);
 
     // Active → base.
-    assert!((pm.effective_fps(false) - 120.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, true) - 120.0).abs() < 1e-6);
 
     // Paused → 4 FPS (overrides everything).
-    assert!((pm.effective_fps(true) - 4.0).abs() < 1e-6);
+    assert!((pm.effective_fps(true, true) - 4.0).abs() < 1e-6);
 
     // Idle → base × IDLE_FPS_FACTOR.
     let later = now + Duration::from_secs_f64(IDLE_THRESHOLD_SECS + 1.0);
@@ -89,12 +89,12 @@ fn audit_effective_fps_is_single_owner() {
     assert!(pm.is_idle());
     let expected_idle_fps = 120.0 * IDLE_FPS_FACTOR;
     assert!(
-        (pm.effective_fps(false) - expected_idle_fps).abs() < 1e-6,
+        (pm.effective_fps(false, true) - expected_idle_fps).abs() < 1e-6,
         "idle fps must be base × factor"
     );
 
     // Paused still wins over idle.
-    assert!((pm.effective_fps(true) - 4.0).abs() < 1e-6);
+    assert!((pm.effective_fps(true, true) - 4.0).abs() < 1e-6);
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -291,7 +291,7 @@ fn audit_frame_lifecycle_stable_across_synthetic_run() {
         let _is_idle = pm.begin_frame(t);
 
         // Effective FPS must always be positive and finite.
-        let fps = pm.effective_fps(false);
+        let fps = pm.effective_fps(false, true);
         assert!(
             fps.is_finite() && fps > 0.0,
             "fps must be positive at frame {frame}"

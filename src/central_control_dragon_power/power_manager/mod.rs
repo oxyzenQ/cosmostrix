@@ -324,11 +324,13 @@ impl PowerManager {
     ///
     /// This mirrors the previous `if cloud.pause / elif is_idle / else`
     /// cascade in `event_loop.rs:965-972`.
+    /// v50: when `power_dragon_enabled` is false, idle FPS reduction
+    /// is skipped (owner Option D — user can disable adaptive protection).
     #[must_use]
-    pub(crate) fn effective_fps(&self, paused: bool) -> f64 {
+    pub(crate) fn effective_fps(&self, paused: bool, power_dragon_enabled: bool) -> f64 {
         if paused {
             1000.0 / PAUSE_PERIOD_MS as f64
-        } else if self.is_idle() {
+        } else if power_dragon_enabled && self.is_idle() {
             self.base_target_fps * self.thresholds.idle_fps_factor
         } else {
             self.base_target_fps

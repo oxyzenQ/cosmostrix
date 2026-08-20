@@ -105,6 +105,9 @@ pub struct CloudConfig {
     pub def_ascii: bool,
     /// Crystal Dragon Engine: ambient intelligence for palette drift.
     pub crystal_dragon: bool,
+    /// v50: Power Dragon toggle. When false, disables aggressive_throttle
+    /// and idle FPS reduction. Default: true (protection enabled).
+    pub power_dragon: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -330,6 +333,7 @@ impl CloudConfig {
             user_ranges: self.user_ranges.clone(),
             def_ascii: self.def_ascii,
             crystal_dragon: self.crystal_dragon,
+            power_dragon: self.power_dragon,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),

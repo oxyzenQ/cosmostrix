@@ -141,6 +141,7 @@ fn minimal_cloud_config() -> crate::app::CloudConfig {
         user_ranges: vec![],
         def_ascii: false,
         crystal_dragon: false,
+        power_dragon: true,
         monolith_density_map: None,
         config_path_for_watcher: None,
         scene_name: "test-scene".to_string(),

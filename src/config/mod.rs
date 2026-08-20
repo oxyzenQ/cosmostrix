@@ -686,6 +686,18 @@ pub struct Args {
     )]
     pub crystal_dragon: bool,
 
+    /// v50: Power Dragon toggle (config-only, no CLI flag).
+    /// When false: disables aggressive_throttle + idle FPS reduction.
+    /// Default: true (protection enabled). Set via `power-dragon = false`
+    /// in config.toml. When false, rain stays at user-configured
+    /// density/speed regardless of CPU pressure.
+    #[arg(skip)]
+    pub power_dragon: bool,
+
+    // Helper: default true for power_dragon (clap defaults bool to false,
+    // so we set it true in main.rs after parse).
+    // The config_apply.rs parse path overrides this when config.toml
+    // has `power-dragon = false`.
     #[arg(
         short = 'g',
         long = "glitchms",

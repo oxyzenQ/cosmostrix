@@ -427,6 +427,15 @@ fn apply_config_values(
             config_touched.insert("crystal_dragon");
         }
     }
+    // v50: power-dragon config key. When false, disables adaptive
+    // throttle + idle FPS reduction (power dragon stays inactive).
+    // Default: true (protection enabled). Config-only (no CLI flag).
+    if let Some(v) = cfg.get("power-dragon").or_else(|| cfg.get("power_dragon")) {
+        if let Some(b) = parse_bool_config("power-dragon", v) {
+            args.power_dragon = b;
+            config_touched.insert("power-dragon");
+        }
+    }
     // v17: --async flag removed (always on). Config key 'async-mode' still
     // respected for users who want to disable it via config. No is_explicit
     // check needed since the CLI flag is gone.
