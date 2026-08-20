@@ -122,7 +122,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 | 19 | `docs/COSMIC_DRAGON_EXPLORATION.md` (389 LOC) | ARCHIVE — references obsolete version numbers; conclusions already in PHILOSOPHY.md | -389 LOC |
 | 20 | `docs/COSMIC_DRAGON_FINDINGS.md` (242 LOC) | ARCHIVE — measurements superseded by PERFORMANCE_ACROSS_SCALES.md | -242 LOC |
 | 21 | `UNSAFE_SOUNDNESS_AUDIT.md` + `FLAGS_AUDIT_dead_weight.md` (873 LOC) | ARCHIVE — closed reports with zero live refs (except 1 user-facing error msg in `validation.rs:74`) | -873 LOC |
-| 22 | `benchmark/hyperfine.md` + 4× `perf|time-*.txt` + `cloud-xeon/` (33 KB) | DELETE + ARCHIVE — 1-shot artifacts with hardcoded dead paths | -33 KB |
+| 22 | `benchmark/hyperfine.md` + 4× `perf|time-*.txt` + `bench-labs/` (stale) | DELETE + ARCHIVE — 1-shot artifacts with hardcoded dead paths |
 | 23 | `CHANGELOG.md` (112 KB, 2,404 LOC, 36 versions) | ARCHIVE pre-v13 (~700 LOC). MUST preserve v3.9.0 + v4.0.0 + "568 deterministic tests" (test-locked by `docs_tests/metadata.rs`) | -700 LOC from live tree |
 | 24 | `docs/research/FUTURE_BACKLOG.md` (341 LOC) | CONDENSE to ~50 LOC — closure-status table duplicated in PHASE5_FINAL | -291 LOC |
 

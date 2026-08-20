@@ -252,7 +252,7 @@ Release benchmark from `pro-linux-v3` binary (commit `585bcac`,
 2026-08-02). Auto-detected 88×32 terminal size. 10s duration per run
 (plus one 60s endurance run). Cachyos LTS kernel 6.18.40, schedutil
 governor, SMT on. Superseded by the v50 4-scene matrix in
-[docs/BENCHMARKING.md §5](../docs/BENCHMARKING.md#5-v50-reference-results-cloud-xeon-4-scene-matrix).
+[docs/BENCHMARKING.md](../docs/BENCHMARKING.md).
 
 - Binary version: `v30.0.0-alpha.1` (historical)
 - Commit: `585bcac`
