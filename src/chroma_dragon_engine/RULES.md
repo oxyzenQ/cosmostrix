@@ -42,7 +42,7 @@ Before opening a PR that touches any locked file, you MUST:
    ```bash
    cargo test --quiet chroma::tests::lock
    ```
-   All 18 invariants must pass before AND after your change. If your
+   All 19 invariants must pass before AND after your change. If your
    change intentionally modifies a public contract, you MUST update the
    lock suite in the same commit.
 
@@ -126,7 +126,7 @@ the lock commit. Newest entries go at the TOP.
 - color_transition_delta: <before> → <after> (Δ <+/-%>)
 - stability signals: <MATCH or list any changes>
 
-**Lock suite**: <N>/18 invariants pass (must be 18/18 unless the
+**Lock suite**: <N>/19 invariants pass (must be 19/19 unless the
 contract intentionally changed, in which case update the count)
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
@@ -157,7 +157,7 @@ code path modified.
 - color_transition_delta: 0.00 → 0.00 (Δ 0%)
 - stability signals: MATCH
 
-**Lock suite**: 18/18 invariants pass (1 invariant updated: theme count
+**Lock suite**: 19/19 invariants pass (1 invariant updated: theme count
 44 → 45)
 
 **Visual audit**: PASS — masterclass brightness profile preserved.

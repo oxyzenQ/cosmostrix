@@ -172,7 +172,7 @@ test suite.
 | 9-A   | Hue-preserving polar gradient | ✅ Locked |
 | 9-B   | Lock suite (18 invariants) | ✅ Locked |
 | 9-C   | sRGB-linear fallback removal | ✅ Locked |
-| 9-D   | Final perceptual lock | ✅ **Locked here** |
+| 9-D   | ColorPipeline + legacy audit (19 invariants) | ✅ **Locked here** |
 
 ## Modification Protocol
 
