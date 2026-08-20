@@ -75,7 +75,7 @@ COMMON OPTIONS:
   -s, --screensaver
       Screensaver mode. Only 'q' exits — all other keys are silently
       ignored (no accidental exit). Recognized keys
-      (c/s/x/p/i/h, Space, Up/Down, 0-9, etc.) still work for
+      (c/s/x/p/i, Space, Up/Down, 0-9, etc.) still work for
       interactive control — cycle colors, toggle HUD, pause, etc.
       Mouse click does NOT exit (v17: removed for consistency with the
       only-q-quits policy). Mouse events are still captured to block
