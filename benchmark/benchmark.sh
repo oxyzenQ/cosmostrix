@@ -156,7 +156,7 @@ bin_profile_label() {
         local bin="$1"
         local rel
         # Try absolute ROOT_DIR/target/ prefix first
-        rel="${bin#$ROOT_DIR/target/}"
+        rel="${bin#"$ROOT_DIR"/target/}"
         # If unchanged, strip leading "target/" or any path up to "/target/"
         if [[ "$rel" == "$bin" ]]; then
                 rel="${bin#target/}"
@@ -322,14 +322,16 @@ run_sweep() {
         local cpu_model=""
         cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.brand_string 2>/dev/null || true)
 
-        echo "# Cosmostrix Size Sweep" > "$summary_file"
-        echo "" >> "$summary_file"
-        echo "Binary: \`$(basename "$bin")\`" >> "$summary_file"
-        echo "Date: \`$(date -Iseconds)\`" >> "$summary_file"
-        echo "Profile: \`${profile_label}\`" >> "$summary_file"
-        echo "Target: \`${HOST_TARGET}\`" >> "$summary_file"
-        [[ -n "$cpu_model" ]] && echo "CPU: \`${cpu_model}\`" >> "$summary_file"
-        echo "" >> "$summary_file"
+        {
+            echo "# Cosmostrix Size Sweep"
+            echo ""
+            echo "Binary: \`$(basename "$bin")\`"
+            echo "Date: \`$(date -Iseconds)\`"
+            echo "Profile: \`${profile_label}\`"
+            echo "Target: \`${HOST_TARGET}\`"
+            [[ -n "$cpu_model" ]] && echo "CPU: \`${cpu_model}\`"
+            echo ""
+        } > "$summary_file"
 
         # CSV header
         echo "size_label,cols,lines,cells,scene,avg_fps,peak_fps,p99_frame_ms,avg_dirty_cells,dirty_ratio_pct,peak_rss_mib,heap_retained_kib,fps_drift_pct,frame_time_stability,avg_frame_ms" > "$csv_file"
@@ -408,19 +410,23 @@ run_sweep() {
         echo "Generating summary table..."
 
         # Build markdown table from CSV
-        echo "## Results" >> "$summary_file"
-        echo "" >> "$summary_file"
-        echo "| Size | Cells | Scene | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/frame | RSS (MiB) | Stability |" >> "$summary_file"
-        echo "|------|------:|-------|--------:|---------:|---------:|------------------:|-----------:|-----------|" >> "$summary_file"
+        {
+            echo "## Results"
+            echo ""
+            echo "| Size | Cells | Scene | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/frame | RSS (MiB) | Stability |"
+            echo "|------|------:|-------|--------:|---------:|---------:|------------------:|-----------:|-----------|"
+        } >> "$summary_file"
 
         tail -n +2 "$csv_file" | while IFS=, read -r label cols lines cells scene avg_fps peak_fps p99_ft avg_dirty dirty_ratio peak_rss heap_retained drift stability avg_ft; do
                 printf "| \`%s\` | %'d | %s | %s | %s | %s | %s | %s | %s |\n" \
                         "$label" "$cells" "$scene" "$avg_fps" "$peak_fps" "$p99_ft" "$avg_dirty" "$peak_rss" "$stability" >> "$summary_file"
         done
 
-        echo "" >> "$summary_file"
-        echo "Raw logs: \`sweep_*_${ts}.txt\` in this directory" >> "$summary_file"
-        echo "CSV data: \`sweep_${ts}.csv\`" >> "$summary_file"
+        {
+            echo ""
+            echo "Raw logs: \`sweep_*_${ts}.txt\` in this directory"
+            echo "CSV data: \`sweep_${ts}.csv\`"
+        } >> "$summary_file"
 
         echo ""
         echo "Summary: $summary_file"
