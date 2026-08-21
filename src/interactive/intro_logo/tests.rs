@@ -6,11 +6,13 @@
 //! Uses `use super::*;` to access parent's private items unchanged.
 
 use super::*;
+use crate::chroma_dragon_engine::intro_colors::LOGO_COLOR_RGB as ENGINE_LOGO_COLOR_RGB;
 
 #[test]
 fn logo_color_is_brand_purple() {
     // Spec: #A855F7 = RGB(168, 85, 247).
-    assert_eq!(LOGO_COLOR_RGB, (168, 85, 247));
+    // Verify the engine's canonical constant matches the spec.
+    assert_eq!(ENGINE_LOGO_COLOR_RGB, (168, 85, 247));
 }
 
 #[test]

@@ -27,6 +27,7 @@ use crossterm::event::Event;
 use crossterm::style::Color;
 
 use crate::cell::Cell;
+use crate::chroma_dragon_engine::intro_colors::NEON_GREEN_FALLBACK;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::palette::color_to_rgb;
@@ -357,7 +358,7 @@ pub(super) fn palette_target_rgb(cloud: &Cloud) -> (u8, u8, u8) {
         .last()
         .copied()
         .map(color_to_rgb)
-        .unwrap_or((57, 255, 20)) // NeonGreen fallback
+        .unwrap_or(NEON_GREEN_FALLBACK)
 }
 
 /// Rain charset for the morph / dissolve phases. Empty pool → binary

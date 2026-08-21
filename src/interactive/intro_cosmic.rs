@@ -34,6 +34,8 @@ use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::terminal::Terminal;
 
+use crate::chroma_dragon_engine::intro_colors::{COSMIC_COLORS_RGB, SINGULARITY_RGB};
+
 use super::intro::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
     should_skip, Particle, ParticlePool, XorShift,
@@ -48,17 +50,6 @@ const PHASE4_RAIN_END_MS: u64 = 5_000;
 /// Burst particle characters — varied glyphs so the explosion looks like
 /// cosmic debris rather than a uniform dotted cloud.
 pub(crate) const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
-
-/// Cosmic color stops (RGB). Sampled by per-particle random index — the
-/// burst alternates gold (energy), purple (brand), and cyan (plasma).
-const COSMIC_COLORS_RGB: [(u8, u8, u8); 3] = [
-    (255, 200, 0),  // bright gold
-    (168, 85, 247), // purple (brand) — replaced by logo_color when intro-color is set
-    (0, 255, 255),  // cyan
-];
-
-/// Singularity color — pure white-hot at the center of the burst.
-const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
 
 /// Particle lifetime in seconds. Short enough to feel like a phosphor
 /// afterglow; long enough to leave a visible trail during the burst.

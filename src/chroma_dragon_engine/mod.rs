@@ -41,9 +41,10 @@
 //! | `shaders`    | new in Phase 2                           | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT` |
 //! | `gradient`   | new in Phase 3-A                         | OKLab polar interpolation (sole production path since v30) |
 //! | `legacy`     | current                             | Explicit sRGB-linear fallback math (`scale_rgb`, `blend_toward_rgb`, `boost_rgb`) used when `ColorPipeline::LegacyRgb` is active |
+//! | `intro_colors` | new in Intro Integration audit    | Cinematic brand color constants (cosmic burst, logo, singularity) — single source of truth for intro colors |
 //!
 //! Modules `palette`, `catalog`, `shaders`, `gradient`, `legacy`, `post`,
-//! `tuning` cover all chroma concerns; no further sub-modules are planned.
+//! `tuning`, `intro_colors` cover all chroma concerns; no further sub-modules are planned.
 
 pub mod catalog;
 pub(crate) mod gradient;
@@ -60,6 +61,7 @@ pub(crate) mod tuning;
 pub(crate) mod color_cache;
 pub(crate) mod color_tune;
 pub(crate) mod colors_custom;
+pub(crate) mod intro_colors;
 
 // Tests now live in chroma/tests/ subdir (Pattern C — dedicated tests/).
 // Was previously two separate #[path] declarations (Pattern B).

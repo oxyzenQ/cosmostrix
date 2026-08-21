@@ -98,20 +98,11 @@ const LOGO_ART: &str = concat!(
     "             'l:  =  .ihMwi*^",
 );
 
-/// Brand purple — the Cosmostrix signature color (`#A855F7` / RGB
-/// 168,85,247). The logo always renders in this color, regardless of
-/// the user's `--color` flag, so the brand mark stays consistent across
-/// all palette themes. During the dissolve phase, droplets interpolate
-/// from this purple toward the active rain palette's brightest stop,
-/// creating a cinematic "brand → rain" handoff.
-///
-/// BL-05 (Dragon Hunt v3): removed the `Color` enum form `LOGO_COLOR`
-/// (was test-only + had a tautology test asserting it equals the RGB
-/// tuple form). `LOGO_COLOR_RGB` is the single canonical form — when a
-/// `Color` is needed (rare), construct it inline: `Color::Rgb { r: 168, g: 85, b: 247 }`.
-/// Default brand purple — kept for reference. Replaced by the logo_color parameter at runtime.
-#[allow(dead_code)]
-const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
+// Brand color constant now lives in the chroma dragon engine
+// (`chroma_dragon_engine::intro_colors::LOGO_COLOR_RGB`).
+// This module uses the `logo_color` parameter (passed at runtime)
+// instead of referencing the constant directly — the constant is
+// the default brand purple, overridable via `--intro-color`.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase + spawn constants
