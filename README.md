@@ -222,7 +222,7 @@ A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms aut
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v50.0.0-beta.2"
+TAG="v50.0.0-beta.3"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
