@@ -16,7 +16,7 @@
 #   8.  LOC guard      — .rs files <= 1500 lines
 #   9.  Rust version   — toolchain / MSRV / CI env in sync
 
-name: Cosmic Dragon Guard
+name: Cosmic Dragon Guard - Gate-keepers
 
 'on':
   push:

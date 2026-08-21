@@ -68,6 +68,8 @@ pub(crate) struct EnduranceHealth {
     /// CC2-02: per-EMA init flag for `ctxt_switch_ema`. Same fix as
     /// `frame_jitter_set` — prevents the first 59 pushes from overwriting
     /// the EMA with the latest value instead of smoothing.
+    /// Only read inside `push_ctxt_rate()` which is cfg-gated to Linux.
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     ctxt_switch_set: bool,
     /// Last computed score.
     score: f64,
