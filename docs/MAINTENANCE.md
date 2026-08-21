@@ -92,23 +92,37 @@ Cosmostrix is designed for long-term stability. The owner may go dormant for 5-1
 - CI continues running automatically: daily security audits, weekly Miri, weekly CodeQL, weekly dependency maintenance.
 - The AUR package remains available at the last published version.
 - Issues and PRs may accumulate; the maintenance workflow handles stale management.
+- The `Cargo.lock` is committed and immutable during dormancy — it is the single source of truth for dependency versions.
 
 ### What "returning from dormancy" means
 
-- Follow the Periodic Health Check (Section 5) exactly.
-- If the pinned Rust toolchain is EOL: upgrade per Section 2.
+- Follow the Periodic Health Check (Section 5) exactly. No steps may be skipped.
+- If the pinned Rust toolchain is EOL or unavailable: upgrade per Section 2.
 - If CVEs exist in dependencies: update per Section 4.
 - If CI is red: fix it before any feature work.
 - The project must be at a fully green CI state before any new development.
+- Do not batch unrelated changes with the return-from-dormancy commit. One commit per concern.
+
+### Offline build resilience
+
+After 5-10 years of dormancy, external services may be unavailable. The pinned toolchain and locked dependencies provide a survival baseline:
+
+- **rustup**: the toolchain installer caches locally (`~/.rustup/toolchains/`). If rustup.rs is unreachable, an existing local installation still works. As a backup, Rust toolchain archives are mirrored on GitHub Releases (`rust-lang/rust`), and many Linux distros ship Rust in their package repositories.
+- **crates.io**: `Cargo.lock` pins exact dependency versions. If crates.io is unreachable, the global cargo cache (`~/.cargo/registry/`) from the last successful build still contains the sources. For long-term archival, archive the `~/.cargo/registry/` directory alongside the repo.
+- **Cargo deny**: if `cargo-deny` is unavailable or its advisory database is unreachable, skip `cargo deny check all` and proceed with the remaining checks. Re-enable once connectivity is restored.
 
 ### Dormant-mode invariants (must hold after any maintenance session)
 
 - `cargo build --release` compiles with zero warnings on the pinned toolchain.
 - `cargo test --all --locked` passes all tests.
 - `./scripts/build.sh check-all -q` passes all quality gates.
-- `cargo deny check all` reports no advisories.
+- `cargo deny check all` reports no advisories (or is skipped if offline).
+- `cosmostrix --testconf` validates the default config without errors.
+- `cosmostrix --doctor` reports no hard failures (warnings are acceptable).
 - No new dependencies were added without owner approval.
+- No existing CLI flag, config key, scene name, color theme, or charset preset was removed or renamed.
 - All CI workflows pass on push to main.
+- No behavioral regression: `--benchmark` throughput on the pinned toolchain must not decrease by more than 5% from the last logged Health Check result.
 
 ## 7. API Stability Promise
 
@@ -117,7 +131,7 @@ From v50.0.0 onward, the following are **frozen** (no breaking changes without a
 - **CLI flags**: all flags in `--help` (names, short/long forms, value types)
 - **Config format**: `config.toml` keys, value types, and TOML structure
 - **Scene names**: all 18 built-in scene names
-- **Color scheme names**: all 44+ built-in color scheme names
+- **Color scheme names**: all 44 built-in color scheme names (`THEME_COUNT` in `src/theme/mod.rs`)
 - **Charset preset names**: all 25 built-in charset names
 - **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
