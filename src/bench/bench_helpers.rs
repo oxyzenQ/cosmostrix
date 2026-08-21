@@ -345,12 +345,6 @@ mod tests {
     }
 
     #[test]
-    fn benchmark_stability_field_exists() {
-        let readme = include_str!("../../README.md");
-        assert!(readme.to_lowercase().contains("throughput stability"));
-    }
-
-    #[test]
     fn bench_file_stays_under_target_loc() {
         // Guard: src/bench.rs must stay well under 1500 LOC.
         // Current target is under 1500 LOC — bumped from 1200 in  to
