@@ -213,7 +213,7 @@ pub struct Args {
         default_value = "green",
         help_heading = "COMMON OPTIONS",
         display_order = 10,
-        help = "Color theme (see --list-colors)"
+        help = "Color theme or custom palette name (see --list-colors)"
     )]
     pub color: String,
 
@@ -222,7 +222,7 @@ pub struct Args {
         value_name = "NAME",
         help_heading = "COMMON OPTIONS",
         display_order = 12,
-        help = "Load a user-defined custom color palette from config (see --list-colors)"
+        help = "Load a custom color palette from config (see --list-colors). Equivalent to -c <name> for custom palettes."
     )]
     pub colors_custom: Option<String>,
 
@@ -823,7 +823,7 @@ pub(crate) fn print_list_charsets() {
             println!("  {name:<20} {} chars", def.chars.len());
         }
         println!();
-        println!("  Load with: cosmostrix --charset <name>");
+        println!("  Load with: cosmostrix -C/--charset/--charset-custom <name>");
         println!("  Or set in config: charset = \"<name>\"");
     }
 }
@@ -862,7 +862,7 @@ pub(crate) fn print_list_colors() {
             println!("  {name:<20} custom palette");
         }
         println!();
-        println!("  Load with: cosmostrix --colors-custom <name>");
+        println!("  Load with: cosmostrix -c/--color/--colors-custom <name>");
         println!("  Use in ambient: ambient.HH-MM = <name>");
     }
 }

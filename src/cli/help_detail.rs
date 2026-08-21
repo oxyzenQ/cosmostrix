@@ -14,8 +14,9 @@ pub(crate) fn print_help() {
 
 COMMON OPTIONS:
   -c, --color <name>
-      Color theme. See --list-colors for available names.
+      Color theme or custom palette name. See --list-colors.
       cosmostrix --color rainbow
+      cosmostrix -c cyberpunk_2077   # custom palette from config
 
   --color-tune <key=value[,key=value]>
       Tune theme colors. Accepted keys: sat/saturation, bright/brightness,
@@ -25,9 +26,11 @@ COMMON OPTIONS:
       cosmostrix --color-tune head=1.5,tail=0.5 # bright head, dim tail
       Also configurable in config.toml via [color.tune] section.
 
-  --charset <name>
+  -C, --charset [--charset-custom] <name>
       Character set. See --list-charsets for available sets.
+      Accepts built-in presets or custom names from [charset-custom.<name>].
       cosmostrix --charset binary
+      cosmostrix -C cyberpunk_2077   # custom charset from config
 
       Custom charsets can be defined in config.toml under
       [charset-custom.<name>] and loaded by name. Custom names take

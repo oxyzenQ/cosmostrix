@@ -163,7 +163,7 @@ use crate::config::{
     print_show_scene, Args, ColorBg,
 };
 use crate::constants::*;
-use crate::runtime::{BoldMode, ShadingMode};
+use crate::runtime::{BoldMode, ColorScheme, ShadingMode};
 use crate::terminal::reset_terminal_emergency;
 use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
@@ -802,10 +802,32 @@ fn main() -> std::io::Result<()> {
         s
     });
 
-    let color_scheme = match parse_color_scheme(&args.color) {
-        Ok(c) => c,
-        Err(e) => ux::die_input(e),
-    };
+    // Unified color resolution: --colors-custom > -c/--color (built-in) > -c/--color (custom palette from config).
+    // This lets `-c cyberpunk_2077` and `--color cyberpunk_2077` load custom palettes
+    // directly, not just built-in theme names. --colors-custom still works for
+    // explicit intent and takes priority when both are set.
+    let cfg_for_color = configfile::load_config_file(args.config.as_deref());
+    let (color_scheme, custom_palette, custom_palette_name) =
+        if let Some(ref name) = args.colors_custom {
+            // Explicit --colors-custom: only loads from config, never built-in.
+            match colors_custom::load_custom_palette(&cfg_for_color, name) {
+                Ok(p) => (ColorScheme::Green, Some(p), Some(name.clone())),
+                Err(e) => ux::die_input(format!("error: --colors-custom '{name}': {e}")),
+            }
+        } else if let Ok(c) = parse_color_scheme(&args.color) {
+            // -c/--color resolved to a built-in theme.
+            (c, None, None)
+        } else if colors_custom::is_colors_custom_name(&cfg_for_color, &args.color) {
+            // -c/--color with a name that matches a custom palette in config.
+            match colors_custom::load_custom_palette(&cfg_for_color, &args.color) {
+                Ok(p) => (ColorScheme::Green, Some(p), Some(args.color.clone())),
+                Err(e) => ux::die_input(e),
+            }
+        } else {
+            // Not a built-in theme and not a custom palette — use the original
+            // error from parse_color_scheme (includes "did you mean" suggestions).
+            ux::die_input(parse_color_scheme(&args.color).unwrap_err())
+        };
     let color_tune = match args.color_tune.as_deref() {
         Some(s) => ux::or_exit(color_tune::parse_color_tune(s)),
         None => {
@@ -908,18 +930,8 @@ fn main() -> std::io::Result<()> {
         build_chars(charset, &user_ranges, def_ascii)
     };
 
-    // v16: Load custom palette if --colors-custom is set, from config.toml's
-    // [colors-custom] section. custom_palette_name is stored for live reload.
-    // Runs BEFORE verbose print so verbose shows the correct palette name.
-    let (custom_palette, custom_palette_name) = if let Some(ref name) = args.colors_custom {
-        let cfg_map = configfile::load_config_file(args.config.as_deref());
-        match colors_custom::load_custom_palette(&cfg_map, name) {
-            Ok(p) => (Some(p), Some(name.clone())),
-            Err(e) => ux::die_input(format!("error: --colors-custom '{name}': {e}")),
-        }
-    } else {
-        (None, None)
-    };
+    // (custom_palette and custom_palette_name are now resolved above
+    // in the unified color resolution block.)
 
     let density_auto =
         matches.value_source("density") == Some(clap::parser::ValueSource::DefaultValue);
@@ -1304,6 +1316,14 @@ fn main() -> std::io::Result<()> {
 }
 
 fn canonicalize_runtime_args(args: &mut Args) {
+    // Skip canonicalization when -c/--color points to a custom palette
+    // (not a built-in theme name). Custom names have no canonical form.
+    if colors_custom::is_colors_custom_name(
+        &configfile::load_config_file(args.config.as_deref()),
+        &args.color,
+    ) {
+        return;
+    }
     if let Some(canonical) = theme::canonical_name_for_input(&args.color) {
         args.color = canonical.to_string();
     }
