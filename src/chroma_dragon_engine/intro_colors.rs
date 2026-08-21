@@ -152,10 +152,7 @@ mod tests {
         // All three cosmic colors must differ from each other.
         for (i, ci) in COSMIC_COLORS_RGB.iter().enumerate() {
             for (j, cj) in COSMIC_COLORS_RGB.iter().enumerate().skip(i + 1) {
-                assert_ne!(
-                    ci, cj,
-                    "cosmic colors[{i}] and [{j}] must be distinct"
-                );
+                assert_ne!(ci, cj, "cosmic colors[{i}] and [{j}] must be distinct");
             }
         }
     }
