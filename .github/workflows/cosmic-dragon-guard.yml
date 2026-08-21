@@ -6,13 +6,15 @@
 # workflow that runs scripts/gate-keepers.sh (the one-script gate-keeper).
 #
 # Checks performed by gate-keepers.sh:
-#   1. shellcheck    — all .sh files
-#   2. yamllint       — all .yml/.yaml files
-#   3. markdownlint   — all .md files
-#   4. codespell      — spelling across all text files
-#   5. SPDX headers   — git-tracked code/config/doc files
-#   6. LOC guard      — .rs files <= 1500 lines
-#   7. Rust version   — toolchain / MSRV / CI env in sync
+#   1.  shellcheck    — all .sh files
+#   2.  yamllint       — all .yml/.yaml files
+#   3.  actionlint     — GitHub Actions workflow validation
+#   4.  TOML syntax    — python3 tomllib on all .toml files
+#   5.  markdownlint   — all .md files
+#   6.  codespell      — spelling across all text files
+#   7.  SPDX headers   — git-tracked code/config/doc files
+#   8.  LOC guard      — .rs files <= 1500 lines
+#   9.  Rust version   — toolchain / MSRV / CI env in sync
 
 name: Cosmic Dragon Guard
 
@@ -43,6 +45,8 @@ jobs:
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
           python3 -m pip install --user --quiet yamllint codespell
           sudo npm install -g --silent markdownlint-cli
+          go install github.com/rhysd/actionlint/cmd/actionlint@latest
+          echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
 
       - name: Run gate-keepers.sh
         run: bash scripts/gate-keepers.sh

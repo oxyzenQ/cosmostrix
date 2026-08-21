@@ -10,13 +10,15 @@
 #   ./scripts/gate-keepers.sh --fix    # Run with auto-fix where possible
 #
 # Checks performed (exclude Rust core code — use `cargo clippy` for that):
-#   1. shellcheck on all .sh files
-#   2. yamllint on all .yml/.yaml files
-#   3. markdownlint on all .md files
-#   4. codespell on all text files
-#   5. SPDX license header check
-#   6. LOC guard (1500-line cap on .rs files)
-#   7. Rust version sync check
+#   1.  shellcheck on all .sh files
+#   2.  yamllint on all .yml/.yaml files
+#   3.  actionlint on all .github/workflows/*.yml
+#   4.  TOML syntax validation (python3 tomllib)
+#   5.  markdownlint on all .md files
+#   6.  codespell on all text files
+#   7.  SPDX license header check
+#   8.  LOC guard (1500-line cap on .rs files)
+#   9.  Rust version sync check
 #
 # Exit codes:
 #   0 = all checks passed
@@ -83,7 +85,40 @@ else
     warn "yamllint not installed — skipping"
 fi
 
-# ── 3. Markdownlint ────────────────────────────────────────────────────────
+# ── 3. Actionlint ──────────────────────────────────────────────────────────
+header "Actionlint"
+if command -v actionlint >/dev/null 2>&1; then
+    if actionlint .github/workflows/*.yml 2>&1; then
+        info "actionlint: all workflow files pass"
+        PASS=$((PASS + 1))
+    else
+        fail "actionlint: errors found in workflow files"
+    fi
+else
+    warn "actionlint not installed — skipping"
+fi
+
+# ── 4. TOML Syntax ─────────────────────────────────────────────────────────
+header "TOML Syntax"
+if command -v python3 >/dev/null 2>&1; then
+    TOML_ERR=0
+    while IFS= read -r -d '' f; do
+        if ! python3 -c "import tomllib, sys; tomllib.load(open(sys.argv[1], 'rb'))" "$f" 2>/dev/null; then
+            echo -e "${RED}INVALID TOML: ${f}${NC}"
+            TOML_ERR=$((TOML_ERR + 1))
+        fi
+    done < <(find . -name '*.toml' -not -path './target/*' -not -path './.git/*' -print0 2>/dev/null)
+    if [ "$TOML_ERR" -eq 0 ]; then
+        info "TOML: all .toml files valid"
+        PASS=$((PASS + 1))
+    else
+        fail "TOML: ${TOML_ERR} file(s) have syntax errors"
+    fi
+else
+    warn "python3 not installed — skipping"
+fi
+
+# ── 5. Markdownlint ────────────────────────────────────────────────────────
 header "Markdownlint"
 if command -v markdownlint >/dev/null 2>&1 || command -v npx >/dev/null 2>&1; then
     MD_LINT="markdownlint"
@@ -109,7 +144,7 @@ else
     warn "markdownlint not installed — skipping"
 fi
 
-# ── 4. Codespell ──────────────────────────────────────────────────────────
+# ── 6. Codespell ──────────────────────────────────────────────────────────
 header "Codespell"
 if command -v codespell >/dev/null 2>&1; then
     if codespell --config .codespellrc . --skip '.git,target,*.lock,Cargo.lock' 2>&1; then
@@ -122,7 +157,7 @@ else
     warn "codespell not installed — skipping"
 fi
 
-# ── 5. SPDX License Header Check ──────────────────────────────────────────
+# ── 7. SPDX License Header Check ──────────────────────────────────────────
 header "SPDX License Headers"
 if [ -f scripts/check-headers.sh ]; then
     if bash scripts/check-headers.sh 2>&1; then
@@ -135,7 +170,7 @@ else
     warn "check-headers.sh not found — skipping"
 fi
 
-# ── 6. LOC Guard (1500-line cap) ──────────────────────────────────────────
+# ── 8. LOC Guard (1500-line cap) ──────────────────────────────────────────
 header "LOC Guard"
 if [ -f scripts/check-rs-loc.sh ]; then
     if bash scripts/check-rs-loc.sh 2>&1 | tail -3; then
@@ -148,7 +183,7 @@ else
     warn "check-rs-loc.sh not found — skipping"
 fi
 
-# ── 7. Rust Version Sync ───────────────────────────────────────────────────
+# ── 9. Rust Version Sync ───────────────────────────────────────────────────
 header "Rust Version Sync"
 if [ -f scripts/check-rust-version-sync.sh ]; then
     if bash scripts/check-rust-version-sync.sh 2>&1; then
