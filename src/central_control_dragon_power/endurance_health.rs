@@ -65,6 +65,10 @@ pub(crate) struct EnduranceHealth {
     frame_jitter_set: bool,
     /// EMA of context switch rate (switches/sec).
     ctxt_switch_ema: f64,
+    /// CC2-02: per-EMA init flag for `ctxt_switch_ema`. Same fix as
+    /// `frame_jitter_set` — prevents the first 59 pushes from overwriting
+    /// the EMA with the latest value instead of smoothing.
+    ctxt_switch_set: bool,
     /// Last computed score.
     score: f64,
     /// Number of updates received.
@@ -83,6 +87,7 @@ impl EnduranceHealth {
             frame_jitter_ema: 0.0,
             frame_jitter_set: false,
             ctxt_switch_ema: 0.0,
+            ctxt_switch_set: false,
             score: 100.0,
             updates: 0,
         }
@@ -123,8 +128,14 @@ impl EnduranceHealth {
     /// Cfg-gated to avoid dead_code warnings on non-Linux platforms.
     #[cfg(target_os = "linux")]
     pub(crate) fn push_ctxt_rate(&mut self, switches_per_sec: f64) {
-        if self.updates == 0 {
+        // CC2-02: per-EMA init flag so the first push seeds and subsequent
+        // pushes actually do EMA smoothing. Previously `self.updates == 0`
+        // was used, but `updates` is only incremented in `recompute()`
+        // (every 60 frames), so the first 59 pushes each overwrote the
+        // EMA with the latest value.
+        if !self.ctxt_switch_set {
             self.ctxt_switch_ema = switches_per_sec;
+            self.ctxt_switch_set = true;
         } else {
             self.ctxt_switch_ema = 0.95 * self.ctxt_switch_ema + 0.05 * switches_per_sec;
         }
