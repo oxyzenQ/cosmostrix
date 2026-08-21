@@ -223,6 +223,7 @@ is a dead end (<5% gain, high complexity).
 ## Raw Data
 
 All experiments run with:
+
 ```
 cosmostrix v13.3.0 (commit f676143, cosmic-dragon-experimental branch)
 Build: linux-amd64-v1-gnu (release profile, SSE2 baseline)
@@ -231,12 +232,16 @@ Rustc: 1.96.1
 ```
 
 Reproduce with:
+
 ```bash
+
 # Terminal size scaling
+
 COSMOSTRIX_BENCH_COLS=4 COSMOSTRIX_BENCH_LINES=4 \
   ./target/release/cosmostrix --benchmark --bench-duration 5 --json
 
 # Scene comparison
+
 COSMOSTRIX_BENCH_COLS=4 COSMOSTRIX_BENCH_LINES=4 \
   ./target/release/cosmostrix --benchmark --bench-duration 5 --scene signal --json
 ```

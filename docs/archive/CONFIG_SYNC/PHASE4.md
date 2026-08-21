@@ -130,11 +130,13 @@ The surrounding code at `event_loop.rs:1274, 1289` uses the broken-pipe-safe pat
 **Likelihood**: Low (requires terminal close during the brief window between parse-error-detection and stderr-write). But the consequence (coredump) is severe enough to warrant Medium severity.
 
 **Recommended Phase 5 fix**: Replace both `eprintln!` calls with:
+
 ```rust
 let _ = std::io::stderr().write_fmt(format_args!(
     "[adaptive-custom] parse error: {e}. Using default adaptive (built-in adaptive engine, previous scene/color preserved).\n"
 ));
 ```
+
 This matches the pattern at `live_config.rs:145-147` and `event_loop.rs:1274, 1289`. The message expansion (naming the fallback) also addresses the P3-10 silent-error dimension.
 
 **Severity**: Medium (low likelihood × high consequence).
@@ -168,7 +170,7 @@ Total per reload: O(n + k*m + k log k) + k allocations.
 
 **Severity**: High because the render thread is blocked, but only on reload events (not per-frame). Downgraded from Critical because the realistic config size (24 entries) is well within budget.
 
-**Recommended Phase 5 fix (deferred — design decision)**: 
+**Recommended Phase 5 fix (deferred — design decision)**:
 - **Option A (cache)**: Hash the `adaptive-custom.*` subset of `cfg` and skip reparse if hash unchanged. Cheap (one hash) and effective (most reloads don't touch adaptive-custom).
 - **Option B (off-thread)**: Move the parse to the watcher thread, send the parsed `CustomTimeMap` over the channel instead of the raw `cfg` map. Bigger refactor, but eliminates all render-thread parse cost.
 - **Option C (do nothing)**: Document the cost in a code comment and accept the ~1ms overhead for realistic configs.
@@ -368,9 +370,11 @@ No per-frame HashMap clones, no per-frame `format!` in the non-verbose path. Thi
 ### 5.5 Expect-with-invariant pattern is exemplary
 
 The 3 production `expect()` calls use the pattern:
+
 ```rust
 .expect("invariant: <description of why this cannot fail>")
 ```
+
 This is better than `.unwrap()` (no message) and better than `?` (propagates error to a layer that can't handle it). Future contributors should follow this pattern.
 
 ---

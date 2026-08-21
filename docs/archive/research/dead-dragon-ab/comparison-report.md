@@ -3,12 +3,12 @@
 
 # Cosmic Dragon vs Dead Dragon — A/B Benchmark Report
 
-**Date:** 2026-07-30  
-**Methodology:** Same binary build flags (release, fat LTO, x86-64-v1 baseline), same host, same CLI args (`--benchmark --json --screen-size WxH --bench-duration 5 --bench-io`), back-to-back runs. Wet I/O writes ANSI bytes to `/dev/null` to measure real `write()` syscall cost.  
-**Branches:** `main` (Cosmic Dragon, diff-based engine) vs `dead-dragon` (full-redraw control).  
+**Date:** 2026-07-30
+**Methodology:** Same binary build flags (release, fat LTO, x86-64-v1 baseline), same host, same CLI args (`--benchmark --json --screen-size WxH --bench-duration 5 --bench-io`), back-to-back runs. Wet I/O writes ANSI bytes to `/dev/null` to measure real `write()` syscall cost.
+**Branches:** `main` (Cosmic Dragon, diff-based engine) vs `dead-dragon` (full-redraw control).
 **Sizes tested:** 80×24 (common terminal), 200×60 (large terminal), 400×100 (stress).
 
-### Aggregate verdict across all 3 screen sizes
+## Aggregate verdict across all 3 screen sizes
 
 | Size | Cells/Frame | Cosmic Dragon FPS | Dead Dragon FPS | Dragon Advantage |
 |---|---:|---:|---:|---:|
@@ -99,11 +99,10 @@
 
 The Cosmic Dragon's diff-based engine renders only the cells that changed since the previous frame (typically <10% of the grid). The Dead Dragon's full-redraw engine re-sends every cell on every frame. The gap widens as screen size grows, because the Dead Dragon's per-frame cost is O(W×H) while the Cosmic Dragon's is O(dirty_cells) — typically O(active_rain_columns).
 
-Key takeaways:  
-- **FPS gap scales with screen size** — 1.5× at 80×24, 2.3× at 200×60, 3.0× at 400×100. The larger the grid, the bigger the win from differential rendering, because Dead Dragon's per-frame cost is O(W×H) while Cosmic Dragon's is O(active_rain_columns) — typically 3–9% of the grid.  
-- **Dirty cells per frame** — the smoking gun. Cosmic Dragon dirties 3–9% of cells per frame; Dead Dragon dirties 100% by construction. The ratio grows from 11.7× fewer (small screen) to 30.3× fewer (large screen).  
-- **Avg render time per frame** — absolute milliseconds spent in the renderer. Cosmic Dragon is consistently ~1.8–2.0× faster here because it sorts and RLE-batches only the dirty cells instead of iterating the entire grid.  
-- **ANSI bytes written** — Dead Dragon writes 3.1–3.7× more bytes to stdout over the same 5s window. On real hardware this translates to higher terminal emulator CPU load, more battery drain on laptops, and higher bandwidth over SSH.  
-- **write() syscalls** — Dead Dragon actually issues fewer syscalls because each frame is one giant contiguous write, but each write is ~8× larger. The Cosmic Dragon writes smaller buffers more frequently — the per-syscall cost is lower and the kernel spends less time copying bytes.  
+Key takeaways:
+- **FPS gap scales with screen size** — 1.5× at 80×24, 2.3× at 200×60, 3.0× at 400×100. The larger the grid, the bigger the win from differential rendering, because Dead Dragon's per-frame cost is O(W×H) while Cosmic Dragon's is O(active_rain_columns) — typically 3–9% of the grid.
+- **Dirty cells per frame** — the smoking gun. Cosmic Dragon dirties 3–9% of cells per frame; Dead Dragon dirties 100% by construction. The ratio grows from 11.7× fewer (small screen) to 30.3× fewer (large screen).
+- **Avg render time per frame** — absolute milliseconds spent in the renderer. Cosmic Dragon is consistently ~1.8–2.0× faster here because it sorts and RLE-batches only the dirty cells instead of iterating the entire grid.
+- **ANSI bytes written** — Dead Dragon writes 3.1–3.7× more bytes to stdout over the same 5s window. On real hardware this translates to higher terminal emulator CPU load, more battery drain on laptops, and higher bandwidth over SSH.
+- **write() syscalls** — Dead Dragon actually issues fewer syscalls because each frame is one giant contiguous write, but each write is ~8× larger. The Cosmic Dragon writes smaller buffers more frequently — the per-syscall cost is lower and the kernel spends less time copying bytes.
 - **Visual output is byte-identical** — both branches produce the same cells, colors, and characters. Only the rendering *method* differs.
-

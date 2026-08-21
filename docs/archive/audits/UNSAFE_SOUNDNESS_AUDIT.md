@@ -355,6 +355,7 @@ to /dev/null (warmup) or a real fd (benchmark).
 | **Total Miri-verified** | **107** | **All PASS, 0 UB findings** |
 
 **Miri command**:
+
 ```bash
 cargo +nightly miri test --bin cosmostrix <module>::
 ```
@@ -379,6 +380,7 @@ cargo +nightly miri test --bin cosmostrix <module>::
 All 15 unsafe sites follow one of these textbook patterns:
 
 ### Pattern A: Zero-init + FFI fill + return check (7 sites)
+
 - `envstat.rs:95` (uname)
 - `usagestat.rs:85` (getrusage)
 - `memstat.rs:111` (task_info, macOS)
@@ -393,6 +395,7 @@ fills produce valid zero values. The return code is checked before any
 field is read.
 
 ### Pattern B: MaybeUninit + FFI init + assume_init after success check (2 sites)
+
 - `main.rs:259` (tcgetattr/tcsetattr)
 - `interactive/adaptive.rs:136-150` (time/localtime_r)
 
@@ -400,6 +403,7 @@ field is read.
 returned success, guaranteeing the buffer was fully initialized.
 
 ### Pattern C: Direct FFI call with checked return (4 sites)
+
 - `bench_perf.rs:86, 124, 138` (perf_event_open, read, close)
 - `cosmic_dragon/egg/io_uring_rejected.rs:68, 84` (write)
 - `interactive/event_loop.rs:600, 1241` (madvise via hint_reclaim_pages)
@@ -411,12 +415,14 @@ is a non-destructive hint like `madvise(MADV_DONTNEED)` or a discard
 write to /dev/null).
 
 ### Pattern D: Trait impl delegation (1 site)
+
 - `alloc_trace.rs:46-65` (GlobalAlloc → System)
 
 **Sound because**: Standard delegation. Arguments forwarded unchanged.
 Miri-verified (§2.1).
 
-### Anti-patterns NOT present:
+### Anti-patterns NOT present
+
 - ✗ No raw pointer arithmetic beyond simple `as *mut` casts from `&mut`
 - ✗ No `union` access
 - ✗ No custom `Drop` impls that dereference raw pointers

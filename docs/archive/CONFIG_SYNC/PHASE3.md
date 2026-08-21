@@ -80,6 +80,7 @@ Each Phase 2 finding (P2-1 through P2-9) was re-checked for its silent-error dim
 **Location**: `src/atmosphere_custom.rs:275-305` (pre-fix), now `src/atmosphere_custom.rs:274-308` (post-fix).
 
 **Pre-fix code** (representative, speed branch):
+
 ```rust
 "speed" => {
     let n: f32 = v
@@ -92,7 +93,7 @@ Each Phase 2 finding (P2-1 through P2-9) was re-checked for its silent-error dim
 }
 ```
 
-**Silent-error dimension**: 
+**Silent-error dimension**:
 - `v.parse::<f32>()` accepts `"nan"`, `"inf"`, `"+inf"`, `"-inf"`, `"1e2"`, `"+10"`, `"010"` — all forms the canonical parsers (`parse_canonical_f32_range` in `validation.rs:174`) reject.
 - For `NaN`: `!(1.0..=100.0).contains(&NaN)` evaluates to `!false` = `true`... wait, `NaN` compared with any number is `false`, so `1.0 <= NaN && NaN <= 100.0` is `false`, so `(1.0..=100.0).contains(&NaN)` is `false`, so `!false` = `true` — the error branch IS taken. **However**, the error message `"adaptive-custom: speed NaN out of range [1, 100]"` is misleading (it implies NaN is a number that happened to be out of range, rather than a non-number that should never have been accepted).
 - For `inf`: `1.0 <= inf` is `true`, `inf <= 100.0` is `false`, so the range check rejects it. Same misleading message.
@@ -136,9 +137,11 @@ pub(crate) fn bench_warmup_secs() -> u64 {
 **Severity**: High because the affected audience (benchmark/CI users) is small but the debugging cost per affected user is large.
 
 **Recommended fix (Phase 5)**: On parse failure, emit a stderr warning naming the env var, the bad value, and the fallback:
+
 ```
 [bench] warning: COSMOSTRIX_BENCH_WARMUP_SECS='abc' is not a valid u64 — falling back to default 2s
 ```
+
 Use `crate::output::eprintln_warn_labeled` for branding consistency. Do NOT exit — the env var is optional, and a typo shouldn't block the benchmark.
 
 **Not fixed in Phase 3** because the fix touches CI-facing output and warrants owner sign-off on the exact warning text.
@@ -170,6 +173,7 @@ if let Err(_e) = result {
 **Severity**: Medium — low likelihood × high debugging cost.
 
 **Recommended fix (Phase 5)**: Replace `.ok()` with a `match` that emits a stderr line on `Err`:
+
 ```rust
 match LIVE_RELOAD_ERROR.lock() {
     Ok(mut guard) => *guard = Some("watcher thread terminated unexpectedly".to_string()),
@@ -178,6 +182,7 @@ match LIVE_RELOAD_ERROR.lock() {
     }
 }
 ```
+
 Use `write_all` (not `eprintln!`) for broken-pipe safety, matching the existing pattern at `live_config.rs:145-147`.
 
 **Not fixed in Phase 3** — touches live-reload critical path, better suited to Phase 4 (crash audit) where the surrounding panic-handling logic is reviewed holistically.
@@ -203,6 +208,7 @@ Use `write_all` (not `eprintln!`) for broken-pipe safety, matching the existing 
 **Location**: `src/config_apply.rs:386-417` (monolith-size, glitch-level, intro branches), `src/config_apply.rs:642-651` (parse_speed_config), `src/config_apply.rs:677-685` (parse_color_bg_config), `src/config_apply.rs:664-675` (parse_bool_config).
 
 **Pattern** (representative, monolith-size):
+
 ```rust
 match MonolithSize::from_str(&v, true) {
     Ok(size) => { args.monolith_size = size; ... }
@@ -257,10 +263,12 @@ No warning is emitted. The user may interpret the 0 FPS as a real measurement (c
 **Severity**: Medium — benign (no crash, no data corruption) but confusing. The 0-FPS report looks like a real benchmark result.
 
 **Recommended fix (Phase 5)**: Add a `value_parser` on the `--bench-frames` clap field that rejects 0:
+
 ```rust
 #[arg(long = "bench-frames", value_parser = clap::value_parser!(u64).range(1..))]
 pub bench_frames: Option<u64>,
 ```
+
 This makes clap reject `--bench-frames 0` at parse time with a clear error message, before any allocation or warmup runs. Same pattern for `--bench-duration` if it has the same issue (needs verification in Phase 4).
 
 **Not fixed in Phase 3** — the fix touches the clap CLI definition, which is a Phase 5 stabilization concern (changing CLI surface).
@@ -328,11 +336,13 @@ The `map_err(|_| ...)` discards this distinction and replaces it with a generic 
 **Severity**: Low — the warning IS emitted (not silent), but the message is less helpful than it could be. The user has to guess whether their value was the wrong format or the wrong magnitude.
 
 **Recommended fix (Phase 5)**: Pass the canonical parser's error message through to `warn_invalid` (or append it as a hint):
+
 ```rust
 parse_canonical_f32_range(...)
     .map_err(|e| warn_invalid(name, field, value, &e))
     .ok()
 ```
+
 This requires `warn_invalid` to accept an arbitrary "expected" string, which it already does (4th param). The change is mechanical but touches 3 functions + their call sites — better batched with other profile.rs work in Phase 5.
 
 **Not fixed in Phase 3** — message-quality polish, not a silent error. Phase 5 batch.
@@ -341,7 +351,7 @@ This requires `warn_invalid` to accept an arbitrary "expected" string, which it 
 
 ### P3-9 (Low) — `atmosphere-regime='storm'` rejection uses inconsistent error format across 3 sites
 
-**Location**: 
+**Location**:
 - `src/config_apply.rs:63-67` — uses `crate::output::eprintln_error_labeled` (branded).
 - `src/profile.rs:380-384` — uses raw `eprintln!` (unbranded).
 - `src/testconf.rs:524-525` — uses a third format (needs verification, deferred to Phase 5).

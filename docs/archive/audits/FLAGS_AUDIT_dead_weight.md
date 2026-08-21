@@ -262,6 +262,7 @@ So `--check-bitcolor`'s 5-line output was a strict subset of `--doctor`'s output
 2. `--doctor` is a multi-section human-readable report.
 
 **Resolution**: Owner chose option (a) **Remove** — route users to `--doctor` (which already includes everything `--check-bitcolor` printed, plus much more). Migration message in `REMOVED_FLAGS` reads:
+
 ```
 error: --check-bitcolor has been removed in v30.0.0-alpha.1.
   It was a strict subset of `--doctor` output — every field it printed
@@ -366,6 +367,7 @@ The user model "kill -9 broke my terminal → run `cosmostrix --reset-terminal`"
 The inline `help = "..."` strings on these two flags say "config only" (config.rs:711, 718), but the flags ARE CLI-parseable, ARE consumed in `main.rs:799–801`, and ARE documented as ADVANCED CLI flags in `help_detail.rs:360–371` with explicit "Config: ..." lines. The "config only" wording is misleading and inconsistent with the convention used by every other dual-path flag (`--auto-color-drift`, `--color-tune`, `--bold`, `--shadingmode`, `--color-bg` all use "Config: <key> = <value>" suffix or no parenthetical at all).
 
 **Suggested fix** (owner decision, not in scope of this audit):
+
 ```rust
 // config.rs:711
 help = "Atmosphere mode (disabled, controlled-live). Config: atmosphere-mode = \"controlled-live\""

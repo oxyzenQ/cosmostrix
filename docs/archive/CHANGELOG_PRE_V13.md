@@ -116,7 +116,7 @@ Theme tuning makes the 43 built-in palettes more visually distinct.
 **Benchmark environment (reproducibility)** (peak, commit 7db64b9):
 - New `BENCHMARK ENVIRONMENT` section: `kernel_version`, `libc_variant`,
   `term`, `term_program`, `term_version`, `cpu_governor`, `smt_active`
-  + `env_basis` + `env_caveat`.
+  - `env_basis` + `env_caveat`.
 - Cross-platform: kernel via `uname`, libc variant from build-time,
   terminal from env vars. Linux-only: CPU governor + SMT from `/sys`.
 - Lets users compare reports across machines knowing the OS/governor/
@@ -188,9 +188,9 @@ Theme tuning makes the 43 built-in palettes more visually distinct.
   `bench_progress.rs`, `bench_meta.rs`, `bench_json.rs`, `color_tune.rs`,
   `interactive/hud.rs`.
 - `bench.rs` extracted `BenchProgress` + `ComponentTimer` + `RssTracker`
-  + `CpuTracker` to keep the file under its 900-LOC guard.
+  - `CpuTracker` to keep the file under its 900-LOC guard.
 - `bench_report.rs` extracted meaning constants + helpers to `bench_meta.rs`
-  + BENCHMARK ENVIRONMENT rendering to `envstat.rs` to keep under 1000 LOC.
+  - BENCHMARK ENVIRONMENT rendering to `envstat.rs` to keep under 1000 LOC.
 - `FrameTimeTracker` gained `p99_ms()` accessor for the live HUD.
 - `cloud/rain.rs` instrumented with 2 `Instant::now()` markers per frame
   for sim/render split (~40ns overhead, negligible).
@@ -311,6 +311,7 @@ user request (never reached satisfying visual feel). License enforced
 as GPL-3.0-only across all 171 source/doc/config files.
 
 ### Performance — Phase A: Hot-Path Optimization (+73.8% FPS)
+
 - `phosphor_active` O(1) dedup via `phosphor_in_active` BitVec —
   eliminated 5K-100K wasted ops/frame from linear `contains()` scan
 - `head_brightness()` hoisted out of per-line loop — eliminated 4K
@@ -328,12 +329,14 @@ as GPL-3.0-only across all 171 source/doc/config files.
   inlining
 
 ### Performance — Phase 2: Structural (+1.6% FPS)
+
 - Spawn free-list: `droplet_free_list: Vec<usize>` replaces O(N) linear
   scan with O(1) pop/push lifecycle
 - Terminal flat dirty pairs: single `Vec<usize>` + single sort replaces
   nested `Vec<Vec<usize>>` — better cache locality, no per-row realloc
 
 ### Stability — Pre-Release Audit Fixes
+
 - **CRITICAL**: Panic hook no longer writes to stdout (was racing with
   `Terminal::drop`'s BufWriter flush, leaking rain onto user's main
   terminal screen)
@@ -350,11 +353,13 @@ as GPL-3.0-only across all 171 source/doc/config files.
 - **LOW**: `tp + 1` → `tp.saturating_add(1)` in droplet/rain hot path
 
 ### Dead Code / Bloat Removal
+
 - Deleted `column_transition_delay_ms: Vec<u16>` field (never read)
 - Deleted `EVENT_MAX_CONCURRENT` constant (never referenced)
 - Removed stale `#[allow(dead_code)]` on `EVENT_RNG_XOR` (is used)
 
 ### Feature Removal
+
 - **Lightning system completely removed** (~3000 lines deleted). The
   atmospheric lightning feature (Storm Mode, Weather Director, bolt
   families, illuminate, global pulse) never reached a satisfying visual
@@ -363,6 +368,7 @@ as GPL-3.0-only across all 171 source/doc/config files.
   as a separate atmospheric feature.
 
 ### License
+
 - Enforced `GPL-3.0-only` across all 171 source/doc/config files
 - Fixed `scripts/check-headers.sh` stale `EXPECTED_LICENSE` variable
 - Extended `check-headers.sh` to scan `*.md` files (was .rs/.sh/.toml/
@@ -370,6 +376,7 @@ as GPL-3.0-only across all 171 source/doc/config files.
 - Updated `LICENSE` body: removed "or (at your option) any later version"
 
 ### Benchmark
+
 ```
 v5.0.1 baseline:    avg_fps 21,359  | frame_time 0.046ms | p99 0.058ms
 v5.0.3:             avg_fps 27,869  | frame_time 0.035ms | p99 0.046ms
@@ -391,6 +398,7 @@ No 50k FPS promise. Terminal writer remains single-owner.
 Benchmark honesty preserved.
 
 ### Added
+
 - `--show-preset <NAME>` flag: display full preset details including
   description, overridden parameters, and effective values for any
   named preset. Makes preset behavior inspectable without running the
@@ -414,6 +422,7 @@ Benchmark honesty preserved.
   reference so users know where to find available profiles.
 
 ### Changed
+
 - Error messages follow a consistent pattern: `error: unknown <type>
   '<value>'` followed by a discovery hint line suggesting the
   appropriate `--list-*` flag. This applies to `--preset`, `--scene`,
@@ -437,6 +446,7 @@ Benchmark honesty preserved.
   `--show-preset` for better scannability.
 
 ### Fixed
+
 - `--profile` help text previously lacked a cross-reference to
   `--list-profiles`, making profile discovery unintuitive for new
   users. Now includes `(see --list-profiles)` hint.
@@ -448,6 +458,7 @@ Benchmark honesty preserved.
   validation errors. Now uses a separate line.
 
 ### Release Safety
+
 - All v4.9.0 release guard mechanisms inherited and active.
 - Terminal writer remains single-owner.
 - Benchmark honesty preserved: no fake benchmark progress, no cherry-

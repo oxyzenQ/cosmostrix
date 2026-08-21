@@ -87,9 +87,12 @@ cosmostrix's code. More precise than `--perf-stats` (which uses
 `Instant::now()` at ~20ns but only at function boundaries).
 
 **Tool**: `bpftrace` one-liners:
+
 ```bash
+
 # Profile frame.set() call frequency + duration
-bpftrace -e 'uprobe:/path/to/cosmostrix:_ZN10cosmostrix5frame5Frame3set17... 
+
+bpftrace -e 'uprobe:/path/to/cosmostrix:_ZN10cosmostrix5frame5Frame3set17...
   { @start = nsecs; }
   uretprobe:/path/to/cosmostrix:_ZN10cosmostrix5frame5Frame3set17...
   { @dur = hist(nsecs - @start); }'
@@ -98,15 +101,16 @@ bpftrace -e 'uprobe:/path/to/cosmostrix:_ZN10cosmostrix5frame5Frame3set17...
 **2. Syscall tracing**
 
 Trace `write()` syscalls to stdout, measure bytes per call + latency:
+
 ```bash
-bpftrace -e 'tracepoint:syscalls:sys_enter_write /comm=="cosmostrix"/ 
+bpftrace -e 'tracepoint:syscalls:sys_enter_write /comm=="cosmostrix"/
   { @bytes = hist(args->count); }'
 ```
 
 This would reveal if `flush_ansi()` is doing too many small writes vs
 one big write (it should be one big write — verify with eBPF).
 
-### What eBPF CANNOT do
+## What eBPF CANNOT do
 
 **1. "Bypass CPU limits"** — NO.
 

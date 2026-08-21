@@ -231,14 +231,16 @@ time-to-parameter mapping via `[adaptive-custom.HH-MM]` config entries.
 ### Format
 
 ```toml
+
 # Format: adaptive-custom.HH-MM = <color>, <scene>, [key=value, ...]
+
 adaptive-custom.00-00 = green3, matrix, speed=60
 adaptive-custom.02-10 = cosmos, monolith, density=1.2
 adaptive-custom.06-00 = aurora, signal, speed=10, density=0.5
 adaptive-custom.22-00 = sunset, monolith, speed=10
 ```
 
-### Fields
+## Fields
 
 - **HH-MM**: time in 24h format (00-00 to 23-59).
 - **First value**: color scheme name (52 built-in themes, or any
@@ -249,7 +251,7 @@ adaptive-custom.22-00 = sunset, monolith, speed=10
 - **Optional key=value pairs** (ONLY these 5 fields are accepted;
   any other key is rejected with a parse error):
   - `speed` — float in `[1.0, 100.0]` (allows fractional values for
-    smooth lerp transitions; see [§ Speed Type Asymmetry](#speed-type-asymmetry)
+    smooth lerp transitions; see [SS Speed Type Asymmetry](#speed-type-asymmetry-intentional)
     below for why this differs from top-level `speed`).
   - `density` — float in `[0.0, 1.0]`.
   - `fps` — integer in `[1, 120]`.
@@ -308,15 +310,19 @@ rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#ffffff"
 ### Usage
 
 ```bash
+
 # Load a custom palette by name
+
 cosmostrix --colors-custom sunset
 
 # Reference the same palette from an adaptive-custom time point
+
 # (in config.toml)
+
 adaptive-custom.22-00 = sunset, monolith, speed=10
 ```
 
-### Validation
+## Validation
 
 - `rain` must contain at least 2 hex colors (a gradient needs endpoints).
 - Hex colors must be exactly 6 hex digits, with or without a leading `#`.

@@ -284,12 +284,14 @@ implies this is deliberate — "defining them is an opt-in"), but
  `#[value(name = "cosmic")]`, `#[value(name = "logo")]`, `#[value(name = "none")]`.
  clap `ValueEnum` is case-INsensitive by default → `--intro Logo` works.
 - `src/testconf.rs:572-575` (`validate_field_value` for `intro`):
+
  ```rust
  "intro" => match v {
  "cosmic" | "logo" | "none" => None,
  _ => Some("expected cosmic/logo/none, got '{v}' ...")
  }
  ```
+
  No `.to_ascii_lowercase()` normalization → case-SENSITIVE.
 - `src/testconf.rs:709-720` (test `intro_case_sensitive_typo_is_rejected`):
  explicitly asserts `validate_field_value("intro", "Logo")` returns `Some`
@@ -440,15 +442,15 @@ visual params, not configuration switches). Tebut undocumented.
  3. `colors-custom.<name>.<invalid-field>` (line 89)
  4. Top-level typo via edit-distance (line 119)
 - Missing patterns (Phase 2 will catalog fully):
- 5. Top-level `density-map` (should suggest section move)
- 6. Top-level `color_bg` snake_case (should suggest `color-bg`)
- 7. `profile.<name>.<invalid-field>` (no hint)
- 8. `charset-custom.<name>.<invalid-field>` (no hint — only `set` valid)
- 9. `adaptive-custom.<invalid-HH-MM>` (no hint — currently generic error)
- 10. `scene-custom.<name>.<top-level-key>` mis-nest (no hint)
- 11. `colors-custom.<name>.<top-level-key>` mis-nest (no hint)
- 12. `adaptive-custom.HH-MM = <color>, <scene>, <invalid-k=v>` (no hint)
- 13. Top-level `bold = true` / `bold = false` (should suggest `0`/`1`/`2`)
+ 1. Top-level `density-map` (should suggest section move)
+ 2. Top-level `color_bg` snake_case (should suggest `color-bg`)
+ 3. `profile.<name>.<invalid-field>` (no hint)
+ 4. `charset-custom.<name>.<invalid-field>` (no hint — only `set` valid)
+ 5. `adaptive-custom.<invalid-HH-MM>` (no hint — currently generic error)
+ 6. `scene-custom.<name>.<top-level-key>` mis-nest (no hint)
+ 7. `colors-custom.<name>.<top-level-key>` mis-nest (no hint)
+ 8. `adaptive-custom.HH-MM = <color>, <scene>, <invalid-k=v>` (no hint)
+ 9. Top-level `bold = true` / `bold = false` (should suggest `0`/`1`/`2`)
 
 **Impact:**
 - Users hit "unknown key" with generic "run --testconf" message for 9

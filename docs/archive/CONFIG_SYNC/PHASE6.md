@@ -142,6 +142,7 @@ Notable design decisions documented inline:
  the struct fields are kept because they're populated by `glitch_level`
  preset via `config_apply.rs::apply_glitch_level_preset`. Each has an inline
  comment explaining the v17 removal. Example (`config.rs:643-646`):
+
  ```rust
  // v17 mastery: --glitchpct CLI flag REMOVED. Use --glitch-level instead.
  // Field kept for internal use (set by glitch_level preset via config_apply).
