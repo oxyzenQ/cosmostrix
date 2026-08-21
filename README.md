@@ -104,33 +104,64 @@ The Dragon's roar is not loud — it is precise.
 
 ## Features
 
+### Rendering
+
 - **Cosmic Dragon diff-based rendering engine** — double-buffered dirty tracking with O(1) clear, semantic generation invalidation, `/dev/tty` fallback, single-syscall flush, and pre-formatted SGR bytes (0.0 allocs/frame on lean path). Invariant tests lock the engine's contract on every commit.
 - **Chroma Dragon coloring engine (Phase 9-D locked)** — OKLab gradient interpolation, palette-relative brightness floor, body-tail continuity, perceptual transition smoothing, head halo, subpixel hue jitter, temporal column coherence, and hue-preserving polar gradient. Invariant tests lock the engine's contract on every commit.
-- **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), ambient scheduler for time-of-day scene scheduling with auto-snapback (idle 30s), and point-based temperature grouping with OKLab smooth transitions
-- **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`dragon-crystal`, `orange-cat`, `north-stars`, `curiosity`)
-- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports density-map sculpting for monolith pillar formations
-- 44 built-in color themes and 25 character sets (`--color-tune` turns all 44 into infinite variants)
-- **3-layer parallax depth** — far/mid/near layers with independent speed, brightness, length, density, and phosphor-decay multipliers
-- **Phosphor persistence (CRT afterglow)** — per-layer decay with bottom-row acceleration, creating ~400ms afterglow per glyph
-- Per-layer contrast reduction for depth-of-field perceptual blur
-- TrueColor gradients with luminous head glow
-- Configurable speed, density, FPS, and glitch intensity
-- Density map sculpting — per-column weight maps for cinematic monolith formations
-- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border)
-- Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
-- Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`)
-- **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux), and Endurance Health Score (0–100) for long-running sessions
-- Adaptive throttling — reduces CPU when idle (30s no-input → 0.5× FPS)
-- Live config reload via filesystem watch — full rebuild with strict validation on save
-- Screensaver mode — only `q` exits; all runtime controls still work for interactive use
-- Always-on mouse glow + click wave effects (cursor halo + dual-ring shockwave). Mouse reporting always active (blocks text selection)
-- Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation
-- Fixed virtual screen size (`--screen-size WxH`) for benchmarking
-- 5-layer destructive terminal recovery (`--reset-terminal`)
-- Benchmark mode with JSON output, compound duration (`--bench-duration 1h30m`), self-documenting reports
-- Terminal diagnostics (`--doctor`) and config validation (`--testconf`)
-- PGO nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize)
-- Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD
+- **3-layer parallax depth** — far/mid/near layers with independent speed, brightness, length, density, and phosphor-decay multipliers.
+- **Phosphor persistence (CRT afterglow)** — per-layer decay with bottom-row acceleration, creating ~400ms afterglow per glyph.
+- Per-layer contrast reduction for depth-of-field perceptual blur.
+- TrueColor gradients with luminous head glow.
+- **CRT vignette** — top/bottom edge dim for cinematic CRT-glow feel; auto-disabled under performance pressure.
+- **Quantum ripple** — click-triggered expanding particle burst at the click point; bounded pool prevents unbounded spawn.
+- **Ghost-kanji cinematic events** — probabilistic ghost characters that fade in/out during rain, palette-aware (match the active scene's color).
+- **Entropy drift + emergent storytelling** — slow autonomous luminance shifts, density migration, and anomaly pressure fluctuations that make the renderer feel atmospherically alive across long sessions.
+- Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
+- Configurable speed, density, FPS, and glitch intensity.
+- Density map sculpting — per-column weight maps for cinematic monolith formations.
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border).
+- Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
+- **Smooth pause** — `Space` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
+
+### Scenes & Colors
+
+- **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`dragon-crystal`, `orange-cat`, `north-stars`, `curiosity`).
+- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance and density-map sculpting.
+- **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes/profiles.
+- **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
+- 44 built-in color themes and 25 character sets.
+- **Color tune** (`--color-tune sat,bright,head,body,tail`) — per-channel multiplier (default 1.0 = identity) that turns all 44 themes into infinite variants.
+- **Profiles** (`[profile.<name>]` blocks) — saved presets that layer on top of any scene; supports base-scene inheritance.
+
+### Intelligence & Power
+
+- **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Priority over Crystal Dragon drift (`ambient_palette_locked` gate). Auto-snapback restores the ambient scene after 30s idle if the user manually overrides.
+- **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
+- **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
+- **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input → 0.5× FPS). Thermal pressure tracking feeds into the self-healer.
+- **Terminal tier detection** — auto-detects xterm.js hosts (VSCode, web terminals) and caps FPS at 30 to prevent OOM; native terminals get up to 240 FPS.
+
+### Live Reload & Config
+
+- **Live config reload** — `notify`-based hybrid filesystem watcher (inotify/kqueue/FSEvents) with bounded channel (cap 64). On save: strict validation → full `CloudConfig` rebuild → atomic apply. Works for all config sections (scenes, colors, charsets, profiles, ambient, crystal-dragon). Half-write safe with atomic editors (VSCode, vim, etc.).
+- Terminal diagnostics (`--doctor`) and config validation (`--testconf`).
+
+### Interaction & UX
+
+- Always-on mouse glow + click wave effects (cursor halo + dual-ring shockwave + quantum ripple particles). Mouse reporting always active (blocks text selection).
+- Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
+- Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
+- Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
+- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes, `s` cycle charsets, `Space` pause, `i` toggle HUD, `g` toggle glitch, `o` toggle monolith, `+`/`-` adjust speed, `[/]` adjust density, `</>` adjust FPS.
+
+### Benchmarking & Build
+
+- Fixed virtual screen size (`--screen-size WxH`) for benchmarking.
+- Benchmark mode with JSON output, compound duration (`--bench-duration 1h30m`), `--bench-io` (wet terminal I/O), `--bench-all` (scaling ladder), `--compare-baseline`, and self-documenting reports.
+- **5-layer destructive terminal recovery** (`--reset-terminal`) — RIS reset, alternate-screen exit, cursor restore, terminal attributes reset, scrollback clear.
+- PGO nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize).
+- Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
 ## Limitations
 
@@ -142,6 +173,12 @@ Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
 - **Windows Terminal cleanup is best-effort** ([#15](https://github.com/oxyzenQ/cosmostrix/issues/15)). Forced termination (task kill, close window, signout) on Windows Terminal / ConHost may leave the terminal in a degraded state (scrolled buffer visible, cursor hidden). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths. Run `cosmostrix --reset-terminal` to recover.
 - **RSS and CPU metrics are Linux/macOS only.** `--benchmark` emits `unsupported` on Windows rather than fake values.
+- **Live reload watches a single file.** The `notify` watcher monitors only `config.toml`. External files referenced by config (custom palette files, etc.) are not individually watched — reload triggers on `config.toml` save only.
+- **Live reload is not atomic-write safe with non-atomic editors.** `echo > config.toml` or `tee` may produce a half-written file that fails validation (the watcher sees the partial write). Use atomic-saving editors (VSCode, vim with `writebackup`, Helix, Neovim) — most modern editors are safe. On validation failure, the previous config is retained; no crash.
+- **Ambient scheduler uses wall-clock time.** DST spring-forward skips entries in the 02:00–02:59 window; DST fall-back fires entries in the repeated hour twice. Acceptable per design — the scheduler is a convenience, not a cron replacement.
+- **Single ambient entry is active all day.** A schedule with only one entry (e.g. `ambient.03-17 = hacker-mode`) wraps via midnight carry-over — it is active before AND after 03:17. Use two entries if you want a scene to activate only after a specific time.
+- **Mouse reporting blocks text selection.** crossterm enables mouse reporting for glow/click effects, which prevents terminal text selection. This is always-on (not toggleable) because the mouse effects are a core visual feature.
+- **xterm.js hosts are capped at 30 FPS.** VSCode, web terminals, and other xterm.js-based hosts are auto-detected and capped to prevent multi-hour OOM crashes. This cap cannot be overridden — it is a safety gate, not a configurability gap.
 - **No prebuilt binary for Windows ARM64 or Intel Mac.** Prebuilt releases cover `windows-x86_64` and `darwin-aarch64-native` only. Windows ARM64 and Intel Mac users must build from source.
 - **Screen size limits.** `--screen-size WxH` clamps to a per-mode ceiling:
   - **Interactive mode**: `4×4` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
