@@ -116,7 +116,7 @@ The Dragon's roar is not loud — it is precise.
 - Configurable speed, density, FPS, and glitch intensity
 - Density map sculpting — per-column weight maps (0.0–1.0) for cinematic monolith formations (e.g. twin pillars, cascading waterfall, central throne)
 - Crystal Dragon — ambient palette drift from system state (`--crystal-dragon` / `crystal-dragon = true` in config)
-- Message overlay — display custom text on the rain (`--message "wake up, neo"`)
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`)
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output
 - Live HUD — real-time FPS, p99, max frame-time, RSS, endurance health score,
   effective pressure, speed/density/scene/charset/color confirmation, uptime,
@@ -175,7 +175,7 @@ Cosmostrix renders glyphs the terminal emulator draws — your font choice shape
 
 Avoid `Fira Code` (ligatures disrupt `0`/`1` rain) and system defaults (Consolas, Menlo) which lack full Unicode coverage for box-drawing + braille charsets.
 
-The chroma dragon border gradient (`--message` overlay) and HUD chroma gradient (16-stop sweep) look best on a font with crisp, high-contrast glyph edges.
+The chroma dragon border gradient (`-mb` message overlay) and HUD chroma gradient (16-stop sweep) look best on a font with crisp, high-contrast glyph edges.
 
 ## Installation
 
@@ -323,7 +323,7 @@ scripts/verify-release-build.sh pro-linux-v3
 cosmostrix                           # signature Cinematic Cosmic default
 cosmostrix --color dragon-crystal --speed 12   # color + speed
 cosmostrix --screensaver              # only q exits (all other keys ignored)
-cosmostrix --message "wake up, neo"   # overlay message
+cosmostrix -m "wake up, neo"         # overlay message
 cosmostrix --charset katakana         # character set
 cosmostrix --scene cinematic          # built-in scene
 cosmostrix --scene monolith --color cosmos
@@ -347,7 +347,7 @@ COMMON OPTIONS
   -S, --speed <1-100>         Rain speed
   -d, --density <0.01-5.0>    Rain density
   -s, --screensaver           Only q exits (all other keys ignored). Mouse events captured to block selection
-  -m, --message <text>        Overlay message (no border). Use -mb for border
+  -m <text>                    Overlay message (no border). Use -mb for border
       --glitch-level <level>  Glitch intensity (none|subtle|default|intense)
       --scene <name>          Apply a built-in scene atmosphere (see --list-scenes)
       --scene-custom <name>   Apply a user-defined custom scene from config

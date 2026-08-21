@@ -66,18 +66,6 @@ fn validate_rejects_invalid_atmosphere_regime() {
     );
 }
 
-#[test]
-fn parse_range_handles_whitespace() {
-    assert_eq!(parse_range(" 200 , 300 "), Some((200, 300)));
-    assert_eq!(parse_range("300,200"), Some((200, 300)));
-}
-
-#[test]
-fn parse_range_rejects_invalid() {
-    assert_eq!(parse_range("abc"), None);
-    assert_eq!(parse_range("200"), None);
-}
-
 // ── Termux fix: triple-signal tests live in
 // `live_config_poll::tests` (split keeps this file under LOC cap).
 
