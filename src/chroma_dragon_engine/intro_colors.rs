@@ -150,10 +150,10 @@ mod tests {
     #[test]
     fn cosmic_colors_are_distinct() {
         // All three cosmic colors must differ from each other.
-        for i in 0..COSMIC_COLORS_RGB.len() {
-            for j in (i + 1)..COSMIC_COLORS_RGB.len() {
+        for (i, ci) in COSMIC_COLORS_RGB.iter().enumerate() {
+            for (j, cj) in COSMIC_COLORS_RGB.iter().enumerate().skip(i + 1) {
                 assert_ne!(
-                    COSMIC_COLORS_RGB[i], COSMIC_COLORS_RGB[j],
+                    ci, cj,
                     "cosmic colors[{i}] and [{j}] must be distinct"
                 );
             }

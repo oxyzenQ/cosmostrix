@@ -50,7 +50,7 @@ Cosmostrix is built on **two cooperating engines** that split the rendering work
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/terminal_tty.rs`, `src/cosmic_dragon_engine/runtime.rs` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/terminal/terminal_tty.rs`, `src/cosmic_dragon_engine/runtime.rs` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable. On a 2-vCPU cloud Xeon the engine sustains 103,021 avg_fps on the `monolith` scene at 80×24, 59,222 at 120×40, and 13,992 at 400×200 (v50 nightly.1, pro-linux-v4 build, headless dry I/O). All benchmark numbers were measured on Linux (Intel Xeon, minimum kernel or latest) — actual performance on macOS, Windows, or BSD may vary.
 
@@ -58,7 +58,7 @@ This is what makes the cinematic effects affordable: phosphor decay, 3-layer par
 
 Lives under `src/chroma_dragon_engine/` (`palette`, `catalog`, `gradient`, `shaders`, `post`, `tuning`). Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
 
-The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color work, culminating in invariant tests (`src/chroma_dragon_engine/lock_tests.rs`) that assert the engine's public contract on every commit:
+The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color work, culminating in invariant tests (`src/chroma_dragon_engine/tests/lock.rs`) that assert the engine's public contract on every commit:
 
 - **OKLab gradient interpolation** (Phase 3-A) — perceptually uniform, no muddy mid-tones on hue-crossing gradients
 - **Dragon Awakening** (Phase 4) — temporal column hue coherence, subpixel hue jitter, and head halo via background blend are always-on
@@ -78,10 +78,10 @@ Every other Matrix rain renderer redraws every cell every frame. Cosmostrix keep
 The renderer is structured as five cooperating subsystems (Cosmic Dragon) plus the Chroma Dragon coloring pipeline:
 
 1. **Diff-based cell renderer** (`src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation.
-2. **3-layer parallax** (`src/cosmic_dragon_engine/cloud/spawn.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`; multipliers in `src/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
+2. **3-layer parallax** (`src/cosmic_dragon_engine/cloud/spawn.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`; multipliers in `src/types/constants.rs`) — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard deep/mid/ground composition; more would collapse perceptually in a 24-row terminal.
 3. **Phosphor persistence** (`src/cosmic_dragon_engine/cloud/phosphor.rs`) — CRT afterglow with `PHOSPHOR_TAIL_RESIDUAL=160` + `PHOSPHOR_DECAY_RATE=5.0`, per-layer decay multipliers, bottom-row 2× acceleration, edge energy cap. Creates ~400 ms afterglow per glyph. Most terminal rain renderers have zero afterglow.
 4. **Density noise & wind gusts** (`src/cosmic_dragon_engine/cloud/living_rain.rs`, `src/cosmic_dragon_engine/cloud/monolith.rs`) — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion that never repeats.
-5. **Ambient scheduler** (`src/ambient_scheduler.rs`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase). Replaces the v30 atmosphere engine (eliminated) with a leaner, deterministic design.
+5. **Ambient scheduler** (`src/crystal_dragon_engine/ambient_scheduler/`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase). Replaces the v30 atmosphere engine (eliminated) with a leaner, deterministic design.
 6. **Chroma Dragon coloring engine** (`src/chroma_dragon_engine/`) — the coloring counterpart to the Cosmic Dragon. Owns palette construction, OKLab gradient interpolation, cell-color resolution, transition L+chroma smoothing, atmospheric post-processing, and palette-aware anomaly halos. Locked at Phase 9-D (see About section above).
 
 Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --benchmark` for reproducible performance measurements on your own hardware.
@@ -103,8 +103,8 @@ The Dragon's roar is not loud — it is precise.
 ## Features
 
 - **Cinematic terminal rain** — calm, organic visual feel with crisp head/body/trail hierarchy and desynchronized column speeds (async mode default ON for organic feel)
-- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (near-zero `format!()` calls in the hot path; 0.0 allocs/frame on lean path, ~1.1 on production-draw I/O path). Invariant tests in `src/cosmic_dragon_incubator/lock_tests.rs` lock the engine's contract on every commit.
-- **Chroma Dragon coloring engine (Phase 9-D locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient — sole production OKLab path (Phase 9-A → 9-D). Invariant tests in `src/chroma_dragon_engine/lock_tests.rs` lock the engine's contract on every commit.
+- **Cosmic Dragon diff-based rendering engine (v30 locked)** — double-buffered generation-based dirty tracking (O(1) `clear_dirty` via single u32 bump, replaces the standard O(N) `Vec<bool>` memset), `semantic_gen` invalidation counter (eliminates stale-glyph residue on charset/theme switches), `/dev/tty` fallback (recovers from broken stdout mid-run — unique among terminal renderers), single-syscall flush via `SYNC_START + ansi_buf + SYNC_END` concatenation, and pre-formatted `ColorCache` SGR bytes (near-zero `format!()` calls in the hot path; 0.0 allocs/frame on lean path, ~1.1 on production-draw I/O path). Invariant tests in `src/cosmic_dragon_incubator/tests/lock.rs` lock the engine's contract on every commit.
+- **Chroma Dragon coloring engine (Phase 9-D locked)** — OKLab gradient interpolation, palette-relative brightness floor (Phase 7-c, replaces v17 global `MIN_RGB_SUM=180`), body-tail continuity (Phase 7-d, 2.0× max gap), perceptual L+chroma smoothing at palette transitions (Phase 5 + Phase 8), head halo via background blend (Phase 4-D), subpixel hue jitter (Phase 4-B), temporal column hue coherence (Phase 4-A), palette-aware anomaly halos (Phase 6), hue-preserving polar gradient — sole production OKLab path (Phase 9-A → 9-D). Invariant tests in `src/chroma_dragon_engine/tests/lock.rs` lock the engine's contract on every commit.
 - **18 built-in scenes** — one-command visual profiles: 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), the `cosmic-dragon` milestone scene commemorating the temporal-prediction breakthrough (dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), the `carbonic` tribute scene (dense metallic carbon-fiber binary rain honoring the experiment that was reverted for cinematic quality), and 4 honor scenes: `dragon-crystal` (cosmostrix + oxyzenQ journey, hardthinking-mode reward), `orange-cat` (in memory of the owner's orange cat, 2 Aug 2026), `north-stars` (3 AM stargazing), and `curiosity` (the engine that built cosmostrix)
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config for persistent personal themes, applied via `--scene-custom`; supports 13 configurable fields including density-map sculpting for monolith pillar formations
 - **Ambient scheduler** — `ambient."HH-MM" = "scene"` config entries define time-of-day scene scheduling (e.g. `ambient."22-10" = "aurora"` runs aurora from 22:00 to 10:00); idle-based auto-snapback (30s) restores the active ambient phase after user overrides ('c'/'C'/'x'/'s'); live config reload re-parses immediately on save
@@ -321,7 +321,7 @@ scripts/verify-release-build.sh pro-linux-v3
 
 ```bash
 cosmostrix                           # signature Cinematic Cosmic default
-cosmostrix --color dragon-crystal --speed 12   # color + speed
+cosmostrix --color zen --speed 12           # color + speed
 cosmostrix --screensaver              # only q exits (all other keys ignored)
 cosmostrix -m "wake up, neo"         # overlay message
 cosmostrix --charset katakana         # character set
@@ -334,7 +334,7 @@ cosmostrix --intro cosmic             # cosmic burst intro before rain
 
 ## CLI Reference
 
-Run `cosmostrix --help` for the full reference manual (CLI flags, runtime controls, atmosphere phases, rendering philosophy). The CLI flags below are grouped exactly as `--help` groups them.
+Run `cosmostrix --help` for the full reference manual (CLI flags, runtime controls, rendering philosophy). The CLI flags below are grouped exactly as `--help` groups them.
 
 ```text
 COMMON OPTIONS
@@ -619,8 +619,8 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-cargo test lock_tests -- --nocapture            # print the Chroma Dragon engine lock report
-cargo test cosmic_dragon::lock_tests -- --nocapture  # print the Cosmic Dragon engine lock report
+cargo test chroma_dragon::tests::lock -- --nocapture   # print the Chroma Dragon engine lock report
+cargo test cosmic_dragon_incubator::tests::lock -- --nocapture  # print the Cosmic Dragon engine lock report
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 
