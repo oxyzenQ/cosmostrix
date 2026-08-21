@@ -5,7 +5,7 @@
 
 > **Document ID**: RAIN-USAGE-001
 > **Date**: 2026-08
-> **Scope**: `src/central_control_rains.rs` — every tunable knob in the rain visual stack
+> **Scope**: `src/central_control_rains/mod.rs` — every tunable knob in the rain visual stack
 > **Audience**: cosmostrix users who want to fine-tune the rain look beyond
 > the built-in presets (Option F "Film Matrix Hero" and friends)
 > **Goal**: make cosmostrix flexible. If a user dislikes the default
@@ -32,7 +32,7 @@ layer pushed so deep it disappears, others want the back layer
 visible as a clear depth cue.
 
 cosmostrix is built around a **single source of truth**:
-`src/central_control_rains.rs`. Every constant in that file directly
+`src/central_control_rains/mod.rs`. Every constant in that file directly
 controls how the rain looks — there are no hidden tuning tables, no
 "magic" runtime defaults, no per-scene overrides that would surprise
 you mid-tuning. This doc is the **complete map** of that file: every
@@ -125,7 +125,7 @@ softer heads" requests without needing to touch source code.
 For deeper visual changes that the runtime knobs can't reach —
 per-layer depth balance, trail persistence per layer, head bloom
 intensity, fog depth, vignette shape, turbulence amplitude, anomaly
-frequency, etc. — you edit `src/central_control_rains.rs` directly
+frequency, etc. — you edit `src/central_control_rains/mod.rs` directly
 and rebuild.
 
 This is the main subject of this document. The rest of the doc
@@ -784,7 +784,7 @@ constant.
 
 These recipes are copy-paste blocks. Each one is a complete
 alternative to Option F that produces a specific named look.
-To use one, edit `src/central_control_rains.rs` and replace the
+To use one, edit `src/central_control_rains/mod.rs` and replace the
 listed constants with the values shown, then `cargo build --release`.
 
 ### 6.1 Recipe — Option A "Baseline" (softer hero, longer trails)
@@ -1139,12 +1139,12 @@ your tuning is hue-specific, either:
 - [`docs/RAIN_DEPTH_AUDIT.md`](./RAIN_DEPTH_AUDIT.md) — the Option F
   "Film Matrix Hero" calibration audit with the 4-mechanism 10/10
   analysis.
-- [`src/central_control_rains.rs`](../src/central_control_rains.rs) —
+- [`src/central_control_rains/mod.rs`](../src/central_control_rains/mod.rs) —
   the source file this doc documents. Every constant listed in §3
   and §4 lives here.
-- [`src/configfile.rs`](../src/configfile.rs) — the runtime config
+- [`src/config/configfile.rs`](../src/config/configfile.rs) — the runtime config
   parser. Documents the toml keys listed in §2.1.
-- [`src/color_tune.rs`](../src/color_tune.rs) — the `--color-tune`
+- [`src/chroma_dragon_engine/color_tune.rs`](../src/chroma_dragon_engine/color_tune.rs) — the `--color-tune`
   runtime knob implementation.
 - [`docs/RELEASE_CANDIDATE.md`](./RELEASE_CANDIDATE.md) — has
   `--color-tune` validation examples and edge cases.

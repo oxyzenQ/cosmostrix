@@ -239,7 +239,7 @@ self.phosphor_last_fresh = tracked_fresh;  // moves back, capacity carries forwa
 The field's heap capacity is preserved across frames. Steady-state per-frame
 allocation from this path: **zero**.
 
-### `src/bench_visual.rs` — hoist `col_counts` and `sorted_counts`
+### `src/bench/bench_visual.rs` — hoist `col_counts` and `sorted_counts`
 
 The visual sampler's `sample()` method was allocating two `Vec<u32>` per
 sample (every 10 frames). Hoisted both into the `VisualSampler` struct as
@@ -285,7 +285,7 @@ a scaling number looks unexpected and you need a starting point.
 | `peak_rss` > 15 MiB at 400×200                           | Memory regression (back-buffer, droplet pool, or leak)      | `peak_rss` column vs cell count                                | Back-buffer = `cells × sizeof(Cell)`. At 400×200 = 1.28 MiB. Total budget: 15 MiB.              |
 | `dirty_ratio%` stays high (>10%) at large sizes          | Diff engine not catching unchanged cells                    | `dirty_ratio%` column — should DROP with size (5.4% → 1.8%)    | Check `src/cosmic_dragon_engine/frame.rs` diff logic. v30: 1.8% at 400×200.                                          |
 | `dirty_ratio%` higher than v30 reference at same size    | Visual change increasing per-frame mutations                | Recent scene/palette/charset changes                           | Some scenes (cinematic) inherently have higher dirty ratio than others (monolith).              |
-| `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/terminal.rs`. v30: 51-58 ns/cell flat.                               |
+| `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/cosmic_dragon_engine/terminal/`. v30: 51-58 ns/cell flat.                               |
 | `render_ns/cell` grows with size                         | New per-cell work in render path                            | `render_ns/cell` column — should stay ~27 ns/cell              | Bisect on `src/cosmic_dragon_engine/cloud/render.rs`, `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`.                  |
 | `avg_fps` at 80×24 below 50,000                          | Build profile or env regression                             | Build flags (LTO, PGO); CPU governor; SMT state                | Match the v30 reference env: `pro-linux-v3`, schedutil, SMT on.                                 |
 | `avg_fps` at 400×200 below 5,000                         | Cache thrashing or memory bandwidth saturation              | `total_ns/cell` — if >100 ns/cell, cache miss is the cause     | The 8.5% uptick at 400×200 (85.8 vs 78.5 ns/cell) is cache pressure, expected.                  |

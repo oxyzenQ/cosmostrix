@@ -21,10 +21,10 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 
 | Doc | Covers |
 |-----|--------|
-| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/terminal_tty.rs`) |
+| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/terminal/terminal_tty.rs`) |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
-| [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) | SIMD optimization feasibility (rejected; `src/bolt.rs`) |
+| [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) | SIMD optimization feasibility (rejected; `src/bolt/`) |
 
 **Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma_dragon_engine/`).
 
@@ -43,7 +43,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 
 | Doc | Covers |
 |-----|--------|
-| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains.rs`) |
+| [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains/mod.rs`) |
 | [RAIN_DEPTH_AUDIT.md](RAIN_DEPTH_AUDIT.md) | Visual-audit methodology for rain depth stack |
 
 The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma_dragon_engine/post/climate.rs`, `AtmosphericEvolution` in `src/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.

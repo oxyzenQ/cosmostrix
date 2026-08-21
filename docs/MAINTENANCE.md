@@ -53,7 +53,7 @@ If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 
 ### Symlink Handling
 
-`--config <path>` enforces a directory whitelist via `validate_config_path()` (see `src/safepath.rs`). Symlinks pointing outside the whitelist are rejected at the validation layer. The configfile parser reads the target strictly as TOML text — no `eval`, `include`, or recursive resolution; no env vars, secrets, or shell expansion. A symlink swap can at most feed different TOML content, which `--testconf` catches. The watcher (`src/live_config.rs`) re-validates on every reload. **Future hardening** (not required for v50 stable): switch to `fstatat` with `AT_SYMLINK_NOFOLLOW` and reject any path crossing a symlink boundary.
+`--config <path>` enforces a directory whitelist via `validate_config_path()` (see `src/safepath/mod.rs`). Symlinks pointing outside the whitelist are rejected at the validation layer. The configfile parser reads the target strictly as TOML text — no `eval`, `include`, or recursive resolution; no env vars, secrets, or shell expansion. A symlink swap can at most feed different TOML content, which `--testconf` catches. The watcher (`src/config/live_config.rs`) re-validates on every reload. **Future hardening** (not required for v50 stable): switch to `fstatat` with `AT_SYMLINK_NOFOLLOW` and reject any path crossing a symlink boundary.
 
 ## 5. Periodic Health Check
 

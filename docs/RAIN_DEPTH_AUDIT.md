@@ -6,7 +6,7 @@
 > **Document ID**: RAIN-AUDIT-002
 > **Date**: 2026-08
 > **Supersedes**: RAIN-AUDIT-001 (Option A baseline)
-> **Scope**: `src/central_control_rains.rs` per-layer brightness/depth stack
+> **Scope**: `src/central_control_rains/mod.rs` per-layer brightness/depth stack
 > **Question**: Why does Option F "Film Matrix Hero" earn a 10/10 visual
 > rating, and is the rain brightness layer back/mid/front **peak**?
 > **Answer**: **YES — Option F sits at the upper edge of the masterclass
@@ -22,7 +22,7 @@
 
 The cosmostrix rain renderer uses **3 parallax depth layers** (back/mid/front
 = far/mid/near). Each layer is tuned via 11 per-layer constants in
-[`src/central_control_rains.rs`](../src/central_control_rains.rs):
+[`src/central_control_rains/mod.rs`](../src/central_control_rains/mod.rs):
 
 - `PARALLAX_SPEED_MULT` — parallax motion speed
 - `PARALLAX_BRIGHTNESS_MULT` — per-droplet luminance
@@ -809,13 +809,13 @@ implement these mechanisms, and they are coupled — removing any one
 breaks the composition.
 
 For reference, the Option F lock is recorded in
-[`src/central_control_rains.rs`](../src/central_control_rains.rs)
+[`src/central_control_rains/mod.rs`](../src/central_control_rains/mod.rs)
 lines 191, 205, 216, 232, 279, 331 (the six bolded values in §2.3),
 with the full calibration history (most recent first) in lines
 63–152. The silent override bug fixes that made the front-layer
 boosts actually apply are documented in lines 91–103, and the
 stabilization regression tests that lock those fixes are in
-[`src/droplet.rs::silent_override_regression_tests`](../src/droplet.rs).
+[`src/droplet/mod.rs::silent_override_regression_tests`](../src/droplet/mod.rs).
 The `--bench-scene production-draw` mode added in the same commit
 allows measuring the production render path (`Terminal::draw`) that
 exercises these constants in the hot loop.

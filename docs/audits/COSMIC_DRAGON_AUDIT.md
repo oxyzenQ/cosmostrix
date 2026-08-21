@@ -214,7 +214,7 @@ When maintaining cosmostrix, the following audit findings are the
 |------|---------------|-------|
 | New `.unwrap()` | Ensure it's `#[cfg(test)]` only. Production unwraps can panic mid-rain. | `rg -n '\.unwrap\(\)' src/ -g '!*_tests.rs'` |
 | New `unsafe` block | Must have SAFETY comment. Must not introduce soundness issue. | `rg -n 'unsafe ' src/ -g '!*_tests.rs'` |
-| New `eprintln!`/`write_fmt` in hot path | Must buffer via `push_runtime_warning` (AB-10) or `push_runtime_warning` (AB-10). Direct stderr writes leak into rain matrix. | `rg -n 'eprintln!\|write_fmt' src/interactive/ src/cosmic_dragon_engine/cloud/ src/live_config.rs` |
+| New `eprintln!`/`write_fmt` in hot path | Must buffer via `push_runtime_warning` (AB-10) or `push_runtime_warning` (AB-10). Direct stderr writes leak into rain matrix. | `rg -n 'eprintln!\|write_fmt' src/interactive/ src/cosmic_dragon_engine/cloud/ src/config/live_config.rs` |
 | New thread spawn | Must have `catch_unwind` for panic recovery (parity with watcher + scheduler). | `rg -n 'thread::spawn\|thread::Builder' src/ -g '!*_tests.rs'` |
 | New mutex `.lock()` | Must use `if let Ok(guard)` pattern, not `.unwrap()`. | `rg -n '\.lock\(\)' src/ -g '!*_tests.rs'` |
 | New power-pressure gate | Must use hysteresis (M1 pattern), not hard threshold. Hard thresholds strobe under fluctuating load. | `src/cosmic_dragon_engine/cloud/phosphor.rs` (reference implementation) |
@@ -244,7 +244,7 @@ quality of masterpiece engine to avoid potential leaks, overhead, etc problems."
 Two parallel audit tracks covering the complete rendering + coloring pipeline:
 
 1. **Cosmic Dragon** (rendering/simulation engine): `src/cosmic_dragon_engine/cloud/*`, `src/cosmic_dragon_engine/frame.rs`,
-   `src/interactive/*`, `src/droplet.rs`, `src/central_control_rains.rs`,
+   `src/interactive/*`, `src/droplet/mod.rs`, `src/central_control_rains/mod.rs`,
    `src/central_control_dragon_power/*` — 196 production source files scanned.
 2. **Chroma Dragon** (coloring engine): `src/chroma_dragon_engine/*` — palette, gradient,
    shaders, post-FX, legacy, tuning — all modules scanned.

@@ -24,7 +24,7 @@ the crate root**, and that is the end of the discussion.
 |------|----:|------|
 | `src/cosmic_dragon_engine/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
 | `src/cosmic_dragon_engine/terminal/` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
-| `src/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
+| `src/cosmic_dragon_engine/terminal/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
 | `src/cosmic_dragon_engine/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
 
 Total: 1,992 LOC. Imported by **every render-path module** across `src/`
@@ -75,7 +75,7 @@ This is a hard policy, not a preference.
 "The Cosmic Dragon Diff-Based Rendering Engine" is the engine's
 identity. That identity is expressed in:
 
-- `src/bench_report.rs` — the engine name printed in benchmark output
+- `src/bench/bench_report.rs` — the engine name printed in benchmark output
 - `docs/RENDER_ENGINE.md` — this document
 - `docs/COSMIC_DRAGON_ARCHITECTURE.md` — architectural narrative
 - `src/cosmic_dragon_incubator/README.md` — incubator policy
@@ -142,7 +142,7 @@ Terminal (src/cosmic_dragon_engine/terminal/)
 ├── run_buf: String               // reusable RLE accumulator (diff redraw)
 └── color_cache: Option<ColorCache>  // pre-computed SGR bytes per (fg,bg)
 
-Cell (src/cell.rs) — 16 bytes
+Cell (src/types/cell.rs) — 16 bytes
 ├── ch: char          (4 B)
 ├── fg: Option<Color> (4 B — niche-optimized, same size as Color)
 ├── bg: Option<Color> (4 B — niche-optimized)

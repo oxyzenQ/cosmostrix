@@ -16,12 +16,11 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Experimental features, future v15+ subsystems                  │
 │  → Never touches stable engine internals                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 6: CLI + Helpers (src/cli.rs, output.rs, help_detail.rs) │
+│  Layer 6: CLI + Helpers (src/cli/, output/)                      │
 │  Argument parsing, color output, help text, version info        │
 │  → Strict whitelist security on all file ops                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 5: Config System (src/config.rs, config_apply.rs,        │
-│           configfile.rs, testconf.rs, safepath.rs)              │
+│  Layer 5: Config System (src/config/, safepath/, validation/) │
 │  TOML config parsing, validation, live reload                   │
 │  → Strict validation: invalid = exit 2, no silent fallback      │
 ├─────────────────────────────────────────────────────────────────┤
@@ -29,7 +28,7 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Event loop, HUD, input, watchdog, adaptive pacing              │
 │  → Only 'q' quits (consistent policy, no accidental exit)       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 3: Ambient Scheduler (src/ambient*.rs)                  │
+│  Layer 3: Ambient Scheduler (src/crystal_dragon_engine/ambient*/)
 │  Time-driven scene scheduling, low-rate adaptive modulation    │
 │  → Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
@@ -37,7 +36,7 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
 │  → Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 1: Terminal I/O (src/cosmic_dragon_engine/terminal/, frame.rs, color_cache) │
+│  Layer 1: Terminal I/O (cosmic_dragon_engine/terminal/, frame.rs, color_cache)   │
 │  ANSI escape sequencing, diff-based rendering, sync output      │
 │  → 5-layer --reset-terminal recovery for SIGKILL survival       │
 └─────────────────────────────────────────────────────────────────┘
@@ -243,13 +242,13 @@ The Cosmic Dragon's codebase is organized by responsibility:
 
 | Layer | Modules | LOC | Tests |
 |-------|---------|-----|-------|
-| Terminal I/O | terminal/, frame.rs, color_cache.rs, sgr_format.rs, termdetect/ | ~2,500 | 50+ |
-| Cloud Renderer | cloud/ (18 files + tests/) | ~5,000 | 100+ |
-| Ambient Scheduler | ambient*.rs | ~1,000 | 20+ |
+| Terminal I/O | cosmic_dragon_engine/terminal/, frame.rs, chroma_dragon_engine/color_cache.rs, sgr_format.rs, termdetect/ | ~2,500 | 50+ |
+| Cloud Renderer | cosmic_dragon_engine/cloud/ (18 files + tests/) | ~5,000 | 100+ |
+| Ambient Scheduler | crystal_dragon_engine/ambient/, crystal_dragon_engine/ambient_scheduler/ | ~1,000 | 20+ |
 | Interactive Engine | interactive/ (17 files) | ~2,500 | 60+ |
-| Config System | config.rs, config_apply.rs, configfile.rs, testconf.rs, safepath.rs | ~2,500 | 100+ |
-| CLI + Helpers | cli.rs, output.rs, help_detail.rs, info.rs, ux.rs, verbose.rs | ~1,500 | 30+ |
-| Diagnostics | bench*.rs (16 files), doctor.rs, report.rs | ~4,000 | 40+ |
+| Config System | config/ (config_apply.rs, configfile.rs, config_hints/, live_config/), safepath/, validation/, testconf/ | ~2,500 | 100+ |
+| CLI + Helpers | cli/ (app.rs, cli_parse.rs, help_detail.rs, mod.rs), output/ (report.rs, ux.rs, verbose.rs, message.rs), diagnostics/info.rs | ~1,500 | 30+ |
+| Diagnostics | bench/ (16 files), doctor/, output/report.rs | ~4,000 | 40+ |
 | Cosmic Dragon Incubator | cosmic_dragon_incubator/ (egg/) | ~200 | 2 |
 
 **Total: ~85K LOC, 1500+ tests — see `cargo test --all` for the current count.**

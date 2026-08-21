@@ -157,7 +157,7 @@ if the session was started with an explicit color (e.g., `--color sun`),
 the color must remain unchanged for the entire duration. This is enforced
 by deterministic in-process tests that simulate many minutes of frames and
 assert the `ColorScheme` never changes. The color stability policy is
-enforced by `src/palette.rs`: palette is sticky for the entire session
+enforced by `src/chroma_dragon_engine/palette/mod.rs`: palette is sticky for the entire session
 unless `--crystal-dragon` is explicitly opted in.
 
 To manually verify during a long endurance run, check that the `--color`

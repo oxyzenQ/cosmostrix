@@ -439,7 +439,7 @@ None of these are cosmostrix's to build.
 
 **Note on mouse glow:** the cursor-follow glow and click-wave effects
 are always on (the `--mouse` flag was removed in v17 — see
-`src/verbose.rs`). There is no CLI toggle to disable them, so they
+`src/validation/mod.rs` `REMOVED_FLAGS`). There is no CLI toggle to disable them, so they
 contribute to the per-frame byte cost on every terminal, including
 Electron hosts. If a future cosmostrix release reintroduces a
 mouse-effect toggle, it would be a meaningful lever for reducing
