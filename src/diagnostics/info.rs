@@ -33,7 +33,7 @@ pub(crate) const COSMIC_DRAGON_SIGNATURE: &str =
 /// Source of truth: `COSMOSTRIX_BUILD` env var set at compile time by
 /// `build.rs` (which reads it from `.cargo/config.toml` aliases or the
 /// `COSMOSTRIX_BUILD` environment variable passed by CI/release scripts).
-/// All diagnostics (`--doctor`, `--benchmark`, `--info`) and
+/// All diagnostics (`--doctor`, `--benchmark`) and
 /// `--version`/`-V` share this single source.
 #[must_use]
 pub(crate) fn canonical_build_label() -> &'static str {

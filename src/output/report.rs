@@ -3,7 +3,7 @@
 
 //! Unified report formatting engine for all Cosmostrix diagnostics output.
 //!
-//! Provides consistent, premium-quality formatting across --info, --doctor,
+//! Provides consistent, premium-quality formatting across --doctor,
 //! --perf-stats, --benchmark, and any future diagnostics.
 
 use std::io::IsTerminal;

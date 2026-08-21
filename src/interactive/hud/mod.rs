@@ -3,10 +3,9 @@
 
 //! Live HUD overlay for interactive mode.
 //!
-//! Toggle with `?`. When visible, writes a compact 5-line overlay into
+//! Toggle with `i`. When visible, writes a compact 5-line overlay into
 //! the frame buffer (before `term.draw()`) showing real-time FPS, p99,
-//! max frame time, RSS, and session uptime. Press `H` to toggle
-//! position between left and right corners.
+//! max frame time, RSS, and session uptime.
 //!
 //! ## Design constraints
 //! - **Zero cost when off**: `visible == false` short-circuits all work.

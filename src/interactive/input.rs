@@ -74,7 +74,7 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
 
 /// Returns true if the key event has NO modifier bits set.
 ///
-/// Use for non-cycle shortcuts (q, c, s, x, i, h, p, [, ], space,
+/// Use for non-cycle shortcuts (q, c, s, x, i, p, [, ], space,
 /// arrows) that must only respond to bare keypresses — Shift+key
 /// (e.g. Shift+q → 'Q') and any other modifier combination are rejected.
 ///

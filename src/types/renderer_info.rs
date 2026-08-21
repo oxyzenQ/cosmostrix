@@ -4,7 +4,7 @@
 //! Static renderer introspection metadata.
 //!
 //! Provides a single source of truth for renderer capabilities,
-//! used by --doctor, --benchmark, and --info outputs.
+//! used by --doctor and --benchmark outputs.
 
 use crate::runtime::ColorMode;
 
