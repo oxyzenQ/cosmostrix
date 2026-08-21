@@ -139,12 +139,18 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
 
     use crossterm::event::{KeyCode, KeyModifiers};
 
-    // Pause guard: when paused, ONLY 'p' (resume) and 'q' (quit) are
-    // processed. All other keys are silently ignored to prevent
-    // queued state changes from accumulating during pause and causing
-    // "stuck particles" or visual glitches on resume (owner-reported
-    // bug: rapid pause/unpause cycles left effects hanging).
-    if cloud.pause {
+    // Pause guard: when paused OR decelerating toward pause, ONLY
+    // 'p' (resume/cancel-decel) and 'q' (quit) are processed. All
+    // other keys are silently ignored to prevent queued state changes
+    // from accumulating during the pause/deceleration window and
+    // causing "stuck particles" or visual glitches on resume.
+    //
+    // Must check `is_paused_or_decelerating()` (not just `pause`)
+    // because the deceleration phase (pause_start.is_some()) is also
+    // a pause-related state where user interactions should be
+    // suppressed (owner-reported bug: rapid p-taps left effects
+    // hanging).
+    if cloud.is_paused_or_decelerating() {
         match (k.code, k.modifiers) {
             (KeyCode::Char('p'), KeyModifiers::NONE) => {
                 return cloud.toggle_pause();

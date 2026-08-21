@@ -59,10 +59,10 @@ pub(crate) fn sanitize_message_text(input: &str) -> String {
         }
     }
     if skipped_wide > 0 || skipped_ctrl > 0 {
-        eprintln!(
-            "[cosmostrix] warning: --message contained {} wide/zero-width char(s) (replaced with '?') and {} control char(s) (removed). Wide chars (CJK, emoji) break cell alignment — see Bug #11.",
+        crate::output::eprintln_warn_labeled(&format!(
+            "--message contained {} wide/zero-width char(s) (replaced with '?') and {} control char(s) (removed). Wide chars (CJK, emoji) break cell alignment — see Bug #11.",
             skipped_wide, skipped_ctrl
-        );
+        ));
     }
     out
 }

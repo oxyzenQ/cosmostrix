@@ -190,10 +190,11 @@ pub(crate) fn apply_profile_layer(
         if strict_unknown {
             return Err(message);
         }
-        eprintln!(
-            "config: ignoring unknown profile '{name}' (available: {}; see --list-scenes)",
+        crate::output::eprintln_warn_labeled(&format!(
+            "ignoring unknown profile '{}' (available: {}; see --list-scenes)",
+            name,
             profile_name_list(profiles)
-        );
+        ));
         return Ok(modified);
     };
 
@@ -257,7 +258,7 @@ fn apply_base_scene_to_args(
             scene::all_scene_names().join(", ")
         );
         if strict_unknown {
-            eprintln!("{message}");
+            crate::output::eprintln_error_labeled(&message);
         } else {
             crate::output::eprintln_warn_labeled(&message);
         }

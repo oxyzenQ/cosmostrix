@@ -453,7 +453,12 @@ fn main() -> std::io::Result<()> {
                 // We use e.print() for the original formatted error, then
                 // append the hint on a new line to stderr.
                 e.print().ok();
-                eprintln!("\n  Did you mean --{suggestion}?");
+                eprintln!(
+                    "{}  Did you mean --{}?{}",
+                    crate::output::warn_open(),
+                    suggestion,
+                    crate::output::reset()
+                );
                 std::process::exit(2);
             }
         }

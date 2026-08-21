@@ -266,9 +266,10 @@ pub(crate) fn apply_scene_custom_layer(
     if strict_unknown {
         return Err(message);
     }
-    eprintln!(
-        "config: ignoring unknown custom scene '{name}' (available: {list}; see --list-scenes)"
-    );
+    crate::output::eprintln_warn_labeled(&format!(
+        "ignoring unknown custom scene '{}' (available: {}; see --list-scenes)",
+        name, list
+    ));
     Ok(HashSet::new())
 }
 

@@ -623,16 +623,39 @@ impl Cloud {
     pub fn hud_colors(&self) -> &[crossterm::style::Color] {
         &self.palette.colors
     }
+    /// Returns `true` when the cloud is in any pause-related state:
+    /// fully paused (`self.pause`) OR decelerating toward pause
+    /// (`self.pause_start.is_some()`).
+    ///
+    /// Callers that need to gate user input (keyboard shortcuts, mouse
+    /// click effects) during pause MUST check this instead of only
+    /// `self.pause`, otherwise interactions during the deceleration
+    /// window accumulate stale state that causes "stuck particles" on
+    /// resume (owner-reported bug: rapid p-taps left effects hanging).
+    #[must_use]
+    pub fn is_paused_or_decelerating(&self) -> bool {
+        self.pause || self.pause_start.is_some()
+    }
+
     pub fn toggle_pause(&mut self) -> bool {
-        // BRANCH 1: mid-deceleration → abort & resume. Capture current
-        // resume_blend as ramp start (audit §8.4 — interpolate 0.4→1.0).
+        // BRANCH 1: mid-deceleration → abort & resume.
+        //
+        // When the user presses 'p' during deceleration, they're
+        // cancelling the pause. This typically happens during rapid
+        // p-taps. The old code captured the current pause_blend as
+        // resume_blend_start (which could be near 0 after significant
+        // deceleration), causing a slow ramp from ~0→1.0 that made
+        // the rain look "stuck" for seconds (owner-reported bug).
+        //
+        // Fix: snap resume_blend to 1.0 (full speed) immediately.
+        // The deceleration was aborted — there's no visual discontinuity
+        // because pause_blend was still close to 1.0 for rapid taps.
         if self.pause_start.is_some() {
             self.pause_start = None;
             self.pause = false;
             self.pause_time = None;
-            self.resume_blend_start = self.resume_blend.max(0.1);
-            self.resume_blend = self.resume_blend_start;
-            self.resume_start = Some(Instant::now());
+            self.resume_blend = 1.0;
+            self.resume_start = None;
             return true;
         }
         // BRANCH 2: fully paused → unpause. Shift every last_*_time

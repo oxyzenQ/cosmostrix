@@ -650,3 +650,61 @@ fn blank_cells_are_marked_dirty_for_redraw() {
     assert_eq!(frame.get(2, 2).unwrap().ch, ' ');
     assert!(frame.get(2, 2).unwrap().fg.is_none());
 }
+
+#[test]
+fn is_paused_or_decelerating_catches_both_states() {
+    // Running: neither flag set → false
+    let mut cloud = make_cloud();
+    assert!(
+        !cloud.is_paused_or_decelerating(),
+        "running cloud must not report paused/decelerating"
+    );
+
+    // Decelerating: pause_start set, pause=false → true
+    cloud.toggle_pause(); // BRANCH 3: starts deceleration
+    assert!(
+        cloud.is_paused_or_decelerating(),
+        "cloud in deceleration must report paused/decelerating"
+    );
+
+    // Fully paused: pause=true, pause_start=None → true
+    cloud.pause = true;
+    cloud.pause_start = None;
+    cloud.pause_time = Some(Instant::now());
+    assert!(
+        cloud.is_paused_or_decelerating(),
+        "fully paused cloud must report paused/decelerating"
+    );
+}
+
+#[test]
+fn abort_deceleration_snaps_resume_blend_to_full_speed() {
+    // Rapid p-tap scenario: start decel, immediately abort.
+    // Resume_blend must be 1.0 (full speed), not a low value
+    // that causes the rain to appear "stuck" for seconds.
+    let mut cloud = make_cloud();
+    cloud.resume_blend = 1.0;
+
+    // Start deceleration (BRANCH 3)
+    cloud.toggle_pause();
+    assert!(
+        cloud.pause_start.is_some(),
+        "deceleration must have started"
+    );
+
+    // Immediately abort (BRANCH 1) — simulates rapid p-tap
+    cloud.toggle_pause();
+    assert!(
+        cloud.pause_start.is_none(),
+        "pause_start must be cleared after abort"
+    );
+    assert!(!cloud.pause, "cloud must not be paused after abort");
+    assert_eq!(
+        cloud.resume_blend, 1.0,
+        "resume_blend must snap to 1.0 on decel abort, not ramp from a low value"
+    );
+    assert!(
+        cloud.resume_start.is_none(),
+        "no resume ramp needed when aborting deceleration"
+    );
+}

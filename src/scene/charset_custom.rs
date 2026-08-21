@@ -159,13 +159,11 @@ pub(crate) fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
     }
 
     if !skipped_wide.is_empty() {
-        // Same warning style as the old --charset-file path so users
-        // upgrading from v24 see identical behavior.
-        eprintln!(
-            "[cosmostrix] warning: skipped {} wide/zero-width character(s) from charset-custom: {}",
+        crate::output::eprintln_warn_labeled(&format!(
+            "skipped {} wide/zero-width character(s) from charset-custom: {}",
             skipped_wide.len(),
             skipped_wide.join(", ")
-        );
+        ));
     }
 
     if chars.is_empty() {
