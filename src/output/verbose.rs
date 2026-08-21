@@ -64,10 +64,16 @@ pub(crate) struct VerboseCtx<'a> {
     pub cli_explicit_color: bool,
     pub intro_type_label: &'a str,
     pub commit_sha: &'a str,
-    /// --benchmark forces palette drift=false (palette rebuild injects
+    /// --benchmark forces palette drift=false (palette rebuild injectes
     /// timing spikes, breaks p99/max determinism). Pass bench_mode so
     /// verbose can disclose the override BEFORE the benchmark report.
     pub bench_mode: bool,
+    /// Power Dragon: when false, disables aggressive_throttle + idle FPS
+    /// reduction. Default: true (protection enabled). Config-only toggle.
+    pub power_dragon: bool,
+    /// Intro color override (config-only). When set, the intro animation
+    /// uses this color theme instead of the rain color.
+    pub intro_color: Option<&'a str>,
     /// Active custom scene (--scene-custom <name>).
     pub scene_custom: Option<&'a str>,
     /// Ambient schedule (time-of-day scene switching).
@@ -146,6 +152,8 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         intro_type_label,
         commit_sha,
         bench_mode,
+        power_dragon,
+        intro_color,
         scene_custom,
         ambient_schedule,
     } = ctx;
@@ -264,6 +272,9 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("mouse:", " always-on (glow + click wave)");
     output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
     output::eprintln_verbose("intro:", &format!(" {intro_type_label}"));
+    if let Some(ic) = intro_color {
+        output::eprintln_verbose("intro_color:", &format!(" {ic}"));
+    }
     if let Some(msg) = message {
         output::eprintln_verbose(
             "message:",
@@ -277,13 +288,18 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }
 
-    // ── Color Climate ────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Color Climate ──"));
+    // ── Dragon Systems ──────────────────────────────────────────────
+    eprintln!("{}", output::brand_bold("  ── Dragon Systems ──"));
+    output::eprintln_verbose("power_dragon:", &format!(" {power_dragon} (aggressive throttle + idle FPS reduction)"));
     output::eprintln_verbose("crystal_dragon:", &format!(" {crystal_dragon}"));
     let palette_drift_label = if *bench_mode && *crystal_dragon {
         "enabled (overridden to disabled in benchmark mode — see note below)"
     } else if *crystal_dragon {
-        "enabled"
+        if custom_palette_name.is_some() {
+            "enabled (custom palette active — first drift replaces it with builtin)"
+        } else {
+            "enabled"
+        }
     } else {
         "disabled"
     };

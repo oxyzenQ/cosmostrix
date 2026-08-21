@@ -939,12 +939,6 @@ impl Cloud {
         // Engine (see step 1b below), gated so explicit CLI/config/profile
         // color remains sticky.
         //
-        // v30 strengthen (Bug #4): when a custom palette is active, Crystal
-        // Dragon drift is suppressed — otherwise set_color_scheme would
-        // overwrite the user's custom palette with a built-in one (silent
-        // data loss). Climate drift still runs because it only modulates
-        // rendering params, not the palette itself.
-        //
         // ambient/crystal-dragon harmony: when ambient has asserted a palette
         // (`ambient_palette_locked`), Crystal Dragon drift is suppressed.
         // Ambient specifies the WHAT (which palette), Crystal Dragon
@@ -952,14 +946,21 @@ impl Cloud {
         // manually overrides (presses 'c' or 'x'), the lock is cleared
         // and Crystal Dragon drift resumes until the next ambient fire.
         // See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3 + §3.
+        //
+        // Note: custom_palette_active is NOT a drift gate. When the user
+        // explicitly enables --crystal-dragon with a custom palette (-c
+        // tron_legacy), drift is allowed — the first drift event replaces
+        // the custom palette with a builtin one via set_color_scheme (which
+        // clears custom_palette_active). If the user doesn't want drift,
+        // they should not enable --crystal-dragon.
         self.color_ecosystem.tick(now, &mut self.mt);
 
         // 1b. Crystal Dragon Engine drift
-        // When crystal_dragon is enabled (and custom_palette / ambient
-        // lock are not asserted), tick the Crystal Dragon sensor and
-        // probabilistically select a new color theme from the temperature
-        // group (Cold/Medium/Hot) matching the current system point.
-        if self.crystal_dragon && !self.custom_palette_active && !self.ambient_palette_locked {
+        // When crystal_dragon is enabled (and ambient lock is not asserted),
+        // tick the Crystal Dragon sensor and probabilistically select a new
+        // color theme from the temperature group (Cold/Medium/Hot) matching
+        // the current system point.
+        if self.crystal_dragon && !self.ambient_palette_locked {
             if let Some(new_scheme) = self.crystal_dragon_tick(now) {
                 self.set_color_scheme(new_scheme);
                 self.user_override_since_ambient = true;

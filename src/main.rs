@@ -1056,6 +1056,8 @@ fn main() -> std::io::Result<()> {
             intro_type_label: intro_label,
             commit_sha,
             bench_mode,
+            power_dragon: args.power_dragon,
+            intro_color: args.intro_color.as_deref(),
             scene_custom: args.scene_custom.as_deref(),
             ambient_schedule: &verbose_ambient_schedule,
         });
