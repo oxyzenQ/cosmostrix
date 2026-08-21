@@ -4,15 +4,15 @@
 # Dedicated CI for all .github/ workflow and config changes.
 # Triggers on ANY modification under .github/ to ensure every workflow
 # file is validated through yamllint and actionlint.
-# Shell scripts are linted by the dedicated shellcheck.yml workflow.
 #
 # Separated from ci.yml (source code CI) for strict path isolation:
-# - ci.yml           → src/**, Cargo.*, scripts/*, etc.
-# - workflow-ci.yml   → .github/** only
-# - shellcheck.yml    → **.sh (all shell scripts)
-# - docs-ci.yml       → *.md, *.txt, *.rst
-# - release.yml       → tags only (v*)
-# - maintenance.yml   → scheduled + manual
+# - ci.yml                  → src/**, Cargo.*, scripts/*, etc.
+# - workflow-ci.yml        → .github/** only (actionlint + yamllint)
+# - cosmic-dragon-guard.yml → gate-keepers.sh (shellcheck, markdownlint, codespell, SPDX, LOC, version sync)
+# - miri.yml                → src/** (weekly + push)
+# - codeql.yml              → src/** + scripts + other langs
+# - release.yml             → tags only (v*)
+# - maintenance.yml         → scheduled + manual
 #
 # This guarantees workflow changes never slip through unvalidated.
 

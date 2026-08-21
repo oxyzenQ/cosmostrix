@@ -1,0 +1,52 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Cosmic Dragon Guard — unified lint/format/license gate.
+# Replaces the former shellcheck.yml and docs-ci.yml with a single
+# workflow that runs scripts/gate-keepers.sh (the one-script gate-keeper).
+#
+# Checks performed by gate-keepers.sh:
+#   1. shellcheck    — all .sh files
+#   2. yamllint       — all .yml/.yaml files
+#   3. markdownlint   — all .md files
+#   4. codespell      — spelling across all text files
+#   5. SPDX headers   — git-tracked code/config/doc files
+#   6. LOC guard      — .rs files <= 1500 lines
+#   7. Rust version   — toolchain / MSRV / CI env in sync
+
+name: Cosmic Dragon Guard
+
+'on':
+  push:
+    branches: ["main"]
+  pull_request:
+    branches: ["main"]
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  gatekeepers:
+    name: Gate-keepers (lint / format / license)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6.0.2
+
+      - name: Install gate-keeper dependencies
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
+          python3 -m pip install --user --quiet yamllint codespell
+          sudo npm install -g --silent markdownlint-cli
+
+      - name: Run gate-keepers.sh
+        run: bash scripts/gate-keepers.sh
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
