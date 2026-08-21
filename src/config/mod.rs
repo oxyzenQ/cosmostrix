@@ -347,7 +347,6 @@ pub struct Args {
     // is part of cosmostrix's signature interactive experience.
     #[arg(
         short = 'm',
-        long = "message",
         help_heading = "COMMON OPTIONS",
         display_order = 70,
         help = "Overlay message (no border). Use -mb for border."
@@ -729,10 +728,12 @@ pub struct Args {
     )]
     pub shading_mode: u8,
 
+    // Hidden boolean: set only by the -mb argv pre-expansion in main.rs.
+    // No long form exposed; users interact via -m / -mb exclusively.
     #[arg(
         long = "message-border",
         hide = true,
-        help = "Draw message box with border (use with --message; shorthand: -mb)"
+        help = "(internal) message box border flag; use -mb instead"
     )]
     pub message_border: bool,
 

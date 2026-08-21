@@ -7,7 +7,7 @@
 **Mode**: read-only audit. No source modified at audit time.
 **Prior context**: builds on `FLAGS_AUDIT_bench-frames_chars_bold.md` (which led to `--chars` removal + `--bench-frames`/`--bold` keep + bug fixes).
 
-> **EXECUTION STATUS (updated 2026-08-04)**
+> **EXECUTION STATUS (updated 2026-08-21)**
 >
 > - **#10 `--check-bitcolor`**: REMOVED in commit `367bd4f` (v30.0.0-alpha.1).
 >   Owner chose option (a) — route users to `--doctor`. Flag definition,
@@ -16,6 +16,10 @@
 > - **#6 `--atmosphere-mode` / #7 `--atmosphere-regime`** help-text bug:
 >   FIXED. The misleading "config only" parenthetical was replaced with a
 >   neutral "Config: <key> = <value>" example. See `src/config.rs:705, 712`.
+> - **`--message` long form**: REMOVED in v50.0.0. The `long = "message"`
+>   attribute was dropped from clap; `-m` short form remains. `--message-border`
+>   stays as a hidden internal flag (set only by the `-mb` argv pre-expansion).
+>   Migration entry added to `REMOVED_FLAGS` in `src/validation/mod.rs`.
 > - All other 11 audited flags remain in their audited state (all KEEP).
 
 ---

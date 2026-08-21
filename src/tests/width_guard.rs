@@ -15,7 +15,7 @@
 //!      the wide char's presence, then self-corrects on the next
 //!      force_draw_everything (every 5 minutes by default).
 //!
-//! This is exactly Bug #11 (commit c1843fe, originally for --message
+//! This is exactly Bug #11 (commit c1843fe, originally for -m message
 //! wide chars) and its recurrence in GHOST_CHARS. Cosmostrix
 //! will NEVER support emoji — only pure text/data. These tests guard
 //! that invariant at the static-array and charset-preset layer.

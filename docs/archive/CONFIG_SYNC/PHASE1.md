@@ -82,7 +82,7 @@ Source: `src/config.rs:170-712` (`Args` struct).
 | **Scene/Profile** | 3 | `scene`, `scene-custom`, `show-scene` |
 | **Config** | 3 | `config`, `dump-config`, `config-path` |
 | **Atmosphere** | 4 | `atmosphere-mode`, `atmosphere-regime`, `async-mode` (skip), `auto-color-drift` |
-| **Message/UI** | 4 | `message` (`-m`), `message-border`, `bold`, `color-bg` (`-b`), `perf-stats` |
+| **Message/UI** | 4 | `message` (`-m`), `message-border` (internal), `bold`, `color-bg` (`-b`), `perf-stats` |
 | **Duration** | 2 | `duration`, `bench-duration` |
 | **Hidden/diagnostic** | 3 | ~~`check-bitcolor`~~ (removed `367bd4f`), ~~`chars`~~ (removed `69ca2c6`), `perf-stats`, `bench-frames`, `bench-scene` |
 

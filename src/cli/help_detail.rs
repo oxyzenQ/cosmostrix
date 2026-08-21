@@ -122,7 +122,7 @@ COMMON OPTIONS:
       most terminals — this is a terminal-emulator feature that cannot
       be disabled).
 
-  -m, --message <text>
+  -m <text>
       Display overlay message (no border).
       cosmostrix -m \"hello\"
 
@@ -398,11 +398,6 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       is ignored (warned). If --bench-frames is set with --bench-duration and
       neither --bench-all nor --benchmark is set, --bench-frames wins
       (--bench-duration ignored, warned).
-
-  MESSAGE (advanced, has shorthand):
-  --message-border (shorthand: -mb <text>)
-      Draw the message box with a border. Equivalent to using -mb on
-      the command line. See -m / --message for the no-border variant.
 
 RUNTIME CONTROLS:
   q             Quit              p          Pause / resume

@@ -396,7 +396,7 @@ fn main() -> std::io::Result<()> {
     // intercepted in main() below.
 
     let argv: Vec<std::ffi::OsString> = env::args_os().collect();
-    // Expand -mb "text" into --message-border --message "text"
+    // Expand -mb "text" into --message-border -m "text"
     // -m "text" = message without border (default)
     // -mb "text" = message with border
     // Also handle -mb=text form.
@@ -408,7 +408,7 @@ fn main() -> std::io::Result<()> {
         if arg == "-mb" {
             expanded.push("--message-border".into());
             if i + 1 < argv.len() {
-                expanded.push("--message".into());
+                expanded.push("-m".into());
                 expanded.push(argv[i + 1].clone());
                 i += 2;
                 continue;
@@ -416,7 +416,7 @@ fn main() -> std::io::Result<()> {
         } else if let Some(s) = arg.to_str() {
             if let Some(rest) = s.strip_prefix("-mb=") {
                 expanded.push("--message-border".into());
-                expanded.push("--message".into());
+                expanded.push("-m".into());
                 expanded.push(rest.into());
                 i += 1;
                 continue;
@@ -1091,7 +1091,7 @@ fn main() -> std::io::Result<()> {
         message: args.message.as_deref().map(|m| {
             if m.len() > MESSAGE_MAX_LEN {
                 ux::die_input(format!(
-                    "error: --message text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
+                    "error: -m text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
                     m.len()
                 ));
             }

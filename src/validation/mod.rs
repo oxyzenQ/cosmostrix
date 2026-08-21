@@ -39,7 +39,6 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "uniform",
     "screensaver",
     "intro",
-    "message",
     "glitch-level",
     "scene",
     "scene-custom",
@@ -83,7 +82,6 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "glitchms",
     "lingerms",
     "shadingmode",
-    "message-border",
     "colormode",
 ];
 
@@ -219,6 +217,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
     (
         "--atmosphere-regime",
         "error: --atmosphere-regime has been removed in v30.0.0.\n  The atmosphere engine subsystem was fully eliminated (-7,875 LOC).\n  For time-of-day scene scheduling, use the ambient scheduler instead:\n    [ambient.\"22-10\"]\n    scene = \"aurora\"\n  See `cosmostrix --dump-config` for the ambient block template.",
+    ),
+    (
+        "--message",
+        "error: --message has been removed in v50.0.0.\n  Use -m <text> for overlay message, or -mb <text> for message with border.",
     ),
 ];
 
