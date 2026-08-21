@@ -396,10 +396,20 @@ fn main() -> std::io::Result<()> {
     // intercepted in main() below.
 
     let argv: Vec<std::ffi::OsString> = env::args_os().collect();
+    // Prevalidate raw argv BEFORE -mb expansion so that --message-border
+    // typed directly by the user is caught by REMOVED_FLAGS (not silently
+    // accepted as a hidden clap boolean).  The -mb shorthand itself is
+    // NOT in REMOVED_FLAGS, so it passes prevalidation cleanly.
+    if let Err(e) = prevalidate_cli_args(&argv) {
+        ux::die_input(e);
+    }
+
     // Expand -mb "text" into --message-border -m "text"
     // -m "text" = message without border (default)
     // -mb "text" = message with border
     // Also handle -mb=text form.
+    // This runs AFTER prevalidation so the internal --message-border token
+    // injected here is not caught by the REMOVED_FLAGS check.
     let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
     expanded.push(argv[0].clone());
     let mut i = 1;
@@ -426,9 +436,6 @@ fn main() -> std::io::Result<()> {
         i += 1;
     }
     let argv = expanded;
-    if let Err(e) = prevalidate_cli_args(&argv) {
-        ux::die_input(e);
-    }
 
     let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
         // Intercept clap's "unexpected argument" errors and append a
@@ -1217,7 +1224,10 @@ fn main() -> std::io::Result<()> {
         let final_charset = interactive::last_charset_preset();
         let final_speed = interactive::last_speed();
         let final_density = interactive::last_density();
-        let startup_color = format!("{:?}", color_scheme);
+        let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
+            Some(name) => format!("{name} (custom)"),
+            None => format!("{:?}", color_scheme),
+        };
         let startup_scene = args
             .scene
             .as_deref()

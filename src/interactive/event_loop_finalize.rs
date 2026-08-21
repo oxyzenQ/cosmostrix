@@ -115,7 +115,14 @@ pub(crate) fn finalize_session(
         );
     }
 
-    let final_color_name = format!("{:?}", cloud.color_scheme());
+    let final_color_name = if cloud.custom_palette_active {
+        cfg.custom_palette_name
+            .as_deref()
+            .map(|n| format!("{n} (custom)"))
+            .unwrap_or_else(|| format!("{:?}", cloud.color_scheme()))
+    } else {
+        format!("{:?}", cloud.color_scheme())
+    };
     super::set_final_state(
         &final_color_name,
         scene_name,

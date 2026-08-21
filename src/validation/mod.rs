@@ -222,6 +222,10 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
         "--message",
         "error: --message has been removed in v50.0.0.\n  Use -m <text> for overlay message, or -mb <text> for message with border.",
     ),
+    (
+        "--message-border",
+        "error: --message-border has been removed in v50.0.0.\n  Use -mb <text> for overlay message with border.\n  Use -m <text> for overlay message without border.",
+    ),
 ];
 
 /// Scan raw argv for any flag removed in v14.0.0 and return a migration error.
