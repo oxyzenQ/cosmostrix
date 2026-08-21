@@ -362,3 +362,62 @@ fn power_manager_uses_thresholds_for_idle_fps_factor() {
     // 60 * 0.25 = 15 FPS.
     assert!((pm.effective_fps(false, true) - 15.0).abs() < 1e-6);
 }
+
+// ── power_dragon toggle ──────────────────────────────────────────────
+
+#[test]
+fn power_dragon_false_skips_idle_fps_reduction() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+
+    // Enter idle state.
+    let later = now + std::time::Duration::from_secs_f64(IDLE_THRESHOLD_SECS + 1.0);
+    let is_idle = pm.begin_frame(later);
+    assert!(is_idle, "must be idle for this test to be meaningful");
+
+    // With power_dragon=true (default): idle reduces FPS.
+    let fps_with_pd = pm.effective_fps(false, true);
+    let expected_idle_fps = 60.0 * IDLE_FPS_FACTOR;
+    assert!(
+        (fps_with_pd - expected_idle_fps).abs() < 1e-6,
+        "power_dragon=true should apply idle FPS factor"
+    );
+
+    // With power_dragon=false: idle does NOT reduce FPS.
+    let fps_without_pd = pm.effective_fps(false, false);
+    assert!(
+        (fps_without_pd - 60.0).abs() < 1e-6,
+        "power_dragon=false should return base FPS even when idle"
+    );
+
+    // Verify the difference is real (not a coincidence).
+    assert!(
+        fps_without_pd > fps_with_pd,
+        "power_dragon=false must yield higher FPS than true when idle"
+    );
+}
+
+#[test]
+fn power_dragon_false_does_not_affect_paused_fps() {
+    let now = Instant::now();
+    let pm = PowerManager::new(60.0, now);
+    let expected = 1000.0 / PAUSE_PERIOD_MS as f64;
+
+    // Paused FPS is always 4 regardless of power_dragon.
+    let fps_true = black_box(&pm).effective_fps(true, true);
+    let fps_false = black_box(&pm).effective_fps(true, false);
+    assert!((fps_true - expected).abs() < 1e-6);
+    assert!((fps_false - expected).abs() < 1e-6);
+}
+
+#[test]
+fn power_dragon_false_does_not_affect_active_fps() {
+    let now = Instant::now();
+    let pm = PowerManager::new(60.0, now);
+
+    // Active FPS is always base regardless of power_dragon.
+    let fps_true = pm.effective_fps(false, true);
+    let fps_false = pm.effective_fps(false, false);
+    assert!((fps_true - 60.0).abs() < 1e-6);
+    assert!((fps_false - 60.0).abs() < 1e-6);
+}
