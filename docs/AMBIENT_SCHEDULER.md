@@ -144,7 +144,7 @@ because the scheduler runs continuously).
 | Edge case | Handling |
 |-----------|----------|
 | **Empty schedule** (no `ambient.*` keys) | Scheduler thread idles (sleeps 60s, polls for new entries). Zero events fired. Existing scene/params retained. |
-| **Single entry** | Scheduler fires it on startup (it's the current phase). Then sleeps 24h (capped to 1h, so polls hourly — but the phase is already applied, so it no-ops). |
+| **Single entry** | Fires at startup (wrap-around: the entry is treated as "yesterday's last active phase" before its boundary, and as "today's active phase" at/after its boundary). This means a single `ambient.03-17 = hacker-mode` is active ALL DAY — it's the only phase, so it carries over from yesterday via midnight wrap-around. This is correct by design (ambient is a 24-hour schedule, not a one-shot timer). If you want the scene to activate only after a specific time, use at least two entries — e.g. `ambient.03-16 = cinematic` then `ambient.03-17 = hacker-mode`. |
 | **Two entries same time** | Configfile parser is `HashMap::insert` (last-writer-wins). One entry survives. |
 | **DST spring-forward** (2:00 AM → 3:00 AM) | `current_minute_of_day()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
 | **DST fall-back** (2:00 AM repeat) | Entries in the repeated hour (01:00–01:59) fire twice. Acceptable — `apply_ambient_entry` is idempotent. |

@@ -149,9 +149,13 @@ impl AmbientSchedule {
     ///
     /// Wrap-around: if `now_min` is 0:30 and the earliest entry is 6:00,
     /// the "current" phase is the **last** entry of the previous day (it has
-    /// been active since its boundary fired yesterday). The caller should
-    /// treat `None` as "schedule exists but no phase has fired yet today —
-    /// use the last entry as currently-active (carried over from yesterday)".
+    /// been active since its boundary fired yesterday). This means a **single
+    /// entry** schedule is active ALL DAY (it wraps from yesterday before its
+    /// boundary and becomes today's phase at/after its boundary). This is
+    /// correct by design — ambient is a 24-hour repeating schedule, not a
+    /// one-shot timer. To have a scene activate only after a specific time,
+    /// use at least two entries (e.g. `03-16 = cinematic` then
+    /// `03-17 = hacker-mode`).
     ///
     /// This matches the archived `adaptive-custom` semantics.
     #[must_use]
