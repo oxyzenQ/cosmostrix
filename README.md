@@ -127,11 +127,10 @@ The Dragon's roar is not loud — it is precise.
 
 - **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`dragon-crystal`, `orange-cat`, `north-stars`, `curiosity`).
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance and density-map sculpting.
-- **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes/profiles.
+- **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
 - 44 built-in color themes and 25 character sets.
 - **Color tune** (`--color-tune sat,bright,head,body,tail`) — per-channel multiplier (default 1.0 = identity) that turns all 44 themes into infinite variants.
-- **Profiles** (`[profile.<name>]` blocks) — saved presets that layer on top of any scene; supports base-scene inheritance.
 
 ### Intelligence & Power
 
@@ -153,7 +152,7 @@ The Dragon's roar is not loud — it is precise.
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes, `s` cycle charsets, `Space` pause, `i` toggle HUD, `g` toggle glitch, `o` toggle monolith, `+`/`-` adjust speed, `[/]` adjust density, `</>` adjust FPS.
+- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes, `s`/`S` cycle charsets, `Space` pause/resume, `p` pause, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
 
 ### Benchmarking & Build
 
