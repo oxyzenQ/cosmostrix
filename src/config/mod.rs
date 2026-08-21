@@ -121,13 +121,12 @@ pub(crate) fn colorize_help(text: &str) -> String {
 pub enum ColorBg {
     #[value(name = "black")]
     Black,
-    // Phase 5 (P2-5): add "default_background" (snake_case) as a CLI alias
-    // for "default-background" (kebab-case). Previously the CLI only
-    // accepted "default-background", while config.toml accepted both forms
-    // (testconf.rs:546, config_apply.rs:691, profile.rs:360, live_config.rs:784).
-    // This closed the CLI/config asymmetry where the same value worked in
-    // config.toml but was rejected on the CLI.
-    #[value(name = "default-background", aliases = ["default_background"])]
+    // Both "default-background" (kebab-case, canonical CLI form) and
+    // "default_background" (snake_case) are accepted by config.toml
+    // parsing (configfile.rs, config_apply.rs, profile.rs, live_config.rs,
+    // testconf.rs) via explicit match arms. The CLI exposes only the
+    // canonical kebab-case name to avoid duplicate entries in error output.
+    #[value(name = "default-background")]
     DefaultBackground,
 }
 
