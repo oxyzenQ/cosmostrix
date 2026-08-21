@@ -234,7 +234,8 @@ tar -xzf "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
 ### AUR (Arch Linux)
 
 ```bash
-paru -S cosmostrix-bin    # or: yay -S cosmostrix-bin
+paru -S cosmostrix-bin
+# or: yay -S cosmostrix-bin
 ```
 
 ### Android (Termux)
@@ -316,16 +317,16 @@ scripts/verify-release-build.sh pro-linux-v3
 ## Quickstart
 
 ```bash
-cosmostrix                           # signature Cinematic Cosmic default
-cosmostrix --color green --speed 12          # color + speed
-cosmostrix --screensaver              # only q exits (all other keys ignored)
-cosmostrix -m "wake up, neo"         # overlay message
-cosmostrix --charset katakana         # character set
-cosmostrix --scene cinematic          # built-in scene
+cosmostrix                                            # signature Cinematic Cosmic default
+cosmostrix --color green --speed 12                   # color + speed
+cosmostrix --screensaver                              # only q exits (all other keys ignored)
+cosmostrix -m "wake up, neo"                          # overlay message
+cosmostrix --charset katakana                         # character set
+cosmostrix --scene cinematic                          # built-in scene
 cosmostrix --scene monolith --color cosmos
 cosmostrix --config ~/.config/cosmostrix/config.toml  # explicit config (whitelist-enforced)
-cosmostrix --scene-custom hacker-mode   # user-defined custom scene
-cosmostrix --intro cosmic             # cosmic burst intro before rain
+cosmostrix --scene-custom hacker-mode                 # user-defined custom scene
+cosmostrix --intro cosmic                             # cosmic burst intro before rain
 ```
 
 ## CLI Reference
@@ -486,7 +487,7 @@ set = "|"
 ```
 
 ```bash
-cosmostrix --charset zen              # CLI activation
+cosmostrix --charset zen
 # or in config.toml: charset = "zen"
 ```
 
@@ -600,7 +601,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-cargo test chroma_dragon::tests::lock -- --nocapture   # print the Chroma Dragon engine lock report
+cargo test chroma_dragon::tests::lock -- --nocapture            # print the Chroma Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture  # print the Cosmic Dragon engine lock report
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
@@ -614,7 +615,7 @@ Create a release by pushing a `v*` tag. See [docs/workflow/ABOUT_CI.md](docs/wor
 Bump the version across every active file (Cargo.toml, Cargo.lock, AUR PKGBUILD, .SRCINFO, README install tag, docs/workflow/ABOUT_CI.md), then build:
 
 ```bash
-./scripts/version-to.sh vX.Y.Z             # bump to vX.Y.Z across all active files
+./scripts/version-to.sh vX.Y.Z          # bump to vX.Y.Z across all active files
 ./scripts/build.sh release              # optimized release build
 ./scripts/build.sh version-sync         # verify all version refs agree (no build)
 ```
