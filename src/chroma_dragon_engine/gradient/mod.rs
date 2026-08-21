@@ -407,8 +407,12 @@ pub(crate) fn gradient_from_stops_oklab(stops: &[(u8, u8, u8)], steps: usize) ->
 #[inline]
 #[must_use]
 pub(crate) fn oklab_blend_rgb(
-    r0: u8, g0: u8, b0: u8,
-    r1: u8, g1: u8, b1: u8,
+    r0: u8,
+    g0: u8,
+    b0: u8,
+    r1: u8,
+    g1: u8,
+    b1: u8,
     t: f32,
 ) -> (u8, u8, u8) {
     let t = t.clamp(0.0, 1.0);

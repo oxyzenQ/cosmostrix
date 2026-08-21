@@ -330,11 +330,7 @@ pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
 /// rain matrix without a visible color shift.
 #[inline]
 pub(super) fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    crate::chroma_dragon_engine::gradient::oklab_blend_rgb(
-        a.0, a.1, a.2,
-        b.0, b.1, b.2,
-        t,
-    )
+    crate::chroma_dragon_engine::gradient::oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, t)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

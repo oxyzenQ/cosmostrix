@@ -368,7 +368,7 @@ fn polar_segment_grayscale_fallback_matches_polar_chroma_lerp() {
 #[test]
 fn oklab_blend_rgb_preserves_endpoints() {
     let a = (168u8, 85u8, 247u8); // brand purple
-    let b = (57u8, 255u8, 20u8);  // neon green
+    let b = (57u8, 255u8, 20u8); // neon green
     assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, 0.0), a);
     assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, 1.0), b);
 }

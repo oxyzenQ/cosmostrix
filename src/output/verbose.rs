@@ -290,7 +290,10 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
 
     // ── Dragon Systems ──────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Dragon Systems ──"));
-    output::eprintln_verbose("power_dragon:", &format!(" {power_dragon} (aggressive throttle + idle FPS reduction)"));
+    output::eprintln_verbose(
+        "power_dragon:",
+        &format!(" {power_dragon} (aggressive throttle + idle FPS reduction)"),
+    );
     output::eprintln_verbose("crystal_dragon:", &format!(" {crystal_dragon}"));
     let palette_drift_label = if *bench_mode && *crystal_dragon {
         "enabled (overridden to disabled in benchmark mode — see note below)"
