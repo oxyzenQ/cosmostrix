@@ -472,7 +472,7 @@ fn boolean_keys_reject_non_bool() {
 
 #[test]
 fn block_field_base_uses_scene_validator() {
-    // 'base' in profile/scene-custom blocks is validated as a scene name.
+    // 'base' in scene-custom blocks is validated as a scene name.
     // The caller maps 'base' -> 'scene' before calling validate_field_value.
     assert!(validate_field_value("scene", "nonexistent").is_some());
     assert!(validate_field_value("scene", "monolith").is_none());

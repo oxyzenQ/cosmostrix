@@ -152,14 +152,14 @@ fn rain_style_for_custom_scene_is_case_insensitive_on_custom_name() {
 // end-to-end by the `rebuild_cloud_config` integration path. Unit-testing
 // it in isolation requires constructing a full CloudConfig (40+ fields),
 // which is brittle. The startup apply path (`apply_profile_layer` with
-// base-scene) is unit-tested in `config_apply_tests/profiles.rs::profile_base_scene_applies_inherited_defaults`,
+// base-scene) is exercised by config_apply integration tests,
 // and the runtime apply path (`Cloud::apply_ambient_entry` with a custom
 // scene) is unit-tested in `cloud/tests/tests_scene/transitions.rs`.
 
 #[test]
-fn profile_fields_are_reusable_for_custom_scenes() {
-    // `base-scene` is restored to PROFILE_FIELDS (with cleaner
-    // inheritance semantics — see profile.rs). `preset` remains removed.
+fn override_fields_contain_base_scene() {
+    // `base-scene` is in PROFILE_FIELDS (with cleaner
+    // inheritance semantics). `preset` remains removed.
     assert!(PROFILE_FIELDS.contains(&"base-scene"));
     assert!(!PROFILE_FIELDS.contains(&"preset"));
     assert!(PROFILE_FIELDS.contains(&"color"));
@@ -239,12 +239,12 @@ fn show_custom_scene_text_includes_fields_and_usage() {
 }
 
 #[test]
-fn show_custom_scene_text_handles_empty_profile() {
+fn show_custom_scene_text_handles_empty_scene() {
     let scene = UserProfile::default();
     let text = show_custom_scene_text("empty", &scene);
     assert!(
         text.contains("no fields set"),
-        "empty profile should mention inheritance: {text}"
+        "empty scene should mention inheritance: {text}"
     );
 }
 

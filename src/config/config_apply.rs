@@ -11,9 +11,8 @@
 //! 3. Default scene values (only fills keys NOT set in config — scene is a
 //!    template for unset keys, not an override for user-set keys)
 //! 4. CLI scene / scene-custom (only fills unset keys; respects config-set
-//!    keys). `[profile.<name>]` config blocks are surfaced inside
-//!    `scene_custom.rs`'s available-scenes list, but are NOT applied at
-//!    runtime — users must rename the prefix to `scene-custom`.
+//!    keys). `[scene-custom.<name>]` config blocks are the active
+//!    custom scene mechanism.
 //! 5. `--glitch-level` cross-cutting merge: applies the preset's
 //!    glitch_pct/shortpct/rippct/glitch_ms values, overriding any clap
 //!    defaults. `max_droplets_per_column` is NOT derived from glitch-level
@@ -54,7 +53,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
     args: &mut Args,
 ) -> Result<(), String> {
     // Phase 5 closure (P3-5): reset the startup warning counter at the start
-    // of config apply. Individual warnings (from profile/scene-custom
+    // of config apply. Individual warnings (from scene-custom
     // warn_invalid, etc.) increment it via eprintln_warn_labeled. We emit a
     // summary line at the end if any warnings were emitted, so users don't
     // miss them in noisy startup output.

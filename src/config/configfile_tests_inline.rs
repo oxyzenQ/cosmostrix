@@ -76,34 +76,25 @@ fn legacy_keys_removed_v17() {
 }
 
 #[test]
-fn profile_keys_are_known() {
-    // `base-scene` is restored as a recognized profile/scene-custom
-    // field (with cleaner inheritance semantics — see profile.rs). It
-    // must be stored in values, NOT flagged as unknown.
+fn profile_keys_are_flagged_as_unknown() {
+    // Legacy [profile.<name>] blocks are inert (replaced by
+    // [scene-custom.<name>]). Profile keys are NOT recognized by
+    // is_known_key and must be flagged as unknown so config_hints
+    // can suggest the rename.
     let parsed = parse_config_text(
         "profile.nightcore.base-scene = monolith\nprofile.nightcore.color = purple\n",
     );
-    // base-scene is recognized and stored.
-    assert_eq!(
-        parsed
-            .values
-            .get("profile.nightcore.base-scene")
-            .map(String::as_str),
-        Some("monolith")
-    );
     assert!(
-        !parsed
+        parsed
             .unknown_keys
             .contains(&"profile.nightcore.base-scene".to_string()),
-        "base-scene must NOT be flagged as unknown"
+        "profile keys must be flagged as unknown (inert system)"
     );
-    // color is also recognized and stored.
-    assert_eq!(
+    assert!(
         parsed
-            .values
-            .get("profile.nightcore.color")
-            .map(String::as_str),
-        Some("purple")
+            .unknown_keys
+            .contains(&"profile.nightcore.color".to_string()),
+        "profile keys must be flagged as unknown (inert system)"
     );
     assert!(parsed.malformed_lines.is_empty());
 }

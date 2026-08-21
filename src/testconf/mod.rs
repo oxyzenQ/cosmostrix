@@ -5,7 +5,7 @@
 //!
 //! Reads `~/.config/cosmostrix/config` (or `--config PATH`) and reports:
 //!   - Unknown keys (likely typos)
-//!   - Malformed profile keys
+//!   - Malformed scene-custom keys
 //!   - Out-of-range values for known numeric keys
 //!   - Invalid enum values (color, scene, monolith-size, glitch-level)
 //!
@@ -164,14 +164,14 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
     }
 
-    // Check profile keys for correct format AND field value validity
-    let profile_keys: Vec<_> = parsed
+    // Check scene-custom block keys for correct format AND field value validity
+    let block_keys: Vec<_> = parsed
         .values
         .keys()
-        .filter(|k| k.starts_with("profile.") || k.starts_with("scene-custom."))
+        .filter(|k| k.starts_with("scene-custom."))
         .collect();
-    for pk in &profile_keys {
-        // profile.<name>.<field> or scene-custom.<name>.<field>
+    for pk in &block_keys {
+        // scene-custom.<name>.<field>
         let parts: Vec<&str> = pk.split('.').collect();
         if parts.len() != 3 {
             crate::output::eprintln_error_labeled(&format!(
@@ -184,7 +184,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             // Use the canonical PROFILE_FIELDS list so testconf never drifts
             // from the actual config parser. Previously this was a hardcoded
             // copy that missed 'density-map' when it was added to PROFILE_FIELDS.
-            let valid_fields: &[&str] = crate::profile::PROFILE_FIELDS;
+            let valid_fields: &[&str] = crate::scene_custom::PROFILE_FIELDS;
             if !valid_fields.contains(&field) {
                 crate::output::eprintln_error_labeled(&format!(
                     "testconf: unknown block field '{field}' in '{pk}'"
@@ -208,22 +208,6 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
     }
 
-    // CD-07: surface inert [profile.<name>] blocks. The legacy `profile.*`
-    // prefix is accepted by is_known_key (so --testconf PASSES silently on
-    // configs containing them), but the blocks are never applied at runtime
-    // — they were replaced by `scene-custom.*` . Add a clear warning
-    // so users who keep legacy [profile.<name>] blocks know they are inert.
-    let profile_only_keys: Vec<_> = parsed
-        .values
-        .keys()
-        .filter(|k| k.starts_with("profile."))
-        .collect();
-    if !profile_only_keys.is_empty() {
-        crate::output::eprintln_verbose_raw(
-            "testconf: warning: [profile.<name>] blocks are inert (replaced by [scene-custom.<name>] ). Rename the prefix to apply them at runtime.",
-        );
-    }
-
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
@@ -232,7 +216,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // rejects legacy multi-field format with a migration message).
     let mut ambient_validated = false;
     for (key, value) in &parsed.values {
-        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
+        if key.starts_with("scene-custom.") {
             continue; // block keys validated above
         }
         // ambient.* — validate all entries as a group, once.
@@ -324,7 +308,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
 ///
 /// Returns `Ok(())` if every top-level key has a valid value, or
 /// `Err(message)` with a human-readable error for the first invalid field.
-/// Block keys (profile.X.field, scene-custom.X.field) are skipped —
+/// Block keys (scene-custom.X.field) are skipped —
 /// they're validated separately by --testconf's block-field check.
 ///
 /// Used by:
@@ -336,7 +320,7 @@ pub(crate) fn validate_config_strictly(
     cfg: &std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
     for (key, value) in cfg {
-        if key.starts_with("profile.") || key.starts_with("scene-custom.") {
+        if key.starts_with("scene-custom.") {
             continue;
         }
         // colors-custom.<name>.<field> keys: validate hex format.
@@ -453,7 +437,7 @@ fn is_valid_hex_color(s: &str) -> bool {
 /// `None` if it is acceptable. The message includes the list of valid
 /// values (or range) so the user can fix the typo without consulting docs.
 ///
-/// Used for both top-level keys and `profile.<name>.<field>` /
+/// Used for both top-level keys and
 /// `scene-custom.<name>.<field>` block values. The caller is responsible
 /// for mapping block-specific field names (e.g. `base` -> `scene`) before
 /// calling this function.

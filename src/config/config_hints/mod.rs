@@ -40,6 +40,16 @@ use crate::configfile::USER_CONFIG_KEYS;
 /// for any indent prefix (e.g. `"  hint: "`).
 #[must_use]
 pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
+    // Pattern 0: legacy [profile.<name>] block key. The profile system
+    // was removed in v14 — these keys are inert and must be renamed to
+    // scene-custom.<name>.<field> to take effect.
+    if let Some(rest) = key.strip_prefix("profile.") {
+        return Some(format!(
+            "'{key}': [profile.<name>] blocks are inert (removed in v14). \
+             Rename the prefix to scene-custom: scene-custom.{rest}"
+        ));
+    }
+
     // Pattern 1: a top-level key accidentally nested under [color.tune].
     // Triggered by `color.tune.<suffix>` where `<suffix>` is a recognized
     // top-level USER_CONFIG_KEYS entry (e.g. `color.tune.bold`).
@@ -97,28 +107,13 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
                 name = segments.get(1).copied().unwrap_or("<name>")
             ));
         }
-        // Pattern 2c: bare `async` nested under [scene-custom.<name>] or
-        // [profile.<name>]. The field name is `async-mode` (matching the
-        // top-level key). Users who write `async = true` inside a custom
-        // scene block get a generic "unknown key" — this pattern tells
-        // them to use `async-mode` instead.
+        // Pattern 2c: bare `async` nested under [scene-custom.<name>].
+        // The field name is `async-mode` (matching the top-level key).
+        // Users who write `async = true` inside a custom scene block get a
+        // generic "unknown key" — this pattern tells them to use `async-mode`.
         if segments.len() == 3 && segments[2] == "async" {
             return Some(format!(
-                "'{key}': inside [scene-custom.<name>] and [profile.<name>] blocks, \
-                 the field name is 'async-mode' (not 'async'). \
-                 Write: async-mode = true",
-            ));
-        }
-    }
-
-    // Pattern 2d: bare `async` nested under [profile.<name>]. Same as
-    // Pattern 2c but for profile blocks. Inside [profile.*] the field
-    // name is 'async-mode', not 'async'.
-    if key.starts_with("profile.") {
-        let segments: Vec<&str> = key.split('.').collect();
-        if segments.len() == 3 && segments[2] == "async" {
-            return Some(format!(
-                "'{key}': inside [profile.<name>] blocks, \
+                "'{key}': inside [scene-custom.<name>] blocks, \
                  the field name is 'async-mode' (not 'async'). \
                  Write: async-mode = true",
             ));

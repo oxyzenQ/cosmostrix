@@ -169,9 +169,7 @@ COMMON OPTIONS:
 
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
-      the [scene-custom.<name>] namespace.  removed the
-      [profile.<name>] fallback — users with legacy profile blocks must
-      rename the prefix to `scene-custom`. Explicit CLI flags always
+      the [scene-custom.<name>] namespace. Explicit CLI flags always
       override custom-scene values.
 
       Custom scenes are first-class citizens.  restores the

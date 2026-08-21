@@ -148,7 +148,6 @@ pub(crate) use types::{cell, constants, rain_style, renderer_info};
 
 // Standalone modules (file → dir, transparent resolution)
 mod bolt;
-mod profile;
 mod validation;
 
 use clap::{CommandFactory, FromArgMatches};

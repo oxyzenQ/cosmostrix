@@ -515,8 +515,8 @@ fn density_map_at_top_level_suggests_section_move() {
         "hint should mention section-only: {hint}"
     );
     assert!(
-        hint.contains("[profile.") || hint.contains("[scene-custom."),
-        "hint should mention target sections: {hint}"
+        hint.contains("[scene-custom."),
+        "hint should mention target section: {hint}"
     );
 }
 

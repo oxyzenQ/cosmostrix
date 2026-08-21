@@ -45,7 +45,525 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::sync::OnceLock;
 
-use crate::config::Args;
+use clap::parser::ValueSource;
+use clap::ValueEnum;
+
+use crate::charset::charset_from_str;
+use crate::cli::parse_color_scheme;
+use crate::colors_custom::is_colors_custom_name;
+use crate::config::{Args, ColorBg, GlitchLevel};
+use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
+use crate::runtime::MonolithSize;
+use crate::validation::{
+    parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
+};
+
+/// Canonical field list for `key=value` override blocks.
+///
+/// Used by both scene-custom blocks and testconf validation to ensure
+/// the recognized field set never drifts between the parser and the
+/// validator. Originally lived in `profile` module; moved here when the
+/// inert profile system was removed.
+pub(crate) const PROFILE_FIELDS: &[&str] = &[
+    "base-scene",
+    "color",
+    "charset",
+    "fps",
+    "speed",
+    "density",
+    "density-map",
+    "glitch-level",
+    "monolith-size",
+    "color-bg",
+    // scene-custom-only fields.
+    "bold",
+    "colors-custom",
+    "charset-custom",
+    "shadingmode",
+    "async-mode",
+];
+
+/// Lightweight collection of override fields for a scene-custom block.
+///
+/// Originally `UserProfile` from the inert `profile` module. The name is
+/// kept to avoid a massive rename across scene-custom code.
+#[derive(Debug, Clone, Default, PartialEq)]
+pub(crate) struct UserProfile {
+    /// Optional built-in scene name to inherit defaults from before applying
+    /// this block's own overrides.
+    pub base_scene: Option<String>,
+    pub color: Option<String>,
+    pub charset: Option<String>,
+    pub fps: Option<String>,
+    pub speed: Option<String>,
+    pub density: Option<String>,
+    /// Comma-separated f64 weights (0.0..=1.0) for monolith pillar placement.
+    /// Parsed into a Vec<f64> and leaked to &'static for Cloud consumption.
+    pub density_map: Option<String>,
+    pub glitch_level: Option<String>,
+    pub monolith_size: Option<String>,
+    pub color_bg: Option<String>,
+    pub bold: Option<String>,
+    /// Custom palette name referencing a `[colors-custom.<name>]` block.
+    pub colors_custom: Option<String>,
+    /// Custom charset name referencing a `[charset-custom.<name>]` block.
+    pub charset_custom: Option<String>,
+    /// Shading mode: "0"=Random, "1"=DistanceFromHead.
+    pub shading_mode: Option<String>,
+    /// Async render toggle: "true"/"false".
+    pub async_mode: Option<String>,
+}
+
+/// Collect all `[profile.<name>.<field>]` entries from `cfg`.
+///
+/// Retained for testconf validation — profile.* keys are still parsed as
+/// config (stored in values) so `--testconf` can report them as inert and
+/// surface them in the "available scenes" list. They are NOT applied at
+/// runtime.
+#[must_use]
+pub(crate) fn collect_profiles(
+    cfg: &HashMap<String, String>,
+) -> BTreeMap<String, UserProfile> {
+    let mut profiles = BTreeMap::new();
+    for (key, value) in cfg {
+        if !is_profile_config_key(key) {
+            continue;
+        }
+        let (_, rest) = key.split_once('.').expect("profile key has prefix");
+        let (name, field) = rest.rsplit_once('.').expect("profile key has field");
+        let profile = profiles
+            .entry(name.to_ascii_lowercase())
+            .or_insert_with(UserProfile::default);
+        match field {
+            "base-scene" => profile.base_scene = Some(value.clone()),
+            "color" => profile.color = Some(value.clone()),
+            "charset" => profile.charset = Some(value.clone()),
+            "fps" => profile.fps = Some(value.clone()),
+            "speed" => profile.speed = Some(value.clone()),
+            "density" => profile.density = Some(value.clone()),
+            "density-map" => profile.density_map = Some(value.clone()),
+            "glitch-level" => profile.glitch_level = Some(value.clone()),
+            "monolith-size" => profile.monolith_size = Some(value.clone()),
+            "color-bg" => profile.color_bg = Some(value.clone()),
+            "bold" => profile.bold = Some(value.clone()),
+            "colors-custom" => profile.colors_custom = Some(value.clone()),
+            "charset-custom" => profile.charset_custom = Some(value.clone()),
+            "shadingmode" => profile.shading_mode = Some(value.clone()),
+            "async-mode" => profile.async_mode = Some(value.clone()),
+            _ => {}
+        }
+    }
+    profiles
+}
+
+/// Check if `key` matches `profile.<name>.<field>` pattern.
+///
+/// Retained for configfile.rs `is_known_key` so legacy `profile.*` keys
+/// are not flagged as unknown — they are stored but inert.
+fn is_profile_config_key(key: &str) -> bool {
+    let Some((prefix, rest)) = key.split_once('.') else {
+        return false;
+    };
+    if prefix != "profile" {
+        return false;
+    }
+    let Some((name, field)) = rest.rsplit_once('.') else {
+        return false;
+    };
+    is_valid_profile_name(name) && PROFILE_FIELDS.contains(&field)
+}
+
+/// Validate and normalize a profile/scene-custom name.
+pub(crate) fn validate_profile_name(name: &str) -> Result<String, String> {
+    let normalized = name.trim().to_ascii_lowercase();
+    if is_valid_profile_name(&normalized) {
+        Ok(normalized)
+    } else {
+        Err(format!(
+            "error: invalid profile: {name}\nexpected: letters, digits, '-' or '_'"
+        ))
+    }
+}
+
+pub(crate) fn is_valid_profile_name(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .bytes()
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'-' | b'_'))
+}
+
+/// Apply a scene-custom (or profile) override layer to `args`.
+///
+/// When `base-scene` is set, the named built-in scene's defaults are
+/// applied first, then the block's own overrides win on top.
+pub(crate) fn apply_profile_layer(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+    profiles: &BTreeMap<String, UserProfile>,
+    cfg: &HashMap<String, String>,
+    name: &str,
+    strict_unknown: bool,
+) -> Result<HashSet<&'static str>, String> {
+    let mut modified = HashSet::new();
+    let normalized = validate_profile_name(name)?;
+    let Some(profile) = profiles.get(&normalized) else {
+        let message = format!(
+            "error: unknown profile '{name}'\nexpected one of: {}\n\n  Use --list-scenes to see available scenes.",
+            profile_name_list(profiles)
+        );
+        if strict_unknown {
+            return Err(message);
+        }
+        crate::output::eprintln_warn_labeled(&format!(
+            "ignoring unknown profile '{}' (available: {}; see --list-scenes)",
+            name,
+            profile_name_list(profiles)
+        ));
+        return Ok(modified);
+    };
+
+    if let Some(base_name) = profile.base_scene.as_deref() {
+        apply_base_scene_to_args(
+            matches,
+            args,
+            base_name,
+            &normalized,
+            strict_unknown,
+            &mut modified,
+        );
+    }
+    apply_profile_overrides(matches, args, &normalized, profile, cfg, &mut modified);
+    Ok(modified)
+}
+
+/// Apply a built-in scene's defaults to `args` as the first inheritance
+/// layer. Mirrors `apply_default_scene_values` but reads from a parameter
+/// scene instead of `args.scene`.
+fn apply_base_scene_to_args(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+    base_name: &str,
+    profile_name: &str,
+    strict_unknown: bool,
+    modified: &mut HashSet<&'static str>,
+) {
+    let normalized = base_name.trim().to_ascii_lowercase();
+    let Some(scene_info) = crate::scene::get_scene(&normalized) else {
+        let message = format!(
+            "error: unknown base-scene '{base_name}' in profile '{profile_name}'\n\
+             expected one of: {}\n\
+             note: base-scene must be a built-in scene name (custom scenes are not allowed)",
+            crate::scene::all_scene_names().join(", ")
+        );
+        if strict_unknown {
+            crate::output::eprintln_error_labeled(&message);
+        } else {
+            crate::output::eprintln_warn_labeled(&message);
+        }
+        return;
+    };
+    let cfg = &scene_info.config;
+
+    if let Some(color) = cfg.color {
+        if !is_explicit(matches, "color") {
+            args.color = color.to_string();
+            modified.insert("color");
+        }
+    }
+    if let Some(charset) = cfg.charset {
+        if !is_explicit(matches, "charset") {
+            args.charset = charset.to_string();
+            modified.insert("charset");
+        }
+    }
+    if let Some(fps) = cfg.fps {
+        if !is_explicit(matches, "fps") {
+            args.fps = fps;
+            modified.insert("fps");
+        }
+    }
+    if let Some(speed) = cfg.speed {
+        if !is_explicit(matches, "speed") {
+            args.speed = speed;
+            modified.insert("speed");
+        }
+    }
+    if let Some(density) = cfg.density {
+        if !is_explicit(matches, "density") {
+            args.density = density;
+            modified.insert("density");
+        }
+    }
+    if let Some(glitch) = cfg.glitch_level {
+        if !is_explicit(matches, "glitch_level") {
+            args.glitch_level = glitch;
+            modified.insert("glitch_level");
+        }
+    }
+}
+
+fn apply_profile_overrides(
+    matches: &clap::ArgMatches,
+    args: &mut Args,
+    name: &str,
+    profile: &UserProfile,
+    cfg: &HashMap<String, String>,
+    modified: &mut HashSet<&'static str>,
+) {
+    if let Some(value) = profile
+        .color
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "color"))
+    {
+        let is_valid = parse_color_scheme(value).is_ok() || is_colors_custom_name(cfg, value);
+        if is_valid {
+            args.color = value.to_string();
+            modified.insert("color");
+        } else {
+            warn_invalid(name, "color", value, "see --list-colors");
+        }
+    }
+    if let Some(value) = profile
+        .charset
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "charset"))
+    {
+        let is_valid = charset_from_str(value, false).is_ok()
+            || crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some();
+        if is_valid {
+            args.charset = value.to_string();
+            modified.insert("charset");
+        } else {
+            warn_invalid(name, "charset", value, "see --list-charsets");
+        }
+    }
+    if let Some(value) = profile
+        .fps
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "fps"))
+    {
+        if let Some(fps) = parse_f64_override(name, "fps", value, 1.0, 240.0) {
+            args.fps = fps;
+            modified.insert("fps");
+        }
+    }
+    if let Some(value) = profile
+        .speed
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "speed"))
+    {
+        if let Some(speed) = parse_speed_override(name, value) {
+            args.speed = speed;
+            modified.insert("speed");
+        }
+    }
+    if let Some(value) = profile
+        .density
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "density"))
+    {
+        if let Some(density) = parse_f32_override(name, "density", value, 0.01, DENSITY_CLAMP_MAX) {
+            args.density = density;
+            modified.insert("density");
+        }
+    }
+    if let Some(value) = profile
+        .glitch_level
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "glitch_level"))
+    {
+        match GlitchLevel::from_str(value, true) {
+            Ok(level) => {
+                args.glitch_level = level;
+                modified.insert("glitch_level");
+            }
+            Err(_) => warn_invalid(
+                name,
+                "glitch-level",
+                value,
+                "none, subtle, default, intense",
+            ),
+        }
+    }
+    if let Some(value) = profile
+        .monolith_size
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "monolith_size"))
+    {
+        match MonolithSize::from_str(value, true) {
+            Ok(size) => {
+                args.monolith_size = size;
+                modified.insert("monolith_size");
+            }
+            Err(_) => warn_invalid(name, "monolith-size", value, "small, normal, large"),
+        }
+    }
+    if let Some(value) = profile
+        .color_bg
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "color_bg"))
+    {
+        match parse_color_bg(value) {
+            Some(bg) => {
+                args.color_bg = bg;
+                modified.insert("color_bg");
+            }
+            None => warn_invalid(name, "color-bg", value, "black, default-background"),
+        }
+    }
+    if let Some(value) = profile
+        .bold
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "bold"))
+    {
+        if let Some(n) = parse_u8_override(name, "bold", value, 0, 2) {
+            args.bold = n;
+            modified.insert("bold");
+        }
+    }
+    if let Some(value) = profile
+        .shading_mode
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "shading_mode"))
+    {
+        if let Some(n) = parse_u8_override(name, "shadingmode", value, 0, 1) {
+            args.shading_mode = n;
+            modified.insert("shading_mode");
+        }
+    }
+    if let Some(value) = profile
+        .async_mode
+        .as_deref()
+        .filter(|_| !is_explicit(matches, "async_mode"))
+    {
+        match parse_bool(value) {
+            Some(b) => {
+                args.async_mode = b;
+                modified.insert("async_mode");
+            }
+            None => warn_invalid(name, "async-mode", value, "true, false"),
+        }
+    }
+    if let Some(value) = profile.colors_custom.as_deref() {
+        if !is_explicit(matches, "colors_custom") && profile.color.is_none() {
+            if is_colors_custom_name(cfg, value) {
+                args.colors_custom = Some(value.to_string());
+                modified.insert("colors_custom");
+            } else {
+                warn_invalid(name, "colors-custom", value, "see [colors-custom.*] blocks");
+            }
+        }
+    }
+    if let Some(value) = profile.charset_custom.as_deref() {
+        if !is_explicit(matches, "charset") && profile.charset.is_none() {
+            if crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some() {
+                args.charset = value.to_string();
+                modified.insert("charset");
+            } else {
+                warn_invalid(
+                    name,
+                    "charset-custom",
+                    value,
+                    "see [charset-custom.*] blocks",
+                );
+            }
+        }
+    }
+}
+
+fn parse_f32_override(name: &str, field: &str, value: &str, min: f32, max: f32) -> Option<f32> {
+    parse_canonical_f32_range(&format!("scene-custom.{name}.{field}"), value, min, max)
+        .map_err(|e| {
+            warn_invalid(
+                name,
+                field,
+                value,
+                &format!("number in range {min}..={max} ({e})"),
+            )
+        })
+        .ok()
+}
+
+fn parse_f64_override(name: &str, field: &str, value: &str, min: f64, max: f64) -> Option<f64> {
+    parse_canonical_f64_range(&format!("scene-custom.{name}.{field}"), value, min, max)
+        .map_err(|e| {
+            warn_invalid(
+                name,
+                field,
+                value,
+                &format!("number in range {min}..={max} ({e})"),
+            )
+        })
+        .ok()
+}
+
+fn parse_speed_override(name: &str, value: &str) -> Option<f32> {
+    parse_canonical_speed(&format!("scene-custom.{name}.speed"), value)
+        .map_err(|e| {
+            warn_invalid(
+                name,
+                "speed",
+                value,
+                &format!("canonical integer in range {SPEED_MIN}..={SPEED_MAX} ({e})"),
+            );
+        })
+        .ok()
+}
+
+fn parse_color_bg(value: &str) -> Option<ColorBg> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "black" => Some(ColorBg::Black),
+        "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
+        _ => None,
+    }
+}
+
+/// Parse a u8 field for scene-custom/profile application.
+fn parse_u8_override(name: &str, field: &str, value: &str, min: u8, max: u8) -> Option<u8> {
+    let v = value.trim();
+    match v.parse::<u8>() {
+        Ok(n) if n >= min && n <= max => Some(n),
+        _ => {
+            warn_invalid(
+                name,
+                field,
+                value,
+                &format!("integer in range {min}..={max}"),
+            );
+            None
+        }
+    }
+}
+
+/// Parse a bool field ("true"/"false", case-insensitive, also accepts "1"/"0").
+fn parse_bool(value: &str) -> Option<bool> {
+    match value.trim().to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Some(true),
+        "false" | "0" | "no" | "off" => Some(false),
+        _ => None,
+    }
+}
+
+fn profile_name_list(profiles: &BTreeMap<String, UserProfile>) -> String {
+    if profiles.is_empty() {
+        "<none defined>".to_string()
+    } else {
+        profiles.keys().cloned().collect::<Vec<_>>().join(", ")
+    }
+}
+
+fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
+    !matches!(
+        matches.value_source(key),
+        None | Some(ValueSource::DefaultValue)
+    )
+}
+
+fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
+    crate::output::eprintln_warn_labeled(&format!(
+        "scene-custom: invalid {field}='{value}' in scene-custom '{profile}' (expected: {expected})"
+    ));
+}
 
 /// Apply a scene-custom block to a CloudConfig during live reload.
 ///
@@ -90,10 +608,6 @@ pub(crate) fn apply_scene_custom_to_cloud_config(
         ));
     }
 }
-
-#[cfg(test)]
-use crate::profile::PROFILE_FIELDS;
-use crate::profile::{apply_profile_layer, collect_profiles, is_valid_profile_name, UserProfile};
 
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
@@ -153,8 +667,7 @@ pub(crate) fn is_scene_custom_config_key(key: &str) -> bool {
 
 /// Collect all `[scene-custom.<name>]` blocks from a flat config map.
 ///
-/// Returns a `BTreeMap<name, UserProfile>` mirroring
-/// [`crate::profile::collect_profiles`] but scoped to the `scene-custom`
+/// Mirrors [`collect_profiles`] but scoped to the `scene-custom`
 /// namespace. only fields in [`SCENE_CUSTOM_FIELDS`] are parsed —
 /// `monolith-size` and `color-bg` are silently dropped (the keys are
 /// flagged as unknown upstream by `is_scene_custom_config_key`).

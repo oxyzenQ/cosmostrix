@@ -463,7 +463,7 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
             kind: CliKind::Enum {
                 // CLI exposes only the canonical kebab-case name.
                 // Config.toml also accepts "default_background" (snake_case)
-                // via its own match arms (config_apply.rs, profile.rs, etc.).
+                // via its own match arms (config_apply.rs, scene_custom.rs, etc.).
                 allowed: &["black", "default-background"],
             },
         },

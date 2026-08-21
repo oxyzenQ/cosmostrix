@@ -26,7 +26,6 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
-use crate::profile::is_profile_config_key;
 use crate::scene_custom::is_scene_custom_config_key;
 use sha2::{Digest, Sha512};
 
@@ -68,8 +67,6 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "intro-color",
 ];
 
-const PROFILE_CONFIG_KEY_HINT: &str =
-    "profile.<name>.<base-scene|color|charset|fps|speed|density|glitch-level|monolith-size|color-bg|async-mode>";
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
@@ -824,7 +821,6 @@ pub(crate) fn extract_template_fingerprint(content: &str) -> Option<String> {
 pub(crate) fn known_keys() -> Vec<&'static str> {
     USER_CONFIG_KEYS
         .iter()
-        .chain(std::iter::once(&PROFILE_CONFIG_KEY_HINT))
         .chain(std::iter::once(&SCENE_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&COLORS_CUSTOM_CONFIG_KEY_HINT))
         .chain(std::iter::once(&CHARSET_CUSTOM_CONFIG_KEY_HINT))
@@ -837,7 +833,6 @@ pub(crate) fn known_keys() -> Vec<&'static str> {
 #[inline]
 fn is_known_key(key: &str) -> bool {
     USER_CONFIG_KEYS.contains(&key)
-        || is_profile_config_key(key)
         || is_scene_custom_config_key(key)
         || is_colors_custom_key(key)
         || is_charset_custom_key(key)
