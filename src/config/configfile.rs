@@ -714,9 +714,6 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
-
-# Removed Keys (rejected by --testconf)
-# adaptive-custom.* — eliminated; use ambient.* instead.
 "##
 }
 

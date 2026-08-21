@@ -697,7 +697,17 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // with the top-level `async-mode` match arm above (same validation).
         // Previously this was a separate `"async"` arm; renaming to `async-mode`
         // merged the two into one match arm.
-
+        // Bool config keys: accept the same lenient set as parse_bool_config
+        // (true/yes/on/1/false/no/off/0, case-insensitive).
+        "crystal-dragon" | "power-dragon" => {
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
+                _ => Some(format!(
+                    "expected true/false (or yes/no, on/off, 1/0), got '{v}'"
+                )),
+            }
+        }
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.
         _ => None,
@@ -767,6 +777,24 @@ pub(crate) fn validate_field_value_with_cfg(
         }
         return Some(format!(
             "unknown charset-custom block '{value}' — define [charset-custom.{value}] in this config (with .set sub-field)"
+        ));
+    }
+    // intro-color: must be a known builtin theme OR a custom palette
+    // defined in [colors-custom.<name>]. Same logic as config_apply.rs.
+    if key == "intro-color" {
+        let lower = value.trim().to_ascii_lowercase();
+        if theme::canonical_name_for_input(&lower).is_some() {
+            return None;
+        }
+        let bg_key = format!("colors-custom.{lower}.bg");
+        let rain_key = format!("colors-custom.{lower}.rain");
+        let stops_key = format!("colors-custom.{lower}.stops");
+        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key) {
+            return None;
+        }
+        return Some(format!(
+            "unknown intro-color '{value}' — not a builtin theme or custom palette. \
+             Use --list-colors to see available themes."
         ));
     }
     let base = validate_field_value(key, value)?;
