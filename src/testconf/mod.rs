@@ -789,7 +789,8 @@ pub(crate) fn validate_field_value_with_cfg(
         let bg_key = format!("colors-custom.{lower}.bg");
         let rain_key = format!("colors-custom.{lower}.rain");
         let stops_key = format!("colors-custom.{lower}.stops");
-        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key) {
+        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
+        {
             return None;
         }
         return Some(format!(

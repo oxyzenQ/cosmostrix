@@ -796,21 +796,6 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!("apply color-bg='{}' → default_bg={}", v, new.default_bg);
     }
 
-    // Glitch times (ms range)
-    if let Some(v) = cfg.get("glitchms") {
-        if let Some((lo, hi)) = parse_range(v) {
-            new.glitch_low = lo;
-            new.glitch_high = hi;
-        }
-    }
-    // Linger times
-    if let Some(v) = cfg.get("lingerms") {
-        if let Some((lo, hi)) = parse_range(v) {
-            new.linger_low = lo;
-            new.linger_high = hi;
-        }
-    }
-
     // Monolith size
     if let Some(v) = cfg.get("monolith-size") {
         use clap::ValueEnum;
@@ -829,14 +814,33 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
+    // v50: Power Dragon live reload. No CLI flag exists for power-dragon
+    // (config-only setting), so no intent-preservation guard is needed —
+    // always read from config. When toggled mid-session, the adaptive
+    // throttle state updates on the next frame (no restart needed).
+    if let Some(v) = cfg.get("power-dragon") {
+        if let Some(b) = crate::config_apply::parse_bool_config("power-dragon", v) {
+            new.power_dragon = b;
+        }
+    }
+
     // (CLI-P-1): live-reload bold/shadingmode/async-mode (previously
-    // silently ignored). Mirrors startup parsers.
+    // silently ignored). Mirrors startup parsers with range validation.
     if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
+        // Range-gate to match startup parse_u8_config("bold", ..., 0, 2).
+        // Upstream validate_config_strictly catches out-of-range before this
+        // runs, but defense-in-depth prevents silent mis-parsing if that
+        // validation ever has a regression.
         new.bold_mode = match v {
             0 => crate::runtime::BoldMode::Off,
             2 => crate::runtime::BoldMode::All,
             _ => crate::runtime::BoldMode::Random,
         };
+        if v > 2 {
+            // Out-of-range: log and let validate_config_strictly handle
+            // rejection on next cycle. Do not apply the parsed value.
+            new.bold_mode = base.bold_mode;
+        }
     }
     if let Some(v) = cfg
         .get("shadingmode")
@@ -846,6 +850,9 @@ pub(crate) fn rebuild_cloud_config(
             1 => crate::runtime::ShadingMode::DistanceFromHead,
             _ => crate::runtime::ShadingMode::Random,
         };
+        if v > 1 {
+            new.shading_mode = base.shading_mode;
+        }
     }
     if let Some(v) = cfg.get("async-mode") {
         if let Some(b) = crate::config_apply::parse_bool_config("async-mode", v) {
@@ -897,14 +904,6 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     new
-}
-
-/// Parse "LOW,HIGH" range string.
-fn parse_range(s: &str) -> Option<(u16, u16)> {
-    let (lo, hi) = s.split_once(',')?;
-    let lo: u16 = lo.trim().parse().ok()?;
-    let hi: u16 = hi.trim().parse().ok()?;
-    Some((lo.min(hi), lo.max(hi)))
 }
 
 #[cfg(test)]

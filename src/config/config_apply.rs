@@ -385,7 +385,7 @@ fn apply_config_values(
     // the intro and passed to run_intro via CloudConfig.
     // Uses cfg.get() directly (not config_value) because intro-color has
     // no CLI flag (#[arg(skip)]) — config_value requires a clap arg ID.
-    if let Some(v) = cfg.get("intro-color").or_else(|| cfg.get("intro_color")) {
+    if let Some(v) = cfg.get("intro-color") {
         let v = v.clone();
         // Validate: must be a known builtin theme name or a custom palette
         // defined in [colors-custom.<name>]. Unknown names are rejected
@@ -430,7 +430,7 @@ fn apply_config_values(
     // v50: power-dragon config key. When false, disables adaptive
     // throttle + idle FPS reduction (power dragon stays inactive).
     // Default: true (protection enabled). Config-only (no CLI flag).
-    if let Some(v) = cfg.get("power-dragon").or_else(|| cfg.get("power_dragon")) {
+    if let Some(v) = cfg.get("power-dragon") {
         if let Some(b) = parse_bool_config("power-dragon", v) {
             args.power_dragon = b;
             config_touched.insert("power-dragon");

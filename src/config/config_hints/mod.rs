@@ -314,7 +314,7 @@ fn colors_custom_field_hint(key: &str, field: &str) -> String {
     // Removed alias — point users to the canonical name.
     if field == "background" {
         return format!(
-            "'{key}': 'background' was removed in  — use 'bg' instead. \
+            "'{key}': 'background' was removed — use 'bg' instead. \
              Example: bg = \"#0a0a12\""
         );
     }
