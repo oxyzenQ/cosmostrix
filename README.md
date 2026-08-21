@@ -338,71 +338,62 @@ Run `cosmostrix --help` for the full reference manual (CLI flags, runtime contro
 
 ```text
 COMMON OPTIONS
-  -c, --color <name>          Color theme (see --list-colors). 44 built-in themes.
-      --colors-custom <name>  Load a user-defined custom color palette from config (v16)
+  -c, --color <name>          Color theme or custom palette name (see --list-colors)
+      --colors-custom <name>  Load a custom color palette from config (see --list-colors)
       --color-tune <k=v>      Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)
-  -C, --charset <name>        Character set (see --list-charsets; custom via [charset-custom]).
-                              Alias: --charset-custom <name> (same flag, parity with --colors-custom)
-  -f, --fps <1-240>           Target FPS
-  -S, --speed <1-100>         Rain speed
-  -d, --density <0.01-5.0>    Rain density
-  -s, --screensaver           Only q exits (all other keys ignored). Mouse events captured to block selection
-  -m <text>                    Overlay message (no border). Use -mb for border
+  -C, --charset <name>        Character set (see --list-charsets). Accepts built-in presets or
+                              custom names from [charset-custom.<name>]. Alias: --charset-custom
+  -f, --fps <N>               Target FPS (interactive frame limiter)
+  -S, --speed <N>             Rain speed
+  -d, --density <N>            Rain density
+  -s, --screensaver           Only q exits (all other keys ignored)
+  -m <text>                   Overlay message (no border)
+  -mb <text>                  Overlay message with border
       --glitch-level <level>  Glitch intensity (none|subtle|default|intense)
-      --scene <name>          Apply a built-in scene atmosphere (see --list-scenes)
-      --scene-custom <name>   Apply a user-defined custom scene from config
-      --intro [cosmic|logo|none]
-                              Cinematic intro before rain begins (default: logo).
-                              Plays in all modes including --screensaver. Skipped
-                              only on terminals < 80x24. Press q to skip mid-animation.
-                              Set permanently via `intro = "..."` in config.
-
-ADVANCED
-      --monolith-size <size>  Monolith segment cell scale (small|normal|large)
-      --uniform               Uniform column speeds (disables async variable pacing)
-  Mouse interaction           Always on, no flag. Cursor glow + dual-ring click wave.
-                              Mouse reporting always active (blocks text selection).
+      --scene <name>           Apply a built-in scene (see --list-scenes)
+      --scene-custom <name>    Apply a user-defined custom scene from config
+      --intro [cosmic|logo|none] Cinematic intro (default: logo)
+      --monolith-size <size>   Monolith segment cell scale (small|normal|large)
+      --uniform                Uniform column speeds (disables variable pacing)
 
 CONFIG
-      --config <path>         Load config from an explicit file (strict whitelist + .toml)
-      --dump-config [path]    Print example config to stdout, or write to file (whitelist + .toml)
-      --force                 Force overwrite when writing files. Currently scoped to
-                              --dump-config ONLY: allows overwriting an existing config
-                              at the target path. Other write operations unaffected.
-      --config-path           Print the resolved default config path
-      --testconf              Validate config.toml and report errors (exit 0 = pass, 2 = fail)
+      --config <path>          Load config from an explicit file path
+      --dump-config [path]     Print example config to stdout, or write to file
+      --force                  Force overwrite when writing files (scoped to --dump-config)
+      --config-path            Print the default config path
+      --testconf               Validate config.toml and report errors (exit 0 = pass, 2 = fail)
 
 DIAGNOSTICS
-      --doctor                Compatibility report
-      --docs                  Print engine documentation and architecture overview
-                              (covers both Cosmic Dragon + Chroma Dragon engines)
-      --benchmark             Renderer benchmark (5s default; override with --bench-duration)
-      --bench-duration <dur>  Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
-      --json                  Output benchmark as JSON (use with --benchmark; for CI/scripts)
-      --screen-size <WxH>     Fixed screen size (e.g. 120x40; min 4x4, max 1024x500 interactive / 7680x4320 bench)
-      --bench-io              Benchmark with wet terminal I/O (writes ANSI to /dev/null)
-      --bench-all             Run benchmark across multiple screen sizes (6x6 to 200x60)
-      --bench-scene <name>    Benchmark I/O scene: 'lean' (default, emit_cell_lean) or
-                              'production-draw' (mirrors Terminal::draw full-redraw path).
-                              Use 'production-draw' to measure the BOLT-backed production
-                              render path; pair with --bench-io to write ANSI to /dev/null.
-                              Strict: typos are rejected at parse time, never silently
-                              fallback'd to the default lean path.
-      --save-baseline <path>  Save benchmark JSON for later comparison
-      --compare-baseline <p>  Compare against saved baseline (flags >5% FPS regressions)
-      --reset-terminal        Emergency terminal recovery (5-layer: ANSI + crossterm + stty + reset)
-  -v, --verbose               Print diagnostic info to stderr (with [HH:MM] timestamps)
+      --doctor                 System compatibility report
+      --docs                   Print engine documentation and architecture overview
+      --benchmark              Renderer benchmark (5s default; override with --bench-duration)
+      --bench-duration <dur>   Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
+      --screen-size <WxH>      Fixed screen size (min 4x4, max 1024x500 interactive / 7680x4320 bench)
+      --json                   Output benchmark as JSON (use with --benchmark)
+      --bench-io               Benchmark with wet terminal I/O (writes ANSI to /dev/null)
+      --bench-all              Run benchmark across multiple screen sizes (6x6 to 200x60)
+      --bench-scene <name>     Benchmark I/O scene: lean (default) or production-draw
+      --save-baseline <path>   Save benchmark JSON for later comparison
+      --compare-baseline <p>   Compare against saved baseline (flags >5% FPS regressions)
+      --reset-terminal         Emergency terminal recovery (5-layer)
+  -v, --verbose                Print diagnostic info to stderr
 
 DISCOVERY
-      --list-colors           Show compact color theme names (44 built-in themes)
-      --list-charsets         Show available character sets (25 built-in sets)
-      --list-scenes           Show built-in and custom scenes
-      --show-scene <name>     Show full details for a scene
+      --list-colors            Show color theme names (44 built-in themes)
+      --list-charsets          Show available character sets (25 built-in sets)
+      --list-scenes            Show built-in and custom scenes
+      --show-scene <name>      Show full details for a built-in or custom scene
 
 HELP
-      --help                  Print the full reference manual
-  -V, --version               Print complete version and build information
-      --check-update          Check the latest upstream release
+      --help                   Print the full reference manual
+  -V, --version                Print complete version and build information
+      --check-update           Check the latest upstream release
+
+ADVANCED (stable, supported, documented in --help)
+  --crystal-dragon            Enable Crystal Dragon ambient color drift
+  -b, --bold <0|1|2>           Bold style (0=off, 1=random, 2=all)
+      --color-bg <mode>        Background mode (black, default-background)
+      --duration <seconds>     Interactive auto-exit after N seconds
 ```
 
 Explicit CLI flags always override scene and scene-custom values.
@@ -415,9 +406,9 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x             Cycle scene       [ / ]      Density
-  Up / Down     Speed             Space      Reseed animation
-  i             Toggle live HUD (FPS / max / p99 / CPU% / RSS / EHS / PRS / speed /
-                density / scene / charset / color / uptime / screensize / cid)
+  Up / Down     Speed             Space      Reset animation
+  i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
+                speed / density / scene / charset / color / uptime / screensize / cid)
 ```
 
 ## Scenes
