@@ -10,7 +10,7 @@
 # the most recent local stamp file, NOT this CI run — contributors run
 # `./scripts/build.sh miri` locally to refresh their own stamp.
 
-name: "Cosmic Dragon - Miri"
+name: "Cosmic Dragon Guard - Miri"
 
 'on':
   push:
@@ -37,7 +37,7 @@ env:
 
 jobs:
   miri:
-    name: Miri UB verification (6 audited modules)
+    name: Cosmic Dragon Guard - Miri UB verification (6 audited modules)
     runs-on: ubuntu-latest
     timeout-minutes: 30
 

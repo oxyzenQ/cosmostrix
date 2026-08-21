@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-name: Cosmic Dragon - CI
+name: Cosmic Dragon Guard - CI
 
 'on':
   push:
@@ -68,7 +68,7 @@ jobs:
   security:
     needs: changes
     if: needs.changes.outputs.core == 'true'
-    name: Cosmic Dragon - Security audit
+    name: Cosmic Dragon Guard - Security audit
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -102,7 +102,7 @@ jobs:
   version-sync:
     needs: changes
     if: needs.changes.outputs.core == 'true'
-    name: Cosmic Dragon - Version sync guard
+    name: Cosmic Dragon Guard - Version sync guard
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
@@ -119,7 +119,7 @@ jobs:
         run: bash scripts/check-rust-version-sync.sh
 
   msrv:
-    name: Cosmic Dragon - MSRV
+    name: Cosmic Dragon Guard - MSRV
     runs-on: ubuntu-latest
     needs: [security, version-sync]
     timeout-minutes: 30
@@ -141,7 +141,7 @@ jobs:
         run: cargo test --all --locked
 
   build_test:
-    name: Cosmic Dragon - Test + Build (debug)
+    name: Cosmic Dragon Guard - Test + Build (debug)
     runs-on: ubuntu-latest
     needs: [security, msrv]
     timeout-minutes: 30
@@ -183,7 +183,7 @@ jobs:
         run: cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
   macos_build:
-    name: Cosmic Dragon - Build (macos native)
+    name: Cosmic Dragon Guard - Build (macos native)
     runs-on: ${{ matrix.os }}
     needs: build_test
     timeout-minutes: 30
@@ -256,7 +256,7 @@ jobs:
           grep -Fq "click_wave" <<<"${OUT}" || { echo "::error::click_wave missing"; exit 1; }
 
   android_build:
-    name: Cosmic Dragon - Build (android-aarch64)
+    name: Cosmic Dragon Guard - Build (android-aarch64)
     runs-on: ubuntu-latest
     needs: build_test
     if: github.event_name == 'push'
@@ -341,7 +341,7 @@ jobs:
           grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
   linux_aarch64_build:
-    name: Cosmic Dragon - Build (linux aarch64)
+    name: Cosmic Dragon Guard - Build (linux aarch64)
     runs-on: ubuntu-latest
     needs: build_test
     timeout-minutes: 30
@@ -409,7 +409,7 @@ jobs:
           grep -Fq "yes" <<<"${TEXT}" || { echo "::error::Expected embedded strip metadata yes"; exit 1; }
 
   windows_aarch64_build:
-    name: Cosmic Dragon - Build (windows aarch64)
+    name: Cosmic Dragon Guard - Build (windows aarch64)
     runs-on: windows-latest
     needs: windows_build
     timeout-minutes: 30
@@ -469,7 +469,7 @@ jobs:
           }
 
   freebsd_native_build:
-    name: Cosmic Dragon - Build (freebsd native)
+    name: Cosmic Dragon Guard - Build (freebsd native)
     runs-on: ubuntu-latest
     needs: build_test
     timeout-minutes: 40
@@ -543,7 +543,7 @@ jobs:
             echo "FreeBSD native: fmt + clippy + test + build + smoke test ALL PASSED."
 
   linux_cpu_variants:
-    name: Cosmic Dragon - Build (linux x86_64 variants)
+    name: Cosmic Dragon Guard - Build (linux x86_64 variants)
     runs-on: ubuntu-latest
     needs: build_test
     timeout-minutes: 30
@@ -664,7 +664,7 @@ jobs:
   windows_build:
     needs: [changes, version-sync]
     if: needs.changes.outputs.core == 'true'
-    name: Cosmic Dragon - Build (windows)
+    name: Cosmic Dragon Guard - Build (windows)
     runs-on: windows-latest
     timeout-minutes: 30
     steps:
@@ -727,7 +727,7 @@ jobs:
           }
 
   fmt_clippy:
-    name: Cosmic Dragon - Format + Clippy
+    name: Cosmic Dragon Guard - Format + Clippy
     runs-on: ubuntu-latest
     needs: build_test
     timeout-minutes: 30
@@ -753,7 +753,7 @@ jobs:
         run: cargo clippy --locked --all-targets --all-features -- -D warnings
 
   deny:
-    name: Cosmic Dragon - Dependency policy (cargo-deny)
+    name: Cosmic Dragon Guard - Dependency policy (cargo-deny)
     runs-on: ubuntu-latest
     needs: build_test
     timeout-minutes: 30
@@ -780,7 +780,7 @@ jobs:
         run: cargo deny check all
 
   project_lint:
-    name: Project lint (codespell + ruff)
+    name: Cosmic Dragon Guard - Project lint (codespell + ruff)
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

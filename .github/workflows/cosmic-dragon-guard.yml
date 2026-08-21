@@ -32,7 +32,7 @@ env:
 
 jobs:
   gatekeepers:
-    name: Gate-keepers (lint / format / license)
+    name: Cosmic Dragon Guard - Gate-keepers (lint / format / license)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:

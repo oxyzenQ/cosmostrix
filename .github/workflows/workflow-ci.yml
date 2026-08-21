@@ -16,7 +16,7 @@
 #
 # This guarantees workflow changes never slip through unvalidated.
 
-name: Cosmic Dragon - Workflow CI
+name: Cosmic Dragon Guard - Workflow CI
 
 'on':
   push:
@@ -37,7 +37,7 @@ env:
 
 jobs:
   workflow_lint:
-    name: Workflow Lint (actionlint + yamllint)
+    name: Cosmic Dragon Guard - Workflow Lint (actionlint + yamllint)
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
@@ -57,7 +57,7 @@ jobs:
         run: yamllint .github/workflows
 
   workflow_syntax:
-    name: Workflow Syntax Validation
+    name: Cosmic Dragon Guard - Workflow Syntax Validation
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:

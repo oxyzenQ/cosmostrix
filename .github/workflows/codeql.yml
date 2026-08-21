@@ -18,7 +18,7 @@
 #
 # Weekly scheduled scan Monday 03:00 UTC for full coverage.
 
-name: "Cosmic Dragon - CodeQL"
+name: "Cosmic Dragon Guard - CodeQL"
 
 'on':
   push:
@@ -92,7 +92,7 @@ env:
 
 jobs:
   detect-languages:
-    name: Detect languages
+    name: Cosmic Dragon Guard - Detect languages
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -159,7 +159,7 @@ jobs:
           echo "::endgroup::"
 
   analyze:
-    name: CodeQL Analyze
+    name: Cosmic Dragon Guard - CodeQL Analyze
     needs: detect-languages
     runs-on: ubuntu-latest
     timeout-minutes: 45
