@@ -3,6 +3,8 @@
 
 Single reference for maintaining cosmostrix during dormant mode (5-10 year maintenance cycle). Covers build, test, dependency updates, security response, and health-check log.
 
+Cosmostrix is built to survive. The owner may go dormant for 5-10 years. When returning, this file is the only document needed to bring the project back to a fully passing CI state. Every command, every check, every response procedure is here.
+
 ## 1. Quick Reference
 
 | Task | Command |
@@ -34,13 +36,15 @@ Single reference for maintaining cosmostrix during dormant mode (5-10 year maint
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| CI | `ci.yml` | push + PR | Build + test + clippy + fmt + deny |
-| Release | `release.yml` | tag push | Build 8 platform binaries + checksums + GPG sign |
-| Miri | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection |
-| Docs CI | `docs-ci.yml` | push | Verify doc links + code blocks |
-| Gitbot audit | `gitbot-audit.yml` | daily cron | Security advisory + dependency policy |
-| AUR | `aur.yml` | release | Update AUR package |
-| Maintenance | `maintenance.yml` | weekly cron | Stale issue/PR management |
+| CI | `ci.yml` | push + PR (src/**) | Build + test + clippy + fmt + deny + MSRV |
+| Cosmic Dragon Guard | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: shellcheck, yamllint, actionlint, markdownlint, codespell, SPDX, LOC |
+| Workflow CI | `workflow-ci.yml` | push + PR (.github/**) | Validate workflow YAML syntax + actionlint |
+| Miri | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection (6 audited modules) |
+| Security Audit | `gitbot-audit.yml` | daily cron | Security advisory + dependency policy |
+| CodeQL | `codeql.yml` | weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |
+| AUR | `aur.yml` | release tag | Update AUR package |
+| Release | `release.yml` | tag push (v*) | Build 10 platform binaries + PGO + checksums + GPG sign |
+| Maintenance | `maintenance.yml` | weekly cron (Mon 07:00 WIB) | Dependency update + validate + commit |
 
 ## 4. Security Advisory Response
 
@@ -53,19 +57,24 @@ If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 
 ### Symlink Handling
 
-`--config <path>` enforces a directory whitelist via `validate_config_path()` (see `src/safepath/mod.rs`). Symlinks pointing outside the whitelist are rejected at the validation layer. The configfile parser reads the target strictly as TOML text — no `eval`, `include`, or recursive resolution; no env vars, secrets, or shell expansion. A symlink swap can at most feed different TOML content, which `--testconf` catches. The watcher (`src/config/live_config.rs`) re-validates on every reload. **Future hardening** (not required for v50 stable): switch to `fstatat` with `AT_SYMLINK_NOFOLLOW` and reject any path crossing a symlink boundary.
+`--config <path>` enforces a directory whitelist via `validate_config_path()` (see `src/safepath/mod.rs`). Symlinks pointing outside the whitelist are rejected at the validation layer. The configfile parser reads the target strictly as TOML text — no `eval`, `include`, or recursive resolution; no env vars, secrets, or shell expansion. A symlink swap can at most feed different TOML content, which `--testconf` catches. The watcher (`src/config/live_config_poll/`) re-validates on every reload. **Future hardening** (not required for v50 stable): switch to `fstatat` with `AT_SYMLINK_NOFOLLOW` and reject any path crossing a symlink boundary.
 
 ## 5. Periodic Health Check
 
 **Schedule**: every 6 months (or when returning from dormant period).
 
+If returning after 5-10 years of dormancy, follow this exact sequence. No steps may be skipped.
+
 1. **Clean clone**: `git clone https://github.com/oxyzenQ/cosmostrix.git && cd cosmostrix`
-2. **Build**: `cargo build --release`
-3. **Test**: `cargo test --all --locked`
-4. **Gatekeeper**: `./scripts/build.sh check-all`
-5. **Security audit**: `cargo deny check all`
-6. **Benchmark** (optional): `./target/release/cosmostrix --benchmark --scene monolith --bench-duration 5`
-7. **Log result** in the table below.
+2. **Install toolchain**: `rustup install 1.97.1 && rustup default 1.97.1` (or whatever `rust-toolchain.toml` says)
+3. **Build**: `cargo build --release`
+4. **Test**: `cargo test --all --locked`
+5. **Gatekeeper**: `./scripts/build.sh check-all -q`
+6. **Security audit**: `cargo deny check all`
+7. **Dependency update** (if any CVEs): `cargo update` → repeat steps 4-6
+8. **Rust toolchain upgrade** (if current Rust is EOL): see Section 2 "Upgrading Rust"
+9. **Benchmark** (optional): `./target/release/cosmostrix --benchmark --scene monolith --bench-duration 5`
+10. **Log result** in the table below.
 
 ### Health Check Log
 
@@ -73,21 +82,49 @@ If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 |------|-------------|--------|-------|
 | 2026-08-13 | 1.97.1 | PASS | Full audit session — 1,476 tests, all quality gates green |
 
-## 6. API Stability Promise
+## 6. Dormant Mode Contract
+
+Cosmostrix is designed for long-term stability. The owner may go dormant for 5-10 years without touching the codebase. When returning, the project must compile and pass all tests on the pinned toolchain with zero intervention beyond `cargo build && cargo test`.
+
+### What "dormant" means
+
+- No commits, no releases, no dependency updates during the dormant period.
+- CI continues running automatically: daily security audits, weekly Miri, weekly CodeQL, weekly dependency maintenance.
+- The AUR package remains available at the last published version.
+- Issues and PRs may accumulate; the maintenance workflow handles stale management.
+
+### What "returning from dormancy" means
+
+- Follow the Periodic Health Check (Section 5) exactly.
+- If the pinned Rust toolchain is EOL: upgrade per Section 2.
+- If CVEs exist in dependencies: update per Section 4.
+- If CI is red: fix it before any feature work.
+- The project must be at a fully green CI state before any new development.
+
+### Dormant-mode invariants (must hold after any maintenance session)
+
+- `cargo build --release` compiles with zero warnings on the pinned toolchain.
+- `cargo test --all --locked` passes all tests.
+- `./scripts/build.sh check-all -q` passes all quality gates.
+- `cargo deny check all` reports no advisories.
+- No new dependencies were added without owner approval.
+- All CI workflows pass on push to main.
+
+## 7. API Stability Promise
 
 From v50.0.0 onward, the following are **frozen** (no breaking changes without a major version bump):
 
 - **CLI flags**: all flags in `--help` (names, short/long forms, value types)
 - **Config format**: `config.toml` keys, value types, and TOML structure
 - **Scene names**: all 18 built-in scene names
-- **Color scheme names**: all 44 built-in color scheme names
+- **Color scheme names**: all 44+ built-in color scheme names
 - **Charset preset names**: all 25 built-in charset names
-- **Runtime controls**: all keyboard shortcuts (q, p, c/C, s/S, x, [/], etc.)
+- **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
 
 Breaking changes require a major version bump (e.g. v51.0.0). Minor versions (v50.1.0) may add new features but must not change or remove existing API surface.
 
-## 7. Architecture Reference
+## 8. Architecture Reference
 
 - [`docs/audits/COSMIC_DRAGON_AUDIT.md`](audits/COSMIC_DRAGON_AUDIT.md) — comprehensive audit (visual quality, stability, power management, competitive depth)
 - [`docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md`](archive/audits/UNSAFE_SOUNDNESS_AUDIT.md) — unsafe block soundness audit + Miri methodology
