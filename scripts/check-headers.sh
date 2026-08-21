@@ -19,7 +19,7 @@
 # Rejected: MIT (project is GPL-3.0-only licensed)
 #
 # Included file types: *.rs, *.sh, *.py, *.toml, *.yml, *.yaml, *.md
-# Excluded: target/, .git/, Cargo.lock, *.txt, assets/media binary files
+# Scope: git-tracked files only (untracked files are skipped)
 #
 # Usage: bash scripts/check-headers.sh
 #
@@ -61,12 +61,11 @@ while IFS= read -r -d '' file; do
         WRONG=$((WRONG + 1))
     fi
 done < <(
-    find "$REPO_ROOT" \
-        \( -name '*.rs' -o -name '*.sh' -o -name '*.py' -o -name '*.toml' -o -name '*.yml' -o -name '*.yaml' -o -name '*.md' \) \
-        -not -path '*/target/*' \
-        -not -path '*/.git/*' \
-        -not -name 'Cargo.lock' \
-        -print0 2>/dev/null
+    # Only check git-tracked files — untracked local files are not CI's concern.
+    # git ls-files --cached returns only repo-tracked paths (respects .gitignore).
+    git ls-files --cached 2>/dev/null | grep -E '\.(rs|sh|py|toml|yml|yaml|md)$' | while IFS= read -r line; do
+        printf '%s\0' "${REPO_ROOT}/${line}"
+    done
 )
 
 TOTAL_FAIL=$((MISSING + WRONG))
