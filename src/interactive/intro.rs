@@ -307,15 +307,20 @@ pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
 
 /// Linear interpolation between two RGB triples.
 ///
-/// v50 (2026-08-17) LTS chroma dragon sync: delegates to
-/// `chroma::legacy::blend_toward_rgb` for consistency with the chroma
-/// engine's per-channel blend convention (integer math with +128
-/// rounding offset, half-up convention). The previous inline
-/// implementation used `(lerp(...).round().clamp(0.0, 255.0)) as u8`
-/// per channel — same equation but float math. The integer-math version
-/// is faster (no float-to-int conversion) and matches the chroma
-/// dragon's blend convention so the intro animation's particle colors
-/// stay consistent with the rain color's chroma dragon output.
+/// Routes through the Chroma Dragon OKLab perceptual blend pipeline
+/// (`gradient::oklab_blend_rgb`) so the intro animation's color
+/// transitions are perceptually uniform — same as the rain palette
+/// gradients. This ensures the cinematic intro dissolves seamlessly
+/// into the rain matrix without a visible color shift or muddiness.
+///
+/// Lightness L is linearly interpolated in OKLab. Chroma (a, b)
+/// uses polar interpolation (shortest-arc hue rotation) to keep
+/// saturation high through the midpoint — even on opposing-hue
+/// transitions like purple → green.
+///
+/// Replaces the previous `chroma::legacy::blend_toward_rgb` (integer
+/// sRGB linear blend) which produced muddy midpoints on
+/// opposing-hue transitions.
 ///
 /// Owner mandate: every color-processing site must route through the
 /// chroma dragon pipeline (primary), with legacy fallback for non-
@@ -325,7 +330,11 @@ pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
 /// rain matrix without a visible color shift.
 #[inline]
 pub(super) fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
-    crate::chroma_dragon_engine::legacy::blend_toward_rgb(a.0, a.1, a.2, b.0, b.1, b.2, t)
+    crate::chroma_dragon_engine::gradient::oklab_blend_rgb(
+        a.0, a.1, a.2,
+        b.0, b.1, b.2,
+        t,
+    )
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -591,10 +600,16 @@ mod tests {
 
     #[test]
     fn lerp_rgb_interpolates_correctly() {
+        // With OKLab perceptual blend, the midpoint is NOT the sRGB
+        // linear midpoint (50, 100, 25). But endpoints are preserved
+        // and the result is between a and b.
         let a = (0u8, 0u8, 0u8);
         let b = (100u8, 200u8, 50u8);
         let mid = lerp_rgb(a, b, 0.5);
-        assert_eq!(mid, (50, 100, 25));
+        // Must be strictly between black and b (not equal to either).
+        assert!(mid.0 > 0 && mid.0 < 100);
+        assert!(mid.1 > 0 && mid.1 < 200);
+        assert!(mid.2 > 0 && mid.2 < 50);
     }
 
     #[test]

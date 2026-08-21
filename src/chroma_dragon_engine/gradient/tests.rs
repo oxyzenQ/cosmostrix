@@ -361,3 +361,48 @@ fn polar_segment_grayscale_fallback_matches_polar_chroma_lerp() {
         assert!((pb - expected_b).abs() < 1e-5, "b mismatch at t={t}");
     }
 }
+
+// ── oklab_blend_rgb (intro animation) ──────────────────────────────
+
+/// Endpoints are preserved exactly (within ±1 OKLab round-trip).
+#[test]
+fn oklab_blend_rgb_preserves_endpoints() {
+    let a = (168u8, 85u8, 247u8); // brand purple
+    let b = (57u8, 255u8, 20u8);  // neon green
+    assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, 0.0), a);
+    assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, 1.0), b);
+}
+
+/// Midpoint of opposing hues stays saturated (not muddy).
+/// This is the key perceptual quality property the intro animation relies on.
+#[test]
+fn oklab_blend_rgb_opposing_hues_stay_saturated() {
+    let (mr, mg, mb) = oklab_blend_rgb(255, 0, 0, 0, 255, 255, 0.5);
+    let max_c = mr.max(mg).max(mb) as i32;
+    let min_c = mr.min(mg).min(mb) as i32;
+    let sat = max_c - min_c;
+    assert!(
+        sat >= 60,
+        "OKLab intro blend red→cyan midpoint ({mr},{mg},{mb}) saturation = {sat}, expected ≥ 60"
+    );
+}
+
+/// Black → color produces a valid (non-negative, clamped) result.
+/// Used by intro fade-in (lerp from black to logo color).
+#[test]
+fn oklab_blend_rgb_black_to_color_is_valid() {
+    let (r, g, b) = oklab_blend_rgb(0, 0, 0, 168, 85, 247, 0.5);
+    // Must be between black and purple.
+    assert!(r > 0 && r < 168);
+    assert!(g > 0 && g < 85);
+    assert!(b > 0 && b < 247);
+}
+
+/// t values outside [0,1] are clamped.
+#[test]
+fn oklab_blend_rgb_clamps_t() {
+    let a = (10u8, 20u8, 30u8);
+    let b = (200u8, 100u8, 50u8);
+    assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, -1.0), a);
+    assert_eq!(oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, 2.0), b);
+}

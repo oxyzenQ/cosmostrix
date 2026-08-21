@@ -385,5 +385,39 @@ pub(crate) fn gradient_from_stops_oklab(stops: &[(u8, u8, u8)], steps: usize) ->
     out
 }
 
+/// Perceptual (OKLab) blend between two sRGB colors.
+///
+/// Used by the intro animation system so that color transitions during
+/// the cinematic intro (singularity → burst → morph → rain) use the
+/// same perceptually uniform interpolation as the rain palette gradients.
+///
+/// Lightness L is linearly interpolated. Chroma (a, b) uses polar
+/// interpolation (shortest-arc hue rotation) to avoid the "Cartesian
+/// shortcut through gray" problem on opposing-hue transitions.
+///
+/// # Arguments
+///
+/// - `r0, g0, b0` — start color (t=0).
+/// - `r1, g1, b1` — end color (t=1).
+/// - `t` — blend factor in `[0, 1]`.
+///
+/// # Returns
+///
+/// Interpolated (r, g, b) in sRGB.
+#[inline]
+#[must_use]
+pub(crate) fn oklab_blend_rgb(
+    r0: u8, g0: u8, b0: u8,
+    r1: u8, g1: u8, b1: u8,
+    t: f32,
+) -> (u8, u8, u8) {
+    let t = t.clamp(0.0, 1.0);
+    let (l0, a0, b0) = srgb_to_oklab(r0, g0, b0);
+    let (l1, a1, b1) = srgb_to_oklab(r1, g1, b1);
+    let l = l0 + (l1 - l0) * t;
+    let (a, b) = polar_chroma_lerp(a0, b0, a1, b1, t);
+    oklab_to_srgb(l, a, b)
+}
+
 #[cfg(test)]
 mod tests;
