@@ -1013,52 +1013,76 @@ impl Cloud {
         // changes reflect on the very next draw.
         let mut border_gradient: Vec<Option<Color>> = vec![None; self.message.len()];
         if palette_n > 0 && self.color_mode != ColorMode::Mono {
+            // BD-02 (Border Dragon) - LTS Stable: corner-aware gradient system.
+            //
+            // ## Design Invariants (LTS guarantees)
+            // 1. Bottom corners (╰╯) ALWAYS use bright anchor → visual anchoring
+            // 2. Top corners (╭╮) follow natural gradient → chroma dragon flow
+            // 3. Triangle wave ensures no sharp color gaps on left/right borders
+            // 4. All t-values clamped to [0.0, 1.0] → safe interpolation
+            //
+            // ## Owner Requirements (preserved across versions)
+            // - "Bottom corners white head must perfectly enter round corners"
+            // - "Top-left should be dark per chroma dragon gradient"
+            // - No lone bright heads at top corners
+            //
+            // ## Performance Notes
+            // - HashSet pre-allocated for exactly 2 bottom corners (no rehash)
+            // - Single pass over border_order for corner detection
+            // - O(border_count) time, O(2) space for corner set
+
+            const BOTTOM_CORNER_BRIGHTNESS: f32 = 0.8; // LTS: named constant
+            const EXPECTED_BOTTOM_CORNERS: usize = 2; // ╰ + ╯
+
             let total_border_f = total_border.max(1) as f32;
-            // BD-02 (Border Dragon): identify BOTTOM corner indices for special coloring.
-            // Only bottom corners (╰╯) use bright anchor (t=0.8) to ensure they visually
-            // "anchor" the border and appear seamless. Top corners (╭╮) follow their
-            // natural triangle-wave position (dark at t=0 and t=1.0), which matches
-            // the chroma dragon gradient flow. Owner reported bottom corners had
-            // faint/misaligned white heads; top corners looked wrong when forced bright.
+
+            // Pre-allocate HashSet with known capacity (LTS optimization)
             let mut bottom_corner_indices: std::collections::HashSet<usize> =
-                std::collections::HashSet::new();
-            for &idx in border_order.iter() {
-                if idx < self.message.len() {
-                    let mc = &self.message[idx];
-                    if matches!(mc.val, '╰' | '╯') {
-                        bottom_corner_indices.insert(idx);
+                std::collections::HashSet::with_capacity(EXPECTED_BOTTOM_CORNERS);
+
+            // Detect bottom corners from border order (defensive iteration)
+            if !border_order.is_empty() {
+                for &idx in border_order.iter() {
+                    // Bounds check: guard against stale indices
+                    if idx < self.message.len() {
+                        let mc = &self.message[idx];
+                        // Only bottom corners get special treatment
+                        if matches!(mc.val, '╰' | '╯') {
+                            bottom_corner_indices.insert(idx);
+                        }
+                    }
+                    // Early exit: found both bottom corners
+                    if bottom_corner_indices.len() >= EXPECTED_BOTTOM_CORNERS {
+                        break;
                     }
                 }
             }
 
+            // Apply gradient with corner-aware brightness (LTS stable)
             for (i, &idx) in border_order.iter().take(border_show).enumerate() {
+                // Defensive bounds check (LTS requirement)
                 if idx >= border_gradient.len() {
                     continue;
                 }
-                // v50.0.0-alpha.7: Triangle wave gradient — dark→bright→dark
-                // around the border perimeter. Previously linear (0→1) which
-                // made the LEFT border (t≈0.75-1.0) dominantly white/brightest,
-                // creating a sharp white→black gap. Triangle wave makes:
-                //   top-left (t=0) → dark
-                //   bottom-right (t=0.5) → bright peak
-                //   top-left again (t=1.0) → dark
-                // So left and right borders both get smooth medium colors,
-                // eliminating the sharp gap. All color interpolation still
-                // routes through Chroma Dragon (interpolate_palette_color).
-                //
-                // BD-02 enhancement: ONLY bottom corners use t=0.8 (bright anchor).
-                // Top corners (╭╮) follow natural gradient (dark), matching owner's
-                // visual expectation that top-left should be dark per chroma dragon.
+
+                // Compute parametric position t ∈ [0.0, 1.0]
+                // BD-02 rule: bottom corners override to bright anchor
                 let use_t = if bottom_corner_indices.contains(&idx) {
-                    0.8 // Bright anchor for bottom corners only
+                    BOTTOM_CORNER_BRIGHTNESS // Bright anchor for bottom corners
                 } else {
+                    // Triangle wave: dark→bright→dark around perimeter
+                    // Prevents left/right border color dominance (v50.0.0-alpha.7 fix)
                     let t_raw = i as f32 / total_border_f;
-                    if t_raw <= 0.5 {
-                        t_raw * 2.0
+                    // Clamp to [0.0, 1.0] for numerical safety (LTS defensive)
+                    let t_clamped = t_raw.clamp(0.0, 1.0);
+                    if t_clamped <= 0.5 {
+                        t_clamped * 2.0 // Rising edge: dark → bright
                     } else {
-                        2.0 - t_raw * 2.0
+                        2.0 - t_clamped * 2.0 // Falling edge: bright → dark
                     }
                 };
+
+                // Safe interpolation (returns None only on empty palette, guarded above)
                 border_gradient[idx] = interpolate_palette_color(palette_colors, use_t);
             }
         }
