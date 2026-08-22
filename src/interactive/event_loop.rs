@@ -230,6 +230,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     // Store base CloudConfig for rebuilds (clone before any moves).
     let base_cfg = cfg.clone();
+    // v50.0.0-alpha.7: track the LATEST live-reloaded CloudConfig so
+    // finalize_session (at exit) reads the EFFECTIVE runtime values,
+    // not the startup values. Without this, "final runtime state"
+    // verbose section shows startup values (e.g. crystal_dragon=false)
+    // instead of the live-reloaded values (e.g. crystal_dragon=true).
+    let mut current_cfg = cfg.clone();
     // Pending rebuild: set when watcher sends new config, applied at top of next frame.
     let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
 
@@ -335,6 +341,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
+            // v50.0.0-alpha.7: track latest config for finalize_session.
+            current_cfg = new_cfg.clone();
             let density = effective_density(new_cfg.base_density, w, new_cfg.density_auto);
             // v25: bulletproof trace that rebuild reached render thread.
             crate::live_config_trace::trace_rebuild_applied(
@@ -1358,5 +1366,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         endurance_health_score: endurance_health.score(),
         endurance_health_classification: endurance_health.classification(),
     };
-    finalize_session(&stats, term, &cloud, &scene_name, &charset_preset, cfg)
+    finalize_session(
+        &stats,
+        term,
+        &cloud,
+        &scene_name,
+        &charset_preset,
+        &current_cfg,
+    )
 }
