@@ -1013,7 +1013,22 @@ impl Cloud {
                 if idx >= border_gradient.len() {
                     continue;
                 }
-                let t = i as f32 / total_border_f;
+                // v50.0.0-alpha.7: Triangle wave gradient — dark→bright→dark
+                // around the border perimeter. Previously linear (0→1) which
+                // made the LEFT border (t≈0.75-1.0) dominantly white/brightest,
+                // creating a sharp white→black gap. Triangle wave makes:
+                //   top-left (t=0) → dark
+                //   bottom-right (t=0.5) → bright peak
+                //   top-left again (t=1.0) → dark
+                // So left and right borders both get smooth medium colors,
+                // eliminating the sharp gap. All color interpolation still
+                // routes through Chroma Dragon (interpolate_palette_color).
+                let t_raw = i as f32 / total_border_f;
+                let t = if t_raw <= 0.5 {
+                    t_raw * 2.0
+                } else {
+                    2.0 - t_raw * 2.0
+                };
                 border_gradient[idx] = interpolate_palette_color(palette_colors, t);
             }
         }

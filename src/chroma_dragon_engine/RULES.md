@@ -108,6 +108,34 @@ The lock is intentionally hard to break. Acceptable reasons include:
 - Removing the OKLab gradient path (Phase 9-C removed the sRGB-linear
   fallback; reverting would be a regression)
 
+## Chroma Dragon Routing Rule (v50.0.0-alpha.7)
+
+**All color output in cosmostrix MUST route through the Chroma Dragon
+engine.** No hardcoded colors, no raw RGB values, no `Color::White`
+or `Color::Rgb { r: 255, g: 255, b: 255 }` in render paths.
+
+**Why**: the owner found that the message border left vertical edge
+was dominantly white regardless of the active color theme — because
+the border gradient used a linear `t` (0→1) that mapped to the
+brightest palette stop (white head) on the left side. The fix used
+a triangle wave so the gradient wraps dark→bright→dark. The root
+cause was that the gradient was not properly routed through Chroma
+Dragon's perceptual interpolation pipeline.
+
+**Rule**: any new feature that produces colored output (borders,
+overlays, HUD elements, message boxes, etc.) MUST use one of:
+1. `interpolate_palette_color(palette, t)` — for gradient sweeps
+2. `chroma::legacy::blend_toward_rgb()` — for per-channel blending
+3. `chroma::palette::build_palette()` — for palette construction
+4. `ShaderCtx` + `resolve_cell_color()` — for per-cell rendering
+
+Hardcoded `Color::Rgb { ... }` or `Color::White` in new render code
+is a gatekeeper violation and will be rejected in code review.
+
+**Exception**: diagnostic output (`--doctor`, `--benchmark`, verbose
+stderr) may use raw colors since it is not part of the cinematic
+rendering pipeline.
+
 ## UNLOCK Log
 
 This section is appended every time a locked file is modified after
