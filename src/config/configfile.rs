@@ -568,7 +568,11 @@ pub(crate) fn config_candidate_paths() -> Vec<PathBuf> {
     candidates
 }
 
-#[cfg(not(target_os = "windows"))]
+// Cross-platform path resolution helper.
+// v50.0.0-beta.4+: removed `#[cfg(not(target_os = "windows"))]` guard so that
+// inline tests (`configfile_tests_inline.rs`) can compile and run on all
+// platforms including Windows (MSVC). The underlying logic uses
+// platform-agnostic PathBuf operations that work correctly on Windows.
 #[cfg(test)]
 #[must_use]
 pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<String>) -> PathBuf {
@@ -579,7 +583,8 @@ pub fn config_file_path_from(xdg_config_home: Option<String>, home: Option<Strin
     )
 }
 
-#[cfg(not(target_os = "windows"))]
+// Cross-platform implementation (works on Windows, Linux, macOS).
+// Uses PathBuf operations that are platform-agnostic.
 fn config_file_path_from_env(
     xdg_config_home: Option<&str>,
     home: Option<&str>,
