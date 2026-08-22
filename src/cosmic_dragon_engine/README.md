@@ -2,6 +2,10 @@
 
 # Cosmic Dragon Engine — LTS Lock
 
+> **Simplified lock/unlock signature log**: see [`KEY.md`](KEY.md).
+> This README holds the full audit detail (A/B benchmarks, file lists,
+> stability signals).
+
 > **3 Dragon Lock** in commit `69af079` after deeper audit for strengthening
 > and stability.
 >

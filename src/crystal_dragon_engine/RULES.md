@@ -2,6 +2,9 @@
 
 # Crystal Dragon Engine — Modification Rules (UNLOCK Protocol)
 
+> **Simplified lock/unlock signature log**: see [`KEY.md`](KEY.md).
+> This file holds the full UNLOCK protocol and detailed log entries.
+
 > **Locked** at commit `69af079` on 2026-08-19T14:40:05Z by
 > **rezky_nightky** — vision & director project cosmostrix.
 
