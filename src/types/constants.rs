@@ -463,5 +463,5 @@ pub(crate) const MESSAGE_MAX_LEN: usize = 200;
 /// is invisible next to the rest of Cloud construction.
 #[must_use]
 pub(crate) fn default_message_text() -> String {
-    format!("cosmostrix v{}", env!("CARGO_PKG_VERSION"))
+    format!("Experience a masterpiece with cosmostrix v{}", env!("CARGO_PKG_VERSION"))
 }
