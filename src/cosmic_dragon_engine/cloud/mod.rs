@@ -557,6 +557,9 @@ impl Cloud {
         self.rain_style
     }
 
+    /// Total droplet count (active + inactive slots). Test-only diagnostic —
+    /// production reads `active_droplet_count()` instead.
+    #[cfg(test)]
     #[must_use]
     pub fn droplet_count(&self) -> usize {
         self.droplets.len()
@@ -615,6 +618,9 @@ impl Cloud {
         self.crystal_dragon_control = other.crystal_dragon_control;
         self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
     }
+    /// Active scene name. Test-only accessor — production reads the
+    /// `scene_name` field directly or via `hud_colors()`.
+    #[cfg(test)]
     #[must_use]
     pub fn active_scene(&self) -> &str {
         &self.scene_name

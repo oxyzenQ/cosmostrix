@@ -190,29 +190,6 @@ impl Cloud {
         self.chars_per_sec
     }
 
-    pub fn set_glitchy(&mut self, on: bool) {
-        self.glitchy = on;
-        // (Glitch-BUG6): when disabling glitch, clear in-flight anomaly
-        // zones to match the Glitch-P0 fix in apply_glitch_level_runtime.
-        // Without this, a future code path that uses set_glitchy(false) to
-        // disable glitch at runtime would leave LuminanceSurge /
-        // GlyphCorruption / PulseWave anomalies active for up to
-        // ANOMALY_DURATION_SECS (1.5s) after — the exact bug Glitch-P0 fixed
-        // for the scene-switch path. Currently set_glitchy is test-only, but
-        // this future-proofs the API.
-        if !on {
-            self.anomaly_zones.clear();
-        }
-        self.fill_glitch_map();
-        if on {
-            let now = std::time::Instant::now();
-            self.last_glitch_time = now;
-            let ms = self.rand_glitch_ms.sample(&mut self.mt) as u64;
-            self.next_glitch_time = now + Duration::from_millis(ms);
-        }
-        self.semantic_invalidate = true;
-    }
-
     pub fn set_glitch_pct(&mut self, pct: f32) {
         self.glitch_pct = pct;
         self.fill_glitch_map();

@@ -101,13 +101,6 @@ fn anomaly_halo_blend(
 }
 
 impl Cloud {
-    /// T1.1: independent gate for the stuck-cell sweep. Default true
-    /// (preserves `--perf-stats` interactive behavior); benchmark sets
-    /// false via direct field assignment to keep realloc counters clean.
-    pub fn set_stuck_cell_sweep(&mut self, enabled: bool) {
-        self.enable_stuck_cell_sweep = enabled;
-    }
-
     /// Phosphor persistence post-process: fade cells not refreshed by a
     /// droplet this frame, creating CRT-style afterglow.
     ///
