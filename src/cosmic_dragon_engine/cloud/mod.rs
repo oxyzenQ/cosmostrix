@@ -843,8 +843,13 @@ impl Cloud {
             .saturating_add(2u16.saturating_mul(border))
             .saturating_add(2u16.saturating_mul(pad_y));
 
-        let start_col = (self.cols / 2).saturating_sub(box_w / 2);
-        let start_line = (self.lines / 2).saturating_sub(box_h / 2);
+        // BD-01 (Border Dragon): precise centering using (cols - box_w) / 2
+        // instead of cols/2 - box_w/2. The old formula lost 1px on odd-width
+        // boxes due to double integer truncation, causing bottom-left corner
+        // (╰) to appear 1 cell too far forward and bottom-right (╯) 1 cell
+        // too far back — owner-reported visual asymmetry at round corners.
+        let start_col = self.cols.saturating_sub(box_w) / 2;
+        let start_line = self.lines.saturating_sub(box_h) / 2;
 
         self.message.clear();
 
