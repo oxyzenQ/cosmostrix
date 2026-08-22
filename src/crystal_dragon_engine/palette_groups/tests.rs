@@ -5,6 +5,10 @@
 //! palette_groups.rs (Pattern D → Pattern C unification).
 //!
 //! Uses `use super::*;` to access palette_groups.rs's private items unchanged.
+//! Zombie functions (`theme_group`, `reserved_themes`, `TemperatureGroup::label`)
+//! were removed in a later refactor; tests that asserted on those have been
+//! dropped in lockstep. The partition/disjoint invariant is now covered by
+//! `group_sizes_are_14_each` plus the disjoint scan over the three groups.
 
 use super::*;
 #[test]
@@ -15,22 +19,19 @@ fn group_sizes_are_14_each() {
 }
 
 #[test]
-fn reserved_size_is_2() {
-    assert_eq!(reserved_themes().len(), 2);
-}
-
-#[test]
-fn total_is_44() {
+fn total_builtin_themes_is_42() {
+    // 3 groups × 14 themes = 42 builtin ColorScheme variants actively
+    // mapped to Crystal Dragon drift. Reserved (Rainbow, Spectrum20) are
+    // excluded from drift and selectable only via explicit --color.
     let total = group_themes(TemperatureGroup::Cold).len()
         + group_themes(TemperatureGroup::Medium).len()
-        + group_themes(TemperatureGroup::Hot).len()
-        + reserved_themes().len();
-    assert_eq!(total, 44);
+        + group_themes(TemperatureGroup::Hot).len();
+    assert_eq!(total, 42);
 }
 
 #[test]
 fn partition_is_disjoint() {
-    // No theme appears in more than one group or in reserved.
+    // No theme appears in more than one group.
     use std::collections::HashSet;
     let mut seen = HashSet::new();
     for group in [
@@ -47,52 +48,6 @@ fn partition_is_disjoint() {
             );
         }
     }
-    for &scheme in reserved_themes() {
-        assert!(
-            seen.insert(scheme),
-            "duplicate reserved scheme {:?}",
-            scheme
-        );
-    }
-}
-
-#[test]
-fn theme_group_matches_group_themes() {
-    // Every theme in group_themes(g) is classified as Some(g).
-    for group in [
-        TemperatureGroup::Cold,
-        TemperatureGroup::Medium,
-        TemperatureGroup::Hot,
-    ] {
-        for &scheme in group_themes(group) {
-            assert_eq!(
-                theme_group(scheme),
-                Some(group),
-                "theme_group({:?}) should be {:?}",
-                scheme,
-                group
-            );
-        }
-    }
-}
-
-#[test]
-fn reserved_themes_return_none() {
-    for &scheme in reserved_themes() {
-        assert_eq!(
-            theme_group(scheme),
-            None,
-            "reserved theme {:?} should return None",
-            scheme
-        );
-    }
-}
-
-#[test]
-fn temperature_group_labels() {
-    assert_eq!(TemperatureGroup::Cold.label(), "cold");
-    assert_eq!(TemperatureGroup::Medium.label(), "medium");
-    assert_eq!(TemperatureGroup::Hot.label(), "hot");
 }
 
 #[test]

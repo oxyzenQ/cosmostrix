@@ -29,7 +29,6 @@
 //! | `sensor` | CPU sampling (sysinfo/procfs) + CLOCK fallback (UTC time-based) |
 //! | `palette_groups` | 44 themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2) |
 //! | `point_system` | calc-v1: probabilistic weighted theme selection within a group |
-//! | `transition` | Hook into Chroma Dragon `set_color_scheme` for OKLab smooth fades |
 //! | `ambient` | Time-of-day schedule types, parsing, validation, startup apply |
 //! | `ambient_scheduler` | Background thread that fires schedule entries |
 //! | `ambient_diag` | Diagnostics counters (exit summary) |
@@ -68,7 +67,6 @@ pub(crate) mod crystal_dragon_control;
 pub(crate) mod palette_groups;
 pub(crate) mod point_system;
 pub(crate) mod sensor;
-pub(crate) mod transition;
 
 pub(crate) use crystal_dragon_control::CrystalDragonControl;
 pub(crate) use sensor::CrystalDragonSensor;

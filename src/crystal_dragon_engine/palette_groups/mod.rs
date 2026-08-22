@@ -36,7 +36,6 @@ pub(crate) enum TemperatureGroup {
     Hot,
 }
 
-#[allow(dead_code)]
 impl TemperatureGroup {
     /// Stable string label for diagnostics (`--doctor`, logs).
     pub(crate) fn label(self) -> &'static str {
@@ -89,48 +88,6 @@ pub(crate) fn group_themes(group: TemperatureGroup) -> &'static [ColorScheme] {
             Red, Fire, Mars, NeonRed, // Premium exclusive
             EnergyZen,
         ],
-    }
-}
-
-/// Return the reserved themes not assigned to any temperature group.
-///
-/// Reserved themes (Rainbow, Spectrum20) span the full color spectrum
-/// and are excluded from Crystal Dragon drift. They are still available
-/// via explicit `--color` selection.
-#[allow(dead_code)]
-pub(crate) fn reserved_themes() -> &'static [ColorScheme] {
-    use ColorScheme::*;
-    &[Rainbow, Spectrum20]
-}
-
-// ── Theme → group reverse lookup ─────────────────────────────────────────
-
-/// Classify a color scheme into its temperature group.
-///
-/// Returns `None` for reserved themes (Rainbow, Spectrum20) which
-/// are not assigned to any group.
-///
-/// This is the **reverse** of `group_themes()` — every theme that
-/// appears in a `group_themes()` slice is classified into that group,
-/// and every reserved theme returns `None`.
-#[allow(dead_code)]
-pub(crate) fn theme_group(scheme: ColorScheme) -> Option<TemperatureGroup> {
-    use ColorScheme::*;
-    match scheme {
-        // Cold: blues, cyans, neutrals
-        Blue | Ocean | Neptune | Uranus | Cyan | NeonBlue | NeonCyan | Snow | Moon | Stars
-        | Gray | Mercury | Carbon | NeonWhite => Some(TemperatureGroup::Cold),
-
-        // Medium: greens, purples, natural
-        Green | Green2 | Green3 | NeonGreen | Forest | Aurora | Purple | Nebula | Cosmos
-        | Vaporwave | Neon | FancyDiamond | NeonPurple | Pluto => Some(TemperatureGroup::Medium),
-
-        // Hot: warm, fiery
-        Gold | Yellow | Orange | Sun | Venus | Jupiter | Saturn | NeonOrange | NeonYellow | Red
-        | Fire | Mars | NeonRed | EnergyZen => Some(TemperatureGroup::Hot),
-
-        // Reserved: full-spectrum, not in any group
-        Rainbow | Spectrum20 => None,
     }
 }
 

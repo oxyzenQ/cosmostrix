@@ -7,8 +7,6 @@
 //! samples the system and selects color themes. These are owner-editable
 //! constants — no runtime config file exposure yet (silent-elegant mode).
 
-use std::time::Duration;
-
 // ── Polling interval ─────────────────────────────────────────────────────
 
 /// Default sensor polling interval: 60 seconds.
@@ -112,19 +110,6 @@ impl Default for CrystalDragonControl {
             sensor_mode: CrystalDragonSensorMode::Cpu,
             calc_method: CrystalDragonCalcMethod::Calc,
         }
-    }
-}
-
-#[allow(dead_code)]
-impl CrystalDragonControl {
-    /// Polling interval as a `Duration`.
-    pub(crate) fn polling_duration(self) -> Duration {
-        Duration::from_secs_f32(self.polling_secs)
-    }
-
-    /// Minimum dwell as a `Duration`.
-    pub(crate) fn min_dwell_duration(self) -> Duration {
-        Duration::from_secs_f32(self.min_dwell_secs)
     }
 }
 

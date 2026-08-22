@@ -156,11 +156,6 @@ impl CrystalDragonSensor {
         self.cpu_supported
     }
 
-    /// Effective sensor mode (may be CLOCK if CPU unsupported).
-    pub(crate) fn effective_mode(self) -> CrystalDragonSensorMode {
-        self.effective_mode
-    }
-
     /// Last EMA-smoothed CPU% reading. `None` before first sample or
     /// when CPU is unsupported. Used by `--doctor` for diagnostics.
     pub(crate) fn cpu_ema(self) -> Option<f32> {

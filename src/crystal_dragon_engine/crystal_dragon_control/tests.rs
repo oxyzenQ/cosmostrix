@@ -19,18 +19,6 @@ fn default_uses_owner_chosen_values() {
 }
 
 #[test]
-fn polling_duration_matches_secs() {
-    let cfg = CrystalDragonControl::default();
-    assert_eq!(cfg.polling_duration(), Duration::from_secs(60));
-}
-
-#[test]
-fn min_dwell_duration_matches_secs() {
-    let cfg = CrystalDragonControl::default();
-    assert_eq!(cfg.min_dwell_duration(), Duration::from_secs(60));
-}
-
-#[test]
 fn sensor_mode_labels_are_stable() {
     // Ensure the enum variants exist and are debug-printable.
     assert_eq!(format!("{:?}", CrystalDragonSensorMode::Cpu), "Cpu");

@@ -13,7 +13,7 @@
 //!
 //! | File             | Role                                                                 |
 //! |------------------|----------------------------------------------------------------------|
-//! | `mod.rs`         | High-level helpers (Hinnant-style): `now_hhmm()`, `now_iso_utc()`, `current_local_hour()`. Consumes `posix_time` parsed structs. |
+//! | `mod.rs`         | High-level helpers (Hinnant-style): `now_hhmm()`, `now_iso_utc()`. Consumes `posix_time` parsed structs. |
 //! | `posix_time.rs`  | Low-level POSIX FFI: `libc::time(NULL)` + `localtime_r` / `gmtime_r`. Single place for `unsafe` time code. Returns `LocalTm` / `UtcTm` parsed structs. |
 //!
 //! ## Why this consolidation
@@ -57,9 +57,11 @@ pub(crate) fn now_hhmm() -> String {
 
 /// Current local wall-clock hour as f64 (with minute/second fraction).
 ///
-/// Retained for Crystal Dragon Engine CLOCK fallback sensor.
+/// Used by Crystal Dragon Engine sensor tests to verify wall-clock
+/// hour math (the production sensor uses `SystemTime::now()` directly,
+/// not this helper).
 #[must_use]
-#[allow(dead_code)]
+#[cfg(test)]
 pub(crate) fn current_local_hour() -> f64 {
     match crate::posix_time::local_tm() {
         Some(tm) => (tm.hour as f64) + (tm.minute as f64) / 60.0 + (tm.second as f64) / 3600.0,

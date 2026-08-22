@@ -20,8 +20,10 @@ fn calc_v1_always_returns_from_correct_group() {
     // Point 17 → Cold group
     let result = calc_v1_select(17, ColorScheme::Blue, &mut mt);
     if let Some(scheme) = result {
-        let group = crate::crystal_dragon_engine::palette_groups::theme_group(scheme);
-        assert_eq!(group, Some(TemperatureGroup::Cold));
+        assert!(
+            group_themes(TemperatureGroup::Cold).contains(&scheme),
+            "scheme {scheme:?} not in Cold group"
+        );
     }
 }
 
@@ -30,8 +32,10 @@ fn calc_v1_medium_point_selects_from_medium_group() {
     let mut mt = seeded_rng();
     let result = calc_v1_select(50, ColorScheme::Green, &mut mt);
     if let Some(scheme) = result {
-        let group = crate::crystal_dragon_engine::palette_groups::theme_group(scheme);
-        assert_eq!(group, Some(TemperatureGroup::Medium));
+        assert!(
+            group_themes(TemperatureGroup::Medium).contains(&scheme),
+            "scheme {scheme:?} not in Medium group"
+        );
     }
 }
 
@@ -40,8 +44,10 @@ fn calc_v1_hot_point_selects_from_hot_group() {
     let mut mt = seeded_rng();
     let result = calc_v1_select(80, ColorScheme::Fire, &mut mt);
     if let Some(scheme) = result {
-        let group = crate::crystal_dragon_engine::palette_groups::theme_group(scheme);
-        assert_eq!(group, Some(TemperatureGroup::Hot));
+        assert!(
+            group_themes(TemperatureGroup::Hot).contains(&scheme),
+            "scheme {scheme:?} not in Hot group"
+        );
     }
 }
 

@@ -39,15 +39,15 @@ fn sensor_new_probes_cpu_support_honestly() {
 
 #[test]
 fn sensor_new_falls_back_to_clock_when_cpu_unsupported() {
-    // This test verifies the fallback logic. On platforms where
-    // CPU is supported, effective_mode stays Cpu. On unsupported
-    // platforms, it becomes Clock.
+    // On platforms where CPU is supported, effective_mode stays Cpu.
+    // On unsupported platforms, it becomes Clock. We can only verify
+    // the public side (cpu_supported): if CPU is unsupported, the
+    // sensor must report that fact honestly.
     let now = Instant::now();
     let control = CrystalDragonControl::default();
     let sensor = CrystalDragonSensor::new(now, control);
-    if !sensor.cpu_supported() {
-        assert_eq!(sensor.effective_mode(), CrystalDragonSensorMode::Clock);
-    }
+    let cpu_ok = cpustat::current_cpu_ns().is_some();
+    assert_eq!(sensor.cpu_supported(), cpu_ok);
 }
 
 #[test]
