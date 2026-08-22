@@ -187,6 +187,9 @@ pub(crate) struct CliExplicit {
     /// v50.0.0-alpha.7: track `--monolith-size` CLI explicit (was missing;
     /// live-reload path overrode CLI intent on config edit — Issue #4).
     pub monolith_size: bool,
+    /// v50.0.0-alpha.7: track `--color-tune` CLI explicit (was missing;
+    /// needed for live-reload color.tune reset-on-comment fix).
+    pub color_tune: bool,
 }
 
 impl CloudConfig {

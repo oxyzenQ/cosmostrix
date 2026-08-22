@@ -441,18 +441,68 @@ fn rebuild_applies_color_tune_live_reload_all_fields() {
 
 /// (bug #9): when no color.tune.* keys are in config, the tune
 /// stays at the base value (identity by default). This protects users
-/// who never set [color.tune] from accidentally dimming their rain.
+/// v50.0.0-alpha.7: was `rebuild_without_color_tune_keys_keeps_base_tune`.
+/// OLD behavior: no color.tune.* keys → keep base tune (brightness=2.0
+/// preserved). NEW behavior: no color.tune.* keys → reset to IDENTITY
+/// (brightness=1.0). This is the fix for the color.tune reset-on-comment
+/// bug: when user comments out all color.tune.* keys, the rain should
+/// return to normal (identity), not stay at the old value.
 #[test]
-fn rebuild_without_color_tune_keys_keeps_base_tune() {
+fn rebuild_without_color_tune_keys_resets_to_identity() {
     let mut base = minimal_cloud_config();
-    // Pretend the user set brightness = 2.0 at startup (CLI --color-tune).
+    base.color_tune.brightness = 2.0; // set at startup via config
+    base.cli_explicit.color_tune = false; // NOT CLI --color-tune
+    let cfg = HashMap::new(); // no color.tune.* keys (all commented out)
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.color_tune.brightness, 1.0,
+        "no color.tune.* in config + no CLI → reset to identity (1.0)"
+    );
+}
+
+/// v50.0.0-alpha.7: CLI --color-tune explicit → config absence does NOT
+/// reset to identity (CLI wins). This preserves the "set once, keep
+/// forever" semantics for CLI users.
+#[test]
+fn rebuild_color_tune_cli_explicit_preserves_base() {
+    let mut base = minimal_cloud_config();
     base.color_tune.brightness = 2.0;
-    let cfg = HashMap::new(); // no color.tune.* keys
+    base.cli_explicit.color_tune = true; // CLI --color-tune bright=2.0
+    let cfg = HashMap::new(); // no color.tune.* keys in config
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.color_tune.brightness, 2.0,
-        "no color.tune.* in config → keep base tune (CLI --color-tune wins)"
+        "CLI --color-tune explicit → config absence must NOT reset"
     );
+}
+
+/// v50.0.0-alpha.7: color.tune.brightness=0.0 set at startup, then user
+/// comments it out → rain should return to normal (brightness=1.0).
+/// This is the primary bug the owner reported.
+#[test]
+fn rebuild_color_tune_reset_on_comment_bug_fix() {
+    let mut base = minimal_cloud_config();
+    base.color_tune.brightness = 0.0; // user set this at startup
+    base.cli_explicit.color_tune = false;
+    let cfg = HashMap::new(); // all color.tune.* commented out
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.color_tune.brightness, 1.0,
+        "commenting out color.tune.brightness must reset to 1.0"
+    );
+}
+
+/// v50.0.0-alpha.7: color.tune.brightness=0.0 set at startup, then user
+/// changes to brightness=2.0 → rain updates to 2.0 (normal live-reload).
+#[test]
+fn rebuild_color_tune_live_reload_change() {
+    let mut base = minimal_cloud_config();
+    base.color_tune.brightness = 0.0;
+    base.cli_explicit.color_tune = false;
+    let mut cfg = HashMap::new();
+    cfg.insert("color.tune.brightness".to_string(), "2.0".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.color_tune.brightness, 2.0);
 }
 
 /// (bug #14): `validate_and_send` must push every rejection to

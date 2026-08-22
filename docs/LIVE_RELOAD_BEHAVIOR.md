@@ -408,37 +408,30 @@ to pick up the fresh defaults. The live-reload system is designed
 for incremental edits (change one value, see it apply), not for
 wholesale config replacement.
 
-### Limitation C: `color.tune` reset-on-comment
+### Limitation C: `color.tune` reset-on-comment — FIXED
 
 **Symptom**: User sets `color.tune.brightness = 0.0` in config,
 sees the rain go dark. User then comments out the line
 (`# color.tune.brightness = 0.0`). The rain STAYS dark — the
 brightness does not return to normal (1.0).
 
-**Root cause**: `rebuild_cloud_config` only updates `color_tune`
-when at least one `color.tune.*` key is present in the config
-HashMap. When all `color.tune.*` keys are commented out, the
-parser doesn't see them, so `has_tune_keys` is false, and the
-base tune (with brightness=0.0) is preserved.
+**Root cause**: `rebuild_cloud_config` only updated `color_tune`
+when at least one `color.tune.*` key was present in the config
+HashMap (`has_tune_keys` gate). When all `color.tune.*` keys were
+commented out, the parser didn't see them, so the gate was false,
+and the base tune (with brightness=0.0) was preserved.
 
-**Fix status**: This is a known issue. The fix requires treating
-"absence of color.tune.* keys" as "reset to identity (1.0, 1.0,
-1.0, 1.0, 1.0)" rather than "preserve previous values." This is
-a behavioral change that could break users who rely on the
-"set once, keep forever" semantics. Deferred to a future patch
-after owner review.
+**Fix (v50.0.0-alpha.7)**: removed the `has_tune_keys` gate. Now
+always calls `color_tune_from_config(cfg)` — when no keys are
+present, it returns `IDENTITY` (all 1.0), which is the correct
+"reset to default" behavior. CLI `--color-tune` is preserved via
+`cli.color_tune` guard: when CLI is explicit, config absence does
+NOT reset (CLI wins).
 
-**Workaround**: To reset color.tune to defaults, explicitly set
-all keys to 1.0:
-
-```toml
-[color.tune]
-brightness = 1.0
-saturation = 1.0
-head = 1.0
-body = 1.0
-tail = 1.0
-```
+**Behavior after fix**:
+- `color.tune.brightness = 0.0` → rain goes dark ✓
+- Comment out the line → rain returns to normal (brightness=1.0) ✓
+- CLI `--color-tune bright=2.0` + no config block → stays at 2.0 ✓
 
 ---
 

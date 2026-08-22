@@ -876,14 +876,16 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // (bug #9): color.tune.* live reload — re-parse from cfg HashMap
-    // (same path as startup) when at least one color.tune.* key is present.
-    // Preserves CLI --color-tune when no [color.tune] block exists.
-    let has_tune_keys = cfg.contains_key("color.tune.brightness")
-        || cfg.contains_key("color.tune.saturation")
-        || cfg.contains_key("color.tune.head")
-        || cfg.contains_key("color.tune.body")
-        || cfg.contains_key("color.tune.tail");
-    if has_tune_keys {
+    // (same path as startup).
+    // v50.0.0-alpha.7 fix: was gated on `has_tune_keys` — when all
+    // color.tune.* keys were commented out, the parser didn't see them,
+    // so `has_tune_keys` was false, and the base tune (e.g. brightness=0.0)
+    // was preserved instead of resetting to identity (1.0). Now: always
+    // re-parse (color_tune_from_config returns IDENTITY when no keys
+    // present — that's the correct "reset to default" behavior).
+    // CLI --color-tune is preserved via `cli.color_tune` guard: when CLI
+    // is explicit, config absence does NOT reset (CLI wins).
+    if !cli.color_tune {
         let new_tune = crate::color_tune::color_tune_from_config(cfg);
         if new_tune.brightness != new.color_tune.brightness
             || new_tune.saturation != new.color_tune.saturation
@@ -901,7 +903,7 @@ pub(crate) fn rebuild_cloud_config(
             lr_trace!("color.tune: present but unchanged");
         }
     } else {
-        lr_trace!("color.tune: no keys in config — preserving base tune (CLI --color-tune wins)");
+        lr_trace!("color.tune: CLI --color-tune explicit — preserving base tune");
     }
 
     // v50.0.0-alpha.7: Live-reload for message / message-border / msg-mode.

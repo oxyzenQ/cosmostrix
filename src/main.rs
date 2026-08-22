@@ -1039,6 +1039,13 @@ fn main() -> std::io::Result<()> {
             matches.value_source("monolith_size"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // v50.0.0-alpha.7: track --color-tune CLI explicit (color.tune
+        // reset-on-comment fix — when CLI --color-tune is set, config
+        // [color.tune] block absence must NOT reset to identity).
+        color_tune: matches!(
+            matches.value_source("color_tune"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the
