@@ -56,6 +56,11 @@ pub(crate) struct VerboseCtx<'a> {
     pub crystal_dragon: bool,
     pub message: Option<&'a str>,
     pub message_border: bool,
+    /// v50.0.0-alpha.7: msg_mode master switch (true = overlay active,
+    /// false = suppressed). Verbose MUST report this so users can see
+    /// why their config `message = "hello"` is being ignored (msg_mode=false
+    /// suppresses config messages; CLI -m/-mb always wins).
+    pub msg_mode: bool,
     pub duration: Option<f64>,
     pub screen_size: Option<(u16, u16)>,
     pub custom_palette_name: Option<&'a str>,
@@ -143,6 +148,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         crystal_dragon,
         message,
         message_border,
+        msg_mode,
         duration,
         screen_size,
         custom_palette_name,
@@ -274,7 +280,21 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("intro:", &format!(" {intro_type_label}"));
     if let Some(ic) = intro_color {
         output::eprintln_verbose("intro_color:", &format!(" {ic}"));
+    } else {
+        // Honest reporting: when intro_color is None, say so explicitly
+        // rather than omitting the line. Users editing config need to see
+        // whether their intro-color key was accepted or rejected.
+        output::eprintln_verbose("intro_color:", " (unset — intro uses rain color)");
     }
+    // v50.0.0-alpha.7: msg_mode master switch — always print so users see
+    // WHY their config `message = "hello"` is being ignored (msg_mode=false
+    // suppresses config messages; CLI -m/-mb always wins over msg_mode).
+    let msg_mode_desc = if *msg_mode {
+        "true (overlay active — config message/message-border honored)"
+    } else {
+        "false (overlay suppressed — config message/message-border ignored; CLI -m/-mb still works)"
+    };
+    output::eprintln_verbose("msg_mode:", &format!(" {msg_mode_desc}"));
     if let Some(msg) = message {
         output::eprintln_verbose(
             "message:",
@@ -283,6 +303,15 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
                 msg.chars().count()
             ),
         );
+    } else if *msg_mode {
+        // msg_mode=true but no message → honest reporting.
+        output::eprintln_verbose(
+            "message:",
+            " (none — no CLI -m/-mb, no config message, no default fallback)",
+        );
+    } else {
+        // msg_mode=false → message is None by design.
+        output::eprintln_verbose("message:", " (suppressed by msg_mode=false)");
     }
     if let Some(d) = duration {
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));

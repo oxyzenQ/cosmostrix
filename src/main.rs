@@ -1056,15 +1056,28 @@ fn main() -> std::io::Result<()> {
             glitch_level: &format!("{:?}", args.glitch_level),
             screensaver: args.screensaver,
             crystal_dragon: args.crystal_dragon.unwrap_or(false),
-            // v50: Reflect the effective message (after default fallback)
-            // so --verbose reports what the renderer actually displays.
-            // Default text is dynamic: "cosmostrix v<CARGO_PKG_VERSION>"
-            // (no hardcoded version — tracks Cargo.toml at compile time).
-            message: (!bench_mode && args.message.is_none())
-                .then_some(default_message_text())
-                .as_deref()
-                .or(args.message.as_deref()),
-            message_border: args.message_border || (!bench_mode && args.message.is_none()),
+            // v50.0.0-alpha.7: VerboseCtx must reflect the EFFECTIVE message
+            // (after msg_mode gate + default fallback). Was dishonest: showed
+            // default "cosmostrix v..." even when msg_mode=false suppressed it.
+            // Now: if msg_mode=false AND no CLI -m/-mb, message is None.
+            message: {
+                let msg_mode_on = args.msg_mode.unwrap_or(true);
+                let cli_msg = args.message.as_deref();
+                if cli_msg.is_some() {
+                    cli_msg
+                } else if !bench_mode && msg_mode_on {
+                    // Default fallback only fires when msg_mode=true.
+                    Some(default_message_text().leak())
+                } else {
+                    None
+                }
+            },
+            message_border: args.message_border
+                || (!bench_mode && args.message.is_none() && args.msg_mode.unwrap_or(true)),
+            // v50.0.0-alpha.7: msg_mode field added so verbose can report
+            // WHY config message is being ignored (msg_mode=false suppresses
+            // config messages; CLI -m/-mb always wins).
+            msg_mode: args.msg_mode.unwrap_or(true),
             duration: args.duration,
             screen_size,
             custom_palette_name: custom_palette_name.as_deref(),
