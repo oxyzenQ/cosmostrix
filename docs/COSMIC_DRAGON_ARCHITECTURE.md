@@ -236,6 +236,15 @@ was removed (terminal-driven SIGTSTP still works via `signal_handlers.rs`).
 Stale doc references to `a`, `m`, `g`, `b`/`B` as "interactive" keys were
 purged — these were never active v30 keybinds.
 
+v50-beta.3 keybind audit: deep sweep across all docs, source comments,
+and the help text confirmed zero stale references to the historical
+zombie keybinds `g` (toggle glitch), `o` (toggle monolith), `+`/`-`
+(adjust speed — real keybinds are `Up`/`Down`), `<`/`>` (adjust FPS —
+no such keybind exists). The table above is the source of truth: any
+key not listed there is silently ignored (catch-all `_ => {}` in
+`handle_keybinding`). Future doc edits MUST cross-check against
+`src/interactive/input.rs` before claiming a keybind exists.
+
 ## Module Organization
 
 The Cosmic Dragon's codebase is organized by responsibility:
