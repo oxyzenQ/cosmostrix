@@ -1035,6 +1035,11 @@ fn main() -> std::io::Result<()> {
             matches.value_source("message"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // v50.0.0-alpha.7: track --monolith-size CLI explicit (Issue #4).
+        monolith_size: matches!(
+            matches.value_source("monolith_size"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the

@@ -176,7 +176,7 @@ All 4 issues from the v50-beta.3 research are now FIXED:
 - Issue #1 (power-dragon + async-mode CLI intent guards) ✅ FIXED
 - Issue #2 (message/message-border/msg-mode live-reload) ✅ FIXED
 - Issue #3 (intro-color live-reload) ✅ FIXED (intro stays restart-only)
-- Issue #4 (monolith-size CLI guard) ❌ deferred (low severity)
+- Issue #4 (monolith-size CLI guard) ✅ FIXED
 
 See [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md) § 6 for the
 full implementation status + updated per-key matrix + 13 new stress

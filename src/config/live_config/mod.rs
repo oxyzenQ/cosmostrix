@@ -796,11 +796,15 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!("apply color-bg='{}' → default_bg={}", v, new.default_bg);
     }
 
-    // Monolith size
-    if let Some(v) = cfg.get("monolith-size") {
-        use clap::ValueEnum;
-        if let Ok(size) = crate::runtime::MonolithSize::from_str(v, true) {
-            new.monolith_size = size;
+    // Monolith size — v50.0.0-alpha.7: CLI intent guard added (Issue #4).
+    // CLI --monolith-size wins over config on live-reload (was: config-only
+    // path, no guard → CLI flag overridden by config edit on next reload).
+    if !cli.monolith_size {
+        if let Some(v) = cfg.get("monolith-size") {
+            use clap::ValueEnum;
+            if let Ok(size) = crate::runtime::MonolithSize::from_str(v, true) {
+                new.monolith_size = size;
+            }
         }
     }
 

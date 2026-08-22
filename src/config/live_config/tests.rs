@@ -742,3 +742,32 @@ fn live_reload_intro_color_cli_explicit_wins() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(new.intro_color.as_deref(), Some("green"), "CLI must win");
 }
+
+#[test]
+fn live_reload_monolith_size_respects_cli_explicit() {
+    // CLI --monolith-size large explicit → config monolith-size=small ignored.
+    // v50.0.0-alpha.7: Issue #4 fix — was config-only path, no CLI guard.
+    use crate::runtime::MonolithSize;
+    let mut base = minimal_cloud_config();
+    base.monolith_size = MonolithSize::Large;
+    base.cli_explicit.monolith_size = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("monolith-size".to_string(), "small".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.monolith_size,
+        MonolithSize::Large,
+        "CLI --monolith-size large must win over config"
+    );
+}
+
+#[test]
+fn live_reload_monolith_size_from_config_when_no_cli() {
+    // No CLI flag → config monolith-size=small applied.
+    use crate::runtime::MonolithSize;
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("monolith-size".to_string(), "small".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.monolith_size, MonolithSize::Small);
+}

@@ -278,10 +278,15 @@ themes are logged and cleared (soft-fail, unlike startup which
 hard-errors + exits, to avoid crashing a running session). `intro`
 remains restart-only (one-shot animation).
 
-### Issue #4: `monolith-size` CLI intent guard — NOT FIXED (low severity)
+### Issue #4: `monolith-size` CLI intent guard — FIXED
 
-`monolith-size` live-reload still lacks CLI intent guard. Low
-severity — rarely changes mid-session. Deferred to a future patch.
+**Was**: `monolith-size` live-reload lacked CLI intent guard. Low
+severity — rarely changes mid-session.
+
+**Now**: added `monolith_size: bool` field to `CliExplicit` struct.
+`rebuild_cloud_config` gates the read with `if !cli.monolith_size` —
+mirrors the `crystal-dragon` / `power-dragon` / `async-mode` pattern.
+CLI `--monolith-size` wins over config on live-reload.
 
 ### Updated Per-Key Live-Reload Matrix (v50.0.0-alpha.7)
 
@@ -295,7 +300,7 @@ severity — rarely changes mid-session. Deferred to a future patch.
 | `fps` | `--fps` | ✅ YES | ✅ YES |
 | `glitch-level` | `--glitch-level` | ✅ YES | ✅ YES |
 | `color-bg` | (none) | ✅ YES | N/A (no CLI flag) |
-| `monolith-size` | `--monolith-size` | ✅ YES | ❌ NO (Issue #4, deferred) |
+| `monolith-size` | `--monolith-size` | ✅ YES | ✅ YES (FIXED in alpha.7) |
 | `crystal-dragon` | `--crystal-dragon` | ✅ YES | ✅ YES |
 | `power-dragon` | `--power-dragon` | ✅ YES | ✅ YES (FIXED in alpha.7) |
 | `async-mode` | `--async-mode` | ✅ YES | ✅ YES (FIXED in alpha.7) |

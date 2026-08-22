@@ -184,6 +184,9 @@ pub(crate) struct CliExplicit {
     /// v50.0.0-alpha.7: track `-m` / `-mb` CLI explicit (was missing;
     /// needed for live-reload message override).
     pub message: bool,
+    /// v50.0.0-alpha.7: track `--monolith-size` CLI explicit (was missing;
+    /// live-reload path overrode CLI intent on config edit — Issue #4).
+    pub monolith_size: bool,
 }
 
 impl CloudConfig {
