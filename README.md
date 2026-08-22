@@ -422,7 +422,7 @@ DISCOVERY
       --show-scene <name>      Show full details for a built-in or custom scene
 
 HELP
-      --help                   Print the full reference manual
+  -h, --help                   Print the full reference manual
   -V, --version                Print complete version and build information
       --check-update           Check the latest upstream release
 

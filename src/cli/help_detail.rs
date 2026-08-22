@@ -360,7 +360,7 @@ DIAGNOSTICS:
         5. reset + tput reset: external terminal reset utilities
       Also resets scroll region, character set, and auto-wrap.
       cosmostrix --reset-terminal
-  --verbose      Print diagnostic info to stderr before launching. Shows
+  -v, --verbose   Print diagnostic info to stderr before launching. Shows
       config path, resolved values, terminal detection, system feeling
       state.
 
@@ -445,7 +445,7 @@ RUNTIME CONTROLS:
                 and diagnostic recipes for common symptoms.
 
 HELP:
-  --help          Print this full reference manual.
+  -h, --help      Print this full reference manual.
   -V, --version    Print complete version and build information.
   --check-update   Check the latest upstream release.
 
