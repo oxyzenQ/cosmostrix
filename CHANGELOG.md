@@ -7,7 +7,24 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
-## v50.0.0-beta.3 — Three Dragon Engines (Current Beta)
+## v50.0.0-beta.4 — Three Dragon Engines (Current Beta)
+
+Cosmostrix v50.0.0-beta.4 — production-LTS-grade stability after full audit pass. 226 source files, ~89K LOC, ~1500+ tests pass. All 3 dragon engines locked with A/B benchmark signature.
+
+### What's new since beta.3
+
+- **Live-reload masterclass** (Option D): message, message-border, msg-mode, intro-color now live-reload. CLI intent guards for power-dragon, async-mode, monolith-size, color-tune. color.tune reset-on-comment bug fixed.
+- **New CLI flags**: `--intro-color`, `--power-dragon`, `--msg-mode`, `--crystal-dragon`, `--async-mode` (all `<true|false>` or `<name>` with value_parser — no silent-toggle).
+- **`--uniform` removed** → replaced by `--async-mode false`. `--check-updated` alias removed → `--check-update` is canonical.
+- **Verbose honesty**: "final runtime state" section now tracks ALL live-reload fields (12 total) — shows EFFECTIVE runtime values, not startup values.
+- **Border gradient fix**: triangle wave eliminates sharp white→black gap on left border. All color output routes through Chroma Dragon (routing rule codified).
+- **Disclaimer injector**: auto-injects "source code = truth" disclaimer to all `*.md` files. Wired into gate-keepers.sh.
+- **Dynamic default message**: `"cosmostrix v<CARGO_PKG_VERSION>"` — version from Cargo.toml at compile time, never hardcoded.
+- **Did-you-mean**: strengthened for all 5 new CLI flags + `--intro-color` hard error for unknown themes (was silent ignore).
+
+---
+
+## v50.0.0-beta.3 — Three Dragon Engines
 
 Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 220+ source files, ~89K LOC, ~1500+ tests pass.
 
@@ -27,7 +44,7 @@ Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain
 - Central Control Dragon Power: thermal sampling, endurance health, power management.
 - Terminal protocol detection (kitty, wezterm, alacritty, iTerm2, Windows Terminal, tmux).
 - Synchronized output (`ESC`) for tear-free frame delivery.
-- 5 scenes: monolith (default), matrix, cinematic, hacker, digital-rain.
+- 18 scenes: monolith (default), matrix, signal, classic, cinematic, calm, storm, cosmos, neon, hacker, matrix_film, low-power, cosmic-dragon, carbonic, dragon-crystal, orange-cat, north-stars, curiosity.
 - 44+ builtin color themes with OKLab gradients and climate post-FX.
 - `--doctor` diagnostics, `--benchmark` with JSON output, `--testconf` validation.
 - Cross-platform: Linux, macOS, Windows, FreeBSD, Android. AUR package: `cosmostrix-bin`.
