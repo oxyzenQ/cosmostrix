@@ -121,9 +121,7 @@ pub(crate) struct UserProfile {
 /// surface them in the "available scenes" list. They are NOT applied at
 /// runtime.
 #[must_use]
-pub(crate) fn collect_profiles(
-    cfg: &HashMap<String, String>,
-) -> BTreeMap<String, UserProfile> {
+pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String, UserProfile> {
     let mut profiles = BTreeMap::new();
     for (key, value) in cfg {
         if !is_profile_config_key(key) {
