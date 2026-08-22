@@ -169,6 +169,21 @@ pub(crate) struct CliExplicit {
     /// Track whether `--crystal-dragon` was set on CLI (intent
     /// preservation: CLI flag wins over config.toml on live reload).
     pub crystal_dragon: bool,
+    /// v50.0.0-alpha.7: track `--power-dragon` CLI explicit (was missing;
+    /// live-reload path overrode CLI intent on config edit).
+    pub power_dragon: bool,
+    /// v50.0.0-alpha.7: track `--async-mode` CLI explicit (was missing;
+    /// live-reload path overrode CLI intent on config edit).
+    pub async_mode: bool,
+    /// v50.0.0-alpha.7: track `--msg-mode` CLI explicit (was missing;
+    /// needed for live-reload msg-mode gate).
+    pub msg_mode: bool,
+    /// v50.0.0-alpha.7: track `--intro-color` CLI explicit (was missing;
+    /// needed for live-reload intro-color validation).
+    pub intro_color: bool,
+    /// v50.0.0-alpha.7: track `-m` / `-mb` CLI explicit (was missing;
+    /// needed for live-reload message override).
+    pub message: bool,
 }
 
 impl CloudConfig {

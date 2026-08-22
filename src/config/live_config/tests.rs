@@ -566,3 +566,179 @@ fn validate_and_send_does_not_log_valid_config() {
         "valid config must not push to rejection log, got: {rejections:?}"
     );
 }
+
+// ── v50.0.0-alpha.7: live-reload message / message-border / msg-mode ──
+
+#[test]
+fn live_reload_message_border_from_config() {
+    // Config `message-border = "hello"` → new.message = "hello", border=true.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("message-border".to_string(), "hello".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message.as_deref(), Some("hello"));
+    assert!(
+        new.message_border,
+        "message-border config must set border=true"
+    );
+}
+
+#[test]
+fn live_reload_message_bare_from_config() {
+    // Config `message = "hello"` (no border) → new.message = "hello", border=false.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("message".to_string(), "hello".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message.as_deref(), Some("hello"));
+    assert!(!new.message_border, "message config must keep border=false");
+}
+
+#[test]
+fn live_reload_message_border_wins_over_message() {
+    // Both keys present → message-border wins (border=true).
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("message".to_string(), "plain".to_string());
+    cfg.insert("message-border".to_string(), "boxed".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message.as_deref(), Some("boxed"));
+    assert!(new.message_border);
+}
+
+#[test]
+fn live_reload_msg_mode_false_suppresses_config_message() {
+    // msg-mode=false + config message-border → message suppressed.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-mode".to_string(), "false".to_string());
+    cfg.insert("message-border".to_string(), "hello".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.message, None,
+        "msg-mode=false must suppress config message"
+    );
+    assert!(!new.message_border);
+    assert!(!new.msg_mode, "msg_mode field must reflect false");
+}
+
+#[test]
+fn live_reload_msg_mode_true_keeps_config_message() {
+    // msg-mode=true + config message → preserved.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-mode".to_string(), "true".to_string());
+    cfg.insert("message-border".to_string(), "hello".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message.as_deref(), Some("hello"));
+    assert!(new.message_border);
+    assert!(new.msg_mode);
+}
+
+#[test]
+fn live_reload_msg_mode_defaults_true_when_unset() {
+    // No msg-mode in config → default true.
+    let base = minimal_cloud_config();
+    let cfg = HashMap::new();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert!(new.msg_mode, "msg_mode must default to true when unset");
+}
+
+#[test]
+fn live_reload_cli_message_wins_over_config() {
+    // CLI -m explicit (cli.message=true) → config message ignored.
+    let mut base = minimal_cloud_config();
+    base.message = Some("from-cli".to_string());
+    base.message_border = false;
+    base.cli_explicit.message = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("message-border".to_string(), "from-config".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message.as_deref(), Some("from-cli"));
+    assert!(!new.message_border, "CLI -m must keep border=false");
+}
+
+#[test]
+fn live_reload_cli_msg_mode_wins_over_config() {
+    // CLI --msg-mode false explicit → config msg-mode=true ignored.
+    let mut base = minimal_cloud_config();
+    base.msg_mode = false;
+    base.cli_explicit.msg_mode = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-mode".to_string(), "true".to_string());
+    cfg.insert("message-border".to_string(), "hello".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    // CLI msg-mode=false wins → message suppressed even though config has msg-mode=true + message.
+    assert!(!new.msg_mode, "CLI msg-mode=false must win");
+    assert_eq!(
+        new.message, None,
+        "msg-mode=false must suppress config message"
+    );
+}
+
+#[test]
+fn live_reload_power_dragon_respects_cli_explicit() {
+    // CLI --power-dragon false explicit → config power-dragon=true ignored.
+    let mut base = minimal_cloud_config();
+    base.power_dragon = false;
+    base.cli_explicit.power_dragon = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("power-dragon".to_string(), "true".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert!(
+        !new.power_dragon,
+        "CLI --power-dragon false must win over config"
+    );
+}
+
+#[test]
+fn live_reload_async_mode_respects_cli_explicit() {
+    // CLI --async-mode false explicit → config async-mode=true ignored.
+    let mut base = minimal_cloud_config();
+    base.async_mode = false;
+    base.cli_explicit.async_mode = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("async-mode".to_string(), "true".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert!(
+        !new.async_mode,
+        "CLI --async-mode false must win over config"
+    );
+}
+
+#[test]
+fn live_reload_intro_color_from_config() {
+    // Config intro-color = "energy-zen" (valid) → new.intro_color set.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "energy-zen".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.intro_color.as_deref(), Some("energy-zen"));
+}
+
+#[test]
+fn live_reload_intro_color_invalid_soft_fails() {
+    // Config intro-color = "not-a-color" (invalid) → soft-fail: clear field.
+    // Unlike startup (hard error + exit), live-reload soft-fails to avoid
+    // crashing a running session. User can fix config and save again.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "not-a-color".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.intro_color, None,
+        "invalid intro-color must soft-fail (clear)"
+    );
+}
+
+#[test]
+fn live_reload_intro_color_cli_explicit_wins() {
+    // CLI --intro-color explicit → config intro-color ignored.
+    let mut base = minimal_cloud_config();
+    base.intro_color = Some("green".to_string());
+    base.cli_explicit.intro_color = true;
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "energy-zen".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.intro_color.as_deref(), Some("green"), "CLI must win");
+}

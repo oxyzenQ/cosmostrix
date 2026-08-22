@@ -170,6 +170,18 @@ are verified stable by this audit.
 **Audit signoff**: Task 6 complete. No UNLOCK required for the
 3 Dragon Lock — the config + live-reload subsystem is stable as-is.
 
+## v50.0.0-alpha.7 Update — Option D (Masterclass) Implemented
+
+All 4 issues from the v50-beta.3 research are now FIXED:
+- Issue #1 (power-dragon + async-mode CLI intent guards) ✅ FIXED
+- Issue #2 (message/message-border/msg-mode live-reload) ✅ FIXED
+- Issue #3 (intro-color live-reload) ✅ FIXED (intro stays restart-only)
+- Issue #4 (monolith-size CLI guard) ❌ deferred (low severity)
+
+See [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md) § 6 for the
+full implementation status + updated per-key matrix + 13 new stress
+tests.
+
 ## v50-beta.3 Update — Live-Reload Behavior Research
 
 A follow-up research pass (2026-08-22) audited which config keys

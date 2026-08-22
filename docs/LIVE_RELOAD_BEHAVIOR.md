@@ -1,8 +1,14 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Live-Reload Behavior Research — v50-beta.3
+# Live-Reload Behavior Research — v50.0.0-alpha.7
 
-> **Research date**: 2026-08-22
+> **Status**: Option D (masterclass) IMPLEMENTED in v50.0.0-alpha.7.
+> All 4 issues from the v50-beta.3 research are now fixed. See
+> "Implementation Status" section below for the per-key matrix update.
+>
+> **Research date**: 2026-08-22 (v50-beta.3)
+> **Implementation date**: 2026-08-22 (v50.0.0-alpha.7)
+>
 > **Trigger**: owner confusion about which config keys live-reload vs
 > require restart. Specifically: "if I set `msg-mode = false` in config
 > while cosmostrix is running, does it reload without the default
@@ -226,7 +232,104 @@ documentation.
 
 ---
 
-## 6. Source-Code References (for implementer)
+## 6. Implementation Status — v50.0.0-alpha.7 (Option D DONE)
+
+All 4 issues from the v50-beta.3 research are now FIXED in
+v50.0.0-alpha.7. Option D (masterclass) was implemented:
+
+### Issue #1: `power-dragon` + `async-mode` CLI intent guards — FIXED
+
+**Was**: live-reload paths read config directly without checking
+`cli_explicit`, so CLI flag `--power-dragon false` was overridden by
+config edit `power-dragon = true` on next reload.
+
+**Now**: added `power_dragon: bool` and `async_mode: bool` fields to
+`CliExplicit` struct. `rebuild_cloud_config` now gates both reads with
+`if !cli.power_dragon { ... }` and `if !cli.async_mode { ... }` —
+mirroring the `crystal-dragon` pattern. CLI wins over config on
+live-reload for all 3 boolean dragon/async flags.
+
+### Issue #2: `message` / `message-border` / `msg-mode` live-reload — FIXED
+
+**Was**: these 3 keys were completely absent from
+`rebuild_cloud_config`. Editing config.toml mid-run had no effect
+until restart. Primary source of owner/user confusion.
+
+**Now**: `rebuild_cloud_config` handles all 3 keys with full
+precedence:
+1. CLI `-m` / `-mb` (always wins — `cli.message` guard skips config read)
+2. `msg-mode=false` → suppress config message (gate fires)
+3. config `message-border` (wins over `message` when both present)
+4. config `message` (no border)
+5. default fallback (only at startup, not here)
+
+The `msg-mode` gate mirrors `config_apply.rs`: when `msg-mode=false`
+AND message came from config (not CLI), clear it. CLI `-m`/`-mb` is
+unaffected.
+
+### Issue #3: `intro-color` / `intro` live-reload — FIXED (intro-color only)
+
+**Was**: `intro-color` had no live-reload path. `intro` is one-shot
+(expected — intro plays once at startup).
+
+**Now**: `rebuild_cloud_config` handles `intro-color` with CLI intent
+guard (`cli.intro_color`). Validates theme name on reload — invalid
+themes are logged and cleared (soft-fail, unlike startup which
+hard-errors + exits, to avoid crashing a running session). `intro`
+remains restart-only (one-shot animation).
+
+### Issue #4: `monolith-size` CLI intent guard — NOT FIXED (low severity)
+
+`monolith-size` live-reload still lacks CLI intent guard. Low
+severity — rarely changes mid-session. Deferred to a future patch.
+
+### Updated Per-Key Live-Reload Matrix (v50.0.0-alpha.7)
+
+| Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? |
+|------------|----------|:-------------:|:-----------------:|
+| `color` | `--color` | ✅ YES | ✅ YES |
+| `charset` | `--charset` | ✅ YES | ✅ YES |
+| `scene` | `--scene` | ✅ YES | ✅ YES |
+| `speed` | `--speed` | ✅ YES | ✅ YES |
+| `density` | `--density` | ✅ YES | ✅ YES |
+| `fps` | `--fps` | ✅ YES | ✅ YES |
+| `glitch-level` | `--glitch-level` | ✅ YES | ✅ YES |
+| `color-bg` | (none) | ✅ YES | N/A (no CLI flag) |
+| `monolith-size` | `--monolith-size` | ✅ YES | ❌ NO (Issue #4, deferred) |
+| `crystal-dragon` | `--crystal-dragon` | ✅ YES | ✅ YES |
+| `power-dragon` | `--power-dragon` | ✅ YES | ✅ YES (FIXED in alpha.7) |
+| `async-mode` | `--async-mode` | ✅ YES | ✅ YES (FIXED in alpha.7) |
+| `bold` | `--bold` | ✅ YES | ❌ NO (no CLI intent gate) |
+| `shadingmode` | `--shadingmode` | ✅ YES | ❌ NO (no CLI intent gate) |
+| `color.tune.*` | `--color-tune` | ✅ YES | ✅ YES |
+| `ambient.HH-MM` | (none) | ✅ YES | N/A |
+| `scene-custom.<name>.*` | `--scene-custom` | ✅ YES | ✅ YES |
+| **`message`** | `-m` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.message`) |
+| **`message-border`** | `-mb` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.message`) |
+| **`msg-mode`** | `--msg-mode` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.msg_mode`) |
+| **`intro-color`** | `--intro-color` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.intro_color`) |
+| **`intro`** | `--intro` | ❌ NO (one-shot) | N/A |
+
+### Stress Tests Added
+
+13 new tests in `src/config/live_config/tests.rs`:
+- `live_reload_message_border_from_config`
+- `live_reload_message_bare_from_config`
+- `live_reload_message_border_wins_over_message`
+- `live_reload_msg_mode_false_suppresses_config_message`
+- `live_reload_msg_mode_true_keeps_config_message`
+- `live_reload_msg_mode_defaults_true_when_unset`
+- `live_reload_cli_message_wins_over_config`
+- `live_reload_cli_msg_mode_wins_over_config`
+- `live_reload_power_dragon_respects_cli_explicit`
+- `live_reload_async_mode_respects_cli_explicit`
+- `live_reload_intro_color_from_config`
+- `live_reload_intro_color_invalid_soft_fails`
+- `live_reload_intro_color_cli_explicit_wins`
+
+---
+
+## 7. Source-Code References (for implementer)
 
 - `rebuild_cloud_config`: `src/config/live_config/mod.rs:562-907`
 - Event-loop reload consumer: `src/interactive/event_loop.rs:336-360`

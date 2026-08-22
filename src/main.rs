@@ -1012,6 +1012,29 @@ fn main() -> std::io::Result<()> {
             matches.value_source("crystal_dragon"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // v50.0.0-alpha.7: track --power-dragon, --async-mode, --msg-mode,
+        // --intro-color, and -m/-mb CLI explicit (was missing — live-reload
+        // path overrode CLI intent on config edit).
+        power_dragon: matches!(
+            matches.value_source("power_dragon"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        async_mode: matches!(
+            matches.value_source("async_mode"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        msg_mode: matches!(
+            matches.value_source("msg_mode"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        intro_color: matches!(
+            matches.value_source("intro_color"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        message: matches!(
+            matches.value_source("message"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     if args.verbose {
         // Resolve the intro type label for verbose output. Mirrors the

@@ -814,13 +814,14 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // v50: Power Dragon live reload. No CLI flag exists for power-dragon
-    // (config-only setting), so no intent-preservation guard is needed —
-    // always read from config. When toggled mid-session, the adaptive
-    // throttle state updates on the next frame (no restart needed).
-    if let Some(v) = cfg.get("power-dragon") {
-        if let Some(b) = crate::config_apply::parse_bool_config("power-dragon", v) {
-            new.power_dragon = b;
+    // v50.0.0-alpha.7: Power Dragon live reload. CLI --power-dragon wins
+    // over config (was: config-only path, no intent guard — CLI flag was
+    // overridden by config edit on next reload). Now mirrors crystal-dragon.
+    if !cli.power_dragon {
+        if let Some(v) = cfg.get("power-dragon") {
+            if let Some(b) = crate::config_apply::parse_bool_config("power-dragon", v) {
+                new.power_dragon = b;
+            }
         }
     }
 
@@ -854,9 +855,14 @@ pub(crate) fn rebuild_cloud_config(
             new.shading_mode = base.shading_mode;
         }
     }
-    if let Some(v) = cfg.get("async-mode") {
-        if let Some(b) = crate::config_apply::parse_bool_config("async-mode", v) {
-            new.async_mode = b;
+    // v50.0.0-alpha.7: --async-mode CLI flag now exists. CLI wins over
+    // config (was: config-only path, no intent guard — CLI flag was
+    // overridden by config edit on next reload). Now mirrors crystal-dragon.
+    if !cli.async_mode {
+        if let Some(v) = cfg.get("async-mode") {
+            if let Some(b) = crate::config_apply::parse_bool_config("async-mode", v) {
+                new.async_mode = b;
+            }
         }
     }
 
@@ -892,6 +898,103 @@ pub(crate) fn rebuild_cloud_config(
         }
     } else {
         lr_trace!("color.tune: no keys in config — preserving base tune (CLI --color-tune wins)");
+    }
+
+    // v50.0.0-alpha.7: Live-reload for message / message-border / msg-mode.
+    // Previously these 3 keys were NOT handled in rebuild_cloud_config —
+    // editing config.toml mid-run had no effect until restart. This was
+    // the primary source of owner/user confusion (see
+    // docs/LIVE_RELOAD_BEHAVIOR.md Issue #2).
+    //
+    // Precedence (highest wins):
+    //   1. CLI -m / -mb (always wins — cli.message guard skips config read)
+    //   2. msg-mode=false → suppress config message (gate fires)
+    //   3. config `message-border` (wins over `message` when both present)
+    //   4. config `message` (no border)
+    //   5. default fallback (only at startup, not here — main.rs handles)
+    //
+    // The msg-mode gate mirrors config_apply.rs: when msg-mode=false AND
+    // message came from config (not CLI), clear it. CLI -m/-mb is unaffected.
+    let msg_mode_on = if !cli.msg_mode {
+        // CLI --msg-mode not explicit → read from config (default true).
+        cfg.get("msg-mode")
+            .and_then(|v| crate::config_apply::parse_bool_config("msg-mode", v))
+            .unwrap_or(true)
+    } else {
+        // CLI --msg-mode explicit → keep the startup value.
+        new.msg_mode
+    };
+    new.msg_mode = msg_mode_on;
+
+    if !cli.message {
+        // CLI -m / -mb not explicit → read message from config.
+        let msg_from_config: Option<(String, bool)> = cfg
+            .get("message-border")
+            .map(|v| (v.clone(), true))
+            .or_else(|| cfg.get("message").map(|v| (v.clone(), false)));
+        if let Some((text, border)) = msg_from_config {
+            // Apply msg-mode gate: if msg-mode=false, suppress config message.
+            // CLI -m/-mb always wins (handled by cli.message guard above).
+            if msg_mode_on {
+                new.message = Some(text);
+                new.message_border = border;
+                lr_trace!(
+                    "apply message='{}' border={} (from config, msg-mode=true)",
+                    new.message.as_deref().unwrap_or(""),
+                    border
+                );
+            } else {
+                // msg-mode=false + config message → suppress.
+                new.message = None;
+                new.message_border = false;
+                lr_trace!(
+                    "suppress config message (msg-mode=false) — text was '{}'",
+                    text
+                );
+            }
+        } else {
+            // No message in config. If msg-mode=false, clear any startup
+            // default that may have been set (rare — default fallback only
+            // fires at startup, not here, but defense-in-depth).
+            if !msg_mode_on {
+                new.message = None;
+                new.message_border = false;
+            }
+            // If msg-mode=true and no config message, preserve the startup
+            // default (already in new.message from base.clone()).
+        }
+    } else {
+        lr_trace!(
+            "skip message (CLI -m/-mb explicit) — keeping '{}'",
+            new.message.as_deref().unwrap_or("(none)")
+        );
+    }
+
+    // v50.0.0-alpha.7: Live-reload intro-color (was missing).
+    // CLI --intro-color wins over config (cli.intro_color guard).
+    // Validates theme name on reload — invalid themes are logged and
+    // cleared (mirrors startup behavior, but soft-fail on live-reload
+    // to avoid crashing a running session).
+    if !cli.intro_color {
+        if let Some(v) = cfg.get("intro-color") {
+            let theme_ok = crate::theme::lookup_theme(v).is_some();
+            let custom_ok = cfg.contains_key(&format!("colors-custom.{v}.bg"));
+            if theme_ok || custom_ok {
+                new.intro_color = Some(v.clone());
+                lr_trace!("apply intro-color='{}'", v);
+            } else {
+                // Soft-fail on live-reload: log + clear. Don't crash the
+                // running session with a hard error (unlike startup which
+                // exits). User can fix the config and save again.
+                lr_trace!(
+                    "intro-color='{}' is invalid on live-reload — clearing (theme_ok={}, custom_ok={})",
+                    v,
+                    theme_ok,
+                    custom_ok
+                );
+                new.intro_color = None;
+            }
+        }
     }
 
     // Ambient: re-collect schedule. Event loop pushes to scheduler thread.
