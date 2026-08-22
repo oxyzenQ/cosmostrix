@@ -101,6 +101,33 @@ to work unchanged.
 - **CI**: the `check-rs-loc.sh` script can be extended to verify root
   cleanliness (future enhancement).
 - **This file**: serves as the canonical reference for the policy.
+
+## File Permission Rule (v50.0.0-beta.4)
+
+**Standard Unix file permissions for cosmostrix**:
+
+| Type | Mode | Examples |
+|------|------|----------|
+| Directories | 755 | `src/`, `docs/`, `scripts/`, `benchmark/` |
+| Shell scripts | 755 | `*.sh` (build.sh, gate-keepers.sh, install.sh, etc.) |
+| Python scripts | 755 | `*.py` (bench-runner.py, visual-mode-audit.py, etc.) |
+| Rust source | 644 | `*.rs` |
+| Config files | 644 | `*.toml`, `*.yaml`, `*.yml`, `*.json` |
+| Documentation | 644 | `*.md`, `*.txt` |
+| Lockfiles | 644 | `Cargo.lock` |
+| Assets | 644 | `*.png`, `*.gif`, `*.csv` |
+| Binaries | 755 | compiled `cosmostrix` binary (not tracked in git) |
+
+**For AI agents** (per DeepSeek advice):
+
+> When modifying file permissions, set folders to 755, files to 644,
+> and binaries to 755. NEVER use `chmod 777` or `chmod 755 -R` on
+> everything. Use `git update-index --chmod=-x <file>` to fix tracked
+> files that were accidentally marked executable.
+
+**How to verify**: `git ls-files --stage | awk '$1 == "100755" {print $4}'`
+should only show `.sh` and `.py` files. Any other file at 100755 is a
+bug — fix with `git update-index --chmod=-x <file>`.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
