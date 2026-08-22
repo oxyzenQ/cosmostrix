@@ -10,24 +10,31 @@
 
 > Engine re-locked at commit `2e6959f` after **BD-02 Corner Gradient LTS Stabilization**.
 >
+>
 > ## Change Summary
+>
 > - **BD-01**: Precise centering formula fix (`(cols-box_w)/2` instead of `cols/2-box_w/2`)
 > - **BD-02**: Corner-aware gradient system — bottom corners (╰╯) use bright anchor (t=0.8),
 >   top corners (╭╮) follow natural triangle-wave gradient (dark at t=0, t=1.0)
 > - **LTS Hardening**: Named constants, pre-allocated HashSet, defensive bounds checks,
 >   numerical clamping, comprehensive design invariant documentation
 >
+>
 > ## Metrics
+>
 > - **Files changed**: 1 (`cloud/mod.rs`)
 > - **LOC impact**: +71 insertions, -17 deletions (net +54 LOC)
 > - **Gatekeeper**: ✅ `cargo fmt --check` PASS, ✅ `cargo clippy -D warnings` PASS
 > - **Visual rating**: 10/10 (owner-verified production ready)
 >
+>
 > ## Design Invariants (LTS Guaranteed)
+>
 > 1. Bottom corners (╰╯) ALWAYS use bright anchor → visual anchoring
 > 2. Top corners (╭╮) follow natural gradient → chroma dragon flow
 > 3. Triangle wave ensures no sharp color gaps on left/right borders
 > 4. All t-values clamped to [0.0, 1.0] → safe interpolation
+>
 >
 > Signoff: **oxyzenQ** — 2026-08-23T00:45:00Z — BD-02 corner gradient LTS stabilization
 
