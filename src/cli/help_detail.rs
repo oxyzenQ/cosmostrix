@@ -411,17 +411,6 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       In --benchmark mode the BenchReportData is always emitted; this
       flag is for interactive runs that want a final perf summary.
 
-  CRYSTAL DRAGON:
-  --crystal-dragon
-      Enable Crystal Dragon ambient color drift (default: off).
-      Point-based temperature group system (Cold/Medium/Hot) with
-      probabilistic weighted theme selection. Polls every 60s with
-      300ms OKLab smooth transitions.
-      Config: crystal-dragon = true
-      Note: suppressed when --colors-custom is set OR an
-      ambient schedule is active (ambient_palette_locked gate); climate
-      drift continues regardless. Edit config.toml to disable.
-
   BENCH (advanced):
   --bench-frames <N>
       Run headless benchmark for exactly N frames and exit. Alternative

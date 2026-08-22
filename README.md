@@ -431,7 +431,6 @@ HELP
       --check-update           Check the latest upstream release
 
 ADVANCED (stable, supported, documented in --help)
-  --crystal-dragon            Enable Crystal Dragon ambient color drift
   -b, --bold <0|1|2>           Bold style (0=off, 1=random, 2=all)
       --color-bg <mode>        Background mode (black, default-background)
       --duration <seconds>     Interactive auto-exit after N seconds
