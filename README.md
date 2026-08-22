@@ -119,7 +119,7 @@ The Dragon's roar is not loud — it is precise.
 - Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
 - Configurable speed, density, FPS, and glitch intensity.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
-- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix" overlay when neither CLI nor config provides one.
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
 - **Smooth pause** — `Space` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
 

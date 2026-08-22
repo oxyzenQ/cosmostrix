@@ -134,8 +134,12 @@ COMMON OPTIONS:
         message         = \"hello\"   (no border, matches -m)
         message-border  = \"hello\"   (with border, matches -mb)
       When neither CLI nor config provides a message, interactive mode
-      defaults to a bordered overlay showing \"cosmostrix\". Benchmark
-      mode never shows a message overlay.
+      defaults to a bordered overlay showing \"cosmostrix v<VERSION>\"
+      (version is dynamic, read from Cargo.toml at compile time).
+      Benchmark mode never shows a message overlay.
+      msg-mode = false in config (or --msg-mode false on CLI) disables
+      BOTH the default message AND any config message/message-border.
+      CLI -m / -mb always wins over msg-mode=false.
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

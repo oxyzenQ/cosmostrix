@@ -686,9 +686,16 @@ fn main() -> std::io::Result<()> {
         args.scene = Some("monolith".to_string());
     }
 
-    // v50: Power Dragon defaults to true (protection enabled).
-    // config_apply can override to false via `power-dragon = false` in config.toml.
-    args.power_dragon = true;
+    // v50-beta.3: Power Dragon defaults to true (protection enabled) when
+    // neither CLI nor config provides a value. config_apply sets
+    // args.power_dragon = Some(...) when either source is explicit.
+    if args.power_dragon.is_none() {
+        args.power_dragon = Some(true);
+    }
+    // v50-beta.3: msg-mode defaults to true (message overlay active).
+    if args.msg_mode.is_none() {
+        args.msg_mode = Some(true);
+    }
 
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
         ux::die_config(e);
@@ -1048,7 +1055,7 @@ fn main() -> std::io::Result<()> {
             glitch_high,
             glitch_level: &format!("{:?}", args.glitch_level),
             screensaver: args.screensaver,
-            crystal_dragon: args.crystal_dragon,
+            crystal_dragon: args.crystal_dragon.unwrap_or(false),
             // v50: Reflect the effective message (after default fallback)
             // so --verbose reports what the renderer actually displays.
             // Default text is dynamic: "cosmostrix v<CARGO_PKG_VERSION>"
@@ -1067,7 +1074,7 @@ fn main() -> std::io::Result<()> {
             intro_type_label: intro_label,
             commit_sha,
             bench_mode,
-            power_dragon: args.power_dragon,
+            power_dragon: args.power_dragon.unwrap_or(true),
             intro_color: args.intro_color.as_deref(),
             scene_custom: args.scene_custom.as_deref(),
             ambient_schedule: &verbose_ambient_schedule,
@@ -1108,14 +1115,32 @@ fn main() -> std::io::Result<()> {
         speed,
         monolith_size: args.monolith_size,
         chars,
-        // v50: Default message fallback. When neither CLI (-m / -mb) nor
-        // config (`message` / `message-border`) provides a message, the
-        // interactive mode shows "cosmostrix v<CARGO_PKG_VERSION>" with a
-        // border overlay. Version is dynamic (env! CARGO_PKG_VERSION),
-        // never hardcoded. Benchmark mode never shows a message overlay
-        // (keeps reports clean).
+        // v50-beta.3: msg-mode gate + default message fallback.
+        // Precedence (highest wins):
+        //   1. CLI -m / -mb (always active — CLI wins over msg-mode=false)
+        //   2. msg-mode=false → disable BOTH default AND config message
+        //      (user must set msg-mode=true to use message/message-border config)
+        //   3. config `message` / `message-border` (when msg-mode=true)
+        //   4. default fallback "cosmostrix v<CARGO_PKG_VERSION>" with border
+        //      (only when !bench_mode AND msg-mode=true)
+        // Benchmark mode never shows a message overlay (keeps reports clean).
+        // Version is dynamic (env! CARGO_PKG_VERSION), never hardcoded.
         message: {
-            let msg: Option<String> = if !bench_mode && args.message.is_none() {
+            // msg_mode_effective: CLI flag wins (already applied via config_value
+            // is_explicit); default true when neither CLI nor config sets it.
+            let msg_mode_on = args.msg_mode.unwrap_or(true);
+            // CLI explicit? Check is via clap's value_source — but for -m / -mb
+            // we already have args.message set with the text. So:
+            //   - If args.message is Some AND was set via CLI → always show
+            //   - If args.message is Some AND was set via config → only if msg_mode_on
+            //   - If args.message is None AND !bench_mode AND msg_mode_on → default
+            // We can't easily distinguish CLI vs config origin here without
+            // tracking is_explicit for the message flag. Instead: trust the
+            // config_apply layer — when msg-mode=false AND no CLI -m/-mb,
+            // args.message should already be None. main.rs doesn't need to
+            // re-check. The msg_mode_on flag here only affects the DEFAULT
+            // fallback (when args.message is None).
+            let msg: Option<String> = if !bench_mode && args.message.is_none() && msg_mode_on {
                 Some(default_message_text())
             } else {
                 args.message.clone()
@@ -1162,8 +1187,9 @@ fn main() -> std::io::Result<()> {
         charset_preset,
         user_ranges,
         def_ascii,
-        crystal_dragon: args.crystal_dragon,
-        power_dragon: args.power_dragon,
+        crystal_dragon: args.crystal_dragon.unwrap_or(false),
+        power_dragon: args.power_dragon.unwrap_or(true),
+        msg_mode: args.msg_mode.unwrap_or(true),
         monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the

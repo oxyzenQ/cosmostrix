@@ -108,6 +108,11 @@ pub struct CloudConfig {
     /// v50: Power Dragon toggle. When false, disables aggressive_throttle
     /// and idle FPS reduction. Default: true (protection enabled).
     pub power_dragon: bool,
+    /// v50-beta.3: msg-mode master switch for the message overlay subsystem.
+    /// When false, disables BOTH the default message AND any message/
+    /// message-border config key. CLI -m/-mb always wins (handled in
+    /// main.rs). Default: true (message overlay active).
+    pub msg_mode: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -334,6 +339,7 @@ impl CloudConfig {
             def_ascii: self.def_ascii,
             crystal_dragon: self.crystal_dragon,
             power_dragon: self.power_dragon,
+            msg_mode: self.msg_mode,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),

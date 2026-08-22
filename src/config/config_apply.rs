@@ -163,6 +163,36 @@ pub(crate) fn apply_config_and_runtime_defaults(
         }
     }
 
+    // v50-beta.3: intro-color validation runs unconditionally (even when cfg
+    // is empty) because the value may come from the CLI flag --intro-color.
+    // apply_config_values is gated on `!cfg.is_empty()`, so we cannot rely
+    // on it to fire when only the CLI flag is set. Validation lives here.
+    //
+    // CLI flag --intro-color <name> populates args.intro_color via clap; the
+    // config key intro-color = "name" is read from cfg. Either way,
+    // validation must fire to reject unknown theme names.
+    let intro_color_value: Option<String> = args
+        .intro_color
+        .clone()
+        .or_else(|| cfg.get("intro-color").cloned());
+    if let Some(v) = intro_color_value {
+        let theme_ok = crate::theme::lookup_theme(&v).is_some();
+        let custom_ok = cfg.contains_key(&format!("colors-custom.{v}.bg"));
+        if theme_ok || custom_ok {
+            args.intro_color = Some(v);
+            config_touched.insert("intro-color");
+        } else {
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid intro-color='{v}' — not a builtin theme or custom palette. \
+                 Use --list-colors to see available themes."
+            ));
+            // Clear invalid CLI value so the renderer falls back to default
+            // (rain color) instead of trying to build a palette for a
+            // non-existent theme.
+            args.intro_color = None;
+        }
+    }
+
     if !cfg.is_empty() {
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
@@ -378,29 +408,9 @@ fn apply_config_values(
             ),
         }
     }
-    // v50: intro-color config key. Allows the intro animation to use a
-    // different color theme than the rain. Value is a builtin theme name
-    // or custom palette name. When set, a separate Palette is built for
-    // the intro and passed to run_intro via CloudConfig.
-    // Uses cfg.get() directly (not config_value) because intro-color has
-    // no CLI flag (#[arg(skip)]) — config_value requires a clap arg ID.
-    if let Some(v) = cfg.get("intro-color") {
-        let v = v.clone();
-        // Validate: must be a known builtin theme name or a custom palette
-        // defined in [colors-custom.<name>]. Unknown names are rejected
-        // with a hint (same error path as --color).
-        if crate::theme::lookup_theme(&v).is_some()
-            || cfg.get(&format!("colors-custom.{v}.bg")).is_some()
-        {
-            args.intro_color = Some(v);
-            config_touched.insert("intro-color");
-        } else {
-            crate::output::eprintln_error_labeled(&format!(
-                "invalid intro-color='{v}' — not a builtin theme or custom palette. \
-                 Use --list-colors to see available themes."
-            ));
-        }
-    }
+    // (intro-color validation moved to apply_config_and_runtime_defaults
+    // — it runs unconditionally, even when cfg is empty, so CLI flag
+    // --intro-color gets validated without needing a config file.)
     // v50: Overlay message config keys. Two keys mirror the CLI flags:
     //   message         = "text"  → message WITHOUT border (matches -m)
     //   message-border  = "text"  → message WITH border    (matches -mb)
@@ -423,6 +433,8 @@ fn apply_config_values(
         args.message_border = false;
         config_touched.insert("message");
     }
+    // v50-beta.3: msg-mode gate runs at end of this function (after
+    // msg-mode itself is parsed) — see `apply_msg_mode_gate(...)` call.
     if let Some(v) = config_value(matches, cfg, "bold", "bold") {
         if let Some(n) = parse_u8_config("bold", &v, 0, 2) {
             args.bold = n;
@@ -442,19 +454,31 @@ fn apply_config_values(
         }
     }
     // Crystal Dragon Engine config.
+    // v50-beta.3: CLI --crystal-dragon=true|false wins over config.
+    // Previously config-only; now both paths set args.crystal_dragon: Option<bool>.
     if let Some(v) = config_value(matches, cfg, "crystal_dragon", "crystal-dragon") {
         if let Some(b) = parse_bool_config("crystal-dragon", &v) {
-            args.crystal_dragon = b;
+            args.crystal_dragon = Some(b);
             config_touched.insert("crystal_dragon");
         }
     }
-    // v50: power-dragon config key. When false, disables adaptive
-    // throttle + idle FPS reduction (power dragon stays inactive).
-    // Default: true (protection enabled). Config-only (no CLI flag).
-    if let Some(v) = cfg.get("power-dragon") {
-        if let Some(b) = parse_bool_config("power-dragon", v) {
-            args.power_dragon = b;
+    // v50-beta.3: power-dragon CLI flag now exists (--power-dragon=true|false).
+    // CLI wins over config (handled by config_value's is_explicit check).
+    // Default when neither CLI nor config provides a value: true (main.rs).
+    if let Some(v) = config_value(matches, cfg, "power_dragon", "power-dragon") {
+        if let Some(b) = parse_bool_config("power-dragon", &v) {
+            args.power_dragon = Some(b);
             config_touched.insert("power-dragon");
+        }
+    }
+    // v50-beta.3: msg-mode CLI flag now exists (--msg-mode=true|false).
+    // CLI wins over config. Default when neither provides a value: true (main.rs).
+    // msg-mode=false disables BOTH default message AND any message/message-border
+    // config key; CLI -m/-mb always wins (handled in main.rs).
+    if let Some(v) = config_value(matches, cfg, "msg_mode", "msg-mode") {
+        if let Some(b) = parse_bool_config("msg-mode", &v) {
+            args.msg_mode = Some(b);
+            config_touched.insert("msg-mode");
         }
     }
     // v17: --async flag removed (always on). Config key 'async-mode' still
@@ -465,6 +489,25 @@ fn apply_config_values(
             args.async_mode = b;
             config_touched.insert("async_mode");
         }
+    }
+
+    // v50-beta.3: msg-mode gate (runs AFTER all message/msg-mode parsing).
+    // Rule: if msg-mode=false AND message came from config (not CLI -m/-mb),
+    // clear it. CLI -m/-mb always wins (we don't touch message when it was
+    // set via CLI).
+    // Detection: if config_touched has `message` or `message-border`, the
+    // message came from config. If neither is in config_touched but args.message
+    // is Some, it came from CLI (or pre-existing default) — leave it alone.
+    let msg_from_config =
+        config_touched.contains("message") || config_touched.contains("message-border");
+    let msg_mode_on = args.msg_mode.unwrap_or(true); // default true
+    if !msg_mode_on && msg_from_config {
+        // msg-mode=false + config message: clear it. User must set msg-mode=true
+        // to use config message/message-border. CLI -m/-mb is unaffected.
+        args.message = None;
+        args.message_border = false;
+        config_touched.remove("message");
+        config_touched.remove("message-border");
     }
 }
 

@@ -184,7 +184,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         // implementation did not. Now it does.
         s.field(
             "crystal_dragon",
-            if args.crystal_dragon {
+            if args.crystal_dragon.unwrap_or(false) {
                 "on (Crystal Dragon ambient color drift — point-based temperature group system)"
             } else {
                 "off (default — palette is sticky for the entire session)"

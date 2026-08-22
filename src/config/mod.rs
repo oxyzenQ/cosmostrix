@@ -44,6 +44,32 @@ use crate::scene;
 use crate::theme;
 use crate::{colors_custom, scene_custom};
 
+/// v50-beta.3: clap value_parser for boolean CLI flags that MUST receive
+/// an explicit `true`/`false` value (no bare-flag toggle). This prevents
+/// the silent-ignore class of bugs where a user types `--crystal-dragon`
+/// expecting an error or a toggle, but clap quietly sets the bool to true.
+///
+/// Accepted values (case-insensitive): `true`, `false`, `1`, `0`, `yes`,
+/// `no`, `on`, `off`. Any other input → clap error.
+///
+/// Used by: `--crystal-dragon`, `--power-dragon`, `--msg-mode`.
+fn parse_true_false(input: &str) -> Result<bool, String> {
+    match input.to_ascii_lowercase().as_str() {
+        "true" | "1" | "yes" | "on" => Ok(true),
+        "false" | "0" | "no" | "off" => Ok(false),
+        other => Err(format!(
+            "invalid boolean value '{other}' (expected: true|false|1|0|yes|no|on|off)"
+        )),
+    }
+}
+
+/// Test-only accessor for the `parse_true_false` value_parser. Tests can't
+/// reach the private fn directly, so this pub(crate) wrapper exposes it.
+#[cfg(test)]
+pub(crate) fn test_parse_true_false(input: &str) -> Result<bool, String> {
+    parse_true_false(input)
+}
+
 #[must_use]
 pub(crate) fn color_enabled_stdout() -> bool {
     if std::env::var_os("NO_COLOR").is_some() {
@@ -333,12 +359,18 @@ pub struct Args {
     )]
     pub intro: Option<IntroType>,
 
-    /// v50: intro color override (config-only, no CLI flag).
-    /// Set via `intro-color = "energy-zen"` in config.toml.
+    /// v50: intro color override. CLI flag `--intro-color <name>` accepts
+    /// any builtin theme name (see --list-colors) or custom palette name.
+    /// Also configurable via `intro-color = "energy-zen"` in config.toml.
     /// When set, the intro animation uses this color theme instead of
-    /// the rain color. Values: any builtin theme name (see --list-colors)
-    /// or custom palette name.
-    #[arg(skip)]
+    /// the rain color.
+    #[arg(
+        long = "intro-color",
+        value_name = "NAME",
+        help_heading = "COMMON OPTIONS",
+        display_order = 62,
+        help = "Intro color override (builtin theme name or custom palette, see --list-colors)"
+    )]
     pub intro_color: Option<String>,
 
     // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
@@ -678,19 +710,48 @@ pub struct Args {
     /// Maps system state (CPU or clock) to a temperature group (Cold/Medium/Hot)
     /// and selects color themes via probabilistic weighted calculation.
     /// Polls every 60 seconds with 300ms OKLab smooth transitions.
+    /// v50-beta.3: CLI flag accepts explicit `true`/`false` value.
+    /// Bare `--crystal-dragon` (no value) errors to prevent silent toggle.
     #[arg(
         long = "crystal-dragon",
-        help = "Enable Crystal Dragon ambient color drift (default: off)"
+        value_name = "BOOL",
+        num_args = 1,
+        value_parser = parse_true_false,
+        help = "Enable Crystal Dragon ambient color drift (true|false, default: false)"
     )]
-    pub crystal_dragon: bool,
+    pub crystal_dragon: Option<bool>,
 
-    /// v50: Power Dragon toggle (config-only, no CLI flag).
+    /// v50: Power Dragon toggle. CLI flag `--power-dragon <true|false>`.
     /// When false: disables aggressive_throttle + idle FPS reduction.
-    /// Default: true (protection enabled). Set via `power-dragon = false`
-    /// in config.toml. When false, rain stays at user-configured
-    /// density/speed regardless of CPU pressure.
-    #[arg(skip)]
-    pub power_dragon: bool,
+    /// Default: true (protection enabled). Also configurable via
+    /// `power-dragon = false` in config.toml. When false, rain stays
+    /// at user-configured density/speed regardless of CPU pressure.
+    /// v50-beta.3: bare `--power-dragon` (no value) errors to prevent
+    /// silent toggle (was bool flag, now requires explicit true/false).
+    #[arg(
+        long = "power-dragon",
+        value_name = "BOOL",
+        num_args = 1,
+        value_parser = parse_true_false,
+        help = "Power Dragon adaptive protection (true|false, default: true)"
+    )]
+    pub power_dragon: Option<bool>,
+
+    /// v50-beta.3: msg-mode toggle. CLI flag `--msg-mode <true|false>`.
+    /// Master switch for the message overlay subsystem. When false,
+    /// disables BOTH the default message AND any `message`/`message-border`
+    /// config key. CLI `-m`/`-mb` always wins over this (CLI precedence).
+    /// Default: true (message overlay active). Also configurable via
+    /// `msg-mode = false` in config.toml.
+    /// Bare `--msg-mode` (no value) errors to prevent silent toggle.
+    #[arg(
+        long = "msg-mode",
+        value_name = "BOOL",
+        num_args = 1,
+        value_parser = parse_true_false,
+        help = "Message overlay master switch (true|false, default: true)"
+    )]
+    pub msg_mode: Option<bool>,
 
     // Helper: default true for power_dragon (clap defaults bool to false,
     // so we set it true in main.rs after parse).

@@ -75,6 +75,12 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // Benchmark mode never shows a message overlay.
     "message",
     "message-border",
+    // v50-beta.3: msg-mode master switch for the message overlay subsystem.
+    // When false, disables BOTH the default message AND any message/
+    // message-border config key (config-only message is suppressed).
+    // CLI -m / -mb always wins over msg-mode=false (CLI precedence).
+    // Default: true (message overlay active).
+    "msg-mode",
 ];
 
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
@@ -617,9 +623,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Two keys mirror the CLI flags (-m and -mb). If both are present,
 # `message-border` wins (border=true). When neither CLI nor config
 # provides a message, interactive mode defaults to a bordered overlay
-# showing "cosmostrix". Benchmark mode never shows a message overlay.
+# showing "cosmostrix v<CARGO_PKG_VERSION>" (dynamic, never hardcoded).
+# Benchmark mode never shows a message overlay.
+# Max text length: 200 characters (MESSAGE_MAX_LEN in src/types/constants.rs).
+# msg-mode master switch (default: true): when false, disables BOTH the
+# default message AND any config message/message-border. CLI -m / -mb
+# always wins over msg-mode=false. Set false to turn off the overlay
+# entirely via config without removing the message/message-border lines.
 # message         = "A masterpiece"   # message WITHOUT border (matches -m)
 # message-border  = "A masterpiece"   # message WITH border    (matches -mb)
+# msg-mode        = true              # true = overlay active (default), false = suppressed
 
 # Motion
 

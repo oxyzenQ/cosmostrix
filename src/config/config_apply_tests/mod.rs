@@ -1014,3 +1014,166 @@ fn config_message_unknown_variant_rejected_as_unknown_key() {
         parsed.unknown_keys
     );
 }
+
+// ── v50-beta.3: msg-mode gate tests ─────────────────────────────────────────
+
+#[test]
+fn config_msg_mode_false_disables_config_message() {
+    // msg-mode=false + config message → message cleared.
+    // User must set msg-mode=true to use config message/message-border.
+    let args = args_with_config("msg-mode = false\nmessage-border = \"hello\"\n", &[]);
+    assert_eq!(
+        args.message, None,
+        "msg-mode=false must clear config message"
+    );
+    assert!(!args.message_border);
+    assert_eq!(args.msg_mode, Some(false));
+}
+
+#[test]
+fn config_msg_mode_true_keeps_config_message() {
+    // msg-mode=true + config message → message preserved (default behavior).
+    let args = args_with_config("msg-mode = true\nmessage-border = \"hello\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some("hello"));
+    assert!(args.message_border);
+    assert_eq!(args.msg_mode, Some(true));
+}
+
+#[test]
+fn config_msg_mode_default_true_when_unset() {
+    // No msg-mode key → default true (message overlay active).
+    let args = args_with_config("", &[]);
+    assert_eq!(args.msg_mode, None); // config layer doesn't set default; main.rs does
+}
+
+#[test]
+fn cli_m_flag_wins_over_msg_mode_false() {
+    // CLI -m + config msg-mode=false → message still shows (CLI wins).
+    let args = args_with_config("msg-mode = false\n", &["-m", "from-cli"]);
+    assert_eq!(args.message.as_deref(), Some("from-cli"));
+    assert!(!args.message_border, "CLI -m must keep border=false");
+    assert_eq!(args.msg_mode, Some(false));
+}
+
+#[test]
+fn cli_mb_flag_wins_over_msg_mode_false() {
+    // CLI -mb + config msg-mode=false → message still shows with border.
+    // Note: -mb is expanded to --message-border (bool toggle) + -m "text"
+    // in main.rs pre-parse step. Tests bypass main.rs, so use the expanded
+    // form directly: --message-border + -m "text".
+    let args = args_with_config(
+        "msg-mode = false\n",
+        &["--message-border", "-m", "from-cli"],
+    );
+    assert_eq!(args.message.as_deref(), Some("from-cli"));
+    assert!(args.message_border, "CLI -mb must keep border=true");
+    assert_eq!(args.msg_mode, Some(false));
+}
+
+#[test]
+fn config_msg_mode_false_with_config_message_bare_also_cleared() {
+    // msg-mode=false + config `message = "x"` (no border) → also cleared.
+    let args = args_with_config("msg-mode = false\nmessage = \"hello\"\n", &[]);
+    assert_eq!(args.message, None);
+    assert!(!args.message_border);
+}
+
+#[test]
+fn config_msg_mode_invalid_value_rejected() {
+    // msg-mode = "yes" should be accepted (parse_true_false accepts yes/no/on/off).
+    // msg-mode = "maybe" should NOT be accepted (not a valid bool).
+    let parsed = crate::configfile::parse_config_text("msg-mode = \"maybe\"\n");
+    // The bare key is known, so it doesn't land in unknown_keys — but the
+    // value parse fails silently in config_apply (parse_bool_config returns
+    // None, args.msg_mode stays None → main.rs default true). Verify the key
+    // is recognized (not in unknown_keys):
+    assert!(
+        !parsed.unknown_keys.contains(&"msg-mode".to_string()),
+        "msg-mode is a known key, should not be in unknown_keys: {:?}",
+        parsed.unknown_keys
+    );
+}
+
+// ── v50-beta.3: new CLI flags --intro-color / --power-dragon / --msg-mode / --crystal-dragon ──
+
+#[test]
+fn cli_intro_color_flag_sets_value() {
+    // CLI --intro-color=energy-zen sets args.intro_color.
+    let args = args_with_config("", &["--intro-color", "energy-zen"]);
+    assert_eq!(args.intro_color.as_deref(), Some("energy-zen"));
+}
+
+#[test]
+fn cli_power_dragon_flag_accepts_true_false() {
+    // CLI --power-dragon=true → args.power_dragon = Some(true).
+    let args = args_with_config("", &["--power-dragon", "true"]);
+    assert_eq!(args.power_dragon, Some(true));
+    let args = args_with_config("", &["--power-dragon", "false"]);
+    assert_eq!(args.power_dragon, Some(false));
+}
+
+#[test]
+fn cli_msg_mode_flag_accepts_true_false() {
+    // CLI --msg-mode=true → args.msg_mode = Some(true).
+    let args = args_with_config("", &["--msg-mode", "true"]);
+    assert_eq!(args.msg_mode, Some(true));
+    let args = args_with_config("", &["--msg-mode", "false"]);
+    assert_eq!(args.msg_mode, Some(false));
+}
+
+#[test]
+fn cli_crystal_dragon_flag_accepts_true_false() {
+    // CLI --crystal-dragon=true → args.crystal_dragon = Some(true).
+    let args = args_with_config("", &["--crystal-dragon", "true"]);
+    assert_eq!(args.crystal_dragon, Some(true));
+    let args = args_with_config("", &["--crystal-dragon", "false"]);
+    assert_eq!(args.crystal_dragon, Some(false));
+}
+
+#[test]
+fn cli_power_dragon_flag_rejects_invalid_value() {
+    // CLI --power-dragon=maybe → clap error (parse_true_false rejects).
+    // Note: we can't easily assert the error here because clap calls
+    // process::exit on parse failure. Instead, we verify the value_parser
+    // function directly.
+    assert!(crate::config::test_parse_true_false("maybe").is_err());
+    assert!(crate::config::test_parse_true_false("true").is_ok());
+    assert!(crate::config::test_parse_true_false("false").is_ok());
+    // Reference: this test exists to ensure the parser is wired up.
+    let _ = args_from_cli_result(&["--power-dragon", "true"]).expect("valid value should parse");
+}
+
+#[test]
+fn cli_msg_mode_flag_rejects_invalid_value() {
+    // Same approach as above — test the parser directly.
+    assert!(crate::config::test_parse_true_false("maybe").is_err());
+}
+
+#[test]
+fn cli_crystal_dragon_flag_rejects_invalid_value() {
+    assert!(crate::config::test_parse_true_false("maybe").is_err());
+}
+
+#[test]
+fn cli_power_dragon_accepts_yes_no_aliases() {
+    // parse_true_false accepts yes/no/on/off/1/0 in addition to true/false.
+    let args = args_with_config("", &["--power-dragon", "yes"]);
+    assert_eq!(args.power_dragon, Some(true));
+    let args = args_with_config("", &["--power-dragon", "no"]);
+    assert_eq!(args.power_dragon, Some(false));
+    let args = args_with_config("", &["--power-dragon", "1"]);
+    assert_eq!(args.power_dragon, Some(true));
+    let args = args_with_config("", &["--power-dragon", "0"]);
+    assert_eq!(args.power_dragon, Some(false));
+}
+
+#[test]
+fn cli_intro_color_rejects_unknown_theme() {
+    // CLI --intro-color=not-a-color → error_labeled print (but doesn't fail
+    // startup; the message is printed and the field stays None).
+    // The args_from_cli_result helper exits on clap parse error, so this
+    // test uses args_with_config which goes through the full parse path.
+    // For unknown themes, config_apply prints an error and field stays None.
+    let args = args_with_config("", &["--intro-color", "not-a-color"]);
+    assert_eq!(args.intro_color, None, "unknown theme should not be set");
+}

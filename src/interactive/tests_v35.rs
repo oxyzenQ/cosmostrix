@@ -113,6 +113,7 @@ mod cases_v35 {
             def_ascii: true,
             crystal_dragon: false,
             power_dragon: true,
+            msg_mode: true,
             monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "monolith".to_string(),
