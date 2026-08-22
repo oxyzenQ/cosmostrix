@@ -1,15 +1,57 @@
+# Cosmostrix Git Attributes
+# Force consistent behavior across all operating systems (Linux/Windows/macOS)
+# SPDX-License-Identifier: GPL-3.0-only
+
+# Set LF line endings for all text files (auto-detect text vs binary)
 * text=auto eol=lf
 
-*.rs   text eol=lf
-*.toml text eol=lf
-*.md   text eol=lf
-*.yml  text eol=lf
-*.yaml text eol=lf
-*.sh   text eol=lf
+# Shell scripts: LF + mark as executable
+*.sh text eol=lf
 
-*.png  binary
-*.jpg  binary
+# Rust source files (explicit LF)
+*.rs text eol=lf
+*.toml text eol=lf
+
+# Documentation (LF)
+*.md text eol=lf
+*.txt text eol=lf
+*.rst text eol=lf
+
+# Configuration files (LF)
+*.yaml text eol=lf
+*.yml text eol=lf
+*.json text eol=lf
+*.cfg text eol=lf
+*.ini text eol=lf
+
+# Build/generated files (LF)
+*.lock text eol=lf
+Makefile text eol=lf
+Dockerfile* text eol=lf
+
+# Binary files: never modify
+*.png binary
+*.jpg binary
 *.jpeg binary
-*.gif  binary
-*.pdf  binary
-*.zip  binary
+*.gif binary
+*.ico binary
+*.woff binary
+*.woff2 binary
+*.ttf binary
+*.otf binary
+*.eot binary
+
+# Compiled binaries (never touch)
+*.so binary
+*.dylib binary
+*.dll binary
+*.exe binary
+
+# Archives (binary)
+*.tar.* binary
+*.zip binary
+*.gz binary
+*.bz2 binary
+*.xz binary
+*.7z binary
+*.rar binary
