@@ -3,35 +3,21 @@
 
 Cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. `v50.0.0`).
 
-Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archive/CHANGELOG_PRE_V13.md).
+Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archive/CHANGELOG_PRE_V13.md). The summary below covers the full journey from the first public release to the current beta, condensed so users can follow the evolution without wading through per-release minutiae.
 
 ---
 
-## v50.0.0-beta.2 — Three Dragon Engines Stabilization
+## v50.0.0-beta.3 — Three Dragon Engines (Current Beta)
 
-Current release. 230 Rust source files, ~89K LOC, 860+ tests.
-
-Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal
-rain demo to a professional-grade cinematic renderer with three independent
-dragon engines, each owning a distinct concern.
+Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 230+ source files, ~89K LOC, 1580+ tests.
 
 ### The Three Dragon Engines
 
-- **Cosmic Dragon** (`src/cosmic_dragon_engine/`, `src/cosmic_dragon_incubator/`)
-  — Simulation core. Droplet lifecycle, spawn physics, atmospheric evolution,
-  cinematic behaviors, self-healer, phase predictor, and reclaim state.
-  Never touches palette — reads colors produced by Chroma Dragon.
-- **Chroma Dragon** (`src/chroma_dragon_engine/`)
-  — Coloring engine. OKLab gradient palettes, per-cell shader pipeline,
-  climate post-FX (luminance/saturation/hue drift), L-smoothing, and
-  300ms top-to-bottom wave transitions on every color-change path.
-- **Crystal Dragon** (`src/crystal_dragon_engine/`)
-  — Ambient intelligence. CPU/CLOCK-driven palette drift (44 themes in
-  Cold/Medium/Hot groups, probabilistic weighted selection, 60s polling,
-  12% drift chance, 60s dwell hysteresis). Time-of-day ambient scheduler
-  for automatic scene+palette switching via `config.toml`.
+- **Cosmic Dragon** (`src/cosmic_dragon_engine/`) — Simulation core. Droplet lifecycle, spawn physics, atmospheric evolution, cinematic behaviors, self-healer, phase predictor, reclaim state. Never touches palette.
+- **Chroma Dragon** (`src/chroma_dragon_engine/`) — Coloring engine. OKLab gradient palettes, per-cell shader pipeline, climate post-FX (luminance/saturation/hue drift), L-smoothing, 300ms top-to-bottom wave transitions on every color-change path.
+- **Crystal Dragon** (`src/crystal_dragon_engine/`) — Ambient intelligence. CPU/CLOCK-driven palette drift (42 themes in Cold/Medium/Hot groups, probabilistic weighted selection, 60s polling, 12% drift chance, 60s dwell hysteresis). Time-of-day ambient scheduler for automatic scene+palette switching via `config.toml`.
 
-### Architecture & Quality
+### Highlights Since v13
 
 - Module-directory source layout (12 module dirs), extracted from flat `src/`.
 - MSRV 1.97, Clippy `-D warnings` CI gate, Miri nightly validation.
@@ -39,100 +25,74 @@ dragon engines, each owning a distinct concern.
 - Fat LTO, single codegen-unit release profile with platform-specific PGO profiles.
 - Live config reload with SHA-512 fingerprinting and OKLab smooth transitions.
 - Central Control Dragon Power: thermal sampling, endurance health, power management.
-- Performance self-healer, phase predictor, adaptive resync.
 - Terminal protocol detection (kitty, wezterm, alacritty, iTerm2, Windows Terminal, tmux).
-- Synchronized output (`ESC[?2026h`) for tear-free frame delivery.
-- Configurable via CLI flags, `config.toml`, and profiles (CLI > profile > config > defaults).
-- `--doctor` diagnostics, `--benchmark` with JSON output, `--testconf` validation.
-- Cross-platform: Linux, macOS, Windows, FreeBSD, Android.
-- AUR package: `cosmostrix-bin`.
-
-### Scenes & Themes
-
+- Synchronized output (`ESC`) for tear-free frame delivery.
 - 5 scenes: monolith (default), matrix, cinematic, hacker, digital-rain.
 - 44+ builtin color themes with OKLab gradients and climate post-FX.
-- Custom charset support via `--charset-file`.
-- `--color-tune` for runtime saturation/brightness adjustment.
+- `--doctor` diagnostics, `--benchmark` with JSON output, `--testconf` validation.
+- Cross-platform: Linux, macOS, Windows, FreeBSD, Android. AUR package: `cosmostrix-bin`.
 
-### Interactive
+### Interactive Controls
 
-- Keybindings: `q` quit, `Space` pause, `c`/`C` cycle colors, `s`/`S` cycle scenes,
-  `p` profile, `x` random scene, `i` info HUD, `[`/`]` speed, `Up`/`Down` density.
-- Live HUD with FPS, RSS memory, pressure, endurance score.
-- Mouse-click effects (opt-in). Bracketed-paste safe.
+`q` quit · `Space` pause · `c`/`C` cycle colors · `s`/`S` cycle scenes · `x`/`X` random scene · `p` profile · `i` info HUD · `[`/`]` speed · `Up`/`Down` density
 
 ---
 
 ## v50.0.0-alpha.6 — Crystal Dragon Engine + Legacy Purge
 
-- Crystal Dragon Engine: ambient palette drift via CPU/CLOCK → temperature groups.
-- Total removal of old auto-color-drift engine. `--crystal-dragon` promoted to first-class.
-- 44 builtin themes partitioned: 14 Cold + 14 Medium + 14 Hot + 2 Reserved.
+- Introduced Crystal Dragon Engine: ambient palette drift via CPU/CLOCK → temperature groups.
+- Removed old auto-color-drift engine entirely. `--crystal-dragon` promoted to first-class.
 
 ## v50.0.0-alpha.5 — Mouse-Click Effects + Chroma Dragon Sync
 
-- Mouse-click ripple effects (opt-in). OKLab 300ms wave transitions on all palette changes.
-- Smooth OKLab transition on live config reload while running.
+- Mouse-click ripple effects (opt-in).
+- OKLab 300ms wave transitions on all palette changes, including live config reload.
 
-## v50.0.0-alpha.4 — HUD Expansion + Metric Stability
+## v50.0.0-alpha.4 — HUD Expansion
 
-- HUD: scene name, charset, color scheme, uptime, pressure, endurance.
+- HUD now shows scene name, charset, color scheme, uptime, pressure, endurance score.
 - Purged redundant `h` shortkey (superseded by `i` toggle).
 
-## v50.0.0-alpha.1 — Cosmic Dragon Stability + Rain Cleanliness
+## v50.0.0-alpha.1 — Cosmic Dragon Stability
 
 - Cosmic Dragon stability fixes, rain-screen cleanliness audit, IP surface tightening.
 
-## v25.0.0-alpha.7 … v25.0.0-alpha.2 — Dragon Hunt v2 Dead-Code Sweep
+## v25.0.0 — Dragon Hunt v2 Dead-Code Sweep
 
-- Systematic dead-code removal across the full codebase in 5 phases:
-  cloud, config, interactive subsystem, then full-codebase sweep.
+- Systematic dead-code removal across the full codebase in 5 phases (cloud, config, interactive, full sweep).
 - Legacy `--fullwidth` purge (superseded by auto-detection).
 - Cross-scene performance baselines, monolith-style optimizations.
 
-## v20.1.0 — Legacy / Backward-Compat Purge
+## v20.x — Temporal Prediction & Legacy Purge
 
-- Removed deprecated CLI flags and backward-compatibility shims.
-
-## v20.0.0 — Temporal-Prediction Milestone
-
-- Cosmic Dragon phase predictor (P1), adaptive resync (P2), reclaim state (P4).
+- v20.1.0: removed deprecated CLI flags and backward-compatibility shims.
+- v20.0.0: Cosmic Dragon phase predictor (P1), adaptive resync (P2), reclaim state (P4) — the temporal-prediction milestone that gave the renderer self-awareness of long-running drift.
 
 ## v15.0.0 — Cosmic Dragon Pre-Release Polish
 
-- Cosmic Dragon cinematic behaviors, atmospheric evolution, self-healer.
+- Cosmic Dragon cinematic behaviors, atmospheric evolution, self-healer — the renderer becomes a director rather than a feed.
 
 ## v14.0.0 — Scene-Custom Migration (Breaking CLI)
 
-- Breaking: `--scene-custom` migrated to TOML config. New CLI structure.
+- **Breaking**: `--scene-custom` migrated to TOML config. New CLI structure.
 
-## v13.6.0 — CLI Simplification
+## v13.x — Cosmic Dragon Engine Birth
 
-- CLI flag simplification, background mode cleanup.
+The era that turned cosmostrix from "a Matrix rain toy" into "a cinematic renderer". Key milestones:
 
-## v13.4.0 — Screen Size + Duration
-
-- Added `--size` and `--duration` flags.
-
-## v13.3.1 — Cosmic Dragon Performance
-
-- 18 Dragon Eggs, P1/P2/P3 adaptive layers.
-
-## v13.3.0 — Encoding Instrumentation
-
-- SGR cache hit-rate tracking, ANSI bytes/frame metrics.
-
-## v13.2.0 — Render Engine Specification
-
-- Diff engine specification, competitor benchmark comparison.
-
-## v13.1.0 — Shell Completions + Verbose + Help Polish
-
-## v13.0.0 — Alive Rain + Depth-of-Field + Security
+- v13.0.0: Alive rain + depth-of-field + security hardening.
+- v13.1.0: Shell completions, verbose mode, help polish.
+- v13.2.0: Diff-based render engine specification, competitor benchmark comparison.
+- v13.3.0: SGR cache hit-rate tracking, ANSI bytes/frame metrics.
+- v13.3.1: 18 Dragon Eggs, P1/P2/P3 adaptive layers.
+- v13.4.0: Added `--size` and `--duration` flags.
+- v13.6.0: CLI flag simplification, background mode cleanup.
 
 ---
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain
+
+The "real renderer" era. Cosmostrix found its identity here.
 
 - Signature Monolith Rain as the production default (sparse data pillars, segmented blocks).
 - Cosmic Dragon Core/Engine/Cache groundwork for adaptive rendering.
@@ -144,3 +104,41 @@ dragon engines, each owning a distinct concern.
 
 - Atmosphere visual whisper engine, cosmic dragon architecture discipline.
 - Phase 10.5: atmosphere config honesty + profile smoke hardening.
+
+---
+
+## Pre-v13 Era — The Journey From v2 to v12
+
+These releases are documented in detail in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archive/CHANGELOG_PRE_V13.md). The summary below captures the arc.
+
+### v12.0.0 — Protocol Engine
+
+Terminal protocol detection (kitty keyboard, synchronized output, in-band resize reports). Render path respects each terminal's capabilities instead of falling back to lowest-common-denominator.
+
+### v11.x — Cinematic Peak & Benchmark Depth
+
+- v11.1.0: Benchmark reaches S-tier — RSS memory tracking, p99.9 / max frame-time metrics, sub-component timing (sim/render/io), JSON output mode, live HUD overlay. Theme tuning makes the 43 builtin palettes visually distinct.
+- v11.0.0: Cinematic peak. Smoothstep easing on pause/resume, top-to-bottom wave color transitions, mouse-click effects, bracketed-paste safety.
+
+### v10.0.0 — Peak Performance & Stability
+
+Diff-based cell renderer reaches steady state. All known frame-time regressions resolved. Long-run soak tests (10h+) confirm zero leaks in memory, FDs, threads, CPU.
+
+### v5.0.0 — Nightfall
+
+Visual identity overhaul. TrueColor gradients become the default on capable terminals; ANSI 256-color mode remains as a fallback. CRT phosphor decay model replaced with physics-based exponential curve.
+
+### v4.x — Atmosphere Polish
+
+Iterative atmosphere work across v4.5–v4.9: fog vignette tuning, parallax brightness calibration, head self-bloom, climate luminance/saturation minimums, profile luminance offsets. Each release raised the visual floor without changing the architecture from v4.0.0.
+
+### v3.x — The Foundational Era
+
+- v3.9.0: ground-work for v4 (above).
+- v3.1.0: first appearance of droplet physics and the rain-style lifecycle.
+- v3.0.0: initial public release — basic rain rendering, single color, no scenes, no profiles.
+
+### v2.x — Soak & Stability
+
+- v2.1.0: visual contrast & readability overhaul — readable body glyphs, depth-layer visibility, CRT afterglow, pause/resume easing, mouse mode default-off, safe terminal cleanup on all exit paths.
+- v2.0.0: first public-stability release. Stale glyph artifacts fixed, long-idle resync, direct-color auto-detection for `xterm-direct` / `tmux-direct`. 10h+ visual soak checks confirmed no leaks.
