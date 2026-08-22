@@ -8,6 +8,16 @@
 
 ## LOCK
 
+> Engine re-locked at commit `24fa1be` after final dragon audit (v50.0.0-alpha.7).
+> Deep audit confirmed: all zombie symbols purged (transition/ module deleted,
+> theme_group/reserved_themes/polling_duration/min_dwell_duration/effective_mode
+> removed, current_local_hour demoted to #[cfg(test)]). CLI intent guards on
+> live-reload for crystal-dragon, power-dragon, async-mode, monolith-size.
+> 68/68 tests pass. A/B: avg_fps 90,819, 0 alloc/frame, stability=excellent.
+> No regression vs prior baseline.
+>
+> Signoff: **oxyzenQ** — 2026-08-22T16:30:00Z — final dragon audit v50.0.0-alpha.7
+
 > Engine re-locked at commit `0a86ff6` after deep zombie purge and
 > follow-up verification. `crystal_dragon_engine/` was swept in
 > commit `3587ccb` (8 zombies purged: `transition/` module deleted,

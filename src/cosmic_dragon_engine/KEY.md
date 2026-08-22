@@ -8,6 +8,14 @@
 
 ## LOCK
 
+> Engine re-locked at commit `24fa1be` after final dragon audit (v50.0.0-alpha.7).
+> Deep audit confirmed: all color output routes through Chroma Dragon, no
+> hardcoded colors in render paths. A/B benchmark: avg_fps 90,819, peak_rss
+> 4.23 MiB, 0 alloc/frame, frame_jitter=low, frame_time_stability=excellent.
+> 17/17 lock tests pass. No regression vs prior baseline.
+>
+> Signoff: **oxyzenQ** — 2026-08-22T16:30:00Z — final dragon audit v50.0.0-alpha.7
+
 > Engine re-locked at commit `0a86ff6` after deep zombie purge in
 > `cloud/` (5 zombie Cloud methods removed: `rain` wrapper demoted
 > to `#[cfg(test)]`, `set_glitchy` + `set_stuck_cell_sweep` deleted,

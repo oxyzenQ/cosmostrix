@@ -8,6 +8,17 @@
 
 ## LOCK
 
+> Engine re-locked at commit `24fa1be` after final Chroma Dragon integration
+> audit (v50.0.0-alpha.7). Deep audit confirmed: ALL Color::Rgb constructors
+> in render paths route through Chroma Dragon functions (blend_toward_rgb,
+> scale_rgb, apply_brightness_rgb_unclamped, interpolate_palette_color). No
+> hardcoded Color::White or Color::Rgb bypassing the engine. Border gradient
+> fixed: triangle wave eliminates sharp white→black gap on left border.
+> Chroma Dragon Routing Rule codified in RULES.md. 19/19 lock invariants
+> pass. A/B: avg_fps 90,819, 0 alloc/frame, stability=excellent. No regression.
+>
+> Signoff: **oxyzenQ** — 2026-08-22T16:30:00Z — final dragon audit v50.0.0-alpha.7
+
 > Engine re-locked at commit `0a86ff6` after deep zombie audit of
 > `shaders/` (~3900 LOC) confirmed clean — zero zombie symbols found.
 > All `pub(crate)` items verified with production callers: `ShaderCtx`,
