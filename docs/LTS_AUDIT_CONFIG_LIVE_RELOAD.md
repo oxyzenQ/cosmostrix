@@ -169,6 +169,26 @@ are verified stable by this audit.
 
 **Audit signoff**: Task 6 complete. No UNLOCK required for the
 3 Dragon Lock — the config + live-reload subsystem is stable as-is.
+
+## v50-beta.3 Update — Live-Reload Behavior Research
+
+A follow-up research pass (2026-08-22) audited which config keys
+live-reload vs. require restart. The full matrix + masterclass
+solution options are documented in:
+
+→ [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md)
+
+**Key findings**:
+- `crystal-dragon`, `power-dragon`, `async-mode` ✅ live-reload.
+- `message`, `message-border`, `msg-mode` ❌ do NOT live-reload
+  (require restart). This is the primary source of user confusion.
+- `intro-color`, `intro` ❌ do NOT live-reload (one-shot startup).
+- `power-dragon` + `async-mode` live-reload paths lack the CLI intent
+  guard that `crystal-dragon` has — Issue #1 in the research doc.
+
+**Recommendation**: Option D (masterclass) for v50.0.0 stable —
+document the matrix + fix the 2 missing CLI intent guards + add
+live-reload for the 3 message keys.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
