@@ -36,7 +36,7 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "speed",
     "density",
     "monolith-size",
-    "uniform",
+    "async-mode",
     "screensaver",
     "intro",
     "glitch-level",
@@ -95,7 +95,7 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
 /// matching — `--preset` and `--list-presets` are distinct tokens and never
 /// collide. Entries are kept in a roughly longest-first order for human
 /// readability when scanning the table.
-const REMOVED_FLAGS: &[(&str, &str)] = &[
+pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
     (
         "--list-presets",
         "error: --list-presets has been removed in v14.0.0.\n  Use --list-scenes to see all built-in and custom scenes.",
@@ -176,7 +176,11 @@ const REMOVED_FLAGS: &[(&str, &str)] = &[
     ),
     (
         "--async",
-        "error: --async / -a has been removed in v17.0.0.\n  Async variable-pacing (different droplet speeds per column) is now always on.\n  Use --uniform to disable (uniform column speeds).",
+        "error: --async / -a has been removed in v17.0.0.\n  Async variable-pacing (different droplet speeds per column) is now controlled by --async-mode.\n  Use --async-mode false to disable (uniform column speeds) or --async-mode true to enable.",
+    ),
+    (
+        "--uniform",
+        "error: --uniform has been removed in v50-beta.3.\n  Replaced by --async-mode false (same effect: uniform column speeds).\n  Example: cosmostrix --async-mode false",
     ),
     (
         "--brightness",

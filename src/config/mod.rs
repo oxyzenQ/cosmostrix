@@ -332,12 +332,15 @@ pub struct Args {
     pub monolith_size: MonolithSize,
 
     #[arg(
-        long = "uniform",
+        long = "async-mode",
+        value_name = "BOOL",
+        num_args = 1,
+        value_parser = parse_true_false,
         help_heading = "ADVANCED",
         display_order = 57,
-        help = "Uniform column speeds (disables variable pacing for organic rain)"
+        help = "Async variable column speeds (true|false, default: true). false = uniform column speeds"
     )]
-    pub uniform: bool,
+    pub async_mode: Option<bool>,
 
     #[arg(
         short = 's',
@@ -656,11 +659,8 @@ pub struct Args {
     )]
     pub verbose: bool,
 
-    // v17: --async / -a CLI flag REMOVED. Async is always on; use --uniform
-    // to disable. Field kept for internal use.
-    #[arg(skip = true)]
-    pub async_mode: bool,
-
+    // v50-beta.3: --async-mode CLI flag now exists (was config-only).
+    // See the ADVANCED section above for the flag definition.
     #[arg(
         short = 'b',
         long = "bold",

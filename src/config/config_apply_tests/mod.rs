@@ -622,26 +622,66 @@ fn low_power_does_not_override_preset_values() {
     assert!((args.density - 1.10).abs() < f32::EPSILON);
 }
 
-// ── --uniform flag (v13.6.0 Stage 1 CLI simplification) ──
+// ── --async-mode CLI flag (v50-beta.3: replaces --uniform) ──
 
 #[test]
-fn uniform_flag_disables_async_mode() {
-    // --uniform sets args.uniform = true. The effective async_mode
-    // is computed in main.rs as `args.async_mode && !args.uniform`.
-    // Here we verify the flag parses correctly and defaults are sane.
-    let args = args_from_cli(&["--uniform"]);
-    assert!(args.uniform, "--uniform must set args.uniform = true");
-    assert!(
+fn async_mode_flag_false_disables_variable_pacing() {
+    // --async-mode false sets args.async_mode = Some(false).
+    // main.rs computes effective_async = args.async_mode.unwrap_or(true) = false.
+    let args = args_from_cli(&["--async-mode", "false"]);
+    assert_eq!(
         args.async_mode,
-        "async_mode default is still true (uniform overrides later)"
+        Some(false),
+        "--async-mode false must set args.async_mode = Some(false)"
     );
 }
 
 #[test]
-fn uniform_flag_defaults_to_false() {
+fn async_mode_flag_true_enables_variable_pacing() {
+    let args = args_from_cli(&["--async-mode", "true"]);
+    assert_eq!(args.async_mode, Some(true));
+}
+
+#[test]
+fn async_mode_defaults_to_none_when_unset() {
+    // When neither CLI nor config provides a value, args.async_mode stays None.
+    // main.rs applies the default (true) via unwrap_or(true).
     let args = args_from_cli(&[]);
-    assert!(!args.uniform, "uniform must default to false");
-    assert!(args.async_mode, "async_mode must default to true");
+    assert_eq!(args.async_mode, None);
+}
+
+#[test]
+fn async_mode_flag_accepts_yes_no_aliases() {
+    let args = args_from_cli(&["--async-mode", "yes"]);
+    assert_eq!(args.async_mode, Some(true));
+    let args = args_from_cli(&["--async-mode", "no"]);
+    assert_eq!(args.async_mode, Some(false));
+    let args = args_from_cli(&["--async-mode", "1"]);
+    assert_eq!(args.async_mode, Some(true));
+    let args = args_from_cli(&["--async-mode", "0"]);
+    assert_eq!(args.async_mode, Some(false));
+}
+
+#[test]
+fn async_mode_flag_rejects_invalid_value() {
+    // parse_true_false rejects non-boolean values.
+    assert!(crate::config::test_parse_true_false("maybe").is_err());
+}
+
+#[test]
+fn uniform_flag_removed_and_reports_migration_error() {
+    // --uniform was removed in v50-beta.3. It should surface in
+    // REMOVED_FLAGS with a migration message pointing to --async-mode false.
+    // We verify the REMOVED_FLAGS list contains "--uniform".
+    let removed: Vec<&str> = crate::validation::REMOVED_FLAGS
+        .iter()
+        .map(|(f, _)| *f)
+        .collect();
+    assert!(
+        removed.contains(&"--uniform"),
+        "--uniform must be in REMOVED_FLAGS: {:?}",
+        removed
+    );
 }
 
 #[test]

@@ -436,7 +436,7 @@ fn apply_profile_overrides(
     {
         match parse_bool(value) {
             Some(b) => {
-                args.async_mode = b;
+                args.async_mode = Some(b);
                 modified.insert("async_mode");
             }
             None => warn_invalid(name, "async-mode", value, "true, false"),

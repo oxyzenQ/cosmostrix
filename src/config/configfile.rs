@@ -639,7 +639,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # fps = 60                          # 1-240 (default: dynamic — 60 or 144 on high-refresh)
 # speed = 9                         # 1-100 (cinematic default)
 # density = 0.75                    # 0.01-5.0 (cinematic default)
-# async-mode = true                 # variable column speeds
+# async-mode = true                 # variable column speeds (CLI: --async-mode true|false)
 # monolith-size = "normal"          # small | normal | large (monolith scene only)
 
 # Behavior

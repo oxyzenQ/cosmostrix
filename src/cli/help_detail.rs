@@ -69,11 +69,36 @@ COMMON OPTIONS:
       Monolith-only terminal-cell segment scale, not pixel size.
       cosmostrix --scene monolith --monolith-size large
 
-  --uniform
-      Uniform column speeds. Disables the default async variable pacing
-      so all columns move at the same speed. Useful for testing or when
-      you want a rigid, mechanical look instead of organic rain.
-      cosmostrix --uniform
+  --async-mode <true|false>
+      Async variable column speeds (default: true). When false, all
+      columns move at the same speed (uniform pacing) for a rigid,
+      mechanical look instead of organic rain. Replaces the old
+      --uniform flag (removed in v50-beta.3).
+      cosmostrix --async-mode false
+
+  --crystal-dragon <true|false>
+      Crystal Dragon ambient color drift (default: false). When true,
+      enables point-based temperature group system that drifts the
+      color palette based on CPU usage or wall-clock time.
+      cosmostrix --crystal-dragon true
+
+  --power-dragon <true|false>
+      Power Dragon adaptive protection (default: true). When false,
+      disables aggressive throttle + idle FPS reduction — rain stays
+      at user-configured density/speed regardless of CPU pressure.
+      cosmostrix --power-dragon false
+
+  --msg-mode <true|false>
+      Message overlay master switch (default: true). When false,
+      disables BOTH the default message AND any config message/
+      message-border. CLI -m / -mb always wins over msg-mode=false.
+      cosmostrix --msg-mode false
+
+  --intro-color <name>
+      Intro animation color override. Accepts any builtin theme name
+      (see --list-colors) or custom palette name. When unset, the
+      intro uses the same color as the rain.
+      cosmostrix --intro-color energy-zen
 
   -s, --screensaver
       Screensaver mode. Only 'q' exits — all other keys are silently

@@ -481,12 +481,12 @@ fn apply_config_values(
             config_touched.insert("msg-mode");
         }
     }
-    // v17: --async flag removed (always on). Config key 'async-mode' still
-    // respected for users who want to disable it via config. No is_explicit
-    // check needed since the CLI flag is gone.
-    if let Some(v) = cfg.get("async-mode") {
-        if let Some(b) = parse_bool_config("async-mode", v) {
-            args.async_mode = b;
+    // v50-beta.3: --async-mode CLI flag now exists (replaces --uniform).
+    // CLI flag wins over config key (handled by config_value's is_explicit).
+    // Default: true (async variable pacing on) — applied in main.rs.
+    if let Some(v) = config_value(matches, cfg, "async_mode", "async-mode") {
+        if let Some(b) = parse_bool_config("async-mode", &v) {
+            args.async_mode = Some(b);
             config_touched.insert("async_mode");
         }
     }

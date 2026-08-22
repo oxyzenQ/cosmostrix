@@ -962,9 +962,9 @@ fn main() -> std::io::Result<()> {
 
     let default_bg = matches!(args.color_bg, ColorBg::DefaultBackground);
 
-    // v17: --async flag removed. Async is always on (default true).
-    // --uniform disables it (uniform wins = async off).
-    let effective_async = args.async_mode && !args.uniform;
+    // v50-beta.3: --async-mode CLI flag replaces --uniform.
+    // Default: true (async variable pacing on). --async-mode false = uniform.
+    let effective_async = args.async_mode.unwrap_or(true);
 
     // Parse --screen-size once here so verbose block and CloudConfig both
     // see the same validated value (previously verbose used .ok().flatten()

@@ -387,7 +387,11 @@ COMMON OPTIONS
       --scene-custom <name>    Apply a user-defined custom scene from config
       --intro [cosmic|logo|none] Cinematic intro (default: logo)
       --monolith-size <size>   Monolith segment cell scale (small|normal|large)
-      --uniform                Uniform column speeds (disables variable pacing)
+      --async-mode <true|false> Async variable column speeds (default: true)
+      --crystal-dragon <true|false> Crystal Dragon ambient color drift (default: false)
+      --power-dragon <true|false> Power Dragon adaptive protection (default: true)
+      --msg-mode <true|false>  Message overlay master switch (default: true)
+      --intro-color <name>     Intro color override (see --list-colors)
 
 CONFIG
       --config <path>          Load config from an explicit file path
