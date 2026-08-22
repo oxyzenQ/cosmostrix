@@ -15,6 +15,10 @@
 </p>
 
 <p align="center">
+  <em>Experience a masterpiece with cosmostrix.</em>
+</p>
+
+<p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
   </a>
