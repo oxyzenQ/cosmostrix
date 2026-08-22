@@ -300,6 +300,73 @@ pub(crate) fn lookup_theme(name: &str) -> Option<ColorScheme> {
     THEME_LOOKUP.get(key.as_str()).copied()
 }
 
+/// Suggest the closest built-in color theme name to `input` using edit
+/// distance. Returns `Some(name)` if the best match has distance ≤ 2,
+/// or `None` if no theme is close enough.
+///
+/// Used by `--intro-color` and `--color` validation to surface "did you
+/// mean" hints for typos (e.g. `energy-zenn` → `energy-zen`). Also checks
+/// theme aliases (e.g. `deep-sea` is an alias for `ocean`).
+///
+/// Mirrors the logic in `cli::closest_color_name` — kept here so other
+/// call sites (config_apply.rs intro-color validation) can reach it
+/// without going through the CLI parse path.
+#[must_use]
+pub(crate) fn suggest_closest_theme(input: &str) -> Option<&'static str> {
+    let input_lower = input.trim().to_ascii_lowercase();
+    if input_lower.is_empty() {
+        return None;
+    }
+    let mut best: Option<(&'static str, usize)> = None;
+    for theme in THEMES.iter() {
+        let dist = theme_edit_distance(&input_lower, theme.name);
+        if dist <= 2 {
+            match best {
+                None => best = Some((theme.name, dist)),
+                Some((_, d)) if dist < d => best = Some((theme.name, dist)),
+                _ => {}
+            }
+        }
+        for &alias in theme.aliases {
+            let dist = theme_edit_distance(&input_lower, alias);
+            if dist <= 2 {
+                match best {
+                    None => best = Some((theme.name, dist)),
+                    Some((_, d)) if dist < d => best = Some((theme.name, dist)),
+                    _ => {}
+                }
+            }
+        }
+    }
+    best.map(|(name, _)| name)
+}
+
+/// Levenshtein edit distance between two strings. Dedicated copy kept here
+/// so `theme/mod.rs` is self-contained (the `cli::edit_distance` helper is
+/// private to the CLI parse path).
+fn theme_edit_distance(a: &str, b: &str) -> usize {
+    let a: Vec<char> = a.chars().collect();
+    let b: Vec<char> = b.chars().collect();
+    let (m, n) = (a.len(), b.len());
+    if m == 0 {
+        return n;
+    }
+    if n == 0 {
+        return m;
+    }
+    let mut prev: Vec<usize> = (0..=n).collect();
+    let mut curr: Vec<usize> = vec![0; n + 1];
+    for i in 1..=m {
+        curr[0] = i;
+        for j in 1..=n {
+            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
+            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
+        }
+        std::mem::swap(&mut prev, &mut curr);
+    }
+    prev[n]
+}
+
 #[must_use]
 fn metadata_for_scheme(scheme: ColorScheme) -> Option<&'static ThemeInfo> {
     THEMES.iter().find(|theme| theme.scheme == scheme)

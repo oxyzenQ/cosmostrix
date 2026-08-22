@@ -73,6 +73,9 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "check-update",
     "check-updated", // alias of --check-update
     "crystal-dragon",
+    "power-dragon",
+    "msg-mode",
+    "intro-color",
     // HIDDEN (still valid CLI flags)
     "bold",
     "color-bg",
@@ -946,5 +949,54 @@ mod suggest_cli_flag_tests {
         assert_eq!(suggest_cli_flag("fpx"), Some("fps"));
         // --fpxx is distance 2 from --fps, exceeds threshold 1 → None
         assert_eq!(suggest_cli_flag("fpxx"), None);
+    }
+
+    // ── v50-beta.3: new boolean CLI flags "did you mean" coverage ──
+
+    #[test]
+    fn msg_modes_typo_suggests_msg_mode() {
+        // --msg-modes (extra 's') → --msg-mode
+        assert_eq!(suggest_cli_flag("msg-modes"), Some("msg-mode"));
+    }
+
+    #[test]
+    fn power_dragons_typo_suggests_power_dragon() {
+        assert_eq!(suggest_cli_flag("power-dragons"), Some("power-dragon"));
+    }
+
+    #[test]
+    fn intro_colors_typo_suggests_intro_color() {
+        assert_eq!(suggest_cli_flag("intro-colors"), Some("intro-color"));
+    }
+
+    #[test]
+    fn async_modes_typo_suggests_async_mode() {
+        assert_eq!(suggest_cli_flag("async-modes"), Some("async-mode"));
+    }
+
+    #[test]
+    fn msg_mode_missing_hyphen_suggests() {
+        // --msgmode → --msg-mode (distance 1)
+        assert_eq!(suggest_cli_flag("msgmode"), Some("msg-mode"));
+    }
+
+    #[test]
+    fn powerdragon_missing_hyphen_suggests() {
+        assert_eq!(suggest_cli_flag("powerdragon"), Some("power-dragon"));
+    }
+
+    #[test]
+    fn intro_color_typo_value_rejected_with_did_you_mean() {
+        // This tests the THEME value suggestion (not flag suggestion).
+        // --intro-color energy-zenn (theme typo) → suggest_closest_theme.
+        let suggestion = crate::theme::suggest_closest_theme("energy-zenn");
+        assert_eq!(suggestion, Some("energy-zen"));
+    }
+
+    #[test]
+    fn intro_color_completely_unknown_theme_no_suggestion() {
+        // --intro-color xyzqwerty → no close match → None
+        let suggestion = crate::theme::suggest_closest_theme("xyzqwerty");
+        assert_eq!(suggestion, None);
     }
 }

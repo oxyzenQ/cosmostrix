@@ -1137,13 +1137,6 @@ fn config_msg_mode_invalid_value_rejected() {
 // ── v50-beta.3: new CLI flags --intro-color / --power-dragon / --msg-mode / --crystal-dragon ──
 
 #[test]
-fn cli_intro_color_flag_sets_value() {
-    // CLI --intro-color=energy-zen sets args.intro_color.
-    let args = args_with_config("", &["--intro-color", "energy-zen"]);
-    assert_eq!(args.intro_color.as_deref(), Some("energy-zen"));
-}
-
-#[test]
 fn cli_power_dragon_flag_accepts_true_false() {
     // CLI --power-dragon=true → args.power_dragon = Some(true).
     let args = args_with_config("", &["--power-dragon", "true"]);
@@ -1209,11 +1202,39 @@ fn cli_power_dragon_accepts_yes_no_aliases() {
 
 #[test]
 fn cli_intro_color_rejects_unknown_theme() {
-    // CLI --intro-color=not-a-color → error_labeled print (but doesn't fail
-    // startup; the message is printed and the field stays None).
-    // The args_from_cli_result helper exits on clap parse error, so this
-    // test uses args_with_config which goes through the full parse path.
-    // For unknown themes, config_apply prints an error and field stays None.
-    let args = args_with_config("", &["--intro-color", "not-a-color"]);
-    assert_eq!(args.intro_color, None, "unknown theme should not be set");
+    // CLI --intro-color=not-a-color → hard error (exit code 2), not silent.
+    // v50-beta.3: unknown theme must error, not silently fall back to None.
+    let result = args_from_cli_result(&["--intro-color", "not-a-color"]);
+    assert!(
+        result.is_err(),
+        "unknown intro-color theme must be a hard error, got: {result:?}"
+    );
+    let err = result.unwrap_err();
+    assert!(
+        err.contains("invalid intro-color='not-a-color'"),
+        "error message must name the bad value: {err}"
+    );
+    assert!(
+        err.contains("--list-colors"),
+        "error message must point to --list-colors: {err}"
+    );
+}
+
+#[test]
+fn cli_intro_color_typo_suggests_closest_theme() {
+    // CLI --intro-color energy-zenn (typo) → error with "did you mean energy-zen?".
+    let result = args_from_cli_result(&["--intro-color", "energy-zenn"]);
+    assert!(result.is_err());
+    let err = result.unwrap_err();
+    assert!(
+        err.contains("Did you mean 'energy-zen'?"),
+        "error must suggest closest theme: {err}"
+    );
+}
+
+#[test]
+fn cli_intro_color_valid_theme_accepted() {
+    // CLI --intro-color energy-zen (valid) → accepted, no error.
+    let args = args_with_config("", &["--intro-color", "energy-zen"]);
+    assert_eq!(args.intro_color.as_deref(), Some("energy-zen"));
 }

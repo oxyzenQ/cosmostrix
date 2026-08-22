@@ -170,7 +170,10 @@ pub(crate) fn apply_config_and_runtime_defaults(
     //
     // CLI flag --intro-color <name> populates args.intro_color via clap; the
     // config key intro-color = "name" is read from cfg. Either way,
-    // validation must fire to reject unknown theme names.
+    // validation must fire to reject unknown theme names. Unlike other
+    // config values that warn-and-continue, intro-color is a hard error:
+    // the renderer cannot build a palette for a non-existent theme, so we
+    // exit early with a clear message + "did you mean" suggestion.
     let intro_color_value: Option<String> = args
         .intro_color
         .clone()
@@ -182,14 +185,18 @@ pub(crate) fn apply_config_and_runtime_defaults(
             args.intro_color = Some(v);
             config_touched.insert("intro-color");
         } else {
-            crate::output::eprintln_error_labeled(&format!(
-                "invalid intro-color='{v}' — not a builtin theme or custom palette. \
-                 Use --list-colors to see available themes."
+            // Hard error: unknown theme name. Surface a "did you mean"
+            // suggestion if a builtin theme is close (edit distance ≤ 2).
+            let suggestion = crate::theme::suggest_closest_theme(&v);
+            let hint = match suggestion {
+                Some(name) => format!(
+                    "\n  Did you mean '{name}'?\n  Use --list-colors to see all available themes."
+                ),
+                None => String::from("\n  Use --list-colors to see all available themes."),
+            };
+            return Err(format!(
+                "error: invalid intro-color='{v}' — not a builtin theme or custom palette.{hint}"
             ));
-            // Clear invalid CLI value so the renderer falls back to default
-            // (rain color) instead of trying to build a palette for a
-            // non-existent theme.
-            args.intro_color = None;
         }
     }
 
