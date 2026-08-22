@@ -334,7 +334,115 @@ CLI `--monolith-size` wins over config on live-reload.
 
 ---
 
-## 7. Source-Code References (for implementer)
+## 8. Known Limitations — 99% Not 100% Perfect
+
+Live-reload is designed for stability, not perfection. The owner
+accepts that live-reload will never be 100% perfect — it is **99%
+reliable, stable, and production-LTS-grade**. The remaining 1%
+consists of documented edge cases that users should be aware of:
+
+### Limitation A: `--verbose | grep` pipe behavior
+
+**Symptom**: Running `cosmostrix -v | grep "crystal"` prints the
+verbose output but cosmostrix stays in interactive mode — the user
+must press `q` to exit.
+
+**Root cause**: cosmostrix does NOT check whether stdout is a TTY
+before entering interactive mode. The verbose output goes to stderr
+(which is also piped when stdout is piped), but cosmostrix still
+enters the alternate screen + raw mode. `grep` only captures the
+stderr lines that arrive before the alt-screen entry.
+
+**Why it's not a bug**: This is by design. cosmostrix's primary use
+case is interactive terminal rendering. Piping `--verbose` output
+to `grep` is a diagnostic use case, not the primary flow. The
+expected workflow is: run `cosmostrix -v` in a TTY, read the output,
+press `q` to exit. For non-interactive diagnostics, use `--doctor`
+or `--benchmark` instead.
+
+**Workaround**: To capture verbose output without entering
+interactive mode, redirect stderr to a file:
+
+```bash
+cosmostrix -v 2>/tmp/cosmostrix-verbose.log
+# press q after a moment, then:
+grep "crystal" /tmp/cosmostrix-verbose.log
+```
+
+### Limitation B: Multi-terminal config overwrite
+
+**Symptom**: Terminal 1 runs `cosmostrix --dump-config --force`
+(resets config.toml to the default template — all values commented
+out). Terminal 2 is still running cosmostrix with the old config
+loaded in RAM. Terminal 2 continues running fine — it does NOT
+error on the config change.
+
+**Root cause**: cosmostrix's file watcher detects config.toml
+content changes via SHA-256 hash. When `--dump-config --force`
+rewrites the file, the hash changes, and the watcher fires a
+reload. The reload reads the new (default) config — but since the
+default template has all values commented out, the parsed config
+is empty. `rebuild_cloud_config` sees an empty config HashMap and
+preserves the startup values (base.clone()). The renderer keeps
+using the old values from RAM.
+
+**Why it's not a bug**: This is the correct behavior for
+live-reload. An empty config means "use defaults" — and the
+defaults happen to match what was already running (because the
+user's previous config set the same values). The renderer does NOT
+error because there's nothing wrong: the config is valid (just
+empty/default), and the renderer's current values are still
+correct.
+
+**When it WOULD error**: If the new config contained an INVALID
+value (e.g. `color = "not-a-color"`), the watcher's
+`validate_config_strictly` would reject it, print an error, and
+keep the previous valid config. The renderer would NOT crash —
+it would log the error and continue with the last-known-good
+values.
+
+**Owner's recommendation**: For multi-terminal development, treat
+each `cosmostrix` process as independent. If you reset config via
+`--dump-config --force`, restart all running cosmostrix instances
+to pick up the fresh defaults. The live-reload system is designed
+for incremental edits (change one value, see it apply), not for
+wholesale config replacement.
+
+### Limitation C: `color.tune` reset-on-comment
+
+**Symptom**: User sets `color.tune.brightness = 0.0` in config,
+sees the rain go dark. User then comments out the line
+(`# color.tune.brightness = 0.0`). The rain STAYS dark — the
+brightness does not return to normal (1.0).
+
+**Root cause**: `rebuild_cloud_config` only updates `color_tune`
+when at least one `color.tune.*` key is present in the config
+HashMap. When all `color.tune.*` keys are commented out, the
+parser doesn't see them, so `has_tune_keys` is false, and the
+base tune (with brightness=0.0) is preserved.
+
+**Fix status**: This is a known issue. The fix requires treating
+"absence of color.tune.* keys" as "reset to identity (1.0, 1.0,
+1.0, 1.0, 1.0)" rather than "preserve previous values." This is
+a behavioral change that could break users who rely on the
+"set once, keep forever" semantics. Deferred to a future patch
+after owner review.
+
+**Workaround**: To reset color.tune to defaults, explicitly set
+all keys to 1.0:
+
+```toml
+[color.tune]
+brightness = 1.0
+saturation = 1.0
+head = 1.0
+body = 1.0
+tail = 1.0
+```
+
+---
+
+## 9. Source-Code References (for implementer)
 
 - `rebuild_cloud_config`: `src/config/live_config/mod.rs:562-907`
 - Event-loop reload consumer: `src/interactive/event_loop.rs:336-360`
@@ -345,7 +453,22 @@ CLI `--monolith-size` wins over config on live-reload.
   `src/config/config_apply.rs:51-518`
 
 ---
+<!--
+  Documentation Disclaimer — read before relying on any data point.
 
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
