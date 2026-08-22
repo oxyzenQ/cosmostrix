@@ -449,3 +449,19 @@ pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
 /// 200 chars is enough for a sentence or short phrase — the message
 /// box is a overlay, not a full-screen text editor.
 pub(crate) const MESSAGE_MAX_LEN: usize = 200;
+
+/// Default overlay message text shown when neither CLI (-m / -mb) nor
+/// config (`message` / `message-border`) provides a message AND the
+/// interactive mode is active (not benchmark).
+///
+/// Built dynamically from `env!("CARGO_PKG_VERSION")` so the version
+/// number is never stale — it tracks the Cargo.toml `[package] version`
+/// field at compile time. Format: `"cosmostrix v50.0.0-beta.3"`.
+///
+/// Kept as a function (not a `const`) because `format!` is not `const fn`
+/// on stable Rust. The cost is one allocation per process startup, which
+/// is invisible next to the rest of Cloud construction.
+#[must_use]
+pub(crate) fn default_message_text() -> String {
+    format!("cosmostrix v{}", env!("CARGO_PKG_VERSION"))
+}

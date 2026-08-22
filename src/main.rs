@@ -1051,8 +1051,11 @@ fn main() -> std::io::Result<()> {
             crystal_dragon: args.crystal_dragon,
             // v50: Reflect the effective message (after default fallback)
             // so --verbose reports what the renderer actually displays.
+            // Default text is dynamic: "cosmostrix v<CARGO_PKG_VERSION>"
+            // (no hardcoded version — tracks Cargo.toml at compile time).
             message: (!bench_mode && args.message.is_none())
-                .then_some("cosmostrix")
+                .then_some(default_message_text())
+                .as_deref()
                 .or(args.message.as_deref()),
             message_border: args.message_border || (!bench_mode && args.message.is_none()),
             duration: args.duration,
@@ -1107,15 +1110,17 @@ fn main() -> std::io::Result<()> {
         chars,
         // v50: Default message fallback. When neither CLI (-m / -mb) nor
         // config (`message` / `message-border`) provides a message, the
-        // interactive mode shows the project name with a border overlay.
-        // Benchmark mode never shows a message overlay (keeps reports clean).
+        // interactive mode shows "cosmostrix v<CARGO_PKG_VERSION>" with a
+        // border overlay. Version is dynamic (env! CARGO_PKG_VERSION),
+        // never hardcoded. Benchmark mode never shows a message overlay
+        // (keeps reports clean).
         message: {
-            let msg: Option<&str> = if !bench_mode && args.message.is_none() {
-                Some("cosmostrix")
+            let msg: Option<String> = if !bench_mode && args.message.is_none() {
+                Some(default_message_text())
             } else {
-                args.message.as_deref()
+                args.message.clone()
             };
-            msg.map(|m| {
+            msg.as_deref().map(|m| {
                 if m.len() > MESSAGE_MAX_LEN {
                     ux::die_input(format!(
                         "error: -m text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
