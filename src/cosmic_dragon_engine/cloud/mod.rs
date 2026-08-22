@@ -1014,6 +1014,22 @@ impl Cloud {
         let mut border_gradient: Vec<Option<Color>> = vec![None; self.message.len()];
         if palette_n > 0 && self.color_mode != ColorMode::Mono {
             let total_border_f = total_border.max(1) as f32;
+            // BD-02 (Border Dragon): identify corner indices for special coloring.
+            // Corners (╭╮╰╯) use peak brightness to ensure they visually "anchor"
+            // the border and appear seamless with adjacent edges. Owner reported
+            // bottom corners appeared misaligned/faint — this ensures corners
+            // are always fully visible regardless of gradient position.
+            let mut corner_indices: std::collections::HashSet<usize> =
+                std::collections::HashSet::new();
+            for &idx in border_order.iter() {
+                if idx < self.message.len() {
+                    let mc = &self.message[idx];
+                    if matches!(mc.val, '╭' | '╮' | '╰' | '╯') {
+                        corner_indices.insert(idx);
+                    }
+                }
+            }
+
             for (i, &idx) in border_order.iter().take(border_show).enumerate() {
                 if idx >= border_gradient.len() {
                     continue;
@@ -1028,13 +1044,21 @@ impl Cloud {
                 // So left and right borders both get smooth medium colors,
                 // eliminating the sharp gap. All color interpolation still
                 // routes through Chroma Dragon (interpolate_palette_color).
-                let t_raw = i as f32 / total_border_f;
-                let t = if t_raw <= 0.5 {
-                    t_raw * 2.0
+                //
+                // BD-02 enhancement: corners always use t=0.8 (bright) instead
+                // of their triangle-wave position, ensuring they're visually
+                // prominent and anchor the border geometry correctly.
+                let use_t = if corner_indices.contains(&idx) {
+                    0.8 // Bright anchor for corners
                 } else {
-                    2.0 - t_raw * 2.0
+                    let t_raw = i as f32 / total_border_f;
+                    if t_raw <= 0.5 {
+                        t_raw * 2.0
+                    } else {
+                        2.0 - t_raw * 2.0
+                    }
                 };
-                border_gradient[idx] = interpolate_palette_color(palette_colors, t);
+                border_gradient[idx] = interpolate_palette_color(palette_colors, use_t);
             }
         }
 
