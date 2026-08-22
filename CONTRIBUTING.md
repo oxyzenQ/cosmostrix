@@ -70,12 +70,12 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 | Cosmic Dragon | `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs` | Diff-based rendering engine |
 | Chroma Dragon | `src/chroma_dragon_engine/` | OKLab color engine |
 | Cloud | `src/cosmic_dragon_engine/cloud/` | Rain simulation + spawn + render |
-| Droplet | `src/droplet.rs` | Per-droplet visual effects pipeline |
+| Droplet | `src/droplet/mod.rs` | Per-droplet visual effects pipeline |
 | Power | `src/central_control_dragon_power/` | Self-healer + power management |
-| Ambient | `src/ambient*.rs` | Time-of-day scene scheduling |
-| Live reload | `src/live_config*.rs` | Config file watcher + rebuild |
+| Ambient | `src/crystal_dragon_engine/ambient*/mod.rs` | Time-of-day scene scheduling |
+| Live reload | `src/config/live_config*/mod.rs` | Config file watcher + rebuild |
 | Interactive | `src/interactive/` | Event loop + HUD + input + intro |
-| Config | `src/configfile.rs`, `src/config*.rs` | TOML parser + validation |
+| Config | `src/config/configfile.rs`, `src/config/*.rs` | TOML parser + validation |
 
 Full audit: [`docs/audits/COSMIC_DRAGON_AUDIT.md`](docs/audits/COSMIC_DRAGON_AUDIT.md)
 

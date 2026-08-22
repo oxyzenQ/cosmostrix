@@ -139,7 +139,7 @@ the lock commit. Newest entries go at the TOP.
 - Live reload: <PASS/FAIL — condvar wakes thread immediately>
 - CPU between phases: <0% confirmed via pidstat>
 
-**Tests**: <N>/1587 pass (must be 1587/1587 or new total if tests added)
+**Tests**: <N>/1581 pass (must be 1581/1581 or new total if tests added)
 ```
 
 ### Example (hypothetical, to be deleted once the first real UNLOCK lands)

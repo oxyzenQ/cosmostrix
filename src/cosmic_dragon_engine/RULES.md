@@ -112,7 +112,7 @@ the lock commit. Newest entries go at the TOP.
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
 
-**Tests**: <N>/1594 pass (must be 1594/1594 or new total if tests added)
+**Tests**: <N>/1581 pass (must be 1581/1581 or new total if tests added)
 ```
 
 ### Example (hypothetical, to be deleted once the first real UNLOCK lands)

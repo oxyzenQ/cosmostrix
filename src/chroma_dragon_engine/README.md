@@ -31,7 +31,7 @@ this directory has been audited for:
   source of truth for color scheme → palette mapping. OKLab gradient
   interpolation (`gradient.rs`) is the sole production path (Phase 9-A
   → 9-D, sRGB-linear fallback removed).
-- **Stability** — 1594/1594 tests pass, 0 clippy warnings. Lock suite
+- **Stability** — 1581/1581 tests pass, 0 clippy warnings. Lock suite
   (`chroma_dragon_engine/tests/lock.rs`, 1060 LOC) asserts the engine's
   public contract on every commit.
 

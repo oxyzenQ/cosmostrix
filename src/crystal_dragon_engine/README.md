@@ -32,7 +32,7 @@ The code in this directory has been audited for:
   temperature groups (Cold/Medium/Hot, 14 each) + 2 reserved (Rainbow,
   Spectrum20). calc-v1 probabilistic weighted selection (the locked
   algorithm; calc-v2 reserved for future).
-- **Stability** — 1594/1594 tests pass, 0 clippy warnings. Per-
+- **Stability** — 1581/1581 tests pass, 0 clippy warnings. Per-
   subsystem test files (`*/tests.rs`) cover all public contracts.
 
 ## Audit Findings (No Code Changes Required)
@@ -72,25 +72,15 @@ The audit confirmed the engine is already at peak. Specifically:
 - **Uniform fallback** (when all weights sum to zero — impossible with
   current formula but defensive): uniform random index, modulo skip.
 
-### 3. Palette groups (`palette_groups/mod.rs`, 172 LOC)
+### 3. Palette groups (`palette_groups/mod.rs`, 129 LOC)
 
 - **`group_themes()`** returns `&'static [ColorScheme]` — no allocation,
   const slices.
-- **`theme_group()`** reverse lookup uses match-on-enum (branch table,
-  no hash). Returns `Option<TemperatureGroup>` — `None` for reserved
-  themes (Rainbow, Spectrum20).
 - **`theme_weight()`** — pure function, no allocation. `super::sensor::
   point_to_group()` and `super::sensor::group_point_range()` are also
   pure (no mutation, no allocation).
 
-### 4. Transition bridge (`transition/mod.rs`, 50 LOC)
-
-- **`CrystalDragonDrift` enum** — `NoDrift` / `Drift(ColorScheme)`.
-  Two variants, `repr` implicitly `u8`-sized.
-- **Delegates to Chroma Dragon** — `Cloud::set_color_scheme(new_scheme)`
-  triggers the 300ms OKLab wave transition. Crystal never paints pixels.
-
-### 5. Ambient scheduler (`ambient_scheduler/mod.rs`, 378 LOC)
+### 4. Ambient scheduler (`ambient_scheduler/mod.rs`, 378 LOC)
 
 - **Dynamic idle/wake**: thread computes `time_to_next_phase`, sleeps
   in `Condvar::wait_timeout` until boundary OR condvar notify. **Zero
@@ -103,7 +93,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`spawn_ambient_scheduler()`** returns `AmbientSchedulerHandle`
   with `rx` (mpsc) + `reload()` method. No blocking.
 
-### 6. Ambient (`ambient/mod.rs`, 520 LOC)
+### 5. Ambient (`ambient/mod.rs`, 520 LOC)
 
 - **`AmbientEntry`** — `(HH, MM, scene_name: String)`. Heap-allocated
   string is intentional (cold path, parsed once at config load).
@@ -112,7 +102,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`apply_ambient_entry()`** — applies scene + palette, sets
   `ambient_palette_locked = true`. Idempotent (safe to call twice).
 
-### 7. Diagnostics (`ambient_diag.rs`, 88 LOC)
+### 6. Diagnostics (`ambient_diag.rs`, 88 LOC)
 
 - **All counters are `AtomicU64`** — no Mutex contention, no allocation.
 - **`LAST_SCENE_CHANGE: Mutex<Option<String>>`** — only Mutex in the
@@ -121,7 +111,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`ambient_diag_summary()`** — formats a single string on exit. Cold
   path, no per-frame cost.
 
-### 8. Control config (`crystal_dragon_control/mod.rs`, 134 LOC)
+### 7. Control config (`crystal_dragon_control/mod.rs`, 134 LOC)
 
 - **`CrystalDragonControl` struct** — 6 fields, all `f32` or `enum`.
   `Copy` + `Clone` derived. Stack-allocated, no heap.
@@ -155,14 +145,13 @@ is the appropriate action.
 | `crystal_dragon_engine/ambient/mod.rs`     |    520 | Time-of-day schedule types, config parsing, validation, startup apply |
 | `crystal_dragon_engine/ambient_scheduler/mod.rs` | 378 | Dynamic idle/wake scheduler thread (zero CPU between phase boundaries) |
 | `crystal_dragon_engine/sensor/mod.rs`     |    276 | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1–99 point.    |
-| `crystal_dragon_engine/palette_groups/mod.rs` | 172 | 44 themes → Cold(14) / Medium(14) / Hot(14) + Reserved(2)             |
+| `crystal_dragon_engine/palette_groups/mod.rs` | 129 | 44 themes → Cold(14) / Medium(14) / Hot(14) + Reserved(2)             |
 | `crystal_dragon_engine/point_system/mod.rs` |  126 | calc-v1: probabilistic weighted theme selection (CDF + binary search) |
 | `crystal_dragon_engine/crystal_dragon_control/mod.rs` | 134 | Config struct + constants (polling, drift chance, EMA alpha, sensor mode, calc method) |
 | `crystal_dragon_engine/ambient_diag.rs`   |     88 | Atomic counters for diagnostics + exit summary                        |
-| `crystal_dragon_engine/transition/mod.rs` |     50 | Bridge to Chroma Dragon `Cloud::set_color_scheme()` for OKLab fades   |
 | `crystal_dragon_engine/mod.rs`            |     74 | Top-level module doc + re-exports                                    |
 
-**Total**: 1,818 LOC production + 1,108 LOC test suite = 2,926 LOC.
+**Total**: 1,707 LOC production + 1,031 LOC test suite = 2,738 LOC.
 
 ## Owner Decisions (Locked)
 

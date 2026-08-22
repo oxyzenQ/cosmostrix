@@ -50,7 +50,6 @@ src/
 ├── interactive/               ← event loop, HUD, intro, input handling
 ├── output/                    ← output, report, verbose, ux, message
 ├── platform/                  ← platform detection, panic hook, update
-├── profile/                   ← profile presets
 ├── safepath/                  ← path validation (security)
 ├── scene/                     ← scene + charset + charset_custom
 ├── scene_custom/              ← custom scene definitions

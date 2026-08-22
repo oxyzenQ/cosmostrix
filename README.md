@@ -67,11 +67,11 @@ The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color wo
 - **Body-tail continuity** (Phase 7-d) — enforces a 2.0× max adjacent brightness gap, killing the horizontal-line illusion at high rain speed
 - **Hue-preserving polar gradient** (Phase 9-A → 9-D) — sole production OKLab path (Cartesian removed); fully saturated midpoints on opposing-hue gradients
 
-See `cosmostrix --docs` for the full technical breakdown, or run `cargo test lock_tests -- --nocapture` to print the engine lock report.
+See `cosmostrix --docs` for the full technical breakdown, or run `cargo test lock -- --nocapture` to print the engine lock report.
 
 ### The Crystal Dragon Ambient Intelligence Engine
 
-Lives under `src/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `sensor`, `palette_groups`, `transition`, `point_system`, `crystal_dragon_control`). Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
+Lives under `src/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `sensor`, `palette_groups`, `point_system`, `crystal_dragon_control`). Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
 
 ## Architecture
 
@@ -637,7 +637,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-cargo test chroma_dragon::tests::lock -- --nocapture            # print the Chroma Dragon engine lock report
+cargo test chroma_dragon_engine::tests::lock -- --nocapture  # print the Chroma Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture  # print the Cosmic Dragon engine lock report
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```

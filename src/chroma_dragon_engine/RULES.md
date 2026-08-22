@@ -44,7 +44,7 @@ Before opening a PR that touches any locked file, you MUST:
 2. **Run the lock suite explicitly**:
 
    ```bash
-   cargo test --quiet chroma::tests::lock
+   cargo test --quiet chroma_dragon_engine::tests::lock
    ```
 
    All 19 invariants must pass before AND after your change. If your
@@ -137,7 +137,7 @@ contract intentionally changed, in which case update the count)
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
 
-**Tests**: <N>/1594 pass (must be 1594/1594 or new total if tests added)
+**Tests**: <N>/1581 pass (must be 1581/1581 or new total if tests added)
 ```
 
 ### Example (hypothetical, to be deleted once the first real UNLOCK lands)

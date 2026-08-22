@@ -15,22 +15,27 @@ rendering strategies.
 
 ---
 
-## 0. Source of Truth — Flat Engine Topology (Non-Negotiable)
+## 0. Source of Truth — Consolidated Engine Layout
 
-The Cosmic Dragon Diff-Based Rendering Engine is **three files, flat at
-the crate root**, and that is the end of the discussion.
+The Cosmic Dragon Diff-Based Rendering Engine lives under
+`src/cosmic_dragon_engine/` (4 subsystems: `cloud/`, `frame.rs`,
+`terminal/`, `runtime.rs`), re-exported at the crate root via
+`pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};`
+in `main.rs` so all `crate::cloud::*` / `crate::frame::*` /
+`crate::runtime::*` / `crate::terminal::*` call sites resolve unchanged.
 
 | File | LOC | Role |
 |------|----:|------|
-| `src/cosmic_dragon_engine/frame.rs` | 368 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/cosmic_dragon_engine/terminal/` | 1,332 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
+| `src/cosmic_dragon_engine/frame.rs` | 404 | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/cosmic_dragon_engine/terminal/` | ~2,250 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
 | `src/cosmic_dragon_engine/terminal/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
-| `src/cosmic_dragon_engine/runtime.rs` | 91 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode` |
+| `src/cosmic_dragon_engine/runtime.rs` | 312 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
 
-Total: 1,992 LOC. Imported by **every render-path module** across `src/`
-(frame: 25 import lines, terminal: 10, runtime: 34). These are not a
-subsystem — they are the **substrate** every rendering path stands on.
-Foundations do not get relocated; they get maintained.
+Total: ~2,964 LOC (excluding tests). Imported by **every render-path
+module** across `src/` (frame: 25 import lines, terminal: 10, runtime:
+34). These are not a subsystem — they are the **substrate** every
+rendering path stands on. Foundations do not get relocated; they get
+maintained.
 
 ### Why not a folder?
 

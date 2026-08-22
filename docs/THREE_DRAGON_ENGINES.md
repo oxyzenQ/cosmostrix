@@ -17,7 +17,7 @@ Cloud (frame state)
   - behavior         - OKLab            - ambient
 ```
 
-## 1. Cosmic Dragon — `src/cosmic_dragon_incubator/`
+## 1. Cosmic Dragon — `src/cosmic_dragon_engine/`
 
 The simulation core. Owns droplet lifecycle, spawn physics, atmospheric
 evolution, cinematic behavior profiles, and the self-healer. Reads
@@ -63,13 +63,12 @@ keys) clear the lock; auto-snapback restores after 30s idle.
 
 | File | Role |
 |------|------|
-| `crystal_dragon_control.rs` | Config: polling 60s, calc-v1, CPU/CLOCK mode |
-| `sensor.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
-| `palette_groups.rs` | 44 themes → Cold/Medium/Hot partition |
-| `point_system.rs` | calc-v1: probabilistic weighted CDF selection |
-| `transition.rs` | Hook → Chroma Dragon `set_color_scheme()` |
-| `ambient.rs` | Schedule types, parsing, validation, startup apply |
-| `ambient_scheduler.rs` | Background thread: fire entries on schedule |
+| `crystal_dragon_control/mod.rs` | Config: polling 60s, calc-v1, CPU/CLOCK mode |
+| `sensor/mod.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
+| `palette_groups/mod.rs` | 44 themes → Cold/Medium/Hot partition |
+| `point_system/mod.rs` | calc-v1: probabilistic weighted CDF selection |
+| `ambient/mod.rs` | Schedule types, parsing, validation, startup apply |
+| `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |
 | `ambient_diag.rs` | Diagnostics counters (exit summary) |
 
 ---

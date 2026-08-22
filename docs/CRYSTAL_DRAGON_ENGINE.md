@@ -31,9 +31,8 @@ shader.
 |------|------|-----|
 | `crystal_dragon_control/mod.rs` | Config struct + defaults (polling interval, sensor mode, calc method, drift chance, EMA alpha) | 134 |
 | `sensor/mod.rs` | CPU sampling (procfs) + CLOCK fallback (UTC time). Produces a 1–99 **point**. | 276 |
-| `palette_groups/mod.rs` | 44 builtin themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2). | 172 |
+| `palette_groups/mod.rs` | 44 builtin themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2). | 129 |
 | `point_system/mod.rs` | calc-v1: probabilistic weighted theme selection within the current group. | 126 |
-| `transition/mod.rs` | Bridges to Chroma Dragon `Cloud::set_color_scheme()` for OKLab smooth fades. | 50 |
 | `ambient/mod.rs` | Time-of-day schedule types, config parsing, validation, startup apply. | 520 |
 | `ambient_scheduler/mod.rs` | Background **dynamic idle/wake** thread that fires phase boundaries. | 378 |
 | `ambient_diag.rs` | Diagnostics counters (exit summary, `ambient_diag_summary()`). | 88 |
@@ -177,13 +176,6 @@ fit a single temperature. They remain available via explicit
 `--color <name>` selection, but the Crystal Dragon will never drift
 into them.
 
-### 5.5 Reverse lookup
-
-`theme_group(scheme: ColorScheme) -> Option<TemperatureGroup>` returns
-the group for any builtin scheme, or `None` for reserved themes. This
-is the **exact reverse** of `group_themes()` — every theme listed in a
-group is classified into that group.
-
 ## 6. calc-v1 Selection Algorithm (Source: `point_system/mod.rs`)
 
 When a drift event fires (12 % chance per poll tick), the engine runs
@@ -223,23 +215,16 @@ If all weights sum to zero (degenerate case — impossible with the
 current weight formula but defensive), `uniform_select()` picks a
 random theme, skipping the current one.
 
-## 7. Transition Bridge (Source: `transition/mod.rs`)
+## 7. Transition Bridge
 
 The Crystal Dragon does **not** implement its own visual transition.
 It delegates entirely to the Chroma Dragon's proven 300 ms OKLab wave
 shader via `Cloud::set_color_scheme(new_scheme)`.
 
-`crystal_dragon_tick()` returns a `CrystalDragonDrift` enum:
-
-```rust
-pub(crate) enum CrystalDragonDrift {
-    NoDrift,             // No drift this tick
-    Drift(ColorScheme),  // Drift to new theme — caller invokes
-                         // Cloud::set_color_scheme(new_scheme)
-}
-```
-
-The caller (in `cloud/rain.rs`) handles the actual apply, which:
+`crystal_dragon_tick()` returns `Option<ColorScheme>` directly —
+`Some(scheme)` when a drift event fires and a new theme is selected,
+`None` otherwise. The caller (in `cloud/rain.rs`) handles the actual
+apply, which:
 
 1. Advances the palette circular buffer slot.
 2. Stores the new palette.
@@ -394,9 +379,9 @@ phase and are now invariants of the engine:
 
 ### 11.1 Crystal → Chroma (transition delegation)
 
-When Crystal selects a new theme, it returns a `CrystalDragonDrift::Drift(scheme)`
-variant. The caller invokes `Cloud::set_color_scheme(scheme)`, which
-triggers the Chroma Dragon's 300 ms OKLab wave transition. Crystal
+When Crystal selects a new theme, `crystal_dragon_tick()` returns
+`Some(new_scheme)`. The caller invokes `Cloud::set_color_scheme(new_scheme)`,
+which triggers the Chroma Dragon's 300 ms OKLab wave transition. Crystal
 never paints pixels.
 
 ### 11.2 Crystal ← User override (`c`/`C`/`x` keys)
@@ -438,7 +423,6 @@ test subdir convention). Tests cover:
 | `sensor` | `sensor/tests.rs` | Point-to-group mapping, group-point-range bounds, CLOCK fallback math |
 | `palette_groups` | `palette_groups/tests.rs` | All 44 themes classified, no orphan themes, group counts (14/14/14/2) |
 | `point_system` | `point_system/tests.rs` | calc-v1 distribution properties, no-op skip behavior, uniform fallback |
-| `transition` | `transition/tests.rs` | `CrystalDragonDrift` enum semantics |
 | `ambient` | `ambient/tests.rs` | Config parsing, validation, scene-custom interaction, startup apply |
 | `ambient_scheduler` | `ambient_scheduler/tests.rs` | Dynamic idle/wake timing, reload behavior, edge cases |
 
@@ -464,19 +448,16 @@ src/crystal_dragon_engine/
 │   ├── mod.rs                      # Config struct + constants (134 LOC)
 │   └── tests.rs                    # Control tests (44 LOC)
 ├── palette_groups/
-│   ├── mod.rs                      # 44 themes → 3 groups (172 LOC)
+│   ├── mod.rs                      # 44 themes → 3 groups (129 LOC)
 │   └── tests.rs                    # Group tests (116 LOC)
 ├── point_system/
 │   ├── mod.rs                      # calc-v1 weighted selection (126 LOC)
 │   └── tests.rs                    # Point system tests (98 LOC)
-├── sensor/
-│   ├── mod.rs                      # CPU + CLOCK sensor (276 LOC)
-│   └── tests.rs                    # Sensor tests (91 LOC)
-└── transition/
-    ├── mod.rs                      # Chroma Dragon bridge (50 LOC)
-    └── tests.rs                    # Transition tests (26 LOC)
+└── sensor/
+    ├── mod.rs                      # CPU + CLOCK sensor (276 LOC)
+    └── tests.rs                    # Sensor tests (91 LOC)
 
-Total: 2,910 LOC (production) + 1,108 LOC (tests) = 4,018 LOC
+Total: 1,707 LOC (production) + 1,031 LOC (tests) = 2,738 LOC
 ```
 
 ## 14. See Also

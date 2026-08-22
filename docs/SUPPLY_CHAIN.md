@@ -20,6 +20,8 @@ Every dependency that ships with Cosmostrix must be auditable. The CI pipeline e
 | `signal-hook` | `0.3` (Unix only) | Graceful shutdown on SIGTERM/SIGHUP/SIGQUIT (v25.13: SIGINT deprecated) | No | No |
 | `libc` | `0.2` (Linux only) | Low-level syscall bindings for terminal size queries | No | No |
 | `ctrlc` | `3.4` (Windows only) | Graceful shutdown handler for Windows console Ctrl-C/SIGBREAK | No | No |
+| `notify` | `>=6.1, <7` (default-features = false) | Cross-platform filesystem watcher for live config reload | No | No |
+| `sha2` | `0.10` | SHA-512 for config.toml hashing (live-reload change detection, dump/testconf fingerprints) | No | No |
 
 ### Policy Rules
 

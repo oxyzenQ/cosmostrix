@@ -54,7 +54,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 |-----|--------|
 | [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/chroma_dragon_engine/`) |
 | [src/chroma_dragon_engine/catalog.rs](../src/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
-| [src/chroma_dragon_engine/palette.rs](../src/chroma_dragon_engine/palette.rs) | Palette construction, OKLab interpolation |
+| [src/chroma_dragon_engine/palette/mod.rs](../src/chroma_dragon_engine/palette/mod.rs) | Palette construction, OKLab interpolation |
 | [src/chroma_dragon_engine/tuning.rs](../src/chroma_dragon_engine/tuning.rs) | `--color-tune` key=value tuning |
 
 **Adding a new color theme**: add a variant to `ColorScheme` in `src/cosmic_dragon_engine/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
@@ -112,6 +112,6 @@ cosmostrix --doctor && cosmostrix --benchmark --bench-duration 5s
 
 ## Key Invariants & Doc Maintenance
 
-**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/lock_tests.rs`, `src/chroma_dragon_engine/lock_tests.rs`) must pass on every commit.
+**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/tests/lock.rs`, `src/chroma_dragon_engine/tests/lock.rs`) must pass on every commit.
 
 **Adding a doc**: place in `docs/` (or `docs/workflow/`), add to this index, add to README Documentation list, add SPDX header, cross-link from related docs. **Removing/renaming**: grep for old filename, update all cross-references, remove from this index and README list.
