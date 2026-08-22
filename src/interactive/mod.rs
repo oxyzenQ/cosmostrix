@@ -82,14 +82,232 @@ static FINAL_SCENE: OnceLock<String> = OnceLock::new();
 static FINAL_CHARSET: OnceLock<String> = OnceLock::new();
 static FINAL_SPEED: OnceLock<f32> = OnceLock::new();
 static FINAL_DENSITY: OnceLock<f32> = OnceLock::new();
+// v50.0.0-alpha.7: extended final-state tracking for live-reload honesty.
+// Owner found that --verbose showed startup values (e.g. msg_mode=true)
+// instead of the effective runtime values (e.g. msg_mode=false after
+// live-reload edit). These fields are now tracked + printed post-exit.
+static FINAL_MSG_MODE: OnceLock<bool> = OnceLock::new();
+static FINAL_MESSAGE: OnceLock<Option<String>> = OnceLock::new();
+static FINAL_MESSAGE_BORDER: OnceLock<bool> = OnceLock::new();
+static FINAL_POWER_DRAGON: OnceLock<bool> = OnceLock::new();
+static FINAL_CRYSTAL_DRAGON: OnceLock<bool> = OnceLock::new();
+static FINAL_ASYNC_MODE: OnceLock<bool> = OnceLock::new();
+static FINAL_INTRO_COLOR: OnceLock<Option<String>> = OnceLock::new();
 
 /// Store final runtime state for post-exit verbose summary.
-pub(crate) fn set_final_state(color: &str, scene: &str, charset: &str, speed: f32, density: f32) {
+///
+/// v50.0.0-alpha.7: extended with msg_mode, message, message_border,
+/// power_dragon, crystal_dragon, async_mode, intro_color — so the
+/// post-exit "final runtime state" section reflects ALL live-reload
+/// changes, not just color/scene/charset/speed/density.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn set_final_state(
+    color: &str,
+    scene: &str,
+    charset: &str,
+    speed: f32,
+    density: f32,
+    msg_mode: bool,
+    message: Option<&str>,
+    message_border: bool,
+    power_dragon: bool,
+    crystal_dragon: bool,
+    async_mode: bool,
+    intro_color: Option<&str>,
+) {
     let _ = FINAL_COLOR.set(color.to_string());
     let _ = FINAL_SCENE.set(scene.to_string());
     let _ = FINAL_CHARSET.set(charset.to_string());
     let _ = FINAL_SPEED.set(speed);
     let _ = FINAL_DENSITY.set(density);
+    let _ = FINAL_MSG_MODE.set(msg_mode);
+    let _ = FINAL_MESSAGE.set(message.map(|s| s.to_string()));
+    let _ = FINAL_MESSAGE_BORDER.set(message_border);
+    let _ = FINAL_POWER_DRAGON.set(power_dragon);
+    let _ = FINAL_CRYSTAL_DRAGON.set(crystal_dragon);
+    let _ = FINAL_ASYNC_MODE.set(async_mode);
+    let _ = FINAL_INTRO_COLOR.set(intro_color.map(|s| s.to_string()));
+}
+
+/// v50.0.0-alpha.7: accessor for final msg_mode (post-live-reload).
+pub(crate) fn last_msg_mode() -> bool {
+    *FINAL_MSG_MODE.get().unwrap_or(&true)
+}
+
+/// v50.0.0-alpha.7: accessor for final message text (post-live-reload).
+pub(crate) fn last_message() -> Option<&'static str> {
+    FINAL_MESSAGE.get().and_then(|m| m.as_deref())
+}
+
+/// v50.0.0-alpha.7: accessor for final message_border (post-live-reload).
+pub(crate) fn last_message_border() -> bool {
+    *FINAL_MESSAGE_BORDER.get().unwrap_or(&false)
+}
+
+/// v50.0.0-alpha.7: accessor for final power_dragon (post-live-reload).
+pub(crate) fn last_power_dragon() -> bool {
+    *FINAL_POWER_DRAGON.get().unwrap_or(&true)
+}
+
+/// v50.0.0-alpha.7: accessor for final crystal_dragon (post-live-reload).
+pub(crate) fn last_crystal_dragon() -> bool {
+    *FINAL_CRYSTAL_DRAGON.get().unwrap_or(&false)
+}
+
+/// v50.0.0-alpha.7: accessor for final async_mode (post-live-reload).
+pub(crate) fn last_async_mode() -> bool {
+    *FINAL_ASYNC_MODE.get().unwrap_or(&true)
+}
+
+/// v50.0.0-alpha.7: accessor for final intro_color (post-live-reload).
+pub(crate) fn last_intro_color() -> Option<&'static str> {
+    FINAL_INTRO_COLOR.get().and_then(|m| m.as_deref())
+}
+
+/// v50.0.0-alpha.7: print "final runtime state" section showing live-reload
+/// changes between startup and exit. Extracted from main.rs to keep that
+/// file under the 1500-LOC cap.
+///
+/// Compares startup CloudConfig values against the final OnceLock values
+/// set by `set_final_state`. Only prints fields that actually changed
+/// during the session (live-reload edits). Honest reporting: shows the
+/// EFFECTIVE runtime value (post-live-reload), not the startup value.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn print_final_runtime_state(
+    startup_color: &str,
+    startup_scene: &str,
+    startup_charset: &str,
+    startup_speed: f32,
+    startup_density: f32,
+    startup_msg_mode: bool,
+    startup_message: Option<&str>,
+    startup_message_border: bool,
+    startup_power_dragon: bool,
+    startup_crystal_dragon: bool,
+    startup_async_mode: bool,
+    startup_intro_color: Option<&str>,
+) {
+    let final_color = last_color_scheme();
+    let final_scene = last_scene_name();
+    let final_charset = last_charset_preset();
+    let final_speed = last_speed();
+    let final_density = last_density();
+    let final_msg_mode = last_msg_mode();
+    let final_message = last_message();
+    let final_message_border = last_message_border();
+    let final_power_dragon = last_power_dragon();
+    let final_crystal_dragon = last_crystal_dragon();
+    let final_async_mode = last_async_mode();
+    let final_intro_color = last_intro_color();
+
+    let changed = final_color != startup_color
+        || final_scene != startup_scene
+        || final_charset != startup_charset
+        || (final_speed - startup_speed).abs() >= 0.01
+        || (final_density - startup_density).abs() >= 0.01
+        || final_msg_mode != startup_msg_mode
+        || final_message != startup_message
+        || final_message_border != startup_message_border
+        || final_power_dragon != startup_power_dragon
+        || final_crystal_dragon != startup_crystal_dragon
+        || final_async_mode != startup_async_mode
+        || final_intro_color != startup_intro_color;
+
+    if !changed {
+        return;
+    }
+
+    let ts = crate::output::now_hhmm();
+    let purple = crate::output::brand_open();
+    let reset = crate::output::reset();
+    crate::output::eprintln_verbose_purple("final runtime state");
+
+    if final_color != startup_color {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
+            final_color,
+            startup_color
+        );
+    }
+    if final_scene != startup_scene {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  scene:{reset}         {} (was {})",
+            final_scene,
+            startup_scene
+        );
+    }
+    if final_charset != startup_charset {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  charset:{reset}       {} (was {})",
+            final_charset,
+            startup_charset
+        );
+    }
+    if (final_speed - startup_speed).abs() >= 0.01 {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  speed:{reset}         {:.1} (was {:.1})",
+            final_speed,
+            startup_speed
+        );
+    }
+    if (final_density - startup_density).abs() >= 0.01 {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  density:{reset}       {:.2} (was {:.2})",
+            final_density,
+            startup_density
+        );
+    }
+    if final_msg_mode != startup_msg_mode {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  msg_mode:{reset}       {} (was {})",
+            final_msg_mode,
+            startup_msg_mode
+        );
+    }
+    if final_message != startup_message {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  message:{reset}        {:?} (was {:?})",
+            final_message,
+            startup_message
+        );
+    }
+    if final_message_border != startup_message_border {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  message_border:{reset} {} (was {})",
+            final_message_border,
+            startup_message_border
+        );
+    }
+    if final_power_dragon != startup_power_dragon {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  power_dragon:{reset}   {} (was {})",
+            final_power_dragon,
+            startup_power_dragon
+        );
+    }
+    if final_crystal_dragon != startup_crystal_dragon {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  crystal_dragon:{reset} {} (was {})",
+            final_crystal_dragon,
+            startup_crystal_dragon
+        );
+    }
+    if final_async_mode != startup_async_mode {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  async_mode:{reset}     {} (was {})",
+            final_async_mode,
+            startup_async_mode
+        );
+    }
+    if final_intro_color != startup_intro_color {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  intro_color:{reset}     {:?} (was {:?})",
+            final_intro_color,
+            startup_intro_color
+        );
+    }
+    let diag = ambient_diag_summary();
+    crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
 }
 
 /// AB-10 (rain-screen cleanliness): emit pre-alt-screen warnings to stderr

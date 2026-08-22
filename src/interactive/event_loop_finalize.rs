@@ -129,6 +129,14 @@ pub(crate) fn finalize_session(
         charset_preset,
         cloud.chars_per_sec,
         cloud.droplet_density,
+        // v50.0.0-alpha.7: extended fields for live-reload honesty.
+        cfg.msg_mode,
+        cfg.message.as_deref(),
+        cfg.message_border,
+        cfg.power_dragon,
+        cfg.crystal_dragon,
+        cfg.async_mode,
+        cfg.intro_color.as_deref(),
     );
 
     // AB-10: only print final FPS when --perf-stats is requested.

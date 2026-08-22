@@ -918,7 +918,6 @@ fn main() -> std::io::Result<()> {
     let user_ranges: Vec<(char, char)> = Vec::new();
 
     let charset_preset = normalize_charset_preset_name(&args.charset);
-    let startup_charset = charset_preset.clone();
 
     // v25: Custom charset loading from [charset-custom.<name>] in config.toml.
     // Replaces the legacy --charset-file CLI flag. If `args.charset` (after
@@ -1316,76 +1315,35 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.verbose && result.is_ok() {
-        let final_color = interactive::last_color_scheme();
-        let final_scene = interactive::last_scene_name();
-        let final_charset = interactive::last_charset_preset();
-        let final_speed = interactive::last_speed();
-        let final_density = interactive::last_density();
-        let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
-            Some(name) => format!("{name} (custom)"),
-            None => format!("{:?}", color_scheme),
-        };
-        let startup_scene = args
-            .scene
-            .as_deref()
-            .unwrap_or(crate::scene::DEFAULT_SCENE)
-            .to_string();
-        let startup_speed = cloud_cfg.speed;
-        let startup_density = cloud_cfg.density;
         // print startup ambient info post-exit (event_loop prints
         // are invisible — alternate screen discards stderr on exit).
         if let Some(info) = interactive::startup_ambient_info() {
             crate::output::eprintln_verbose_purple(&info);
         }
-
-        // live-reload errors cause immediate exit (see below).
-        let changed = final_color != startup_color
-            || final_scene != startup_scene
-            || final_charset != startup_charset
-            || (final_speed - startup_speed).abs() >= 0.01
-            || (final_density - startup_density).abs() >= 0.01;
-
-        if changed {
-            let ts = crate::output::now_hhmm();
-            let purple = crate::output::brand_open();
-            let reset = crate::output::reset();
-            crate::output::eprintln_verbose_purple("final runtime state");
-            if final_color != startup_color {
-                crate::output::eprintln_safe!(
-                    "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
-                    final_color,
-                    startup_color
-                );
-            }
-            if final_scene != startup_scene {
-                crate::output::eprintln_safe!(
-                    "{purple}[verbose]{reset} {ts} {purple}  scene:{reset}         {} (was {})",
-                    final_scene,
-                    startup_scene
-                );
-            }
-            if final_charset != startup_charset {
-                crate::output::eprintln_safe!(
-                    "{purple}[verbose]{reset} {ts} {purple}  charset:{reset}       {} (was {})",
-                    final_charset,
-                    startup_charset
-                );
-            }
-            if (final_speed - startup_speed).abs() >= 0.01 {
-                crate::output::eprintln_safe!(
-                    "{purple}[verbose]{reset} {ts} {purple}  speed:{reset}         {:.1} (was {:.1})",
-                    final_speed, startup_speed
-                );
-            }
-            if (final_density - startup_density).abs() >= 0.01 {
-                crate::output::eprintln_safe!(
-                    "{purple}[verbose]{reset} {ts} {purple}  density:{reset}       {:.2} (was {:.2})",
-                    final_density, startup_density
-                );
-            }
-            let diag = interactive::ambient_diag_summary();
-            crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
-        }
+        // v50.0.0-alpha.7: "final runtime state" section now tracks ALL
+        // live-reload fields (msg_mode, message, power_dragon, crystal_dragon,
+        // async_mode, intro_color, etc.) — not just color/scene/charset/speed/
+        // density. Extracted to interactive::print_final_runtime_state to
+        // keep main.rs under the 1500-LOC cap.
+        let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
+            Some(name) => format!("{name} (custom)"),
+            None => format!("{:?}", color_scheme),
+        };
+        let startup_scene = args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
+        interactive::print_final_runtime_state(
+            &startup_color,
+            startup_scene,
+            &cloud_cfg.charset_preset,
+            cloud_cfg.speed,
+            cloud_cfg.density,
+            cloud_cfg.msg_mode,
+            cloud_cfg.message.as_deref(),
+            cloud_cfg.message_border,
+            cloud_cfg.power_dragon,
+            cloud_cfg.crystal_dragon,
+            cloud_cfg.async_mode,
+            cloud_cfg.intro_color.as_deref(),
+        );
     }
 
     // Live-reload fatal exit ( bug #15): watcher panics + validation
