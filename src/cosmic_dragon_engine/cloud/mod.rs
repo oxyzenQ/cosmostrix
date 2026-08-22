@@ -1014,18 +1014,19 @@ impl Cloud {
         let mut border_gradient: Vec<Option<Color>> = vec![None; self.message.len()];
         if palette_n > 0 && self.color_mode != ColorMode::Mono {
             let total_border_f = total_border.max(1) as f32;
-            // BD-02 (Border Dragon): identify corner indices for special coloring.
-            // Corners (╭╮╰╯) use peak brightness to ensure they visually "anchor"
-            // the border and appear seamless with adjacent edges. Owner reported
-            // bottom corners appeared misaligned/faint — this ensures corners
-            // are always fully visible regardless of gradient position.
-            let mut corner_indices: std::collections::HashSet<usize> =
+            // BD-02 (Border Dragon): identify BOTTOM corner indices for special coloring.
+            // Only bottom corners (╰╯) use bright anchor (t=0.8) to ensure they visually
+            // "anchor" the border and appear seamless. Top corners (╭╮) follow their
+            // natural triangle-wave position (dark at t=0 and t=1.0), which matches
+            // the chroma dragon gradient flow. Owner reported bottom corners had
+            // faint/misaligned white heads; top corners looked wrong when forced bright.
+            let mut bottom_corner_indices: std::collections::HashSet<usize> =
                 std::collections::HashSet::new();
             for &idx in border_order.iter() {
                 if idx < self.message.len() {
                     let mc = &self.message[idx];
-                    if matches!(mc.val, '╭' | '╮' | '╰' | '╯') {
-                        corner_indices.insert(idx);
+                    if matches!(mc.val, '╰' | '╯') {
+                        bottom_corner_indices.insert(idx);
                     }
                 }
             }
@@ -1045,11 +1046,11 @@ impl Cloud {
                 // eliminating the sharp gap. All color interpolation still
                 // routes through Chroma Dragon (interpolate_palette_color).
                 //
-                // BD-02 enhancement: corners always use t=0.8 (bright) instead
-                // of their triangle-wave position, ensuring they're visually
-                // prominent and anchor the border geometry correctly.
-                let use_t = if corner_indices.contains(&idx) {
-                    0.8 // Bright anchor for corners
+                // BD-02 enhancement: ONLY bottom corners use t=0.8 (bright anchor).
+                // Top corners (╭╮) follow natural gradient (dark), matching owner's
+                // visual expectation that top-left should be dark per chroma dragon.
+                let use_t = if bottom_corner_indices.contains(&idx) {
+                    0.8 // Bright anchor for bottom corners only
                 } else {
                     let t_raw = i as f32 / total_border_f;
                     if t_raw <= 0.5 {
