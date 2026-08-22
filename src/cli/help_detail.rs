@@ -130,6 +130,13 @@ COMMON OPTIONS:
       Display overlay message with border.
       cosmostrix -mb \"hello\"
 
+      Both -m and -mb can also be set in config.toml:
+        message         = \"hello\"   (no border, matches -m)
+        message-border  = \"hello\"   (with border, matches -mb)
+      When neither CLI nor config provides a message, interactive mode
+      defaults to a bordered overlay showing \"cosmostrix\". Benchmark
+      mode never shows a message overlay.
+
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.
 

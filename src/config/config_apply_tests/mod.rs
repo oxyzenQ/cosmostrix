@@ -940,3 +940,77 @@ fn strict_startup_accepts_known_keys_only() {
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.speed, 8.0);
 }
+
+// ── v50 message / message-border config key tests ──────────────────────────
+
+#[test]
+fn config_message_border_applies_with_border() {
+    // Setting message-border = "X" in config sets args.message + border=true.
+    let args = args_with_config("message-border = \"A masterpiece\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some("A masterpiece"));
+    assert!(
+        args.message_border,
+        "message-border config must set border=true"
+    );
+}
+
+#[test]
+fn config_message_bare_applies_without_border() {
+    // Setting message = "X" in config sets args.message + border=false.
+    let args = args_with_config("message = \"Hello world\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some("Hello world"));
+    assert!(
+        !args.message_border,
+        "message config must keep border=false"
+    );
+}
+
+#[test]
+fn config_message_border_wins_over_message_when_both_present() {
+    // When both keys are in config, message-border wins (border=true, text from message-border).
+    let args = args_with_config("message = \"plain\"\nmessage-border = \"boxed\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some("boxed"));
+    assert!(
+        args.message_border,
+        "message-border should win over message"
+    );
+}
+
+#[test]
+fn cli_m_flag_wins_over_config_message() {
+    // CLI -m overrides config message text and keeps border=false.
+    let args = args_with_config("message-border = \"from config\"\n", &["-m", "from cli"]);
+    assert_eq!(args.message.as_deref(), Some("from cli"));
+    assert!(
+        !args.message_border,
+        "CLI -m must keep border=false even when config has message-border"
+    );
+}
+
+#[test]
+fn config_message_missing_leaves_args_none() {
+    // When neither CLI nor config provides a message, args.message stays None.
+    // main.rs applies the default fallback ("cosmostrix" + border=true).
+    let args = args_with_config("", &[]);
+    assert_eq!(args.message, None);
+    assert!(!args.message_border);
+}
+
+#[test]
+fn config_message_empty_string_is_accepted() {
+    // Empty string is a valid message (renders as just the border frame).
+    let args = args_with_config("message-border = \"\"\n", &[]);
+    assert_eq!(args.message.as_deref(), Some(""));
+    assert!(args.message_border);
+}
+
+#[test]
+fn config_message_unknown_variant_rejected_as_unknown_key() {
+    // Typos like "massage-border" must surface as unknown keys.
+    let parsed = crate::configfile::parse_config_text("massage-border = \"typo\"\n");
+    assert!(
+        parsed.unknown_keys.contains(&"massage-border".to_string()),
+        "expected 'massage-border' in unknown_keys, got: {:?}",
+        parsed.unknown_keys
+    );
+}

@@ -98,3 +98,20 @@ Two additional sections require elevated privileges: `MICROARCHITECTURE` (Linux 
 - **"Wet bandwidth is low"**: check `backpressure_events` — non-zero = kernel pipe full. Check `avg_write_latency` — >1ms suggests `/dev/null` is not on tmpfs.
 - **"IPC is below 2.0"**: verify the binary is built with `pro-linux-v3` or `pro-linux-v4` profile (AVX2/AVX-512). `cargo build --release` without a profile gives baseline SIMD.
 - **"Energy per frame is high"**: check CPU governor — `powersave` inflates energy-per-frame. Verify RAPL is reading the right socket (multi-socket systems).
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

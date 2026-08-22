@@ -92,3 +92,20 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 **Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state printed if any value changed. Format: `[verbose] field: value (was old_value)`.
 
 **Install**: `./scripts/install` auto-detects CPU — AVX-512 → pro-linux-v4, AVX2 → pro-linux-v3, baseline → release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

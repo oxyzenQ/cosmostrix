@@ -323,6 +323,8 @@ run_sweep() {
         cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || sysctl -n machdep.cpu.brand_string 2>/dev/null || true)
 
         {
+            echo "<!-- SPDX-License-Identifier: GPL-3.0-only -->"
+            echo ""
             echo "# Cosmostrix Size Sweep"
             echo ""
             echo "Binary: \`$(basename "$bin")\`"

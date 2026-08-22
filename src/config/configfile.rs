@@ -65,6 +65,16 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // (e.g. "cyberpunk_2077"). Default: same as --color (rain color).
     // Use --list-colors to see available builtin themes.
     "intro-color",
+    // v50: Overlay message text. Two config keys mirror the CLI flags:
+    //   message         = "text"  → message WITHOUT border (matches -m)
+    //   message-border  = "text"  → message WITH border    (matches -mb)
+    // If both are present in config, `message-border` wins (border=true).
+    // CLI -m / -mb wins over either config key. When none of CLI/config
+    // provides a message, interactive mode defaults to a bordered overlay
+    // showing the project name (see main.rs CloudConfig construction).
+    // Benchmark mode never shows a message overlay.
+    "message",
+    "message-border",
 ];
 
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
@@ -602,6 +612,14 @@ pub(crate) fn dump_config_text() -> &'static str {
 # color-bg = "default-background"   # or "black"
 # intro = "logo"                    # logo | cosmic | none (default: logo)
 # intro-color = "energy-zen"        # intro color override (default: same as rain color)
+
+# Overlay Message
+# Two keys mirror the CLI flags (-m and -mb). If both are present,
+# `message-border` wins (border=true). When neither CLI nor config
+# provides a message, interactive mode defaults to a bordered overlay
+# showing "cosmostrix". Benchmark mode never shows a message overlay.
+# message         = "A masterpiece"   # message WITHOUT border (matches -m)
+# message-border  = "A masterpiece"   # message WITH border    (matches -mb)
 
 # Motion
 

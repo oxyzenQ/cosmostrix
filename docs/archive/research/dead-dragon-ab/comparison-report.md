@@ -106,3 +106,20 @@ Key takeaways:
 - **ANSI bytes written** — Dead Dragon writes 3.1–3.7× more bytes to stdout over the same 5s window. On real hardware this translates to higher terminal emulator CPU load, more battery drain on laptops, and higher bandwidth over SSH.
 - **write() syscalls** — Dead Dragon actually issues fewer syscalls because each frame is one giant contiguous write, but each write is ~8× larger. The Cosmic Dragon writes smaller buffers more frequently — the per-syscall cost is lower and the kernel spends less time copying bytes.
 - **Visual output is byte-identical** — both branches produce the same cells, colors, and characters. Only the rendering *method* differs.
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

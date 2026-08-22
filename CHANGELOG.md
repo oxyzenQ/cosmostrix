@@ -142,3 +142,20 @@ Iterative atmosphere work across v4.5–v4.9: fog vignette tuning, parallax brig
 
 - v2.1.0: visual contrast & readability overhaul — readable body glyphs, depth-layer visibility, CRT afterglow, pause/resume easing, mouse mode default-off, safe terminal cleanup on all exit paths.
 - v2.0.0: first public-stability release. Stale glyph artifacts fixed, long-idle resync, direct-color auto-detection for `xterm-direct` / `tmux-direct`. 10h+ visual soak checks confirmed no leaks.
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

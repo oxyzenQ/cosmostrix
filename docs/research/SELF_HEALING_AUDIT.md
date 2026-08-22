@@ -437,3 +437,20 @@ overhead in steady state, 37 new unit tests (8 P3 + 7 P4 + 15 P1+P2 + 7 P5).
 This audit complements those docs by focusing on the **self-healing** lens
 specifically, mapping the research vision's three tiers to concrete code
 locations and identifying the narrow gaps that remain.
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

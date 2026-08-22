@@ -1049,8 +1049,12 @@ fn main() -> std::io::Result<()> {
             glitch_level: &format!("{:?}", args.glitch_level),
             screensaver: args.screensaver,
             crystal_dragon: args.crystal_dragon,
-            message: args.message.as_deref(),
-            message_border: args.message_border,
+            // v50: Reflect the effective message (after default fallback)
+            // so --verbose reports what the renderer actually displays.
+            message: (!bench_mode && args.message.is_none())
+                .then_some("cosmostrix")
+                .or(args.message.as_deref()),
+            message_border: args.message_border || (!bench_mode && args.message.is_none()),
             duration: args.duration,
             screen_size,
             custom_palette_name: custom_palette_name.as_deref(),
@@ -1101,16 +1105,31 @@ fn main() -> std::io::Result<()> {
         speed,
         monolith_size: args.monolith_size,
         chars,
-        message: args.message.as_deref().map(|m| {
-            if m.len() > MESSAGE_MAX_LEN {
-                ux::die_input(format!(
-                    "error: -m text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
-                    m.len()
-                ));
-            }
-            crate::message::sanitize_message_text(m)
-        }),
-        message_border: args.message_border,
+        // v50: Default message fallback. When neither CLI (-m / -mb) nor
+        // config (`message` / `message-border`) provides a message, the
+        // interactive mode shows the project name with a border overlay.
+        // Benchmark mode never shows a message overlay (keeps reports clean).
+        message: {
+            let msg: Option<&str> = if !bench_mode && args.message.is_none() {
+                Some("cosmostrix")
+            } else {
+                args.message.as_deref()
+            };
+            msg.map(|m| {
+                if m.len() > MESSAGE_MAX_LEN {
+                    ux::die_input(format!(
+                        "error: -m text exceeds {MESSAGE_MAX_LEN} character limit (got {})",
+                        m.len()
+                    ));
+                }
+                crate::message::sanitize_message_text(m)
+            })
+        },
+        // v50: When the default message fallback fired (args.message was
+        // None and !bench_mode), force border=true so the overlay looks
+        // intentional. When the user explicitly set -m (no border), keep
+        // their choice.
+        message_border: args.message_border || (!bench_mode && args.message.is_none()),
         target_fps,
         xtermjs_host: term_caps.xtermjs_host, // (FPS-F1): live-reload cap
         default_fps_cap: term_caps.default_fps_cap,

@@ -19,6 +19,8 @@
 #   7.  SPDX license header check
 #   8.  LOC guard (1500-line cap on .rs files)
 #   9.  Rust version sync check
+#  10.  Documentation disclaimer check (all .md files have the
+#       "source code is truth, cross-check before relying" disclaimer)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -194,6 +196,20 @@ if [ -f scripts/check-rust-version-sync.sh ]; then
     fi
 else
     warn "check-rust-version-sync.sh not found — skipping"
+fi
+
+# ── 10. Documentation Disclaimer ───────────────────────────────────────────
+header "Documentation Disclaimer"
+if [ -f scripts/inject-disclaimer.sh ]; then
+    if bash scripts/inject-disclaimer.sh --check 2>&1; then
+        info "Documentation disclaimer: all .md files have the disclaimer"
+        PASS=$((PASS + 1))
+    else
+        fail "Documentation disclaimer: some .md files missing the disclaimer"
+        echo "  Fix: bash scripts/inject-disclaimer.sh"
+    fi
+else
+    warn "inject-disclaimer.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

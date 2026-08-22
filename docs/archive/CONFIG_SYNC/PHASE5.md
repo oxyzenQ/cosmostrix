@@ -257,3 +257,20 @@ The audit produced 39 action items across 5 phases. 13 are closed (2 Phase 3 + 1
 - `docs/research/CONFIG_SYNC_AUDIT_PHASE3.md` (501 lines) — silent error sweep + 10 findings + 2 inline fixes
 - `docs/research/CONFIG_SYNC_AUDIT_PHASE4.md` (401 lines) — crash & bottleneck audit + 8 findings
 - `docs/research/CONFIG_SYNC_AUDIT_PHASE5.md` (this report) — 11 fixes applied, final status
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

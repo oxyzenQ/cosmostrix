@@ -401,6 +401,28 @@ fn apply_config_values(
             ));
         }
     }
+    // v50: Overlay message config keys. Two keys mirror the CLI flags:
+    //   message         = "text"  → message WITHOUT border (matches -m)
+    //   message-border  = "text"  → message WITH border    (matches -mb)
+    // CLI -m / -mb wins over either config key (handled by `config_value`'s
+    // `is_explicit` check returning None when the CLI flag is present).
+    // When both config keys are present, `message-border` wins (border=true).
+    // Default fallback (no CLI, no config) is applied later in main.rs.
+    if let Some(v) = config_value(matches, cfg, "message", "message-border") {
+        // `message-border` config key — wins over `message` config key.
+        args.message = Some(v);
+        args.message_border = true;
+        config_touched.insert("message-border");
+    } else if let Some(v) = config_value(matches, cfg, "message", "message") {
+        // `message` config key — message WITHOUT border.
+        args.message = Some(v);
+        // message_border stays at its clap default (false) unless -mb was
+        // passed on the CLI (handled by `is_explicit` returning None for
+        // the `message-border` config_value above, so we never reach here
+        // when -mb is on the CLI).
+        args.message_border = false;
+        config_touched.insert("message");
+    }
     if let Some(v) = config_value(matches, cfg, "bold", "bold") {
         if let Some(n) = parse_u8_config("bold", &v, 0, 2) {
             args.bold = n;

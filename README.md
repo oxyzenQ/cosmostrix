@@ -119,7 +119,7 @@ The Dragon's roar is not loud — it is precise.
 - Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
 - Configurable speed, density, FPS, and glitch intensity.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
-- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border).
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix" overlay when neither CLI nor config provides one.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
 - **Smooth pause** — `Space` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
 
@@ -696,3 +696,20 @@ Support is optional. The project remains open-source.
 For trademark licensing or written permission, contact **rezky_nightky (oxyzenQ)** — <https://github.com/oxyzenQ>.
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

@@ -378,3 +378,20 @@ After applying all four patches:
 - `cargo clippy --locked --all-targets --all-features -- -D warnings`: clean.
 - `cargo fmt --all --check`: clean (also fixed the fmt failures that broke CI on a975cfe).
 - Manual smoke test: `cosmostrix` with `ambient.22-10 = aurora` + `--auto-color-drift`, press `x` at 22:15, **wait 30 seconds without pressing any key**, verify aurora re-applies automatically. Press `x` again, immediately press `c` repeatedly within 30s, verify auto-snapback does NOT interrupt active cycling. Wait until 22:10 next day (or simulate via test), verify aurora refires via day-boundary refire (Patch A).
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->
