@@ -185,7 +185,7 @@ a pure function (even though currently called single-threaded).
 ✅ **Stable across 3 consecutive runs:**
 
 - `cargo test "central_control_dragon_power::"` → 87/87 pass × 3 runs (0 flakes)
-- Full suite: 1581/1581 pass × 3 runs (0 flakes — fixed in Task 5)
+- Full suite: ~1500+ pass × 3 runs (0 flakes — fixed in Task 5)
 
 Test breakdown:
 

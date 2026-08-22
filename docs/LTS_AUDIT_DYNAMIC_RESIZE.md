@@ -138,7 +138,7 @@ of frames.
 
 ## Test Coverage
 
-- `cargo test` (full suite): 1581/1581 pass — includes resize-specific tests
+- `cargo test` (full suite): ~1500+ pass — includes resize-specific tests
   in `tests_color_stability.rs`, `tests_visual_depth.rs`, `tests_scene/`
 - No flaky tests observed across 3 consecutive runs
 

@@ -6,7 +6,7 @@
 > signature log. For full audit detail (A/B benchmarks, file lists,
 > stability signals), see [README.md](README.md) and [RULES.md](RULES.md).
 
-# LOCK
+## LOCK
 
 > Engine re-locked at commit `0a86ff6` after deep zombie audit of
 > `shaders/` (~3900 LOC) confirmed clean — zero zombie symbols found.
@@ -25,7 +25,7 @@
 > Signoff: **rezky_nightky** — 2026-08-19T14:40:05Z — vision & director
 > project cosmostrix
 
-# UNLOCK
+## UNLOCK
 
 > Deep zombie audit of `shaders/` in commit `0a86ff6`. Opened audit
 > because previous zombie sweep (commit `3587ccb`) skipped this

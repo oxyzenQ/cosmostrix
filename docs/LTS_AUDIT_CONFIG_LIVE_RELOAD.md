@@ -145,7 +145,7 @@ No `RefCell` (would be unsafe across threads).
 
 - `cargo test --quiet "config::"` → 199/199 pass (3 runs, 0 flakes)
 - `cargo test --quiet "live_config::"` → 30/30 pass (3 runs, 0 flakes)
-- Full suite: 1581/1581 pass (3 runs, 0 flakes — flaky test fixed in Task 5)
+- Full suite: ~1500+ pass (3 runs, 0 flakes — flaky test fixed in Task 5)
 
 ## Conclusion
 

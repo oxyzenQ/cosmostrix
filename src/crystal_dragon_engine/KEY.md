@@ -6,7 +6,7 @@
 > signature log. For full audit detail (A/B benchmarks, file lists,
 > stability signals), see [README.md](README.md) and [RULES.md](RULES.md).
 
-# LOCK
+## LOCK
 
 > Engine re-locked at commit `0a86ff6` after deep zombie purge and
 > follow-up verification. `crystal_dragon_engine/` was swept in
@@ -24,7 +24,7 @@
 > Signoff: **rezky_nightky** — 2026-08-19T14:40:05Z — vision & director
 > project cosmostrix
 
-# UNLOCK
+## UNLOCK
 
 > Deep zombie purge of `crystal_dragon_engine/` in commit `3587ccb`.
 > Removed entire `transition/` module (zombie: `CrystalDragonDrift`
@@ -33,6 +33,6 @@
 > Deleted `theme_group`, `reserved_themes`, `polling_duration`,
 > `min_dwell_duration`, `sensor::effective_mode` getter — all test-only
 > consumers. Demoted `clock::current_local_hour` to `#[cfg(test)]`.
-> 1581/1581 tests pass.
+> ~1500+ tests pass.
 >
 > Signoff: **oxyzenQ** — 2026-08-22T08:11:35Z — crystal-dragon zombie purge

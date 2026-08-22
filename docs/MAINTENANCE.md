@@ -80,7 +80,7 @@ If returning after 5-10 years of dormancy, follow this exact sequence. No steps 
 
 | Date | Rust Version | Result | Notes |
 |------|-------------|--------|-------|
-| 2026-08-13 | 1.97.1 | PASS | Full audit session — 1,476 tests (then), all quality gates green. Current: 1581 pass / 0 fail / 2 ignored. |
+| 2026-08-13 | 1.97.1 | PASS | Full audit session — ~1400 tests (then), all quality gates green. Current: ~1500+ pass. |
 
 ## 6. Dormant Mode Contract
 

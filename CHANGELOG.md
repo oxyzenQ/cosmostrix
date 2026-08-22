@@ -9,7 +9,7 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## v50.0.0-beta.3 — Three Dragon Engines (Current Beta)
 
-Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 226 source files, ~89K LOC, 1581 tests pass (0 fail, 2 ignored).
+Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 220+ source files, ~89K LOC, ~1500+ tests pass.
 
 ### The Three Dragon Engines
 

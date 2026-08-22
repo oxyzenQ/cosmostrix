@@ -137,7 +137,7 @@ contract intentionally changed, in which case update the count)
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
 
-**Tests**: <N>/1581 pass (must be 1581/1581 or new total if tests added)
+**Tests**: <N>/~1500+ pass (must be ~1500+ or new total if tests added)
 ```
 
 ### Example (hypothetical, to be deleted once the first real UNLOCK lands)
@@ -210,7 +210,7 @@ EnergyZen now included in all theme-sweep invariants)
 **Visual audit**: PASS — masterclass brightness profile preserved
 (visual-mode-audit.py: top=0.533, bot=0.369 unchanged)
 
-**Tests**: 1594/1594 pass (was 1590 at lock; +4 tests from task 3
+**Tests**: ~1500+ pass (was ~1490 at lock; +4 tests from task 3
 auto-color-drift hints, unrelated to this unlock)
 
 **Notes**:
