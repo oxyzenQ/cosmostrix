@@ -71,7 +71,6 @@ pub(crate) const KNOWN_LONG_FLAGS: &[&str] = &[
     "help",
     "version",
     "check-update",
-    "check-updated", // alias of --check-update
     "crystal-dragon",
     "power-dragon",
     "msg-mode",
@@ -184,6 +183,10 @@ pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
     (
         "--uniform",
         "error: --uniform has been removed in v50-beta.3.\n  Replaced by --async-mode false (same effect: uniform column speeds).\n  Example: cosmostrix --async-mode false",
+    ),
+    (
+        "--check-updated",
+        "error: --check-updated has been removed in v50.0.0-alpha.7.\n  Replaced by --check-update (the canonical flag name).\n  Example: cosmostrix --check-update",
     ),
     (
         "--brightness",

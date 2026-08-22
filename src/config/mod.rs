@@ -643,7 +643,6 @@ pub struct Args {
 
     #[arg(
         long = "check-update",
-        alias = "check-updated",
         help_heading = "HELP",
         display_order = 330,
         help = "Check the latest upstream release"
