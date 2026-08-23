@@ -185,7 +185,7 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 ///   - Back  (0): 0.52 (deep shadow — noir haze)
 ///   - Mid   (1): 0.80 (slightly dim — vivid streaks)
 ///   - Front (2): 1.10 (gentle boost — cinematic trail)
-pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.80, 1.10];
+pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.56, 0.82, 1.08];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
@@ -195,7 +195,7 @@ pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.80,
 ///   - Back  (0): 0.50 (shadow haze blend)
 ///   - Mid   (1): 0.84 (slightly vivid)
 ///   - Front (2): 1.12 (cinematic richness — noir color pop)
-pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84, 1.12];
+pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.84, 1.10];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -204,7 +204,7 @@ pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.50, 0.84,
 ///   - Back  (0): 0.48 (suppressed — stays in shadow)
 ///   - Mid   (1): 0.74 (moderate pop)
 ///   - Front (2): 1.30 (CINEMATIC BLOOM — noir head glow)
-pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.30];
+pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.24];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
@@ -240,7 +240,7 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 ///
 /// Cinema Noir preset: 5.0 (~400ms afterglow). Gentle dissolve with
 /// cinematic trail. Trails linger just enough for noir atmosphere.
-pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.0;
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.5;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///
@@ -265,7 +265,7 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 ///   - Back  (0): 2.0 (quick flicker — shadow exit)
 ///   - Mid   (1): 1.2 (smooth — clean dissolve)
 ///   - Front (2): 0.6 (lingering cinematic trail)
-pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [2.0, 1.2, 0.6];
+pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.9, 1.15, 0.65];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
 /// accelerated (prevents "concrete wall" residue buildup).
@@ -275,7 +275,7 @@ pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 ///
 /// Cinema Noir preset: 2.0 — moderate bottom decay for gentle dissolve.
 /// Soft afterglow fade at bottom. Rain trails into shadow.
-pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 2.0;
+pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 1.8;
 
 // ─── Parallax depth layering ────────────────────────────────────────────
 //
@@ -410,7 +410,7 @@ pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
 ///
 /// Cinema Noir preset: 0.40 — moderate bloom for cinematic head glow.
-pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.40;
+pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.36;
 
 /// Number of cells on each side of the head that receive bloom glow.
 pub(crate) const HEAD_BLOOM_CELLS: u16 = 2;
@@ -458,7 +458,7 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
 /// (compounding math, brightness curves, professional references).
-pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.85;
+pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.87;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
 /// (perf optimization — skip on slow systems).
@@ -480,13 +480,13 @@ pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 ///
 /// Cinema Noir preset: 0.20 (20% corner — gentle vignette). Cinematic
 /// lens philosophy — dark corners, noir frame. Corners dim into shadow.
-pub(crate) const VIGNETTE_INTENSITY: f32 = 0.20;
+pub(crate) const VIGNETTE_INTENSITY: f32 = 0.14;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
 ///
 /// Cinema Noir preset: 0.7 — vignette starts earlier, noticeable corner
 /// darkening. Combined with INTENSITY=0.20, radial vignette is cinematic.
-pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.7;
+pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.75;
 
 /// Per-layer vignette multiplier (0.0 = no dimming, 1.0 = full dimming).
 ///
@@ -500,7 +500,7 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 ///
 /// Cinema Noir preset: 0.15 (15% of screen height) — noticeable shadow
 /// zone. On a 40-line terminal this is ~6 rows. Rain fades gently into shadow.
-pub(crate) const RAIN_SHADOW_PCT: f32 = 0.15;
+pub(crate) const RAIN_SHADOW_PCT: f32 = 0.13;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
 pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
@@ -520,7 +520,7 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
 /// compounding model and the retune rationale.
-pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.55;
+pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.58;
 
 // ─── Front layer tail allocation ───────────────────────────────────────────
 //
@@ -801,14 +801,14 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 ///
 /// Cinema Noir preset: 10 — wider dissolve zone. Gentle cinematic exit.
 /// Soft fade — rain trails off into shadow at the bottom edge.
-pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 10;
+pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
 
 /// Lip factor for the bottom edge fade (controls curvature).
 ///
 /// Cinema Noir preset: 0.80 — moderate lip, noticeable transition.
 /// The Zone 1↔Zone 2 junction creates a gentle curve,
 /// fading perceptibly in the last rows — noir dissolve.
-pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.80;
+pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.82;
 
 /// Minimum brightness factor at the top edge.
 ///
@@ -820,7 +820,7 @@ pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.80;
 /// - 0.65 (v50 alpha.2): 35% dim — visible cinematic fade-in
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
+pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.48;
 
 /// Minimum brightness factor at the bottom edge.
 ///
@@ -833,7 +833,7 @@ pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.45;
 /// - 0.45 (masterclass): 55% dim — calibrated when fog was active
 ///
 /// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
-pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.65;
+pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.68;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.
 pub(crate) const EDGE_FADE_BOLD_THRESHOLD: f32 = 0.5;

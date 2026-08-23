@@ -2,8 +2,15 @@
 
 # Cosmostrix Visual Identity — Single Source of Truth
 
-**Current identity: Cinema Noir preset** (battle champion, locked 2026-08-17,
-commit `0d88da5`).
+**Current identity: Deep Focus preset** (battle round 2 champion, locked
+2026-08-23 by owner verdict — the endurance refinement of the Cinema Noir
+narrative, chosen for LTS long usage).
+
+> **Visual lock (2026-08-23)**: Deep Focus declared champion by owner
+> A/B terminal battle. Signature: **oxyzenQ** — preset round 2 verdict,
+> long-usage endurance profile. Applied via
+> `scripts/apply-visual-preset.sh deep-focus`; reverts to the previous
+> champion anytime via `./scripts/apply-visual-preset.sh cinema-noir`.
 
 This document is the canonical reference for "what does cosmostrix look like
 and why". It exists because the visual-preset history is spread across
@@ -27,38 +34,53 @@ the cinematic scene" selects the cosmic-zen scene. They are independent: the
 cinematic scene is rendered *through* the Cinema Noir treatment, as is every
 other scene.
 
-## 2. The Cinema Noir Preset — Champion Values (verified in source)
+## 2. The Deep Focus Preset — Champion Values (verified in source)
 
 The preset is a 17-parameter coherent package applied on top of the Option F
 parallax foundation (speed / length / density layers are inherited from
-Option F and unchanged).
+Option F and unchanged). Deep Focus preserves the Cinema Noir narrative —
+dark entry, hero pop, gentle dissolve — while reducing the two fatigue
+sources of multi-hour sessions: the luminance swing between the dark field
+and bright heads, and the heavy lens darkening.
 
 ### Core frame treatment
 
 | Parameter | Value | Role |
 |-----------|------:|------|
-| `EDGE_FADE_TOP_MIN` | 0.45 | Dark entry — rain materializes from black (55% dim) |
-| `EDGE_FADE_BOTTOM_MIN` | 0.65 | Gentle dissolve at bottom (35% dim) |
-| `EDGE_FADE_BOTTOM_ROWS` | 10 | Wide dissolve zone |
-| `EDGE_FADE_BOTTOM_LIP` | 0.80 | Lifted junction between body and dissolve |
-| `VIGNETTE_INTENSITY` | 0.20 | 20% corner darkening — photographic lens |
-| `VIGNETTE_INNER_RADIUS` | 0.70 | Vignette starts at 70% of the frame |
-| `CRT_VIGNETTE_EDGE_FACTOR` | 0.85 | 15% CRT dim — warm glass, not distortion |
-| `RAIN_SHADOW_PCT` | 0.15 | 15% bottom shadow zone |
-| `RAIN_SHADOW_FLOOR` | 0.55 | Shadow-zone brightness floor |
+| `EDGE_FADE_TOP_MIN` | 0.48 | Dark entry — gentler than noir (52% dim) |
+| `EDGE_FADE_BOTTOM_MIN` | 0.68 | Later dissolve (32% dim) |
+| `EDGE_FADE_BOTTOM_ROWS` | 12 | Wider dissolve gradient |
+| `EDGE_FADE_BOTTOM_LIP` | 0.82 | Smoother junction |
+| `VIGNETTE_INTENSITY` | 0.14 | Lighter photographic lens |
+| `VIGNETTE_INNER_RADIUS` | 0.75 | Vignette starts later |
+| `CRT_VIGNETTE_EDGE_FACTOR` | 0.87 | 13% CRT dim — warm glass |
+| `RAIN_SHADOW_PCT` | 0.13 | Smaller bottom shadow zone |
+| `RAIN_SHADOW_FLOOR` | 0.58 | Lifted shadow floor |
 
 ### Rain field and light
 
 | Parameter | Value | Role |
 |-----------|------:|------|
-| `PARALLAX_BRIGHTNESS_MULT` | [0.52, 0.80, 1.10] | Per-layer luminance (back/mid/front) |
-| `PARALLAX_SATURATION_MULT` | [0.50, 0.84, 1.12] | Per-layer vividness |
-| `PARALLAX_HEAD_BLOOM_MULT` | [0.48, 0.74, 1.30] | Head glow falloff |
-| `PARALLAX_CONTRAST_REDUCTION` | [0.50, 0.18, 0.0] | Depth fog (back dissolves into haze) |
-| `PHOSPHOR_DECAY_RATE` | 5.0 | ~400 ms cinematic afterglow |
-| `PHOSPHOR_LAYER_DECAY_MULT` | [2.0, 1.2, 0.6] | Back flickers fast, front lingers |
-| `PHOSPHOR_BOTTOM_DECAY_MULT` | 2.0 | Bottom dissolve persistence |
-| `HEAD_BLOOM_INTENSITY` | 0.40 | Strong pop, not blown out |
+| `PARALLAX_BRIGHTNESS_MULT` | [0.56, 0.82, 1.08] | Field lifted, head peak tamed |
+| `PARALLAX_SATURATION_MULT` | [0.52, 0.84, 1.10] | Slightly muted head color |
+| `PARALLAX_HEAD_BLOOM_MULT` | [0.48, 0.74, 1.24] | Glare control |
+| `PARALLAX_CONTRAST_REDUCTION` | [0.50, 0.18, 0.0] | Fog identity kept from noir |
+| `PHOSPHOR_DECAY_RATE` | 5.5 | ~360 ms trail — less residual busyness |
+| `PHOSPHOR_LAYER_DECAY_MULT` | [1.9, 1.15, 0.65] | Back clears faster, front lingers |
+| `PHOSPHOR_BOTTOM_DECAY_MULT` | 1.8 | Dissolve lingers slightly |
+| `HEAD_BLOOM_INTENSITY` | 0.36 | Glare control |
+
+Measured character (80×40 back layer): bottom-center 0.419,
+bottom-corner 0.362 — noir's dissolve, minus the squeeze.
+
+### Previous champion — Cinema Noir (2026-08-17 → 2026-08-23)
+
+Superseded by Deep Focus in battle round 2. Full parameter table retained
+in [`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md);
+reproduced for reference: frame 0.45/0.65/10/0.80, vignette 0.20/0.70, CRT
+0.85, shadow 0.15/0.55, brightness [0.52, 0.80, 1.10], saturation
+[0.50, 0.84, 1.12], head bloom [0.48, 0.74, 1.30] + intensity 0.40,
+contrast reduction [0.50, 0.18, 0.0], phosphor 5.0 / [2.0, 1.2, 0.6] / 2.0.
 
 ### Inherited from Option F "Film Matrix Hero" (unchanged)
 
@@ -105,12 +127,13 @@ bottom-corner ≈ 0.30 — dark but visible; that is the noir character.
 | 1 | v30.2 masterclass retune | 2026-08-09 | Fixed the v30 "too aggressive" regressions; top=0.533/bottom visible |
 | 2 | Option F "Film Matrix Hero" | 2026-08 (RAIN-AUDIT-002) | Rated 10/10; locked as the depth-stack baseline |
 | 3 | Neon Sharp (battle contender) | 2026-08-17 | Runner-up — rejected for lacking narrative |
-| 4 | **Cinema Noir** | 2026-08-17 | **Champion — current identity** (`0d88da5`) |
+| 4 | Cinema Noir | 2026-08-17 | Battle 1 champion (`0d88da5`) — superseded |
+| 5 | **Deep Focus** | 2026-08-23 | **Battle 2 champion — current identity** (owner verdict: long-usage endurance) |
 
-Round 2 of the battle (new challenger presets designed for long-usage
-endurance) is documented in
-[`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md); the
-champion stays Cinema Noir until the owner declares a new winner.
+Battle round 2 (Cinema Noir vs Deep Focus / Celluloid / Late Broadcast) is
+documented in
+[`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md); Deep
+Focus won the owner's terminal A/B verdict on 2026-08-23.
 
 ## 5. Superseded Documents
 

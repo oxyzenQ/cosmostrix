@@ -3,12 +3,21 @@
 # Preset Battle Round 2 — The Long-Usage Championship
 
 **Date**: 2026-08-23
-**Reigning champion**: Cinema Noir (battle 1 winner, 2026-08-17)
+**Reigning champion (entering)**: Cinema Noir (battle 1 winner, 2026-08-17)
 **Question**: The owner is not fully convinced by the current champion's tune
 and wants challenger presets designed for **LTS long usage** — one of them
 may become the new shipped default.
-**Verdict**: **PENDING — owner A/B terminal test.** The shipped default
-remains Cinema Noir until the owner declares a winner.
+
+## VERDICT (owner, 2026-08-23)
+
+> **CHAMPION: Deep Focus** — declared by owner terminal A/B verdict.
+> Applied as the shipped default and locked as the visual identity
+> (see `docs/VISUAL_IDENTITY.md`). Cinema Noir is retained as a switchable
+> preset (`./scripts/apply-visual-preset.sh cinema-noir`), along with the
+> two other challengers.
+>
+> Signoff: **oxyzenQ** — 2026-08-23 — preset battle round 2 verdict,
+> long-usage endurance profile.
 
 **How to test each challenger on a real terminal**:
 
