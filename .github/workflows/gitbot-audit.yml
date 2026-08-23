@@ -81,18 +81,13 @@ jobs:
       - name: Run security audit
         id: audit
         run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "🔒 Running security audit..."
-          echo "════════════════════════════════════════════════════════"
-          echo ""
+          echo "Running security audit..."
 
           if cargo audit 2>&1; then
-            echo ""
-            echo "✅ No known vulnerabilities found"
+            echo "No known vulnerabilities found"
             echo "status=clean" >> "$GITHUB_OUTPUT"
           else
-            echo ""
-            echo "⚠️ Vulnerabilities detected — review advisories above"
+            echo "Vulnerabilities detected — review advisories above"
             echo "status=vulnerable" >> "$GITHUB_OUTPUT"
           fi
 
@@ -100,25 +95,15 @@ jobs:
         id: deny
         if: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.run_deny == 'true' }}
         run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "🛡️ Running dependency policy check (cargo-deny)..."
-          echo "════════════════════════════════════════════════════════"
+          echo "Running dependency policy check (cargo-deny)..."
           cargo deny check all
 
       - name: Summary
         run: |
-          echo "════════════════════════════════════════════════════════"
-          echo "🔍 Cosmic Dragon - DAILY SECURITY AUDIT SUMMARY"
-          echo "════════════════════════════════════════════════════════"
-          echo ""
-          echo "Status: ${{ steps.audit.outputs.status }}"
-          echo "Trigger: ${{ github.event_name }}"
-          echo ""
-          echo "════════════════════════════════════════════════════════"
-          echo "ℹ️  This workflow is observation-only — no files modified"
-          echo "📦 For dependency update reports: see maintenance.yml (weekly)"
-          echo "⏰ Next audit: tomorrow 00:00 UTC"
-          echo "════════════════════════════════════════════════════════"
+          echo "Security audit summary"
+          echo "  Status: ${{ steps.audit.outputs.status }}"
+          echo "  Trigger: ${{ github.event_name }}"
+          echo "Observation-only — no files modified. Dependency updates: maintenance.yml (weekly)."
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

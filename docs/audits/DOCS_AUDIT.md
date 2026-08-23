@@ -107,7 +107,40 @@ Re-running the engine after the fixes: living-doc broken references =
 intentional mention, or a template example. `gate-keepers.sh` (markdownlint,
 disclaimer, SPDX, codespell) passes on all 24 modified files.
 
-## 4. Policy going forward (the part that keeps it clean)
+## 4. Round 2 (2026-08-23, same day) — README + KNOWN_ISSUES + root *.md
+
+Owner follow-up audit of the root-level docs, with every claim verified
+against source:
+
+- **README.md — CLEAN.** All quantitative claims verified exact:
+  18 built-in scenes (18 `name:` entries in `src/scene/mod.rs`),
+  44 color themes (44 `scheme:` entries in `catalog.rs`),
+  25 character sets (25 primary names in the `src/scene/charset.rs`
+  resolver, aliases excluded). Platform table current (includes the
+  windows-arm64 prebuilt added for the LTS). No broken references.
+- **KNOWN_ISSUES.md — CLEAN.** All three documented issues verified
+  still-accurate against source: the `i` HUD binding is still in
+  `src/interactive/event_loop.rs` as documented; `--reset-terminal`
+  exists with the 5-layer recovery sequence; the TTY cleanup
+  description matches the terminal restore code. All cited file
+  paths exist.
+- **CHANGELOG.md — CLEAN.** The "43 builtin" mention sits in the
+  v11.1.0 entry, written when the theme count WAS 43 — era-accurate
+  historical record, frozen by policy.
+- **CONTRIBUTING.md / TRADEMARK.md / NOTICE — CLEAN** (no engine
+  findings in any pass).
+- Engine hits in `src/chroma_dragon_engine/RULES.md` ("43 themes",
+  "18 invariants") were manually triaged: all occurrences are quotes
+  INSIDE the historical UNLOCK log entry `809a897`, where they
+  describe the 43→44 / 18→19 fix itself — historical record, not
+  living claims.
+
+Result: zero living-doc defects in the root docs. The audit engine
+remains reusable (`python3 scripts/docs-audit.py`); its remaining
+hits are all inside bannered historical files or historical log
+entries, each manually verified as intentional.
+
+## 5. Policy going forward (the part that keeps it clean)
 
 1. **Audits are dated snapshots**: research/audit docs get the snapshot
    banner at creation; their paths are never "fixed" — they are history.
