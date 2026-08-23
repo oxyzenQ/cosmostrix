@@ -1256,7 +1256,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             } else {
                 perf_idle_frames = perf_idle_frames.saturating_add(1);
             }
-            perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_len as u64);
+            // Dirty-cell accounting (audit 2026-08-23): mirror the benchmark
+            // semantics — a `dirty_all` (full-redraw) frame writes the WHOLE
+            // grid, but `Frame::set` skips dirty-list pushes while dirty_all
+            // is set, so `dirty_len` reads 0 for those frames. Counting the
+            // raw list undercounted full redraws (paste, resize, idle resync)
+            // in avg_dirty_cells. Use the frame's actual dimensions (NOT
+            // cloud's — the frame is the thing that was drawn).
+            let dirty_count = if is_dirty_all {
+                (frame.width as u64) * (frame.height as u64)
+            } else {
+                dirty_len as u64
+            };
+            perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_count);
             perf_dirty_samples = perf_dirty_samples.saturating_add(1);
             perf_work_sum_s += work_s as f64;
             perf_work_max_s = perf_work_max_s.max(work_s as f64);
@@ -1367,6 +1379,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         perf_overshoot_frames,
         perf_dirty_sum,
         perf_dirty_samples,
+        // Exit-time grid snapshot — denominator for the runtime
+        // avg_dirty_cell_ratio_percent (owner request 2026-08-23).
+        grid_cols: cloud.cols,
+        grid_lines: cloud.lines,
         perf_work_sum_s,
         perf_work_max_s,
         perf_pressure_sum,

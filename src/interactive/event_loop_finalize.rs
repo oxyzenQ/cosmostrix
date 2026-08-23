@@ -40,6 +40,12 @@ pub(crate) struct SessionStats<'a> {
     pub perf_overshoot_frames: u64,
     pub perf_dirty_sum: u64,
     pub perf_dirty_samples: u64,
+    /// Live grid dimensions at loop exit — denominator for the
+    /// avg_dirty_cell_ratio_percent field (owner request 2026-08-23).
+    /// Snapshot at exit; a mid-session resize makes the ratio approximate
+    /// for pre-resize frames (documented at the field's use site).
+    pub grid_cols: u16,
+    pub grid_lines: u16,
     pub perf_work_sum_s: f64,
     pub perf_work_max_s: f64,
     pub perf_pressure_sum: f64,
@@ -232,6 +238,25 @@ fn print_perf_report(
             0.0
         };
         s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
+        // Dirty-cell coverage as a percentage of the live grid, for
+        // easy reading (owner request 2026-08-23). Same semantics as the
+        // benchmark's avg_dirty_cell_ratio_percent: avg dirty cells / total
+        // logical cells. Denominator is the exit-time grid — a resize
+        // mid-session makes the ratio approximate for the pre-resize frames
+        // (the benchmark has no resize, so its ratio is exact).
+        let total_cells = (stats.grid_cols as f64) * (stats.grid_lines as f64);
+        let dirty_ratio_pct = if total_cells > 0.0 {
+            avg_dirty / total_cells * 100.0
+        } else {
+            0.0
+        };
+        s.field(
+            "avg_dirty_cell_ratio_percent",
+            &format!(
+                "{:.2}% (of {}x{} grid)",
+                dirty_ratio_pct, stats.grid_cols, stats.grid_lines
+            ),
+        );
         s.field(
             "visual_fps_hint",
             &format!(
