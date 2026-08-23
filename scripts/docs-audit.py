@@ -18,7 +18,11 @@ REPO = Path(__file__).resolve().parents[1]
 
 def git_md_files():
     out = subprocess.run(
-        ["git", "ls-files", "*.md"], cwd=REPO, capture_output=True, text=True
+        ["git", "ls-files", "*.md"],
+        cwd=REPO,
+        capture_output=True,
+        text=True,
+        check=False,
     ).stdout.splitlines()
     return [
         REPO / f
@@ -178,7 +182,7 @@ sigs = defaultdict(list)
 for f in files:
     rel = str(f.relative_to(REPO))
     text = f.read_text(errors="replace")
-    body = re.sub(r"<!--.*?-->", "", text, flags=re.S)
+    body = re.sub(r"<!--.*?-->", "", text, flags=re.DOTALL)
     body = re.sub(r"[^a-z0-9]", "", body.lower())[:400]
     sigs[body].append(rel)
 for sig, lst in sorted(sigs.items()):
