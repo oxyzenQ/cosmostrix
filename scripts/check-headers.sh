@@ -62,8 +62,12 @@ while IFS= read -r -d '' file; do
     fi
 done < <(
     # Only check git-tracked files — untracked local files are not CI's concern.
-    # git ls-files --cached returns only repo-tracked paths (respects .gitignore).
-    git ls-files --cached 2>/dev/null | grep -E '\.(rs|sh|py|toml|yml|yaml|md)$' | while IFS= read -r line; do
+    # git ls-files --cached --others --exclude-standard returns tracked
+    # paths PLUS untracked-but-present files (respecting .gitignore), so a
+    # new source file missing its SPDX header fails the check BEFORE it
+    # can be committed (pre-commit proxy parity — see inject-disclaimer.sh
+    # for the incident history that forced this).
+    git ls-files --cached --others --exclude-standard 2>/dev/null | grep -E '\.(rs|sh|py|toml|yml|yaml|md)$' | while IFS= read -r line; do
         printf '%s\0' "${REPO_ROOT}/${line}"
     done
 )

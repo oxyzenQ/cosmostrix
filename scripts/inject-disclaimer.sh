@@ -98,9 +98,13 @@ SKIPPED=0
 MISSING=0
 CHECKED=0
 
-# Process every git-tracked .md file in the repo.
-# (git ls-files --cached respects .gitignore and only returns tracked files,
-#  so untracked local files don't trigger false failures in CI.)
+# Process every git-tracked OR untracked-but-present .md file in the repo.
+# (git ls-files --cached --others --exclude-standard returns tracked files
+#  PLUS new files not yet staged — respecting .gitignore — so a freshly
+#  written .md fails the check BEFORE it can be committed. Three CI
+#  incidents (runs #79, #96, and the docs-audit SPDX miss) were caused by
+#  the old --cached-only scan: the gatekeeper passed pre-commit while the
+#  file was still untracked, then CI scanned it as tracked and failed.)
 while IFS= read -r -d '' file; do
     CHECKED=$((CHECKED + 1))
 
@@ -124,7 +128,7 @@ while IFS= read -r -d '' file; do
     INJECTED=$((INJECTED + 1))
     echo "Injected: $file"
 done < <(
-    git ls-files --cached 2>/dev/null \
+    git ls-files --cached --others --exclude-standard 2>/dev/null \
         | grep -E '\.md$' \
         | grep -Ev "$EXCLUDE_PATTERN" \
         | while IFS= read -r line; do
