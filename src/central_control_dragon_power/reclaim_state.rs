@@ -162,7 +162,14 @@ pub(crate) fn interior_page_range(addr: usize, len: usize, page: usize) -> Optio
 /// Uses `sysconf(_SC_PAGESIZE)` (handles 4 KiB x86_64, 16/64 KiB ARM,
 /// 64 KiB POWER). Falls back to 4096 if sysconf fails — the fallback only
 /// makes the interior range MORE conservative or empty, never wider.
-#[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+///
+/// Linux-only: the sole caller is the Linux `hint_reclaim_pages` above,
+/// and the `libc` crate is a Unix-only dependency (Windows builds would
+/// fail to resolve it — CI run #1468). `interior_page_range` stays
+/// cross-platform (its tests run on every target with an explicit page
+/// size parameter), so the confinement math is still verified everywhere
+/// this builds.
+#[cfg(target_os = "linux")]
 fn page_size() -> usize {
     static PAGE_SIZE: std::sync::OnceLock<usize> = std::sync::OnceLock::new();
     *PAGE_SIZE.get_or_init(|| {
