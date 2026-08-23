@@ -2,9 +2,23 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Schedule: Weekly on Monday 00:00 UTC
 #
-# Direct-main dependency updates use a two-phase privilege model:
+# Report-first dependency maintenance (owner directive 2026-08-23):
 # - validate: read-only token, dependency update, full checks, lockfile artifact
-# - commit: write token, no dependency code execution, Cargo.lock allowlist only
+# - report: open a Pull Request with the validated lockfile — the owner
+#   reviews and merges. NO bot ever pushes directly to main.
+#
+# ── How this workflow authenticates WITHOUT a personal access token ──
+#
+# GitHub Actions auto-provisions a short-lived installation token
+# (`GITHUB_TOKEN`) for every workflow run. It is repo-scoped, expires when
+# the job ends, and its permissions are exactly what the `permissions:`
+# block of each job declares:
+#   - validate: contents:read  + persist-credentials:false → cannot push
+#   - report:   contents:write + pull-requests:write → can push ONE branch
+#     and open the report PR (github-actions[bot] identity)
+# No PAT is stored or needed. Commits made with GITHUB_TOKEN do not
+# recursively trigger other workflows (GitHub recursion guard), which is
+# fine here: validation already ran in the validate job.
 
 name: Cosmic Dragon Guard - Dependency Maintenance
 
@@ -26,6 +40,11 @@ env:
   GPG_KEY_FINGERPRINT: "47A50AEF4B65AAC2"
   # Warn this many days before the signing subkey expires.
   GPG_EXPIRY_WARN_DAYS: 30
+  # Bot identity for the dependency-update report PR. Centralized here
+  # so rotating it is a one-line edit (owner request 2026-08-23; previously
+  # hardcoded inline in the commit step).
+  GIT_BOT_NAME: "github-actions[bot]"
+  GIT_BOT_EMAIL: "41898282+github-actions[bot]@users.noreply.github.com"
 
 jobs:
   gpg-key-check:
@@ -184,7 +203,11 @@ jobs:
         run: |
           cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
           cargo build --profile release --locked --jobs "${CARGO_BUILD_JOBS}"
-          RUSTFLAGS="-C target-cpu=x86-64-v3" cargo build --profile pro-linux-v3 --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+          # Owner directive 2026-08-23: validate the plain `pro` profile
+          # (native target, no -C target-cpu pin) instead of pro-linux-v3 —
+          # dependency validation does not need a pinned microarch level,
+          # and plain pro builds on any runner arch (incl. future arm64).
+          cargo build --profile pro --locked --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Run tests
         if: steps.changes.outputs.changed == 'true'
@@ -202,14 +225,18 @@ jobs:
           path: Cargo.lock
           if-no-files-found: error
 
-  commit:
-    name: Cosmic Dragon Guard - Dependency Commit
+  report:
+    name: Cosmic Dragon Guard - Dependency Update Report
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.changed == 'true'
     timeout-minutes: 10
     permissions:
+      # contents:write pushes the single update branch.
+      # pull-requests:write opens the report PR. The owner merges it —
+      # nothing lands on main without a human decision.
       contents: write
+      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -223,8 +250,12 @@ jobs:
           name: validated-cargo-lock
           path: .auto-update
 
-      - name: Commit dependency update
+      - name: Open dependency-update Pull Request (report-first)
         shell: bash
+        env:
+          # github.token == the run's ephemeral GITHUB_TOKEN (see the
+          # workflow header). gh CLI authenticates with it.
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cp .auto-update/Cargo.lock Cargo.lock
@@ -236,15 +267,41 @@ jobs:
 
           git diff --name-only | tee /tmp/changed-files.txt
           if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
-            echo "::error::Commit job may only modify Cargo.lock"
+            echo "::error::Report job may only modify Cargo.lock"
             exit 1
           fi
 
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          # Identity comes from the workflow env block (single source).
+          git config user.name "${GIT_BOT_NAME}"
+          git config user.email "${GIT_BOT_EMAIL}"
+
+          BRANCH="deps/auto-update-${GITHUB_RUN_ID}"
+          git checkout -b "${BRANCH}"
           git add Cargo.lock
-          git commit -m "chore(deps): maintenance deps weekly"
-          git push origin HEAD:main
+          git commit -m "chore(deps): weekly dependency update (validated)"
+          git push origin "${BRANCH}"
+
+          # The report: a PR the owner reviews and merges. Cargo.lock diff
+          # summary + validation evidence in the body.
+          UPDATED="$(git diff --stat HEAD~1..HEAD | tail -n1)"
+          gh pr create \
+            --title "chore(deps): weekly dependency update (validated)" \
+            --base main \
+            --head "${BRANCH}" \
+            --body "Automated dependency update report — **no code touched, Cargo.lock only**.
+
+          Validated by the weekly maintenance run:
+          - cargo audit (baseline + post-update)
+          - cargo deny check all
+          - cargo fmt --check
+          - build: dev + release + pro profiles, --locked
+          - cargo test --all --locked
+          - clippy -D warnings
+
+          Diff: ${UPDATED}
+
+          Merge to apply. Closing the PR discards the update." \
+            || echo "::warning::PR already exists or creation failed — the branch ${BRANCH} is pushed for manual review"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

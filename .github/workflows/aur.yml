@@ -40,6 +40,12 @@ env:
   AUR_REPO: "ssh://aur@aur.archlinux.org/cosmostrix-bin.git"
   AUR_BRANCH: "master"
   PKGBUILD_DIR: "aur/cosmostrix-bin"
+  # AUR commit identity — the Arch User Repository packager identity
+  # (distinct from the GitHub bot identity in maintenance.yml).
+  # Centralized at the top for easy maintenance (owner request 2026-08-23;
+  # previously hardcoded inline in the push step).
+  AUR_GIT_NAME: "rezky_nightky"
+  AUR_GIT_EMAIL: "rezky2399@proton.me"
   # Opt into Node.js 24 for GitHub Actions (Node 20 deprecated June 2026)
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
@@ -287,9 +293,10 @@ jobs:
             exit 0
           fi
 
-          # Commit and push — use AUR identity, NOT GitHub identity
-          git config user.name "rezky_nightky"
-          git config user.email "rezky2399@proton.me"
+          # Commit and push — use AUR identity from the env block, NOT the
+          # GitHub identity (this pushes to the external Arch repository).
+          git config user.name "${AUR_GIT_NAME}"
+          git config user.email "${AUR_GIT_EMAIL}"
 
           git add PKGBUILD .SRCINFO
           git commit -m "chore: update to ${TAG}"

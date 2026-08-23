@@ -8,7 +8,7 @@
 # - Minimal CI resource consumption
 #
 # This workflow does NOT modify any repository files.
-# For dependency auto-updates, see: gitbot-deps.yml (weekly)
+# For dependency update reports, see: maintenance.yml (weekly)
 
 name: "Cosmic Dragon Guard - Security Audit"
 
@@ -116,7 +116,7 @@ jobs:
           echo ""
           echo "════════════════════════════════════════════════════════"
           echo "ℹ️  This workflow is observation-only — no files modified"
-          echo "📦 For auto-updates: see gitbot-deps.yml (weekly)"
+          echo "📦 For dependency update reports: see maintenance.yml (weekly)"
           echo "⏰ Next audit: tomorrow 00:00 UTC"
           echo "════════════════════════════════════════════════════════"
 
