@@ -385,3 +385,62 @@ fn reload_after_empty_refires_same_entry() {
         }
     }
 }
+
+// ── deliver() unit tests (triple-engine LTS audit LOW-1, 2026-08-23) ─────
+//
+// The scheduler previously terminated its thread on ANY try_send error,
+// conflating TrySendError::Full (transient) with TrySendError::Disconnected
+// (fatal). These tests pin the three-way contract of the fix.
+
+#[test]
+fn deliver_succeeds_when_channel_has_space() {
+    let (tx, _rx) = std::sync::mpsc::sync_channel::<AmbientEntry>(64);
+    assert_eq!(deliver(&tx, &entry(12, 0)), DeliverOutcome::Delivered);
+}
+
+#[test]
+fn deliver_reports_receiver_gone_when_rx_dropped() {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<AmbientEntry>(64);
+    drop(rx);
+    assert_eq!(deliver(&tx, &entry(12, 0)), DeliverOutcome::ReceiverGone);
+}
+
+#[test]
+fn deliver_reports_saturated_when_channel_stays_full() {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<AmbientEntry>(1);
+    // Fill the single slot so the next delivery attempt hits Full.
+    tx.try_send(entry(0, 0))
+        .expect("empty channel accepts first entry");
+    // Receiver stays alive (no drain) — the bounded retry loop must
+    // exhaust DELIVER_FULL_WAIT (1 s) and report Saturated instead of
+    // the pre-fix behavior of terminating the caller.
+    let started = std::time::Instant::now();
+    assert_eq!(deliver(&tx, &entry(12, 0)), DeliverOutcome::Saturated);
+    assert!(
+        started.elapsed() >= DELIVER_FULL_WAIT,
+        "saturated delivery must wait the full bounded duration"
+    );
+    drop(rx);
+}
+
+#[test]
+fn deliver_recovers_when_space_frees_within_wait() {
+    let (tx, rx) = std::sync::mpsc::sync_channel::<AmbientEntry>(1);
+    tx.try_send(entry(0, 0))
+        .expect("empty channel accepts first entry");
+    // Drain the slot from another thread after 100 ms, but keep the
+    // receiver alive until deliver() has returned — the drainer dropping
+    // the last rx reference would race the retry loop into ReceiverGone
+    // before it could observe the freed slot. Receiver is !Sync, so the
+    // shared handle is an Arc<Mutex<Receiver>> (Mutex over a Send type
+    // is Sync; the receiver never crosses threads unsynchronized).
+    let rx = std::sync::Arc::new(std::sync::Mutex::new(rx));
+    let drainer_rx = std::sync::Arc::clone(&rx);
+    let drainer = std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(100));
+        let _ = drainer_rx.lock().expect("rx mutex").try_recv();
+    });
+    assert_eq!(deliver(&tx, &entry(12, 0)), DeliverOutcome::Delivered);
+    drainer.join().expect("drainer thread must not panic");
+    drop(rx);
+}

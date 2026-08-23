@@ -67,7 +67,7 @@
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 use super::ambient::{
     current_minute_of_day, current_second_of_minute, AmbientEntry, AmbientSchedule,
@@ -182,6 +182,98 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
     }
 }
 
+/// Bounded wait when the channel is full (see [`deliver`]).
+///
+/// 1 second is far above one frame period (16 ms at 60 FPS) — a healthy
+/// event loop drains the queue within a single frame, so the wait returns
+/// almost immediately in every realistic scenario. The bound exists only
+/// to prevent a wedged event loop from freezing the scheduler thread
+/// forever.
+const DELIVER_FULL_WAIT: Duration = Duration::from_secs(1);
+
+/// Retry step for the saturated-channel wait (see [`deliver`]).
+///
+/// 20 ms matches one frame at 60 Hz — the event loop drains `rx` once per
+/// frame, so the retry cadence aligns with the drain cadence and wastes
+/// negligible CPU while waiting.
+const DELIVER_RETRY_STEP: Duration = Duration::from_millis(20);
+
+/// Result of a single delivery attempt through the bounded channel.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum DeliverOutcome {
+    /// Entry accepted by the channel — the caller should mark it applied.
+    Delivered,
+    /// Channel stayed full for the whole bounded wait — the entry was
+    /// dropped. The caller must NOT mark it applied, so the next scheduler
+    /// wake re-attempts delivery. The scheduler thread keeps running.
+    Saturated,
+    /// Receiver dropped (event loop exited) — the caller must terminate.
+    ReceiverGone,
+}
+
+/// Deliver one phase-fire event to the event loop, distinguishing a full
+/// channel from a dead receiver.
+///
+/// Triple-engine LTS audit finding LOW-1 (2026-08-23): the previous code
+/// treated ANY `try_send` error as "receiver dropped" and terminated the
+/// scheduler thread. `TrySendError::Full` is a distinct, transient
+/// condition — the bounded channel (capacity 64) saturated — and killing
+/// the thread on it would silently disable ambient scheduling for the
+/// rest of the session while the rain kept running.
+///
+/// Delivery strategy:
+///
+/// 1. `try_send` first — the common case succeeds without blocking.
+/// 2. On `Full`, retry every [`DELIVER_RETRY_STEP`] (20 ms, one frame at
+///    60 Hz) until [`DELIVER_FULL_WAIT`] (1 s) elapses. The event loop
+///    drains `rx` via non-blocking `try_recv` every frame, so a saturated
+///    queue normally frees a slot within one frame period and the first
+///    retry succeeds. `SyncSender::send_timeout` is unstable in std
+///    (`std_internals` feature), so the bounded wait is a manual retry
+///    loop — at most ~50 sleeping iterations, zero busy-spinning.
+/// 3. If the wait still elapses, drop the entry and report
+///    [`DeliverOutcome::Saturated`]. The caller does not mark the phase
+///    as applied, so the next scheduler wake (next phase boundary, capped
+///    at 1 hour by the condvar sleep) re-attempts delivery — eventual
+///    delivery is preserved and no busy-loop is possible because the
+///    retry cadence is bounded by the sleep.
+/// 4. Only `Disconnected` (receiver dropped) reports
+///    [`DeliverOutcome::ReceiverGone`] — identical to the previous
+///    behavior for that error kind.
+///
+/// The caller holds no locks while calling this (the schedule mutex is
+/// released before the send by design), so the bounded wait cannot
+/// deadlock against `reload`.
+fn deliver(tx: &std::sync::mpsc::SyncSender<AmbientEntry>, entry: &AmbientEntry) -> DeliverOutcome {
+    match tx.try_send(entry.clone()) {
+        Ok(()) => DeliverOutcome::Delivered,
+        Err(std::sync::mpsc::TrySendError::Disconnected(_)) => DeliverOutcome::ReceiverGone,
+        Err(std::sync::mpsc::TrySendError::Full(_)) => {
+            let deadline = Instant::now() + DELIVER_FULL_WAIT;
+            loop {
+                if Instant::now() >= deadline {
+                    crate::lr_trace!(
+                        "ambient-scheduler: channel saturated for the full bounded wait — \
+                         dropping phase {:02}:{:02} (scene={}); re-attempt at next wake",
+                        entry.hour,
+                        entry.minute,
+                        entry.scene
+                    );
+                    return DeliverOutcome::Saturated;
+                }
+                thread::sleep(DELIVER_RETRY_STEP);
+                match tx.try_send(entry.clone()) {
+                    Ok(()) => return DeliverOutcome::Delivered,
+                    Err(std::sync::mpsc::TrySendError::Disconnected(_)) => {
+                        return DeliverOutcome::ReceiverGone;
+                    }
+                    Err(std::sync::mpsc::TrySendError::Full(_)) => continue,
+                }
+            }
+        }
+    }
+}
+
 /// The scheduler thread's main loop. Extracted to a free function so it
 /// can be unit-tested with synthetic clocks (the test passes a mock
 /// `now_min` instead of calling `current_minute_of_day`).
@@ -255,12 +347,22 @@ fn scheduler_loop(
                     entry.minute,
                     entry.scene
                 );
-                if tx.try_send(entry.clone()).is_err() {
-                    // Receiver dropped (event loop exited). Terminate.
-                    return;
+                match deliver(&tx, entry) {
+                    DeliverOutcome::ReceiverGone => {
+                        // Receiver dropped (event loop exited). Terminate.
+                        return;
+                    }
+                    DeliverOutcome::Delivered => {
+                        last_applied = Some(entry.clone());
+                        last_fired_yday = super::ambient::current_yday();
+                    }
+                    DeliverOutcome::Saturated => {
+                        // Channel full for the whole bounded wait — entry
+                        // dropped. Do NOT mark as applied: the next wake
+                        // re-attempts delivery via this same identity path
+                        // (bounded by the condvar sleep — no busy loop).
+                    }
                 }
-                last_applied = Some(entry.clone());
-                last_fired_yday = super::ambient::current_yday();
             }
         } else {
             // AB-09: schedule is empty — clear last_applied so that re-adding
@@ -298,6 +400,10 @@ fn scheduler_loop(
         // day).
         let today_yday = super::ambient::current_yday();
         if today_yday != last_fired_yday {
+            // Set when the day-boundary refire was dropped due to a
+            // saturated channel — suppresses marking today as "seen" so
+            // the next wake re-attempts the refire.
+            let mut refire_saturated = false;
             if let Some(entry) = &current_entry {
                 if entry.minutes_of_day() <= now_min && last_applied.as_ref() == Some(entry) {
                     // Same entry, new day, past today's boundary — refire.
@@ -314,15 +420,24 @@ fn scheduler_loop(
                         entry.scene,
                         today_yday
                     );
-                    if tx.try_send(entry.clone()).is_err() {
-                        return;
+                    match deliver(&tx, entry) {
+                        DeliverOutcome::ReceiverGone => return,
+                        DeliverOutcome::Delivered => {}
+                        DeliverOutcome::Saturated => {
+                            // Entry dropped — leave today unmarked so the
+                            // next wake re-attempts the day-boundary refire
+                            // (retry cadence bounded by the condvar sleep).
+                            refire_saturated = true;
+                        }
                     }
                 }
             }
-            // Mark today as "seen" — whether or not we fired. This prevents
-            // repeated refire attempts on subsequent wakes within the same
-            // day (the 1-hour sleep cap can trigger multiple wakes per day).
-            last_fired_yday = today_yday;
+            if !refire_saturated {
+                // Mark today as "seen" — whether or not we fired. This prevents
+                // repeated refire attempts on subsequent wakes within the same
+                // day (the 1-hour sleep cap can trigger multiple wakes per day).
+                last_fired_yday = today_yday;
+            }
         }
 
         // Sleep until next phase boundary OR reload signal.
