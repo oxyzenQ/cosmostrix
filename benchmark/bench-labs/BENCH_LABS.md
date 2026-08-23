@@ -61,6 +61,15 @@ profile (no AVX-512 target). The previous `pro-linux-v4` sweep
 the LOW-2 fix, so its oversized-tier numbers measured the hybrid
 (partially clamped) simulation state and are not comparable.
 
+## PGO A/B (2026-08-23)
+
+First PGO measurement on record: +4.5% median FPS and **−35% worst-case
+frame time** vs the non-PGO release build, zero visual change
+(deterministic per-frame metrics identical). See
+[`PGO_AB_20260823.md`](PGO_AB_20260823.md). IPC/mispredict not measurable
+in the container (perf counters blocked) — re-run on a bare-metal rig to
+complete the `docs/research/IPC_RESEARCH.md` verification.
+
 ## Notes
 
 - Zero memory leaks across all sizes; `frame_time_stability: excellent` up to 4K.

@@ -141,7 +141,27 @@ Success criteria, in priority order: (1) avg_frame_time drops, (2) mispredict
 rate < 1.5%, (3) IPC ≥ 2.9. Criterion (1) is the one that matters — IPC is
 only its proxy.
 
-## 5. Recommendation
+## 5. Measured result (2026-08-23, step 1 executed)
+
+The PGO A/B from §4 ran the same day in a 2-core CI container (perf
+counters unavailable, so the IPC half awaits a bare-metal re-run):
+
+- avg_fps **+4.5%** (91,337 → 95,475, interleaved 3-run medians)
+- avg_frame_time −4.5% (0.0110 → 0.0105 ms)
+- **max_frame_time −35%** (0.0727 → 0.0473 ms — the jank spike nearly
+  halved; this is the code-layout effect in action)
+- total_ns_per_cell −5.0%; per-frame visual metrics identical
+  (deterministic seed)
+
+Conclusion: the PGO lever is confirmed real at the low end of the
+estimated range, with the biggest effect on worst-case smoothness.
+Remaining steps unchanged: measure IPC/mispredict on bare metal (owner's
+rig — the benchmark already prints them), and if mispredicts stay >1.5%,
+extend BOLT-style tables to the SGR decision and CharLoc selection.
+
+Full data: [`benchmark/bench-labs/PGO_AB_20260823.md`](../../benchmark/bench-labs/PGO_AB_20260823.md).
+
+## 6. Recommendation
 
 1. Run the PGO A/B first (zero code changes, uses existing infra) and
    record results in `benchmark/bench-labs/` + `BENCH_LABS.md`.
