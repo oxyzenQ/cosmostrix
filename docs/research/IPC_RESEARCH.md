@@ -161,6 +161,33 @@ extend BOLT-style tables to the SGR decision and CharLoc selection.
 
 Full data: [`benchmark/bench-labs/PGO_AB_20260823.md`](../../benchmark/bench-labs/PGO_AB_20260823.md).
 
+### Bare-metal verdict (owner's rig, 2026-08-23 — perf counters measured)
+
+The owner re-ran the A/B with working perf counters. PGO delivered
+throughput (+4.0% avg_fps, −2.5% cycles/frame, −3.0% energy/frame) but
+**IPC stayed at 2.57 and the mispredict rate did not improve**
+(2.47% → 2.65%, within noise). The §2 prediction that PGO's block
+layout would cut the mispredict floor did NOT materialize — the
+honesty clause in §3 was the correct branch: the mispredicts are
+dominated by genuinely data-dependent branches that no amount of
+layout can predict.
+
+Re-prioritized path to ~3.0:
+
+1. ~~PGO halves mispredicts~~ — measured false; PGO keeps its +4%
+   throughput / smoothness value as an optimization, not an IPC lever.
+2. **BOLT-style branchless conversion is now the PRIMARY IPC lever**:
+   the per-cell SGR emission decision and the CharLoc palette selection
+   are the two hottest data-dependent branches in the differential path.
+   Converting them to table lookups (the proven BOLD_ESCAPES pattern)
+   deletes the unpredictable branches outright. Estimated from the
+   mispredict budget: removing ~60% of hot mispredicts recovers
+   ~8-11% of cycles → IPC ~2.85-2.95, with total_ns_per_cell dropping
+   correspondingly.
+3. Caveat recorded from the owner's run: his baseline arm was the
+   SSE2-baseline `target/pro` build (target_features: sse,sse2), not v3 —
+   build the v3 baseline before quoting the pure-PGO delta.
+
 ## 6. Recommendation
 
 1. Run the PGO A/B first (zero code changes, uses existing infra) and
