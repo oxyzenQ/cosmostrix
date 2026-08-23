@@ -2,6 +2,15 @@
 
 # Visual Mode Masterclass Audit — CRT Vignette + Edge Fade Tuning
 
+> **SUPERSEDED (2026-08-17)**: The v30.2 masterclass retune documented here
+> was superseded by Option F "Film Matrix Hero" (see
+> [`docs/RAIN_DEPTH_AUDIT.md`](../RAIN_DEPTH_AUDIT.md)) and then by the
+> **Cinema Noir** preset (current champion). The 4-effect compounding model
+> and the top/bottom visibility analysis remain valid methodology. The
+> current visual identity is documented in
+> [`docs/VISUAL_IDENTITY.md`](../VISUAL_IDENTITY.md) — the single source of
+> truth for the current preset.
+
 **Date:** 2026-08-07 (masterclass retune); updated 2026-08-09 (4-effect compounding model + RAIN_SHADOW_FLOOR).
 **Owner request:** "deeper audit research about visual mode at vignette dim top/bottom border terminal. for masterclass level."
 

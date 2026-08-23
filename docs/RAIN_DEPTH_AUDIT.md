@@ -3,6 +3,15 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
+> **SUPERSEDED (2026-08-17)**: This document describes the Option F
+> "Film Matrix Hero" preset. Option F was superseded by the **Cinema Noir**
+> preset, which won the 5-way visual preset battle (two back-layer values
+> differ from the current source). The depth-stack analysis in sections 2,
+> 3, and 7 remains valid as the foundation Cinema Noir builds on. The
+> current visual identity is documented in
+> [`docs/VISUAL_IDENTITY.md`](VISUAL_IDENTITY.md) — the single source of
+> truth for the current preset.
+
 > **Document ID**: RAIN-AUDIT-002
 > **Date**: 2026-08
 > **Supersedes**: RAIN-AUDIT-001 (Option A baseline)
