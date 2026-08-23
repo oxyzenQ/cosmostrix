@@ -409,9 +409,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // All engine-specific metrics grouped under this header.
     {
         let s = r.section("COSMIC DRAGON ENGINE METRICS");
+        // Engine description (audit 2026-08-23): the old one-liner
+        // "(diff-based + phosphor)" under-described the engine — the owner
+        // remembered it listing the actual techniques. Every term below is
+        // verified in source (terminal/draw.rs, frame.rs, bolt.rs,
+        // chroma color_cache.rs): the two-path strategy, both RLE forms,
+        // the caches, and the zero-alloc guarantee.
         s.field(
             "engine",
-            "The Cosmic Dragon Diff-Based Rendering Engine (diff-based + phosphor)",
+            "The Cosmic Dragon Diff-Based Rendering Engine (generation dirty-tracking, dual-path differential/row-RLE, SGR cache, branchless bold, phosphor afterglow)",
+        );
+        s.field(
+            "techniques",
+            "1) generation-based dirty tracking: O(1) frame clear via u32 gen bump, wraparound-safe; 2) dual-path strategy: differential below the 12.5% dirty crossover, single-pass row-RLE full redraw above it; 3) contiguous-run batching: sorted dirty indices coalesced into runs with one MoveTo + SGR per run; 4) SGR color cache: pre-formatted escape sequences per palette color; 5) BOLT branchless bold: escape-table lookup instead of branches; 6) SmallVec inline dirty list: 256 slots, zero heap allocation at common terminal sizes; 7) idle-frame fast path: entire render body skipped when nothing changed; 8) double-buffered LastFrame diff cache with Vec reuse across resize storms; 9) phosphor decay afterglow: 3-pass trail system; 10) zero per-frame heap allocation in the differential path",
         );
         s.field("version", env!("CARGO_PKG_VERSION"));
         // disclose the active scene so users can interpret FPS
