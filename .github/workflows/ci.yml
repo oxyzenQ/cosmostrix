@@ -787,8 +787,14 @@ jobs:
         uses: actions/checkout@v6.0.2
 
       - name: Install lint tools
+        # Pinned for reproducible lint behavior: ruff's default rule set
+        # gains rules across releases, so an unpinned install lets CI
+        # break when a new ruff version ships (observed 2026-08-23 when
+        # PLW1510/FURB167 appeared on newer local installs). Bump the pins
+        # deliberately: fix new findings locally first, then update both
+        # versions here in the same commit.
         run: |
-          python3 -m pip install --user codespell ruff
+          python3 -m pip install --user codespell==2.4.3 ruff==0.16.4
 
       - name: Run ruff check (Python lint)
         run: ruff check scripts/*.py

@@ -166,7 +166,7 @@ strip = false
 excessive_precision = "allow"
 
 [dev-dependencies]
-proptest = "1.8.0"
+proptest = { version = "1.8.0", default-features = false, features = ["std"] }
 
 
 # Platform-specific optimizations
