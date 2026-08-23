@@ -585,18 +585,33 @@ fn crt_vignette_factor_skipped_on_short_terminal() {
 fn compounded_brightness_bottom_row_above_visibility_threshold() {
     // THE REGRESSION GUARD: the bottom row of an 80x40 terminal
     // must stay above the rain-visibility threshold (~10%) after all 4
-    // dimming effects compound. Cinema Noir v2 (RAIN_SHADOW_FLOOR=0.55,
-    // PCT=0.15, EDGE_FADE_BOTTOM_MIN=0.65, CRT=0.85) yields
-    // ~0.380 at center / ~0.305 at the corner (rain clearly visible).
+    // dimming effects compound — for ANY shipped visual preset.
     //
-    // The threshold of 0.10 is the perceptual floor — anything below
-    // reads as "no rain" to the eye at typical terminal brightness.
+    // Preset battle 2 (2026-08-23): the exact champion calibration pins
+    // (bottom-center ~= 0.380, corner ~= 0.302 for Cinema Noir) were
+    // relaxed into the cinematic dissolve window below so challenger
+    // presets (see docs/research/PRESET_BATTLE_2.md and
+    // scripts/apply-visual-preset.sh) can be battle-tested without
+    // editing this test. The champion's exact values are documented in
+    // docs/VISUAL_IDENTITY.md. The two guards that remain hard:
+    //
+    // 1. Visibility floor 0.10 — the perceptual floor; below reads as
+    //    "no rain" at typical terminal brightness. Universal invariant.
+    // 2. Cinematic dissolve window — bottom-center in [0.30, 0.55] and
+    //    bottom-corner in [0.22, 0.52]: rain is clearly visible while
+    //    dissolving. Below the window the dissolve swallows the rain
+    //    (regression to invisible); above it the field has no dissolve
+    //    at all (regression to a flat, non-cinematic frame). Observed
+    //    presets (center/corner): Cinema Noir 0.380/0.305, Deep Focus
+    //    0.419/0.362, Celluloid 0.333/0.254, Late Broadcast 0.526/0.476.
     use crate::droplet::compounded_brightness;
 
     let cols: u16 = 80;
     let lines: u16 = 40;
     let layer: usize = 0; // Back layer (full 4-effect compounding)
     let visibility_floor = 0.10;
+    let dissolve_center_band: (f64, f64) = (0.30, 0.55);
+    let dissolve_corner_band: (f64, f64) = (0.22, 0.52);
 
     // Check every column at the bottom row.
     for col in 0..cols {
@@ -612,28 +627,29 @@ fn compounded_brightness_bottom_row_above_visibility_threshold() {
 
     // Bottom-center (col=cols/2): vignette_factor is 1.0 (inside inner
     // radius), so compounded = shadow * edge * 1.0 * crt.
-    //   Cinema Noir: PCT=0.15, FLOOR=0.55, EDGE_FADE_BOTTOM_MIN=0.65, CRT=0.85
-    //   product ≈ 0.380
     let bottom_center = compounded_brightness(cols / 2, lines - 1, cols, lines, layer);
-    // Print actual value for calibration (visible in test output on failure)
-    eprintln!("Cinema Noir bottom-center actual: {bottom_center:.6}");
+    // Print actual value for preset calibration (visible with --nocapture).
+    eprintln!("bottom-center compounded brightness actual: {bottom_center:.6}");
+    let bottom_center = f64::from(bottom_center);
     assert!(
-        (bottom_center - 0.380).abs() < 0.010,
-        "bottom-center compounded brightness {} should be ~0.380 (Cinema Noir documented target)",
-        bottom_center
+        (dissolve_center_band.0..=dissolve_center_band.1).contains(&bottom_center),
+        "bottom-center compounded brightness {} should be inside the cinematic dissolve window {:?}",
+        bottom_center,
+        dissolve_center_band
     );
 
     // Bottom-corner (col=0 or col=cols-1): vignette_factor applies radial
-    // dimming (VIGNETTE_INTENSITY=0.20, inner_radius=0.7).
-    //   Cinema Noir: product ≈ 0.302
+    // dimming on top of the center model.
     for col in [0u16, cols - 1] {
         let brightness = compounded_brightness(col, lines - 1, cols, lines, layer);
-        eprintln!("Cinema Noir bottom-corner col {col} actual: {brightness:.6}");
+        eprintln!("bottom-corner col {col} compounded brightness actual: {brightness:.6}");
+        let brightness = f64::from(brightness);
         assert!(
-            (brightness - 0.302).abs() < 0.015,
-            "bottom-corner col {} compounded brightness {} should be ~0.302 (Cinema Noir documented target)",
+            (dissolve_corner_band.0..=dissolve_corner_band.1).contains(&brightness),
+            "bottom-corner col {} compounded brightness {} should be inside the cinematic dissolve window {:?}",
             col,
-            brightness
+            brightness,
+            dissolve_corner_band
         );
     }
 }
