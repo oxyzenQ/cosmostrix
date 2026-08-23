@@ -69,6 +69,19 @@ jobs:
             rustflags: "-C target-cpu=x86-64"
             build: windows-x86_64
             checks: false
+          # Windows ARM64 (Snapdragon X / Copilot+ PCs): native build on the
+          # windows-11-arm hosted runner. Verified compile-clean on 2026-08-23
+          # (docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md) — every
+          # platform fork is cfg(unix)/cfg(target_os)-keyed, never arch-keyed.
+          # target-cpu=native is safe here: the runner is real ARM64 hardware
+          # (same policy as the linux-aarch64 and darwin-aarch64 entries).
+          - os: windows-11-arm
+            target: aarch64-pc-windows-msvc
+            platform: windows-arm64
+            profile: pro-win-aarch64
+            rustflags: "-C target-cpu=native"
+            build: windows-arm64
+            checks: false
 
     steps:
       - name: Checkout

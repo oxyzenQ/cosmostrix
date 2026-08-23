@@ -10,7 +10,7 @@ support and Windows aarch64/arm64?
 
 | Target | Compiles today? | Real-world usability | Recommendation |
 |--------|-----------------|----------------------|----------------|
-| `aarch64-pc-windows-msvc` | **YES — verified** (`cargo check` clean, 0 errors, 2026-08-23, same 5 pre-existing warnings as x86_64) | High — Snapdragon X / Copilot+ PCs run ARM64 natively; x64 emulation works but native is faster | **GO** — CI matrix entry + cargo profile alias only |
+| `aarch64-pc-windows-msvc` | **YES — verified** (`cargo check` clean, 0 errors, 2026-08-23, same 5 pre-existing warnings as x86_64) | High — Snapdragon X / Copilot+ PCs run ARM64 natively; x64 emulation works but native is faster | **GO — LANDED 2026-08-23**: release.yml matrix entry (`windows-11-arm` native runner, `pro-win-aarch64` profile) + README platform table updated. First artifact ships with the next tagged release. |
 | `aarch64-apple-ios` | **YES — verified** (`cargo check` clean, 0 errors, incl. crossterm, notify-kqueue, clap) | Constrained — no App Store path for a standalone CLI; meaningful only inside terminal-emulator contexts (jailbreak/NewTerm, TrollStore terminal, or an embedding app) | **NO-GO as a shipped target**; document the VM/emulator paths that already work today |
 
 ---

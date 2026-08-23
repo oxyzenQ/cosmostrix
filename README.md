@@ -182,7 +182,7 @@ Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Single ambient entry is active all day.** A schedule with only one entry (e.g. `ambient.03-17 = hacker-mode`) wraps via midnight carry-over — it is active before AND after 03:17. Use two entries if you want a scene to activate only after a specific time.
 - **Mouse reporting blocks text selection.** crossterm enables mouse reporting for glow/click effects, which prevents terminal text selection. This is always-on (not toggleable) because the mouse effects are a core visual feature.
 - **xterm.js hosts are capped at 30 FPS.** VSCode, web terminals, and other xterm.js-based hosts are auto-detected and capped to prevent multi-hour OOM crashes. This cap cannot be overridden — it is a safety gate, not a configurability gap.
-- **No prebuilt binary for Windows ARM64 or Intel Mac.** Prebuilt releases cover `windows-x86_64` and `darwin-aarch64-native` only. Windows ARM64 and Intel Mac users must build from source.
+- **No prebuilt binary for Intel Mac.** Prebuilt releases cover `windows-x86_64`, `windows-arm64`, and `darwin-aarch64-native`. Intel Mac users must build from source.
 - **Screen size limits.** `--screen-size WxH` clamps to a per-mode ceiling:
   - **Interactive mode**: `4×4` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
   - **Benchmark mode**: `4×4` minimum, `7680×4320` (8K UHD) maximum. 4K UHD is the recommended stress test; 8K is the ceiling.
@@ -257,7 +257,7 @@ A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms aut
 - Linux amd64: `v3`, `v4`, `musl` (also `linux-aarch64` for arm64)
 - macOS: `darwin-aarch64-native` (Apple Silicon; no Intel Mac prebuilt — build from source for `x86_64-apple-darwin`)
 - FreeBSD: `freebsd-amd64` (requires libexecinfo on 15+, see [System Requirements](docs/SYSTEM_REQUIREMENTS.md))
-- Windows: `windows-x86_64` (no ARM64 prebuilt binary; build from source for `aarch64-pc-windows-msvc`)
+- Windows: `windows-x86_64` and `windows-arm64` (Snapdragon X / Copilot+ PCs — native ARM64 build)
 - Android (Termux): `android-aarch64-native`
 
 ```bash
