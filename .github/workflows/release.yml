@@ -262,7 +262,7 @@ jobs:
         env:
           COSMOSTRIX_BUILD: darwin-aarch64-native
           RUSTFLAGS: '-C target-cpu=native'
-        run: cargo build --profile pro-macos-aarch64-native --locked
+        run: cargo build --profile pro-macos-aarch64-native --target aarch64-apple-darwin --locked
       - name: verify
         run: target/aarch64-apple-darwin/pro-macos-aarch64-native/cosmostrix --doctor
       - name: package
@@ -303,7 +303,7 @@ jobs:
       - name: build
         env:
           COSMOSTRIX_BUILD: windows-x86_64
-        run: cargo build --profile pro-win-amd64 --locked
+        run: cargo build --profile pro-win-amd64 --target x86_64-pc-windows-msvc --locked
       - name: package
         shell: bash
         run: |
@@ -339,7 +339,6 @@ jobs:
       - name: build
         env:
           COSMOSTRIX_BUILD: windows-aarch64-native
-          RUSTFLAGS: '-C target-cpu=native'
         run: cargo build --profile pro-win-aarch64 --target aarch64-pc-windows-msvc --locked
       - name: package
         shell: bash
@@ -376,7 +375,6 @@ jobs:
       - name: build
         env:
           COSMOSTRIX_BUILD: android-aarch64-native
-          RUSTFLAGS: '-C target-cpu=native'
         run: cargo build --profile pro-android-aarch64 --target aarch64-linux-android --locked
       - name: embedded-scan
         run: |
