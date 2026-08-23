@@ -166,7 +166,13 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
-    cloud.reset(w, h);
+    // reset_bench clamps to BENCH_MAX_COLS/LINES (8K UHD), mirroring
+    // Frame::new_bench — the benchmark intentionally exceeds the
+    // interactive 1024x500 safety cap. Triple-engine LTS audit LOW-2:
+    // routing through the interactive reset() previously produced a
+    // hybrid state (rain spawning at raw bench width while glitch/color
+    // coverage stopped at the interactive cap).
+    cloud.reset_bench(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
@@ -245,7 +251,13 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
-    cloud.reset(w, h);
+    // reset_bench clamps to BENCH_MAX_COLS/LINES (8K UHD), mirroring
+    // Frame::new_bench — the benchmark intentionally exceeds the
+    // interactive 1024x500 safety cap. Triple-engine LTS audit LOW-2:
+    // routing through the interactive reset() previously produced a
+    // hybrid state (rain spawning at raw bench width while glitch/color
+    // coverage stopped at the interactive cap).
+    cloud.reset_bench(w, h);
     cloud.set_component_timing(true); // P1: enable sim/render split for benchmark
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose
@@ -1001,7 +1013,13 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     let mut cloud = cfg.create_cloud(density);
-    cloud.reset(w, h);
+    // reset_bench clamps to BENCH_MAX_COLS/LINES (8K UHD), mirroring
+    // Frame::new_bench — the benchmark intentionally exceeds the
+    // interactive 1024x500 safety cap. Triple-engine LTS audit LOW-2:
+    // routing through the interactive reset() previously produced a
+    // hybrid state (rain spawning at raw bench width while glitch/color
+    // coverage stopped at the interactive cap).
+    cloud.reset_bench(w, h);
     cloud.set_component_timing(true);
     cloud.enable_stuck_cell_sweep = false; // T1.1: keep realloc counters clean in benchmark
     cloud.set_verbose(cfg.verbose); // silent arena unless --verbose

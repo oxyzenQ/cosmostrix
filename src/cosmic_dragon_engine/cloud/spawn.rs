@@ -23,11 +23,51 @@ use super::Cloud;
 
 impl Cloud {
     pub fn reset(&mut self, cols: u16, lines: u16) {
+        self.reset_with_bounds(cols, lines, MAX_TERMINAL_COLS, MAX_TERMINAL_LINES);
+    }
+
+    /// Benchmark variant of [`Self::reset`]: clamps to the benchmark bounds
+    /// (8K UHD by default) instead of the interactive bounds, mirroring
+    /// `Frame::new_bench`. The scaling and stress benchmarks intentionally
+    /// exceed the interactive safety cap to stress-test cell throughput —
+    /// the interactive clamp would silently shrink the simulated rain area
+    /// to the top-left corner of a 7680-column frame.
+    ///
+    /// Triple-engine LTS audit LOW-2 follow-up: previously the benchmark
+    /// passed its oversized dimensions through `reset`, which clamped only
+    /// `self.cols`/`self.lines` (plus the pool sizing and a few gates) while
+    /// the RNG ranges, column tables, and per-cell LUTs were built from the
+    /// RAW dimensions — an inconsistent hybrid state where rain spawned
+    /// across the full bench width but glitch/color-map coverage stopped at
+    /// the interactive cap. This variant keeps the benchmark fully
+    /// consistent at bench-bounded dimensions.
+    pub fn reset_bench(&mut self, cols: u16, lines: u16) {
+        self.reset_with_bounds(cols, lines, BENCH_MAX_COLS, BENCH_MAX_LINES);
+    }
+
+    /// Core reset: clamps `cols`/`lines` to `[MIN, max]` and rebuilds every
+    /// size-dependent structure. Factored out so the interactive and
+    /// benchmark paths share one routine, mirroring
+    /// `Frame::new_with_bounds`.
+    fn reset_with_bounds(&mut self, cols: u16, lines: u16, max_cols: u16, max_lines: u16) {
         // Defense in depth: clamp even though callers should clamp before
         // calling. Prevents degenerate sizes from reaching buffer allocation
         // or Uniform::new_inclusive construction.
-        self.cols = cols.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-        self.lines = lines.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
+        //
+        // Triple-engine LTS audit LOW-2 (2026-08-23): the clamped values now
+        // shadow the raw parameters for the WHOLE function body. Previously
+        // only `self.cols`/`self.lines` (and the droplet pool sizing) used
+        // the clamped values, while the RNG ranges, column tables, and
+        // per-cell LUTs below were built from the RAW parameters — panic-free
+        // (saturating arithmetic + `Frame::set` bounds checks) but
+        // inconsistent: an oversized caller could spawn droplets outside the
+        // clamped grid while the glitch/color maps only covered the clamped
+        // region. Shadowing makes every downstream consumer see the same
+        // clamped dimensions.
+        let cols = cols.clamp(MIN_TERMINAL_COLS, max_cols);
+        let lines = lines.clamp(MIN_TERMINAL_LINES, max_lines);
+        self.cols = cols;
+        self.lines = lines;
 
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.droplets.clear();

@@ -708,3 +708,78 @@ fn abort_deceleration_snaps_resume_blend_to_full_speed() {
         "no resume ramp needed when aborting deceleration"
     );
 }
+
+// ── Dimension consistency tests (triple-engine LTS audit LOW-2) ───────────
+//
+// Cloud::reset previously built self.cols/self.lines and the droplet pool
+// from the CLAMPED dimensions while the RNG ranges, column tables, and
+// per-cell LUTs used the RAW parameters. These tests pin the invariant:
+// every size-dependent structure must agree with the clamped dimensions.
+
+#[test]
+fn reset_clamps_oversized_dimensions_consistently() {
+    let mut cloud = make_cloud();
+    cloud.reset(2000, 600);
+
+    assert_eq!(cloud.cols, crate::constants::MAX_TERMINAL_COLS);
+    assert_eq!(cloud.lines, crate::constants::MAX_TERMINAL_LINES);
+    // Column-indexed structures must match the clamped width.
+    assert_eq!(
+        cloud.col_stat.len(),
+        crate::constants::MAX_TERMINAL_COLS as usize
+    );
+    assert_eq!(
+        cloud.column_palette_slot.len(),
+        crate::constants::MAX_TERMINAL_COLS as usize
+    );
+    // Line-indexed structures must match the clamped height.
+    assert_eq!(
+        cloud.edge_fade_lut.len(),
+        crate::constants::MAX_TERMINAL_LINES as usize
+    );
+    // Cell-indexed structures must match the clamped cell count.
+    let clamped_cells = (crate::constants::MAX_TERMINAL_COLS as usize)
+        * (crate::constants::MAX_TERMINAL_LINES as usize);
+    assert_eq!(cloud.vignette_lut.len(), clamped_cells);
+    assert_eq!(
+        cloud.vignette_lut_dims.0,
+        crate::constants::MAX_TERMINAL_COLS
+    );
+    assert_eq!(cloud.phosphor.len(), clamped_cells);
+}
+
+#[test]
+fn reset_clamps_degenerate_dimensions_consistently() {
+    let mut cloud = make_cloud();
+    cloud.reset(0, 0);
+
+    assert_eq!(cloud.cols, crate::constants::MIN_TERMINAL_COLS);
+    assert_eq!(cloud.lines, crate::constants::MIN_TERMINAL_LINES);
+    assert_eq!(
+        cloud.col_stat.len(),
+        crate::constants::MIN_TERMINAL_COLS as usize
+    );
+    assert_eq!(
+        cloud.edge_fade_lut.len(),
+        crate::constants::MIN_TERMINAL_LINES as usize
+    );
+}
+
+#[test]
+fn reset_bench_allows_benchmark_dimensions() {
+    let mut cloud = make_cloud();
+    // 1920x540 exceeds the interactive cap (1024x500) but is within the
+    // benchmark bounds — reset_bench must keep it intact so the stress
+    // benchmarks exercise full bench-bounded dimensions (mirroring
+    // Frame::new_bench). The interactive reset() clamps the same input.
+    cloud.reset_bench(1920, 540);
+    assert_eq!(cloud.cols, 1920);
+    assert_eq!(cloud.lines, 540);
+    assert_eq!(cloud.col_stat.len(), 1920);
+    assert_eq!(cloud.edge_fade_lut.len(), 540);
+    assert_eq!(cloud.vignette_lut_dims, (1920, 540));
+
+    cloud.reset(1920, 540);
+    assert_eq!(cloud.cols, crate::constants::MAX_TERMINAL_COLS);
+    assert_eq!(cloud.lines, crate::constants::MAX_TERMINAL_LINES);
+}

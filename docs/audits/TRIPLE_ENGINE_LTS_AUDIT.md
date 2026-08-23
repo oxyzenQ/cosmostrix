@@ -368,6 +368,24 @@ safety, and robustness standpoint:
 
 ---
 
+## 9. Post-Audit Fix Trail
+
+Both LOW findings were fixed immediately after the audit (owner-approved,
+same session):
+
+| Finding | Fix | Commit |
+|---------|-----|--------|
+| LOW-1 (try_send Full/Disconnected conflation) | `deliver()` helper in `ambient_scheduler/mod.rs` with a three-way `DeliverOutcome` contract: `Disconnected` still terminates the thread; `Full` enters a bounded retry (20 ms steps, 1 s cap — manual loop because `SyncSender::send_timeout` is unstable in std); a persistent stall drops the entry WITHOUT marking it applied, so the next scheduler wake re-attempts delivery. The day-boundary refire path also defers its day-seen marking when saturated. 4 unit tests pin the contract. | `9de2f44` |
+| LOW-2 (Cloud::reset raw-dims RNG ranges) | `reset()` funnels into `reset_with_bounds()`, which shadows the raw parameters with the clamped values for the entire function body — RNG ranges, column tables, and per-cell LUTs now all agree with the clamped grid. New `reset_bench()` (mirroring `Frame::new_bench`) keeps the stress benchmarks consistent at bench-bounded dimensions; previously they ran a hybrid state where rain spawned at raw bench width but glitch/color coverage stopped at the interactive cap. 3 dimension-consistency unit tests added. | this commit |
+
+Verification for both fixes: `gate-keepers.sh` 6/6 PASS, `cargo fmt --check`
+PASS, `cargo clippy --bin cosmostrix --all-targets -- -D warnings` PASS,
+`cargo test --bin cosmostrix ambient_scheduler` 17/17 PASS,
+`cargo test --bin cosmostrix cloud` 258/258 PASS (full regression —
+the reset refactor is a no-op for in-range interactive sizes).
+
+---
+
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
 cosmostrix and the cosmostrix logo are trademarks of rezky_nightky (oxyzenQ).
 <!-- COSMOSTRIX-DISCLAIMER -->
