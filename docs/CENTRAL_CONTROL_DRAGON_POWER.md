@@ -682,7 +682,8 @@ WezTerm) no longer see misleading documentation.
 
 ## 12. Verification
 
-The module is verified by 1417 tests in the cosmostrix test suite.
+The module is verified within the full cosmostrix test suite (1649 tests
+as of 2026-08-23).
 The dragon power module specifically contributes:
 
 - `phase_predictor.rs`: 5 tests

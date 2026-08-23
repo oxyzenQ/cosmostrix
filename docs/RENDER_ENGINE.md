@@ -515,7 +515,7 @@ Internal benchmark (`cosmostrix --benchmark --json`) and interactive
   the cost is acceptable. See §2.5 for analysis.
 
 For competitor comparison data (cosmostrix vs cmatrix vs unimatrix),
-see `scripts/bench-compare.sh` and the results table in
+see `benchmark/benchmark.sh` and the results table in
 `benchmark/README.md`.
 
 ---

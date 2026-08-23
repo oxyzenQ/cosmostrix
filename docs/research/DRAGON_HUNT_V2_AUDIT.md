@@ -2,6 +2,11 @@
 
 # Dragon Hunt v2 — Deep Bore Audit for Cleanup
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 **Repo**: cosmostrix
 **Audit date**: 2026-08-04
 **Methodology**: 5 parallel Explore agents covering distinct dimensions

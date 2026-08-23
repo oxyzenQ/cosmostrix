@@ -445,7 +445,7 @@ the HUD is showing something unexpected and you need a starting point.
 | `up:` shows wrong uptime                           | `session_start` set at HUD creation, not process start | Process start time vs HUD toggle-on time                  | `up:` measures time since the `HudState` was constructed (process startup), not since `i` press. |
 | Screensize shows `200x50 fix` when terminal resized | `--screen-size WxH` was passed, locking the size     | CLI flags / config.toml                                   | Remove `--screen-size` to let the size follow terminal resize (`auto` mode).                    |
 | HUD does not appear after pressing `i`             | HUD is off; or terminal width too small for the HUD_MIN_WIDTH floor (12 cols) | Check terminal size, or toggle off/on again          | The HUD always renders at column 0 (top-left). If invisible, verify the terminal width is ≥ 12 cols. |
-| HUD numbers flicker / change too fast              | Expected at 1 Hz — if faster, check for a regression | `HUD_METRIC_INTERVAL` constant in `src/interactive/hud.rs` | 1 Hz is the world-class standard (htop, mangoHUD). Do not increase the rate.                    |
+| HUD numbers flicker / change too fast              | Expected at 1 Hz — if faster, check for a regression | `HUD_METRIC_INTERVAL` constant in `src/interactive/hud/mod.rs` | 1 Hz is the world-class standard (htop, mangoHUD). Do not increase the rate.                    |
 | HUD colors look grey / washed out                  | Palette has very dim stops; brighten fallback engaged | Active palette (`c`/`C` to cycle, or check config)        | Pure-black palette stops fall back to neutral grey RGB(120,120,120). Use a palette with non-black stops. |
 
 ---

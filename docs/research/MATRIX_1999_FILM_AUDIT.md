@@ -1,5 +1,10 @@
 # Matrix 1999 Film vs Cosmostrix — Frame-by-Frame Audit
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 > Research document comparing the actual film's digital rain behavior

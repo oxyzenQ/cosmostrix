@@ -415,8 +415,8 @@ Or use the automation script:
 python3 scripts/run_scaling_benchmarks.py
 ```
 
-Raw JSON and Markdown outputs are written to `benchmark/scaling_results.json`
-and `benchmark/scaling_results.md`.
+Raw CSV and Markdown outputs are written per sweep to `benchmark/bench-labs/`
+(`sweep_<timestamp>.csv` / `.md`).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

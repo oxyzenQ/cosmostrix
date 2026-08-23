@@ -3,6 +3,11 @@
 
 # Self-Healing Audit — Current State & Gap Analysis
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 **Date**: 2026-07-30
 **Scope**: Audit existing self-healing mechanisms in cosmostrix against the
 three-tier vision proposed in research (Visual Self-Cleaning, State Recovery,

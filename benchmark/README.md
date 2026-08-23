@@ -1093,7 +1093,7 @@ section emits `drift_status: skipped` with a `drift_reason` explaining
 that drift detection requires running past 50% of the target duration.
 
 For detailed visual depth expectations and stability metric interpretation,
-see [Atmosphere Engine](../docs/ATMOSPHERE_ENGINE.md) and
+see [Atmosphere Engine](../docs/archive/specs/ATMOSPHERE_ENGINE.md) and
 [Render Engine](../docs/RENDER_ENGINE.md).
 
 ## Benchmark Sizes

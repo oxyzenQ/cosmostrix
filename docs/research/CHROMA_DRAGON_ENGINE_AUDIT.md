@@ -2,6 +2,11 @@
 
 # Chroma Dragon Engine — Deep Audit & Refactor Proposal
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 **Task ID**: `chroma-dragon-engine-audit-1`
 **Agent**: GLM (main, master Rust + master Linux coder — Cosmic Dragon mode)
 **Scope**: End-to-end audit of every color-emitting code path in cosmostrix; verify the Chroma Dragon engine is the primary coloring authority with a documented legacy fallback; surface inconsistencies; propose a masterclass refactor for owner approval.

@@ -1,5 +1,10 @@
 # Flags Audit: `--bench-frames`, `--chars`, `--bold`
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 > **STATUS: EXECUTED** (commit `69ca2c6`, 2026-08-04).

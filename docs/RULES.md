@@ -65,7 +65,7 @@ assert!(include_str!("../aur/cosmostrix-bin/PKGBUILD").contains(&format!("pkgver
 
 ### Atmosphere Engine (REMOVED 2026-08-05)
 
-Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). All `src/atmosphere_*.rs` source files, `--atmosphere-mode` / `--atmosphere-regime` CLI flags, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config keys, and `atmosphere-*` scene-custom presets have been removed. Historical reference: `docs/archive/specs/ATMOSPHERE_ENGINE.md` (design spec), `docs/archive/specs/CINEMATIC_BREATHING.md` (vocabulary spec), `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` (full elimination record). Subsystems still sharing the "atmosphere" name but NOT deleted (separate subsystems): `src/chroma_dragon_engine/post/climate.rs` (Chroma Dragon post-FX shader), `AtmosphericEvolution` struct in `src/cosmic_dragon_engine/cloud/ecosystem.rs` (cloud drift/gust events).
+Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). All `src/atmosphere_*.rs` source files, `--atmosphere-mode` / `--atmosphere-regime` CLI flags, `atmosphere-mode` / `atmosphere-regime` / `adaptive-custom.*` config keys, and `atmosphere-*` scene-custom presets have been removed. Historical reference: `docs/archive/specs/ATMOSPHERE_ENGINE.md` (design spec), `docs/archive/specs/CINEMATIC_BREATHING.md` (vocabulary spec), `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` (full elimination record). Subsystems still sharing the "atmosphere" name but NOT deleted (separate subsystems): `src/chroma_dragon_engine/post/climate/mod.rs` (Chroma Dragon post-FX shader), `AtmosphericEvolution` struct in `src/cosmic_dragon_engine/cloud/ecosystem.rs` (cloud drift/gust events).
 
 ### Live Config Reload + Config Validation
 

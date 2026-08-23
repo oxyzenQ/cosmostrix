@@ -32,7 +32,7 @@ The code in this directory has been audited for:
   `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`,
   `panic = "unwind"`, `overflow-checks = false`, `strip = true`,
   `incremental = false`.
-- **Stability** — ~1500+ tests pass, 0 clippy warnings, all
+- **Stability** — ~1649 tests pass, 0 clippy warnings, all
   stability signals match baseline (frame_jitter=low,
   frame_time_stability=excellent, drift=stable).
 

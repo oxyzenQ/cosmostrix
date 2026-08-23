@@ -32,7 +32,7 @@ The code in this directory has been audited for:
   temperature groups (Cold/Medium/Hot, 14 each) + 2 reserved (Rainbow,
   Spectrum20). calc-v1 probabilistic weighted selection (the locked
   algorithm; calc-v2 reserved for future).
-- **Stability** — ~1500+ tests pass, 0 clippy warnings. Per-
+- **Stability** — ~1649 tests pass, 0 clippy warnings. Per-
   subsystem test files (`*/tests.rs`) cover all public contracts.
 
 ## Audit Findings (No Code Changes Required)

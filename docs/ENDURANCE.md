@@ -10,8 +10,14 @@ leaks, or crashes.
 
 ## Test methodology
 
+> **Note (2026-08-23):** the `scripts/monitor-cosmostrix.sh` and
+> `scripts/endurance-summary.sh` helpers were removed in commit `936c7ba`
+> (dead-script cleanup). This document is retained as the historical
+> methodology record; for current measurements use `--benchmark` output
+> and `benchmark/benchmark.sh sweep`.
+
 A Cosmostrix binary is launched in headless mode with a configurable duration
-cap. The official sampling script `scripts/monitor-cosmostrix.sh` reads
+cap. The historical sampling script `scripts/monitor-cosmostrix.sh` read
 `/proc/<pid>/status`, `/proc/<pid>/stat`, `/proc/<pid>/smaps_rollup`,
 `/proc/<pid>/fd`, `/proc/<pid>/io`, and `/proc/stat` at regular intervals
 and appends a single CSV row per sample.

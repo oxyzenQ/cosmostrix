@@ -2,6 +2,11 @@
 
 # Matrix Bold Audit — Does the Film / Do World-Class Implementations Use Bold?
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 > Companion to `MATRIX_1999_FILM_AUDIT.md`. That audit covers 12 cinematic
 > invariants (speed, color, glyph paradigm, etc.) but does NOT explicitly
 > address the **font weight** question. This note fills that gap.

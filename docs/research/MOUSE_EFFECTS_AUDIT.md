@@ -2,6 +2,11 @@
 
 # Mouse Effects System — Deep Audit
 
+> **Historical research snapshot.** File paths, symbol names, and counts
+> reflect the codebase at audit time; modules have since moved (flat
+> `src/*.rs` files became module directories). Preserved as a record -
+> cross-check the live source tree before relying on any path.
+
 > ## v50.0.0-alpha.5 Update Note (2026-08-17)
 >
 > The audit below documents the ORIGINAL mouse effects pipeline (pre-v50).

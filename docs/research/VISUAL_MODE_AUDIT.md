@@ -332,7 +332,7 @@ retuned again.
 If the owner requests another retune:
 
 1. **Always check compounded brightness**, not just the per-effect
-   value. Run `scripts/visual_mode_audit.py` to see the curve.
+   value. Run `scripts/visual-mode-audit.py` to see the curve.
 2. **Target zones** (compounded):
    - Top extreme: 0.50-0.55 (subtle dim, visible)
    - Bottom extreme: 0.35-0.45 (cinematic dim, dissolving)
