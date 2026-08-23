@@ -282,6 +282,9 @@ fn print_perf_report(
         // Backpressure = clamp(work/budget - 1, 0, 2): non-zero ONLY when
         // renderer can't keep up. budget_utilization = work/budget (always
         // non-zero) — companion so the section is informative on healthy hw.
+        // avg_frame_period_ms = elapsed/frames (the FULL period: work +
+        // sleep + event polling) — bridges the pressure-vs-utilization gap
+        // (audit 2026-08-23).
         format_backpressure_section(
             &mut r,
             avg_pressure,
@@ -294,6 +297,7 @@ fn print_perf_report(
             pressure_class,
             stats.perf_overshoot_frames,
             overshoot_ratio,
+            (elapsed_s / frames.max(1) as f64) * 1000.0,
         );
     }
 

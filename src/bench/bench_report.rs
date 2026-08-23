@@ -493,7 +493,15 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field("avg_dirty_cell_ratio_meaning", AVG_DIRTY_CELL_RATIO_MEANING);
         s.field("dirty_all_frames", &data.dirty_all_frames.to_string());
+        s.field(
+            "dirty_all_frames_meaning",
+            "frames that forced a full redraw (>= dirty_threshold dirty cells, or a semantic reset: resize, scene switch, paste)",
+        );
         s.field("dirty_threshold_cells", &data.dirty_threshold.to_string());
+        s.field(
+            "dirty_threshold_meaning",
+            "crossover: at or above this many dirty cells the renderer switches from differential to full redraw (grid_cells / 8)",
+        );
     }
 
     {
@@ -522,6 +530,19 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 data.dirty_glyphs_per_second
             ),
         );
+        // Percentage companion (audit 2026-08-23): how much of the
+        // theoretical ceiling the differential renderer actually draws.
+        // 4-5% is typical for monolith (only active streams are dirty).
+        if data.glyphs_per_second_theoretical > 0 {
+            s.field(
+                "render_efficiency_percent",
+                &format!(
+                    "{:.2}% (dirty / theoretical)",
+                    data.dirty_glyphs_per_second as f64 / data.glyphs_per_second_theoretical as f64
+                        * 100.0
+                ),
+            );
+        }
         s.field(
             "dirty_glyphs_per_second_basis",
             "actual rendered glyphs/sec — total_drawn_cells / elapsed_s",
@@ -741,15 +762,78 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "dirty_cells_per_frame",
             &format!("{:.1}", data.avg_dirty_cells_per_frame),
         );
+        // Percentage companion (owner request 2026-08-23): dirty share of
+        // the grid, so the differential-rendering efficiency is readable
+        // at a glance without dividing two numbers mentally.
         s.field(
-            "render_ns_per_cell",
-            &format!("{:.2}", data.render_ns_per_cell),
+            "dirty_cell_ratio_percent",
+            &format!(
+                "{:.2}% ({} of {} cells)",
+                data.avg_dirty_cell_ratio_percent,
+                crate::humanize::humanize(data.avg_dirty_cells_per_frame as u64),
+                crate::humanize::humanize(data.logical_cells_per_frame)
+            ),
         );
-        s.field("io_ns_per_cell", &format!("{:.2}", data.io_ns_per_cell));
-        s.field(
-            "total_ns_per_cell",
-            &format!("{:.2}", data.total_ns_per_cell),
-        );
+        // Component ns/cell trio (audit 2026-08-23): sim was previously
+        // missing, so render+io visibly did not add up to total. All three
+        // components now shown and share the same denominator (avg dirty
+        // cells per frame), so sim + render + io == total.
+        let per_cell = |ms: f64| {
+            if data.avg_dirty_cells_per_frame > 0.0 {
+                ms * 1_000_000.0 / data.avg_dirty_cells_per_frame
+            } else {
+                0.0
+            }
+        };
+        let sim_ns = per_cell(data.avg_sim_ms);
+        let render_ns = data.render_ns_per_cell;
+        let io_ns = data.io_ns_per_cell;
+        let total_ns = data.total_ns_per_cell;
+        s.field("sim_ns_per_cell", &format!("{:.2}", sim_ns));
+        s.field("render_ns_per_cell", &format!("{:.2}", render_ns));
+        s.field("io_ns_per_cell", &format!("{:.2}", io_ns));
+        s.field("total_ns_per_cell", &format!("{:.2}", total_ns));
+        // Component shares of the per-cell total — the beginner-friendly
+        // view: which stage dominates the per-cell cost.
+        //
+        // Precision note (audit 2026-08-23): per frame, sim+render+io sums
+        // to the measured frame body EXACTLY (io_ms is defined as the
+        // residual `frame_time - sim - render`). But total_ns_per_cell
+        // derives from avg_frame_time = elapsed/total_frames, the
+        // wall-clock average, which also includes ~1-3% of loop time
+        // outside the measured body (progress UI, sampler ticks). The
+        // shares are therefore normalized against the component sum (they
+        // add to 100% of measured work), and component_coverage_percent
+        // discloses how much of the wall-clock total the component timers
+        // account for — no hidden rounding, no invisible gap.
+        let component_sum_ns = sim_ns + render_ns + io_ns;
+        if component_sum_ns > 0.0 {
+            s.field(
+                "sim_share_percent",
+                &format!("{:.1}", sim_ns / component_sum_ns * 100.0),
+            );
+            s.field(
+                "render_share_percent",
+                &format!("{:.1}", render_ns / component_sum_ns * 100.0),
+            );
+            s.field(
+                "io_share_percent",
+                &format!("{:.1}", io_ns / component_sum_ns * 100.0),
+            );
+            if total_ns > 0.0 {
+                s.field(
+                    "component_coverage_percent",
+                    &format!(
+                        "{:.1} (component timers / wall-clock total)",
+                        component_sum_ns / total_ns * 100.0
+                    ),
+                );
+            }
+            s.field(
+                "share_basis",
+                "sim/render/io shares of measured frame work (sum to 100%); component_coverage shows how much of total_ns_per_cell the timers explain — the rest is loop bookkeeping outside the measured frame body",
+            );
+        }
         s.field(
             "ns_per_cell_meaning",
             "nanoseconds per dirty cell; lower = more efficient; size-independent",

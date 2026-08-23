@@ -106,8 +106,28 @@ pub(crate) fn format_backpressure_section(
     pressure_class: &str,
     overshoot_frames: u64,
     overshoot_ratio: f64,
+    avg_frame_period_ms: f64,
 ) {
     let s = r.section("BACKPRESSURE");
+    // Audit 2026-08-23: the section previously looked self-contradictory —
+    // "classification: high" next to "budget_utilization_avg: 5.67%".
+    // Both numbers are correct but measure different things: pressure
+    // derives from the FULL frame period (work + sleep + event polling)
+    // vs the target period, while budget_utilization derives from work
+    // time only. When the loop cannot reach target FPS, the period gap
+    // lives outside `work` (scheduler granularity, poll waits), so
+    // pressure rises while utilization stays low. The two new fields
+    // below show the actual vs target frame period so the gap is
+    // visible instead of implied.
+    let target_ms = target_period.as_secs_f64() * 1000.0;
+    s.field("frame_period_target_ms", &format!("{:.3}", target_ms));
+    s.field(
+        "frame_period_avg_ms",
+        &format!(
+            "{:.3} (includes sleep + event polling)",
+            avg_frame_period_ms
+        ),
+    );
     s.field("avg", &format!("{:.3}", avg_pressure));
     s.field("peak", &format!("{:.3}", peak_pressure));
     let frames_f = frames.max(1) as f64;
@@ -126,13 +146,13 @@ pub(crate) fn format_backpressure_section(
     s.field("classification", pressure_class);
     s.field(
         "basis",
-        "avg/peak = clamp(work_s/target_period - 1, 0, 2); non-zero only when frames can't keep up. budget_utilization = work_s/target_period (always non-zero).",
+        "avg/peak = clamp(frame_period/target_period - 1, 0, 2); non-zero when the frame PERIOD exceeds target (work + sleep + polling). budget_utilization = work_s/target_period — the WORK share only. pressure high + utilization low = the gap is scheduler/poll time, not renderer work.",
     );
     s.field(
         "overshoot_frames",
         &format!("{} ({:.1}% of total)", overshoot_frames, overshoot_ratio),
     );
-    s.advice("avg/peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed (always non-zero). For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
+    s.advice("avg/peak 0.000 = healthy (renderer kept up). budget_utilization shows how much of the frame budget was consumed by renderer WORK (always non-zero). frame_period_avg_ms > frame_period_target_ms explains why pressure can be non-zero while utilization is low. For real FPS see TIMING.avg_fps / TIMING.instant_fps.");
 }
 
 /// Resolve bench duration from --bench-duration (now accepts compound format).
@@ -310,6 +330,7 @@ mod tests {
             "low",
             0,
             0.0,
+            16.667, // avg_frame_period_ms (healthy: ~= target)
         );
         // Smoke test: function completed without panic. The actual output
         // format is verified by the existing perf-stats integration test
