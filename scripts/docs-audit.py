@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
 """Docs audit engine: broken refs, stale paths, stale counts, duplicates.
 
 rg-philosophy: pattern-driven sweeps over git-tracked .md files, excluding
