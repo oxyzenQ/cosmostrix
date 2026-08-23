@@ -76,11 +76,11 @@ src/chroma_dragon_engine/                                ← the engine
 
 ### 1.3 What the chroma engine does NOT have
 
-- ❌ No `ColorPipeline` / `ChromaMode` enum to signal "engine active vs fallback"
-- ❌ No detection of "chroma not supported, fall back to legacy"
-- ❌ No legacy sRGB-linear gradient path (removed, confirmed in `palette.rs:250-255` and `gradient.rs:41`)
-- ❌ No way for the user to force chroma off (`--no-chroma` flag does not exist)
-- ❌ No verbose/doctor/benchmark disclosure of pipeline status
+- X No `ColorPipeline` / `ChromaMode` enum to signal "engine active vs fallback"
+- X No detection of "chroma not supported, fall back to legacy"
+- X No legacy sRGB-linear gradient path (removed, confirmed in `palette.rs:250-255` and `gradient.rs:41`)
+- X No way for the user to force chroma off (`--no-chroma` flag does not exist)
+- X No verbose/doctor/benchmark disclosure of pipeline status
 
 ---
 
@@ -753,16 +753,16 @@ A18–A20 share the same shape (3 sites of identical duplication) — a shared h
 
 | ID | Priority | Status | Commit |
 |---|---|---|---|
-| A14 | HIGH | ✅ Done | `3a8fc96` — "migrate A14 transition energy to chroma engine" |
-| A15 | HIGH | ✅ Done | `6bbbc7e` — "migrate A15 head bloom white-blend to chroma engine" |
-| A16 | HIGH | ✅ Done | `1274e23` — "migrate A16 parallax brightness+glyph dim to chroma engine" |
-| A17 | HIGH (dead code) | ✅ Done | `31c7a41` — "migrate A17 cursor glow white-blend to chroma engine" |
-| A18 | MEDIUM | ✅ Done | `8309f85` — "unify phosphor.rs A18-A22 with is_chroma() branch" |
-| A19 | MEDIUM | ✅ Done | `8309f85` (same commit) |
-| A20 | MEDIUM | ✅ Done | `8309f85` (same commit) |
-| A21 | MEDIUM | ✅ Done | `8309f85` (same commit) |
-| A22 | MEDIUM | ✅ Done | `8309f85` (same commit) |
-| A23 | LOW | ✅ Done | `9c02916` — "migrate A23 draw_message fade-in to chroma engine" (last bypass site; cloud/mod.rs kept at 1000/1000 LOC cap via nearby iterator compaction) |
+| A14 | HIGH | OK Done | `3a8fc96` — "migrate A14 transition energy to chroma engine" |
+| A15 | HIGH | OK Done | `6bbbc7e` — "migrate A15 head bloom white-blend to chroma engine" |
+| A16 | HIGH | OK Done | `1274e23` — "migrate A16 parallax brightness+glyph dim to chroma engine" |
+| A17 | HIGH (dead code) | OK Done | `31c7a41` — "migrate A17 cursor glow white-blend to chroma engine" |
+| A18 | MEDIUM | OK Done | `8309f85` — "unify phosphor.rs A18-A22 with is_chroma() branch" |
+| A19 | MEDIUM | OK Done | `8309f85` (same commit) |
+| A20 | MEDIUM | OK Done | `8309f85` (same commit) |
+| A21 | MEDIUM | OK Done | `8309f85` (same commit) |
+| A22 | MEDIUM | OK Done | `8309f85` (same commit) |
+| A23 | LOW | OK Done | `9c02916` — "migrate A23 draw_message fade-in to chroma engine" (last bypass site; cloud/mod.rs kept at 1000/1000 LOC cap via nearby iterator compaction) |
 
 ### 9.4 Post-migration verification
 

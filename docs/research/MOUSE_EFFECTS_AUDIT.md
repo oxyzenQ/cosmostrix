@@ -728,21 +728,21 @@ if matches!(m.kind, MouseEventKind::Moved | MouseEventKind::Drag(_) | MouseEvent
 
 The fix replaced a single `flash_time: Option<Instant>` slot with a bounded pool of `MOUSE_FLASH_POOL_SIZE = 4` slots. Verified:
 
-- ✅ **Single click activates one slot** (`flash_wave_pool_single_click_activates_one_slot`, tests_quantum.rs:663)
-- ✅ **Double-click keeps both waves** (`flash_wave_pool_double_click_keeps_both_waves`, tests_quantum.rs:684) — the original bug scenario
-- ✅ **Pool overflow evicts oldest** (`flash_wave_pool_overflow_evicts_oldest`, tests_quantum.rs:712)
-- ✅ **Pool size constant is in [2, 8]** (`flash_wave_pool_size_constant_is_reasonable`, tests_quantum.rs:756)
-- ✅ **Pause shifts all active wave births** (cloud/mod.rs:613-618) — waves survive pauses correctly
-- ✅ **Expiry sweep runs per-frame** (cloud/rain.rs:939-945) — expired waves are deactivated
-- ✅ **Precompute skips expired waves** (cloud/rain.rs:587) — renderer never sees stale waves on the frame before sweep
+- OK **Single click activates one slot** (`flash_wave_pool_single_click_activates_one_slot`, tests_quantum.rs:663)
+- OK **Double-click keeps both waves** (`flash_wave_pool_double_click_keeps_both_waves`, tests_quantum.rs:684) — the original bug scenario
+- OK **Pool overflow evicts oldest** (`flash_wave_pool_overflow_evicts_oldest`, tests_quantum.rs:712)
+- OK **Pool size constant is in [2, 8]** (`flash_wave_pool_size_constant_is_reasonable`, tests_quantum.rs:756)
+- OK **Pause shifts all active wave births** (cloud/mod.rs:613-618) — waves survive pauses correctly
+- OK **Expiry sweep runs per-frame** (cloud/rain.rs:939-945) — expired waves are deactivated
+- OK **Precompute skips expired waves** (cloud/rain.rs:587) — renderer never sees stale waves on the frame before sweep
 
 **Edge cases NOT covered by tests:**
 
-- ⚠️ **Same-instant clicks** (sub-microsecond): two clicks with identical `birth` values. The eviction policy picks index 0 (the `i == 0` short-circuit). On platforms with coarse `Instant` resolution (older Windows), this could cause the same slot to be repeatedly evicted under sustained click storms. Not a regression vs. the previous design (which always overwrote the single slot), but worth noting.
+- warning: **Same-instant clicks** (sub-microsecond): two clicks with identical `birth` values. The eviction policy picks index 0 (the `i == 0` short-circuit). On platforms with coarse `Instant` resolution (older Windows), this could cause the same slot to be repeatedly evicted under sustained click storms. Not a regression vs. the previous design (which always overwrote the single slot), but worth noting.
 
-- ⚠️ **Click during pause deceleration**: `set_mouse_click` is callable during the pause deceleration ramp (`pause_start.is_some()` but `pause == false`). The new wave's `birth` is set to `Instant::now()`. If the user then fully pauses (deceleration completes), the wave's `birth` is correctly shifted on unpause. No bug — just an unusual interaction worth being aware of.
+- warning: **Click during pause deceleration**: `set_mouse_click` is callable during the pause deceleration ramp (`pause_start.is_some()` but `pause == false`). The new wave's `birth` is set to `Instant::now()`. If the user then fully pauses (deceleration completes), the wave's `birth` is correctly shifted on unpause. No bug — just an unusual interaction worth being aware of.
 
-- ⚠️ **Click at terminal edge**: `col == 0` or `col == cols-1`. The wave expands from the edge, but only the inward half is visible (the outward half is off-screen). Not a bug — expected behavior.
+- warning: **Click at terminal edge**: `col == 0` or `col == cols-1`. The wave expands from the edge, but only the inward half is visible (the outward half is off-screen). Not a bug — expected behavior.
 
 **Verdict:** The fix is **solid** for the documented use case (2-3 rapid clicks within 1.8s). The pool size of 4 is adequate for normal clicking. Click storms (>5 cps) will cause evictions, but that's by design (the oldest wave gets evicted, which is the least-bad choice).
 

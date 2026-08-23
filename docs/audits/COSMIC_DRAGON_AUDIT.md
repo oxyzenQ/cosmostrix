@@ -57,27 +57,27 @@ Three parallel audit tracks were conducted:
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Palette transition wave (OKLab polar smoothing) | ✅ High quality | Phase 8 polar chroma lerp correctly implements shortest-arc hue rotation. No visual seam at wave line for any palette pair. |
-| `Color::Reset` handling | ✅ Robust | Every color operation (subpixel jitter, head halo, blend_toward_bg) explicitly checks for `Color::Reset` and no-ops. |
-| Wide-char rejection | ✅ Robust | Every charset builder filters `width() == Some(1)`. CJK/emoji/combining marks permanently rejected. 1-char-1-cell invariant enforced at construction. |
-| Zero-size terminal safety | ✅ Robust | `phosphor_decay_pass` checks `total == 0`. `rain_at` has guards for empty palettes. Terminal minimum 4×4. No crash on degenerate sizes. |
-| Resize debounce | ✅ Robust | `RESIZE_DEBOUNCE_MS` coalesces resize storms. `pending_resize` only applied after debounce elapses. |
-| Glitch fully disabled under aggressive throttle (AB-11) | ✅ Correct per Option 2 | glitch_level setting preserved (not overridden); glitches just don't fire while throttled. Intended behavior. |
+| Palette transition wave (OKLab polar smoothing) | OK High quality | Phase 8 polar chroma lerp correctly implements shortest-arc hue rotation. No visual seam at wave line for any palette pair. |
+| `Color::Reset` handling | OK Robust | Every color operation (subpixel jitter, head halo, blend_toward_bg) explicitly checks for `Color::Reset` and no-ops. |
+| Wide-char rejection | OK Robust | Every charset builder filters `width() == Some(1)`. CJK/emoji/combining marks permanently rejected. 1-char-1-cell invariant enforced at construction. |
+| Zero-size terminal safety | OK Robust | `phosphor_decay_pass` checks `total == 0`. `rain_at` has guards for empty palettes. Terminal minimum 4×4. No crash on degenerate sizes. |
+| Resize debounce | OK Robust | `RESIZE_DEBOUNCE_MS` coalesces resize storms. `pending_resize` only applied after debounce elapses. |
+| Glitch fully disabled under aggressive throttle (AB-11) | OK Correct per Option 2 | glitch_level setting preserved (not overridden); glitches just don't fire while throttled. Intended behavior. |
 
 ### Stability — Verified Robust
 
 | Area | Status | Notes |
 |------|--------|-------|
-| Mutex poisoning — all production locks | ✅ Poison-safe | All 60 `.lock()` calls use `if let Ok(guard)` or `match Ok/Err` pattern. Only `.lock().unwrap()` calls are in `#[cfg(test)]` code. |
-| Channel send/recv | ✅ Non-blocking | All `tx.send()` check `.is_err()`. All `rx.try_recv()` are non-blocking. No blocking `recv()` in production. |
-| Signal handling | ✅ Comprehensive | SIGTERM/SIGHUP/SIGQUIT → graceful shutdown. SIGTSTP/SIGCONT → suspend/resume with terminal reinit. SIGINT intentionally ignored (only 'q' exits). |
-| Terminal restoration | ✅ Multi-layer defense | `restore_terminal_best_effort()` called from panic hook, watchdog, tty recovery, Terminal::drop. Idempotent. `TERMINAL_RESTORED_BY_PANIC` flag prevents double-cleanup. |
-| Panic hook | ✅ Bulletproof | Uses `write_fmt` with error discarded (never panics from the hook). Restores terminal before writing stderr. Prevents double-panic → abort → coredump. |
-| Integer overflow | ✅ Safe | All `as usize` casts use `u16` inputs (cannot overflow). `cols × lines` capped at 1024×500=512,000 (well within usize range). |
-| Bounds checking | ✅ Option-based | `frame.index(x, y)` returns `Option<usize>`. All callers use `if let Some(idx)` or `?`. No unchecked indexing. |
-| Unsafe blocks (11 total) | ✅ Sound | All have SAFETY comments. `libc::localtime_r`, `libc::time`, `libc::fork`, `libc::prctl`, `libc::tcgetattr` are standard Unix patterns with null guards. `TraceAlloc` is straightforward GlobalAlloc. |
-| Resource leaks | ✅ None found | All `File::open()` use `let mut file = ...ok()?` (dropped on return). All threads are daemon or have explicit termination. No unbounded Vec growth in hot path. |
-| Production unwrap/expect | ✅ All in test code | 187 `.unwrap()` total, but all in `#[cfg(test)]` modules. Production code has zero unwraps that could panic mid-rain. |
+| Mutex poisoning — all production locks | OK Poison-safe | All 60 `.lock()` calls use `if let Ok(guard)` or `match Ok/Err` pattern. Only `.lock().unwrap()` calls are in `#[cfg(test)]` code. |
+| Channel send/recv | OK Non-blocking | All `tx.send()` check `.is_err()`. All `rx.try_recv()` are non-blocking. No blocking `recv()` in production. |
+| Signal handling | OK Comprehensive | SIGTERM/SIGHUP/SIGQUIT → graceful shutdown. SIGTSTP/SIGCONT → suspend/resume with terminal reinit. SIGINT intentionally ignored (only 'q' exits). |
+| Terminal restoration | OK Multi-layer defense | `restore_terminal_best_effort()` called from panic hook, watchdog, tty recovery, Terminal::drop. Idempotent. `TERMINAL_RESTORED_BY_PANIC` flag prevents double-cleanup. |
+| Panic hook | OK Bulletproof | Uses `write_fmt` with error discarded (never panics from the hook). Restores terminal before writing stderr. Prevents double-panic → abort → coredump. |
+| Integer overflow | OK Safe | All `as usize` casts use `u16` inputs (cannot overflow). `cols × lines` capped at 1024×500=512,000 (well within usize range). |
+| Bounds checking | OK Option-based | `frame.index(x, y)` returns `Option<usize>`. All callers use `if let Some(idx)` or `?`. No unchecked indexing. |
+| Unsafe blocks (11 total) | OK Sound | All have SAFETY comments. `libc::localtime_r`, `libc::time`, `libc::fork`, `libc::prctl`, `libc::tcgetattr` are standard Unix patterns with null guards. `TraceAlloc` is straightforward GlobalAlloc. |
+| Resource leaks | OK None found | All `File::open()` use `let mut file = ...ok()?` (dropped on return). All threads are daemon or have explicit termination. No unbounded Vec growth in hot path. |
+| Production unwrap/expect | OK All in test code | 187 `.unwrap()` total, but all in `#[cfg(test)]` modules. Production code has zero unwraps that could panic mid-rain. |
 
 ---
 
@@ -99,10 +99,10 @@ feeds 4 downstream consumers:
 
 | Consumer | What it does | Touches user visual? |
 |----------|-------------|:---:|
-| `spawn_scale` | Scales new-droplet spawn rate. `1.0 - (0.75 × pressure)`, clamped `[0.25, 1.0]`. At max pressure, 25% of new droplets spawn. | ❌ |
-| `allow_glitch` | Gates glitches OFF when pressure ≥ 0.35 | ❌ |
-| `EVENT_PERF_GATE` | Gates cinematic events OFF when pressure ≥ 0.5 | ❌ |
-| `sim_factor` | Scales simulation timestep. Rain falls slower under load. | ❌ |
+| `spawn_scale` | Scales new-droplet spawn rate. `1.0 - (0.75 × pressure)`, clamped `[0.25, 1.0]`. At max pressure, 25% of new droplets spawn. | X |
+| `allow_glitch` | Gates glitches OFF when pressure ≥ 0.35 | X |
+| `EVENT_PERF_GATE` | Gates cinematic events OFF when pressure ≥ 0.5 | X |
+| `sim_factor` | Scales simulation timestep. Rain falls slower under load. | X |
 
 All 4 are **transient** — recomputed every frame. User's configured
 density/color/charset/speed/glitch_level are never touched.
@@ -115,13 +115,13 @@ of switching scenes.
 
 | What happens | OLD (scene switch) | NEW (AB-11) |
 |-------------|-------------------|-------------|
-| Color | ❌ Overridden to "green" | ✅ Untouched |
-| Charset | ❌ Overridden to "binary" | ✅ Untouched |
-| Density | ❌ Overridden to 0.45 | ✅ Untouched |
-| Speed | ❌ Overridden to 5.0 | ✅ Untouched |
-| Glitch level | ❌ Overridden to None | ✅ Config kept (glitches just don't fire) |
+| Color | X Overridden to "green" | OK Untouched |
+| Charset | X Overridden to "binary" | OK Untouched |
+| Density | X Overridden to 0.45 | OK Untouched |
+| Speed | X Overridden to 5.0 | OK Untouched |
+| Glitch level | X Overridden to None | OK Config kept (glitches just don't fire) |
 | Spawn rate | Throttled via lower density | Throttled via steeper spawn_scale (0.9 vs 0.75, floor 0.10 vs 0.25) |
-| CRT vignette | Still ran | ✅ Skipped (H2 fix) |
+| CRT vignette | Still ran | OK Skipped (H2 fix) |
 | Recovery | Scene switch back (60s) | Flag cleared (same timing) |
 
 ### The 5 User-Facing Fields NEVER Touched

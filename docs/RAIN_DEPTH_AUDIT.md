@@ -186,16 +186,16 @@ visible-haze floor (3.5% share, just above the 3% lower bound).
 
 | Metric | Masterclass Target | Option A baseline | **Option F** | Delta F vs A | Verdict |
 |--------|-------------------:|------------------:|-------------:|-------------:|---------|
-| Visibility ratio (B:M:F) | 1 : 4 : 8 | 1 : 4.2 : 8.4 | **1 : 5.1 : 11.4** | back −18%, front +36% | ✅ at upper edge |
-| Field energy ratio (B:M:F) | 1 : 5 : 15 | 1 : 4.9 : 15.8 | **1 : 6.0 : 21.6** | back −15%, front +37% | ✅ at upper edge |
-| Front layer share of total energy | 60–75% | 72.7% | **75.4%** | +2.7pp | ✅ at upper bound |
-| Mid layer share of total energy | 15–25% | 22.7% | **21.1%** | −1.6pp | ✅ in range |
-| Back layer share of total energy | 3–8% | 4.6% | **3.5%** | −1.1pp | ✅ just above floor |
-| Trail persistence ratio (F:M:B) | 2.5 : 1.5 : 1 | 2.5 : 1.7 : 1 | **3.3 : 1.7 : 1** | front +33% | ✅ at upper edge |
-| Head pop ratio (B:M:F) | 1 : 3 : 7 | 1 : 2.8 : 7.3 | **1 : 2.8 : 8.6** | front +18% | ✅ above target (hero) |
-| Saturation differential (F−B) | 0.50–0.65 | 0.55 | **0.62** | +0.07 | ✅ at upper edge |
-| Brightness differential (F−B) | 0.50–0.65 | 0.57 | **0.62** | +0.05 | ✅ at upper edge |
-| Contrast reduction differential (B−F) | 0.40–0.60 | 0.45 | **0.55** | +0.10 | ✅ at upper edge |
+| Visibility ratio (B:M:F) | 1 : 4 : 8 | 1 : 4.2 : 8.4 | **1 : 5.1 : 11.4** | back −18%, front +36% | OK at upper edge |
+| Field energy ratio (B:M:F) | 1 : 5 : 15 | 1 : 4.9 : 15.8 | **1 : 6.0 : 21.6** | back −15%, front +37% | OK at upper edge |
+| Front layer share of total energy | 60–75% | 72.7% | **75.4%** | +2.7pp | OK at upper bound |
+| Mid layer share of total energy | 15–25% | 22.7% | **21.1%** | −1.6pp | OK in range |
+| Back layer share of total energy | 3–8% | 4.6% | **3.5%** | −1.1pp | OK just above floor |
+| Trail persistence ratio (F:M:B) | 2.5 : 1.5 : 1 | 2.5 : 1.7 : 1 | **3.3 : 1.7 : 1** | front +33% | OK at upper edge |
+| Head pop ratio (B:M:F) | 1 : 3 : 7 | 1 : 2.8 : 7.3 | **1 : 2.8 : 8.6** | front +18% | OK above target (hero) |
+| Saturation differential (F−B) | 0.50–0.65 | 0.55 | **0.62** | +0.07 | OK at upper edge |
+| Brightness differential (F−B) | 0.50–0.65 | 0.57 | **0.62** | +0.05 | OK at upper edge |
+| Contrast reduction differential (B−F) | 0.40–0.60 | 0.45 | **0.55** | +0.10 | OK at upper edge |
 
 ### 3.3 Verdict
 
@@ -376,7 +376,7 @@ trade-offs. Option F is the current recommended lock — but if the
 owner wants to push in a specific direction, this matrix shows what
 to change and what the visual cost is.
 
-### 5.1 Option F — Film Matrix Hero (current lock) ✅ RECOMMENDED
+### 5.1 Option F — Film Matrix Hero (current lock) OK RECOMMENDED
 
 | Parameter | Back | Mid | Front |
 |-----------|-----:|----:|------:|

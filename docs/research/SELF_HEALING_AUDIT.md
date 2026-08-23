@@ -29,11 +29,11 @@ edge cases, (2) no `/dev/tty` fallback when stdout breaks mid-run,
 
 | # | Gap | Status | Commit |
 |---|-----|--------|--------|
-| P1 | Auto scene downgrade on sustained high perf_pressure | ✅ Done | `35a6acd`, `0edffa2` |
-| P2 | Wire EnduranceHealth.score() to mitigations | ✅ Done | `35a6acd`, `0edffa2` |
-| P3 | `/dev/tty` fallback for mid-run stdout corruption | ✅ Done | `22a2aa3` |
-| P4 | Periodic stuck-cell sweep (debug mode only) | ✅ Done | `4827ddb`, `e73da86` |
-| P5 | Periodic fd health check (isatty probe) | ✅ Done | `feeac76`, `2ed4a27` |
+| P1 | Auto scene downgrade on sustained high perf_pressure | OK Done | `35a6acd`, `0edffa2` |
+| P2 | Wire EnduranceHealth.score() to mitigations | OK Done | `35a6acd`, `0edffa2` |
+| P3 | `/dev/tty` fallback for mid-run stdout corruption | OK Done | `22a2aa3` |
+| P4 | Periodic stuck-cell sweep (debug mode only) | OK Done | `4827ddb`, `e73da86` |
+| P5 | Periodic fd health check (isatty probe) | OK Done | `feeac76`, `2ed4a27` |
 
 ---
 
@@ -411,11 +411,11 @@ in `adaptive::tests` cover the state machine transitions.
 
 | # | Gap | Effort | Impact | Priority | Status |
 |---|-----|--------|--------|----------|--------|
-| 1 | Auto scene downgrade on sustained high perf_pressure | ~40 LOC | High — visible "self-healing" behavior | **P1** | ✅ Done (`35a6acd`, `0edffa2`) |
-| 2 | Wire EnduranceHealth.score() to mitigations | ~20 LOC | Medium — closes the loop on existing metric | **P2** | ✅ Done (`35a6acd`, `0edffa2`) |
-| 3 | `/dev/tty` fallback for mid-run stdout corruption | ~30 LOC | Medium — daemon/screensaver value | **P3** | ✅ Done (`22a2aa3`) |
-| 4 | Periodic stuck-cell sweep (debug mode only) | ~50 LOC | Low — 5-min full redraw already covers this | **P4** | ✅ Done (`4827ddb`, `e73da86`) |
-| 5 | Periodic fd health check (isatty probe) | ~30 LOC | Low — closes idle-period detection window | **P5** | ✅ Done (`feeac76`, `2ed4a27`) |
+| 1 | Auto scene downgrade on sustained high perf_pressure | ~40 LOC | High — visible "self-healing" behavior | **P1** | OK Done (`35a6acd`, `0edffa2`) |
+| 2 | Wire EnduranceHealth.score() to mitigations | ~20 LOC | Medium — closes the loop on existing metric | **P2** | OK Done (`35a6acd`, `0edffa2`) |
+| 3 | `/dev/tty` fallback for mid-run stdout corruption | ~30 LOC | Medium — daemon/screensaver value | **P3** | OK Done (`22a2aa3`) |
+| 4 | Periodic stuck-cell sweep (debug mode only) | ~50 LOC | Low — 5-min full redraw already covers this | **P4** | OK Done (`4827ddb`, `e73da86`) |
+| 5 | Periodic fd health check (isatty probe) | ~30 LOC | Low — closes idle-period detection window | **P5** | OK Done (`feeac76`, `2ed4a27`) |
 
 **Result**: All five actionable gaps are now closed. The self-healing
 subsystem comprises:

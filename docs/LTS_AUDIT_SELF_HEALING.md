@@ -22,7 +22,7 @@
 
 ## Audit Findings (No Code Changes Required)
 
-### 1. Decision Logic (observe → action) ✅
+### 1. Decision Logic (observe → action) OK
 
 The `SelfHealer::observe()` function implements a 2-tier evaluation:
 
@@ -40,7 +40,7 @@ The `SelfHealer::observe()` function implements a 2-tier evaluation:
 prevents flapping. The P2-before-P1 ordering ensures symptom fixes
 land before cause fixes. No improvement needed.
 
-### 2. Endurance Health Score ✅
+### 2. Endurance Health Score OK
 
 The `EnduranceHealth::recompute()` function uses a weighted average:
 
@@ -55,7 +55,7 @@ empirically calibrated. All values are clamped [0, 100]. The
 `MIN_SAMPLES` guard (currently 10) prevents premature scoring during
 startup. No improvement needed.
 
-### 3. PowerManager State Tracking ✅
+### 3. PowerManager State Tracking OK
 
 - `perf_pressure`: EMA with increment (0.25) and decay (0.02) —
   accumulates on overshoot, decays on normal frames. Bounded [0, 1].
@@ -67,7 +67,7 @@ startup. No improvement needed.
 mechanism. Thermal pressure is additive (not multiplicative) —
 correct for independent pressure sources. No improvement needed.
 
-### 4. Phase Predictor (PAP) ✅
+### 4. Phase Predictor (PAP) OK
 
 Pure function: input `t ∈ [0, 1]`, output `f32 ∈ [0, 1]`.
 Linear formula: `0.3 * t`. Bounded by `clamp(0, 1)`.
@@ -75,7 +75,7 @@ Linear formula: `0.3 * t`. Bounded by `clamp(0, 1)`.
 **Assessment**: Already at peak. Pure function, no mutation, no I/O,
 no allocation. Thread-safe by construction. No improvement needed.
 
-### 5. Thermal Sampler ✅
+### 5. Thermal Sampler OK
 
 Returns `Option<f32>`. None when sysfs missing (containers, VMs).
 Test `sample_thermal_pressure_does_not_panic_when_sysfs_missing`
@@ -84,7 +84,7 @@ explicitly verifies no panic.
 **Assessment**: Already LTS-stable. Graceful degradation on missing
 sysfs. No improvement needed.
 
-### 6. Reclaim State (MPAR) ✅
+### 6. Reclaim State (MPAR) OK
 
 - `last_reclaim: Option<Instant>` tracks last madvise call.
 - `MIN_RECLAIM_INTERVAL` (1 hour) prevents hammering.
@@ -96,7 +96,7 @@ sysfs. No improvement needed.
 **Assessment**: Already LTS-stable. Best-effort design with rate
 limiting. No improvement needed.
 
-### 7. v50 Power Dragon Toggle (Option D) ✅
+### 7. v50 Power Dragon Toggle (Option D) OK
 
 The new `power_dragon` config key (implemented in commit `42000b8`)
 gates the self-healer:
@@ -110,7 +110,7 @@ gates the self-healer:
 single entry point for the DowngradeScene action. The idle FPS gate
 is in `PowerManager::effective_fps()`. No leaks possible.
 
-### 8. Test Coverage ✅
+### 8. Test Coverage OK
 
 - `audit_tests.rs`: 6 integration contract tests (87 tests total in
   central_control_dragon_power)
@@ -125,20 +125,20 @@ is in `PowerManager::effective_fps()`. No leaks possible.
 **Self-healing subsystem is already at peak optimization.** No code
 changes required. The subsystem is:
 
-- ✅ Hysteresis-protected (HIGH=0.6 trigger, LOW=0.3 restore, dead zone)
-- ✅ Time-gated (30s downgrade, 60s restore — prevents flapping)
-- ✅ P2-before-P1 ordering (symptoms fixed before causes)
-- ✅ Cooldown-limited (30s between P2 mitigations)
-- ✅ Bounded pressure [0, 1] with EMA smoothing
-- ✅ Health score weighted (RSS 40%, jitter 35%, ctxt 25%)
-- ✅ Thermal pressure additive (independent sources)
-- ✅ Phase predictor pure function
-- ✅ Thermal sampler graceful degradation
-- ✅ Reclaim state rate-limited (1 hour)
-- ✅ Zero `.unwrap()` in production code
-- ✅ Zero `unsafe` issues (2 sites, both guarded)
-- ✅ Power dragon toggle (Option D) implemented
-- ✅ 87 tests pass, 0 flakes
+- OK Hysteresis-protected (HIGH=0.6 trigger, LOW=0.3 restore, dead zone)
+- OK Time-gated (30s downgrade, 60s restore — prevents flapping)
+- OK P2-before-P1 ordering (symptoms fixed before causes)
+- OK Cooldown-limited (30s between P2 mitigations)
+- OK Bounded pressure [0, 1] with EMA smoothing
+- OK Health score weighted (RSS 40%, jitter 35%, ctxt 25%)
+- OK Thermal pressure additive (independent sources)
+- OK Phase predictor pure function
+- OK Thermal sampler graceful degradation
+- OK Reclaim state rate-limited (1 hour)
+- OK Zero `.unwrap()` in production code
+- OK Zero `unsafe` issues (2 sites, both guarded)
+- OK Power dragon toggle (Option D) implemented
+- OK 87 tests pass, 0 flakes
 
 **Audit signoff**: Task 1 complete. No UNLOCK required for any
 dragon lock — the self-healing subsystem is stable as-is.

@@ -39,7 +39,7 @@
 >
 > - **Files changed**: 1 (`cloud/mod.rs`)
 > - **LOC impact**: +71 insertions, -17 deletions (net +54 LOC)
-> - **Gatekeeper**: ✅ `cargo fmt --check` PASS, ✅ `cargo clippy -D warnings` PASS
+> - **Gatekeeper**: OK `cargo fmt --check` PASS, OK `cargo clippy -D warnings` PASS
 > - **Visual rating**: 10/10 (owner-verified production ready)
 >
 >
@@ -148,7 +148,7 @@
 > - `src/cosmic_dragon_engine/cloud/mod.rs` (BD-01 centering + BD-02 gradient)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
-> - Gatekeeper: ✅ cargo fmt --check PASS, ✅ cargo clippy -D warnings PASS
+> - Gatekeeper: OK cargo fmt --check PASS, OK cargo clippy -D warnings PASS
 > - Visual audit: 10/10 owner-verified production ready
 >
 > **LOC impact**: +71 insertions, -17 deletions (net +54 LOC)

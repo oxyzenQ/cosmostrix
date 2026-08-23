@@ -16,25 +16,25 @@
 
 | Phase | Tier | Status | Commits | LOC recovered |
 |-------|------|--------|---------|---------------|
-| 1 | S (batch 1) — dead code deletions | ✅ DONE | `841ebd4` | -701 LOC |
-| 1 | S (batch 2) — doc accuracy | ✅ DONE | `d6cb36f` | 13 doc fixes |
-| 2 | A — atmosphere triage | ✅ DONE | `e74b71b` | -28 LOC, 29 warnings surfaced + silenced |
-| 2 | A — file consolidation | ✅ DONE | `38506b4` | -123 LOC, -2 files |
-| 2 | A — related_schemes() deletion | ✅ DONE | `3feb68f` | -71 LOC |
-| 3 | B (batch 1) — archive 11 closed docs | ✅ DONE | `dde68de` | -11 docs to archive/ |
-| 3 | B (batch 2) — delete stale benchmark artifacts | ✅ DONE | `f509d3c` | -7 regenerated files |
-| 3 | B (batch 3) — archive CHANGELOG pre-v13 | ✅ DONE | `4e5c55f` | -630 LOC live, +703 archive |
-| 3 | B (batch 4) — condense FUTURE_BACKLOG.md | ✅ DONE | `d2ed7a4` | -259 LOC (341→82) |
-| 4 | C (item 25) — drop crossterm derive-more | ✅ DONE | `4879585` | -53 LOC Cargo.lock, ~0.8s |
-| 4 | C (item 26) — drop clap suggestions | ✅ DONE | `5d40a9d` | -7 LOC Cargo.lock, ~0.6s |
-| 4 | C (item 27) — drop build-dep chrono | ✅ DONE | `efea502` | -3 LOC Cargo.toml, ~1.3s |
-| 4 | C (item 28) — add [lints.clippy] table | ✅ DONE | `80c0a80` | -1 file-level allow |
-| 5 | D (item 29) — precompute column_coherence sinf LUT | ✅ DONE | `96d2213` | -65-130M cycles/sec (architectural), visual parity verified |
-| 5 | D (item 30) — replace per-frame scene_name clone with u64 counter | ✅ DONE | `8805f26` | -60 heap allocs/sec |
-| 6 | E (item 31) — atmosphere subsystem archival + dead code deletion | ✅ DONE | (this commit) | -1,071 LOC (3 files), design knowledge preserved in `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` |
-| 6 | E (item 32) — Bold default | ✅ DONE (earlier) | — | Closed with Option B (Random), no code change |
+| 1 | S (batch 1) — dead code deletions | OK DONE | `841ebd4` | -701 LOC |
+| 1 | S (batch 2) — doc accuracy | OK DONE | `d6cb36f` | 13 doc fixes |
+| 2 | A — atmosphere triage | OK DONE | `e74b71b` | -28 LOC, 29 warnings surfaced + silenced |
+| 2 | A — file consolidation | OK DONE | `38506b4` | -123 LOC, -2 files |
+| 2 | A — related_schemes() deletion | OK DONE | `3feb68f` | -71 LOC |
+| 3 | B (batch 1) — archive 11 closed docs | OK DONE | `dde68de` | -11 docs to archive/ |
+| 3 | B (batch 2) — delete stale benchmark artifacts | OK DONE | `f509d3c` | -7 regenerated files |
+| 3 | B (batch 3) — archive CHANGELOG pre-v13 | OK DONE | `4e5c55f` | -630 LOC live, +703 archive |
+| 3 | B (batch 4) — condense FUTURE_BACKLOG.md | OK DONE | `d2ed7a4` | -259 LOC (341→82) |
+| 4 | C (item 25) — drop crossterm derive-more | OK DONE | `4879585` | -53 LOC Cargo.lock, ~0.8s |
+| 4 | C (item 26) — drop clap suggestions | OK DONE | `5d40a9d` | -7 LOC Cargo.lock, ~0.6s |
+| 4 | C (item 27) — drop build-dep chrono | OK DONE | `efea502` | -3 LOC Cargo.toml, ~1.3s |
+| 4 | C (item 28) — add [lints.clippy] table | OK DONE | `80c0a80` | -1 file-level allow |
+| 5 | D (item 29) — precompute column_coherence sinf LUT | OK DONE | `96d2213` | -65-130M cycles/sec (architectural), visual parity verified |
+| 5 | D (item 30) — replace per-frame scene_name clone with u64 counter | OK DONE | `8805f26` | -60 heap allocs/sec |
+| 6 | E (item 31) — atmosphere subsystem archival + dead code deletion | OK DONE | (this commit) | -1,071 LOC (3 files), design knowledge preserved in `docs/archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md` |
+| 6 | E (item 32) — Bold default | OK DONE (earlier) | — | Closed with Option B (Random), no code change |
 | 6 | E (item 33) — vignette/rain_shadow LUTs | ⏸ DEFERRED | — | Visual shift risk, needs owner approval |
-| 6 | E (item 34) — `bitvec` dep replacement | ✅ DONE (SKIP) | — | Owner keeps `bitvec`, no comparison branch, no code change |
+| 6 | E (item 34) — `bitvec` dep replacement | OK DONE (SKIP) | — | Owner keeps `bitvec`, no comparison branch, no code change |
 
 **Item 16** (`cosmic_dragon_incubator/egg/io_uring_rejected.rs` demotion) was
 **INTENTIONALLY SKIPPED** — the `egg/mod.rs` has an explicit policy:

@@ -159,24 +159,24 @@ test suite.
 
 | Phase | Innovation | Status |
 |-------|-----------|--------|
-| 1     | Foundation (palette + catalog relocation) | ✅ Locked |
-| 2     | Shader extraction (`resolve_cell_color`) | ✅ Locked |
-| 3-A   | OKLab polar gradient (sole production path) | ✅ Locked |
-| 3-G   | Precomputed atmospheric shader | ✅ Locked |
-| 3-H   | Global hue drift | ✅ Locked |
-| 3-I   | Palette-aware ghost base color | ✅ Locked |
-| 4-A   | Temporal column hue coherence | ✅ Locked |
-| 4-B   | Subpixel hue jitter (amplitude=3) | ✅ Locked |
-| 4-D   | Head halo via background blend (factor=0.15) | ✅ Locked |
-| 5     | Perceptual L smoothing at transition wave | ✅ Locked |
-| 6     | Palette-aware anomaly halos | ✅ Locked |
-| 7-c   | Palette-relative brightness floor (replaces v17 global MIN_RGB_SUM=180) | ✅ Locked |
-| 7-d   | Body-tail continuity (2.0× max gap) | ✅ Locked |
-| 8     | L+chroma smoothing at palette transitions | ✅ Locked |
-| 9-A   | Hue-preserving polar gradient | ✅ Locked |
-| 9-B   | Lock suite (19 invariants) | ✅ Locked |
-| 9-C   | sRGB-linear fallback removal | ✅ Locked |
-| 9-D   | ColorPipeline + legacy audit (19 invariants) | ✅ **Locked here** |
+| 1     | Foundation (palette + catalog relocation) | OK Locked |
+| 2     | Shader extraction (`resolve_cell_color`) | OK Locked |
+| 3-A   | OKLab polar gradient (sole production path) | OK Locked |
+| 3-G   | Precomputed atmospheric shader | OK Locked |
+| 3-H   | Global hue drift | OK Locked |
+| 3-I   | Palette-aware ghost base color | OK Locked |
+| 4-A   | Temporal column hue coherence | OK Locked |
+| 4-B   | Subpixel hue jitter (amplitude=3) | OK Locked |
+| 4-D   | Head halo via background blend (factor=0.15) | OK Locked |
+| 5     | Perceptual L smoothing at transition wave | OK Locked |
+| 6     | Palette-aware anomaly halos | OK Locked |
+| 7-c   | Palette-relative brightness floor (replaces v17 global MIN_RGB_SUM=180) | OK Locked |
+| 7-d   | Body-tail continuity (2.0× max gap) | OK Locked |
+| 8     | L+chroma smoothing at palette transitions | OK Locked |
+| 9-A   | Hue-preserving polar gradient | OK Locked |
+| 9-B   | Lock suite (19 invariants) | OK Locked |
+| 9-C   | sRGB-linear fallback removal | OK Locked |
+| 9-D   | ColorPipeline + legacy audit (19 invariants) | OK **Locked here** |
 
 ## Modification Protocol
 
@@ -188,7 +188,7 @@ the lock.
 
 | Date (UTC) | Commit | Reason | Verdict |
 |------------|--------|--------|---------|
-| 2026-08-19T16:36:02Z | `809a897` | Stale path refs + EnergyZen missing from `all_schemes()` test helper (INV-2 silently skipped v50 masterclass theme). Real bug fix + 15+ doc updates. | ✅ PASS — 19/19 invariants, A/B NEUTRAL, visual preserved |
+| 2026-08-19T16:36:02Z | `809a897` | Stale path refs + EnergyZen missing from `all_schemes()` test helper (INV-2 silently skipped v50 masterclass theme). Real bug fix + 15+ doc updates. | OK PASS — 19/19 invariants, A/B NEUTRAL, visual preserved |
 
 See [`RULES.md`](RULES.md) § UNLOCK Log for the full detailed entry.
 

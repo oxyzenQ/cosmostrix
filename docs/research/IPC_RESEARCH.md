@@ -42,7 +42,7 @@ those decisions cheaper, not from removing them.
 
 ## 2. The four levers, ranked by confidence
 
-### Lever 1 — PGO (profile-guided optimization): the designed-but-unused route ★★★
+### Lever 1 — PGO (profile-guided optimization): the designed-but-unused route (highest confidence)
 
 The repository has a complete two-stage PGO pipeline
 (`./scripts/build.sh pgo`, instrumented → profile → final) and release
@@ -66,7 +66,7 @@ Why PGO is the right tool for THIS workload:
   section reports `ipc` and `branch_mispredict_rate` — a PGO vs non-PGO
   A/B is one command pair (see §4).
 
-### Lever 2 — extend the BOLT branchless pattern ★★
+### Lever 2 — extend the BOLT branchless pattern (high confidence)
 
 The codebase already proves the technique: `BOLD_ESCAPES` replaced the
 bold branch with a table lookup (docs record mispredict 0.57–2.41% on v30

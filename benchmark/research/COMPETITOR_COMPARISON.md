@@ -127,24 +127,24 @@ are simple (~50 lines each) and available in `benchmark/`.
 
 | Feature                    | cosmostrix | Any full-redraw renderer |
 |----------------------------|:----------:|:------------------------:|
-| Diff-based rendering       | ✅         | ❌                       |
-| TrueColor (24-bit RGB)     | ✅         | Some                     |
-| Chroma dragon interpolation| ✅         | ❌                       |
-| Phosphor decay (CRT glow)  | ✅         | ❌                       |
-| 3-layer parallax depth     | ✅         | ❌                       |
-| Density sculpting          | ✅         | ❌                       |
-| Mouse click effects        | ✅         | ❌                       |
-| Quantum ripple + trail     | ✅         | ❌                       |
-| Chromatic shockwave        | ✅         | ❌                       |
-| Live HUD (16 metrics)      | ✅         | ❌                       |
-| Ambient scheduler          | ✅         | ❌                       |
-| Live config reload         | ✅         | ❌                       |
-| Cinematic intro            | ✅         | ❌                       |
-| Adaptive throttling        | ✅         | ❌                       |
-| Endurance Health Score     | ✅         | ❌                       |
-| Config file (TOML)         | ✅         | Some (JSON/none)        |
-| Message overlay            | ✅         | ❌                       |
-| Screensaver mode           | ✅         | ❌                       |
+| Diff-based rendering       | OK         | X                       |
+| TrueColor (24-bit RGB)     | OK         | Some                     |
+| Chroma dragon interpolation| OK         | X                       |
+| Phosphor decay (CRT glow)  | OK         | X                       |
+| 3-layer parallax depth     | OK         | X                       |
+| Density sculpting          | OK         | X                       |
+| Mouse click effects        | OK         | X                       |
+| Quantum ripple + trail     | OK         | X                       |
+| Chromatic shockwave        | OK         | X                       |
+| Live HUD (16 metrics)      | OK         | X                       |
+| Ambient scheduler          | OK         | X                       |
+| Live config reload         | OK         | X                       |
+| Cinematic intro            | OK         | X                       |
+| Adaptive throttling        | OK         | X                       |
+| Endurance Health Score     | OK         | X                       |
+| Config file (TOML)         | OK         | Some (JSON/none)        |
+| Message overlay            | OK         | X                       |
+| Screensaver mode           | OK         | X                       |
 
 ---
 

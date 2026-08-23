@@ -31,7 +31,7 @@
 
 ### 1. Strict Mode (already verified in Task 1)
 
-✅ **No changes needed.** Strict mode is already the v50 policy:
+OK **No changes needed.** Strict mode is already the v50 policy:
 
 - **Startup** (`config_apply.rs:127-165`): 3-layer check rejects
   malformed lines (layer 1), unknown keys (layer 2), invalid values
@@ -47,7 +47,7 @@
 
 ### 2. Mutex Poison Safety
 
-✅ **No changes needed.** All mutex locks in live-reload use the
+OK **No changes needed.** All mutex locks in live-reload use the
 poison-safe pattern:
 
 ```rust
@@ -73,7 +73,7 @@ Specifically audited:
 
 ### 3. TOCTOU Safety
 
-✅ **No changes needed.** File state snapshots are computed INSIDE the
+OK **No changes needed.** File state snapshots are computed INSIDE the
 mutex lock to prevent time-of-check-to-time-of-use races:
 
 ```rust
@@ -92,7 +92,7 @@ snapshot is safe — no contention risk.
 
 ### 4. Atomic Save Handling
 
-✅ **No changes needed.** When the config file temporarily doesn't
+OK **No changes needed.** When the config file temporarily doesn't
 exist (atomic save in progress: write to temp, rename), the watcher
 skips the event instead of panicking:
 
@@ -107,7 +107,7 @@ if current_state.size.is_none() {
 
 ### 5. Defense-in-Depth: Rejection Buffer Cap
 
-✅ **No changes needed.** The rejection log is capped at 64 entries
+OK **No changes needed.** The rejection log is capped at 64 entries
 to defend against misbehaving editors that save 1000×/sec:
 
 ```rust
@@ -119,13 +119,13 @@ Same cap applies to runtime warnings (`MAX_RUNTIME_WARNING_LOG = 64`).
 
 ### 6. Zero `.unwrap()` in Production Live-Reload Code
 
-✅ **No changes needed.** Grep for `.unwrap()` in production
+OK **No changes needed.** Grep for `.unwrap()` in production
 (non-test, non-comment) live-reload code returns 0 matches. All
 fallible operations use `match` or `?` with proper error propagation.
 
 ### 7. Race Condition Audit
 
-✅ **No changes needed.** Concurrency primitives properly used:
+OK **No changes needed.** Concurrency primitives properly used:
 
 - `Arc<AtomicU64>` for `change_counter` — cross-thread change
   notification, lock-free.
@@ -141,7 +141,7 @@ No `RefCell` (would be unsafe across threads).
 
 ## Test Coverage
 
-✅ **Stable across 3 consecutive runs** (verified in Task 5):
+OK **Stable across 3 consecutive runs** (verified in Task 5):
 
 - `cargo test --quiet "config::"` → 199/199 pass (3 runs, 0 flakes)
 - `cargo test --quiet "live_config::"` → 30/30 pass (3 runs, 0 flakes)
@@ -152,14 +152,14 @@ No `RefCell` (would be unsafe across threads).
 **Config + live-reload subsystem is LTS-stable.** No code changes
 required in this audit. The subsystem is:
 
-- ✅ Strict (rejects unknown/malformed/invalid at startup AND live-reload)
-- ✅ Mutex-poison-safe (never panics on poisoned locks)
-- ✅ TOCTOU-safe (file state snapshots inside mutex)
-- ✅ Atomic-save-aware (skips events during temp-file rename)
-- ✅ Defense-in-depth (64-entry caps on rejection + warning logs)
-- ✅ Zero `.unwrap()` in production code
-- ✅ Properly synchronized (Arc + Mutex + AtomicU* where appropriate)
-- ✅ Comprehensive test coverage (229 config-specific tests, all stable)
+- OK Strict (rejects unknown/malformed/invalid at startup AND live-reload)
+- OK Mutex-poison-safe (never panics on poisoned locks)
+- OK TOCTOU-safe (file state snapshots inside mutex)
+- OK Atomic-save-aware (skips events during temp-file rename)
+- OK Defense-in-depth (64-entry caps on rejection + warning logs)
+- OK Zero `.unwrap()` in production code
+- OK Properly synchronized (Arc + Mutex + AtomicU* where appropriate)
+- OK Comprehensive test coverage (229 config-specific tests, all stable)
 
 The 3 Dragon Lock (commit `2ef8cdf`) already covers the Cosmic
 Dragon's `runtime.rs` (color pipeline enum) which lives in this
@@ -173,10 +173,10 @@ are verified stable by this audit.
 ## v50.0.0-alpha.7 Update — Option D (Masterclass) Implemented
 
 All 4 issues from the v50-beta.3 research are now FIXED:
-- Issue #1 (power-dragon + async-mode CLI intent guards) ✅ FIXED
-- Issue #2 (message/message-border/msg-mode live-reload) ✅ FIXED
-- Issue #3 (intro-color live-reload) ✅ FIXED (intro stays restart-only)
-- Issue #4 (monolith-size CLI guard) ✅ FIXED
+- Issue #1 (power-dragon + async-mode CLI intent guards) OK FIXED
+- Issue #2 (message/message-border/msg-mode live-reload) OK FIXED
+- Issue #3 (intro-color live-reload) OK FIXED (intro stays restart-only)
+- Issue #4 (monolith-size CLI guard) OK FIXED
 
 See [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md) § 6 for the
 full implementation status + updated per-key matrix + 13 new stress
@@ -191,10 +191,10 @@ solution options are documented in:
 → [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md)
 
 **Key findings**:
-- `crystal-dragon`, `power-dragon`, `async-mode` ✅ live-reload.
-- `message`, `message-border`, `msg-mode` ❌ do NOT live-reload
+- `crystal-dragon`, `power-dragon`, `async-mode` OK live-reload.
+- `message`, `message-border`, `msg-mode` X do NOT live-reload
   (require restart). This is the primary source of user confusion.
-- `intro-color`, `intro` ❌ do NOT live-reload (one-shot startup).
+- `intro-color`, `intro` X do NOT live-reload (one-shot startup).
 - `power-dragon` + `async-mode` live-reload paths lack the CLI intent
   guard that `crystal-dragon` has — Issue #1 in the research doc.
 

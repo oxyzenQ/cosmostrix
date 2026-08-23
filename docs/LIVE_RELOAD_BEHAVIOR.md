@@ -27,30 +27,30 @@
 
 | Config Key | CLI Flag | Live-Reloads? | Source: `rebuild_cloud_config` line | Notes |
 |------------|----------|:-------------:|:------------------------------------:|-------|
-| `color` | `--color` | ✅ YES | 581-596 | CLI wins over config (intent preservation via `cli.color`). |
-| `charset` | `--charset` | ✅ YES | 605-636 | CLI wins; charset-custom blocks also re-parsed. |
-| `scene` | `--scene` | ✅ YES | 640-716 | CLI wins; scene defaults re-applied for color/charset/speed/density. |
-| `speed` | `--speed` | ✅ YES | 718-730 | CLI wins. |
-| `density` | `--density` | ✅ YES | 732-745 | CLI wins; `base_density` also updated. |
-| `fps` | `--fps` | ✅ YES | 747-759 | CLI wins; `target_fps` updated. |
-| `glitch-level` | `--glitch-level` | ✅ YES | 767-787 | CLI wins; full preset re-derivation. |
-| `color-bg` | (none) | ✅ YES | 790-797 | Config-only; flips `default_bg`. |
-| `monolith-size` | `--monolith-size` | ✅ YES | 800-805 | Config + CLI both applied (no intent gate — bug?). |
-| `crystal-dragon` | `--crystal-dragon` | ✅ YES | 809-815 | CLI wins (`cli.crystal_dragon` guard). |
-| `power-dragon` | `--power-dragon` | ✅ YES | 821-825 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1 below). |
-| `bold` | `--bold` | ✅ YES | 829-844 | Range-gated (0-2); no CLI intent gate. |
-| `shadingmode` | `--shadingmode` | ✅ YES | 845-856 | Range-gated (0-1); no CLI intent gate. |
-| `async-mode` | `--async-mode` | ✅ YES | 857-861 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1). |
-| `color.tune.*` | `--color-tune` | ✅ YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
-| `ambient.HH-MM` | (none) | ✅ YES | 897-904 | Schedule re-collected; ambient thread notified. |
-| `scene-custom.<name>.*` | `--scene-custom` | ✅ YES | 863-866 | Re-applied if the active scene-custom name matches. |
-| **`message`** | `-m` | ❌ **NO** | (not handled) | Field stays at startup value. `create_cloud` re-calls `set_message` with the OLD value. |
-| **`message-border`** | `-mb` | ❌ **NO** | (not handled) | Same — stays at startup value. |
-| **`msg-mode`** | `--msg-mode` | ❌ **NO** | (not handled) | Field stays at startup value. Default fallback + gate logic only runs at startup. |
-| **`intro-color`** | `--intro-color` | ❌ **NO** | (not handled) | Intro only plays once at startup; live-reload is moot. |
-| **`intro`** | `--intro` | ❌ **NO** | (not handled) | Same — intro is a one-shot animation. |
-| `colors-custom.<name>` | (none) | ⚠️ PARTIAL | 599-603 | Only re-parsed if `custom_palette_name` was set at startup. New palettes added mid-run are not discovered. |
-| `charset-custom.<name>` | (none) | ⚠️ PARTIAL | 609-611 | Only re-parsed if the active charset name matches a custom block. New charsets added mid-run are not discovered. |
+| `color` | `--color` | OK YES | 581-596 | CLI wins over config (intent preservation via `cli.color`). |
+| `charset` | `--charset` | OK YES | 605-636 | CLI wins; charset-custom blocks also re-parsed. |
+| `scene` | `--scene` | OK YES | 640-716 | CLI wins; scene defaults re-applied for color/charset/speed/density. |
+| `speed` | `--speed` | OK YES | 718-730 | CLI wins. |
+| `density` | `--density` | OK YES | 732-745 | CLI wins; `base_density` also updated. |
+| `fps` | `--fps` | OK YES | 747-759 | CLI wins; `target_fps` updated. |
+| `glitch-level` | `--glitch-level` | OK YES | 767-787 | CLI wins; full preset re-derivation. |
+| `color-bg` | (none) | OK YES | 790-797 | Config-only; flips `default_bg`. |
+| `monolith-size` | `--monolith-size` | OK YES | 800-805 | Config + CLI both applied (no intent gate — bug?). |
+| `crystal-dragon` | `--crystal-dragon` | OK YES | 809-815 | CLI wins (`cli.crystal_dragon` guard). |
+| `power-dragon` | `--power-dragon` | OK YES | 821-825 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1 below). |
+| `bold` | `--bold` | OK YES | 829-844 | Range-gated (0-2); no CLI intent gate. |
+| `shadingmode` | `--shadingmode` | OK YES | 845-856 | Range-gated (0-1); no CLI intent gate. |
+| `async-mode` | `--async-mode` | OK YES | 857-861 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1). |
+| `color.tune.*` | `--color-tune` | OK YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
+| `ambient.HH-MM` | (none) | OK YES | 897-904 | Schedule re-collected; ambient thread notified. |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. |
+| **`message`** | `-m` | X **NO** | (not handled) | Field stays at startup value. `create_cloud` re-calls `set_message` with the OLD value. |
+| **`message-border`** | `-mb` | X **NO** | (not handled) | Same — stays at startup value. |
+| **`msg-mode`** | `--msg-mode` | X **NO** | (not handled) | Field stays at startup value. Default fallback + gate logic only runs at startup. |
+| **`intro-color`** | `--intro-color` | X **NO** | (not handled) | Intro only plays once at startup; live-reload is moot. |
+| **`intro`** | `--intro` | X **NO** | (not handled) | Same — intro is a one-shot animation. |
+| `colors-custom.<name>` | (none) | warning: PARTIAL | 599-603 | Only re-parsed if `custom_palette_name` was set at startup. New palettes added mid-run are not discovered. |
+| `charset-custom.<name>` | (none) | warning: PARTIAL | 609-611 | Only re-parsed if the active charset name matches a custom block. New charsets added mid-run are not discovered. |
 
 ---
 
@@ -292,28 +292,28 @@ CLI `--monolith-size` wins over config on live-reload.
 
 | Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? |
 |------------|----------|:-------------:|:-----------------:|
-| `color` | `--color` | ✅ YES | ✅ YES |
-| `charset` | `--charset` | ✅ YES | ✅ YES |
-| `scene` | `--scene` | ✅ YES | ✅ YES |
-| `speed` | `--speed` | ✅ YES | ✅ YES |
-| `density` | `--density` | ✅ YES | ✅ YES |
-| `fps` | `--fps` | ✅ YES | ✅ YES |
-| `glitch-level` | `--glitch-level` | ✅ YES | ✅ YES |
-| `color-bg` | (none) | ✅ YES | N/A (no CLI flag) |
-| `monolith-size` | `--monolith-size` | ✅ YES | ✅ YES (FIXED in alpha.7) |
-| `crystal-dragon` | `--crystal-dragon` | ✅ YES | ✅ YES |
-| `power-dragon` | `--power-dragon` | ✅ YES | ✅ YES (FIXED in alpha.7) |
-| `async-mode` | `--async-mode` | ✅ YES | ✅ YES (FIXED in alpha.7) |
-| `bold` | `--bold` | ✅ YES | ❌ NO (no CLI intent gate) |
-| `shadingmode` | `--shadingmode` | ✅ YES | ❌ NO (no CLI intent gate) |
-| `color.tune.*` | `--color-tune` | ✅ YES | ✅ YES |
-| `ambient.HH-MM` | (none) | ✅ YES | N/A |
-| `scene-custom.<name>.*` | `--scene-custom` | ✅ YES | ✅ YES |
-| **`message`** | `-m` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.message`) |
-| **`message-border`** | `-mb` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.message`) |
-| **`msg-mode`** | `--msg-mode` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.msg_mode`) |
-| **`intro-color`** | `--intro-color` | ✅ YES (FIXED in alpha.7) | ✅ YES (`cli.intro_color`) |
-| **`intro`** | `--intro` | ❌ NO (one-shot) | N/A |
+| `color` | `--color` | OK YES | OK YES |
+| `charset` | `--charset` | OK YES | OK YES |
+| `scene` | `--scene` | OK YES | OK YES |
+| `speed` | `--speed` | OK YES | OK YES |
+| `density` | `--density` | OK YES | OK YES |
+| `fps` | `--fps` | OK YES | OK YES |
+| `glitch-level` | `--glitch-level` | OK YES | OK YES |
+| `color-bg` | (none) | OK YES | N/A (no CLI flag) |
+| `monolith-size` | `--monolith-size` | OK YES | OK YES (FIXED in alpha.7) |
+| `crystal-dragon` | `--crystal-dragon` | OK YES | OK YES |
+| `power-dragon` | `--power-dragon` | OK YES | OK YES (FIXED in alpha.7) |
+| `async-mode` | `--async-mode` | OK YES | OK YES (FIXED in alpha.7) |
+| `bold` | `--bold` | OK YES | X NO (no CLI intent gate) |
+| `shadingmode` | `--shadingmode` | OK YES | X NO (no CLI intent gate) |
+| `color.tune.*` | `--color-tune` | OK YES | OK YES |
+| `ambient.HH-MM` | (none) | OK YES | N/A |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES |
+| **`message`** | `-m` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
+| **`message-border`** | `-mb` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
+| **`msg-mode`** | `--msg-mode` | OK YES (FIXED in alpha.7) | OK YES (`cli.msg_mode`) |
+| **`intro-color`** | `--intro-color` | OK YES (FIXED in alpha.7) | OK YES (`cli.intro_color`) |
+| **`intro`** | `--intro` | X NO (one-shot) | N/A |
 
 ### Stress Tests Added
 

@@ -12,10 +12,10 @@
 
 | Prefix | Type | Purpose | Renders in `cargo doc`? |
 |--------|------|---------|------------------------|
-| `//!` | Module doc | Top-of-file module documentation | ✅ Yes |
-| `///` | Item doc | Documentation for a fn / struct / enum / const | ✅ Yes |
-| `//` | Line comment | Implementation note, NOT user-facing | ❌ No |
-| `/* */` | Block comment | Rare; multi-line implementation note | ❌ No |
+| `//!` | Module doc | Top-of-file module documentation | OK Yes |
+| `///` | Item doc | Documentation for a fn / struct / enum / const | OK Yes |
+| `//` | Line comment | Implementation note, NOT user-facing | X No |
+| `/* */` | Block comment | Rare; multi-line implementation note | X No |
 
 **Rule**: Anything user-facing (API contract, behavior, rationale that
 a user/contributor needs to understand the public surface) goes in
@@ -172,13 +172,13 @@ The deep audit found **no actual inconsistencies** in the codebase:
 
 | Pattern | Count | Status |
 |---------|-------|--------|
-| `*italic*` in `///` / `//!` | 10 | ✅ All valid rustdoc |
-| `**bold**` in `///` / `//!` | many | ✅ All valid rustdoc |
-| ` ```text ` code blocks | 25 | ✅ Consistent (no ` ```txt ` short form) |
-| ` ```toml ` code blocks | 5 | ✅ Correct for TOML examples |
-| ` ```ignore ` / ` ```no_run ` / ` ```json ` | 6 | ✅ Correct rustdoc languages |
-| `*italic*` in `//` (non-doc) | 0 | ✅ No misuse |
-| ` ```txt ` (short form) | 0 | ✅ Already consistent |
+| `*italic*` in `///` / `//!` | 10 | OK All valid rustdoc |
+| `**bold**` in `///` / `//!` | many | OK All valid rustdoc |
+| ` ```text ` code blocks | 25 | OK Consistent (no ` ```txt ` short form) |
+| ` ```toml ` code blocks | 5 | OK Correct for TOML examples |
+| ` ```ignore ` / ` ```no_run ` / ` ```json ` | 6 | OK Correct rustdoc languages |
+| `*italic*` in `//` (non-doc) | 0 | OK No misuse |
+| ` ```txt ` (short form) | 0 | OK Already consistent |
 
 **Conclusion**: The codebase already follows the convention documented
 here. This file exists to **codify** the convention so future
