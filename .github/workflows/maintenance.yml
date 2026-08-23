@@ -2,23 +2,21 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Schedule: Weekly on Monday 00:00 UTC
 #
-# Report-first dependency maintenance (owner directive 2026-08-23):
+# Direct-main dependency updates use a two-phase privilege model:
 # - validate: read-only token, dependency update, full checks, lockfile artifact
-# - report: open a Pull Request with the validated lockfile — the owner
-#   reviews and merges. NO bot ever pushes directly to main.
+# - commit: write token, no dependency code execution, Cargo.lock allowlist only
 #
 # ── How this workflow authenticates WITHOUT a personal access token ──
 #
 # GitHub Actions auto-provisions a short-lived installation token
 # (`GITHUB_TOKEN`) for every workflow run. It is repo-scoped, expires when
-# the job ends, and its permissions are exactly what the `permissions:`
-# block of each job declares:
-#   - validate: contents:read  + persist-credentials:false → cannot push
-#   - report:   contents:write + pull-requests:write → can push ONE branch
-#     and open the report PR (github-actions[bot] identity)
-# No PAT is stored or needed. Commits made with GITHUB_TOKEN do not
-# recursively trigger other workflows (GitHub recursion guard), which is
-# fine here: validation already ran in the validate job.
+# the job ends, and its permissions are exactly what each job's
+# `permissions:` block declares:
+#   - validate: contents:read + persist-credentials:false → cannot push
+#   - commit:   contents:write → can push the validated Cargo.lock to main
+# No PAT is stored or needed. Commits made with GITHUB_TOKEN appear as
+# github-actions[bot] and do not recursively trigger other workflows
+# (GitHub recursion guard).
 
 name: Cosmic Dragon Guard - Dependency Maintenance
 
@@ -67,8 +65,14 @@ jobs:
           }
 
           # Extract signing subkey expiry dates (skip master key + revoked subkeys).
-          # GPG colon format: sub:usage:validity:start:expiry:...
-          # Field 2 validity: n=valid, r=revoked, e=expired, i=invalid, d=disabled
+          # GPG colon format field layout for a `sub:` record:
+          #   f1=sub  f2=validity  f3=keylen  f4=algo  f5=keyid
+          #   f6=CREATION epoch  f7=EXPIRY epoch
+          # (Bugfix 2026-08-23: this check previously read f6 — the CREATION
+          # date — and reported freshly-created subkeys as expired on their
+          # own birth date. Caught when the owner's subkey created
+          # 2026-08-11 with expiry 2028-08-14 was flagged "EXPIRED on
+          # 2026-08-11". Field 7 is the expiry; an empty f7 = never expires.)
           EXPIRY_LINES=$(gpg --batch --with-colons --list-keys "${GPG_KEY_FINGERPRINT}" \
             | awk -F: '/^sub:/ && $2 != "r"')
 
@@ -81,8 +85,9 @@ jobs:
           NOW=$(date +%s)
 
           while IFS= read -r line; do
-            # GPG colon-delimited format: sub:usage:validity:start:expiry:...
-            EXPIRY=$(echo "$line" | cut -d: -f6)
+            # GPG colon-delimited format (see field layout above): f5=keyid,
+            # f6=creation, f7=expiry.
+            EXPIRY=$(echo "$line" | cut -d: -f7)
             KEY_ID=$(echo "$line" | cut -d: -f5)
 
             if [[ -z "$EXPIRY" || "$EXPIRY" == "" ]]; then
@@ -225,18 +230,14 @@ jobs:
           path: Cargo.lock
           if-no-files-found: error
 
-  report:
-    name: Cosmic Dragon Guard - Dependency Update Report
+  commit:
+    name: Cosmic Dragon Guard - Dependency Commit
     runs-on: ubuntu-latest
     needs: validate
     if: needs.validate.outputs.changed == 'true'
     timeout-minutes: 10
     permissions:
-      # contents:write pushes the single update branch.
-      # pull-requests:write opens the report PR. The owner merges it —
-      # nothing lands on main without a human decision.
       contents: write
-      pull-requests: write
 
     steps:
       - name: Checkout repository
@@ -250,12 +251,8 @@ jobs:
           name: validated-cargo-lock
           path: .auto-update
 
-      - name: Open dependency-update Pull Request (report-first)
+      - name: Commit dependency update
         shell: bash
-        env:
-          # github.token == the run's ephemeral GITHUB_TOKEN (see the
-          # workflow header). gh CLI authenticates with it.
-          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           cp .auto-update/Cargo.lock Cargo.lock
@@ -267,41 +264,16 @@ jobs:
 
           git diff --name-only | tee /tmp/changed-files.txt
           if grep -vE '^Cargo\.lock$' /tmp/changed-files.txt; then
-            echo "::error::Report job may only modify Cargo.lock"
+            echo "::error::Commit job may only modify Cargo.lock"
             exit 1
           fi
 
           # Identity comes from the workflow env block (single source).
           git config user.name "${GIT_BOT_NAME}"
           git config user.email "${GIT_BOT_EMAIL}"
-
-          BRANCH="deps/auto-update-${GITHUB_RUN_ID}"
-          git checkout -b "${BRANCH}"
           git add Cargo.lock
-          git commit -m "chore(deps): weekly dependency update (validated)"
-          git push origin "${BRANCH}"
-
-          # The report: a PR the owner reviews and merges. Cargo.lock diff
-          # summary + validation evidence in the body.
-          UPDATED="$(git diff --stat HEAD~1..HEAD | tail -n1)"
-          gh pr create \
-            --title "chore(deps): weekly dependency update (validated)" \
-            --base main \
-            --head "${BRANCH}" \
-            --body "Automated dependency update report — **no code touched, Cargo.lock only**.
-
-          Validated by the weekly maintenance run:
-          - cargo audit (baseline + post-update)
-          - cargo deny check all
-          - cargo fmt --check
-          - build: dev + release + pro profiles, --locked
-          - cargo test --all --locked
-          - clippy -D warnings
-
-          Diff: ${UPDATED}
-
-          Merge to apply. Closing the PR discards the update." \
-            || echo "::warning::PR already exists or creation failed — the branch ${BRANCH} is pushed for manual review"
+          git commit -m "chore(deps): maintenance deps weekly"
+          git push origin HEAD:main
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
