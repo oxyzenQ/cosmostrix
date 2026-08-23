@@ -24,31 +24,42 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 4x4 | 16 | 1,412,011 | 995,025 | 0.001 | 0.5 | 4 | excellent |
-| 20x6 | 120 | 653,777 | 999,001 | 0.002 | 3.0 | 4 | excellent |
-| 80x24 | 1,920 | 91,886 | 124,673 | 0.015 | 56.8 | 5 | excellent |
-| 120x40 | 4,800 | 54,019 | 68,213 | 0.024 | 107.2 | 5 | excellent |
-| 200x80 | 16,000 | 28,743 | 35,056 | 0.042 | 220.9 | 6 | excellent |
-| 480x160 | 76,800 | 10,678 | 12,168 | 0.112 | 598.8 | 9 | excellent |
-| 960x270 | 259,200 | 4,539 | 5,171 | 0.272 | 1,271.7 | 20 | excellent |
-| 1920x540 | 1,036,800 | 3,664 | 4,273 | 0.333 | 1,382.4 | 62 | excellent |
-| 3840x1080 | 4,147,200 | 3,758 | 4,475 | 0.333 | 1,374.9 | 217 | excellent |
-| 7680x4320 | 33,177,600 | 3,287 | 4,371 | 0.357 | 1,387.2 | 1,649 | high |
+| 4x4 | 16 | 1,419,655 | 965,251 | 0.001 | 0.5 | 4 | excellent |
+| 20x6 | 120 | 648,717 | 999,001 | 0.002 | 3.0 | 4 | excellent |
+| 80x24 | 1,920 | 89,073 | 123,213 | 0.015 | 56.8 | 5 | excellent |
+| 120x40 | 4,800 | 53,572 | 69,818 | 0.024 | 107.4 | 5 | excellent |
+| 200x80 | 16,000 | 28,815 | 34,428 | 0.043 | 221.0 | 5 | excellent |
+| 480x160 | 76,800 | 10,703 | 12,125 | 0.112 | 596.2 | 9 | excellent |
+| 960x270 | 259,200 | 4,424 | 5,176 | 0.281 | 1,271.9 | 19 | excellent |
+| 1920x540 | 1,036,800 | 1,550 | 1,831 | 0.807 | 2,596.9 | 65 | excellent |
+| 3840x1080 | 4,147,200 | 754 | 878 | 1.649 | 5,186.6 | 244 | good |
+| 7680x4320 | 33,177,600 | 271 | 403 | 3.666 | 11,165.3 | 1,812 | high |
 
-FPS scales sub-linearly with cell count thanks to differential rendering.
-Dirty cell count plateaus ~1,380 cells/frame above 960x270 — the
-monolith scene produces a fixed number of active streams regardless
-of grid size, so larger grids just have more empty space.
+FPS scales sub-linearly with cell count thanks to differential rendering;
+dirty cells now scale with grid size (~2x per 4x cell increase) because the
+simulation covers the full bench-bounded grid.
+
+Historical note (2026-08-23, LTS audit LOW-2 fix c1c7779): before the
+`Cloud::reset_bench` fix, the oversized tiers (>1024 cols) ran a hybrid
+state — the rain simulation was clamped to the interactive 1024x500 bounds
+while the frame buffer used the raw bench dimensions. Dirty cells were
+stuck at ~1,380/frame for every tier above 960x270 (the sim only knew the
+clamped area), and the pre-fix sweeps reported ~3,300-3,700 FPS at
+1920-8K — measurements of a partially-dead simulation, not the full grid.
+The benchmark path now routes through `reset_bench` (mirroring
+`Frame::new_bench`), so these numbers are the first honest full-grid
+measurements at the oversized tiers.
 
 At 8K (33M cells), memory pressure shifts to the allocator (538 MiB
-heap retained, 1.6 GiB RSS) and frame-time stability degrades to
+heap retained, 1.8 GiB RSS) and frame-time stability degrades to
 "high". This is a memory benchmark, not a render benchmark — the
 engine itself remains compute-bound at all practical sizes.
 
-This sweep was regenerated on 2026-08-22 with the default `release`
+This sweep was regenerated on 2026-08-23 with the default `release`
 profile (no AVX-512 target). The previous `pro-linux-v4` sweep
-(2026-08-20) reached ~3,864 FPS at 8K — the difference is the CPU
-microarchitecture target, not a regression.
+(2026-08-20) reached ~3,864 FPS at 8K — but note that sweep pre-dates
+the LOW-2 fix, so its oversized-tier numbers measured the hybrid
+(partially clamped) simulation state and are not comparable.
 
 ## Notes
 
