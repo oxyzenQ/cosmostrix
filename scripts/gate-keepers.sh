@@ -159,6 +159,37 @@ else
     warn "codespell not installed — skipping"
 fi
 
+# ── 6b. Python lint (ruff) ─────────────────────────────────────────────────
+# Parity with the CI job "Project lint (codespell + ruff)"
+# (.github/workflows/ci.yml -> project_lint). Before this check existed,
+# python files passed gate-keepers locally but failed that CI job - the
+# gatekeeper was not a faithful pre-commit proxy. Runs the exact two
+# commands the CI job runs, over the same file set (scripts/*.py).
+header "Python lint (ruff)"
+PY_FILES=$(find scripts -maxdepth 1 -name '*.py' 2>/dev/null)
+if [ -n "$PY_FILES" ]; then
+    if command -v ruff >/dev/null 2>&1; then
+        RUFF_OK=0
+        if ! ruff check scripts/*.py 2>&1; then
+            fail "ruff check: python lint errors found (run: ruff check --fix scripts/*.py)"
+            RUFF_OK=1
+        fi
+        if ! ruff format --check scripts/*.py 2>&1; then
+            fail "ruff format: python files not formatted (run: ruff format scripts/*.py)"
+            RUFF_OK=1
+        fi
+        if [ "$RUFF_OK" -eq 0 ]; then
+            info "ruff: all python files lint-clean and formatted"
+            PASS=$((PASS + 1))
+        fi
+    else
+        warn "ruff not installed — skipping (pip install ruff, or fetch the static binary from https://github.com/astral-sh/ruff/releases)"
+    fi
+else
+    info "ruff: no .py files found"
+    PASS=$((PASS + 1))
+fi
+
 # ── 7. SPDX License Header Check ──────────────────────────────────────────
 header "SPDX License Headers"
 if [ -f scripts/check-headers.sh ]; then

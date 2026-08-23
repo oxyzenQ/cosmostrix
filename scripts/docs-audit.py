@@ -7,11 +7,11 @@ rg-philosophy: pattern-driven sweeps over git-tracked .md files, excluding
 docs/archive/** and benchmark/bench-labs/sweep_* (archive is excluded per
 owner directive; sweep files are auto-generated artifacts).
 """
+
 import re
 import subprocess
-import sys
-from pathlib import Path
 from collections import defaultdict
+from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
 
@@ -29,18 +29,25 @@ def git_md_files():
 
 
 files = git_md_files()
-print(f"=== INVENTORY: {len(files)} tracked .md files (archive + sweeps excluded) ===\n")
+print(
+    f"=== INVENTORY: {len(files)} tracked .md files (archive + sweeps excluded) ===\n"
+)
 
 # ── 1. Broken references ────────────────────────────────────────────────
 print("=== 1. BROKEN REFERENCES (links to non-existent files) ===")
-link_re = re.compile(r"\]\(([^)#\s]+)\)|`((?:docs|src|scripts|benchmark|\.github)/[\w\-./]+)`")
+link_re = re.compile(
+    r"\]\(([^)#\s]+)\)|`((?:docs|src|scripts|benchmark|\.github)/[\w\-./]+)`"
+)
 broken = defaultdict(list)
 for f in files:
     text = f.read_text(errors="replace")
     refs = set()
     for m in re.finditer(r"\]\(([^)#\s]+)\)", text):
         refs.add(m.group(1))
-    for m in re.finditer(r"`((?:docs|src|scripts|benchmark|\.github)/[\w\-./]+\.(?:rs|md|sh|py|toml|yml))`", text):
+    for m in re.finditer(
+        r"`((?:docs|src|scripts|benchmark|\.github)/[\w\-./]+\.(?:rs|md|sh|py|toml|yml))`",
+        text,
+    ):
         refs.add(m.group(1))
     for ref in refs:
         if ref.startswith(("http", "mailto:", "#")):
@@ -69,20 +76,32 @@ stale_patterns = [
     (r"src/terminal\.rs", "moved to src/cosmic_dragon_engine/terminal/"),
     (r"src/chroma_dragon_engine\.rs", "moved to src/chroma_dragon_engine/"),
     (r"src/chroma/", "moved to src/chroma_dragon_engine/"),
-    (r"src/adaptive\.rs", "moved to central_control_dragon_power/ + interactive/adaptive.rs"),
-    (r"src/ambient_scheduler\.rs", "moved to src/crystal_dragon_engine/ambient_scheduler/"),
+    (
+        r"src/adaptive\.rs",
+        "moved to central_control_dragon_power/ + interactive/adaptive.rs",
+    ),
+    (
+        r"src/ambient_scheduler\.rs",
+        "moved to src/crystal_dragon_engine/ambient_scheduler/",
+    ),
     (r"src/ambient\.rs", "moved to src/crystal_dragon_engine/ambient/"),
     (r"src/config\.rs", "moved to src/config/"),
     (r"src/palette\.rs", "moved (palette types live in chroma_dragon_engine/)"),
     (r"src/constants\.rs(?! *\))", "lifted to src/types/constants.rs (re-exported)"),
     (r"src/rain_style\.rs", "moved (RainStyle)"),
     (r"src/self_healer\.rs", "moved to src/central_control_dragon_power/self_healer/"),
-    (r"src/power_manager\.rs", "moved to src/central_control_dragon_power/power_manager/"),
+    (
+        r"src/power_manager\.rs",
+        "moved to src/central_control_dragon_power/power_manager/",
+    ),
     (r"src/endurance_health\.rs", "moved to src/central_control_dragon_power/"),
     (r"src/reclaim_state\.rs", "moved to src/central_control_dragon_power/"),
     (r"src/thermal_sampler\.rs", "moved to src/central_control_dragon_power/"),
     (r"src/phase_predictor\.rs", "moved to src/central_control_dragon_power/"),
-    (r"interactive/adaptive\.rs:\d+", "adaptive.rs is a re-export hub; subsystems moved to central_control_dragon_power/"),
+    (
+        r"interactive/adaptive\.rs:\d+",
+        "adaptive.rs is a re-export hub; subsystems moved to central_control_dragon_power/",
+    ),
 ]
 stale_hits = defaultdict(lambda: defaultdict(list))
 for f in files:
@@ -96,7 +115,9 @@ for f in sorted(stale_hits):
     print(f"  {f}:")
     for pat, lines in sorted(stale_hits[f].items()):
         note = dict(stale_patterns)[pat]
-        print(f"    {pat}  x{len(lines)}  (lines {lines[:6]}{'...' if len(lines) > 6 else ''})  [{note}]")
+        print(
+            f"    {pat}  x{len(lines)}  (lines {lines[:6]}{'...' if len(lines) > 6 else ''})  [{note}]"
+        )
 if not stale_hits:
     print("  (none)")
 
@@ -134,12 +155,14 @@ for f in files:
     title = m.group(1).strip() if m else "(no H1)"
     titles[title].append((rel, len(text.splitlines())))
 
+
 # group by normalized title
 def norm(t):
     t = t.lower()
     t = re.sub(r"[^a-z0-9 ]+", " ", t)
     t = re.sub(r"\b(a|an|the|of|for|and|v\d+|audit|doc|document|notes?)\b", " ", t)
     return re.sub(r"\s+", " ", t).strip()
+
 
 groups = defaultdict(list)
 for title, lst in titles.items():
