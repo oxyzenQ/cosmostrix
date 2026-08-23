@@ -174,6 +174,15 @@ if [ -n "$PY_FILES" ]; then
             fail "ruff check: python lint errors found (run: ruff check --fix scripts/*.py)"
             RUFF_OK=1
         fi
+        # CI parity guard: ruff's EXE001 flags shebang'd files that lack the
+        # executable bit. Same rule, checked locally so the gatekeeper
+        # catches it before CI does (incident run #1484).
+        for py in scripts/*.py; do
+            if head -n 1 "$py" | grep -q '^#!' && [ ! -x "$py" ]; then
+                fail "ruff EXE001 parity: $py has a shebang but is not executable (chmod +x)"
+                RUFF_OK=1
+            fi
+        done
         if ! ruff format --check scripts/*.py 2>&1; then
             fail "ruff format: python files not formatted (run: ruff format scripts/*.py)"
             RUFF_OK=1
