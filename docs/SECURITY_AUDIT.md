@@ -2,6 +2,18 @@
 
 # Security Audit — Cosmostrix "Dragon Hunt Security Mode"
 
+> **SUPERSEDED (2026-08-23)**: This audit's "15 unsafe sites, all sound"
+> verdict was built on an incorrect OS-semantics premise: it justified the
+> madvise(MADV_DONTNEED) site as a "non-destructive hint" (§1, quoting the
+> archived soundness audit). madvise(2) specifies zero-fill-on-demand for
+> private anonymous mappings, and the raw-range call was a real cross-object
+> heap-corruption hazard — found and fixed on 2026-08-23 as DPD-01 (commit
+> `2210276`, interior-page confinement). Some file references are also stale
+> (the adaptive.rs time FFI consolidated into clock/posix_time.rs). The
+> capability-class analysis (network, filesystem, subprocess, environment)
+> remains valid. The current, corrected reference is
+> [`docs/audits/SECURITY_VULNERABILITY_AUDIT.md`](audits/SECURITY_VULNERABILITY_AUDIT.md).
+
 **Audit date**: 2026-08-05 · **Subject**: `cosmostrix` · **Scope**: full source tree (`src/`, `build.rs`, `scripts/`, `.github/workflows/`, `aur/`) · **Methodology**: automated `rg` sweeps for every sensitive capability class + manual review.
 
 ## Verdict

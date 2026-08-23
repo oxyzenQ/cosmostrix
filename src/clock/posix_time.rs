@@ -156,12 +156,25 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
     let hour = ((secs / 3600) % 24) as i32;
     let min = ((secs / 60) % 60) as i32;
     let sec = (secs % 60) as i32;
-    let yday = ((secs / 86_400) % 366) as i32;
+    // Security audit SV-02 (2026-08-23): the previous `yday` computation
+    // `(secs / 86_400) % 366` returned days-since-epoch mod 366, NOT the
+    // day of year. Both change once per day, so the ambient scheduler's
+    // day-boundary refire still worked, but the boundary landed at UTC
+    // midnight with a wrong (offset by days-since-epoch-mod) value instead
+    // of a real calendar day index. Derive the true day-of-year from the
+    // same civil-from-days (Howard Hinnant) algorithm used by utc_tm()
+    // below: day-of-year = day-of-era minus the era's Jan 1 offset.
+    let days = secs / 86_400;
+    let z = days as i64 + 719_468;
+    let era = if z >= 0 { z } else { z - 146_096 } / 146_097;
+    let doe = (z - era * 146_097) as u64;
+    let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
     Some(LocalTm {
         hour,
         minute: min,
         second: sec,
-        yday,
+        yday: doy as i32,
     })
 }
 
