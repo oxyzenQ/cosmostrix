@@ -195,6 +195,67 @@ Test breakdown:
 - Inline `mod tests` in `endurance_health.rs`, `thermal_sampler.rs`,
   `phase_predictor.rs`, `reclaim_state.rs` (~26 unit tests total)
 
+## Addendum 2026-08-23 — Deeper Audit (Soundness Correction)
+
+A deeper audit of the self-healing stack (self_healer, power_manager,
+endurance_health, phase_predictor, thermal_sampler, reclaim_state, and
+both `hint_reclaim_pages` call sites in `event_loop.rs`) found one real
+soundness defect that this audit and the archived
+`UNSAFE_SOUNDNESS_AUDIT.md` §2.9/§2.11 had assessed as "Sound" based on
+a factually incorrect premise.
+
+### DPD-01 (HIGH, fixed): MADV_DONTNEED zero-fill hazard in hint_reclaim_pages
+
+**The wrong premise**: both prior audits justified the raw-range
+`madvise(MADV_DONTNEED)` call with the claim that the flag is a
+"non-destructive hint — even if the kernel ignores it, the memory is
+still valid and accessible." `madvise(2)` says the opposite for private
+anonymous mappings: MADV_DONTNEED **discards the covered pages and the
+next access returns zero-filled pages**.
+
+**Consequence 1 — in-buffer (masked, by ordering luck)**: the zeroed
+`frame.cells` bytes are never interpreted as live `Cell` values because
+both call sites set `cloud.force_draw_everything()` before the call and
+`rain_at()` runs `Frame::clear_with_bg()` (generation bump) before any
+cell read in the next loop iteration. Verified: `rain_at` (line 1088)
+precedes `term.draw` (line 1117) unconditionally.
+
+**Consequence 2 — cross-object heap corruption (the real hazard)**:
+`madvise` operates at PAGE granularity while malloc chunks below the
+glibc dynamic mmap threshold are carved from the main arena, where
+pages are shared with neighboring chunks. Advising the raw
+`[ptr, ptr+len)` range could zero the edges of adjacent heap objects —
+arbitrary corruption. Practically reachable: after any terminal resize
+drops a large mmap'd frame allocation, glibc raises its dynamic
+threshold, so subsequent frame allocations (80x24 = 45 KiB, 120x40 =
+112 KiB, and even 200x60 = 281 KiB post-resize) become arena-served;
+the reclaim then fires on the next 1-hour idle window or health
+mitigation.
+
+**Fix (interior-page confinement)**: `hint_reclaim_pages` now computes
+the interior full-page subrange of the allocation (start rounded up,
+end rounded down to page boundaries, via the pure and unit-tested
+`interior_page_range` helper + `sysconf(_SC_PAGESIZE)` with a
+conservative 4096 fallback) and advises only that range. Pages fully
+inside a contiguous allocation hold exclusively the caller's own
+bytes, so no byte outside the allocation can ever be affected.
+Sub-page allocations skip the hint entirely. 6 new unit tests pin the
+confinement math (edge exclusion, alignment, bounds property sweep,
+degenerate inputs, frame-sized allocations).
+
+**Everything else re-verified clean**: self_healer state machine
+(hysteresis, cooldown, P2-before-P1 ordering, AB-11
+aggressive_throttle semantics wired in the event loop),
+power_manager (CC2-03 NaN guard, unified ownership),
+endurance_health (CC2-02 per-EMA init flags), phase_predictor
+(CC2-01 per-EMA init, midnight wrap), thermal_sampler (sanity
+bounds, None-preserves-previous), and all 10 constant sanity tests.
+Module suite: 97/97 (was 87 + 6 confinement tests + 4 deliver-era
+additions).
+
+The conclusion below is superseded on this single point; all other
+findings stand.
+
 ## Conclusion
 
 **central_control_dragon_power is LTS-stable.** No code changes

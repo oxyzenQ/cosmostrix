@@ -689,7 +689,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             if reclaim_state.should_reclaim(loop_now) {
                 let cells_ptr = frame.cells.as_ptr();
                 let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                // SAFETY: frame.cells is a valid Vec allocation; we only hint.
+                // SAFETY: frame.cells is a valid Vec allocation.
+                // hint_reclaim_pages advises only pages fully interior to
+                // the allocation (never shared arena edge pages) — see
+                // reclaim_state.rs for the corrected MADV_DONTNEED
+                // semantics (zero-fill-on-demand). The zeroed interior
+                // cells read as blank: force_draw_everything() was set
+                // above, and the next rain_at() bumps the content
+                // generation before any cell is read.
                 unsafe {
                     super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
                 }
@@ -1285,8 +1292,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 {
                     let cells_ptr = frame.cells.as_ptr();
                     let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                    // SAFETY: frame.cells is a valid Vec allocation; madvise
-                    // reads metadata only, does not dereference the data.
+                    // SAFETY: frame.cells is a valid Vec allocation.
+                    // hint_reclaim_pages advises only pages fully interior
+                    // to the allocation (never shared arena edge pages) —
+                    // see reclaim_state.rs for the corrected MADV_DONTNEED
+                    // semantics (zero-fill-on-demand). The zeroed interior
+                    // cells read as blank: force_draw_everything() was set
+                    // above, and the next rain_at() bumps the content
+                    // generation before any cell is read.
                     unsafe {
                         super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
                     }
