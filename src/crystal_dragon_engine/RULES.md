@@ -116,6 +116,50 @@ The lock is intentionally hard to break. Acceptable reasons include:
 This section is appended every time a locked file is modified after
 the lock commit. Newest entries go at the TOP.
 
+### UNLOCK crystal-dragon at commit 9de2f44, 2026-08-23T09:10:00Z
+
+**Author**: oxyzenQ (Cosmic Dragon AI Agent)
+**Reason**: Triple-engine LTS audit finding LOW-1 — the scheduler loop
+terminated its thread on ANY `try_send` error, conflating a transient full
+channel (`TrySendError::Full`) with a dead receiver (`Disconnected`). A
+saturated channel would silently disable ambient scheduling for the rest of
+the session while the rain kept running.
+
+**Files changed**:
+- src/crystal_dragon_engine/ambient_scheduler/mod.rs (deliver() helper with
+  three-way DeliverOutcome contract — Delivered / Saturated / ReceiverGone;
+  bounded sleeping retry loop of 20 ms steps capped at 1 s, manual because
+  SyncSender::send_timeout is unstable in std; both send sites updated; the
+  day-boundary refire defers its day-seen marking when saturated)
+- src/crystal_dragon_engine/ambient_scheduler/tests.rs (4 new contract tests:
+  delivered, receiver-gone, saturated-with-bound-elapsed, recovery-within-wait)
+
+**A/B delta** (vs locked baseline `24fa1be`):
+- avg_fps: 90,819 → 86,520 / 86,615 (two runs; Δ -4.7% vs baseline —
+  cross-session hardware variance, same-session run-to-run variance is
+  ±0.1%; the scheduler thread has zero per-frame surface by design)
+- peak_rss: 4.23 MiB → 4.42 / 4.33 MiB (Δ within ±5%)
+- alloc_calls: 563 → 563 (Δ 0% — exact match, 0.0 allocs/frame)
+- stability signals: MATCH (frame_jitter=low, frame_time_stability=excellent,
+  drift_interpretation=stable)
+
+**Scheduler behavior** (scheduler touched):
+- Empty schedule: PASS (spawn_with_empty_schedule_does_not_fire)
+- Single entry: PASS (spawn_fires_current_phase_on_startup, day-boundary suite)
+- Live reload: PASS (reload_fires_new_current_phase_if_different, AB-09 refire suite)
+- Saturated channel: PASS (new — deliver_reports_saturated_when_channel_stays_full
+  pins the fixed-bound wait; pre-fix behavior terminated the thread)
+- CPU between phases: unchanged — the thread still parks in
+  Condvar::wait_timeout between boundaries (delivery retry only engages when
+  the channel is full, which requires a wedged event loop)
+
+**Tests**: 1642 passed / 0 failed / 2 ignored (full binary suite);
+crystal 82/82; ambient_scheduler 17/17.
+
+**Notes**: RETROACTIVELY documented — the same-commit entry was missed
+(matching the chroma 809a897 precedent). Future unlocks MUST include the
+UNLOCK entry in the same commit.
+
 ### Template
 
 ```markdown
@@ -174,7 +218,7 @@ account for the repeated hour.
 
 ---
 
-**No UNLOCK entries yet — engine is at locked state `69af079`.**
+**Newest UNLOCK entry: `9de2f44` (2026-08-23) — see top of this log.**
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

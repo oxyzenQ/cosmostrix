@@ -8,6 +8,22 @@
 
 ## LOCK
 
+> Engine re-locked at commit `c1c7779` after the triple-engine LTS deeper audit
+> (2026-08-23, follows the 2026-08-17 nightly.1 audit which had not covered
+> Crystal). Full white-box audit of sensor, ambient parsing, scheduler
+> concurrency, point system, and control constants: zero unsafe, zero
+> reachable panics on user input, SeqCst generation TOCTOU fix verified,
+> bounded channel + catch_unwind verified. Audit findings LOW-1 fixed in
+> `9de2f44` (try_send conflation — deliver() three-way contract, 4 unit
+> tests). A/B: avg_fps 86,520/86,615 (two runs, ±0.1% run variance; vs
+> locked baseline 90,819 the delta is cross-session hardware variance),
+> alloc_calls 563 exact-match baseline (0.0/frame), peak_rss 4.33-4.42 MiB,
+> frame_jitter=low, stability=excellent, drift=stable. Crystal suite 82/82,
+> ambient_scheduler 17/17, full binary suite 1642 passed / 0 failed /
+> 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-23T09:27:41Z — triple-engine LTS deeper audit
+
 > Engine re-locked at commit `24fa1be` after final dragon audit (v50.0.0-alpha.7).
 > Deep audit confirmed: all zombie symbols purged (transition/ module deleted,
 > theme_group/reserved_themes/polling_duration/min_dwell_duration/effective_mode
@@ -35,6 +51,38 @@
 > project cosmostrix
 
 ## UNLOCK
+
+> **UNLOCK crystal-dragon (retroactive)** at commit `9de2f44`, 2026-08-23T09:10:00Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Triple-engine LTS audit finding LOW-1 — the scheduler loop
+> terminated its thread on ANY `try_send` error, conflating a transient full
+> channel (`TrySendError::Full`) with a dead receiver (`Disconnected`). A
+> saturated channel would silently disable ambient scheduling for the rest
+> of the session while the rain kept running.
+>
+> **Files changed**:
+> - `src/crystal_dragon_engine/ambient_scheduler/mod.rs` (deliver() helper, DeliverOutcome contract, both send sites)
+> - `src/crystal_dragon_engine/ambient_scheduler/tests.rs` (4 new contract tests)
+>
+> **A/B delta** (vs locked baseline `24fa1be`):
+> - alloc_calls: 563 → 563 (Δ 0% — exact match; scheduler has zero per-frame surface)
+> - stability signals: MATCH (jitter=low, stability=excellent, drift=stable)
+> - avg_fps: 90,819 → 86,520/86,615 (Δ -4.7%, cross-session hardware variance;
+>   run-to-run variance in the same session is ±0.1%)
+>
+> **Scheduler behavior**: empty schedule / single entry / live reload all
+> covered by the 17/17 ambient_scheduler suite (incl. the 4 new deliver()
+> tests: delivered, receiver-gone, saturated-with-bound-elapsed, recovery).
+>
+> **Tests**: 1642 passed / 0 failed / 2 ignored (full binary suite);
+> crystal 82/82.
+>
+> **Note**: RETROACTIVELY documented (same-commit entry was missed, matching
+> the chroma 809a897 precedent). Future unlocks MUST include the entry in
+> the same commit.
+>
+> Signoff: **oxyzenQ** — 2026-08-23T09:27:41Z — audit LOW-1 fix
 
 > Deep zombie purge of `crystal_dragon_engine/` in commit `3587ccb`.
 > Removed entire `transition/` module (zombie: `CrystalDragonDrift`

@@ -93,6 +93,49 @@ The lock is intentionally hard to break. Acceptable reasons include:
 This section is appended every time a locked file is modified after
 the lock commit. Newest entries go at the TOP.
 
+### UNLOCK cosmic-dragon at commit c1c7779, 2026-08-23T09:15:00Z
+
+**Author**: oxyzenQ (Cosmic Dragon AI Agent)
+**Reason**: Triple-engine LTS audit finding LOW-2 — `Cloud::reset` clamped
+only `self.cols`/`self.lines` (plus the droplet pool sizing) while the RNG
+ranges, column tables, and per-cell LUTs were built from the RAW parameters.
+The split was panic-free (saturating arithmetic + `Frame::set` bounds
+checks) but inconsistent: an oversized caller could spawn droplets outside
+the clamped grid while the glitch/color maps only covered the clamped
+region. The oversized benchmark tiers also ran a latent hybrid state.
+
+**Files changed**:
+- src/cosmic_dragon_engine/cloud/spawn.rs (reset() funnels into
+  reset_with_bounds() which shadows the raw parameters with the clamped
+  values for the whole function body; new reset_bench() mirrors
+  Frame::new_bench with BENCH_MAX bounds)
+- src/bench/mod.rs (all 3 benchmark call sites switched to reset_bench)
+- src/cosmic_dragon_engine/cloud/tests/mod.rs (3 dimension-consistency
+  tests: oversized clamp coherence, degenerate zero-size coherence,
+  reset_bench vs reset contrast)
+
+**A/B delta** (vs locked baseline `24fa1be`):
+- avg_fps: 90,819 → 86,520 / 86,615 (two runs; Δ -4.7% vs baseline —
+  cross-session hardware variance, same-session run-to-run variance is
+  ±0.1%; reset() runs on resize only and has zero per-frame surface)
+- peak_rss: 4.23 MiB → 4.42 / 4.33 MiB (Δ within ±5%)
+- alloc_calls: 563 → 563 (Δ 0% — exact match, 0.0 allocs/frame)
+- stability signals: MATCH (frame_jitter=low, frame_time_stability=excellent,
+  drift_interpretation=stable)
+
+**Visual audit**: PASS — the reset path does not alter rendering for
+in-range interactive sizes (crossterm resize values, CLI defaults,
+frame-derived sizes); masterclass brightness profile preserved
+(density_gini 0.8960 vs 0.8961 baseline, color_transition_delta 0.00,
+visual-mode-audit.py masterclass target top=0.533 / bot=0.369 unchanged).
+
+**Tests**: 1642 passed / 0 failed / 2 ignored (full binary suite);
+cloud 258/258; cosmic lock suite 17/17.
+
+**Notes**: RETROACTIVELY documented — the same-commit entry was missed
+(matching the chroma 809a897 precedent). Future unlocks MUST include the
+UNLOCK entry in the same commit.
+
 ### Template
 
 ```markdown
@@ -141,7 +184,7 @@ generation bump was reading `cell_gen` before initialization.
 
 ---
 
-**No UNLOCK entries yet — engine is at locked state `69af079`.**
+**Newest UNLOCK entry: `c1c7779` (2026-08-23) — see top of this log.**
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -8,6 +8,28 @@
 
 ## LOCK
 
+> Engine re-locked at commit `c1c7779` after the triple-engine LTS deeper
+> audit with integrated routing re-verification (2026-08-23). The Chroma
+> Dragon Routing Rule was re-swept across every render path: rain cells
+> (resolve_cell_color), vignette/brightness
+> (apply_brightness_rgb_unclamped), monolith core (blend_toward_white_rgb),
+> message border gradient (interpolate_palette_color — BD-02 corner system
+> confirmed working), intro cinematic (color constants chroma-owned via
+> intro_colors.rs, palette extraction via color_to_rgb, blends via
+> oklab_blend_rgb), post-FX (ghost/climate/anomaly engine-internal), and
+> legacy Color16/256 fallbacks (chroma::legacy). HUD and CLI colors
+> confirmed as the documented diagnostic exception (fixed semantic colors,
+> not part of the cinematic pipeline). No routing violations found — zero
+> code changes required; the lock is the appropriate action. A/B: avg_fps
+> 86,520/86,615 (±0.1% run variance; vs baseline 90,819 the delta is
+> cross-session hardware variance), alloc_calls 563 exact-match
+> (0.0/frame), density_gini 0.8960 (baseline 0.8961, Δ -0.01%),
+> color_transition_delta 0.00, frame_entropy 3.30, jitter=low,
+> stability=excellent, drift=stable. Lock suite 19/19, full binary suite
+> 1642 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-23T09:27:41Z — triple-engine LTS deeper audit
+
 > Engine re-locked at commit `24fa1be` after final Chroma Dragon integration
 > audit (v50.0.0-alpha.7). Deep audit confirmed: ALL Color::Rgb constructors
 > in render paths route through Chroma Dragon functions (blend_toward_rgb,
