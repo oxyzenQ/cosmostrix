@@ -95,38 +95,117 @@ SECTION_ORDER[build]=8
 SECTION_ORDER[chore]=9
 SECTION_ORDER[_others]=99
 
-# ── Commit classification ────────────────────────────────────────────
-# Maps a commit subject to a section key. See the header comment for the
-# full classification contract.
+# ── Commit classification (v2) ─────────────────────────────────────
+# Three-stage classifier, most-trusted signal first:
+#
+#   1. DIFF STAT (ground truth): a commit whose changed files are ALL
+#      *.md is documentation work — no subject-line guessing can beat
+#      the file list.
+#   2. VERB TABLE: the first word after the repo's "internal research:"
+#      prefix is the author's declared intent — when it is a recognized
+#      verb, trust it (an "align ... and add ..." subject stays a fix,
+#      not a feat).
+#   3. KEYWORD SCAN (fallback for noun-led subjects: "security ...",
+#      "platform ...", "PGO ..."): scan the first 8 words of a CLEANED
+#      subject (lowercased, parentheticals and path-like tokens removed)
+#      for high-signal keywords. Priority fix > docs > feat > chore —
+#      a commit that says "fix" is a fix even when it also produces
+#      documentation.
+#
+# Conventional commits keep their direct mapping; "bump" and "revert"
+# are now recognized instead of falling into Others.
+#
+# Design notes (2026-08-23, beta.5 release-note review): the v1
+# classifier left 24 of 28 commits in "others" because this repo's
+# subjects are noun-led as often as verb-led. The v2 stages were tuned
+# against the real beta.4..beta.5 range (see the test block below).
+
+FIX_KW='fix|fixes|fixed|bug|crash|regression|deadlock|race|corrupt|kill|trap|drift|miscount|undercount|hazard|revert'
+DOCS_KW='audit|research|study|verdict|docs|documentation|changelog|identity|unlock|relock|notes|results|measurement'
+FEAT_KW='add|adds|added|implement|introduce|apply|extend|support|enable|create|build|preset'
+CHORE_KW='bump|pin|pinned|trim|trimmed|deps|dependencies|version|cleanup'
+
+# Clean a subject for keyword scanning: strip the repo prefix (its
+# "research" would otherwise match DOCS_KW on every commit), lowercase,
+# drop parentheticals (finding IDs like "(audit LOW-2)" live there) and
+# path-like tokens ("docs-audit.py" would otherwise match "audit"),
+# then keep the first 8 words — secondary clauses ("... and add X")
+# beyond word 8 must not reclassify the commit.
+scan_text() {
+    printf '%s' "$1" \
+        | sed -E 's/^internal research:[[:space:]]*//' \
+        | tr '[:upper:]' '[:lower:]' \
+        | sed -E 's/\([^)]*\)//g' \
+        | sed -E 's/[^[:space:]]*[./:][^[:space:]]*//g' \
+        | tr -s '[:space:]' ' ' \
+        | cut -d' ' -f1-8
+}
+
+# Map a "internal research:" verb to a section key. Extended beyond the
+# conventional-commit vocabulary with the verbs this repo actually uses.
+verb_to_section() {
+    case "$1" in
+      fix | fixes | fixed | kill | resolve | repair | align | exclude | eliminate | correct | restore)
+        echo "fix" ;;
+      feat | feature | implement | implements | introduce | introduces | apply | extend | enable | support | create | add | preset | masterclass)
+        echo "feat" ;;
+      perf | optimize | optimise | optimization)
+        echo "perf" ;;
+      refactor | refactors | refactored | simplify)
+        echo "refactor" ;;
+      docs | doc | document | documents | documented | record | write | note | audit | research | study | verify | retroactive | honest | master)
+        echo "docs" ;;
+      test | tests)
+        echo "test" ;;
+      ci)
+        echo "ci" ;;
+      build)
+        echo "build" ;;
+      chore | style | bump | pin | trim | update | refresh | clean | tidy | gate)
+        echo "chore" ;;
+      *)
+        echo "" ;;
+    esac
+}
+
 classify_subject() {
   local subject="$1"
-  local verb
+  local mdonly="${2:-0}"
+  local verb scan
 
-  # 1. Second-level: the repo's primary convention
-  #    "internal research: <verb> ..." (lowercase prefix per repo rules).
-  if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*[a-zA-Z]+'; then
-    verb="$(printf '%s' "$subject" | sed -nE 's/^internal research:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
-    case "$verb" in
-      fix | fixes | fixed) echo "fix" ;;
-      feat | feature | implement | implements | introduce | introduces) echo "feat" ;;
-      perf | optimize | optimise | optimization) echo "perf" ;;
-      refactor | refactors | refactored) echo "refactor" ;;
-      docs | doc | document | documents | documented) echo "docs" ;;
-      test | tests) echo "test" ;;
-      ci) echo "ci" ;;
-      build) echo "build" ;;
-      chore | style) echo "chore" ;;
-      *) echo "_others" ;;
-    esac
+  # Stage 1: diff-stat ground truth — an all-*.md commit is docs work.
+  if [ "$mdonly" = "1" ]; then
+    echo "docs"
     return
   fi
 
-  # 2. Conventional commit: type(scope)!: subject
+  # Stage 2 + 3: the repo's primary convention
+  # "internal research: <verb-or-noun> ...".
+  if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*[a-zA-Z]+'; then
+    verb="$(printf '%s' "$subject" | sed -nE 's/^internal research:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
+    # Verb-first: the declared intent wins when it is recognized.
+    local mapped
+    mapped="$(verb_to_section "$verb")"
+    if [ -n "$mapped" ]; then
+      echo "$mapped"
+      return
+    fi
+    # Noun-led subject: guarded keyword fallback.
+    scan="$(scan_text "$subject")"
+    if printf '%s' "$scan" | grep -qwE "$FIX_KW"; then echo "fix"; return; fi
+    if printf '%s' "$scan" | grep -qwE "$DOCS_KW"; then echo "docs"; return; fi
+    if printf '%s' "$scan" | grep -qwE "$FEAT_KW"; then echo "feat"; return; fi
+    if printf '%s' "$scan" | grep -qwE "$CHORE_KW"; then echo "chore"; return; fi
+    echo "_others"
+    return
+  fi
+
+  # Conventional commit: type(scope)!: subject
   if printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
     local ctype
     ctype="$(printf '%s' "$subject" | sed -E 's/^([a-zA-Z]+)(\([^)]*\))?!?: .+/\1/' | tr '[:upper:]' '[:lower:]')"
     case "$ctype" in
-      fix) echo "fix" ;;
+      fix | revert) echo "fix" ;;
       feat) echo "feat" ;;
       perf) echo "perf" ;;
       refactor) echo "refactor" ;;
@@ -134,20 +213,54 @@ classify_subject() {
       test) echo "test" ;;
       ci) echo "ci" ;;
       build) echo "build" ;;
-      chore | style) echo "chore" ;;
+      chore | style | bump) echo "chore" ;;
       *) echo "_others" ;;
     esac
     return
   fi
 
-  # 3. Bare subject.
+  # Bare subject.
   echo "_others"
 }
 
-# ── Collect commits ──────────────────────────────────────────────────
+# ── Collect commits + per-commit diff stat ──────────────────────────
 COMMITS=""
+declare -A MD_ONLY
 if [ -n "$RANGE" ]; then
   COMMITS="$(git log --no-merges --format='%h|%s' "${RANGE}" 2>/dev/null || true)"
+  # One extra pass: which commits touched ONLY *.md files (docs ground
+  # truth for the classifier's stage 1). Parsed in a single git call so
+  # large ranges (the v15..stable span) stay fast.
+  _cur=""
+  _files=0
+  _md=0
+  _md_flush() {
+    [ -n "$_cur" ] || return 0
+    if [ "$_files" -gt 0 ] && [ "$_md" -eq "$_files" ]; then
+      MD_ONLY["$_cur"]=1
+    else
+      MD_ONLY["$_cur"]=0
+    fi
+  }
+  while IFS= read -r line; do
+    case "$line" in
+      '@'*)
+        _md_flush
+        _cur="${line#@}"
+        _files=0
+        _md=0
+        ;;
+      '')
+        ;;
+      *)
+        _files=$((_files + 1))
+        case "$line" in
+          *.md) _md=$((_md + 1)) ;;
+        esac
+        ;;
+    esac
+  done < <(git log --no-merges --name-only --format='@%h' "${RANGE}" 2>/dev/null || true)
+  _md_flush
 fi
 
 # ── Header + stability alert ─────────────────────────────────────────
@@ -202,7 +315,7 @@ while IFS= read -r line; do
   [ -z "$line" ] && continue
   hash="$(printf '%s' "$line" | cut -d'|' -f1)"
   subject="$(printf '%s' "$line" | cut -d'|' -f2-)"
-  key="$(classify_subject "$subject")"
+  key="$(classify_subject "$subject" "${MD_ONLY[$hash]:-0}")"
 
   # Entry display text: strip process prefixes, keep the human part.
   display="$subject"
