@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-name: Cosmic Dragon - Release
+name: "Cosmic Dragon Guard - Release"
 
 'on':
   push:
@@ -942,7 +942,7 @@ jobs:
                 echo "Use format: vX.Y.Z for stable releases, e.g. v2.1.0"
                 exit 1
                 ;;
-              alpha.*|beta.*|rc.*|pre.*) PRE="true";;
+              alpha.*|beta.*|rc.*|pre.*|nightly.*) PRE="true";;
               *) PRE="true";;
             esac
           fi
@@ -1063,26 +1063,31 @@ jobs:
           IS_PRERELEASE="${{ steps.ver.outputs.prerelease }}"
 
           # --- Determine PREV_TAG (for diff log) ---
+          # Pre-release: prev = any previous tag (including pre-releases).
+          # Stable: prev = nearest previous stable tag (skip pre-releases).
           if [ "$IS_PRERELEASE" = "true" ]; then
             PREV_TAG=$(git tag --sort=-creatordate | grep -v "^${TAG}$" | head -1 || true)
           else
             PREV_TAG=$(git tag --sort=-creatordate \
               | grep -v "^${TAG}$" \
-              | grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre)[\.\-]' \
+              | grep -vE '^v[0-9]+\.[0-9]+\.[0-9]+-(alpha|beta|rc|pre|nightly)[\.-]' \
               | head -1 || true)
           fi
 
           # --- Count commit types from PREV_TAG..TAG ---
-          if [ -n "$PREV_TAG" ]; then
+          # Use --format=%s (subject only, no hash) so that ^fix/^feat
+          # anchors correctly to the conventional commit prefix.
+          if [ -n "$PREV_TAG" ] && git rev-parse "$PREV_TAG" >/dev/null 2>&1; then
             TOTAL_COMMITS=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | wc -l | tr -d ' ')
-            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^fix' || true)
-            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --oneline | grep -ciE '^feat' || true)
+            FIX_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --format=%s | grep -ciE '^fix' || true)
+            FEAT_COUNT=$(git log --no-merges "${PREV_TAG}..${TAG}" --format=%s | grep -ciE '^feat' || true)
             OTHERS_COUNT=$((TOTAL_COMMITS - FIX_COUNT - FEAT_COUNT))
           else
             TOTAL_COMMITS=0
             FIX_COUNT=0
             FEAT_COUNT=0
             OTHERS_COUNT=0
+            PREV_TAG=""
           fi
 
           # --- Build release body ---
@@ -1103,11 +1108,12 @@ jobs:
 
             if [ -n "$PREV_TAG" ] && [ "$TOTAL_COMMITS" -gt 0 ]; then
               # Commit summary stats
+              DIFF_URL="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG}"
               echo "**${TOTAL_COMMITS} commits** since \`${PREV_TAG}\`"
               echo ""
               echo "> [!NOTE]"
               echo "> **Total achievements:**"
-              echo "> - fix × ${FIX_COUNT} — [click here to see changelog fix](${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/compare/${PREV_TAG}..${TAG})"
+              echo "> - fix × ${FIX_COUNT} — [click here to see changelog fix](${DIFF_URL})"
               echo "> - feat × ${FEAT_COUNT}"
               echo "> - others × ${OTHERS_COUNT}"
               echo ""
