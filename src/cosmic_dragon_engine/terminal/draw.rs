@@ -195,11 +195,18 @@ impl Terminal {
                     // three-way pair compare is computed arithmetically
                     // (setcc + or) and consumed as a 2-bit switch. Bit 0
                     // = color change (SGR emit), bit 1 = bold change
-                    // (BOLT table). Same output bytes as the previous
-                    // chained-branch form, verified bit-exact by tests.
+                    // (BOLT table). Control flow is identical to the
+                    // original chained-branch form: ANY style change
+                    // (bit 0 OR bit 1) flushes row_buf before the escapes
+                    // are emitted, so buffered characters keep the old
+                    // style. (Bugfix 2026-08-23: the first revision only
+                    // flushed on bit 0 — a bold-only change emitted the
+                    // bold escape BEFORE the buffered characters,
+                    // applying bold retroactively to chars that should
+                    // have stayed non-bold.)
                     let flags =
                         style_change_flags(cell.fg, cell.bg, cell.bold, cur_fg, cur_bg, cur_bold);
-                    if flags & 0b01 != 0 && !row_buf.is_empty() {
+                    if flags != 0 && !row_buf.is_empty() {
                         ansi_buf.extend_from_slice(row_buf.as_bytes());
                         row_buf.clear();
                     }
@@ -385,16 +392,17 @@ impl Terminal {
             }
 
             // BOLT-2: branchless style-change detection (bit 0 = color,
-            // bit 1 = bold) — same rationale as the full-redraw loop.
+            // bit 1 = bold). The run is printed AFTER the escapes below
+            // by design — each dirty run is style-homogeneous (the run
+            // builder breaks on style change), so the SGR emitted here
+            // applies to the run that follows it.
+            // (Bugfix 2026-08-23: the first revision flushed run_buf
+            // BEFORE the SGR on any style change — emitting the run's
+            // characters with the PREVIOUS run's style and leaving the
+            // post-escape print empty. Stale colors on every
+            // style-changing run. The original code had no flush here;
+            // this version restores that ordering exactly.)
             let flags = style_change_flags(fg0, bg0, bold0, cur_fg, cur_bg, cur_bold);
-            if flags != 0 && !run_buf.is_empty() {
-                // A run in progress must be flushed before any style
-                // change. (Physical contiguity is guaranteed by the run
-                // builder above; this flush is the same semantic as the
-                // pre-BOLT-2 style_changed check.)
-                ansi_buf.extend_from_slice(run_buf.as_bytes());
-                run_buf.clear();
-            }
             if flags & 0b01 != 0 {
                 Self::emit_sgr(cache_ref, ansi_buf, fg0, bg0);
                 cur_fg = fg0;
@@ -427,5 +435,71 @@ impl Terminal {
         self.stdout.flush()?;
         frame.clear_dirty();
         Ok(())
+    }
+}
+
+// ── Tests ────────────────────────────────────────────────────────────────
+
+#[cfg(test)]
+mod tests {
+    use super::style_change_flags;
+    use crossterm::style::Color;
+
+    /// BOLT-2 correctness contract: the 2-bit flag bitmap must be
+    /// equivalent to the original chained-branch conditions for EVERY
+    /// combination of (fg changed, bg changed, bold changed). This is the
+    /// arithmetic half of the equivalence — the ordering half (flush
+    /// before escapes in the full-redraw loop, run printed after escapes
+    /// in the differential loop) is verified by restoring the original
+    /// control flow exactly, and was the subject of the 2026-08-23
+    /// bugfix (see the inline comments in both loops).
+    #[test]
+    fn style_change_flags_match_legacy_branch_semantics() {
+        let a = Some(Color::Rgb { r: 1, g: 2, b: 3 });
+        let b = Some(Color::Rgb { r: 9, g: 8, b: 7 });
+        // Every combination of fg/bg/bold vs the current style.
+        for fg in [a, b] {
+            for bg in [a, b] {
+                for bold in [false, true] {
+                    for cur_bold in [false, true] {
+                        let flags = style_change_flags(fg, bg, bold, a, a, cur_bold);
+                        // Bit 0 must equal the original color_changed:
+                        // cell.fg != cur_fg || cell.bg != cur_bg
+                        let color_changed = fg != a || bg != a;
+                        assert_eq!(
+                            flags & 0b01 != 0,
+                            color_changed,
+                            "bit0 mismatch: fg={fg:?} bg={bg:?}"
+                        );
+                        // Bit 1 must equal the original bold comparison.
+                        let bold_changed = bold != cur_bold;
+                        assert_eq!(
+                            flags & 0b10 != 0,
+                            bold_changed,
+                            "bit1 mismatch: bold={bold} cur_bold={cur_bold}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    /// The None (no-color) discriminant must also participate correctly —
+    /// None vs Some is a change, None vs None is not.
+    #[test]
+    fn style_change_flags_handle_none_discriminants() {
+        let rgb = Some(Color::Rgb { r: 1, g: 2, b: 3 });
+        // fg: None -> Some is a change.
+        assert_eq!(
+            style_change_flags(rgb, None, false, None, None, false) & 0b01,
+            0b01
+        );
+        // fg/bg None -> None is NOT a change.
+        assert_eq!(style_change_flags(None, None, false, None, None, false), 0);
+        // bg: Some -> None is a change.
+        assert_eq!(
+            style_change_flags(None, None, false, rgb, rgb, false) & 0b01,
+            0b01
+        );
     }
 }

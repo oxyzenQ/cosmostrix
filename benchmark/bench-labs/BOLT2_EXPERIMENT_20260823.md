@@ -79,6 +79,69 @@ drop ≥ 0.3 points (e.g. 2.47% → ≤ 2.17%) with IPC up correspondingly,
 and no throughput regression beyond noise. Otherwise the branch stays as
 a documented dead end — same treatment as the io_uring rejection.
 
+## Owner bare-metal data (2026-08-23 23:55, Ryzen 7 5800HS) — read with care
+
+The owner built BOTH profiles at 812238c (the BOLT-2 commit) and ran
+pro vs PGO:
+
+| Metric | pro (SSE2 baseline) | pgo-use (v3 + PGO) |
+|--------|--------------------:|-------------------:|
+| avg_fps | 38,756 | 39,368 (+1.6%) |
+| ipc | 2.62 | 2.61 |
+| branch_mispredict_rate | 2.22% | 2.34% |
+| branch_instructions | 6.8B | 6.4B |
+| branch_misses | 150.5M | 148.9M |
+
+**Important confound: this A/B does NOT isolate BOLT-2** — both arms
+contain BOLT-2 (both built at 812238c). It measures v3+PGO on top of
+BOLT-2, re-confirming the earlier PGO verdict (still no mispredict
+benefit). The BOLT-2 isolation would be main (d96f82d) vs this branch,
+same charset — one command, documented below. Additionally the charset
+differed from the earlier no-BOLT-2 runs (retro 128 glyphs vs zen 1),
+so cross-run mispredict comparisons (2.47% earlier vs 2.22% now) carry
+workload differences too.
+
+## Bug found post-hoc and fixed (the "bit-exact" claim was WRONG)
+
+Re-reviewing the committed code found TWO emission-ordering bugs that
+the verification missed — the visual metrics compare the FRAME BUFFER,
+not the emitted ANSI stream, so mis-colored output was invisible to
+them:
+
+1. Full-redraw loop: row_buf was flushed only on COLOR change (bit 0),
+   not on bold-only changes — the original `style_changed` included
+   bold. A bold-only change emitted the bold escape BEFORE the
+   buffered characters, applying bold retroactively.
+2. Differential loop: a spurious flush emitted the run BEFORE the SGR
+   on any style change — the run printed with the PREVIOUS run's
+   style and the post-escape print emitted nothing. Stale colors on
+   every style-changing run.
+
+Both fixed by restoring the original control flow exactly (any-style
+flush in the full-redraw loop; no flush in the differential loop);
+flags arithmetic unchanged. New unit tests pin the flag-bit ↔
+legacy-branch equivalence for all 16 combinations + the None
+discriminant cases. The lesson is recorded in
+`docs/audits/OUTPUT_MASTERY_AUDIT.md` terms: **byte-level equivalence
+claims need byte-level (or control-flow-equivalence) tests — frame
+metrics cannot see the ANSI stream.**
+
+## Verdict (updated)
+
+- PGO re-confirmed on bare metal: +1.6% fps, no IPC/mispredict change
+  (consistent with the earlier verdict — PGO is not an IPC lever).
+- BOLT-2: **no evidence of mispredict benefit in any run so far**
+  (container neutral; owner's bare-metal shows 2.2-2.3% WITH BOLT-2
+  vs 2.47% without, but workload-confounded). Per the decision rule,
+  the branch stays UNMERGED (reject-by-default for the LTS). If the
+  owner wants to challenge: build main d96f82d and this branch with
+  the SAME profile and charset, interleave, compare
+  branch_mispredict_rate — a >= 0.3pt drop with IPC up would reopen.
+- Next IPC step (per IPC_RESEARCH.md): `perf record -e branch-misses`
+  - `perf annotate` ATTRIBUTION FIRST — stop converting branches
+  blind; find where the 150M misses actually live before any further
+  BOLT extension.
+
 ## Status
 
 - `dragon-explor-v2`: BOLT-2 committed, full suite 1649/0/2, gatekeepers
