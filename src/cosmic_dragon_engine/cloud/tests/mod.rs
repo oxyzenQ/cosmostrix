@@ -77,12 +77,14 @@ fn pause_stops_rain_and_unpause_resumes() {
     assert!(!frame.is_dirty_all() && frame.dirty_indices().is_empty());
 
     cloud.toggle_pause();
-    // Advance resume_start far enough in the past so the smoothstep
-    // easing completes (resume_blend reaches 1.0, allowing full-speed
-    // simulation on the next rain() call).
+    // Advance resume_start far enough in the past so the exponential
+    // decay easing settles (resume_blend reaches RESUME_EASE_SETTLE_FRAC
+    // at t≈3.3s for k=0.9, then snaps to 1.0 — allowing full-speed
+    // simulation on the next rain() call). 5s gives comfortable
+    // head-room past the settle threshold.
     let now = Instant::now();
-    cloud.resume_start = Some(now - Duration::from_secs(1));
-    cloud.last_spawn_time = now - Duration::from_secs(1);
+    cloud.resume_start = Some(now - Duration::from_secs(5));
+    cloud.last_spawn_time = now - Duration::from_secs(5);
     cloud.rain_at(&mut frame, now);
     cloud.rain_at(&mut frame, now + Duration::from_secs(1));
     assert!(frame.is_dirty_all() || !frame.dirty_indices().is_empty());

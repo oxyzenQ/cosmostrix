@@ -41,25 +41,29 @@ impl Cloud {
             return;
         }
 
-        // v17 mastery: pause ease-OUT (deceleration).
-        // If pause_start is set, compute pause_blend ramping 1→0 over
-        // PAUSE_EASE_DURATION_SECS. Scale the effective resume_blend by
-        // pause_blend so the rain decelerates smoothly. When pause_blend
-        // reaches 0, set self.pause = true (fully frozen).
+        // v17 mastery → v51 masterclass: pause ease-OUT (deceleration).
+        // If pause_start is set, compute pause_blend via exponential decay
+        // (exp(-k·t), k = PAUSE_EASE_DECAY_RATE) — physically motivated
+        // drag with a long tail, matching the README's "exponential
+        // deceleration (~3s coast-down)" promise. At k=1.2, blend reaches
+        // PAUSE_EASE_SETTLE_FRAC (5%) at t≈2.5s, then snaps to fully
+        // paused (avoids exp's asymptotic tail where the last 5% takes
+        // forever to actually stop).
+        //
+        // Replaces the prior smootherstep S-curve (6t⁵-15t⁴+10t³, 0.30s)
+        // which felt abrupt at the end-snap; the long tail here feels
+        // like genuine inertia coast-down.
         if let Some(ps) = self.pause_start {
             let t = now.saturating_duration_since(ps).as_secs_f32();
-            let normalized = (t / PAUSE_EASE_DURATION_SECS).min(1.0);
-            // Smootherstep: 6t⁵ - 15t⁴ + 10t³ (C2 continuous).
-            let smoother = normalized
-                * normalized
-                * normalized
-                * (normalized * (normalized * 6.0 - 15.0) + 10.0);
-            // pause_blend goes 1→0 (deceleration). Multiply with resume_blend
-            // (which is 1.0 during active play) to get the effective time scale.
-            let pause_blend = 1.0 - smoother;
+            let pause_blend = (-PAUSE_EASE_DECAY_RATE * t).exp();
+            // pause_blend goes 1→0 (deceleration). Store as resume_blend
+            // so the rest of rain_at naturally scales with the coast-down
+            // (spawn, advance, phosphor decay all multiply by resume_blend).
             self.resume_blend = pause_blend;
-            if normalized >= 1.0 {
-                // Deceleration complete — fully paused now.
+            if pause_blend <= PAUSE_EASE_SETTLE_FRAC {
+                // Settled — fully paused now. Snap clean so other
+                // subsystems see `self.pause = true` (monolith shift,
+                // spawn_remainder reset, phosphor LUT, etc.).
                 self.pause = true;
                 self.pause_start = None;
                 self.pause_time = Some(now);
@@ -140,31 +144,37 @@ impl Cloud {
         // Periodically re-seed RNG for very long sessions
         self.maybe_reseed_rng(now);
 
-        // Advance cinematic resume easing: smoothstep S-curve from 0→1 over
-        // RESUME_EASE_DURATION_SECS after unpause. Unlike exponential
-        // easing or position-delta scaling, this interpolates the simulation
-        // time scale itself — the physics clock runs in slow motion during
-        // the transition, producing genuine inertia recovery rather than a
-        // frozen-then-unfrozen snap.
+        // Advance cinematic resume easing: exponential decay approach to
+        // 1.0 (v51 masterclass). At k = RESUME_EASE_DECAY_RATE (0.9/sec),
+        // the blend rises to RESUME_EASE_SETTLE_FRAC (95%) at t≈3.3s,
+        // then snaps to full speed. Slightly slower than the pause ramp
+        // (k=1.2), preserving the asymmetric "pause feels snappy / resume
+        // feels like a wake-up" feel from the prior 0.30s/0.45s duration
+        // ratio. This interpolates the simulation time scale itself —
+        // the physics clock runs in slow motion during the transition,
+        // producing genuine inertia recovery rather than a frozen-then-
+        // unfrozen snap.
+        //
+        // §8.4 preserved: interpolate from `resume_blend_start` → 1.0
+        // rather than always 0 → 1.0 (lets aborted-decel resumes start
+        // at e.g. 0.4 — the abort path snaps resume_blend to 1.0 in
+        // toggle_pause() BRANCH 1, but the resume_blend_start field is
+        // still consulted here for forward-compat with hybrid resume
+        // paths that may set a partial-start value).
+        //
+        // The 0.05 floor is kept as a safety net for the very first
+        // frame (exp decay has no flat-start window — it rises
+        // immediately — but the floor guards against any future path
+        // that leaves resume_blend_start at 0 with resume_start just
+        // set, before the easing branch updates it).
         if let Some(rs) = self.resume_start {
             let t = now.saturating_duration_since(rs).as_secs_f32();
-            let normalized = (t / RESUME_EASE_DURATION_SECS).min(1.0);
-            // Smootherstep (C2 continuous): 6t⁵ - 15t⁴ + 10t³.
-            let smoother = normalized
-                * normalized
-                * normalized
-                * (normalized * (normalized * 6.0 - 15.0) + 10.0);
-            // §8.4: interpolate from resume_blend_start → 1.0 rather
-            // than always 0 → 1.0 (lets aborted-decel resumes start at 0.4).
+            // exp-IN: 1 - exp(-k*t). Rises from 0 (t=0) toward 1 asymptotically.
+            let approach = 1.0 - (-RESUME_EASE_DECAY_RATE * t).exp();
             let start = self.resume_blend_start;
-            // floor at 0.05 so droplets keep crawling during the
-            // smootherstep's flat-start window. Without this, the first
-            // ~135ms of resume has resume_blend < 0.16 — droplets frozen,
-            // then "loncat" (row-pop) asynchronously when the curve kicks
-            // in. The 0.05 floor keeps motion continuous through the slow
-            // phase, eliminating the perceived stutter.
-            self.resume_blend = (start + (1.0 - start) * smoother).max(0.05);
-            if normalized >= 1.0 {
+            self.resume_blend = (start + (1.0 - start) * approach).max(0.05);
+            if self.resume_blend >= RESUME_EASE_SETTLE_FRAC {
+                // Settled — snap to full speed (avoids exp's asymptotic tail).
                 self.resume_blend = 1.0;
                 self.resume_start = None;
             }

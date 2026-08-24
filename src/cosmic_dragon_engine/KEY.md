@@ -77,6 +77,60 @@
 
 ## UNLOCK
 >
+> **UNLOCK cosmic-dragon (masterclass easing migration)** at commit pending (exp decay switch), 2026-08-24
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Owner-approved masterclass easing migration — switches the
+> pause/resume easing in `cloud/rain.rs` from the prior smootherstep S-curve
+> (6t⁵-15t⁴+10t³, fixed 0.30s decel / 0.45s resume) to exponential decay
+> (`exp(-k·t)` decel, `1 - exp(-k·t)` accel, asymmetric k_decel=1.2 /
+> k_resume=0.9). This restores the README's previously-stale "exponential
+> deceleration (~3s coast-down)" promise (smootherstep is not exponential),
+> gives genuine inertia coast-down with a long tail, and preserves the
+> asymmetric "pause snappy / resume wake-up" feel via asymmetric decay rates.
+> Settle thresholds (5% pause / 95% resume) snap to clean terminal state so
+> other subsystems (spawn_remainder reset, monolith stream shift, phosphor
+> LUT) see unambiguous state transitions.
+>
+> **Files changed** (locked path):
+> - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73 decel block +
+>   lines 147-181 accel block: smootherstep math replaced with `(-k*t).exp()`
+>   + settle-threshold snap; §8.4 `resume_blend_start` interpolation
+>   preserved, 0.05 floor kept as safety net)
+>
+> **Files changed** (test only, no production code):
+> - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87: comment +
+>   duration 1s→5s in `pause_stops_rain_and_unpause_resumes` to match new
+>   ~3.3s settle window with comfortable head-room)
+>
+> **Files changed** (non-locked, supporting):
+> - `src/central_control_rains/mod.rs` (lines 781-824: replaced
+>   `PAUSE_EASE_DURATION_SECS`/`RESUME_EASE_DURATION_SECS` constants with
+>   `PAUSE_EASE_DECAY_RATE`/`RESUME_EASE_DECAY_RATE` +
+>   `PAUSE_EASE_SETTLE_FRAC`/`RESUME_EASE_SETTLE_FRAC` + design doc comment)
+> - `README.md` (line 128: stale "exponential deceleration (~3s coast-down)"
+>   now matches reality — "~2.5s coast-down to settle (k=1.2/s, snaps to
+>   fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to
+>   full speed at 95%)")
+>
+> **A/B delta**: per-frame surface negligible — exp() call (~5-10ns)
+> replaces 6 mults (~1-2ns) only during the ~2.5s decel / ~3.3s resume
+> windows; zero surface at full-speed steady-state. exp() already used
+> in `cloud/phosphor.rs:307` (LUT build) and `chroma_dragon_engine/
+> shaders/base/mod.rs:237` (trail LUT). alloc_calls unchanged at 0/frame.
+>
+> **Visual audit**: PASS — pause/resume visual identity preserved; the
+> coast-down now matches the README's documented "exponential deceleration"
+> wording (was stale under smootherstep). Asymmetric k_decel > k_resume
+> preserves the prior 0.30s/0.45s "pause snappy / resume wake-up" feel.
+> No changes to color/brightness profile, no changes to droplet motion
+> physics outside the easing windows.
+>
+> **Tests**: full suite 1656 passed / 0 failed / 2 ignored (same baseline
+> as `c1c7779`); cosmic lock suite 20/0/2; cloud subset 324/0/2.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — pause/resume masterclass easing migration
+
 > **UNLOCK cosmic-dragon (comment-only)** at commit `4ac87e7`, 2026-08-24T00:00:00Z
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)

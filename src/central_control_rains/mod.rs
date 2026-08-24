@@ -778,16 +778,50 @@ pub(crate) const EMERGENT_DENSITY_INTENSITY: f32 = 0.25;
 /// Speed shift during an emergent moment (additive).
 pub(crate) const EMERGENT_SPEED_SHIFT: f32 = 0.15;
 
-// ─── Cinematic resume easing (pause → resume transition) ───────────────────
+// ─── Cinematic pause/resume easing (exponential decay) ────────────────────
+//
+// Masterclass: pause/resume easing uses exponential decay
+// (`blend = exp(-k·t)` for decel, `blend = 1 - exp(-k·t)` for accel)
+// — physically motivated drag with a long tail, matching the README's
+// "exponential deceleration (~3s coast-down)" promise.
+//
+// Previously (v17–v50): smootherstep S-curve (6t⁵ - 15t⁴ + 10t³, C2
+// continuous) over fixed 0.30s decel / 0.45s resume windows. That was
+// perceptually smooth at the S-curve endpoints but the bounded
+// duration felt abrupt at the end-snap, and the README's "exponential
+// deceleration ~3s" wording was stale (smootherstep is not exponential).
+//
+// Exp decay has a long tail that never quite reaches 0/1, so we snap
+// at the settle thresholds below. This trades asymptotic smoothness
+// for a hard "fully paused" / "full speed" terminal state — required
+// so other subsystems (spawn_remainder reset, monolith stream shift,
+// phosphor LUT) see clean state transitions.
+//
+// Asymmetric rates: k_decel (1.2) > k_resume (0.9) — pause feels snappy
+// (~2.5s settle), resume feels like a "wake up" (~3.3s settle). This
+// preserves the prior 0.30/0.45 ratio's asymmetric feel.
 
-/// Duration of the resume easing ramp (sec). During this window, all
-/// simulation parameters are scaled by a smootherstep curve from the
-/// paused-state value to 1.0.
-pub(crate) const RESUME_EASE_DURATION_SECS: f32 = 0.45;
+/// Per-second decay rate for the pause deceleration ramp. At k=1.2,
+/// the blend reaches 5% (`PAUSE_EASE_SETTLE_FRAC`) at t ≈ 2.5s — the
+/// documented "~3s coast-down" feel with a touch of head-room.
+pub(crate) const PAUSE_EASE_DECAY_RATE: f32 = 1.2;
 
-/// Duration of the pause easing ramp (sec). Scales simulation parameters
-/// from 1.0 down to the paused floor.
-pub(crate) const PAUSE_EASE_DURATION_SECS: f32 = 0.30;
+/// Per-second decay rate for the resume acceleration ramp. Slightly
+/// slower than pause (k=0.9 vs 1.2) so resume feels more "wake up" —
+/// the asymmetric rate preserves the prior 0.30s/0.45s duration ratio's
+/// feel where the resume ramp is perceptibly longer than the pause ramp.
+pub(crate) const RESUME_EASE_DECAY_RATE: f32 = 0.9;
+
+/// Settle threshold for pause decel — when `pause_blend` drops below
+/// this, snap to fully paused. 5% matches the README's "~3s coast-down"
+/// promise and is well below the perceptual motion floor.
+pub(crate) const PAUSE_EASE_SETTLE_FRAC: f32 = 0.05;
+
+/// Settle threshold for resume accel — when `resume_blend` rises above
+/// this, snap to full speed. 95% is the symmetric counterpart to the
+/// pause settle (95% speed is perceptually indistinguishable from 100%
+/// at typical 16–33ms frame rates).
+pub(crate) const RESUME_EASE_SETTLE_FRAC: f32 = 0.95;
 
 // ─── Viewport edge fade ────────────────────────────────────────────────────
 

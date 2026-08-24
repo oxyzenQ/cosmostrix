@@ -125,7 +125,7 @@ The Dragon's roar is not loud — it is precise.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
 - Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
-- **Smooth pause** — `p` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
+- **Smooth pause** — `p` toggles pause with exponential decay easing: ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully.
 
 ### Scenes & Colors
 
