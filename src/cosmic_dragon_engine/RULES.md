@@ -93,7 +93,7 @@ The lock is intentionally hard to break. Acceptable reasons include:
 This section is appended every time a locked file is modified after
 the lock commit. Newest entries go at the TOP.
 
-### UNLOCK cosmic-dragon (exp decay consolidation) at commit pending, 2026-08-24
+### UNLOCK cosmic-dragon (exp decay consolidation) at commit `5280ae1`, 2026-08-24
 
 **Author**: oxyzenQ (Cosmic Dragon AI Agent)
 **Reason**: Owner-approved v50.0.0-beta.5 masterclass easing consolidation. After
