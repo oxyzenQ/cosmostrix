@@ -26,7 +26,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 ## 2. Build Environments
 
-**Pinned toolchain**: Rust 1.97.1 (`rust-toolchain.toml`), MSRV 1.97 (`Cargo.toml` `rust-version`), profile: minimal + rustfmt + clippy.
+**Pinned toolchain**: Rust 1.98.0 (`rust-toolchain.toml`), MSRV 1.98 (`Cargo.toml` `rust-version`), profile: minimal + rustfmt + clippy.
 
 **Upgrading Rust**: (1) update `rust-toolchain.toml` channel; (2) update `Cargo.toml` `rust-version` if MSRV changed; (3) update all `.github/workflows/*.yml` `toolchain:` refs; (4) `./scripts/build.sh check-all`; (5) `cargo test --all --locked`; (6) commit `chore: bump Rust toolchain to X.Y.Z`.
 
@@ -66,7 +66,7 @@ If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 If returning after 5-10 years of dormancy, follow this exact sequence. No steps may be skipped.
 
 1. **Clean clone**: `git clone https://github.com/oxyzenQ/cosmostrix.git && cd cosmostrix`
-2. **Install toolchain**: `rustup install 1.97.1 && rustup default 1.97.1` (or whatever `rust-toolchain.toml` says)
+2. **Install toolchain**: `rustup install 1.98.0 && rustup default 1.98.0` (or whatever `rust-toolchain.toml` says)
 3. **Build**: `cargo build --release`
 4. **Test**: `cargo test --all --locked`
 5. **Gatekeeper**: `./scripts/build.sh check-all -q`

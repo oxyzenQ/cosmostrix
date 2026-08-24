@@ -48,7 +48,7 @@ The AUR package (`cosmostrix-bin`) is published automatically via `aur.yml`, tri
 
 ### Binary Reproducibility Goals
 
-Full deterministic reproduction (bit-for-bit identical binaries across different build environments) is a long-term goal. Current release process already enforces: fixed toolchain version (rustc 1.97.1, pinned in `rust-toolchain.toml` and every workflow via `dtolnay/rust-toolchain`); profile standardization (`opt-level = 3`, `lto = "fat"`, `codegen-units = 1`, `panic = "unwind"`, `strip = true`, `incremental = false`); `--locked` flag (guarantees exact dependency tree from `Cargo.lock`); embedded build metadata verification (each release build self-reports variant, LTO mode, panic strategy, strip status via `cosmostrix --doctor`, which CI asserts against expected values). Future work: `cargo +nightly -Z build-std` for fully deterministic standard library builds and `sha512sum` digest comparison across independent build machines.
+Full deterministic reproduction (bit-for-bit identical binaries across different build environments) is a long-term goal. Current release process already enforces: fixed toolchain version (rustc 1.98.0, pinned in `rust-toolchain.toml` and every workflow via `dtolnay/rust-toolchain`); profile standardization (`opt-level = 3`, `lto = "fat"`, `codegen-units = 1`, `panic = "unwind"`, `strip = true`, `incremental = false`); `--locked` flag (guarantees exact dependency tree from `Cargo.lock`); embedded build metadata verification (each release build self-reports variant, LTO mode, panic strategy, strip status via `cosmostrix --doctor`, which CI asserts against expected values). Future work: `cargo +nightly -Z build-std` for fully deterministic standard library builds and `sha512sum` digest comparison across independent build machines.
 
 ## 3. GitHub Actions Hardening
 
@@ -64,7 +64,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 **`cargo deny`** enforces organizational policies across four dimensions, configured in `deny.toml`: advisories (cross-references RustSec, zero ignored); licenses (permits only the license set in §1, confidence threshold 0.8); bans (warns on duplicate crate versions, wildcard deps allowed for legitimate use); sources (restricts all crate origins to official crates.io registry, Git sources and unknown registries produce warnings). Both tools run in CI (`ci.yml` deny job, `release.yml` audit+deny) and in `maintenance.yml`.
 
-**MSRV**: Rust 1.97.1, declared in `Cargo.toml` as `rust-version = "1.97"`, pinned in `rust-toolchain.toml` (`channel = "1.97.1"`), enforced in every CI workflow via `dtolnay/rust-toolchain` action with `toolchain: 1.97.1`. CI includes a dedicated MSRV job that compiles and tests under this exact version. Developers: `rustup install 1.97.1 && rustup default 1.97.1`.
+**MSRV**: Rust 1.98.0, declared in `Cargo.toml` as `rust-version = "1.98"`, pinned in `rust-toolchain.toml` (`channel = "1.98.0"`), enforced in every CI workflow via `dtolnay/rust-toolchain` action with `toolchain: 1.98.0`. CI includes a dedicated MSRV job that compiles and tests under this exact version. Developers: `rustup install 1.98.0 && rustup default 1.98.0`.
 
 ## 5. Update Process
 

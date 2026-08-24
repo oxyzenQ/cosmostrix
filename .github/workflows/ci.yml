@@ -37,7 +37,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
-  RUST_VERSION: "1.97.1"
+  RUST_VERSION: "1.98.0"
 
 jobs:
   changes:

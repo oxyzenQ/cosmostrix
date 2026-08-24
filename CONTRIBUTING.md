@@ -5,7 +5,7 @@
 
 ## 1. Getting Started
 
-**Prerequisites**: Rust 1.97.1 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` (for the `./scripts/build.sh check-all` gatekeeper).
+**Prerequisites**: Rust 1.98.0 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` (for the `./scripts/build.sh check-all` gatekeeper).
 
 **Clone + Build**:
 

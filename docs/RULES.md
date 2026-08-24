@@ -33,7 +33,7 @@ All core, config, and script files must carry an SPDX license identifier. See `s
 - Clippy must pass with `-D warnings` (warnings are errors).
 - `cargo fmt` must report no differences.
 - All tests must pass on every commit.
-- MSRV: Rust 1.97.1 (pinned in `rust-toolchain.toml`).
+- MSRV: Rust 1.98.0 (pinned in `rust-toolchain.toml`).
 
 ## Test discipline
 

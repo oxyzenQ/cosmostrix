@@ -192,7 +192,7 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 
 ## Requirements
 
-- Rust 1.97.1+ (MSRV, pinned via `rust-toolchain.toml`) to build from source
+- Rust 1.98.0+ (MSRV, pinned via `rust-toolchain.toml`) to build from source
 - Linux kernel 2.6.27+ / macOS 10.12+ / Windows 10 1809+
 - A terminal supporting ANSI escape sequences, alternate screen, and raw mode
 - Best results with 256-color or truecolor terminals

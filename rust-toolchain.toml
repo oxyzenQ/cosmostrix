@@ -1,7 +1,7 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-# Default toolchain: pinned to 1.97.1 (with rustfmt + clippy).
+# Default toolchain: pinned to 1.98.0 (with rustfmt + clippy).
 #
 # Dormant mode: pinned to a specific version instead of "stable" so that
 # a future `stable` release cannot silently break the build. When updating
@@ -17,6 +17,6 @@
 # See docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md for the audit methodology.
 
 [toolchain]
-channel = "1.97.1"
+channel = "1.98.0"
 profile = "minimal"
 components = ["rustfmt", "clippy"]

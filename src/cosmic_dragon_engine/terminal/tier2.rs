@@ -84,9 +84,12 @@ impl ByteWindow {
     /// window's purpose (predict OOM pressure) is reset along with
     /// xterm.js's actual buffer.
     pub(crate) fn reset(&mut self) {
-        for slot in &mut self.slots {
-            *slot = None;
-        }
+        // v50 Rust 1.98.0 bump: clippy::manual_slice_fill now
+        // flags the manual `for slot in &mut self.slots { *slot = None; }`
+        // pattern (new lint added in 1.98.0). The slice::fill method
+        // (stable since Rust 1.50) is the idiomatic replacement and
+        // generates identical codegen.
+        self.slots.fill(None);
         self.head = 0;
     }
 

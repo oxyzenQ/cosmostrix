@@ -55,7 +55,7 @@ level. LLVM's auto-vectorizer is active with the most aggressive settings:
 
 ### 2.3 Constraints (per `docs/RULES.md`)
 
-Rust 1.97.1 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
+Rust 1.98.0 stable, Clippy `-D warnings`, no new unsafe in renderer/core paths
 unless explicitly audited, source files under 1,500 lines.
 
 ---
