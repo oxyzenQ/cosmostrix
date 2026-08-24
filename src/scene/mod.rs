@@ -15,8 +15,11 @@
 //! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
 //! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
 //! temporal-prediction breakthrough ( dirty_ratio 18.33% → 0.39%,
-//! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) keeps the
-//! three original entries to preserve runtime cycling behavior.
+//! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) covers all
+//! 18 built-in scenes (owner directive 2026-08-24): the three core
+//! atmospheres lead (cinematic, monolith, matrix), followed by the
+//! curated classics, atmosphere scenes, the power-saving utility, and
+//! the milestone/tribute/honor scenes as destinations.
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -41,8 +44,37 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle: monolith -> matrix -> cinematic -> monolith.
-pub(crate) const SCENE_ORDER: &[&str] = &["monolith", "matrix", "cinematic"];
+/// Ordered scene cycle — all 18 built-in scenes (owner directive
+/// 2026-08-24: positions 1-3 are fixed; the rest ordered by daily-use
+/// likelihood so the most-switched scenes are the fewest keystrokes
+/// away: core trio -> classic siblings -> atmosphere -> power-saving
+/// utility -> milestone -> tribute -> honor scenes).
+pub(crate) const SCENE_ORDER: &[&str] = &[
+    // Core atmospheres (owner-pinned order).
+    "cinematic", // 1
+    "monolith",  // 2
+    "matrix",    // 3
+    // Classic siblings — the traditional looks users switch to often.
+    "classic",     // 4 — original green-on-black
+    "signal",      // 5 — digital transmission
+    "hacker",      // 6 — high-contrast terminal overflow
+    "matrix_film", // 7 — 1999 film homage
+    // Atmosphere scenes — intensity then calm, then space and neon.
+    "storm",  // 8
+    "calm",   // 9
+    "cosmos", // 10
+    "neon",   // 11
+    // Utility.
+    "low-power", // 12
+    // Milestone + tribute.
+    "cosmic-dragon", // 13
+    "carbonic",      // 14
+    // Honor scenes — destinations, cycled last.
+    "dragon-crystal", // 15
+    "orange-cat",     // 16
+    "north-stars",    // 17
+    "curiosity",      // 18
+];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
     // --- Original runtime scenes (interactive cycle entries) ---
@@ -377,8 +409,8 @@ pub(crate) fn all_scene_names() -> &'static [&'static str] {
 
 /// Cycle to the next or previous scene in the ordered cycle.
 /// Returns the next scene name.
-/// Forward:  monolith -> matrix -> cinematic -> monolith
-/// Backward: monolith -> cinematic -> matrix -> monolith
+/// Forward:  cinematic -> monolith -> matrix -> classic -> ... -> curiosity
+/// Backward: the reverse. Unknown names fall back to DEFAULT_SCENE.
 #[must_use]
 pub(crate) fn cycle_scene(current: &str, dir: i32) -> &'static str {
     let Some(pos) = SCENE_ORDER.iter().position(|&n| n == current) else {
@@ -479,16 +511,21 @@ mod tests {
 
     #[test]
     fn cycle_scene_forward_order() {
-        assert_eq!(cycle_scene("monolith", 1), "matrix");
-        assert_eq!(cycle_scene("matrix", 1), "cinematic");
+        // Owner-pinned core trio: cinematic -> monolith -> matrix.
         assert_eq!(cycle_scene("cinematic", 1), "monolith");
+        assert_eq!(cycle_scene("monolith", 1), "matrix");
+        assert_eq!(cycle_scene("matrix", 1), "classic");
+        // Tail of the cycle wraps back to the head.
+        assert_eq!(cycle_scene("curiosity", 1), "cinematic");
     }
 
     #[test]
     fn cycle_scene_backward_order() {
-        assert_eq!(cycle_scene("monolith", -1), "cinematic");
-        assert_eq!(cycle_scene("cinematic", -1), "matrix");
+        // Core trio backward: matrix -> monolith -> cinematic.
         assert_eq!(cycle_scene("matrix", -1), "monolith");
+        assert_eq!(cycle_scene("monolith", -1), "cinematic");
+        // Head wraps backward to the tail.
+        assert_eq!(cycle_scene("cinematic", -1), "curiosity");
     }
 
     #[test]
@@ -499,10 +536,16 @@ mod tests {
 
     #[test]
     fn cycle_scene_wraps_around() {
-        // Double forward from monolith
-        assert_eq!(cycle_scene(cycle_scene("monolith", 1), 1), "cinematic");
-        // Double backward from monolith
-        assert_eq!(cycle_scene(cycle_scene("monolith", -1), -1), "matrix");
+        // Double forward from matrix: matrix -> classic -> signal.
+        assert_eq!(cycle_scene(cycle_scene("matrix", 1), 1), "signal");
+        // Double backward from matrix: matrix -> monolith -> cinematic.
+        assert_eq!(cycle_scene(cycle_scene("matrix", -1), -1), "cinematic");
+        // Full lap forward returns to start.
+        let mut cur = "cinematic";
+        for _ in 0..SCENE_ORDER.len() {
+            cur = cycle_scene(cur, 1);
+        }
+        assert_eq!(cur, "cinematic");
     }
 
     #[test]
@@ -598,8 +641,30 @@ mod tests {
 
     #[test]
     fn scene_cycle_order_is_preserved() {
-        // SCENE_ORDER stays three-entry to keep interactive cycling stable.
-        assert_eq!(SCENE_ORDER, &["monolith", "matrix", "cinematic"]);
+        // Owner-pinned first three (2026-08-24 directive) + full coverage.
+        assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
+        assert_eq!(
+            SCENE_ORDER.len(),
+            18,
+            "all built-in scenes must be cyclable"
+        );
+        // Every SCENES entry must appear in SCENE_ORDER exactly once —
+        // a new scene that forgets to join the cycle fails here.
+        for s in SCENES {
+            assert!(
+                SCENE_ORDER.contains(&s.name),
+                "scene '{}' missing from SCENE_ORDER",
+                s.name
+            );
+        }
+        let mut sorted = SCENE_ORDER.to_vec();
+        sorted.sort_unstable();
+        sorted.dedup();
+        assert_eq!(
+            sorted.len(),
+            SCENE_ORDER.len(),
+            "SCENE_ORDER has duplicates"
+        );
     }
 
     #[test]

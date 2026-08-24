@@ -156,7 +156,7 @@ The Dragon's roar is not loud — it is precise.
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes, `s`/`S` cycle charsets, `Space` pause/resume, `p` pause, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
+- Runtime controls: `c`/`C` cycle colors, `x` cycle scenes (all 18 built-ins, forward only), `s`/`S` cycle charsets, `Space` pause/resume, `p` pause, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
 
 ### Benchmarking & Build
 
@@ -482,7 +482,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle core atmospheres (cinematic ↔ matrix ↔ monolith).
+Press `x` while running to cycle through all 18 built-in scenes (cinematic → monolith → matrix → classic → … → curiosity, then back to cinematic).
 
 ## Configuration
 

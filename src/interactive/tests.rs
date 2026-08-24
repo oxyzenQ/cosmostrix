@@ -384,8 +384,10 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        assert_eq!(visited, ["matrix", "cinematic", "monolith"]);
-        assert_eq!(cloud.active_scene(), "monolith");
+        // 18-scene cycle (owner directive 2026-08-24): from monolith the
+        // forward order is matrix -> classic -> signal.
+        assert_eq!(visited, ["matrix", "classic", "signal"]);
+        assert_eq!(cloud.active_scene(), "signal");
     }
 
     #[test]
