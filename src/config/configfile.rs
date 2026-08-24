@@ -617,12 +617,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Standard Settings
 # All values shown are defaults. Uncomment to override.
 
-# scene = "cinematic"               # See: cosmostrix --list-scenes
-# color = "energy-zen"              # See: cosmostrix --list-colors (cinematic default)
-# charset = "zen"                   # See: cosmostrix --list-charsets (cinematic default)
-# color-bg = "default-background"   # or "black"
-# intro = "logo"                    # logo | cosmic | none (default: logo)
-# intro-color = "energy-zen"        # intro color override (default: same as rain color)
+# scene = "cinematic"                   # See: cosmostrix --list-scenes
+# color = "energy-zen"                  # See: cosmostrix --list-colors (cinematic default)
+# charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
+# color-bg = "default-background"       # or "black"
+# intro = "logo"                        # logo | cosmic | none (default: logo)
+# intro-color = "energy-zen"            # intro color override (default: same as rain color)
 
 # Overlay Message
 # Two keys mirror the CLI flags (-m and -mb). If both are present,
@@ -635,33 +635,34 @@ pub(crate) fn dump_config_text() -> &'static str {
 # default message AND any config message/message-border. CLI -m / -mb
 # always wins over msg-mode=false. Set false to turn off the overlay
 # entirely via config without removing the message/message-border lines.
-# message         = "A masterpiece"   # message WITHOUT border (matches -m)
-# message-border  = "A masterpiece"   # message WITH border    (matches -mb)
-# msg-mode        = true              # true = overlay active (default), false = suppressed
+
+# message         = "A masterpiece"     # message WITHOUT border (matches -m)
+# message-border  = "A masterpiece"     # message WITH border    (matches -mb)
+# msg-mode        = true                # true = overlay active (default), false = suppressed
 
 # Motion
 
-# fps = 60                          # 1-240 (default: dynamic — 60 or 144 on high-refresh)
-# speed = 9                         # 1-100 (cinematic default)
-# density = 0.75                    # 0.01-5.0 (cinematic default)
-# async-mode = true                 # variable column speeds (CLI: --async-mode true|false)
-# monolith-size = "normal"          # small | normal | large (monolith scene only)
+# fps = 60                              # 1-240 (default: dynamic — 60 or 144 on high-refresh)
+# speed = 9                             # 1-100 (cinematic default)
+# density = 0.75                        # 0.01-5.0 (cinematic default)
+# async-mode = true                     # variable column speeds (CLI: --async-mode true|false)
+# monolith-size = "normal"              # small | normal | large (monolith scene only)
 
 # Behavior
 
-# glitch-level = "subtle"           # none | subtle | default | intense (cinematic default)
-# crystal-dragon = false            # Crystal Dragon ambient color drift (point-based temperature groups)
-# power-dragon = true               # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings)
-# bold = 1                          # 0=off, 1=random, 2=all
-# shadingmode = 1                   # 0=random, 1=cinematic
+# glitch-level = "subtle"               # none | subtle | default | intense (cinematic default)
+# crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups)
+# power-dragon = true                   # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings)
+# bold = 1                              # 0=off, 1=random, 2=all
+# shadingmode = 1                       # 0=random, 1=cinematic
 
 # Color Tuning
 # [color.tune]
-# brightness = 1.0                  # global (0.0-3.0, default 1.0)
-# saturation = 1.0                  # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
-# head = 1.0                        # 0.0-3.0
-# body = 1.0                        # 0.0-3.0
-# tail = 1.0                        # 0.0-3.0
+# brightness = 1.0                      # global (0.0-3.0, default 1.0)
+# saturation = 1.0                      # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
+# head = 1.0                            # 0.0-3.0
+# body = 1.0                            # 0.0-3.0
+# tail = 1.0                            # 0.0-3.0
 
 # Custom Scenes
 # Define named scenes, load with: cosmostrix --scene-custom <name>
@@ -669,22 +670,22 @@ pub(crate) fn dump_config_text() -> &'static str {
 # = block reference. Don't mix — --testconf will hint if you do.
 
 # [scene-custom.hacker-mode]
-# base-scene = "matrix"             # inherit defaults from a built-in scene
-# color = "green"                   # built-in color name
-# colors-custom = "neon"            # custom palette name (overrides color)
-# charset = "hacker"                # built-in charset preset
-# charset-custom = "myglyphs"       # custom charset name (overrides charset)
+# base-scene = "matrix"                 # inherit defaults from a built-in scene
+# color = "green"                       # built-in color name
+# colors-custom = "neon"                # custom palette name (overrides color)
+# charset = "hacker"                    # built-in charset preset
+# charset-custom = "myglyphs"           # custom charset name (overrides charset)
 # speed = 28
 # density = 1.2
-# fps = 60                          # 1-240
-# bold = 1                          # 0=off, 1=random, 2=all
-# shadingmode = 1                   # 0=random, 1=cinematic
+# fps = 60                              # 1-240
+# bold = 1                              # 0=off, 1=random, 2=all
+# shadingmode = 1                       # 0=random, 1=cinematic
 # glitch-level = "intense"
-# density-map = "0.5,1.0,1.5,1.0,0.5"  # per-zone density weights (each 0.0-1.0)
-# async-mode = true                    # variable column speeds
+# density-map = "0.5,1.0,1.5,1.0,0.5"   # per-zone density weights (each 0.0-1.0)
+# async-mode = true                     # variable column speeds
 
 # [scene-custom.cyberpunk_2077]
-# base-scene = "storm"                 # inherit storm defaults (purple, cyberpunk)
+# base-scene = "storm"                  # inherit storm defaults (purple, cyberpunk)
 # colors-custom = "cyberpunk_2077"
 # charset-custom = "cyberpunk_2077"
 # speed = 12
@@ -694,7 +695,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "intense"
 
 # [scene-custom.tron_legacy]
-# base-scene = "signal"                # inherit signal defaults (aurora, retro)
+# base-scene = "signal"                 # inherit signal defaults (aurora, retro)
 # colors-custom = "tron_legacy"
 # charset-custom = "tron_legacy"
 # speed = 8

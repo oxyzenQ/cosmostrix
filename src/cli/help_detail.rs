@@ -132,7 +132,7 @@ COMMON OPTIONS:
       80x24. The intro choice can be set permanently in config.toml
       via the 'intro' key (e.g. intro = \"cosmic\"). CLI flag wins
       over config.
-      cosmostrix                       # default: logo
+      
       cosmostrix --intro logo
       cosmostrix --intro cosmic --scene matrix
       cosmostrix --intro none
@@ -195,7 +195,6 @@ COMMON OPTIONS:
       + speed 18 + density 0.95 produce a dense, energetic metallic
       rain that showcases the engine's throughput.
 
-      cosmostrix
       cosmostrix --scene matrix
       cosmostrix --scene signal --fps 60
       cosmostrix --scene storm

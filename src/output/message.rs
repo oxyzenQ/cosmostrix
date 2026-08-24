@@ -4,14 +4,14 @@
 //! Message overlay text sanitization.
 //!
 //! `sanitize_message_text` enforces the 1-char-1-cell invariant required by
-//! the `-m` / `--message` and `-mb` / `--message-border` overlay. Wide chars
+//! the `-m` and `-mb` overlay. Wide chars
 //! (CJK, emoji) and zero-width chars (combining marks, ZWJ) are replaced with
 //! `?` so the user sees that a char was dropped. C0/C1 control chars (except
 //! `\n`) are stripped entirely.
 
 use unicode_width::UnicodeWidthChar;
 
-/// Sanitize message text for the `-m` / `--message` overlay.
+/// Sanitize message text for the `-m` overlay.
 ///
 /// Wide chars (width ≥ 2: CJK, emoji) and zero-width chars (combining marks,
 /// ZWJ) break the 1-char-1-cell invariant. Both are replaced with `?`.

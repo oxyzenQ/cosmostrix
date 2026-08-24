@@ -79,7 +79,7 @@ Lives under `src/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `senso
 
 ## Architecture
 
-Cosmostrix is **not a clone**. The Cosmic Dragon engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, 3-layer parallax, density maps — at practical terminal-bounded FPS (60–240 on Alacritty/kitty/WezTerm) while using only **~4–5 MiB of RAM** and a single CPU core. No GPU. No bloat.
+cosmostrix is **not a clone**. The Cosmic Dragon engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, 3-layer parallax, density maps — at practical terminal-bounded FPS (60–240 on Alacritty/kitty/WezTerm) while using only **~4–5 MiB of RAM** and a single CPU core. No GPU. No bloat.
 
 The renderer is structured as six cooperating subsystems:
 
@@ -375,27 +375,27 @@ Run `cosmostrix --help` for the full reference manual (CLI flags, runtime contro
 
 ```text
 COMMON OPTIONS
-  -c, --color <name>          Color theme or custom palette name (see --list-colors)
-      --colors-custom <name>  Load a custom color palette from config (see --list-colors)
-      --color-tune <k=v>      Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)
-  -C, --charset <name>        Character set (see --list-charsets). Accepts built-in presets or
-                              custom names from [charset-custom.<name>]. Alias: --charset-custom
-  -f, --fps <N>               Target FPS (interactive frame limiter)
-  -S, --speed <N>             Rain speed
-  -d, --density <N>            Rain density
-  -s, --screensaver           Only q exits (all other keys ignored)
-  -m <text>                   Overlay message (no border)
-  -mb <text>                  Overlay message with border
-      --glitch-level <level>  Glitch intensity (none|subtle|default|intense)
-      --scene <name>           Apply a built-in scene (see --list-scenes)
-      --scene-custom <name>    Apply a user-defined custom scene from config
-      --intro [cosmic|logo|none] Cinematic intro (default: logo)
-      --monolith-size <size>   Monolith segment cell scale (small|normal|large)
-      --async-mode <true|false> Async variable column speeds (default: true)
-      --crystal-dragon <true|false> Crystal Dragon ambient color drift (default: false)
-      --power-dragon <true|false> Power Dragon adaptive protection (default: true)
-      --msg-mode <true|false>  Message overlay master switch (default: true)
-      --intro-color <name>     Intro color override (see --list-colors)
+  -c, --color <name>            Color theme or custom palette name (see --list-colors)
+      --colors-custom <name>    Load a custom color palette from config (see --list-colors)
+      --color-tune <k=v>        Tune theme colors (keys: sat=, bright=, head=, body=, tail=; range 0.0-3.0)
+  -C, --charset <name>          Character set (see --list-charsets). Accepts built-in presets or
+                                custom names from [charset-custom.<name>]. Alias: --charset-custom
+  -f, --fps <N>                 Target FPS (interactive frame limiter)
+  -S, --speed <N>               Rain speed
+  -d, --density <N>             Rain density
+  -s, --screensaver             Only q exits (all other keys ignored)
+  -m <text>                     Overlay message (no border)
+  -mb <text>                    Overlay message with border
+      --glitch-level <level>    Glitch intensity (none|subtle|default|intense)
+      --scene <name>                  Apply a built-in scene (see --list-scenes)
+      --scene-custom <name>           Apply a user-defined custom scene from config
+      --intro [cosmic|logo|none]      Cinematic intro (default: logo)
+      --monolith-size <size>          Monolith segment cell scale (small|normal|large)
+      --async-mode <true|false>       Async variable column speeds (default: true)
+      --crystal-dragon <true|false>   Crystal Dragon ambient color drift (default: false)
+      --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
+      --msg-mode <true|false>         Message overlay master switch (default: true)
+      --intro-color <name>            Intro color override (see --list-colors)
 
 CONFIG
       --config <path>          Load config from an explicit file path
@@ -644,8 +644,10 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
-cargo test chroma_dragon_engine::tests::lock -- --nocapture  # print the Chroma Dragon engine lock report
-cargo test cosmic_dragon_incubator::tests::lock -- --nocapture  # print the Cosmic Dragon engine lock report
+# print the Chroma Dragon engine lock report
+cargo test chroma_dragon_engine::tests::lock -- --nocapture
+# print the Cosmic Dragon engine lock report
+cargo test cosmic_dragon_incubator::tests::lock -- --nocapture
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
 ```
 
