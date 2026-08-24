@@ -50,8 +50,12 @@
 //!
 //! Example: `bandwidth_mbps` was the original name (misleading — the
 //! unit is MiB/s, not MB/s). `bandwidth_mibps` was added as the
-//! corrected name; `bandwidth_mbps` is retained as a deprecated alias
-//! emitting the same value. Consumers may migrate at their own pace.
+//! corrected name and both fields emitted the same value for the
+//! v50 LTS audit cycle; the deprecated `bandwidth_mbps` alias was
+//! then removed under explicit owner approval (staying within v50 —
+//! the normal one-full-release-cycle rule was waived by the owner
+//! for this alias because the only in-tree consumers were updated
+//! in the same change and no external consumers were known).
 //!
 //! ### Type stability
 //!
@@ -311,16 +315,13 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
             );
             o.push_kv("write_calls", io.write_calls);
             o.push_kv("backpressure_events", io.backpressure_events);
-            // `bandwidth_mibps` is the corrected name (MiB/s, not MB/s).
-            // `bandwidth_mbps` is retained as a deprecated alias for
-            // backward-compat with any consumer that already reads it;
-            // both fields carry the same value. The function is named
-            // `bandwidth_mbps` because the divisor is 1 MiB (1_048_576
-            // bytes) but the previous label was misleading — see the
-            // doc comment on `TerminalIoMetrics::bandwidth_mbps`.
-            let bw = io.bandwidth_mbps();
+            // `bandwidth_mibps` is the sole bandwidth field. The
+            // deprecated `bandwidth_mbps` alias (same value, misleading
+            // MB/s label for a MiB/s divisor) was removed under owner
+            // approval — see the module-level "Renames and removals"
+            // contract above for the full lifecycle.
+            let bw = io.bandwidth_mibps();
             o.push_kv("bandwidth_mibps", bw);
-            o.push_kv("bandwidth_mbps", bw);
             o.push_kv_str(
                 "bandwidth_human",
                 &crate::humanize::humanize_throughput(io.bytes_written, io.elapsed_secs),

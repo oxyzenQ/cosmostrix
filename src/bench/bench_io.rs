@@ -14,7 +14,7 @@
 //! - `io_write_calls`: number of write() + flush() calls
 //! - `io_total_write_ns`: cumulative time in write+flush
 //! - `io_backpressure_events`: short writes (would_block or partial)
-//! - Computed: bandwidth_mbps, avg_latency_us, effective_write_fps
+//! - Computed: bandwidth_mibps, avg_latency_us, effective_write_fps
 //!
 //! ## T2.1 upgrade
 //!
@@ -106,15 +106,16 @@ pub(crate) struct TerminalIoMetrics {
 impl TerminalIoMetrics {
     /// Write bandwidth in MiB/s (1 MiB = 1_048_576 bytes).
     ///
-    /// Historical naming note: the function is named `bandwidth_mbps`
-    /// (megabytes per second) but the divisor is 1 MiB (binary), not
-    /// 1 MB (decimal = 1_000_000). The misleading name is retained
-    /// for call-site stability; the JSON serializer emits both
+    /// Historical naming note: the function was originally named
+    /// `bandwidth_mbps` (megabytes per second) but the divisor has
+    /// always been 1 MiB (binary), not 1 MB (decimal = 1_000_000).
+    /// During the v50 LTS audit the JSON serializer emitted both
     /// `bandwidth_mibps` (correct unit) and `bandwidth_mbps`
-    /// (deprecated alias, same value) so consumers can migrate
-    /// without breaking. See the v50 LTS audit (Task 3) for details.
+    /// (deprecated alias, same value) so consumers could migrate;
+    /// the alias was then removed under owner approval. The method
+    /// is now named after the unit it actually computes.
     #[must_use]
-    pub(crate) fn bandwidth_mbps(&self) -> f64 {
+    pub(crate) fn bandwidth_mibps(&self) -> f64 {
         if self.elapsed_secs > 0.0 {
             (self.bytes_written as f64 / 1_048_576.0) / self.elapsed_secs
         } else {

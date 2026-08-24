@@ -75,7 +75,7 @@ Wet (`--bench-io`) = writes ANSI to `/dev/null`; dry = no I/O (pure engine throu
 
 **Component Timing**: the `COMPONENT TIMING` section breaks the frame budget into per-subsystem costs — rain simulation, phosphor decay, color resolution (Chroma Dragon), BOLT formatting, ANSI emission, I/O write. Use this to identify which subsystem dominates frame time when profiling.
 
-**Wet I/O vs Dry**: dry benchmarks measure pure compute throughput. Wet benchmarks (`--bench-io`) additionally exercise the kernel syscall path by writing ANSI bytes to `/dev/null`, surfacing `write_bandwidth` (MB/s), `avg_write_latency` (µs), `backpressure_events` (write stalls — non-zero = terminal can't keep up), `effective_write_fps`, `total_bytes_written`.
+**Wet I/O vs Dry**: dry benchmarks measure pure compute throughput. Wet benchmarks (`--bench-io`) additionally exercise the kernel syscall path by writing ANSI bytes to `/dev/null`, surfacing `write_bandwidth` (MiB/s), `avg_write_latency` (µs), `backpressure_events` (write stalls — non-zero = terminal can't keep up), `effective_write_fps`, `total_bytes_written`.
 
 **Scaling (`--bench-all`)**: runs the benchmark across a sweep of screen sizes (6×6 → 200×60) and prints a SCALING SUMMARY table showing how FPS, dirty-cell ratio, and throughput scale with cell count. Use this to verify the diff engine's O(dirty_cells) claim holds at scale — dirty-cell ratio should drop as screen size grows (most cells unchanged per frame).
 
