@@ -8,6 +8,40 @@
 
 ## LOCK
 
+> Engine re-locked at commit `5280ae1` after the v50.0.0-beta.5
+> masterclass easing consolidation re-seal audit (2026-08-24).
+> Owner-approved migration of all **temporal** easing in the rain
+> path onto the unified **exponential decay** family: pause decel
+> `exp(-k·t)` (k=1.2/s, settle 5% @ ~2.5s), resume accel
+> `1 - exp(-k·t)` (k=0.9/s, settle 95% @ ~3.3s), glyph scene entry
+> `1 - exp(-k·t)` (k=4.28/s, settle 95% @ ~700ms — derived so the
+> documented 700ms constant IS the settle time). Asymmetric
+> k_decel > k_resume preserves the prior "pause snappy / resume
+> wake-up" feel. New `debug_assert!` invariant at `rain_at` entry:
+> `pause_start` and `resume_start` cannot coexist (audit §8.6 —
+> `toggle_pause()` guarantees this across all 3 branches; now
+> asserted, zero-cost in release). 4 new regression tests in
+> `cloud/tests/mod.rs` lock the easing contract (pause/resume
+> settle thresholds, glyph entry ramp k-derivation sanity, §8.6
+> state-machine invariant) — any future regression to a different
+> curve or threshold fails CI. README "Crypto donations"
+> subsection added below the Ko-fi button with owner-verified
+> receive addresses (SOL on Solana mainnet, ETH/USDT-ERC20/
+> USDC-ERC20 on Ethereum mainnet, BTC Taproot/P2TR/bech32m
+> `bc1p`-prefixed — verified Taproot, not native SegWit).
+> A/B: zero per-frame surface (glyph entry ramp only active
+> ~700ms post-scene-switch; pause/resume identity preserved from
+> `e2e0512`; exp() already used in `cloud/phosphor.rs:307` LUT
+> build + chroma `shaders/base/mod.rs:237` trail LUT, no new math
+> primitive introduced). Tests: full binary suite 1660/0/2 (+4
+> new tests), cosmic lock suite 20/0/2, cloud subset 328/0/2.
+> cargo fmt + clippy --all-targets --all-features -D warnings +
+> gate-keepers.sh all clean. UNLOCK entry in `cosmic_dragon_engine/
+> KEY.md` + `RULES.md` documents the break+re-seal cycle.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — v50.0.0-beta.5 masterclass
+> easing consolidation re-seal
+
 > Engine re-locked at commit `c1c7779` after the triple-engine LTS deeper audit
 > (2026-08-23). White-box re-audit of the diff pipeline invariants (dirty-index
 > bounds by construction, LastFrame dimension coherence under resize storms,

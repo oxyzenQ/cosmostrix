@@ -201,6 +201,36 @@ code path modified.
 
 ---
 
+### UNLOCK chroma-dragon (comment-only) at commit a5b9345, 2026-08-24T00:30:00Z
+
+**Author**: oxyzenQ (Cosmic Dragon AI Agent)
+**Reason**: Project naming normalization — the capitalized form → `cosmostrix`
+in comment text across chroma dragon engine files. No production code
+touched; comment/word only.
+
+**Files changed** (comments only):
+- `src/chroma_dragon_engine/catalog.rs` (brand name in comment)
+- `src/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
+- `src/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
+- `src/chroma_dragon_engine/mod.rs` (brand name in module doc)
+
+**A/B delta** (vs locked baseline `c1c7779`): none — zero production code touched.
+
+**Lock suite**: 19/19 invariants pass (no contract change).
+
+**Visual audit**: PASS — no code changes; visual identity preserved.
+
+**Tests**: full binary suite 1656 passed / 0 failed / 2 ignored.
+
+**Re-seal**: lock re-asserted at commit `deff636` on 2026-08-24 — chroma
+engine confirmed untouched by the v50.0.0-beta.5 masterclass easing
+consolidation (cosmic-side only); the comment-only UNLOCK is closed and
+the lock is re-sealed with no contract drift.
+
+Signoff: **oxyzenQ** — 2026-08-24 — brand name normalization
+
+---
+
 ### UNLOCK chroma-dragon at commit 809a897, 2026-08-19T16:36:02Z
 
 **Author**: oxyzenQ

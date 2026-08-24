@@ -8,6 +8,30 @@
 
 ## LOCK
 
+> Engine re-locked at commit `deff636` after the chroma re-seal audit
+> (2026-08-24). Confirms no chroma paths were touched in commits
+> `5280ae1` (cosmic-side exp decay consolidation) or `deff636`
+> (cosmic-side SHA backfill + README crypto donations) — chroma
+> engine is untouched by the v50.0.0-beta.5 masterclass easing
+> migration. The chroma UNLOCK at `a5b9345` (brand-name
+> normalization, comment-only across `catalog.rs`,
+> `intro_colors.rs`, `palette/mod.rs`, `mod.rs`) is closed and
+> re-sealed — zero production code touched, no chroma routing
+> violation, lock invariants unchanged. Chroma Dragon Routing
+> Rule re-verified across all render paths (rain cells
+> `resolve_cell_color`, vignette/brightness
+> `apply_brightness_rgb_unclamped`, monolith core
+> `blend_toward_white_rgb`, message border gradient
+> `interpolate_palette_color` — BD-02 corner system intact, intro
+> cinematic colors chroma-owned via `intro_colors.rs`, post-FX
+> engine-internal, legacy `chroma::legacy` fallbacks). A/B: no
+> chroma code touched → no measurable delta vs `c1c7779`
+> baseline. Tests: chroma lock suite 19/19, full binary suite
+> 1660/0/2. cargo fmt + clippy + gate-keepers all clean.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — chroma re-seal after cosmic-side
+> v50.0.0-beta.5 amendments
+
 > Engine re-locked at commit `c1c7779` after the triple-engine LTS deeper
 > audit with integrated routing re-verification (2026-08-23). The Chroma
 > Dragon Routing Rule was re-swept across every render path: rain cells
