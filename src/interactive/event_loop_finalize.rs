@@ -19,6 +19,7 @@ use std::time::{Duration, Instant};
 use crate::bench_helpers::format_backpressure_section;
 use crate::cloud::Cloud;
 use crate::constants::*;
+use crate::humanize::{humanize, humanize_bytes, humanize_bytes_f64, humanize_throughput};
 use crate::report::Report;
 use crate::terminal::Terminal;
 // CloudConfig is re-exported at the crate root (main.rs: pub use app::CloudConfig).
@@ -317,6 +318,12 @@ fn print_perf_report(
 
     // ENCODING: actual measured ANSI bytes/frame + SGR cache hit rate.
     // These prove the diff-based + RLE + color cache optimizations work.
+    // All byte/count values are rendered via the centralized `humanize_*`
+    // helpers in `diagnostics/humanize.rs` so the unit (KiB / MiB / GiB / TiB
+    // for bytes, K / M / B for counts) is chosen dynamically from the value.
+    // No hardcoded `1024.0` divisor or `KiB/s` literal remains here. The raw
+    // integer is preserved in parentheses for power users who need exact
+    // precision when diagnosing cache behavior.
     {
         let s = r.section("ENCODING");
         let total_sgr = sgr_hits + sgr_misses;
@@ -330,17 +337,32 @@ fn print_perf_report(
         } else {
             0.0
         };
-        let bandwidth_kib_s = (enc_bytes as f64 / 1024.0) / elapsed_s;
 
-        s.field("total_ansi_bytes", &enc_bytes.to_string());
-        s.field("frames_flushed", &enc_flushes.to_string());
+        s.field(
+            "total_ansi_bytes",
+            &format!("{} ({})", humanize_bytes(enc_bytes), enc_bytes),
+        );
+        s.field(
+            "frames_flushed",
+            &format!("{} ({})", humanize(enc_flushes), enc_flushes),
+        );
         s.field(
             "avg_bytes_per_frame",
-            &format!("{:.1}", avg_bytes_per_frame),
+            &format!(
+                "{} ({:.1} B)",
+                humanize_bytes_f64(avg_bytes_per_frame),
+                avg_bytes_per_frame
+            ),
         );
-        s.field("bandwidth", &format!("{:.1} KiB/s", bandwidth_kib_s));
-        s.field("sgr_cache_hits", &sgr_hits.to_string());
-        s.field("sgr_cache_misses", &sgr_misses.to_string());
+        s.field("bandwidth", &humanize_throughput(enc_bytes, elapsed_s));
+        s.field(
+            "sgr_cache_hits",
+            &format!("{} ({})", humanize(sgr_hits), sgr_hits),
+        );
+        s.field(
+            "sgr_cache_misses",
+            &format!("{} ({})", humanize(sgr_misses), sgr_misses),
+        );
         s.field("sgr_cache_hit_rate", &format!("{:.1}%", hit_rate));
     }
 
@@ -348,11 +370,20 @@ fn print_perf_report(
     // All three fields are 0 on native terminals; nonzero only inside
     // VSCode/Hyper/WaveTerminal/Tabby/WarpTerminal. Useful for diagnosing
     // whether the multi-hour OOM crash mode is actually being mitigated.
+    // The byte counter uses the centralized binary formatter so a 2 MiB
+    // backpressure budget reads as `2.00 MiB` rather than a 7-digit raw.
     {
         let s = r.section("TIER2_XTERMJS");
         s.field("backpressure_skips", &tier2_skips.to_string());
         s.field("ris_resets", &tier2_resets.to_string());
-        s.field("bytes_since_last_ris", &tier2_bytes_since.to_string());
+        s.field(
+            "bytes_since_last_ris",
+            &format!(
+                "{} ({})",
+                humanize_bytes(tier2_bytes_since),
+                tier2_bytes_since
+            ),
+        );
     }
 
     r.eprint(); // stderr — survives alt-screen restore (AB-10)

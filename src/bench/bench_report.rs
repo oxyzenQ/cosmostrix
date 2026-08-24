@@ -16,7 +16,7 @@ use std::env;
 use crate::bench_meta::{cpu_model_label, format_rss_kb};
 use crate::constants::DIRTY_THRESHOLD_RATIO;
 use crate::diagnostics;
-use crate::humanize::humanize;
+use crate::humanize::{humanize, humanize_bytes, humanize_throughput};
 use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::ColorMode;
@@ -561,7 +561,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
             "ansi_bytes_per_second",
             &format!(
                 "{} ({})",
-                humanize(data.ansi_bytes_per_second),
+                humanize_bytes(data.ansi_bytes_per_second),
                 data.ansi_bytes_per_second
             ),
         );
@@ -948,7 +948,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 s.field("target", &io.target);
                 s.field(
                     "write_bandwidth",
-                    &format!("{:.1} MB/s", io.bandwidth_mbps()),
+                    &humanize_throughput(io.bytes_written, io.elapsed_secs),
                 );
                 s.field(
                     "avg_write_latency",
@@ -961,7 +961,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 );
                 s.field(
                     "total_bytes_written",
-                    &crate::humanize::humanize(io.bytes_written),
+                    &crate::humanize::humanize_bytes(io.bytes_written),
                 );
             }
             _ => {
@@ -1046,18 +1046,21 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
                 );
                 s.field(
                     "bytes_allocated",
-                    &crate::humanize::humanize(a.bytes_allocated_total),
+                    &crate::humanize::humanize_bytes(a.bytes_allocated_total),
                 );
                 s.field(
                     "bytes_deallocated",
-                    &crate::humanize::humanize(a.bytes_deallocated_total),
+                    &crate::humanize::humanize_bytes(a.bytes_deallocated_total),
                 );
                 s.field(
                     "heap_retained",
-                    &crate::humanize::humanize(a.heap_retained_bytes),
+                    &crate::humanize::humanize_bytes(a.heap_retained_bytes),
                 );
                 if a.heap_virtual_kib > 0 {
-                    s.field("heap_virtual", &format!("{} KiB", a.heap_virtual_kib));
+                    s.field(
+                        "heap_virtual",
+                        &crate::humanize::humanize_bytes(a.heap_virtual_kib.saturating_mul(1024)),
+                    );
                 }
             }
             None => {

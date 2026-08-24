@@ -354,16 +354,10 @@ pub(crate) fn estimate_memory_budget(w: u16, h: u16) -> usize {
 
 #[must_use]
 pub(crate) fn format_bytes(bytes: usize) -> String {
-    let b = bytes as f64;
-    if b < 1024.0 {
-        format!("{} B", bytes)
-    } else if b < 1024.0 * 1024.0 {
-        format!("{:.2} KiB", b / 1024.0)
-    } else if b < 1024.0 * 1024.0 * 1024.0 {
-        format!("{:.2} MiB", b / (1024.0 * 1024.0))
-    } else {
-        format!("{:.2} GiB", b / (1024.0 * 1024.0 * 1024.0))
-    }
+    // Delegate to the centralized binary-byte formatter. This keeps a single
+    // source of truth for byte-unit formatting across perf-stats, bench
+    // reports, and diagnostics. See `diagnostics/humanize.rs`.
+    crate::humanize::humanize_bytes(bytes as u64)
 }
 
 // --- CPU feature check ---
