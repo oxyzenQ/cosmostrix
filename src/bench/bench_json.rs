@@ -24,6 +24,70 @@
 //! All values are JSON primitives (string/number/bool/null). Option<T>
 //! fields emit `null` when None. The structure mirrors the text report's
 //! sections so a reader familiar with one can navigate the other.
+//!
+//! ## Schema stability contract (LTS)
+//!
+//! The JSON schema follows a long-term-stability policy so that
+//! downstream consumers (CI scripts, regression dashboards, the
+//! `--compare-baseline` workflow) do not break across releases.
+//!
+//! ### Additive-only changes
+//!
+//! New fields MAY be added to any section in any release. Consumers MUST
+//! ignore unknown keys (per the JSON spec) — the flat-parser in
+//! `bench_baseline::parse_json_flat` already does this.
+//!
+//! ### Renames and removals
+//!
+//! Existing field names MUST NOT be removed or renamed without a
+//! deprecation cycle:
+//!   1. The new name is added alongside the old name (both emit the
+//!      same value) for at least one minor release.
+//!   2. The old name is documented as a deprecated alias in this file
+//!      and in `docs/BENCHMARK_ADVANCED.md`.
+//!   3. The old name is removed only after CI has run green for one
+//!      full release cycle with both names present.
+//!
+//! Example: `bandwidth_mbps` was the original name (misleading — the
+//! unit is MiB/s, not MB/s). `bandwidth_mibps` was added as the
+//! corrected name; `bandwidth_mbps` is retained as a deprecated alias
+//! emitting the same value. Consumers may migrate at their own pace.
+//!
+//! ### Type stability
+//!
+//! The JSON type of an existing field MUST NOT change. A field that
+//! emits a number MUST continue to emit a number (or null when
+//! unavailable); a field that emits a string MUST continue to emit a
+//! string. If a different representation is needed, add a new field
+//! (e.g. `bytes_written` is u64, `bytes_written_human` is the
+//! human-readable string form) rather than retyping the existing one.
+//!
+//! ### Section presence
+//!
+//! All 19 top-level sections (`status`, `system`, `renderer`, `config`,
+//! `environment`, `performance`, `memory`, `cpu`, `resource`,
+//! `component_timing`, `cell_efficiency`, `drift`, `throughput`,
+//! `timing`, `terminal_io`, `energy`, `microarchitecture`,
+//! `allocator`, `visual_objective`) are stable. A section will not be
+//! removed without a major version bump.
+//!
+//! ### Optional-section presence flag
+//!
+//! Sections that wrap platform-optional subsystems (`energy`,
+//! `microarchitecture`, `allocator`, `visual_objective`) emit an
+//! `available: true/false` field so consumers can detect presence
+//! without inspecting individual sub-fields. `terminal_io` uses
+//! `enabled: true/false` (semantic: the feature was enabled for this
+//! run) — the different name reflects the different meaning (user
+//! choice vs. platform support).
+//!
+//! ### NaN / Infinity
+//!
+//! JSON spec forbids `NaN` and `Infinity` literals. The serializer
+//! emits `null` for any non-finite `f64` value (both the bare
+//! `JsonValue for f64` impl and the `push_kv_opt(Option<f64>)` helper
+//! finite-check before emitting). Consumers reading numeric fields
+//! MUST handle `null` as "value unavailable or non-finite".
 
 use crate::bench_meta::{cpu_model_label, format_rss_kb};
 use crate::bench_report::BenchReportData;
