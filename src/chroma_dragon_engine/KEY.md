@@ -59,6 +59,27 @@
 > project cosmostrix
 
 ## UNLOCK
+>
+> **UNLOCK chroma-dragon (comment-only)** at commit `a5b9345`, 2026-08-24T00:30:00Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Project naming normalization — the capitalized form -> `cosmostrix`
+> in comment text across chroma dragon engine files. No production code
+> touched; comment/word only.
+>
+> **Files changed** (comments only):
+> - `src/chroma_dragon_engine/catalog.rs` (brand name in comment)
+> - `src/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
+> - `src/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
+> - `src/chroma_dragon_engine/mod.rs` (brand name in module doc)
+>
+> **A/B delta**: none — zero production code touched.
+>
+> **Visual audit**: PASS — no code changes; visual identity preserved.
+>
+> **Tests**: full suite 1656 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — brand name normalization
 
 > Deep zombie audit of `shaders/` in commit `0a86ff6`. Opened audit
 > because previous zombie sweep (commit `3587ccb`) skipped this

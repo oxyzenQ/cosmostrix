@@ -36,7 +36,7 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parents[1]
-MIN_DUP_LEN = int(45)
+MIN_DUP_LEN = 45
 
 INTENTIONAL_REMOVED_FLAG_FILES = {
     "src/validation/mod.rs",  # REMOVED_FLAGS registry + did-you-mean examples
@@ -445,7 +445,7 @@ def scan():
                 ):
                     continue
                 # Glob/placeholder patterns: `--list-*`, `--bench_X`.
-                if flag.endswith("-") or flag.endswith("_") or "*" in flag:
+                if flag.endswith(("-", "_")) or "*" in flag:
                     continue
                 if rel in INTENTIONAL_REMOVED_FLAG_FILES:
                     continue

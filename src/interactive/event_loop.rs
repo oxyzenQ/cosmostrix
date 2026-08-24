@@ -833,7 +833,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // refresh auto-snapback idle timer on every key press.
                         last_user_input_at = activity_time;
                         // Process the keybinding. This lets interactive
-                        // keys (q, c/C, s/S, p, x/X, [, ], Space, Up/Down,
+                        // keys (q, c/C, s/S, p, x, [, ], Space, Up/Down,
                         // i/I, h/H) work even in --screensaver mode.
                         let redraw_needed = handle_keybinding(
                             &mut KeybindingCtx {

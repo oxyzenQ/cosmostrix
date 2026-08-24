@@ -38,7 +38,7 @@ PASS=0
 FAIL=0
 FIX_MODE=false
 
-if [[ "${1:-}" == "--fix" ]]; then
+if [[ "${1:-}" == "--fix" || "${1:-}" == "--fix-all" ]]; then
     FIX_MODE=true
 fi
 
@@ -153,7 +153,14 @@ if command -v codespell >/dev/null 2>&1; then
         info "codespell: no spelling errors"
         PASS=$((PASS + 1))
     else
-        fail "codespell: spelling errors found"
+        # Deliberately NOT auto-fixed even under --fix-all: codespell -w
+        # would rewrite identifiers, ASCII art, and URLs where apparent
+        # misspellings are intentional (see .codespellrc ignore history).
+        if $FIX_MODE; then
+            fail "codespell: spelling errors found (never auto-fixed - review manually)"
+        else
+            fail "codespell: spelling errors found"
+        fi
     fi
 else
     warn "codespell not installed — skipping"
@@ -170,23 +177,37 @@ PY_FILES=$(find scripts -maxdepth 1 -name '*.py' 2>/dev/null)
 if [ -n "$PY_FILES" ]; then
     if command -v ruff >/dev/null 2>&1; then
         RUFF_OK=0
-        if ! ruff check scripts/*.py 2>&1; then
-            fail "ruff check: python lint errors found (run: ruff check --fix scripts/*.py)"
-            RUFF_OK=1
+        if $FIX_MODE; then
+            # Auto-fix: apply lint fixes (safe rules only) + format.
+            if ! ruff check --fix scripts/*.py 2>&1; then
+                fail "ruff check: unfixable python lint errors remain (fix manually)"
+                RUFF_OK=1
+            fi
+            ruff format scripts/*.py 2>&1 || true
+        else
+            if ! ruff check scripts/*.py 2>&1; then
+                fail "ruff check: python lint errors found (auto-fixable via --fix-all)"
+                RUFF_OK=1
+            fi
+            if ! ruff format --check scripts/*.py 2>&1; then
+                fail "ruff format: python files not formatted (auto-fixable via --fix-all)"
+                RUFF_OK=1
+            fi
         fi
         # CI parity guard: ruff's EXE001 flags shebang'd files that lack the
         # executable bit. Same rule, checked locally so the gatekeeper
         # catches it before CI does (incident run #1484).
         for py in scripts/*.py; do
             if head -n 1 "$py" | grep -q '^#!' && [ ! -x "$py" ]; then
-                fail "ruff EXE001 parity: $py has a shebang but is not executable (chmod +x)"
-                RUFF_OK=1
+                if $FIX_MODE; then
+                    chmod +x "$py"
+                    echo "  fixed: chmod +x $py (EXE001)"
+                else
+                    fail "ruff EXE001 parity: $py has a shebang but is not executable (auto-fixable via --fix-all)"
+                    RUFF_OK=1
+                fi
             fi
         done
-        if ! ruff format --check scripts/*.py 2>&1; then
-            fail "ruff format: python files not formatted (run: ruff format scripts/*.py)"
-            RUFF_OK=1
-        fi
         if [ "$RUFF_OK" -eq 0 ]; then
             info "ruff: all python files lint-clean and formatted"
             PASS=$((PASS + 1))
@@ -226,7 +247,17 @@ if [ -f scripts/check-headers.sh ]; then
         info "SPDX headers: all files have license headers"
         PASS=$((PASS + 1))
     else
-        fail "SPDX headers: some files missing license headers"
+        if $FIX_MODE; then
+            # No auto-injector for SPDX headers exists (deliberate: the
+            # correct header text varies by file type, and a wrong header
+            # is worse than a missing one). The check output above lists
+            # exactly which files need the two-line header:
+            #   # Copyright (C) 2026 rezky_nightky
+            #   # SPDX-License-Identifier: GPL-3.0-only
+            fail "SPDX headers: some files missing license headers (no auto-fix - add the 2-line header listed above)"
+        else
+            fail "SPDX headers: some files missing license headers"
+        fi
     fi
 else
     warn "check-headers.sh not found — skipping"
@@ -265,8 +296,18 @@ if [ -f scripts/inject-disclaimer.sh ]; then
         info "Documentation disclaimer: all .md files have the disclaimer"
         PASS=$((PASS + 1))
     else
-        fail "Documentation disclaimer: some .md files missing the disclaimer"
-        echo "  Fix: bash scripts/inject-disclaimer.sh"
+        if $FIX_MODE; then
+            # Idempotent injector: appends the standard disclaimer block to
+            # headerless .md files. Excluded patterns stay excluded.
+            if bash scripts/inject-disclaimer.sh 2>&1 | tail -3; then
+                warn "disclaimer: injector ran - re-run gatekeeper to verify"
+            else
+                fail "Documentation disclaimer: injector failed"
+            fi
+        else
+            fail "Documentation disclaimer: some .md files missing the disclaimer"
+            echo "  Fix: gate-keepers.sh --fix-all (or: bash scripts/inject-disclaimer.sh)"
+        fi
     fi
 else
     warn "inject-disclaimer.sh not found — skipping"
@@ -280,7 +321,13 @@ echo "════════════════════════�
 
 if [ "$FAIL" -gt 0 ]; then
     echo -e "${RED}COMMIT BLOCKED: ${FAIL} check(s) failed.${NC}"
-    echo "Fix the issues above, then re-run ./scripts/gate-keepers.sh"
+    if ! $FIX_MODE; then
+        echo "Fix the issues above, or run: ./scripts/gate-keepers.sh --fix-all"
+        echo "(codespell findings are never auto-fixed - review those manually)"
+    else
+        echo "Auto-fixes applied where possible; remaining findings need manual"
+        echo "attention. Re-run plain ./scripts/gate-keepers.sh to confirm."
+    fi
     exit 1
 else
     echo -e "${GREEN}All checks passed — safe to commit.${NC}"

@@ -76,6 +76,67 @@
 > project cosmostrix
 
 ## UNLOCK
+>
+> **UNLOCK cosmic-dragon (comment-only)** at commit `4ac87e7`, 2026-08-24T00:00:00Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Stale-reference hunter fixed 14 stale comment references in
+> production .rs files — the paths pointed to pre-refactor file locations
+> (src/bench.rs -> src/bench/mod.rs, src/bolt.rs -> src/bolt/mod.rs, etc.)
+> and the AMBIENT_SCHEDULER_AUDIT.md ref moved to docs/archive/. No
+> production code touched; comment text only.
+>
+> **Files changed** (comments only):
+> - `src/cosmic_dragon_engine/cloud/mod.rs` (audit path ref)
+> - `src/cosmic_dragon_engine/cloud/rain.rs` (audit path ref)
+> - `src/cosmic_dragon_engine/terminal/sgr_format.rs` (bolt path ref)
+>
+> **A/B delta**: none — zero production code touched.
+>
+> **Visual audit**: PASS — no code changes.
+>
+> **Tests**: full suite 1656 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — stale comment reference cleanup
+
+> **UNLOCK cosmic-dragon (comment-only)** at commit `a5b9345`, 2026-08-24T00:30:00Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Project naming normalization — the capitalized form -> `cosmostrix`
+> in 174 occurrences across 63 files (including comment text in cosmic
+> dragon engine files). No production code touched; comment/word only.
+>
+> **Files changed** (comments only):
+> - `src/cosmic_dragon_engine/cloud/mod.rs` (brand name in comment)
+> - `src/cosmic_dragon_engine/terminal/mod.rs` (brand name in comment)
+>
+> **A/B delta**: none — zero production code touched.
+>
+> **Visual audit**: PASS — no code changes.
+>
+> **Tests**: full suite 1656 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — brand name normalization
+
+> **UNLOCK cosmic-dragon (comment-only)** at commit `5c82732`, 2026-08-24T01:00:00Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Scene cycle 'x' expanded to all 18 built-in scenes — the
+> doc comment in `scene_runtime.rs` referenced the old scene-cycle keybindings
+> (`[`/`]`) instead of the current `x`. Fixed to `x`. Also the event_loop
+> comment listed `x/X` (X is a deliberate v30 no-op) — fixed to `x`.
+> No production code touched; comment text only.
+>
+> **Files changed** (comments only):
+> - `src/cosmic_dragon_engine/cloud/scene_runtime.rs` (stale keybinding ref)
+>
+> **A/B delta**: none — zero production code touched in the locked path.
+>
+> **Visual audit**: PASS — no code changes.
+>
+> **Tests**: full suite 1656 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — stale keybinding comment fix
 
 > **UNLOCK cosmic-dragon-test-contract** at commit pending (preset battle 2 infra), 2026-08-23
 >

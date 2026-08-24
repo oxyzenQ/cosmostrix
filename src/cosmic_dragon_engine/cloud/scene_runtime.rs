@@ -40,7 +40,7 @@ impl Cloud {
     /// (referenced via `--scene-custom` or ambient entries), use
     /// [`Cloud::apply_scene_runtime_with_cfg`] which can resolve
     /// `[scene-custom.<name>]` blocks. The interactive scene-cycle keys
-    /// (`x`/`X`) only cycle through built-in scenes (`SCENE_ORDER`), so
+    /// (`x`) only cycles through built-in scenes (`SCENE_ORDER`), so
     /// they can safely call this method directly.
     pub fn apply_scene_runtime(
         &mut self,
