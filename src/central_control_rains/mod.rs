@@ -62,6 +62,64 @@
 //! | Head self-bloom base     | Base white-blend for head self-bloom intensity      |
 //! | Monolith structure       | Core white-blend, boost cap, stream geometry        |
 //!
+//! ## Easing family policy (v50.0.0-beta.5 masterclass consolidation)
+//!
+//! All **temporal** easing in the rain simulation uses **exponential
+//! decay** (`blend = exp(-k*t)` for decel, `blend = 1 - exp(-k*t)` for
+//! accel) — physically motivated drag with a long tail, snap-settled at
+//! a threshold to avoid the asymptotic tail. This is the unified
+//! "masterclass" easing family across:
+//!
+//! - **Pause decel** (`PAUSE_EASE_DECAY_RATE` = 1.2/s, settle 5% @ ~2.5s)
+//! - **Resume accel** (`RESUME_EASE_DECAY_RATE` = 0.9/s, settle 95% @ ~3.3s)
+//! - **Glyph entry ramp** (`GLYPH_ENTRY_RAMP_DECAY_RATE` = 4.28/s, settle 95% @ ~700ms)
+//!
+//! Asymmetric k_decel > k_resume (1.2 vs 0.9) preserves the prior
+//! 0.30s/0.45s "pause snappy / resume wake-up" feel. Glyph entry uses
+//! a much higher k (4.28) because the 700ms settle target is much
+//! shorter than pause/resume's multi-second windows.
+//!
+//! ### What is NOT exp decay (intentionally)
+//!
+//! - **Spatial fades** (edge fade, vignette, brightness bands in
+//!   `cloud/brightness_factors.rs`, `cloud/rain_post.rs`) use
+//!   **smoothstep** (3t^2-2t^3, C1). These are position-based, not
+//!   time-based — the "blend" parameter is a cell's row/col, not
+//!   elapsed time. Smoothstep's bounded [0,1] domain is correct for
+//!   spatial gradients; exp decay would be inappropriate (the cell at
+//!   row 0 has factor 0 regardless of "elapsed time").
+//!
+//! - **Profile interpolation** (cloud/rain.rs:1024, 30s morph) uses a
+//!   smoothstep-shaped per-frame lerp rate that ramps from
+//!   PROFILE_INTERPOLATION_RATE (0.02) to 1.0 over PROFILE_TRANSITION_SECS
+//!   (30s). This is a "slow drift then accelerate then snap" feel —
+//!   intentionally different from exp approach's "fast start then settle"
+//!   feel. Profile morphs are 30s atmospheric transitions, not motion
+//!   easing, so the different family is correct.
+//!
+//! - **Chroma color transition falloff** (chroma shaders/transition/
+//!   mod.rs:288) uses linear falloff for a 3-row spatial window.
+//!   Smoothstep was deliberately rejected as "overkill for 3 lines".
+//!
+//! - **Intro logo Phase 3 fade** (interactive/intro_logo/mod.rs:537)
+//!   uses smoothstep (1 - 3t^2+2t^3). This is intro animation, not
+//!   pause/resume lifecycle — outside the easing consolidation scope.
+//!
+//! ### Why exp decay for the temporal paths
+//!
+//! - Long tail gives genuine inertia coast-down (no abrupt end-snap).
+//! - Physically motivated (drag = real-world motion model).
+//! - Matches the README's "exponential deceleration (~3s coast-down)"
+//!   promise (which was stale under smootherstep).
+//! - Settle-snap at threshold trades asymptotic smoothness for clean
+//!   terminal state — required so other subsystems (spawn_remainder
+//!   reset, monolith stream shift, phosphor LUT) see unambiguous
+//!   state transitions.
+//! - exp() is already used in the cosmic locked path
+//!   (`cloud/phosphor.rs:307` LUT build) and chroma shaders/base LUT
+//!   (`shaders/base/mod.rs:237`), so no new math primitive is
+//!   introduced.
+//!
 //! ## Calibration history (most recent first)
 //!
 //! - **(peak masterclass cinematic lock + stabilization)**: visual
@@ -347,13 +405,43 @@ pub(crate) const WARM_START_SEED_MAX: usize = 12;
 /// the transition from seed to steady-state spawn rate).
 pub(crate) const WARM_START_SPAWN_DEBT: f32 = 0.5;
 
-// ─── Glyph entry ramp (fresh droplet fade-in) ──────────────────────────────
+// ─── Glyph entry ramp (fresh-droplet fade-in, exp approach) ───────────────
+//
+// Masterclass: glyph entry ramp uses exp approach
+// (`blend = 1 - exp(-k*t)`) — consistent with the pause/resume easing
+// family. Replaces the prior smoothstep S-curve (3t^2 - 2t^3) over a
+// fixed 700ms window. The exp approach gives an instant cascade that
+// asymptotes to full speed (cinematic "top-entry cascade" feel), then
+// snaps at the settle threshold for clean state transitions.
+//
+// Derived constants: GLYPH_ENTRY_RAMP_DURATION_MS (700ms) is now the
+// expected SETTLE time (when blend reaches SETTLE_FRAC = 95%), not a
+// fixed animation window. k = -ln(1 - 0.95) / 0.7 = 4.28/sec.
 
-/// Duration of the fresh-droplet brightness ramp-in (ms).
+/// Settle time for the glyph entry ramp (ms). At k =
+/// `GLYPH_ENTRY_RAMP_DECAY_RATE` (4.28/s), the blend reaches
+/// `GLYPH_ENTRY_RAMP_SETTLE_FRAC` (95%) at this elapsed time, then
+/// snaps to 1.0. Documents the prior 700ms smoothstep window's
+/// perceived duration - preserved as the new settle target. Used by
+/// the regression test that verifies k was derived correctly from
+/// this settle time + threshold.
+#[allow(dead_code)] // referenced by tests + doc-comments only
 pub(crate) const GLYPH_ENTRY_RAMP_DURATION_MS: u32 = 700;
 
+/// Per-second exp approach rate for the glyph entry ramp. Derived:
+/// k = -ln(1 - 0.95) / (700/1000) = 4.28/s. Set so that the blend
+/// reaches 95% at the documented 700ms settle time.
+pub(crate) const GLYPH_ENTRY_RAMP_DECAY_RATE: f32 = 4.28;
+
+/// Settle threshold for the glyph entry ramp - when the blend rises
+/// above this, snap to full speed (1.0) and clear `glyph_entry_time`.
+/// Symmetric with `RESUME_EASE_SETTLE_FRAC` (95%).
+pub(crate) const GLYPH_ENTRY_RAMP_SETTLE_FRAC: f32 = 0.95;
+
 /// Minimum scale of the ramp (droplet starts at this brightness, ramps
-/// to 1.0 over the duration above).
+/// to 1.0 over the duration above). Preserved from prior smoothstep
+/// implementation - the exp approach interpolates from this floor to
+/// 1.0 in the same way.
 pub(crate) const GLYPH_ENTRY_RAMP_MIN_SCALE: f32 = 0.15;
 
 // ─── Cinematic color transition ────────────────────────────────────────────

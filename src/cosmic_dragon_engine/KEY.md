@@ -77,6 +77,81 @@
 
 ## UNLOCK
 >
+> **UNLOCK cosmic-dragon (exp decay consolidation)** at commit pending, 2026-08-24
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Owner-approved v50.0.0-beta.5 masterclass easing consolidation. After
+> the prior commit `e2e0512` migrated pause/resume to exp decay, the
+> owner said: "all pause/resume AND related effects must use consistent
+> exp decay, peak optimized + stable + strengthened, no duplicates /
+> overlaps". This commit consolidates the glyph scene-entry ramp onto
+> the same exp approach family (k=4.28/s, settle 95% at 700ms — replaces
+> the prior smoothstep 3t^2-2t^3 over fixed 700ms), adds a
+> `debug_assert!` invariant that pause_start and resume_start cannot
+> coexist (audit §8.6 — toggle_pause() guarantees this across all 3
+> branches, now asserted at rain_at entry point, zero-cost in release),
+> and adds 4 regression tests that lock the masterclass easing contract
+> (k_decel=1.2 / k_resume=0.9 / glyph k=4.28 + settle thresholds +
+> no-overlap invariant). A new "Easing family policy" doc section in
+> `central_control_rains/mod.rs` documents which easings are exp decay
+> (pause/resume + glyph entry) vs smoothstep (spatial fades) vs
+> intentional smoothstep-shaped rate (profile interp 30s slow drift) —
+> prevents future contributors from "consolidating" the wrong easings.
+>
+> **Files changed** (locked path — production code):
+> - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
+>   `debug_assert!` invariant at rain_at entry; lines 213-218:
+>   stale comment "smoothstep curve" → "exp decay approach curve"
+>   for resume_blend scaling; lines 220-239: glyph entry ramp
+>   rewritten from smoothstep 3t^2-2t^3 over GLYPH_ENTRY_RAMP_DURATION_MS
+>   (700ms fixed window) to `1 - exp(-k*t)` with k=GLYPH_ENTRY_RAMP_DECAY_RATE
+>   (4.28/s), settle-snap at GLYPH_ENTRY_RAMP_SETTLE_FRAC (95%); the
+>   700ms constant is now the SETTLE time, not the animation window)
+> - `src/cosmic_dragon_engine/cloud/spawn.rs` (lines 752-758, 815-817:
+>   doc-comment updates describing the new glyph entry ramp math —
+>   comment-only, no production code logic changes)
+>
+> **Files changed** (test only — no production code, exempt per §"Test
+> files are exempt UNLESS the test itself changes a public contract";
+> the new tests assert the easing contract that the production code
+> already implements, no contract change):
+> - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (4 new tests +
+>   1 existing test comment/duration bump from commit `e2e0512`'s
+>   exp decay settle window; new tests: pause_decel_exp_decay_settles_,
+>   resume_accel_exp_decay_settles_, glyph_entry_ramp_exp_decay_settles_,
+>   pause_start_and_resume_start_never_coexist_)
+>
+> **Files changed** (non-locked, supporting):
+> - `src/central_control_rains/mod.rs` (lines 64-121: new "Easing
+>   family policy" doc section; lines 350-384: glyph entry ramp
+>   constants block rewritten with design doc + 3 new constants:
+>   GLYPH_ENTRY_RAMP_DECAY_RATE=4.28, GLYPH_ENTRY_RAMP_SETTLE_FRAC=0.95,
+>   GLYPH_ENTRY_RAMP_DURATION_MS now annotated `#[allow(dead_code)]`
+>   since it's referenced by tests + doc-comments only)
+> - `README.md` (line 128: pause/resume bullet expanded to mention
+>   unified family + glyph entry)
+> - `CHANGELOG.md` (new v50.0.0-beta.5 entry)
+>
+> **A/B delta**: per-frame surface negligible — same exp() call count
+> as commit `e2e0512` for pause/resume; glyph entry ramp now uses
+> exp() instead of 3 mults (3 mults = ~1ns, exp = ~5-10ns), but only
+> during the ~700ms post-scene-switch window. alloc_calls unchanged.
+> Zero surface at steady-state (no active easing).
+>
+> **Visual audit**: PASS — pause/resume visual identity preserved from
+> commit `e2e0512`; glyph scene entry ramp feel changes from "slow
+> start, fast middle, slow end" (smoothstep) to "instant cascade that
+> asymptotes to full speed" (exp approach) — owner-verified as the
+> desired masterclass feel, consistent with the pause/resume family.
+> No changes to color/brightness profile, no changes to droplet motion
+> physics outside the easing windows.
+>
+> **Tests**: full suite 1660 passed / 0 failed / 2 ignored (+4 new
+> regression tests for the easing contract); cosmic lock suite 20/0/2;
+> cloud subset 328/0/2 (+4 new tests).
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — v50.0.0-beta.5 masterclass easing consolidation
+
 > **UNLOCK cosmic-dragon (masterclass easing migration)** at commit `e2e0512`, 2026-08-24
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)

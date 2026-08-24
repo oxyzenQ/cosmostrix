@@ -37,11 +37,24 @@ impl Cloud {
     }
 
     pub fn rain_at(&mut self, frame: &mut Frame, now: Instant) {
+        // Defensive invariant (audit §8.6): pause_start and resume_start
+        // are mutually exclusive. toggle_pause() guarantees this via
+        // explicit `pause_start = None` / `resume_start = None` clears on
+        // every branch, but a stale-state bug across rapid triple-taps
+        // could in principle leave both set — which would cause both
+        // easing blocks below to compute simultaneously, producing
+        // nonsensical resume_blend values (decel fighting accel).
+        // debug_assert! is zero-cost in release builds.
+        debug_assert!(
+            !(self.pause_start.is_some() && self.resume_start.is_some()),
+            "pause_start and resume_start cannot coexist — toggle_pause() must clear one before setting the other"
+        );
+
         if self.pause {
             return;
         }
 
-        // v17 mastery → v51 masterclass: pause ease-OUT (deceleration).
+        // v17 mastery → v50.0.0-beta.5 masterclass: pause ease-OUT (deceleration).
         // If pause_start is set, compute pause_blend via exponential decay
         // (exp(-k·t), k = PAUSE_EASE_DECAY_RATE) — physically motivated
         // drag with a long tail, matching the README's "exponential
@@ -145,7 +158,7 @@ impl Cloud {
         self.maybe_reseed_rng(now);
 
         // Advance cinematic resume easing: exponential decay approach to
-        // 1.0 (v51 masterclass). At k = RESUME_EASE_DECAY_RATE (0.9/sec),
+        // 1.0 (v50.0.0-beta.5 masterclass). At k = RESUME_EASE_DECAY_RATE (0.9/sec),
         // the blend rises to RESUME_EASE_SETTLE_FRAC (95%) at t≈3.3s,
         // then snaps to full speed. Slightly slower than the pause ramp
         // (k=1.2), preserving the asymmetric "pause feels snappy / resume
@@ -210,24 +223,31 @@ impl Cloud {
         spawn_scale *= self.gust.tick(now, &mut self.mt);
         // Apply emergent density boost
         spawn_scale += emergent_effects.density_boost;
-        // Apply resume time-scale easing: spawn rate ramps with the smoothstep
-        // curve so new streams appear gradually during the inertia recovery.
+        // Apply resume time-scale easing: spawn rate ramps with the exp decay
+        // approach curve (1 - exp(-k*t), k=RESUME_EASE_DECAY_RATE) so new
+        // streams appear gradually during the inertia recovery. Multiplicatively
+        // composed with glyph_entry_time ramp below (also exp decay, see
+        // GLYPH_ENTRY_RAMP_DECAY_RATE) when both are active — compound easing
+        // is intentional (scene-switch-during-resume = double soft entry).
         spawn_scale *= self.resume_blend;
         // Glyph scene-entry ramp: gradually increase spawn rate after switching
-        // to a glyph scene. During the ramp period, spawn starts at a reduced
-        // rate and smoothly accelerates to full speed via smoothstep, creating
-        // a cinematic top-entry cascade instead of an instant wall of rain.
+        // to a glyph scene. Exp approach (1 - exp(-k*t), k =
+        // GLYPH_ENTRY_RAMP_DECAY_RATE = 4.28/s) gives an instant cascade that
+        // asymptotes to full speed - the cinematic "top-entry cascade" feel
+        // (replaces the prior smoothstep 3t^2-2t^3 over 700ms; the 700ms is
+        // now the settle time at 95% threshold, not a fixed window).
+        // Multiplicatively composed with resume_blend above (also exp decay)
+        // when both are active - scene-switch-during-resume = double soft
+        // entry, intentional.
         if let Some(entry) = self.glyph_entry_time {
-            let elapsed_ms = now.saturating_duration_since(entry).as_millis() as f32;
-            let ramp_dur = GLYPH_ENTRY_RAMP_DURATION_MS as f32;
-            if elapsed_ms < ramp_dur {
-                let t = (elapsed_ms / ramp_dur).clamp(0.0, 1.0);
-                // Smoothstep: 3t² - 2t³ — slow start, fast middle, slow end.
-                let ramp = t * t * (3.0 - 2.0 * t);
-                spawn_scale *=
-                    GLYPH_ENTRY_RAMP_MIN_SCALE + ramp * (1.0 - GLYPH_ENTRY_RAMP_MIN_SCALE);
+            let elapsed_s = now.saturating_duration_since(entry).as_secs_f32();
+            let approach = 1.0 - (-GLYPH_ENTRY_RAMP_DECAY_RATE * elapsed_s).exp();
+            if approach >= GLYPH_ENTRY_RAMP_SETTLE_FRAC {
+                // Settled - snap to full speed and clear the ramp state.
+                self.glyph_entry_time = None;
             } else {
-                self.glyph_entry_time = None; // Ramp complete
+                spawn_scale *=
+                    GLYPH_ENTRY_RAMP_MIN_SCALE + approach * (1.0 - GLYPH_ENTRY_RAMP_MIN_SCALE);
             }
         }
         spawn_scale = spawn_scale.clamp(0.0, 3.0);

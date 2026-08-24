@@ -752,8 +752,10 @@ impl Cloud {
     /// The natural spawn system fills remaining columns over subsequent
     /// frames, gradually accelerated by the scene-entry ramp
     /// (glyph_entry_time) which scales spawn rate from
-    /// GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 over
-    /// GLYPH_ENTRY_RAMP_DURATION_MS.
+    /// `GLYPH_ENTRY_RAMP_MIN_SCALE` to 1.0 via exp approach
+    /// (k = `GLYPH_ENTRY_RAMP_DECAY_RATE`), settling at
+    /// `GLYPH_ENTRY_RAMP_SETTLE_FRAC` (95%) in
+    /// `GLYPH_ENTRY_RAMP_DURATION_MS` (700ms).
     pub(crate) fn ensure_glyph_pool_and_warm_start(&mut self) {
         let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
         self.droplets.clear();
@@ -813,7 +815,8 @@ impl Cloud {
         }
 
         // Start the scene-entry ramp: spawn rate gradually increases
-        // from GLYPH_ENTRY_RAMP_MIN_SCALE to 1.0 over the ramp duration.
+        // from `GLYPH_ENTRY_RAMP_MIN_SCALE` to 1.0 via exp approach
+        // (consistent with the pause/resume easing family).
         self.glyph_entry_time = Some(now);
 
         // Low spawn debt: let the ramp + natural spawn fill gradually

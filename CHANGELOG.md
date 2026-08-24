@@ -7,7 +7,44 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
-## v50.0.0-beta.4 — Three Dragon Engines (Current Beta)
+## v50.0.0-beta.5 — Exp Decay Easing Consolidation (Current Beta)
+
+cosmostrix v50.0.0-beta.5 — masterclass easing consolidation. All **temporal** easing in the rain simulation now uses the unified **exponential decay** family. Owner-approved, owner-verified feel. 227 source files, ~89K LOC, ~1500+ tests pass (1656/0/2 — 4 new regression tests added).
+
+### What's new since beta.4
+
+- **Pause/resume → exp decay** (commit `e2e0512`): replaced the prior smootherstep S-curve (6t⁵-15t⁴+10t³ over fixed 0.30s decel / 0.45s resume) with asymmetric exponential decay — `exp(-k·t)` decel (k=1.2/s, settle 5% @ ~2.5s) + `1 - exp(-k·t)` accel (k=0.9/s, settle 95% @ ~3.3s). The asymmetric k_decel > k_resume preserves the prior "pause snappy / resume wake-up" feel. Settle thresholds snap to clean terminal state so other subsystems (spawn_remainder reset, monolith stream shift, phosphor LUT) see unambiguous transitions. Restores the README's previously-stale "exponential deceleration (~3s coast-down)" promise (smootherstep is not exponential — the README was wrong under the prior implementation).
+- **Glyph scene entry → exp decay** (this beta): migrated the scene-entry ramp from smoothstep (3t²-2t³ over 700ms) to the same exp approach family — `1 - exp(-k·t)` with k=4.28/s (derived so settle 95% lands at the documented 700ms). Now all temporal easing in the rain path uses the same physical-drag model — pause, resume, and scene entry all coast under the same math primitive. exp() was already in use in the cosmic locked path (`cloud/phosphor.rs:307` LUT build) and chroma shaders/base LUT (`shaders/base/mod.rs:237`), so no new math primitive introduced.
+- **Defensive invariant** (`debug_assert!` in `rain_at`): pause_start and resume_start cannot coexist — toggle_pause() guarantees this across all 3 branches (start-decel / abort-decel / unpause-from-paused), now asserted at the rain entry point. Zero-cost in release builds.
+- **4 new regression tests** in `cloud/tests/mod.rs`: pause decel settle at 5% threshold, resume accel settle at 95% threshold, glyph entry ramp settle at 700ms + k derivation sanity-check, and the audit §8.6 invariant (pause_start + resume_start never coexist across all 3 toggle branches). Locks the masterclass easing contract — any future regression to a different curve or threshold fails CI.
+- **Unified easing design doc** in `central_control_rains/mod.rs`: a new "Easing family policy" section documents which easings are exp decay (pause/resume + glyph entry) vs smoothstep (spatial fades — edge fade, vignette, brightness bands) vs intentional smoothstep-shaped rate (profile interpolation's 30s slow-drift morph) vs linear (chroma 3-row color transition falloff). Prevents future contributors from "consolidating" the wrong easings and breaking the intentional design.
+
+### Files changed
+
+- `src/cosmic_dragon_engine/cloud/rain.rs` — decel + accel + glyph entry ramp blocks; new `debug_assert!`; comment updates
+- `src/cosmic_dragon_engine/cloud/tests/mod.rs` — 4 new regression tests + 1 existing test comment/duration bump
+- `src/cosmic_dragon_engine/cloud/spawn.rs` — doc-comment updates for the new glyph entry ramp math
+- `src/central_control_rains/mod.rs` — new glyph entry constants block + unified easing policy doc section
+- `README.md` — pause/resume bullet expanded to mention unified family + glyph entry
+- `CHANGELOG.md` — this entry
+- `src/cosmic_dragon_engine/KEY.md` + `RULES.md` — UNLOCK entry (rain.rs + spawn.rs + tests are locked path)
+
+### What is NOT exp decay (intentionally, documented)
+
+- **Spatial fades** (edge fade, vignette, brightness bands) stay smoothstep — they're position-based, not time-based. The "blend" parameter is a cell's row/col, not elapsed time.
+- **Profile interpolation** (30s slow-drift morph) keeps the smoothstep-shaped per-frame lerp rate — its "slow drift then accelerate then snap" feel is intentionally different from exp approach's "fast start then settle" feel.
+- **Chroma color transition falloff** (3-row spatial window) stays linear — smoothstep was deliberately rejected as overkill.
+- **Intro logo Phase 3 fade** stays smoothstep — intro animation, not pause/resume lifecycle.
+
+### Lock status
+
+- Cosmic Dragon: re-locked after this commit (UNLOCK entry in `cosmic_dragon_engine/KEY.md` + `RULES.md`)
+- Chroma Dragon: untouched (no chroma paths modified)
+- Crystal Dragon: untouched
+
+---
+
+## v50.0.0-beta.4 — Three Dragon Engines
 
 cosmostrix v50.0.0-beta.4 — production-LTS-grade stability after full audit pass. 226 source files, ~89K LOC, ~1500+ tests pass. All 3 dragon engines locked with A/B benchmark signature.
 

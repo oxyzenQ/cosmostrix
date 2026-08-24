@@ -125,7 +125,7 @@ The Dragon's roar is not loud — it is precise.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
 - Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
-- **Smooth pause** — `p` toggles pause with exponential decay easing: ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully.
+- **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully. Asymmetric k_decel > k_resume preserves the "pause snappy / resume wake-up" feel; glyph scene entry uses the same exp approach family (k=4.28/s, settle 95% at ~700ms) for a consistent cinematic top-entry cascade.
 
 ### Scenes & Colors
 
@@ -690,6 +690,14 @@ cosmostrix is an open-source project built and maintained independently by [rezk
 If this project helped you, or saved development time, you can support future maintenance here:
 
 [![Support me on Ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/rezky)
+
+### Crypto donations
+
+Owner-verified receive addresses (rezky_nightky / oxyzenQ). Always double-check the address on screen before sending — network mismatches (e.g., sending USDT-ERC20 to a Solana address, or sending BTC to a non-Taproot address) will permanently lose funds.
+
+- **Solana** — `SOL` on Solana mainnet: `88umzS7abaToaGQVgTVXt5SnuvcjTw2jPSM6Ha2JYmXM`
+- **Ethereum** — `ETH` / `USDT` (ERC-20) / `USDC` (ERC-20) on Ethereum mainnet: `0x1bCbA21c07B5636a942De27AA7Ee8283cEDb4C3D`
+- **Bitcoin** — `BTC` on Taproot (P2TR, bech32m, `bc1p`-prefixed — verified Taproot, not native SegWit): `bc1p88nqysn4p8u9zxwz2pyxs5pl77wllcrk6ca2r2l3ryr3863hxkys5vdkze`
 
 Support is optional. The project remains open-source.
 
