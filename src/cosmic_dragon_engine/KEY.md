@@ -77,7 +77,7 @@
 
 ## UNLOCK
 >
-> **UNLOCK cosmic-dragon (masterclass easing migration)** at commit pending (exp decay switch), 2026-08-24
+> **UNLOCK cosmic-dragon (masterclass easing migration)** at commit `e2e0512`, 2026-08-24
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)
 > **Reason**: Owner-approved masterclass easing migration — switches the

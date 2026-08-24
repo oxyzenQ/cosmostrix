@@ -93,7 +93,7 @@ The lock is intentionally hard to break. Acceptable reasons include:
 This section is appended every time a locked file is modified after
 the lock commit. Newest entries go at the TOP.
 
-### UNLOCK cosmic-dragon (masterclass easing migration) at commit pending, 2026-08-24
+### UNLOCK cosmic-dragon (masterclass easing migration) at commit `e2e0512`, 2026-08-24
 
 **Author**: oxyzenQ (Cosmic Dragon AI Agent)
 **Reason**: Owner-approved masterclass easing migration. The pause/resume
