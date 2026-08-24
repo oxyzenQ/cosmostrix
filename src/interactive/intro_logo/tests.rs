@@ -406,3 +406,123 @@ fn update_rain_droplets_advances_position() {
         p.y
     );
 }
+
+// ── 7-stage rain-method logo gradient (owner directive 2026-08-24) ────────
+
+/// Two-stop sanity: black (tail) → white (head). With 7 rows the top row
+/// must be the head stop (white), the bottom row the tail stop (black).
+#[test]
+fn stage_colors_top_is_head_bottom_is_tail() {
+    let palette = vec![
+        Color::Rgb { r: 0, g: 0, b: 0 },
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        },
+    ];
+    let colors = logo_stage_colors(&palette, 7, (168, 85, 247));
+    assert_eq!(colors.len(), 7);
+    // Row 0 = top = head (brightest).
+    assert_eq!(colors[0], (255, 255, 255), "top row must be the head stop");
+    // Row 6 = bottom = tail (darkest).
+    assert_eq!(colors[6], (0, 0, 0), "bottom row must be the tail stop");
+}
+
+/// Lightness must be monotonic bottom→top along an L-monotonic palette
+/// (the droplet shading contract). The sampler interpolates OKLab L
+/// linearly between stops, so on a palette whose stops increase in L the
+/// sampled rows must too. Uses the REAL OKLab L (max-channel is not a
+/// valid lightness proxy — perceptual L ≠ brightest channel).
+#[test]
+fn stage_colors_lightness_monotonic_bottom_to_top() {
+    use crate::chroma_dragon_engine::gradient::srgb_to_oklab;
+    // Black → dark green → mid green → white: strictly L-increasing stops.
+    let palette: Vec<Color> = [(0, 20, 5), (0, 90, 20), (57, 255, 20), (255, 255, 255)]
+        .iter()
+        .map(|&(r, g, b)| Color::Rgb { r, g, b })
+        .collect();
+    let colors = logo_stage_colors(&palette, 22, (168, 85, 247));
+    assert_eq!(colors.len(), 22);
+    // Compute OKLab L per row; L must be non-increasing top→bottom
+    // (index order), i.e. each lower row is <= the row above it.
+    let ls: Vec<f32> = colors
+        .iter()
+        .map(|c| srgb_to_oklab(c.0, c.1, c.2).0)
+        .collect();
+    for w in ls.windows(2) {
+        assert!(
+            w[0] >= w[1] - 1e-4,
+            "OKLab L must not increase toward the tail: {w:?} (colors {colors:?})"
+        );
+    }
+    // Endpoints: top row brighter than bottom row, clearly.
+    assert!(ls[0] > ls[ls.len() - 1]);
+}
+
+/// Empty palette → every row falls back to the provided color (the old
+/// flat-logo look), so degenerate palettes never break the intro.
+#[test]
+fn stage_colors_empty_palette_uses_fallback() {
+    let colors = logo_stage_colors(&[], 5, (168, 85, 247));
+    assert_eq!(colors.len(), 5);
+    assert!(colors.iter().all(|c| *c == (168, 85, 247)));
+}
+
+/// Single-stop palette → uniform color (no gradient possible).
+#[test]
+fn stage_colors_single_stop_is_uniform() {
+    let palette = vec![Color::Rgb {
+        r: 57,
+        g: 255,
+        b: 20,
+    }];
+    let colors = logo_stage_colors(&palette, 9, (168, 85, 247));
+    assert_eq!(colors.len(), 9);
+    assert!(colors.iter().all(|c| *c == (57, 255, 20)));
+}
+
+/// A 1-row logo must be the HEAD stop (brightest), never the tail.
+#[test]
+fn stage_colors_height_one_is_head() {
+    let palette = vec![
+        Color::Rgb { r: 0, g: 0, b: 0 },
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        },
+    ];
+    let colors = logo_stage_colors(&palette, 1, (168, 85, 247));
+    assert_eq!(colors.len(), 1);
+    assert_eq!(colors[0], (255, 255, 255));
+}
+
+/// Zero-height logo (degenerate) → empty vector, no panic.
+#[test]
+fn stage_colors_zero_height_is_empty() {
+    let palette = vec![Color::Rgb { r: 1, g: 2, b: 3 }];
+    assert!(logo_stage_colors(&palette, 0, (168, 85, 247)).is_empty());
+}
+
+/// The actual LOGO_ART must yield exactly `lines().count()` stage colors —
+/// the render loop indexes `stage_colors[cell.by]`, so the row count must
+/// match the art height for every cell to find its stage.
+#[test]
+fn stage_colors_match_logo_art_row_count() {
+    let h = LOGO_ART.lines().count() as u16;
+    assert!(h >= 20, "logo art should have ~22 lines, got {h}");
+    let palette: Vec<Color> = [(0, 20, 5), (37, 142, 66), (100, 255, 150), (206, 238, 211)]
+        .iter()
+        .map(|&(r, g, b)| Color::Rgb { r, g, b })
+        .collect();
+    let colors = logo_stage_colors(&palette, h, (168, 85, 247));
+    assert_eq!(colors.len(), h as usize);
+    // Endpoint contract: row 0 = the palette's head (last, brightest)
+    // stop; the bottom row = the tail (first, darkest) stop. The tail
+    // being dark is the point of the rain method — the owner's sketch
+    // says "stage 1 like last tail at rain", and rain tails fade into
+    // darkness. Visibility is palette-dependent by design.
+    assert_eq!(colors[0], (206, 238, 211), "top row = head stop");
+    assert_eq!(colors[h as usize - 1], (0, 20, 5), "bottom row = tail stop");
+}

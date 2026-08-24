@@ -4,9 +4,17 @@
 //! Cosmostrix Logo intro — a four-phase cinematic that reveals the
 //! project's ASCII logo and dissolves it into Matrix rain.
 //!
+//! The logo is colored with the **7-stage rain method** (owner
+//! directive 2026-08-24): the active rain palette's stops (tail =
+//! darkest → head = brightest) are sampled vertically in OKLab, so
+//! the logo reads as a colossal rain droplet — bottom rows carry the
+//! tail color, top rows the head color, identical to how the rain
+//! engine shades a droplet's trail. The logo→rain handoff is
+//! seamless by construction.
+//!
 //! ```text
 //! Phase 1: Fade In    (0    – 2000 ms)  Logo appears line by line, fading
-//!                                         from black to the palette color.
+//!                                         from black to its stage color.
 //! Phase 2: Ignition   (2000 – 4250 ms)  A spark falls from the top of the
 //!                                         screen to the logo's center; on
 //!                                         impact the logo flashes bright.
@@ -40,6 +48,9 @@ use crate::cell::Cell;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 use crate::terminal::Terminal;
+
+use crate::chroma_dragon_engine::gradient::oklab_blend_rgb;
+use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::intro::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
@@ -285,6 +296,73 @@ fn collect_logo_cells(lines: &[String], cx: f32, cy: f32) -> Vec<LogoCell> {
     out
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// 7-stage palette gradient (owner directive: the logo uses the rain method)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// Per-row logo colors: the 7-stop rain-palette method applied vertically.
+///
+/// The owner directive (2026-08-24): the flat single-color logo was
+/// "boring" — the logo must be colored with the SAME method the rain
+/// engine uses, staged bottom-to-top like a giant droplet:
+///
+/// ```text
+/// row 0 (top)     → stage 7 — HEAD  (palette's brightest stop)
+/// row ...         → continuous OKLab interpolation between stops
+/// row h-1 (bottom)→ stage 1 — TAIL  (palette's darkest stop)
+/// ```
+///
+/// The palette's `colors` are already ordered tail→head (darkest first,
+/// brightest last — the rain convention: `palette[0]` is the Tail stop,
+/// `palette[last]` is the Head stop, exactly as the CharLoc shader
+/// resolves them). Each logo row samples this gradient at a continuous
+/// position `t = 1 - row/(h-1)` (top = 1.0 = head), interpolated in
+/// OKLab via [`oklab_blend_rgb`] — the same perceptual blend the rain
+/// gradient builder uses. The result: the logo reads as a colossal rain
+/// droplet with the exact color identity of the rain that follows it,
+/// and the logo→rain handoff is seamless by construction.
+///
+/// Computed ONCE per intro (≤ `logo_h` ≤ 22 entries); the per-frame
+/// render loop only indexes this vector — zero per-frame color math.
+///
+/// # Fallbacks
+///
+/// * Empty palette (or `Color256`/`Mono` palettes that collapse to a
+///   single color) → every row uses `fallback` (the `--intro-color`
+///   override or brand purple) — identical to the previous flat look.
+/// * `logo_h == 1` → the single row is the HEAD stop (brightest).
+fn logo_stage_colors(palette: &[Color], logo_h: u16, fallback: (u8, u8, u8)) -> Vec<(u8, u8, u8)> {
+    if logo_h == 0 {
+        return Vec::new();
+    }
+    let stops: Vec<(u8, u8, u8)> = palette.iter().map(|c| color_to_rgb(*c)).collect();
+    if stops.is_empty() {
+        return vec![fallback; logo_h as usize];
+    }
+    if stops.len() == 1 {
+        return vec![stops[0]; logo_h as usize];
+    }
+    let last_idx = stops.len() - 1;
+    let denom = (logo_h - 1).max(1) as f32;
+    (0..logo_h)
+        .map(|row| {
+            // Top row (row 0) → t = 1.0 (head, brightest); bottom row → 0.0.
+            let t = 1.0 - row as f32 / denom;
+            let pos = t * last_idx as f32;
+            let i0 = pos.floor().min(last_idx as f32) as usize;
+            let i1 = (i0 + 1).min(last_idx);
+            let frac = pos - i0 as f32;
+            let (r0, g0, b0) = stops[i0];
+            let (r1, g1, b1) = stops[i1];
+            if i0 == i1 {
+                (r0, g0, b0)
+            } else {
+                oklab_blend_rgb(r0, g0, b0, r1, g1, b1, frac)
+            }
+        })
+        .collect()
+}
+
 /// Compute the visual centroid (center of mass) of all non-blank ink
 /// cells in the parsed logo art. Returns `(cx, cy)` in the logo's local
 /// coordinate frame (0..width, 0..height).
@@ -366,6 +444,12 @@ pub(super) fn run_logo_intro(
     let palette_bg = cloud.palette.bg;
     let palette_rgb = palette_target_rgb(cloud);
     let rain_charset = rain_chars(cloud);
+
+    // 7-stage gradient: one color per logo row, bottom (tail, darkest)
+    // to top (head, brightest), sampled from the active rain palette in
+    // OKLab — the same method the rain engine colors droplets. Computed
+    // once; the render loop only indexes it (owner directive 2026-08-24).
+    let stage_colors = logo_stage_colors(&cloud.palette.colors, logo_h, logo_color);
 
     // Logo placement: shift the bounding box so the `visual centroid`
     // sits at the terminal center, then clamp to keep the bbox fully
@@ -480,9 +564,17 @@ pub(super) fn run_logo_intro(
                     continue;
                 }
                 let cell_brightness = base_brightness;
-                // Blend between white (impact) and purple (logo color).
-                let purple = lerp_rgb((0, 0, 0), logo_color, cell_brightness.clamp(0.0, 1.0));
-                let color = lerp_rgb((255, 255, 255), purple, white_blend);
+                // 7-stage gradient color for this row (tail at bottom →
+                // head at top), then the cinematic timing layers on top:
+                // fade-in from black (brightness) and the impact flash
+                // (white blend). Identical timing semantics to the flat-
+                // color version — only the base color is now per-row.
+                let stage_rgb = stage_colors
+                    .get(cell.by as usize)
+                    .copied()
+                    .unwrap_or(logo_color);
+                let lit = lerp_rgb((0, 0, 0), stage_rgb, cell_brightness.clamp(0.0, 1.0));
+                let color = lerp_rgb((255, 255, 255), lit, white_blend);
                 frame.set_force(
                     tx,
                     ty,
