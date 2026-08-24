@@ -72,8 +72,11 @@ fn main() {
     // `chrono::Local::now()` which required `chrono` as a build-dependency
     // (a separate ~1.3s compile instance). For a build timestamp that is
     // purely informational (shown in `--version` output), UTC is fine and
-    // lets us drop the chrono build-dep entirely. Runtime chrono is
-    // unchanged (still used for atmosphere hour-of-day calculations).
+    // lets us drop the chrono build-dep entirely. Runtime chrono was
+    // also dropped (see the chrono note in Cargo.toml): the two production
+    // call sites that needed wall-clock time now use libc::localtime_r /
+    // libc::gmtime_r directly via the `src/clock` module and the
+    // `local_secs_since_midnight` helper in `phase_predictor.rs`.
     //
     // Format matches the previous chrono `"%-m/%-d/%Y %H:%M"` output:
     // month and day are NOT zero-padded; year is 4 digits; hour and

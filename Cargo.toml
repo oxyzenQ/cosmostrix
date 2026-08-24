@@ -23,8 +23,9 @@ unicode-width = "0.2"
 # The `clock` feature dragged in 8 transitive crates (wasm-bindgen, js-sys,
 # iana-time-zone-haiku, core-foundation-sys, etc.) for 2 production call sites
 # that only needed `[HH:MM]` log stamps and a local-hour fraction. Replaced by
-# direct `libc::localtime_r` calls in `src/clock.rs` (mirrors the pattern already
-# established in `interactive/adaptive.rs::local_secs_since_midnight`).
+# direct `libc::localtime_r` / `libc::gmtime_r` calls in the `src/clock`
+# module (the historical `local_secs_since_midnight` helper now lives in
+# `src/central_control_dragon_power/phase_predictor.rs`).
 notify = { version = ">=6.1, <7", default-features = false }
 
 # SHA-512 for config.toml content hashing (live-reload change
@@ -170,4 +171,4 @@ proptest = { version = "1.8.0", default-features = false, features = ["std"] }
 
 
 # Platform-specific optimizations
-# At ./cargo/config.toml
+# At .cargo/config.toml
