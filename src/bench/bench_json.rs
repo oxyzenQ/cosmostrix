@@ -726,8 +726,11 @@ mod tests {
     #[test]
     fn json_value_f64_finite_emits_number() {
         let mut out = String::new();
-        let v: f64 = 3.14159;
+        // Deliberately not a well-known constant approximation (3.14159,
+        // 2.71828, ...) — clippy::approx_constant is deny-by-default and
+        // CI runs `cargo clippy --all-targets`, which lints test code.
+        let v: f64 = 1.23456;
         v.write_json(&mut out);
-        assert_eq!(out, "3.14159");
+        assert_eq!(out, "1.23456");
     }
 }
