@@ -125,7 +125,7 @@ The Dragon's roar is not loud — it is precise.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
 - Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
-- **Smooth pause** — `Space` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
+- **Smooth pause** — `p` toggles pause with exponential deceleration (~3s coast-down); rain, particles, and events freeze gracefully.
 
 ### Scenes & Colors
 
@@ -156,7 +156,7 @@ The Dragon's roar is not loud — it is precise.
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x` cycle scenes (all 18 built-ins, forward only), `s`/`S` cycle charsets, `Space` pause/resume, `p` pause, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
+- Runtime controls: `c`/`C` cycle colors, `x` cycle scenes (all 18 built-ins, forward only), `s`/`S` cycle charsets, `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
 
 ### Benchmarking & Build
 

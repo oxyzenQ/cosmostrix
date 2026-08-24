@@ -51,7 +51,7 @@ cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain
 
 ### Interactive Controls
 
-`q` quit · `Space` pause · `c`/`C` cycle colors · `s`/`S` cycle scenes · `x`/`X` random scene · `p` profile · `i` info HUD · `[`/`]` speed · `Up`/`Down` density
+`q` quit · `Space` reset animation + restart message typewriter · `c`/`C` cycle colors · `s`/`S` cycle charsets · `x` cycle scene forward (`X` no-op) · `p` pause/resume · `i` toggle HUD (`I` no-op) · `[`/`]` adjust density · `Up`/`Down` adjust speed
 
 ---
 

@@ -114,7 +114,7 @@ pub(crate) enum FrameMode {
     /// Adaptive idle throttle is engaged (no input for IDLE_THRESHOLD_SECS).
     /// Effective FPS = target_fps * IDLE_FPS_FACTOR (typically 0.5x).
     Idle,
-    /// User pressed Space/P to pause. Loop ticks at PAUSE_PERIOD_MS.
+    /// User pressed `p` to pause. Loop ticks at PAUSE_PERIOD_MS.
     Paused,
 }
 
@@ -801,7 +801,7 @@ impl HudState {
         // whether the cap is actually in effect:
         //   ` tgt: 30`        — active, loop targeting 30 FPS
         //   ` tgt: 30 idle`   — adaptive idle throttle engaged (effective ~15)
-        //   ` tgt: 30 paused` — user pressed Space/P, loop ticking at 4 Hz
+        //   ` tgt: 30 paused` — user pressed `p`, loop ticking at 4 Hz
         // Format chosen to be compact (≤14 chars) so HUD width stays ≤22.
         let tgt_str = if self.target_fps >= 100.0 {
             format!("{:.0}", self.target_fps)

@@ -52,7 +52,7 @@ each line means without reading the full reference below.
 | Symbol / Suffix | Meaning                                                                                          |
 |-----------------|--------------------------------------------------------------------------------------------------|
 | `idle`         | After `tgt:` — adaptive idle throttle engaged (no input for 30s; effective FPS = `tgt × 0.5`).   |
-| `paused`       | After `tgt:` — user pressed Space/P; loop ticking at 4 Hz just to keep event loop alive.         |
+| `paused`       | After `tgt:` — user pressed `p`; loop ticking at 4 Hz just to keep event loop alive.             |
 | `ms`            | Milliseconds (frame time unit). 1ms = 0.001s. A 60 FPS target = 16.67ms budget per frame.        |
 | `KiB` / `MiB`   | 1024 bytes / 1024² bytes (binary, NOT decimal SI units).                                         |
 | `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
@@ -110,7 +110,7 @@ they never dominate the width budget.
    If you ran `--fps 30` and `tgt:` shows `30`, the cap is in effect.
    If `tgt:` shows `30 idle`, the idle throttle kicked in (no input
    for 30s) — effective rate is ~15 FPS. If `tgt:` shows `30 paused`,
-   you pressed Space/P — press again to resume.
+   you pressed `p` — press again to resume.
 
 2. **Compare `fps:` to `tgt:`** — `fps:` is render-work throughput
    (how fast the renderer *could* draw), `tgt:` is the cap (how fast
@@ -184,7 +184,7 @@ goal, `fps:` is the headroom.
 - `tgt: 30 idle` — adaptive idle throttle engaged (effective rate is
   `target_fps * IDLE_FPS_FACTOR`, typically 0.5×, so ~15 FPS). Triggered
   after `IDLE_THRESHOLD_SECS` (30s) of no input.
-- `tgt: 30 paused` — user pressed Space or `p`. Loop ticks at
+- `tgt: 30 paused` — user pressed `p`. Loop ticks at
   `PAUSE_PERIOD_MS` (250ms = 4 Hz) just to keep the event loop alive.
 
 **Why this line exists:** before v30 (2026-08-05), the HUD only had
@@ -436,7 +436,7 @@ the HUD is showing something unexpected and you need a starting point.
 |----------------------------------------------------|------------------------------------------------------|-----------------------------------------------------------|-------------------------------------------------------------------------------------------------|
 | `fps:` shows a huge number (e.g. `11000`) with `--fps 30` | Loop sleeping to maintain cap (NOT a bug)      | `tgt:` line — should show `30`                            | None needed. Read `tgt:` to verify the cap, ignore `fps:` for cap verification.                 |
 | `tgt:` shows `30 idle`                             | No input for 30s, idle throttle engaged              | Recent keyboard/mouse activity                            | Press any key or click to return to active mode; `tgt:` reverts to `30`.                        |
-| `tgt:` shows `30 paused`                           | Space or `p` was pressed                             | Recent key presses                                        | Press Space or `p` again to resume.                                                             |
+| `tgt:` shows `30 paused`                           | `p` was pressed                                      | Recent key presses                                        | Press `p` again to resume.                                                                      |
 | `p99:` >> `avg` (e.g. p99=10ms, avg=0.5ms)         | Periodic stalls (GC, kernel scheduling, terminal backpressure) | Recent terminal activity, other running processes | Investigate with `strace`/`perf` on Linux; check terminal GPU acceleration settings.            |
 | `max:` >> `p99:` (e.g. max=50ms, p99=2ms)          | One-off spike (resize, signal, first-frame cold cache) | Whether a resize or signal happened around the spike time | Safe to ignore unless it recurs. `max:` auto-resets every 60s.                                  |
 | `rss:` grows steadily over minutes                 | Possible memory leak                                 | `rss:` trend over 5-10 minutes                            | See `docs/ENDURANCE.md` for leak-detection methodology. Run `--benchmark` for a fixed-duration sample. |
