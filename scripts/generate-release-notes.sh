@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# Cosmostrix Release Note Generator — single source of truth
+# cosmostrix Release Note Generator — single source of truth
 #
 # Called by .github/workflows/release.yml ("Generate release body" step).
 # Output: GitHub-flavored Markdown to stdout, designed for the body of a

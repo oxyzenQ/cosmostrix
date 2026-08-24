@@ -2,7 +2,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 This folder contains the benchmark script and interpretation notes for
-Cosmostrix performance measurements.
+cosmostrix performance measurements.
 
 Benchmark numbers are **machine-dependent**. They depend on CPU, kernel
 scheduler behavior, build profile, terminal dimensions, density, color mode,
@@ -25,7 +25,7 @@ Build: pro-linux-v4 (target-cpu=x86-64-v4), commit aac3b5c.
 
 ## Current Benchmark Model
 
-Cosmostrix exposes these benchmark paths and modifiers:
+cosmostrix exposes these benchmark paths and modifiers:
 
 - `--benchmark`: recommended human-readable benchmark. It runs a 2-second
   warmup, then measures for 5 seconds (override with `--bench-duration N`,
@@ -158,7 +158,7 @@ lower. The interactive CPU numbers above measure only the process — the
 terminal emulator CPU savings are documented in
 [docs/RENDER_ENGINE.md](../docs/RENDER_ENGINE.md).
 
-### Bonus: Cosmostrix Engine Ceiling
+### Bonus: cosmostrix Engine Ceiling
 
 cosmostrix also exposes a headless benchmark (`--benchmark --json`) that
 measures raw engine throughput without terminal I/O. On the same machine:
@@ -1018,7 +1018,7 @@ Reports process CPU usage as a percentage of one core:
 - `cpu_caveat`: "~100% = one core saturated; >100% would indicate
   multi-threading or measurement error".
 
-Cosmostrix is single-threaded by design, so `cpu_percent` is bounded by
+cosmostrix is single-threaded by design, so `cpu_percent` is bounded by
 ~100% on a single-core measurement. Values approaching 100% indicate the
 renderer is saturating one core (expected at high `target_fps` on large
 terminals).

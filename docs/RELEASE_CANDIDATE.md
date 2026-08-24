@@ -1,7 +1,7 @@
 # Release Candidate Checklist
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-Cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and GitHub Releases use a leading `v` (e.g. `v50.0.0`). Stable releases do not use `-stable.N` suffixes. Do not bump the version or create a tag until the release phase is explicitly authorized.
+cosmostrix follows [SemVer](https://semver.org/) for package versions. Git tags and GitHub Releases use a leading `v` (e.g. `v50.0.0`). Stable releases do not use `-stable.N` suffixes. Do not bump the version or create a tag until the release phase is explicitly authorized.
 
 ## Required Commands
 

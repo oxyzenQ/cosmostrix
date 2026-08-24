@@ -14,7 +14,7 @@
 //! ## Graceful degradation
 //!
 //! If the `THEMES` array is empty (or a scheme is not found), `build_colors()`
-//! returns a greyscale fallback `[Color::White]`. Cosmostrix still builds and
+//! returns a greyscale fallback `[Color::White]`. cosmostrix still builds and
 //! runs — just without color. This makes the color layer fully optional.
 //!
 //! ## Theme definition formats

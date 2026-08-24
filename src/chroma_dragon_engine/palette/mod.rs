@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Color pipeline for Cosmostrix.
+//! Color pipeline for cosmostrix.
 //!
 //! Handles palette construction, color quantization across modes (truecolor,
 //! 256-color, 16-color, mono), and runtime color blending operations.

@@ -1,4 +1,4 @@
-# Cosmostrix Render Engine — Formal Architecture
+# cosmostrix Render Engine — Formal Architecture
 
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
@@ -118,7 +118,7 @@ so cosmostrix can hit 60 FPS on commodity terminals.
 
 ## 2. Strategy: Differential Rendering with Run-Length Encoding
 
-Cosmostrix tracks the **last frame sent to the terminal** and, on each
+cosmostrix tracks the **last frame sent to the terminal** and, on each
 `draw()` call, emits only the cells that differ from the last frame.
 Within the diff, consecutive cells sharing the same `(fg, bg, bold)`
 style tuple are batched into a single SGR + raw-character run.
@@ -363,7 +363,7 @@ within the 16 ms frame budget.
 
 ### 4.2 SGR emission format
 
-Cosmostrix emits combined fg+bg SGR in a single escape:
+cosmostrix emits combined fg+bg SGR in a single escape:
 
 ```text
 \x1b[38;2;R;G;B;48;2;R;G;Bm
@@ -413,7 +413,7 @@ Clear screen + emit every cell every frame.
 - **When it wins**: very short runs (<5 seconds) where the steady-state
   bandwidth savings don't amortize the state-tracking overhead
 
-Cosmostrix chose diff-based because the target use case is long-running
+cosmostrix chose diff-based because the target use case is long-running
 (24/7 screensaver, multi-hour hacking session). The bandwidth savings
 compound over time.
 
@@ -428,7 +428,7 @@ Track each droplet's head + tail position; emit only 2–3 cursor moves
   heads/tails
 - **When it wins**: classic matrix rain with no visual effects
 
-Cosmostrix's signature Monolith Rain + depth-of-field + phosphor
+cosmostrix's signature Monolith Rain + depth-of-field + phosphor
 afterglow all require writing non-droplet cells, which per-droplet
 targeting cannot express.
 
@@ -454,7 +454,7 @@ Render rain as a bitmap; send as an image.
   text; loses the "character grid" aesthetic
 - **When it wins**: art installations, not CLI tools
 
-Cosmostrix targets universal terminal support, which rules out
+cosmostrix targets universal terminal support, which rules out
 graphics protocols.
 
 ### 5.5 PTY multiplexer (tmux-style)
@@ -614,7 +614,7 @@ academic work or another project, please cite:
 ```bibtex
 @software{cosmostrix,
   author       = {rezky\_nightky (oxyzenQ)},
-  title        = {Cosmostrix: Professional-grade cinematic Matrix rain renderer},
+  title        = {cosmostrix: Professional-grade cinematic Matrix rain renderer},
   year         = {2026},
   url          = {https://github.com/oxyzenQ/cosmostrix},
   note         = {Diff-based terminal rendering engine, v50.x},

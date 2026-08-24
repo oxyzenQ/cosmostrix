@@ -3,7 +3,7 @@
 
 Single reference for maintaining cosmostrix during dormant mode (5-10 year maintenance cycle). Covers build, test, dependency updates, security response, and health-check log.
 
-Cosmostrix is built to survive. The owner may go dormant for 5-10 years. When returning, this file is the only document needed to bring the project back to a fully passing CI state. Every command, every check, every response procedure is here.
+cosmostrix is built to survive. The owner may go dormant for 5-10 years. When returning, this file is the only document needed to bring the project back to a fully passing CI state. Every command, every check, every response procedure is here.
 
 ## 1. Quick Reference
 
@@ -84,7 +84,7 @@ If returning after 5-10 years of dormancy, follow this exact sequence. No steps 
 
 ## 6. Dormant Mode Contract
 
-Cosmostrix is designed for long-term stability. The owner may go dormant for 5-10 years without touching the codebase. When returning, the project must compile and pass all tests on the pinned toolchain with zero intervention beyond `cargo build && cargo test`.
+cosmostrix is designed for long-term stability. The owner may go dormant for 5-10 years without touching the codebase. When returning, the project must compile and pass all tests on the pinned toolchain with zero intervention beyond `cargo build && cargo test`.
 
 ### What "dormant" means
 

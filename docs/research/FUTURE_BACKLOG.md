@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cosmostrix Future Backlog
+# cosmostrix Future Backlog
 
 **Purpose**: Parking lot for **new CLI flags / parameters** that were
 intentionally NOT added during the v30 stabilization audit. v30 froze the

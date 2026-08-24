@@ -116,7 +116,7 @@ pub(crate) fn docs_report() -> &'static str {
 COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
 ==========================================================
 
-Cosmostrix is not a Matrix clone. It is a novel diff-based terminal
+cosmostrix is not a Matrix clone. It is a novel diff-based terminal
 renderer that computes only the cells which change between frames,
 rather than redrawing the entire screen. The renderer is paired with
 the Chroma Dragon coloring engine, which owns every decision about
@@ -129,7 +129,7 @@ pipeline that together make cosmostrix possible.
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
-Cosmostrix keeps a persistent back-buffer of `Cell` values (char +
+cosmostrix keeps a persistent back-buffer of `Cell` values (char +
 fg color + bg color + bold flag) and, at draw time, walks the buffer
 once comparing each cell against the previous frame's value. Only
 cells that differ are emitted as ANSI escape sequences, and consecutive
@@ -175,7 +175,7 @@ in `cloud::spawn::DropletSpawner` during droplet birth.
 
 CRT afterglow: every glyph leaves a fading residual trail behind it.
 Most terminal rain renderers have zero afterglow (each cell is either
-'head' or 'blank'). Cosmostrix tracks a per-cell residual energy value
+'head' or 'blank'). cosmostrix tracks a per-cell residual energy value
 that decays exponentially each frame.
 
   PHOSPHOR_TAIL_RESIDUAL = 160   (initial residual after head passes)
@@ -300,7 +300,7 @@ DESIGN CONSTRAINTS
   - No unsafe in the renderer hot path.
   - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
-Cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering
+cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering
 Engine — a serious diff-based rendering masterpiece. It is designed
 for cinematic art, not for toys. By principle, it will never support
 emoji or wide characters (CJK fullwidth, zero-width combining marks),
@@ -604,7 +604,7 @@ mod tests {
         let report = docs_report();
         let normalized: String = report.split_whitespace().collect::<Vec<_>>().join(" ");
         assert!(
-            normalized.contains("Cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering"),
+            normalized.contains("cosmostrix is powered by The Cosmic Dragon Diff-Based Rendering"),
             "docs_report must open the philosophy with the engine name"
         );
         assert!(

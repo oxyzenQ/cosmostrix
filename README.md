@@ -50,7 +50,7 @@ Signature Cinematic Cosmic, Monolith Rain, and message mode in a real terminal s
 
 ## About — Three Dragon Engines
 
-Cosmostrix is built on **three cooperating engines** that split the work along clean boundaries: *what cells changed* (Cosmic Dragon), *what color a cell becomes* (Chroma Dragon), and *what mood the rain should have* (Crystal Dragon).
+cosmostrix is built on **three cooperating engines** that split the work along clean boundaries: *what cells changed* (Cosmic Dragon), *what color a cell becomes* (Chroma Dragon), and *what mood the rain should have* (Crystal Dragon).
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
@@ -94,7 +94,7 @@ Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --bench
 
 ## Philosophy — Not a Toy, But a Masterpiece
 
-Cosmostrix is powered by three Dragon Engines — serious rendering, color, and ambient intelligence systems, not a hobbyist project or a toy. They stand in relation to ordinary Matrix rain renderers the way the *Mona Lisa* stands to a paint-by-numbers kit: same medium, completely different discipline.
+cosmostrix is powered by three Dragon Engines — serious rendering, color, and ambient intelligence systems, not a hobbyist project or a toy. They stand in relation to ordinary Matrix rain renderers the way the *Mona Lisa* stands to a paint-by-numbers kit: same medium, completely different discipline.
 
 Every design decision is governed by one question: *does this serve the cinematic aesthetic?* Features that compromise that aesthetic are rejected on principle.
 
@@ -102,7 +102,7 @@ Every design decision is governed by one question: *does this serve the cinemati
 - **Diff-based rendering is the innovation, not a gimmick.** Near-zero per-frame heap allocation (0.0 allocs/frame on the lean path, ~1.1 on the production-draw I/O path). On a 2-vCPU cloud Xeon the `monolith` scene sustains 103,021 avg_fps at 80×24 (pro-linux-v4, headless dry I/O) — far above the 60 FPS interactive cap. This is what makes the cinematic effects affordable.
 - **Perceptual color, not RGB math.** The Chroma Dragon interpolates palettes in OKLab space (perceptually uniform) and smooths palette transitions through the polar chroma ring (hue-preserving). No muddy midpoints, no hard color seams.
 - **CPU-only by choice.** The terminal is a text medium — ANSI escape sequences and copy-pasteable glyphs. GPU image-mode was evaluated and explicitly rejected.
-- **Exclusive by design.** Cosmostrix pursues depth — phosphor physics, ambient intelligence, endurance telemetry, perceptual color — that no toy would attempt.
+- **Exclusive by design.** cosmostrix pursues depth — phosphor physics, ambient intelligence, endurance telemetry, perceptual color — that no toy would attempt.
 
 The Dragon's roar is not loud — it is precise.
 
@@ -168,7 +168,7 @@ The Dragon's roar is not loud — it is precise.
 
 ## Limitations
 
-Cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
+cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
 
 - **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/archive/cosmic_dragon/EXPLORATION.md](docs/archive/cosmic_dragon/EXPLORATION.md).
 - **Interactive FPS is terminal-bounded.** The engine's throughput ceiling on a 2-vCPU cloud Xeon is 103,021 avg_fps on `monolith` at 80×24 (pro-linux-v4, headless dry I/O). Real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). The engine is never the bottleneck — the terminal is.
@@ -201,7 +201,7 @@ For the full compatibility matrix (kernel versions, glibc/musl, CPU architecture
 
 ### Recommended Fonts
 
-Cosmostrix renders glyphs the terminal emulator draws — your font choice shapes the cinematic experience. For the masterclass look, use a monospace font with distinct `0`/`1` glyphs, full Unicode coverage (for box-drawing borders `╭╮╰╯─│`, braille `⠿`, katakana `ｱ`, and runic `ᚠ`), and balanced width.
+cosmostrix renders glyphs the terminal emulator draws — your font choice shapes the cinematic experience. For the masterclass look, use a monospace font with distinct `0`/`1` glyphs, full Unicode coverage (for box-drawing borders `╭╮╰╯─│`, braille `⠿`, katakana `ｱ`, and runic `ᚠ`), and balanced width.
 
 | Font | Why | Best for |
 |---|---|---|
@@ -280,7 +280,7 @@ paru -S cosmostrix-bin
 
 ### Android (Termux)
 
-Cosmostrix runs on Android via [Termux](https://termux.dev). Install the Termux app, then:
+cosmostrix runs on Android via [Termux](https://termux.dev). Install the Termux app, then:
 
 1. Download the `cosmostrix-*-android-aarch64-native.tar.gz` archive from the [latest release](https://github.com/oxyzenQ/cosmostrix/releases/latest).
 2. Allow storage access (for `/sdcard/cosmostrix/` config path) and extract:
@@ -342,7 +342,7 @@ Artifact variants use explicit CPU baselines:
 > minimal base images), use the `musl` variant — it's statically linked
 > with no glibc dependency.
 
-Release/pro builds keep `panic = "unwind"` on purpose. Cosmostrix owns raw mode,
+Release/pro builds keep `panic = "unwind"` on purpose. cosmostrix owns raw mode,
 alternate screen, cursor visibility, and line-wrap state while running; unwinding
 lets the RAII terminal guard and panic hook restore the terminal on panic.
 
@@ -457,7 +457,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
 - `matrix` — classic Matrix glyph rain
-- `monolith` — structured Cosmostrix Monolith Rain with sparse structured segments
+- `monolith` — structured cosmostrix Monolith Rain with sparse structured segments
 
 **Curated scenes** (via `--scene <name>`):
 

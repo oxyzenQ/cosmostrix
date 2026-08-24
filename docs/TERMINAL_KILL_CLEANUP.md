@@ -2,7 +2,7 @@
 
 # Terminal Kill Cleanup
 
-Cosmostrix uses crossterm alternate screen mode. Normal exit, Ctrl-C, and
+cosmostrix uses crossterm alternate screen mode. Normal exit, Ctrl-C, and
 SIGTERM (`pkill -f cosmostrix`) should all restore the terminal cleanly
 without leaving residue in scrollback or on the prompt line.
 
@@ -117,7 +117,7 @@ Same signal-exit path as SIGTERM/SIGQUIT via the shared signal handler.
 **Cannot be caught by any process.** No signal handler runs. The terminal
 may be left in raw mode with the alternate screen active.
 
-On Linux, Cosmostrix spawns a fork-based guard process (`cx-term-guard`)
+On Linux, cosmostrix spawns a fork-based guard process (`cx-term-guard`)
 that watches for the parent's death. If the parent is killed with SIGKILL,
 the kernel sends SIGTERM to the child via `PR_SET_PDEATHSIG`, and the child
 (noticing `getppid() == 1`) restores the original `termios` state via

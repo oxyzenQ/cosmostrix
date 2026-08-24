@@ -1,7 +1,7 @@
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# SIMD Feasibility Audit: Manual Vectorization for Cosmostrix Rain Renderer
+# SIMD Feasibility Audit: Manual Vectorization for cosmostrix Rain Renderer
 
 > **Document ID**: SIMD-FEASIBILITY-001
 > **Date**: 2026-06
@@ -13,7 +13,7 @@
 ## 1. Executive Summary
 
 This document evaluates whether manual SIMD intrinsics (x86-64 SSE/AVX/AVX2)
-would yield meaningful performance improvements for the Cosmostrix terminal rain
+would yield meaningful performance improvements for the cosmostrix terminal rain
 renderer.
 
 **Conclusion: manual SIMD is NOT recommended at this time.**
@@ -95,7 +95,7 @@ arithmetic throughput.**
 in lockstep. When cells take different paths (e.g., `Color::Rgb` vs
 `Color::AnsiValue`, head vs tail vs middle), lanes are wasted on unused
 results or serialized to scalar fallback. Nearly every per-cell operation in
-Cosmostrix has conditional logic:
+cosmostrix has conditional logic:
 
 ```rust
 // palette.rs:217 — early-return + enum dispatch

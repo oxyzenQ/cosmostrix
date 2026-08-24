@@ -8,7 +8,7 @@
 #   Windows cmd.exe / PowerShell — use Git Bash or WSL on Windows.
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Cosmostrix Version Bump Helper
+# cosmostrix Version Bump Helper
 #
 # Updates all version references consistently across the repo.
 #
@@ -76,7 +76,7 @@ log_err()   { printf '%b[ERROR]%b %s\n' "${RED}" "${NC}" "$*" >&2; }
 #
 show_help() {
     cat <<'HELP'
-Cosmostrix Version Bump Helper
+cosmostrix Version Bump Helper
 
 USAGE:
     ./scripts/version-to.sh <VERSION>              Bump to VERSION (stable or pre-release)

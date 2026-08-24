@@ -1,11 +1,11 @@
-# Cosmostrix Brand Guidelines
+# cosmostrix Brand Guidelines
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-Visual identity and communication standards for the Cosmostrix project. Ensures consistent branding across all touchpoints — GitHub repository, documentation, releases, community presence.
+Visual identity and communication standards for the cosmostrix project. Ensures consistent branding across all touchpoints — GitHub repository, documentation, releases, community presence.
 
 ## 1. Brand Identity
 
-**Cosmostrix** is a high-performance cinematic Matrix rain renderer for the terminal, built in Rust. The brand sits at the intersection of **systems engineering** and **visual art**, reflecting:
+**cosmostrix** is a high-performance cinematic Matrix rain renderer for the terminal, built in Rust. The brand sits at the intersection of **systems engineering** and **visual art**, reflecting:
 
 - **Precision** — engineered performance, SIMD optimization, zero-compromise rendering
 - **Atmosphere** — cinematic, immersive, cosmic visual experience
@@ -15,12 +15,12 @@ Visual identity and communication standards for the Cosmostrix project. Ensures 
 
 | Context | Format |
 |---|---|
-| Running text / prose / titles / headings | Cosmostrix |
+| Running text / prose / titles / headings | cosmostrix |
 | Code / CLI | `cosmostrix` (lowercase) |
 | All-caps hero (README hero only) | COSMOSTRIX |
-| With article | "the Cosmostrix project", "Cosmostrix renderer" |
+| With article | "the cosmostrix project", "cosmostrix renderer" |
 
-**Incorrect forms**: ~~CosmoStrix~~ (no internal capitalization), ~~COSMOSTRIX~~ (except README hero), ~~cosmostrix~~ in prose, ~~Cosmo~~ as abbreviation. In external articles, the first mention should include context: "Cosmostrix is a high-performance cinematic Matrix rain renderer for the terminal."
+**Incorrect forms**: ~~CosmoStrix~~ (no internal capitalization), ~~COSMOSTRIX~~ (except README hero), ~~cosmostrix~~ in prose, ~~Cosmo~~ as abbreviation. In external articles, the first mention should include context: "cosmostrix is a high-performance cinematic Matrix rain renderer for the terminal."
 
 ## 3. Logo
 
@@ -35,7 +35,7 @@ The official logo is at [`assets/cosmostrix-logo.png`](assets/cosmostrix-logo.pn
 
 ## 4. Color Palette
 
-The Cosmostrix palette is derived from the project's cinematic, cosmic aesthetic — dark base with vibrant green phosphor accents, inspired by classic terminal displays and deep-space visuals.
+The cosmostrix palette is derived from the project's cinematic, cosmic aesthetic — dark base with vibrant green phosphor accents, inspired by classic terminal displays and deep-space visuals.
 
 ### Primary + Accent
 
@@ -46,7 +46,7 @@ The Cosmostrix palette is derived from the project's cinematic, cosmic aesthetic
 | Surface elevated | Nebula Dark | `#1A1A1A` | 26,26,26 | Elevated elements, borders |
 | Text primary | Phosphor White | `#E0E0E0` | 224,224,224 | Body text, headings |
 | Text secondary | Dim Star | `#888888` | 136,136,136 | Captions, metadata, muted text |
-| Accent primary | Cosmostrix Green | `#40C000` | 64,192,0 | Links, highlights, active states |
+| Accent primary | cosmostrix Green | `#40C000` | 64,192,0 | Links, highlights, active states |
 | Accent bright | Phosphor Glow | `#80C040` | 128,192,64 | Logo glow, emphasis, hover states |
 | Accent warm | Solar Flare | `#C0C040` | 192,192,64 | Warnings, secondary highlights |
 | Accent bright white | Star Core | `#C0C080` | 192,192,128 | Bright text on dark backgrounds |
@@ -77,9 +77,9 @@ The green accent palette should feel **terminal-phosphor**, not generic "startup
 
 Technically precise but not cold; confident but not arrogant. **Principles**: direct and technical (favor clarity over marketing fluff); confident, not boastful (let benchmarks speak); concise (short paragraphs, scannable formatting); professional with personality (a dry humor reference or space metaphor is welcome when it fits).
 
-**Good**: "Cosmostrix renders cinematic terminal visuals at practical terminal-bounded FPS (60–240 on modern terminals) using diff-based rendering with adaptive CPU throttling."
+**Good**: "cosmostrix renders cinematic terminal visuals at practical terminal-bounded FPS (60–240 on modern terminals) using diff-based rendering with adaptive CPU throttling."
 
-**Avoid**: "Cosmostrix is the world's most revolutionary groundbreaking terminal experience that will completely transform how you think about terminals!"
+**Avoid**: "cosmostrix is the world's most revolutionary groundbreaking terminal experience that will completely transform how you think about terminals!"
 
 **Commit messages** follow [Conventional Commits](https://www.conventionalcommits.org/): `type(scope): description` — e.g. `feat(renderer): add parallax depth layer`, `fix(windows): correct ANSI escape on conhost`, `perf(core): reduce allocation in hot path`.
 
@@ -91,7 +91,7 @@ Technically precise but not cold; confident but not arrogant. **Principles**: di
 
 ## 8. Third-party Usage
 
-External projects, articles, or distributions referencing Cosmostrix should: use the correct project name and spelling; link to the official repository (<https://github.com/oxyzenQ/cosmostrix>); not use the logo for commercial purposes without permission (see [`TRADEMARK.md`](TRADEMARK.md)); attribute the project when redistributing modified versions.
+External projects, articles, or distributions referencing cosmostrix should: use the correct project name and spelling; link to the official repository (<https://github.com/oxyzenQ/cosmostrix>); not use the logo for commercial purposes without permission (see [`TRADEMARK.md`](TRADEMARK.md)); attribute the project when redistributing modified versions.
 
 *For trademark and legal usage terms, see [`TRADEMARK.md`](TRADEMARK.md).*
 <!-- COSMOSTRIX-DISCLAIMER -->

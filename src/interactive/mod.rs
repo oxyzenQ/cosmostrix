@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Interactive runtime loop for Cosmostrix.
+//! Interactive runtime loop for cosmostrix.
 //!
 //! Manages the main event loop, frame pacing, signal handling, keyboard
 //! input dispatch, performance tracking, and the watchdog thread.

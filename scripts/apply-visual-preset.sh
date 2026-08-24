@@ -3,7 +3,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 #
 # ─────────────────────────────────────────────────────────────────────────────
-# Cosmostrix Visual Preset Switcher — Preset Battle Round 2
+# cosmostrix Visual Preset Switcher — Preset Battle Round 2
 #
 # Switches the 17-parameter visual preset in src/central_control_rains/mod.rs
 # between the reigning champion (Cinema Noir) and the round-2 challenger

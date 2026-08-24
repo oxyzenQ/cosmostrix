@@ -1,11 +1,11 @@
 # Supply Chain Security
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-Policies, tooling, and procedures that govern the integrity of the Cosmostrix software supply chain — from dependency selection through release distribution.
+Policies, tooling, and procedures that govern the integrity of the cosmostrix software supply chain — from dependency selection through release distribution.
 
 ## 1. Dependency Policy
 
-Every dependency that ships with Cosmostrix must be auditable. The CI pipeline enforces this contract by running `cargo audit` (known CVE scanning) and `cargo deny check all` (license, source, and duplicate-policy enforcement) on every pull request and release build. No dependency enters the lockfile without passing both gates.
+Every dependency that ships with cosmostrix must be auditable. The CI pipeline enforces this contract by running `cargo audit` (known CVE scanning) and `cargo deny check all` (license, source, and duplicate-policy enforcement) on every pull request and release build. No dependency enters the lockfile without passing both gates.
 
 ### Direct Dependencies
 

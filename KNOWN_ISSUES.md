@@ -196,7 +196,7 @@ If you encounter an issue not listed here, please open a GitHub issue
 at <https://github.com/oxyzenQ/cosmostrix/issues> with:
 
 1. **Platform**: OS version, terminal emulator, terminal version
-2. **Cosmostrix version**: `cosmostrix --version`
+2. **cosmostrix version**: `cosmostrix --version`
 3. **Reproduction**: exact command and key sequence
 4. **Expected vs actual**: what you expected, what happened
 5. **Logs**: stderr output (use `-v` for verbose mode if available)

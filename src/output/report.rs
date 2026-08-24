@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Unified report formatting engine for all Cosmostrix diagnostics output.
+//! Unified report formatting engine for all cosmostrix diagnostics output.
 //!
 //! Provides consistent, premium-quality formatting across --doctor,
 //! --perf-stats, --benchmark, and any future diagnostics.

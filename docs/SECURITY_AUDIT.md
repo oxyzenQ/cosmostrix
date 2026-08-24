@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Security Audit — Cosmostrix "Dragon Hunt Security Mode"
+# Security Audit — cosmostrix "Dragon Hunt Security Mode"
 
 > **SUPERSEDED (2026-08-23)**: This audit's "15 unsafe sites, all sound"
 > verdict was built on an incorrect OS-semantics premise: it justified the
@@ -18,7 +18,7 @@
 
 ## Verdict
 
-**Cosmostrix is a safe "digital art" program, not malware.** Every sensitive capability (network, subprocess, terminal mutation) is either opt-in (`--check-update`, `--reset-terminal`) or strictly bounded (path whitelist, FFI-only `unsafe` with soundness audits, signal handlers that only set atomic flags). The codebase demonstrates a mature security posture: documented `unsafe` policy, exhaustive path-traversal tests, license-policy enforcement, daily `cargo audit`, two-phase privilege separation for dep updates, and a self-audit document covering every `unsafe` site.
+**cosmostrix is a safe "digital art" program, not malware.** Every sensitive capability (network, subprocess, terminal mutation) is either opt-in (`--check-update`, `--reset-terminal`) or strictly bounded (path whitelist, FFI-only `unsafe` with soundness audits, signal handlers that only set atomic flags). The codebase demonstrates a mature security posture: documented `unsafe` policy, exhaustive path-traversal tests, license-policy enforcement, daily `cargo audit`, two-phase privilege separation for dep updates, and a self-audit document covering every `unsafe` site.
 
 ## 1. `unsafe` Usage — 15 Sites, All Sound
 

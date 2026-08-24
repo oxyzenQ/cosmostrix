@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Cosmostrix Logo intro — a four-phase cinematic that reveals the
+//! cosmostrix Logo intro — a four-phase cinematic that reveals the
 //! project's ASCII logo and dissolves it into Matrix rain.
 //!
 //! The logo is colored with the **7-stage rain method** (owner
@@ -61,7 +61,7 @@ use super::intro::{
 // Logo art + brand color
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// The Cosmostrix logo as ASCII art. Single-width Unicode density
+/// The cosmostrix logo as ASCII art. Single-width Unicode density
 /// characters render the brand mark. Lines are stored with their original
 /// leading indentation (which forms the visual shape); trailing
 /// whitespace is stripped at parse time.
@@ -403,7 +403,7 @@ fn visual_centroid(lines: &[String]) -> (f32, f32) {
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Entry point for the Cosmostrix Logo intro. Plays a ~6.25 s cinematic.
+/// Entry point for the cosmostrix Logo intro. Plays a ~6.25 s cinematic.
 ///
 /// See the module docs for the phase breakdown. The caller (intro
 /// dispatcher) has already validated terminal size and `IntroType`.

@@ -8,7 +8,7 @@
 #   Safe to run anywhere Python 3.7+ is installed.
 # ─────────────────────────────────────────────────────────────────────────────
 #
-# Cosmostrix Density-Map Preset Generator
+# cosmostrix Density-Map Preset Generator
 #
 # Generates CSV density-map strings for scene-custom monolith pillar sculpting.
 # Each preset is a comma-separated list of f64 weights (0.0..1.0), one per

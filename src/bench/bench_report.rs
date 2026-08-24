@@ -344,7 +344,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         );
         s.field("io_strategy", ri.io_strategy);
         // Explicit honest declaration that cosmostrix uses no GPU.
-        // Cosmostrix is a CPU + stdout renderer — no OpenGL/Vulkan/Metal/
+        // cosmostrix is a CPU + stdout renderer — no OpenGL/Vulkan/Metal/
         // DirectX/WebGPU context is ever created. The terminal emulator
         // may use GPU for compositing, but that is outside cosmostrix.
         s.field("gpu_usage", "not_applicable");
@@ -895,7 +895,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     }
 
     // ── Engine diagnostics ─────────────────────────────────────────────
-    // Cosmostrix is single-thread by design — terminal writer is single-owner.
+    // cosmostrix is single-thread by design — terminal writer is single-owner.
     //
     // v30 strengthen (audit): removed the legacy RUNTIME section
     // (runtime_mode/render_plan/idle_policy/architecture). Its four fields

@@ -3,7 +3,7 @@
 
 ## Purpose
 
-Cosmostrix is designed to run as a long-lived terminal screensaver. This document
+cosmostrix is designed to run as a long-lived terminal screensaver. This document
 describes the endurance testing methodology used to verify that the renderer
 remains stable for sessions exceeding 24 hours without memory growth, handle
 leaks, or crashes.
@@ -16,7 +16,7 @@ leaks, or crashes.
 > methodology record; for current measurements use `--benchmark` output
 > and `benchmark/benchmark.sh sweep`.
 
-A Cosmostrix binary is launched in headless mode with a configurable duration
+A cosmostrix binary is launched in headless mode with a configurable duration
 cap. The historical sampling script `scripts/monitor-cosmostrix.sh` read
 `/proc/<pid>/status`, `/proc/<pid>/stat`, `/proc/<pid>/smaps_rollup`,
 `/proc/<pid>/fd`, `/proc/<pid>/io`, and `/proc/stat` at regular intervals
@@ -41,7 +41,7 @@ timestamp,pid,elapsed_sec,cpu_pct,rss_kb,hwm_kb,vmsize_kb,rssanon_kb,rssfile_kb,
 | Field | Description |
 |---|---|
 | `timestamp` | ISO 8601 timestamp with timezone offset (e.g. `2026-05-31T11:35:26+07:00`) |
-| `pid` | Process ID of the running Cosmostrix instance |
+| `pid` | Process ID of the running cosmostrix instance |
 | `elapsed_sec` | Seconds since the first sample (monotonic) |
 | `cpu_pct` | CPU usage percentage from `/proc/<pid>/stat` |
 | `rss_kb` | Resident Set Size in kB from `VmRSS` in `/proc/<pid>/status` |
@@ -85,7 +85,7 @@ The recommended interval is 60 seconds (`INTERVAL=60`). For shorter test runs
 cargo build --release
 ```
 
-1. Launch Cosmostrix in the background with a duration cap:
+1. Launch cosmostrix in the background with a duration cap:
 
 ```bash
 ./target/release/cosmostrix --duration 86400 &
@@ -253,7 +253,7 @@ errors and should be fixed rather than ignored.
 
 | Item | Value |
 |---|---|
-| Cosmostrix version | 4.0.1 |
+| cosmostrix version | 4.0.1 |
 | Build profile | release (linux-x86_64-v3) |
 | Duration target | ~2h |
 | Actual duration | ~1h45m |
@@ -299,7 +299,7 @@ Template for recording future endurance run results:
 
 | Item | Value |
 |---|---|
-| Cosmostrix version | |
+| cosmostrix version | |
 | Build profile | |
 | Duration target | |
 | Actual duration | |

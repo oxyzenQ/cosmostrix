@@ -1,10 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# The Three Dragon Engines of Cosmostrix v50
+# The Three Dragon Engines of cosmostrix v50
 
 > v50.0.0-alpha.6 — 2026-08-19
 
-Cosmostrix runs three independent dragon engines, each owning a distinct
+cosmostrix runs three independent dragon engines, each owning a distinct
 rendering concern. They never share mutable state; they communicate only
 through the immutable `Cloud` snapshot each frame.
 

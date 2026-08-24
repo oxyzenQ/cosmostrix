@@ -1,6 +1,6 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cosmostrix Visual Identity — Single Source of Truth
+# cosmostrix Visual Identity — Single Source of Truth
 
 **Current identity: Deep Focus preset** (battle round 2 champion, locked
 2026-08-23 by owner verdict — the endurance refinement of the Cinema Noir

@@ -1,4 +1,4 @@
-# Cosmostrix Documentation Index
+# cosmostrix Documentation Index
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Master index of all cosmostrix documentation. Use this as your map when returning to the project after a long break.

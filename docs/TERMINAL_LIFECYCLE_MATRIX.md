@@ -2,7 +2,7 @@
 
 # Terminal Lifecycle Matrix
 
-This document defines the expected behavior of Cosmostrix across every
+This document defines the expected behavior of cosmostrix across every
 terminal lifecycle path.  It serves as the authoritative reference for
 cleanup guarantees, terminal state restoration, and destructive vs.
 non-destructive behavior.
@@ -87,7 +87,7 @@ restoration via `tcsetattr()` is still attempted.
 
 ### 5. SIGTSTP / Ctrl-Z Suspend
 
-SIGTSTP suspends the process. Cosmostrix does not install a custom
+SIGTSTP suspends the process. cosmostrix does not install a custom
 SIGTSTP handler, so the OS default behavior applies: the process is
 suspended and the shell regains control. The terminal remains in raw
 mode with the alternate screen active while the process is suspended.
@@ -99,7 +99,7 @@ terminal state is deferred until SIGCONT.
 When the process is resumed (via `fg` or `kill -CONT`), the main loop
 continues from where it left off. The terminal is already in the state
 it was in when suspended (alternate screen, raw mode). No additional
-restoration is needed because Cosmostrix never released the terminal.
+restoration is needed because cosmostrix never released the terminal.
 If the terminal was externally modified while suspended (e.g. another
 program wrote to the TTY), the display may be corrupted — this is an
 inherent limitation of suspend/resume.
@@ -111,7 +111,7 @@ handler runs. No `Terminal::drop()` executes. The terminal may be left
 in raw mode with the alternate screen active, mouse capture enabled, and
 the cursor hidden.
 
-On Linux, Cosmostrix spawns a fork-based guard process (`cx-term-guard`)
+On Linux, cosmostrix spawns a fork-based guard process (`cx-term-guard`)
 that watches for the parent's death via `PR_SET_PDEATHSIG`. When the
 parent is killed with SIGKILL, the kernel sends SIGTERM to the child,
 and the child (noticing `getppid() == 1`) restores the original
@@ -145,7 +145,7 @@ not part of normal operation and is intentionally destructive.
 
 Windows Terminal behavior on process termination differs from Unix PTY
 semantics. The Windows-specific reset path is user-verified and tracked
-via issue #15. Cosmostrix does not currently claim specific cleanup
+via issue #15. cosmostrix does not currently claim specific cleanup
 guarantees on Windows Terminal beyond what crossterm provides. Windows
 users experiencing broken terminal state after forced termination should
 use the Windows Terminal "Reset" tab option or close and reopen the
@@ -156,7 +156,7 @@ terminal.
 When running inside a tmux pane, all signal and exit paths behave
 identically to the descriptions above. The alternate screen operates
 within the tmux pane, so cleanup affects only the pane, not the outer
-terminal. tmux preserves its own scrollback independently — Cosmostrix
+terminal. tmux preserves its own scrollback independently — cosmostrix
 cleanup does not purge tmux scrollback. The fork guard (Linux) operates
 normally within tmux. `pkill -TERM -f cosmostrix` works correctly; the
 child guard correctly detects parent death via `getppid()`.
@@ -174,7 +174,7 @@ over SSH before release if terminal code changes.
 ### 12. Headless / Non-TTY
 
 When stdin or stdout is not a TTY (piped output, CI environment, cron
-job, redirected output), Cosmostrix does not enter alternate screen mode,
+job, redirected output), cosmostrix does not enter alternate screen mode,
 does not set raw mode, and does not enable mouse capture. No terminal
 cleanup is needed because no terminal state was changed. Benchmark mode
 and doctor mode work normally in headless environments.
@@ -215,7 +215,7 @@ mode, and does not modify terminal state. No cleanup is needed.
   main screen during buffer switch.
 
 - **Windows Terminal reset path is user-verified via issue #15.**
-  Cosmostrix does not claim specific cleanup guarantees on Windows
+  cosmostrix does not claim specific cleanup guarantees on Windows
   Terminal beyond crossterm's cross-platform support.
 
 - **Heavy message/matrix mode is not comparable to the default

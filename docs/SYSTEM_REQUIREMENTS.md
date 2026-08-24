@@ -3,7 +3,7 @@
 
 # System Requirements
 
-Cosmostrix is designed to run on a wide range of Unix-like systems, from
+cosmostrix is designed to run on a wide range of Unix-like systems, from
 modern workstations to older servers and embedded devices. This document
 specifies the minimum supported system configuration.
 
@@ -23,7 +23,7 @@ specifies the minimum supported system configuration.
 
 ## Kernel Version Requirements (Linux)
 
-Cosmostrix uses these Linux syscalls, each with a minimum kernel version:
+cosmostrix uses these Linux syscalls, each with a minimum kernel version:
 
 | Syscall / Feature | Min Kernel | Used For | Required? |
 |-------------------|-----------|----------|-----------|
@@ -65,7 +65,7 @@ requirement.
 | 2.34 | Fedora 35 (2021) | Supported |
 | 2.36+ | Modern distros | Supported |
 
-**Why glibc 2.17?** Cosmostrix uses only POSIX-standard libc functions
+**Why glibc 2.17?** cosmostrix uses only POSIX-standard libc functions
 (`fstat`, `prctl`, `tcgetattr`, `tcsetattr`, `getrusage`, `uname`,
 `localtime_r`, `sysconf`). These are all present in glibc 2.17, which is
 the oldest glibc still in widespread server use (CentOS 7 EOL 2024).
@@ -241,7 +241,7 @@ Memory is stable under load — 60-second endurance tests show zero growth
 | Focus events | Optional | Optional |
 | Mouse | Optional (always-on glow + click wave) | Optional |
 
-Cosmostrix auto-detects terminal capability via `COLORTERM`, `TERM`, and
+cosmostrix auto-detects terminal capability via `COLORTERM`, `TERM`, and
 TTY checks. See `docs/TERMINAL_COMPATIBILITY.md` for the full terminal
 matrix.
 

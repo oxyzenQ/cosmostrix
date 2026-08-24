@@ -2,7 +2,7 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 rezky_nightky
 """
-Cosmostrix visual mode masterclass audit — CRT vignette + edge fade tuning.
+cosmostrix visual mode masterclass audit — CRT vignette + edge fade tuning.
 
 Simulates the COMPOUNDED brightness at every row of the terminal, since
 both `apply_crt_vignette` (CRT_VIGNETTE_EDGE_FACTOR) and `viewport_edge_fade`

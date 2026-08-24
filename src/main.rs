@@ -1,9 +1,9 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Cosmostrix — Professional-grade cinematic Matrix rain renderer for serious terminal environments.
+//! cosmostrix — Professional-grade cinematic Matrix rain renderer for serious terminal environments.
 //!
-//! Cosmostrix transforms your terminal into a living, breathing canvas of
+//! cosmostrix transforms your terminal into a living, breathing canvas of
 //! atmospheric digital rain. It is not a simple Matrix clone; it is a
 //! realtime rendering engine built on principles of cinematic motion,
 //! depth layering, and autonomous visual storytelling.
@@ -26,7 +26,7 @@
 //!
 //! ## Motion Philosophy
 //!
-//! Cosmostrix prioritizes *perceptual smoothness* over raw frame count.
+//! cosmostrix prioritizes *perceptual smoothness* over raw frame count.
 //! The adaptive pacing system modulates simulation time under performance
 //! pressure, preferring slight visual slowdown over stutter. Frame timing
 //! uses single-reschedule logic to prevent cascading overshoot jitter.

@@ -507,7 +507,7 @@ fn fail_cpu_baseline(
     features: &HashSet<String>,
     reason: &str,
 ) -> ! {
-    eprintln!("Cosmostrix CPU baseline mismatch:");
+    eprintln!("cosmostrix CPU baseline mismatch:");
     eprintln!("  build: {build_id}");
     eprintln!("  profile: {profile_name}");
     eprintln!("  claimed baseline: {baseline}");

@@ -23,7 +23,7 @@
 //!
 //! ## Single-thread note
 //!
-//! Cosmostrix is single-threaded by design. On a single-core measurement,
+//! cosmostrix is single-threaded by design. On a single-core measurement,
 //! `cpu_percent` is bounded by ~100%. Values approaching 100% indicate
 //! the renderer is saturating one core (expected at high target_fps on
 //! large terminals). Values >100% would indicate multi-threading (not

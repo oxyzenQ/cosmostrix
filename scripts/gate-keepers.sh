@@ -199,6 +199,26 @@ else
     PASS=$((PASS + 1))
 fi
 
+# ── 6c. Naming consistency ─────────────────────────────────────────────────
+# The project name is always lowercase `cosmostrix` (owner rule 2026-08-24,
+# documented in CONTRIBUTING.md section 2). The capitalized form is a naming
+# inconsistency; archived historical documents are exempt. The pattern below
+# is written without the literal capitalized form so this check does not
+# match its own source.
+header "Naming consistency"
+# `git grep` exits 1 on zero matches (the clean state) - guard with || true
+# so `set -e` does not kill the script on success.
+CAP_HITS=$(git grep -l -E "C""osmostrix" -- ":(exclude)docs/archive/**" 2>/dev/null | head -5 || true)
+if [ -z "$CAP_HITS" ]; then
+    info "naming: project name is lowercase everywhere (non-archive)"
+    PASS=$((PASS + 1))
+else
+    echo "$CAP_HITS" | while IFS= read -r f; do
+        echo "  capitalized project name in: $f"
+    done
+    fail "naming: use lowercase 'cosmostrix' (see CONTRIBUTING.md section 2)"
+fi
+
 # ── 7. SPDX License Header Check ──────────────────────────────────────────
 header "SPDX License Headers"
 if [ -f scripts/check-headers.sh ]; then

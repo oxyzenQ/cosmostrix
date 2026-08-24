@@ -74,7 +74,7 @@ pub(crate) const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
 // Logo intro colors
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Brand purple — the Cosmostrix signature color (`#A855F7` / RGB
+/// Brand purple — the cosmostrix signature color (`#A855F7` / RGB
 /// 168,85,247).
 ///
 /// The logo always renders in this color (or the `--intro-color`

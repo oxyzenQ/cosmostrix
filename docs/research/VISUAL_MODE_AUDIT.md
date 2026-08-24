@@ -235,7 +235,7 @@ The masterclass curve hits every target:
 | Apple Vision Pro HUD              | 15%      | No        | Subtle edge dim, single effect    |
 | Sony Bravia CRT mode              | 20%      | No        | Single-effect CRT glow emulation  |
 | Lightroom vignette tool           | 25-35%   | No        | "Tasteful" range per pro photographers |
-| Cosmostrix v30.1 masterclass      | 18% + 35%/55% | Yes  | Compounded 47%/63% — lands in pro range |
+| cosmostrix v30.1 masterclass      | 18% + 35%/55% | Yes  | Compounded 47%/63% — lands in pro range |
 
 The masterclass values are calibrated against the ASC CDL "rarely
 exceeds 50% total" guideline: compounded top = 47%, compounded bottom

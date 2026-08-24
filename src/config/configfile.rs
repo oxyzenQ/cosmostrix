@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Configuration file support for Cosmostrix.
+//! Configuration file support for cosmostrix.
 //!
 //! Reads an explicit `--config <PATH>` file or the default
 //! `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`).

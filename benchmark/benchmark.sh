@@ -325,7 +325,7 @@ run_sweep() {
         {
             echo "<!-- SPDX-License-Identifier: GPL-3.0-only -->"
             echo ""
-            echo "# Cosmostrix Size Sweep"
+            echo "# cosmostrix Size Sweep"
             echo ""
             echo "Binary: \`$(basename "$bin")\`"
             echo "Date: \`$(date -Iseconds)\`"
@@ -494,7 +494,7 @@ else
         fi
 fi
 
-echo "=== Cosmostrix Benchmark ==="
+echo "=== cosmostrix Benchmark ==="
 
 if [[ "$RELEASE_BIN" == "$PRO_NATIVE_BIN" ]]; then
         echo "[1/5] Build (release)"

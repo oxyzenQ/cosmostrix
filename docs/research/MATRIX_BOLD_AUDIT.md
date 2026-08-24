@@ -26,7 +26,7 @@
 
 **Conclusion:** cosmostrix is the ONLY major Matrix rain implementation that
 defaults to bold. The film and every canonical competitor default to
-regular weight. Cosmostrix's `BoldMode::Random` is a **deviation**, not
+regular weight. cosmostrix's `BoldMode::Random` is a **deviation**, not
 an alignment — but it is a *defensible* one (see §3).
 
 ---
@@ -139,11 +139,11 @@ is either opt-in (cmatrix, cxxmatrix) or unavailable (the other four).
 
 ---
 
-## 3. Cosmostrix's Position
+## 3. cosmostrix's Position
 
 ### 3.1 Current state
 
-Cosmostrix is the **only** major Matrix rain implementation that defaults
+cosmostrix is the **only** major Matrix rain implementation that defaults
 to bold. Specifically:
 
 - `src/config.rs:586` sets `default_value_t = 1` → `BoldMode::Random`
@@ -178,7 +178,7 @@ So while cosmostrix technically emits bold SGR codes for 50% of glyphs,
 
 ### 3.3 Is cosmostrix "already aligned" with the film/standards?
 
-**No.** Cosmostrix's default (`BoldMode::Random`) is a deviation from
+**No.** cosmostrix's default (`BoldMode::Random`) is a deviation from
 both the film (regular weight) and every canonical competitor (regular
 weight). The user's question framing — "if [film/competitors] don't
 [use bold], then cosmostrix is already a good fit" — assumes cosmostrix
@@ -190,7 +190,7 @@ also defaults to non-bold. It does not.
 
 1. **Visual subtlety**: Per §3.2, the visual impact is often nil. So the
    deviation is mostly invisible in practice.
-2. **Cinematic enhancement**: Cosmostrix's design philosophy (per
+2. **Cinematic enhancement**: cosmostrix's design philosophy (per
    `MATRIX_1999_FILM_AUDIT.md` §6) is "cinematic enhancement, not film
    reproduction". The 3-layer parallax, phosphor afterglow, depth fog,
    and wind gusts are all deviations from the film that ADD value.
@@ -201,14 +201,14 @@ also defaults to non-bold. It does not.
 The weaknesses:
 
 1. **Inconsistency with the genre**: Every other Matrix rain tool
-   defaults to non-bold. Cosmostrix's `BoldMode::Random` is a lone
+   defaults to non-bold. cosmostrix's `BoldMode::Random` is a lone
    outlier. This makes cosmostrix look "different" in a way that isn't
    clearly better.
 2. **No clear value-add**: Unlike parallax or afterglow (which add
    visible depth/richness), `BoldMode::Random` is largely invisible
    (per §3.2). So the deviation has low payoff.
 3. **Cognitive load**: Users coming from cmatrix expect non-bold.
-   Cosmostrix's `--bold 0` is the cmatrix default inverted, which is
+   cosmostrix's `--bold 0` is the cmatrix default inverted, which is
    surprising.
 
 ---

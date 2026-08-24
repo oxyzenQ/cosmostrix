@@ -3,7 +3,7 @@
 
 # Terminal Compatibility
 
-Cosmostrix is a terminal renderer. It depends on common terminal features, but
+cosmostrix is a terminal renderer. It depends on common terminal features, but
 it keeps recovery paths conservative and explicit.
 
 ## Supported Features
@@ -39,14 +39,14 @@ it keeps recovery paths conservative and explicit.
 
 ## Background Behavior
 
-| Setting | What Cosmostrix does | What it does not do |
+| Setting | What cosmostrix does | What it does not do |
 | --- | --- | --- |
 | `color-bg = default-background` (default) | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
 | `color-bg = black` | Paints a solid black background. | Does not use terminal transparency. |
 
 ## Reset Behavior
 
-Normal exit is non-destructive. Quit with `q` or duration end and Cosmostrix
+Normal exit is non-destructive. Quit with `q` or duration end and cosmostrix
 restores modes/styles without clearing your visible shell history. Only `q`
 quits — Esc, Ctrl-C, and all other unrecognized keys are silently ignored
 (prevent accidental exit). Mouse click does NOT exit (v17: removed for
@@ -59,7 +59,7 @@ when the terminal supports it.
 
 Windows Terminal and PowerShell support is best-effort. If a Windows terminal
 does not clear exactly as expected, report the terminal app, shell, Windows
-version, and Cosmostrix build.
+version, and cosmostrix build.
 
 ## Recommended Commands
 

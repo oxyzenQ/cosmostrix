@@ -114,7 +114,7 @@ COMMON OPTIONS:
       Cinematic intro played before the rain engine starts. Pick one
       of three modes (default: logo). The intro plays automatically
       when cosmostrix starts; pass --intro none to skip it entirely.
-        logo    Cosmostrix Logo intro (~6.25s). The ASCII logo fades in
+        logo    cosmostrix Logo intro (~6.25s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the
                 logo dissolves into Matrix rain starting from the
@@ -438,10 +438,10 @@ HELP:
   --check-update   Check the latest upstream release.
 
 RENDERING PHILOSOPHY:
-  Cosmostrix is CPU-only by design. The terminal is a text medium —
+  cosmostrix is CPU-only by design. The terminal is a text medium —
   ANSI escape sequences are the brush, glyphs are the pixels. No GPU
   context (OpenGL/Vulkan/Metal/DirectX/WebGPU) is ever created. GPU
-  image-mode would change Cosmostrix from \"terminal rain\" to \"image
+  image-mode would change cosmostrix from \"terminal rain\" to \"image
   rain\" — a different program. See --doctor RENDERER for the field-level
   declaration and docs/PHILOSOPHY.md for the full rationale.
 ";

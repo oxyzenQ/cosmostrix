@@ -14,7 +14,7 @@
 //!    Triggered by `cosmostrix --intro <type>`. The actual phase logic lives
 //!    in sibling modules:
 //!    * [`super::intro_cosmic`] — Cosmic Burst (singularity → explosion → morph → rain)
-//!    * [`super::intro_logo`]   — Cosmostrix Logo (fade in → ignition → dissolve → rain)
+//!    * [`super::intro_logo`]   — cosmostrix Logo (fade in → ignition → dissolve → rain)
 //!
 //!    This file owns the shared particle infrastructure (pool, RNG, lerp) and
 //!    the dispatcher that routes `IntroType` to the correct submodule's

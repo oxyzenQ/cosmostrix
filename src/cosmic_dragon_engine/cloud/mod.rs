@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Core simulation engine for Cosmostrix — atmospheric rendering pipeline.
+//! Core simulation engine for cosmostrix — atmospheric rendering pipeline.
 //! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
 //! callbacks), **DropletSpawner** (3 parallax layers, see `spawn.rs`),
 //! **GhostEventScheduler** (ghost-kanji events, see `ghost_events.rs`),

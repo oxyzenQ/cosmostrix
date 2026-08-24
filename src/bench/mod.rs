@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Benchmark subsystem for Cosmostrix.
+//! Benchmark subsystem for cosmostrix.
 //!
 //! Provides two benchmark modes:
 //!

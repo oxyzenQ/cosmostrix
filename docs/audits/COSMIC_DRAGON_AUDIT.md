@@ -163,7 +163,7 @@ cosmostrix is **80× larger than cmatrix**, **27× larger than neo**.
 | Cross-platform | 1 target, 2 colors, 1 charset | 8 targets, 44 colors, 25 charsets, AUR | 8× platforms |
 | Tests | 0–20 | 1,476 | 70× more |
 
-### Has Cosmostrix Peaked?
+### Has cosmostrix Peaked?
 
 **Peaked (no meaningful room to go deeper) — 5 of 8 axes:**
 
@@ -193,7 +193,7 @@ cosmostrix is **80× larger than cmatrix**, **27× larger than neo**.
 
 ### Conclusion
 
-Cosmostrix has **peaked as a Matrix rain renderer**. The 3 remaining axes
+cosmostrix has **peaked as a Matrix rain renderer**. The 3 remaining axes
 are expansions of scope (making it more than Matrix rain), not deepening of
 existing scope (making the Matrix rain itself better).
 

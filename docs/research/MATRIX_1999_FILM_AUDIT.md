@@ -1,4 +1,4 @@
-# Matrix 1999 Film vs Cosmostrix — Frame-by-Frame Audit
+# Matrix 1999 Film vs cosmostrix — Frame-by-Frame Audit
 
 > **Historical research snapshot.** File paths, symbol names, and counts
 > reflect the codebase at audit time; modules have since moved (flat
@@ -26,7 +26,7 @@ iconic shot. Secondary sources:
 - No Film School: <https://nofilmschool.com/matrix-digital-rain-origin>
   (Simon Whiteley interview on design intent)
 
-Cosmostrix-side data is read directly from `src/central_control_rains.rs`,
+cosmostrix-side data is read directly from `src/central_control_rains.rs`,
 `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/spawn.rs`, `src/droplet.rs`,
 `src/chroma_dragon_engine/catalog.rs`, and `src/chroma_dragon_engine/tuning.rs` — all citations in
 the comparison table below are file:line.
@@ -35,7 +35,7 @@ the comparison table below are file:line.
 
 ## TL;DR
 
-Cosmostrix already matches the film on 6 of 12 cinematic invariants
+cosmostrix already matches the film on 6 of 12 cinematic invariants
 (speed feel, vertical fall, single highlighted glyph per string, palette
 range, dark background, async column variance). It diverges meaningfully
 on 4 invariants (**glyph paradigm**, **highlight color**, **trail
@@ -72,9 +72,9 @@ essence" — Japanese typographic texture, not actual code. The first
 
 ---
 
-## 2. Cosmostrix Behavior — The Same 12 Invariants
+## 2. cosmostrix Behavior — The Same 12 Invariants
 
-| # | Invariant | Cosmostrix v30 Behavior | Citation |
+| # | Invariant | cosmostrix v30 Behavior | Citation |
 |---|-----------|-------------------------|----------|
 | C1 | **Glyph paradigm** | DROPLET model — a column has a moving "head" that descends row by row, leaving behind a body of glyphs that then decay via phosphor. The head translates downward; glyphs do not stay-then-replace. | `cloud/spawn.rs:412`, `droplet.rs:333-364` |
 | C2 | **String origin** | Droplets spawn at the top row (`start_line = 0` by default) OR mid-screen via `die_early_pct = 0.3333` which sets `end_line` to a random row, but the droplet still starts at row 0. Mid-screen invisible prefix is NOT modeled. | `cloud/spawn.rs:412, 453-470` |
@@ -93,19 +93,19 @@ essence" — Japanese typographic texture, not actual code. The first
 
 ## 3. Frame-by-Frame Comparison
 
-| Invariant | Film | Cosmostrix | Match? | Notes |
+| Invariant | Film | cosmostrix | Match? | Notes |
 |-----------|------|------------|--------|-------|
-| F1 / C1 Glyph paradigm | Stay-and-replace | Translating droplet | **DIVERGENT** | Cosmostrix's droplet model is the standard terminal-rain convention. The film's stay-and-replace paradigm is unusual and arguably looks "wrong" to viewers used to cmatrix-style rain. This divergence is defensible: the film's paradigm causes visible flicker as glyphs swap, which is hard to read at terminal frame rates. |
-| F2 / C2 String origin | Mid-screen, invisible prefix | Top-only or top→die-early | **DIVERGENT (mild)** | Cosmostrix droplets always start at row 0. The film's invisible-prefix trick creates the impression of strings "already in motion" when they enter the frame. Could be emulated by spawning droplets at `start_line = -random(0, lines/2)` with off-screen head. |
-| F3 / C3 Changing glyphs | 3-frame static + 50/50 blend | Per-frame re-roll | **DIVERGENT** | Cosmostrix's per-frame re-roll is visually busier than the film. The film's 3-frame static period gives the eye time to lock onto a glyph; the 50/50 blend frames make the mutation feel smooth. Cosmostrix's re-roll rate is currently gated by `glitch_pct` (10% default) and the dirty-cell map. |
+| F1 / C1 Glyph paradigm | Stay-and-replace | Translating droplet | **DIVERGENT** | cosmostrix's droplet model is the standard terminal-rain convention. The film's stay-and-replace paradigm is unusual and arguably looks "wrong" to viewers used to cmatrix-style rain. This divergence is defensible: the film's paradigm causes visible flicker as glyphs swap, which is hard to read at terminal frame rates. |
+| F2 / C2 String origin | Mid-screen, invisible prefix | Top-only or top→die-early | **DIVERGENT (mild)** | cosmostrix droplets always start at row 0. The film's invisible-prefix trick creates the impression of strings "already in motion" when they enter the frame. Could be emulated by spawning droplets at `start_line = -random(0, lines/2)` with off-screen head. |
+| F3 / C3 Changing glyphs | 3-frame static + 50/50 blend | Per-frame re-roll | **DIVERGENT** | cosmostrix's per-frame re-roll is visually busier than the film. The film's 3-frame static period gives the eye time to lock onto a glyph; the 50/50 blend frames make the mutation feel smooth. cosmostrix's re-roll rate is currently gated by `glitch_pct` (10% default) and the dirty-cell map. |
 | F4 / C4 Changing-glyph sync | Globally synchronized | Independent per cell | **DIVERGENT** | Global sync is the film's most distinctive and least-imitated feature. It would require a frame counter mod 3 in the render path. |
-| F5 / C5 Deletion strings | Eraser strings | Not modeled | **ABSENT** | Deletion strings create the film's characteristic "strings vanishing mid-screen" beat. Cosmostrix droplets only disappear via phosphor decay or `die_early_pct`. |
-| F6 / C6 Highlighted frequency | ~20% of strings | ~100% of strings | **DIVERGENT** | Cosmostrix gives EVERY droplet a head (highlighted leading glyph). The film only highlights 1 in 5. This is the single biggest "feel" difference: cosmostrix looks busier/brighter because every column has a bright head, while the film has a more subdued average brightness with sparse bright pulses. |
+| F5 / C5 Deletion strings | Eraser strings | Not modeled | **ABSENT** | Deletion strings create the film's characteristic "strings vanishing mid-screen" beat. cosmostrix droplets only disappear via phosphor decay or `die_early_pct`. |
+| F6 / C6 Highlighted frequency | ~20% of strings | ~100% of strings | **DIVERGENT** | cosmostrix gives EVERY droplet a head (highlighted leading glyph). The film only highlights 1 in 5. This is the single biggest "feel" difference: cosmostrix looks busier/brighter because every column has a bright head, while the film has a more subdued average brightness with sparse bright pulses. |
 | F7 / C7 Highlighted count | 1 per string | 1 per string | **MATCH** | |
 | F8 / C8 Highlighted position | Leading glyph | Leading glyph (head) | **MATCH** | |
-| F9 / C9 Stammer event | Global 1-row fall-behind | Continuous turbulence + wind gusts | **DIVERGENT (acceptable)** | Cosmostrix's wind-gust envelope (`central_control_rains.rs:658-692`) creates a similar "occasional global pulse" feel, but it's continuous speed modulation, not a discrete 1-row stutter. Defensible — the wind gust reads as more cinematic at terminal frame rates. |
+| F9 / C9 Stammer event | Global 1-row fall-behind | Continuous turbulence + wind gusts | **DIVERGENT (acceptable)** | cosmostrix's wind-gust envelope (`central_control_rains.rs:658-692`) creates a similar "occasional global pulse" feel, but it's continuous speed modulation, not a discrete 1-row stutter. Defensible — the wind gust reads as more cinematic at terminal frame rates. |
 | F10 / C10 Glyph set | Katakana + 日 + numerals + Z + symbols | 25 charsets (24 named + `auto`), `matrix` charset matches | **MATCH (when `--charset matrix`)** | The default `binary` charset does NOT match the film. The `matrix` charset is the correct match. |
-| F11 / C11 Color | Bright white head, green body, dark tail | Pale green-white head (201,244,210), green body, dark tail | **PARTIAL MATCH** | Cosmostrix's head stop `(201, 244, 210)` is luminance ~230 — bright but not pure white. The film's head reads as closer to `(255, 255, 255)` or `(220, 255, 220)`. The hue-preserving self-bloom (`droplet.rs:842`) further keeps it green-tinted. This is a deliberate design choice (hue preservation avoids the "white smear" failure mode) but it's a visible divergence from the film. |
+| F11 / C11 Color | Bright white head, green body, dark tail | Pale green-white head (201,244,210), green body, dark tail | **PARTIAL MATCH** | cosmostrix's head stop `(201, 244, 210)` is luminance ~230 — bright but not pure white. The film's head reads as closer to `(255, 255, 255)` or `(220, 255, 220)`. The hue-preserving self-bloom (`droplet.rs:842`) further keeps it green-tinted. This is a deliberate design choice (hue preservation avoids the "white smear" failure mode) but it's a visible divergence from the film. |
 | F12 / C12 Speed feel | ~30 cps, mild variance | 30 cps default, 3-layer parallax | **MATCH (mid layer)** | The mid layer at 1.0× speed matches the film. The back layer at 0.35× = 10.5 cps is slower than any film column. The front layer at 1.7× = 51 cps is faster than any film column. The 3-layer parallax is cosmostrix's signature cinematic enhancement — it adds depth that the film doesn't have. |
 
 ---
@@ -118,10 +118,10 @@ These divergences are cosmostrix's value-add over a film-accurate
 reproduction. They make the terminal version richer than the original.
 
 - **3-layer parallax** (C12 vs F12) — adds depth-of-field. The film is
-  flat. Cosmostrix is cinematic. Keep.
+  flat. cosmostrix is cinematic. Keep.
 - **Phosphor afterglow** (`PHOSPHOR_DECAY_RATE = 5.0`, `PHOSPHOR_TAIL_RESIDUAL = 160`)
   — creates the CRT-persistence look. The film has zero afterglow (each
-  frame is a clean render). Cosmostrix's ~1.25 s front-layer trail is
+  frame is a clean render). cosmostrix's ~1.25 s front-layer trail is
   ~6× longer than the film's effective ~200 ms. This is the second
   biggest "feel" difference but it's the signature CRT aesthetic — keep.
 - **Wind gust envelope** (30-120s idle, attack/hold/decay) — creates
@@ -129,7 +129,7 @@ reproduction. They make the terminal version richer than the original.
 - **Turbulence drift** (`TURBULENCE_AMPLITUDE = 0.08`) — subtle
   per-droplet sinusoidal speed variation. Adds organic feel. Keep.
 - **Depth fog + vignette + rain shadow** — the film has none of these.
-  Cosmostrix's 4-row top/bottom fog, radial vignette, and bottom-15%
+  cosmostrix's 4-row top/bottom fog, radial vignette, and bottom-15%
   shadow band create a much richer cinematic frame. Keep.
 
 ### Tier 2: Worth Tuning (cheap wins, big feel impact)
@@ -140,7 +140,7 @@ visibly closer to the film without sacrificing its enhancements.
 #### T2.1 — Highlighted glyph frequency (C6 vs F6)
 
 **Problem:** 100% of cosmostrix droplets have a bright head. The film
-has ~20%. Cosmostrix therefore reads as ~5× brighter/busier than the
+has ~20%. cosmostrix therefore reads as ~5× brighter/busier than the
 film at any given moment.
 
 **Tuning:** Add a `HEAD_HIGHLIGHT_PCT` constant (default 0.20 to match
@@ -192,7 +192,7 @@ preservation was designed to prevent.
 
 #### T2.3 — Changing-glyph cadence (C3 vs F3)
 
-**Problem:** Cosmostrix re-rolls glyphs on every dirty frame. The film
+**Problem:** cosmostrix re-rolls glyphs on every dirty frame. The film
 holds each glyph for 3 frames, then transitions with a 50/50 blend.
 
 **Tuning:** Add a `GLYPH_MUTATION_PERIOD_FRAMES` constant (default 3)
@@ -205,7 +205,7 @@ mutation frame). Estimated complexity: ~50 lines in `cloud/render.rs`
 - a new field in the cell struct. Mid-effort, high-impact.
 
 **Caveat:** at 60 FPS, 3 frames = 50 ms. The film is 24 FPS, so 3
-frames = 125 ms. Cosmostrix's cadence would need to be FPS-scaled:
+frames = 125 ms. cosmostrix's cadence would need to be FPS-scaled:
 `hold_frames = (3 * 24 / fps).max(1)`.
 
 ### Tier 3: Out of Scope (would require architecture changes)
@@ -257,7 +257,7 @@ architecturally out of scope.
 
 ## 6. Verdict
 
-Cosmostrix is **not a film-accurate reproduction** — and shouldn't be
+cosmostrix is **not a film-accurate reproduction** — and shouldn't be
 judged as one. It is a cinematic enhancement of the digital rain
 concept, layering 3-layer parallax, phosphor afterglow, depth fog,
 vignette, wind gusts, and turbulence on top of the basic vertical-fall
@@ -288,7 +288,7 @@ the architectural cost.
 - Sreenidhi Podder, *The Surprising Inspiration Behind The Matrix's
   Digital Rain*, No Film School, Aug 28 2025 —
   <https://nofilmschool.com/matrix-digital-rain-origin>
-- Cosmostrix source: `src/central_control_rains.rs`,
+- cosmostrix source: `src/central_control_rains.rs`,
   `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/spawn.rs`, `src/droplet.rs`,
   `src/chroma_dragon_engine/catalog.rs`, `src/chroma_dragon_engine/tuning.rs`,
   `src/chroma_dragon_engine/shaders/base.rs`, `src/interactive/event_loop.rs`

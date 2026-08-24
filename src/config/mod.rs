@@ -3,7 +3,7 @@
 
 //! CLI argument definitions and help output generators.
 //!
-//! Cosmostrix follows a **curated simplicity** philosophy:
+//! cosmostrix follows a **curated simplicity** philosophy:
 //! - `--help` prints the full curated reference manual (single-tier help)
 //! - `--glitch-level` provides a grouped interface over individual tuning knobs
 //! - Advanced parameters remain fully functional but are intentionally hidden
@@ -175,7 +175,7 @@ pub enum GlitchLevel {
 /// runtime intro dispatcher in `crate::interactive::intro`.
 ///
 /// * `Cosmic` — Cosmic Burst: singularity → explosion → morph → rain.
-/// * `Logo`   — Cosmostrix Logo: fade in → ignition → dissolve → rain.
+/// * `Logo`   — cosmostrix Logo: fade in → ignition → dissolve → rain.
 /// * `None`   — No intro; skip straight to the rain engine.
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum IntroType {
@@ -229,7 +229,7 @@ impl FromStr for U16Range {
     disable_version_flag = true,
     disable_help_flag = true,
     about = "Professional-grade cinematic Matrix rain renderer for serious terminal environments.",
-    after_help = "Cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --docs` for the full technical breakdown."
+    after_help = "cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --docs` for the full technical breakdown."
 )]
 pub struct Args {
     // === COMMON OPTIONS (visible in --help) ===

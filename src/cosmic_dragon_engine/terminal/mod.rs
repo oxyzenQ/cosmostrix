@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Terminal abstraction layer for Cosmostrix.
+//! Terminal abstraction layer for cosmostrix.
 //!
 //! Provides raw mode, alternate screen management, optional mouse capture, and the
 //! core diff-based ANSI rendering pipeline.

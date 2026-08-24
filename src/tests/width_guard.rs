@@ -3,7 +3,7 @@
 
 //! Bug #11 regression guards — width=1 invariant for the frame buffer.
 //!
-//! Cosmostrix's frame buffer holds one `char` per cell with no width
+//! cosmostrix's frame buffer holds one `char` per cell with no width
 //! metadata. The terminal serializer writes chars verbatim, advancing
 //! the cursor by 1 column per char. If a width=2 char (CJK ideograph,
 //! emoji, fullwidth punctuation) ever enters the frame buffer:
@@ -16,7 +16,7 @@
 //!      force_draw_everything (every 5 minutes by default).
 //!
 //! This is exactly Bug #11 (commit c1843fe, originally for -m message
-//! wide chars) and its recurrence in GHOST_CHARS. Cosmostrix
+//! wide chars) and its recurrence in GHOST_CHARS. cosmostrix
 //! will NEVER support emoji — only pure text/data. These tests guard
 //! that invariant at the static-array and charset-preset layer.
 //!

@@ -695,7 +695,7 @@ verify_release_builds() {
 
 show_help() {
         cat <<'EOF'
-Cosmostrix build script
+cosmostrix build script
 
 USAGE:
     ./scripts/build.sh [COMMAND] [OPTIONS]

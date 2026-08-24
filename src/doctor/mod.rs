@@ -442,7 +442,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         }
 
         // Font + terminal recommendation (masterclass curation — REZKY×DEEPSEEK
-        // verdict). Cosmostrix cannot detect the user's font (no escape
+        // verdict). cosmostrix cannot detect the user's font (no escape
         // sequence for it), but it CAN detect the terminal emulator via
         // TERM_PROGRAM and recommend a font that pairs well with cosmostrix's
         // chroma dragon gradients.

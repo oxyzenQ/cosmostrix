@@ -1,7 +1,7 @@
 # Changelog
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-Cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. `v50.0.0`).
+cosmostrix uses [SemVer](https://semver.org/). Git tags use a leading `v` (e.g. `v50.0.0`).
 
 Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archive/CHANGELOG_PRE_V13.md). The summary below covers the full journey from the first public release to the current beta, condensed so users can follow the evolution without wading through per-release minutiae.
 
@@ -9,7 +9,7 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## v50.0.0-beta.4 — Three Dragon Engines (Current Beta)
 
-Cosmostrix v50.0.0-beta.4 — production-LTS-grade stability after full audit pass. 226 source files, ~89K LOC, ~1500+ tests pass. All 3 dragon engines locked with A/B benchmark signature.
+cosmostrix v50.0.0-beta.4 — production-LTS-grade stability after full audit pass. 226 source files, ~89K LOC, ~1500+ tests pass. All 3 dragon engines locked with A/B benchmark signature.
 
 ### What's new since beta.3
 
@@ -26,7 +26,7 @@ Cosmostrix v50.0.0-beta.4 — production-LTS-grade stability after full audit pa
 
 ## v50.0.0-beta.3 — Three Dragon Engines
 
-Cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 220+ source files, ~89K LOC, ~1500+ tests pass.
+cosmostrix v50 is the "zero to hero" culmination — from a simple terminal rain demo to a professional-grade cinematic renderer with three independent dragon engines, each owning a distinct concern. 220+ source files, ~89K LOC, ~1500+ tests pass.
 
 ### The Three Dragon Engines
 
@@ -109,7 +109,7 @@ The era that turned cosmostrix from "a Matrix rain toy" into "a cinematic render
 
 ## v4.0.0 — Atmosphere Engine + Monolith Rain
 
-The "real renderer" era. Cosmostrix found its identity here.
+The "real renderer" era. cosmostrix found its identity here.
 
 - Signature Monolith Rain as the production default (sparse data pillars, segmented blocks).
 - Cosmic Dragon Core/Engine/Cache groundwork for adaptive rendering.

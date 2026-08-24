@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
 """
-Cosmostrix vs Competitors — Real cell-write comparison script.
+cosmostrix vs Competitors — Real cell-write comparison script.
 
 Measures actual I/O bytes written by each renderer over a fixed duration
 and compares against cosmostrix's diff-based rendering.
