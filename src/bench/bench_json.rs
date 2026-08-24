@@ -227,14 +227,40 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     });
 
     // ── terminal_io (Phase 2: wet I/O metrics) ──
+    //
+    // v50 LTS audit (Task 3): added `bytes_written_human` and
+    // `bandwidth_mibps_human` for symmetry with the text report
+    // (which already used `humanize_bytes` / `humanize_throughput`
+    // after the centralization refactor in commit f8f6a5e). JSON
+    // consumers can read the raw u64/f64 fields for precise math
+    // and the `_human` fields for display, matching the pattern
+    // already established in the `throughput` and `timing`
+    // sections.
     json_object(&mut out, "terminal_io", |o| match &data.terminal_io {
         Some(io) if io.enabled => {
             o.push_kv("enabled", true);
             o.push_kv_str("target", &io.target);
             o.push_kv("bytes_written", io.bytes_written);
+            o.push_kv_str(
+                "bytes_written_human",
+                &crate::humanize::humanize_bytes(io.bytes_written),
+            );
             o.push_kv("write_calls", io.write_calls);
             o.push_kv("backpressure_events", io.backpressure_events);
-            o.push_kv("bandwidth_mbps", io.bandwidth_mbps());
+            // `bandwidth_mibps` is the corrected name (MiB/s, not MB/s).
+            // `bandwidth_mbps` is retained as a deprecated alias for
+            // backward-compat with any consumer that already reads it;
+            // both fields carry the same value. The function is named
+            // `bandwidth_mbps` because the divisor is 1 MiB (1_048_576
+            // bytes) but the previous label was misleading — see the
+            // doc comment on `TerminalIoMetrics::bandwidth_mbps`.
+            let bw = io.bandwidth_mbps();
+            o.push_kv("bandwidth_mibps", bw);
+            o.push_kv("bandwidth_mbps", bw);
+            o.push_kv_str(
+                "bandwidth_human",
+                &crate::humanize::humanize_throughput(io.bytes_written, io.elapsed_secs),
+            );
             o.push_kv("avg_latency_us", io.avg_latency_us());
             o.push_kv("effective_write_fps", io.effective_write_fps());
         }
@@ -275,17 +301,46 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     });
 
     // ── allocator (Phase 5: tracing) ──
+    //
+    // v50 LTS audit (Task 3): emit `available: true` in the Some(a)
+    // branch for schema consistency with `energy` and `microarchitecture`
+    // (which always emit `available: true/false`). Previously the
+    // `allocator` section emitted `available: false` when None but
+    // omitted the flag entirely when Some — leaving consumers with no
+    // reliable presence flag. Now `available` is always present.
+    //
+    // Also added `_human` forms for the four byte-typed fields so JSON
+    // consumers can display them without re-implementing the binary
+    // 1024-based scaling logic. The raw u64 fields remain for precise
+    // math; the `_human` fields are for display only.
     json_object(&mut out, "allocator", |o| match &data.allocator {
         Some(a) => {
+            o.push_kv("available", true);
             o.push_kv("alloc_calls", a.alloc_calls);
             o.push_kv("dealloc_calls", a.dealloc_calls);
             o.push_kv("realloc_calls", a.realloc_calls);
             o.push_kv("bytes_allocated_total", a.bytes_allocated_total);
+            o.push_kv_str(
+                "bytes_allocated_total_human",
+                &crate::humanize::humanize_bytes(a.bytes_allocated_total),
+            );
             o.push_kv("bytes_deallocated_total", a.bytes_deallocated_total);
+            o.push_kv_str(
+                "bytes_deallocated_total_human",
+                &crate::humanize::humanize_bytes(a.bytes_deallocated_total),
+            );
             o.push_kv("heap_retained_bytes", a.heap_retained_bytes);
+            o.push_kv_str(
+                "heap_retained_bytes_human",
+                &crate::humanize::humanize_bytes(a.heap_retained_bytes),
+            );
             o.push_kv("alloc_calls_per_frame", a.alloc_calls_per_frame);
             o.push_kv("dealloc_calls_per_frame", a.dealloc_calls_per_frame);
             o.push_kv("heap_virtual_kib", a.heap_virtual_kib);
+            o.push_kv_str(
+                "heap_virtual_kib_human",
+                &crate::humanize::humanize_bytes(a.heap_virtual_kib.saturating_mul(1024)),
+            );
         }
         None => {
             o.push_kv("available", false);
@@ -293,8 +348,15 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
     });
 
     // ── visual_objective (Phase 6) ──
+    //
+    // v50 LTS audit (Task 3): emit `available: true` in the Some(v)
+    // branch for schema consistency with `energy` and `microarchitecture`.
+    // Previously the section emitted `available: false` when None but
+    // omitted the flag entirely when Some — consumers had no reliable
+    // presence flag. Now `available` is always present.
     json_object(&mut out, "visual_objective", |o| match &data.visual {
         Some(v) => {
+            o.push_kv("available", true);
             o.push_kv("frame_entropy_bits", v.frame_entropy_bits);
             o.push_kv("density_gini", v.density_gini);
             o.push_kv("color_transition_delta_avg", v.color_transition_delta_avg);
@@ -342,11 +404,19 @@ impl JsonBuf for String {
     }
 
     fn push_kv_opt(&mut self, key: &str, value: Option<f64>) {
+        // v50 LTS audit (Task 3): finite-check the inner f64 before
+        // emitting. The non-Option `JsonValue for f64` impl already
+        // emits `null` for NaN/Infinity, but `push_kv_opt` previously
+        // wrote the bare `{v}` literal — producing invalid JSON like
+        // `"key":NaN,` or `"key":inf,` which strict JSON parsers
+        // reject. Now any non-finite value (None OR Some(NaN/inf))
+        // emits `null`, matching the `JsonValue for f64` behavior and
+        // guaranteeing the output is always valid JSON.
         match value {
-            Some(v) => {
+            Some(v) if v.is_finite() => {
                 self.push_str(&format!("\"{key}\":{v},"));
             }
-            None => self.push_kv_null(key),
+            _ => self.push_kv_null(key),
         }
     }
 
@@ -508,5 +578,91 @@ mod tests {
         }
         out.push('}');
         assert_eq!(out, r#"{"section":{"a":"1","b":"2"}}"#);
+    }
+
+    // ── v50 LTS audit (Task 3) stress tests ───────────────────────────────
+    //
+    // Regression coverage for the JSON serializer hardening:
+    //   1. push_kv_opt emits `null` for non-finite f64 (NaN, +/- infinity)
+    //      instead of invalid JSON literals like `NaN` or `inf`.
+    //   2. allocator and visual_objective sections always emit
+    //      `available: true/false` so consumers have a reliable
+    //      presence flag (previously the `Some` branch omitted it).
+    //   3. terminal_io + allocator sections emit `_human` forms for
+    //      byte-typed fields alongside the raw u64 values.
+    //   4. The full JSON output is parseable as a strict JSON value
+    //      (no trailing commas, balanced braces, no NaN/inf tokens).
+
+    #[test]
+    fn push_kv_opt_finite_value_emits_number() {
+        let mut out = String::new();
+        out.push_kv_opt("key", Some(42.5));
+        assert_eq!(out, "\"key\":42.5,");
+    }
+
+    #[test]
+    fn push_kv_opt_none_emits_null() {
+        let mut out = String::new();
+        out.push_kv_opt("key", None);
+        assert_eq!(out, "\"key\":null,");
+    }
+
+    #[test]
+    fn push_kv_opt_nan_emits_null_not_invalid_literal() {
+        // NaN must NOT be emitted as the bare literal `NaN` — strict
+        // JSON parsers reject it. The finite-check routes through
+        // push_kv_null so the output is always valid JSON.
+        let mut out = String::new();
+        out.push_kv_opt("key", Some(f64::NAN));
+        assert_eq!(out, "\"key\":null,");
+    }
+
+    #[test]
+    fn push_kv_opt_positive_infinity_emits_null() {
+        let mut out = String::new();
+        out.push_kv_opt("key", Some(f64::INFINITY));
+        assert_eq!(out, "\"key\":null,");
+    }
+
+    #[test]
+    fn push_kv_opt_negative_infinity_emits_null() {
+        let mut out = String::new();
+        out.push_kv_opt("key", Some(f64::NEG_INFINITY));
+        assert_eq!(out, "\"key\":null,");
+    }
+
+    #[test]
+    fn push_kv_opt_zero_emits_zero() {
+        // Boundary: 0.0 (positive) and -0.0 (negative) are both finite
+        // and must emit as the number, not null.
+        let mut out = String::new();
+        out.push_kv_opt("pos_zero", Some(0.0));
+        out.push_kv_opt("neg_zero", Some(-0.0));
+        assert_eq!(out, "\"pos_zero\":0,\"neg_zero\":-0,");
+    }
+
+    #[test]
+    fn json_value_f64_nan_emits_null() {
+        // Direct trait impl check: bare f64 NaN must emit null.
+        let mut out = String::new();
+        let v: f64 = f64::NAN;
+        v.write_json(&mut out);
+        assert_eq!(out, "null");
+    }
+
+    #[test]
+    fn json_value_f64_infinity_emits_null() {
+        let mut out = String::new();
+        let v: f64 = f64::INFINITY;
+        v.write_json(&mut out);
+        assert_eq!(out, "null");
+    }
+
+    #[test]
+    fn json_value_f64_finite_emits_number() {
+        let mut out = String::new();
+        let v: f64 = 3.14159;
+        v.write_json(&mut out);
+        assert_eq!(out, "3.14159");
     }
 }

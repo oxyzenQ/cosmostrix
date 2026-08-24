@@ -54,7 +54,7 @@ mod tests {
             "ansi_bytes_per_second",
             "active_streams_avg",
             // Timing
-            "elapsed",
+            "elapsed_s",
             "total_frames",
             "drawn_frames",
             // COSMIC DRAGON ENGINE

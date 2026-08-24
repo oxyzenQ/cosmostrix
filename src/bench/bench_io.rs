@@ -104,7 +104,15 @@ pub(crate) struct TerminalIoMetrics {
 }
 
 impl TerminalIoMetrics {
-    /// Write bandwidth in MB/s (1 MB = 1,048,576 bytes).
+    /// Write bandwidth in MiB/s (1 MiB = 1_048_576 bytes).
+    ///
+    /// Historical naming note: the function is named `bandwidth_mbps`
+    /// (megabytes per second) but the divisor is 1 MiB (binary), not
+    /// 1 MB (decimal = 1_000_000). The misleading name is retained
+    /// for call-site stability; the JSON serializer emits both
+    /// `bandwidth_mibps` (correct unit) and `bandwidth_mbps`
+    /// (deprecated alias, same value) so consumers can migrate
+    /// without breaking. See the v50 LTS audit (Task 3) for details.
     #[must_use]
     pub(crate) fn bandwidth_mbps(&self) -> f64 {
         if self.elapsed_secs > 0.0 {
