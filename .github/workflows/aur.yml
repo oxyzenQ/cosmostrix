@@ -10,9 +10,13 @@
 #   - Minimal:        only modifies pkgver, _tag, .SRCINFO
 #
 # SSH deployment policy:
-#   Uses AUR_SSH_PRIVATE_KEY from GitHub Actions Secrets.
-#   This key is isolated, revocable, has no passphrase, and exists
-#   only for automated deployment.
+#   Uses AUR_SSH_PRIVATE_KEY + AUR_SSH_PASSPHRASE from GitHub Actions
+#   Secrets. The key is a dedicated, isolated, revocable ed25519 deploy
+#   key (KDF rounds -a 200) protected by its own passphrase (NOT the GPG
+#   passphrase — blast-radius isolation). The passphrase is fed to
+#   ssh-agent via a step-scoped SSH_ASKPASS helper and never lands on
+#   disk; the agent runs on a fixed socket so later steps can use the
+#   decrypted key without re-prompting.
 
 name: "Cosmic Dragon Guard - AUR Sync"
 
@@ -234,6 +238,7 @@ jobs:
         shell: bash
         env:
           AUR_SSH_KEY: ${{ secrets.AUR_SSH_PRIVATE_KEY }}
+          AUR_SSH_PASSPHRASE: ${{ secrets.AUR_SSH_PASSPHRASE }}
         run: |
           set -euo pipefail
 
@@ -241,21 +246,29 @@ jobs:
             echo "::error::AUR_SSH_PRIVATE_KEY secret is not configured"
             exit 1
           fi
+          if [[ -z "${AUR_SSH_PASSPHRASE}" ]]; then
+            echo "::error::AUR_SSH_PASSPHRASE secret is not configured"
+            exit 1
+          fi
 
           mkdir -p "${HOME}/.ssh"
           chmod 700 "${HOME}/.ssh"
 
-          # Write the private key
+          # Write the private key (passphrase-protected ed25519, KDF -a 200)
           echo "${AUR_SSH_KEY}" > "${HOME}/.ssh/aur_key"
           chmod 600 "${HOME}/.ssh/aur_key"
 
-          # Configure SSH to use the AUR deploy key
+          # Configure SSH to use the AUR deploy key.
+          # BatchMode yes: fail fast instead of hanging if any prompt
+          # would ever be needed — the decrypted key is provided by
+          # ssh-agent (below), so no interactive input is required.
           cat > "${HOME}/.ssh/config" <<SSHEOF
           Host aur.archlinux.org
             IdentityFile ~/.ssh/aur_key
             StrictHostKeyChecking yes
             UserKnownHostsFile ~/.ssh/known_hosts
             IdentitiesOnly yes
+            BatchMode yes
           SSHEOF
           chmod 600 "${HOME}/.ssh/config"
 
@@ -263,6 +276,38 @@ jobs:
           # Updated 2026-05: AUR rotated their Ed25519 host key (OpenSSH 10.3)
           echo "aur.archlinux.org ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIEuBKrPzbawxA/k2g6NcyV5jmqwJ2s+zpgZGZ7tpLIcN" \
             > "${HOME}/.ssh/known_hosts"
+
+          # Start ssh-agent on a FIXED socket and export it via
+          # $GITHUB_ENV so the later "Push to AUR" step can reach the
+          # agent. (The usual `eval "$(ssh-agent -s)"` pattern does NOT
+          # work here: env vars from eval only live inside the current
+          # step, while each GitHub Actions step is a fresh shell.)
+          SSH_AGENT_SOCK="/tmp/aur-ssh-agent.sock"
+          rm -f "${SSH_AGENT_SOCK}"
+          ssh-agent -a "${SSH_AGENT_SOCK}" > /dev/null
+          export SSH_AUTH_SOCK="${SSH_AGENT_SOCK}"
+          echo "SSH_AUTH_SOCK=${SSH_AGENT_SOCK}" >> "${GITHUB_ENV}"
+
+          # Load the key into the agent. The passphrase is provided via
+          # a temporary SSH_ASKPASS helper that reads it from this step's
+          # environment — the passphrase itself never lands on disk.
+          # SSH_ASKPASS_REQUIRE=force needs OpenSSH >= 8.4 (runners have
+          # 9.x). If the key were ever replaced by one without a
+          # passphrase, ssh-add simply skips the askpass — still works.
+          # The helper is generated via printf because a heredoc inside
+          # a YAML literal block cannot place the shebang at column 0
+          # (YAML would terminate the block) — and an indented "#!/bin/sh"
+          # makes the file invalid for execve.
+          ASKPASS="${HOME}/.ssh/aur_askpass"
+          printf '#!/bin/sh\nprintf "%%s\\n" "$AUR_SSH_PASSPHRASE"\n' > "${ASKPASS}"
+          chmod 700 "${ASKPASS}"
+          SSH_ASKPASS="${ASKPASS}" SSH_ASKPASS_REQUIRE=force \
+            ssh-add "${HOME}/.ssh/aur_key"
+          rm -f "${ASKPASS}"
+
+          # Fail fast with a clear signal if the key did not load
+          # (wrong passphrase or corrupted secret).
+          ssh-add -l > /dev/null
 
       # ------------------------------------------------------------------
       # 6. Clone AUR repository, apply changes, push
@@ -328,4 +373,13 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -rf "${HOME}/.ssh/aur_key" "${HOME}/.ssh/config" "${HOME}/.ssh/known_hosts"
+          # Kill the ssh-agent started by the setup step (socket path is
+          # exported to this step via $GITHUB_ENV), then remove all SSH
+          # artifacts including the askpass helper leftover from a failed
+          # setup. Cleanup must never fail the job.
+          if [[ -S "${SSH_AUTH_SOCK:-}" ]]; then
+            ssh-agent -k > /dev/null 2>&1 || true
+          fi
+          pkill -u "$(id -u)" -x ssh-agent > /dev/null 2>&1 || true
+          rm -rf "${HOME}/.ssh/aur_key" "${HOME}/.ssh/config" \
+                 "${HOME}/.ssh/known_hosts" "${HOME}/.ssh/aur_askpass"
