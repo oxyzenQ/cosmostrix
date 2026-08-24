@@ -122,7 +122,7 @@ were 0.30s/0.45s — far from "~3s"). Switched to exponential decay
   rewritten from smootherstep S-curve to `(-PAUSE_EASE_DECAY_RATE *
   t).exp()` + settle-snap at `PAUSE_EASE_SETTLE_FRAC`; lines 147-181:
   accel block rewritten from smootherstep to `1.0 - (-RESUME_EASE_DECAY_RATE
-  * t).exp()` + settle-snap at `RESUME_EASE_SETTLE_FRAC`. §8.4
+  - t).exp()` + settle-snap at `RESUME_EASE_SETTLE_FRAC`. §8.4
   `resume_blend_start` interpolation preserved for aborted-decel
   resumes. 0.05 floor kept as a safety net for the first-frame window.)
 
@@ -143,7 +143,7 @@ settle time, no contract change):
   `PAUSE_EASE_DURATION_SECS` / `RESUME_EASE_DURATION_SECS` constants,
   added `PAUSE_EASE_DECAY_RATE` = 1.2, `RESUME_EASE_DECAY_RATE` = 0.9,
   `PAUSE_EASE_SETTLE_FRAC` = 0.05, `RESUME_EASE_SETTLE_FRAC` = 0.95,
-  + design-doc comment block explaining the migration rationale)
+  - design-doc comment block explaining the migration rationale)
 - `README.md` (line 128: stale "exponential deceleration (~3s
   coast-down)" → accurate "~2.5s coast-down to settle (k=1.2/s, snaps
   to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps

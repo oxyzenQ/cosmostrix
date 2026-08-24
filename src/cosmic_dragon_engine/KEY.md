@@ -95,7 +95,7 @@
 > **Files changed** (locked path):
 > - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73 decel block +
 >   lines 147-181 accel block: smootherstep math replaced with `(-k*t).exp()`
->   + settle-threshold snap; §8.4 `resume_blend_start` interpolation
+>   - settle-threshold snap; §8.4 `resume_blend_start` interpolation
 >   preserved, 0.05 floor kept as safety net)
 >
 > **Files changed** (test only, no production code):
