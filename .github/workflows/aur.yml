@@ -299,6 +299,10 @@ jobs:
           # (YAML would terminate the block) — and an indented "#!/bin/sh"
           # makes the file invalid for execve.
           ASKPASS="${HOME}/.ssh/aur_askpass"
+          # The $AUR_SSH_PASSPHRASE reference below must stay literal: it
+          # is expanded by the generated helper when ssh-add invokes it,
+          # not by this script.
+          # shellcheck disable=SC2016
           printf '#!/bin/sh\nprintf "%%s\\n" "$AUR_SSH_PASSPHRASE"\n' > "${ASKPASS}"
           chmod 700 "${ASKPASS}"
           SSH_ASKPASS="${ASKPASS}" SSH_ASKPASS_REQUIRE=force \
