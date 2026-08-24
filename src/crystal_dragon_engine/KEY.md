@@ -8,6 +8,35 @@
 
 ## LOCK
 
+> Engine re-locked at commit `c327803` after the crystal re-seal audit
+> (2026-08-24). Confirms no crystal paths were touched in commits
+> `5280ae1` (cosmic-side exp decay consolidation), `deff636`
+> (cosmic-side SHA backfill + README crypto donations), or `c327803`
+> (cosmic + chroma re-seal) — crystal engine is untouched by the
+> v50.0.0-beta.5 masterclass easing migration and the post-amend
+> re-seal cycle. No crystal ambient/scheduler/sensor/palette_groups/
+> point_system/crystal_dragon_control/ambient_diag/mod.rs production
+> code has been modified since the `c1c7779` baseline. The crystal
+> UNLOCK at `9de2f44` (LOW-1 ambient scheduler `try_send` conflation
+> fix — `DeliverOutcome` three-way contract, 4 new contract tests,
+> retroactively documented) remains closed and re-sealed by the
+> `c1c7779` triple-engine LTS deeper audit; no further UNLOCK has
+> been opened since. Crystal ambient scheduler behavior re-verified
+> (empty schedule idles 60s loops, single entry sleeps until boundary,
+> live reload wakes condvar immediately, saturated-channel retry loop
+> engages only when channel is full — pre-fix thread-termination
+> behavior absent). A/B: no crystal code touched → no measurable
+> delta vs `c1c7779` baseline (alloc_calls 563 exact-match, 0.0
+> allocs/frame; avg_fps within ±5% cross-session hardware variance;
+> peak_rss 4.33-4.42 MiB). Tests: crystal suite 82/82,
+> ambient_scheduler suite 17/17, full binary suite 1660/0/2, cosmic +
+> chroma combined `lock_inv` filter 36/36. cargo fmt + clippy
+> `--all-targets --all-features -D warnings` + gate-keepers.sh (7/7)
+> all clean.
+>
+> Signoff: **oxyzenQ** — 2026-08-24 — crystal re-seal after cosmic-side
+> v50.0.0-beta.5 amendments
+
 > Engine re-locked at commit `c1c7779` after the triple-engine LTS deeper audit
 > (2026-08-23, follows the 2026-08-17 nightly.1 audit which had not covered
 > Crystal). Full white-box audit of sensor, ambient parsing, scheduler
