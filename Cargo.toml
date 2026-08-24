@@ -154,9 +154,13 @@ strip = false
 #     removed when those files were deleted in commit 07b44b5.
 
 [lints.clippy]
-# Project-wide clippy allows. The default clippy policy (all lints warn)
-# is enforced via `cargo clippy -- -D warnings` in scripts/build.sh.
-# Entries here are exceptions to default clippy nits.
+# Project-wide clippy lint configuration. The default clippy policy (all
+# lints warn) is enforced via `cargo clippy -- -D warnings` in
+# scripts/build.sh. Entries below are deliberate deviations:
+#   - `allow` entries silence default nits project-wide.
+#   - `deny` entries promote specific lints so they fail EVERY cargo
+#     invocation (plain `cargo clippy`, IDE runs, rust-analyzer) —
+#     not just under build.sh's -D warnings flag.
 #
 # excessive_precision: was previously a file-local
 # `#![allow(clippy::excessive_precision)]` in src/chroma/gradient.rs.
@@ -165,6 +169,15 @@ strip = false
 # verification showed no other file triggers this lint — so the
 # project-wide allow is equivalent in effect to the file-local one.
 excessive_precision = "allow"
+
+# manual_slice_fill: added in Rust 1.98.0. Flags manual
+# `for x in &mut slice { *x = val; }` loops that should be
+# `slice.fill(val)` (stable since 1.50, identical codegen). Fired
+# once during the 1.98.0 toolchain bump (terminal/tier2.rs ring
+# buffer reset — fixed in commit 80d82fa). Promoted to deny per
+# owner approval so every future occurrence fails any clippy run,
+# not just the build.sh gate.
+manual_slice_fill = "deny"
 
 [dev-dependencies]
 proptest = { version = "1.8.0", default-features = false, features = ["std"] }
