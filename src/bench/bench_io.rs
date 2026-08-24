@@ -88,7 +88,7 @@ use crate::sgr_format::{push_u8, write_sgr_colors_buf};
 // BOLT tables (U8_PADDED, U8_LEN, BOLD_ESCAPES, BOLD_ESCAPE_LENS) and the
 // branchless `write_u8_to_slice` helper now live in `crate::bolt` so that
 // `bench_io`, `sgr_format`, and `terminal::draw` share a single
-// branchless implementation. See `src/bolt.rs` for the table layouts and
+// branchless implementation. See `src/bolt/mod.rs` for the table layouts and
 // the projected production-path gain rationale.
 
 /// Terminal I/O metrics collected during wet benchmark.

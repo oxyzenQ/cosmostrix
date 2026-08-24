@@ -235,7 +235,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // ambient harmony: 'c'/'C' clears `ambient_palette_locked` (user
         // is taking ownership of color) and sets `user_override_since_ambient`
         // (so the next ambient fire isn't deduped). See
-        // docs/audits/AMBIENT_SCHEDULER_AUDIT.md §2.3.
+        // docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md §2.3.
         (KeyCode::Char('c'), KeyModifiers::NONE) => {
             let next = cycle_color_scheme(cloud.color_scheme(), 1);
             cloud.set_color_scheme(next);
@@ -355,7 +355,7 @@ pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {
 /// shortcut, no new CLI flag — the harmony flags already in Cloud drive
 /// the behavior.
 ///
-/// See `docs/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2.
+/// See `docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md` §2.2.
 pub(super) fn should_auto_snapback(
     user_override_since_ambient: bool,
     idle_secs: f64,

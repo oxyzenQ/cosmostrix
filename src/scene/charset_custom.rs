@@ -123,7 +123,8 @@ pub(crate) fn collect_charset_custom(
 /// - the pool exceeds `CHARSET_CUSTOM_MAX_LEN` characters
 ///
 /// Wide / zero-width characters are SKIPPED (not errors) — this matches
-/// the existing `--charset-file` behavior and avoids hard-failing when a
+/// the old `--charset-file` path's behavior (flag removed in v25) and
+/// avoids hard-failing when a
 /// user copy-pastes a string that happens to include a non-breaking space
 /// or a stray combining mark. A warning is emitted to stderr per skipped
 /// codepoint.

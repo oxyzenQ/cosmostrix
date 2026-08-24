@@ -338,7 +338,7 @@ fn charset_matching_custom_block_gets_charset_custom_hint() {
     // but `pipes` is the name of a [charset-custom.pipes] block — not a
     // built-in charset preset. The error must point them at the
     // `charset-custom` field. (Note: `pipes` is chosen because it is
-    // NOT in the built-in charset list — see src/charset.rs.)
+    // NOT in the built-in charset list — see src/scene/charset.rs.)
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("charset-custom.pipes.set".to_string(), "|".to_string());
     let msg = validate_field_value_with_cfg("charset", "pipes", &cfg)

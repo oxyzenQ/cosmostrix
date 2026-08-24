@@ -287,7 +287,7 @@ pub struct Cloud {
     pub(crate) color_tune: crate::color_tune::ColorTune,
     /// true when ambient asserted palette → suppress Crystal Dragon palette drift
     /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
-    /// See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
+    /// See docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
     pub(crate) ambient_palette_locked: bool,
     /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
     /// or Crystal Dragon picked new palette since last ambient fire. Prevents

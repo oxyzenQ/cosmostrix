@@ -955,7 +955,7 @@ impl Cloud {
         // specifies the HOW (climate variation on top). When the user
         // manually overrides (presses 'c' or 'x'), the lock is cleared
         // and Crystal Dragon drift resumes until the next ambient fire.
-        // See docs/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3 + §3.
+        // See docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3 + §3.
         //
         // Note: custom_palette_active is NOT a drift gate. When the user
         // explicitly enables --crystal-dragon with a custom palette (-c

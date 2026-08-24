@@ -15,7 +15,7 @@ use crossterm::style::Color;
 ///
 /// BOLT: delegates to `bolt::push_u8` (branchless table lookup via
 /// `U8_PADDED` + `U8_LEN`). The original branchy cascade (n<10, n<100,
-/// else) is gone — see `src/bolt.rs` for the table layout and the
+/// else) is gone — see `src/bolt/mod.rs` for the table layout and the
 /// projected production-path gain rationale.
 #[inline]
 pub(crate) fn push_u8(buf: &mut Vec<u8>, n: u8) {

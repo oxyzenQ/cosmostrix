@@ -93,7 +93,7 @@ const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head
 /// Config-only (no CLI flag). Time-of-day phase entries that switch the
 /// active scene at scheduled times. Instant switch (no blend window).
 /// Dynamic idle/wake scheduler thread — zero CPU between phase boundaries.
-/// See `src/crystal_dragon_engine/ambient.rs` and `src/crystal_dragon_engine/ambient_scheduler.rs`.
+/// See `src/crystal_dragon_engine/ambient/mod.rs` and `src/crystal_dragon_engine/ambient_scheduler/mod.rs`.
 const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
 #[derive(Debug, Default, PartialEq, Eq)]

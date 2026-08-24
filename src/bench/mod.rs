@@ -1230,8 +1230,8 @@ fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchRepor
         avg_fps,
         peak_fps,
         avg_frame_time,
-        // v30 strengthen (audit): the silent capture path (used by --bench-all
-        // and --bench-tune) does not compute percentile/jitter/stability
+        // v30 strengthen (audit): the silent capture path (used by --bench-all)
+        // does not compute percentile/jitter/stability
         // metrics because those require the full frame_times array + sort,
         // and the callers only read avg_fps + ns/cell + alloc/visual metrics.
         // The previous code hardcoded `jitter_classification: "low"` and

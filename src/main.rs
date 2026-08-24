@@ -186,7 +186,7 @@ pub use info::env_var_truthy;
 // `std::io::Error` that Rust would render as a debug-looking
 // `Error: Custom { ... }`.
 
-// Path security validation lives in src/safepath.rs.
+// Path security validation lives in src/safepath/mod.rs.
 pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
 
 /// Fork guard: protects the terminal from being left in raw mode when

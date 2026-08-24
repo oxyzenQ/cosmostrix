@@ -1010,4 +1010,4 @@ pub(crate) fn print_show_scene(
 // Design principle: guide, don't dump. No embedded catalogs, no schema dumps,
 // no verbose alias disclosures. Discovery commands handle discovery.
 //
-// print_help() lives in src/help_detail.rs.
+// print_help() lives in src/cli/help_detail.rs.
