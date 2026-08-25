@@ -209,19 +209,35 @@ pub(crate) struct HudState {
     /// owner can see when adaptive throttling is engaging. Source:
     /// `PowerManager::effective_pressure()` called from the event loop.
     effective_pressure: f32,
+    // v50.0.0-beta.6: two new owner-mandated HUD metrics — power-dragon
+    // and crystal-dragon on/off indicators. These reflect the LIVE
+    // runtime state (not the startup config), so when the user toggles
+    // power_dragon or crystal_dragon via config.toml live-reload, the
+    // HUD immediately shows the new state on the next 1 Hz metric tick.
+    /// Power Dragon on/off. When false, aggressive_throttle + idle FPS
+    /// reduction are disabled (owner Option D). Drives the `prdr:` HUD
+    /// line (row 15) so the owner can verify the live-reloaded state
+    /// without quitting cosmostrix. Default: true (protection enabled).
+    power_dragon_on: bool,
+    /// Crystal Dragon on/off. When true, the palette drifts through the
+    /// configured color range over time (ambient color morphing). Drives
+    /// the `crdr:` HUD line (row 16) so the owner can verify the live-
+    /// reloaded state. Default: false (drift off — palette is static).
+    crystal_dragon_on: bool,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
-    /// 16 lines: fps / tgt / max / p99 / cpu / rss / up / screensize /
-    /// commit-id (cid) at rows 0-8 (active), plus 7 reserved rows 9-15
-    /// for the v50 HUD expansion (scene / color / density / speed / ehs
-    /// / prs / charset — populated by the follow-up data-plumbing
-    /// commit). The cid line is static (compile-time git SHA injected by
-    /// build.rs via `COSMOSTRIX_GIT_SHA`), so its text is set once in
-    /// `new()` and only its color is refreshed by `refresh_colors` every
-    /// frame. The 7 reserved rows initialize as empty strings;
-    /// `write_to_frame` skips empty-text rows so they render nothing
-    /// until populated.
-    cached_lines: [(Color, String); 16],
+    ///
+    /// 18 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
+    /// dsty / scn / chr / clr / up / screensize / prdr / crdr / cid.
+    /// Rows 0-14 are the v50 layout (performance + health + live
+    /// controls + session/screensize). Rows 15-16 are the v50.0.0-beta.6
+    /// dragon on/off indicators (prdr, crdr). Row 17 is the cid line
+    /// (commit short SHA, static for the entire process lifetime —
+    /// owner-mandated bottom row). The cid line is static (compile-time
+    /// git SHA injected by build.rs via `COSMOSTRIX_GIT_SHA`), so its
+    /// text is set once in `new()` and only its color is refreshed by
+    /// `refresh_colors` every frame.
+    cached_lines: [(Color, String); 18],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -282,6 +298,12 @@ impl HudState {
             chars_per_sec: 8.0,
             endurance_health_score: 100.0,
             effective_pressure: 0.0,
+            // v50.0.0-beta.6: dragon on/off indicators. Defaults match
+            // CloudConfig defaults (power_dragon=true, crystal_dragon=false).
+            // The event loop calls the setters every frame with the live
+            // cfg values, so live-reload changes are reflected immediately.
+            power_dragon_on: true,
+            crystal_dragon_on: false,
             cached_lines: [
                 // ── Performance core (rows 0-5) — unchanged from v50 ──
                 (Color::Cyan, String::new()), // 0: fps
@@ -312,19 +334,31 @@ impl HudState {
                 (Color::Cyan, String::new()),    // 10: scn  — scene name (x cycle) (NEW)
                 (Color::Cyan, String::new()),    // 11: chr  — charset preset (s/S cycle) (NEW)
                 (Color::Cyan, String::new()),    // 12: clr  — color scheme (c/C cycle) (NEW)
-                // ── Session / diagnostic / build identity (rows 13-15) ──
+                // ── Session / diagnostic / build identity (rows 13-17) ──
                 // v50 (2026-08-17): moved up/screensize/cid to the bottom
-                // (cid is now row 15 — owner-mandated). up at row 13, screensize
-                // at row 14, cid at row 15. The chroma gradient sweeps from
-                // dim tail (palette[0]) at the top to bright head (palette[n-1])
-                // at the bottom, so the build identity earns the brightest stop.
-                (Color::DarkCyan, String::new()), // 13: up  — session uptime (moved from row 6)
-                (Color::DarkCyan, String::new()), // 14: screensize (moved from row 7)
+                // (cid was row 15 — owner-mandated). v50.0.0-beta.6: prdr
+                // and crdr inserted above cid (rows 15-16), cid moved to
+                // row 17 (still the last/bottom row per owner mandate:
+                // "cid indicator keep last position metrics"). The chroma
+                // gradient sweeps from dim tail (palette[0]) at the top to
+                // bright head (palette[n-1]) at the bottom, so the build
+                // identity still earns the brightest stop.
+                (Color::DarkCyan, String::new()), // 13: up  — session uptime
+                (Color::DarkCyan, String::new()), // 14: screensize
+                // v50.0.0-beta.6: power-dragon on/off indicator. Text is
+                // rebuilt at the 1 Hz tick in update_metrics (reads the
+                // live power_dragon_on field set by set_power_dragon()).
+                // Renders as " prdr: on" or " prdr: off".
+                (Color::DarkCyan, String::new()), // 15: prdr — power-dragon on/off (NEW)
+                // v50.0.0-beta.6: crystal-dragon on/off indicator. Same
+                // pattern as prdr — live state from set_crystal_dragon().
+                // Renders as " crdr: on" or " crdr: off".
+                (Color::DarkCyan, String::new()), // 16: crdr — crystal-dragon on/off (NEW)
                 // cid line — commit short SHA, static for the entire process
                 // lifetime. Color is refreshed by `refresh_colors` (head stop,
                 // brightest) every frame; the text never changes so
-                // `update_metrics` skips it. v50: moved from row 8 to row 15
-                // per owner's Option S mandate ("commit tetap paling bawah").
+                // `update_metrics` skips it. v50: row 15 → v50.0.0-beta.6:
+                // row 17 (still owner-mandated bottom row).
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
             ],
             current_width: HUD_MIN_WIDTH,
@@ -624,6 +658,36 @@ impl HudState {
         };
     }
 
+    /// Set the power-dragon on/off state. Drives the `prdr:` HUD line
+    /// (row 15) so the owner can verify the live-reloaded state without
+    /// quitting cosmostrix. Called by event_loop every frame with
+    /// `cfg.power_dragon` — when the user edits `power_dragon = false`
+    /// in config.toml and live-reload applies it, the HUD reflects the
+    /// new state on the next 1 Hz metric tick. Renders as `prdr: on` or
+    /// `prdr: off`.
+    ///
+    /// v50.0.0-beta.6: owner-mandated metric. The value is NOT hardcoded
+    /// — it tracks the live runtime state, not the startup config. This
+    /// matches the existing HUD metrics behavior (e.g. `scn:`, `clr:`
+    /// all reflect the live state, not the startup value).
+    pub(crate) fn set_power_dragon(&mut self, on: bool) {
+        self.power_dragon_on = on;
+    }
+
+    /// Set the crystal-dragon on/off state. Drives the `crdr:` HUD line
+    /// (row 16) so the owner can verify the live-reloaded state. Called
+    /// by event_loop every frame with `cfg.crystal_dragon` — when the
+    /// user edits `crystal_dragon = true` in config.toml and live-reload
+    /// applies it, the HUD reflects the new state. Renders as `crdr: on`
+    /// or `crdr: off`.
+    ///
+    /// v50.0.0-beta.6: owner-mandated metric. Same live-reload pattern
+    /// as `set_power_dragon` — the value tracks the runtime state, not
+    /// the startup config.
+    pub(crate) fn set_crystal_dragon(&mut self, on: bool) {
+        self.crystal_dragon_on = on;
+    }
+
     /// Refresh HUD line colors from the current palette. Called every
     /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
     /// the HUD tracks palette changes (`c`/`C` key cycle, Crystal Dragon
@@ -642,7 +706,7 @@ impl HudState {
     /// colors update every frame.
     ///
     /// ## Rain-aesthetic gradient (top dim → bottom bright)
-    /// The 16 HUD rows form a vertical brightness gradient that mirrors a
+    /// The 18 HUD rows form a vertical brightness gradient that mirrors a
     /// falling rain droplet. In the rain visual, the leading character
     /// (the `head`) is the bright white at the BOTTOM of the stream, and
     /// the trailing fade (the `tail`) is dim at the TOP. The HUD adopts
@@ -655,27 +719,30 @@ impl HudState {
     ///   row 3   p99           ← trail
     ///   row 4   cpu           ← mid      (palette index n/2)
     ///   row 5   rss           ← mid
-    ///   row 6   ehs           ← mid      (NEW: endurance health score)
-    ///   row 7   prs           ← trail    (NEW: effective pressure)
-    ///   row 8   sped          ← mid      (NEW: chars/sec speed)
-    ///   row 9   dsty          ← mid      (NEW: density multiplier)
-    ///   row 10  scn           ← mid      (NEW: scene name)
-    ///   row 11  chr           ← mid      (NEW: charset preset)
-    ///   row 12  clr           ← mid      (NEW: color scheme)
+    ///   row 6   ehs           ← mid      (endurance health score)
+    ///   row 7   prs           ← trail    (effective pressure)
+    ///   row 8   sped          ← mid      (chars/sec speed)
+    ///   row 9   dsty          ← mid      (density multiplier)
+    ///   row 10  scn           ← mid      (scene name)
+    ///   row 11  chr           ← mid      (charset preset)
+    ///   row 12  clr           ← mid      (color scheme)
     ///   row 13  up            ← head     (palette last stop, brightest)
     ///   row 14  screensize    ← head     (rain head — leading white)
-    ///   row 15  cid           ← head     (build identity — same head stop)
+    ///   row 15  prdr          ← head     (NEW: power-dragon on/off)
+    ///   row 16  crdr          ← head     (NEW: crystal-dragon on/off)
+    ///   row 17  cid           ← head     (build identity — same head stop)
     /// ```
     ///
-    /// v50 (2026-08-17) HUD expansion: rows 6-12 are the 7 owner-mandated
-    /// metrics (ehs / prs / sped / dsty / scn / chr / clr) populated by
-    /// the data-plumbing commit. Cid at row 15 (owner-mandated bottom).
-    /// The chroma gradient sweeps continuously from palette[0] (dim tail)
-    /// at the top to palette[n-1] (bright head) at the bottom.
-    /// The cid line shares the head stop with screensize so the build
-    /// identity is the most prominent entry — the owner needs to read the
-    /// commit hash without quitting cosmostrix, so it earns the brightest
-    /// position alongside the screen size.
+    /// v50.0.0-beta.6 HUD expansion: rows 15-16 are the 2 new owner-mandated
+    /// dragon on/off indicators (prdr / crdr) inserted above cid. Cid moved
+    /// from row 15 to row 17 (still owner-mandated bottom row — "cid
+    /// indicator keep last position metrics"). The chroma gradient sweeps
+    /// continuously from palette[0] (dim tail) at the top to palette[n-1]
+    /// (bright head) at the bottom. The cid line shares the head stop with
+    /// screensize/prdr/crdr so the build identity is the most prominent
+    /// entry — the owner needs to read the commit hash without quitting
+    /// cosmostrix, so it earns the brightest position alongside the screen
+    /// size and dragon indicators.
     ///
     /// This inverts the original mapping (where `fps`/`tgt`/`max` were
     /// brightest at the TOP). The owner explicitly flagged the inversion:
@@ -709,7 +776,7 @@ impl HudState {
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_16(palette_colors);
+        let colors = compute_chroma_gradient_18(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -753,10 +820,10 @@ impl HudState {
         // from the event loop (between metric ticks), so a runtime palette
         // change appears on the next frame instead of up to 1 second later.
         //
-        // HD-01 (HUD chroma dragon integration): 16-stop sweep — each row
+        // HD-01 (HUD chroma dragon integration): 18-stop sweep — each row
         // gets a distinct palette stop. Index math: `palette_colors`
-        // sampled at `(i / 15.0 * (n-1)).round()` for i ∈ [0..16].
-        let colors = compute_chroma_gradient_16(palette_colors);
+        // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
+        let colors = compute_chroma_gradient_18(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -887,6 +954,20 @@ impl HudState {
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
         self.cached_lines[14] = (colors[14], format!(" {sw}x{sh} {mode}"));
+        // v50.0.0-beta.6: dragon on/off indicators at rows 15-16. These
+        // reflect the LIVE runtime state (set by set_power_dragon /
+        // set_crystal_dragon, called every frame from event_loop with
+        // cfg.power_dragon / cfg.crystal_dragon). When the user
+        // live-reloads the config, the HUD shows the new state on the
+        // next 1 Hz tick. Renders as " prdr: on" / " prdr: off" and
+        // " crdr: on" / " crdr: off" (lowercase to match the existing
+        // HUD label convention: fps/tgt/max/p99/cpu/rss/ehs/prs/etc).
+        let prdr_val = if self.power_dragon_on { "on" } else { "off" };
+        self.cached_lines[15] = (colors[15], format!(" prdr: {prdr_val}"));
+        let crdr_val = if self.crystal_dragon_on { "on" } else { "off" };
+        self.cached_lines[16] = (colors[16], format!(" crdr: {crdr_val}"));
+        // cid (row 17) is static — set once in new(), never rewritten
+        // here. Only its color is refreshed by refresh_colors every frame.
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self
@@ -1015,24 +1096,24 @@ fn format_rss_kb(kib: u64) -> String {
 // both are "definitive identity" lines that the owner reads to verify the
 // build, so they earn the most prominent position.
 
-/// HD-01 (HUD chroma dragon integration): compute a 16-stop chroma gradient
-/// sweeping the active palette's full color range across all 16 HUD rows.
+/// HD-01 (HUD chroma dragon integration): compute an 18-stop chroma gradient
+/// sweeping the active palette's full color range across all 18 HUD rows.
 ///
-/// Each row `i ∈ [0..16]` samples `palette_colors[(i / 15.0 * (n-1)).round()]`,
-/// so row 0 (fps, top) → palette[0] and row 15 (reserved clr, bottom) →
-/// palette[n-1]. This mirrors the border message's per-cell clockwise sweep
-/// (`cloud/mod.rs::draw_message` BC-02) — applied per-LINE here to preserve
-/// text readability (each row keeps one consistent color, unlike per-cell
-/// which would rainbow-ize words).
+/// Each row `i ∈ [0..18]` samples `palette_colors` at interpolation
+/// parameter `t = i / 17.0`, so row 0 (fps, top) → palette[0] and row 17
+/// (cid, bottom) → palette[n-1]. This mirrors the border message's per-cell
+/// clockwise sweep (`cloud/mod.rs::draw_message` BC-02) — applied per-LINE
+/// here to preserve text readability (each row keeps one consistent color,
+/// unlike per-cell which would rainbow-ize words).
 ///
 /// v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
 /// (commit id) line at row 8.
 /// v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15 for the
-/// 7 owner-mandated HUD expansion metrics (scene / color / density / speed
-/// / endurance-health-score / effective-pressure / charset). The final
-/// layout (after the data-plumbing commit) places cid at row 15 and
-/// screensize at row 14, so both share the head stop (palette[n-1],
-/// brightest) — they are "definitive identity" lines.
+/// 7 owner-mandated HUD expansion metrics.
+/// v50.0.0-beta.6: bumped from 16 → 18 stops to add `prdr` (row 15) and
+/// `crdr` (row 16) above cid (now row 17). Cid stays at the bottom
+/// (owner-mandated last position); prdr/crdr sit directly above it so
+/// the dragon on/off indicators are grouped with the build identity.
 ///
 /// `brighten_color` floor (TARGET_V=200) guarantees every stop is legible on
 /// a black background, including palette[0] which is typically a near-black
@@ -1040,10 +1121,12 @@ fn format_rss_kb(kib: u64) -> String {
 /// black, preserving readability without losing the palette's hue identity
 /// for non-black stops.
 ///
-/// Returns a fixed-size `[Color; 16]` array (no allocation, stack-only).
-fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Color; 16] {
+/// Returns a fixed-size `[Color; 18]` array (no allocation, stack-only).
+fn compute_chroma_gradient_18(palette_colors: &[crossterm::style::Color]) -> [Color; 18] {
     let n = palette_colors.len();
     let mut out = [
+        Color::DarkGrey,
+        Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
@@ -1070,8 +1153,8 @@ fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Co
     // interpolation helper used by the border message gradient (C4 fix).
     //
     // The previous discrete sampling produced visible bands when the palette
-    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 16 HUD
-    // rows → 5+ rows sharing the same color block). The owner explicitly
+    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 18 HUD
+    // rows → 6+ rows sharing the same color block). The owner explicitly
     // flagged this category as inconsistent with the chroma dragon smoothness
     // mandate: "audit which color-processing sites are not yet using
     // chroma dragon interpolation optimally ... can look inconsistent
@@ -1087,8 +1170,10 @@ fn compute_chroma_gradient_16(palette_colors: &[crossterm::style::Color]) -> [Co
     // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
     // the first stop defensively), so a future bug in upstream palette
     // generation cannot crash the HUD or produce garbage colors.
+    // v50.0.0-beta.6: divisor is now 17.0 (was 15.0) since the array has
+    // 18 entries (indices 0-17). Row 0 → t=0.0, row 17 → t=1.0.
     for (i, slot) in out.iter_mut().enumerate() {
-        let t = i as f32 / 15.0;
+        let t = i as f32 / 17.0;
         let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);
         *slot = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
     }
@@ -1164,3 +1249,6 @@ mod tests;
 
 #[cfg(test)]
 mod tests_brighten;
+
+#[cfg(test)]
+mod tests_dragon_indicators;

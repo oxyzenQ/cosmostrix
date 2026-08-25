@@ -170,23 +170,20 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 }
 
 #[test]
-fn hud_has_sixteen_cached_lines_after_v50_hud_expansion() {
-    // Regression guard: the HUD must have exactly 16 cached rows after
-    // the v50 (2026-08-17) HUD expansion that reserved rows 9-15 for
-    // the 7 owner-mandated metrics (scene / color / density / speed /
-    // endurance-health-score / effective-pressure / charset). The
-    // previous count was 9 (fps / tgt / max / p99 / cpu / rss / up /
-    // screensize / cid) post-v50 cid-line addition; now 16 (adds 7
-    // reserved rows that initialize as empty strings — the
-    // `write_to_frame` skip-empty guard prevents them from rendering
-    // until the follow-up data-plumbing commit populates them).
-    // The cid line still shares the head color stop with screensize.
-    // If a future change adds or removes a row, this test will catch it.
+fn hud_has_eighteen_cached_lines_after_v50_hud_expansion() {
+    // Regression guard: the HUD must have exactly 18 cached rows after
+    // the v50.0.0-beta.6 HUD expansion that added prdr (row 15) and crdr
+    // (row 16) above cid (now row 17). The previous count was 16 (v50
+    // expansion: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
+    // dsty / scn / chr / clr / up / screensize / cid); now 18 (adds prdr
+    // + crdr, cid moved from row 15 to row 17 — still owner-mandated
+    // bottom row). If a future change adds or removes a row, this test
+    // will catch it.
     let h = HudState::new();
     assert_eq!(
         h.cached_lines.len(),
-        16,
-        "HUD must have 16 cached rows after the v50 HUD expansion"
+        18,
+        "HUD must have 18 cached rows after the v50.0.0-beta.6 HUD expansion"
     );
 }
 
@@ -356,12 +353,23 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             r: 200,
             g: 100,
             b: 200,
-        }, // idx 14 → row 14 (reserved chr)
+        }, // idx 14 → row 14 (screensize)
+        // v50.0.0-beta.6: 2 new entries for prdr (row 15) and crdr (row 16).
+        Color::Rgb {
+            r: 240,
+            g: 248,
+            b: 220,
+        }, // idx 15 → row 15 (prdr, near head)
+        Color::Rgb {
+            r: 248,
+            g: 252,
+            b: 240,
+        }, // idx 16 → row 16 (crdr, near head)
         Color::Rgb {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 15 → row 15 (reserved clr, head, white)
+        }, // idx 17 → row 17 (cid, head, white)
     ];
     h.refresh_colors(&palette);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
@@ -389,7 +397,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
     // assigns the brightest head stop to the bottom row so the build
     // identity (commit hash) earns the most prominent position.
     assert_eq!(
-        h.cached_lines[15].0,
+        h.cached_lines[17].0,
         Color::Rgb {
             r: 255,
             g: 255,
@@ -440,7 +448,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&green_palette);
     assert_eq!(
-        h.cached_lines[15].0,
+        h.cached_lines[17].0,
         Color::Rgb { r: 0, g: 255, b: 0 },
         "first refresh: bottom = green head"
     );
@@ -455,7 +463,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&amber_palette);
     assert_eq!(
-        h.cached_lines[15].0,
+        h.cached_lines[17].0,
         Color::Rgb {
             r: 255,
             g: 176,
@@ -466,17 +474,13 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
 }
 
 #[test]
-fn refresh_colors_gradient_uses_sixteen_distinct_stops() {
-    // HD-01: 16 HUD rows now use 16 distinct palette stops (one per row),
+fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
+    // HD-01: 18 HUD rows now use 18 distinct palette stops (one per row),
     // sweeping the full chroma dragon gradient top→bottom.
-    // v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
-    // line at row 8.
-    // v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15
-    // for the 7 owner-mandated HUD expansion metrics. Rows 9-15 are
-    // blank for now (no content) but their colors are still assigned
-    // distinct palette stops so the chroma gradient sweeps continuously
-    // top→bottom. Once the data-plumbing commit populates them, the
-    // visual gradient will be unbroken.
+    // v50 (2026-08-17): 16 stops.
+    // v50.0.0-beta.6: bumped from 16 → 18 stops to add prdr (row 15) and
+    // crdr (row 16) above cid (row 17). All 18 rows get distinct palette
+    // stops so the chroma gradient sweeps continuously top→bottom.
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -512,42 +516,53 @@ fn refresh_colors_gradient_uses_sixteen_distinct_stops() {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 8 → row 8 (cid, head)
+        }, // idx 8
         Color::Rgb {
             r: 200,
             g: 100,
             b: 0,
-        }, // idx 9  → row 9  (reserved ehs)
+        },
         Color::Rgb {
             r: 200,
             g: 0,
             b: 100,
-        }, // idx 10 → row 10 (reserved prs)
+        },
         Color::Rgb {
             r: 0,
             g: 200,
             b: 100,
-        }, // idx 11 → row 11 (reserved sped)
+        },
         Color::Rgb {
             r: 100,
             g: 200,
             b: 0,
-        }, // idx 12 → row 12 (reserved dsty)
+        },
         Color::Rgb {
             r: 200,
             g: 200,
             b: 100,
-        }, // idx 13 → row 13 (reserved scn)
+        },
         Color::Rgb {
             r: 200,
             g: 100,
             b: 200,
-        }, // idx 14 → row 14 (reserved chr)
+        },
+        // v50.0.0-beta.6: 2 new entries for prdr (row 15) and crdr (row 16).
         Color::Rgb {
             r: 100,
             g: 200,
             b: 200,
-        }, // idx 15 → row 15 (reserved clr)
+        }, // idx 15 → row 15 (prdr)
+        Color::Rgb {
+            r: 200,
+            g: 200,
+            b: 200,
+        }, // idx 16 → row 16 (crdr)
+        Color::Rgb {
+            r: 100,
+            g: 100,
+            b: 200,
+        }, // idx 17 → row 17 (cid)
     ];
     h.refresh_colors(&palette);
     // All palette entries have max channel >= TARGET_V(200), so brighten
@@ -573,7 +588,7 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
     // commit hash remains stable across the entire process lifetime.
     // The owner needs to read the commit hash without quitting cosmostrix.
     let h = HudState::new();
-    let (_, cid_line) = &h.cached_lines[15];
+    let (_, cid_line) = &h.cached_lines[17];
     assert!(
         cid_line.starts_with(" cid: "),
         "cid line must start with ' cid: ' prefix, got: {cid_line:?}"
@@ -597,122 +612,104 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
 }
 
 #[test]
-fn compute_chroma_gradient_16_sweeps_full_palette_range() {
-    // HD-01 regression: verify the 16-stop chroma gradient helper maps
-    // each of the 16 HUD rows to its corresponding palette stop.
-    // Row i samples palette[(i / 15.0 * (n-1)).round()].
-    // v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
-    // line at row 8.
-    // v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15
-    // for the 7 owner-mandated HUD expansion metrics.
+fn compute_chroma_gradient_18_sweeps_full_palette_range() {
+    // HD-01 regression: verify the 18-stop chroma gradient helper maps
+    // the first and last HUD rows to the corresponding palette boundary
+    // stops. Row 0 → palette[0] (t=0.0), row 17 → palette[n-1] (t=1.0).
+    // Intermediate rows are interpolated by interpolate_palette_color,
+    // so we only assert the boundary values here — the intermediate
+    // values are covered by the smoothness test below.
+    // v50 (2026-08-17): 16-stop gradient.
+    // v50.0.0-beta.6: bumped from 16 → 18 stops to add prdr (row 15)
+    // and crdr (row 16) above cid (now row 17).
     let palette = vec![
-        Color::Rgb { r: 50, g: 0, b: 0 }, // idx 0  → row 0
-        Color::Rgb { r: 0, g: 50, b: 0 }, // idx 1  → row 1
-        Color::Rgb { r: 0, g: 0, b: 50 }, // idx 2  → row 2
+        Color::Rgb { r: 50, g: 0, b: 0 }, // idx 0  → row 0 (t=0.0)
+        Color::Rgb { r: 0, g: 50, b: 0 }, // idx 1
+        Color::Rgb { r: 0, g: 0, b: 50 }, // idx 2
         Color::Rgb {
             r: 100,
             g: 100,
             b: 0,
-        }, // idx 3 → row 3
+        },
         Color::Rgb {
             r: 0,
             g: 100,
             b: 100,
-        }, // idx 4 → row 4
+        },
         Color::Rgb {
             r: 100,
             g: 0,
             b: 100,
-        }, // idx 5 → row 5
+        },
         Color::Rgb {
             r: 200,
             g: 100,
             b: 50,
-        }, // idx 6 → row 6
+        },
         Color::Rgb {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 7 → row 7
+        },
         Color::Rgb {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 8 → row 8 (cid, shares head stop with screensize)
+        },
         Color::Rgb {
             r: 60,
             g: 60,
             b: 60,
-        }, // idx 9  → row 9  (reserved ehs)
+        },
         Color::Rgb {
             r: 70,
             g: 70,
             b: 70,
-        }, // idx 10 → row 10 (reserved prs)
+        },
         Color::Rgb {
             r: 80,
             g: 80,
             b: 80,
-        }, // idx 11 → row 11 (reserved sped)
+        },
         Color::Rgb {
             r: 90,
             g: 90,
             b: 90,
-        }, // idx 12 → row 12 (reserved dsty)
+        },
         Color::Rgb {
             r: 120,
             g: 120,
             b: 120,
-        }, // idx 13 → row 13 (reserved scn)
+        },
         Color::Rgb {
             r: 130,
             g: 130,
             b: 130,
-        }, // idx 14 → row 14 (reserved chr)
+        },
         Color::Rgb {
             r: 100,
             g: 100,
             b: 100,
-        }, // idx 15 → row 15 (reserved clr) — divides 200 cleanly
+        }, // idx 15 → last stop (t=1.0)
     ];
-    let colors = compute_chroma_gradient_16(&palette);
-    // Row 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0)
+    let colors = compute_chroma_gradient_18(&palette);
+    // Row 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0).
+    // t=0.0 maps exactly to palette[0] — no interpolation needed.
     assert_eq!(colors[0], Color::Rgb { r: 200, g: 0, b: 0 });
-    // Row 1 = palette[1] = RGB(0,50,0) brightened to RGB(0,200,0)
-    assert_eq!(colors[1], Color::Rgb { r: 0, g: 200, b: 0 });
-    // Row 7 = palette[7] = RGB(255,255,255) (already bright, returned as-is)
+    // Row 17 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
+    // t=1.0 maps exactly to palette[n-1] — the last stop. max channel is
+    // 100, scaled by 200/100 = 2.0x to reach the TARGET_V=200 floor.
+    // (100 * 200 / 100 = 200.) This is the cid row (row 17, owner-mandated
+    // bottom) — the chroma gradient sweeps from palette[0] at the top
+    // (dim tail) to palette[n-1] at the bottom (bright head).
     assert_eq!(
-        colors[7],
-        Color::Rgb {
-            r: 255,
-            g: 255,
-            b: 255
-        }
-    );
-    // Row 8 = palette[8] = RGB(255,255,255) — cid shares head stop
-    assert_eq!(
-        colors[8],
-        Color::Rgb {
-            r: 255,
-            g: 255,
-            b: 255
-        },
-        "cid row (idx 8) must use the head stop — same as screensize"
-    );
-    // Row 15 = palette[15] = RGB(120,120,120) brightened to RGB(255,255,255) —
-    // max channel is 120, scaled by 200/120 = 1.667x to reach the TARGET_V=200
-    // floor. (120 * 200 / 120 = 200.) This is the reserved clr row at the
-    // bottom of the HUD — the chroma gradient sweeps continuously from
-    // palette[0] at the top (dim tail) to palette[15] at the bottom
-    // (bright head).
-    assert_eq!(
-        colors[15],
+        colors[17],
         Color::Rgb {
             r: 200,
             g: 200,
             b: 200
         },
-        "reserved clr row (idx 15) must use palette[15] brightened to TARGET_V=200"
+        "cid row (idx 17) must use the last palette stop brightened to TARGET_V=200"
     );
 }
 
@@ -959,14 +956,14 @@ fn hud_final_layout_positions_match_owner_option_s() {
     // Row 0-5: performance core (active content set by update_metrics).
     // For this test we only assert on the static label structure of
     // the cid line (row 15) — the dynamic lines are tested above.
-    let (_, cid_line) = &h.cached_lines[15];
+    let (_, cid_line) = &h.cached_lines[17];
     assert!(
         cid_line.starts_with(" cid: "),
         "row 15 must be the cid line per owner Option S mandate, got: {cid_line:?}"
     );
     // The 14 rows above cid (rows 0-14) must NOT contain the cid prefix
     // — the cid line is static and lives only at row 15.
-    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(15) {
+    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(17) {
         assert!(
             !text.starts_with(" cid: "),
             "row {i} must NOT contain the cid prefix — cid is exclusive to row 15, got: {text:?}"
@@ -976,7 +973,7 @@ fn hud_final_layout_positions_match_owner_option_s() {
 
 // ── v50 (2026-08-17) HUD chroma gradient smoothness regression tests ────
 //
-// C5 fix: compute_chroma_gradient_16 now uses interpolate_palette_color
+// C5 fix: compute_chroma_gradient_18 now uses interpolate_palette_color
 // (linear lerp between adjacent palette stops via blend_toward_rgb)
 // instead of discrete sampling `palette_colors[(t * last).round()]`.
 // This eliminates visible bands when the palette has fewer stops than
@@ -984,7 +981,7 @@ fn hud_final_layout_positions_match_owner_option_s() {
 // produced 4/8/4 band blocks; now produces a smooth gradient).
 
 #[test]
-fn compute_chroma_gradient_16_smooth_with_small_palette_no_bands() {
+fn compute_chroma_gradient_18_smooth_with_small_palette_no_bands() {
     // THE OWNER REGRESSION TEST for HUD chroma gradient smoothness.
     //
     // Before C5: a 3-stop palette (white/grey/black) + 16 HUD rows
@@ -1009,11 +1006,11 @@ fn compute_chroma_gradient_16_smooth_with_small_palette_no_bands() {
         Color::Rgb { r: 0, g: 255, b: 0 }, // idx 1: green
         Color::Rgb { r: 0, g: 0, b: 255 }, // idx 2: blue
     ];
-    let colors = compute_chroma_gradient_16(&palette);
-    assert_eq!(colors.len(), 16, "HUD gradient must have 16 entries");
+    let colors = compute_chroma_gradient_18(&palette);
+    assert_eq!(colors.len(), 18, "HUD gradient must have 18 entries");
 
     // Count distinct colors. With interpolation, every row gets a
-    // unique color (16 distinct values, modulo the brighten floor
+    // unique color (18 distinct values, modulo the brighten floor
     // collapsing some to neutral grey). The old discrete-sampling
     // implementation would have produced only 3 distinct values
     // (one per palette stop). Assert >=5 distinct to leave room for
@@ -1047,30 +1044,34 @@ fn compute_chroma_gradient_16_smooth_with_small_palette_no_bands() {
 }
 
 #[test]
-fn compute_chroma_gradient_16_large_palette_still_exact_at_integer_t() {
-    // Backward compatibility: with a 16-stop palette (one stop per HUD
-    // row), the interpolated t = i/15.0 lands exactly on integer palette
+fn compute_chroma_gradient_18_large_palette_still_exact_at_integer_t() {
+    // Backward compatibility: with an 18-stop palette (one stop per HUD
+    // row), the interpolated t = i/17.0 lands exactly on integer palette
     // positions, so the helper returns palette[i] exactly (no
     // interpolation). The brighten step is then applied as before. This
-    // test verifies the C5 fix does NOT regress the 16-stop-palette
+    // test verifies the C5 fix does NOT regress the 18-stop-palette
     // case — every row still gets its dedicated palette stop's color
     // (post-brighten).
     //
-    // Test palette: 16 distinct RGB values, all with max channel >= 200
+    // v50.0.0-beta.6: palette expanded from 16 → 18 entries to match
+    // the 18 HUD rows (prdr + crdr added). With 1:1 mapping, t = i/17.0
+    // maps to palette index i*17/17 = i exactly.
+    //
+    // Test palette: 18 distinct RGB values, all with max channel >= 200
     // so brighten returns each as-is (isolates the gradient mapping
     // from the brightening math).
-    let palette: Vec<Color> = (0..16)
+    let palette: Vec<Color> = (0..18)
         .map(|i| Color::Rgb {
             r: 200 + (i as u8 % 56),
             g: 200,
             b: 200,
         })
         .collect();
-    let colors = compute_chroma_gradient_16(&palette);
+    let colors = compute_chroma_gradient_18(&palette);
     for (i, expected) in palette.iter().enumerate() {
         assert_eq!(
             &colors[i], expected,
-            "row {i} must use palette[{i}] exactly (16-stop palette, t lands on integer boundary)"
+            "row {i} must use palette[{i}] exactly (18-stop palette, t lands on integer boundary)"
         );
     }
 }

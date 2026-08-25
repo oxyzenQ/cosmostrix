@@ -1065,6 +1065,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.set_chars_per_sec(cloud.chars_per_sec());
         hud_state.set_effective_pressure(power_manager.effective_pressure());
         cloud.set_perf_pressure(power_manager.effective_pressure());
+        // v50.0.0-beta.6: push the live power_dragon / crystal_dragon state
+        // to the HUD every frame. These track the current_cfg (live-reloaded)
+        // values, NOT the startup config — so when the user edits
+        // power_dragon=false or crystal_dragon=true in config.toml and
+        // live-reload applies it, the HUD prdr/crdr lines reflect the new
+        // state on the next 1 Hz metric tick. Owner explicitly mandated
+        // these are NOT hardcoded — they must reflect runtime behavior.
+        hud_state.set_power_dragon(cfg.power_dragon);
+        hud_state.set_crystal_dragon(cfg.crystal_dragon);
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
         // from constants.rs — was a hardcoded `0.3` inline.
