@@ -1193,13 +1193,7 @@ impl Cloud {
     /// config). This is the LTS hardening called out by the post-impl
     /// audit; do NOT "simplify" to `.last().unwrap()` or `.expect()`.
     #[inline]
-    pub(crate) fn detect_border_touch(
-        &mut self,
-        col: u16,
-        prev_hp: u16,
-        hp: u16,
-        now: Instant,
-    ) {
+    pub(crate) fn detect_border_touch(&mut self, col: u16, prev_hp: u16, hp: u16, now: Instant) {
         let top = self.message_top_line;
         if top == u16::MAX {
             return;
@@ -1229,18 +1223,17 @@ impl Cloud {
             .and_then(crate::palette::decode_color)
             .unwrap_or((255, 255, 255));
 
-        let msg_idx = self.message.iter().position(|mc| {
-            mc.line == top && mc.col == col
-        });
+        let msg_idx = self
+            .message
+            .iter()
+            .position(|mc| mc.line == top && mc.col == col);
 
         if let Some(idx) = msg_idx {
             // LTS dedup: if a pulse for this msg_idx is still alive,
             // refresh it in place (re-arm birth + re-snapshot head_rgb)
             // instead of pushing a duplicate. Bounds the pool to
             // `self.message.len()` regardless of touch density.
-            if let Some(existing) =
-                self.border_pulses.iter_mut().find(|p| p.msg_idx == idx)
-            {
+            if let Some(existing) = self.border_pulses.iter_mut().find(|p| p.msg_idx == idx) {
                 existing.birth = now;
                 existing.head_rgb = head_rgb;
             } else {

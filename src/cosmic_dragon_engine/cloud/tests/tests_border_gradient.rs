@@ -411,7 +411,8 @@ fn reset_message_caches_top_border_geometry_when_bordered() {
     cloud.set_message_border(true);
 
     assert_ne!(
-        cloud.message_top_line, u16::MAX,
+        cloud.message_top_line,
+        u16::MAX,
         "message_top_line must NOT be u16::MAX sentinel when a bordered overlay is active"
     );
     assert!(
@@ -442,7 +443,8 @@ fn reset_message_top_line_sentinel_when_unbordered() {
     cloud.set_message_border(false);
 
     assert_eq!(
-        cloud.message_top_line, u16::MAX,
+        cloud.message_top_line,
+        u16::MAX,
         "top_line must be u16::MAX sentinel when no bordered overlay is active"
     );
 }
@@ -624,8 +626,7 @@ fn pulse_expires_after_lifetime() {
     assert_eq!(cloud.border_pulses.len(), 1);
 
     // Advance time past the pulse lifetime.
-    let lifetime_ms =
-        crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
+    let lifetime_ms = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
     let past = t0 + Duration::from_millis(lifetime_ms as u64 + 100);
 
     // Render — draw_message drains expired pulses.

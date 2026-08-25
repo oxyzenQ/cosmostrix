@@ -1147,11 +1147,9 @@ impl Cloud {
         // time) is the source color, so the glow dynamically follows the
         // palette at the moment of touch. The `now` parameter is threaded
         // from `rain_at` so tests can advance time and verify decay.
-        let pulse_lifetime_ms =
-            crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
+        let pulse_lifetime_ms = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
         let pulse_max = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_MAX;
-        let halo_lifetime_ms =
-            crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_LIFETIME_MS;
+        let halo_lifetime_ms = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_LIFETIME_MS;
         let halo_max = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_MAX;
 
         let mut pulse_factor: Vec<f32> = vec![0.0; self.message.len()];
@@ -1162,8 +1160,7 @@ impl Cloud {
         // Drain-and-rebuild: keep only pulses with at least one active
         // envelope (pulse OR halo). The kept entries go back into
         // self.border_pulses for the next frame's decay continuation.
-        let mut alive_pulses: Vec<BorderPulse> =
-            Vec::with_capacity(self.border_pulses.len());
+        let mut alive_pulses: Vec<BorderPulse> = Vec::with_capacity(self.border_pulses.len());
         for p in self.border_pulses.drain(..) {
             let elapsed_ms = now.saturating_duration_since(p.birth).as_millis() as u32;
 
@@ -1191,10 +1188,7 @@ impl Cloud {
                 0.0
             };
             let col_idx = p.col as usize;
-            if hf > 0.0
-                && col_idx < halo_factor.len()
-                && hf > halo_factor[col_idx]
-            {
+            if hf > 0.0 && col_idx < halo_factor.len() && hf > halo_factor[col_idx] {
                 halo_factor[col_idx] = hf;
                 halo_color[col_idx] = p.head_rgb;
             }
@@ -1270,9 +1264,15 @@ impl Cloud {
                         let (br, bgc, bb) =
                             crate::palette::decode_color(base_color).unwrap_or((0, 0, 0));
                         let (hr, hg, hb) = pulse_color[idx];
-                        let (nr, ng, nb) = crate::chroma_dragon_engine::palette::
-                            blend_toward_bg_rgb(br, bgc, bb, hr, hg, hb, pf);
-                        Some(Color::Rgb { r: nr, g: ng, b: nb })
+                        let (nr, ng, nb) =
+                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                br, bgc, bb, hr, hg, hb, pf,
+                            );
+                        Some(Color::Rgb {
+                            r: nr,
+                            g: ng,
+                            b: nb,
+                        })
                     } else {
                         base
                     }
