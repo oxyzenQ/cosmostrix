@@ -7,9 +7,9 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
-## v50.0.0-beta.6 — Verbose UTC Exit + HUD Dragon Indicators (Current Beta)
+## v50.0.0-beta.6 — Verbose UTC Exit + HUD Dragons + Perf-Stats Fixes (Current Beta)
 
-cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + duration, and the HUD gains two new dragon on/off indicators (prdr, crdr) above the cid line. Two owner-identified gaps addressed: (1) `cosmostrix -v` had no way to tell the user how long the process ran or at what time it exited, (2) the HUD had no visibility into the live power-dragon / crystal-dragon on/off state. UTC format chosen for LTS stability (no DST transitions, no tzdata drift).
+cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + duration, the HUD gains two new dragon on/off indicators (prdr, crdr) above cid, and three `--perf-stats` exit issues are fixed (total cell count, final FPS line position, blank lines after exit). UTC format chosen for LTS stability (no DST transitions, no tzdata drift).
 
 ### What's new since beta.5
 
@@ -17,10 +17,13 @@ cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + dur
 - **UTC for LTS stability**: the exit-time format uses UTC (not local + offset) because UTC has no DST transitions, no timezone-database drift, and is consistent across environments. The `Z` suffix (ISO 8601 UTC designator) is universally recognized and machine-parseable.
 - **HUD dragon on/off indicators (prdr, crdr)**: two new HUD metrics added at rows 15-16, directly above cid (now row 17 — still owner-mandated bottom row). `prdr: on/off` shows the live power-dragon state; `crdr: on/off` shows the live crystal-dragon state. Values are NOT hardcoded — they track the live runtime state (set by `set_power_dragon` / `set_crystal_dragon`, called every frame from the event loop with `cfg.power_dragon` / `cfg.crystal_dragon`). When the user live-reloads `power_dragon = false` or `crystal_dragon = true` in config.toml, the HUD reflects the new state on the next 1 Hz metric tick.
 - **HUD layout expansion**: `cached_lines` array expanded from 16 → 18 rows. The chroma gradient function renamed `compute_chroma_gradient_16` → `compute_chroma_gradient_18` (divisor 15.0 → 17.0). The cid line moved from row 15 to row 17 (still the last/bottom row). All existing HUD tests updated for the new row indices and palette sizes.
+- **Perf-stats total cells (owner request)**: the `--perf-stats` MOTION section now shows `total_cells` (e.g. `4.8K (150x32 grid)`) alongside `avg_dirty_cells` (now `1031.6 (of 4.8K total)`). Previously only `avg_dirty_cells` was shown with no total context, causing confusion about what the number means relative to the grid size.
+- **Perf-stats final FPS line position fix**: the `[cosmostrix] final FPS: ...` summary line is now printed BEFORE the perf report (as a header), not after it. Previously the line appeared at the very bottom of the report — an inconsistent position for a summary. Now the user sees the one-liner first, then the detailed report below it.
+- **Blank lines after exit fix**: removed `cursor::MoveTo(0, h-1)` from the terminal cleanup path. This call moved the cursor to the BOTTOM of the terminal after `LeaveAlternateScreen`, creating a large blank gap between the shell prompt (restored position) and any post-exit output (perf report, verbose summary). `LeaveAlternateScreen` already restores the cursor to where it was before entering the alt screen (right after the shell prompt), so the `MoveTo` was counterproductive. The blank gap is now eliminated.
 - **New clock helpers**: `clock::now_utc_datetime()` (formats `YYYY-MM-DD HH:MM:SSZ` using the existing `utc_tm()` FFI path) and `clock::format_duration_compact()` (formats `Duration` as `1m 52s` / `1h 5m 3s`). Both pure functions, fully unit-tested.
 - **8 new unit tests**: `now_utc_datetime_format`, `now_utc_datetime_is_ascii`, `now_utc_datetime_matches_now_iso_utc`, `format_duration_compact_canonical_cases`, `format_duration_compact_drops_subsecond`, `hud_prdr_defaults_to_on`, `hud_crdr_defaults_to_off`, `hud_set_power_dragon_off_renders_off`, `hud_set_crystal_dragon_on_renders_on`, `hud_prdr_crdr_above_cid_in_layout`, `hud_prdr_crdr_live_reload_toggle`. Total: 1693 passed / 0 failed / 2 ignored.
 
-### Sample output
+### Sample output (verbose exit)
 
 ```text
 [verbose] [01:29] final runtime state
@@ -29,6 +32,23 @@ cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + dur
 [verbose] [01:29]   crystal_dragon: false (was true)
 [verbose] [01:29]   ambient_diag: startup=0 rx=0 reapply=0 snapback=0 cfg_rebuilds=1 sked_reloads=0 sked_empties=0 consistency_fixes=0 snapback_killed=0 snapback_guard_sked_len=0 snapback_guard_last_applied=0 last_scene_change=none
 ```
+
+### Sample output (perf-stats MOTION section, after fix)
+
+```text
+[cosmostrix] final FPS: 144.1 (instant: 144.0, target: 144.0), frames: 4324, elapsed: 30.00s
+COSMOSTRIX PERFORMANCE REPORT
+─────────────────────────────
+...
+MOTION
+  total_cells:                  4.8K (150x32 grid)
+  avg_dirty_cells:              1031.6 (of 4.8K total)
+  avg_dirty_cell_ratio_percent: 21.49% (of 150x32 grid)
+  visual_fps_hint:              144.0 (4324 of 4324 frames had visual changes)
+...
+```
+
+The final FPS line now appears as a header BEFORE the report (consistent position), and `total_cells` is shown so the user can see the full grid size alongside the average dirty cells.
 
 When no live-reload field changed during the session, the section still prints the header + `exit_time`/`duration` line + `ambient_diag` line, so the user always sees how long cosmostrix ran.
 

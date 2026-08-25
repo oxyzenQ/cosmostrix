@@ -66,12 +66,13 @@ pub(crate) struct SessionStats<'a> {
 /// 1. Set `SHUTDOWN` so the watchdog doesn't false-alarm after normal exit.
 /// 2. Compute the final FPS summary line (deferred print until after drop).
 /// 3. Capture terminal encoding stats BEFORE drop.
-/// 4. Print the perf report if `--perf-stats` (large `Report` block).
-/// 5. `drop(term)` — restores alt screen so subsequent eprintln lands on
+/// 4. `drop(term)` — restores alt screen so subsequent eprintln lands on
 ///    the main screen, not polluting the rain matrix.
-/// 6. Hand off final color/scene/charset/density/speed to
+/// 5. Print the final FPS summary line if `--perf-stats` (v50.0.0-beta.6:
+///    moved to BEFORE the perf report so it acts as a consistent header).
+/// 6. Print the perf report if `--perf-stats` (large `Report` block).
+/// 7. Hand off final color/scene/charset/density/speed to
 ///    `super::set_final_state` for the post-exit verbose summary.
-/// 7. Print the deferred final FPS line if `--perf-stats`.
 pub(crate) fn finalize_session(
     stats: &SessionStats,
     term: Terminal,
@@ -104,9 +105,19 @@ pub(crate) fn finalize_session(
     // polluting the rain matrix on exit.
     drop(term);
 
-    // Print the perf report AFTER drop(term) — stdout is captured by the
-    // alt-screen buffer and lost when Terminal::drop() restores the main
-    // screen. Using eprint() (stderr) so the report survives the restore.
+    // v50.0.0-beta.6: print the final FPS summary line BEFORE the perf
+    // report so it acts as a consistent header (owner request — the line
+    // previously appeared AFTER the report, which was an inconsistent
+    // position for a summary). Now the user sees the one-liner first,
+    // then the detailed report below it.
+    if cfg.perf_stats {
+        crate::output::eprintln_safe!("{}", final_fps_line);
+    }
+
+    // Print the perf report AFTER the final FPS header — stdout is
+    // captured by the alt-screen buffer and lost when Terminal::drop()
+    // restores the main screen. Using eprint() (stderr) so the report
+    // survives the restore.
     if cfg.perf_stats {
         print_perf_report(
             stats,
@@ -146,13 +157,10 @@ pub(crate) fn finalize_session(
         cfg.intro_color.as_deref(),
     );
 
-    // AB-10: only print final FPS when --perf-stats is requested.
-    // Previously this always printed (v30 design), but owner considers
-    // it a verbose leak — without -v or --perf-stats, the user sees
-    // unexpected output after exit. Now gated by cfg.perf_stats.
-    if cfg.perf_stats {
-        crate::output::eprintln_safe!("{}", final_fps_line);
-    }
+    // v50.0.0-beta.6: final FPS line now printed BEFORE the perf report
+    // (moved above — see the comment near the drop(term) call). This
+    // section previously printed it here (after the report), which was
+    // an inconsistent position for a summary header.
 
     Ok(())
 }
@@ -238,16 +246,33 @@ fn print_perf_report(
         } else {
             0.0
         };
-        s.field("avg_dirty_cells", &format!("{:.1}", avg_dirty));
+        // v50.0.0-beta.6: show total cell count so the user can see the
+        // full grid size alongside the average dirty cells (owner request
+        // — previously only avg_dirty_cells was shown with no total context,
+        // causing confusion about what the number means relative to the grid).
+        let total_cells = (stats.grid_cols as u64) * (stats.grid_lines as u64);
+        s.field(
+            "total_cells",
+            &format!(
+                "{} ({}x{} grid)",
+                humanize(total_cells),
+                stats.grid_cols,
+                stats.grid_lines
+            ),
+        );
+        s.field(
+            "avg_dirty_cells",
+            &format!("{:.1} (of {} total)", avg_dirty, humanize(total_cells)),
+        );
         // Dirty-cell coverage as a percentage of the live grid, for
         // easy reading (owner request 2026-08-23). Same semantics as the
         // benchmark's avg_dirty_cell_ratio_percent: avg dirty cells / total
         // logical cells. Denominator is the exit-time grid — a resize
         // mid-session makes the ratio approximate for the pre-resize frames
         // (the benchmark has no resize, so its ratio is exact).
-        let total_cells = (stats.grid_cols as f64) * (stats.grid_lines as f64);
-        let dirty_ratio_pct = if total_cells > 0.0 {
-            avg_dirty / total_cells * 100.0
+        let total_cells_f64 = (stats.grid_cols as f64) * (stats.grid_lines as f64);
+        let dirty_ratio_pct = if total_cells_f64 > 0.0 {
+            avg_dirty / total_cells_f64 * 100.0
         } else {
             0.0
         };
