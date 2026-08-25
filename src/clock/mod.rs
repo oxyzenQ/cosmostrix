@@ -86,6 +86,68 @@ pub(crate) fn now_iso_utc() -> String {
     )
 }
 
+/// Get the current local wall-clock as `YYYY-MM-DD HH:MM:SS ±HH:MM`.
+///
+/// v50.0.0-rc.1: used by the verbose exit summary so the user can see the
+/// exact local time cosmostrix exited at, alongside the total run duration.
+/// Falls back to `0000-01-01 00:00:00 +00:00` if the system clock is
+/// unavailable (extremely rare — only on platforms without a working
+/// localtime). The timezone offset is derived from POSIX `tm_gmtoff` on
+/// Unix and renders as `+00:00` on the non-Unix fallback.
+///
+/// Format rationale: `±HH:MM` (not `±HHMM` or `±HH`) matches the
+/// human-readable form most users expect from `date(1)` / `timedatectl`,
+/// keeping the verbose output scannable at a glance.
+#[must_use]
+pub(crate) fn now_local_datetime() -> String {
+    match crate::posix_time::local_tm() {
+        Some(tm) => {
+            let offset = format_gmtoff(tm.gmtoff);
+            format!(
+                "{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
+                tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, offset
+            )
+        }
+        None => "0000-01-01 00:00:00 +00:00".to_string(),
+    }
+}
+
+/// Format a POSIX `tm_gmtoff` (seconds east of UTC) as `±HH:MM`.
+///
+/// Examples: `+25200` → `+07:00` (Asia/Jakarta), `-18000` → `-05:00`
+/// (US/Eastern), `0` → `+00:00` (UTC). Negative offsets render the minus
+/// sign on the hours component only (e.g. `-05:00`, never `+-05:00`).
+#[must_use]
+fn format_gmtoff(gmtoff: i64) -> String {
+    let sign = if gmtoff < 0 { '-' } else { '+' };
+    let abs = gmtoff.unsigned_abs();
+    let hours = abs / 3600;
+    let minutes = (abs % 3600) / 60;
+    format!("{sign}{hours:02}:{minutes:02}")
+}
+
+/// Format a `Duration` as a compact human-readable string `Xm Ys` or `Ys`.
+///
+/// v50.0.0-rc.1: used by the verbose exit summary to show how long
+/// cosmostrix ran. Examples: `1m 52s`, `0s`, `45s`, `1h 5m 3s`. Hours are
+/// only shown for runs ≥ 1h. Sub-second precision is dropped (verbose
+/// summary is for humans, not benchmark reports — use `--benchmark` for
+/// sub-millisecond timing).
+#[must_use]
+pub(crate) fn format_duration_compact(d: std::time::Duration) -> String {
+    let total_secs = d.as_secs();
+    let hours = total_secs / 3600;
+    let mins = (total_secs % 3600) / 60;
+    let secs = total_secs % 60;
+    if hours > 0 {
+        format!("{hours}h {mins}m {secs}s")
+    } else if mins > 0 {
+        format!("{mins}m {secs}s")
+    } else {
+        format!("{secs}s")
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -129,6 +191,82 @@ mod tests {
         let s = now_iso_utc();
         let re = regex_lite(s.as_str());
         assert!(re.is_some(), "now_iso_utc not RFC 3339: {s:?}");
+    }
+
+    // v50.0.0-rc.1: tests for the verbose exit-stamp helpers.
+
+    #[test]
+    fn now_local_datetime_format() {
+        let s = now_local_datetime();
+        // Expected: "YYYY-MM-DD HH:MM:SS ±HH:MM" (26 chars).
+        // Fallback "0000-01-01 00:00:00 +00:00" is also 26 chars.
+        assert_eq!(s.len(), 26, "now_local_datetime wrong length: {s:?}");
+        let b = s.as_bytes();
+        assert_eq!(b[4] as char, '-', "date separator wrong: {s:?}");
+        assert_eq!(b[7] as char, '-', "date separator wrong: {s:?}");
+        assert_eq!(b[10] as char, ' ', "date/time separator wrong: {s:?}");
+        assert_eq!(b[13] as char, ':', "time separator wrong: {s:?}");
+        assert_eq!(b[16] as char, ':', "time separator wrong: {s:?}");
+        assert_eq!(b[19] as char, ' ', "tz separator wrong: {s:?}");
+        // Offset sign at position 20 must be + or -.
+        assert!(b[20] == b'+' || b[20] == b'-', "tz sign wrong: {s:?}");
+        assert_eq!(b[23] as char, ':', "tz separator wrong: {s:?}");
+    }
+
+    #[test]
+    fn now_local_datetime_is_ascii() {
+        let s = now_local_datetime();
+        assert!(s.is_ascii(), "now_local_datetime must be ASCII: {s:?}");
+    }
+
+    #[test]
+    fn format_gmtoff_canonical_cases() {
+        // Positive offset: Asia/Jakarta UTC+7 = +25200s.
+        assert_eq!(format_gmtoff(25200), "+07:00");
+        // UTC zero.
+        assert_eq!(format_gmtoff(0), "+00:00");
+        // Negative offset: US/Eastern UTC-5 = -18000s.
+        assert_eq!(format_gmtoff(-18000), "-05:00");
+        // Half-hour offset: India UTC+5:30 = +19800s.
+        assert_eq!(format_gmtoff(19800), "+05:30");
+        // Negative half-hour: Nepal UTC-5:45 = -20700s.
+        assert_eq!(format_gmtoff(-20700), "-05:45");
+    }
+
+    #[test]
+    fn format_duration_compact_canonical_cases() {
+        use std::time::Duration;
+        // 0s.
+        assert_eq!(format_duration_compact(Duration::from_secs(0)), "0s");
+        // 45s.
+        assert_eq!(format_duration_compact(Duration::from_secs(45)), "45s");
+        // 1m 52s (the user's example output).
+        assert_eq!(format_duration_compact(Duration::from_secs(112)), "1m 52s");
+        // 59m 59s.
+        assert_eq!(
+            format_duration_compact(Duration::from_secs(3599)),
+            "59m 59s"
+        );
+        // 1h 0m 0s.
+        assert_eq!(
+            format_duration_compact(Duration::from_secs(3600)),
+            "1h 0m 0s"
+        );
+        // 1h 5m 3s.
+        assert_eq!(
+            format_duration_compact(Duration::from_secs(3903)),
+            "1h 5m 3s"
+        );
+    }
+
+    #[test]
+    fn format_duration_compact_drops_subsecond() {
+        use std::time::Duration;
+        // 1m 52s + 750ms still renders as "1m 52s" (sub-second dropped).
+        assert_eq!(
+            format_duration_compact(Duration::from_millis(112_750)),
+            "1m 52s"
+        );
     }
 
     /// Tiny inline RFC 3339 validator (avoids pulling in the `regex` crate

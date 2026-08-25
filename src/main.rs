@@ -372,6 +372,13 @@ fn extract_unknown_flag(err_str: &str) -> Option<&str> {
 }
 
 fn main() -> std::io::Result<()> {
+    // v50.0.0-rc.1: capture program-start Instant for the verbose exit
+    // summary. MUST be the first statement so `duration:` reflects the
+    // true wall-clock lifetime of the cosmostrix process (including arg
+    // parsing, config load, intro animation, rain loop, teardown). Uses
+    // Instant (monotonic) so NTP jumps cannot make duration negative.
+    let start_time = std::time::Instant::now();
+
     // MUST be first — checks CPU features before any v3/v4 instructions execute
     #[cfg(target_arch = "x86_64")]
     info::check_cpu_features();
@@ -1332,6 +1339,12 @@ fn main() -> std::io::Result<()> {
         // async_mode, intro_color, etc.) — not just color/scene/charset/speed/
         // density. Extracted to interactive::print_final_runtime_state to
         // keep main.rs under the 1500-LOC cap.
+        //
+        // v50.0.0-rc.1: section now ALWAYS prints (even if nothing changed
+        // during the session) so the user can see how long cosmostrix ran.
+        // The first content line is `exit_time: <local-datetime> | duration:
+        // <Xm Ys>`, derived from the program-start Instant captured at the
+        // top of main() and the current wall-clock at exit.
         let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
             Some(name) => format!("{name} (custom)"),
             None => format!("{:?}", color_scheme),
@@ -1350,6 +1363,7 @@ fn main() -> std::io::Result<()> {
             cloud_cfg.crystal_dragon,
             cloud_cfg.async_mode,
             cloud_cfg.intro_color.as_deref(),
+            start_time,
         );
     }
 

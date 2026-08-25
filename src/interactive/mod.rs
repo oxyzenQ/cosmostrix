@@ -172,6 +172,19 @@ pub(crate) fn last_intro_color() -> Option<&'static str> {
 /// set by `set_final_state`. Only prints fields that actually changed
 /// during the session (live-reload edits). Honest reporting: shows the
 /// EFFECTIVE runtime value (post-live-reload), not the startup value.
+///
+/// v50.0.0-rc.1: the section now ALWAYS prints (previously it early-
+/// returned when nothing changed) so the user can see how long cosmostrix
+/// ran via `cosmostrix -v`. The first content line after the header is:
+///
+/// ```text
+/// [verbose] [HH:MM]   exit_time:     YYYY-MM-DD HH:MM:SS ±HH:MM | duration: Xm Ys
+/// ```
+///
+/// `exit_time` is the local wall-clock at the moment of exit; `duration`
+/// is the elapsed monotonic time since the `Instant` captured at the top
+/// of `main()`. Changed live-reload fields (if any) follow, then the
+/// ambient diagnostics summary closes the section.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn print_final_runtime_state(
     startup_color: &str,
@@ -186,6 +199,10 @@ pub(crate) fn print_final_runtime_state(
     startup_crystal_dragon: bool,
     startup_async_mode: bool,
     startup_intro_color: Option<&str>,
+    // v50.0.0-rc.1: program-start Instant captured at the top of main().
+    // Used to compute `duration:` in the exit summary. Monotonic so NTP
+    // jumps cannot produce a negative duration.
+    start_time: std::time::Instant,
 ) {
     let final_color = last_color_scheme();
     let final_scene = last_scene_name();
@@ -200,27 +217,26 @@ pub(crate) fn print_final_runtime_state(
     let final_async_mode = last_async_mode();
     let final_intro_color = last_intro_color();
 
-    let changed = final_color != startup_color
-        || final_scene != startup_scene
-        || final_charset != startup_charset
-        || (final_speed - startup_speed).abs() >= 0.01
-        || (final_density - startup_density).abs() >= 0.01
-        || final_msg_mode != startup_msg_mode
-        || final_message != startup_message
-        || final_message_border != startup_message_border
-        || final_power_dragon != startup_power_dragon
-        || final_crystal_dragon != startup_crystal_dragon
-        || final_async_mode != startup_async_mode
-        || final_intro_color != startup_intro_color;
-
-    if !changed {
-        return;
-    }
+    // v50.0.0-rc.1: previously this function early-returned when no field
+    // changed, suppressing the entire section. Now the section ALWAYS
+    // prints so the user can see the exit_time + duration line regardless
+    // of whether any live-reload edits happened during the session. The
+    // per-field `if final_X != startup_X` guards below still suppress
+    // unchanged fields, keeping the section scannable.
 
     let ts = crate::output::now_hhmm();
     let purple = crate::output::brand_open();
     let reset = crate::output::reset();
     crate::output::eprintln_verbose_purple("final runtime state");
+
+    // v50.0.0-rc.1: exit_time + duration always shown as the first content
+    // line. exit_time uses local wall-clock (matches the user's timezone);
+    // duration uses the monotonic Instant captured at the top of main().
+    let exit_time = crate::clock::now_local_datetime();
+    let duration = crate::clock::format_duration_compact(start_time.elapsed());
+    crate::output::eprintln_safe!(
+        "{purple}[verbose]{reset} {ts} {purple}  exit_time:{reset}     {exit_time} | duration: {duration}{reset}"
+    );
 
     if final_color != startup_color {
         crate::output::eprintln_safe!(

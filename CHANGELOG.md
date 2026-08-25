@@ -7,6 +7,55 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
+## v50.0.0-rc.1 — Verbose Exit Time + Duration (Current RC)
+
+cosmostrix v50.0.0-rc.1 — verbose exit summary now shows the local exit time and total run duration. Owner-identified gap: `cosmostrix -v` previously had no way to tell the user how long the process ran or at what wall-clock time it exited. The "final runtime state" section now always prints this information as its first content line, even when no live-reload field changed during the session.
+
+### What's new since beta.5
+
+- **Verbose exit time + duration** (this RC): the `cosmostrix -v` / `--verbose` post-exit "final runtime state" section now leads with an `exit_time:` + `duration:` line. `exit_time` is the local wall-clock at the moment of exit, formatted as `YYYY-MM-DD HH:MM:SS ±HH:MM` (timezone-aware via POSIX `tm_gmtoff`). `duration` is the total process lifetime measured from the `Instant` captured at the top of `main()`, formatted as `Xm Ys` / `Xh Ym Ys` for human scanning. The section previously early-returned when no live-reload field changed; it now always prints so the user can see how long cosmostrix ran regardless of session activity.
+- **Clock module extended**: `LocalTm` struct in `src/clock/posix_time.rs` gained `year`, `month`, `day`, `gmtoff` fields (previously only `hour`/`minute`/`second`/`yday`). This avoids a second FFI round-trip when formatting the full local datetime stamp. Existing callers are unaffected — they continue to read only the fields they need.
+- **New clock helpers**: `clock::now_local_datetime()` (formats `YYYY-MM-DD HH:MM:SS ±HH:MM`) and `clock::format_duration_compact()` (formats `Duration` as `1m 52s` / `1h 5m 3s`). Both are pure functions with no global state, fully unit-tested with canonical cases including the Asia/Jakarta UTC+7 example from the owner's spec.
+- **5 new unit tests + 1 extended test** in `src/clock/mod.rs` and `src/clock/posix_time.rs`: `now_local_datetime_format`, `now_local_datetime_is_ascii`, `format_gmtoff_canonical_cases` (5 cases: +07:00, +00:00, -05:00, +05:30, -05:45), `format_duration_compact_canonical_cases` (6 cases: 0s/45s/1m52s/59m59s/1h0m0s/1h5m3s), `format_duration_compact_drops_subsecond`, and extended `local_tm_fields_bounded` covering the new Y/M/D/gmtoff fields. Total test count: 1687 passed / 0 failed / 2 ignored.
+
+### Sample output
+
+```text
+[verbose] [01:29] final runtime state
+[verbose] [01:29]   exit_time:     2026-08-26 01:29:20 +07:00 | duration: 1m 52s
+[verbose] [01:29]   density:       0.66 (was 0.75)
+[verbose] [01:29]   crystal_dragon: false (was true)
+[verbose] [01:29]   ambient_diag: startup=0 rx=0 reapply=0 snapback=0 cfg_rebuilds=1 sked_reloads=0 sked_empties=0 consistency_fixes=0 snapback_killed=0 snapback_guard_sked_len=0 snapback_guard_last_applied=0 last_scene_change=none
+```
+
+When no live-reload field changed during the session, the section still prints the header + `exit_time`/`duration` line + `ambient_diag` line, so the user always sees how long cosmostrix ran.
+
+### Files changed
+
+- `src/clock/posix_time.rs` — `LocalTm` struct extended (year/month/day/gmtoff); `local_tm()` unix path reads `tm_gmtoff` directly; non-unix fallback derives Y/M/D from civil-from-days algorithm (gmtoff stays 0); tests extended
+- `src/clock/mod.rs` — new `now_local_datetime()`, `format_gmtoff()`, `format_duration_compact()`; 6 new unit tests
+- `src/interactive/mod.rs` — `print_final_runtime_state()` accepts `start_time: Instant`; removed `if !changed { return; }` early-exit; always prints `exit_time` + `duration` as first content line
+- `src/main.rs` — captures `start_time: Instant::now()` at top of `main()`; passes it to `print_final_runtime_state`
+- `src/cli/help_detail.rs` — `-v, --verbose` help text mentions the exit time + duration summary
+- `docs/RULES.md` — verbose output section updated to describe the always-print behavior + new exit_time/duration line
+- `CHANGELOG.md` — this entry
+
+### Design notes
+
+- **Why `Instant` not `SystemTime` for duration**: `Instant` is monotonic — NTP jumps, manual `date` changes, or DST transitions cannot make the duration negative or jump. `SystemTime::now().duration_since(start)` can panic on clock rollback; `Instant::elapsed()` is always sound.
+- **Why local wall-clock for `exit_time`**: the user runs cosmostrix interactively in their local timezone. Showing UTC would force a mental conversion; showing local time matches what `date(1)` prints and what the user expects.
+- **Why `±HH:MM` not `±HHMM` or named zone**: `±HH:MM` is the form `date(1)` and `timedatectl` use, instantly scannable. A named zone (e.g. `WIB`) requires a tzdata lookup and is ambiguous (CST = China/US Central/Cuba).
+- **Why always print (not conditional on `changed`)**: the owner's explicit ask was "user can see how long cosmostrix run if user using verbose mode". Suppressing the section when nothing changed would hide the duration — defeating the feature's purpose. The per-field `if final_X != startup_X` guards still suppress unchanged fields, keeping the section scannable.
+
+### Lock status
+
+- Cosmic Dragon: untouched (no cosmic paths modified)
+- Chroma Dragon: untouched (no chroma paths modified)
+- Crystal Dragon: untouched (no crystal paths modified)
+- Clock subsystem: extended (additive change — new fields, new functions, no behavior change to existing callers)
+
+---
+
 ## v50.0.0-beta.5 — Exp Decay Easing Consolidation (Current Beta)
 
 cosmostrix v50.0.0-beta.5 — masterclass easing consolidation. All **temporal** easing in the rain simulation now uses the unified **exponential decay** family. Owner-approved, owner-verified feel. 227 source files, ~89K LOC, ~1500+ tests pass (1656/0/2 — 4 new regression tests added).

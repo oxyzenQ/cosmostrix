@@ -33,12 +33,28 @@
 
 /// Result of a POSIX `localtime_r` call. Fields are `Option<T>` to gracefully
 /// handle the (extremely rare) case where `localtime_r` returns NULL.
+///
+/// v50.0.0-rc.1: extended with `year`, `month`, `day`, `gmtoff` so the
+/// verbose exit summary can format a full `YYYY-MM-DD HH:MM:SS ±HH:MM`
+/// local wall-clock stamp without a second FFI round-trip. Callers that
+/// only need hour/minute/second/yday keep working unchanged.
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct LocalTm {
     pub hour: i32,
     pub minute: i32,
     pub second: i32,
     pub yday: i32,
+    /// Full calendar year (e.g. 2026). 0 if the platform fallback was used
+    /// and the year could not be determined.
+    pub year: i32,
+    /// Month 1..=12. 1 if the platform fallback was used.
+    pub month: i32,
+    /// Day of month 1..=31. 1 if the platform fallback was used.
+    pub day: i32,
+    /// Seconds east of UTC (POSIX `tm_gmtoff`). Positive = east of UTC
+    /// (e.g. +25200 for UTC+7). 0 if the platform fallback was used
+    /// (non-Unix has no local timezone without pulling in winapi/chrono).
+    pub gmtoff: i64,
 }
 
 /// Result of a POSIX `gmtime_r` call (UTC).
@@ -96,6 +112,15 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
         minute: tm.tm_min,
         second: tm.tm_sec,
         yday: tm.tm_yday,
+        year: tm.tm_year + 1900,
+        month: tm.tm_mon + 1,
+        day: tm.tm_mday,
+        // tm_gmtoff is a glibc/BSD/macOS extension (seconds east of UTC).
+        // libc crate exposes it on all unix targets we support, typed as
+        // time_t (= i64 on 64-bit and modern 32-bit Linux). Direct
+        // assignment — if a future platform types it differently, the
+        // build will fail loudly here and force an explicit conversion.
+        gmtoff: tm.tm_gmtoff,
     })
 }
 
@@ -170,11 +195,24 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
     let doe = (z - era * 146_097) as u64;
     let yoe = (doe - doe / 1_460 + doe / 36_524 - doe / 146_096) / 365;
     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    // v50.0.0-rc.1: derive full Y/M/D from the same civil-from-days
+    // algorithm so the verbose exit stamp can format a complete local
+    // date even on the non-unix fallback. gmtoff stays 0 (no local tz
+    // available without winapi/chrono).
+    let y = yoe as i64 + era * 400;
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let year = if m <= 2 { y + 1 } else { y };
     Some(LocalTm {
         hour,
         minute: min,
         second: sec,
         yday: doy as i32,
+        year: year as i32,
+        month: m as i32,
+        day: d as i32,
+        gmtoff: 0,
     })
 }
 
@@ -265,6 +303,21 @@ mod tests {
             (0..=365).contains(&tm.yday),
             "yday out of range: {}",
             tm.yday
+        );
+        // v50.0.0-rc.1: Y/M/D fields added for verbose exit stamp.
+        assert!(tm.year >= 2025, "year too old: {}", tm.year);
+        assert!(
+            (1..=12).contains(&tm.month),
+            "month out of range: {}",
+            tm.month
+        );
+        assert!((1..=31).contains(&tm.day), "day out of range: {}", tm.day);
+        // gmtoff: -12..+14 hours in seconds = -43200..50400. Non-unix
+        // fallback returns 0 (still in range).
+        assert!(
+            (-43200..=50400).contains(&tm.gmtoff),
+            "gmtoff out of range: {}",
+            tm.gmtoff
         );
     }
 

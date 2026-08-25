@@ -361,7 +361,9 @@ DIAGNOSTICS:
       cosmostrix --reset-terminal
   -v, --verbose   Print diagnostic info to stderr before launching. Shows
       config path, resolved values, terminal detection, system feeling
-      state.
+      state. On exit, prints a final runtime state section with the local
+      exit time and total run duration (v50.0.0-rc.1), followed by any
+      live-reload field changes and the ambient diagnostics summary.
 
 DISCOVERY:
   --list-colors         Show color theme names.
