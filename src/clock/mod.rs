@@ -86,44 +86,33 @@ pub(crate) fn now_iso_utc() -> String {
     )
 }
 
-/// Get the current local wall-clock as `YYYY-MM-DD HH:MM:SS ±HH:MM`.
+/// Get the current UTC wall-clock as `YYYY-MM-DD HH:MM:SSZ`.
 ///
-/// v50.0.0-rc.1: used by the verbose exit summary so the user can see the
-/// exact local time cosmostrix exited at, alongside the total run duration.
-/// Falls back to `0000-01-01 00:00:00 +00:00` if the system clock is
+/// v50.0.0-beta.6: used by the verbose exit summary so the user can see
+/// the exact UTC time cosmostrix exited at, alongside the total run
+/// duration. Switched from local-time + offset (rc.1) to plain UTC for
+/// LTS stability: UTC has no DST transitions, no timezone-database drift,
+/// and is consistent across environments. The `Z` suffix (ISO 8601 UTC
+/// designator) is universally recognized and machine-parseable.
+///
+/// Falls back to `0000-01-01 00:00:00Z` if the system clock is
 /// unavailable (extremely rare — only on platforms without a working
-/// localtime). The timezone offset is derived from POSIX `tm_gmtoff` on
-/// Unix and renders as `+00:00` on the non-Unix fallback.
+/// gmtime). Reuses the existing `utc_tm()` FFI path (single POSIX
+/// `gmtime_r` call) — no new FFI, no timezone lookup.
 ///
-/// Format rationale: `±HH:MM` (not `±HHMM` or `±HH`) matches the
-/// human-readable form most users expect from `date(1)` / `timedatectl`,
-/// keeping the verbose output scannable at a glance.
+/// Format rationale: space separator (not `T`) keeps the original
+/// human-readable feel the owner specified in rc.1; the `Z` suffix
+/// replaces the `±HH:MM` offset and is shorter + unambiguous.
 #[must_use]
-pub(crate) fn now_local_datetime() -> String {
-    match crate::posix_time::local_tm() {
-        Some(tm) => {
-            let offset = format_gmtoff(tm.gmtoff);
-            format!(
-                "{:04}-{:02}-{:02} {:02}:{:02}:{:02} {}",
-                tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second, offset
-            )
-        }
-        None => "0000-01-01 00:00:00 +00:00".to_string(),
+pub(crate) fn now_utc_datetime() -> String {
+    let tm = crate::posix_time::utc_tm();
+    if tm.year == 0 {
+        return "0000-01-01 00:00:00Z".to_string();
     }
-}
-
-/// Format a POSIX `tm_gmtoff` (seconds east of UTC) as `±HH:MM`.
-///
-/// Examples: `+25200` → `+07:00` (Asia/Jakarta), `-18000` → `-05:00`
-/// (US/Eastern), `0` → `+00:00` (UTC). Negative offsets render the minus
-/// sign on the hours component only (e.g. `-05:00`, never `+-05:00`).
-#[must_use]
-fn format_gmtoff(gmtoff: i64) -> String {
-    let sign = if gmtoff < 0 { '-' } else { '+' };
-    let abs = gmtoff.unsigned_abs();
-    let hours = abs / 3600;
-    let minutes = (abs % 3600) / 60;
-    format!("{sign}{hours:02}:{minutes:02}")
+    format!(
+        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}Z",
+        tm.year, tm.month, tm.day, tm.hour, tm.minute, tm.second
+    )
 }
 
 /// Format a `Duration` as a compact human-readable string `Xm Ys` or `Ys`.
@@ -193,44 +182,60 @@ mod tests {
         assert!(re.is_some(), "now_iso_utc not RFC 3339: {s:?}");
     }
 
-    // v50.0.0-rc.1: tests for the verbose exit-stamp helpers.
+    // v50.0.0-beta.6: tests for the verbose exit-stamp helpers.
 
     #[test]
-    fn now_local_datetime_format() {
-        let s = now_local_datetime();
-        // Expected: "YYYY-MM-DD HH:MM:SS ±HH:MM" (26 chars).
-        // Fallback "0000-01-01 00:00:00 +00:00" is also 26 chars.
-        assert_eq!(s.len(), 26, "now_local_datetime wrong length: {s:?}");
+    fn now_utc_datetime_format() {
+        let s = now_utc_datetime();
+        // Expected: "YYYY-MM-DD HH:MM:SSZ" (20 chars).
+        // Fallback "0000-01-01 00:00:00Z" is also 20 chars.
+        assert_eq!(s.len(), 20, "now_utc_datetime wrong length: {s:?}");
         let b = s.as_bytes();
         assert_eq!(b[4] as char, '-', "date separator wrong: {s:?}");
         assert_eq!(b[7] as char, '-', "date separator wrong: {s:?}");
         assert_eq!(b[10] as char, ' ', "date/time separator wrong: {s:?}");
         assert_eq!(b[13] as char, ':', "time separator wrong: {s:?}");
         assert_eq!(b[16] as char, ':', "time separator wrong: {s:?}");
-        assert_eq!(b[19] as char, ' ', "tz separator wrong: {s:?}");
-        // Offset sign at position 20 must be + or -.
-        assert!(b[20] == b'+' || b[20] == b'-', "tz sign wrong: {s:?}");
-        assert_eq!(b[23] as char, ':', "tz separator wrong: {s:?}");
+        // Trailing Z (ISO 8601 UTC designator) at position 19.
+        assert_eq!(b[19] as char, 'Z', "UTC designator wrong: {s:?}");
     }
 
     #[test]
-    fn now_local_datetime_is_ascii() {
-        let s = now_local_datetime();
-        assert!(s.is_ascii(), "now_local_datetime must be ASCII: {s:?}");
+    fn now_utc_datetime_is_ascii() {
+        let s = now_utc_datetime();
+        assert!(s.is_ascii(), "now_utc_datetime must be ASCII: {s:?}");
     }
 
     #[test]
-    fn format_gmtoff_canonical_cases() {
-        // Positive offset: Asia/Jakarta UTC+7 = +25200s.
-        assert_eq!(format_gmtoff(25200), "+07:00");
-        // UTC zero.
-        assert_eq!(format_gmtoff(0), "+00:00");
-        // Negative offset: US/Eastern UTC-5 = -18000s.
-        assert_eq!(format_gmtoff(-18000), "-05:00");
-        // Half-hour offset: India UTC+5:30 = +19800s.
-        assert_eq!(format_gmtoff(19800), "+05:30");
-        // Negative half-hour: Nepal UTC-5:45 = -20700s.
-        assert_eq!(format_gmtoff(-20700), "-05:45");
+    fn now_utc_datetime_matches_now_iso_utc() {
+        // Both now_utc_datetime() and now_iso_utc() read from the same
+        // utc_tm() FFI path. The only difference is the separator (space
+        // vs 'T') and the offset ('Z' is present in both). Cross-check
+        // that the date + time digits agree (within a 2-second window to
+        // avoid rare boundary-crossing false positives).
+        let local = now_utc_datetime();
+        let iso = now_iso_utc();
+        // Both are 20 chars; digits at positions 0-9 (date) and 11-18 (time).
+        let local_digits: String = local.chars().filter(|c| c.is_ascii_digit()).collect();
+        let iso_digits: String = iso.chars().filter(|c| c.is_ascii_digit()).collect();
+        assert_eq!(
+            local_digits.len(),
+            14,
+            "now_utc_datetime must have 14 digits: {local:?}"
+        );
+        assert_eq!(
+            iso_digits.len(),
+            14,
+            "now_iso_utc must have 14 digits: {iso:?}"
+        );
+        // Allow last digit (seconds) to differ by 1 (boundary crossing).
+        let local_secs: i32 = local_digits[12..14].parse().unwrap_or(-1);
+        let iso_secs: i32 = iso_digits[12..14].parse().unwrap_or(-2);
+        let diff = (local_secs - iso_secs).abs();
+        assert!(
+            diff <= 2,
+            "now_utc_datetime vs now_iso_utc second diff too large: {diff}"
+        );
     }
 
     #[test]

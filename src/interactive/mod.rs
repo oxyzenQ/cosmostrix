@@ -229,10 +229,11 @@ pub(crate) fn print_final_runtime_state(
     let reset = crate::output::reset();
     crate::output::eprintln_verbose_purple("final runtime state");
 
-    // v50.0.0-rc.1: exit_time + duration always shown as the first content
-    // line. exit_time uses local wall-clock (matches the user's timezone);
-    // duration uses the monotonic Instant captured at the top of main().
-    let exit_time = crate::clock::now_local_datetime();
+    // v50.0.0-beta.6: exit_time now uses UTC (was local + offset in rc.1).
+    // UTC is LTS-stable: no DST transitions, no tzdata drift, consistent
+    // across environments. Format: YYYY-MM-DD HH:MM:SSZ (ISO 8601 UTC).
+    // duration unchanged — monotonic Instant elapsed since main() start.
+    let exit_time = crate::clock::now_utc_datetime();
     let duration = crate::clock::format_duration_compact(start_time.elapsed());
     crate::output::eprintln_safe!(
         "{purple}[verbose]{reset} {ts} {purple}  exit_time:{reset}     {exit_time} | duration: {duration}{reset}"

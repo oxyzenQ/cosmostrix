@@ -89,7 +89,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 ### Verbose Output + Install Script
 
-**Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-rc.1) — first line is `exit_time: <YYYY-MM-DD HH:MM:SS ±HH:MM> | duration: <Xm Ys>` showing the local wall-clock at exit and the total process lifetime. Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. The section closes with the ambient diagnostics summary.
+**Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-beta.6) — first line is `exit_time: <YYYY-MM-DD HH:MM:SSZ>` (UTC, ISO 8601) and `duration: <Xm Ys>` showing the total process lifetime. UTC chosen for LTS stability (no DST transitions, no tzdata drift). Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. The section closes with the ambient diagnostics summary.
 
 **Install**: `./scripts/install` auto-detects CPU — AVX-512 → pro-linux-v4, AVX2 → pro-linux-v3, baseline → release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
 <!-- COSMOSTRIX-DISCLAIMER -->

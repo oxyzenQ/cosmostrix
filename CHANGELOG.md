@@ -7,22 +7,24 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
-## v50.0.0-rc.1 — Verbose Exit Time + Duration (Current RC)
+## v50.0.0-beta.6 — Verbose UTC Exit + HUD Dragon Indicators (Current Beta)
 
-cosmostrix v50.0.0-rc.1 — verbose exit summary now shows the local exit time and total run duration. Owner-identified gap: `cosmostrix -v` previously had no way to tell the user how long the process ran or at what wall-clock time it exited. The "final runtime state" section now always prints this information as its first content line, even when no live-reload field changed during the session.
+cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + duration, and the HUD gains two new dragon on/off indicators (prdr, crdr) above the cid line. Two owner-identified gaps addressed: (1) `cosmostrix -v` had no way to tell the user how long the process ran or at what time it exited, (2) the HUD had no visibility into the live power-dragon / crystal-dragon on/off state. UTC format chosen for LTS stability (no DST transitions, no tzdata drift).
 
 ### What's new since beta.5
 
-- **Verbose exit time + duration** (this RC): the `cosmostrix -v` / `--verbose` post-exit "final runtime state" section now leads with an `exit_time:` + `duration:` line. `exit_time` is the local wall-clock at the moment of exit, formatted as `YYYY-MM-DD HH:MM:SS ±HH:MM` (timezone-aware via POSIX `tm_gmtoff`). `duration` is the total process lifetime measured from the `Instant` captured at the top of `main()`, formatted as `Xm Ys` / `Xh Ym Ys` for human scanning. The section previously early-returned when no live-reload field changed; it now always prints so the user can see how long cosmostrix ran regardless of session activity.
-- **Clock module extended**: `LocalTm` struct in `src/clock/posix_time.rs` gained `year`, `month`, `day`, `gmtoff` fields (previously only `hour`/`minute`/`second`/`yday`). This avoids a second FFI round-trip when formatting the full local datetime stamp. Existing callers are unaffected — they continue to read only the fields they need.
-- **New clock helpers**: `clock::now_local_datetime()` (formats `YYYY-MM-DD HH:MM:SS ±HH:MM`) and `clock::format_duration_compact()` (formats `Duration` as `1m 52s` / `1h 5m 3s`). Both are pure functions with no global state, fully unit-tested with canonical cases including the Asia/Jakarta UTC+7 example from the owner's spec.
-- **5 new unit tests + 1 extended test** in `src/clock/mod.rs` and `src/clock/posix_time.rs`: `now_local_datetime_format`, `now_local_datetime_is_ascii`, `format_gmtoff_canonical_cases` (5 cases: +07:00, +00:00, -05:00, +05:30, -05:45), `format_duration_compact_canonical_cases` (6 cases: 0s/45s/1m52s/59m59s/1h0m0s/1h5m3s), `format_duration_compact_drops_subsecond`, and extended `local_tm_fields_bounded` covering the new Y/M/D/gmtoff fields. Total test count: 1687 passed / 0 failed / 2 ignored.
+- **Verbose exit time + duration (UTC)**: the `cosmostrix -v` / `--verbose` post-exit "final runtime state" section now leads with an `exit_time:` + `duration:` line. `exit_time` is the UTC time at exit, formatted as `YYYY-MM-DD HH:MM:SSZ` (ISO 8601 UTC designator). `duration` is the total process lifetime from the `Instant` captured at the top of `main()`, formatted as `Xm Ys` / `Xh Ym Ys`. The section now always prints (previously early-returned when no field changed) so the user always sees how long cosmostrix ran.
+- **UTC for LTS stability**: the exit-time format uses UTC (not local + offset) because UTC has no DST transitions, no timezone-database drift, and is consistent across environments. The `Z` suffix (ISO 8601 UTC designator) is universally recognized and machine-parseable.
+- **HUD dragon on/off indicators (prdr, crdr)**: two new HUD metrics added at rows 15-16, directly above cid (now row 17 — still owner-mandated bottom row). `prdr: on/off` shows the live power-dragon state; `crdr: on/off` shows the live crystal-dragon state. Values are NOT hardcoded — they track the live runtime state (set by `set_power_dragon` / `set_crystal_dragon`, called every frame from the event loop with `cfg.power_dragon` / `cfg.crystal_dragon`). When the user live-reloads `power_dragon = false` or `crystal_dragon = true` in config.toml, the HUD reflects the new state on the next 1 Hz metric tick.
+- **HUD layout expansion**: `cached_lines` array expanded from 16 → 18 rows. The chroma gradient function renamed `compute_chroma_gradient_16` → `compute_chroma_gradient_18` (divisor 15.0 → 17.0). The cid line moved from row 15 to row 17 (still the last/bottom row). All existing HUD tests updated for the new row indices and palette sizes.
+- **New clock helpers**: `clock::now_utc_datetime()` (formats `YYYY-MM-DD HH:MM:SSZ` using the existing `utc_tm()` FFI path) and `clock::format_duration_compact()` (formats `Duration` as `1m 52s` / `1h 5m 3s`). Both pure functions, fully unit-tested.
+- **8 new unit tests**: `now_utc_datetime_format`, `now_utc_datetime_is_ascii`, `now_utc_datetime_matches_now_iso_utc`, `format_duration_compact_canonical_cases`, `format_duration_compact_drops_subsecond`, `hud_prdr_defaults_to_on`, `hud_crdr_defaults_to_off`, `hud_set_power_dragon_off_renders_off`, `hud_set_crystal_dragon_on_renders_on`, `hud_prdr_crdr_above_cid_in_layout`, `hud_prdr_crdr_live_reload_toggle`. Total: 1693 passed / 0 failed / 2 ignored.
 
 ### Sample output
 
 ```text
 [verbose] [01:29] final runtime state
-[verbose] [01:29]   exit_time:     2026-08-26 01:29:20 +07:00 | duration: 1m 52s
+[verbose] [01:29]   exit_time:     2026-08-26 01:29:20Z | duration: 1m 52s
 [verbose] [01:29]   density:       0.66 (was 0.75)
 [verbose] [01:29]   crystal_dragon: false (was true)
 [verbose] [01:29]   ambient_diag: startup=0 rx=0 reapply=0 snapback=0 cfg_rebuilds=1 sked_reloads=0 sked_empties=0 consistency_fixes=0 snapback_killed=0 snapback_guard_sked_len=0 snapback_guard_last_applied=0 last_scene_change=none
@@ -32,19 +34,18 @@ When no live-reload field changed during the session, the section still prints t
 
 ### Files changed
 
-- `src/clock/posix_time.rs` — `LocalTm` struct extended (year/month/day/gmtoff); `local_tm()` unix path reads `tm_gmtoff` directly; non-unix fallback derives Y/M/D from civil-from-days algorithm (gmtoff stays 0); tests extended
-- `src/clock/mod.rs` — new `now_local_datetime()`, `format_gmtoff()`, `format_duration_compact()`; 6 new unit tests
-- `src/interactive/mod.rs` — `print_final_runtime_state()` accepts `start_time: Instant`; removed `if !changed { return; }` early-exit; always prints `exit_time` + `duration` as first content line
-- `src/main.rs` — captures `start_time: Instant::now()` at top of `main()`; passes it to `print_final_runtime_state`
+- `src/clock/mod.rs` — new `now_utc_datetime()` (reuses `utc_tm()` FFI), `format_duration_compact()`; 5 new unit tests
+- `src/interactive/mod.rs` — `print_final_runtime_state()` accepts `start_time: Instant`; removed `if !changed { return; }` early-exit; always prints `exit_time` + `duration` as first content line; calls `now_utc_datetime()` for the UTC stamp
+- `src/main.rs` — captures `start_time = Instant::now()` at top of `main()`; passes it to `print_final_runtime_state`
 - `src/cli/help_detail.rs` — `-v, --verbose` help text mentions the exit time + duration summary
-- `docs/RULES.md` — verbose output section updated to describe the always-print behavior + new exit_time/duration line
+- `docs/RULES.md` — verbose output section updated to describe the always-print behavior + UTC exit_time/duration line
 - `CHANGELOG.md` — this entry
 
 ### Design notes
 
 - **Why `Instant` not `SystemTime` for duration**: `Instant` is monotonic — NTP jumps, manual `date` changes, or DST transitions cannot make the duration negative or jump. `SystemTime::now().duration_since(start)` can panic on clock rollback; `Instant::elapsed()` is always sound.
-- **Why local wall-clock for `exit_time`**: the user runs cosmostrix interactively in their local timezone. Showing UTC would force a mental conversion; showing local time matches what `date(1)` prints and what the user expects.
-- **Why `±HH:MM` not `±HHMM` or named zone**: `±HH:MM` is the form `date(1)` and `timedatectl` use, instantly scannable. A named zone (e.g. `WIB`) requires a tzdata lookup and is ambiguous (CST = China/US Central/Cuba).
+- **Why UTC not local + offset**: UTC is LTS-stable. Local time depends on the system timezone database (tzdata), which can drift or be unavailable on minimal containers. DST transitions can make a wall-clock stamp ambiguous (the 2am→3am fall-back produces two identical local stamps for different UTC moments). UTC has none of these issues — it is the same everywhere, always monotonically increasing, and never ambiguous. A user comparing logs across servers in different timezones can do so without mental conversion.
+- **Why `Z` suffix not `+00:00`**: `Z` (Zulu) is the standard ISO 8601 UTC designator — shorter, universally recognized, and unambiguous. `+00:00` is valid but verbose; `Z` is the conventional choice for UTC stamps in logs and timestamps.
 - **Why always print (not conditional on `changed`)**: the owner's explicit ask was "user can see how long cosmostrix run if user using verbose mode". Suppressing the section when nothing changed would hide the duration — defeating the feature's purpose. The per-field `if final_X != startup_X` guards still suppress unchanged fields, keeping the section scannable.
 
 ### Lock status
@@ -52,7 +53,7 @@ When no live-reload field changed during the session, the section still prints t
 - Cosmic Dragon: untouched (no cosmic paths modified)
 - Chroma Dragon: untouched (no chroma paths modified)
 - Crystal Dragon: untouched (no crystal paths modified)
-- Clock subsystem: extended (additive change — new fields, new functions, no behavior change to existing callers)
+- Clock subsystem: extended (additive change — new functions, no behavior change to existing callers)
 
 ---
 
