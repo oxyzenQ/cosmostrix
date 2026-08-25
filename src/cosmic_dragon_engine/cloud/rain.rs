@@ -20,6 +20,7 @@ use crate::rain_style::RainStyle;
 use super::ecosystem::EmergentMoment;
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::{DrawCtx, FlashWaveCtx};
+use super::state::BorderPulse;
 use super::Cloud;
 use smallvec::SmallVec;
 
@@ -372,7 +373,7 @@ impl Cloud {
                         continue;
                     }
 
-                    let (col, start_line, hp, cp_idx, free_col, died) = {
+                    let (col, start_line, prev_hp, hp, cp_idx, free_col, died) = {
                         let d = &mut self.droplets[i];
                         let adv_now = if let Some(last) = d.last_time {
                             let max_now = last + max_sim_delta;
@@ -387,10 +388,15 @@ impl Cloud {
                         let free_col = d.advance(adv_now, self.lines, self.resume_blend);
                         let col = d.bound_col;
                         let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+                        // RAIN_BORDER_TOUCH_GLOW: capture pre-advance head line
+                        // for transition detection, then snapshot post-advance
+                        // value as the new prev for next frame.
+                        let prev_hp = d.prev_head_put_line;
                         let hp = d.head_put_line;
+                        d.prev_head_put_line = hp;
                         let cp_idx = d.char_pool_idx;
                         let died = !d.is_alive;
-                        (col, start_line, hp, cp_idx, free_col, died)
+                        (col, start_line, prev_hp, hp, cp_idx, free_col, died)
                     };
 
                     if died {
@@ -400,6 +406,12 @@ impl Cloud {
                         self.droplet_free_list.push(i);
                         continue;
                     }
+
+                    // RAIN_BORDER_TOUCH_GLOW: detect droplet head crossing
+                    // the -mb overlay's top border; pushes a BorderPulse
+                    // (Option C) on transition. No-op when no bordered
+                    // overlay is active (message_top_line == u16::MAX).
+                    self.detect_border_touch(col, prev_hp, hp, now);
 
                     if free_col {
                         self.set_column_spawn(col, true);
@@ -417,15 +429,20 @@ impl Cloud {
                         continue;
                     }
 
-                    let (col, start_line, hp, cp_idx, free_col, died) = {
+                    let (col, start_line, prev_hp, hp, cp_idx, free_col, died) = {
                         let d = &mut self.droplets[i];
                         let free_col = d.advance(now, self.lines, self.resume_blend);
                         let col = d.bound_col;
                         let start_line = d.tail_put_line.map(|v| v.saturating_add(1)).unwrap_or(0);
+                        // RAIN_BORDER_TOUCH_GLOW: capture pre-advance head line
+                        // for transition detection, then snapshot post-advance
+                        // value as the new prev for next frame.
+                        let prev_hp = d.prev_head_put_line;
                         let hp = d.head_put_line;
+                        d.prev_head_put_line = hp;
                         let cp_idx = d.char_pool_idx;
                         let died = !d.is_alive;
-                        (col, start_line, hp, cp_idx, free_col, died)
+                        (col, start_line, prev_hp, hp, cp_idx, free_col, died)
                     };
 
                     if died {
@@ -435,6 +452,12 @@ impl Cloud {
                         self.droplet_free_list.push(i);
                         continue;
                     }
+
+                    // RAIN_BORDER_TOUCH_GLOW: detect droplet head crossing
+                    // the -mb overlay's top border; pushes a BorderPulse
+                    // (Option C) on transition. No-op when no bordered
+                    // overlay is active (message_top_line == u16::MAX).
+                    self.detect_border_touch(col, prev_hp, hp, now);
 
                     if free_col {
                         self.set_column_spawn(col, true);
@@ -1073,7 +1096,7 @@ impl Cloud {
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + typewriter reveal (30ms/char).
         if !self.message.is_empty() {
-            self.draw_message(frame);
+            self.draw_message(frame, now);
         }
 
         // --- Periodic full redraw for ANSI drift correction ---
@@ -1122,6 +1145,75 @@ impl Cloud {
         if enable_timing {
             let t2 = Instant::now();
             self.last_render_ms = t2.saturating_duration_since(t1).as_secs_f64() * 1000.0;
+        }
+    }
+
+    /// RAIN_BORDER_TOUCH_GLOW helper (Option C+D, owner-approved 2026-08-26).
+    ///
+    /// Called from the droplet advance loop (both sim-cap and bench paths)
+    /// with the pre-advance (`prev_hp`) and post-advance (`hp`) `head_put_line`
+    /// values for the droplet at column `col`. On transition
+    /// `prev_hp < top && hp >= top` for a column inside the overlay's
+    /// horizontal span `[left, right)`, push a `BorderPulse` with the
+    /// current palette's `head_rgb` (dynamic color, not static white —
+    /// matches the FlashWaveCtx pattern at line 681-689).
+    ///
+    /// The cached geometry (`message_top_line`, `message_left_col`,
+    /// `message_right_col`) is set in `reset_message`. When no bordered
+    /// overlay is active (`-m` without border, or no message at all),
+    /// `message_top_line == u16::MAX` and the early-return fires immediately
+    /// — zero cost on the hot path.
+    ///
+    /// `MsgChr` lookup is a linear scan over `self.message` filtered to
+    /// `line == top && col == col`. `self.message` is laid out row-major
+    /// (see `reset_message`), so the matching cell is found in O(box_w)
+    /// — typically ≤ 100 entries, well under 1 µs even on a 200-col
+    /// terminal.
+    #[inline]
+    pub(crate) fn detect_border_touch(
+        &mut self,
+        col: u16,
+        prev_hp: u16,
+        hp: u16,
+        now: Instant,
+    ) {
+        let top = self.message_top_line;
+        if top == u16::MAX {
+            return;
+        }
+        // Transition: head was strictly above the top border last frame,
+        // and is at or below it this frame. Use `>=` on the post-advance
+        // side to catch multi-line advances (high-speed droplets may skip
+        // the exact top line in a single frame).
+        if prev_hp >= top || hp < top {
+            return;
+        }
+        if col < self.message_left_col || col >= self.message_right_col {
+            return;
+        }
+
+        // Snapshot the current palette's head color BEFORE the immutable
+        // borrow on self.message (so the two immutable borrows don't
+        // overlap with the later mutable push on self.border_pulses).
+        let head_rgb = self
+            .palette
+            .colors
+            .last()
+            .copied()
+            .and_then(crate::palette::decode_color)
+            .unwrap_or((255, 255, 255));
+
+        let msg_idx = self.message.iter().position(|mc| {
+            mc.line == top && mc.col == col
+        });
+
+        if let Some(idx) = msg_idx {
+            self.border_pulses.push(BorderPulse {
+                msg_idx: idx,
+                col,
+                head_rgb,
+                birth: now,
+            });
         }
     }
 }

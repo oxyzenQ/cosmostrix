@@ -1,3 +1,5 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
 # Rain-Drop vs Top-Border Touch Glow Audit (`-mb` Overlay)
 
 > Source code is truth; cross-check the referenced files before relying on

@@ -288,3 +288,40 @@ pub(crate) const BODY_TAIL_MAX_GAP_RATIO: f32 = 2.0;
 ///
 /// See `PALETTE_FLOOR_RATIO` for the full Phase 7 rationale.
 pub(crate) const GLOBAL_MAX_FLOOR: u16 = 180;
+
+/// RAIN_BORDER_TOUCH_GLOW (Option C+D, owner-approved 2026-08-26):
+/// when a droplet's head crosses the top border of the `-mb` overlay,
+/// the touched border cell briefly glows toward the droplet's `head_rgb`.
+///
+/// Owner insight: *"border atas kiri kena hujan dari warna hitam menjadi
+/// putih lalu beberapa detik hilang, kalo hujan mengenainya lagi muncul
+/// lagi. tapi untuk warna bukan hanya putih tapi dinamis"* — dynamic
+/// color from the touching droplet's head, not static white.
+///
+/// LTS invariant override: the existing "top corners stay dark / no lone
+/// bright heads at top corners" rule (mod.rs §1018-1027) is RELAXED for
+/// transient touch events. Corners (`╭╮`) are now eligible for pulse
+/// blending along with mid-edge (`─`) cells; the bottom-corner bright
+/// anchor rule still applies.
+///
+/// Pulse envelope: smoothstep over `BORDER_TOUCH_PULSE_LIFETIME_MS`,
+/// peaking at `BORDER_TOUCH_PULSE_MAX` (1.0 = full head color) and
+/// decaying to 0 at the end of the lifetime.
+///
+/// Owner spec: *"dari warna hitam menjadi putih lalu beberapa detik
+/// hilang"* — peak immediately on touch, decay over a few seconds.
+/// 1500 ms sits in the "beberapa detik" range while staying short
+/// enough that subsequent touches in the same column (typical at 5-10
+/// drops/sec) re-trigger fresh pulses rather than saturating the cell.
+pub(crate) const BORDER_TOUCH_PULSE_LIFETIME_MS: u32 = 1500;
+pub(crate) const BORDER_TOUCH_PULSE_MAX: f32 = 1.0;
+
+/// RAIN_BORDER_TOUCH_GLOW (Option D, halo above border): a single-row
+/// halo above the top border, with per-column decay modulated by the
+/// same touch events. The halo uses the same `head_rgb` color, blended
+/// at a lower max factor (0.3) so it does not compete with the message
+/// text for the eye.
+pub(crate) const BORDER_TOUCH_HALO_MAX: f32 = 0.3;
+/// Halo lifetime is shorter than the border pulse — the halo is the
+/// "splash up" cue, not the sustained glow on the border itself.
+pub(crate) const BORDER_TOUCH_HALO_LIFETIME_MS: u32 = 400;

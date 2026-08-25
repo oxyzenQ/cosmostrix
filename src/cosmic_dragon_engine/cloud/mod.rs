@@ -65,7 +65,7 @@ use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
 use monolith::MonolithRain;
-use state::{AnomalyZone, ColumnStatus, MsgChr};
+use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr};
 
 use ghost_events::GhostEventScheduler;
 use render::FlashWave;
@@ -216,6 +216,23 @@ pub struct Cloud {
     /// or border toggle). `draw_message` borrows this instead of calling
     /// `build_border_order` per frame (was O((W+H)×N) per frame; now O(1) borrow).
     pub(crate) border_order: Vec<usize>,
+
+    /// RAIN_BORDER_TOUCH_GLOW: cached top-border geometry, refreshed in
+    /// `reset_message`. Used by the droplet advance loop (rain.rs) for
+    /// cheap O(1) touch detection: `prev_head_put_line < top` and
+    /// `head_put_line >= top` and `bound_col in [left, right)` → push
+    /// a `BorderPulse`.
+    /// `top_line` is `u16::MAX` sentinel when no message overlay is active
+    /// (so the check `head_put_line >= top_line` is false for all real
+    /// droplet head positions, avoiding spurious touches).
+    pub(crate) message_top_line: u16,
+    pub(crate) message_left_col: u16,
+    pub(crate) message_right_col: u16,
+
+    /// RAIN_BORDER_TOUCH_GLOW: active touch pulses. Drained of expired
+    /// entries every frame in `draw_message`. Expected max size ~8 (one
+    /// per active column crossing the top edge at any time).
+    pub(crate) border_pulses: Vec<BorderPulse>,
     pub(crate) color_scheme: ColorScheme,
     pub(crate) default_background: bool,
     scene_name: String,
@@ -407,6 +424,10 @@ impl Cloud {
             message_border: false,
             message_start_time: None,
             border_order: Vec::new(),
+            message_top_line: u16::MAX,
+            message_left_col: 0,
+            message_right_col: 0,
+            border_pulses: Vec::new(),
             color_scheme,
             default_background,
             scene_name: String::new(),
@@ -923,9 +944,29 @@ impl Cloud {
         // (rare — only fires on `--message` set or border toggle) so
         // draw_message can borrow it instead of recomputing per frame.
         self.border_order = border::build_border_order(&self.message);
+
+        // RAIN_BORDER_TOUCH_GLOW: cache top-border geometry for the droplet
+        // advance loop's touch detection. Only relevant when the overlay
+        // is bordered (`-mb`); for `-m` (no border), the top edge is the
+        // first content row, which is not a "border touch" event. We
+        // leave `message_top_line = u16::MAX` sentinel in that case so
+        // `head_put_line >= top_line` is always false.
+        if self.message_border && box_h > 0 {
+            self.message_top_line = start_line;
+            self.message_left_col = start_col;
+            // box_w is at most cols, so saturating_add won't overflow u16
+            // for any practical terminal width (u16::MAX = 65535 cols).
+            self.message_right_col = start_col.saturating_add(box_w);
+        } else {
+            self.message_top_line = u16::MAX;
+            self.message_left_col = 0;
+            self.message_right_col = 0;
+        }
+        // Pulses from the previous overlay are stale; drop them.
+        self.border_pulses.clear();
     }
 
-    fn draw_message(&self, frame: &mut Frame) {
+    fn draw_message(&mut self, frame: &mut Frame, now: Instant) {
         let bg = self.palette.bg;
         // BC-01..05 (border chroma dragon): per-cell gradient sweeping the
         // active palette's chroma colors clockwise around the message box.
@@ -1090,6 +1131,81 @@ impl Cloud {
         const FADE_IN_MS: usize = 100;
         const FADE_IN_START: f32 = 0.30;
 
+        // RAIN_BORDER_TOUCH_GLOW (Option C+D): compute per-cell pulse
+        // factors (for border-cell blending) and per-column halo factors
+        // (for the halo row above the top border). Both decay via a
+        // smoothstep envelope peaking at touch and decaying to 0 over
+        // their respective lifetimes.
+        //
+        // For per-cell: take the max envelope across all active pulses
+        // pointing at that msg_idx (multiple droplets can touch the same
+        // cell in the same column within the lifetime — strongest wins).
+        // For per-column: same logic across all active halo entries
+        // pointing at that col.
+        //
+        // The newest palette's head_rgb (cached in BorderPulse at touch
+        // time) is the source color, so the glow dynamically follows the
+        // palette at the moment of touch. The `now` parameter is threaded
+        // from `rain_at` so tests can advance time and verify decay.
+        let pulse_lifetime_ms =
+            crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
+        let pulse_max = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_MAX;
+        let halo_lifetime_ms =
+            crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_LIFETIME_MS;
+        let halo_max = crate::chroma_dragon_engine::tuning::BORDER_TOUCH_HALO_MAX;
+
+        let mut pulse_factor: Vec<f32> = vec![0.0; self.message.len()];
+        let mut pulse_color: Vec<(u8, u8, u8)> = vec![(0, 0, 0); self.message.len()];
+        let mut halo_factor: Vec<f32> = vec![0.0; self.cols as usize];
+        let mut halo_color: Vec<(u8, u8, u8)> = vec![(0, 0, 0); self.cols as usize];
+
+        // Drain-and-rebuild: keep only pulses with at least one active
+        // envelope (pulse OR halo). The kept entries go back into
+        // self.border_pulses for the next frame's decay continuation.
+        let mut alive_pulses: Vec<BorderPulse> =
+            Vec::with_capacity(self.border_pulses.len());
+        for p in self.border_pulses.drain(..) {
+            let elapsed_ms = now.saturating_duration_since(p.birth).as_millis() as u32;
+
+            // Pulse envelope (Option C): smoothstep decay from peak.
+            let pf = if elapsed_ms < pulse_lifetime_ms {
+                let t = elapsed_ms as f32 / pulse_lifetime_ms as f32;
+                let u = 1.0 - t; // u=1 at touch, u=0 at end
+                let envelope = u * u * (3.0 - 2.0 * u);
+                envelope * pulse_max
+            } else {
+                0.0
+            };
+            if pf > 0.0 && pf > pulse_factor[p.msg_idx] {
+                pulse_factor[p.msg_idx] = pf;
+                pulse_color[p.msg_idx] = p.head_rgb;
+            }
+
+            // Halo envelope (Option D): shorter lifetime, lower max.
+            let hf = if elapsed_ms < halo_lifetime_ms {
+                let t = elapsed_ms as f32 / halo_lifetime_ms as f32;
+                let u = 1.0 - t;
+                let envelope = u * u * (3.0 - 2.0 * u);
+                envelope * halo_max
+            } else {
+                0.0
+            };
+            let col_idx = p.col as usize;
+            if hf > 0.0
+                && col_idx < halo_factor.len()
+                && hf > halo_factor[col_idx]
+            {
+                halo_factor[col_idx] = hf;
+                halo_color[col_idx] = p.head_rgb;
+            }
+
+            // Keep the pulse alive if either envelope is still active.
+            if pf > 0.0 || hf > 0.0 {
+                alive_pulses.push(p);
+            }
+        }
+        self.border_pulses = alive_pulses;
+
         let mut content_idx = 0usize;
         for (idx, mc) in self.message.iter().enumerate() {
             let is_content = !is_border_char(mc.val);
@@ -1139,7 +1255,31 @@ impl Cloud {
                 // (chroma dragon gradient sweeping clockwise around the box).
                 // Falls back to content_fg (head color) if palette has no
                 // colors (Mono mode) or the gradient wasn't populated.
-                (mc.val, border_gradient[idx].or(content_fg))
+                //
+                // RAIN_BORDER_TOUCH_GLOW (Option C): if this border cell has
+                // an active touch pulse (a rain droplet's head crossed this
+                // exact cell within the last BORDER_TOUCH_PULSE_LIFETIME_MS),
+                // blend the gradient color toward the touching droplet's
+                // head_rgb by the pulse envelope. Owner insight: dynamic
+                // color from the droplet, not static white. LTS invariant
+                // for top corners is RELAXED for transient touch events.
+                let base = border_gradient[idx].or(content_fg);
+                let pf = pulse_factor[idx];
+                let fg = if pf > 0.0 {
+                    if let Some(base_color) = base {
+                        let (br, bgc, bb) =
+                            crate::palette::decode_color(base_color).unwrap_or((0, 0, 0));
+                        let (hr, hg, hb) = pulse_color[idx];
+                        let (nr, ng, nb) = crate::chroma_dragon_engine::palette::
+                            blend_toward_bg_rgb(br, bgc, bb, hr, hg, hb, pf);
+                        Some(Color::Rgb { r: nr, g: ng, b: nb })
+                    } else {
+                        base
+                    }
+                } else {
+                    base
+                };
+                (mc.val, fg)
             } else {
                 (' ', None)
             };
@@ -1154,6 +1294,54 @@ impl Cloud {
                     bold: ch != ' ' && self.bold_mode != BoldMode::Off,
                 },
             );
+        }
+
+        // RAIN_BORDER_TOUCH_GLOW (Option D, halo above border): render a
+        // single-row halo above the top border, modulated per-column by the
+        // active touch pulses. The halo uses the same head_rgb as the
+        // touching droplet, blended at a lower max factor (0.3) so it does
+        // not compete with the message text. The glyph is '·' (middle dot,
+        // U+00B7) — subtle but visible on a dark background.
+        //
+        // Skipped when message_top_line == 0 (overlay at the very top of
+        // the terminal — no row above the border to draw on).
+        if self.message_top_line != u16::MAX && self.message_top_line > 0 {
+            let halo_line = self.message_top_line - 1;
+            // Decode bg once for all halo cells (Option<Color> → Option<(u8,u8,u8)>).
+            let bg_rgb = bg.and_then(crate::palette::decode_color);
+            for col in 0..self.cols as usize {
+                let hf = halo_factor[col];
+                if hf <= 0.0 {
+                    continue;
+                }
+                // Blend bg toward head_rgb by hf — at hf=0, halo is bg
+                // (invisible against the background); at hf=HALO_MAX, halo
+                // is 30% toward the head color (subtle splash).
+                let (hr, hg, hb) = halo_color[col];
+                let halo_rgb = if let Some((br, bgc, bb)) = bg_rgb {
+                    crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                        br, bgc, bb, hr, hg, hb, hf,
+                    )
+                } else {
+                    // No bg (Color::Reset): use the head color directly,
+                    // scaled by the halo factor for a dim glow.
+                    crate::chroma_dragon_engine::legacy::scale_rgb(hr, hg, hb, hf)
+                };
+                frame.set_force(
+                    col as u16,
+                    halo_line,
+                    Cell {
+                        ch: '·',
+                        fg: Some(Color::Rgb {
+                            r: halo_rgb.0,
+                            g: halo_rgb.1,
+                            b: halo_rgb.2,
+                        }),
+                        bg,
+                        bold: false,
+                    },
+                );
+            }
         }
     }
 }

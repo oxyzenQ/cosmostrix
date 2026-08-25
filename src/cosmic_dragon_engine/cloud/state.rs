@@ -44,6 +44,7 @@ impl DropletSpawnSpec {
         d.palette_slot = self.palette_slot;
         d.head_put_line = 0;
         d.head_cur_line = 0;
+        d.prev_head_put_line = 0;
         d.tail_put_line = None;
         d.tail_cur_line = 0;
         d.head_stop_time = None;
@@ -60,6 +61,23 @@ pub(crate) struct MsgChr {
     pub(crate) line: u16,
     pub(crate) col: u16,
     pub(crate) val: char,
+}
+
+/// RAIN_BORDER_TOUCH_GLOW (Option C+D): an active touch pulse on a
+/// message-overlay border cell. Each entry records:
+/// - the `MsgChr` index in `Cloud::message` that was touched,
+/// - the column (for the halo above the border, Option D),
+/// - the `head_rgb` of the droplet that touched (so the glow is
+///   dynamic per-droplet, not a static white),
+/// - the birth instant (for smoothstep envelope decay).
+///
+/// See `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md` for the design.
+#[derive(Clone, Copy)]
+pub(crate) struct BorderPulse {
+    pub(crate) msg_idx: usize,
+    pub(crate) col: u16,
+    pub(crate) head_rgb: (u8, u8, u8),
+    pub(crate) birth: std::time::Instant,
 }
 
 /// Kind of rare atmospheric anomaly.

@@ -115,6 +115,13 @@ pub(crate) struct Droplet {
     pub head_put_line: u16,
     pub head_cur_line: u16,
 
+    /// RAIN_BORDER_TOUCH_GLOW: snapshot of `head_put_line` from the previous
+    /// frame, used to detect the transition (prev < top && now >= top) when
+    /// the head crosses the message overlay's top border. Reset to 0 on
+    /// `activate()` so a freshly-spawned droplet doesn't fire a spurious
+    /// touch on its first frame.
+    pub prev_head_put_line: u16,
+
     pub tail_put_line: Option<u16>,
     pub tail_cur_line: u16,
 
@@ -169,6 +176,7 @@ impl Droplet {
             bound_col: u16::MAX,
             head_put_line: 0,
             head_cur_line: 0,
+            prev_head_put_line: 0,
             tail_put_line: None,
             tail_cur_line: 0,
             end_line: u16::MAX,

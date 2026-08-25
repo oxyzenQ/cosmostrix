@@ -360,3 +360,278 @@ fn adjacent_cells_produce_distinct_colors_no_gaps() {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// RAIN_BORDER_TOUCH_GLOW (Option C+D) tests.
+//
+// Verifies the touch-detection helper and the cached top-border geometry.
+// See `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md` for the design.
+// ─────────────────────────────────────────────────────────────────────────
+
+use std::time::Instant;
+
+use crate::cloud::Cloud;
+use crate::cosmic_dragon_engine::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
+use crate::frame::Frame;
+use crate::rain_style::RainStyle;
+
+/// Helper: build a colored (non-Mono) Cloud so palette.colors is populated
+/// and the touch-glow effect actually has colors to blend with. The default
+/// `make_cloud()` uses `ColorMode::Mono`, which leaves `palette.colors`
+/// empty and the touch-glow blending path early-returns — fine for
+/// production (Mono mode is intentionally colorless) but unsuitable for
+/// testing the touch-glow visual effect.
+fn make_cloud_colored() -> Cloud {
+    let mut cloud = Cloud::new(
+        ColorMode::TrueColor,
+        ShadingMode::Random,
+        BoldMode::Off,
+        false,
+        true,
+        ColorScheme::Green,
+        RainStyle::Glyph,
+    );
+    cloud.init_chars(vec!['0', '1']);
+    cloud.reset(20, 10);
+    cloud
+}
+
+/// After `set_message("hello")` + `set_message_border(true)`, the cached
+/// `message_top_line` must point at the top row of the overlay box (not
+/// `u16::MAX` sentinel), and `message_left_col`/`message_right_col` must
+/// span the box's horizontal extent. The droplet advance loop relies on
+/// these to fire touch events.
+#[test]
+fn reset_message_caches_top_border_geometry_when_bordered() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    assert_ne!(
+        cloud.message_top_line, u16::MAX,
+        "message_top_line must NOT be u16::MAX sentinel when a bordered overlay is active"
+    );
+    assert!(
+        cloud.message_left_col < cloud.message_right_col,
+        "left_col ({}) must be < right_col ({}) for the overlay span",
+        cloud.message_left_col,
+        cloud.message_right_col
+    );
+    // Top border row must be strictly inside the terminal (overlay is
+    // centered, so start_line ≥ 1 for a non-trivial message on a 10-line
+    // terminal).
+    assert!(
+        cloud.message_top_line < cloud.lines,
+        "top_line ({}) must be inside the terminal (lines={})",
+        cloud.message_top_line,
+        cloud.lines
+    );
+}
+
+/// When no border is active (`-m` instead of `-mb`), the cached geometry
+/// must remain at sentinel values so the touch-detection helper's early
+/// return fires — zero cost on the hot path.
+#[test]
+fn reset_message_top_line_sentinel_when_unbordered() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    // No set_message_border(true) — overlay is content-only.
+    cloud.set_message_border(false);
+
+    assert_eq!(
+        cloud.message_top_line, u16::MAX,
+        "top_line must be u16::MAX sentinel when no bordered overlay is active"
+    );
+}
+
+/// A transition (`prev < top && hp >= top`) for a column inside the
+/// overlay's horizontal span MUST push exactly one BorderPulse. The
+/// pulse's `head_rgb` must match the current palette's last-stop color
+/// (dynamic, not static white) — owner insight: "warna bukan hanya putih
+/// tapi dinamis".
+#[test]
+fn detect_border_touch_pushes_pulse_on_transition() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col; // inside the overlay span
+    let now = Instant::now();
+
+    // Transition: prev < top, hp >= top.
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, now);
+
+    assert_eq!(
+        cloud.border_pulses.len(),
+        1,
+        "exactly one BorderPulse must be pushed on transition"
+    );
+
+    // Verify dynamic color: pulse head_rgb == palette's last stop.
+    let pulse = cloud.border_pulses[0];
+    let expected_head_rgb = cloud
+        .palette
+        .colors
+        .last()
+        .copied()
+        .and_then(crate::palette::decode_color)
+        .unwrap_or((255, 255, 255));
+    assert_eq!(
+        pulse.head_rgb, expected_head_rgb,
+        "pulse head_rgb must come from the active palette's last stop (dynamic)"
+    );
+    // Touched column must match the droplet's bound_col.
+    assert_eq!(pulse.col, col);
+    // Birth time must be the call's `now`.
+    assert_eq!(pulse.birth, now);
+}
+
+/// No transition (prev >= top) — head was already at or below the top
+/// border last frame. Must NOT push a pulse (avoids continuous-trigger
+/// while a droplet sits at the border).
+#[test]
+fn detect_border_touch_no_pulse_when_no_transition() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col;
+    let now = Instant::now();
+
+    // prev == top: head was already at the top border. Not a transition.
+    cloud.detect_border_touch(col, top, top, now);
+    assert!(
+        cloud.border_pulses.is_empty(),
+        "no pulse must be pushed when prev_head_put_line >= top"
+    );
+
+    // prev > top: head was already past the border. Not a transition.
+    cloud.detect_border_touch(col, top.saturating_add(1), top, now);
+    assert!(
+        cloud.border_pulses.is_empty(),
+        "no pulse must be pushed when prev_head_put_line > top"
+    );
+}
+
+/// A column outside the overlay's horizontal span must NOT fire a touch,
+/// even on a valid transition — the droplet misses the overlay entirely.
+#[test]
+fn detect_border_touch_no_pulse_when_col_outside() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let now = Instant::now();
+
+    // Column to the LEFT of the overlay.
+    let col_left = cloud.message_left_col.saturating_sub(1);
+    cloud.detect_border_touch(col_left, top.saturating_sub(1), top, now);
+    assert!(
+        cloud.border_pulses.is_empty(),
+        "no pulse must be pushed for a column to the left of the overlay"
+    );
+
+    // Column at the RIGHT edge (exclusive) — not inside.
+    let col_right = cloud.message_right_col;
+    cloud.detect_border_touch(col_right, top.saturating_sub(1), top, now);
+    assert!(
+        cloud.border_pulses.is_empty(),
+        "no pulse must be pushed for a column at-or-past the right edge of the overlay"
+    );
+}
+
+/// After a pulse is pushed, draw_message must consume it: the touched
+/// border cell's fg color blends toward head_rgb (not the natural
+/// gradient color). This is the "appears white matching the rain head"
+/// effect the owner requested.
+#[test]
+fn draw_message_blends_touched_cell_toward_head_rgb() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col;
+    let now = Instant::now();
+
+    // Trigger a touch.
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, now);
+
+    // Render one frame — draw_message consumes the pulse and blends the
+    // touched cell toward head_rgb. The pulse envelope is at peak (1.0)
+    // immediately after touch (smoothstep: env=1.0 at t=0).
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    cloud.rain_at(&mut frame, now);
+
+    // Locate the touched MsgChr to find its position in the frame.
+    let touched = cloud
+        .message
+        .iter()
+        .find(|mc| mc.line == top && mc.col == col)
+        .expect("touched cell must exist in self.message");
+
+    let cell = frame
+        .get(touched.col, touched.line)
+        .expect("touched cell must be rendered in the frame");
+
+    // The natural (un-touched) border color is the chroma gradient
+    // result for this cell. With a pulse at peak (envelope=1.0), the
+    // rendered color must be the head_rgb itself (full blend toward).
+    let expected_head_rgb = cloud
+        .palette
+        .colors
+        .last()
+        .copied()
+        .and_then(crate::palette::decode_color)
+        .unwrap_or((255, 255, 255));
+
+    let cell_rgb = cell
+        .fg
+        .and_then(crate::palette::decode_color)
+        .unwrap_or((0, 0, 0));
+
+    assert_eq!(
+        cell_rgb, expected_head_rgb,
+        "touched border cell must render at full head_rgb at pulse peak (envelope=1.0); \
+         got {:?}, expected {:?}",
+        cell_rgb, expected_head_rgb
+    );
+}
+
+/// Pulse expiry: after `BORDER_TOUCH_PULSE_LIFETIME_MS`, the pulse must
+/// be drained from `self.border_pulses` and the touched border cell
+/// returns to its natural gradient color.
+#[test]
+fn pulse_expires_after_lifetime() {
+    use std::time::Duration;
+
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col;
+    let t0 = Instant::now();
+
+    // Trigger a touch.
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, t0);
+    assert_eq!(cloud.border_pulses.len(), 1);
+
+    // Advance time past the pulse lifetime.
+    let lifetime_ms =
+        crate::chroma_dragon_engine::tuning::BORDER_TOUCH_PULSE_LIFETIME_MS;
+    let past = t0 + Duration::from_millis(lifetime_ms as u64 + 100);
+
+    // Render — draw_message drains expired pulses.
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    cloud.rain_at(&mut frame, past);
+
+    assert!(
+        cloud.border_pulses.is_empty(),
+        "pulse must be drained after BORDER_TOUCH_PULSE_LIFETIME_MS ({} ms) + grace",
+        lifetime_ms
+    );
+}
