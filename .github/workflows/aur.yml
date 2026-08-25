@@ -310,16 +310,90 @@ jobs:
           rm -f "${ASKPASS}"
 
           # Fail fast with a clear signal if the key did not load
-          # (wrong passphrase or corrupted secret).
-          ssh-add -l > /dev/null
+          # (wrong passphrase or corrupted secret). Echo the socket and
+          # fingerprints — not secret material — so the CI log shows
+          # exactly which key will be offered to AUR.
+          echo "ssh-agent listening on: ${SSH_AGENT_SOCK}"
+          echo "Keys loaded into ssh-agent:"
+          ssh-add -l
 
       # ------------------------------------------------------------------
-      # 6. Clone AUR repository, apply changes, push
+      # 6. Verify AUR authentication BEFORE the clone (diagnostics)
+      # ------------------------------------------------------------------
+      # AUR grants no interactive shell: `ssh -T` prints a "hi <user>!"
+      # greeting and exits 1 on SUCCESS; a rejected key exits 255 with
+      # "Permission denied (publickey)". Verifying here turns a cryptic
+      # `git clone` exit 128 into an actionable error message, and the
+      # verbose probe distinguishes "no key offered" (agent/socket
+      # problem) from "key offered but rejected" (the fingerprint in
+      # the secret does not match the key registered on aur.archlinux.org).
+      - name: Verify AUR authentication
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          # The agent socket normally propagates from the setup step via
+          # GITHUB_ENV (each Actions step is a fresh shell). Fall back to
+          # the fixed socket path if that propagation ever fails.
+          if [[ -z "${SSH_AUTH_SOCK:-}" ]]; then
+            if [[ -S /tmp/aur-ssh-agent.sock ]]; then
+              echo "::warning::SSH_AUTH_SOCK did not propagate via GITHUB_ENV — recovering via fixed socket"
+              export SSH_AUTH_SOCK="/tmp/aur-ssh-agent.sock"
+            else
+              echo "::error::SSH_AUTH_SOCK missing and /tmp/aur-ssh-agent.sock does not exist"
+              exit 1
+            fi
+          fi
+          if ! ssh-add -l > /dev/null 2>&1; then
+            echo "::error::ssh-agent unreachable or holds no keys (socket: ${SSH_AUTH_SOCK})"
+            exit 1
+          fi
+
+          echo "Deploy key fingerprint offered to AUR:"
+          ssh-add -l
+          echo ""
+
+          # Probe AUR (BatchMode is pinned in the ssh config, so this
+          # cannot hang waiting for a prompt).
+          set +e
+          SSH_OUT="$(ssh -v -T aur@aur.archlinux.org 2>&1)"
+          SSH_RC=$?
+          set -e
+          echo "ssh -T aur@aur.archlinux.org -> exit code ${SSH_RC}"
+          echo "${SSH_OUT}" | grep -E "Offering public key|Server accepts|Will attempt key|no such identity|Load key|Permission denied" || true
+          echo "${SSH_OUT}" | tail -2
+          echo ""
+
+          if [[ "${SSH_RC}" -eq 255 ]]; then
+            if echo "${SSH_OUT}" | grep -q "Permission denied"; then
+              echo "::error::AUR rejected the deploy key (Permission denied, publickey)."
+              echo "From the verbose lines above, check which case applies:"
+              echo "  - No 'Offering public key' line -> the agent key never reached ssh."
+              echo "  - 'Offering public key' then denied -> the fingerprint printed"
+              echo "    above does not match the key registered at"
+              echo "    https://aur.archlinux.org (My Account -> SSH Keys)."
+              echo "    Compare with the local key: ssh-keygen -lf aur_oxyzenQ.pub"
+            else
+              echo "::error::ssh to aur.archlinux.org failed without a pubkey rejection —"
+              echo "likely a network or AUR outage; retry the workflow later."
+            fi
+            exit 1
+          fi
+
+          echo "AUR accepted the deploy key."
+
+      # ------------------------------------------------------------------
+      # 7. Clone AUR repository, apply changes, push
       # ------------------------------------------------------------------
       - name: Push to AUR
         shell: bash
         run: |
           set -euo pipefail
+
+          # Same fixed-socket fallback as the verify step.
+          if [[ -z "${SSH_AUTH_SOCK:-}" ]] && [[ -S /tmp/aur-ssh-agent.sock ]]; then
+            export SSH_AUTH_SOCK="/tmp/aur-ssh-agent.sock"
+          fi
 
           TAG="${{ steps.resolve.outputs.tag }}"
 
@@ -371,7 +445,7 @@ jobs:
           echo "AUR package updated to ${TAG}"
 
       # ------------------------------------------------------------------
-      # 7. Cleanup
+      # 8. Cleanup
       # ------------------------------------------------------------------
       - name: Cleanup SSH key
         if: always()
