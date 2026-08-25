@@ -34,8 +34,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 TARGET="${REPO_ROOT}/src/central_control_rains/mod.rs"
 
 if [ ! -f "$TARGET" ]; then
-    echo "ERROR: $TARGET not found" >&2
-    exit 1
+	echo "ERROR: $TARGET not found" >&2
+	exit 1
 fi
 
 python3 - "$TARGET" "$@" <<'PYTHON_SCRIPT'

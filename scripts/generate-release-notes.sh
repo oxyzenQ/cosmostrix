@@ -61,13 +61,13 @@
 set -euo pipefail
 
 if [ $# -lt 4 ]; then
-  echo "Usage: $0 <RANGE> <TAG> <IS_PRERELEASE> <PREV_TAG> [LAST_STABLE_TAG]" >&2
-  echo "  RANGE:           git log range, e.g. v49.0.0..v50.0.0 (empty = initial release)" >&2
-  echo "  TAG:             current release tag, e.g. v50.0.0" >&2
-  echo "  IS_PRERELEASE:   true | false" >&2
-  echo "  PREV_TAG:        previous tag (any for pre-releases, last stable for stable)" >&2
-  echo "  LAST_STABLE_TAG: last stable tag (optional, enables the dual range line)" >&2
-  exit 1
+	echo "Usage: $0 <RANGE> <TAG> <IS_PRERELEASE> <PREV_TAG> [LAST_STABLE_TAG]" >&2
+	echo "  RANGE:           git log range, e.g. v49.0.0..v50.0.0 (empty = initial release)" >&2
+	echo "  TAG:             current release tag, e.g. v50.0.0" >&2
+	echo "  IS_PRERELEASE:   true | false" >&2
+	echo "  PREV_TAG:        previous tag (any for pre-releases, last stable for stable)" >&2
+	echo "  LAST_STABLE_TAG: last stable tag (optional, enables the dual range line)" >&2
+	exit 1
 fi
 
 RANGE="$1"
@@ -132,135 +132,156 @@ CHORE_KW='bump|pin|pinned|trim|trimmed|deps|dependencies|version|cleanup'
 # then keep the first 8 words — secondary clauses ("... and add X")
 # beyond word 8 must not reclassify the commit.
 scan_text() {
-    printf '%s' "$1" \
-        | sed -E 's/^internal research:[[:space:]]*//' \
-        | tr '[:upper:]' '[:lower:]' \
-        | sed -E 's/\([^)]*\)//g' \
-        | sed -E 's/[^[:space:]]*[./:][^[:space:]]*//g' \
-        | tr -s '[:space:]' ' ' \
-        | cut -d' ' -f1-8
+	printf '%s' "$1" |
+		sed -E 's/^internal research:[[:space:]]*//' |
+		tr '[:upper:]' '[:lower:]' |
+		sed -E 's/\([^)]*\)//g' |
+		sed -E 's/[^[:space:]]*[./:][^[:space:]]*//g' |
+		tr -s '[:space:]' ' ' |
+		cut -d' ' -f1-8
 }
 
 # Map a "internal research:" verb to a section key. Extended beyond the
 # conventional-commit vocabulary with the verbs this repo actually uses.
 verb_to_section() {
-    case "$1" in
-      fix | fixes | fixed | kill | resolve | repair | align | exclude | eliminate | correct | restore)
-        echo "fix" ;;
-      feat | feature | implement | implements | introduce | introduces | apply | extend | enable | support | create | add | preset | masterclass)
-        echo "feat" ;;
-      perf | optimize | optimise | optimization)
-        echo "perf" ;;
-      refactor | refactors | refactored | simplify)
-        echo "refactor" ;;
-      docs | doc | document | documents | documented | record | write | note | audit | research | study | verify | retroactive | honest | master)
-        echo "docs" ;;
-      test | tests)
-        echo "test" ;;
-      ci)
-        echo "ci" ;;
-      build)
-        echo "build" ;;
-      chore | style | bump | pin | trim | update | refresh | clean | tidy | gate)
-        echo "chore" ;;
-      *)
-        echo "" ;;
-    esac
+	case "$1" in
+	fix | fixes | fixed | kill | resolve | repair | align | exclude | eliminate | correct | restore)
+		echo "fix"
+		;;
+	feat | feature | implement | implements | introduce | introduces | apply | extend | enable | support | create | add | preset | masterclass)
+		echo "feat"
+		;;
+	perf | optimize | optimise | optimization)
+		echo "perf"
+		;;
+	refactor | refactors | refactored | simplify)
+		echo "refactor"
+		;;
+	docs | doc | document | documents | documented | record | write | note | audit | research | study | verify | retroactive | honest | master)
+		echo "docs"
+		;;
+	test | tests)
+		echo "test"
+		;;
+	ci)
+		echo "ci"
+		;;
+	build)
+		echo "build"
+		;;
+	chore | style | bump | pin | trim | update | refresh | clean | tidy | gate)
+		echo "chore"
+		;;
+	*)
+		echo ""
+		;;
+	esac
 }
 
 classify_subject() {
-  local subject="$1"
-  local mdonly="${2:-0}"
-  local verb scan
+	local subject="$1"
+	local mdonly="${2:-0}"
+	local verb scan
 
-  # Stage 1: diff-stat ground truth — an all-*.md commit is docs work.
-  if [ "$mdonly" = "1" ]; then
-    echo "docs"
-    return
-  fi
+	# Stage 1: diff-stat ground truth — an all-*.md commit is docs work.
+	if [ "$mdonly" = "1" ]; then
+		echo "docs"
+		return
+	fi
 
-  # Stage 2 + 3: the repo's primary convention
-  # "internal research: <verb-or-noun> ...".
-  if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*[a-zA-Z]+'; then
-    verb="$(printf '%s' "$subject" | sed -nE 's/^internal research:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
-    # Verb-first: the declared intent wins when it is recognized.
-    local mapped
-    mapped="$(verb_to_section "$verb")"
-    if [ -n "$mapped" ]; then
-      echo "$mapped"
-      return
-    fi
-    # Noun-led subject: guarded keyword fallback.
-    scan="$(scan_text "$subject")"
-    if printf '%s' "$scan" | grep -qwE "$FIX_KW"; then echo "fix"; return; fi
-    if printf '%s' "$scan" | grep -qwE "$DOCS_KW"; then echo "docs"; return; fi
-    if printf '%s' "$scan" | grep -qwE "$FEAT_KW"; then echo "feat"; return; fi
-    if printf '%s' "$scan" | grep -qwE "$CHORE_KW"; then echo "chore"; return; fi
-    echo "_others"
-    return
-  fi
+	# Stage 2 + 3: the repo's primary convention
+	# "internal research: <verb-or-noun> ...".
+	if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*[a-zA-Z]+'; then
+		verb="$(printf '%s' "$subject" | sed -nE 's/^internal research:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
+		# Verb-first: the declared intent wins when it is recognized.
+		local mapped
+		mapped="$(verb_to_section "$verb")"
+		if [ -n "$mapped" ]; then
+			echo "$mapped"
+			return
+		fi
+		# Noun-led subject: guarded keyword fallback.
+		scan="$(scan_text "$subject")"
+		if printf '%s' "$scan" | grep -qwE "$FIX_KW"; then
+			echo "fix"
+			return
+		fi
+		if printf '%s' "$scan" | grep -qwE "$DOCS_KW"; then
+			echo "docs"
+			return
+		fi
+		if printf '%s' "$scan" | grep -qwE "$FEAT_KW"; then
+			echo "feat"
+			return
+		fi
+		if printf '%s' "$scan" | grep -qwE "$CHORE_KW"; then
+			echo "chore"
+			return
+		fi
+		echo "_others"
+		return
+	fi
 
-  # Conventional commit: type(scope)!: subject
-  if printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
-    local ctype
-    ctype="$(printf '%s' "$subject" | sed -E 's/^([a-zA-Z]+)(\([^)]*\))?!?: .+/\1/' | tr '[:upper:]' '[:lower:]')"
-    case "$ctype" in
-      fix | revert) echo "fix" ;;
-      feat) echo "feat" ;;
-      perf) echo "perf" ;;
-      refactor) echo "refactor" ;;
-      docs) echo "docs" ;;
-      test) echo "test" ;;
-      ci) echo "ci" ;;
-      build) echo "build" ;;
-      chore | style | bump) echo "chore" ;;
-      *) echo "_others" ;;
-    esac
-    return
-  fi
+	# Conventional commit: type(scope)!: subject
+	if printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
+		local ctype
+		ctype="$(printf '%s' "$subject" | sed -E 's/^([a-zA-Z]+)(\([^)]*\))?!?: .+/\1/' | tr '[:upper:]' '[:lower:]')"
+		case "$ctype" in
+		fix | revert) echo "fix" ;;
+		feat) echo "feat" ;;
+		perf) echo "perf" ;;
+		refactor) echo "refactor" ;;
+		docs) echo "docs" ;;
+		test) echo "test" ;;
+		ci) echo "ci" ;;
+		build) echo "build" ;;
+		chore | style | bump) echo "chore" ;;
+		*) echo "_others" ;;
+		esac
+		return
+	fi
 
-  # Bare subject.
-  echo "_others"
+	# Bare subject.
+	echo "_others"
 }
 
 # ── Collect commits + per-commit diff stat ──────────────────────────
 COMMITS=""
 declare -A MD_ONLY
 if [ -n "$RANGE" ]; then
-  COMMITS="$(git log --no-merges --format='%h|%s' "${RANGE}" 2>/dev/null || true)"
-  # One extra pass: which commits touched ONLY *.md files (docs ground
-  # truth for the classifier's stage 1). Parsed in a single git call so
-  # large ranges (the v15..stable span) stay fast.
-  _cur=""
-  _files=0
-  _md=0
-  _md_flush() {
-    [ -n "$_cur" ] || return 0
-    if [ "$_files" -gt 0 ] && [ "$_md" -eq "$_files" ]; then
-      MD_ONLY["$_cur"]=1
-    else
-      MD_ONLY["$_cur"]=0
-    fi
-  }
-  while IFS= read -r line; do
-    case "$line" in
-      '@'*)
-        _md_flush
-        _cur="${line#@}"
-        _files=0
-        _md=0
-        ;;
-      '')
-        ;;
-      *)
-        _files=$((_files + 1))
-        case "$line" in
-          *.md) _md=$((_md + 1)) ;;
-        esac
-        ;;
-    esac
-  done < <(git log --no-merges --name-only --format='@%h' "${RANGE}" 2>/dev/null || true)
-  _md_flush
+	COMMITS="$(git log --no-merges --format='%h|%s' "${RANGE}" 2>/dev/null || true)"
+	# One extra pass: which commits touched ONLY *.md files (docs ground
+	# truth for the classifier's stage 1). Parsed in a single git call so
+	# large ranges (the v15..stable span) stay fast.
+	_cur=""
+	_files=0
+	_md=0
+	_md_flush() {
+		[ -n "$_cur" ] || return 0
+		if [ "$_files" -gt 0 ] && [ "$_md" -eq "$_files" ]; then
+			MD_ONLY["$_cur"]=1
+		else
+			MD_ONLY["$_cur"]=0
+		fi
+	}
+	while IFS= read -r line; do
+		case "$line" in
+		'@'*)
+			_md_flush
+			_cur="${line#@}"
+			_files=0
+			_md=0
+			;;
+		'') ;;
+		*)
+			_files=$((_files + 1))
+			case "$line" in
+			*.md) _md=$((_md + 1)) ;;
+			esac
+			;;
+		esac
+	done < <(git log --no-merges --name-only --format='@%h' "${RANGE}" 2>/dev/null || true)
+	_md_flush
 fi
 
 # ── Header + stability alert ─────────────────────────────────────────
@@ -268,11 +289,11 @@ echo "## What's Changed"
 echo ""
 
 if [ "$IS_PRERELEASE" = "true" ]; then
-  echo "> [!WARNING]"
-  echo "> **Pre-release build — not a stable release. Expect bugs.**"
+	echo "> [!WARNING]"
+	echo "> **Pre-release build — not a stable release. Expect bugs.**"
 else
-  echo "> [!TIP]"
-  echo "> **Stable release.**"
+	echo "> [!TIP]"
+	echo "> **Stable release.**"
 fi
 echo ""
 
@@ -281,29 +302,29 @@ echo ""
 # achievements, and full changelog below are all guarded on COMMITS and
 # skip cleanly. The verification section at the end still renders.
 if [ -z "$COMMITS" ]; then
-  echo "Initial release."
-  echo ""
+	echo "Initial release."
+	echo ""
 fi
 
 # ── Range summary line (single or dual) ──────────────────────────────
 TOTAL=""
 STABLE_TOTAL=""
 if [ -n "$COMMITS" ]; then
-  TOTAL="$(printf '%s\n' "$COMMITS" | wc -l | tr -d ' ')"
+	TOTAL="$(printf '%s\n' "$COMMITS" | wc -l | tr -d ' ')"
 
-  # Dual range: pre-release builds also show the distance from the last
-  # STABLE release, so testers see the incremental delta AND the big picture.
-  if [ -n "$LAST_STABLE" ] && [ "$LAST_STABLE" != "$PREV_TAG" ] \
-    && git rev-parse "$LAST_STABLE" >/dev/null 2>&1; then
-    STABLE_TOTAL="$(git log --no-merges "${LAST_STABLE}..${TAG}" --oneline 2>/dev/null | wc -l | tr -d ' ')"
-  fi
+	# Dual range: pre-release builds also show the distance from the last
+	# STABLE release, so testers see the incremental delta AND the big picture.
+	if [ -n "$LAST_STABLE" ] && [ "$LAST_STABLE" != "$PREV_TAG" ] &&
+		git rev-parse "$LAST_STABLE" >/dev/null 2>&1; then
+		STABLE_TOTAL="$(git log --no-merges "${LAST_STABLE}..${TAG}" --oneline 2>/dev/null | wc -l | tr -d ' ')"
+	fi
 
-  if [ -n "$STABLE_TOTAL" ]; then
-    echo "**${TOTAL} commits** since \`${PREV_TAG}\` (previous build) · **${STABLE_TOTAL} commits** since \`${LAST_STABLE}\` (last stable)"
-  else
-    echo "**${TOTAL} commits** since \`${PREV_TAG}\`"
-  fi
-  echo ""
+	if [ -n "$STABLE_TOTAL" ]; then
+		echo "**${TOTAL} commits** since \`${PREV_TAG}\` (previous build) · **${STABLE_TOTAL} commits** since \`${LAST_STABLE}\` (last stable)"
+	else
+		echo "**${TOTAL} commits** since \`${PREV_TAG}\`"
+	fi
+	echo ""
 fi
 
 # ── Parse and bucket commits ─────────────────────────────────────────
@@ -312,71 +333,71 @@ declare -A COUNT
 ALL_SECTIONS=()
 
 while IFS= read -r line; do
-  [ -z "$line" ] && continue
-  hash="$(printf '%s' "$line" | cut -d'|' -f1)"
-  subject="$(printf '%s' "$line" | cut -d'|' -f2-)"
-  key="$(classify_subject "$subject" "${MD_ONLY[$hash]:-0}")"
+	[ -z "$line" ] && continue
+	hash="$(printf '%s' "$line" | cut -d'|' -f1)"
+	subject="$(printf '%s' "$line" | cut -d'|' -f2-)"
+	key="$(classify_subject "$subject" "${MD_ONLY[$hash]:-0}")"
 
-  # Entry display text: strip process prefixes, keep the human part.
-  display="$subject"
-  if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*'; then
-    display="$(printf '%s' "$subject" | sed -E 's/^internal research:[[:space:]]*//')"
-  elif printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
-    scope="$(printf '%s' "$subject" | sed -nE 's/^[a-zA-Z]+\(([^)]*)\)!?: .+/\1/p')"
-    desc="$(printf '%s' "$subject" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?: //')"
-    if [ -n "$scope" ]; then
-      display="**${scope}**: ${desc}"
-    else
-      display="$desc"
-    fi
-  fi
+	# Entry display text: strip process prefixes, keep the human part.
+	display="$subject"
+	if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*'; then
+		display="$(printf '%s' "$subject" | sed -E 's/^internal research:[[:space:]]*//')"
+	elif printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
+		scope="$(printf '%s' "$subject" | sed -nE 's/^[a-zA-Z]+\(([^)]*)\)!?: .+/\1/p')"
+		desc="$(printf '%s' "$subject" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?: //')"
+		if [ -n "$scope" ]; then
+			display="**${scope}**: ${desc}"
+		else
+			display="$desc"
+		fi
+	fi
 
-  entry="- [\`${hash}\`](${REPO_URL}/commit/${hash}) ${display}"
+	entry="- [\`${hash}\`](${REPO_URL}/commit/${hash}) ${display}"
 
-  if [ -z "${BUCKET[$key]+x}" ]; then
-    BUCKET["$key"]="$entry"
-    ALL_SECTIONS+=("$key")
-    COUNT["$key"]=1
-  else
-    BUCKET["$key"]="${BUCKET[$key]}
+	if [ -z "${BUCKET[$key]+x}" ]; then
+		BUCKET["$key"]="$entry"
+		ALL_SECTIONS+=("$key")
+		COUNT["$key"]=1
+	else
+		BUCKET["$key"]="${BUCKET[$key]}
 ${entry}"
-    COUNT["$key"]=$((COUNT[$key] + 1))
-  fi
-done <<< "$COMMITS"
+		COUNT["$key"]=$((COUNT[$key] + 1))
+	fi
+done <<<"$COMMITS"
 
 # ── Total achievements: per-category clickable details ───────────────
 if [ -n "$COMMITS" ]; then
-  echo "> [!NOTE]"
-  echo "> **Total achievements** — click a category to expand its changelog."
-  echo ""
+	echo "> [!NOTE]"
+	echo "> **Total achievements** — click a category to expand its changelog."
+	echo ""
 
-  sorted_sections="$(for s in "${ALL_SECTIONS[@]}"; do
-    echo "${SECTION_ORDER[$s]}|${s}"
-  done | sort -t'|' -k1,1n | cut -d'|' -f2-)"
+	sorted_sections="$(for s in "${ALL_SECTIONS[@]}"; do
+		echo "${SECTION_ORDER[$s]}|${s}"
+	done | sort -t'|' -k1,1n | cut -d'|' -f2-)"
 
-  while IFS= read -r section_key; do
-    [ -z "$section_key" ] && continue
-    body="${BUCKET[$section_key]}"
-    count="${COUNT[$section_key]}"
+	while IFS= read -r section_key; do
+		[ -z "$section_key" ] && continue
+		body="${BUCKET[$section_key]}"
+		count="${COUNT[$section_key]}"
 
-    echo "<details>"
-    echo "<summary><strong>${section_key/_others/others} × ${count}</strong></summary>"
-    echo ""
-    echo "$body"
-    echo ""
-    echo "</details>"
-    echo ""
-  done <<< "$sorted_sections"
+		echo "<details>"
+		echo "<summary><strong>${section_key/_others/others} × ${count}</strong></summary>"
+		echo ""
+		echo "$body"
+		echo ""
+		echo "</details>"
+		echo ""
+	done <<<"$sorted_sections"
 
-  # ── Full changelog with compare link ─────────────────────────────
-  echo "<details>"
-  echo "<summary><strong>Full changelog</strong> · ${TOTAL} commits · [compare view](${REPO_URL}/compare/${RANGE})</summary>"
-  echo ""
-  git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}"
-  echo ""
-  echo ""
-  echo "</details>"
-  echo ""
+	# ── Full changelog with compare link ─────────────────────────────
+	echo "<details>"
+	echo "<summary><strong>Full changelog</strong> · ${TOTAL} commits · [compare view](${REPO_URL}/compare/${RANGE})</summary>"
+	echo ""
+	git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}"
+	echo ""
+	echo ""
+	echo "</details>"
+	echo ""
 fi
 
 # ── Verification ─────────────────────────────────────────────────────

@@ -44,7 +44,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 CHECK_MODE=false
 
 if [[ "${1:-}" == "--check" ]]; then
-    CHECK_MODE=true
+	CHECK_MODE=true
 fi
 
 # The disclaimer marker — must match exactly for idempotency.
@@ -67,7 +67,7 @@ MARKER="<!-- COSMOSTRIX-DISCLAIMER -->"
 EXCLUDE_PATTERN='^benchmark/bench-labs/sweep_[^/]*\.md$'
 
 # The full disclaimer block. Injected at the BOTTOM of the file.
-read -r -d '' DISCLAIMER << 'EOF' || true
+read -r -d '' DISCLAIMER <<'EOF' || true
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
@@ -106,47 +106,47 @@ CHECKED=0
 #  the old --cached-only scan: the gatekeeper passed pre-commit while the
 #  file was still untracked, then CI scanned it as tracked and failed.)
 while IFS= read -r -d '' file; do
-    CHECKED=$((CHECKED + 1))
+	CHECKED=$((CHECKED + 1))
 
-    if grep -q "$MARKER" "$file"; then
-        SKIPPED=$((SKIPPED + 1))
-        continue
-    fi
+	if grep -q "$MARKER" "$file"; then
+		SKIPPED=$((SKIPPED + 1))
+		continue
+	fi
 
-    if $CHECK_MODE; then
-        echo -e "${RED}MISSING disclaimer: ${file}${NC}"
-        MISSING=$((MISSING + 1))
-        continue
-    fi
+	if $CHECK_MODE; then
+		echo -e "${RED}MISSING disclaimer: ${file}${NC}"
+		MISSING=$((MISSING + 1))
+		continue
+	fi
 
-    # Inject the disclaimer at the end of the file.
-    # Preserve a blank line separator if the file doesn't end with one.
-    if [[ -n "$(tail -c1 "$file" 2>/dev/null)" ]]; then
-        printf '\n' >> "$file"
-    fi
-    printf '%s\n' "$DISCLAIMER" >> "$file"
-    INJECTED=$((INJECTED + 1))
-    echo "Injected: $file"
+	# Inject the disclaimer at the end of the file.
+	# Preserve a blank line separator if the file doesn't end with one.
+	if [[ -n "$(tail -c1 "$file" 2>/dev/null)" ]]; then
+		printf '\n' >>"$file"
+	fi
+	printf '%s\n' "$DISCLAIMER" >>"$file"
+	INJECTED=$((INJECTED + 1))
+	echo "Injected: $file"
 done < <(
-    git ls-files --cached --others --exclude-standard 2>/dev/null \
-        | grep -E '\.md$' \
-        | grep -Ev "$EXCLUDE_PATTERN" \
-        | while IFS= read -r line; do
-            printf '%s\0' "${REPO_ROOT}/${line}"
-        done
+	git ls-files --cached --others --exclude-standard 2>/dev/null |
+		grep -E '\.md$' |
+		grep -Ev "$EXCLUDE_PATTERN" |
+		while IFS= read -r line; do
+			printf '%s\0' "${REPO_ROOT}/${line}"
+		done
 )
 
 if $CHECK_MODE; then
-    if [[ "$MISSING" -eq 0 ]]; then
-        echo -e "${GREEN}OK: $CHECKED .md files checked, all have the disclaimer${NC}"
-        exit 0
-    else
-        echo -e "${RED}FAIL: $MISSING of $CHECKED .md files missing the disclaimer${NC}"
-        echo "Run: bash scripts/inject-disclaimer.sh"
-        exit 1
-    fi
+	if [[ "$MISSING" -eq 0 ]]; then
+		echo -e "${GREEN}OK: $CHECKED .md files checked, all have the disclaimer${NC}"
+		exit 0
+	else
+		echo -e "${RED}FAIL: $MISSING of $CHECKED .md files missing the disclaimer${NC}"
+		echo "Run: bash scripts/inject-disclaimer.sh"
+		exit 1
+	fi
 else
-    echo ""
-    echo -e "${GREEN}Injected: $INJECTED  Skipped (already had it): $SKIPPED  Total checked: $CHECKED${NC}"
-    exit 0
+	echo ""
+	echo -e "${GREEN}Injected: $INJECTED  Skipped (already had it): $SKIPPED  Total checked: $CHECKED${NC}"
+	exit 0
 fi

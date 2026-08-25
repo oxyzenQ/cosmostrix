@@ -50,20 +50,20 @@ NC='\033[0m'
 # in `// v15 Cosmic Dragon: ...` code comments are NOT flagged. Only
 # patterns inside string literals (which reach the binary) are blocked.
 PATTERNS=(
-    'contains(r#"version = "[0-9]'
-    'contains("version = \\"[0-9]'
-    'contains("pkgver=[0-9]'
-    'contains("pkgver = [0-9]'
-    'contains(r#"TAG="v[0-9]'
-    'contains("TAG=\\"v[0-9]'
-    # Hardcoded engine version in user-facing strings.
-    # Catches: "Engine (v20)", "Engine(v20)", "Engine: ... (v20)"
-    # Allowed: format!("Engine (v{ver})", ver = env!("CARGO_PKG_VERSION"))
-    'Engine \(v[0-9]'
-    # Hardcoded release-name version prefix in user-facing strings.
-    # Catches: "v15 Cosmic Dragon", "v20 Dragon" — the brand is just
-    # "Cosmic Dragon" without a version prefix.
-    'v[0-9]+ (Cosmic )?Dragon'
+	'contains(r#"version = "[0-9]'
+	'contains("version = \\"[0-9]'
+	'contains("pkgver=[0-9]'
+	'contains("pkgver = [0-9]'
+	'contains(r#"TAG="v[0-9]'
+	'contains("TAG=\\"v[0-9]'
+	# Hardcoded engine version in user-facing strings.
+	# Catches: "Engine (v20)", "Engine(v20)", "Engine: ... (v20)"
+	# Allowed: format!("Engine (v{ver})", ver = env!("CARGO_PKG_VERSION"))
+	'Engine \(v[0-9]'
+	# Hardcoded release-name version prefix in user-facing strings.
+	# Catches: "v15 Cosmic Dragon", "v20 Dragon" — the brand is just
+	# "Cosmic Dragon" without a version prefix.
+	'v[0-9]+ (Cosmic )?Dragon'
 )
 
 VIOLATIONS=0
@@ -74,43 +74,43 @@ FILES_CHECKED=0
 # (e.g. `// v15 Cosmic Dragon: ...`) are NOT flagged — only patterns
 # inside string literals (which actually reach the binary) are blocked.
 strip_rust_comments() {
-    local file="$1"
-    # Remove // comments but preserve strings (best-effort: a // inside
-    # a string literal would be wrongly stripped, but version patterns
-    # don't appear inside such strings in this codebase).
-    sed -E 's|//.*$||' "$file"
+	local file="$1"
+	# Remove // comments but preserve strings (best-effort: a // inside
+	# a string literal would be wrongly stripped, but version patterns
+	# don't appear inside such strings in this codebase).
+	sed -E 's|//.*$||' "$file"
 }
 
 while IFS= read -r -d '' file; do
-    FILES_CHECKED=$((FILES_CHECKED + 1))
-    # Pre-strip comments so the patterns only match string-literal content.
-    stripped=$(strip_rust_comments "$file")
-    for pattern in "${PATTERNS[@]}"; do
-        # Use grep -E on the comment-stripped content.
-        if printf '%s\n' "$stripped" | grep -nE -- "$pattern" >/dev/null 2>&1; then
-            echo -e "${RED}VIOLATION: ${file}${NC}"
-            printf '%s\n' "$stripped" | grep -nE -- "$pattern" | head -5 | sed 's/^/    /'
-            VIOLATIONS=$((VIOLATIONS + 1))
-        fi
-    done
+	FILES_CHECKED=$((FILES_CHECKED + 1))
+	# Pre-strip comments so the patterns only match string-literal content.
+	stripped=$(strip_rust_comments "$file")
+	for pattern in "${PATTERNS[@]}"; do
+		# Use grep -E on the comment-stripped content.
+		if printf '%s\n' "$stripped" | grep -nE -- "$pattern" >/dev/null 2>&1; then
+			echo -e "${RED}VIOLATION: ${file}${NC}"
+			printf '%s\n' "$stripped" | grep -nE -- "$pattern" | head -5 | sed 's/^/    /'
+			VIOLATIONS=$((VIOLATIONS + 1))
+		fi
+	done
 done < <(
-    find "$REPO_ROOT/src" \
-        -name '*.rs' \
-        -not -path '*/target/*' \
-        -print0 2>/dev/null
+	find "$REPO_ROOT/src" \
+		-name '*.rs' \
+		-not -path '*/target/*' \
+		-print0 2>/dev/null
 )
 
 if [[ "$VIOLATIONS" -eq 0 ]]; then
-    echo "OK: $FILES_CHECKED source files checked, no version-anti-pattern violations"
-    exit 0
+	echo "OK: $FILES_CHECKED source files checked, no version-anti-pattern violations"
+	exit 0
 else
-    echo ""
-    echo -e "${RED}FAIL: $VIOLATIONS file(s) contain hardcoded version assertions${NC}"
-    echo ""
-    echo "Fix: replace literal version strings with env!(\"CARGO_PKG_VERSION\")."
-    echo "Example:"
-    echo "  // BAD  ->  assert!(cargo.contains(r#\"version = \"5.0.1\"\"#));"
-    echo "  // GOOD ->  const V: &str = env!(\"CARGO_PKG_VERSION\");"
-    echo "             assert!(cargo.contains(&format!(\"version = \\\"{}\\\"\", V)));"
-    exit 1
+	echo ""
+	echo -e "${RED}FAIL: $VIOLATIONS file(s) contain hardcoded version assertions${NC}"
+	echo ""
+	echo "Fix: replace literal version strings with env!(\"CARGO_PKG_VERSION\")."
+	echo "Example:"
+	echo "  // BAD  ->  assert!(cargo.contains(r#\"version = \"5.0.1\"\"#));"
+	echo "  // GOOD ->  const V: &str = env!(\"CARGO_PKG_VERSION\");"
+	echo "             assert!(cargo.contains(&format!(\"version = \\\"{}\\\"\", V)));"
+	exit 1
 fi
