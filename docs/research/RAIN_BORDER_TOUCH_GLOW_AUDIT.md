@@ -542,6 +542,94 @@ If the owner picks **Option C**, the implementation can land as a single
 micro-commit under the prefix `Internal research:` (per the project's
 commit convention), with the test file added under
 `cloud/tests/tests_border_gradient.rs` (existing border-test home).
+
+## LTS Polish (2026-08-26)
+
+After the Option C+D implementation landed (`29e7440`), a follow-up audit
+(DeepSeek review at owner's request) flagged two stability concerns. The
+post-audit verification + fixes are recorded here as the canonical
+reference for the LTS bounds on the pulse pool.
+
+### Concern 1: `palette.colors.last()` panic on empty palette
+
+**Audit claim**: `detect_border_touch` could panic if `palette.colors` is
+empty (Mono mode, or `rain = []` misconfiguration).
+
+**Verification**: the implementation already uses the panic-safe chain
+`.last().copied().and_then(decode_color).unwrap_or((255, 255, 255))` —
+`Option::copied` lifts `Option<&Color>` to `Option<Color>` without
+panicking, and the trailing `.unwrap_or` handles the `None` case with the
+pure-white fallback. **No code change needed.**
+
+**Defensive hardening applied**:
+
+1. Inline docstring on `detect_border_touch` making the panic-safety
+   invariant explicit ("do NOT simplify to `.last().unwrap()`").
+2. Regression test `detect_border_touch_no_panic_on_empty_palette` in
+   `tests_border_gradient.rs` pins the white fallback. Any future
+   "simplification" that breaks the chain will fail this test.
+
+### Concern 2: Unbounded pulse pool growth
+
+**Audit claim**: continuous droplet touches could stack pulses
+unboundedly in `self.border_pulses`. DeepSeek's worst-case estimate was
+"1000 droplets simultaneously" (unrealistic for cosmostrix's spawn density,
+but the spirit of bounding the pool is correct).
+
+**Verification**: the existing decay-and-rebuild loop in `draw_message`
+already drains expired pulses every frame, so the steady-state count is
+bounded by touches-within-lifetime. The realistic worst case is
+`message.len()` distinct cells all touched within the 1500 ms lifetime
+window — typically 50–100 entries, no memory concern.
+
+**Hardening applied (belt-and-suspenders)**: deduplication by `msg_idx`
+in `detect_border_touch`. When a new touch lands on a cell that already
+has an alive pulse, the existing entry is **refreshed in place** (re-arm
+`birth = now`, re-snapshot `head_rgb = current`) instead of pushing a
+duplicate. This guarantees:
+
+```
+self.border_pulses.len() <= self.message.len()
+```
+
+regardless of touch density. The refresh has a **bonus property**: under
+continuous touch, the glow picks up the palette's current `head_rgb` on
+each re-touch — so mid-transition between two palettes, the glow color
+re-snapshots to the newest stop, keeping the visual effect maximally
+dynamic.
+
+Owner spec alignment: *"kalo hujan mengenainya lagi muncul lagi"* — the
+dedup-refresh implements exactly this. The cell keeps glowing, but the
+lifetime clock resets to the newest touch. The owner sees a sustained glow
+under continuous touch, not a stack of decaying copies.
+
+### Concern 3: Terminal resize clearing pulse cache
+
+**Audit claim**: pulses might persist after a resize, requiring a manual
+`Cloud::reset()`.
+
+**Verification**: the resize path in `spawn.rs` already calls
+`reset_message()` on every resize (when `message_text.is_some()`), and
+`reset_message` clears `border_pulses` (mod.rs line ~966). **No code
+change needed.** The "⚠️ Perlu Test" caveat in the audit was based on a
+stale code description; the implementation is already correct.
+
+### Test count delta
+
+| | Before | After |
+| --- | ---: | ---: |
+| `tests_border_gradient.rs` | 15 | 17 |
+| Total (cargo test) | 1680 | 1682 |
+| Clippy warnings | 0 | 0 |
+| Gatekeepers | 10/10 | 10/10 |
+
+### Files changed in the LTS polish
+
+- `src/cosmic_dragon_engine/cloud/rain.rs`: `detect_border_touch`
+  dedup-by-`msg_idx` + LTS docstring section.
+- `src/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs`: 2
+  new regression tests + `make_cloud` import.
+- `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md`: this section.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

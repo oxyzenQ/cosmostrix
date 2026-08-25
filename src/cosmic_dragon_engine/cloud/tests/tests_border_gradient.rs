@@ -374,6 +374,9 @@ use crate::cloud::Cloud;
 use crate::cosmic_dragon_engine::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
+// LTS polish (2026-08-26): import the Mono-mode `make_cloud` helper for the
+// empty-palette panic-safety regression test below.
+use super::make_cloud;
 
 /// Helper: build a colored (non-Mono) Cloud so palette.colors is populated
 /// and the touch-glow effect actually has colors to blend with. The default
@@ -633,5 +636,98 @@ fn pulse_expires_after_lifetime() {
         cloud.border_pulses.is_empty(),
         "pulse must be drained after BORDER_TOUCH_PULSE_LIFETIME_MS ({} ms) + grace",
         lifetime_ms
+    );
+}
+
+/// LTS polish (2026-08-26): a second touch to the **same** cell while a
+/// pulse is still alive MUST refresh the existing entry (re-arm `birth`,
+/// re-snapshot `head_rgb`) instead of pushing a duplicate. This bounds
+/// `self.border_pulses.len() <= self.message.len()` regardless of touch
+/// density — defensive against multi-droplet-per-column scenarios where N
+/// droplets could otherwise stack N redundant pulses for one `msg_idx`.
+///
+/// Owner spec: "kalo hujan mengenainya lagi muncul lagi" — re-touch
+/// re-fires the glow. The dedup-by-`msg_idx` refresh implements exactly
+/// this: the cell keeps glowing, but the lifetime clock resets to the
+/// newest touch. The owner sees a sustained glow under continuous touch,
+/// not a stack of decaying copies.
+#[test]
+fn detect_border_touch_dedup_refresh_on_re_touch() {
+    let mut cloud = make_cloud_colored();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col;
+    let t0 = Instant::now();
+
+    // First touch.
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, t0);
+    assert_eq!(
+        cloud.border_pulses.len(),
+        1,
+        "first touch must push exactly one pulse"
+    );
+    let first_pulse = cloud.border_pulses[0];
+    let first_birth = first_pulse.birth;
+
+    // Second touch to the same cell at a later instant.
+    let t1 = t0 + std::time::Duration::from_millis(50);
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, t1);
+
+    // LTS bound: pool size must NOT grow.
+    assert_eq!(
+        cloud.border_pulses.len(),
+        1,
+        "second touch to the same msg_idx must refresh in place, not push a duplicate"
+    );
+
+    // The pulse's birth must be updated to the later instant.
+    let refreshed_pulse = cloud.border_pulses[0];
+    assert!(
+        refreshed_pulse.birth > first_birth,
+        "refreshed pulse birth ({:?}) must be later than the first ({:?})",
+        refreshed_pulse.birth,
+        first_birth
+    );
+    assert_eq!(
+        refreshed_pulse.msg_idx, first_pulse.msg_idx,
+        "refreshed pulse must target the same msg_idx as the first"
+    );
+}
+
+/// LTS polish (2026-08-26): `detect_border_touch` must not panic when the
+/// active palette has zero colors (Mono mode, or a misconfigured `rain =
+/// []` config). The `.last().copied().and_then(decode_color).unwrap_or`
+/// chain in the touch path falls back to `(255, 255, 255)` — this test
+/// pins the fallback so a future "simplification" to `.last().unwrap()`
+/// cannot sneak through.
+///
+/// Pre-LTS audit (DeepSeek review) flagged this as a theoretical panic
+/// risk on empty palettes; verification showed the code was already safe,
+/// but this test guards against regression.
+#[test]
+fn detect_border_touch_no_panic_on_empty_palette() {
+    // Mono mode => palette.colors is empty.
+    let mut cloud = make_cloud();
+    cloud.set_message("hello");
+    cloud.set_message_border(true);
+
+    let top = cloud.message_top_line;
+    let col = cloud.message_left_col;
+    let now = Instant::now();
+
+    // Must not panic, and must push a pulse with the white fallback.
+    cloud.detect_border_touch(col, top.saturating_sub(1), top, now);
+
+    assert_eq!(
+        cloud.border_pulses.len(),
+        1,
+        "touch must still push a pulse even with an empty palette"
+    );
+    assert_eq!(
+        cloud.border_pulses[0].head_rgb,
+        (255, 255, 255),
+        "empty palette must fall back to pure-white head_rgb"
     );
 }
