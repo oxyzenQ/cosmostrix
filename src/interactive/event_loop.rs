@@ -1054,9 +1054,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.set_color_scheme(cloud.color_scheme);
         // Show custom palette name on the clr: HUD line when active.
         // cloud.custom_palette_active tracks whether the user loaded a
-        // --colors-custom palette. cfg.custom_palette_name holds the name.
+        // --colors-custom palette. current_cfg.custom_palette_name holds
+        // the name. v50.0.0-beta.6 bugfix: uses current_cfg (live-reloaded)
+        // instead of cfg (startup) so live-reload of custom_palette_name
+        // propagates to the clr: HUD line.
         hud_state.set_custom_palette_name(if cloud.custom_palette_active {
-            cfg.custom_palette_name.as_deref()
+            current_cfg.custom_palette_name.as_deref()
         } else {
             None
         });
@@ -1072,8 +1075,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // live-reload applies it, the HUD prdr/crdr lines reflect the new
         // state on the next 1 Hz metric tick. Owner explicitly mandated
         // these are NOT hardcoded — they must reflect runtime behavior.
-        hud_state.set_power_dragon(cfg.power_dragon);
-        hud_state.set_crystal_dragon(cfg.crystal_dragon);
+        //
+        // BUGFIX: previously used `cfg` (the startup immutable reference)
+        // instead of `current_cfg` (the live-reloaded copy updated at line
+        // 345 when the watcher delivers a new config). This meant live-reload
+        // edits to power_dragon / crystal_dragon never reached the HUD — the
+        // prdr/crdr lines stayed stuck at the startup value for the entire
+        // session. Now uses `current_cfg` so live-reload propagates.
+        hud_state.set_power_dragon(current_cfg.power_dragon);
+        hud_state.set_crystal_dragon(current_cfg.crystal_dragon);
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
         // from constants.rs — was a hardcoded `0.3` inline.

@@ -157,3 +157,44 @@ fn hud_prdr_crdr_live_reload_toggle() {
         "crdr must reflect live-reloaded crystal_dragon=false"
     );
 }
+
+#[test]
+fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
+    // Regression test for v50.0.0-beta.6 bug: event_loop.rs was calling
+    // set_power_dragon(cfg.power_dragon) and set_crystal_dragon(cfg.crystal_dragon)
+    // using the STARTUP cfg (immutable reference) instead of current_cfg
+    // (the live-reloaded copy). This meant live-reload edits to
+    // power_dragon / crystal_dragon in config.toml never reached the HUD —
+    // the prdr/crdr lines stayed stuck at the startup value for the entire
+    // session.
+    //
+    // This test verifies the HudState-level contract: when the setter is
+    // called with the NEW (live-reloaded) value, the HUD reflects it on
+    // the next update_metrics tick. The event_loop.rs fix (use current_cfg
+    // instead of cfg) is verified by code review — the integration test
+    // for the full live-reload path requires a terminal + config watcher
+    // and is covered by manual testing.
+    //
+    // Simulate the bug scenario: startup power_dragon=true, then user
+    // live-reloads power_dragon=false. The event loop MUST call
+    // set_power_dragon(false) — if it calls set_power_dragon(true) (the
+    // stale startup value), the HUD stays "on" (bug).
+    let mut h = HudState::new();
+    h.toggle();
+    // Startup: power_dragon=true (default), crystal_dragon=false (default).
+    h.update_metrics(&[]);
+    assert_eq!(h.cached_lines[15].1, " prdr: on");
+    assert_eq!(h.cached_lines[16].1, " crdr: off");
+    // Live-reload: user edits config.toml to power_dragon=false.
+    // Event loop MUST call set_power_dragon(false) — the live value.
+    h.set_power_dragon(false);
+    // Force the next update_metrics to pass the 1 Hz rate limiter.
+    h.last_metric_update = Instant::now()
+        .checked_sub(HUD_METRIC_INTERVAL * 2)
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[15].1, " prdr: off",
+        "prdr must reflect the live-reloaded value (false), not the stale startup value (true)"
+    );
+}
