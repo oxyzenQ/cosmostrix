@@ -340,33 +340,26 @@ impl Cloud {
 
         // Update pass (mut self)
         if matches!(self.rain_style, RainStyle::Monolith) {
-            // v50.0.0-beta.6: detect border touches for monolith streams
-            // too. Previously detect_border_touch was only called in the
-            // Glyph path, so monolith scenes had no border touch pulse.
-            // We snapshot head positions before advance, then check each
-            // active stream for a border crossing after advance.
+            // v50.0.0-beta.6: detect border touches for monolith streams.
+            // detect_border_touch expects (col, prev_head, new_head) where
+            // prev_head < top (above border) and new_head >= top (crossed).
+            // Snapshot (stream_index, col, prev_head) BEFORE advance for
+            // streams above the border, then AFTER advance check crossing.
             let top = self.message_top_line;
             if top != u16::MAX {
-                // Collect (col, prev_head, new_head) for active streams
-                // that are near the border. This is O(active_streams)
-                // and only runs when a bordered message is active.
-                let mut touches: Vec<(u16, u16, u16)> = Vec::new();
-                for stream in &self.monolith_rain.streams {
+                // Snapshot candidates: streams above the border that could
+                // cross it this frame. Store (index, col, prev_head).
+                let mut candidates: Vec<(usize, u16, u16)> = Vec::new();
+                for (i, stream) in self.monolith_rain.streams.iter().enumerate() {
                     if !stream.active {
                         continue;
                     }
                     let prev_hp = stream.head as u16;
-                    // We can't get the "before" head here because advance
-                    // already mutated it. Instead, we check if the stream's
-                    // head is AT the border line this frame — a simpler
-                    // heuristic that catches the crossing without needing
-                    // the pre-advance value.
-                    let hp = stream.head as u16;
-                    if hp == top || (hp > 0 && hp - 1 == top) {
-                        touches.push((stream.col, prev_hp, hp));
+                    if prev_hp < top {
+                        candidates.push((i, stream.col, prev_hp));
                     }
                 }
-                // Now advance the monolith streams.
+                // Advance the monolith streams.
                 self.monolith_rain.advance(
                     now,
                     self.lines,
@@ -374,9 +367,16 @@ impl Cloud {
                     max_sim_delta,
                     self.resume_blend,
                 );
-                // Process border touches.
-                for (col, prev_hp, hp) in touches {
-                    self.detect_border_touch(col, prev_hp, hp, now);
+                // Check which candidates crossed the border.
+                for (i, col, prev_hp) in candidates {
+                    let stream = &self.monolith_rain.streams[i];
+                    if !stream.active {
+                        continue;
+                    }
+                    let new_hp = stream.head as u16;
+                    if new_hp >= top {
+                        self.detect_border_touch(col, prev_hp, new_hp, now);
+                    }
                 }
             } else {
                 self.monolith_rain.advance(
