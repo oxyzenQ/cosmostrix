@@ -36,7 +36,7 @@
 | 6 | `--atmosphere-mode` | 708–713 | yes | ✅ `main.rs:799`, `config_apply.rs:486–490`, `profile.rs:326–330` | `atmosphere-mode = "controlled-live"` | **KEEP** (help text bug) | Help string says "config only" but the flag IS CLI-parseable and consumed. Misleading label, not dead. |
 | 7 | `--atmosphere-regime` | 715–720 | yes | ✅ `main.rs:801`, `config_apply.rs:492–496`, `profile.rs:336–340` | `atmosphere-regime = "pulse"` | **KEEP** (help text bug) | Same as #6 — help says "config only" but CLI works. |
 | 8 | `--duration` | 601–606 | yes | ✅ `main.rs:644, 931, 991, 1285`, `interactive/event_loop.rs:143–147` | (none) | **KEEP** | Does NOT duplicate `--bench-duration`. `--duration N` = interactive auto-exit after N s; `--bench-duration` = how long `--benchmark` runs. Distinct code paths, distinct help text. |
-| 9 | `--perf-stats` | 608–613 | yes | ✅ `main.rs:1007, 1294`, `interactive/event_loop.rs:89, 515, 1108, 1215, 1333`, `cloud/phosphor.rs:680` | (none) | **KEEP** | Does NOT duplicate `--verbose` (startup info) or `--benchmark` (headless report). Enables per-component timing + interactive exit summary (FPS, work_ms, pressure, encoding stats). Documented in `benchmark/README.md:192`, `RENDER_ENGINE.md:259,466,478`. |
+| 9 | `--perf-stats` | 608–613 | yes | ✅ `main.rs:1007, 1294`, `interactive/event_loop.rs:89, 515, 1108, 1215, 1333`, `cloud/phosphor.rs:680` | (none) | **KEEP** | Does NOT duplicate `--verbose` (startup info) or `--benchmark` (headless report). Enables per-component timing + interactive exit summary (FPS, work_ms, pressure, encoding stats). Documented in `benchmark/HIST_BENCH.md:192`, `RENDER_ENGINE.md:259,466,478`. |
 | 10 | `--check-bitcolor` | ~~699–704~~ | yes | ~~`main.rs:577–602`~~ | (none) | **REMOVED** (`367bd4f`) | Strict subset of `--doctor` output. Owner chose option (a): remove + route to `--doctor`. Migration message in `REMOVED_FLAGS`. |
 | 11 | `--reset-terminal` | 489–495 | no | ✅ `main.rs:387–390` (calls `reset_terminal_emergency()`), `terminal.rs:1082` | (none) | **KEEP** | One-shot utility, but heavily documented (`TERMINAL_KILL_CLEANUP.md`, `TERMINAL_LIFECYCLE_MATRIX.md`, `COSMIC_DRAGON_ARCHITECTURE.md`, README:130,147,149,377,492,495, CHANGELOG). Bundling into cosmostrix binary is intentional — "kill -9 broke my terminal, run cosmostrix --reset-terminal" is the documented user model. |
 | 12 | `--uniform` | 282–288 | no | ✅ `main.rs:832` (`args.async_mode && !args.uniform`) | (none — `async-mode = false` in config is the config-side equivalent) | **KEEP** | Disables variable column pacing. The `--async` flag was removed in v17 (always on); `--uniform` is the only CLI way to opt out. Documented in config.rs:578–579 comment. |
@@ -232,7 +232,7 @@
 - `--benchmark` (`bench.rs`, `main.rs:1243+`) runs a *headless* bench loop with its own `BenchReportData` JSON/text emission.
 - `--perf-stats` runs the *interactive* loop normally and adds a perf summary on exit — the only way to get honest interactive-mode timing.
 
-**Verdict**: **KEEP**. Documented in `CHANGELOG.md:1341, 1396, 1400, 1440, 1456`, `RENDER_ENGINE.md:259, 466, 478, 587`, `benchmark/README.md:140, 192, 194, 1056`, `COSMIC_DRAGON_EXPLORATION.md:86, 371`. Distinct role from both `--verbose` and `--benchmark`.
+**Verdict**: **KEEP**. Documented in `CHANGELOG.md:1341, 1396, 1400, 1440, 1456`, `RENDER_ENGINE.md:259, 466, 478, 587`, `benchmark/HIST_BENCH.md:140, 192, 194, 1056`, `COSMIC_DRAGON_EXPLORATION.md:86, 371`. Distinct role from both `--verbose` and `--benchmark`.
 
 ---
 

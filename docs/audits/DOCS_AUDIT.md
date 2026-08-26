@@ -50,7 +50,7 @@ runs five passes over the tracked non-archive `.md` corpus:
 
 | File | Defect | Fix |
 |------|--------|-----|
-| `benchmark/README.md` | link to moved `docs/ATMOSPHERE_ENGINE.md` | -> `docs/archive/specs/ATMOSPHERE_ENGINE.md` |
+| `benchmark/HIST_BENCH.md` | link to moved `docs/ATMOSPHERE_ENGINE.md` | -> `docs/archive/specs/ATMOSPHERE_ENGINE.md` |
 | `docs/AMBIENT_SCHEDULER.md` | `src/config/live_config.rs` (module became a dir) | -> `live_config/mod.rs` |
 | `docs/HUD.md` | `src/interactive/hud.rs` | -> `hud/mod.rs` |
 | `docs/README.md`, `docs/RULES.md` | `src/chroma_dragon_engine/post/climate.rs` | -> `climate/mod.rs` |

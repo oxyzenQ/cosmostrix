@@ -1202,7 +1202,7 @@ worth investigating before tagging.
 
 After the tag is published, verify the GitHub Release/AUR artifact separately.
 Do not move or recreate a signed release tag just to update benchmark notes.
-If benchmark documentation was missed, update `benchmark/README.md` on `main`
+If benchmark documentation was missed, update `benchmark/HIST_BENCH.md` on `main`
 as a post-release process fix and apply the rule to the next release.
 
 ## Generated Outputs

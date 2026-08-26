@@ -358,7 +358,7 @@ mod tests {
     #[test]
     fn benchmark_docs_do_not_keep_stale_active_claims() {
         let readme = include_str!("../../README.md");
-        let benchmark_readme = include_str!("../../benchmark/README.md");
+        let benchmark_readme = include_str!("../../benchmark/HIST_BENCH.md");
         assert!(!readme.contains("7,000 FPS"));
         assert!(!readme.contains(">7,000 FPS"));
         assert!(!benchmark_readme.contains("v2.1.0 reference results"));

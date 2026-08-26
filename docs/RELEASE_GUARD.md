@@ -4,7 +4,7 @@
 
 This document defines the mandatory pre-tag gates that must pass before
 creating a release tag.  It exists because a prior release almost
-shipped without a benchmark report in `benchmark/README.md`.  The guard
+shipped without a benchmark report in `benchmark/HIST_BENCH.md`.  The guard
 prevents that class of mistake from recurring.
 
 ## Pre-Tag Gates
@@ -64,7 +64,7 @@ automates collection and Markdown generation:
 # Custom run count, skip build:
 ./scripts/release-benchmark-report.sh X.Y.Z --runs 5 --no-build
 
-# Output goes to stdout — review, then paste into benchmark/README.md.
+# Output goes to stdout — review, then paste into benchmark/HIST_BENCH.md.
 # The script validates invariants and fails if they are violated.
 ```
 
@@ -96,10 +96,10 @@ section. A `stable` interpretation on the release machine is the expected
 baseline; `degraded` indicates thermal throttle or allocator pressure
 worth investigating before tagging.
 
-### Gate 5 — Update benchmark/README.md
+### Gate 5 — Update benchmark/HIST_BENCH.md
 
 Add a release benchmark section for the new version to
-`benchmark/README.md`.  The section must include:
+`benchmark/HIST_BENCH.md`.  The section must include:
 
 * Final commit hash
 * Benchmark run count (5)
@@ -184,7 +184,7 @@ Verify the binary checksum matches before updating the AUR package.
 ## Honesty Rules
 
 * **Never tag before benchmark report.**  The benchmark report in
-  `benchmark/README.md` is a required pre-tag artifact.
+  `benchmark/HIST_BENCH.md` is a required pre-tag artifact.
 
 * **Never claim benchmark results from a different workload as the
   default benchmark.**  Heavy message mode, matrix mode, and other
@@ -231,7 +231,7 @@ When preparing release N:
    ```
 
 3. Review the generated Markdown, then add it to
-   `benchmark/README.md` (Gate 5).
+   `benchmark/HIST_BENCH.md` (Gate 5).
 4. Add a docs guard test for the new version in
    `src/docs_tests/metadata.rs` following the existing pattern.
 5. Ensure all gates pass.

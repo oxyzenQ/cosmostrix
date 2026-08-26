@@ -516,7 +516,7 @@ Internal benchmark (`cosmostrix --benchmark --json`) and interactive
 
 For competitor comparison data (cosmostrix vs cmatrix vs unimatrix),
 see `benchmark/benchmark.sh` and the results table in
-`benchmark/README.md`.
+`benchmark/HIST_BENCH.md`.
 
 ---
 
