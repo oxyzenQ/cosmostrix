@@ -298,7 +298,16 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 ///
 /// Cinema Noir preset: 5.0 (~400ms afterglow). Gentle dissolve with
 /// cinematic trail. Trails linger just enough for noir atmosphere.
-pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 5.5;
+/// Phosphor afterglow decay rate (per second, exponential).
+///
+/// v50.0.0-beta.6: increased from 5.5 to 8.0 for cross-terminal consistency.
+/// At 5.5, trails lasted ~0.6s — visually longer on VTE-based terminals
+/// (gnome-console, gnome-terminal) due to their CPU-rendered sub-pixel
+/// blending making dim ghosts more visible. At 8.0, trails last ~0.4s,
+/// matching the snappy feel on Alacritty (GPU-rendered). Terminal-aware
+/// multiplier (`phosphor_decay_mult` in TerminalCaps) further adjusts
+/// per terminal tier.
+pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 8.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
 ///

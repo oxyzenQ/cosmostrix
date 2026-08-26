@@ -171,6 +171,21 @@ pub(crate) struct TerminalCaps {
     /// Shown in `-v` verbose output so the user can verify the detection
     /// chain. Essential for debugging "why is my fps 60 not 144?".
     pub dynamic_fps_source: &'static str,
+    /// v50.0.0-beta.6: phosphor decay multiplier for cross-terminal
+    /// visual consistency. High-perf terminals (GPU-rendered) keep 1.0
+    /// (trails already snappy). Standard/unknown terminals (VTE-based,
+    /// CPU-rendered) get 1.3 (faster decay to compensate for sub-pixel
+    /// blending that makes dim ghosts more visible). xterm.js hosts get
+    /// 1.6 (fastest decay — xterm.js's buffer amplifies ghost persistence).
+    pub phosphor_decay_mult: f32,
+    /// v50.0.0-beta.6: ghost brightness cap (fraction of max energy).
+    /// When >0.0, phosphor cells with energy below this fraction of 255
+    /// are immediately killed (set to 0). This prevents "ghost redup yang
+    /// masih keliatan" on VTE terminals where sub-pixel rendering makes
+    /// dim colors more visible. 0.0 = no cap (all energy levels visible).
+    /// High-perf: 0.0 (no cap). Standard: 0.10 (kill below 10%). xterm.js:
+    /// 0.15 (kill below 15%).
+    pub ghost_brightness_cap: f32,
 }
 
 /// Run detection from environment variables. Safe to call before any
@@ -257,6 +272,18 @@ pub(crate) fn detect() -> TerminalCaps {
     // correctly reject Super+C.
     let kitty_keyboard = kitty_keyboard_supported(&term_program, &term, xtermjs_host);
 
+    // v50.0.0-beta.6: phosphor decay multiplier + ghost brightness cap.
+    // High-perf terminals (GPU-rendered, fast sub-pixel) keep 1.0 / no cap.
+    // Standard/unknown terminals (VTE-based, CPU-rendered) get 1.3 / 0.10.
+    // xterm.js hosts get 1.6 / 0.15 (fastest decay, kill dim ghosts early).
+    let (phosphor_decay_mult, ghost_brightness_cap) = if xtermjs_host {
+        (1.6, 0.15)
+    } else if high_perf_detection_source(&term_program, &term).is_some() {
+        (1.0, 0.0)
+    } else {
+        (1.3, 0.10)
+    };
+
     TerminalCaps {
         sync_output: sync_ok,
         kitty_keyboard,
@@ -266,5 +293,7 @@ pub(crate) fn detect() -> TerminalCaps {
         default_fps_cap,
         dynamic_default_fps,
         dynamic_fps_source,
+        phosphor_decay_mult,
+        ghost_brightness_cap,
     }
 }

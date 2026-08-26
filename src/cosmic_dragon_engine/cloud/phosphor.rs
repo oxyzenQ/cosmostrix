@@ -300,7 +300,11 @@ impl Cloud {
         // unique exp() values per frame.  Precomputing eliminates one exp() call
         // per decaying phosphor cell — typically 500-2000+ calls/frame.
         // Index: [layer * 2 + is_bottom]
-        let base_decay = PHOSPHOR_DECAY_RATE * elapsed_sec;
+        //
+        // v50.0.0-beta.6: apply terminal-aware phosphor_decay_mult for
+        // cross-terminal visual consistency. High-perf terminals keep 1.0
+        // (current behavior). Standard/VTE terminals get 1.3 (faster decay).
+        let base_decay = PHOSPHOR_DECAY_RATE * self.phosphor_decay_mult * elapsed_sec;
         let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
         let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];
         for (i, &lm) in PHOSPHOR_LAYER_DECAY_MULT.iter().enumerate() {
@@ -359,6 +363,23 @@ impl Cloud {
             }
 
             if self.phosphor[pidx] <= PHOSPHOR_DEAD_THRESHOLD {
+                self.phosphor[pidx] = 0;
+                self.phosphor_base_fg[pidx] = None;
+                self.phosphor_base_ch[pidx] = '\0';
+                self.phosphor_active.swap_remove(i);
+                self.phosphor_in_active.set(pidx, false);
+                frame.set(col, line, blank_cell);
+                continue;
+            }
+
+            // v50.0.0-beta.6: ghost brightness cap — kill dim ghosts early
+            // on terminals where sub-pixel rendering makes them too visible.
+            // When ghost_brightness_cap > 0.0, cells with energy below
+            // cap * 255 are treated as dead (prevents long-tail perception
+            // on VTE-based terminals like gnome-console).
+            if self.ghost_brightness_cap > 0.0
+                && (self.phosphor[pidx] as f32) < self.ghost_brightness_cap * 255.0
+            {
                 self.phosphor[pidx] = 0;
                 self.phosphor_base_fg[pidx] = None;
                 self.phosphor_base_ch[pidx] = '\0';

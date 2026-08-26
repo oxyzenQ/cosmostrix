@@ -751,6 +751,16 @@ impl Terminal {
         self.last_flush_suppressed
     }
 
+    /// v50.0.0-beta.6: access terminal caps for phosphor tuning.
+    /// Returns (phosphor_decay_mult, ghost_brightness_cap).
+    #[must_use]
+    pub(crate) fn phosphor_tuning(&self) -> (f32, f32) {
+        (
+            self.term_caps.phosphor_decay_mult,
+            self.term_caps.ghost_brightness_cap,
+        )
+    }
+
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
     /// Uses the color cache when available, falling back to on-the-fly
     /// formatting via `write_sgr_colors_buf`.

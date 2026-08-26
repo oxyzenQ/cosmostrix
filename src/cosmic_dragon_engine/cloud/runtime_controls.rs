@@ -235,6 +235,14 @@ impl Cloud {
         self.aggressive_throttle = on;
     }
 
+    /// v50.0.0-beta.6: set terminal-aware phosphor decay multiplier + ghost
+    /// brightness cap. Called once at startup from event_loop after terminal
+    /// detection. Values come from TerminalCaps.
+    pub fn set_phosphor_tuning(&mut self, decay_mult: f32, ghost_cap: f32) {
+        self.phosphor_decay_mult = decay_mult.max(0.1);
+        self.ghost_brightness_cap = ghost_cap.clamp(0.0, 1.0);
+    }
+
     pub fn set_max_sim_delta(&mut self, d: Duration) {
         self.max_sim_delta = d;
     }

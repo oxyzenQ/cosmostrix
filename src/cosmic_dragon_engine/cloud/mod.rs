@@ -203,6 +203,14 @@ pub struct Cloud {
     pub(crate) aggressive_throttle: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
+    /// v50.0.0-beta.6: terminal-aware phosphor decay multiplier.
+    /// 1.0 = high-perf (Alacritty), 1.3 = standard (VTE), 1.6 = xterm.js.
+    /// Applied as `PHOSPHOR_DECAY_RATE * phosphor_decay_mult * elapsed_sec`.
+    pub(crate) phosphor_decay_mult: f32,
+    /// v50.0.0-beta.6: ghost brightness cap (fraction of 255). When >0.0,
+    /// phosphor cells with energy below `cap * 255` are killed immediately.
+    /// Prevents dim ghosts persisting on VTE terminals. 0.0 = no cap.
+    pub(crate) ghost_brightness_cap: f32,
     pub(crate) max_sim_delta: Duration,
 
     pub(crate) shading_mode: ShadingMode,
@@ -417,6 +425,8 @@ impl Cloud {
             perf_pressure: 0.0,
             aggressive_throttle: false,
             phosphor_skipped: false,
+            phosphor_decay_mult: 1.0,
+            ghost_brightness_cap: 0.0,
             max_sim_delta: Duration::from_millis(0),
             shading_mode,
             message: Vec::new(),

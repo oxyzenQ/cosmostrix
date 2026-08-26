@@ -111,6 +111,8 @@ fn sync_output_disabled_for_linux_console() {
         default_fps_cap: 240.0,
         dynamic_default_fps: 60.0,
         dynamic_fps_source: "test",
+        phosphor_decay_mult: 1.0,
+        ghost_brightness_cap: 0.0,
     };
     assert!(!caps.sync_output);
     assert!(

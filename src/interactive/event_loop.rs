@@ -60,6 +60,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
+    // v50.0.0-beta.6: terminal-aware phosphor tuning (decay_mult + ghost_cap).
+    let (decay_mult, ghost_cap) = term.phosphor_tuning();
+    cloud.set_phosphor_tuning(decay_mult, ghost_cap);
     // Bug-fix: no ambient phase has fired yet, so the user's CLI/config
     // choices ARE the authoritative state. Without this, the first live
     // reload would incorrectly re-apply scene defaults (cinematic/zen/
@@ -380,6 +383,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
+            // v50.0.0-beta.6: re-apply phosphor tuning after rebuild.
+            let (dm, gc) = term.phosphor_tuning();
+            cloud.set_phosphor_tuning(dm, gc);
             // Smooth palette transition on live config reload.
             //
             // Previously, the Cloud rebuild produced an instant color jump
