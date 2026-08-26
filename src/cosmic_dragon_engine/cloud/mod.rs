@@ -283,6 +283,8 @@ pub struct Cloud {
     pub(crate) phosphor_last_fresh: SmallVec<[usize; 256]>,
     pub(crate) crt_vignette_candidates: Vec<(u16, u16, f32)>, // T1.1-real: hoisted scratch (was per-frame SmallVec)
     pub(crate) border_cross_candidates: Vec<(usize, u16, u16)>, // B-1: hoisted scratch (was per-frame Vec alloc in rain.rs monolith path)
+    pub(crate) border_gradient_scratch: Vec<Option<Color>>, // Z-5: hoisted scratch (was per-frame Vec alloc in draw_message)
+    pub(crate) bottom_corner_scratch: std::collections::HashSet<usize>, // Z-5: hoisted scratch (was per-frame HashSet alloc in draw_message)
 
     pub(crate) anomaly_zones: Vec<AnomalyZone>,
 
@@ -490,6 +492,8 @@ impl Cloud {
             phosphor_last_fresh: SmallVec::new(),
             crt_vignette_candidates: Vec::with_capacity(128),
             border_cross_candidates: Vec::with_capacity(128),
+            border_gradient_scratch: Vec::with_capacity(64),
+            bottom_corner_scratch: std::collections::HashSet::with_capacity(2),
             last_phosphor_time: now,
             last_quantum_update_time: now,
             anomaly_zones: Vec::new(),
@@ -1069,7 +1073,14 @@ impl Cloud {
         // instantly (UI overlay semantics, no wave); the interpolation is
         // recomputed every frame from the current palette so palette
         // changes reflect on the very next draw.
-        let mut border_gradient: Vec<Option<Color>> = vec![None; self.message.len()];
+        // Z-5: use hoisted `border_gradient_scratch` buffer (Cloud field)
+        // instead of allocating a new Vec every frame. Pattern matches
+        // crt_vignette_candidates (T1.1-real) + border_cross_candidates (B-1).
+        // clear() preserves the allocation, so after the first frame
+        // this is zero-alloc. Resize to message.len() (no-op if same size).
+        self.border_gradient_scratch.clear();
+        self.border_gradient_scratch.resize(self.message.len(), None);
+        let border_gradient = &mut self.border_gradient_scratch;
         if palette_n > 0 && self.color_mode != ColorMode::Mono {
             // BD-02 (Border Dragon) - LTS Stable: corner-aware gradient system.
             //
@@ -1095,8 +1106,10 @@ impl Cloud {
             let total_border_f = total_border.max(1) as f32;
 
             // Pre-allocate HashSet with known capacity (LTS optimization)
-            let mut bottom_corner_indices: std::collections::HashSet<usize> =
-                std::collections::HashSet::with_capacity(EXPECTED_BOTTOM_CORNERS);
+            // Z-5: use hoisted `bottom_corner_scratch` buffer (Cloud field)
+            // instead of allocating a new HashSet every frame.
+            self.bottom_corner_scratch.clear();
+            let bottom_corner_indices = &mut self.bottom_corner_scratch;
 
             // Detect bottom corners from border order (defensive iteration)
             if !border_order.is_empty() {
