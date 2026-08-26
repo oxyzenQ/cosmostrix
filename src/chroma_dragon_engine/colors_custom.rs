@@ -41,11 +41,12 @@ const COLORS_CUSTOM_PALETTE_STEPS: usize = 9;
 pub(crate) const COLORS_CUSTOM_MAX_RAIN_STOPS: usize = 64;
 
 /// v50.0.0-beta.6 LTS: maximum number of custom palette blocks accepted
-/// in a single config.toml. Bounds the BTreeMap size + iteration cost in
-/// `collect_colors_custom`. 64 blocks is far beyond any realistic use
+/// in a single config.toml. Aligned with charset-custom and scene-custom
+/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
+/// `collect_colors_custom`. 100 blocks is far beyond any realistic use
 /// case (built-in themes are ~44); the cap prevents a config typo from
 /// spawning hundreds of empty blocks.
-pub(crate) const COLORS_CUSTOM_MAX_BLOCKS: usize = 64;
+pub(crate) const COLORS_CUSTOM_MAX_BLOCKS: usize = 100;
 
 /// v50.0.0-beta.6 LTS: maximum length of a custom palette block name.
 /// Bounds BTreeMap key allocation. 64 chars is generous (built-in names

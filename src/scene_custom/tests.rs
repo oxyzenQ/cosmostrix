@@ -480,4 +480,41 @@ fn collect_custom_scenes_silently_drops_forbidden_fields() {
     assert!(scene.monolith_size.is_none());
     assert!(scene.color_bg.is_none());
 }
+
+// ── v50.0.0-beta.6 LTS: bounds enforcement tests ─────────────────
+
+#[test]
+fn collect_custom_scenes_caps_total_blocks_at_max() {
+    // A config with >SCENE_CUSTOM_MAX_BLOCKS blocks should only
+    // keep the first MAX_BLOCKS entries, not allocate unbounded.
+    let mut cfg = HashMap::new();
+    for i in 0..(SCENE_CUSTOM_MAX_BLOCKS + 10) {
+        cfg.insert(format!("scene-custom.scene{i}.color"), "green".to_string());
+    }
+    let scenes = collect_custom_scenes(&cfg);
+    assert!(
+        scenes.len() <= SCENE_CUSTOM_MAX_BLOCKS,
+        "total blocks must be capped at {}, got {}",
+        SCENE_CUSTOM_MAX_BLOCKS,
+        scenes.len()
+    );
+}
+
+#[test]
+fn collect_custom_scenes_skips_oversized_names() {
+    // A name longer than SCENE_CUSTOM_MAX_NAME_LEN should be
+    // silently skipped (no allocation, no BTreeMap entry).
+    let mut cfg = HashMap::new();
+    let long_name = "x".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 1);
+    cfg.insert(
+        format!("scene-custom.{long_name}.color"),
+        "green".to_string(),
+    );
+    let scenes = collect_custom_scenes(&cfg);
+    assert!(
+        scenes.is_empty(),
+        "oversized name must be skipped, got {} entries",
+        scenes.len()
+    );
+}
 use super::*;

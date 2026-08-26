@@ -108,25 +108,23 @@ This policy is consistent across all 3 systems (charset, colors, scene). Previou
 
 ### Custom Block LTS Bounds (v50.0.0-beta.6)
 
-Custom config blocks are bounded to prevent config typos from bloating memory or stalling startup:
+All 3 custom config systems use the same bounds for consistency. Max **100 blocks** per category (generous — built-in themes are ~44, built-in scenes ~10, built-in charsets ~25). Max **64 char names** (built-in names are ≤16 chars; longer = likely typo).
 
-**Colors-custom** (`[colors-custom.<name>]`):
+**Unified bounds table:**
 
-| Bound | Value | Rationale |
-|-------|-------|-----------|
-| Max rain stops per block | 64 (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | OKLab engine only needs 2-16 stops; extra stops are wasted input |
-| Max blocks per config | 64 (`COLORS_CUSTOM_MAX_BLOCKS`) | Far beyond realistic use (built-in themes are ~44) |
-| Max name length | 64 chars (`COLORS_CUSTOM_MAX_NAME_LEN`) | Built-in names are ≤16 chars; longer = likely typo |
+| System | Max blocks | Max name len | Max content | Rationale |
+|--------|-----------|--------------|-------------|-----------|
+| colors-custom | 100 (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 64 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | OKLab engine only needs 2-16 stops; 100 blocks far exceeds realistic use |
+| charset-custom | 100 (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 chars (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
+| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | N/A (fields are key-value) | 100 blocks far exceeds realistic use (built-in scenes ~10) |
 
-**Charset-custom** (`[charset-custom.<name>]`):
+When a cap is hit, behavior depends on the cap type:
 
-| Bound | Value | Rationale |
-|-------|-------|-----------|
-| Max chars per `set` | 256 (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
-| Max blocks per config | 64 (`CHARSET_CUSTOM_MAX_BLOCKS`) | Far beyond realistic use |
-| Max name length | 64 chars (`CHARSET_CUSTOM_MAX_NAME_LEN`) | Built-in names are ≤16 chars; longer = likely typo |
+- **Content cap** (rain stops, charset chars): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`.
+- **Block cap** (total blocks per category): silently skipped (no warning — the user would have to define 100+ blocks to hit this, which is almost certainly a script-generated config, not a human typo).
+- **Name length cap**: silently skipped (no warning — almost certainly a typo, warning would be noise).
 
-When a cap is hit, a runtime warning is emitted (via `push_runtime_warning` — drained after Terminal::drop so it doesn't leak into the rain matrix). Oversized names are silently skipped (no warning — they are almost certainly typos and a warning would be noise).
+All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

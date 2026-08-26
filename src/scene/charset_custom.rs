@@ -59,10 +59,11 @@ use unicode_width::UnicodeWidthChar;
 pub(crate) const CHARSET_CUSTOM_MAX_LEN: usize = 256;
 
 /// v50.0.0-beta.6 LTS: maximum number of custom charset blocks accepted
-/// in a single config.toml. Bounds the BTreeMap size + iteration cost in
-/// `collect_charset_custom`. 64 blocks is far beyond any realistic use
+/// in a single config.toml. Aligned with colors-custom and scene-custom
+/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
+/// `collect_charset_custom`. 100 blocks is far beyond any realistic use
 /// case; the cap prevents a config typo from spawning hundreds of blocks.
-pub(crate) const CHARSET_CUSTOM_MAX_BLOCKS: usize = 64;
+pub(crate) const CHARSET_CUSTOM_MAX_BLOCKS: usize = 100;
 
 /// v50.0.0-beta.6 LTS: maximum length of a custom charset block name.
 /// Bounds BTreeMap key allocation. 64 chars is generous (built-in names

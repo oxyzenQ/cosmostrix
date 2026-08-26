@@ -610,6 +610,19 @@ pub(crate) fn apply_scene_custom_to_cloud_config(
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
+/// v50.0.0-beta.6 LTS: maximum number of custom scene blocks accepted
+/// in a single config.toml. Aligned with colors-custom and charset-custom
+/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
+/// `collect_custom_scenes`. 100 blocks is far beyond any realistic use
+/// case; the cap prevents a config typo from spawning hundreds of blocks.
+pub(crate) const SCENE_CUSTOM_MAX_BLOCKS: usize = 100;
+
+/// v50.0.0-beta.6 LTS: maximum length of a custom scene block name.
+/// Aligned with colors-custom and charset-custom (all use 64 chars).
+/// Bounds BTreeMap key allocation. 64 chars is generous (built-in scene
+/// names are ≤16 chars like "cinematic"); longer names are likely typos.
+pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
+
 /// explicit field allowlist for `[scene-custom.<name>]` blocks.
 ///
 /// Owner contract (2026-08-07):
@@ -680,8 +693,20 @@ pub(crate) fn collect_custom_scenes(
         }
         let (_, rest) = key.split_once('.').expect("scene-custom key has prefix");
         let (name, field) = rest.rsplit_once('.').expect("scene-custom key has field");
+        // v50.0.0-beta.6 LTS: skip oversized names early (before
+        // to_ascii_lowercase allocates). 64 chars is generous.
+        if name.len() > SCENE_CUSTOM_MAX_NAME_LEN {
+            continue;
+        }
+        let name_lower = name.to_ascii_lowercase();
+        // v50.0.0-beta.6 LTS: skip if we already hit the block cap.
+        // Prevents a config with hundreds of [scene-custom.X] blocks
+        // from bloating the BTreeMap.
+        if scenes.len() >= SCENE_CUSTOM_MAX_BLOCKS && !scenes.contains_key(&name_lower) {
+            continue;
+        }
         let scene = scenes
-            .entry(name.to_ascii_lowercase())
+            .entry(name_lower)
             .or_insert_with(UserProfile::default);
         match field {
             "base-scene" => scene.base_scene = Some(value.clone()),
