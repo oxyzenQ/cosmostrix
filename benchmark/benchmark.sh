@@ -200,6 +200,170 @@ get_jobs() {
 	fi
 	echo "${jobs}"
 }
+# ── BENCH_LABS.md auto-inject ──────────────────────────────────────────────
+# After each sweep, replace lines 11-36 of benchmark/bench-labs/BENCH_LABS.md
+# with the current environment + the just-generated sweep table. This keeps
+# the "live" lab doc in sync with the latest run without manual paste.
+#
+# The replaced block (26 lines) covers:
+#   lines 11-18: Environment table (CPU, RAM, OS, Rust, Build, Terminal)
+#   line    19: blank
+#   line    20: ## Size Sweep (<scene>) heading
+#   line    21: blank
+#   lines 22-23: adaptive-duration description
+#   line    24: blank
+#   lines 25-26: sweep table header + separator
+#   lines 27-36: 10 sweep data rows
+#
+# Everything before line 11 (title, SPDX, intro, ## Environment) and after
+# line 36 (blank + analysis paragraphs + PGO + Notes + See Also + disclaimer)
+# is preserved untouched.
+inject_bench_labs() {
+	local csv_file="$1"
+	local profile_label="$2"
+	local scene="$3"
+	local out_dir="$4"
+	local bench_labs="$out_dir/BENCH_LABS.md"
+
+	if [[ ! -f "$bench_labs" ]]; then
+		echo "[sweep] BENCH_LABS.md not found at $bench_labs — skipping inject." >&2
+		echo "[sweep] (Expected for first run; create the file from the template" >&2
+		echo "[sweep]  before re-running sweep to enable auto-inject.)" >&2
+		return 0
+	fi
+	if [[ ! -f "$csv_file" ]]; then
+		echo "[sweep] CSV not found at $csv_file — skipping inject." >&2
+		return 0
+	fi
+
+	# ── Detect environment ───────────────────────────────────────────────
+	local cpu_model=""
+	cpu_model=$(awk '/^model name[[:space:]]*:/ { sub(/^model name[[:space:]]*: */, ""); print; exit }' /proc/cpuinfo 2>/dev/null || true)
+	if [[ -z "$cpu_model" ]]; then
+		cpu_model=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "unknown")
+	fi
+	local nproc
+	nproc=$(nproc 2>/dev/null || echo "?")
+	local cpu_val="${cpu_model} (${nproc} vCPUs)"
+
+	local total_kib
+	total_kib=$(awk '/^MemTotal:/ { print $2; exit }' /proc/meminfo 2>/dev/null || echo "0")
+	local ram_val="unknown"
+	if [[ "$total_kib" =~ ^[0-9]+$ ]] && (( total_kib > 0 )); then
+		ram_val=$(awk -v k="$total_kib" 'BEGIN { printf "%.1f GiB", k / 1024 / 1024 }')
+	fi
+
+	local distro=""
+	if [[ -f /etc/os-release ]]; then
+		distro=$( . /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}" )
+	fi
+	[[ -z "$distro" ]] && distro=$(uname -sr 2>/dev/null || echo "unknown")
+	local libc_name=""
+	libc_name=""
+	if ldd --version 2>&1 | head -1 | grep -qi 'glibc'; then
+		libc_name="glibc"
+	elif ldd --version 2>&1 | head -1 | grep -qi 'musl'; then
+		libc_name="musl"
+	fi
+	local os_val="$distro"
+	[[ -n "$libc_name" ]] && os_val="${distro}, ${libc_name}"
+
+	local rust_val
+	rust_val=$(rustc --version 2>/dev/null | awk "{print \$2}" || "$HOME/.cargo/bin/rustc" --version 2>/dev/null | awk "{print \$2}" || echo "unknown")
+
+	local build_val="\`${profile_label}\`"
+	local term_val="\`${TERM:-dumb}\`"
+
+	# ── Build replacement block (26 lines, matching original 11-36 format) ─
+	local scene_heading="## Size Sweep (${scene})"
+	local block
+	block=$(cat <<EOF
+| Item | Value |
+| --- | --- |
+| CPU | ${cpu_val} |
+| RAM | ${ram_val} |
+| OS | ${os_val} |
+| Rust | ${rust_val} |
+| Build | ${build_val} |
+| Terminal | ${term_val} |
+
+${scene_heading}
+
+All sizes use \`--scene ${scene}\`. Duration is adaptive:
+5s for <5K cells, 3s for 5K-500K, 2s for >500K cells.
+
+| Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
+| ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
+EOF
+)
+
+	# ── Append sweep data rows from CSV ───────────────────────────────────
+	# CSV columns: size_label,cols,lines,cells,scene,avg_fps,peak_fps,p99_frame_ms,
+	#              avg_dirty_cells,dirty_ratio_pct,peak_rss_mib,heap_retained_kib,
+	#              fps_drift_pct,frame_time_stability,avg_frame_ms
+	# We need: Size, Cells (comma-fmt), Avg FPS (comma-fmt), Peak FPS (comma-fmt),
+	#          p99 (ms), Dirty cells/f, RSS (MiB), Stability
+	local csv_rows
+	csv_rows=$(tail -n +2 "$csv_file" | awk -F',' '
+		function fmt_int(v) {
+			# Format integer with thousands separators (comma)
+			gsub(/[^0-9.].*$/, "", v)  # strip any trailing non-numeric
+			if (v == "" || v == "N/A") return v
+			if (index(v, ".") > 0) {
+				# Has decimal: format integer part with commas, keep decimal
+				split(v, parts, ".")
+				int_part = parts[1]
+				int_len = length(int_part)
+				formatted = ""
+				for (j = 1; j <= int_len; j++) {
+					if (j > 1 && (int_len - j + 1) % 3 == 0) formatted = formatted ","
+					formatted = formatted substr(int_part, j, 1)
+				}
+				return formatted "." parts[2]
+			} else {
+				int_len = length(v)
+				formatted = ""
+				for (j = 1; j <= int_len; j++) {
+					if (j > 1 && (int_len - j + 1) % 3 == 0) formatted = formatted ","
+					formatted = formatted substr(v, j, 1)
+				}
+				return formatted
+			}
+		}
+		{
+			size = $1; cells = $4; avg_fps = $6; peak_fps = $7; p99 = $8
+			dirty = $9; rss = $11; stability = $14
+			# Round FPS to integer, format with commas
+			if (avg_fps != "N/A" && avg_fps ~ /^[0-9.]+$/) avg_fps = fmt_int(int(avg_fps + 0.5))
+			if (peak_fps != "N/A" && peak_fps ~ /^[0-9.]+$/) peak_fps = fmt_int(int(peak_fps + 0.5))
+			# Format cells with commas
+			if (cells ~ /^[0-9]+$/) cells = fmt_int(cells)
+			# Round p99 to 3 decimal places
+			if (p99 != "N/A" && p99 ~ /^[0-9.]+$/) p99 = fmt_int(sprintf("%.3f", p99))
+			# Round dirty to 1 decimal place
+			if (dirty != "N/A" && dirty ~ /^[0-9.]+$/) dirty = fmt_int(sprintf("%.1f", dirty))
+			# Round RSS to integer
+			if (rss != "N/A" && rss ~ /^[0-9.]+$/) rss = fmt_int(int(rss + 0.5))
+			printf "| %s | %s | %s | %s | %s | %s | %s | %s |\n", size, cells, avg_fps, peak_fps, p99, dirty, rss, stability
+		}
+	')
+	block="${block}
+${csv_rows}"
+
+	# ── Replace lines 11-36 of BENCH_LABS.md ──────────────────────────────
+	# Preserve lines 1-10 (title, SPDX, intro, ## Environment, blank) and
+	# lines 37+ (blank + analysis + PGO + Notes + See Also + disclaimer).
+	local tmp
+	tmp=$(mktemp) || { echo "[sweep] mktemp failed during inject" >&2; return 1; }
+	head -n 10 "$bench_labs" > "$tmp"
+	printf '%s\n' "$block" >> "$tmp"
+	tail -n +37 "$bench_labs" >> "$tmp"
+	mv "$tmp" "$bench_labs"
+
+	echo "[sweep] BENCH_LABS.md updated (lines 11-36 replaced with current run)."
+}
+
+
 
 # ── Size sweep mode ───────────────────────────────────────────────────────
 # Usage: ./benchmark/benchmark.sh sweep [BIN_PATH]
@@ -363,7 +527,7 @@ run_sweep() {
 		echo "[$size_idx/$total_sizes] $label ($cells_fmt cells) — ${dur}s each scene"
 
 		for sc in "${scenes[@]}"; do
-			local raw_log="$out_dir/sweep_${label}_${sc}_${ts}.txt"
+			local raw_log; raw_log=$(mktemp) || { echo "[sweep] mktemp failed" >&2; exit 1; }
 
 			echo "  scene=$sc ..." >&2
 			COSMOSTRIX_BENCH_COLS="$cols" COSMOSTRIX_BENCH_LINES="$lines" \
@@ -403,6 +567,7 @@ run_sweep() {
 			echo "${safe_label},${cols},${lines},${cells},${sc},${avg_fps},${peak_fps},${p99_ft},${avg_dirty},${dirty_ratio},${peak_rss},${heap_retained},${drift},${stability},${avg_ft}" >>"$csv_file"
 
 			echo "    avg_fps=$avg_fps  p99=${p99_ft}ms  rss=${peak_rss}MiB  heap=${heap_retained}KiB  dirty=${avg_dirty}cells"
+		rm -f "$raw_log"
 		done
 	done
 
@@ -426,14 +591,16 @@ run_sweep() {
 
 	{
 		echo ""
-		echo "Raw logs: \`sweep_*_${ts}.txt\` in this directory"
 		echo "CSV data: \`sweep_${ts}.csv\`"
 	} >>"$summary_file"
 
 	echo ""
 	echo "Summary: $summary_file"
 	echo "CSV:     $csv_file"
-	echo "Logs:    $out_dir/sweep_*_${ts}.txt"
+
+# Auto-inject latest sweep data into BENCH_LABS.md (lines 11-36).
+# Purges old environment + sweep table, replaces with current run.
+inject_bench_labs "$csv_file" "$profile_label" "$scene" "$out_dir"
 }
 
 # ── Dispatch ───────────────────────────────────────────────────────────────
