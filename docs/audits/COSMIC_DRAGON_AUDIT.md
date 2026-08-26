@@ -4,7 +4,7 @@
 
 > Internal independent QA session covering visual quality, stability,
 > power management, and competitive depth. Conducted across 6 commits
-> (7ddf285 → f62808b) on the v50 codebase post file-split refactor.
+> (7ddf285 -> f62808b) on the v50 codebase post file-split refactor.
 >
 > **Owner directive**: cosmostrix is now in maintenance mode. This
 > document is the reference for future maintenance decisions.
@@ -70,9 +70,9 @@ Three parallel audit tracks were conducted:
 |------|--------|-------|
 | Mutex poisoning — all production locks | OK Poison-safe | All 60 `.lock()` calls use `if let Ok(guard)` or `match Ok/Err` pattern. Only `.lock().unwrap()` calls are in `#[cfg(test)]` code. |
 | Channel send/recv | OK Non-blocking | All `tx.send()` check `.is_err()`. All `rx.try_recv()` are non-blocking. No blocking `recv()` in production. |
-| Signal handling | OK Comprehensive | SIGTERM/SIGHUP/SIGQUIT → graceful shutdown. SIGTSTP/SIGCONT → suspend/resume with terminal reinit. SIGINT intentionally ignored (only 'q' exits). |
+| Signal handling | OK Comprehensive | SIGTERM/SIGHUP/SIGQUIT -> graceful shutdown. SIGTSTP/SIGCONT -> suspend/resume with terminal reinit. SIGINT intentionally ignored (only 'q' exits). |
 | Terminal restoration | OK Multi-layer defense | `restore_terminal_best_effort()` called from panic hook, watchdog, tty recovery, Terminal::drop. Idempotent. `TERMINAL_RESTORED_BY_PANIC` flag prevents double-cleanup. |
-| Panic hook | OK Bulletproof | Uses `write_fmt` with error discarded (never panics from the hook). Restores terminal before writing stderr. Prevents double-panic → abort → coredump. |
+| Panic hook | OK Bulletproof | Uses `write_fmt` with error discarded (never panics from the hook). Restores terminal before writing stderr. Prevents double-panic -> abort -> coredump. |
 | Integer overflow | OK Safe | All `as usize` casts use `u16` inputs (cannot overflow). `cols × lines` capped at 1024×500=512,000 (well within usize range). |
 | Bounds checking | OK Option-based | `frame.index(x, y)` returns `Option<usize>`. All callers use `if let Some(idx)` or `?`. No unchecked indexing. |
 | Unsafe blocks (11 total) | OK Sound | All have SAFETY comments. `libc::localtime_r`, `libc::time`, `libc::fork`, `libc::prctl`, `libc::tcgetattr` are standard Unix patterns with null guards. `TraceAlloc` is straightforward GlobalAlloc. |
@@ -228,7 +228,7 @@ When maintaining cosmostrix, the following audit findings are the
 | Visual Quality | 2026-08-12 | 7ddf285, 7ae2ade | H1+H2+M1 fixed, M2 confirmed correct |
 | Stability | 2026-08-12 | f62808b | S1+S4 fixed, S2+S3 documented |
 | Power Management (AB-11) | 2026-08-12 | 69ec065 | Option 2 implemented |
-| Rain-Screen Cleanliness (AB-09/AB-10) | 2026-08-12 | 63f5c10→7ba7a76 | All leak vectors fixed |
+| Rain-Screen Cleanliness (AB-09/AB-10) | 2026-08-12 | 63f5c10->7ba7a76 | All leak vectors fixed |
 | Depth Assessment | 2026-08-12 | (research only) | Peak in 5/8 axes |
 
 ---

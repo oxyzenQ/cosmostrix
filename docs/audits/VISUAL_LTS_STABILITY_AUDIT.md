@@ -9,10 +9,10 @@
 
 ## Bug Reproduction
 
-1. Start cosmostrix with auto screen size → terminal size: 150x32.
-2. Toggle to full-screen → new size: 212x64.
+1. Start cosmostrix with auto screen size -> terminal size: 150x32.
+2. Toggle to full-screen -> new size: 212x64.
 3. While cosmostrix is still running, edit config.toml (e.g. `power-dragon = false`, `crystal-dragon = true`, or `fps = 80`).
-4. Save config → live-reload triggers.
+4. Save config -> live-reload triggers.
 5. **Observed bug:** the rain screen snaps back to 150x32 (the pre-full-screen size), but the terminal is still physically full-screen (212x64). A large blank/incorrect area appears.
 
 ## Root Cause
@@ -45,8 +45,8 @@ Added `w = nw; h = nh;` to the `pending_resize` handler block, keeping the local
 
 ```rust
 if let Some((nw, nh)) = pending_resize {
-    w = nw;  // ← FIX: keep local vars in sync
-    h = nh;  // ← FIX: keep local vars in sync
+    w = nw;  // <- FIX: keep local vars in sync
+    h = nh;  // <- FIX: keep local vars in sync
     cloud.reset(nw, nh);
     frame = Frame::new(nw, nh, cloud.palette.bg);
     ...
@@ -55,7 +55,7 @@ if let Some((nw, nh)) = pending_resize {
 
 ## Secondary Fixes (same audit pass)
 
-### 1. Stale `cfg` → `current_cfg` in resize density handler
+### 1. Stale `cfg` -> `current_cfg` in resize density handler
 
 The resize handler used `cfg.density_auto` and `cfg.base_density` (startup config) instead of `current_cfg.density_auto` and `current_cfg.base_density` (live-reloaded). If the user live-reloaded density settings, a subsequent resize would use stale startup density values.
 
@@ -108,10 +108,10 @@ HUD screen size is updated via `hud_state.set_screen_size(nw, nh, false)` in the
 ## Test Coverage
 
 All 1694 existing tests pass. The fix is verified by code review + manual reproduction:
-1. Start at 150x32 → fullscreen to 212x64 → edit config → screen stays at 212x64 ✓
-2. Resize + different config changes (power_dragon, crystal_dragon, fps) → screen stays correct ✓
-3. Resize + pause → screen stays correct ✓
-4. Resize + scene switch → screen stays correct ✓
+1. Start at 150x32 -> fullscreen to 212x64 -> edit config -> screen stays at 212x64 OK
+2. Resize + different config changes (power_dragon, crystal_dragon, fps) -> screen stays correct OK
+3. Resize + pause -> screen stays correct OK
+4. Resize + scene switch -> screen stays correct OK
 
 The bug is a race between local variable state and terminal state — not easily unit-testable without a full terminal emulation harness. The fix is a 2-line addition (`w = nw; h = nh;`) with zero risk of regression.
 
@@ -125,20 +125,20 @@ Every `cfg.*` usage in the main frame loop (lines 700-1447) was verified:
 
 | Line | Usage | Verdict |
 |------|-------|---------|
-| 757 | `cfg.screen_size.is_some()` | CLI flag, never changes ✓ |
-| 853 | `cfg.screensaver` | CLI flag, never changes ✓ |
-| 1035 | `cfg.screen_size.is_none()` | CLI flag ✓ |
-| 1290 | `cfg.perf_stats` | CLI flag ✓ |
-| 394 | `cfg.target_fps` (in `resolve_capped_fps`) | CLI fallback — correct by design ✓ |
+| 757 | `cfg.screen_size.is_some()` | CLI flag, never changes OK |
+| 853 | `cfg.screensaver` | CLI flag, never changes OK |
+| 1035 | `cfg.screen_size.is_none()` | CLI flag OK |
+| 1290 | `cfg.perf_stats` | CLI flag OK |
+| 394 | `cfg.target_fps` (in `resolve_capped_fps`) | CLI fallback — correct by design OK |
 
 All remaining `cfg.*` usages are CLI-only flags that don't change during live-reload. No bugs found.
 
 ### `base_cfg` audit
 
 `base_cfg = cfg.clone()` (line 232) is the immutable startup template used by `rebuild_cloud_config`. It holds CLI-explicit values that persist across reloads. Verified:
-- `base_cfg` is never mutated after creation ✓
-- `rebuild_cloud_config` clones base, then applies config map overrides ✓
-- `base_cfg.scene_custom_name` is the startup value — correct (scene-custom is re-applied per rebuild) ✓
+- `base_cfg` is never mutated after creation OK
+- `rebuild_cloud_config` clones base, then applies config map overrides OK
+- `base_cfg.scene_custom_name` is the startup value — correct (scene-custom is re-applied per rebuild) OK
 
 ### Dimension sync audit
 
@@ -146,26 +146,26 @@ All dimension-handling paths were verified to keep `w`/`h` in sync:
 
 | Path | Updates w/h? | Verdict |
 |------|-------------|---------|
-| Initial setup (line 49-53) | Yes (initial) | ✓ |
-| Post-intro re-read (line 149-157) | Yes (`w = cw; h = ch`) | ✓ |
-| Rebuild path (line 342-399) | Uses current w/h | ✓ (after fix) |
-| SIGCONT reinit (line 712-721) | Sets pending_resize | ✓ (applied at 1004) |
-| Resize event (line 754-763) | Sets pending_resize | ✓ (applied at 1004) |
-| pending_resize handler (line 1004-1042) | Yes (`w = nw; h = nh`) | ✓ (fixed) |
+| Initial setup (line 49-53) | Yes (initial) | OK |
+| Post-intro re-read (line 149-157) | Yes (`w = cw; h = ch`) | OK |
+| Rebuild path (line 342-399) | Uses current w/h | OK (after fix) |
+| SIGCONT reinit (line 712-721) | Sets pending_resize | OK (applied at 1004) |
+| Resize event (line 754-763) | Sets pending_resize | OK (applied at 1004) |
+| pending_resize handler (line 1004-1042) | Yes (`w = nw; h = nh`) | OK (fixed) |
 
 ### Terminal layer audit
 
 The Terminal's `draw()` method (in `terminal/draw.rs`) properly detects dimension changes at line 59: `dim_changed = l.width != frame.width || l.height != frame.height`. When dimensions change:
-- Full redraw is triggered ✓
-- `LastFrame` buffer is resized via `reuse_or_new` (line 118-119) ✓
-- Clear is issued scrollback-safely (line 65-76) ✓
+- Full redraw is triggered OK
+- `LastFrame` buffer is resized via `reuse_or_new` (line 118-119) OK
+- Clear is issued scrollback-safely (line 65-76) OK
 
 ### Cloud layer audit
 
 `Cloud::reset(cols, lines)` (defined in `cloud/spawn.rs:25`) properly:
-- Clamps dimensions to `[MIN, MAX]` ✓
-- Rebuilds all size-dependent structures (col_stat, column_palette_slot, edge_fade_lut, vignette_lut, phosphor) ✓
-- Resets message border geometry via `reset_message()` ✓
+- Clamps dimensions to `[MIN, MAX]` OK
+- Rebuilds all size-dependent structures (col_stat, column_palette_slot, edge_fade_lut, vignette_lut, phosphor) OK
+- Resets message border geometry via `reset_message()` OK
 
 ### Race condition audit
 
@@ -178,10 +178,10 @@ No race: rebuild at step 1 always uses the w/h from the previous frame's step 3.
 
 ### Secondary stale-config fixes (same commit)
 
-Three additional `cfg.*` → `current_cfg.*` fixes were applied in the same commit:
-1. Resize density handler: `cfg.density_auto`/`base_density` → `current_cfg.*`
-2. Frame period: `cfg.power_dragon` → `current_cfg.power_dragon`
-3. Self-healer throttle: `cfg.power_dragon` → `current_cfg.power_dragon`
+Three additional `cfg.*` -> `current_cfg.*` fixes were applied in the same commit:
+1. Resize density handler: `cfg.density_auto`/`base_density` -> `current_cfg.*`
+2. Frame period: `cfg.power_dragon` -> `current_cfg.power_dragon`
+3. Self-healer throttle: `cfg.power_dragon` -> `current_cfg.power_dragon`
 
 These ensure live-reloaded density and power_dragon settings take immediate effect, not delayed until the next Cloud rebuild.
 

@@ -212,10 +212,10 @@ three-dimensional.
 The changelog records this lock:
 
 > **Option F "Film Matrix Hero"**: visual test rated 10/10
-> perfect. Six deltas vs the Option A baseline: front brightness 1.05→1.10,
-> front saturation 1.05→1.12, front head_bloom 1.15→1.30, front
-> head_selfbloom 1.15→1.20, back contrast_reduction 0.45→0.55, front
-> phosphor_decay 0.40→0.60. Mid untouched. Ratio back:mid:front
+> perfect. Six deltas vs the Option A baseline: front brightness 1.05->1.10,
+> front saturation 1.05->1.12, front head_bloom 1.15->1.30, front
+> head_selfbloom 1.15->1.20, back contrast_reduction 0.45->0.55, front
+> phosphor_decay 0.40->0.60. Mid untouched. Ratio back:mid:front
 > widened from 1:4.9:15.8 to 1:6.0:21.6.
 
 This audit confirms that assessment numerically and explains the
@@ -353,7 +353,7 @@ Key tuning choices under Option F:
 - **Density 0.85** (sparse, unchanged from A): despite being the hero
   layer, density is kept below 1.0 to preserve individual streak
   clarity. The silent override bug fix restored this from
-  1.10 → 0.85 to compensate for the spawn-roll fix (commit 9080472)
+  1.10 -> 0.85 to compensate for the spawn-roll fix (commit 9080472)
   that gave front +40% more density rolls.
 - **Vignette exempt** + **rain shadow exempt** (unchanged from A):
   front-layer neon is not dimmed by edge or bottom effects — stays
@@ -430,7 +430,7 @@ lock.
 **Head pop ratio**: 1 : 2.8 : 7.3
 
 **Pros**: Sits mid-envelope on every metric — safer, more conservative.
-Longer front trails (0.40 decay → 2.5× persistence) give each droplet
+Longer front trails (0.40 decay -> 2.5× persistence) give each droplet
 more "weight" in time. Visually rated 9/10 during testing —
 good but not locked.
 
@@ -561,7 +561,7 @@ compose into a single depth-widening strategy. This section documents
 the rationale for each delta individually, so the owner can revert
 any single one if a future visual target requires it.
 
-### 6.1 `PARALLAX_BRIGHTNESS_MULT[2]`: 1.05 → 1.10 (+0.05)
+### 6.1 `PARALLAX_BRIGHTNESS_MULT[2]`: 1.05 -> 1.10 (+0.05)
 
 **Purpose**: push per-droplet front luminance above the hero threshold.
 
@@ -574,7 +574,7 @@ this bump, the front head bloom boost (§6.3) would feel disconnected
 from the droplet body — heads would pop but the streak beneath them
 wouldn't read as hero.
 
-### 6.2 `PARALLAX_SATURATION_MULT[2]`: 1.05 → 1.12 (+0.07)
+### 6.2 `PARALLAX_SATURATION_MULT[2]`: 1.05 -> 1.12 (+0.07)
 
 **Purpose**: widen the saturation differential between front and back.
 
@@ -586,7 +586,7 @@ front colors are pushed away from gray hard enough that neon hues
 than as bright. The differential vs back (0.50) widens, so the depth
 gradient is reinforced through color vividness, not just brightness.
 
-### 6.3 `PARALLAX_HEAD_BLOOM_MULT[2]`: 1.15 → 1.30 (+0.15)
+### 6.3 `PARALLAX_HEAD_BLOOM_MULT[2]`: 1.15 -> 1.30 (+0.15)
 
 **Purpose**: maximise the single-pixel hero pop that locks the eye.
 
@@ -601,7 +601,7 @@ increase. Combined with the self-bloom boost (§6.4), this produces
 a head glow that reads as "phosphor excitation" — the CRT-broadcast
 monitor signature that gives the layer its "Film Matrix" name.
 
-### 6.4 `PARALLAX_HEAD_SELFBLOOM_MULT[2]`: 1.15 → 1.20 (+0.05)
+### 6.4 `PARALLAX_HEAD_SELFBLOOM_MULT[2]`: 1.15 -> 1.20 (+0.05)
 
 **Purpose**: extend the head bloom glow into a soft halo.
 
@@ -614,7 +614,7 @@ bright pixels". This is what makes the front layer feel like it has
 *weight* — the halo creates the perceptual impression that each
 droplet is a small light source, not just a bright pixel.
 
-### 6.5 `PARALLAX_CONTRAST_REDUCTION[0]`: 0.45 → 0.55 (+0.10)
+### 6.5 `PARALLAX_CONTRAST_REDUCTION[0]`: 0.45 -> 0.55 (+0.10)
 
 **Purpose**: deepen the back-layer atmospheric haze.
 
@@ -631,7 +631,7 @@ share from 4.6% (Option A) down to 3.5% (Option F) — just above the
 would be perceptually absent and the depth gradient would collapse
 to two layers.
 
-### 6.6 `PHOSPHOR_LAYER_DECAY_MULT[2]`: 0.40 → 0.60 (+0.20, *shorter* trails)
+### 6.6 `PHOSPHOR_LAYER_DECAY_MULT[2]`: 0.40 -> 0.60 (+0.20, *shorter* trails)
 
 **Purpose**: keep hero heads sharp by shortening the trails that
 compete with them.
@@ -703,7 +703,7 @@ the front layer — it *tracks* individual droplets as they fall,
 because each head is bright enough to trigger the point-source
 detection circuit.
 
-The self-bloom boost (1.15 → 1.20) extends this effect by giving
+The self-bloom boost (1.15 -> 1.20) extends this effect by giving
 each head a soft halo. Without the halo, the heads would read as
 "hard bright pixels" — visually harsh, like LED dots. With the halo,
 they read as "small light sources" — visually soft, like phosphor
@@ -713,7 +713,7 @@ gives Option F its "Film Matrix" name.
 ### 7.3 Mechanism 3 — Trail shortening (the crispness lever)
 
 The most counterintuitive Option F move is *shortening* the front
-trails (decay 0.40 → 0.60, persistence 2.5× → 1.667×). The intuition
+trails (decay 0.40 -> 0.60, persistence 2.5× -> 1.667×). The intuition
 would be "longer trails = more cinematic" — but on a hero-bright
 front layer, longer trails create smearing. Each falling droplet's
 trail extends behind it for ~1 second under Option A, and that trail
@@ -729,7 +729,7 @@ fight in The Matrix (1999) and notice that the falling rain has
 crisp heads and brief trails, not long smearing streaks. That's the
 look Option F targets.
 
-The trail persistence ratio actually widens (2.5:1.7:1 → 3.3:1.7:1)
+The trail persistence ratio actually widens (2.5:1.7:1 -> 3.3:1.7:1)
 because mid and back trails are unchanged — so the front-vs-mid
 trail asymmetry *increases* even though front trails got shorter in
 absolute terms. The depth gradient is reinforced through trail
@@ -771,13 +771,13 @@ composing simultaneously**:
 - Saturation differential makes the locked droplets read as glowing.
 
 Remove any one mechanism and the composition breaks. Remove the
-asymmetric depth-widening (revert back contrast_reduction 0.55 →
+asymmetric depth-widening (revert back contrast_reduction 0.55 ->
 0.45) and the back layer becomes too present — depth collapses to
-two layers. Remove the head pop dominance (revert head_bloom 1.30 →
+two layers. Remove the head pop dominance (revert head_bloom 1.30 ->
 1.15) and the eye stops tracking individual droplets — the rain
 reads as a field again. Remove the trail shortening (revert decay
-0.60 → 0.40) and the heads smear into streaks — crispness is lost.
-Remove the saturation differential (revert saturation 1.12 → 1.05)
+0.60 -> 0.40) and the heads smear into streaks — crispness is lost.
+Remove the saturation differential (revert saturation 1.12 -> 1.05)
 and the front reads as "bright" rather than "glowing" — the neon
 signature disappears.
 

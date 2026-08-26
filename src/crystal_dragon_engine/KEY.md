@@ -25,7 +25,7 @@
 > (empty schedule idles 60s loops, single entry sleeps until boundary,
 > live reload wakes condvar immediately, saturated-channel retry loop
 > engages only when channel is full — pre-fix thread-termination
-> behavior absent). A/B: no crystal code touched → no measurable
+> behavior absent). A/B: no crystal code touched -> no measurable
 > delta vs `c1c7779` baseline (alloc_calls 563 exact-match, 0.0
 > allocs/frame; avg_fps within ±5% cross-session hardware variance;
 > peak_rss 4.33-4.42 MiB). Tests: crystal suite 82/82,
@@ -95,9 +95,9 @@
 > - `src/crystal_dragon_engine/ambient_scheduler/tests.rs` (4 new contract tests)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
-> - alloc_calls: 563 → 563 (Δ 0% — exact match; scheduler has zero per-frame surface)
+> - alloc_calls: 563 -> 563 (Δ 0% — exact match; scheduler has zero per-frame surface)
 > - stability signals: MATCH (jitter=low, stability=excellent, drift=stable)
-> - avg_fps: 90,819 → 86,520/86,615 (Δ -4.7%, cross-session hardware variance;
+> - avg_fps: 90,819 -> 86,520/86,615 (Δ -4.7%, cross-session hardware variance;
 >   run-to-run variance in the same session is ±0.1%)
 >
 > **Scheduler behavior**: empty schedule / single entry / live reload all

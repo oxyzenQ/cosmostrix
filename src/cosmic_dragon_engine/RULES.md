@@ -117,7 +117,7 @@ prevents future contributors from "consolidating" the wrong easings.
 **Files changed** (locked path — production code):
 - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
   `debug_assert!` invariant at rain_at entry; lines 213-218: stale
-  comment "smoothstep curve" → "exp decay approach curve" for
+  comment "smoothstep curve" -> "exp decay approach curve" for
   resume_blend scaling; lines 220-239: glyph entry ramp rewritten
   from smoothstep 3t^2-2t^3 over GLYPH_ENTRY_RAMP_DURATION_MS (700ms
   fixed window) to `1 - exp(-k*t)` with k=GLYPH_ENTRY_RAMP_DECAY_RATE
@@ -159,7 +159,7 @@ that the production code already implements, no contract change):
   pause/resume; glyph entry ramp now uses exp() instead of 3 mults
   (3 mults = ~1ns, exp = ~5-10ns), but only during the ~700ms
   post-scene-switch window. Zero surface at steady-state.
-- alloc_calls: 0 → 0 (Δ 0% — no heap allocations introduced)
+- alloc_calls: 0 -> 0 (Δ 0% — no heap allocations introduced)
 - peak_rss: unchanged (no new state, no new buffers)
 - stability signals: MATCH (frame_jitter=low,
   frame_time_stability=excellent, drift_interpretation=stable)
@@ -219,8 +219,8 @@ invariant"; the test only bumps a duration offset to match the new
 settle time, no contract change):
 - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87 in
   `pause_stops_rain_and_unpause_resumes`: comment "smoothstep easing
-  completes" → "exponential decay easing settles", duration
-  `Duration::from_secs(1)` → `Duration::from_secs(5)` to give
+  completes" -> "exponential decay easing settles", duration
+  `Duration::from_secs(1)` -> `Duration::from_secs(5)` to give
   head-room past the new ~3.3s settle window; the assertion is
   weaker than the comment, so it would still pass at 1s, but the
   comment was misleading and is now accurate)
@@ -232,7 +232,7 @@ settle time, no contract change):
   `PAUSE_EASE_SETTLE_FRAC` = 0.05, `RESUME_EASE_SETTLE_FRAC` = 0.95,
   - design-doc comment block explaining the migration rationale)
 - `README.md` (line 128: stale "exponential deceleration (~3s
-  coast-down)" → accurate "~2.5s coast-down to settle (k=1.2/s, snaps
+  coast-down)" -> accurate "~2.5s coast-down to settle (k=1.2/s, snaps
   to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps
   to full speed at 95%)")
 
@@ -242,7 +242,7 @@ settle time, no contract change):
   during the ~2.5s decel / ~3.3s resume windows; zero surface at
   full-speed steady-state. exp() already used in `cloud/phosphor.rs:307`
   and `chroma_dragon_engine/shaders/base/mod.rs:237`.
-- alloc_calls: 0 → 0 (Δ 0% — no heap allocations introduced)
+- alloc_calls: 0 -> 0 (Δ 0% — no heap allocations introduced)
 - peak_rss: unchanged (no new state, no new buffers)
 - stability signals: MATCH (frame_jitter=low,
   frame_time_stability=excellent, drift_interpretation=stable)
@@ -284,11 +284,11 @@ region. The oversized benchmark tiers also ran a latent hybrid state.
   reset_bench vs reset contrast)
 
 **A/B delta** (vs locked baseline `24fa1be`):
-- avg_fps: 90,819 → 86,520 / 86,615 (two runs; Δ -4.7% vs baseline —
+- avg_fps: 90,819 -> 86,520 / 86,615 (two runs; Δ -4.7% vs baseline —
   cross-session hardware variance, same-session run-to-run variance is
   ±0.1%; reset() runs on resize only and has zero per-frame surface)
-- peak_rss: 4.23 MiB → 4.42 / 4.33 MiB (Δ within ±5%)
-- alloc_calls: 563 → 563 (Δ 0% — exact match, 0.0 allocs/frame)
+- peak_rss: 4.23 MiB -> 4.42 / 4.33 MiB (Δ within ±5%)
+- alloc_calls: 563 -> 563 (Δ 0% — exact match, 0.0 allocs/frame)
 - stability signals: MATCH (frame_jitter=low, frame_time_stability=excellent,
   drift_interpretation=stable)
 
@@ -317,9 +317,9 @@ UNLOCK entry in the same commit.
 - <path>
 
 **A/B delta** (vs locked baseline `69af079`):
-- avg_fps: <before> → <after> (Δ <+/-%>)
-- peak_rss: <before> → <after> (Δ <+/-%>)
-- alloc_calls: <before> → <after> (Δ <+/-%>)
+- avg_fps: <before> -> <after> (Δ <+/-%>)
+- peak_rss: <before> -> <after> (Δ <+/-%>)
+- alloc_calls: <before> -> <after> (Δ <+/-%>)
 - stability signals: <MATCH or list any changes>
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>
@@ -341,9 +341,9 @@ generation bump was reading `cell_gen` before initialization.
 - src/cosmic_dragon_engine/frame.rs (added early-init guard at line 142)
 
 **A/B delta** (vs locked baseline `69af079`):
-- avg_fps: 85,555 → 85,612 (Δ +0.07%)
-- peak_rss: 4.32 MiB → 4.32 MiB (Δ 0%)
-- alloc_calls: 563 → 563 (Δ 0%)
+- avg_fps: 85,555 -> 85,612 (Δ +0.07%)
+- peak_rss: 4.32 MiB -> 4.32 MiB (Δ 0%)
+- alloc_calls: 563 -> 563 (Δ 0%)
 - stability signals: MATCH
 
 **Visual audit**: PASS — masterclass brightness profile preserved.

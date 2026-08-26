@@ -44,7 +44,7 @@ The audit confirmed the engine is already at peak. Specifically:
 
 - **Double-buffered generation-based dirty tracking**: O(1) `clear_dirty`
   via single u32 bump (replaces standard O(N) `Vec<bool>` memset).
-- **`SmallVec<[_; 256]>`** for dirty indices — pre-grown from 64 → 256
+- **`SmallVec<[_; 256]>`** for dirty indices — pre-grown from 64 -> 256
   to cover typical dirty counts (100-500 per frame on 200×60 terminal)
   without heap spill. Eliminates heap allocation for terminals ≤2048
   cells (90×24=2160 still fits inline).

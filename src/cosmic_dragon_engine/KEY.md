@@ -79,10 +79,10 @@
 >
 > ## Design Invariants (LTS Guaranteed)
 >
-> 1. Bottom corners (╰╯) ALWAYS use bright anchor → visual anchoring
-> 2. Top corners (╭╮) follow natural gradient → chroma dragon flow
+> 1. Bottom corners (╰╯) ALWAYS use bright anchor -> visual anchoring
+> 2. Top corners (╭╮) follow natural gradient -> chroma dragon flow
 > 3. Triangle wave ensures no sharp color gaps on left/right borders
-> 4. All t-values clamped to [0.0, 1.0] → safe interpolation
+> 4. All t-values clamped to [0.0, 1.0] -> safe interpolation
 >
 >
 > Signoff: **oxyzenQ** — 2026-08-23T00:45:00Z — BD-02 corner gradient LTS stabilization
@@ -135,7 +135,7 @@
 > **Files changed** (locked path — production code):
 > - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
 >   `debug_assert!` invariant at rain_at entry; lines 213-218:
->   stale comment "smoothstep curve" → "exp decay approach curve"
+>   stale comment "smoothstep curve" -> "exp decay approach curve"
 >   for resume_blend scaling; lines 220-239: glyph entry ramp
 >   rewritten from smoothstep 3t^2-2t^3 over GLYPH_ENTRY_RAMP_DURATION_MS
 >   (700ms fixed window) to `1 - exp(-k*t)` with k=GLYPH_ENTRY_RAMP_DECAY_RATE
@@ -209,7 +209,7 @@
 >
 > **Files changed** (test only, no production code):
 > - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87: comment +
->   duration 1s→5s in `pause_stops_rain_and_unpause_resumes` to match new
+>   duration 1s->5s in `pause_stops_rain_and_unpause_resumes` to match new
 >   ~3.3s settle window with comfortable head-room)
 >
 > **Files changed** (non-locked, supporting):
@@ -336,16 +336,16 @@
 > glitch/color coverage stopped at the interactive cap).
 >
 > **Files changed**:
-> - `src/cosmic_dragon_engine/cloud/spawn.rs` (reset → reset_with_bounds with
+> - `src/cosmic_dragon_engine/cloud/spawn.rs` (reset -> reset_with_bounds with
 >   clamped-value shadowing; new reset_bench mirroring Frame::new_bench)
 > - `src/bench/mod.rs` (3 call sites switched to reset_bench)
 > - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (3 dimension-consistency tests)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
-> - alloc_calls: 563 → 563 (Δ 0% — exact match; reset runs on resize only,
+> - alloc_calls: 563 -> 563 (Δ 0% — exact match; reset runs on resize only,
 >   zero per-frame surface)
 > - stability signals: MATCH
-> - avg_fps: 90,819 → 86,520/86,615 (Δ -4.7% cross-session hardware variance;
+> - avg_fps: 90,819 -> 86,520/86,615 (Δ -4.7% cross-session hardware variance;
 >   same-session run-to-run ±0.1%)
 > - Behavior for in-range interactive sizes: unchanged (cloud suite 258/258)
 >

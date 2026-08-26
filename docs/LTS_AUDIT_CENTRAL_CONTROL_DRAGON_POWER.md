@@ -33,10 +33,10 @@ OK **No changes needed.** Both `unsafe` blocks are properly guarded:
 #[cfg(target_os = "linux")]
 pub(crate) unsafe fn hint_reclaim_pages(ptr: *const u8, len: usize) {
     if len == 0 || ptr.is_null() {
-        return;  // ← null/zero-length guard
+        return;  // <- null/zero-length guard
     }
     let ret = libc::madvise(ptr as *mut libc::c_void, len, libc::MADV_DONTNEED);
-    let _ = ret;  // ← best-effort, ignores all errors (CC2-06)
+    let _ = ret;  // <- best-effort, ignores all errors (CC2-06)
 }
 
 // reclaim_state.rs:94 (non-Linux)
@@ -82,7 +82,7 @@ OK **No changes needed.** Grep for `Mutex`, `RwLock`, `AtomicU`,
 This is correct by design: `central_control_dragon_power` is
 **single-threaded** — it's called exclusively from the event loop
 (`interactive/event_loop.rs`), which runs on the main render thread.
-No cross-thread access → no need for synchronization primitives.
+No cross-thread access -> no need for synchronization primitives.
 
 If a future feature moves any of this code to a background thread
 (e.g., thermal sampling in a separate thread), synchronization MUST
@@ -102,8 +102,8 @@ the contract:
 >    downstream read of `effective_pressure()`.
 > 3. **Self-healer reads from `PowerThresholds`** — the struct is
 >    the sole consumer-facing API for the 6 self-healer thresholds.
-> 4. **Frame lifecycle is consistent** — `begin_frame →
->    effective_fps → effective_pressure → observe_frame_end` produces
+> 4. **Frame lifecycle is consistent** — `begin_frame ->
+>    effective_fps -> effective_pressure -> observe_frame_end` produces
 >    stable, monotonic behavior across a synthetic frame sequence.
 > 5. **Thermal sampler + normalizer contract** — the pure math is
 >    correct and the sampler degrades gracefully on missing sysfs.
@@ -184,7 +184,7 @@ OK **No changes needed.** `reclaim_state.rs`:
 
 OK **Stable across 3 consecutive runs:**
 
-- `cargo test "central_control_dragon_power::"` → 87/87 pass × 3 runs (0 flakes)
+- `cargo test "central_control_dragon_power::"` -> 87/87 pass × 3 runs (0 flakes)
 - Full suite: ~1500+ pass × 3 runs (0 flakes — fixed in Task 5)
 
 Test breakdown:

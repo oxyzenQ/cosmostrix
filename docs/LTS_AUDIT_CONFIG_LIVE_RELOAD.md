@@ -143,8 +143,8 @@ No `RefCell` (would be unsafe across threads).
 
 OK **Stable across 3 consecutive runs** (verified in Task 5):
 
-- `cargo test --quiet "config::"` → 199/199 pass (3 runs, 0 flakes)
-- `cargo test --quiet "live_config::"` → 30/30 pass (3 runs, 0 flakes)
+- `cargo test --quiet "config::"` -> 199/199 pass (3 runs, 0 flakes)
+- `cargo test --quiet "live_config::"` -> 30/30 pass (3 runs, 0 flakes)
 - Full suite: ~1500+ pass (3 runs, 0 flakes — flaky test fixed in Task 5)
 
 ## Conclusion
@@ -188,7 +188,7 @@ A follow-up research pass (2026-08-22) audited which config keys
 live-reload vs. require restart. The full matrix + masterclass
 solution options are documented in:
 
-→ [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md)
+-> [`LIVE_RELOAD_BEHAVIOR.md`](LIVE_RELOAD_BEHAVIOR.md)
 
 **Key findings**:
 - `crystal-dragon`, `power-dragon`, `async-mode` OK live-reload.

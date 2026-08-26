@@ -10,8 +10,8 @@
 | Component | File | LOC | Role |
 |-----------|------|----:|------|
 | Power thresholds + constants | `mod.rs` | 579 | All tunable thresholds |
-| Self-healer | `self_healer/mod.rs` | 293 | Decision logic (observe → action) |
-| Endurance health | `endurance_health.rs` | 280 | RSS + jitter + ctxt → score 0-100 |
+| Self-healer | `self_healer/mod.rs` | 293 | Decision logic (observe -> action) |
+| Endurance health | `endurance_health.rs` | 280 | RSS + jitter + ctxt -> score 0-100 |
 | Power manager | `power_manager/mod.rs` | 387 | FPS + idle + pressure tracking |
 | Phase predictor | `phase_predictor.rs` | 226 | PAP proactive idle signal |
 | Thermal sampler | `thermal_sampler.rs` | 261 | sysfs thermal zone reading |
@@ -22,7 +22,7 @@
 
 ## Audit Findings (No Code Changes Required)
 
-### 1. Decision Logic (observe → action) OK
+### 1. Decision Logic (observe -> action) OK
 
 The `SelfHealer::observe()` function implements a 2-tier evaluation:
 
@@ -46,9 +46,9 @@ The `EnduranceHealth::recompute()` function uses a weighted average:
 
 | Metric | Weight | Formula | Typical range |
 |--------|-------|---------|--------------|
-| RSS variance | 40% | `100 - var*0.1` | 0-1000 → 100-0 |
-| Frame jitter EMA | 35% | `100 - jitter*10` | 0.1-2.0ms → 99-80 |
-| Context switch rate | 25% | `100 - rate*0.5` | 40-80/s → 80-60 |
+| RSS variance | 40% | `100 - var*0.1` | 0-1000 -> 100-0 |
+| Frame jitter EMA | 35% | `100 - jitter*10` | 0.1-2.0ms -> 99-80 |
+| Context switch rate | 25% | `100 - rate*0.5` | 40-80/s -> 80-60 |
 
 **Assessment**: Already LTS-stable. The weighting (40/35/25) is
 empirically calibrated. All values are clamped [0, 100]. The

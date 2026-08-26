@@ -15,14 +15,14 @@
 
 | Source | Uses bold by default? | Citation |
 |--------|------------------------|----------|
-| The Matrix (1999) film | **NO** — regular weight katakana | Visual inspection of frame grabs; Simon Whiteley design intent ("ancient Japanese text" → regular gothic weight, not heavy weight) |
+| The Matrix (1999) film | **NO** — regular weight katakana | Visual inspection of frame grabs; Simon Whiteley design intent ("ancient Japanese text" -> regular gothic weight, not heavy weight) |
 | `cmatrix` (the canonical C implementation, 1999+) | **NO** — `-b` flag exists but is opt-in | `cmatrix -h` lists `-b, --bold` as an option; default render is regular weight |
 | `neo-matrix` (Python) | **NO** — no bold flag at all | Source: `neo_matrix/__init__.py` — only color attributes, no SGR `\033[1m` |
 | `cxxmatrix` (C++) | **NO** — bold is off by default | `cxxmatrix --help` — `--bold` is opt-in |
 | `unimatrix` (Python) | **NO** — no bold option | Source: `unimatrix/__init__.py` — no bold code path |
 | `tmatrix` (Rust) | **NO** — bold disabled | `tmatrix --help` — no bold flag |
 | `urxvt Matrix` perl plugin | **NO** — regular weight only | Source: `matrix` perl script — no bold SGR emission |
-| **cosmostrix** | **YES — `BoldMode::Random` is the default** (50% of body cells are bolded via `(line ^ val) % 2 == 1`) | `src/config.rs:586` `default_value_t = 1` → `BoldMode::Random` |
+| **cosmostrix** | **YES — `BoldMode::Random` is the default** (50% of body cells are bolded via `(line ^ val) % 2 == 1`) | `src/config.rs:586` `default_value_t = 1` -> `BoldMode::Random` |
 
 **Conclusion:** cosmostrix is the ONLY major Matrix rain implementation that
 defaults to bold. The film and every canonical competitor default to
@@ -146,8 +146,8 @@ is either opt-in (cmatrix, cxxmatrix) or unavailable (the other four).
 cosmostrix is the **only** major Matrix rain implementation that defaults
 to bold. Specifically:
 
-- `src/config.rs:586` sets `default_value_t = 1` → `BoldMode::Random`
-- `src/main.rs:595-598` maps `1 → BoldMode::Random`
+- `src/config.rs:586` sets `default_value_t = 1` -> `BoldMode::Random`
+- `src/main.rs:595-598` maps `1 -> BoldMode::Random`
 - `src/chroma_dragon_engine/shaders/base.rs:449-451` implements `BoldMode::Random`:
 
   ```rust
@@ -289,7 +289,7 @@ can be added in a future release without conflict.
   - No bold flag exists
 - cosmostrix source:
   - `src/config.rs:586` — `default_value_t = 1`
-  - `src/main.rs:595-598` — `1 → BoldMode::Random`
+  - `src/main.rs:595-598` — `1 -> BoldMode::Random`
   - `src/chroma_dragon_engine/shaders/base.rs:449-451` — Random bold implementation
   - `src/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` — "visually looked
     identical in past testing" comment

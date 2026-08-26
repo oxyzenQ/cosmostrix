@@ -33,7 +33,7 @@ Switch back any time: `./scripts/apply-visual-preset.sh cinema-noir`.
 
 ## 1. Why Round 2 — What Round 1 Did Not Optimize For
 
-Cinema Noir won battle 1 on **narrative** (emergence → life → dissolution)
+Cinema Noir won battle 1 on **narrative** (emergence -> life -> dissolution)
 against uniformly-bright challengers. It was tuned for the first-impression
 wow of a cinematic frame. It was never specifically tuned for **watching for
 hours**: sustained wide luminance swing (very dark frame vs bright hero
@@ -182,7 +182,7 @@ champion's exact calibration.
 ## 4. Battle Protocol (Owner)
 
 1. Run each preset for a real session — not 10 seconds. Recommended order:
-   `deep-focus` → `cinema-noir` (baseline refresh) → `celluloid` →
+   `deep-focus` -> `cinema-noir` (baseline refresh) -> `celluloid` ->
    `late-broadcast`. Long-usage feel shows up after ~30 minutes.
 2. Judge on: eye comfort over time, head pop satisfaction, entry/dissolve
    narrative, readability in your actual room lighting.

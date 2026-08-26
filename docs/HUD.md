@@ -11,7 +11,7 @@ number flicker without improving diagnostic value).
 v50.0.0-beta.6 HUD expansion: the HUD grew from 9 rows to 18 rows,
 adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
-that previously toggled the HUD position (left ↔ right corner) was
+that previously toggled the HUD position (left <-> right corner) was
 **completely removed** as unused maintenance cost; the HUD now always
 renders flush-left at column 0 (the previous default). There is no `h`
 binding — it is silently ignored (catch-all).
@@ -37,10 +37,10 @@ each line means without reading the full reference below.
 | 2   | `max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
 | 3   | `p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
 | 4   | `cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
-| 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth → possible leak.                       |
+| 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth -> possible leak.                       |
 | 6   | `ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
 | 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
-| 8   | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `↑`/`↓`. Confirms the actual sanitized value (matches `--speed`). |
+| 8   | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
 | 9   | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
 | 10  | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
 | 11  | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
@@ -79,7 +79,7 @@ rows are visible at once; this mockup annotates each:
 │ rss: 8.2MiB   ◄── 5.  process memory (leak detector)
 │ ehs: 87       ◄── 6.  endurance health score (0-100, 100=stable)
 │ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
-│ sped: 14.0    ◄── 8.  chars/sec speed (↑/↓ adjustable)
+│ sped: 14.0    ◄── 8.  chars/sec speed (Up/Down adjustable)
 │ dsty: 1.00    ◄── 9.  density multiplier ([/]) — `dsty` per owner mandate
 │ scn: cinematic ◄── 10. scene name (x cycle confirmation)
 │ chr: binary   ◄── 11. charset preset (s/S cycle confirmation)
@@ -90,7 +90,7 @@ rows are visible at once; this mockup annotates each:
 └─────────────────────────┘
 ```
 
-**Color gradient (top dim → bottom bright):** the HUD mirrors a falling
+**Color gradient (top dim -> bottom bright):** the HUD mirrors a falling
 rain droplet — the bottom row (`cid`) earns the brightest `head` stop
 (rain leading character), the top row (`fps`) is the dimmest `tail`
 (rain trailing fade). The `cid` line earns the head position because the
@@ -168,9 +168,9 @@ behavior, not a bug.
 
 **Format rules:**
 
-- `fps >= 10000` → humanized (e.g. `11.0k`, `1.2M`) to fit HUD width
-- `fps >= 100` → integer (e.g. `451`)
-- `fps < 100` → 1 decimal (e.g. `59.8`)
+- `fps >= 10000` -> humanized (e.g. `11.0k`, `1.2M`) to fit HUD width
+- `fps >= 100` -> integer (e.g. `451`)
+- `fps < 100` -> 1 decimal (e.g. `59.8`)
 
 ### 2. `tgt: <N>[ idle| paused]`
 
@@ -341,10 +341,10 @@ Without the `tgt:` line (pre-v30), the same display showed only
 
 HUD colors come from the active rain palette, hue-preserving brightened
 via HSV value scaling so the HUD follows the rain's actual color scheme
-(green rain → green HUD, amber rain → amber HUD) instead of washing
+(green rain -> green HUD, amber rain -> amber HUD) instead of washing
 out to grey.
 
-### Rain-aesthetic gradient (top dim → bottom bright)
+### Rain-aesthetic gradient (top dim -> bottom bright)
 
 The 16 HUD lines form a vertical brightness gradient that mirrors a
 falling rain droplet — the bottom lines (`cid`, `screensize`, `up`) are
@@ -431,7 +431,7 @@ RGB(0,200,0), preserving the green hue).
 
 ## Diagnostic Recipes
 
-Symptom → likely cause → what to check → action. Use this table when
+Symptom -> likely cause -> what to check -> action. Use this table when
 the HUD is showing something unexpected and you need a starting point.
 
 | Symptom                                            | Likely cause                                         | What to check                                             | Action                                                                                          |

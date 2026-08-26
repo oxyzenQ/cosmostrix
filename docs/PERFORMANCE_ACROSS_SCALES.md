@@ -24,10 +24,10 @@ table or [Analysis](#analysis) for the deep dive.
 
 | Proof                                                   | Constant             | Range verified         | Verdict                                                          |
 |---------------------------------------------------------|----------------------|------------------------|------------------------------------------------------------------|
-| **O(1) per-cell cost**                                  | `total_ns_per_cell`  | 20×20 → 400×200        | ~80 ns/cell (±20% band). Slight uptick at 400×200 = cache pressure. |
-| **Zero per-frame heap allocation in the rendering hot path** | `alloc_calls_per_frame` | 6×6 → 400×200 | 3.00 (constant baseline; allocator-internal, not cosmostrix code). |
-| **Linear memory scaling**                               | `peak_rss`           | 6×6 → 400×200          | 3.7 → 8.0 MiB (linear in cell count; 53% of 15 MiB budget at max). |
-| **Diff engine payoff: dirty ratio drops with screen size** | `dirty_ratio%`     | 6×6 → 400×200          | 5.4% → 1.8% (55× I/O reduction at 400×200 vs full redraw).         |
+| **O(1) per-cell cost**                                  | `total_ns_per_cell`  | 20×20 -> 400×200        | ~80 ns/cell (±20% band). Slight uptick at 400×200 = cache pressure. |
+| **Zero per-frame heap allocation in the rendering hot path** | `alloc_calls_per_frame` | 6×6 -> 400×200 | 3.00 (constant baseline; allocator-internal, not cosmostrix code). |
+| **Linear memory scaling**                               | `peak_rss`           | 6×6 -> 400×200          | 3.7 -> 8.0 MiB (linear in cell count; 53% of 15 MiB budget at max). |
+| **Diff engine payoff: dirty ratio drops with screen size** | `dirty_ratio%`     | 6×6 -> 400×200          | 5.4% -> 1.8% (55× I/O reduction at 400×200 vs full redraw).         |
 
 ### Units & Symbols Legend
 
@@ -85,14 +85,14 @@ table or [Analysis](#analysis) for the deep dive.
 
 ```
   Size       Cells    total_ns/cell
-  6x6           36        276.5    ← fixed costs dominate (see §2)
-  20x20        400         95.7    ← stabilizes
+  6x6           36        276.5    <- fixed costs dominate (see §2)
+  20x20        400         95.7    <- stabilizes
   40x20        800         90.3
   80x24       1920         81.9
-  120x40      4800         79.2    ← steady state
+  120x40      4800         79.2    <- steady state
   200x60     12000         78.5
   320x100    32000         79.0
-  400x200    80000         85.8    ← +8.5% over steady state (see §3)
+  400x200    80000         85.8    <- +8.5% over steady state (see §3)
 ```
 
 From 20×20 to 320×100, `total_ns_per_cell` stays in the **78–96 ns/cell**
@@ -128,7 +128,7 @@ anyway) in exchange for flat per-cell cost at large sizes (where it matters).
 
 This is the second key proof. After the optimization in this commit
 (hoisting `phosphor_last_fresh` SmallVec to a reused buffer), allocations
-per frame dropped from a screen-size-scaling **3.13 → 5.36** (small → large)
+per frame dropped from a screen-size-scaling **3.13 -> 5.36** (small -> large)
 to a perfectly flat **3.00 at all sizes**.
 
 The remaining 3.00 is a constant baseline that does not scale with screen
@@ -143,22 +143,22 @@ allocation after the fix.
 
 ```
   Size       allocs/frame
-  6x6           3.13       ← baseline
-  80x24         3.20       ← +0.07 (phosphor SmallVec starts spilling)
-  120x40        4.46       ← +1.33 (more fresh cells → more SmallVec growth)
-  200x60        5.25       ← +2.12
-  400x200       5.36       ← +2.23 (scales with screen area)
+  6x6           3.13       <- baseline
+  80x24         3.20       <- +0.07 (phosphor SmallVec starts spilling)
+  120x40        4.46       <- +1.33 (more fresh cells -> more SmallVec growth)
+  200x60        5.25       <- +2.12
+  400x200       5.36       <- +2.23 (scales with screen area)
 ```
 
 **After optimization:**
 
 ```
   Size       allocs/frame
-  6x6           3.00       ← constant
+  6x6           3.00       <- constant
   80x24         3.00
   120x40        3.00
   200x60        3.00
-  400x200       3.00       ← no scaling
+  400x200       3.00       <- no scaling
 ```
 
 The fix: `src/cosmic_dragon_engine/cloud/phosphor.rs` was allocating a fresh
@@ -179,7 +179,7 @@ eliminating the per-frame allocation entirely after the first spill.
   120x40       4.3 MiB
   200x60       4.7 MiB
   320x100      5.6 MiB
-  400x200      8.0 MiB   ← 53% of the 15 MiB budget
+  400x200      8.0 MiB   <- 53% of the 15 MiB budget
 ```
 
 RSS grows linearly with cell count (the back-buffer is `cells × sizeof(Cell)`),
@@ -192,11 +192,11 @@ phosphor buffers, color cache, and Rust runtime overhead. Well under budget.
 ```
   Size       dirty_ratio%
   6x6           5.4%
-  80x24         8.5%       ← peak (small screen, rain fills fast)
+  80x24         8.5%       <- peak (small screen, rain fills fast)
   120x40        6.4%
   200x60        4.9%
   320x100       3.3%
-  400x200       1.8%       ← only 1.8% of cells change per frame
+  400x200       1.8%       <- only 1.8% of cells change per frame
 ```
 
 This is the diff-based engine's core value proposition: as the screen gets
@@ -273,7 +273,7 @@ allocs/frame baseline (likely requires allocator-level investigation with
 
 ## Diagnostic Recipes
 
-Symptom → likely cause → what to check → action. Use this table when
+Symptom -> likely cause -> what to check -> action. Use this table when
 a scaling number looks unexpected and you need a starting point.
 
 | Symptom                                                  | Likely cause                                                | What to check                                                  | Action                                                                                          |
@@ -283,7 +283,7 @@ a scaling number looks unexpected and you need a starting point.
 | `allocs/frame` > 3.00 at any size                        | New per-frame heap allocation in hot path                   | `allocs/frame` column — should be 3.00 constant                | Bisect to find the offending commit. v30 baseline: 3.00 flat.                                   |
 | `allocs/frame` grows with screen size                    | SmallVec spill in `phosphor.rs` regressed (or new spill)    | `allocs/frame` column — should NOT grow with size              | Check `src/cosmic_dragon_engine/cloud/phosphor.rs` for fresh SmallVec allocations. Use `std::mem::take` + `clear()`. |
 | `peak_rss` > 15 MiB at 400×200                           | Memory regression (back-buffer, droplet pool, or leak)      | `peak_rss` column vs cell count                                | Back-buffer = `cells × sizeof(Cell)`. At 400×200 = 1.28 MiB. Total budget: 15 MiB.              |
-| `dirty_ratio%` stays high (>10%) at large sizes          | Diff engine not catching unchanged cells                    | `dirty_ratio%` column — should DROP with size (5.4% → 1.8%)    | Check `src/cosmic_dragon_engine/frame.rs` diff logic. v30: 1.8% at 400×200.                                          |
+| `dirty_ratio%` stays high (>10%) at large sizes          | Diff engine not catching unchanged cells                    | `dirty_ratio%` column — should DROP with size (5.4% -> 1.8%)    | Check `src/cosmic_dragon_engine/frame.rs` diff logic. v30: 1.8% at 400×200.                                          |
 | `dirty_ratio%` higher than v30 reference at same size    | Visual change increasing per-frame mutations                | Recent scene/palette/charset changes                           | Some scenes (cinematic) inherently have higher dirty ratio than others (monolith).              |
 | `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/cosmic_dragon_engine/terminal/`. v30: 51-58 ns/cell flat.                               |
 | `render_ns/cell` grows with size                         | New per-cell work in render path                            | `render_ns/cell` column — should stay ~27 ns/cell              | Bisect on `src/cosmic_dragon_engine/cloud/render.rs`, `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`.                  |

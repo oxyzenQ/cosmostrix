@@ -44,7 +44,7 @@ sha512sum --check cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
 
 ### AUR Package Verification
 
-The AUR package (`cosmostrix-bin`) is published automatically via `aur.yml`, triggered after a successful GitHub Release. PKGBUILD uses `sha512sums` verification to ensure the archive downloaded from GitHub Releases matches the expected hash; `prepare()` dynamically selects the correct platform asset and verifies its SHA-512 checksum before extracting. The AUR sync workflow is **deterministic** (same tag → identical `pkgver`, `_tag`, `.SRCINFO`), **idempotent** (re-running for an already-published tag is a no-op, detected via `git diff --quiet`), and **retry-safe** (transient SSH failures to `aur.archlinux.org` retried up to 3 times with 10-second backoff). AUR host key pinned to a known Ed25519 fingerprint, preventing MITM attacks during the SSH push.
+The AUR package (`cosmostrix-bin`) is published automatically via `aur.yml`, triggered after a successful GitHub Release. PKGBUILD uses `sha512sums` verification to ensure the archive downloaded from GitHub Releases matches the expected hash; `prepare()` dynamically selects the correct platform asset and verifies its SHA-512 checksum before extracting. The AUR sync workflow is **deterministic** (same tag -> identical `pkgver`, `_tag`, `.SRCINFO`), **idempotent** (re-running for an already-published tag is a no-op, detected via `git diff --quiet`), and **retry-safe** (transient SSH failures to `aur.archlinux.org` retried up to 3 times with 10-second backoff). AUR host key pinned to a known Ed25519 fingerprint, preventing MITM attacks during the SSH push.
 
 ### Binary Reproducibility Goals
 

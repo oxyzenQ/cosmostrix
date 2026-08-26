@@ -73,7 +73,7 @@ and bright heads, and the heavy lens darkening.
 Measured character (80×40 back layer): bottom-center 0.419,
 bottom-corner 0.362 — noir's dissolve, minus the squeeze.
 
-### Previous champion — Cinema Noir (2026-08-17 → 2026-08-23)
+### Previous champion — Cinema Noir (2026-08-17 -> 2026-08-23)
 
 Superseded by Deep Focus in battle round 2. Full parameter table retained
 in [`docs/research/PRESET_BATTLE_2.md`](research/PRESET_BATTLE_2.md);
@@ -100,8 +100,8 @@ against four challengers. The essential insight:
 > green terminal with good colors". Cinema Noir tells a story: rain
 > **appears from nothing** (dark top entry), **lives briefly in full neon**
 > (front layer is exempt from shadow and vignette), and **fades gently**
-> (soft bottom dissolve extended by the 400 ms afterglow). Emergence →
-> life → dissolution. That narrative is what "cinematic" means here.
+> (soft bottom dissolve extended by the 400 ms afterglow). Emergence ->
+> life -> dissolution. That narrative is what "cinematic" means here.
 
 Key mechanisms:
 

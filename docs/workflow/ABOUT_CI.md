@@ -17,8 +17,8 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 
 ## Release channels (tag conventions)
 
-- `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` → GitHub **prerelease**
-- `vX.Y.Z` → GitHub **normal release** (eligible for Latest)
+- `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease**
+- `vX.Y.Z` -> GitHub **normal release** (eligible for Latest)
 
 ## Build matrix (release.yml)
 

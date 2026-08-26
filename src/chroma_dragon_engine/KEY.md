@@ -25,7 +25,7 @@
 > `interpolate_palette_color` — BD-02 corner system intact, intro
 > cinematic colors chroma-owned via `intro_colors.rs`, post-FX
 > engine-internal, legacy `chroma::legacy` fallbacks). A/B: no
-> chroma code touched → no measurable delta vs `c1c7779`
+> chroma code touched -> no measurable delta vs `c1c7779`
 > baseline. Tests: chroma lock suite 19/19, full binary suite
 > 1660/0/2. cargo fmt + clippy + gate-keepers all clean.
 >
@@ -59,7 +59,7 @@
 > in render paths route through Chroma Dragon functions (blend_toward_rgb,
 > scale_rgb, apply_brightness_rgb_unclamped, interpolate_palette_color). No
 > hardcoded Color::White or Color::Rgb bypassing the engine. Border gradient
-> fixed: triangle wave eliminates sharp white→black gap on left border.
+> fixed: triangle wave eliminates sharp white->black gap on left border.
 > Chroma Dragon Routing Rule codified in RULES.md. 19/19 lock invariants
 > pass. A/B: avg_fps 90,819, 0 alloc/frame, stability=excellent. No regression.
 >

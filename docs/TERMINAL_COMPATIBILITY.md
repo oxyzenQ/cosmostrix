@@ -350,15 +350,15 @@ The fundamental bottleneck is architectural, not algorithmic. In a
 native terminal, ANSI bytes flow:
 
 ```
-cosmostrix → write(2) → kernel PTY → terminal's native ANSI parser → GPU
+cosmostrix -> write(2) -> kernel PTY -> terminal's native ANSI parser -> GPU
 ```
 
 In an Electron/xterm.js host, the same bytes flow:
 
 ```
-cosmostrix → write(2) → kernel PTY → node-pty (Node.js) → IPC to
-renderer process → xterm.js (V8/JavaScript) → Canvas/WebGL → Chromium
-compositor → GPU
+cosmostrix -> write(2) -> kernel PTY -> node-pty (Node.js) -> IPC to
+renderer process -> xterm.js (V8/JavaScript) -> Canvas/WebGL -> Chromium
+compositor -> GPU
 ```
 
 That extra hop through V8 introduces three cosmostrix-cannot-fix

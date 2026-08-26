@@ -179,10 +179,10 @@ passes. This is the "movie rain streak" signature.
 
 **Tuning recipes**:
 
-- **Longer cinematic trails**: lower `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 → 0.4 (front trails last ~1s instead of ~670ms). Warning: may smear on hero-bright fronts.
-- **Harder CRT look (shorter, sharper)**: raise `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 → 0.8. Heads stay very crisp.
-- **Brighter trail residual (glowing puddles)**: raise `PHOSPHOR_TAIL_RESIDUAL` from 160 → 200.
-- **Darker bottom (rain doesn't pool)**: raise `PHOSPHOR_BOTTOM_DECAY_MULT` from 3.0 → 5.0.
+- **Longer cinematic trails**: lower `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 -> 0.4 (front trails last ~1s instead of ~670ms). Warning: may smear on hero-bright fronts.
+- **Harder CRT look (shorter, sharper)**: raise `PHOSPHOR_LAYER_DECAY_MULT[2]` from 0.6 -> 0.8. Heads stay very crisp.
+- **Brighter trail residual (glowing puddles)**: raise `PHOSPHOR_TAIL_RESIDUAL` from 160 -> 200.
+- **Darker bottom (rain doesn't pool)**: raise `PHOSPHOR_BOTTOM_DECAY_MULT` from 3.0 -> 5.0.
 
 ### 3.3 Head bloom (lines 422–428 + 216–232)
 
@@ -201,9 +201,9 @@ rather than bright pixels.
 
 **Tuning recipes**:
 
-- **Bigger, softer halos**: raise `HEAD_BLOOM_SIGMA` from 1.2 → 1.8 and `HEAD_BLOOM_CELLS` from 2 → 3.
-- **Smaller, harder pinprick heads**: lower `HEAD_BLOOM_SIGMA` from 1.2 → 0.8 and `HEAD_BLOOM_CELLS` from 2 → 1.
-- **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.30 → 1.45 (pushes head pop ratio above 9× back).
+- **Bigger, softer halos**: raise `HEAD_BLOOM_SIGMA` from 1.2 -> 1.8 and `HEAD_BLOOM_CELLS` from 2 -> 3.
+- **Smaller, harder pinprick heads**: lower `HEAD_BLOOM_SIGMA` from 1.2 -> 0.8 and `HEAD_BLOOM_CELLS` from 2 -> 1.
+- **Stronger hero pop**: raise `PARALLAX_HEAD_BLOOM_MULT[2]` from 1.30 -> 1.45 (pushes head pop ratio above 9× back).
 
 ### 3.4 Atmospheric depth & edge effects (lines 433–510)
 
@@ -227,8 +227,8 @@ vignette, and rain shadow. Depth fog is disabled in v50 alpha.2
 **Tuning recipes**:
 
 - **No vignette (flat full-screen)**: set `VIGNETTE_INTENSITY = 0.0` and `CRT_VIGNETTE_EDGE_FACTOR = 1.0`.
-- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.20 → 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 → 8.
-- **Front layer also vignetted (uniform depth)**: change `VIGNETTE_LAYER_MULT` from `[1.0, 1.0, 0.0]` → `[1.0, 1.0, 1.0]`.
+- **Stronger CRT vibe**: raise `VIGNETTE_INTENSITY` from 0.20 -> 0.50 and `CRT_VIGNETTE_HEIGHT` from 3 -> 8.
+- **Front layer also vignetted (uniform depth)**: change `VIGNETTE_LAYER_MULT` from `[1.0, 1.0, 0.0]` -> `[1.0, 1.0, 1.0]`.
 
 ### 3.5 Velocity & motion (lines 405–422)
 
@@ -245,9 +245,9 @@ Controls droplet motion physics.
 
 **Tuning recipes**:
 
-- **Faster rain (heavy downpour)**: raise `DROPLET_GRAVITY` from 2.0 → 3.0 and `DROPLET_TERMINAL_VELOCITY_MULT` from 1.8 → 2.5.
-- **Slower, dreamier rain**: lower `DROPLET_GRAVITY` from 2.0 → 1.2 and `STARTUP_EASE_TAU` from 0.30 → 0.60.
-- **More wind drift**: raise `TURBULENCE_AMPLITUDE` from 0.08 → 0.20.
+- **Faster rain (heavy downpour)**: raise `DROPLET_GRAVITY` from 2.0 -> 3.0 and `DROPLET_TERMINAL_VELOCITY_MULT` from 1.8 -> 2.5.
+- **Slower, dreamier rain**: lower `DROPLET_GRAVITY` from 2.0 -> 1.2 and `STARTUP_EASE_TAU` from 0.30 -> 0.60.
+- **More wind drift**: raise `TURBULENCE_AMPLITUDE` from 0.08 -> 0.20.
 - **No drift (straight vertical)**: set `TURBULENCE_AMPLITUDE = 0.0`.
 
 ### 3.6 Cinematic smoothness & shimmer (lines 519–547)
@@ -265,8 +265,8 @@ than feeling mechanical.
 
 **Tuning recipes**:
 
-- **Calmer (less flicker)**: lower `FRACTIONAL_HEAD_BRIGHTNESS_AMP` from 0.15 → 0.05.
-- **More glitchy / digital**: raise `TRAIL_CYCLE_PROBABILITY` from 0.02 → 0.10.
+- **Calmer (less flicker)**: lower `FRACTIONAL_HEAD_BRIGHTNESS_AMP` from 0.15 -> 0.05.
+- **More glitchy / digital**: raise `TRAIL_CYCLE_PROBABILITY` from 0.02 -> 0.10.
 - **Synchronous rain (visible bands)**: set `SPAWN_PHASE_JITTER = false`.
 
 ### 3.7 Anomalies & emergent moments (lines 552–722)
@@ -303,7 +303,7 @@ emergent moments, gusts, atmosphere ticks.
 - **Disable anomalies entirely**: set `ANOMALY_CHANCE_PER_SEC = 0.0`.
 - **Disable emergent moments**: set `EMERGENT_MOMENT_CHANCE = 0.0`.
 - **Disable gusts**: set `GUST_IDLE_MIN_SECS = 1e18` (effectively never).
-- **More chaotic (frequent anomalies)**: raise `ANOMALY_CHANCE_PER_SEC` from 0.017 → 0.10 (about 6/min).
+- **More chaotic (frequent anomalies)**: raise `ANOMALY_CHANCE_PER_SEC` from 0.017 -> 0.10 (about 6/min).
 - **Calmer (no drift)**: set `COLOR_CLIMATE_DRIFT_RATE = 0.0`, `COLOR_SATURATION_DRIFT_RATE = 0.0`, `COLOR_HUE_DRIFT_RATE = 0.0`.
 
 ### 3.8 Spawn pacing & warm start (lines 340–362)
@@ -323,8 +323,8 @@ Controls spawn rate mechanics — how droplets enter the field.
 
 **Tuning recipes**:
 
-- **Faster field fill at startup**: raise `WARM_START_SEED_FRACTION` from 0.12 → 0.25.
-- **Slower, more cinematic fill**: lower `WARM_START_SEED_FRACTION` from 0.12 → 0.05.
+- **Faster field fill at startup**: raise `WARM_START_SEED_FRACTION` from 0.12 -> 0.25.
+- **Slower, more cinematic fill**: lower `WARM_START_SEED_FRACTION` from 0.12 -> 0.05.
 
 ### 3.9 Glitch system (lines 819–828)
 
@@ -338,7 +338,7 @@ Controls visual corruption — the "Matrix glitch" effect.
 
 **Tuning recipes**:
 
-- **More glitchy**: raise `GLITCH_THRESHOLD` from 0.35 → 0.20 (triggers more often) and adjust `GLITCH_BRIGHT_RATIO` from 0.25 → 0.40.
+- **More glitchy**: raise `GLITCH_THRESHOLD` from 0.35 -> 0.20 (triggers more often) and adjust `GLITCH_BRIGHT_RATIO` from 0.25 -> 0.40.
 - **Disable glitch**: set `GLITCH_THRESHOLD = 1.0` (never triggers).
 
 ### 3.10 Front layer tail (lines 479–485)
@@ -353,8 +353,8 @@ Controls the long-stream tail allocation for the front layer.
 
 **Tuning recipes**:
 
-- **More long streaks**: raise `FRONT_LAYER_TAIL_PCT` from 0.45 → 0.70.
-- **Shorter max streaks**: lower `FRONT_LAYER_TAIL_MAX_CELLS` from 12 → 6.
+- **More long streaks**: raise `FRONT_LAYER_TAIL_PCT` from 0.45 -> 0.70.
+- **Shorter max streaks**: lower `FRONT_LAYER_TAIL_MAX_CELLS` from 12 -> 6.
 
 ### 3.11 Performance gating (lines 765–858)
 
@@ -396,7 +396,7 @@ over the rain.
 **Tuning recipes**:
 
 - **Always-on mouse glow**: set `MOUSE_GLOW_INTENSITY = 0.5`.
-- **Bigger flash**: raise `MOUSE_FLASH_RING_WIDTH` from 8.0 → 14.0.
+- **Bigger flash**: raise `MOUSE_FLASH_RING_WIDTH` from 8.0 -> 14.0.
 - **Disable flash entirely**: set `MOUSE_FLASH_INTENSITY = 0.0`.
 
 ### 3.13 Monolith scene (lines 886–898)

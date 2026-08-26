@@ -209,9 +209,9 @@ plus a segfault in 1.97.0; that fix is preserved in 1.98.0.
 **`install.sh` auto-detects** the CPU microarchitecture level and builds
 the optimal profile (Linux only):
 
-- AVX-512 detected → `pro-linux-v4`
-- AVX2 detected → `pro-linux-v3`
-- Neither → `release` (v1 baseline, works everywhere)
+- AVX-512 detected -> `pro-linux-v4`
+- AVX2 detected -> `pro-linux-v3`
+- Neither -> `release` (v1 baseline, works everywhere)
 
 On FreeBSD, use `cargo pro-freebsd-amd64` directly.
 
@@ -277,9 +277,9 @@ rustc --version  # should be >= 1.98.0
 
 # Check CPU features
 grep -o 'avx2\|avx512f' /proc/cpuinfo | sort -u
-# avx2 → pro-linux-v3 build available
-# avx512f → pro-linux-v4 build available
-# (empty) → release build (v1 baseline)
+# avx2 -> pro-linux-v3 build available
+# avx512f -> pro-linux-v4 build available
+# (empty) -> release build (v1 baseline)
 
 # Run cosmostrix doctor for full system check
 cosmostrix --doctor

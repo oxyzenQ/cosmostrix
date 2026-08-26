@@ -46,7 +46,7 @@ The audit confirmed the engine is already at peak. Specifically:
   maps linearly to 1–99 point. One syscall per 60s — negligible cost.
 - **CLOCK fallback**: derives point from UTC hour+minute. No syscall
   beyond `SystemTime::now()` (already cached elsewhere). Monotonic
-  ramp: 00:00→point 1, 23:59→point 99.
+  ramp: 00:00->point 1, 23:59->point 99.
 - **Cold-start point = 17** (lower-middle of Cold group) — avoids
   immediate theme change on first poll tick.
 - **`shift_in_time()`** — called on resume from pause so the sensor
@@ -64,7 +64,7 @@ The audit confirmed the engine is already at peak. Specifically:
   4. Draw uniform `u ∈ [0, 1)`, binary-search CDF via `partition_point`.
   5. Skip current scheme if selected (retry once, then accept no-op).
 - **CDF binary search** uses `slice::partition_point` (O(log N), branch-
-  optimized in stdlib). 14 themes per group → 4 comparisons worst case.
+  optimized in stdlib). 14 themes per group -> 4 comparisons worst case.
 - **`Uniform::new(0.0f32, 1.0f32)`** — constructed per call but `expect`
   is branch-predicted away; cost is ~2ns. Could be cached but the call
   is cold-path (12% chance per 60s poll), so optimization has zero
@@ -145,7 +145,7 @@ is the appropriate action.
 | `crystal_dragon_engine/ambient/mod.rs`     |    520 | Time-of-day schedule types, config parsing, validation, startup apply |
 | `crystal_dragon_engine/ambient_scheduler/mod.rs` | 378 | Dynamic idle/wake scheduler thread (zero CPU between phase boundaries) |
 | `crystal_dragon_engine/sensor/mod.rs`     |    276 | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1–99 point.    |
-| `crystal_dragon_engine/palette_groups/mod.rs` | 129 | 44 themes → Cold(14) / Medium(14) / Hot(14) + Reserved(2)             |
+| `crystal_dragon_engine/palette_groups/mod.rs` | 129 | 44 themes -> Cold(14) / Medium(14) / Hot(14) + Reserved(2)             |
 | `crystal_dragon_engine/point_system/mod.rs` |  126 | calc-v1: probabilistic weighted theme selection (CDF + binary search) |
 | `crystal_dragon_engine/crystal_dragon_control/mod.rs` | 134 | Config struct + constants (polling, drift chance, EMA alpha, sensor mode, calc method) |
 | `crystal_dragon_engine/ambient_diag.rs`   |     88 | Atomic counters for diagnostics + exit summary                        |

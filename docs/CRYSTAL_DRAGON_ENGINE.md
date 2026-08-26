@@ -105,9 +105,9 @@ linearly:
 point = clamp(1, 99, round(cpu_ema_percent * 0.99))
 ```
 
-- `0 % CPU  → point 1  → Cold group`
-- `50 % CPU → point 50 → Medium group`
-- `100 % CPU → point 99 → Hot group`
+- `0 % CPU  -> point 1  -> Cold group`
+- `50 % CPU -> point 50 -> Medium group`
+- `100 % CPU -> point 99 -> Hot group`
 
 ### 4.2 CLOCK fallback
 
@@ -119,9 +119,9 @@ hour_frac = utc_hour + utc_minute / 60.0
 point = clamp(1, 99, round(1.0 + hour_frac * 4.083))
 ```
 
-- `00:00 UTC → point 1  → Cold group (cool night)`
-- `12:00 UTC → point ~50 → Medium group (balanced midday)`
-- `23:59 UTC → point 99 → Hot group (warm evening)`
+- `00:00 UTC -> point 1  -> Cold group (cool night)`
+- `12:00 UTC -> point ~50 -> Medium group (balanced midday)`
+- `23:59 UTC -> point 99 -> Hot group (warm evening)`
 
 The mapping is intentionally **monotonic** — time of day directly
 controls color temperature, producing a natural day/night cycle without
@@ -191,8 +191,8 @@ group:
        distance = |current_point - natural_point|
        weight = 1.0 / (1.0 + distance * 0.1)
 
-   - distance 0  → weight 1.00 (max)
-   - distance 33 → weight 0.23 (still selectable)
+   - distance 0  -> weight 1.00 (max)
+   - distance 33 -> weight 0.23 (still selectable)
 
 3. Normalize weights, build a cumulative distribution function (CDF).
 4. Draw a uniform random value u ∈ [0, 1).
@@ -246,9 +246,9 @@ keys in `config.toml`.
 
 ```toml
 # Top-level — NEVER inside any [section] block
-ambient.15-00 = signal            # 3 PM → signal scene
-ambient.22-30 = monolith          # 10:30 PM → monolith scene
-ambient.07-00 = afternoon         # 7 AM → custom scene (see below)
+ambient.15-00 = signal            # 3 PM -> signal scene
+ambient.22-30 = monolith          # 10:30 PM -> monolith scene
+ambient.07-00 = afternoon         # 7 AM -> custom scene (see below)
 ```
 
 The value is a **single scene name** — either a builtin (`cinematic`,
@@ -377,14 +377,14 @@ phase and are now invariants of the engine:
 
 ## 11. Interaction With Other Engines
 
-### 11.1 Crystal → Chroma (transition delegation)
+### 11.1 Crystal -> Chroma (transition delegation)
 
 When Crystal selects a new theme, `crystal_dragon_tick()` returns
 `Some(new_scheme)`. The caller invokes `Cloud::set_color_scheme(new_scheme)`,
 which triggers the Chroma Dragon's 300 ms OKLab wave transition. Crystal
 never paints pixels.
 
-### 11.2 Crystal ← User override (`c`/`C`/`x` keys)
+### 11.2 Crystal <- User override (`c`/`C`/`x` keys)
 
 When the user presses `c` (cycle color), `C` (reverse cycle), or `x`
 (cycle scene), the event loop:
@@ -399,7 +399,7 @@ the user goes idle for the `IDLE_AUTO_SNAPBACK_THRESHOLD_SECS` duration,
 at which point the ambient scheduler (if active) snaps back to the
 scheduled phase.
 
-### 11.3 Crystal ↔ Ambient scheduler (snapback coordination)
+### 11.3 Crystal <-> Ambient scheduler (snapback coordination)
 
 If the ambient scheduler has an active phase when the user goes idle:
 
@@ -448,7 +448,7 @@ src/crystal_dragon_engine/
 │   ├── mod.rs                      # Config struct + constants (134 LOC)
 │   └── tests.rs                    # Control tests (44 LOC)
 ├── palette_groups/
-│   ├── mod.rs                      # 44 themes → 3 groups (129 LOC)
+│   ├── mod.rs                      # 44 themes -> 3 groups (129 LOC)
 │   └── tests.rs                    # Group tests (116 LOC)
 ├── point_system/
 │   ├── mod.rs                      # calc-v1 weighted selection (126 LOC)

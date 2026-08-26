@@ -24,7 +24,7 @@
 | 3 | B (batch 1) — archive 11 closed docs | OK DONE | `dde68de` | -11 docs to archive/ |
 | 3 | B (batch 2) — delete stale benchmark artifacts | OK DONE | `f509d3c` | -7 regenerated files |
 | 3 | B (batch 3) — archive CHANGELOG pre-v13 | OK DONE | `4e5c55f` | -630 LOC live, +703 archive |
-| 3 | B (batch 4) — condense FUTURE_BACKLOG.md | OK DONE | `d2ed7a4` | -259 LOC (341→82) |
+| 3 | B (batch 4) — condense FUTURE_BACKLOG.md | OK DONE | `d2ed7a4` | -259 LOC (341->82) |
 | 4 | C (item 25) — drop crossterm derive-more | OK DONE | `4879585` | -53 LOC Cargo.lock, ~0.8s |
 | 4 | C (item 26) — drop clap suggestions | OK DONE | `5d40a9d` | -7 LOC Cargo.lock, ~0.6s |
 | 4 | C (item 27) — drop build-dep chrono | OK DONE | `efea502` | -3 LOC Cargo.toml, ~1.3s |
@@ -200,7 +200,7 @@ The owner was not satisfied. v2 confirms the owner's instinct was correct.
 **Risk**: Medium (visual output may shift). **Time**: ~3 hrs.
 
 - Item 29 (sinf LUT): should be visually identical (same math, just cached).
-- Item 30 (String::clone → u64): pure refactor, no visual change.
+- Item 30 (String::clone -> u64): pure refactor, no visual change.
 - Both need `cargo bench` before/after comparison.
 
 ### Phase 6 — Owner decisions (Tier E, items 31, 33, 34)

@@ -28,9 +28,9 @@ this directory has been audited for:
   (no hash lookup on hot path), `ShaderCtx` borrow view (no allocation
   per cell), `TRAIL_EXP_LUT` static lookup table (no per-frame compute).
 - **Strong foundation** — 44-theme registry (`catalog.rs`) is the single
-  source of truth for color scheme → palette mapping. OKLab gradient
+  source of truth for color scheme -> palette mapping. OKLab gradient
   interpolation (`gradient.rs`) is the sole production path (Phase 9-A
-  → 9-D, sRGB-linear fallback removed).
+  -> 9-D, sRGB-linear fallback removed).
 - **Stability** — ~1649 tests pass, 0 clippy warnings. Lock suite
   (`chroma_dragon_engine/tests/lock.rs`, 1060 LOC) asserts the engine's
   public contract on every commit.
@@ -57,7 +57,7 @@ The audit confirmed the engine is already at peak. Specifically:
   - Takes `&ShaderCtx<'_>` borrow view (zero alloc).
   - Direct array indexing via `palette_slices: [&[Color]; MAX_PALETTE_SLOTS]`
     (no hash lookup).
-  - `color_map: &[u8]` (per-cell column → palette stop index) — direct
+  - `color_map: &[u8]` (per-cell column -> palette stop index) — direct
     indexing, bounds-checked defensively.
   - Returns `(Option<Color>, bool)` tuple — no allocation, compiler
     inlines on `-C opt-level=3`.
@@ -71,8 +71,8 @@ The audit confirmed the engine is already at peak. Specifically:
 
 ### 3. OKLab gradient (`gradient/mod.rs`, 389 LOC)
 
-- **`gradient_from_stops_oklab()`** — Phase 9-A → 9-D sole production
-  path. sRGB → OKLab → polar chroma lerp → sRGB. No allocation in
+- **`gradient_from_stops_oklab()`** — Phase 9-A -> 9-D sole production
+  path. sRGB -> OKLab -> polar chroma lerp -> sRGB. No allocation in
   inner loop; LUT-free (math is direct f32 ops, vectorized by LLVM).
 - **`oklab_to_srgb()` / `srgb_to_oklab()`** — `#[inline]`, called per
   gradient stop (cold path, once per palette build).
@@ -110,7 +110,7 @@ The audit confirmed the engine is already at peak. Specifically:
 
 ### 7. Catalog registry (`catalog.rs`, 1134 LOC)
 
-- **`THEMES` static** — single source of truth for color scheme →
+- **`THEMES` static** — single source of truth for color scheme ->
   `ThemeDef` mapping. 44 builtin themes, each with `head/body/tail`
   RGB stops.
 - **`build_colors()`** — `#[must_use]`, called once per `--color`

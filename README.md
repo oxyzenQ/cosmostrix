@@ -69,7 +69,7 @@ The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color wo
 - **Perceptual L + chroma smoothing** (Phase 5 + Phase 8) — palette transitions sweep through a perceptual color space instead of hard-snapping
 - **Palette-relative brightness floor** (Phase 7-c) — brightness floor derived from each palette's own profile; dark themes keep their aesthetic instead of being washed out
 - **Body-tail continuity** (Phase 7-d) — enforces a 2.0× max adjacent brightness gap, killing the horizontal-line illusion at high rain speed
-- **Hue-preserving polar gradient** (Phase 9-A → 9-D) — sole production OKLab path (Cartesian removed); fully saturated midpoints on opposing-hue gradients
+- **Hue-preserving polar gradient** (Phase 9-A -> 9-D) — sole production OKLab path (Cartesian removed); fully saturated midpoints on opposing-hue gradients
 
 See `cosmostrix --docs` for the full technical breakdown, or run `cargo test lock -- --nocapture` to print the engine lock report.
 
@@ -142,12 +142,12 @@ The Dragon's roar is not loud — it is precise.
 - **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Priority over Crystal Dragon drift (`ambient_palette_locked` gate). Auto-snapback restores the ambient scene after 30s idle if the user manually overrides.
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
-- **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input → 0.5× FPS). Thermal pressure tracking feeds into the self-healer.
+- **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer.
 - **Terminal tier detection** — auto-detects xterm.js hosts (VSCode, web terminals) and caps FPS at 30 to prevent OOM; native terminals get up to 240 FPS.
 
 ### Live Reload & Config
 
-- **Live config reload** — `notify`-based hybrid filesystem watcher (inotify/kqueue/FSEvents) with bounded channel (cap 64). On save: strict validation → full `CloudConfig` rebuild → atomic apply. Works for all config sections (scenes, colors, charsets, profiles, ambient, crystal-dragon). Half-write safe with atomic editors (VSCode, vim, etc.).
+- **Live config reload** — `notify`-based hybrid filesystem watcher (inotify/kqueue/FSEvents) with bounded channel (cap 64). On save: strict validation -> full `CloudConfig` rebuild -> atomic apply. Works for all config sections (scenes, colors, charsets, profiles, ambient, crystal-dragon). Half-write safe with atomic editors (VSCode, vim, etc.).
 - Terminal diagnostics (`--doctor`) and config validation (`--testconf`).
 
 ### Interaction & UX
@@ -163,7 +163,7 @@ The Dragon's roar is not loud — it is precise.
 - Fixed virtual screen size (`--screen-size WxH`) for benchmarking.
 - Benchmark mode with JSON output, compound duration (`--bench-duration 1h30m`), `--bench-io` (wet terminal I/O), `--bench-all` (scaling ladder), `--compare-baseline`, and self-documenting reports.
 - **5-layer destructive terminal recovery** (`--reset-terminal`) — RIS reset, alternate-screen exit, cursor restore, terminal attributes reset, scrollback clear.
-- PGO nitro build via `./scripts/build.sh pgo` (3-stage: instrument → benchmark → optimize).
+- PGO nitro build via `./scripts/build.sh pgo` (3-stage: instrument -> benchmark -> optimize).
 - Cross-platform: Linux, macOS, Windows, Android (Termux), FreeBSD.
 
 ## Limitations
@@ -186,7 +186,7 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Screen size limits.** `--screen-size WxH` clamps to a per-mode ceiling:
   - **Interactive mode**: `4×4` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
   - **Benchmark mode**: `4×4` minimum, `7680×4320` (8K UHD) maximum. 4K UHD is the recommended stress test; 8K is the ceiling.
-  - `--bench-all` runs a fixed ladder of sizes (`6×6` → `20×20` → `40×20` → `80×24` → `120×40` → `200×60`).
+  - `--bench-all` runs a fixed ladder of sizes (`6×6` -> `20×20` -> `40×20` -> `80×24` -> `120×40` -> `200×60`).
 
   See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for platform-specific quirks and mitigations.
 
@@ -469,7 +469,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 **Milestone scene**:
 
-- `cosmic-dragon` — deep-space binary rain commemorating the temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% → 0.39%, FPS +280%). Use `cosmostrix --scene cosmic-dragon`.
+- `cosmic-dragon` — deep-space binary rain commemorating the temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% -> 0.39%, FPS +280%). Use `cosmostrix --scene cosmic-dragon`.
 
 **Honor scenes**:
 
@@ -482,7 +482,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle through all 18 built-in scenes (cinematic → monolith → matrix → classic → … → curiosity, then back to cinematic).
+Press `x` while running to cycle through all 18 built-in scenes (cinematic -> monolith -> matrix -> classic -> … -> curiosity, then back to cinematic).
 
 ## Configuration
 
@@ -518,7 +518,7 @@ glitch-level = "subtle"
 intro = "logo"
 ```
 
-Precedence: defaults → config file → scene/scene-custom layers → explicit CLI flags.
+Precedence: defaults -> config file -> scene/scene-custom layers -> explicit CLI flags.
 
 ### Custom Character Sets
 
@@ -566,7 +566,7 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
 ```
 
 The `--benchmark` report includes FPS, frame-time percentiles
-(avg → p95 → p99 → p99.9 → max), MEMORY (RSS), CPU usage %, sub-component
+(avg -> p95 -> p99 -> p99.9 -> max), MEMORY (RSS), CPU usage %, sub-component
 timing (sim/render/io), and a DRIFT section for long-run analysis. The
 SYSTEM section records the CPU model, rustc version, LTO/PGO status, and
 git SHA so reports are self-documenting for cross-machine comparison. A

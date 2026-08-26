@@ -17,43 +17,43 @@ Source code = truth. Each bound was stress-tested by generating a config that ex
 
 **Test:** Generated 260 ambient entries (00-00 through 04-19), exceeding the 256 cap.
 **Expected:** testconf PASS (truncation is silent — `entries.truncate(256)` in `ambient/mod.rs:359`).
-**Result:** ✓ PASS — testconf passed, runtime truncates silently.
+**Result:** OK PASS — testconf passed, runtime truncates silently.
 
 ### 2. colors-custom blocks cap (COLORS_CUSTOM_MAX_BLOCKS = 100)
 
 **Test:** Generated 105 `[colors-custom.paletteN]` blocks, exceeding the 100 cap.
 **Expected:** testconf PASS (block cap is silent skip — extra blocks ignored).
-**Result:** ✓ PASS — testconf passed, extra blocks silently skipped.
+**Result:** OK PASS — testconf passed, extra blocks silently skipped.
 
 ### 3. charset-custom blocks cap (CHARSET_CUSTOM_MAX_BLOCKS = 100)
 
 **Test:** Generated 105 `[charset-custom.charsetN]` blocks, exceeding the 100 cap.
 **Expected:** testconf PASS (silent skip).
-**Result:** ✓ PASS.
+**Result:** OK PASS.
 
 ### 4. scene-custom blocks cap (SCENE_CUSTOM_MAX_BLOCKS = 100)
 
 **Test:** Generated 105 `[scene-custom.sceneN]` blocks, exceeding the 100 cap.
 **Expected:** testconf PASS (silent skip).
-**Result:** ✓ PASS.
+**Result:** OK PASS.
 
 ### 5. colors rain stops cap (COLORS_CUSTOM_MAX_RAIN_STOPS = 64)
 
 **Test:** Generated 70 rain stops (over the 64 cap).
 **Expected:** testconf PASS + runtime warning "rain stops capped at 64".
-**Result:** ✓ PASS — testconf passed, warning emitted at runtime.
+**Result:** OK PASS — testconf passed, warning emitted at runtime.
 
 ### 6. charset chars cap (CHARSET_CUSTOM_MAX_LEN = 256)
 
 **Test:** Generated 260 chars (over the 256 cap).
 **Expected:** testconf FAIL (hard error — charset length is strict).
-**Result:** ✓ PASS — testconf correctly rejected the config.
+**Result:** OK PASS — testconf correctly rejected the config.
 
 ### 7. Name length cap (MAX_NAME_LEN = 64) — all 3 systems
 
 **Test:** Generated names of 70 chars (over the 64 cap) for colors-custom, charset-custom, and scene-custom.
 **Expected:** testconf PASS (oversized names silently skipped).
-**Result:** ✓ PASS for all 3 systems.
+**Result:** OK PASS for all 3 systems.
 
 ### 8. Unknown field rejection — all 3 systems
 
@@ -63,19 +63,19 @@ Source code = truth. Each bound was stress-tested by generating a config that ex
 - `intro = cosmic` inside `[scene-custom.hacker-mode]`
 
 **Expected:** testconf FAIL (unknown key error — no auto-promote inside custom blocks).
-**Result:** ✓ PASS for all 3 — testconf correctly rejected with "unknown key" error.
+**Result:** OK PASS for all 3 — testconf correctly rejected with "unknown key" error.
 
 ### 9. density-map out-of-range warning
 
 **Test:** `density-map = "0.5,1.5,-0.3,2.0"` (values outside [0.0, 1.0]).
 **Expected:** testconf PASS + warning about runtime clamping.
-**Result:** ✓ PASS — testconf passed, warning emitted.
+**Result:** OK PASS — testconf passed, warning emitted.
 
 ### 10. Valid config control
 
 **Test:** Normal valid config with 1 colors-custom, 1 charset-custom, 1 scene-custom block.
 **Expected:** testconf PASS with no warnings.
-**Result:** ✓ PASS — clean pass, no warnings.
+**Result:** OK PASS — clean pass, no warnings.
 
 ## Hidden Bug Discovery During Stress Test
 
@@ -109,11 +109,11 @@ All bounds constants are defined in their respective modules and enforced at col
 
 All 3 custom block systems are now **aligned**:
 
-- **Max blocks:** 100 (all 3) ✓
-- **Max name length:** 64 chars (all 3) ✓
-- **Unknown field rejection:** strict, no auto-promote (all 3) ✓
-- **Silent skip semantics:** block cap + name cap are silent (all 3) ✓
-- **Content cap warning:** rain stops + charset chars emit runtime warning ✓
+- **Max blocks:** 100 (all 3) OK
+- **Max name length:** 64 chars (all 3) OK
+- **Unknown field rejection:** strict, no auto-promote (all 3) OK
+- **Silent skip semantics:** block cap + name cap are silent (all 3) OK
+- **Content cap warning:** rain stops + charset chars emit runtime warning OK
 
 ## Final Verdict
 

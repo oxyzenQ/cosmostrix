@@ -20,7 +20,7 @@ support and Windows aarch64/arm64?
 ### 1.1 Verified evidence
 
 - `rustup target add aarch64-pc-windows-msvc` + `cargo check --target
-  aarch64-pc-windows-msvc` → **clean compile, zero errors** on 2026-08-23
+  aarch64-pc-windows-msvc` -> **clean compile, zero errors** on 2026-08-23
   at commit `31e7401`. The only warnings are the 5 pre-existing
   cfg-related ones also present on x86_64.
 - Target tier: **Tier 2 with host tools** (Rust supports building and
@@ -78,7 +78,7 @@ is the highest-value / lowest-risk expansion available.
 
 ### 2.1 Verified evidence
 
-- `cargo check --target aarch64-apple-ios` → **clean compile, zero
+- `cargo check --target aarch64-apple-ios` -> **clean compile, zero
   errors** (2026-08-23, commit `31e7401`). Notably `notify` builds with
   its **kqueue** backend — the Cargo.toml target table has anticipated
   iOS all along (`cfg(any(... target_os = "ios"))` with the comment

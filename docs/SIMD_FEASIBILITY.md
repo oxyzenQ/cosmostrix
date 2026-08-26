@@ -168,7 +168,7 @@ and BitVec/SmallVec side effects. **Logic-bound.** No arithmetic to vectorize.
 
 `color_to_rgb()` (lines 139–206): 7-way `match` on `Color`. Called 5–8×/cell.
 `apply_brightness()` (lines 233–244): 3 f32 multiplies gated by enum dispatch
-and u8↔f32 conversion. The `u8→f32→round→clamp→u8` chain defeats efficient
+and u8<->f32 conversion. The `u8->f32->round->clamp->u8` chain defeats efficient
 vectorization. AVX2 lacks a single-instruction round-to-nearest-u8 path.
 
 ### 5.3 `cloud/phosphor.rs::phosphor_decay_pass()` — Best SIMD Candidate
@@ -240,8 +240,8 @@ SIMD would save 50–200μs/frame. No real terminal emulator supports this.
 
 ```rust
 struct PhosphorRow {
-    energy: [u8; MAX_COLS],  // contiguous → SIMD scan
-    fresh:  [bool; MAX_COLS], // bitmask → SIMD mask
+    energy: [u8; MAX_COLS],  // contiguous -> SIMD scan
+    fresh:  [bool; MAX_COLS], // bitmask -> SIMD mask
 }
 ```
 

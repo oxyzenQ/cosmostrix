@@ -9,7 +9,7 @@ owner directive) · **Method**: **pattern-engine sweeps, not manual reading**
 (`docs_audit.py`, methodology in §1) that extracts and verifies references
 mechanically. Source code is truth; docs are verified against it.
 
-**TL;DR**: 70 broken file references found → **every living doc fixed
+**TL;DR**: 70 broken file references found -> **every living doc fixed
 (23 corrections applied)**; remaining references are intentional historical
 records now labeled with snapshot banners. **Zero file-level duplicates
 exist** (verified two ways). Stale counts (tests/themes/invariants) corrected
@@ -50,14 +50,14 @@ runs five passes over the tracked non-archive `.md` corpus:
 
 | File | Defect | Fix |
 |------|--------|-----|
-| `benchmark/README.md` | link to moved `docs/ATMOSPHERE_ENGINE.md` | → `docs/archive/specs/ATMOSPHERE_ENGINE.md` |
-| `docs/AMBIENT_SCHEDULER.md` | `src/config/live_config.rs` (module became a dir) | → `live_config/mod.rs` |
-| `docs/HUD.md` | `src/interactive/hud.rs` | → `hud/mod.rs` |
-| `docs/README.md`, `docs/RULES.md` | `src/chroma_dragon_engine/post/climate.rs` | → `climate/mod.rs` |
-| `docs/RENDER_ENGINE.md` | referenced deleted `scripts/bench-compare.sh` | → `benchmark/benchmark.sh` |
-| `docs/PERFORMANCE_ACROSS_SCALES.md` | pointed at long-gone `benchmark/scaling_results.{json,md}` | → `benchmark/bench-labs/` per-sweep outputs |
+| `benchmark/README.md` | link to moved `docs/ATMOSPHERE_ENGINE.md` | -> `docs/archive/specs/ATMOSPHERE_ENGINE.md` |
+| `docs/AMBIENT_SCHEDULER.md` | `src/config/live_config.rs` (module became a dir) | -> `live_config/mod.rs` |
+| `docs/HUD.md` | `src/interactive/hud.rs` | -> `hud/mod.rs` |
+| `docs/README.md`, `docs/RULES.md` | `src/chroma_dragon_engine/post/climate.rs` | -> `climate/mod.rs` |
+| `docs/RENDER_ENGINE.md` | referenced deleted `scripts/bench-compare.sh` | -> `benchmark/benchmark.sh` |
+| `docs/PERFORMANCE_ACROSS_SCALES.md` | pointed at long-gone `benchmark/scaling_results.{json,md}` | -> `benchmark/bench-labs/` per-sweep outputs |
 | `docs/ENDURANCE.md` | built its workflow on two scripts removed in `936c7ba` | historical note added; points to `--benchmark` + `benchmark.sh sweep` |
-| `docs/research/VISUAL_MODE_AUDIT.md` | misspelled script name `visual_mode_audit.py` | → `visual-mode-audit.py` (the real file) |
+| `docs/research/VISUAL_MODE_AUDIT.md` | misspelled script name `visual_mode_audit.py` | -> `visual-mode-audit.py` (the real file) |
 
 **Intentional, now labeled (historical records):** 61 of the 70 references
 live in dated research snapshots (`docs/research/FLAGS_AUDIT…`,
@@ -132,7 +132,7 @@ against source:
 - Engine hits in `src/chroma_dragon_engine/RULES.md` ("43 themes",
   "18 invariants") were manually triaged: all occurrences are quotes
   INSIDE the historical UNLOCK log entry `809a897`, where they
-  describe the 43→44 / 18→19 fix itself — historical record, not
+  describe the 43->44 / 18->19 fix itself — historical record, not
   living claims.
 
 Result: zero living-doc defects in the root docs. The audit engine

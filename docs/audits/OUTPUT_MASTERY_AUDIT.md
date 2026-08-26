@@ -44,7 +44,7 @@ Owner's log: `avg: 0.332`, `classification: high` next to
 different things: pressure derives from the FULL frame period
 (work + sleep + event polling) vs the target period; utilization derives
 from work time only. With target 144 FPS: period 9.28ms vs budget 6.94ms
-→ pressure 0.34; work 0.489ms → utilization 7%. The gap (scheduler
+-> pressure 0.34; work 0.489ms -> utilization 7%. The gap (scheduler
 granularity + poll waits) was invisible in the output.
 
 **Fix**: two new leading fields — `frame_period_target_ms` and
@@ -56,7 +56,7 @@ state which quantity each metric derives from and what
 ### F3 (LOW, fixed): undocumented raw fields in PERFORMANCE
 
 `dirty_all_frames` and `dirty_threshold_cells` had no meaning lines.
-Meaning fields added (full-redraw frames; the differential→full-redraw
+Meaning fields added (full-redraw frames; the differential->full-redraw
 crossover = grid_cells / 8).
 
 ### F4 (LOW, fixed): readability percentages
@@ -85,9 +85,9 @@ the work overshoot — the text described the wrong input. Corrected to
 - **peak_fps family**: the FreeBSD defenses (p1 trim + 1µs physics floor)
   verified present in `src/bench/mod.rs` after the module move;
   `peak_fps_meaning` documents the semantics.
-- **avg_frame_time ↔ avg_fps consistency**: LTS fix (bench/mod.rs:655)
+- **avg_frame_time <-> avg_fps consistency**: LTS fix (bench/mod.rs:655)
   derives both from the same wall-clock interval — verified intact.
-- **humanize()**: bounds checked at every tier, including the 999,999 → 1M
+- **humanize()**: bounds checked at every tier, including the 999,999 -> 1M
   roll edge; used only where precision is not the point (counts), never
   for timing or ratios.
 - **ansi_bytes_per_second**: correctly labeled as an estimate with the

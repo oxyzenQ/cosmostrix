@@ -30,7 +30,7 @@ The default benchmark runs **dry** (no I/O) — it measures pure engine throughp
 | `--bench-duration N` | Override duration (1s minimum, no maximum). Accepts `30s`, `5m`, `1h30m`. | Endurance testing, drift/leak detection |
 | `--bench-io` | Wet I/O — writes ANSI to `/dev/null`. Exercises kernel syscall path. | Measure real write bandwidth + latency |
 | `--bench-scene NAME` | Select render path (`lean` or `production-draw`). Requires `--bench-io`. | Measure specific render path |
-| `--bench-all` | Scaling sweep across 6×6 → 200×60. Prints SCALING SUMMARY table. | See how FPS scales with screen size |
+| `--bench-all` | Scaling sweep across 6×6 -> 200×60. Prints SCALING SUMMARY table. | See how FPS scales with screen size |
 | `--screen-size WxH` | Fixed virtual screen size. Min 4×4, max 7680×4320 in bench mode. | Benchmark at exact dimensions |
 | `--save-baseline PATH` | Save JSON output to whitelist-enforced path. | Lock in regression baseline |
 | `--compare-baseline PATH` | Compare current run against saved baseline. Flags >5% FPS regressions. | CI regression detection |
@@ -77,7 +77,7 @@ Wet (`--bench-io`) = writes ANSI to `/dev/null`; dry = no I/O (pure engine throu
 
 **Wet I/O vs Dry**: dry benchmarks measure pure compute throughput. Wet benchmarks (`--bench-io`) additionally exercise the kernel syscall path by writing ANSI bytes to `/dev/null`, surfacing `write_bandwidth` (MiB/s), `avg_write_latency` (µs), `backpressure_events` (write stalls — non-zero = terminal can't keep up), `effective_write_fps`, `total_bytes_written`.
 
-**Scaling (`--bench-all`)**: runs the benchmark across a sweep of screen sizes (6×6 → 200×60) and prints a SCALING SUMMARY table showing how FPS, dirty-cell ratio, and throughput scale with cell count. Use this to verify the diff engine's O(dirty_cells) claim holds at scale — dirty-cell ratio should drop as screen size grows (most cells unchanged per frame).
+**Scaling (`--bench-all`)**: runs the benchmark across a sweep of screen sizes (6×6 -> 200×60) and prints a SCALING SUMMARY table showing how FPS, dirty-cell ratio, and throughput scale with cell count. Use this to verify the diff engine's O(dirty_cells) claim holds at scale — dirty-cell ratio should drop as screen size grows (most cells unchanged per frame).
 
 **Baseline Save & Compare**: `--save-baseline PATH` writes the JSON output to a whitelist-enforced path (`~/.config/cosmostrix/` or `/etc/cosmostrix/`). `--compare-baseline PATH` compares the current run against the saved baseline and flags any metric that regressed by more than 5%. Use in CI to catch performance regressions before they ship.
 

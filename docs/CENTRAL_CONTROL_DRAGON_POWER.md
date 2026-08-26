@@ -41,7 +41,7 @@ This doc is the complete map of that directory:
 - The thermal guard input API (feature #13) — what is ready, what
   is pending
 - How to tune thresholds without surprising the adaptive layer
-- The migration history (power audit consolidation → directory module → PowerManager)
+- The migration history (power audit consolidation -> directory module -> PowerManager)
 
 ---
 
@@ -109,7 +109,7 @@ competed for the same resource without a coordinator. `PowerManager`
 resolves zones 1, 3, and 4. Zones 2 and 5 are visual concerns and
 remain coordinated by their existing mechanisms.
 
-### Zone 1 — FPS / frame_period (4 writers → 1 owner)
+### Zone 1 — FPS / frame_period (4 writers -> 1 owner)
 
 **Previously:** four independent writers competed for the frame
 period: dynamic-default-fps (startup), xterm.js cap (Tier 1),
@@ -121,9 +121,9 @@ scene fps=30). Each writer updated its own `Duration` local in
 owner. The 4-writer cascade is collapsed into one method that
 resolves in this order:
 
-1. Paused → `1000 / PAUSE_PERIOD_MS` (4 FPS at 250 ms)
-2. Idle → `base_target_fps * IDLE_FPS_FACTOR` (30 FPS at 60 base × 0.5)
-3. Active → `base_target_fps`
+1. Paused -> `1000 / PAUSE_PERIOD_MS` (4 FPS at 250 ms)
+2. Idle -> `base_target_fps * IDLE_FPS_FACTOR` (30 FPS at 60 base × 0.5)
+3. Active -> `base_target_fps`
 
 The upstream precedence chain (CLI > config > `dynamic_default` >
 xterm.js cap) is **not** re-resolved by `PowerManager`. That chain
@@ -142,7 +142,7 @@ invalidate their caches when they observe a generation bump. This is
 a visual concern (which scene is showing), not a power concern (how
 hard the renderer is working), so it stays outside `PowerManager`.
 
-### Zone 3 — Spawn rate / density (4 multipliers → 1 input)
+### Zone 3 — Spawn rate / density (4 multipliers -> 1 input)
 
 **Previously:** four layered multipliers in `cloud/rain.rs`
 competed for spawn rate: `perf_pressure` clamp, entropy, profile, and
@@ -214,11 +214,11 @@ The event loop calls the methods in this order every frame:
 
 ```text
 ┌─────────────────────────────────────────────────────────────┐
-│ 1. begin_frame(now)        → returns is_idle for this frame │
-│ 2. effective_fps(paused)   → frame_period = 1.0 / fps       │
-│ 3. effective_pressure()    → feed cloud + self-healer       │
+│ 1. begin_frame(now)        -> returns is_idle for this frame │
+│ 2. effective_fps(paused)   -> frame_period = 1.0 / fps       │
+│ 3. effective_pressure()    -> feed cloud + self-healer       │
 │ 4. ── frame work happens ──                                │
-│ 5. observe_frame_end(...)  → updates perf_pressure          │
+│ 5. observe_frame_end(...)  -> updates perf_pressure          │
 └─────────────────────────────────────────────────────────────┘
 ```
 
@@ -252,20 +252,20 @@ call. `effective_pressure()` returns the value updated by the last
 ### 6.1 `phase_predictor.rs` — P1 Phase-Aware Adaptive Pacing
 
 **What it does.** Learns the daily activity cycle from observed
-active↔idle transitions and proactively predicts idle *before* the
+active<->idle transitions and proactively predicts idle *before* the
 reactive 30-second threshold fires. After ≥2 transitions the
 predictor becomes a proactive idle signal.
 
 **How it works.** Maintains two exponential moving averages (EMAs):
 `active_start_ema` and `active_end_ema`, both in seconds since local
 midnight. The learning rate is α=0.3. After enough cycles the EMAs
-converge to the typical active window (e.g., 09:00 → 17:00). On each
+converge to the typical active window (e.g., 09:00 -> 17:00). On each
 `begin_frame()`, `predicts_active(secs_since_midnight)` returns
 `Some(true)` if the current local time falls inside the EMA window,
 `Some(false)` if outside, or `None` if insufficient data.
 
 **Midnight wrap-around.** If `active_start_ema > active_end_ema`
-the active window crosses midnight (e.g., 22:00 → 06:00 for a night
+the active window crosses midnight (e.g., 22:00 -> 06:00 for a night
 shift). The predictor handles this correctly by OR'ing the two
 intervals.
 
@@ -294,9 +294,9 @@ long time.
 stretches the idle redraw resync interval based on sustained idle
 duration:
 
-- < 1 hour idle → 20 seconds (standard)
-- 1–4 hours idle → 60 seconds (3× reduction)
-- > 4 hours idle → 120 seconds (6× reduction)
+- < 1 hour idle -> 20 seconds (standard)
+- 1–4 hours idle -> 60 seconds (3× reduction)
+- > 4 hours idle -> 120 seconds (6× reduction)
 
 This reduces forced redraw CPU spikes during long idle periods. On a
 24-hour run with 13 hours of idle, this cuts ~46,800 forced redraws
@@ -343,9 +343,9 @@ indicator of a stuck or leaking long-endurance process.
 
 **Classification bands.**
 
-- `>= 80` → `"healthy"` — process is stable, no action needed.
-- `60–80` → `"degraded"` — mild instability, monitor.
-- `< 60` → `"investigate"` — significant instability; the P2
+- `>= 80` -> `"healthy"` — process is stable, no action needed.
+- `60–80` -> `"degraded"` — mild instability, monitor.
+- `< 60` -> `"investigate"` — significant instability; the P2
   self-healer uses this band to trigger an immediate frame
   invalidate + memory reclaim hint.
 
@@ -375,7 +375,7 @@ call `observe(...)` once per frame and apply the returned
   `SELF_HEAL_DOWNGRADE_SECS` (30s), switch to the lighter fallback
   scene ("low-power") to shed load. When pressure stays at or below
   `SELF_HEAL_PRESSURE_LOW` (0.3) for `SELF_HEAL_RESTORE_SECS` (60s),
-  restore the prior scene. Hysteresis gap (0.6 → 0.3) and a
+  restore the prior scene. Hysteresis gap (0.6 -> 0.3) and a
   middle-band dead zone prevent flapping under borderline load.
 - **P2 (EnduranceHealth mitigation)** — when the
   `EnduranceHealth` score drops below
@@ -404,7 +404,7 @@ when the user is in fixed mode or has explicitly chosen a scene).
 
 ```text
                 ┌─────────────────────┐
-                │   Healthy (Normal)  │ ←─ default state
+                │   Healthy (Normal)  │ <-─ default state
                 │ pre_degraded = None │
                 └──────────┬──────────┘
       sustained high       │       sustained low
@@ -623,7 +623,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
   downstream consumers. Thermal guard (feature #13) implemented as
   INPUT to `effective_pressure()`. The event loop was migrated:
   7 inline variables removed, 12 call sites updated,
-  `register_activity` signature changed. Test count: 1367 → 1392
+  `register_activity` signature changed. Test count: 1367 -> 1392
   (+25 PowerManager tests).
 
 ### Phase 3 commits
@@ -644,7 +644,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
 Linux sampler is implemented in `thermal_sampler.rs` and wired into
 `event_loop.rs`. It reads `/sys/class/thermal/thermal_zone*/temp`,
 picks the hottest zone, normalizes to 0.0–1.0 via a linear ramp
-(50°C → 0.0, 90°C → 1.0), and feeds `PowerManager::set_thermal_pressure()`
+(50°C -> 0.0, 90°C -> 1.0), and feeds `PowerManager::set_thermal_pressure()`
 every 600 frames (~10s at 60 FPS). Every downstream consumer of
 `effective_pressure()` automatically responds.
 
@@ -706,7 +706,7 @@ The `audit_tests.rs` file is the "not a gimmick" verification
 — 13 integration tests that exercise the public API contract end-to-end:
 thermal input flows to every `effective_pressure()` read, self-healer
 reads from `PowerThresholds` (not constants), frame lifecycle is stable
-across 100-frame synthetic runs, and the full thermal → self-healer
+across 100-frame synthetic runs, and the full thermal -> self-healer
 cascade triggers a downgrade at t=30s. These tests guard against a
 future refactor silently breaking the cross-module wiring.
 

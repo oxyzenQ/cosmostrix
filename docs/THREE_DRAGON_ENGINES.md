@@ -29,30 +29,30 @@ The coloring engine. Owns palette construction (OKLab gradients since
 v30), per-cell shader pipeline, climate post-FX (luminance/saturation/
 hue drift), L-smoothing, and the 300 ms top-to-bottom wave transition.
 Every color-change path (keypress, Crystal Dragon, scene runtime, live
-reload) delegates to `set_color_scheme()` → `apply_new_palette()` which
+reload) delegates to `set_color_scheme()` -> `apply_new_palette()` which
 advances the circular buffer and activates the wave.
 
 ## 3. Crystal Dragon — `src/crystal_dragon_engine/`
 
 The ambient intelligence engine. Two subsystems working in harmony:
 
-### 3a. Palette drift (CPU/CLOCK → theme)
+### 3a. Palette drift (CPU/CLOCK -> theme)
 
 ```
-CPU% ──→ point (1-99) ──→ group ──→ weighted theme selection
+CPU% ──-> point (1-99) ──-> group ──-> weighted theme selection
   │                          │
   │   1-33 = Cold (14)       │   calc-v1: probabilistic CDF
   │   34-66 = Medium (14)    │   60s polling, 12% drift chance
   │   67-99 = Hot (14)       │   60s dwell hysteresis
   │                          │
-  └── CPU unsupported? ──→ CLOCK fallback (UTC hour → point)
+  └── CPU unsupported? ──-> CLOCK fallback (UTC hour -> point)
 ```
 
 44 builtin themes: 14 Cold + 14 Medium + 14 Hot + 2 Reserved.
-Low CPU → Snow/Moon/Ocean (Cold). High CPU → Sun/Fire/Red (Hot).
+Low CPU -> Snow/Moon/Ocean (Cold). High CPU -> Sun/Fire/Red (Hot).
 Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 
-### 3b. Ambient scheduler (time-of-day → scene)
+### 3b. Ambient scheduler (time-of-day -> scene)
 
 Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
 Fires at scheduled times, applies scene+palette, locks Crystal Dragon
@@ -65,7 +65,7 @@ keys) clear the lock; auto-snapback restores after 30s idle.
 |------|------|
 | `crystal_dragon_control/mod.rs` | Config: polling 60s, calc-v1, CPU/CLOCK mode |
 | `sensor/mod.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
-| `palette_groups/mod.rs` | 44 themes → Cold/Medium/Hot partition |
+| `palette_groups/mod.rs` | 44 themes -> Cold/Medium/Hot partition |
 | `point_system/mod.rs` | calc-v1: probabilistic weighted CDF selection |
 | `ambient/mod.rs` | Schedule types, parsing, validation, startup apply |
 | `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |

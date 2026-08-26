@@ -14,7 +14,7 @@ wants to evolve the surface again.
 
 All 39 findings from the 5-phase CONFIG_SYNC audit are CLOSED (100%).
 Phase 6 dead-code sweep: 0 dead code found. Miri unsafe soundness pass:
-0 unsoundness. `pub → pub(crate)` tightening: 580 warnings → 0.
+0 unsoundness. `pub -> pub(crate)` tightening: 580 warnings -> 0.
 Unused-deps audit (`cargo-machete`): 0 unused deps.
 
 Full phase reports have been archived to

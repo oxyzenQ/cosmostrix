@@ -56,7 +56,7 @@ loop polls until 150ms of resize silence elapses, then applies once.
 ```rust
 // spawn.rs:48-54
 let max_line = lines.saturating_sub(2);
-let max_len = max_line.max(1);  // ← prevents Uniform::new(0, 0) panic
+let max_len = max_line.max(1);  // <- prevents Uniform::new(0, 0) panic
 self.rand_line = Uniform::new_inclusive(0, max_line).expect("...");
 self.rand_len = Uniform::new_inclusive(1, max_len).expect("max_len >= 1 after max(1)");
 self.rand_col = Uniform::new_inclusive(0, cols.saturating_sub(1)).expect("...");

@@ -49,7 +49,7 @@ is now codified in `src/cosmic_dragon_incubator/README.md`:
 
 Moving `frame` / `terminal` / `runtime` into an `engine/` folder would
 be the same mistake at a larger scale: a 54-file churn commit
-(`crate::frame` → `crate::engine::frame`) with **zero behavior change**,
+(`crate::frame` -> `crate::engine::frame`) with **zero behavior change**,
 pure rename noise, and a high regression surface — for the cosmetic
 gain of "the engine has a folder." The engine does not need a folder.
 The engine needs to stay fast, and fast means fewer indirections and
@@ -162,7 +162,7 @@ Cell (src/types/cell.rs) — 16 bytes
 pub fn set(&mut self, x: u16, y: u16, cell: Cell) {
     let cur = /* cell from previous frame, or blank */;
     if cur == cell {
-        return;  // ← skip: cell unchanged, no dirty mark
+        return;  // <- skip: cell unchanged, no dirty mark
     }
     self.cells[i] = cell;
     self.cell_gen[i] = self.gen;
@@ -256,7 +256,7 @@ characters. This is where the bandwidth win comes from: a column of
 ### 2.5 Color cache
 
 `ColorCache` (built once after palette initialization) maps
-`(Option<Color>, Option<Color>) → &[u8]` SGR byte sequences. The
+`(Option<Color>, Option<Color>) -> &[u8]` SGR byte sequences. The
 diff path's `emit_sgr()` checks the cache first; only cache misses
 fall through to `write_sgr_colors_buf()` (which formats the SGR
 on-the-fly via `push_u8` — no heap allocation).
@@ -341,8 +341,8 @@ The O(D log D) on the diff path comes from sorting `dirty_flat`. In
 practice, dirty cells are usually already near-sorted (rain advances
 top-to-bottom, left-to-right), so the sort is close to O(D).
 
-**Worst case**: theme switch triggers `invalidate_semantic()` →
-`clear_with_bg()` → `dirty_all = true` → full redraw O(W×H). At
+**Worst case**: theme switch triggers `invalidate_semantic()` ->
+`clear_with_bg()` -> `dirty_all = true` -> full redraw O(W×H). At
 200×60 = 12,000 cells, this is ~12,000 cell copies + ~12,000 SGR
 emissions (with RLE, fewer). Measured at ~8 ms on a 3 GHz CPU, well
 within the 16 ms frame budget.

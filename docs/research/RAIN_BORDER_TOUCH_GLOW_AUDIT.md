@@ -148,18 +148,18 @@ region, so the overlay's `set_force` does not overwrite it.
   the box region, so this is safe either way; still, drawing last
   guarantees correctness.
 - Each frame, compute `factor = exp(-elapsed/30.0)` (a 30 ms time
-  constant → ~120 ms total visible).
+  constant -> ~120 ms total visible).
 - Write `frame.set_force(col, start_line - 1, white_blend_cell)` if
   `start_line > 0`.
 - Expire entries when `factor < 0.05`.
 
 **Trade-offs:**
-- ✓ Cinematic — visible "splash" leaking above the border.
-- ✓ Respects the top-corner-dark invariant (bleed is *above* the border,
+- OK Cinematic — visible "splash" leaking above the border.
+- OK Respects the top-corner-dark invariant (bleed is *above* the border,
   not on it).
-- ✗ Most visible / attention-grabbing of the five — may compete with the
+- FAIL Most visible / attention-grabbing of the five — may compete with the
   message text for the eye.
-- ✗ Requires a new state vector and per-frame decay loop.
+- FAIL Requires a new state vector and per-frame decay loop.
 - Perf: O(active_bleeds) per frame, expected 0–8 entries at 60 FPS on a
   80-col terminal — negligible.
 
@@ -186,11 +186,11 @@ on `╭`/`╮` corner cells.
 - Skip corner cells (`╭`, `╮`, `╰`, `╯`) — invariant protection.
 
 **Trade-offs:**
-- ✓ Subtle — the border "ripples" under rain without distracting.
-- ✓ Reuses the existing `head_rgb` + chroma gradient infrastructure.
-- ✓ Respects all four LTS invariants (corners untouched).
-- ✗ Requires a per-cell decay loop on every frame (small but non-zero).
-- ✗ Visually less dramatic than Option A — owner may not perceive the
+- OK Subtle — the border "ripples" under rain without distracting.
+- OK Reuses the existing `head_rgb` + chroma gradient infrastructure.
+- OK Respects all four LTS invariants (corners untouched).
+- FAIL Requires a per-cell decay loop on every frame (small but non-zero).
+- FAIL Visually less dramatic than Option A — owner may not perceive the
   effect at all on busy screens.
 - Perf: O(message.len()) per frame, ~80–200 cells — under 1 µs.
 
@@ -214,15 +214,15 @@ a glass ceiling" effect — present but quiet.
 - Drain expired pulses after the loop.
 
 **Trade-offs:**
-- ✓ Minimal blast radius — one new Vec, one decay loop, one lerp per
+- OK Minimal blast radius — one new Vec, one decay loop, one lerp per
   active pulse.
-- ✓ Reuses `head_rgb` and existing gradient pipeline — no new color
+- OK Reuses `head_rgb` and existing gradient pipeline — no new color
   infrastructure.
-- ✓ Corners untouched → invariant-safe.
-- ✓ Smoothstep envelope eliminates hard brightness steps (matches the
+- OK Corners untouched -> invariant-safe.
+- OK Smoothstep envelope eliminates hard brightness steps (matches the
   Phase 5 L-smoothing philosophy in `shaders/base/mod.rs`).
-- ✗ Less visually obvious than Option A — may need to be tuned (max
-  factor 0.6 → 0.8) for owner to actually see it.
+- FAIL Less visually obvious than Option A — may need to be tuned (max
+  factor 0.6 -> 0.8) for owner to actually see it.
 - Perf: O(active_pulses) per frame, expected 0–4 entries at 60 FPS —
   negligible (~10 ns).
 
@@ -258,13 +258,13 @@ new effect class.
   ```
 
 **Trade-offs:**
-- ✓ Architecturally consistent — extends Phase 4-D `head_halo_factor`
+- OK Architecturally consistent — extends Phase 4-D `head_halo_factor`
   concept, no new effect class.
-- ✓ Per-column decay gives a "ripple" feel across the top of the border
+- OK Per-column decay gives a "ripple" feel across the top of the border
   as multiple drops touch in sequence.
-- ✓ The halo is *above* the border — invariant-safe.
-- ✗ Most code of the five options (a new Vec + decay + render loop).
-- ✗ Renders 1 extra row above the border; if `start_line == 0` (overlay
+- OK The halo is *above* the border — invariant-safe.
+- FAIL Most code of the five options (a new Vec + decay + render loop).
+- FAIL Renders 1 extra row above the border; if `start_line == 0` (overlay
   at the very top of the terminal), the halo is invisible. Acceptable
   edge case.
 - Perf: O(box_w) per frame, ~60–100 cells — under 1 µs.
@@ -287,12 +287,12 @@ droplet hitting a window. This is the most attention-grabbing option.
     bleed concept).
 
 **Trade-offs:**
-- ✓ Most visually striking — clearly conveys "rain hitting ceiling".
-- ✗ Most intrusive — overrides the border's chroma gradient for ~100 ms
+- OK Most visually striking — clearly conveys "rain hitting ceiling".
+- FAIL Most intrusive — overrides the border's chroma gradient for ~100 ms
   per touch, which competes with the chroma dragon's color narrative.
-- ✗ Sharp attack may strobe on high-density rain scenarios (many touches
+- FAIL Sharp attack may strobe on high-density rain scenarios (many touches
   per second). Should be capped: max 1 active spark per column at a time.
-- ✗ Risks violating the "no lone bright heads at top corners" invariant
+- FAIL Risks violating the "no lone bright heads at top corners" invariant
   if a touch happens on a corner cell — must explicitly skip corners.
 - Perf: similar to Option C — negligible.
 
@@ -315,7 +315,7 @@ with the following parameters:
 - Reuses existing `head_rgb` infrastructure; no new color pipeline.
 - Smoothstep envelope eliminates hard brightness steps — composes
   cleanly with the chroma gradient.
-- Corners untouched → all four LTS invariants preserved.
+- Corners untouched -> all four LTS invariants preserved.
 - If the effect proves too subtle at 0.6 max factor, the owner can bump
   to 0.8 or extend lifetime to 400 ms in a one-line tuning change
   (mirrors the `HEAD_HALO_FACTOR` constant pattern in `tuning.rs`).
@@ -447,8 +447,8 @@ Add a test in `cloud/tests/` that:
 2. Spawns one droplet in a column that crosses the overlay.
 3. Advances the droplet until its `head_put_line` reaches the top border.
 4. Asserts that a `BorderPulse` was added.
-5. Advances 100 ms → asserts `pulse_factor > 0`.
-6. Advances 300 ms → asserts `pulse_factor == 0` and `border_pulses` drained.
+5. Advances 100 ms -> asserts `pulse_factor > 0`.
+6. Advances 300 ms -> asserts `pulse_factor == 0` and `border_pulses` drained.
 
 ### 5.5 Performance guardrails
 
@@ -611,7 +611,7 @@ under continuous touch, not a stack of decaying copies.
 **Verification**: the resize path in `spawn.rs` already calls
 `reset_message()` on every resize (when `message_text.is_some()`), and
 `reset_message` clears `border_pulses` (mod.rs line ~966). **No code
-change needed.** The "⚠️ Perlu Test" caveat in the audit was based on a
+change needed.** The "Warning: Perlu Test" caveat in the audit was based on a
 stale code description; the implementation is already correct.
 
 ### Test count delta

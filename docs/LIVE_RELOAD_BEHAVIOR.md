@@ -183,7 +183,7 @@ Extend `rebuild_cloud_config` to handle these 3 keys:
 - On the event-loop side, after `create_cloud`, call
   `cloud.set_message(new_cfg.message)` if the message changed.
 
-**Pros**: Fully consistent live-reload. User edits config → sees
+**Pros**: Fully consistent live-reload. User edits config -> sees
 change immediately. No more "press q and rerun" friction.
 **Cons**: More surface area for bugs. The `msg-mode` gate logic in
 `config_apply.rs` would need to be extracted into a shared helper so
@@ -258,7 +258,7 @@ until restart. Primary source of owner/user confusion.
 **Now**: `rebuild_cloud_config` handles all 3 keys with full
 precedence:
 1. CLI `-m` / `-mb` (always wins — `cli.message` guard skips config read)
-2. `msg-mode=false` → suppress config message (gate fires)
+2. `msg-mode=false` -> suppress config message (gate fires)
 3. config `message-border` (wins over `message` when both present)
 4. config `message` (no border)
 5. default fallback (only at startup, not here)
@@ -429,9 +429,9 @@ present, it returns `IDENTITY` (all 1.0), which is the correct
 NOT reset (CLI wins).
 
 **Behavior after fix**:
-- `color.tune.brightness = 0.0` → rain goes dark ✓
-- Comment out the line → rain returns to normal (brightness=1.0) ✓
-- CLI `--color-tune bright=2.0` + no config block → stays at 2.0 ✓
+- `color.tune.brightness = 0.0` -> rain goes dark OK
+- Comment out the line -> rain returns to normal (brightness=1.0) OK
+- CLI `--color-tune bright=2.0` + no config block -> stays at 2.0 OK
 
 ---
 

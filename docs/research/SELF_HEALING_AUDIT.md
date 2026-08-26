@@ -158,7 +158,7 @@ no-op behavior on clean frames.
 |--------|--------|---------|
 | SIGTERM, SIGHUP, SIGQUIT | Set `GRACEFUL_SHUTDOWN` + `signal_exit` flags, wait up to 20s for `SHUTDOWN`, then exit | Excellent — atomic-flag coordination, no stdout races |
 | SIGINT (Ctrl+C) | **Intentionally NOT handled** — user must press 'q' to quit (cinematic design principle) | Deliberate |
-| SIGTSTP (Ctrl+Z) | Disable mouse capture → `restore_terminal_best_effort()` → set `term_reinit` → raise SIGSTOP | Excellent — restores terminal *before* suspending so user gets a usable shell |
+| SIGTSTP (Ctrl+Z) | Disable mouse capture -> `restore_terminal_best_effort()` -> set `term_reinit` -> raise SIGSTOP | Excellent — restores terminal *before* suspending so user gets a usable shell |
 | SIGCONT | Set `term_reinit` flag (main loop recreates Terminal on next iteration) | Clean |
 | Windows Ctrl+Break | Set graceful flags, sleep 1s, force restore + exit(130) if main loop didn't shut down | Adequate |
 
@@ -180,8 +180,8 @@ if term_reinit.swap(false, Ordering::AcqRel) {
 }
 ```
 
-Full lifecycle: drop old Terminal (runs cleanup) → create new → re-enable
-mouse → query size → schedule resize → force draw → reset timing.
+Full lifecycle: drop old Terminal (runs cleanup) -> create new -> re-enable
+mouse -> query size -> schedule resize -> force draw -> reset timing.
 
 #### 2c. Resize Debounce — `event_loop.rs:539, 823-833, 899-911`
 
@@ -323,7 +323,7 @@ if overshoot > 0.0 {
 }
 ```
 
-Tracks frame overshoot. Range 0.0 (healthy) → 1.0 (saturated).
+Tracks frame overshoot. Range 0.0 (healthy) -> 1.0 (saturated).
 Accumulates on overshoot, decays when under budget.
 
 #### 3b. Perf-Gated Subsystems
@@ -347,7 +347,7 @@ dropping frames.
 | Subsystem | Purpose | Status |
 |-----------|---------|--------|
 | P1 PhasePredictor | Learns daily active/idle cycle, predicts idle before reactive threshold | Implemented, integrated |
-| P2 adaptive_resync_interval | Stretches idle redraw interval (20s → 60s after 1h, → 120s after 4h) | Implemented, integrated |
+| P2 adaptive_resync_interval | Stretches idle redraw interval (20s -> 60s after 1h, -> 120s after 4h) | Implemented, integrated |
 | P4 ReclaimState | madvise(MADV_DONTNEED) on Linux during idle (1h min interval) | Implemented, integrated |
 | P5 EnduranceHealth | Composite 0-100 score (RSS var 40%, jitter 35%, ctxt switches 25%) | Implemented, **integrated (commit `0edffa2`)** |
 
@@ -367,7 +367,7 @@ score drops into the "investigate" band (score < 60):
 
 **What was missing**: When `perf_pressure` is sustained high (e.g.,
 > 0.6 for 30 seconds), cosmostrix didn't automatically switch to a
-lighter scene (e.g., storm → low-power). The user had to press a key.
+lighter scene (e.g., storm -> low-power). The user had to press a key.
 
 **Implementation (commit `35a6acd`)**:
 

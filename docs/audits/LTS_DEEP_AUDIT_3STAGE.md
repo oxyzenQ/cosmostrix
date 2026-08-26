@@ -26,26 +26,26 @@ Systematic 3-stage audit of every directory, checking for: security vulnerabilit
 ### `.github/workflows/` (10 workflows)
 
 - **Status:** CLEAN
-- All workflows use `permissions:` blocks (least privilege) ✓
-- No `pull_request_target` (dangerous trigger) ✓
-- Secrets only in `aur.yml` (AUR_SSH_KEY) and `release.yml` (GPG_PRIVATE_KEY, GITHUB_TOKEN) — expected for release pipeline ✓
-- No secrets logged or echoed ✓
-- `codeql.yml` present for automated security scanning ✓
+- All workflows use `permissions:` blocks (least privilege) OK
+- No `pull_request_target` (dangerous trigger) OK
+- Secrets only in `aur.yml` (AUR_SSH_KEY) and `release.yml` (GPG_PRIVATE_KEY, GITHUB_TOKEN) — expected for release pipeline OK
+- No secrets logged or echoed OK
+- `codeql.yml` present for automated security scanning OK
 
 ### `aur/cosmostrix-bin/PKGBUILD`
 
 - **Status:** CLEAN
-- pkgver synced with Cargo.toml (50.0.0-beta.6) ✓
-- Dynamic source selection (CPU-aware) ✓
-- SHA512 checksum verification ✓
-- Proper GPG key fingerprint documented ✓
+- pkgver synced with Cargo.toml (50.0.0-beta.6) OK
+- Dynamic source selection (CPU-aware) OK
+- SHA512 checksum verification OK
+- Proper GPG key fingerprint documented OK
 
 ### `benchmark/`
 
 - **Status:** CLEAN
-- `benchmark.sh` uses `set -euo pipefail` ✓
-- No credentials, tokens, or sensitive data ✓
-- Research files (Python/C) are standalone comparison tools ✓
+- `benchmark.sh` uses `set -euo pipefail` OK
+- No credentials, tokens, or sensitive data OK
+- Research files (Python/C) are standalone comparison tools OK
 
 ---
 
@@ -53,37 +53,37 @@ Systematic 3-stage audit of every directory, checking for: security vulnerabilit
 
 ### Root files
 
-- **Cargo.toml:** version synced (50.0.0-beta.6), rust-version = "1.98" ✓
-- **Cargo.lock:** present (deterministic builds) ✓
-- **deny.toml:** cargo-deny config present ✓
-- **rust-toolchain.toml:** pinned to 1.98.0 ✓
-- **build.rs:** 26KB build script, handles git SHA injection, CPU detection ✓
-- **LICENSE:** GPL-3.0-full text ✓
-- **NOTICE:** present ✓
-- **TRADEMARK.md:** present ✓
-- **CONTRIBUTING.md:** present ✓
-- **KNOWN_ISSUES.md:** present ✓
+- **Cargo.toml:** version synced (50.0.0-beta.6), rust-version = "1.98" OK
+- **Cargo.lock:** present (deterministic builds) OK
+- **deny.toml:** cargo-deny config present OK
+- **rust-toolchain.toml:** pinned to 1.98.0 OK
+- **build.rs:** 26KB build script, handles git SHA injection, CPU detection OK
+- **LICENSE:** GPL-3.0-full text OK
+- **NOTICE:** present OK
+- **TRADEMARK.md:** present OK
+- **CONTRIBUTING.md:** present OK
+- **KNOWN_ISSUES.md:** present OK
 
 ### `scripts/` (19 scripts)
 
 - **Status:** CLEAN
-- `stress_test_bounds.py`: executable bit set, ruff-clean ✓
-- `gate-keepers.sh`: 8 checks, all passing ✓
-- `build.sh`: comprehensive build system ✓
-- All scripts have SPDX headers ✓
+- `stress_test_bounds.py`: executable bit set, ruff-clean OK
+- `gate-keepers.sh`: 8 checks, all passing OK
+- `build.sh`: comprehensive build system OK
+- All scripts have SPDX headers OK
 
 ### `docs/` (80+ files)
 
 - **Status:** CLEAN
-- All `.md` files have COSMOSTRIX-DISCLAIMER ✓
-- Audit docs present in `docs/audits/` (7 audit reports) ✓
-- Research docs in `docs/research/` (12 audit reports) ✓
+- All `.md` files have COSMOSTRIX-DISCLAIMER OK
+- Audit docs present in `docs/audits/` (7 audit reports) OK
+- Research docs in `docs/research/` (12 audit reports) OK
 
 ### `pgo-runner/`
 
 - **Status:** CLEAN
-- Standalone crate (not workspace member) ✓
-- Has own `Cargo.toml` + `Cargo.lock` ✓
+- Standalone crate (not workspace member) OK
+- Has own `Cargo.toml` + `Cargo.lock` OK
 
 ---
 
@@ -91,64 +91,64 @@ Systematic 3-stage audit of every directory, checking for: security vulnerabilit
 
 ### Security
 
-- **Unsafe blocks:** 36 total in production code, ALL with SAFETY comments ✓
-- **Unsafe categories:** libc FFI (terminal, sysinfo, clock, madvise), no raw pointer arithmetic ✓
-- **safepath module:** config path whitelist enforced (prevents path traversal) ✓
-- **No hardcoded credentials** in source ✓
-- **No `pull_request_target`** or dangerous patterns ✓
+- **Unsafe blocks:** 36 total in production code, ALL with SAFETY comments OK
+- **Unsafe categories:** libc FFI (terminal, sysinfo, clock, madvise), no raw pointer arithmetic OK
+- **safepath module:** config path whitelist enforced (prevents path traversal) OK
+- **No hardcoded credentials** in source OK
+- **No `pull_request_target`** or dangerous patterns OK
 
 ### Stability — Panic Safety
 
-- **`.unwrap()` in production:** 0 in hot render path (rain.rs, render.rs, rain_post.rs, phosphor.rs, monolith.rs) ✓
-- **`.unwrap()` count:** 264 total, ALL in test files (`#[cfg(test)]` or `#[test]`) ✓
-- **`.expect()` in production:** only on `Uniform::new()` with compile-time-validated constants ✓
-- **All expect messages** document the invariant being asserted ✓
-- **No `panic!()` in production code** (only in tests) ✓
+- **`.unwrap()` in production:** 0 in hot render path (rain.rs, render.rs, rain_post.rs, phosphor.rs, monolith.rs) OK
+- **`.unwrap()` count:** 264 total, ALL in test files (`#[cfg(test)]` or `#[test]`) OK
+- **`.expect()` in production:** only on `Uniform::new()` with compile-time-validated constants OK
+- **All expect messages** document the invariant being asserted OK
+- **No `panic!()` in production code** (only in tests) OK
 
 ### Performance — Hot Path
 
-- **Zero `.clone()` in render path** (rain.rs, render.rs, rain_post.rs, phosphor.rs, monolith.rs) ✓
-- **Zero heap allocations in hot path** (all stack-allocated) ✓
-- **Phosphor decay:** O(active_cells) not O(grid) ✓
-- **Spawn:** budget-based with remainder carry ✓
-- **Frame diff:** dirty-index tracking, not full-grid scan ✓
+- **Zero `.clone()` in render path** (rain.rs, render.rs, rain_post.rs, phosphor.rs, monolith.rs) OK
+- **Zero heap allocations in hot path** (all stack-allocated) OK
+- **Phosphor decay:** O(active_cells) not O(grid) OK
+- **Spawn:** budget-based with remainder carry OK
+- **Frame diff:** dirty-index tracking, not full-grid scan OK
 
 ### Code Structure
 
-- **No TODO/FIXME/HACK/WORKAROUND** comments in source ✓
-- **LOC guard:** all .rs files ≤ 1500 lines ✓
-- **227 source files**, well-organized into 12 top-level modules ✓
-- **Module hierarchy:** clear separation (cosmic_dragon_engine, chroma_dragon_engine, crystal_dragon_engine, central_control_*) ✓
+- **No TODO/FIXME/HACK/WORKAROUND** comments in source OK
+- **LOC guard:** all .rs files ≤ 1500 lines OK
+- **227 source files**, well-organized into 12 top-level modules OK
+- **Module hierarchy:** clear separation (cosmic_dragon_engine, chroma_dragon_engine, crystal_dragon_engine, central_control_*) OK
 
 ### Dependencies
 
-- **crossterm 0.29:** pinned, `default-features = false` (minimal) ✓
-- **rand 0.9:** current ✓
-- **libc 0.2:** current ✓
-- **No duplicate crates** in dependency tree ✓
-- **MSRV 1.98** synced across Cargo.toml, rust-toolchain.toml, CI workflows ✓
+- **crossterm 0.29:** pinned, `default-features = false` (minimal) OK
+- **rand 0.9:** current OK
+- **libc 0.2:** current OK
+- **No duplicate crates** in dependency tree OK
+- **MSRV 1.98** synced across Cargo.toml, rust-toolchain.toml, CI workflows OK
 
 ### Terminal-Aware Tuning (v50.0.0-beta.6)
 
-- **`phosphor_decay_mult`:** clamped `.max(0.1)` — NaN/negative safe ✓
-- **`ghost_brightness_cap`:** clamped `0.0..=1.0` — NaN/negative safe ✓
-- **`speed_mult`:** clamped `.max(0.1)` — NaN/negative safe ✓
-- **Applied at:** spawn time ✓, recalc_droplets_per_sec ✓, update_droplet_speeds ✓, monolith advance ✓
-- **Re-applied after:** Cloud rebuild (live-reload) ✓
+- **`phosphor_decay_mult`:** clamped `.max(0.1)` — NaN/negative safe OK
+- **`ghost_brightness_cap`:** clamped `0.0..=1.0` — NaN/negative safe OK
+- **`speed_mult`:** clamped `.max(0.1)` — NaN/negative safe OK
+- **Applied at:** spawn time OK, recalc_droplets_per_sec OK, update_droplet_speeds OK, monolith advance OK
+- **Re-applied after:** Cloud rebuild (live-reload) OK
 
 ### Config Bounds (v50.0.0-beta.6)
 
-- **colors-custom:** max 100 blocks, 64 rain stops, 64-char names ✓
-- **charset-custom:** max 100 blocks, 256 chars, 64-char names ✓
-- **scene-custom:** max 100 blocks, 64-char names ✓
-- **ambient:** max 256 entries (truncated) ✓
-- **Unknown field rejection:** strict, no auto-promote in custom blocks ✓
+- **colors-custom:** max 100 blocks, 64 rain stops, 64-char names OK
+- **charset-custom:** max 100 blocks, 256 chars, 64-char names OK
+- **scene-custom:** max 100 blocks, 64-char names OK
+- **ambient:** max 256 entries (truncated) OK
+- **Unknown field rejection:** strict, no auto-promote in custom blocks OK
 
 ### Live-Reload Stability
 
-- **Temporal precedence:** CLI retired after startup, config wins on live-reload ✓
-- **Scene preservation:** runtime scene survives config edits (user wins) ✓
-- **Base_cfg sync:** scene defaults written to base_cfg before rebuild ✓
+- **Temporal precedence:** CLI retired after startup, config wins on live-reload OK
+- **Scene preservation:** runtime scene survives config edits (user wins) OK
+- **Base_cfg sync:** scene defaults written to base_cfg before rebuild OK
 
 ---
 

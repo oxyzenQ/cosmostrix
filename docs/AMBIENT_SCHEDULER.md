@@ -107,12 +107,12 @@ When Crystal Dragon is enabled (`crystal-dragon = true` in config or
 on system state (CPU load / clock). Ambient and Crystal Dragon coexist via
 the `ambient_palette_locked` gate:
 
-1. **Ambient fires** (e.g. `ambient.12-00 = hacker-mode` at noon) →
+1. **Ambient fires** (e.g. `ambient.12-00 = hacker-mode` at noon) ->
    scene + palette applied, `ambient_palette_locked = true`.
 2. **Crystal Dragon drift is suppressed** while the lock is held (rain.rs
    checks `!self.ambient_palette_locked` before ticking the drift sensor).
 3. **User clears the lock** by pressing `c`/`C` (manual color cycle) or
-   `x`/`X` (manual scene switch) → Crystal Dragon drift resumes.
+   `x`/`X` (manual scene switch) -> Crystal Dragon drift resumes.
 
 This means ambient takes **priority over Crystal Dragon drift**. The scene
 and color you set in an ambient entry are guaranteed to stick until the
@@ -164,14 +164,14 @@ because the scheduler runs continuously).
 | **Empty schedule** (no `ambient.*` keys) | Scheduler thread idles (sleeps 60s, polls for new entries). Zero events fired. Existing scene/params retained. |
 | **Single entry** | Fires at startup (wrap-around: the entry is treated as "yesterday's last active phase" before its boundary, and as "today's active phase" at/after its boundary). This means a single `ambient.03-17 = hacker-mode` is active ALL DAY — it's the only phase, so it carries over from yesterday via midnight wrap-around. This is correct by design (ambient is a 24-hour schedule, not a one-shot timer). If you want the scene to activate only after a specific time, use at least two entries — e.g. `ambient.03-16 = cinematic` then `ambient.03-17 = hacker-mode`. |
 | **Two entries same time** | Configfile parser is `HashMap::insert` (last-writer-wins). One entry survives. |
-| **DST spring-forward** (2:00 AM → 3:00 AM) | `current_minute_of_day()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
+| **DST spring-forward** (2:00 AM -> 3:00 AM) | `current_minute_of_day()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
 | **DST fall-back** (2:00 AM repeat) | Entries in the repeated hour (01:00–01:59) fire twice. Acceptable — `apply_ambient_entry` is idempotent. |
 | **Midnight wrap** | Handled in `AmbientSchedule::seconds_to_next_phase` — `(24*60 - now_min + next_min) * 60`. |
 | **Invalid scene name** | Strict reject via `--testconf` (exit 2). Same behavior as `colors-custom` / `scene-custom`. |
 | **Legacy multi-field format** | Strict reject via `--testconf` (exit 2) with a full migration message showing how to convert to `[scene-custom.<name>]` + `base-scene`. Live-reload silently drops the entry (no crash). |
 | **Live-reload adds new entry** | Scheduler thread wakes (condvar), recomputes, fires current phase if changed. |
 | **Live-reload removes all entries** | Scheduler goes idle. Existing scene/params retained (sticky). User can manually cycle via `x`/`X` keys. |
-| **Custom scene referenced by ambient is later renamed** | `--testconf` catches this at validation time. At runtime, the ambient event is a no-op (unknown scene name → `apply_scene_runtime_with_cfg` returns current charset preset unchanged). |
+| **Custom scene referenced by ambient is later renamed** | `--testconf` catches this at validation time. At runtime, the ambient event is a no-op (unknown scene name -> `apply_scene_runtime_with_cfg` returns current charset preset unchanged). |
 
 ## Diagnostics
 

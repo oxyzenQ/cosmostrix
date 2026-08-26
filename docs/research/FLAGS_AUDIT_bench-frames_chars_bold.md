@@ -21,7 +21,7 @@
 >   `_ => BoldMode::Random` was eating `Err` from `validate_u8_range`. Wrapped in
 >   `ux::or_exit(...)`. Same fix applied to `--shadingmode` which had the identical bug.)
 >
-> Test delta: 1533 → 1532 pass (`parse_user_hex_chars_parses_hex_codepoints` deleted).
+> Test delta: 1533 -> 1532 pass (`parse_user_hex_chars_parses_hex_codepoints` deleted).
 >
 > The original audit findings are preserved below for historical reference.
 
@@ -60,7 +60,7 @@ prints compact parseable `BENCH:` output. Distinct from `--benchmark`
 |------|-------|------|
 | `src/config.rs:614-625` | clap arg definition | `Option<u64>` with `value_parser!(u64).range(1..)` (rejects 0 at parse time — Phase 5 P3-6) |
 | `src/app.rs:57-58, 284-285` | `CloudConfig` field + clone_config plumbing | Carried in `CloudConfig`, propagated through `clone_config` |
-| `src/main.rs:1003` | Args → CloudConfig | `bench_frames: args.bench_frames` |
+| `src/main.rs:1003` | Args -> CloudConfig | `bench_frames: args.bench_frames` |
 | `src/main.rs:1099-1102` | Entry point dispatch | `if let Some(_bench_frames) = args.bench_frames { warn_bench_noop_flags(&args, fps_user_set); return bench::run_benchmark(&cloud_cfg); }` — note: `--benchmark` and `--bench-all` take precedence (see warn table below) |
 | `src/main.rs:1264-1272` | Conflict-warning matrix | Warns when `--bench-frames` is combined with `--bench-all`, `--benchmark`, or `--bench-duration` |
 | `src/bench.rs:179-243` | `run_benchmark` impl | Consumes `cfg.bench_frames.expect(...)`, runs warmup + measurement loop, prints `BENCH:` block |
@@ -106,7 +106,7 @@ if args.benchmark && args.bench_frames.is_some() {
 }
 ```
 
-→ In all 4 examples, `--bench-frames` is **silently ignored**. The
+-> In all 4 examples, `--bench-frames` is **silently ignored**. The
 examples work (they run `--benchmark`) but the `--bench-frames 30` token
 is dead weight that misleads readers into thinking both flags combine.
 **Not a flag-removal issue** — it's a docs fix that should be done
@@ -170,7 +170,7 @@ Feeds `user_ranges: Vec<(char, char)>` into `build_chars`.
 |------|-------|------|
 | `src/config.rs:692-693` | clap arg definition | `Option<String>`, `hide = true` |
 | `src/main.rs:188` | Import | `use crate::charset::{build_chars, charset_from_str, parse_user_hex_chars};` |
-| `src/main.rs:728-743` | Parsing block | Parses hex ranges → `Vec<(char, char)>` via `parse_user_hex_chars` |
+| `src/main.rs:728-743` | Parsing block | Parses hex ranges -> `Vec<(char, char)>` via `parse_user_hex_chars` |
 | `src/main.rs:773` | Plumbing into `build_chars` | `build_chars(charset, &user_ranges, def_ascii)` |
 | `src/main.rs:1022` | CloudConfig field | `user_ranges` propagated into cloud config |
 | `src/charset.rs:44-89` | `parse_user_hex_chars` impl | Parses hex codepoints, rejects control chars + wide chars (Cosmic Dragon principle) |
@@ -300,8 +300,8 @@ throughput (bold glyphs use a different SGR sequence).
 | `src/config.rs:583-590` | clap arg definition | `u8`, `short = 'b'`, `default_value_t = 1`, `hide = true` |
 | `src/configfile.rs:41` | USER_CONFIG_KEYS | `"bold"` is a recognized top-level config key |
 | `src/configfile.rs:610-611` | Dump-config template | `# bold = 1` shown as commented-out default |
-| `src/config_apply.rs:453-458` | Config → Args | `args.bold = parse_u8_config("bold", &v, 0, 2)` — config value flows into CLI args |
-| `src/main.rs:635-639` | Args → BoldMode | `validate_u8_range("--bold", args.bold, 0, 2)` → `BoldMode::Off/All/Random` |
+| `src/config_apply.rs:453-458` | Config -> Args | `args.bold = parse_u8_config("bold", &v, 0, 2)` — config value flows into CLI args |
+| `src/main.rs:635-639` | Args -> BoldMode | `validate_u8_range("--bold", args.bold, 0, 2)` -> `BoldMode::Off/All/Random` |
 | `src/cosmic_dragon_engine/runtime.rs:18-23` | BoldMode enum | `Off`, `Random`, `All` |
 | `src/cosmic_dragon_engine/cloud/render.rs:67, 333` | DrawCtx field | `bold_mode: BoldMode` carried in render context |
 | `src/cosmic_dragon_engine/cloud/rain.rs:603` | RainCtx field | `bold_mode` carried in rain context |
@@ -372,7 +372,7 @@ bold-mode control.** Unlike `--chars` (which has `[charset-custom]`),
 - **Medium**: `src/configfile.rs:41` `bold` removed from USER_CONFIG_KEYS.
 - **Medium**: `src/configfile.rs:610-611` `# bold = 1` removed from dump-config.
 - **Medium**: `src/config_apply.rs:453-458` config-apply block deleted (6 LOC).
-- **Medium**: `src/main.rs:635-639` `validate_u8_range` + match deleted, replaced with `let bold_mode = BoldMode::Random;` (5 LOC → 1 LOC).
+- **Medium**: `src/main.rs:635-639` `validate_u8_range` + match deleted, replaced with `let bold_mode = BoldMode::Random;` (5 LOC -> 1 LOC).
 - **Medium**: `src/help_detail.rs:319-321` `-b, --bold` block deleted (3 LOC).
 - **Medium**: `docs/CENTRAL_CONTROL_RAINS_USAGE.md` Bold mode row removed.
 - **Medium**: Add `REMOVED_FLAGS` entry with migration instructions.
@@ -407,7 +407,7 @@ BoldMode::Random`. The commit message documents:
 >
 > Verification:
 >
-> - 1533 → 1531 tests PASS (-2: parse_user_hex_chars_parses_hex_codepoints,
+> - 1533 -> 1531 tests PASS (-2: parse_user_hex_chars_parses_hex_codepoints,
 >   color_tune_bold_hint_warns_about_value_type; both tests' fixtures
 >   became invalid after their target flag/key was removed)
 > - clippy clean, fmt clean, LOC cap clean, headers clean, version-sync clean
@@ -471,9 +471,9 @@ Commit `9598f37`'s message framed both `--chars` and `--bold` as
 "has config-key equivalent" / "has config-key equivalent" — implying
 both have replacements. In reality:
 
-- `--chars` → `[charset-custom.<name>]` is a **true replacement**
+- `--chars` -> `[charset-custom.<name>]` is a **true replacement**
   (strict superset of functionality).
-- `--bold` → `bold = 1` in config is **the same surface, just
+- `--bold` -> `bold = 1` in config is **the same surface, just
   spelled differently** (no replacement, just an alias).
 
 This conflation led to the premature removal of `--bold`. The

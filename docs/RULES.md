@@ -69,7 +69,7 @@ Fully eliminated at commit `07b44b5` (Dragon Hunt v2 Phase 6 Tier E item 31). Al
 
 ### Live Config Reload + Config Validation
 
-Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild on change (not delta apply). `--testconf` validates all keys + values strictly. Startup rejects invalid config (exit 2). Live reload rejects invalid config (exit 2, error printed to stderr AFTER terminal restore). Malformed lines (no `=` or empty key/value) → error. Unknown keys → error. Invalid values → error. No silent fallback. No warnings. Errors only. Modules: `live_config.rs`, `testconf.rs` (shared validation).
+Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild on change (not delta apply). `--testconf` validates all keys + values strictly. Startup rejects invalid config (exit 2). Live reload rejects invalid config (exit 2, error printed to stderr AFTER terminal restore). Malformed lines (no `=` or empty key/value) -> error. Unknown keys -> error. Invalid values -> error. No silent fallback. No warnings. Errors only. Modules: `live_config.rs`, `testconf.rs` (shared validation).
 
 ### CLI Flag Policy
 
@@ -91,14 +91,14 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 **Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-beta.6) — first line is `exit_time: <YYYY-MM-DD HH:MM:SSZ>` (UTC, ISO 8601) and `duration: <Xm Ys>` showing the total process lifetime. UTC chosen for LTS stability (no DST transitions, no tzdata drift). Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. The section closes with the ambient diagnostics summary.
 
-**Install**: `./scripts/install` auto-detects CPU — AVX-512 → pro-linux-v4, AVX2 → pro-linux-v3, baseline → release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+**Install**: `./scripts/install` auto-detects CPU — AVX-512 -> pro-linux-v4, AVX2 -> pro-linux-v3, baseline -> release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
 
 ### Naming Collision Policy (v50.0.0-beta.6 Option D)
 
 When a custom config block (`[charset-custom.<name>]`, `[colors-custom.<name>]`, `[scene-custom.<name>]`) has the same name as a builtin preset/scene/theme, **custom always wins**. A collision warning is emitted to stderr at startup so the user knows the builtin is being shadowed:
 
 ```
-⚠ warning: custom charset 'zen' overrides builtin — custom wins (Option D policy)
+Warning: warning: custom charset 'zen' overrides builtin — custom wins (Option D policy)
   builtin: builtin preset (see --list-charsets)
   custom:  1 char(s) from [charset-custom.zen]
   To use the builtin, rename the custom block in config.toml.
@@ -160,7 +160,7 @@ Custom blocks have a **strict field allowlist** — unknown fields are rejected 
 | `[charset-custom.<name>]` | `set` only | `is_valid_charset_custom_field()` |
 | `[scene-custom.<name>]` | `base-scene`, `color`, `charset`, `bold`, `colors-custom`, `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`, `density`, `density-map`, `async-mode` | `SCENE_CUSTOM_FIELDS` |
 
-Any other field inside these blocks surfaces as an `unknown_key` → `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
+Any other field inside these blocks surfaces as an `unknown_key` -> `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
 
 Auto-promote still works for non-custom sections (e.g. `[color.tune]` — a top-level key accidentally nested under it still promotes to root). Only custom blocks are strict.
 <!-- COSMOSTRIX-DISCLAIMER -->

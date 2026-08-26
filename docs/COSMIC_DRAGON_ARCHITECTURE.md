@@ -14,31 +14,31 @@ layers and explains how the "deep" structure provides world-class reliability.
 ┌─────────────────────────────────────────────────────────────────┐
 │  Layer 7: Cosmic Dragon Incubator (src/cosmic_dragon_incubator/)                        │
 │  Experimental features, future v15+ subsystems                  │
-│  → Never touches stable engine internals                         │
+│  -> Never touches stable engine internals                         │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 6: CLI + Helpers (src/cli/, output/)                      │
 │  Argument parsing, color output, help text, version info        │
-│  → Strict whitelist security on all file ops                    │
+│  -> Strict whitelist security on all file ops                    │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 5: Config System (src/config/, safepath/, validation/) │
 │  TOML config parsing, validation, live reload                   │
-│  → Strict validation: invalid = exit 2, no silent fallback      │
+│  -> Strict validation: invalid = exit 2, no silent fallback      │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 4: Interactive Engine (src/interactive/)                 │
 │  Event loop, HUD, input, watchdog, adaptive pacing              │
-│  → Only 'q' quits (consistent policy, no accidental exit)       │
+│  -> Only 'q' quits (consistent policy, no accidental exit)       │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 3: Ambient Scheduler (src/crystal_dragon_engine/ambient*/)
 │  Time-driven scene scheduling, low-rate adaptive modulation    │
-│  → Opt-in via config (default: off)                             │
+│  -> Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 2: Cloud Renderer (src/cosmic_dragon_engine/cloud/)                           │
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
-│  → Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
+│  -> Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 1: Terminal I/O (cosmic_dragon_engine/terminal/, frame.rs, color_cache)   │
 │  ANSI escape sequencing, diff-based rendering, sync output      │
-│  → 5-layer --reset-terminal recovery for SIGKILL survival       │
+│  -> 5-layer --reset-terminal recovery for SIGKILL survival       │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -99,46 +99,46 @@ The Cosmic Dragon survives every kill signal through a 3-layer process guard:
 ```
                     ┌──────────────────────────────┐
                     │  User presses Ctrl+C (key)   │
-                    │  → ignored (only q quits)     │
+                    │  -> ignored (only q quits)     │
                     └──────────────────────────────┘
                                   │
                     ┌─────────────▼────────────────┐
                     │  User presses 'q'             │
-                    │  → Terminal::drop() cleanup   │
-                    │  → Layer 1-3 ANSI restore     │
+                    │  -> Terminal::drop() cleanup   │
+                    │  -> Layer 1-3 ANSI restore     │
                     └──────────────────────────────┘
                                   │
                     ┌─────────────▼────────────────┐
                     │  pkill -TERM cosmostrix       │
-                    │  → Signal handler sets        │
+                    │  -> Signal handler sets        │
                     │    GRACEFUL_SHUTDOWN          │
-                    │  → Main loop exits cleanly    │
-                    │  → Terminal::drop() cleanup   │
-                    │  → Signal-exit viewport clear │
+                    │  -> Main loop exits cleanly    │
+                    │  -> Terminal::drop() cleanup   │
+                    │  -> Signal-exit viewport clear │
                     └──────────────────────────────┘
                                   │
                     ┌─────────────▼────────────────┐
                     │  kill -9 cosmostrix (SIGKILL) │
-                    │  → Process dies instantly     │
-                    │  → No cleanup runs            │
-                    │  → Fork guard child detects   │
+                    │  -> Process dies instantly     │
+                    │  -> No cleanup runs            │
+                    │  -> Fork guard child detects   │
                     │    getppid()==1               │
-                    │  → Child restores termios     │
-                    │  → Child runs restore_terminal │
-                    │  → best_effort()              │
+                    │  -> Child restores termios     │
+                    │  -> Child runs restore_terminal │
+                    │  -> best_effort()              │
                     └──────────────────────────────┘
                                   │
                     ┌─────────────▼────────────────┐
                     │  Terminal still broken?       │
-                    │  → cosmostrix --reset-terminal│
-                    │  → 5-layer nuclear recovery   │
+                    │  -> cosmostrix --reset-terminal│
+                    │  -> 5-layer nuclear recovery   │
                     └──────────────────────────────┘
 ```
 
 ### Layer 1: Clean Exit (q or SIGTERM)
 
-- `q` key → `cloud.raining = false` → main loop exits → `Terminal::drop()`
-- SIGTERM → signal handler → `GRACEFUL_SHUTDOWN` atomic → main loop exits → `Terminal::drop()`
+- `q` key -> `cloud.raining = false` -> main loop exits -> `Terminal::drop()`
+- SIGTERM -> signal handler -> `GRACEFUL_SHUTDOWN` atomic -> main loop exits -> `Terminal::drop()`
 - `Terminal::drop()` runs the full restore sequence (Layer 1-3 ANSI + crossterm)
 - Signal-exit viewport clear: clears the visible screen BEFORE leaving
   alternate screen, so rain residue doesn't flash on the main screen
@@ -173,9 +173,9 @@ All file-reading/writing CLI flags enforce the same strict whitelist:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│  --config <path>          → whitelist + .toml extension │
-│  --dump-config <path>     → whitelist + .toml extension │
-│  --dump-config (no arg)   → stdout only, redirect blocked│
+│  --config <path>          -> whitelist + .toml extension │
+│  --dump-config <path>     -> whitelist + .toml extension │
+│  --dump-config (no arg)   -> stdout only, redirect blocked│
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -201,10 +201,10 @@ All file-reading/writing CLI flags enforce the same strict whitelist:
 The CLI color system degrades gracefully across 4 tiers:
 
 ```
-TrueColor (24-bit)  →  #A855F7 exact RGB (modern terminals)
-Color256 (8-bit)    →  index 135 closest palette match (older xterm)
-Color16 (4-bit)     →  ANSI Magenta (legacy terminals)
-Mono                →  plain text (NO_COLOR, dumb, piped)
+TrueColor (24-bit)  ->  #A855F7 exact RGB (modern terminals)
+Color256 (8-bit)    ->  index 135 closest palette match (older xterm)
+Color16 (4-bit)     ->  ANSI Magenta (legacy terminals)
+Mono                ->  plain text (NO_COLOR, dumb, piped)
 ```
 
 Detection follows the de-facto standard (NO_COLOR, CLICOLOR, CLICOLOR_FORCE,

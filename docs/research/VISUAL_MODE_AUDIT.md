@@ -61,11 +61,11 @@ The prior audit doc claimed bottom = 0.369, which was the 2-effect math
 (invisible). This is fixed with the RAIN_SHADOW_FLOOR cap.
 
 **Note on the floor being asymptotic:** `rain_shadow_factor` floors at
-`RAIN_SHADOW_FLOOR` (0.50) only in the limit as `lines → ∞`. For a
+`RAIN_SHADOW_FLOOR` (0.50) only in the limit as `lines -> ∞`. For a
 discrete terminal, the bottom row reaches `t = (lines-1-threshold)/span`
 which is always < 1.0. For lines=40, t = 5/6 ≈ 0.833, so the bottom-row
 shadow factor is 0.653 (not 0.50). The asymptotic floor (0.50) is
-reached only on very tall terminals (lines=400 → factor ≈ 0.517). The
+reached only on very tall terminals (lines=400 -> factor ≈ 0.517). The
 compounded brightness values in the table above use the actual 80×40
 shadow factor (0.653), not the asymptotic floor.
 
@@ -83,15 +83,15 @@ actual_brightness(row) = crt_vignette_factor(row) × edge_fade_factor(row)
 
 The retune treated each constant in isolation:
 
-- `CRT_VIGNETTE_EDGE_FACTOR` 0.9 → 0.5 (50% dim, was 10%)
-- `EDGE_FADE_TOP_MIN` 0.70 → 0.45 (55% dim, was 30%)
-- `EDGE_FADE_BOTTOM_MIN` 0.35 → 0.20 (80% dim, was 65%)
+- `CRT_VIGNETTE_EDGE_FACTOR` 0.9 -> 0.5 (50% dim, was 10%)
+- `EDGE_FADE_TOP_MIN` 0.70 -> 0.45 (55% dim, was 30%)
+- `EDGE_FADE_BOTTOM_MIN` 0.35 -> 0.20 (80% dim, was 65%)
 
 But the **compounded** effect at the extreme rows was:
 
 ```text
-top row brightness     = 0.5 × 0.45 = 0.225  → 77.5% dim (rain invisible)
-bottom row brightness  = 0.5 × 0.20 = 0.10   → 90% dim   (rain invisible)
+top row brightness     = 0.5 × 0.45 = 0.225  -> 77.5% dim (rain invisible)
+bottom row brightness  = 0.5 × 0.20 = 0.10   -> 90% dim   (rain invisible)
 ```
 
 The owner saw this as "too aggressive" because the rain entering from
@@ -151,13 +151,13 @@ The masterclass targets sit at:
 ```
 row | vignette  edge_fade  COMBINED
 ----+--------------------------------
-  0 |  0.900    0.700     0.630   ← TOP extreme (too subtle)
+  0 |  0.900    0.700     0.630   <- TOP extreme (too subtle)
   1 |  0.910    0.850     0.774
   2 |  0.935    1.000     0.935
   3 |  0.965    1.000     0.965
   4 |  0.990    1.000     0.990
   5 |  1.000    1.000     1.000
- 20 |  1.000    1.000     1.000   ← mid (full bright)
+ 20 |  1.000    1.000     1.000   <- mid (full bright)
  32 |  1.000    0.875     0.875
  33 |  1.000    0.838     0.838
  34 |  1.000    0.804     0.804
@@ -165,7 +165,7 @@ row | vignette  edge_fade  COMBINED
  36 |  0.965    0.757     0.730
  37 |  0.935    0.750     0.701
  38 |  0.910    0.550     0.501
- 39 |  0.900    0.350     0.315   ← BOTTOM extreme
+ 39 |  0.900    0.350     0.315   <- BOTTOM extreme
 ```
 
 ### Initial retune (owner unhappy — too aggressive)
@@ -173,12 +173,12 @@ row | vignette  edge_fade  COMBINED
 ```
 row | vignette  edge_fade  COMBINED
 ----+--------------------------------
-  0 |  0.500    0.450     0.225   ← TOP extreme (rain invisible!)
+  0 |  0.500    0.450     0.225   <- TOP extreme (rain invisible!)
   1 |  0.630    0.725     0.456
   2 |  0.870    1.000     0.870
   3 |  1.000    1.000     1.000
   4 |  1.000    1.000     1.000
- 20 |  1.000    1.000     1.000   ← mid (full bright)
+ 20 |  1.000    1.000     1.000   <- mid (full bright)
  32 |  1.000    0.981     0.981
  33 |  1.000    0.935     0.935
  34 |  1.000    0.875     0.875
@@ -186,7 +186,7 @@ row | vignette  edge_fade  COMBINED
  36 |  1.000    0.769     0.769
  37 |  0.870    0.750     0.653
  38 |  0.630    0.475     0.299
- 39 |  0.500    0.200     0.100   ← BOTTOM extreme (rain invisible!)
+ 39 |  0.500    0.200     0.100   <- BOTTOM extreme (rain invisible!)
 ```
 
 ### Masterclass retune (proposed)
@@ -194,12 +194,12 @@ row | vignette  edge_fade  COMBINED
 ```
 row | vignette  edge_fade  COMBINED
 ----+--------------------------------
-  0 |  0.820    0.650     0.533   ← TOP extreme (visible + cinematic)
+  0 |  0.820    0.650     0.533   <- TOP extreme (visible + cinematic)
   1 |  0.867    0.825     0.715
   2 |  0.953    1.000     0.953
   3 |  1.000    1.000     1.000
   4 |  1.000    1.000     1.000
- 20 |  1.000    1.000     1.000   ← mid (full bright)
+ 20 |  1.000    1.000     1.000   <- mid (full bright)
  30 |  1.000    0.982     0.982
  31 |  1.000    0.928     0.928
  32 |  1.000    0.858     0.858
@@ -209,21 +209,21 @@ row | vignette  edge_fade  COMBINED
  36 |  0.953    0.587     0.560
  37 |  0.867    0.540     0.468
  38 |  0.820    0.495     0.406
- 39 |  0.820    0.450     0.369   ← BOTTOM extreme (dissolving, not destroyed)
+ 39 |  0.820    0.450     0.369   <- BOTTOM extreme (dissolving, not destroyed)
 ```
 
 The masterclass curve hits every target:
 
-- Top extreme: 0.533 (target 0.50-0.55) ✓
-- Top +1: 0.715 (target 0.70-0.80) ✓
-- Top +2: 0.953 (target 0.90-0.95) ✓
-- Mid: 1.000 (target 1.00) ✓
+- Top extreme: 0.533 (target 0.50-0.55) OK
+- Top +1: 0.715 (target 0.70-0.80) OK
+- Top +2: 0.953 (target 0.90-0.95) OK
+- Mid: 1.000 (target 1.00) OK
 - Bottom -2: 0.406 (target 0.55-0.65 — slightly below target, but
-  intentional: the masterclass widens EDGE_FADE_BOTTOM_ROWS from 8 → 10
+  intentional: the masterclass widens EDGE_FADE_BOTTOM_ROWS from 8 -> 10
   for a smoother dissolve, so the "Bottom -2" row is one row closer to
   the extreme than in the initial retune; the actual dissolve still ramps smoothly
   from 0.982 at row 30 down to 0.369 at row 39).
-- Bottom extreme: 0.369 (target 0.35-0.45) ✓
+- Bottom extreme: 0.369 (target 0.35-0.45) OK
 
 ---
 
@@ -246,7 +246,7 @@ residue, but stops well short of the 90% invisible threshold).
 
 ## Per-constant rationale
 
-### `CRT_VIGNETTE_EDGE_FACTOR`: 0.50 → **0.82** (18% dim)
+### `CRT_VIGNETTE_EDGE_FACTOR`: 0.50 -> **0.82** (18% dim)
 
 The CRT vignette is a "subtle glow" effect — its job is to make the
 screen edges feel slightly darker (retro CRT feel), NOT to be a
@@ -262,7 +262,7 @@ dimming effect and compounded destructively with edge fade.
 - Match the Apple Vision Pro / Sony Bravia "single-effect 15-20%"
   reference range.
 
-### `EDGE_FADE_TOP_MIN`: 0.45 → **0.65** (35% dim)
+### `EDGE_FADE_TOP_MIN`: 0.45 -> **0.65** (35% dim)
 
 The top edge fade is purely cinematic — rain enters smoothly from
 "above the screen". It needs to be visible enough that the user sees
@@ -276,7 +276,7 @@ rain entering, but dim enough that the eye reads it as "fade-in".
 - Slightly more aggressive than the original (0.70) to give the fade-in
   more presence, but stops well short of the initial retune's destructive 0.45.
 
-### `EDGE_FADE_BOTTOM_MIN`: 0.20 → **0.45** (55% dim)
+### `EDGE_FADE_BOTTOM_MIN`: 0.20 -> **0.45** (55% dim)
 
 The bottom edge fade is the most aggressive of the three because its
 primary purpose is functional (prevent phosphor ghost residue), not
@@ -293,16 +293,16 @@ is too gentle.
 - Midpoint between the original (0.35, owner wanted more aggressive) and
   the initial retune (0.20, too aggressive).
 
-### `EDGE_FADE_BOTTOM_ROWS`: 8 → **10** (wider dissolve zone)
+### `EDGE_FADE_BOTTOM_ROWS`: 8 -> **10** (wider dissolve zone)
 
-Widening the bottom fade zone from 8 → 10 rows gives the smoothstep
+Widening the bottom fade zone from 8 -> 10 rows gives the smoothstep
 more room to ease in. The 8-row zone produced a slightly abrupt
 transition where the gentle pre-fade met the sharp lip; 10 rows
 produces a more film-like dissolve.
 
-### `EDGE_FADE_BOTTOM_LIP`: 0.75 → **0.72** (slightly lower lip)
+### `EDGE_FADE_BOTTOM_LIP`: 0.75 -> **0.72** (slightly lower lip)
 
-Lowering the lip from 0.75 → 0.72 makes the transition between Zone 1
+Lowering the lip from 0.75 -> 0.72 makes the transition between Zone 1
 (gentle pre-fade) and Zone 2 (sharp lip) slightly smoother. The 0.03
 reduction is barely perceptible on its own but produces a more
 film-like dissolve when combined with the widened
@@ -371,7 +371,7 @@ and multiplies — the compounding is multiplicative, not additive.
 | 4 | `crt_vignette_factor`| `droplet.rs:218` (v30.2)       | [0.82, 1.0]  | Top 3 rows + bottom 3 rows (all layers) |
 
 Effects 1, 2, 3 are applied inline in `Droplet::draw` (droplet.rs:875-924)
-in the order: shadow → edge → radial. Effect 4 is applied as a
+in the order: shadow -> edge -> radial. Effect 4 is applied as a
 post-process pass in `cloud/rain.rs::apply_crt_vignette` after the
 droplet draw completes.
 
@@ -392,9 +392,9 @@ was:
 rain_shadow_factor(line=39, lines=40):
     threshold = (1.0 - 0.15) * 40 = 34
     t = (39 - 34) / 6 = 0.833
-    quadratic 1 - t² = 1 - 0.694 = 0.306  ← 70% dim from shadow ALONE
+    quadratic 1 - t² = 1 - 0.694 = 0.306  <- 70% dim from shadow ALONE
 viewport_edge_fade(line=39, lines=40):
-    bottom_dist = 0 → Zone 2 sharp lip
+    bottom_dist = 0 -> Zone 2 sharp lip
     factor = 0.45 (EDGE_FADE_BOTTOM_MIN)
 vignette_factor(col=79, line=39, 80, 40):
     nx = (79 - 40) / 40 = 0.975
@@ -405,10 +405,10 @@ vignette_factor(col=79, line=39, 80, 40):
     smooth = 0.875² * (3 - 2*0.875) = 0.957
     factor = 1.0 - 0.30 * 0.957 = 0.713
 crt_vignette_factor(line=39, lines=40):
-    v = 40 - 1 - 39 = 0 → smoothstep(0) = 0
+    v = 40 - 1 - 39 = 0 -> smoothstep(0) = 0
     factor = 0.82 + (1.0 - 0.82) * 0 = 0.82
 
-COMPOUNDED = 0.306 × 0.45 × 0.713 × 0.82 = 0.0806  → 91.9% dim (RAIN INVISIBLE)
+COMPOUNDED = 0.306 × 0.45 × 0.713 × 0.82 = 0.0806  -> 91.9% dim (RAIN INVISIBLE)
 ```
 
 The prior audit's "0.369" was off by 4.6× because it missed the
@@ -462,7 +462,7 @@ rain_shadow_factor = 0.653  (was 0.306 previously)
 viewport_edge_fade = 0.45
 vignette_factor    = 0.713
 crt_vignette_factor = 0.82
-COMPOUNDED = 0.653 × 0.45 × 0.713 × 0.82 = 0.172  → 82.8% dim (rain visible)
+COMPOUNDED = 0.653 × 0.45 × 0.713 × 0.82 = 0.172  -> 82.8% dim (rain visible)
 
 # Bottom-center (col=40, line=39)
 # vignette_factor is 1.0 here (inside VIGNETTE_INNER_RADIUS=0.7)
@@ -470,7 +470,7 @@ rain_shadow_factor = 0.653
 viewport_edge_fade = 0.45
 vignette_factor    = 1.0
 crt_vignette_factor = 0.82
-COMPOUNDED = 0.653 × 0.45 × 1.0 × 0.82 = 0.241  → 75.9% dim (rain visible)
+COMPOUNDED = 0.653 × 0.45 × 1.0 × 0.82 = 0.241  -> 75.9% dim (rain visible)
 ```
 
 17% brightness at the corner is still dim, but rain is now clearly
@@ -494,8 +494,8 @@ recomputed section above for the full math.
 | Option | Fix                                | Compounded bottom (corner) | Verdict |
 |--------|------------------------------------|---------------------------|---------|
 | 1      | Add `compounded_brightness` SSOT  | (no math change — 0.080)  | Required for future audits — adopted |
-| 2      | Raise `EDGE_FADE_BOTTOM_MIN` 0.45 → 0.60 | ~0.107             | Changes the cinematic dissolve character — rejected |
-| 3      | Lower `VIGNETTE_INTENSITY` 0.30 → 0.20 | ~0.091              | Weakens the photographic lens effect globally — rejected |
+| 2      | Raise `EDGE_FADE_BOTTOM_MIN` 0.45 -> 0.60 | ~0.107             | Changes the cinematic dissolve character — rejected |
+| 3      | Lower `VIGNETTE_INTENSITY` 0.30 -> 0.20 | ~0.091              | Weakens the photographic lens effect globally — rejected |
 | 4      | Cap `rain_shadow_factor` floor at 0.50 | **0.172**         | Highest leverage, preserves curve shape — adopted |
 | 5      | Skip `crt_vignette` on the bottom band only | ~0.098         | Asymmetric CRT glow (top dim, bottom not) — rejected |
 

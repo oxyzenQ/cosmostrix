@@ -30,7 +30,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 **Upgrading Rust**: (1) update `rust-toolchain.toml` channel; (2) update `Cargo.toml` `rust-version` if MSRV changed; (3) update all `.github/workflows/*.yml` `toolchain:` refs; (4) `./scripts/build.sh check-all`; (5) `cargo test --all --locked`; (6) commit `chore: bump Rust toolchain to X.Y.Z`.
 
-**Dependencies**: `Cargo.lock` committed (reproducible builds), 64 direct deps / 98 total crates, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` → `cargo deny check advisories` → `cargo test --all --locked` → `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
+**Dependencies**: `Cargo.lock` committed (reproducible builds), 64 direct deps / 98 total crates, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
 
 ## 3. CI/CD Pipeline
 
@@ -51,7 +51,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 If `cargo deny check advisories` or GitHub Dependabot reports a vulnerability:
 
 1. **Assess severity**: direct dep or transitive? Does the vulnerable code path execute?
-2. **Update the dependency**: `cargo update -p <crate-name>` → `cargo deny check advisories` → `cargo test --all --locked` → `./scripts/build.sh check-all`.
+2. **Update the dependency**: `cargo update -p <crate-name>` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`.
 3. **Commit**: `security: update <crate> for CVE-XXXX-XXXXX`.
 4. **Tag release** if user-facing: `./scripts/version-to.sh vX.Y.Z`.
 
@@ -71,7 +71,7 @@ If returning after 5-10 years of dormancy, follow this exact sequence. No steps 
 4. **Test**: `cargo test --all --locked`
 5. **Gatekeeper**: `./scripts/build.sh check-all -q`
 6. **Security audit**: `cargo deny check all`
-7. **Dependency update** (if any CVEs): `cargo update` → repeat steps 4-6
+7. **Dependency update** (if any CVEs): `cargo update` -> repeat steps 4-6
 8. **Rust toolchain upgrade** (if current Rust is EOL): see Section 2 "Upgrading Rust"
 9. **Benchmark** (optional): `./target/release/cosmostrix --benchmark --scene monolith --bench-duration 5`
 10. **Log result** in the table below.

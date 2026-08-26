@@ -45,7 +45,7 @@ those decisions cheaper, not from removing them.
 ### Lever 1 — PGO (profile-guided optimization): the designed-but-unused route (highest confidence)
 
 The repository has a complete two-stage PGO pipeline
-(`./scripts/build.sh pgo`, instrumented → profile → final) and release
+(`./scripts/build.sh pgo`, instrumented -> profile -> final) and release
 profiles that report PGO status — but every benchmark on record (including
 the owner's) runs a non-PGO build (`pgo: no`).
 
@@ -72,10 +72,10 @@ The codebase already proves the technique: `BOLD_ESCAPES` replaced the
 bold branch with a table lookup (docs record mispredict 0.57–2.41% on v30
 when BOLT was applied). The same conversion applies to:
 
-- The SGR emission decision (fg/bg change → select cached bytes
+- The SGR emission decision (fg/bg change -> select cached bytes
   arithmetically instead of branching) — the single hottest branch chain
   in `terminal/draw.rs`, executed per cell.
-- `CharLoc` → palette-index selection in `resolve_cell_color`, where the
+- `CharLoc` -> palette-index selection in `resolve_cell_color`, where the
   match arms are mutually exclusive values, not actions — a candidate for
   a lookup table.
 
@@ -86,8 +86,8 @@ the unlock pattern).
 
 ### Lever 3 — mispredict budget math (what "half" buys)
 
-Halving the mispredict rate (2.24% → ~1.1%) recovers roughly
-0.9–1.35B cycles of 14.4B → **IPC 2.85–2.92** at the same instruction
+Halving the mispredict rate (2.24% -> ~1.1%) recovers roughly
+0.9–1.35B cycles of 14.4B -> **IPC 2.85–2.92** at the same instruction
 count. PGO's layout gains (fewer stalls, better µop-cache hit rate) are
 what closes the remaining gap to ~3.0. This is why Lever 1 + Lever 2
 compose: PGO makes the remaining branches predictable, BOLT-style tables
@@ -146,9 +146,9 @@ only its proxy.
 The PGO A/B from §4 ran the same day in a 2-core CI container (perf
 counters unavailable, so the IPC half awaits a bare-metal re-run):
 
-- avg_fps **+4.5%** (91,337 → 95,475, interleaved 3-run medians)
-- avg_frame_time −4.5% (0.0110 → 0.0105 ms)
-- **max_frame_time −35%** (0.0727 → 0.0473 ms — the jank spike nearly
+- avg_fps **+4.5%** (91,337 -> 95,475, interleaved 3-run medians)
+- avg_frame_time −4.5% (0.0110 -> 0.0105 ms)
+- **max_frame_time −35%** (0.0727 -> 0.0473 ms — the jank spike nearly
   halved; this is the code-layout effect in action)
 - total_ns_per_cell −5.0%; per-frame visual metrics identical
   (deterministic seed)
@@ -166,7 +166,7 @@ Full data: [`benchmark/bench-labs/PGO_AB_20260823.md`](../../benchmark/bench-lab
 The owner re-ran the A/B with working perf counters. PGO delivered
 throughput (+4.0% avg_fps, −2.5% cycles/frame, −3.0% energy/frame) but
 **IPC stayed at 2.57 and the mispredict rate did not improve**
-(2.47% → 2.65%, within noise). The §2 prediction that PGO's block
+(2.47% -> 2.65%, within noise). The §2 prediction that PGO's block
 layout would cut the mispredict floor did NOT materialize — the
 honesty clause in §3 was the correct branch: the mispredicts are
 dominated by genuinely data-dependent branches that no amount of
@@ -182,7 +182,7 @@ Re-prioritized path to ~3.0:
    Converting them to table lookups (the proven BOLD_ESCAPES pattern)
    deletes the unpredictable branches outright. Estimated from the
    mispredict budget: removing ~60% of hot mispredicts recovers
-   ~8-11% of cycles → IPC ~2.85-2.95, with total_ns_per_cell dropping
+   ~8-11% of cycles -> IPC ~2.85-2.95, with total_ns_per_cell dropping
    correspondingly.
 3. Caveat recorded from the owner's run: his baseline arm was the
    SSE2-baseline `target/pro` build (target_features: sse,sse2), not v3 —

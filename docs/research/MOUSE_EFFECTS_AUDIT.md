@@ -61,9 +61,9 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 │  src/interactive/event_loop.rs:852-881  (Event::Mouse handler)              │
 │  ──────────────────────────────────────────                                 │
 │  crossterm::event::Event::Mouse(m)                                          │
-│    ├─ cloud.set_mouse_position(m.column, m.row)        ← always             │
+│    ├─ cloud.set_mouse_position(m.column, m.row)        <- always             │
 │    └─ if MouseEventKind::Down(_):                                            │
-│         cloud.set_mouse_click(m.column, m.row)         ← on press only      │
+│         cloud.set_mouse_click(m.column, m.row)         <- on press only      │
 └──────────────────────────────────────────────────────────────────────────────┘
                                      │
                                      ▼
@@ -72,7 +72,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 │  src/cosmic_dragon_engine/cloud/mod.rs:441-465  (Cloud::set_mouse_click)                         │
 │  ────────────────────────────────────────────                               │
 │  • Scan self.flash_waves[MOUSE_FLASH_POOL_SIZE=4] for first inactive slot   │
-│  • If none inactive → evict slot with smallest `birth` (oldest)             │
+│  • If none inactive -> evict slot with smallest `birth` (oldest)             │
 │  • Set slot = { active:true, col, line, birth:now }                         │
 │  • Call spawn_quantum_ripple(col, line)                                     │
 │                                                                              │
@@ -112,18 +112,18 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 │      norm_line = line_dist / MOUSE_GLOW_RADIUS_LINES (=5.0)                 │
 │      dist_sq = norm_col² + norm_line²                                       │
 │      if dist_sq < 1.0:                                                      │
-│        glow = (1 - dist_sq) × MOUSE_GLOW_INTENSITY  ← CONST = 0.0 !!        │
-│        r,g,b += (255 - r,g,b) × glow × 256 / 256  ← NO-OP                   │
+│        glow = (1 - dist_sq) × MOUSE_GLOW_INTENSITY  <- CONST = 0.0 !!        │
+│        r,g,b += (255 - r,g,b) × glow × 256 / 256  <- NO-OP                   │
 │                                                                              │
 │    /* (b) Flash wave dual-ring  — droplet.rs:769-816 */                     │
 │    for w in ctx.flash_waves:                                                │
 │      col_dist = abs(bound_col - w.col)                                      │
 │      line_dist = abs(line - w.line)                                         │
-│      euclidean = sqrt(col_dist² + line_dist²)         ← PER CELL PER WAVE  │
-│      raw_fade = (1 - elapsed / 1.8).max(0)            ← wave-invariant     │
-│      fade = raw_fade × sqrt(raw_fade)                 ← wave-invariant     │
-│      primary_radius = elapsed × 32.0                  ← wave-invariant     │
-│      secondary_radius = elapsed × 32.0 × 0.4          ← wave-invariant     │
+│      euclidean = sqrt(col_dist² + line_dist²)         <- PER CELL PER WAVE  │
+│      raw_fade = (1 - elapsed / 1.8).max(0)            <- wave-invariant     │
+│      fade = raw_fade × sqrt(raw_fade)                 <- wave-invariant     │
+│      primary_radius = elapsed × 32.0                  <- wave-invariant     │
+│      secondary_radius = elapsed × 32.0 × 0.4          <- wave-invariant     │
 │      if |euclidean - primary_radius| < 8.0:                                 │
 │        factor = (1 - primary_dist/8)² × 0.85 × fade                         │
 │      if |euclidean - secondary_radius| < 8.0:                               │
@@ -141,7 +141,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 │  ─────────────────────────────────────────────────────────────────────      │
 │  Early-out if quantum_active_count == 0                                     │
 │  Else: for each active particle:                                            │
-│    • age = now - p.birth ; if age >= 0.8s → deactivate                      │
+│    • age = now - p.birth ; if age >= 0.8s -> deactivate                      │
 │    • p.x += p.vx × dt ; p.y += p.vy × dt  (dt clamped to 1/30)              │
 │    • Compute tone-down RGB: p.r × 0.72 (rounded)                            │
 │    • Blend particle color onto existing cell foreground                     │
@@ -163,7 +163,7 @@ The mouse effects system spans **5 source files** and **2 constants modules**. T
 
 | File | Role |
 |---|---|
-| `src/interactive/event_loop.rs:852-881` | Event capture: dispatches `Event::Mouse` → `set_mouse_position` + `set_mouse_click` |
+| `src/interactive/event_loop.rs:852-881` | Event capture: dispatches `Event::Mouse` -> `set_mouse_position` + `set_mouse_click` |
 | `src/interactive/input.rs` | Keyboard only — no mouse handling. (Verified: no `mouse`/`Mouse` references.) |
 | `src/cosmic_dragon_engine/cloud/mod.rs:436-465` | `set_mouse_position` + `set_mouse_click` (pool slot selection, eviction) |
 | `src/cosmic_dragon_engine/cloud/mod.rs:613-618` | Pause-time birth shift for flash waves |
@@ -205,7 +205,7 @@ Event::Mouse(m) => {
 
 - **C2 (correctness, minor):** No `FocusLost` handling — mouse position is never reset to `u16::MAX` when the terminal loses focus. The glow anchor persists at the last in-window position. Same caveat as C1 (invisible while intensity is 0).
 
-- **C3 (correctness, minor):** `MouseEventKind::Down(_)` triggers `set_mouse_click` for all three buttons (Left, Right, Middle). Right-click typically emits a `Down(Right)` event in crossterm → spawns a flash wave + quantum ripple. Whether this is desired depends on owner intent (the comments only mention "click" generically). Not a bug, but worth flagging — right-click is conventionally a context-menu action, not a "ripple" trigger.
+- **C3 (correctness, minor):** `MouseEventKind::Down(_)` triggers `set_mouse_click` for all three buttons (Left, Right, Middle). Right-click typically emits a `Down(Right)` event in crossterm -> spawns a flash wave + quantum ripple. Whether this is desired depends on owner intent (the comments only mention "click" generically). Not a bug, but worth flagging — right-click is conventionally a context-menu action, not a "ripple" trigger.
 
 - **P1 (perf, negligible):** `Instant::now()` is called once per mouse event for `activity_time`. This is fine — mouse events are infrequent (~10-100 Hz during fast motion).
 
@@ -217,7 +217,7 @@ Event::Mouse(m) => {
 pub fn set_mouse_click(&mut self, col: u16, line: u16) {
     let now = Instant::now();                              // syscall #1
     let mut slot = None;
-    let mut oldest = (0usize, Instant::now());             // syscall #2  ← redundant
+    let mut oldest = (0usize, Instant::now());             // syscall #2  <- redundant
     for (i, w) in self.flash_waves.iter_mut().enumerate() {
         if !w.active { slot = Some(i); break; }
         if i == 0 || w.birth < oldest.1 {
@@ -281,7 +281,7 @@ pub fn set_mouse_click(&mut self, col: u16, line: u16) {
   - `primary_radius = elapsed × 32.0`
   - `secondary_radius = elapsed × 32.0 × 0.4`
 
-  All four are pure functions of `elapsed` (a wave property, not a cell property). They are recomputed for **every cell × every wave**. With 200 active cells × 4 waves × 60 fps = 48,000 redundant computations/sec. Each involves 1 sqrt + ~5 mul/div. Estimated savings from precomputation: ~150-300K cycles/sec → ~50-100 µs/sec → negligible in absolute terms but easy to eliminate.
+  All four are pure functions of `elapsed` (a wave property, not a cell property). They are recomputed for **every cell × every wave**. With 200 active cells × 4 waves × 60 fps = 48,000 redundant computations/sec. Each involves 1 sqrt + ~5 mul/div. Estimated savings from precomputation: ~150-300K cycles/sec -> ~50-100 µs/sec -> negligible in absolute terms but easy to eliminate.
 
   **Recommended change:** extend `FlashWaveCtx` with `primary_radius`, `secondary_radius`, `fade` (or `fade × MOUSE_FLASH_INTENSITY`). Compute once in rain.rs:583-595.
 
@@ -397,7 +397,7 @@ for w in &mut self.flash_waves {
 **Location:** `src/droplet.rs:727-748` + `src/central_control_rains.rs:496`
 
 ```rust
-pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.0;  // ← zero!
+pub(crate) const MOUSE_GLOW_INTENSITY: f32 = 0.0;  // <- zero!
 ```
 
 The cursor glow block:
@@ -445,7 +445,7 @@ if ctx.mouse_col != u16::MAX {
 let euclidean = (col_dist * col_dist + line_dist * line_dist).sqrt();
 ```
 
-This is computed **per cell × per wave**. For 200 active cells × 4 active waves × 60 fps = 48,000 sqrts/sec. Each sqrt is ~10-20 cycles on modern x86 (`sqrtss` instruction). Total: ~500K-1M cycles/sec → ~200-500 µs/sec.
+This is computed **per cell × per wave**. For 200 active cells × 4 active waves × 60 fps = 48,000 sqrts/sec. Each sqrt is ~10-20 cycles on modern x86 (`sqrtss` instruction). Total: ~500K-1M cycles/sec -> ~200-500 µs/sec.
 
 **Optimization:** Skip the sqrt for cells clearly outside the wave's reach. The wave's max influence radius is `primary_radius + MOUSE_FLASH_RING_WIDTH` (primary) or `secondary_radius + MOUSE_FLASH_RING_WIDTH` (secondary). Use the larger one as a bounding radius.
 
@@ -459,9 +459,9 @@ if dist_sq > w.max_reach_sq { continue; }  // skip sqrt + ring math
 let euclidean = dist_sq.sqrt();
 ```
 
-This skips the sqrt for cells far from the wave. For a typical wave at radius 30, the bounding circle has area ~3000 cells². On a 200×60 = 12000-cell screen, ~75% of cells are outside → sqrt skipped for 75% of cells.
+This skips the sqrt for cells far from the wave. For a typical wave at radius 30, the bounding circle has area ~3000 cells². On a 200×60 = 12000-cell screen, ~75% of cells are outside -> sqrt skipped for 75% of cells.
 
-**Estimated savings:** ~75% of 48K sqrts = 36K sqrts/sec saved → ~150-300 µs/sec.
+**Estimated savings:** ~75% of 48K sqrts = 36K sqrts/sec saved -> ~150-300 µs/sec.
 
 ### 3.3 [MEDIUM] Wave-invariant quantities recomputed per cell
 
@@ -484,10 +484,10 @@ These four quantities depend only on `elapsed` (a wave property). They are recom
 pub(crate) struct FlashWaveCtx {
     pub col: u16,
     pub line: u16,
-    pub primary_radius: f32,      // ← new
-    pub secondary_radius: f32,    // ← new
-    pub fade: f32,                // ← new (already includes the raw_fade^1.5)
-    pub max_reach_sq: f32,        // ← new (for §3.2 early-out)
+    pub primary_radius: f32,      // <- new
+    pub secondary_radius: f32,    // <- new
+    pub fade: f32,                // <- new (already includes the raw_fade^1.5)
+    pub max_reach_sq: f32,        // <- new (for §3.2 early-out)
 }
 ```
 
@@ -552,7 +552,7 @@ Flash wave births are shifted by `elapsed` (line 614-618), but quantum particle 
 
 **Reproduction:**
 
-1. Click → spawns 20 particles (lifespan 0.8s)
+1. Click -> spawns 20 particles (lifespan 0.8s)
 2. Immediately press `p` to pause
 3. Wait 1 second
 4. Press `p` to unpause

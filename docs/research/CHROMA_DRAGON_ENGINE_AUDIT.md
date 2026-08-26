@@ -12,7 +12,7 @@
 **Scope**: End-to-end audit of every color-emitting code path in cosmostrix; verify the Chroma Dragon engine is the primary coloring authority with a documented legacy fallback; surface inconsistencies; propose a masterclass refactor for owner approval.
 **Mode**: Read-only. **NO SOURCE CODE MODIFIED.** This document is a research deliverable for owner approval before any code changes.
 **Date**: 2026-08-09 (HEAD `4780ad4`, post visual-mode retune)
-**Owner directive**: "all color → chroma dragon first → fallback legacy rgb/srgb"
+**Owner directive**: "all color -> chroma dragon first -> fallback legacy rgb/srgb"
 
 ---
 
@@ -36,23 +36,23 @@ The refactor proposal in §6 introduces a `ColorPipeline` enum (Chroma / LegacyR
 ### 1.1 Module map
 
 ```
-src/chroma_dragon_engine/                                ← the engine
-├── mod.rs                                 ← declares submodules + Phase history
-├── palette.rs                             ← Palette struct, build_palette, blend helpers
-├── catalog.rs                             ← THEMES registry (43 themes), ThemeDef
-├── gradient.rs                            ← OKLab polar interpolation (sole prod path)
+src/chroma_dragon_engine/                                <- the engine
+├── mod.rs                                 <- declares submodules + Phase history
+├── palette.rs                             <- Palette struct, build_palette, blend helpers
+├── catalog.rs                             <- THEMES registry (43 themes), ThemeDef
+├── gradient.rs                            <- OKLab polar interpolation (sole prod path)
 ├── shaders/
-│   ├── base.rs                            ← ShaderCtx + resolve_cell_color() ← THE convergence point
-│   ├── transition.rs                      ← TransitionLTable, apply_l_smoothing (Phase 5)
+│   ├── base.rs                            <- ShaderCtx + resolve_cell_color() <- THE convergence point
+│   ├── transition.rs                      <- TransitionLTable, apply_l_smoothing (Phase 5)
 │   └── mod.rs
 ├── post/
-│   ├── climate.rs                         ← ClimateCtx + apply_climate() (luminance/sat/instability)
-│   ├── ghost.rs                           ← ghost_base_color() — palette-aware ghost derivation
-│   ├── anomaly.rs                         ← anomaly_halo_target() — palette-aware anomaly target
+│   ├── climate.rs                         <- ClimateCtx + apply_climate() (luminance/sat/instability)
+│   ├── ghost.rs                           <- ghost_base_color() — palette-aware ghost derivation
+│   ├── anomaly.rs                         <- anomaly_halo_target() — palette-aware anomaly target
 │   └── mod.rs
-├── tuning.rs                              ← COLUMN_COHERENCE_FREQ, SUBPIXEL_JITTER_AMPLITUDE, HEAD_HALO_FACTOR, etc.
-├── lock_tests.rs                          ← 18 ENGINE LOCK invariants (Phase 9-B)
-└── palette_floor_tests.rs                 ← palette-relative floor regression tests
+├── tuning.rs                              <- COLUMN_COHERENCE_FREQ, SUBPIXEL_JITTER_AMPLITUDE, HEAD_HALO_FACTOR, etc.
+├── lock_tests.rs                          <- 18 ENGINE LOCK invariants (Phase 9-B)
+└── palette_floor_tests.rs                 <- palette-relative floor regression tests
 ```
 
 ### 1.2 The chroma API surface (functions the rest of the codebase may call)
@@ -71,8 +71,8 @@ src/chroma_dragon_engine/                                ← the engine
 | `ghost_base_color(palette_colors) -> (u8,u8,u8)` | `chroma::post::ghost` | Palette-aware ghost color (replaces hardcoded `(18,22,18)`) |
 | `anomaly_halo_target(palette_colors, anomaly_kind) -> Option<Color>` | `chroma::post::anomaly` | Palette-aware anomaly halo target |
 | `gradient_from_stops_oklab(stops, steps)` | `chroma::gradient` | OKLab polar interpolation between stop points |
-| `srgb_to_oklab(r,g,b) -> (f32,f32,f32)` | `chroma::gradient` | sRGB → OKLab conversion |
-| `oklab_to_srgb(l,a,b) -> (u8,u8,u8)` | `chroma::gradient` | OKLab → sRGB conversion |
+| `srgb_to_oklab(r,g,b) -> (f32,f32,f32)` | `chroma::gradient` | sRGB -> OKLab conversion |
+| `oklab_to_srgb(l,a,b) -> (u8,u8,u8)` | `chroma::gradient` | OKLab -> sRGB conversion |
 
 ### 1.3 What the chroma engine does NOT have
 
@@ -91,7 +91,7 @@ The audit was conducted by:
 1. **Reading the engine definition** — `chroma/mod.rs`, `chroma_dragon_engine/shaders/base.rs` (full 784 LOC), `chroma_dragon_engine/palette/mod.rs`, `chroma_dragon_engine/post/*`, `chroma_dragon_engine/tuning.rs`, `chroma/gradient.rs`.
 2. **Grepping for every direct `Color::Rgb { ... }` construction** across `src/` (250+ matches found; filtered to production non-test call sites).
 3. **Grepping for every direct integer RGB manipulation pattern** (`r as i32 + ...`, `r as f32 * scale`, `>> 8`). Found ~30+ production sites.
-4. **Tracing the quantum ripple and mouse-click pipelines** end-to-end (`cloud/spawn.rs::spawn_quantum_ripple` → `cloud/rain.rs::apply_quantum_ripple` → `droplet.rs` flash-wave render).
+4. **Tracing the quantum ripple and mouse-click pipelines** end-to-end (`cloud/spawn.rs::spawn_quantum_ripple` -> `cloud/rain.rs::apply_quantum_ripple` -> `droplet.rs` flash-wave render).
 5. **Reading the verbose output** (`src/verbose.rs`, 404 LOC, full) and the doctor report (`src/doctor.rs`, 626 LOC, full).
 6. **Reading the benchmark mode** (`src/bench.rs::run_benchmark`, `run_premium_benchmark`) and the bench CONFIG enrichment (`compute_config_enrichment`).
 7. **Cross-checking documentation claims** — `info.rs::docs_report` claims a "sRGB-linear fallback" that does not exist in the codebase.
@@ -114,8 +114,8 @@ let (body_r, body_g, body_b) = self
     .palette
     .colors
     .get(body_idx)
-    .and_then(|c| crate::palette::decode_color(*c))    // ← chroma helper, OK
-    .unwrap_or((                                       // ← FALLBACK is hardcoded RGB
+    .and_then(|c| crate::palette::decode_color(*c))    // <- chroma helper, OK
+    .unwrap_or((                                       // <- FALLBACK is hardcoded RGB
         QUANTUM_BRAND_PURPLE_R,
         QUANTUM_BRAND_PURPLE_G,
         QUANTUM_BRAND_PURPLE_B,
@@ -139,12 +139,12 @@ let (pr, pg, pb) = (
 let nr = (br as i32 + ((pr as i32 - br as i32) * wf + 128) / 256).clamp(0, 255) as u8;
 let ng = (bg_ as i32 + ((pg as i32 - bg_ as i32) * wf + 128) / 256).clamp(0, 255) as u8;
 let nb = (bb as i32 + ((pb as i32 - bb as i32) * wf + 128) / 256).clamp(0, 255) as u8;
-let new_fg = Color::Rgb { r: nr, g: ng, b: nb };   // ← direct construction, no chroma
+let new_fg = Color::Rgb { r: nr, g: ng, b: nb };   // <- direct construction, no chroma
 ```
 
 **Why this is a problem (chroma-engine perspective)**:
 
-- The blend uses **linear sRGB interpolation** in `(r as i32 + (target - r) * wf) / 256` form. Linear sRGB interpolation produces the well-known "muddy midpoint" artifact — blending red→cyan passes through gray instead of through a perceptual mid-hue. The chroma engine's `blend_toward_bg` (which uses linear RGB too, but the palette construction uses OKLab) is at least consistent with the rest of the chroma pipeline. The ripple path is off doing its own thing.
+- The blend uses **linear sRGB interpolation** in `(r as i32 + (target - r) * wf) / 256` form. Linear sRGB interpolation produces the well-known "muddy midpoint" artifact — blending red->cyan passes through gray instead of through a perceptual mid-hue. The chroma engine's `blend_toward_bg` (which uses linear RGB too, but the palette construction uses OKLab) is at least consistent with the rest of the chroma pipeline. The ripple path is off doing its own thing.
 - The blend ignores `color_mode`. In `ColorMode::Color256` or `ColorMode::Color16`, the particle writes a truecolor `Color::Rgb` that the terminal cannot display natively (it gets quantized by crossterm downstream, but the chroma engine should have first-class awareness).
 - There is **no `apply_climate` call** on the particle. The rest of the frame gets atmospheric luminance/saturation drift, but the ripple particle does not — it sticks out as a "non-atmospheric" overlay.
 
@@ -288,15 +288,15 @@ Same pattern. Uses `decode_color` (chroma helper, good) but then does raw RGB ma
 **File**: `src/cosmic_dragon_engine/cloud/events/ghost.rs:84-135`
 
 ```rust
-let (br, bg, bb) = ctx.ghost_base_color;     // ← from chroma::post::ghost, OK
-let r = (br as f32 * opacity) as u8;          // ← raw RGB scaling, NOT chroma
+let (br, bg, bb) = ctx.ghost_base_color;     // <- from chroma::post::ghost, OK
+let r = (br as f32 * opacity) as u8;          // <- raw RGB scaling, NOT chroma
 let g = (bg as f32 * opacity) as u8;
 let b = (bb as f32 * opacity) as u8;
 if r == 0 && g == 0 && b == 0 { return; }
 // ...
 frame.set_force(self.col, self.line, Cell {
     ch: self.ch,
-    fg: Some(Color::Rgb { r, g, b }),          // ← direct construction
+    fg: Some(Color::Rgb { r, g, b }),          // <- direct construction
     ..cell
 });
 ```
@@ -319,9 +319,9 @@ Direct construction at the end of the monolith color pipeline. Need to audit the
 
 The phosphor file is **half-migrated**:
 
-- Lines 296, 318, 354 call `palette::apply_brightness_rgb` ✓ (chroma helper)
-- Lines 489-497 call `palette::blend_toward_bg` ✓ (chroma helper, palette-aware anomaly halo target)
-- Lines 592-599 also use `blend_toward_bg` with anomaly halo target ✓
+- Lines 296, 318, 354 call `palette::apply_brightness_rgb` OK (chroma helper)
+- Lines 489-497 call `palette::blend_toward_bg` OK (chroma helper, palette-aware anomaly halo target)
+- Lines 592-599 also use `blend_toward_bg` with anomaly halo target OK
 
 This is the model the rest of the codebase should follow. Phosphor is the **only** production module that consistently routes through the chroma engine for color manipulation. The other Category-A sites should be brought up to phosphor's standard.
 
@@ -378,7 +378,7 @@ The doctor report has:
 
 1. The benchmark loop sets `cloud.crystal_dragon = false` (line 201) to keep p99/max metrics deterministic (palette rebuilds inject timing spikes).
 2. **Climate drift still runs** — the comment at line 196-200 says: "Climate drift (luminance/saturation/hue modulation) still runs because it is deterministic (fixed RNG seed) and has no rebuild cost."
-3. The Chroma Dragon engine itself is **NOT disabled**. Every cell still goes through `resolve_cell_color` → `apply_climate` → etc.
+3. The Chroma Dragon engine itself is **NOT disabled**. Every cell still goes through `resolve_cell_color` -> `apply_climate` -> etc.
 
 **The benchmark report discloses** (in the CONFIG block):
 
@@ -414,7 +414,7 @@ The owner's question — *"when benchmarking mode 'cosmostrix --benchmark' is th
 > Historically this file held `srgb_to_linear`, `linear_to_srgb`, and `lerp_u8_gamma` — the gamma-correct sRGB interpolator used by ... [the] sole production path; **the legacy sRGB-linear path and the Cartesian [variant] have been removed**.
 
 **Reality** (from `src/chroma_dragon_engine/gradient.rs:10-41`):
-> The previous `lerp_u8_gamma` (sRGB → linear → sRGB) interpolated each [channel independently] ... **[the] variant and the legacy sRGB-linear variant have been removed.** The [sole production path is OKLab polar].
+> The previous `lerp_u8_gamma` (sRGB -> linear -> sRGB) interpolated each [channel independently] ... **[the] variant and the legacy sRGB-linear variant have been removed.** The [sole production path is OKLab polar].
 
 The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in the binary for `strings(1)` discovery. The claim "sRGB-linear fallback" is false — there is no fallback. This must be corrected.
 
@@ -436,7 +436,7 @@ The chroma engine's own `mod.rs` Phase history is accurate (Phase 9-A says "sole
 
 ### 6.1 Design principle
 
-**Owner's rule**: "all color → chroma dragon first → fallback legacy rgb/srgb"
+**Owner's rule**: "all color -> chroma dragon first -> fallback legacy rgb/srgb"
 
 **Operational definition**:
 
@@ -671,7 +671,7 @@ The chroma-native path for the Category-A bypasses is **not slower** than the le
 - `blend_toward_bg` is 6 multiplies + 3 clamps — identical to the inlined `(target - r) * wf / 256` math.
 - The `if pipeline.is_chroma()` branch is predicted-true in production and costs 0 cycles on the hot path.
 
-The only **new** cost is the perceptual (OKLab) variants proposed in A4 (head self-bloom) and A1 (quantum ripple blend). These do an sRGB→OKLab→sRGB round-trip per call. At ~12.9M Middle cells/sec, this is ~38M cycles/sec extra (sRGB→OKLab is ~3 cycles, OKLab→sRGB is ~3 cycles, plus the L lift = ~1 cycle). On a 3 GHz core that's ~1.3% CPU. Acceptable, but the legacy fallback must remain for users on slow CPUs or non-truecolor terminals.
+The only **new** cost is the perceptual (OKLab) variants proposed in A4 (head self-bloom) and A1 (quantum ripple blend). These do an sRGB->OKLab->sRGB round-trip per call. At ~12.9M Middle cells/sec, this is ~38M cycles/sec extra (sRGB->OKLab is ~3 cycles, OKLab->sRGB is ~3 cycles, plus the L lift = ~1 cycle). On a 3 GHz core that's ~1.3% CPU. Acceptable, but the legacy fallback must remain for users on slow CPUs or non-truecolor terminals.
 
 The benchmark report's `render_ns_per_cell` and `total_ns_per_cell` metrics will surface any regression. P7 (droplet migration) is the highest-risk phase — it must be validated with `cosmostrix --benchmark --bench-frames 10000` before/after comparison.
 
@@ -784,13 +784,13 @@ The second-pass audit re-confirmed that the following categories correctly do NO
 
 3. **Storage/parsing** — `catalog.rs` RGB tuples, `colors_custom.rs` hex parsing. Input data, not color operations.
 
-4. **Documented legacy fallbacks** — `cloud/events/ghost.rs:116-118` (A9 legacy fallback). Intentionally preserves pre-migration `(c as f32 * opacity) as u8` truncation behavior; the chroma path at line 112 uses `apply_brightness_rgb` (integer `>> 8` + 128 rounding). The two paths can differ by ±1 per channel (e.g. `255 * 0.5 = 127.5` → 127 legacy, 128 chroma), which is imperceptible on a dim ghost overlay and acceptable per the owner rule.
+4. **Documented legacy fallbacks** — `cloud/events/ghost.rs:116-118` (A9 legacy fallback). Intentionally preserves pre-migration `(c as f32 * opacity) as u8` truncation behavior; the chroma path at line 112 uses `apply_brightness_rgb` (integer `>> 8` + 128 rounding). The two paths can differ by ±1 per channel (e.g. `255 * 0.5 = 127.5` -> 127 legacy, 128 chroma), which is imperceptible on a dim ghost overlay and acceptable per the owner rule.
 
 5. **Scalar decay** — `cloud/phosphor.rs:277` phosphor energy scalar decay (`u8` persistence counter, not a color channel). The energy value is later consumed by `apply_brightness_rgb` (already chroma-routed at A18–A20).
 
 ### 9.6 Net migration status after this audit cycle
 
-- **Original §3 audit (A1–A11)**: 11 sites → all migrated in P6–P14 rollout.
+- **Original §3 audit (A1–A11)**: 11 sites -> all migrated in P6–P14 rollout.
 - **Migration expansion (A12–A13)**: 2 sites discovered during P9/P10 implementation (DoF contrast reduction, depth fog). Migrated as `8ca0fca` and `e15dfc9`.
 - **Second-pass audit (A14–A23)**: 10 sites discovered post-A1–A13 migration. All 10 migrated in this cycle (A14–A17 in `3a8fc96`/`6bbbc7e`/`1274e23`/`31c7a41`, A18–A22 in `8309f85` + shared helpers extracted in `aaf4003`, A23 in `9c02916`).
 - **Total identified bypass sites**: 23.

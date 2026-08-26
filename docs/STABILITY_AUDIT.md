@@ -7,7 +7,7 @@
 
 **Layer 1: RAII Drop Guard** (`Terminal::drop`, `src/cosmic_dragon_engine/terminal/mod.rs:909`). `Terminal` implements `Drop`, guaranteeing cleanup runs even during panic unwinding. The `Drop` impl spawns a force-exit watchdog thread *before* performing cleanup. This thread sleeps for `SHUTDOWN_TIMEOUT_SECS` (2 seconds, `src/central_control_dragon_power/mod.rs:270`) and then checks an `Arc<AtomicBool>` (`shutdown_complete`). If cleanup finished normally, the flag is set to `true` and the watchdog exits harmlessly. If cleanup is stuck (e.g., stdout pipe is broken and `flush()` blocks), the watchdog calls `process::exit(0)` as a last resort.
 
-**Layer 2: Idempotent Cleanup** (`cleanup_terminal`, `src/cosmic_dragon_engine/terminal/mod.rs:773`). Strictly idempotent — the `cleaned_up` boolean guard at line 775 prevents any cleanup step from executing twice. Each state flag (`mouse_capture_enabled`, `bracketed_paste_enabled`, `cursor_hidden`, `line_wrap_disabled`, `alternate_screen_enabled`, `raw_mode_enabled`) is checked individually and cleared after the corresponding ANSI command is issued. Cleanup order is **reverse-LIFO** relative to setup: disable mouse capture → disable bracketed paste → reset attributes/colors → show cursor → re-enable line wrap → leave alternate screen → disable raw mode → flush stdout. LIFO ordering verified by unit test `terminal_cleanup_plan_is_reverse_order_and_idempotent`.
+**Layer 2: Idempotent Cleanup** (`cleanup_terminal`, `src/cosmic_dragon_engine/terminal/mod.rs:773`). Strictly idempotent — the `cleaned_up` boolean guard at line 775 prevents any cleanup step from executing twice. Each state flag (`mouse_capture_enabled`, `bracketed_paste_enabled`, `cursor_hidden`, `line_wrap_disabled`, `alternate_screen_enabled`, `raw_mode_enabled`) is checked individually and cleared after the corresponding ANSI command is issued. Cleanup order is **reverse-LIFO** relative to setup: disable mouse capture -> disable bracketed paste -> reset attributes/colors -> show cursor -> re-enable line wrap -> leave alternate screen -> disable raw mode -> flush stdout. LIFO ordering verified by unit test `terminal_cleanup_plan_is_reverse_order_and_idempotent`.
 
 **Layer 3: Best-Effort Restore** (`restore_terminal_best_effort`, `src/cosmic_dragon_engine/terminal/mod.rs:944`). Standalone function callable from any context (signal handlers, panic hooks, other threads) without access to the `Terminal` instance. Issues a comprehensive `TERMINAL_RESET_SEQUENCE` containing all known terminal reporting mode resets: `?1000l`/`?1002l`/`?1003l` (mouse tracking), `?1006l`/`?1015l` (mouse encoding), `?2004l` (bracketed paste), `?1004l` (focus reporting), `?1049l` (alternate screen buffer), `?25h` (show cursor), followed by `0m` (attribute reset). Coverage verified by test `emergency_reset_sequence_disables_terminal_reporting_modes`.
 
@@ -15,7 +15,7 @@
 
 **Additional: Panic Hook** (main.rs:163–166). `std::panic::set_hook` installed at the very start of `main()` calls `restore_terminal_best_effort()` before printing the panic info, ensuring a broken terminal never results from a panic.
 
-**Assessment**: exemplary. The four-layer defense (RAII drop → idempotent cleanup → best-effort restore → fork SIGKILL guard) covers all realistic failure modes including normal exit, panic, SIGKILL, and stuck flush. The LIFO ordering is correct and tested.
+**Assessment**: exemplary. The four-layer defense (RAII drop -> idempotent cleanup -> best-effort restore -> fork SIGKILL guard) covers all realistic failure modes including normal exit, panic, SIGKILL, and stuck flush. The LIFO ordering is correct and tested.
 
 ## 2. Input Safety — Bracketed Paste Detection + Control Characters
 
@@ -28,7 +28,7 @@
 
 **Plain printable key detection** (`is_plain_printable_key`, input.rs:63–70) is deliberately conservative — only matches `KeyCode::Char(_)` with `KeyModifiers::NONE` or `KeyModifiers::SHIFT`. Special keys (arrows, function keys, Escape), control keys (Ctrl+C, Ctrl+Z), and Alt-modified keys are never suppressed, ensuring legitimate shortcuts always work. In the event loop, suppressed keys still trigger `register_activity()` and `force_draw_everything()` to update the idle timer and ensure display responsiveness; they simply skip `handle_keybinding()`.
 
-**Control character handling**: Ctrl+C silently ignored (only `q` quits; SIGINT deprecated at signal level). Ctrl+Z in-app suspend keybind REMOVED (only OS-driven SIGTSTP works via `signal_handlers.rs`). Escape silently ignored (only `q` quits). Tab/BackTab explicitly ignored — historical bug: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` → `semantic_invalidate` → `invalidate_semantic()` → frame clear without clearing `phosphor_base_ch`.
+**Control character handling**: Ctrl+C silently ignored (only `q` quits; SIGINT deprecated at signal level). Ctrl+Z in-app suspend keybind REMOVED (only OS-driven SIGTSTP works via `signal_handlers.rs`). Escape silently ignored (only `q` quits). Tab/BackTab explicitly ignored — historical bug: Tab previously toggled shading mode, which caused a ghost background glyph flood via `set_shading_mode()` -> `semantic_invalidate` -> `invalidate_semantic()` -> frame clear without clearing `phosphor_base_ch`.
 
 **Assessment**: well-designed with defense-in-depth. The 50ms suppression window is long enough to cover any paste burst but short enough to not interfere with fast typing (typical inter-key interval is 100–200ms). Tests verify suppression activation, expiration, and that shortcut actions are not triggered during suppression.
 
@@ -40,7 +40,7 @@
 
 **`force_draw_everything` + Phosphor State Clearing**: `force_draw_everything` (triggered by paste events, focus regain, idle resync, user input after idle, periodic full redraw) sets `frame.clear_with_bg()` which bumps the frame generation, making all cells appear dirty. However, this alone is insufficient because the **phosphor persistence system** maintains a separate `phosphor_base_ch` array storing the original character glyph for ghost afterglow cells. Without clearing this array, a full redraw would expose all ghost glyphs as visible background characters — the "ghost background" bug. The fix clears `phosphor_base_ch` in both `semantic_invalidate` and `force_draw_everything` paths; active trail cells repopulate their entries through the normal Pass 1 and Pass 2 mechanisms of `phosphor_decay_pass`.
 
-**Dirty Threshold for Full Redraw**: When differential rendering is active, if dirty cells exceed `total_cells / DIRTY_THRESHOLD_RATIO` (ratio of 8, bumped from 3 → 8 based on the `threshold_sweep` cosmic dragon egg benchmark), the renderer switches to a full redraw automatically. Prevents pathological cases where nearly every cell is dirty but differential rendering incurs more overhead than a full redraw due to per-cell cursor movement.
+**Dirty Threshold for Full Redraw**: When differential rendering is active, if dirty cells exceed `total_cells / DIRTY_THRESHOLD_RATIO` (ratio of 8, bumped from 3 -> 8 based on the `threshold_sweep` cosmic dragon egg benchmark), the renderer switches to a full redraw automatically. Prevents pathological cases where nearly every cell is dirty but differential rendering incurs more overhead than a full redraw due to per-cell cursor movement.
 
 **Assessment**: comprehensive and well-layered. Periodic full redraws, semantic invalidation, phosphor state clearing, and dirty threshold fallback cover all known ANSI drift scenarios. The distinction between dimension-change (with `Clear(All)`) and semantic-change (without `Clear(All)`) is a subtle but important optimization that prevents flicker during mode transitions.
 
@@ -52,7 +52,7 @@
 
 ## 5. Signal Handling
 
-**Unix** (`src/interactive/signal_handlers.rs`): `SIGTERM`/`SIGHUP`/`SIGQUIT` → set `GRACEFUL_SHUTDOWN` and `signal_exit` atomic flags, wait up to 3 seconds for main loop to clean up. `SIGTSTP`/`SIGCONT` → disable mouse capture, restore terminal, raise `SIGSTOP` for proper Ctrl+Z suspend. `SIGINT` deliberately NOT handled — only `q` exits cosmostrix (documented policy; SIGINT is no longer in the graceful-shutdown signal list). `SIGWINCH` → triggers terminal size re-detection on next frame.
+**Unix** (`src/interactive/signal_handlers.rs`): `SIGTERM`/`SIGHUP`/`SIGQUIT` -> set `GRACEFUL_SHUTDOWN` and `signal_exit` atomic flags, wait up to 3 seconds for main loop to clean up. `SIGTSTP`/`SIGCONT` -> disable mouse capture, restore terminal, raise `SIGSTOP` for proper Ctrl+Z suspend. `SIGINT` deliberately NOT handled — only `q` exits cosmostrix (documented policy; SIGINT is no longer in the graceful-shutdown signal list). `SIGWINCH` -> triggers terminal size re-detection on next frame.
 
 **Windows**: `ctrlc::set_handler` for CTRL_C_EVENT + CTRL_BREAK_EVENT — same graceful-shutdown atomic flag pattern as Unix.
 

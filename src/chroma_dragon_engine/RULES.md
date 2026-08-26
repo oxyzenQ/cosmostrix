@@ -116,9 +116,9 @@ or `Color::Rgb { r: 255, g: 255, b: 255 }` in render paths.
 
 **Why**: the owner found that the message border left vertical edge
 was dominantly white regardless of the active color theme — because
-the border gradient used a linear `t` (0→1) that mapped to the
+the border gradient used a linear `t` (0->1) that mapped to the
 brightest palette stop (white head) on the left side. The fix used
-a triangle wave so the gradient wraps dark→bright→dark. The root
+a triangle wave so the gradient wraps dark->bright->dark. The root
 cause was that the gradient was not properly routed through Chroma
 Dragon's perceptual interpolation pipeline.
 
@@ -153,11 +153,11 @@ the lock commit. Newest entries go at the TOP.
 - <path>
 
 **A/B delta** (vs locked baseline `69af079`):
-- avg_fps: <before> → <after> (Δ <+/-%>)
-- peak_rss: <before> → <after> (Δ <+/-%>)
-- alloc_calls: <before> → <after> (Δ <+/-%>)
-- density_gini: <before> → <after> (Δ <+/-%>)
-- color_transition_delta: <before> → <after> (Δ <+/-%>)
+- avg_fps: <before> -> <after> (Δ <+/-%>)
+- peak_rss: <before> -> <after> (Δ <+/-%>)
+- alloc_calls: <before> -> <after> (Δ <+/-%>)
+- density_gini: <before> -> <after> (Δ <+/-%>)
+- color_transition_delta: <before> -> <after> (Δ <+/-%>)
 - stability signals: <MATCH or list any changes>
 
 **Lock suite**: <N>/19 invariants pass (must be 19/19 unless the
@@ -181,18 +181,18 @@ code path modified.
 **Files changed**:
 - src/runtime.rs (added `ColorScheme::AuroraBorealis` variant)
 - src/chroma_dragon_engine/catalog.rs (added `ThemeDef` to `THEMES`)
-- src/chroma_dragon_engine/tests/lock.rs (updated invariant: 44 → 45 themes)
+- src/chroma_dragon_engine/tests/lock.rs (updated invariant: 44 -> 45 themes)
 
 **A/B delta** (vs locked baseline `69af079`):
-- avg_fps: 85,555 → 85,549 (Δ -0.01%)
-- peak_rss: 4.32 MiB → 4.32 MiB (Δ 0%)
-- alloc_calls: 563 → 563 (Δ 0%)
-- density_gini: 0.8961 → 0.8961 (Δ 0%)
-- color_transition_delta: 0.00 → 0.00 (Δ 0%)
+- avg_fps: 85,555 -> 85,549 (Δ -0.01%)
+- peak_rss: 4.32 MiB -> 4.32 MiB (Δ 0%)
+- alloc_calls: 563 -> 563 (Δ 0%)
+- density_gini: 0.8961 -> 0.8961 (Δ 0%)
+- color_transition_delta: 0.00 -> 0.00 (Δ 0%)
 - stability signals: MATCH
 
 **Lock suite**: 19/19 invariants pass (1 invariant updated: theme count
-44 → 45)
+44 -> 45)
 
 **Visual audit**: PASS — masterclass brightness profile preserved.
 
@@ -204,7 +204,7 @@ code path modified.
 ### UNLOCK chroma-dragon (comment-only) at commit a5b9345, 2026-08-24T00:30:00Z
 
 **Author**: oxyzenQ (Cosmic Dragon AI Agent)
-**Reason**: Project naming normalization — the capitalized form → `cosmostrix`
+**Reason**: Project naming normalization — the capitalized form -> `cosmostrix`
 in comment text across chroma dragon engine files. No production code
 touched; comment/word only.
 
@@ -241,28 +241,28 @@ v50 masterclass theme) — INV-2 lock test asserted `schemes.len() == 43`
 and passed, but silently skipped EnergyZen in every theme-sweep
 invariant. This was a REAL BUG: a future regression in EnergyZen's
 palette construction would NOT have been caught by the lock suite.
-Also fixed 15+ stale path refs (src/cloud/ → src/cosmic_dragon_engine/cloud/,
-chroma::legacy → chroma_dragon_engine::legacy, etc.) and outdated
-"43 themes" → "44 themes" + "Phase 9-B" → "Phase 9-D" + "18 invariants"
-→ "19 invariants" in doc comments.
+Also fixed 15+ stale path refs (src/cloud/ -> src/cosmic_dragon_engine/cloud/,
+chroma::legacy -> chroma_dragon_engine::legacy, etc.) and outdated
+"43 themes" -> "44 themes" + "Phase 9-B" -> "Phase 9-D" + "18 invariants"
+-> "19 invariants" in doc comments.
 
 **Files changed**:
 
-- src/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ → src/cosmic_dragon_engine/cloud/)
-- src/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" → "44 themes" refs)
-- src/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 → 44 + git log path ref updated)
-- src/chroma_dragon_engine/tuning.rs (2 "43 themes" → "44 themes" refs)
+- src/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ -> src/cosmic_dragon_engine/cloud/)
+- src/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" -> "44 themes" refs)
+- src/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 -> 44 + git log path ref updated)
+- src/chroma_dragon_engine/tuning.rs (2 "43 themes" -> "44 themes" refs)
 
 **A/B delta** (vs locked baseline `69af079`):
 
-- avg_fps: 85,555 → 84,457 (Δ -1.28% — within ±5% tolerance, hardware variance)
-- peak_rss: 4.32 MiB → 4.32 MiB (Δ 0%)
-- alloc_calls: 563 → 288 (Δ -48.8% — different bench duration 5s vs 10s, per-frame allocs unchanged at 0.0)
-- density_gini: 0.8961 → 0.8958 (Δ -0.03%)
-- color_transition_delta: 0.00 → 0.00 (Δ 0%)
+- avg_fps: 85,555 -> 84,457 (Δ -1.28% — within ±5% tolerance, hardware variance)
+- peak_rss: 4.32 MiB -> 4.32 MiB (Δ 0%)
+- alloc_calls: 563 -> 288 (Δ -48.8% — different bench duration 5s vs 10s, per-frame allocs unchanged at 0.0)
+- density_gini: 0.8961 -> 0.8958 (Δ -0.03%)
+- color_transition_delta: 0.00 -> 0.00 (Δ 0%)
 - stability signals: MATCH (frame_jitter=low, frame_time_stability=excellent, drift=stable)
 
-**Lock suite**: 19/19 invariants pass (INV-2 updated: theme count 43 → 44,
+**Lock suite**: 19/19 invariants pass (INV-2 updated: theme count 43 -> 44,
 EnergyZen now included in all theme-sweep invariants)
 
 **Visual audit**: PASS — masterclass brightness profile preserved

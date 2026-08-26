@@ -35,7 +35,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 |-----|--------|
 | [BENCHMARKING.md](BENCHMARKING.md) | **Start here.** Independent benchmarking guide |
 | [BENCHMARK_ADVANCED.md](BENCHMARK_ADVANCED.md) | MICROARCHITECTURE + ENERGY metrics (Linux `perf_event_open` + RAPL) |
-| [PERFORMANCE_ACROSS_SCALES.md](PERFORMANCE_ACROSS_SCALES.md) | FPS scaling with screen size (6×6 → 200×60) |
+| [PERFORMANCE_ACROSS_SCALES.md](PERFORMANCE_ACROSS_SCALES.md) | FPS scaling with screen size (6×6 -> 200×60) |
 | [ENDURANCE.md](ENDURANCE.md) | Long-run endurance testing, memory leak detection |
 | [RELEASE_GUARD.md](RELEASE_GUARD.md) | Performance regression gates for releases |
 | [RAPL_ACCESS.md](RAPL_ACCESS.md) | Granting RAPL read access for ENERGY metrics |
@@ -68,7 +68,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [AMBIENT_SCHEDULER.md](AMBIENT_SCHEDULER.md) | Focused doc on the ambient scheduler thread (time-of-day scene switching) |
 | [src/crystal_dragon_engine/mod.rs](../src/crystal_dragon_engine/mod.rs) | Top-level module doc — the canonical source-of-truth header |
 
-**Two subsystems, one engine**: (1) **Palette drift** — sensor (CPU%/CLOCK) → 1–99 point → temperature group → probabilistic weighted theme selection → 300 ms OKLab wave transition via Chroma Dragon. (2) **Ambient scheduler** — config-driven `ambient.HH-MM = <scene>` time-of-day scene switching via a dynamic idle/wake thread (zero CPU between phase boundaries).
+**Two subsystems, one engine**: (1) **Palette drift** — sensor (CPU%/CLOCK) -> 1–99 point -> temperature group -> probabilistic weighted theme selection -> 300 ms OKLab wave transition via Chroma Dragon. (2) **Ambient scheduler** — config-driven `ambient.HH-MM = <scene>` time-of-day scene switching via a dynamic idle/wake thread (zero CPU between phase boundaries).
 
 ## Terminal Compatibility & Recovery
 
@@ -103,7 +103,7 @@ Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) 
 
 ## Coming Back After a Long Break?
 
-Read in order: [README.md](../README.md) → [CHANGELOG.md](../CHANGELOG.md) → this index → [RULES.md](RULES.md) → [workflow/ABOUT_CI.md](workflow/ABOUT_CI.md). Sanity check:
+Read in order: [README.md](../README.md) -> [CHANGELOG.md](../CHANGELOG.md) -> this index -> [RULES.md](RULES.md) -> [workflow/ABOUT_CI.md](workflow/ABOUT_CI.md). Sanity check:
 
 ```bash
 git pull origin main && cargo build --release && cargo test --all --locked

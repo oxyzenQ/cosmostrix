@@ -40,7 +40,7 @@ verified versions.
 ## 2. Dev dependency trim (landed)
 
 `proptest` was declared with default features, which pull `fork` +
-`timeout` → `rusty-fork` + `tempfile` + `wait-timeout` into every test
+`timeout` -> `rusty-fork` + `tempfile` + `wait-timeout` into every test
 build. The property suite (`src/tests/property.rs`) uses only the
 `proptest!` macro with primitive strategies — no forking, no timeouts, no
 tempfiles. Trimmed to `default-features = false, features = ["std"]`:
