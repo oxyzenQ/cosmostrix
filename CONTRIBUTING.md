@@ -45,7 +45,7 @@ type(scope): summary line
 Body explaining what + why (not how).
 ```
 
-Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fix(visual): internal independent QA — H1 resize color cache`, `refactor(split-E1): extract sanitize_message_text from main.rs to src/message.rs`, `docs(bench): add v50 reference matrix`.
+Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fix(visual): internal independent QA — H1 resize color cache`, `refactor(split-E1): extract sanitize_message_text from main.rs to src/output/message.rs`, `docs(bench): add v50 reference matrix`.
 
 **Before committing**: (1) Run `./scripts/build.sh check-all` — all checks must pass; (2) Run `cargo fmt --all` if formatting issues; (3) Verify no debug `eprintln!` / `println!` in production code paths (use `push_runtime_warning` for diagnostics during rain — see AB-10).
 
