@@ -113,6 +113,7 @@ fn sync_output_disabled_for_linux_console() {
         dynamic_fps_source: "test",
         phosphor_decay_mult: 1.0,
         ghost_brightness_cap: 0.0,
+        speed_mult: 1.0,
     };
     assert!(!caps.sync_output);
     assert!(

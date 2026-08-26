@@ -751,13 +751,14 @@ impl Terminal {
         self.last_flush_suppressed
     }
 
-    /// v50.0.0-beta.6: access terminal caps for phosphor tuning.
-    /// Returns (phosphor_decay_mult, ghost_brightness_cap).
+    /// v50.0.0-beta.6: access terminal caps for phosphor + speed tuning.
+    /// Returns (phosphor_decay_mult, ghost_brightness_cap, speed_mult).
     #[must_use]
-    pub(crate) fn phosphor_tuning(&self) -> (f32, f32) {
+    pub(crate) fn phosphor_tuning(&self) -> (f32, f32, f32) {
         (
             self.term_caps.phosphor_decay_mult,
             self.term_caps.ghost_brightness_cap,
+            self.term_caps.speed_mult,
         )
     }
 

@@ -343,7 +343,10 @@ impl Cloud {
             self.droplets_per_sec = 0.0;
             return;
         }
-        let droplet_seconds = (self.lines as f32) / self.chars_per_sec.max(0.001);
+        // v50.0.0-beta.6: apply terminal-aware speed_mult so droplets
+        // fall faster on slower-rendering terminals (VTE/xterm.js).
+        let effective_cps = self.chars_per_sec * self.speed_mult;
+        let droplet_seconds = (self.lines as f32) / effective_cps.max(0.001);
         if droplet_seconds <= 0.0 {
             self.droplets_per_sec = 0.0;
             return;
@@ -414,13 +417,16 @@ impl Cloud {
     }
 
     pub(crate) fn update_droplet_speeds(&mut self) {
+        // v50.0.0-beta.6: apply terminal-aware speed_mult to droplet
+        // terminal velocity so droplets fall faster on VTE terminals.
+        let effective_cps = self.chars_per_sec * self.speed_mult;
         for d in &mut self.droplets {
             if !d.is_alive {
                 continue;
             }
             if let Some(cs) = self.col_stat.get(d.bound_col as usize) {
                 let layer_speed = PARALLAX_SPEED_MULT[d.layer as usize];
-                d.chars_per_sec = cs.max_speed_pct * self.chars_per_sec * layer_speed;
+                d.chars_per_sec = cs.max_speed_pct * effective_cps * layer_speed;
                 // Keep velocity clamped to new terminal velocity
                 let terminal = d.chars_per_sec * DROPLET_TERMINAL_VELOCITY_MULT;
                 d.velocity = d.velocity.min(terminal);

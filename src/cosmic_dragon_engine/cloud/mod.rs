@@ -211,6 +211,10 @@ pub struct Cloud {
     /// phosphor cells with energy below `cap * 255` are killed immediately.
     /// Prevents dim ghosts persisting on VTE terminals. 0.0 = no cap.
     pub(crate) ghost_brightness_cap: f32,
+    /// v50.0.0-beta.6: terminal-aware droplet speed multiplier.
+    /// Applied to chars_per_sec so droplets fall faster on slower-rendering
+    /// terminals (VTE/xterm.js) to match Alacritty's visual speed.
+    pub(crate) speed_mult: f32,
     pub(crate) max_sim_delta: Duration,
 
     pub(crate) shading_mode: ShadingMode,
@@ -427,6 +431,7 @@ impl Cloud {
             phosphor_skipped: false,
             phosphor_decay_mult: 1.0,
             ghost_brightness_cap: 0.0,
+            speed_mult: 1.0,
             max_sim_delta: Duration::from_millis(0),
             shading_mode,
             message: Vec::new(),

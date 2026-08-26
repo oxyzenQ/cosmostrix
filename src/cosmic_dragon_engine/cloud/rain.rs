@@ -363,7 +363,7 @@ impl Cloud {
             self.monolith_rain.advance(
                 now,
                 self.lines,
-                self.chars_per_sec,
+                self.chars_per_sec * self.speed_mult,
                 max_sim_delta,
                 self.resume_blend,
             );

@@ -186,6 +186,15 @@ pub(crate) struct TerminalCaps {
     /// High-perf: 0.0 (no cap). Standard: 0.10 (kill below 10%). xterm.js:
     /// 0.15 (kill below 15%).
     pub ghost_brightness_cap: f32,
+    /// v50.0.0-beta.6: terminal-aware droplet speed multiplier.
+    /// Compensates for VTE's slower ANSI render throughput — droplets
+    /// appear to "crawl" on gnome-console because VTE processes frames
+    /// slower than Alacritty's GPU renderer. Multiplying chars_per_sec
+    /// makes droplets fall faster, matching the visual speed on Alacritty.
+    /// High-perf: 1.0 (unchanged). Standard/VTE: 1.3. xterm.js: 1.5.
+    /// Only affects terminal velocity (droplet fall speed) — spawn rate,
+    /// density, and physics (gravity/turbulence) stay frame-rate-independent.
+    pub speed_mult: f32,
 }
 
 /// Run detection from environment variables. Safe to call before any
@@ -276,12 +285,12 @@ pub(crate) fn detect() -> TerminalCaps {
     // High-perf terminals (GPU-rendered, fast sub-pixel) keep 1.0 / no cap.
     // Standard/unknown terminals (VTE-based, CPU-rendered) get 1.3 / 0.10.
     // xterm.js hosts get 1.6 / 0.15 (fastest decay, kill dim ghosts early).
-    let (phosphor_decay_mult, ghost_brightness_cap) = if xtermjs_host {
-        (1.6, 0.15)
+    let (phosphor_decay_mult, ghost_brightness_cap, speed_mult) = if xtermjs_host {
+        (1.6, 0.15, 1.5)
     } else if high_perf_detection_source(&term_program, &term).is_some() {
-        (1.0, 0.0)
+        (1.0, 0.0, 1.0)
     } else {
-        (1.3, 0.10)
+        (1.3, 0.10, 1.3)
     };
 
     TerminalCaps {
@@ -295,5 +304,6 @@ pub(crate) fn detect() -> TerminalCaps {
         dynamic_fps_source,
         phosphor_decay_mult,
         ghost_brightness_cap,
+        speed_mult,
     }
 }
