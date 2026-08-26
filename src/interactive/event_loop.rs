@@ -350,7 +350,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // so editing speed/color/density in config.toml reverted
             // the scene to cinematic. Now we override new_cfg.scene_name
             // with the runtime value when config didn't change scene.
-            if !new_cfg_map.contains_key("scene") && !new_cfg.cli_explicit.scene {
+            let scene_changed_at_runtime = !new_cfg_map.contains_key("scene")
+                && !new_cfg.cli_explicit.scene
+                && new_cfg.scene_name != scene_name.as_str();
+            if scene_changed_at_runtime {
                 new_cfg.scene_name = scene_name.clone();
             }
             // Update base_cfg so future rebuilds also preserve the
@@ -386,6 +389,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
+            // v50.0.0-beta.6: re-apply runtime scene defaults (color,
+            // charset, speed, density) when the user changed scene via
+            // 'x' key and the config didn't change scene. Without this,
+            // the fresh Cloud has config values (not scene defaults) —
+            // the HUD showed the right scene name but the rain was still
+            // cinematic. apply_scene_runtime applies the scene's managed
+            // defaults to the cloud, matching what 'x' key did originally.
+            if scene_changed_at_runtime {
+                charset_preset = cloud.apply_scene_runtime(
+                    &scene_name,
+                    &charset_preset,
+                    &user_ranges,
+                    def_ascii,
+                );
+                scene_generation = scene_generation.wrapping_add(1);
+            }
             // Smooth palette transition on live config reload.
             //
             // Previously, the Cloud rebuild produced an instant color jump
@@ -404,7 +423,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             term.set_color_cache(ColorCache::new(&cloud.palette));
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
-            charset_preset = new_cfg.charset_preset.clone();
+            // v50.0.0-beta.6: only overwrite charset_preset from config
+            // when the scene was NOT changed at runtime. When scene WAS
+            // changed (scene_changed_at_runtime=true), apply_scene_runtime
+            // already set charset_preset to the scene's charset — don't
+            // overwrite it with the config value.
+            if !scene_changed_at_runtime {
+                charset_preset = new_cfg.charset_preset.clone();
+            }
             //  recompute target FPS from new config.
             let safe_fps = new_cfg.resolve_capped_fps(cfg.target_fps);
             power_manager.set_target_fps(safe_fps);
