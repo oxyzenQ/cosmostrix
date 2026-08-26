@@ -562,6 +562,8 @@ impl Cloud {
             .unwrap_or(self.active_palette_slot);
 
         // Adjust speed by parallax layer
+        // v50.0.0-beta.6: apply terminal-aware speed_mult at spawn time
+        // so newly spawned droplets immediately benefit from the multiplier.
         let layer_speed = PARALLAX_SPEED_MULT[layer as usize];
         let mut speed = self
             .col_stat
@@ -569,6 +571,7 @@ impl Cloud {
             .map(|cs| cs.max_speed_pct)
             .unwrap_or(1.0)
             * self.chars_per_sec
+            * self.speed_mult
             * layer_speed;
 
         // Transition momentum: new-generation streams get a subtle velocity
