@@ -75,7 +75,7 @@ pub(crate) struct DrawnCell {
 }
 
 #[derive(Clone, Copy, Debug)]
-struct Segment {
+pub(crate) struct Segment {
     offset: u16,
     len: u8,
     kind: SegmentKind,
@@ -106,18 +106,18 @@ impl Segment {
 }
 
 #[derive(Clone, Debug)]
-struct MonolithStream {
-    active: bool,
-    col: u16,
-    head: f32,
-    speed_mult: f32,
-    phase: f32,
-    span: u16,
-    palette_slot: u8,
-    layer: u8,
-    segments: [Segment; MAX_SEGMENTS],
-    segment_count: u8,
-    last_time: Option<Instant>,
+pub(crate) struct MonolithStream {
+    pub(crate) active: bool,
+    pub(crate) col: u16,
+    pub(crate) head: f32,
+    pub(crate) speed_mult: f32,
+    pub(crate) phase: f32,
+    pub(crate) span: u16,
+    pub(crate) palette_slot: u8,
+    pub(crate) layer: u8,
+    pub(crate) segments: [Segment; MAX_SEGMENTS],
+    pub(crate) segment_count: u8,
+    pub(crate) last_time: Option<Instant>,
 }
 
 impl MonolithStream {
@@ -152,7 +152,7 @@ impl MonolithStream {
 }
 
 pub(crate) struct MonolithRain {
-    streams: Vec<MonolithStream>,
+    pub(crate) streams: Vec<MonolithStream>,
     previous_cells: Vec<DrawnCell>,
     current_cells: Vec<DrawnCell>,
     /// Per-cell generation tag, indexed `col * lines + line`. Sized to

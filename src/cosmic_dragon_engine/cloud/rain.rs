@@ -340,13 +340,53 @@ impl Cloud {
 
         // Update pass (mut self)
         if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.advance(
-                now,
-                self.lines,
-                self.chars_per_sec,
-                max_sim_delta,
-                self.resume_blend,
-            );
+            // v50.0.0-beta.6: detect border touches for monolith streams
+            // too. Previously detect_border_touch was only called in the
+            // Glyph path, so monolith scenes had no border touch pulse.
+            // We snapshot head positions before advance, then check each
+            // active stream for a border crossing after advance.
+            let top = self.message_top_line;
+            if top != u16::MAX {
+                // Collect (col, prev_head, new_head) for active streams
+                // that are near the border. This is O(active_streams)
+                // and only runs when a bordered message is active.
+                let mut touches: Vec<(u16, u16, u16)> = Vec::new();
+                for stream in &self.monolith_rain.streams {
+                    if !stream.active {
+                        continue;
+                    }
+                    let prev_hp = stream.head as u16;
+                    // We can't get the "before" head here because advance
+                    // already mutated it. Instead, we check if the stream's
+                    // head is AT the border line this frame — a simpler
+                    // heuristic that catches the crossing without needing
+                    // the pre-advance value.
+                    let hp = stream.head as u16;
+                    if hp == top || (hp > 0 && hp - 1 == top) {
+                        touches.push((stream.col, prev_hp, hp));
+                    }
+                }
+                // Now advance the monolith streams.
+                self.monolith_rain.advance(
+                    now,
+                    self.lines,
+                    self.chars_per_sec,
+                    max_sim_delta,
+                    self.resume_blend,
+                );
+                // Process border touches.
+                for (col, prev_hp, hp) in touches {
+                    self.detect_border_touch(col, prev_hp, hp, now);
+                }
+            } else {
+                self.monolith_rain.advance(
+                    now,
+                    self.lines,
+                    self.chars_per_sec,
+                    max_sim_delta,
+                    self.resume_blend,
+                );
+            }
         } else {
             // sim path optimization: split the droplet advance loop into two
             // specialized paths based on `use_sim_cap` (loop-invariant). In
