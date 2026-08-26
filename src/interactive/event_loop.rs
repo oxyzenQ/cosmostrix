@@ -340,14 +340,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
-            // v50.0.0-beta.6 masterclass: 3-layer precedence for live-reload.
-            // Layer 1 (base): scene defaults written into base_cfg.
-            // Layer 2 (middle): config.toml overrides (rebuild applies).
-            // Layer 3 (top): CLI flags (cli_explicit guards in rebuild).
-            // See sync_base_cfg_with_runtime_scene() for details.
-            if !new_cfg_map.contains_key("scene") && !base_cfg.cli_explicit.scene {
+            // v50.0.0-beta.6 masterclass: temporal precedence.
+            // Startup: CLI > config > scene defaults.
+            // Runtime: config > scene defaults (CLI retired).
+            // CLI flags are zeroed before rebuild so config has full
+            // authority on live-reload. Scene defaults synced first.
+            if !new_cfg_map.contains_key("scene") {
                 sync_base_cfg_with_runtime_scene(&mut base_cfg, &scene_name);
             }
+            base_cfg.cli_explicit = crate::app::CliExplicit::default();
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
             // v50.0.0-alpha.7: track latest config for finalize_session.
             current_cfg = new_cfg.clone();
