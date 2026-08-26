@@ -875,10 +875,13 @@ impl HudState {
         } else {
             format!("{:.1}", self.target_fps)
         };
-        let mode_suffix = match self.frame_mode {
-            FrameMode::Active => String::new(),
-            FrameMode::Idle => " idle".to_string(),
-            FrameMode::Paused => " paused".to_string(),
+        // v50.0.0-beta.6 LTS audit: mode_suffix as &'static str avoids
+        // a heap allocation every 1 Hz tick (was String::new() / .to_string()).
+        // The format! macro accepts &str with no overhead.
+        let mode_suffix: &'static str = match self.frame_mode {
+            FrameMode::Active => "",
+            FrameMode::Idle => " idle",
+            FrameMode::Paused => " paused",
         };
         self.cached_lines[1] = (colors[1], format!(" tgt: {tgt_str}{mode_suffix}"));
         // v50 (2026-08-15): intra-pair swap — max before p99 (extreme
@@ -934,17 +937,20 @@ impl HudState {
         self.cached_lines[10] = (colors[10], format!(" scn: {}", self.scene_name));
         // chr (charset preset): string, no format. User cycles via `s`/`S`.
         self.cached_lines[11] = (colors[11], format!(" chr: {}", self.charset_preset));
-        // clr (color scheme): Debug format (matches verbose.rs convention).
-        // e.g. `NeonGreen`, `FancyDiamond`, `Cosmos`.
         // clr (color scheme): show custom palette name when active, otherwise
         // the builtin ColorScheme Debug format. This fixes the bug where
         // --colors-custom cyberpunk_2077 showed "clr: EnergyZen" (the
         // underlying builtin scheme) instead of the custom palette name.
-        let clr_label = match &self.custom_palette_name {
-            Some(name) => name.clone(),
-            None => format!("{:?}", self.color_scheme),
+        //
+        // v50.0.0-beta.6 LTS audit: eliminated the intermediate clr_label
+        // String clone. Previously: name.clone() -> format!(" clr: {clr_label}")
+        // = 2 allocations per tick. Now: single format!() call that borrows
+        // the name directly = 1 allocation per tick.
+        let clr_line = match &self.custom_palette_name {
+            Some(name) => format!(" clr: {name}"),
+            None => format!(" clr: {:?}", self.color_scheme),
         };
-        self.cached_lines[12] = (colors[12], format!(" clr: {clr_label}"));
+        self.cached_lines[12] = (colors[12], clr_line);
         // v50 (2026-08-17) HUD expansion reorder: up/screensize/cid moved
         // from rows 6/7/8 to rows 13/14/15 per owner's Option S mandate.
         // cid stays static (set in `new()`); only up + screensize are

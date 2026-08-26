@@ -884,12 +884,19 @@ impl Terminal {
             // We ran on the main screen directly. Scrollback-safe exit:
             // do NOT issue Clear(All) — \x1b[2J can clear scrollback on
             // many terminals (VTE-based, Alacritty < 0.12, some xterm
-            // configs). Instead, just move the cursor below the viewport
-            // so the shell prompt appears on a clean line. The rain
-            // rendering scrolls into scrollback naturally, which is the
-            // expected behavior — previous command output is preserved.
-            let (_w, h) = crossterm_terminal::size().unwrap_or((80, 24));
-            let _ = self.stdout.execute(cursor::MoveTo(0, h.saturating_sub(1)));
+            // configs). The rain rendering scrolls into scrollback naturally,
+            // which is the expected behavior — previous command output is
+            // preserved.
+            //
+            // v50.0.0-beta.6 LTS audit: removed MoveTo(0, h-1) that was
+            // creating blank lines after exit on dumb/non-alt-screen terminals
+            // (same bug class as the alt-screen path fixed earlier). On these
+            // terminals cosmostrix ran on the main screen, so the cursor is
+            // already at the correct position (bottom of the rain output).
+            // Moving it to the terminal's bottom row created a gap between
+            // the last rain line and the shell prompt. No MoveTo needed —
+            // the cursor stays where it is, and the shell prompt appears on
+            // the next line naturally.
         }
         if self.raw_mode_enabled {
             let _ = crossterm_terminal::disable_raw_mode();
