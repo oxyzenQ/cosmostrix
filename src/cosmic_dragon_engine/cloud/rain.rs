@@ -345,19 +345,17 @@ impl Cloud {
             // prev_head < top (above border) and new_head >= top (crossed).
             // Snapshot (stream_index, col, prev_head) BEFORE advance for
             // streams above the border, then AFTER advance check crossing.
+            //
+            // Z-6: skip border-cross cosmetics in benchmark mode — owner
+            // directive: bench = critical path only (rain + 3 dragons).
+            // The candidates collection + detect_border_touch are message-
+            // border cosmetics. monolith_rain.advance() ALWAYS runs (it's
+            // the rain simulation, not cosmetics).
             let top = self.message_top_line;
-            // Snapshot candidates: streams above the border that could
-            // cross it this frame. Store (index, col, prev_head).
-            // B-1: use hoisted `border_cross_candidates` buffer (Cloud field)
-            // instead of allocating a new Vec every frame. Pattern matches
-            // crt_vignette_candidates (T1.1-real). clear() preserves the
-            // allocation, so after the first frame this is zero-alloc.
-            // Use mem::take to swap the Vec out (owned), avoiding borrow
-            // conflict with the mutable detect_border_touch call below.
-            // The taken Vec is dropped at end of scope; next frame refills
-            // a fresh (but capacity-preserving) Vec via push.
+            // B-1: use hoisted `border_cross_candidates` buffer (Cloud field).
+            // Z-6: only collect candidates in non-bench mode (skip cosmetics).
             self.border_cross_candidates.clear();
-            if top != u16::MAX {
+            if !self.bench_mode && top != u16::MAX {
                 for (i, s) in self.monolith_rain.streams.iter().enumerate() {
                     if s.active && (s.head as u16) < top {
                         self.border_cross_candidates.push((i, s.col, s.head as u16));
@@ -366,6 +364,7 @@ impl Cloud {
             }
             let candidates = std::mem::take(&mut self.border_cross_candidates);
             // Advance the monolith streams (single call, no duplication).
+            // Z-6: ALWAYS run — this is the rain simulation, not cosmetics.
             self.monolith_rain.advance(
                 now,
                 self.lines,
@@ -374,14 +373,18 @@ impl Cloud {
                 self.resume_blend,
             );
             // Check which candidates crossed the border.
-            for (i, col, prev_hp) in candidates {
-                let stream = &self.monolith_rain.streams[i];
-                if !stream.active {
-                    continue;
-                }
-                let new_hp = stream.head as u16;
-                if new_hp >= top {
-                    self.detect_border_touch(col, prev_hp, new_hp, now);
+            // Z-6: skip in bench mode (candidates is empty, so this is a
+            // no-op, but the explicit guard documents the intent).
+            if !self.bench_mode {
+                for (i, col, prev_hp) in candidates {
+                    let stream = &self.monolith_rain.streams[i];
+                    if !stream.active {
+                        continue;
+                    }
+                    let new_hp = stream.head as u16;
+                    if new_hp >= top {
+                        self.detect_border_touch(col, prev_hp, new_hp, now);
+                    }
                 }
             }
         } else {
@@ -1131,7 +1134,10 @@ impl Cloud {
 
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + typewriter reveal (30ms/char).
-        if !self.message.is_empty() {
+        // Z-6: skip in benchmark mode — owner directive: bench measures
+        // critical path only (rain + 3 dragons), not message cosmetics.
+        // This eliminates 8 per-frame heap allocs in draw_message.
+        if !self.bench_mode && !self.message.is_empty() {
             self.draw_message(frame, now);
         }
 

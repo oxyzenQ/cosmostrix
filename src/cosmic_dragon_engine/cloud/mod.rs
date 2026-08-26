@@ -292,6 +292,7 @@ pub struct Cloud {
     // profile selector (Void, Neural, etc.) which will read this field.
     #[allow(dead_code)]
     pub(crate) profile: BehaviorProfile,
+    pub(crate) bench_mode: bool, // Z-6: true in benchmark mode — skips message cosmetics (draw_message + border-cross detection)
     pub(crate) profile_current: ProfileParams,
     pub(crate) profile_target: ProfileParams,
     pub(crate) profile_transition_start: Option<Instant>,
@@ -498,6 +499,7 @@ impl Cloud {
             last_quantum_update_time: now,
             anomaly_zones: Vec::new(),
             profile: BehaviorProfile::Monolith,
+            bench_mode: false,
             profile_current: BehaviorProfile::Monolith.params(),
             profile_target: BehaviorProfile::Monolith.params(),
             profile_transition_start: None,

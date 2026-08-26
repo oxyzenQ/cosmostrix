@@ -43,6 +43,10 @@ impl Cloud {
     /// consistent at bench-bounded dimensions.
     pub fn reset_bench(&mut self, cols: u16, lines: u16) {
         self.reset_with_bounds(cols, lines, BENCH_MAX_COLS, BENCH_MAX_LINES);
+        // Z-6: mark benchmark mode — rain_at skips message cosmetics
+        // (draw_message + border-cross detection). Owner directive: bench
+        // mode measures critical path only (rain + 3 dragons), not cosmetics.
+        self.bench_mode = true;
     }
 
     /// Core reset: clamps `cols`/`lines` to `[MIN, max]` and rebuilds every
