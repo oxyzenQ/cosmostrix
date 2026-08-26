@@ -598,7 +598,7 @@ each re-touch — so mid-transition between two palettes, the glow color
 re-snapshots to the newest stop, keeping the visual effect maximally
 dynamic.
 
-Owner spec alignment: *"kalo hujan mengenainya lagi muncul lagi"* — the
+Owner spec alignment: *"when rain touches it again, it reappears"* — the
 dedup-refresh implements exactly this. The cell keeps glowing, but the
 lifetime clock resets to the newest touch. The owner sees a sustained glow
 under continuous touch, not a stack of decaying copies.

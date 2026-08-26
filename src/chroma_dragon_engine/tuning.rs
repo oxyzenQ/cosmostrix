@@ -293,10 +293,11 @@ pub(crate) const GLOBAL_MAX_FLOOR: u16 = 180;
 /// when a droplet's head crosses the top border of the `-mb` overlay,
 /// the touched border cell briefly glows toward the droplet's `head_rgb`.
 ///
-/// Owner insight: *"border atas kiri kena hujan dari warna hitam menjadi
-/// putih lalu beberapa detik hilang, kalo hujan mengenainya lagi muncul
-/// lagi. tapi untuk warna bukan hanya putih tapi dinamis"* — dynamic
-/// color from the touching droplet's head, not static white.
+/// Owner insight: *"the top-left border gets hit by rain, changes from
+/// black to white, then fades after a few seconds. When rain touches
+/// it again, it reappears. But the color is not just white — it is
+/// dynamic"* — dynamic color from the touching droplet's head, not
+/// static white.
 ///
 /// LTS invariant override: the existing "top corners stay dark / no lone
 /// bright heads at top corners" rule (mod.rs §1018-1027) is RELAXED for

@@ -452,8 +452,8 @@ fn reset_message_top_line_sentinel_when_unbordered() {
 /// A transition (`prev < top && hp >= top`) for a column inside the
 /// overlay's horizontal span MUST push exactly one BorderPulse. The
 /// pulse's `head_rgb` must match the current palette's last-stop color
-/// (dynamic, not static white) — owner insight: "warna bukan hanya putih
-/// tapi dinamis".
+/// (dynamic, not static white) — owner insight: "color is not just white
+/// but dynamic".
 #[test]
 fn detect_border_touch_pushes_pulse_on_transition() {
     let mut cloud = make_cloud_colored();
@@ -647,7 +647,7 @@ fn pulse_expires_after_lifetime() {
 /// density — defensive against multi-droplet-per-column scenarios where N
 /// droplets could otherwise stack N redundant pulses for one `msg_idx`.
 ///
-/// Owner spec: "kalo hujan mengenainya lagi muncul lagi" — re-touch
+/// Owner spec: "when rain touches it again, it reappears" — re-touch
 /// re-fires the glow. The dedup-by-`msg_idx` refresh implements exactly
 /// this: the cell keeps glowing, but the lifetime clock resets to the
 /// newest touch. The owner sees a sustained glow under continuous touch,

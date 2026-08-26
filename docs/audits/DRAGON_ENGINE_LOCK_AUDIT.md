@@ -19,10 +19,12 @@ verified.
 ## Cosmic Dragon Engine (`src/cosmic_dragon_engine/`)
 
 ### Current LOCK state
+
 Last lock: commit `5280ae1` (2026-08-24) — v50.0.0-beta.5 masterclass
 easing consolidation re-seal.
 
 ### Commits since last lock (modified engine code)
+
 1. `dd87239` — emoji purge in RULES.md/KEY.md (docs only, no .rs changes)
 2. `41722cc` — speed_mult at spawn time (spawn.rs)
 3. `4d9e5a6` — terminal-aware speed_mult (spawn.rs, rain.rs, mod.rs)
@@ -34,6 +36,7 @@ easing consolidation re-seal.
 9. `5986799` — LTS audit zero blank lines (terminal/mod.rs)
 
 ### Assessment
+
 Multiple .rs files in cosmic_dragon_engine/ were modified since the
 last lock at `5280ae1`. These changes include:
 - Border touch pulse for monolith (rain.rs, monolith.rs)
@@ -47,6 +50,7 @@ modifications to existing locked invariants), but the KEY.md should
 be updated to document the unlock/lock cycle.
 
 ### Recommendation
+
 Add retroactive UNLOCK entry at `e564eb3` (border touch for monolith
 — first .rs modification since last lock) and LOCK entry at current
 HEAD documenting all changes are additive and tested (1710/0/2).
@@ -56,15 +60,18 @@ HEAD documenting all changes are additive and tested (1710/0/2).
 ## Chroma Dragon Engine (`src/chroma_dragon_engine/`)
 
 ### Current LOCK state
+
 Last lock: commit `deff636` (2026-08-24) — chroma re-seal audit.
 
 ### Commits since last lock (modified engine code)
+
 1. `dd87239` — emoji purge in README.md/RULES.md/KEY.md (docs only)
 2. `6ad1d7f` — scene_custom LTS bounds (colors_custom.rs — new constants only)
 3. `76e5de5` — LTS bounds for custom colors + charset (colors_custom.rs)
 4. `d897c90` — perf-stats fix (humanize.rs — docs reference only)
 
 ### Assessment
+
 Only `colors_custom.rs` was modified (added bounds constants +
 enforcement in collect functions). These are additive changes that
 do not touch the chroma pipeline (gradient, interpolation, palette
@@ -81,12 +88,15 @@ the additive changes.
 ## Crystal Dragon Engine (`src/crystal_dragon_engine/`)
 
 ### Current LOCK state
+
 Last lock: commit `c1c7779` (2026-08-23) — triple-engine LTS audit.
 
 ### Commits since last lock (modified engine code)
+
 1. `dd87239` — emoji purge in README.md/RULES.md/KEY.md (docs only)
 
 ### Assessment
+
 No .rs files in crystal_dragon_engine/ were modified since the last
 lock. Only documentation files (README.md, RULES.md, KEY.md) had
 emoji replacements.
