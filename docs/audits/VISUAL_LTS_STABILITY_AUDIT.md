@@ -115,6 +115,80 @@ All 1694 existing tests pass. The fix is verified by code review + manual reprod
 
 The bug is a race between local variable state and terminal state — not easily unit-testable without a full terminal emulation harness. The fix is a 2-line addition (`w = nw; h = nh;`) with zero risk of regression.
 
+## Deep Audit — Comprehensive Sweep (Follow-up)
+
+After the initial fix, a deeper audit was performed to ensure zero remaining visual-state bugs. All `cfg.*` vs `current_cfg.*` usages were checked, plus all dimension-handling paths.
+
+### Stale-config audit (cfg.* in hot loop)
+
+Every `cfg.*` usage in the main frame loop (lines 700-1447) was verified:
+
+| Line | Usage | Verdict |
+|------|-------|---------|
+| 757 | `cfg.screen_size.is_some()` | CLI flag, never changes ✓ |
+| 853 | `cfg.screensaver` | CLI flag, never changes ✓ |
+| 1035 | `cfg.screen_size.is_none()` | CLI flag ✓ |
+| 1290 | `cfg.perf_stats` | CLI flag ✓ |
+| 394 | `cfg.target_fps` (in `resolve_capped_fps`) | CLI fallback — correct by design ✓ |
+
+All remaining `cfg.*` usages are CLI-only flags that don't change during live-reload. No bugs found.
+
+### `base_cfg` audit
+
+`base_cfg = cfg.clone()` (line 232) is the immutable startup template used by `rebuild_cloud_config`. It holds CLI-explicit values that persist across reloads. Verified:
+- `base_cfg` is never mutated after creation ✓
+- `rebuild_cloud_config` clones base, then applies config map overrides ✓
+- `base_cfg.scene_custom_name` is the startup value — correct (scene-custom is re-applied per rebuild) ✓
+
+### Dimension sync audit
+
+All dimension-handling paths were verified to keep `w`/`h` in sync:
+
+| Path | Updates w/h? | Verdict |
+|------|-------------|---------|
+| Initial setup (line 49-53) | Yes (initial) | ✓ |
+| Post-intro re-read (line 149-157) | Yes (`w = cw; h = ch`) | ✓ |
+| Rebuild path (line 342-399) | Uses current w/h | ✓ (after fix) |
+| SIGCONT reinit (line 712-721) | Sets pending_resize | ✓ (applied at 1004) |
+| Resize event (line 754-763) | Sets pending_resize | ✓ (applied at 1004) |
+| pending_resize handler (line 1004-1042) | Yes (`w = nw; h = nh`) | ✓ (fixed) |
+
+### Terminal layer audit
+
+The Terminal's `draw()` method (in `terminal/draw.rs`) properly detects dimension changes at line 59: `dim_changed = l.width != frame.width || l.height != frame.height`. When dimensions change:
+- Full redraw is triggered ✓
+- `LastFrame` buffer is resized via `reuse_or_new` (line 118-119) ✓
+- Clear is issued scrollback-safely (line 65-76) ✓
+
+### Cloud layer audit
+
+`Cloud::reset(cols, lines)` (defined in `cloud/spawn.rs:25`) properly:
+- Clamps dimensions to `[MIN, MAX]` ✓
+- Rebuilds all size-dependent structures (col_stat, column_palette_slot, edge_fade_lut, vignette_lut, phosphor) ✓
+- Resets message border geometry via `reset_message()` ✓
+
+### Race condition audit
+
+The event loop order is:
+1. Rebuild (if pending_config) — uses current w/h
+2. Event polling — may set pending_resize
+3. Apply pending_resize — updates w/h + cloud + frame
+
+No race: rebuild at step 1 always uses the w/h from the previous frame's step 3. Both are consistent. A resize happening during step 2 is caught at step 3 in the same frame — the user never sees a stale-size frame.
+
+### Secondary stale-config fixes (same commit)
+
+Three additional `cfg.*` → `current_cfg.*` fixes were applied in the same commit:
+1. Resize density handler: `cfg.density_auto`/`base_density` → `current_cfg.*`
+2. Frame period: `cfg.power_dragon` → `current_cfg.power_dragon`
+3. Self-healer throttle: `cfg.power_dragon` → `current_cfg.power_dragon`
+
+These ensure live-reloaded density and power_dragon settings take immediate effect, not delayed until the next Cloud rebuild.
+
+### Final verdict
+
+**Zero remaining visual-state bugs found.** The codebase is LTS-ready for visual stability. The 4 fixes (1 critical + 3 secondary) cover all stale-config and stale-dimension paths identified in the audit.
+
 ## Sign-off
 
 **Auditor:** oxyzenQ
