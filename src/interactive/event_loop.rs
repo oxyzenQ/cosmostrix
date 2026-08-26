@@ -1086,6 +1086,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         hud_state.set_chars_per_sec(cloud.chars_per_sec());
         hud_state.set_effective_pressure(power_manager.effective_pressure());
         cloud.set_perf_pressure(power_manager.effective_pressure());
+        // v50.0.0-beta.6 Option D: push the aggressive-throttle flag to the
+        // HUD so dsty: can reflect the steeper curve when the self-healer
+        // has detected sustained high CPU pressure. Mirrors cloud's flag.
+        hud_state.set_aggressive_throttle(cloud.aggressive_throttle);
         // v50.0.0-beta.6: push the live power_dragon / crystal_dragon state
         // to the HUD every frame. These track the current_cfg (live-reloaded)
         // values, NOT the startup config — so when the user edits

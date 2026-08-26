@@ -224,6 +224,13 @@ pub(crate) struct HudState {
     /// the `crdr:` HUD line (row 16) so the owner can verify the live-
     /// reloaded state. Default: false (drift off — palette is static).
     crystal_dragon_on: bool,
+    /// v50.0.0-beta.6 Option D: aggressive-throttle flag (mirrors
+    /// `cloud.aggressive_throttle`). When true, the self-healer has
+    /// detected sustained high CPU pressure and is using the steeper
+    /// spawn-scale curve. The `dsty:` HUD line uses this flag (via
+    /// `compute_spawn_scale`) to show the effective density — the user
+    /// sees density drop harder when aggressive throttle is active.
+    aggressive_throttle: bool,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
@@ -304,6 +311,7 @@ impl HudState {
             // cfg values, so live-reload changes are reflected immediately.
             power_dragon_on: true,
             crystal_dragon_on: false,
+            aggressive_throttle: false,
             cached_lines: [
                 // ── Performance core (rows 0-5) — unchanged from v50 ──
                 (Color::Cyan, String::new()), // 0: fps
@@ -688,6 +696,17 @@ impl HudState {
         self.crystal_dragon_on = on;
     }
 
+    /// v50.0.0-beta.6 Option D: set the aggressive-throttle flag.
+    /// Mirrors `cloud.aggressive_throttle` (set by the self-healer on
+    /// sustained high CPU pressure). The `dsty:` HUD line uses this flag
+    /// via `compute_spawn_scale()` to show the effective density — when
+    /// aggressive throttle is active, dsty drops harder (steeper curve +
+    /// lower floor). Called by event_loop every frame alongside
+    /// `set_effective_pressure`.
+    pub(crate) fn set_aggressive_throttle(&mut self, on: bool) {
+        self.aggressive_throttle = on;
+    }
+
     /// Refresh HUD line colors from the current palette. Called every
     /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
     /// the HUD tracks palette changes (`c`/`C` key cycle, Crystal Dragon
@@ -931,7 +950,26 @@ impl HudState {
         self.cached_lines[8] = (colors[8], format!(" sped: {sped_val:.1}"));
         // dsty (droplet density multiplier): 2 decimals. User adjusts via
         // [/]. Owner explicitly mandated `dsty` label (NOT `den`).
-        let dsty_val = self.droplet_density;
+        //
+        // v50.0.0-beta.6 Option D: when power-dragon is ON, dsty is DYNAMIC
+        // — it reflects the effective density after power-dragon throttle.
+        // The throttle reduces spawn scale based on CPU pressure (via
+        // compute_spawn_scale, the same function used in rain_at()). When
+        // power-dragon is OFF, dsty is STATIC (shows the user's configured
+        // density, no throttle applied).
+        //
+        // CLI `--density` is the ceiling: the throttle only reduces below
+        // the user's value (scale ≤ 1.0), never above it. So `--density 1.0`
+        // with max pressure shows `dsty: 0.25` (1.0 * 0.25 floor), not 1.0.
+        let dsty_val = if self.power_dragon_on {
+            let scale = crate::central_control_rains::compute_spawn_scale(
+                self.effective_pressure,
+                self.aggressive_throttle,
+            );
+            self.droplet_density * scale
+        } else {
+            self.droplet_density
+        };
         self.cached_lines[9] = (colors[9], format!(" dsty: {dsty_val:.2}"));
         // scn (scene name): string, no format. User cycles via `x`.
         self.cached_lines[10] = (colors[10], format!(" scn: {}", self.scene_name));

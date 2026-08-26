@@ -205,15 +205,14 @@ impl Cloud {
         // aggressive_throttle, use a steeper curve (0.9 vs 0.75) + lower floor
         // (0.10 vs 0.25) to shed more spawn load. This does NOT touch the
         // user's density setting — only the spawn rate multiplier is affected.
-        let (factor, floor) = if self.aggressive_throttle {
-            (
-                PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE,
-                PERF_SPAWN_SCALE_MIN_AGGRESSIVE,
-            )
-        } else {
-            (PERF_PRESSURE_SPAWN_FACTOR, PERF_SPAWN_SCALE_MIN)
-        };
-        let mut spawn_scale = (1.0 - (factor * self.perf_pressure)).clamp(floor, 1.0);
+        //
+        // v50.0.0-beta.6 Option D: uses the shared `compute_spawn_scale()`
+        // function (single source of truth). The HUD's `dsty:` metric uses
+        // the same function to display the effective density.
+        let mut spawn_scale = crate::central_control_rains::compute_spawn_scale(
+            self.perf_pressure,
+            self.aggressive_throttle,
+        );
         // Apply atmospheric density modulation
         spawn_scale *= 1.0 + self.entropy_drift.density_offset;
         // Apply profile density modulation

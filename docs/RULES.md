@@ -126,7 +126,29 @@ When a cap is hit, behavior depends on the cap type:
 
 All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
 
-### Custom Block Field Strictness (v50.0.0-beta.6 FATAL FIX)
+### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D)
+
+The `dsty:` HUD metric (row 9) is **dynamic when power-dragon is ON** — it reflects the effective density after power-dragon throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density, no throttle applied).
+
+**How it works:**
+
+- `dsty:` = `user_density * compute_spawn_scale(pressure, aggressive)`
+- `compute_spawn_scale()` is a shared function (`central_control_rains.rs`) — the **same function** used by `rain_at()` in the render path. No formula drift.
+- `pressure` = `power_manager.effective_pressure()` (0.0–1.0)
+- `aggressive` = `cloud.aggressive_throttle` (set by self-healer on sustained high CPU)
+
+**Behavior table:**
+
+| State | `dsty:` shows | Example |
+|-------|--------------|---------|
+| power-dragon OFF | user density (static) | `dsty: 0.75` |
+| power-dragon ON, no pressure | user density (full) | `dsty: 0.72` |
+| power-dragon ON, 50% pressure | throttled | `dsty: 0.45` (0.72 * 0.625) |
+| power-dragon ON, 100% pressure | floored | `dsty: 0.18` (0.72 * 0.25) |
+| power-dragon ON + aggressive | drops harder | `dsty: 0.40` (0.72 * 0.55) |
+| CLI `--density 1.0` + max pressure | CLI caps, throttle reduces | `dsty: 0.25` (1.0 * 0.25) |
+
+**CLI wins:** the user's configured density is the **ceiling** — the throttle only reduces below it (scale ≤ 1.0), never above it. So `--density 1.0` with max pressure shows `dsty: 0.25`, not `1.0`.
 
 Custom blocks have a **strict field allowlist** — unknown fields are rejected as errors, NOT auto-promoted to root scope. This prevents silent side-effects like `color = green` inside `[charset-custom.quantum]` changing the global color scheme.
 

@@ -198,3 +198,105 @@ fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
         "prdr must reflect the live-reloaded value (false), not the stale startup value (true)"
     );
 }
+
+// ── v50.0.0-beta.6 Option D: dynamic dsty tests ───────────────────
+//
+// dsty is DYNAMIC when power-dragon is ON (reflects throttle via
+// compute_spawn_scale). dsty is STATIC when power-dragon is OFF (shows
+// the user's configured density, no throttle).
+
+#[test]
+fn hud_dsty_static_when_power_dragon_off() {
+    // power_dragon OFF → dsty = user density (no throttle).
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(false);
+    h.set_droplet_density(0.75);
+    h.set_effective_pressure(0.5); // high pressure, but power_dragon off
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.75",
+        "dsty must be static when power_dragon is OFF (no throttle)"
+    );
+}
+
+#[test]
+fn hud_dsty_dynamic_when_power_dragon_on_no_pressure() {
+    // power_dragon ON, pressure=0.0 → scale=1.0 → dsty = user density.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.72);
+    h.set_effective_pressure(0.0);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.72",
+        "dsty must equal user density when pressure is 0 (no throttle)"
+    );
+}
+
+#[test]
+fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
+    // power_dragon ON, pressure=0.5 → scale = (1 - 0.75*0.5).clamp(0.25,1.0)
+    // = 0.625. dsty = 0.72 * 0.625 = 0.45.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.72);
+    h.set_effective_pressure(0.5);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.45",
+        "dsty must be throttled to 0.45 at 50% pressure (0.72 * 0.625)"
+    );
+}
+
+#[test]
+fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
+    // power_dragon ON, pressure=1.0 → scale = (1 - 0.75*1.0).clamp(0.25,1.0)
+    // = 0.25 (floor). dsty = 0.72 * 0.25 = 0.18.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.72);
+    h.set_effective_pressure(1.0);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.18",
+        "dsty must be floored to 0.18 at 100% pressure (0.72 * 0.25)"
+    );
+}
+
+#[test]
+fn hud_dsty_aggressive_throttle_drops_harder() {
+    // power_dragon ON, pressure=0.5, aggressive_throttle=true
+    // → scale = (1 - 0.9*0.5).clamp(0.10, 1.0) = 0.55
+    // → dsty = 0.72 * 0.55 = 0.396 → 0.40
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.72);
+    h.set_effective_pressure(0.5);
+    h.set_aggressive_throttle(true);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.40",
+        "dsty must drop harder with aggressive_throttle (0.72 * 0.55 = 0.40)"
+    );
+}
+
+#[test]
+fn hud_dsty_cli_density_is_ceiling() {
+    // CLI --density 1.0 sets droplet_density=1.0. Even at max pressure,
+    // dsty = 1.0 * 0.25 = 0.25 (never exceeds 1.0).
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(1.0); // CLI value
+    h.set_effective_pressure(1.0); // max pressure
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[9].1, " dsty: 0.25",
+        "CLI density 1.0 caps dsty at 1.0; throttle reduces to 0.25 at max pressure"
+    );
+}

@@ -1031,6 +1031,38 @@ pub(crate) const PERF_SPAWN_SCALE_MIN: f32 = 0.25;
 /// without touching the user's color/charset/density/speed/glitch_level.
 pub(crate) const PERF_SPAWN_SCALE_MIN_AGGRESSIVE: f32 = 0.10;
 
+/// v50.0.0-beta.6 Option D: shared spawn-scale computation.
+///
+/// Single source of truth for the spawn-throttle formula. Called from:
+/// - `cloud/rain.rs::rain_at()` — the actual render-path throttle
+/// - `interactive/hud/mod.rs::update_metrics()` — the `dsty:` HUD display
+///
+/// This eliminates formula drift: if a constant changes, both the render
+/// path and the HUD update automatically.
+///
+/// `pressure` is the effective pressure (0.0–1.0, clamped internally).
+/// `aggressive` selects the steeper curve (factor 0.9, floor 0.10) used
+/// when the self-healer has detected sustained high CPU.
+///
+/// Returns the spawn-scale multiplier in `[floor, 1.0]`. The caller
+/// multiplies the user's density by this to get the effective density.
+#[must_use]
+pub(crate) fn compute_spawn_scale(pressure: f32, aggressive: bool) -> f32 {
+    let p = pressure.clamp(0.0, 1.0);
+    let (factor, floor) = if aggressive {
+        (
+            crate::central_control_dragon_power::PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE,
+            PERF_SPAWN_SCALE_MIN_AGGRESSIVE,
+        )
+    } else {
+        (
+            crate::central_control_dragon_power::PERF_PRESSURE_SPAWN_FACTOR,
+            PERF_SPAWN_SCALE_MIN,
+        )
+    };
+    (1.0 - (factor * p)).clamp(floor, 1.0)
+}
+
 /// Glitch activation threshold (fraction of cells).
 pub(crate) const GLITCH_THRESHOLD: f32 = 0.35;
 
