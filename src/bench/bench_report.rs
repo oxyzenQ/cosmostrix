@@ -399,7 +399,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("color_pipeline", data.color_pipeline);
         s.field("chroma_in_benchmark", data.chroma_in_benchmark);
         // PERF-1: honest disclosure — cosmetics skipped in bench mode
-        s.field("cosmetics_skipped", "message border + anomaly zones (bench mode = rain + 3 dragons only)");
+        s.field(
+            "cosmetics_skipped",
+            "message border + anomaly zones (bench mode = rain + 3 dragons only)",
+        );
         // PERF-2: dragon system + message state for CONFIG transparency.
         s.field("power_dragon", &data.power_dragon.to_string());
         s.field("crystal_dragon", &data.crystal_dragon.to_string());

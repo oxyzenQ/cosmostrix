@@ -1081,7 +1081,8 @@ impl Cloud {
         // clear() preserves the allocation, so after the first frame
         // this is zero-alloc. Resize to message.len() (no-op if same size).
         self.border_gradient_scratch.clear();
-        self.border_gradient_scratch.resize(self.message.len(), None);
+        self.border_gradient_scratch
+            .resize(self.message.len(), None);
         let border_gradient = &mut self.border_gradient_scratch;
         if palette_n > 0 && self.color_mode != ColorMode::Mono {
             // BD-02 (Border Dragon) - LTS Stable: corner-aware gradient system.
