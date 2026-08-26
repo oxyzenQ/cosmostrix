@@ -12,7 +12,7 @@ current host.
 | --- | --- |
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
 | RAM | 4.1 GiB |
-| OS | Debian GNU/Linux 13 (trixie) |
+| OS | Debian GNU/Linux 13 (trixie), glibc |
 | Rust | 1.98.0 |
 | Build | `pro` |
 | Terminal | `dumb` |
@@ -24,16 +24,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 4x4 | 16 | 1,417,773 | 999,001 | 0.001 | 0.5 | 4 | excellent |
-| 20x6 | 120 | 692,498 | 999,001 | 0.002 | 3.0 | 4 | excellent |
-| 80x24 | 1,920 | 98,403 | 133,298 | 0.014 | 56.8 | 5 | excellent |
-| 120x40 | 4,800 | 57,271 | 74,571 | 0.023 | 107.4 | 4 | excellent |
-| 200x80 | 16,000 | 30,529 | 37,276 | 0.041 | 220.7 | 6 | excellent |
-| 480x160 | 76,800 | 11,391 | 13,111 | 0.110 | 595.2 | 9 | excellent |
-| 960x270 | 259,200 | 4,628 | 5,499 | 0.270 | 1,267.3 | 20 | excellent |
-| 1920x540 | 1,036,800 | 1,626 | 1,887 | 0.777 | 2,599.1 | 65 | excellent |
-| 3840x1080 | 4,147,200 | 686 | 784 | 1.787 | 5,159.5 | 244 | good |
-| 7680x4320 | 33,177,600 | 278 | 354 | 3.996 | 11,126.2 | 1,812 | high |
+| 4x4 | 16 | 1,440,558 | 981,354 | 0.001 | 0.5 | 4 | excellent |
+| 20x6 | 120 | 689,045 | 999,001 | 0.002 | 3.0 | 5 | excellent |
+| 80x24 | 1,920 | 97,238 | 134,318 | 0.014 | 56.8 | 5 | excellent |
+| 120x40 | 4,800 | 57,474 | 73,180 | 0.023 | 107.4 | 4 | excellent |
+| 200x80 | 16,000 | 30,164 | 36,684 | 0.042 | 220.8 | 6 | excellent |
+| 480x160 | 76,800 | 11,417 | 13,158 | 0.108 | 596.3 | 9 | excellent |
+| 960x270 | 259,200 | 4,649 | 5,534 | 0.271 | 1,262.0 | 20 | excellent |
+| 1920x540 | 1,036,800 | 1,538 | 1,798 | 0.814 | 2,634.6 | 65 | excellent |
+| 3840x1080 | 4,147,200 | 642 | 735 | 1.880 | 5,149.6 | 244 | good |
+| 7680x4320 | 33,177,600 | 250 | 325 | 4.479 | 11,131.2 | 1,812 | high |
 
 FPS scales sub-linearly with cell count thanks to differential rendering;
 dirty cells now scale with grid size (~2x per 4x cell increase) because the
