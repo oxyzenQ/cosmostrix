@@ -996,7 +996,11 @@ impl Cloud {
             * (1.0 + self.entropy_drift.anomaly_offset as f64)
             * (1.0 + self.memory.instability_pressure as f64))
             .min(ANOMALY_CHANCE_PER_SEC * 3.0);
-        if phosphor_elapsed > 0.0
+        // PERF-1: skip anomaly spawn in benchmark mode — anomalies are
+        // cosmetics (luminance overlays, not rain simulation). Owner
+        // directive: bench = rain + 3 dragons only.
+        if !self.bench_mode
+            && phosphor_elapsed > 0.0
             && self.perf_pressure <= EVENT_PERF_GATE
             && !in_transition
             && (self.rand_chance.sample(&mut self.mt) as f64)
@@ -1008,8 +1012,10 @@ impl Cloud {
         self.anomaly_zones.retain(|z| {
             now.saturating_duration_since(z.start_time).as_secs_f32() < ANOMALY_DURATION_SECS
         });
-        // Apply anomaly effects to frame
-        self.apply_anomalies(frame, now);
+        // PERF-1: skip anomaly apply in benchmark mode — cosmetics.
+        if !self.bench_mode {
+            self.apply_anomalies(frame, now);
+        }
 
         // ── Cinematic Event Engine: render active events ──
         if !self.event_manager.is_empty() {

@@ -390,6 +390,8 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // still runs because it is deterministic.
         s.field("color_pipeline", data.color_pipeline);
         s.field("chroma_in_benchmark", data.chroma_in_benchmark);
+        // PERF-1: honest disclosure — cosmetics skipped in bench mode
+        s.field("cosmetics_skipped", "message border + anomaly zones (bench mode = rain + 3 dragons only)");
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));
