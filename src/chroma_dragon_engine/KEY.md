@@ -8,6 +8,17 @@
 
 ## LOCK
 
+> Engine re-locked at commit `dd87239` (2026-08-26). Additive changes
+> since prior lock at `deff636`: `colors_custom.rs` gained LTS bounds
+> constants (COLORS_CUSTOM_MAX_BLOCKS=100, MAX_RAIN_STOPS=64,
+> MAX_NAME_LEN=64) and enforcement in collect_colors_custom. These
+> are additive (new constants + new guards, no modification to the
+> chroma pipeline: gradient, interpolation, palette routing). Chroma
+> Dragon Routing Rule unchanged. Tests: 1710/0/2, clippy clean,
+> gate-keepers 8/8.
+>
+> Signoff: **oxyzenQ** -- 2026-08-26 -- v50.0.0-beta.6 additive bounds re-seal
+
 > Engine re-locked at commit `deff636` after the chroma re-seal audit
 > (2026-08-24). Confirms no chroma paths were touched in commits
 > `5280ae1` (cosmic-side exp decay consolidation) or `deff636`

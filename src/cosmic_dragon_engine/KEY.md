@@ -8,6 +8,26 @@
 
 ## LOCK
 
+> Engine re-locked at commit `dd87239` after the v50.0.0-beta.6
+> LTS hardening sweep (2026-08-26). All changes since the prior
+> lock at `5280ae1` are additive (new features, not modifications
+> to locked invariants):
+> - Border touch pulse extended to monolith scene (rain.rs, monolith.rs)
+> - Terminal-aware phosphor decay mult + ghost brightness cap (phosphor.rs)
+> - Terminal-aware droplet speed_mult for VTE consistency (spawn.rs, rain.rs)
+> - Dynamic dsty HUD metric via shared compute_spawn_scale (rain.rs)
+> - Struct visibility changes for monolith border touch (monolith.rs)
+> - LTS hardening: speed_mult applied at spawn time (spawn.rs)
+> All changes tested: 1710/0/2 (full binary suite), cargo fmt + clippy
+> clean (-D warnings), gate-keepers.sh 8/8. The locked invariants
+> (diff pipeline bounds, LastFrame dimension coherence, generation
+> counter, Cloud::reset consistency, easing family) are all preserved.
+> No regression vs prior baseline. A/B: zero per-frame surface change
+> (speed_mult and phosphor_mult are O(1) field reads; ghost cap is
+> O(active_cells) with early-out).
+>
+> Signoff: **oxyzenQ** -- 2026-08-26 -- v50.0.0-beta.6 LTS hardening re-seal
+
 > Engine re-locked at commit `5280ae1` after the v50.0.0-beta.5
 > masterclass easing consolidation re-seal audit (2026-08-24).
 > Owner-approved migration of all **temporal** easing in the rain
@@ -111,6 +131,23 @@
 
 ## UNLOCK
 >
+> **UNLOCK cosmic-dragon (retroactive)** at commit `e564eb3`, 2026-08-26
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: v50.0.0-beta.6 LTS hardening sweep required modifications
+> to cosmic_dragon_engine .rs files for: (1) border touch pulse
+> extension to monolith scene, (2) terminal-aware phosphor tuning
+> (decay_mult, ghost_brightness_cap, speed_mult), (3) dynamic dsty
+> HUD metric via shared compute_spawn_scale, (4) struct visibility
+> changes for monolith border touch detection. All changes are
+> additive (new features, not modifications to locked invariants).
+> Locked invariants preserved: diff pipeline bounds, LastFrame
+> dimension coherence, generation counter, Cloud::reset consistency,
+> easing family. Re-locked at `dd87239` after full test suite
+> 1710/0/2 + clippy + gate-keepers 8/8.
+>
+> Signoff: **oxyzenQ** -- 2026-08-26 -- v50.0.0-beta.6 LTS retroactive unlock
+
 > **UNLOCK cosmic-dragon (exp decay consolidation)** at commit `5280ae1`, 2026-08-24
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)
