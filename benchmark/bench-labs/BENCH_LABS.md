@@ -10,12 +10,12 @@ current host.
 
 | Item | Value |
 | --- | --- |
-| CPU | Intel(R) Xeon(R) Processor @ 3200 MHz (2 vCPUs, no SMT) |
-| RAM | 3.9 GiB, no swap |
-| OS | Alibaba Cloud Linux 5.10, glibc |
-| Rust | 1.97.1 |
-| Build | `release` (fat LTO, codegen-units=1, default CPU target) |
-| Terminal | `dumb` (headless) |
+| CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
+| RAM | 4.1 GiB |
+| OS | Debian GNU/Linux 13 (trixie) |
+| Rust | 1.98.0 |
+| Build | `pro` |
+| Terminal | `dumb` |
 
 ## Size Sweep (monolith)
 
@@ -24,16 +24,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 4x4 | 16 | 1,419,655 | 965,251 | 0.001 | 0.5 | 4 | excellent |
-| 20x6 | 120 | 648,717 | 999,001 | 0.002 | 3.0 | 4 | excellent |
-| 80x24 | 1,920 | 89,073 | 123,213 | 0.015 | 56.8 | 5 | excellent |
-| 120x40 | 4,800 | 53,572 | 69,818 | 0.024 | 107.4 | 5 | excellent |
-| 200x80 | 16,000 | 28,815 | 34,428 | 0.043 | 221.0 | 5 | excellent |
-| 480x160 | 76,800 | 10,703 | 12,125 | 0.112 | 596.2 | 9 | excellent |
-| 960x270 | 259,200 | 4,424 | 5,176 | 0.281 | 1,271.9 | 19 | excellent |
-| 1920x540 | 1,036,800 | 1,550 | 1,831 | 0.807 | 2,596.9 | 65 | excellent |
-| 3840x1080 | 4,147,200 | 754 | 878 | 1.649 | 5,186.6 | 244 | good |
-| 7680x4320 | 33,177,600 | 271 | 403 | 3.666 | 11,165.3 | 1,812 | high |
+| 4x4 | 16 | 1,417,773 | 999,001 | 0.001 | 0.5 | 4 | excellent |
+| 20x6 | 120 | 692,498 | 999,001 | 0.002 | 3.0 | 4 | excellent |
+| 80x24 | 1,920 | 98,403 | 133,298 | 0.014 | 56.8 | 5 | excellent |
+| 120x40 | 4,800 | 57,271 | 74,571 | 0.023 | 107.4 | 4 | excellent |
+| 200x80 | 16,000 | 30,529 | 37,276 | 0.041 | 220.7 | 6 | excellent |
+| 480x160 | 76,800 | 11,391 | 13,111 | 0.110 | 595.2 | 9 | excellent |
+| 960x270 | 259,200 | 4,628 | 5,499 | 0.270 | 1,267.3 | 20 | excellent |
+| 1920x540 | 1,036,800 | 1,626 | 1,887 | 0.777 | 2,599.1 | 65 | excellent |
+| 3840x1080 | 4,147,200 | 686 | 784 | 1.787 | 5,159.5 | 244 | good |
+| 7680x4320 | 33,177,600 | 278 | 354 | 3.996 | 11,126.2 | 1,812 | high |
 
 FPS scales sub-linearly with cell count thanks to differential rendering;
 dirty cells now scale with grid size (~2x per 4x cell increase) because the
