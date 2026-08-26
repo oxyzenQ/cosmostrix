@@ -11,6 +11,10 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + duration, the HUD gains two new dragon on/off indicators (prdr, crdr) above cid, and three `--perf-stats` exit issues are fixed (total cell count, final FPS line position, blank lines after exit). UTC format chosen for LTS stability (no DST transitions, no tzdata drift).
 
+### README
+
+- **Dragon challenge note**: added a centered blockquote to README.md after the intro section: *"Think you can beat cosmostrix? Go ahead -- no force needed. But when you enter the rain, you'll feel the depth -- and you'll understand why the dragon never loses."* Sets the tone for the project identity.
+
 ### What's new since beta.5
 
 - **Verbose exit time + duration (UTC)**: the `cosmostrix -v` / `--verbose` post-exit "final runtime state" section now leads with an `exit_time:` + `duration:` line. `exit_time` is the UTC time at exit, formatted as `YYYY-MM-DD HH:MM:SSZ` (ISO 8601 UTC designator). `duration` is the total process lifetime from the `Instant` captured at the top of `main()`, formatted as `Xm Ys` / `Xh Ym Ys`. The section now always prints (previously early-returned when no field changed) so the user always sees how long cosmostrix ran.

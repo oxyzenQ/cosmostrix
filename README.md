@@ -18,6 +18,14 @@
   <em>Experience a masterpiece with cosmostrix.</em>
 </p>
 
+<div align="center">
+
+> Think you can beat cosmostrix? Go ahead -- no force needed.\
+> But when you enter the rain, you'll feel the depth --\
+> and you'll understand why the dragon never loses.
+
+</div>
+
 <p align="center">
   <a href="https://ko-fi.com/rezky">
     <img src="https://img.shields.io/badge/Ko--fi-support-7C3AED?style=flat-square&logo=kofi&logoColor=white&labelColor=111827" alt="Support on Ko-fi">
