@@ -694,7 +694,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # bold = 1                              # 0=off, 1=random, 2=all
 # shadingmode = 1                       # 0=random, 1=cinematic
 # glitch-level = "intense"
-# density-map = "0.5,1.0,1.5,1.0,0.5"   # per-zone density weights (each 0.0-1.0)
+# density-map = "0.5,1.0,1.5,1.0,0.5"   # per-zone density weights (each 0.0-1.0, out-of-range clamped)
 # async-mode = true                     # variable column speeds
 
 # [scene-custom.cyberpunk_2077]

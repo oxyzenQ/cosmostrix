@@ -146,10 +146,17 @@ fn density_map_non_numeric_is_rejected() {
 }
 
 #[test]
-fn density_map_out_of_range_is_rejected() {
-    let err = validate_field_value("density-map", "0.5,1.5,0.0").expect("oob should fail");
-    assert!(err.contains("out of range"), "got: {err}");
-    assert!(err.contains("1.5"), "got: {err}");
+fn density_map_out_of_range_is_warned_not_rejected() {
+    // v50.0.0-beta.6: out-of-range values are now WARNINGS, not errors.
+    // Runtime parse_density_map clamps to [0.0, 1.0], so testconf should
+    // not block the config. The warning is emitted via eprintln_warn_labeled
+    // (side-effect), not returned as an error. validate_field_value returns
+    // None (no error) — the user sees the warning on stderr but testconf PASS.
+    let err = validate_field_value("density-map", "0.5,1.5,0.0");
+    assert!(
+        err.is_none(),
+        "out-of-range should be a warning, not an error, got: {err:?}"
+    );
 }
 
 #[test]

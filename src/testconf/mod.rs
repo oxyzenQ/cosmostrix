@@ -550,6 +550,13 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // otherwise split into `"0.05`, `0.3`, `1.0"` and the first/last
         // entries would fail the f64 parse with a confusing error message.
         // This mirrors the same quote-stripping logic in parse_density_map.
+        //
+        // v50.0.0-beta.6: out-of-range values are now WARNINGS, not errors.
+        // Runtime parse_density_map clamps to [0.0, 1.0] (1.5 → 1.0, -0.3 →
+        // 0.0), so rejecting at testconf created an ambiguity — testconf
+        // failed but runtime would have worked. Now testconf warns about
+        // the clamp so the user knows, but does not block the config.
+        // Non-numeric entries (typos like "abc") are still hard errors.
         "density-map" => {
             let v = v.trim().trim_matches('"').trim_matches('\'').trim();
             let entries: Vec<&str> = v.split(',').map(|s| s.trim()).collect();
@@ -562,8 +569,11 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             for entry in &non_empty {
                 match entry.parse::<f64>() {
                     Ok(n) if !(0.0..=1.0).contains(&n) => {
-                        return Some(format!(
-                            "out of range [0.0, 1.0] for entry '{entry}', got {n}"
+                        // v50.0.0-beta.6: warn about clamp, don't error.
+                        // Runtime will clamp to [0.0, 1.0] — the user's
+                        // intent is clear, just the value is out of range.
+                        crate::output::eprintln_warn_labeled(&format!(
+                            "density-map entry '{entry}' = {n} is out of range [0.0, 1.0] — will be clamped at runtime"
                         ));
                     }
                     Err(_) => {
