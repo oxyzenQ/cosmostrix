@@ -226,25 +226,24 @@ fn parse_color_tune_section_with_bold_promotes_to_root() {
 
 #[test]
 fn parse_scene_custom_section_with_nested_adaptive_custom_promotes_to_root() {
-    // [scene-custom.hacker-mode.adaptive-custom.10-00] + color = cosmos
-    // — both `adaptive-custom.10-00` (segment of the section path) AND
-    // `color` (the flat key under it) are recognized top-level keys, so
-    // the auto-promote fires for `color` (the flat key). No unknown_keys.
-    // The hint function still fires when given the would-be-nested form
-    // (e.g. for --testconf display when the user explicitly wrote the
-    // mis-nested form without a flat key underneath).
+    // v50.0.0-beta.6: top-level keys inside [scene-custom] blocks are NO
+    // LONGER auto-promoted — they surface as unknown_keys. This test now
+    // verifies the hint function still fires on the nested form (for
+    // --testconf display), but the parser no longer silently promotes.
     let content = "[scene-custom.hacker-mode.adaptive-custom.10-00]\ncolor = cosmos\n";
     let parsed = crate::configfile::parse_config_text(content);
+    // `color` is NOT a valid scene-custom field for this deep-nested
+    // section → unknown_key (no auto-promote inside custom blocks).
     assert!(
-        parsed.unknown_keys.is_empty(),
-        "expected no unknown keys (color auto-promoted to root), got: {:?}",
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.adaptive-custom.10-00.color"),
+        "expected unknown key for nested color, got: {:?}",
         parsed.unknown_keys
     );
-    // `color = cosmos` was promoted to root scope.
-    assert_eq!(
-        parsed.values.get("color").map(String::as_str),
-        Some("cosmos")
-    );
+    // No promotion.
+    assert!(parsed.promoted_keys.is_empty());
     // Hint still fires on the would-be-nested form (for testconf display).
     let full_key = "scene-custom.hacker-mode.adaptive-custom.10-00.color";
     assert!(suggest_for_unknown_key(full_key).is_some());

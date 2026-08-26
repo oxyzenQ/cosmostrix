@@ -125,6 +125,22 @@ When a cap is hit, behavior depends on the cap type:
 - **Name length cap**: silently skipped (no warning — almost certainly a typo, warning would be noise).
 
 All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
+
+### Custom Block Field Strictness (v50.0.0-beta.6 FATAL FIX)
+
+Custom blocks have a **strict field allowlist** — unknown fields are rejected as errors, NOT auto-promoted to root scope. This prevents silent side-effects like `color = green` inside `[charset-custom.quantum]` changing the global color scheme.
+
+**Allowed fields per block type:**
+
+| Block | Allowed fields | Source |
+|-------|---------------|--------|
+| `[colors-custom.<name>]` | `bg`, `rain`, `stops` (deprecated alias) | `is_valid_colors_custom_field()` |
+| `[charset-custom.<name>]` | `set` only | `is_valid_charset_custom_field()` |
+| `[scene-custom.<name>]` | `base-scene`, `color`, `charset`, `bold`, `colors-custom`, `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`, `density`, `density-map`, `async-mode` | `SCENE_CUSTOM_FIELDS` |
+
+Any other field inside these blocks surfaces as an `unknown_key` → `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
+
+Auto-promote still works for non-custom sections (e.g. `[color.tune]` — a top-level key accidentally nested under it still promotes to root). Only custom blocks are strict.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

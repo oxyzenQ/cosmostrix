@@ -316,7 +316,20 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 // `fps` or `speed`). Silently re-home it to root scope and
                 // record the promotion so --testconf can warn the user
                 // about the structural fix.
-                if !current_section.is_empty() && is_known_key(&key) {
+                //
+                // v50.0.0-beta.6 FATAL FIX: do NOT auto-promote when inside
+                // a custom block (charset-custom.*, colors-custom.*,
+                // scene-custom.*). These blocks have a strict field
+                // allowlist — unknown fields must be rejected as
+                // unknown_keys, NOT promoted to root scope. Previously,
+                // `color = green` inside `[charset-custom.quantum]` was
+                // promoted to root `color = green`, silently changing the
+                // global color scheme. Now it surfaces as an unknown key
+                // so config_hints can attach a helpful error message.
+                let is_custom_block = current_section.starts_with("charset-custom.")
+                    || current_section.starts_with("colors-custom.")
+                    || current_section.starts_with("scene-custom.");
+                if !current_section.is_empty() && !is_custom_block && is_known_key(&key) {
                     promoted_keys.push((full_key.clone(), key.clone()));
                     // Don't overwrite an explicit root-scope value — first
                     // writer wins (matches TOML semantics for duplicate keys).

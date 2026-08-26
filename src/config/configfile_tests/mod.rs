@@ -24,10 +24,13 @@ use crate::configfile::parse_config_text;
 
 #[test]
 fn scene_custom_then_top_level_key_promotes_to_root() {
-    // The exact scenario reported in the  depth test: user uncomments
-    // [scene-custom.hacker-mode] and a top-level key in the same file.
-    // Pre- this errored with "unknown key: scene-custom.hacker-mode.intro".
-    // auto-promote to root scope, no error.
+    // v50.0.0-beta.6: top-level keys accidentally nested under a
+    // [scene-custom.<name>] block are NO LONGER auto-promoted — they
+    // surface as unknown_keys so the user gets a clear error. The user
+    // must move top-level keys OUT of the [scene-custom] section (add
+    // a blank line before them, or put them at the top of the file).
+    // This prevents silent side-effects like `color = green` inside
+    // `[charset-custom.quantum]` changing the global color scheme.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -36,17 +39,15 @@ speed = 28
 intro = cosmic
 ";
     let parsed = parse_config_text(content);
+    // `intro` is NOT a valid scene-custom field → unknown_key (no promote).
     assert!(
-        parsed.unknown_keys.is_empty(),
-        "expected no unknown keys, got: {:?}",
+        parsed
+            .unknown_keys
+            .contains(&"scene-custom.hacker-mode.intro".to_string()),
+        "expected unknown key for intro, got: {:?}",
         parsed.unknown_keys
     );
-    assert!(
-        parsed.malformed_lines.is_empty(),
-        "expected no malformed lines, got: {:?}",
-        parsed.malformed_lines
-    );
-    // The scene-custom block is correctly stored under its nested key.
+    // The scene-custom block's valid fields are correctly stored.
     assert_eq!(
         parsed
             .values
@@ -54,27 +55,15 @@ intro = cosmic
             .map(String::as_str),
         Some("green")
     );
-    // The top-level key was promoted to root scope.
-    assert_eq!(
-        parsed.values.get("intro").map(String::as_str),
-        Some("cosmic")
-    );
-    // Promotion was recorded for --testconf transparency.
-    assert_eq!(
-        parsed.promoted_keys,
-        vec![(
-            "scene-custom.hacker-mode.intro".to_string(),
-            "intro".to_string()
-        )]
-    );
+    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
 }
 
 #[test]
 fn scene_custom_then_colors_custom_flat_keys_promote() {
-    // FLAT form (no [colors-custom.<name>] header) written after a
-    // [scene-custom.<name>] block — these get nested under scene-custom
-    // and need promotion. (If the user writes [colors-custom.<name>] as a
-    // new section header, scope is correctly reset — no promotion needed.)
+    // v50.0.0-beta.6: flat colors-custom keys nested under a
+    // [scene-custom] block are NO LONGER promoted — they surface as
+    // unknown_keys. The user must write [colors-custom.<name>] as its
+    // own section header to reset scope.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -82,43 +71,40 @@ colors-custom.mythme.bg = \"#0a0a12\"
 colors-custom.mythme.rain = \"#1a0033, #4d0080\"
 ";
     let parsed = parse_config_text(content);
+    // Both flat keys are unknown (nested under scene-custom, not promoted).
     assert!(
-        parsed.unknown_keys.is_empty(),
-        "unknown keys: {:?}",
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.colors-custom.mythme.bg"),
+        "expected unknown key for nested colors-custom, got: {:?}",
         parsed.unknown_keys
     );
-    // Both flat keys were promoted to root scope.
-    assert!(parsed.values.contains_key("colors-custom.mythme.bg"));
-    assert!(parsed.values.contains_key("colors-custom.mythme.rain"));
-    assert_eq!(parsed.promoted_keys.len(), 2);
-    assert!(parsed
-        .promoted_keys
-        .iter()
-        .any(|(from, _)| from == "scene-custom.hacker-mode.colors-custom.mythme.bg"));
+    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
 }
 
 #[test]
 fn scene_custom_then_charset_custom_flat_key_promotes() {
-    // FLAT form `charset-custom.<name>.set = "..."` written after a
-    // [scene-custom.<name>] block — promoted to root scope.
+    // v50.0.0-beta.6: flat charset-custom keys nested under a
+    // [scene-custom] block are NO LONGER promoted — they surface as
+    // unknown_keys. The user must write [charset-custom.<name>] as its
+    // own section header.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 charset-custom.zen.set = \"|\"
 ";
     let parsed = parse_config_text(content);
-    assert!(parsed.unknown_keys.is_empty());
-    // Option 1 (internal independent QA): parser now strips surrounding
-    // double quotes from string values. The input was `"|"` (quoted),
-    // the stored value is now `|` (without quotes).
-    assert_eq!(
+    // Flat key is unknown (nested under scene-custom, not promoted).
+    assert!(
         parsed
-            .values
-            .get("charset-custom.zen.set")
-            .map(String::as_str),
-        Some("|")
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.charset-custom.zen.set"),
+        "expected unknown key for nested charset-custom, got: {:?}",
+        parsed.unknown_keys
     );
-    assert_eq!(parsed.promoted_keys.len(), 1);
+    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
 }
 
 #[test]
@@ -200,11 +186,12 @@ colro = green
 
 #[test]
 fn empty_section_header_is_malformed_and_promotion_still_fires() {
-    // `[]` is rejected by the parser as malformed (empty section name) —
-    // it does NOT reset `current_section` to root scope. So a flat
-    // top-level key written after `[]` still gets nested
-    // under the previous [scene-custom.<name>] block and needs promotion.
-    // This is exactly the  depth-test scenario.
+    // v50.0.0-beta.6: `[]` is rejected as malformed (empty section name)
+    // and does NOT reset current_section. A top-level key written after
+    // `[]` is still nested under the previous [scene-custom] block —
+    // but now it surfaces as unknown_key (no auto-promote inside custom
+    // blocks). The user must remove the `[]` line and add a blank line
+    // before the top-level key.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -217,26 +204,23 @@ intro = cosmic
         "expected [] to be malformed, got: {:?}",
         parsed.malformed_lines
     );
-    // intro was still nested under scene-custom.hacker-mode
-    // (because [] didn't reset scope), so promotion fires.
+    // intro is unknown (nested under scene-custom, not promoted).
     assert!(
-        parsed.promoted_keys.iter().any(|(_, to)| to == "intro"),
-        "expected promotion to intro, got: {:?}",
-        parsed.promoted_keys
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.intro"),
+        "expected unknown key for intro, got: {:?}",
+        parsed.unknown_keys
     );
-    assert!(parsed.unknown_keys.is_empty());
+    assert!(parsed.promoted_keys.is_empty());
 }
 
 #[test]
 fn multiple_top_level_keys_all_promote() {
-    // A realistic config with top-level keys, all written after a scene-custom
-    // block. All should be promoted (they are NOT valid scene-custom fields).
-    //
-    // `bold`, `shadingmode`, `async-mode` ARE now valid scene-custom fields
-    // per owner contract — so they no longer get promoted when written under
-    // a `[scene-custom.*]` block. This test now uses fields that remain
-    // FORBIDDEN in scene-custom (`intro`, `color-bg`,
-    // `monolith-size`) to verify the promotion path still works.
+    // v50.0.0-beta.6: top-level keys nested under a [scene-custom] block
+    // are NO LONGER promoted — they all surface as unknown_keys. The user
+    // must move them out of the [scene-custom] section.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -248,32 +232,137 @@ color-bg = black
 monolith-size = large
 ";
     let parsed = parse_config_text(content);
-    assert!(
-        parsed.unknown_keys.is_empty(),
-        "unknown keys: {:?}",
-        parsed.unknown_keys
-    );
-    assert_eq!(parsed.promoted_keys.len(), 4);
-    // All 4 root-scope keys are stored.
-    for key in &["intro", "crystal-dragon", "color-bg", "monolith-size"] {
+    // All 4 nested top-level keys are unknown (not promoted).
+    for key in &[
+        "scene-custom.hacker-mode.intro",
+        "scene-custom.hacker-mode.crystal-dragon",
+        "scene-custom.hacker-mode.color-bg",
+        "scene-custom.hacker-mode.monolith-size",
+    ] {
         assert!(
-            parsed.values.contains_key(*key),
-            "expected promoted key {key} in values"
+            parsed.unknown_keys.iter().any(|k| k == *key),
+            "expected unknown key {key}, got: {:?}",
+            parsed.unknown_keys
         );
     }
+    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
 }
 
 #[test]
 fn promoted_keys_record_original_and_target() {
-    // The promoted_keys tuple format is (original_nested, promoted_root).
-    // --testconf uses this to show the user what was moved.
+    // v50.0.0-beta.6: top-level keys inside [scene-custom] blocks are
+    // no longer promoted — they surface as unknown_keys. This test now
+    // verifies the NON-custom-block promotion path still works: a
+    // top-level key nested under a NON-custom section (e.g. [color.tune])
+    // still promotes, since [color.tune] is not a custom block.
     let content = "\
-[scene-custom.hacker-mode]
+[color.tune]
+brightness = 1.0
 intro = cosmic
 ";
     let parsed = parse_config_text(content);
+    // brightness stays under color.tune (correctly recognized field).
+    assert_eq!(
+        parsed
+            .values
+            .get("color.tune.brightness")
+            .map(String::as_str),
+        Some("1.0")
+    );
+    // intro is a top-level key nested under [color.tune] (not a custom
+    // block) → still promoted to root scope.
     assert_eq!(parsed.promoted_keys.len(), 1);
     let (from, to) = &parsed.promoted_keys[0];
-    assert_eq!(from, "scene-custom.hacker-mode.intro");
+    assert_eq!(from, "color.tune.intro");
     assert_eq!(to, "intro");
+}
+
+// ── v50.0.0-beta.6 FATAL FIX: no auto-promote inside custom blocks ──
+
+#[test]
+fn charset_custom_block_rejects_unknown_field_color() {
+    // Owner-reported FATAL bug: `color = green` inside `[charset-custom.quantum]`
+    // was auto-promoted to root `color = green`, silently changing the global
+    // color scheme. Now it surfaces as unknown_key so the user gets a clear
+    // error. `color` is NOT a valid charset-custom field (only `set` is).
+    let content = "\
+[charset-custom.quantum]
+set = \"abcdef\"
+color = green
+";
+    let parsed = parse_config_text(content);
+    // `color` must be unknown (not promoted to root).
+    assert!(
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "charset-custom.quantum.color"),
+        "expected unknown key for color in charset-custom, got: {:?}",
+        parsed.unknown_keys
+    );
+    // `color` must NOT be at root scope.
+    assert!(
+        !parsed.values.contains_key("color"),
+        "color must NOT be promoted to root scope"
+    );
+    // `set` is valid → stored correctly.
+    assert_eq!(
+        parsed
+            .values
+            .get("charset-custom.quantum.set")
+            .map(String::as_str),
+        Some("abcdef")
+    );
+    assert!(parsed.promoted_keys.is_empty());
+}
+
+#[test]
+fn colors_custom_block_rejects_unknown_field_speed() {
+    // Same bug class: `speed` inside `[colors-custom.sun]` must NOT
+    // promote to root. `speed` is not a valid colors-custom field
+    // (only `bg`, `rain`, `stops` are).
+    let content = "\
+[colors-custom.sun]
+rain = \"#000000, #ffffff\"
+speed = 28
+";
+    let parsed = parse_config_text(content);
+    assert!(
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "colors-custom.sun.speed"),
+        "expected unknown key for speed in colors-custom, got: {:?}",
+        parsed.unknown_keys
+    );
+    assert!(
+        !parsed.values.contains_key("speed"),
+        "speed must NOT be promoted to root scope"
+    );
+    assert!(parsed.promoted_keys.is_empty());
+}
+
+#[test]
+fn scene_custom_block_rejects_unknown_field_intro() {
+    // `intro` inside `[scene-custom.hacker-mode]` must NOT promote to
+    // root. `intro` is not a valid scene-custom field.
+    let content = "\
+[scene-custom.hacker-mode]
+color = green
+intro = cosmic
+";
+    let parsed = parse_config_text(content);
+    assert!(
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.intro"),
+        "expected unknown key for intro in scene-custom, got: {:?}",
+        parsed.unknown_keys
+    );
+    assert!(
+        !parsed.values.contains_key("intro"),
+        "intro must NOT be promoted to root scope"
+    );
+    assert!(parsed.promoted_keys.is_empty());
 }
