@@ -346,46 +346,37 @@ impl Cloud {
             // Snapshot (stream_index, col, prev_head) BEFORE advance for
             // streams above the border, then AFTER advance check crossing.
             let top = self.message_top_line;
-            if top != u16::MAX {
-                // Snapshot candidates: streams above the border that could
-                // cross it this frame. Store (index, col, prev_head).
-                let mut candidates: Vec<(usize, u16, u16)> = Vec::new();
-                for (i, stream) in self.monolith_rain.streams.iter().enumerate() {
-                    if !stream.active {
-                        continue;
-                    }
-                    let prev_hp = stream.head as u16;
-                    if prev_hp < top {
-                        candidates.push((i, stream.col, prev_hp));
-                    }
-                }
-                // Advance the monolith streams.
-                self.monolith_rain.advance(
-                    now,
-                    self.lines,
-                    self.chars_per_sec,
-                    max_sim_delta,
-                    self.resume_blend,
-                );
-                // Check which candidates crossed the border.
-                for (i, col, prev_hp) in candidates {
-                    let stream = &self.monolith_rain.streams[i];
-                    if !stream.active {
-                        continue;
-                    }
-                    let new_hp = stream.head as u16;
-                    if new_hp >= top {
-                        self.detect_border_touch(col, prev_hp, new_hp, now);
-                    }
-                }
+            // Snapshot candidates: streams above the border that could
+            // cross it this frame. Store (index, col, prev_head).
+            let candidates: Vec<(usize, u16, u16)> = if top != u16::MAX {
+                self.monolith_rain
+                    .streams
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, s)| s.active && (s.head as u16) < top)
+                    .map(|(i, s)| (i, s.col, s.head as u16))
+                    .collect()
             } else {
-                self.monolith_rain.advance(
-                    now,
-                    self.lines,
-                    self.chars_per_sec,
-                    max_sim_delta,
-                    self.resume_blend,
-                );
+                Vec::new()
+            };
+            // Advance the monolith streams (single call, no duplication).
+            self.monolith_rain.advance(
+                now,
+                self.lines,
+                self.chars_per_sec,
+                max_sim_delta,
+                self.resume_blend,
+            );
+            // Check which candidates crossed the border.
+            for (i, col, prev_hp) in candidates {
+                let stream = &self.monolith_rain.streams[i];
+                if !stream.active {
+                    continue;
+                }
+                let new_hp = stream.head as u16;
+                if new_hp >= top {
+                    self.detect_border_touch(col, prev_hp, new_hp, now);
+                }
             }
         } else {
             // sim path optimization: split the droplet advance loop into two

@@ -25,7 +25,7 @@ reaches the top edge of the overlay.
 Five masterclass options are presented below, ranging from least to most
 intrusive. Each is fully sketched with file/function touch points, perf
 cost, and trade-offs. The author's recommendation, pending owner decision,
-is **Option C (Edge-Touch Pulse)** — minimal blast radius, re-uses the
+is **Option C (Edge-Touch Pulse)** — minimal blast radius, reuses the
 existing chroma infrastructure, and respects the LTS invariant that the
 top corners of the border must not be bright.
 
@@ -187,7 +187,7 @@ on `╭`/`╮` corner cells.
 
 **Trade-offs:**
 - ✓ Subtle — the border "ripples" under rain without distracting.
-- ✓ Re-uses the existing `head_rgb` + chroma gradient infrastructure.
+- ✓ Reuses the existing `head_rgb` + chroma gradient infrastructure.
 - ✓ Respects all four LTS invariants (corners untouched).
 - ✗ Requires a per-cell decay loop on every frame (small but non-zero).
 - ✗ Visually less dramatic than Option A — owner may not perceive the
@@ -216,7 +216,7 @@ a glass ceiling" effect — present but quiet.
 **Trade-offs:**
 - ✓ Minimal blast radius — one new Vec, one decay loop, one lerp per
   active pulse.
-- ✓ Re-uses `head_rgb` and existing gradient pipeline — no new color
+- ✓ Reuses `head_rgb` and existing gradient pipeline — no new color
   infrastructure.
 - ✓ Corners untouched → invariant-safe.
 - ✓ Smoothstep envelope eliminates hard brightness steps (matches the
@@ -312,7 +312,7 @@ with the following parameters:
 
 **Rationale:**
 - Smallest code surface — one new Vec, one decay loop, one lerp.
-- Re-uses existing `head_rgb` infrastructure; no new color pipeline.
+- Reuses existing `head_rgb` infrastructure; no new color pipeline.
 - Smoothstep envelope eliminates hard brightness steps — composes
   cleanly with the chroma gradient.
 - Corners untouched → all four LTS invariants preserved.
