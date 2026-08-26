@@ -408,7 +408,7 @@ echo ""
 echo "### GPG signature"
 echo ""
 echo '```bash'
-echo "gpg --keyserver keyserver.ubuntu.com --recv-keys 47A50AEF4B65AAC2"
+echo "gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2"
 echo "gpg --verify cosmostrix-${TAG#v}-linux-amd64-v3-gnu.tar.gz.asc"
 echo '```'
 echo ""

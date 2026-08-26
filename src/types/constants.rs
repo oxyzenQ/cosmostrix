@@ -116,12 +116,13 @@ pub(crate) const BENCH_MAX_COLS: u16 = 7680;
 pub(crate) const BENCH_MAX_LINES: u16 = 4320;
 
 /// Minimum usable terminal width (columns). Below this, the renderer
-/// refuses to start to avoid degenerate edge cases (empty frame, zero
-/// droplets, divide-by-zero in column math).
-pub(crate) const MIN_TERMINAL_COLS: u16 = 4;
+/// refuses to start to avoid degenerate edge cases (zero droplets,
+/// divide-by-zero in column math). 1x1 is the absolute floor — a single
+/// cell is a valid (if trivial) render target.
+pub(crate) const MIN_TERMINAL_COLS: u16 = 1;
 
 /// Minimum usable terminal height (lines). Same rationale as above.
-pub(crate) const MIN_TERMINAL_LINES: u16 = 4;
+pub(crate) const MIN_TERMINAL_LINES: u16 = 1;
 
 /// Resize debounce window in milliseconds. Rapid resize events within this
 /// window are coalesced into a single application, preventing redundant

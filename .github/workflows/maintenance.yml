@@ -34,8 +34,8 @@ env:
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
   RUST_VERSION: "1.98.0"
-  # GPG signing key fingerprint (master key).
-  GPG_KEY_FINGERPRINT: "47A50AEF4B65AAC2"
+  # GPG signing key fingerprint (master key). Full 40-char fingerprint.
+  GPG_KEY_FINGERPRINT: "F5324E0967F104D58CE025F347A50AEF4B65AAC2"
   # Warn this many days before the signing subkey expires.
   GPG_EXPIRY_WARN_DAYS: 30
   # Bot identity for the dependency-update report PR. Centralized here

@@ -251,7 +251,7 @@ Official release artifacts are GPG-signed with the maintainer's key, producing a
 
 ```bash
 # 1. Import the maintainer's public key from a keyserver
-gpg --keyserver keyserver.ubuntu.com --recv-keys 47A50AEF4B65AAC2
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 
 # 2. Verify the detached signature against the downloaded archive
 gpg --verify cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz.asc \

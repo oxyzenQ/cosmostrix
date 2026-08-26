@@ -135,7 +135,7 @@ pub(crate) type ScreenSize = (u16, u16);
 /// Accepted formats:
 ///   - `120x40` → (120, 40)
 ///   - `12x12` → (12, 12)
-///   - `4x4` → (4, 4) (minimum, enforced by MIN_TERMINAL_COLS/LINES)
+///   - `1x1` → (1, 1) (minimum, enforced by MIN_TERMINAL_COLS/LINES)
 ///   - `200X60` → (200, 60) (case-insensitive 'x')
 ///
 /// Format range: 1x1 to 65535x65535 (u16 range). However, the renderer
@@ -148,7 +148,7 @@ pub(crate) type ScreenSize = (u16, u16);
 /// # Errors
 /// Returns `Err(String)` with a human-readable error message if:
 ///   - Format is invalid (missing 'x', non-numeric, extra characters)
-///   - Value is below minimum (0x0, 0x10, 10x0, or below 4x4)
+///   - Value is below minimum (0x0, 0x10, 10x0, or below 1x1)
 pub(crate) fn parse_screen_size(input: &str) -> Result<ScreenSize, String> {
     let input = input.trim();
 
@@ -307,8 +307,8 @@ mod tests {
     fn parse_screen_size_basic() {
         assert_eq!(parse_screen_size("120x40").unwrap(), (120, 40));
         assert_eq!(parse_screen_size("12x12").unwrap(), (12, 12));
-        // 1x1 is now rejected (minimum is 4x4)
-        assert!(parse_screen_size("1x1").is_err());
+        // 1x1 is the minimum accepted (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES = 1x1)
+        assert!(parse_screen_size("1x1").is_ok());
     }
 
     #[test]
@@ -332,15 +332,13 @@ mod tests {
 
     #[test]
     fn parse_screen_size_rejects_too_small() {
-        // Minimum is 4x4 (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES)
-        assert!(parse_screen_size("1x1").is_err());
-        assert!(parse_screen_size("3x3").is_err());
-        assert!(parse_screen_size("12x1").is_err());
-        assert!(parse_screen_size("12x2").is_err());
-        assert!(parse_screen_size("12x3").is_err());
-        assert!(parse_screen_size("3x12").is_err());
-        // 4x4 is the minimum accepted
-        assert!(parse_screen_size("4x4").is_ok());
+        // Minimum is 1x1 (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES = 1)
+        // 0 is rejected (below minimum), 1 is accepted.
+        assert!(parse_screen_size("0x0").is_err());
+        assert!(parse_screen_size("0x1").is_err());
+        assert!(parse_screen_size("1x0").is_err());
+        // 1x1 is the minimum accepted
+        assert!(parse_screen_size("1x1").is_ok());
     }
 
     #[test]

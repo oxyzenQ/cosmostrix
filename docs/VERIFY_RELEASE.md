@@ -13,13 +13,13 @@ The key is available on two public keyservers:
 
 ```bash
 # Ubuntu keyserver (primary)
-gpg --keyserver keyserver.ubuntu.com --recv-keys 47A50AEF4B65AAC2
+gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 
 # openpgp.org (mirror)
-gpg --keyserver keys.openpgp.org --recv-keys 47A50AEF4B65AAC2
+gpg --keyserver keys.openpgp.org --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 ```
 
-**Key fingerprint**: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. **Key details**: Master key (ed25519) `47A50AEF4B65AAC2` — Certify + Sign, never expires. Signing subkey (ed25519) `56B96F3109F4B924` — Sign only, expires 2029-08-09. UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`.
+**Key fingerprint**: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. **Key details**: Master key (ed25519) `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — Certify + Sign, never expires. Signing subkey (ed25519) `56B96F3109F4B924` — Sign only, expires 2029-08-09. UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`.
 
 ### Signing key expiry policy
 

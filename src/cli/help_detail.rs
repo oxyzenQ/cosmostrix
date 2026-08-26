@@ -310,7 +310,7 @@ DIAGNOSTICS:
       --benchmark for long-run drift / leak / thermal-throttle detection.
       The DRIFT section of the report compares first-half FPS vs second-half FPS.
   --screen-size <WxH>
-      Fixed virtual screen size (e.g. 120x40). Min 4x4. Max 1024x500 in
+      Fixed virtual screen size (e.g. 120x40). Min 1x1. Max 1024x500 in
       interactive mode, 7680x4320 (8K UHD) in --benchmark mode. Useful
       for benchmarking at exact dimensions or rendering independent of
       terminal resize.
