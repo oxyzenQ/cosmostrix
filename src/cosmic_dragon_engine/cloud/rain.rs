@@ -348,17 +348,23 @@ impl Cloud {
             let top = self.message_top_line;
             // Snapshot candidates: streams above the border that could
             // cross it this frame. Store (index, col, prev_head).
-            let candidates: Vec<(usize, u16, u16)> = if top != u16::MAX {
-                self.monolith_rain
-                    .streams
-                    .iter()
-                    .enumerate()
-                    .filter(|(_, s)| s.active && (s.head as u16) < top)
-                    .map(|(i, s)| (i, s.col, s.head as u16))
-                    .collect()
-            } else {
-                Vec::new()
-            };
+            // B-1: use hoisted `border_cross_candidates` buffer (Cloud field)
+            // instead of allocating a new Vec every frame. Pattern matches
+            // crt_vignette_candidates (T1.1-real). clear() preserves the
+            // allocation, so after the first frame this is zero-alloc.
+            // Use mem::take to swap the Vec out (owned), avoiding borrow
+            // conflict with the mutable detect_border_touch call below.
+            // The taken Vec is dropped at end of scope; next frame refills
+            // a fresh (but capacity-preserving) Vec via push.
+            self.border_cross_candidates.clear();
+            if top != u16::MAX {
+                for (i, s) in self.monolith_rain.streams.iter().enumerate() {
+                    if s.active && (s.head as u16) < top {
+                        self.border_cross_candidates.push((i, s.col, s.head as u16));
+                    }
+                }
+            }
+            let candidates = std::mem::take(&mut self.border_cross_candidates);
             // Advance the monolith streams (single call, no duplication).
             self.monolith_rain.advance(
                 now,
