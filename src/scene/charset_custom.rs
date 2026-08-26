@@ -233,6 +233,10 @@ pub(crate) fn load_custom_charset(
 /// custom-block parse error here, because the strict-validation pass
 /// (`testconf::validate_config_strictly`) already reported it at
 /// startup / on live reload. Surfacing it again here would be noise.
+///
+/// v50.0.0-beta.6 Option D: when a custom charset shadows a builtin
+/// preset with the same name, emits a warning so the user knows the
+/// custom block won. Custom always wins (owner mandate).
 #[must_use]
 pub(crate) fn load_custom_charset_if_matches(
     cfg: &HashMap<String, String>,
@@ -248,7 +252,20 @@ pub(crate) fn load_custom_charset_if_matches(
     if !cfg.contains_key(&key) {
         return None;
     }
-    load_custom_charset(cfg, name).ok()
+    let chars = load_custom_charset(cfg, name).ok()?;
+    // v50.0.0-beta.6 Option D: warn if this custom name also matches a
+    // builtin preset. Custom wins (already returned below), but the user
+    // must be informed so silent shadowing never happens.
+    if crate::charset::charset_from_str(name, false).is_ok() {
+        let builtin_desc = "builtin preset (see --list-charsets)";
+        let custom_desc = format!(
+            "{} char(s) from [charset-custom.{}]",
+            chars.len(),
+            normalized
+        );
+        crate::output::warn_name_collision("charset", name, builtin_desc, &custom_desc);
+    }
+    Some(chars)
 }
 
 /// Validate a `charset-custom.<name>.set` value for use by `--testconf`

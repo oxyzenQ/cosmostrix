@@ -433,6 +433,14 @@ pub(crate) fn rain_style_for_scene(name: &str) -> Option<RainStyle> {
     get_scene(name).map(|scene| scene.config.rain_style)
 }
 
+/// Validate a scene name against the builtin scene list.
+///
+/// v50.0.0-beta.6 Option D: this function is no longer used in the
+/// production resolution path (custom scenes are now accepted alongside
+/// builtins — see `config_apply.rs`). Kept for test coverage and future
+/// strict-validation use cases. The production path uses `get_scene()`
+/// directly (returns None for custom-only names, which is handled gracefully).
+#[cfg(test)]
 pub(crate) fn validate_scene_name(name: &str) -> Result<String, String> {
     let normalized = name.trim().to_ascii_lowercase();
     if get_scene(&normalized).is_some() {

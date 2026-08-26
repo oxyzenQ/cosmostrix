@@ -373,6 +373,29 @@ pub(crate) fn eprintln_warn_labeled(msg: &str) {
     eprintln_safe!("{} {}", warn_bold("⚠"), warn(msg));
 }
 
+/// v50.0.0-beta.6: warn when a custom config block shadows a builtin
+/// preset/scene/color with the same name. Owner Option D mandate: custom
+/// wins, but the user must be informed so silent shadowing never happens.
+///
+/// Emits a 3-line warning via `eprintln_warn_labeled` (increments the
+/// startup warning counter so the summary line fires at the end of config
+/// apply). No return value — pure side-effect.
+///
+/// `category` is "charset" / "color" / "scene".
+/// `name` is the colliding name (e.g. "zen").
+/// `builtin_desc` is a short description of the builtin (e.g. "pipe char |").
+/// `custom_desc` is a short description of the custom (e.g. "$ from config").
+pub(crate) fn warn_name_collision(
+    category: &str,
+    name: &str,
+    builtin_desc: &str,
+    custom_desc: &str,
+) {
+    eprintln_warn_labeled(&format!(
+        "custom {category} '{name}' overrides builtin — custom wins (Option D policy)\n  builtin: {builtin_desc}\n  custom:  {custom_desc}\n  To use the builtin, rename the custom block in config.toml."
+    ));
+}
+
 /// Phase 5 closure (P3-5): process-lifetime counter for warnings emitted via
 /// `eprintln_warn_labeled`. Reset at the start of `apply_config_and_runtime_defaults`
 /// and read at the end to emit a summary line.

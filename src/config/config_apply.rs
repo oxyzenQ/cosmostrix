@@ -41,7 +41,7 @@ use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel, IntroType};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 use crate::runtime::MonolithSize;
-use crate::scene::{get_scene, validate_scene_name, DEFAULT_SCENE};
+use crate::scene::{get_scene, DEFAULT_SCENE};
 use crate::scene_custom::apply_scene_custom_layer;
 use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
@@ -204,12 +204,54 @@ pub(crate) fn apply_config_and_runtime_defaults(
         apply_config_values(matches, args, &cfg, &mut config_touched);
     }
 
+    // v50.0.0-beta.6 Option D: scene name collision resolution.
+    // If args.scene matches a [scene-custom.<name>] block, auto-set
+    // args.scene_custom so the custom layer gets applied (custom wins).
+    // If the name also matches a builtin scene, emit a collision warning.
+    // This lets `--scene <custom>` work (previously required --scene-custom).
+    if let Some(ref scene_name) = args.scene {
+        let normalized = scene_name.trim().to_ascii_lowercase();
+        let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
+        if custom_scenes.contains_key(&normalized) {
+            // Custom block exists — auto-set scene_custom if not already set.
+            if args.scene_custom.is_none() {
+                args.scene_custom = Some(normalized.clone());
+            }
+            // Warn if builtin also exists (collision).
+            if crate::scene::get_scene(&normalized).is_some() {
+                crate::output::warn_name_collision(
+                    "scene",
+                    &normalized,
+                    "builtin scene (see --list-scenes)",
+                    "custom scene from [scene-custom.*]",
+                );
+            }
+        }
+    }
+
     let scene_is_cli = is_explicit(matches, "scene");
     let scene_custom_is_cli = is_explicit(matches, "scene_custom");
     let scene_is_default = args.scene.is_none();
     if scene_is_default {
         args.scene = Some(DEFAULT_SCENE.to_string());
         apply_default_scene_values(matches, args, &config_touched)?;
+    }
+
+    // v50.0.0-beta.6 Option D: validate that the scene name is either a
+    // builtin scene or a [scene-custom.<name>] block. If neither, error
+    // with a clear message. This catches typos like `--scene nonexistnt`
+    // while still accepting custom scene names (which were previously
+    // rejected by validate_scene_name).
+    if let Some(ref scene_name) = args.scene {
+        let normalized = scene_name.trim().to_ascii_lowercase();
+        let is_builtin = crate::scene::get_scene(&normalized).is_some();
+        let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
+        let is_custom = custom_scenes.contains_key(&normalized);
+        if !is_builtin && !is_custom {
+            return Err(format!(
+                "error: unknown scene '{scene_name}'\n\n  Use --list-scenes to see available scenes."
+            ));
+        }
     }
 
     let mut curated_modified = HashSet::new();
@@ -319,22 +361,32 @@ fn apply_config_values(
     config_touched: &mut HashSet<&'static str>,
 ) {
     if let Some(v) = config_value(matches, cfg, "scene", "scene") {
-        match validate_scene_name(&v) {
-            Ok(name) => {
-                args.scene = Some(name);
-                config_touched.insert("scene");
-            }
-            Err(e) => {
-                // Strip the "error: " prefix from validate_scene_name's message
-                // since eprintln_error_labeled adds its own "error:" label.
-                let msg = e.strip_prefix("error: ").unwrap_or(&e);
-                crate::output::eprintln_error_labeled(msg);
-            }
+        // v50.0.0-beta.6 Option D: accept custom scene names from config
+        // (not just builtin). Previously validate_scene_name() rejected any
+        // name not in the builtin list. Now we accept the name if it matches
+        // EITHER a builtin scene OR a [scene-custom.<name>] block. The
+        // collision resolution + warning happens later in
+        // apply_config_and_runtime_defaults.
+        let normalized = v.trim().to_ascii_lowercase();
+        let is_builtin = crate::scene::get_scene(&normalized).is_some();
+        let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
+        let is_custom = custom_scenes.contains_key(&normalized);
+        if is_builtin || is_custom {
+            args.scene = Some(normalized);
+            config_touched.insert("scene");
+        } else {
+            crate::output::eprintln_error_labeled(&format!(
+                "unknown scene '{v}'\n\n  Use --list-scenes to see available scenes."
+            ));
         }
     }
 
     if let Some(v) = config_value(matches, cfg, "color", "color") {
-        if parse_color_scheme(&v).is_ok() {
+        // v50.0.0-beta.6 Option D: color may be a builtin theme OR a
+        // [colors-custom.<name>] block. Check both — custom wins on
+        // collision (handled by main.rs color resolution). The collision
+        // warning is emitted in main.rs at the unified resolution point.
+        if parse_color_scheme(&v).is_ok() || crate::colors_custom::is_colors_custom_name(cfg, &v) {
             args.color = v;
             config_touched.insert("color");
         } else {
@@ -528,7 +580,13 @@ fn apply_scene_values(
         return Ok(scene_modified);
     };
 
-    let name = validate_scene_name(scene_name)?;
+    // v50.0.0-beta.6 Option D: accept custom scene names (not just builtin).
+    // Previously validate_scene_name() would reject any name not in the
+    // builtin scene list, forcing users to use --scene-custom for custom
+    // scenes. Now we just normalize the name — builtin defaults are only
+    // applied if get_scene() finds a match (the if-let guard below).
+    // Custom scenes get their values applied via apply_scene_custom_layer.
+    let name = scene_name.trim().to_ascii_lowercase();
     args.scene = Some(name.clone());
 
     if let Some(scene) = get_scene(&name) {

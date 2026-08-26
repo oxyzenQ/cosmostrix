@@ -92,6 +92,19 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 **Verbose**: startup dumps full config to stderr (no borders, purple brand color). Runtime: changes tracked silently (no eprintln during rain — causes flicker). After exit: final runtime state section always prints (v50.0.0-beta.6) — first line is `exit_time: <YYYY-MM-DD HH:MM:SSZ>` (UTC, ISO 8601) and `duration: <Xm Ys>` showing the total process lifetime. UTC chosen for LTS stability (no DST transitions, no tzdata drift). Changed live-reload fields follow (only if any value changed during the session). Format: `[verbose] field: value (was old_value)`. The section closes with the ambient diagnostics summary.
 
 **Install**: `./scripts/install` auto-detects CPU — AVX-512 → pro-linux-v4, AVX2 → pro-linux-v3, baseline → release. `--system` flag: install to `/usr/bin`. Default: `~/.local/bin`.
+
+### Naming Collision Policy (v50.0.0-beta.6 Option D)
+
+When a custom config block (`[charset-custom.<name>]`, `[colors-custom.<name>]`, `[scene-custom.<name>]`) has the same name as a builtin preset/scene/theme, **custom always wins**. A collision warning is emitted to stderr at startup so the user knows the builtin is being shadowed:
+
+```
+⚠ warning: custom charset 'zen' overrides builtin — custom wins (Option D policy)
+  builtin: builtin preset (see --list-charsets)
+  custom:  1 char(s) from [charset-custom.zen]
+  To use the builtin, rename the custom block in config.toml.
+```
+
+This policy is consistent across all 3 systems (charset, colors, scene). Previously they had inconsistent behavior: charset was custom-wins, colors was builtin-wins, scene was builtin-wins. Now all three are custom-wins with visible warning. The user can always use the explicit flags (`--colors-custom`, `--scene-custom`, `--charset-custom`) for unambiguous intent.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

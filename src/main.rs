@@ -827,10 +827,16 @@ fn main() -> std::io::Result<()> {
         s
     });
 
-    // Unified color resolution: --colors-custom > -c/--color (built-in) > -c/--color (custom palette from config).
-    // This lets `-c cyberpunk_2077` and `--color cyberpunk_2077` load custom palettes
-    // directly, not just built-in theme names. --colors-custom still works for
-    // explicit intent and takes priority when both are set.
+    // Unified color resolution (v50.0.0-beta.6 Option D policy: custom wins):
+    //   1. --colors-custom <name> → custom palette (explicit intent)
+    //   2. -c/--color <name> matches [colors-custom.<name>] → custom wins
+    //   3. -c/--color <name> matches builtin theme → builtin
+    //   4. Neither → error with "did you mean" suggestions
+    //
+    // When custom shadows a builtin (branch 2 and builtin also exists), a
+    // collision warning is emitted so the user knows the custom block won.
+    // This aligns colors with charset (which already had custom-wins) and
+    // scene (also updated to custom-wins in this commit).
     let cfg_for_color = configfile::load_config_file(args.config.as_deref());
     let (color_scheme, custom_palette, custom_palette_name) =
         if let Some(ref name) = args.colors_custom {
@@ -839,15 +845,27 @@ fn main() -> std::io::Result<()> {
                 Ok(p) => (ColorScheme::Green, Some(p), Some(name.clone())),
                 Err(e) => ux::die_input(format!("error: --colors-custom '{name}': {e}")),
             }
-        } else if let Ok(c) = parse_color_scheme(&args.color) {
-            // -c/--color resolved to a built-in theme.
-            (c, None, None)
         } else if colors_custom::is_colors_custom_name(&cfg_for_color, &args.color) {
-            // -c/--color with a name that matches a custom palette in config.
+            // v50.0.0-beta.6 Option D: custom palette wins over builtin
+            // when the name matches both. Previously builtin was checked
+            // first and silently blocked custom — now custom is checked
+            // first so user-defined palettes always take precedence.
+            let is_builtin = parse_color_scheme(&args.color).is_ok();
+            if is_builtin {
+                crate::output::warn_name_collision(
+                    "color",
+                    &args.color,
+                    "builtin theme (see --list-colors)",
+                    "custom palette from [colors-custom.*]",
+                );
+            }
             match colors_custom::load_custom_palette(&cfg_for_color, &args.color) {
                 Ok(p) => (ColorScheme::Green, Some(p), Some(args.color.clone())),
                 Err(e) => ux::die_input(e),
             }
+        } else if let Ok(c) = parse_color_scheme(&args.color) {
+            // -c/--color resolved to a built-in theme (no custom collision).
+            (c, None, None)
         } else {
             // Not a built-in theme and not a custom palette — use the original
             // error from parse_color_scheme (includes "did you mean" suggestions).
