@@ -4,7 +4,7 @@
 
 **Date**: 2026-08-23 · **Mode**: research, no code changes · **Question**:
 can IPC (instructions per cycle) be lifted from the measured **2.67** (Zen 3,
-Ryzen 7 5800HS, local-pro build) toward **~3.0** without any visual or
+Ryzen 7 5800HS, pro-native build) toward **~3.0** without any visual or
 performance regression? · **Owner's framing is correct**: IPC > 1.5 already
 proves the workload is cache-friendly (L1/L2 resident, no memory stalls);
 the remaining ceiling is control-flow, not data.

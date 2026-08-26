@@ -7,16 +7,6 @@
 linker = "rust-lld"
 
 [alias]
-pro = [
-  "build",
-  "--profile",
-  "pro",
-  "--config",
-  "env.COSMOSTRIX_BUILD=\"local-pro\"",
-  "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro\"",
-]
-
 pro-native = [
   "build",
   "--profile",
