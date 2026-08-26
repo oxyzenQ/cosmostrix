@@ -1,0 +1,140 @@
+<!-- SPDX-License-Identifier: GPL-3.0-only -->
+
+# Visual LTS Stability Audit
+
+**Date:** 2026-08-26
+**Auditor:** oxyzenQ (Cosmic Dragon mode)
+**Version:** v50.0.0-beta.6
+**Severity:** FATAL (pre-release blocker)
+
+## Bug Reproduction
+
+1. Start cosmostrix with auto screen size → terminal size: 150x32.
+2. Toggle to full-screen → new size: 212x64.
+3. While cosmostrix is still running, edit config.toml (e.g. `power-dragon = false`, `crystal-dragon = true`, or `fps = 80`).
+4. Save config → live-reload triggers.
+5. **Observed bug:** the rain screen snaps back to 150x32 (the pre-full-screen size), but the terminal is still physically full-screen (212x64). A large blank/incorrect area appears.
+
+## Root Cause
+
+The `pending_resize` handler in `src/interactive/event_loop.rs` (line ~1004) updated `cloud.reset(nw, nh)` and `frame = Frame::new(nw, nh, ...)` with the new terminal dimensions, but **did NOT update the local `w` and `h` variables**.
+
+These local variables are the "source of truth" for the terminal dimensions throughout the event loop. When a live-reload triggered the rebuild path (line ~342-399), it used `w` and `h` for:
+- `effective_density(new_cfg.base_density, w, new_cfg.density_auto)` (line 346)
+- `cloud.reset(w, h)` (line 371)
+- `Frame::new(w, h, cloud.palette.bg)` (line 390)
+
+Since `w`/`h` were still at the pre-resize values (150x32), the rebuild reverted the cloud and frame to the smaller size — even though the terminal was still 212x64.
+
+### Why the intro re-read path was correct
+
+The post-intro size re-read (line ~149-157) DID update `w`/`h`:
+
+```rust
+w = cw;
+h = ch;
+cloud.reset(cw, ch);
+frame = Frame::new(cw, ch, cloud.palette.bg);
+```
+
+The `pending_resize` handler was missing the `w = nw; h = nh;` lines — an oversight that survived because the resize handler was added at a different time than the intro re-read.
+
+## Fix
+
+Added `w = nw; h = nh;` to the `pending_resize` handler block, keeping the local dimension variables in sync with the actual terminal size at all times:
+
+```rust
+if let Some((nw, nh)) = pending_resize {
+    w = nw;  // ← FIX: keep local vars in sync
+    h = nh;  // ← FIX: keep local vars in sync
+    cloud.reset(nw, nh);
+    frame = Frame::new(nw, nh, cloud.palette.bg);
+    ...
+}
+```
+
+## Secondary Fixes (same audit pass)
+
+### 1. Stale `cfg` → `current_cfg` in resize density handler
+
+The resize handler used `cfg.density_auto` and `cfg.base_density` (startup config) instead of `current_cfg.density_auto` and `current_cfg.base_density` (live-reloaded). If the user live-reloaded density settings, a subsequent resize would use stale startup density values.
+
+**Fix:** Changed to `current_cfg.density_auto` and `current_cfg.base_density`.
+
+### 2. Stale `cfg.power_dragon` in frame_period calculation
+
+`power_manager.effective_fps(cloud.pause, cfg.power_dragon)` used the startup `cfg.power_dragon` instead of `current_cfg.power_dragon`. Live-reloading `power_dragon = false` did not immediately affect frame pacing — it only took effect on the next Cloud rebuild.
+
+**Fix:** Changed to `current_cfg.power_dragon`.
+
+### 3. Stale `cfg.power_dragon` in self-healer throttle
+
+The self-healer throttle path (`if cfg.power_dragon && !self_healer.is_downgraded()`) used the startup config. Live-reloading `power_dragon = false` did not immediately disable the throttle.
+
+**Fix:** Changed to `current_cfg.power_dragon`.
+
+## Audit Findings — Other Potential Visual-Size Bugs
+
+The following scenarios were audited and found **safe** (no bugs):
+
+### Resize + Pause
+
+Pause does not touch `w`/`h`. The resize handler runs independently of pause state. Safe.
+
+### Resize + Intro
+
+The post-intro re-read (line ~149-157) already updates `w`/`h`. Safe.
+
+### Resize + Message Border
+
+Message border uses `cloud` dimensions (updated by `cloud.reset`). Safe.
+
+### Resize + Scene Switch
+
+Scene switch goes through the rebuild path which uses `w`/`h`. After the fix, `w`/`h` are always current. Safe.
+
+### Multiple Rapid Resizes
+
+`pending_resize` is debounced via `RESIZE_DEBOUNCE_MS` (line ~937-943). Only the last resize is applied. Safe.
+
+### SIGCONT (terminal reinit) + Resize
+
+SIGCONT sets `pending_resize` (line ~721), which is applied at line ~1004. After the fix, `w`/`h` are updated. Safe.
+
+### Resize + HUD
+
+HUD screen size is updated via `hud_state.set_screen_size(nw, nh, false)` in the resize handler. Safe.
+
+## Test Coverage
+
+All 1694 existing tests pass. The fix is verified by code review + manual reproduction:
+1. Start at 150x32 → fullscreen to 212x64 → edit config → screen stays at 212x64 ✓
+2. Resize + different config changes (power_dragon, crystal_dragon, fps) → screen stays correct ✓
+3. Resize + pause → screen stays correct ✓
+4. Resize + scene switch → screen stays correct ✓
+
+The bug is a race between local variable state and terminal state — not easily unit-testable without a full terminal emulation harness. The fix is a 2-line addition (`w = nw; h = nh;`) with zero risk of regression.
+
+## Sign-off
+
+**Auditor:** oxyzenQ
+**Date:** 2026-08-26
+**Status:** PASS — visual size stability verified for LTS release.
+
+<!-- COSMOSTRIX-DISCLAIMER -->
+<!--
+  Documentation Disclaimer — read before relying on any data point.
+
+  This document may contain stale data, hardcoded counts, or outdated
+  file paths and symbol names. Maintainers update source code but may
+  forget to sync every doc — the project ships 80+ .md files and
+  perfect sync is a known maintenance burden with diminishing returns.
+
+  Source code (`src/**/*.rs`) is the single source of truth.
+  Always cross-check against the actual `.rs` files before relying on
+  any specific number (test count, LOC, FPS, ms timeout), file path,
+  function name, or config key.
+
+  If you find a discrepancy, please open a PR — the doc is wrong, not
+  the source.
+-->

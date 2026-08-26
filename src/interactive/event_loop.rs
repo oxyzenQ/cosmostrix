@@ -1002,10 +1002,26 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
         if let Some((nw, nh)) = pending_resize {
+            // v50.0.0-beta.6 CRITICAL FIX: update the local w/h variables
+            // alongside cloud + frame. Previously only cloud.reset() and
+            // Frame::new() were called with the new dimensions, but the
+            // local `w` and `h` variables stayed at the pre-resize values.
+            // When a live-reload triggered the rebuild path (line 342-399),
+            // it used the STALE w/h — reverting the screen to the pre-resize
+            // size (e.g. 150x32 after the user had gone fullscreen to 212x64).
+            // This was a FATAL visual bug for LTS release. Now w/h are kept
+            // in sync with the actual terminal dimensions at all times.
+            w = nw;
+            h = nh;
             cloud.reset(nw, nh);
             frame = Frame::new(nw, nh, cloud.palette.bg);
-            if cfg.density_auto {
-                cloud.set_droplet_density(effective_density(cfg.base_density, nw, true));
+            // v50.0.0-beta.6: use current_cfg (live-reloaded) instead of
+            // cfg (startup) for density settings. If the user live-reloads
+            // density_auto or base_density, the resize handler must respect
+            // the new values — otherwise a resize after live-reload would
+            // use stale startup density.
+            if current_cfg.density_auto {
+                cloud.set_droplet_density(effective_density(current_cfg.base_density, nw, true));
             }
             cloud.force_draw_everything();
             // H1 (internal independent QA): refresh the SGR color cache after
@@ -1026,8 +1042,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // 250ms cadence.
         // (Phase 3): PowerManager.effective_fps() replaces the
         // target_period / idle_period / pause_period Duration cascade.
+        // v50.0.0-beta.6: use current_cfg.power_dragon (live-reloaded) so
+        // live-reloading power_dragon=false immediately affects frame pacing.
         let frame_period = Duration::from_secs_f64(
-            1.0 / power_manager.effective_fps(cloud.pause, cfg.power_dragon),
+            1.0 / power_manager.effective_fps(cloud.pause, current_cfg.power_dragon),
         );
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
         // v30 (2026-08-05): announce frame pacing mode to the HUD so the
@@ -1351,7 +1369,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // on pressure recovery.
                 // v50: when power_dragon is false, skip throttle entirely
                 // (owner Option D — user can disable adaptive protection).
-                if cfg.power_dragon && !self_healer.is_downgraded() {
+                // v50.0.0-beta.6: use current_cfg.power_dragon (live-reloaded)
+                // so live-reloading power_dragon=false immediately disables
+                // the throttle — previously used stale startup cfg.power_dragon.
+                if current_cfg.power_dragon && !self_healer.is_downgraded() {
                     self_healer.record_downgrade(&scene_name);
                     cloud.set_aggressive_throttle(true);
                     crate::live_config::push_runtime_warning(&format!(
