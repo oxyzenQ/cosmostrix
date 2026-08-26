@@ -43,6 +43,14 @@ pub(crate) struct ConfigEnrichment {
     pub color_pipeline: &'static str,
     /// Chroma engine status during benchmark.
     pub chroma_in_benchmark: &'static str,
+    /// PERF-2: power_dragon state (transparency — not a bench throttle).
+    pub power_dragon: bool,
+    /// PERF-2: crystal_dragon state (false in bench for determinism).
+    pub crystal_dragon: bool,
+    /// PERF-2: msg_mode state (skipped in bench per Z-6, shown for parity).
+    pub msg_mode: bool,
+    /// PERF-2: intro type label (not rendered in bench, config parity).
+    pub intro: &'static str,
 }
 
 /// Compute the CONFIG-enrichment fields from a CloudConfig.
@@ -137,6 +145,18 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         "chroma enabled (crystal_dragon was already off, climate_drift active)"
     };
 
+    // PERF-2: dragon system + message/intro state for CONFIG transparency.
+    // These are NOT throttles in bench mode (PERF-1 audit confirmed),
+    // but owner wants them shown so users can verify their config.
+    let power_dragon = cfg.power_dragon;
+    let crystal_dragon = cfg.crystal_dragon;
+    let msg_mode = cfg.msg_mode;
+    let intro: &'static str = match cfg.intro {
+        crate::config::IntroType::Logo => "logo",
+        crate::config::IntroType::Cosmic => "cosmic",
+        crate::config::IntroType::None => "none",
+    };
+
     ConfigEnrichment {
         color_mode_label,
         custom_palette_name,
@@ -149,5 +169,9 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         glitch_pct,
         color_pipeline: color_pipeline_label,
         chroma_in_benchmark,
+        power_dragon,
+        crystal_dragon,
+        msg_mode,
+        intro,
     }
 }

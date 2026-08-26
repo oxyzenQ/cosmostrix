@@ -144,6 +144,10 @@ mod tests {
             color_pipeline: "chroma_dragon",
             chroma_in_benchmark:
                 "chroma enabled (crystal_dragon OFF for determinism, climate_drift active)",
+            power_dragon: true,
+            crystal_dragon: false,
+            msg_mode: true,
+            intro: "logo",
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,

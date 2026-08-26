@@ -145,6 +145,14 @@ pub(crate) struct BenchReportData {
     /// the chroma dragon enable/disable?" — this field answers that
     /// question in the report itself.
     pub chroma_in_benchmark: &'static str,
+    /// PERF-2: power_dragon state (transparency — not a bench throttle).
+    pub power_dragon: bool,
+    /// PERF-2: crystal_dragon state (false in bench for determinism).
+    pub crystal_dragon: bool,
+    /// PERF-2: msg_mode state (skipped in bench per Z-6, shown for parity).
+    pub msg_mode: bool,
+    /// PERF-2: intro type label (not rendered in bench, config parity).
+    pub intro: &'static str,
 
     // Performance
     pub avg_fps: f64,
@@ -392,6 +400,11 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("chroma_in_benchmark", data.chroma_in_benchmark);
         // PERF-1: honest disclosure — cosmetics skipped in bench mode
         s.field("cosmetics_skipped", "message border + anomaly zones (bench mode = rain + 3 dragons only)");
+        // PERF-2: dragon system + message state for CONFIG transparency.
+        s.field("power_dragon", &data.power_dragon.to_string());
+        s.field("crystal_dragon", &data.crystal_dragon.to_string());
+        s.field("msg_mode", &data.msg_mode.to_string());
+        s.field("intro", data.intro);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());
         s.field("target_fps", &format!("{:.1}", data.target_fps));
