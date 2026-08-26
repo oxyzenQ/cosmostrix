@@ -229,7 +229,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         None
     };
     // Store base CloudConfig for rebuilds (clone before any moves).
-    let base_cfg = cfg.clone();
+    let mut base_cfg = cfg.clone();
     // v50.0.0-alpha.7: track the LATEST live-reloaded CloudConfig so
     // finalize_session (at exit) reads the EFFECTIVE runtime values,
     // not the startup values. Without this, "final runtime state"
@@ -340,7 +340,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
         if let Some(new_cfg_map) = pending_config.take() {
-            let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
+            let mut new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
+            // v50.0.0-beta.6: preserve runtime scene across live-reload
+            // (user wins). If the config map did NOT contain a "scene"
+            // key AND CLI did not set --scene explicitly, the user's
+            // runtime scene change (via 'x' key) must be preserved —
+            // not reverted to the startup scene. Previously, rebuild
+            // used base_cfg.scene_name (startup value = "cinematic"),
+            // so editing speed/color/density in config.toml reverted
+            // the scene to cinematic. Now we override new_cfg.scene_name
+            // with the runtime value when config didn't change scene.
+            if !new_cfg_map.contains_key("scene") && !new_cfg.cli_explicit.scene {
+                new_cfg.scene_name = scene_name.clone();
+            }
+            // Update base_cfg so future rebuilds also preserve the
+            // runtime scene (whether from 'x' key or from config edit).
+            base_cfg.scene_name = new_cfg.scene_name.clone();
             // v50.0.0-alpha.7: track latest config for finalize_session.
             current_cfg = new_cfg.clone();
             let density = effective_density(new_cfg.base_density, w, new_cfg.density_auto);
