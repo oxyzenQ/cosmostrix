@@ -8,11 +8,13 @@ on `visible == false`). Metrics recompute at 1 Hz (matches htop,
 mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
-v50 (2026-08-17) HUD expansion: the HUD grew from 9 rows to 16 rows,
+v50.0.0-beta.6 HUD expansion: the HUD grew from 9 rows to 18 rows,
 adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
-chr / clr). The `h` shortkey that previously toggled the HUD position
-(left ↔ right corner) was removed as unused maintenance cost; the HUD
-now always renders flush-left at column 0 (the previous default).
+chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
+that previously toggled the HUD position (left ↔ right corner) was
+**completely removed** as unused maintenance cost; the HUD now always
+renders flush-left at column 0 (the previous default). There is no `h`
+binding — it is silently ignored (catch-all).
 
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to

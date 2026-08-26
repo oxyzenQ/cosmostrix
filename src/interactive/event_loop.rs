@@ -817,9 +817,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             next_frame = activity_time;
                             continue;
                         }
-                        // v50 (2026-08-17): 'h' HUD position toggle removed.
-                        // HUD always renders flush-left at column 0.
-                        // Any user input resets idle timer for adaptive throttling.
+                        // v50.0.0-beta.6: the 'h' shortkey is REMOVED
+                        // completely (was a HUD position toggle, now purged).
+                        // HUD always renders flush-left at column 0. Any
+                        // user input resets idle timer for adaptive throttling.
                         if register_activity(
                             &mut power_manager,
                             &mut last_resync_time,

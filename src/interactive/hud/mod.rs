@@ -1055,12 +1055,12 @@ impl HudState {
         // seconds. `Frame::set` short-circuits on content equality, so
         // cells already holding blanks incur zero dirty-mark overhead.
         let w = self.current_width.max(self.prev_width);
-        // v50 (2026-08-17): HUD always renders flush-left at column 0.
+        // v50.0.0-beta.6: HUD always renders flush-left at column 0.
         // The previous HudPosition enum + toggle_position method +
         // start_col() helper have been purged — the 'h' shortkey that
-        // toggled between Left and Right corners was unused maintenance
-        // cost per owner mandate. The literal 0 here replaces the
-        // `self.position.start_col(cols, w)` call.
+        // toggled between Left and Right corners was completely removed
+        // (no binding exists, silently ignored). The literal 0 here
+        // replaces the `self.position.start_col(cols, w)` call.
         let start_col = 0u16;
         for (i, (color, text)) in self.cached_lines.iter().enumerate() {
             let row = i as u16;
