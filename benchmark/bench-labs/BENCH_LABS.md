@@ -3,7 +3,7 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 Hardware-verified benchmark results for cosmostrix. Covers a full size
-sweep from 4x4 (engine minimum) to 7680x4320 (8K UHD) on the
+sweep from 1x1 (engine minimum) to 7680x4320 (8K UHD) on the
 current host.
 
 ## Environment

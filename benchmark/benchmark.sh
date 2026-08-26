@@ -370,7 +370,7 @@ ${csv_rows}"
 #        ./benchmark/benchmark.sh sweep --build <cargo-alias>
 #
 # Benchmarks cosmostrix across a geometric progression of terminal sizes
-# from the engine minimum (4x4) up to 8K UHD (7680x4320). Each size tier
+# from the engine minimum (1x1) up to 8K UHD (7680x4320). Each size tier
 # uses adaptive duration (shorter for larger cell grids) to keep total
 # wall time reasonable.
 #
@@ -455,10 +455,10 @@ run_sweep() {
         local out_dir="${SWEEP_OUTPUT_DIR:-$BENCH_DIR/bench-labs}"
         mkdir -p "$out_dir"
 
-        # Size tiers: "cols lines" pairs from 4x4 (min) to 7680x4320 (8K UHD).
+        # Size tiers: "cols lines" pairs from 1x1 (min) to 7680x4320 (8K UHD).
         # Chosen as geometric progression covering practical + stress sizes.
         local -a sizes=(
-                "4 4"       # 16 cells     - absolute minimum
+                "1 1"       # 1 cell       - absolute minimum
                 "20 6"      # 120 cells    - tiny
                 "80 24"     # 1920 cells   - classic terminal
                 "120 40"    # 4800 cells   - default benchmark
@@ -618,10 +618,10 @@ sweep)
         echo "Usage: $0 [sweep [BIN_PATH | --build <cargo-alias> | --auto]]" >&2
         echo "" >&2
         echo "  (no args)                   Run the original single-size benchmark" >&2
-        echo "  sweep                       Sweep 4x4 to 8K with auto-detected binary" >&2
+        echo "  sweep                       Sweep 1x1 to 8K with auto-detected binary" >&2
         echo "  sweep --auto                Auto-detect CPU, build optimal profile, sweep" >&2
         echo "  sweep --build pro-linux-v4  Build then sweep" >&2
-        echo "  sweep --build pro          Build pro then sweep" >&2
+        echo "  sweep --build pro-native   Build pro-native then sweep" >&2
         echo "  sweep --build release      Build release then sweep" >&2
         echo "  sweep ./target/pro/cosmostrix  Sweep with explicit binary" >&2
         echo "" >&2

@@ -63,7 +63,7 @@ self.rand_col = Uniform::new_inclusive(0, cols.saturating_sub(1)).expect("...");
 ```
 
 All `Uniform::new_inclusive` calls have explicit `max(1)` or `saturating_sub`
-guards. No `Uniform::new(0, 0)` panic possible even at minimum 4×4.
+guards. No `Uniform::new(0, 0)` panic possible even at minimum 1×1.
 
 ### 4. Fixed Mode (--screen-size) OK
 

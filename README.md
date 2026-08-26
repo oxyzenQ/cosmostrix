@@ -417,7 +417,7 @@ DIAGNOSTICS
       --docs                   Print engine documentation and architecture overview
       --benchmark              Renderer benchmark (5s default; override with --bench-duration)
       --bench-duration <dur>   Benchmark duration (e.g. 5, 6s, 30m, 1h30m; min 1s)
-      --screen-size <WxH>      Fixed screen size (min 4x4, max 1024x500 interactive / 7680x4320 bench)
+      --screen-size <WxH>      Fixed screen size (min 1x1, max 1024x500 interactive / 7680x4320 bench)
       --json                   Output benchmark as JSON (use with --benchmark)
       --bench-io               Benchmark with wet terminal I/O (writes ANSI to /dev/null)
       --bench-all              Run benchmark across multiple screen sizes (6x6 to 200x60)
