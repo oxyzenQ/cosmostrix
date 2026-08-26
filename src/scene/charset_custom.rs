@@ -58,6 +58,17 @@ use unicode_width::UnicodeWidthChar;
 /// memory bloat from a typo (e.g., pasting a 10 000-char string).
 pub(crate) const CHARSET_CUSTOM_MAX_LEN: usize = 256;
 
+/// v50.0.0-beta.6 LTS: maximum number of custom charset blocks accepted
+/// in a single config.toml. Bounds the BTreeMap size + iteration cost in
+/// `collect_charset_custom`. 64 blocks is far beyond any realistic use
+/// case; the cap prevents a config typo from spawning hundreds of blocks.
+pub(crate) const CHARSET_CUSTOM_MAX_BLOCKS: usize = 64;
+
+/// v50.0.0-beta.6 LTS: maximum length of a custom charset block name.
+/// Bounds BTreeMap key allocation. 64 chars is generous (built-in names
+/// are ≤16 chars like "cyberpunk"); longer names are likely typos.
+pub(crate) const CHARSET_CUSTOM_MAX_NAME_LEN: usize = 64;
+
 /// A parsed custom charset definition — a flat list of single-width chars.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CharsetCustomDef {
@@ -74,6 +85,10 @@ pub(crate) struct CharsetCustomDef {
 /// this function.
 ///
 /// Names are normalized to lowercase for case-insensitive matching.
+///
+/// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (64) and
+/// `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars) to prevent config typos
+/// from bloating memory or stalling startup.
 #[must_use]
 pub(crate) fn collect_charset_custom(
     cfg: &HashMap<String, String>,
@@ -92,8 +107,17 @@ pub(crate) fn collect_charset_custom(
             // anything other than `set`, so this branch is defensive.
             continue;
         }
+        // v50.0.0-beta.6 LTS: skip oversized names early (before
+        // to_ascii_lowercase allocates). 64 chars is generous.
+        if name.len() > CHARSET_CUSTOM_MAX_NAME_LEN {
+            continue;
+        }
         let name = name.to_ascii_lowercase();
         if name.is_empty() {
+            continue;
+        }
+        // v50.0.0-beta.6 LTS: skip if we already hit the block cap.
+        if out.len() >= CHARSET_CUSTOM_MAX_BLOCKS && !out.contains_key(&name) {
             continue;
         }
         // Even if validation fails, we want to record the name so the
@@ -458,5 +482,39 @@ mod tests {
     #[test]
     fn validate_charset_custom_value_rejects_control_char() {
         assert!(validate_charset_custom_value("a\u{0007}b").is_some());
+    }
+
+    // ── v50.0.0-beta.6 LTS: bounds enforcement tests ─────────────────
+
+    #[test]
+    fn collect_caps_total_blocks_at_max() {
+        // A config with >CHARSET_CUSTOM_MAX_BLOCKS blocks should only
+        // keep the first MAX_BLOCKS entries, not allocate unbounded.
+        let mut cfg = HashMap::new();
+        for i in 0..(CHARSET_CUSTOM_MAX_BLOCKS + 10) {
+            cfg.insert(format!("charset-custom.charset{i}.set"), "ab".to_string());
+        }
+        let map = collect_charset_custom(&cfg);
+        assert!(
+            map.len() <= CHARSET_CUSTOM_MAX_BLOCKS,
+            "total blocks must be capped at {}, got {}",
+            CHARSET_CUSTOM_MAX_BLOCKS,
+            map.len()
+        );
+    }
+
+    #[test]
+    fn collect_skips_oversized_names() {
+        // A name longer than CHARSET_CUSTOM_MAX_NAME_LEN should be
+        // silently skipped (no allocation, no BTreeMap entry).
+        let mut cfg = HashMap::new();
+        let long_name = "x".repeat(CHARSET_CUSTOM_MAX_NAME_LEN + 1);
+        cfg.insert(format!("charset-custom.{long_name}.set"), "ab".to_string());
+        let map = collect_charset_custom(&cfg);
+        assert!(
+            map.is_empty(),
+            "oversized name must be skipped, got {} entries",
+            map.len()
+        );
     }
 }

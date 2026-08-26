@@ -33,6 +33,25 @@ use crate::runtime::ColorMode;
 /// perceptually-uniform OKLab samples.
 const COLORS_CUSTOM_PALETTE_STEPS: usize = 9;
 
+/// v50.0.0-beta.6 LTS: maximum number of rain stops accepted in a single
+/// `[colors-custom.<name>]` block. Bounds memory + parse time so a typo
+/// (e.g. pasting a 10000-color CSV) cannot bloat the palette or stall
+/// startup. The OKLab engine only needs 2-16 stops to produce a smooth
+/// 9-sample gradient; anything beyond 16 is wasted input.
+pub(crate) const COLORS_CUSTOM_MAX_RAIN_STOPS: usize = 64;
+
+/// v50.0.0-beta.6 LTS: maximum number of custom palette blocks accepted
+/// in a single config.toml. Bounds the BTreeMap size + iteration cost in
+/// `collect_colors_custom`. 64 blocks is far beyond any realistic use
+/// case (built-in themes are ~44); the cap prevents a config typo from
+/// spawning hundreds of empty blocks.
+pub(crate) const COLORS_CUSTOM_MAX_BLOCKS: usize = 64;
+
+/// v50.0.0-beta.6 LTS: maximum length of a custom palette block name.
+/// Bounds BTreeMap key allocation. 64 chars is generous (built-in names
+/// are ≤16 chars like "fancy_diamond"); longer names are likely typos.
+pub(crate) const COLORS_CUSTOM_MAX_NAME_LEN: usize = 64;
+
 /// A parsed custom color palette definition.
 #[derive(Debug, Clone, Default)]
 pub(crate) struct CustomPaletteDef {
@@ -112,6 +131,12 @@ pub(crate) fn parse_hex_color(s: &str) -> Result<Color, String> {
 }
 
 /// Collect all custom color palette definitions from the config HashMap.
+///
+/// v50.0.0-beta.6 LTS: bounded by `COLORS_CUSTOM_MAX_BLOCKS` (64) and
+/// `COLORS_CUSTOM_MAX_RAIN_STOPS` (64) to prevent config typos from
+/// bloating memory or stalling startup. Names longer than
+/// `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars) are skipped silently —
+/// they are almost certainly typos.
 #[must_use]
 pub(crate) fn collect_colors_custom(
     cfg: &HashMap<String, String>,
@@ -125,8 +150,19 @@ pub(crate) fn collect_colors_custom(
         let Some((name, field)) = rest.split_once('.') else {
             continue;
         };
-        let name = name.to_ascii_lowercase();
-        let palette = palettes.entry(name).or_default();
+        // v50.0.0-beta.6 LTS: skip oversized names early (before
+        // to_ascii_lowercase allocates). 64 chars is generous.
+        if name.len() > COLORS_CUSTOM_MAX_NAME_LEN {
+            continue;
+        }
+        // v50.0.0-beta.6 LTS: skip if we already hit the block cap.
+        // Prevents a config with hundreds of [colors-custom.X] blocks
+        // from bloating the BTreeMap.
+        let name_lower = name.to_ascii_lowercase();
+        if palettes.len() >= COLORS_CUSTOM_MAX_BLOCKS && !palettes.contains_key(&name_lower) {
+            continue;
+        }
+        let palette = palettes.entry(name_lower).or_default();
 
         match field {
             "bg" => {
@@ -162,6 +198,14 @@ pub(crate) fn collect_colors_custom(
                     value.split(',').map(|s| s.trim()).collect()
                 };
                 for stop in &stops {
+                    // v50.0.0-beta.6 LTS: cap rain stops to prevent
+                    // memory bloat from a typo (e.g. 10000-color CSV).
+                    if palette.rain.len() >= COLORS_CUSTOM_MAX_RAIN_STOPS {
+                        crate::live_config::push_runtime_warning(&format!(
+                            "colors-custom: rain stops capped at {COLORS_CUSTOM_MAX_RAIN_STOPS} (extra stops ignored)"
+                        ));
+                        break;
+                    }
                     if let Ok(color) = parse_hex_color(stop) {
                         palette.rain.push(color);
                     }
@@ -502,6 +546,66 @@ mod tests {
         assert_eq!(
             palette.colors, expected,
             "colors-custom palette must byte-match the chroma engine output for the same stops"
+        );
+    }
+
+    // ── v50.0.0-beta.6 LTS: bounds enforcement tests ─────────────────
+
+    #[test]
+    fn collect_caps_rain_stops_at_max() {
+        // A config with >COLORS_CUSTOM_MAX_RAIN_STOPS stops should cap
+        // the palette.rain vec, not allocate unbounded memory.
+        let mut cfg = HashMap::new();
+        // Generate 100 stops (well over the 64 cap).
+        let stops: Vec<String> = (0..100)
+            .map(|i| format!("#{:02x}{:02x}{:02x}", i, i, i))
+            .collect();
+        cfg.insert("colors-custom.big.rain".to_string(), stops.join(", "));
+        let map = collect_colors_custom(&cfg);
+        let def = &map["big"];
+        assert!(
+            def.rain.len() <= COLORS_CUSTOM_MAX_RAIN_STOPS,
+            "rain stops must be capped at {}, got {}",
+            COLORS_CUSTOM_MAX_RAIN_STOPS,
+            def.rain.len()
+        );
+    }
+
+    #[test]
+    fn collect_caps_total_blocks_at_max() {
+        // A config with >COLORS_CUSTOM_MAX_BLOCKS blocks should only
+        // keep the first MAX_BLOCKS entries, not allocate unbounded.
+        let mut cfg = HashMap::new();
+        for i in 0..(COLORS_CUSTOM_MAX_BLOCKS + 10) {
+            cfg.insert(
+                format!("colors-custom.palette{i}.rain"),
+                "#000000, #ffffff".to_string(),
+            );
+        }
+        let map = collect_colors_custom(&cfg);
+        assert!(
+            map.len() <= COLORS_CUSTOM_MAX_BLOCKS,
+            "total blocks must be capped at {}, got {}",
+            COLORS_CUSTOM_MAX_BLOCKS,
+            map.len()
+        );
+    }
+
+    #[test]
+    fn collect_skips_oversized_names() {
+        // A name longer than COLORS_CUSTOM_MAX_NAME_LEN should be
+        // silently skipped (no allocation, no BTreeMap entry).
+        let mut cfg = HashMap::new();
+        let long_name = "x".repeat(COLORS_CUSTOM_MAX_NAME_LEN + 1);
+        cfg.insert(
+            format!("colors-custom.{long_name}.rain"),
+            "#000000, #ffffff".to_string(),
+        );
+        let map = collect_colors_custom(&cfg);
+        assert!(
+            map.is_empty(),
+            "oversized name must be skipped, got {} entries",
+            map.len()
         );
     }
 }
