@@ -255,6 +255,7 @@ inject_bench_labs() {
 
         local distro=""
         if [[ -f /etc/os-release ]]; then
+                # shellcheck disable=SC1091 # /etc/os-release is a system file, not a project input
                 distro=$( . /etc/os-release 2>/dev/null && echo "${PRETTY_NAME:-}" )
         fi
         [[ -z "$distro" ]] && distro=$(uname -sr 2>/dev/null || echo "unknown")

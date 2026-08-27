@@ -391,7 +391,8 @@ if [ -n "$COMMITS" ]; then
 
 	# ── Full changelog with compare link ─────────────────────────────
 	echo "<details>"
-	echo "<summary><strong>Full changelog</strong> · ${TOTAL} commits · <a href="${REPO_URL}/compare/${RANGE}" rel="noopener">compare view</a></summary>"
+		compare_url="${REPO_URL}/compare/${RANGE}"
+	echo "<summary><strong>Full changelog</strong> · ${TOTAL} commits · <a href=\"${compare_url}\" rel=\"noopener\">compare view</a></summary>"
 	echo ""
 	git log --no-merges --pretty=format:'- %s (%h)' "${RANGE}"
 	echo ""
