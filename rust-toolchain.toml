@@ -18,5 +18,15 @@
 
 [toolchain]
 channel = "1.98.0"
+# `minimal` is LTS-correct: ships only rustc + cargo + rust-std + the
+# explicitly-listed components (rustfmt + clippy). Skips rust-docs
+# (~150-250 MB HTML, available online at doc.rust-lang.org) and
+# rust-src (modern rust-analyzer ships its own copy via the rust-src
+# rustup component, so this is no longer a hard IDE requirement).
+#
+# For IDE features on dev workstations: `rustup component add rust-src rust-docs`
+# (or `rustup toolchain install 1.98.0 --profile default` for the full set).
+# CI/release paths must NOT add these — they bloat the toolchain ~250 MB
+# with no build-time benefit.
 profile = "minimal"
 components = ["rustfmt", "clippy"]

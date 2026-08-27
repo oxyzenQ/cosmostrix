@@ -3,8 +3,24 @@
 
 # Custom build
 
+# v50.0.0-beta.7 LTS audit: rust-lld is used here for aarch64-musl because
+# musl static linking does not need system shared libraries (libgcc_s,
+# librt, libpthread, etc.). The default x86_64-unknown-linux-gnu target
+# CANNOT use rust-lld directly because rust-lld is a pure linker — it
+# does not know how to find the host's glibc shared libraries. Using
+# rust-lld on gnu targets requires `clang` as the linker driver with
+# `-fuse-ld=lld`, which adds a clang dependency. See
+# docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md §2.2 Finding A1 for the
+# full recommendation and the trade-off matrix.
 [target.aarch64-unknown-linux-musl]
 linker = "rust-lld"
+
+# v50.0.0-beta.7 LTS audit: bump cargo net retry from the default 2 to 5
+# for CI stability. crates.io fetches can fail transiently on shared
+# CI runners; the extra retries with cargo's built-in backoff eliminate
+# the most common CI flake mode. Zero risk for local builds.
+[net]
+retry = 5
 
 [alias]
 pro-native = [
