@@ -166,7 +166,7 @@ use crate::runtime::{BoldMode, ColorScheme, ShadingMode};
 use crate::terminal::reset_terminal_emergency;
 use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
-    prevalidate_cli_args, suggest_cli_flag, validate_f32_range, validate_f64_range, validate_speed,
+    prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
     validate_u16_range, validate_u8_range,
 };
 
@@ -348,27 +348,48 @@ pub fn spawn_kill9_terminal_guard() {
 #[cfg(not(unix))]
 pub fn spawn_kill9_terminal_guard() {}
 
-/// Extract the unknown flag name from a clap error message.
+/// Extract clap's OWN suggested flag from its error string.
 ///
-/// Clap's "unexpected argument" error has the format:
-///   `error: unexpected argument '--foo' found`
+/// When clap's `suggestions` feature is enabled and the user types an
+/// unknown flag that is close to a known one, clap appends a line:
 ///
-/// This function extracts `foo` (without the `--` prefix) so it can be
-/// passed to [`suggest_cli_flag`] for edit-distance matching.
-fn extract_unknown_flag(err_str: &str) -> Option<&str> {
-    // Look for the pattern: unexpected argument '--FLAG'
-    // or: unexpected argument 'FLAG' (short-flag form, less common)
-    if !err_str.contains("unexpected argument") {
-        return None;
-    }
-    // Find the single-quoted token after "unexpected argument"
-    let marker = "unexpected argument '";
-    let start = err_str.find(marker)? + marker.len();
-    let rest = &err_str[start..];
-    let end = rest.find('\'')?;
-    let token = &rest[..end];
-    // Strip the leading -- if present (long flag form)
-    Some(token.strip_prefix("--").unwrap_or(token))
+///   ```text
+///   tip: a similar argument exists: '--no-effects'
+///   ```
+///
+/// (or the plural form `tip: some similar arguments exist: '--a', '--b'`).
+///
+/// This function parses that line and returns the FIRST suggested flag
+/// name (without the `--` prefix). By reusing clap's own suggestion
+/// instead of maintaining a separate `KNOWN_LONG_FLAGS` list + Levenshtein
+/// engine, we guarantee:
+///
+/// 1. The "tip:" line and the "Did you mean?" line ALWAYS agree on which
+///    flag to suggest (no more `--clr` -> tip says `color-bg` but
+///    Did-you-mean says `color` disagreement).
+/// 2. No hand-maintained flag list to drift when flags are renamed
+///    (the v50.0.0-beta.7 `--disable-effects` -> `--no-effects` rename
+///    missed `KNOWN_LONG_FLAGS`, which was the root cause of this bug).
+/// 3. Zero duplicate-engine maintenance overhead.
+///
+/// Returns `None` when clap did not find a close match (no "tip:" line
+/// in the error string).
+pub(crate) fn extract_clap_suggestion(err_str: &str) -> Option<String> {
+    // Clap renders the tip line in two forms:
+    //   singular: "tip: a similar argument exists: '--FLAG'"
+    //   plural:   "tip: some similar arguments exist: '--FLAG1', '--FLAG2'"
+    // Both contain the pattern: '-- followed by the flag name and a closing '
+    // We find the FIRST occurrence after "tip:" to extract the primary suggestion.
+    let tip_marker = "tip:";
+    let tip_pos = err_str.find(tip_marker)?;
+    let after_tip = &err_str[tip_pos..];
+    // Find the first '--FLAG' pattern (clap always wraps flag names in single
+    // quotes with the -- prefix inside the quote).
+    let quote_flag_marker = "'--";
+    let flag_start = after_tip.find(quote_flag_marker)? + quote_flag_marker.len();
+    let rest = &after_tip[flag_start..];
+    let flag_end = rest.find('\'')?;
+    Some(rest[..flag_end].to_string())
 }
 
 fn main() -> std::io::Result<()> {
@@ -445,19 +466,21 @@ fn main() -> std::io::Result<()> {
 
     let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
         // Intercept clap's "unexpected argument" errors and append a
-        // "Did you mean --<flag>?" suggestion based on edit distance.
-        // This turns a bare `error: unexpected argument '--crystal-dragons'`
-        // into a helpful `Did you mean --crystal-dragon?` — matching the
-        // same UX already provided for config key typos in config_hints.rs.
+        // "Did you mean --<flag>?" suggestion. The suggestion is extracted
+        // from clap's OWN "tip:" line (not a separate edit-distance engine),
+        // which guarantees the two lines always agree on which flag to
+        // suggest and eliminates the hand-maintained flag list that caused
+        // the v50.0.0-beta.7 drift bug (--no-effects was missing from
+        // KNOWN_LONG_FLAGS after the rename from --disable-effects).
         let err_str = e.to_string();
-        // Clap's unknown-arg error contains "unexpected argument" and the
-        // flag name in quotes. Extract the flag name (without --) so we
-        // can compute a suggestion.
-        if let Some(flag_name) = extract_unknown_flag(&err_str) {
-            if let Some(suggestion) = suggest_cli_flag(flag_name) {
-                // Print clap's original error, then our suggestion line.
-                // We use e.print() for the original formatted error, then
-                // append the hint on a new line to stderr.
+        // Only intercept "unexpected argument" errors (not missing-value,
+        // not invalid-value, etc.). For those, fall through to clap's
+        // default error display.
+        if err_str.contains("unexpected argument") {
+            if let Some(suggestion) = extract_clap_suggestion(&err_str) {
+                // Print clap's original error (includes the "tip:" line +
+                // usage), then append our "Did you mean?" line using the
+                // SAME flag clap already chose.
                 e.print().ok();
                 eprintln!(
                     "{}  Did you mean --{}?{}",
@@ -468,7 +491,8 @@ fn main() -> std::io::Result<()> {
                 std::process::exit(2);
             }
         }
-        // No suggestion found — fall through to clap's default error display.
+        // No suggestion found (clap didn't find a close match) — fall
+        // through to clap's default error display.
         e.exit();
     });
     let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());

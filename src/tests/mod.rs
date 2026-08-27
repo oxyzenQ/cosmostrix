@@ -14,6 +14,8 @@
 //! - `width_guard`  <- `src/width_guard_tests.rs` (Bug #11 width=1 invariant)
 
 #[cfg(test)]
+mod clap_suggestion;
+#[cfg(test)]
 mod loc;
 #[cfg(test)]
 mod property;
