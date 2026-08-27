@@ -311,14 +311,23 @@ impl Cloud {
         // (stale trails) fix: the trailing afterglow is what overwhelms VTE
         // at high cell counts.
         //
-        // Two-tier boost:
-        //   1. Immediate: perf_pressure > 0.3 → boost 1.2x (fast response,
-        //      no 30s self-healer delay). This catches VTE fullscreen lag
-        //      within ~1s of onset.
+        // Two-tier boost with hysteresis (prevents oscillation — owner
+        // reported lag returning after a few seconds):
+        //   1. Immediate: perf_pressure > 0.30 → boost 1.2x. Stays active
+        //      until pressure drops below 0.15 (hysteresis deadband). The
+        //      deadband prevents the boost from toggling on/off rapidly when
+        //      pressure fluctuates around the threshold — which was causing
+        //      the "lag hilang, beberapa detik kembali lagi" oscillation.
         //   2. Sustained: aggressive_throttle (self-healer fired after 30s)
         //      → boost 1.5x (stronger, for persistent overload).
         // The two compose multiplicatively for a max boost of 1.8x.
-        let pressure_boost = if self.perf_pressure > 0.3 { 1.2 } else { 1.0 };
+        let should_boost = if self.phosphor_pressure_boost_active {
+            self.perf_pressure > 0.15 // hysteresis: release below 0.15
+        } else {
+            self.perf_pressure > 0.30 // hysteresis: trigger above 0.30
+        };
+        self.phosphor_pressure_boost_active = should_boost;
+        let pressure_boost = if should_boost { 1.2 } else { 1.0 };
         let throttle_boost = if self.aggressive_throttle { 1.5 } else { 1.0 };
         let base_decay = PHOSPHOR_DECAY_RATE
             * self.phosphor_decay_mult

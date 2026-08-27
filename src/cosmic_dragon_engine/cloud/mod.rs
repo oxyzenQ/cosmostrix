@@ -213,6 +213,10 @@ pub struct Cloud {
     pub(crate) aggressive_throttle: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
+    /// PERF-3: hysteresis state for phosphor pressure boost (prevents
+    /// oscillation on VTE fullscreen). Trigger at >0.30, release at <0.15.
+    /// Same hysteresis pattern as `phosphor_skipped`.
+    pub(crate) phosphor_pressure_boost_active: bool,
     /// v50.0.0-beta.6: terminal-aware phosphor decay multiplier.
     /// 1.0 = high-perf (Alacritty), 1.3 = standard (VTE), 1.6 = xterm.js.
     /// Applied as `PHOSPHOR_DECAY_RATE * phosphor_decay_mult * elapsed_sec`.
@@ -443,6 +447,7 @@ impl Cloud {
             perf_pressure: 0.0,
             aggressive_throttle: false,
             phosphor_skipped: false,
+            phosphor_pressure_boost_active: false,
             phosphor_decay_mult: 1.0,
             ghost_brightness_cap: 0.0,
             speed_mult: 1.0,
