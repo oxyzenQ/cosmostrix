@@ -82,10 +82,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     if cfg.intro != crate::config::IntroType::None {
-        // v50: intro-color override — when set, the intro animation uses
-        // the specified color theme's head color as its brand color
-        // (replacing the default purple #A855F7). The intro cloud gets
-        // a separate palette built from the intro-color theme.
+        // v50: intro-color override — uses theme head color (replaces #A855F7).
         let default_logo_color: (u8, u8, u8) = (168, 85, 247); // brand purple
         if let Some(ref intro_color) = cfg.intro_color {
             let intro_scheme = crate::theme::lookup_theme(intro_color);
@@ -656,6 +653,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::ambient_diag_schedule_reload();
             super::ambient_diag_snapback_killed();
         }
+        let snapback_delay = current_cfg
+            .ambient_snapback_secs
+            .unwrap_or(crate::constants::AUTO_SNAPBACK_DELAY_SECS);
         if !ambient_snapback_killed
             && _ab06_sked_len > 0
             && _ab06_last_applied
@@ -671,7 +671,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 &user_ranges,
                 def_ascii,
                 last_user_input_at,
-                crate::constants::AUTO_SNAPBACK_DELAY_SECS,
+                snapback_delay,
             )
         {
             term.set_color_cache(ColorCache::new(&cloud.palette));

@@ -753,7 +753,7 @@ fn parse_f32_config(name: &str, value: &str, min: f32, max: f32) -> Option<f32> 
     }
 }
 
-fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> {
+pub(crate) fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> {
     match parse_canonical_f64_range(&format!("config {name}"), value, min, max) {
         Ok(f) => Some(f),
         Err(_) => {

@@ -1025,6 +1025,17 @@ pub(crate) fn rebuild_cloud_config(
         );
     }
 
+    // v50.0.0-beta.7: ambient-snapback-secs live-reload (config-only).
+    // When the key is absent (commented out), fall back to None (default
+    // 30s via AUTO_SNAPBACK_DELAY_SECS). Mirrors the color.tune
+    // reset-on-comment pattern (LIVE_RELOAD_BEHAVIOR.md Limitation C).
+    new.ambient_snapback_secs = cfg.get("ambient-snapback-secs").and_then(|v| {
+        crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+    });
+    if let Some(secs) = new.ambient_snapback_secs {
+        lr_trace!("ambient-snapback-secs: {}", secs);
+    }
+
     new
 }
 

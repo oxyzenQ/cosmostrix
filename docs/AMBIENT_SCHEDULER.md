@@ -123,18 +123,47 @@ palette away from an ambient entry's color.
 
 When the user presses `x` (scene cycle), `c` (color cycle), or `s`
 (charset cycle) while an ambient phase is active, the override takes
-effect immediately — but it is **temporary**. After **30 seconds of
-keyboard idle**, the event loop automatically re-applies the current
-ambient phase, undoing the user's change. This is the intended
-auto-snapback behavior (see `docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md`
+effect immediately — but it is **temporary**. After a configurable idle
+delay (default **30 seconds**), the event loop automatically re-applies
+the current ambient phase, undoing the user's change. This is the
+intended auto-snapback behavior (see `docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md`
 §2.2 for the design rationale).
 
-The 30-second timer resets on **every** keypress (not just `x`/`c`/`s`),
-so an active user cycling through scenes will never be interrupted. The
-snapback only fires after the user stops pressing keys for 30 seconds
-straight. This is implemented via `AUTO_SNAPBACK_DELAY_SECS` in
-`src/central_control_dragon_power/mod.rs:198` (a hard-coded `const f64 =
-30.0` — not a config key).
+The timer resets on **every** keypress (not just `x`/`c`/`s`), so an
+active user cycling through scenes will never be interrupted. The
+snapback only fires after the user stops pressing keys for the
+configured delay. The default is `AUTO_SNAPBACK_DELAY_SECS = 30.0` in
+`src/central_control_dragon_power/mod.rs:198`.
+
+#### Config-tunable snapback delay (v50.0.0-beta.7)
+
+The snapback delay is now configurable via the `ambient-snapback-secs`
+config key (config-only, no CLI flag):
+
+```toml
+# Default: 30 seconds (when unset)
+ambient-snapback-secs = 30
+
+# Effectively disable snapback (24h = never fires in practice)
+ambient-snapback-secs = 86400
+
+# Instant snapback (overrides revert immediately on next frame)
+ambient-snapback-secs = 0
+
+# Long grace period (2 minutes)
+ambient-snapback-secs = 120
+```
+
+**Range**: `0.0..=86400.0` (0 = instant, 86400 = 24h). Values outside
+this range are rejected at startup and on live-reload (fall back to
+default 30s). The key is live-reloadable — editing it in config.toml
+takes effect on the next frame without restart.
+
+**Why this design**: the default 30s preserves the original v35 behavior
+(no breaking change). Users who want longer grace periods (e.g. 120s)
+or want to effectively disable snapback (86400s) can tune it without
+code changes. This closes the deferred enhancement listed in
+`docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md` §3.
 
 **To make a permanent change**, edit `config.toml` (live-reload will
 apply immediately) — the snapback only reverts user keypress overrides,
@@ -152,13 +181,13 @@ two scenes sharing the same default palette.
 
 #### Summary of override behavior
 
-| User action | Effect | Duration | After 30s idle |
-|-------------|--------|----------|----------------|
+| User action | Effect | Duration | After snapback delay |
+|-------------|--------|----------|----------------------|
 | Press `x` | Scene cycles to next | Immediate | Reverts to ambient phase |
 | Press `c` | Color cycles to next | Immediate | Reverts to ambient phase |
 | Press `s` | Charset cycles to next | Immediate | Reverts to ambient phase |
 | Edit `config.toml` | Live-reload applies | Permanent | No snapback |
-| Press any other key | Timer resets | N/A | 30s clock restarts |
+| Press any other key | Timer resets | N/A | Delay clock restarts |
 
 ### Live Reload
 

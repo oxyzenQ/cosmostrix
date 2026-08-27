@@ -702,6 +702,15 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
+        // v50.0.0-beta.7: ambient-snapback-secs — float in [0.0, 86400.0].
+        // 0.0 = instant snapback, 86400.0 (24h) = effectively disabled.
+        // Default 30.0 when unset. Range matches parse_f64_config in
+        // config_apply.rs.
+        "ambient-snapback-secs" => match v.trim().parse::<f64>() {
+            Ok(n) if (0.0..=86400.0).contains(&n) => None,
+            Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),
+            Err(_) => Some(format!("expected a number in 0.0..=86400.0, got '{v}'")),
+        },
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.
         _ => None,

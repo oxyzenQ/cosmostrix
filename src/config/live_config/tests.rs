@@ -138,6 +138,7 @@ fn minimal_cloud_config() -> crate::app::CloudConfig {
         scene_custom_name: Some("test-scene".to_string()),
         cli_explicit: crate::app::CliExplicit::default(),
         ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
+        ambient_snapback_secs: None,
     }
 }
 
@@ -734,7 +735,10 @@ fn live_reload_no_config_message_clears_when_msg_mode_false() {
     base.cli_explicit.msg_mode = true; // CLI --msg-mode false explicit
     let cfg = HashMap::new();
     let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(new.message, None, "msg-mode=false + no config → message must be None");
+    assert_eq!(
+        new.message, None,
+        "msg-mode=false + no config → message must be None"
+    );
     assert!(!new.message_border);
 }
 
@@ -864,4 +868,77 @@ fn live_reload_monolith_size_from_config_when_no_cli() {
     cfg.insert("monolith-size".to_string(), "small".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(new.monolith_size, MonolithSize::Small);
+}
+
+#[test]
+fn live_reload_ambient_snapback_secs_from_config() {
+    // v50.0.0-beta.7: ambient-snapback-secs config key (config-only).
+    // When set in config, live-reload applies it.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("ambient-snapback-secs".to_string(), "120".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.ambient_snapback_secs,
+        Some(120.0),
+        "ambient-snapback-secs=120 must be applied on live-reload"
+    );
+}
+
+#[test]
+fn live_reload_ambient_snapback_secs_defaults_none_when_unset() {
+    // When ambient-snapback-secs is not in config, it stays None
+    // (event loop falls back to AUTO_SNAPBACK_DELAY_SECS = 30.0).
+    let base = minimal_cloud_config();
+    let cfg = HashMap::new();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.ambient_snapback_secs, None,
+        "ambient-snapback-secs must be None when unset (default 30s)"
+    );
+}
+
+#[test]
+fn live_reload_ambient_snapback_secs_invalid_falls_back_to_none() {
+    // Invalid value (out of range or non-numeric) → parse_f64_config
+    // returns None, so ambient_snapback_secs stays None (default 30s).
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("ambient-snapback-secs".to_string(), "999999".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.ambient_snapback_secs, None,
+        "out-of-range ambient-snapback-secs must fall back to None"
+    );
+}
+
+#[test]
+fn live_reload_ambient_snapback_secs_zero_is_valid() {
+    // 0.0 is the lower bound — instant snapback. Must be accepted.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("ambient-snapback-secs".to_string(), "0".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.ambient_snapback_secs,
+        Some(0.0),
+        "ambient-snapback-secs=0 must be accepted (instant snapback)"
+    );
+}
+
+#[test]
+fn live_reload_ambient_snapback_secs_86400_is_valid() {
+    // 86400.0 is the upper bound — 24h, effectively disables snapback.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "ambient-snapback-secs".to_string(),
+        "86400".to_string(),
+    );
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.ambient_snapback_secs,
+        Some(86400.0),
+        "ambient-snapback-secs=86400 must be accepted (24h = disabled)"
+    );
 }

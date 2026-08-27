@@ -1333,6 +1333,15 @@ fn main() -> std::io::Result<()> {
         ambient_schedule: crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
             &configfile::load_config_file(args.config.as_deref()),
         ),
+        // v50.0.0-beta.7: ambient-snapback-secs config key (config-only,
+        // no CLI flag). None = use default AUTO_SNAPBACK_DELAY_SECS (30.0).
+        // Range 0.0..=86400.0 validated by parse_f64_config. Invalid values
+        // emit a startup error and fall back to None (default).
+        ambient_snapback_secs: configfile::load_config_file(args.config.as_deref())
+            .get("ambient-snapback-secs")
+            .and_then(|v| {
+                crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+            }),
     };
 
     // fps_user_set was computed earlier (before dynamic default) — USER intent.

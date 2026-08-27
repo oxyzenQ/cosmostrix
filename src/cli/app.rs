@@ -156,6 +156,14 @@ pub struct CloudConfig {
     /// `AmbientSchedulerHandle` from this and reloads it on every
     /// live-reload (see `event_loop.rs`).
     pub(crate) ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule,
+    /// v50.0.0-beta.7: Config-tunable ambient auto-snapback delay (seconds).
+    /// After the user presses `x`/`c`/`s` (manual override) and is then
+    /// idle for this many seconds, the event loop automatically re-applies
+    /// the current ambient phase. None = use the default
+    /// (AUTO_SNAPBACK_DELAY_SECS = 30.0). Set via `ambient-snapback-secs`
+    /// in config.toml (range 0.0..=86400.0). Setting to 86400 (24h)
+    /// effectively disables snapback; 0.0 means instant snapback.
+    pub(crate) ambient_snapback_secs: Option<f64>,
 }
 
 /// Per-field record of which CloudConfig fields were set via CLI.
@@ -373,6 +381,7 @@ impl CloudConfig {
             scene_custom_name: self.scene_custom_name.clone(),
             cli_explicit: self.cli_explicit,
             ambient_schedule: self.ambient_schedule.clone(),
+            ambient_snapback_secs: self.ambient_snapback_secs,
         }
     }
 }

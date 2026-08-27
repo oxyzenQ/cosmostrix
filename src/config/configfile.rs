@@ -81,6 +81,12 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // CLI -m / -mb always wins over msg-mode=false (CLI precedence).
     // Default: true (message overlay active).
     "msg-mode",
+    // v50.0.0-beta.7: Config-tunable ambient auto-snapback delay (seconds).
+    // After the user presses x/c/s (manual override) and is then idle for
+    // this many seconds, the event loop re-applies the current ambient
+    // phase. Range: 0.0..=86400.0. Default: 30.0 (when unset). Setting to
+    // 86400 (24h) effectively disables snapback; 0.0 means instant.
+    "ambient-snapback-secs",
 ];
 
 const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
@@ -666,6 +672,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "subtle"               # none | subtle | default | intense (cinematic default)
 # power-dragon = true                   # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings)
 # crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups)
+# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant)
 # bold = 1                              # 0=off, 1=random, 2=all
 # shadingmode = 1                       # 0=random, 1=cinematic
 

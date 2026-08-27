@@ -121,6 +121,7 @@ mod cases_v35 {
             scene_custom_name: None,
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
+            ambient_snapback_secs: None,
         }
     }
 
