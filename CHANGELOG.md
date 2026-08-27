@@ -7,6 +7,14 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ---
 
+## Unreleased
+
+### Docs
+
+- **KNOWN_ISSUES.md**: Added "VTE-Based Terminals (Konsole, GNOME Terminal): Fullscreen Performance" section documenting the CPU-rendering bottleneck that causes lag + stale trails on VTE terminals in fullscreen mode. The existing throttle mechanisms (PERF-3 phosphor boost hysteresis, commits `77d0bcf` + `22549bd`) improve the situation but cannot fully fix VTE's internal buffering limitation. Workaround: use Alacritty or run in a smaller window.
+
+---
+
 ## v50.0.0-beta.6 — Verbose UTC Exit + HUD Dragons + Perf-Stats Fixes (Current Beta)
 
 cosmostrix v50.0.0-beta.6 — verbose exit summary now shows UTC exit time + duration, the HUD gains two new dragon on/off indicators (prdr, crdr) above cid, and three `--perf-stats` exit issues are fixed (total cell count, final FPS line position, blank lines after exit). UTC format chosen for LTS stability (no DST transitions, no tzdata drift).

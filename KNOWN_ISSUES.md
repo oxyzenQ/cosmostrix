@@ -192,6 +192,59 @@ is in the terminal, not in cosmostrix.
 
 ---
 
+## VTE-Based Terminals (Konsole, GNOME Terminal): Fullscreen Performance
+
+### Symptom
+
+When running cosmostrix in **fullscreen** on VTE-based terminals
+(Konsole, GNOME Terminal, most terminals in GNOME/KDE environments),
+performance drops below 100 FPS. Visual effects (particle sparks,
+mouse-click ripples) experience lag and leave stale trails
+("berbekas") on screen. The issue occurs in **all scenes**, not just
+specific ones. Alacritty is unaffected.
+
+### Affected platforms
+
+- **Konsole** (KDE): all versions. VTE-based, CPU-rendered.
+- **GNOME Terminal**: all versions. VTE-based, CPU-rendered.
+- **Other VTE-based terminals**: XFCE Terminal, Mate Terminal, etc.
+- **Not affected**: Alacritty, kitty, WezTerm, ghostty, foot (GPU-rendered
+  or highly optimized software renderers that keep up with ANSI throughput).
+
+### Root cause
+
+VTE terminals are **CPU-rendered** (software rendering), unlike Alacritty
+which uses GPU acceleration. At fullscreen cell counts, the ANSI byte
+volume overwhelms VTE's parser, causing the lag. The existing throttle
+mechanisms (self-healer `aggressive_throttle` and phosphor boost
+hysteresis — see commits `77d0bcf` + `22549bd`) have been tuned but are
+**unable to fully stabilize** the oscillation between "lag clears" and
+"lag returns" under sustained fullscreen load. The phosphor decay boost
+reduces dirty cells, but VTE's internal buffering creates a feedback
+delay that prevents perfect stabilization.
+
+### Workarounds
+
+1. **Use Alacritty** (or another GPU-accelerated terminal) for the best
+   performance. See `docs/TERMINAL_COMPATIBILITY.md` for the full list
+   of recommended terminals.
+2. **Run cosmostrix in a smaller window** (non-fullscreen) on VTE
+   terminals. The lag only manifests at high cell counts (typically
+   >5000 cells = ~120x40+).
+3. **For benchmarking or performance-critical use**, always use
+   Alacritty. The `--benchmark` mode is terminal-independent (headless),
+   but interactive fullscreen requires a fast terminal.
+
+### Status
+
+**Accepted as a known limitation.** The throttle tuning (PERF-3) improves
+the situation but cannot fully fix VTE's CPU-rendering bottleneck. A more
+aggressive render throttling strategy (e.g., reducing frame rate during
+high pressure) may be explored in a future LTS update, but is **not
+currently planned** due to the complexity of VTE's internal buffering.
+
+---
+
 If you encounter an issue not listed here, please open a GitHub issue
 at <https://github.com/oxyzenQ/cosmostrix/issues> with:
 
