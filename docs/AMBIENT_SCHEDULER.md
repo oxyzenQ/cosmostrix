@@ -110,28 +110,37 @@ based on system state (CPU load / clock).
 Dragon are enabled, **Crystal Dragon wins** — it can override the
 ambient palette at any time (sensor-driven drift). But ambient can
 still revert via the snapback mechanism (after `ambient-snapback-secs`
-of idle). This creates a unique visual where colors change suddenly —
-the intended consequence of two systems cooperating.
+of idle). The two systems **take turns**: drift fires once, palette is
+visible for the full snapback window, then ambient reverts, then drift
+fires again on the next poll.
 
-The data flow:
+The data flow (with `ambient-snapback-secs = 70`, poll = 60s):
 
-1. **Ambient fires** (e.g. `ambient.12-00 = monolith` at noon) ->
-   scene + palette applied, `ambient_palette_locked = true`.
-2. **Crystal Dragon drift is NOT suppressed** by the lock (v50.0.0-beta.7
-   change — the `!self.ambient_palette_locked` gate was removed from
-   `rain.rs:1094`). Drift fires probabilistically (~12% chance per 60s
-   sensor poll) and replaces the palette via `set_color_scheme`.
-3. **Drift sets `user_override_since_ambient = true`** -> the snapback
-   timer starts counting.
-4. **After `ambient-snapback-secs` of idle** (default 30s), the event
-   loop re-applies the current ambient phase -> palette reverts to the
-   ambient entry's color.
-5. **Cycle repeats** — drift fires again, snapback reverts, etc.
+1. **T=0: Ambient fires** (e.g. `ambient.12-00 = monolith` at noon) ->
+   scene + palette applied.
+2. **T=60: Crystal Dragon drift fires** (first poll after ambient,
+   ~12% chance per poll) -> palette changes to a new theme (e.g.
+   `aurora`). Drift sets `user_override_since_ambient = true` and
+   `last_crystal_dragon_drift_at = T60`.
+3. **T=120: Drift polls again** but `user_override_since_ambient` is
+   still `true` -> **drift is SUPPRESSED** (cooldown). The drift
+   palette stays visible — no new drift fires while a previous drift's
+   snapback window is active.
+4. **T=130: Snapback fires** (70s after drift at T60) -> ambient
+   re-applies `monolith` palette. `user_override_since_ambient` cleared
+   to `false`.
+5. **T=180: Drift polls again** -> `user_override_since_ambient` is
+   `false` -> drift can fire again -> cycle repeats from step 2.
 
-This means the two systems **coexist by taking turns**: Crystal Dragon
-drifts the palette, ambient snapback re-anchors it. The visual result
-is a "breathing" palette that evolves but periodically returns to the
-ambient baseline.
+This gives a rhythm: **~70s of drift palette, ~50s of ambient palette,
+~70s drift, ~50s ambient, ...** (the 50s gap is the time from snapback
+to the next poll). The palette "breathes" between ambient and drift.
+
+**Why the cooldown gate** (`!user_override_since_ambient`): without it,
+drift poll cycle (60s) is faster than snapback window (e.g. 70s), so
+drift would keep firing before snapback can revert — palette never
+stabilizes. The cooldown ensures each drift gets a full visible window
+before ambient reverts.
 
 **Why this design**: the owner wants users to understand how the systems
 work together and decide which one to keep. If the sudden color changes
@@ -142,8 +151,8 @@ model.
 
 **Note**: climate drift (luminance/saturation/hue modulation, NOT
 palette scheme replacement) always runs via `color_ecosystem.tick()`
-regardless of the lock state. Only palette-scheme drift was gated by
-the lock in the old design; now it runs freely too.
+regardless of any lock or override state. Only palette-scheme drift
+has the cooldown gate.
 
 ### User overrides + 30-second auto-snapback (IMPORTANT)
 

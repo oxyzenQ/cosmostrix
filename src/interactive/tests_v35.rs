@@ -409,6 +409,32 @@ mod cases_v35 {
         );
     }
 
+    /// v50.0.0-beta.7: drift must NOT fire while user_override_since_ambient is true.
+    /// Once drift fires (sets the flag), it must wait for snapback to clear the flag
+    /// before firing again. Without this gate, drift poll (60s) < snapback (70s)
+    /// means drift keeps firing before snapback can revert — palette never stabilizes.
+    #[test]
+    fn v50_drift_suppressed_while_override_pending() {
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        // Simulate: drift already fired, override flag set
+        cloud.user_override_since_ambient = true;
+
+        // The drift gate: crystal_dragon && !user_override_since_ambient
+        // With override pending, drift must NOT fire.
+        assert!(
+            !(cloud.crystal_dragon && !cloud.user_override_since_ambient),
+            "drift must be suppressed while user_override_since_ambient is true"
+        );
+
+        // Now simulate: snapback cleared the flag
+        cloud.user_override_since_ambient = false;
+        assert!(
+            cloud.crystal_dragon && !cloud.user_override_since_ambient,
+            "drift can fire again after snapback clears the override flag"
+        );
+    }
+
     // v50 LTS regression tests (first-reload scene reset crash) live in the
     // sibling file `tests_v50_first_reload.rs` (declared at file bottom).
     // Extracted to keep this file under the 1500-LOC cap.

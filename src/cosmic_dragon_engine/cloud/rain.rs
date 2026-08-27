@@ -1090,12 +1090,20 @@ impl Cloud {
         self.color_ecosystem.tick(now, &mut self.mt);
 
         // 1b. Crystal Dragon Engine drift
-        // When crystal_dragon is enabled, tick the Crystal Dragon sensor
-        // and probabilistically select a new color theme from the
-        // temperature group (Cold/Medium/Hot) matching the current system
-        // point. Crystal Dragon wins over ambient — drift is NOT gated by
+        // When crystal_dragon is enabled AND no override is pending, tick
+        // the Crystal Dragon sensor and probabilistically select a new color
+        // theme. Crystal Dragon wins over ambient — drift is NOT gated by
         // ambient_palette_locked (v50.0.0-beta.7 masterclass change).
-        if self.crystal_dragon {
+        //
+        // v50.0.0-beta.7 follow-up: gate on !user_override_since_ambient too.
+        // Once drift fires (sets user_override=true), it must NOT fire again
+        // until snapback clears the flag. Without this, drift poll cycle
+        // (60s) < snapback window (e.g. 70s) means drift keeps firing before
+        // snapback can revert — palette never gets a stable visible window.
+        // With this gate: drift fires once → 70s visible → snapback reverts
+        // → flag cleared → drift can fire again on next poll. Masterclass
+        // "two systems cooperate by taking turns" actually works now.
+        if self.crystal_dragon && !self.user_override_since_ambient {
             if let Some(new_scheme) = self.crystal_dragon_tick(now) {
                 self.set_color_scheme(new_scheme);
                 self.user_override_since_ambient = true;
