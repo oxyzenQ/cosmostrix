@@ -341,6 +341,74 @@ mod cases_v35 {
         );
     }
 
+    /// v50.0.0-beta.7: last_crystal_dragon_drift_at defaults to None.
+    #[test]
+    fn v50_drift_timestamp_defaults_none() {
+        let cloud = make_test_cloud();
+        assert!(
+            cloud.last_crystal_dragon_drift_at.is_none(),
+            "last_crystal_dragon_drift_at must default to None"
+        );
+    }
+
+    /// v50.0.0-beta.7: drift-aware snapback — when Crystal Dragon drift fires,
+    /// the drift timestamp is set. try_auto_snapback must use max(last_user_input_at,
+    /// last_drift_at) so the drift palette gets a full ambient-snapback-secs window.
+    /// This test verifies the idle computation logic without calling the full
+    /// try_auto_snapback (which needs a schedule + ambient entry).
+    #[test]
+    fn v50_drift_resets_snapback_idle_window() {
+        use std::time::{Duration, Instant};
+
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        cloud.ambient_palette_locked = true;
+        cloud.user_override_since_ambient = true;
+
+        // Simulate: user has been idle for 300s (5 min), but drift fired 10s ago.
+        let now = Instant::now();
+        let last_user_input_at = now - Duration::from_secs(300);
+        cloud.last_crystal_dragon_drift_at = Some(now - Duration::from_secs(10));
+
+        // The drift-aware idle computation: max(last_user_input_at, last_drift_at)
+        let last_activity = cloud
+            .last_crystal_dragon_drift_at
+            .map(|d| d.max(last_user_input_at))
+            .unwrap_or(last_user_input_at);
+        let idle_secs = now.saturating_duration_since(last_activity).as_secs_f64();
+
+        // idle_secs should be ~10s (since drift), NOT 300s (since last keypress).
+        // With ambient-snapback-secs=80, snapback should NOT fire (10 < 80).
+        assert!(
+            idle_secs < 80.0,
+            "drift-aware idle must be ~10s (since drift), not 300s. Got {idle_secs}"
+        );
+        assert!(
+            idle_secs >= 9.0 && idle_secs <= 11.0,
+            "drift-aware idle should be ~10s, got {idle_secs}"
+        );
+        assert!(
+            !should_auto_snapback(true, idle_secs, 80.0),
+            "drift 10s ago + 80s threshold → no snapback (drift palette visible)"
+        );
+
+        // Now simulate: drift fired 90s ago, threshold 80s → snapback SHOULD fire.
+        cloud.last_crystal_dragon_drift_at = Some(now - Duration::from_secs(90));
+        let last_activity = cloud
+            .last_crystal_dragon_drift_at
+            .map(|d| d.max(last_user_input_at))
+            .unwrap_or(last_user_input_at);
+        let idle_secs = now.saturating_duration_since(last_activity).as_secs_f64();
+        assert!(
+            idle_secs >= 80.0,
+            "drift 90s ago + 80s threshold → idle should be >=80s. Got {idle_secs}"
+        );
+        assert!(
+            should_auto_snapback(true, idle_secs, 80.0),
+            "drift 90s ago + 80s threshold → snapback fires (ambient reverts)"
+        );
+    }
+
     // v50 LTS regression tests (first-reload scene reset crash) live in the
     // sibling file `tests_v50_first_reload.rs` (declared at file bottom).
     // Extracted to keep this file under the 1500-LOC cap.

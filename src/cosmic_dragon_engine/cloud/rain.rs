@@ -1099,6 +1099,7 @@ impl Cloud {
             if let Some(new_scheme) = self.crystal_dragon_tick(now) {
                 self.set_color_scheme(new_scheme);
                 self.user_override_since_ambient = true;
+                self.last_crystal_dragon_drift_at = Some(now);
             }
         }
 

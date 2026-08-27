@@ -404,9 +404,16 @@ pub(super) fn try_auto_snapback(
         return false;
     }
     let now = Instant::now();
-    let idle_secs = now
-        .saturating_duration_since(last_user_input_at)
-        .as_secs_f64();
+    // v50.0.0-beta.7: drift-aware idle — a recent Crystal Dragon drift
+    // counts as "activity" for snapback purposes, so the drift palette
+    // gets a full ambient-snapback-secs window before ambient reverts.
+    // Without this, drift fires but snapback reverts on the next frame
+    // (~16ms) because last_user_input_at is not updated by drift.
+    let last_activity = cloud
+        .last_crystal_dragon_drift_at
+        .map(|d| d.max(last_user_input_at))
+        .unwrap_or(last_user_input_at);
+    let idle_secs = now.saturating_duration_since(last_activity).as_secs_f64();
     if !should_auto_snapback(
         cloud.user_override_since_ambient,
         idle_secs,
