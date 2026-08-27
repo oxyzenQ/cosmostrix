@@ -26,7 +26,7 @@ unicode-width = "0.2"
 # direct `libc::localtime_r` / `libc::gmtime_r` calls in the `src/clock`
 # module (the historical `local_secs_since_midnight` helper now lives in
 # `src/central_control_dragon_power/phase_predictor.rs`).
-notify = { version = ">=6.1, <7", default-features = false }
+notify = { version = ">=7, <8", default-features = false }
 
 # SHA-512 for config.toml content hashing (live-reload change
 # detection, --dump-config fingerprint, --testconf fingerprint).
@@ -45,10 +45,10 @@ sha2 = "0.10"
 # `macos_fsevent` is also kept for macOS to preserve the existing behavior
 # (FSEvents is more efficient than kqueue on macOS).
 [target.'cfg(target_os = "macos")'.dependencies]
-notify = { version = ">=6.1, <7", default-features = false, features = ["macos_fsevent"] }
+notify = { version = ">=7, <8", default-features = false, features = ["macos_fsevent"] }
 
 [target.'cfg(any(target_os = "freebsd", target_os = "netbsd", target_os = "openbsd", target_os = "dragonfly", target_os = "ios"))'.dependencies]
-notify = { version = ">=6.1, <7", default-features = false, features = ["kqueue"] }
+notify = { version = ">=7, <8", default-features = false, features = ["kqueue"] }
 
 [target.'cfg(unix)'.dependencies]
 signal-hook = "0.3"
