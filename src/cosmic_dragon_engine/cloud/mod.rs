@@ -212,7 +212,7 @@ pub struct Cloud {
     /// AB-11: aggressive throttle flag (steeper spawn-scale, no glitches).
     pub(crate) aggressive_throttle: bool,
     /// PERF-4: particle effects enabled flag. When false, spawn_quantum_ripple
-    /// + spawn_border_spark are no-ops. Set via set_effects_enabled() from
+    /// and spawn_border_spark are no-ops. Set via set_effects_enabled() from
     /// CLI --disable-effects. Default: true.
     pub(crate) effects_enabled: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).

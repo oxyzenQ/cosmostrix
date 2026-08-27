@@ -786,6 +786,64 @@ fn reset_bench_allows_benchmark_dimensions() {
     assert_eq!(cloud.lines, crate::constants::MAX_TERMINAL_LINES);
 }
 
+// ── PERF-1-Supreme bench cosmetics gate lock tests ────────────────────────────────────
+//
+// Owner directive: benchmark mode measures the critical path only
+// (rain + 3 dragon engines). Cinematic cosmetics — CRT vignette and
+// emergent storytelling moments — must never run during measurement
+// frames. These tests lock the two rain.rs gates so a future refactor
+// cannot silently reintroduce the cosmetic workload into bench runs.
+
+#[test]
+fn bench_mode_storytelling_moments_stay_empty() {
+    // Behavioral lock: step a bench-mode cloud through many sim seconds
+    // and verify the emergent storytelling engine never spawns a moment.
+    // The storytelling tick is gated on !bench_mode, so the moments vec
+    // must stay empty for the entire simulated run — even past the
+    // STORYTELLING_TICK_SECS cadence and with RNG draws available.
+    let mut cloud = make_cloud();
+    cloud.reset_bench(80, 24);
+    let mut frame = Frame::new_bench(80, 24, cloud.palette.bg);
+    let now = Instant::now();
+
+    // 120 steps at 60 FPS = 2 sim-minutes — far beyond the storytelling
+    // tick cadence (per-second) and longer than any default bench run.
+    for i in 0..120u32 {
+        let t = now + Duration::from_millis((i as u64) * 16);
+        cloud.rain_at(&mut frame, t);
+        frame.clear_dirty();
+    }
+    assert!(
+        cloud.storytelling.moments.is_empty(),
+        "PERF-1-Supreme: bench mode must not spawn emergent storytelling moments"
+    );
+    assert!(
+        cloud.storytelling.cooldown_until.is_none(),
+        "PERF-1-Supreme: bench mode must not set storytelling cooldown"
+    );
+}
+
+#[test]
+fn bench_cosmetics_gates_exist_in_rain_source() {
+    // Structural lock (source-scan, same pattern as
+    // benchmark_output_fields_complete): the CRT vignette call and the
+    // storytelling tick must be wrapped in `!self.bench_mode` guards.
+    // If a refactor removes either guard, this test fails before the
+    // cosmetic workload can silently return to the bench hot path.
+    let source = include_str!("../rain.rs");
+
+    assert!(
+        source.contains("if !self.bench_mode {\n            self.apply_crt_vignette(frame);"),
+        "PERF-1-Supreme: CRT vignette must be gated on !bench_mode in rain_at"
+    );
+    assert!(
+        source.contains(
+            "if !self.bench_mode {\n            if let Some(kind) = self.storytelling.tick("
+        ),
+        "PERF-1-Supreme: storytelling tick must be gated on !bench_mode in rain_at"
+    );
+}
+
 // ── Exp decay easing regression tests (v50.0.0-beta.5 masterclass consolidation) ──────
 
 /// Verify the pause decel exp decay math: at t=0, blend = 1.0 (full

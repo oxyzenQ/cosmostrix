@@ -51,6 +51,13 @@ pub(crate) struct ConfigEnrichment {
     pub msg_mode: bool,
     /// PERF-2: intro type label (not rendered in bench, config parity).
     pub intro: &'static str,
+    /// PERF-2-Supreme: particle effects disabled state (--disable-effects).
+    /// `true` = quantum ripple + border spark particles are no-ops
+    /// (effects_enabled = false). Pure transparency: particles are
+    /// mouse/click-driven and never spawn during benchmark anyway, so
+    /// this flag does not change bench numbers — it lets the owner
+    /// verify the CLI/config value took effect.
+    pub no_effects: bool,
 }
 
 /// Compute the CONFIG-enrichment fields from a CloudConfig.
@@ -157,6 +164,14 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         crate::config::IntroType::None => "none",
     };
 
+    // PERF-2-Supreme: --disable-effects state (inverted into the
+    // owner-requested `no_effects` naming: true = effects OFF).
+    // `effects_enabled` gates the quantum-ripple mouse-click burst and
+    // the border-touch splash crown spark — both are input-driven and
+    // never fire during a benchmark run, so the value never changes
+    // bench numbers. Reported for CONFIG transparency only.
+    let no_effects = !cfg.effects_enabled;
+
     ConfigEnrichment {
         color_mode_label,
         custom_palette_name,
@@ -173,5 +188,6 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
         crystal_dragon,
         msg_mode,
         intro,
+        no_effects,
     }
 }

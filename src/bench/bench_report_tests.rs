@@ -99,11 +99,13 @@ mod tests {
     fn bench_report_data_struct_fields_are_all_used() {
         // Verify the BenchReportData struct has the expected field count
         // to guard against accidental removal of fields during refactoring.
-        // Count: status(1) + dims/config(15+10=25,  added 10 enrichment
+        // Count: status(1) + dims/config(15+11=26, added 10 enrichment
         // fields: color_mode_label, custom_palette_name, custom_palette_bg_hex,
         // color_bg_label, color_tune_summary, async_mode, glitch_enabled,
         // glitch_level, glitch_pct, crystal_dragon) + perf(8) + dirty(8)
-        // + throughput(5) + timing(3) = 50
+        // + throughput(5) + timing(3) = 51
+        // PERF-2-Supreme: config grew by 1 (no_effects — owner-requested
+        // --disable-effects disclosure key).
         // v50 LTS audit: throughput went from 6 → 5 fields
         // (removed redundant `theoretical_full_frame_glyphs_per_second`,
         // renamed `glyphs_per_second` → `glyphs_per_second_theoretical`).
@@ -148,6 +150,7 @@ mod tests {
             crystal_dragon: false,
             msg_mode: true,
             intro: "logo",
+            no_effects: false,
             avg_fps: 13000.0,
             peak_fps: 15000.0,
             avg_frame_time: 0.077,

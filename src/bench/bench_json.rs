@@ -162,6 +162,21 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv("glitch_pct", data.glitch_pct);
         o.push_kv_str("color_tune", &data.color_tune_summary);
         o.push_kv("async_mode", data.async_mode);
+        // PERF-2-Supreme: dragon system + message/effects state in JSON for
+        // parity with the text report's CONFIG section. Previously these
+        // keys existed only in the text output — JSON consumers (CI,
+        // benchmark.sh --json) could not verify the dragon/effect config
+        // of a run. Values mirror the text report exactly:
+        //   power_dragon / crystal_dragon — config state (crystal drift is
+        //     forced OFF in bench for determinism; see chroma_in_benchmark)
+        //   msg_mode — message overlay config (messages never render in bench)
+        //   no_effects — --disable-effects state, inverted (true = effects
+        //     OFF). Particles are input-driven, so this never changes bench
+        //     numbers; transparency only.
+        o.push_kv("power_dragon", data.power_dragon);
+        o.push_kv("crystal_dragon", data.crystal_dragon);
+        o.push_kv("msg_mode", data.msg_mode);
+        o.push_kv("no_effects", data.no_effects);
     });
 
     // ── environment ──

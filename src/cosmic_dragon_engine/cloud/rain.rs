@@ -199,7 +199,19 @@ impl Cloud {
         // `self.storytelling` mutation between them (`tick()` is at line ~950,
         // strictly after both reads). The result is invariant, so a single
         // call + Copy-binding suffices.
-        let emergent_effects = self.storytelling.active_effects(now);
+        //
+        // PERF-1-Supreme: emergent storytelling is a cinematic system
+        // (LuminanceSwell / DensityPulse / TemporalDilation "moments"),
+        // not part of the rain + 3-dragon-engine critical path. In
+        // benchmark mode the moments list is frozen empty (tick() is
+        // gated below), so active_effects() would always return the
+        // default (zero boost) — short-circuit to that directly and
+        // keep the bench workload free of storytelling variance.
+        let emergent_effects = if self.bench_mode {
+            Default::default()
+        } else {
+            self.storytelling.active_effects(now)
+        };
 
         // AB-11 (dragon power audit, option 2): when the self-healer has set
         // aggressive_throttle, use a steeper curve (0.9 vs 0.75) + lower floor
@@ -389,16 +401,17 @@ impl Cloud {
             }
         } else {
             // sim path optimization: split the droplet advance loop into two
-            // specialized paths based on `use_sim_cap` (loop-invariant). In
-            // benchmark mode, max_sim_delta = 0 (set_max_sim_delta is a no-op
-            // — see commit a34fcdb audit), so use_sim_cap = false and adv_now
-            // is always just `now`. The original single-loop formulation
-            // evaluated 3 per-iteration branches (use_sim_cap, last_time,
-            // now > max_now) that were all dead in bench mode — branch
-            // predictor handles them, but the dead code still occupies
-            // instruction slots and register pressure. Splitting lets LLVM
-            // generate a tighter loop for the bench path (no Instant add,
-            // no comparison, no Option match).
+            // specialized paths based on `use_sim_cap` (loop-invariant).
+            // (PERF-1-Supreme stale-comment fix): both benchmark entry
+            // points call set_max_sim_delta(target_period), so in bench
+            // mode use_sim_cap = true and this cap path runs. The cap is
+            // behaviorally inert during the uniform bench stepping —
+            // sim_now advances by exactly target_period per call, so
+            // last_time + max_sim_delta == now for every droplet and the
+            // max_now clamp never fires. It stays as a safety bound
+            // against time jumps, costing one Instant add + compare per
+            // droplet. The original claim "max_sim_delta = 0 in bench"
+            // described commit a34fcdb's state and no longer holds.
             //
             // Both paths share identical post-advance logic (died → free-list,
             // free_col → set_column_spawn, time_for_glitch → do_glitch_span).
@@ -921,7 +934,17 @@ impl Cloud {
         // Cost: O(cols × CRT_VIGNETTE_HEIGHT × 2) per frame. At
         // 200×60 with CRT_VIGNETTE_HEIGHT=5, that's 2000 cells/frame
         // — negligible vs the ~2200 dirty cells/frame average.
-        self.apply_crt_vignette(frame);
+        //
+        // PERF-1-Supreme: skip the cinematic CRT vignette in benchmark
+        // mode. The vignette is a pure cosmetic post-process (its own
+        // comment above calls it "cinematic") — it dims edge rows for
+        // the retro CRT look but contributes nothing to the rain +
+        // 3-dragon-engine critical path. Owner directive: bench mode
+        // measures critical path only, so the O(dirty cells in band)
+        // dimming pass must not run during measurement frames.
+        if !self.bench_mode {
+            self.apply_crt_vignette(frame);
+        }
 
         // ── Quantum Ripple particle update + render (v25 masterclass) ──
         //
@@ -1091,23 +1114,32 @@ impl Cloud {
         self.memory.recompute_derived();
 
         // 4. Emergent storytelling
-        if let Some(kind) = self.storytelling.tick(
-            now,
-            &mut self.mt,
-            &self.entropy_drift,
-            &self.memory,
-            &self.color_ecosystem,
-        ) {
-            self.storytelling.moments.push(EmergentMoment {
-                kind,
-                start_time: now,
-                duration: EMERGENT_MOMENT_DURATION_SECS,
-            });
-            self.storytelling.cooldown_until = Some(
-                now + std::time::Duration::from_secs_f32(EMERGENT_MOMENT_DURATION_SECS + 60.0),
-            );
+        // PERF-1-Supreme: skip the storytelling engine entirely in
+        // benchmark mode. Emergent moments (LuminanceSwell,
+        // DensityPulse, TemporalDilation) are cinematic "emotionally
+        // resonant" events that perturb spawn density, luminance and
+        // speed — owner directive: bench measures the critical path
+        // only (rain + 3 dragon engines), so no moments may spawn and
+        // no per-frame moment bookkeeping may run during measurement.
+        if !self.bench_mode {
+            if let Some(kind) = self.storytelling.tick(
+                now,
+                &mut self.mt,
+                &self.entropy_drift,
+                &self.memory,
+                &self.color_ecosystem,
+            ) {
+                self.storytelling.moments.push(EmergentMoment {
+                    kind,
+                    start_time: now,
+                    duration: EMERGENT_MOMENT_DURATION_SECS,
+                });
+                self.storytelling.cooldown_until = Some(
+                    now + std::time::Duration::from_secs_f32(EMERGENT_MOMENT_DURATION_SECS + 60.0),
+                );
+            }
+            self.storytelling.expire_moments(now);
         }
-        self.storytelling.expire_moments(now);
 
         // 5. Profile interpolation (smooth transition)
         if let Some(transition_start) = self.profile_transition_start {

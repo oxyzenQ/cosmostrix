@@ -49,6 +49,21 @@ Two-layer validation: parse-time (clap `value_parser`, rejects invalid values wi
 
 The `--benchmark` report is organized into sections: `BENCHMARK ENVIRONMENT` (system info, git SHA, Rust version, profile), `RENDERER` (engine config, `gpu_usage: not_applicable`), `CONFIG` (CLI flags + config file), `PERFORMANCE` (FPS, frame-time percentiles, jitter, stability), `MEMORY` (RSS), `CPU` (process CPU %), `COMPONENT TIMING` (per-subsystem frame budget), `DRIFT` (first-half vs second-half FPS delta), `RESOURCE` (energy/power on Linux), `THROUGHPUT` (glyphs/sec, ANSI bytes/sec).
 
+## What Runs in Benchmark Mode (Critical Path Only)
+
+Benchmark mode measures the **critical path only**: the rain simulation plus the three dragon engines (cosmic render engine, chroma color engine, crystal climate drift). Every cosmetic and protective system is out of the measurement:
+
+| Skipped in bench | Why |
+|------------------|-----|
+| HUD, intro, message overlay, terminal interaction | Bench paths return before the interactive loop starts |
+| Ghost events (cinematic event engine) | Opt-in; only the interactive loop enables them |
+| Anomaly zones, border-cross cosmetics, CRT vignette | Pure visual cosmetics — gated on `!bench_mode` |
+| Emergent storytelling moments | Cinematic density/luminance/speed perturbation — gated on `!bench_mode` |
+| Crystal dragon palette drift | Forced off: palette rebuilds inject p99/max timing spikes (deterministic climate drift still runs) |
+| Idle FPS throttle, self-healer, perf_pressure clamps, madvise, xterm.js cap | Interactive-only power management — never engages in bench paths |
+
+The `cosmetics_skipped` CONFIG line lists the gated set, and `power_dragon` / `crystal_dragon` / `msg_mode` / `no_effects` disclose the effective config state (all four also appear in `--json` output). None of these keys change benchmark numbers — they exist so you can verify your config took effect.
+
 ## Key Metrics
 
 | Metric | Unit | What it tells you |

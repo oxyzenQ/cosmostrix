@@ -153,6 +153,10 @@ pub(crate) struct BenchReportData {
     pub msg_mode: bool,
     /// PERF-2: intro type label (not rendered in bench, config parity).
     pub intro: &'static str,
+    /// PERF-2-Supreme: particle effects disabled state (--disable-effects,
+    /// inverted: true = effects OFF). Transparency-only field: particles
+    /// are input-driven and never spawn during benchmark runs.
+    pub no_effects: bool,
 
     // Performance
     pub avg_fps: f64,
@@ -401,12 +405,18 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // PERF-1: honest disclosure — cosmetics skipped in bench mode
         s.field(
             "cosmetics_skipped",
-            "message border + anomaly zones (bench mode = rain + 3 dragons only)",
+            "message border + anomaly zones + CRT vignette + emergent storytelling (bench mode = rain + 3 dragons only)",
         );
         // PERF-2: dragon system + message state for CONFIG transparency.
         s.field("power_dragon", &data.power_dragon.to_string());
         s.field("crystal_dragon", &data.crystal_dragon.to_string());
         s.field("msg_mode", &data.msg_mode.to_string());
+        // PERF-2-Supreme: --disable-effects state (owner-requested key).
+        // true = quantum ripple + border spark particles are no-ops.
+        // Honest note: particles are mouse/click-driven, so this flag
+        // never changes benchmark numbers — it only verifies the
+        // CLI/config value took effect.
+        s.field("no_effects", &data.no_effects.to_string());
         s.field("intro", data.intro);
         s.field("cols", &data.w.to_string());
         s.field("lines", &data.h.to_string());

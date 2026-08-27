@@ -9,8 +9,14 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Performance
+
+- **PERF-1-Supreme: benchmark mode = critical path only**: the two last cosmetic workloads still running during `--benchmark` measurement frames are now gated on `!bench_mode`: (1) the cinematic CRT vignette post-process (dims top/bottom edge rows — pure retro-CRT look, zero critical-path value) and (2) the emergent storytelling engine (LuminanceSwell / DensityPulse / TemporalDilation "moments" that perturb spawn density, luminance and speed mid-run). Benchmark mode now measures exactly the rain simulation + the 3 dragon engines (cosmic render, chroma color, crystal climate) with no barriers: every power-management system (idle FPS throttle, self-healer, perf_pressure clamps, aggressive throttle, madvise, xterm.js cap) is interactive-only and never engages in bench paths — verified by call-site trace, documented in `docs/audits/PERF_SUPREME_bench_max_power_config_keys.md`. Measured A/B (release profile, 5 s run): avg_fps 91,096.90 → 94,211.97 (+3.4%). Two lock tests (`bench_mode_storytelling_moments_stay_empty`, `bench_cosmetics_gates_exist_in_rain_source`) prevent future refactors from silently reintroducing cosmetic work into the bench hot path.
+- **Stale comment fix (honesty)**: the droplet-advance loop comment claimed bench runs with `max_sim_delta = 0` (tight path). Reality: both bench entry points set `max_sim_delta = target_period`, so bench takes the cap path — behaviorally inert under uniform bench stepping (the clamp never fires), but the comment now describes actual behavior.
+
 ### Features
 
+- **PERF-2-Supreme: benchmark CONFIG completeness**: the `--benchmark` text report CONFIG section now includes the owner-requested `no_effects` key (`true` when `--disable-effects` is set; pure transparency — particles are mouse/click-driven and never spawn during a benchmark). The `--json` output gained `power_dragon`, `crystal_dragon`, `msg_mode`, and `no_effects` in its `config` object for CI/script parity (previously these keys existed only in the text report). The `cosmetics_skipped` disclosure line now lists the full set: message border + anomaly zones + CRT vignette + emergent storytelling.
 - **`--disable-effects` CLI flag**: disables all particle effects (quantum ripple mouse-click burst + border-touch splash crown spark). Useful for VTE terminals (Konsole, GNOME) where particle effects cause fullscreen lag. CLI-only (no config needed). Default: effects on. See `INSIGHTS.md` for the origin story.
 
 ### Docs
