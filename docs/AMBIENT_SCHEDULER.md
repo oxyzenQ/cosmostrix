@@ -100,24 +100,50 @@ smoothstep blend window:
 
 > "use instant switch for the blend window"
 
-### Interaction with Crystal Dragon (palette drift)
+### Interaction with Crystal Dragon (Crystal Dragon wins — masterclass)
 
 When Crystal Dragon is enabled (`crystal-dragon = true` in config or
-`--crystal-dragon` on CLI), it periodically drifts the color palette based
-on system state (CPU load / clock). Ambient and Crystal Dragon coexist via
-the `ambient_palette_locked` gate:
+`--crystal-dragon` on CLI), it periodically drifts the color palette
+based on system state (CPU load / clock).
 
-1. **Ambient fires** (e.g. `ambient.12-00 = hacker-mode` at noon) ->
+**v50.0.0-beta.7 masterclass design**: when both ambient AND Crystal
+Dragon are enabled, **Crystal Dragon wins** — it can override the
+ambient palette at any time (sensor-driven drift). But ambient can
+still revert via the snapback mechanism (after `ambient-snapback-secs`
+of idle). This creates a unique visual where colors change suddenly —
+the intended consequence of two systems cooperating.
+
+The data flow:
+
+1. **Ambient fires** (e.g. `ambient.12-00 = monolith` at noon) ->
    scene + palette applied, `ambient_palette_locked = true`.
-2. **Crystal Dragon drift is suppressed** while the lock is held (rain.rs
-   checks `!self.ambient_palette_locked` before ticking the drift sensor).
-3. **User clears the lock** by pressing `c`/`C` (manual color cycle) or
-   `x`/`X` (manual scene switch) -> Crystal Dragon drift resumes.
+2. **Crystal Dragon drift is NOT suppressed** by the lock (v50.0.0-beta.7
+   change — the `!self.ambient_palette_locked` gate was removed from
+   `rain.rs:1094`). Drift fires probabilistically (~12% chance per 60s
+   sensor poll) and replaces the palette via `set_color_scheme`.
+3. **Drift sets `user_override_since_ambient = true`** -> the snapback
+   timer starts counting.
+4. **After `ambient-snapback-secs` of idle** (default 30s), the event
+   loop re-applies the current ambient phase -> palette reverts to the
+   ambient entry's color.
+5. **Cycle repeats** — drift fires again, snapback reverts, etc.
 
-This means ambient takes **priority over Crystal Dragon drift**. The scene
-and color you set in an ambient entry are guaranteed to stick until the
-user explicitly overrides them. Crystal Dragon will not silently drift the
-palette away from an ambient entry's color.
+This means the two systems **coexist by taking turns**: Crystal Dragon
+drifts the palette, ambient snapback re-anchors it. The visual result
+is a "breathing" palette that evolves but periodically returns to the
+ambient baseline.
+
+**Why this design**: the owner wants users to understand how the systems
+work together and decide which one to keep. If the sudden color changes
+are too dynamic, turn off either `crystal-dragon` or `ambient` (not
+both are needed). This is the intended LTS behavior — no config key to
+tune the interaction, just the masterclass "two systems cooperate"
+model.
+
+**Note**: climate drift (luminance/saturation/hue modulation, NOT
+palette scheme replacement) always runs via `color_ecosystem.tick()`
+regardless of the lock state. Only palette-scheme drift was gated by
+the lock in the old design; now it runs freely too.
 
 ### User overrides + 30-second auto-snapback (IMPORTANT)
 
@@ -168,33 +194,6 @@ code changes. This closes the deferred enhancement listed in
 **To make a permanent change**, edit `config.toml` (live-reload will
 apply immediately) — the snapback only reverts user keypress overrides,
 not config edits.
-
-#### Config-tunable palette lock (v50.0.0-beta.7 Option C)
-
-By default, ambient fires **lock** the palette — Crystal Dragon drift is
-suppressed while the lock is held (only manual `c`/`C`/`x` clears it).
-This prevents drift from "fighting" the ambient schedule (see
-`docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md` §1.3 Defect C).
-
-When the owner wants Crystal Dragon drift to run **automatically** while
-ambient is on (without pressing `c`/`C`), set `ambient-palette-lock = false`:
-
-```toml
-# Default: true (lock asserted, drift suppressed while ambient is active)
-ambient-palette-lock = true
-
-# Allow Crystal Dragon drift to run freely while ambient is on
-ambient-palette-lock = false
-```
-
-When `false`:
-- Ambient still switches the scene/charset/speed/density at each boundary.
-- Crystal Dragon drift can replace the palette at any time (sensor-driven).
-- `ambient-snapback-secs` becomes a no-op (drift already overrides the
-  ambient palette, so snapback has nothing to revert to).
-
-**Live-reloadable** — flip at runtime without restart. Default `true`
-preserves the current behavior (no breaking change).
 
 #### The cinematic/monolith shared-color gotcha
 

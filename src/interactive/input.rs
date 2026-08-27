@@ -432,9 +432,7 @@ pub(super) fn try_auto_snapback(
     *scene_name = entry.scene.clone();
     *scene_generation = scene_generation.wrapping_add(1);
     cloud.user_override_since_ambient = false;
-    if cloud.ambient_palette_lock_enabled {
-        cloud.ambient_palette_locked = true;
-    }
+    cloud.ambient_palette_locked = true;
     crate::interactive::ambient_diag_snapback();
     crate::interactive::ambient_diag_scene_change(&format!("auto-snapback(scene={})", entry.scene));
     true

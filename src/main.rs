@@ -1342,12 +1342,6 @@ fn main() -> std::io::Result<()> {
             .and_then(|v| {
                 crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
             }),
-        // v50.0.0-beta.7: ambient-palette-lock config key (Option C).
-        // None = default true (current behavior). When false, Crystal
-        // Dragon drift runs freely while ambient is active.
-        ambient_palette_lock: configfile::load_config_file(args.config.as_deref())
-            .get("ambient-palette-lock")
-            .and_then(|v| crate::config_apply::parse_bool_config("ambient-palette-lock", v)),
     };
 
     // fps_user_set was computed earlier (before dynamic default) — USER intent.

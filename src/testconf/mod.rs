@@ -693,7 +693,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // merged the two into one match arm.
         // Bool config keys: accept the same lenient set as parse_bool_config
         // (true/yes/on/1/false/no/off/0, case-insensitive).
-        "crystal-dragon" | "power-dragon" | "ambient-palette-lock" => {
+        "crystal-dragon" | "power-dragon" => {
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
                 "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,

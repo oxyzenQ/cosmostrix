@@ -55,9 +55,9 @@ Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 ### 3b. Ambient scheduler (time-of-day -> scene)
 
 Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
-Fires at scheduled times, applies scene+palette, locks Crystal Dragon
-drift while active (`ambient_palette_locked`). User overrides (`c`/`x`
-keys) clear the lock; auto-snapback restores after 30s idle.
+Fires at scheduled times, applies scene+palette. Crystal Dragon wins
+(drift overrides the palette), but ambient snapback reverts after
+`ambient-snapback-secs` of idle — the two systems cooperate.
 
 ### File architecture
 

@@ -277,7 +277,6 @@ mod cases {
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,
-            ambient_palette_lock: None,
         }
     }
 

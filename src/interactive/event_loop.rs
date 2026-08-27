@@ -61,7 +61,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
     cloud.set_effects_enabled(cfg.effects_enabled);
-    cloud.set_ambient_palette_lock_enabled(cfg.ambient_palette_lock.unwrap_or(true));
     let caps = term.phosphor_tuning();
     cloud.set_phosphor_tuning(caps.0, caps.1, caps.2);
     // Bug-fix: no ambient phase has fired yet, so the user's CLI/config
@@ -291,9 +290,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         scene_name = entry.scene.clone();
         scene_generation = scene_generation.wrapping_add(1);
         cloud.user_override_since_ambient = false;
-        if cloud.ambient_palette_lock_enabled {
-            cloud.ambient_palette_locked = true;
-        }
+        cloud.ambient_palette_locked = true;
         term.set_color_cache(ColorCache::new(&cloud.palette));
         frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
@@ -380,9 +377,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
-            // v50.0.0-beta.7: re-apply ambient-palette-lock after rebuild
-            // (Option C — live-reloadable config key).
-            cloud.set_ambient_palette_lock_enabled(new_cfg.ambient_palette_lock.unwrap_or(true));
             // v50.0.0-beta.6: re-apply phosphor tuning + speed after rebuild.
             let c = term.phosphor_tuning();
             cloud.set_phosphor_tuning(c.0, c.1, c.2);
@@ -474,9 +468,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_name = last_entry.scene.clone();
                     scene_generation = scene_generation.wrapping_add(1);
                     cloud.user_override_since_ambient = false;
-                    if cloud.ambient_palette_lock_enabled {
-                        cloud.ambient_palette_locked = true;
-                    }
+                    cloud.ambient_palette_locked = true;
                     super::ambient_diag_reapply();
                     super::ambient_diag_scene_change("rebuild-reapply");
                     term.set_color_cache(ColorCache::new(&cloud.palette));
@@ -611,9 +603,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::ambient_diag_rx();
                 super::ambient_diag_scene_change(&format!("rx-event(scene={})", entry.scene));
                 cloud.user_override_since_ambient = false;
-                if cloud.ambient_palette_lock_enabled {
-                    cloud.ambient_palette_locked = true;
-                }
+                cloud.ambient_palette_locked = true;
                 if ambient_snapback_killed {
                     ambient_snapback_killed = false;
                 }

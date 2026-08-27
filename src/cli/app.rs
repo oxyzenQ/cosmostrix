@@ -164,12 +164,6 @@ pub struct CloudConfig {
     /// in config.toml (range 0.0..=86400.0). Setting to 86400 (24h)
     /// effectively disables snapback; 0.0 means instant snapback.
     pub(crate) ambient_snapback_secs: Option<f64>,
-    /// v50.0.0-beta.7: Config-tunable ambient palette lock (Option C).
-    /// When true (default), ambient fires set `ambient_palette_locked = true`
-    /// which suppresses Crystal Dragon palette drift. When false, drift
-    /// runs freely while ambient is active. Set via `ambient-palette-lock`
-    /// config key (default true = current behavior). Live-reloadable.
-    pub(crate) ambient_palette_lock: Option<bool>,
 }
 
 impl CloudConfig {
@@ -397,7 +391,6 @@ impl CloudConfig {
             cli_explicit: self.cli_explicit,
             ambient_schedule: self.ambient_schedule.clone(),
             ambient_snapback_secs: self.ambient_snapback_secs,
-            ambient_palette_lock: self.ambient_palette_lock,
         }
     }
 }

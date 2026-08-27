@@ -1036,17 +1036,6 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!("ambient-snapback-secs: {}", secs);
     }
 
-    // v50.0.0-beta.7: ambient-palette-lock live-reload (Option C, config-only).
-    // When the key is absent (commented out), fall back to None (default
-    // true = current behavior). Mirrors the color.tune reset-on-comment
-    // pattern (LIVE_RELOAD_BEHAVIOR.md Limitation C).
-    new.ambient_palette_lock = cfg
-        .get("ambient-palette-lock")
-        .and_then(|v| crate::config_apply::parse_bool_config("ambient-palette-lock", v));
-    if let Some(lock) = new.ambient_palette_lock {
-        lr_trace!("ambient-palette-lock: {}", lock);
-    }
-
     new
 }
 

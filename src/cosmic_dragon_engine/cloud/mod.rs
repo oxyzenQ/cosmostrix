@@ -336,8 +336,6 @@ pub struct Cloud {
     pub(crate) color_tune: crate::color_tune::ColorTune,
     /// true when ambient asserted palette → suppress Crystal Dragon drift (climate drift still runs). Cleared by `c`/`C`/`x`.
     pub(crate) ambient_palette_locked: bool,
-    /// v50.0.0-beta.7 Option C: when false, ambient fires skip the lock write → drift runs freely. Default true.
-    pub(crate) ambient_palette_lock_enabled: bool,
     /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
     /// or Crystal Dragon picked new palette since last ambient fire. Prevents
     /// event-loop dedup from skipping day-boundary refire. Cleared by
@@ -541,8 +539,6 @@ impl Cloud {
             // ambient-harmony flags start false (set by ambient fire,
             // cleared by user override x/c/s).
             ambient_palette_locked: false,
-            // v50.0.0-beta.7: ambient palette lock enabled by default (Option C).
-            ambient_palette_lock_enabled: true,
             user_override_since_ambient: false,
             event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
@@ -587,10 +583,6 @@ impl Cloud {
     /// ripple, border spark, click flash waves, anomaly zones). --no-effects.
     pub fn set_effects_enabled(&mut self, enabled: bool) {
         self.effects_enabled = enabled;
-    }
-
-    pub fn set_ambient_palette_lock_enabled(&mut self, enabled: bool) {
-        self.ambient_palette_lock_enabled = enabled;
     }
 
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {

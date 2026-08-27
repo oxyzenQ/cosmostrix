@@ -139,7 +139,6 @@ fn minimal_cloud_config() -> crate::app::CloudConfig {
         cli_explicit: crate::app::CliExplicit::default(),
         ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
         ambient_snapback_secs: None,
-        ambient_palette_lock: None,
     }
 }
 
@@ -938,45 +937,5 @@ fn live_reload_ambient_snapback_secs_86400_is_valid() {
         new.ambient_snapback_secs,
         Some(86400.0),
         "ambient-snapback-secs=86400 must be accepted (24h = disabled)"
-    );
-}
-
-#[test]
-fn live_reload_ambient_palette_lock_false_from_config() {
-    // v50.0.0-beta.7: ambient-palette-lock=false (Option C) — drift runs free.
-    let base = minimal_cloud_config();
-    let mut cfg = HashMap::new();
-    cfg.insert("ambient-palette-lock".to_string(), "false".to_string());
-    let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(
-        new.ambient_palette_lock,
-        Some(false),
-        "ambient-palette-lock=false must be applied on live-reload"
-    );
-}
-
-#[test]
-fn live_reload_ambient_palette_lock_defaults_none_when_unset() {
-    // When unset, stays None (event loop defaults to true = current behavior).
-    let base = minimal_cloud_config();
-    let cfg = HashMap::new();
-    let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(
-        new.ambient_palette_lock, None,
-        "ambient-palette-lock must be None when unset (default true)"
-    );
-}
-
-#[test]
-fn live_reload_ambient_palette_lock_true_is_valid() {
-    // true = current behavior (lock asserted, drift suppressed).
-    let base = minimal_cloud_config();
-    let mut cfg = HashMap::new();
-    cfg.insert("ambient-palette-lock".to_string(), "true".to_string());
-    let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(
-        new.ambient_palette_lock,
-        Some(true),
-        "ambient-palette-lock=true must be accepted (current behavior)"
     );
 }

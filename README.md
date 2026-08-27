@@ -147,7 +147,7 @@ The Dragon's roar is not loud — it is precise.
 ### Intelligence & Power
 
 - **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
-- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Priority over Crystal Dragon drift (`ambient_palette_locked` gate). Auto-snapback restores the ambient scene after 30s idle if the user manually overrides.
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` of idle — the two systems cooperate by taking turns.
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
 - **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer.
