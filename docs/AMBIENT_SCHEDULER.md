@@ -100,50 +100,54 @@ smoothstep blend window:
 
 > "use instant switch for the blend window"
 
-### Interaction with Crystal Dragon (Crystal Dragon wins — masterclass)
+### Interaction with Crystal Dragon (harmony rhythm — masterclass)
 
 When Crystal Dragon is enabled (`crystal-dragon = true` in config or
 `--crystal-dragon` on CLI), it periodically drifts the color palette
 based on system state (CPU load / clock).
 
 **v50.0.0-beta.7 masterclass design**: when both ambient AND Crystal
-Dragon are enabled, **Crystal Dragon wins** — it can override the
-ambient palette at any time (sensor-driven drift). But ambient can
-still revert via the snapback mechanism (after `ambient-snapback-secs`
-of idle). The two systems **take turns**: drift fires once, palette is
-visible for the full snapback window, then ambient reverts, then drift
-fires again on the next poll.
+Dragon are enabled, the two systems cooperate with a **predictable
+rhythm**: drift fires at the poll mark (60s), palette changes for a
+brief window, then snapback reverts. After snapback, both timers reset
+so the next cycle starts fresh.
 
 The data flow (with `ambient-snapback-secs = 70`, poll = 60s):
 
 1. **T=0: Ambient fires** (e.g. `ambient.12-00 = monolith` at noon) ->
-   scene + palette applied.
-2. **T=60: Crystal Dragon drift fires** (first poll after ambient,
-   ~12% chance per poll) -> palette changes to a new theme (e.g.
-   `aurora`). Drift sets `user_override_since_ambient = true` and
-   `last_crystal_dragon_drift_at = T60`.
-3. **T=120: Drift polls again** but `user_override_since_ambient` is
-   still `true` -> **drift is SUPPRESSED** (cooldown). The drift
-   palette stays visible — no new drift fires while a previous drift's
-   snapback window is active.
-4. **T=130: Snapback fires** (70s after drift at T60) -> ambient
-   re-applies `monolith` palette. `user_override_since_ambient` cleared
-   to `false`.
-5. **T=180: Drift polls again** -> `user_override_since_ambient` is
-   `false` -> drift can fire again -> cycle repeats from step 2.
+   scene + palette applied (e.g. `energyzen`). Timers start.
+2. **T=60: Crystal Dragon drift fires** (first poll, ~12% chance) ->
+   palette changes to a new theme (e.g. `cosmos`). Drift sets
+   `user_override_since_ambient = true`. Drift is visible.
+3. **T=60-70: Drift palette visible** for 10 seconds. Drift cooldown
+   gate (`!user_override_since_ambient`) prevents re-firing.
+4. **T=70: Snapback fires** (70s into cycle) -> ambient re-applies
+   `energyzen`. **Both timers reset**: `last_user_input_at = T70`
+   (snapback idle restarts), `crystal_dragon_last_poll = T70`
+   (drift poll schedule restarts).
+5. **T=130: Drift fires again** (60s after T70 reset) -> palette
+   changes (e.g. `ocean`). Cycle repeats from step 3.
 
-This gives a rhythm: **~70s of drift palette, ~50s of ambient palette,
-~70s drift, ~50s ambient, ...** (the 50s gap is the time from snapback
-to the next poll). The palette "breathes" between ambient and drift.
+**Rhythm**: 60s ambient → 10s drift → revert → 60s ambient → 10s drift
+→ revert → ... The palette "flashes" a new color for 10s every 70s.
 
-**Why the cooldown gate** (`!user_override_since_ambient`): without it,
-drift poll cycle (60s) is faster than snapback window (e.g. 70s), so
-drift would keep firing before snapback can revert — palette never
-stabilizes. The cooldown ensures each drift gets a full visible window
-before ambient reverts.
+**Tuning the drift visibility**: `ambient-snapback-secs` controls how
+long drift stays visible:
+- `snapback = 70` → drift visible 10s (70 - 60 = 10s flash)
+- `snapback = 80` → drift visible 20s
+- `snapback = 60` → instant revert (drift invisible — not recommended)
+- `snapback = 120` → drift visible 60s (half-and-half)
+
+**Why both timers reset after snapback**: without resetting
+`last_user_input_at`, the snapback idle would keep growing and fire
+immediately after the next drift (the original 16ms revert bug).
+Without resetting `crystal_dragon_last_poll`, the poll schedule would
+drift out of sync with the snapback cycle — drift would fire at
+unpredictable times. Resetting both ensures each cycle is identical:
+60s ambient, 10s drift, revert, repeat.
 
 **Why this design**: the owner wants users to understand how the systems
-work together and decide which one to keep. If the sudden color changes
+work together and decide which one to keep. If the sudden color flashes
 are too dynamic, turn off either `crystal-dragon` or `ambient` (not
 both are needed). This is the intended LTS behavior — no config key to
 tune the interaction, just the masterclass "two systems cooperate"
