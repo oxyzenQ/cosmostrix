@@ -11,7 +11,9 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ### Docs
 
+- **INSIGHTS.md**: New living idea journal documenting the moments when cosmostrix's features were born — not from issue trackers or user requests, but from the owner's lived experience with the renderer running in the background of daily life. First 3 entries: (1) border-touch glow "wifi offline" moment, (2) particle spark "just woken up" moment, (3) the "living project" realization. Future insights will be appended as they arrive.
 - **KNOWN_ISSUES.md**: Added "VTE-Based Terminals (Konsole, GNOME Terminal): Fullscreen Performance" section documenting the CPU-rendering bottleneck that causes lag + stale trails on VTE terminals in fullscreen mode. The existing throttle mechanisms (PERF-3 phosphor boost hysteresis, commits `77d0bcf` + `22549bd`) improve the situation but cannot fully fix VTE's internal buffering limitation. Workaround: use Alacritty or run in a smaller window.
+- **README.md**: Added INSIGHTS.md to the Documentation index section.
 
 ---
 

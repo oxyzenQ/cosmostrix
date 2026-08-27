@@ -635,6 +635,7 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 - [**Docs Index**](docs/README.md) — **start here** — master index of all docs, source module map
 - [Changelog](CHANGELOG.md) — release history
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
+- [Insights](INSIGHTS.md) — living idea journal (the story behind features)
 - [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
 - [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
 - [Maintenance Guide](docs/MAINTENANCE.md) — dormant mode contract, build/test/update procedures, security response
