@@ -1286,7 +1286,15 @@ fn main() -> std::io::Result<()> {
         crystal_dragon: args.crystal_dragon.unwrap_or(false),
         power_dragon: args.power_dragon.unwrap_or(true),
         msg_mode: args.msg_mode.unwrap_or(true),
-        effects_enabled: !args.no_effects,
+        // Auto-disable particle effects in bench mode — particles are
+        // input-driven (mouse clicks, border touches) and never spawn
+        // during a benchmark run. This means `cosmostrix --benchmark`
+        // is equivalent to `cosmostrix --benchmark --no-effects` — the
+        // user no longer needs to pass --no-effects explicitly to get
+        // the cleanest bench numbers. The bench CONFIG report's
+        // `no_effects` field will automatically show `true` for any
+        // bench mode (--benchmark, --bench-all, --bench-frames).
+        effects_enabled: !args.no_effects && !bench_mode,
         monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the

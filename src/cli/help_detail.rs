@@ -105,6 +105,12 @@ COMMON OPTIONS:
       GNOME Terminal) where particle effects cause fullscreen lag.
       Existing in-flight particles fade out naturally on the next
       update tick — no visual pop.
+
+      Auto-enabled by --benchmark / --bench-all / --bench-frames:
+      particles are input-driven (mouse clicks) and never spawn
+      during a benchmark run, so the flag is redundant in bench mode.
+      The bench CONFIG report's no_effects field always shows true
+      for any bench mode.
       cosmostrix --no-effects
 
       Tip: typing the old name --disable-effects triggers clap's

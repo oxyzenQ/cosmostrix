@@ -54,9 +54,11 @@ pub(crate) struct ConfigEnrichment {
     /// PERF-2-Supreme: particle effects disabled state (--no-effects).
     /// `true` = ALL particle subsystems are no-ops (effects_enabled = false):
     /// quantum ripple, border spark, mouse-click flash waves, anomaly zones.
-    /// Pure transparency: particles are mouse/click-driven and never spawn
-    /// during benchmark anyway, so this flag does not change bench numbers —
-    /// it lets the owner verify the CLI/config value took effect.
+    /// Auto-enabled in bench mode (--benchmark/--bench-all/--bench-frames):
+    /// particles are input-driven and never spawn during a benchmark
+    /// anyway, so effects_enabled is forced false at CloudConfig
+    /// construction time. This field is pure transparency — it never
+    /// changes bench numbers; it just reports the CLI/config value.
     pub no_effects: bool,
 }
 
@@ -170,7 +172,9 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
     // mouse-click burst, border-touch splash crown spark, mouse-click
     // flash waves, and anomaly zones — all input-driven and never fire
     // during a benchmark run, so the value never changes bench numbers.
-    // Reported for CONFIG transparency only.
+    // Auto-enabled in bench mode: effects_enabled is forced false at
+    // CloudConfig construction when bench_mode is true. Reported for
+    // CONFIG transparency only.
     let no_effects = !cfg.effects_enabled;
 
     ConfigEnrichment {

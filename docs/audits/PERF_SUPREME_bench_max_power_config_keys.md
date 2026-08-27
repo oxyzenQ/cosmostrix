@@ -140,8 +140,9 @@ Text report CONFIG section (and JSON `config` object) now include:
 power_dragon:    true   # config state (not a bench throttle — see §2.3)
 crystal_dragon:  false  # config state (drift forced OFF in bench — see §2.4)
 msg_mode:        true   # config state (messages never render in bench — Z-6)
-no_effects:      false  # true when --no-effects set (particles are
-                        # input-driven; never changes bench numbers)
+no_effects:      false  # true when --no-effects set OR auto-enabled in
+                        # bench mode (particles are input-driven;
+                        # never changes bench numbers)
 ```
 
 `no_effects` naming follows the owner's requested semantics (true = effects OFF) and is
@@ -155,10 +156,10 @@ the inversion of the internal `effects_enabled` flag.
 
 ### 3.4 Verification
 
-- Text: `cosmostrix --benchmark` shows all four keys; `--no-effects` flips
-  `no_effects` to `true`.
-- JSON: `cosmostrix --benchmark --json --no-effects` → `config.no_effects == true`
-  plus `power_dragon` / `crystal_dragon` / `msg_mode` present.
+- Text: `cosmostrix --benchmark` shows all four keys; `no_effects`
+  is always `true` in bench mode (auto-enabled).
+- JSON: `cosmostrix --benchmark --json` → `config.no_effects == true`
+  (no need to pass `--no-effects` explicitly anymore)
 - Tests: 1712 passed / 0 failed / 2 ignored (includes 2 new lock tests).
 
 ---

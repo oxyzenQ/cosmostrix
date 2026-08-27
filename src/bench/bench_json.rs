@@ -171,8 +171,8 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         //     forced OFF in bench for determinism; see chroma_in_benchmark)
         //   msg_mode — message overlay config (messages never render in bench)
         //   no_effects — --no-effects state, inverted (true = effects
-        //     OFF). Particles are input-driven, so this never changes bench
-        //     numbers; transparency only.
+        //     OFF). Auto-enabled in bench mode. Particles are input-driven,
+        //     so this never changes bench numbers; transparency only.
         o.push_kv("power_dragon", data.power_dragon);
         o.push_kv("crystal_dragon", data.crystal_dragon);
         o.push_kv("msg_mode", data.msg_mode);

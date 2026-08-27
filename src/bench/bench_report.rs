@@ -154,8 +154,9 @@ pub(crate) struct BenchReportData {
     /// PERF-2: intro type label (not rendered in bench, config parity).
     pub intro: &'static str,
     /// PERF-2-Supreme: particle effects disabled state (--no-effects,
-    /// inverted: true = effects OFF). Transparency-only field: particles
-    /// are input-driven and never spawn during benchmark runs.
+    /// inverted: true = effects OFF). Auto-enabled in bench mode.
+    /// Transparency-only field: particles are input-driven and never
+    /// spawn during benchmark runs.
     pub no_effects: bool,
 
     // Performance
@@ -414,6 +415,8 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // PERF-2-Supreme: --no-effects state (owner-requested key).
         // true = ALL particle subsystems are no-ops (quantum ripple,
         // border spark, mouse-click flash waves, anomaly zones).
+        // Auto-enabled in bench mode (effects_enabled forced false at
+        // CloudConfig construction when bench_mode is true).
         // Honest note: particles are mouse/click-driven, so this flag
         // never changes benchmark numbers — it only verifies the
         // CLI/config value took effect.
