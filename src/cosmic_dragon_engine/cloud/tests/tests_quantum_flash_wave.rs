@@ -160,3 +160,85 @@ fn flash_wave_pool_size_constant_is_reasonable() {
     // accidental zero/negative values at build time.
     const _: () = assert!(MOUSE_FLASH_DURATION_SECS > 0.0);
 }
+
+// ─── PERF-4 strengthen: --no-effects full-disable lock tests ───────────────
+//
+// v50.0.0-beta.7: the original PERF-4 gate only covered spawn_quantum_ripple
+// and spawn_border_spark. The mouse-click flash wave (dual-ring expanding
+// ring overlay) and the anomaly zones (LuminanceSurge / GlyphCorruption /
+// PulseWave phosphor post-process) continued to spawn under --no-effects —
+// a partial-disable leak. The strengthen adds early-returns to
+// `set_mouse_click` and `spawn_anomaly` so ALL particle-like subsystems
+// become no-ops. These lock tests prevent future refactors from silently
+// reintroducing the leak.
+
+/// --no-effects must suppress flash-wave activation on mouse click.
+/// Regression: before the strengthen, `set_mouse_click` unconditionally
+/// wrote a new FlashWave slot — so the dual-ring click flash continued
+/// to render even with `--no-effects` set.
+#[test]
+fn no_effects_disables_mouse_click_flash_waves() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    cloud.set_effects_enabled(false);
+    cloud.set_mouse_click(5, 5);
+    let active = cloud.flash_waves.iter().filter(|w| w.active).count();
+    assert_eq!(
+        active, 0,
+        "no flash wave should be active under --no-effects (got {active})"
+    );
+    // Quantum ripple pool must also stay empty (separate gate on
+    // spawn_quantum_ripple, but click path now early-returns before
+    // even calling it — so this is a defense-in-depth check).
+    let particles = cloud.quantum_particles.iter().filter(|p| p.active).count();
+    assert_eq!(
+        particles, 0,
+        "no quantum particles should be active under --no-effects (got {particles})"
+    );
+}
+
+/// --no-effects must suppress border spark activation.
+/// Pre-existing gate (PERF-4 original) — lock test prevents regression.
+#[test]
+fn no_effects_disables_border_spark() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    cloud.set_effects_enabled(false);
+    cloud.spawn_border_spark(5, 0, (255, 255, 255));
+    let particles = cloud.quantum_particles.iter().filter(|p| p.active).count();
+    assert_eq!(
+        particles, 0,
+        "no border-spark particles should be active under --no-effects (got {particles})"
+    );
+}
+
+/// --no-effects must suppress anomaly zone spawning.
+/// Regression: before the strengthen, `spawn_anomaly` was unguarded —
+/// so LuminanceSurge / GlyphCorruption / PulseWave zones continued to
+/// appear under --no-effects.
+#[test]
+fn no_effects_disables_anomaly_zones() {
+    use std::time::Instant;
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    cloud.set_effects_enabled(false);
+    let now = Instant::now();
+    // Hammer spawn_anomaly — even with generous randomness, no zone
+    // should ever be pushed while effects are disabled.
+    for _ in 0..100 {
+        cloud.spawn_anomaly(now);
+    }
+    assert!(
+        cloud.anomaly_zones.is_empty(),
+        "anomaly_zones must stay empty under --no-effects (got {} zones)",
+        cloud.anomaly_zones.len()
+    );
+}
+
+/// Effects default ON: a fresh Cloud must have effects_enabled == true
+/// so the CLI default (no --no-effects flag) keeps the visual identity.
+#[test]
+fn effects_enabled_default_is_true() {
+    let cloud = make_truecolor_cloud(ColorScheme::Green);
+    assert!(
+        cloud.effects_enabled,
+        "effects_enabled must default to true (CLI default = effects on)"
+    );
+}

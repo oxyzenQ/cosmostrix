@@ -113,9 +113,10 @@ pub struct CloudConfig {
     /// message-border config key. CLI -m/-mb always wins (handled in
     /// main.rs). Default: true (message overlay active).
     pub msg_mode: bool,
-    /// PERF-4: particle effects enabled flag. When false, quantum ripple +
-    /// border spark are disabled. Set from CLI --disable-effects.
-    /// Default: true (effects on).
+    /// PERF-4: particle effects enabled flag. When false, ALL particle
+    /// subsystems are disabled: quantum ripple, border spark, mouse-click
+    /// flash waves, and anomaly zones (luminance surge / glyph corruption /
+    /// pulse wave). Set from CLI --no-effects. Default: true (effects on).
     pub effects_enabled: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).

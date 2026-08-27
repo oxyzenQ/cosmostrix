@@ -511,6 +511,15 @@ impl Cloud {
 
     /// Spawn a rare anomaly zone at a random position.
     pub(crate) fn spawn_anomaly(&mut self, now: Instant) {
+        // PERF-4 strengthen: --no-effects gate. Anomaly zones (LuminanceSurge,
+        // GlyphCorruption, PulseWave) are visually disruptive post-process
+        // particle-like effects. Without this gate they continued to spawn
+        // under --no-effects — a partial-disable leak. Early-return here
+        // ensures no new zones are pushed; existing zones fade out on their
+        // own expiry tick (rain.rs::update_anomaly_zones retains by expiry).
+        if !self.effects_enabled {
+            return;
+        }
         if self.anomaly_zones.len() >= ANOMALY_MAX_ZONES {
             return;
         }

@@ -403,7 +403,7 @@ COMMON OPTIONS
       --crystal-dragon <true|false>   Crystal Dragon ambient color drift (default: false)
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
-      --disable-effects               Disable particle effects (quantum ripple, border spark)
+      --no-effects                    Disable ALL particle effects (quantum ripple, border spark, click flash waves, anomaly zones)
       --intro-color <name>            Intro color override (see --list-colors)
 
 CONFIG

@@ -845,7 +845,10 @@ impl Cloud {
     /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the
     /// pool capacity are silently dropped (the flash wave still spawns).
     pub(crate) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
-        // PERF-4: --disable-effects gate. No-op when effects are disabled.
+        // PERF-4: --no-effects gate. No-op when effects are disabled.
+        // (set_mouse_click also early-returns under --no-effects, so this
+        // gate is a defense-in-depth no-op for production click paths —
+        // kept for direct test/spawn calls that bypass set_mouse_click.)
         if !self.effects_enabled {
             return;
         }
@@ -951,7 +954,7 @@ impl Cloud {
     /// (corner-skip guard preserves the "no lone bright heads at top
     /// corners" LTS invariant).
     pub(crate) fn spawn_border_spark(&mut self, col: u16, line: u16, head_rgb: (u8, u8, u8)) {
-        // PERF-4: --disable-effects gate. No-op when effects are disabled.
+        // PERF-4: --no-effects gate. No-op when effects are disabled.
         if !self.effects_enabled {
             return;
         }

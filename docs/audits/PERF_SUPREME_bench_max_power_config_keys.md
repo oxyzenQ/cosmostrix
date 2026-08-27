@@ -21,7 +21,7 @@ is honest and modest — these were the only two remaining non-critical-path wor
 
 **PERF-2-Supreme: FIXED.** The benchmark CONFIG section now reports `power_dragon`,
 `crystal_dragon`, `msg_mode`, and the owner-requested `no_effects` key (true when
-`--disable-effects` is set). The `--json` output gained the same four keys for CI/script
+`--no-effects` is set). The `--json` output gained the same four keys for CI/script
 parity (they previously existed only in the text report).
 
 **Honest answer to "do power-dragon / crystal-dragon throttle the benchmark?": NO.**
@@ -140,7 +140,7 @@ Text report CONFIG section (and JSON `config` object) now include:
 power_dragon:    true   # config state (not a bench throttle — see §2.3)
 crystal_dragon:  false  # config state (drift forced OFF in bench — see §2.4)
 msg_mode:        true   # config state (messages never render in bench — Z-6)
-no_effects:      false  # true when --disable-effects set (particles are
+no_effects:      false  # true when --no-effects set (particles are
                         # input-driven; never changes bench numbers)
 ```
 
@@ -155,9 +155,9 @@ the inversion of the internal `effects_enabled` flag.
 
 ### 3.4 Verification
 
-- Text: `cosmostrix --benchmark` shows all four keys; `--disable-effects` flips
+- Text: `cosmostrix --benchmark` shows all four keys; `--no-effects` flips
   `no_effects` to `true`.
-- JSON: `cosmostrix --benchmark --json --disable-effects` → `config.no_effects == true`
+- JSON: `cosmostrix --benchmark --json --no-effects` → `config.no_effects == true`
   plus `power_dragon` / `crystal_dragon` / `msg_mode` present.
 - Tests: 1712 passed / 0 failed / 2 ignored (includes 2 new lock tests).
 

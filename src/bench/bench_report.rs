@@ -153,7 +153,7 @@ pub(crate) struct BenchReportData {
     pub msg_mode: bool,
     /// PERF-2: intro type label (not rendered in bench, config parity).
     pub intro: &'static str,
-    /// PERF-2-Supreme: particle effects disabled state (--disable-effects,
+    /// PERF-2-Supreme: particle effects disabled state (--no-effects,
     /// inverted: true = effects OFF). Transparency-only field: particles
     /// are input-driven and never spawn during benchmark runs.
     pub no_effects: bool,
@@ -411,8 +411,9 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         s.field("power_dragon", &data.power_dragon.to_string());
         s.field("crystal_dragon", &data.crystal_dragon.to_string());
         s.field("msg_mode", &data.msg_mode.to_string());
-        // PERF-2-Supreme: --disable-effects state (owner-requested key).
-        // true = quantum ripple + border spark particles are no-ops.
+        // PERF-2-Supreme: --no-effects state (owner-requested key).
+        // true = ALL particle subsystems are no-ops (quantum ripple,
+        // border spark, mouse-click flash waves, anomaly zones).
         // Honest note: particles are mouse/click-driven, so this flag
         // never changes benchmark numbers — it only verifies the
         // CLI/config value took effect.

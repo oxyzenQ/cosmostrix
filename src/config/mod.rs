@@ -752,15 +752,22 @@ pub struct Args {
     )]
     pub msg_mode: Option<bool>,
 
-    /// PERF-4: disable all particle effects (quantum ripple, border spark).
-    /// CLI-only, no config. When set, spawn_quantum_ripple + spawn_border_spark
-    /// are no-ops. Useful for VTE terminals where particle effects cause lag.
+    /// PERF-4: disable ALL particle effects (quantum ripple, border spark,
+    /// mouse-click flash waves, anomaly zones). CLI-only, no config. When set,
+    /// spawn_quantum_ripple + spawn_border_spark are no-ops, set_mouse_click
+    /// skips flash-wave activation, and spawn_anomaly returns early. Useful
+    /// for VTE terminals where particle effects cause lag.
     /// Default: false (effects on).
+    ///
+    /// Renamed from --disable-effects to --no-effects in v50.0.0-beta.7 for
+    /// CLI ergonomics (mirrors --no-color / --no-border convention). Typing
+    /// --disable-effects now triggers clap's built-in "did you mean?" hint
+    /// (enabled via the `suggestions` clap feature in Cargo.toml).
     #[arg(
-        long = "disable-effects",
-        help = "Disable all particle effects (quantum ripple, border spark) — useful for slow terminals"
+        long = "no-effects",
+        help = "Disable all particle effects (quantum ripple, border spark, click flash, anomaly zones) — useful for slow terminals"
     )]
-    pub disable_effects: bool,
+    pub no_effects: bool,
 
     // Helper: default true for power_dragon (clap defaults bool to false,
     // so we set it true in main.rs after parse).

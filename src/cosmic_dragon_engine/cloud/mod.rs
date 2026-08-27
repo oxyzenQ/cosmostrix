@@ -211,9 +211,10 @@ pub struct Cloud {
     pub(crate) perf_pressure: f32,
     /// AB-11: aggressive throttle flag (steeper spawn-scale, no glitches).
     pub(crate) aggressive_throttle: bool,
-    /// PERF-4: particle effects enabled flag. When false, spawn_quantum_ripple
-    /// and spawn_border_spark are no-ops. Set via set_effects_enabled() from
-    /// CLI --disable-effects. Default: true.
+    /// PERF-4: particle effects enabled flag. When false, ALL particle
+    /// subsystems are no-ops: spawn_quantum_ripple, spawn_border_spark,
+    /// set_mouse_click (flash-wave activation skipped), and spawn_anomaly.
+    /// Set via set_effects_enabled() from CLI --no-effects. Default: true.
     pub(crate) effects_enabled: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
@@ -583,9 +584,10 @@ impl Cloud {
         self.event_manager.enable_events();
     }
 
-    /// PERF-4: set whether particle effects (quantum ripple, border spark)
-    /// are enabled. When false, spawn_quantum_ripple + spawn_border_spark
-    /// are no-ops. Set from CLI `--disable-effects` flag at startup.
+    /// PERF-4: set whether particle effects are enabled. When false, ALL
+    /// particle subsystems become no-ops: spawn_quantum_ripple,
+    /// spawn_border_spark, set_mouse_click (flash-wave skip), and
+    /// spawn_anomaly. Set from CLI `--no-effects` flag at startup.
     /// Default: true (effects on).
     pub fn set_effects_enabled(&mut self, enabled: bool) {
         self.effects_enabled = enabled;
@@ -597,6 +599,18 @@ impl Cloud {
     }
 
     pub fn set_mouse_click(&mut self, col: u16, line: u16) {
+        // PERF-4 strengthen: --no-effects gate. When effects are disabled,
+        // skip flash-wave activation entirely. Without this gate the
+        // dual-ring click flash continued to spawn under --no-effects —
+        // a partial-disable leak (only the quantum-ripple particles were
+        // suppressed, the expanding ring overlay was not). Early-return
+        // here is the correct fix: no new FlashWave slot is activated,
+        // and any previously-active waves fade out naturally on their
+        // next update tick. spawn_quantum_ripple (called below when
+        // effects are on) is also independently gated for safety.
+        if !self.effects_enabled {
+            return;
+        }
         // v30 fix: bounded pool. Mirrors spawn_quantum_ripple: first inactive
         // slot, or evict OLDEST (smallest birth) if all active.
         let now = Instant::now();

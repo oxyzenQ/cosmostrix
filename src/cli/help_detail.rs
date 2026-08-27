@@ -94,6 +94,23 @@ COMMON OPTIONS:
       message-border. CLI -m / -mb always wins over msg-mode=false.
       cosmostrix --msg-mode false
 
+  --no-effects
+      Disable ALL particle effects (default: effects on). When set,
+      the following subsystems become no-ops:
+        - quantum ripple (mouse-click particle burst)
+        - border spark (splash crown on message-border touch)
+        - mouse-click flash waves (dual-ring expanding rings)
+        - anomaly zones (LuminanceSurge / GlyphCorruption / PulseWave)
+      CLI-only (no config key). Useful for VTE terminals (Konsole,
+      GNOME Terminal) where particle effects cause fullscreen lag.
+      Existing in-flight particles fade out naturally on the next
+      update tick — no visual pop.
+      cosmostrix --no-effects
+
+      Tip: typing the old name --disable-effects triggers clap's
+      built-in did-you-mean suggestion pointing to --no-effects
+      (no silent failure).
+
   --intro-color <name>
       Intro animation color override. Accepts any builtin theme name
       (see --list-colors) or custom palette name. When unset, the

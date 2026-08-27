@@ -105,7 +105,7 @@ mod tests {
         // glitch_level, glitch_pct, crystal_dragon) + perf(8) + dirty(8)
         // + throughput(5) + timing(3) = 51
         // PERF-2-Supreme: config grew by 1 (no_effects — owner-requested
-        // --disable-effects disclosure key).
+        // --no-effects disclosure key).
         // v50 LTS audit: throughput went from 6 → 5 fields
         // (removed redundant `theoretical_full_frame_glyphs_per_second`,
         // renamed `glyphs_per_second` → `glyphs_per_second_theoretical`).
