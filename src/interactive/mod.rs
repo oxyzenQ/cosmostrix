@@ -164,6 +164,21 @@ pub(crate) fn last_intro_color() -> Option<&'static str> {
     FINAL_INTRO_COLOR.get().and_then(|m| m.as_deref())
 }
 
+/// Format an `Option<&str>` for the live-reload change tracker.
+///
+/// `Some("text")` -> `"text"` (quoted, matches verbose.rs style)
+/// `None`         -> `(none)` (matches live_config/mod.rs style)
+///
+/// Replaces the ambiguous `{:?}` Debug format which produced
+/// `Some("...")` / `None` in the verbose output — the Rust wrapper
+/// made the live-reload tracker read like a REPL instead of a UX.
+pub(super) fn fmt_opt_str(opt: Option<&str>) -> String {
+    match opt {
+        Some(s) => format!("\"{s}\""),
+        None => "(none)".to_string(),
+    }
+}
+
 /// v50.0.0-alpha.7: print "final runtime state" section showing live-reload
 /// changes between startup and exit. Extracted from main.rs to keep that
 /// file under the 1500-LOC cap.
@@ -283,9 +298,9 @@ pub(crate) fn print_final_runtime_state(
     }
     if final_message != startup_message {
         crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  message:{reset}        {:?} (was {:?})",
-            final_message,
-            startup_message
+            "{purple}[verbose]{reset} {ts} {purple}  message:{reset}        {} (was {})",
+            fmt_opt_str(final_message),
+            fmt_opt_str(startup_message)
         );
     }
     if final_message_border != startup_message_border {
@@ -318,9 +333,9 @@ pub(crate) fn print_final_runtime_state(
     }
     if final_intro_color != startup_intro_color {
         crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  intro_color:{reset}     {:?} (was {:?})",
-            final_intro_color,
-            startup_intro_color
+            "{purple}[verbose]{reset} {ts} {purple}  intro_color:{reset}     {} (was {})",
+            fmt_opt_str(final_intro_color),
+            fmt_opt_str(startup_intro_color)
         );
     }
     let diag = ambient_diag_summary();

@@ -813,3 +813,45 @@ mod cases {
 #[cfg(test)]
 #[path = "tests_v50_first_reload.rs"]
 mod v50_first_reload;
+
+#[cfg(test)]
+mod fmt_opt_str_tests {
+    use super::super::fmt_opt_str;
+
+    #[test]
+    fn some_quoted_without_wrapper() {
+        assert_eq!(fmt_opt_str(Some("hello")), "\"hello\"");
+        assert_eq!(
+            fmt_opt_str(Some("Experience a masterpiece with cosmostrix v50.0.0-beta.7")),
+            "\"Experience a masterpiece with cosmostrix v50.0.0-beta.7\""
+        );
+    }
+
+    #[test]
+    fn none_shows_paren_none() {
+        assert_eq!(fmt_opt_str(None), "(none)");
+    }
+
+    #[test]
+    fn no_some_wrapper_in_output() {
+        // Regression: the old {:?} Debug format produced Some("...").
+        // The new format must NOT contain "Some(" anywhere.
+        let formatted = fmt_opt_str(Some("test"));
+        assert!(
+            !formatted.contains("Some("),
+            "fmt_opt_str must not produce Some(...) wrapper: got {formatted}"
+        );
+        let formatted_none = fmt_opt_str(None);
+        assert!(
+            !formatted_none.contains("None"),
+            "fmt_opt_str must not produce None wrapper: got {formatted_none}"
+        );
+    }
+
+    #[test]
+    fn empty_string_some_shows_empty_quotes() {
+        // Edge case: Some("") should show "" (empty quotes), not (none).
+        let empty = "";
+        assert_eq!(fmt_opt_str(Some(empty)), "\"\"");
+    }
+}
