@@ -9,6 +9,10 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Features
+
+- **`--disable-effects` CLI flag**: disables all particle effects (quantum ripple mouse-click burst + border-touch splash crown spark). Useful for VTE terminals (Konsole, GNOME) where particle effects cause fullscreen lag. CLI-only (no config needed). Default: effects on. See `INSIGHTS.md` for the origin story.
+
 ### Docs
 
 - **INSIGHTS.md**: New living idea journal documenting the moments when cosmostrix's features were born — not from issue trackers or user requests, but from the owner's lived experience with the renderer running in the background of daily life. First 3 entries: (1) border-touch glow "wifi offline" moment, (2) particle spark "just woken up" moment, (3) the "living project" realization. Future insights will be appended as they arrive.

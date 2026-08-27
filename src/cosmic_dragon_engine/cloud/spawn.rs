@@ -845,6 +845,10 @@ impl Cloud {
     /// pre-allocated with `QUANTUM_RIPPLE_POOL_SIZE` slots — clicks beyond the
     /// pool capacity are silently dropped (the flash wave still spawns).
     pub(crate) fn spawn_quantum_ripple(&mut self, col: u16, line: u16) {
+        // PERF-4: --disable-effects gate. No-op when effects are disabled.
+        if !self.effects_enabled {
+            return;
+        }
         let cx = col as f32 + 0.5;
         let cy = line as f32 + 0.5;
         let now = Instant::now();
@@ -946,12 +950,11 @@ impl Cloud {
     /// Called from `detect_border_touch` on non-corner border cells only
     /// (corner-skip guard preserves the "no lone bright heads at top
     /// corners" LTS invariant).
-    pub(crate) fn spawn_border_spark(
-        &mut self,
-        col: u16,
-        line: u16,
-        head_rgb: (u8, u8, u8),
-    ) {
+    pub(crate) fn spawn_border_spark(&mut self, col: u16, line: u16, head_rgb: (u8, u8, u8)) {
+        // PERF-4: --disable-effects gate. No-op when effects are disabled.
+        if !self.effects_enabled {
+            return;
+        }
         let cx = col as f32 + 0.5;
         let cy = line as f32 + 0.5;
         let now = Instant::now();
@@ -969,8 +972,7 @@ impl Cloud {
             let angle = BORDER_SPARK_ANGLE_MIN_RAD
                 + self.rand_chance.sample(&mut self.mt)
                     * (BORDER_SPARK_ANGLE_MAX_RAD - BORDER_SPARK_ANGLE_MIN_RAD);
-            let speed =
-                BORDER_SPARK_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
+            let speed = BORDER_SPARK_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
             p.active = true;
             p.x = cx;
             p.y = cy;

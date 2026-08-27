@@ -752,6 +752,16 @@ pub struct Args {
     )]
     pub msg_mode: Option<bool>,
 
+    /// PERF-4: disable all particle effects (quantum ripple, border spark).
+    /// CLI-only, no config. When set, spawn_quantum_ripple + spawn_border_spark
+    /// are no-ops. Useful for VTE terminals where particle effects cause lag.
+    /// Default: false (effects on).
+    #[arg(
+        long = "disable-effects",
+        help = "Disable all particle effects (quantum ripple, border spark) — useful for slow terminals"
+    )]
+    pub disable_effects: bool,
+
     // Helper: default true for power_dragon (clap defaults bool to false,
     // so we set it true in main.rs after parse).
     // The config_apply.rs parse path overrides this when config.toml

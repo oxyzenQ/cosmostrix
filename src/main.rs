@@ -1262,6 +1262,7 @@ fn main() -> std::io::Result<()> {
         crystal_dragon: args.crystal_dragon.unwrap_or(false),
         power_dragon: args.power_dragon.unwrap_or(true),
         msg_mode: args.msg_mode.unwrap_or(true),
+        effects_enabled: !args.disable_effects,
         monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the

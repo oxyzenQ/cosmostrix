@@ -60,7 +60,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
-    // v50.0.0-beta.6: terminal-aware phosphor tuning + speed mult.
+    cloud.set_effects_enabled(cfg.effects_enabled);
     let caps = term.phosphor_tuning();
     cloud.set_phosphor_tuning(caps.0, caps.1, caps.2);
     // Bug-fix: no ambient phase has fired yet, so the user's CLI/config

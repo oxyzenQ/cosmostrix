@@ -211,6 +211,10 @@ pub struct Cloud {
     pub(crate) perf_pressure: f32,
     /// AB-11: aggressive throttle flag (steeper spawn-scale, no glitches).
     pub(crate) aggressive_throttle: bool,
+    /// PERF-4: particle effects enabled flag. When false, spawn_quantum_ripple
+    /// + spawn_border_spark are no-ops. Set via set_effects_enabled() from
+    /// CLI --disable-effects. Default: true.
+    pub(crate) effects_enabled: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
     /// PERF-3: hysteresis state for phosphor pressure boost (prevents
@@ -446,6 +450,7 @@ impl Cloud {
             frames_since_stuck_sweep: 0,
             perf_pressure: 0.0,
             aggressive_throttle: false,
+            effects_enabled: true,
             phosphor_skipped: false,
             phosphor_pressure_boost_active: false,
             phosphor_decay_mult: 1.0,
@@ -576,6 +581,14 @@ impl Cloud {
 
     pub fn enable_events(&mut self) {
         self.event_manager.enable_events();
+    }
+
+    /// PERF-4: set whether particle effects (quantum ripple, border spark)
+    /// are enabled. When false, spawn_quantum_ripple + spawn_border_spark
+    /// are no-ops. Set from CLI `--disable-effects` flag at startup.
+    /// Default: true (effects on).
+    pub fn set_effects_enabled(&mut self, enabled: bool) {
+        self.effects_enabled = enabled;
     }
 
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {

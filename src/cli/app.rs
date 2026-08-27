@@ -113,6 +113,10 @@ pub struct CloudConfig {
     /// message-border config key. CLI -m/-mb always wins (handled in
     /// main.rs). Default: true (message overlay active).
     pub msg_mode: bool,
+    /// PERF-4: particle effects enabled flag. When false, quantum ripple +
+    /// border spark are disabled. Set from CLI --disable-effects.
+    /// Default: true (effects on).
+    pub effects_enabled: bool,
     /// Optional per-column density map for monolith pillar placement.
     /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
     /// None = uniform distribution (default).
@@ -361,6 +365,7 @@ impl CloudConfig {
             crystal_dragon: self.crystal_dragon,
             power_dragon: self.power_dragon,
             msg_mode: self.msg_mode,
+            effects_enabled: self.effects_enabled,
             monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
