@@ -1277,6 +1277,9 @@ impl Cloud {
             .position(|mc| mc.line == top && mc.col == col);
 
         if let Some(idx) = msg_idx {
+            // F2 Splash Crown: check corner-skip BEFORE mutable borrows.
+            // LTS invariant: no lone bright heads at top corners.
+            let is_corner = matches!(self.message[idx].val, '╭' | '╮' | '╰' | '╯');
             // LTS dedup: if a pulse for this msg_idx is still alive,
             // refresh it in place (re-arm birth + re-snapshot head_rgb)
             // instead of pushing a duplicate. Bounds the pool to
@@ -1291,6 +1294,12 @@ impl Cloud {
                     head_rgb,
                     birth: now,
                 });
+            }
+            // F2 Splash Crown spark: spawn 6-particle upward splash on
+            // non-corner border touches. See
+            // docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md §3.2.
+            if !is_corner {
+                self.spawn_border_spark(col, top, head_rgb);
             }
         }
     }

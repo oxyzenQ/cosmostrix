@@ -918,10 +918,74 @@ impl Cloud {
             // overwritten as the particle moves — trail_count=0 ensures
             // the trail render loop reads 0 entries on the first frame.
             p.trail_count = 0;
+            p.max_trail = QUANTUM_RIPPLE_TRAIL_LEN as u8;
+            p.lifetime = QUANTUM_RIPPLE_LIFETIME_SECS;
             spawned += 1;
         }
         // Increment active count — tracked incrementally so
         // apply_quantum_ripple can O(1) early-out when none are active.
+        self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
+    }
+
+    /// Spawn a border-touch splash crown spark at `(col, line)`.
+    ///
+    /// F2 Splash Crown variant — see
+    /// `docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md` §3.2.
+    ///
+    /// Emits `BORDER_SPARK_PARTICLE_COUNT` (6) particles in an upward
+    /// semicircle fan (-180° to 0°), mimicking a water-drop crown splash
+    /// when a rain droplet's head touches the message-border top edge.
+    /// Each particle uses `head_rgb` (palette last-stop, usually white)
+    /// + fixed `·` (middle-dot) glyph + 1-cell trail (`max_trail = 1`)
+    /// + 350ms lifetime.
+    ///
+    /// Particles share the existing `quantum_particles` pool with quantum
+    /// ripples — zero new allocation. If the pool is full, the touch is
+    /// silently dropped (same pattern as `spawn_quantum_ripple`).
+    ///
+    /// Called from `detect_border_touch` on non-corner border cells only
+    /// (corner-skip guard preserves the "no lone bright heads at top
+    /// corners" LTS invariant).
+    pub(crate) fn spawn_border_spark(
+        &mut self,
+        col: u16,
+        line: u16,
+        head_rgb: (u8, u8, u8),
+    ) {
+        let cx = col as f32 + 0.5;
+        let cy = line as f32 + 0.5;
+        let now = Instant::now();
+        let mut spawned = 0usize;
+        for p in &mut self.quantum_particles {
+            if spawned >= BORDER_SPARK_PARTICLE_COUNT {
+                break;
+            }
+            if p.active {
+                continue;
+            }
+            // Upward semicircle fan: [-180°, 0°] (left through up to right).
+            // In terminal coords, negative Y = upward. The border is a
+            // ceiling, so sparks deflect up + sideways (crown splash).
+            let angle = BORDER_SPARK_ANGLE_MIN_RAD
+                + self.rand_chance.sample(&mut self.mt)
+                    * (BORDER_SPARK_ANGLE_MAX_RAD - BORDER_SPARK_ANGLE_MIN_RAD);
+            let speed =
+                BORDER_SPARK_SPEED * (0.9 + self.rand_chance.sample(&mut self.mt) * 0.2);
+            p.active = true;
+            p.x = cx;
+            p.y = cy;
+            p.vx = speed * angle.cos();
+            p.vy = speed * angle.sin();
+            p.birth = now;
+            p.ch = '·';
+            p.r = head_rgb.0;
+            p.g = head_rgb.1;
+            p.b = head_rgb.2;
+            p.trail_count = 0;
+            p.max_trail = BORDER_SPARK_TRAIL_LEN as u8;
+            p.lifetime = BORDER_SPARK_LIFETIME_SECS;
+            spawned += 1;
+        }
         self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);
     }
 }

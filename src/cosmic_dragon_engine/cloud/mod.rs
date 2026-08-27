@@ -98,6 +98,16 @@ pub(crate) struct QuantumParticle {
     pub trail_x: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
     pub trail_y: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
     pub trail_count: u8,
+    /// Max trail entries for this particle. Quantum ripples use
+    /// `QUANTUM_RIPPLE_TRAIL_LEN` (6); border-touch sparks use 1
+    /// (F2 Splash Crown — see `docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md`).
+    /// The trail push in `apply_quantum_ripple` caps at this value.
+    pub max_trail: u8,
+    /// Per-particle lifetime in seconds. Quantum ripples use
+    /// `QUANTUM_RIPPLE_LIFETIME_SECS` (4.0); border-touch sparks use
+    /// `BORDER_SPARK_LIFETIME_SECS` (0.35). The age check + brightness
+    /// curve in `apply_quantum_ripple` use this instead of the constant.
+    pub lifetime: f32,
 }
 
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
@@ -478,6 +488,8 @@ impl Cloud {
                     trail_x: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
                     trail_y: [0.0; QUANTUM_RIPPLE_TRAIL_LEN],
                     trail_count: 0,
+                    max_trail: QUANTUM_RIPPLE_TRAIL_LEN as u8,
+                    lifetime: QUANTUM_RIPPLE_LIFETIME_SECS,
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
             ],

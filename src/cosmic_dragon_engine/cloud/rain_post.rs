@@ -13,8 +13,8 @@ use crossterm::style::Color;
 
 use crate::constants::{
     CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
-    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_LIFETIME_SECS,
-    QUANTUM_RIPPLE_TAIL_START_FRAC, QUANTUM_RIPPLE_TRAIL_DECAY, QUANTUM_RIPPLE_TRAIL_LEN,
+    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC,
+    QUANTUM_RIPPLE_TAIL_START_FRAC, QUANTUM_RIPPLE_TRAIL_DECAY,
     QUANTUM_RIPPLE_VELOCITY_DECAY,
 };
 use crate::frame::Frame;
@@ -229,7 +229,7 @@ impl Cloud {
                 continue;
             }
             let age = now.saturating_duration_since(p.birth).as_secs_f32();
-            if age >= QUANTUM_RIPPLE_LIFETIME_SECS {
+            if age >= p.lifetime {
                 p.active = false;
                 deactivated += 1;
                 continue;
@@ -251,14 +251,17 @@ impl Cloud {
             // O(TRAIL_LEN) per push — for TRAIL_LEN=6, 5 moves per frame
             // per active particle. Negligible cost (96-slot pool, typical
             // 0-20 active).
-            if p.trail_count as usize >= QUANTUM_RIPPLE_TRAIL_LEN {
+            if p.trail_count as usize >= p.max_trail as usize {
                 // Trail is full — shift left (drop oldest at trail[0]).
-                for i in 0..QUANTUM_RIPPLE_TRAIL_LEN - 1 {
+                let cap = p.max_trail as usize;
+                for i in 0..cap.saturating_sub(1) {
                     p.trail_x[i] = p.trail_x[i + 1];
                     p.trail_y[i] = p.trail_y[i + 1];
                 }
-                p.trail_x[QUANTUM_RIPPLE_TRAIL_LEN - 1] = p.x;
-                p.trail_y[QUANTUM_RIPPLE_TRAIL_LEN - 1] = p.y;
+                if cap > 0 {
+                    p.trail_x[cap - 1] = p.x;
+                    p.trail_y[cap - 1] = p.y;
+                }
             } else {
                 // Trail not full — append at trail_count, then increment.
                 let idx = p.trail_count as usize;
@@ -328,7 +331,7 @@ impl Cloud {
             p.x = p.x.clamp(0.0, max_x);
             p.y = p.y.clamp(0.0, max_y);
 
-            let life_frac = age / QUANTUM_RIPPLE_LIFETIME_SECS;
+            let life_frac = age / p.lifetime;
 
             // v50 masterclass brightness curve (owner feedback 8/10):
             // three-segment fade replacing the old `fade*fade` quadratic.

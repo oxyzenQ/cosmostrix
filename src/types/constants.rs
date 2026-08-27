@@ -294,6 +294,35 @@ pub(crate) const QUANTUM_RIPPLE_LIFETIME_SECS: f32 = 4.0;
 /// look the owner requested.
 pub(crate) const QUANTUM_RIPPLE_SPEED: f32 = 30.0;
 
+// ── Border-Touch Splash Crown Spark (F2) ─────────────────────────────────
+// See docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md §3.2.
+// "Rain drop hitting a glass ceiling" — 6 particles, 350ms, 1-cell trail,
+// upward semicircle fan. Shares the QuantumParticle pool with quantum
+// ripples (zero new allocation). Triggered by detect_border_touch on
+// non-corner border cells only (LTS invariant: no lone bright heads at
+// top corners).
+
+/// Particles per border-touch spark (F2 Splash Crown).
+/// 6 particles = visible "plash" without competing with message text.
+pub(crate) const BORDER_SPARK_PARTICLE_COUNT: usize = 6;
+
+/// Spark particle lifetime in seconds. 350ms = brief but visible.
+pub(crate) const BORDER_SPARK_LIFETIME_SECS: f32 = 0.35;
+
+/// Spark particle speed in cells/second. 12.0 = 40% of quantum ripple
+/// (30.0) — sparks are smaller/faster than click bursts.
+pub(crate) const BORDER_SPARK_SPEED: f32 = 12.0;
+
+/// Upward semicircle fan: -180° (left) through -90° (up) to 0° (right).
+/// In terminal coords, negative Y = upward. The border is a ceiling,
+/// so sparks deflect up + sideways (crown splash pattern).
+pub(crate) const BORDER_SPARK_ANGLE_MIN_RAD: f32 = -std::f32::consts::PI; // -180°
+pub(crate) const BORDER_SPARK_ANGLE_MAX_RAD: f32 = 0.0; // 0°
+
+/// Max trail entries per spark particle. 1 = single-cell streak
+/// (vs quantum ripple's 6). Gives "spray" feel without trailing noise.
+pub(crate) const BORDER_SPARK_TRAIL_LEN: usize = 1;
+
 /// Brand purple RGB (same as logo color) for Quantum effects.
 pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;
 pub(crate) const QUANTUM_BRAND_PURPLE_G: u8 = 85;
