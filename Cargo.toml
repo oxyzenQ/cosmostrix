@@ -85,6 +85,12 @@ panic = "unwind"
 overflow-checks = false
 incremental = false
 
+# pro-native: same as pro but outputs to target/pro-native/ (owner request).
+# The alias in .cargo/config.toml uses --profile pro-native so the binary
+# lands in target/pro-native/cosmostrix instead of target/pro/cosmostrix.
+[profile.pro-native]
+inherits = "pro"
+
 [profile.pro-linux-v3]
 inherits = "pro"
 

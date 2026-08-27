@@ -624,7 +624,7 @@ sweep)
         echo "  sweep --build pro-linux-v4  Build then sweep" >&2
         echo "  sweep --build pro-native   Build pro-native then sweep" >&2
         echo "  sweep --build release      Build release then sweep" >&2
-        echo "  sweep ./target/pro/cosmostrix  Sweep with explicit binary" >&2
+        echo "  sweep ./target/pro-native/cosmostrix  Sweep with explicit binary" >&2
         echo "" >&2
         echo "  --auto detection order:" >&2
         echo "    AVX-512 (avx512f)  -> pro-linux-v4" >&2
@@ -655,7 +655,7 @@ fi
 if [[ -n "${BENCH_BIN2:-}" ]]; then
         PRO_NATIVE_BIN="$BENCH_BIN2"
 else
-        PRO_NATIVE_BIN="${ROOT_DIR}/target/pro/$BINARY_NAME"
+        PRO_NATIVE_BIN="${ROOT_DIR}/target/pro-native/$BINARY_NAME"
         if [[ ! -x "$PRO_NATIVE_BIN" ]]; then
                 # Try to find a second distinct binary; if not, use same as first
                 PRO_NATIVE_BIN=$(probe_bin) || echo "$RELEASE_BIN"

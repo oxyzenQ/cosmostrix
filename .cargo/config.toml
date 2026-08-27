@@ -10,11 +10,11 @@ linker = "rust-lld"
 pro-native = [
   "build",
   "--profile",
-  "pro",
+  "pro-native",
   "--config",
   "env.COSMOSTRIX_BUILD=\"local-native\"",
   "--config",
-  "env.COSMOSTRIX_PROFILE=\"pro\"",
+  "env.COSMOSTRIX_PROFILE=\"pro-native\"",
   "--config",
   "build.rustflags=[\"-C\",\"target-cpu=native\"]",
 ]
