@@ -304,7 +304,27 @@ impl Cloud {
         // v50.0.0-beta.6: apply terminal-aware phosphor_decay_mult for
         // cross-terminal visual consistency. High-perf terminals keep 1.0
         // (current behavior). Standard/VTE terminals get 1.3 (faster decay).
-        let base_decay = PHOSPHOR_DECAY_RATE * self.phosphor_decay_mult * elapsed_sec;
+        //
+        // PERF-3: under aggressive_throttle (VTE fullscreen lag), boost decay
+        // further so phosphor cells die faster — fewer dirty cells per frame
+        // = less ANSI throughput = VTE can keep up. This is the "berbekas"
+        // (stale trails) fix: the trailing afterglow is what overwhelms VTE
+        // at high cell counts.
+        //
+        // Two-tier boost:
+        //   1. Immediate: perf_pressure > 0.3 → boost 1.2x (fast response,
+        //      no 30s self-healer delay). This catches VTE fullscreen lag
+        //      within ~1s of onset.
+        //   2. Sustained: aggressive_throttle (self-healer fired after 30s)
+        //      → boost 1.5x (stronger, for persistent overload).
+        // The two compose multiplicatively for a max boost of 1.8x.
+        let pressure_boost = if self.perf_pressure > 0.3 { 1.2 } else { 1.0 };
+        let throttle_boost = if self.aggressive_throttle { 1.5 } else { 1.0 };
+        let base_decay = PHOSPHOR_DECAY_RATE
+            * self.phosphor_decay_mult
+            * pressure_boost
+            * throttle_boost
+            * elapsed_sec;
         let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
         let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];
         for (i, &lm) in PHOSPHOR_LAYER_DECAY_MULT.iter().enumerate() {
