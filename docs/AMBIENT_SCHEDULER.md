@@ -119,6 +119,47 @@ and color you set in an ambient entry are guaranteed to stick until the
 user explicitly overrides them. Crystal Dragon will not silently drift the
 palette away from an ambient entry's color.
 
+### User overrides + 30-second auto-snapback (IMPORTANT)
+
+When the user presses `x` (scene cycle), `c` (color cycle), or `s`
+(charset cycle) while an ambient phase is active, the override takes
+effect immediately — but it is **temporary**. After **30 seconds of
+keyboard idle**, the event loop automatically re-applies the current
+ambient phase, undoing the user's change. This is the intended
+auto-snapback behavior (see `docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md`
+§2.2 for the design rationale).
+
+The 30-second timer resets on **every** keypress (not just `x`/`c`/`s`),
+so an active user cycling through scenes will never be interrupted. The
+snapback only fires after the user stops pressing keys for 30 seconds
+straight. This is implemented via `AUTO_SNAPBACK_DELAY_SECS` in
+`src/central_control_dragon_power/mod.rs:198` (a hard-coded `const f64 =
+30.0` — not a config key).
+
+**To make a permanent change**, edit `config.toml` (live-reload will
+apply immediately) — the snapback only reverts user keypress overrides,
+not config edits.
+
+#### The cinematic/monolith shared-color gotcha
+
+If the ambient phase is `monolith` (default color: `neon-purple`) and
+the user presses `x`, the first scene in the cycle is `cinematic` —
+which **also defaults to `neon-purple`**. So the first `x` press may
+produce **no visible color change** (only the rain style/charset changes
+underneath). Press `x` again to cycle to `matrix` (green) or another
+scene with a distinct color. This is not a bug — it's a consequence of
+two scenes sharing the same default palette.
+
+#### Summary of override behavior
+
+| User action | Effect | Duration | After 30s idle |
+|-------------|--------|----------|----------------|
+| Press `x` | Scene cycles to next | Immediate | Reverts to ambient phase |
+| Press `c` | Color cycles to next | Immediate | Reverts to ambient phase |
+| Press `s` | Charset cycles to next | Immediate | Reverts to ambient phase |
+| Edit `config.toml` | Live-reload applies | Permanent | No snapback |
+| Press any other key | Timer resets | N/A | 30s clock restarts |
+
 ### Live Reload
 
 Editing `ambient.*` keys in `config.toml` triggers an immediate re-parse
