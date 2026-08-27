@@ -169,6 +169,33 @@ code changes. This closes the deferred enhancement listed in
 apply immediately) — the snapback only reverts user keypress overrides,
 not config edits.
 
+#### Config-tunable palette lock (v50.0.0-beta.7 Option C)
+
+By default, ambient fires **lock** the palette — Crystal Dragon drift is
+suppressed while the lock is held (only manual `c`/`C`/`x` clears it).
+This prevents drift from "fighting" the ambient schedule (see
+`docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md` §1.3 Defect C).
+
+When the owner wants Crystal Dragon drift to run **automatically** while
+ambient is on (without pressing `c`/`C`), set `ambient-palette-lock = false`:
+
+```toml
+# Default: true (lock asserted, drift suppressed while ambient is active)
+ambient-palette-lock = true
+
+# Allow Crystal Dragon drift to run freely while ambient is on
+ambient-palette-lock = false
+```
+
+When `false`:
+- Ambient still switches the scene/charset/speed/density at each boundary.
+- Crystal Dragon drift can replace the palette at any time (sensor-driven).
+- `ambient-snapback-secs` becomes a no-op (drift already overrides the
+  ambient palette, so snapback has nothing to revert to).
+
+**Live-reloadable** — flip at runtime without restart. Default `true`
+preserves the current behavior (no breaking change).
+
 #### The cinematic/monolith shared-color gotcha
 
 If the ambient phase is `monolith` (default color: `neon-purple`) and

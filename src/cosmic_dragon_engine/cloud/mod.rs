@@ -211,10 +211,7 @@ pub struct Cloud {
     pub(crate) perf_pressure: f32,
     /// AB-11: aggressive throttle flag (steeper spawn-scale, no glitches).
     pub(crate) aggressive_throttle: bool,
-    /// PERF-4: particle effects enabled flag. When false, ALL particle
-    /// subsystems are no-ops: spawn_quantum_ripple, spawn_border_spark,
-    /// set_mouse_click (flash-wave activation skipped), and spawn_anomaly.
-    /// Set via set_effects_enabled() from CLI --no-effects. Default: true.
+    /// PERF-4: when false, ALL particle subsystems are no-ops. --no-effects.
     pub(crate) effects_enabled: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
@@ -335,12 +332,12 @@ pub struct Cloud {
     pub(crate) crystal_dragon_last_poll: Option<std::time::Instant>,
     /// v30 Bug #4: true when --colors-custom active → suppress palette drift.
     pub(crate) custom_palette_active: bool,
-    /// v30 Bug #5: color_tune stored on Cloud so set_color_scheme re-applies it.
+    /// v30 Bug #5: color_tune on Cloud so set_color_scheme re-applies it.
     pub(crate) color_tune: crate::color_tune::ColorTune,
-    /// true when ambient asserted palette → suppress Crystal Dragon palette drift
-    /// replacement (climate drift still runs). Cleared by `c`/`C`/`x`.
-    /// See docs/archive/audits/AMBIENT_SCHEDULER_AUDIT.md §1.3.
+    /// true when ambient asserted palette → suppress Crystal Dragon drift (climate drift still runs). Cleared by `c`/`C`/`x`.
     pub(crate) ambient_palette_locked: bool,
+    /// v50.0.0-beta.7 Option C: when false, ambient fires skip the lock write → drift runs freely. Default true.
+    pub(crate) ambient_palette_lock_enabled: bool,
     /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
     /// or Crystal Dragon picked new palette since last ambient fire. Prevents
     /// event-loop dedup from skipping day-boundary refire. Cleared by
@@ -544,6 +541,8 @@ impl Cloud {
             // ambient-harmony flags start false (set by ambient fire,
             // cleared by user override x/c/s).
             ambient_palette_locked: false,
+            // v50.0.0-beta.7: ambient palette lock enabled by default (Option C).
+            ambient_palette_lock_enabled: true,
             user_override_since_ambient: false,
             event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
@@ -584,13 +583,14 @@ impl Cloud {
         self.event_manager.enable_events();
     }
 
-    /// PERF-4: set whether particle effects are enabled. When false, ALL
-    /// particle subsystems become no-ops: spawn_quantum_ripple,
-    /// spawn_border_spark, set_mouse_click (flash-wave skip), and
-    /// spawn_anomaly. Set from CLI `--no-effects` flag at startup.
-    /// Default: true (effects on).
+    /// PERF-4: when false, ALL particle subsystems become no-ops (quantum
+    /// ripple, border spark, click flash waves, anomaly zones). --no-effects.
     pub fn set_effects_enabled(&mut self, enabled: bool) {
         self.effects_enabled = enabled;
+    }
+
+    pub fn set_ambient_palette_lock_enabled(&mut self, enabled: bool) {
+        self.ambient_palette_lock_enabled = enabled;
     }
 
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {

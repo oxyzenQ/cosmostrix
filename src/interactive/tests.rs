@@ -277,6 +277,7 @@ mod cases {
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,
+            ambient_palette_lock: None,
         }
     }
 
@@ -822,7 +823,9 @@ mod fmt_opt_str_tests {
     fn some_quoted_without_wrapper() {
         assert_eq!(fmt_opt_str(Some("hello")), "\"hello\"");
         assert_eq!(
-            fmt_opt_str(Some("Experience a masterpiece with cosmostrix v50.0.0-beta.7")),
+            fmt_opt_str(Some(
+                "Experience a masterpiece with cosmostrix v50.0.0-beta.7"
+            )),
             "\"Experience a masterpiece with cosmostrix v50.0.0-beta.7\""
         );
     }

@@ -61,6 +61,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
     cloud.set_effects_enabled(cfg.effects_enabled);
+    cloud.set_ambient_palette_lock_enabled(cfg.ambient_palette_lock.unwrap_or(true));
     let caps = term.phosphor_tuning();
     cloud.set_phosphor_tuning(caps.0, caps.1, caps.2);
     // Bug-fix: no ambient phase has fired yet, so the user's CLI/config
@@ -82,7 +83,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     if cfg.intro != crate::config::IntroType::None {
-        // v50: intro-color override — uses theme head color (replaces #A855F7).
         let default_logo_color: (u8, u8, u8) = (168, 85, 247); // brand purple
         if let Some(ref intro_color) = cfg.intro_color {
             let intro_scheme = crate::theme::lookup_theme(intro_color);
@@ -144,8 +144,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         cloud.force_draw_everything();
         frame.clear_with_bg(cloud.palette.bg);
 
-        // (bug #10): re-read terminal size after intro. Intro can
-        // take seconds; user may have resized → (w,h) stale until SIGWINCH.
+        // (bug #10): re-read terminal size after intro (user may have resized).
         if cfg.screen_size.is_none() {
             if let Ok((nw, nh)) = term.size() {
                 if nw != w || nh != h {
@@ -291,9 +290,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         charset_preset = new_charset;
         scene_name = entry.scene.clone();
         scene_generation = scene_generation.wrapping_add(1);
-        // ambient asserted at startup — lock palette, clear override.
         cloud.user_override_since_ambient = false;
-        cloud.ambient_palette_locked = true;
+        if cloud.ambient_palette_lock_enabled {
+            cloud.ambient_palette_locked = true;
+        }
         term.set_color_cache(ColorCache::new(&cloud.palette));
         frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
@@ -380,6 +380,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             cloud.reset(w, h);
             cloud.enable_events();
             cloud.set_component_timing(new_cfg.perf_stats);
+            // v50.0.0-beta.7: re-apply ambient-palette-lock after rebuild
+            // (Option C — live-reloadable config key).
+            cloud.set_ambient_palette_lock_enabled(new_cfg.ambient_palette_lock.unwrap_or(true));
             // v50.0.0-beta.6: re-apply phosphor tuning + speed after rebuild.
             let c = term.phosphor_tuning();
             cloud.set_phosphor_tuning(c.0, c.1, c.2);
@@ -471,7 +474,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     scene_name = last_entry.scene.clone();
                     scene_generation = scene_generation.wrapping_add(1);
                     cloud.user_override_since_ambient = false;
-                    cloud.ambient_palette_locked = true;
+                    if cloud.ambient_palette_lock_enabled {
+                        cloud.ambient_palette_locked = true;
+                    }
                     super::ambient_diag_reapply();
                     super::ambient_diag_scene_change("rebuild-reapply");
                     term.set_color_cache(ColorCache::new(&cloud.palette));
@@ -543,8 +548,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 cloud.ambient_palette_locked = false;
             }
         }
-        // AB-03+AB-04: poll ambient phase events. Empty schedule → drain.
-        // Non-empty → discard events no longer in schedule (membership check).
+        // AB-03+AB-04: poll ambient phase events. Empty schedule → drain; non-empty → discard stale.
         let mut last_ambient_entry: Option<crate::crystal_dragon_engine::ambient::AmbientEntry> =
             None;
         if !last_ambient_schedule.entries.is_empty() {
@@ -557,9 +561,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         } else {
             while ambient_handle.rx.try_recv().is_ok() {} // drain stale
         }
-        // AB-08: ground-truth guard — if config file on disk says 0 entries
-        // but we got an rx event, the event is stale (watcher missed the
-        // change). Discard + nuke all ambient state.
+        // AB-08: ground-truth guard — if config file on disk says 0 entries but
+        // we got an rx event, the event is stale. Discard + nuke ambient state.
         // v50 audit C-2: rate-limit to 1 check per 5s (was per-frame).
         if last_ambient_entry.is_some()
             && last_ground_truth_check.elapsed() >= std::time::Duration::from_secs(5)
@@ -608,7 +611,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::ambient_diag_rx();
                 super::ambient_diag_scene_change(&format!("rx-event(scene={})", entry.scene));
                 cloud.user_override_since_ambient = false;
-                cloud.ambient_palette_locked = true;
+                if cloud.ambient_palette_lock_enabled {
+                    cloud.ambient_palette_locked = true;
+                }
                 if ambient_snapback_killed {
                     ambient_snapback_killed = false;
                 }
@@ -617,9 +622,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 super::fill_terminal_bg(cloud.palette.bg);
             }
         }
-        // AB-08: snapback ground-truth guard — re-read config file from disk.
-        // Cached state can go stale if watcher loses an event. ~50µs I/O,
-        // only when snapback might fire (≤ once per 30s).
+        // AB-08: snapback ground-truth guard — re-read config file (~50µs I/O, ≤ once per 30s).
         let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
         let _ab06_last_applied = last_applied_ambient_entry.is_some();
         super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
@@ -653,9 +656,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::ambient_diag_schedule_reload();
             super::ambient_diag_snapback_killed();
         }
-        let snapback_delay = current_cfg
-            .ambient_snapback_secs
-            .unwrap_or(crate::constants::AUTO_SNAPBACK_DELAY_SECS);
         if !ambient_snapback_killed
             && _ab06_sked_len > 0
             && _ab06_last_applied
@@ -671,7 +671,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 &user_ranges,
                 def_ascii,
                 last_user_input_at,
-                snapback_delay,
+                current_cfg.effective_snapback_delay(crate::constants::AUTO_SNAPBACK_DELAY_SECS),
             )
         {
             term.set_color_cache(ColorCache::new(&cloud.palette));
