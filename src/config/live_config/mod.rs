@@ -959,15 +959,28 @@ pub(crate) fn rebuild_cloud_config(
                 );
             }
         } else {
-            // No message in config. If msg-mode=false, clear any startup
-            // default that may have been set (rare — default fallback only
-            // fires at startup, not here, but defense-in-depth).
+            // No message in config. Mirror the startup default-fallback
+            // logic (main.rs:1239-1258): when args.message is None AND
+            // !bench_mode AND msg_mode_on, use default_message_text() with
+            // border. Without this, base.message (which may carry a stale
+            // config value like "hey") would be preserved instead of
+            // reverting to the default "Experience a masterpiece with
+            // cosmostrix v{}". Follows the same "reset-on-comment" pattern
+            // as color.tune (LIVE_RELOAD_BEHAVIOR.md Limitation C, fixed
+            // v50.0.0-alpha.7).
+            //
+            // Live-reload only fires in interactive mode (benchmarks exit
+            // immediately, no watcher), so the !bench_mode guard from
+            // main.rs is implicitly satisfied here.
             if !msg_mode_on {
                 new.message = None;
                 new.message_border = false;
+                lr_trace!("clear message (no config + msg-mode=false)");
+            } else {
+                new.message = Some(crate::constants::default_message_text());
+                new.message_border = true;
+                lr_trace!("revert message to default fallback (no config key, msg-mode=true)");
             }
-            // If msg-mode=true and no config message, preserve the startup
-            // default (already in new.message from base.clone()).
         }
     } else {
         lr_trace!(

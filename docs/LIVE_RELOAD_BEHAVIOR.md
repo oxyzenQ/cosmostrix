@@ -261,7 +261,18 @@ precedence:
 2. `msg-mode=false` -> suppress config message (gate fires)
 3. config `message-border` (wins over `message` when both present)
 4. config `message` (no border)
-5. default fallback (only at startup, not here)
+5. default fallback `Experience a masterpiece with cosmostrix v{}` with border
+   (applied on live-reload when no config message key is present —
+   mirrors startup behavior at main.rs:1239-1258)
+
+**v50.0.0-beta.7 follow-up**: the original fix preserved `base.message`
+when no config key was present, which leaked stale config values (e.g.
+user comments out `message = "hey"`, renderer kept showing "hey").
+Now the else branch resets to `default_message_text()` + border,
+mirroring the `color.tune` reset-on-comment pattern (Limitation C).
+Two lock tests prevent regression:
+`live_reload_no_config_message_reverts_to_default` and
+`live_reload_no_config_message_clears_when_msg_mode_false`.
 
 The `msg-mode` gate mirrors `config_apply.rs`: when `msg-mode=false`
 AND message came from config (not CLI), clear it. CLI `-m`/`-mb` is

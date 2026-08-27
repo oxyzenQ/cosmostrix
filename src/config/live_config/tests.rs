@@ -696,6 +696,49 @@ fn live_reload_msg_mode_defaults_true_when_unset() {
 }
 
 #[test]
+fn live_reload_no_config_message_reverts_to_default() {
+    // Bug fix v50.0.0-beta.7: when config has `message = "hey"` at
+    // startup, base.message = Some("hey"). User comments it out
+    // (# message = "hey"). Live-reload MUST revert to the default
+    // "Experience a masterpiece with cosmostrix v{}" with border=true
+    // — NOT preserve the stale "hey". Mirrors the color.tune
+    // reset-on-comment pattern (LIVE_RELOAD_BEHAVIOR.md Limitation C,
+    // fixed v50.0.0-alpha.7).
+    let mut base = minimal_cloud_config();
+    base.message = Some("hey".to_string()); // stale config value
+    base.message_border = false; // stale border state
+    base.cli_explicit.message = false; // no CLI -m/-mb
+    let cfg = HashMap::new(); // no message keys (commented out)
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.message.as_deref(),
+        Some(crate::constants::default_message_text().as_str()),
+        "commented-out config message must revert to default fallback, not preserve stale value"
+    );
+    assert!(
+        new.message_border,
+        "default fallback message must have border=true (mirrors main.rs startup fallback)"
+    );
+}
+
+#[test]
+fn live_reload_no_config_message_clears_when_msg_mode_false() {
+    // When msg-mode=false and no config message, message must be None
+    // (not the default fallback). This was already correct before the
+    // fix — this test locks the behavior to prevent regression.
+    let mut base = minimal_cloud_config();
+    base.message = Some("stale".to_string());
+    base.message_border = true;
+    base.cli_explicit.message = false;
+    base.msg_mode = false;
+    base.cli_explicit.msg_mode = true; // CLI --msg-mode false explicit
+    let cfg = HashMap::new();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(new.message, None, "msg-mode=false + no config → message must be None");
+    assert!(!new.message_border);
+}
+
+#[test]
 fn live_reload_cli_message_wins_over_config() {
     // CLI -m explicit (cli.message=true) → config message ignored.
     let mut base = minimal_cloud_config();
