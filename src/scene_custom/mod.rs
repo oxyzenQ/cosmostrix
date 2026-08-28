@@ -44,14 +44,7 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use clap::ValueEnum;
-
-use crate::charset::charset_from_str;
-use crate::cli::parse_color_scheme;
-use crate::colors_custom::is_colors_custom_name;
-use crate::config::{Args, GlitchLevel};
-use crate::constants::DENSITY_CLAMP_MAX;
-use crate::runtime::MonolithSize;
+use crate::config::Args;
 
 /// Canonical field list for `key=value` override blocks.
 ///
@@ -291,175 +284,6 @@ fn apply_base_scene_to_args(
         if !is_explicit(matches, "glitch_level") {
             args.glitch_level = glitch;
             modified.insert("glitch_level");
-        }
-    }
-}
-
-fn apply_profile_overrides(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-    name: &str,
-    profile: &UserProfile,
-    cfg: &HashMap<String, String>,
-    modified: &mut HashSet<&'static str>,
-) {
-    if let Some(value) = profile
-        .color
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "color"))
-    {
-        let is_valid = parse_color_scheme(value).is_ok() || is_colors_custom_name(cfg, value);
-        if is_valid {
-            args.color = value.to_string();
-            modified.insert("color");
-        } else {
-            warn_invalid(name, "color", value, "see --list-colors");
-        }
-    }
-    if let Some(value) = profile
-        .charset
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "charset"))
-    {
-        let is_valid = charset_from_str(value, false).is_ok()
-            || crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some();
-        if is_valid {
-            args.charset = value.to_string();
-            modified.insert("charset");
-        } else {
-            warn_invalid(name, "charset", value, "see --list-charsets");
-        }
-    }
-    if let Some(value) = profile
-        .fps
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "fps"))
-    {
-        if let Some(fps) = parse_f64_override(name, "fps", value, 1.0, 240.0) {
-            args.fps = fps;
-            modified.insert("fps");
-        }
-    }
-    if let Some(value) = profile
-        .speed
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "speed"))
-    {
-        if let Some(speed) = parse_speed_override(name, value) {
-            args.speed = speed;
-            modified.insert("speed");
-        }
-    }
-    if let Some(value) = profile
-        .density
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "density"))
-    {
-        if let Some(density) = parse_f32_override(name, "density", value, 0.01, DENSITY_CLAMP_MAX) {
-            args.density = density;
-            modified.insert("density");
-        }
-    }
-    if let Some(value) = profile
-        .glitch_level
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "glitch_level"))
-    {
-        match GlitchLevel::from_str(value, true) {
-            Ok(level) => {
-                args.glitch_level = level;
-                modified.insert("glitch_level");
-            }
-            Err(_) => warn_invalid(
-                name,
-                "glitch-level",
-                value,
-                "none, subtle, default, intense",
-            ),
-        }
-    }
-    if let Some(value) = profile
-        .monolith_size
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "monolith_size"))
-    {
-        match MonolithSize::from_str(value, true) {
-            Ok(size) => {
-                args.monolith_size = size;
-                modified.insert("monolith_size");
-            }
-            Err(_) => warn_invalid(name, "monolith-size", value, "small, normal, large"),
-        }
-    }
-    if let Some(value) = profile
-        .color_bg
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "color_bg"))
-    {
-        match parse_color_bg(value) {
-            Some(bg) => {
-                args.color_bg = bg;
-                modified.insert("color_bg");
-            }
-            None => warn_invalid(name, "color-bg", value, "black, default-background"),
-        }
-    }
-    if let Some(value) = profile
-        .bold
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "bold"))
-    {
-        if let Some(n) = parse_u8_override(name, "bold", value, 0, 2) {
-            args.bold = n;
-            modified.insert("bold");
-        }
-    }
-    if let Some(value) = profile
-        .shading_mode
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "shading_mode"))
-    {
-        if let Some(n) = parse_u8_override(name, "shadingmode", value, 0, 1) {
-            args.shading_mode = n;
-            modified.insert("shading_mode");
-        }
-    }
-    if let Some(value) = profile
-        .async_mode
-        .as_deref()
-        .filter(|_| !is_explicit(matches, "async_mode"))
-    {
-        match parse_bool(value) {
-            Some(b) => {
-                args.async_mode = Some(b);
-                modified.insert("async_mode");
-            }
-            None => warn_invalid(name, "async-mode", value, "true, false"),
-        }
-    }
-    if let Some(value) = profile.colors_custom.as_deref() {
-        if !is_explicit(matches, "colors_custom") && profile.color.is_none() {
-            if is_colors_custom_name(cfg, value) {
-                args.colors_custom = Some(value.to_string());
-                modified.insert("colors_custom");
-            } else {
-                warn_invalid(name, "colors-custom", value, "see [colors-custom.*] blocks");
-            }
-        }
-    }
-    if let Some(value) = profile.charset_custom.as_deref() {
-        if !is_explicit(matches, "charset") && profile.charset.is_none() {
-            if crate::charset_custom::load_custom_charset_if_matches(cfg, value).is_some() {
-                args.charset = value.to_string();
-                modified.insert("charset");
-            } else {
-                warn_invalid(
-                    name,
-                    "charset-custom",
-                    value,
-                    "see [charset-custom.*] blocks",
-                );
-            }
         }
     }
 }
@@ -867,133 +691,6 @@ pub(crate) fn apply_base_scene_to_cloud_config(
 /// are silently dropped (forbidden per owner contract — they should never
 /// reach this function because `is_scene_custom_config_key` filters them
 /// upstream, but we handle them defensively).
-#[must_use]
-pub(crate) fn apply_scene_custom_field_to_cloud_config(
-    new: &mut crate::app::CloudConfig,
-    cfg: &HashMap<String, String>,
-    field: &str,
-    value: &str,
-) -> bool {
-    match field {
-        "color" => {
-            if let Ok(scheme) = crate::cli::parse_color_scheme(value) {
-                new.color_scheme = scheme;
-                return true;
-            }
-            false
-        }
-        "colors-custom" => {
-            if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, value) {
-                new.custom_palette = Some(palette);
-                new.custom_palette_name = Some(value.to_string());
-                return true;
-            }
-            false
-        }
-        "charset" => {
-            if let Some(custom_chars) =
-                crate::charset_custom::load_custom_charset_if_matches(cfg, value)
-            {
-                new.charset_preset = value.to_string();
-                new.chars = custom_chars;
-                return true;
-            }
-            if let Ok(charset) = crate::charset::charset_from_str(value, false) {
-                new.charset_preset = value.to_string();
-                new.chars = crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
-                return true;
-            }
-            false
-        }
-        "charset-custom" => {
-            if let Some(custom_chars) =
-                crate::charset_custom::load_custom_charset_if_matches(cfg, value)
-            {
-                new.charset_preset = value.to_string();
-                new.chars = custom_chars;
-                return true;
-            }
-            false
-        }
-        "fps" => {
-            // (FPS-F4): gate with cli_explicit.fps so `--fps 144`
-            // survives a live-reload that re-applies the scene-custom block.
-            if new.cli_explicit.fps {
-                return false;
-            }
-            if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", value, 1.0, 240.0) {
-                new.target_fps = n;
-                return true;
-            }
-            false
-        }
-        "speed" => {
-            if let Ok(n) = crate::validation::parse_canonical_speed("speed", value) {
-                new.speed = n;
-                return true;
-            }
-            false
-        }
-        "density" => {
-            if let Ok(n) = crate::validation::parse_canonical_f32_range("density", value, 0.01, 5.0)
-            {
-                new.density = n;
-                new.base_density = n;
-                return true;
-            }
-            false
-        }
-        "glitch-level" => {
-            // (Glitch-BUG4): use shared preset helper. Was only
-            // flipping glitch_enabled, leaving glitch_pct/short_pct/etc
-            // stale — diverging from startup apply_custom_scene_runtime.
-            use clap::ValueEnum;
-            if let Ok(level) = crate::config::GlitchLevel::from_str(value, true) {
-                apply_glitch_level_preset_to_cloud_config(new, level);
-                return true;
-            }
-            false
-        }
-        "density-map" => {
-            if let Some(map) = parse_density_map(value) {
-                new.monolith_density_map = Some(map);
-                return true;
-            }
-            false
-        }
-        "bold" => {
-            if let Ok(n) = value.trim().parse::<u8>() {
-                new.bold_mode = match n {
-                    0 => crate::runtime::BoldMode::Off,
-                    2 => crate::runtime::BoldMode::All,
-                    _ => crate::runtime::BoldMode::Random,
-                };
-                return true;
-            }
-            false
-        }
-        "shadingmode" => {
-            if let Ok(n) = value.trim().parse::<u8>() {
-                new.shading_mode = match n {
-                    1 => crate::runtime::ShadingMode::DistanceFromHead,
-                    _ => crate::runtime::ShadingMode::Random,
-                };
-                return true;
-            }
-            false
-        }
-        "async-mode" => {
-            new.async_mode = matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "true" | "1" | "yes" | "on"
-            );
-            true
-        }
-        // monolith-size and color-bg are FORBIDDEN in scene-custom.
-        "monolith-size" | "color-bg" => false,
-        _ => false,
-    }
-}
 // v50.0.0-beta.7 LOC refactor: display + name validation + density map
 // parser extracted to display.rs to keep mod.rs under the 800-LOC hard
 // cap. Re-exported here so all existing call sites resolve unchanged.
@@ -1005,11 +702,14 @@ pub(crate) use display::{list_custom_scenes_text, parse_density_map, show_custom
 
 // v50.0.0-beta.7 LOC refactor: parse helpers extracted to helpers.rs.
 mod helpers;
+mod overrides;
 #[allow(unused_imports)]
 pub(crate) use helpers::{
     is_explicit, parse_bool, parse_color_bg, parse_f32_override, parse_f64_override,
     parse_speed_override, parse_u8_override, profile_name_list, warn_invalid,
 };
+#[allow(unused_imports)]
+pub(crate) use overrides::{apply_profile_overrides, apply_scene_custom_field_to_cloud_config};
 
 #[cfg(test)]
 mod tests;

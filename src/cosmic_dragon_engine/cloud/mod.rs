@@ -37,6 +37,7 @@ mod render;
 mod runtime_controls;
 mod scene_runtime;
 mod spawn;
+mod spawn_logic;
 mod spawn_reset;
 mod state;
 

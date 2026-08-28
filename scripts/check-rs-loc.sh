@@ -40,7 +40,6 @@ src/interactive/event_loop.rs
 src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
 src/interactive/hud/tests.rs
 src/cosmic_dragon_engine/cloud/rain.rs
-src/scene_custom/mod.rs
 src/bench/mod.rs
 src/config/config_apply_tests/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
@@ -52,7 +51,6 @@ src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
 src/droplet/mod.rs
 src/cosmic_dragon_engine/cloud/tests/mod.rs
-src/cosmic_dragon_engine/cloud/spawn.rs
 src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
 src/cosmic_dragon_engine/cloud/phosphor.rs
