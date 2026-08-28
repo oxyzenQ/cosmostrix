@@ -1112,6 +1112,15 @@ fn main() -> std::io::Result<()> {
             crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
                 &configfile::load_config_file(args.config.as_deref()),
             );
+        // v50.0.0-beta.7 LTS: read ambient-snapback-secs directly from config
+        // so verbose reports the EFFECTIVE runtime value (user-set), not the
+        // constant 30.0 default. Mirrors the live_config apply path: range
+        // 0.0..=86400.0; out-of-range parses to None (default 30s).
+        let verbose_ambient_snapback_secs = configfile::load_config_file(args.config.as_deref())
+            .get("ambient-snapback-secs")
+            .and_then(|v| {
+                crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+            });
         verbose::print_verbose(&verbose::VerboseCtx {
             version: env!("CARGO_PKG_VERSION"),
             scene_name: args.scene.as_deref(),
@@ -1174,6 +1183,7 @@ fn main() -> std::io::Result<()> {
             intro_color: args.intro_color.as_deref(),
             scene_custom: args.scene_custom.as_deref(),
             ambient_schedule: &verbose_ambient_schedule,
+            ambient_snapback_secs: verbose_ambient_snapback_secs,
         });
     }
     // v14 Peak Monolith: resolve per-column density map from the active
@@ -1424,6 +1434,11 @@ fn main() -> std::io::Result<()> {
             cloud_cfg.async_mode,
             cloud_cfg.intro_color.as_deref(),
             start_time,
+            // v50.0.0-beta.7 LTS: ambient startup state (paired with the
+            // final values read from FINAL_AMBIENT_* OnceLocks). Owner
+            // audit: these were missing entirely from final_runtime_verbose.
+            cloud_cfg.ambient_snapback_secs,
+            cloud_cfg.ambient_schedule.entries.len(),
         );
     }
 

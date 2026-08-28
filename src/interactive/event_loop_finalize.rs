@@ -155,6 +155,11 @@ pub(crate) fn finalize_session(
         cfg.crystal_dragon,
         cfg.async_mode,
         cfg.intro_color.as_deref(),
+        // v50.0.0-beta.7 LTS: ambient effective state (post-live-reload).
+        // Owner audit: previously missing — final_runtime_verbose had no
+        // way to show what snapback delay / schedule count was in effect.
+        cfg.ambient_snapback_secs,
+        cfg.ambient_schedule.entries.len(),
     );
 
     // v50.0.0-beta.6: final FPS line now printed BEFORE the perf report

@@ -371,7 +371,7 @@ mod cases_v35 {
         let snapback_ref = cloud.drift_start.unwrap();
         let idle_secs = now.saturating_duration_since(snapback_ref).as_secs_f64();
         assert!(
-            idle_secs >= 4.0 && idle_secs <= 6.0,
+            (4.0..=6.0).contains(&idle_secs),
             "idle must be ~5s (from drift_start), got {idle_secs}"
         );
         assert!(

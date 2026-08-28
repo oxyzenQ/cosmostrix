@@ -93,6 +93,14 @@ static FINAL_POWER_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_CRYSTAL_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_ASYNC_MODE: OnceLock<bool> = OnceLock::new();
 static FINAL_INTRO_COLOR: OnceLock<Option<String>> = OnceLock::new();
+// v50.0.0-beta.7 LTS audit: track ambient runtime state so the post-exit
+// "final runtime state" section can show the EFFECTIVE ambient config —
+// owner found that ambient + ambient-snapback-secs were missing entirely
+// from final_runtime_verbose, making it impossible to verify what value
+// was actually in effect when the session ended (live-reload edits to
+// ambient-snapback-secs were silently lost on exit).
+static FINAL_AMBIENT_SNAPBACK_SECS: OnceLock<Option<f64>> = OnceLock::new();
+static FINAL_AMBIENT_ENTRIES: OnceLock<usize> = OnceLock::new();
 
 /// Store final runtime state for post-exit verbose summary.
 ///
@@ -100,6 +108,13 @@ static FINAL_INTRO_COLOR: OnceLock<Option<String>> = OnceLock::new();
 /// power_dragon, crystal_dragon, async_mode, intro_color — so the
 /// post-exit "final runtime state" section reflects ALL live-reload
 /// changes, not just color/scene/charset/speed/density.
+///
+/// v50.0.0-beta.7 LTS audit: extended with ambient_snapback_secs +
+/// ambient_entries so the final-runtime section reports the EFFECTIVE
+/// ambient config (owner audit found these missing — live-reload edits
+/// to ambient-snapback-secs were silently lost on exit, making it
+/// impossible to verify the actual snapback delay in effect when the
+/// session ended).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn set_final_state(
     color: &str,
@@ -114,6 +129,8 @@ pub(crate) fn set_final_state(
     crystal_dragon: bool,
     async_mode: bool,
     intro_color: Option<&str>,
+    ambient_snapback_secs: Option<f64>,
+    ambient_entries: usize,
 ) {
     let _ = FINAL_COLOR.set(color.to_string());
     let _ = FINAL_SCENE.set(scene.to_string());
@@ -127,6 +144,8 @@ pub(crate) fn set_final_state(
     let _ = FINAL_CRYSTAL_DRAGON.set(crystal_dragon);
     let _ = FINAL_ASYNC_MODE.set(async_mode);
     let _ = FINAL_INTRO_COLOR.set(intro_color.map(|s| s.to_string()));
+    let _ = FINAL_AMBIENT_SNAPBACK_SECS.set(ambient_snapback_secs);
+    let _ = FINAL_AMBIENT_ENTRIES.set(ambient_entries);
 }
 
 /// v50.0.0-alpha.7: accessor for final msg_mode (post-live-reload).
@@ -162,6 +181,20 @@ pub(crate) fn last_async_mode() -> bool {
 /// v50.0.0-alpha.7: accessor for final intro_color (post-live-reload).
 pub(crate) fn last_intro_color() -> Option<&'static str> {
     FINAL_INTRO_COLOR.get().and_then(|m| m.as_deref())
+}
+
+/// v50.0.0-beta.7 LTS: accessor for final ambient_snapback_secs
+/// (post-live-reload). None = unset in config → runtime used
+/// `AUTO_SNAPBACK_DELAY_SECS` (30.0). Some(secs) = user-set value via
+/// `ambient-snapback-secs` config key.
+pub(crate) fn last_ambient_snapback_secs() -> Option<f64> {
+    FINAL_AMBIENT_SNAPBACK_SECS.get().copied().flatten()
+}
+
+/// v50.0.0-beta.7 LTS: accessor for final ambient schedule entries count
+/// (post-live-reload). 0 = scheduler idles (no ambient phases configured).
+pub(crate) fn last_ambient_entries() -> usize {
+    *FINAL_AMBIENT_ENTRIES.get().unwrap_or(&0)
 }
 
 /// Format an `Option<&str>` for the live-reload change tracker.
@@ -218,6 +251,12 @@ pub(crate) fn print_final_runtime_state(
     // Used to compute `duration:` in the exit summary. Monotonic so NTP
     // jumps cannot produce a negative duration.
     start_time: std::time::Instant,
+    // v50.0.0-beta.7 LTS: ambient startup state — paired with the final
+    // values read from FINAL_AMBIENT_* OnceLocks below so the post-exit
+    // section ALWAYS reports the effective ambient config (owner audit:
+    // these were missing entirely from final_runtime_verbose).
+    startup_ambient_snapback_secs: Option<f64>,
+    startup_ambient_entries: usize,
 ) {
     let final_color = last_color_scheme();
     let final_scene = last_scene_name();
@@ -231,6 +270,9 @@ pub(crate) fn print_final_runtime_state(
     let final_crystal_dragon = last_crystal_dragon();
     let final_async_mode = last_async_mode();
     let final_intro_color = last_intro_color();
+    // v50.0.0-beta.7 LTS: read final ambient state (post-live-reload).
+    let final_ambient_snapback_secs = last_ambient_snapback_secs();
+    let final_ambient_entries = last_ambient_entries();
 
     // v50.0.0-rc.1: previously this function early-returned when no field
     // changed, suppressing the entire section. Now the section ALWAYS
@@ -338,6 +380,41 @@ pub(crate) fn print_final_runtime_state(
             fmt_opt_str(startup_intro_color)
         );
     }
+
+    // v50.0.0-beta.7 LTS audit: ALWAYS print the ambient runtime state
+    // (not gated by change) so the user can verify what was actually in
+    // effect at session end. Owner found these missing entirely from
+    // final_runtime_verbose — without them, it's impossible to confirm
+    // whether a live-reload edit to `ambient-snapback-secs` survived
+    // or whether the ambient schedule was loaded at all. The `(was X)`
+    // suffix appears only when startup != final (live-reload happened).
+    let snapback_now =
+        final_ambient_snapback_secs.unwrap_or(crate::constants::AUTO_SNAPBACK_DELAY_SECS);
+    let snapback_was =
+        startup_ambient_snapback_secs.unwrap_or(crate::constants::AUTO_SNAPBACK_DELAY_SECS);
+    let snapback_src = if final_ambient_snapback_secs.is_some() {
+        "config"
+    } else {
+        "default (unset — 30.0s)"
+    };
+    let snapback_was_label = if final_ambient_snapback_secs != startup_ambient_snapback_secs {
+        format!(" (was {snapback_was:.1}s)")
+    } else {
+        String::new()
+    };
+    crate::output::eprintln_safe!(
+        "{purple}[verbose]{reset} {ts} {purple}  ambient_snapback_secs:{reset} {snapback_now:.1}s ({snapback_src}){snapback_was_label}"
+    );
+    let entries_was_label = if final_ambient_entries != startup_ambient_entries {
+        format!(" (was {})", startup_ambient_entries)
+    } else {
+        String::new()
+    };
+    crate::output::eprintln_safe!(
+        "{purple}[verbose]{reset} {ts} {purple}  ambient_entries:{reset}    {}{entries_was_label}",
+        final_ambient_entries
+    );
+
     let diag = ambient_diag_summary();
     crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
 }
