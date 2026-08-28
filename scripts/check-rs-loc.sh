@@ -44,7 +44,6 @@ src/cosmic_dragon_engine/cloud/rain.rs
 src/scene_custom/mod.rs
 src/bench/mod.rs
 src/config/config_apply_tests/mod.rs
-src/central_control_rains/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
 src/interactive/hud/mod.rs
 src/cosmic_dragon_engine/terminal/mod.rs
