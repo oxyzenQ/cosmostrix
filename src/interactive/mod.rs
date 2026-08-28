@@ -43,6 +43,7 @@ mod bg_fill;
 mod event_loop;
 mod event_loop_finalize;
 mod event_loop_intro;
+mod event_loop_scene_sync;
 mod hud;
 mod input;
 mod intro;

@@ -269,7 +269,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // CLI flags are zeroed before rebuild so config has full
             // authority on live-reload. Scene defaults synced first.
             if !new_cfg_map.contains_key("scene") {
-                sync_base_cfg_with_runtime_scene(&mut base_cfg, &scene_name);
+                super::event_loop_scene_sync::sync_base_cfg_with_runtime_scene(
+                    &mut base_cfg,
+                    &scene_name,
+                );
             }
             base_cfg.cli_explicit = crate::app::CliExplicit::default();
             let new_cfg = crate::live_config::rebuild_cloud_config(&base_cfg, &new_cfg_map);
@@ -1379,38 +1382,4 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         &charset_preset,
         &current_cfg,
     )
-}
-
-/// v50.0.0-beta.6 masterclass: sync base_cfg with the runtime scene's
-/// managed defaults (color, charset, speed, density, rain_style).
-/// Called before rebuild_cloud_config so config overrides layer on top
-/// of scene defaults (user wins: editing `color` changes only color).
-fn sync_base_cfg_with_runtime_scene(base_cfg: &mut crate::CloudConfig, scene_name: &str) {
-    if base_cfg.scene_name == scene_name {
-        return;
-    }
-    base_cfg.scene_name = scene_name.to_string();
-    let Some(scene_info) = crate::scene::get_scene(scene_name) else {
-        return;
-    };
-    let sc = scene_info.config;
-    if let Some(color) = sc.color {
-        if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-            base_cfg.color_scheme = scheme;
-        }
-    }
-    if let Some(charset_name) = sc.charset {
-        base_cfg.charset_preset = charset_name.to_string();
-        if let Ok(charset) = crate::charset::charset_from_str(charset_name, base_cfg.def_ascii) {
-            base_cfg.chars =
-                crate::charset::build_chars(charset, &base_cfg.user_ranges, base_cfg.def_ascii);
-        }
-    }
-    if let Some(speed) = sc.speed {
-        base_cfg.speed = speed;
-    }
-    if let Some(density) = sc.density {
-        base_cfg.base_density = density;
-    }
-    base_cfg.rain_style = sc.rain_style;
 }
