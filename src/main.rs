@@ -57,6 +57,13 @@ pub(crate) use bench::*;
 // Group: CLI subsystem (cli.rs → mod.rs, cli_parse.rs, app.rs, help_detail.rs)
 mod cli;
 pub(crate) use cli::{app, cli_parse, help_detail};
+// v50.0.0-beta.7 LOC refactor: extract_clap_suggestion + canonicalize_runtime_args
+// moved to cli/suggestion.rs + cli/canonicalize.rs to keep main.rs under 800 LOC.
+// Re-exported at crate root so 'use crate::extract_clap_suggestion' in
+// tests/clap_suggestion.rs + 'crate::canonicalize_runtime_args' in
+// chroma_dragon_engine/tests/color_detection.rs continue to resolve.
+pub(crate) use cli::canonicalize::canonicalize_runtime_args;
+pub(crate) use cli::suggestion::extract_clap_suggestion;
 
 // Group: Chroma Dragon coloring engine
 mod chroma_dragon_engine;
@@ -111,6 +118,10 @@ pub(crate) use output::{message, report, ux, verbose};
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
 pub(crate) use platform::{panic_hook, update};
+// v50.0.0-beta.7 LOC refactor: spawn_kill9_terminal_guard moved to
+// platform/fork_guard.rs. Re-exported at crate root so the existing
+// 'crate::spawn_kill9_terminal_guard()' call site resolves unchanged.
+pub(crate) use platform::fork_guard::spawn_kill9_terminal_guard;
 
 // Group: Safepath subsystem
 mod safepath;
@@ -152,8 +163,6 @@ mod validation;
 
 use clap::{CommandFactory, FromArgMatches};
 
-use std::io::IsTerminal;
-
 use std::env;
 
 use crate::charset::{build_chars, charset_from_str};
@@ -164,7 +173,6 @@ use crate::config::{
 use crate::constants::*;
 use crate::runtime::{BoldMode, ColorScheme, ShadingMode};
 use crate::terminal::reset_terminal_emergency;
-use crate::terminal::restore_terminal_best_effort;
 use crate::validation::{
     prevalidate_cli_args, validate_f32_range, validate_f64_range, validate_speed,
     validate_u16_range, validate_u8_range,
@@ -188,209 +196,6 @@ pub use info::env_var_truthy;
 
 // Path security validation lives in src/safepath/mod.rs.
 pub(crate) use crate::safepath::{is_safe_path, validate_config_path};
-
-/// Fork guard: protects the terminal from being left in raw mode when
-/// cosmostrix is killed unexpectedly (SIGKILL, segfault, OOM).
-///
-/// When cosmostrix starts, it switches the terminal to raw mode. Normally
-/// `Terminal::drop()` restores the original settings on graceful exit.
-/// But SIGKILL bypasses all Rust cleanup — the terminal stays broken:
-/// no echo, no line buffering, keys produce garbage. The user must blindly
-/// type `reset` or `stty sane` to recover.
-///
-/// Three strategies by platform:
-///
-/// - **Linux**: `fork()` + `prctl(PR_SET_PDEATHSIG)`. A child process holds
-///   the original termios and waits for SIGTERM (delivered instantly by the
-///   kernel when the parent dies). Zero latency, zero CPU overhead. This is
-///   the gold standard — `prctl` is Linux-only.
-///
-/// - **All other Unix** (macOS, FreeBSD, OpenBSD, NetBSD, Android/Termux):
-///   A background thread polls `getppid()` every 500ms. When the parent dies,
-///   the child is reparented to PID 1 (launchd/init) — ppid becomes 1. The
-///   thread detects this and restores the terminal. 500ms worst-case latency
-///   (typically ~250ms average), negligible CPU (one syscall per 500ms).
-///   This covers macOS (no prctl), BSD (no prctl), and Android (fork may be
-///   restricted by seccomp, but threads always work).
-///
-/// - **Windows**: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
-///   restores console state when the attached process exits, even on
-///   Task Manager kill. Legacy cmd.exe has `SetConsoleMode` but it also
-///   reverts on process exit. The panic hook and watchdog still cover the
-///   graceful-shutdown path. Set `COSMOSTRIX_NO_FORK_GUARD=1` to skip.
-//
-// ── Linux: fork + prctl(PR_SET_PDEATHSIG) ─────────────────────────────
-#[cfg(target_os = "linux")]
-pub fn spawn_kill9_terminal_guard() {
-    if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
-        return;
-    }
-
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        return;
-    }
-
-    // SAFETY: this Linux-only guard calls libc APIs that Rust cannot model
-    // safely (`tcgetattr`, `fork`, signal-mask setup, `prctl`, `sigwait`, and
-    // `_exit`). We only enter after confirming stdin/stdout are TTYs. `orig`
-    // and `set` are initialized by the corresponding libc calls before
-    // `assume_init`, the child process does not return into Rust application
-    // flow, and restoration is limited to best-effort terminal recovery.
-    unsafe {
-        let mut orig: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
-        if libc::tcgetattr(libc::STDIN_FILENO, orig.as_mut_ptr()) != 0 {
-            return;
-        }
-        let orig = orig.assume_init();
-
-        let pid = libc::fork();
-        if pid != 0 {
-            return;
-        }
-
-        // Initialize sigset_t via MaybeUninit — sigemptyset will fully
-        // initialize it, so this is safe.
-        let mut set = std::mem::MaybeUninit::<libc::sigset_t>::uninit();
-        libc::sigemptyset(set.as_mut_ptr());
-        libc::sigaddset(set.as_mut_ptr(), libc::SIGTERM);
-        let _ = libc::pthread_sigmask(libc::SIG_BLOCK, set.as_ptr(), std::ptr::null_mut());
-        let set = set.assume_init();
-
-        let _ = libc::prctl(
-            libc::PR_SET_NAME,
-            c"cx-term-guard".as_ptr() as usize,
-            0,
-            0,
-            0,
-        );
-        let _ = libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0);
-
-        if libc::getppid() == 1 {
-            let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
-            restore_terminal_best_effort();
-            libc::_exit(0);
-        }
-
-        let mut sig: libc::c_int = 0;
-        let _ = libc::sigwait(&set, &mut sig);
-        // Only restore terminal modes if the parent died abnormally
-        // (SIGKILL, crash). When pkill -TERM is used, both parent and
-        // child receive SIGTERM — the parent's Terminal::drop() handles
-        // all terminal cleanup. After PR_SET_PDEATHSIG, check ppid:
-        // - ppid == 1: parent already dead (SIGKILL or crash) → restore
-        // - ppid != 1: parent still alive or exiting normally → do nothing
-        if sig == libc::SIGTERM && libc::getppid() == 1 {
-            let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
-            restore_terminal_best_effort();
-        }
-
-        libc::_exit(0);
-    }
-}
-
-// ── All other Unix (macOS, BSD, Android/Termux): getppid polling ───────
-
-/// Unix fallback: background thread polling `getppid()`.
-///
-/// Used on all Unix platforms except Linux (which has the superior fork+prctl).
-/// Covers macOS, FreeBSD, OpenBSD, NetBSD, DragonFly BSD, and Android/Termux.
-///
-/// When the parent cosmostrix process dies (SIGKILL, crash, OOM), the OS
-/// reparents this thread to PID 1. The thread detects ppid==1 and restores
-/// the terminal. Worst-case latency: 500ms. CPU overhead: one `getppid()`
-/// syscall per 500ms — negligible.
-#[cfg(all(unix, not(target_os = "linux")))]
-pub fn spawn_kill9_terminal_guard() {
-    if env_var_truthy("COSMOSTRIX_NO_FORK_GUARD") {
-        return;
-    }
-
-    if !std::io::stdin().is_terminal() || !std::io::stdout().is_terminal() {
-        return;
-    }
-
-    // SAFETY: tcgetattr is the standard POSIX call to read terminal
-    // attributes. stdin is confirmed to be a TTY above.
-    let orig = unsafe {
-        let mut termios: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
-        if libc::tcgetattr(libc::STDIN_FILENO, termios.as_mut_ptr()) != 0 {
-            return;
-        }
-        termios.assume_init()
-    };
-
-    std::thread::Builder::new()
-        .name("cx-term-guard".to_string())
-        .spawn(move || {
-            loop {
-                std::thread::sleep(std::time::Duration::from_millis(500));
-                // SAFETY: getppid() is a simple POSIX call, always safe.
-                // On parent death, OS reparents to PID 1 (launchd/init).
-                if unsafe { libc::getppid() } == 1 {
-                    // Parent died — restore terminal and exit this thread.
-                    let _ = unsafe { libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig) };
-                    restore_terminal_best_effort();
-                    return;
-                }
-            }
-        })
-        .expect("failed to spawn terminal guard thread");
-}
-
-// ── Windows: no-op (ConPTY auto-restores) ──────────────────────────────
-
-/// Windows: no fork guard needed.
-///
-/// ConPTY (Windows Terminal, PowerShell 7+, VSCode) automatically restores
-/// console mode when the attached process exits — even on Task Manager kill
-/// or crash. Legacy cmd.exe with `SetConsoleMode` also reverts on exit.
-/// The panic hook and watchdog still cover graceful shutdown.
-#[cfg(not(unix))]
-pub fn spawn_kill9_terminal_guard() {}
-
-/// Extract clap's OWN suggested flag from its error string.
-///
-/// When clap's `suggestions` feature is enabled and the user types an
-/// unknown flag that is close to a known one, clap appends a line:
-///
-///   ```text
-///   tip: a similar argument exists: '--no-effects'
-///   ```
-///
-/// (or the plural form `tip: some similar arguments exist: '--a', '--b'`).
-///
-/// This function parses that line and returns the FIRST suggested flag
-/// name (without the `--` prefix). By reusing clap's own suggestion
-/// instead of maintaining a separate `KNOWN_LONG_FLAGS` list + Levenshtein
-/// engine, we guarantee:
-///
-/// 1. The "tip:" line and the "Did you mean?" line ALWAYS agree on which
-///    flag to suggest (no more `--clr` -> tip says `color-bg` but
-///    Did-you-mean says `color` disagreement).
-/// 2. No hand-maintained flag list to drift when flags are renamed
-///    (the v50.0.0-beta.7 `--disable-effects` -> `--no-effects` rename
-///    missed `KNOWN_LONG_FLAGS`, which was the root cause of this bug).
-/// 3. Zero duplicate-engine maintenance overhead.
-///
-/// Returns `None` when clap did not find a close match (no "tip:" line
-/// in the error string).
-pub(crate) fn extract_clap_suggestion(err_str: &str) -> Option<String> {
-    // Clap renders the tip line in two forms:
-    //   singular: "tip: a similar argument exists: '--FLAG'"
-    //   plural:   "tip: some similar arguments exist: '--FLAG1', '--FLAG2'"
-    // Both contain the pattern: '-- followed by the flag name and a closing '
-    // We find the FIRST occurrence after "tip:" to extract the primary suggestion.
-    let tip_marker = "tip:";
-    let tip_pos = err_str.find(tip_marker)?;
-    let after_tip = &err_str[tip_pos..];
-    // Find the first '--FLAG' pattern (clap always wraps flag names in single
-    // quotes with the -- prefix inside the quote).
-    let quote_flag_marker = "'--";
-    let flag_start = after_tip.find(quote_flag_marker)? + quote_flag_marker.len();
-    let rest = &after_tip[flag_start..];
-    let flag_end = rest.find('\'')?;
-    Some(rest[..flag_end].to_string())
-}
 
 fn main() -> std::io::Result<()> {
     // v50.0.0-rc.1: capture program-start Instant for the verbose exit
@@ -1442,18 +1247,4 @@ fn main() -> std::io::Result<()> {
         crate::output::eprintln_safe!("{t}");
     }
     result
-}
-
-fn canonicalize_runtime_args(args: &mut Args) {
-    // Skip canonicalization when -c/--color points to a custom palette
-    // (not a built-in theme name). Custom names have no canonical form.
-    if colors_custom::is_colors_custom_name(
-        &configfile::load_config_file(args.config.as_deref()),
-        &args.color,
-    ) {
-        return;
-    }
-    if let Some(canonical) = theme::canonical_name_for_input(&args.color) {
-        args.color = canonical.to_string();
-    }
 }
