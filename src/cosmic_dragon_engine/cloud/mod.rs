@@ -26,6 +26,7 @@ mod living_rain;
 mod message_draw;
 mod monolith;
 mod monolith_glyphs;
+mod monolith_helpers;
 #[cfg(test)]
 mod monolith_tests;
 mod palette_blend;
@@ -36,6 +37,7 @@ mod render;
 mod runtime_controls;
 mod scene_runtime;
 mod spawn;
+mod spawn_reset;
 mod state;
 
 #[cfg(test)]
