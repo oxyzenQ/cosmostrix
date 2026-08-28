@@ -78,66 +78,6 @@ pub(crate) fn color_enabled_stdout() -> bool {
     std::io::stdout().is_terminal()
 }
 
-pub(crate) fn colorize_help(text: &str) -> String {
-    let mut out = String::with_capacity(text.len() + 64);
-    for chunk in text.split_inclusive('\n') {
-        let (line, nl) = chunk
-            .strip_suffix('\n')
-            .map(|l| (l, "\n"))
-            .unwrap_or((chunk, ""));
-
-        let is_heading =
-            !line.starts_with(' ') && line.ends_with(':') && line == line.to_ascii_uppercase();
-
-        if is_heading {
-            // Bold brand purple for section headings (matches --help USAGE:).
-            out.push_str(crate::output::brand_bold_open());
-            out.push_str(line);
-            out.push_str(crate::output::reset());
-            out.push_str(nl);
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("      Example:") {
-            // Bold white for "Example:" labels
-            out.push_str("      \x1b[1mExample:\x1b[0m");
-            out.push_str(rest);
-            out.push_str(nl);
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("  cosmostrix") {
-            // Bold white for command examples
-            out.push_str("  \x1b[1mcosmostrix\x1b[0m");
-            out.push_str(rest);
-            out.push_str(nl);
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("  -") {
-            // Bold white for short flags (-c, -S, etc.)
-            out.push_str("  \x1b[1m-");
-            out.push_str(rest);
-            out.push_str("\x1b[0m");
-            out.push_str(nl);
-            continue;
-        }
-
-        if let Some(rest) = line.strip_prefix("  --") {
-            // Bold white for long flags (--color, --fps, etc.)
-            out.push_str("  \x1b[1m--");
-            out.push_str(rest);
-            out.push_str("\x1b[0m");
-            out.push_str(nl);
-            continue;
-        }
-
-        out.push_str(line);
-        out.push_str(nl);
-    }
-    out
-}
-
 // Enums
 
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
@@ -839,8 +779,11 @@ pub struct Args {
 }
 
 // v50.0.0-beta.7 LOC refactor: list-printer functions extracted to
-// list_printers.rs to keep mod.rs under the 800-LOC hard cap.
+// list_printers.rs + colorize_help to colorize_help.rs to keep mod.rs
+// under the 800-LOC hard cap.
+mod colorize_help;
 mod list_printers;
+pub(crate) use colorize_help::colorize_help;
 pub(crate) use list_printers::{
     print_list_charsets, print_list_colors, print_list_scenes, print_show_scene,
 };

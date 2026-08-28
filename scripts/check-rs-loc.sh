@@ -36,7 +36,6 @@ EXEMPT_VIOLATIONS=0
 # Format: one path per line, no leading ./
 EXEMPT_BELOW_800="
 src/main.rs
-src/cosmic_dragon_engine/cloud/mod.rs
 src/interactive/event_loop.rs
 src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
 src/interactive/hud/tests.rs
@@ -53,7 +52,6 @@ src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
 src/droplet/mod.rs
 src/cosmic_dragon_engine/cloud/tests/mod.rs
-src/config/mod.rs
 src/cosmic_dragon_engine/cloud/monolith.rs
 src/cosmic_dragon_engine/cloud/spawn.rs
 src/interactive/tests_v35.rs
