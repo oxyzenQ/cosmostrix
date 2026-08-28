@@ -12,6 +12,7 @@
 //! (see `chroma/shaders/transition.rs`).
 
 mod border;
+mod border_touch;
 // Newly relocated from src/ root (audit M12). Re-exported as `pub(crate)`
 // so the 11 existing `crate::cinematic::Foo` and
 // `crate::brightness_factors::Foo` call sites continue to resolve via the
