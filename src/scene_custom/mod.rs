@@ -43,7 +43,6 @@
 //! prefix to `scene-custom`.
 
 use std::collections::{BTreeMap, HashMap, HashSet};
-use std::sync::OnceLock;
 
 use clap::parser::ValueSource;
 use clap::ValueEnum;
@@ -1093,170 +1092,14 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
         _ => false,
     }
 }
-
-/// Validate a custom-scene name. Shares the same rules as profile names
-/// (letters, digits, `-`, `_`) so migration is frictionless.
-/// Test-only — production validation uses validate_custom_scene_name()
-/// which calls is_valid_profile_name() directly.
-#[must_use]
+// v50.0.0-beta.7 LOC refactor: display + name validation + density map
+// parser extracted to display.rs to keep mod.rs under the 800-LOC hard
+// cap. Re-exported here so all existing call sites resolve unchanged.
+mod display;
 #[cfg(test)]
-pub fn is_valid_custom_scene_name(name: &str) -> bool {
-    is_valid_profile_name(name)
-}
-
-/// Normalize and validate a custom-scene name. Returns the lowercased name
-/// on success or an error message on failure.
-/// Test-only — production code uses validate_profile_name() directly.
-#[cfg(test)]
-pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
-    let normalized = name.trim().to_ascii_lowercase();
-    if is_valid_custom_scene_name(&normalized) {
-        Ok(normalized)
-    } else {
-        Err(format!(
-            "error: invalid custom scene: {name}\nexpected: letters, digits, '-' or '_'"
-        ))
-    }
-}
-
-/// Parse a comma-separated density-map string into a leaked `&'static [f64]`.
-///
-/// Format: `"1.0,0.5,0.0,0.8,..."` — weights in `[0.0, 1.0]` (out-of-range
-/// clamped). Empty/whitespace entries skipped. Returns `None` if no valid
-/// numbers. The slice is `'static`. v30: leak is deduplicated by content
-/// via a global `OnceLock<HashMap<String, &'static [f64]>>`.
-#[must_use]
-pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
-    // v30 fix: accept BOTH unquoted (`0.05,0.3,1.0`) and quoted
-    // (`"0.05,0.3,1.0"`) CSV. The configfile parser is a custom line-by-line
-    // parser (not real TOML) and does NOT strip surrounding quotes — quoted
-    // silently failed --testconf. Now we strip a single pair of `"` (or `'`)
-    // before splitting, matching colors_custom + charset_custom.
-    let csv = csv.trim().trim_matches('"').trim_matches('\'').trim();
-
-    // Dedup cache: maps normalized CSV → parsed &'static slice. Keyed on the
-    // quote-stripped string so `"0.5,0.5"` and `0.5,0.5` share one entry.
-    static DENSITY_MAP_CACHE: OnceLock<std::sync::Mutex<HashMap<String, &'static [f64]>>> =
-        OnceLock::new();
-    let cache = DENSITY_MAP_CACHE.get_or_init(|| std::sync::Mutex::new(HashMap::new()));
-
-    // Shared parse closure — used by both the healthy-lock + poisoned-mutex
-    // paths so they stay in sync (no behavior drift between cached/uncached).
-    let parse_weights = || -> Option<Vec<f64>> {
-        let weights: Vec<f64> = csv
-            .split(',')
-            .filter_map(|s| {
-                let s = s.trim();
-                if s.is_empty() {
-                    return None;
-                }
-                s.parse::<f64>().ok().map(|v| v.clamp(0.0, 1.0))
-            })
-            .collect();
-        if weights.is_empty() {
-            None
-        } else {
-            Some(weights)
-        }
-    };
-
-    // v50 poison-safe lock: never propagate a poisoned mutex as a panic.
-    // Matches the `if let Ok(g)` pattern used by every other production lock.
-    if let Ok(mut cache) = cache.lock() {
-        if let Some(existing) = cache.get(csv) {
-            return Some(*existing);
-        }
-        let weights = parse_weights()?;
-        // Leak the Vec → &'static slice. Cache ensures we leak once per
-        // distinct CSV string (live-reload no longer grows memory).
-        let leaked: &'static [f64] = Box::leak(weights.into_boxed_slice());
-        cache.insert(csv.to_string(), leaked);
-        Some(leaked)
-    } else {
-        // Poisoned-mutex recovery: one-shot parse, skip dedup. Only
-        // reachable after a panic in another thread holding this lock.
-        let weights = parse_weights()?;
-        Some(Box::leak(weights.into_boxed_slice()))
-    }
-}
-
-/// Render a one-line-per-entry listing of custom scenes from config.
-///
-/// Output is appended under the "CUSTOM SCENES (from config)" heading in
-/// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
-/// so the two groups visually align.
-///
-/// when a custom scene sets `base-scene`, the listing annotates it
-/// as `name (base: <base-scene>)` so users can see at a glance which
-/// built-in scene a custom scene inherits from. Custom scenes without
-/// `base-scene` render as just `name` (inherit from cinematic implicitly).
-#[must_use]
-pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
-    let mut out = String::new();
-    for (name, scene) in scenes {
-        if let Some(base) = scene.base_scene.as_deref() {
-            out.push_str(&format!("  {name} (base: {base})\n"));
-        } else {
-            out.push_str(&format!("  {name}\n"));
-        }
-    }
-    out
-}
-
-/// Render a detailed description of a single custom scene.
-#[must_use]
-pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
-    let mut out = String::new();
-    out.push_str(&format!("CUSTOM SCENE: {name}\n\n"));
-    out.push_str("  Configuration:\n");
-
-    let mut has_field = false;
-    if let Some(base) = scene.base_scene.as_deref() {
-        out.push_str(&format!("    base-scene          = {base}\n"));
-        has_field = true;
-    }
-    if let Some(color) = scene.color.as_deref() {
-        out.push_str(&format!("    color              = {color}\n"));
-        has_field = true;
-    }
-    if let Some(charset) = scene.charset.as_deref() {
-        out.push_str(&format!("    charset            = {charset}\n"));
-        has_field = true;
-    }
-    if let Some(fps) = scene.fps.as_deref() {
-        out.push_str(&format!("    fps                = {fps}\n"));
-        has_field = true;
-    }
-    if let Some(speed) = scene.speed.as_deref() {
-        out.push_str(&format!("    speed              = {speed}\n"));
-        has_field = true;
-    }
-    if let Some(density) = scene.density.as_deref() {
-        out.push_str(&format!("    density            = {density}\n"));
-        has_field = true;
-    }
-    if let Some(glitch) = scene.glitch_level.as_deref() {
-        out.push_str(&format!("    glitch-level       = {glitch}\n"));
-        has_field = true;
-    }
-    if let Some(size) = scene.monolith_size.as_deref() {
-        out.push_str(&format!("    monolith-size      = {size}\n"));
-        has_field = true;
-    }
-    if let Some(bg) = scene.color_bg.as_deref() {
-        out.push_str(&format!("    color-bg           = {bg}\n"));
-        has_field = true;
-    }
-
-    if !has_field {
-        out.push_str("    (no fields set — using global defaults from cinematic)\n");
-    }
-
-    out.push_str("\n  Use: cosmostrix --scene-custom ");
-    out.push_str(name);
-    out.push('\n');
-    out
-}
+#[allow(unused_imports)]
+pub(crate) use display::{is_valid_custom_scene_name, validate_custom_scene_name};
+pub(crate) use display::{list_custom_scenes_text, parse_density_map, show_custom_scene_text};
 
 #[cfg(test)]
 mod tests;
