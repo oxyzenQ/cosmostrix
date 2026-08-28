@@ -119,6 +119,11 @@ mod safepath;
 mod scene;
 pub(crate) use scene::{charset, charset_custom};
 
+// v50.0.0-beta.7 LTS: post-exit verbose dump extracted to keep main.rs
+// under the 1500-LOC cap. Owns startup ambient info + final runtime state
+// section printing (after Terminal::drop restores the main screen).
+mod main_post_exit;
+
 // Group: Scene custom subsystem
 mod scene_custom;
 
@@ -1399,47 +1404,14 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.verbose && result.is_ok() {
-        // print startup ambient info post-exit (event_loop prints
-        // are invisible — alternate screen discards stderr on exit).
-        if let Some(info) = interactive::startup_ambient_info() {
-            crate::output::eprintln_verbose_purple(&info);
-        }
-        // v50.0.0-alpha.7: "final runtime state" section now tracks ALL
-        // live-reload fields (msg_mode, message, power_dragon, crystal_dragon,
-        // async_mode, intro_color, etc.) — not just color/scene/charset/speed/
-        // density. Extracted to interactive::print_final_runtime_state to
-        // keep main.rs under the 1500-LOC cap.
-        //
-        // v50.0.0-rc.1: section now ALWAYS prints (even if nothing changed
-        // during the session) so the user can see how long cosmostrix ran.
-        // The first content line is `exit_time: <local-datetime> | duration:
-        // <Xm Ys>`, derived from the program-start Instant captured at the
-        // top of main() and the current wall-clock at exit.
-        let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
-            Some(name) => format!("{name} (custom)"),
-            None => format!("{:?}", color_scheme),
-        };
-        let startup_scene = args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
-        interactive::print_final_runtime_state(
-            &startup_color,
-            startup_scene,
-            &cloud_cfg.charset_preset,
-            cloud_cfg.speed,
-            cloud_cfg.density,
-            cloud_cfg.msg_mode,
-            cloud_cfg.message.as_deref(),
-            cloud_cfg.message_border,
-            cloud_cfg.power_dragon,
-            cloud_cfg.crystal_dragon,
-            cloud_cfg.async_mode,
-            cloud_cfg.intro_color.as_deref(),
-            start_time,
-            // v50.0.0-beta.7 LTS: ambient startup state (paired with the
-            // final values read from FINAL_AMBIENT_* OnceLocks). Owner
-            // audit: these were missing entirely from final_runtime_verbose.
-            cloud_cfg.ambient_snapback_secs,
-            cloud_cfg.ambient_schedule.entries.len(),
-        );
+        // Post-exit verbose dump extracted to main_post_exit.rs to keep
+        // main.rs under the 1500-LOC cap. Owns:
+        // - startup ambient info (captured during the loop, printed here
+        //   because the alternate screen discards stderr)
+        // - "final runtime state" section via
+        //   interactive::print_final_runtime_state (exit_time + duration
+        //   + live-reload field changes + always-printed ambient lines)
+        main_post_exit::print_post_exit_verbose(&args, &cloud_cfg, color_scheme, start_time);
     }
 
     // Live-reload fatal exit ( bug #15): watcher panics + validation
