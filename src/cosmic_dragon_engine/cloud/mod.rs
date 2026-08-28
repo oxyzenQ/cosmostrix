@@ -743,6 +743,7 @@ impl Cloud {
 // v50.0.0-beta.7 LOC refactor: reset_message method extracted to
 // reset_message.rs as a separate impl Cloud block.
 mod pause;
+mod post_rain;
 mod reset_message;
 
 // v50.0.0-beta.7 LTS: interpolate_palette_color extracted to palette_blend.rs

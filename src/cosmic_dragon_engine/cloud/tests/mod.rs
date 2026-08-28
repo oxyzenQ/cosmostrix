@@ -830,14 +830,18 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     // storytelling tick must be wrapped in `!self.bench_mode` guards.
     // If a refactor removes either guard, this test fails before the
     // cosmetic workload can silently return to the bench hot path.
+    // v50.0.0-beta.7 LOC refactor: post_rain_processing extracted to
+    // post_rain.rs, so we check both rain.rs + post_rain.rs.
     let source = include_str!("../rain.rs");
+    let post_source = include_str!("../post_rain.rs");
+    let combined = format!("{source}\n{post_source}");
 
     assert!(
-        source.contains("if !self.bench_mode {\n            self.apply_crt_vignette(frame);"),
+        combined.contains("if !self.bench_mode {\n            self.apply_crt_vignette(frame);"),
         "PERF-1-Supreme: CRT vignette must be gated on !bench_mode in rain_at"
     );
     assert!(
-        source.contains(
+        combined.contains(
             "if !self.bench_mode {\n            if let Some(kind) = self.storytelling.tick("
         ),
         "PERF-1-Supreme: storytelling tick must be gated on !bench_mode in rain_at"
