@@ -3,6 +3,15 @@
 
 use super::*;
 
+// v50.0.0-beta.7 LOC refactor: watcher functions extracted to watcher.rs.
+// These imports were previously brought in via mod.rs's `use` statements
+// + the `use super::*` glob. Now that the watcher moved out, mod.rs no
+// longer imports these, so the test module needs them explicitly.
+use std::sync::atomic::Ordering;
+use std::sync::Mutex;
+
+use crate::configfile;
+
 #[test]
 fn validate_rejects_invalid_speed() {
     let mut cfg = HashMap::new();

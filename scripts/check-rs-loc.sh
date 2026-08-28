@@ -52,7 +52,6 @@ src/chroma_dragon_engine/shaders/transition/tests.rs
 src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
 src/droplet/mod.rs
-src/config/live_config/mod.rs
 src/cosmic_dragon_engine/cloud/tests/mod.rs
 src/config/mod.rs
 src/cosmic_dragon_engine/cloud/monolith.rs
