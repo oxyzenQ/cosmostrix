@@ -5,19 +5,75 @@
 #
 # COSMOSTRIX RUST SOURCE FILE LOC CHECK
 #
-# Ensures all Rust source files stay under 1,500 gross lines.
-# Fail if any .rs file exceeds the limit (no exceptions by default).
+# Ensures all Rust source files stay under the hard LOC cap.
+# See src/RULES_LOC.md for the full policy (hard/soft limits,
+# when to split, generated-code exemption).
+#
+# Default hard limit: 800 lines (soft target: 500, not enforced).
+# Previous cap was 1500 — migration is incremental. Files still
+# over 800 are listed in EXEMPT_BELOW_800 and tracked for refactor.
+# As each file is refactored below 800, remove it from the list.
+# When the list is empty, the codebase is fully 800-compliant.
 #
 # Usage: scripts/check-rs-loc.sh [MAX_LINES]
-#   MAX_LINES: override the default limit (default: 1500)
+#   MAX_LINES: override the default limit (default: 800)
 #
 # Platform: UNIX-only (uses `find`, `wc -l`, `sort`). Not for Windows cmd.exe.
 
 set -euo pipefail
 
-MAX_LINES="${1:-1500}"
+MAX_LINES="${1:-800}"
 FAILED=0
 FOUND=0
+EXEMPT_VIOLATIONS=0
+
+# Migration exemption list: files still over 800 LOC, tracked for
+# incremental refactor. Each entry is a relative path from repo root.
+# To remove an entry: refactor the file below 800, verify tests pass,
+# then delete the line. The list MUST shrink over time — adding new
+# entries requires a justification comment.
+#
+# Format: one path per line, no leading ./
+EXEMPT_BELOW_800="
+src/main.rs
+src/cosmic_dragon_engine/cloud/mod.rs
+src/interactive/event_loop.rs
+src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
+src/interactive/hud/tests.rs
+src/cosmic_dragon_engine/cloud/rain.rs
+src/scene_custom/mod.rs
+src/bench/mod.rs
+src/config/config_apply_tests/mod.rs
+src/central_control_rains/mod.rs
+src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
+src/interactive/hud/mod.rs
+src/cosmic_dragon_engine/terminal/mod.rs
+src/bench/bench_report.rs
+src/chroma_dragon_engine/catalog.rs
+src/chroma_dragon_engine/shaders/transition/tests.rs
+src/chroma_dragon_engine/palette/tests_floor.rs
+src/chroma_dragon_engine/tests/lock.rs
+src/droplet/mod.rs
+src/config/live_config/mod.rs
+src/cosmic_dragon_engine/cloud/tests/mod.rs
+src/config/mod.rs
+src/config/configfile.rs
+src/cosmic_dragon_engine/cloud/monolith.rs
+src/cosmic_dragon_engine/cloud/spawn.rs
+src/interactive/tests_v35.rs
+src/config/live_config/tests.rs
+src/chroma_dragon_engine/shaders/base/mod.rs
+src/cosmic_dragon_engine/cloud/phosphor.rs
+src/interactive/tests.rs
+src/termdetect/tests.rs
+src/testconf/mod.rs
+src/chroma_dragon_engine/shaders/base/tests.rs
+src/scene/mod.rs
+src/config/config_apply.rs
+src/interactive/intro.rs
+src/validation/mod.rs
+src/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs
+"
 
 echo "Rust source file line counts (max ${MAX_LINES}):"
 echo ""
@@ -26,27 +82,46 @@ echo ""
 FILES=$(find src -name '*.rs' 2>/dev/null | sort)
 
 if [ -z "$FILES" ]; then
-	echo "No .rs files found under src/"
-	exit 0
+        echo "No .rs files found under src/"
+        exit 0
 fi
 
 # Compute and display line counts sorted descending
 while IFS= read -r f; do
-	LINES=$(wc -l <"$f")
-	printf "  %5d  %s\n" "$LINES" "$f"
-	if [ "$LINES" -gt "$MAX_LINES" ]; then
-		FAILED=$((FAILED + 1))
-	fi
-	FOUND=$((FOUND + 1))
+        LINES=$(wc -l <"$f")
+        printf "  %5d  %s\n" "$LINES" "$f"
+        if [ "$LINES" -gt "$MAX_LINES" ]; then
+                # Check if this file is in the migration exemption list
+                if echo "$EXEMPT_BELOW_800" | grep -qxF "$f"; then
+                        EXEMPT_VIOLATIONS=$((EXEMPT_VIOLATIONS + 1))
+                else
+                        FAILED=$((FAILED + 1))
+                        echo "    ^^^ VIOLATES ${MAX_LINES} limit (NOT in exemption list)"
+                fi
+        fi
+        FOUND=$((FOUND + 1))
 done <<<"$FILES"
 
 echo ""
 echo "Total files: ${FOUND}"
+echo "Files over ${MAX_LINES} (exempt / tracked for refactor): ${EXEMPT_VIOLATIONS}"
+echo "Files over ${MAX_LINES} (NOT exempt — BUILD FAIL): ${FAILED}"
 
 if [ "$FAILED" -gt 0 ]; then
-	echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines"
-	exit 1
-else
-	echo "OK: all files at or below ${MAX_LINES} lines"
-	exit 0
+        echo ""
+        echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines and are NOT in the"
+        echo "migration exemption list. Either refactor them below ${MAX_LINES} or,"
+        echo "if genuinely cohesive, add them to EXEMPT_BELOW_800 with a comment."
+        exit 1
 fi
+
+if [ "$EXEMPT_VIOLATIONS" -gt 0 ]; then
+        echo ""
+        echo "OK (with migration debt): ${EXEMPT_VIOLATIONS} file(s) exceed ${MAX_LINES}"
+        echo "but are tracked in EXEMPT_BELOW_800. Refactor incrementally — see"
+        echo "src/RULES_LOC.md 'Migration Path' section."
+        exit 0
+fi
+
+echo "OK: all files at or below ${MAX_LINES} lines (exemption list empty)"
+exit 0

@@ -3,13 +3,13 @@
 
 ## Source file size
 
-All Rust source files under `src/` must stay **under 1,500 gross lines**. Enforced by `scripts/check-rs-loc.sh`, run as part of `./scripts/build.sh check-all`.
+All Rust source files under `src/` must stay **under 800 gross lines** (hard limit, enforced by `scripts/check-rs-loc.sh`). The **soft target for new files is 500 lines**. See `src/RULES_LOC.md` for the full policy (when to split, when NOT to split, generated-code exemption, migration path from the previous 1500-line cap).
 
 **Scope**: `src/**/*.rs`, `build.rs`, `*.toml`, `.cargo/config.toml`, `rust-toolchain.toml`, `*.sh`, `scripts/*.sh`, `benchmark/*.sh`, `.github/workflows/*.yml`, `.github/FUNDING.yml`. **Excluded**: `*.md`, `docs/**/*.md`, `*.txt`, assets, images, videos, `Cargo.lock`, `target/`, `.git/`.
 
 ## Module organization
 
-Prefer splitting modules by responsibility over allowing large files. `main.rs` should remain bootstrap and wiring only (target 100–300 LOC long-term). `cli.rs` may be larger if it contains mostly Clap command definitions, but must stay under 1,500 LOC. Module directories (e.g. `src/cosmic_dragon_engine/cloud/`, `src/interactive/`) use `mod.rs` as the public entry point and split implementation into focused submodules. Tests are colocated with their module in dedicated `tests/` subdirectories.
+Prefer splitting modules by responsibility over allowing large files. `main.rs` should remain bootstrap and wiring only (target 100–300 LOC long-term). `cli.rs` may be larger if it contains mostly Clap command definitions, but must stay under 800 LOC (hard limit). Module directories (e.g. `src/cosmic_dragon_engine/cloud/`, `src/interactive/`) use `mod.rs` as the public entry point and split implementation into focused submodules (soft target 500 LOC per file). Tests are colocated with their module in dedicated `tests/` subdirectories.
 
 ## Validation
 
