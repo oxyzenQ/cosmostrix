@@ -48,7 +48,6 @@ src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
 src/interactive/hud/mod.rs
 src/cosmic_dragon_engine/terminal/mod.rs
 src/bench/bench_report.rs
-src/chroma_dragon_engine/catalog.rs
 src/chroma_dragon_engine/shaders/transition/tests.rs
 src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
@@ -72,6 +71,9 @@ src/config/config_apply.rs
 src/interactive/intro.rs
 src/validation/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs
+# Pure data file: 44-theme registry (ThemeDef entries, no logic).
+# Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
+src/chroma_dragon_engine/catalog/themes.rs
 "
 
 echo "Rust source file line counts (max ${MAX_LINES}):"
