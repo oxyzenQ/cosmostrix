@@ -50,7 +50,6 @@ src/chroma_dragon_engine/shaders/transition/tests.rs
 src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
 src/droplet/mod.rs
-src/cosmic_dragon_engine/cloud/tests/mod.rs
 src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
 src/cosmic_dragon_engine/cloud/phosphor.rs
