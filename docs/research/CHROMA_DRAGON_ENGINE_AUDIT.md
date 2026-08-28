@@ -778,7 +778,7 @@ After A14–A23 (HEAD `5992007`):
 
 The second-pass audit re-confirmed that the following categories correctly do NOT route through the chroma engine and should remain as-is:
 
-1. **Overlay UI** — `interactive/hud.rs::brighten_color` (HSV-value scaling for HUD readability), `interactive/intro.rs::lerp_rgb` (linear-sRGB blend for intro particle fade). Different math semantics; migrating would break regression tests and produce ±1/channel visible artifacts.
+1. **Overlay UI** — `interactive/hud/colors.rs::brighten_color` (HSV-value scaling for HUD readability), `interactive/intro.rs::lerp_rgb` (linear-sRGB blend for intro particle fade). Different math semantics; migrating would break regression tests and produce ±1/channel visible artifacts.
 
 2. **CLI chrome** — `output.rs` Tailwind brand colors. Static, not animated.
 
