@@ -228,7 +228,7 @@ impl FromStr for U16Range {
     version,
     disable_version_flag = true,
     disable_help_flag = true,
-    about = "Professional-grade cinematic Matrix rain renderer for serious terminal environments.",
+    about = env!("CARGO_PKG_DESCRIPTION"),
     after_help = "cosmostrix uses a diff-based rendering engine — only changed cells are redrawn, not the full screen.\nSee `cosmostrix --docs` for the full technical breakdown."
 )]
 pub struct Args {

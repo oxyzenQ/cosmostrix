@@ -24,8 +24,7 @@ pub(crate) struct RendererInfo {
 #[inline]
 pub(crate) fn renderer_info(color_mode: ColorMode) -> RendererInfo {
     RendererInfo {
-        identity:
-            "professional-grade cinematic Matrix rain renderer for serious terminal environments.",
+        identity: env!("CARGO_PKG_DESCRIPTION"),
         backend: "ansi-stream",
         pacing: "adaptive",
         unicode: "utf8-singlewidth",

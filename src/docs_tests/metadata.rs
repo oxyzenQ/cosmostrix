@@ -9,8 +9,11 @@
 fn cargo_toml_uses_canonical_tagline() {
     let cargo = include_str!("../../Cargo.toml");
     assert!(
-        cargo.contains("description = \"Professional-grade cinematic Matrix rain renderer for serious terminal environments.\""),
-        "Cargo.toml description must use the canonical tagline"
+        cargo.contains(&format!(
+            "description = \"{}\"",
+            env!("CARGO_PKG_DESCRIPTION")
+        )),
+        "Cargo.toml description must match env!(CARGO_PKG_DESCRIPTION)"
     );
 }
 
@@ -18,21 +21,19 @@ fn cargo_toml_uses_canonical_tagline() {
 fn readme_uses_canonical_tagline() {
     let readme = include_str!("../../README.md");
     assert!(
-        readme.contains(
-            "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
-        ),
-        "README.md must contain the canonical tagline"
+        readme.contains(env!("CARGO_PKG_DESCRIPTION")),
+        "README.md must contain the canonical tagline from Cargo.toml"
     );
 }
 
 #[test]
 fn runtime_identity_uses_canonical_tagline() {
+    // renderer_info.rs identity must use env!(CARGO_PKG_DESCRIPTION), not a
+    // hardcoded string. This ensures single-source-of-truth from Cargo.toml.
     let ri = include_str!("../types/renderer_info.rs");
     assert!(
-        ri.contains(
-            "professional-grade cinematic Matrix rain renderer for serious terminal environments."
-        ),
-        "renderer_info.rs identity must use the canonical tagline"
+        ri.contains("env!(\"CARGO_PKG_DESCRIPTION\")"),
+        "renderer_info.rs identity must use env!(CARGO_PKG_DESCRIPTION), not a hardcoded string"
     );
 }
 

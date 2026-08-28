@@ -81,9 +81,12 @@ pub(crate) fn version_report() -> String {
          Build: {build} ({commit})\n\
          Build-time: {build_time}\n\
          Signature: {signature}\n\
-         Copyright: (c) 2026 rezky_nightky (oxyzenQ)\n\
-         License: GPL-3.0-only\n\
-         Source: https://github.com/oxyzenQ/cosmostrix"
+         Copyright: (c) 2026 {authors}\n\
+         License: {license}\n\
+         Source: {repository}",
+        authors = env!("CARGO_PKG_AUTHORS"),
+        license = env!("CARGO_PKG_LICENSE"),
+        repository = env!("CARGO_PKG_REPOSITORY"),
     );
 
     if is_tty {
@@ -111,8 +114,9 @@ pub(crate) fn version_report() -> String {
 /// to avoid duplicate versioning — the user gets the version from
 /// `--version` / `-V`, which is the single source of truth.
 #[must_use]
-pub(crate) fn docs_report() -> &'static str {
-    "\
+pub(crate) fn docs_report() -> String {
+    format!(
+        "\
 COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
 ==========================================================
 
@@ -307,9 +311,12 @@ emoji or wide characters (CJK fullwidth, zero-width combining marks),
 as its focus is on pure, elegant, and exclusive visual quality built
 on single-cell glyphs.
 
-Source: https://github.com/oxyzenQ/cosmostrix
-License: GPL-3.0-only
-"
+Source: {repository}
+License: {license}
+",
+        repository = env!("CARGO_PKG_REPOSITORY"),
+        license = env!("CARGO_PKG_LICENSE"),
+    )
 }
 
 // --- Environment variable helpers ---
