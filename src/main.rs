@@ -119,11 +119,6 @@ mod safepath;
 mod scene;
 pub(crate) use scene::{charset, charset_custom};
 
-// v50.0.0-beta.7 LTS: post-exit verbose dump extracted to keep main.rs
-// under the 1500-LOC cap. Owns startup ambient info + final runtime state
-// section printing (after Terminal::drop restores the main screen).
-mod main_post_exit;
-
 // Group: Scene custom subsystem
 mod scene_custom;
 
@@ -1404,14 +1399,15 @@ fn main() -> std::io::Result<()> {
     }
 
     if args.verbose && result.is_ok() {
-        // Post-exit verbose dump extracted to main_post_exit.rs to keep
-        // main.rs under the 1500-LOC cap. Owns:
+        // Post-exit verbose dump extracted to output/post_exit.rs to keep
+        // main.rs under the 1500-LOC cap + comply with src/RULES.md (only
+        // main.rs at src/ root). Owns:
         // - startup ambient info (captured during the loop, printed here
         //   because the alternate screen discards stderr)
         // - "final runtime state" section via
         //   interactive::print_final_runtime_state (exit_time + duration
         //   + live-reload field changes + always-printed ambient lines)
-        main_post_exit::print_post_exit_verbose(&args, &cloud_cfg, color_scheme, start_time);
+        output::post_exit::print_post_exit_verbose(&args, &cloud_cfg, color_scheme, start_time);
     }
 
     // Live-reload fatal exit ( bug #15): watcher panics + validation

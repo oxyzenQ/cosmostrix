@@ -2,7 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Post-exit verbose reporting — extracted from `main.rs` to keep that
-//! file under the 1500-LOC cap.
+//! file under the 1500-LOC cap, lives under `output/` per src/RULES.md
+//! single-file policy (only `main.rs` at `src/` root).
 //!
 //! Owns the "post-exit verbose dump" path: when the user ran with
 //! `--verbose` / `-v` and the interactive loop returned `Ok(())`, this

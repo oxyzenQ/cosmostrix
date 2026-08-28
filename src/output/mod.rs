@@ -764,6 +764,7 @@ mod tests {
 
 // Submodules (moved from src/ root for clean src/ layout)
 pub(crate) mod message;
+pub(crate) mod post_exit;
 pub(crate) mod report;
 pub(crate) mod ux;
 pub(crate) mod verbose;
