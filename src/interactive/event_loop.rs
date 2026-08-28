@@ -81,87 +81,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     super::fill_terminal_bg(cloud.palette.bg);
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
-    if cfg.intro != crate::config::IntroType::None {
-        let default_logo_color: (u8, u8, u8) = (168, 85, 247); // brand purple
-        if let Some(ref intro_color) = cfg.intro_color {
-            let intro_scheme = crate::theme::lookup_theme(intro_color);
-            if let Some(scheme) = intro_scheme {
-                let mut intro_cloud = cfg.create_cloud(density);
-                intro_cloud.set_color_scheme(scheme);
-                let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-                super::intro::run_intro(
-                    &mut term,
-                    &mut frame,
-                    &intro_cloud,
-                    w,
-                    h,
-                    cfg.intro,
-                    logo_color,
-                )?;
-            } else {
-                // Custom palette — try loading from config
-                let cfg_map = crate::configfile::load_config_file(None);
-                if let Ok(palette) =
-                    crate::colors_custom::load_custom_palette(&cfg_map, intro_color)
-                {
-                    let mut intro_cloud = cfg.create_cloud(density);
-                    intro_cloud.palette = palette;
-                    let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-                    super::intro::run_intro(
-                        &mut term,
-                        &mut frame,
-                        &intro_cloud,
-                        w,
-                        h,
-                        cfg.intro,
-                        logo_color,
-                    )?;
-                } else {
-                    // Fallback: use rain cloud (color validation failed silently)
-                    super::intro::run_intro(
-                        &mut term,
-                        &mut frame,
-                        &cloud,
-                        w,
-                        h,
-                        cfg.intro,
-                        default_logo_color,
-                    )?;
-                }
-            }
-        } else {
-            super::intro::run_intro(
-                &mut term,
-                &mut frame,
-                &cloud,
-                w,
-                h,
-                cfg.intro,
-                default_logo_color,
-            )?;
-        }
-        cloud.force_draw_everything();
-        frame.clear_with_bg(cloud.palette.bg);
-
-        // (bug #10): re-read terminal size after intro (user may have resized).
-        if cfg.screen_size.is_none() {
-            if let Ok((nw, nh)) = term.size() {
-                if nw != w || nh != h {
-                    let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
-                    let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
-                    w = cw;
-                    h = ch;
-                    cloud.reset(cw, ch);
-                    frame = Frame::new(cw, ch, cloud.palette.bg);
-                    if cfg.density_auto {
-                        cloud.set_droplet_density(effective_density(cfg.base_density, cw, true));
-                    }
-                    cloud.force_draw_everything();
-                    super::fill_terminal_bg(cloud.palette.bg);
-                }
-            }
-        }
-    }
+    // Extracted to event_loop_intro.rs to keep this file under the 1500-LOC
+    // cap. The intro selection chain (intro_color unset / builtin theme /
+    // custom palette / invalid fallback) + bug #10 post-intro terminal
+    // size re-read are owned by that module.
+    super::event_loop_intro::run_intro_sequence(
+        &mut term, &mut frame, &mut cloud, &mut w, &mut h, cfg, density,
+    )?;
 
     let start_time = Instant::now();
     let end_time = cfg.duration_s.and_then(|s| {
