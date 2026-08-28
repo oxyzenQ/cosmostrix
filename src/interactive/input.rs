@@ -404,16 +404,13 @@ pub(super) fn try_auto_snapback(
         return false;
     }
     let now = Instant::now();
-    // v50.0.0-beta.7 masterclass: snapback counts from last_user_input_at
-    // (reset by ambient fire + snapback itself). Drift fires at the poll
-    // time (e.g. 60s into cycle) and gets whatever time remains until
-    // snapback fires (e.g. 10s if snapback=70). This gives the rhythm:
-    // 60s ambient → 10s drift → revert → 60s ambient → 10s drift → ...
-    // The caller (event_loop) resets last_user_input_at + last_poll after
-    // snapback so each cycle starts fresh.
-    let idle_secs = now
-        .saturating_duration_since(last_user_input_at)
-        .as_secs_f64();
+    // v50.0.0-beta.7 masterclass state machine: snapback counts from
+    // drift_start (when Crystal Dragon drift fired), NOT from last_user_input_at.
+    // This gives drift exactly ambient-snapback-secs of visibility before
+    // ambient reverts. When drift is NOT active (no drift has fired this
+    // cycle), fall back to last_user_input_at for manual user overrides.
+    let snapback_ref = cloud.drift_start.unwrap_or(last_user_input_at);
+    let idle_secs = now.saturating_duration_since(snapback_ref).as_secs_f64();
     if !should_auto_snapback(
         cloud.user_override_since_ambient,
         idle_secs,
@@ -427,8 +424,9 @@ pub(super) fn try_auto_snapback(
     };
     let cfg_map = last_cfg_map.clone().unwrap_or_default();
     crate::lr_trace!(
-        "ambient: auto-snapback after {:.1}s idle — applying phase {:02}:{:02} (scene={})",
+        "ambient: auto-snapback after {:.1}s (drift_active={}) — applying phase {:02}:{:02} (scene={})",
         idle_secs,
+        cloud.drift_active,
         entry.hour,
         entry.minute,
         entry.scene
@@ -440,6 +438,9 @@ pub(super) fn try_auto_snapback(
     *scene_generation = scene_generation.wrapping_add(1);
     cloud.user_override_since_ambient = false;
     cloud.ambient_palette_locked = true;
+    // Clear drift state — cycle complete, next drift can fire on next poll.
+    cloud.drift_active = false;
+    cloud.drift_start = None;
     crate::interactive::ambient_diag_snapback();
     crate::interactive::ambient_diag_scene_change(&format!("auto-snapback(scene={})", entry.scene));
     true

@@ -330,19 +330,17 @@ pub struct Cloud {
     pub(crate) crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl,
     /// Last Crystal Dragon poll timestamp. None until first poll.
     pub(crate) crystal_dragon_last_poll: Option<std::time::Instant>,
-    /// v30 Bug #4: true when --colors-custom active → suppress palette drift.
+    /// v30 Bug #4: true when --colors-custom active.
     pub(crate) custom_palette_active: bool,
-    /// v30 Bug #5: color_tune on Cloud so set_color_scheme re-applies it.
+    /// v30 Bug #5: color_tune on Cloud for set_color_scheme re-apply.
     pub(crate) color_tune: crate::color_tune::ColorTune,
-    /// true when ambient asserted palette → suppress Crystal Dragon drift (climate drift still runs). Cleared by `c`/`C`/`x`.
+    /// true when ambient asserted palette. Cleared by `c`/`C`/`x`.
     pub(crate) ambient_palette_locked: bool,
-    /// v50.0.0-beta.7: last Crystal Dragon drift timestamp. Used by try_auto_snapback
-    /// so drift gets a full ambient-snapback-secs window before ambient reverts.
-    pub(crate) last_crystal_dragon_drift_at: Option<std::time::Instant>,
-    /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`)
-    /// or Crystal Dragon picked new palette since last ambient fire. Prevents
-    /// event-loop dedup from skipping day-boundary refire. Cleared by
-    /// ambient fire (scheduler, `a` key, startup).
+    /// v50.0.0-beta.7 state machine: drift_active=true while drift waiting for snapback; drift_start=when it began.
+    pub(crate) drift_active: bool,
+    pub(crate) drift_start: Option<std::time::Instant>,
+    /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`) or
+    /// Crystal Dragon drifted. Cleared by ambient fire. Prevents day-boundary dedup skip.
     pub(crate) user_override_since_ambient: bool,
 
     pub(crate) event_manager: GhostEventScheduler,
@@ -542,7 +540,8 @@ impl Cloud {
             // ambient-harmony flags start false (set by ambient fire,
             // cleared by user override x/c/s).
             ambient_palette_locked: false,
-            last_crystal_dragon_drift_at: None,
+            drift_active: false,
+            drift_start: None,
             user_override_since_ambient: false,
             event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
@@ -701,7 +700,8 @@ impl Cloud {
         self.crystal_dragon_sensor = other.crystal_dragon_sensor;
         self.crystal_dragon_control = other.crystal_dragon_control;
         self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
-        self.last_crystal_dragon_drift_at = other.last_crystal_dragon_drift_at;
+        self.drift_active = other.drift_active;
+        self.drift_start = other.drift_start;
     }
     /// Active scene name. Test-only accessor — production reads the
     /// `scene_name` field directly or via `hud_colors()`.
@@ -781,7 +781,7 @@ impl Cloud {
                 if let Some(ref mut cd) = self.crystal_dragon_last_poll {
                     *cd += elapsed;
                 }
-                if let Some(ref mut d) = self.last_crystal_dragon_drift_at {
+                if let Some(ref mut d) = self.drift_start {
                     *d += elapsed;
                 }
                 self.entropy_drift.last_tick += elapsed;

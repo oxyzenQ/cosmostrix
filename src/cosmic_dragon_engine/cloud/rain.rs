@@ -1090,24 +1090,22 @@ impl Cloud {
         self.color_ecosystem.tick(now, &mut self.mt);
 
         // 1b. Crystal Dragon Engine drift
-        // When crystal_dragon is enabled AND no override is pending, tick
-        // the Crystal Dragon sensor and probabilistically select a new color
-        // theme. Crystal Dragon wins over ambient — drift is NOT gated by
-        // ambient_palette_locked (v50.0.0-beta.7 masterclass change).
-        //
-        // v50.0.0-beta.7 follow-up: gate on !user_override_since_ambient too.
-        // Once drift fires (sets user_override=true), it must NOT fire again
-        // until snapback clears the flag. Without this, drift poll cycle
-        // (60s) < snapback window (e.g. 70s) means drift keeps firing before
-        // snapback can revert — palette never gets a stable visible window.
-        // With this gate: drift fires once → 70s visible → snapback reverts
-        // → flag cleared → drift can fire again on next poll. Masterclass
-        // "two systems cooperate by taking turns" actually works now.
-        if self.crystal_dragon && !self.user_override_since_ambient {
+        // v50.0.0-beta.7 masterclass state machine: drift fires only when
+        // crystal_dragon is enabled AND no drift is already active AND no
+        // user override is pending. When drift fires, it sets drift_active
+        // = true + drift_start = now. try_auto_snapback checks drift_start
+        // and reverts after ambient-snapback-secs, clearing drift_active.
+        // This gives a deterministic rhythm:
+        //   60s ambient → drift fires → drift visible for snapback-secs →
+        //   snapback reverts → drift_active cleared → next drift at +60s.
+        // If snapback-secs >= 60, the next drift poll is skipped (drift still
+        // active) — drift fires at +120s instead. This is by design.
+        if self.crystal_dragon && !self.drift_active && !self.user_override_since_ambient {
             if let Some(new_scheme) = self.crystal_dragon_tick(now) {
                 self.set_color_scheme(new_scheme);
                 self.user_override_since_ambient = true;
-                self.last_crystal_dragon_drift_at = Some(now);
+                self.drift_active = true;
+                self.drift_start = Some(now);
             }
         }
 

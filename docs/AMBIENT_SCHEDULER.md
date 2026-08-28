@@ -100,63 +100,73 @@ smoothstep blend window:
 
 > "use instant switch for the blend window"
 
-### Interaction with Crystal Dragon (harmony rhythm — masterclass)
+### Interaction with Crystal Dragon (harmony state machine — masterclass)
 
 When Crystal Dragon is enabled (`crystal-dragon = true` in config or
 `--crystal-dragon` on CLI), it periodically drifts the color palette
 based on system state (CPU load / clock).
 
-**v50.0.0-beta.7 masterclass design**: when both ambient AND Crystal
-Dragon are enabled, the two systems cooperate with a **predictable
-rhythm**: drift fires at the poll mark (60s), palette changes for a
-brief window, then snapback reverts. After snapback, both timers reset
-so the next cycle starts fresh.
+**v50.0.0-beta.7 masterclass state machine**: when both ambient AND
+Crystal Dragon are enabled, the two systems cooperate with a
+**deterministic rhythm** via an internal state machine (no new config
+keys — only `ambient-snapback-secs` which already exists).
 
-The data flow (with `ambient-snapback-secs = 70`, poll = 60s):
+**State machine fields** (internal to Cloud, not config):
+- `drift_active: bool` — true while a drift is visible (waiting for snapback)
+- `drift_start: Option<Instant>` — when the current drift began
 
-1. **T=0: Ambient fires** (e.g. `ambient.12-00 = monolith` at noon) ->
-   scene + palette applied (e.g. `energyzen`). Timers start.
-2. **T=60: Crystal Dragon drift fires** (first poll, ~12% chance) ->
-   palette changes to a new theme (e.g. `cosmos`). Drift sets
-   `user_override_since_ambient = true`. Drift is visible.
-3. **T=60-70: Drift palette visible** for 10 seconds. Drift cooldown
-   gate (`!user_override_since_ambient`) prevents re-firing.
-4. **T=70: Snapback fires** (70s into cycle) -> ambient re-applies
-   `energyzen`. **Both timers reset**: `last_user_input_at = T70`
-   (snapback idle restarts), `crystal_dragon_last_poll = T70`
-   (drift poll schedule restarts).
-5. **T=130: Drift fires again** (60s after T70 reset) -> palette
-   changes (e.g. `ocean`). Cycle repeats from step 3.
+**Drift gate** (rain.rs): drift fires only when ALL are true:
+- `crystal_dragon` is enabled
+- `drift_active == false` (no drift currently visible)
+- `user_override_since_ambient == false` (no manual user override)
+
+When drift fires: sets `drift_active = true`, `drift_start = now`,
+changes the palette, sets `user_override_since_ambient = true`.
+
+**Snapback** (input.rs try_auto_snapback): counts idle from `drift_start`
+(when drift began), NOT from `last_user_input_at`. When
+`now - drift_start >= ambient-snapback-secs`, snapback reverts the
+palette to ambient and clears `drift_active = false` + `drift_start = None`.
+
+**Timeline** (with `ambient-snapback-secs = 10`, poll = 60s):
+
+```
+T=0:    ambient fires → palette=energyzen (scene X default)
+T=60:   drift fires → palette=neon-green, drift_active=true, drift_start=T60
+T=70:   snapback fires (70-60=10s >= 10) → revert to energyzen,
+        drift_active=false, drift_start=None
+T=120:  drift fires again → palette=ocean, drift_active=true, drift_start=T120
+T=130:  snapback fires → revert to energyzen
+T=180:  drift fires → ...
+T=190:  snapback fires → revert
+```
 
 **Rhythm**: 60s ambient → 10s drift → revert → 60s ambient → 10s drift
-→ revert → ... The palette "flashes" a new color for 10s every 70s.
+→ revert → ... Drift is visible for exactly `ambient-snapback-secs`.
 
-**Tuning the drift visibility**: `ambient-snapback-secs` controls how
-long drift stays visible:
-- `snapback = 70` → drift visible 10s (70 - 60 = 10s flash)
-- `snapback = 80` → drift visible 20s
-- `snapback = 60` → instant revert (drift invisible — not recommended)
-- `snapback = 120` → drift visible 60s (half-and-half)
+**Edge case: snapback >= 60**: if `ambient-snapback-secs >= 60`, the
+next drift poll (at +60s) finds `drift_active` still true → drift is
+**skipped**. Drift fires at +120s instead (after snapback cleared the
+flag). This is by design — the user chose a long snapback, so drift
+gets a long visible window and the next drift is delayed. To avoid
+this, set `ambient-snapback-secs` to a value **less than 60** (e.g.
+10, 30, 50) for the "60s ambient, Ns drift" rhythm, or **greater than
+60** (e.g. 70, 120) for a longer drift window with skipped polls.
 
-**Why both timers reset after snapback**: without resetting
-`last_user_input_at`, the snapback idle would keep growing and fire
-immediately after the next drift (the original 16ms revert bug).
-Without resetting `crystal_dragon_last_poll`, the poll schedule would
-drift out of sync with the snapback cycle — drift would fire at
-unpredictable times. Resetting both ensures each cycle is identical:
-60s ambient, 10s drift, revert, repeat.
+**Manual user override**: pressing `c`/`C`/`x` sets
+`user_override_since_ambient = true`, which blocks drift from firing
+until snapback clears it. This is the existing behavior — manual
+overrides always take priority over automatic drift.
 
-**Why this design**: the owner wants users to understand how the systems
-work together and decide which one to keep. If the sudden color flashes
-are too dynamic, turn off either `crystal-dragon` or `ambient` (not
-both are needed). This is the intended LTS behavior — no config key to
-tune the interaction, just the masterclass "two systems cooperate"
-model.
+**Why no new config keys**: the state machine uses only internal Cloud
+fields (`drift_active`, `drift_start`) + the existing
+`ambient-snapback-secs` config key. No new config keys, no new CLI
+flags, no new persistent settings. The rhythm is fully controlled by
+the existing `ambient-snapback-secs` value.
 
 **Note**: climate drift (luminance/saturation/hue modulation, NOT
 palette scheme replacement) always runs via `color_ecosystem.tick()`
-regardless of any lock or override state. Only palette-scheme drift
-has the cooldown gate.
+regardless of any state. Only palette-scheme drift uses the state machine.
 
 ### User overrides + 30-second auto-snapback (IMPORTANT)
 

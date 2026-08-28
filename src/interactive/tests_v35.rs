@@ -341,83 +341,101 @@ mod cases_v35 {
         );
     }
 
-    /// v50.0.0-beta.7: last_crystal_dragon_drift_at defaults to None.
+    /// v50.0.0-beta.7 masterclass state machine: drift_active + drift_start
+    /// default to false + None.
     #[test]
-    fn v50_drift_timestamp_defaults_none() {
+    fn v50_drift_state_defaults() {
         let cloud = make_test_cloud();
+        assert!(!cloud.drift_active, "drift_active must default to false");
         assert!(
-            cloud.last_crystal_dragon_drift_at.is_none(),
-            "last_crystal_dragon_drift_at must default to None"
+            cloud.drift_start.is_none(),
+            "drift_start must default to None"
         );
     }
 
-    /// v50.0.0-beta.7 masterclass: snapback counts from last_user_input_at
-    /// (NOT from drift). Drift fires at poll time and gets whatever time
-    /// remains until snapback. The event loop resets last_user_input_at
-    /// after snapback so each cycle starts fresh. This gives the rhythm:
-    /// 60s ambient → 10s drift → revert → 60s ambient → 10s drift → ...
+    /// v50.0.0-beta.7 masterclass: snapback counts from drift_start (when
+    /// drift fired), giving drift exactly ambient-snapback-secs of visibility.
+    /// When drift is NOT active, falls back to last_user_input_at for manual
+    /// user overrides.
     #[test]
-    fn v50_snapback_counts_from_cycle_start_not_drift() {
+    fn v50_snapback_counts_from_drift_start() {
         use std::time::{Duration, Instant};
 
-        let cloud = make_test_cloud();
+        let mut cloud = make_test_cloud();
         let now = Instant::now();
 
-        // Scenario: cycle started 65s ago (last_user_input_at = now-65s),
-        // drift fired 5s ago (at the 60s poll mark).
-        // snapback=70 → snapback should fire at 70s into cycle = 5s from now.
-        let last_user_input_at = now - Duration::from_secs(65);
-
-        // idle = 65s (from cycle start, NOT from drift)
-        let idle_secs = now
-            .saturating_duration_since(last_user_input_at)
-            .as_secs_f64();
+        // Scenario: drift fired 5s ago (drift_start = now-5s), snapback=10.
+        // idle from drift_start = 5s → no snapback yet (drift visible 5s more).
+        cloud.drift_active = true;
+        cloud.drift_start = Some(now - Duration::from_secs(5));
+        let snapback_ref = cloud.drift_start.unwrap();
+        let idle_secs = now.saturating_duration_since(snapback_ref).as_secs_f64();
         assert!(
-            idle_secs >= 64.0 && idle_secs <= 66.0,
-            "idle must be ~65s (from cycle start), got {idle_secs}"
+            idle_secs >= 4.0 && idle_secs <= 6.0,
+            "idle must be ~5s (from drift_start), got {idle_secs}"
+        );
+        assert!(
+            !should_auto_snapback(true, idle_secs, 10.0),
+            "5s since drift + 10s threshold → no snapback yet (drift visible 5s more)"
         );
 
-        // With snapback=70: 65 < 70 → no snapback yet (drift still visible)
+        // 5s later: idle from drift_start = 10s → snapback fires
+        let idle_at_10 = idle_secs + 5.0;
         assert!(
-            !should_auto_snapback(true, idle_secs, 70.0),
-            "65s into cycle + 70s threshold → no snapback yet (drift visible 5s more)"
+            should_auto_snapback(true, idle_at_10, 10.0),
+            "10s since drift + 10s threshold → snapback fires (revert to ambient)"
         );
 
-        // 5s later: idle = 70s → snapback fires
-        let idle_at_70 = idle_secs + 5.0;
-        assert!(
-            should_auto_snapback(true, idle_at_70, 70.0),
-            "70s into cycle + 70s threshold → snapback fires (revert to ambient)"
-        );
-
-        // After snapback: event loop resets last_user_input_at = now.
-        // Next drift poll is 60s later. Next snapback is 70s later.
-        // Drift visible = 70 - 60 = 10s. This is the masterclass rhythm.
-        let _ = cloud; // cloud state not needed for this timing test
+        // After snapback: drift_active cleared, drift_start = None.
+        // Next drift can fire on next poll (60s from last poll).
+        cloud.drift_active = false;
+        cloud.drift_start = None;
+        assert!(!cloud.drift_active, "drift_active cleared after snapback");
     }
 
-    /// v50.0.0-beta.7: drift must NOT fire while user_override_since_ambient is true.
-    /// Once drift fires (sets the flag), it must wait for snapback to clear the flag
-    /// before firing again. Without this gate, drift poll (60s) < snapback (70s)
-    /// means drift keeps firing before snapback can revert — palette never stabilizes.
+    /// v50.0.0-beta.7 masterclass: drift must NOT fire while drift_active is true.
+    /// Once drift fires, it sets drift_active=true and will NOT fire again
+    /// until snapback clears it. This prevents drift racing snapback.
+    #[test]
+    fn v50_drift_suppressed_while_active() {
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+
+        // Drift already active — must not fire again
+        cloud.drift_active = true;
+        assert!(
+            !(cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient),
+            "drift must be suppressed while drift_active is true"
+        );
+
+        // Snapback cleared drift_active — drift can fire again
+        cloud.drift_active = false;
+        assert!(
+            cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient,
+            "drift can fire again after snapback clears drift_active"
+        );
+    }
+
+    /// v50.0.0-beta.7: drift must NOT fire while user_override_since_ambient is true
+    /// (manual user override via c/C/x). The state machine gate is:
+    /// crystal_dragon && !drift_active && !user_override_since_ambient.
     #[test]
     fn v50_drift_suppressed_while_override_pending() {
         let mut cloud = make_test_cloud();
         cloud.crystal_dragon = true;
-        // Simulate: drift already fired, override flag set
+        cloud.drift_active = false;
         cloud.user_override_since_ambient = true;
 
-        // The drift gate: crystal_dragon && !user_override_since_ambient
-        // With override pending, drift must NOT fire.
+        // User override pending → drift must NOT fire
         assert!(
-            !(cloud.crystal_dragon && !cloud.user_override_since_ambient),
+            !(cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient),
             "drift must be suppressed while user_override_since_ambient is true"
         );
 
-        // Now simulate: snapback cleared the flag
+        // Snapback cleared the flag → drift can fire again
         cloud.user_override_since_ambient = false;
         assert!(
-            cloud.crystal_dragon && !cloud.user_override_since_ambient,
+            cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient,
             "drift can fire again after snapback clears the override flag"
         );
     }

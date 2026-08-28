@@ -668,13 +668,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
             next_frame = Instant::now();
-            // v50.0.0-beta.7 masterclass: reset both timers so the next
-            // cycle starts fresh. last_user_input_at reset → snapback counts
-            // from now (the revert moment). crystal_dragon_last_poll reset
-            // → next drift poll is 60s from now. This gives the rhythm:
-            // 60s ambient → 10s drift → revert (here) → 60s ambient → ...
-            last_user_input_at = Instant::now();
-            cloud.crystal_dragon_last_poll = Some(Instant::now());
         }
         // Adaptive throttling: reduce FPS when idle to save CPU.
         let loop_now = Instant::now();
