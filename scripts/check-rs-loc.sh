@@ -59,7 +59,6 @@ src/cosmic_dragon_engine/cloud/monolith.rs
 src/cosmic_dragon_engine/cloud/spawn.rs
 src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
-src/chroma_dragon_engine/shaders/base/mod.rs
 src/cosmic_dragon_engine/cloud/phosphor.rs
 src/interactive/tests.rs
 src/termdetect/tests.rs
