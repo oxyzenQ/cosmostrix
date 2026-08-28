@@ -113,7 +113,11 @@ mod interactive;
 
 // Group: Output subsystem (output.rs → mod.rs, report.rs, verbose.rs, ux.rs, message.rs)
 mod output;
-pub(crate) use output::{message, report, ux, verbose};
+pub(crate) use output::{message, report, ux};
+
+// v50.0.0-beta.7 LOC refactor: verbose startup block extracted to
+// main_verbose.rs to keep main.rs under the 800-LOC hard cap.
+mod main_verbose;
 
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
@@ -902,94 +906,33 @@ fn main() -> std::io::Result<()> {
         ),
     };
     if args.verbose {
-        // Resolve the intro type label for verbose output. Mirrors the
-        // resolution in CloudConfig below: CLI --intro wins, else default
-        // Logo. We emit the lowercase value-enum name to match the
-        // --intro flag's accepted values (cosmic|logo|none).
-        let resolved_intro = args.intro.unwrap_or(crate::config::IntroType::Logo);
-        let intro_label = match resolved_intro {
-            crate::config::IntroType::Cosmic => "cosmic",
-            crate::config::IntroType::Logo => "logo",
-            crate::config::IntroType::None => "none",
-        };
-        let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
-        let verbose_ambient_schedule =
-            crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
-                &configfile::load_config_file(args.config.as_deref()),
-            );
-        // v50.0.0-beta.7 LTS: read ambient-snapback-secs directly from config
-        // so verbose reports the EFFECTIVE runtime value (user-set), not the
-        // constant 30.0 default. Mirrors the live_config apply path: range
-        // 0.0..=86400.0; out-of-range parses to None (default 30s).
-        let verbose_ambient_snapback_secs = configfile::load_config_file(args.config.as_deref())
-            .get("ambient-snapback-secs")
-            .and_then(|v| {
-                crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
-            });
-        verbose::print_verbose(&verbose::VerboseCtx {
-            version: env!("CARGO_PKG_VERSION"),
-            scene_name: args.scene.as_deref(),
+        main_verbose::run_verbose_startup(
+            &args,
             rain_style,
             color_scheme,
             color_mode,
             color_tune,
-            color_bg: args.color_bg,
-            custom_palette_bg: custom_palette.as_ref().and_then(|p| p.bg),
-            charset_preset: &charset_preset,
-            chars: &chars,
+            &custom_palette,
+            &custom_palette_name,
+            custom_palette.as_ref().and_then(|p| p.bg),
+            &charset_preset,
+            &chars,
             target_fps,
             fps_precedence,
             speed,
             base_density,
             density_auto,
-            monolith_size: args.monolith_size,
-            async_mode: effective_async,
+            effective_async,
             bold_mode,
             shading_mode,
-            glitch_enabled: args.glitch_level != crate::config::GlitchLevel::None,
             glitch_pct,
             glitch_low,
             glitch_high,
-            glitch_level: &format!("{:?}", args.glitch_level),
-            screensaver: args.screensaver,
-            crystal_dragon: args.crystal_dragon.unwrap_or(false),
-            // v50.0.0-alpha.7: VerboseCtx must reflect the EFFECTIVE message
-            // (after msg_mode gate + default fallback). Was dishonest: showed
-            // default "cosmostrix v..." even when msg_mode=false suppressed it.
-            // Now: if msg_mode=false AND no CLI -m/-mb, message is None.
-            message: {
-                let msg_mode_on = args.msg_mode.unwrap_or(true);
-                let cli_msg = args.message.as_deref();
-                if cli_msg.is_some() {
-                    cli_msg
-                } else if !bench_mode && msg_mode_on {
-                    // Default fallback only fires when msg_mode=true.
-                    Some(default_message_text().leak())
-                } else {
-                    None
-                }
-            },
-            message_border: args.message_border
-                || (!bench_mode && args.message.is_none() && args.msg_mode.unwrap_or(true)),
-            // v50.0.0-alpha.7: msg_mode field added so verbose can report
-            // WHY config message is being ignored (msg_mode=false suppresses
-            // config messages; CLI -m/-mb always wins).
-            msg_mode: args.msg_mode.unwrap_or(true),
-            duration: args.duration,
             screen_size,
-            custom_palette_name: custom_palette_name.as_deref(),
-            scene_arg: &args.scene,
-            config_path: args.config.as_deref(),
-            cli_explicit_color,
-            intro_type_label: intro_label,
-            commit_sha,
             bench_mode,
-            power_dragon: args.power_dragon.unwrap_or(true),
-            intro_color: args.intro_color.as_deref(),
-            scene_custom: args.scene_custom.as_deref(),
-            ambient_schedule: &verbose_ambient_schedule,
-            ambient_snapback_secs: verbose_ambient_snapback_secs,
-        });
+            cli_explicit_color,
+            &default_message_text(),
+        );
     }
     // v14 Peak Monolith: resolve per-column density map from the active
     // scene-custom block (if any). The map sculpts monolith pillar formation.
