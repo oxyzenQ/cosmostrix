@@ -27,7 +27,6 @@ use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::HudState;
 use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
-use crate::central_control_dragon_power::sample_thermal_pressure;
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     crate::spawn_kill9_terminal_guard();
@@ -1072,75 +1071,22 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // counter below.
         power_manager.observe_frame_end(work_s, frame_period_s, write_overshoot);
 
-        // ── P5: Endurance health sampling (ALWAYS ON) ──
-        //
-        // (bug fix): previously this entire block was gated by
-        // `cfg.perf_stats`. When the user ran without --perf-stats, no
-        // samples were ever pushed to EnduranceHealth, so its score stayed
-        // at the initial 100.0 forever. That made the P2 self-healer
-        // (TriggerHealthMitigation) silently disable — a major footgun:
-        // a safety mitigation layer that vanishes the moment you turn off
-        // the display. The `--perf-stats` flag must control ONLY display,
-        // never mitigation. Always sample RSS + ctxt + frame time + recompute.
-        // Cost: 2 syscalls/sec + 1 isatty/min. Negligible.
-        endurance_health.push_frame_time(work_s as f64 * 1000.0);
-        if perf_rss_samples.is_multiple_of(60) {
+        // v50.0.0-beta.7 LOC refactor: P5 health sampling extracted to
+        // event_loop_p5.rs.
+        if !super::event_loop_p5::sample_p5_health(
+            &mut endurance_health,
+            &mut hud_state,
+            &mut power_manager,
+            &mut term,
+            &mut cloud,
+            work_s as f64,
+            work_start,
+            &mut perf_rss_samples,
             #[cfg(target_os = "linux")]
-            {
-                let rss = super::intro::read_self_rss_kb();
-                endurance_health.push_rss(rss as f64);
-            }
-            // P2: reuse work_start (captured just before cloud.rain_at)
-            // instead of another Instant::now(). Timing diff <1ms.
-            let elapsed = work_start
-                .saturating_duration_since(last_ctxt_sample)
-                .as_secs_f64();
-            if elapsed > 0.0 {
-                #[cfg(target_os = "linux")]
-                {
-                    let cur = super::intro::read_self_voluntary_ctxt();
-                    if last_ctxt_switches > 0 {
-                        let rate = (cur.saturating_sub(last_ctxt_switches)) as f64 / elapsed;
-                        endurance_health.push_ctxt_rate(rate);
-                    }
-                    last_ctxt_switches = cur;
-                }
-                last_ctxt_sample = work_start;
-            }
-            endurance_health.recompute();
-            // v50 (2026-08-17) HUD expansion — push the recomputed
-            // Endurance Health Score to the HUD so the `ehs:` line (row 6)
-            // always reflects the latest long-endurance stability metric.
-            // Runs on the 1 Hz adaptive tick (alongside recompute) so the
-            // score update cadence matches the metric recompute cadence.
-            hud_state.set_endurance_health_score(endurance_health.score());
-        }
-        perf_rss_samples = perf_rss_samples.saturating_add(1);
-
-        // P5: periodic stdout fd health probe (ALWAYS ON — not display state).
-        // Runs on the same slow tick (FD_HEALTH_PROBE_INTERVAL_FRAMES ≈
-        // 60s at 60 FPS). Detects fd corruption BEFORE a write fails.
-        // Cost: one isatty syscall per minute.
-        if perf_rss_samples.is_multiple_of(FD_HEALTH_PROBE_INTERVAL_FRAMES)
-            && !term.probe_stdout_health()
-        {
-            // Recovery attempted — GRACEFUL_SHUTDOWN is set.
-            cloud.raining = false;
+            &mut last_ctxt_switches,
+            &mut last_ctxt_sample,
+        ) {
             break;
-        }
-
-        // Feature #13: thermal sensor sampling (Linux only).
-        // Reads /sys/class/thermal/thermal_zone*/temp, normalizes the
-        // hottest zone to 0.0–1.0, and feeds it into PowerManager.
-        // Every downstream consumer of effective_pressure() (spawn
-        // cascade, self-healer, sim factor) automatically responds.
-        // On non-Linux or in containers without thermal sysfs, the
-        // sampler returns None and the previous thermal_pressure value
-        // is preserved (NOT reset to 0.0).
-        if perf_rss_samples.is_multiple_of(THERMAL_SAMPLER_INTERVAL_FRAMES) {
-            if let Some(p) = sample_thermal_pressure() {
-                power_manager.set_thermal_pressure(p);
-            }
         }
 
         // Display-only stats. IN-01: `perf_frames` + `frame_time_tracker.push`
