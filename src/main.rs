@@ -1,6 +1,5 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
-// LOC_EXEMPT: binary entry point — CloudConfig struct construction (~158 lines) + post-exit verbose dump are deeply coupled to main()'s local state; further extraction in progress.
 
 //! cosmostrix — the cinematic Matrix rain renderer (see `--version` for full description).
 //!
@@ -624,80 +623,9 @@ fn main() -> std::io::Result<()> {
     ));
 
     // ── Verbose output (before CloudConfig moves values) ──
-    let cli_explicit_color = matches!(
-        matches.value_source("color"),
-        Some(clap::parser::ValueSource::CommandLine)
-    );
-    // Bug 3 fix: capture which CLI flags were explicitly set so live reload
-    // can enforce CLI > config.toml > scene priority (otherwise a CLI flag
-    // like `-c green` would be silently overridden when config is edited).
-    let cli_explicit = crate::app::CliExplicit {
-        color: cli_explicit_color,
-        charset: matches!(
-            matches.value_source("charset"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        speed: matches!(
-            matches.value_source("speed"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        density: matches!(
-            matches.value_source("density"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        fps: matches!(
-            matches.value_source("fps"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        scene: matches!(
-            matches.value_source("scene"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        glitch_level: matches!(
-            matches.value_source("glitch_level"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        // Same intent tracking for --crystal-dragon.
-        crystal_dragon: matches!(
-            matches.value_source("crystal_dragon"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        // v50.0.0-alpha.7: track --power-dragon, --async-mode, --msg-mode,
-        // --intro-color, and -m/-mb CLI explicit (was missing — live-reload
-        // path overrode CLI intent on config edit).
-        power_dragon: matches!(
-            matches.value_source("power_dragon"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        async_mode: matches!(
-            matches.value_source("async_mode"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        msg_mode: matches!(
-            matches.value_source("msg_mode"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        intro_color: matches!(
-            matches.value_source("intro_color"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        message: matches!(
-            matches.value_source("message"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        // v50.0.0-alpha.7: track --monolith-size CLI explicit (Issue #4).
-        monolith_size: matches!(
-            matches.value_source("monolith_size"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-        // v50.0.0-alpha.7: track --color-tune CLI explicit (color.tune
-        // reset-on-comment fix — when CLI --color-tune is set, config
-        // [color.tune] block absence must NOT reset to identity).
-        color_tune: matches!(
-            matches.value_source("color_tune"),
-            Some(clap::parser::ValueSource::CommandLine)
-        ),
-    };
+    // v50.0.0-beta.7 LOC refactor: CliExplicit construction extracted to
+    // cli/cli_explicit.rs.
+    let (cli_explicit_color, cli_explicit) = crate::cli::cli_explicit::build_cli_explicit(&matches);
     if args.verbose {
         crate::output::startup_verbose::run_verbose_startup(
             &args,

@@ -15,8 +15,8 @@
 use std::time::Instant;
 
 use super::adaptive::{PerformanceSelfHealer, ReclaimState, SelfHealAction};
-use crate::cloud::Cloud;
 use crate::app::CloudConfig;
+use crate::cloud::Cloud;
 use crate::frame::Frame;
 
 /// Run the performance self-healer for one frame.
