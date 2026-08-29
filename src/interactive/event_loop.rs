@@ -21,7 +21,7 @@ use crate::terminal::{is_terminal_gone, Terminal};
 use super::super::{effective_density, CloudConfig};
 use super::activity::{register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
-    adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState, SelfHealAction,
+    adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState,
 };
 use super::event_loop_finalize::{finalize_session, SessionStats};
 use super::hud::HudState;
@@ -1125,80 +1125,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
         }
 
-        // Performance self-healer (P1+P2): pure policy returning an action
-        // enum. always pass Some(score) (P5 sampling always-on).
-        // Reset on scene change BEFORE observe() so we don't fire on the
-        // same frame the user switched. Phase D: u64 counter compare.
-        if scene_generation != scene_generation_at_frame_start {
-            self_healer.reset();
-        }
-
-        let heal_action = self_healer.observe(
+        // v50.0.0-beta.7 LOC refactor: performance self-healer extracted
+        // to event_loop_self_heal.rs.
+        super::event_loop_self_heal::run_self_healer(
+            &mut self_healer,
+            &mut reclaim_state,
+            &mut cloud,
+            &mut frame,
+            &current_cfg,
+            &scene_name,
+            scene_generation,
+            scene_generation_at_frame_start,
             power_manager.effective_pressure(),
             loop_now,
-            Some(endurance_health.score()),
+            endurance_health.score(),
         );
-        match heal_action {
-            SelfHealAction::None => {}
-            SelfHealAction::TriggerHealthMitigation => {
-                // P2: force full redraw + bypass ReclaimState cooldown for
-                // immediate madvise hint. Cooldown enforced inside self-healer.
-                cloud.force_draw_everything();
-                #[cfg(target_os = "linux")]
-                {
-                    let cells_ptr = frame.cells.as_ptr();
-                    let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                    // SAFETY: frame.cells is a valid Vec allocation.
-                    // hint_reclaim_pages advises only pages fully interior
-                    // to the allocation (never shared arena edge pages) —
-                    // see reclaim_state.rs for the corrected MADV_DONTNEED
-                    // semantics (zero-fill-on-demand). The zeroed interior
-                    // cells read as blank: force_draw_everything() was set
-                    // above, and the next rain_at() bumps the content
-                    // generation before any cell is read.
-                    unsafe {
-                        super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
-                    }
-                    reclaim_state.mark_reclaimed(loop_now);
-                }
-                #[cfg(not(target_os = "linux"))]
-                {
-                    // Non-Linux: madvise no-op, but mark reclaim state for
-                    // consistency with the P4 path.
-                    reclaim_state.mark_reclaimed(loop_now);
-                }
-            }
-            SelfHealAction::DowngradeScene => {
-                // AB-11 (option 2): do NOT switch scenes. Set the
-                // aggressive_throttle flag instead — rain_at() uses steeper
-                // spawn-scale + disables glitches. User's color/charset/
-                // density/speed/glitch_level are NEVER touched. Flag clears
-                // on pressure recovery.
-                // v50: when power_dragon is false, skip throttle entirely
-                // (owner Option D — user can disable adaptive protection).
-                // v50.0.0-beta.6: use current_cfg.power_dragon (live-reloaded)
-                // so live-reloading power_dragon=false immediately disables
-                // the throttle — previously used stale startup cfg.power_dragon.
-                if current_cfg.power_dragon && !self_healer.is_downgraded() {
-                    self_healer.record_downgrade(&scene_name);
-                    cloud.set_aggressive_throttle(true);
-                    crate::live_config::push_runtime_warning(&format!(
-                        "[self-heal] sustained high CPU pressure — throttling spawn rate (visual identity preserved: scene='{}')",
-                        scene_name
-                    ));
-                }
-            }
-            SelfHealAction::RestoreScene => {
-                // AB-11: clear throttle flag. No scene restore needed.
-                if self_healer.is_downgraded() {
-                    self_healer.take_pre_degraded_scene();
-                    cloud.set_aggressive_throttle(false);
-                    crate::live_config::push_runtime_warning(
-                        "[self-heal] CPU pressure recovered — spawn throttle released",
-                    );
-                }
-            }
-        }
 
         // Schedule next frame relative to the ideal deadline, using the
         // pre-work timestamp to prevent drift between render work and
