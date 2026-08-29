@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pure data file — 44-theme registry (ThemeDef entries, no logic). Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
 
 //! Theme registry — the full `THEMES` static array of all 44 built-in
 //! color schemes. Extracted from `catalog.rs` to keep that file under

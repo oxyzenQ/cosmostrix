@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: binary entry point — CloudConfig struct construction (~158 lines) + post-exit verbose dump are deeply coupled to main()'s local state; further extraction in progress.
 
 //! cosmostrix — the cinematic Matrix rain renderer (see `--version` for full description).
 //!

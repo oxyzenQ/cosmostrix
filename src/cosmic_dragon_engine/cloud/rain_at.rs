@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: single 974-line rain_at function — cannot be split without decomposing the render algorithm itself (each step mutates cloud state consumed by the next step).
 
 //! Main render loop step: `Cloud::rain_at()`.
 //!

@@ -10,15 +10,26 @@
 # when to split, generated-code exemption).
 #
 # Default hard limit: 800 lines (soft target: 500, not enforced).
-# Previous cap was 1500 — migration is incremental. Files still
-# over 800 are listed in EXEMPT_BELOW_800 and tracked for refactor.
-# As each file is refactored below 800, remove it from the list.
-# When the list is empty, the codebase is fully 800-compliant.
+#
+# Exemption mechanism: NO hardcoded file list. Instead, each file that
+# legitimately exceeds 800 LOC self-declares with a marker comment:
+#
+#   // LOC_EXEMPT: <one-line justification>
+#
+# The script dynamically scans every .rs file under src/ (recursive),
+# checks line counts, and for any file over the limit, greps for the
+# marker. If found → exempt (tracked debt). If not → BUILD FAIL.
+#
+# Benefits:
+# - No hardcoded paths in this script (they drift out of sync).
+# - The exemption lives WITH the file it exempts.
+# - Removing an exemption = delete the marker comment (no script edit).
+# - The justification is visible at the top of the exempt file.
 #
 # Usage: scripts/check-rs-loc.sh [MAX_LINES]
 #   MAX_LINES: override the default limit (default: 800)
 #
-# Platform: UNIX-only (uses `find`, `wc -l`, `sort`). Not for Windows cmd.exe.
+# Platform: UNIX-only (uses `find`, `wc -l`, `grep`). Not for Windows cmd.exe.
 
 set -euo pipefail
 
@@ -27,28 +38,14 @@ FAILED=0
 FOUND=0
 EXEMPT_VIOLATIONS=0
 
-# Migration exemption list: files still over 800 LOC, tracked for
-# incremental refactor. Each entry is a relative path from repo root.
-# To remove an entry: refactor the file below 800, verify tests pass,
-# then delete the line. The list MUST shrink over time — adding new
-# entries requires a justification comment.
-#
-# Format: one path per line, no leading ./
-EXEMPT_BELOW_800="
-src/main.rs
-src/interactive/event_loop.rs
-# rain_at: the main render loop step (974-line function). Cannot be
-# split further without decomposing the rain_at algorithm itself.
-src/cosmic_dragon_engine/cloud/rain_at.rs
-# Pure data file: 44-theme registry (ThemeDef entries, no logic).
-# Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
-src/chroma_dragon_engine/catalog/themes.rs
-"
+# Marker that a file uses to self-declare an LOC exemption.
+# Must be followed by a justification (one line, free-form text).
+EXEMPT_MARKER='// LOC_EXEMPT:'
 
 echo "Rust source file line counts (max ${MAX_LINES}):"
 echo ""
 
-# Collect all .rs files under src/ plus any root .rs files
+# Dynamically collect all .rs files under src/ (recursive, no hardcoding).
 FILES=$(find src -name '*.rs' 2>/dev/null | sort)
 
 if [ -z "$FILES" ]; then
@@ -61,12 +58,15 @@ while IFS= read -r f; do
         LINES=$(wc -l <"$f")
         printf "  %5d  %s\n" "$LINES" "$f"
         if [ "$LINES" -gt "$MAX_LINES" ]; then
-                # Check if this file is in the migration exemption list
-                if echo "$EXEMPT_BELOW_800" | grep -qxF "$f"; then
+                # Dynamically check if the file self-declares an exemption
+                # via the marker comment (no hardcoded list lookup).
+                if grep -qF "$EXEMPT_MARKER" "$f"; then
                         EXEMPT_VIOLATIONS=$((EXEMPT_VIOLATIONS + 1))
                 else
                         FAILED=$((FAILED + 1))
-                        echo "    ^^^ VIOLATES ${MAX_LINES} limit (NOT in exemption list)"
+                        echo "    ^^^ VIOLATES ${MAX_LINES} limit (no // LOC_EXEMPT: marker found)"
+                        echo "           Either refactor below ${MAX_LINES}, or add a marker comment:"
+                        echo "               // LOC_EXEMPT: <one-line justification>"
                 fi
         fi
         FOUND=$((FOUND + 1))
@@ -74,24 +74,25 @@ done <<<"$FILES"
 
 echo ""
 echo "Total files: ${FOUND}"
-echo "Files over ${MAX_LINES} (exempt / tracked for refactor): ${EXEMPT_VIOLATIONS}"
+echo "Files over ${MAX_LINES} (exempt via // LOC_EXEMPT: marker): ${EXEMPT_VIOLATIONS}"
 echo "Files over ${MAX_LINES} (NOT exempt — BUILD FAIL): ${FAILED}"
 
 if [ "$FAILED" -gt 0 ]; then
         echo ""
-        echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines and are NOT in the"
-        echo "migration exemption list. Either refactor them below ${MAX_LINES} or,"
-        echo "if genuinely cohesive, add them to EXEMPT_BELOW_800 with a comment."
+        echo "FAIL: ${FAILED} file(s) exceed ${MAX_LINES} lines without a"
+        echo "// LOC_EXEMPT: marker. Either refactor them below ${MAX_LINES}, or"
+        echo "add the marker with a justification:"
+        echo "    // LOC_EXEMPT: <reason this file cannot be split>"
         exit 1
 fi
 
 if [ "$EXEMPT_VIOLATIONS" -gt 0 ]; then
         echo ""
         echo "OK (with migration debt): ${EXEMPT_VIOLATIONS} file(s) exceed ${MAX_LINES}"
-        echo "but are tracked in EXEMPT_BELOW_800. Refactor incrementally — see"
-        echo "src/RULES_LOC.md 'Migration Path' section."
+        echo "but self-declare exemption via // LOC_EXEMPT: marker."
+        echo "Refactor incrementally — see src/RULES_LOC.md 'Migration Path' section."
         exit 0
 fi
 
-echo "OK: all files at or below ${MAX_LINES} lines (exemption list empty)"
+echo "OK: all files at or below ${MAX_LINES} lines (no exemptions needed)"
 exit 0

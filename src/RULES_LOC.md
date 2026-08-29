@@ -79,8 +79,17 @@ All `.rs` files under `src/`, plus `build.rs`.
   `tests_border.rs`, `tests_phosphor.rs`) when the file grows past
   1000. The gatekeeper allows test files to exceed 800 with a warning
   (see `scripts/check-rs-loc.sh` for the test-file carve-out).
-- **Generated code**: vendored or codegen output is exempt — add to
-  the exclusion list with a comment.
+- **Generated code / genuinely unsplittable files**: vendored codegen
+  output or files that cannot be split without decomposing the
+  algorithm are exempt via a **self-declaring marker comment**:
+  ```rust
+  // LOC_EXEMPT: <one-line justification>
+  ```
+  Place this marker on line 3 (after the copyright + SPDX header).
+  `scripts/check-rs-loc.sh` dynamically greps each over-800 file for
+  this marker — **no hardcoded file list**. The exemption lives WITH
+  the file, so it can never drift out of sync. Removing an exemption
+  = delete the marker comment (no script edit needed).
 
 ## File Permission Rule (unchanged)
 
@@ -96,8 +105,8 @@ Never `chmod 777` or `chmod 755 -R`. Use `git update-index --chmod=-x
 
 - **CI**: `scripts/check-rs-loc.sh` runs in `./scripts/build.sh check-all`
   and in the gatekeeper. Fails the build if any `.rs` file exceeds 800.
-- **PR review**: reviewers should reject PRs that add files >800 without
-  a justification comment + an exemption entry.
+- **PR review**: reviewers should reject PRs that add files >800
+  without a `// LOC_EXEMPT:` marker comment containing a justification.
 - **This file**: canonical reference. Update here first, then propagate
   to `docs/RULES.md` + `scripts/check-rs-loc.sh`.
 

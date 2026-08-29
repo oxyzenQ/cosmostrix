@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: one giant while-cloud.raining loop with deeply coupled local state (40+ mutable locals shared across input dispatch, config rebuild, adaptive throttling, draw, and HUD update); splitting requires passing a context struct through every branch.
 
 //! Main interactive event loop.
 //!
