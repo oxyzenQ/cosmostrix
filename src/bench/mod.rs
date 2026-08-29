@@ -42,6 +42,7 @@ pub mod bench_meta;
 pub mod bench_perf;
 pub mod bench_progress;
 pub mod bench_report;
+pub mod bench_report_engine;
 #[cfg(test)]
 pub mod bench_report_tests;
 pub mod bench_scale;

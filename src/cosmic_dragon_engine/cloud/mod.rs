@@ -31,6 +31,7 @@ mod monolith_helpers;
 mod monolith_tests;
 mod palette_blend;
 mod phosphor;
+mod phosphor_anomaly;
 mod rain;
 mod rain_post;
 mod render;

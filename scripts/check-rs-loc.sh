@@ -44,14 +44,12 @@ src/config/config_apply_tests/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
 src/interactive/hud/mod.rs
 src/cosmic_dragon_engine/terminal/mod.rs
-src/bench/bench_report.rs
 src/chroma_dragon_engine/shaders/transition/tests.rs
 src/chroma_dragon_engine/palette/tests_floor.rs
 src/chroma_dragon_engine/tests/lock.rs
 src/droplet/mod.rs
 src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
-src/cosmic_dragon_engine/cloud/phosphor.rs
 src/termdetect/tests.rs
 src/testconf/mod.rs
 src/chroma_dragon_engine/shaders/base/tests.rs
