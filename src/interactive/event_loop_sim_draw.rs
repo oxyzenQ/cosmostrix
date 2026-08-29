@@ -103,7 +103,13 @@ pub(crate) fn run_sim_and_draw(
             // instead of continuing to write to a dead fd.
             if is_terminal_gone(&e) {
                 cloud.raining = false;
-                return Ok(SimDrawResult { work_start, is_dirty_all: false, dirty_len: 0, did_draw: false, terminal_gone: true });
+                return Ok(SimDrawResult {
+                    work_start,
+                    is_dirty_all: false,
+                    dirty_len: 0,
+                    did_draw: false,
+                    terminal_gone: true,
+                });
             }
             // Other I/O errors: propagate normally.
             return Err(e);

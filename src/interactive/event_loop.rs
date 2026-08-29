@@ -20,9 +20,7 @@ use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::super::{effective_density, CloudConfig};
 use super::activity::{register_activity, spin_wait, FrameTimeTracker};
-use super::adaptive::{
-    adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState,
-};
+use super::adaptive::{EnduranceHealth, PerformanceSelfHealer, ReclaimState};
 use super::event_loop_finalize::finalize_session;
 use super::hud::HudState;
 use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
@@ -543,45 +541,21 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             super::fill_terminal_bg(cloud.palette.bg);
             next_frame = Instant::now();
         }
-        // Adaptive throttling: reduce FPS when idle to save CPU.
-        let loop_now = Instant::now();
-        // Capture scene generation at frame start — u64 copy for self-healer.
-        let scene_generation_at_frame_start = scene_generation;
-        // (Phase 3): PowerManager.begin_frame — is_idle, predictor, idle_started.
-        let is_idle = power_manager.begin_frame(loop_now);
-        // P2: adaptive resync interval based on sustained idle duration.
-        let idle_secs = power_manager
-            .idle_started()
-            .map(|t| loop_now.saturating_duration_since(t).as_secs_f64())
-            .unwrap_or(0.0);
-        let effective_resync_interval = adaptive_resync_interval(idle_secs);
-        if is_idle
-            && loop_now
-                .saturating_duration_since(last_resync_time)
-                .as_secs_f64()
-                >= effective_resync_interval
-        {
-            cloud.force_draw_everything();
-            last_resync_time = loop_now;
-            next_frame = loop_now;
-            // P4: Hint kernel to reclaim stale pages during sustained idle.
-            if reclaim_state.should_reclaim(loop_now) {
-                let cells_ptr = frame.cells.as_ptr();
-                let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                // SAFETY: frame.cells is a valid Vec allocation.
-                // hint_reclaim_pages advises only pages fully interior to
-                // the allocation (never shared arena edge pages) — see
-                // reclaim_state.rs for the corrected MADV_DONTNEED
-                // semantics (zero-fill-on-demand). The zeroed interior
-                // cells read as blank: force_draw_everything() was set
-                // above, and the next rain_at() bumps the content
-                // generation before any cell is read.
-                unsafe {
-                    super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
-                }
-                reclaim_state.mark_reclaimed(loop_now);
-            }
-        }
+        // v50.0.0-beta.7 LOC refactor: adaptive throttling extracted to
+        // event_loop_adaptive.rs.
+        let throttle = super::event_loop_adaptive::run_adaptive_throttle(
+            &mut cloud,
+            &mut frame,
+            &mut power_manager,
+            &mut reclaim_state,
+            &mut last_resync_time,
+            &mut next_frame,
+            scene_generation,
+        );
+        let loop_now = throttle.loop_now;
+        let is_idle = throttle.is_idle;
+        let scene_generation_at_frame_start = throttle.scene_generation_at_frame_start;
+
         // P2: reuse loop_now (captured at top of loop) instead of another Instant::now().
         if end_time.is_some_and(|end| loop_now >= end) {
             cloud.raining = false;
