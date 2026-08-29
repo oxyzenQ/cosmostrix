@@ -23,7 +23,7 @@ use super::adaptive::{
     adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState, SelfHealAction,
 };
 use super::event_loop_finalize::{finalize_session, SessionStats};
-use super::hud::{FrameMode, HudState};
+use super::hud::HudState;
 use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
 use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 use crate::central_control_dragon_power::sample_thermal_pressure;
@@ -952,59 +952,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // set + one method call). Placed AFTER the pause/idle/active branch
         // so the mode reflects the actual cadence used for this frame, not
         // the previous frame's.
-        let frame_mode = if cloud.pause {
-            FrameMode::Paused
-        } else if power_manager.is_idle() {
-            FrameMode::Idle
-        } else {
-            FrameMode::Active
-        };
-        hud_state.set_frame_mode(frame_mode);
-        // v50 (2026-08-17) HUD expansion — push 6 dynamic values to the HUD
-        // every frame so the 7 new owner-mandated metric lines (rows 6-12)
-        // always reflect the live state. Setters are cheap (single field
-        // write; String setters use clear+push_str on an existing
-        // allocation so they don't reallocate once the cap is warmed up).
-        // The text is rendered at the 1 Hz metric tick in `update_metrics`
-        // (matches the fps/p99/max/rss cadence — avoids number flicker).
-        hud_state.set_scene_name(&scene_name);
-        hud_state.set_color_scheme(cloud.color_scheme);
-        // Show custom palette name on the clr: HUD line when active.
-        // cloud.custom_palette_active tracks whether the user loaded a
-        // --colors-custom palette. current_cfg.custom_palette_name holds
-        // the name. v50.0.0-beta.6 bugfix: uses current_cfg (live-reloaded)
-        // instead of cfg (startup) so live-reload of custom_palette_name
-        // propagates to the clr: HUD line.
-        hud_state.set_custom_palette_name(if cloud.custom_palette_active {
-            current_cfg.custom_palette_name.as_deref()
-        } else {
-            None
-        });
-        hud_state.set_charset_preset(&charset_preset);
-        hud_state.set_droplet_density(cloud.droplet_density());
-        hud_state.set_chars_per_sec(cloud.chars_per_sec());
-        hud_state.set_effective_pressure(power_manager.effective_pressure());
-        cloud.set_perf_pressure(power_manager.effective_pressure());
-        // v50.0.0-beta.6 Option D: push the aggressive-throttle flag to the
-        // HUD so dsty: can reflect the steeper curve when the self-healer
-        // has detected sustained high CPU pressure. Mirrors cloud's flag.
-        hud_state.set_aggressive_throttle(cloud.aggressive_throttle);
-        // v50.0.0-beta.6: push the live power_dragon / crystal_dragon state
-        // to the HUD every frame. These track the current_cfg (live-reloaded)
-        // values, NOT the startup config — so when the user edits
-        // power_dragon=false or crystal_dragon=true in config.toml and
-        // live-reload applies it, the HUD prdr/crdr lines reflect the new
-        // state on the next 1 Hz metric tick. Owner explicitly mandated
-        // these are NOT hardcoded — they must reflect runtime behavior.
-        //
-        // BUGFIX: previously used `cfg` (the startup immutable reference)
-        // instead of `current_cfg` (the live-reloaded copy updated at line
-        // 345 when the watcher delivers a new config). This meant live-reload
-        // edits to power_dragon / crystal_dragon never reached the HUD — the
-        // prdr/crdr lines stayed stuck at the startup value for the entire
-        // session. Now uses `current_cfg` so live-reload propagates.
-        hud_state.set_power_dragon(current_cfg.power_dragon);
-        hud_state.set_crystal_dragon(current_cfg.crystal_dragon);
+        // v50.0.0-beta.7 LOC refactor: HUD state update extracted to
+        // event_loop_hud.rs.
+        super::event_loop_hud::update_hud_state(
+            &mut hud_state,
+            &mut cloud,
+            &power_manager,
+            &scene_name,
+            &charset_preset,
+            &current_cfg,
+        );
         let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
         // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
         // from constants.rs — was a hardcoded `0.3` inline.
