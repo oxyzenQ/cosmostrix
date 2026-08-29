@@ -921,6 +921,8 @@ mod metrics;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_chroma_metrics;
 
 #[cfg(test)]
 mod tests_brighten;

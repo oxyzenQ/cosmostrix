@@ -38,7 +38,6 @@ EXEMPT_BELOW_800="
 src/main.rs
 src/interactive/event_loop.rs
 src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
-src/interactive/hud/tests.rs
 src/cosmic_dragon_engine/cloud/rain.rs
 src/bench/mod.rs
 src/config/config_apply_tests/mod.rs
@@ -53,7 +52,6 @@ src/droplet/mod.rs
 src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
 src/cosmic_dragon_engine/cloud/phosphor.rs
-src/interactive/tests.rs
 src/termdetect/tests.rs
 src/testconf/mod.rs
 src/chroma_dragon_engine/shaders/base/tests.rs

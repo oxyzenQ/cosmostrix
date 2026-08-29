@@ -54,6 +54,13 @@ mod watchdog;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_fmt_opt;
+
+// v50 LTS regression tests (first-reload scene reset crash).
+#[cfg(test)]
+#[path = "tests_v50_first_reload.rs"]
+mod v50_first_reload;
 
 #[cfg(test)]
 mod tests_v35;
