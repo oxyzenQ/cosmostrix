@@ -32,53 +32,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     crate::spawn_kill9_terminal_guard();
 
     // Install signal handlers + watchdog (extracted to signal_handlers.rs).
-    // term_reinit is TermReinit (Arc<AtomicBool> on Unix, () on Windows).
-    // On Windows, TermReinit=() so all swap() calls are eliminated at
-    // compile time — no #[cfg] needed at the usage sites.
-    let (signal_exit, term_reinit) = super::signal_handlers::install_signal_handlers();
-
-    // AB-10: emit pre-alt-screen warnings BEFORE Terminal::with_signal_exit()
-    // enters the alt screen. Otherwise they leak into the rain matrix.
-    let fixed_size = cfg.screen_size;
-    super::emit_pre_alt_screen_warnings(fixed_size, cfg.intro != crate::config::IntroType::None);
-
-    let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
-    if term.enable_mouse_capture().is_ok() {
-        MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
-    }
-    let (mut w, mut h) = if let Some(fixed) = fixed_size {
-        fixed
-    } else {
-        term.size()?
-    };
-
+    // v50.0.0-beta.7 LOC refactor: terminal + cloud + frame setup
+    // extracted to event_loop_setup.rs.
+    let setup = super::event_loop_setup::setup_terminal_cloud_frame(cfg)?;
+    let mut term = setup.term;
+    let mut cloud = setup.cloud;
+    let mut frame = setup.frame;
+    let mut w = setup.w;
+    let mut h = setup.h;
+    let signal_exit = setup.signal_exit;
+    let term_reinit = setup.term_reinit;
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
-
-    let mut cloud = cfg.create_cloud(density);
-    cloud.reset(w, h);
-    cloud.enable_events();
-    // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
-    // per frame when off, ~40ns saved).
-    cloud.set_component_timing(cfg.perf_stats);
-    cloud.set_effects_enabled(cfg.effects_enabled);
-    let caps = term.phosphor_tuning();
-    cloud.set_phosphor_tuning(caps.0, caps.1, caps.2);
-    // Bug-fix: no ambient phase has fired yet, so the user's CLI/config
-    // choices ARE the authoritative state. Without this, the first live
-    // reload would incorrectly re-apply scene defaults (cinematic/zen/
-    // energyzen) via the empty-schedule handler, overriding the user's
-    // explicit --charset, --color, and config.toml values. With
-    // user_override_since_ambient = true, the preserve_user_override
-    // branch correctly restores the user's state after each rebuild.
-    cloud.user_override_since_ambient = true;
-
-    // Build color byte cache so the draw hot path emits pre-formatted SGR.
-    term.set_color_cache(ColorCache::new(&cloud.palette));
-
-    let mut frame = Frame::new(w, h, cloud.palette.bg);
-
-    // v16: fill alt screen with palette bg before first frame (no edge gaps).
-    super::fill_terminal_bg(cloud.palette.bg);
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     // Extracted to event_loop_intro.rs to keep this file under the 1500-LOC
