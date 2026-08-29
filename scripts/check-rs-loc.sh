@@ -42,7 +42,6 @@ src/cosmic_dragon_engine/cloud/rain.rs
 src/bench/mod.rs
 src/config/config_apply_tests/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
-src/interactive/hud/mod.rs
 src/cosmic_dragon_engine/terminal/mod.rs
 src/chroma_dragon_engine/shaders/transition/tests.rs
 src/chroma_dragon_engine/palette/tests_floor.rs
@@ -53,7 +52,6 @@ src/config/live_config/tests.rs
 src/termdetect/tests.rs
 src/testconf/mod.rs
 src/chroma_dragon_engine/shaders/base/tests.rs
-src/scene/mod.rs
 src/config/config_apply.rs
 src/interactive/intro.rs
 src/validation/mod.rs
