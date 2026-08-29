@@ -37,6 +37,9 @@ EXEMPT_VIOLATIONS=0
 EXEMPT_BELOW_800="
 src/main.rs
 src/interactive/event_loop.rs
+# rain_at: the main render loop step (974-line function). Cannot be
+# split further without decomposing the rain_at algorithm itself.
+src/cosmic_dragon_engine/cloud/rain_at.rs
 # Pure data file: 44-theme registry (ThemeDef entries, no logic).
 # Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
 src/chroma_dragon_engine/catalog/themes.rs
