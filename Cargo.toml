@@ -22,8 +22,6 @@ exclude = [
     "aur/*",
     ".github/*",
     ".git/*",
-    "KNOWN_ISSUES.md",
-    "INSIGHTS.md",
     # dst.
 ]
 
