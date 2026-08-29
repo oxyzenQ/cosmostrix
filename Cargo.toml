@@ -11,6 +11,21 @@ description = "Professional-grade cinematic Matrix rain renderer for serious ter
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 build = "build.rs"
+exclude = [
+    "benchmark/*",
+    "docs/research/*",
+    "docs/archive/*",
+    "docs/audits/*",
+    "assets/*.gif",
+    "assets/*.png",
+    "scripts/*",
+    "aur/*",
+    ".github/*",
+    ".git/*",
+    "KNOWN_ISSUES.md",
+    "INSIGHTS.md",
+    # dst.
+]
 
 [dependencies]
 clap = { version = ">=4.5, <4.6", default-features = false, features = ["std", "color", "help", "usage", "error-context", "derive", "suggestions"] }
