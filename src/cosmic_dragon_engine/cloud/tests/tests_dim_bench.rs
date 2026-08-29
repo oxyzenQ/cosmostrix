@@ -130,8 +130,8 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     // If a refactor removes either guard, this test fails before the
     // cosmetic workload can silently return to the bench hot path.
     // v50.0.0-beta.7 LOC refactor: post_rain_processing extracted to
-    // post_rain.rs, so we check both rain.rs + post_rain.rs.
-    let source = include_str!("../rain.rs");
+    // post_rain.rs; rain_at extracted to rain_at.rs. Check both.
+    let source = include_str!("../rain_at.rs");
     let post_source = include_str!("../post_rain.rs");
     let combined = format!("{source}\n{post_source}");
 

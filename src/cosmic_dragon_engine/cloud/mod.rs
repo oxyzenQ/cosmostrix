@@ -33,6 +33,7 @@ mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
 mod rain;
+mod rain_at;
 mod rain_post;
 mod render;
 mod runtime_controls;

@@ -37,7 +37,6 @@ EXEMPT_VIOLATIONS=0
 EXEMPT_BELOW_800="
 src/main.rs
 src/interactive/event_loop.rs
-src/cosmic_dragon_engine/cloud/rain.rs
 # Pure data file: 44-theme registry (ThemeDef entries, no logic).
 # Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
 src/chroma_dragon_engine/catalog/themes.rs
