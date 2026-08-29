@@ -21,7 +21,8 @@ use crate::{
     CloudConfig,
 };
 
-use super::{validate_bench_scene, FRAME_TIME_SAMPLES};
+use super::premium::FRAME_TIME_SAMPLES;
+use super::validate_bench_scene;
 
 /// Internal: run benchmark measurement and return data (no output).
 pub(crate) fn run_premium_benchmark_silent(cfg: &CloudConfig) -> std::io::Result<BenchReportData> {

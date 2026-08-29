@@ -39,7 +39,6 @@ src/main.rs
 src/interactive/event_loop.rs
 src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
 src/cosmic_dragon_engine/cloud/rain.rs
-src/bench/mod.rs
 src/config/config_apply_tests/mod.rs
 src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
 src/cosmic_dragon_engine/terminal/mod.rs
