@@ -95,3 +95,48 @@ pub(crate) fn print_post_exit_verbose(
         cloud_cfg.ambient_schedule.entries.len(),
     );
 }
+
+/// Handle post-exit error reporting + warning drain.
+///
+/// Called after `interactive::run_interactive` returns. Handles:
+/// 1. Live-reload fatal exit (bug #15): if the watcher set
+///    LIVE_RELOAD_EXIT_CODE=2, print the error after Terminal::drop
+///    (no alt-screen leak) and exit(2).
+/// 2. AB-10: drain buffered runtime warnings + debug traces post-exit.
+///
+/// On fatal live-reload error, calls `std::process::exit(2)` — does
+/// NOT return. Otherwise returns normally and the caller returns
+/// `result`.
+pub(crate) fn handle_post_exit_errors() {
+    // Live-reload fatal exit (bug #15): watcher panics + validation
+    // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
+    // after Terminal::drop (no alt-screen leak).
+    if crate::live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
+        if let Ok(guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
+            if let Some(ref msg) = *guard {
+                crate::output::eprintln_safe!(
+                    "{} [live-reload] ERROR: {}{}",
+                    crate::output::error_bold_open(),
+                    msg,
+                    crate::output::reset()
+                );
+                crate::output::eprintln_safe!(
+                    "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
+                    crate::output::error_open(),
+                    crate::output::reset()
+                );
+            }
+        }
+        use std::io::Write;
+        let _ = std::io::stderr().flush();
+        std::process::exit(2);
+    }
+
+    // AB-10: drain buffered runtime warnings + debug traces post-exit.
+    for w in crate::live_config::drain_runtime_warnings() {
+        crate::output::eprintln_warn_labeled(&w);
+    }
+    for t in crate::live_config_trace::drain_debug_traces() {
+        crate::output::eprintln_safe!("{t}");
+    }
+}

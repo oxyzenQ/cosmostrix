@@ -934,35 +934,9 @@ fn main() -> std::io::Result<()> {
     }
 
     // Live-reload fatal exit ( bug #15): watcher panics + validation
-    // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
-    // after Terminal::drop (no alt-screen leak).
-    if live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
-        if let Ok(guard) = live_config::LIVE_RELOAD_ERROR.lock() {
-            if let Some(ref msg) = *guard {
-                crate::output::eprintln_safe!(
-                    "{} [live-reload] ERROR: {}{}",
-                    crate::output::error_bold_open(),
-                    msg,
-                    crate::output::reset()
-                );
-                crate::output::eprintln_safe!(
-                    "{}  Config NOT applied. Fix the error and restart cosmostrix.{}",
-                    crate::output::error_open(),
-                    crate::output::reset()
-                );
-            }
-        }
-        use std::io::Write;
-        let _ = std::io::stderr().flush();
-        std::process::exit(2);
-    }
+    // v50.0.0-beta.7 LOC refactor: post-exit error handling + warning
+    // drain extracted to output/post_exit.rs.
+    crate::output::post_exit::handle_post_exit_errors();
 
-    // AB-10: drain buffered runtime warnings + debug traces post-exit.
-    for w in live_config::drain_runtime_warnings() {
-        crate::output::eprintln_warn_labeled(&w);
-    }
-    for t in crate::live_config_trace::drain_debug_traces() {
-        crate::output::eprintln_safe!("{t}");
-    }
     result
 }
