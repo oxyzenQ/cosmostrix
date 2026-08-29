@@ -18,6 +18,9 @@ mod protocol;
 #[cfg(test)]
 mod tests;
 
+#[cfg(test)]
+mod tests_ancestor;
+
 use std::env;
 // Re-export test-only items so tests.rs can find them via super::*.
 #[cfg(test)]
