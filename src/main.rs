@@ -115,12 +115,6 @@ mod interactive;
 mod output;
 pub(crate) use output::{message, report, ux};
 
-// v50.0.0-beta.7 LOC refactor: verbose startup block extracted to
-// main_verbose.rs to keep main.rs under the 800-LOC hard cap.
-mod main_bench_dispatch;
-mod main_early_returns;
-mod main_verbose;
-
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
 pub(crate) use platform::panic_hook;
@@ -314,7 +308,7 @@ fn main() -> std::io::Result<()> {
     // behaves: help wins over everything else.
     // v50.0.0-beta.7 LOC refactor: pre-config-apply early-return commands
     // extracted to main_early_returns.rs.
-    if let Some(result) = main_early_returns::handle_pre_config_returns(&mut args) {
+    if let Some(result) = crate::cli::early_returns::handle_pre_config_returns(&mut args) {
         return result;
     }
 
@@ -361,7 +355,7 @@ fn main() -> std::io::Result<()> {
     // v50.0.0-beta.7 LOC refactor: post-config-apply early-return commands
     // (--doctor, --version, --docs, --check-update) extracted to
     // main_early_returns.rs.
-    if let Some(result) = main_early_returns::handle_post_config_returns(&args) {
+    if let Some(result) = crate::cli::early_returns::handle_post_config_returns(&args) {
         return result;
     }
 
@@ -704,7 +698,7 @@ fn main() -> std::io::Result<()> {
         ),
     };
     if args.verbose {
-        main_verbose::run_verbose_startup(
+        crate::output::startup_verbose::run_verbose_startup(
             &args,
             rain_style,
             color_scheme,
@@ -904,7 +898,7 @@ fn main() -> std::io::Result<()> {
 
     // v50.0.0-beta.7 LOC refactor: bench dispatch extracted to
     // main_bench_dispatch.rs.
-    if let Some(result) = main_bench_dispatch::dispatch_bench(&args, &cloud_cfg, fps_user_set) {
+    if let Some(result) = crate::bench::dispatch_bench(&args, &cloud_cfg, fps_user_set) {
         return result;
     }
 

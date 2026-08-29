@@ -98,3 +98,7 @@ pub(crate) fn run_benchmark_capture(
 
     run_premium_benchmark_silent(&capture_cfg)
 }
+
+// Submodule (moved from src/ root for clean src/ layout)
+mod dispatch;
+pub(crate) use dispatch::dispatch_bench;

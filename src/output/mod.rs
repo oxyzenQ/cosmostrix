@@ -766,5 +766,6 @@ mod tests {
 pub(crate) mod message;
 pub(crate) mod post_exit;
 pub(crate) mod report;
+pub(crate) mod startup_verbose;
 pub(crate) mod ux;
 pub(crate) mod verbose;

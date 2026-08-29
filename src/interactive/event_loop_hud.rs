@@ -4,9 +4,9 @@
 //! HUD state update — extracted from `event_loop.rs` to keep that file
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 
+use crate::app::CloudConfig;
 use crate::central_control_dragon_power::PowerManager;
 use crate::cloud::Cloud;
-use crate::app::CloudConfig;
 
 use super::hud::{FrameMode, HudState};
 

@@ -425,5 +425,6 @@ mod tests {
 pub(crate) mod app;
 pub(crate) mod canonicalize;
 pub(crate) mod cli_parse;
+pub(crate) mod early_returns;
 pub(crate) mod help_detail;
 pub(crate) mod suggestion;
