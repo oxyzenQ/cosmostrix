@@ -759,3 +759,6 @@ mod tests_blend;
 
 #[cfg(test)]
 mod tests_floor;
+
+#[cfg(test)]
+mod tests_floor_audit;
