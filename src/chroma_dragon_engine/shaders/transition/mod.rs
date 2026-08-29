@@ -342,3 +342,6 @@ pub(crate) fn apply_l_smoothing(
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_phase8;
