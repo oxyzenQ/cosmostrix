@@ -24,12 +24,14 @@ use crate::frame::Frame;
 /// Resets on scene change, observes current pressure + endurance score,
 /// then applies the returned action (force redraw, madvise, throttle,
 /// or restore). Mutates cloud/frame/reclaim_state/self_healer as needed.
+/// Note: `frame` is only used on Linux (madvise hint path). On non-Linux
+/// it's accepted but unused — prefixed with `_frame` via #[allow(unused)].
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn run_self_healer(
     self_healer: &mut PerformanceSelfHealer,
     reclaim_state: &mut ReclaimState,
     cloud: &mut Cloud,
-    frame: &mut Frame,
+    #[allow(unused_variables)] frame: &mut Frame,
     current_cfg: &CloudConfig,
     scene_name: &str,
     scene_generation: u64,

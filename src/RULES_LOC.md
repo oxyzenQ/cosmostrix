@@ -82,9 +82,11 @@ All `.rs` files under `src/`, plus `build.rs`.
 - **Generated code / genuinely unsplittable files**: vendored codegen
   output or files that cannot be split without decomposing the
   algorithm are exempt via a **self-declaring marker comment**:
+
   ```rust
   // LOC_EXEMPT: <one-line justification>
   ```
+
   Place this marker on line 3 (after the copyright + SPDX header).
   `scripts/check-rs-loc.sh` dynamically greps each over-800 file for
   this marker — **no hardcoded file list**. The exemption lives WITH
