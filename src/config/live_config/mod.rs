@@ -551,3 +551,6 @@ pub(crate) use watcher::validate_and_send;
 
 #[cfg(test)]
 mod tests;
+
+#[cfg(test)]
+mod tests_rejection_msg;
