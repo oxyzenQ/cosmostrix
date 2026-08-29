@@ -782,3 +782,6 @@ mod tests_activation;
 
 #[cfg(test)]
 mod tests_bold_audit;
+
+#[cfg(test)]
+mod tests_hue_drift;

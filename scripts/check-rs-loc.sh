@@ -51,7 +51,6 @@ src/interactive/tests_v35.rs
 src/config/live_config/tests.rs
 src/termdetect/tests.rs
 src/testconf/mod.rs
-src/chroma_dragon_engine/shaders/base/tests.rs
 # Pure data file: 44-theme registry (ThemeDef entries, no logic).
 # Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).
 src/chroma_dragon_engine/catalog/themes.rs
