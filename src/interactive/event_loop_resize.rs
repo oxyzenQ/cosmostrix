@@ -6,9 +6,9 @@
 
 use std::time::Instant;
 
+use crate::app::CloudConfig;
 use crate::cloud::Cloud;
 use crate::color_cache::ColorCache;
-use crate::app::CloudConfig;
 use crate::frame::Frame;
 use crate::interactive::hud::HudState;
 use crate::terminal::Terminal;

@@ -196,33 +196,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
 
-        // Live config reload: non-blocking check for config events.
-        if let Some(ref rx) = config_rx {
-            while let Ok(event) = rx.try_recv() {
-                crate::lr_trace!("render thread received config event from watcher channel");
-                match event {
-                    Ok(cfg) => {
-                        crate::lr_trace!(
-                            "render thread: pending config set ({} keys) — will rebuild next frame",
-                            cfg.len()
-                        );
-                        pending_config = Some(cfg);
-                    }
-                    Err(msg) => {
-                        // config validation errors cause immediate exit.
-                        crate::lr_trace!(
-                            "render thread: config validation error — setting exit code + breaking rain loop"
-                        );
-                        if let Ok(mut guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
-                            *guard = Some(msg);
-                        }
-                        crate::live_config::LIVE_RELOAD_EXIT_CODE
-                            .store(2, std::sync::atomic::Ordering::Release);
-                        cloud.raining = false;
-                        break;
-                    }
-                }
-            }
+        // v50.0.0-beta.7 LOC refactor: config event draining extracted to
+        // event_loop_config_drain.rs.
+        if !super::event_loop_config_drain::drain_config_events(
+            &config_rx,
+            &mut pending_config,
+            &mut cloud,
+        ) {
+            break;
         }
 
         // Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
