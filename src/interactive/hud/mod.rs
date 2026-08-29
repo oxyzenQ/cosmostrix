@@ -96,7 +96,7 @@ const HUD_MIN_WIDTH: u16 = 12;
 /// the practical cap is set by the longest existing line). The bump
 /// ensures the cpu line never gets truncated when fps is high (which
 /// would make ` p99` wrap visually).
-const HUD_MAX_WIDTH: u16 = 22;
+const HUD_MAX_WIDTH: u16 = 24;
 
 /// Frame pacing mode announced by the event loop to the HUD.
 ///
@@ -231,20 +231,35 @@ pub(crate) struct HudState {
     /// `compute_spawn_scale`) to show the effective density — the user
     /// sees density drop harder when aggressive throttle is active.
     aggressive_throttle: bool,
+    // v50.0.0-beta.7 HUD Option C expansion — 4 new owner-mandated metrics.
+    /// Ambient scheduler on/off (true when config.toml has ≥1 ambient.HH-MM
+    /// entry). Drives the `ambt:` HUD line so the user knows automated
+    /// scene/palette changes are happening.
+    ambient_on: bool,
+    /// Glitch level preset (none/subtle/default/intense). Drives the
+    /// `glth:` HUD line.
+    glitch_level: crate::config::GlitchLevel,
+    /// Color tuning status: true when any ColorTune field ≠ 1.0 (custom),
+    /// false when all fields = 1.0 (default/identity). Drives the
+    /// `ctun:` HUD line.
+    color_tune_custom: bool,
+    /// Monolith size (small/normal/large). Only meaningful when scene is
+    /// monolith-based. Drives the `mnst:` HUD line.
+    monolith_size: crate::runtime::MonolithSize,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
-    /// 18 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
-    /// dsty / scn / chr / clr / up / screensize / prdr / crdr / cid.
-    /// Rows 0-14 are the v50 layout (performance + health + live
-    /// controls + session/screensize). Rows 15-16 are the v50.0.0-beta.6
-    /// dragon on/off indicators (prdr, crdr). Row 17 is the cid line
-    /// (commit short SHA, static for the entire process lifetime —
+    /// 22 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
+    /// dsty / scn / chr / clr / up / screensize / prdr / crdr / ambt /
+    /// glth / ctun / mnst / cid.
+    /// Rows 0-16 are the v50 layout. Rows 17-20 are the v50.0.0-beta.7
+    /// Option C expansion (ambt, glth, ctun, mnst). Row 21 is the cid
+    /// line (commit short SHA, static for the entire process lifetime —
     /// owner-mandated bottom row). The cid line is static (compile-time
     /// git SHA injected by build.rs via `COSMOSTRIX_GIT_SHA`), so its
     /// text is set once in `new()` and only its color is refreshed by
     /// `refresh_colors` every frame.
-    cached_lines: [(Color, String); 18],
+    cached_lines: [(Color, String); 22],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -591,6 +606,30 @@ impl HudState {
         self.aggressive_throttle = on;
     }
 
+    // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
+    /// Set ambient scheduler on/off. `on` = config.toml has ≥1 ambient.HH-MM
+    /// entry (auto-detected by the event loop from the ambient schedule).
+    pub(crate) fn set_ambient_on(&mut self, on: bool) {
+        self.ambient_on = on;
+    }
+
+    /// Set glitch level preset (none/subtle/default/intense).
+    pub(crate) fn set_glitch_level(&mut self, level: crate::config::GlitchLevel) {
+        self.glitch_level = level;
+    }
+
+    /// Set color tuning status: `true` = custom (any ColorTune field ≠ 1.0),
+    /// `false` = default (all fields = 1.0 / identity).
+    pub(crate) fn set_color_tune_custom(&mut self, is_custom: bool) {
+        self.color_tune_custom = is_custom;
+    }
+
+    /// Set monolith size (small/normal/large). Only meaningful when scene
+    /// is monolith-based.
+    pub(crate) fn set_monolith_size(&mut self, size: crate::runtime::MonolithSize) {
+        self.monolith_size = size;
+    }
+
     /// Refresh HUD line colors from the current palette. Called every
     /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
     /// the HUD tracks palette changes (`c`/`C` key cycle, Crystal Dragon
@@ -679,7 +718,7 @@ impl HudState {
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_18(palette_colors);
+        let colors = compute_chroma_gradient_22(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -700,16 +739,16 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-// v50.0.0-beta.7 LTS: compute_chroma_gradient_18 + brighten_color
+// v50.0.0-beta.7 LTS: compute_chroma_gradient_22 + brighten_color
 // extracted to colors.rs to keep this file under the 1500-LOC cap.
 // Re-exported here so 'use super::*' glob in tests.rs + tests_brighten.rs
-// resolves them unchanged. mod.rs only calls compute_chroma_gradient_18
+// resolves them unchanged. mod.rs only calls compute_chroma_gradient_22
 // directly; brighten_color is re-exported purely for the test modules
 // (tests_brighten.rs calls it directly), hence the allow(unused_imports).
 mod colors;
 mod hud_init;
 #[allow(unused_imports)]
-pub(crate) use colors::{brighten_color, compute_chroma_gradient_18};
+pub(crate) use colors::{brighten_color, compute_chroma_gradient_22};
 
 // v50.0.0-beta.7 LOC refactor: update_metrics method extracted to
 // metrics.rs as a separate impl HudState block.

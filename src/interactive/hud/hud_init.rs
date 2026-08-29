@@ -67,61 +67,40 @@ impl super::HudState {
             power_dragon_on: true,
             crystal_dragon_on: false,
             aggressive_throttle: false,
+            // v50.0.0-beta.7 Option C expansion defaults.
+            ambient_on: false,
+            glitch_level: crate::config::GlitchLevel::None,
+            color_tune_custom: false,
+            monolith_size: crate::runtime::MonolithSize::Normal,
             cached_lines: [
                 // ── Performance core (rows 0-5) — unchanged from v50 ──
-                (Color::Cyan, String::new()), // 0: fps
-                (Color::Cyan, String::new()), // 1: tgt — uses `dim` (tail) at runtime
-                // v50 (2026-08-15): rows 2-5 reordered intra-pair to match
-                // htop/btop convention — extreme before representative
-                // (max before p99), active before passive (cpu before rss).
-                // Brightness gradient stop assignments are unchanged —
-                // colors[i] still maps to cached_lines[i]. Only the content
-                // at each index changed.
-                (Color::Magenta, String::new()), // 2: max line (was row 3)
-                (Color::Yellow, String::new()),  // 3: p99 line (was row 2)
-                (Color::Cyan, String::new()),    // 4: cpu line — uses `mid` at runtime (was row 5)
-                (Color::Green, String::new()),   // 5: rss line (was row 4)
-                // ── Health / pressure (rows 6-7) — v50 HUD expansion ──
-                // ehs (Endurance Health Score) before prs (Effective Pressure):
-                // health is the summary, pressure is the live driver. Reading
-                // order matches the diagnostic flow — "how is it" then "why".
-                (Color::Yellow, String::new()), // 6: ehs  — endurance health score (NEW)
-                (Color::Yellow, String::new()), // 7: prs  — effective pressure (NEW)
-                // ── User-adjustable live controls (rows 8-12) — v50 HUD expansion ──
-                // Ordering: speed → density → scene → charset → color.
-                // Speed/density are numeric (adjust via arrows/brackets),
-                // scene/charset/color are categorical (cycle via single keys).
-                // Owner explicitly mandated `dsty` for density (NOT `den`).
-                (Color::Magenta, String::new()), // 8: sped — chars/sec speed (↑↓) (NEW)
-                (Color::Magenta, String::new()), // 9: dsty — density multiplier ([/]) (NEW)
-                (Color::Cyan, String::new()),    // 10: scn  — scene name (x cycle) (NEW)
-                (Color::Cyan, String::new()),    // 11: chr  — charset preset (s/S cycle) (NEW)
-                (Color::Cyan, String::new()),    // 12: clr  — color scheme (c/C cycle) (NEW)
-                // ── Session / diagnostic / build identity (rows 13-17) ──
-                // v50 (2026-08-17): moved up/screensize/cid to the bottom
-                // (cid was row 15 — owner-mandated). v50.0.0-beta.6: prdr
-                // and crdr inserted above cid (rows 15-16), cid moved to
-                // row 17 (still the last/bottom row per owner mandate:
-                // "cid indicator keep last position metrics"). The chroma
-                // gradient sweeps from dim tail (palette[0]) at the top to
-                // bright head (palette[n-1]) at the bottom, so the build
-                // identity still earns the brightest stop.
-                (Color::DarkCyan, String::new()), // 13: up  — session uptime
+                (Color::Cyan, String::new()),    // 0: fps
+                (Color::Cyan, String::new()),    // 1: tgt — uses `dim` (tail) at runtime
+                (Color::Magenta, String::new()), // 2: max line
+                (Color::Yellow, String::new()),  // 3: p99 line
+                (Color::Cyan, String::new()),    // 4: cpu line
+                (Color::Green, String::new()),   // 5: rss line
+                // ── Health / pressure (rows 6-7) ──
+                (Color::Yellow, String::new()), // 6: ehs
+                (Color::Yellow, String::new()), // 7: prs
+                // ── User-adjustable live controls (rows 8-12) ──
+                (Color::Magenta, String::new()), // 8: sped
+                (Color::Magenta, String::new()), // 9: dsty
+                (Color::Cyan, String::new()),    // 10: scn
+                (Color::Cyan, String::new()),    // 11: chr
+                (Color::Cyan, String::new()),    // 12: clr
+                // ── Session / diagnostic / build identity (rows 13-16) ──
+                (Color::DarkCyan, String::new()), // 13: up
                 (Color::DarkCyan, String::new()), // 14: screensize
-                // v50.0.0-beta.6: power-dragon on/off indicator. Text is
-                // rebuilt at the 1 Hz tick in update_metrics (reads the
-                // live power_dragon_on field set by set_power_dragon()).
-                // Renders as " prdr: on" or " prdr: off".
-                (Color::DarkCyan, String::new()), // 15: prdr — power-dragon on/off (NEW)
-                // v50.0.0-beta.6: crystal-dragon on/off indicator. Same
-                // pattern as prdr — live state from set_crystal_dragon().
-                // Renders as " crdr: on" or " crdr: off".
-                (Color::DarkCyan, String::new()), // 16: crdr — crystal-dragon on/off (NEW)
+                (Color::DarkCyan, String::new()), // 15: prdr
+                (Color::DarkCyan, String::new()), // 16: crdr
+                // v50.0.0-beta.7 Option C expansion (rows 17-20).
+                (Color::DarkCyan, String::new()), // 17: ambt — ambient on/off
+                (Color::DarkCyan, String::new()), // 18: glth — glitch level
+                (Color::DarkCyan, String::new()), // 19: ctun — color tuning default/custom
+                (Color::DarkCyan, String::new()), // 20: mnst — monolith size
                 // cid line — commit short SHA, static for the entire process
-                // lifetime. Color is refreshed by `refresh_colors` (head stop,
-                // brightest) every frame; the text never changes so
-                // `update_metrics` skips it. v50: row 15 → v50.0.0-beta.6:
-                // row 17 (still owner-mandated bottom row).
+                // lifetime. Row 21 (owner-mandated bottom row).
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
             ],
             current_width: HUD_MIN_WIDTH,

@@ -36,6 +36,10 @@ pub struct CloudConfig {
     /// Replaces the old `noglitch: bool` field (v30 simplify: --noglitch CLI
     /// flag removed; positive polarity is clearer and matches `cloud.glitchy`).
     pub glitch_enabled: bool,
+    /// v50.0.0-beta.7: glitch level preset (none/subtle/default/intense)
+    /// stored on CloudConfig so the HUD can display it without reaching
+    /// back into Args. Set during CloudConfig construction in main.rs.
+    pub glitch_level: crate::config::GlitchLevel,
     pub glitch_pct: f32,
     pub glitch_low: u16,
     pub glitch_high: u16,
@@ -339,6 +343,7 @@ impl CloudConfig {
             custom_palette_name: self.custom_palette_name.clone(),
             rain_style: self.rain_style,
             glitch_enabled: self.glitch_enabled,
+            glitch_level: self.glitch_level,
             glitch_pct: self.glitch_pct,
             glitch_low: self.glitch_low,
             glitch_high: self.glitch_high,

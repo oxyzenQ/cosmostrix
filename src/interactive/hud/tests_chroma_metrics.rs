@@ -4,14 +4,14 @@
 //! HUD chroma gradient + metric stability regression tests — extracted
 //! from `hud/tests.rs` to keep that file under the 800-LOC hard cap.
 //!
-//! Covers: compute_chroma_gradient_18 smoothness + NaN/Inf safety +
+//! Covers: compute_chroma_gradient_22 smoothness + NaN/Inf safety +
 //! metric setter clamping/sanitization.
 
 use super::*;
 
 // ── v50 (2026-08-17) HUD chroma gradient smoothness regression tests ────
 //
-// C5 fix: compute_chroma_gradient_18 now uses interpolate_palette_color
+// C5 fix: compute_chroma_gradient_22 now uses interpolate_palette_color
 // (linear lerp between adjacent palette stops via blend_toward_rgb)
 // instead of discrete sampling `palette_colors[(t * last).round()]`.
 // This eliminates visible bands when the palette has fewer stops than
@@ -19,7 +19,7 @@ use super::*;
 // produced 4/8/4 band blocks; now produces a smooth gradient).
 
 #[test]
-fn compute_chroma_gradient_18_smooth_with_small_palette_no_bands() {
+fn compute_chroma_gradient_22_smooth_with_small_palette_no_bands() {
     // THE OWNER REGRESSION TEST for HUD chroma gradient smoothness.
     //
     // Before C5: a 3-stop palette (white/grey/black) + 16 HUD rows
@@ -44,11 +44,11 @@ fn compute_chroma_gradient_18_smooth_with_small_palette_no_bands() {
         Color::Rgb { r: 0, g: 255, b: 0 }, // idx 1: green
         Color::Rgb { r: 0, g: 0, b: 255 }, // idx 2: blue
     ];
-    let colors = compute_chroma_gradient_18(&palette);
-    assert_eq!(colors.len(), 18, "HUD gradient must have 18 entries");
+    let colors = compute_chroma_gradient_22(&palette);
+    assert_eq!(colors.len(), 22, "HUD gradient must have 22 entries");
 
     // Count distinct colors. With interpolation, every row gets a
-    // unique color (18 distinct values, modulo the brighten floor
+    // unique color (22 distinct values, modulo the brighten floor
     // collapsing some to neutral grey). The old discrete-sampling
     // implementation would have produced only 3 distinct values
     // (one per palette stop). Assert >=5 distinct to leave room for
@@ -82,34 +82,34 @@ fn compute_chroma_gradient_18_smooth_with_small_palette_no_bands() {
 }
 
 #[test]
-fn compute_chroma_gradient_18_large_palette_still_exact_at_integer_t() {
-    // Backward compatibility: with an 18-stop palette (one stop per HUD
+fn compute_chroma_gradient_22_large_palette_still_exact_at_integer_t() {
+    // Backward compatibility: with an 22-stop palette (one stop per HUD
     // row), the interpolated t = i/17.0 lands exactly on integer palette
     // positions, so the helper returns palette[i] exactly (no
     // interpolation). The brighten step is then applied as before. This
-    // test verifies the C5 fix does NOT regress the 18-stop-palette
+    // test verifies the C5 fix does NOT regress the 22-stop-palette
     // case — every row still gets its dedicated palette stop's color
     // (post-brighten).
     //
-    // v50.0.0-beta.6: palette expanded from 16 → 18 entries to match
-    // the 18 HUD rows (prdr + crdr added). With 1:1 mapping, t = i/17.0
+    // v50.0.0-beta.6: palette expanded from 16 → 22 entries to match
+    // the 22 HUD rows (prdr + crdr added). With 1:1 mapping, t = i/17.0
     // maps to palette index i*17/17 = i exactly.
     //
-    // Test palette: 18 distinct RGB values, all with max channel >= 200
+    // Test palette: 22 distinct RGB values, all with max channel >= 200
     // so brighten returns each as-is (isolates the gradient mapping
     // from the brightening math).
-    let palette: Vec<Color> = (0..18)
+    let palette: Vec<Color> = (0..22)
         .map(|i| Color::Rgb {
             r: 200 + (i as u8 % 56),
             g: 200,
             b: 200,
         })
         .collect();
-    let colors = compute_chroma_gradient_18(&palette);
+    let colors = compute_chroma_gradient_22(&palette);
     for (i, expected) in palette.iter().enumerate() {
         assert_eq!(
             &colors[i], expected,
-            "row {i} must use palette[{i}] exactly (18-stop palette, t lands on integer boundary)"
+            "row {i} must use palette[{i}] exactly (22-stop palette, t lands on integer boundary)"
         );
     }
 }
@@ -612,17 +612,17 @@ fn hud_final_layout_positions_match_owner_option_s() {
     // Row 0-5: performance core (active content set by update_metrics).
     // For this test we only assert on the static label structure of
     // the cid line (row 15) — the dynamic lines are tested above.
-    let (_, cid_line) = &h.cached_lines[17];
+    let (_, cid_line) = &h.cached_lines[21];
     assert!(
         cid_line.starts_with(" cid: "),
-        "row 15 must be the cid line per owner Option S mandate, got: {cid_line:?}"
+        "row 21 must be the cid line per owner Option S mandate, got: {cid_line:?}"
     );
     // The 14 rows above cid (rows 0-14) must NOT contain the cid prefix
     // — the cid line is static and lives only at row 15.
-    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(17) {
+    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(21) {
         assert!(
             !text.starts_with(" cid: "),
-            "row {i} must NOT contain the cid prefix — cid is exclusive to row 15, got: {text:?}"
+            "row {i} must NOT contain the cid prefix — cid is exclusive to row 21, got: {text:?}"
         );
     }
 }

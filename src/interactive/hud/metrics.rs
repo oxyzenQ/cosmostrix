@@ -16,7 +16,7 @@
 use std::time::Instant;
 
 use super::{
-    compute_chroma_gradient_18, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
+    compute_chroma_gradient_22, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
     HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
 };
 
@@ -51,7 +51,7 @@ impl HudState {
         // HD-01 (HUD chroma dragon integration): 18-stop sweep — each row
         // gets a distinct palette stop. Index math: `palette_colors`
         // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
-        let colors = compute_chroma_gradient_18(palette_colors);
+        let colors = compute_chroma_gradient_22(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -219,7 +219,35 @@ impl HudState {
         self.cached_lines[15] = (colors[15], format!(" prdr: {prdr_val}"));
         let crdr_val = if self.crystal_dragon_on { "on" } else { "off" };
         self.cached_lines[16] = (colors[16], format!(" crdr: {crdr_val}"));
-        // cid (row 17) is static — set once in new(), never rewritten
+
+        // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
+        // ambt: ambient on/off (auto-detected from config.toml ambient.HH-MM entries).
+        let ambt_val = if self.ambient_on { "on" } else { "off" };
+        self.cached_lines[17] = (colors[17], format!(" ambt: {ambt_val}"));
+        // glth: glitch level (none/subtle/default/intense).
+        let glth_val = match self.glitch_level {
+            crate::config::GlitchLevel::None => "none",
+            crate::config::GlitchLevel::Subtle => "subtle",
+            crate::config::GlitchLevel::Default => "default",
+            crate::config::GlitchLevel::Intense => "intense",
+        };
+        self.cached_lines[18] = (colors[18], format!(" glth: {glth_val}"));
+        // ctun: color tuning default/custom (custom when any field ≠ 1.0).
+        let ctun_val = if self.color_tune_custom {
+            "custom"
+        } else {
+            "default"
+        };
+        self.cached_lines[19] = (colors[19], format!(" ctun: {ctun_val}"));
+        // mnst: monolith size (small/normal/large).
+        let mnst_val = match self.monolith_size {
+            crate::runtime::MonolithSize::Small => "small",
+            crate::runtime::MonolithSize::Normal => "normal",
+            crate::runtime::MonolithSize::Large => "large",
+        };
+        self.cached_lines[20] = (colors[20], format!(" mnst: {mnst_val}"));
+
+        // cid (row 21) is static — set once in new(), never rewritten
         // here. Only its color is refreshed by refresh_colors every frame.
 
         // Compute dynamic width: find the longest line, clamp to [min, max].

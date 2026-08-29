@@ -77,7 +77,7 @@ fn hud_prdr_crdr_above_cid_in_layout() {
     // Verify the layout: prdr at 15, crdr at 16, cid at 17 (last).
     let h = HudState::new();
     // cid must be at row 17 (the last row).
-    let (_, cid_line) = &h.cached_lines[17];
+    let (_, cid_line) = &h.cached_lines[21];
     assert!(
         cid_line.starts_with(" cid: "),
         "row 17 must be the cid line, got: {cid_line:?}"
@@ -99,7 +99,7 @@ fn hud_prdr_crdr_above_cid_in_layout() {
         "row 16 must be the crdr line, got: {crdr_line:?}"
     );
     // cid is still at row 17 (unchanged from h).
-    let (_, cid_line_2) = &h2.cached_lines[17];
+    let (_, cid_line_2) = &h2.cached_lines[21];
     assert!(
         cid_line_2.starts_with(" cid: "),
         "row 17 must still be the cid line after update_metrics, got: {cid_line_2:?}"

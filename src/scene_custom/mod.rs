@@ -596,6 +596,7 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
     use crate::config::GlitchLevel;
     match level {
         GlitchLevel::None => {
+            new.glitch_level = GlitchLevel::None;
             new.glitch_enabled = false;
             new.glitch_low = 300;
             new.glitch_high = 400;
@@ -604,6 +605,7 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
             new.die_early_pct = 33.33333;
         }
         GlitchLevel::Subtle => {
+            new.glitch_level = GlitchLevel::Subtle;
             new.glitch_enabled = true;
             new.glitch_low = 200;
             new.glitch_high = 300;
@@ -612,6 +614,7 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
             new.die_early_pct = 45.0;
         }
         GlitchLevel::Default => {
+            new.glitch_level = GlitchLevel::Default;
             new.glitch_enabled = true;
             new.glitch_low = 300;
             new.glitch_high = 400;
@@ -620,6 +623,7 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
             new.die_early_pct = 33.33333;
         }
         GlitchLevel::Intense => {
+            new.glitch_level = GlitchLevel::Intense;
             new.glitch_enabled = true;
             new.glitch_low = 500;
             new.glitch_high = 800;

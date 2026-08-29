@@ -67,6 +67,7 @@ mod cases_v35 {
             custom_palette_name: None,
             rain_style: crate::rain_style::RainStyle::Glyph,
             glitch_enabled: false,
+            glitch_level: crate::config::GlitchLevel::None,
             glitch_pct: 0.0,
             glitch_low: 0,
             glitch_high: 0,

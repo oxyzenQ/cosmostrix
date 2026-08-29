@@ -31,10 +31,10 @@ use crossterm::style::Color;
 // both are "definitive identity" lines that the owner reads to verify the
 // build, so they earn the most prominent position.
 
-/// HD-01 (HUD chroma dragon integration): compute an 18-stop chroma gradient
-/// sweeping the active palette's full color range across all 18 HUD rows.
+/// HD-01 (HUD chroma dragon integration): compute an 22-stop chroma gradient
+/// sweeping the active palette's full color range across all 22 HUD rows.
 ///
-/// Each row `i ∈ [0..18]` samples `palette_colors` at interpolation
+/// Each row `i ∈ [0..22]` samples `palette_colors` at interpolation
 /// parameter `t = i / 17.0`, so row 0 (fps, top) → palette[0] and row 17
 /// (cid, bottom) → palette[n-1]. This mirrors the border message's per-cell
 /// clockwise sweep (`cloud/mod.rs::draw_message` BC-02) — applied per-LINE
@@ -48,7 +48,7 @@ use crossterm::style::Color;
 /// screensize + build. The previous 16-stop design was bumped to 18 after
 /// the `ehs:` + `dsty:` additions (v50 2026-08-17 audit). Each row gets
 /// its own interpolated color stop — no two rows share the same color
-/// unless the palette is shorter than 18 stops (interpolation handles
+/// unless the palette is shorter than 22 stops (interpolation handles
 /// that case smoothly).
 ///
 /// ## Brightness floor
@@ -58,10 +58,14 @@ use crossterm::style::Color;
 /// grey RGB(120,120,120) when pure black, preserving readability without
 /// losing the palette's hue identity for non-black stops.
 ///
-/// Returns a fixed-size `[Color; 18]` array (no allocation, stack-only).
-pub(crate) fn compute_chroma_gradient_18(palette_colors: &[Color]) -> [Color; 18] {
+/// Returns a fixed-size `[Color; 22]` array (no allocation, stack-only).
+pub(crate) fn compute_chroma_gradient_22(palette_colors: &[Color]) -> [Color; 22] {
     let n = palette_colors.len();
     let mut out = [
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
+        Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
@@ -90,7 +94,7 @@ pub(crate) fn compute_chroma_gradient_18(palette_colors: &[Color]) -> [Color; 18
     // interpolation helper used by the border message gradient (C4 fix).
     //
     // The previous discrete sampling produced visible bands when the palette
-    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 18 HUD
+    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 22 HUD
     // rows → 6+ rows sharing the same color block). The owner explicitly
     // flagged this category as inconsistent with the chroma dragon smoothness
     // mandate: "audit which color-processing sites are not yet using
@@ -107,10 +111,10 @@ pub(crate) fn compute_chroma_gradient_18(palette_colors: &[Color]) -> [Color; 18
     // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
     // the first stop defensively), so a future bug in upstream palette
     // generation cannot crash the HUD or produce garbage colors.
-    // v50.0.0-beta.6: divisor is now 17.0 (was 15.0) since the array has
-    // 18 entries (indices 0-17). Row 0 → t=0.0, row 17 → t=1.0.
+    // v50.0.0-beta.6: divisor is now 21.0 (was 15.0) since the array has
+    // 18 entries (indices 0-21). Row 0 → t=0.0, row 17 → t=1.0.
     for (i, slot) in out.iter_mut().enumerate() {
-        let t = i as f32 / 17.0;
+        let t = i as f32 / 21.0;
         let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);
         *slot = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
     }

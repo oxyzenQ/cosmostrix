@@ -87,6 +87,7 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         custom_palette_name: None,
         rain_style: RainStyle::Glyph,
         glitch_enabled: true,
+        glitch_level: crate::config::GlitchLevel::Default,
         glitch_pct: 10.0,
         glitch_low: 300,
         glitch_high: 400,

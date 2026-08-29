@@ -78,4 +78,20 @@ pub(crate) fn update_hud_state(
     // session. Now uses `current_cfg` so live-reload propagates.
     hud_state.set_power_dragon(current_cfg.power_dragon);
     hud_state.set_crystal_dragon(current_cfg.crystal_dragon);
+
+    // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
+    // ambt: auto-detect ambient on/off from the ambient schedule entries.
+    hud_state.set_ambient_on(!current_cfg.ambient_schedule.entries.is_empty());
+    // glth: glitch level preset from live config.
+    hud_state.set_glitch_level(current_cfg.glitch_level);
+    // ctun: custom if any ColorTune field ≠ 1.0 (IDENTITY).
+    let ct = &current_cfg.color_tune;
+    let is_custom = ct.saturation != 1.0
+        || ct.brightness != 1.0
+        || ct.head != 1.0
+        || ct.body != 1.0
+        || ct.tail != 1.0;
+    hud_state.set_color_tune_custom(is_custom);
+    // mnst: monolith size from live config.
+    hud_state.set_monolith_size(current_cfg.monolith_size);
 }

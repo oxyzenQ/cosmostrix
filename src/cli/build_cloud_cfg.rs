@@ -122,6 +122,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         custom_palette_name,
         rain_style,
         glitch_enabled: args.glitch_level != crate::config::GlitchLevel::None,
+        glitch_level: args.glitch_level,
         glitch_pct,
         glitch_low,
         glitch_high,
