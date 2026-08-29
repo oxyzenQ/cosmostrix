@@ -233,15 +233,15 @@ BLAKE2b-512 + SHAKE256. Full instructions in
 
 ```bash
 # Classical (universal)
-sha512sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
+sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
 
 # Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
+b2sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
 
 # Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
 # openssl's -shake256 default output length varies; Python is consistent
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' cosmostrix-bin-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
+COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz','rb').read()).hexdigest(64))")
+EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
 [ "$COMPUTED" = "$EXPECTED" ] && echo "OK" || echo "FAILED"
 ```
 
@@ -254,8 +254,8 @@ Official release artifacts are GPG-signed with the maintainer's key, producing a
 gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 
 # 2. Verify the detached signature against the downloaded archive
-gpg --verify cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz.asc \
-            cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz
+gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.asc \
+            cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz
 ```
 
 A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms authenticity. The full public key fingerprint (`F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`) and detailed verification instructions live in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md). Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
@@ -272,10 +272,10 @@ A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms aut
 REPO="oxyzenQ/cosmostrix"
 TAG="v50.0.0-beta.7"
 PLATFORM="linux-amd64-v3"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
-curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
-sha512sum -c "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz.sha512sum"
-tar -xzf "cosmostrix-bin-${TAG}-${PLATFORM}.tar.gz"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
+curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+sha512sum -c "cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"
+tar -xzf "cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 ./cosmostrix --doctor
 ```
 

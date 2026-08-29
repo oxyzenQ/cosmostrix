@@ -28,12 +28,12 @@ Linux x86_64 baselines: `v3` = `-C target-cpu=x86-64-v3`, `v4` = `-C target-cpu=
 
 ## Packaging output
 
-Each build produces `cosmostrix-bin-<tag>-<platform>.tar.gz` + `.sha512sum` (+ `.zip` + `.sha512sum` for Windows). Archive contains `cosmostrix` binary, `README.md`, `LICENSE`.
+Each build produces `cosmostrix-<tag>-<platform>.tar.gz` + `.sha512sum` (+ `.zip` + `.sha512sum` for Windows). Archive contains `cosmostrix` binary, `README.md`, `LICENSE`.
 
 Verify a download:
 
 ```bash
-sha512sum -c cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
+sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
 ```
 
 ## Version bump

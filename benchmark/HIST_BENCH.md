@@ -76,7 +76,7 @@ peak FPS.
 ## Example Local Results
 
 The following values are example local measurements from the v4.0.0 AUR
-release artifact (`cosmostrix-bin v4.0.0 linux-x86_64-v3`, SHA512 verified).
+release artifact (`cosmostrix v4.0.0 linux-x86_64-v3`, SHA512 verified).
 Treat them as a shape of output and interpretation guide, not as guaranteed
 numbers.
 

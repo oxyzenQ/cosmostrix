@@ -34,12 +34,12 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 
 ### SHA-512 Sidecar Checksums
 
-Every release binary published to GitHub Releases is accompanied by a `.sha512sum` sidecar file, generated during the release workflow immediately after the tarball or zip archive is created, using `sha512sum` or `shasum -a 512`. The model is straightforward and deterministic: (1) **Build** — binary compiled with the appropriate profile using fat LTO, single codegen unit, `strip = true`. (2) **Package** — binary + `LICENSE` + `README.md` placed into a flat archive (`cosmostrix-bin-vX.Y.Z-<platform>.tar.gz` or `.zip`); flat layout maintains compatibility with the AUR PKGBUILD `prepare()` function. (3) **Hash** — archive hashed with SHA-512, hex digest written to a same-named `.sha512sum` file in the format `<digest>  <filename>`, uploaded alongside the archive as a release asset.
+Every release binary published to GitHub Releases is accompanied by a `.sha512sum` sidecar file, generated during the release workflow immediately after the tarball or zip archive is created, using `sha512sum` or `shasum -a 512`. The model is straightforward and deterministic: (1) **Build** — binary compiled with the appropriate profile using fat LTO, single codegen unit, `strip = true`. (2) **Package** — binary + `LICENSE` + `README.md` placed into a flat archive (`cosmostrix-vX.Y.Z-<platform>.tar.gz` or `.zip`); flat layout maintains compatibility with the AUR PKGBUILD `prepare()` function. (3) **Hash** — archive hashed with SHA-512, hex digest written to a same-named `.sha512sum` file in the format `<digest>  <filename>`, uploaded alongside the archive as a release asset.
 
 Verify any downloaded artifact:
 
 ```bash
-sha512sum --check cosmostrix-bin-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
+sha512sum --check cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.sha512sum
 ```
 
 ### AUR Package Verification
