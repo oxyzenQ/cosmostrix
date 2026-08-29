@@ -22,7 +22,10 @@
 use crate::config::Args;
 use crate::config::{print_list_charsets, print_list_colors, print_list_scenes, print_show_scene};
 use crate::configfile;
+use crate::doctor;
 use crate::help_detail;
+use crate::info;
+use crate::platform::update;
 use crate::safepath::validate_config_path;
 use crate::terminal::reset_terminal_emergency;
 use crate::testconf;
@@ -226,6 +229,47 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
             Ok(()) => return Some(Ok(())),
             Err(e) => ux::die_config(e),
         }
+    }
+
+    None
+}
+
+/// Check post-config-apply early-return commands.
+///
+/// Runs AFTER `config_apply::apply_config_and_runtime_defaults` +
+/// `canonicalize_runtime_args`. Handles:
+/// - `--doctor` (diagnostics report)
+/// - `--version` (version string)
+/// - `--docs` (full engine documentation)
+/// - `--check-update` (latest upstream release check)
+///
+/// Returns `Some(Ok(()))` when an early return fires (caller should return
+/// the result immediately). Returns `None` when no early-return command
+/// matched and the caller should continue to argument validation.
+pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<()>> {
+    if args.doctor {
+        doctor::print_doctor_report(args);
+        return Some(Ok(()));
+    }
+
+    if args.version {
+        println!("{}", info::version_report());
+        return Some(Ok(()));
+    }
+
+    if args.docs {
+        // Print the full engine documentation and architecture overview,
+        // then exit. Plain text only (no ANSI) so it pipes cleanly into
+        // `less`, `grep`, or documentation generators.
+        println!("{}", info::docs_report());
+        return Some(Ok(()));
+    }
+
+    if args.check_update {
+        if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
+            ux::die_config(format!("error: update check failed: {e}"));
+        }
+        return Some(Ok(()));
     }
 
     None

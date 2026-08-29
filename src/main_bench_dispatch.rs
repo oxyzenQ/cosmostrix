@@ -17,8 +17,8 @@
 //! `run_interactive` separately so it can route errors through the
 //! post-exit verbose dump).
 
-use crate::bench;
 use crate::app::CloudConfig;
+use crate::bench;
 use crate::config::Args;
 
 /// Check post-config bench dispatchers.

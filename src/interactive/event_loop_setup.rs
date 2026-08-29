@@ -26,9 +26,9 @@ use crate::frame::Frame;
 use crate::terminal::Terminal;
 
 use super::super::{effective_density, CloudConfig};
+use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 use crate::cloud::Cloud;
 use crate::platform::TermReinit;
-use super::watchdog::MOUSE_CAPTURE_ACTIVE;
 
 /// Terminal + cloud + frame triple returned by [`setup_terminal_cloud_frame`].
 pub(crate) struct LoopSetup {

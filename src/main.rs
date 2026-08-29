@@ -117,13 +117,15 @@ pub(crate) use output::{message, report, ux};
 
 // v50.0.0-beta.7 LOC refactor: verbose startup block extracted to
 // main_verbose.rs to keep main.rs under the 800-LOC hard cap.
+mod main_bench_dispatch;
 mod main_early_returns;
 mod main_verbose;
-mod main_bench_dispatch;
 
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
-pub(crate) use platform::{panic_hook, update};
+pub(crate) use platform::panic_hook;
+#[cfg(test)]
+pub(crate) use platform::update;
 // v50.0.0-beta.7 LOC refactor: spawn_kill9_terminal_guard moved to
 // platform/fork_guard.rs. Re-exported at crate root so the existing
 // 'crate::spawn_kill9_terminal_guard()' call site resolves unchanged.
@@ -356,25 +358,11 @@ fn main() -> std::io::Result<()> {
         doctor::print_doctor_report(&args);
         return Ok(());
     }
-
-    if args.version {
-        println!("{}", info::version_report());
-        return Ok(());
-    }
-
-    if args.docs {
-        // Print the full engine documentation and architecture overview,
-        // then exit. Plain text only (no ANSI) so it pipes cleanly into
-        // `less`, `grep`, or documentation generators.
-        println!("{}", info::docs_report());
-        return Ok(());
-    }
-
-    if args.check_update {
-        if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
-            ux::die_config(format!("error: update check failed: {e}"));
-        }
-        return Ok(());
+    // v50.0.0-beta.7 LOC refactor: post-config-apply early-return commands
+    // (--doctor, --version, --docs, --check-update) extracted to
+    // main_early_returns.rs.
+    if let Some(result) = main_early_returns::handle_post_config_returns(&args) {
+        return result;
     }
 
     // v17: --info/-i REMOVED. Merged into --doctor. Use --doctor for all diagnostics.
