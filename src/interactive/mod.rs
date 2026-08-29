@@ -45,6 +45,7 @@ mod event_loop_finalize;
 mod event_loop_hud;
 mod event_loop_intro;
 mod event_loop_p5;
+mod event_loop_perf_stats;
 mod event_loop_scene_sync;
 mod event_loop_self_heal;
 mod event_loop_setup;

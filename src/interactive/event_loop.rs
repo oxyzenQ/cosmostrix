@@ -1089,41 +1089,32 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
 
-        // Display-only stats. IN-01: `perf_frames` + `frame_time_tracker.push`
-        // moved OUTSIDE the `cfg.perf_stats` gate so the always-on post-exit
-        // FPS summary reports honest numbers without --perf-stats.
-        perf_frames = perf_frames.saturating_add(1);
-        frame_time_tracker.push(work_s as f64 * 1000.0);
-        if cfg.perf_stats {
-            if did_draw {
-                perf_drawn_frames = perf_drawn_frames.saturating_add(1);
-            } else {
-                perf_idle_frames = perf_idle_frames.saturating_add(1);
-            }
-            // Dirty-cell accounting (audit 2026-08-23): mirror the benchmark
-            // semantics — a `dirty_all` (full-redraw) frame writes the WHOLE
-            // grid, but `Frame::set` skips dirty-list pushes while dirty_all
-            // is set, so `dirty_len` reads 0 for those frames. Counting the
-            // raw list undercounted full redraws (paste, resize, idle resync)
-            // in avg_dirty_cells. Use the frame's actual dimensions (NOT
-            // cloud's — the frame is the thing that was drawn).
-            let dirty_count = if is_dirty_all {
-                (frame.width as u64) * (frame.height as u64)
-            } else {
-                dirty_len as u64
-            };
-            perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_count);
-            perf_dirty_samples = perf_dirty_samples.saturating_add(1);
-            perf_work_sum_s += work_s as f64;
-            perf_work_max_s = perf_work_max_s.max(work_s as f64);
-            perf_pressure_sum += power_manager.effective_pressure() as f64;
-            perf_pressure_max = perf_pressure_max.max(power_manager.effective_pressure());
-            perf_utilization_sum += utilization as f64;
-            perf_utilization_max = perf_utilization_max.max(utilization);
-            if overshoot > 0.0 {
-                perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
-            }
-        }
+        // v50.0.0-beta.7 LOC refactor: perf stats display extracted to
+        // event_loop_perf_stats.rs.
+        super::event_loop_perf_stats::update_perf_stats(
+            &mut perf_frames,
+            &mut perf_drawn_frames,
+            &mut perf_idle_frames,
+            &mut perf_dirty_sum,
+            &mut perf_dirty_samples,
+            &mut perf_work_sum_s,
+            &mut perf_work_max_s,
+            &mut perf_pressure_sum,
+            &mut perf_pressure_max,
+            &mut perf_utilization_sum,
+            &mut perf_utilization_max,
+            &mut perf_overshoot_frames,
+            &mut frame_time_tracker,
+            &frame,
+            &power_manager,
+            work_s,
+            did_draw,
+            is_dirty_all,
+            dirty_len,
+            overshoot,
+            utilization,
+            cfg.perf_stats,
+        );
 
         // v50.0.0-beta.7 LOC refactor: performance self-healer extracted
         // to event_loop_self_heal.rs.
