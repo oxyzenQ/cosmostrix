@@ -39,7 +39,6 @@ src/main.rs
 src/interactive/event_loop.rs
 src/cosmic_dragon_engine/cloud/tests/tests_quantum.rs
 src/cosmic_dragon_engine/cloud/rain.rs
-src/cosmic_dragon_engine/cloud/tests/tests_phosphor.rs
 src/droplet/mod.rs
 # Pure data file: 44-theme registry (ThemeDef entries, no logic).
 # Exempt per src/RULES_LOC.md 'When NOT to Split' (generated-like data).

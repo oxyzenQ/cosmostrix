@@ -12,6 +12,7 @@ mod tests_edge_fade;
 mod tests_exp_decay;
 mod tests_monolith;
 mod tests_phosphor;
+mod tests_phosphor_sweep;
 mod tests_quantum;
 mod tests_quantum_flash_wave;
 mod tests_scene;
