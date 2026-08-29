@@ -119,6 +119,7 @@ pub(crate) use output::{message, report, ux};
 // main_verbose.rs to keep main.rs under the 800-LOC hard cap.
 mod main_early_returns;
 mod main_verbose;
+mod main_bench_dispatch;
 
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
@@ -913,28 +914,10 @@ fn main() -> std::io::Result<()> {
 
     // fps_user_set was computed earlier (before dynamic default) — USER intent.
 
-    if args.bench_all {
-        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
-        let duration =
-            crate::bench_helpers::resolve_bench_duration_args(&args.bench_duration).unwrap_or(2);
-        let results = crate::bench_scale::run_scaling_benchmark(&cloud_cfg, duration)?;
-        if args.json {
-            println!(
-                "{}",
-                crate::bench_scale::build_scaling_json(&results, &cloud_cfg.scene_name)
-            );
-        }
-        return Ok(());
-    }
-
-    if args.benchmark {
-        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
-        return bench::run_premium_benchmark(&cloud_cfg);
-    }
-
-    if let Some(_bench_frames) = args.bench_frames {
-        crate::bench_helpers::warn_bench_noop_flags(&args, fps_user_set);
-        return bench::run_benchmark(&cloud_cfg);
+    // v50.0.0-beta.7 LOC refactor: bench dispatch extracted to
+    // main_bench_dispatch.rs.
+    if let Some(result) = main_bench_dispatch::dispatch_bench(&args, &cloud_cfg, fps_user_set) {
+        return result;
     }
 
     let result = interactive::run_interactive(&cloud_cfg);
