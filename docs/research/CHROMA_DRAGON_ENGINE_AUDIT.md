@@ -342,7 +342,7 @@ Relevant existing fields:
 color_scheme: Green (CLI default)
 color_mode: TrueColor
 color_tune: sat=1.00 bright=1.00 head=1.00 body=1.00 tail=1.00
-color_bg: default-background (terminal native bg, no override)
+color_bg: black (solid #000000, the CLI default)
 ```
 
 Missing field (proposed):

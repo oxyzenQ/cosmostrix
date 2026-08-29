@@ -41,8 +41,8 @@ it keeps recovery paths conservative and explicit.
 
 | Setting | What cosmostrix does | What it does not do |
 | --- | --- | --- |
-| `color-bg = default-background` (default) | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
-| `color-bg = black` | Paints a solid black background. | Does not use terminal transparency. |
+| `color-bg = black` (default) | Paints a solid black background. | Does not use terminal transparency. |
+| `color-bg = default-background` | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
 
 ## Reset Behavior
 

@@ -9,6 +9,14 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Behavior changes
+
+- **Default `--color-bg` changed from `default-background` to `black`**: by owner mandate, cosmostrix now paints a solid black background by default rather than following the terminal emulator's background. Users who relied on the previous default-background behavior must explicitly pass `--color-bg default-background` (or set `color-bg = "default-background"` in `config.toml`). The CLI `--color-bg` arg default_value_t is now `ColorBg::Black`. Help text, docs (TERMINAL_COMPATIBILITY.md, CENTRAL_CONTROL_RAINS_USAGE.md, CHROMA_DRAGON_ENGINE_AUDIT.md), and verbose output labels are updated to reflect the new default. The `default-background` option itself is unchanged — it remains a first-class supported value, just no longer the default.
+
+### Documentation fixes
+
+- **Fix stale release archive name in docs**: the release workflow has always produced archives named `cosmostrix-${TAG}-<platform>.tar.gz` (NOT `cosmostrix-bin-...`). The `-bin` suffix is reserved for the AUR package name (AUR convention for binary packages). Stale references in README.md, docs/SUPPLY_CHAIN.md, docs/VERIFY_RELEASE.md, docs/workflow/ABOUT_CI.md, and benchmark/HIST_BENCH.md updated to `cosmostrix-vX.Y.Z-...`. AUR package name/path references (`cosmostrix-bin` AUR package, `aur/cosmostrix-bin/PKGBUILD` file path, `paru -S cosmostrix-bin` install command) intentionally kept unchanged — they are correct as-is.
+
 ### Refactor (LTS — 99% no visual/performance change)
 
 Owner mandate per deepseek discussion: tighten the LOC cap from 1500 to a **hard limit of 800 lines per .rs file**, with a **soft target of 500 for new files** (see `src/RULES_LOC.md`). 38 files initially exceeded 800 — migration is incremental, tracked via the `EXEMPT_BELOW_800` list in `scripts/check-rs-loc.sh`. Comprehensive A/B benchmark (10s release, visual + performance + quality metrics): avg_fps -0.709% (noise), frame_entropy -0.030% (noise), density_gini +0.004% (noise), color_transition_delta 0→0 (perfect), active_streams 23→23 (identical), alloc_calls 563→563 (identical), dealloc_calls 553→553 (identical), 0 test regressions. **Visual quality confirmed unchanged across all dimensions.**

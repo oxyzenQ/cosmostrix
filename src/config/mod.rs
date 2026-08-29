@@ -608,7 +608,7 @@ pub struct Args {
 
     #[arg(
         long = "color-bg",
-        default_value_t = ColorBg::DefaultBackground,
+        default_value_t = ColorBg::Black,
         value_enum,
         hide = true,
         help = "Background mode (black, default-background)"

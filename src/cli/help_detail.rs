@@ -412,8 +412,8 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Bold style (0=off, 1=random [default], 2=all).
       Config: bold = 1
   --color-bg <black|default-background>
-      Background rendering mode. 'default-background' (default) follows
-      the terminal emulator background; 'black' forces solid #000000.
+      Background rendering mode. 'black' (default) forces solid #000000;
+      'default-background' follows the terminal emulator background.
       Config: color-bg = \"black\"
   -M, --shadingmode <0|1>
       Shading mode (0=random, 1=cinematic [default]).
