@@ -65,6 +65,9 @@ mod v50_first_reload;
 #[cfg(test)]
 mod tests_v35;
 
+#[cfg(test)]
+mod tests_v35_modifier_rejection;
+
 // Re-export ambient_diag from crystal_dragon_engine
 pub(crate) use crate::crystal_dragon_engine::ambient_diag::{
     ambient_diag_config_rebuild, ambient_diag_consistency_fix, ambient_diag_reapply,
