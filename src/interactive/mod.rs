@@ -52,6 +52,7 @@ mod event_loop_resize;
 mod event_loop_scene_sync;
 mod event_loop_self_heal;
 mod event_loop_setup;
+mod event_loop_sim_draw;
 mod event_loop_stats;
 mod hud;
 mod input;
