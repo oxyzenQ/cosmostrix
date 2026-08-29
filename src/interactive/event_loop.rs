@@ -23,7 +23,7 @@ use super::activity::{register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{
     adaptive_resync_interval, EnduranceHealth, PerformanceSelfHealer, ReclaimState,
 };
-use super::event_loop_finalize::{finalize_session, SessionStats};
+use super::event_loop_finalize::finalize_session;
 use super::hud::HudState;
 use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
@@ -1124,30 +1124,28 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Post-loop finalization extracted to event_loop_finalize.rs (file-cap
     // compliance). Bundles shutdown signal, final FPS line, perf report,
     // terminal drop (AB-10), final-state handoff.
-    let stats = SessionStats {
-        start_time,
-        perf_frames,
-        perf_drawn_frames,
-        perf_idle_frames,
-        perf_overshoot_frames,
-        perf_dirty_sum,
-        perf_dirty_samples,
-        // Exit-time grid snapshot — denominator for the runtime
-        // avg_dirty_cell_ratio_percent (owner request 2026-08-23).
-        grid_cols: cloud.cols,
-        grid_lines: cloud.lines,
-        perf_work_sum_s,
-        perf_work_max_s,
-        perf_pressure_sum,
-        perf_pressure_max,
-        perf_utilization_sum,
-        perf_utilization_max,
-        frame_time_tracker: &frame_time_tracker,
-        power_manager_phase_transitions: power_manager.phase_transitions_observed(),
-        power_manager_base_target_fps: power_manager.base_target_fps(),
-        endurance_health_score: endurance_health.score(),
-        endurance_health_classification: endurance_health.classification(),
-    };
+    // v50.0.0-beta.7 LOC refactor: SessionStats construction extracted
+    // to event_loop_stats.rs.
+    let stats =
+        super::event_loop_stats::build_session_stats(super::event_loop_stats::StatsInputs {
+            start_time,
+            perf_frames,
+            perf_drawn_frames,
+            perf_idle_frames,
+            perf_overshoot_frames,
+            perf_dirty_sum,
+            perf_dirty_samples,
+            perf_work_sum_s,
+            perf_work_max_s,
+            perf_pressure_sum,
+            perf_pressure_max,
+            perf_utilization_sum,
+            perf_utilization_max,
+            frame_time_tracker: &frame_time_tracker,
+            power_manager: &power_manager,
+            endurance_health: &endurance_health,
+            cloud: &cloud,
+        });
     finalize_session(
         &stats,
         term,
