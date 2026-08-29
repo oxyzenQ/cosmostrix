@@ -900,41 +900,20 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         if !cloud.raining {
             break;
         }
-        if let Some((nw, nh)) = pending_resize {
-            // v50.0.0-beta.6 CRITICAL FIX: update the local w/h variables
-            // alongside cloud + frame. Previously only cloud.reset() and
-            // Frame::new() were called with the new dimensions, but the
-            // local `w` and `h` variables stayed at the pre-resize values.
-            // When a live-reload triggered the rebuild path (line 342-399),
-            // it used the STALE w/h — reverting the screen to the pre-resize
-            // size (e.g. 150x32 after the user had gone fullscreen to 212x64).
-            // This was a FATAL visual bug for LTS release. Now w/h are kept
-            // in sync with the actual terminal dimensions at all times.
-            w = nw;
-            h = nh;
-            cloud.reset(nw, nh);
-            frame = Frame::new(nw, nh, cloud.palette.bg);
-            // v50.0.0-beta.6: use current_cfg (live-reloaded) instead of
-            // cfg (startup) for density settings. If the user live-reloads
-            // density_auto or base_density, the resize handler must respect
-            // the new values — otherwise a resize after live-reload would
-            // use stale startup density.
-            if current_cfg.density_auto {
-                cloud.set_droplet_density(effective_density(current_cfg.base_density, nw, true));
-            }
-            cloud.force_draw_everything();
-            // H1 (internal independent QA): refresh the SGR color cache after
-            // resize — every other palette-affecting path calls set_color_cache,
-            // but the resize handler was missing it. Without this, a live-reload
-            // palette change coinciding with a resize could produce a 1-frame
-            // color flicker from a stale cache.
-            term.set_color_cache(ColorCache::new(&cloud.palette));
-            last_resync_time = Instant::now();
-            // Update HUD screen size on dynamic resize (fixed mode ignores resize)
-            if cfg.screen_size.is_none() {
-                hud_state.set_screen_size(nw, nh, false);
-            }
-        }
+        // v50.0.0-beta.7 LOC refactor: resize handler extracted to
+        // event_loop_resize.rs.
+        super::event_loop_resize::handle_resize(
+            pending_resize,
+            &mut w,
+            &mut h,
+            &mut cloud,
+            &mut frame,
+            &mut hud_state,
+            &mut term,
+            &current_cfg,
+            &mut last_resync_time,
+            cfg.screen_size.is_some(),
+        );
         // Key handling can toggle pause/resume after the frame period was
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
