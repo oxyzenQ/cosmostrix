@@ -35,8 +35,7 @@ pub(crate) fn sample_p5_health(
     work_s: f64,
     work_start: Instant,
     perf_rss_samples: &mut u64,
-    #[cfg(target_os = "linux")]
-    last_ctxt_switches: &mut u64,
+    #[cfg(target_os = "linux")] last_ctxt_switches: &mut u64,
     last_ctxt_sample: &mut Instant,
 ) -> bool {
     // ── P5: Endurance health sampling (ALWAYS ON) ──
