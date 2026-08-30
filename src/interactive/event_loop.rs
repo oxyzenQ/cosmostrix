@@ -155,15 +155,33 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> =
         Some(initial_cfg_map.clone());
 
-    // +hotfix: synchronous ambient apply at startup with REAL cfg map.
-    let (new_charset, startup_entry) = crate::crystal_dragon_engine::ambient::apply_startup_ambient(
-        &mut cloud,
-        &base_cfg.ambient_schedule,
-        &charset_preset,
-        &user_ranges,
-        def_ascii,
-        &initial_cfg_map,
-    );
+    // v50.0.0-beta.7 masterclass: when --scene is CLI-explicit, DON'T
+    // apply ambient at startup. The user explicitly chose a scene — they
+    // should see it first. Ambient will apply later via auto-snapback
+    // after ambient-snapback-secs (default 30s). This avoids the confusion
+    // where `cosmostrix --scene monolith` with `ambient.12-00 = aurora`
+    // immediately shows aurora instead of monolith.
+    //
+    // When --scene is NOT CLI-explicit (config or default), ambient
+    // applies immediately at startup as before (the original behavior).
+    let scene_is_cli_explicit = base_cfg.cli_explicit.scene;
+    let (new_charset, startup_entry) = if scene_is_cli_explicit {
+        // CLI scene wins: skip ambient startup apply. The auto-snapback
+        // mechanism will apply ambient after snapback-secs.
+        crate::lr_trace!(
+            "ambient: startup — CLI --scene explicit, deferring ambient apply until snapback"
+        );
+        (charset_preset.clone(), None)
+    } else {
+        crate::crystal_dragon_engine::ambient::apply_startup_ambient(
+            &mut cloud,
+            &base_cfg.ambient_schedule,
+            &charset_preset,
+            &user_ranges,
+            def_ascii,
+            &initial_cfg_map,
+        )
+    };
     // startup ambient info for post-exit verbose (main.rs prints after drop).
     let ambient_info = match &startup_entry {
         Some(e) => format!(
