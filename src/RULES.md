@@ -47,7 +47,8 @@ src/
 ├── docs_tests/                <- integration tests for docs/README consistency
 ├── doctor/                    <- --doctor diagnostics subsystem
 ├── droplet/                   <- droplet rendering (parallax, brightness)
-├── interactive/               <- event loop, HUD, intro, input handling
+├── interactive/               <- event loop, HUD, input handling (intro runner glue: event_loop_intro.rs)
+├── intro_style/               <- cinematic intro styles (one file per style: cosmic.rs / logo.rs + mod.rs dispatch)
 ├── msg_fill_style/            <- message overlay reveal styles (one file per style: typewriter/fade/words/slide/pulse/instant/engrave.rs + mod.rs dispatch)
 ├── output/                    <- output, report, verbose, ux, message
 ├── platform/                  <- platform detection, panic hook, update

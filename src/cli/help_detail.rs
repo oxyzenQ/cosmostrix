@@ -143,7 +143,7 @@ COMMON OPTIONS:
       Cinematic intro played before the rain engine starts. Pick one
       of three modes (default: logo). The intro plays automatically
       when cosmostrix starts; pass --intro none to skip it entirely.
-        logo    cosmostrix Logo intro (~6.25s). The ASCII logo fades in
+        logo    cosmostrix Logo intro (~4.5s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the
                 logo dissolves into Matrix rain starting from the

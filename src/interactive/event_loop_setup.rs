@@ -57,7 +57,10 @@ pub(crate) fn setup_terminal_cloud_frame(cfg: &CloudConfig) -> std::io::Result<L
     // AB-10: emit pre-alt-screen warnings BEFORE Terminal::with_signal_exit()
     // enters the alt screen. Otherwise they leak into the rain matrix.
     let fixed_size = cfg.screen_size;
-    super::emit_pre_alt_screen_warnings(fixed_size, cfg.intro != crate::config::IntroType::None);
+    super::emit_pre_alt_screen_warnings(
+        fixed_size,
+        cfg.intro != crate::intro_style::IntroType::None,
+    );
 
     let mut term = Terminal::with_signal_exit(signal_exit.clone())?;
     if term.enable_mouse_capture().is_ok() {

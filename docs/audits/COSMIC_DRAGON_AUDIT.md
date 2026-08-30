@@ -297,7 +297,7 @@ chromatic shockwave, trail particles) is stable and well-optimized.
 | S-2 | monolith.rs:602 | count as u8 truncation (safe, MAX_SEGMENTS=9) | Added debug_assert!(count <= u8::MAX) |
 | S-5 | living_rain.rs:196 | as u32 overflow at ~13.6 years for density noise seed | Documented LTS ceiling. u64 widening reverted (would break hash output + tests for no practical benefit). |
 | C-3 | event_loop.rs:627 | Per-keypress std::env::var x2 for Termux detection (~30 mutex locks/sec on held-key) | Cached via std::sync::OnceLock<bool>, evaluated once at first keypress. |
-| C-4 | intro.rs:80 | Vec<&str> allocation in read_self_voluntary_ctxt (1 Hz cadence) | Replaced with .nth(17) iterator (no heap allocation). |
+| C-4 | intro.rs:80 (now sysstat/procstat.rs) | Vec<&str> allocation in read_self_voluntary_ctxt (1 Hz cadence) | Replaced with .nth(17) iterator (no heap allocation). |
 
 #### Low Items Deferred (documented, no immediate action)
 

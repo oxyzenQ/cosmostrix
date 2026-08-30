@@ -28,8 +28,8 @@
 //! frame consistent with the post-intro terminal geometry.
 
 use crate::cloud::Cloud;
-use crate::config::IntroType;
 use crate::frame::Frame;
+use crate::intro_style::IntroType;
 use crate::runtime::ColorScheme;
 use crate::terminal::Terminal;
 use crate::CloudConfig;
@@ -50,7 +50,7 @@ const INTRO_BRAND_SCHEME: ColorScheme = ColorScheme::EnergyZen;
 /// Behavior:
 /// - If `cfg.intro == IntroType::None`, returns immediately (no-op).
 /// - Otherwise resolves `cfg.intro_color` per the chain documented at the
-///   module level, runs `super::intro::run_intro(...)`, then post-processes:
+///   module level, runs `crate::intro_style::run_intro(...)`, then post-processes:
 ///     * `cloud.force_draw_everything()` + `frame.clear_with_bg(bg)` so the
 ///       first render-loop frame starts from a clean slate.
 ///     * If `cfg.screen_size` is unset (dynamic sizing) and the terminal was
@@ -151,14 +151,14 @@ fn run_intro_with_color_resolution(
             // Cases 1 + 4: brand EnergyZen intro cloud. logo_color = the
             // palette head (bright lavender), consistent with cases 2/3.
             let intro_cloud = brand_intro_cloud(cfg, density);
-            let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-            super::intro::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
+            let logo_color = crate::intro_style::palette_target_rgb(&intro_cloud);
+            crate::intro_style::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
         }
         IntroPaletteSource::Scheme(scheme) => {
             let mut intro_cloud = cfg.create_cloud(density);
             intro_cloud.set_color_scheme(scheme);
-            let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-            super::intro::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
+            let logo_color = crate::intro_style::palette_target_rgb(&intro_cloud);
+            crate::intro_style::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
         }
         IntroPaletteSource::Custom => {
             let name = cfg.intro_color.as_deref().unwrap_or_default();
@@ -167,16 +167,32 @@ fn run_intro_with_color_resolution(
                 Ok(palette) => {
                     let mut intro_cloud = cfg.create_cloud(density);
                     intro_cloud.palette = palette;
-                    let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-                    super::intro::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
+                    let logo_color = crate::intro_style::palette_target_rgb(&intro_cloud);
+                    crate::intro_style::run_intro(
+                        term,
+                        frame,
+                        &intro_cloud,
+                        w,
+                        h,
+                        cfg.intro,
+                        logo_color,
+                    )
                 }
                 // Case 4: invalid name — validation failed silently at
                 // startup; fall back to the brand cloud so the intro
                 // still plays.
                 Err(_) => {
                     let intro_cloud = brand_intro_cloud(cfg, density);
-                    let logo_color = super::intro::palette_target_rgb(&intro_cloud);
-                    super::intro::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
+                    let logo_color = crate::intro_style::palette_target_rgb(&intro_cloud);
+                    crate::intro_style::run_intro(
+                        term,
+                        frame,
+                        &intro_cloud,
+                        w,
+                        h,
+                        cfg.intro,
+                        logo_color,
+                    )
                 }
             }
         }

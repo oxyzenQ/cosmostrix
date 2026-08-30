@@ -1,24 +1,63 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v20: Modular intro system + Linux process metrics helpers.
+//! Cinematic intro selection — one file per style.
 //!
-//! Two unrelated concerns coexist in this file:
+//! `--intro <type>` picks the cinematic studio-logo animation played
+//! before the rain engine takes over (`cosmostrix --intro cosmic` /
+//! `--intro logo` / `--intro none`, default: logo; also settable via
+//! `intro = "logo"` in config.toml — CLI flag wins).
 //!
-//! 1. **Linux process metrics** (`read_self_rss_kb`, `read_self_voluntary_ctxt`)
-//!    — lightweight `/proc` readers used by the HUD overlay. Kept here because
-//!    the file already exists; the helpers are tiny and have no dependencies.
+//! | Style    | Animation                                             | Length |
+//! |----------|-------------------------------------------------------|--------|
+//! | `logo`   | cosmostrix Logo: laser charge → ignition glow → dissolve → rain | ~4.5 s |
+//! | `cosmic` | Cosmic Burst: singularity → explosion → morph → rain  | ~5 s   |
+//! | `none`   | No intro; skip straight to the rain engine.           | 0 s    |
 //!
-//! 2. **Modular intro dispatcher** (`run_intro`, `IntroType`) — a cinematic
-//!    studio-logo-style animation played before the rain engine takes over.
-//!    Triggered by `cosmostrix --intro <type>`. The actual phase logic lives
-//!    in sibling modules:
-//!    * [`super::intro_cosmic`] — Cosmic Burst (singularity → explosion → morph → rain)
-//!    * [`super::intro_logo`]   — cosmostrix Logo (fade in → ignition → dissolve → rain)
+//! ## One file per style (owner refactor mandate)
 //!
-//!    This file owns the shared particle infrastructure (pool, RNG, lerp) and
-//!    the dispatcher that routes `IntroType` to the correct submodule's
-//!    `run_*_intro` entry point.
+//! Each style owns ONE file in this directory — everything about the
+//! style lives there: phase timing constants, art, particle spawn/update
+//! math, render loop, and unit tests. This file (`mod.rs`) holds only
+//! the shared skeleton: the `IntroType` enum (moved here from
+//! `config/mod.rs` so the whole subsystem is plug-and-play), the shared
+//! particle infrastructure (pool, RNG, lerp, render helpers), and the
+//! dispatcher that routes `IntroType` to the correct style module.
+//!
+//! ## How to add intro style #4 (plug-and-play recipe)
+//!
+//! 1. Copy the closest existing `<style>.rs` to a new file (e.g.
+//!    `eclipse.rs`) and rewrite its phase math + doc comment. Keep the
+//!    entry-point shape: `pub(super) fn run_<style>_intro(...) ->
+//!    std::io::Result<()>`, polling [`should_skip`] each frame and
+//!    bumping frames via [`end_frame`].
+//! 2. In this file: add the `mod` declaration, the enum variant (with
+//!    `#[value(name = "...")]`), and one arm in the [`run_intro`]
+//!    dispatch match.
+//! 3. Sweep the value surfaces outside this directory: the
+//!    `--intro` help block (`cli/help_detail.rs`), README intro bullet
+//!    + CLI reference, `testconf` validation docs, and CHANGELOG.
+//!
+//! No other style's file needs to change — that isolation is the point
+//! of the directory layout.
+//!
+//! ## Skip policy
+//!
+//! Only `q` / `Q` (case-insensitive) skips mid-animation; SIGTERM /
+//! SIGHUP / SIGQUIT exit via the graceful-shutdown flag; Ctrl+C
+//! (SIGINT) is deprecated. All other keys are drained and ignored so
+//! stray keypresses cannot cut the cinematic short. On terminals below
+//! [`MIN_INTRO_COLS`] × [`MIN_INTRO_LINES`] the intro is skipped with a
+//! pre-alt-screen stderr notice (emitted by `interactive::mod`).
+//!
+//! ## Legacy note
+//!
+//! This directory replaced the v20 layout (`interactive/intro.rs`
+//! dispatcher + `interactive/intro_cosmic.rs` +
+//! `interactive/intro_logo/`) in the v52 one-file-per-style refactor —
+//! same shape as `src/msg_fill_style/`. The Linux `/proc` metrics
+//! helpers that used to squat in `intro.rs` moved home to
+//! `sysstat/procstat.rs`.
 
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -33,90 +72,54 @@ use crate::frame::Frame;
 use crate::palette::color_to_rgb;
 use crate::terminal::{is_terminal_gone, Terminal};
 
-use super::input::is_unmodified_or_shift;
-use super::watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Linux process metrics (unchanged from v17)
-// ─────────────────────────────────────────────────────────────────────────────
-
-/// Read this process's current RSS from `/proc/self/status` (Linux only).
-#[cfg(target_os = "linux")]
-pub(crate) fn read_self_rss_kb() -> u64 {
-    // Read VmRSS from /proc/self/status. Lightweight: single line match.
-    use std::io::Read;
-    let mut file = match std::fs::File::open("/proc/self/status") {
-        Ok(f) => f,
-        Err(_) => return 0,
-    };
-    let mut buf = [0u8; 8192];
-    let n = file.read(&mut buf).unwrap_or(0);
-    let text = std::str::from_utf8(&buf[..n]).unwrap_or("");
-    for line in text.split('\n') {
-        if let Some(rest) = line.strip_prefix("VmRSS:") {
-            let trimmed = rest.trim();
-            let digits_end = trimmed
-                .bytes()
-                .position(|b| !b.is_ascii_digit())
-                .unwrap_or(trimmed.len());
-            if digits_end > 0 {
-                return trimmed[..digits_end].parse().unwrap_or(0);
-            }
-        }
-    }
-    0
-}
-
-/// Read voluntary context switches from `/proc/self/stat` (Linux only).
-#[cfg(target_os = "linux")]
-pub(crate) fn read_self_voluntary_ctxt() -> u64 {
-    let stat = match std::fs::read_to_string("/proc/self/stat") {
-        Ok(s) => s,
-        Err(_) => return 0,
-    };
-    let after_paren = match stat.rfind(')') {
-        Some(idx) => &stat[idx + 1..],
-        None => return 0,
-    };
-    // v50 audit C-4: use .nth(17) instead of collecting into Vec (saves
-    // one heap allocation per call at 1 Hz cadence).
-    after_paren
-        .split_whitespace()
-        .nth(17)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(0)
-}
+// Key-modifier guard + shutdown flags live in `interactive`; re-exported
+// at the `interactive` facade so this crate-root module reaches them
+// without the whole submodules becoming pub(crate).
+use crate::interactive::{is_unmodified_or_shift, FRAME_COUNTER, GRACEFUL_SHUTDOWN};
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Intro type enum + dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
 
-// `IntroType` itself lives in `crate::config` so clap can derive
-// `ValueEnum` on it without `interactive` having to depend on clap.
-// Re-exported here for convenience so callers in `interactive` don't
-// have to spell out the full path each time.
-pub(crate) use crate::config::IntroType;
+/// Which cinematic intro to play before the rain engine takes over.
+/// Exposed as a clap `ValueEnum` for CLI parsing (`--intro`) and
+/// consumed by the dispatcher below. Referenced from `config/mod.rs`
+/// (the `intro` field), `cli/app.rs`, bench enrichment, and verbose
+/// startup output via `crate::intro_style::IntroType`.
+///
+/// * `Cosmic` — Cosmic Burst: singularity → explosion → morph → rain.
+/// * `Logo`   — cosmostrix Logo: laser charge → ignition → dissolve → rain.
+/// * `None`   — No intro; skip straight to the rain engine.
+#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
+pub enum IntroType {
+    #[value(name = "cosmic")]
+    Cosmic,
+    #[value(name = "logo")]
+    Logo,
+    #[value(name = "none")]
+    None,
+}
 
 /// Minimum terminal size for any intro to play. Below this, skip with a
 /// stderr notice. v25 responsive: lowered from 80×24 to 10×5 — the
 /// intros now dynamically scale their ASCII art to fit the terminal
-/// (see intro_logo::scale_art and intro_cosmic::scale_cosmic_art), so
-/// the hard floor is only for absurdly tiny terminals where even a
-/// scaled-down logo would be unreadable.
-pub(super) const MIN_INTRO_COLS: u16 = 10;
-pub(super) const MIN_INTRO_LINES: u16 = 5;
+/// (see logo::scale_art and cosmic::scale_cosmic_art), so the hard floor
+/// is only for absurdly tiny terminals where even a scaled-down logo
+/// would be unreadable.
+pub(crate) const MIN_INTRO_COLS: u16 = 10;
+pub(crate) const MIN_INTRO_LINES: u16 = 5;
 
 /// Frame period for all intro animations. ~30 FPS — intros are mostly
 /// particle motion, so 30 FPS is smooth without burning CPU.
-pub(super) const INTRO_FRAME_PERIOD: Duration = Duration::from_millis(33);
+pub(crate) const INTRO_FRAME_PERIOD: Duration = Duration::from_millis(33);
 
 /// Particle pool capacity. Pre-allocated once; reused via free-list.
 /// 512 × 48 B = 24 KiB — negligible. Both Cosmic Burst and Logo intros
 /// share this pool size; peak concurrent particle counts stay well below
 /// 512 in either intro.
-pub(super) const PARTICLE_POOL_SIZE: usize = 512;
+pub(crate) const PARTICLE_POOL_SIZE: usize = 512;
 
-/// Entry point — dispatch to the appropriate intro submodule based on
+/// Entry point — dispatch to the appropriate intro style module based on
 /// `intro_type`. Returns `Ok(())` immediately for `None` or when the
 /// terminal is too small.
 ///
@@ -164,16 +167,14 @@ pub(crate) fn run_intro(
     }
 
     match intro_type {
-        IntroType::Cosmic => {
-            super::intro_cosmic::run_cosmic_intro(term, frame, cloud, w, h, logo_color)
-        }
-        IntroType::Logo => super::intro_logo::run_logo_intro(term, frame, cloud, w, h, logo_color),
+        IntroType::Cosmic => cosmic::run_cosmic_intro(term, frame, cloud, w, h, logo_color),
+        IntroType::Logo => logo::run_logo_intro(term, frame, cloud, w, h, logo_color),
         IntroType::None => Ok(()),
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared particle infrastructure (used by intro_cosmic and intro_logo)
+// Shared particle infrastructure (used by cosmic.rs and logo.rs)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Parsed particle representation. 48 bytes — fits ~1.3 per cache line.
@@ -187,7 +188,7 @@ pub(crate) fn run_intro(
 /// * Logo dissolve phase uses `vx`/`vy` directly for rain-fall motion.
 /// * `vx`/`vy` are kept as the cartesian cache for rendering.
 #[derive(Clone, Copy)]
-pub(super) struct Particle {
+pub(crate) struct Particle {
     pub x: f32,
     pub y: f32,
     pub vx: f32,
@@ -214,7 +215,7 @@ pub(super) struct Particle {
 }
 
 impl Particle {
-    pub(super) const INACTIVE: Self = Self {
+    pub(crate) const INACTIVE: Self = Self {
         x: 0.0,
         y: 0.0,
         vx: 0.0,
@@ -234,15 +235,15 @@ impl Particle {
 
 /// Tiny xorshift32 RNG — avoids pulling `rand` into this module. Seeded
 /// from `Instant::now()` so each intro run looks slightly different.
-pub(super) struct XorShift(pub u32);
+pub(crate) struct XorShift(pub u32);
 
 impl XorShift {
-    pub(super) fn new(seed: u32) -> Self {
+    pub(crate) fn new(seed: u32) -> Self {
         // Avoid the all-zero state which would lock the generator.
         Self(if seed == 0 { 0xDEAD_BEEF } else { seed })
     }
     #[inline]
-    pub(super) fn next_u32(&mut self) -> u32 {
+    pub(crate) fn next_u32(&mut self) -> u32 {
         let mut x = self.0;
         x ^= x << 13;
         x ^= x >> 17;
@@ -252,7 +253,7 @@ impl XorShift {
     }
     /// Uniform float in `[0.0, 1.0)`.
     #[inline]
-    pub(super) fn next_f32(&mut self) -> f32 {
+    pub(crate) fn next_f32(&mut self) -> f32 {
         // 24-bit mantissa for uniform distribution.
         (self.next_u32() >> 8) as f32 / (1u32 << 24) as f32
     }
@@ -261,20 +262,20 @@ impl XorShift {
 /// Pre-allocated particle pool with a free-list stack. The pool itself
 /// stores `Particle` values; the free-list stores indices into the pool
 /// so spawning is O(1) pop, killing is O(1) flag flip.
-pub(super) struct ParticlePool {
+pub(crate) struct ParticlePool {
     pub particles: Vec<Particle>,
     pub free: Vec<usize>,
 }
 
 impl ParticlePool {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         let particles = vec![Particle::INACTIVE; PARTICLE_POOL_SIZE];
         let free = (0..PARTICLE_POOL_SIZE).collect();
         Self { particles, free }
     }
 
     #[inline]
-    pub(super) fn spawn(&mut self, p: Particle) -> bool {
+    pub(crate) fn spawn(&mut self, p: Particle) -> bool {
         if let Some(i) = self.free.pop() {
             self.particles[i] = p;
             true
@@ -284,7 +285,7 @@ impl ParticlePool {
     }
 
     #[inline]
-    pub(super) fn kill(&mut self, i: usize) {
+    pub(crate) fn kill(&mut self, i: usize) {
         self.particles[i].active = false;
         self.free.push(i);
     }
@@ -295,14 +296,14 @@ impl ParticlePool {
     /// after spawn/kill operations.
     #[inline]
     #[cfg(test)]
-    pub(super) fn active_count(&self) -> usize {
+    pub(crate) fn active_count(&self) -> usize {
         PARTICLE_POOL_SIZE - self.free.len()
     }
 }
 
 /// Linear interpolation between two `f32` values.
 #[inline]
-pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
+pub(crate) fn lerp(a: f32, b: f32, t: f32) -> f32 {
     a + (b - a) * t
 }
 
@@ -330,17 +331,17 @@ pub(super) fn lerp(a: f32, b: f32, t: f32) -> f32 {
 /// that follows, so the cinematic intro dissolves seamlessly into the
 /// rain matrix without a visible color shift.
 #[inline]
-pub(super) fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
+pub(crate) fn lerp_rgb(a: (u8, u8, u8), b: (u8, u8, u8), t: f32) -> (u8, u8, u8) {
     crate::chroma_dragon_engine::gradient::oklab_blend_rgb(a.0, a.1, a.2, b.0, b.1, b.2, t)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Shared helpers used by both intro submodules
+// Shared helpers used by both intro style modules
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Seed an [`XorShift`] RNG from wall-clock nanos. Each intro run gets a
 /// different particle pattern, which keeps repeat viewings fresh.
-pub(super) fn seed_rng() -> XorShift {
+pub(crate) fn seed_rng() -> XorShift {
     let seed = Instant::now()
         .elapsed()
         .as_nanos()
@@ -351,7 +352,7 @@ pub(super) fn seed_rng() -> XorShift {
 
 /// Pull the brightest palette color (typically the head color) as the
 /// rain target. If the palette is empty, fall back to neon green.
-pub(super) fn palette_target_rgb(cloud: &Cloud) -> (u8, u8, u8) {
+pub(crate) fn palette_target_rgb(cloud: &Cloud) -> (u8, u8, u8) {
     cloud
         .palette
         .colors
@@ -364,7 +365,7 @@ pub(super) fn palette_target_rgb(cloud: &Cloud) -> (u8, u8, u8) {
 /// Rain charset for the morph / dissolve phases. Empty pool → binary
 /// fallback (`['0', '1']`). The returned Vec is owned because it's
 /// computed once at intro start and then borrowed for the duration.
-pub(super) fn rain_chars(cloud: &Cloud) -> Vec<char> {
+pub(crate) fn rain_chars(cloud: &Cloud) -> Vec<char> {
     if cloud.char_pool.is_empty() {
         vec!['0', '1']
     } else {
@@ -377,7 +378,7 @@ pub(super) fn rain_chars(cloud: &Cloud) -> Vec<char> {
 /// congruential step seeded by an atomic counter, which is good enough
 /// for cosmetic glyph variation.
 #[inline]
-pub(super) fn rng_freehand() -> f32 {
+pub(crate) fn rng_freehand() -> f32 {
     use std::sync::atomic::{AtomicU32, Ordering as AOrdering};
     static STATE: AtomicU32 = AtomicU32::new(0x1357_9BDF);
     let mut s = STATE.load(AOrdering::Relaxed);
@@ -440,7 +441,7 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (SIGTERM / SIGHUP / SIGQUIT).
 ///
 /// All other key events are drained and ignored. This is deliberate: the
-/// intros run for 5–6.25 s (Cosmic Burst ~5 s, Logo ~6.25 s), and accidental
+/// intros run for ~4.5–5 s (Logo ~4.5 s, Cosmic Burst ~5 s), and accidental
 /// presses of space / enter / arrow keys should not cut them short. The user
 /// always has a fast exit via `q`. Ctrl+C (SIGINT) is deprecated.
 ///
@@ -467,7 +468,7 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 /// detect EIO/EBADF/BrokenPipe from both `poll_event` and `read_event`, and
 /// return `Ok(true)` (skip intro) so the normal shutdown path runs. This
 /// drops post-SIGHUP CPU burn from 20s to < 1ms during the intro window.
-pub(super) fn should_skip() -> std::io::Result<bool> {
+pub(crate) fn should_skip() -> std::io::Result<bool> {
     if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
         return Ok(true);
     }
@@ -503,7 +504,7 @@ pub(super) fn should_skip() -> std::io::Result<bool> {
 /// interpolating toward black by the inverse life ratio (so particles
 /// fade as they age). `bold` controls the cell's bold flag.
 #[allow(clippy::too_many_arguments)]
-pub(super) fn render_particle_cell(
+pub(crate) fn render_particle_cell(
     frame: &mut Frame,
     w: u16,
     h: u16,
@@ -537,8 +538,9 @@ pub(super) fn render_particle_cell(
 }
 
 /// Bump the watchdog frame counter and sleep for one frame period.
-/// Used by every intro submodule at the end of each frame loop iteration.
-pub(super) fn end_frame(term: &mut Terminal, frame: &mut Frame) -> std::io::Result<()> {
+/// Used by every intro style module at the end of each frame loop
+/// iteration.
+pub(crate) fn end_frame(term: &mut Terminal, frame: &mut Frame) -> std::io::Result<()> {
     term.draw(frame)?;
     FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
     std::thread::sleep(INTRO_FRAME_PERIOD);
@@ -546,10 +548,15 @@ pub(super) fn end_frame(term: &mut Terminal, frame: &mut Frame) -> std::io::Resu
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Tests (shared infrastructure only — submodule-specific tests live in
-// their respective files)
+// Style module declarations
 // ─────────────────────────────────────────────────────────────────────────────
 
+// `cosmic` is visible outside this directory only for `BURST_CHARS`
+// (double-width glyph audit in `tests/width_guard.rs`). `logo` is fully
+// encapsulated behind the dispatch above.
+pub(crate) mod cosmic;
+mod logo;
+
 #[cfg(test)]
-#[path = "intro_tests.rs"]
+#[path = "tests.rs"]
 mod tests;

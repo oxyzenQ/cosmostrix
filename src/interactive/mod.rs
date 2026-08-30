@@ -59,9 +59,6 @@ mod event_loop_sim_draw;
 mod event_loop_stats;
 mod hud;
 mod input;
-mod intro;
-pub(crate) mod intro_cosmic;
-mod intro_logo;
 mod signal_handlers;
 mod watchdog;
 
@@ -109,6 +106,11 @@ pub(crate) use crate::crystal_dragon_engine::ambient_diag::{
 };
 pub(crate) use bg_fill::fill_terminal_bg;
 pub(crate) use event_loop::run_interactive;
+// v52 intro_style refactor: the intro subsystem moved to crate-root
+// `intro_style/`; these two items it needs from `interactive` are
+// re-exported at the facade so the submodules stay private.
+pub(crate) use input::is_unmodified_or_shift;
+pub(crate) use watchdog::{FRAME_COUNTER, GRACEFUL_SHUTDOWN};
 // `clear_mouse_capture_flag` is called cross-platform (terminal.rs:508).
 // `request_graceful_shutdown` is only called from the Unix `recover_to_tty`
 // path (terminal.rs:425) — gate the re-export so Windows doesn't warn.
@@ -529,13 +531,13 @@ pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro
         let (tw, th) = crossterm::terminal::size().unwrap_or((0, 0));
         let tw = tw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
         let th = th.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
-        if tw < intro::MIN_INTRO_COLS || th < intro::MIN_INTRO_LINES {
+        if tw < crate::intro_style::MIN_INTRO_COLS || th < crate::intro_style::MIN_INTRO_LINES {
             crate::output::eprintln_safe!(
                 "Terminal too small for intro ({}x{} < {}x{}). Starting rain...",
                 tw,
                 th,
-                intro::MIN_INTRO_COLS,
-                intro::MIN_INTRO_LINES
+                crate::intro_style::MIN_INTRO_COLS,
+                crate::intro_style::MIN_INTRO_LINES
             );
         }
     }

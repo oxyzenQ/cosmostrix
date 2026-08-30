@@ -112,7 +112,7 @@ markers.
 | `post` | `pub(crate)` | Used internally |
 | `shaders` | `pub(crate)` | Used from cosmic_dragon_engine (render) |
 | `tuning` | `pub(crate)` | Used internally |
-| `intro_colors` | `pub(crate)` | Used from interactive (intro_logo) |
+| `intro_colors` | `pub(crate)` | Used from intro_style (logo/cosmic; was interactive/intro_logo pre-v52) |
 | `color_cache` | `pub(crate)` | Re-exported via main.rs |
 | `color_tune` | `pub(crate)` | Re-exported via main.rs |
 | `colors_custom` | `pub(crate)` | Re-exported via main.rs |
@@ -166,8 +166,8 @@ overlap.
 
 **Investigation:** The const is "kept for reference" per the comment.
 It is referenced by:
-- `interactive/intro_logo/tests.rs` — imports it as `ENGINE_LOGO_COLOR_RGB`, asserts equality
-- `interactive/intro_logo/mod.rs` — references in comments
+- `intro_style/logo_tests.rs` — imports it as `ENGINE_LOGO_COLOR_RGB`, asserts equality (was `interactive/intro_logo/tests.rs` pre-v52)
+- `intro_style/logo.rs` — references in comments (was `interactive/intro_logo/mod.rs` pre-v52)
 - `chroma_dragon_engine/intro_colors.rs` — internal tests assert it matches `COSMIC_COLORS_RGB[1]`
 
 **Verdict:** Doc-anchor pattern (same as

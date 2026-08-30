@@ -125,7 +125,7 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         base_density: 0.75,
         perf_stats: false,
         screensaver: false,
-        intro: crate::config::IntroType::None,
+        intro: crate::intro_style::IntroType::None,
         intro_color: None,
         mouse: false,
         charset_preset: "binary".to_string(),

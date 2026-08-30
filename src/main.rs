@@ -108,7 +108,9 @@ mod docs_tests;
 // Group: Droplet subsystem
 mod droplet;
 
-// Group: Interactive subsystem (event loop, HUD, intro, etc.)
+// Group: Interactive subsystem (event loop, HUD, input, watchdog; the
+// cinematic intro STYLES live in intro_style/, the intro runner glue
+// in interactive/event_loop_intro.rs)
 mod interactive;
 
 // Group: Output subsystem (output.rs → mod.rs, report.rs, verbose.rs, ux.rs, message.rs)
@@ -164,6 +166,11 @@ pub(crate) use types::{cell, constants, rain_style, renderer_info};
 // style: typewriter/fade/words/slide/pulse/instant/engrave.rs — the
 // owner-mandated plug-and-play layout, see msg_fill_style/mod.rs)
 mod msg_fill_style;
+
+// Group: intro-style subsystem (one file per cinematic intro style:
+// cosmic.rs / logo.rs + the shared particle skeleton in mod.rs — the
+// same owner-mandated plug-and-play layout, see intro_style/mod.rs)
+mod intro_style;
 
 // Standalone modules (file → dir, transparent resolution)
 mod bolt;
@@ -690,7 +697,7 @@ fn main() -> std::io::Result<()> {
             term_caps: &term_caps,
             duration_s,
             bench_mode,
-            intro: args.intro.unwrap_or(crate::config::IntroType::Logo),
+            intro: args.intro.unwrap_or(crate::intro_style::IntroType::Logo),
             intro_color: args.intro_color.clone(),
             monolith_density_map,
             cli_explicit,

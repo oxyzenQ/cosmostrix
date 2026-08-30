@@ -101,7 +101,8 @@
 //!   mod.rs:288) uses linear falloff for a 3-row spatial window.
 //!   Smoothstep was deliberately rejected as "overkill for 3 lines".
 //!
-//! - **Intro logo Phase 3 fade** (interactive/intro_logo/mod.rs:537)
+//! - **Intro logo Phase 3 fade** (intro_style/logo.rs, phase-3
+//!   `base_brightness`)
 //!   uses smoothstep (1 - 3t^2+2t^3). This is intro animation, not
 //!   pause/resume lifecycle — outside the easing consolidation scope.
 //!

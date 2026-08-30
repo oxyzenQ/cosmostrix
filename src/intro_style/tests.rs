@@ -1,7 +1,9 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Intro animation tests — extracted from intro.rs.
+//! Shared intro infrastructure tests (pool, RNG, lerp, skip policy)
+//! for the `intro_style` dispatcher module — per-style tests live in
+//! their style files (`logo_tests.rs`, inline in `cosmic.rs`).
 
 // use super::*; // not needed — tests are self-contained
 
@@ -11,7 +13,7 @@ use super::*;
 fn min_intro_size_allows_responsive_scaling() {
     // v25 responsive: MIN_INTRO lowered from 80×24 to 10×5 so the
     // intros can play on small terminals via dynamic art scaling
-    // (see intro_logo::scale_art). The hard floor is only for
+    // (see logo::scale_art). The hard floor is only for
     // absurdly tiny terminals where even a scaled-down logo would
     // be unreadable.
     assert_eq!(MIN_INTRO_COLS, 10);

@@ -4,8 +4,8 @@
 //! Application configuration: CloudConfig struct and density calculation helpers.
 
 use crate::cloud::Cloud;
-use crate::config::IntroType;
 use crate::constants::*;
+use crate::intro_style::IntroType;
 use crate::msg_fill_style::MsgFillStyle;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};

@@ -96,6 +96,14 @@ actively used, distinct in purpose. Not redundant.
 | `intro_cosmic.rs` | 699 | Cosmic Burst intro — 4-phase cinematic (singularity → burst → morph → rain) |
 | `intro_logo/mod.rs` | 799 | Logo intro — ASCII logo reveal + dissolve to Matrix rain using 7-stage rain method |
 
+> **v52 path update (2026-08-31)**: all three intro files moved out of
+> `interactive/` in the one-file-per-style refactor — the dispatcher +
+> shared particle skeleton now live in `src/intro_style/mod.rs`, the
+> styles in `src/intro_style/cosmic.rs` + `src/intro_style/logo.rs`
+> (+ `logo_tests.rs`), and the Linux process metrics helpers in
+> `src/sysstat/procstat.rs`. The LOC counts above are the audit-time
+> snapshot, not current.
+
 **Verdict:** Each file implements a distinct intro animation with
 different visual sequences and phase timings. The `intro.rs` file
 addively houses Linux process metrics helpers (documented as "kept

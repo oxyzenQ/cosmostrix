@@ -9,9 +9,10 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use clap::{CommandFactory, FromArgMatches};
 
-use crate::config::{Args, GlitchLevel, IntroType};
+use crate::config::{Args, GlitchLevel};
 use crate::config_apply::{apply_config_and_runtime_defaults, parse_bool_config};
 use crate::configfile::dump_config_text;
+use crate::intro_style::IntroType;
 use crate::runtime::MonolithSize;
 
 /// Global counter for unique temp file names. Prevents collisions when

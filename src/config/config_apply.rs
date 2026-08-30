@@ -38,8 +38,9 @@ use clap::ValueEnum;
 
 use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
-use crate::config::{Args, ColorBg, GlitchLevel, IntroType};
+use crate::config::{Args, ColorBg, GlitchLevel};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
+use crate::intro_style::IntroType;
 use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, DEFAULT_SCENE};

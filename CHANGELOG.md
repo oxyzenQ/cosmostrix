@@ -9,6 +9,17 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### intro_style: one-file-per-style directory refactor (Z-master-1B)
+
+- **Owner mandate**: "refactor special for function --intro all styles into one directory called `intro_style`, each file like `logo.rs` — easy maintenance, isolate, plug and play" (same shape as the msg_fill_style refactor).
+- **New layout** — `src/intro_style/` (crate-root module, peer of `msg_fill_style/`): `mod.rs` holds the shared skeleton (`IntroType` enum moved home from `config/mod.rs`, the `run_intro` dispatcher, MIN_INTRO size constants, frame period, the pre-allocated particle pool + xorshift RNG + OKLab lerp helpers, the q-only skip policy, and a "How to add intro style #4" plug-and-play recipe); each style owns exactly one file — `cosmic.rs` (700 LOC, Cosmic Burst) and `logo.rs` (794 LOC, cosmostrix Logo) — plus `logo_tests.rs` / `tests.rs` for the per-style and shared-infrastructure tests.
+- **Pure code motion**: bit-identical animation behavior — same phases, same timings, same particle math. The v20 layout (`interactive/intro.rs` dispatcher + `interactive/intro_cosmic.rs` + `interactive/intro_logo/`) is gone; the runner glue (`event_loop_intro.rs` — intro-color resolution chain, brand EnergyZen, post-intro resize re-read) stays in `interactive/` exactly as the renderer stayed in `cloud/` for msg-fill-style.
+- **Unrelated concerns unwed**: `intro.rs` had housed the Linux `/proc` process metrics helpers (RSS + context switches, HUD endurance panel) "because the file already existed" since v17 — they moved home to `sysstat/procstat.rs`.
+- **Path updates**: `IntroType` now referenced as `crate::intro_style::IntroType` across config/cli/bench/output/interactive (16 files); `BURST_CHARS` reached via `intro_style::cosmic` for the width-guard audit test; `is_unmodified_or_shift` + the watchdog flags re-exported at the `interactive` facade so intro_style reaches them without opening the whole submodules.
+- **Stale-reference sweep (owner directive)**: `interactive/` module map + `src/RULES.md` tree + `main.rs` module map refreshed; commented code references re-pointed (`terminal/draw.rs` intro end_frame note, `platform/mod.rs` procfs pattern list, `central_control_rains/mod.rs` logo phase-3 fade pointer, `chroma_dragon_engine/intro_colors.rs` consumer notes, shortkey no-op test keybind table); audit/research docs annotated with pre-v52 → v52 path moves (A1/A2/A3 zombie-kill, COSMIC_DRAGON_AUDIT C-4, CHROMA + FLAGS research audits).
+- **Stale timing data fixed**: the logo intro module doc + `--help` block still advertised the v20 phase table (0–2000/4250/5250/6250 ms, "~6.25 s total") — the v25 rebalanced constants are 1200/3000/4000/4500 ms (~4.5 s total); both docs now match the code, and the cosmic module doc's stale "80×24" intro floor claim is corrected to 10×5 (the README had already been fixed; cosmic.rs had not).
+- **Tests**: 1869 pass, zero behavioral churn (pure move + docs); suite count unchanged.
+
 ### HUD metrics reorder: v51 owner-mandated row order (Z-master-1B)
 
 - **Owner mandate** ("reorder/tidying HUD metrics new, correct like this below"): the 22-row HUD now reads fps / tgt / max / p99 / cpu / rss / ehs / prs / **scn / chr / clr** / **sped / dsty** / prdr / crdr / ambt / glth / ctun / mnst / **cid / up / screensize** (bold = moved). Previously the order was ...ehs / prs / sped / dsty / scn / chr / clr / up / screensize / prdr / crdr / ambt / glth / ctun / mnst / cid.

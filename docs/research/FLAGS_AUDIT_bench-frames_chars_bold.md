@@ -68,7 +68,7 @@ prints compact parseable `BENCH:` output. Distinct from `--benchmark`
 | `src/constants.rs:393-413` | Warmup constants | `BENCH_WARMUP_DIVISOR=10`, `MIN=10`, `MAX=200` |
 | `src/live_config.rs:1088` | Test fixture | `bench_frames: None` (default for non-bench tests) |
 | `src/atmosphere_ab_tests.rs:318` | Test fixture | `bench_frames: None` |
-| `src/interactive/intro.rs:125-127` | Doc comment | Notes that intro is skipped in bench mode |
+| `src/intro_style/mod.rs` (Benchmark mode doc, was interactive/intro.rs:125-127 pre-v52) | Doc comment | Notes that intro is skipped in bench mode |
 | `src/cli_parse.rs:14` | Doc comment | Notes `--duration` is noop in `--bench-frames` mode |
 | `src/bolt.rs:16-17` | Doc comment | Notes that BOLT gains are not measurable via `--bench-frames` (lean path already table-driven) |
 | `src/interactive/tests.rs` | Test fixture | `bench_frames: None` |

@@ -151,7 +151,7 @@ pub(crate) fn sysfs_smt_active() -> Option<String> {
 /// the prefix isn't found.
 ///
 /// This replaces the duplicated "open /proc file → scan for prefix →
-/// parse value" pattern used in `memstat.rs`, `interactive/intro.rs`,
+/// parse value" pattern used in `memstat.rs`, `sysstat/procstat.rs`,
 /// and `diagnostics.rs`.
 #[cfg(target_os = "linux")]
 #[must_use]

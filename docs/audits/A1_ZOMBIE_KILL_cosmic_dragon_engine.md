@@ -172,8 +172,8 @@ sites. No re-export is unused.
 
 | File | Value | Animation |
 |---|---|---|
-| `interactive/intro_logo/mod.rs:131` | 4,500 ms | Logo intro phase 4 |
-| `interactive/intro_cosmic.rs:48` | 5,000 ms | Cosmic intro phase 4 |
+| `intro_style/logo.rs` (PHASE4_RAIN_END_MS) | 4,500 ms | Logo intro phase 4 |
+| `intro_style/cosmic.rs` (PHASE4_RAIN_END_MS) | 5,000 ms | Cosmic intro phase 4 |
 
 **Verdict:** Correct per-animation scoping. Not a duplicate. The
 constant names are the same because they serve the same semantic role

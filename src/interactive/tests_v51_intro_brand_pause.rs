@@ -80,7 +80,7 @@ mod cases_v51_intro_brand_pause {
             base_density: 0.8,
             perf_stats: false,
             screensaver: false,
-            intro: crate::config::IntroType::None,
+            intro: crate::intro_style::IntroType::None,
             intro_color: None,
             mouse: false,
             charset_preset: String::from("binary"),

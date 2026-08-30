@@ -15,7 +15,7 @@ use crate::termdetect::TerminalCaps;
 use crate::ux;
 
 use crate::color_tune::ColorTune;
-use crate::config::IntroType;
+use crate::intro_style::IntroType;
 use crate::palette::Palette;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -205,7 +205,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         base_density,
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
-        intro: args.intro.unwrap_or(crate::config::IntroType::Logo),
+        intro: args.intro.unwrap_or(crate::intro_style::IntroType::Logo),
         intro_color: args.intro_color.clone(),
         mouse: true, // v17: always-on (--mouse flag deleted)
         charset_preset,

@@ -104,7 +104,9 @@ pub(super) fn is_unmodified(modifiers: crossterm::event::KeyModifiers) -> bool {
 /// crossterm tags that uppercase char with SHIFT, so CapsLock+C lands
 /// in the same cycle arm as Shift+C — accepted, since both produce the
 /// uppercase letter that means "reverse cycle".
-pub(super) fn is_unmodified_or_shift(modifiers: crossterm::event::KeyModifiers) -> bool {
+// v52: pub(crate) — re-exported at the `interactive` facade for the
+// crate-root `intro_style` skip-key guard (rules stay consistent).
+pub(crate) fn is_unmodified_or_shift(modifiers: crossterm::event::KeyModifiers) -> bool {
     modifiers.is_empty() || modifiers == crossterm::event::KeyModifiers::SHIFT
 }
 

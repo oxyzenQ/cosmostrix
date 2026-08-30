@@ -1,7 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! intro_logo tests, extracted from inline `mod tests { ... }` block.
+//! Logo intro style tests (art parsing, scaling, stage colors).
+//! Included from `logo.rs` via `#[path = "logo_tests.rs"]`.
 //!
 //! Uses `use super::*;` to access parent's private items unchanged.
 

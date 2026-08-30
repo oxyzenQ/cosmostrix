@@ -161,9 +161,9 @@ pub(crate) fn compute_config_enrichment(cfg: &CloudConfig) -> ConfigEnrichment {
     let crystal_dragon = cfg.crystal_dragon;
     let msg_mode = cfg.msg_mode;
     let intro: &'static str = match cfg.intro {
-        crate::config::IntroType::Logo => "logo",
-        crate::config::IntroType::Cosmic => "cosmic",
-        crate::config::IntroType::None => "none",
+        crate::intro_style::IntroType::Logo => "logo",
+        crate::intro_style::IntroType::Cosmic => "cosmic",
+        crate::intro_style::IntroType::None => "none",
     };
 
     // PERF-2-Supreme: --no-effects state (inverted into the

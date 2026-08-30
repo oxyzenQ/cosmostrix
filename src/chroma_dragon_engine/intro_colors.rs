@@ -5,8 +5,9 @@
 //!
 //! Single source of truth for ALL color data used by the intro cinematic
 //! system (Cosmic Burst and Logo intros). Before this module, brand colors
-//! were scattered as orphan constants across `interactive/intro_cosmic.rs`
-//! and `interactive/intro_logo/mod.rs`, making them invisible to the chroma
+//! were scattered as orphan constants across the intro style files
+//! (now `intro_style/cosmic.rs` and `intro_style/logo.rs`), making them
+//! invisible to the chroma
 //! dragon engine's audit surface.
 //!
 //! ## Why here and not in the intro modules?
@@ -55,7 +56,7 @@
 /// ## Brightness contract
 ///
 /// Every stop must have at least one channel >= 200. Enforced by
-/// `intro_cosmic::tests::cosmic_colors_are_valid`.
+/// `intro_style::cosmic::tests::cosmic_colors_are_valid`.
 pub(crate) const COSMIC_COLORS_RGB: [(u8, u8, u8); 3] = [
     (255, 200, 0),  // bright gold — energy, warmth
     (168, 85, 247), // brand purple — cosmostrix identity (#A855F7)
@@ -97,7 +98,8 @@ pub(crate) const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
 pub(crate) const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 
 /// Neon green fallback for `palette_target_rgb()` when the palette
-/// is empty. Matches the original fallback used in `intro::palette_target_rgb`.
+/// is empty. Matches the original fallback used in
+/// `intro_style::palette_target_rgb`.
 pub(crate) const NEON_GREEN_FALLBACK: (u8, u8, u8) = (57, 255, 20);
 
 // ─────────────────────────────────────────────────────────────────────────────

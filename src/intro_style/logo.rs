@@ -14,23 +14,25 @@
 //! `--colors-custom` never repaint the logo; only `--intro-color` does.
 //!
 //! ```text
-//! Phase 1: Fade In    (0    – 2000 ms)  Logo appears line by line, fading
-//!                                         from black to its stage color.
-//! Phase 2: Ignition   (2000 – 4250 ms)  A spark falls from the top of the
-//!                                         screen to the logo's center; on
-//!                                         impact the logo flashes bright.
-//! Phase 3: Dissolve   (4250 – 5250 ms)  Logo characters turn into rain
-//!                                         droplets starting from the outer
-//!                                         edge and moving inward; droplets
-//!                                         fall toward the bottom.
-//! Phase 4: Rain       (5250 – 6250 ms)  The last droplets fall off-screen;
-//!                                         rain engine takes over seamlessly.
+//! Phase 1: Laser charge  (0    – 1200 ms)  A laser bolt travels from the
+//!                                        top of the screen to the logo's
+//!                                        center; at impact the logo
+//!                                        flashes brilliant white.
+//! Phase 2: The glow     (1200 – 3000 ms)  Logo HOLDS at full glow while
+//!                                        rain starts falling from the top.
+//! Phase 3: The fade     (3000 – 4000 ms)  Rain nearly reaches the logo —
+//!                                        the logo fades smoothly away.
+//! Phase 4: Full rain    (4000 – 4500 ms)  Logo gone, rain visible, intro
+//!                                        ends and the rain engine takes
+//!                                        over seamlessly.
 //! ```
 //!
-//! Total: ~6.25 s. Press `q` (or `Q`) to skip instantly — no other key
+//! Total: ~4.5 s (v25 balanced timings — the v20 original ran ~6.25 s;
+//! see the phase constants below for the authoritative boundaries).
+//! Press `q` (or `Q`) to skip instantly — no other key
 //! skips, so stray keypresses can't cut the cinematic short. The intro
 //! is skipped entirely on terminals smaller than 10×5 with a stderr
-//! notice (handled by [`super::intro::run_intro`]).
+//! notice (handled by [`super::run_intro`]).
 //!
 //! ## Constraints
 //!
@@ -53,7 +55,7 @@ use crate::terminal::Terminal;
 use crate::chroma_dragon_engine::gradient::oklab_blend_rgb;
 use crate::chroma_dragon_engine::palette::color_to_rgb;
 
-use super::intro::{
+use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
     should_skip, Particle, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
 };
@@ -70,22 +72,15 @@ use super::intro::{
 /// Dimensions: 19 lines × 39 chars wide (max). See [`LOGO_HEIGHT`] and
 /// [`LOGO_WIDTH`] — both are computed at parse time so they always match
 /// the actual art. Rendering centers the logo at the terminal center.
-///
-/// # Centering math
-///
-/// All lines start at the same `logo_x = (term_cols - LOGO_WIDTH) / 2`
-/// offset (integer math, truncating). Each line's leading spaces in the
-/// string literal form the visual shape — they are NOT source-code
-/// indentation. Centering is purely from the offset, never per-line.
+/// All lines start at the same `logo_x` offset; each line's leading
+/// spaces form the visual shape (NOT source-code indentation).
 //
 // Note: codespell may complain about substrings inside this art. We keep
 // the .codespellrc ignore-list updated to suppress false positives.
 //
-// IMPORTANT: We use `concat!()` instead of a `"\`-continued string literal.
-// Rust's `\<newline>` line continuation strips leading whitespace from the
-// NEXT line, which would silently eat the first line's indentation and
-// shift the top of the logo flush-left relative to the body. `concat!()`
-// preserves every byte verbatim.
+// IMPORTANT: `concat!()` — not a `"\`-continued literal: Rust's
+// `\<newline>` continuation strips the NEXT line's leading whitespace,
+// which would eat the art's indentation. `concat!()` preserves every byte.
 const LOGO_ART: &str = concat!(
     "                ..qwmi  imwq.\n",
     "             .iWB$MWf=i  :iD0qw.\n",
@@ -135,7 +130,7 @@ const PHASE4_RAIN_END_MS: u64 = 4_500;
 /// since `Duration::as_secs_f32()` is stable since 1.83).
 #[inline]
 fn frame_period_secs() -> f32 {
-    super::intro::INTRO_FRAME_PERIOD.as_secs_f32()
+    super::INTRO_FRAME_PERIOD.as_secs_f32()
 }
 
 /// Rain droplet speed range (cells per second) for the dissolve phase.
@@ -404,7 +399,7 @@ fn visual_centroid(lines: &[String]) -> (f32, f32) {
 // Main entry point
 // ─────────────────────────────────────────────────────────────────────────────
 
-/// Entry point for the cosmostrix Logo intro. Plays a ~6.25 s cinematic.
+/// Entry point for the cosmostrix Logo intro. Plays a ~4.5 s cinematic.
 ///
 /// See the module docs for the phase breakdown. The caller (intro
 /// dispatcher) has already validated terminal size and `IntroType`.
@@ -423,11 +418,9 @@ pub(super) fn run_logo_intro(
     }
 
     // Compute the visual centroid (ink center-of-mass) before collecting
-    // cells, so both the dissolve ordering and the placement math use the
-    // same notion of "center". For asymmetric art like ours, the centroid
-    // is offset from the bounding-box center, which is exactly why we
-    // need it — placing the logo by its bbox center would shift the
-    // visual ink off-center on the terminal.
+    // cells, so the dissolve ordering and placement share one notion of
+    // "center" — the bbox center would shift our asymmetric ink mass
+    // off-center relative to the terminal.
     let (centroid_x, centroid_y) = visual_centroid(&lines);
 
     let mut logo_cells = collect_logo_cells(&lines, centroid_x, centroid_y);
@@ -797,4 +790,5 @@ fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "logo_tests.rs"]
 mod tests;

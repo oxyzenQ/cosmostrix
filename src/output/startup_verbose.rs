@@ -43,11 +43,11 @@ pub(crate) fn run_verbose_startup(
     // resolution in CloudConfig below: CLI --intro wins, else default
     // Logo. We emit the lowercase value-enum name to match the
     // --intro flag's accepted values (cosmic|logo|none).
-    let resolved_intro = args.intro.unwrap_or(crate::config::IntroType::Logo);
+    let resolved_intro = args.intro.unwrap_or(crate::intro_style::IntroType::Logo);
     let intro_label = match resolved_intro {
-        crate::config::IntroType::Cosmic => "cosmic",
-        crate::config::IntroType::Logo => "logo",
-        crate::config::IntroType::None => "none",
+        crate::intro_style::IntroType::Cosmic => "cosmic",
+        crate::intro_style::IntroType::Logo => "logo",
+        crate::intro_style::IntroType::None => "none",
     };
     let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
     let verbose_ambient_schedule = crate::crystal_dragon_engine::ambient::collect_ambient_schedule(

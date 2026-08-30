@@ -22,7 +22,7 @@
 //! | `Up` / `Down` | Speed up / down | input.rs |
 //! | `[` / `]` | Density down / up | input.rs |
 //! | `i` | Toggle live HUD (rejected while paused) | event_loop.rs |
-//! | `q` / `Q` | Skip the intro cinematic (intro only) | intro.rs |
+//! | `q` / `Q` | Skip the intro cinematic (intro only) | intro_style/mod.rs |
 //!
 //! Everything else — including the removed/legacy keys `a` (v35 ambient
 //! snapback; even older async toggle), `h` (HUD position), `Tab`/`BackTab`
@@ -111,7 +111,7 @@ mod cases_v51_shortkey_noop {
             base_density: 1.0,
             perf_stats: false,
             screensaver: false,
-            intro: crate::config::IntroType::None,
+            intro: crate::intro_style::IntroType::None,
             intro_color: None,
             mouse: false,
             charset_preset: String::from("binary"),

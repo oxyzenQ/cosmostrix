@@ -32,7 +32,7 @@ use unicode_width::UnicodeWidthChar;
 
 use crate::charset::{build_chars, Charset};
 use crate::cloud::events::ghost::GHOST_CHARS;
-use crate::interactive::intro_cosmic::BURST_CHARS;
+use crate::intro_style::cosmic::BURST_CHARS;
 
 /// Verify every entry in `GHOST_CHARS` is width=1. The previous bug
 /// held fullwidth CJK ideographs (雨雷電風雲闇光)

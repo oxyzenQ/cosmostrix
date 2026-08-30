@@ -16,7 +16,6 @@ use std::time::Instant;
 use super::adaptive::EnduranceHealth;
 use super::hud::HudState;
 #[cfg(target_os = "linux")]
-use super::intro;
 use crate::central_control_dragon_power::{sample_thermal_pressure, PowerManager};
 use crate::cloud::Cloud;
 use crate::constants::{FD_HEALTH_PROBE_INTERVAL_FRAMES, THERMAL_SAMPLER_INTERVAL_FRAMES};
@@ -51,7 +50,7 @@ pub(crate) fn sample_p5_health(
     if perf_rss_samples.is_multiple_of(60) {
         #[cfg(target_os = "linux")]
         {
-            let rss = intro::read_self_rss_kb();
+            let rss = crate::sysstat::procstat::read_self_rss_kb();
             endurance_health.push_rss(rss as f64);
         }
         let elapsed = work_start
@@ -60,7 +59,7 @@ pub(crate) fn sample_p5_health(
         if elapsed > 0.0 {
             #[cfg(target_os = "linux")]
             {
-                let cur = intro::read_self_voluntary_ctxt();
+                let cur = crate::sysstat::procstat::read_self_voluntary_ctxt();
                 if *last_ctxt_switches > 0 {
                     let rate = (cur.saturating_sub(*last_ctxt_switches)) as f64 / elapsed;
                     endurance_health.push_ctxt_rate(rate);

@@ -88,7 +88,8 @@ impl Terminal {
         // the last frame is reusable (no dim/semantic change). Protects all
         // `term.draw()` callers (event loop, intro, future) from doing useless
         // work on idle frames — the event loop already gates on `did_draw`,
-        // but intro.rs:490 calls `draw()` unconditionally.
+        // but the intro's `end_frame` (intro_style/mod.rs) calls `draw()`
+        // unconditionally.
         //
         // `clear_dirty()` is still called to advance `dirty_gen` — `set()`
         // compares `dirty_cell_gen[i] != dirty_gen` to decide whether to push

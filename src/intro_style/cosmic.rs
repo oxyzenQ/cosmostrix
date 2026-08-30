@@ -14,13 +14,14 @@
 //!
 //! Total: ~5 s. Press `q` (or `Q`) to skip instantly — no other key
 //! skips, so stray keypresses can't cut the cinematic short. The intro is
-//! skipped entirely on terminals smaller than 80×24 with a stderr notice
-//! (handled by [`super::intro::run_intro`]).
+//! skipped entirely on terminals smaller than 10×5 with a stderr notice
+//! (handled by [`super::run_intro`]).
 //!
 //! ## Constraints
 //!
 //! * Zero per-frame heap allocation — the particle pool is pre-allocated
-//!   and reused via a free-list stack (shared with [`super::intro_logo`]).
+//!   and reused via a free-list stack (shared with the logo style,
+//!   [`super::logo`]).
 //! * Reuses the existing `Terminal` / `Frame` / `Cell` pipeline — no
 //!   separate renderer.
 //! * `FRAME_COUNTER` is bumped each frame so the watchdog doesn't kill us
@@ -36,7 +37,7 @@ use crate::terminal::Terminal;
 
 use crate::chroma_dragon_engine::intro_colors::{COSMIC_COLORS_RGB, SINGULARITY_RGB};
 
-use super::intro::{
+use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
     should_skip, Particle, ParticlePool, XorShift,
 };
@@ -136,7 +137,7 @@ pub(super) fn run_cosmic_intro(
         };
 
         // Spawn new particles for the current phase.
-        let dt = super::intro::INTRO_FRAME_PERIOD.as_secs_f32();
+        let dt = super::INTRO_FRAME_PERIOD.as_secs_f32();
         match phase {
             1 => {
                 // Phase 1: No particles yet — singularity is just appearing.
@@ -371,7 +372,7 @@ fn update_particles(
             // Occasionally swap glyph to a rain char.
             if morph_t > 0.5 && !rain_chars.is_empty() {
                 let swap_chance = (morph_t - 0.5) * 2.0 * dt * 4.0;
-                if super::intro::rng_freehand() < swap_chance {
+                if super::rng_freehand() < swap_chance {
                     // Knuth multiplicative hash for a deterministic but
                     // well-distributed per-index glyph pick. wrapping_mul
                     // avoids overflow on large pool indices.
@@ -408,9 +409,9 @@ fn update_particles(
 mod tests {
     use super::*;
     // Bring the shared pool-size constant into test scope. Defined in
-    // `super::super::intro` (the dispatcher module) — re-imported here
+    // `crate::intro_style` (the dispatcher module) — re-imported here
     // so test bodies can refer to it unqualified.
-    use super::super::intro::PARTICLE_POOL_SIZE;
+    use crate::intro_style::PARTICLE_POOL_SIZE;
 
     #[test]
     fn burst_chars_are_distinct() {

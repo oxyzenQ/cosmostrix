@@ -39,6 +39,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
+use crate::intro_style::IntroType;
 use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
 
@@ -106,23 +107,6 @@ pub enum GlitchLevel {
     Default,
     #[value(name = "intense")]
     Intense,
-}
-
-/// Which cinematic intro to play before the rain engine takes over.
-/// Exposed as a clap `ValueEnum` for CLI parsing and consumed by the
-/// runtime intro dispatcher in `crate::interactive::intro`.
-///
-/// * `Cosmic` — Cosmic Burst: singularity → explosion → morph → rain.
-/// * `Logo`   — cosmostrix Logo: fade in → ignition → dissolve → rain.
-/// * `None`   — No intro; skip straight to the rain engine.
-#[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
-pub enum IntroType {
-    #[value(name = "cosmic")]
-    Cosmic,
-    #[value(name = "logo")]
-    Logo,
-    #[value(name = "none")]
-    None,
 }
 
 // U16Range
