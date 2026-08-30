@@ -44,26 +44,32 @@ jobs:
     timeout-minutes: 10
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install gate-keeper dependencies
         run: |
           set -euo pipefail
           sudo apt-get update -qq && sudo apt-get install -y -qq shellcheck
-          python3 -m pip install --user --quiet yamllint codespell==2.4.3 ruff==0.16.4
+          # Unpinned on purpose (owner policy 2026-08-30): CI-installed
+          # deps resolve their latest upstream release at run time - zero
+          # hardcoded dep versions in .github/*, minimal maintenance.
+          # See docs/workflow/ABOUT_CI.md (Dependency version policy).
+          python3 -m pip install --user --quiet yamllint codespell ruff
           sudo npm install -g --silent markdownlint-cli
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
           # shfmt - canonical .sh formatter (gate-keepers.sh check 1c).
-          # Pinned to an exact upstream release so formatting is reproducible:
-          # style rules change across shfmt minor versions (newer versions
-          # split single-line `|| { ...; }` groups onto multiple lines), so
-          # this pin and the formatted tree must move together. Binary
-          # download instead of `go install` (no compile time) or apt
-          # (lags far behind upstream).
-          SHFMT_VERSION="v3.14.0"
+          # Installed at the latest upstream release, resolved dynamically
+          # from the GitHub releases API (owner policy: no hardcoded dep
+          # versions). If a future shfmt release changes style rules, the
+          # gate-keepers diff shows it and one `shfmt -w scripts/*.sh`
+          # refresh lands the new canonical formatting. Binary download
+          # instead of `go install` (no compile time) or apt (lags far
+          # behind upstream).
+          SHFMT_VERSION="$(curl -fsSL https://api.github.com/repos/mvdan/sh/releases/latest | jq -r '.tag_name')"
           sudo curl -fsSL "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" -o /usr/local/bin/shfmt
           sudo chmod 755 /usr/local/bin/shfmt
+          echo "shfmt resolved to latest upstream release: ${SHFMT_VERSION}"
           shfmt --version
 
       - name: Run gate-keepers.sh

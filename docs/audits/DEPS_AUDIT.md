@@ -79,10 +79,20 @@ installed ruff and codespell **unpinned** (`pip install codespell ruff`),
 and the Guard workflow installed codespell unpinned. ruff's default rule
 set gains rules across releases, so CI lint behavior silently changes
 whenever ruff ships — observed 2026-08-23 when a newer local ruff flagged
-PLW1510/FURB167 against code CI had just accepted. Both workflows now pin
-`codespell==2.4.3` / `ruff==0.16.4` (both verified passing on the current
-tree), with the upgrade procedure documented inline: fix new findings
-locally first, then bump both pins in the same commit.
+PLW1510/FURB167 against code CI had just accepted. Both workflows then
+pinned `codespell==2.4.3` / `ruff==0.16.4` (both verified passing on the
+current tree), with the upgrade procedure documented inline: fix new
+findings locally first, then bump both pins in the same commit.
+
+**Policy update 2026-08-30 (owner decision)**: the pins above were
+removed again. Owner policy for `.github/*` is now "dynamic latest,
+minimal maintenance, boring but strong" — CI-installed deps resolve their
+latest upstream release at run time, and the trade-off (a new tool
+release can turn the gate red until findings are fixed in-tree) is
+accepted as cheaper than carrying and bumping version pins forever.
+Same-run-time-version parity for local dev is documented in
+CONTRIBUTING.md; the full policy lives in
+`docs/workflow/ABOUT_CI.md` (Dependency version policy).
 
 **Recommendation (not landed, needs owner decision)**: `cargo update`
 currently floats minor/patch versions within the lock's semver ranges on

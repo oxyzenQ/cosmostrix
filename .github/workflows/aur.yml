@@ -131,7 +131,7 @@ jobs:
       # 2. Checkout the main repository (for PKGBUILD template)
       # ------------------------------------------------------------------
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           ref: main
           fetch-depth: 1

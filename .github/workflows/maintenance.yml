@@ -128,7 +128,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           persist-credentials: false
           fetch-depth: 1
@@ -140,7 +140,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
           save-if: ${{ github.ref == 'refs/heads/main' }}
@@ -224,7 +224,7 @@ jobs:
 
       - name: Upload validated Cargo.lock
         if: steps.changes.outputs.changed == 'true'
-        uses: actions/upload-artifact@v5
+        uses: actions/upload-artifact@v7
         with:
           name: validated-cargo-lock
           path: Cargo.lock
@@ -241,12 +241,12 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
       - name: Download validated Cargo.lock
-        uses: actions/download-artifact@v6
+        uses: actions/download-artifact@v8
         with:
           name: validated-cargo-lock
           path: .auto-update

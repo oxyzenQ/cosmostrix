@@ -100,7 +100,7 @@ jobs:
       detected: ${{ steps.detect.outputs.detected }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Detect languages from repo
         id: detect
@@ -166,7 +166,7 @@ jobs:
 
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       # Install Rust toolchain only if Rust is detected.
       - name: Install Rust toolchain
@@ -177,7 +177,7 @@ jobs:
 
       - name: Setup Rust cache
         if: needs.detect-languages.outputs.has_rust == 'true'
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 

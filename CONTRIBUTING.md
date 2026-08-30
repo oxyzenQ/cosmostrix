@@ -5,7 +5,7 @@
 
 ## 1. Getting Started
 
-**Prerequisites**: Rust 1.98.0 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` + `shfmt` v3.14.0 (shell triad of the gatekeeper — install shfmt from [mvdan/sh releases](https://github.com/mvdan/sh/releases), apt lags behind and style rules differ between versions).
+**Prerequisites**: Rust 1.98.0 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` + `shfmt` (shell triad of the gatekeeper — install the latest shfmt from [mvdan/sh releases](https://github.com/mvdan/sh/releases); apt lags far behind upstream, and CI installs the latest upstream release at run time, so match it locally)
 
 **Clone + Build**:
 

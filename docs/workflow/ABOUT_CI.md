@@ -13,7 +13,36 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `gitbot-audit.yml` | daily cron | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection |
-| `docs-ci.yml` | push | Verify doc links + code blocks |
+| `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
+| `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
+| `workflow-ci.yml` | push + PR to `main` (`.github/**` paths) | actionlint + yamllint + YAML syntax for every workflow file |
+
+## Dependency version policy (owner decision 2026-08-30)
+
+Zero hardcoded dependency versions in `.github/*`. The rule is
+"dynamic latest, minimal maintenance, boring but strong":
+
+- **GitHub Actions** float on their major tag (`actions/checkout@v6`,
+  `Swatinem/rust-cache@v2`). Minor and patch releases arrive
+  automatically; a new major requires a one-character review.
+- **CI-installed deps** (shfmt, codespell, ruff, yamllint, shellcheck,
+  markdownlint-cli, actionlint, cargo-audit, cargo-deny, Android NDK)
+  resolve their latest upstream release at run time. shfmt is fetched
+  from the `mvdan/sh` GitHub releases API; pip/npm/go/apt installs are
+  unpinned; `nttld/setup-ndk` uses `ndk-version: latest`.
+- **Rust toolchain is the deliberate exception**: it is LTS-locked, not
+  floating. `rust-toolchain.toml` is the single source of truth; CI jobs
+  that pass an explicit version use the `RUST_VERSION` env, which gate
+  check 9 (`check-rust-version-sync.sh`) keeps in lockstep. Bumping is
+  one command: `./scripts/rust-version-to.sh X.Y.Z`. A floating Rust
+  toolchain can silently break the build the day a new stable ships;
+  the lock is what makes CI boring.
+
+Trade-off accepted by the owner: a future tool release with new default
+rules (e.g. ruff, shfmt formatting) can turn the gate red. The fix is a
+one-commit tree refresh (`shfmt -w scripts/*.sh`, fix new lint
+findings), which is cheaper than carrying version pins for every tool
+and bumping them forever.
 
 ## Release channels (tag conventions)
 
@@ -72,7 +101,10 @@ The script updates:
 
 It skips CHANGELOG headings (historical record) and audits workflow files for hardcoded versions (workflows should derive versions from `GITHUB_REF_NAME`).
 
-Note: `version-to.sh` accepts stable SemVer only (`X.Y.Z`). Pre-release versions (`-alpha.N` / `-beta.N` / `-rc.N`) must be set manually in `Cargo.toml` and `Cargo.lock` — the script will reject them.
+`version-to.sh` accepts both stable (`X.Y.Z`) and pre-release
+(`X.Y.Z-alpha.N` / `-beta.N` / `-rc.N` / `-pre.N` / `-nightly.N`)
+versions; the tag for a release is created manually by the owner
+(`git tag vX.Y.Z && git push origin vX.Y.Z`).
 
 Verify the current version without changes:
 

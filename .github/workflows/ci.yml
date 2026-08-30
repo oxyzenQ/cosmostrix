@@ -45,7 +45,7 @@ jobs:
     outputs:
       core: ${{ steps.detect.outputs.core }}
     steps:
-      - uses: actions/checkout@v6.0.2
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Detect core file changes
@@ -73,7 +73,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -81,7 +81,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -107,7 +107,7 @@ jobs:
     timeout-minutes: 5
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Verify all active version refs agree with Cargo.toml
         run: ./scripts/build.sh version-sync
@@ -125,7 +125,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain (MSRV)
         uses: dtolnay/rust-toolchain@stable
@@ -133,7 +133,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -147,7 +147,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -156,7 +156,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -197,7 +197,7 @@ jobs:
             build: darwin-aarch64-native
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -205,7 +205,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -263,7 +263,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -271,7 +271,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -292,16 +292,16 @@ jobs:
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
       - name: Setup Java
-        uses: actions/setup-java@v5.2.0
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: "17"
 
       - name: Setup Android NDK
         id: ndk
-        uses: nttld/setup-ndk@v1.6.0
+        uses: nttld/setup-ndk@v1
         with:
-          ndk-version: r26d
+          ndk-version: latest
 
       - name: Add Rust target
         run: rustup target add aarch64-linux-android
@@ -347,7 +347,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -355,7 +355,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -415,7 +415,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -423,7 +423,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -439,7 +439,7 @@ jobs:
         run: rustup target add aarch64-pc-windows-msvc
 
       - name: Setup MSVC dev cmd
-        uses: ilammy/msvc-dev-cmd@v1.13.0
+        uses: ilammy/msvc-dev-cmd@v1
         with:
           arch: amd64_arm64
 
@@ -475,7 +475,7 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Build on FreeBSD VM
         uses: vmactions/freebsd-vm@v1
@@ -559,7 +559,7 @@ jobs:
             build: linux-x86_64-v4
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -567,7 +567,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -669,7 +669,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -677,7 +677,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -733,7 +733,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -742,7 +742,7 @@ jobs:
           components: rustfmt, clippy
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -759,7 +759,7 @@ jobs:
     timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install Rust toolchain
         uses: dtolnay/rust-toolchain@stable
@@ -767,7 +767,7 @@ jobs:
           toolchain: ${{ env.RUST_VERSION }}
 
       - name: Setup cache
-        uses: Swatinem/rust-cache@v2.9.1
+        uses: Swatinem/rust-cache@v2
         with:
           cache-on-failure: true
 
@@ -784,17 +784,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6.0.2
+        uses: actions/checkout@v6
 
       - name: Install lint tools
-        # Pinned for reproducible lint behavior: ruff's default rule set
-        # gains rules across releases, so an unpinned install lets CI
-        # break when a new ruff version ships (observed 2026-08-23 when
-        # PLW1510/FURB167 appeared on newer local installs). Bump the pins
-        # deliberately: fix new findings locally first, then update both
-        # versions here in the same commit.
+        # Unpinned on purpose (owner policy 2026-08-30): CI-installed deps
+        # resolve their latest upstream release at run time - zero hardcoded
+        # dep versions in .github/*, minimal maintenance. When a new ruff
+        # or codespell release ships new default rules, fix the findings in
+        # the tree (or extend the inline ignore lists) in the same window.
+        # See docs/workflow/ABOUT_CI.md (Dependency version policy).
         run: |
-          python3 -m pip install --user codespell==2.4.3 ruff==0.16.4
+          python3 -m pip install --user codespell ruff
 
       - name: Run ruff check (Python lint)
         run: ruff check scripts/*.py
