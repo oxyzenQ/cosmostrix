@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: while-cloud.raining loop with deeply coupled mutable state across 20+ extracted sibling modules; further splitting requires a context struct refactor.
 
 //! Main interactive event loop.
 //!
