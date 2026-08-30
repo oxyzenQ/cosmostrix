@@ -70,6 +70,12 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
             matches.value_source("msg_mode"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // v51 msg-fill-style: track -mfs/--msg-fill-style CLI explicit so
+        // live-reload preserves CLI intent over config.toml edits.
+        msg_fill_style: matches!(
+            matches.value_source("msg_fill_style"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
         intro_color: matches!(
             matches.value_source("intro_color"),
             Some(clap::parser::ValueSource::CommandLine)

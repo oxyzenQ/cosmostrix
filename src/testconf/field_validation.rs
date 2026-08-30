@@ -275,6 +275,24 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
+        // v51 msg-fill-style: must match the clap ValueEnum accepted by
+        // -mfs/--msg-fill-style. Same uniform-rejection contract as
+        // `intro` (bug #17): --testconf, startup validation, and
+        // live-reload strict validation all reject invalid values here,
+        // instead of only being caught by the soft `MsgFillStyle::from_str`
+        // error path in config_apply.rs.
+        "msg-fill-style" => {
+            // Case-insensitive to match the config surface (the CLI flag
+            // itself is case-sensitive; the config key is forgiving —
+            // same asymmetry as every other enum key).
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "typewriter" | "fade" | "words" | "slide" | "pulse" | "instant" => None,
+                _ => Some(format!(
+                    "expected typewriter/fade/words/slide/pulse/instant, got '{v}' (run `cosmostrix --help` for valid message fill styles)"
+                )),
+            }
+        }
         // v50.0.0-beta.7: ambient-snapback-secs — float in [0.0, 86400.0].
         // 0.0 = instant snapback, 86400.0 (24h) = effectively disabled.
         // Default 30.0 when unset. Range matches parse_f64_config in

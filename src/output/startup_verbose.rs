@@ -111,6 +111,10 @@ pub(crate) fn run_verbose_startup(
         // WHY config message is being ignored (msg_mode=false suppresses
         // config messages; CLI -m/-mb always wins).
         msg_mode: args.msg_mode.unwrap_or(true),
+        // v51 msg-fill-style: effective reveal style after the CLI >
+        // config resolution (config_apply ran earlier in main(), so
+        // args.msg_fill_style already reflects the config key).
+        msg_fill_style: args.msg_fill_style,
         duration: args.duration,
         screen_size,
         custom_palette_name: custom_palette_name.as_deref(),

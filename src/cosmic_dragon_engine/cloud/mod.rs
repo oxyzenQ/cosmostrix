@@ -239,6 +239,17 @@ pub struct Cloud {
     pub(crate) message_text: Option<String>,
     pub(crate) message_border: bool,
     pub(crate) message_start_time: Option<Instant>,
+    /// v51 msg-fill-style: active reveal style for the message overlay.
+    /// Set from CloudConfig (`-mfs`/`--msg-fill-style` CLI or
+    /// `msg-fill-style` config key). Default `Typewriter` = bit-identical
+    /// to the pre-v51 renderer (LTS guarantee).
+    pub(crate) msg_fill_style: crate::msg_fill_style::MsgFillStyle,
+    /// v51 msg-fill-style (words): 1-based word ordinal per message cell,
+    /// rebuilt in `reset_message` (Z-5 hoisted — no per-frame rebuild).
+    /// Content cells carry the ordinal of the word they belong to;
+    /// non-content cells (border + spaces) carry the running ordinal
+    /// (never read for them). 0 = padding space before the first word.
+    pub(crate) message_word_ordinals: Vec<u32>,
     /// BN-01/02 (Dragon Hunt v3): hoisted clockwise border-cell index list.
     /// Rebuilt only in `reset_message` (rare — once per `--message` invocation
     /// or border toggle). `draw_message` borrows this instead of calling
@@ -459,6 +470,10 @@ impl Cloud {
             message_text: None,
             message_border: false,
             message_start_time: None,
+            // v51 msg-fill-style: Typewriter default keeps the pre-v51
+            // reveal behavior bit-identical (LTS guarantee).
+            msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
+            message_word_ordinals: Vec::new(),
             border_order: Vec::new(),
             message_top_line: u16::MAX,
             message_left_col: 0,
@@ -575,6 +590,22 @@ impl Cloud {
         if self.message_text.is_some() {
             self.reset_message();
             self.force_draw_everything = true;
+        }
+    }
+
+    /// v51 msg-fill-style: set the message overlay reveal style.
+    ///
+    /// When the style actually changes and a message is active, the
+    /// reveal timeline restarts immediately (no 6 s intro delay — the
+    /// 6 s delay only applies to the initial `set_message` call, so the
+    /// user sees the new style animate right away on live-reload).
+    pub fn set_msg_fill_style(&mut self, style: crate::msg_fill_style::MsgFillStyle) {
+        if self.msg_fill_style != style {
+            self.msg_fill_style = style;
+            if self.message_text.is_some() {
+                self.message_start_time = Some(Instant::now());
+                self.force_draw_everything = true;
+            }
         }
     }
 

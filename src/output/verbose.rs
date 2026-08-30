@@ -61,6 +61,11 @@ pub(crate) struct VerboseCtx<'a> {
     /// why their config `message = "hello"` is being ignored (msg_mode=false
     /// suppresses config messages; CLI -m/-mb always wins).
     pub msg_mode: bool,
+    /// v51 msg-fill-style: message overlay reveal style label
+    /// (typewriter/fade/words/slide/pulse/instant). Printed right after
+    /// the msg_mode/message lines so the overlay block reads as one
+    /// unit: master switch → text → reveal style.
+    pub msg_fill_style: crate::msg_fill_style::MsgFillStyle,
     pub duration: Option<f64>,
     pub screen_size: Option<(u16, u16)>,
     pub custom_palette_name: Option<&'a str>,
@@ -156,6 +161,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         message,
         message_border,
         msg_mode,
+        msg_fill_style,
         duration,
         screen_size,
         custom_palette_name,
@@ -321,6 +327,13 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         // msg_mode=false → message is None by design.
         output::eprintln_verbose("message:", " (suppressed by msg_mode=false)");
     }
+    // v51 msg-fill-style: always printed (even when msg_mode=false) so
+    // users editing config can confirm the key was accepted — mirrors
+    // the honest-reporting policy of the intro_color line above.
+    output::eprintln_verbose(
+        "msg_fill_style:",
+        &format!(" {}", msg_fill_style.verbose_label()),
+    );
     if let Some(d) = duration {
         output::eprintln_verbose("duration:", &format!(" {d:.1}s"));
     }

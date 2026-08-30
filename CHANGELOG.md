@@ -9,6 +9,15 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### msg-fill-style: selectable message overlay reveal animation (Z-master-1B)
+
+- **New flag** `-mfs <style>` / `--msg-fill-style <style>` (plus `msg-fill-style` config.toml key) selects how the message overlay reveals itself. Six styles, all derived purely from elapsed time (stateless — no per-frame bookkeeping): `typewriter` (default, bit-identical to the previous renderer), `fade` (instant text, 800 ms whole-block fade incl. border), `words` (200 ms/word cascade via hoisted per-cell word ordinals), `slide` (60 ms/char, glyphs fade in one row below then land — drawn in a deferred second pass), `pulse` (typewriter + scanner cursor boosting recent chars to 150% with 200 ms decay), `instant` (text at full brightness immediately, border draws clockwise over 1 s).
+- **CLI ergonomics**: clap short flags are single-char, so `-mfs` is rewritten to `--msg-fill-style` pre-parse (same mechanism as `-mb`). Attached (`-mfsfade`) and `=` (`-mfs=fade`) forms work. Long-flag typos (e.g. `--msg-fill-styl`) get clap's built-in did-you-mean tip; short-form typos (e.g. `-mfss`) are rejected with an equivalent "Did you mean --msg-fill-style?" error instead of silently becoming an attached `-m` message text.
+- **Plumbing**: `CliExplicit` intent tracking (CLI wins over config on live-reload), live-reload in `rebuild_cloud_config` (invalid values soft-fail), strict `--testconf` field validation, `--dump-config` example line, `--verbose` startup line (`msg_fill_style:` with per-style description), and an always-printed `msg_fill_style:` line in the post-exit final runtime state section with `(was X)` change tracking.
+- **Renderer**: per-style reveal math extracted to `src/types/msg_fill_style.rs` (pure functions, 15 unit tests); `draw_message` consumes it through one shared brightness-scaling helper (chroma first, legacy fallback, clamped at 255 for the pulse boost). Word ordinals rebuilt only in `reset_message` (Z-5 zero-alloc).
+- **Docs**: `--help` reference block, README (feature bullet, quickstart, CLI reference), `docs/LIVE_RELOAD_BEHAVIOR.md` per-key matrix, `--dump-config` template.
+- **Behavior change (documented)**: an attached `-m` message that itself starts with "fs" (e.g. `-mfss is my message`) now resolves to the style shorthand — use the space-separated form `-m "fss …"` for such messages.
+
 ### Shortkey fix: Shift+X/C/S on kitty-protocol terminals (Z-master-1B)
 
 - **Root cause**: kitty-keyboard-protocol terminals (kitty, Alacritty, WezTerm, ghostty, foot, konsole) report Shift+letter as the BASE lowercase codepoint + SHIFT modifier (`CSI 120;2u` for Shift+X arrives as `Char('x') + SHIFT`). That event matched neither the lowercase arm (modifiers are SHIFT, not NONE) nor the uppercase arm (code is `x`, not `X`) — Shift+X/C/S were silent no-ops on those terminals even after the earlier `(Char('X'), _)` arm fix, because crossterm only substitutes the shifted codepoint when the terminal also reports alternate keys (a flag cosmostrix does not push).

@@ -120,6 +120,10 @@ static FINAL_DENSITY: OnceLock<f32> = OnceLock::new();
 static FINAL_MSG_MODE: OnceLock<bool> = OnceLock::new();
 static FINAL_MESSAGE: OnceLock<Option<String>> = OnceLock::new();
 static FINAL_MESSAGE_BORDER: OnceLock<bool> = OnceLock::new();
+// v51 msg-fill-style: track the effective reveal style so the post-exit
+// "final runtime state" section can disclose live-reload edits to
+// `msg-fill-style` (same honest-reporting contract as msg_mode/message).
+static FINAL_MSG_FILL_STYLE: OnceLock<String> = OnceLock::new();
 static FINAL_POWER_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_CRYSTAL_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_ASYNC_MODE: OnceLock<bool> = OnceLock::new();
@@ -156,6 +160,7 @@ pub(crate) fn set_final_state(
     msg_mode: bool,
     message: Option<&str>,
     message_border: bool,
+    msg_fill_style: &str,
     power_dragon: bool,
     crystal_dragon: bool,
     async_mode: bool,
@@ -171,6 +176,8 @@ pub(crate) fn set_final_state(
     let _ = FINAL_MSG_MODE.set(msg_mode);
     let _ = FINAL_MESSAGE.set(message.map(|s| s.to_string()));
     let _ = FINAL_MESSAGE_BORDER.set(message_border);
+    // v51 msg-fill-style: stored as the canonical lowercase label.
+    let _ = FINAL_MSG_FILL_STYLE.set(msg_fill_style.to_string());
     let _ = FINAL_POWER_DRAGON.set(power_dragon);
     let _ = FINAL_CRYSTAL_DRAGON.set(crystal_dragon);
     let _ = FINAL_ASYNC_MODE.set(async_mode);
@@ -192,6 +199,16 @@ pub(crate) fn last_message() -> Option<&'static str> {
 /// v50.0.0-alpha.7: accessor for final message_border (post-live-reload).
 pub(crate) fn last_message_border() -> bool {
     *FINAL_MESSAGE_BORDER.get().unwrap_or(&false)
+}
+
+/// v51 msg-fill-style: accessor for the final reveal style label
+/// (post-live-reload). Defaults to "typewriter" when set_final_state
+/// never ran (early-exit paths).
+pub(crate) fn last_msg_fill_style() -> String {
+    FINAL_MSG_FILL_STYLE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "typewriter".to_string())
 }
 
 /// v50.0.0-alpha.7: accessor for final power_dragon (post-live-reload).
@@ -274,6 +291,7 @@ pub(crate) fn print_final_runtime_state(
     startup_msg_mode: bool,
     startup_message: Option<&str>,
     startup_message_border: bool,
+    startup_msg_fill_style: &str,
     startup_power_dragon: bool,
     startup_crystal_dragon: bool,
     startup_async_mode: bool,
@@ -297,6 +315,7 @@ pub(crate) fn print_final_runtime_state(
     let final_msg_mode = last_msg_mode();
     let final_message = last_message();
     let final_message_border = last_message_border();
+    let final_msg_fill_style = last_msg_fill_style();
     let final_power_dragon = last_power_dragon();
     let final_crystal_dragon = last_crystal_dragon();
     let final_async_mode = last_async_mode();
@@ -383,6 +402,18 @@ pub(crate) fn print_final_runtime_state(
             startup_message_border
         );
     }
+    // v51 msg-fill-style: ALWAYS printed (not change-gated) so users can
+    // verify the effective reveal style at session end — same policy as
+    // the ambient lines below. The `(was X)` suffix appears only when a
+    // live-reload edit changed it.
+    let style_was_label = if final_msg_fill_style != startup_msg_fill_style {
+        format!(" (was {startup_msg_fill_style})")
+    } else {
+        String::new()
+    };
+    crate::output::eprintln_safe!(
+        "{purple}[verbose]{reset} {ts} {purple}  msg_fill_style:{reset}  {final_msg_fill_style}{style_was_label}"
+    );
     if final_power_dragon != startup_power_dragon {
         crate::output::eprintln_safe!(
             "{purple}[verbose]{reset} {ts} {purple}  power_dragon:{reset}   {} (was {})",

@@ -196,6 +196,42 @@ COMMON OPTIONS:
       BOTH the default message AND any config message/message-border.
       CLI -m / -mb always wins over msg-mode=false.
 
+  -mfs, --msg-fill-style <style>
+      Message overlay reveal animation (default: typewriter). Six
+      styles, all driven purely by elapsed time (stateless, zero
+      per-frame cost):
+        typewriter  The classic reveal: one character every 80 ms, each
+                    fading in from 30% to 100% brightness over 100 ms.
+                    The border lags behind the text (ease-out curve).
+                    This is the pre-v51 default — bit-identical.
+        fade        Text appears instantly; the whole block (text and
+                    border) fades from 0% to 100% over 800 ms. Fastest
+                    path to a readable message.
+        words       Word-by-word cascade: one word every 200 ms, each
+                    fading in over 150 ms. Progressive but quicker than
+                    per-character typing.
+        slide       Characters slide up: each glyph fades in one row
+                    below its final position (60 ms stagger), then
+                    lands and completes its fade. Cinematic credits
+                    feel.
+        pulse       Typewriter plus a scanner cursor: the most recently
+                    revealed characters glow up to 150% brightness and
+                    decay to 100% over 200 ms — a light pulse travels
+                    along the text as it types.
+        instant     Text appears immediately at full brightness; only
+                    the border animates (clockwise draw over 1 s).
+      The style applies to the DEFAULT overlay and to -m / -mb /
+      config message/message-border alike. Also settable in config.toml:
+        msg-fill-style = \"fade\"
+      CLI flag wins over the config key. Case-insensitive in config
+      (typewriter/Fade both accepted), case-sensitive on CLI.
+      Typing a close misspelling of the long flag (e.g. --msg-fill-styl)
+      triggers clap's built-in did-you-mean hint; a short-flag typo
+      (e.g. -mfss) is rejected with the same suggestion instead of
+      silently becoming a message text.
+      cosmostrix -mfs pulse
+      cosmostrix --msg-fill-style words -mb \"wake up, neo\"
+
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.
 

@@ -39,6 +39,7 @@ use std::str::FromStr;
 
 use clap::Parser;
 
+use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
 
 /// v50-beta.3: clap value_parser for boolean CLI flags that MUST receive
@@ -197,10 +198,8 @@ pub struct Args {
     )]
     pub color_tune: Option<String>,
 
-    // v30 simplify: --brightness/--saturation skip fields REMOVED.
-    // These were v17 ghosts — never read by any consumer. The actual
-    // color-tune path uses [color.tune] config / --color-tune CLI, which
-    // has its own dedicated field below (`color_tune`).
+    // v30 simplify: --brightness/--saturation skip fields REMOVED (v17
+    // ghosts — never read; the color-tune path has its own field below).
     #[arg(
         short = 'C',
         long = "charset",
@@ -324,6 +323,20 @@ pub struct Args {
         help = "Overlay message (no border). Use -mb for border."
     )]
     pub message: Option<String>,
+
+    /// v51 msg-fill-style: message overlay reveal style (typewriter
+    /// default = bit-identical to pre-v51). Also settable via the
+    /// `msg-fill-style` config key. `-mfs` is rewritten to this flag
+    /// pre-parse (clap shorts are single-char — cli/argv_expand.rs).
+    #[arg(
+        long = "msg-fill-style",
+        default_value = "typewriter",
+        value_enum,
+        help_heading = "COMMON OPTIONS",
+        display_order = 71,
+        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant, default: typewriter)"
+    )]
+    pub msg_fill_style: MsgFillStyle,
 
     #[arg(
         long = "glitch-level",
@@ -673,13 +686,11 @@ pub struct Args {
     )]
     pub power_dragon: Option<bool>,
 
-    /// v50-beta.3: msg-mode toggle. CLI flag `--msg-mode <true|false>`.
-    /// Master switch for the message overlay subsystem. When false,
-    /// disables BOTH the default message AND any `message`/`message-border`
-    /// config key. CLI `-m`/`-mb` always wins over this (CLI precedence).
-    /// Default: true (message overlay active). Also configurable via
-    /// `msg-mode = false` in config.toml.
-    /// Bare `--msg-mode` (no value) errors to prevent silent toggle.
+    /// v50-beta.3: msg-mode toggle. Master switch for the message overlay
+    /// subsystem: when false, disables BOTH the default message AND any
+    /// `message`/`message-border` config key; CLI `-m`/`-mb` always wins
+    /// over this. Default: true. Also configurable via `msg-mode = false`
+    /// in config.toml. Bare `--msg-mode` (no value) errors (no silent toggle).
     #[arg(
         long = "msg-mode",
         value_name = "BOOL",

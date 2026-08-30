@@ -155,9 +155,10 @@ mod tests;
 // Group: Theme subsystem
 mod theme;
 
-// Group: Types subsystem (constants.rs, cell.rs, rain_style.rs, renderer_info.rs)
+// Group: Types subsystem (constants.rs, cell.rs, rain_style.rs, renderer_info.rs,
+// msg_fill_style.rs)
 mod types;
-pub(crate) use types::{cell, constants, rain_style, renderer_info};
+pub(crate) use types::{cell, constants, msg_fill_style, rain_style, renderer_info};
 
 // Standalone modules (file → dir, transparent resolution)
 mod bolt;
@@ -240,32 +241,13 @@ fn main() -> std::io::Result<()> {
     // Also handle -mb=text form.
     // This runs AFTER prevalidation so the internal --message-border token
     // injected here is not caught by the REMOVED_FLAGS check.
-    let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
-    expanded.push(argv[0].clone());
-    let mut i = 1;
-    while i < argv.len() {
-        let arg = &argv[i];
-        if arg == "-mb" {
-            expanded.push("--message-border".into());
-            if i + 1 < argv.len() {
-                expanded.push("-m".into());
-                expanded.push(argv[i + 1].clone());
-                i += 2;
-                continue;
-            }
-        } else if let Some(s) = arg.to_str() {
-            if let Some(rest) = s.strip_prefix("-mb=") {
-                expanded.push("--message-border".into());
-                expanded.push("-m".into());
-                expanded.push(rest.into());
-                i += 1;
-                continue;
-            }
-        }
-        expanded.push(arg.clone());
-        i += 1;
-    }
-    let argv = expanded;
+    //
+    // v51 msg-fill-style (2026-08-30 LOC refactor): the -mb loop was
+    // extracted to cli/argv_expand.rs (main.rs was at 757/800 LOC) and
+    // extended with the -mfs <style> → --msg-fill-style <style> shorthand
+    // (clap short flags are single-char, so multi-char shorthands must be
+    // rewritten pre-parse; -mfss typos exit with a did-you-mean tip).
+    let argv = crate::cli::argv_expand::expand_argv_shorthands(&argv);
 
     let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
         // Intercept clap's "unexpected argument" errors and append a

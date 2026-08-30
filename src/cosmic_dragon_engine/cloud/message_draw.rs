@@ -9,6 +9,13 @@
 //! (BC-01..05 chroma dragon), F2 splash crown sparks, and Z-5 zero-alloc
 //! scratch buffers.
 //!
+//! v51 msg-fill-style: the text reveal is style-driven (see
+//! `types/msg_fill_style.rs`). Six styles are selectable via
+//! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
+//! typewriter (default, bit-identical to pre-v51), fade, words, slide,
+//! pulse, instant. All timing constants and per-cell reveal math live
+//! in `msg_fill_style.rs`; this file only consumes them.
+//!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type). The method stays
 //! private (`fn`, not `pub`) — called only from `rain.rs::rain_at()`
@@ -21,6 +28,7 @@ use crossterm::style::Color;
 use crate::cell::Cell;
 use crate::cloud::border::is_border_char;
 use crate::frame::Frame;
+use crate::msg_fill_style::{self as mfs, MsgFillStyle};
 use crate::runtime::{BoldMode, ColorMode};
 
 use super::palette_blend::interpolate_palette_color;
@@ -60,22 +68,46 @@ impl super::Cloud {
             .message_start_time
             .map(|start| start.elapsed().as_millis() as usize);
 
-        let reveal_count = if let Some(elapsed_ms) = message_elapsed_ms {
-            let count = (elapsed_ms / 80).max(1);
-            count.min(total_text.max(1))
-        } else {
-            usize::MAX
+        // v51 msg-fill-style: per-style reveal plan. All animation math
+        // is derived from elapsed time (stateless — no per-frame
+        // bookkeeping). Typewriter keeps the exact pre-v51 semantics:
+        //   reveal_count = (elapsed / 80).max(1).min(total_text)
+        //   per-char 100 ms fade-in from 30% brightness.
+        let style = self.msg_fill_style;
+        let block_alpha = mfs::fade_block_alpha(message_elapsed_ms);
+        let reveal_count = match style {
+            MsgFillStyle::Typewriter | MsgFillStyle::Pulse | MsgFillStyle::Slide => {
+                mfs::index_reveal_count(style, message_elapsed_ms, total_text)
+            }
+            // Words (word-ordinal visibility), fade (block alpha) and
+            // instant (always visible) decide per-cell; the index budget
+            // is effectively "all revealed".
+            MsgFillStyle::Words | MsgFillStyle::Fade | MsgFillStyle::Instant => total_text.max(1),
         };
+        // Total word count from the hoisted ordinals (words style only;
+        // 0 when no message cells exist).
+        let total_words = self
+            .message_word_ordinals
+            .iter()
+            .copied()
+            .max()
+            .unwrap_or(0) as usize;
 
         // v25 progressive border: border cells revealed clockwise,
         // lagging behind text reveal (cinematic effect).
-        let text_progress = if total_text > 0 {
-            reveal_count as f32 / total_text as f32
-        } else {
-            1.0
-        };
-        // Border progress = text_progress ^ 1.5 (ease-out).
-        let border_progress = text_progress.powf(1.5);
+        // v51: per-style — typewriter-paced styles keep the t^1.5 lag,
+        // fade ramps the border together with the block alpha, instant
+        // draws the border on an independent 1 s timeline.
+        let text_progress = mfs::text_progress(
+            style,
+            reveal_count,
+            total_text,
+            total_words,
+            message_elapsed_ms,
+        );
+        // Border progress = text_progress ^ 1.5 (ease-out) for paced
+        // styles; see msg_fill_style::border_progress for the rest.
+        let border_progress = mfs::border_progress(style, text_progress, message_elapsed_ms);
         let border_show = (border_progress * total_border as f32).floor() as usize;
 
         // BN-01/02 (Dragon Hunt v3): use hoisted `border_order` (rebuilt in
@@ -199,9 +231,6 @@ impl super::Cloud {
             }
         }
 
-        const FADE_IN_MS: usize = 100;
-        const FADE_IN_START: f32 = 0.30;
-
         // RAIN_BORDER_TOUCH_GLOW (Option C+D): compute per-cell pulse
         // factors (for border-cell blending) and per-column halo factors
         // (for the halo row above the top border). Both decay via a
@@ -272,46 +301,48 @@ impl super::Cloud {
         self.border_pulses = alive_pulses;
 
         let mut content_idx = 0usize;
+        // v51 msg-fill-style (slide): phase-1 cells are drawn one row
+        // below their final position, AFTER the main loop — the row below
+        // is itself a message cell (padding / border / next content line)
+        // that would otherwise overwrite the sliding glyph in the same
+        // frame. SmallVec-free: expected size is bounded by the number of
+        // concurrently sliding chars (SLIDE_TRAVEL_MS / SLIDE_CHAR_MS
+        // stagger window), typically < 5.
+        let mut slide_cells: Vec<(u16, u16, char, f32)> = Vec::new();
         for (idx, mc) in self.message.iter().enumerate() {
             let is_content = !is_border_char(mc.val);
             let is_visible_border = mc.val != ' ' && visible_border[idx];
 
             let (ch, cell_fg) = if is_content {
-                if content_idx < reveal_count {
-                    content_idx += 1;
-                    let cell_fg = if let (Some(elapsed_ms), Some(base_fg)) =
-                        (message_elapsed_ms, content_fg)
-                    {
-                        let reveal_time_ms = content_idx * 80;
-                        let age_ms = elapsed_ms.saturating_sub(reveal_time_ms);
-                        if age_ms >= FADE_IN_MS {
-                            content_fg
-                        } else {
-                            let progress = age_ms as f32 / FADE_IN_MS as f32;
-                            let factor = FADE_IN_START + (1.0 - FADE_IN_START) * progress;
-                            // A23: chroma first, legacy::scale_rgb fallback.
-                            if let Some((r, g, b)) = crate::palette::decode_color(base_fg) {
-                                Some(if self.color_pipeline.is_chroma() {
-                                    crate::palette::apply_brightness_rgb(r, g, b, factor)
-                                } else {
-                                    let (nr, ng, nb) =
-                                        crate::chroma_dragon_engine::legacy::scale_rgb(
-                                            r, g, b, factor,
-                                        );
-                                    Color::Rgb {
-                                        r: nr,
-                                        g: ng,
-                                        b: nb,
-                                    }
-                                })
-                            } else {
-                                content_fg
-                            }
-                        }
-                    } else {
-                        content_fg
-                    };
-                    (mc.val, cell_fg)
+                // v51: every content cell advances the reading-order
+                // index (was: only when revealed). Per-style visibility
+                // and brightness come from the stateless reveal solver.
+                let idx0 = content_idx;
+                content_idx += 1;
+                let word_ord = self.message_word_ordinals.get(idx).copied().unwrap_or(0);
+                let reveal = mfs::content_reveal(
+                    style,
+                    idx0,
+                    word_ord,
+                    message_elapsed_ms,
+                    reveal_count,
+                    block_alpha,
+                );
+                if reveal.visible && reveal.slide_rows > 0 {
+                    // Slide phase 1: glyph is still one row below — blank
+                    // the final cell now, defer the moving glyph.
+                    slide_cells.push((
+                        mc.col,
+                        mc.line.saturating_add(reveal.slide_rows),
+                        mc.val,
+                        reveal.factor,
+                    ));
+                    (' ', None)
+                } else if reveal.visible {
+                    (
+                        mc.val,
+                        scale_msg_content_fg(&self.color_pipeline, content_fg, reveal.factor),
+                    )
                 } else {
                     (' ', None)
                 }
@@ -328,7 +359,19 @@ impl super::Cloud {
                 // head_rgb by the pulse envelope. Owner insight: dynamic
                 // color from the droplet, not static white. LTS invariant
                 // for top corners is RELAXED for transient touch events.
-                let base = border_gradient[idx].or(content_fg);
+                //
+                // v51 msg-fill-style (fade): border brightness follows the
+                // block alpha so the border fades in together with the
+                // text instead of popping in at full color.
+                let base = if style == MsgFillStyle::Fade && block_alpha < 1.0 {
+                    scale_msg_content_fg(
+                        &self.color_pipeline,
+                        border_gradient[idx].or(content_fg),
+                        block_alpha,
+                    )
+                } else {
+                    border_gradient[idx].or(content_fg)
+                };
                 let pf = pulse_factor[idx];
                 let fg = if pf > 0.0 {
                     if let Some(base_color) = base {
@@ -363,6 +406,27 @@ impl super::Cloud {
                     fg: cell_fg,
                     bg,
                     bold: ch != ' ' && self.bold_mode != BoldMode::Off,
+                },
+            );
+        }
+
+        // v51 msg-fill-style (slide): deferred second pass — draw the
+        // mid-slide glyphs one row below their final position. Bounds
+        // guard: the row below must exist inside the terminal (the
+        // message box has pad_y=1 (+1 border row), so this only fails
+        // on degenerate 1-row terminals).
+        for (col, line, ch, factor) in slide_cells {
+            if line >= self.lines {
+                continue;
+            }
+            frame.set_force(
+                col,
+                line,
+                Cell {
+                    ch,
+                    fg: scale_msg_content_fg(&self.color_pipeline, content_fg, factor),
+                    bg,
+                    bold: self.bold_mode != BoldMode::Off,
                 },
             );
         }
@@ -414,5 +478,53 @@ impl super::Cloud {
                 );
             }
         }
+    }
+}
+
+/// v51 msg-fill-style: apply a brightness factor to the message
+/// content fg color. Shared by the main content pass, the slide
+/// second pass, and the fade-style border scaling so every style
+/// goes through ONE pipeline.
+///
+/// Free function (not a method) so it can be called while the Z-5
+/// `border_gradient_scratch` mutable borrow is live — takes the
+/// pipeline by shared reference instead of borrowing all of `self`.
+///
+/// Factor semantics: 1.0 = settled (returns the base color as-is,
+/// zero-cost fast path), < 1.0 = dim (fade-in), > 1.0 = boosted
+/// (pulse scanner head — routed through `apply_brightness_rgb_unclamped`,
+/// the same boost path droplet's CellShader uses for parallax scaling;
+/// per-channel clamp at 255).
+/// A23: chroma first, `legacy::scale_rgb` fallback.
+fn scale_msg_content_fg(
+    pipeline: &crate::runtime::ColorPipeline,
+    base: Option<Color>,
+    factor: f32,
+) -> Option<Color> {
+    let Some(base_fg) = base else {
+        return base;
+    };
+    if (factor - 1.0).abs() < 1e-6 {
+        return Some(base_fg);
+    }
+    match crate::palette::decode_color(base_fg) {
+        Some((r, g, b)) => Some(if pipeline.is_chroma() {
+            if factor > 1.0 {
+                // Boost (pulse scanner head): the clamped variant would
+                // silently cap the factor at 1.0 and kill the effect.
+                let (r, g, b) = crate::palette::apply_brightness_rgb_unclamped(r, g, b, factor);
+                Color::Rgb { r, g, b }
+            } else {
+                crate::palette::apply_brightness_rgb(r, g, b, factor)
+            }
+        } else {
+            let (nr, ng, nb) = crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, factor);
+            Color::Rgb {
+                r: nr,
+                g: ng,
+                b: nb,
+            }
+        }),
+        None => Some(base_fg),
     }
 }

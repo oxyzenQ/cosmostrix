@@ -80,6 +80,12 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // CLI -m / -mb always wins over msg-mode=false (CLI precedence).
     // Default: true (message overlay active).
     "msg-mode",
+    // v51 msg-fill-style: message overlay reveal style. Values:
+    // "typewriter" | "fade" | "words" | "slide" | "pulse" | "instant".
+    // Default: "typewriter". CLI -mfs/--msg-fill-style wins over this
+    // config key. Case-insensitive here (config surface is forgiving;
+    // the CLI flag itself is case-sensitive, like every other enum key).
+    "msg-fill-style",
     // v50.0.0-beta.7: Config-tunable ambient auto-snapback delay (seconds).
     // After the user presses x/c/s (manual override) and is then idle for
     // this many seconds, the event loop re-applies the current ambient

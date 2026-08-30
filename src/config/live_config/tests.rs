@@ -102,6 +102,8 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         chars: vec!['0', '1'],
         message: None,
         message_border: false,
+        // v51 msg-fill-style: default keeps the classic typewriter reveal.
+        msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
         target_fps: 60.0,
         xtermjs_host: false,
         default_fps_cap: 240.0,
@@ -374,4 +376,87 @@ fn rebuild_preserves_cli_explicit_speed_over_scene() {
     base.speed = 25.0;
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
+}
+
+// ── v51 msg-fill-style live-reload tests ──
+
+/// Editing `msg-fill-style` in config.toml mid-run must switch the
+/// reveal style on the next rebuild (no restart needed).
+#[test]
+fn rebuild_applies_msg_fill_style_from_config() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "pulse".to_string());
+    let base = minimal_cloud_config();
+    assert_eq!(
+        base.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Typewriter,
+        "baseline must start at typewriter"
+    );
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Pulse,
+        "config msg-fill-style=pulse must be applied on live reload"
+    );
+}
+
+/// The config surface is case-insensitive (mirrors every other enum
+/// key: intro, glitch-level, monolith-size).
+#[test]
+fn rebuild_msg_fill_style_config_is_case_insensitive() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "Fade".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Fade
+    );
+}
+
+/// An invalid style value soft-fails: logged, style unchanged (same
+/// policy as intro-color live reload — don't crash a running session).
+#[test]
+fn rebuild_msg_fill_style_invalid_soft_fails() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "scanner".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Typewriter,
+        "invalid msg-fill-style must keep the previous style (soft-fail)"
+    );
+}
+
+/// When the key is absent (commented out), the startup style is
+/// preserved — enums have no reset-on-comment semantics.
+#[test]
+fn rebuild_msg_fill_style_absent_keeps_startup_value() {
+    let mut base = minimal_cloud_config();
+    base.msg_fill_style = crate::msg_fill_style::MsgFillStyle::Slide;
+    let cfg = HashMap::new();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Slide,
+        "absent msg-fill-style key must preserve the startup style"
+    );
+}
+
+/// CLI -mfs/--msg-fill-style explicit wins over config on live reload
+/// (priority contract: CLI > config.toml).
+#[test]
+fn rebuild_preserves_cli_explicit_msg_fill_style_over_config() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "fade".to_string());
+    let mut base = minimal_cloud_config();
+    // Simulate the user running `cosmostrix -mfs slide`: the CLI flag is
+    // recorded as explicit, and the style is set to Slide.
+    base.cli_explicit.msg_fill_style = true;
+    base.msg_fill_style = crate::msg_fill_style::MsgFillStyle::Slide;
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Slide,
+        "CLI -mfs slide must NOT be overridden by config msg-fill-style=fade"
+    );
 }

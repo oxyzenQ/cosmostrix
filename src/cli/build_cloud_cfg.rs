@@ -180,6 +180,10 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // intentional. When the user explicitly set -m (no border), keep
         // their choice.
         message_border: args.message_border || (!bench_mode && args.message.is_none()),
+        // v51 msg-fill-style: pass the resolved reveal style through
+        // (CLI -mfs/--msg-fill-style wins over the config key — resolved
+        // earlier in config_apply; default typewriter).
+        msg_fill_style: args.msg_fill_style,
         target_fps,
         xtermjs_host: term_caps.xtermjs_host, // (FPS-F1): live-reload cap
         default_fps_cap: term_caps.default_fps_cap,

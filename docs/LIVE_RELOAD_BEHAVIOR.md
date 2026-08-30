@@ -323,6 +323,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | **`message`** | `-m` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`message-border`** | `-mb` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`msg-mode`** | `--msg-mode` | OK YES (FIXED in alpha.7) | OK YES (`cli.msg_mode`) |
+| **`msg-fill-style`** | `-mfs` / `--msg-fill-style` | OK YES (added v51) | OK YES (`cli.msg_fill_style`) |
 | **`intro-color`** | `--intro-color` | OK YES (FIXED in alpha.7) | OK YES (`cli.intro_color`) |
 | **`intro`** | `--intro` | X NO (one-shot) | N/A |
 

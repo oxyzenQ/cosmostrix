@@ -61,3 +61,69 @@ fn extracts_no_effects_typo() {
     let err = "error: unexpected argument '--no-effecs' found\n\n  tip: a similar argument exists: '--no-effects'\n\nUsage: cosmostrix --verbose --no-effects";
     assert_eq!(extract_clap_suggestion(err), Some("no-effects".to_string()));
 }
+
+#[test]
+fn extracts_msg_fill_style_long_flag_typo() {
+    // v51 msg-fill-style: a long-flag typo (missing the final 'e') must
+    // extract the msg-fill-style suggestion so main.rs can append the
+    // "Did you mean --msg-fill-style?" line.
+    let err = "error: unexpected argument '--msg-fill-styl' found\n\n  tip: a similar argument exists: '--msg-fill-style'\n\nUsage: cosmostrix --verbose";
+    assert_eq!(
+        extract_clap_suggestion(err),
+        Some("msg-fill-style".to_string())
+    );
+}
+
+#[test]
+fn extracts_msg_fill_style_plural_suggestion() {
+    // Plural form: clap may offer both --msg-mode and --msg-fill-style
+    // for near-miss typos; the FIRST suggestion is extracted.
+    let err = "error: unexpected argument '--msg-fill' found\n\n  tip: some similar arguments exist: '--msg-mode', '--msg-fill-style'\n\nUsage: cosmostrix --verbose";
+    assert_eq!(extract_clap_suggestion(err), Some("msg-mode".to_string()));
+}
+
+#[test]
+fn clap_parses_all_msg_fill_style_values() {
+    // The ValueEnum registration must accept exactly the six documented
+    // styles via the long flag (the -mfs short form is argv-expanded to
+    // this flag before clap runs — see cli/argv_expand.rs tests).
+    use clap::Parser;
+    for (value, expected) in [
+        (
+            "typewriter",
+            crate::msg_fill_style::MsgFillStyle::Typewriter,
+        ),
+        ("fade", crate::msg_fill_style::MsgFillStyle::Fade),
+        ("words", crate::msg_fill_style::MsgFillStyle::Words),
+        ("slide", crate::msg_fill_style::MsgFillStyle::Slide),
+        ("pulse", crate::msg_fill_style::MsgFillStyle::Pulse),
+        ("instant", crate::msg_fill_style::MsgFillStyle::Instant),
+    ] {
+        let args = crate::config::Args::try_parse_from(["cosmostrix", "--msg-fill-style", value])
+            .unwrap_or_else(|e| panic!("--msg-fill-style {value} must parse: {e}"));
+        assert_eq!(args.msg_fill_style, expected);
+    }
+}
+
+#[test]
+fn clap_rejects_invalid_msg_fill_style_value() {
+    use clap::Parser;
+    let err = crate::config::Args::try_parse_from(["cosmostrix", "--msg-fill-style", "scanner"])
+        .expect_err("invalid style value must be rejected");
+    let msg = err.to_string();
+    assert!(
+        msg.contains("invalid value") && msg.contains("typewriter"),
+        "error must name the invalid value and list the possible values, got: {msg}"
+    );
+}
+
+#[test]
+fn clap_default_msg_fill_style_is_typewriter() {
+    // LTS guarantee: no flag → typewriter (pre-v51 behavior preserved).
+    use clap::Parser;
+    let args = crate::config::Args::try_parse_from(["cosmostrix"]).unwrap();
+    assert_eq!(
+        args.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Typewriter
+    );
+}

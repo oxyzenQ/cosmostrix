@@ -6,6 +6,7 @@
 use crate::cloud::Cloud;
 use crate::config::IntroType;
 use crate::constants::*;
+use crate::msg_fill_style::MsgFillStyle;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, MonolithSize, ShadingMode};
 
@@ -54,6 +55,11 @@ pub struct CloudConfig {
     pub chars: Vec<char>,
     pub message: Option<String>,
     pub message_border: bool,
+    /// v51 msg-fill-style: message overlay reveal style (typewriter /
+    /// fade / words / slide / pulse / instant). Default `Typewriter` =
+    /// bit-identical to the pre-v51 renderer (LTS guarantee). Applied
+    /// in `create_cloud` via `cloud.set_msg_fill_style`.
+    pub msg_fill_style: MsgFillStyle,
     pub target_fps: f64,
     /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`
     /// at startup so the event loop's live-reload path can re-apply the cap
@@ -204,6 +210,10 @@ pub(crate) struct CliExplicit {
     /// v50.0.0-alpha.7: track `--msg-mode` CLI explicit (was missing;
     /// needed for live-reload msg-mode gate).
     pub msg_mode: bool,
+    /// v51 msg-fill-style: track `-mfs`/`--msg-fill-style` CLI explicit
+    /// (intent preservation: CLI flag wins over config.toml on live
+    /// reload, same contract as every other flag).
+    pub msg_fill_style: bool,
     /// v50.0.0-alpha.7: track `--intro-color` CLI explicit (was missing;
     /// needed for live-reload intro-color validation).
     pub intro_color: bool,
@@ -323,7 +333,14 @@ impl CloudConfig {
 
         if let Some(msg) = &self.message {
             cloud.set_message_border(self.message_border);
+            // v51 msg-fill-style: applied before set_message so the very
+            // first reveal (post-intro) already uses the user's style.
+            cloud.set_msg_fill_style(self.msg_fill_style);
             cloud.set_message(msg);
+        } else {
+            // No message: still track the style so a later live-reload
+            // that adds a message uses the configured style.
+            cloud.set_msg_fill_style(self.msg_fill_style);
         }
 
         cloud
@@ -358,6 +375,7 @@ impl CloudConfig {
             chars: self.chars.clone(),
             message: self.message.clone(),
             message_border: self.message_border,
+            msg_fill_style: self.msg_fill_style,
             target_fps: self.target_fps,
             xtermjs_host: self.xtermjs_host,
             default_fps_cap: self.default_fps_cap,

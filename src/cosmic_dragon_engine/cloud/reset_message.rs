@@ -175,6 +175,35 @@ impl super::Cloud {
         // draw_message can borrow it instead of recomputing per frame.
         self.border_order = border::build_border_order(&self.message);
 
+        // v51 msg-fill-style (words): rebuild the per-cell word ordinals.
+        // A "word" is a maximal run of content cells (non-border-char,
+        // i.e. not space and not a box-drawing glyph) between non-content
+        // cells. Ordinals are 1-based; a non-content cell carries the
+        // ordinal of the word that just ended (leading padding carries 0)
+        // so spaces fade in together with the word they follow.
+        // Z-5: hoisted buffer (clear() keeps the allocation — zero-alloc
+        // after the first rebuild).
+        self.message_word_ordinals.clear();
+        self.message_word_ordinals.reserve(self.message.len());
+        {
+            let mut word_ord: u32 = 0;
+            let mut in_word = false;
+            for mc in &self.message {
+                if border::is_border_char(mc.val) {
+                    // Space / border glyph: ends the current word. The
+                    // next content cell starts a new one.
+                    in_word = false;
+                    self.message_word_ordinals.push(word_ord);
+                } else {
+                    if !in_word {
+                        word_ord = word_ord.saturating_add(1);
+                        in_word = true;
+                    }
+                    self.message_word_ordinals.push(word_ord);
+                }
+            }
+        }
+
         // RAIN_BORDER_TOUCH_GLOW: cache top-border geometry for the droplet
         // advance loop's touch detection. Only relevant when the overlay
         // is bordered (`-mb`); for `-m` (no border), the top edge is the

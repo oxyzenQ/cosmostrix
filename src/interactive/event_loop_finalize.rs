@@ -151,6 +151,8 @@ pub(crate) fn finalize_session(
         cfg.msg_mode,
         cfg.message.as_deref(),
         cfg.message_border,
+        // v51 msg-fill-style: effective reveal style (post-live-reload).
+        cfg.msg_fill_style.as_str(),
         cfg.power_dragon,
         cfg.crystal_dragon,
         cfg.async_mode,

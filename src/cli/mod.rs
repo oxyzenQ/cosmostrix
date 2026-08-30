@@ -423,6 +423,7 @@ mod tests {
 
 // Submodules (moved from src/ root for clean src/ layout)
 pub(crate) mod app;
+pub(crate) mod argv_expand;
 pub(crate) mod build_cloud_cfg;
 pub(crate) mod canonicalize;
 pub(crate) mod cli_explicit;

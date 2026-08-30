@@ -40,6 +40,8 @@
 
 use std::collections::HashMap;
 
+use clap::ValueEnum;
+
 // Polling heartbeat + snapshot dedup live in live_config_poll.rs.
 
 // AB-10: session-wide buffered state lives in live_config_state.rs.
@@ -524,6 +526,38 @@ pub(crate) fn rebuild_cloud_config(
         lr_trace!(
             "ambient: reloaded {} entries",
             new.ambient_schedule.entries.len()
+        );
+    }
+
+    // v51 msg-fill-style: live-reload the message overlay reveal style.
+    // CLI -mfs/--msg-fill-style wins over config (cli.msg_fill_style
+    // guard). Invalid values are logged and skipped (soft-fail, mirrors
+    // intro-color live-reload policy — don't crash a running session).
+    // When the key is absent, the startup style is preserved (unlike
+    // color.tune there is no "reset-on-comment" semantics for enums —
+    // an absent key simply means "unchanged").
+    if !cli.msg_fill_style {
+        if let Some(v) = cfg.get("msg-fill-style") {
+            match crate::msg_fill_style::MsgFillStyle::from_str(v, true) {
+                Ok(style) => {
+                    if style != new.msg_fill_style {
+                        lr_trace!("apply msg-fill-style='{}'", style.as_str());
+                    }
+                    new.msg_fill_style = style;
+                }
+                Err(_) => {
+                    lr_trace!(
+                        "msg-fill-style='{}' is invalid on live-reload — keeping '{}'",
+                        v,
+                        new.msg_fill_style.as_str()
+                    );
+                }
+            }
+        }
+    } else {
+        lr_trace!(
+            "skip msg-fill-style (CLI -mfs/--msg-fill-style explicit) — keeping '{}'",
+            new.msg_fill_style.as_str()
         );
     }
 

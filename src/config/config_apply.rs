@@ -40,6 +40,7 @@ use crate::charset::charset_from_str;
 use crate::cli::parse_color_scheme;
 use crate::config::{Args, ColorBg, GlitchLevel, IntroType};
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
+use crate::msg_fill_style::MsgFillStyle;
 use crate::runtime::MonolithSize;
 use crate::scene::{get_scene, DEFAULT_SCENE};
 use crate::scene_custom::apply_scene_custom_layer;
@@ -538,6 +539,22 @@ fn apply_config_values(
         if let Some(b) = parse_bool_config("msg-mode", &v) {
             args.msg_mode = Some(b);
             config_touched.insert("msg-mode");
+        }
+    }
+    // v51 msg-fill-style: message overlay reveal style. Parsed with clap's
+    // ValueEnum machinery so the accepted values stay in sync with the
+    // -mfs/--msg-fill-style CLI flag. Case-insensitive (config surface is
+    // forgiving, mirroring `intro` and `glitch-level`). CLI flag wins over
+    // this config key (handled by `config_value`'s `is_explicit` check).
+    if let Some(v) = config_value(matches, cfg, "msg_fill_style", "msg-fill-style") {
+        match MsgFillStyle::from_str(&v, true) {
+            Ok(style) => {
+                args.msg_fill_style = style;
+                config_touched.insert("msg-fill-style");
+            }
+            Err(_) => crate::output::eprintln_error_labeled(
+                "invalid msg-fill-style='{v}' (allowed: typewriter, fade, words, slide, pulse, instant)",
+            ),
         }
     }
     // v50-beta.3: --async-mode CLI flag now exists (replaces --uniform).

@@ -10,5 +10,6 @@
 
 pub(crate) mod cell;
 pub(crate) mod constants;
+pub(crate) mod msg_fill_style;
 pub(crate) mod rain_style;
 pub(crate) mod renderer_info;
