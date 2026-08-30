@@ -624,15 +624,15 @@ mod cases_modifier_rejection {
     #[test]
     #[rustfmt::skip]
     fn shift_non_cycle_keys_are_no_ops() {
+        // v50.0.0-beta.7 Z-master-1B: Shift+c/s/x produce uppercase
+        // C/S/X which DO cycle (reverse). Other keys with Shift are no-ops.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut cp = String::from("binary");
         let cfg = make_test_config(); let tri = default_term_reinit();
-        let color0 = color_scheme_of(&cloud); let density0 = cloud.droplet_density; let pause0 = cloud.pause;
+        let density0 = cloud.droplet_density; let pause0 = cloud.pause;
         call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('q', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert!(cloud.raining, "Shift+q must NOT quit");
-        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('c', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
-        assert_eq!(color_scheme_of(&cloud), color0, "Shift+c no-op");
         call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('p', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert_eq!(cloud.pause, pause0, "Shift+p no-op");
         call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('[', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
@@ -652,16 +652,15 @@ mod cases_modifier_rejection {
     #[test]
     #[rustfmt::skip]
     fn shift_scene_keys_are_no_ops() {
+        // v50.0.0-beta.7 Z-master-1B: Shift+c/s/x all produce uppercase
+        // C/S/X which DO cycle (reverse). Only Super/Hyper/Meta/Ctrl/Alt
+        // + key are no-ops. This test now verifies Super+X is still rejected.
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut cp = String::from("binary"); let mut sn = String::from("monolith"); let mut sg: u64 = 0;
-        let cfg = make_test_config(); let tri = default_term_reinit(); let cp0 = cp.clone();
-        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('s', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
-        assert_eq!(cp, cp0, "Shift+s no-op");
-        // v50.0.0-beta.7: Shift+X sends Char('X') with SHIFT modifier.
-        // Only CapsLock 'X' (Char('X') with NONE) cycles. Shift+X is a no-op.
-        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('X', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
-        assert_eq!(sn, "monolith", "Shift+X must NOT cycle scene");
+        let cfg = make_test_config(); let tri = default_term_reinit();
+        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('x', KeyModifiers::SUPER), &mut cp, &mut sn, &mut sg, &cfg, &tri);
+        assert_eq!(sn, "monolith", "Super+X must NOT cycle scene");
     }
 
     #[test]
