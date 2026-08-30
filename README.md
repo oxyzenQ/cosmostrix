@@ -133,7 +133,7 @@ The Dragon's roar is not loud — it is precise.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
 - Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`. The reveal animation is selectable via `-mfs`/`--msg-fill-style` (typewriter|fade|words|slide|pulse|instant, default typewriter) or the `msg-fill-style` config key.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
-- **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully. Asymmetric k_decel > k_resume preserves the "pause snappy / resume wake-up" feel; glyph scene entry uses the same exp approach family (k=4.28/s, settle 95% at ~700ms) for a consistent cinematic top-entry cascade.
+- **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully. While paused, ONLY `p` (resume) and `q` (quit) respond — every other shortkey is ignored — and all running HUD metrics freeze at their last active value, resuming with precision (uptime excludes the paused span; paused 4 Hz input-poll ticks never contaminate the fps/p99/ehs windows). Asymmetric k_decel > k_resume preserves the "pause snappy / resume wake-up" feel; glyph scene entry uses the same exp approach family (k=4.28/s, settle 95% at ~700ms) for a consistent cinematic top-entry cascade.
 
 ### Scenes & Colors
 
@@ -164,7 +164,7 @@ The Dragon's roar is not loud — it is precise.
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse, `s`/`S` cycle charsets (Shift or CapsLock produces uppercase — kitty-protocol terminals reporting the base codepoint + SHIFT are normalized internally), `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed. Shift is the ONLY modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always rejected.
+- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse, `s`/`S` cycle charsets (Shift or CapsLock produces uppercase — kitty-protocol terminals reporting the base codepoint + SHIFT are normalized internally), `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed. Shift is the ONLY modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always rejected. While paused, ONLY `p` (resume) and `q` (quit) respond — every other key (including `i`) is ignored, and all running HUD metrics freeze until resume.
 
 ### Benchmarking & Build
 
@@ -407,7 +407,9 @@ COMMON OPTIONS
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
       --no-effects                    Disable ALL particle effects (quantum ripple, border spark, click flash waves, anomaly zones). Auto-enabled by --benchmark/--bench-all/--bench-frames (particles are input-driven, never spawn during bench)
-      --intro-color <name>            Intro color override (see --list-colors)
+      --intro-color <name>            Intro color override (see --list-colors). When unset, the
+                                      intro uses the brand energy-zen palette — -c/--color/
+                                      --colors-custom never repaint the intro logo.
 
 CONFIG
       --config <path>          Load config from an explicit file path
@@ -463,6 +465,12 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
                 speed / density / scene / charset / color / uptime / screensize /
                 prdr / crdr / ambt / glth / ctun / mnst / cid)
+
+  While paused: ONLY p (resume) and q (quit) respond. Every other key
+  (including i) is ignored, and all running HUD metrics freeze — uptime,
+  fps, max, p99, cpu, rss, prs, ehs hold their last active value and
+  resume with precision when unpaused (the tgt: line keeps rendering
+  its `paused` suffix). See docs/HUD.md.
 ```
 
 ## Scenes

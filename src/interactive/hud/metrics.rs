@@ -10,6 +10,18 @@
 //! cid, screensize, build) + recomputes the chroma gradient + resizes
 //! the cached_lines buffer to fit the new content width.
 //!
+//! Also owns `HudState::set_metrics_paused()` — the v51 pause-freeze
+//! contract (owner bug fix 2026-08-30): while the rain is paused (or
+//! decelerating toward pause), every running metric STOPS — uptime,
+//! fps, max, p99, cpu, rss, ehs, prs all hold their last active value,
+//! and sampling is suppressed so paused 4 Hz input-poll ticks cannot
+//! contaminate the windows. On resume everything continues exactly
+//! where it froze (uptime excludes paused time via the accumulated
+//! `paused_total` + the open `pause_started_at` segment; the CPU
+//! baseline stays warm so the first post-resume delta stays precise).
+//! The `tgt:` line is the ONE live element during pause — its ` paused`
+//! suffix must keep rendering so the user sees WHY the dashboard froze.
+//!
 //! Implemented as a separate `impl HudState` block (Rust allows
 //! multiple impl blocks across files for the same type).
 
@@ -21,6 +33,32 @@ use super::{
 };
 
 impl HudState {
+    /// Announce the pause state for metric freezing (v51, owner bug fix
+    /// 2026-08-30). Called every frame by the event loop with
+    /// `cloud.is_paused_or_decelerating()` — the SAME predicate the
+    /// keybinding pause guard and the mouse click-wave guard use, so the
+    /// freeze window exactly matches the interaction-freeze window.
+    ///
+    /// Transitions:
+    /// - `false → true`: opens a pause segment (`pause_started_at = now`).
+    /// - `true → false`: closes it into `paused_total`, so uptime math
+    ///   excludes the whole paused span with sub-second precision.
+    ///
+    /// The freeze itself is enforced inside the samplers (`push_frame_time`,
+    /// `maybe_sample_rss`, `maybe_sample_cpu`, `set_effective_pressure`,
+    /// `set_endurance_health_score`) via the `metrics_paused` field.
+    pub(crate) fn set_metrics_paused(&mut self, paused: bool) {
+        if paused == self.metrics_paused {
+            return;
+        }
+        if paused {
+            self.pause_started_at = Some(Instant::now());
+        } else if let Some(start) = self.pause_started_at.take() {
+            self.paused_total += start.elapsed();
+        }
+        self.metrics_paused = paused;
+    }
+
     #[inline]
     pub(crate) fn update_metrics(&mut self, palette_colors: &[crossterm::style::Color]) {
         if !self.visible {
@@ -57,7 +95,17 @@ impl HudState {
         // < 1h:  MM:SS    e.g. 59:03
         // < 1d:  Xh:MM    e.g. 1h:03
         // >= 1d: Xd:YYh   e.g. 2d:03h
-        let uptime_secs = self.session_start.elapsed().as_secs();
+        //
+        // v51 pause freeze: paused time is EXCLUDED — the open segment
+        // grows at the same rate as the elapsed clock while paused, so
+        // the subtraction pins `up:` at the value it had when 'p' was
+        // pressed; on resume it continues from exactly there.
+        let mut uptime_secs = self.session_start.elapsed();
+        uptime_secs = uptime_secs.saturating_sub(self.paused_total);
+        if let Some(start) = self.pause_started_at {
+            uptime_secs = uptime_secs.saturating_sub(start.elapsed());
+        }
+        let uptime_secs = uptime_secs.as_secs();
         let uptime_str = if uptime_secs < 3600 {
             format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60)
         } else if uptime_secs < 86_400 {

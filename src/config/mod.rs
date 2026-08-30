@@ -301,8 +301,8 @@ pub struct Args {
     /// v50: intro color override. CLI flag `--intro-color <name>` accepts
     /// any builtin theme name (see --list-colors) or custom palette name.
     /// Also configurable via `intro-color = "energy-zen"` in config.toml.
-    /// When set, the intro animation uses this color theme instead of
-    /// the rain color.
+    /// When set, the intro uses that theme; when unset, the intro uses
+    /// the brand energy-zen palette (never the rain color).
     #[arg(
         long = "intro-color",
         value_name = "NAME",

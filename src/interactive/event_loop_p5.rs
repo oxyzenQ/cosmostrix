@@ -40,7 +40,14 @@ pub(crate) fn sample_p5_health(
     last_ctxt_sample: &mut Instant,
 ) -> bool {
     // ── P5: Endurance health sampling (ALWAYS ON) ──
-    endurance_health.push_frame_time(work_s * 1000.0);
+    // v51 pause freeze (owner bug fix 2026-08-30): paused frames are
+    // 4 Hz input polls, not render work — pushing their near-zero work
+    // times would inflate the endurance score during a pause. Gate on
+    // the same is_paused_or_decelerating() predicate the HUD freeze uses;
+    // on resume the window continues from the last active sample.
+    if !cloud.is_paused_or_decelerating() {
+        endurance_health.push_frame_time(work_s * 1000.0);
+    }
     if perf_rss_samples.is_multiple_of(60) {
         #[cfg(target_os = "linux")]
         {

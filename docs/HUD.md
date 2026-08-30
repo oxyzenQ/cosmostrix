@@ -285,6 +285,39 @@ and emitted in `--benchmark` JSON output as the `git_sha` field.
 
 ---
 
+## Pause Freeze (v51)
+
+Press `p` and the dashboard stops with the rain. Owner bug fix
+(2026-08-30): previously the HUD kept "running" while paused — uptime
+counted on, fps/p99 absorbed the 4 Hz input-poll ticks, cpu/rss/ehs
+kept sampling. Now every running metric FREEZES at its last active
+value and resumes with precision:
+
+| Line | While paused | On resume |
+|------|--------------|-----------|
+| `up:` | Frozen (paused time is excluded via an accumulated pause total + open segment) | Continues from exactly where it froze — a 10-minute pause costs 0 uptime seconds |
+| `fps:` / `max:` / `p99:` | Frozen (paused frames are NOT pushed into the ring buffer) | Window continues from the last active samples |
+| `cpu:` | Frozen at last active percent — but the sampler baseline keeps ticking so the first post-resume delta stays a ~1 s window (not the whole pause span) | Precise within one 1 Hz tick |
+| `rss:` | Frozen | Resamples normally |
+| `prs:` / `ehs:` | Frozen (pressure measured over input polls is meaningless; endurance score no longer inflated by near-zero paused work times) | Resume immediately |
+| `tgt:` | **LIVE** — the `paused` suffix keeps rendering so you see WHY the dashboard froze | Suffix drops |
+| `scn`/`chr`/`clr`/`prdr`/`crdr`/`ambt`/`glth`/`ctun`/`mnst`/screensize | LIVE (state labels, not measurements — a config.toml live-reload during pause still shows) | unchanged |
+
+The freeze window opens the instant `p` is pressed (the deceleration
+phase counts as paused — same `is_paused_or_decelerating()` predicate
+the shortkey pause guard uses) and closes on resume. While paused,
+only `p` (resume) and `q` (quit) respond — `i` cannot even toggle the
+HUD off/on during a freeze (see docs/RULES.md keybind policy).
+
+Implementation: `HudState::set_metrics_paused()` (called every frame
+from the event loop) + freeze gates inside the samplers
+(`push_frame_time` / `maybe_sample_rss` / `maybe_sample_cpu` /
+`set_effective_pressure` / `set_endurance_health_score`) — see
+`src/interactive/hud/metrics.rs`. Locked by
+`src/interactive/hud/tests_pause_freeze.rs`.
+
+---
+
 ## HUD vs `--benchmark` — Why They Disagree
 
 The HUD and `--benchmark` measure DIFFERENT things:

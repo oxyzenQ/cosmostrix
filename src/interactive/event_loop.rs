@@ -23,7 +23,9 @@ use super::activity::{register_activity, spin_wait, FrameTimeTracker};
 use super::adaptive::{EnduranceHealth, PerformanceSelfHealer, ReclaimState};
 use super::event_loop_finalize::finalize_session;
 use super::hud::HudState;
-use super::input::{handle_keybinding, is_unmodified, KeybindingCtx, PasteBurstGuard};
+use super::input::{
+    handle_keybinding, hud_toggle_accepted, is_unmodified, KeybindingCtx, PasteBurstGuard,
+};
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -418,7 +420,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // Modifier guard: only bare 'i' (NONE). Rejects Shift+'i'
                         // (which produces 'I', no binding) and all other modifiers
                         // (Ctrl/Super/Alt/Hyper/Meta+'i'). See is_unmodified().
-                        if is_unmodified(k.modifiers) && matches!(k.code, KeyCode::Char('i')) {
+                        // v51 pause isolation (owner bug report 2026-08-30): 'i'
+                        // must NOT respond while paused/decelerating — only 'p'
+                        // and 'q' work during pause. The gate lives in input.rs
+                        // (hud_toggle_accepted) so the predicate is testable and
+                        // identical to the handle_keybinding pause guard.
+                        if hud_toggle_accepted(&cloud)
+                            && is_unmodified(k.modifiers)
+                            && matches!(k.code, KeyCode::Char('i'))
+                        {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
                                 cloud.force_draw_everything();

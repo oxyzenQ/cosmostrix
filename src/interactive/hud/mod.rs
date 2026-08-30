@@ -123,6 +123,13 @@ pub(crate) struct HudState {
     visible: bool,
     /// Session start time for uptime display.
     session_start: Instant,
+    /// Pause-freeze tracking (owner bug fix 2026-08-30): while paused,
+    /// uptime stops counting and samplers stop sampling; the segment +
+    /// total exclude paused time from `up:` with sub-second precision.
+    /// See `set_metrics_paused()` in metrics.rs.
+    metrics_paused: bool,
+    pause_started_at: Option<Instant>,
+    paused_total: Duration,
     frame_times: FrameTimeTracker,
     last_metric_update: Instant,
     last_rss_sample: Instant,
@@ -313,7 +320,8 @@ impl HudState {
     /// startup spike from dominating the display forever.
     #[inline]
     pub(crate) fn push_frame_time(&mut self, ms: f64) {
-        if !self.visible {
+        if !self.visible || self.metrics_paused {
+            // Paused 4 Hz input-poll ticks must not contaminate fps/max/p99.
             return;
         }
         self.frame_times.push(ms);
@@ -331,7 +339,8 @@ impl HudState {
     /// Maybe sample RSS (rate-limited). Called every frame.
     #[inline]
     pub(crate) fn maybe_sample_rss(&mut self) {
-        if !self.visible {
+        if !self.visible || self.metrics_paused {
+            // Holds the last active reading while paused (v51 freeze).
             return;
         }
         let now = Instant::now();
@@ -386,6 +395,14 @@ impl HudState {
             self.cpu_percent = None;
             return;
         };
+
+        // v51 pause freeze: cpu% holds its last active value while
+        // paused, but the baseline keeps ticking so the first post-resume
+        // delta stays a ~1 s window (not the whole idle pause span).
+        if self.metrics_paused {
+            self.last_cpu_ns = Some(cpu_ns_now);
+            return;
+        }
 
         match self.last_cpu_ns {
             None => {
@@ -540,6 +557,10 @@ impl HudState {
     /// degraded, forcing investigation rather than hiding the issue).
     /// In-range values are clamped to [0.0, 100.0].
     pub(crate) fn set_endurance_health_score(&mut self, score: f64) {
+        // v51 pause freeze: hold the last active reading while paused.
+        if self.metrics_paused {
+            return;
+        }
         self.endurance_health_score = if score.is_finite() {
             score.clamp(0.0, 100.0)
         } else {
@@ -559,6 +580,11 @@ impl HudState {
     /// (setter + format) is defense-in-depth — a future code path that
     /// bypasses the setter still gets sanitized output.
     pub(crate) fn set_effective_pressure(&mut self, pressure: f32) {
+        // v51 pause freeze: hold the last active reading while paused
+        // (pressure measured over 4 Hz input polls is meaningless).
+        if self.metrics_paused {
+            return;
+        }
         self.effective_pressure = if pressure.is_finite() {
             pressure.clamp(0.0, 1.0)
         } else {
@@ -764,6 +790,8 @@ mod metrics;
 mod tests;
 #[cfg(test)]
 mod tests_chroma_metrics;
+#[cfg(test)]
+mod tests_pause_freeze;
 
 #[cfg(test)]
 mod tests_brighten;

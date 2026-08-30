@@ -148,6 +148,20 @@ pub(super) fn normalize_shifted_char(
     code
 }
 
+/// HUD-toggle gate for the `i` shortkey.
+///
+/// `i` is dispatched in the event loop BEFORE `handle_keybinding()`
+/// (Android/Termux Release-guard ordering: the early branch must not
+/// fall through to the screensaver-exit path), so the pause guard at
+/// the top of this module never sees it. This helper applies the same
+/// predicate that guard uses, keeping the pause isolation contract
+/// uniform: while paused or decelerating toward pause, ONLY `p`
+/// (resume) and `q` (quit) respond — `i` included (owner bug report
+/// 2026-08-30: pressing `i` while paused still toggled the HUD).
+pub(super) fn hud_toggle_accepted(cloud: &Cloud) -> bool {
+    !cloud.is_paused_or_decelerating()
+}
+
 // Runtime key handling coordinates cloud, frame, scene, charset, and terminal
 // recovery state in one dispatch point; splitting would obscure side effects.
 //

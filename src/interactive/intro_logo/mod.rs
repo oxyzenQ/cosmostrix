@@ -5,12 +5,13 @@
 //! project's ASCII logo and dissolves it into Matrix rain.
 //!
 //! The logo is colored with the **7-stage rain method** (owner
-//! directive 2026-08-24): the active rain palette's stops (tail =
-//! darkest → head = brightest) are sampled vertically in OKLab, so
-//! the logo reads as a colossal rain droplet — bottom rows carry the
-//! tail color, top rows the head color, identical to how the rain
-//! engine shades a droplet's trail. The logo→rain handoff is
-//! seamless by construction.
+//! directive 2026-08-24): the intro palette's stops (tail = darkest →
+//! head = brightest) are sampled vertically in OKLab, so the logo
+//! reads as a colossal rain droplet — bottom rows carry the tail
+//! color, top rows the head color, identical to how the rain engine
+//! shades a droplet's trail. The intro palette is the brand energy-zen
+//! scheme by default (see `event_loop_intro.rs`) — `-c`/`--color`/
+//! `--colors-custom` never repaint the logo; only `--intro-color` does.
 //!
 //! ```text
 //! Phase 1: Fade In    (0    – 2000 ms)  Logo appears line by line, fading
@@ -28,7 +29,7 @@
 //!
 //! Total: ~6.25 s. Press `q` (or `Q`) to skip instantly — no other key
 //! skips, so stray keypresses can't cut the cinematic short. The intro
-//! is skipped entirely on terminals smaller than 80×24 with a stderr
+//! is skipped entirely on terminals smaller than 10×5 with a stderr
 //! notice (handled by [`super::intro::run_intro`]).
 //!
 //! ## Constraints
@@ -112,8 +113,8 @@ const LOGO_ART: &str = concat!(
 // Brand color constant now lives in the chroma dragon engine
 // (`chroma_dragon_engine::intro_colors::LOGO_COLOR_RGB`).
 // This module uses the `logo_color` parameter (passed at runtime)
-// instead of referencing the constant directly — the constant is
-// the default brand purple, overridable via `--intro-color`.
+// instead of referencing the constant directly. The caller resolves
+// it: brand energy-zen head by default, `--intro-color` override.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase + spawn constants

@@ -4,7 +4,7 @@
 //! HUD initialization + frame writing — extracted from
 //! `hud/mod.rs` to keep that file under the 800-LOC cap.
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::runtime::ColorScheme;
 use crossterm::style::Color;
@@ -26,6 +26,11 @@ impl super::HudState {
         Self {
             visible: false,
             session_start: Instant::now(),
+            // v51 pause-freeze: metrics stop while paused (owner bug fix
+            // 2026-08-30). See set_metrics_paused() in metrics.rs.
+            metrics_paused: false,
+            pause_started_at: None,
+            paused_total: Duration::ZERO,
             frame_times: FrameTimeTracker::new(),
             last_metric_update: Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL)

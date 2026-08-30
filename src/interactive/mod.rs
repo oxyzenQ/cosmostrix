@@ -81,6 +81,12 @@ mod v50_first_reload;
 #[path = "tests_v50_kitty_shift.rs"]
 mod v50_kitty_shift;
 
+// v51 Z-master-1B: intro brand color (EnergyZen, immune to -c) +
+// pause shortkey isolation ('i' rejected while paused).
+#[cfg(test)]
+#[path = "tests_v51_intro_brand_pause.rs"]
+mod v51_intro_brand_pause;
+
 #[cfg(test)]
 mod tests_v35;
 

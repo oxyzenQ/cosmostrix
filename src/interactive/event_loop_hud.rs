@@ -17,6 +17,11 @@ use crate::config::GlitchLevel;
 /// effective pressure, aggressive throttle, power_dragon, and
 /// crystal_dragon to the HUD state so the 1 Hz metric tick renders
 /// current values.
+///
+/// v51 pause freeze (owner bug fix 2026-08-30): `set_metrics_paused`
+/// must run BEFORE the metric setters below — on the pause frame it
+/// arms the freeze before any sampler can tick, and on the resume
+/// frame it lifts the freeze before the setters deliver fresh values.
 pub(crate) fn update_hud_state(
     hud_state: &mut HudState,
     cloud: &mut Cloud,
@@ -25,6 +30,7 @@ pub(crate) fn update_hud_state(
     charset_preset: &str,
     current_cfg: &CloudConfig,
 ) {
+    hud_state.set_metrics_paused(cloud.is_paused_or_decelerating());
     let frame_mode = if cloud.pause {
         FrameMode::Paused
     } else if power_manager.is_idle() {

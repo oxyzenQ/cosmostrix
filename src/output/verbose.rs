@@ -298,7 +298,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         // Honest reporting: when intro_color is None, say so explicitly
         // rather than omitting the line. Users editing config need to see
         // whether their intro-color key was accepted or rejected.
-        output::eprintln_verbose("intro_color:", " (unset — intro uses rain color)");
+        output::eprintln_verbose("intro_color:", " (unset — intro uses brand energy-zen)");
     }
     // v50.0.0-alpha.7: msg_mode master switch — always print so users see
     // WHY their config `message = "hello"` is being ignored (msg_mode=false

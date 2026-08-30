@@ -48,9 +48,9 @@
 /// cyan (plasma) for visual variety.
 ///
 /// The brand-purple slot (`[1]`) is replaced at runtime by `logo_color`
-/// (from `--intro-color` or the default brand purple) when
-/// `intro-color` is set in config. The constant here is the fallback
-/// used when no override is provided.
+/// — the resolved intro palette's head (brand EnergyZen head by
+/// default, or the `--intro-color` theme's head). The constant here is
+/// the fallback used when no override is provided.
 ///
 /// ## Brightness contract
 ///
@@ -77,20 +77,22 @@ pub(crate) const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
 /// Brand purple — the cosmostrix signature color (`#A855F7` / RGB
 /// 168,85,247).
 ///
-/// The logo always renders in this color (or the `--intro-color`
-/// override), regardless of the user's `--color` flag, so the brand
-/// mark stays consistent across all palette themes. During the
-/// dissolve/rain phase, droplets interpolate from this purple toward
-/// the active rain palette's brightest stop, creating a cinematic
-/// "brand → rain" handoff.
+/// The logo's 7-stage gradient is sampled from the resolved INTRO
+/// palette's stops (brand EnergyZen by default, or the `--intro-color`
+/// theme) — never from the rain palette, so `-c`/`--color`/
+/// `--colors-custom` cannot repaint the brand mark (owner bug fix
+/// 2026-08-30). During the dissolve/rain phase, droplets interpolate
+/// from the intro palette's head toward its brightest stop, creating
+/// a cinematic "brand → rain" handoff.
 ///
 /// BL-05 (Dragon Hunt v3): removed the `Color` enum form (was
 /// test-only + had a tautology test). This RGB tuple is the single
 /// canonical form — when a `Color` is needed (rare), construct it
 /// inline: `Color::Rgb { r: 168, g: 85, b: 247 }`.
 ///
-/// Default brand purple — kept for reference. Replaced by the
-/// `logo_color` parameter at runtime when `--intro-color` is set.
+/// Historical reference for the pre-v51 default flat brand purple —
+/// kept for reference. The runtime intro color is resolved in
+/// `interactive/event_loop_intro.rs` (brand scheme head).
 #[allow(dead_code)]
 pub(crate) const LOGO_COLOR_RGB: (u8, u8, u8) = (168, 85, 247);
 

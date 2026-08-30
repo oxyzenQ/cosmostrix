@@ -120,7 +120,8 @@ COMMON OPTIONS:
   --intro-color <name>
       Intro animation color override. Accepts any builtin theme name
       (see --list-colors) or custom palette name. When unset, the
-      intro uses the same color as the rain.
+      intro uses the brand energy-zen palette — -c/--color/
+      --colors-custom never repaint the intro logo.
       cosmostrix --intro-color energy-zen
 
   -s, --screensaver
@@ -504,6 +505,8 @@ RUNTIME CONTROLS:
                 sped / dsty / scn / chr / clr / up / screensize / cid)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
                 and diagnostic recipes for common symptoms.
+  While paused, ONLY p (resume) and q (quit) respond — every other
+  key (including i) is ignored, and HUD metrics freeze until resume.
   Uppercase C/S/X = reverse cycle (Shift or CapsLock produces the
   uppercase letter; kitty-protocol terminals reporting the base
   codepoint + SHIFT are normalized internally). Shift is the ONLY
