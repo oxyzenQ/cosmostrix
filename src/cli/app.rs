@@ -60,7 +60,7 @@ pub struct CloudConfig {
     /// `Typewriter` = bit-identical to the pre-v51 renderer (LTS
     /// guarantee). Applied in `create_cloud` via
     /// `cloud.set_msg_fill_style` (engrave additionally arms the spark
-    /// sidecar in `cloud/message_engrave.rs`).
+    /// sidecar in `msg_fill_style/engrave.rs`).
     pub msg_fill_style: MsgFillStyle,
     pub target_fps: f64,
     /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`

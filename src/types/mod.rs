@@ -7,9 +7,12 @@
 //! src/ root (only main.rs at root). Re-exported at crate root via
 //! `pub(crate) use types::{constants, cell, rain_style, renderer_info};`
 //! in main.rs so all existing call sites resolve unchanged.
+//!
+//! The v51 msg-fill-style subsystem graduated to its own crate-root
+//! directory (`src/msg_fill_style/`, one file per style) in the
+//! owner-mandated plug-and-play refactor.
 
 pub(crate) mod cell;
 pub(crate) mod constants;
-pub(crate) mod msg_fill_style;
 pub(crate) mod rain_style;
 pub(crate) mod renderer_info;

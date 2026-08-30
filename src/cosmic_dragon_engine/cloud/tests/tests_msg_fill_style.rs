@@ -456,7 +456,7 @@ fn engrave_fires_one_spark_burst_per_newly_revealed_char() {
         cloud.engrave.active_count, 6,
         "a moved head must fire exactly one additional burst"
     );
-    assert!(cloud.engrave.active_count <= crate::constants::ENGRAVE_SPARK_POOL_SIZE);
+    assert!(cloud.engrave.active_count <= crate::msg_fill_style::engrave::ENGRAVE_SPARK_POOL_SIZE);
 }
 
 #[test]

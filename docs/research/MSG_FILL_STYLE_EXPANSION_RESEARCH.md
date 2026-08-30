@@ -26,7 +26,7 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
   the box is overdrawn the same frame. The border-touch spark survives
   only because its particles fly UP, out of the overlay region. Any
   future in-box particle effect must render in a pass at the END of
-  `draw_message` (see `cloud/message_engrave.rs`).
+  `draw_message` (see `msg_fill_style/engrave.rs`).
 
 ## 2. Ground rules for any new style (from the shipped family)
 
@@ -50,7 +50,9 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
 - **Stateless?** YES — fully. Flicker = hash(content_idx, elapsed/40ms
   bucket) modulated factor; scanline position = elapsed/scan duration;
   ripple = sin(elapsed) * small amplitude. No sidecar, no pool.
-- **Cost**: ~60-80 LOC in `msg_fill_style.rs` + the 9-surface sweep +
+- **Cost**: ~60-80 LOC in a new `msg_fill_style/hologram.rs` (one file
+  per style since the directory refactor — copy the skeleton, wire the
+  dispatch arms in `mod.rs`) + the 9-surface sweep +
   tests. Cheapest candidate by far.
 - **Risk**: low. No color change needed (brightness-only — the existing
   `factor` path already handles > 1.0 boost).
@@ -143,7 +145,7 @@ live-reload + clap + argv + testconf coverage.
 | `slide` | 60 ms/char, rises from 1 row below | lags text (t^1.5) | none |
 | `pulse` | typewriter + 1.5x scanner cursor | lags text (t^1.5) | none |
 | `instant` | full brightness at t=0 | clockwise draw over 1 s | none |
-| `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`message_engrave.rs`) |
+| `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`msg_fill_style/engrave.rs`) |
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

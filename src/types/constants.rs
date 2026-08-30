@@ -324,31 +324,12 @@ pub(crate) const BORDER_SPARK_ANGLE_MAX_RAD: f32 = 0.0; // 0°
 pub(crate) const BORDER_SPARK_TRAIL_LEN: usize = 1;
 
 // ── msg-fill-style "engrave" spark (v51) ─────────────────────────────────
-// The engrave reveal style throws a small spark burst at the engraving
-// head each time a new character burns in. Deliberately a DEDICATED
-// pool rendered inside `draw_message` (see
-// `cloud/message_engrave.rs`): the shared quantum pool renders in
-// `apply_quantum_ripple` BEFORE the message overlay, so pool-shared
-// sparks would be overdrawn by the overlay cells — invisible exactly
-// where the engraving head lives.
-
-/// Engrave spark pool size. Bursts fire once per newly revealed char
-/// (every ENGRAVE_CHAR_MS = 80 ms) and live
-/// ENGRAVE_SPARK_LIFETIME_SECS (0.20 s), so steady-state concurrency is
-/// ~3 bursts x 3 particles = 9-12 active. 48 slots = 4x headroom (also
-/// the owner-advisor-requested cap: "cap concurrent sparks at 48").
-pub(crate) const ENGRAVE_SPARK_POOL_SIZE: usize = 48;
-
-/// Particles per engrave burst (one burst per newly engraved char).
-pub(crate) const ENGRAVE_SPARKS_PER_HEAD: usize = 3;
-
-/// Engrave spark lifetime in seconds. 200 ms = tight, snappy debris.
-pub(crate) const ENGRAVE_SPARK_LIFETIME_SECS: f32 = 0.20;
-
-/// Engrave spark speed in cells/second. 10.0 with the masterclass
-/// ±10% variance → ~2 cells of travel per spark lifetime — a spray
-/// zone around the head without polluting the rest of the overlay.
-pub(crate) const ENGRAVE_SPARK_SPEED: f32 = 10.0;
+// The engrave spark tuning constants (ENGRAVE_SPARK_POOL_SIZE /
+// ENGRAVE_SPARKS_PER_HEAD / ENGRAVE_SPARK_LIFETIME_SECS /
+// ENGRAVE_SPARK_SPEED) moved to `msg_fill_style/engrave.rs` in the
+// one-file-per-style refactor — they are engrave-only tuning and belong
+// with the rest of the engrave style, not in the shared engine
+// constants.
 
 /// Brand purple RGB (same as logo color) for Quantum effects.
 pub(crate) const QUANTUM_BRAND_PURPLE_R: u8 = 168;

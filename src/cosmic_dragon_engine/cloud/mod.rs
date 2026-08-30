@@ -24,7 +24,6 @@ pub(crate) mod events;
 mod ghost_events;
 mod living_rain;
 mod message_draw;
-mod message_engrave;
 mod monolith;
 mod monolith_glyphs;
 mod monolith_helpers;
@@ -219,9 +218,9 @@ pub struct Cloud {
 
     /// v51 msg-fill-style (engrave): bounded spark-particle sidecar
     /// rendered inside `draw_message` (dedicated pool - see
-    /// `cloud/message_engrave.rs` for why the shared quantum pool
+    /// `msg_fill_style/engrave.rs` for why the shared quantum pool
     /// cannot be reused). Idle (O(1) early-out) for every other style.
-    pub(crate) engrave: message_engrave::EngraveState,
+    pub(crate) engrave: crate::msg_fill_style::engrave::EngraveState,
 
     /// RAIN_BORDER_TOUCH_GLOW: cached top-border geometry, refreshed in
     /// `reset_message`. Used by the droplet advance loop (rain.rs) for
@@ -483,7 +482,7 @@ impl Cloud {
                 QUANTUM_RIPPLE_POOL_SIZE
             ],
             quantum_active_count: 0,
-            engrave: message_engrave::EngraveState::new(now),
+            engrave: crate::msg_fill_style::engrave::EngraveState::new(now),
             last_reseed_time: now,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),

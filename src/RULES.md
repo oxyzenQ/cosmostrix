@@ -48,6 +48,7 @@ src/
 ├── doctor/                    <- --doctor diagnostics subsystem
 ├── droplet/                   <- droplet rendering (parallax, brightness)
 ├── interactive/               <- event loop, HUD, intro, input handling
+├── msg_fill_style/            <- message overlay reveal styles (one file per style: typewriter/fade/words/slide/pulse/instant/engrave.rs + mod.rs dispatch)
 ├── output/                    <- output, report, verbose, ux, message
 ├── platform/                  <- platform detection, panic hook, update
 ├── safepath/                  <- path validation (security)

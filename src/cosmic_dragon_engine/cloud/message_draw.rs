@@ -10,13 +10,16 @@
 //! scratch buffers.
 //!
 //! v51 msg-fill-style: the text reveal is style-driven (see
-//! `types/msg_fill_style.rs`). Seven styles are selectable via
+//! `msg_fill_style/` — one file per style, dispatch in
+//! `msg_fill_style/mod.rs`). Seven styles are selectable via
 //! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
 //! typewriter (default, bit-identical to pre-v51), fade, words, slide,
-//! pulse, instant, engrave. All timing constants and per-cell reveal
-//! math live in `msg_fill_style.rs`; this file only consumes them.
-//! The engrave style additionally calls into `message_engrave.rs`
-//! for its spark sidecar (the only stateful member of the family).
+//! pulse, instant, engrave. All timing constants, per-cell reveal
+//! math, and the engrave spark sidecar live in the style files; this
+//! renderer only consumes the dispatch API. The engrave style's
+//! spark pass is implemented in `msg_fill_style/engrave.rs` (the
+//! only stateful member of the family) and is invoked at the end of
+//! this method.
 //!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type). The method stays
@@ -73,24 +76,19 @@ impl super::Cloud {
         // v51 msg-fill-style: per-style reveal plan. The six stateless
         // styles derive everything from elapsed time; engrave keeps the
         // same stateless reveal math but adds a bounded spark sidecar
-        // (message_engrave.rs). Typewriter keeps the exact pre-v51
+        // (msg_fill_style/engrave.rs). Typewriter keeps the exact pre-v51
         // semantics:
         //   reveal_count = (elapsed / 80).max(1).min(total_text)
         //   per-char 100 ms fade-in from 30% brightness.
         let style = self.msg_fill_style;
         let block_alpha = mfs::fade_block_alpha(message_elapsed_ms);
-        let reveal_count = match style {
-            MsgFillStyle::Typewriter
-            | MsgFillStyle::Pulse
-            | MsgFillStyle::Slide
-            | MsgFillStyle::Engrave => {
-                mfs::index_reveal_count(style, message_elapsed_ms, total_text)
-            }
-            // Words (word-ordinal visibility), fade (block alpha) and
-            // instant (always visible) decide per-cell; the index budget
-            // is effectively "all revealed".
-            MsgFillStyle::Words | MsgFillStyle::Fade | MsgFillStyle::Instant => total_text.max(1),
-        };
+        // Index-paced styles (typewriter/pulse/slide/engrave) budget
+        // cells by their per-char constant; word/block styles
+        // (words/fade/instant) report everything revealed — their
+        // reveal math decides per-cell and never reads the budget.
+        // The dispatch lives in msg_fill_style/mod.rs (one arm per
+        // style file), so the renderer carries no style match here.
+        let reveal_count = mfs::index_reveal_count(style, message_elapsed_ms, total_text);
         // Total word count from the hoisted ordinals (words style only;
         // 0 when no message cells exist).
         let total_words = self

@@ -1,15 +1,30 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! msg-fill-style `engrave` spark sidecar — extracted from
-//! `cloud/message_draw.rs` to keep that file lean.
+//! msg-fill-style `engrave` — laser engraving: burn-in + hot head +
+//! heat trail + spark bursts.
 //!
-//! The engrave style's TEXT reveal (burn-in + hot head + heat glow)
-//! is stateless like every other style (see `types/msg_fill_style.rs`).
-//! The spark burst is not: it needs one usize of bookkeeping ("which
-//! head char was last spark-emitting") plus a particle pool. Both live
-//! here, behind a single `Cloud::engrave_spark_pass` entry point called
-//! at the END of `draw_message`.
+//! Everything about the engrave style lives in this one file: the
+//! stateless reveal math (constants + `reveal` + budget + border +
+//! text-progress hooks) AND the stateful spark sidecar (the only
+//! stateful member of the style family).
+//!
+//! ## Reveal math (stateless, like every other style)
+//!
+//! Chars burn in at `ENGRAVE_CHAR_MS` (80 ms) pacing. A char appears
+//! at FULL brightness the instant the head reaches it (no 30%
+//! fade-in — a laser burns text in, it does not fade it in), then
+//! cools from `(1 + ENGRAVE_BOOST)` (2x) back to 1.0 over
+//! `ENGRAVE_HEAT_MS` (300 ms). The last ~4 chars are always cooling
+//! at any moment, forming the heat trail behind the engraving head.
+//!
+//! ## Spark sidecar (stateful)
+//!
+//! The spark burst needs one usize of bookkeeping ("which head char
+//! was last spark-emitting") plus a particle pool. Both live here,
+//! behind a single `Cloud::engrave_spark_pass` entry point called at
+//! the END of `draw_message` (after the halo row) so sparks render ON
+//! TOP of the overlay text: the "engraving head throws debris" look.
 //!
 //! ## Why a dedicated pool instead of reusing the quantum pool
 //!
@@ -44,19 +59,102 @@
 //! - Bench mode: never runs — `draw_message` itself is skipped in
 //!   bench mode (Z-6), so the whole pass is dead code on that path.
 //!
-//! Implemented as a separate `impl Cloud` block (Rust allows multiple
-//! impl blocks across files for the same type).
+//! Border: lags text with the shared `t^1.5` ease-out curve.
 
 use std::time::Instant;
 
 use crossterm::style::Color;
 use rand::distr::Distribution;
 
+use super::{index_fraction, index_pacing, lagged_border, CellReveal};
 use crate::cell::Cell;
-use crate::constants::*;
 use crate::frame::Frame;
 
-use super::Cloud;
+// ── Reveal math (stateless) ────────────────────────────────────────────────
+
+/// Per-character reveal stagger (same 80 ms pacing as typewriter,
+/// kept as its own constant so the two can diverge).
+pub(crate) const ENGRAVE_CHAR_MS: usize = 80;
+/// Head boost above settled brightness (1.0 → peak factor 2.0,
+/// routed through the unclamped boost path like pulse).
+pub(crate) const ENGRAVE_BOOST: f32 = 1.0;
+/// Heat-glow decay window behind the engraving head.
+pub(crate) const ENGRAVE_HEAT_MS: usize = 300;
+
+// ── Spark sidecar constants (moved from `types/constants.rs` in the
+// msg_fill_style directory refactor — they are engrave-only tuning,
+// not shared engine tuning) ─────────────────────────────────────────────────
+
+/// Engrave spark pool size. Bursts fire once per newly revealed char
+/// (every ENGRAVE_CHAR_MS = 80 ms) and live
+/// ENGRAVE_SPARK_LIFETIME_SECS (0.20 s), so steady-state concurrency is
+/// ~3 bursts x 3 particles = 9-12 active. 48 slots = 4x headroom (also
+/// the owner-advisor-requested cap: "cap concurrent sparks at 48").
+pub(crate) const ENGRAVE_SPARK_POOL_SIZE: usize = 48;
+
+/// Particles per engrave burst (one burst per newly engraved char).
+pub(crate) const ENGRAVE_SPARKS_PER_HEAD: usize = 3;
+
+/// Engrave spark lifetime in seconds. 200 ms = tight, snappy debris.
+pub(crate) const ENGRAVE_SPARK_LIFETIME_SECS: f32 = 0.20;
+
+/// Engrave spark speed in cells/second. 10.0 with the masterclass
+/// ±10% variance → ~2 cells of travel per spark lifetime — a spray
+/// zone around the head without polluting the rest of the overlay.
+pub(crate) const ENGRAVE_SPARK_SPEED: f32 = 10.0;
+
+/// Per-cell reveal: burn-in at full brightness, then heat decay.
+pub(super) fn reveal(
+    content_idx: usize,
+    elapsed_ms: Option<usize>,
+    reveal_count: usize,
+) -> CellReveal {
+    // Burn-in reveal: a char appears at FULL brightness the instant
+    // the head reaches it (no 30% fade-in — a laser burns text in, it
+    // does not fade it in), then cools from (1 + ENGRAVE_BOOST) back
+    // to 1.0 over ENGRAVE_HEAT_MS. The last ~4 chars are always
+    // cooling at any moment, forming the heat trail behind the
+    // engraving head.
+    if content_idx < reveal_count {
+        let reveal_at = content_idx * ENGRAVE_CHAR_MS;
+        let heat = match elapsed_ms {
+            None => 1.0,
+            Some(ms) => {
+                let age = ms.saturating_sub(reveal_at);
+                if age >= ENGRAVE_HEAT_MS {
+                    1.0
+                } else {
+                    let decay = 1.0 - age as f32 / ENGRAVE_HEAT_MS as f32;
+                    1.0 + ENGRAVE_BOOST * decay
+                }
+            }
+        };
+        CellReveal {
+            visible: true,
+            factor: heat,
+            slide_rows: 0,
+        }
+    } else {
+        CellReveal::hidden()
+    }
+}
+
+/// Index budget: 80 ms/char with the pre-v51 `.max(1)` floor.
+pub(super) fn reveal_budget(elapsed_ms: Option<usize>, total_text: usize) -> usize {
+    index_pacing(ENGRAVE_CHAR_MS, elapsed_ms, total_text)
+}
+
+/// Border lags text (t^1.5) — the pre-v51 cinematic curve.
+pub(super) fn border_progress(text_progress: f32) -> f32 {
+    lagged_border(text_progress)
+}
+
+/// Text progress: revealed-cell fraction.
+pub(super) fn text_progress(reveal_count: usize, total_text: usize) -> f32 {
+    index_fraction(reveal_count, total_text)
+}
+
+// ── Spark sidecar (stateful) ───────────────────────────────────────────────
 
 /// One engrave spark particle. Plain data — no trail ring buffer
 /// (sparks live 200 ms and travel ~2 cells; a trail would be noise),
@@ -130,7 +228,7 @@ impl EngraveState {
     }
 }
 
-impl Cloud {
+impl crate::cloud::Cloud {
     /// Engrave spark pass — one entry point, called at the very end of
     /// `draw_message` (after the halo row) so sparks render ON TOP of
     /// the overlay text: the "engraving head throws debris" look.
@@ -289,5 +387,55 @@ impl Cloud {
             still_active += 1;
         }
         self.engrave.active_count = still_active;
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::super::{content_reveal, index_reveal_count, MsgFillStyle};
+    use super::*;
+
+    #[test]
+    fn engrave_reveals_at_80ms_per_char() {
+        // Same index pacing as typewriter: 319 ms → 3 chars, 320 ms → 4.
+        let total = 40;
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(319), total);
+        assert_eq!(count, 3);
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(320), total);
+        assert_eq!(count, 4);
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(0), total);
+        assert_eq!(count, 1, "max(1) floor: first char at t=0");
+    }
+
+    #[test]
+    fn engrave_chars_burn_in_hot_and_cool_off() {
+        // Age 0: burned in at (1 + ENGRAVE_BOOST) = 2.0 — NOT the 30%
+        // fade-in start the typewriter family uses.
+        let head = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(0), 10, 1.0);
+        assert!(head.visible);
+        assert!((head.factor - (1.0 + ENGRAVE_BOOST)).abs() < 1e-6);
+        // Mid-decay: age 150 of 300 ms → 1 + 1.0 * 0.5 = 1.5.
+        let mid = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(150), 10, 1.0);
+        assert!((mid.factor - 1.5).abs() < 1e-6);
+        // Cooled: age >= ENGRAVE_HEAT_MS → settled at 1.0.
+        let cooled = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(ENGRAVE_HEAT_MS), 10, 1.0);
+        assert!((cooled.factor - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn engrave_hidden_until_reveal_count_reaches_the_cell() {
+        let r = content_reveal(MsgFillStyle::Engrave, 7, 1, Some(400), 7, 1.0);
+        assert!(!r.visible, "cell 7 must stay hidden until reveal_count > 7");
+        let r = content_reveal(MsgFillStyle::Engrave, 6, 1, Some(400), 7, 1.0);
+        assert!(r.visible);
+    }
+
+    #[test]
+    fn spark_pool_constants_hold_the_owner_contract() {
+        // Owner-advisor contract: cap concurrent sparks at 48; one
+        // burst of 3 per newly engraved char; 200 ms lifetime.
+        assert_eq!(ENGRAVE_SPARK_POOL_SIZE, 48);
+        assert_eq!(ENGRAVE_SPARKS_PER_HEAD, 3);
+        assert!((ENGRAVE_SPARK_LIFETIME_SECS - 0.20).abs() < 1e-6);
     }
 }
