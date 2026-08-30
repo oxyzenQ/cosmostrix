@@ -9,6 +9,14 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Shortkey audit: exhaustive no-op lock for every non-active key (Z-master-1B)
+
+- Owner mandate: verify only existing shortkeys have effects — a user pressing `a` (old-version async-toggle muscle memory) must see NO effect. Source code = truth: the active keymap is exactly `q`, `Space`, `c`/`C`, `s`/`S`, `p`, `x`/`X`, `Up`/`Down`, `[`/`]` (all in `handle_keybinding`) plus `i` (HUD, dispatched in the event loop) and `q`/`Q` (intro skip only). Every other key hits the `_ => {}` catch-all.
+- **New exhaustive test suite** `src/interactive/tests_v51_shortkey_noop.rs` (+7 tests): the owner's exact `a` scenario; every non-active letter a–z/A–Z; digits; punctuation; the removed density aliases (`-`/`_`/`+`/`=`); non-active special keys (Tab, BackTab, Enter, Backspace, Delete, Insert, Home, End, PageUp/PageDown, Left/Right, Esc, F1/F5/F12) — each asserted as a COMPLETE no-op (no redraw, no change to color scheme / charset / scene / density / speed / pause / raining / async_mode).
+- **Positive controls** in the same suite verify every ACTIVE key still has its documented effect — including the convention that only `p` returns `true` from `handle_keybinding` (the other active keys signal redraw via internal force-draw flags, which the controls assert via `is_force_draw_everything()`).
+- **`i` dispatch split documented + locked**: `i` is a no-op at the `handle_keybinding` level (the HUD toggle lives in the event loop, gated by `hud_toggle_accepted` — see the pause-isolation entry above); the test documents the split so future refactors do not silently double-bind it.
+- **Docs**: docs/RULES.md keybind policy gains the exhaustive no-op lock entry (what is covered, where the test lives, the redraw-convention note).
+
 ### "Did you mean?" audit: every CLI value surface now suggests on typos (Z-master-1B)
 
 - Owner mandate: all existing CLI flags/values must use the suggestion system. Systematic audit of every flag + value surface found FIVE gaps where a typo produced a bare "unknown X / use --list-Y" dead end with no suggestion, while colors and long flags already suggested:

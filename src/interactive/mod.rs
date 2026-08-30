@@ -87,6 +87,13 @@ mod v50_kitty_shift;
 #[path = "tests_v51_intro_brand_pause.rs"]
 mod v51_intro_brand_pause;
 
+// v51 Z-master-1B: exhaustive shortkey no-op lock — every key outside
+// the documented active set must be a complete no-op ('a', 'h', Tab,
+// removed density aliases, digits, punctuation, F-keys, ...).
+#[cfg(test)]
+#[path = "tests_v51_shortkey_noop.rs"]
+mod v51_shortkey_noop;
+
 #[cfg(test)]
 mod tests_v35;
 
