@@ -88,25 +88,30 @@ impl super::HudState {
                 // ── Health / pressure (rows 6-7) ──
                 (Color::Yellow, String::new()), // 6: ehs
                 (Color::Yellow, String::new()), // 7: prs
-                // ── User-adjustable live controls (rows 8-12) ──
-                (Color::Magenta, String::new()), // 8: sped
-                (Color::Magenta, String::new()), // 9: dsty
-                (Color::Cyan, String::new()),    // 10: scn
-                (Color::Cyan, String::new()),    // 11: chr
-                (Color::Cyan, String::new()),    // 12: clr
-                // ── Session / diagnostic / build identity (rows 13-16) ──
-                (Color::DarkCyan, String::new()), // 13: up
-                (Color::DarkCyan, String::new()), // 14: screensize
-                (Color::DarkCyan, String::new()), // 15: prdr
-                (Color::DarkCyan, String::new()), // 16: crdr
-                // v50.0.0-beta.7 Option C expansion (rows 17-20).
-                (Color::DarkCyan, String::new()), // 17: ambt — ambient on/off
-                (Color::DarkCyan, String::new()), // 18: glth — glitch level
-                (Color::DarkCyan, String::new()), // 19: ctun — color tuning default/custom
-                (Color::DarkCyan, String::new()), // 20: mnst — monolith size
+                // ── Identity lines (rows 8-10) — v51 reorder: moved up
+                //    above the user-adjustable controls ──
+                (Color::Cyan, String::new()), // 8: scn
+                (Color::Cyan, String::new()), // 9: chr
+                (Color::Cyan, String::new()), // 10: clr
+                // ── User-adjustable live controls (rows 11-12) ──
+                (Color::Magenta, String::new()), // 11: sped
+                (Color::Magenta, String::new()), // 12: dsty
+                // ── Dragon + tuning state (rows 13-18) — v51 reorder:
+                //    was rows 15-20 ──
+                (Color::DarkCyan, String::new()), // 13: prdr
+                (Color::DarkCyan, String::new()), // 14: crdr
+                (Color::DarkCyan, String::new()), // 15: ambt
+                (Color::DarkCyan, String::new()), // 16: glth
+                (Color::DarkCyan, String::new()), // 17: ctun
+                (Color::DarkCyan, String::new()), // 18: mnst
                 // cid line — commit short SHA, static for the entire process
-                // lifetime. Row 21 (owner-mandated bottom row).
+                // lifetime. Row 19 (v51 reorder: moved up from the last row
+                // so the session footer — up + screensize — closes the
+                // dashboard instead).
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
+                // ── Session footer (rows 20-21) ──
+                (Color::DarkCyan, String::new()), // 20: up
+                (Color::DarkCyan, String::new()), // 21: screensize
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,

@@ -9,6 +9,15 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### HUD metrics reorder: v51 owner-mandated row order (Z-master-1B)
+
+- **Owner mandate** ("reorder/tidying HUD metrics new, correct like this below"): the 22-row HUD now reads fps / tgt / max / p99 / cpu / rss / ehs / prs / **scn / chr / clr** / **sped / dsty** / prdr / crdr / ambt / glth / ctun / mnst / **cid / up / screensize** (bold = moved). Previously the order was ...ehs / prs / sped / dsty / scn / chr / clr / up / screensize / prdr / crdr / ambt / glth / ctun / mnst / cid.
+- **What moved and why it reads better**: the identity lines (scene / charset / color) now sit directly under the health pair — what am I looking at, then how is it doing; the user-adjustable controls (speed / density) follow; the dragon + tuning state (prdr / crdr / ambt / glth / ctun / mnst) rides the bright head band; and the session footer (cid → up → screensize) closes the dashboard — the build identity keeps a prominent position while the terminal size becomes the visual anchor at the very bottom.
+- **Code**: pure row remap in `hud/metrics.rs` (1 Hz tick) + `hud/hud_init.rs` (init array + static cid row 21 → 19); the positional chroma gradient is untouched (row i samples t = i/21 — content moves between stops, the sweep shape does not). Commented row references refreshed across `hud/mod.rs` (module doc, setter docs, the rain-gradient layout diagram), `hud/colors.rs` (stop-count history, "row 17 cid" → v51 layout), `event_loop_hud.rs`.
+- **Tests**: all HUD row assertions remapped (tests.rs, tests_chroma_metrics.rs, tests_dragon_indicators.rs, tests_pause_freeze.rs); the layout regression guard now locks the full 22-row v51 order (renamed from the Option S era); the cid-exclusivity loop now skips row 19 instead of iterating past row 21.
+- **E2E**: new `scripts/hud_order_e2e.py` PTY harness spawns the real binary, toggles the HUD, and asserts the exact 22-label screen order — PASS (also caught the harness lesson: a fresh PTY is 1x1, winsize must be set via ioctl before the app measures, else the intro is skipped for "terminal too small").
+- **Docs**: `docs/HUD.md` fully resynced — Quick Reference table now documents all 22 rows (prdr/crdr/ambt/glth/ctun/mnst rows were previously missing entirely), the annotated mockup, the per-line section order (cid before up/screensize), the color-scheme table, and the v51 reorder note; `docs/RELEASE_CANDIDATE.md` HUD smoke checklist updated to the 22-row v51 layout (was stale at "16 rows, v50 layout").
+
 ### crates.io categories: science + rendering (Z-master-1B)
 
 - **Owner mandate**: add the missing categories "science" and "cinematic or masterpiece". Validated against the live registry API (58 official slugs as of 2026-08-31): `science` is a valid slug; `cinematic` and `masterpiece` are NOT — crates.io only accepts slugs from the official category list, so an invalid one fails `cargo publish` server-side.

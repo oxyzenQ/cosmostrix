@@ -28,23 +28,21 @@
 //!   drift, live-config reload) is reflected on the very next frame, with
 //!   no perceptible delay. The 1 Hz rate limit only governs text
 //!   reformatting (p99 sort, format! calls, RSS string).
-//! - **Rain-aesthetic color gradient**: the HUD's 16 lines form a vertical
+//! - **Rain-aesthetic color gradient**: the HUD's 22 lines form a vertical
 //!   brightness gradient that mirrors a falling rain droplet — the bottom
-//!   line (cid) is the brightest `head` (palette last-stop, the rain's
-//!   leading bright character), the top line (fps) is the dimmest `tail`
-//!   (palette index 1, the rain's trailing fade). Mid lines span `trail`
-//!   and `mid` so the eye reads the HUD as a small rain column hanging in
-//!   the corner, not as a flat block of text. This inverts the original
-//!   mapping where `fps`/`tgt`/`max` were the brightest — the user
-//!   explicitly flagged the inversion: 'rain tail is dim head is white'
-//!   (head leads at the bottom of a falling stream).
-//! - **v50 (2026-08-17) HUD expansion**: rows 9-15 are reserved for the 7
-//!   owner-mandated metrics (scene / color / density / speed / endurance-
-//!   health-score / effective-pressure / charset). The structural bump
-//!   (array 9 -> 16 + chroma gradient 9-stop -> 16-stop) lands as a
-//!   no-behavior-change micro-commit — `write_to_frame` skips empty-text
-//!   rows so the 7 reserved entries render nothing until populated by the
-//!   follow-up data-plumbing commit.
+//!   line (screensize, the terminal-size anchor) is the brightest `head`
+//!   (palette last-stop, the rain's leading bright character), the top
+//!   line (fps) is the dimmest `tail` (palette index 1, the rain's
+//!   trailing fade). Mid lines span `trail` and `mid` so the eye reads
+//!   the HUD as a small rain column hanging in the corner, not as a
+//!   flat block of text. This inverts the original mapping where
+//!   `fps`/`tgt`/`max` were the brightest — the user explicitly flagged
+//!   the inversion: 'rain tail is dim head is white' (head leads at the
+//!   bottom of a falling stream).
+//! - **v51 row order (owner reorder mandate 2026-08-31)**: fps / tgt /
+//!   max / p99 / cpu / rss / ehs / prs / scn / chr / clr / sped / dsty /
+//!   prdr / crdr / ambt / glth / ctun / mnst / cid / up / screensize —
+//!   identity lines above the controls, session footer at the bottom.
 //! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 
@@ -176,7 +174,8 @@ pub(crate) struct HudState {
     // All fed by setters called from the event loop whenever the value
     // changes (key press, scene cycle, color cycle, config reload) or
     // sampled every frame at 1 Hz (effective_pressure, ehs). The text
-    // is rendered into cached_lines[6..=12] on the 1 Hz metric tick.
+    // is rendered into cached_lines[6..=12] on the 1 Hz metric tick
+    // (v51 order: ehs/prs rows 6-7, scn/chr/clr rows 8-10, sped/dsty rows 11-12).
     /// Active scene name (e.g. "cinematic", "matrix", custom). Drives
     /// the `scn:` HUD line so the owner sees confirmation when cycling
     /// scenes with `x` — previously the user had to guess from visuals.
@@ -223,12 +222,12 @@ pub(crate) struct HudState {
     // HUD immediately shows the new state on the next 1 Hz metric tick.
     /// Power Dragon on/off. When false, aggressive_throttle + idle FPS
     /// reduction are disabled (owner Option D). Drives the `prdr:` HUD
-    /// line (row 15) so the owner can verify the live-reloaded state
+    /// line (row 13) so the owner can verify the live-reloaded state
     /// without quitting cosmostrix. Default: true (protection enabled).
     power_dragon_on: bool,
     /// Crystal Dragon on/off. When true, the palette drifts through the
     /// configured color range over time (ambient color morphing). Drives
-    /// the `crdr:` HUD line (row 16) so the owner can verify the live-
+    /// the `crdr:` HUD line (row 14) so the owner can verify the live-
     /// reloaded state. Default: false (drift off — palette is static).
     crystal_dragon_on: bool,
     /// v50.0.0-beta.6 Option D: aggressive-throttle flag (mirrors
@@ -257,15 +256,12 @@ pub(crate) struct HudState {
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
-    /// 22 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
-    /// dsty / scn / chr / clr / up / screensize / prdr / crdr / ambt /
-    /// glth / ctun / mnst / cid.
-    /// Rows 0-16 are the v50 layout. Rows 17-20 are the v50.0.0-beta.7
-    /// Option C expansion (ambt, glth, ctun, mnst). Row 21 is the cid
-    /// line (commit short SHA, static for the entire process lifetime —
-    /// owner-mandated bottom row). The cid line is static (compile-time
-    /// git SHA injected by build.rs via `COSMOSTRIX_GIT_SHA`), so its
-    /// text is set once in `new()` and only its color is refreshed by
+    /// 22 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
+    /// chr / clr / sped / dsty / prdr / crdr / ambt / glth / ctun /
+    /// mnst / cid / up / screensize (v51 owner reorder mandate
+    /// 2026-08-31). The cid line is static (compile-time git SHA
+    /// injected by build.rs via `COSMOSTRIX_GIT_SHA`) at row 19, set
+    /// once in `new()`; only its color is refreshed by
     /// `refresh_colors` every frame.
     cached_lines: [(Color, String); 22],
     /// Current dynamic HUD width (in terminal columns). Recomputed
@@ -467,7 +463,7 @@ impl HudState {
     // cheap (one field write, no format! call) so the event loop can call
     // them on every frame without measurable cost.
 
-    /// Set the active scene name. Drives the `scn:` HUD line (row 10) for
+    /// Set the active scene name. Drives the `scn:` HUD line (row 8) for
     /// `x` cycle confirmation. Called by event_loop on init and whenever
     /// the user cycles scenes.
     ///
@@ -482,7 +478,7 @@ impl HudState {
             .extend(name.chars().take(SCENE_NAME_MAX_CHARS));
     }
 
-    /// Set the active color scheme. Drives the `clr:` HUD line (row 12)
+    /// Set the active color scheme. Drives the `clr:` HUD line (row 10)
     /// for `c` / `C` cycle confirmation. Called by event_loop on init and
     /// whenever the user cycles colors. Rendered via Debug format (matches
     /// `verbose.rs` convention — e.g. `NeonGreen`, `FancyDiamond`).
@@ -500,7 +496,7 @@ impl HudState {
     }
 
     /// Set the active charset preset name. Drives the `chr:` HUD line
-    /// (row 11) for `s` / `S` cycle confirmation. Called by event_loop on
+    /// (row 9) for `s` / `S` cycle confirmation. Called by event_loop on
     /// init and whenever the user cycles charsets.
     ///
     /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
@@ -515,7 +511,7 @@ impl HudState {
     }
 
     /// Set the current droplet density multiplier. Drives the `dsty:` HUD
-    /// line (row 9) for `[` / `]` adjustment feedback. Called by event_loop
+    /// line (row 12) for `[` / `]` adjustment feedback. Called by event_loop
     /// on init and whenever the user adjusts density or live-config reloads.
     /// Owner explicitly mandated the `dsty` label (NOT `den`).
     ///
@@ -532,7 +528,7 @@ impl HudState {
     }
 
     /// Set the current chars-per-second speed. Drives the `sped:` HUD line
-    /// (row 8) for `↑` / `↓` adjustment feedback. Called by event_loop on
+    /// (row 11) for `↑` / `↓` adjustment feedback. Called by event_loop on
     /// init and whenever the user adjusts speed or live-config reloads.
     ///
     /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or negative
@@ -593,7 +589,7 @@ impl HudState {
     }
 
     /// Set the power-dragon on/off state. Drives the `prdr:` HUD line
-    /// (row 15) so the owner can verify the live-reloaded state without
+    /// (row 13) so the owner can verify the live-reloaded state without
     /// quitting cosmostrix. Called by event_loop every frame with
     /// `cfg.power_dragon` — when the user edits `power_dragon = false`
     /// in config.toml and live-reload applies it, the HUD reflects the
@@ -609,7 +605,7 @@ impl HudState {
     }
 
     /// Set the crystal-dragon on/off state. Drives the `crdr:` HUD line
-    /// (row 16) so the owner can verify the live-reloaded state. Called
+    /// (row 14) so the owner can verify the live-reloaded state. Called
     /// by event_loop every frame with `cfg.crystal_dragon` — when the
     /// user edits `crystal_dragon = true` in config.toml and live-reload
     /// applies it, the HUD reflects the new state. Renders as `crdr: on`
@@ -695,28 +691,28 @@ impl HudState {
     ///   row 5   rss           ← mid
     ///   row 6   ehs           ← mid      (endurance health score)
     ///   row 7   prs           ← trail    (effective pressure)
-    ///   row 8   sped          ← mid      (chars/sec speed)
-    ///   row 9   dsty          ← mid      (density multiplier)
-    ///   row 10  scn           ← mid      (scene name)
-    ///   row 11  chr           ← mid      (charset preset)
-    ///   row 12  clr           ← mid      (color scheme)
-    ///   row 13  up            ← head     (palette last stop, brightest)
-    ///   row 14  screensize    ← head     (rain head — leading white)
-    ///   row 15  prdr          ← head     (NEW: power-dragon on/off)
-    ///   row 16  crdr          ← head     (NEW: crystal-dragon on/off)
-    ///   row 17  cid           ← head     (build identity — same head stop)
+    ///   row 8   scn           ← mid      (scene name — v51 reorder)
+    ///   row 9   chr           ← mid      (charset preset — v51 reorder)
+    ///   row 10  clr           ← mid      (color scheme — v51 reorder)
+    ///   row 11  sped          ← mid      (chars/sec speed — v51 reorder)
+    ///   row 12  dsty          ← mid      (density multiplier — v51 reorder)
+    ///   row 13  prdr          ← head     (power-dragon on/off — v51 reorder)
+    ///   row 14  crdr          ← head     (crystal-dragon on/off — v51 reorder)
+    ///   row 15  ambt          ← head     (ambient on/off — v51 reorder)
+    ///   row 16  glth          ← head     (glitch level — v51 reorder)
+    ///   row 17  ctun          ← head     (color tuning — v51 reorder)
+    ///   row 18  mnst          ← head     (monolith size — v51 reorder)
+    ///   row 19  cid           ← head     (build identity — v51 reorder)
+    ///   row 20  up            ← head     (session uptime — v51 reorder)
+    ///   row 21  screensize    ← head     (rain head — leading white)
     /// ```
     ///
-    /// v50.0.0-beta.6 HUD expansion: rows 15-16 are the 2 new owner-mandated
-    /// dragon on/off indicators (prdr / crdr) inserted above cid. Cid moved
-    /// from row 15 to row 17 (still owner-mandated bottom row — "cid
-    /// indicator keep last position metrics"). The chroma gradient sweeps
-    /// continuously from palette[0] (dim tail) at the top to palette[n-1]
-    /// (bright head) at the bottom. The cid line shares the head stop with
-    /// screensize/prdr/crdr so the build identity is the most prominent
-    /// entry — the owner needs to read the commit hash without quitting
-    /// cosmostrix, so it earns the brightest position alongside the screen
-    /// size and dragon indicators.
+    /// v51 reorder (owner mandate 2026-08-31): identity lines (scn/chr/
+    /// clr) moved up next to the health pair, user-adjustable controls
+    /// (sped/dsty) follow them, dragon + tuning state rides the bright
+    /// head band, and the session footer (cid → up → screensize) closes
+    /// the dashboard — cid keeps a head-band position (row 19), the
+    /// terminal size stays the visual anchor at the bottom (row 21).
     ///
     /// This inverts the original mapping (where `fps`/`tgt`/`max` were
     /// brightest at the TOP). The owner explicitly flagged the inversion:

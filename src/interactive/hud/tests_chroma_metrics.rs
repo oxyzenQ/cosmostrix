@@ -261,7 +261,7 @@ fn hud_set_chars_per_sec_clamps_nan_and_negative() {
     // NaN → 0
     h.set_chars_per_sec(f32::NAN);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[8];
+    let (_, line) = &h.cached_lines[11];
     assert_eq!(line, " sped: 0.0", "NaN sped must render as 0.0");
 
     // +Inf → 0
@@ -270,7 +270,7 @@ fn hud_set_chars_per_sec_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[8];
+    let (_, line) = &h.cached_lines[11];
     assert_eq!(line, " sped: 0.0", "+Inf sped must render as 0.0");
 
     // -Inf → 0
@@ -279,7 +279,7 @@ fn hud_set_chars_per_sec_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[8];
+    let (_, line) = &h.cached_lines[11];
     assert_eq!(line, " sped: 0.0", "-Inf sped must render as 0.0");
 
     // Negative → 0
@@ -288,7 +288,7 @@ fn hud_set_chars_per_sec_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[8];
+    let (_, line) = &h.cached_lines[11];
     assert_eq!(line, " sped: 0.0", "negative sped must clamp to 0.0");
 }
 
@@ -311,7 +311,7 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
     // NaN → 0
     h.set_droplet_density(f32::NAN);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[9];
+    let (_, line) = &h.cached_lines[12];
     assert_eq!(line, " dsty: 0.00", "NaN dsty must render as 0.00");
 
     // +Inf → 0
@@ -320,7 +320,7 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[9];
+    let (_, line) = &h.cached_lines[12];
     assert_eq!(line, " dsty: 0.00", "+Inf dsty must render as 0.00");
 
     // -Inf → 0
@@ -329,7 +329,7 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[9];
+    let (_, line) = &h.cached_lines[12];
     assert_eq!(line, " dsty: 0.00", "-Inf dsty must render as 0.00");
 
     // Negative → 0
@@ -338,7 +338,7 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
     h.update_metrics(&palette);
-    let (_, line) = &h.cached_lines[9];
+    let (_, line) = &h.cached_lines[12];
     assert_eq!(line, " dsty: 0.00", "negative dsty must clamp to 0.00");
 }
 
@@ -364,7 +364,7 @@ fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
     let long_name = "abcdefghijklmnopqrstuvwxyz1234"; // 30 chars
     h.set_scene_name(long_name);
     h.update_metrics(&palette);
-    let (_, scn_line) = &h.cached_lines[10];
+    let (_, scn_line) = &h.cached_lines[8];
     assert_eq!(
         scn_line, " scn: abcdefghijklmn",
         "scn line must truncate to first 14 chars of long scene name"
@@ -382,7 +382,7 @@ fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
         .unwrap_or_else(Instant::now);
     h.set_charset_preset(long_preset);
     h.update_metrics(&palette);
-    let (_, chr_line) = &h.cached_lines[11];
+    let (_, chr_line) = &h.cached_lines[9];
     assert_eq!(
         chr_line, " chr: PRESET01234567",
         "chr line must truncate to first 14 chars of long charset preset"
@@ -436,8 +436,8 @@ fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
     assert_eq!(prs_line, " prs: 0.12", "row 7 (prs) content mismatch");
 
     // Row 8 — sped: 1 decimal
-    let (_, sped_line) = &h.cached_lines[8];
-    assert_eq!(sped_line, " sped: 14.0", "row 8 (sped) content mismatch");
+    let (_, sped_line) = &h.cached_lines[11];
+    assert_eq!(sped_line, " sped: 14.0", "row 11 (sped) content mismatch");
 
     // Row 9 — dsty: 2 decimals. Owner mandated `dsty` (NOT `den`).
     // v50.0.0-beta.6 Option D: dsty is now DYNAMIC when power-dragon is ON.
@@ -446,27 +446,27 @@ fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
     //        = 1.0 * (1 - 0.75*0.123).clamp(0.25, 1.0)
     //        = 1.0 * 0.90775
     //        = 0.91 (rounded to 2 decimals)
-    let (_, dsty_line) = &h.cached_lines[9];
+    let (_, dsty_line) = &h.cached_lines[12];
     assert!(
         dsty_line.starts_with(" dsty: "),
-        "row 9 must start with ' dsty: ', got: {dsty_line:?}"
+        "row 12 must start with ' dsty: ', got: {dsty_line:?}"
     );
     assert_eq!(
         dsty_line, " dsty: 0.91",
-        "row 9 (dsty) content mismatch — dynamic throttle"
+        "row 12 (dsty) content mismatch — dynamic throttle"
     );
 
     // Row 10 — scn: scene name string
-    let (_, scn_line) = &h.cached_lines[10];
-    assert_eq!(scn_line, " scn: cinematic", "row 10 (scn) content mismatch");
+    let (_, scn_line) = &h.cached_lines[8];
+    assert_eq!(scn_line, " scn: cinematic", "row 8 (scn) content mismatch");
 
     // Row 11 — chr: charset preset string
-    let (_, chr_line) = &h.cached_lines[11];
-    assert_eq!(chr_line, " chr: binary", "row 11 (chr) content mismatch");
+    let (_, chr_line) = &h.cached_lines[9];
+    assert_eq!(chr_line, " chr: binary", "row 9 (chr) content mismatch");
 
     // Row 12 — clr: Debug format of ColorScheme
-    let (_, clr_line) = &h.cached_lines[12];
-    assert_eq!(clr_line, " clr: NeonGreen", "row 12 (clr) content mismatch");
+    let (_, clr_line) = &h.cached_lines[10];
+    assert_eq!(clr_line, " clr: NeonGreen", "row 10 (clr) content mismatch");
 }
 
 #[test]
@@ -487,7 +487,7 @@ fn hud_density_label_is_dsty_not_den() {
         16
     ];
     h.update_metrics(&palette);
-    let (_, dsty_line) = &h.cached_lines[9];
+    let (_, dsty_line) = &h.cached_lines[12];
     assert!(
         dsty_line.starts_with(" dsty: "),
         "density label must be ' dsty: ' (NOT ' den: ' per owner mandate), got: {dsty_line:?}"
@@ -584,45 +584,51 @@ fn hud_endurance_health_score_rounds_to_integer() {
 }
 
 #[test]
-fn hud_final_layout_positions_match_owner_option_s() {
-    // Regression guard for the v50 (2026-08-17) HUD expansion final
-    // layout per owner's Option S mandate. Locks in the position of
-    // every row so a future reorder would fail loudly. The owner
-    // explicitly required: cid at the very bottom, screensize kept,
-    // density label = `dsty` (NOT `den`), the 7 new metrics merged in.
+fn hud_final_layout_positions_match_v51_owner_reorder() {
+    // Regression guard for the row layout. Locks in the position of
+    // every row so a future reorder would fail loudly.
     //
-    // Layout (16 rows):
+    // Layout (22 rows, v51 owner reorder mandate 2026-08-31):
     //   0   fps
     //   1   tgt
     //   2   max
     //   3   p99
     //   4   cpu
     //   5   rss
-    //   6   ehs    (NEW)
-    //   7   prs    (NEW)
-    //   8   sped   (NEW)
-    //   9   dsty   (NEW)
-    //   10  scn    (NEW)
-    //   11  chr    (NEW)
-    //   12  clr    (NEW)
-    //   13  up
-    //   14  screensize
-    //   15  cid    (owner-mandated bottom)
+    //   6   ehs
+    //   7   prs
+    //   8   scn    (v51: moved up — identity lines)
+    //   9   chr    (v51: moved up)
+    //   10  clr    (v51: moved up)
+    //   11  sped   (v51: moved down — user controls after identity)
+    //   12  dsty   (v51: moved down)
+    //   13  prdr
+    //   14  crdr
+    //   15  ambt
+    //   16  glth
+    //   17  ctun
+    //   18  mnst
+    //   19  cid    (v51: above the session footer)
+    //   20  up
+    //   21  screensize (visual anchor at the bottom)
     let h = HudState::new();
     // Row 0-5: performance core (active content set by update_metrics).
     // For this test we only assert on the static label structure of
-    // the cid line (row 15) — the dynamic lines are tested above.
-    let (_, cid_line) = &h.cached_lines[21];
+    // the cid line (row 19, v51 reorder) — the dynamic lines are tested above.
+    let (_, cid_line) = &h.cached_lines[19];
     assert!(
         cid_line.starts_with(" cid: "),
-        "row 21 must be the cid line per owner Option S mandate, got: {cid_line:?}"
+        "row 19 must be the cid line (v51 reorder: above the session footer), got: {cid_line:?}"
     );
-    // The 14 rows above cid (rows 0-14) must NOT contain the cid prefix
-    // — the cid line is static and lives only at row 15.
-    for (i, (_, text)) in h.cached_lines.iter().enumerate().take(21) {
+    // Every OTHER row must NOT contain the cid prefix — the cid line is
+    // static and lives only at row 19.
+    for (i, (_, text)) in h.cached_lines.iter().enumerate() {
+        if i == 19 {
+            continue;
+        }
         assert!(
             !text.starts_with(" cid: "),
-            "row {i} must NOT contain the cid prefix — cid is exclusive to row 21, got: {text:?}"
+            "row {i} must NOT contain the cid prefix — cid is exclusive to row 19, got: {text:?}"
         );
     }
 }

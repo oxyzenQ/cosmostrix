@@ -5,10 +5,20 @@
 //! under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
 //! Owns `HudState::update_metrics()` — the 1 Hz metric recompute that
-//! refreshes all HUD text fields (fps, target_fps, rss, cpu%, p99, dirty
-//! cells, vmode, mode, scene, color, density, speed, ehs, dsty, charset,
-//! cid, screensize, build) + recomputes the chroma gradient + resizes
-//! the cached_lines buffer to fit the new content width.
+//! refreshes all HUD text fields (fps, tgt, max, p99, cpu, rss, ehs,
+//! prs, scn, chr, clr, sped, dsty, prdr, crdr, ambt, glth, ctun,
+//! mnst, up, screensize — cid is static, set once in `new()` at row
+//! 19) + recomputes the chroma gradient + resizes the cached_lines
+//! buffer to fit the new content width.
+//!
+//! v51 row order (owner mandate 2026-08-31, "reorder/tidying HUD
+//! metrics"): identity/scene lines moved up next to the health core
+//! (scn/chr/clr at rows 8-10, before the user-adjustable sped/dsty at
+//! 11-12), dragon + tuning state follows (prdr/crdr/ambt/glth/ctun/
+//! mnst at rows 13-18), and the session footer closes the dashboard
+//! (cid 19, up 20, screensize 21 — the build identity keeps a
+//! prominent position and the terminal size stays the visual anchor
+//! at the bottom).
 //!
 //! Also owns `HudState::set_metrics_paused()` — the v51 pause-freeze
 //! contract (owner bug fix 2026-08-30): while the rain is paused (or
@@ -187,12 +197,19 @@ impl HudState {
         };
         self.cached_lines[4] = (colors[4], format!(" cpu: {cpu_str}"));
         self.cached_lines[5] = (colors[5], format!(" rss: {rss_str}"));
-        // v50 (2026-08-17) HUD expansion — populate the 7 new owner-mandated
-        // metrics at rows 6-12. All values come from HudState fields that
-        // are written by the corresponding setters (called by event_loop).
-        // The text is rebuilt here at the 1 Hz tick so number flicker is
-        // avoided (matches the fps/p99/max/rss cadence). Color refresh is
-        // handled separately by `refresh_colors` every frame.
+        // v50 (2026-08-17) HUD expansion → v51 reorder (owner mandate
+        // 2026-08-31): populate the metric rows in the owner's new
+        // order — after the health pair (ehs/prs, rows 6-7) come the
+        // identity lines (scn/chr/clr, rows 8-10), then the
+        // user-adjustable controls (sped/dsty, rows 11-12), then the
+        // dragon + tuning state (prdr/crdr/ambt/glth/ctun/mnst, rows
+        // 13-18), then the session footer (cid 19 static, up 20,
+        // screensize 21). All values come from HudState fields that
+        // are written by the corresponding setters (called by
+        // event_loop). The text is rebuilt here at the 1 Hz tick so
+        // number flicker is avoided (matches the fps/p99/max/rss
+        // cadence). Color refresh is handled separately by
+        // `refresh_colors` every frame.
         //
         // ehs (Endurance Health Score): 0-100 integer. Shows long-endurance
         // process stability. 100 = perfectly stable, <50 = degraded.
@@ -202,9 +219,31 @@ impl HudState {
         // + sim factor + self-healer. 0.0 = no pressure, 1.0 = max throttle.
         let prs_clamped = self.effective_pressure.clamp(0.0, 1.0);
         self.cached_lines[7] = (colors[7], format!(" prs: {prs_clamped:.2}"));
+        // scn (scene name): string, no format. User cycles via `x`.
+        // v51: moved up to row 8 — identity lines sit directly under the
+        // health core (owner reorder mandate).
+        self.cached_lines[8] = (colors[8], format!(" scn: {}", self.scene_name));
+        // chr (charset preset): string, no format. User cycles via `s`/`S`.
+        self.cached_lines[9] = (colors[9], format!(" chr: {}", self.charset_preset));
+        // clr (color scheme): show custom palette name when active, otherwise
+        // the builtin ColorScheme Debug format. This fixes the bug where
+        // --colors-custom cyberpunk_2077 showed "clr: EnergyZen" (the
+        // underlying builtin scheme) instead of the custom palette name.
+        //
+        // v50.0.0-beta.6 LTS audit: eliminated the intermediate clr_label
+        // String clone. Previously: name.clone() -> format!(" clr: {clr_label}")
+        // = 2 allocations per tick. Now: single format!() call that borrows
+        // the name directly = 1 allocation per tick.
+        let clr_line = match &self.custom_palette_name {
+            Some(name) => format!(" clr: {name}"),
+            None => format!(" clr: {:?}", self.color_scheme),
+        };
+        self.cached_lines[10] = (colors[10], clr_line);
         // sped (chars-per-sec speed): 1 decimal. User adjusts via ↑/↓.
+        // v51: moved down to row 11 — user-adjustable controls now follow
+        // the identity lines (owner reorder mandate).
         let sped_val = self.chars_per_sec;
-        self.cached_lines[8] = (colors[8], format!(" sped: {sped_val:.1}"));
+        self.cached_lines[11] = (colors[11], format!(" sped: {sped_val:.1}"));
         // dsty (droplet density multiplier): 2 decimals. User adjusts via
         // [/]. Owner explicitly mandated `dsty` label (NOT `den`).
         //
@@ -227,35 +266,8 @@ impl HudState {
         } else {
             self.droplet_density
         };
-        self.cached_lines[9] = (colors[9], format!(" dsty: {dsty_val:.2}"));
-        // scn (scene name): string, no format. User cycles via `x`.
-        self.cached_lines[10] = (colors[10], format!(" scn: {}", self.scene_name));
-        // chr (charset preset): string, no format. User cycles via `s`/`S`.
-        self.cached_lines[11] = (colors[11], format!(" chr: {}", self.charset_preset));
-        // clr (color scheme): show custom palette name when active, otherwise
-        // the builtin ColorScheme Debug format. This fixes the bug where
-        // --colors-custom cyberpunk_2077 showed "clr: EnergyZen" (the
-        // underlying builtin scheme) instead of the custom palette name.
-        //
-        // v50.0.0-beta.6 LTS audit: eliminated the intermediate clr_label
-        // String clone. Previously: name.clone() -> format!(" clr: {clr_label}")
-        // = 2 allocations per tick. Now: single format!() call that borrows
-        // the name directly = 1 allocation per tick.
-        let clr_line = match &self.custom_palette_name {
-            Some(name) => format!(" clr: {name}"),
-            None => format!(" clr: {:?}", self.color_scheme),
-        };
-        self.cached_lines[12] = (colors[12], clr_line);
-        // v50 (2026-08-17) HUD expansion reorder: up/screensize/cid moved
-        // from rows 6/7/8 to rows 13/14/15 per owner's Option S mandate.
-        // cid stays static (set in `new()`); only up + screensize are
-        // rewritten here on the 1 Hz tick (uptime changes every second,
-        // screensize changes only on terminal resize).
-        self.cached_lines[13] = (colors[13], format!(" up: {uptime_str}"));
-        let (sw, sh, is_fixed) = self.screen_size;
-        let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[14] = (colors[14], format!(" {sw}x{sh} {mode}"));
-        // v50.0.0-beta.6: dragon on/off indicators at rows 15-16. These
+        self.cached_lines[12] = (colors[12], format!(" dsty: {dsty_val:.2}"));
+        // v50.0.0-beta.6: dragon on/off indicators. These
         // reflect the LIVE runtime state (set by set_power_dragon /
         // set_crystal_dragon, called every frame from event_loop with
         // cfg.power_dragon / cfg.crystal_dragon). When the user
@@ -263,15 +275,17 @@ impl HudState {
         // next 1 Hz tick. Renders as " prdr: on" / " prdr: off" and
         // " crdr: on" / " crdr: off" (lowercase to match the existing
         // HUD label convention: fps/tgt/max/p99/cpu/rss/ehs/prs/etc).
+        // v51 reorder: rows 13-14 (were 15-16).
         let prdr_val = if self.power_dragon_on { "on" } else { "off" };
-        self.cached_lines[15] = (colors[15], format!(" prdr: {prdr_val}"));
+        self.cached_lines[13] = (colors[13], format!(" prdr: {prdr_val}"));
         let crdr_val = if self.crystal_dragon_on { "on" } else { "off" };
-        self.cached_lines[16] = (colors[16], format!(" crdr: {crdr_val}"));
+        self.cached_lines[14] = (colors[14], format!(" crdr: {crdr_val}"));
 
         // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
+        // v51 reorder: rows 15-18 (were 17-20).
         // ambt: ambient on/off (auto-detected from config.toml ambient.HH-MM entries).
         let ambt_val = if self.ambient_on { "on" } else { "off" };
-        self.cached_lines[17] = (colors[17], format!(" ambt: {ambt_val}"));
+        self.cached_lines[15] = (colors[15], format!(" ambt: {ambt_val}"));
         // glth: glitch level (none/subtle/default/intense).
         let glth_val = match self.glitch_level {
             crate::config::GlitchLevel::None => "none",
@@ -279,14 +293,14 @@ impl HudState {
             crate::config::GlitchLevel::Default => "default",
             crate::config::GlitchLevel::Intense => "intense",
         };
-        self.cached_lines[18] = (colors[18], format!(" glth: {glth_val}"));
+        self.cached_lines[16] = (colors[16], format!(" glth: {glth_val}"));
         // ctun: color tuning default/custom (custom when any field ≠ 1.0).
         let ctun_val = if self.color_tune_custom {
             "custom"
         } else {
             "default"
         };
-        self.cached_lines[19] = (colors[19], format!(" ctun: {ctun_val}"));
+        self.cached_lines[17] = (colors[17], format!(" ctun: {ctun_val}"));
         // mnst: monolith size (small/normal/large) or "unknown" for
         // non-monolith scenes.
         let mnst_val = match self.monolith_size {
@@ -295,10 +309,22 @@ impl HudState {
             Some(crate::runtime::MonolithSize::Large) => "large",
             None => "unknown",
         };
-        self.cached_lines[20] = (colors[20], format!(" mnst: {mnst_val}"));
+        self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
-        // cid (row 21) is static — set once in new(), never rewritten
+        // cid (row 19) is static — set once in new(), never rewritten
         // here. Only its color is refreshed by refresh_colors every frame.
+        // v51 reorder: cid moved from the last row (21) to row 19 — the
+        // build identity keeps a prominent position above the session
+        // footer (owner reorder mandate: "cid" above "up" and the
+        // terminal size).
+
+        // Session footer (v51 reorder): up moved from row 13 to 20,
+        // screensize from 14 to 21 — the terminal size stays the visual
+        // anchor at the very bottom of the dashboard.
+        self.cached_lines[20] = (colors[20], format!(" up: {uptime_str}"));
+        let (sw, sh, is_fixed) = self.screen_size;
+        let mode = if is_fixed { "fix" } else { "auto" };
+        self.cached_lines[21] = (colors[21], format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self

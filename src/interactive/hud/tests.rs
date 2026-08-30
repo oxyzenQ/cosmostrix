@@ -390,7 +390,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 21 → row 21 (cid, head)
+        }, // idx 21 → row 21 (screensize, head — v51 reorder)
     ];
     h.refresh_colors(&palette);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
@@ -400,9 +400,8 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
     );
     // Row 7 (prs, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
-    // >= TARGET_V(200), returned as-is. v50 (2026-08-17) HUD expansion:
-    // row 7 is now the `prs:` line (effective pressure NEW metric), not
-    // screensize (which moved to row 14).
+    // >= TARGET_V(200), returned as-is. Row 7 is the `prs:` line
+    // (effective pressure) — unchanged by the v51 reorder.
     assert_eq!(
         h.cached_lines[7].0,
         Color::Rgb {
@@ -412,11 +411,11 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         },
         "row 7 (prs) must use palette[7] — near head but not the head"
     );
-    // Bottom row (cid, idx 15) = palette[15] = RGB(255,255,255) — head.
-    // v50 (2026-08-17) HUD expansion reorder: cid moved from row 8 to
-    // row 15 (owner-mandated bottom per Option S). The chroma gradient
-    // assigns the brightest head stop to the bottom row so the build
-    // identity (commit hash) earns the most prominent position.
+    // Bottom row (screensize, idx 21 — v51 reorder: cid moved up to
+    // row 19, the session footer closes the dashboard) = palette[15]
+    // = RGB(255,255,255) — head. The chroma gradient assigns the
+    // brightest head stop to the bottom row so the dashboard ends on
+    // the visual anchor (terminal size).
     assert_eq!(
         h.cached_lines[21].0,
         Color::Rgb {
@@ -424,7 +423,7 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             g: 255,
             b: 255
         },
-        "bottom row (cid) must use palette[15] (head) — bright head at bottom"
+        "bottom row (screensize) must use palette[15] (head) — bright head at bottom"
     );
     // Middle rows should NOT be white — they should be the intermediate
     // green stops, not the head.
@@ -499,9 +498,10 @@ fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
     // HD-01: 22 HUD rows now use 22 distinct palette stops (one per row),
     // sweeping the full chroma dragon gradient top→bottom.
     // v50 (2026-08-17): 16 stops.
-    // v50.0.0-beta.6: bumped from 16 → 22 stops to add prdr (row 15) and
-    // crdr (row 16) above cid (row 17). All 22 rows get distinct palette
-    // stops so the chroma gradient sweeps continuously top→bottom.
+    // v50.0.0-beta.6: bumped from 16 → 22 stops.
+    // v51 reorder (2026-08-31): same 22 positional stops, new content
+    // order — the gradient maps palette[i] to row i regardless of which
+    // metric sits at that row, so only the row labels below changed.
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -568,43 +568,44 @@ fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
             g: 100,
             b: 200,
         },
-        // v50.0.0-beta.6: 2 new entries for prdr (row 15) and crdr (row 16).
+        // v51 reorder: rows 15-18 = ambt/glth/ctun/mnst, 19 = cid,
+        // 20 = up, 21 = screensize (positional palette comments).
         Color::Rgb {
             r: 100,
             g: 200,
             b: 200,
-        }, // idx 15 → row 15 (prdr)
+        }, // idx 15 → row 15 (ambt)
         Color::Rgb {
             r: 200,
             g: 200,
             b: 200,
-        }, // idx 16 → row 16 (crdr)
+        }, // idx 16 → row 16 (glth)
         Color::Rgb {
             r: 100,
             g: 100,
             b: 200,
-        }, // idx 17 → row 17 (cid)
+        }, // idx 17 → row 17 (ctun)
         // v50.0.0-beta.7 Option C: 4 new entries for ambt/glth/ctun/mnst.
         Color::Rgb {
             r: 150,
             g: 200,
             b: 100,
-        }, // idx 18 → row 18 (glth)
+        }, // idx 18 → row 18 (mnst)
         Color::Rgb {
             r: 100,
             g: 150,
             b: 200,
-        }, // idx 19 → row 19 (ctun)
+        }, // idx 19 → row 19 (cid)
         Color::Rgb {
             r: 200,
             g: 100,
             b: 150,
-        }, // idx 20 → row 20 (mnst)
+        }, // idx 20 → row 20 (up)
         Color::Rgb {
             r: 200,
             g: 200,
             b: 200,
-        }, // idx 21 → row 21 (cid)
+        }, // idx 21 → row 21 (screensize)
     ];
     h.refresh_colors(&palette);
     // All palette entries have max channel >= TARGET_V(200), so brighten
@@ -621,16 +622,18 @@ fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
 #[test]
 fn hud_cid_line_contains_commit_sha_or_unknown() {
     // v50 (2026-08-15): the cid line was at index [8].
-    // v50 (2026-08-17) HUD expansion reorder: the cid line moved from
-    // index [8] to index [15] (owner-mandated bottom row per Option S).
+    // v50 (2026-08-17) HUD expansion reorder: moved to the bottom row.
+    // v51 reorder (owner mandate 2026-08-31): cid sits at index [19] —
+    // above the session footer (up [20] + screensize [21]) so the
+    // dashboard closes on the terminal size instead.
     // The line must contain the compile-time git short SHA injected by
     // build.rs via `COSMOSTRIX_GIT_SHA`, falling back to "unknown" when
     // the build had no .git dir. The text is set once in `new()` and
-    // never mutated — `update_metrics` skips row 15 entirely so the
+    // never mutated — `update_metrics` skips row 19 entirely so the
     // commit hash remains stable across the entire process lifetime.
     // The owner needs to read the commit hash without quitting cosmostrix.
     let h = HudState::new();
-    let (_, cid_line) = &h.cached_lines[21];
+    let (_, cid_line) = &h.cached_lines[19];
     assert!(
         cid_line.starts_with(" cid: "),
         "cid line must start with ' cid: ' prefix, got: {cid_line:?}"

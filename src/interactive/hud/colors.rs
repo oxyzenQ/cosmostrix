@@ -16,38 +16,44 @@
 use crossterm::style::Color;
 
 // HD-01 (HUD chroma dragon integration): the previous 4-stop
-// `compute_rain_gradient` helper has been replaced by the 16-stop
-// `compute_chroma_gradient_16` helper above. The old design paired 2 HUD
-// rows per palette stop (dim/trail/mid/head × 2 = 8 rows); the new design
-// gives each row its own palette stop, sweeping the full chroma dragon
-// gradient top→bottom. This matches the border message's per-cell chroma
-// sweep philosophy, applied per-LINE for text readability.
+// `compute_rain_gradient` helper has been replaced by the per-row-stop
+// gradient below. The old design paired 2 HUD rows per palette stop
+// (dim/trail/mid/head × 2 = 8 rows); the new design gives each row its
+// own palette stop, sweeping the full chroma dragon gradient top→bottom.
+// This matches the border message's per-cell chroma sweep philosophy,
+// applied per-LINE for text readability.
 // v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
-// (commit id) line at row 8.
+// (commit id) line.
 // v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15 for
 // the 7 owner-mandated HUD expansion metrics (scene / color / density /
-// speed / endurance-health-score / effective-pressure / charset). The cid
-// line shares the head stop (palette[n-1], brightest) with screensize —
-// both are "definitive identity" lines that the owner reads to verify the
-// build, so they earn the most prominent position.
+// speed / endurance-health-score / effective-pressure / charset).
+// v50.0.0-beta.7: bumped to 22 stops after the Option C expansion
+// (prdr / crdr / ambt / glth / ctun / mnst) + cid.
+// v51 reorder (owner mandate 2026-08-31): same 22 rows, new order —
+// identity lines (scn/chr/clr) above the controls (sped/dsty), dragon +
+// tuning state (prdr/crdr/ambt/glth/ctun/mnst) next, session footer
+// (cid/up/screensize) closing the dashboard. The gradient is positional
+// (row i samples t = i/21), so the reorder moves CONTENT between stops;
+// the bright head band now covers the footer (cid/up/screensize).
 
 /// HD-01 (HUD chroma dragon integration): compute an 22-stop chroma gradient
 /// sweeping the active palette's full color range across all 22 HUD rows.
 ///
 /// Each row `i ∈ [0..22]` samples `palette_colors` at interpolation
-/// parameter `t = i / 17.0`, so row 0 (fps, top) → palette[0] and row 17
-/// (cid, bottom) → palette[n-1]. This mirrors the border message's per-cell
-/// clockwise sweep (`cloud/mod.rs::draw_message` BC-02) — applied per-LINE
-/// instead of per-cell, because each HUD line is a distinct text block that
-/// needs its own legible color.
+/// parameter `t = i / 21.0`, so row 0 (fps, top) → palette[0] and row 21
+/// (screensize, bottom — v51 reorder) → palette[n-1]. This mirrors the
+/// border message's per-cell clockwise sweep (`cloud/message_draw.rs`
+/// BC-02) — applied per-LINE instead of per-cell, because each HUD line
+/// is a distinct text block that needs its own legible color.
 ///
-/// ## Why 18 stops
-/// The HUD renders exactly 18 rows: 8 metric rows (fps / target / rss /
-/// cpu / p99 / dirty / vmode / mode) + 7 owner-mandated expansion rows
-/// (scene / color / density / speed / ehs / dsty / charset) + cid +
-/// screensize + build. The previous 16-stop design was bumped to 18 after
-/// the `ehs:` + `dsty:` additions (v50 2026-08-17 audit). Each row gets
-/// its own interpolated color stop — no two rows share the same color
+/// ## Why 22 stops
+/// The HUD renders exactly 22 rows (v51 owner reorder, 2026-08-31):
+/// performance core (fps/tgt/max/p99/cpu/rss, rows 0-5) + health pair
+/// (ehs/prs, rows 6-7) + identity lines (scn/chr/clr, rows 8-10) +
+/// user-adjustable controls (sped/dsty, rows 11-12) + dragon and tuning
+/// state (prdr/crdr/ambt/glth/ctun/mnst, rows 13-18) + session footer
+/// (cid row 19 static, up row 20, screensize row 21). Each row gets its
+/// own interpolated color stop — no two rows share the same color
 /// unless the palette is shorter than 22 stops (interpolation handles
 /// that case smoothly).
 ///
@@ -111,8 +117,8 @@ pub(crate) fn compute_chroma_gradient_22(palette_colors: &[Color]) -> [Color; 22
     // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
     // the first stop defensively), so a future bug in upstream palette
     // generation cannot crash the HUD or produce garbage colors.
-    // v50.0.0-beta.6: divisor is now 21.0 (was 15.0) since the array has
-    // 18 entries (indices 0-21). Row 0 → t=0.0, row 17 → t=1.0.
+    // v50.0.0-beta.6: divisor is 21.0 (22 entries, indices 0-21):
+    // Row 0 → t=0.0, row 21 → t=1.0.
     for (i, slot) in out.iter_mut().enumerate() {
         let t = i as f32 / 21.0;
         let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);

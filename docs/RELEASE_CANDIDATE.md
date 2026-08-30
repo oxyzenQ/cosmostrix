@@ -58,7 +58,7 @@ Must print `valid JSON`. The JSON object must contain 13 top-level keys: status,
 "$BIN"
 ```
 
-Then press `i` and verify: a top-left overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `ehs`, `prs`, `sped`, `dsty`, `scn`, `chr`, `clr`, `up`, `screensize`, `cid` (16 rows, v50 layout); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
+Then press `i` and verify: a top-left overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `ehs`, `prs`, `scn`, `chr`, `clr`, `sped`, `dsty`, `prdr`, `crdr`, `ambt`, `glth`, `ctun`, `mnst`, `cid`, `up`, `screensize` (22 rows, v51 reorder layout); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
 
 Note: `i` is lowercase-only (uppercase `I` is a no-op — see `docs/HUD.md` and `docs/RULES.md`).
 

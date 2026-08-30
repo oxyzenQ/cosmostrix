@@ -16,6 +16,15 @@ that previously toggled the HUD position (left <-> right corner) was
 renders flush-left at column 0 (the previous default). There is no `h`
 binding — it is silently ignored (catch-all).
 
+v51 row reorder (owner mandate 2026-08-31, "reorder/tidying HUD
+metrics"): the identity lines (scn / chr / clr) moved up directly under
+the health pair (ehs / prs), the user-adjustable controls (sped / dsty)
+follow them, the dragon + tuning state (prdr / crdr / ambt / glth /
+ctun / mnst) rides the bright head band, and the session footer (cid /
+up / screensize) closes the dashboard — the build identity keeps a
+prominent position and the terminal size stays the visual anchor at
+the very bottom.
+
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to
 diagnose common issues. New users: start with the [Quick Reference](#quick-reference)
@@ -40,14 +49,20 @@ each line means without reading the full reference below.
 | 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth -> possible leak.                       |
 | 6   | `ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
 | 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
-| 8   | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
-| 9   | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
-| 10  | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
-| 11  | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
-| 12  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`). Confirms `c`/`C` cycle. |
-| 13  | `up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
-| 14  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
-| 15  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
+| 8   | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
+| 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
+| 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. Confirms `c`/`C` cycle. |
+| 11  | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
+| 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
+| 13  | `prdr:`     | on/off         | **Power Dragon** — live power-management state (throttle + idle FPS reduction). Reflects config live-reload. |
+| 14  | `crdr:`     | on/off         | **Crystal Dragon** — live ambient palette-drift state. Reflects config live-reload. |
+| 15  | `ambt:`     | on/off         | **Ambient scheduler** — whether `config.toml` ambient time-window entries are active. |
+| 16  | `glth:`     | level          | **Glitch level** — none / subtle / default / intense (from `--glitch-level`). |
+| 17  | `ctun:`     | state          | **Color tuning** — `default` (all factors 1.0) or `custom` (any `--color-tune-*` factor differs). |
+| 18  | `mnst:`     | size           | **Monolith size** — small / normal / large, or `unknown` for non-monolith scenes. |
+| 19  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
+| 20  | `up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
+| 21  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
 
 **Symbol legend:**
 
@@ -66,7 +81,7 @@ each line means without reading the full reference below.
 
 ## Annotated HUD Layout
 
-What you actually see in the top-left corner after pressing `i`. All 16
+What you actually see in the top-left corner after pressing `i`. All 22
 rows are visible at once; this mockup annotates each:
 
 ```text
@@ -79,22 +94,29 @@ rows are visible at once; this mockup annotates each:
 │ rss: 8.2MiB   ◄── 5.  process memory (leak detector)
 │ ehs: 87       ◄── 6.  endurance health score (0-100, 100=stable)
 │ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
-│ sped: 14.0    ◄── 8.  chars/sec speed (Up/Down adjustable)
-│ dsty: 1.00    ◄── 9.  density multiplier ([/]) — `dsty` per owner mandate
-│ scn: cinematic ◄── 10. scene name (x/X cycle confirmation)
-│ chr: binary   ◄── 11. charset preset (s/S cycle confirmation)
-│ clr: NeonGreen ◄── 12. color scheme (c/C cycle confirmation)
-│ up: 03:42     ◄── 13. session uptime (MM:SS under 1h)
-│ 200x50 auto   ◄── 14. terminal size + mode (auto/fix)
-│ cid: 6ed244b  ◄── 15. build commit id (verify without quitting)
+│ scn: cinematic ◄── 8.  scene name (x/X cycle confirmation)
+│ chr: binary   ◄── 9.  charset preset (s/S cycle confirmation)
+│ clr: NeonGreen ◄── 10. color scheme (c/C cycle confirmation)
+│ sped: 14.0    ◄── 11. chars/sec speed (Up/Down adjustable)
+│ dsty: 1.00    ◄── 12. density multiplier ([/]) — `dsty` per owner mandate
+│ prdr: on      ◄── 13. power-dragon (throttle + idle FPS reduction)
+│ crdr: off     ◄── 14. crystal-dragon (ambient palette drift)
+│ ambt: off     ◄── 15. ambient scheduler (config.toml time windows)
+│ glth: default ◄── 16. glitch level (none/subtle/default/intense)
+│ ctun: default ◄── 17. color tuning (default or custom factors)
+│ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
+│ cid: 6ed244b  ◄── 19. build commit id (verify without quitting)
+│ up: 03:42     ◄── 20. session uptime (MM:SS under 1h)
+│ 200x50 auto   ◄── 21. terminal size + mode (auto/fix)
 └─────────────────────────┘
 ```
 
 **Color gradient (top dim -> bottom bright):** the HUD mirrors a falling
-rain droplet — the bottom row (`cid`) earns the brightest `head` stop
-(rain leading character), the top row (`fps`) is the dimmest `tail`
-(rain trailing fade). The `cid` line earns the head position because the
-build identity is the most definitive info the owner reads to verify
+rain droplet — the bottom rows (the session footer: `cid`, `up`,
+screensize) earn the brightest `head` stops (rain leading character),
+the top row (`fps`) is the dimmest `tail` (rain trailing fade). The
+screensize row at the very bottom is the visual anchor; the `cid` line
+keeps a prominent head-band position (row 19) so the owner can verify
 which commit is running. See [HUD Color Scheme](#hud-color-scheme)
 below for the full palette mapping.
 
@@ -141,11 +163,14 @@ diagnostic recipes for specific symptoms.
 
 ## HUD Lines (top-to-bottom)
 
-The HUD writes 16 rows into the frame buffer at the top-left corner
+The HUD writes 22 rows into the frame buffer at the top-left corner
 (column 0). Each row is one metric. Rows 0-5 are the performance core
-(unchanged from v50), rows 6-12 are the 7 owner-mandated HUD expansion
-metrics (ehs / prs / sped / dsty / scn / chr / clr), and rows 13-15
-are session/diagnostic/build identity (up / screensize / cid).
+(unchanged since v50), rows 6-7 are the health pair (ehs / prs), rows
+8-10 are the identity lines (scn / chr / clr), rows 11-12 are the
+user-adjustable controls (sped / dsty), rows 13-18 are the dragon +
+tuning state (prdr / crdr / ambt / glth / ctun / mnst), and rows 19-21
+are the session footer (cid / up / screensize) — the v51 owner reorder
+(2026-08-31).
 
 ### 1. `fps: <N>`
 
@@ -243,22 +268,7 @@ On Linux, `rss` includes all resident pages (code + heap + mmap'd
 files). A growing `rss` over a long session suggests a memory leak
 — check `docs/ENDURANCE.md` for the leak-detection methodology.
 
-### 7. `up: <duration>`
-
-**Session uptime** since the HUD was created (process startup). Format:
-
-- `< 1h`: `MM:SS` (e.g. `59:03`)
-- `< 1d`: `Xh:MM` (e.g. `1h:03`)
-- `>= 1d`: `Xd:YYh` (e.g. `2d:03h`)
-
-### 8. `<W>x<H> <mode>`
-
-**Terminal size** as `columns x rows`, with mode:
-
-- `auto` — dynamic (follows terminal resize)
-- `fix` — fixed via `--screen-size WxH` (ignores resize)
-
-### 9. `cid: <short-SHA>`
+### 7. `cid: <short-SHA>`
 
 **Build commit id** — the 7-character lowercase hex git short SHA
 injected at compile time by `build.rs` (via `git rev-parse --short=7
@@ -275,13 +285,28 @@ HUD is visible.
 
 **Why the text never changes:** the SHA is baked into the binary at
 compile time. The line is set once in `HudState::new()` and only its
-color is refreshed by `refresh_colors` every frame (it occupies the
-head stop — palette last-stop, the brightest position — because the
+color is refreshed by `refresh_colors` every frame (it occupies a
+head-band stop at row 19 — the bright footer region — because the
 build identity is the most definitive info the owner reads to verify
 which commit is running).
 
 **Cross-reference:** the same SHA is printed by `cosmostrix --version`
 and emitted in `--benchmark` JSON output as the `git_sha` field.
+
+### 8. `up: <duration>`
+
+**Session uptime** since the HUD was created (process startup). Format:
+
+- `< 1h`: `MM:SS` (e.g. `59:03`)
+- `< 1d`: `Xh:MM` (e.g. `1h:03`)
+- `>= 1d`: `Xd:YYh` (e.g. `2d:03h`)
+
+### 9. `<W>x<H> <mode>`
+
+**Terminal size** as `columns x rows`, with mode:
+
+- `auto` — dynamic (follows terminal resize)
+- `fix` — fixed via `--screen-size WxH` (ignores resize)
 
 ---
 
@@ -379,13 +404,14 @@ out to grey.
 
 ### Rain-aesthetic gradient (top dim -> bottom bright)
 
-The 16 HUD lines form a vertical brightness gradient that mirrors a
-falling rain droplet — the bottom lines (`cid`, `screensize`, `up`) are
-the brightest `head` (palette last-stop, the rain's leading bright
-character), and the top lines (`fps`, `tgt`) are the dimmest `tail`
-(palette index 1, the rain's trailing fade). Mid lines span `trail` and
-`mid` so the eye reads the HUD as a small rain column hanging in the
-corner, not as a flat block of equally-bright text.
+The 22 HUD lines form a vertical brightness gradient that mirrors a
+falling rain droplet — the bottom lines (the session footer:
+`screensize`, `up`, `cid`) are the brightest `head` (palette last-stop,
+the rain's leading bright character), and the top lines (`fps`, `tgt`)
+are the dimmest `tail` (palette index 1, the rain's trailing fade).
+Mid lines span `trail` and `mid` so the eye reads the HUD as a small
+rain column hanging in the corner, not as a flat block of
+equally-bright text.
 
 | Row | Line         | Color level | Palette position         |
 |-----|--------------|-------------|--------------------------|
@@ -397,14 +423,20 @@ corner, not as a flat block of equally-bright text.
 | 5   | `rss`        | mid         | palette index n/2 (body) |
 | 6   | `ehs`        | mid         | palette index n/2 (body) |
 | 7   | `prs`        | mid         | palette index n/2 (body) |
-| 8   | `sped`       | trail       | palette index n/4        |
-| 9   | `dsty`       | trail       | palette index n/4        |
-| 10  | `scn`        | trail       | palette index n/4        |
-| 11  | `chr`        | trail       | palette index n/4        |
-| 12  | `clr`        | trail       | palette index n/4        |
-| 13  | `up`         | head        | palette last stop        |
-| 14  | `screensize` | head        | palette last stop        |
-| 15  | `cid`        | head        | palette last stop        |
+| 8   | `scn`        | trail       | palette index n/4        |
+| 9   | `chr`        | trail       | palette index n/4        |
+| 10  | `clr`        | trail       | palette index n/4        |
+| 11  | `sped`       | trail       | palette index n/4        |
+| 12  | `dsty`       | trail       | palette index n/4        |
+| 13  | `prdr`       | head        | palette last stop        |
+| 14  | `crdr`       | head        | palette last stop        |
+| 15  | `ambt`       | head        | palette last stop        |
+| 16  | `glth`       | head        | palette last stop        |
+| 17  | `ctun`       | head        | palette last stop        |
+| 18  | `mnst`       | head        | palette last stop        |
+| 19  | `cid`        | head        | palette last stop        |
+| 20  | `up`         | head        | palette last stop        |
+| 21  | `screensize` | head        | palette last stop        |
 
 This inverts the original pre-v50-alpha.4 mapping where `fps`/`tgt`/`max`
 were the brightest at the TOP. The owner explicitly flagged the inversion:

@@ -17,7 +17,7 @@ fn hud_prdr_defaults_to_on() {
     let mut h = HudState::new();
     h.toggle();
     h.update_metrics(&[]);
-    let (_, prdr_line) = &h.cached_lines[15];
+    let (_, prdr_line) = &h.cached_lines[13];
     assert_eq!(
         prdr_line, " prdr: on",
         "prdr line must default to 'on' (power_dragon default = true)"
@@ -31,7 +31,7 @@ fn hud_crdr_defaults_to_off() {
     let mut h = HudState::new();
     h.toggle();
     h.update_metrics(&[]);
-    let (_, crdr_line) = &h.cached_lines[16];
+    let (_, crdr_line) = &h.cached_lines[14];
     assert_eq!(
         crdr_line, " crdr: off",
         "crdr line must default to 'off' (crystal_dragon default = false)"
@@ -47,7 +47,7 @@ fn hud_set_power_dragon_off_renders_off() {
     h.toggle();
     h.set_power_dragon(false);
     h.update_metrics(&[]);
-    let (_, prdr_line) = &h.cached_lines[15];
+    let (_, prdr_line) = &h.cached_lines[13];
     assert_eq!(
         prdr_line, " prdr: off",
         "prdr line must show 'off' after set_power_dragon(false)"
@@ -63,7 +63,7 @@ fn hud_set_crystal_dragon_on_renders_on() {
     h.toggle();
     h.set_crystal_dragon(true);
     h.update_metrics(&[]);
-    let (_, crdr_line) = &h.cached_lines[16];
+    let (_, crdr_line) = &h.cached_lines[14];
     assert_eq!(
         crdr_line, " crdr: on",
         "crdr line must show 'on' after set_crystal_dragon(true)"
@@ -76,11 +76,11 @@ fn hud_prdr_crdr_above_cid_in_layout() {
     // indicator mean cid indicator keep last position metrics".
     // Verify the layout: prdr at 15, crdr at 16, cid at 17 (last).
     let h = HudState::new();
-    // cid must be at row 17 (the last row).
-    let (_, cid_line) = &h.cached_lines[21];
+    // cid must be at row 19 (v51 reorder — above the session footer).
+    let (_, cid_line) = &h.cached_lines[19];
     assert!(
         cid_line.starts_with(" cid: "),
-        "row 17 must be the cid line, got: {cid_line:?}"
+        "row 19 must be the cid line (v51 reorder), got: {cid_line:?}"
     );
     // prdr and crdr initialize as empty strings (populated by update_metrics
     // at the 1 Hz tick). Verify they are at rows 15 and 16 respectively
@@ -88,21 +88,21 @@ fn hud_prdr_crdr_above_cid_in_layout() {
     let mut h2 = HudState::new();
     h2.toggle();
     h2.update_metrics(&[]);
-    let (_, prdr_line) = &h2.cached_lines[15];
-    let (_, crdr_line) = &h2.cached_lines[16];
+    let (_, prdr_line) = &h2.cached_lines[13];
+    let (_, crdr_line) = &h2.cached_lines[14];
     assert!(
         prdr_line.starts_with(" prdr: "),
-        "row 15 must be the prdr line, got: {prdr_line:?}"
+        "row 13 must be the prdr line (v51 reorder), got: {prdr_line:?}"
     );
     assert!(
         crdr_line.starts_with(" crdr: "),
-        "row 16 must be the crdr line, got: {crdr_line:?}"
+        "row 14 must be the crdr line (v51 reorder), got: {crdr_line:?}"
     );
-    // cid is still at row 17 (unchanged from h).
-    let (_, cid_line_2) = &h2.cached_lines[21];
+    // cid is still at row 19 (unchanged from h).
+    let (_, cid_line_2) = &h2.cached_lines[19];
     assert!(
         cid_line_2.starts_with(" cid: "),
-        "row 17 must still be the cid line after update_metrics, got: {cid_line_2:?}"
+        "row 19 must still be the cid line after update_metrics (v51 reorder), got: {cid_line_2:?}"
     );
 }
 
@@ -121,8 +121,8 @@ fn hud_prdr_crdr_live_reload_toggle() {
 
     // Step 1: defaults.
     h.update_metrics(&[]);
-    assert_eq!(h.cached_lines[15].1, " prdr: on");
-    assert_eq!(h.cached_lines[16].1, " crdr: off");
+    assert_eq!(h.cached_lines[13].1, " prdr: on");
+    assert_eq!(h.cached_lines[14].1, " crdr: off");
 
     // Step 2: user live-reloads power_dragon=false, crystal_dragon=true.
     h.set_power_dragon(false);
@@ -133,11 +133,11 @@ fn hud_prdr_crdr_live_reload_toggle() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[15].1, " prdr: off",
+        h.cached_lines[13].1, " prdr: off",
         "prdr must reflect live-reloaded power_dragon=false"
     );
     assert_eq!(
-        h.cached_lines[16].1, " crdr: on",
+        h.cached_lines[14].1, " crdr: on",
         "crdr must reflect live-reloaded crystal_dragon=true"
     );
 
@@ -149,11 +149,11 @@ fn hud_prdr_crdr_live_reload_toggle() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[15].1, " prdr: on",
+        h.cached_lines[13].1, " prdr: on",
         "prdr must reflect live-reloaded power_dragon=true"
     );
     assert_eq!(
-        h.cached_lines[16].1, " crdr: off",
+        h.cached_lines[14].1, " crdr: off",
         "crdr must reflect live-reloaded crystal_dragon=false"
     );
 }
@@ -183,8 +183,8 @@ fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
     h.toggle();
     // Startup: power_dragon=true (default), crystal_dragon=false (default).
     h.update_metrics(&[]);
-    assert_eq!(h.cached_lines[15].1, " prdr: on");
-    assert_eq!(h.cached_lines[16].1, " crdr: off");
+    assert_eq!(h.cached_lines[13].1, " prdr: on");
+    assert_eq!(h.cached_lines[14].1, " crdr: off");
     // Live-reload: user edits config.toml to power_dragon=false.
     // Event loop MUST call set_power_dragon(false) — the live value.
     h.set_power_dragon(false);
@@ -194,7 +194,7 @@ fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[15].1, " prdr: off",
+        h.cached_lines[13].1, " prdr: off",
         "prdr must reflect the live-reloaded value (false), not the stale startup value (true)"
     );
 }
@@ -215,7 +215,7 @@ fn hud_dsty_static_when_power_dragon_off() {
     h.set_effective_pressure(0.5); // high pressure, but power_dragon off
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.75",
+        h.cached_lines[12].1, " dsty: 0.75",
         "dsty must be static when power_dragon is OFF (no throttle)"
     );
 }
@@ -230,7 +230,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_no_pressure() {
     h.set_effective_pressure(0.0);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.72",
+        h.cached_lines[12].1, " dsty: 0.72",
         "dsty must equal user density when pressure is 0 (no throttle)"
     );
 }
@@ -246,7 +246,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
     h.set_effective_pressure(0.5);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.45",
+        h.cached_lines[12].1, " dsty: 0.45",
         "dsty must be throttled to 0.45 at 50% pressure (0.72 * 0.625)"
     );
 }
@@ -262,7 +262,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
     h.set_effective_pressure(1.0);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.18",
+        h.cached_lines[12].1, " dsty: 0.18",
         "dsty must be floored to 0.18 at 100% pressure (0.72 * 0.25)"
     );
 }
@@ -280,7 +280,7 @@ fn hud_dsty_aggressive_throttle_drops_harder() {
     h.set_aggressive_throttle(true);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.40",
+        h.cached_lines[12].1, " dsty: 0.40",
         "dsty must drop harder with aggressive_throttle (0.72 * 0.55 = 0.40)"
     );
 }
@@ -296,7 +296,7 @@ fn hud_dsty_cli_density_is_ceiling() {
     h.set_effective_pressure(1.0); // max pressure
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[9].1, " dsty: 0.25",
+        h.cached_lines[12].1, " dsty: 0.25",
         "CLI density 1.0 caps dsty at 1.0; throttle reduces to 0.25 at max pressure"
     );
 }

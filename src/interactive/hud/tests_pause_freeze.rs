@@ -101,7 +101,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
 
     h.update_metrics(&[]);
-    assert_eq!(h.cached_lines[13].1, " up: 02:00");
+    assert_eq!(h.cached_lines[20].1, " up: 02:00");
 
     // Pause for a moment: uptime must NOT advance.
     h.set_metrics_paused(true);
@@ -111,7 +111,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[13].1, " up: 02:00",
+        h.cached_lines[20].1, " up: 02:00",
         "up: must be frozen while paused"
     );
 
@@ -125,7 +125,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[13].1, " up: 02:00",
+        h.cached_lines[20].1, " up: 02:00",
         "up: must resume exactly where it froze (paused span excluded)"
     );
     assert!(
