@@ -164,7 +164,7 @@ The Dragon's roar is not loud — it is precise.
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x` cycle scenes (all 18 built-ins, forward only), `s`/`S` cycle charsets, `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
+- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse (CapsLock 'X' only, NOT Shift+X), `s`/`S` cycle charsets, `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
 
 ### Benchmarking & Build
 
@@ -455,9 +455,11 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
   x             Cycle scene       [ / ]      Density
+  X             Cycle scene (rev) Up/Down    Speed
   Up / Down     Speed             Space      Reset animation
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
-                speed / density / scene / charset / color / uptime / screensize / cid)
+                speed / density / scene / charset / color / uptime / screensize /
+                prdr / crdr / ambt / glth / ctun / mnst / cid)
 ```
 
 ## Scenes

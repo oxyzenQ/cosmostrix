@@ -290,9 +290,11 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
-        // v50.0.0-beta.7: uppercase 'X' cycles scenes in reverse (same
-        // pattern as c/C for colors and s/S for charsets).
-        (KeyCode::Char('X'), _) => {
+        // v50.0.0-beta.7: uppercase 'X' (CapsLock only, NOT Shift+X)
+        // cycles scenes in reverse. Shift+X is rejected to prevent
+        // accidental scene cycles when the user meant to type 'x' with
+        // a modifier. Only bare CapsLock 'X' (KeyModifiers::NONE) fires.
+        (KeyCode::Char('X'), KeyModifiers::NONE) => {
             let prev = scene::cycle_scene(scene_name, -1);
             *scene_name = prev.to_string();
             *scene_generation = scene_generation.wrapping_add(1);

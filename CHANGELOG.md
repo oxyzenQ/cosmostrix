@@ -9,6 +9,19 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Behavior changes (7bdaa0d8 → 8e1b41e9)
+
+- **HUD Option C expansion**: HUD expanded from 18 to 22 lines. Added 4 new metrics: `ambt` (ambient on/off), `glth` (glitch level), `ctun` (color tuning default/custom), `mnst` (monolith size or "unknown"). `cid` line moved from row 17 to row 21.
+- **'X' key**: uppercase 'X' now cycles scenes in reverse (CapsLock only, NOT Shift+X). Same pattern as c/C (colors) and s/S (charsets).
+- **glth HUD metric**: now reads from live cloud state (follows runtime scene switches via 'x'/'X'), not from static config.
+- **mnst HUD metric**: shows "unknown" for non-monolith scenes. Reads from live cloud state.
+- **Ambient startup delay (masterclass)**: when ANY CLI flag is present (--scene, --color, --charset, etc.), ambient scheduler defers for `ambient-snapback-secs` (default 30s). CLI scene shows first, then ambient takes over. When NO CLI flags are present (e.g. `cosmostrix -v`), ambient applies instantly. This prevents the confusion where `--scene matrix` with `ambient.12-00 = monolith` immediately showed monolith instead of matrix.
+- **--show-scene**: added note explaining CLI flags override scene values at runtime. `--show-scene` displays builtin scene defaults only.
+
+### Documentation
+
+- **CPU_USAGE_HONESTY.md**: new document explaining why cosmostrix consumes >10% CPU. Covers rain simulation, per-cell rendering pipeline, three dragon engines, HUD overlay, adaptive throttling, and how to reduce CPU usage. No gimmicks — honest technical disclosure.
+
 ### Refactor sweep complete — final deep audit (89 commits, 63f52a8 → e60978c)
 
 **Final A/B benchmark: baseline `63f52a8` vs latest `e60978c`** — 89 refactoring commits, 4 scenes, 2 screen sizes, 10s release profile. All metrics within noise (<4%), memory metrics identical. **Visual quality confirmed unchanged across all dimensions.**

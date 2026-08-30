@@ -8,7 +8,7 @@ on `visible == false`). Metrics recompute at 1 Hz (matches htop,
 mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
-v50.0.0-beta.6 HUD expansion: the HUD grew from 9 rows to 18 rows,
+v50.0.0-beta.7 HUD expansion: the HUD grew from 9 rows to 22 rows,
 adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
 that previously toggled the HUD position (left <-> right corner) was
@@ -81,7 +81,7 @@ rows are visible at once; this mockup annotates each:
 │ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
 │ sped: 14.0    ◄── 8.  chars/sec speed (Up/Down adjustable)
 │ dsty: 1.00    ◄── 9.  density multiplier ([/]) — `dsty` per owner mandate
-│ scn: cinematic ◄── 10. scene name (x cycle confirmation)
+│ scn: cinematic ◄── 10. scene name (x/X cycle confirmation)
 │ chr: binary   ◄── 11. charset preset (s/S cycle confirmation)
 │ clr: NeonGreen ◄── 12. color scheme (c/C cycle confirmation)
 │ up: 03:42     ◄── 13. session uptime (MM:SS under 1h)

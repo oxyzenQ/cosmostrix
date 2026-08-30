@@ -658,12 +658,10 @@ mod cases_modifier_rejection {
         let cfg = make_test_config(); let tri = default_term_reinit(); let cp0 = cp.clone();
         call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('s', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
         assert_eq!(cp, cp0, "Shift+s no-op");
-        // v50.0.0-beta.7: bare 'X' now cycles scene in reverse, but
-        // Shift+'x' (which produces 'X' on some terminals via SHIFT) is
-        // handled by the (Char('X'), _) arm which accepts any modifier.
-        // So Shift+x DOES cycle now — it matches the (Char('X'), _) arm.
-        // This test was updated: Shift+x is no longer a no-op.
-        // Super+X is still rejected (tested in super_x_does_not_cycle_scene).
+        // v50.0.0-beta.7: Shift+X sends Char('X') with SHIFT modifier.
+        // Only CapsLock 'X' (Char('X') with NONE) cycles. Shift+X is a no-op.
+        call_handle_keybinding_with_scene(&mut cloud, &mut frame, &key_with_mod('X', KeyModifiers::SHIFT), &mut cp, &mut sn, &mut sg, &cfg, &tri);
+        assert_eq!(sn, "monolith", "Shift+X must NOT cycle scene");
     }
 
     #[test]
