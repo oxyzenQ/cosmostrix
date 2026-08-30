@@ -223,5 +223,10 @@ impl super::Cloud {
         }
         // Pulses from the previous overlay are stale; drop them.
         self.border_pulses.clear();
+        // v51 engrave: same staleness argument — sparks spawned against
+        // the old box layout must not keep flying from positions that no
+        // longer carry text, and the movement detector must re-arm so
+        // the fresh reveal fires its first-char burst.
+        self.engrave.reset();
     }
 }

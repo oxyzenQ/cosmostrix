@@ -5,7 +5,52 @@
 
 use std::time::Duration;
 
+use crate::constants::QUANTUM_RIPPLE_TRAIL_LEN;
 use crate::droplet::Droplet;
+
+/// A quantum particle (mouse-click ripple / border-touch splash crown
+/// spark) in the shared pre-allocated pool. Lives in `state.rs` with
+/// the other Cloud state types — moved out of `cloud/mod.rs` pure code
+/// motion (mod.rs was at the 800-line hard LOC cap).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct QuantumParticle {
+    pub active: bool,
+    pub x: f32,
+    pub y: f32,
+    pub vx: f32,
+    pub vy: f32,
+    pub birth: std::time::Instant,
+    pub ch: char,
+    /// Palette body color at spawn (crossfade on palette switch).
+    pub r: u8,
+    pub g: u8,
+    pub b: u8,
+    // v50 (2026-08-17) trail particles masterclass effect: ring-buffer
+    // of the last QUANTUM_RIPPLE_TRAIL_LEN positions, rendered with
+    // diminishing brightness + cycled color (from C7). The trail is
+    // pushed every frame in apply_quantum_ripple BEFORE the position
+    // update, creating a streaking "comet trail" behind the moving
+    // particle.
+    //
+    // Layout: trail_x[i] / trail_y[i] store the i-th most recent past
+    // position. trail_count is the number of valid entries (0..=TRAIL_LEN).
+    // The trail is rendered oldest-first so the most recent past position
+    // (closest to the current particle) is drawn LAST and overrides any
+    // older trail cells with its (brighter) value.
+    pub trail_x: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
+    pub trail_y: [f32; QUANTUM_RIPPLE_TRAIL_LEN],
+    pub trail_count: u8,
+    /// Max trail entries for this particle. Quantum ripples use
+    /// `QUANTUM_RIPPLE_TRAIL_LEN` (6); border-touch sparks use 1
+    /// (F2 Splash Crown — see `docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md`).
+    /// The trail push in `apply_quantum_ripple` caps at this value.
+    pub max_trail: u8,
+    /// Per-particle lifetime in seconds. Quantum ripples use
+    /// `QUANTUM_RIPPLE_LIFETIME_SECS` (4.0); border-touch sparks use
+    /// `BORDER_SPARK_LIFETIME_SECS` (0.35). The age check + brightness
+    /// curve in `apply_quantum_ripple` use this instead of the constant.
+    pub lifetime: f32,
+}
 
 /// Per-column tracking for spawn control and speed scaling.
 #[derive(Clone, Debug)]

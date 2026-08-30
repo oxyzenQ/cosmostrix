@@ -380,6 +380,21 @@ fn rebuild_preserves_cli_explicit_speed_over_scene() {
 
 // ── v51 msg-fill-style live-reload tests ──
 
+/// The engrave style (v51 follow-up) live-reloads exactly like the
+/// other styles — the spark sidecar arms on the next style change via
+/// `set_msg_fill_style`.
+#[test]
+fn rebuild_applies_msg_fill_style_engrave() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "engrave".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Engrave,
+        "config msg-fill-style=engrave must be applied on live reload"
+    );
+}
+
 /// Editing `msg-fill-style` in config.toml mid-run must switch the
 /// reveal style on the next rebuild (no restart needed).
 #[test]

@@ -131,7 +131,7 @@ The Dragon's roar is not loud — it is precise.
 - Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
 - Configurable speed, density, FPS, and glitch intensity.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
-- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`. The reveal animation is selectable via `-mfs`/`--msg-fill-style` (typewriter|fade|words|slide|pulse|instant, default typewriter) or the `msg-fill-style` config key.
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`. The reveal animation is selectable via `-mfs`/`--msg-fill-style` (typewriter|fade|words|slide|pulse|instant|engrave, default typewriter) or the `msg-fill-style` config key — `engrave` burns each character in at full brightness with a white-hot engraving head, a cooling heat trail, and a small spark burst per character (respects `--no-effects`).
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
 - **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully. While paused, ONLY `p` (resume) and `q` (quit) respond — every other shortkey is ignored — and all running HUD metrics freeze at their last active value, resuming with precision (uptime excludes the paused span; paused 4 Hz input-poll ticks never contaminate the fps/p99/ehs windows). Asymmetric k_decel > k_resume preserves the "pause snappy / resume wake-up" feel; glyph scene entry uses the same exp approach family (k=4.28/s, settle 95% at ~700ms) for a consistent cinematic top-entry cascade.
 
@@ -412,7 +412,7 @@ COMMON OPTIONS
   -m <text>                     Overlay message (no border)
   -mb <text>                    Overlay message with border
   -mfs, --msg-fill-style <s>    Message overlay reveal style
-                                (typewriter|fade|words|slide|pulse|instant, default: typewriter)
+                                (typewriter|fade|words|slide|pulse|instant|engrave, default: typewriter)
       --glitch-level <level>    Glitch intensity (none|subtle|default|intense)
       --scene <name>                  Apply a built-in scene (see --list-scenes)
       --scene-custom <name>           Apply a user-defined custom scene from config

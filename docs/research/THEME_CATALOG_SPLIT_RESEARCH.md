@@ -260,7 +260,7 @@ questions:
 | Scenes | `scene/mod.rs` | 528 | `SCENES: &[SceneInfo]` | keep |
 | Charsets | `scene/charset.rs` | 321 | const tables | keep |
 | Temperature groups | `crystal_dragon_engine/palette_groups/mod.rs` | 129 | enum partition 14/14/14+2 | keep |
-| Message fill styles (v51) | `types/msg_fill_style.rs` | 583 | enum + impl, one file | keep |
+| Message fill styles (v51) | `types/msg_fill_style.rs` | 678 | enum + impl, one file (engrave added post-research) | keep |
 | Rain style | `types/rain_style.rs` | 20 | enum, one file | keep |
 | Custom palettes (runtime) | `chroma_dragon_engine/colors_custom.rs` | 644 | config-driven | keep |
 | Color cache | `chroma_dragon_engine/color_cache.rs` | 603 | cold-path cache | keep |

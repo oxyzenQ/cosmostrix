@@ -299,9 +299,10 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             // same asymmetry as every other enum key).
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
-                "typewriter" | "fade" | "words" | "slide" | "pulse" | "instant" => None,
+                "typewriter" | "fade" | "words" | "slide" | "pulse" | "instant"
+                | "engrave" => None,
                 _ => Some(format!(
-                    "expected typewriter/fade/words/slide/pulse/instant, got '{v}' (run `cosmostrix --help` for valid message fill styles)"
+                    "expected typewriter/fade/words/slide/pulse/instant/engrave, got '{v}' (run `cosmostrix --help` for valid message fill styles)"
                 )),
             }
         }

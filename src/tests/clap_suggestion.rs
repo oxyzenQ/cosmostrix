@@ -84,7 +84,7 @@ fn extracts_msg_fill_style_plural_suggestion() {
 
 #[test]
 fn clap_parses_all_msg_fill_style_values() {
-    // The ValueEnum registration must accept exactly the six documented
+    // The ValueEnum registration must accept exactly the seven documented
     // styles via the long flag (the -mfs short form is argv-expanded to
     // this flag before clap runs — see cli/argv_expand.rs tests).
     use clap::Parser;
@@ -98,6 +98,7 @@ fn clap_parses_all_msg_fill_style_values() {
         ("slide", crate::msg_fill_style::MsgFillStyle::Slide),
         ("pulse", crate::msg_fill_style::MsgFillStyle::Pulse),
         ("instant", crate::msg_fill_style::MsgFillStyle::Instant),
+        ("engrave", crate::msg_fill_style::MsgFillStyle::Engrave),
     ] {
         let args = crate::config::Args::try_parse_from(["cosmostrix", "--msg-fill-style", value])
             .unwrap_or_else(|e| panic!("--msg-fill-style {value} must parse: {e}"));

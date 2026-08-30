@@ -56,9 +56,11 @@ pub struct CloudConfig {
     pub message: Option<String>,
     pub message_border: bool,
     /// v51 msg-fill-style: message overlay reveal style (typewriter /
-    /// fade / words / slide / pulse / instant). Default `Typewriter` =
-    /// bit-identical to the pre-v51 renderer (LTS guarantee). Applied
-    /// in `create_cloud` via `cloud.set_msg_fill_style`.
+    /// fade / words / slide / pulse / instant / engrave). Default
+    /// `Typewriter` = bit-identical to the pre-v51 renderer (LTS
+    /// guarantee). Applied in `create_cloud` via
+    /// `cloud.set_msg_fill_style` (engrave additionally arms the spark
+    /// sidecar in `cloud/message_engrave.rs`).
     pub msg_fill_style: MsgFillStyle,
     pub target_fps: f64,
     /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`

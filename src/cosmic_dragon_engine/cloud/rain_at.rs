@@ -901,7 +901,8 @@ impl super::Cloud {
         }
 
         // Message box drawn AFTER phosphor/anomaly/atmospheric effects
-        // so it survives all post-processing — glow + typewriter reveal.
+        // so it survives all post-processing — glow + msg-fill-style
+        // reveal (drawn in post_rain_processing → draw_message).
 
         // ── Bug 2: cinematic CRT vignette post-process ──
         //

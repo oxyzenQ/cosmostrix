@@ -338,6 +338,201 @@ fn pulse_style_scanner_boosts_recent_char_brightness() {
 }
 
 #[test]
+fn engrave_reveals_progressively_like_typewriter_pacing() {
+    // Effects OFF isolates the reveal pacing from the spark sidecar
+    // (sparks overwrite the head cell glyph — see the dedicated spark
+    // tests below). "hello world" = 10 content chars; 160 ms → 2.
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    cloud.set_effects_enabled(false);
+    set_message_elapsed(&mut cloud, "hello world", 160);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+
+    let visible = visible_content_cells(&frame, &cloud);
+    assert_eq!(
+        visible.len(),
+        2,
+        "engrave at 160ms must show exactly 2 chars (80ms/char), got {}",
+        visible.len()
+    );
+    let chars: String = visible.iter().map(|(_, _, c)| *c).collect();
+    assert!(
+        chars.starts_with("he"),
+        "first revealed chars must be 'he', got '{chars}'"
+    );
+}
+
+#[test]
+fn engrave_head_burns_hot_and_cools_off() {
+    // Dim custom palette so the 2x boost does not clamp at 255 (same
+    // trick as the pulse scanner test). "hello world": at elapsed =
+    // 900 ms the last char 'd' (idx 9, revealed at 720 ms, age 180 ms)
+    // is still cooling → brighter than the settled 'h' (age 900 ms).
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    cloud.set_effects_enabled(false);
+    cloud.set_palette(crate::palette::Palette {
+        colors: vec![
+            crossterm::style::Color::Rgb {
+                r: 60,
+                g: 60,
+                b: 60,
+            },
+            crossterm::style::Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100,
+            },
+        ],
+        bg: None,
+    });
+    set_message_elapsed(&mut cloud, "hello world", 900);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+
+    let sum_of = |target: char| -> Option<u32> {
+        let mc = cloud.message.iter().find(|mc| mc.val == target)?;
+        let cell = frame.get(mc.col, mc.line)?;
+        let fg = cell.fg?;
+        let (r, g, b) = crate::palette::decode_color(fg)?;
+        Some(u32::from(r) + u32::from(g) + u32::from(b))
+    };
+    // 'h' settled at 100*3 = 300; 'd' cooling at (1 + 1.0*120/300)*300 = 420.
+    let settled = sum_of('h').expect("first char must be visible with an fg");
+    let cooling = sum_of('d').expect("last char must be visible with an fg");
+    assert_eq!(settled, 300, "cooled char must render at base brightness");
+    assert_eq!(
+        cooling, 420,
+        "cooling char must render at the exact heat-decay brightness"
+    );
+}
+
+/// Count spark glyphs ('·' / '*') anywhere in the frame. The overlay
+/// itself never emits these glyphs (halo '·' requires an active border
+/// pulse, which these clouds do not have), so any hit is an engrave
+/// spark.
+fn spark_glyphs(frame: &Frame) -> Vec<(u16, u16, char)> {
+    let mut out = Vec::new();
+    for y in 0..12u16 {
+        for x in 0..30u16 {
+            if let Some(cell) = frame.get(x, y) {
+                if cell.ch == '·' || cell.ch == '*' {
+                    out.push((x, y, cell.ch));
+                }
+            }
+        }
+    }
+    out
+}
+
+#[test]
+fn engrave_fires_one_spark_burst_per_newly_revealed_char() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    set_message_elapsed(&mut cloud, "hello world", 10);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    // First draw: head at char 0 → exactly one burst of 3 sparks.
+    assert_eq!(
+        cloud.engrave.active_count, 3,
+        "first draw must fire exactly ENGRAVE_SPARKS_PER_HEAD sparks"
+    );
+    assert!(!spark_glyphs(&frame).is_empty(), "sparks must render");
+
+    // Head still on char 0 (elapsed within the same 80 ms bucket):
+    // no movement → no second burst.
+    cloud.message_start_time = Some(Instant::now() - Duration::from_millis(20));
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(
+        cloud.engrave.active_count, 3,
+        "a stationary head must not spawn additional bursts"
+    );
+
+    // Head advanced to char 1 (elapsed ≥ 160 ms: floor(160/80) = 2
+    // revealed cells): exactly one new burst.
+    cloud.message_start_time = Some(Instant::now() - Duration::from_millis(200));
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(
+        cloud.engrave.active_count, 6,
+        "a moved head must fire exactly one additional burst"
+    );
+    assert!(cloud.engrave.active_count <= crate::constants::ENGRAVE_SPARK_POOL_SIZE);
+}
+
+#[test]
+fn engrave_sparks_expire_and_stop_when_reveal_completes() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    // Elapsed far past the reveal: head parks on the last char and
+    // fires its (single) burst on the first draw, then never again.
+    set_message_elapsed(&mut cloud, "hi", 10_000);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(cloud.engrave.active_count, 3);
+
+    // Same head again → no new burst.
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(cloud.engrave.active_count, 3);
+
+    // 250 ms later (past ENGRAVE_SPARK_LIFETIME_SECS = 0.20 s): the
+    // burst expires AND the parked head spawns no replacement.
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now() + Duration::from_millis(250));
+    assert_eq!(
+        cloud.engrave.active_count, 0,
+        "expired sparks must deactivate with no respawn from a parked head"
+    );
+    assert!(
+        spark_glyphs(&frame).is_empty(),
+        "no spark glyphs may remain"
+    );
+}
+
+#[test]
+fn engrave_sparks_respect_no_effects() {
+    // PERF-4: --no-effects must suppress the spark sidecar exactly
+    // like every other particle subsystem.
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    cloud.set_effects_enabled(false);
+    set_message_elapsed(&mut cloud, "hello world", 10);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(
+        cloud.engrave.active_count, 0,
+        "--no-effects must spawn nothing"
+    );
+    assert!(spark_glyphs(&frame).is_empty());
+    // The reveal itself is NOT an effect — text still burns in.
+    assert_eq!(
+        visible_content_cells(&frame, &cloud).len(),
+        1,
+        "head char must still be revealed under --no-effects"
+    );
+}
+
+#[test]
+fn engrave_reveal_restarts_fresh_burst_after_typewriter_restart() {
+    // Space-restart (restart_message_typewriter) rewinds the timeline;
+    // the movement detector must re-arm so the fresh reveal's first
+    // char fires its burst again.
+    let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
+    set_message_elapsed(&mut cloud, "hi", 10_000);
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(cloud.engrave.active_count, 3);
+
+    cloud.restart_message_typewriter();
+    // The restart sets start = now + 6s (intro delay): elapsed
+    // saturates to 0 → head at char 0 → fresh burst on the next draw.
+    let mut frame = Frame::new(30, 12, cloud.palette.bg);
+    cloud.draw_message(&mut frame, Instant::now());
+    assert_eq!(
+        cloud.engrave.active_count, 3,
+        "restarted reveal must re-fire the first-char burst"
+    );
+}
+
+#[test]
 fn set_msg_fill_style_restarts_reveal_on_change() {
     let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
     set_message_elapsed(&mut cloud, "hello world", 10_000);

@@ -325,16 +325,16 @@ pub struct Args {
     pub message: Option<String>,
 
     /// v51 msg-fill-style: message overlay reveal style (typewriter
-    /// default = bit-identical to pre-v51). Also settable via the
-    /// `msg-fill-style` config key. `-mfs` is rewritten to this flag
-    /// pre-parse (clap shorts are single-char — cli/argv_expand.rs).
+    /// default = bit-identical to pre-v51; engrave adds the spark
+    /// sidecar). Also settable via the `msg-fill-style` config key;
+    /// `-mfs` is argv-expanded to this flag (cli/argv_expand.rs).
     #[arg(
         long = "msg-fill-style",
         default_value = "typewriter",
         value_enum,
         help_heading = "COMMON OPTIONS",
         display_order = 71,
-        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant, default: typewriter)"
+        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant|engrave, default: typewriter)"
     )]
     pub msg_fill_style: MsgFillStyle,
 

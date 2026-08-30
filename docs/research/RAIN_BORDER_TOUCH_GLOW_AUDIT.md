@@ -69,6 +69,10 @@ if !self.message.is_empty() {
 }
 ```
 
+(Quoted code as of this audit; the comment has since been corrected —
+the reveal has been style-driven since v51 `msg-fill-style`, default
+typewriter at 80 ms/char, and moved to `post_rain.rs` → `draw_message`.)
+
 `draw_message` (mod.rs line 928) iterates over `self.message` (a `Vec<MsgChr>`,
 one entry per overlay cell — content, border, or interior padding) and
 writes each visible cell with `frame.set_force(col, line, cell)`

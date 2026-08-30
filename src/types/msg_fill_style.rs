@@ -4,7 +4,7 @@
 //! Message overlay fill (reveal) style selection.
 //!
 //! v51 msg-fill-style: the message overlay reveal animation is no longer
-//! hardwired to the classic typewriter. Six styles are selectable via
+//! hardwired to the classic typewriter. Seven styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
 //!
@@ -16,9 +16,17 @@
 //! | `slide`     | 60 ms/char, rises from 1 row below   | lags text (t^1.5)       |
 //! | `pulse`     | typewriter + 1.5x scanner cursor     | lags text (t^1.5)       |
 //! | `instant`   | full brightness at t=0               | clockwise draw over 1 s |
+//! | `engrave`   | 80 ms/char burn-in, 2x hot head      | lags text (t^1.5) + sparks |
 //!
 //! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
+//!
+//! Six styles are purely time-derived (stateless — zero per-frame
+//! bookkeeping). `engrave` keeps the REVEAL math stateless like the
+//! rest, but adds one bounded stateful sidecar: a 48-slot spark
+//! particle pool rendered inside `draw_message` (see
+//! `cloud/message_engrave.rs` for why the shared quantum pool cannot
+//! be reused — it renders before the overlay and would be overdrawn).
 //!
 //! Placement mirrors `rain_style.rs`: a neutral types module importable
 //! from both the CLI layer (Args) and the rendering engine (Cloud)
@@ -49,6 +57,11 @@ pub enum MsgFillStyle {
     /// Text appears instantly at full brightness; only the border draws.
     #[value(name = "instant")]
     Instant,
+    /// Laser engraving: chars burn in at full brightness, glow 2x hot
+    /// at the head (cooling over 300 ms), and each newly engraved char
+    /// throws a small spark burst (see `cloud/message_engrave.rs`).
+    #[value(name = "engrave")]
+    Engrave,
 }
 
 impl MsgFillStyle {
@@ -63,6 +76,7 @@ impl MsgFillStyle {
             Self::Slide => "slide",
             Self::Pulse => "pulse",
             Self::Instant => "instant",
+            Self::Engrave => "engrave",
         }
     }
 
@@ -76,6 +90,9 @@ impl MsgFillStyle {
             Self::Slide => "slide (60 ms/char, chars rise from one row below)",
             Self::Pulse => "pulse (typewriter + 1.5x scanner cursor, 200 ms decay)",
             Self::Instant => "instant (text immediate, border draws clockwise over 1 s)",
+            Self::Engrave => {
+                "engrave (80 ms/char burn-in, 2x hot head cooling over 300 ms, spark burst per char)"
+            }
         }
     }
 }
@@ -110,6 +127,14 @@ pub(crate) const PULSE_BOOST: f32 = 0.50;
 pub(crate) const PULSE_DECAY_MS: usize = 200;
 /// Instant: independent clockwise border draw duration.
 pub(crate) const INSTANT_BORDER_MS: usize = 1000;
+/// Engrave: per-character reveal stagger (same 80 ms pacing as
+/// typewriter, kept as its own constant so the two can diverge).
+pub(crate) const ENGRAVE_CHAR_MS: usize = 80;
+/// Engrave: head boost above settled brightness (1.0 → peak factor
+/// 2.0, routed through the unclamped boost path like pulse).
+pub(crate) const ENGRAVE_BOOST: f32 = 1.0;
+/// Engrave: heat-glow decay window behind the engraving head.
+pub(crate) const ENGRAVE_HEAT_MS: usize = 300;
 
 /// Per-content-cell reveal state, resolved per frame from elapsed time.
 ///
@@ -238,6 +263,38 @@ pub(crate) fn content_reveal(
             }
         }
         MsgFillStyle::Instant => CellReveal::settled(),
+        MsgFillStyle::Engrave => {
+            // Burn-in reveal: a char appears at FULL brightness the
+            // instant the head reaches it (no 30% fade-in — a laser
+            // burns text in, it does not fade it in), then cools from
+            // (1 + ENGRAVE_BOOST) back to 1.0 over ENGRAVE_HEAT_MS. The
+            // last ~4 chars are always cooling at any moment, forming
+            // the heat trail behind the engraving head. The spark
+            // burst itself lives in `cloud/message_engrave.rs` (the
+            // only stateful part of the style family).
+            if content_idx < reveal_count {
+                let reveal_at = content_idx * ENGRAVE_CHAR_MS;
+                let heat = match elapsed_ms {
+                    None => 1.0,
+                    Some(ms) => {
+                        let age = ms.saturating_sub(reveal_at);
+                        if age >= ENGRAVE_HEAT_MS {
+                            1.0
+                        } else {
+                            let decay = 1.0 - age as f32 / ENGRAVE_HEAT_MS as f32;
+                            1.0 + ENGRAVE_BOOST * decay
+                        }
+                    }
+                };
+                CellReveal {
+                    visible: true,
+                    factor: heat,
+                    slide_rows: 0,
+                }
+            } else {
+                CellReveal::hidden()
+            }
+        }
         MsgFillStyle::Words => {
             let word_reveal_at = word_ord.saturating_sub(1) as usize * WORDS_PER_WORD_MS;
             match elapsed_ms {
@@ -309,8 +366,8 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / words: border lags behind text
-///   (`text_progress^1.5` ease-out) — the pre-v51 cinematic behavior.
+/// - Typewriter / pulse / slide / engrave / words: border lags behind
+///   text (`text_progress^1.5` ease-out) — the pre-v51 cinematic behavior.
 /// - Fade: border fades together with the text block.
 /// - Instant: border draws clockwise on an independent 1 s timeline
 ///   (text is already fully visible).
@@ -332,7 +389,7 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide: `reveal_count / total_text`.
+/// - Typewriter / pulse / slide / engrave: `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
 /// - Fade / instant: 1.0 (text is not the pacing element).
@@ -362,7 +419,7 @@ pub(crate) fn text_progress(
 }
 
 /// Number of content cells revealed by index-based styles
-/// (typewriter/pulse/slide) at the given elapsed time.
+/// (typewriter/pulse/slide/engrave) at the given elapsed time.
 ///
 /// The `.max(1)` mirrors the pre-v51 renderer: the first cell appears
 /// immediately so the very first frame is never fully empty.
@@ -374,6 +431,7 @@ pub(crate) fn index_reveal_count(
 ) -> usize {
     let per_char_ms = match style {
         MsgFillStyle::Slide => SLIDE_CHAR_MS,
+        MsgFillStyle::Engrave => ENGRAVE_CHAR_MS,
         _ => TYPEWRITER_CHAR_MS,
     };
     match elapsed_ms {
@@ -396,6 +454,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Slide.as_str(), "slide");
         assert_eq!(MsgFillStyle::Pulse.as_str(), "pulse");
         assert_eq!(MsgFillStyle::Instant.as_str(), "instant");
+        assert_eq!(MsgFillStyle::Engrave.as_str(), "engrave");
     }
 
     #[test]
@@ -534,6 +593,41 @@ mod tests {
     }
 
     #[test]
+    fn engrave_reveals_at_80ms_per_char() {
+        // Same index pacing as typewriter: 319 ms → 3 chars, 320 ms → 4.
+        let total = 40;
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(319), total);
+        assert_eq!(count, 3);
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(320), total);
+        assert_eq!(count, 4);
+        let count = index_reveal_count(MsgFillStyle::Engrave, Some(0), total);
+        assert_eq!(count, 1, "max(1) floor: first char at t=0");
+    }
+
+    #[test]
+    fn engrave_chars_burn_in_hot_and_cool_off() {
+        // Age 0: burned in at (1 + ENGRAVE_BOOST) = 2.0 — NOT the 30%
+        // fade-in start the typewriter family uses.
+        let head = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(0), 10, 1.0);
+        assert!(head.visible);
+        assert!((head.factor - (1.0 + ENGRAVE_BOOST)).abs() < 1e-6);
+        // Mid-decay: age 150 of 300 ms → 1 + 1.0 * 0.5 = 1.5.
+        let mid = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(150), 10, 1.0);
+        assert!((mid.factor - 1.5).abs() < 1e-6);
+        // Cooled: age >= ENGRAVE_HEAT_MS → settled at 1.0.
+        let cooled = content_reveal(MsgFillStyle::Engrave, 0, 1, Some(ENGRAVE_HEAT_MS), 10, 1.0);
+        assert!((cooled.factor - 1.0).abs() < 1e-6);
+    }
+
+    #[test]
+    fn engrave_hidden_until_reveal_count_reaches_the_cell() {
+        let r = content_reveal(MsgFillStyle::Engrave, 7, 1, Some(400), 7, 1.0);
+        assert!(!r.visible, "cell 7 must stay hidden until reveal_count > 7");
+        let r = content_reveal(MsgFillStyle::Engrave, 6, 1, Some(400), 7, 1.0);
+        assert!(r.visible);
+    }
+
+    #[test]
     fn border_lags_text_with_power_15_for_paced_styles() {
         // Pre-v51 cinematic behavior preserved for typewriter-style
         // pacing: border_progress = text_progress^1.5.
@@ -572,6 +666,7 @@ mod tests {
             MsgFillStyle::Slide,
             MsgFillStyle::Pulse,
             MsgFillStyle::Instant,
+            MsgFillStyle::Engrave,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");

@@ -10,11 +10,13 @@
 //! scratch buffers.
 //!
 //! v51 msg-fill-style: the text reveal is style-driven (see
-//! `types/msg_fill_style.rs`). Six styles are selectable via
+//! `types/msg_fill_style.rs`). Seven styles are selectable via
 //! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
 //! typewriter (default, bit-identical to pre-v51), fade, words, slide,
-//! pulse, instant. All timing constants and per-cell reveal math live
-//! in `msg_fill_style.rs`; this file only consumes them.
+//! pulse, instant, engrave. All timing constants and per-cell reveal
+//! math live in `msg_fill_style.rs`; this file only consumes them.
+//! The engrave style additionally calls into `message_engrave.rs`
+//! for its spark sidecar (the only stateful member of the family).
 //!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type). The method stays
@@ -68,15 +70,20 @@ impl super::Cloud {
             .message_start_time
             .map(|start| start.elapsed().as_millis() as usize);
 
-        // v51 msg-fill-style: per-style reveal plan. All animation math
-        // is derived from elapsed time (stateless — no per-frame
-        // bookkeeping). Typewriter keeps the exact pre-v51 semantics:
+        // v51 msg-fill-style: per-style reveal plan. The six stateless
+        // styles derive everything from elapsed time; engrave keeps the
+        // same stateless reveal math but adds a bounded spark sidecar
+        // (message_engrave.rs). Typewriter keeps the exact pre-v51
+        // semantics:
         //   reveal_count = (elapsed / 80).max(1).min(total_text)
         //   per-char 100 ms fade-in from 30% brightness.
         let style = self.msg_fill_style;
         let block_alpha = mfs::fade_block_alpha(message_elapsed_ms);
         let reveal_count = match style {
-            MsgFillStyle::Typewriter | MsgFillStyle::Pulse | MsgFillStyle::Slide => {
+            MsgFillStyle::Typewriter
+            | MsgFillStyle::Pulse
+            | MsgFillStyle::Slide
+            | MsgFillStyle::Engrave => {
                 mfs::index_reveal_count(style, message_elapsed_ms, total_text)
             }
             // Words (word-ordinal visibility), fade (block alpha) and
@@ -301,6 +308,17 @@ impl super::Cloud {
         self.border_pulses = alive_pulses;
 
         let mut content_idx = 0usize;
+        // v51 engrave: position of the engraving head (the most
+        // recently revealed content cell), captured during the main
+        // loop below and handed to the spark pass afterwards. None
+        // when the style is not engrave, the head is off-screen, or
+        // there is no content at all (border-only overlay).
+        let engrave_head_idx = if style == MsgFillStyle::Engrave {
+            reveal_count.saturating_sub(1)
+        } else {
+            usize::MAX
+        };
+        let mut engrave_head_pos: Option<(u16, u16)> = None;
         // v51 msg-fill-style (slide): phase-1 cells are drawn one row
         // below their final position, AFTER the main loop — the row below
         // is itself a message cell (padding / border / next content line)
@@ -318,6 +336,9 @@ impl super::Cloud {
                 // index (was: only when revealed). Per-style visibility
                 // and brightness come from the stateless reveal solver.
                 let idx0 = content_idx;
+                if idx0 == engrave_head_idx {
+                    engrave_head_pos = Some((mc.col, mc.line));
+                }
                 content_idx += 1;
                 let word_ord = self.message_word_ordinals.get(idx).copied().unwrap_or(0);
                 let reveal = mfs::content_reveal(
@@ -477,6 +498,20 @@ impl super::Cloud {
                     },
                 );
             }
+        }
+
+        // v51 msg-fill-style (engrave): spark pass, LAST so sparks render
+        // on top of the overlay text (the engraving head throws debris
+        // across the freshly burned-in chars). Runs only for engrave;
+        // the pass itself early-outs in O(1) when the pool is idle.
+        if style == MsgFillStyle::Engrave {
+            self.engrave_spark_pass(
+                frame,
+                now,
+                engrave_head_pos,
+                engrave_head_idx,
+                message_elapsed_ms,
+            );
         }
     }
 }
