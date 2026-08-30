@@ -82,11 +82,50 @@ pub(crate) fn rebuild_cloud_config(
     let user_set_charset = cfg.contains_key("charset");
 
     // Color scheme — skip if CLI --color was explicit.
+    // v51 (owner audit 2026-08-30): custom-palette parity with the startup
+    // path (main.rs checks `colors-custom` FIRST — v50.0.0-beta.6 Option D).
+    // The old live-reload block only parsed BUILTIN scheme names, so:
+    //   - switching `color` TO a custom palette name was a silent no-op;
+    //   - switching `color` AWAY from an active custom palette left the
+    //     stale palette loaded, and create_cloud's `set_palette` kept
+    //     overriding the builtin scheme the user just switched to.
+    // Now: custom name → load the palette (custom wins on collision,
+    // mirroring startup); builtin name → clear the palette so the scheme
+    // actually takes effect; absent key → keep current state.
     if !cli.color {
         if let Some(v) = cfg.get("color") {
-            if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
+            let is_custom = crate::colors_custom::is_colors_custom_name(cfg, v);
+            if is_custom {
+                match crate::colors_custom::load_custom_palette(cfg, v) {
+                    Ok(palette) => {
+                        lr_trace!("apply color='{}' -> custom palette", v);
+                        new.custom_palette = Some(palette);
+                        new.custom_palette_name = Some(v.clone());
+                    }
+                    Err(e) => {
+                        lr_trace!(
+                            "color='{}' custom palette failed to load ({}) — keeping current",
+                            v,
+                            e
+                        );
+                    }
+                }
+            } else if let Ok(scheme) = crate::cli::parse_color_scheme(v) {
                 lr_trace!("apply color='{}' -> {:?}", v, scheme);
                 new.color_scheme = scheme;
+                // Explicit switch to a builtin: drop any active custom
+                // palette — create_cloud applies custom_palette AFTER
+                // the scheme, so a lingering palette would silently
+                // override the scheme the user just selected.
+                if new.custom_palette.is_some() {
+                    lr_trace!(
+                        "clearing custom palette '{}' (color switched to builtin '{}')",
+                        new.custom_palette_name.as_deref().unwrap_or("?"),
+                        v
+                    );
+                    new.custom_palette = None;
+                    new.custom_palette_name = None;
+                }
             } else {
                 lr_trace!(
                     "color='{}' failed to parse — keeping {:?}",
@@ -141,6 +180,15 @@ pub(crate) fn rebuild_cloud_config(
 
     // Scene — skip if CLI --scene explicit. scene color/charset are
     // defaults; user config values win.
+    // v51 (owner audit 2026-08-30): custom-scene parity. The old block
+    // only resolved BUILTIN scenes (get_scene), so switching `scene` to
+    // a custom scene name updated scene_name but left rain_style/color/
+    // charset/speed/density at the PREVIOUS scene's values — a visual
+    // no-op whenever the ambient-schedule scene-change branch did not
+    // fire. Custom scenes are now resolved here: rain_style comes from
+    // the base-scene (mirroring startup's rain_style_for_custom_scene
+    // construction path), and the field layer is applied by the
+    // scene-custom tail block below (same layer the startup path uses).
     if !cli.scene {
         if let Some(v) = cfg.get("scene") {
             // v50 fix: update new.scene_name to match the config's scene
@@ -161,7 +209,15 @@ pub(crate) fn rebuild_cloud_config(
             // main.rs (args.scene.as_deref().unwrap_or(DEFAULT_SCENE)).
             lr_trace!("apply scene='{}' (updating scene_name)", v);
             new.scene_name = v.clone();
+            let normalized_scene = v.trim().to_ascii_lowercase();
+            let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
             if let Some(scene_info) = crate::scene::get_scene(v) {
+                // Builtin scene: the startup custom-scene layer no longer
+                // applies — clear the tracker so the stale layer is not
+                // re-applied by the tail block below (owner audit: switching
+                // scene away from a custom scene used to leave the custom
+                // layer overriding the builtin the user switched to).
+                new.scene_custom_name = None;
                 new.rain_style = scene_info.config.rain_style;
                 if let Some(color) = scene_info.config.color {
                     if !cli.color && !user_set_color {
@@ -215,6 +271,46 @@ pub(crate) fn rebuild_cloud_config(
                         new.base_density = density;
                     }
                 }
+                // v51 (owner audit 2026-08-30): startup-parity — the startup
+                // path (apply_default_scene_values) also applies the scene's
+                // fps and glitch_level defaults; the live-reload block never
+                // did, so switching scenes via config.toml silently kept the
+                // previous scene's fps cap and glitch preset. Applied here
+                // BEFORE the user-key blocks below, so an explicit `fps` or
+                // `glitch-level` key in config still wins (same layering as
+                // startup: CLI > config > scene defaults).
+                if let Some(fps) = scene_info.config.fps {
+                    if !cli.fps {
+                        lr_trace!("scene '{}' applies default fps={}", v, fps);
+                        new.target_fps = fps;
+                    }
+                }
+                if let Some(glitch) = scene_info.config.glitch_level {
+                    if !cli.glitch_level {
+                        lr_trace!("scene '{}' applies default glitch_level={:?}", v, glitch);
+                        crate::scene_custom::apply_glitch_level_preset_to_cloud_config(
+                            &mut new, glitch,
+                        );
+                    }
+                }
+            } else if custom_scenes.contains_key(&normalized_scene) {
+                // Custom scene: mark it active so the scene-custom tail
+                // block applies base-scene defaults + field overrides,
+                // and resolve rain_style here (construction-level field
+                // the tail block does not touch).
+                lr_trace!(
+                    "apply scene='{}' (custom scene: resolving rain_style + field layer)",
+                    v
+                );
+                new.scene_custom_name = Some(v.clone());
+                new.rain_style =
+                    crate::scene_custom::rain_style_for_custom_scene(cfg, &normalized_scene)
+                        .unwrap_or(crate::rain_style::RainStyle::Glyph);
+            } else {
+                // Unknown scene — upstream strict validation rejects the
+                // config before it reaches the render thread, so this is
+                // defense-in-depth: keep the previous values.
+                lr_trace!("scene='{}' unknown — keeping previous scene values", v);
             }
         }
     }
@@ -374,9 +470,20 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // v20: scene-custom live reload — re-apply fields if active.
-    if let Some(ref custom_name) = base.scene_custom_name {
-        crate::scene_custom::apply_scene_custom_to_cloud_config(&mut new, cfg, custom_name);
+    // v20: scene-custom live reload — re-apply fields if the custom scene
+    // is STILL the active scene. v51 (owner audit 2026-08-30): the tracker
+    // is now `new.scene_custom_name` (updated by the scene block above when
+    // the user switches scenes) instead of the immutable startup
+    // `base.scene_custom_name` — otherwise the stale startup layer kept
+    // overriding every builtin scene the user switched to at runtime.
+    if let Some(custom_name) = new.scene_custom_name.clone() {
+        let still_active = new
+            .scene_name
+            .trim()
+            .eq_ignore_ascii_case(custom_name.trim());
+        if still_active {
+            crate::scene_custom::apply_scene_custom_to_cloud_config(&mut new, cfg, &custom_name);
+        }
     }
 
     // (bug #9): color.tune.* live reload — re-parse from cfg HashMap

@@ -1,13 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Live-Reload Behavior Research — v50.0.0-alpha.7
+# Live-Reload Behavior Research — v51
 
 > **Status**: Option D (masterclass) IMPLEMENTED in v50.0.0-alpha.7.
-> All 4 issues from the v50-beta.3 research are now fixed. See
-> "Implementation Status" section below for the per-key matrix update.
+> All 4 issues from the v50-beta.3 research are now fixed. The v51
+> Z-master-1B audit (2026-08-30) then found and fixed 5 MORE gaps in the
+> custom palette / custom scene switching paths — see "10. v51
+> Z-master-1B Audit" below for the per-key matrix update.
 >
 > **Research date**: 2026-08-22 (v50-beta.3)
 > **Implementation date**: 2026-08-22 (v50.0.0-alpha.7)
+> **v51 audit date**: 2026-08-30 (Z-master-1B)
 >
 > **Trigger**: owner confusion about which config keys live-reload vs
 > require restart. Specifically: "if I set `msg-mode = false` in config
@@ -299,13 +302,13 @@ severity — rarely changes mid-session.
 mirrors the `crystal-dragon` / `power-dragon` / `async-mode` pattern.
 CLI `--monolith-size` wins over config on live-reload.
 
-### Updated Per-Key Live-Reload Matrix (v50.0.0-alpha.7)
+### Updated Per-Key Live-Reload Matrix (v51)
 
 | Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? |
 |------------|----------|:-------------:|:-----------------:|
-| `color` | `--color` | OK YES | OK YES |
+| `color` | `--color` | OK YES | OK YES — v51: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
 | `charset` | `--charset` | OK YES | OK YES |
-| `scene` | `--scene` | OK YES | OK YES |
+| `scene` | `--scene` | OK YES | OK YES — v51: switching TO a `[scene-custom.<name>]` scene now applies base-scene + fields (incl. rain_style); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
 | `speed` | `--speed` | OK YES | OK YES |
 | `density` | `--density` | OK YES | OK YES |
 | `fps` | `--fps` | OK YES | OK YES |
@@ -447,15 +450,63 @@ NOT reset (CLI wins).
 
 ---
 
-## 9. Source-Code References (for implementer)
+## 9. v51 Z-master-1B Audit — Custom Palette / Scene Switching (2026-08-30)
 
-- `rebuild_cloud_config`: `src/config/live_config/mod.rs:562-907`
-- Event-loop reload consumer: `src/interactive/event_loop.rs:336-360`
-- `CliExplicit` struct: `src/cli/app.rs:155-167`
-- `create_cloud` (calls `set_message`): `src/cli/app.rs:277-280`
-- `set_message` / `set_message_border`: `src/cosmic_dragon_engine/cloud/mod.rs:493-511`
-- `apply_config_and_runtime_defaults` (startup msg-mode gate):
-  `src/config/config_apply.rs:51-518`
+Owner suspicion: "some functions in config.toml don't work at
+live-reload." Deep audit of every `USER_CONFIG_KEYS` entry against
+`rebuild_cloud_config` + the downstream `create_cloud` application found
+FIVE real gaps — all in the custom palette / custom scene switching
+paths, all confirmed by failing tests first, then fixed:
+
+| # | Gap | Symptom | Fix |
+|---|-----|---------|-----|
+| 1 | `color = "<custom-palette>"` switch ignored | The block only parsed BUILTIN scheme names (unlike startup's custom-first lookup in `main.rs`), so switching to a custom palette at runtime was a silent no-op. | Custom names now load via `load_custom_palette` (custom wins on collision — startup parity). |
+| 2 | Switching `color` away from an active custom palette | The stale palette stayed loaded, and `create_cloud` applies `custom_palette` AFTER the scheme — so the builtin the user switched to never rendered. | Switching to a builtin now clears `custom_palette` + `custom_palette_name`. |
+| 3 | `scene = "<custom-scene>"` switch ignored | Only `scene_name` updated; rain_style/color/charset/speed/density kept the PREVIOUS scene's values whenever the ambient scene-change branch did not fire. | Custom scene names resolve `rain_style` from the base-scene (mirroring startup's `rain_style_for_custom_scene`) and mark the scene active so the scene-custom layer applies. |
+| 4 | Switching `scene` away from a custom scene | The startup `scene_custom_name` tracker was immutable — the stale custom layer re-applied on top of EVERY builtin scene the user switched to. | The tracker is now the rebuilt config's value; the layer only re-applies while the custom scene is still the active scene. |
+| 5 | Scene `fps` / `glitch-level` defaults never applied | Startup (`apply_default_scene_values`) applies the scene's fps + glitch presets; the live-reload scene block only applied color/charset/speed/density/rain_style. | Both arms added to the scene block (before the user-key blocks, so explicit `fps` / `glitch-level` keys still win). |
+
+Verification: 13 new regression tests in `src/config/live_config/tests.rs`
+(`rebuild_switches_color_to_custom_palette_at_runtime`,
+`rebuild_switches_color_away_from_custom_palette`,
+`rebuild_unknown_color_name_keeps_current_palette`,
+`rebuild_switches_scene_to_custom_scene_at_runtime`,
+`rebuild_custom_scene_resolves_rain_style_from_base_scene`,
+`rebuild_custom_scene_without_base_scene_defaults_to_glyph`,
+`rebuild_switches_scene_away_from_custom_scene`,
+`rebuild_active_custom_scene_field_edit_still_reapplies`,
+`rebuild_custom_scene_colors_custom_field_loads_palette`,
+`rebuild_scene_switch_applies_scene_fps_default`,
+`rebuild_user_fps_key_wins_over_scene_default`,
+`rebuild_scene_switch_applies_scene_glitch_default`,
+`rebuild_user_glitch_key_wins_over_scene_default`).
+
+Also verified working (no change needed): `charset` switching in both
+builtin/custom directions, `monolith-size`, `bold`, `shadingmode`,
+`color-bg`, `crystal-dragon`, `power-dragon`, `async-mode`, `speed`,
+`density`, `fps`, `glitch-level`, `color.tune.*` (reset-on-comment),
+`message`/`message-border`/`msg-mode`/`msg-fill-style`, `ambient.HH-MM`,
+`ambient-snapback-secs`, and `charset-custom.<name>` block edits. The only
+restart-only keys remain `intro` and `intro-color` (the intro is a one-shot
+animation — documented Limitation, not a gap).
+
+---
+
+## 10. Source-Code References (for implementer)
+
+- `rebuild_cloud_config`: `src/config/live_config/mod.rs` (starts near the
+  top of the file; the color/scene/scene-custom blocks are the v51-audited
+  paths)
+- Event-loop rebuild consumer: `src/interactive/event_loop_config_rebuild.rs`
+  (`apply_config_rebuild` — swaps the Cloud + Frame between frames)
+- `CliExplicit` struct: `src/cli/app.rs`
+- `create_cloud` (applies custom_palette AFTER the scheme — the reason gap #2
+  mattered): `src/cli/app.rs`
+- Startup custom-first color resolution (parity reference): `src/main.rs`
+- Scene-custom layer: `src/scene_custom/mod.rs`
+  (`apply_scene_custom_to_cloud_config`, `rain_style_for_custom_scene`)
+- Custom palette loader: `src/chroma_dragon_engine/colors_custom.rs`
+  (`load_custom_palette`, `is_colors_custom_name`)
 
 ---
 <!--
