@@ -9,6 +9,13 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### cross-platform build guard: dangling cfg import lesson (Z-master-1B)
+
+- **Incident**: the intro_style refactor commit (f19470a6) went red on four CI jobs (Windows, FreeBSD, Android, macOS) while every local gate stayed green. Root cause: `event_loop_p5.rs` carried `#[cfg(target_os = "linux")] use super::intro;` — the v52 refactor deleted the `use` line but left its attribute, which silently re-attached to the NEXT import (`use crate::central_control_dragon_power::{sample_thermal_pressure, PowerManager};`) — making it Linux-only. On the Linux dev host everything type-checks; every other platform lost `PowerManager`/`sample_thermal_pressure` (E0425).
+- **Fix** (507ac96a): the dangling attribute removed — the import is platform-unconditional again (its per-call sites stay Linux-gated exactly as before).
+- **Permanent guard**: `build.sh check-all` now runs `run_cross_platform_check` — `cargo check` against all four CI-built non-host targets (x86_64-pc-windows-gnu, x86_64-unknown-freebsd, aarch64-apple-darwin, aarch64-linux-android), installing each rust-std target on demand (~1 s per target once cached; skips with a warning when a target cannot be installed offline — the CI matrix remains the final gate there). Validated by re-introducing the exact f19470a6 bug: the guard fails check-all within seconds; no CI workflow runs check-all, so this adds zero CI minutes — it closes the LOCAL pre-push blind spot where the bug slipped through.
+- **Process lesson (worklog)**: verify CI green on a pushed commit BEFORE stacking the next one — the second commit (761a682a) was pushed while the first was still red-building, doubling the affected history.
+
 ### message-intro lead: masterclass skip conditions (Z-master-1B)
 
 - **Owner bug report**: `cosmostrix --mfs engrave -mb test` with the default logo intro behaves perfectly — after the intro finishes the message text appears after a short delay (tuned design). But the 6 s reveal lead was armed unconditionally inside `set_message`, so it fired even when nothing was hiding the message: `--intro none` showed a dead 6 s wait at startup, the Space runtime restart re-armed it (fresh dead air after every reset), and skipping the intro mid-animation with `q` left the remaining lead running. "From premature logic to masterclass simple logic, skip when on condition non intro value, and space/restart cosmostrix."

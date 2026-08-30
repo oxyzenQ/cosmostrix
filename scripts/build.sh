@@ -392,6 +392,48 @@ run_fmt_check() {
 	fi
 }
 
+# ─────────────────────────────────────────────────────────────────────────────
+# Cross-platform type check (v52 guard)
+# ─────────────────────────────────────────────────────────────────────────────
+# The dev host is Linux, but CI additionally builds Windows, FreeBSD,
+# macOS and Android. Platform-gated code (#[cfg(target_os = ...)]) can
+# type-check cleanly on the host and break every other build — e.g. a
+# cfg-gated `use` line whose attribute silently re-attaches to the NEXT
+# import when the use line is deleted (f19470a6 lesson: a dangling
+# cfg left the PowerManager import Linux-only; Windows/FreeBSD/macOS/
+# Android CI all went red while local gates stayed green).
+# This check runs `cargo check` for every CI-built non-host target.
+# Targets are installed on demand (rust-std only, seconds each); after
+# the first run everything is cached (~1 s per target). When a target
+# cannot be installed (offline sandbox) the check skips with a warning
+# — the real CI matrix remains the final gate in that case.
+CROSS_CHECK_TARGETS=(
+	"x86_64-pc-windows-gnu"
+	"x86_64-unknown-freebsd"
+	"aarch64-apple-darwin"
+	"aarch64-linux-android"
+)
+
+run_cross_platform_check() {
+	log_step "Cross-platform type check (${#CROSS_CHECK_TARGETS[@]} CI targets)..."
+	local t
+	for t in "${CROSS_CHECK_TARGETS[@]}"; do
+		if ! rustup target list --installed 2>/dev/null | grep -qx "${t}"; then
+			rustup target add "${t}" &>/dev/null || {
+				log_warn "  ${t}: not installed and rustup add failed — skipping"
+				continue
+			}
+		fi
+		if cargo check --quiet --target "${t}" 2>/dev/null; then
+			log_success_quietable "  ${t}: OK"
+		else
+			log_error "  ${t}: FAILED — reproduce with: cargo check --target ${t}"
+			return 1
+		fi
+	done
+	return 0
+}
+
 run_fmt_fix() {
 	log_step "Formatting code..."
 	cargo fmt --all
@@ -628,6 +670,7 @@ run_comprehensive_check() {
 	run_python_lint || ((failed++))
 	run_version_sync || ((failed++))
 	run_clippy || ((failed++))
+	run_cross_platform_check || ((failed++))
 	run_tests || ((failed++))
 	run_audit || ((failed++))
 
