@@ -39,7 +39,7 @@ use crate::chroma_dragon_engine::intro_colors::{COSMIC_COLORS_RGB, SINGULARITY_R
 
 use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, Particle, ParticlePool, XorShift,
+    should_skip, IntroOutcome, Particle, ParticlePool, XorShift,
 };
 
 /// Phase boundaries (milliseconds from intro start).
@@ -83,6 +83,9 @@ const MORPH_DOWNWARD_VY: f32 = 14.0;
 ///
 /// See the module docs for the phase breakdown. The caller (intro
 /// dispatcher) has already validated terminal size and `IntroType`.
+/// Returns [`IntroOutcome::Completed`] when all phases played out,
+/// [`IntroOutcome::CutShort`] when the user skipped with q (the runner
+/// cuts the message-reveal lead on every cut-short path).
 pub(super) fn run_cosmic_intro(
     term: &mut Terminal,
     frame: &mut Frame,
@@ -90,7 +93,7 @@ pub(super) fn run_cosmic_intro(
     w: u16,
     h: u16,
     logo_color: (u8, u8, u8),
-) -> std::io::Result<()> {
+) -> std::io::Result<IntroOutcome> {
     let mut rng = seed_rng();
 
     // Center of the screen — the singularity point.
@@ -110,7 +113,7 @@ pub(super) fn run_cosmic_intro(
             break;
         }
         if should_skip()? {
-            return Ok(());
+            return Ok(IntroOutcome::CutShort);
         }
 
         // Determine current phase and progress within phase.
@@ -268,7 +271,8 @@ pub(super) fn run_cosmic_intro(
         end_frame(term, frame)?;
     }
 
-    Ok(())
+    // All four phases played to the natural end.
+    Ok(IntroOutcome::Completed)
 }
 
 /// Spawn a burst of particles at `(cx, cy)` — the cosmic explosion.

@@ -57,7 +57,7 @@ use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, Particle, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
+    should_skip, IntroOutcome, Particle, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -403,6 +403,10 @@ fn visual_centroid(lines: &[String]) -> (f32, f32) {
 ///
 /// See the module docs for the phase breakdown. The caller (intro
 /// dispatcher) has already validated terminal size and `IntroType`.
+/// Returns [`IntroOutcome::Completed`] when all phases played out,
+/// [`IntroOutcome::CutShort`] on a q skip or the defensive art-larger-than-
+/// terminal fallback (the runner cuts the message-reveal lead on every
+/// cut-short path).
 pub(super) fn run_logo_intro(
     term: &mut Terminal,
     frame: &mut Frame,
@@ -410,11 +414,11 @@ pub(super) fn run_logo_intro(
     w: u16,
     h: u16,
     logo_color: (u8, u8, u8),
-) -> std::io::Result<()> {
+) -> std::io::Result<IntroOutcome> {
     let (lines, logo_w, logo_h) = parse_logo_art(w, h);
     // Defensive: parse_logo_art scales to fit, so this is a fallback.
     if logo_w > w || logo_h > h {
-        return Ok(());
+        return Ok(IntroOutcome::CutShort);
     }
 
     // Compute the visual centroid (ink center-of-mass) before collecting
@@ -477,7 +481,7 @@ pub(super) fn run_logo_intro(
             break;
         }
         if should_skip()? {
-            return Ok(());
+            return Ok(IntroOutcome::CutShort);
         }
 
         // Determine current phase and progress within phase.
@@ -700,7 +704,8 @@ pub(super) fn run_logo_intro(
         end_frame(term, frame)?;
     }
 
-    Ok(())
+    // All four phases played to the natural end.
+    Ok(IntroOutcome::Completed)
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

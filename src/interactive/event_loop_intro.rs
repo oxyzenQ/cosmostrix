@@ -57,6 +57,16 @@ const INTRO_BRAND_SCHEME: ColorScheme = ColorScheme::EnergyZen;
 ///       resized during the intro, resets `cloud` + rebuilds `frame` with
 ///       the new clamped dimensions (bug #10 fix).
 ///
+/// ## v52 message-reveal lead (owner bug report)
+///
+/// The 6 s message lead is armed HERE — right before the cinematic
+/// starts, the only place that knows one is about to play — and CUT when
+/// the intro did not run to completion (q skip, shutdown signal,
+/// terminal below the intro floor). Pre-v52 the lead was armed
+/// unconditionally inside `set_message`, so `--intro none`, a Space
+/// restart, and live-reload cloud rebuilds all showed a dead 6 s wait
+/// for the message with nothing hiding it.
+///
 /// Parameters are passed by `&mut` because the intro mutates the terminal
 /// (writes animation frames), the frame buffer (clears + draws), the cloud
 /// (force-draws after intro), and the live `w`/`h` (post-intro resize).
@@ -80,7 +90,15 @@ pub(super) fn run_intro_sequence(
     if cfg.intro == IntroType::None {
         return Ok(());
     }
-    run_intro_with_color_resolution(term, frame, cfg, *w, *h, density)?;
+    // The message hides behind the intro for MESSAGE_INTRO_LEAD, so the
+    // text lands shortly after the cinematic ends (the tuned feel).
+    cloud.hold_message_behind_intro();
+    let outcome = run_intro_with_color_resolution(term, frame, cfg, *w, *h, density)?;
+    if outcome == crate::intro_style::IntroOutcome::CutShort {
+        // Intro cut short or never played: nothing is hiding the message
+        // anymore — pull a still-future reveal start to now.
+        cloud.cut_message_intro_lead();
+    }
     cloud.force_draw_everything();
     frame.clear_with_bg(cloud.palette.bg);
     re_read_terminal_size_after_intro(term, cloud, frame, w, h, cfg);
@@ -135,6 +153,9 @@ pub(super) fn brand_intro_cloud(cfg: &CloudConfig, density: f32) -> Cloud {
 /// 4. `intro_color` invalid → fallback to the brand EnergyZen intro cloud
 ///    (validation failed silently at startup; user sees the intro anyway).
 ///
+/// Propagates the [`crate::intro_style::IntroOutcome`] so the caller can
+/// decide whether the message-reveal lead stands.
+///
 /// `w` + `h` are passed by value (copy) because the intro does not mutate
 /// them — the post-intro resize is handled separately by
 /// `re_read_terminal_size_after_intro`.
@@ -145,7 +166,7 @@ fn run_intro_with_color_resolution(
     w: u16,
     h: u16,
     density: f32,
-) -> std::io::Result<()> {
+) -> std::io::Result<crate::intro_style::IntroOutcome> {
     match resolve_intro_palette_source(cfg.intro_color.as_deref()) {
         IntroPaletteSource::Brand => {
             // Cases 1 + 4: brand EnergyZen intro cloud. logo_color = the

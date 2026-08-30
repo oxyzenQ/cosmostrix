@@ -81,6 +81,23 @@ use crate::interactive::{is_unmodified_or_shift, FRAME_COUNTER, GRACEFUL_SHUTDOW
 // Intro type enum + dispatcher
 // ─────────────────────────────────────────────────────────────────────────────
 
+/// Whether an intro animation reached its natural end. The intro runner
+/// (`event_loop_intro.rs`) feeds this into the message-reveal lead logic:
+/// on [`IntroOutcome::Completed`] the armed lead stands (the message
+/// appears shortly after the intro, the tuned feel); on
+/// [`IntroOutcome::CutShort`] the lead is cut so the message reveals
+/// immediately — nothing is hiding it anymore (v52 owner bug report:
+/// skipping the intro used to leave a dead 6 s wait).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) enum IntroOutcome {
+    /// All phases played to the natural end.
+    Completed,
+    /// Cut short or never started: user pressed q, a shutdown signal
+    /// arrived, the terminal was below the intro floor, or the intro
+    /// type was `None`.
+    CutShort,
+}
+
 /// Which cinematic intro to play before the rain engine takes over.
 /// Exposed as a clap `ValueEnum` for CLI parsing (`--intro`) and
 /// consumed by the dispatcher below. Referenced from `config/mod.rs`
@@ -120,8 +137,9 @@ pub(crate) const INTRO_FRAME_PERIOD: Duration = Duration::from_millis(33);
 pub(crate) const PARTICLE_POOL_SIZE: usize = 512;
 
 /// Entry point — dispatch to the appropriate intro style module based on
-/// `intro_type`. Returns `Ok(())` immediately for `None` or when the
-/// terminal is too small.
+/// `intro_type`. Returns [`IntroOutcome::CutShort`] immediately for `None`
+/// or when the terminal is too small, so the caller can cut the
+/// message-reveal lead in every did-not-play path.
 ///
 /// # Skip behavior
 ///
@@ -152,9 +170,9 @@ pub(crate) fn run_intro(
     h: u16,
     intro_type: IntroType,
     logo_color: (u8, u8, u8),
-) -> std::io::Result<()> {
+) -> std::io::Result<IntroOutcome> {
     if intro_type == IntroType::None {
-        return Ok(());
+        return Ok(IntroOutcome::CutShort);
     }
 
     // Terminal-size guard. Below MIN_INTRO_COLS × MIN_INTRO_LINES the intros
@@ -163,13 +181,13 @@ pub(crate) fn run_intro(
     // screen is entered — printing here would leak into the rain matrix
     // (AB-10 rain-screen cleanliness).
     if w < MIN_INTRO_COLS || h < MIN_INTRO_LINES {
-        return Ok(());
+        return Ok(IntroOutcome::CutShort);
     }
 
     match intro_type {
         IntroType::Cosmic => cosmic::run_cosmic_intro(term, frame, cloud, w, h, logo_color),
         IntroType::Logo => logo::run_logo_intro(term, frame, cloud, w, h, logo_color),
-        IntroType::None => Ok(()),
+        IntroType::None => Ok(IntroOutcome::CutShort),
     }
 }
 

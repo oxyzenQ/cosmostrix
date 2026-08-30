@@ -70,6 +70,13 @@ use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use ghost_events::GhostEventScheduler;
 use render::FlashWave;
 
+/// Message-reveal lead: when a cinematic intro plays, the message
+/// overlay waits this long before revealing, so the text lands shortly
+/// after the intro finishes (logo ~4.5 s → ~1.5 s of rain-alone
+/// breathing room; cosmic ~5 s → ~1 s). v52: armed ONLY by the intro
+/// runner (`hold_message_behind_intro`), never by `set_message`.
+pub(crate) const MESSAGE_INTRO_LEAD: Duration = Duration::from_secs(6);
+
 #[allow(private_interfaces, clippy::struct_excessive_bools)]
 pub struct Cloud {
     pub(crate) lines: u16,
@@ -539,17 +546,43 @@ impl Cloud {
 
     pub fn set_message(&mut self, msg: &str) {
         self.message_text = Some(msg.to_string());
-        // v25: delay typewriter 6s so the intro finishes first.
-        self.message_start_time = Some(Instant::now() + Duration::from_secs(6));
+        // v52: the reveal timeline starts NOW — set_message is
+        // context-free (--intro none runs, live-reload rebuilds, the
+        // intro's temporary clouds). The lead is armed by the intro
+        // runner when a cinematic actually plays; pre-v52 armed it
+        // unconditionally (`now + 6 s` → dead air everywhere else).
+        self.message_start_time = Some(Instant::now());
         self.reset_message();
         self.force_draw_everything = true;
     }
 
+    /// Arm the message-reveal lead so the overlay stays hidden behind
+    /// the cinematic intro. Called by the intro runner right before the
+    /// animation starts; no-op without a message.
+    pub fn hold_message_behind_intro(&mut self) {
+        if self.message_text.is_some() {
+            self.message_start_time = Some(Instant::now() + MESSAGE_INTRO_LEAD);
+        }
+    }
+
+    /// Pull a still-future message reveal start to NOW (q skip / signal /
+    /// terminal below the intro floor — nothing hides the message anymore,
+    /// so waiting out the lead is dead air). Past starts untouched.
+    pub fn cut_message_intro_lead(&mut self) {
+        let now = Instant::now();
+        if let Some(start) = self.message_start_time {
+            if start > now {
+                self.message_start_time = Some(now);
+            }
+        }
+    }
+
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
-            self.message_start_time = Some(Instant::now() + Duration::from_secs(6));
-            // v51 engrave: re-arm the spark movement detector so the
-            // fresh reveal fires a burst at its first char again.
+            // v52: Space restart replays immediately — no intro replays
+            // at runtime, so no lead (pre-v52 re-armed +6 s: dead air).
+            self.message_start_time = Some(Instant::now());
+            // v51 engrave: re-arm the spark detector (first-char burst).
             self.engrave.reset();
             self.force_draw_everything = true;
         }
@@ -563,12 +596,11 @@ impl Cloud {
         }
     }
 
-    /// v51 msg-fill-style: set the message overlay reveal style.
-    ///
-    /// When the style actually changes and a message is active, the
-    /// reveal timeline restarts immediately (no 6 s intro delay — the
-    /// 6 s delay only applies to the initial `set_message` call, so the
-    /// user sees the new style animate right away on live-reload).
+    /// v51 msg-fill-style: set the message overlay reveal style. When the
+    /// style actually changes and a message is active, the reveal timeline
+    /// restarts immediately (no intro lead — that is armed only by the
+    /// intro runner while a cinematic plays, so the new style animates
+    /// right away on live-reload).
     pub fn set_msg_fill_style(&mut self, style: crate::msg_fill_style::MsgFillStyle) {
         if self.msg_fill_style != style {
             self.msg_fill_style = style;

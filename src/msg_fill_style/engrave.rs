@@ -49,8 +49,9 @@
 //!   NEWLY revealed char — never per frame. Frame-rate independent,
 //!   no double-spawn after skipped frames (a jumped head fires ONE
 //!   burst at its new position), and bursts stop automatically when
-//!   the reveal completes, is paused, or sits in the 6 s intro delay
-//!   (elapsed does not advance → the head does not move → no burst).
+//!   the reveal completes, is paused, or sits in the intro lead
+//!   (MESSAGE_INTRO_LEAD, armed only while a cinematic plays; elapsed
+//!   does not advance → the head does not move → no burst).
 //! - Steady state: bursts every 80 ms with 200 ms lifetime →
 //!   9-12 concurrent sparks, 4x under the pool cap.
 //! - `--no-effects` (PERF-4): spawning is gated on `effects_enabled`
@@ -247,7 +248,7 @@ impl crate::cloud::Cloud {
         elapsed_ms: Option<usize>,
     ) {
         // Spawn on head MOVEMENT only (one burst per newly engraved
-        // char). While paused or inside the 6 s intro delay the elapsed
+        // char). While paused or inside the intro lead the elapsed
         // timeline stalls, the head stops advancing, and `head_idx`
         // stops changing — bursts stop with it. No timeline (None)
         // means bench/edge paths: never spawn, keep decaying.

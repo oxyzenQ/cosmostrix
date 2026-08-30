@@ -37,7 +37,8 @@ fn make_cloud_colored(style: MsgFillStyle) -> Cloud {
 fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64) {
     cloud.set_message_border(true);
     cloud.set_message(text);
-    // set_message sets start = now + 6s (post-intro delay). Rewind it:
+    // set_message starts the timeline at now (the intro lead, when one
+    // plays, is armed separately by event_loop_intro). Rewind it:
     // start = now - elapsed.
     cloud.message_start_time = Some(Instant::now() - Duration::from_millis(elapsed_ms));
 }
@@ -522,8 +523,9 @@ fn engrave_reveal_restarts_fresh_burst_after_typewriter_restart() {
     assert_eq!(cloud.engrave.active_count, 3);
 
     cloud.restart_message_typewriter();
-    // The restart sets start = now + 6s (intro delay): elapsed
-    // saturates to 0 → head at char 0 → fresh burst on the next draw.
+    // The restart sets start = now (immediate — Space replays carry no
+    // intro lead): elapsed ~ 0 → head at char 0 → fresh burst on the
+    // next draw.
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
     cloud.draw_message(&mut frame, Instant::now());
     assert_eq!(
@@ -605,4 +607,108 @@ fn default_style_is_typewriter_bit_identical_contract() {
         v1, v2,
         "default cloud and explicit typewriter cloud must reveal identically"
     );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// v52 message-intro lead (owner bug report: premature 6 s delay)
+// ─────────────────────────────────────────────────────────────────────────────
+
+/// `set_message` starts the reveal timeline immediately — the intro lead
+/// is armed by the intro runner, never here. Pre-v52 this armed
+/// `now + 6 s` unconditionally, which dead-aired every `--intro none`
+/// start (owner bug report).
+#[test]
+fn set_message_starts_timeline_immediately() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
+    let before = Instant::now();
+    cloud.set_message("hello");
+    let after = Instant::now();
+    let start = cloud.message_start_time.expect("timeline must be armed");
+    // The start must fall inside the set_message call window — i.e. NOW,
+    // not now + 6 s and not in the past.
+    assert!(
+        start >= before && start <= after,
+        "set_message must arm the reveal at now (start={start:?}, window=[{before:?},{after:?}])"
+    );
+}
+
+/// The intro runner arms the full 6 s lead only through
+/// `hold_message_behind_intro` — and only when a message exists.
+#[test]
+fn hold_message_behind_intro_arms_full_lead() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
+    cloud.set_message("hello");
+    let before = Instant::now();
+    cloud.hold_message_behind_intro();
+    let after = Instant::now();
+    let start = cloud.message_start_time.unwrap();
+    let lead = crate::cloud::MESSAGE_INTRO_LEAD;
+    assert_eq!(
+        lead,
+        Duration::from_secs(6),
+        "lead constant is the tuned 6 s"
+    );
+    assert!(
+        start >= before + lead && start <= after + lead,
+        "hold must arm now + MESSAGE_INTRO_LEAD (start={start:?})"
+    );
+
+    // No message → no-op (start stays unset).
+    let mut bare = make_cloud_colored(MsgFillStyle::Typewriter);
+    bare.hold_message_behind_intro();
+    assert!(bare.message_start_time.is_none());
+}
+
+/// `cut_message_intro_lead` pulls a still-future start to now and leaves
+/// an already-started timeline untouched.
+#[test]
+fn cut_message_intro_lead_clamps_only_future_starts() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
+    cloud.set_message("hello");
+
+    // Future start (intro skipped at t~0): clamp to now.
+    cloud.hold_message_behind_intro();
+    assert!(cloud.message_start_time.unwrap() > Instant::now());
+    cloud.cut_message_intro_lead();
+    assert!(
+        cloud.message_start_time.unwrap() <= Instant::now(),
+        "a future start must be pulled to now"
+    );
+
+    // Past start (lead already expired / fully played intro): untouched.
+    let past = Instant::now() - Duration::from_secs(30);
+    cloud.message_start_time = Some(past);
+    cloud.cut_message_intro_lead();
+    assert_eq!(
+        cloud.message_start_time,
+        Some(past),
+        "an already-started timeline must not move"
+    );
+
+    // No timeline at all: no-op, no panic.
+    let mut bare = make_cloud_colored(MsgFillStyle::Typewriter);
+    bare.cut_message_intro_lead();
+    assert!(bare.message_start_time.is_none());
+}
+
+/// Space restart (`restart_message_typewriter`) replays the reveal
+/// immediately — pre-v52 it re-armed `now + 6 s`, dead air after reset
+/// (owner bug report).
+#[test]
+fn restart_message_typewriter_is_immediate() {
+    let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
+    cloud.set_message("hello");
+    let before = Instant::now();
+    cloud.restart_message_typewriter();
+    let after = Instant::now();
+    let start = cloud.message_start_time.unwrap();
+    assert!(
+        start >= before && start <= after,
+        "Space restart must re-arm at now, not now + 6 s (start={start:?})"
+    );
+
+    // Without a message it is a no-op.
+    let mut bare = make_cloud_colored(MsgFillStyle::Typewriter);
+    bare.restart_message_typewriter();
+    assert!(bare.message_start_time.is_none());
 }
