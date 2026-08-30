@@ -6,15 +6,22 @@
 # workflow that runs scripts/gate-keepers.sh (the one-script gate-keeper).
 #
 # Checks performed by gate-keepers.sh:
-#   1.  shellcheck    — all .sh files
-#   2.  yamllint       — all .yml/.yaml files
-#   3.  actionlint     — GitHub Actions workflow validation
-#   4.  TOML syntax    — python3 tomllib on all .toml files
-#   5.  markdownlint   — all .md files
-#   6.  codespell      — spelling across all text files
-#   7.  SPDX headers   — git-tracked code/config/doc files
-#   8.  LOC guard      — .rs files <= 1500 lines
-#   9.  Rust version   — toolchain / MSRV / CI env in sync
+#   1.  Shell triad    - bash -n + shellcheck + shfmt -d on all .sh files
+#   2.  yamllint       - all .yml/.yaml files
+#   3.  actionlint     - GitHub Actions workflow validation
+#   4.  TOML syntax    - python3 tomllib on all .toml files
+#   5.  markdownlint   - all .md files
+#   6.  codespell      - spelling across all text files
+#   6b. ruff           - python lint/format on scripts/*.py
+#   6c. naming         - lowercase project name outside docs/archive/
+#   7.  SPDX headers   - git-tracked code/config/doc files
+#   8.  LOC guard      - .rs files <= 1500 lines
+#   9.  Rust version   - toolchain / MSRV / CI env in sync
+#  10.  Disclaimer     - all .md files carry the source-is-truth disclaimer
+#
+# Every tool listed above is installed below - a check that silently skips
+# because its tool is missing is a check that does not exist (incident:
+# shfmt was skipped for the whole v50 line because it was never installed).
 
 name: Cosmic Dragon Guard - Gate-keepers
 
@@ -47,6 +54,17 @@ jobs:
           sudo npm install -g --silent markdownlint-cli
           go install github.com/rhysd/actionlint/cmd/actionlint@latest
           echo "${HOME}/go/bin" >> "${GITHUB_PATH}"
+          # shfmt - canonical .sh formatter (gate-keepers.sh check 1c).
+          # Pinned to an exact upstream release so formatting is reproducible:
+          # style rules change across shfmt minor versions (newer versions
+          # split single-line `|| { ...; }` groups onto multiple lines), so
+          # this pin and the formatted tree must move together. Binary
+          # download instead of `go install` (no compile time) or apt
+          # (lags far behind upstream).
+          SHFMT_VERSION="v3.14.0"
+          sudo curl -fsSL "https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64" -o /usr/local/bin/shfmt
+          sudo chmod 755 /usr/local/bin/shfmt
+          shfmt --version
 
       - name: Run gate-keepers.sh
         run: bash scripts/gate-keepers.sh

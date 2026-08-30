@@ -5,7 +5,7 @@
 
 ## 1. Getting Started
 
-**Prerequisites**: Rust 1.98.0 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` (for the `./scripts/build.sh check-all` gatekeeper).
+**Prerequisites**: Rust 1.98.0 (pinned in `rust-toolchain.toml` — `rustup` auto-installs it); Git; Linux/macOS recommended (Windows works but some scripts need Git Bash); `shellcheck` + `shfmt` v3.14.0 (shell triad of the gatekeeper — install shfmt from [mvdan/sh releases](https://github.com/mvdan/sh/releases), apt lags behind and style rules differ between versions).
 
 **Clone + Build**:
 
@@ -29,7 +29,7 @@ All 11 gatekeeper checks must pass before any commit.
 
 **Rust**: formatting via `cargo fmt --all` (enforced by gatekeeper); linting via `cargo clippy -- -D warnings` (all warnings are errors); source cap 1,500 LOC per `.rs` file (1,000 for `cloud/mod.rs` — split large files using the `#[path = "..."] mod` pattern); no production `unwrap()` (all `.unwrap()` calls must be in `#[cfg(test)]` modules — production code uses `?`, `Option`, or `match Ok/Err`); no `unsafe` without SAFETY comment (every `unsafe` block must document why it's sound).
 
-**Shell scripts**: all `scripts/*.sh` must pass `shellcheck`; every file must have the copyright + SPDX header.
+**Shell scripts**: all `scripts/*.sh` must pass the triad `bash -n` + `shellcheck` + `shfmt -d` (default style: tab indent, function braces on own line); every file must have the copyright + SPDX header.
 
 **Python scripts**: all `scripts/*.py` must pass `ruff check` + `ruff format --check`.
 
