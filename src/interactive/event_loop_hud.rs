@@ -4,11 +4,11 @@
 //! HUD state update — extracted from `event_loop.rs` to keep that file
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 
+use super::hud::{FrameMode, HudState};
 use crate::app::CloudConfig;
 use crate::central_control_dragon_power::PowerManager;
 use crate::cloud::Cloud;
-
-use super::hud::{FrameMode, HudState};
+use crate::config::GlitchLevel;
 
 /// Update HUD state every frame with live values.
 ///
@@ -82,8 +82,22 @@ pub(crate) fn update_hud_state(
     // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
     // ambt: auto-detect ambient on/off from the ambient schedule entries.
     hud_state.set_ambient_on(!current_cfg.ambient_schedule.entries.is_empty());
-    // glth: glitch level preset from live config.
-    hud_state.set_glitch_level(current_cfg.glitch_level);
+    // glth: glitch level — read from cloud state so it follows runtime
+    // scene switches (apply_scene_runtime updates cloud.glitchy/glitch_pct,
+    // and apply_glitch_level_runtime sets the level). We derive the
+    // GlitchLevel from cloud.glitch_pct because Cloud doesn't store the
+    // enum (only the resolved numeric values). Thresholds match the
+    // preset definitions in scene_runtime.rs apply_glitch_level_runtime.
+    let cloud_glitch_level = if !cloud.glitchy {
+        GlitchLevel::None
+    } else if cloud.glitch_pct < 0.05 {
+        GlitchLevel::Subtle
+    } else if cloud.glitch_pct < 0.15 {
+        GlitchLevel::Default
+    } else {
+        GlitchLevel::Intense
+    };
+    hud_state.set_glitch_level(cloud_glitch_level);
     // ctun: custom if any ColorTune field ≠ 1.0 (IDENTITY).
     let ct = &current_cfg.color_tune;
     let is_custom = ct.saturation != 1.0
@@ -92,6 +106,11 @@ pub(crate) fn update_hud_state(
         || ct.body != 1.0
         || ct.tail != 1.0;
     hud_state.set_color_tune_custom(is_custom);
-    // mnst: monolith size from live config.
-    hud_state.set_monolith_size(current_cfg.monolith_size);
+    // mnst: monolith size — only meaningful when scene is monolith-based
+    // (rain_style == Monolith). For non-monolith scenes, show "unknown".
+    if cloud.rain_style() == crate::rain_style::RainStyle::Monolith {
+        hud_state.set_monolith_size(cloud.monolith_size());
+    } else {
+        hud_state.set_monolith_size_unknown();
+    }
 }

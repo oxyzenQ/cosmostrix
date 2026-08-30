@@ -244,8 +244,9 @@ pub(crate) struct HudState {
     /// `ctun:` HUD line.
     color_tune_custom: bool,
     /// Monolith size (small/normal/large). Only meaningful when scene is
-    /// monolith-based. Drives the `mnst:` HUD line.
-    monolith_size: crate::runtime::MonolithSize,
+    /// monolith-based. None = "unknown" (non-monolith scene). Drives the
+    /// `mnst:` HUD line.
+    monolith_size: Option<crate::runtime::MonolithSize>,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
@@ -627,7 +628,12 @@ impl HudState {
     /// Set monolith size (small/normal/large). Only meaningful when scene
     /// is monolith-based.
     pub(crate) fn set_monolith_size(&mut self, size: crate::runtime::MonolithSize) {
-        self.monolith_size = size;
+        self.monolith_size = Some(size);
+    }
+
+    /// Set monolith size to "unknown" — called when scene is NOT monolith-based.
+    pub(crate) fn set_monolith_size_unknown(&mut self) {
+        self.monolith_size = None;
     }
 
     /// Refresh HUD line colors from the current palette. Called every

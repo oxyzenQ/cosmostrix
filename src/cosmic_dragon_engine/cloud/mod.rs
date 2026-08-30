@@ -640,6 +640,12 @@ impl Cloud {
         self.rain_style
     }
 
+    /// v50.0.0-beta.7: accessor for monolith_size (needed by HUD mnst metric).
+    #[must_use]
+    pub fn monolith_size(&self) -> MonolithSize {
+        self.monolith_size
+    }
+
     /// Total droplet count (active + inactive slots). Test-only diagnostic —
     /// production reads `active_droplet_count()` instead.
     #[cfg(test)]

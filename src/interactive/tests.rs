@@ -394,9 +394,9 @@ mod cases {
     }
 
     #[test]
-    fn uppercase_x_is_now_ignored() {
-        // v30 simplify: uppercase 'X' removed for consistency. Verify it
-        // falls through to the no-op arm (no scene change).
+    fn uppercase_x_cycles_scene_in_reverse() {
+        // v50.0.0-beta.7: uppercase 'X' now cycles scenes in reverse
+        // (same pattern as c/C for colors and s/S for charsets).
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
@@ -414,8 +414,11 @@ mod cases {
             &default_term_reinit(),
         );
 
-        // scene_name local variable should be unchanged (no scene cycle fired).
-        assert_eq!(scene_name, "monolith");
+        // 'X' on monolith (index 1 in SCENE_ORDER) should go to cinematic (index 0).
+        assert_eq!(
+            scene_name, "cinematic",
+            "uppercase X must cycle scene in reverse"
+        );
     }
 
     #[test]

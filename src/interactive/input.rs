@@ -290,6 +290,17 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
+        // v50.0.0-beta.7: uppercase 'X' cycles scenes in reverse (same
+        // pattern as c/C for colors and s/S for charsets).
+        (KeyCode::Char('X'), _) => {
+            let prev = scene::cycle_scene(scene_name, -1);
+            *scene_name = prev.to_string();
+            *scene_generation = scene_generation.wrapping_add(1);
+            *charset_preset =
+                cloud.apply_scene_runtime(prev, charset_preset, user_ranges, def_ascii);
+            cloud.user_override_since_ambient = true;
+            cloud.ambient_palette_locked = false;
+        }
         (KeyCode::Up, KeyModifiers::NONE) => {
             let mut cps = cloud.chars_per_sec;
             if cps <= 0.5 {

@@ -239,11 +239,13 @@ impl HudState {
             "default"
         };
         self.cached_lines[19] = (colors[19], format!(" ctun: {ctun_val}"));
-        // mnst: monolith size (small/normal/large).
+        // mnst: monolith size (small/normal/large) or "unknown" for
+        // non-monolith scenes.
         let mnst_val = match self.monolith_size {
-            crate::runtime::MonolithSize::Small => "small",
-            crate::runtime::MonolithSize::Normal => "normal",
-            crate::runtime::MonolithSize::Large => "large",
+            Some(crate::runtime::MonolithSize::Small) => "small",
+            Some(crate::runtime::MonolithSize::Normal) => "normal",
+            Some(crate::runtime::MonolithSize::Large) => "large",
+            None => "unknown",
         };
         self.cached_lines[20] = (colors[20], format!(" mnst: {mnst_val}"));
 

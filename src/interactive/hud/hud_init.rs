@@ -71,7 +71,7 @@ impl super::HudState {
             ambient_on: false,
             glitch_level: crate::config::GlitchLevel::None,
             color_tune_custom: false,
-            monolith_size: crate::runtime::MonolithSize::Normal,
+            monolith_size: None,
             cached_lines: [
                 // ── Performance core (rows 0-5) — unchanged from v50 ──
                 (Color::Cyan, String::new()),    // 0: fps
