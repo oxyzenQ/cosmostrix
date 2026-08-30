@@ -11,12 +11,26 @@ description = "Professional-grade cinematic Matrix rain renderer for serious ter
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
 # crates.io discoverability metadata. Categories are validated slugs
-# from the official list (https://crates.io/categories): "games" is
-# defined there as "Applications for fun and entertainment", which is
-# exactly what a cinematic screensaver is; "command-line-utilities" is
-# the primary bucket for a terminal binary.
+# from the official list (https://crates.io/categories — 58 slugs as
+# of 2026-08-31, re-validated against the live registry API):
+# - "command-line-utilities": the primary bucket for a terminal binary.
+# - "games": "Applications for fun and entertainment" — a cinematic
+#   screensaver fits.
+# - "science": owner-mandated addition — the project's engineering
+#   posture (OKLab color science, statistics-grade HUD/benchmarks,
+#   LTS audits) earns it.
+# - "rendering": maps the owner's "cinematic"/"masterpiece" intent —
+#   neither is a valid registry slug (checked against the live list),
+#   and "rendering" is the closest official bucket for a cinematic
+#   renderer (the description already calls cosmostrix one).
+# Registry limit is 5 categories; 4 used.
 keywords = ["matrix", "matrix-rain", "terminal", "screensaver", "cli"]
-categories = ["command-line-utilities", "games"]
+categories = [
+    "command-line-utilities",
+    "games",
+    "science",
+    "rendering",
+]
 build = "build.rs"
 exclude = [
     "benchmark/*",

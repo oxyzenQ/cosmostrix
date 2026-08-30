@@ -9,6 +9,12 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### crates.io categories: science + rendering (Z-master-1B)
+
+- **Owner mandate**: add the missing categories "science" and "cinematic or masterpiece". Validated against the live registry API (58 official slugs as of 2026-08-31): `science` is a valid slug; `cinematic` and `masterpiece` are NOT — crates.io only accepts slugs from the official category list, so an invalid one fails `cargo publish` server-side.
+- **Resolution**: `science` added as requested (the project's engineering posture — OKLab color science, statistics-grade HUD/benchmarks, LTS audits — earns it). The "cinematic/masterpiece" intent is mapped to `rendering`, the closest official bucket for a cinematic renderer (the crate description already calls cosmostrix one). The mapping + rationale are documented in the `Cargo.toml` comment so the next maintainer does not re-litigate it.
+- **Categories now**: `command-line-utilities`, `games`, `science`, `rendering` (4 of the 5-category registry limit). No keyword changes.
+
 ### msg-fill-style: one-file-per-style directory refactor (Z-master-1B)
 
 - **Owner mandate**: "all styles into one directory called `msg_fill_style`, each file like `engrave.rs` — easy maintenance, isolate, plug and play." The v51 style system previously lived in three places: the enum + stateless math in `types/msg_fill_style.rs` (678 LOC monolith), the renderer in `cloud/message_draw.rs`, and the engrave spark sidecar in `cloud/message_engrave.rs`.
@@ -70,7 +76,7 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 - cosmostrix is now on [crates.io](https://crates.io/crates/cosmostrix): `cargo install cosmostrix` (or `--locked` / `--version X.Y.Z` for exact reproducibility) joins GitHub Releases, AUR, and Termux as an install channel; README Installation gains the section.
 - **New workflow `crates-io.yml`**: every owner-pushed `v*` tag — stable AND pre-release — publishes the crate via `cargo publish --locked`. Guard rails: tag must match `Cargo.toml`'s version (fail fast), already-published versions are skipped (re-pushed tags / re-runs stay green), missing `CRATES_IO_TOKEN` secret fails with setup instructions. Requires the one-time `CRATES_IO_TOKEN` repository secret (crates.io API token, `publish-new` scope).
-- **Cargo.toml**: crates.io discoverability metadata added (keywords: matrix, matrix-rain, terminal, screensaver, cli; categories: command-line-utilities, games — both validated against the live registry slugs) and the packaged crate slimmed (`.cargo/*` + lint dotfiles excluded; they are repo-local build/lint config, dead weight downstream).
+- **Cargo.toml**: crates.io discoverability metadata added (keywords: matrix, matrix-rain, terminal, screensaver, cli; categories: command-line-utilities, games, later extended with science + rendering — all validated against the live registry slugs) and the packaged crate slimmed (`.cargo/*` + lint dotfiles excluded; they are repo-local build/lint config, dead weight downstream).
 - **CI dependency policy (owner decision)**: zero hardcoded dep versions in `.github/*`. Actions float on major tags (`checkout@v6`, `rust-cache@v2`, `upload-artifact@v7`, `download-artifact@v8`, `setup-java@v5`, `setup-ndk@v1`, `msvc-dev-cmd@v1`, `action-gh-release@v3`); CI-installed deps resolve latest upstream at run time (shfmt via the mvdan/sh releases API, unpinned pip/npm/go installs, Android NDK `ndk-version: latest`); the Rust toolchain stays deliberately LTS-locked via `rust-toolchain.toml` (gate 9 keeps `RUST_VERSION` envs in sync). Documented in `docs/workflow/ABOUT_CI.md` (Dependency version policy); `docs/SUPPLY_CHAIN.md` records the decision replacing the SHA-pinning migration plan.
 
 ### Shortkey audit: exhaustive no-op lock for every non-active key (Z-master-1B)
