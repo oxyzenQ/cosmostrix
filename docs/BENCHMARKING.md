@@ -31,7 +31,7 @@ The default benchmark runs **dry** (no I/O) — it measures pure engine throughp
 | `--bench-io` | Wet I/O — writes ANSI to `/dev/null`. Exercises kernel syscall path. | Measure real write bandwidth + latency |
 | `--bench-scene NAME` | Select render path (`lean` or `production-draw`). Requires `--bench-io`. | Measure specific render path |
 | `--bench-all` | Scaling sweep across 6×6 -> 200×60. Prints SCALING SUMMARY table. | See how FPS scales with screen size |
-| `--screen-size WxH` | Fixed virtual screen size. Min 4×4, max 7680×4320 in bench mode. | Benchmark at exact dimensions |
+| `--screen-size WxH` | Fixed virtual screen size. Min 4×4, max 7680×4320 in bench mode. Memory scales with cells: the double frame buffer + generation maps cost roughly 48-72 bytes per cell, so the 8K cap allocates ~1.0-1.5 GiB heap — size down on memory-constrained machines (a 500×200 run needs ~12 MiB). | Benchmark at exact dimensions |
 | `--save-baseline PATH` | Save JSON output to whitelist-enforced path. | Lock in regression baseline |
 | `--compare-baseline PATH` | Compare current run against saved baseline. Flags >5% FPS regressions. | CI regression detection |
 | `--json` | Machine-readable JSON output. | Scripts, CI, dashboards |

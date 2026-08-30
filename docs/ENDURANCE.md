@@ -249,6 +249,58 @@ errors and should be fixed rather than ignored.
 
 ## Past results
 
+### Run — v51.0.0-beta.1 — 2026-08-30 — linux-amd64-v1-gnu (SHORT-RUN SMOKE, not a 2h soak)
+
+> Recorded by the LTS matrix mid-session retest audit
+> (`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md`). These are short-run
+> stability smoke points that re-establish a fresh baseline for the
+> v50/v51 line — the previous record below is v4.0.1 (2026-06-11). A
+> full 2 h soak on target hardware is still recommended.
+
+Run A — benchmark mode:
+
+| Item | Value |
+|---|---|
+| cosmostrix version | 51.0.0-beta.1 (commit 29f2f00a) |
+| Build profile | release (linux-amd64-v1-gnu) |
+| Duration | 90 s (`--benchmark --bench-io --bench-duration 90s`) |
+| Sampling interval | 3 s |
+| Terminal size | headless virtual (bench default) |
+
+**Results:**
+
+| Metric | Value | Pass? |
+|---|---|---|
+| RSS after warmup | 4520 kB (flat from t=3 s to t=90 s) | PASS (0% growth) |
+| HWM | 4524 kB | — |
+| RSS growth % | 0% (post-warmup) | PASS |
+| Threads | 1 stable | — |
+| Crashes / panics | no (exit 0) | PASS |
+| Allocator | alloc_calls_per_frame 0.0, heap_retained 0 B | PASS (no leak signature) |
+
+Run B — interactive mode (PTY, 120x35, TERM=xterm-256color):
+
+| Item | Value |
+|---|---|
+| Duration | 120 s with mid-session keys (HUD on/off, pause/resume, density -/+) |
+| Sampling interval | 3 s |
+
+**Results:**
+
+| Metric | Value | Pass? |
+|---|---|---|
+| RSS profile | 5356 kB flat t=3..75 s; one bounded +272 kB step at t~78 s; flat to end | PASS (step = palette/SGR cache rebuild, not creep) |
+| HWM | 5628 kB | — |
+| Threads | 1 at spawn, 5 from t=6 s, stable | — |
+| Exit | 0 via `q` after all interactions | PASS |
+| Crashes / panics | no | PASS |
+
+**Notes:** the single +272 kB step coincides with the HUD-off/ambient
+window and matches one palette-cache rebuild (bounded per palette). A leak
+signature would be monotonic creep; step-then-flat is bounded caching.
+Long-run confirmation at the 44-palette ceiling (~12 MiB worst case)
+awaits the recommended 2 h soak.
+
 ### Run — v4.0.1 — 2026-06-11 — linux-x86_64-v3
 
 | Item | Value |

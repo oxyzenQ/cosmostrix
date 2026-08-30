@@ -22,7 +22,7 @@ non-destructive behavior.
 | 9 | Windows Terminal reset path | Manual user recovery | User action | User action | User action | N/A | Yes (issue #15) | User-controlled |
 | 10 | tmux | Same as paths 1-7 within tmux pane | Same as triggering path | No (tmux scrollback preserved) | Yes | Same as triggering path | No | No |
 | 11 | ssh | Same as paths 1-7 over remote PTY | Same as triggering path | No (remote scrollback preserved) | Yes | Same as triggering path | Recommended | No |
-| 12 | headless / non-TTY | No alternate screen, no raw mode — no cleanup needed | N/A | N/A | N/A | N/A | No | No |
+| 12 | headless / non-TTY (no controlling terminal) | No terminal state set up — plain interactive run fails fast with `os error 6` (ENXIO), exit 1, after a cleanup burst; `--benchmark` / `--doctor` run cleanly (exit 0) | N/A | N/A | N/A | N/A | No | No |
 | 13 | Benchmark mode (`--benchmark`) | Full via `Terminal::drop()` (same as normal exit) | No | No | Yes | Yes | No | No |
 | 14 | Doctor mode (`--doctor`) | No terminal mode changes — no cleanup needed | N/A | N/A | N/A | N/A | No | No |
 
@@ -128,6 +128,18 @@ Terminal residue after SIGKILL is expected and documented. The user
 should run manual recovery if needed (`stty sane`, `printf '\033c'`,
 or `cosmostrix --reset-terminal`).
 
+Live verification 2026-08-30 (v51.0.0-beta.1,
+`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md`): with the normal
+terminal topology (cosmostrix as a foreground child, shell as session
+leader), `kill -9` left the guard child alive and termios was fully
+restored to cooked mode within 0.5 s. Edge case: when cosmostrix itself
+is the session leader (launched via `setsid`, some desktop launchers),
+the session-leader exit delivers SIGHUP to the foreground process
+group; the guard blocks/waits only on SIGTERM, so the SIGHUP default
+disposition kills the guard before it can restore — residue remains in
+that topology. Hardening candidate (add SIGHUP to the guard's signal
+set) is documented as finding F3 of the retest report.
+
 ### 8. `--reset-terminal`
 
 This is an explicitly destructive recovery option. It performs:
@@ -173,11 +185,20 @@ over SSH before release if terminal code changes.
 
 ### 12. Headless / Non-TTY
 
-When stdin or stdout is not a TTY (piped output, CI environment, cron
-job, redirected output), cosmostrix does not enter alternate screen mode,
-does not set raw mode, and does not enable mouse capture. No terminal
-cleanup is needed because no terminal state was changed. Benchmark mode
-and doctor mode work normally in headless environments.
+When the process has no controlling terminal at all (CI environment,
+cron job, `ssh -T`, piped stdin/stdout with no ctty), a plain
+interactive run fails fast during terminal setup: cosmostrix prints
+`error: No such device or address (os error 6)` (ENXIO from the tty
+open), emits a cleanup burst of reset sequences to stdout, and exits
+with code 1 — no hang, no partial render loop, no terminal state left
+to clean. Verified live 2026-08-30 (see
+`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` finding F2).
+
+`--benchmark` and `--doctor` are the supported headless paths: they
+run to completion and exit 0 without any alternate screen, raw mode,
+or mouse capture. When a controlling terminal exists but stdout is
+piped, interactive mode still initializes terminal state through
+`/dev/tty`, so use `--benchmark` for measurement pipelines.
 
 ### 13. Benchmark Mode (`--benchmark`)
 
@@ -195,6 +216,15 @@ render loop. It does not enter alternate screen mode, does not set raw
 mode, and does not modify terminal state. No cleanup is needed.
 
 ## Honesty Notes
+
+- **Alt-screen usage is TERM-conditional.** Only `dumb` and an unset
+  TERM lack alternate screen support (`termdetect::has_alternate_screen`).
+  In that fallback cosmostrix renders directly on the MAIN screen — the
+  visible screen content is overwritten (scrollback is untouched) and
+  the non-destructive "alternate buffer preserves original content"
+  guarantee of path 1 does not apply. Verified live 2026-08-30: with
+  TERM unset no `\x1b[?1049h/l` pair is emitted; with
+  TERM=xterm-256color the enter/leave pair is correct.
 
 - **SIGKILL cannot be caught or cleaned up by the process.** The fork
   guard is best-effort and Linux-only. Terminal residue after SIGKILL
