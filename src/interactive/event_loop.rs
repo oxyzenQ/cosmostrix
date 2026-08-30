@@ -155,37 +155,55 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> =
         Some(initial_cfg_map.clone());
 
-    // v50.0.0-beta.7 masterclass: when --scene is CLI-explicit, DON'T
-    // apply ambient at startup. The user explicitly chose a scene — they
-    // should see it first. Ambient will apply later via auto-snapback
-    // after ambient-snapback-secs (default 30s). This avoids the confusion
-    // where `cosmostrix --scene matrix` with `ambient.12-00 = monolith`
-    // immediately shows monolith instead of matrix.
+    // v50.0.0-beta.7 masterclass: ambient startup delay.
     //
-    // Key insight: even if we skip startup ambient, poll_ambient_events
-    // would re-apply it from the rx channel on the next frame. The fix
-    // is twofold:
-    //   1. Set last_applied_ambient_entry = Some(entry) so snapback can fire
-    //   2. Keep user_override_since_ambient = true so poll_ambient_events
-    //      skips re-application (the new else-if branch)
+    // Owner's simple rule:
+    //   - No CLI flags at all → ambient applies INSTANTLY (no delay).
+    //     Example: `cosmostrix -v` (debug only, no scene/color/charset).
+    //   - ANY CLI flag (--scene, --color, --charset, etc.) → ambient
+    //     DEFERS for ambient-snapback-secs (default 30s). CLI wins first,
+    //     then ambient takes over after the delay.
     //
-    // When --scene is NOT CLI-explicit (config or default), ambient
-    // applies immediately at startup as before (the original behavior).
-    let scene_is_cli_explicit = base_cfg.cli_explicit.scene;
-    let (new_charset, startup_entry) = if scene_is_cli_explicit {
-        // CLI scene wins: skip ambient apply. But still capture the entry
-        // for the snapback mechanism.
+    // This avoids confusion: user runs `cosmostrix --scene matrix` with
+    // `ambient.12-00 = monolith` and sees matrix first, then after 30s
+    // monolith kicks in. Without the delay, ambient immediately overrides
+    // the CLI scene — user thinks `--scene matrix` is broken.
+    //
+    // Implementation: check if ANY CliExplicit flag is true. If none,
+    // apply ambient instantly. If any, defer (skip startup apply + let
+    // auto-snapback handle it after the delay).
+    let cli_has_any_override = {
+        let c = &base_cfg.cli_explicit;
+        c.color
+            || c.charset
+            || c.speed
+            || c.density
+            || c.fps
+            || c.scene
+            || c.glitch_level
+            || c.crystal_dragon
+            || c.power_dragon
+            || c.async_mode
+            || c.msg_mode
+            || c.intro_color
+            || c.message
+            || c.monolith_size
+            || c.color_tune
+    };
+    let (new_charset, startup_entry) = if cli_has_any_override {
+        // CLI flags present: defer ambient. Capture the entry for snapback.
         let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
         let deferred_entry = base_cfg.ambient_schedule.current_phase(now_min).cloned();
         crate::lr_trace!(
-            "ambient: startup — CLI --scene explicit, deferring ambient apply until snapback. Entry: {:?}",
+            "ambient: startup — CLI flags detected, deferring ambient apply until snapback. Entry: {:?}",
             deferred_entry.as_ref().map(|e| &e.scene)
         );
-        // Store the entry so snapback can apply it after the delay.
         last_applied_ambient_entry = deferred_entry;
-        // Keep user_override_since_ambient = true (already set above).
+        // Keep user_override_since_ambient = true so poll_ambient_events
+        // defers re-application (the else-if branch in poll_ambient_events).
         (charset_preset.clone(), None)
     } else {
+        // No CLI flags: apply ambient instantly (original behavior).
         crate::crystal_dragon_engine::ambient::apply_startup_ambient(
             &mut cloud,
             &base_cfg.ambient_schedule,
