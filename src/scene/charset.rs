@@ -41,6 +41,38 @@ impl Charset {
     }
 }
 
+/// v51 did-you-mean audit: canonical preset-name list. Kept in lockstep
+/// with the `charset_from_str` match arms and the `--list-charsets`
+/// printer (single source of truth for suggestions; the printer keeps
+/// its own formatted descriptions).
+pub(crate) const CHARSET_PRESET_NAMES: &[&str] = &[
+    "auto",
+    "matrix",
+    "ascii",
+    "extended",
+    "english",
+    "digits",
+    "punc",
+    "binary",
+    "hex",
+    "katakana",
+    "greek",
+    "cyrillic",
+    "hebrew",
+    "blocks",
+    "symbols",
+    "arrows",
+    "retro",
+    "cyberpunk",
+    "hacker",
+    "minimal",
+    "code",
+    "dna",
+    "braille",
+    "runic",
+    "zen",
+];
+
 pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Charset, String> {
     let spec = spec.trim().to_ascii_lowercase();
     match spec.as_str() {
@@ -85,9 +117,19 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
         "braille" => Ok(Charset::BRAILLE),
         "runic" => Ok(Charset::RUNIC),
         "zen" => Ok(Charset::ZEN),
-        _ => Err(format!(
-            "error: unknown charset '{spec}'\n\n  Use --list-charsets to see available charsets."
-        )),
+        _ => Err({
+            // v51 did-you-mean audit: suggest the closest preset (same
+            // edit-distance <= 2 policy as colors/scenes). Custom
+            // [charset-custom.<name>] blocks are not suggested here —
+            // charset_from_str has no config access; --list-charsets
+            // lists them.
+            let tip = crate::cli::suggestion::closest_value_match(&spec, CHARSET_PRESET_NAMES)
+                .map(|s| format!("\n  Did you mean '{s}'?"))
+                .unwrap_or_default();
+            format!(
+                "error: unknown charset '{spec}'{tip}\n\n  Use --list-charsets to see available charsets."
+            )
+        }),
     }
 }
 
@@ -237,5 +279,43 @@ mod tests {
     fn charset_from_str_resolves_zen() {
         assert_eq!(charset_from_str("zen", false).unwrap(), Charset::ZEN);
         assert_eq!(charset_from_str("ZEN", false).unwrap(), Charset::ZEN);
+    }
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    use super::*;
+
+    /// v51 did-you-mean audit: unknown charset errors suggest the closest
+    /// preset (edit-distance <= 2, same policy as colors).
+    #[test]
+    fn unknown_charset_typo_suggests_closest_preset() {
+        let err = charset_from_str("binari", false).unwrap_err();
+        assert!(
+            err.contains("Did you mean 'binary'?"),
+            "charset typo must suggest the closest preset, got: {err}"
+        );
+        let err = charset_from_str("katakan", false).unwrap_err();
+        assert!(err.contains("Did you mean 'katakana'?"), "got: {err}");
+    }
+
+    #[test]
+    fn unknown_charset_distant_value_no_suggestion() {
+        let err = charset_from_str("totally-not-a-charset", false).unwrap_err();
+        assert!(
+            !err.contains("Did you mean"),
+            "distant value must not suggest, got: {err}"
+        );
+    }
+
+    #[test]
+    fn preset_names_stay_in_lockstep_with_parser() {
+        // Every preset name must parse; every parser arm must be listed.
+        for name in CHARSET_PRESET_NAMES {
+            assert!(
+                charset_from_str(name, false).is_ok(),
+                "CHARSET_PRESET_NAMES lists '{name}' but charset_from_str rejects it"
+            );
+        }
     }
 }

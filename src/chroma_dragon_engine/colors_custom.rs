@@ -247,8 +247,16 @@ pub(crate) fn load_custom_palette(
         } else {
             available.join(", ")
         };
+        // v51 did-you-mean audit: suggest the closest defined palette
+        // (edit-distance <= 2, same policy as every other value surface).
+        let tip = crate::cli::suggestion::closest_value_match(
+            name,
+            &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+        )
+        .map(|s| format!("\n  Did you mean '{s}'?"))
+        .unwrap_or_default();
         format!(
-            "custom color '{name}' not found in config\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
+            "custom color '{name}' not found in config{tip}\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
         )
     })?;
     def.to_palette()
@@ -608,5 +616,29 @@ mod tests {
             "oversized name must be skipped, got {} entries",
             map.len()
         );
+    }
+}
+
+/// v51 did-you-mean audit: unknown palette names suggest the closest
+/// defined block.
+#[cfg(test)]
+mod suggestion_tests {
+    use super::*;
+
+    #[test]
+    fn load_custom_palette_not_found_suggests_closest() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "colors-custom.cyberpunk_2077.rain".to_string(),
+            "#000000, #ffffff".to_string(),
+        );
+        let err = load_custom_palette(&cfg, "cyberpunk_207").unwrap_err();
+        assert!(
+            err.contains("Did you mean 'cyberpunk_2077'?"),
+            "palette typo must suggest the closest block, got: {err}"
+        );
+        // Distant name: no suggestion.
+        let err = load_custom_palette(&cfg, "something-else").unwrap_err();
+        assert!(!err.contains("Did you mean"), "got: {err}");
     }
 }

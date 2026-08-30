@@ -521,9 +521,8 @@ pub(crate) fn apply_scene_custom_layer(
     } else {
         available.join(", ")
     };
-    let message = format!(
-        "error: unknown custom scene '{name}'\nexpected one of: {list}\n\n  Use --list-scenes to see built-in and custom scenes."
-    );
+    // v51 did-you-mean audit: message built by the testable helper below.
+    let message = unknown_custom_scene_error(name, &available);
     if strict_unknown {
         return Err(message);
     }
@@ -717,3 +716,54 @@ pub(crate) use overrides::{apply_profile_overrides, apply_scene_custom_field_to_
 
 #[cfg(test)]
 mod tests;
+
+/// v51 did-you-mean audit: build the "unknown custom scene" error with a
+/// closest-match suggestion (edit-distance <= 2, same policy as every
+/// other value surface). Separate fn so the format is unit-testable
+/// without constructing a full `Args`.
+fn unknown_custom_scene_error(name: &str, available: &[String]) -> String {
+    let list = if available.is_empty() {
+        "<none defined>".to_string()
+    } else {
+        available.join(", ")
+    };
+    let tip = crate::cli::suggestion::closest_value_match(
+        name,
+        &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
+    )
+    .map(|s| format!("\n  Did you mean '{s}'?"))
+    .unwrap_or_default();
+    format!(
+        "error: unknown custom scene '{name}'{tip}\nexpected one of: {list}\n\n  Use --list-scenes to see built-in and custom scenes."
+    )
+}
+
+#[cfg(test)]
+mod suggestion_tests {
+    use super::*;
+
+    #[test]
+    fn unknown_custom_scene_suggests_closest() {
+        let available = vec!["afternoon".to_string()];
+        let msg = unknown_custom_scene_error("afternon", &available);
+        assert!(
+            msg.contains("Did you mean 'afternoon'?"),
+            "custom scene typo must suggest the closest block, got: {msg}"
+        );
+    }
+
+    #[test]
+    fn unknown_custom_scene_no_close_match_has_no_tip() {
+        let available = vec!["afternoon".to_string()];
+        let msg = unknown_custom_scene_error("zzzzzzz", &available);
+        assert!(!msg.contains("Did you mean"), "got: {msg}");
+        assert!(msg.contains("expected one of: afternoon"));
+    }
+
+    #[test]
+    fn unknown_custom_scene_empty_list_renders_none_defined() {
+        let msg = unknown_custom_scene_error("whatever", &[]);
+        assert!(msg.contains("expected one of: <none defined>"));
+        assert!(!msg.contains("Did you mean"));
+    }
+}

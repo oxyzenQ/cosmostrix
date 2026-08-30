@@ -165,6 +165,7 @@ The Dragon's roar is not loud — it is precise.
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
 - Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5. Press `q` to skip mid-animation.
 - Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse, `s`/`S` cycle charsets (Shift or CapsLock produces uppercase — kitty-protocol terminals reporting the base codepoint + SHIFT are normalized internally), `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed. Shift is the ONLY modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always rejected. While paused, ONLY `p` (resume) and `q` (quit) respond — every other key (including `i`) is ignored, and all running HUD metrics freeze until resume.
+- Typo-friendly CLI — every flag and value surface suggests on close misspellings: long flags (`--scne` → `--scene`), enum values (`--glitch-level sutble` → `subtle`), colors, scenes, charsets, custom palette/scene names, and short shorthands (`-mfss` → `--msg-fill-style`). Removed flags get migration hints instead. See docs/RULES.md "Did you mean?" coverage inventory.
 
 ### Benchmarking & Build
 

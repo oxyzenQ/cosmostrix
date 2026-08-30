@@ -310,30 +310,9 @@ fn closest_color_name(input: &str) -> Option<&'static str> {
     best.map(|(name, _)| name)
 }
 
-/// Levenshtein edit distance between two strings.
-#[inline]
-fn edit_distance(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let (m, n) = (a.len(), b.len());
-    if m == 0 {
-        return n;
-    }
-    if n == 0 {
-        return m;
-    }
-    let mut prev: Vec<usize> = (0..=n).collect();
-    let mut curr: Vec<usize> = vec![0; n + 1];
-    for i in 1..=m {
-        curr[0] = i;
-        for j in 1..=n {
-            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-    prev[n]
-}
+// v51 did-you-mean audit: edit_distance moved to cli/suggestion.rs as the
+// shared engine (closest_value_match + closest_color_name both use it).
+use suggestion::edit_distance;
 
 #[cfg(test)]
 mod tests {

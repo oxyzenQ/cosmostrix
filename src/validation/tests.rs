@@ -270,3 +270,67 @@ fn force_flag_parses_alongside_dump_config() {
         "--dump-config + --force must pass prevalidate"
     );
 }
+
+// ── v51 did-you-mean audit: enum value typos must suggest ──────────────
+
+#[test]
+fn enum_typo_glitch_level_suggests_closest() {
+    let err = prevalidate_cli_args(&[
+        "cosmostrix".into(),
+        "--glitch-level".into(),
+        "sutble".into(),
+    ])
+    .unwrap_err();
+    assert!(
+        err.contains("Did you mean 'subtle'?"),
+        "glitch-level typo must suggest the closest value, got: {err}"
+    );
+}
+
+#[test]
+fn enum_typo_monolith_size_suggests_closest() {
+    let err = prevalidate_cli_args(&["cosmostrix".into(), "--monolith-size".into(), "larg".into()])
+        .unwrap_err();
+    assert!(
+        err.contains("Did you mean 'large'?"),
+        "monolith-size typo must suggest the closest value, got: {err}"
+    );
+}
+
+#[test]
+fn enum_typo_color_bg_attached_form_suggests() {
+    // The `=` attached form also flows through validate_cli_value.
+    // "default-backgroun" is distance 1 from "default-background".
+    let err = prevalidate_cli_args(&["cosmostrix".into(), "--color-bg=default-backgroun".into()])
+        .unwrap_err();
+    assert!(
+        err.contains("Did you mean 'default-background'?"),
+        "color-bg typo must suggest the closest value, got: {err}"
+    );
+}
+
+#[test]
+fn enum_typo_color_bg_transposed_word_no_bogus_tip() {
+    // "defualt" is distance ~14 from "black" and ~11 from
+    // "default-background" — no suggestion must be fabricated.
+    let err =
+        prevalidate_cli_args(&["cosmostrix".into(), "--color-bg=defualt".into()]).unwrap_err();
+    assert!(
+        !err.contains("Did you mean"),
+        "a transposed word with no close candidate must not fabricate a tip, got: {err}"
+    );
+}
+
+#[test]
+fn enum_far_off_value_gets_no_suggestion() {
+    let err = prevalidate_cli_args(&[
+        "cosmostrix".into(),
+        "--glitch-level".into(),
+        "extravagant".into(),
+    ])
+    .unwrap_err();
+    assert!(
+        !err.contains("Did you mean"),
+        "a distant value must not produce a bogus suggestion, got: {err}"
+    );
+}

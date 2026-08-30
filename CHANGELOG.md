@@ -9,6 +9,19 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### "Did you mean?" audit: every CLI value surface now suggests on typos (Z-master-1B)
+
+- Owner mandate: all existing CLI flags/values must use the suggestion system. Systematic audit of every flag + value surface found FIVE gaps where a typo produced a bare "unknown X / use --list-Y" dead end with no suggestion, while colors and long flags already suggested:
+  1. `--glitch-level`, `--monolith-size`, `--color-bg` values — the prevalidator (`prevalidate_cli_args`) intercepts these BEFORE clap's ValueEnum parser, so clap's built-in "tip: a similar value exists" never fired. `validate_enum_value` now appends `Did you mean '<value>'?`.
+  2. `--scene <typo>` (both the strict CLI error and the config-apply path) — now suggests from builtin scene names + `[scene-custom.<name>]` blocks.
+  3. `-C/--charset/--charset-custom <typo>` — `charset_from_str` now suggests from the new `CHARSET_PRESET_NAMES` list (custom charset names are listed by `--list-charsets` but not suggested — the parser has no config access; documented).
+  4. `--colors-custom <typo>` — `load_custom_palette` now suggests from the defined `[colors-custom.<name>]` blocks.
+  5. `--scene-custom <typo>` — `unknown_custom_scene_error` (extracted as a testable helper) now suggests from the defined custom scenes.
+- **Engine consolidation**: `edit_distance` + `closest_value_match` (edit distance ≤ 2, case-insensitive, deterministic first-best tie-break) now live in `src/cli/suggestion.rs` as the shared engine — `closest_color_name` reuses it (its private copy removed), and every new surface uses the same policy. clap-driven surfaces (long flags, `value_enum` values, `-mfs` shorthands) keep using clap's own suggestion output — no duplicate engines.
+- **Verified already suggesting** (no change needed): long flags (`extract_clap_suggestion`), `--intro`/`--msg-fill-style`/`--bench-scene` values (clap ValueEnum tips), color values (`closest_color_name`, bug #13), `-mfss` shorthands (`argv_expand`), removed flags (REMOVED_FLAGS migration table), unknown config.toml keys (`config_hints`).
+- **Tests**: +15 (5 engine unit tests in `suggestion.rs`, 5 prevalidator enum tests, 3 charset tests incl. a preset-list/parser lockstep test, palette + custom-scene + scene-tip tests).
+- **Docs**: docs/RULES.md gains the full "Did you mean?" coverage inventory (one bullet per surface, file-level pointers); README gains the typo-friendly CLI bullet.
+
 ### Live-reload deep audit: custom palette / custom scene switching fixed (Z-master-1B)
 
 - Owner suspicion confirmed: "some functions in config.toml don't work at live-reload." Systematic audit of every `USER_CONFIG_KEYS` entry against `rebuild_cloud_config` + the downstream `create_cloud` application found FIVE real gaps — all in the custom palette / custom scene switching paths, all reproduced by failing tests before fixing:

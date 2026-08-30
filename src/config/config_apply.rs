@@ -243,14 +243,15 @@ pub(crate) fn apply_config_and_runtime_defaults(
     // with a clear message. This catches typos like `--scene nonexistnt`
     // while still accepting custom scene names (which were previously
     // rejected by validate_scene_name).
-    if let Some(ref scene_name) = args.scene {
+    if let Some(scene_name) = args.scene.as_ref() {
         let normalized = scene_name.trim().to_ascii_lowercase();
         let is_builtin = crate::scene::get_scene(&normalized).is_some();
         let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
         let is_custom = custom_scenes.contains_key(&normalized);
         if !is_builtin && !is_custom {
             return Err(format!(
-                "error: unknown scene '{scene_name}'\n\n  Use --list-scenes to see available scenes."
+                "error: unknown scene '{scene_name}'{}\n\n  Use --list-scenes to see available scenes.",
+                scene_suggestion_tip(&normalized, &cfg)
             ));
         }
     }
@@ -377,7 +378,8 @@ fn apply_config_values(
             config_touched.insert("scene");
         } else {
             crate::output::eprintln_error_labeled(&format!(
-                "unknown scene '{v}'\n\n  Use --list-scenes to see available scenes."
+                "unknown scene '{v}'{}\n\n  Use --list-scenes to see available scenes.",
+                scene_suggestion_tip(&normalized, cfg)
             ));
         }
     }
@@ -600,7 +602,25 @@ fn config_value(
     }
 }
 
-#[inline]
+/// v51 did-you-mean audit: suggestion tip for an unknown scene name.
+///
+/// Candidates = every builtin scene name + every `[scene-custom.<name>]`
+/// block defined in the config. Uses the shared edit-distance <= 2 policy
+/// (same as colors / charsets / enum values), so `--scene cinemtic`
+/// suggests 'cinematic' instead of the bare "use --list-scenes" dead end.
+fn scene_suggestion_tip(normalized: &str, cfg: &HashMap<String, String>) -> String {
+    let mut candidates: Vec<&str> = crate::scene::SCENES.iter().map(|s| s.name).collect();
+    let custom: Vec<String> = crate::scene_custom::collect_custom_scenes(cfg)
+        .keys()
+        .cloned()
+        .collect();
+    let custom_refs: Vec<&str> = custom.iter().map(|s| s.as_str()).collect();
+    candidates.extend(custom_refs);
+    crate::cli::suggestion::closest_value_match(normalized, &candidates)
+        .map(|s| format!("\n  Did you mean '{s}'?"))
+        .unwrap_or_default()
+}
+
 pub(super) fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
     !matches!(
         matches.value_source(key),
@@ -698,3 +718,37 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
 // extracted to config_apply_scene_glitch.rs.
 mod config_apply_scene_glitch;
 pub(crate) use config_apply_scene_glitch::{apply_glitch_level_values, apply_scene_values};
+
+/// v51 did-you-mean audit: scene name typo suggestions.
+#[cfg(test)]
+mod scene_suggestion_tests {
+    use super::*;
+
+    #[test]
+    fn scene_suggestion_tip_suggests_builtin() {
+        let cfg = HashMap::new();
+        assert_eq!(
+            scene_suggestion_tip("cinemtic", &cfg),
+            "\n  Did you mean 'cinematic'?"
+        );
+    }
+
+    #[test]
+    fn scene_suggestion_tip_includes_custom_scenes() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "scene-custom.afternoon.base-scene".to_string(),
+            "cinematic".to_string(),
+        );
+        assert_eq!(
+            scene_suggestion_tip("afternon", &cfg),
+            "\n  Did you mean 'afternoon'?"
+        );
+    }
+
+    #[test]
+    fn scene_suggestion_tip_distant_name_is_empty() {
+        let cfg = HashMap::new();
+        assert_eq!(scene_suggestion_tip("zzzzzzzz", &cfg), "");
+    }
+}

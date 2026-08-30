@@ -355,8 +355,19 @@ fn validate_enum_value(name: &str, raw: &str, allowed: &[&str]) -> Result<(), St
     if allowed.iter().any(|value| raw.eq_ignore_ascii_case(value)) {
         Ok(())
     } else {
+        // v51 did-you-mean audit: the prevalidator intercepts these enum
+        // values BEFORE clap's ValueEnum parser sees them, so clap's built-in
+        // "tip: a similar value exists" never fires for --glitch-level /
+        // --monolith-size / --color-bg. Append the same style of suggestion
+        // clap would have produced (edit distance <= 2, same policy as
+        // closest_color_name) so every enum surface suggests on typos.
+        let suggestion = crate::cli::suggestion::closest_value_match(raw, allowed);
+        let tip = match &suggestion {
+            Some(s) => format!("\n  Did you mean '{s}'?"),
+            None => String::new(),
+        };
         Err(format!(
-            "error: invalid value for {name}: {raw}\nexpected one of: {}",
+            "error: invalid value for {name}: {raw}\nexpected one of: {}{tip}",
             allowed.join(", ")
         ))
     }
