@@ -142,18 +142,28 @@ fi
 # ── 2. Yamllint ────────────────────────────────────────────────────────────
 header "Yamllint"
 if command -v yamllint >/dev/null 2>&1; then
-	YAML_FILES=$(find .github aur .cargo -name '*.yml' -o -name '*.yaml' 2>/dev/null)
-	if [ -n "$YAML_FILES" ]; then
+	# CI parity (2026-08-30 lesson): .github/** must pass the repo
+	# .yamllint config — the same one workflow-ci.yml enforces
+	# (line-length max 200 included). The old relaxed-only inline
+	# config hid a 216-char line in crates-io.yml for three pushes.
+	GITHUB_YAML=$(find .github -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+	OTHER_YAML=$(find aur .cargo -name '*.yml' -o -name '*.yaml' 2>/dev/null)
+	YAML_OK=0
+	if [ -n "$GITHUB_YAML" ]; then
 		# shellcheck disable=SC2086 # word splitting is intentional for file list
-		if yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}" ${YAML_FILES} 2>&1; then
-			info "yamllint: all YAML files pass"
-			PASS=$((PASS + 1))
-		else
-			fail "yamllint: errors found in YAML files"
-		fi
-	else
-		info "yamllint: no YAML files found"
+		yamllint -c .yamllint ${GITHUB_YAML} 2>&1 || YAML_OK=1
+	fi
+	if [ -n "$OTHER_YAML" ]; then
+		# aur/.cargo are not linted by CI; keep the relaxed inline
+		# config for them.
+		# shellcheck disable=SC2086 # word splitting is intentional for file list
+		yamllint -d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: disable}}" ${OTHER_YAML} 2>&1 || YAML_OK=1
+	fi
+	if [ "$YAML_OK" -eq 0 ]; then
+		info "yamllint: all YAML files pass (.github under repo config, aur/.cargo relaxed)"
 		PASS=$((PASS + 1))
+	else
+		fail "yamllint: errors found in YAML files"
 	fi
 else
 	warn "yamllint not installed — skipping"

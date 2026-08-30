@@ -44,8 +44,17 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   (non-beta/rc/canary) Linux archives, picks the highest revision, and
   hands the r-style name (e.g. `r29`) to `nttld/setup-ndk`. It fails
   loudly when nothing resolves — never a silent fallback to a pin.
-  Lesson recorded: after unpinning a dep, verify the affected CI job
-  actually ran green once, not just the lint gates.
+  Second same-day blind spot found while verifying: `crates-io.yml`
+  carried a 216-character line (born in 6031438) that only
+  `workflow-ci.yml` catches — the local `gate-keepers.sh` yamllint check
+  ran with `line-length: disable`, so it could never see what CI
+  enforces. Gate check 2 now lints `.github/**` under the repo
+  `.yamllint` config (exact CI parity) and keeps the relaxed inline
+  config only for `aur/`/`.cargo` (not CI-linted). Lesson recorded:
+  after any `.github/*` or policy change, verify the affected CI JOBS
+  (not just the Gate-keepers workflow) actually ran green once — and
+  local gates must enforce the same rules CI enforces, or they are
+  theater.
 - **Rust toolchain is the deliberate exception**: it is LTS-locked, not
   floating. `rust-toolchain.toml` is the single source of truth; CI jobs
   that pass an explicit version use the `RUST_VERSION` env, which gate
