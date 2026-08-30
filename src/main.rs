@@ -163,8 +163,8 @@ mod types;
 pub(crate) use types::{cell, constants, rain_style, renderer_info};
 
 // Group: msg-fill-style subsystem (one file per message overlay reveal
-// style: typewriter/fade/words/slide/pulse/instant/engrave.rs — the
-// owner-mandated plug-and-play layout, see msg_fill_style/mod.rs)
+// style: typewriter/fade/words/slide/pulse/instant/engrave/hologram.rs
+// — the owner-mandated plug-and-play layout, see msg_fill_style/mod.rs)
 mod msg_fill_style;
 
 // Group: intro-style subsystem (one file per cinematic intro style:

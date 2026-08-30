@@ -99,6 +99,7 @@ fn clap_parses_all_msg_fill_style_values() {
         ("pulse", crate::msg_fill_style::MsgFillStyle::Pulse),
         ("instant", crate::msg_fill_style::MsgFillStyle::Instant),
         ("engrave", crate::msg_fill_style::MsgFillStyle::Engrave),
+        ("hologram", crate::msg_fill_style::MsgFillStyle::Hologram),
     ] {
         let args = crate::config::Args::try_parse_from(["cosmostrix", "--msg-fill-style", value])
             .unwrap_or_else(|e| panic!("--msg-fill-style {value} must parse: {e}"));

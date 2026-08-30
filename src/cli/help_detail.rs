@@ -198,8 +198,8 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: typewriter). Seven
-      styles — six driven purely by elapsed time (stateless, zero
+      Message overlay reveal animation (default: typewriter). Eight
+      styles — seven driven purely by elapsed time (stateless, zero
       per-frame cost), plus engrave (adds a bounded 48-slot spark
       particle sidecar):
         typewriter  The classic reveal: one character every 80 ms, each
@@ -229,6 +229,17 @@ COMMON OPTIONS:
                     follows the head), and every newly engraved char
                     throws a small spark burst that flies outward and
                     fades in 200 ms. Respects --no-effects.
+        hologram    Holographic projection: each character snaps on
+                    at full brightness (80 ms/char — no fade-in),
+                    flickers with deterministic per-cell interference
+                    for 150 ms (±30% brightness noise), then breathes
+                    with a 2% sin ripple that decays over 2 s. A
+                    single horizontal scanline sweeps the box top-to-
+                    bottom over 600 ms (a thin ▔ line at the cell top,
+                    not obscuring the glyph body). Fully stateless.
+                    Respects --no-effects (the scanline pass early-outs
+                    when effects are disabled, like every particle
+                    subsystem).
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -241,6 +252,7 @@ COMMON OPTIONS:
       cosmostrix -mfs pulse
       cosmostrix --msg-fill-style words -mb \"wake up, neo\"
       cosmostrix -mfs engrave -mb \"wake up, neo\"
+      cosmostrix -mfs hologram -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

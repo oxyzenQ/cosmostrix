@@ -11,6 +11,7 @@ mod tests_dim_bench;
 mod tests_edge_fade;
 mod tests_exp_decay;
 mod tests_monolith;
+mod tests_msg_fill_hologram;
 mod tests_msg_fill_style;
 mod tests_phosphor;
 mod tests_phosphor_sweep;

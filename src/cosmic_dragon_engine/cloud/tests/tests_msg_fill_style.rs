@@ -16,7 +16,7 @@ use crate::msg_fill_style::MsgFillStyle;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
-fn make_cloud_colored(style: MsgFillStyle) -> Cloud {
+pub(super) fn make_cloud_colored(style: MsgFillStyle) -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::TrueColor,
         ShadingMode::Random,
@@ -33,8 +33,8 @@ fn make_cloud_colored(style: MsgFillStyle) -> Cloud {
 }
 
 /// Set the message and backdate the reveal timeline so `elapsed_ms`
-/// has already passed.
-fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64) {
+/// has already passed. Shared with `tests_msg_fill_hologram.rs`.
+pub(super) fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64) {
     cloud.set_message_border(true);
     cloud.set_message(text);
     // set_message starts the timeline at now (the intro lead, when one
@@ -44,8 +44,9 @@ fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64) {
 }
 
 /// Count visible content cells (non-space, non-border glyphs) in the
-/// frame region covered by the message overlay.
-fn visible_content_cells(frame: &Frame, cloud: &Cloud) -> Vec<(u16, u16, char)> {
+/// frame region covered by the message overlay. Shared with
+/// `tests_msg_fill_hologram.rs`.
+pub(super) fn visible_content_cells(frame: &Frame, cloud: &Cloud) -> Vec<(u16, u16, char)> {
     let mut cells = Vec::new();
     for mc in &cloud.message {
         if crate::cloud::border::is_border_char(mc.val) {

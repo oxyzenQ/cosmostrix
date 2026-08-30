@@ -511,6 +511,17 @@ impl super::Cloud {
                 message_elapsed_ms,
             );
         }
+
+        // v51 msg-fill-style (hologram): scanline pass, LAST so the
+        // scanline renders on top of the overlay text — a single
+        // horizontal CRT-style sweep down the box over 600 ms, then
+        // gone. Stateless: pure function of elapsed_ms, no pool, no
+        // per-frame bookkeeping (see `msg_fill_style/hologram.rs`).
+        // The pass early-returns when the sweep has completed or
+        // there is no animation timeline (bench/edge paths).
+        if style == MsgFillStyle::Hologram {
+            self.hologram_scanline_pass(frame, message_elapsed_ms);
+        }
     }
 }
 

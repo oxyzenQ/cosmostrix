@@ -3,9 +3,12 @@
 # msg-fill-style Expansion Masterclass — Follow-up Style Candidates
 
 > Status: RESEARCH + DECISION PACKET (2026-08-31, Z-master-1B).
-> `engrave` (owner-picked from the advisor discussion) is IMPLEMENTED and
-> shipped in this commit. This document presents the remaining candidates
-> for the next round — **the owner decides** which (if any) land.
+> `engrave` (owner-picked from the advisor discussion) is IMPLEMENTED.
+> `hologram` (the cheapest candidate below) is also IMPLEMENTED and
+> shipped in the follow-up commit — projected hologram with flicker,
+> breathing ripple, and a single CRT-style scanline sweep. This
+> document records the remaining candidates for the next round —
+> **the owner decides** which (if any) land next.
 > Predecessor feature: `-mfs`/`--msg-fill-style` (v51, commit 65bdb1df).
 
 ## 1. Decision recorded: `engrave` (LANDED)
@@ -28,11 +31,48 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
   future in-box particle effect must render in a pass at the END of
   `draw_message` (see `msg_fill_style/engrave.rs`).
 
+## 1B. Decision recorded: `hologram` (LANDED — follow-up)
+
+The follow-up commit landed `hologram` — the cheapest candidate by
+far per the §4 matrix below. What shipped (see `msg_fill_style/hologram.rs`):
+
+- Burn-in reveal: chars appear at full brightness instantly (80 ms/char,
+  no 30% fade-in — a hologram snaps on), reusing the index-pacing path
+  shared with typewriter/engrave.
+- Three-phase brightness curve (fully stateless, pure function of
+  `(content_idx, elapsed_ms)`):
+  1. **Flicker** (0..150 ms post-reveal): per-cell deterministic
+     brightness noise in `1.0 ± 0.30` from a 32-bit FxHash of
+     `(content_idx, elapsed/40 ms bucket)` — fast enough to read as
+     "hologram interference", slow enough not to strobe. Same input →
+     same output (no `rand` dependency — bit-identical frames at the
+     same elapsed, per the LTS contract).
+  2. **Breathing** (150..2150 ms post-reveal): subtle 2% sin ripple at
+     2 Hz, amplitude decaying linearly to zero by the end of the
+     window. The "hologram is alive" hum.
+  3. **Settled** (≥2150 ms post-reveal): exactly 1.0 — bit-identical to
+     engrave's cooled state.
+- Scanline pass: a single horizontal sweep of the box top-to-bottom
+  over 600 ms, once, then gone. Implemented as
+  `Cloud::hologram_scanline_pass` invoked at the END of
+  `draw_message` (alongside `engrave_spark_pass` — only one is wired
+  per style). Paints a row of `▔` (U+2594 UPPER ONE EIGHTH BLOCK — a
+  thin line at the top of each cell, so it reads as a scanline
+  crossing the cell without obscuring the glyph body) across every
+  message cell at the sweep row in the palette head color.
+- **PERF-4** (`--no-effects`): the scanline pass self-gates on
+  `effects_enabled` — the reveal math itself runs unchanged, only the
+  scanline overlay is suppressed (same contract as every particle
+  subsystem).
+- **Cost**: ~280 LOC in `msg_fill_style/hologram.rs` (one file per
+  the directory refactor) + the 9-surface sweep +
+  tests (+15 total). Cheapest candidate confirmed by the landed LOC.
+
 ## 2. Ground rules for any new style (from the shipped family)
 
 | Rule | Why |
 |------|-----|
-| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 6 of 7 shipped styles comply. |
+| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 7 of 8 shipped styles comply. |
 | If stateful: ONE bounded sidecar struct, pre-allocated pool, O(active)/frame, `--no-effects` gate, reset in `reset_message` + restart paths | The `EngraveState` contract (48-slot pool, movement-gated spawn). |
 | Particles inside the box render at the END of `draw_message` | Draw-order constraint (see §1). |
 | Default stays `typewriter`, bit-identical pre-v51 | LTS guarantee — every new style is opt-in. |
@@ -41,7 +81,7 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
 
 ## 3. Candidates (from the advisor discussion, grounded in this codebase)
 
-### A. `hologram` — projected hologram with scanline (RECOMMENDED first)
+### A. `hologram` — projected hologram with scanline (LANDED — see §1B)
 
 - **Look**: text flickers in (per-char brightness noise for the first
   ~150 ms after reveal, deterministic from elapsed time), then a bright
@@ -57,6 +97,7 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
 - **Risk**: low. No color change needed (brightness-only — the existing
   `factor` path already handles > 1.0 boost).
 - **Name check**: `hologram` (advisor also offered `holo`, `project`).
+- **LANDED in the follow-up commit** — see §1B above for what shipped.
 
 ### B. `glitch` — cyberpunk distortion settle (RECOMMENDED second)
 
@@ -115,7 +156,7 @@ The owner picked `engrave` from the advisor (deepseek) discussion —
 
 | Candidate | Stateless | LOC est. | New API surface | Visual distinctness | Verdict |
 |-----------|-----------|----------|-----------------|---------------------|---------|
-| hologram  | YES | ~60-80 | none | high (scanline + flicker) | **Land first** |
+| hologram  | YES | ~280 (landed) | none | high (scanline + flicker) | **LANDED** (see §1B) |
 | glitch    | YES | ~80-100 | `CellReveal.glyph_override` | high (scramble decode) | Land second |
 | scorch    | no (smoke sidecar) | ~150-180 | `CellReveal` tint + sidecar | highest (color + particles) | Land when the tint API is wanted anyway |
 | cascade   | YES | ~50-60 | none | low on 1-line overlays | Defer |
@@ -135,7 +176,7 @@ pacing test, brightness/glyph assertion at exact elapsed values,
 no-effects test (if stateful), restart re-arm test (if stateful),
 live-reload + clap + argv + testconf coverage.
 
-## 6. Style table (current, post-engrave)
+## 6. Style table (current, post-hologram)
 
 | Style | Text reveal | Border | Sidecar |
 |-------|-------------|--------|---------|
@@ -146,6 +187,7 @@ live-reload + clap + argv + testconf coverage.
 | `pulse` | typewriter + 1.5x scanner cursor | lags text (t^1.5) | none |
 | `instant` | full brightness at t=0 | clockwise draw over 1 s | none |
 | `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`msg_fill_style/engrave.rs`) |
+| `hologram` | 80 ms/char burn-in, 150 ms flicker + 2 s breathing hum, 600 ms scanline sweep | lags text (t^1.5) | none (stateless scanline pass in `msg_fill_style/hologram.rs`) |
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

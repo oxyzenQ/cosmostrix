@@ -211,7 +211,7 @@ impl super::Cloud {
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + style-driven reveal (msg-fill-style,
         // default typewriter 80 ms/char; engrave adds its spark pass
-        // at the end of draw_message).
+        // at the end of draw_message; hologram adds its scanline pass).
         // Z-6: skip in benchmark mode — owner directive: bench measures
         // critical path only (rain + 3 dragons), not message cosmetics.
         // This eliminates 8 per-frame heap allocs in draw_message.

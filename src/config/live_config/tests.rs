@@ -395,6 +395,22 @@ fn rebuild_applies_msg_fill_style_engrave() {
     );
 }
 
+/// The hologram style (post-engrave follow-up) live-reloads exactly
+/// like the other styles. Hologram is fully stateless (no sidecar
+/// to arm), so the test only needs to assert the enum variant — the
+/// scanline pass self-gates on the next draw_message frame.
+#[test]
+fn rebuild_applies_msg_fill_style_hologram() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "hologram".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Hologram,
+        "config msg-fill-style=hologram must be applied on live reload"
+    );
+}
+
 /// Editing `msg-fill-style` in config.toml mid-run must switch the
 /// reveal style on the next rebuild (no restart needed).
 #[test]

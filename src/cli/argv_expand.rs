@@ -122,7 +122,9 @@ fn die_mfs_typo(token: &str) -> ! {
     eprintln!("error: unexpected argument '{token}' found");
     eprintln!();
     eprintln!("  tip: a similar argument exists: '--msg-fill-style' (short form: -mfs)");
-    eprintln!("  [possible values: typewriter, fade, words, slide, pulse, instant, engrave]");
+    eprintln!(
+        "  [possible values: typewriter, fade, words, slide, pulse, instant, engrave, hologram]"
+    );
     eprintln!();
     eprintln!(
         "{}  Did you mean --msg-fill-style?{}",
@@ -166,6 +168,7 @@ mod tests {
             "pulse",
             "instant",
             "engrave",
+            "hologram",
         ] {
             let token = format!("-mfs{value}");
             let out = expand(&["cosmostrix", token.as_str()]);

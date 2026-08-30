@@ -82,7 +82,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "msg-mode",
     // v51 msg-fill-style: message overlay reveal style. Values:
     // "typewriter" | "fade" | "words" | "slide" | "pulse" | "instant"
-    // | "engrave".
+    // | "engrave" | "hologram".
     // Default: "typewriter". CLI -mfs/--msg-fill-style wins over this
     // config key. Case-insensitive here (config surface is forgiving;
     // the CLI flag itself is case-sensitive, like every other enum key).

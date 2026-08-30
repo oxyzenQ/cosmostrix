@@ -4,7 +4,7 @@
 //! Message overlay fill (reveal) style selection — one file per style.
 //!
 //! v51 msg-fill-style: the message overlay reveal animation is no longer
-//! hardwired to the classic typewriter. Seven styles are selectable via
+//! hardwired to the classic typewriter. Eight styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
 //!
@@ -17,6 +17,7 @@
 //! | `pulse`     | typewriter + 1.5x scanner cursor     | lags text (t^1.5)       |
 //! | `instant`   | full brightness at t=0               | clockwise draw over 1 s |
 //! | `engrave`   | 80 ms/char burn-in, 2x hot head      | lags text (t^1.5) + sparks |
+//! | `hologram`  | 80 ms/char burn-in, flicker + hum, scanline sweep | lags text (t^1.5) |
 //!
 //! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
@@ -30,10 +31,10 @@
 //! the shared ramp/lag helpers, and the dispatch that routes the
 //! runtime enum to the active style module.
 //!
-//! ## How to add style #8 (plug-and-play recipe)
+//! ## How to add style #9 (plug-and-play recipe)
 //!
 //! 1. Copy the closest existing `<style>.rs` to a new file (e.g.
-//!    `hologram.rs`) and rewrite its reveal math + doc comment.
+//!    `<new-style>.rs`) and rewrite its reveal math + doc comment.
 //!    Keep the four hooks: `reveal`, `reveal_budget`,
 //!    `border_progress`, `text_progress` (+ its own `#[cfg(test)]`).
 //! 2. In this file: add the `mod` declaration, the enum variant
@@ -50,12 +51,15 @@
 //!
 //! ## Statelessness contract
 //!
-//! Six styles are purely time-derived (stateless — zero per-frame
+//! Seven styles are purely time-derived (stateless — zero per-frame
 //! bookkeeping). `engrave` keeps the REVEAL math stateless like the
 //! rest, but adds one bounded stateful sidecar: a 48-slot spark
 //! particle pool rendered inside `draw_message` (see `engrave.rs`
 //! for why the shared quantum pool cannot be reused — it renders
-//! before the overlay and would be overdrawn).
+//! before the overlay and would be overdrawn). `hologram` adds a
+//! stateless scanline pass rendered at the end of `draw_message`
+//! (see `hologram.rs`) — no pool, no per-frame state, pure function
+//! of elapsed time.
 //!
 //! Placement is a crate-root module (peer of `types/`): the enum is
 //! consumed by both the CLI layer (Args) and the rendering engine
@@ -67,10 +71,13 @@ use clap::ValueEnum;
 
 // `engrave` is the one style module visible outside this directory:
 // `cloud/mod.rs` stores its `EngraveState` as a Cloud field and the
-// renderer tests read its spark-pool constants. Every other style is
-// fully encapsulated behind the dispatch below.
+// renderer tests read its spark-pool constants. `hologram` is also
+// visible: its `Cloud::hologram_scanline_pass` is invoked at the end
+// of `draw_message`. Every other style is fully encapsulated behind
+// the dispatch below.
 pub(crate) mod engrave;
 mod fade;
+pub(crate) mod hologram;
 mod instant;
 mod pulse;
 mod slide;
@@ -106,6 +113,12 @@ pub enum MsgFillStyle {
     /// throws a small spark burst (see `engrave.rs`).
     #[value(name = "engrave")]
     Engrave,
+    /// Hologram projection: chars burn in at full brightness, flicker
+    /// for 150 ms (deterministic per-cell interference), breathe with
+    /// a 2% ripple for 2 s, and a scanline sweeps the box once over
+    /// 600 ms (see `hologram.rs`). Fully stateless.
+    #[value(name = "hologram")]
+    Hologram,
 }
 
 impl MsgFillStyle {
@@ -121,6 +134,7 @@ impl MsgFillStyle {
             Self::Pulse => "pulse",
             Self::Instant => "instant",
             Self::Engrave => "engrave",
+            Self::Hologram => "hologram",
         }
     }
 
@@ -136,6 +150,9 @@ impl MsgFillStyle {
             Self::Instant => "instant (text immediate, border draws clockwise over 1 s)",
             Self::Engrave => {
                 "engrave (80 ms/char burn-in, 2x hot head cooling over 300 ms, spark burst per char)"
+            }
+            Self::Hologram => {
+                "hologram (80 ms/char burn-in, 150 ms flicker + 2 s hum, 600 ms scanline sweep)"
             }
         }
     }
@@ -267,6 +284,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Fade => fade::reveal(block_alpha),
         MsgFillStyle::Instant => instant::reveal(),
         MsgFillStyle::Engrave => engrave::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Hologram => hologram::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -281,8 +299,9 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / engrave / words: border lags behind
-///   text (`text_progress^1.5` ease-out) — the pre-v51 cinematic behavior.
+/// - Typewriter / pulse / slide / engrave / hologram / words: border
+///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
+///   cinematic behavior.
 /// - Fade: border fades together with the text block.
 /// - Instant: border draws clockwise on an independent 1 s timeline
 ///   (text is already fully visible).
@@ -297,6 +316,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Fade => fade::border_progress(elapsed_ms),
         MsgFillStyle::Instant => instant::border_progress(elapsed_ms),
         MsgFillStyle::Engrave => engrave::border_progress(text_progress),
+        MsgFillStyle::Hologram => hologram::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -305,7 +325,8 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide / engrave: `reveal_count / total_text`.
+/// - Typewriter / pulse / slide / engrave / hologram:
+///   `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
 /// - Fade / instant: 1.0 (text is not the pacing element).
@@ -323,14 +344,15 @@ pub(crate) fn text_progress(
         MsgFillStyle::Fade => fade::text_progress(),
         MsgFillStyle::Instant => instant::text_progress(),
         MsgFillStyle::Engrave => engrave::text_progress(reveal_count, total_text),
+        MsgFillStyle::Hologram => hologram::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
 }
 
 /// Number of content cells revealed by the active style at the given
-/// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave)
-/// pace cells by their per-char constant; word/block styles
+/// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave/
+/// hologram) pace cells by their per-char constant; word/block styles
 /// (words/fade/instant) reveal everything (their reveal math decides
 /// per-cell and never reads the budget; only the `None` timeline →
 /// `usize::MAX` is meaningful for them).
@@ -349,6 +371,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Fade => fade::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Instant => instant::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Engrave => engrave::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Hologram => hologram::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -369,6 +392,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Pulse.as_str(), "pulse");
         assert_eq!(MsgFillStyle::Instant.as_str(), "instant");
         assert_eq!(MsgFillStyle::Engrave.as_str(), "engrave");
+        assert_eq!(MsgFillStyle::Hologram.as_str(), "hologram");
     }
 
     #[test]
@@ -385,6 +409,7 @@ mod tests {
             MsgFillStyle::Pulse,
             MsgFillStyle::Instant,
             MsgFillStyle::Engrave,
+            MsgFillStyle::Hologram,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");
