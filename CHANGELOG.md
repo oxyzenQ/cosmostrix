@@ -9,6 +9,11 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Screensaver audit (Z-master-1B)
+
+- **`--screensaver` behavioral audit**: new `docs/SCREENSAVER_MODE.md` documents what actually differs between screensaver and default mode. Verdict: functionally near-identical — all runtime keys work in both modes, mouse click never exits in either (v17 policy), and the intro plays in both. Only two micro-scale scheduling differences remain (post-`q` event-drain break, pause-toggle fast-redraw skip).
+- **Stale text purge**: `--screensaver` short help said "all other input ignored" (wrong — keys are processed); `--intro` help claimed the intro is auto-skipped in screensaver mode (wrong — it plays there too) and cited an 80x24 threshold (wrong — `MIN_INTRO_COLS x MIN_INTRO_LINES` is 10x5 since v25). Fixed in `src/config/mod.rs`, `src/cli/help_detail.rs`, `README.md`, and the `event_loop.rs` key-list comment (which also omitted `x`/`X`).
+
 ### Behavior changes (7bdaa0d8 → 8e1b41e9)
 
 - **HUD Option C expansion**: HUD expanded from 18 to 22 lines. Added 4 new metrics: `ambt` (ambient on/off), `glth` (glitch level), `ctun` (color tuning default/custom), `mnst` (monolith size or "unknown"). `cid` line moved from row 17 to row 21.

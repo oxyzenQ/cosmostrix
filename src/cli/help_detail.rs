@@ -124,13 +124,18 @@ COMMON OPTIONS:
       cosmostrix --intro-color energy-zen
 
   -s, --screensaver
-      Screensaver mode. Only 'q' exits — all other keys are silently
-      ignored (no accidental exit). Recognized keys
-      (c/s/x/p/i, Space, Up/Down.) still work for
-      interactive control — cycle colors, toggle HUD, pause, etc.
+      Screensaver mode. Only 'q' exits — same quit policy as the default
+      mode (no accidental exits from Esc, Ctrl+C, or stray keys). All
+      runtime keys still work for interactive control: c/C (cycle colors
+      fwd/back), s/S (cycle charsets), x/X (cycle scenes), p (pause),
+      i (HUD), [ ] (density), Space (reset), Up/Down (speed).
       Mouse click does NOT exit (v17: removed for consistency with the
-      only-q-quits policy). Mouse events are still captured to block
-      text selection and trigger the always-on glow/click wave effects.
+      only-q-quits policy — this applies to BOTH modes). Mouse events are
+      still captured to block text selection and trigger the always-on
+      glow/click wave effects.
+      Behaviorally the flag is nearly a no-op: see
+      docs/SCREENSAVER_MODE.md for the full audit of what actually
+      differs (two sub-frame scheduling details only).
       cosmostrix --screensaver
 
   --intro [cosmic|logo|none]
@@ -151,8 +156,10 @@ COMMON OPTIONS:
         none    Skip the intro entirely.
       Press q (or Q) to skip the intro mid-animation. No other key
       skips — stray keypresses can't cut the cinematic short. Auto-
-      skipped in --screensaver mode and on terminals smaller than
-      80x24. The intro choice can be set permanently in config.toml
+      skipped only on terminals smaller than 10x5 (MIN_INTRO_COLS x
+      MIN_INTRO_LINES). The intro is NOT skipped in --screensaver
+      mode — it plays there too (q still skips it). The intro choice
+      can be set permanently in config.toml
       via the 'intro' key (e.g. intro = \"cosmic\"). CLI flag wins
       over config.
       

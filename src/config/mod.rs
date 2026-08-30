@@ -284,7 +284,7 @@ pub struct Args {
         long = "screensaver",
         help_heading = "COMMON OPTIONS",
         display_order = 60,
-        help = "Screensaver mode: only q exits (all other input ignored)"
+        help = "Screensaver mode: only 'q' exits; interactive keys still work (see docs/SCREENSAVER_MODE.md)"
     )]
     pub screensaver: bool,
 

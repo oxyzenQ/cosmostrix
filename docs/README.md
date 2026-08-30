@@ -79,6 +79,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [TERMINAL_LIFECYCLE_MATRIX.md](TERMINAL_LIFECYCLE_MATRIX.md) | Full terminal lifecycle (init, alt screen, raw mode, cleanup) |
 | [STABILITY_AUDIT.md](STABILITY_AUDIT.md) | Terminal stability stress tests |
 | [HUD.md](HUD.md) | Live HUD overlay reference |
+| [SCREENSAVER_MODE.md](SCREENSAVER_MODE.md) | `--screensaver` behavioral audit: what actually differs vs default mode |
 
 **Emergency recovery**: `cosmostrix --reset-terminal` — 5-layer recovery (ANSI + crossterm + stty + reset). Restores the terminal from any state, including after `kill -9`.
 

@@ -452,8 +452,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // refresh auto-snapback idle timer on every key press.
                         last_user_input_at = activity_time;
                         // Process the keybinding. This lets interactive
-                        // keys (q, c/C, s/S, p, x, [, ], Space, Up/Down,
-                        // i) work even in --screensaver mode.
+                        // keys (q, c/C, s/S, x/X, p, i, [, ], Space,
+                        // Up/Down) work identically in --screensaver
+                        // mode and normal mode — the ONLY differences
+                        // are the two micro-scale scheduling details
+                        // documented in docs/SCREENSAVER_MODE.md.
                         let redraw_needed = handle_keybinding(
                             &mut KeybindingCtx {
                                 cloud: &mut cloud,
@@ -469,7 +472,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             &k,
                         );
                         if cfg.screensaver {
-                            // Screensaver: recognized keys process+continue; others ignored.
+                            // Screensaver: break the event drain immediately
+                            // once 'q' cleared cloud.raining (queued events are
+                            // discarded instead of drained — see
+                            // docs/SCREENSAVER_MODE.md §2 for the full audit).
                             // Mouse click doesn't exit (v17). Only 'q' quits.
                             if !cloud.raining {
                                 break;

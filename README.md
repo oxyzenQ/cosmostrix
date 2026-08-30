@@ -367,7 +367,7 @@ scripts/verify-release-build.sh pro-linux-v3
 ```bash
 cosmostrix                                            # signature Cinematic Cosmic default
 cosmostrix --color green --speed 12                   # color + speed
-cosmostrix --screensaver                              # only q exits (all other keys ignored)
+cosmostrix --screensaver                              # only q exits; interactive keys still work
 cosmostrix -m "wake up, neo"                          # overlay message
 cosmostrix --charset katakana                         # character set
 cosmostrix --scene cinematic                          # built-in scene
@@ -391,7 +391,7 @@ COMMON OPTIONS
   -f, --fps <N>                 Target FPS (interactive frame limiter)
   -S, --speed <N>               Rain speed
   -d, --density <N>             Rain density
-  -s, --screensaver             Only q exits (all other keys ignored)
+  -s, --screensaver             Only q exits; interactive keys still work (docs/SCREENSAVER_MODE.md)
   -m <text>                     Overlay message (no border)
   -mb <text>                    Overlay message with border
       --glitch-level <level>    Glitch intensity (none|subtle|default|intense)
