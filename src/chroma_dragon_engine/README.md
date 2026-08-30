@@ -108,11 +108,12 @@ The audit confirmed the engine is already at peak. Specifically:
   - Column hue coherence frequency (Phase 4-A)
 - **Test names**: `lock_*` prefix, fail-loud on any regression.
 
-### 7. Catalog registry (`catalog.rs`, 1134 LOC)
+### 7. Catalog registry (`catalog.rs` 215 LOC + `catalog/themes.rs` 948 LOC data)
 
-- **`THEMES` static** — single source of truth for color scheme ->
-  `ThemeDef` mapping. 44 builtin themes, each with `head/body/tail`
-  RGB stops.
+- **`THEMES` static** (in `catalog/themes.rs`, pure data extracted at
+  v50.0.0-beta.7) — single source of truth for color scheme ->
+  `ThemeDef` mapping. 44 builtin themes, each defining gradient stops
+  plus per-tier fallbacks (`c16` / `ansi`) per its `ThemeColors` variant.
 - **`build_colors()`** — `#[must_use]`, called once per `--color`
   selection. Returns `Vec<Color>` — allocation is intentional (cold
   path, called only on theme switch).

@@ -198,7 +198,7 @@ mod tests {
 
     #[test]
     fn unknown_scheme_returns_greyscale() {
-        // ColorScheme has exactly 52 variants. If a 53rd is added without
+        // ColorScheme has exactly 44 variants. If a 45th is added without
         // a THEMES entry, build_colors returns greyscale (not panic).
         // This is the graceful degradation guarantee.
         let colors = build_colors(ColorScheme::Green, ColorMode::TrueColor);
