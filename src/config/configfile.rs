@@ -234,6 +234,15 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 continue;
             }
 
+            // (bug #19, owner-found 2026-08-30): a quoted value is NEVER
+            // an array. `set = "["` (single-bracket charset glyph) used to
+            // quote-strip to `[` and get mistaken by the multi-line array
+            // consumer below for an unterminated array. Snapshotting the
+            // quoted form BEFORE stripping and guarding both array
+            // branches with it closes the whole class: quoted values may
+            // contain `[`, `]`, `#`, `=` — strings, not syntax.
+            let raw_is_quoted = value.len() >= 2 && value.starts_with('"') && value.ends_with('"');
+
             // Option 1 (internal independent QA): strip surrounding double
             // quotes from string values. Standard TOML requires string
             // values to be quoted ("value"), but cosmostrix's custom parser
@@ -248,13 +257,12 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             //
             // Only strip if the value starts AND ends with a double quote
             // (both must be present — a lone leading quote is not stripped).
-            // Arrays (starting with '[') are NOT touched — their internal
-            // quotes are handled by the array consumer (hex colors, etc.).
-            if value.len() >= 2
-                && value.starts_with('"')
-                && value.ends_with('"')
-                && !value.starts_with('[')
-            {
+            // Arrays (raw values starting with `[`) never match: they are
+            // not quoted strings, and their internal quotes are handled by
+            // the array consumer (hex colors). Stripping runs AFTER the
+            // raw_is_quoted snapshot so the array branches can tell a
+            // quoted string whose CONTENT starts with `[` from an array.
+            if raw_is_quoted {
                 value = value[1..value.len() - 1].to_string();
             }
 
@@ -265,8 +273,10 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             // as comment, silently truncating value to '[' and triggering
             // the multi-line consumer to eat subsequent lines. Reject
             // explicitly. We check the ORIGINAL line (not `stripped`)
-            // because `stripped` is already truncated.
-            if value.starts_with('[')
+            // because `stripped` is already truncated. Quoted values are
+            // exempt (bug #19): a quoted string is never an array.
+            if !raw_is_quoted
+                && value.starts_with('[')
                 && unquoted_hash_inside_array(line).is_some()
                 && !value.ends_with(']')
             {
@@ -282,8 +292,9 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             // we find the closing ']'. (bug #7) hardening: do NOT
             // consume [section] headers — those were previously mistaken
             // for the closing ']' of the array, corrupting subsequent
-            // block definitions.
-            if value.starts_with('[') && !value.ends_with(']') {
+            // block definitions. (bug #19): quoted values never enter
+            // this branch (a quote-stripped set = "[" is a STRING).
+            if !raw_is_quoted && value.starts_with('[') && !value.ends_with(']') {
                 while i + 1 < lines.len() {
                     let raw_next = lines[i + 1];
                     let next_line = strip_inline_comment(raw_next).trim();

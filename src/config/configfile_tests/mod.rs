@@ -18,6 +18,7 @@
 
 #![cfg(test)]
 
+mod bug19;
 mod bug7;
 
 use crate::configfile::parse_config_text;

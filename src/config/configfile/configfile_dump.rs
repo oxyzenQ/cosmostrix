@@ -143,6 +143,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Define named charsets, reference via: charset-custom = <name>
 # Rules: printable chars only. Controls → error. Wide/zero-width (CJK, emoji) → silently skipped with warning.
 #        max 256 characters per set (exceeding = error at startup/--testconf). TOML is UTF-8 — type the actual glyphs.
+#        Any single-width glyph is legal incl. [ ] # = — always quote the value (set = "[" works; a lone " is not expressible).
 # Activate: cosmostrix --charset <name>  or  charset = "<name>"
 
 # [charset-custom.zen]

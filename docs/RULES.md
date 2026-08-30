@@ -144,6 +144,29 @@ When a cap is hit, behavior depends on the cap type:
 
 All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
 
+### Config value quoting invariant (bug #19, v51)
+
+A double-quoted value is NEVER an array. `parse_config_text` snapshots
+`raw_is_quoted` (value starts AND ends with `"`) BEFORE quote-stripping,
+and both array branches (the bug #7 unquoted-`#` rejection and the v25
+multi-line array consumer) are gated on `!raw_is_quoted`. Reason: a
+charset like `set = "["` (single-bracket glyph) quote-strips to a bare
+`[`, which the array consumer used to mistake for an unterminated array —
+rejecting the whole line as "array never closed" or silently absorbing
+following lines. Owner-found 2026-08-30 while previewing single-glyph
+charset candidates.
+
+Consequences, locked by `src/config/configfile_tests/bug19.rs` and the
+charset-custom validation tests:
+
+- Any single-width glyph — including `[`, `]`, `#`, `=` — is a legal
+  quoted `set` value and is stored verbatim.
+- Unquoted `[` values remain array openers (bug #7 semantics unchanged).
+- No escape sequences exist: a lone `"` glyph is not expressible (the
+  quote is the string delimiter); mid-pool quotes are kept.
+- Duplicate `[section]` headers are last-wins in the forgiving parser
+  (same key overwrite, no error).
+
 ### Killer-feature warning routing (v51 hardening)
 
 Warnings that can fire on BOTH sides of the interactive session boundary (charset

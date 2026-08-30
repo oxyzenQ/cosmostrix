@@ -18,15 +18,24 @@
 //! - `set` — the literal string of characters to use as the rain glyph
 //!   pool. Order is preserved (the renderer shuffles them at runtime, so
 //!   order does not affect on-screen appearance, only what's in the pool).
+//!   ANY single-width glyph is legal — including the config metacharacters
+//!   `[`, `]`, `#`, `=` (quote the value; bug #19) — so a single-glyph
+//!   pool like `set = "["` is valid.
 //! - Whitespace inside `set` (except ASCII space) is skipped. Space (` `)
-//!   is a valid single-width character and is kept.
+//!   is a valid single-width character and is kept when it is not a
+//!   leading/trailing edge (edges are trimmed as accidental padding).
 //! - Control characters (C0/C1) are rejected with a clear error.
 //! - Wide / zero-width characters (emoji, CJK fullwidth, combining marks)
 //!   are SKIPPED with a warning — the value is accepted, the offending
-//!   codepoints are dropped from the pool. The renderer is column-based
+//!   codepoints are dropped from the pool. If nothing usable remains
+//!   (e.g. the pool was a single wide char) the value is rejected with
+//!   "no usable single-width characters". The renderer is column-based
 //!   and assumes one cell per glyph — wide chars corrupt alignment. This is
 //!   the Cosmic Dragon principle: no emoji, no wide chars, ever. It is a
 //!   permanent design choice, not a limitation to be lifted later.
+//! - There are no escape sequences: a LONE double-quote glyph is not
+//!   expressible (`"` is the string delimiter at the config layer and
+//!   gets stripped); quotes in the MIDDLE of a pool are kept.
 //! - Maximum length: 256 characters. Longer values are rejected so the
 //!   rain glyph pool does not become a memory hog.
 //!
@@ -138,10 +147,13 @@ pub(crate) fn collect_charset_custom(
 
 /// Parse a `set = "..."` value into a validated `Vec<char>`.
 ///
-/// Strips surrounding quotes (TOML strings arrive still-quoted in the
-/// flat HashMap form used by `configfile::parse_config_text`), then
-/// iterates over characters and applies the same single-width + non-
-/// control filter as `charset.rs::build_chars`.
+/// Values normally arrive UNQUOTED from the flat HashMap produced by
+/// `configfile::parse_config_text` (the config layer already strips the
+/// outer double quotes). The `trim_matches('"')` here is deliberate
+/// defense-in-depth for direct callers that hand over still-quoted
+/// values — it strips ONE OR MORE leading/trailing double quotes before
+/// the per-character single-width + non-control filter (the same filter
+/// as `charset.rs::build_chars`).
 ///
 /// Returns `Err(message)` if:
 /// - the value is empty after trimming (no usable chars)
@@ -523,5 +535,69 @@ mod tests {
             "oversized name must be skipped, got {} entries",
             map.len()
         );
+    }
+
+    // ── (bug #19) single-glyph depth stress: validation layer ──────
+    // Owner mandate 2026-08-30: stress-test ANY single glyph so the
+    // quoted-bracket parser bug class never returns. The parser layer
+    // battery lives in configfile_tests/bug19.rs; these tests lock the
+    // charset-custom validation layer on top of it.
+
+    #[test]
+    fn parse_single_special_char_glyphs_are_valid_pools() {
+        // Every config-syntax metachar and common punctuation is a legal
+        // single-width glyph once the parser hands the value over
+        // verbatim (bug #19). A pool of exactly one such char must load.
+        for ch in [
+            '[', ']', '{', '}', '(', ')', '<', '>', '#', '=', ',', '\'', '\\', '|', '/', '?', '!',
+            '@', '$', '%', '^', '&', '*', '+', '-', '_', '~', '`', ':', ';', '.', '∇', '∀', '∂',
+        ] {
+            let v = parse_charset_value(&ch.to_string())
+                .unwrap_or_else(|e| panic!("glyph {ch:?} must be a valid single-glyph pool: {e}"));
+            assert_eq!(v, vec![ch], "glyph {ch:?} must survive verbatim");
+        }
+    }
+
+    #[test]
+    fn parse_lone_double_quote_is_not_expressible() {
+        // Documented syntax corner (no escape sequences): a lone `"` is
+        // the string delimiter at the config layer and is stripped away,
+        // leaving an empty pool. Locked here so any future change is a
+        // conscious decision (e.g. adding escape support), not an
+        // accident.
+        assert!(parse_charset_value("\"").is_err());
+    }
+
+    #[test]
+    fn parse_mid_pool_double_quote_is_kept() {
+        // Quotes in the MIDDLE of a pool are ordinary glyphs.
+        let v = parse_charset_value("a\"b").unwrap();
+        assert_eq!(v, vec!['a', '"', 'b']);
+    }
+
+    #[test]
+    fn parse_edge_spaces_trimmed_inner_space_kept() {
+        // Leading/trailing spaces are trimmed (accidental padding);
+        // inner spaces are real glyphs (documented: space is a valid
+        // single-width character). A whitespace-only pool collapses to
+        // empty and is rejected.
+        assert_eq!(parse_charset_value(" a b ").unwrap(), vec!['a', ' ', 'b']);
+        assert!(parse_charset_value("   ").is_err());
+    }
+
+    #[test]
+    fn single_wide_or_zero_width_glyph_gives_clear_error() {
+        // A pool whose ONLY glyph is wide (CJK) or zero-width (ZWSP) has
+        // nothing usable left after the skip filter — the error must say
+        // so. Control chars stay hard errors.
+        assert!(parse_charset_value("漢")
+            .unwrap_err()
+            .contains("no usable single-width characters"));
+        assert!(parse_charset_value("\u{200B}")
+            .unwrap_err()
+            .contains("no usable single-width characters"));
+        assert!(parse_charset_value("\u{0007}")
+            .unwrap_err()
+            .contains("control character"));
     }
 }

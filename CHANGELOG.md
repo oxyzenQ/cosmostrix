@@ -9,6 +9,13 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Config parser bug #19: quoted single-bracket charset values rejected (Z-master-1B)
+
+- Owner-found 2026-08-30 while previewing single-glyph charset candidates: `set = "["` in a `[charset-custom.<name>]` block failed strict startup validation with `invalid config — malformed line(s): 'set = "["' ... (expected 'key = value' syntax)` — even though the line is perfectly valid. Root cause: the parser stripped the surrounding quotes BEFORE array detection, so the bare `[` was mistaken by the multi-line array consumer for an unterminated array (rejecting the line, or silently absorbing following lines into a bogus value in other configs).
+- Fix: `parse_config_text` now snapshots `raw_is_quoted` before quote-stripping and gates both array branches (bug #7 unquoted-`#` rejection + v25 multi-line consumer) on it — **a quoted value is never an array**. One fix covers all three surfaces (startup strict validation, live-reload watcher, `--testconf`) since they all share `parse_config_text`.
+- Depth stress battery per owner mandate ("stress-test ANY single glyph so this never happens again"): new `src/config/configfile_tests/bug19.rs` (12 tests) — the owner's exact repro line (trailing comment containing both `']'` and `'#'`), every ASCII punctuation char as a single-glyph pool, bracket-only pools (`[]`, `[][]`, `][`, `[[]]`), hash-only pools with real trailing comments, equals-only pools, unicode single glyphs (incl. the new nabla `∇` and a wide CJK char), comment-shape sweep, no-line-eating regression, unquoted-bracket contrast lock (bug #7 semantics preserved), and the owner's full config shape end-to-end (duplicate sections = last-wins). Plus 5 charset-custom validation tests: special-char single-glyph pools, lone-quote inexpressibility (no escape sequences — documented corner), mid-pool quotes, edge-space trimming, wide/zero-width/control single-glyph errors.
+- Docs: `docs/RULES.md` gains the "Config value quoting invariant" section; `--dump-config` template Rules line now documents that any single-width glyph incl. `[ ] # =` is legal when quoted; `charset_custom.rs` module + `parse_charset_value` docs refreshed (values arrive UNquoted from the config layer; `trim_matches('"')` is defense-in-depth).
+
 ### Charset "minimal" = single nabla glyph ∇ — owner decision landed (Z-master-1B)
 
 - Owner pick (2026-08-30, after reading the cffd549 research): the `minimal` preset pool is now **`∇`** (U+2207 NABLA) — one glyph, total commitment. The preset name, `--charset minimal`, `[charset-custom.minimal]` shadowing, live reload, and every flag/format stay identical; only the pool string changed (`src/scene/charset.rs` MINIMAL arm).
