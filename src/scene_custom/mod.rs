@@ -200,7 +200,7 @@ pub(crate) fn apply_profile_layer(
         if strict_unknown {
             return Err(message);
         }
-        crate::output::eprintln_warn_labeled(&format!(
+        crate::output::warn_runtime_or_now(&format!(
             "ignoring unknown profile '{}' (available: {}; see --list-scenes)",
             name,
             profile_name_list(profiles)
@@ -244,7 +244,10 @@ fn apply_base_scene_to_args(
         if strict_unknown {
             crate::output::eprintln_error_labeled(&message);
         } else {
-            crate::output::eprintln_warn_labeled(&message);
+            // v51 killer-features hardening: routed (warn_runtime_or_now) —
+            // scene layers can re-apply mid-session; a direct eprintln here
+            // would leak into the rain matrix (AB-10).
+            crate::output::warn_runtime_or_now(&message);
         }
         return;
     };
@@ -320,7 +323,7 @@ pub(crate) fn apply_scene_custom_to_cloud_config(
         if field == "base-scene" || field == "preset" {
             continue;
         }
-        if apply_scene_custom_field_to_cloud_config(new, cfg, field, value) {
+        if apply_scene_custom_field_to_cloud_config(new, cfg, &normalized, field, value) {
             touched_any = true;
         }
     }
@@ -526,7 +529,7 @@ pub(crate) fn apply_scene_custom_layer(
     if strict_unknown {
         return Err(message);
     }
-    crate::output::eprintln_warn_labeled(&format!(
+    crate::output::warn_runtime_or_now(&format!(
         "ignoring unknown custom scene '{}' (available: {}; see --list-scenes)",
         name, list
     ));
@@ -701,7 +704,9 @@ mod display;
 #[cfg(test)]
 #[allow(unused_imports)]
 pub(crate) use display::{is_valid_custom_scene_name, validate_custom_scene_name};
-pub(crate) use display::{list_custom_scenes_text, parse_density_map, show_custom_scene_text};
+pub(crate) use display::{
+    list_custom_scenes_text, parse_density_map, show_custom_scene_text, DENSITY_MAP_MAX_ENTRIES,
+};
 
 // v50.0.0-beta.7 LOC refactor: parse helpers extracted to helpers.rs.
 mod helpers;

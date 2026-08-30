@@ -373,13 +373,38 @@ pub(crate) fn eprintln_warn_labeled(msg: &str) {
     eprintln_safe!("{} {}", warn_bold("⚠"), warn(msg));
 }
 
+/// v51 killer-features hardening: route a warning that can fire on BOTH
+/// sides of the interactive session boundary (startup AND mid-rain via
+/// scene changes / live reload). Before the rain session starts, print
+/// immediately (same behavior as `eprintln_warn_labeled`); while the
+/// alternate screen is active, buffer into the session warning log
+/// (`live_config::push_runtime_warning`) so the line lands on the main
+/// screen post-exit instead of leaking into the rain matrix (AB-10).
+///
+/// Use this for config-block warnings (colors-custom / charset-custom /
+/// scene-custom). Pure startup-only warnings can keep using
+/// `eprintln_warn_labeled` directly.
+pub(crate) fn warn_runtime_or_now(msg: &str) {
+    if crate::live_config::interactive_session_active() {
+        crate::live_config::push_runtime_warning(msg);
+    } else {
+        eprintln_warn_labeled(msg);
+    }
+}
+
 /// v50.0.0-beta.6: warn when a custom config block shadows a builtin
 /// preset/scene/color with the same name. Owner Option D mandate: custom
 /// wins, but the user must be informed so silent shadowing never happens.
 ///
-/// Emits a 3-line warning via `eprintln_warn_labeled` (increments the
-/// startup warning counter so the summary line fires at the end of config
-/// apply). No return value — pure side-effect.
+/// v51 killer-features hardening: routed through `warn_runtime_or_now` —
+/// the charset-custom collision site fires per scene change / live reload
+/// (mid-rain), so the notice must buffer during the session instead of
+/// eprintln-ing into the alt screen. Startup callers (config_apply, main)
+/// print immediately exactly as before.
+///
+/// Emits a 3-line warning (increments the startup warning counter when
+/// printed directly so the summary line fires at the end of config apply).
+/// No return value — pure side-effect.
 ///
 /// `category` is "charset" / "color" / "scene".
 /// `name` is the colliding name (e.g. "zen").
@@ -391,7 +416,7 @@ pub(crate) fn warn_name_collision(
     builtin_desc: &str,
     custom_desc: &str,
 ) {
-    eprintln_warn_labeled(&format!(
+    warn_runtime_or_now(&format!(
         "custom {category} '{name}' overrides builtin — custom wins (Option D policy)\n  builtin: {builtin_desc}\n  custom:  {custom_desc}\n  To use the builtin, rename the custom block in config.toml."
     ));
 }

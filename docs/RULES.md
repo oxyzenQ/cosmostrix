@@ -134,15 +134,27 @@ All 3 custom config systems use the same bounds for consistency. Max **100 block
 |--------|-----------|--------------|-------------|-----------|
 | colors-custom | 100 (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 64 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | OKLab engine only needs 2-16 stops; 100 blocks far exceeds realistic use |
 | charset-custom | 100 (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 chars (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
-| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | N/A (fields are key-value) | 100 blocks far exceeds realistic use (built-in scenes ~10) |
+| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | 1024 density-map entries (`DENSITY_MAP_MAX_ENTRIES`, v51) | Terminal width bounds real maps at a few hundred columns; the cap stops a pasted mega-CSV from leaking unbounded `Box::leak` memory into the dedup cache |
 
 When a cap is hit, behavior depends on the cap type:
 
-- **Content cap** (rain stops, charset chars): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`.
+- **Content cap** (rain stops, charset chars, density-map entries): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`. Density-map values over the entry cap truncate (the first 1024 entries are kept) instead of being rejected — the weights still apply.
 - **Block cap** (total blocks per category): silently skipped (no warning — the user would have to define 100+ blocks to hit this, which is almost certainly a script-generated config, not a human typo).
 - **Name length cap**: silently skipped (no warning — almost certainly a typo, warning would be noise).
 
 All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
+
+### Killer-feature warning routing (v51 hardening)
+
+Warnings that can fire on BOTH sides of the interactive session boundary (charset
+wide-char skip notes, custom-vs-builtin name collisions, scene-custom invalid
+field notes) route through `output::warn_runtime_or_now`: direct stderr before
+the rain session starts, buffered `push_runtime_warning` while the alternate
+screen is active (AB-10 — a stderr line must never leak into the rain matrix).
+The session gate is `INTERACTIVE_SESSION_ACTIVE`, set once at the top of
+`run_interactive`. The runtime warning log also dedups identical messages —
+several killer-feature notes re-fire per scene change / config save, and the
+post-exit summary must stay readable.
 
 ### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D)
 

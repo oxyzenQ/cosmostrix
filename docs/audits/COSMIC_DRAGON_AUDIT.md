@@ -230,6 +230,7 @@ When maintaining cosmostrix, the following audit findings are the
 | Power Management (AB-11) | 2026-08-12 | 69ec065 | Option 2 implemented |
 | Rain-Screen Cleanliness (AB-09/AB-10) | 2026-08-12 | 63f5c10->7ba7a76 | All leak vectors fixed |
 | Depth Assessment | 2026-08-12 | (research only) | Peak in 5/8 axes |
+| Killer Features Hardening (Z-master-1B) | 2026-08-30 | see docs/audits/KILLER_FEATURES_HARDENING.md | K1-K7 fixed, V1-V6 verified safe |
 
 ---
 

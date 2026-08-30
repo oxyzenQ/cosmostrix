@@ -133,7 +133,7 @@ pub(crate) fn parse_hex_color(s: &str) -> Result<Color, String> {
 
 /// Collect all custom color palette definitions from the config HashMap.
 ///
-/// v50.0.0-beta.6 LTS: bounded by `COLORS_CUSTOM_MAX_BLOCKS` (64) and
+/// v50.0.0-beta.6 LTS: bounded by `COLORS_CUSTOM_MAX_BLOCKS` (100) and
 /// `COLORS_CUSTOM_MAX_RAIN_STOPS` (64) to prevent config typos from
 /// bloating memory or stalling startup. Names longer than
 /// `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars) are skipped silently —
@@ -266,8 +266,17 @@ pub(crate) fn load_custom_palette(
 /// `[colors-custom.<name>]` block in `cfg`. Used by profile/scene-custom
 /// layers to resolve custom color names (matching top-level config_apply
 /// behavior which resolves via `parse_color_scheme || colors-custom lookup`).
+///
+/// v51 killer-features hardening: cheap pre-check (mirrors
+/// charset_custom's `contains_key` probe) — if the config defines no
+/// `[colors-custom.*]` blocks at all, skip building the full BTreeMap.
+/// This probe runs on every scene change and live reload via the
+/// scene-custom layers, and most configs define no custom palettes.
 #[must_use]
 pub(crate) fn is_colors_custom_name(cfg: &HashMap<String, String>, name: &str) -> bool {
+    if !cfg.keys().any(|k| k.starts_with("colors-custom.")) {
+        return false;
+    }
     let palettes = collect_colors_custom(cfg);
     palettes.contains_key(&name.trim().to_ascii_lowercase())
 }
@@ -582,8 +591,9 @@ mod tests {
 
     #[test]
     fn collect_caps_total_blocks_at_max() {
-        // A config with >COLORS_CUSTOM_MAX_BLOCKS blocks should only
-        // keep the first MAX_BLOCKS entries, not allocate unbounded.
+        // A config with >COLORS_CUSTOM_MAX_BLOCKS blocks keeps at most
+        // MAX_BLOCKS entries (which ones survive is unspecified — HashMap
+        // iteration order), never allocating unbounded.
         let mut cfg = HashMap::new();
         for i in 0..(COLORS_CUSTOM_MAX_BLOCKS + 10) {
             cfg.insert(
@@ -640,5 +650,25 @@ mod suggestion_tests {
         // Distant name: no suggestion.
         let err = load_custom_palette(&cfg, "something-else").unwrap_err();
         assert!(!err.contains("Did you mean"), "got: {err}");
+    }
+}
+
+/// v51 killer-features hardening: pre-check probe behavior.
+#[cfg(test)]
+mod precheck_tests {
+    use super::*;
+
+    #[test]
+    fn is_colors_custom_name_false_when_no_blocks_defined() {
+        let mut cfg = HashMap::new();
+        cfg.insert("color".to_string(), "green".to_string());
+        assert!(!is_colors_custom_name(&cfg, "sunset"));
+        // Once a block exists, the probe falls through to the full lookup.
+        cfg.insert(
+            "colors-custom.sunset.rain".to_string(),
+            "#000000, #ffffff".to_string(),
+        );
+        assert!(is_colors_custom_name(&cfg, "sunset"));
+        assert!(!is_colors_custom_name(&cfg, "sunris"));
     }
 }

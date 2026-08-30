@@ -22,8 +22,9 @@
 //!   is a valid single-width character and is kept.
 //! - Control characters (C0/C1) are rejected with a clear error.
 //! - Wide / zero-width characters (emoji, CJK fullwidth, combining marks)
-//!   are rejected with a clear error. The renderer is column-based and
-//!   assumes one cell per glyph — wide chars corrupt alignment. This is
+//!   are SKIPPED with a warning — the value is accepted, the offending
+//!   codepoints are dropped from the pool. The renderer is column-based
+//!   and assumes one cell per glyph — wide chars corrupt alignment. This is
 //!   the Cosmic Dragon principle: no emoji, no wide chars, ever. It is a
 //!   permanent design choice, not a limitation to be lifted later.
 //! - Maximum length: 256 characters. Longer values are rejected so the
@@ -87,7 +88,7 @@ pub(crate) struct CharsetCustomDef {
 ///
 /// Names are normalized to lowercase for case-insensitive matching.
 ///
-/// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (64) and
+/// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (100) and
 /// `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars) to prevent config typos
 /// from bloating memory or stalling startup.
 #[must_use]
@@ -185,7 +186,11 @@ pub(crate) fn parse_charset_value(value: &str) -> Result<Vec<char>, String> {
     }
 
     if !skipped_wide.is_empty() {
-        crate::output::eprintln_warn_labeled(&format!(
+        // v51 killer-features hardening: routed through warn_runtime_or_now —
+        // collect_charset_custom re-runs on every scene change and live
+        // reload, so this warning fires mid-rain and must buffer (AB-10)
+        // instead of eprintln-ing into the alt screen.
+        crate::output::warn_runtime_or_now(&format!(
             "skipped {} wide/zero-width character(s) from charset-custom: {}",
             skipped_wide.len(),
             skipped_wide.join(", ")
@@ -489,8 +494,9 @@ mod tests {
 
     #[test]
     fn collect_caps_total_blocks_at_max() {
-        // A config with >CHARSET_CUSTOM_MAX_BLOCKS blocks should only
-        // keep the first MAX_BLOCKS entries, not allocate unbounded.
+        // A config with >CHARSET_CUSTOM_MAX_BLOCKS blocks keeps at most
+        // MAX_BLOCKS entries (which ones survive is unspecified — HashMap
+        // iteration order), never allocating unbounded.
         let mut cfg = HashMap::new();
         for i in 0..(CHARSET_CUSTOM_MAX_BLOCKS + 10) {
             cfg.insert(format!("charset-custom.charset{i}.set"), "ab".to_string());

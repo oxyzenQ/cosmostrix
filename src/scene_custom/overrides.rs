@@ -200,6 +200,7 @@ pub(crate) fn apply_profile_overrides(
 pub(crate) fn apply_scene_custom_field_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
+    scene_name: &str,
     field: &str,
     value: &str,
 ) -> bool {
@@ -291,32 +292,63 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "bold" => {
-            if let Ok(n) = value.trim().parse::<u8>() {
-                new.bold_mode = match n {
-                    0 => crate::runtime::BoldMode::Off,
-                    2 => crate::runtime::BoldMode::All,
-                    _ => crate::runtime::BoldMode::Random,
-                };
-                return true;
+            // v51 killer-features hardening: enforce the SAME 0..=2 range as
+            // the startup path (apply_profile_overrides uses
+            // parse_u8_override(.., 0, 2)) and as --testconf validation
+            // ("expected 0, 1, or 2"). Previously this arm accepted ANY u8
+            // (255 mapped silently to Random), diverging from startup on
+            // out-of-range values — unreachable in practice while strict
+            // validation rejects the reload first, fixed as defense-in-depth
+            // so the two paths can never drift again.
+            match value.trim().parse::<u8>() {
+                Ok(n @ 0..=2) => {
+                    new.bold_mode = match n {
+                        0 => crate::runtime::BoldMode::Off,
+                        2 => crate::runtime::BoldMode::All,
+                        _ => crate::runtime::BoldMode::Random,
+                    };
+                    true
+                }
+                _ => {
+                    warn_invalid(scene_name, "bold", value, "0, 1, or 2");
+                    false
+                }
             }
-            false
         }
         "shadingmode" => {
-            if let Ok(n) = value.trim().parse::<u8>() {
-                new.shading_mode = match n {
-                    1 => crate::runtime::ShadingMode::DistanceFromHead,
-                    _ => crate::runtime::ShadingMode::Random,
-                };
-                return true;
+            // v51 killer-features hardening: enforce the SAME 0..=1 range as
+            // startup (parse_u8_override(.., 0, 1)) and --testconf — see the
+            // bold arm note. Previously any u8 was accepted.
+            match value.trim().parse::<u8>() {
+                Ok(n @ 0..=1) => {
+                    new.shading_mode = match n {
+                        1 => crate::runtime::ShadingMode::DistanceFromHead,
+                        _ => crate::runtime::ShadingMode::Random,
+                    };
+                    true
+                }
+                _ => {
+                    warn_invalid(scene_name, "shadingmode", value, "0 or 1");
+                    false
+                }
             }
-            false
         }
         "async-mode" => {
-            new.async_mode = matches!(
-                value.trim().to_ascii_lowercase().as_str(),
-                "true" | "1" | "yes" | "on"
-            );
-            true
+            // v51 killer-features hardening: use the shared parse_bool
+            // (true/false/1/0/yes/no/on/off — the SAME accepted set as the
+            // startup path) instead of treating every non-true string as
+            // false. A typo like `async-mode = "banana"` is now rejected
+            // with a warning instead of silently switching async mode off.
+            match parse_bool(value) {
+                Some(b) => {
+                    new.async_mode = b;
+                    true
+                }
+                None => {
+                    warn_invalid(scene_name, "async-mode", value, "true, false");
+                    false
+                }
+            }
         }
         // monolith-size and color-bg are FORBIDDEN in scene-custom.
         "monolith-size" | "color-bg" => false,

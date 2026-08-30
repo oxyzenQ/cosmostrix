@@ -22,6 +22,16 @@ use std::sync::OnceLock;
 use super::is_valid_profile_name;
 use crate::scene_custom::UserProfile;
 
+/// v51 killer-features hardening: maximum number of entries accepted in a
+/// `density-map` value. The map weights monolith pillar placement per
+/// column region; real terminals are at most a few hundred columns wide, so
+/// 1024 entries is already generous. Without the cap, a pasted 1M-entry CSV
+/// would leak ~8 MB into the dedup cache per DISTINCT value (the cache
+/// leaks `Box::leak` slices), and a long editing session changing the value
+/// repeatedly would grow RSS without bound — the same typo-bloat class the
+/// charset (256 chars) / colors (64 stops) / block-count (100) caps close.
+pub(crate) const DENSITY_MAP_MAX_ENTRIES: usize = 1024;
+
 #[cfg(test)]
 pub fn is_valid_custom_scene_name(name: &str) -> bool {
     is_valid_profile_name(name)
@@ -66,7 +76,7 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
     // Shared parse closure — used by both the healthy-lock + poisoned-mutex
     // paths so they stay in sync (no behavior drift between cached/uncached).
     let parse_weights = || -> Option<Vec<f64>> {
-        let weights: Vec<f64> = csv
+        let mut weights: Vec<f64> = csv
             .split(',')
             .filter_map(|s| {
                 let s = s.trim();
@@ -77,10 +87,20 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
             })
             .collect();
         if weights.is_empty() {
-            None
-        } else {
-            Some(weights)
+            return None;
         }
+        // v51 killer-features hardening: cap the entry count BEFORE the
+        // leak (a pasted mega-CSV must not leak megabytes into the cache).
+        // warn_runtime_or_now keeps mid-session fires buffered (AB-10);
+        // identical truncation notes dedup in the warning log.
+        if weights.len() > DENSITY_MAP_MAX_ENTRIES {
+            crate::output::warn_runtime_or_now(&format!(
+                "density-map has {} entries — truncated to {DENSITY_MAP_MAX_ENTRIES} at runtime",
+                weights.len()
+            ));
+            weights.truncate(DENSITY_MAP_MAX_ENTRIES);
+        }
+        Some(weights)
     };
 
     // v50 poison-safe lock: never propagate a poisoned mutex as a panic.
@@ -127,6 +147,12 @@ pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) ->
 }
 
 /// Render a detailed description of a single custom scene.
+///
+/// v51 killer-features hardening: `monolith-size` and `color-bg` are
+/// intentionally NOT displayed — they are forbidden in `[scene-custom.*]`
+/// blocks by the owner contract (`SCENE_CUSTOM_FIELDS` excludes them, so
+/// `collect_custom_scenes` never sets those fields). The former display
+/// arms were unreachable dead code.
 #[must_use]
 pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
     let mut out = String::new();
@@ -160,14 +186,6 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
     }
     if let Some(glitch) = scene.glitch_level.as_deref() {
         out.push_str(&format!("    glitch-level       = {glitch}\n"));
-        has_field = true;
-    }
-    if let Some(size) = scene.monolith_size.as_deref() {
-        out.push_str(&format!("    monolith-size      = {size}\n"));
-        has_field = true;
-    }
-    if let Some(bg) = scene.color_bg.as_deref() {
-        out.push_str(&format!("    color-bg           = {bg}\n"));
         has_field = true;
     }
 

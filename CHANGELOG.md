@@ -9,6 +9,18 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Killer features hardening: colors-custom / charset-custom / scene-custom (Z-master-1B)
+
+- Owner mandate: peak optimize + stability/LTS, no hidden bugs, no potential problems, no security risks — special focus on the three killer features no competitor ships. Full audit: `docs/audits/KILLER_FEATURES_HARDENING.md` (K1-K7 fixed, V1-V6 investigated and verified safe).
+- **K1 mid-rain stderr leaks (AB-10 class)**: charset-custom's wide-char skip note + builtin name-collision notice and scene-custom's unknown-scene / invalid-field notes printed directly into the rain matrix on every scene change / live reload. New session gate (`INTERACTIVE_SESSION_ACTIVE`, set at `run_interactive`) + `output::warn_runtime_or_now` routing: direct stderr before the session (startup output unchanged), buffered post-exit summary while the rain is on screen.
+- **K2 warning-buffer spam**: `push_runtime_warning` now dedups identical messages — the `.stops` deprecation and scene-custom re-apply notes re-fire per event and used to flood the 64-slot post-exit summary.
+- **K3 density-map unbounded entries**: a pasted mega-CSV leaked `Box::leak` memory (~8 MB per 1M entries, per distinct value, permanently) — the only killer-feature input without a cap. Now capped at `DENSITY_MAP_MAX_ENTRIES = 1024` (truncate + routed warning), with the matching `--testconf` ceiling warning.
+- **K4 live-reload validation drift**: the scene-custom live-reload applier accepted `bold = "255"` (startup rejects; anything not 0..=2), any `shadingmode` u8 (startup: 0..=1), and treated every non-true `async-mode` string as `false` (startup: `parse_bool` + warn). All three arms now share the startup validation and warn with scene-name context. Latent (strict validation rejects invalid reloads first) — fixed as defense-in-depth so the paths can never drift.
+- **K5 dead display code**: `--show-scene` rendered `monolith-size` / `color-bg` rows that scene-custom blocks can never carry (owner-contract forbidden fields) — arms removed + locked by test.
+- **K6 doc-vs-code contradictions**: charset module doc claimed wide chars are "rejected" (impl skips with a warning); collect docs said caps were 64 where the constant is 100; cap tests claimed "first" blocks survive (HashMap order is unspecified). All corrected.
+- **K7 allocation churn**: `is_colors_custom_name` rebuilt the full palette map on every probe (every scene change / reload); now short-circuits when the config defines no colors-custom blocks.
+- Tests +6 (suite 1829 -> 1835); `docs/RULES.md` bounds table gains the density-map cap + the warning-routing contract.
+
 ### crates.io release channel + CI dynamic dependency versions (Z-master-1B)
 
 - cosmostrix is now on [crates.io](https://crates.io/crates/cosmostrix): `cargo install cosmostrix` (or `--locked` / `--version X.Y.Z` for exact reproducibility) joins GitHub Releases, AUR, and Termux as an install channel; README Installation gains the section.

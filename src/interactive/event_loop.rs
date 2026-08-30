@@ -29,6 +29,14 @@ use super::input::{
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
+    // v51 killer-features hardening: mark the interactive session (alt
+    // screen) as active BEFORE any config-block helper can fire a warning —
+    // intro sequence + scene changes + live reload all resolve custom
+    // palettes/charsets/scenes mid-rain. Warnings routed through
+    // output::warn_runtime_or_now buffer until post-exit from this point on
+    // (AB-10: never leak a stderr line into the rain matrix).
+    crate::live_config::set_interactive_session_active();
+
     crate::spawn_kill9_terminal_guard();
 
     // Install signal handlers + watchdog (extracted to signal_handlers.rs).

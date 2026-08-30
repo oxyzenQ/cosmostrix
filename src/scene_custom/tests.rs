@@ -518,3 +518,49 @@ fn collect_custom_scenes_skips_oversized_names() {
     );
 }
 use super::*;
+
+// ── v51 killer-features hardening tests ──────────────────────────────
+
+#[test]
+fn parse_density_map_caps_entries_at_max() {
+    // >DENSITY_MAP_MAX_ENTRIES entries must truncate instead of leaking
+    // an unbounded Box::leak slice into the dedup cache (a pasted
+    // mega-CSV used to leak ~8 bytes per entry, permanently).
+    let big = vec!["0.5"; DENSITY_MAP_MAX_ENTRIES + 100].join(",");
+    let map = parse_density_map(&big).expect("map must parse");
+    assert_eq!(
+        map.len(),
+        DENSITY_MAP_MAX_ENTRIES,
+        "density-map must truncate to the entry cap"
+    );
+}
+
+#[test]
+fn parse_density_map_at_cap_is_not_truncated() {
+    let exact = vec!["0.25"; DENSITY_MAP_MAX_ENTRIES].join(",");
+    let map = parse_density_map(&exact).expect("map must parse");
+    assert_eq!(map.len(), DENSITY_MAP_MAX_ENTRIES);
+    assert!(map.iter().all(|v| (*v - 0.25).abs() < 1e-9));
+}
+
+#[test]
+fn show_custom_scene_text_never_renders_forbidden_fields() {
+    // monolith-size and color-bg are forbidden in scene-custom blocks by
+    // the owner contract; the display must not render them even if a
+    // hand-built UserProfile carries them (defense against regressions
+    // reintroducing the removed arms).
+    let scene = UserProfile {
+        monolith_size: Some("large".to_string()),
+        color_bg: Some("black".to_string()),
+        ..UserProfile::default()
+    };
+    let text = show_custom_scene_text("test-scene", &scene);
+    assert!(
+        !text.contains("monolith-size"),
+        "forbidden field must not render: {text}"
+    );
+    assert!(
+        !text.contains("color-bg"),
+        "forbidden field must not render: {text}"
+    );
+}

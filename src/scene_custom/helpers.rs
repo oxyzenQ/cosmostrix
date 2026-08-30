@@ -134,7 +134,12 @@ pub(crate) fn is_explicit(matches: &clap::ArgMatches, key: &str) -> bool {
 }
 
 pub(crate) fn warn_invalid(profile: &str, field: &str, value: &str, expected: &str) {
-    crate::output::eprintln_warn_labeled(&format!(
+    // v51 killer-features hardening: routed through warn_runtime_or_now.
+    // Today warn_invalid fires only on startup paths (pre-alt-screen, prints
+    // immediately as before), but the scene-custom field appliers it now
+    // serves also run during live reload — if a warning ever fires there it
+    // must buffer (AB-10) instead of leaking into the rain matrix.
+    crate::output::warn_runtime_or_now(&format!(
         "scene-custom: invalid {field}='{value}' in scene-custom '{profile}' (expected: {expected})"
     ));
 }

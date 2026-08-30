@@ -12,7 +12,7 @@
 //!   from the live-reload path (e.g. deprecated `.stops` alias). Buffered
 //!   during the rain loop to avoid alt-screen leak (AB-10), drained post-exit.
 
-use std::sync::atomic::AtomicU8;
+use std::sync::atomic::{AtomicBool, AtomicU8, Ordering};
 use std::sync::Mutex;
 
 /// Global exit code set by live-reload when invalid config is detected.
@@ -52,10 +52,47 @@ pub(crate) static LIVE_RELOAD_RUNTIME_WARNINGS: Mutex<Vec<String>> = Mutex::new(
 
 const MAX_RUNTIME_WARNING_LOG: usize = 64;
 
+/// v51 killer-features hardening: true while the interactive rain session
+/// (alternate screen) is active. Set once at the top of `run_interactive`,
+/// never cleared — the process exits when the session ends. Warnings that
+/// can fire on BOTH sides of the session boundary (charset-custom parse
+/// notes, name-collision notices, ...) route through
+/// `output::warn_runtime_or_now`, which checks this flag: direct stderr
+/// before the session starts (immediate feedback), buffered
+/// `push_runtime_warning` while the rain is on screen (AB-10 — no leak into
+/// the alt screen), drained post-exit.
+static INTERACTIVE_SESSION_ACTIVE: AtomicBool = AtomicBool::new(false);
+
+/// Mark the interactive rain session as active (called by `run_interactive`).
+pub(crate) fn set_interactive_session_active() {
+    INTERACTIVE_SESSION_ACTIVE.store(true, Ordering::Release);
+}
+
+/// Whether the interactive rain session (alt screen) is currently active.
+#[must_use]
+pub(crate) fn interactive_session_active() -> bool {
+    INTERACTIVE_SESSION_ACTIVE.load(Ordering::Acquire)
+}
+
+/// Test-only reset so unit tests can exercise both routing sides.
+#[cfg(test)]
+pub(crate) fn reset_interactive_session_active() {
+    INTERACTIVE_SESSION_ACTIVE.store(false, Ordering::Release);
+}
+
 /// Append a non-fatal runtime warning to the session log. Bulletproof —
 /// never panics on poisoned mutex. Called from the live-reload path only.
+///
+/// v51 killer-features hardening: identical messages are deduplicated.
+/// Several killer-feature warnings re-fire on every scene change / config
+/// save (the `.stops` deprecation, the scene-custom re-apply note); without
+/// dedup a long editing session fills the 64-slot buffer with copies and
+/// the post-exit summary becomes unreadable spam. First occurrence wins.
 pub(crate) fn push_runtime_warning(msg: &str) {
     if let Ok(mut guard) = LIVE_RELOAD_RUNTIME_WARNINGS.lock() {
+        if guard.iter().any(|m| m == msg) {
+            return;
+        }
         if guard.len() < MAX_RUNTIME_WARNING_LOG {
             guard.push(msg.to_string());
         }
@@ -95,4 +132,42 @@ pub fn drain_validation_rejections() -> Vec<String> {
         .lock()
         .map(|mut guard| std::mem::take(&mut *guard))
         .unwrap_or_default()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Serializes tests that push/drain the shared warning buffer so they
+    /// cannot steal each other's markers when running in parallel.
+    static BUFFER_TEST_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn push_runtime_warning_dedups_identical_messages() {
+        let _guard = BUFFER_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let marker = format!("dedup-test-{}", std::process::id());
+        push_runtime_warning(&marker);
+        push_runtime_warning(&marker);
+        push_runtime_warning(&marker);
+        let drained = drain_runtime_warnings();
+        assert_eq!(
+            drained.iter().filter(|m| m.as_str() == marker).count(),
+            1,
+            "identical warnings must dedup to one entry, got {drained:?}"
+        );
+    }
+
+    #[test]
+    fn warn_runtime_or_now_buffers_while_session_active() {
+        let _guard = BUFFER_TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let marker = format!("routing-test-{}", std::process::id());
+        set_interactive_session_active();
+        crate::output::warn_runtime_or_now(&marker);
+        let drained = drain_runtime_warnings();
+        assert!(
+            drained.iter().any(|m| m.contains(&marker)),
+            "session-active warning must be buffered, got {drained:?}"
+        );
+        reset_interactive_session_active();
+    }
 }

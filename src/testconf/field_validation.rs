@@ -139,6 +139,18 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                     "expected at least one comma-separated float in [0.0, 1.0], got '{v}'"
                 ));
             }
+            // v51 killer-features hardening: entry-count ceiling mirrors
+            // parse_density_map's runtime truncation (DENSITY_MAP_MAX_ENTRIES
+            // = 1024). Warning, not error — runtime truncates and continues,
+            // so blocking here would create a testconf/runtime divergence.
+            // Matches the out-of-range-clamp warning precedent directly below.
+            if non_empty.len() > crate::scene_custom::DENSITY_MAP_MAX_ENTRIES {
+                crate::output::eprintln_warn_labeled(&format!(
+                    "density-map has {} entries — truncated to {} at runtime",
+                    non_empty.len(),
+                    crate::scene_custom::DENSITY_MAP_MAX_ENTRIES
+                ));
+            }
             for entry in &non_empty {
                 match entry.parse::<f64>() {
                     Ok(n) if !(0.0..=1.0).contains(&n) => {
