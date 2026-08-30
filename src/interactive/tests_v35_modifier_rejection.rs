@@ -12,6 +12,11 @@
 //!   color/scene/charset/pause/reset)
 //! - Bare key + Shift+key allowlist (the only allowed modifier states)
 //! - `is_unmodified` / `is_unmodified_or_shift` predicate contracts
+//!
+//! The kitty CSI-u Shift+letter shape tests (base lowercase codepoint
+//! with SHIFT, normalized by `normalize_shifted_char()`) live in
+//! `tests_v50_kitty_shift.rs` — split out to keep this file under
+//! the 800-LOC cap.
 
 #[cfg(test)]
 mod cases_modifier_rejection {

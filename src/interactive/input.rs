@@ -79,29 +79,73 @@ pub(super) fn is_plain_printable_key(key: &crossterm::event::KeyEvent) -> bool {
 /// (e.g. Shift+q → 'Q') and any other modifier combination are rejected.
 ///
 /// CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
-/// which Char the terminal reports ('q' → 'Q' when CapsLock is on,
-/// with modifiers=NONE). It is inherently allowed by this check because
-/// the CapsLock-produced uppercase char simply doesn't match the lowercase
-/// KeyCode::Char('q') arm (it matches 'Q', which has no binding).
+/// which Char the terminal reports ('q' → 'Q' when CapsLock is on).
+/// crossterm then tags that uppercase char with SHIFT
+/// (`char_code_to_event` cannot distinguish CapsLock from a held
+/// Shift in the byte stream), so the CapsLock-produced uppercase
+/// still fails this check — which is correct: it does not match the
+/// lowercase `KeyCode::Char('q')` arm either way.
 pub(super) fn is_unmodified(modifiers: crossterm::event::KeyModifiers) -> bool {
     modifiers.is_empty()
 }
 
 /// Returns true if the key event's modifiers are in the "safe" allowlist:
-/// only bare keys (KeyModifiers::NONE) or SHIFT (for capital S/C reverse-
-/// cycle bindings). Rejects ALL other modifier bits: CONTROL, ALT, SUPER,
-/// HYPER, META.
+/// only bare keys (KeyModifiers::NONE) or SHIFT (for capital S/C/X
+/// reverse-cycle bindings). Rejects ALL other modifier bits: CONTROL, ALT,
+/// SUPER, HYPER, META, FUNCTION.
 ///
-/// Use ONLY for cycle shortcuts (uppercase S, C) where Shift is a
+/// Use ONLY for cycle shortcuts (uppercase S, C, X) where Shift is a
 /// deliberate input (Shift+s → S = reverse charset cycle, Shift+c → C =
-/// reverse color cycle). Non-cycle shortcuts must use `is_unmodified()`
-/// instead.
+/// reverse color cycle, Shift+x → X = reverse scene cycle).
+/// Non-cycle shortcuts must use `is_unmodified()` instead.
 ///
 /// CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
-/// which Char the terminal reports ('c' → 'C' when CapsLock is on,
-/// with modifiers=NONE). It is inherently allowed by this check.
+/// which Char the terminal reports ('c' → 'C' when CapsLock is on).
+/// crossterm tags that uppercase char with SHIFT, so CapsLock+C lands
+/// in the same cycle arm as Shift+C — accepted, since both produce the
+/// uppercase letter that means "reverse cycle".
 pub(super) fn is_unmodified_or_shift(modifiers: crossterm::event::KeyModifiers) -> bool {
     modifiers.is_empty() || modifiers == crossterm::event::KeyModifiers::SHIFT
+}
+
+/// Normalize the kitty-protocol form of Shift+letter to the uppercase char.
+///
+/// Two real-world event shapes carry "Shift + letter":
+///
+///  * Legacy / plain-text path: the terminal sends the shifted byte
+///    ('X'), and crossterm's `char_code_to_event` tags every uppercase
+///    char with `KeyModifiers::SHIFT` — so the event arrives as
+///    `Char('X') + SHIFT` (CapsLock-produced uppercase gets the same
+///    tag, because the byte stream is indistinguishable).
+///  * Kitty CSI-u path: kitty-keyboard-protocol terminals report the
+///    BASE (lowercase) codepoint plus the SHIFT modifier bit —
+///    `CSI 120;2u` for Shift+X arrives as `Char('x') + SHIFT`.
+///    crossterm only substitutes the shifted codepoint when the
+///    terminal also reports alternate keys (a flag cosmostrix does
+///    not push), so the lowercase base survives as-is.
+///
+/// Without normalization the second shape matches NEITHER the
+/// lowercase arm (modifiers are SHIFT, not NONE) NOR the uppercase arm
+/// (code is 'x', not 'X') — Shift+X/C/S were silent no-ops on
+/// kitty-protocol terminals (owner-reported bug). Normalizing to the
+/// uppercase char routes both shapes into the same reverse-cycle arm.
+///
+/// Non-cycle keys are unaffected: Shift+q normalizes to `Char('Q')`,
+/// which has no binding, so the bare-key-only policy still rejects it.
+/// Non-ASCII, non-lowercase, and non-Char codes pass through unchanged.
+pub(super) fn normalize_shifted_char(
+    code: crossterm::event::KeyCode,
+    modifiers: crossterm::event::KeyModifiers,
+) -> crossterm::event::KeyCode {
+    use crossterm::event::{KeyCode, KeyModifiers};
+    if modifiers == KeyModifiers::SHIFT {
+        if let KeyCode::Char(c) = code {
+            if c.is_ascii_lowercase() {
+                return KeyCode::Char(c.to_ascii_uppercase());
+            }
+        }
+    }
+    code
 }
 
 // Runtime key handling coordinates cloud, frame, scene, charset, and terminal
@@ -139,6 +183,13 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
 
     use crossterm::event::{KeyCode, KeyModifiers};
 
+    // Normalize the kitty CSI-u Shift+letter shape (base lowercase
+    // codepoint + SHIFT) to the uppercase char so both terminal
+    // families hit the same match arms. See normalize_shifted_char()
+    // for the full event-shape analysis.
+    let code = normalize_shifted_char(k.code, k.modifiers);
+    let modifiers = k.modifiers;
+
     // Pause guard: when paused OR decelerating toward pause, ONLY
     // 'p' (resume/cancel-decel) and 'q' (quit) are processed. All
     // other keys are silently ignored to prevent queued state changes
@@ -151,7 +202,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // suppressed (owner-reported bug: rapid p-taps left effects
     // hanging).
     if cloud.is_paused_or_decelerating() {
-        match (k.code, k.modifiers) {
+        match (code, modifiers) {
             (KeyCode::Char('p'), KeyModifiers::NONE) => {
                 return cloud.toggle_pause();
             }
@@ -171,10 +222,13 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     //  • Non-cycle shortcuts (lowercase q/c/s/x/p/[/]/space, arrows):
     //    match only KeyModifiers::NONE — Shift+key is rejected (owner
     //    requirement: only bare lowercase key, not uppercase variant).
-    //  • Cycle shortcuts (uppercase C/S):
+    //  • Cycle shortcuts (uppercase C/S/X):
     //    match any modifier that passes this guard (NONE or SHIFT) — both
-    //    are valid: NONE = CapsLock produced the uppercase char, SHIFT =
-    //    Shift produced it.
+    //    are valid: SHIFT = legacy plain-text (crossterm tags uppercase
+    //    chars with SHIFT) or kitty CSI-u base+SHIFT (normalized to the
+    //    uppercase char above); NONE = kitty alternate-keys form where
+    //    crossterm already substituted the shifted codepoint and cleared
+    //    the SHIFT bit.
     //
     // Owner-reported bug (v50 alpha.3): Super+C still cycled colors on
     // modern terminals (kitty, wezterm, foot) that report the kitty
@@ -193,10 +247,13 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // silent passthrough.
     //
     // CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
-    // which Char the terminal reports ('c' → 'C' when CapsLock is on,
-    // with modifiers=NONE). It is inherently allowed by the allowlist
-    // because no modifier bit is set.
-    if !is_unmodified_or_shift(k.modifiers) {
+    // which Char the terminal reports ('c' → 'C' when CapsLock is on).
+    // The uppercase byte is then tagged with SHIFT by crossterm's
+    // `char_code_to_event` (the byte stream cannot distinguish CapsLock
+    // from a held Shift), so CapsLock+C lands in the same cycle arm as
+    // Shift+C. That is accepted behavior: both produce the uppercase
+    // letter, both reverse-cycle.
+    if !is_unmodified_or_shift(modifiers) {
         return false;
     }
 
@@ -215,7 +272,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // The arm was removed v30; Tab now falls through to `_ => {}`. The
     // regression suite in tests.rs::tab_* documents the historical bug
     // and verifies Tab remains a no-op.
-    match (k.code, k.modifiers) {
+    match (code, modifiers) {
         // Non-cycle shortcuts: KeyModifiers::NONE only.
         // Owner requirement: only bare lowercase key, not Shift-produced
         // uppercase. E.g. 'q' quits, 'Q' does nothing.
@@ -290,9 +347,10 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             cloud.user_override_since_ambient = true;
             cloud.ambient_palette_locked = false;
         }
-        // v50.0.0-beta.7: uppercase 'X' accepts NONE (CapsLock) or SHIFT.
-        // This matches the c/C and s/S pattern: Shift+X produces 'X' with
-        // SHIFT modifier, CapsLock 'X' produces 'X' with NONE. Both cycle.
+        // Cycle shortcut: uppercase 'X' accepts NONE (CapsLock) or SHIFT.
+        // Both terminal families reach this arm: legacy plain-text sends
+        // 'X' (tagged SHIFT by crossterm), kitty CSI-u sends base 'x' +
+        // SHIFT which normalize_shifted_char() maps to 'X' above.
         (KeyCode::Char('X'), _) => {
             let prev = scene::cycle_scene(scene_name, -1);
             *scene_name = prev.to_string();

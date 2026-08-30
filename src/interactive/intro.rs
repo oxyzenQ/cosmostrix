@@ -414,9 +414,17 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
     // are silently rejected. The user must press bare 'q' (or Shift+Q
     // which produces 'Q' with SHIFT modifier) to skip.
     //
+    // Kitty CSI-u note: kitty-protocol terminals report Shift+q as the
+    // base codepoint + SHIFT (`Char('q') + SHIFT`), while legacy
+    // terminals report the shifted char (`Char('Q') + SHIFT`). The
+    // case-insensitive match below already accepts BOTH shapes, so no
+    // normalize_shifted_char() call is needed here — the two terminal
+    // families behave identically on this path by construction.
+    //
     // CapsLock is a keyboard state, NOT a KeyModifiers bit — it changes
-    // which Char the terminal reports ('q' → 'Q' when CapsLock is on,
-    // with modifiers=NONE). It is inherently allowed.
+    // which Char the terminal reports ('q' → 'Q' when CapsLock is on).
+    // crossterm tags that uppercase char with SHIFT, which the allowlist
+    // accepts — CapsLock+Q skipping the intro is accepted behavior.
     if !is_unmodified_or_shift(key_event.modifiers) {
         return false;
     }

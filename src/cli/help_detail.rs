@@ -461,13 +461,18 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
 RUNTIME CONTROLS:
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
-  x             Cycle scene       [ / ]      Density
+  x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed
   Space         Reset animation
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
                 sped / dsty / scn / chr / clr / up / screensize / cid)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
                 and diagnostic recipes for common symptoms.
+  Uppercase C/S/X = reverse cycle (Shift or CapsLock produces the
+  uppercase letter; kitty-protocol terminals reporting the base
+  codepoint + SHIFT are normalized internally). Shift is the ONLY
+  modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always
+  ignored, and every non-cycle key responds only to the bare press.
 
 HELP:
   -h, --help      Print this full reference manual.

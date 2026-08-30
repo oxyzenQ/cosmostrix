@@ -163,8 +163,8 @@ The Dragon's roar is not loud — it is precise.
 - Always-on mouse glow + click wave effects (cursor halo + dual-ring shockwave + quantum ripple particles). Mouse reporting always active (blocks text selection).
 - Live HUD — real-time FPS, p99, frame-time, RSS, endurance health, and build info (toggle with `i`).
 - Screensaver mode — only `q` exits; all runtime controls still work for interactive use.
-- Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 80×24. Press `q` to skip mid-animation.
-- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse (Shift or CapsLock produces uppercase), `s`/`S` cycle charsets, `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed.
+- Cinematic intro — `--intro cosmic|logo|none` (default: logo). Plays in all modes. Skipped on terminals < 10×5. Press `q` to skip mid-animation.
+- Runtime controls: `c`/`C` cycle colors, `x`/`X` cycle scenes forward/reverse, `s`/`S` cycle charsets (Shift or CapsLock produces uppercase — kitty-protocol terminals reporting the base codepoint + SHIFT are normalized internally), `Space` reset animation + restart message typewriter, `p` pause/resume, `i` toggle HUD, `[`/`]` adjust density, `Up`/`Down` adjust speed. Shift is the ONLY modifier accepted — Ctrl/Alt/Super/Hyper/Meta/Fn combos are always rejected.
 
 ### Benchmarking & Build
 

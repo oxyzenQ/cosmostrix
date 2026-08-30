@@ -9,6 +9,13 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Shortkey fix: Shift+X/C/S on kitty-protocol terminals (Z-master-1B)
+
+- **Root cause**: kitty-keyboard-protocol terminals (kitty, Alacritty, WezTerm, ghostty, foot, konsole) report Shift+letter as the BASE lowercase codepoint + SHIFT modifier (`CSI 120;2u` for Shift+X arrives as `Char('x') + SHIFT`). That event matched neither the lowercase arm (modifiers are SHIFT, not NONE) nor the uppercase arm (code is `x`, not `X`) — Shift+X/C/S were silent no-ops on those terminals even after the earlier `(Char('X'), _)` arm fix, because crossterm only substitutes the shifted codepoint when the terminal also reports alternate keys (a flag cosmostrix does not push).
+- **Fix**: `normalize_shifted_char()` in `src/interactive/input.rs` maps `Char(ascii-lowercase) + SHIFT` to the uppercase char before the match, so both terminal families hit the same reverse-cycle arms. Shift remains the ONLY accepted modifier; non-cycle keys (q/p/i/`[`/`]`/Space/arrows) correctly reject their Shift variants in both shapes. The intro `is_skip_key` path already handled both shapes via its case-insensitive match (documented, no change needed).
+- **Tests**: five new tests in `tests_v35_modifier_rejection.rs` — kitty CSI-u shapes for X/C/S reverse-cycle, no-op verification for Shift+q/p/`[`/`]`/Space/Up/Down in CSI-u form, and the `normalize_shifted_char` contract.
+- **Docs**: README keybind line, `docs/RULES.md` keybind policy (Shift-only modifier rule + normalization note), stale CapsLock comments in `input.rs`/`intro.rs` corrected (crossterm tags uppercase plain-text with SHIFT, not NONE), README intro threshold fixed (10x5, not 80x24).
+
 ### Screensaver audit (Z-master-1B)
 
 - **`--screensaver` behavioral audit**: new `docs/SCREENSAVER_MODE.md` documents what actually differs between screensaver and default mode. Verdict: functionally near-identical — all runtime keys work in both modes, mouse click never exits in either (v17 policy), and the intro plays in both. Only two micro-scale scheduling differences remain (post-`q` event-drain break, pause-toggle fast-redraw skip).
@@ -17,7 +24,7 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 ### Behavior changes (7bdaa0d8 → 8e1b41e9)
 
 - **HUD Option C expansion**: HUD expanded from 18 to 22 lines. Added 4 new metrics: `ambt` (ambient on/off), `glth` (glitch level), `ctun` (color tuning default/custom), `mnst` (monolith size or "unknown"). `cid` line moved from row 17 to row 21.
-- **'X' key**: uppercase 'X' now cycles scenes in reverse (CapsLock only, NOT Shift+X). Same pattern as c/C (colors) and s/S (charsets).
+- **'X' key**: uppercase 'X' now cycles scenes in reverse, same pattern as c/C (colors) and s/S (charsets). Shift+X works on both legacy and kitty-protocol terminals via `normalize_shifted_char()` (see the shortkey fix above).
 - **glth HUD metric**: now reads from live cloud state (follows runtime scene switches via 'x'/'X'), not from static config.
 - **mnst HUD metric**: shows "unknown" for non-monolith scenes. Reads from live cloud state.
 - **Ambient startup delay (masterclass)**: when ANY CLI flag is present (--scene, --color, --charset, etc.), ambient scheduler defers for `ambient-snapback-secs` (default 30s). CLI scene shows first, then ambient takes over. When NO CLI flags are present (e.g. `cosmostrix -v`), ambient applies instantly. This prevents the confusion where `--scene matrix` with `ambient.12-00 = monolith` immediately showed monolith instead of matrix.

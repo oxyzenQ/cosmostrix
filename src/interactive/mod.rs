@@ -75,6 +75,12 @@ mod tests_fmt_opt;
 #[path = "tests_v50_first_reload.rs"]
 mod v50_first_reload;
 
+// v50.0.0-beta.7 Z-master-1B: kitty CSI-u Shift+letter normalization
+// (base lowercase codepoint + SHIFT -> uppercase reverse-cycle arm).
+#[cfg(test)]
+#[path = "tests_v50_kitty_shift.rs"]
+mod v50_kitty_shift;
+
 #[cfg(test)]
 mod tests_v35;
 
