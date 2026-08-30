@@ -9,6 +9,10 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Indonesian language purge from src/ comments (Z-master-1B)
+
+- Owner audit mandate: eliminate/translate any Indonesian from the repo root files and `src/*`. Full vocabulary sweep (140+ word/phrase patterns) over root files, `scripts/`, and `src/` found exactly 4 fragments — all inside quoted bug-report/spec comments, all now translated to English: `termdetect/mod.rs` (a "lingering dim ghosts" phosphor symptom), `chroma_dragon_engine/tuning.rs` (the border-touch owner spec — "from black to white, then it fades away after a few seconds", marked as translated), and `cosmic_dragon_engine/cloud/phosphor.rs` (two fragments: the stale-trails fix label + the "lag disappears, returns a few seconds later" oscillation). Note: `gini` hits in `bench/` are the Gini coefficient (statistics), not Indonesian. Root files, `scripts/`, and all other `src/` files were already clean — verified, no other changes needed.
+
 ### Pause isolation + HUD metric freeze + intro brand color (Z-master-1B)
 
 - **Bug fix — intro logo color override**: `cosmostrix -c neon-green` repainted the intro LOGO neon-green. Root cause: the unset-`--intro-color` path passed the LIVE rain cloud to the intro, and `logo_stage_colors()` samples the cloud's palette stops for the 7-stage gradient. Fix: the unset AND invalid `intro-color` paths now build a dedicated brand EnergyZen intro cloud (`event_loop_intro::brand_intro_cloud`) — the same scheme the cinematic scene applies by default, so a no-flags run and a `-c <theme>` run show the identical brand intro. Only `--intro-color` (or config `intro-color`) repaints the intro; `-c`/`--color`/`--colors-custom` affect the rain only. `set_color_scheme` also clears `custom_palette_active`, so custom palettes cannot leak into the intro.

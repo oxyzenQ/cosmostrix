@@ -306,8 +306,8 @@ impl Cloud {
         //
         // PERF-3: under aggressive_throttle (VTE fullscreen lag), boost decay
         // further so phosphor cells die faster — fewer dirty cells per frame
-        // = less ANSI throughput = VTE can keep up. This is the "berbekas"
-        // (stale trails) fix: the trailing afterglow is what overwhelms VTE
+        // = less ANSI throughput = VTE can keep up. This is the stale-trails
+        // fix: the trailing afterglow is what overwhelms VTE
         // at high cell counts.
         //
         // Two-tier boost with hysteresis (prevents oscillation — owner
@@ -316,7 +316,7 @@ impl Cloud {
         //      until pressure drops below 0.15 (hysteresis deadband). The
         //      deadband prevents the boost from toggling on/off rapidly when
         //      pressure fluctuates around the threshold — which was causing
-        //      the "lag hilang, beberapa detik kembali lagi" oscillation.
+        //      the "lag disappears, returns a few seconds later" oscillation.
         //   2. Sustained: aggressive_throttle (self-healer fired after 30s)
         //      → boost 1.5x (stronger, for persistent overload).
         // The two compose multiplicatively for a max boost of 1.8x.

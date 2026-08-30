@@ -183,8 +183,8 @@ pub(crate) struct TerminalCaps {
     pub phosphor_decay_mult: f32,
     /// v50.0.0-beta.6: ghost brightness cap (fraction of max energy).
     /// When >0.0, phosphor cells with energy below this fraction of 255
-    /// are immediately killed (set to 0). This prevents "ghost redup yang
-    /// masih keliatan" on VTE terminals where sub-pixel rendering makes
+    /// are immediately killed (set to 0). This prevents lingering dim
+    /// ghosts on VTE terminals where sub-pixel rendering makes
     /// dim colors more visible. 0.0 = no cap (all energy levels visible).
     /// High-perf: 0.0 (no cap). Standard: 0.10 (kill below 10%). xterm.js:
     /// 0.15 (kill below 15%).

@@ -309,11 +309,12 @@ pub(crate) const GLOBAL_MAX_FLOOR: u16 = 180;
 /// peaking at `BORDER_TOUCH_PULSE_MAX` (1.0 = full head color) and
 /// decaying to 0 at the end of the lifetime.
 ///
-/// Owner spec: *"dari warna hitam menjadi putih lalu beberapa detik
-/// hilang"* — peak immediately on touch, decay over a few seconds.
-/// 1500 ms sits in the "beberapa detik" range while staying short
-/// enough that subsequent touches in the same column (typical at 5-10
-/// drops/sec) re-trigger fresh pulses rather than saturating the cell.
+/// Owner spec (translated from the original Indonesian): *"from black to
+/// white, then it fades away after a few seconds"* — peak immediately on
+/// touch, decay over a few seconds. 1500 ms sits in the "a few seconds"
+/// range while staying short enough that subsequent touches in the same
+/// column (typical at 5-10 drops/sec) re-trigger fresh pulses rather
+/// than saturating the cell.
 pub(crate) const BORDER_TOUCH_PULSE_LIFETIME_MS: u32 = 1500;
 pub(crate) const BORDER_TOUCH_PULSE_MAX: f32 = 1.0;
 
