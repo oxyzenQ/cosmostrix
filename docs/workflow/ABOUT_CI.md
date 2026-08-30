@@ -12,6 +12,7 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `maintenance.yml` | weekly cron (Mon 00:00 UTC) | `cargo update` + audit + commit if validation passes |
 | `gitbot-audit.yml` | daily cron | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
+| `crates-io.yml` | tag push `v*` (stable + pre-release) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
 | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
@@ -46,8 +47,23 @@ and bumping them forever.
 
 ## Release channels (tag conventions)
 
-- `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease**
-- `vX.Y.Z` -> GitHub **normal release** (eligible for Latest)
+- `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease** + crates.io publish
+- `vX.Y.Z` -> GitHub **normal release** (eligible for Latest) + crates.io publish
+
+## crates.io publishing
+
+The crate is published by `crates-io.yml` on every owner-pushed `v*` tag
+(stable and pre-release both trigger). One-time setup: create a
+crates.io API token (Account Settings -> API Tokens; the
+`publish-new` scope is enough) and add it as the `CRATES_IO_TOKEN`
+repository secret (Settings -> Secrets and variables -> Actions).
+
+Workflow safety properties: it fails fast if the tag does not match
+`Cargo.toml`'s version, skips the upload when the version is already on
+the registry (re-pushed tags / re-runs stay green), and publishes with
+`--locked` so the shipped dependency tree is exactly the tagged
+`Cargo.lock`. Users install with `cargo install cosmostrix` (see README
+-> Installation).
 
 ## Build matrix (release.yml)
 

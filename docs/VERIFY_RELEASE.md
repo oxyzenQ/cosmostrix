@@ -72,6 +72,17 @@ Replace `vX.Y.Z` and `linux-amd64-v3` with the actual version and platform from 
 - **Checksums** prove the artifact was not corrupted during download (integrity).
 - **Three hash families** (SHA-2, BLAKE2, SHA-3) provide defense in depth — a future cryptanalytic break of any single family does not invalidate verification via the other two.
 
+## 4. crates.io installs (`cargo install cosmostrix`)
+
+Source installs from the registry do not need manual verification: cargo
+itself checks the crate tarball's SHA-256 against the crates.io index
+before extraction, and the published dependency tree is exactly the
+tagged `Cargo.lock` (the `crates-io.yml` workflow publishes with
+`--locked`). For a bit-for-bit reproducible install, pin the version:
+`cargo install cosmostrix --version X.Y.Z --locked`. The registry never
+lags behind a GitHub Release — both channels publish on the same tag
+push (stable and pre-release alike).
+
 ## Verification tools required
 
 - `gpg` — GnuPG 2.x (preinstalled on virtually every Linux; on macOS: `brew install gnupg`)

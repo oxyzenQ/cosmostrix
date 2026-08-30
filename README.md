@@ -313,6 +313,21 @@ Config paths on Android/Termux:
 - **Default**: `~/.config/cosmostrix/config.toml` (Termux HOME)
 - **External storage**: `/sdcard/cosmostrix/config.toml` (accessible from other apps)
 
+### cargo install (crates.io)
+
+cosmostrix is published on [crates.io](https://crates.io/crates/cosmostrix), so any machine with a Rust toolchain (1.98+) can install it with one command:
+
+```bash
+cargo install cosmostrix
+# Build with the exact dependency set the release shipped (recommended)
+cargo install cosmostrix --locked
+# Pin a specific version, including pre-releases
+cargo install cosmostrix --version 51.0.0-beta.1 --locked
+cosmostrix --doctor
+```
+
+Every owner-pushed release tag — stable and pre-release alike — triggers the `crates-io.yml` publish workflow, so the registry never lags behind a GitHub Release. Note: `cargo install` compiles from source (a few minutes with LTO enabled); for prebuilt, checksum-verified binaries use the GitHub Releases method above.
+
 ### From source
 
 ```bash

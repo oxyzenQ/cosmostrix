@@ -10,6 +10,13 @@ authors = ["rezky_nightky (oxyzenQ)"]
 description = "Professional-grade cinematic Matrix rain renderer for serious terminal environments."
 license = "GPL-3.0-only"
 repository = "https://github.com/oxyzenQ/cosmostrix"
+# crates.io discoverability metadata. Categories are validated slugs
+# from the official list (https://crates.io/categories): "games" is
+# defined there as "Applications for fun and entertainment", which is
+# exactly what a cinematic screensaver is; "command-line-utilities" is
+# the primary bucket for a terminal binary.
+keywords = ["matrix", "matrix-rain", "terminal", "screensaver", "cli"]
+categories = ["command-line-utilities", "games"]
 build = "build.rs"
 exclude = [
     "benchmark/*",
@@ -22,6 +29,14 @@ exclude = [
     "aur/*",
     ".github/*",
     ".git/*",
+    # Repo-local build/lint configuration is dead weight downstream:
+    # .cargo/config.toml only applies to this repository's invocations,
+    # and the lint dotfiles (.codespellrc/.yamllint/.markdownlint.yaml)
+    # only matter to contributors. Not part of the shipped crate.
+    ".cargo/*",
+    ".codespellrc",
+    ".yamllint",
+    ".markdownlint.yaml",
     # dst.
 ]
 

@@ -12,6 +12,7 @@
 # - miri.yml                → src/** (weekly + push)
 # - codeql.yml              → src/** + scripts + other langs
 # - release.yml             → tags only (v*)
+# - crates-io.yml           → tags only (v*, stable + pre-release): crates.io publish
 # - maintenance.yml         → scheduled + manual
 #
 # This guarantees workflow changes never slip through unvalidated.

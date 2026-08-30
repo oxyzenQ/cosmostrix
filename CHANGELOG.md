@@ -9,6 +9,13 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### crates.io release channel + CI dynamic dependency versions (Z-master-1B)
+
+- cosmostrix is now on [crates.io](https://crates.io/crates/cosmostrix): `cargo install cosmostrix` (or `--locked` / `--version X.Y.Z` for exact reproducibility) joins GitHub Releases, AUR, and Termux as an install channel; README Installation gains the section.
+- **New workflow `crates-io.yml`**: every owner-pushed `v*` tag — stable AND pre-release — publishes the crate via `cargo publish --locked`. Guard rails: tag must match `Cargo.toml`'s version (fail fast), already-published versions are skipped (re-pushed tags / re-runs stay green), missing `CRATES_IO_TOKEN` secret fails with setup instructions. Requires the one-time `CRATES_IO_TOKEN` repository secret (crates.io API token, `publish-new` scope).
+- **Cargo.toml**: crates.io discoverability metadata added (keywords: matrix, matrix-rain, terminal, screensaver, cli; categories: command-line-utilities, games — both validated against the live registry slugs) and the packaged crate slimmed (`.cargo/*` + lint dotfiles excluded; they are repo-local build/lint config, dead weight downstream).
+- **CI dependency policy (owner decision)**: zero hardcoded dep versions in `.github/*`. Actions float on major tags (`checkout@v6`, `rust-cache@v2`, `upload-artifact@v7`, `download-artifact@v8`, `setup-java@v5`, `setup-ndk@v1`, `msvc-dev-cmd@v1`, `action-gh-release@v3`); CI-installed deps resolve latest upstream at run time (shfmt via the mvdan/sh releases API, unpinned pip/npm/go installs, Android NDK `ndk-version: latest`); the Rust toolchain stays deliberately LTS-locked via `rust-toolchain.toml` (gate 9 keeps `RUST_VERSION` envs in sync). Documented in `docs/workflow/ABOUT_CI.md` (Dependency version policy); `docs/SUPPLY_CHAIN.md` records the decision replacing the SHA-pinning migration plan.
+
 ### Shortkey audit: exhaustive no-op lock for every non-active key (Z-master-1B)
 
 - Owner mandate: verify only existing shortkeys have effects — a user pressing `a` (old-version async-toggle muscle memory) must see NO effect. Source code = truth: the active keymap is exactly `q`, `Space`, `c`/`C`, `s`/`S`, `p`, `x`/`X`, `Up`/`Down`, `[`/`]` (all in `handle_keybinding`) plus `i` (HUD, dispatched in the event loop) and `q`/`Q` (intro skip only). Every other key hits the `_ => {}` catch-all.

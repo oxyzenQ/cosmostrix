@@ -43,6 +43,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Security Audit | `gitbot-audit.yml` | daily cron | Security advisory + dependency policy |
 | CodeQL | `codeql.yml` | weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |
 | AUR | `aur.yml` | release tag | Update AUR package |
+| crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
 | Release | `release.yml` | tag push (v*) | Build 10 platform binaries + PGO + checksums + GPG sign |
 | Maintenance | `maintenance.yml` | weekly cron (Mon 07:00 WIB) | Dependency update + validate + commit |
 

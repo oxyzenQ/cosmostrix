@@ -1,0 +1,94 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+#
+# Cosmic Dragon Release - crates.io publish.
+#
+# Publishes cosmostrix to crates.io on EVERY owner-pushed release tag -
+# stable (vX.Y.Z) and pre-release (vX.Y.Z-alpha.N / -beta.N / -rc.N)
+# both trigger the publish, so the registry never lags behind a
+# GitHub Release.
+#
+# One-time setup (owner): create a crates.io API token
+# (crates.io -> Account Settings -> API Tokens, "publish-new" scope is
+# enough) and add it as the CRATES_IO_TOKEN repository secret
+# (repo Settings -> Secrets and variables -> Actions).
+#
+# Safety properties:
+#   - Fails fast if the tag does not match Cargo.toml's version.
+#   - Idempotent: if the version is already published (re-pushed tag or
+#     re-run), the job skips the upload instead of failing.
+#   - --locked: the published dependency set is exactly the tagged
+#     Cargo.lock, the same tree every other CI job validated.
+#
+# Dependency version policy: actions float on major tags and the Rust
+# toolchain is LTS-locked via rust-toolchain.toml (single source of
+# truth; gate 9 keeps the RUST_VERSION env in sync). See
+# docs/workflow/ABOUT_CI.md (Dependency version policy).
+
+name: Cosmic Dragon Release - crates.io publish
+
+'on':
+  push:
+    tags:
+      # Stable releases (v51.0.0) ...
+      - 'v*.*.*'
+      # ... and pre-releases (v51.0.0-beta.1, v51.0.0-rc.1, ...).
+      - 'v*.*.*-*'
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+  # Single source of truth for Rust toolchain version.
+  # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
+  RUST_VERSION: "1.98.0"
+
+jobs:
+  publish-crates-io:
+    name: Publish to crates.io (${{ github.ref_name }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Verify tag matches Cargo.toml version
+        run: |
+          set -euo pipefail
+          TAG_VERSION="${GITHUB_REF_NAME#v}"
+          CARGO_VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          if [ "${TAG_VERSION}" != "${CARGO_VERSION}" ]; then
+            echo "::error::tag ${GITHUB_REF_NAME} does not match Cargo.toml version ${CARGO_VERSION} - bump with ./scripts/version-to.sh before tagging."
+            exit 1
+          fi
+          echo "Publishing cosmostrix ${CARGO_VERSION} to crates.io"
+
+      - name: Publish to crates.io
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CRATES_IO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${CARGO_REGISTRY_TOKEN}" ]; then
+            echo "::error::CRATES_IO_TOKEN repository secret is not set. Create a crates.io API token (crates.io -> Account Settings -> API Tokens) and add it under repo Settings -> Secrets and variables -> Actions."
+            exit 1
+          fi
+          VERSION="$(sed -n 's/^version = "\(.*\)"/\1/p' Cargo.toml | head -1)"
+          # Idempotency probe: crates.io rejects duplicate versions, so a
+          # re-pushed tag (or a re-run) must not attempt a second upload.
+          # The API requires a custom User-Agent (plain curl gets 403).
+          if curl -fsSL -A "cosmostrix-ci-publish-check" \
+              "https://crates.io/api/v1/crates/cosmostrix/${VERSION}" >/dev/null 2>&1; then
+            echo "cosmostrix ${VERSION} is already published on crates.io - nothing to do."
+            exit 0
+          fi
+          cargo publish --locked
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
