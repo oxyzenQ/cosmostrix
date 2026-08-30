@@ -94,6 +94,18 @@ Same-run-time-version parity for local dev is documented in
 CONTRIBUTING.md; the full policy lives in
 `docs/workflow/ABOUT_CI.md` (Dependency version policy).
 
+**Correction 2026-08-30 (same day, owner-found via red CI)**: the
+Android NDK unpinning was invalid as first written — `nttld/setup-ndk`
+has no `latest` input support (the value is spliced literally into the
+download URL → 404), which turned the `android-aarch64` CI job red on
+three consecutive pushes (6031438, 70270fe1, 0764198) before anyone
+looked beyond the lint gates. The policy now holds via
+`scripts/resolve-latest-ndk.py`: it resolves the newest stable-channel,
+final-release NDK from Google's repository manifest at run time and
+feeds the r-style name to `nttld/setup-ndk`. Process lesson recorded in
+ABOUT_CI.md: after unpinning a dep, verify the affected CI job ran
+green once — lint gates do not execute workflow steps.
+
 **Recommendation (not landed, needs owner decision)**: `cargo update`
 currently floats minor/patch versions within the lock's semver ranges on
 every manual unlock. For a strict-LTS posture, a scheduled

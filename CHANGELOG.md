@@ -9,6 +9,12 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### CI hotfix: android-aarch64 job red since the dynamic-version policy (Z-master-1B)
+
+- The `ndk-version: latest` from the CI dynamic-dependency policy (2026-08-30) was invalid: `nttld/setup-ndk` has NO `latest` support — it splices the input literally into the download URL, producing `android-ndk-latest-linux-x86_64.zip` → 404. The `android-aarch64` job failed at the "Setup Android NDK" step on three consecutive pushes (6031438, 70270fe1, 0764198) — unnoticed because only the Gate-keepers workflow was verified, and lint gates do not execute workflow steps.
+- Fix keeps the owner policy intact (zero hardcoded versions): new `scripts/resolve-latest-ndk.py` resolves the newest **stable-channel, final-release** NDK from Google's official SDK repository manifest (`repository2-3.xml` — the same source `sdkmanager` reads), skipping beta/rc/canary archives (e.g. the current `r30-beta3` that Google lists on the stable channel), and hands the r-style name (today: `r29`) to `nttld/setup-ndk` in both `ci.yml` and `release.yml`. Fails loudly when nothing resolves — never a silent fallback to a pin. The only numeric constant (r23 floor) is an archive-naming-era guard, not a version pin.
+- Docs: `docs/workflow/ABOUT_CI.md` dependency-policy section gains the correction + the process lesson ("after unpinning a dep, verify the affected CI job ran green once, not just the lint gates"); `docs/audits/DEPS_AUDIT.md` records the correction to the 2026-08-30 policy entry.
+
 ### Config parser bug #19: quoted single-bracket charset values rejected (Z-master-1B)
 
 - Owner-found 2026-08-30 while previewing single-glyph charset candidates: `set = "["` in a `[charset-custom.<name>]` block failed strict startup validation with `invalid config — malformed line(s): 'set = "["' ... (expected 'key = value' syntax)` — even though the line is perfectly valid. Root cause: the parser stripped the surrounding quotes BEFORE array detection, so the bare `[` was mistaken by the multi-line array consumer for an unterminated array (rejecting the line, or silently absorbing following lines into a bogus value in other configs).

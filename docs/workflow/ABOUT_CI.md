@@ -30,7 +30,22 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   markdownlint-cli, actionlint, cargo-audit, cargo-deny, Android NDK)
   resolve their latest upstream release at run time. shfmt is fetched
   from the `mvdan/sh` GitHub releases API; pip/npm/go/apt installs are
-  unpinned; `nttld/setup-ndk` uses `ndk-version: latest`.
+  unpinned; the Android NDK is resolved by
+  `scripts/resolve-latest-ndk.py` (see the correction below).
+- **Android NDK correction (2026-08-30, same day)**: `nttld/setup-ndk`
+  has NO `latest` support — it splices the value literally into the
+  download URL, so `ndk-version: latest` produced
+  `android-ndk-latest-linux-x86_64.zip` → 404 and turned the
+  `android-aarch64` job red on three consecutive pushes before it was
+  noticed. The policy now holds via
+  `scripts/resolve-latest-ndk.py`: it reads Google's official SDK
+  repository manifest (`repository2-3.xml`, the same source
+  `sdkmanager` uses), keeps stable-channel packages with final
+  (non-beta/rc/canary) Linux archives, picks the highest revision, and
+  hands the r-style name (e.g. `r29`) to `nttld/setup-ndk`. It fails
+  loudly when nothing resolves — never a silent fallback to a pin.
+  Lesson recorded: after unpinning a dep, verify the affected CI job
+  actually ran green once, not just the lint gates.
 - **Rust toolchain is the deliberate exception**: it is LTS-locked, not
   floating. `rust-toolchain.toml` is the single source of truth; CI jobs
   that pass an explicit version use the `RUST_VERSION` env, which gate

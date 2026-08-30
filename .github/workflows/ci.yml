@@ -297,11 +297,22 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Resolve latest stable Android NDK version
+        id: ndkver
+        shell: bash
+        run: |
+          set -euo pipefail
+          # Owner policy: zero hardcoded dep versions. nttld/setup-ndk has
+          # no "latest" support (it splices the value literally into the
+          # download URL -> 404), so resolve the newest stable-final NDK
+          # from Google's repository manifest at run time.
+          echo "ndk=$(python3 scripts/resolve-latest-ndk.py)" >> "$GITHUB_OUTPUT"
+
       - name: Setup Android NDK
         id: ndk
         uses: nttld/setup-ndk@v1
         with:
-          ndk-version: latest
+          ndk-version: ${{ steps.ndkver.outputs.ndk }}
 
       - name: Add Rust target
         run: rustup target add aarch64-linux-android
