@@ -87,6 +87,13 @@ pub(crate) fn poll_ambient_events(
             && !cloud.user_override_since_ambient
         {
             // Duplicate — already applied.
+        } else if cloud.user_override_since_ambient {
+            // v50.0.0-beta.7 masterclass: user has overridden (CLI scene,
+            // 'x'/'X' key press, or CLI color/charset/etc). Don't re-apply
+            // ambient from rx events — let try_auto_snapback handle
+            // re-application after ambient-snapback-secs (default 30s).
+            // Store the entry so snapback knows what to apply.
+            *last_applied_ambient_entry = Some(entry.clone());
         } else {
             let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
             *charset_preset = cloud.apply_ambient_entry(

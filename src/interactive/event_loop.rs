@@ -159,18 +159,31 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // apply ambient at startup. The user explicitly chose a scene — they
     // should see it first. Ambient will apply later via auto-snapback
     // after ambient-snapback-secs (default 30s). This avoids the confusion
-    // where `cosmostrix --scene monolith` with `ambient.12-00 = aurora`
-    // immediately shows aurora instead of monolith.
+    // where `cosmostrix --scene matrix` with `ambient.12-00 = monolith`
+    // immediately shows monolith instead of matrix.
+    //
+    // Key insight: even if we skip startup ambient, poll_ambient_events
+    // would re-apply it from the rx channel on the next frame. The fix
+    // is twofold:
+    //   1. Set last_applied_ambient_entry = Some(entry) so snapback can fire
+    //   2. Keep user_override_since_ambient = true so poll_ambient_events
+    //      skips re-application (the new else-if branch)
     //
     // When --scene is NOT CLI-explicit (config or default), ambient
     // applies immediately at startup as before (the original behavior).
     let scene_is_cli_explicit = base_cfg.cli_explicit.scene;
     let (new_charset, startup_entry) = if scene_is_cli_explicit {
-        // CLI scene wins: skip ambient startup apply. The auto-snapback
-        // mechanism will apply ambient after snapback-secs.
+        // CLI scene wins: skip ambient apply. But still capture the entry
+        // for the snapback mechanism.
+        let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
+        let deferred_entry = base_cfg.ambient_schedule.current_phase(now_min).cloned();
         crate::lr_trace!(
-            "ambient: startup — CLI --scene explicit, deferring ambient apply until snapback"
+            "ambient: startup — CLI --scene explicit, deferring ambient apply until snapback. Entry: {:?}",
+            deferred_entry.as_ref().map(|e| &e.scene)
         );
+        // Store the entry so snapback can apply it after the delay.
+        last_applied_ambient_entry = deferred_entry;
+        // Keep user_override_since_ambient = true (already set above).
         (charset_preset.clone(), None)
     } else {
         crate::crystal_dragon_engine::ambient::apply_startup_ambient(
