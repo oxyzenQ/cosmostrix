@@ -9,6 +9,12 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Charset "minimal" masterclass replacement — research, owner decides (Z-master-1B)
+
+- Owner assessment: the current `minimal` pool (`.:-=+*·•○●◦◌◍◉◎◇◆□■` — 17 glyphs from 6 unrelated families) is "bad, not masterclass". Research doc `docs/research/CHARSET_MINIMAL_MASTERCLASS_RESEARCH.md` dissects the five defects (family mixing, no readable ramp, uncontrolled ink density, weakest-coverage glyph picks incl. U+25CC dotted circle, operator dilution) and proposes four one-family replacements: **A Ink Ramp** `·•○◎●` (recommended — one shape, five ink states, two depth dimensions on top of the color gradient), **B Shade Ramp** `░▒▓█` (bulletproof Block Elements), **C Bit Pairs** `○●◇◆□■` (hollow/solid flips), **D ASCII Signal** `.:-=` (zero-unicode purism).
+- All four are previewable live right now via `[charset-custom.minimal]` shadowing (custom wins, Option D policy) — no build needed to compare.
+- RESEARCH ONLY — no charset code changed; the name `minimal` and every flag/format stay identical. Implementation touch points listed in the doc for the follow-up task once the owner picks.
+
 ### Killer features hardening: colors-custom / charset-custom / scene-custom (Z-master-1B)
 
 - Owner mandate: peak optimize + stability/LTS, no hidden bugs, no potential problems, no security risks — special focus on the three killer features no competitor ships. Full audit: `docs/audits/KILLER_FEATURES_HARDENING.md` (K1-K7 fixed, V1-V6 investigated and verified safe).
