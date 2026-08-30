@@ -9,6 +9,13 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Charset "minimal" = single nabla glyph ∇ — owner decision landed (Z-master-1B)
+
+- Owner pick (2026-08-30, after reading the cffd549 research): the `minimal` preset pool is now **`∇`** (U+2207 NABLA) — one glyph, total commitment. The preset name, `--charset minimal`, `[charset-custom.minimal]` shadowing, live reload, and every flag/format stay identical; only the pool string changed (`src/scene/charset.rs` MINIMAL arm).
+- The 17-glyph junk drawer (`.:-=+*·•○●◦◌◍◉◎◇◆□■`, six unrelated families) is gone. Every trail is now a column of nabla marks — the operator that means "gradient" IS the rain, pairing with the OKLab trail gradient for pure two-dimensional depth. Second single-glyph preset after zen.
+- ASCII-safe fallback advice refreshed (∇ is unicode, NOT in the Linux console VGA font): `--doctor`'s non-UTF-8-locale advice and all three `docs/TERMINAL_COMPATIBILITY.md` fallback recommendations that pointed at `--charset minimal` now point at `--charset zen` (single ASCII pipe) / `--charset ascii`. `--doctor`'s glyph-coverage sample for minimal updated to U+2207; `--list-charsets` description updated.
+- Lockstep tests: `build_chars_minimal_has_only_nabla` + `charset_from_str_resolves_minimal` — the pool cannot silently rewiden without a conscious test edit.
+
 ### Charset "minimal" masterclass replacement — research, owner decides (Z-master-1B)
 
 - Owner assessment: the current `minimal` pool (`.:-=+*·•○●◦◌◍◉◎◇◆□■` — 17 glyphs from 6 unrelated families) is "bad, not masterclass". Research doc `docs/research/CHARSET_MINIMAL_MASTERCLASS_RESEARCH.md` dissects the five defects (family mixing, no readable ramp, uncontrolled ink density, weakest-coverage glyph picks incl. U+25CC dotted circle, operator dilution) and proposes four one-family replacements: **A Ink Ramp** `·•○◎●` (recommended — one shape, five ink states, two depth dimensions on top of the color gradient), **B Shade Ramp** `░▒▓█` (bulletproof Block Elements), **C Bit Pairs** `○●◇◆□■` (hollow/solid flips), **D ASCII Signal** `.:-=` (zero-unicode purism).

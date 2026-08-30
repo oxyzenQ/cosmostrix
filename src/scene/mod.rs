@@ -327,8 +327,9 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // A warm amber-gold rain, gentle and contemplative — like afternoon
     // sunlight through a window where a cat used to sleep. Slow pace,
     // minimal density, no glitch. The `orange` palette ranges from
-    // deep ember to bright honey, mirroring a tabby's coat. The `minimal`
-    // charset keeps the visual quiet and meditative.
+    // deep ember to bright honey, mirroring a tabby's coat. The
+    // `minimal` charset (single nabla glyph since the 2026-08-30 owner
+    // pick) keeps the visual quiet and meditative.
     SceneInfo {
         name: "orange-cat",
         description: "Orange Cat — in memory of the owner's orange cat (2 Aug 2026); warm amber-gold gentle contemplative rain",

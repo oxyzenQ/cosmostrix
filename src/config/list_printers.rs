@@ -48,7 +48,7 @@ pub(crate) fn print_list_charsets() {
     println!("  retro        Box-drawing characters");
     println!("  cyberpunk    Katakana + hex + symbols");
     println!("  hacker       Letters + hex + punctuation + symbols");
-    println!("  minimal      Dots and simple shapes");
+    println!("  minimal      Single nabla glyph (∇) — one shape, pure gradient rain");
     println!("  code         Letters + digits + punctuation + symbols");
     println!("  dna          DNA bases (ACGT)");
     println!("  braille      Braille");

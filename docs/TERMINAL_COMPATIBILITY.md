@@ -30,7 +30,7 @@ it keeps recovery paths conservative and explicit.
 | Windows Terminal / PowerShell | Good | `--reset-terminal` is best-effort; user confirmation on Windows builds is still useful. |
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. **Known issue:** `Super+C` (Windows-key + c) still cycles color inside tmux — tmux translates kitty protocol back to legacy escape sequences, dropping the `SUPER` bit. See [Known Issues](#known-issues) below. |
 | SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
-| Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset minimal` if colors or glyphs look wrong. Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
+| Linux console / minimal TTY | Basic | Use `--colormode 256` or `--charset zen` if colors or glyphs look wrong (zen is a single ASCII pipe — the `minimal` preset is the nabla glyph ∇, which the vt.c VGA font does not carry). Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
 | VSCode integrated terminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply (FPS cap 30, sync disabled, byte-budget backpressure, periodic RIS reset) but residual lag/stutter is unavoidable — see [Known Issues](#known-issues) below. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
 | Hyper | Capped (degraded) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
 | WaveTerminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
@@ -68,7 +68,7 @@ cosmostrix --doctor
 cosmostrix --reset-terminal
 cosmostrix --color-bg default-background
 cosmostrix --colormode 256
-cosmostrix --charset minimal
+cosmostrix --charset zen
 ```
 
 PowerShell:
@@ -118,10 +118,12 @@ that clears visible screen state and attempts scrollback purge.
 
 ### Glyphs Appear As Boxes
 
-Use a UTF-8 locale and a font with the selected glyph coverage. For safer output:
+Use a UTF-8 locale and a font with the selected glyph coverage. For safer
+output (single ASCII pipe; the `minimal` preset is the unicode nabla ∇ and
+does not help here):
 
 ```bash
-cosmostrix --charset minimal
+cosmostrix --charset zen
 ```
 
 ### tmux Truecolor Issue

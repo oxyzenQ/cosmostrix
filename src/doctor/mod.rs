@@ -403,10 +403,8 @@ pub(crate) fn print_doctor_report(args: &Args) {
             );
         }
         if cs.contains(Charset::MINIMAL) {
-            s.field(
-                "minimal",
-                "\u{00B7}\u{2022}\u{25CB}\u{25CF}\u{25C7}\u{25C6}",
-            );
+            // Owner decision 2026-08-30: single nabla glyph (U+2207).
+            s.field("minimal", "\u{2207}");
         }
     }
 
@@ -420,7 +418,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
         if !locale_utf8 {
             s.advice("locale does not look like UTF-8; unicode charsets may render incorrectly");
             s.advice(
-                "use a UTF-8 locale or choose an ASCII-safe charset such as --charset minimal",
+                "use a UTF-8 locale or choose an ASCII-safe charset such as --charset zen or --charset ascii",
             );
         }
         if should_advise_truecolor(&term, &colorterm, effective) {

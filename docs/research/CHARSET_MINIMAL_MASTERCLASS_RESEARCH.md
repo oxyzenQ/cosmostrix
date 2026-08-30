@@ -6,6 +6,22 @@
 Status: **RESEARCH ONLY — owner decides, no code changed.** The preset name
 stays `minimal`; only the glyph set it maps to is up for replacement.
 
+## Decision recorded (2026-08-30)
+
+The owner picked **`∇`** (U+2207 NABLA) — none of the four proposed
+ramps, and past them: ONE glyph, total commitment. Every trail becomes
+a column of nabla marks, so the rain reads as falling gradients — the
+operator that means "gradient" IS the rain. This lands `minimal` at
+zen's one-glyph philosophy with a louder concept: zen is a pipe,
+minimal is mathematics.
+
+Landed in the follow-up commit: the `Charset::MINIMAL` arm's pool is
+now `"∇"` (name/flags/shadowing/live reload unchanged), `--list-charsets`
+and `--doctor` descriptions updated, and the ASCII-safe fallback advice
+that previously pointed at `--charset minimal` (non-UTF-8 locales,
+Linux console) now points at `--charset zen` (single ASCII pipe) — ∇ is
+a unicode glyph the Linux console VGA font does not carry.
+
 Owner mandate: the current `minimal` charset is "bad, not masterclass" —
 propose alternatives worthy of the preset slot.
 

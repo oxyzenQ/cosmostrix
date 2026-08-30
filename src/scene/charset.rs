@@ -24,6 +24,11 @@ impl Charset {
     pub(crate) const ARROWS: Charset = Charset(0x4000);
     pub(crate) const BLOCKS: Charset = Charset(0x8000);
     pub(crate) const BOXDRAW: Charset = Charset(0x10000);
+    /// Minimal charset: a single nabla glyph (U+2207). Owner-picked
+    /// 2026-08-30 after the charset-minimal masterclass research
+    /// (cffd549) — the 17-glyph junk-drawer pool was replaced by ONE
+    /// mathematically elegant glyph. Second single-glyph preset after
+    /// zen. See docs/research/CHARSET_MINIMAL_MASTERCLASS_RESEARCH.md.
     pub(crate) const MINIMAL: Charset = Charset(0x20000);
     pub(crate) const DNA: Charset = Charset(0x40000);
     /// Zen charset: a single `|` pipe character. The minimalist's
@@ -217,11 +222,15 @@ pub(crate) fn build_chars(
         push_range(&mut out, 0x2500, 0x257F);
     }
     if charset.contains(Charset::MINIMAL) {
-        out.extend(
-            ".:-=+*·•○●◦◌◍◉◎◇◆□■"
-                .chars()
-                .filter(|&c| c.width() == Some(1)),
-        );
+        // Owner decision (2026-08-30, after the cffd549 research): the
+        // pool is a single nabla glyph. Total commitment to one shape —
+        // every trail is a column of nabla marks, so the rain reads as
+        // falling gradients (the nabla IS the gradient operator) and
+        // pairs with the OKLab trail gradient for pure two-dimensional
+        // depth. U+2207 is East-Asian-Width Ambiguous -> width 1 under
+        // this project's unicode-width config; the filter below guards
+        // the pool regardless.
+        out.extend("∇".chars().filter(|&c| c.width() == Some(1)));
     }
     if charset.contains(Charset::DNA) {
         out.extend("ACGTacgt".chars().filter(|&c| c.width() == Some(1)));
@@ -273,6 +282,28 @@ mod tests {
     fn build_chars_zen_has_only_pipe() {
         let out = build_chars(Charset::ZEN, &[], true);
         assert_eq!(out, vec!['|']);
+    }
+
+    #[test]
+    fn build_chars_minimal_has_only_nabla() {
+        // Owner decision 2026-08-30: minimal = one nabla glyph (U+2207).
+        // Lockstep with the MINIMAL arm's pool string — a conscious edit
+        // is required to change the preset (this test fails loudly if
+        // someone silently rewidens the pool).
+        let out = build_chars(Charset::MINIMAL, &[], true);
+        assert_eq!(out, vec!['∇']);
+    }
+
+    #[test]
+    fn charset_from_str_resolves_minimal() {
+        assert_eq!(
+            charset_from_str("minimal", false).unwrap(),
+            Charset::MINIMAL
+        );
+        assert_eq!(
+            charset_from_str("MINIMAL", false).unwrap(),
+            Charset::MINIMAL
+        );
     }
 
     #[test]
