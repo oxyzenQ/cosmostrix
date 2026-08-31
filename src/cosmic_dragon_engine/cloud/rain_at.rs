@@ -98,16 +98,21 @@ impl super::Cloud {
         let t0 = if enable_timing { Instant::now() } else { now };
 
         // ── Cinematic Event Engine: evaluate triggers ──
+        // PERF-4: skip trigger evaluation under --no-effects — ghost
+        // events are cosmetic; no new events should be scheduled while
+        // effects are disabled.
         let in_transition = self.transition_start.is_some()
             || self.charset_transition_start.is_some()
             || self.profile_transition_start.is_some();
-        self.event_manager.evaluate_triggers(
-            self.perf_pressure,
-            self.cols,
-            self.lines,
-            self.pause,
-            in_transition,
-        );
+        if self.effects_enabled {
+            self.event_manager.evaluate_triggers(
+                self.perf_pressure,
+                self.cols,
+                self.lines,
+                self.pause,
+                in_transition,
+            );
+        }
 
         // Update color transition: during a palette transition, check if the
         // wave has completed (all rows have adopted the new palette).
@@ -607,10 +612,10 @@ impl super::Cloud {
         };
 
         // ── Pre-rain event render (ghosts, behind droplets) ──
-        if !self.event_manager.is_empty() {
-            // Phase 3-I: derive ghost base color from the current palette's
-            // darkest stop. Replaces the hardcoded (18, 22, 18) in ghost.rs —
-            // ghosts now match the scene's color scheme.
+        // PERF-4: skip ghost event rendering under --no-effects — ghost
+        // events are cosmetic overlays (colored glyph streaks behind the
+        // rain), not rain simulation.
+        if !self.event_manager.is_empty() && self.effects_enabled {
             let ghost_base_color =
                 crate::chroma_dragon_engine::post::ghost::ghost_base_color(&self.palette.colors);
             let pre_ctx = crate::cloud::ghost_events::EventCtx {

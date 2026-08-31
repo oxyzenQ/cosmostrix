@@ -131,6 +131,9 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     // cosmetic workload can silently return to the bench hot path.
     // v50.0.0-beta.7 LOC refactor: post_rain_processing extracted to
     // post_rain.rs; rain_at extracted to rain_at.rs. Check both.
+    // v60.0.0-beta.1: storytelling now also gated on effects_enabled
+    // (PERF-4 --no-effects audit); the test checks for the bench_mode
+    // gate which is now `!self.bench_mode && self.effects_enabled`.
     let source = include_str!("../rain_at.rs");
     let post_source = include_str!("../post_rain.rs");
     let combined = format!("{source}\n{post_source}");
@@ -141,8 +144,8 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     );
     assert!(
         combined.contains(
-            "if !self.bench_mode {\n            if let Some(kind) = self.storytelling.tick("
+            "if !self.bench_mode && self.effects_enabled {\n            if let Some(kind) = self.storytelling.tick("
         ),
-        "PERF-1-Supreme: storytelling tick must be gated on !bench_mode in rain_at"
+        "PERF-1-Supreme: storytelling tick must be gated on !bench_mode in post_rain"
     );
 }

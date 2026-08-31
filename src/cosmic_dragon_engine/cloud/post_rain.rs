@@ -63,12 +63,24 @@ impl super::Cloud {
             now.saturating_duration_since(z.start_time).as_secs_f32() < ANOMALY_DURATION_SECS
         });
         // PERF-1: skip anomaly apply in benchmark mode — cosmetics.
-        if !self.bench_mode {
+        // PERF-4: skip anomaly apply under --no-effects — anomaly halos
+        // are cosmetic overlays (luminance blend on border cells), not
+        // rain simulation. spawn_anomaly is already gated, so no new
+        // zones appear; existing zones fade out on their own expiry tick.
+        if !self.bench_mode && self.effects_enabled {
             self.apply_anomalies(frame, now);
         }
 
         // ── Cinematic Event Engine: render active events ──
-        if !self.event_manager.is_empty() {
+        // PERF-4: skip ghost event rendering under --no-effects — ghost
+        // events are cosmetic overlays (colored glyph streaks on the rain
+        // field), not rain simulation. Ghost event SPAWNING is gated
+        // separately (ghost_events.rs checks effects_enabled before
+        // scheduling a new event); this gate covers the RENDER half so
+        // already-scheduled events don't render their overlays while
+        // effects are disabled. The events still expire on their normal
+        // lifetime — they just don't paint.
+        if !self.event_manager.is_empty() && self.effects_enabled {
             // Phase 3-I: same palette-aware ghost color as the pre-rain pass.
             let ghost_base_color =
                 crate::chroma_dragon_engine::post::ghost::ghost_base_color(&self.palette.colors);
@@ -159,7 +171,10 @@ impl super::Cloud {
         // speed — owner directive: bench measures the critical path
         // only (rain + 3 dragon engines), so no moments may spawn and
         // no per-frame moment bookkeeping may run during measurement.
-        if !self.bench_mode {
+        // PERF-4: skip under --no-effects — emergent moments perturb
+        // render params (density, luminance, speed) purely for
+        // cinematic effect, not for rain accuracy.
+        if !self.bench_mode && self.effects_enabled {
             if let Some(kind) = self.storytelling.tick(
                 now,
                 &mut self.mt,

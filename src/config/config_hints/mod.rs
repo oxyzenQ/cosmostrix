@@ -193,7 +193,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         if let Some(suggestion) = closest_top_level_key(key) {
             return Some(format!(
                 "'{key}': unknown key (likely typo){}\n                 Run 'cosmostrix --testconf' to see all valid config keys.",
-                crate::cli::suggestion::format_value_suggestion(&suggestion)
+                crate::cli::suggestion::format_value_suggestion(suggestion)
             ));
         }
     }

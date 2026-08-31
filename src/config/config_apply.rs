@@ -194,7 +194,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
             let hint = match suggestion {
                 Some(name) => format!(
                     "{}\n  Use --list-colors to see all available themes.",
-                    crate::cli::suggestion::format_value_suggestion(&name)
+                    crate::cli::suggestion::format_value_suggestion(name)
                 ),
                 None => String::from("\n  Use --list-colors to see all available themes."),
             };

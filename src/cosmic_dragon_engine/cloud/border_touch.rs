@@ -64,6 +64,16 @@ impl super::Cloud {
     /// audit; do NOT "simplify" to `.last().unwrap()` or `.expect()`.
     #[inline]
     pub(crate) fn detect_border_touch(&mut self, col: u16, prev_hp: u16, hp: u16, now: Instant) {
+        // PERF-4: --no-effects gate. The border-touch glow (halo above
+        // the message box) and the F2 splash crown spark are both
+        // cosmetic effects. spawn_border_spark is already gated, but
+        // the border_pulses push (the glow itself) was not — this gate
+        // closes that leak. Early-return here means no new pulses are
+        // pushed; existing pulses fade out on their own expiry tick
+        // (draw_message prunes expired pulses every frame).
+        if !self.effects_enabled {
+            return;
+        }
         let top = self.message_top_line;
         if top == u16::MAX {
             return;

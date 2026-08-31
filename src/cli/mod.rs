@@ -264,7 +264,7 @@ pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
         if let Some(name) = suggestion {
             format!(
                 "error: unknown color '{s}'{}\n  Use --list-colors to see all available colors.",
-                crate::cli::suggestion::format_value_suggestion(&name)
+                crate::cli::suggestion::format_value_suggestion(name)
             )
         } else {
             format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
