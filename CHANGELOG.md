@@ -9,6 +9,12 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### msg-fill-style: re-audit verdict — still at peak (Z-master-1X round 5)
+
+- **Re-audit scope**: `src/msg_fill_style/` — 11 files, 3317 LOC (mod.rs + 10 style modules). Verified no changes since the round 1 audit (only the directory move from `src/cosmic_dragon_engine/` to `src/engine/cosmic_dragon_engine/` at commit afb835a).
+- **Verdict**: STILL AT PEAK. The round 1 assessment holds — excellent architecture (one-file-per-style isolation, shared helpers, explicit statelessness contract), peak performance (inline pure functions, pre-allocated pools, O(1) early-out), strong LTS (constant-lock tests, visibility gate contract, `--no-effects` gating verified intact on engrave/hologram/scorch sidecars). No over-engineering needed.
+- **No code changes** — this entry documents the re-audit verdict.
+
 ### HUD: add dcel + tcel cell-efficiency metrics (Z-master-1X round 5)
 
 - **New metrics**: `dcel` (dirty cell ratio %) + `tcel` (total cells) added at HUD rows 19-20, directly above `cid` (now row 21). Owner insight from the CELL EFFICIENCY benchmark section: `dirty_cell_ratio_percent` is the key efficiency signal — lower = more cells skip re-send (the frame buffer's dirty-tracking is working).
