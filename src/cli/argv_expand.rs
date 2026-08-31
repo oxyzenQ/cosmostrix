@@ -123,7 +123,7 @@ fn die_mfs_typo(token: &str) -> ! {
     eprintln!();
     eprintln!("  tip: a similar argument exists: '--msg-fill-style' (short form: -mfs)");
     eprintln!(
-        "  [possible values: typewriter, fade, words, slide, pulse, instant, engrave, hologram, glitch, scorch]"
+        "  [possible values: typewriter, fade, words, slide, pulse, instant, engrave, hologram, glitch, scorch, cascade]"
     );
     eprintln!();
     eprintln!(
@@ -171,6 +171,7 @@ mod tests {
             "hologram",
             "glitch",
             "scorch",
+            "cascade",
         ] {
             let token = format!("-mfs{value}");
             let out = expand(&["cosmostrix", token.as_str()]);

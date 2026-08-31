@@ -91,6 +91,23 @@ fn rebuild_applies_msg_fill_style_scorch() {
     );
 }
 
+/// The cascade style (post-scorch follow-up) live-reloads exactly
+/// like the other styles. Cascade is fully stateless (no sidecar;
+/// reuses the signed `slide_rows` field for drop-from-above). The
+/// test only needs to assert the enum variant — the drop animation
+/// kicks in on the next draw_message frame.
+#[test]
+fn rebuild_applies_msg_fill_style_cascade() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "cascade".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Cascade,
+        "config msg-fill-style=cascade must be applied on live reload"
+    );
+}
+
 /// Editing `msg-fill-style` in config.toml mid-run must switch the
 /// reveal style on the next rebuild (no restart needed).
 #[test]

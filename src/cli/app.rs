@@ -57,15 +57,13 @@ pub struct CloudConfig {
     pub message_border: bool,
     /// v51 msg-fill-style: message overlay reveal style (typewriter /
     /// fade / words / slide / pulse / instant / engrave / hologram /
-    /// glitch / scorch). Default `Typewriter` = bit-identical to the
-    /// pre-v51 renderer (LTS guarantee). Applied in `create_cloud` via
-    /// `cloud.set_msg_fill_style` (engrave additionally arms the spark
-    /// sidecar in `msg_fill_style/engrave.rs`; hologram adds a
-    /// stateless scanline pass invoked at the end of `draw_message`;
-    /// glitch extends `CellReveal` with a `glyph_override` field for
-    /// the wrong-glyph substitution during the settle window; scorch
-    /// extends `CellReveal` with a `tint` field and adds a smoke
-    /// sidecar in `msg_fill_style/scorch.rs`).
+    /// glitch / scorch / cascade). Default `Typewriter` = bit-identical
+    /// to the pre-v51 renderer (LTS guarantee). Applied in `create_cloud`
+    /// via `cloud.set_msg_fill_style` (engrave arms the spark sidecar;
+    /// hologram adds a stateless scanline pass; glitch extends
+    /// `CellReveal` with `glyph_override`; scorch extends `CellReveal`
+    /// with `tint` and adds a smoke sidecar; cascade reuses the signed
+    /// `slide_rows` field for drop-from-above).
     pub msg_fill_style: MsgFillStyle,
     pub target_fps: f64,
     /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`

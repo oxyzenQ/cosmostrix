@@ -10,10 +10,9 @@
 > IMPLEMENTED — cyberpunk distortion settle with scrambled reveal
 > order and wrong-glyph substitution. `scorch` (the wow-option) is
 > also IMPLEMENTED — burnt-in text with ember tint and a smoke
-> sidecar. All four candidates from the original advisor discussion
-> have landed; `cascade` is deferred (see §3.D). This document
-> records the candidates for reference — **the owner decides** if
-> any further expansion is wanted.
+> sidecar. `cascade` (the final candidate) is also IMPLEMENTED —
+> per-column waterfall reveal with drop-from-above. All five
+> candidates from the original advisor discussion have landed.
 > Predecessor feature: `-mfs`/`--msg-fill-style` (v51, commit 65bdb1df).
 
 ## 1. Decision recorded: `engrave` (LANDED)
@@ -138,11 +137,46 @@ per the §4 matrix below. What shipped (see `msg_fill_style/scorch.rs`):
   sweep and tests (+17 total). Confirmed as the wow-option per the
   research doc §4 matrix.
 
+## 1E. Decision recorded: `cascade` (LANDED — follow-up)
+
+The follow-up commit after scorch landed `cascade` — the final
+candidate per the §4 matrix below. What shipped (see
+`msg_fill_style/cascade.rs`):
+
+- Column-paced reveal: each content cell reveals at
+  `content_idx * CASCADE_COL_MS` (60 ms/column — faster than
+  typewriter's 80 ms/char, matching the "waterfall falls fast" feel).
+- Drop-from-above: after reveal_at, the glyph starts
+  `CASCADE_DROP_ROWS` (3) rows ABOVE its final position with dim
+  factor `CASCADE_DROP_DIM` (0.40), then drops down over
+  `CASCADE_DROP_MS` (240 ms) while fading in to full brightness.
+  The drop uses the shared `slide_rows` field — widened from `u16`
+  to `i16` in this round so negative values mean "drop from above"
+  (slide style stays positive = "from below"). The renderer uses
+  `mc.line.saturating_add_signed(slide_rows)` so both directions
+  share one mechanism.
+- Research doc resolution: §3.D originally flagged cascade as
+  "defer until multi-line overlays are common" because on a 1-line
+  overlay (the default), a per-column "drop top-to-bottom" degenerates
+  into a fast left-to-right wipe nearly indistinguishable from
+  typewriter. This implementation solves that by making the drop go
+  FROM ABOVE (not top-to-bottom WITHIN a column — that needs
+  multi-line), so the "waterfall falling from above" visual is
+  visible on any overlay height. The 1-line concern is resolved;
+  cascade now works on the common single-line overlay.
+- `--no-effects` contract: cascade has NO particle sidecar — the
+  drop animation IS the reveal math, not a cosmetic overlay. So
+  `--no-effects` does NOT gate anything in this style (same contract
+  as glitch).
+- Cost: ~280 LOC in `msg_fill_style/cascade.rs` plus the 9-surface
+  sweep and tests (+16 total). The final and cheapest candidate,
+  confirmed by the landed LOC.
+
 ## 2. Ground rules for any new style (from the shipped family)
 
 | Rule | Why |
 |------|-----|
-| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 8 of 10 shipped styles comply. |
+| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 9 of 11 shipped styles comply. |
 | If stateful: ONE bounded sidecar struct, pre-allocated pool, O(active)/frame, `--no-effects` gate, reset in `reset_message` + restart paths | The `EngraveState` contract (48-slot pool, movement-gated spawn). |
 | Particles inside the box render at the END of `draw_message` | Draw-order constraint (see §1). |
 | Default stays `typewriter`, bit-identical pre-v51 | LTS guarantee — every new style is opt-in. |
@@ -221,7 +255,7 @@ per the §4 matrix below. What shipped (see `msg_fill_style/scorch.rs`):
   with scorch-specific tuning (16 slots, 1 puff/char, 700 ms lifetime,
   slow upward gray drift).
 
-### D. `cascade` — per-column waterfall reveal (defer)
+### D. `cascade` — per-column waterfall reveal (LANDED — see §1E)
 
 - **Look**: columns light up left-to-right; within each column, glyphs
   drop in top-to-bottom (multi-line messages only — on the common
@@ -233,8 +267,15 @@ per the §4 matrix below. What shipped (see `msg_fill_style/scorch.rs`):
 - **Risk**: low, but **payoff is low too** — most overlays in practice
   are 1-2 lines (default overlay is one line). Advisor offered
   `cascade`/`waterfall`.
-- **Recommendation**: defer until multi-line overlays are common
+- **Original recommendation**: defer until multi-line overlays are common
   (e.g. if a future default overlay gains a tagline row).
+- **LANDED in the follow-up commit** — see §1E above for what shipped.
+  The 1-line concern was solved by making the drop go FROM ABOVE
+  (visible on any overlay height) rather than top-to-bottom WITHIN a
+  column (which needs multi-line). The drop uses the shared `slide_rows`
+  field (widened from `u16` to `i16` so negative = above). 60 ms/column
+  pacing (faster than typewriter's 80 ms) + 240 ms drop + 40%→100%
+  fade-in. No sidecar, no new `CellReveal` field.
 
 ## 4. Decision matrix
 
@@ -243,7 +284,7 @@ per the §4 matrix below. What shipped (see `msg_fill_style/scorch.rs`):
 | hologram  | YES | ~280 (landed) | none | high (scanline + flicker) | **LANDED** (see §1B) |
 | glitch    | YES | ~340 (landed) | `CellReveal.glyph_override` | high (scramble decode) | **LANDED** (see §1C) |
 | scorch    | no (smoke sidecar) | ~470 (landed) | `CellReveal` tint + smoke sidecar | highest (color + particles) | **LANDED** (see §1D) |
-| cascade   | YES | ~50-60 | none | low on 1-line overlays | Defer |
+| cascade   | YES | ~280 (landed) | `slide_rows` u16→i16 widening | high (drop-from-above) | **LANDED** (see §1E) |
 
 ## 5. Preview / verification path
 
@@ -260,7 +301,7 @@ pacing test, brightness/glyph assertion at exact elapsed values,
 no-effects test (if stateful), restart re-arm test (if stateful),
 live-reload + clap + argv + testconf coverage.
 
-## 6. Style table (current, post-scorch)
+## 6. Style table (current, post-cascade)
 
 | Style | Text reveal | Border | Sidecar |
 |-------|-------------|--------|---------|
@@ -274,6 +315,7 @@ live-reload + clap + argv + testconf coverage.
 | `hologram` | 80 ms/char burn-in, 150 ms flicker + 2 s breathing hum, 600 ms scanline sweep | lags text (t^1.5) | none (stateless scanline pass in `msg_fill_style/hologram.rs`) |
 | `glitch` | 80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker | lags text (t^1.5) | none (stateless, `CellReveal.glyph_override` extension in `msg_fill_style/glitch.rs`) |
 | `scorch` | 80 ms/char ember burn, 400 ms cool tint (1.5→0.8→1.0), slow gray smoke puffs | lags text (t^1.5) | 16-slot smoke pool (`msg_fill_style/scorch.rs`, `CellReveal.tint` extension) |
+| `cascade` | 60 ms/col column-paced reveal, 240 ms drop-from-above (3 rows), 40%→100% fade-in | lags text (t^1.5) | none (stateless, `slide_rows` i16 widening for negative=above) |
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

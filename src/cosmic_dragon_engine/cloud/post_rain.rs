@@ -214,7 +214,9 @@ impl super::Cloud {
         // at the end of draw_message; hologram adds its scanline pass;
         // glitch's wrong-glyph substitution is part of the reveal math
         // itself, no extra pass; scorch adds its smoke pass at the end
-        // of draw_message and tints the cooling chars via CellReveal).
+        // of draw_message and tints the cooling chars via CellReveal;
+        // cascade reuses the signed slide_rows field for drop-from-above,
+        // handled by the slide deferred second pass).
         // Z-6: skip in benchmark mode — owner directive: bench measures
         // critical path only (rain + 3 dragons), not message cosmetics.
         // This eliminates 8 per-frame heap allocs in draw_message.

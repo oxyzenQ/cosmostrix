@@ -388,12 +388,16 @@ impl super::Cloud {
                     }
                     fg
                 };
-                if reveal.visible && reveal.slide_rows > 0 {
-                    // Slide phase 1: glyph is still one row below — blank
-                    // the final cell now, defer the moving glyph.
+                if reveal.visible && reveal.slide_rows != 0 {
+                    // Slide phase 1: glyph is still offset from the final
+                    // position (positive = N rows below, slide style rises
+                    // from below; negative = N rows above, cascade style
+                    // drops from above) — blank the final cell now, defer
+                    // the moving glyph. `saturating_add_signed` handles
+                    // both directions and clamps to [0, lines-1].
                     slide_cells.push((
                         mc.col,
-                        mc.line.saturating_add(reveal.slide_rows),
+                        mc.line.saturating_add_signed(reveal.slide_rows),
                         glyph,
                         reveal.factor,
                         tint,

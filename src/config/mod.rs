@@ -311,18 +311,19 @@ pub struct Args {
     /// v51 msg-fill-style: message overlay reveal style (typewriter
     /// default = bit-identical to pre-v51; engrave adds the spark
     /// sidecar; hologram adds a stateless scanline pass; glitch
-    /// extends CellReveal with a glyph_override field for the
-    /// wrong-glyph substitution during the settle window; scorch
+    /// extends CellReveal with a glyph_override field; scorch
     /// extends CellReveal with a tint field and adds a smoke
-    /// sidecar). Also settable via the `msg-fill-style` config key;
-    /// `-mfs` is argv-expanded to this flag (cli/argv_expand.rs).
+    /// sidecar; cascade reuses the signed slide_rows field for
+    /// drop-from-above). Also settable via the `msg-fill-style`
+    /// config key; `-mfs` is argv-expanded to this flag
+    /// (cli/argv_expand.rs).
     #[arg(
         long = "msg-fill-style",
         default_value = "typewriter",
         value_enum,
         help_heading = "COMMON OPTIONS",
         display_order = 71,
-        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant|engrave|hologram|glitch|scorch, default: typewriter)"
+        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant|engrave|hologram|glitch|scorch|cascade, default: typewriter)"
     )]
     pub msg_fill_style: MsgFillStyle,
 

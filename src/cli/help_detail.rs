@@ -198,8 +198,8 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: typewriter). Ten
-      styles — eight driven purely by elapsed time (stateless, zero
+      Message overlay reveal animation (default: typewriter). Eleven
+      styles — nine driven purely by elapsed time (stateless, zero
       per-frame cost), plus engrave and scorch (each adds a bounded
       particle sidecar):
         typewriter  The classic reveal: one character every 80 ms, each
@@ -264,6 +264,17 @@ COMMON OPTIONS:
                     with a tint field (the color-shifting API surface).
                     Respects --no-effects (the smoke sidecar self-gates
                     like every particle subsystem).
+        cascade    Waterfall reveal: each column lights up left-to-
+                    right (60 ms/column — faster than typewriter's
+                    80 ms), and each char drops from 3 rows above
+                    its final position, fading in from 40% to 100%
+                    brightness over 240 ms. The drop-from-above is
+                    visible even on a 1-line overlay (the glyph
+                    appears to fall from outside the box) — distinct
+                    from typewriter (no drop) and slide (drops from
+                    BELOW). Fully stateless; reuses the signed
+                    slide_rows field (negative = above). No particle
+                    sidecar.
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -279,6 +290,7 @@ COMMON OPTIONS:
       cosmostrix -mfs hologram -mb \"wake up, neo\"
       cosmostrix -mfs glitch -mb \"wake up, neo\"
       cosmostrix -mfs scorch -mb \"wake up, neo\"
+      cosmostrix -mfs cascade -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

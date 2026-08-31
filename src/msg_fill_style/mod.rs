@@ -20,6 +20,7 @@
 //! | `hologram`  | 80 ms/char burn-in, flicker + hum, scanline sweep | lags text (t^1.5) |
 //! | `glitch`    | 80 ms/char scrambled reveal, wrong-glyph settle, ±20% flicker | lags text (t^1.5) |
 //! | `scorch`    | 80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs | lags text (t^1.5) + smoke |
+//! | `cascade`   | 60 ms/col drop-from-above, 240 ms fall, column-paced waterfall | lags text (t^1.5) |
 //!
 //! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
@@ -33,7 +34,7 @@
 //! the shared ramp/lag helpers, and the dispatch that routes the
 //! runtime enum to the active style module.
 //!
-//! ## How to add style #11 (plug-and-play recipe)
+//! ## How to add style #12 (plug-and-play recipe)
 //!
 //! 1. Copy the closest existing `<style>.rs` to a new file (e.g.
 //!    `<new-style>.rs`) and rewrite its reveal math + doc comment.
@@ -69,7 +70,10 @@
 //! with a `tint: Option<(u8, u8, u8, f32)>` field (the ONE structural
 //! extension point for color-shifting styles — same §2 ground rule)
 //! and adds a 16-slot smoke sidecar cloned from the engrave pattern
-//! (see `scorch.rs` for why a dedicated pool is required).
+//! (see `scorch.rs` for why a dedicated pool is required). `cascade`
+//! reuses the existing `slide_rows` field (widened from `u16` to
+//! `i16` in this round so negative values mean "drop from above") —
+//! no new field, no sidecar, fully stateless.
 //!
 //! Placement is a crate-root module (peer of `types/`): the enum is
 //! consumed by both the CLI layer (Args) and the rendering engine
@@ -88,6 +92,7 @@ use clap::ValueEnum;
 // renderer unwraps at draw time. `scorch` is visible like engrave:
 // `cloud/mod.rs` stores its `ScorchState` as a Cloud field. Every
 // stateless style is fully encapsulated behind the dispatch below.
+pub(crate) mod cascade;
 pub(crate) mod engrave;
 mod fade;
 pub(crate) mod glitch;
@@ -149,6 +154,16 @@ pub enum MsgFillStyle {
     /// with `tint` (see `scorch.rs`). Respects `--no-effects`.
     #[value(name = "scorch")]
     Scorch,
+    /// Waterfall reveal: each column lights up left-to-right (60 ms/
+    /// column), and each char drops from 3 rows above its final
+    /// position, fading in from 40% to 100% brightness over 240 ms.
+    /// The drop-from-above is visible even on a 1-line overlay (the
+    /// glyph appears to fall from outside the box) — distinct from
+    /// typewriter (no drop) and slide (drops from BELOW). Fully
+    /// stateless; reuses the signed `slide_rows` field (negative =
+    /// above). No particle sidecar (see `cascade.rs`).
+    #[value(name = "cascade")]
+    Cascade,
 }
 
 impl MsgFillStyle {
@@ -167,6 +182,7 @@ impl MsgFillStyle {
             Self::Hologram => "hologram",
             Self::Glitch => "glitch",
             Self::Scorch => "scorch",
+            Self::Cascade => "cascade",
         }
     }
 
@@ -192,6 +208,9 @@ impl MsgFillStyle {
             Self::Scorch => {
                 "scorch (80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs)"
             }
+            Self::Cascade => {
+                "cascade (60 ms/col drop-from-above, 240 ms fall, column-paced waterfall)"
+            }
         }
     }
 }
@@ -209,9 +228,16 @@ pub(crate) struct CellReveal {
     /// May exceed 1.0 for the pulse scanner / engrave heat heads
     /// (clamped downstream).
     pub factor: f32,
-    /// Rows below the final position while the cell is mid-slide
-    /// (slide style only; 0 = at the final position).
-    pub slide_rows: u16,
+    /// Rows offset from the final position while the cell is mid-slide
+    /// (slide style only; 0 = at the final position). Positive = the
+    /// glyph is N rows BELOW the final position (slide style rises
+    /// from one row below). Negative = the glyph is N rows ABOVE the
+    /// final position (cascade style drops from above). The renderer
+    /// uses `mc.line.saturating_add_signed(slide_rows)` so both
+    /// directions share one mechanism. Added as `i16` in the
+    /// post-scorch round to support the cascade drop-from-above
+    /// direction without a separate field.
+    pub slide_rows: i16,
     /// Substitute glyph drawn INSTEAD of the cell's true `mc.val`
     /// while the cell is mid-settle (glitch style only; `None` for
     /// every other style). The renderer unwraps to `mc.val` when
@@ -348,6 +374,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Hologram => hologram::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Glitch => glitch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Scorch => scorch::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Cascade => cascade::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -362,7 +389,7 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / words: border
+/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / cascade / words: border
 ///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
 ///   cinematic behavior.
 /// - Fade: border fades together with the text block.
@@ -382,6 +409,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Hologram => hologram::border_progress(text_progress),
         MsgFillStyle::Glitch => glitch::border_progress(text_progress),
         MsgFillStyle::Scorch => scorch::border_progress(text_progress),
+        MsgFillStyle::Cascade => cascade::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -390,7 +418,7 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch:
+/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / cascade:
 ///   `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
@@ -412,6 +440,7 @@ pub(crate) fn text_progress(
         MsgFillStyle::Hologram => hologram::text_progress(reveal_count, total_text),
         MsgFillStyle::Glitch => glitch::text_progress(reveal_count, total_text),
         MsgFillStyle::Scorch => scorch::text_progress(reveal_count, total_text),
+        MsgFillStyle::Cascade => cascade::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -419,7 +448,8 @@ pub(crate) fn text_progress(
 
 /// Number of content cells revealed by the active style at the given
 /// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave/
-/// hologram/glitch/scorch) pace cells by their per-char constant; word/block styles
+/// hologram/glitch/scorch/cascade) pace cells by their per-char
+/// constant; word/block styles
 /// (words/fade/instant) reveal everything (their reveal math decides
 /// per-cell and never reads the budget; only the `None` timeline →
 /// `usize::MAX` is meaningful for them).
@@ -441,6 +471,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Hologram => hologram::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Glitch => glitch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Scorch => scorch::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Cascade => cascade::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -464,6 +495,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Hologram.as_str(), "hologram");
         assert_eq!(MsgFillStyle::Glitch.as_str(), "glitch");
         assert_eq!(MsgFillStyle::Scorch.as_str(), "scorch");
+        assert_eq!(MsgFillStyle::Cascade.as_str(), "cascade");
     }
 
     #[test]
@@ -483,6 +515,7 @@ mod tests {
             MsgFillStyle::Hologram,
             MsgFillStyle::Glitch,
             MsgFillStyle::Scorch,
+            MsgFillStyle::Cascade,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");
