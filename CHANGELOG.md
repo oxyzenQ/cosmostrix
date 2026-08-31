@@ -9,6 +9,24 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### Killer features depth stresstest — no bugs found + stresstest script (Z-master-1T)
+
+- **Stresstest scope**: depth stresstest of the 3 killer custom features — colors-custom, charset-custom, scene-custom. 27 cases covering: valid/invalid hex, empty/single/max stops, unquoted hex, nonexistent names, duplicate names, empty/wide/max charset, missing/unknown base-scene, empty scene block, color+colors-custom conflict, charset+charset-custom conflict, cross-feature interaction, CLI override.
+- **Result**: 27/27 PASS. **NO BUGS FOUND.** The custom features are robust:
+  - colors-custom: validates rain field (min 2 stops, max 64), parses #rrggbb + #rgb shorthand, rejects invalid hex, bounds blocks (max 100) + name length (max 64). Empty/single rain → clear error. Unquoted # → TOML comment caught by parser.
+  - charset-custom: validates set field (non-empty, max 256 chars), handles wide CJK chars (silently skipped with warning), rejects control chars. Empty set → error. Over-max → error.
+  - scene-custom: validates base-scene name (rejects unknown), handles missing base-scene (uses defaults), resolves color+colors-custom conflict (colors-custom wins per documented priority), resolves charset+charset-custom conflict.
+  - Cross-feature: all 3 work together. CLI `--colors-custom` overrides scene-custom color. CLI `--charset` overrides scene-custom charset.
+- **Stresstest script added**: `scripts/custom_features_stresstest.sh` (27 cases). Uses `~/.config/cosmostrix/stresstest_tmp/` for config files (safepath-compliant).
+- **A/B benchmark** (10s each, no code changes = identical):
+  - avg_fps: 92613 → 91879 (within noise)
+  - dirty_cell_ratio: 2.96% → 2.96% (identical)
+  - total_ns_per_cell: 190.14 → 191.60 (within noise)
+  - alloc_calls: 563 → 563 (identical)
+  - Conclusion: zero regression — stresstest was validation-only.
+- **Files changed**: `scripts/custom_features_stresstest.sh` (new, 27 cases).
+- **Tests**: 9/9 gatekeepers pass.
+
 ### HUD: humanize large numbers in dcel + fps for consistency (Z-master-1X round 7)
 
 - **Bug**: `dcel` count showed raw numbers (e.g. `dcel: 1200/12%`) instead of humanized format. Owner mandate: use `k` suffix for >=1000 (e.g. `dcel: 1.2K/12%`), raw for <1000. Also audit ALL HUD metrics for large-number formatting consistency.
