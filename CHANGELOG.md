@@ -9,6 +9,23 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### --no-effects: close anomaly spawn leak + peak audit verdict (Z-master-1X)
+
+- **Audit scope**: deep audit of `--no-effects` to verify it really disables ALL cosmetic effects (not gimmick). Mapped 55 `effects_enabled` usage sites to ~13 spawn/render gate locations across the cloud engine + msg_fill_style sidecars.
+- **Leak found + fixed**: anomaly spawn in `cloud/post_rain.rs` was gated on `bench_mode` only, NOT `effects_enabled`. The apply path (`apply_anomalies`) was correctly gated, but spawn continued to create + retain anomaly zones (1.5s lifetime) under `--no-effects` — wasted CPU + Vec churn for zones never rendered. The stale comment at the apply site claimed "spawn_anomaly is already gated" which was wrong. Fix: added `effects_enabled` to the spawn gate condition (commit `56f8513`). Both spawn and apply are now gated, so under `--no-effects` no zones exist and the apply branch is a no-op.
+- **Peak verdict for the rest**: ALREADY AT PEAK. All 12 other cosmetic subsystems are correctly gated: quantum ripple spawn/render, border spark, click flash wave, anomaly apply, ghost event trigger/render, storytelling/emergent moments, msg_fill_style sidecars (engrave/hologram/scorch). `color_ecosystem.tick` is intentionally ungated (climate drift = rendering param modulation, not cosmetic). No over-engineering needed.
+- **Files changed**: `src/engine/cosmic_dragon_engine/cloud/post_rain.rs` (spawn gate + stale comment fix).
+- **Tests**: anomaly 26/26, no_effects 8/8, cloud 320/320 pass. clippy clean, fmt clean, gatekeepers 8/8.
+
+### cli-suggestion: peak audit verdict + end-to-end stresstest (Z-master-1X)
+
+- **Audit scope**: verify all CLI functions use the consistent "tip: a similar value exists: 'x'" / "tip: a similar argument exists: '--x'" format, and that the legacy "Did you mean" format is fully removed.
+- **Consistency verdict**: ALREADY CONSISTENT. The `format_value_suggestion` helper in `src/cli/suggestion.rs` is the single canonical format for value suggestions. All 8 production call sites use it (colors, scenes, charsets, glitch-level, msg-fill-style, custom colors, custom scenes, config keys). Flag suggestions use the inline `tip: a similar argument exists: '--<flag>'` format via `main.rs` + `argv_expand.rs`. The legacy "Did you mean" format survives only in doc comments explaining what was replaced — zero production sites remain.
+- **Engine verdict**: ALREADY AT PEAK. `closest_value_match` (Levenshtein ≤ 2, case-insensitive, ties resolve to first candidate) is the shared engine for all value surfaces. Flag suggestions reuse clap's own `suggestions` feature via `extract_clap_suggestion()` — no duplicate engine. The ≤ 2 threshold catches real typos without false positives.
+- **Stresstest added**: `scripts/cli_suggestion_stresstest.sh` — an end-to-end shell stresstest that runs the actual `./target/debug/cosmostrix` binary with 18 typo / wrong-value / edge-case inputs and verifies the output format + the absence of the legacy "Did you mean" format. Covers long-flag typos (6), value typos (8), case-insensitivity (1), too-distant values (2), short-form expansion (1). Last run: 18/18 PASS. This complements the 36 in-source unit tests with integration coverage of clap's full error rendering + argv expansion + the `main.rs` append path.
+- **Docs**: `docs/CLI_SUGGESTION_SYSTEM.md` §5 expanded with the end-to-end stresstest script documentation (§5b).
+- **Decision**: NO CODE CHANGES to the suggestion engine — already at peak. Only added the stresstest script + doc section.
+
 ### crystal-dragon: fix drift permanently blocked when ambient is off (Z-master-1X)
 
 - **Bug**: when `crystal-dragon = true` and the ambient schedule is empty (ambient off), the HUD showed `crdr: on` but no color change ever happened. Owner repro: `./target/pro-native/cosmostrix -v -s -C minimal -mfs words` with `crystal-dragon = true`, `power_dragon = true`, ambient off — waited 60s, no drift.

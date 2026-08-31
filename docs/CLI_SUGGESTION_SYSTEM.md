@@ -88,7 +88,11 @@ duplicate engine.
 
 ## 5. Stresstest coverage
 
-The suggestion engine is stresstested across 36 unit tests covering:
+The suggestion engine is stresstested at two levels:
+
+### 5a. Unit tests (in-source, `cargo test`)
+
+36 unit tests covering:
 
 ### Value suggestion tests (`closest_value_match`)
 
@@ -129,6 +133,41 @@ The suggestion engine is stresstested across 36 unit tests covering:
 - Distance > 2 on color → no tip
 - Distance > 2 on charset → no tip
 - Distance > 2 on custom scene → no tip
+
+### 5b. End-to-end stresstest script (`scripts/cli_suggestion_stresstest.sh`)
+
+Z-master-1X audit added a shell-based end-to-end stresstest that runs
+the actual `./target/debug/cosmostrix` binary with a battery of typo /
+wrong-value / edge-case inputs and verifies the output format. This
+catches integration issues the unit tests miss (clap's full error
+rendering, argv expansion, the `main.rs` append path).
+
+Run it with:
+
+```bash
+cargo build --bin cosmostrix
+bash scripts/cli_suggestion_stresstest.sh
+```
+
+18 cases covering:
+
+- **Long-flag typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
+  `--msg-fill-styl`, `--verbos`, `--power-drago` — each must produce
+  `tip: a similar argument exists: '--<flag>'` and NOT contain the legacy
+  `Did you mean` format.
+- **Value typos** (8 cases): `neon-gren`, `vapporwave`, `cinemtic`,
+  `binari`, `typewritter`, `hollogram`, `defualt`, plus the
+  unknown-custom-name `cyberpuunk2077` (verifies no false tip fires for
+  names not in the candidate set).
+- **Case-insensitivity** (1 case): `NEON-GREEN` must be accepted (no
+  "unknown color" error).
+- **Too-distant values** (2 cases): `xyzabc`, `zzzzzzz` — must NOT
+  produce a tip (distance > 2 threshold).
+- **Short-form expansion** (1 case): `-mfss` typo must produce the
+  `--msg-fill-style` tip.
+
+Last stresstest run: 18/18 PASS. The script is part of the gatekeeper
+suite (bash -n syntax-checked; run manually before releases).
 
 ## 6. Migration from `Did you mean`
 
