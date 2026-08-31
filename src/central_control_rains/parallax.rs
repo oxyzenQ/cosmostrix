@@ -30,31 +30,32 @@ pub(crate) const PARALLAX_SPEED_MULT: [f32; PARALLAX_LAYERS] = [0.35, 1.0, 1.7];
 
 /// Per-layer brightness multiplier (layer 0 = far, 2 = near).
 ///
-/// Cinema Noir preset: dark entry from shadow with gentle depth differential.
-/// Back pushed deep into shadow (0.52), front gently boosted (1.10) for
-/// cinematic presence without neon harshness.
-///   - Back  (0): 0.52 (deep shadow — noir haze)
-///   - Mid   (1): 0.80 (slightly dim — vivid streaks)
-///   - Front (2): 1.10 (gentle boost — cinematic trail)
+/// Deep Focus preset (battle round 2 champion): field lifted,
+/// head peak tamed. Back pushed into shadow (0.56), front gently
+/// boosted (1.08) for cinematic presence without glare.
+///   - Back  (0): 0.56 (deep shadow — lifted from noir 0.52)
+///   - Mid   (1): 0.82 (slightly dim — vivid streaks)
+///   - Front (2): 1.08 (gentle boost — tamed from noir 1.10)
 pub(crate) const PARALLAX_BRIGHTNESS_MULT: [f32; PARALLAX_LAYERS] = [0.56, 0.82, 1.08];
 
 /// Per-layer saturation multiplier (layer 0 = desaturated, 2 = full).
 ///
-/// Cinema Noir preset: gentle saturation ramp for noir aesthetic. Back
-/// desaturated (0.50) for shadow haze, front boosted (1.12) for cinematic
-/// color richness without neon overdrive.
-///   - Back  (0): 0.50 (shadow haze blend)
+/// Deep Focus preset (battle round 2 champion): slightly muted head
+/// color. Back desaturated (0.52) for shadow haze, front boosted
+/// (1.10) for cinematic color richness without overdrive.
+///   - Back  (0): 0.52 (shadow haze blend)
 ///   - Mid   (1): 0.84 (slightly vivid)
-///   - Front (2): 1.12 (cinematic richness — noir color pop)
+///   - Front (2): 1.10 (cinematic richness — tamed from noir 1.12)
 pub(crate) const PARALLAX_SATURATION_MULT: [f32; PARALLAX_LAYERS] = [0.52, 0.84, 1.10];
 
 /// Per-layer head-bloom multiplier (layer 0 = suppressed, 2 = full).
 ///
-/// Cinema Noir preset: front head blooms gently (1.30) — cinematic trail
-/// presence. Front-layer heads glow with noir warmth. Back suppressed.
+/// Deep Focus preset (battle round 2 champion): glare control.
+/// Front head blooms gently (1.24 — tamed from noir 1.30) for
+/// cinematic trail presence. Front-layer heads glow without glare.
 ///   - Back  (0): 0.48 (suppressed — stays in shadow)
 ///   - Mid   (1): 0.74 (moderate pop)
-///   - Front (2): 1.30 (CINEMATIC BLOOM — noir head glow)
+///   - Front (2): 1.24 (CINEMATIC BLOOM — tamed from noir 1.30)
 pub(crate) const PARALLAX_HEAD_BLOOM_MULT: [f32; PARALLAX_LAYERS] = [0.48, 0.74, 1.24];
 
 /// Per-layer head self-bloom multiplier (layer 0 = suppressed, 2 = full).
@@ -89,17 +90,18 @@ pub(crate) const PARALLAX_LENGTH_MULT: [f32; PARALLAX_LAYERS] = [0.5, 1.0, 1.4];
 
 /// Per-cell phosphor energy decay rate (higher = faster fade).
 ///
-/// Cinema Noir preset: 5.0 (~400ms afterglow). Gentle dissolve with
-/// cinematic trail. Trails linger just enough for noir atmosphere.
-/// Phosphor afterglow decay rate (per second, exponential).
+/// Deep Focus preset: 5.5 (~360 ms afterglow — less residual
+/// busyness than noir's 400 ms). Gentle dissolve with cinematic
+/// trail. Phosphor afterglow decay rate (per second, exponential).
 ///
-/// v50.0.0-beta.6: increased from 5.5 to 8.0 for cross-terminal consistency.
-/// At 5.5, trails lasted ~0.6s — visually longer on VTE-based terminals
-/// (gnome-console, gnome-terminal) due to their CPU-rendered sub-pixel
-/// blending making dim ghosts more visible. At 8.0, trails last ~0.4s,
-/// matching the snappy feel on Alacritty (GPU-rendered). Terminal-aware
-/// multiplier (`phosphor_decay_mult` in TerminalCaps) further adjusts
-/// per terminal tier.
+/// v50.0.0-beta.6: increased from 5.5 to 8.0 for cross-terminal
+/// consistency. At 5.5, trails lasted ~0.6s — visually longer on
+/// VTE-based terminals (gnome-console, gnome-terminal) due to
+/// their CPU-rendered sub-pixel blending making dim ghosts more
+/// visible. At 8.0, trails last ~0.4s, matching the snappy feel on
+/// Alacritty (GPU-rendered). Terminal-aware multiplier
+/// (`phosphor_decay_mult` in TerminalCaps) further adjusts per
+/// terminal tier.
 pub(crate) const PHOSPHOR_DECAY_RATE: f32 = 8.0;
 
 /// Energy level when a cell's tail passes (starts the phosphor glow).
@@ -119,12 +121,14 @@ pub(crate) const PHOSPHOR_GLYPH_THRESHOLD: u8 = 96;
 
 /// Per-layer phosphor decay rate multiplier (far=fast, near=slow).
 ///
-/// Cinema Noir preset: gentle decay across layers. Back: 2.0 (quick
-/// flicker), mid: 1.2 (smooth streaks), front: 0.6 (lingering cinematic
-/// trail). Effective rates: back=10.0, mid=6.0, front=3.0. Noir trails persist.
-///   - Back  (0): 2.0 (quick flicker — shadow exit)
-///   - Mid   (1): 1.2 (smooth — clean dissolve)
-///   - Front (2): 0.6 (lingering cinematic trail)
+/// Deep Focus preset (battle round 2 champion): back clears faster,
+/// front lingers. Back: 1.9 (quick flicker), mid: 1.15 (smooth
+/// streaks), front: 0.65 (lingering cinematic trail). Effective
+/// rates: back=15.2, mid=9.2, front=5.2. Less residual busyness
+/// than noir.
+///   - Back  (0): 1.9 (quick flicker — shadow exit)
+///   - Mid   (1): 1.15 (smooth — clean dissolve)
+///   - Front (2): 0.65 (lingering cinematic trail)
 pub(crate) const PHOSPHOR_LAYER_DECAY_MULT: [f32; PARALLAX_LAYERS] = [1.9, 1.15, 0.65];
 
 /// Number of rows from the bottom of the screen where phosphor decay is
@@ -133,8 +137,9 @@ pub(crate) const PHOSPHOR_BOTTOM_ROWS: u16 = 12;
 
 /// Phosphor decay rate multiplier applied to bottom rows.
 ///
-/// Cinema Noir preset: 2.0 — moderate bottom decay for gentle dissolve.
-/// Soft afterglow fade at bottom. Rain trails into shadow.
+/// Deep Focus preset: 1.8 — dissolve lingers slightly (tamed
+/// from noir 2.0). Soft afterglow fade at bottom. Rain trails
+/// into shadow.
 pub(crate) const PHOSPHOR_BOTTOM_DECAY_MULT: f32 = 1.8;
 
 // ─── Parallax depth layering ────────────────────────────────────────────
@@ -168,10 +173,11 @@ pub(crate) const PARALLAX_GLYPH_DIM: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 1.0];
 
 /// Per-layer contrast reduction (depth-of-field perceptual blur).
 ///
-/// Cinema Noir preset: back fogged (0.50) for noir depth atmosphere,
-/// front razor sharp (0.0). The contrast between shadowy back and sharp
-/// front creates the noir aesthetic — dark entry, crisp resolution.
-///   - Back  (0): 0.50 (noir fog — back dissolves into shadow)
+/// Deep Focus preset (battle round 2 champion): fog identity kept
+/// from noir. Back fogged (0.50) for depth atmosphere, front razor
+/// sharp (0.0). The contrast between shadowy back and sharp front
+/// creates the deep-focus aesthetic — dark entry, crisp resolution.
+///   - Back  (0): 0.50 (fog — back dissolves into shadow)
 ///   - Mid   (1): 0.18 (slight veil)
-///   - Front (2): 0.0 (razor sharp — noir clarity)
+///   - Front (2): 0.0 (razor sharp — clarity)
 pub(crate) const PARALLAX_CONTRAST_REDUCTION: [f32; PARALLAX_LAYERS] = [0.50, 0.18, 0.0];

@@ -8,12 +8,12 @@
 
 #[test]
 fn compounded_brightness_top_row_visible() {
-    // The top row should remain visibly dim (not destroyed). Cinema Noir
-    // targets a compounded top brightness of ~0.342 (dark but visible —
-    // dramatic noir fade-in from shadow). Rain shadow doesn't apply at
-    // the top row — this test guards against accidental regressions in
-    // the CRT vignette or edge fade constants that would push the top
-    // row below the visibility floor.
+    // The top row should remain visibly dim (not destroyed). Deep Focus
+    // targets a compounded top brightness of ~0.36 (dark but visible —
+    // gentler dark entry than noir, deep-focus fade-in from shadow). Rain
+    // shadow doesn't apply at the top row — this test guards against
+    // accidental regressions in the CRT vignette or edge fade constants
+    // that would push the top row below the visibility floor.
     use crate::droplet::compounded_brightness;
 
     let cols: u16 = 80;
@@ -21,11 +21,11 @@ fn compounded_brightness_top_row_visible() {
     let layer: usize = 0;
 
     // Top-center should be well above the visibility floor.
-    // Cinema Noir: ~0.342 (dark entry, noir aesthetic)
+    // Deep Focus: ~0.36 (dark entry, deep-focus aesthetic)
     let top_center = compounded_brightness(cols / 2, 0, cols, lines, layer);
     assert!(
         top_center >= 0.25,
-        "top-center compounded brightness {} should be >= 0.25 (Cinema Noir target ~0.342)",
+        "top-center compounded brightness {} should be >= 0.25 (Deep Focus target ~0.36)",
         top_center
     );
 

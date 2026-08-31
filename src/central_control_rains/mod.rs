@@ -351,7 +351,9 @@ pub(crate) const HEAD_BLOOM_SIGMA: f32 = 1.2;
 
 /// Peak intensity of the head bloom glow (0.0 = none, 1.0 = full).
 ///
-/// Cinema Noir preset: 0.40 — moderate bloom for cinematic head glow.
+/// Deep Focus preset: 0.36 — glare-controlled bloom for
+/// cinematic head glow (battle round 2 champion, locked 2026-08-23).
+/// See `docs/VISUAL_IDENTITY.md`.
 pub(crate) const HEAD_BLOOM_INTENSITY: f32 = 0.36;
 
 /// Number of cells on each side of the head that receive bloom glow.
@@ -454,40 +456,49 @@ pub(crate) const EDGE_FADE_ROWS: u16 = 2;
 
 /// Number of rows at the bottom affected by edge fade.
 ///
-/// Cinema Noir preset: 10 — wider dissolve zone. Gentle cinematic exit.
+/// Deep Focus preset: 12 — wider dissolve zone (battle round 2
+/// champion). Gentle cinematic exit.
 /// Soft fade — rain trails off into shadow at the bottom edge.
 pub(crate) const EDGE_FADE_BOTTOM_ROWS: u16 = 12;
 
 /// Lip factor for the bottom edge fade (controls curvature).
 ///
-/// Cinema Noir preset: 0.80 — moderate lip, noticeable transition.
+/// Deep Focus preset: 0.82 — smoother junction (battle round 2
+/// champion).
 /// The Zone 1↔Zone 2 junction creates a gentle curve,
-/// fading perceptibly in the last rows — noir dissolve.
+/// fading perceptibly in the last rows — deep-focus dissolve.
 pub(crate) const EDGE_FADE_BOTTOM_LIP: f32 = 0.82;
 
 /// Minimum brightness factor at the top edge.
 ///
-/// Cinema Noir preset: 0.45 (55% dim) — dramatic, rain fades in from
-/// shadow at the top border. Noir fade-in. Rain emerges from darkness.
+/// Deep Focus preset: 0.48 (52% dim) — gentler dark entry than
+/// noir (battle round 2 champion, locked 2026-08-23). Rain fades
+/// in from shadow at the top border — deep-focus fade-in. Rain
+/// emerges from darkness.
 ///
 /// Reference points:
-/// - 0.45 (Cinema Noir): 55% dim — dramatic noir entry
+/// - 0.48 (Deep Focus): 52% dim — gentler than noir entry
+/// - 0.45 (Cinema Noir, superseded): 55% dim — dramatic noir entry
 /// - 0.65 (v50 alpha.2): 35% dim — visible cinematic fade-in
 ///
-/// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
+/// See `docs/VISUAL_IDENTITY.md` for the preset lineage and
+/// `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
 pub(crate) const EDGE_FADE_TOP_MIN: f32 = 0.48;
 
 /// Minimum brightness factor at the bottom edge.
 ///
-/// Cinema Noir preset: 0.65 (35% dim) — gentle dissolve. Rain fades
-/// softly toward the bottom. The moderate dim prevents harsh cutoff
-/// while keeping ghost residue manageable — noir aesthetic.
+/// Deep Focus preset: 0.68 (32% dim) — later dissolve than noir
+/// (battle round 2 champion). Rain fades softly toward the bottom.
+/// The moderate dim prevents harsh cutoff while keeping ghost
+/// residue manageable — deep-focus aesthetic.
 ///
 /// Reference points:
-/// - 0.65 (Cinema Noir): 35% dim — gentle dissolve
+/// - 0.68 (Deep Focus): 32% dim — later dissolve
+/// - 0.65 (Cinema Noir, superseded): 35% dim — gentle dissolve
 /// - 0.45 (masterclass): 55% dim — calibrated when fog was active
 ///
-/// See `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
+/// See `docs/VISUAL_IDENTITY.md` for the preset lineage and
+/// `docs/research/VISUAL_MODE_AUDIT.md` for the compounding math.
 pub(crate) const EDGE_FADE_BOTTOM_MIN: f32 = 0.68;
 
 /// Brightness threshold below which bold attribute is suppressed at edges.

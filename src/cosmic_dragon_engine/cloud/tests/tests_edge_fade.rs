@@ -118,9 +118,9 @@ fn viewport_edge_fade_with_small_terminal() {
 
 #[test]
 fn viewport_edge_fade_top_more_aggressive_than_bottom() {
-    // Cinema Noir profile: the top edge fade (EDGE_FADE_TOP_MIN=0.45)
-    // is more aggressive than the bottom (EDGE_FADE_BOTTOM_MIN=0.65). This is
-    // the classic noir aesthetic — rain enters from deep shadow at top and
+    // Deep Focus profile: the top edge fade (EDGE_FADE_TOP_MIN=0.48)
+    // is more aggressive than the bottom (EDGE_FADE_BOTTOM_MIN=0.68). This is
+    // the classic deep-focus aesthetic — rain enters from deep shadow at top and
     // dissolves gently at bottom. The test checks top < bottom (more dim = lower value).
     use crate::droplet::viewport_edge_fade;
 
@@ -360,8 +360,8 @@ fn rain_shadow_factor_floors_at_rain_shadow_floor() {
     use crate::droplet::rain_shadow_factor;
 
     let lines: u16 = 40;
-    // Cinema Noir: shadow zone is bottom RAIN_SHADOW_PCT (15%) of the screen.
-    // For lines=40, threshold = (1.0 - 0.15) * 40 = 34.0 → 34. Rows 34..=39 are
+    // Deep Focus: shadow zone is bottom RAIN_SHADOW_PCT (13%) of the screen.
+    // For lines=40, threshold = (1.0 - 0.13) * 40 = 34.8 → 34. Rows 34..=39 are
     // in the shadow zone.
     let threshold = ((1.0 - RAIN_SHADOW_PCT) * lines as f32) as u16;
     assert_eq!(threshold, 34, "shadow threshold for 40-line terminal");

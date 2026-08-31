@@ -21,12 +21,14 @@ use crate::constants::{
 /// - Smooth rain exit at the bottom (tails fade out before the terminal border)
 /// - Prevention of bright head tips lingering on the bottom border
 ///
-/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.45 vs
-/// EDGE_FADE_BOTTOM_MIN=0.65) reflect the Cinema Noir profile: the top
-/// fade is more aggressive (rain enters from deep shadow) while the
-/// bottom fade is gentler (rain dissolves gracefully). The asymmetry is
-/// inverted from previous retunes — see `docs/research/VISUAL_MODE_AUDIT.md`
-/// for the compounding math that drove the Cinema Noir values.
+/// The asymmetric min values (EDGE_FADE_TOP_MIN=0.48 vs
+/// EDGE_FADE_BOTTOM_MIN=0.68) reflect the Deep Focus profile: the
+/// top fade is more aggressive (rain enters from deep shadow) while
+/// the bottom fade is gentler (rain dissolves gracefully). The
+/// asymmetry is inherited from Cinema Noir and refined for the
+/// battle round 2 champion — see `docs/VISUAL_IDENTITY.md` for the
+/// preset lineage and `docs/research/VISUAL_MODE_AUDIT.md` for the
+/// compounding math that drove the Deep Focus values.
 #[inline]
 pub(crate) fn viewport_edge_fade(line: u16, lines: u16) -> f32 {
     if lines == 0 || EDGE_FADE_ROWS == 0 {

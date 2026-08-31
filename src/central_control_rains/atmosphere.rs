@@ -44,18 +44,20 @@ pub(crate) const CRT_VIGNETTE_HEIGHT: u16 = 3;
 
 /// Brightness factor at the extreme edge row of the CRT vignette.
 ///
-/// ## Cinema Noir preset (2026-08-17)
-/// Set to 0.85 (15% dim) — warm CRT glass. The Cinema Noir philosophy:
-/// gentle vignette, cinematic lens, noir aesthetic. Edges dim softly
-/// like a classic film frame — rain fades into shadow at the borders.
+/// ## Deep Focus preset (2026-08-23, battle round 2 champion)
+/// Set to 0.87 (13% dim) — warm CRT glass, lighter than noir.
+/// The Deep Focus philosophy: gentle vignette, cinematic lens,
+/// reduced fatigue. Edges dim softly like a classic film frame
+/// — rain fades into shadow at the borders.
 ///
 /// Reference points:
-/// - 0.85 (Cinema Noir): 15% dim — warm CRT glass, noir aesthetic
+/// - 0.87 (Deep Focus): 13% dim — warm CRT glass, lighter
+/// - 0.85 (Cinema Noir, superseded): 15% dim — warm CRT glass
 /// - 0.82 (masterclass): 18% dim — calibrated when fog was active
 /// - 0.50 (v30): 50% dim — destructive when compounded
 ///
-/// See `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit
-/// (compounding math, brightness curves, professional references).
+/// See `docs/VISUAL_IDENTITY.md` for the preset lineage and
+/// `docs/research/VISUAL_MODE_AUDIT.md` for the full master audit.
 pub(crate) const CRT_VIGNETTE_EDGE_FACTOR: f32 = 0.87;
 
 /// Perf-pressure threshold below which the CRT vignette is skipped
@@ -76,14 +78,17 @@ pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).
 ///
-/// Cinema Noir preset: 0.20 (20% corner — gentle vignette). Cinematic
-/// lens philosophy — dark corners, noir frame. Corners dim into shadow.
+/// Deep Focus preset (battle round 2 champion): 0.14 (14% corner —
+/// lighter photographic lens than noir's 20%). Cinematic lens
+/// philosophy — dark corners, deep-focus frame. Corners dim
+/// into shadow.
 pub(crate) const VIGNETTE_INTENSITY: f32 = 0.14;
 
 /// Inner radius (as fraction of half-screen) where vignette starts.
 ///
-/// Cinema Noir preset: 0.7 — vignette starts earlier, noticeable corner
-/// darkening. Combined with INTENSITY=0.20, radial vignette is cinematic.
+/// Deep Focus preset (battle round 2 champion): 0.75 — vignette
+/// starts later than noir (0.70). Combined with INTENSITY=0.14,
+/// radial vignette is lighter and starts further out.
 pub(crate) const VIGNETTE_INNER_RADIUS: f32 = 0.75;
 
 /// Per-layer vignette multiplier (0.0 = no dimming, 1.0 = full dimming).
@@ -96,8 +101,9 @@ pub(crate) const VIGNETTE_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0];
 
 /// Percentage of screen height (from bottom) affected by rain shadow.
 ///
-/// Cinema Noir preset: 0.15 (15% of screen height) — noticeable shadow
-/// zone. On a 40-line terminal this is ~6 rows. Rain fades gently into shadow.
+/// Deep Focus preset (battle round 2 champion): 0.13 (13% of screen
+/// height) — smaller bottom shadow zone than noir (15%). On a
+/// 40-line terminal this is ~5 rows. Rain fades gently into shadow.
 pub(crate) const RAIN_SHADOW_PCT: f32 = 0.13;
 
 /// Per-layer rain shadow multiplier (front layer exempt, same as vignette).
@@ -106,16 +112,19 @@ pub(crate) const RAIN_SHADOW_LAYER_MULT: [f32; PARALLAX_LAYERS] = [1.0, 1.0, 0.0
 /// Minimum brightness floor for the rain shadow quadratic. The fade curve
 /// never drops below this value, even at the very last row.
 ///
-/// ## Cinema Noir preset (2026-08-17)
-/// Set to 0.55 (45% dim floor) — visible shadow fade. Rain gently
-/// dissolves toward the bottom border. Combined with PCT=0.15, the shadow
-/// is cinematic: a clear depth gradient in the bottom rows.
+/// ## Deep Focus preset (2026-08-23, battle round 2 champion)
+/// Set to 0.58 (42% dim floor) — lifted shadow floor. Rain gently
+/// dissolves toward the bottom border. Combined with PCT=0.13, the
+/// shadow is lighter than noir: a clear depth gradient in the
+/// bottom rows with less squeeze.
 ///
 /// Reference points:
-/// - 0.55 (Cinema Noir): 45% dim floor — visible fade gradient
+/// - 0.58 (Deep Focus): 42% dim floor — lifted shadow floor
+/// - 0.55 (Cinema Noir, superseded): 45% dim floor — visible fade
 /// - 0.50 (v50 alpha.2): 50% dim floor — visible depth
 /// - 0.00 (previously): full quadratic to black — destructive
 ///
-/// See `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
-/// compounding model and the retune rationale.
+/// See `docs/VISUAL_IDENTITY.md` for the preset lineage and
+/// `docs/research/VISUAL_MODE_AUDIT.md` for the full 4-effect
+/// compounding math.
 pub(crate) const RAIN_SHADOW_FLOOR: f32 = 0.58;

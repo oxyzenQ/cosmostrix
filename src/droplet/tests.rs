@@ -33,9 +33,10 @@ fn brightness_boost_above_one_actually_lightens() {
         "brightness boost >1.0 was a no-op: r stayed at {r_in} (fi={fi}, r_out={r_out}). \
              Bug #1 has regressed — the gate is probably back to `< 1.0`."
     );
-    // Expected delta ≈ boost_pct × r_in. For Cinema Noir (1.10): ~10.
-    // The 8.0..=14.0 range tolerates the Cinema Noir front brightness (1.10,
-    // delta≈10) or nearby values. Update together when retuning front brightness.
+    // Expected delta ≈ boost_pct × r_in. For Deep Focus (1.08): ~8.
+    // The 8.0..=14.0 range tolerates the Deep Focus front brightness
+    // (1.08, delta≈8) or nearby values. Update together when
+    // retuning front brightness.
     let delta = (r_out as i32 - r_in as i32).abs() as f32;
     assert!(
         (8.0..=14.0).contains(&delta),
