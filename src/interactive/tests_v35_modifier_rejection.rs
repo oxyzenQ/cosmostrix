@@ -317,18 +317,18 @@ mod cases_modifier_rejection {
     }
 
     #[test]
-    fn super_space_does_not_reset() {
+    fn super_r_does_not_reset() {
         let mut cloud = make_test_cloud();
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         let mut charset_preset = String::from("binary");
-        // force_draw_everything is set by Space (reset). Capture pre-state
+        // force_draw_everything is set by 'r' (reset). Capture pre-state
         // via the public getter.
         let force_draw_before = cloud.is_force_draw_everything();
 
         call_handle_keybinding(
             &mut cloud,
             &mut frame,
-            &key_with_mod(' ', KeyModifiers::SUPER),
+            &key_with_mod('r', KeyModifiers::SUPER),
             &mut charset_preset,
             &make_test_config(),
             &default_term_reinit(),
@@ -337,7 +337,7 @@ mod cases_modifier_rejection {
         assert_eq!(
             cloud.is_force_draw_everything(),
             force_draw_before,
-            "Super+Space must NOT trigger reset"
+            "Super+r must NOT trigger reset"
         );
     }
 
@@ -647,8 +647,8 @@ mod cases_modifier_rejection {
         call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(']', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert_eq!(cloud.droplet_density, density0, "Shift+] no-op");
         cloud.force_draw_everything(); let fd0 = cloud.is_force_draw_everything();
-        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(' ', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
-        assert_eq!(cloud.is_force_draw_everything(), fd0, "Shift+Space no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('r', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.is_force_draw_everything(), fd0, "Shift+r no-op");
         let speed0 = cloud.chars_per_sec;
         call_handle_keybinding(&mut cloud, &mut frame, &arrow_with_mod(KeyCode::Up, KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert_eq!(cloud.chars_per_sec, speed0, "Shift+Up no-op");

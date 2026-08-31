@@ -14,7 +14,7 @@
 //! | Key | Effect | Handled in |
 //! |-----|--------|-----------|
 //! | `q` | Quit | input.rs |
-//! | `Space` | Reset animation + restart message typewriter | input.rs |
+//! | `r` | Reset animation + restart message typewriter | input.rs |
 //! | `c` / `C` | Cycle color scheme fwd / reverse | input.rs |
 //! | `s` / `S` | Cycle charset preset fwd / reverse | input.rs |
 //! | `p` | Pause / resume (during pause: only `p` and `q` respond) | input.rs |
@@ -335,12 +335,12 @@ mod cases_v51_shortkey_noop {
             "'Down' must decrease chars_per_sec from 8.0"
         );
 
-        // Space resets the animation (force-draw flag set for full redraw).
+        // 'r' resets the animation (force-draw flag set for full redraw).
         let mut cloud = make_test_cloud();
-        dispatch(&mut cloud, KeyCode::Char(' '));
+        dispatch(&mut cloud, KeyCode::Char('r'));
         assert!(
             cloud.is_force_draw_everything(),
-            "Space must force a full redraw (animation reset)"
+            "'r' must force a full redraw (animation reset)"
         );
     }
 

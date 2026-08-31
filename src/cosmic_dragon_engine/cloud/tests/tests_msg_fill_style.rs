@@ -466,7 +466,7 @@ fn engrave_sparks_respect_no_effects() {
 
 #[test]
 fn engrave_reveal_restarts_fresh_burst_after_typewriter_restart() {
-    // Space-restart (restart_message_typewriter) rewinds the timeline;
+    // r-restart (restart_message_typewriter) rewinds the timeline;
     // the movement detector must re-arm so the fresh reveal's first
     // char fires its burst again.
     let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
@@ -644,7 +644,7 @@ fn cut_message_intro_lead_clamps_only_future_starts() {
     assert!(bare.message_start_time.is_none());
 }
 
-/// Space restart (`restart_message_typewriter`) replays the reveal
+/// r restart (`restart_message_typewriter`) replays the reveal
 /// immediately — pre-v52 it re-armed `now + 6 s`, dead air after reset
 /// (owner bug report).
 #[test]
@@ -657,7 +657,7 @@ fn restart_message_typewriter_is_immediate() {
     let start = cloud.message_start_time.unwrap();
     assert!(
         start >= before && start <= after,
-        "Space restart must re-arm at now, not now + 6 s (start={start:?})"
+        "r restart must re-arm at now, not now + 6 s (start={start:?})"
     );
 
     // Without a message it is a no-op.

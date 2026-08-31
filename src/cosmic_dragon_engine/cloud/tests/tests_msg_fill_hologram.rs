@@ -16,7 +16,7 @@
 //! scanline sweep over `HOLOGRAM_SCANLINE_MS` (600 ms) paints a row
 //! of `▔` (U+2594) across the box. These tests mirror the engrave
 //! acceptance ritual: pacing, brightness-at-age, scanline
-//! presence/absence, `--no-effects` gating, and Space-restart re-arm.
+//! presence/absence, `--no-effects` gating, and r-restart re-arm.
 
 use std::time::Instant;
 
@@ -153,7 +153,7 @@ fn hologram_scanline_respects_no_effects() {
 
 #[test]
 fn hologram_reveal_restarts_fresh_sweep_after_typewriter_restart() {
-    // Space-restart (`restart_message_typewriter`) rewinds the
+    // r-restart (`restart_message_typewriter`) rewinds the
     // timeline; the scanline sweep must re-arm so the fresh
     // reveal's first 600 ms paints the scanline again.
     let mut cloud = make_cloud_colored(MsgFillStyle::Hologram);

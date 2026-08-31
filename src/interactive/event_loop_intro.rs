@@ -63,7 +63,7 @@ const INTRO_BRAND_SCHEME: ColorScheme = ColorScheme::EnergyZen;
 /// starts, the only place that knows one is about to play — and CUT when
 /// the intro did not run to completion (q skip, shutdown signal,
 /// terminal below the intro floor). Pre-v52 the lead was armed
-/// unconditionally inside `set_message`, so `--intro none`, a Space
+/// unconditionally inside `set_message`, so `--intro none`, an 'r'
 /// restart, and live-reload cloud rebuilds all showed a dead 6 s wait
 /// for the message with nothing hiding it.
 ///

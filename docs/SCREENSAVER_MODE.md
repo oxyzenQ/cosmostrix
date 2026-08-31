@@ -56,7 +56,7 @@ Both live in the key-event branch of the event loop:
 
 | Behavior | Evidence |
 |---|---|
-| All runtime keys (`q`, `c`/`C`, `s`/`S`, `x`/`X`, `p`, `i`, `[`, `]`, `Space`, `Up`/`Down`) | `handle_keybinding()` runs before the `cfg.screensaver` branch; it contains no screensaver logic |
+| All runtime keys (`q`, `c`/`C`, `s`/`S`, `x`/`X`, `p`, `i`, `[`, `]`, `r`, `Up`/`Down`) | `handle_keybinding()` runs before the `cfg.screensaver` branch; it contains no screensaver logic |
 | Only `q` quits (Esc, Ctrl+C, Tab, unknown keys are no-ops) | Same quit policy arm in both modes |
 | Mouse click never exits (v17 policy) | Mouse branch has no screensaver check; clicks only drive glow/click-wave |
 | Mouse capture (blocks drag-select) | Always on in both modes |

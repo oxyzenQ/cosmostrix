@@ -129,7 +129,7 @@ COMMON OPTIONS:
       mode (no accidental exits from Esc, Ctrl+C, or stray keys). All
       runtime keys still work for interactive control: c/C (cycle colors
       fwd/back), s/S (cycle charsets), x/X (cycle scenes), p (pause),
-      i (HUD), [ ] (density), Space (reset), Up/Down (speed).
+      i (HUD), [ ] (density), r (reset), Up/Down (speed).
       Mouse click does NOT exit (v17: removed for consistency with the
       only-q-quits policy — this applies to BOTH modes). Mouse events are
       still captured to block text selection and trigger the always-on
@@ -557,7 +557,7 @@ RUNTIME CONTROLS:
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed
-  Space         Reset animation
+  r            Reset animation
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
                 sped / dsty / scn / chr / clr / up / screensize / cid)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,

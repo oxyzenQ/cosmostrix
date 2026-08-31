@@ -582,7 +582,7 @@ impl Cloud {
 
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
-            // v52: Space restart replays immediately (no intro lead at
+            // v52: r restart replays immediately (no intro lead at
             // runtime). v51 engrave/scorch: re-arm spark/smoke detector.
             self.message_start_time = Some(Instant::now());
             self.engrave.reset();

@@ -220,7 +220,7 @@ Consistent with the "only q quits" policy:
 | `c`/`C`, `s`/`S`, `p`, `x`        | Interactive control  | Interactive control |
 | `[` / `]`                             | Density down / up    | Density down / up   |
 | `Up` / `Down`                         | Speed up / down      | Speed up / down     |
-| `Space`                               | Reset animation      | Reset animation     |
+| `r`                                   | Reset animation      | Reset animation     |
 | `i`                       | HUD toggle           | HUD toggle          |
 | `a`, `m`, `g`, `B`/`b`, `z`, Tab, F1-F12, Home/End, PageUp/Down, Esc, Ctrl+C, Ctrl+Z | Silently ignored | Silently ignored |
 | Mouse click                           | Click wave effect (always on, no flag) | Click wave effect (does NOT exit) |

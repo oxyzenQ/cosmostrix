@@ -17,7 +17,7 @@
 //! The renderer unwraps to `mc.val` when `None`, so existing styles
 //! are bit-identical to before. These tests mirror the engrave
 //! acceptance ritual: pacing budget, settle window, glyph
-//! substitution presence/absence, Space-restart re-arm, and the
+//! substitution presence/absence, r-restart re-arm, and the
 //! `--no-effects` no-op (glitch has no particle sidecar).
 
 use std::time::Instant;
@@ -178,7 +178,7 @@ fn glitch_no_effects_does_not_suppress_reveal_math() {
 
 #[test]
 fn glitch_reveal_rearms_after_typewriter_restart() {
-    // Space-restart (restart_message_typewriter) rewinds the
+    // r-restart (restart_message_typewriter) rewinds the
     // timeline; the glitch reveal must re-arm so the fresh reveal
     // shows the wrong-glyph settle window again, then settles
     // back to the correct glyphs at large elapsed. The scan

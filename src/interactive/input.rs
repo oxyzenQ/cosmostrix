@@ -293,10 +293,10 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // Owner requirement: only bare lowercase key, not Shift-produced
         // uppercase. E.g. 'q' quits, 'Q' does nothing.
         (KeyCode::Char('q'), KeyModifiers::NONE) => cloud.raining = false,
-        (KeyCode::Char(' '), KeyModifiers::NONE) => {
+        (KeyCode::Char('r'), KeyModifiers::NONE) => {
             cloud.reset(frame.width, frame.height);
             cloud.force_draw_everything();
-            // Restart message typewriter so Space gives a full cinematic
+            // Restart message typewriter so 'r' gives a full cinematic
             // replay — rain reseed + message types out from scratch.
             cloud.restart_message_typewriter();
         }

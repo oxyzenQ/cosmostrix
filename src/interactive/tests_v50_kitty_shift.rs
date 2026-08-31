@@ -269,7 +269,7 @@ mod cases_kitty_shift {
     fn kitty_shift_non_cycle_keys_are_no_ops() {
         // CSI-u base+SHIFT forms of non-cycle keys must stay no-ops,
         // matching the owner policy: only bare lowercase q/c/s/x/i/p,
-        // '[', ']', arrows, and Space respond; Shift variants are
+        // '[', ']', arrows, and 'r' respond; Shift variants are
         // rejected. ('i' is handled in the event loop HUD branch, not
         // in handle_keybinding — no-op here by design.)
         let mut cloud = make_test_cloud();
@@ -287,8 +287,8 @@ mod cases_kitty_shift {
         call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(']', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert_eq!(cloud.droplet_density, density0, "kitty Shift+] no-op");
         cloud.force_draw_everything(); let fd0 = cloud.is_force_draw_everything();
-        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod(' ', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
-        assert_eq!(cloud.is_force_draw_everything(), fd0, "kitty Shift+Space no-op");
+        call_handle_keybinding(&mut cloud, &mut frame, &key_with_mod('r', KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
+        assert_eq!(cloud.is_force_draw_everything(), fd0, "kitty Shift+r no-op");
         let speed0 = cloud.chars_per_sec;
         call_handle_keybinding(&mut cloud, &mut frame, &arrow_with_mod(KeyCode::Up, KeyModifiers::SHIFT), &mut cp, &cfg, &tri);
         assert_eq!(cloud.chars_per_sec, speed0, "kitty Shift+Up no-op");

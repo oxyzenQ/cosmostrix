@@ -18,7 +18,7 @@
 //! lifetime) rendered inside `draw_message` at the END (same
 //! pattern as engrave sparks). These tests mirror the engrave
 //! acceptance ritual: pacing, tint presence/absence, smoke
-//! presence/absence, `--no-effects` gating, Space-restart re-arm.
+//! presence/absence, `--no-effects` gating, r-restart re-arm.
 
 use std::time::{Duration, Instant};
 
@@ -269,7 +269,7 @@ fn scorch_smoke_expires_and_stops_when_reveal_completes() {
 
 #[test]
 fn scorch_reveal_rearms_fresh_puffs_after_typewriter_restart() {
-    // Space-restart (restart_message_typewriter) rewinds the
+    // r-restart (restart_message_typewriter) rewinds the
     // timeline; the movement detector must re-arm so the fresh
     // reveal's first char fires its puff again.
     let mut cloud = make_cloud_colored(MsgFillStyle::Scorch);

@@ -18,7 +18,7 @@
 //! above), so the existing slide deferred-second-pass mechanism
 //! handles the rendering. These tests mirror the engrave acceptance
 //! ritual: pacing, drop presence/absence, column-paced reveal,
-//! Space-restart re-arm.
+//! r-restart re-arm.
 
 use std::time::{Duration, Instant};
 
@@ -167,7 +167,7 @@ fn cascade_column_paced_reveal_not_per_char() {
 
 #[test]
 fn cascade_reveal_rearms_fresh_drop_after_typewriter_restart() {
-    // Space-restart (restart_message_typewriter) rewinds the timeline;
+    // r-restart (restart_message_typewriter) rewinds the timeline;
     // the drop animation must re-arm. At 10 s all settled; after
     // restart at small elapsed, mid-drop glyphs reappear above.
     let mut cloud = make_cloud_colored(MsgFillStyle::Cascade);
