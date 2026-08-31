@@ -442,7 +442,10 @@ fn collect_custom_scenes_parses_v30_3_fields() {
             "scene-custom.test.charset-custom".to_string(),
             "zen".to_string(),
         ),
-        ("scene-custom.test.shading-mode".to_string(), "1".to_string()),
+        (
+            "scene-custom.test.shading-mode".to_string(),
+            "1".to_string(),
+        ),
         (
             "scene-custom.test.async-mode".to_string(),
             "true".to_string(),

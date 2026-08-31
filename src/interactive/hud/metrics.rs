@@ -329,7 +329,10 @@ impl HudState {
         };
         let dcel_count = avg_dirty.round() as u64;
         let dcel_count_str = crate::humanize::humanize(dcel_count);
-        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_count_str}/{dcel_pct:.1}%"));
+        self.cached_lines[19] = (
+            colors[19],
+            format!(" dcel: {dcel_count_str}/{dcel_pct:.1}%"),
+        );
         // tcel: total cells in the screen (width × height). Driven by
         // terminal size — stable between resizes. Rendered with the
         // same humanize helper as fps for compactness (e.g. 2.8K).
