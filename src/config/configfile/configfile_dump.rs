@@ -34,14 +34,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 # charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "black"                   # or "default-background" (default: black)
 # intro = "logo"                        # logo | cosmic | none (default: logo)
-# intro-color = "energy-zen"            # intro color override (default: same as rain color)
+# intro-color = "energy-zen"            # intro color override (default: brand EnergyZen — NOT the rain color)
 
 # Overlay Message
 # Two keys mirror the CLI flags (-m and -mb). If both are present,
 # `message-border` wins (border=true). When neither CLI nor config
 # provides a message, interactive mode defaults to a bordered overlay
-# showing "cosmostrix v<CARGO_PKG_VERSION>" (dynamic, never hardcoded).
-# Benchmark mode never shows a message overlay.
+# showing "Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>"
+# (dynamic via env!, never hardcoded — see default_message_text in
+# src/types/constants.rs). Benchmark mode never shows a message overlay.
 # Max text length: 200 characters (MESSAGE_MAX_LEN in src/types/constants.rs).
 # msg-mode master switch (default: true): when false, disables BOTH the
 # default message AND any config message/message-border. CLI -m / -mb

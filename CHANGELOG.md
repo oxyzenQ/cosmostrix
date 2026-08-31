@@ -9,6 +9,15 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### config: fix stale intro-color + default-message comments in template (Z-master-1X round 6)
+
+- **Audit**: deep audit of `--dump-config` template (configfile_dump.rs) to verify every commented default value matches the source-of-truth. Traced 19 config keys to their actual defaults (Args clap defaults, scene/mod.rs SceneConfig, build_cloud_cfg unwrap_or, ColorTune::IDENTITY, AUTO_SNAPBACK_DELAY_SECS).
+- **Stale comment 1**: `intro-color` comment said "default: same as rain color" but the actual default (when intro-color is unset) is the brand EnergyZen scheme (INTRO_BRAND_SCHEME = ColorScheme::EnergyZen, event_loop_intro.rs:46) — NOT the rain color. The intro always uses the brand palette, never the rain palette. Fixed to "default: brand EnergyZen — NOT the rain color".
+- **Stale comment 2**: default message comment said `"cosmostrix v<CARGO_PKG_VERSION>"` but the actual default message (default_message_text in types/constants.rs:503) is `"Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>"`. Fixed to the exact string + added source file reference.
+- **All other defaults verified correct**: scene=cinematic, color=energy-zen, charset=zen, color-bg=black, intro=logo, fps=60, speed=9, density=0.75, async-mode=true, monolith-size=normal, glitch-level=subtle, power-dragon=true, crystal-dragon=false, ambient-snapback-secs=30, bold=1, shadingmode=1, msg-mode=true, msg-fill-style=typewriter, [color.tune] brightness/saturation/head/body/tail=1.0. All match source-of-truth.
+- **Files changed**: `src/config/configfile/configfile_dump.rs` (2 comment fixes).
+- **Tests**: testconf 57/57, dump_config 7/7 pass. clippy clean, fmt clean, gatekeepers 8/8.
+
 ### msg-fill-style: re-audit verdict — still at peak (Z-master-1X round 5)
 
 - **Re-audit scope**: `src/msg_fill_style/` — 11 files, 3317 LOC (mod.rs + 10 style modules). Verified no changes since the round 1 audit (only the directory move from `src/cosmic_dragon_engine/` to `src/engine/cosmic_dragon_engine/` at commit afb835a).
