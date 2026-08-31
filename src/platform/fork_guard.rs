@@ -146,7 +146,12 @@ pub fn spawn_kill9_terminal_guard() {
         termios.assume_init()
     };
 
-    std::thread::Builder::new()
+    // S4 (stability harden): if thread spawn fails (extreme resource
+    // exhaustion / RLIMIT_NPROC), silently skip the guard instead of
+    // panicking. The panic hook + watchdog still cover graceful shutdown;
+    // this guard only adds SIGKILL/crash recovery. A missing guard is
+    // strictly better than a crash at startup.
+    if std::thread::Builder::new()
         .name("cx-term-guard".to_string())
         .spawn(move || {
             loop {
@@ -161,7 +166,14 @@ pub fn spawn_kill9_terminal_guard() {
                 }
             }
         })
-        .expect("failed to spawn terminal guard thread");
+        .is_err()
+    {
+        // Spawn failed — log to stderr (best-effort, never panic here).
+        let _ = std::io::Write::write_fmt(
+            &mut std::io::stderr(),
+            format_args!("cosmostrix: warning — terminal guard thread spawn failed; SIGKILL recovery disabled\n"),
+        );
+    }
 }
 
 // ── Windows: no-op (ConPTY auto-restores) ──────────────────────────────
