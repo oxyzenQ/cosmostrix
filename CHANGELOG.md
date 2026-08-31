@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### HUD: humanize large numbers in dcel + fps for consistency (Z-master-1X round 7)
+
+- **Bug**: `dcel` count showed raw numbers (e.g. `dcel: 1200/12%`) instead of humanized format. Owner mandate: use `k` suffix for >=1000 (e.g. `dcel: 1.2K/12%`), raw for <1000. Also audit ALL HUD metrics for large-number formatting consistency.
+- **Fix 1 (dcel count)**: changed from raw `{dcel_count}` to `humanize(dcel_count)`. Now 120 → "120", 1200 → "1.2K", 12000 → "12K". Matches the existing `tcel` format (which already uses `humanize`).
+- **Fix 2 (fps threshold)**: lowered the `humanize_f64` threshold from 10K to 1K. Previously fps between 1000-9999 showed raw "1234"; now shows "1.2K". This makes fps consistent with dcel/tcel — all count-like metrics use the same humanization rules.
+- **Audit of all 24 metrics**: verified which metrics can exceed 1000 and need humanization:
+  - `fps` (row 0): CAN exceed 1000 (high-refresh terminals, benchmark mode). Fixed — now humanizes at >=1000.
+  - `dcel` count (row 19): CAN exceed 1000 (large terminals). Fixed — now humanizes.
+  - `tcel` (row 20): CAN exceed 1000 (large terminals). Already humanized. ✓
+  - `max`/`p99` (rows 2-3): ms values, typically <10ms. No change needed.
+  - `cpu` (row 4): percentage 0-100%. No change needed.
+  - `rss` (row 5): already uses MiB/KiB format. ✓
+  - `ehs` (row 6): 0-100 integer. No change needed.
+  - `prs` (row 7): 0.00-1.00. No change needed.
+  - `sped`/`dsty` (rows 11-12): typically 1-100. No change needed.
+  - All string/enum metrics (scn/chr/clr/prdr/crdr/ambt/glth/ctun/mnst/cid/up/screensize): no numeric formatting. ✓
+- **Format consistency**: all count-like HUD metrics now use the shared `humanize()` / `humanize_f64()` helpers from `src/diagnostics/humanize.rs`. Rules: <1000 = bare number, 1000-9999 = "X.XK" (1 decimal), 10000-999999 = "XXK" (no decimal), >=1M = "X.XXM". Uppercase "K" matches the existing benchmark + tcel convention.
+- **Files changed**: `src/interactive/hud/metrics.rs` (dcel humanize + fps threshold), `docs/HUD.md` (mockup updated).
+- **Tests**: 63 HUD tests pass. clippy clean, fmt clean, gatekeepers 9/9.
+
 ### CLI/config depth stresstest — no bugs found + stresstest script added (Z-master-1T)
 
 - **Stresstest scope**: depth stresstest of CLI + config/live-reload for potential bugs. 47 cases covering: CLI value boundaries (fps 0/1/240/999999, speed 0/1/100, density 0/0.01/5.0/-1), flag conflicts (scene+color, scene+scene-custom, msg-mode+CLI, power+crystal), enum values (glitch-level case sensitivity, intro types, color-bg, monolith-size, msg-fill-style), typo suggestions (colr→color, scne→scene, non-numeric fps/speed), config edge cases (empty, unknown key, bad type, out-of-range, dual message keys, malformed TOML), dump-config/testconf validation, and rapid config reloads.

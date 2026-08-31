@@ -139,7 +139,7 @@ impl HudState {
         //
         // Color assignment uses the rain-aesthetic gradient (dim at top →
         // head at bottom). See `refresh_colors` docs for the rationale.
-        let fps_str = if fps >= 10_000.0 {
+        let fps_str = if fps >= 1_000.0 {
             crate::humanize::humanize_f64(fps)
         } else if fps >= 100.0 {
             format!("{fps:.0}")
@@ -314,13 +314,12 @@ impl HudState {
         self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
         // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
-        // dcel: dirty cell count + ratio %. Format: " dcel: 120/10.2%"
-        // where 120 = rolling average dirty cell count (integer) and
-        // 10.2% = ratio of dirty / total. Owner mandate (Z-master-1X
-        // round 6): combine count + percentage so the user sees BOTH
-        // the absolute number (how many cells changed) AND the ratio
-        // (efficiency at a glance). Lower ratio = more cells skip
-        // re-send (frame buffer dirty-tracking is working).
+        // dcel: dirty cell count + ratio %. Format: " dcel: 1.2K/10.2%"
+        // where the count is humanized (1.2K for 1200, raw for <1000) and
+        // the percentage is the dirty/total ratio. Owner mandate: combine
+        // count + percentage so the user sees BOTH the absolute number
+        // AND the ratio. Count uses the same humanize() helper as tcel
+        // for consistency (e.g. 120 → "120", 1200 → "1.2K", 12000 → "12K").
         let avg_dirty = self.dirty_cell_tracker.rolling_avg_dirty();
         let latest_total = self.dirty_cell_tracker.latest_total();
         let dcel_pct = if latest_total > 0 {
@@ -329,7 +328,8 @@ impl HudState {
             0.0
         };
         let dcel_count = avg_dirty.round() as u64;
-        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_count}/{dcel_pct:.1}%"));
+        let dcel_count_str = crate::humanize::humanize(dcel_count);
+        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_count_str}/{dcel_pct:.1}%"));
         // tcel: total cells in the screen (width × height). Driven by
         // terminal size — stable between resizes. Rendered with the
         // same humanize helper as fps for compactness (e.g. 2.8K).
