@@ -149,7 +149,7 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
     let cv_clone = Arc::clone(&cv);
     let gen_clone = Arc::clone(&generation);
 
-    thread::Builder::new()
+    if thread::Builder::new()
         .name("ambient-scheduler".to_string())
         .spawn(move || {
             // S4 (internal independent QA): wrap the scheduler loop in
@@ -172,7 +172,20 @@ pub fn spawn_ambient_scheduler(initial: AmbientSchedule) -> AmbientSchedulerHand
                 );
             }
         })
-        .expect("spawn ambient scheduler thread");
+        .is_err()
+    {
+        // S6 (3-dragon harmony harden): if thread spawn fails (extreme
+        // resource exhaustion / RLIMIT_NPROC), silently disable ambient
+        // scheduling instead of panicking. The rx will return Err
+        // immediately on first poll (tx was never created), and the event
+        // loop detects the dead scheduler — ambient scenes simply won't
+        // fire, but the rain loop + chroma + cosmic dragons continue
+        // unaffected. A missing ambient scheduler is strictly better than
+        // a crash at startup (matches the S4 fork_guard pattern).
+        crate::live_config::push_runtime_warning(
+            "[ambient-scheduler] thread spawn failed — ambient scheduling disabled for this session",
+        );
+    }
 
     AmbientSchedulerHandle {
         rx,

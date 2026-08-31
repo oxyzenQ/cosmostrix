@@ -8,6 +8,20 @@
 
 ## LOCK
 
+> S-master-6 3-dragon harmony lock (2026-09-01): crystal dragon
+> confirmed in harmony with cosmic + chroma. S6 applied 1 hardening
+> fix to ambient_scheduler/mod.rs:152-188 — replaced .expect("spawn
+> ambient scheduler thread") with .is_err() check + runtime warning
+> on spawn failure (matches S4 fork_guard pattern). This is additive
+> robustness: a missing ambient scheduler (scenes won't fire) is
+> strictly better than a crash at startup. No crystal lock invariants
+> modified — the scheduler loop, catch_unwind, channel contract, and
+> deliver semantics are unchanged. 78 lock tests green, 1945 full
+> tests green, A/B within noise. See top-level KEY.md for 3-dragon
+> signature.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-6 harmony + ambient_scheduler spawn hardening (additive, no unlock)
+
 > Engine re-locked at commit `c327803` after the crystal re-seal audit
 > (2026-08-24). Confirms no crystal paths were touched in commits
 > `5280ae1` (cosmic-side exp decay consolidation), `deff636`

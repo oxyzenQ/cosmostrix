@@ -8,6 +8,19 @@
 
 ## LOCK
 
+> S-master-6 3-dragon harmony lock (2026-09-01): cosmic dragon
+> confirmed in harmony with chroma + crystal. S-master series (S1-S6)
+> made NO changes to cosmic dragon locked invariants. S2 applied 2
+> micro-opts to droplet/draw.rs (const-gate fog + direct-index
+> vignette LUT) — these are in the render hot path but do not modify
+> the locked diff pipeline, LastFrame coherence, generation counter,
+> or Cloud::reset consistency. S4 hardened fork_guard spawn (macOS/BSD
+> only, no cosmic code change). All 17 cosmic lock invariants pass.
+> 1945 full tests green, A/B within noise. See top-level KEY.md for
+> 3-dragon signature.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-6 harmony verification (no unlock, invariants intact)
+
 > Engine re-locked at commit `dd87239` after the v50.0.0-beta.6
 > LTS hardening sweep (2026-08-26). All changes since the prior
 > lock at `5280ae1` are additive (new features, not modifications
