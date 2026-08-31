@@ -9,6 +9,12 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### HUD: dcel format combines count + percentage (Z-master-1X round 6)
+
+- **Format change**: `dcel` metric now shows both the rolling average dirty cell count AND the ratio percentage. Old format: `dcel: 6.8%`. New format: `dcel: 120/6.8%` where 120 = rolling avg dirty cell count (integer) and 6.8% = dirty/total ratio. Owner mandate: combine count + percentage so the user sees BOTH the absolute number (how many cells changed) AND the ratio (efficiency at a glance).
+- **Files changed**: `src/interactive/hud/metrics.rs` (format string + comment), `docs/HUD.md` (layout mockup).
+- **Tests**: existing HUD tests pass (no assertion on dcel text format — the metric is dynamic). clippy clean, fmt clean, gatekeepers 9/9.
+
 ### config: fix stale intro-color + default-message comments in template (Z-master-1X round 6)
 
 - **Audit**: deep audit of `--dump-config` template (configfile_dump.rs) to verify every commented default value matches the source-of-truth. Traced 19 config keys to their actual defaults (Args clap defaults, scene/mod.rs SceneConfig, build_cloud_cfg unwrap_or, ColorTune::IDENTITY, AUTO_SNAPBACK_DELAY_SECS).

@@ -106,7 +106,7 @@ rows are visible at once; this mockup annotates each:
 │ glth: default ◄── 16. glitch level (none/subtle/default/intense)
 │ ctun: default ◄── 17. color tuning (default or custom factors)
 │ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
-│ dcel: 6.8%    ◄── 19. dirty cell ratio % (rolling avg — lower = more efficient)
+│ dcel: 120/6.8%  ◄── 19. dirty cells + ratio (rolling avg — lower ratio = more efficient)
 │ tcel: 2.8K    ◄── 20. total cells in screen (width × height)
 │ cid: 6ed244b  ◄── 21. build commit id (verify without quitting)
 │ up: 03:42     ◄── 22. session uptime (MM:SS under 1h)

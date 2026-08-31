@@ -312,12 +312,13 @@ impl HudState {
         self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
         // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
-        // dcel: dirty cell ratio %. Rolling average dirty count / latest
-        // total cells * 100. Owner insight from the CELL EFFICIENCY
-        // benchmark section: dirty_cell_ratio_percent is the key
-        // efficiency signal — lower = more cells skip re-send (the
-        // frame buffer's dirty-tracking is working). Rendered at 1
-        // decimal so small changes (6.8% → 6.9%) are visible.
+        // dcel: dirty cell count + ratio %. Format: " dcel: 120/10.2%"
+        // where 120 = rolling average dirty cell count (integer) and
+        // 10.2% = ratio of dirty / total. Owner mandate (Z-master-1X
+        // round 6): combine count + percentage so the user sees BOTH
+        // the absolute number (how many cells changed) AND the ratio
+        // (efficiency at a glance). Lower ratio = more cells skip
+        // re-send (frame buffer dirty-tracking is working).
         let avg_dirty = self.dirty_cell_tracker.rolling_avg_dirty();
         let latest_total = self.dirty_cell_tracker.latest_total();
         let dcel_pct = if latest_total > 0 {
@@ -325,7 +326,8 @@ impl HudState {
         } else {
             0.0
         };
-        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_pct:.1}%"));
+        let dcel_count = avg_dirty.round() as u64;
+        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_count}/{dcel_pct:.1}%"));
         // tcel: total cells in the screen (width × height). Driven by
         // terminal size — stable between resizes. Rendered with the
         // same humanize helper as fps for compactness (e.g. 2.8K).
