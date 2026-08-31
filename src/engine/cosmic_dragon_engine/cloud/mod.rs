@@ -321,6 +321,11 @@ pub struct Cloud {
     pub(crate) crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl,
     /// Last Crystal Dragon poll timestamp. None until first poll.
     pub(crate) crystal_dragon_last_poll: Option<std::time::Instant>,
+    /// Dragon Engine v2: calc-v2 recency history. Tracks recently
+    /// selected themes so calc-v2 can apply a recency penalty,
+    /// preventing A→B→A oscillation. Bounded ring buffer (8 entries).
+    pub(crate) crystal_dragon_drift_history:
+        crate::crystal_dragon_engine::point_system::DriftHistory,
     /// v30 Bug #4: true when --colors-custom active.
     pub(crate) custom_palette_active: bool,
     /// v30 Bug #5: color_tune on Cloud for set_color_scheme re-apply.
@@ -534,6 +539,8 @@ impl Cloud {
             ),
             crystal_dragon_control: crate::crystal_dragon_engine::CrystalDragonControl::default(),
             crystal_dragon_last_poll: None,
+            crystal_dragon_drift_history:
+                crate::crystal_dragon_engine::point_system::DriftHistory::new(),
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
@@ -766,6 +773,8 @@ impl Cloud {
         self.crystal_dragon_sensor = other.crystal_dragon_sensor;
         self.crystal_dragon_control = other.crystal_dragon_control;
         self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
+        // Dragon Engine v2: carry drift history across live-reload.
+        self.crystal_dragon_drift_history = other.crystal_dragon_drift_history;
         // drift_active + drift_start are NOT inherited — see doc comment above.
         // They default to false / None on the fresh Cloud (set in Cloud::new).
     }

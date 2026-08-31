@@ -116,7 +116,7 @@ impl Default for CrystalDragonControl {
             drift_chance: CRYSTAL_DRAGON_DRIFT_CHANCE,
             cpu_ema_alpha: CRYSTAL_DRAGON_CPU_EMA_ALPHA,
             sensor_mode: CrystalDragonSensorMode::Cpu,
-            calc_method: CrystalDragonCalcMethod::Calc,
+            calc_method: CrystalDragonCalcMethod::CalcV2,
         }
     }
 }

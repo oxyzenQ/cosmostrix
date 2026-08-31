@@ -1,53 +1,145 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Crystal Dragon point system: calc-v1 probabilistic weighted selection.
+//! Crystal Dragon calc-v2: pattern state machine with memory.
 //!
-//! Given the current point (1–99) from the sensor, this module selects
-//! a color theme from the appropriate temperature group using a
-//! probabilistic weighted algorithm.
+//! calc-v1 (the default) uses pure probabilistic weighted selection —
+//! each drift event is independent, with no memory of past selections.
+//! This produces organic, unpredictable transitions but can sometimes
+//! pick the same theme repeatedly (the skip-current retry mitigates
+//! this, but doesn't prevent A→B→A→B oscillation).
 //!
-//! ## calc-v1 algorithm
+//! calc-v2 adds a **recency penalty**: themes that were recently
+//! selected get a lower weight, so the engine naturally avoids
+//! repetition and oscillation. The result is more varied, cinematic
+//! drift — the rain feels like it's exploring the palette, not
+//! stuck on 2-3 themes.
 //!
-//! 1. Determine the temperature group from the current point.
-//! 2. Compute a weight for each theme in the group based on distance
-//!    from the current point (closer → higher weight).
-//! 3. Build a cumulative distribution function (CDF) from the weights.
-//! 4. Draw a uniform random value and binary-search the CDF.
-//! 5. Skip the current scheme if it was selected (try once more, then
-//!    accept — avoids infinite loops on single-theme groups).
+//! ## Algorithm
 //!
-//! This produces **organic, unpredictable** transitions: any theme in
-//! the group can be selected, but themes closer to the current system
-//! intensity are favored.
+//! 1. Same as calc-v1: determine group, compute distance-based weights.
+//! 2. **NEW**: multiply each weight by a recency factor based on how
+//!    many drifts ago the theme was last selected:
+//!    - Never selected → factor 1.0 (no penalty)
+//!    - Selected 1 drift ago → factor 0.3 (strong penalty, avoids A→B→A)
+//!    - Selected 2 drifts ago → factor 0.6 (medium penalty)
+//!    - Selected 3 drifts ago → factor 0.8 (light penalty)
+//!    - Selected 4+ drifts ago → factor 1.0 (no penalty, memory fades)
+//! 3. Build CDF from the adjusted weights, draw, skip current.
+//!
+//! The recency history is bounded (8 entries) — a ring buffer of the
+//! last 8 selected themes. This bounds memory (8 × 1 byte = 8 bytes)
+//! and ensures old selections eventually lose their penalty.
+//!
+//! ## Design preservation
+//!
+//! calc-v2 does NOT change the point system, temperature groups, or
+//! the distance-based weighting. It only adds a recency multiplier on
+//! top of the existing weights. The drift gate, polling interval, and
+//! drift chance are unchanged. The owner's design intent (low CPU =
+//! cooler, high CPU = hotter) is fully preserved — calc-v2 only
+//! affects WHICH theme within a group is selected, not WHICH group.
 
 use rand::distr::{Distribution, Uniform};
+use rand::rngs::StdRng;
 
 use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP;
 use crate::crystal_dragon_engine::palette_groups::{group_themes, theme_weight};
 use crate::crystal_dragon_engine::sensor::point_to_group;
 use crate::runtime::ColorScheme;
 
-/// Select a new color theme using calc-v1 (probabilistic weighted).
+/// Maximum number of recent selections tracked by calc-v2's recency
+/// ring buffer. 8 entries = 8 × 1 byte = 8 bytes memory. At 12% drift
+/// chance per 60s poll, 8 entries covers ~40 minutes of drift history
+/// (8 / 0.12 × 60s ≈ 4000s). Beyond that, the oldest entry is
+/// overwritten — memory fades naturally.
+const CALC_V2_HISTORY_SIZE: usize = 8;
+
+/// Recency penalty factors. Index = drifts ago (1 = most recent, 4+
+/// = no penalty). The factor multiplies the distance-based weight.
 ///
-/// `current_point` (1–99) determines the temperature group.
-/// `current_scheme` is skipped if selected (no-op drift prevention).
-/// `mt` is the RNG for probabilistic selection.
+/// - 1 drift ago: 0.3 (strong — prevents A→B→A oscillation)
+/// - 2 drifts ago: 0.6 (medium — prevents A→B→C→A cycling)
+/// - 3 drifts ago: 0.8 (light — allows re-selection after a pause)
+/// - 4+ drifts ago: 1.0 (no penalty — memory fades)
+const RECENCY_FACTORS: [f32; 4] = [0.3, 0.6, 0.8, 1.0];
+
+/// Recency history for calc-v2. A bounded ring buffer of the last
+/// `CALC_V2_HISTORY_SIZE` selected themes.
 ///
-/// Returns `Some(new_scheme)` if a different theme was selected,
-/// or `None` if the group has only one theme (impossible with 14
-/// per group, but defensive).
+/// Stored as a `Cloud` field so it survives across drift events.
+/// Carries across live-reload via `inherit_ecosystem_state` (same
+/// as the sensor state).
+#[derive(Clone, Copy)]
+pub(crate) struct DriftHistory {
+    /// Ring buffer of recently selected themes. `None` = slot never used.
+    entries: [Option<ColorScheme>; CALC_V2_HISTORY_SIZE],
+    /// Next write index (wraps around).
+    next: usize,
+    /// Number of entries written so far (caps at CALC_V2_HISTORY_SIZE).
+    count: usize,
+}
+
+impl DriftHistory {
+    pub(crate) const fn new() -> Self {
+        Self {
+            entries: [None; CALC_V2_HISTORY_SIZE],
+            next: 0,
+            count: 0,
+        }
+    }
+
+    /// Record a theme selection. Called after a drift fires.
+    pub(crate) fn record(&mut self, scheme: ColorScheme) {
+        self.entries[self.next] = Some(scheme);
+        self.next = (self.next + 1) % CALC_V2_HISTORY_SIZE;
+        if self.count < CALC_V2_HISTORY_SIZE {
+            self.count += 1;
+        }
+    }
+
+    /// Compute the recency factor for a theme. Returns a multiplier
+    /// (0.0–1.0) based on how recently the theme was selected.
+    ///
+    /// - Never selected → 1.0 (no penalty)
+    /// - Selected 1 drift ago → 0.3
+    /// - Selected 2 drifts ago → 0.6
+    /// - etc.
+    fn recency_factor(&self, scheme: ColorScheme) -> f32 {
+        // Search the ring buffer from most recent to oldest.
+        // The most recent entry is at (next - 1 + SIZE) % SIZE.
+        for drifts_ago in 1..=self.count.min(RECENCY_FACTORS.len()) {
+            let idx = (self.next + CALC_V2_HISTORY_SIZE - drifts_ago) % CALC_V2_HISTORY_SIZE;
+            if self.entries[idx] == Some(scheme) {
+                return RECENCY_FACTORS[drifts_ago - 1];
+            }
+        }
+        // Not found in history (or history empty) → no penalty.
+        1.0
+    }
+
+    /// Reset the history (e.g. on scene change or live-reload).
+    #[allow(dead_code)]
+    pub(crate) fn reset(&mut self) {
+        self.entries = [None; CALC_V2_HISTORY_SIZE];
+        self.next = 0;
+        self.count = 0;
+    }
+}
+
+/// Select a new color theme using calc-v2 (pattern state machine with memory).
 ///
-/// Z-master-1X round 9 masterclass: uses stack-allocated fixed-size
-/// arrays (`[f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP]`) instead of
-/// `Vec<f32>` for the weights + CDF. This eliminates 2 heap allocations
-/// per drift event (every ~5 min) with zero design change — same
-/// algorithm, same output, just stack instead of heap. The cap (16)
-/// comfortably covers the 14 themes per group + 2 reserved.
-pub(crate) fn calc_v1_select(
+/// Same as calc-v1 but applies a recency penalty: themes recently
+/// selected get lower weight, preventing A→B→A oscillation and
+/// producing more varied, cinematic drift.
+///
+/// `history` tracks recent selections and is updated by the caller
+/// after a successful drift.
+pub(crate) fn calc_v2_select(
     current_point: u8,
     current_scheme: ColorScheme,
-    mt: &mut rand::rngs::StdRng,
+    history: &DriftHistory,
+    mt: &mut StdRng,
 ) -> Option<ColorScheme> {
     let group = point_to_group(current_point);
     let themes = group_themes(group);
@@ -55,19 +147,19 @@ pub(crate) fn calc_v1_select(
         return None;
     }
 
-    // Z-master-1X round 9: stack-allocated weights + CDF. Groups have
-    // exactly 14 themes; 16 slots covers that + the 2 reserved themes
-    // defensively. No heap allocation on the drift path.
     let n = themes.len();
     let mut weights = [0.0f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP];
     for (i, slot) in weights.iter_mut().enumerate().take(n) {
-        *slot = theme_weight(current_point, i, n);
+        // Base weight from distance (same as calc-v1).
+        let base = theme_weight(current_point, i, n);
+        // Recency penalty: themes recently selected get lower weight.
+        let recency = history.recency_factor(themes[i]);
+        *slot = base * recency;
     }
 
-    // Build CDF (cumulative distribution function) in-place on the stack.
+    // Build CDF from adjusted weights.
     let total_weight: f32 = weights[..n].iter().sum();
     if total_weight <= 0.0 {
-        // Degenerate: all weights zero. Fall back to uniform.
         return uniform_select(themes, current_scheme, mt);
     }
 
@@ -77,34 +169,30 @@ pub(crate) fn calc_v1_select(
         cumulative += w / total_weight;
         cdf[i] = cumulative;
     }
-    // Ensure last entry is exactly 1.0 (floating-point safety).
     if n > 0 {
         cdf[n - 1] = 1.0;
     }
 
-    // Draw from CDF.
     let selected = cdf_select(&cdf[..n], themes, mt);
 
-    // Skip current scheme if selected.
     if selected == current_scheme {
-        // Try once more (different random draw).
         let retry = cdf_select(&cdf[..n], themes, mt);
         if retry != current_scheme {
             return Some(retry);
         }
-        // Two consecutive hits on current scheme — unlikely with 14
-        // themes per group. Accept a no-op (return None).
         return None;
     }
 
     Some(selected)
 }
 
+// ── Shared helpers (used by both calc-v1 and calc-v2) ────────────────────
+
 /// Uniform fallback: select a random theme, skipping current.
-fn uniform_select(
+pub(crate) fn uniform_select(
     themes: &[ColorScheme],
     current_scheme: ColorScheme,
-    mt: &mut rand::rngs::StdRng,
+    mt: &mut StdRng,
 ) -> Option<ColorScheme> {
     if themes.len() <= 1 {
         return None;
@@ -122,12 +210,63 @@ fn uniform_select(
 }
 
 /// Draw a theme from the CDF via binary search.
-fn cdf_select(cdf: &[f32], themes: &[ColorScheme], mt: &mut rand::rngs::StdRng) -> ColorScheme {
+pub(crate) fn cdf_select(cdf: &[f32], themes: &[ColorScheme], mt: &mut StdRng) -> ColorScheme {
     let u_dist = Uniform::new(0.0f32, 1.0f32).expect("uniform f32 always valid");
     let u = u_dist.sample(mt);
-    // Binary search for the first CDF entry >= u.
     let idx = cdf.partition_point(|&c| c < u);
     themes[idx.min(themes.len() - 1)]
+}
+
+// ── calc-v1 (preserved — the default, no memory) ────────────────────────
+
+/// Select a new color theme using calc-v1 (probabilistic weighted, no memory).
+///
+/// This is the default calculation method. calc-v2 (with recency memory)
+/// is available via `calc_v2_select` when `CrystalDragonCalcMethod::CalcV2`
+/// is active.
+pub(crate) fn calc_v1_select(
+    current_point: u8,
+    current_scheme: ColorScheme,
+    mt: &mut StdRng,
+) -> Option<ColorScheme> {
+    let group = point_to_group(current_point);
+    let themes = group_themes(group);
+    if themes.is_empty() {
+        return None;
+    }
+
+    let n = themes.len();
+    let mut weights = [0.0f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP];
+    for (i, slot) in weights.iter_mut().enumerate().take(n) {
+        *slot = theme_weight(current_point, i, n);
+    }
+
+    let total_weight: f32 = weights[..n].iter().sum();
+    if total_weight <= 0.0 {
+        return uniform_select(themes, current_scheme, mt);
+    }
+
+    let mut cdf = [0.0f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP];
+    let mut cumulative = 0.0f32;
+    for (i, &w) in weights[..n].iter().enumerate() {
+        cumulative += w / total_weight;
+        cdf[i] = cumulative;
+    }
+    if n > 0 {
+        cdf[n - 1] = 1.0;
+    }
+
+    let selected = cdf_select(&cdf[..n], themes, mt);
+
+    if selected == current_scheme {
+        let retry = cdf_select(&cdf[..n], themes, mt);
+        if retry != current_scheme {
+            return Some(retry);
+        }
+        return None;
+    }
+
+    Some(selected)
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────

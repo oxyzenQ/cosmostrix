@@ -15,7 +15,7 @@ fn default_uses_owner_chosen_values() {
     assert!((cfg.drift_chance - 0.12).abs() < f32::EPSILON);
     assert!((cfg.cpu_ema_alpha - 0.25).abs() < f32::EPSILON);
     assert_eq!(cfg.sensor_mode, CrystalDragonSensorMode::Cpu);
-    assert_eq!(cfg.calc_method, CrystalDragonCalcMethod::Calc);
+    assert_eq!(cfg.calc_method, CrystalDragonCalcMethod::CalcV2);
 }
 
 #[test]

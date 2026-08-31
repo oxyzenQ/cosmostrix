@@ -320,7 +320,7 @@ impl Cloud {
     /// which triggers the 300 ms OKLab wave transition via Chroma Dragon.
     pub(crate) fn crystal_dragon_tick(&mut self, now: std::time::Instant) -> Option<ColorScheme> {
         use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_DRIFT_CHANCE;
-        use crate::crystal_dragon_engine::point_system::calc_v1_select;
+        use crate::crystal_dragon_engine::point_system::{calc_v1_select, calc_v2_select};
 
         // Check if the polling interval has elapsed.
         let elapsed_since_poll = match self.crystal_dragon_last_poll {
@@ -353,11 +353,29 @@ impl Cloud {
             return None;
         }
 
-        // calc-v1: probabilistic weighted theme selection.
         let current_point = self.crystal_dragon_sensor.current_point();
-        let new_scheme = calc_v1_select(current_point, self.color_scheme, &mut self.mt);
 
-        if new_scheme.is_some() {
+        // Dragon Engine v2: calc-v2 (pattern state machine with recency memory)
+        // is the default. It applies a recency penalty to recently-selected
+        // themes, preventing A→B→A oscillation and producing more varied
+        // drift. Falls back to calc-v1 if the control config selects it.
+        let new_scheme = match self.crystal_dragon_control.calc_method {
+            crate::crystal_dragon_engine::crystal_dragon_control::CrystalDragonCalcMethod::Calc => {
+                calc_v1_select(current_point, self.color_scheme, &mut self.mt)
+            }
+            crate::crystal_dragon_engine::crystal_dragon_control::CrystalDragonCalcMethod::CalcV2 => {
+                calc_v2_select(
+                    current_point,
+                    self.color_scheme,
+                    &self.crystal_dragon_drift_history,
+                    &mut self.mt,
+                )
+            }
+        };
+
+        // Record the selection in drift history (for calc-v2 recency).
+        if let Some(scheme) = new_scheme {
+            self.crystal_dragon_drift_history.record(scheme);
             self.crystal_dragon_sensor.record_theme_transition(now);
         }
 
