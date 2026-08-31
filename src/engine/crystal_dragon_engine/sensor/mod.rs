@@ -9,14 +9,36 @@
 //! ## CPU mode (primary)
 //!
 //! Samples process CPU% via `cpustat::current_cpu_ns()`, smooths with
-//! an EMA, and maps linearly to 1–99:
+//! an EMA, and maps to 1–99 using a **sqrt curve**:
 //!
 //! ```text
-//! point = clamp(1, 99, round(cpu_ema * 0.99))
+//! point = clamp(1, 99, round(sqrt(cpu_ema) * 9.9))
 //! ```
 //!
-//! Low CPU → low point → Cold group (Snow, Moon, Aurora, …).
-//! High CPU → high point → Hot group (Sun, Fire, Red, …).
+//! The sqrt curve spreads the distribution across all 3 temperature
+//! groups at realistic CPU usage levels. cosmostrix is a highly
+//! optimized single-threaded renderer — typical interactive CPU usage
+//! is 0.5–8%. With the old linear mapping (`cpu * 0.99`), this
+//! produced points 1–8 (always Cold group → blues/cyans/whites only).
+//! The sqrt mapping produces:
+//!
+//! | CPU% | Linear point | Sqrt point | Group |
+//! |------|-------------|------------|-------|
+//! | 0.5  | 1           | 7          | Cold  |
+//! | 1    | 1           | 10         | Cold  |
+//! | 2    | 2           | 14         | Cold  |
+//! | 5    | 5           | 22         | Cold  |
+//! | 8    | 8           | 28         | Cold  |
+//! | 12   | 12          | 34         | Medium|
+//! | 20   | 20          | 44         | Medium|
+//! | 34   | 34          | 58         | Medium|
+//! | 50   | 50          | 70         | Hot   |
+//! | 67   | 66          | 81         | Hot   |
+//! | 100  | 98          | 99         | Hot   |
+//!
+//! Now Medium group (greens/purples) is reachable at ~12% CPU, and Hot
+//! group (yellows/reds/fire) at ~50% CPU — matching the owner's design
+//! intent of full color variety across the day.
 //!
 //! ## CLOCK mode (fallback)
 //!
@@ -179,8 +201,12 @@ impl CrystalDragonSensor {
         let cpu = self.sample_cpu_percent(now);
         match cpu {
             Some(pct) => {
-                // Linear map: 0% → 1, 100% → 99
-                let raw = (pct * 0.99).clamp(0.0, 98.01);
+                // Sqrt curve: spreads low CPU values across a wider point
+                // range so all 3 temperature groups are reachable.
+                // Linear (cpu*0.99) bottlenecked cosmostrix's typical
+                // 0.5-8% CPU into points 1-8 (always Cold group).
+                // Sqrt maps: 1%→10, 4%→20, 9%→30, 16%→40, 25%→50, 100%→99.
+                let raw = (pct.sqrt() * 9.9).clamp(1.0, 99.0);
                 (raw.round() as u8).clamp(POINT_MIN, POINT_MAX)
             }
             None => self.poll_clock(), // Fallback if sample failed mid-run

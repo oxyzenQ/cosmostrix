@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### crystal-dragon: fix CPU→point mapping — sqrt curve for full color variety (Z-master-1X round 8)
+
+- **Bug**: owner observed that Crystal Dragon drift almost never produces purple (Medium group) or fire (Hot group) colors — mostly white/cyan (Cold group). The owner designed 3 temperature groups (Cold/Medium/Hot) expecting full variety, but the distribution was bottlenecked.
+- **Root cause**: the CPU→point mapping was linear (`point = cpu * 0.99`). cosmostrix is a highly optimized single-threaded renderer with typical interactive CPU usage of 0.5–8%. The linear mapping produced points 1–8 (always Cold group → blues/cyans/whites only). Medium group (greens/purples, needs point 34–66 = 34%+ CPU) and Hot group (yellows/reds/fire, needs point 67–99 = 67%+ CPU) were essentially unreachable in normal use.
+- **Fix**: changed the mapping from linear to sqrt (`point = sqrt(cpu) * 9.9`). The sqrt curve spreads low CPU values across a wider point range:
+  - 0.5% CPU → point 7 (Cold, but spread across full group range — more theme variety)
+  - 2% CPU → point 14 (Cold)
+  - 12% CPU → point 34 (Medium — greens/purples now reachable!)
+  - 50% CPU → point 70 (Hot — yellows/reds/fire now reachable!)
+  - 100% CPU → point 99 (Hot, max)
+- **Design preservation**: the sqrt mapping is monotonic (higher CPU = higher point = hotter group), preserving the owner's design intent (low CPU = cooler colors, high CPU = hotter colors). The change only affects the distribution spread, not the direction.
+- **Files changed**: `src/engine/crystal_dragon_engine/sensor/mod.rs` (poll_cpu sqrt mapping + doc comment), `src/engine/crystal_dragon_engine/sensor/tests.rs` (2 new regression tests: sqrt reaches all groups + monotonic), `src/engine/crystal_dragon_engine/mod.rs` (doc comment), `docs/CRYSTAL_DRAGON_ENGINE.md` (§4.1 updated).
+- **Tests**: 1945 unit tests pass (2 new z_master_1x_round8 tests). clippy clean, fmt clean, gatekeepers 9/9.
+- **A/B benchmark** (10s each):
+  - avg_fps: 92613 → 92592 (within noise)
+  - dirty_cell_ratio: 2.96% → 2.96% (identical)
+  - total_ns_per_cell: 190.14 → 190.17 (within noise)
+  - alloc_calls: 563 → 563 (identical)
+  - Conclusion: zero performance regression — the sqrt call is negligible (1 instruction).
+
 ### Killer features depth stresstest — no bugs found + stresstest script (Z-master-1T)
 
 - **Stresstest scope**: depth stresstest of the 3 killer custom features — colors-custom, charset-custom, scene-custom. 27 cases covering: valid/invalid hex, empty/single/max stops, unquoted hex, nonexistent names, duplicate names, empty/wide/max charset, missing/unknown base-scene, empty scene block, color+colors-custom conflict, charset+charset-custom conflict, cross-feature interaction, CLI override.

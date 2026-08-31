@@ -99,14 +99,22 @@ classifies into one of three temperature groups:
 
 Samples process CPU% via `crate::cpustat::current_cpu_ns()` (procfs
 on Linux, sysinfo-equivalent on others), smooths with an EMA, then maps
-linearly:
+via a **sqrt curve**:
 
 ```
-point = clamp(1, 99, round(cpu_ema_percent * 0.99))
+point = clamp(1, 99, round(sqrt(cpu_ema_percent) * 9.9))
 ```
 
-- `0 % CPU  -> point 1  -> Cold group`
-- `50 % CPU -> point 50 -> Medium group`
+The sqrt curve spreads cosmostrix's typical low CPU usage (0.5–8%)
+across the full Cold group range (points 7–28), and makes Medium
+(greens/purples) reachable at ~12% CPU, Hot (yellows/reds/fire) at
+~50% CPU. The old linear mapping (`cpu * 0.99`) bottlenecked
+everything into points 1–8 (always Cold → blues/cyans/whites only).
+
+- `0.5 % CPU -> point 7  -> Cold group`
+- `2 % CPU  -> point 14 -> Cold group`
+- `12 % CPU -> point 34 -> Medium group`
+- `50 % CPU -> point 70 -> Hot group`
 - `100 % CPU -> point 99 -> Hot group`
 
 ### 4.2 CLOCK fallback

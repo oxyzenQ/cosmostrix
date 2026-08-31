@@ -48,10 +48,13 @@
 //! Points 67–99 → Hot group   (warm, fiery, energetic)
 //! ```
 //!
-//! CPU usage maps linearly to the 1–99 point range:
+//! CPU usage maps via a sqrt curve to the 1–99 point range:
 //! ```text
-//! point = clamp(1, 99, round(cpu_percent * 0.99))
+//! point = clamp(1, 99, round(sqrt(cpu_percent) * 9.9))
 //! ```
+//! This spreads cosmostrix's typical low CPU (0.5–8%) across the full
+//! Cold group range, and makes Medium (greens/purples) reachable at
+//! ~12% CPU, Hot (yellows/reds/fire) at ~50% CPU.
 //!
 //! When CPU is unavailable (CLOCK fallback), the point is derived from
 //! UTC hour + minute so the terminal still drifts through the day:
