@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Tests for the CLI "Did you mean?" suggestion engine.
+//! Tests for the CLI "tip: a similar argument exists" suggestion engine.
 //!
 //! v50.0.0-beta.7: the custom Levenshtein-based suggestion engine
 //! (KNOWN_LONG_FLAGS + cli_edit_distance + suggest_cli_flag) was removed
@@ -54,7 +54,7 @@ fn extracts_suggestion_with_dashes_in_name() {
 #[test]
 fn extracts_no_effects_typo() {
     // Regression test: the --no-effecs typo (missing 't') must now
-    // produce a "Did you mean --no-effects?" suggestion. Before the fix,
+    // produce a "tip: a similar argument exists: '--no-effects'" suggestion. Before the fix,
     // the custom KNOWN_LONG_FLAGS list was missing "no-effects" (missed
     // during the --disable-effects -> --no-effects rename), so no
     // suggestion was shown — only the clap "tip:" line appeared.
@@ -66,7 +66,7 @@ fn extracts_no_effects_typo() {
 fn extracts_msg_fill_style_long_flag_typo() {
     // v51 msg-fill-style: a long-flag typo (missing the final 'e') must
     // extract the msg-fill-style suggestion so main.rs can append the
-    // "Did you mean --msg-fill-style?" line.
+    // "tip: a similar argument exists: '--msg-fill-style'" line.
     let err = "error: unexpected argument '--msg-fill-styl' found\n\n  tip: a similar argument exists: '--msg-fill-style'\n\nUsage: cosmostrix --verbose";
     assert_eq!(
         extract_clap_suggestion(err),

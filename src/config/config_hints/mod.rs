@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! "Did you mean …" hints for unknown config keys.
+//! "tip: a similar value exists" hints for unknown config keys.
 //!
 //! The TOML parser in [`crate::configfile`] classifies any key not matching
 //! a known pattern as `unknown_keys`. Previously the only follow-up was a
@@ -192,8 +192,8 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     if !key.contains('.') && !key.is_empty() {
         if let Some(suggestion) = closest_top_level_key(key) {
             return Some(format!(
-                "'{key}': unknown key (likely typo). Did you mean '{suggestion}'? \
-                 Run 'cosmostrix --testconf' to see all valid config keys."
+                "'{key}': unknown key (likely typo){}\n                 Run 'cosmostrix --testconf' to see all valid config keys.",
+                crate::cli::suggestion::format_value_suggestion(&suggestion)
             ));
         }
     }

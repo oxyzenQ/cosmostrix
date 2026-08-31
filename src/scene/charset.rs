@@ -129,7 +129,7 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
             // charset_from_str has no config access; --list-charsets
             // lists them.
             let tip = crate::cli::suggestion::closest_value_match(&spec, CHARSET_PRESET_NAMES)
-                .map(|s| format!("\n  Did you mean '{s}'?"))
+                .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
                 .unwrap_or_default();
             format!(
                 "error: unknown charset '{spec}'{tip}\n\n  Use --list-charsets to see available charsets."
@@ -323,18 +323,21 @@ mod suggestion_tests {
     fn unknown_charset_typo_suggests_closest_preset() {
         let err = charset_from_str("binari", false).unwrap_err();
         assert!(
-            err.contains("Did you mean 'binary'?"),
+            err.contains("tip: a similar value exists: 'binary'"),
             "charset typo must suggest the closest preset, got: {err}"
         );
         let err = charset_from_str("katakan", false).unwrap_err();
-        assert!(err.contains("Did you mean 'katakana'?"), "got: {err}");
+        assert!(
+            err.contains("tip: a similar value exists: 'katakana'"),
+            "got: {err}"
+        );
     }
 
     #[test]
     fn unknown_charset_distant_value_no_suggestion() {
         let err = charset_from_str("totally-not-a-charset", false).unwrap_err();
         assert!(
-            !err.contains("Did you mean"),
+            !err.contains("tip: a similar"),
             "distant value must not suggest, got: {err}"
         );
     }

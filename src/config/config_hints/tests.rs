@@ -389,7 +389,10 @@ fn typo_collor_suggests_color() {
     assert!(hint.is_some(), "should suggest for 'collor'");
     let h = hint.unwrap();
     assert!(h.contains("color"), "hint should suggest 'color': {h}");
-    assert!(h.contains("Did you mean"), "should be a did-you-mean: {h}");
+    assert!(
+        h.contains("tip: a similar"),
+        "should be a did-you-mean: {h}"
+    );
 }
 
 #[test]

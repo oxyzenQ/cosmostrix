@@ -264,12 +264,13 @@ fn main() -> std::io::Result<()> {
 
     let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
         // Intercept clap's "unexpected argument" errors and append a
-        // "Did you mean --<flag>?" suggestion. The suggestion is extracted
-        // from clap's OWN "tip:" line (not a separate edit-distance engine),
-        // which guarantees the two lines always agree on which flag to
-        // suggest and eliminates the hand-maintained flag list that caused
-        // the v50.0.0-beta.7 drift bug (--no-effects was missing from
-        // KNOWN_LONG_FLAGS after the rename from --disable-effects).
+        // "tip: a similar argument exists" suggestion. The suggestion
+        // is extracted from clap's OWN "tip:" line (not a separate
+        // edit-distance engine), which guarantees the two lines always
+        // agree on which flag to suggest and eliminates the
+        // hand-maintained flag list that caused the v50.0.0-beta.7
+        // drift bug (--no-effects was missing from KNOWN_LONG_FLAGS
+        // after the rename from --disable-effects).
         let err_str = e.to_string();
         // Only intercept "unexpected argument" errors (not missing-value,
         // not invalid-value, etc.). For those, fall through to clap's
@@ -277,11 +278,11 @@ fn main() -> std::io::Result<()> {
         if err_str.contains("unexpected argument") {
             if let Some(suggestion) = extract_clap_suggestion(&err_str) {
                 // Print clap's original error (includes the "tip:" line +
-                // usage), then append our "Did you mean?" line using the
-                // SAME flag clap already chose.
+                // usage), then append our "tip: a similar argument
+                // exists" line using the SAME flag clap already chose.
                 e.print().ok();
                 eprintln!(
-                    "{}  Did you mean --{}?{}",
+                    "{}  tip: a similar argument exists: '--{}'{}",
                     crate::output::warn_open(),
                     suggestion,
                     crate::output::reset()

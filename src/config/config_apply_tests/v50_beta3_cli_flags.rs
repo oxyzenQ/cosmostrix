@@ -103,7 +103,7 @@ fn cli_intro_color_typo_suggests_closest_theme() {
     assert!(result.is_err());
     let err = result.unwrap_err();
     assert!(
-        err.contains("Did you mean 'energy-zen'?"),
+        err.contains("tip: a similar value exists: 'energy-zen'"),
         "error must suggest closest theme: {err}"
     );
 }

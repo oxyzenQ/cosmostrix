@@ -208,7 +208,7 @@ fn unknown_color_cosmo_suggests_cosmos() {
     // 'cosmo' (missing last char) is edit-distance 1 from 'cosmos'.
     let err = parse_color_scheme("cosmo").unwrap_err();
     assert!(
-        err.contains("Did you mean 'cosmos'?"),
+        err.contains("tip: a similar value exists: 'cosmos'"),
         "should suggest cosmos for 'cosmo': {err}"
     );
 }
@@ -218,7 +218,7 @@ fn unknown_color_nebala_suggests_nebula() {
     // 'nebala' (missing 'u') is edit-distance 1 from 'nebula'.
     let err = parse_color_scheme("nebala").unwrap_err();
     assert!(
-        err.contains("Did you mean 'nebula'?"),
+        err.contains("tip: a similar value exists: 'nebula'"),
         "should suggest nebula for 'nebala': {err}"
     );
 }
@@ -228,7 +228,7 @@ fn unknown_color_vaporwav_suggests_vaporwave() {
     // 'vaporwav' (missing 'e') is edit-distance 1 from 'vaporwave'.
     let err = parse_color_scheme("vaporwav").unwrap_err();
     assert!(
-        err.contains("Did you mean 'vaporwave'?"),
+        err.contains("tip: a similar value exists: 'vaporwave'"),
         "should suggest vaporwave for 'vaporwav': {err}"
     );
 }
@@ -237,7 +237,7 @@ fn unknown_color_vaporwav_suggests_vaporwave() {
 fn unknown_color_gren_suggests_green() {
     let err = parse_color_scheme("gren").unwrap_err();
     assert!(
-        err.contains("Did you mean 'green'"),
+        err.contains("tip: a similar value exists: 'green'"),
         "should suggest green for 'gren': {err}"
     );
 }
@@ -248,7 +248,7 @@ fn unknown_color_completely_unrelated_no_suggestion() {
     // NOT get a "did you mean" suggestion — just the plain error.
     let err = parse_color_scheme("xyzqwerty").unwrap_err();
     assert!(
-        !err.contains("Did you mean"),
+        !err.contains("tip: a similar"),
         "should not suggest for unrelated input: {err}"
     );
     assert!(
@@ -261,7 +261,7 @@ fn unknown_color_completely_unrelated_no_suggestion() {
 fn unknown_color_empty_input_no_suggestion() {
     let err = parse_color_scheme("").unwrap_err();
     assert!(
-        !err.contains("Did you mean"),
+        !err.contains("tip: a similar"),
         "empty input should not suggest: {err}"
     );
 }

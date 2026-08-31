@@ -187,12 +187,14 @@ pub(crate) fn apply_config_and_runtime_defaults(
             args.intro_color = Some(v);
             config_touched.insert("intro-color");
         } else {
-            // Hard error: unknown theme name. Surface a "did you mean"
-            // suggestion if a builtin theme is close (edit distance ≤ 2).
+            // Hard error: unknown theme name. Surface a "tip: a similar
+            // value exists" suggestion if a builtin theme is close
+            // (edit distance ≤ 2).
             let suggestion = crate::theme::suggest_closest_theme(&v);
             let hint = match suggestion {
                 Some(name) => format!(
-                    "\n  Did you mean '{name}'?\n  Use --list-colors to see all available themes."
+                    "{}\n  Use --list-colors to see all available themes.",
+                    crate::cli::suggestion::format_value_suggestion(&name)
                 ),
                 None => String::from("\n  Use --list-colors to see all available themes."),
             };
@@ -618,7 +620,7 @@ fn scene_suggestion_tip(normalized: &str, cfg: &HashMap<String, String>) -> Stri
     let custom_refs: Vec<&str> = custom.iter().map(|s| s.as_str()).collect();
     candidates.extend(custom_refs);
     crate::cli::suggestion::closest_value_match(normalized, &candidates)
-        .map(|s| format!("\n  Did you mean '{s}'?"))
+        .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
         .unwrap_or_default()
 }
 
@@ -730,7 +732,7 @@ mod scene_suggestion_tests {
         let cfg = HashMap::new();
         assert_eq!(
             scene_suggestion_tip("cinemtic", &cfg),
-            "\n  Did you mean 'cinematic'?"
+            "\n  tip: a similar value exists: 'cinematic'"
         );
     }
 
@@ -743,7 +745,7 @@ mod scene_suggestion_tests {
         );
         assert_eq!(
             scene_suggestion_tip("afternon", &cfg),
-            "\n  Did you mean 'afternoon'?"
+            "\n  tip: a similar value exists: 'afternoon'"
         );
     }
 

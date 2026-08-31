@@ -10,13 +10,14 @@ use std::ffi::OsString;
 
 use crate::constants::{DENSITY_CLAMP_MAX, SPEED_MAX, SPEED_MIN};
 
-// ── "Did you mean?" CLI flag suggestion ────────────────────────────────────
+// ── "tip: a similar argument exists" CLI flag suggestion ─────────────────
 //
 // v50.0.0-beta.7: the custom Levenshtein-based suggestion engine
 // (KNOWN_LONG_FLAGS + cli_edit_distance + suggest_cli_flag) has been
 // REMOVED. It was replaced by extract_clap_suggestion() in main.rs,
 // which reads clap's OWN "tip:" line and reformats it as
-// "Did you mean --<flag>?". This eliminates:
+// "tip: a similar argument exists: '--<flag>'" (via
+// format_argument_suggestion in cli/suggestion.rs). This eliminates:
 //
 //   1. The hand-maintained KNOWN_LONG_FLAGS list (drift-prone — the
 //      --disable-effects -> --no-effects rename missed it, which was
@@ -363,7 +364,7 @@ fn validate_enum_value(name: &str, raw: &str, allowed: &[&str]) -> Result<(), St
         // closest_color_name) so every enum surface suggests on typos.
         let suggestion = crate::cli::suggestion::closest_value_match(raw, allowed);
         let tip = match &suggestion {
-            Some(s) => format!("\n  Did you mean '{s}'?"),
+            Some(s) => crate::cli::suggestion::format_value_suggestion(s),
             None => String::new(),
         };
         Err(format!(

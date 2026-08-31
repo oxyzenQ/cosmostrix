@@ -253,7 +253,7 @@ pub(crate) fn load_custom_palette(
             name,
             &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
         )
-        .map(|s| format!("\n  Did you mean '{s}'?"))
+        .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
         .unwrap_or_default();
         format!(
             "custom color '{name}' not found in config{tip}\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
@@ -644,12 +644,12 @@ mod suggestion_tests {
         );
         let err = load_custom_palette(&cfg, "cyberpunk_207").unwrap_err();
         assert!(
-            err.contains("Did you mean 'cyberpunk_2077'?"),
+            err.contains("tip: a similar value exists: 'cyberpunk_2077'"),
             "palette typo must suggest the closest block, got: {err}"
         );
         // Distant name: no suggestion.
         let err = load_custom_palette(&cfg, "something-else").unwrap_err();
-        assert!(!err.contains("Did you mean"), "got: {err}");
+        assert!(!err.contains("tip: a similar"), "got: {err}");
     }
 }
 

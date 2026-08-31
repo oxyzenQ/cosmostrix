@@ -19,9 +19,9 @@
 //!
 //! A `-mfs…` token whose trailing text is NOT a valid style value
 //! (e.g. the doubled-s typo `-mfss`) is rejected with a clap-format
-//! "tip: a similar argument exists" error + a `Did you mean
-//! --msg-fill-style?` line, matching the long-flag typo UX that clap's
-//! `suggestions` feature already provides (e.g. `--msg-fill-styl`).
+//! "tip: a similar argument exists: '--msg-fill-style'" error,
+//! matching the long-flag typo UX that clap's `suggestions` feature
+//! already provides (e.g. `--msg-fill-styl`).
 //! Without this guard clap would silently parse `-mfss` as `-m` with
 //! the attached message text "fss" — a silent footgun.
 //!
@@ -117,7 +117,7 @@ fn is_valid_style_value(rest: &str) -> bool {
 
 /// Reject a `-mfs…` typo with a clap-format error so the UX matches the
 /// long-flag typo path (`--msg-fill-styl` → clap's own "tip:" +
-/// main.rs's "Did you mean?" line).
+/// main.rs's "tip: a similar argument exists" line).
 fn die_mfs_typo(token: &str) -> ! {
     eprintln!("error: unexpected argument '{token}' found");
     eprintln!();
@@ -127,7 +127,7 @@ fn die_mfs_typo(token: &str) -> ! {
     );
     eprintln!();
     eprintln!(
-        "{}  Did you mean --msg-fill-style?{}",
+        "{}  tip: a similar argument exists: '--msg-fill-style'{}",
         crate::output::warn_open(),
         crate::output::reset()
     );

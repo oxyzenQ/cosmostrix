@@ -736,7 +736,7 @@ fn unknown_custom_scene_error(name: &str, available: &[String]) -> String {
         name,
         &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
     )
-    .map(|s| format!("\n  Did you mean '{s}'?"))
+    .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
     .unwrap_or_default();
     format!(
         "error: unknown custom scene '{name}'{tip}\nexpected one of: {list}\n\n  Use --list-scenes to see built-in and custom scenes."
@@ -752,7 +752,7 @@ mod suggestion_tests {
         let available = vec!["afternoon".to_string()];
         let msg = unknown_custom_scene_error("afternon", &available);
         assert!(
-            msg.contains("Did you mean 'afternoon'?"),
+            msg.contains("tip: a similar value exists: 'afternoon'"),
             "custom scene typo must suggest the closest block, got: {msg}"
         );
     }
@@ -761,7 +761,7 @@ mod suggestion_tests {
     fn unknown_custom_scene_no_close_match_has_no_tip() {
         let available = vec!["afternoon".to_string()];
         let msg = unknown_custom_scene_error("zzzzzzz", &available);
-        assert!(!msg.contains("Did you mean"), "got: {msg}");
+        assert!(!msg.contains("tip: a similar"), "got: {msg}");
         assert!(msg.contains("expected one of: afternoon"));
     }
 
@@ -769,6 +769,6 @@ mod suggestion_tests {
     fn unknown_custom_scene_empty_list_renders_none_defined() {
         let msg = unknown_custom_scene_error("whatever", &[]);
         assert!(msg.contains("expected one of: <none defined>"));
-        assert!(!msg.contains("Did you mean"));
+        assert!(!msg.contains("tip: a similar"));
     }
 }

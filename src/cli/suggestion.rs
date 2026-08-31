@@ -27,9 +27,9 @@
 /// instead of maintaining a separate `KNOWN_LONG_FLAGS` list + Levenshtein
 /// engine, we guarantee:
 ///
-/// 1. The "tip:" line and the "Did you mean?" line ALWAYS agree on which
-///    flag to suggest (no more `--clr` -> tip says `color-bg` but
-///    Did-you-mean says `color` disagreement).
+/// 1. The "tip:" line from clap and our `format_argument_suggestion`
+///    line ALWAYS agree on which flag to suggest (no more `--clr` ->
+///    tip says `color-bg` but our line says `color` disagreement).
 /// 2. No hand-maintained flag list to drift when flags are renamed
 ///    (the v50.0.0-beta.7 `--disable-effects` -> `--no-effects` rename
 ///    missed `KNOWN_LONG_FLAGS`, which was the root cause of this bug).
@@ -117,6 +117,22 @@ pub(crate) fn closest_value_match(input: &str, candidates: &[&str]) -> Option<St
         }
     }
     best.map(|(name, _)| name)
+}
+
+/// Format a VALUE suggestion as a consistent "tip:" line.
+///
+/// Returns `\n  tip: a similar value exists: '<value>'`. This is the
+/// canonical format for all enum/value typo suggestions (colors,
+/// scenes, charsets, glitch-level, msg-fill-style, etc.) —
+/// replacing the legacy `Did you mean '<value>'?` format that was
+/// scattered across 14+ files with no consistency.
+///
+/// For FLAG suggestions (unknown `--foo` flags), the format is
+/// `tip: a similar argument exists: '--flag'` — but those are
+/// rendered inline via `eprintln!` with ANSI color wrappers in
+/// `main.rs` and `argv_expand.rs`, so no helper is needed there.
+pub(crate) fn format_value_suggestion(suggestion: &str) -> String {
+    format!("\n  tip: a similar value exists: '{suggestion}'")
 }
 
 #[cfg(test)]

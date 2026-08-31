@@ -282,7 +282,7 @@ fn enum_typo_glitch_level_suggests_closest() {
     ])
     .unwrap_err();
     assert!(
-        err.contains("Did you mean 'subtle'?"),
+        err.contains("tip: a similar value exists: 'subtle'"),
         "glitch-level typo must suggest the closest value, got: {err}"
     );
 }
@@ -292,7 +292,7 @@ fn enum_typo_monolith_size_suggests_closest() {
     let err = prevalidate_cli_args(&["cosmostrix".into(), "--monolith-size".into(), "larg".into()])
         .unwrap_err();
     assert!(
-        err.contains("Did you mean 'large'?"),
+        err.contains("tip: a similar value exists: 'large'"),
         "monolith-size typo must suggest the closest value, got: {err}"
     );
 }
@@ -304,7 +304,7 @@ fn enum_typo_color_bg_attached_form_suggests() {
     let err = prevalidate_cli_args(&["cosmostrix".into(), "--color-bg=default-backgroun".into()])
         .unwrap_err();
     assert!(
-        err.contains("Did you mean 'default-background'?"),
+        err.contains("tip: a similar value exists: 'default-background'"),
         "color-bg typo must suggest the closest value, got: {err}"
     );
 }
@@ -316,7 +316,7 @@ fn enum_typo_color_bg_transposed_word_no_bogus_tip() {
     let err =
         prevalidate_cli_args(&["cosmostrix".into(), "--color-bg=defualt".into()]).unwrap_err();
     assert!(
-        !err.contains("Did you mean"),
+        !err.contains("tip: a similar"),
         "a transposed word with no close candidate must not fabricate a tip, got: {err}"
     );
 }
@@ -330,7 +330,7 @@ fn enum_far_off_value_gets_no_suggestion() {
     ])
     .unwrap_err();
     assert!(
-        !err.contains("Did you mean"),
+        !err.contains("tip: a similar"),
         "a distant value must not produce a bogus suggestion, got: {err}"
     );
 }
