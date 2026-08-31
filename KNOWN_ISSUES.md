@@ -46,6 +46,18 @@ This is a **platform event-delivery issue**, not a renderer bug — the
 render pipeline itself is unaffected. The renderer continues correctly
 up to the moment of exit.
 
+### Partial mitigation (v30)
+
+The v30 event loop restructure added a guard that checks for the HUD
+toggle key BEFORE the screensaver-exit check, preventing the self-exit
+on Termux when the terminal delivers a synthetic EOF immediately after
+the `i` key event. This guard is active in all current builds
+(`hud_toggle_accepted` in `src/interactive/input.rs`).
+
+However, the root cause (synthetic focus-loss / EOF events on Windows)
+is not fully filtered. The partial mitigation reduces the Termux case
+but does not eliminate the Windows ConHost case.
+
 ### Workarounds
 
 Pick whichever applies to your setup:
@@ -55,40 +67,27 @@ Pick whichever applies to your setup:
    time, droplet count) is also available in `--benchmark --json`
    output for scripted collection.
 
-2. **Change the HUD toggle key.** cosmostrix does NOT currently
-   expose a config-level keybinding remap for the HUD toggle — the
-   `i` binding (lowercase only) is hardcoded in `src/interactive/event_loop.rs`
-   (not `input.rs`). As a
-   workaround on affected platforms, run cosmostrix inside `tmux`
-   (see option 5 below) which normalizes key event delivery, or use
-   `--benchmark` mode (option 3) which does not enter the interactive
-   event loop at all.
-
-3. **Use `--benchmark` instead of interactive mode** for any
+2. **Use `--benchmark` instead of interactive mode** for any
    measurement where you need guaranteed stability. Benchmark mode does
    not enter the interactive event loop, so the `i` key issue does not
    arise.
 
-4. **On Windows, use Windows Terminal Preview** instead of ConHost.
+3. **On Windows, use Windows Terminal Preview** instead of ConHost.
    The Preview build has improved keyboard event delivery that
    reduces (but does not eliminate) the issue.
 
-5. **On Termux, run cosmostrix inside `tmux`**. The tmux layer
+4. **On Termux, run cosmostrix inside `tmux`**. The tmux layer
    normalizes key event delivery and absorbs the synthetic EOF that
    causes the abrupt exit. Start `tmux`, then run `cosmostrix` inside
    the tmux session.
 
-### Planned fix
+### Status
 
-A proper fix is planned for a future release. The current thinking is
-to **filter synthetic focus-loss / EOF events** in the crossterm event
-loop before they reach the keybinding dispatcher, and to add a
-**per-platform key-event validation layer** that rejects events with
-implausible timing (e.g. an EOF arriving <1ms after a printable
-KeyEvent). This requires careful testing across crossterm versions and
-platforms to avoid regressing legitimate fast-keypress scenarios.
-
-Tracking: no fix currently scheduled — see workaround above.
+**Partially mitigated (v30 guard).** The Termux case is largely
+resolved by the pre-screensaver-exit guard. The Windows ConHost case
+may still occur. A full fix (filtering synthetic EOF/focus-loss events
+in the crossterm event loop) is not currently scheduled due to the
+complexity of testing across crossterm versions and platforms.
 
 ---
 
@@ -114,8 +113,6 @@ termination. Tracked in
 for fix; the `--reset-terminal` recovery path is the official remedy.
 
 ---
-
-## Reporting new issues
 
 ## TTY / Linux VT: screen cleared after quit ('q')
 
@@ -159,25 +156,6 @@ terminal-level behavior that cosmostrix cannot control — the escape
 sequence for leaving the alternate screen is standardized, but how each
 terminal implements the screen restoration varies.
 
-### Previous fix attempts
-
-Multiple fix attempts were made across sessions:
-
-1. Removed `Clear(All)` before `LeaveAlternateScreen` — addressed VTE
-   scrollback-clear but did not fix TTY screen clear.
-2. Fixed SYNC_START/END ordering (emit SYNC_END before
-   `LeaveAlternateScreen`, not after) — addressed sync-mode leak but
-   did not fix TTY screen clear.
-3. Removed SYNC_START at init time — addressed main-screen sync open
-   but did not fix TTY screen clear.
-4. Moved `flush()` outside `if sync_output` block to always flush before
-   `LeaveAlternateScreen` — addressed BufWriter content leaking to main
-   screen but did not fix TTY screen clear.
-
-None of these fixes resolved the TTY screen clear because the root cause
-is the terminal's own behavior when processing `LeaveAlternateScreen`, not
-any sequence cosmostrix emits.
-
 ### Workaround
 
 No workaround available. This is a terminal-level limitation of the Linux
@@ -199,9 +177,9 @@ is in the terminal, not in cosmostrix.
 When running cosmostrix in **fullscreen** on VTE-based terminals
 (Konsole, GNOME Terminal, most terminals in GNOME/KDE environments),
 performance drops below 100 FPS. Visual effects (particle sparks,
-mouse-click ripples) experience lag and leave stale trails
-("berbekas") on screen. The issue occurs in **all scenes**, not just
-specific ones. Alacritty is unaffected.
+mouse-click ripples) experience lag and leave stale trails on screen.
+The issue occurs in **all scenes**, not just specific ones. Alacritty
+is unaffected.
 
 ### Affected platforms
 
@@ -215,13 +193,12 @@ specific ones. Alacritty is unaffected.
 
 VTE terminals are **CPU-rendered** (software rendering), unlike Alacritty
 which uses GPU acceleration. At fullscreen cell counts, the ANSI byte
-volume overwhelms VTE's parser, causing the lag. The existing throttle
-mechanisms (self-healer `aggressive_throttle` and phosphor boost
-hysteresis — see commits `77d0bcf` + `22549bd`) have been tuned but are
-**unable to fully stabilize** the oscillation between "lag clears" and
-"lag returns" under sustained fullscreen load. The phosphor decay boost
-reduces dirty cells, but VTE's internal buffering creates a feedback
-delay that prevents perfect stabilization.
+volume overwhelms VTE's parser, causing the lag. The self-healer
+`aggressive_throttle` and phosphor decay boost hysteresis reduce dirty
+cells, and the v50.0.0-beta.6 phosphor decay rate increase (5.5 to 8.0
+for cross-terminal consistency) shortened trails to ~400 ms on all
+terminals, but VTE's internal buffering creates a feedback delay that
+prevents perfect stabilization under sustained fullscreen load.
 
 ### Workarounds
 
@@ -237,13 +214,15 @@ delay that prevents perfect stabilization.
 
 ### Status
 
-**Accepted as a known limitation.** The throttle tuning (PERF-3) improves
-the situation but cannot fully fix VTE's CPU-rendering bottleneck. A more
-aggressive render throttling strategy (e.g., reducing frame rate during
-high pressure) may be explored in a future LTS update, but is **not
-currently planned** due to the complexity of VTE's internal buffering.
+**Accepted as a known limitation.** The throttle tuning and phosphor
+decay rate increase (v50.0.0-beta.6) improve the situation but cannot
+fully fix VTE's CPU-rendering bottleneck. A more aggressive render
+throttling strategy may be explored in a future LTS update, but is
+not currently planned due to the complexity of VTE's internal buffering.
 
 ---
+
+## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue
 at <https://github.com/oxyzenQ/cosmostrix/issues> with:
@@ -261,8 +240,9 @@ For crash-related issues, a `RUST_BACKTRACE=1` backtrace is invaluable.
 
   This document may contain stale data, hardcoded counts, or outdated
   file paths and symbol names. Maintainers update source code but may
-  forget to sync every doc — the project ships 80+ .md files and
-  perfect sync is a known maintenance burden with diminishing returns.
+  forget to sync every doc — the project ships 57 active .md files
+  (plus historical docs in docs/archive/) and perfect sync is a known
+  maintenance burden with diminishing returns.
 
   Source code (`src/**/*.rs`) is the single source of truth.
   Always cross-check against the actual `.rs` files before relying on
