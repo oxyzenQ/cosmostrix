@@ -133,6 +133,19 @@ palette to ambient and clears `drift_active = false` + `drift_start = None`.
 Snapback only runs when the ambient schedule is non-empty — it early-returns
 on `schedule.entries.is_empty()` (see `input.rs:481`).
 
+**Live-reload interaction** (Z-master-1X round 4, commit `<TBD>`): when a
+live config reload fires while a drift is visible (`drift_active = true`),
+`inherit_ecosystem_state` must NOT carry `drift_active` / `drift_start` to
+the fresh Cloud. The reload's re-apply path sets
+`user_override_since_ambient = false`, which disables the snapback
+mechanism that would normally clear `drift_active`. With `drift_active`
+inherited as `true` + snapback disabled, the drift gate `!drift_active`
+would block all future drifts forever — the owner symptom "ambient
+dominant, drift rare after live reload, restart fixes it." The sensor
+state (`crystal_dragon_sensor`, `_control`, `_last_poll`) IS still
+inherited (engine state survives), but the per-cycle drift bookkeeping
+resets cleanly so the next poll can fire a fresh drift.
+
 **Self-reset when ambient is OFF** (Z-master-1X round 2, commit `40bad33`):
 when `ambient_schedule_active == false`, `try_auto_snapback` never runs
 (no schedule → early-return), so without a self-reset path the first

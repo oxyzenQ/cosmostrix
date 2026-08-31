@@ -509,6 +509,75 @@ fn inherit_ecosystem_state_preserves_drift() {
     assert_eq!(new_cloud.color_ecosystem.hue_drift, old_hue);
 }
 
+/// Z-master-1X round 4: inherit_ecosystem_state must NOT carry
+/// drift_active / drift_start across live reload. Carrying them creates
+/// a deadlock when the reload re-applies an ambient entry (which sets
+/// `user_override_since_ambient = false`, disabling the snapback that
+/// would normally clear `drift_active`). With `drift_active = true`
+/// inherited + snapback disabled, the drift gate `!drift_active` blocks
+/// all future drifts forever — the owner symptom "ambient dominant,
+/// drift rare after live reload, restart fixes it."
+///
+/// This test verifies the fix: after inherit, drift_active=false and
+/// drift_start=None on the new cloud, even if the old cloud had an
+/// active drift. The sensor state (crystal_dragon_sensor, etc.) IS
+/// still inherited — only the per-cycle drift bookkeeping resets.
+#[test]
+fn z_master_1x_round4_inherit_resets_drift_cycle_state() {
+    let mut old_cloud = make_green_cloud();
+    old_cloud.crystal_dragon = true;
+    // Simulate: a drift fired before the live reload — drift_active=true,
+    // drift_start=Some(past). This is the state that caused the deadlock.
+    let drift_start = Instant::now() - Duration::from_secs(30);
+    old_cloud.drift_active = true;
+    old_cloud.drift_start = Some(drift_start);
+
+    // Create a fresh cloud (simulating live-reload) and inherit state.
+    let mut new_cloud = make_green_cloud();
+    new_cloud.inherit_ecosystem_state(&old_cloud);
+
+    // drift_active + drift_start must NOT be inherited — they must reset
+    // to the fresh Cloud::new defaults (false / None). This is the fix.
+    assert!(
+        !new_cloud.drift_active,
+        "Z-master-1X round 4: drift_active must NOT be inherited across live reload (would deadlock snapback)"
+    );
+    assert!(
+        new_cloud.drift_start.is_none(),
+        "Z-master-1X round 4: drift_start must NOT be inherited across live reload (stale timestamp would misfire snapback)"
+    );
+}
+
+/// Z-master-1X round 4: inherit_ecosystem_state still carries the
+/// Crystal Dragon SENSOR state (crystal_dragon_sensor, _control,
+/// _last_poll) across live reload. The sensor represents the engine's
+/// understanding of the system (CPU point, EMA, theme entered-at),
+/// not the per-cycle drift bookkeeping — so it should survive a config
+/// change. This test verifies the sensor state is preserved while the
+/// drift cycle state resets (companion to the test above).
+#[test]
+fn z_master_1x_round4_inherit_preserves_sensor_state() {
+    let mut old_cloud = make_green_cloud();
+    old_cloud.crystal_dragon = true;
+    let old_control = old_cloud.crystal_dragon_control;
+    let old_last_poll = old_cloud.crystal_dragon_last_poll;
+
+    let mut new_cloud = make_green_cloud();
+    new_cloud.inherit_ecosystem_state(&old_cloud);
+
+    // control + last_poll ARE inherited (engine state survives).
+    // (sensor itself is Clone+Copy but not PartialEq; we verify via
+    // the control + last_poll fields which are PartialEq-deriving.)
+    assert_eq!(
+        new_cloud.crystal_dragon_control, old_control,
+        "control config must survive live reload"
+    );
+    assert_eq!(
+        new_cloud.crystal_dragon_last_poll, old_last_poll,
+        "last_poll timestamp must survive live reload"
+    );
+}
+
 /// Phase D Bug #8 fix: cloud.reset() does NOT reset ecosystem state.
 /// Drift accumulators are independent of terminal size — resizing the
 /// terminal should not cause a brightness discontinuity.

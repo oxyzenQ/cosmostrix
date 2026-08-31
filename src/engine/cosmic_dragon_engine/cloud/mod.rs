@@ -744,6 +744,20 @@ impl Cloud {
     /// Phase D Bug #9: carry color_ecosystem + entropy_drift across live-reload
     /// (prevents brightness discontinuity when config is edited mid-session).
     /// v30: also carries `start_anchor` so time-varying phases stay continuous.
+    ///
+    /// Z-master-1X round 4: do NOT carry `drift_active` / `drift_start` across
+    /// live reload. Those are drift-CYCLE state (not engine state), and carrying
+    /// them creates a deadlock when the reload re-applies an ambient entry: the
+    /// re-apply sets `user_override_since_ambient = false`, which disables the
+    /// snapback mechanism that would normally clear `drift_active`. With
+    /// `drift_active = true` inherited + snapback disabled, the drift gate
+    /// `!drift_active` blocks all future drifts forever — the owner symptom
+    /// "ambient dominant, drift rare after live reload, restart fixes it."
+    /// The sensor state (`crystal_dragon_sensor`, `crystal_dragon_control`,
+    /// `crystal_dragon_last_poll`) IS still carried — it represents the engine's
+    /// understanding of the system (CPU point, EMA, theme entered-at), not the
+    /// per-cycle drift bookkeeping. A live reload is a config change; the drift
+    /// cycle should reset cleanly so the next poll can fire a fresh drift.
     pub fn inherit_ecosystem_state(&mut self, other: &Cloud) {
         self.color_ecosystem = other.color_ecosystem;
         self.entropy_drift = other.entropy_drift;
@@ -752,8 +766,8 @@ impl Cloud {
         self.crystal_dragon_sensor = other.crystal_dragon_sensor;
         self.crystal_dragon_control = other.crystal_dragon_control;
         self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
-        self.drift_active = other.drift_active;
-        self.drift_start = other.drift_start;
+        // drift_active + drift_start are NOT inherited — see doc comment above.
+        // They default to false / None on the fresh Cloud (set in Cloud::new).
     }
     /// Active scene name. Test-only accessor — production reads the
     /// `scene_name` field directly or via `hud_colors()`.

@@ -9,6 +9,24 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### crystal-dragon + ambient: fix live-reload drift deadlock (Z-master-1X round 4)
+
+- **Bug**: after a live config reload while both ambient + crystal dragon are ON, drift became rare/never even after 60s. Ambient dominated; restart fixed it. Owner repro: ambient + crystal-dragon on via config, snapback-secs=30 default. After 60s drift fires → 30s later snapback reverts to ambient → long running stays ambient, no more drift. Triggered by editing config at runtime (live reload).
+- **Root cause**: `inherit_ecosystem_state` carried `drift_active` + `drift_start` across live reload. When a reload fires while a drift is visible (`drift_active=true`), the reload's re-apply path sets `user_override_since_ambient=false` (line 180 of event_loop_config_rebuild.rs), which disables the snapback mechanism (`should_auto_snapback` requires `user_override_since_ambient==true`). With `drift_active=true` inherited + snapback disabled, the drift gate `!drift_active` blocked all future drifts forever — a deadlock that only a restart (which resets `drift_active=false`) could clear.
+- **Fix**: `inherit_ecosystem_state` no longer carries `drift_active`/`drift_start`. The sensor state (`crystal_dragon_sensor`, `_control`, `_last_poll`) IS still inherited (engine state — CPU point, EMA, theme entered-at), but the per-cycle drift bookkeeping resets cleanly on the fresh Cloud so the next poll can fire a fresh drift. A live reload is a config change; the drift cycle should reset, not carry stale cycle state.
+- **Files changed**: `src/engine/cosmic_dragon_engine/cloud/mod.rs` (inherit_ecosystem_state — removed drift_active/drift_start carry + doc comment), `src/engine/crystal_dragon_engine/crystal_dragon_control/mod.rs` (added PartialEq derive for test assertions), `src/engine/cosmic_dragon_engine/cloud/tests/tests_color_stability.rs` (2 new regression tests: drift-cycle resets + sensor-state preserved).
+- **Tests**: 2 new z_master_1x_round4 tests pass. color_stability 17/17, cloud 322/322, crystal_dragon 83/83, ambient 67/67, v50_first_reload 3/3 (coredump fix preserved). clippy clean, fmt clean, gatekeepers 8/8.
+- **Docs**: `docs/AMBIENT_SCHEDULER.md` — new "Live-reload interaction" section documenting the inherit_ecosystem_state contract.
+
+### config: fix stale color-bg default in template config (Z-master-1X)
+
+- **Bug**: `--dump-config` template (configfile_dump.rs:35) showed the default as `default-background` but the source of truth (config/mod.rs:613 `default_value_t = ColorBg::Black`) is `black`. The template header says "All values shown are defaults" so the stale line was misleading.
+- **Root cause**: the default WAS `default-background` and was changed to `black` (CHANGELOG documents the behavior change), but the template comment was never updated.
+- **Fix**: template now shows `# color-bg = "black"  # or "default-background" (default: black)`. Also fixed `docs/RULES.md` CLI Flag Policy section which still referenced the legacy `Did you mean` suggestion format (3 occurrences) — updated to the canonical `tip: a similar value/argument exists` format.
+- **Source-of-truth verification**: config/mod.rs:613 (default_value_t = Black), cli/help_detail.rs:516 ('black' (default)), docs/TERMINAL_COMPATIBILITY.md:44, docs/CENTRAL_CONTROL_RAINS_USAGE.md:77 — all correct. configfile_dump.rs was the only stale spot.
+- **Files changed**: `src/config/configfile/configfile_dump.rs` (template), `docs/RULES.md` (suggestion format refs).
+- **Gatekeeper**: 8/8 pass. No code logic changed — template + doc only.
+
 ### --no-effects: close anomaly spawn leak + peak audit verdict (Z-master-1X)
 
 - **Audit scope**: deep audit of `--no-effects` to verify it really disables ALL cosmetic effects (not gimmick). Mapped 55 `effects_enabled` usage sites to ~13 spawn/render gate locations across the cloud engine + msg_fill_style sidecars.

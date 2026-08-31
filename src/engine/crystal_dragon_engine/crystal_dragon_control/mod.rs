@@ -83,7 +83,7 @@ pub(crate) enum CrystalDragonCalcMethod {
 /// All fields use the owner-chosen defaults. This struct exists so
 /// future CLI/config-file exposure can override them without changing
 /// the engine code.
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[allow(dead_code)]
 pub(crate) struct CrystalDragonControl {
     /// Sensor polling interval in seconds.
