@@ -126,7 +126,7 @@ use crate::report::Report;
 
 /// Append the BENCHMARK ENVIRONMENT section to a Report. Kept here (next
 /// to the EnvSnapshot definition) rather than in bench_report.rs to keep
-/// bench_report.rs under its 1500-LOC guard.
+/// bench_report.rs under its 800-LOC guard.
 pub(crate) fn render_section(r: &mut Report, env: &EnvSnapshot) {
     let s = r.section("BENCHMARK ENVIRONMENT");
     s.field(

@@ -6,7 +6,18 @@ mod tests {
     use std::fs;
     use std::path::{Path, PathBuf};
 
-    const MAX_RUST_LOC: usize = 1500;
+    // Hard cap per src/RULES_LOC.md (owner mandate 2026-08-28).
+    // Soft target is 500; this runtime guard enforces the hard 800.
+    const MAX_RUST_LOC: usize = 800;
+
+    /// Marker that files exceeding the hard cap must self-declare to be
+    /// exempt. Mirrors `scripts/check-rs-loc.sh` semantics so the runtime
+    /// test and the build-time gatekeeper agree on what is allowed.
+    ///
+    /// Files with this marker are tracked debt — the justification is
+    /// visible at the top of the exempt file, and removing the marker
+    /// is the only action needed to re-enforce the cap on that file.
+    const LOC_EXEMPT_MARKER: &str = "LOC_EXEMPT:";
 
     #[test]
     fn rust_source_files_stay_under_line_cap() {
@@ -19,7 +30,17 @@ mod tests {
             let text = fs::read_to_string(&path).expect("read rust source");
             let lines = text.lines().count();
             if lines > MAX_RUST_LOC {
-                oversized.push(format!("{} ({lines} lines)", path.display()));
+                // Honor the LOC_EXEMPT marker (same semantics as
+                // scripts/check-rs-loc.sh). Without this, the runtime
+                // test would flag files that the build-time gatekeeper
+                // correctly exempts — causing false failures.
+                let is_exempt = text
+                    .lines()
+                    .take(5)
+                    .any(|line| line.contains(LOC_EXEMPT_MARKER));
+                if !is_exempt {
+                    oversized.push(format!("{} ({lines} lines)", path.display()));
+                }
             }
         }
 
@@ -77,8 +98,9 @@ mod tests {
                 }
                 scan_dir_for_lowercase_owner(&path, out);
             } else {
-                // Skip this guard file itself
-                if path.file_name().is_some_and(|n| n == "loc_tests.rs") {
+                // Skip this guard file itself (renamed from loc_tests.rs
+                // to loc.rs on the 800-LOC tightening pass).
+                if path.file_name().is_some_and(|n| n == "loc.rs") {
                     continue;
                 }
                 let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");

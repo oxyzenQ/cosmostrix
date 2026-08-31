@@ -8,7 +8,7 @@
 //! `tests/` directory (Pattern C) for navigability.
 //!
 //! Each submodule corresponds 1:1 to a former root test file:
-//! - `loc`         <- `src/loc_tests.rs`         (Rust LOC guard)
+//! - `loc`         <- `src/tests/loc.rs`       (Rust LOC guard)
 //! - `property`     <- `src/property_tests.rs`   (proptest config parser)
 //! - `terminal`     <- `src/terminal_tests.rs`   (terminal sequence tests)
 //! - `width_guard`  <- `src/width_guard_tests.rs` (Bug #11 width=1 invariant)

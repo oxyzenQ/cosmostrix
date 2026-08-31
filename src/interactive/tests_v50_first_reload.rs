@@ -3,7 +3,7 @@
 
 //! v50 LTS regression tests for the first-reload scene reset crash.
 //!
-//! Extracted from `tests.rs` to keep that file under the project's 1500-LOC
+//! Extracted from `tests.rs` to keep that file under the project's 800-LOC
 //! source cap. Loaded via `#[path = "tests_v50_first_reload.rs"] mod v50_first_reload;`
 //! inside the `cases` module of `tests.rs`.
 //!

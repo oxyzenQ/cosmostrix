@@ -3,7 +3,7 @@
 
 //! Signal handler setup for interactive mode.
 //!
-//! Extracted from event_loop.rs to keep that file under the 1500 LOC cap.
+//! Extracted from event_loop.rs to keep that file under the 800 LOC cap.
 //!
 //! - Unix: SIGTERM/SIGHUP/SIGQUIT → graceful shutdown
 //! - Unix: SIGTSTP/SIGCONT → suspend/resume with terminal reinit

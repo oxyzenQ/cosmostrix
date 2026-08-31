@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! HUD color helpers — extracted from `hud/mod.rs` to keep that file
-//! under the 1500-LOC cap.
+//! under the 800-LOC cap.
 //!
 //! Owns the chroma dragon gradient computation + hue-preserving
 //! brightness boost for HUD row colors. Both functions are pure

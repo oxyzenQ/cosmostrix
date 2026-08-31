@@ -3,7 +3,7 @@
 
 //! Activation tests for chroma::shaders::base (Phase 4-A/B/D).
 //!
-//! Split from base_tests.rs to keep that file under the 1500-LOC source cap.
+//! Split from base_tests.rs to keep that file under the 800-LOC source cap.
 //! Uses `use super::*` to access base_tests's private helpers.
 
 use super::*;

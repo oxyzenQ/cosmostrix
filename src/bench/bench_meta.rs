@@ -3,7 +3,7 @@
 
 //! Metric meaning constants + formatting helpers for the benchmark report.
 //!
-//! Extracted from `bench_report.rs` to keep that file under its 1500-LOC
+//! Extracted from `bench_report.rs` to keep that file under its 800-LOC
 //! guard after the SYSTEM + RESOURCE section expansions. Contains the
 //! documentation strings that explain what each metric measures, plus
 //! the `format_rss_kb` and `cpu_model_label` helpers.

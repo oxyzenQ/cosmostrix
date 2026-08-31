@@ -4,7 +4,7 @@
 //! Bounded flash wave pool regression tests.
 //!
 //! Extracted from `tests_quantum.rs` as a pre-emptive split to keep both
-//! files below the 1500-LOC guard (`scripts/check-rs-loc.sh`). The 4 tests
+//! files below the 800-LOC guard (`scripts/check-rs-loc.sh`). The 4 tests
 //! here cover the v30 bounded-pool fix: `Cloud::set_mouse_click` activates
 //! a pool slot instead of overwriting a single `Option<Instant>`.
 //!

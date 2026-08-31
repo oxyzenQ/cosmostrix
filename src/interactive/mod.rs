@@ -277,7 +277,7 @@ pub(super) fn fmt_opt_str(opt: Option<&str>) -> String {
 
 /// v50.0.0-alpha.7: print "final runtime state" section showing live-reload
 /// changes between startup and exit. Extracted from main.rs to keep that
-/// file under the 1500-LOC cap.
+/// file under the 800-LOC cap.
 ///
 /// Compares startup CloudConfig values against the final OnceLock values
 /// set by `set_final_state`. Only prints fields that actually changed

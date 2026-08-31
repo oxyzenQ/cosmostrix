@@ -72,7 +72,7 @@ use crate::termdetect::TerminalCaps;
 use crate::tier2::ByteWindow;
 
 // ── dragon-fight split: sub-modules ──────────────────────────────────────
-// Extracted from this file to keep mod.rs under the 1500-LOC cap and isolate
+// Extracted from this file to keep mod.rs under the 800-LOC cap and isolate
 // concerns. See each module's docs for its responsibility.
 mod cleanup;
 mod draw;
@@ -590,7 +590,7 @@ impl Drop for Terminal {
 
 // ── P3: stdout /dev/tty fallback helpers ─────────────────────────────────────
 //
-// v30: extracted to `terminal_tty.rs` to keep this file under the 1500-LOC
+// v30: extracted to `terminal_tty.rs` to keep this file under the 800-LOC
 // guard. Re-exported here so existing call sites in this file (`recover_to_tty`
 // at line ~402, ~411) keep working without a path change. External callers
 // (event_loop.rs) already use `crate::terminal::is_terminal_gone` — that path

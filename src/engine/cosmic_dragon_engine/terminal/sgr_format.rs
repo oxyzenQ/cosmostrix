@@ -3,7 +3,7 @@
 
 //! SGR (Select Graphic Rendition) byte formatting helpers.
 //!
-//! Extracted from `terminal.rs` to keep that file under its 1500-LOC guard.
+//! Extracted from `terminal.rs` to keep that file under its 800-LOC guard.
 //! These are pure functions that format ANSI escape sequences directly into
 //! a byte buffer, bypassing crossterm's trait dispatch + fmt machinery +
 //! heap String allocation. Used by the hot render path in `terminal.rs`

@@ -6,7 +6,7 @@
 //! Free helpers extracted from `Terminal::recover_to_tty` (terminal.rs) so
 //! they can be unit tested without constructing a Terminal (which requires
 //! a real TTY). Also extracted to keep `terminal.rs` under the project's
-//! 1500-LOC guard.
+//! 800-LOC guard.
 //!
 //! See `terminal.rs` for the recovery path that consumes these helpers.
 

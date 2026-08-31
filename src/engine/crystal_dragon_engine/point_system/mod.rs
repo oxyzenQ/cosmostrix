@@ -117,14 +117,6 @@ impl DriftHistory {
         // Not found in history (or history empty) → no penalty.
         1.0
     }
-
-    /// Reset the history (e.g. on scene change or live-reload).
-    #[allow(dead_code)]
-    pub(crate) fn reset(&mut self) {
-        self.entries = [None; CALC_V2_HISTORY_SIZE];
-        self.next = 0;
-        self.count = 0;
-    }
 }
 
 /// Select a new color theme using calc-v2 (pattern state machine with memory).

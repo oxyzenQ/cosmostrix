@@ -2,8 +2,8 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Polling heartbeat for live config reload — split out of `live_config.rs`
-//! so that file stays under the 1500-LOC source cap enforced by
-//! `loc_tests`.
+//! so that file stays under the 800-LOC source cap enforced by
+//! `src/tests/loc.rs`.
 //!
 //! ## Termux fix: triple-signal change detection
 //!

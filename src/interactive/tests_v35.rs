@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! v35+ regression tests, extracted from `interactive/tests.rs` as a
-//! pre-emptive split to keep both files below the 1500-LOC guard
+//! pre-emptive split to keep both files below the 800-LOC guard
 //! (`scripts/check-rs-loc.sh`).
 //!
 //! Covers:
@@ -578,5 +578,5 @@ mod cases_v35 {
 
     // v50 LTS regression tests (first-reload scene reset crash) live in the
     // sibling file `tests_v50_first_reload.rs` (declared at file bottom).
-    // Extracted to keep this file under the 1500-LOC cap.
+    // Extracted to keep this file under the 800-LOC cap.
 }

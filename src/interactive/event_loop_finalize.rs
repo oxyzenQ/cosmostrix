@@ -8,7 +8,7 @@
 //! `Report` formatting), terminal drop (AB-10 alt-screen restore), and
 //! the final-state handoff to `super::set_final_state` for the post-exit
 //! verbose summary. Extracting this block keeps `event_loop.rs` under
-//! the 1500-LOC file cap without touching the loop body's tight coupling.
+//! the 800-LOC file cap without touching the loop body's tight coupling.
 //!
 //! All counters are read-only borrows; `term` is moved in (consumed by
 //! `drop`). Nothing flows back to the caller except `Ok(())`.

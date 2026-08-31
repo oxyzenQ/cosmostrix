@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Peak FPS computation helper — extracted from `bench/mod.rs` to keep
-//! that file under the 1500-LOC cap.
+//! that file under the 800-LOC cap.
 //!
 //! Owns the `compute_peak_fps()` function: a pure, stateless helper that
 //! computes peak FPS from a sorted ascending slice of frame times in ms.

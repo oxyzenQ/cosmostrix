@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 // v50.0.0-beta.6: power-dragon and crystal-dragon on/off HUD indicators.
-// Extracted from tests.rs to keep that file under the 1500-LOC cap.
+// Extracted from tests.rs to keep that file under the 800-LOC cap.
 // Tests verify: default values, live-reload toggle, layout (prdr/crdr
 // above cid), and that values are NOT hardcoded (track runtime state).
 

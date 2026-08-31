@@ -81,7 +81,7 @@ pub(crate) fn bench_warmup_secs() -> u64 {
 
 /// Backpressure section formatter for the `--perf-stats` interactive-mode
 /// exit report. Extracted from `event_loop.rs` to keep that file under the
-/// 1500-LOC project cap.
+/// 800-LOC project cap.
 ///
 /// Emits two metric families:
 ///
@@ -367,19 +367,18 @@ mod tests {
 
     #[test]
     fn bench_file_stays_under_target_loc() {
-        // Guard: src/bench/mod.rs must stay well under 1500 LOC.
-        // Current target is under 1500 LOC — bumped from 1200 in  to
-        // match the project-wide LOC cap. Phase 8-9 scaling added sub-component
-        // timing wiring (sim/render/io accumulators and per-frame
-        // cloud.last_sim_ms()/last_render_ms() reads). The ComponentTimer
-        // struct was extracted to bench_comp.rs to minimize growth here;
-        // further sub-component work should also live in bench_comp.rs
-        // rather than expand this file.
+        // Guard: src/bench/mod.rs must stay under the 800-LOC hard cap
+        // (src/RULES_LOC.md, owner mandate 2026-08-28). Phase 8-9 scaling
+        // added sub-component timing wiring (sim/render/io accumulators
+        // and per-frame cloud.last_sim_ms()/last_render_ms() reads). The
+        // ComponentTimer struct was extracted to bench_comp.rs to minimize
+        // growth here; further sub-component work should also live in
+        // bench_comp.rs rather than expand this file.
         let source = include_str!("mod.rs");
         let lines = source.lines().count();
         assert!(
-            lines < 1500,
-            "bench.rs must stay under 1500 LOC target (currently {lines})"
+            lines < 800,
+            "bench.rs must stay under 800 LOC hard cap (currently {lines})"
         );
     }
 

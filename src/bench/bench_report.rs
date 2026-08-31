@@ -186,7 +186,7 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
     // ── Benchmark environment (reproducibility metadata) ─────────────
     // Lets users compare reports across machines knowing the OS/governor/
     // terminal context. Rendering extracted to envstat.rs to keep this
-    // file under its 1500-LOC guard.
+    // file under its 800-LOC guard.
     crate::envstat::render_section(&mut r, &data.env);
 
     // ── COSMIC DRAGON ENGINE METRICS ─────────────────────────────────────────

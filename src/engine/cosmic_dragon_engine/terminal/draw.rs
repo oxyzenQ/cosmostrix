@@ -4,7 +4,7 @@
 //! Differential + full-redraw ANSI render path for [`Terminal`].
 //!
 //! Extracted from `terminal/mod.rs` in the dragon-fight branch to keep the
-//! main module under the 1500-LOC cap and isolate the perf-critical render
+//! main module under the 800-LOC cap and isolate the perf-critical render
 //! path. This is the single hottest function in cosmostrix — every frame
 //! goes through `Terminal::draw`.
 //!

@@ -702,14 +702,11 @@ fn main() -> std::io::Result<()> {
             user_ranges,
             def_ascii,
             target_fps,
-            fps_precedence,
             color_tune,
             screen_size,
             term_caps: &term_caps,
             duration_s,
             bench_mode,
-            intro: args.intro.unwrap_or(crate::intro_style::IntroType::Logo),
-            intro_color: args.intro_color.clone(),
             monolith_density_map,
             cli_explicit,
         });
@@ -742,7 +739,7 @@ fn main() -> std::io::Result<()> {
 
     if args.verbose && result.is_ok() {
         // Post-exit verbose dump extracted to output/post_exit.rs to keep
-        // main.rs under the 1500-LOC cap + comply with src/RULES.md (only
+        // main.rs under the 800-LOC cap + comply with src/RULES.md (only
         // main.rs at src/ root). Owns:
         // - startup ambient info (captured during the loop, printed here
         //   because the alternate screen discards stderr)

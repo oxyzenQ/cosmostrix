@@ -89,7 +89,6 @@ const MEDIUM_MAX: u8 = 66;
 /// Carried as a field on `Cloud`. Owns the EMA-smoothed CPU%,
 /// the last sample timestamp, and the active sensor mode.
 #[derive(Clone, Copy)]
-#[allow(dead_code)]
 pub(crate) struct CrystalDragonSensor {
     /// EMA-smoothed CPU%. `None` until the first sample is taken.
     cpu_ema: Option<f32>,
@@ -110,7 +109,6 @@ pub(crate) struct CrystalDragonSensor {
     effective_mode: CrystalDragonSensorMode,
 }
 
-#[allow(dead_code)]
 impl CrystalDragonSensor {
     /// Construct a new sensor. Probes CPU sampling support once.
     ///

@@ -72,7 +72,7 @@ pub(crate) use crate::bench_helpers::{validate_bench_scene_str, VALID_BENCH_SCEN
 pub(crate) use premium::run_premium_benchmark;
 
 // v50.0.0-beta.7 LTS: compute_peak_fps extracted to peak_fps.rs to keep
-// this file under the 1500-LOC cap. Re-exported here so all existing
+// this file under the 800-LOC cap. Re-exported here so all existing
 // compute_peak_fps(...) call sites (including 'use super::*' glob in
 // bench_tests.rs) continue to resolve unchanged.
 #[allow(unused_imports)]

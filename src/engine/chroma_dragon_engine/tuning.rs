@@ -45,7 +45,7 @@
 //!
 //! These constants are Chroma Dragon-specific — they tune the coloring
 //! engine, not the rendering engine or the cloud simulation. Keeping them
-//! in `src/constants.rs` pushed that file over the 1500-LOC cap (1480 +
+//! in `src/constants.rs` pushed that file over the 800-LOC cap (1480 +
 //! 51 = 1531). Moving them here keeps each file under the cap and groups
 //! all chroma tuning in one auditable place. Future Chroma Dragon
 //! innovations should add their tuning constants here too.

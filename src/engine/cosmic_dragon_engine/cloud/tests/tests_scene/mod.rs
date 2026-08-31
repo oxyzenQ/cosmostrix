@@ -59,12 +59,35 @@ pub(crate) fn has_dirty_cells(frame: &Frame) -> bool {
     frame.is_dirty_all() || !frame.dirty_indices().is_empty()
 }
 
-// LOC guard — all scene split files must stay under 1500 LOC
+// LOC guard — all scene split files must stay under 800 LOC.
+// Files exceeding the cap must self-declare with a `LOC_EXEMPT:` marker
+// (same semantics as src/tests/loc.rs and scripts/check-rs-loc.sh).
 
-/// All Rust source files must stay under 1500 LOC after the architecture split.
+const LOC_CAP: usize = 800;
+const LOC_EXEMPT_MARKER: &str = "LOC_EXEMPT:";
+
+fn assert_files_under_loc_cap_or_exempt(files: &[&str]) {
+    'outer: for path in files {
+        let content = std::fs::read_to_string(path).unwrap_or_default();
+        let count = content.lines().count();
+        if count <= LOC_CAP {
+            continue;
+        }
+        for line in content.lines().take(5) {
+            if line.contains(LOC_EXEMPT_MARKER) {
+                continue 'outer;
+            }
+        }
+        panic!(
+            "{path}: {count} LOC exceeds {LOC_CAP} cap and has no {LOC_EXEMPT_MARKER} marker"
+        );
+    }
+}
+
+/// All Rust source files must stay under 800 LOC after the architecture split.
 #[test]
 fn all_rust_files_under_loc_cap() {
-    let files = [
+    assert_files_under_loc_cap_or_exempt(&[
         "src/engine/cosmic_dragon_engine/cloud/mod.rs",
         "src/engine/cosmic_dragon_engine/cloud/spawn.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/mod.rs",
@@ -84,12 +107,7 @@ fn all_rust_files_under_loc_cap() {
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
         "src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs",
         "src/engine/cosmic_dragon_engine/cloud/runtime_controls.rs",
-    ];
-    for path in &files {
-        let content = std::fs::read_to_string(path).unwrap_or_default();
-        let count = content.lines().count();
-        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
-    }
+    ]);
 }
 
 // Phase 4 guards (preserved from original tests_scene.rs)
@@ -108,22 +126,17 @@ fn phase4_monolith_facade_stays_small() {
     );
 }
 
-/// All monolith split files must be under 1500 LOC.
+/// All monolith split files must be under 800 LOC (or carry LOC_EXEMPT).
 #[test]
 fn phase4_all_monolith_split_files_under_loc_cap() {
-    let files = [
+    assert_files_under_loc_cap_or_exempt(&[
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
-    ];
-    for path in &files {
-        let content = std::fs::read_to_string(path).unwrap_or_default();
-        let count = content.lines().count();
-        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
-    }
+    ]);
 }
 
 /// All depth lab tests must still exist by name (string check on source).
@@ -197,10 +210,10 @@ fn phase5_scene_facade_stays_small() {
     );
 }
 
-/// All scene split files must be under 1500 LOC.
+/// All scene split files must be under 800 LOC (or carry LOC_EXEMPT).
 #[test]
 fn phase5_all_scene_split_files_under_loc_cap() {
-    let files = [
+    assert_files_under_loc_cap_or_exempt(&[
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
@@ -208,12 +221,7 @@ fn phase5_all_scene_split_files_under_loc_cap() {
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
         "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
-    ];
-    for path in &files {
-        let content = std::fs::read_to_string(path).unwrap_or_default();
-        let count = content.lines().count();
-        assert!(count <= 1500, "{path}: {count} LOC exceeds 1500 cap");
-    }
+    ]);
 }
 
 /// No scene test coverage category was accidentally removed during split.

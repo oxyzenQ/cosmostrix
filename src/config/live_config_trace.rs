@@ -17,7 +17,7 @@
 //! matrix (AB-10 rain-screen cleanliness).
 //!
 //! Split into its own module so `live_config.rs` stays under the
-//! 1500-LOC source cap enforced by `loc_tests`.
+//! 800-LOC source cap enforced by `src/tests/loc.rs`.
 
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Mutex;
@@ -127,7 +127,7 @@ pub(crate) fn trace_rebuild_applied(
 /// "[removed N]" lines as needed, plus a "no field-level changes" line
 /// if the diff is empty (whitespace/comment-only edit).
 ///
-/// Extracted from `event_loop.rs` to keep the file under the 1500-LOC cap.
+/// Extracted from `event_loop.rs` to keep the file under the 800-LOC cap.
 /// No-op when `COSMOSTRIX_LIVE_RELOAD_DEBUG` is unset.
 pub(crate) fn trace_config_diff(
     old: Option<&std::collections::HashMap<String, String>>,

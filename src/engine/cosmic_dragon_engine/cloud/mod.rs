@@ -827,7 +827,7 @@ mod post_rain;
 mod reset_message;
 
 // v50.0.0-beta.7 LTS: interpolate_palette_color extracted to palette_blend.rs
-// to keep this file under the 1500-LOC cap. Re-exported here so all
+// to keep this file under the 800-LOC cap. Re-exported here so all
 // existing crate::cloud::interpolate_palette_color(...) call sites
 // (rain_post, hud, chroma shaders, tests) continue to resolve unchanged.
 pub(crate) use palette_blend::interpolate_palette_color;

@@ -3,7 +3,7 @@
 
 //! Color detection and canonicalization tests.
 //!
-//! Extracted from main.rs to keep that file under 1500 LOC.
+//! Extracted from main.rs to keep that file under 800 LOC.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 

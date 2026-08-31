@@ -3,7 +3,7 @@
 
 //! Tests for the Phase 7 palette-relative brightness floor and Phase 7-b
 //! body-tail continuity. Extracted from `palette.rs` to keep that file
-//! under the 1500-LOC cap.
+//! under the 800-LOC cap.
 //!
 //! Loaded via `#[cfg(test)] #[path = "palette_floor_tests.rs"] mod palette_floor_tests;`
 //! in `palette.rs` — preserves `use super::*` access to palette's private

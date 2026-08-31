@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Hue-preserving brighten_color tests, extracted from `hud_tests.rs`
-//! as a pre-emptive split to keep both files below the 1500-LOC guard
+//! as a pre-emptive split to keep both files below the 800-LOC guard
 //! (`scripts/check-rs-loc.sh`). The 8 tests here lock in the
 //! hue-preserving behavior so a future change back to a white-blend
 //! would fail loudly.

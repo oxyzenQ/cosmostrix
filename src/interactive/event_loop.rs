@@ -53,7 +53,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
-    // Extracted to event_loop_intro.rs to keep this file under the 1500-LOC
+    // Extracted to event_loop_intro.rs to keep this file under the 800-LOC
     // cap. The intro selection chain (intro_color unset / builtin theme /
     // custom palette / invalid fallback) + bug #10 post-intro terminal
     // size re-read are owned by that module.

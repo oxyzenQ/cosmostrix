@@ -853,7 +853,7 @@ fn format_rss_kb(kib: u64) -> String {
 }
 
 // v50.0.0-beta.7 LTS: compute_chroma_gradient_24 + brighten_color
-// extracted to colors.rs to keep this file under the 1500-LOC cap.
+// extracted to colors.rs to keep this file under the 800-LOC cap.
 // Re-exported here so 'use super::*' glob in tests.rs + tests_brighten.rs
 // resolves them unchanged. mod.rs only calls compute_chroma_gradient_24
 // directly; brighten_color is re-exported purely for the test modules

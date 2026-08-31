@@ -15,7 +15,6 @@ use crate::termdetect::TerminalCaps;
 use crate::ux;
 
 use crate::color_tune::ColorTune;
-use crate::intro_style::IntroType;
 use crate::palette::Palette;
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
@@ -50,18 +49,11 @@ pub(crate) struct CfgInputs<'a> {
     pub user_ranges: Vec<(char, char)>,
     pub def_ascii: bool,
     pub target_fps: f64,
-    #[allow(dead_code)]
-    pub fps_precedence: &'a str,
-    #[allow(dead_code)]
     pub color_tune: ColorTune,
     pub screen_size: Option<(u16, u16)>,
     pub term_caps: &'a TerminalCaps,
     pub duration_s: Option<f64>,
     pub bench_mode: bool,
-    #[allow(dead_code)]
-    pub intro: IntroType,
-    #[allow(dead_code)]
-    pub intro_color: Option<String>,
     pub monolith_density_map: Option<&'static [f64]>,
     pub cli_explicit: crate::app::CliExplicit,
 }
@@ -100,14 +92,11 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         user_ranges,
         def_ascii,
         target_fps,
-        fps_precedence: _,
         color_tune,
         screen_size,
         term_caps,
         duration_s,
         bench_mode,
-        intro: _,
-        intro_color: _,
         monolith_density_map,
         cli_explicit,
     } = inp;

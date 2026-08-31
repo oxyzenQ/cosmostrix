@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Runtime scene synchronization for live-reload — extracted from
-//! `event_loop.rs` to keep that file under the 1500-LOC cap.
+//! `event_loop.rs` to keep that file under the 800-LOC cap.
 //!
 //! Owns the `sync_base_cfg_with_runtime_scene()` helper: a pure function
 //! that re-applies a scene's managed defaults (color, charset, speed,

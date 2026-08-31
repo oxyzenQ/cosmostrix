@@ -628,11 +628,12 @@ mod tests {
 
     #[test]
     fn info_file_stays_under_loc_cap() {
+        // Hard cap per src/RULES_LOC.md (owner mandate 2026-08-28).
         let source = include_str!("info.rs");
         let lines = source.lines().count();
         assert!(
-            lines < 1500,
-            "info.rs must stay under 1500 LOC (currently {lines})"
+            lines < 800,
+            "info.rs must stay under 800 LOC (currently {lines})"
         );
     }
 }

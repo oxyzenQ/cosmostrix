@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Palette color interpolation helper — extracted from `cloud/mod.rs`
-//! to keep that file under the 1500-LOC cap.
+//! to keep that file under the 800-LOC cap.
 //!
 //! Owns the `interpolate_palette_color()` function: a pure, stateless
 //! helper that smoothly blends between adjacent chroma-dragon palette
