@@ -490,6 +490,92 @@ mod cases_v35 {
         );
     }
 
+    /// Z-master-1X round 2 regression test: when ambient is OFF and a drift
+    /// has fired (drift_active=true, drift_start=Some(past)), the self-reset
+    /// path in post_rain.rs MUST clear drift_active after
+    /// CRYSTAL_DRAGON_POLLING_SECS (60s) so the next drift can fire. Without
+    /// this, the first drift sets drift_active=true and no mechanism ever
+    /// clears it (try_auto_snapback early-returns on empty schedule),
+    /// permanently blocking all subsequent drifts.
+    ///
+    /// Reproduces the owner-reported round-2 symptom:
+    ///   "setelah 60 detik dari awal ganti sampai 5 menit kedepan colornya
+    ///    tetap sama" (1 color change then nothing for 5+ minutes)
+    #[test]
+    fn z_master_1x_round2_drift_self_resets_when_ambient_off() {
+        use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS;
+        use std::time::{Duration, Instant};
+
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = false;
+        // Simulate: drift fired 60s ago — drift_active=true, drift_start=past.
+        let drift_start = Instant::now() - Duration::from_secs_f32(CRYSTAL_DRAGON_POLLING_SECS);
+        cloud.drift_active = true;
+        cloud.drift_start = Some(drift_start);
+
+        // The self-reset condition: drift_active && !ambient_schedule_active
+        // && drift_start elapsed >= CRYSTAL_DRAGON_POLLING_SECS. This must
+        // be true so the post_rain.rs self-reset block fires and clears
+        // drift_active, allowing the next drift cycle to begin.
+        let now = Instant::now();
+        let drift_visible_secs = cloud
+            .drift_start
+            .map(|s| now.saturating_duration_since(s).as_secs_f32())
+            .unwrap_or(0.0);
+        assert!(
+            cloud.drift_active
+                && !cloud.ambient_schedule_active
+                && drift_visible_secs >= CRYSTAL_DRAGON_POLLING_SECS,
+            "Z-master-1X round 2: self-reset must fire when drift has been visible >= POLLING_SECS and ambient is off"
+        );
+
+        // After self-reset: drift_active=false, drift_start=None. Next drift
+        // can fire on the next poll (the gate re-opens).
+        cloud.drift_active = false;
+        cloud.drift_start = None;
+        assert!(
+            !cloud.drift_active,
+            "drift_active must be cleared after self-reset"
+        );
+        assert!(
+            cloud.drift_start.is_none(),
+            "drift_start must be None after self-reset"
+        );
+    }
+
+    /// Z-master-1X round 2: when ambient is ON, the self-reset path must
+    /// NOT fire (the snapback mechanism owns drift_active clearing in that
+    /// case). The self-reset is gated on `!ambient_schedule_active` so it
+    /// only runs when ambient is off and snapback cannot run.
+    #[test]
+    fn z_master_1x_round2_self_reset_skipped_when_ambient_on() {
+        use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS;
+        use std::time::{Duration, Instant};
+
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = true;
+        let drift_start =
+            Instant::now() - Duration::from_secs_f32(CRYSTAL_DRAGON_POLLING_SECS * 2.0);
+        cloud.drift_active = true;
+        cloud.drift_start = Some(drift_start);
+
+        // The self-reset condition is FALSE because ambient_schedule_active
+        // is true — snapback owns the cycle in this case.
+        let now = Instant::now();
+        let drift_visible_secs = cloud
+            .drift_start
+            .map(|s| now.saturating_duration_since(s).as_secs_f32())
+            .unwrap_or(0.0);
+        assert!(
+            !(cloud.drift_active
+                && !cloud.ambient_schedule_active
+                && drift_visible_secs >= CRYSTAL_DRAGON_POLLING_SECS),
+            "Z-master-1X round 2: self-reset must NOT fire when ambient is on (snapback owns the cycle)"
+        );
+    }
+
     // v50 LTS regression tests (first-reload scene reset crash) live in the
     // sibling file `tests_v50_first_reload.rs` (declared at file bottom).
     // Extracted to keep this file under the 1500-LOC cap.

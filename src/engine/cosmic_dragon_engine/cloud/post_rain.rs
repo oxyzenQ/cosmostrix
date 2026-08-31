@@ -140,16 +140,29 @@ impl super::Cloud {
         // If snapback-secs >= 60, the next drift poll is skipped (drift still
         // active) — drift fires at +120s instead. This is by design.
         //
-        // Z-master-1X bug fix: the `user_override_since_ambient` gate only
-        // applies when ambient is active. That flag is forced to `true` at
-        // startup (event_loop_setup.rs — coredump fix, commit 2b0e28b) and
-        // is only cleared by an ambient fire. When the ambient schedule is
+        // Z-master-1X bug fix (commit c12580a): the `user_override_since_ambient`
+        // gate only applies when ambient is active. That flag is forced to
+        // `true` at startup (event_loop_setup.rs — coredump fix, commit 2b0e28b)
+        // and is only cleared by an ambient fire. When the ambient schedule is
         // empty, no ambient fire ever happens, so the flag stays `true`
         // forever and would permanently block crystal dragon drift despite
         // `crystal_dragon = true` in config. `ambient_schedule_active` is
         // the authoritative signal — when false, skip the user-override
-        // check entirely. See docs/AMBIENT_SCHEDULER.md "Crystal Dragon
-        // wins" section and the Z-master-1X worklog entry.
+        // check entirely.
+        //
+        // Z-master-1X round 2 fix: when ambient is OFF, try_auto_snapback
+        // never runs (it early-returns on empty schedule), so drift_active
+        // was never cleared after the first drift — permanently blocking
+        // all subsequent drifts (owner symptom: "1 color change then nothing
+        // for 5+ minutes"). The self-reset below clears drift_active after
+        // CRYSTAL_DRAGON_POLLING_SECS of visibility, decoupling the drift
+        // cycle from the ambient snapback mechanism. The 60s window matches
+        // the polling cadence: drift is visible for one poll cycle, then the
+        // cycle resets so the next poll can fire a new drift. When ambient
+        // is ON, the snapback path (which reverts the palette AND clears
+        // drift_active) takes precedence — the self-reset only fires if
+        // snapback hasn't, which is the correct ordering (snapback at 30s
+        // < self-reset at 60s).
         if self.crystal_dragon
             && !self.drift_active
             && (!self.user_override_since_ambient || !self.ambient_schedule_active)
@@ -159,6 +172,33 @@ impl super::Cloud {
                 self.user_override_since_ambient = true;
                 self.drift_active = true;
                 self.drift_start = Some(now);
+            }
+        }
+        // Z-master-1X round 2: self-reset the drift cycle when ambient is
+        // off. Without this, the first drift sets drift_active=true and no
+        // mechanism ever clears it (try_auto_snapback early-returns on
+        // empty schedule), so every subsequent poll hits the !drift_active
+        // gate and is blocked. The 60s visibility window matches
+        // CRYSTAL_DRAGON_POLLING_SECS so the next drift is eligible on the
+        // very next poll after the cycle resets. When ambient is on, the
+        // snapback path clears drift_active first (at ~30s) and this branch
+        // is a no-op (drift_active already false).
+        if self.drift_active && !self.ambient_schedule_active {
+            if let Some(start) = self.drift_start {
+                let drift_visible_secs = now.saturating_duration_since(start).as_secs_f32();
+                if drift_visible_secs
+                    >= crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS
+                {
+                    self.drift_active = false;
+                    self.drift_start = None;
+                    // Reset the poll timer so the next drift fires 60s from
+                    // now, not instantly (mirrors try_auto_snapback's
+                    // crystal_dragon_last_poll reset at input.rs:534).
+                    // Without this, the poll is already "due" and drift
+                    // would re-fire on the very next frame, preventing the
+                    // just-drifted palette from being visible.
+                    self.crystal_dragon_last_poll = Some(now);
+                }
             }
         }
 
