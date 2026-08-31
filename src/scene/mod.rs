@@ -70,7 +70,7 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     "cosmic-dragon", // 13
     "carbonic",      // 14
     // Honor scenes — destinations, cycled last.
-    "dragon-crystal", // 15
+    "crystal-dragon", // 15
     "orange-cat",     // 16
     "north-stars",    // 17
     "curiosity",      // 18
@@ -305,13 +305,13 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     },
     // ── Honor scenes ──────────────────────────────────────────────
     //
-    // dragon-crystal: honors the cosmostrix + oxyzenQ journey and the
+    // crystal-dragon: honors the cosmostrix + oxyzenQ journey and the
     // hardthinking-mode reward. The energy-zen palette's crystal-edge
     // magenta stop inspires the name — a dragon carved from living
     // crystal, breathing violet fire. Slow vast pacing with deep-space
     // breathing room, matching the meditative focus of hardthinking mode.
     SceneInfo {
-        name: "dragon-crystal",
+        name: "crystal-dragon",
         description: "Dragon Crystal — honors the cosmostrix + oxyzenQ journey; living crystal violet rain, the hardthinking-mode reward",
         config: SceneConfig {
             color: Some("energy-zen"),
@@ -394,7 +394,7 @@ pub(crate) fn all_scene_names() -> &'static [&'static str] {
         "cosmic-dragon",
         "cosmos",
         "curiosity",
-        "dragon-crystal",
+        "crystal-dragon",
         "hacker",
         "low-power",
         "matrix",

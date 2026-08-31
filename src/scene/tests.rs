@@ -58,7 +58,7 @@ fn scene_names_are_present() {
             "cosmic-dragon",
             "cosmos",
             "curiosity",
-            "dragon-crystal",
+            "crystal-dragon",
             "hacker",
             "low-power",
             "matrix",

@@ -137,7 +137,7 @@ The Dragon's roar is not loud — it is precise.
 
 ### Scenes & Colors
 
-- **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`dragon-crystal`, `orange-cat`, `north-stars`, `curiosity`).
+- **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`crystal-dragon`, `orange-cat`, `north-stars`, `curiosity`).
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance and density-map sculpting.
 - **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
@@ -511,7 +511,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 **Honor scenes**:
 
-- `dragon-crystal` — living crystal violet rain; honors the cosmostrix + oxyzenQ journey and the hardthinking-mode reward. Uses the `energy-zen` premium palette. `cosmostrix --scene dragon-crystal`.
+- `crystal-dragon` — living crystal violet rain; honors the cosmostrix + oxyzenQ journey and the hardthinking-mode reward. Uses the `energy-zen` premium palette. `cosmostrix --scene crystal-dragon`.
 - `orange-cat` — warm amber-gold gentle rain; in memory of the owner's orange cat (2 Aug 2026). `cosmostrix --scene orange-cat`.
 - `north-stars` — sparse white-gold pinprick starlight; honors 3 AM stargazing. `cosmostrix --scene north-stars`.
 - `curiosity` — vibrant spectrum rainbow rain; honors the owner's wonder, the engine that built cosmostrix. `cosmostrix --scene curiosity`.
