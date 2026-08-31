@@ -4,7 +4,7 @@
 //! Message overlay fill (reveal) style selection — one file per style.
 //!
 //! v51 msg-fill-style: the message overlay reveal animation is no longer
-//! hardwired to the classic typewriter. Eight styles are selectable via
+//! hardwired to the classic typewriter. Nine styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
 //!
@@ -18,6 +18,7 @@
 //! | `instant`   | full brightness at t=0               | clockwise draw over 1 s |
 //! | `engrave`   | 80 ms/char burn-in, 2x hot head      | lags text (t^1.5) + sparks |
 //! | `hologram`  | 80 ms/char burn-in, flicker + hum, scanline sweep | lags text (t^1.5) |
+//! | `glitch`    | 80 ms/char scrambled reveal, wrong-glyph settle, ±20% flicker | lags text (t^1.5) |
 //!
 //! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
@@ -31,7 +32,7 @@
 //! the shared ramp/lag helpers, and the dispatch that routes the
 //! runtime enum to the active style module.
 //!
-//! ## How to add style #9 (plug-and-play recipe)
+//! ## How to add style #10 (plug-and-play recipe)
 //!
 //! 1. Copy the closest existing `<style>.rs` to a new file (e.g.
 //!    `<new-style>.rs`) and rewrite its reveal math + doc comment.
@@ -51,7 +52,7 @@
 //!
 //! ## Statelessness contract
 //!
-//! Seven styles are purely time-derived (stateless — zero per-frame
+//! Eight styles are purely time-derived (stateless — zero per-frame
 //! bookkeeping). `engrave` keeps the REVEAL math stateless like the
 //! rest, but adds one bounded stateful sidecar: a 48-slot spark
 //! particle pool rendered inside `draw_message` (see `engrave.rs`
@@ -59,7 +60,11 @@
 //! before the overlay and would be overdrawn). `hologram` adds a
 //! stateless scanline pass rendered at the end of `draw_message`
 //! (see `hologram.rs`) — no pool, no per-frame state, pure function
-//! of elapsed time.
+//! of elapsed time. `glitch` extends `CellReveal` with a
+//! `glyph_override: Option<char>` field (the ONE structural
+//! extension point — see `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md`
+//! §2) so the wrong-glyph substitution can flow through the existing
+//! dispatch with zero renderer churn.
 //!
 //! Placement is a crate-root module (peer of `types/`): the enum is
 //! consumed by both the CLI layer (Args) and the rendering engine
@@ -73,10 +78,13 @@ use clap::ValueEnum;
 // `cloud/mod.rs` stores its `EngraveState` as a Cloud field and the
 // renderer tests read its spark-pool constants. `hologram` is also
 // visible: its `Cloud::hologram_scanline_pass` is invoked at the end
-// of `draw_message`. Every other style is fully encapsulated behind
-// the dispatch below.
+// of `draw_message`. `glitch` is encapsulated like the rest — it
+// only extends `CellReveal` with a `glyph_override` field that the
+// renderer unwraps at draw time. Every stateless style is fully
+// encapsulated behind the dispatch below.
 pub(crate) mod engrave;
 mod fade;
+pub(crate) mod glitch;
 pub(crate) mod hologram;
 mod instant;
 mod pulse;
@@ -119,6 +127,13 @@ pub enum MsgFillStyle {
     /// 600 ms (see `hologram.rs`). Fully stateless.
     #[value(name = "hologram")]
     Hologram,
+    /// Cyberpunk glitch: chars reveal in scrambled order (not
+    /// left-to-right), each newly revealed char flickers between
+    /// wrong glyphs for 90 ms (deterministic per-cell hash) before
+    /// settling on the true one — Matrix-decode feel. Extends
+    /// `CellReveal` with `glyph_override` (see `glitch.rs`).
+    #[value(name = "glitch")]
+    Glitch,
 }
 
 impl MsgFillStyle {
@@ -135,6 +150,7 @@ impl MsgFillStyle {
             Self::Instant => "instant",
             Self::Engrave => "engrave",
             Self::Hologram => "hologram",
+            Self::Glitch => "glitch",
         }
     }
 
@@ -153,6 +169,9 @@ impl MsgFillStyle {
             }
             Self::Hologram => {
                 "hologram (80 ms/char burn-in, 150 ms flicker + 2 s hum, 600 ms scanline sweep)"
+            }
+            Self::Glitch => {
+                "glitch (80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker)"
             }
         }
     }
@@ -174,6 +193,14 @@ pub(crate) struct CellReveal {
     /// Rows below the final position while the cell is mid-slide
     /// (slide style only; 0 = at the final position).
     pub slide_rows: u16,
+    /// Substitute glyph drawn INSTEAD of the cell's true `mc.val`
+    /// while the cell is mid-settle (glitch style only; `None` for
+    /// every other style). The renderer unwraps to `mc.val` when
+    /// `None`, so existing styles are bit-identical. Added in the
+    /// post-hologram round as the ONE structural extension point
+    /// shared by every future glyph-substituting style — see
+    /// `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md` §2.
+    pub glyph_override: Option<char>,
 }
 
 impl CellReveal {
@@ -182,6 +209,7 @@ impl CellReveal {
             visible: false,
             factor: 0.0,
             slide_rows: 0,
+            glyph_override: None,
         }
     }
 
@@ -190,6 +218,7 @@ impl CellReveal {
             visible: true,
             factor: 1.0,
             slide_rows: 0,
+            glyph_override: None,
         }
     }
 }
@@ -285,6 +314,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Instant => instant::reveal(),
         MsgFillStyle::Engrave => engrave::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Hologram => hologram::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Glitch => glitch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -299,7 +329,7 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / words: border
+/// - Typewriter / pulse / slide / engrave / hologram / glitch / words: border
 ///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
 ///   cinematic behavior.
 /// - Fade: border fades together with the text block.
@@ -317,6 +347,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Instant => instant::border_progress(elapsed_ms),
         MsgFillStyle::Engrave => engrave::border_progress(text_progress),
         MsgFillStyle::Hologram => hologram::border_progress(text_progress),
+        MsgFillStyle::Glitch => glitch::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -325,7 +356,7 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram:
+/// - Typewriter / pulse / slide / engrave / hologram / glitch:
 ///   `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
@@ -345,6 +376,7 @@ pub(crate) fn text_progress(
         MsgFillStyle::Instant => instant::text_progress(),
         MsgFillStyle::Engrave => engrave::text_progress(reveal_count, total_text),
         MsgFillStyle::Hologram => hologram::text_progress(reveal_count, total_text),
+        MsgFillStyle::Glitch => glitch::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -352,7 +384,7 @@ pub(crate) fn text_progress(
 
 /// Number of content cells revealed by the active style at the given
 /// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave/
-/// hologram) pace cells by their per-char constant; word/block styles
+/// hologram/glitch) pace cells by their per-char constant; word/block styles
 /// (words/fade/instant) reveal everything (their reveal math decides
 /// per-cell and never reads the budget; only the `None` timeline →
 /// `usize::MAX` is meaningful for them).
@@ -372,6 +404,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Instant => instant::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Engrave => engrave::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Hologram => hologram::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Glitch => glitch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -393,6 +426,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Instant.as_str(), "instant");
         assert_eq!(MsgFillStyle::Engrave.as_str(), "engrave");
         assert_eq!(MsgFillStyle::Hologram.as_str(), "hologram");
+        assert_eq!(MsgFillStyle::Glitch.as_str(), "glitch");
     }
 
     #[test]
@@ -410,6 +444,7 @@ mod tests {
             MsgFillStyle::Instant,
             MsgFillStyle::Engrave,
             MsgFillStyle::Hologram,
+            MsgFillStyle::Glitch,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");

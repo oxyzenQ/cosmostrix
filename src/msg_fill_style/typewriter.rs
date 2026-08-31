@@ -32,6 +32,7 @@ pub(super) fn reveal(
             visible: true,
             factor: char_fade_in(elapsed_ms, reveal_at, TYPEWRITER_FADE_MS),
             slide_rows: 0,
+            glyph_override: None,
         }
     } else {
         CellReveal::hidden()

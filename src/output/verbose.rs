@@ -62,9 +62,10 @@ pub(crate) struct VerboseCtx<'a> {
     /// suppresses config messages; CLI -m/-mb always wins).
     pub msg_mode: bool,
     /// v51 msg-fill-style: message overlay reveal style label
-    /// (typewriter/fade/words/slide/pulse/instant/engrave/hologram). Printed
-    /// right after the msg_mode/message lines so the overlay block
-    /// reads as one unit: master switch → text → reveal style.
+    /// (typewriter/fade/words/slide/pulse/instant/engrave/hologram/
+    /// glitch). Printed right after the msg_mode/message lines so the
+    /// overlay block reads as one unit: master switch → text → reveal
+    /// style.
     pub msg_fill_style: crate::msg_fill_style::MsgFillStyle,
     pub duration: Option<f64>,
     pub screen_size: Option<(u16, u16)>,

@@ -27,6 +27,7 @@ pub(super) fn reveal(block_alpha: f32) -> CellReveal {
             visible: true,
             factor: block_alpha,
             slide_rows: 0,
+            glyph_override: None,
         }
     } else {
         CellReveal::hidden()

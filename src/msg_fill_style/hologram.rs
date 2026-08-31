@@ -147,6 +147,7 @@ pub(super) fn reveal(
         visible: true,
         factor,
         slide_rows: 0,
+        glyph_override: None,
     }
 }
 

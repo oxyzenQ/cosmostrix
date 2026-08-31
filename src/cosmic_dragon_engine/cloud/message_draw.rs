@@ -347,19 +347,27 @@ impl super::Cloud {
                     reveal_count,
                     block_alpha,
                 );
+                // v51 msg-fill-style (glitch): the per-cell reveal may
+                // carry a substitute glyph (wrong-glyph during the
+                // settle window). Every stateless style leaves this
+                // `None`, so they remain bit-identical to the pre-glitch
+                // renderer. Slide also passes the glyph through the
+                // deferred second pass so a future slide + glyph-
+                // override combo would Just Work.
+                let glyph = reveal.glyph_override.unwrap_or(mc.val);
                 if reveal.visible && reveal.slide_rows > 0 {
                     // Slide phase 1: glyph is still one row below — blank
                     // the final cell now, defer the moving glyph.
                     slide_cells.push((
                         mc.col,
                         mc.line.saturating_add(reveal.slide_rows),
-                        mc.val,
+                        glyph,
                         reveal.factor,
                     ));
                     (' ', None)
                 } else if reveal.visible {
                     (
-                        mc.val,
+                        glyph,
                         scale_msg_content_fg(&self.color_pipeline, content_fg, reveal.factor),
                     )
                 } else {

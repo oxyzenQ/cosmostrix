@@ -695,4 +695,7 @@ pub(crate) use watcher::validate_and_send;
 mod tests;
 
 #[cfg(test)]
+mod tests_msg_fill_style;
+
+#[cfg(test)]
 mod tests_rejection_msg;

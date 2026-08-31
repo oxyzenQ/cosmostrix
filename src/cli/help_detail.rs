@@ -198,8 +198,8 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: typewriter). Eight
-      styles — seven driven purely by elapsed time (stateless, zero
+      Message overlay reveal animation (default: typewriter). Nine
+      styles — eight driven purely by elapsed time (stateless, zero
       per-frame cost), plus engrave (adds a bounded 48-slot spark
       particle sidecar):
         typewriter  The classic reveal: one character every 80 ms, each
@@ -240,6 +240,17 @@ COMMON OPTIONS:
                     Respects --no-effects (the scanline pass early-outs
                     when effects are disabled, like every particle
                     subsystem).
+        glitch      Cyberpunk distortion settle: characters do NOT
+                    appear left-to-right — each char's reveal time is
+                    a deterministic scramble of its index (cell N can
+                    reveal up to 560 ms after its base 80 ms·N slot).
+                    Each newly revealed char flickers between 2-3
+                    wrong glyphs (deterministic per-cell hash into a
+                    fixed ASCII table) for 90 ms before settling on
+                    the true one — Matrix-decode feel. Brightness
+                    modulates ±20% during the settle. Fully stateless;
+                    the glyph substitution IS the reveal math, so
+                    --no-effects does not gate it (no particle sidecar).
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -253,6 +264,7 @@ COMMON OPTIONS:
       cosmostrix --msg-fill-style words -mb \"wake up, neo\"
       cosmostrix -mfs engrave -mb \"wake up, neo\"
       cosmostrix -mfs hologram -mb \"wake up, neo\"
+      cosmostrix -mfs glitch -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

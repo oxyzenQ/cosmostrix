@@ -4,11 +4,13 @@
 
 > Status: RESEARCH + DECISION PACKET (2026-08-31, Z-master-1B).
 > `engrave` (owner-picked from the advisor discussion) is IMPLEMENTED.
-> `hologram` (the cheapest candidate below) is also IMPLEMENTED and
-> shipped in the follow-up commit — projected hologram with flicker,
-> breathing ripple, and a single CRT-style scanline sweep. This
-> document records the remaining candidates for the next round —
-> **the owner decides** which (if any) land next.
+> `hologram` (the cheapest candidate) is also IMPLEMENTED —
+> projected hologram with flicker, breathing ripple, and a single
+> CRT-style scanline sweep. `glitch` (the second candidate) is also
+> IMPLEMENTED — cyberpunk distortion settle with scrambled reveal
+> order and wrong-glyph substitution. This document records the
+> remaining candidates for the next round — **the owner decides**
+> which (if any) land next.
 > Predecessor feature: `-mfs`/`--msg-fill-style` (v51, commit 65bdb1df).
 
 ## 1. Decision recorded: `engrave` (LANDED)
@@ -68,11 +70,43 @@ far per the §4 matrix below. What shipped (see `msg_fill_style/hologram.rs`):
   the directory refactor) + the 9-surface sweep +
   tests (+15 total). Cheapest candidate confirmed by the landed LOC.
 
+## 1C. Decision recorded: `glitch` (LANDED — follow-up)
+
+The follow-up commit after hologram landed `glitch` — the second
+candidate per the §4 matrix below. What shipped (see
+`msg_fill_style/glitch.rs`):
+
+- Scrambled reveal: each char's reveal time is
+  `content_idx * 80 + scramble_offset(content_idx) * 80` ms, where
+  `scramble_offset` is a deterministic per-cell hash picked from
+  `0..8`. Spread 8, step 80 ms → scramble window spans up to 560 ms.
+  The budget gate (`content_idx < reveal_count`) still caps
+  eligibility at typewriter-speed (one cell every 80 ms); the
+  scramble gate reshuffles the order within that budget. Characters
+  appear out of order — the cyberpunk "matrix decode" feel.
+- Settle window (90 ms): each newly revealed char flickers between
+  wrong glyphs from a fixed 8-glyph ASCII table
+  (`['0', '1', '#', '%', '&', '$', '@', '?']`) — deterministic per-
+  cell hash. Brightness modulates ±20% during settle. After
+  settle, the cell shows the true glyph at factor 1.0.
+- ONE structural extension point: `CellReveal.glyph_override:
+  Option<char>` (the API surface the §2 ground rule flagged as
+  shared by every future glyph-substituting style). Every existing
+  style leaves the field `None`, so they are bit-identical to the
+  pre-glitch renderer. The renderer unwraps to `mc.val` at draw time.
+- `--no-effects` contract: glitch has NO particle sidecar — the
+  glyph substitution IS the reveal math, not a cosmetic overlay. So
+  `--no-effects` does NOT gate anything in this style (unlike
+  hologram's scanline pass, which self-gates on `effects_enabled`).
+- Cost: ~340 LOC in `msg_fill_style/glitch.rs` plus the 9-surface
+  sweep and tests (+16 total). Confirmed as the second candidate per
+  the research doc §4 matrix.
+
 ## 2. Ground rules for any new style (from the shipped family)
 
 | Rule | Why |
 |------|-----|
-| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 7 of 8 shipped styles comply. |
+| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 8 of 9 shipped styles comply. |
 | If stateful: ONE bounded sidecar struct, pre-allocated pool, O(active)/frame, `--no-effects` gate, reset in `reset_message` + restart paths | The `EngraveState` contract (48-slot pool, movement-gated spawn). |
 | Particles inside the box render at the END of `draw_message` | Draw-order constraint (see §1). |
 | Default stays `typewriter`, bit-identical pre-v51 | LTS guarantee — every new style is opt-in. |
@@ -99,7 +133,7 @@ far per the §4 matrix below. What shipped (see `msg_fill_style/hologram.rs`):
 - **Name check**: `hologram` (advisor also offered `holo`, `project`).
 - **LANDED in the follow-up commit** — see §1B above for what shipped.
 
-### B. `glitch` — cyberpunk distortion settle (RECOMMENDED second)
+### B. `glitch` — cyberpunk distortion settle (LANDED — see §1C)
 
 - **Look**: characters do NOT appear left-to-right. Each char's reveal
   time is a deterministic scramble (hash of its index), each newly
@@ -118,6 +152,12 @@ far per the §4 matrix below. What shipped (see `msg_fill_style/hologram.rs`):
 - **Risk**: medium-low. Glyph substitution interacts with
   `visible_content_cells` test helpers (they compare `cell.ch ==
   mc.val`) — tests must sample after the settle window.
+- **LANDED in the follow-up commit** — see §1C above for what shipped.
+  The clean `CellReveal.glyph_override: Option<char>` field was chosen
+  (the structural extension point flagged in §2). Tests sample after
+  settle via `visible_content_cells`; a new `drawn_content_cells`
+  helper counts any drawn content cell (used by the wrong-glyph
+  render tests to catch cells still in the settle window).
 
 ### C. `scorch` — burnt-in text with embers and smoke (highest wow)
 
@@ -157,7 +197,7 @@ far per the §4 matrix below. What shipped (see `msg_fill_style/hologram.rs`):
 | Candidate | Stateless | LOC est. | New API surface | Visual distinctness | Verdict |
 |-----------|-----------|----------|-----------------|---------------------|---------|
 | hologram  | YES | ~280 (landed) | none | high (scanline + flicker) | **LANDED** (see §1B) |
-| glitch    | YES | ~80-100 | `CellReveal.glyph_override` | high (scramble decode) | Land second |
+| glitch    | YES | ~340 (landed) | `CellReveal.glyph_override` | high (scramble decode) | **LANDED** (see §1C) |
 | scorch    | no (smoke sidecar) | ~150-180 | `CellReveal` tint + sidecar | highest (color + particles) | Land when the tint API is wanted anyway |
 | cascade   | YES | ~50-60 | none | low on 1-line overlays | Defer |
 
@@ -176,7 +216,7 @@ pacing test, brightness/glyph assertion at exact elapsed values,
 no-effects test (if stateful), restart re-arm test (if stateful),
 live-reload + clap + argv + testconf coverage.
 
-## 6. Style table (current, post-hologram)
+## 6. Style table (current, post-glitch)
 
 | Style | Text reveal | Border | Sidecar |
 |-------|-------------|--------|---------|
@@ -188,6 +228,7 @@ live-reload + clap + argv + testconf coverage.
 | `instant` | full brightness at t=0 | clockwise draw over 1 s | none |
 | `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`msg_fill_style/engrave.rs`) |
 | `hologram` | 80 ms/char burn-in, 150 ms flicker + 2 s breathing hum, 600 ms scanline sweep | lags text (t^1.5) | none (stateless scanline pass in `msg_fill_style/hologram.rs`) |
+| `glitch` | 80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker | lags text (t^1.5) | none (stateless, `CellReveal.glyph_override` extension in `msg_fill_style/glitch.rs`) |
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

@@ -43,6 +43,7 @@ pub(super) fn reveal(content_idx: usize, elapsed_ms: Option<usize>) -> CellRevea
                         visible: true,
                         factor: progress * 2.0 * SLIDE_BELOW_MAX,
                         slide_rows: 1,
+                        glyph_override: None,
                     }
                 } else {
                     // Phase 2: landed. Complete the fade at the
@@ -54,6 +55,7 @@ pub(super) fn reveal(content_idx: usize, elapsed_ms: Option<usize>) -> CellRevea
                         visible: true,
                         factor: FADE_IN_START + (1.0 - FADE_IN_START) * p2,
                         slide_rows: 0,
+                        glyph_override: None,
                     }
                 }
             }
