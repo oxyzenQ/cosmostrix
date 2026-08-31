@@ -82,6 +82,12 @@ pub(crate) enum SelfHealAction {
     /// The event loop calls `cloud.force_draw_everything()` and
     /// `hint_reclaim_pages()` directly.
     TriggerHealthMitigation,
+    /// Dragon Engine v2: predictive throttle. The EMA trend shows pressure
+    /// rising rapidly — activate aggressive_throttle BEFORE the reactive
+    /// downgrade threshold is hit. The event loop sets
+    /// `cloud.aggressive_throttle = true` (same as DowngradeScene but
+    /// earlier + lighter — no scene change, just steeper spawn-scale curve).
+    PreemptiveThrottle,
 }
 
 /// Performance self-healer — encapsulates P1 (auto scene downgrade) and
@@ -116,6 +122,17 @@ pub(crate) struct PerformanceSelfHealer {
     /// When the last health mitigation was triggered. Used for the
     /// cooldown window.
     last_health_mitigation: Option<Instant>,
+    // ── Dragon Engine v2: predictive trend tracking ──
+    /// EMA of perf_pressure (alpha 0.3 — responsive but smoothed).
+    /// Tracks the recent pressure trend so the healer can predict
+    /// spikes BEFORE they hit the reactive downgrade threshold.
+    pressure_ema: f32,
+    /// Previous EMA value (used to compute the slope/trend).
+    pressure_ema_prev: f32,
+    /// Whether preemptive throttle is currently active (avoids re-firing
+    /// every tick — once activated, stays until pressure drops or the
+    /// reactive DowngradeScene fires).
+    preemptive_throttle_active: bool,
 }
 
 impl PerformanceSelfHealer {
@@ -142,6 +159,9 @@ impl PerformanceSelfHealer {
             pre_degraded_scene: None,
             is_downgraded: false,
             last_health_mitigation: None,
+            pressure_ema: 0.0,
+            pressure_ema_prev: 0.0,
+            preemptive_throttle_active: false,
         }
     }
 
@@ -183,6 +203,46 @@ impl PerformanceSelfHealer {
         now: Instant,
         health_score: Option<f64>,
     ) -> SelfHealAction {
+        // ── Dragon Engine v2: update EMA trend ──
+        // Alpha 0.3 — responsive enough to catch real spikes, smoothed
+        // enough to ignore single-frame jitter.
+        const PREDICTIVE_EMA_ALPHA: f32 = 0.3;
+        self.pressure_ema_prev = self.pressure_ema;
+        self.pressure_ema = self.pressure_ema * (1.0 - PREDICTIVE_EMA_ALPHA)
+            + perf_pressure * PREDICTIVE_EMA_ALPHA;
+        let trend = self.pressure_ema - self.pressure_ema_prev;
+
+        // ── Dragon Engine v2: predictive preemptive throttle ──
+        // If pressure is rising rapidly (trend > 0.05 per tick) AND we're
+        // not already downgraded AND pressure is in the "warning zone"
+        // (above pressure_low but below pressure_high), fire preemptive
+        // throttle BEFORE the reactive downgrade threshold is hit.
+        //
+        // Threshold rationale: trend 0.05/tick at ~60Hz = 3.0/sec pressure
+        // increase. That's a fast spike — typical gradual load changes are
+        // <0.01/tick. 0.05 filters out noise, catches real spikes.
+        //
+        // The "warning zone" gate (pressure_low < ema < pressure_high)
+        // prevents firing when we're already idle (no point throttling at
+        // 0% pressure) or already at downgrade threshold (the reactive P1
+        // path handles that).
+        if !self.is_downgraded
+            && !self.preemptive_throttle_active
+            && trend > 0.05
+            && self.pressure_ema > self.thresholds.pressure_low
+            && self.pressure_ema < self.thresholds.pressure_high
+        {
+            self.preemptive_throttle_active = true;
+            return SelfHealAction::PreemptiveThrottle;
+        }
+        // Clear preemptive throttle when pressure drops or reactive
+        // downgrade fires (the reactive path is stronger).
+        if self.preemptive_throttle_active
+            && (self.pressure_ema <= self.thresholds.pressure_low || self.is_downgraded)
+        {
+            self.preemptive_throttle_active = false;
+        }
+
         // ── P2: health mitigation (orthogonal to P1 state) ──
         if let Some(score) = health_score {
             if score < self.thresholds.health_investigate {

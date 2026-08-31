@@ -113,5 +113,19 @@ pub(crate) fn run_self_healer(
                 );
             }
         }
+        SelfHealAction::PreemptiveThrottle => {
+            // Dragon Engine v2: predictive throttle — pressure is rising
+            // rapidly but hasn't hit the reactive downgrade threshold yet.
+            // Activate aggressive_throttle early to smooth the spike before
+            // it causes frame drops. Same flag as DowngradeScene but lighter
+            // (no scene change, no pre_degraded_scene capture). The reactive
+            // DowngradeScene path can still fire later if pressure sustains.
+            if current_cfg.power_dragon {
+                cloud.set_aggressive_throttle(true);
+                crate::live_config::push_runtime_warning(
+                    "[self-heal v2] predictive throttle — CPU pressure rising rapidly, throttling early",
+                );
+            }
+        }
     }
 }

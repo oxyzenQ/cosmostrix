@@ -248,9 +248,11 @@ fn audit_self_healer_observe_reads_from_struct_not_constants() {
         let action = h.observe(0.7, t, Some(95.0));
         // With the override (pressure_high = 0.95), 0.7 < 0.95 → no
         // high-pressure accumulation → no downgrade.
-        assert_eq!(
+        // Dragon Engine v2: PreemptiveThrottle MAY fire (it's lighter
+        // than DowngradeScene). The test only asserts no DOWNGRADE.
+        assert_ne!(
             action,
-            SelfHealAction::None,
+            SelfHealAction::DowngradeScene,
             "override must prevent downgrade at t={i}s"
         );
     }
