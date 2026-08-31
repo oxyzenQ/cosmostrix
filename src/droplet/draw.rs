@@ -324,40 +324,43 @@ impl super::Droplet {
                     b = nb;
                 }
 
-                // Depth fog: dim top and bottom rows
-                let fog_factor = if line < FOG_ROWS {
-                    FOG_MIN_FACTOR + (1.0 - FOG_MIN_FACTOR) * (line as f32 / FOG_ROWS as f32)
-                } else {
-                    let bottom_dist = ctx.lines.saturating_sub(line).saturating_sub(1);
-                    if bottom_dist < FOG_ROWS {
-                        FOG_MIN_FACTOR
-                            + (1.0 - FOG_MIN_FACTOR) * (bottom_dist as f32 / FOG_ROWS as f32)
+                // Depth fog: dim top and bottom rows.
+                // v50 (alpha.2): FOG_MIN_FACTOR=1.0 disables this. Const-gate
+                // mirrors the GLOW_ENABLED pattern below — LLVM folds the dead
+                // branch away, but the explicit gate makes intent clear and
+                // avoids the runtime branch + factor computation when disabled.
+                const FOG_ENABLED: bool = FOG_MIN_FACTOR < 1.0;
+                if FOG_ENABLED {
+                    let fog_factor = if line < FOG_ROWS {
+                        FOG_MIN_FACTOR + (1.0 - FOG_MIN_FACTOR) * (line as f32 / FOG_ROWS as f32)
                     } else {
-                        1.0
-                    }
-                };
-                if fog_factor < 1.0 {
-                    // (chroma audit, A13): route depth-fog brightness
-                    // scale through chroma engine when active, fall back to
-                    // chroma::legacy::scale_rgb otherwise. Same equation both
-                    // paths: \`((c * fi + 128) >> 8).clamp(0, 255)\` where
-                    // fi = (fog_factor * 256) as i32.
-                    //
-                    // Factor safety: fog_factor is gated to < 1.0 here, but
-                    // FOG_MIN_FACTOR=1.0 (disabled), so this block is dead
-                    // code — fog_factor is always 1.0 and the gate never enters.
-                    let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
-                        // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
-                        crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
-                            r, g, b, fog_factor,
-                        )
-                    } else {
-                        crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, fog_factor)
+                        let bottom_dist = ctx.lines.saturating_sub(line).saturating_sub(1);
+                        if bottom_dist < FOG_ROWS {
+                            FOG_MIN_FACTOR
+                                + (1.0 - FOG_MIN_FACTOR) * (bottom_dist as f32 / FOG_ROWS as f32)
+                        } else {
+                            1.0
+                        }
                     };
-                    r = nr;
-                    g = ng;
-                    b = nb;
-                }
+                    if fog_factor < 1.0 {
+                        // (chroma audit, A13): route depth-fog brightness
+                        // scale through chroma engine when active, fall back to
+                        // chroma::legacy::scale_rgb otherwise. Same equation both
+                        // paths: \`((c * fi + 128) >> 8).clamp(0, 255)\` where
+                        // fi = (fog_factor * 256) as i32.
+                        let (nr, ng, nb) = if ctx.color_pipeline.is_chroma() {
+                            // (Color-#5): tuple-returning variant avoids Color wrap + decode_color round-trip.
+                            crate::chroma_dragon_engine::palette::apply_brightness_rgb_unclamped(
+                                r, g, b, fog_factor,
+                            )
+                        } else {
+                            crate::chroma_dragon_engine::legacy::scale_rgb(r, g, b, fog_factor)
+                        };
+                        r = nr;
+                        g = ng;
+                        b = nb;
+                    }
+                } // end if FOG_ENABLED
 
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
                 // v30 optimize: const-gate — MOUSE_GLOW_INTENSITY is 0.0 in production,
@@ -613,19 +616,33 @@ impl super::Droplet {
                 // front-layer neon is NOT dimmed by the vignette — it stays at
                 // full fidelity even at screen corners. Mid/back layers
                 // (mult=1.0) get the full vignette for depth.
-                let vignette_raw = ctx
-                    .vignette_lut
-                    .get(
-                        (line as usize) * (ctx.vignette_lut_cols as usize)
-                            + (self.bound_col as usize),
-                    )
-                    .copied()
-                    .unwrap_or(crate::brightness_factors::vignette_factor(
+                let vignette_raw = if ctx.vignette_lut.is_empty() {
+                    // LUT not sized for this viewport (tests, or pre-resize
+                    // frame). Fall back to the live computation.
+                    crate::brightness_factors::vignette_factor(
                         self.bound_col,
                         line,
                         ctx.cols,
                         ctx.lines,
-                    ));
+                    )
+                } else {
+                    // Direct index — bounds are guaranteed by construction:
+                    // line < ctx.lines (loop invariant) and bound_col < cols
+                    // (validated in Cloud::spawn). The LUT is sized to
+                    // lines*vignette_lut_cols at resize time. Debug_assert
+                    // keeps the safety contract visible without paying the
+                    // Option unwrap cost in release (Cosmic Dragon egg pattern).
+                    let idx = (line as usize) * (ctx.vignette_lut_cols as usize)
+                        + (self.bound_col as usize);
+                    debug_assert!(
+                        idx < ctx.vignette_lut.len(),
+                        "vignette LUT index {idx} out of bounds (line={line}, col={}, lut_cols={}, lut_len={})",
+                        self.bound_col,
+                        ctx.vignette_lut_cols,
+                        ctx.vignette_lut.len()
+                    );
+                    ctx.vignette_lut[idx]
+                };
                 let vignette =
                     1.0 - (1.0 - vignette_raw) * VIGNETTE_LAYER_MULT[self.layer as usize];
                 // (chroma audit, A7): radial vignette brightness
