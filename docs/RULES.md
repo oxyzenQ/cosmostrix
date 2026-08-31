@@ -73,10 +73,10 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 ### CLI Flag Policy
 
-- **"Did you mean?" suggestion coverage** (v51 audit — every CLI/value surface suggests on typos):
-  - Long-flag typos (`--scne`): clap's built-in `suggestions` feature (jaro similarity) + `extract_clap_suggestion()` in `src/cli/suggestion.rs`, which reformats clap's OWN "tip:" line as `Did you mean --<flag>?` (the two lines can never disagree — the custom Levenshtein engine + hand-maintained KNOWN_LONG_FLAGS list were removed in v50.0.0-beta.7 after the `--disable-effects` rename drift bug).
+- **Suggestion coverage** (v51 audit + Z-master-1X consistency audit — every CLI/value surface suggests on typos, unified to the `tip: a similar ... exists` format; the legacy `Did you mean` format was fully removed):
+  - Long-flag typos (`--scne`): clap's built-in `suggestions` feature (jaro similarity) + `extract_clap_suggestion()` in `src/cli/suggestion.rs`, which reads clap's OWN `tip:` line and appends `tip: a similar argument exists: '--<flag>'` (the two lines can never disagree — the custom Levenshtein engine + hand-maintained KNOWN_LONG_FLAGS list were removed in v50.0.0-beta.7 after the `--disable-effects` rename drift bug).
   - Enum-value typos on clap `value_enum` flags (`--intro`, `--msg-fill-style`, `--bench-scene`, ...): clap's built-in `tip: a similar value exists`.
-  - Enum-value typos on prevalidator-intercepted flags (`--glitch-level`, `--monolith-size`, `--color-bg`): `validate_enum_value()` in `src/validation/mod.rs` appends `Did you mean '<value>'?` via the shared `closest_value_match` (edit distance ≤ 2).
+  - Enum-value typos on prevalidator-intercepted flags (`--glitch-level`, `--monolith-size`, `--color-bg`): `validate_enum_value()` in `src/validation/mod.rs` appends `tip: a similar value exists: '<value>'` via the shared `format_value_suggestion` + `closest_value_match` (edit distance ≤ 2).
   - Color values (`-c`/`--color`): `closest_color_name()` in `src/cli/mod.rs` (edit distance ≤ 2 over builtin names + aliases).
   - Scene values (`--scene`): `scene_suggestion_tip()` in `src/config/config_apply.rs` (builtin scenes + `[scene-custom.<name>]` blocks).
   - Charset values (`-C`/`--charset`/`--charset-custom`): `charset_from_str()` suggests from `CHARSET_PRESET_NAMES` (custom `[charset-custom.<name>]` names are listed by `--list-charsets` but not suggested — the parser has no config access).

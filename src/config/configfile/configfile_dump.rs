@@ -32,7 +32,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # scene = "cinematic"                   # See: cosmostrix --list-scenes
 # color = "energy-zen"                  # See: cosmostrix --list-colors (cinematic default)
 # charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
-# color-bg = "default-background"       # or "black"
+# color-bg = "black"                   # or "default-background" (default: black)
 # intro = "logo"                        # logo | cosmic | none (default: logo)
 # intro-color = "energy-zen"            # intro color override (default: same as rain color)
 
