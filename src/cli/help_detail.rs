@@ -209,9 +209,12 @@ COMMON OPTIONS:
         fade        Text appears instantly; the whole block (text and
                     border) fades from 0% to 100% over 800 ms. Fastest
                     path to a readable message.
-        words       Word-by-word cascade: one word every 200 ms, each
-                    fading in over 150 ms. Progressive but quicker than
-                    per-character typing.
+        words       Word-by-word cascade with land impact: one word
+                    every 200 ms, each fading in over 150 ms, then
+                    punching in with a 1.3x brightness flash that
+                    decays over 80 ms — the word lands with impact,
+                    distinct from plain fade (no punch). Progressive
+                    but quicker than per-character typing.
         slide       Characters slide up: each glyph fades in one row
                     below its final position (60 ms stagger), then
                     lands and completes its fade. Cinematic credits
