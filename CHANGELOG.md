@@ -9,6 +9,22 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### crystal-dragon: stack-allocated CDF — zero heap allocation on drift path (Z-master-1X round 9)
+
+- **Audit scope**: deep audit of Crystal Dragon engine for peak masterclass alternatives. Owner constraint: design stays intact (point system, 3 groups, calc-v1 probabilistic, 60s poll, 12% drift, CPU primary + CLOCK fallback, EMA alpha 0.25, weight penalty 0.1).
+- **6 options evaluated**:
+  1. **Stack-allocated CDF** `[f32; 16]` — eliminates 2 heap Vec allocations per drift. No design change. ✅ WORTH IT.
+  2. Precompute weight table — ~100ns per drift. Marginal (drift fires every ~5 min). ❌ skip.
+  3. Adaptive EMA alpha — responsive after gaps. Violates owner-locked fixed alpha. ❌ skip.
+  4. Sqrt lookup table — ~4ns per 60s. Over-engineering (sqrt is 1 instruction). ❌ skip.
+  5. CDF reuse across retries — already optimal (CDF built once, cdf_select just draws + searches). ✅ already peak.
+  6. Weight penalty tuning — owner-locked design parameter. ❌ skip.
+- **Implemented Option 1**: changed `calc_v1_select` from `Vec<f32>` (weights + CDF) to stack-allocated `[f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP]` (16 slots, covers 14 themes + 2 reserved). Zero heap allocation on the drift path. Same algorithm, same output, just stack instead of heap.
+- **New constant**: `CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP = 16` in `crystal_dragon_control/mod.rs` — sizes the stack arrays + documents the cap.
+- **Design impact**: NONE — same calc-v1 probabilistic weighted selection, same CDF, same binary search, same skip-current-scheme retry. Only the memory location changed (heap → stack).
+- **Files changed**: `src/engine/crystal_dragon_engine/point_system/mod.rs` (stack arrays + import), `src/engine/crystal_dragon_engine/crystal_dragon_control/mod.rs` (new constant).
+- **Tests**: 85 crystal_dragon tests pass. clippy clean, fmt clean, gatekeepers 9/9.
+
 ### crystal-dragon: fix CPU→point mapping — sqrt curve for full color variety (Z-master-1X round 8)
 
 - **Bug**: owner observed that Crystal Dragon drift almost never produces purple (Medium group) or fire (Hot group) colors — mostly white/cyan (Cold group). The owner designed 3 temperature groups (Cold/Medium/Hot) expecting full variety, but the distribution was bottlenecked.

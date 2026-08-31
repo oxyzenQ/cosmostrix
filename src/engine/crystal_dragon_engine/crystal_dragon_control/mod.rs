@@ -42,6 +42,14 @@ pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.12;
 /// per-minute sampling jitter without lagging far behind real load.
 pub(crate) const CRYSTAL_DRAGON_CPU_EMA_ALPHA: f32 = 0.25;
 
+// ── Stack-allocated CDF capacity ─────────────────────────────────────────
+
+/// Z-master-1X round 9 masterclass: maximum themes per temperature group.
+/// Used to size the stack-allocated `[f32; N]` arrays in `calc_v1_select`
+/// so the drift path avoids heap allocation entirely. Groups have exactly
+/// 14 themes; 16 covers that + the 2 reserved themes defensively.
+pub(crate) const CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP: usize = 16;
+
 // ── Sensor mode ──────────────────────────────────────────────────────────
 
 /// Sensor input mode for the Crystal Dragon engine.

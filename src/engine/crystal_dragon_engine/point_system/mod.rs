@@ -23,6 +23,7 @@
 
 use rand::distr::{Distribution, Uniform};
 
+use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP;
 use crate::crystal_dragon_engine::palette_groups::{group_themes, theme_weight};
 use crate::crystal_dragon_engine::sensor::point_to_group;
 use crate::runtime::ColorScheme;
@@ -36,6 +37,13 @@ use crate::runtime::ColorScheme;
 /// Returns `Some(new_scheme)` if a different theme was selected,
 /// or `None` if the group has only one theme (impossible with 14
 /// per group, but defensive).
+///
+/// Z-master-1X round 9 masterclass: uses stack-allocated fixed-size
+/// arrays (`[f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP]`) instead of
+/// `Vec<f32>` for the weights + CDF. This eliminates 2 heap allocations
+/// per drift event (every ~5 min) with zero design change — same
+/// algorithm, same output, just stack instead of heap. The cap (16)
+/// comfortably covers the 14 themes per group + 2 reserved.
 pub(crate) fn calc_v1_select(
     current_point: u8,
     current_scheme: ColorScheme,
@@ -47,38 +55,40 @@ pub(crate) fn calc_v1_select(
         return None;
     }
 
-    // Compute weights for each theme.
-    let weights: Vec<f32> = themes
-        .iter()
-        .enumerate()
-        .map(|(i, _)| theme_weight(current_point, i, themes.len()))
-        .collect();
+    // Z-master-1X round 9: stack-allocated weights + CDF. Groups have
+    // exactly 14 themes; 16 slots covers that + the 2 reserved themes
+    // defensively. No heap allocation on the drift path.
+    let n = themes.len();
+    let mut weights = [0.0f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP];
+    for (i, slot) in weights.iter_mut().enumerate().take(n) {
+        *slot = theme_weight(current_point, i, n);
+    }
 
-    // Build CDF (cumulative distribution function).
-    let total_weight: f32 = weights.iter().sum();
+    // Build CDF (cumulative distribution function) in-place on the stack.
+    let total_weight: f32 = weights[..n].iter().sum();
     if total_weight <= 0.0 {
         // Degenerate: all weights zero. Fall back to uniform.
         return uniform_select(themes, current_scheme, mt);
     }
 
-    let mut cdf: Vec<f32> = Vec::with_capacity(weights.len());
+    let mut cdf = [0.0f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP];
     let mut cumulative = 0.0f32;
-    for &w in &weights {
+    for (i, &w) in weights[..n].iter().enumerate() {
         cumulative += w / total_weight;
-        cdf.push(cumulative);
+        cdf[i] = cumulative;
     }
     // Ensure last entry is exactly 1.0 (floating-point safety).
-    if let Some(last) = cdf.last_mut() {
-        *last = 1.0;
+    if n > 0 {
+        cdf[n - 1] = 1.0;
     }
 
     // Draw from CDF.
-    let selected = cdf_select(&cdf, themes, mt);
+    let selected = cdf_select(&cdf[..n], themes, mt);
 
     // Skip current scheme if selected.
     if selected == current_scheme {
         // Try once more (different random draw).
-        let retry = cdf_select(&cdf, themes, mt);
+        let retry = cdf_select(&cdf[..n], themes, mt);
         if retry != current_scheme {
             return Some(retry);
         }
