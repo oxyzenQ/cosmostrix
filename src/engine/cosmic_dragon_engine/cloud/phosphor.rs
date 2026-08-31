@@ -328,10 +328,24 @@ impl Cloud {
         self.phosphor_pressure_boost_active = should_boost;
         let pressure_boost = if should_boost { 1.2 } else { 1.0 };
         let throttle_boost = if self.aggressive_throttle { 1.5 } else { 1.0 };
+        // Dragon Engine v2: adaptive phosphor — trails breathe with CPU.
+        // Below the pressure_boost threshold (0.30), SLOW DOWN decay so
+        // trails are longer when the system is relaxed (beautiful, calm).
+        // Above 0.30, the existing pressure_boost (1.2x) + throttle_boost
+        // (1.5x) speed up decay (shorter trails = performance headroom).
+        // The factor scales linearly from 0.8 (at 0% pressure) to 1.0
+        // (at 0.30 pressure). This makes trails visibly longer during idle
+        // and shorter during load — "the rain breathes with your CPU".
+        let adaptive_factor = if self.perf_pressure < 0.30 {
+            0.8 + (self.perf_pressure / 0.30) * 0.2 // 0.8 → 1.0 ramp
+        } else {
+            1.0
+        };
         let base_decay = PHOSPHOR_DECAY_RATE
             * self.phosphor_decay_mult
             * pressure_boost
             * throttle_boost
+            * adaptive_factor
             * elapsed_sec;
         let bottom_base_decay = base_decay * PHOSPHOR_BOTTOM_DECAY_MULT;
         let mut decay_exp_factors = [1.0f32; PARALLAX_LAYERS * 2];

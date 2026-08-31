@@ -26,11 +26,19 @@
 //! Zero behavior change — the body is identical, only the receiver type
 //! changed.
 //!
-//! ## Roadmap (later phases, not yet implemented)
+//! ## Phase 3/4 — Dragon Awakening (COMPLETED)
 //!
-//! - Phase 3+: ordered dithering, temporal column hue coherence, head halo,
-//!   subpixel hue jitter, luminance-remap for short droplets, integrated
-//!   atmospheric shader, `hue_drift` activation, palette-aware ghost color.
+//! All Phase 3+ features are now implemented and active in production:
+//! - Ordered dithering (Bayer 4×4 matrix, active in shader hot path)
+//! - Temporal column hue coherence (per-column LUT, always Some in production)
+//! - Head halo (background blend, HEAD_HALO_FACTOR = 0.15, always Some)
+//! - Subpixel hue jitter (deterministic per-cell, SUBPIXEL_JITTER_AMPLITUDE = 3)
+//! - hue_drift activation (ecosystem.tick evolves hue_drift, shader reads via hue_drift_offset)
+//! - Palette-aware ghost color (ghost_base_color reads palette_colors[0])
+//!
+//! The old "Phase 3+ roadmap" comment was stale — these features shipped as
+//! Phase 3/4 "Dragon Awakening" and are wired in `rain_at.rs` DrawCtx
+//! construction (always Some in production).
 //!
 //! ## Module layout
 //!

@@ -152,6 +152,11 @@ impl GhostEventScheduler {
         if !self.events_enabled {
             return;
         }
+        // Dragon Engine v2: ghost AI — hard gate still applies (no ghosts
+        // under extreme pressure or pause), but the spawn probability is
+        // now pressure-scaled (see try_spawn_ghost). Ghosts become a
+        // living system health indicator: many ghosts = relaxed system,
+        // few ghosts = busy system.
         if perf_pressure > EVENT_PERF_GATE || is_paused {
             return;
         }
@@ -159,7 +164,7 @@ impl GhostEventScheduler {
             return;
         }
 
-        self.try_spawn_ghost(cols, lines);
+        self.try_spawn_ghost(cols, lines, perf_pressure);
     }
 
     /// Render pre-rain events (ghosts, behind droplets).
@@ -204,13 +209,27 @@ impl GhostEventScheduler {
     // ── Private Helpers ────────────────────────────────────────────────────
 
     /// Try to spawn a ghost kanji character.
-    fn try_spawn_ghost(&mut self, cols: u16, lines: u16) {
+    ///
+    /// Dragon Engine v2: ghost AI — spawn probability is pressure-scaled.
+    /// At 0% pressure: full spawn chance (ghosts frequent = system relaxed).
+    /// At EVENT_PERF_GATE pressure: 0% spawn chance (no ghosts = system busy).
+    /// Linear interpolation between 0 and EVENT_PERF_GATE. Ghosts become a
+    /// living system health indicator — the user subconsciously reads ghost
+    /// frequency as "how hard is my system working".
+    fn try_spawn_ghost(&mut self, cols: u16, lines: u16, perf_pressure: f32) {
         // Max 1 ghost active
         if self.events.iter().filter(|e| e.is_pre_rain()).count() >= GHOST_MAX_ACTIVE {
             return;
         }
         let uniform = rand::distr::Uniform::new(0.0f64, 1.0f64).expect("[0,1) valid");
-        if uniform.sample(&mut self.rng) >= GHOST_SPAWN_CHANCE_PER_TICK {
+        // Dragon Engine v2: pressure-scaled spawn chance.
+        // At pressure=0.0 → full GHOST_SPAWN_CHANCE_PER_TICK.
+        // At pressure=EVENT_PERF_GATE → 0.0 (no spawn).
+        // Linear ramp: chance = base * (1 - pressure / gate).
+        let pressure_factor =
+            1.0 - (perf_pressure / EVENT_PERF_GATE).clamp(0.0, 1.0) as f64;
+        let scaled_chance = GHOST_SPAWN_CHANCE_PER_TICK * pressure_factor;
+        if uniform.sample(&mut self.rng) >= scaled_chance {
             return;
         }
         let col = if cols > 5 {

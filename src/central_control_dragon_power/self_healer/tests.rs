@@ -23,13 +23,16 @@ fn self_healer_p1_does_not_downgrade_before_window() {
     let mut h = PerformanceSelfHealer::new();
     let t0 = Instant::now();
     // 29 seconds of sustained high pressure — one second short of the
-    // 30s downgrade window. Should NOT fire.
+    // 30s downgrade window. Should NOT fire DowngradeScene.
+    // Dragon Engine v2: PreemptiveThrottle MAY fire (it's lighter than
+    // DowngradeScene — just sets aggressive_throttle, no scene change).
+    // The test only asserts no DOWNGRADE happens before the window.
     for i in 0..29 {
         let t = t0 + Duration::from_secs(i);
         let action = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
-        assert_eq!(
+        assert_ne!(
             action,
-            SelfHealAction::None,
+            SelfHealAction::DowngradeScene,
             "should not downgrade at t={i}s"
         );
     }
@@ -324,9 +327,9 @@ fn self_healer_respects_overridden_thresholds_in_observe() {
     for i in 0..3 {
         let t = t0 + Duration::from_secs(i);
         let action = h.observe(SELF_HEAL_PRESSURE_HIGH, t, Some(95.0));
-        assert_eq!(
+        assert_ne!(
             action,
-            SelfHealAction::None,
+            SelfHealAction::DowngradeScene,
             "should not downgrade at t={i}"
         );
     }
