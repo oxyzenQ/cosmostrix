@@ -67,7 +67,7 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "bold",
     "colors-custom",
     "charset-custom",
-    "shadingmode",
+    "shading-mode",
     "async-mode",
 ];
 
@@ -134,7 +134,7 @@ pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String
             "bold" => profile.bold = Some(value.clone()),
             "colors-custom" => profile.colors_custom = Some(value.clone()),
             "charset-custom" => profile.charset_custom = Some(value.clone()),
-            "shadingmode" => profile.shading_mode = Some(value.clone()),
+            "shading-mode" => profile.shading_mode = Some(value.clone()),
             "async-mode" => profile.async_mode = Some(value.clone()),
             _ => {}
         }
@@ -355,7 +355,7 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 ///
 /// Owner contract (2026-08-07):
 /// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
-///   `charset-custom`, `shadingmode`, `glitch-level`, `fps`, `speed`,
+///   `charset-custom`, `shading-mode`, `glitch-level`, `fps`, `speed`,
 ///   `density`, `density-map`, `async-mode`.
 /// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
 ///   `ambient`, `crystal-dragon`, `color.tune`, `monolith-size`,
@@ -376,7 +376,7 @@ pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
     "bold",
     "colors-custom",
     "charset-custom",
-    "shadingmode",
+    "shading-mode",
     "glitch-level",
     "fps",
     "speed",
@@ -449,7 +449,7 @@ pub(crate) fn collect_custom_scenes(
             "bold" => scene.bold = Some(value.clone()),
             "colors-custom" => scene.colors_custom = Some(value.clone()),
             "charset-custom" => scene.charset_custom = Some(value.clone()),
-            "shadingmode" => scene.shading_mode = Some(value.clone()),
+            "shading-mode" => scene.shading_mode = Some(value.clone()),
             "async-mode" => scene.async_mode = Some(value.clone()),
             // monolith-size and color-bg are NOT in SCENE_CUSTOM_FIELDS,
             // so is_scene_custom_config_key already filtered them out.

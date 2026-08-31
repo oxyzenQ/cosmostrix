@@ -506,8 +506,8 @@ fn apply_config_values(
             config_touched.insert("bold");
         }
     }
-    if let Some(v) = config_value(matches, cfg, "shading_mode", "shadingmode") {
-        if let Some(n) = parse_u8_config("shadingmode", &v, 0, 1) {
+    if let Some(v) = config_value(matches, cfg, "shading_mode", "shading-mode") {
+        if let Some(n) = parse_u8_config("shading-mode", &v, 0, 1) {
             args.shading_mode = n;
             config_touched.insert("shading_mode");
         }

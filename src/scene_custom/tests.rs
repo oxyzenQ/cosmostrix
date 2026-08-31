@@ -362,7 +362,7 @@ fn scene_custom_fields_includes_v30_3_additions() {
         "bold",
         "colors-custom",
         "charset-custom",
-        "shadingmode",
+        "shading-mode",
         "glitch-level",
         "fps",
         "speed",
@@ -400,7 +400,7 @@ fn is_scene_custom_config_key_accepts_v30_3_fields() {
         "bold",
         "colors-custom",
         "charset-custom",
-        "shadingmode",
+        "shading-mode",
         "async-mode",
     ] {
         let key = format!("scene-custom.test.{field}");
@@ -442,7 +442,7 @@ fn collect_custom_scenes_parses_v30_3_fields() {
             "scene-custom.test.charset-custom".to_string(),
             "zen".to_string(),
         ),
-        ("scene-custom.test.shadingmode".to_string(), "1".to_string()),
+        ("scene-custom.test.shading-mode".to_string(), "1".to_string()),
         (
             "scene-custom.test.async-mode".to_string(),
             "true".to_string(),

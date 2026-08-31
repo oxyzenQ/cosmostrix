@@ -76,8 +76,8 @@ tweaked without rebuilding the binary.
 | Monolith size | `--monolith-size <small\|normal\|large>` | `monolith-size = "large"` | Monolith segment cell scale (enum, not pixel size) |
 | Background color | `--color-bg <black\|default-background>` | `color-bg = "black"` | Terminal background mode |
 | Bold mode | `--bold <0\|1\|2>` | `bold = 1` | Bold glyph style (0=off, 1=random, 2=all) |
-| Shading mode | `--shadingmode <0\|1>` | `shadingmode = 1` | Shading (0=random, 1=cinematic) |
-| Color mode | `--colormode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
+| Shading mode | `--shading-mode <0\|1>` | `shading-mode = 1` | Shading (0=random, 1=cinematic) |
+| Color mode | `--color-mode <0\|16\|256\|24>` | (CLI only) | Force color depth (auto-detected by default) |
 | Crystal Dragon | `--crystal-dragon` | `crystal-dragon = true` | Ambient palette drift from system state (off by default) |
 | Intro type | `--intro <logo\|cosmic\|none>` | `intro = "logo"` | Cinematic intro sequence |
 | Scene custom | (toml only) | `scene-custom.<name>.<field>` | Custom scene preset |

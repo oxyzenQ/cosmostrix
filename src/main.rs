@@ -371,7 +371,7 @@ fn main() -> std::io::Result<()> {
     let color_mode = detect_color_mode(&args);
 
     let shading_mode =
-        match ux::or_exit(validate_u8_range("--shadingmode", args.shading_mode, 0, 1)) {
+        match ux::or_exit(validate_u8_range("--shading-mode", args.shading_mode, 0, 1)) {
             1 => ShadingMode::DistanceFromHead,
             _ => ShadingMode::Random,
         };
@@ -523,25 +523,25 @@ fn main() -> std::io::Result<()> {
         100.0,
     ));
     let glitch_low = ux::or_exit(validate_u16_range(
-        "--glitchms low",
+        "--glitch-ms low",
         args.glitch_ms.low,
         1,
         5000,
     ));
     let glitch_high = ux::or_exit(validate_u16_range(
-        "--glitchms high",
+        "--glitch-ms high",
         args.glitch_ms.high,
         1,
         5000,
     ));
     let linger_low = ux::or_exit(validate_u16_range(
-        "--lingerms low",
+        "--linger-ms low",
         args.linger_ms.low,
         1,
         60000,
     ));
     let linger_high = ux::or_exit(validate_u16_range(
-        "--lingerms high",
+        "--linger-ms high",
         args.linger_ms.high,
         1,
         60000,

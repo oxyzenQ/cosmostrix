@@ -365,7 +365,7 @@ The doctor report has:
 
 - `RENDERER.color_depth` — terminal color depth (truecolor / 256-color / 16-color)
 - `TERMINAL.color_auto_detected` — auto-detected mode
-- `TERMINAL.color_forced` — `--colormode` override (only shown when set)
+- `TERMINAL.color_forced` — `--color-mode` override (only shown when set)
 - `COMPATIBILITY.color_capability` — same as `color_depth` essentially
 
 **No** `RENDERER.color_pipeline` field. The doctor report should expose the active pipeline so a user running `cosmostrix --doctor` can immediately see whether they're getting the chroma engine or the legacy fallback.

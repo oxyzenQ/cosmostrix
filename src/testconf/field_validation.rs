@@ -106,7 +106,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             "0" | "1" | "2" => None,
             _ => Some(format!("expected 0, 1, or 2, got '{v}'")),
         },
-        "shadingmode" => match v {
+        "shading-mode" => match v {
             "0" | "1" => None,
             _ => Some(format!("expected 0 or 1, got '{v}'")),
         },

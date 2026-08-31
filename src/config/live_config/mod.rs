@@ -430,7 +430,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // (CLI-P-1): live-reload bold/shadingmode/async-mode (previously
+    // (CLI-P-1): live-reload bold/shading-mode/async-mode (previously
     // silently ignored). Mirrors startup parsers with range validation.
     if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
         // Range-gate to match startup parse_u8_config("bold", ..., 0, 2).
@@ -449,7 +449,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
     if let Some(v) = cfg
-        .get("shadingmode")
+        .get("shading-mode")
         .and_then(|s| s.trim().parse::<u8>().ok())
     {
         new.shading_mode = match v {

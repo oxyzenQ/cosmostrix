@@ -267,7 +267,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
     // always printed the identical string in two sections. The TERMINAL
     // section now shows only terminal-environment-specific fields:
     // `color_auto_detected` (what the terminal reports) and `color_forced`
-    // (only present when --colormode overrides the auto-detection). The
+    // (only present when --color-mode overrides the auto-detection). The
     // effective color mode the renderer is operating in lives in
     // RENDERER.color_depth.
     {
@@ -428,7 +428,7 @@ pub(crate) fn print_doctor_report(args: &Args) {
                 s.advice("256-color terminal detected; set COLORTERM=truecolor only if truecolor output is desired");
             }
         } else if effective == ColorMode::Color16 {
-            s.advice("limited color terminal detected; try --colormode 256 or a truecolor-capable terminal");
+            s.advice("limited color terminal detected; try --color-mode 256 or a truecolor-capable terminal");
         }
         if ssh {
             s.advice(

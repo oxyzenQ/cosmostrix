@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-3.0-only
 //
-// Audit test (task flags-audit-3): verify that --bold and --shadingmode
+// Audit test (task flags-audit-3): verify that --bold and --shading-mode
 // actually produce DIFFERENT rendered output. The owner reported that
 // switching --bold 0/1/2 visually looked identical in past testing.
 // This test series proves the shader branches produce different (fg, bold)
@@ -228,13 +228,13 @@ fn bold_all_overrides_tail_to_bold() {
     );
 }
 
-// ── --shadingmode audit: Random vs DistanceFromHead ─────────────────────
+// ── --shading-mode audit: Random vs DistanceFromHead ─────────────────────
 
 /// ShadingMode::Random vs DistanceFromHead produce DIFFERENT color_idx
 /// values for Middle cells. This proves the shading mode flag has a
 /// real visual effect.
 #[test]
-fn shadingmode_random_vs_distance_produces_different_colors() {
+fn shading_mode_random_vs_distance_produces_different_colors() {
     let palette = test_palette();
     let palette: &[Color] = &palette;
     // color_map all 1 → Random mode gives color_idx=1 for all Middle cells
@@ -267,7 +267,7 @@ fn shadingmode_random_vs_distance_produces_different_colors() {
 /// to tail (head_put_line is the brightest, cells further away get
 /// progressively darker). This is the visual signature of cinematic mode.
 #[test]
-fn shadingmode_distance_produces_head_to_tail_decay() {
+fn shading_mode_distance_produces_head_to_tail_decay() {
     let palette = test_palette();
     let palette: &[Color] = &palette;
     let color_map: Vec<u8> = vec![1u8; 50 * 100];

@@ -38,7 +38,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "monolith-size",
     "glitch-level",
     "bold",
-    "shadingmode",
+    "shading-mode",
     "color-bg",
     "crystal-dragon",
     // v50: Power Dragon toggle. When false, disables aggressive_throttle
@@ -91,7 +91,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "ambient-snapback-secs",
 ];
 
-const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shadingmode|glitch-level|fps|speed|density|density-map|async-mode>";
+const SCENE_CUSTOM_CONFIG_KEY_HINT: &str = "scene-custom.<name>.<base-scene|color|charset|bold|colors-custom|charset-custom|shading-mode|glitch-level|fps|speed|density|density-map|async-mode>";
 const COLORS_CUSTOM_CONFIG_KEY_HINT: &str = "colors-custom.<name>.<bg|rain|stops>";
 const CHARSET_CUSTOM_CONFIG_KEY_HINT: &str = "charset-custom.<name>.set";
 const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head|body|tail>";

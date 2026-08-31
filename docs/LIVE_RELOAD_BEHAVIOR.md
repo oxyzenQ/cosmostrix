@@ -42,7 +42,7 @@
 | `crystal-dragon` | `--crystal-dragon` | OK YES | 809-815 | CLI wins (`cli.crystal_dragon` guard). |
 | `power-dragon` | `--power-dragon` | OK YES | 821-825 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1 below). |
 | `bold` | `--bold` | OK YES | 829-844 | Range-gated (0-2); no CLI intent gate. |
-| `shadingmode` | `--shadingmode` | OK YES | 845-856 | Range-gated (0-1); no CLI intent gate. |
+| `shading-mode` | `--shading-mode` | OK YES | 845-856 | Range-gated (0-1); no CLI intent gate. |
 | `async-mode` | `--async-mode` | OK YES | 857-861 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1). |
 | `color.tune.*` | `--color-tune` | OK YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
 | `ambient.HH-MM` | (none) | OK YES | 897-904 | Schedule re-collected; ambient thread notified. |
@@ -319,7 +319,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | `power-dragon` | `--power-dragon` | OK YES | OK YES (FIXED in alpha.7) |
 | `async-mode` | `--async-mode` | OK YES | OK YES (FIXED in alpha.7) |
 | `bold` | `--bold` | OK YES | X NO (no CLI intent gate) |
-| `shadingmode` | `--shadingmode` | OK YES | X NO (no CLI intent gate) |
+| `shading-mode` | `--shading-mode` | OK YES | X NO (no CLI intent gate) |
 | `color.tune.*` | `--color-tune` | OK YES | OK YES |
 | `ambient.HH-MM` | (none) | OK YES | N/A |
 | `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES |
@@ -482,7 +482,7 @@ Verification: 13 new regression tests in `src/config/live_config/tests.rs`
 `rebuild_user_glitch_key_wins_over_scene_default`).
 
 Also verified working (no change needed): `charset` switching in both
-builtin/custom directions, `monolith-size`, `bold`, `shadingmode`,
+builtin/custom directions, `monolith-size`, `bold`, `shading-mode`,
 `color-bg`, `crystal-dragon`, `power-dragon`, `async-mode`, `speed`,
 `density`, `fps`, `glitch-level`, `color.tune.*` (reset-on-comment),
 `message`/`message-border`/`msg-mode`/`msg-fill-style`, `ambient.HH-MM`,

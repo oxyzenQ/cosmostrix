@@ -135,7 +135,7 @@ pub fn detect_color_mode(args: &Args) -> ColorMode {
                 // Previously this used process::exit(1) + eprintln_error_labeled,
                 // which bypassed the ux module and used the wrong exit code.
                 crate::ux::die_input(format!(
-                    "invalid --colormode: {m} (allowed: 0,16,8/256,24/32)"
+                    "invalid --color-mode: {m} (allowed: 0,16,8/256,24/32)"
                 ));
             }
         };

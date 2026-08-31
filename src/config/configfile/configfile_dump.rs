@@ -70,7 +70,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups)
 # ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant)
 # bold = 1                              # 0=off, 1=random, 2=all
-# shadingmode = 1                       # 0=random, 1=cinematic
+# shading-mode = 1                       # 0=random, 1=cinematic
 
 # Color Tuning
 # [color.tune]
@@ -95,7 +95,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density = 1.2
 # fps = 60                              # 1-240
 # bold = 1                              # 0=off, 1=random, 2=all
-# shadingmode = 1                       # 0=random, 1=cinematic
+# shading-mode = 1                       # 0=random, 1=cinematic
 # glitch-level = "intense"
 # density-map = "0.5,1.0,1.5,1.0,0.5"   # per-zone density weights (each 0.0-1.0, out-of-range clamped)
 # async-mode = true                     # variable column speeds
@@ -107,7 +107,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # speed = 12
 # density = 0.90
 # bold = 1
-# shadingmode = 1
+# shading-mode = 1
 # glitch-level = "intense"
 
 # [scene-custom.tron_legacy]
@@ -117,7 +117,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # speed = 8
 # density = 0.70
 # bold = 1
-# shadingmode = 1
+# shading-mode = 1
 # glitch-level = "subtle"
 
 # Custom Color Palettes

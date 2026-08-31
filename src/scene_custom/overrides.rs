@@ -152,7 +152,7 @@ pub(crate) fn apply_profile_overrides(
         .as_deref()
         .filter(|_| !is_explicit(matches, "shading_mode"))
     {
-        if let Some(n) = parse_u8_override(name, "shadingmode", value, 0, 1) {
+        if let Some(n) = parse_u8_override(name, "shading-mode", value, 0, 1) {
             args.shading_mode = n;
             modified.insert("shading_mode");
         }
@@ -315,7 +315,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
                 }
             }
         }
-        "shadingmode" => {
+        "shading-mode" => {
             // v51 killer-features hardening: enforce the SAME 0..=1 range as
             // startup (parse_u8_override(.., 0, 1)) and --testconf — see the
             // bold arm note. Previously any u8 was accepted.
@@ -328,7 +328,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
                     true
                 }
                 _ => {
-                    warn_invalid(scene_name, "shadingmode", value, "0 or 1");
+                    warn_invalid(scene_name, "shading-mode", value, "0 or 1");
                     false
                 }
             }

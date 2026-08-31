@@ -345,7 +345,7 @@ impl Cloud {
         // path consistent: unknown values are silently ignored (mode unchanged)
         // rather than silently coerced to Random. Uses a labeled block so we
         // skip just the assignment, NOT the rest of the function (return would
-        // wrongly skip shadingmode/async-mode/etc. fields below).
+        // wrongly skip shading-mode/async-mode/etc. fields below).
         if let Some(bold_str) = &custom.bold {
             if let Ok(n) = bold_str.trim().parse::<u8>() {
                 'bold: {
@@ -359,7 +359,7 @@ impl Cloud {
                 }
             }
         }
-        // shadingmode (0=Random, 1=DistanceFromHead).
+        // shading-mode (0=Random, 1=DistanceFromHead).
         // (CLI-V-5): tighten to reject values > 1 (was silently Random).
         if let Some(shading_str) = &custom.shading_mode {
             if let Ok(n) = shading_str.trim().parse::<u8>() {

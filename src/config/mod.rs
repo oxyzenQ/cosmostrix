@@ -96,7 +96,7 @@ pub enum ColorBg {
 }
 
 /// Glitch intensity presets. Provides a grouped interface over individual
-/// glitch tuning parameters (glitchpct, glitchms, shortpct, rippct).
+/// glitch tuning parameters (glitchpct, glitch-ms, shortpct, rippct).
 #[derive(clap::ValueEnum, Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GlitchLevel {
     #[value(name = "none")]
@@ -712,7 +712,7 @@ pub struct Args {
     // has `power-dragon = false`.
     #[arg(
         short = 'g',
-        long = "glitchms",
+        long = "glitch-ms",
         default_value = "300,400",
         hide = true,
         help = "Glitch duration range in ms: LOW,HIGH (min 1 max 5000)"
@@ -726,7 +726,7 @@ pub struct Args {
 
     #[arg(
         short = 'l',
-        long = "lingerms",
+        long = "linger-ms",
         default_value = "1,3000",
         hide = true,
         help = "Linger time range in ms: LOW,HIGH (min 1 max 60000)"
@@ -735,7 +735,7 @@ pub struct Args {
 
     #[arg(
         short = 'M',
-        long = "shadingmode",
+        long = "shading-mode",
         default_value_t = 1,
         hide = true,
         help = "Shading: 0=random, 1=cinematic (min 0 max 1)"
@@ -771,7 +771,7 @@ pub struct Args {
     pub shortpct: f32,
 
     #[arg(
-        long = "colormode",
+        long = "color-mode",
         hide = true,
         help = "Force color mode (allowed: 0,16,8/256,24/32). Default: 24-bit if supported (COLORTERM), else 8-bit (TERM=...256color), else 16-color"
     )]

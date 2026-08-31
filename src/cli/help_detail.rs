@@ -516,19 +516,19 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Background rendering mode. 'black' (default) forces solid #000000;
       'default-background' follows the terminal emulator background.
       Config: color-bg = \"black\"
-  -M, --shadingmode <0|1>
+  -M, --shading-mode <0|1>
       Shading mode (0=random, 1=cinematic [default]).
-      Config: shadingmode = 1
-  --colormode <0|16|256|24>
+      Config: shading-mode = 1
+  --color-mode <0|16|256|24>
       Force color depth (auto-detected by default). Allowed: 0 (mono),
       16, 8/256 (8-bit), 24/32 (truecolor). Default: 24-bit if supported
       (COLORTERM), else 8-bit (TERM=...256color), else 16-color.
 
   TIMING & GLITCH (advanced):
-  -g, --glitchms <LOW,HIGH>
+  -g, --glitch-ms <LOW,HIGH>
       Glitch duration range in ms (min 1, max 5000). Default: 300,400.
       Config: (via --glitch-level preset)
-  -l, --lingerms <LOW,HIGH>
+  -l, --linger-ms <LOW,HIGH>
       Linger time range in ms (min 1, max 60000). Default: 1,3000.
       Config: (via --glitch-level preset)
   --duration <seconds>

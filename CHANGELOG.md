@@ -9,6 +9,20 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### naming: fix kebab-case inconsistency in 4 CLI flags + config keys (Z-master-1X round 10)
+
+- **Audit**: owner requested naming audit for wrong/ambiguous/dangerous/not-masterclass English. Found 4 kebab-case inconsistencies where multi-word flags lacked the `-` separator, breaking the established pattern (`async-mode`, `color-bg`, `crystal-dragon`, `glitch-level`, `monolith-size`, `msg-mode` all use kebab-case).
+- **Fixes**:
+  1. `shadingmode` → `shading-mode` (user-facing: config key + `--dump-config` template + `--help`). The config suggestion system auto-migrates: old `shadingmode` in config.toml triggers "tip: a similar value exists: 'shading-mode'" (edit distance 1).
+  2. `colormode` → `color-mode` (hidden CLI flag, low user impact).
+  3. `glitchms` → `glitch-ms` (hidden CLI flag, "ms" suffix now separated for readability).
+  4. `lingerms` → `linger-ms` (hidden CLI flag, same as glitchms).
+- **Rust field names unchanged**: `shading_mode`, `colormode`, `glitch_ms`, `linger_ms` (snake_case Rust identifiers stay as-is — only the CLI `long` string + config key string changed).
+- **Backwards compatibility**: the config suggestion system (`closest_value_match`, edit distance ≤ 2) catches old `shadingmode` usage and suggests `shading-mode`. No silent breakage — users get a clear tip.
+- **Files changed**: `src/config/mod.rs` (4 CLI long flags), `src/config/configfile.rs` (USER_CONFIG_KEYS), `src/config/config_apply.rs`, `src/config/configfile/configfile_dump.rs`, `src/config/live_config/mod.rs`, `src/scene_custom/mod.rs`, `src/scene_custom/overrides.rs`, `src/cli/help_detail.rs`, `src/main.rs`, `src/testconf/field_validation.rs`, `src/engine/chroma_dragon_engine/shaders/base/tests_bold_audit.rs` (test fn names), `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` (comments), `docs/CENTRAL_CONTROL_RAINS_USAGE.md`, `docs/LIVE_RELOAD_BEHAVIOR.md`, `docs/TERMINAL_COMPATIBILITY.md`, `docs/RULES.md`.
+- **Tests**: 1945 pass. clippy clean, fmt clean, gatekeepers 9/9.
+- **Also found**: scene name `dragon-crystal` (src/scene/mod.rs:314) has reversed word order vs engine name `crystal_dragon_engine` + CLI flag `--crystal-dragon`. Reported to owner for decision — not fixed in this commit (pending owner approval).
+
 ### crystal-dragon: stack-allocated CDF — zero heap allocation on drift path (Z-master-1X round 9)
 
 - **Audit scope**: deep audit of Crystal Dragon engine for peak masterclass alternatives. Owner constraint: design stays intact (point system, 3 groups, calc-v1 probabilistic, 60s poll, 12% drift, CPU primary + CLOCK fallback, EMA alpha 0.25, weight penalty 0.1).

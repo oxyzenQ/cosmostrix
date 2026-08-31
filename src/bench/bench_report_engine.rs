@@ -46,7 +46,7 @@ pub(crate) fn build_engine_sections(r: &mut Report, data: &BenchReportData) {
                 "16-color mode with foreground palette retinting can dirty many colored cells.",
             )
             .advice(
-                "Compare runs with --colormode 0, --colormode 256, or a truecolor-capable terminal.",
+                "Compare runs with --color-mode 0, --color-mode 256, or a truecolor-capable terminal.",
             );
     }
 

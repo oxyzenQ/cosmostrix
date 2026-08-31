@@ -163,7 +163,7 @@ fn dump_config_mentions_supported_keys() {
         "monolith-size",
         "glitch-level",
         "bold",
-        "shadingmode",
+        "shading-mode",
         "color-bg",
         "crystal-dragon",
         "async-mode",
