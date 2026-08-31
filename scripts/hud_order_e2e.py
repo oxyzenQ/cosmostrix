@@ -103,6 +103,8 @@ def main():
         (r"\bglth:", "glth"),
         (r"\bctun:", "ctun"),
         (r"\bmnst:", "mnst"),
+        (r"\bdcel:", "dcel"),
+        (r"\btcel:", "tcel"),
         (r"\bcid:", "cid"),
         (r"\bup:", "up"),
         (r"\d+x\d+ (?:auto|fix)", "size"),
@@ -118,7 +120,7 @@ def main():
             positions.append((10**9, name))
     names = [n for _, n in sorted(positions)]
     present = {n for p, n in positions if p < 10**9}
-    print("labels found:", len(present), "of 22 ->", sorted(present))
+    print("labels found:", len(present), "of 24 ->", sorted(present))
     print("screen order (by last occurrence):", names)
     expected = [
         "fps",
@@ -140,11 +142,13 @@ def main():
         "glth",
         "ctun",
         "mnst",
+        "dcel",
+        "tcel",
         "cid",
         "up",
         "size",
     ]
-    ok = names == expected and len(present) == 22
+    ok = names == expected and len(present) == 24
     print("RESULT:", "PASS" if ok else "FAIL")
     return 0 if ok else 1
 

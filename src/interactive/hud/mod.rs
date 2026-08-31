@@ -1,5 +1,9 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: HudState struct + 24-row cached_lines + setters + refresh_colors
+// + DirtyCellTracker — the HUD is a single cohesive dashboard with 24 coupled
+// metric rows. Splitting would scatter the struct fields and their invariants
+// across files (each row's setter + render + color are tightly coupled).
 
 //! Live HUD overlay for interactive mode.
 //!
@@ -96,6 +100,63 @@ const HUD_MIN_WIDTH: u16 = 12;
 /// would make ` p99` wrap visually).
 const HUD_MAX_WIDTH: u16 = 24;
 
+/// Z-master-1X round 5: rolling dirty-cell tracker for the dcel/tcel HUD
+/// metrics. Stores the last 60 frames of (dirty_count, total_cells) so the
+/// 1 Hz metric tick can render a rolling-average dirty cell ratio + the
+/// current total cell count. Mirrors the `FrameTimeTracker` ring buffer
+/// pattern (fixed 60-slot stack array, no allocation). Paused frames do
+/// not push — matches the `push_frame_time` pause-freeze contract.
+struct DirtyCellTracker {
+    dirty: [u64; 60],
+    total: [u64; 60],
+    index: usize,
+    count: usize,
+}
+
+impl DirtyCellTracker {
+    const fn new() -> Self {
+        Self {
+            dirty: [0; 60],
+            total: [0; 60],
+            index: 0,
+            count: 0,
+        }
+    }
+
+    fn push(&mut self, dirty_count: u64, total_cells: u64) {
+        self.dirty[self.index] = dirty_count;
+        self.total[self.index] = total_cells;
+        self.index = (self.index + 1) % 60;
+        if self.count < 60 {
+            self.count += 1;
+        }
+    }
+
+    /// Rolling-average dirty cell count over the window.
+    fn rolling_avg_dirty(&self) -> f64 {
+        if self.count == 0 {
+            return 0.0;
+        }
+        let sum: u64 = self.dirty[..self.count].iter().sum();
+        sum as f64 / self.count as f64
+    }
+
+    /// Most recent total cell count (total cells is screen-size-driven and
+    /// stable — no need for an average, just the latest sample).
+    fn latest_total(&self) -> u64 {
+        if self.count == 0 {
+            return 0;
+        }
+        // The latest sample is at (index - 1 + 60) % 60, clamped to count.
+        let latest_idx = if self.index == 0 {
+            self.count - 1
+        } else {
+            self.index - 1
+        };
+        self.total[latest_idx]
+    }
+}
+
 /// Frame pacing mode announced by the event loop to the HUD.
 ///
 /// v30 (2026-08-05): added so the HUD `tgt:` line can show whether the
@@ -129,6 +190,14 @@ pub(crate) struct HudState {
     pause_started_at: Option<Instant>,
     paused_total: Duration,
     frame_times: FrameTimeTracker,
+    /// Z-master-1X round 5: rolling dirty-cell tracker for the dcel/tcel
+    /// HUD metrics. Pushed every frame via `set_dirty_cell_stats` (called
+    /// after sim_draw in the event loop, when the dirty count is known).
+    /// The rolling average (60-frame window, matching `frame_times`) is
+    /// rendered at the 1 Hz metric tick as `dcel:` (dirty cell ratio %)
+    /// and `tcel:` (total cells). Paused frames do not push (matches the
+    /// `push_frame_time` pause-freeze contract).
+    dirty_cell_tracker: DirtyCellTracker,
     last_metric_update: Instant,
     last_rss_sample: Instant,
     last_rss_kb: Option<u64>,
@@ -256,14 +325,14 @@ pub(crate) struct HudState {
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
-    /// 22 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
+    /// 24 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
     /// chr / clr / sped / dsty / prdr / crdr / ambt / glth / ctun /
-    /// mnst / cid / up / screensize (v51 owner reorder mandate
-    /// 2026-08-31). The cid line is static (compile-time git SHA
-    /// injected by build.rs via `COSMOSTRIX_GIT_SHA`) at row 19, set
-    /// once in `new()`; only its color is refreshed by
-    /// `refresh_colors` every frame.
-    cached_lines: [(Color, String); 22],
+    /// mnst / dcel / tcel / cid / up / screensize (Z-master-1X round 5
+    /// owner mandate 2026-08-31: added dcel + tcel above cid). The cid
+    /// line is static (compile-time git SHA injected by build.rs via
+    /// `COSMOSTRIX_GIT_SHA`) at row 21, set once in `new()`; only its
+    /// color is refreshed by `refresh_colors` every frame.
+    cached_lines: [(Color, String); 24],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -330,6 +399,19 @@ impl HudState {
         if ms > self.max_ms {
             self.max_ms = ms;
         }
+    }
+
+    /// Z-master-1X round 5: push dirty-cell + total-cell counts for the
+    /// dcel/tcel HUD metrics. Called every frame from the event loop
+    /// AFTER sim_draw (when `dirty_len` + `is_dirty_all` are known).
+    /// Cheap when the HUD is off (bool check + early return). Paused
+    /// frames do not push — matches the `push_frame_time` freeze contract.
+    #[inline]
+    pub(crate) fn set_dirty_cell_stats(&mut self, dirty_count: u64, total_cells: u64) {
+        if !self.visible || self.metrics_paused {
+            return;
+        }
+        self.dirty_cell_tracker.push(dirty_count, total_cells);
     }
 
     /// Maybe sample RSS (rate-limited). Called every frame.
@@ -702,17 +784,19 @@ impl HudState {
     ///   row 16  glth          ← head     (glitch level — v51 reorder)
     ///   row 17  ctun          ← head     (color tuning — v51 reorder)
     ///   row 18  mnst          ← head     (monolith size — v51 reorder)
-    ///   row 19  cid           ← head     (build identity — v51 reorder)
-    ///   row 20  up            ← head     (session uptime — v51 reorder)
-    ///   row 21  screensize    ← head     (rain head — leading white)
+    ///   row 19  dcel          ← head     (dirty cell ratio % — Z-master-1X round 5)
+    ///   row 20  tcel          ← head     (total cells — Z-master-1X round 5)
+    ///   row 21  cid           ← head     (build identity — Z-master-1X round 5: moved down)
+    ///   row 22  up            ← head     (session uptime — Z-master-1X round 5: moved down)
+    ///   row 23  screensize    ← head     (rain head — Z-master-1X round 5: moved down)
     /// ```
     ///
-    /// v51 reorder (owner mandate 2026-08-31): identity lines (scn/chr/
-    /// clr) moved up next to the health pair, user-adjustable controls
-    /// (sped/dsty) follow them, dragon + tuning state rides the bright
-    /// head band, and the session footer (cid → up → screensize) closes
-    /// the dashboard — cid keeps a head-band position (row 19), the
-    /// terminal size stays the visual anchor at the bottom (row 21).
+    /// Z-master-1X round 5 (owner mandate 2026-08-31): added dcel + tcel
+    /// at rows 19-20 (cell efficiency metrics — owner insight from the
+    /// CELL EFFICIENCY benchmark section). cid moved from row 19 to 21,
+    /// up from 20 to 22, screensize from 21 to 23. The session footer
+    /// still closes the dashboard — cid keeps a head-band position (row 21),
+    /// the terminal size stays the visual anchor at the bottom (row 23).
     ///
     /// This inverts the original mapping (where `fps`/`tgt`/`max` were
     /// brightest at the TOP). The owner explicitly flagged the inversion:
@@ -746,7 +830,7 @@ impl HudState {
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_22(palette_colors);
+        let colors = compute_chroma_gradient_24(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -767,16 +851,16 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-// v50.0.0-beta.7 LTS: compute_chroma_gradient_22 + brighten_color
+// v50.0.0-beta.7 LTS: compute_chroma_gradient_24 + brighten_color
 // extracted to colors.rs to keep this file under the 1500-LOC cap.
 // Re-exported here so 'use super::*' glob in tests.rs + tests_brighten.rs
-// resolves them unchanged. mod.rs only calls compute_chroma_gradient_22
+// resolves them unchanged. mod.rs only calls compute_chroma_gradient_24
 // directly; brighten_color is re-exported purely for the test modules
 // (tests_brighten.rs calls it directly), hence the allow(unused_imports).
 mod colors;
 mod hud_init;
 #[allow(unused_imports)]
-pub(crate) use colors::{brighten_color, compute_chroma_gradient_22};
+pub(crate) use colors::{brighten_color, compute_chroma_gradient_24};
 
 // v50.0.0-beta.7 LOC refactor: update_metrics method extracted to
 // metrics.rs as a separate impl HudState block.

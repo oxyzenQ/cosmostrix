@@ -9,6 +9,14 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### HUD: add dcel + tcel cell-efficiency metrics (Z-master-1X round 5)
+
+- **New metrics**: `dcel` (dirty cell ratio %) + `tcel` (total cells) added at HUD rows 19-20, directly above `cid` (now row 21). Owner insight from the CELL EFFICIENCY benchmark section: `dirty_cell_ratio_percent` is the key efficiency signal — lower = more cells skip re-send (the frame buffer's dirty-tracking is working).
+- **Layout**: HUD grew from 22 → 24 rows. `cid` moved from row 19 → 21, `up` from 20 → 22, `screensize` from 21 → 23. The chroma gradient was bumped from 22 → 24 stops (divisor 21.0 → 23.0).
+- **Implementation**: added `DirtyCellTracker` ring buffer (60-frame window, matching `FrameTimeTracker`) to `HudState`. The event loop pushes `(dirty_count, total_cells)` every frame after `sim_draw` via `set_dirty_cell_stats()`. The 1 Hz metric tick renders `dcel:` (rolling avg dirty / latest total × 100, 1 decimal) + `tcel:` (latest total, humanized via `humanize()` — e.g. `2.8K`). Paused frames do not push (matches the `push_frame_time` freeze contract).
+- **Files changed**: `src/interactive/hud/mod.rs` (DirtyCellTracker + field + setter + LOC_EXEMPT), `src/interactive/hud/colors.rs` (gradient 22→24), `src/interactive/hud/metrics.rs` (dcel/tcel rendering + row shifts), `src/interactive/hud/hud_init.rs` (cached_lines 22→24 + cid row 21), `src/interactive/event_loop.rs` (set_dirty_cell_stats call after sim_draw), `src/interactive/hud/tests.rs` + `tests_chroma_metrics.rs` + `tests_dragon_indicators.rs` + `tests_pause_freeze.rs` (row index updates), `scripts/hud_order_e2e.py` (dcel/tcel in expected order), `docs/HUD.md` (layout mockup + row refs).
+- **Tests**: 63 HUD tests pass. cloud 322/322. clippy clean, fmt clean, gatekeepers 8/8.
+
 ### crystal-dragon + ambient: fix live-reload drift deadlock (Z-master-1X round 4)
 
 - **Bug**: after a live config reload while both ambient + crystal dragon are ON, drift became rare/never even after 60s. Ambient dominated; restart fixed it. Owner repro: ambient + crystal-dragon on via config, snapback-secs=30 default. After 60s drift fires → 30s later snapback reverts to ambient → long running stays ambient, no more drift. Triggered by editing config at runtime (live reload).

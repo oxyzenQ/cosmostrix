@@ -35,27 +35,31 @@ use crossterm::style::Color;
 // (cid/up/screensize) closing the dashboard. The gradient is positional
 // (row i samples t = i/21), so the reorder moves CONTENT between stops;
 // the bright head band now covers the footer (cid/up/screensize).
+// Z-master-1X round 5 (owner mandate 2026-08-31): bumped to 24 stops
+// after adding dcel (dirty cell ratio %) + tcel (total cells) above cid.
+// cid moved from row 19 to row 21, up from 20 to 22, screensize from 21
+// to 23. The gradient divisor is now 23.0 (24 entries, indices 0-23).
 
-/// HD-01 (HUD chroma dragon integration): compute an 22-stop chroma gradient
-/// sweeping the active palette's full color range across all 22 HUD rows.
+/// HD-01 (HUD chroma dragon integration): compute a 24-stop chroma gradient
+/// sweeping the active palette's full color range across all 24 HUD rows.
 ///
-/// Each row `i ∈ [0..22]` samples `palette_colors` at interpolation
-/// parameter `t = i / 21.0`, so row 0 (fps, top) → palette[0] and row 21
-/// (screensize, bottom — v51 reorder) → palette[n-1]. This mirrors the
-/// border message's per-cell clockwise sweep (`cloud/message_draw.rs`
-/// BC-02) — applied per-LINE instead of per-cell, because each HUD line
-/// is a distinct text block that needs its own legible color.
+/// Each row `i ∈ [0..24]` samples `palette_colors` at interpolation
+/// parameter `t = i / 23.0`, so row 0 (fps, top) → palette[0] and row 23
+/// (screensize, bottom) → palette[n-1]. This mirrors the border message's
+/// per-cell clockwise sweep (`cloud/message_draw.rs` BC-02) — applied
+/// per-LINE instead of per-cell, because each HUD line is a distinct text
+/// block that needs its own legible color.
 ///
-/// ## Why 22 stops
-/// The HUD renders exactly 22 rows (v51 owner reorder, 2026-08-31):
+/// ## Why 24 stops
+/// The HUD renders exactly 24 rows (Z-master-1X round 5, 2026-08-31):
 /// performance core (fps/tgt/max/p99/cpu/rss, rows 0-5) + health pair
 /// (ehs/prs, rows 6-7) + identity lines (scn/chr/clr, rows 8-10) +
 /// user-adjustable controls (sped/dsty, rows 11-12) + dragon and tuning
-/// state (prdr/crdr/ambt/glth/ctun/mnst, rows 13-18) + session footer
-/// (cid row 19 static, up row 20, screensize row 21). Each row gets its
-/// own interpolated color stop — no two rows share the same color
-/// unless the palette is shorter than 22 stops (interpolation handles
-/// that case smoothly).
+/// state (prdr/crdr/ambt/glth/ctun/mnst, rows 13-18) + cell efficiency
+/// (dcel/tcel, rows 19-20) + session footer (cid row 21 static, up row 22,
+/// screensize row 23). Each row gets its own interpolated color stop —
+/// no two rows share the same color unless the palette is shorter than
+/// 24 stops (interpolation handles that case smoothly).
 ///
 /// ## Brightness floor
 /// `brighten_color` is applied AFTER interpolation to every stop. This
@@ -64,10 +68,12 @@ use crossterm::style::Color;
 /// grey RGB(120,120,120) when pure black, preserving readability without
 /// losing the palette's hue identity for non-black stops.
 ///
-/// Returns a fixed-size `[Color; 22]` array (no allocation, stack-only).
-pub(crate) fn compute_chroma_gradient_22(palette_colors: &[Color]) -> [Color; 22] {
+/// Returns a fixed-size `[Color; 24]` array (no allocation, stack-only).
+pub(crate) fn compute_chroma_gradient_24(palette_colors: &[Color]) -> [Color; 24] {
     let n = palette_colors.len();
     let mut out = [
+        Color::DarkGrey,
+        Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
         Color::DarkGrey,
@@ -117,10 +123,10 @@ pub(crate) fn compute_chroma_gradient_22(palette_colors: &[Color]) -> [Color; 22
     // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
     // the first stop defensively), so a future bug in upstream palette
     // generation cannot crash the HUD or produce garbage colors.
-    // v50.0.0-beta.6: divisor is 21.0 (22 entries, indices 0-21):
-    // Row 0 → t=0.0, row 21 → t=1.0.
+    // Z-master-1X round 5: divisor is 23.0 (24 entries, indices 0-23):
+    // Row 0 → t=0.0, row 23 → t=1.0.
     for (i, slot) in out.iter_mut().enumerate() {
-        let t = i as f32 / 21.0;
+        let t = i as f32 / 23.0;
         let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);
         *slot = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
     }

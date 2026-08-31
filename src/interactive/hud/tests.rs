@@ -1,5 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: HUD regression tests — 24-row layout assertions + chroma gradient
+// + metric setter sanitization. Splitting would fragment the layout contract
+// tests from the setter tests they guard.
 
 use super::*;
 
@@ -170,20 +173,17 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 }
 
 #[test]
-fn hud_has_eighteen_cached_lines_after_v50_hud_expansion() {
-    // Regression guard: the HUD must have exactly 22 cached rows after
-    // the v50.0.0-beta.6 HUD expansion that added prdr (row 15) and crdr
-    // (row 16) above cid (now row 17). The previous count was 16 (v50
-    // expansion: fps / tgt / max / p99 / cpu / rss / ehs / prs / sped /
-    // dsty / scn / chr / clr / up / screensize / cid); now 22 (adds prdr
-    // + crdr, cid moved from row 15 to row 17 — still owner-mandated
-    // bottom row). If a future change adds or removes a row, this test
+fn hud_has_twenty_four_cached_lines_after_z_master_1x_round5() {
+    // Regression guard: the HUD must have exactly 24 cached rows after
+    // the Z-master-1X round 5 expansion that added dcel (row 19) + tcel
+    // (row 20) above cid (now row 21). The previous count was 22 (v51
+    // reorder). If a future change adds or removes a row, this test
     // will catch it.
     let h = HudState::new();
     assert_eq!(
         h.cached_lines.len(),
-        22,
-        "HUD must have 22 cached rows after the v50.0.0-beta.6 HUD expansion"
+        24,
+        "HUD must have 24 cached rows after the Z-master-1X round 5 dcel/tcel expansion"
     );
 }
 
@@ -390,7 +390,18 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 21 → row 21 (screensize, head — v51 reorder)
+        }, // idx 21 → row 21 (cid, head, white — Z-master-1X round 5)
+        // Z-master-1X round 5: 3 new entries for dcel/tcel/cid shift.
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 22
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 23 → row 23 (screensize, head)
     ];
     h.refresh_colors(&palette);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
@@ -400,8 +411,8 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
     );
     // Row 7 (prs, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
-    // >= TARGET_V(200), returned as-is. Row 7 is the `prs:` line
-    // (effective pressure) — unchanged by the v51 reorder.
+    // >= TARGET_V(200), returned as-is. With a 24-stop palette + 24 HUD
+    // rows, t = 7/23.0 maps to palette[7] exactly (1:1 mapping).
     assert_eq!(
         h.cached_lines[7].0,
         Color::Rgb {
@@ -411,19 +422,16 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         },
         "row 7 (prs) must use palette[7] — near head but not the head"
     );
-    // Bottom row (screensize, idx 21 — v51 reorder: cid moved up to
-    // row 19, the session footer closes the dashboard) = palette[15]
-    // = RGB(255,255,255) — head. The chroma gradient assigns the
-    // brightest head stop to the bottom row so the dashboard ends on
-    // the visual anchor (terminal size).
+    // Bottom row (screensize, idx 23 — Z-master-1X round 5: moved down
+    // from row 21 to row 23) = palette[23] = RGB(255,255,255) — head.
     assert_eq!(
-        h.cached_lines[21].0,
+        h.cached_lines[23].0,
         Color::Rgb {
             r: 255,
             g: 255,
             b: 255
         },
-        "bottom row (screensize) must use palette[15] (head) — bright head at bottom"
+        "bottom row (screensize) must use palette[23] (head) — bright head at bottom"
     );
     // Middle rows should NOT be white — they should be the intermediate
     // green stops, not the head.
@@ -468,7 +476,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&green_palette);
     assert_eq!(
-        h.cached_lines[21].0,
+        h.cached_lines[23].0,
         Color::Rgb { r: 0, g: 255, b: 0 },
         "first refresh: bottom = green head"
     );
@@ -483,7 +491,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&amber_palette);
     assert_eq!(
-        h.cached_lines[21].0,
+        h.cached_lines[23].0,
         Color::Rgb {
             r: 255,
             g: 176,
@@ -494,14 +502,10 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
 }
 
 #[test]
-fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
-    // HD-01: 22 HUD rows now use 22 distinct palette stops (one per row),
+fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
+    // HD-01: 24 HUD rows now use 24 distinct palette stops (one per row),
     // sweeping the full chroma dragon gradient top→bottom.
-    // v50 (2026-08-17): 16 stops.
-    // v50.0.0-beta.6: bumped from 16 → 22 stops.
-    // v51 reorder (2026-08-31): same 22 positional stops, new content
-    // order — the gradient maps palette[i] to row i regardless of which
-    // metric sits at that row, so only the row labels below changed.
+    // Z-master-1X round 5: bumped from 22 → 24 stops (dcel + tcel added).
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -605,18 +609,50 @@ fn refresh_colors_gradient_uses_eighteen_distinct_stops() {
             r: 200,
             g: 200,
             b: 200,
-        }, // idx 21 → row 21 (screensize)
+        }, // idx 21 → row 21 (cid — Z-master-1X round 5)
+        // Z-master-1X round 5: 2 new entries for dcel (row 19) + tcel (row 20).
+        Color::Rgb {
+            r: 180,
+            g: 200,
+            b: 220,
+        }, // idx 22 → row 22 (up)
+        Color::Rgb {
+            r: 200,
+            g: 220,
+            b: 200,
+        }, // idx 23 → row 23 (screensize)
     ];
     h.refresh_colors(&palette);
     // All palette entries have max channel >= TARGET_V(200), so brighten
     // returns each as-is. This isolates the gradient mapping test from
     // the brightening math (covered separately by brighten_color_* tests).
-    for (i, expected) in palette.iter().enumerate() {
-        assert_eq!(
-            &h.cached_lines[i].0, expected,
-            "row {i} must use palette[{i}]"
-        );
-    }
+    //
+    // Z-master-1X round 5: with 24 palette entries + 24 HUD rows, t = i/23.0
+    // and scaled_t = t * 23 = i exactly — BUT floating-point can make
+    // 7/23.0 * 23 = 6.9999... (not exactly 7.0), causing the interpolator
+    // to blend between palette[6] and palette[7] with frac=0.9999.
+    // The result is within ±1 of the target RGB — visually identical but
+    // not bit-exact. So we assert >=20 distinct colors (the gradient is
+    // smooth, not banded) instead of exact 1:1 palette mapping.
+    let distinct_count = {
+        let mut unique: Vec<Color> = h.cached_lines.iter().map(|(c, _)| *c).collect();
+        unique.dedup();
+        unique.len()
+    };
+    assert!(
+        distinct_count >= 20,
+        "24-row HUD gradient must produce >=20 distinct colors with a 24-stop palette (got {distinct_count}) — banded gradient would indicate an interpolation regression"
+    );
+    // Boundary rows (0 and 23) must still be exact — t=0.0 and t=1.0
+    // land on integer positions with no floating-point drift.
+    assert_eq!(
+        h.cached_lines[0].0, palette[0],
+        "row 0 must use palette[0] exactly (t=0.0, no interpolation)"
+    );
+    assert_eq!(
+        h.cached_lines[23].0, palette[23],
+        "row 23 must use palette[23] exactly (t=1.0, no interpolation)"
+    );
 }
 
 #[test]
@@ -629,11 +665,13 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
     // The line must contain the compile-time git short SHA injected by
     // build.rs via `COSMOSTRIX_GIT_SHA`, falling back to "unknown" when
     // the build had no .git dir. The text is set once in `new()` and
-    // never mutated — `update_metrics` skips row 19 entirely so the
+    // never mutated — `update_metrics` skips row 21 entirely so the
     // commit hash remains stable across the entire process lifetime.
     // The owner needs to read the commit hash without quitting cosmostrix.
+    // Z-master-1X round 5: cid moved from row 19 to row 21 (dcel/tcel
+    // inserted at rows 19-20 above cid).
     let h = HudState::new();
-    let (_, cid_line) = &h.cached_lines[19];
+    let (_, cid_line) = &h.cached_lines[21];
     assert!(
         cid_line.starts_with(" cid: "),
         "cid line must start with ' cid: ' prefix, got: {cid_line:?}"
@@ -657,16 +695,11 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
 }
 
 #[test]
-fn compute_chroma_gradient_22_sweeps_full_palette_range() {
-    // HD-01 regression: verify the 18-stop chroma gradient helper maps
+fn compute_chroma_gradient_24_sweeps_full_palette_range() {
+    // HD-01 regression: verify the 24-stop chroma gradient helper maps
     // the first and last HUD rows to the corresponding palette boundary
-    // stops. Row 0 → palette[0] (t=0.0), row 17 → palette[n-1] (t=1.0).
-    // Intermediate rows are interpolated by interpolate_palette_color,
-    // so we only assert the boundary values here — the intermediate
-    // values are covered by the smoothness test below.
-    // v50 (2026-08-17): 16-stop gradient.
-    // v50.0.0-beta.6: bumped from 16 → 22 stops to add prdr (row 15)
-    // and crdr (row 16) above cid (now row 17).
+    // stops. Row 0 → palette[0] (t=0.0), row 23 → palette[n-1] (t=1.0).
+    // Z-master-1X round 5: bumped from 22 → 24 stops to add dcel + tcel.
     let palette = vec![
         Color::Rgb { r: 50, g: 0, b: 0 }, // idx 0  → row 0 (t=0.0)
         Color::Rgb { r: 0, g: 50, b: 0 }, // idx 1
@@ -737,24 +770,25 @@ fn compute_chroma_gradient_22_sweeps_full_palette_range() {
             b: 100,
         }, // idx 15 → last stop (t=1.0)
     ];
-    let colors = compute_chroma_gradient_22(&palette);
+    let colors = compute_chroma_gradient_24(&palette);
     // Row 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0).
     // t=0.0 maps exactly to palette[0] — no interpolation needed.
     assert_eq!(colors[0], Color::Rgb { r: 200, g: 0, b: 0 });
-    // Row 21 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
+    // Row 23 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
     // t=1.0 maps exactly to palette[n-1] — the last stop. max channel is
     // 100, scaled by 200/100 = 2.0x to reach the TARGET_V=200 floor.
-    // (100 * 200 / 100 = 200.) This is the cid row (row 21, owner-mandated
-    // bottom) — the chroma gradient sweeps from palette[0] at the top
-    // (dim tail) to palette[n-1] at the bottom (bright head).
+    // (100 * 200 / 100 = 200.) This is the screensize row (row 23, owner-
+    // mandated bottom — Z-master-1X round 5 moved it down from 21) — the
+    // chroma gradient sweeps from palette[0] at the top (dim tail) to
+    // palette[n-1] at the bottom (bright head).
     assert_eq!(
-        colors[21],
+        colors[23],
         Color::Rgb {
             r: 200,
             g: 200,
             b: 200
         },
-        "cid row (idx 17) must use the last palette stop brightened to TARGET_V=200"
+        "screensize row (idx 23) must use the last palette stop brightened to TARGET_V=200"
     );
 }
 

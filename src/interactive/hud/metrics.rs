@@ -38,7 +38,7 @@
 use std::time::Instant;
 
 use super::{
-    compute_chroma_gradient_22, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
+    compute_chroma_gradient_24, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
     HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
 };
 
@@ -99,7 +99,7 @@ impl HudState {
         // HD-01 (HUD chroma dragon integration): 18-stop sweep — each row
         // gets a distinct palette stop. Index math: `palette_colors`
         // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
-        let colors = compute_chroma_gradient_22(palette_colors);
+        let colors = compute_chroma_gradient_24(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -311,20 +311,39 @@ impl HudState {
         };
         self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
-        // cid (row 19) is static — set once in new(), never rewritten
-        // here. Only its color is refreshed by refresh_colors every frame.
-        // v51 reorder: cid moved from the last row (21) to row 19 — the
-        // build identity keeps a prominent position above the session
-        // footer (owner reorder mandate: "cid" above "up" and the
-        // terminal size).
+        // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
+        // dcel: dirty cell ratio %. Rolling average dirty count / latest
+        // total cells * 100. Owner insight from the CELL EFFICIENCY
+        // benchmark section: dirty_cell_ratio_percent is the key
+        // efficiency signal — lower = more cells skip re-send (the
+        // frame buffer's dirty-tracking is working). Rendered at 1
+        // decimal so small changes (6.8% → 6.9%) are visible.
+        let avg_dirty = self.dirty_cell_tracker.rolling_avg_dirty();
+        let latest_total = self.dirty_cell_tracker.latest_total();
+        let dcel_pct = if latest_total > 0 {
+            (avg_dirty / latest_total as f64) * 100.0
+        } else {
+            0.0
+        };
+        self.cached_lines[19] = (colors[19], format!(" dcel: {dcel_pct:.1}%"));
+        // tcel: total cells in the screen (width × height). Driven by
+        // terminal size — stable between resizes. Rendered with the
+        // same humanize helper as fps for compactness (e.g. 2.8K).
+        let tcel_val = crate::humanize::humanize(latest_total);
+        self.cached_lines[20] = (colors[20], format!(" tcel: {tcel_val}"));
 
-        // Session footer (v51 reorder): up moved from row 13 to 20,
-        // screensize from 14 to 21 — the terminal size stays the visual
-        // anchor at the very bottom of the dashboard.
-        self.cached_lines[20] = (colors[20], format!(" up: {uptime_str}"));
+        // cid (row 21) is static — set once in new(), never rewritten
+        // here. Only its color is refreshed by refresh_colors every frame.
+        // Z-master-1X round 5: cid moved from row 19 to row 21 to make
+        // room for dcel/tcel above it (owner mandate).
+
+        // Session footer (Z-master-1X round 5: up moved from row 20 to 22,
+        // screensize from 21 to 23 — terminal size stays the visual anchor
+        // at the very bottom of the dashboard).
+        self.cached_lines[22] = (colors[22], format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[21] = (colors[21], format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[23] = (colors[23], format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self

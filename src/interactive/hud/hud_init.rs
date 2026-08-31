@@ -9,7 +9,10 @@ use std::time::{Duration, Instant};
 use crate::runtime::ColorScheme;
 use crossterm::style::Color;
 
-use super::{FrameMode, HUD_CPU_INTERVAL, HUD_METRIC_INTERVAL, HUD_MIN_WIDTH, HUD_RSS_INTERVAL};
+use super::{
+    DirtyCellTracker, FrameMode, HUD_CPU_INTERVAL, HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
+    HUD_RSS_INTERVAL,
+};
 use crate::interactive::activity::FrameTimeTracker;
 
 impl super::HudState {
@@ -32,6 +35,8 @@ impl super::HudState {
             pause_started_at: None,
             paused_total: Duration::ZERO,
             frame_times: FrameTimeTracker::new(),
+            // Z-master-1X round 5: dirty-cell tracker for dcel/tcel metrics.
+            dirty_cell_tracker: DirtyCellTracker::new(),
             last_metric_update: Instant::now()
                 .checked_sub(HUD_METRIC_INTERVAL)
                 .unwrap_or_else(Instant::now),
@@ -96,22 +101,25 @@ impl super::HudState {
                 // ── User-adjustable live controls (rows 11-12) ──
                 (Color::Magenta, String::new()), // 11: sped
                 (Color::Magenta, String::new()), // 12: dsty
-                // ── Dragon + tuning state (rows 13-18) — v51 reorder:
-                //    was rows 15-20 ──
+                // ── Dragon + tuning state (rows 13-18) ──
                 (Color::DarkCyan, String::new()), // 13: prdr
                 (Color::DarkCyan, String::new()), // 14: crdr
                 (Color::DarkCyan, String::new()), // 15: ambt
                 (Color::DarkCyan, String::new()), // 16: glth
                 (Color::DarkCyan, String::new()), // 17: ctun
                 (Color::DarkCyan, String::new()), // 18: mnst
+                // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
+                // dcel: dirty cell ratio % (rolling avg over 60 frames).
+                (Color::DarkCyan, String::new()), // 19: dcel
+                // tcel: total cells in the screen (latest sample).
+                (Color::DarkCyan, String::new()), // 20: tcel
                 // cid line — commit short SHA, static for the entire process
-                // lifetime. Row 19 (v51 reorder: moved up from the last row
-                // so the session footer — up + screensize — closes the
-                // dashboard instead).
+                // lifetime. Row 21 (Z-master-1X round 5: moved down from row
+                // 19 to make room for dcel/tcel above it).
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
-                // ── Session footer (rows 20-21) ──
-                (Color::DarkCyan, String::new()), // 20: up
-                (Color::DarkCyan, String::new()), // 21: screensize
+                // ── Session footer (rows 22-23) ──
+                (Color::DarkCyan, String::new()), // 22: up
+                (Color::DarkCyan, String::new()), // 23: screensize
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,

@@ -703,6 +703,23 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             break;
         }
 
+        // Z-master-1X round 5: push dirty-cell + total-cell counts to the
+        // HUD for the dcel/tcel metrics. Must run AFTER sim_draw (which
+        // produces dirty_len + is_dirty_all) and BEFORE the post-draw
+        // accounting (which may early-out on terminal_gone, already handled
+        // above). Total cells = frame.width × frame.height (the logical
+        // screen size). Dirty count = dirty_len (or full screen if
+        // is_dirty_all — sim_draw signals "everything changed").
+        {
+            let total_cells = (frame.width as u64) * (frame.height as u64);
+            let dirty_count = if is_dirty_all {
+                total_cells
+            } else {
+                dirty_len as u64
+            };
+            hud_state.set_dirty_cell_stats(dirty_count, total_cells);
+        }
+
         // v50.0.0-beta.7 LOC refactor: post-draw accounting extracted to
         // event_loop_post_draw.rs.
         let post_draw = super::event_loop_post_draw::post_draw_accounting(

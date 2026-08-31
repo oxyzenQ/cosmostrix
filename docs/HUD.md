@@ -9,6 +9,7 @@ mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
 v50.0.0-beta.7 HUD expansion: the HUD grew from 9 rows to 22 rows,
+then Z-master-1X round 5 added dcel + tcel (24 rows total).
 adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
 that previously toggled the HUD position (left <-> right corner) was
@@ -81,7 +82,7 @@ each line means without reading the full reference below.
 
 ## Annotated HUD Layout
 
-What you actually see in the top-left corner after pressing `i`. All 22
+What you actually see in the top-left corner after pressing `i`. All 24
 rows are visible at once; this mockup annotates each:
 
 ```text
@@ -105,9 +106,11 @@ rows are visible at once; this mockup annotates each:
 │ glth: default ◄── 16. glitch level (none/subtle/default/intense)
 │ ctun: default ◄── 17. color tuning (default or custom factors)
 │ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
-│ cid: 6ed244b  ◄── 19. build commit id (verify without quitting)
-│ up: 03:42     ◄── 20. session uptime (MM:SS under 1h)
-│ 200x50 auto   ◄── 21. terminal size + mode (auto/fix)
+│ dcel: 6.8%    ◄── 19. dirty cell ratio % (rolling avg — lower = more efficient)
+│ tcel: 2.8K    ◄── 20. total cells in screen (width × height)
+│ cid: 6ed244b  ◄── 21. build commit id (verify without quitting)
+│ up: 03:42     ◄── 22. session uptime (MM:SS under 1h)
+│ 200x50 auto   ◄── 23. terminal size + mode (auto/fix)
 └─────────────────────────┘
 ```
 
@@ -116,8 +119,10 @@ rain droplet — the bottom rows (the session footer: `cid`, `up`,
 screensize) earn the brightest `head` stops (rain leading character),
 the top row (`fps`) is the dimmest `tail` (rain trailing fade). The
 screensize row at the very bottom is the visual anchor; the `cid` line
-keeps a prominent head-band position (row 19) so the owner can verify
-which commit is running. See [HUD Color Scheme](#hud-color-scheme)
+keeps a prominent head-band position (row 21, Z-master-1X round 5) so
+the owner can verify which commit is running. The `dcel`/`tcel` cell
+ efficiency metrics sit at rows 19-20 (directly above `cid`) per owner
+mandate. See [HUD Color Scheme](#hud-color-scheme)
 below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
@@ -163,7 +168,7 @@ diagnostic recipes for specific symptoms.
 
 ## HUD Lines (top-to-bottom)
 
-The HUD writes 22 rows into the frame buffer at the top-left corner
+The HUD writes 24 rows into the frame buffer at the top-left corner
 (column 0). Each row is one metric. Rows 0-5 are the performance core
 (unchanged since v50), rows 6-7 are the health pair (ehs / prs), rows
 8-10 are the identity lines (scn / chr / clr), rows 11-12 are the
@@ -286,7 +291,7 @@ HUD is visible.
 **Why the text never changes:** the SHA is baked into the binary at
 compile time. The line is set once in `HudState::new()` and only its
 color is refreshed by `refresh_colors` every frame (it occupies a
-head-band stop at row 19 — the bright footer region — because the
+head-band stop at row 21 — the bright footer region — because the
 build identity is the most definitive info the owner reads to verify
 which commit is running).
 
@@ -404,7 +409,7 @@ out to grey.
 
 ### Rain-aesthetic gradient (top dim -> bottom bright)
 
-The 22 HUD lines form a vertical brightness gradient that mirrors a
+The 24 HUD lines form a vertical brightness gradient that mirrors a
 falling rain droplet — the bottom lines (the session footer:
 `screensize`, `up`, `cid`) are the brightest `head` (palette last-stop,
 the rain's leading bright character), and the top lines (`fps`, `tgt`)

@@ -72,18 +72,18 @@ fn hud_set_crystal_dragon_on_renders_on() {
 
 #[test]
 fn hud_prdr_crdr_above_cid_in_layout() {
-    // Owner mandate: "add this new 2 metrics on top of cid/commit id
-    // indicator mean cid indicator keep last position metrics".
-    // Verify the layout: prdr at 15, crdr at 16, cid at 17 (last).
+    // Owner mandate: prdr/crdr above cid/commit id indicator.
+    // Z-master-1X round 5: cid moved from row 19 to row 21 (dcel/tcel
+    // inserted at rows 19-20 above cid).
     let h = HudState::new();
-    // cid must be at row 19 (v51 reorder — above the session footer).
-    let (_, cid_line) = &h.cached_lines[19];
+    // cid must be at row 21 (Z-master-1X round 5 — above the session footer).
+    let (_, cid_line) = &h.cached_lines[21];
     assert!(
         cid_line.starts_with(" cid: "),
-        "row 19 must be the cid line (v51 reorder), got: {cid_line:?}"
+        "row 21 must be the cid line (Z-master-1X round 5), got: {cid_line:?}"
     );
     // prdr and crdr initialize as empty strings (populated by update_metrics
-    // at the 1 Hz tick). Verify they are at rows 15 and 16 respectively
+    // at the 1 Hz tick). Verify they are at rows 13 and 14 respectively
     // by calling update_metrics and checking the rendered text.
     let mut h2 = HudState::new();
     h2.toggle();
@@ -98,11 +98,11 @@ fn hud_prdr_crdr_above_cid_in_layout() {
         crdr_line.starts_with(" crdr: "),
         "row 14 must be the crdr line (v51 reorder), got: {crdr_line:?}"
     );
-    // cid is still at row 19 (unchanged from h).
-    let (_, cid_line_2) = &h2.cached_lines[19];
+    // cid is still at row 21 (unchanged from h).
+    let (_, cid_line_2) = &h2.cached_lines[21];
     assert!(
         cid_line_2.starts_with(" cid: "),
-        "row 19 must still be the cid line after update_metrics (v51 reorder), got: {cid_line_2:?}"
+        "row 21 must still be the cid line after update_metrics (Z-master-1X round 5), got: {cid_line_2:?}"
     );
 }
 
