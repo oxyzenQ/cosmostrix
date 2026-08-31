@@ -42,6 +42,8 @@ use std::collections::HashMap;
 
 use clap::ValueEnum;
 
+use crate::types::constants::MESSAGE_MAX_LEN;
+
 // Polling heartbeat + snapshot dedup live in live_config_poll.rs.
 
 // AB-10: session-wide buffered state lives in live_config_state.rs.
@@ -554,13 +556,35 @@ pub(crate) fn rebuild_cloud_config(
             // Apply msg-mode gate: if msg-mode=false, suppress config message.
             // CLI -m/-mb always wins (handled by cli.message guard above).
             if msg_mode_on {
-                new.message = Some(text);
-                new.message_border = border;
-                lr_trace!(
-                    "apply message='{}' border={} (from config, msg-mode=true)",
-                    new.message.as_deref().unwrap_or(""),
-                    border
-                );
+                // S3 (security harden): mirror the startup path's sanitization
+                // + length cap. Without this, a live-reloaded `message` /
+                // `message-border` value would (a) bypass sanitize_message_text
+                // and allow ANSI/control-char injection into the terminal, and
+                // (b) bypass the MESSAGE_MAX_LEN=200 cap and allow unbounded
+                // memory allocation from a multi-MB config line. The startup
+                // path (cli/build_cloud_cfg.rs:158-170) already enforces both;
+                // this closes the live-reload inconsistency.
+                if text.len() > MESSAGE_MAX_LEN {
+                    lr_trace!(
+                        "reject live-reload message: {} chars exceeds {} limit",
+                        text.len(),
+                        MESSAGE_MAX_LEN
+                    );
+                    push_validation_rejection(&format!(
+                        "message: value length {} exceeds {} character limit (live-reload rejected)",
+                        text.len(),
+                        MESSAGE_MAX_LEN
+                    ));
+                } else {
+                    let sanitized = crate::output::message::sanitize_message_text(&text);
+                    new.message = Some(sanitized);
+                    new.message_border = border;
+                    lr_trace!(
+                        "apply message='{}' border={} (from config, msg-mode=true, sanitized)",
+                        new.message.as_deref().unwrap_or(""),
+                        border
+                    );
+                }
             } else {
                 // msg-mode=false + config message → suppress.
                 new.message = None;
