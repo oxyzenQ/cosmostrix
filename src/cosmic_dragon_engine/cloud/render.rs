@@ -37,7 +37,7 @@ pub(crate) struct FlashWaveCtx {
     pub col: u16,
     /// Click line (cell-space).
     pub line: u16,
-    // ── v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2): precomputed
+    // ── v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #2): precomputed
     // wave-invariant quantities. These are pure functions of `elapsed` and
     // the wave constants, so computing them once per wave (in rain.rs
     // construction) instead of once per cell × per wave eliminates ~48K

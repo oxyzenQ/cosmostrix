@@ -557,7 +557,7 @@ fn main() -> std::io::Result<()> {
     ));
     let speed = ux::or_exit(validate_speed(args.speed));
 
-    // --chars CLI flag was removed (audit FLAGS_AUDIT_bench-frames_chars_bold.md §2).
+    // --chars CLI flag was removed (audit docs/archive/research/FLAGS_AUDIT_bench-frames_chars_bold.md §2).
     // Custom charsets now exclusively come from [charset-custom.<name>] in config.toml
     // loaded via --charset <name>. The user_ranges Vec stays (always empty here) because
     // removing it would touch ~15 call sites with zero functional benefit.

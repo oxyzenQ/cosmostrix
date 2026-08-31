@@ -362,7 +362,7 @@ impl super::Droplet {
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
                 // v30 optimize: const-gate — MOUSE_GLOW_INTENSITY is 0.0 in production,
                 // so LLVM folds this to dead code. `mouse_col != u16::MAX` stays as a
-                // runtime guard for the day glow is re-enabled. See MOUSE_EFFECTS_AUDIT.md.
+                // runtime guard for the day glow is re-enabled. See docs/archive/research/MOUSE_EFFECTS_AUDIT.md.
                 const GLOW_ENABLED: bool = MOUSE_GLOW_INTENSITY > 0.0;
                 if GLOW_ENABLED && ctx.mouse_col != u16::MAX {
                     let col_dist = if self.bound_col > ctx.mouse_col {
@@ -424,7 +424,7 @@ impl super::Droplet {
                     } else {
                         (w.line - line) as f32
                     };
-                    // v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #3):
+                    // v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #3):
                     // squared-distance early-out before sqrt. Cells outside
                     // the wave's bounding circle skip the sqrt + ring math
                     // entirely. Skips ~75% of sqrts for typical wave coverage.

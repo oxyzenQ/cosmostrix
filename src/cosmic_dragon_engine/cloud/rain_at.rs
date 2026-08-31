@@ -721,7 +721,7 @@ impl super::Cloud {
                 // Instant captured once at frame start in event_loop.rs.
                 let e = now.saturating_duration_since(w.birth).as_secs_f32();
                 if e < MOUSE_FLASH_DURATION_SECS {
-                    // v30 optimize (MOUSE_EFFECTS_AUDIT.md Quick Win #2):
+                    // v30 optimize (docs/archive/research/MOUSE_EFFECTS_AUDIT.md Quick Win #2):
                     // precompute wave-invariant quantities here (once per wave)
                     // instead of per cell × per wave in droplet.rs hot path.
                     let primary_radius = e * MOUSE_FLASH_SPEED;

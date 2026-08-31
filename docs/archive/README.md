@@ -11,41 +11,26 @@ active documentation set stays small and current.
 
 | Subdirectory | Contents | Origin |
 |--------------|----------|--------|
-| `CONFIG_SYNC/` | 7 phase reports (Phase 1, 2, 3, 4, 5, 5_FINAL, 6) from the closed CONFIG_SYNC audit. Closed phase reports with zero live consumers in `src/`. | Moved from `docs/research/CONFIG_SYNC_AUDIT_PHASE*.md` |
-| `cosmic_dragon/` | Two design-exploration docs from the v13.3.0 Cosmic Dragon milestone. Conclusions have been folded into `docs/PHILOSOPHY.md` and `docs/PERFORMANCE_ACROSS_SCALES.md`. | Moved from `docs/COSMIC_DRAGON_EXPLORATION.md` + `docs/COSMIC_DRAGON_FINDINGS.md` |
-| `audits/` | Closed one-shot audit reports (`UNSAFE_SOUNDNESS_AUDIT.md`, `FLAGS_AUDIT_dead_weight.md`, `ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md`) whose findings have either been actioned or are no longer live concerns. | Moved from `docs/research/` (first two) / newly created 2026-08-05 (third) |
-| `specs/` | Historical design specifications for eliminated subsystems. Kept verbatim as the canonical reference for any future revival effort. Currently holds `ATMOSPHERE_ENGINE.md` — the v20 atmosphere engine design spec, archived 2026-08-05 alongside the subsystem elimination at commit `07b44b5`. | Moved from `docs/ATMOSPHERE_ENGINE.md` (2026-08-05) |
+| `audits/` | Closed one-shot audit reports (A1-A5 zombie kills, B1-B4 optimizations, Z1-Z5 LTS audits, config/deps/security/build audits, dragon engine lock audit, visual LTS, killer features, output mastery, docs audit, perf regression). All findings have been actioned or are no longer live concerns. | Moved from `docs/audits/` (25 files, v60 archive round) |
+| `research/` | Historical research docs whose conclusions have been absorbed into canonical docs or whose subject is closed (DRAGON_HUNT_V2, FLAGS_AUDIT_bench, IPC, MATRIX_1999, MATRIX_BOLD, MOUSE_EFFECTS, PLATFORM_EXPANSION, SELF_HEALING, THEME_CATALOG_SPLIT). | Moved from `docs/research/` (9 files, v60 archive round) |
+| `CONFIG_SYNC/` | 7 phase reports (Phase 1, 2, 3, 4, 5, 5_FINAL, 6) from the closed CONFIG_SYNC audit. | Moved from `docs/research/CONFIG_SYNC_AUDIT_PHASE*.md` |
+| `cosmic_dragon/` | Two design-exploration docs from the v13.3.0 Cosmic Dragon milestone. | Moved from `docs/COSMIC_DRAGON_EXPLORATION.md` + `docs/COSMIC_DRAGON_FINDINGS.md` |
+| `specs/` | Historical design specifications for eliminated subsystems (`ATMOSPHERE_ENGINE.md`, `CINEMATIC_BREATHING.md`). | Moved from `docs/` |
+| `*.md` (root) | Superseded/historical root docs: `LTS_AUDIT_*` (4 files, one-time audit results), `RAIN_DEPTH_AUDIT.md` (superseded by VISUAL_IDENTITY.md), `SIMD_FEASIBILITY.md` (rejected), `DESIGN_PROPOSAL_POWER_DRAGON_DENSITY.md` (design proposal), `STABILITY_AUDIT.md` (one-time audit), `CPU_USAGE_HONESTY.md` (historical). | Moved from `docs/` root (9 files, v60 archive round) |
 
-## Why these were archived
+## v60 Archive Round (Z-master-1X)
 
-Each archived file was audited in `docs/research/DRAGON_HUNT_V2_AUDIT.md`
-(Tier B, items 18-21) and met one or more of these criteria:
+The v60.0.0-beta.1 archive round moved 43 docs from the live tree:
+- 25 from `docs/audits/` → `docs/archive/audits/`
+- 9 from `docs/` root → `docs/archive/` root
+- 9 from `docs/research/` → `docs/archive/research/`
 
-- The phase or audit it documented has been formally closed.
-- Its conclusions have been absorbed into a newer, canonical doc.
-- No live `src/` or `scripts/` code references it.
-- It references version markers that have since been superseded
-  (e.g. `v13.3.0` measurements in a `v30` codebase).
-
-## How to read these files
-
-Archive files are kept verbatim — no content edits were made on move.
-Cross-reference links inside an archive file may point to other archive
-files (still valid) or to live docs (also still valid). If a link target
-has itself been archived, look in the corresponding subdirectory here.
-
-## Test-lock tripwires
-
-The live doc tree is enforced by `src/docs_tests/`. None of the archived
-files are referenced by any test tripwire — that was verified before the
-move. The only doc-related tripwires still in force are:
-
-- `src/docs_tests/metadata.rs` — `CHANGELOG.md` content anchors
-  (`v4.0.0`, `v3.9.0`, `"568 deterministic tests"`).
-- `src/docs_tests/assets.rs` — current-major demo GIF/PNG presence.
-- `src/validation.rs:74` — error message names `FLAGS_AUDIT_bench-frames_chars_bold.md`
-  (note: that file is **not** archived; only its sibling
-  `FLAGS_AUDIT_dead_weight.md` is).
+Active doc count reduced from ~100 to ~57 files, cutting the maintenance
+surface nearly in half. No src/ code references were broken — all
+moved docs were verified to have zero full-path `docs/` references
+from `src/`. The two docs referenced by name only (FLAGS_AUDIT_bench
+and MOUSE_EFFECTS) had their src/ references updated to point to the
+new archive paths.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
