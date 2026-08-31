@@ -139,7 +139,21 @@ impl super::Cloud {
         //   snapback reverts → drift_active cleared → next drift at +60s.
         // If snapback-secs >= 60, the next drift poll is skipped (drift still
         // active) — drift fires at +120s instead. This is by design.
-        if self.crystal_dragon && !self.drift_active && !self.user_override_since_ambient {
+        //
+        // Z-master-1X bug fix: the `user_override_since_ambient` gate only
+        // applies when ambient is active. That flag is forced to `true` at
+        // startup (event_loop_setup.rs — coredump fix, commit 2b0e28b) and
+        // is only cleared by an ambient fire. When the ambient schedule is
+        // empty, no ambient fire ever happens, so the flag stays `true`
+        // forever and would permanently block crystal dragon drift despite
+        // `crystal_dragon = true` in config. `ambient_schedule_active` is
+        // the authoritative signal — when false, skip the user-override
+        // check entirely. See docs/AMBIENT_SCHEDULER.md "Crystal Dragon
+        // wins" section and the Z-master-1X worklog entry.
+        if self.crystal_dragon
+            && !self.drift_active
+            && (!self.user_override_since_ambient || !self.ambient_schedule_active)
+        {
             if let Some(new_scheme) = self.crystal_dragon_tick(now) {
                 self.set_color_scheme(new_scheme);
                 self.user_override_since_ambient = true;

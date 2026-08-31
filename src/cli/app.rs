@@ -319,6 +319,16 @@ impl CloudConfig {
         // Crystal Dragon Engine: when enabled, activates the point-based
         // temperature group system for palette drift.
         cloud.crystal_dragon = self.crystal_dragon;
+        // Z-master-1X bug fix: track whether the ambient scheduler has any
+        // entries. When the schedule is empty, the drift gate in
+        // `cloud/post_rain.rs` MUST NOT consult `user_override_since_ambient`
+        // (which is forced to `true` at startup by `event_loop_setup.rs` to
+        // protect the first live reload, and is only cleared by an ambient
+        // fire — see commit 2b0e28b). Without this gate, ambient-off +
+        // crystal-dragon-on would never drift, even though the HUD reports
+        // `crdr: on`. The schedule presence is the authoritative signal
+        // because ambient fire is the only mechanism that clears the flag.
+        cloud.ambient_schedule_active = !self.ambient_schedule.entries.is_empty();
         // crystal_dragon_sensor and crystal_dragon_control are already
         // initialized in Cloud::new() with default config. Future CLI
         // flags can override crystal_dragon_control here.

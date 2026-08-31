@@ -401,18 +401,23 @@ mod cases_v35 {
     fn v50_drift_suppressed_while_active() {
         let mut cloud = make_test_cloud();
         cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = true;
 
         // Drift already active — must not fire again
         cloud.drift_active = true;
         assert!(
-            !(cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient),
+            !(cloud.crystal_dragon
+                && !cloud.drift_active
+                && (!cloud.user_override_since_ambient || !cloud.ambient_schedule_active)),
             "drift must be suppressed while drift_active is true"
         );
 
         // Snapback cleared drift_active — drift can fire again
         cloud.drift_active = false;
         assert!(
-            cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient,
+            cloud.crystal_dragon
+                && !cloud.drift_active
+                && (!cloud.user_override_since_ambient || !cloud.ambient_schedule_active),
             "drift can fire again after snapback clears drift_active"
         );
     }
@@ -420,24 +425,68 @@ mod cases_v35 {
     /// v50.0.0-beta.7: drift must NOT fire while user_override_since_ambient is true
     /// (manual user override via c/C/x). The state machine gate is:
     /// crystal_dragon && !drift_active && !user_override_since_ambient.
+    ///
+    /// Z-master-1X: this test exercises the AMBIENT-ON path — when the
+    /// schedule is active, the user-override flag must suppress drift
+    /// until an ambient fire clears it. `ambient_schedule_active = true`
+    /// must be set explicitly because `make_test_cloud()` defaults it to
+    /// false (no schedule).
     #[test]
     fn v50_drift_suppressed_while_override_pending() {
         let mut cloud = make_test_cloud();
         cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = true;
         cloud.drift_active = false;
         cloud.user_override_since_ambient = true;
 
         // User override pending → drift must NOT fire
         assert!(
-            !(cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient),
-            "drift must be suppressed while user_override_since_ambient is true"
+            !(cloud.crystal_dragon
+                && !cloud.drift_active
+                && (!cloud.user_override_since_ambient || !cloud.ambient_schedule_active)),
+            "drift must be suppressed while user_override_since_ambient is true and ambient is active"
         );
 
         // Snapback cleared the flag → drift can fire again
         cloud.user_override_since_ambient = false;
         assert!(
-            cloud.crystal_dragon && !cloud.drift_active && !cloud.user_override_since_ambient,
+            cloud.crystal_dragon
+                && !cloud.drift_active
+                && (!cloud.user_override_since_ambient || !cloud.ambient_schedule_active),
             "drift can fire again after snapback clears the override flag"
+        );
+    }
+
+    /// Z-master-1X bug fix regression test: when the ambient schedule is
+    /// empty (`ambient_schedule_active = false`), the user-override flag
+    /// MUST NOT block crystal dragon drift. The flag is forced to `true`
+    /// at startup by `event_loop_setup.rs` (coredump fix, commit 2b0e28b)
+    /// and is only cleared by an ambient fire — which never happens when
+    /// the schedule is empty. Without this fix, `crystal_dragon = true`
+    /// in config with ambient off would never produce a color change,
+    /// even though the HUD reports `crdr: on`.
+    ///
+    /// Reproduces the owner-reported bug:
+    ///   `cosmostrix -v -s -C minimal -mfs words`
+    ///   config: crystal-dragon = true, power_dragon = true, ambient off
+    ///   symptom: HUD shows prdr: on + crdr: on, but no color change after 60s
+    #[test]
+    fn z_master_1x_drift_allowed_when_ambient_off_despite_override_flag() {
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        // Simulate startup state: ambient schedule empty + override flag
+        // forced true by event_loop_setup.rs.
+        cloud.ambient_schedule_active = false;
+        cloud.user_override_since_ambient = true;
+        cloud.drift_active = false;
+
+        // Drift MUST be allowed — ambient is off, so the override flag is
+        // meaningless and must not block the crystal dragon engine.
+        assert!(
+            cloud.crystal_dragon
+                && !cloud.drift_active
+                && (!cloud.user_override_since_ambient || !cloud.ambient_schedule_active),
+            "Z-master-1X: when ambient schedule is empty, drift must NOT be blocked by user_override_since_ambient"
         );
     }
 

@@ -1,5 +1,10 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: Cloud struct + core impls — splitting would scatter the
+// 30+ coupled struct fields and their invariants across files (state
+// machine flags like drift_active/user_override_since_ambient/ambient_schedule_active
+// are read and written by 6 sibling modules: post_rain.rs, runtime_controls.rs,
+// ecosystem.rs, pause.rs, rain_at.rs, and the interactive event_loop_* family).
 
 //! Core simulation engine for cosmostrix — atmospheric rendering pipeline.
 //! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
@@ -328,6 +333,9 @@ pub struct Cloud {
     /// true when user overrode scene/color/charset (`x`/`c`/`s`/`C`/`S`) or
     /// Crystal Dragon drifted. Cleared by ambient fire. Prevents day-boundary dedup skip.
     pub(crate) user_override_since_ambient: bool,
+    /// Z-master-1X: true when ambient schedule has entries. When false,
+    /// drift gate skips `user_override_since_ambient` (see post_rain.rs).
+    pub(crate) ambient_schedule_active: bool,
 
     pub(crate) event_manager: GhostEventScheduler,
 
@@ -535,6 +543,8 @@ impl Cloud {
             drift_active: false,
             drift_start: None,
             user_override_since_ambient: false,
+            // Z-master-1X: set from schedule in `create_cloud`.
+            ambient_schedule_active: false,
             event_manager: GhostEventScheduler::new(now),
             gust: living_rain::GustState::new(now),
             last_sim_ms: 0.0,
