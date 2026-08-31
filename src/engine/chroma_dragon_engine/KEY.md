@@ -8,6 +8,17 @@
 
 ## LOCK
 
+> S-master-5 verification (2026-09-01): integrated chroma dragon
+> engine confirmed REAL and WORKING. Verification: 289 chroma tests
+> pass (0 fail), 19 lock invariants pass (lock_inv01-19), 36 total
+> lock-suite tests pass. ColorPipeline::detect() routing verified
+> active in production render hot path (droplet/draw.rs: 7+ is_chroma()
+> branches for blend_toward_white, scale_rgb, apply_brightness,
+> vignette, fog). --doctor discloses active pipeline (chroma_dragon
+> when TrueColor, legacy_rgb fallback with clear reason when not).
+> No code changes required — engine is stable production LTS as-is.
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-5 integrated verification (no code change, lock intact)
+
 > Engine re-locked at commit `dd87239` (2026-08-26). Additive changes
 > since prior lock at `deff636`: `colors_custom.rs` gained LTS bounds
 > constants (COLORS_CUSTOM_MAX_BLOCKS=100, MAX_RAIN_STOPS=64,
