@@ -216,10 +216,15 @@ COMMON OPTIONS:
                     below its final position (60 ms stagger), then
                     lands and completes its fade. Cinematic credits
                     feel.
-        pulse       Typewriter plus a scanner cursor: the most recently
-                    revealed characters glow up to 150% brightness and
-                    decay to 100% over 200 ms — a light pulse travels
-                    along the text as it types.
+        pulse       Typewriter plus a VISIBLE scanner cursor: the
+                    most recently revealed char gets a `▌` (U+258C
+                    LEFT ONE QUARTER BLOCK) cursor glyph painted ON
+                    TOP of it, traveling left-to-right along the text
+                    as it types — plus the most recently revealed
+                    characters glow up to 150% brightness and decay
+                    to 100% over 200 ms. The visible cursor makes
+                    pulse distinct from typewriter (no cursor).
+                    Respects --no-effects (the cursor pass self-gates).
         instant     Text appears immediately at full brightness; only
                     the border animates (clockwise draw over 1 s).
         engrave     Laser engraving: each character is burned in at

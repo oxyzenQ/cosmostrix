@@ -302,7 +302,15 @@ fn pulse_style_scanner_boosts_recent_char_brightness() {
     // A dim custom palette is injected so the boost does NOT clamp at
     // 255 (the built-in Green head color is bright enough that scaling
     // saturates and the sums compare equal).
+    //
+    // --no-effects is set to suppress the pulse scanner CURSOR pass
+    // (post-cascade improvement) — without this, the cursor `▌` glyph
+    // would overwrite the head char 'd', making the brightness
+    // comparison read the cursor's color instead of the boosted char.
+    // The brightness boost is part of the reveal math (not gated by
+    // --no-effects), so suppressing the cursor isolates the boost.
     let mut cloud = make_cloud_colored(MsgFillStyle::Pulse);
+    cloud.set_effects_enabled(false);
     cloud.set_palette(crate::palette::Palette {
         colors: vec![
             crossterm::style::Color::Rgb {

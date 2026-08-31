@@ -314,7 +314,10 @@ impl super::Cloud {
         // loop below and handed to the pass afterwards. `None` when the
         // style has no sidecar, the head is off-screen, or there is no
         // content at all (border-only overlay).
-        let head_idx = if style == MsgFillStyle::Engrave || style == MsgFillStyle::Scorch {
+        let head_idx = if style == MsgFillStyle::Engrave
+            || style == MsgFillStyle::Scorch
+            || style == MsgFillStyle::Pulse
+        {
             reveal_count.saturating_sub(1)
         } else {
             usize::MAX
@@ -594,6 +597,18 @@ impl super::Cloud {
         // there is no animation timeline (bench/edge paths).
         if style == MsgFillStyle::Hologram {
             self.hologram_scanline_pass(frame, message_elapsed_ms);
+        }
+
+        // v51 msg-fill-style (pulse): scanner cursor pass, LAST so
+        // the cursor glyph renders ON TOP of the overlay text — a
+        // visible `▌` (U+258C LEFT ONE QUARTER BLOCK) painted at the
+        // most recently revealed content cell (the "scanner head").
+        // Stateless: pure function of head_pos + elapsed_ms, no pool,
+        // no per-frame bookkeeping (see `msg_fill_style/pulse.rs`).
+        // The pass early-returns when there is no head, no timeline,
+        // or effects are disabled (--no-effects, PERF-4).
+        if style == MsgFillStyle::Pulse {
+            self.pulse_cursor_pass(frame, head_pos, message_elapsed_ms);
         }
     }
 }
