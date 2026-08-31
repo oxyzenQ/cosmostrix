@@ -91,8 +91,8 @@
 > of the session while the rain kept running.
 >
 > **Files changed**:
-> - `src/crystal_dragon_engine/ambient_scheduler/mod.rs` (deliver() helper, DeliverOutcome contract, both send sites)
-> - `src/crystal_dragon_engine/ambient_scheduler/tests.rs` (4 new contract tests)
+> - `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs` (deliver() helper, DeliverOutcome contract, both send sites)
+> - `src/engine/crystal_dragon_engine/ambient_scheduler/tests.rs` (4 new contract tests)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
 > - alloc_calls: 563 -> 563 (Δ 0% — exact match; scheduler has zero per-frame surface)

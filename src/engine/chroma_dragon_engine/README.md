@@ -197,7 +197,7 @@ See [`RULES.md`](RULES.md) § UNLOCK Log for the full detailed entry.
 
 > **Documentation Lock** after stale docs audit completion.
 >
-> All documentation in `src/chroma_dragon_engine/` (this README, RULES.md,
+> All documentation in `src/engine/chroma_dragon_engine/` (this README, RULES.md,
 > and inline `///` / `//` doc comments across every `.rs` file) has been
 > audited for stale, misleading, or outdated content. Documentation is now
 > locked — any doc changes must follow the UNLOCK protocol in

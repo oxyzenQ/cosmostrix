@@ -10,8 +10,8 @@
 | Component | File | Role |
 |-----------|------|------|
 | Event loop resize handler | `src/interactive/event_loop.rs:678-940` | Debounce, apply, post-resize state update |
-| Cloud reset | `src/cosmic_dragon_engine/cloud/spawn.rs:25-88` | Reallocate pools, re-seed RNG, rebuild LUTs |
-| Frame resize | `src/cosmic_dragon_engine/frame.rs:105-155` | Reallocate cell buffer + dirty tracking |
+| Cloud reset | `src/engine/cosmic_dragon_engine/cloud/spawn.rs:25-88` | Reallocate pools, re-seed RNG, rebuild LUTs |
+| Frame resize | `src/engine/cosmic_dragon_engine/frame.rs:105-155` | Reallocate cell buffer + dirty tracking |
 | Constants | `src/types/constants.rs:88-129` | Min/max terminal size, debounce interval |
 
 ## Audit Findings (No Code Changes Required)

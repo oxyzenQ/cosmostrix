@@ -62,15 +62,15 @@ cosmostrix is built on **three cooperating engines** that split the work along c
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/terminal/terminal_tty.rs`, `src/cosmic_dragon_engine/runtime.rs` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives at the crate root: `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs`, `src/engine/cosmic_dragon_engine/runtime.rs` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable.
 
 ### The Chroma Dragon Coloring Engine
 
-Lives under `src/chroma_dragon_engine/` (`palette`, `catalog`, `gradient`, `shaders`, `post`, `tuning`). Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
+Lives under `src/engine/chroma_dragon_engine/` (`palette`, `catalog`, `gradient`, `shaders`, `post`, `tuning`). Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
 
-The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color work, culminating in invariant tests (`src/chroma_dragon_engine/tests/lock.rs`) that assert the engine's public contract on every commit:
+The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color work, culminating in invariant tests (`src/engine/chroma_dragon_engine/tests/lock.rs`) that assert the engine's public contract on every commit:
 
 - **OKLab gradient interpolation** (Phase 3-A) — perceptually uniform, no muddy mid-tones on hue-crossing gradients
 - **Dragon Awakening** (Phase 4) — temporal column hue coherence, subpixel hue jitter, and head halo via background blend are always-on
@@ -83,7 +83,7 @@ See `cosmostrix --docs` for the full technical breakdown, or run `cargo test loc
 
 ### The Crystal Dragon Ambient Intelligence Engine
 
-Lives under `src/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `sensor`, `palette_groups`, `point_system`, `crystal_dragon_control`). Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
+Lives under `src/engine/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `sensor`, `palette_groups`, `point_system`, `crystal_dragon_control`). Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
 
 ## Architecture
 
@@ -91,12 +91,12 @@ cosmostrix is **not a clone**. The Cosmic Dragon engine computes only the ~7.5% 
 
 The renderer is structured as six cooperating subsystems:
 
-1. **Diff-based cell renderer** (`src/cosmic_dragon_engine/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation. On a 120×40 terminal: ~360 cell-writes per frame instead of 4,800 (13× I/O reduction).
+1. **Diff-based cell renderer** (`src/engine/cosmic_dragon_engine/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation. On a 120×40 terminal: ~360 cell-writes per frame instead of 4,800 (13× I/O reduction).
 2. **3-layer parallax** — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard composition; more would collapse perceptually in a 24-row terminal.
-3. **Phosphor persistence** (`src/cosmic_dragon_engine/cloud/phosphor.rs`) — CRT afterglow with per-layer decay multipliers and bottom-row acceleration. Creates ~400 ms afterglow per glyph.
+3. **Phosphor persistence** (`src/engine/cosmic_dragon_engine/cloud/phosphor.rs`) — CRT afterglow with per-layer decay multipliers and bottom-row acceleration. Creates ~400 ms afterglow per glyph.
 4. **Density noise & wind gusts** — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion.
-5. **Ambient scheduler** (`src/crystal_dragon_engine/ambient_scheduler/`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase).
-6. **Chroma Dragon coloring engine** (`src/chroma_dragon_engine/`) — OKLab gradient interpolation, cell-color resolution, transition smoothing, palette-aware anomaly halos. Locked at Phase 9-D.
+5. **Ambient scheduler** (`src/engine/crystal_dragon_engine/ambient_scheduler/`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase).
+6. **Chroma Dragon coloring engine** (`src/engine/chroma_dragon_engine/`) — OKLab gradient interpolation, cell-color resolution, transition smoothing, palette-aware anomaly halos. Locked at Phase 9-D.
 
 Run `cosmostrix --docs` for the full technical breakdown, or `cosmostrix --benchmark` for performance measurements on your own hardware.
 

@@ -72,7 +72,7 @@ duplicate engine.
 | File | Surface | Candidates |
 |------|---------|------------|
 | `src/validation/mod.rs` | `--glitch-level`, `--monolith-size`, `--color-bg` (prevalidator) | enum values |
-| `src/chroma_dragon_engine/colors_custom.rs` | custom color name | defined palette names |
+| `src/engine/chroma_dragon_engine/colors_custom.rs` | custom color name | defined palette names |
 | `src/scene_custom/mod.rs` | `--scene-custom` | builtin + custom scene names |
 | `src/config/config_apply.rs` | `intro-color`, `scene` | builtin themes + custom palettes |
 | `src/scene/charset.rs` | `--charset` | `CHARSET_PRESET_NAMES` |

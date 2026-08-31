@@ -9,7 +9,7 @@
 **Date:** 2026-08-30
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Status:** RESEARCH ONLY — no coding yet. Owner to decide Option A / B / C.
-**Scope:** `src/chroma_dragon_engine/catalog/` color registry — should the
+**Scope:** `src/engine/chroma_dragon_engine/catalog/` color registry — should the
 44-theme data file split into per-theme files (`chroma_cosmos.rs`,
 `chroma_aurora.rs`, `legacy_<name>.rs`), split by family, or stay as one
 file? Plus: which OTHER `src/` registries deserve the same treatment?
@@ -18,7 +18,7 @@ file? Plus: which OTHER `src/` registries deserve the same treatment?
 
 ## 1. Owner's Request
 
-> "owner want to split into each colors files on src/chroma_dragon_engine/
+> "owner want to split into each colors files on src/engine/chroma_dragon_engine/
 > catalog/ each files like this: chroma_cosmos.rs, chroma_aurora.rs, for
 > legacy legacy_x.rs. or keep default. not just catalog, because src/* need
 > to alternative options? because owner which files need to split and keep
@@ -107,12 +107,12 @@ today. A file split does not remove a single item from it:
 
 | # | File | What must be edited | Nature |
 |---|------|---------------------|--------|
-| 1 | `src/cosmic_dragon_engine/runtime.rs` | add `ColorScheme` variant | required |
-| 2 | `src/chroma_dragon_engine/catalog/themes.rs` | add `ThemeDef` entry | required (the data itself) |
+| 1 | `src/engine/cosmic_dragon_engine/runtime.rs` | add `ColorScheme` variant | required |
+| 2 | `src/engine/chroma_dragon_engine/catalog/themes.rs` | add `ThemeDef` entry | required (the data itself) |
 | 3 | `src/theme/mod.rs` | add `ThemeInfo` + bump `THEME_COUNT` | required (name/aliases) |
 | 4 | `src/theme/tests.rs` | extend the hardcoded 44-variant array | deliberate drift detector |
-| 5 | `src/chroma_dragon_engine/catalog.rs` | tests assert `theme_count() == 44` + a hardcoded scheme array | deliberate drift detector |
-| 6 | `src/crystal_dragon_engine/palette_groups/mod.rs` | assign the theme to a temperature group | required for Crystal Dragon drift |
+| 5 | `src/engine/chroma_dragon_engine/catalog.rs` | tests assert `theme_count() == 44` + a hardcoded scheme array | deliberate drift detector |
+| 6 | `src/engine/crystal_dragon_engine/palette_groups/mod.rs` | assign the theme to a temperature group | required for Crystal Dragon drift |
 | 7 | `README.md` (2 places) + `--list-colors` help text | update the "44 built-in themes" counts | docs |
 
 Points 4 and 5 look like duplication but are intentional safety nets — the
@@ -131,7 +131,7 @@ maintenance cost of adding a theme is unchanged.**
 ### 5.1 What it would look like
 
 ```text
-src/chroma_dragon_engine/catalog/
+src/engine/chroma_dragon_engine/catalog/
   mod.rs            <- types + build_colors() + the 44-entry index array
   chroma_green.rs   <- ~35 lines: header + imports + pub const THEME: ThemeDef
   chroma_aurora.rs
@@ -199,7 +199,7 @@ There are NO legacy color themes today — all 44 `ColorScheme` variants are
 live and selectable. Two existing things sound like "legacy" but are not
 theme files:
 
-1. `src/chroma_dragon_engine/legacy.rs` (346 LOC) — the legacy sRGB-linear
+1. `src/engine/chroma_dragon_engine/legacy.rs` (346 LOC) — the legacy sRGB-linear
    MATH fallback used when the terminal is not TrueColor (`Color256` /
    `Color16` / `Mono`). It is equations, not theme data, it is on the
    engine lock list, and it has a bit-exact parity test contract. Keep as-is.
@@ -234,7 +234,7 @@ bg = "#0a0a12"
 rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"
 ```
 
-`src/chroma_dragon_engine/colors_custom.rs` (644 LOC) loads these, and
+`src/engine/chroma_dragon_engine/colors_custom.rs` (644 LOC) loads these, and
 `--list-colors` prints them alongside the builtins ("CUSTOM COLOR PALETTES
 (from config)" section). Custom palettes even compose with
 `--color-tune`. For a user who wants a new color scheme, the plug-and-play
@@ -290,7 +290,7 @@ maintenance cost": maintainers would hop between two conventions.
    runtime plug-and-play path that already exists.
 5. **Do not touch the locked engine files.** Any catalog restructuring is
    an UNLOCK event requiring the A/B + lock-suite protocol
-   (`src/chroma_dragon_engine/RULES.md`), which no benefit in Option A
+   (`src/engine/chroma_dragon_engine/RULES.md`), which no benefit in Option A
    justifies today.
 
 ### FUTURE_BACKLOG candidate (documented, rejected for now)
@@ -308,9 +308,9 @@ enum passes ~64 variants.
 
 | File | Stale data | Fix |
 |------|-----------|-----|
-| `src/chroma_dragon_engine/catalog.rs` (test comment) | "ColorScheme has exactly 52 variants. If a 53rd is added..." | actual count is 44; corrected to 44 / 45th |
-| `src/chroma_dragon_engine/README.md` §7 | "Catalog registry (`catalog.rs`, 1134 LOC)" | pre-v50.0.0-beta.7 number; now catalog.rs 215 LOC + catalog/themes.rs 948 LOC (data) |
-| `src/chroma_dragon_engine/README.md` §7 | "44 builtin themes, each with head/body/tail RGB stops" | rewrote to match the actual `ThemeColors` tiers (stops / c16 / ansi) |
+| `src/engine/chroma_dragon_engine/catalog.rs` (test comment) | "ColorScheme has exactly 52 variants. If a 53rd is added..." | actual count is 44; corrected to 44 / 45th |
+| `src/engine/chroma_dragon_engine/README.md` §7 | "Catalog registry (`catalog.rs`, 1134 LOC)" | pre-v50.0.0-beta.7 number; now catalog.rs 215 LOC + catalog/themes.rs 948 LOC (data) |
+| `src/engine/chroma_dragon_engine/README.md` §7 | "44 builtin themes, each with head/body/tail RGB stops" | rewrote to match the actual `ThemeColors` tiers (stops / c16 / ansi) |
 
 Historical log entries in `KEY.md` / `RULES.md` UNLOCK log were left
 untouched — point-in-time records are not stale data.

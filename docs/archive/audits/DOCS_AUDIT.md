@@ -53,7 +53,7 @@ runs five passes over the tracked non-archive `.md` corpus:
 | `benchmark/HIST_BENCH.md` | link to moved `docs/ATMOSPHERE_ENGINE.md` | -> `docs/archive/specs/ATMOSPHERE_ENGINE.md` |
 | `docs/AMBIENT_SCHEDULER.md` | `src/config/live_config.rs` (module became a dir) | -> `live_config/mod.rs` |
 | `docs/HUD.md` | `src/interactive/hud.rs` | -> `hud/mod.rs` |
-| `docs/README.md`, `docs/RULES.md` | `src/chroma_dragon_engine/post/climate.rs` | -> `climate/mod.rs` |
+| `docs/README.md`, `docs/RULES.md` | `src/engine/chroma_dragon_engine/post/climate.rs` | -> `climate/mod.rs` |
 | `docs/RENDER_ENGINE.md` | referenced deleted `scripts/bench-compare.sh` | -> `benchmark/benchmark.sh` |
 | `docs/PERFORMANCE_ACROSS_SCALES.md` | pointed at long-gone `benchmark/scaling_results.{json,md}` | -> `benchmark/bench-labs/` per-sweep outputs |
 | `docs/ENDURANCE.md` | built its workflow on two scripts removed in `936c7ba` | historical note added; points to `--benchmark` + `benchmark.sh sweep` |
@@ -78,9 +78,9 @@ reflect the codebase at audit time. Two mentions remain by design:
 | `docs/COSMIC_DRAGON_ARCHITECTURE.md` | 1500+ tests | 1649 tests |
 | `docs/MAINTENANCE.md` | 1400 tests | 1649 tests |
 | `docs/CENTRAL_CONTROL_DRAGON_POWER.md` | 1417 tests | 1649 tests (full suite) |
-| `src/chroma_dragon_engine/README.md` | 18 invariants; 1500+ tests | 19 invariants; 1649 tests |
-| `src/cosmic_dragon_engine/README.md` | 1500+ tests | 1649 tests |
-| `src/crystal_dragon_engine/README.md` | 1500+ tests | 1649 tests |
+| `src/engine/chroma_dragon_engine/README.md` | 18 invariants; 1500+ tests | 19 invariants; 1649 tests |
+| `src/engine/cosmic_dragon_engine/README.md` | 1500+ tests | 1649 tests |
+| `src/engine/crystal_dragon_engine/README.md` | 1500+ tests | 1649 tests |
 
 **Left frozen by design**: `CHANGELOG.md` (per-version release records),
 `KEY.md` lock signatures (test counts are part of the historical signoff
@@ -129,7 +129,7 @@ against source:
   historical record, frozen by policy.
 - **CONTRIBUTING.md / TRADEMARK.md / NOTICE — CLEAN** (no engine
   findings in any pass).
-- Engine hits in `src/chroma_dragon_engine/RULES.md` ("43 themes",
+- Engine hits in `src/engine/chroma_dragon_engine/RULES.md` ("43 themes",
   "18 invariants") were manually triaged: all occurrences are quotes
   INSIDE the historical UNLOCK log entry `809a897`, where they
   describe the 43->44 / 18->19 fix itself — historical record, not

@@ -21,12 +21,12 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 
 | Doc | Covers |
 |-----|--------|
-| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/terminal/terminal_tty.rs`) |
+| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs`) |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [LIVE_RELOAD_BEHAVIOR.md](LIVE_RELOAD_BEHAVIOR.md) | Per-key live-reload matrix (which config keys reload vs. require restart) + masterclass solution options |
 
-**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/chroma_dragon_engine/`).
+**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/engine/chroma_dragon_engine/`).
 
 ## Benchmarking & Performance
 
@@ -45,26 +45,26 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 |-----|--------|
 | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) | **The tuning bible** — every rain visual knob (`src/central_control_rains/mod.rs`) |
 
-The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/chroma_dragon_engine/post/climate/mod.rs`, `AtmosphericEvolution` in `src/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.
+The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05). Historical spec at [archive/specs/ATMOSPHERE_ENGINE.md](archive/specs/ATMOSPHERE_ENGINE.md); elimination record at [archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md](archive/audits/ATMOSPHERE_SUBSYSTEM_ARCHIVAL.md). Subsystems still sharing the "atmosphere" name (`src/engine/chroma_dragon_engine/post/climate/mod.rs`, `AtmosphericEvolution` in `src/engine/cosmic_dragon_engine/cloud/ecosystem.rs`) are separate and remain live.
 
 ## Color & Theming (Chroma Dragon)
 
 | Doc | Covers |
 |-----|--------|
-| [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/chroma_dragon_engine/`) |
-| [src/chroma_dragon_engine/catalog.rs](../src/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
-| [src/chroma_dragon_engine/palette/mod.rs](../src/chroma_dragon_engine/palette/mod.rs) | Palette construction, OKLab interpolation |
-| [src/chroma_dragon_engine/tuning.rs](../src/chroma_dragon_engine/tuning.rs) | `--color-tune` key=value tuning |
+| [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/engine/chroma_dragon_engine/`) |
+| [src/engine/chroma_dragon_engine/catalog.rs](../src/engine/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
+| [src/engine/chroma_dragon_engine/palette/mod.rs](../src/engine/chroma_dragon_engine/palette/mod.rs) | Palette construction, OKLab interpolation |
+| [src/engine/chroma_dragon_engine/tuning.rs](../src/engine/chroma_dragon_engine/tuning.rs) | `--color-tune` key=value tuning |
 
-**Adding a new color theme**: add a variant to `ColorScheme` in `src/cosmic_dragon_engine/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
+**Adding a new color theme**: add a variant to `ColorScheme` in `src/engine/cosmic_dragon_engine/runtime.rs`, then add one `ThemeDef` to `THEMES` in `src/engine/chroma_dragon_engine/catalog.rs`. `--list-colors`, `--color <name>`, and `build_palette()` auto-discover from the registry.
 
 ## Ambient Intelligence (Crystal Dragon)
 
 | Doc | Covers |
 |-----|--------|
-| [CRYSTAL_DRAGON_ENGINE.md](CRYSTAL_DRAGON_ENGINE.md) | **Complete documentation** — source-code-as-truth reference for `src/crystal_dragon_engine/`. Covers all 8 subsystems, every constant, the calc-v1 algorithm, and the ambient scheduler. |
+| [CRYSTAL_DRAGON_ENGINE.md](CRYSTAL_DRAGON_ENGINE.md) | **Complete documentation** — source-code-as-truth reference for `src/engine/crystal_dragon_engine/`. Covers all 8 subsystems, every constant, the calc-v1 algorithm, and the ambient scheduler. |
 | [AMBIENT_SCHEDULER.md](AMBIENT_SCHEDULER.md) | Focused doc on the ambient scheduler thread (time-of-day scene switching) |
-| [src/crystal_dragon_engine/mod.rs](../src/crystal_dragon_engine/mod.rs) | Top-level module doc — the canonical source-of-truth header |
+| [src/engine/crystal_dragon_engine/mod.rs](../src/engine/crystal_dragon_engine/mod.rs) | Top-level module doc — the canonical source-of-truth header |
 
 **Two subsystems, one engine**: (1) **Palette drift** — sensor (CPU%/CLOCK) -> 1–99 point -> temperature group -> probabilistic weighted theme selection -> 300 ms OKLab wave transition via Chroma Dragon. (2) **Ambient scheduler** — config-driven `ambient.HH-MM = <scene>` time-of-day scene switching via a dynamic idle/wake thread (zero CPU between phase boundaries).
 
@@ -111,7 +111,7 @@ cosmostrix --doctor && cosmostrix --benchmark --bench-duration 5s
 
 ## Key Invariants & Doc Maintenance
 
-**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/tests/lock.rs`, `src/chroma_dragon_engine/tests/lock.rs`) must pass on every commit.
+**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/tests/lock.rs`, `src/engine/chroma_dragon_engine/tests/lock.rs`) must pass on every commit.
 
 **Adding a doc**: place in `docs/` (or `docs/workflow/`), add to this index, add to README Documentation list, add SPDX header, cross-link from related docs. **Removing/renaming**: grep for old filename, update all cross-references, remove from this index and README list.
 <!-- COSMOSTRIX-DISCLAIMER -->

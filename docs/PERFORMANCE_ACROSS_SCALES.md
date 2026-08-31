@@ -161,7 +161,7 @@ allocation after the fix.
   400x200       3.00       <- no scaling
 ```
 
-The fix: `src/cosmic_dragon_engine/cloud/phosphor.rs` was allocating a fresh
+The fix: `src/engine/cosmic_dragon_engine/cloud/phosphor.rs` was allocating a fresh
 `SmallVec<[usize; 256]>` every frame to track freshly-phosphored cells.
 Once the fresh-cell count exceeded 256 (which happens at ~80×24), the
 SmallVec spilled to heap — 1 alloc + 1 dealloc per frame. At larger sizes,
@@ -213,7 +213,7 @@ shrinking fraction of the total.
 
 ## Optimization Applied
 
-### `src/cosmic_dragon_engine/cloud/phosphor.rs` — hoist `tracked_fresh` to reuse heap capacity
+### `src/engine/cosmic_dragon_engine/cloud/phosphor.rs` — hoist `tracked_fresh` to reuse heap capacity
 
 **Before:**
 
@@ -281,12 +281,12 @@ a scaling number looks unexpected and you need a starting point.
 | `total_ns/cell` > 100 at sizes ≥ 80×24                   | Regression in render or I/O hot path                        | `render_ns/cell` vs `io_ns/cell` (which one grew?)             | Bisect with `git bisect` on the JSON baseline. Steady state: ~80 ns/cell.                       |
 | `total_ns/cell` grows super-linearly with size           | Cache thrashing or O(n²) algorithm in hot path              | Plot `total_ns/cell` vs `cells`. Linear = healthy. Curved = bug | Source-level review of frame.rs, cloud/rain.rs. Look for nested loops over cells.               |
 | `allocs/frame` > 3.00 at any size                        | New per-frame heap allocation in hot path                   | `allocs/frame` column — should be 3.00 constant                | Bisect to find the offending commit. v30 baseline: 3.00 flat.                                   |
-| `allocs/frame` grows with screen size                    | SmallVec spill in `phosphor.rs` regressed (or new spill)    | `allocs/frame` column — should NOT grow with size              | Check `src/cosmic_dragon_engine/cloud/phosphor.rs` for fresh SmallVec allocations. Use `std::mem::take` + `clear()`. |
+| `allocs/frame` grows with screen size                    | SmallVec spill in `phosphor.rs` regressed (or new spill)    | `allocs/frame` column — should NOT grow with size              | Check `src/engine/cosmic_dragon_engine/cloud/phosphor.rs` for fresh SmallVec allocations. Use `std::mem::take` + `clear()`. |
 | `peak_rss` > 15 MiB at 400×200                           | Memory regression (back-buffer, droplet pool, or leak)      | `peak_rss` column vs cell count                                | Back-buffer = `cells × sizeof(Cell)`. At 400×200 = 1.28 MiB. Total budget: 15 MiB.              |
-| `dirty_ratio%` stays high (>10%) at large sizes          | Diff engine not catching unchanged cells                    | `dirty_ratio%` column — should DROP with size (5.4% -> 1.8%)    | Check `src/cosmic_dragon_engine/frame.rs` diff logic. v30: 1.8% at 400×200.                                          |
+| `dirty_ratio%` stays high (>10%) at large sizes          | Diff engine not catching unchanged cells                    | `dirty_ratio%` column — should DROP with size (5.4% -> 1.8%)    | Check `src/engine/cosmic_dragon_engine/frame.rs` diff logic. v30: 1.8% at 400×200.                                          |
 | `dirty_ratio%` higher than v30 reference at same size    | Visual change increasing per-frame mutations                | Recent scene/palette/charset changes                           | Some scenes (cinematic) inherently have higher dirty ratio than others (monolith).              |
-| `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/cosmic_dragon_engine/terminal/`. v30: 51-58 ns/cell flat.                               |
-| `render_ns/cell` grows with size                         | New per-cell work in render path                            | `render_ns/cell` column — should stay ~27 ns/cell              | Bisect on `src/cosmic_dragon_engine/cloud/render.rs`, `src/cosmic_dragon_engine/cloud/phosphor.rs`, `src/cosmic_dragon_engine/cloud/rain.rs`.                  |
+| `io_ns/cell` grows with size                             | Diff engine emitting too many bytes per dirty cell          | `io_ns/cell` column — should stay ~55 ns/cell                  | Check RLE batching in `src/engine/cosmic_dragon_engine/terminal/`. v30: 51-58 ns/cell flat.                               |
+| `render_ns/cell` grows with size                         | New per-cell work in render path                            | `render_ns/cell` column — should stay ~27 ns/cell              | Bisect on `src/engine/cosmic_dragon_engine/cloud/render.rs`, `src/engine/cosmic_dragon_engine/cloud/phosphor.rs`, `src/engine/cosmic_dragon_engine/cloud/rain.rs`.                  |
 | `avg_fps` at 80×24 below 50,000                          | Build profile or env regression                             | Build flags (LTO, PGO); CPU governor; SMT state                | Match the v30 reference env: `pro-linux-v3`, schedutil, SMT on.                                 |
 | `avg_fps` at 400×200 below 5,000                         | Cache thrashing or memory bandwidth saturation              | `total_ns/cell` — if >100 ns/cell, cache miss is the cause     | The 8.5% uptick at 400×200 (85.8 vs 78.5 ns/cell) is cache pressure, expected.                  |
 

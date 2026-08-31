@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** (this commit)
-**Scope:** `src/cosmic_dragon_engine/` (52 files, 22,551 LOC) — largest source directory, audited first for code optimization opportunities.
+**Scope:** `src/engine/cosmic_dragon_engine/` (52 files, 22,551 LOC) — largest source directory, audited first for code optimization opportunities.
 **Constraint:** No changes 99% visual/performance — optimizations must be invisible to users. A/B benchmark required.
 **Methodology:** Hot-path identification + `#[inline]` coverage audit + heap-allocation detection in render path + redundant-computation scan + cache-layout review + A/B benchmark verification.
 
@@ -70,7 +70,7 @@ The per-frame render hot path was traced:
 
 ### 2.1 Hoisted `border_cross_candidates` Buffer
 
-**Location:** `src/cosmic_dragon_engine/cloud/rain.rs` (monolith rain update path) + `src/cosmic_dragon_engine/cloud/mod.rs` (Cloud struct)
+**Location:** `src/engine/cosmic_dragon_engine/cloud/rain.rs` (monolith rain update path) + `src/engine/cosmic_dragon_engine/cloud/mod.rs` (Cloud struct)
 
 **Before (per-frame allocation):**
 

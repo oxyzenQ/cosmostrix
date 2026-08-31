@@ -82,7 +82,7 @@ pub(crate) fn lerp_profile_params(a: ProfileParams, b: ProfileParams, t: f32) ->
 // ── Palette drift moved to Crystal Dragon Engine ──────────
 //
 // All palette drift logic lives in crystal_dragon_tick() in
-// runtime_controls.rs (src/crystal_dragon_engine/). This file
+// runtime_controls.rs (src/engine/crystal_dragon_engine/). This file
 // only handles climate drift (luminance/saturation/hue modulation)
 // which is orthogonal to palette scheme selection.
 

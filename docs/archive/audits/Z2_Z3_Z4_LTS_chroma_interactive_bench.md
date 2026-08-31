@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** 20ead0e
-**Scope:** `src/chroma_dragon_engine/` (30 files) + `src/interactive/` (20 files) + `src/bench/` (18 files) — final stages of LTS audit.
+**Scope:** `src/engine/chroma_dragon_engine/` (30 files) + `src/interactive/` (20 files) + `src/bench/` (18 files) — final stages of LTS audit.
 **Constraint:** No changes 99% visual/performance.
 
 ---

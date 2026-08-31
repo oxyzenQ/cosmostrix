@@ -65,11 +65,21 @@ pub(crate) use cli::{app, cli_parse, help_detail};
 pub(crate) use cli::canonicalize::canonicalize_runtime_args;
 pub(crate) use cli::suggestion::extract_clap_suggestion;
 
-// Group: Chroma Dragon coloring engine
-mod chroma_dragon_engine;
-pub use chroma_dragon_engine::catalog;
-pub use chroma_dragon_engine::palette;
-pub(crate) use chroma_dragon_engine::{color_cache, color_tune, colors_custom};
+// Group: Engine subsystem — three dragon engines under src/engine/
+mod engine;
+pub use engine::chroma_dragon_engine::catalog;
+pub use engine::chroma_dragon_engine::palette;
+pub(crate) use engine::chroma_dragon_engine::{color_cache, color_tune, colors_custom};
+pub(crate) use engine::cosmic_dragon_engine::{cloud, frame, runtime, terminal};
+
+// v60 Z-master-1X: re-export the three engine module namespaces at
+// crate root so all existing `crate::cosmic_dragon_engine::*`,
+// `crate::chroma_dragon_engine::*`, `crate::crystal_dragon_engine::*`
+// paths continue to resolve without touching every call site.
+// The actual code lives under src/engine/ — these are pure re-exports.
+pub(crate) use engine::chroma_dragon_engine;
+pub(crate) use engine::cosmic_dragon_engine;
+pub(crate) use engine::crystal_dragon_engine;
 
 // Group: Central Control — Dragon Power + Rains
 mod central_control_dragon_power;
@@ -80,9 +90,8 @@ mod clock;
 pub(crate) use clock::posix_time;
 
 // Group: Cosmic Dragon rendering engine (cloud/frame/runtime/terminal)
-mod cosmic_dragon_engine;
+// — moved under src/engine/ (v60 Z-master-1X)
 pub(crate) use cloud::{brightness_factors, cinematic};
-pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};
 
 // Group: Cosmic Dragon incubator (experimental / concluded work)
 mod cosmic_dragon_incubator;
@@ -92,7 +101,7 @@ mod config;
 pub(crate) use config::*;
 
 // Group: Crystal Dragon ambient intelligence engine
-mod crystal_dragon_engine;
+// — moved under src/engine/ (v60 Z-master-1X)
 
 // Group: Diagnostics subsystem (diagnostics.rs → mod.rs, alloc_trace.rs, info.rs, humanize.rs)
 mod diagnostics;

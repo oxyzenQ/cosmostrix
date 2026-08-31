@@ -166,10 +166,10 @@ the inversion of the internal `effects_enabled` flag.
 
 ## 4. Files changed
 
-- `src/cosmic_dragon_engine/cloud/rain.rs` — PERF-1 gates (vignette, storytelling ×2),
+- `src/engine/cosmic_dragon_engine/cloud/rain.rs` — PERF-1 gates (vignette, storytelling ×2),
   stale max_sim_delta comment fix
-- `src/cosmic_dragon_engine/cloud/tests/mod.rs` — 2 lock tests
-- `src/cosmic_dragon_engine/cloud/mod.rs` — clippy doc-list fix (pre-existing, stricter
+- `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` — 2 lock tests
+- `src/engine/cosmic_dragon_engine/cloud/mod.rs` — clippy doc-list fix (pre-existing, stricter
   clippy in 1.98)
 - `src/bench/bench_config_enrichment.rs` — `no_effects` field + derivation
 - `src/bench/bench_report.rs` — `no_effects` struct field + CONFIG render +

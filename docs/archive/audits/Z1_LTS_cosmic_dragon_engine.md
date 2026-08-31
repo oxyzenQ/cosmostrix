@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** b73a68e
-**Scope:** `src/cosmic_dragon_engine/` (52 files, 22,551 LOC) — first stage of LTS audit.
+**Scope:** `src/engine/cosmic_dragon_engine/` (52 files, 22,551 LOC) — first stage of LTS audit.
 **Constraint:** No changes 99% visual/performance.
 **Methodology:** Panic/unwrap/expect audit + resource-leak check + signal/disconnect handling review + edge-case (zero-size, overflow, NaN) scan + Drop impl review + A/B benchmark.
 

@@ -138,7 +138,7 @@ charset-custom's existing `contains_key` pre-check).
 `src/config/live_config_state.rs` (session gate + dedup + tests),
 `src/config/live_config/mod.rs` (re-exports), `src/interactive/event_loop.rs`
 (gate set), `src/output/mod.rs` (`warn_runtime_or_now`, collision routing),
-`src/scene/charset_custom.rs` (routing + doc fixes), `src/chroma_dragon_engine/colors_custom.rs`
+`src/scene/charset_custom.rs` (routing + doc fixes), `src/engine/chroma_dragon_engine/colors_custom.rs`
 (doc fix + pre-check + test), `src/scene_custom/{mod,helpers,overrides,display}.rs`
 (routing, range parity, scene-name context, density cap, dead-arm removal),
 `src/testconf/field_validation.rs` (density-map ceiling),

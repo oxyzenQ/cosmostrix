@@ -26,7 +26,7 @@ This is **Option F** — a 6th option that the parent audit did not cover (A–E
 
 ## 2. Precedent Audit — Mouse-Click Quantum Ripple
 
-The mouse-click effect (`src/cosmic_dragon_engine/cloud/spawn.rs:847 spawn_quantum_ripple`) is the closest precedent. It fires on mouse click and emits:
+The mouse-click effect (`src/engine/cosmic_dragon_engine/cloud/spawn.rs:847 spawn_quantum_ripple`) is the closest precedent. It fires on mouse click and emits:
 
 | Parameter | Value | Source |
 |---|---|---|

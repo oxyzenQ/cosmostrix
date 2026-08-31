@@ -178,7 +178,7 @@ Feeds `user_ranges: Vec<(char, char)>` into `build_chars`.
 | `src/doctor.rs:341-342` | Diagnostic display | `s.field("chars_override", spec)` — shows the override string in `--doctor` output |
 | `src/help_detail.rs:333-335` | Manual help text | Documents `--chars <ranges>` in `--help` output (despite clap `hide = true`) |
 | `src/bench_report.rs:65-66` | Doc comment | References `--chars` as one of the charset override mechanisms |
-| `src/cosmic_dragon_engine/cloud/scene_runtime.rs` | Plumbing (read-only) | Carries `user_ranges` through scene runtime |
+| `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` | Plumbing (read-only) | Carries `user_ranges` through scene runtime |
 | `src/interactive/event_loop.rs` | Plumbing (read-only) | Carries `user_ranges` through event loop |
 | `src/interactive/input.rs` | Plumbing (read-only) | Carries `user_ranges` through input handler |
 | `src/live_config.rs` | Plumbing (read-only) | Carries `user_ranges` through live config |
@@ -302,13 +302,13 @@ throughput (bold glyphs use a different SGR sequence).
 | `src/configfile.rs:610-611` | Dump-config template | `# bold = 1` shown as commented-out default |
 | `src/config_apply.rs:453-458` | Config -> Args | `args.bold = parse_u8_config("bold", &v, 0, 2)` — config value flows into CLI args |
 | `src/main.rs:635-639` | Args -> BoldMode | `validate_u8_range("--bold", args.bold, 0, 2)` -> `BoldMode::Off/All/Random` |
-| `src/cosmic_dragon_engine/runtime.rs:18-23` | BoldMode enum | `Off`, `Random`, `All` |
-| `src/cosmic_dragon_engine/cloud/render.rs:67, 333` | DrawCtx field | `bold_mode: BoldMode` carried in render context |
-| `src/cosmic_dragon_engine/cloud/rain.rs:603` | RainCtx field | `bold_mode` carried in rain context |
-| `src/chroma_dragon_engine/shaders/base.rs:79` | Shader field | `bold_mode: BoldMode` |
-| `src/chroma_dragon_engine/shaders/base.rs:449-450, 621-625` | Shader logic | `match shader.bold_mode { Off => bold = false, All => bold = true, Random => bold = ((line ^ val) % 2) == 1 }` |
-| `src/cosmic_dragon_engine/cloud/monolith.rs` | Monolith rendering | Uses `bold_mode` |
-| `src/cosmic_dragon_engine/cloud/phosphor.rs` | Phosphor decay | Uses `bold_mode` |
+| `src/engine/cosmic_dragon_engine/runtime.rs:18-23` | BoldMode enum | `Off`, `Random`, `All` |
+| `src/engine/cosmic_dragon_engine/cloud/render.rs:67, 333` | DrawCtx field | `bold_mode: BoldMode` carried in render context |
+| `src/engine/cosmic_dragon_engine/cloud/rain.rs:603` | RainCtx field | `bold_mode` carried in rain context |
+| `src/engine/chroma_dragon_engine/shaders/base.rs:79` | Shader field | `bold_mode: BoldMode` |
+| `src/engine/chroma_dragon_engine/shaders/base.rs:449-450, 621-625` | Shader logic | `match shader.bold_mode { Off => bold = false, All => bold = true, Random => bold = ((line ^ val) % 2) == 1 }` |
+| `src/engine/cosmic_dragon_engine/cloud/monolith.rs` | Monolith rendering | Uses `bold_mode` |
+| `src/engine/cosmic_dragon_engine/cloud/phosphor.rs` | Phosphor decay | Uses `bold_mode` |
 | `src/terminal.rs` | Terminal output | Uses `bold_mode` for SGR emission |
 | `src/bench_io.rs` | Bench I/O | Uses `bold_mode` for SGR emission in benchmark mode |
 | `src/bench_report.rs:81-84, 358` | Bench report | Reports `bold_mode` as a CONFIG field (affects throughput) |
@@ -318,7 +318,7 @@ throughput (bold glyphs use a different SGR sequence).
 | `src/live_config.rs:1063, 1319-1330` | Live reload + tests | `bold` is live-reloadable via USER_CONFIG_KEYS; test fixture uses `color.tune.bold` to verify hint system |
 | `src/help_detail.rs:319-321` | Manual help text | `-b, --bold <0|1|2>` documented in `--help` |
 | `docs/CENTRAL_CONTROL_RAINS_USAGE.md` | Usage doc | Bold mode row in the config table |
-| `src/cosmic_dragon_engine/cloud/tests/*` (8 files) | Test fixtures | Tests pass `bold_mode: BoldMode::Random` (or specific values) to verify rendering behavior |
+| `src/engine/cosmic_dragon_engine/cloud/tests/*` (8 files) | Test fixtures | Tests pass `bold_mode: BoldMode::Random` (or specific values) to verify rendering behavior |
 | `src/interactive/tests.rs` | Test fixtures | Uses `bold_mode` |
 | `src/atmosphere_ab_tests.rs` | Test fixtures | Uses `bold_mode` |
 | `src/app.rs` | CloudConfig field | `bold_mode` propagated |
@@ -382,7 +382,7 @@ bold-mode control.** Unlike `--chars` (which has `[charset-custom]`),
 - **Low**: `src/config_apply_tests.rs:679` dump-config test fixture migrated.
 - **Low**: `src/configfile_promotion_tests.rs:118` test fixture migrated.
 - **Zero**: `BoldMode` enum STAYS (renderer still needs it). Only the CLI/config surface is removed.
-- **Zero**: `src/cosmic_dragon_engine/cloud/render.rs`, `rain.rs`, `chroma_dragon_engine/shaders/base.rs`, etc. — unchanged (they consume `BoldMode`, not `args.bold`).
+- **Zero**: `src/engine/cosmic_dragon_engine/cloud/render.rs`, `rain.rs`, `chroma_dragon_engine/shaders/base.rs`, etc. — unchanged (they consume `BoldMode`, not `args.bold`).
 
 Total LOC delta: ~30 lines deleted, ~10 lines added (REMOVED_FLAGS + test fixture migrations).
 
@@ -564,10 +564,10 @@ cargo test --workspace 2>&1 | tail -5
 | `src/bench_report.rs` | §2.2, §3.2 |
 | `src/configfile.rs` | §3.2 |
 | `src/config_apply.rs` | §3.2 |
-| `src/cosmic_dragon_engine/runtime.rs` | §3.2 |
-| `src/cosmic_dragon_engine/cloud/render.rs` | §3.2 |
-| `src/cosmic_dragon_engine/cloud/rain.rs` | §3.2 |
-| `src/chroma_dragon_engine/shaders/base.rs` | §3.2 |
+| `src/engine/cosmic_dragon_engine/runtime.rs` | §3.2 |
+| `src/engine/cosmic_dragon_engine/cloud/render.rs` | §3.2 |
+| `src/engine/cosmic_dragon_engine/cloud/rain.rs` | §3.2 |
+| `src/engine/chroma_dragon_engine/shaders/base.rs` | §3.2 |
 | `src/config_hints.rs` | §3.2 |
 | `src/live_config.rs` | §1.2, §3.2 |
 | `src/validation.rs` | §2.6, §3.6 |

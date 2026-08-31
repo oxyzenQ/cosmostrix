@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** 89ca7b3
-**Scope:** `src/chroma_dragon_engine/` (30 files, 13,351 LOC) — second stage of optimize sweep.
+**Scope:** `src/engine/chroma_dragon_engine/` (30 files, 13,351 LOC) — second stage of optimize sweep.
 **Constraint:** No changes 99% visual/performance.
 
 ---

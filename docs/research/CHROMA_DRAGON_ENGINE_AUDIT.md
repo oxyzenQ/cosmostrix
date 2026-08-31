@@ -18,7 +18,7 @@
 
 ## 0. TL;DR (10-second read)
 
-The Chroma Dragon engine (`src/chroma_dragon_engine/`) is the project's structured color pipeline — palette construction (OKLab), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
+The Chroma Dragon engine (`src/engine/chroma_dragon_engine/`) is the project's structured color pipeline — palette construction (OKLab), per-cell base shader (`resolve_cell_color`), atmospheric post-FX (`apply_climate`), palette-aware ghost color, and palette-aware anomaly halos. The engine is real and locked (Phase 9-B, 18 invariants).
 
 **The inconsistency the owner found is real and structural.** While `resolve_cell_color` is the convergence point for *palette-stop selection*, **eleven other code paths bypass the chroma engine entirely** and emit `Color::Rgb { r, g, b }` by direct integer RGB math. These bypasses are not "fallbacks" — they are the *primary* coloring path for those effects, with no chroma-engine alternative. There is currently:
 
@@ -36,7 +36,7 @@ The refactor proposal in §6 introduces a `ColorPipeline` enum (Chroma / LegacyR
 ### 1.1 Module map
 
 ```
-src/chroma_dragon_engine/                                <- the engine
+src/engine/chroma_dragon_engine/                                <- the engine
 ├── mod.rs                                 <- declares submodules + Phase history
 ├── palette.rs                             <- Palette struct, build_palette, blend helpers
 ├── catalog.rs                             <- THEMES registry (43 themes), ThemeDef
@@ -104,7 +104,7 @@ Every site below emits `Color::Rgb { r, g, b }` by direct integer math, **withou
 
 ### A1. Quantum Ripple — particle color snapshot + render blend
 
-**Files**: `src/cosmic_dragon_engine/cloud/spawn.rs:748-797` (`spawn_quantum_ripple`), `src/cosmic_dragon_engine/cloud/rain.rs:1161-1297` (`apply_quantum_ripple`)
+**Files**: `src/engine/cosmic_dragon_engine/cloud/spawn.rs:748-797` (`spawn_quantum_ripple`), `src/engine/cosmic_dragon_engine/cloud/rain.rs:1161-1297` (`apply_quantum_ripple`)
 
 **Spawn path** (`spawn.rs:759-769`):
 
@@ -270,7 +270,7 @@ Same pattern — should call `apply_brightness_rgb`.
 
 ### A8. CRT Vignette Cell Dim (masterclass retune — `4780ad4`)
 
-**File**: `src/cosmic_dragon_engine/cloud/rain.rs:1310-1351` (`apply_crt_dim_cell`)
+**File**: `src/engine/cosmic_dragon_engine/cloud/rain.rs:1310-1351` (`apply_crt_dim_cell`)
 
 ```rust
 let Some((r, g, b)) = crate::palette::decode_color(fg) else { return; };
@@ -285,7 +285,7 @@ Same pattern. Uses `decode_color` (chroma helper, good) but then does raw RGB ma
 
 ### A9. Ghost Event Render
 
-**File**: `src/cosmic_dragon_engine/cloud/events/ghost.rs:84-135`
+**File**: `src/engine/cosmic_dragon_engine/cloud/events/ghost.rs:84-135`
 
 ```rust
 let (br, bg, bb) = ctx.ghost_base_color;     // <- from chroma::post::ghost, OK
@@ -305,7 +305,7 @@ frame.set_force(self.col, self.line, Cell {
 
 ### A10. Monolith Render
 
-**File**: `src/cosmic_dragon_engine/cloud/monolith.rs:894`
+**File**: `src/engine/cosmic_dragon_engine/cloud/monolith.rs:894`
 
 ```rust
 Some(Color::Rgb { r, g, b })
@@ -315,7 +315,7 @@ Direct construction at the end of the monolith color pipeline. Need to audit the
 
 ### A11. Phosphor anomaly halos — partial chroma use
 
-**File**: `src/cosmic_dragon_engine/cloud/phosphor.rs:296, 318, 354, 489-497, 592-599`
+**File**: `src/engine/cosmic_dragon_engine/cloud/phosphor.rs:296, 318, 354, 489-497, 592-599`
 
 The phosphor file is **half-migrated**:
 
@@ -410,10 +410,10 @@ The owner's question — *"when benchmarking mode 'cosmostrix --benchmark' is th
              hue-preserving polar variant (Phase 9-A).
 ```
 
-**Reality** (from `src/chroma_dragon_engine/palette.rs:250-255`):
+**Reality** (from `src/engine/chroma_dragon_engine/palette.rs:250-255`):
 > Historically this file held `srgb_to_linear`, `linear_to_srgb`, and `lerp_u8_gamma` — the gamma-correct sRGB interpolator used by ... [the] sole production path; **the legacy sRGB-linear path and the Cartesian [variant] have been removed**.
 
-**Reality** (from `src/chroma_dragon_engine/gradient.rs:10-41`):
+**Reality** (from `src/engine/chroma_dragon_engine/gradient.rs:10-41`):
 > The previous `lerp_u8_gamma` (sRGB -> linear -> sRGB) interpolated each [channel independently] ... **[the] variant and the legacy sRGB-linear variant have been removed.** The [sole production path is OKLab polar].
 
 The `docs_report` output is shown by `cosmostrix --docs` and is also embedded in the binary for `strings(1)` discovery. The claim "sRGB-linear fallback" is false — there is no fallback. This must be corrected.
@@ -447,7 +447,7 @@ The fallback is **never silent**. The user is told via `-v`, `--doctor`, and the
 
 ### 6.2 New `ColorPipeline` enum
 
-**Location**: `src/chroma_dragon_engine/mod.rs` (new pub enum) or `src/cosmic_dragon_engine/runtime.rs` (alongside `ColorMode`).
+**Location**: `src/engine/chroma_dragon_engine/mod.rs` (new pub enum) or `src/engine/cosmic_dragon_engine/runtime.rs` (alongside `ColorMode`).
 
 ```rust
 /// Which color pipeline is active.
@@ -498,12 +498,12 @@ impl ColorPipeline {
 
 ### 6.3 New `chroma::legacy` module (the explicit fallback)
 
-**Location**: `src/chroma_dragon_engine/legacy.rs` (new file, ~80 LOC).
+**Location**: `src/engine/chroma_dragon_engine/legacy.rs` (new file, ~80 LOC).
 
 Houses the raw-RGB math that Category-A bypasses currently inline. Every function is the *exact* code that today lives inside `droplet.rs` / `rain.rs` / `spawn.rs` / `ghost.rs` — extracted as `pub(crate)` free functions so the bypass sites can call them when `ColorPipeline::LegacyRgb` is active.
 
 ```rust
-// src/chroma_dragon_engine/legacy.rs
+// src/engine/chroma_dragon_engine/legacy.rs
 //! Legacy sRGB-linear color math — the explicit fallback when the Chroma
 //! Dragon engine is not active. Each function is the verbatim code that
 //! used to be inlined in droplet.rs / rain.rs / spawn.rs / ghost.rs.

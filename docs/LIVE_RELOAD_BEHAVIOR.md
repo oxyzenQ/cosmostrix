@@ -505,7 +505,7 @@ animation — documented Limitation, not a gap).
 - Startup custom-first color resolution (parity reference): `src/main.rs`
 - Scene-custom layer: `src/scene_custom/mod.rs`
   (`apply_scene_custom_to_cloud_config`, `rain_style_for_custom_scene`)
-- Custom palette loader: `src/chroma_dragon_engine/colors_custom.rs`
+- Custom palette loader: `src/engine/chroma_dragon_engine/colors_custom.rs`
   (`load_custom_palette`, `is_colors_custom_name`)
 
 ---

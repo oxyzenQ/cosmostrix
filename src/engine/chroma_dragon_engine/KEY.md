@@ -103,10 +103,10 @@
 > touched; comment/word only.
 >
 > **Files changed** (comments only):
-> - `src/chroma_dragon_engine/catalog.rs` (brand name in comment)
-> - `src/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
-> - `src/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
-> - `src/chroma_dragon_engine/mod.rs` (brand name in module doc)
+> - `src/engine/chroma_dragon_engine/catalog.rs` (brand name in comment)
+> - `src/engine/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
+> - `src/engine/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
+> - `src/engine/chroma_dragon_engine/mod.rs` (brand name in module doc)
 >
 > **A/B delta**: none — zero production code touched.
 >

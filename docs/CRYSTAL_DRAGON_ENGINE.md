@@ -3,7 +3,7 @@
 # Crystal Dragon Engine — Complete Documentation
 
 > **Source code = truth.** This document is the human-readable companion
-> to `src/crystal_dragon_engine/`. When code and doc disagree, the code
+> to `src/engine/crystal_dragon_engine/`. When code and doc disagree, the code
 > wins. Every constant, function signature, and behavior described here
 > is mirrored 1:1 in the Rust source.
 
@@ -15,9 +15,9 @@ cooperating dragon engines:
 
 | Engine | Owns | Code Root |
 |--------|------|----------|
-| **Cosmic Dragon** (rendering) | "Did this cell change?" — diff-based render loop, dirty tracking, ANSI stream output | `src/cosmic_dragon_engine/cloud/`, `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs` |
-| **Chroma Dragon** (coloring) | "What color should this cell be now?" — palette construction, OKLab gradient, post-FX, anomaly halos | `src/chroma_dragon_engine/` |
-| **Crystal Dragon** (ambient) | "Should the palette drift, and to what?" — sensor sampling, temperature classification, weighted theme selection, time-of-day scene schedule | `src/crystal_dragon_engine/` (this module) |
+| **Cosmic Dragon** (rendering) | "Did this cell change?" — diff-based render loop, dirty tracking, ANSI stream output | `src/engine/cosmic_dragon_engine/cloud/`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs` |
+| **Chroma Dragon** (coloring) | "What color should this cell be now?" — palette construction, OKLab gradient, post-FX, anomaly halos | `src/engine/chroma_dragon_engine/` |
+| **Crystal Dragon** (ambient) | "Should the palette drift, and to what?" — sensor sampling, temperature classification, weighted theme selection, time-of-day scene schedule | `src/engine/crystal_dragon_engine/` (this module) |
 
 The Crystal Dragon never paints pixels itself. It watches the system
 state (CPU% or wall-clock), decides when a palette drift is appropriate,
@@ -435,7 +435,7 @@ cargo test crystal_dragon
 ## 13. File Layout (Quick Reference)
 
 ```
-src/crystal_dragon_engine/
+src/engine/crystal_dragon_engine/
 ├── mod.rs                          # Top-level doc + re-exports (74 LOC)
 ├── ambient_diag.rs                 # Diagnostics counters (88 LOC)
 ├── ambient/
@@ -465,8 +465,8 @@ Total: 1,707 LOC (production) + 1,031 LOC (tests) = 2,738 LOC
 - [`docs/AMBIENT_SCHEDULER.md`](AMBIENT_SCHEDULER.md) — Focused doc on the ambient scheduler subsystem.
 - [`docs/THREE_DRAGON_ENGINES.md`](THREE_DRAGON_ENGINES.md) — High-level overview of all three dragon engines and how they cooperate.
 - [`docs/CENTRAL_CONTROL_DRAGON_POWER.md`](CENTRAL_CONTROL_DRAGON_POWER.md) — Power management / thermal / self-healing subsystem (separate from Crystal Dragon).
-- [`src/chroma_dragon_engine/mod.rs`](../src/chroma_dragon_engine/mod.rs) — The coloring engine that Crystal delegates transitions to.
-- [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/cosmic_dragon_engine/cloud/`, `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs`).
+- [`src/engine/chroma_dragon_engine/mod.rs`](../src/engine/chroma_dragon_engine/mod.rs) — The coloring engine that Crystal delegates transitions to.
+- [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/engine/cosmic_dragon_engine/cloud/`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs`).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

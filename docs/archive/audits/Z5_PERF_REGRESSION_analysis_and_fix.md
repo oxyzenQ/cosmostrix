@@ -67,7 +67,7 @@ Owner's real hardware + `message-border` config exposed the regression that clou
 
 ### 2.2 The Smoking Gun: `draw_message` Per-Frame Allocations
 
-**File:** `src/cosmic_dragon_engine/cloud/mod.rs`, function `draw_message` (line 986)
+**File:** `src/engine/cosmic_dragon_engine/cloud/mod.rs`, function `draw_message` (line 986)
 
 **Call path:** `rain_at()` (line 40, per-frame) → `draw_message()` (line 1135, when message active)
 

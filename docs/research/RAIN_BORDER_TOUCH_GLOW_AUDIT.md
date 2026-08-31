@@ -38,7 +38,7 @@ top corners of the border must not be bright.
 `-mb <text>` is the message-with-border overlay (see `src/cli/help_detail.rs`
 lines 154–167 and `src/cli/app.rs` line 113). It populates the
 `message_border` field on `Cloud` (set by `Cloud::set_message_border` in
-`src/cosmic_dragon_engine/cloud/mod.rs` line 508), which causes
+`src/engine/cosmic_dragon_engine/cloud/mod.rs` line 508), which causes
 `Cloud::reset_message()` (mod.rs line 768) to lay out a centered box with
 a 1-cell `╭╮╰╯─│` rounded border plus 1-cell vertical / 2-cell horizontal
 padding around the text content.
@@ -48,11 +48,11 @@ padding around the text content.
 The rain head color is the palette's last stop (`palette.colors.last()`)
 when a palette is bound; otherwise it falls back to `(255, 255, 255)` pure
 white. This is cached as `DrawCtx::head_rgb` (see
-`src/cosmic_dragon_engine/cloud/render.rs` line 54–58) and is what
+`src/engine/cosmic_dragon_engine/cloud/render.rs` line 54–58) and is what
 `chroma::shaders::base::resolve_cell_color` uses for the
 `CharLoc::Head` branch (shaders/base/mod.rs line 595). An always-on head
 halo already exists (`HEAD_HALO_FACTOR = 0.15`,
-`src/chroma_dragon_engine/tuning.rs` line 117) — it blends the head color
+`src/engine/chroma_dragon_engine/tuning.rs` line 117) — it blends the head color
 toward the scene background by 15%, softening the stark white pixel
 against dark scenes (shaders/base/mod.rs lines 743–768).
 
@@ -89,7 +89,7 @@ other side, with no in-between frame visible.
 ### 2.4 Rain spawn vs. the overlay region
 
 Rain droplets are *not* suppressed from spawning in the columns that
-cross the message box. The spawn loop in `src/cosmic_dragon_engine/cloud/spawn.rs`
+cross the message box. The spawn loop in `src/engine/cosmic_dragon_engine/cloud/spawn.rs`
 does not consult `self.message`; it only consults column-busy state. So
 droplets do pass through the overlay region; they just become invisible
 to the user while inside it because the overlay draws last.
@@ -515,11 +515,11 @@ Add a test in `cloud/tests/` that:
 
 | File | Change | LOC |
 |------|--------|-----|
-| `src/cosmic_dragon_engine/cloud/mod.rs` | `BorderPulse` struct; `border_pulses` field; `message_top_line` / `message_left_col` / `message_right_col` cached fields; `find_top_edge_cell` helper; pulse decay + lerp in `draw_message` | ~70 |
-| `src/cosmic_dragon_engine/cloud/rain.rs` | `prev_head_put_line` field on `Droplet`; touch detection in droplet advance loop | ~30 |
-| `src/cosmic_dragon_engine/cloud/state.rs` | `Droplet::prev_head_put_line: Option<u16>` field | ~3 |
-| `src/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs` | Touch event + decay test | ~40 |
-| `src/chroma_dragon_engine/tuning.rs` | `BORDER_TOUCH_PULSE_LIFETIME_MS`, `BORDER_TOUCH_PULSE_MAX` constants | ~5 |
+| `src/engine/cosmic_dragon_engine/cloud/mod.rs` | `BorderPulse` struct; `border_pulses` field; `message_top_line` / `message_left_col` / `message_right_col` cached fields; `find_top_edge_cell` helper; pulse decay + lerp in `draw_message` | ~70 |
+| `src/engine/cosmic_dragon_engine/cloud/rain.rs` | `prev_head_put_line` field on `Droplet`; touch detection in droplet advance loop | ~30 |
+| `src/engine/cosmic_dragon_engine/cloud/state.rs` | `Droplet::prev_head_put_line: Option<u16>` field | ~3 |
+| `src/engine/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs` | Touch event + decay test | ~40 |
+| `src/engine/chroma_dragon_engine/tuning.rs` | `BORDER_TOUCH_PULSE_LIFETIME_MS`, `BORDER_TOUCH_PULSE_MAX` constants | ~5 |
 | `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md` | This document | — |
 | **Total** | | **~148 LOC** |
 
@@ -629,9 +629,9 @@ stale code description; the implementation is already correct.
 
 ### Files changed in the LTS polish
 
-- `src/cosmic_dragon_engine/cloud/rain.rs`: `detect_border_touch`
+- `src/engine/cosmic_dragon_engine/cloud/rain.rs`: `detect_border_touch`
   dedup-by-`msg_idx` + LTS docstring section.
-- `src/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs`: 2
+- `src/engine/cosmic_dragon_engine/cloud/tests/tests_border_gradient.rs`: 2
   new regression tests + `make_cloud` import.
 - `docs/research/RAIN_BORDER_TOUCH_GLOW_AUDIT.md`: this section.
 <!-- COSMOSTRIX-DISCLAIMER -->

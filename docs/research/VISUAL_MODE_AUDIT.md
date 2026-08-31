@@ -521,10 +521,10 @@ repeat the prior mistake of auditing only 2 effects.
   for the CRT vignette row-factor curve.
 - `src/droplet.rs::compounded_brightness` — SSOT function modeling
   all 4 dimming effects multiplicatively (audit/test use).
-- `src/cosmic_dragon_engine/cloud/rain.rs::apply_crt_vignette` — the CRT vignette
+- `src/engine/cosmic_dragon_engine/cloud/rain.rs::apply_crt_vignette` — the CRT vignette
   implementation (smoothstep over `CRT_VIGNETTE_HEIGHT` rows;
   calls the extracted `crt_vignette_factor` for DRY).
-- `src/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs` — adds 8 regression tests
+- `src/engine/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs` — adds 8 regression tests
   guarding the rain shadow floor + SSOT compounded brightness contract.
 - `scripts/visual-mode-audit.py` (in-repo) — the audit script
   that generated the brightness curves in this doc.

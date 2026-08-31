@@ -71,11 +71,11 @@ Every direct dependency was verified via `rg` to have at least one production us
 | Crate | Used? | Evidence (file:line) | # files |
 |---|---|---|---|
 | `clap` | YES | `src/main.rs:414` (`cmd.styles(cli::clap_styles())`), `src/cli/mod.rs:43-47`, `src/scene_custom/mod.rs:48-49` | 11 files, 53 hits |
-| `crossterm` | YES | `src/interactive/input.rs`, `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/mod.rs` | 54 files, 114 hits |
-| `rand` | YES | `src/cosmic_dragon_engine/cloud/living_rain.rs`, `src/crystal_dragon_engine/point_system/mod.rs` | 15 files, 29 hits |
-| `bitvec` | YES | `src/chroma_dragon_engine/shaders/base/mod.rs:22`, `src/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs:143` | 7 files, 11 hits |
-| `smallvec` | YES | `src/cosmic_dragon_engine/cloud/rain.rs:25`, `src/cosmic_dragon_engine/frame.rs:37` | 5 files, 6 hits |
-| `unicode-width` | YES | `src/tests/width_guard.rs:6`, `src/cosmic_dragon_engine/frame.rs:5`, `src/scene/charset.rs:1` | 6 files, 17 hits |
+| `crossterm` | YES | `src/interactive/input.rs`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/mod.rs` | 54 files, 114 hits |
+| `rand` | YES | `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`, `src/engine/crystal_dragon_engine/point_system/mod.rs` | 15 files, 29 hits |
+| `bitvec` | YES | `src/engine/chroma_dragon_engine/shaders/base/mod.rs:22`, `src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs:143` | 7 files, 11 hits |
+| `smallvec` | YES | `src/engine/cosmic_dragon_engine/cloud/rain.rs:25`, `src/engine/cosmic_dragon_engine/frame.rs:37` | 5 files, 6 hits |
+| `unicode-width` | YES | `src/tests/width_guard.rs:6`, `src/engine/cosmic_dragon_engine/frame.rs:5`, `src/scene/charset.rs:1` | 6 files, 17 hits |
 | `notify` | YES | `src/config/live_config/mod.rs:48`, `src/config/live_config_poll/mod.rs:5` | 3 files, 16 hits |
 | `sha2` | YES | `src/config/configfile.rs:30` (`use sha2::{Digest, Sha512}`), `src/config/live_config_poll/mod.rs:1` | 3 files, 4 hits |
 | `signal-hook` | YES | `src/interactive/signal_handlers.rs:32,34,36`, `src/bench/bench_progress.rs:1` | 2 files, 4 hits |
@@ -216,7 +216,7 @@ Both duplicates originate from `notify 6.1.1` using the older `mio 0.8` / `bitfl
 
 | Feature | Used? | Evidence |
 |---|---|---|
-| `bracketed-paste` | YES | `src/interactive/event_loop.rs`, `src/interactive/input.rs`, `src/interactive/tests.rs`, `src/tests/terminal.rs`, `src/cosmic_dragon_engine/terminal/mod.rs` |
+| `bracketed-paste` | YES | `src/interactive/event_loop.rs`, `src/interactive/input.rs`, `src/interactive/tests.rs`, `src/tests/terminal.rs`, `src/engine/cosmic_dragon_engine/terminal/mod.rs` |
 | `events` | YES | All input handling in `src/interactive/` |
 | `windows` | YES (cross-compile) | Enables Windows-specific event sources — needed when cross-compiling to `x86_64-pc-windows-msvc` / `aarch64-pc-windows-msvc`. On non-Windows hosts it compiles to a no-op. |
 

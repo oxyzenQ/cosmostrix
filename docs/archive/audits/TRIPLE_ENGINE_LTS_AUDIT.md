@@ -19,9 +19,9 @@ strategy (ripgrep pattern scans followed by targeted full reads of hot paths):
 
 | Engine | Path | Total LoC | Role |
 |--------|------|-----------|------|
-| Cosmic Dragon | `src/cosmic_dragon_engine/` | 21 387 | Rain simulation, frame buffer, diff-based terminal renderer |
-| Chroma Dragon | `src/chroma_dragon_engine/` | 13 208 | OKLab color pipeline, palettes, gradients, shaders, post-FX |
-| Crystal Dragon | `src/crystal_dragon_engine/` | 2 738 | Ambient adaptive color: CPU/clock sensor, point system, phase scheduler |
+| Cosmic Dragon | `src/engine/cosmic_dragon_engine/` | 21 387 | Rain simulation, frame buffer, diff-based terminal renderer |
+| Chroma Dragon | `src/engine/chroma_dragon_engine/` | 13 208 | OKLab color pipeline, palettes, gradients, shaders, post-FX |
+| Crystal Dragon | `src/engine/crystal_dragon_engine/` | 2 738 | Ambient adaptive color: CPU/clock sensor, point system, phase scheduler |
 
 Method, per engine:
 
@@ -87,7 +87,7 @@ open exactly as documented in the nightly.1 audit (see section 6).
 
 ### 4.1 LOW-1 — Ambient scheduler treats a full channel as a dead receiver
 
-Location: `src/crystal_dragon_engine/ambient_scheduler/mod.rs:258` and
+Location: `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs:258` and
 `:317`.
 
 ```rust
@@ -117,7 +117,7 @@ realistic schedule shape.
 
 ### 4.2 LOW-2 — `Cloud::reset` builds RNG ranges from raw dimensions
 
-Location: `src/cosmic_dragon_engine/cloud/spawn.rs:48-54`.
+Location: `src/engine/cosmic_dragon_engine/cloud/spawn.rs:48-54`.
 
 `Cloud::reset` clamps its parameters into `self.cols` / `self.lines`
 (lines 29-30) and uses the clamped values for every buffer allocation, but

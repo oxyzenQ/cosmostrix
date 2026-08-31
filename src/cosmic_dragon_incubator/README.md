@@ -16,14 +16,14 @@ thousands of LOC of production code; this directory contains experimental
 / concluded work only (~200 LOC).
 
 The actual Cosmic Dragon rendering engine code lives at
-`src/cosmic_dragon_engine/` with 4 subsystems:
+`src/engine/cosmic_dragon_engine/` with 4 subsystems:
 
-- `src/cosmic_dragon_engine/cloud/` (rain simulation, monolith, render
+- `src/engine/cosmic_dragon_engine/cloud/` (rain simulation, monolith, render
   pipeline, ecosystem, phosphor, ghost events)
-- `src/cosmic_dragon_engine/frame.rs` (frame buffer + dirty tracking)
-- `src/cosmic_dragon_engine/terminal/` (ANSI stream output, draw, last_frame,
+- `src/engine/cosmic_dragon_engine/frame.rs` (frame buffer + dirty tracking)
+- `src/engine/cosmic_dragon_engine/terminal/` (ANSI stream output, draw, last_frame,
   `/dev/tty` fallback)
-- `src/cosmic_dragon_engine/runtime.rs` (color mode detection, color
+- `src/engine/cosmic_dragon_engine/runtime.rs` (color mode detection, color
   pipeline enum)
 
 These 4 subsystems are re-exported at the crate root via
@@ -37,7 +37,7 @@ experimental work only.
 ## 0. Engine Topology — Substantive Engine Now Consolidated
 
 The Cosmic Dragon Diff-Based Rendering Engine is consolidated under
-`src/cosmic_dragon_engine/` with 4 subsystems (cloud, frame, terminal,
+`src/engine/cosmic_dragon_engine/` with 4 subsystems (cloud, frame, terminal,
 runtime). The previous "Flat Forever" policy (modules at crate root)
 was overturned by owner mandate on 2026-08-19 to make the engine's
 substantive status explicit and align directory naming with the other
@@ -57,10 +57,10 @@ The re-export at crate root keeps all 224 existing call sites
 
 ### The lesson is already paid for
 
-The earliest `src/cosmic_dragon_engine/` (commit `4e2ebe7`) was a pure
+The earliest `src/engine/cosmic_dragon_engine/` (commit `4e2ebe7`) was a pure
 re-export wrapper with zero callers — deleted as dead code in commit
 `46ba457`. That early failure was because the directory held only
-re-exports, not real code. The current `src/cosmic_dragon_engine/`
+re-exports, not real code. The current `src/engine/cosmic_dragon_engine/`
 holds the actual rendering engine code (~8K LOC across 4 subsystems) —
 NOT re-exports.
 
@@ -82,7 +82,7 @@ NOT re-exports.
    This namespace is for new v15+ features. The substantive engine is
    not v15+ — it is the foundation.
 4. **A reorganization commit will be rejected at review.** If you find
-   yourself reaching for `git mv src/cosmic_dragon_engine/cloud
+   yourself reaching for `git mv src/engine/cosmic_dragon_engine/cloud
    src/engine/cloud`, stop. Read commit `46ba457`. Read this section.
    Read `docs/RENDER_ENGINE.md`. Open a doc issue instead.
 
@@ -146,7 +146,7 @@ dead-code warnings and `mod.rs` boilerplate.
 
 This namespace has cycled through names as its role clarified:
 
-1. **`src/cosmic_dragon_engine/`** (early): a pure re-export wrapper with
+1. **`src/engine/cosmic_dragon_engine/`** (early): a pure re-export wrapper with
    zero callers — deleted in commit `46ba457` as dead code. The
    substantive rendering engine code at that time lived flat at the
    crate root (`src/cloud/`, `src/frame.rs`, `src/terminal/`,
@@ -156,7 +156,7 @@ This namespace has cycled through names as its role clarified:
    incubator pattern was established with real code (`egg/io_uring_rejected.rs`).
    The shortened name dropped the misleading `_engine` suffix.
 
-3. **`src/cosmic_dragon_engine/`** (2026-08-19, first attempt): renamed back
+3. **`src/engine/cosmic_dragon_engine/`** (2026-08-19, first attempt): renamed back
    to match the `crystal_dragon_engine/` and `chroma_dragon_engine/` naming
    convention for dragon-engine consistency. But this name was still
    misleading because the substantive rendering engine was still flat at
@@ -170,7 +170,7 @@ This namespace has cycled through names as its role clarified:
    ~200 LOC of experimental / concluded work. The `_incubator` suffix
    makes the role unambiguous.
 
-5. **`src/cosmic_dragon_engine/`** (2026-08-19, second attempt): recreated
+5. **`src/engine/cosmic_dragon_engine/`** (2026-08-19, second attempt): recreated
    — this time as the substantive rendering engine home. The 4 modules
    (`cloud/`, `frame.rs`, `terminal/`, `runtime.rs`) were relocated
    from the crate root into `cosmic_dragon_engine/` per owner mandate.
@@ -193,7 +193,7 @@ When a `cosmic_dragon_incubator/` module is ready to graduate:
 
 1. Move the file from
    `src/cosmic_dragon_incubator/<anatomy>/<name>.rs` to a substantive
-   location (e.g., `src/cosmic_dragon_engine/<subsystem>/<name>.rs` if
+   location (e.g., `src/engine/cosmic_dragon_engine/<subsystem>/<name>.rs` if
    rendering-related, or another dragon engine if coloring/ambient).
 2. Update `src/cosmic_dragon_incubator/<anatomy>/mod.rs` to remove the
    now-empty module declaration. If the anatomy directory becomes empty,

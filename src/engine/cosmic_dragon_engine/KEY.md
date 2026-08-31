@@ -170,7 +170,7 @@
 > prevents future contributors from "consolidating" the wrong easings.
 >
 > **Files changed** (locked path — production code):
-> - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
+> - `src/engine/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
 >   `debug_assert!` invariant at rain_at entry; lines 213-218:
 >   stale comment "smoothstep curve" -> "exp decay approach curve"
 >   for resume_blend scaling; lines 220-239: glyph entry ramp
@@ -178,7 +178,7 @@
 >   (700ms fixed window) to `1 - exp(-k*t)` with k=GLYPH_ENTRY_RAMP_DECAY_RATE
 >   (4.28/s), settle-snap at GLYPH_ENTRY_RAMP_SETTLE_FRAC (95%); the
 >   700ms constant is now the SETTLE time, not the animation window)
-> - `src/cosmic_dragon_engine/cloud/spawn.rs` (lines 752-758, 815-817:
+> - `src/engine/cosmic_dragon_engine/cloud/spawn.rs` (lines 752-758, 815-817:
 >   doc-comment updates describing the new glyph entry ramp math —
 >   comment-only, no production code logic changes)
 >
@@ -186,7 +186,7 @@
 > files are exempt UNLESS the test itself changes a public contract";
 > the new tests assert the easing contract that the production code
 > already implements, no contract change):
-> - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (4 new tests +
+> - `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` (4 new tests +
 >   1 existing test comment/duration bump from commit `e2e0512`'s
 >   exp decay settle window; new tests: pause_decel_exp_decay_settles_,
 >   resume_accel_exp_decay_settles_, glyph_entry_ramp_exp_decay_settles_,
@@ -239,13 +239,13 @@
 > LUT) see unambiguous state transitions.
 >
 > **Files changed** (locked path):
-> - `src/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73 decel block +
+> - `src/engine/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73 decel block +
 >   lines 147-181 accel block: smootherstep math replaced with `(-k*t).exp()`
 >   - settle-threshold snap; §8.4 `resume_blend_start` interpolation
 >   preserved, 0.05 floor kept as safety net)
 >
 > **Files changed** (test only, no production code):
-> - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87: comment +
+> - `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87: comment +
 >   duration 1s->5s in `pause_stops_rain_and_unpause_resumes` to match new
 >   ~3.3s settle window with comfortable head-room)
 >
@@ -287,9 +287,9 @@
 > production code touched; comment text only.
 >
 > **Files changed** (comments only):
-> - `src/cosmic_dragon_engine/cloud/mod.rs` (audit path ref)
-> - `src/cosmic_dragon_engine/cloud/rain.rs` (audit path ref)
-> - `src/cosmic_dragon_engine/terminal/sgr_format.rs` (bolt path ref)
+> - `src/engine/cosmic_dragon_engine/cloud/mod.rs` (audit path ref)
+> - `src/engine/cosmic_dragon_engine/cloud/rain.rs` (audit path ref)
+> - `src/engine/cosmic_dragon_engine/terminal/sgr_format.rs` (bolt path ref)
 >
 > **A/B delta**: none — zero production code touched.
 >
@@ -307,8 +307,8 @@
 > dragon engine files). No production code touched; comment/word only.
 >
 > **Files changed** (comments only):
-> - `src/cosmic_dragon_engine/cloud/mod.rs` (brand name in comment)
-> - `src/cosmic_dragon_engine/terminal/mod.rs` (brand name in comment)
+> - `src/engine/cosmic_dragon_engine/cloud/mod.rs` (brand name in comment)
+> - `src/engine/cosmic_dragon_engine/terminal/mod.rs` (brand name in comment)
 >
 > **A/B delta**: none — zero production code touched.
 >
@@ -328,7 +328,7 @@
 > No production code touched; comment text only.
 >
 > **Files changed** (comments only):
-> - `src/cosmic_dragon_engine/cloud/scene_runtime.rs` (stale keybinding ref)
+> - `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` (stale keybinding ref)
 >
 > **A/B delta**: none — zero production code touched in the locked path.
 >
@@ -350,7 +350,7 @@
 > regression-guarded without editing the test per preset.
 >
 > **Files changed** (test only, no production code):
-> - `src/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs` (calibration pins -> dissolve window bands)
+> - `src/engine/cosmic_dragon_engine/cloud/tests/tests_edge_fade.rs` (calibration pins -> dissolve window bands)
 >
 > **A/B delta**: none — zero production code touched; the champion's measured
 > values (0.380 center / 0.305 corner) are unchanged and documented in
@@ -373,10 +373,10 @@
 > glitch/color coverage stopped at the interactive cap).
 >
 > **Files changed**:
-> - `src/cosmic_dragon_engine/cloud/spawn.rs` (reset -> reset_with_bounds with
+> - `src/engine/cosmic_dragon_engine/cloud/spawn.rs` (reset -> reset_with_bounds with
 >   clamped-value shadowing; new reset_bench mirroring Frame::new_bench)
 > - `src/bench/mod.rs` (3 call sites switched to reset_bench)
-> - `src/cosmic_dragon_engine/cloud/tests/mod.rs` (3 dimension-consistency tests)
+> - `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` (3 dimension-consistency tests)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
 > - alloc_calls: 563 -> 563 (Δ 0% — exact match; reset runs on resize only,
@@ -406,7 +406,7 @@
 > and BD-02 (corner gradient system) to resolve.
 >
 > **Files changed**:
-> - `src/cosmic_dragon_engine/cloud/mod.rs` (BD-01 centering + BD-02 gradient)
+> - `src/engine/cosmic_dragon_engine/cloud/mod.rs` (BD-01 centering + BD-02 gradient)
 >
 > **A/B delta** (vs locked baseline `24fa1be`):
 > - Gatekeeper: OK cargo fmt --check PASS, OK cargo clippy -D warnings PASS

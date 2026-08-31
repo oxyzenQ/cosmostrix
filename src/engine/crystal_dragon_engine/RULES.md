@@ -11,7 +11,7 @@
 ## Purpose
 
 This document defines the mandatory protocol for modifying any file in
-`src/crystal_dragon_engine/` after the LTS lock. The lock ensures
+`src/engine/crystal_dragon_engine/` after the LTS lock. The lock ensures
 long-term stability: any modification must be **documented**, **justified**,
 and **acknowledged** before it lands on `main`.
 
@@ -19,15 +19,15 @@ and **acknowledged** before it lands on `main`.
 
 This protocol applies if you modify any production `.rs` file under:
 
-- `src/crystal_dragon_engine/ambient/`
-- `src/crystal_dragon_engine/ambient_scheduler/`
-- `src/crystal_dragon_engine/sensor/`
-- `src/crystal_dragon_engine/palette_groups/`
-- `src/crystal_dragon_engine/point_system/`
-- `src/crystal_dragon_engine/crystal_dragon_control/`
-- `src/crystal_dragon_engine/transition/`
-- `src/crystal_dragon_engine/ambient_diag.rs`
-- `src/crystal_dragon_engine/mod.rs`
+- `src/engine/crystal_dragon_engine/ambient/`
+- `src/engine/crystal_dragon_engine/ambient_scheduler/`
+- `src/engine/crystal_dragon_engine/sensor/`
+- `src/engine/crystal_dragon_engine/palette_groups/`
+- `src/engine/crystal_dragon_engine/point_system/`
+- `src/engine/crystal_dragon_engine/crystal_dragon_control/`
+- `src/engine/crystal_dragon_engine/transition/`
+- `src/engine/crystal_dragon_engine/ambient_diag.rs`
+- `src/engine/crystal_dragon_engine/mod.rs`
 
 Test files (`tests.rs`) are exempt UNLESS the test itself changes a
 public contract or invariant.
@@ -126,12 +126,12 @@ saturated channel would silently disable ambient scheduling for the rest of
 the session while the rain kept running.
 
 **Files changed**:
-- src/crystal_dragon_engine/ambient_scheduler/mod.rs (deliver() helper with
+- src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs (deliver() helper with
   three-way DeliverOutcome contract — Delivered / Saturated / ReceiverGone;
   bounded sleeping retry loop of 20 ms steps capped at 1 s, manual because
   SyncSender::send_timeout is unstable in std; both send sites updated; the
   day-boundary refire defers its day-seen marking when saturated)
-- src/crystal_dragon_engine/ambient_scheduler/tests.rs (4 new contract tests:
+- src/engine/crystal_dragon_engine/ambient_scheduler/tests.rs (4 new contract tests:
   delivered, receiver-gone, saturated-with-bound-elapsed, recovery-within-wait)
 
 **A/B delta** (vs locked baseline `24fa1be`):
@@ -198,8 +198,8 @@ at 01:30 and 02:30). The `seconds_to_next_phase` calculation didn't
 account for the repeated hour.
 
 **Files changed**:
-- src/crystal_dragon_engine/ambient/mod.rs (fixed `seconds_to_next_phase` DST handling)
-- src/crystal_dragon_engine/ambient/tests.rs (added regression test for DST fall-back)
+- src/engine/crystal_dragon_engine/ambient/mod.rs (fixed `seconds_to_next_phase` DST handling)
+- src/engine/crystal_dragon_engine/ambient/tests.rs (added regression test for DST fall-back)
 
 **A/B delta** (vs locked baseline `69af079`):
 - avg_fps: 85,555 -> 85,558 (Δ +0.003%)

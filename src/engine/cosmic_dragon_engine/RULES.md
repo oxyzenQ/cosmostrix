@@ -11,7 +11,7 @@
 ## Purpose
 
 This document defines the mandatory protocol for modifying any file in
-`src/cosmic_dragon_engine/` after the LTS lock. The lock ensures
+`src/engine/cosmic_dragon_engine/` after the LTS lock. The lock ensures
 long-term stability: any modification must be **documented**, **justified**,
 and **acknowledged** before it lands on `main`.
 
@@ -19,11 +19,11 @@ and **acknowledged** before it lands on `main`.
 
 This protocol applies if you modify any production `.rs` file under:
 
-- `src/cosmic_dragon_engine/cloud/`
-- `src/cosmic_dragon_engine/frame.rs`
-- `src/cosmic_dragon_engine/terminal/`
-- `src/cosmic_dragon_engine/runtime.rs`
-- `src/cosmic_dragon_engine/mod.rs`
+- `src/engine/cosmic_dragon_engine/cloud/`
+- `src/engine/cosmic_dragon_engine/frame.rs`
+- `src/engine/cosmic_dragon_engine/terminal/`
+- `src/engine/cosmic_dragon_engine/runtime.rs`
+- `src/engine/cosmic_dragon_engine/mod.rs`
 
 Test files (`tests.rs`, `tests/` subdirs) are exempt UNLESS the test
 itself changes a public contract or invariant.
@@ -115,7 +115,7 @@ intentional smoothstep-shaped rate (profile interp 30s slow drift) —
 prevents future contributors from "consolidating" the wrong easings.
 
 **Files changed** (locked path — production code):
-- `src/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
+- `src/engine/cosmic_dragon_engine/cloud/rain.rs` (lines 39-55: new
   `debug_assert!` invariant at rain_at entry; lines 213-218: stale
   comment "smoothstep curve" -> "exp decay approach curve" for
   resume_blend scaling; lines 220-239: glyph entry ramp rewritten
@@ -123,7 +123,7 @@ prevents future contributors from "consolidating" the wrong easings.
   fixed window) to `1 - exp(-k*t)` with k=GLYPH_ENTRY_RAMP_DECAY_RATE
   (4.28/s), settle-snap at GLYPH_ENTRY_RAMP_SETTLE_FRAC (95%); the
   700ms constant is now the SETTLE time, not the animation window)
-- `src/cosmic_dragon_engine/cloud/spawn.rs` (lines 752-758, 815-817:
+- `src/engine/cosmic_dragon_engine/cloud/spawn.rs` (lines 752-758, 815-817:
   doc-comment updates describing the new glyph entry ramp math —
   comment-only, no production code logic changes)
 
@@ -131,7 +131,7 @@ prevents future contributors from "consolidating" the wrong easings.
 "Test files are exempt UNLESS the test itself changes a public
 contract or invariant"; the new tests assert the easing contract
 that the production code already implements, no contract change):
-- `src/cosmic_dragon_engine/cloud/tests/mod.rs` (4 new tests +
+- `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` (4 new tests +
   1 existing test comment/duration bump from commit `e2e0512`'s
   exp decay settle window; new tests:
   `pause_decel_exp_decay_settles_at_documented_threshold`,
@@ -205,7 +205,7 @@ were 0.30s/0.45s — far from "~3s"). Switched to exponential decay
   base/mod.rs:237` trail LUT), so no new math primitive introduced.
 
 **Files changed** (locked path — production code):
-- `src/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73: decel block
+- `src/engine/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73: decel block
   rewritten from smootherstep S-curve to `(-PAUSE_EASE_DECAY_RATE *
   t).exp()` + settle-snap at `PAUSE_EASE_SETTLE_FRAC`; lines 147-181:
   accel block rewritten from smootherstep to `1.0 - (-RESUME_EASE_DECAY_RATE
@@ -217,7 +217,7 @@ were 0.30s/0.45s — far from "~3s"). Switched to exponential decay
 files are exempt UNLESS the test itself changes a public contract or
 invariant"; the test only bumps a duration offset to match the new
 settle time, no contract change):
-- `src/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87 in
+- `src/engine/cosmic_dragon_engine/cloud/tests/mod.rs` (line 80-87 in
   `pause_stops_rain_and_unpause_resumes`: comment "smoothstep easing
   completes" -> "exponential decay easing settles", duration
   `Duration::from_secs(1)` -> `Duration::from_secs(5)` to give
@@ -274,12 +274,12 @@ the clamped grid while the glitch/color maps only covered the clamped
 region. The oversized benchmark tiers also ran a latent hybrid state.
 
 **Files changed**:
-- src/cosmic_dragon_engine/cloud/spawn.rs (reset() funnels into
+- src/engine/cosmic_dragon_engine/cloud/spawn.rs (reset() funnels into
   reset_with_bounds() which shadows the raw parameters with the clamped
   values for the whole function body; new reset_bench() mirrors
   Frame::new_bench with BENCH_MAX bounds)
 - src/bench/mod.rs (all 3 benchmark call sites switched to reset_bench)
-- src/cosmic_dragon_engine/cloud/tests/mod.rs (3 dimension-consistency
+- src/engine/cosmic_dragon_engine/cloud/tests/mod.rs (3 dimension-consistency
   tests: oversized clamp coherence, degenerate zero-size coherence,
   reset_bench vs reset contrast)
 
@@ -338,7 +338,7 @@ when `clear_with_bg` is called before `new_with_bounds`. The
 generation bump was reading `cell_gen` before initialization.
 
 **Files changed**:
-- src/cosmic_dragon_engine/frame.rs (added early-init guard at line 142)
+- src/engine/cosmic_dragon_engine/frame.rs (added early-init guard at line 142)
 
 **A/B delta** (vs locked baseline `69af079`):
 - avg_fps: 85,555 -> 85,612 (Δ +0.07%)

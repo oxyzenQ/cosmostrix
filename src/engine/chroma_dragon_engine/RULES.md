@@ -11,7 +11,7 @@
 ## Purpose
 
 This document defines the mandatory protocol for modifying any file in
-`src/chroma_dragon_engine/` after the LTS lock. The lock ensures
+`src/engine/chroma_dragon_engine/` after the LTS lock. The lock ensures
 long-term stability: any modification must be **documented**, **justified**,
 and **acknowledged** before it lands on `main`.
 
@@ -19,15 +19,15 @@ and **acknowledged** before it lands on `main`.
 
 This protocol applies if you modify any production `.rs` file under:
 
-- `src/chroma_dragon_engine/palette/`
-- `src/chroma_dragon_engine/shaders/`
-- `src/chroma_dragon_engine/gradient/`
-- `src/chroma_dragon_engine/post/`
-- `src/chroma_dragon_engine/catalog.rs`
-- `src/chroma_dragon_engine/legacy.rs`
-- `src/chroma_dragon_engine/tuning.rs`
-- `src/chroma_dragon_engine/color_cache.rs`
-- `src/chroma_dragon_engine/mod.rs`
+- `src/engine/chroma_dragon_engine/palette/`
+- `src/engine/chroma_dragon_engine/shaders/`
+- `src/engine/chroma_dragon_engine/gradient/`
+- `src/engine/chroma_dragon_engine/post/`
+- `src/engine/chroma_dragon_engine/catalog.rs`
+- `src/engine/chroma_dragon_engine/legacy.rs`
+- `src/engine/chroma_dragon_engine/tuning.rs`
+- `src/engine/chroma_dragon_engine/color_cache.rs`
+- `src/engine/chroma_dragon_engine/mod.rs`
 
 Test files (`tests.rs`, `tests/` subdirs) are exempt UNLESS the test
 itself changes a public contract or invariant — in which case the
@@ -180,8 +180,8 @@ code path modified.
 
 **Files changed**:
 - src/runtime.rs (added `ColorScheme::AuroraBorealis` variant)
-- src/chroma_dragon_engine/catalog.rs (added `ThemeDef` to `THEMES`)
-- src/chroma_dragon_engine/tests/lock.rs (updated invariant: 44 -> 45 themes)
+- src/engine/chroma_dragon_engine/catalog.rs (added `ThemeDef` to `THEMES`)
+- src/engine/chroma_dragon_engine/tests/lock.rs (updated invariant: 44 -> 45 themes)
 
 **A/B delta** (vs locked baseline `69af079`):
 - avg_fps: 85,555 -> 85,549 (Δ -0.01%)
@@ -209,10 +209,10 @@ in comment text across chroma dragon engine files. No production code
 touched; comment/word only.
 
 **Files changed** (comments only):
-- `src/chroma_dragon_engine/catalog.rs` (brand name in comment)
-- `src/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
-- `src/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
-- `src/chroma_dragon_engine/mod.rs` (brand name in module doc)
+- `src/engine/chroma_dragon_engine/catalog.rs` (brand name in comment)
+- `src/engine/chroma_dragon_engine/intro_colors.rs` (brand name in comment)
+- `src/engine/chroma_dragon_engine/palette/mod.rs` (brand name in comment)
+- `src/engine/chroma_dragon_engine/mod.rs` (brand name in module doc)
 
 **A/B delta** (vs locked baseline `c1c7779`): none — zero production code touched.
 
@@ -241,17 +241,17 @@ v50 masterclass theme) — INV-2 lock test asserted `schemes.len() == 43`
 and passed, but silently skipped EnergyZen in every theme-sweep
 invariant. This was a REAL BUG: a future regression in EnergyZen's
 palette construction would NOT have been caught by the lock suite.
-Also fixed 15+ stale path refs (src/cloud/ -> src/cosmic_dragon_engine/cloud/,
+Also fixed 15+ stale path refs (src/cloud/ -> src/engine/cosmic_dragon_engine/cloud/,
 chroma::legacy -> chroma_dragon_engine::legacy, etc.) and outdated
 "43 themes" -> "44 themes" + "Phase 9-B" -> "Phase 9-D" + "18 invariants"
 -> "19 invariants" in doc comments.
 
 **Files changed**:
 
-- src/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ -> src/cosmic_dragon_engine/cloud/)
-- src/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" -> "44 themes" refs)
-- src/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 -> 44 + git log path ref updated)
-- src/chroma_dragon_engine/tuning.rs (2 "43 themes" -> "44 themes" refs)
+- src/engine/chroma_dragon_engine/mod.rs (1 stale path ref: src/cloud/ -> src/engine/cosmic_dragon_engine/cloud/)
+- src/engine/chroma_dragon_engine/palette/tests_floor.rs (6 "43 themes" -> "44 themes" refs)
+- src/engine/chroma_dragon_engine/tests/lock.rs (10+ stale refs + EnergyZen added to all_schemes() + INV-2 assertion 43 -> 44 + git log path ref updated)
+- src/engine/chroma_dragon_engine/tuning.rs (2 "43 themes" -> "44 themes" refs)
 
 **A/B delta** (vs locked baseline `69af079`):
 

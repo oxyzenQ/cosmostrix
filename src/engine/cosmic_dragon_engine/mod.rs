@@ -27,13 +27,13 @@
 //!
 //! ## Naming disambiguation
 //!
-//! - `src/cosmic_dragon_engine/` (this module) — substantive rendering
+//! - `src/engine/cosmic_dragon_engine/` (this module) — substantive rendering
 //!   engine, ~15K LOC across 4 subsystems.
 //! - `src/cosmic_dragon_incubator/` — separate namespace for v15+
 //!   experimental / concluded work (~200 LOC). NOT a peer engine; just
 //!   an incubator.
-//! - `src/chroma_dragon_engine/` — substantive coloring engine (~3.5K LOC).
-//! - `src/crystal_dragon_engine/` — substantive ambient intelligence
+//! - `src/engine/chroma_dragon_engine/` — substantive coloring engine (~3.5K LOC).
+//! - `src/engine/crystal_dragon_engine/` — substantive ambient intelligence
 //!   engine (~3K LOC).
 //!
 //! The actual "Cosmic Dragon Diff-Based Rendering Engine" brand lives in

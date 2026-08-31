@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** 5cb6810
-**Scope:** `src/chroma_dragon_engine/` (30 files, 13,351 LOC) — second-largest source directory, audited second per per-stage strategy.
+**Scope:** `src/engine/chroma_dragon_engine/` (30 files, 13,351 LOC) — second-largest source directory, audited second per per-stage strategy.
 **Constraint:** No changes 99% visual/performance — any removal must be invisible to users and benchmarks.
 **Methodology:** `scripts/stale-hunt.py` + targeted `rg` sweeps + `cargo clippy` + `RUSTFLAGS="-W dead_code -W unused_imports -W unused_variables" cargo check` + mod-tree wiring verification + 10s A/B benchmark.
 

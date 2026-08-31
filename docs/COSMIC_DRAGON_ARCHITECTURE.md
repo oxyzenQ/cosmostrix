@@ -28,11 +28,11 @@ layers and explains how the "deep" structure provides world-class reliability.
 │  Event loop, HUD, input, watchdog, adaptive pacing              │
 │  -> Only 'q' quits (consistent policy, no accidental exit)       │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 3: Ambient Scheduler (src/crystal_dragon_engine/ambient*/)
+│  Layer 3: Ambient Scheduler (src/engine/crystal_dragon_engine/ambient*/)
 │  Time-driven scene scheduling, low-rate adaptive modulation    │
 │  -> Opt-in via config (default: off)                             │
 ├─────────────────────────────────────────────────────────────────┤
-│  Layer 2: Cloud Renderer (src/cosmic_dragon_engine/cloud/)                           │
+│  Layer 2: Cloud Renderer (src/engine/cosmic_dragon_engine/cloud/)                           │
 │  Droplet lifecycle, phosphor, monolith, scene runtime           │
 │  -> Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤

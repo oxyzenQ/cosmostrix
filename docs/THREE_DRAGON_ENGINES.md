@@ -17,13 +17,13 @@ Cloud (frame state)
   - behavior         - OKLab            - ambient
 ```
 
-## 1. Cosmic Dragon — `src/cosmic_dragon_engine/`
+## 1. Cosmic Dragon — `src/engine/cosmic_dragon_engine/`
 
 The simulation core. Owns droplet lifecycle, spawn physics, atmospheric
 evolution, cinematic behavior profiles, and the self-healer. Reads
 palette colors produced by Chroma Dragon; never writes palette state.
 
-## 2. Chroma Dragon — `src/chroma_dragon_engine/`
+## 2. Chroma Dragon — `src/engine/chroma_dragon_engine/`
 
 The coloring engine. Owns palette construction (OKLab gradients since
 v30), per-cell shader pipeline, climate post-FX (luminance/saturation/
@@ -32,7 +32,7 @@ Every color-change path (keypress, Crystal Dragon, scene runtime, live
 reload) delegates to `set_color_scheme()` -> `apply_new_palette()` which
 advances the circular buffer and activates the wave.
 
-## 3. Crystal Dragon — `src/crystal_dragon_engine/`
+## 3. Crystal Dragon — `src/engine/crystal_dragon_engine/`
 
 The ambient intelligence engine. Two subsystems working in harmony:
 

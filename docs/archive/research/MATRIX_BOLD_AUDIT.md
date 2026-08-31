@@ -148,7 +148,7 @@ to bold. Specifically:
 
 - `src/config.rs:586` sets `default_value_t = 1` -> `BoldMode::Random`
 - `src/main.rs:595-598` maps `1 -> BoldMode::Random`
-- `src/chroma_dragon_engine/shaders/base.rs:449-451` implements `BoldMode::Random`:
+- `src/engine/chroma_dragon_engine/shaders/base.rs:449-451` implements `BoldMode::Random`:
 
   ```rust
   bold = (((line as u32) ^ (val as u32)) % 2) == 1;
@@ -159,7 +159,7 @@ to bold. Specifically:
 
 ### 3.2 Visual impact
 
-Per `src/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` (the existing audit
+Per `src/engine/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` (the existing audit
 comment):
 
 > "switching --bold 0/1/2 visually looked identical in past testing."
@@ -234,7 +234,7 @@ and `--bold 2` for users who want them.
 - 1 LOC change in `src/config.rs`.
 - The `bold = 1` line in `src/configfile.rs` dump-config template should
   be updated to `# bold = 0` (commented-out default).
-- ~8 test fixtures in `src/atmosphere_tests/`, `src/cosmic_dragon_engine/cloud/tests/`,
+- ~8 test fixtures in `src/atmosphere_tests/`, `src/engine/cosmic_dragon_engine/cloud/tests/`,
   `src/interactive/tests.rs` that explicitly pass `bold_mode:
   BoldMode::Random` for assertion purposes are unaffected (they don't
   rely on the CLI default).
@@ -290,10 +290,10 @@ can be added in a future release without conflict.
 - cosmostrix source:
   - `src/config.rs:586` — `default_value_t = 1`
   - `src/main.rs:595-598` — `1 -> BoldMode::Random`
-  - `src/chroma_dragon_engine/shaders/base.rs:449-451` — Random bold implementation
-  - `src/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` — "visually looked
+  - `src/engine/chroma_dragon_engine/shaders/base.rs:449-451` — Random bold implementation
+  - `src/engine/chroma_dragon_engine/shaders/bold_audit_tests.rs:5` — "visually looked
     identical in past testing" comment
-  - `src/cosmic_dragon_engine/runtime.rs:18-23` — `BoldMode` enum
+  - `src/engine/cosmic_dragon_engine/runtime.rs:18-23` — `BoldMode` enum
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

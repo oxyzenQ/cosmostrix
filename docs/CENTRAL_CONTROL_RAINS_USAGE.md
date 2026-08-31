@@ -705,7 +705,7 @@ because every one of them was learned the hard way.
 ### Rule 1 — Don't change `PARALLAX_LAYERS`
 
 `PARALLAX_LAYERS = 3` is assumed everywhere. The spawn distribution
-is hardcoded `[0.35, 0.30, 0.35]` in `src/cosmic_dragon_engine/cloud/spawn.rs`. Many
+is hardcoded `[0.35, 0.30, 0.35]` in `src/engine/cosmic_dragon_engine/cloud/spawn.rs`. Many
 consumers index `[0]`, `[1]`, `[2]` directly. Changing this to 2 or
 4 will require a major refactor across multiple files. Do not touch.
 
@@ -1144,7 +1144,7 @@ your tuning is hue-specific, either:
   and §4 lives here.
 - [`src/config/configfile.rs`](../src/config/configfile.rs) — the runtime config
   parser. Documents the toml keys listed in §2.1.
-- [`src/chroma_dragon_engine/color_tune.rs`](../src/chroma_dragon_engine/color_tune.rs) — the `--color-tune`
+- [`src/engine/chroma_dragon_engine/color_tune.rs`](../src/engine/chroma_dragon_engine/color_tune.rs) — the `--color-tune`
   runtime knob implementation.
 - [`docs/RELEASE_CANDIDATE.md`](./RELEASE_CANDIDATE.md) — has
   `--color-tune` validation examples and edge cases.

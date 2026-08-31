@@ -129,7 +129,7 @@ cooperating rendering subsystems plus the Chroma Dragon color
 pipeline that together make cosmostrix possible.
 
 
-1. DIFF-BASED CELL RENDERER  (src/cosmic_dragon_engine/frame.rs, src/cosmic_dragon_engine/terminal/mod.rs, src/cosmic_dragon_engine/terminal/terminal_tty.rs)
+1. DIFF-BASED CELL RENDERER  (src/engine/cosmic_dragon_engine/frame.rs, src/engine/cosmic_dragon_engine/terminal/mod.rs, src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs)
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
@@ -153,7 +153,7 @@ so the terminal receives the minimum bytes possible.
     when the rain is sparse, e.g. low-density scenes).
 
 
-2. THREE-LAYER PARALLAX  (src/cosmic_dragon_engine/cloud/spawn.rs, src/cosmic_dragon_engine/cloud/rain.rs)
+2. THREE-LAYER PARALLAX  (src/engine/cosmic_dragon_engine/cloud/spawn.rs, src/engine/cosmic_dragon_engine/cloud/rain.rs)
 -----------------------------------------------------------------
 
 Rain is rendered as three independent layers (far / mid / near) with
@@ -174,7 +174,7 @@ to the I/O layer. The per-layer multipliers live in `src/constants.rs`
 in `cloud::spawn::DropletSpawner` during droplet birth.
 
 
-3. PHOSPHOR PERSISTENCE  (src/cosmic_dragon_engine/cloud/phosphor.rs)
+3. PHOSPHOR PERSISTENCE  (src/engine/cosmic_dragon_engine/cloud/phosphor.rs)
 -------------------------------------------------
 
 CRT afterglow: every glyph leaves a fading residual trail behind it.
@@ -193,7 +193,7 @@ into the back-buffer's color value, so the diff renderer treats it
 as a normal color change — no special I/O path.
 
 
-4. DENSITY NOISE & WIND GUSTS  (src/cosmic_dragon_engine/cloud/living_rain.rs, src/cosmic_dragon_engine/cloud/monolith.rs)
+4. DENSITY NOISE & WIND GUSTS  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs, src/engine/cosmic_dragon_engine/cloud/monolith.rs)
 --------------------------------------------------------------------------------
 
 Per-column density maps sculpt the rain into cinematic shapes — twin
@@ -207,20 +207,20 @@ of constant-velocity rain without the cost of per-column physics.
 Gusts are opt-in (atmospheric event subsystem) and disabled by
 default in benchmark mode for reproducibility.
 
-The density-map monolith formations live in `src/cosmic_dragon_engine/cloud/monolith.rs`
+The density-map monolith formations live in `src/engine/cosmic_dragon_engine/cloud/monolith.rs`
 (`MonolithConfig.density_map`); the per-column value-noise density
-+ wind-gust state machine lives in `src/cosmic_dragon_engine/cloud/living_rain.rs`
++ wind-gust state machine lives in `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`
 (`GustState`, `density_noise_at`).
 
 
-5. CHROMA DRAGON COLORING ENGINE  (src/chroma_dragon_engine/)
+5. CHROMA DRAGON COLORING ENGINE  (src/engine/chroma_dragon_engine/)
 -----------------------------------------------
 
 The coloring counterpart to the Cosmic Dragon. Where the Cosmic Dragon
 owns the diff-based render loop and droplet simulation, the Chroma
 Dragon owns every decision about *what color a cell becomes*.
 
-Module layout (under `src/chroma_dragon_engine/`):
+Module layout (under `src/engine/chroma_dragon_engine/`):
 
   palette    Palette struct, build_palette(), gradient + blend helpers,
              Phase 7 palette-relative brightness floor.
@@ -256,7 +256,7 @@ Phase history (locked at Phase 9-D):
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
   Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
-  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/chroma_dragon_engine/tests/lock.rs
+  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/engine/chroma_dragon_engine/tests/lock.rs
   Phase 9-C sRGB-linear fallback removal (sole OKLab path)
   Phase 9-D ColorPipeline + chroma::legacy audit: INV-19 added (19 invariants total)
 

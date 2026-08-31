@@ -16,7 +16,7 @@ verified.
 
 ---
 
-## Cosmic Dragon Engine (`src/cosmic_dragon_engine/`)
+## Cosmic Dragon Engine (`src/engine/cosmic_dragon_engine/`)
 
 ### Current LOCK state
 
@@ -57,7 +57,7 @@ HEAD documenting all changes are additive and tested (1710/0/2).
 
 ---
 
-## Chroma Dragon Engine (`src/chroma_dragon_engine/`)
+## Chroma Dragon Engine (`src/engine/chroma_dragon_engine/`)
 
 ### Current LOCK state
 
@@ -85,7 +85,7 @@ the additive changes.
 
 ---
 
-## Crystal Dragon Engine (`src/crystal_dragon_engine/`)
+## Crystal Dragon Engine (`src/engine/crystal_dragon_engine/`)
 
 ### Current LOCK state
 

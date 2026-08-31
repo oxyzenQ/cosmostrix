@@ -291,7 +291,7 @@ fn benchmark_output_fields_complete() {
     // Read the benchmark module source and verify field names exist.
     // v50.0.0-beta.7 LOC refactor: run_premium_benchmark moved from
     // bench/mod.rs to bench/premium.rs (where these fields are emitted).
-    let source = include_str!("../../../bench/premium.rs");
+    let source = include_str!("../../../../bench/premium.rs");
 
     for field in required_fields {
         assert!(

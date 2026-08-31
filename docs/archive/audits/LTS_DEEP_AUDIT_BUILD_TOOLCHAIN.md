@@ -348,7 +348,7 @@ All 22 markers were inspected. Breakdown:
 | Test-only | 2 | Inside `#[cfg(test)]` modules | **Correct pattern** — test helpers, not production code |
 | Platform stubs | 3 | `src/platform/mod.rs` (lines 106, 173, 198) — platform-specific stubs that compile on all targets | **Correct pattern** — needed for cross-platform compilation |
 | Doc-anchor const | 1 | `src/central_control_rains/mod.rs:437` — `GLYPH_ENTRY_RAMP_DURATION_MS` const "referenced by tests + doc-comments only" | **Borderline** — const exists as a documentation anchor for a regression test; could be inlined into the test but the current pattern keeps the magic number visible in the production source |
-| Production struct | 1 | `src/crystal_dragon_engine/crystal_dragon_control/mod.rs:87` — `CrystalDragonControl` struct "exists so future CLI/config-file exposure can override them" | **Defensible** — structural placeholder for future config exposure, all fields populated by `Default::default()` |
+| Production struct | 1 | `src/engine/crystal_dragon_engine/crystal_dragon_control/mod.rs:87` — `CrystalDragonControl` struct "exists so future CLI/config-file exposure can override them" | **Defensible** — structural placeholder for future config exposure, all fields populated by `Default::default()` |
 
 **LTS verdict:** Zero actionable zombies. All 22 markers are either
 correct platform-cfg guards or documented future reservations. The

@@ -411,7 +411,7 @@ fn audit_near_duplicate_themes_act() {
         "Found {} near-duplicate pair(s) NOT in KNOWN_NEAR_DUPLICATES.\n\
              Either differentiate the themes (adjust stops until avg RGB dist >= 30)\n\
              or add explicit disposition entries to KNOWN_NEAR_DUPLICATES in\n\
-             src/chroma_dragon_engine/palette.rs.\n\
+             src/engine/chroma_dragon_engine/palette.rs.\n\
              Unlisted pairs:\n{}",
         unlisted.len(),
         unlisted

@@ -5,7 +5,7 @@
 //!
 //! This module is the **incubator namespace** for cosmostrix's v15+ features
 //! and experimental subsystems. It exists to keep the substantive rendering
-//! engine (`src/cosmic_dragon_engine/`) and other stable modules untouched
+//! engine (`src/engine/cosmic_dragon_engine/`) and other stable modules untouched
 //! while new Cosmic Dragon-era experimental work lands in a clearly-branded
 //! home.
 //!
@@ -18,7 +18,7 @@
 //! / concluded work only (~200 LOC).
 //!
 //! The actual Cosmic Dragon rendering engine code lives at
-//! `src/cosmic_dragon_engine/` with 4 subsystems: `cloud/`, `frame.rs`,
+//! `src/engine/cosmic_dragon_engine/` with 4 subsystems: `cloud/`, `frame.rs`,
 //! `terminal/`, `runtime.rs`. These are re-exported at the crate root via
 //! `pub(crate) use cosmic_dragon_engine::{cloud, frame, runtime, terminal};`
 //! in main.rs so all `crate::cloud::Foo` / `crate::frame::Foo` /
@@ -65,14 +65,14 @@
 //!
 //! This namespace has cycled through three names as its role clarified:
 //!
-//! 1. **`src/cosmic_dragon_engine/`** (early): a pure re-export wrapper with
+//! 1. **`src/engine/cosmic_dragon_engine/`** (early): a pure re-export wrapper with
 //!    zero callers — deleted in commit `46ba457` as dead code.
 //!
 //! 2. **`src/cosmic_dragon/`** (commit `4e2ebe7`'s descendant): the
 //!    incubator pattern was established with real code (`egg/io_uring_rejected.rs`).
 //!    The shortened name dropped the misleading `_engine` suffix.
 //!
-//! 3. **`src/cosmic_dragon_engine/`** (2026-08-19): renamed back to match the
+//! 3. **`src/engine/cosmic_dragon_engine/`** (2026-08-19): renamed back to match the
 //!    `crystal_dragon_engine/` and `chroma_dragon_engine/` naming convention
 //!    for dragon-engine consistency. Owner mandate.
 //!

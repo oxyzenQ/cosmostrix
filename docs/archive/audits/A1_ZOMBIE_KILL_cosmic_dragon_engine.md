@@ -6,7 +6,7 @@
 **Auditor:** oxyzenQ (Cosmic Dragon mode)
 **Version:** v50.0.0-beta.6
 **Commit:** 1e54852
-**Scope:** `src/cosmic_dragon_engine/` (52 files, 22,551 LOC) — largest source directory, audited first per "per-stage method, dir with most files first" strategy.
+**Scope:** `src/engine/cosmic_dragon_engine/` (52 files, 22,551 LOC) — largest source directory, audited first per "per-stage method, dir with most files first" strategy.
 **Constraint:** No changes 99% visual/performance — any removal must be invisible to users and benchmarks.
 **Methodology:** `scripts/stale-hunt.py` + targeted `rg` sweeps for zombie patterns + `cargo clippy` + `RUSTFLAGS="-W dead_code -W unused_imports -W unused_variables" cargo check` + manual mod-tree wiring verification + `#[path]`/`include!` reference check + 10s A/B benchmark.
 
@@ -133,7 +133,7 @@ markers. This is exceptionally clean for a codebase of this size.
 
 ### 2.4 One `#[allow(dead_code)]` — Documented and Defensible
 
-**Location:** `src/cosmic_dragon_engine/cloud/mod.rs:290`
+**Location:** `src/engine/cosmic_dragon_engine/cloud/mod.rs:290`
 
 ```rust
 // Profile identity — currently always Monolith. Retained for future
