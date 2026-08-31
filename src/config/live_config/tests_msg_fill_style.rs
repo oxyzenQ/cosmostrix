@@ -72,6 +72,25 @@ fn rebuild_applies_msg_fill_style_glitch() {
     );
 }
 
+/// The scorch style (post-glitch follow-up) live-reloads exactly
+/// like the other styles. Scorch adds a 16-slot smoke sidecar
+/// (armed on the next style change via `set_msg_fill_style`) and
+/// extends `CellReveal` with a `tint` field (the color-shifting API
+/// surface). The test only needs to assert the enum variant — the
+/// smoke pool arms and the tint kicks in on the next draw_message
+/// frame.
+#[test]
+fn rebuild_applies_msg_fill_style_scorch() {
+    let mut cfg = HashMap::new();
+    cfg.insert("msg-fill-style".to_string(), "scorch".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.msg_fill_style,
+        crate::msg_fill_style::MsgFillStyle::Scorch,
+        "config msg-fill-style=scorch must be applied on live reload"
+    );
+}
+
 /// Editing `msg-fill-style` in config.toml mid-run must switch the
 /// reveal style on the next rebuild (no restart needed).
 #[test]

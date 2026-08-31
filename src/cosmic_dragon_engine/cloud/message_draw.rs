@@ -306,25 +306,31 @@ impl super::Cloud {
         self.border_pulses = alive_pulses;
 
         let mut content_idx = 0usize;
-        // v51 engrave: position of the engraving head (the most
-        // recently revealed content cell), captured during the main
-        // loop below and handed to the spark pass afterwards. None
-        // when the style is not engrave, the head is off-screen, or
-        // there is no content at all (border-only overlay).
-        let engrave_head_idx = if style == MsgFillStyle::Engrave {
+        // v51 msg-fill-style: track the most recently revealed content
+        // cell ("the head") for the stateful sidecars (engrave spark
+        // pass, scorch smoke pass). Both styles share the same 80 ms/char
+        // pacing, so the head index is style-independently
+        // `reveal_count - 1`. The position is captured during the main
+        // loop below and handed to the pass afterwards. `None` when the
+        // style has no sidecar, the head is off-screen, or there is no
+        // content at all (border-only overlay).
+        let head_idx = if style == MsgFillStyle::Engrave || style == MsgFillStyle::Scorch {
             reveal_count.saturating_sub(1)
         } else {
             usize::MAX
         };
-        let mut engrave_head_pos: Option<(u16, u16)> = None;
+        let mut head_pos: Option<(u16, u16)> = None;
         // v51 msg-fill-style (slide): phase-1 cells are drawn one row
         // below their final position, AFTER the main loop — the row below
         // is itself a message cell (padding / border / next content line)
         // that would otherwise overwrite the sliding glyph in the same
         // frame. SmallVec-free: expected size is bounded by the number of
         // concurrently sliding chars (SLIDE_TRAVEL_MS / SLIDE_CHAR_MS
-        // stagger window), typically < 5.
-        let mut slide_cells: Vec<(u16, u16, char, f32)> = Vec::new();
+        // stagger window), typically < 5. The tuple carries (col, line,
+        // glyph, factor, tint) — the tint is the scorch extension so a
+        // future slide + scorch combo would tint the mid-slide glyph.
+        #[allow(clippy::type_complexity)]
+        let mut slide_cells: Vec<(u16, u16, char, f32, Option<(u8, u8, u8, f32)>)> = Vec::new();
         for (idx, mc) in self.message.iter().enumerate() {
             let is_content = !is_border_char(mc.val);
             let is_visible_border = mc.val != ' ' && visible_border[idx];
@@ -334,8 +340,8 @@ impl super::Cloud {
                 // index (was: only when revealed). Per-style visibility
                 // and brightness come from the stateless reveal solver.
                 let idx0 = content_idx;
-                if idx0 == engrave_head_idx {
-                    engrave_head_pos = Some((mc.col, mc.line));
+                if idx0 == head_idx {
+                    head_pos = Some((mc.col, mc.line));
                 }
                 content_idx += 1;
                 let word_ord = self.message_word_ordinals.get(idx).copied().unwrap_or(0);
@@ -355,6 +361,33 @@ impl super::Cloud {
                 // deferred second pass so a future slide + glyph-
                 // override combo would Just Work.
                 let glyph = reveal.glyph_override.unwrap_or(mc.val);
+                // v51 msg-fill-style (scorch): the per-cell reveal may
+                // carry a tint (ember blend during the cool window).
+                // Every stateless style leaves this `None`, so they
+                // remain bit-identical to the pre-scorch renderer.
+                // The tint is applied AFTER the brightness factor: the
+                // scaled palette color is linearly blended toward the
+                // tint RGB by the blend factor (via
+                // `chroma_dragon_engine::palette::blend_toward_bg_rgb`).
+                let tint = reveal.tint;
+                let cell_fg_tinted = |fg: Option<Color>| -> Option<Color> {
+                    if let Some((tr, tg, tb, blend)) = tint {
+                        if let Some(base) = fg {
+                            if let Some((br, bgc, bb)) = crate::palette::decode_color(base) {
+                                let (nr, ng, nb) =
+                                    crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                        br, bgc, bb, tr, tg, tb, blend,
+                                    );
+                                return Some(Color::Rgb {
+                                    r: nr,
+                                    g: ng,
+                                    b: nb,
+                                });
+                            }
+                        }
+                    }
+                    fg
+                };
                 if reveal.visible && reveal.slide_rows > 0 {
                     // Slide phase 1: glyph is still one row below — blank
                     // the final cell now, defer the moving glyph.
@@ -363,12 +396,17 @@ impl super::Cloud {
                         mc.line.saturating_add(reveal.slide_rows),
                         glyph,
                         reveal.factor,
+                        tint,
                     ));
                     (' ', None)
                 } else if reveal.visible {
                     (
                         glyph,
-                        scale_msg_content_fg(&self.color_pipeline, content_fg, reveal.factor),
+                        cell_fg_tinted(scale_msg_content_fg(
+                            &self.color_pipeline,
+                            content_fg,
+                            reveal.factor,
+                        )),
                     )
                 } else {
                     (' ', None)
@@ -441,17 +479,35 @@ impl super::Cloud {
         // mid-slide glyphs one row below their final position. Bounds
         // guard: the row below must exist inside the terminal (the
         // message box has pad_y=1 (+1 border row), so this only fails
-        // on degenerate 1-row terminals).
-        for (col, line, ch, factor) in slide_cells {
+        // on degenerate 1-row terminals). The slide_cells tuple now
+        // carries the per-cell tint (scorch extension) so a future
+        // slide + scorch combo would tint the mid-slide glyph too.
+        for (col, line, ch, factor, tint) in slide_cells {
             if line >= self.lines {
                 continue;
+            }
+            let mut fg = scale_msg_content_fg(&self.color_pipeline, content_fg, factor);
+            if let Some((tr, tg, tb, blend)) = tint {
+                if let Some(base) = fg {
+                    if let Some((br, bgc, bb)) = crate::palette::decode_color(base) {
+                        let (nr, ng, nb) =
+                            crate::chroma_dragon_engine::palette::blend_toward_bg_rgb(
+                                br, bgc, bb, tr, tg, tb, blend,
+                            );
+                        fg = Some(Color::Rgb {
+                            r: nr,
+                            g: ng,
+                            b: nb,
+                        });
+                    }
+                }
             }
             frame.set_force(
                 col,
                 line,
                 Cell {
                     ch,
-                    fg: scale_msg_content_fg(&self.color_pipeline, content_fg, factor),
+                    fg,
                     bg,
                     bold: self.bold_mode != BoldMode::Off,
                 },
@@ -511,13 +567,18 @@ impl super::Cloud {
         // across the freshly burned-in chars). Runs only for engrave;
         // the pass itself early-outs in O(1) when the pool is idle.
         if style == MsgFillStyle::Engrave {
-            self.engrave_spark_pass(
-                frame,
-                now,
-                engrave_head_pos,
-                engrave_head_idx,
-                message_elapsed_ms,
-            );
+            self.engrave_spark_pass(frame, now, head_pos, head_idx, message_elapsed_ms);
+        }
+
+        // v51 msg-fill-style (scorch): smoke pass, LAST so smoke
+        // renders on top of the overlay text (the scorching head
+        // throws slow upward gray puffs above the freshly burned-in
+        // chars). Runs only for scorch; the pass itself early-outs
+        // in O(1) when the pool is idle. Same dedicated-pool pattern
+        // as engrave (see `msg_fill_style/scorch.rs` for why the
+        // shared quantum pool cannot be reused).
+        if style == MsgFillStyle::Scorch {
+            self.scorch_smoke_pass(frame, now, head_pos, head_idx, message_elapsed_ms);
         }
 
         // v51 msg-fill-style (hologram): scanline pass, LAST so the

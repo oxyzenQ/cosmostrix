@@ -52,6 +52,7 @@ pub(super) fn reveal(
         factor: base.factor * boost,
         slide_rows: 0,
         glyph_override: None,
+        tint: None,
     }
 }
 

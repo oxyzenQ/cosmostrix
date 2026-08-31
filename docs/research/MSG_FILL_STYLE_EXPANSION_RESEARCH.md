@@ -8,9 +8,12 @@
 > projected hologram with flicker, breathing ripple, and a single
 > CRT-style scanline sweep. `glitch` (the second candidate) is also
 > IMPLEMENTED — cyberpunk distortion settle with scrambled reveal
-> order and wrong-glyph substitution. This document records the
-> remaining candidates for the next round — **the owner decides**
-> which (if any) land next.
+> order and wrong-glyph substitution. `scorch` (the wow-option) is
+> also IMPLEMENTED — burnt-in text with ember tint and a smoke
+> sidecar. All four candidates from the original advisor discussion
+> have landed; `cascade` is deferred (see §3.D). This document
+> records the candidates for reference — **the owner decides** if
+> any further expansion is wanted.
 > Predecessor feature: `-mfs`/`--msg-fill-style` (v51, commit 65bdb1df).
 
 ## 1. Decision recorded: `engrave` (LANDED)
@@ -102,11 +105,44 @@ candidate per the §4 matrix below. What shipped (see
   sweep and tests (+16 total). Confirmed as the second candidate per
   the research doc §4 matrix.
 
+## 1D. Decision recorded: `scorch` (LANDED — follow-up)
+
+The follow-up commit after glitch landed `scorch` — the wow-option
+per the §4 matrix below. What shipped (see `msg_fill_style/scorch.rs`):
+
+- Ember tint: each char appears in an ember tint
+  (`SCORCH_EMBER_RGB` = (255, 100, 30) — warm orange, not pure red)
+  at full blend (1.0) with a bright head factor (1.0 + SCORCH_HEAD_BOOST
+  = 1.5). Over SCORCH_COOL_MS (400 ms): ember blend 1.0 → 0.0 linear,
+  factor 1.5 → 0.8 (char dip) → 1.0 (recovery). The "charred" dim
+  sub-effect from the research doc.
+- ONE structural extension point: `CellReveal.tint: Option<(u8, u8, u8, f32)>`
+  (the API surface the §2 ground rule flagged as shared by every
+  future color-shifting style). Every existing style leaves the
+  field `None`, so they are bit-identical to the pre-scorch
+  renderer. The renderer applies the tint AFTER the brightness
+  factor (scaled palette color linearly blended toward the tint
+  RGB by the blend factor).
+- Smoke sidecar: 16-slot pool (pre-allocated once, O(active)/frame,
+  O(1) early-out when idle), cloned from the engrave spark pattern.
+  1 puff per newly scorch'd char (movement-gated), 700 ms lifetime,
+  2.5 cells/s upward drift with ±20% speed variance + horizontal
+  sway. Smoke spawns half a cell ABOVE the head so it starts outside
+  the content row (prevents overwriting the freshly scorch'd char
+  on the spawn frame).
+- `--no-effects` contract: the smoke sidecar self-gates on
+  `effects_enabled` (same as every particle subsystem). The ember
+  tint is NOT gated (it's part of the reveal math, not a cosmetic
+  overlay — same contract as glitch's glyph substitution).
+- Cost: ~470 LOC in `msg_fill_style/scorch.rs` plus the 9-surface
+  sweep and tests (+17 total). Confirmed as the wow-option per the
+  research doc §4 matrix.
+
 ## 2. Ground rules for any new style (from the shipped family)
 
 | Rule | Why |
 |------|-----|
-| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 8 of 9 shipped styles comply. |
+| Stateless reveal math preferred (pure function of elapsed time) | Zero per-frame bookkeeping, trivially testable, no state to reset on restart/resize/style-switch. 8 of 10 shipped styles comply. |
 | If stateful: ONE bounded sidecar struct, pre-allocated pool, O(active)/frame, `--no-effects` gate, reset in `reset_message` + restart paths | The `EngraveState` contract (48-slot pool, movement-gated spawn). |
 | Particles inside the box render at the END of `draw_message` | Draw-order constraint (see §1). |
 | Default stays `typewriter`, bit-identical pre-v51 | LTS guarantee — every new style is opt-in. |
@@ -159,7 +195,7 @@ candidate per the §4 matrix below. What shipped (see
   helper counts any drawn content cell (used by the wrong-glyph
   render tests to catch cells still in the settle window).
 
-### C. `scorch` — burnt-in text with embers and smoke (highest wow)
+### C. `scorch` — burnt-in text with embers and smoke (LANDED — see §1D)
 
 - **Look**: chars appear in an ember tint (orange/red) at the head,
   cooling to the palette color over ~400 ms; occasional smoke particles
@@ -176,6 +212,14 @@ candidate per the §4 matrix below. What shipped (see
   the blend target (ember orange) is a fixed RGB, unlike every current
   style which only scales the palette head color.
 - **Name check**: `scorch` (advisor also offered `burn`, `ember`).
+- **LANDED in the follow-up commit** — see §1D above for what shipped.
+  The clean `CellReveal.tint: Option<(u8, u8, u8, f32)>` field was
+  chosen (the structural extension point flagged in §2). The
+  `scale_msg_content_fg` pipeline is preserved: the tint is applied
+  AFTER the brightness factor (scaled palette color linearly blended
+  toward the tint RGB). The smoke sidecar clones the engrave pattern
+  with scorch-specific tuning (16 slots, 1 puff/char, 700 ms lifetime,
+  slow upward gray drift).
 
 ### D. `cascade` — per-column waterfall reveal (defer)
 
@@ -198,7 +242,7 @@ candidate per the §4 matrix below. What shipped (see
 |-----------|-----------|----------|-----------------|---------------------|---------|
 | hologram  | YES | ~280 (landed) | none | high (scanline + flicker) | **LANDED** (see §1B) |
 | glitch    | YES | ~340 (landed) | `CellReveal.glyph_override` | high (scramble decode) | **LANDED** (see §1C) |
-| scorch    | no (smoke sidecar) | ~150-180 | `CellReveal` tint + sidecar | highest (color + particles) | Land when the tint API is wanted anyway |
+| scorch    | no (smoke sidecar) | ~470 (landed) | `CellReveal` tint + smoke sidecar | highest (color + particles) | **LANDED** (see §1D) |
 | cascade   | YES | ~50-60 | none | low on 1-line overlays | Defer |
 
 ## 5. Preview / verification path
@@ -216,7 +260,7 @@ pacing test, brightness/glyph assertion at exact elapsed values,
 no-effects test (if stateful), restart re-arm test (if stateful),
 live-reload + clap + argv + testconf coverage.
 
-## 6. Style table (current, post-glitch)
+## 6. Style table (current, post-scorch)
 
 | Style | Text reveal | Border | Sidecar |
 |-------|-------------|--------|---------|
@@ -229,6 +273,7 @@ live-reload + clap + argv + testconf coverage.
 | `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`msg_fill_style/engrave.rs`) |
 | `hologram` | 80 ms/char burn-in, 150 ms flicker + 2 s breathing hum, 600 ms scanline sweep | lags text (t^1.5) | none (stateless scanline pass in `msg_fill_style/hologram.rs`) |
 | `glitch` | 80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker | lags text (t^1.5) | none (stateless, `CellReveal.glyph_override` extension in `msg_fill_style/glitch.rs`) |
+| `scorch` | 80 ms/char ember burn, 400 ms cool tint (1.5→0.8→1.0), slow gray smoke puffs | lags text (t^1.5) | 16-slot smoke pool (`msg_fill_style/scorch.rs`, `CellReveal.tint` extension) |
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

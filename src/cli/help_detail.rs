@@ -198,9 +198,9 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: typewriter). Nine
+      Message overlay reveal animation (default: typewriter). Ten
       styles — eight driven purely by elapsed time (stateless, zero
-      per-frame cost), plus engrave (adds a bounded 48-slot spark
+      per-frame cost), plus engrave and scorch (each adds a bounded
       particle sidecar):
         typewriter  The classic reveal: one character every 80 ms, each
                     fading in from 30% to 100% brightness over 100 ms.
@@ -251,6 +251,19 @@ COMMON OPTIONS:
                     modulates ±20% during the settle. Fully stateless;
                     the glyph substitution IS the reveal math, so
                     --no-effects does not gate it (no particle sidecar).
+        scorch      Scorch/burn: each character is scorched in at
+                    full brightness in an ember tint (warm orange
+                    RGB, not pure red) the moment the head reaches it
+                    (80 ms/char), cools over 400 ms — the factor dips
+                    1.5 → 0.8 → 1.0 (the charred dim sub-effect,
+                    then recovery) and the ember blend fades 1.0 → 0.0
+                    (palette color at settle). Every newly scorch'd
+                    char throws a slow upward gray smoke puff (░,
+                    700 ms lifetime, 16-slot pool, ±20% speed
+                    variance + horizontal sway). Extends CellReveal
+                    with a tint field (the color-shifting API surface).
+                    Respects --no-effects (the smoke sidecar self-gates
+                    like every particle subsystem).
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -265,6 +278,7 @@ COMMON OPTIONS:
       cosmostrix -mfs engrave -mb \"wake up, neo\"
       cosmostrix -mfs hologram -mb \"wake up, neo\"
       cosmostrix -mfs glitch -mb \"wake up, neo\"
+      cosmostrix -mfs scorch -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

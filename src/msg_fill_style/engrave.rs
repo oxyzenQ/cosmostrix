@@ -135,6 +135,7 @@ pub(super) fn reveal(
             factor: heat,
             slide_rows: 0,
             glyph_override: None,
+            tint: None,
         }
     } else {
         CellReveal::hidden()

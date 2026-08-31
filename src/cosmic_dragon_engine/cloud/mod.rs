@@ -223,11 +223,13 @@ pub struct Cloud {
     /// `build_border_order` per frame (was O((W+H)×N) per frame; now O(1) borrow).
     pub(crate) border_order: Vec<usize>,
 
-    /// v51 msg-fill-style (engrave): bounded spark-particle sidecar
-    /// rendered inside `draw_message` (dedicated pool - see
-    /// `msg_fill_style/engrave.rs` for why the shared quantum pool
-    /// cannot be reused). Idle (O(1) early-out) for every other style.
+    /// v51 msg-fill-style (engrave): bounded 48-slot spark sidecar
+    /// (dedicated pool — see `msg_fill_style/engrave.rs`).
     pub(crate) engrave: crate::msg_fill_style::engrave::EngraveState,
+
+    /// v51 msg-fill-style (scorch): bounded 16-slot smoke sidecar
+    /// (dedicated pool — see `msg_fill_style/scorch.rs`).
+    pub(crate) scorch: crate::msg_fill_style::scorch::ScorchState,
 
     /// RAIN_BORDER_TOUCH_GLOW: cached top-border geometry, refreshed in
     /// `reset_message`. Used by the droplet advance loop (rain.rs) for
@@ -490,6 +492,7 @@ impl Cloud {
             ],
             quantum_active_count: 0,
             engrave: crate::msg_fill_style::engrave::EngraveState::new(now),
+            scorch: crate::msg_fill_style::scorch::ScorchState::new(now),
             last_reseed_time: now,
             phosphor: Vec::new(),
             phosphor_base_fg: Vec::new(),
@@ -579,11 +582,11 @@ impl Cloud {
 
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
-            // v52: Space restart replays immediately — no intro replays
-            // at runtime, so no lead (pre-v52 re-armed +6 s: dead air).
+            // v52: Space restart replays immediately (no intro lead at
+            // runtime). v51 engrave/scorch: re-arm spark/smoke detector.
             self.message_start_time = Some(Instant::now());
-            // v51 engrave: re-arm the spark detector (first-char burst).
             self.engrave.reset();
+            self.scorch.reset();
             self.force_draw_everything = true;
         }
     }
@@ -596,19 +599,16 @@ impl Cloud {
         }
     }
 
-    /// v51 msg-fill-style: set the message overlay reveal style. When the
-    /// style actually changes and a message is active, the reveal timeline
-    /// restarts immediately (no intro lead — that is armed only by the
-    /// intro runner while a cinematic plays, so the new style animates
-    /// right away on live-reload).
+    /// v51 msg-fill-style: set the reveal style. On a real change with
+    /// an active message, the reveal restarts immediately (no intro
+    /// lead). v51 engrave/scorch: re-arm spark/smoke detector.
     pub fn set_msg_fill_style(&mut self, style: crate::msg_fill_style::MsgFillStyle) {
         if self.msg_fill_style != style {
             self.msg_fill_style = style;
             if self.message_text.is_some() {
                 self.message_start_time = Some(Instant::now());
-                // v51 engrave: same re-arm as restart_message_typewriter
-                // - the restarted reveal must fire its first burst.
                 self.engrave.reset();
+                self.scorch.reset();
                 self.force_draw_everything = true;
             }
         }

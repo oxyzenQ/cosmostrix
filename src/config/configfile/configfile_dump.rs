@@ -51,7 +51,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # message         = "A masterpiece"     # message WITHOUT border (matches -m)
 # message-border  = "A masterpiece"     # message WITH border    (matches -mb)
 # msg-mode        = true                # true = overlay active (default), false = suppressed
-# msg-fill-style  = "typewriter"        # typewriter | fade | words | slide | pulse | instant | engrave | hologram | glitch
+# msg-fill-style  = "typewriter"        # typewriter | fade | words | slide | pulse | instant | engrave | hologram | glitch | scorch
 #                                       # reveal animation for the overlay (CLI: -mfs/--msg-fill-style)
 
 # Motion

@@ -160,6 +160,7 @@ pub(super) fn reveal(
             factor: 1.0 + noise * GLITCH_FLICKER_AMPLITUDE,
             slide_rows: 0,
             glyph_override: Some(wrong),
+            tint: None,
         }
     } else {
         // Settled: correct glyph, factor 1.0.

@@ -35,6 +35,7 @@ pub(super) fn reveal(word_ord: u32, elapsed_ms: Option<usize>) -> CellReveal {
                     factor: char_fade_in(elapsed_ms, word_reveal_at, WORDS_FADE_MS),
                     slide_rows: 0,
                     glyph_override: None,
+                    tint: None,
                 }
             } else {
                 CellReveal::hidden()

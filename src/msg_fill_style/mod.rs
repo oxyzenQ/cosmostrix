@@ -19,6 +19,7 @@
 //! | `engrave`   | 80 ms/char burn-in, 2x hot head      | lags text (t^1.5) + sparks |
 //! | `hologram`  | 80 ms/char burn-in, flicker + hum, scanline sweep | lags text (t^1.5) |
 //! | `glitch`    | 80 ms/char scrambled reveal, wrong-glyph settle, ±20% flicker | lags text (t^1.5) |
+//! | `scorch`    | 80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs | lags text (t^1.5) + smoke |
 //!
 //! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
@@ -32,7 +33,7 @@
 //! the shared ramp/lag helpers, and the dispatch that routes the
 //! runtime enum to the active style module.
 //!
-//! ## How to add style #10 (plug-and-play recipe)
+//! ## How to add style #11 (plug-and-play recipe)
 //!
 //! 1. Copy the closest existing `<style>.rs` to a new file (e.g.
 //!    `<new-style>.rs`) and rewrite its reveal math + doc comment.
@@ -64,7 +65,11 @@
 //! `glyph_override: Option<char>` field (the ONE structural
 //! extension point — see `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md`
 //! §2) so the wrong-glyph substitution can flow through the existing
-//! dispatch with zero renderer churn.
+//! dispatch with zero renderer churn. `scorch` extends `CellReveal`
+//! with a `tint: Option<(u8, u8, u8, f32)>` field (the ONE structural
+//! extension point for color-shifting styles — same §2 ground rule)
+//! and adds a 16-slot smoke sidecar cloned from the engrave pattern
+//! (see `scorch.rs` for why a dedicated pool is required).
 //!
 //! Placement is a crate-root module (peer of `types/`): the enum is
 //! consumed by both the CLI layer (Args) and the rendering engine
@@ -80,14 +85,16 @@ use clap::ValueEnum;
 // visible: its `Cloud::hologram_scanline_pass` is invoked at the end
 // of `draw_message`. `glitch` is encapsulated like the rest — it
 // only extends `CellReveal` with a `glyph_override` field that the
-// renderer unwraps at draw time. Every stateless style is fully
-// encapsulated behind the dispatch below.
+// renderer unwraps at draw time. `scorch` is visible like engrave:
+// `cloud/mod.rs` stores its `ScorchState` as a Cloud field. Every
+// stateless style is fully encapsulated behind the dispatch below.
 pub(crate) mod engrave;
 mod fade;
 pub(crate) mod glitch;
 pub(crate) mod hologram;
 mod instant;
 mod pulse;
+pub(crate) mod scorch;
 mod slide;
 mod typewriter;
 mod words;
@@ -134,6 +141,14 @@ pub enum MsgFillStyle {
     /// `CellReveal` with `glyph_override` (see `glitch.rs`).
     #[value(name = "glitch")]
     Glitch,
+    /// Scorch/burn: chars appear in an ember tint (orange/red) at
+    /// the head, cooling to the palette color over 400 ms (factor
+    /// dips 1.5 → 0.8 → 1.0 — the "charred" dim sub-effect), and
+    /// every newly scorch'd char throws a slow upward gray smoke
+    /// puff (700 ms lifetime, 16-slot pool). Extends `CellReveal`
+    /// with `tint` (see `scorch.rs`). Respects `--no-effects`.
+    #[value(name = "scorch")]
+    Scorch,
 }
 
 impl MsgFillStyle {
@@ -151,6 +166,7 @@ impl MsgFillStyle {
             Self::Engrave => "engrave",
             Self::Hologram => "hologram",
             Self::Glitch => "glitch",
+            Self::Scorch => "scorch",
         }
     }
 
@@ -172,6 +188,9 @@ impl MsgFillStyle {
             }
             Self::Glitch => {
                 "glitch (80 ms/char scrambled reveal, 90 ms wrong-glyph settle, ±20% flicker)"
+            }
+            Self::Scorch => {
+                "scorch (80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs)"
             }
         }
     }
@@ -201,6 +220,17 @@ pub(crate) struct CellReveal {
     /// shared by every future glyph-substituting style — see
     /// `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md` §2.
     pub glyph_override: Option<char>,
+    /// Tint toward a fixed RGB by a blend factor (scorch style only;
+    /// `None` for every other style). The tuple is `(r, g, b, blend)`
+    /// where `blend` is 0.0 = palette fg color, 1.0 = full tint.
+    /// The renderer applies this AFTER the brightness factor: it
+    /// takes the scaled palette color and linearly blends it toward
+    /// `(r, g, b)` by `blend` (via
+    /// `chroma_dragon_engine::palette::blend_toward_bg_rgb`). Added
+    /// in the post-glitch round as the ONE structural extension point
+    /// shared by every future color-shifting style — see
+    /// `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md` §2.
+    pub tint: Option<(u8, u8, u8, f32)>,
 }
 
 impl CellReveal {
@@ -210,6 +240,7 @@ impl CellReveal {
             factor: 0.0,
             slide_rows: 0,
             glyph_override: None,
+            tint: None,
         }
     }
 
@@ -219,6 +250,7 @@ impl CellReveal {
             factor: 1.0,
             slide_rows: 0,
             glyph_override: None,
+            tint: None,
         }
     }
 }
@@ -315,6 +347,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Engrave => engrave::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Hologram => hologram::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Glitch => glitch::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Scorch => scorch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -329,7 +362,7 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch / words: border
+/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / words: border
 ///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
 ///   cinematic behavior.
 /// - Fade: border fades together with the text block.
@@ -348,6 +381,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Engrave => engrave::border_progress(text_progress),
         MsgFillStyle::Hologram => hologram::border_progress(text_progress),
         MsgFillStyle::Glitch => glitch::border_progress(text_progress),
+        MsgFillStyle::Scorch => scorch::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -356,7 +390,7 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch:
+/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch:
 ///   `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
@@ -377,6 +411,7 @@ pub(crate) fn text_progress(
         MsgFillStyle::Engrave => engrave::text_progress(reveal_count, total_text),
         MsgFillStyle::Hologram => hologram::text_progress(reveal_count, total_text),
         MsgFillStyle::Glitch => glitch::text_progress(reveal_count, total_text),
+        MsgFillStyle::Scorch => scorch::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -384,7 +419,7 @@ pub(crate) fn text_progress(
 
 /// Number of content cells revealed by the active style at the given
 /// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave/
-/// hologram/glitch) pace cells by their per-char constant; word/block styles
+/// hologram/glitch/scorch) pace cells by their per-char constant; word/block styles
 /// (words/fade/instant) reveal everything (their reveal math decides
 /// per-cell and never reads the budget; only the `None` timeline →
 /// `usize::MAX` is meaningful for them).
@@ -405,6 +440,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Engrave => engrave::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Hologram => hologram::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Glitch => glitch::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Scorch => scorch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -427,6 +463,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Engrave.as_str(), "engrave");
         assert_eq!(MsgFillStyle::Hologram.as_str(), "hologram");
         assert_eq!(MsgFillStyle::Glitch.as_str(), "glitch");
+        assert_eq!(MsgFillStyle::Scorch.as_str(), "scorch");
     }
 
     #[test]
@@ -445,6 +482,7 @@ mod tests {
             MsgFillStyle::Engrave,
             MsgFillStyle::Hologram,
             MsgFillStyle::Glitch,
+            MsgFillStyle::Scorch,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");

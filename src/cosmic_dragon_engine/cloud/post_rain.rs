@@ -213,7 +213,8 @@ impl super::Cloud {
         // default typewriter 80 ms/char; engrave adds its spark pass
         // at the end of draw_message; hologram adds its scanline pass;
         // glitch's wrong-glyph substitution is part of the reveal math
-        // itself, no extra pass).
+        // itself, no extra pass; scorch adds its smoke pass at the end
+        // of draw_message and tints the cooling chars via CellReveal).
         // Z-6: skip in benchmark mode — owner directive: bench measures
         // critical path only (rain + 3 dragons), not message cosmetics.
         // This eliminates 8 per-frame heap allocs in draw_message.
