@@ -49,7 +49,17 @@ impl super::Cloud {
         // PERF-1: skip anomaly spawn in benchmark mode — anomalies are
         // cosmetics (luminance overlays, not rain simulation). Owner
         // directive: bench = rain + 3 dragons only.
+        // PERF-4: skip anomaly spawn under --no-effects. The apply path
+        // (apply_anomalies below) is already gated on effects_enabled,
+        // but without this spawn gate, new anomaly zones continued to be
+        // created + retained (1.5s lifetime) under --no-effects — wasted
+        // CPU + Vec churn for zones that are never rendered. This closes
+        // the last --no-effects partial-disable leak in the anomaly
+        // subsystem (Z-master-1X audit). The comment at line 68 claiming
+        // "spawn_anomaly is already gated" was stale and wrong — spawn
+        // was bench-only-gated, not effects-gated.
         if !self.bench_mode
+            && self.effects_enabled
             && phosphor_elapsed > 0.0
             && self.perf_pressure <= EVENT_PERF_GATE
             && !in_transition
@@ -65,8 +75,9 @@ impl super::Cloud {
         // PERF-1: skip anomaly apply in benchmark mode — cosmetics.
         // PERF-4: skip anomaly apply under --no-effects — anomaly halos
         // are cosmetic overlays (luminance blend on border cells), not
-        // rain simulation. spawn_anomaly is already gated, so no new
-        // zones appear; existing zones fade out on their own expiry tick.
+        // rain simulation. Both spawn and apply are now gated on
+        // effects_enabled (Z-master-1X audit closed the spawn-side leak),
+        // so under --no-effects no zones exist and this branch is a no-op.
         if !self.bench_mode && self.effects_enabled {
             self.apply_anomalies(frame, now);
         }
