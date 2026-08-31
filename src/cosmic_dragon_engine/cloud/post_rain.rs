@@ -216,8 +216,7 @@ impl super::Cloud {
         // itself, no extra pass; scorch adds its smoke pass at the end
         // of draw_message and tints the cooling chars via CellReveal;
         // cascade reuses the signed slide_rows field for drop-from-above,
-        // handled by the slide deferred second pass; pulse adds a
-        // visible scanner cursor glyph pass at the end of draw_message).
+        // handled by the slide deferred second pass).
         // Z-6: skip in benchmark mode — owner directive: bench measures
         // critical path only (rain + 3 dragons), not message cosmetics.
         // This eliminates 8 per-frame heap allocs in draw_message.

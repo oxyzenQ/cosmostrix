@@ -56,8 +56,8 @@ pub struct CloudConfig {
     pub message: Option<String>,
     pub message_border: bool,
     /// v51 msg-fill-style: message overlay reveal style (typewriter /
-    /// fade / words / slide / pulse / instant / engrave / hologram /
-    /// glitch / scorch / cascade). Default `Typewriter` = bit-identical
+    /// fade / words / slide / instant / engrave / hologram / glitch /
+    /// scorch / cascade). Default `Typewriter` = bit-identical
     /// to the pre-v51 renderer (LTS guarantee). Applied in `create_cloud`
     /// via `cloud.set_msg_fill_style` (engrave arms the spark sidecar;
     /// hologram adds a stateless scanline pass; glitch extends

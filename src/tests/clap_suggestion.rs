@@ -96,7 +96,6 @@ fn clap_parses_all_msg_fill_style_values() {
         ("fade", crate::msg_fill_style::MsgFillStyle::Fade),
         ("words", crate::msg_fill_style::MsgFillStyle::Words),
         ("slide", crate::msg_fill_style::MsgFillStyle::Slide),
-        ("pulse", crate::msg_fill_style::MsgFillStyle::Pulse),
         ("instant", crate::msg_fill_style::MsgFillStyle::Instant),
         ("engrave", crate::msg_fill_style::MsgFillStyle::Engrave),
         ("hologram", crate::msg_fill_style::MsgFillStyle::Hologram),

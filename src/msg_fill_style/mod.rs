@@ -4,7 +4,7 @@
 //! Message overlay fill (reveal) style selection — one file per style.
 //!
 //! v51 msg-fill-style: the message overlay reveal animation is no longer
-//! hardwired to the classic typewriter. Nine styles are selectable via
+//! hardwired to the classic typewriter. Ten styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
 //!
@@ -12,9 +12,8 @@
 //! |-------------|--------------------------------------|-------------------------|
 //! | `typewriter`| 80 ms/char + 100 ms fade-in (30→100%)| lags text (t^1.5)       |
 //! | `fade`      | instant, block alpha 0→100% (800 ms) | fades with the block    |
-//! | `words`     | 200 ms/word + 150 ms fade-in         | lags word progress      |
+//! | `words`     | 200 ms/word + 150 ms fade-in + land impact | lags word progress      |
 //! | `slide`     | 60 ms/char, rises from 1 row below   | lags text (t^1.5)       |
-//! | `pulse`     | typewriter + 1.5x scanner cursor     | lags text (t^1.5)       |
 //! | `instant`   | full brightness at t=0               | clockwise draw over 1 s |
 //! | `engrave`   | 80 ms/char burn-in, 2x hot head      | lags text (t^1.5) + sparks |
 //! | `hologram`  | 80 ms/char burn-in, flicker + hum, scanline sweep | lags text (t^1.5) |
@@ -98,7 +97,6 @@ mod fade;
 pub(crate) mod glitch;
 pub(crate) mod hologram;
 mod instant;
-mod pulse;
 pub(crate) mod scorch;
 mod slide;
 mod typewriter;
@@ -122,9 +120,6 @@ pub enum MsgFillStyle {
     /// Characters slide up from one row below while fading in.
     #[value(name = "slide")]
     Slide,
-    /// Typewriter plus a traveling brightness "scanner" cursor.
-    #[value(name = "pulse")]
-    Pulse,
     /// Text appears instantly at full brightness; only the border draws.
     #[value(name = "instant")]
     Instant,
@@ -176,7 +171,6 @@ impl MsgFillStyle {
             Self::Fade => "fade",
             Self::Words => "words",
             Self::Slide => "slide",
-            Self::Pulse => "pulse",
             Self::Instant => "instant",
             Self::Engrave => "engrave",
             Self::Hologram => "hologram",
@@ -194,7 +188,6 @@ impl MsgFillStyle {
             Self::Fade => "fade (instant text, block alpha 0-100% over 800 ms)",
             Self::Words => "words (200 ms/word + 150 ms fade-in, border lags word progress)",
             Self::Slide => "slide (60 ms/char, chars rise from one row below)",
-            Self::Pulse => "pulse (typewriter + 1.5x scanner cursor, 200 ms decay)",
             Self::Instant => "instant (text immediate, border draws clockwise over 1 s)",
             Self::Engrave => {
                 "engrave (80 ms/char burn-in, 2x hot head cooling over 300 ms, spark burst per char)"
@@ -225,7 +218,7 @@ pub(crate) struct CellReveal {
     /// Cell is drawn (true) or blanked to a space (false).
     pub visible: bool,
     /// Brightness factor applied to the content fg color (1.0 = settled).
-    /// May exceed 1.0 for the pulse scanner / engrave heat heads
+    /// May exceed 1.0 for the engrave heat heads / scorch head
     /// (clamped downstream).
     pub factor: f32,
     /// Rows offset from the final position while the cell is mid-slide
@@ -289,7 +282,7 @@ impl CellReveal {
 // bookkeeping in Cloud.
 
 /// Shared fade-in ramp start brightness (30%) — the typewriter-family
-/// ramp used by typewriter, pulse, words, and slide (phase 2).
+/// ramp used by typewriter, words, and slide (phase 2).
 pub(super) const FADE_IN_START: f32 = 0.30;
 
 /// Shared fade-in ramp: `FADE_IN_START` → 1.0 over `fade_ms`, indexed
@@ -313,7 +306,7 @@ pub(super) fn char_fade_in(elapsed_ms: Option<usize>, reveal_at_ms: usize, fade_
 
 /// Shared border-lag curve for text-paced styles: `text_progress^1.5`
 /// ease-out — the pre-v51 cinematic behavior. Used by typewriter,
-/// pulse, slide, engrave, and words.
+/// slide, engrave, and words.
 #[inline]
 pub(super) fn lagged_border(text_progress: f32) -> f32 {
     text_progress.clamp(0.0, 1.0).powf(1.5)
@@ -335,7 +328,7 @@ pub(super) fn index_pacing(
 }
 
 /// Shared index fraction: revealed-cell fraction that feeds the border
-/// lag for index-paced styles (typewriter / pulse / slide / engrave).
+/// lag for index-paced styles (typewriter / slide / engrave).
 #[inline]
 pub(super) fn index_fraction(reveal_count: usize, total_text: usize) -> f32 {
     (reveal_count.min(total_text.max(1))) as f32 / total_text.max(1) as f32
@@ -355,7 +348,7 @@ pub(super) fn index_fraction(reveal_count: usize, total_text: usize) -> f32 {
 ///   animation timeline" (everything settles instantly — benchmark
 ///   and edge paths).
 /// - `reveal_count`: cells revealed by index-based styles
-///   (typewriter/pulse/slide/engrave). Other styles ignore it.
+///   (typewriter/slide/engrave). Other styles ignore it.
 /// - `block_alpha`: fade-style whole-block alpha (0.0 → 1.0).
 pub(crate) fn content_reveal(
     style: MsgFillStyle,
@@ -367,7 +360,6 @@ pub(crate) fn content_reveal(
 ) -> CellReveal {
     match style {
         MsgFillStyle::Typewriter => typewriter::reveal(content_idx, elapsed_ms, reveal_count),
-        MsgFillStyle::Pulse => pulse::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Fade => fade::reveal(block_alpha),
         MsgFillStyle::Instant => instant::reveal(),
         MsgFillStyle::Engrave => engrave::reveal(content_idx, elapsed_ms, reveal_count),
@@ -389,7 +381,7 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// Resolve the clockwise border progress (0.0 → 1.0) for the active
 /// style, given the style's own text-progress input.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / cascade / words: border
+/// - Typewriter / slide / engrave / hologram / glitch / scorch / cascade / words: border
 ///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
 ///   cinematic behavior.
 /// - Fade: border fades together with the text block.
@@ -402,7 +394,6 @@ pub(crate) fn border_progress(
 ) -> f32 {
     match style {
         MsgFillStyle::Typewriter => typewriter::border_progress(text_progress),
-        MsgFillStyle::Pulse => pulse::border_progress(text_progress),
         MsgFillStyle::Fade => fade::border_progress(elapsed_ms),
         MsgFillStyle::Instant => instant::border_progress(elapsed_ms),
         MsgFillStyle::Engrave => engrave::border_progress(text_progress),
@@ -418,7 +409,7 @@ pub(crate) fn border_progress(
 /// Resolve the text progress (0.0 → 1.0) that feeds the border lag for
 /// styles whose text reveal is index- or word-paced.
 ///
-/// - Typewriter / pulse / slide / engrave / hologram / glitch / scorch / cascade:
+/// - Typewriter / slide / engrave / hologram / glitch / scorch / cascade:
 ///   `reveal_count / total_text`.
 /// - Words: revealed-word fraction (`total_words` from the word
 ///   ordinals built in `reset_message`).
@@ -433,7 +424,6 @@ pub(crate) fn text_progress(
 ) -> f32 {
     match style {
         MsgFillStyle::Typewriter => typewriter::text_progress(reveal_count, total_text),
-        MsgFillStyle::Pulse => pulse::text_progress(reveal_count, total_text),
         MsgFillStyle::Fade => fade::text_progress(),
         MsgFillStyle::Instant => instant::text_progress(),
         MsgFillStyle::Engrave => engrave::text_progress(reveal_count, total_text),
@@ -447,7 +437,7 @@ pub(crate) fn text_progress(
 }
 
 /// Number of content cells revealed by the active style at the given
-/// elapsed time. Index-paced styles (typewriter/pulse/slide/engrave/
+/// elapsed time. Index-paced styles (typewriter/slide/engrave/
 /// hologram/glitch/scorch/cascade) pace cells by their per-char
 /// constant; word/block styles
 /// (words/fade/instant) reveal everything (their reveal math decides
@@ -464,7 +454,6 @@ pub(crate) fn index_reveal_count(
 ) -> usize {
     match style {
         MsgFillStyle::Typewriter => typewriter::reveal_budget(elapsed_ms, total_text),
-        MsgFillStyle::Pulse => pulse::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Fade => fade::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Instant => instant::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Engrave => engrave::reveal_budget(elapsed_ms, total_text),
@@ -489,7 +478,6 @@ mod tests {
         assert_eq!(MsgFillStyle::Fade.as_str(), "fade");
         assert_eq!(MsgFillStyle::Words.as_str(), "words");
         assert_eq!(MsgFillStyle::Slide.as_str(), "slide");
-        assert_eq!(MsgFillStyle::Pulse.as_str(), "pulse");
         assert_eq!(MsgFillStyle::Instant.as_str(), "instant");
         assert_eq!(MsgFillStyle::Engrave.as_str(), "engrave");
         assert_eq!(MsgFillStyle::Hologram.as_str(), "hologram");
@@ -509,7 +497,6 @@ mod tests {
             MsgFillStyle::Fade,
             MsgFillStyle::Words,
             MsgFillStyle::Slide,
-            MsgFillStyle::Pulse,
             MsgFillStyle::Instant,
             MsgFillStyle::Engrave,
             MsgFillStyle::Hologram,

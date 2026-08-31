@@ -9,6 +9,15 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### msg-fill-style: remove `pulse` style (owner directive, Z-master-1B)
+
+- **Owner decision**: the `pulse` style (typewriter + 1.5x scanner brightness boost + visible `▌` cursor) is removed from the msg-fill-style family. Owner feedback: the style was visually too similar to typewriter even after the cursor improvement, and the family is cleaner without it.
+- **Breaking change**: `pulse` is no longer a valid value for `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key. Configs or scripts using `pulse` will soft-fail (config) or hard-fail (CLI) with the "invalid msg-fill-style" error listing the remaining 10 styles. The default (`typewriter`) is unchanged.
+- **Files removed**: `src/msg_fill_style/pulse.rs` (the style module + `Cloud::pulse_cursor_pass`), `src/cosmic_dragon_engine/cloud/tests/tests_msg_fill_pulse.rs` (the render tests for the cursor pass).
+- **Files updated**: `src/msg_fill_style/mod.rs` (enum variant, 4 dispatch arms, as_str, verbose_label, doc table, statelessness contract, tests), `src/cosmic_dragon_engine/cloud/message_draw.rs` (head_idx no longer computes for Pulse, pulse_cursor_pass call removed), `src/cosmic_dragon_engine/cloud/tests/mod.rs` (tests_msg_fill_pulse module removed), `src/cosmic_dragon_engine/cloud/tests/tests_msg_fill_style.rs` (pulse_style_scanner_boosts test removed, comment refs cleaned), `src/cosmic_dragon_engine/cloud/post_rain.rs` (call sequence comment), `src/cli/argv_expand.rs` (x2 value lists), `src/cli/help_detail.rs` (pulse block + example + header count "Ten styles"), `src/cli/app.rs` (doc comment), `src/config/config_apply.rs` (error message), `src/config/configfile.rs` (comment), `src/config/configfile/configfile_dump.rs` (comment), `src/config/mod.rs` (clap help string), `src/testconf/field_validation.rs` (validation), `src/output/verbose.rs` (doc), `src/main.rs` (module map), `src/tests/clap_suggestion.rs` (test case removed), `src/config/live_config/tests_msg_fill_style.rs` (rebuild_applies_msg_fill_style_from_config updated to use slide, doc comment updated).
+- **Docs**: `README.md` x2 (feature list + CLI reference), `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md` style table updated.
+- **Tests**: -7 (the pulse unit tests in pulse.rs, the 4 pulse render tests in tests_msg_fill_pulse.rs, the pulse_style_scanner_boosts render test, and the pulse as_str/none_elapsed cases). Suite 1946 to ~1939 (final count after gatekeeper).
+
 ### msg-fill-style: eleventh style `cascade` — per-column waterfall reveal with drop-from-above (Z-master-1B)
 
 - **New style** `-mfs cascade` / `msg-fill-style = "cascade"`: each column lights up left-to-right (60 ms/column — faster than typewriter's 80 ms/char), and each char drops from 3 rows above its final position, fading in from 40% to 100% brightness over 240 ms. The drop-from-above is visible even on a 1-line overlay (the glyph appears to fall from outside the box) — distinct from typewriter (no drop) and slide (drops from BELOW). The final (and cheapest) candidate from the post-engrave research family.

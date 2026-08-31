@@ -6,9 +6,9 @@
 //! (see `src/RULES_LOC.md`).
 //!
 //! Covers:
-//! - Each shipped style (typewriter / fade / words / slide / pulse /
-//!   instant / engrave / hologram / glitch) live-reloads via the
-//!   `msg-fill-style` config key.
+//! - Each shipped style (typewriter / fade / words / slide /
+//!   instant / engrave / hologram / glitch / scorch / cascade)
+//!   live-reloads via the `msg-fill-style` config key.
 //! - The config surface is case-insensitive (mirrors every other
 //!   enum key).
 //! - An invalid value soft-fails (logged, style unchanged — same
@@ -113,7 +113,7 @@ fn rebuild_applies_msg_fill_style_cascade() {
 #[test]
 fn rebuild_applies_msg_fill_style_from_config() {
     let mut cfg = HashMap::new();
-    cfg.insert("msg-fill-style".to_string(), "pulse".to_string());
+    cfg.insert("msg-fill-style".to_string(), "slide".to_string());
     let base = minimal_cloud_config();
     assert_eq!(
         base.msg_fill_style,
@@ -123,8 +123,8 @@ fn rebuild_applies_msg_fill_style_from_config() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.msg_fill_style,
-        crate::msg_fill_style::MsgFillStyle::Pulse,
-        "config msg-fill-style=pulse must be applied on live reload"
+        crate::msg_fill_style::MsgFillStyle::Slide,
+        "config msg-fill-style=slide must be applied on live reload"
     );
 }
 

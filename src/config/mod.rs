@@ -323,7 +323,7 @@ pub struct Args {
         value_enum,
         help_heading = "COMMON OPTIONS",
         display_order = 71,
-        help = "Message overlay reveal style (typewriter|fade|words|slide|pulse|instant|engrave|hologram|glitch|scorch|cascade, default: typewriter)"
+        help = "Message overlay reveal style (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade, default: typewriter)"
     )]
     pub msg_fill_style: MsgFillStyle,
 

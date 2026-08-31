@@ -123,7 +123,7 @@ fn die_mfs_typo(token: &str) -> ! {
     eprintln!();
     eprintln!("  tip: a similar argument exists: '--msg-fill-style' (short form: -mfs)");
     eprintln!(
-        "  [possible values: typewriter, fade, words, slide, pulse, instant, engrave, hologram, glitch, scorch, cascade]"
+        "  [possible values: typewriter, fade, words, slide, instant, engrave, hologram, glitch, scorch, cascade]"
     );
     eprintln!();
     eprintln!(
@@ -165,7 +165,6 @@ mod tests {
             "fade",
             "words",
             "slide",
-            "pulse",
             "instant",
             "engrave",
             "hologram",

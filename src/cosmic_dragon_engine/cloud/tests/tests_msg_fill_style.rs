@@ -292,62 +292,6 @@ fn slide_style_defers_phase1_glyphs_one_row_below() {
 }
 
 #[test]
-fn pulse_style_scanner_boosts_recent_char_brightness() {
-    // "hello world" has 10 content cells (h e l l o w o r l d — the
-    // space is not a content cell). At elapsed = 900 ms the LAST char
-    // ('d', index 9, revealed at 720 ms) has age 180 ms → scanner boost
-    // 1 + 0.5*(1 - 180/200) = 1.05, while the FIRST char (age 900 ms)
-    // is fully settled at 1.0.
-    //
-    // A dim custom palette is injected so the boost does NOT clamp at
-    // 255 (the built-in Green head color is bright enough that scaling
-    // saturates and the sums compare equal).
-    //
-    // --no-effects is set to suppress the pulse scanner CURSOR pass
-    // (post-cascade improvement) — without this, the cursor `▌` glyph
-    // would overwrite the head char 'd', making the brightness
-    // comparison read the cursor's color instead of the boosted char.
-    // The brightness boost is part of the reveal math (not gated by
-    // --no-effects), so suppressing the cursor isolates the boost.
-    let mut cloud = make_cloud_colored(MsgFillStyle::Pulse);
-    cloud.set_effects_enabled(false);
-    cloud.set_palette(crate::palette::Palette {
-        colors: vec![
-            crossterm::style::Color::Rgb {
-                r: 60,
-                g: 60,
-                b: 60,
-            },
-            crossterm::style::Color::Rgb {
-                r: 100,
-                g: 100,
-                b: 100,
-            },
-        ],
-        bg: None,
-    });
-    set_message_elapsed(&mut cloud, "hello world", 900);
-    let mut frame = Frame::new(30, 12, cloud.palette.bg);
-    cloud.draw_message(&mut frame, Instant::now());
-
-    let sum_of = |target: char| -> Option<u32> {
-        let mc = cloud.message.iter().find(|mc| mc.val == target)?;
-        let cell = frame.get(mc.col, mc.line)?;
-        let fg = cell.fg?;
-        let (r, g, b) = crate::palette::decode_color(fg)?;
-        Some(u32::from(r) + u32::from(g) + u32::from(b))
-    };
-    let recent = sum_of('d').expect("last char 'd' must be visible with an fg color");
-    let settled = sum_of('h').expect("first char 'h' must be visible with an fg color");
-    // Settled = 300 (100*3); boosted = 315 (105*3, no clamp).
-    assert_eq!(settled, 300, "settled char must render at base brightness");
-    assert!(
-        recent > settled,
-        "pulse scanner head (recent char, sum {recent}) must be brighter than a settled char (sum {settled})"
-    );
-}
-
-#[test]
 fn engrave_reveals_progressively_like_typewriter_pacing() {
     // Effects OFF isolates the reveal pacing from the spark sidecar
     // (sparks overwrite the head cell glyph — see the dedicated spark
@@ -374,10 +318,10 @@ fn engrave_reveals_progressively_like_typewriter_pacing() {
 
 #[test]
 fn engrave_head_burns_hot_and_cools_off() {
-    // Dim custom palette so the 2x boost does not clamp at 255 (same
-    // trick as the pulse scanner test). "hello world": at elapsed =
-    // 900 ms the last char 'd' (idx 9, revealed at 720 ms, age 180 ms)
-    // is still cooling → brighter than the settled 'h' (age 900 ms).
+    // Dim custom palette so the 2x boost does not clamp at 255. "hello
+    // world": at elapsed = 900 ms the last char 'd' (idx 9, revealed
+    // at 720 ms, age 180 ms) is still cooling → brighter than the
+    // settled 'h' (age 900 ms).
     let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
     cloud.set_effects_enabled(false);
     cloud.set_palette(crate::palette::Palette {

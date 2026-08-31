@@ -14,7 +14,6 @@ mod tests_monolith;
 mod tests_msg_fill_cascade;
 mod tests_msg_fill_glitch;
 mod tests_msg_fill_hologram;
-mod tests_msg_fill_pulse;
 mod tests_msg_fill_scorch;
 mod tests_msg_fill_style;
 mod tests_phosphor;

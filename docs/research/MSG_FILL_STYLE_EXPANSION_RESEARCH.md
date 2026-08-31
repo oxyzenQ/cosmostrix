@@ -11,8 +11,10 @@
 > order and wrong-glyph substitution. `scorch` (the wow-option) is
 > also IMPLEMENTED — burnt-in text with ember tint and a smoke
 > sidecar. `cascade` (the final candidate) is also IMPLEMENTED —
-> per-column waterfall reveal with drop-from-above. All five
-> candidates from the original advisor discussion have landed.
+> per-column waterfall reveal with drop-from-above. The `pulse`
+> style (pre-existing, not from this research round) was REMOVED
+> per owner directive (visually too similar to typewriter). All
+> five research candidates have landed.
 > Predecessor feature: `-mfs`/`--msg-fill-style` (v51, commit 65bdb1df).
 
 ## 1. Decision recorded: `engrave` (LANDED)
@@ -309,7 +311,7 @@ live-reload + clap + argv + testconf coverage.
 | `fade` | instant, block alpha 0→100% (800 ms) | fades with the block | none |
 | `words` | 200 ms/word + 150 ms fade-in | lags word progress | none |
 | `slide` | 60 ms/char, rises from 1 row below | lags text (t^1.5) | none |
-| `pulse` | typewriter + 1.5x scanner cursor | lags text (t^1.5) | none |
+| `pulse` | typewriter + 1.5x scanner cursor (REMOVED) | lags text (t^1.5) | none (removed) |
 | `instant` | full brightness at t=0 | clockwise draw over 1 s | none |
 | `engrave` | 80 ms/char burn-in, 2x hot head, 300 ms heat trail | lags text (t^1.5) | 48-slot spark pool (`msg_fill_style/engrave.rs`) |
 | `hologram` | 80 ms/char burn-in, 150 ms flicker + 2 s breathing hum, 600 ms scanline sweep | lags text (t^1.5) | none (stateless scanline pass in `msg_fill_style/hologram.rs`) |
