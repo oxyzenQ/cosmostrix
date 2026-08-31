@@ -58,20 +58,16 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // v20: Cinematic intro selector. Values: "logo" | "cosmic" | "none".
     // Default: "logo". CLI --intro flag wins over this config key.
     "intro",
-    // v50: Intro color override. Allows the intro animation to use a
-    // different color theme than the rain. Values: any builtin theme
-    // name (e.g. "energy-zen", "neon-green") or custom palette name
-    // (e.g. "cyberpunk_2077"). Default: same as --color (rain color).
-    // Use --list-colors to see available builtin themes.
+    // v50: Intro color override. Values: any builtin theme name or custom
+    // palette name. Default: brand EnergyZen (NOT the rain color — see
+    // INTRO_BRAND_SCHEME in event_loop_intro.rs). Use --list-colors for names.
     "intro-color",
-    // v50: Overlay message text. Two config keys mirror the CLI flags:
-    //   message         = "text"  → message WITHOUT border (matches -m)
-    //   message-border  = "text"  → message WITH border    (matches -mb)
-    // If both are present in config, `message-border` wins (border=true).
-    // CLI -m / -mb wins over either config key. When none of CLI/config
-    // provides a message, interactive mode defaults to a bordered overlay
-    // showing the project name (see main.rs CloudConfig construction).
-    // Benchmark mode never shows a message overlay.
+    // v50: Overlay message text. Two keys mirror CLI flags:
+    //   message = "text"  → WITHOUT border (matches -m)
+    //   message-border = "text"  → WITH border (matches -mb)
+    // If both present, message-border wins. CLI -m/-mb wins over either.
+    // Default: "Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>"
+    // (see default_message_text in src/types/constants.rs). Bench: no overlay.
     "message",
     "message-border",
     // v50-beta.3: msg-mode master switch for the message overlay subsystem.

@@ -9,6 +9,28 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### CLI/config harmony audit — peak verdict + stale comment fixes (Z-master-T)
+
+- **Audit scope**: deep audit of CLI flags vs config keys for harmony — override priority, parity, conflicts. Owner analogy: "bicycle factory standard, only change body color" — core machinery stays, surface consistency only.
+- **Harmony verdict**: ALREADY AT PEAK. The CLI/config system is harmonious:
+  - Override priority is consistent everywhere: CLI explicit > config > clap default > scene defaults. The `config_value()` + `is_explicit()` mechanism cleanly returns None when CLI is explicit, else the config value — no conflicts, no fighting.
+  - All 21 user-tunable config keys have CLI parity (scene, color, charset, fps, speed, density, monolith-size, glitch-level, bold, shadingmode, color-bg, crystal-dragon, power-dragon, async-mode, intro, intro-color, message, message-border, msg-mode, msg-fill-style). The one exception (`ambient-snapback-secs` = config-only) is by design — ambient scheduling itself is config-only per owner decision.
+  - All CLI-only flags (no-effects, benchmark family, screen-size, screensaver, utility/list/show flags) are correctly CLI-only — they are mode switches or utilities, not user-tunable runtime parameters.
+  - Naming is consistent: config keys use kebab-case matching CLI long flags. No snake_case/kebab-case mismatches.
+- **Surface fixes** (stale comments only — no machinery change):
+  - `configfile.rs:64`: intro-color comment said "Default: same as --color (rain color)" — WRONG. Actual default is brand EnergyZen (INTRO_BRAND_SCHEME). Fixed to "Default: brand EnergyZen (NOT the rain color)".
+  - `configfile.rs:75`: default message comment said "showing the project name" — WRONG. Actual default message is "Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>" (default_message_text in types/constants.rs). Fixed to exact string + source reference.
+- **A/B benchmark** (10s each, comment-only changes = zero perf impact):
+  - avg_fps: 91724 → 92671 (within noise, fps_drift stable at -0.48%)
+  - avg_dirty_cell_ratio: 2.96% → 2.96% (identical)
+  - total_ns_per_cell: 191.99 → 189.97 (within noise)
+  - frame_entropy_bits: 3.29 → 3.30 (within noise)
+  - density_gini: 0.8961 → 0.8957 (within noise)
+  - alloc_calls: 563 → 563 (identical)
+  - Conclusion: zero performance/visual regression — the "gears" are untouched.
+- **Files changed**: `src/config/configfile.rs` (2 stale comment fixes, trimmed to stay under 800-LOC cap).
+- **Tests**: clippy clean (`-D warnings`), fmt clean, gatekeepers 9/9.
+
 ### HUD: deep audit — stale comment fixes + peak verdict (Z-master-1X round 6)
 
 - **Audit scope**: all 24 HUD metrics (rows 0-23) for precision, harmony, stability/LTS. Verified metric formatting, NaN/Inf guards, pause-freeze consistency, and doc accuracy.
