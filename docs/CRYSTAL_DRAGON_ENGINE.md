@@ -399,6 +399,13 @@ the user goes idle for the `IDLE_AUTO_SNAPBACK_THRESHOLD_SECS` duration,
 at which point the ambient scheduler (if active) snaps back to the
 scheduled phase.
 
+**Z-master-1X**: when the ambient schedule is empty, `user_override_since_ambient`
+stays `true` forever (no ambient fire to clear it), but the drift gate in
+`cloud/post_rain.rs` skips the override check when `ambient_schedule_active == false`.
+So manual user overrides do NOT block crystal dragon drift when ambient is off —
+the engine continues to drift on its 60s poll cadence regardless of the
+override flag. See `docs/AMBIENT_SCHEDULER.md` "Self-reset when ambient is OFF".
+
 ### 11.3 Crystal <-> Ambient scheduler (snapback coordination)
 
 If the ambient scheduler has an active phase when the user goes idle:
@@ -410,7 +417,9 @@ If the ambient scheduler has an active phase when the user goes idle:
 
 If the user has explicitly disabled ambient (empty schedule or
 `snapback_killed` flag), no snapback occurs — the user's last manual
-selection persists.
+selection persists, and the Crystal Dragon's drift cycle self-resets
+every `CRYSTAL_DRAGON_POLLING_SECS` (60s) so drift continues to fire on
+its poll cadence (Z-master-1X round 2, commit `40bad33`).
 
 ## 12. Test Coverage
 

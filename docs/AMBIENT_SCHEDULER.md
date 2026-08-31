@@ -112,21 +112,42 @@ Crystal Dragon are enabled, the two systems cooperate with a
 keys — only `ambient-snapback-secs` which already exists).
 
 **State machine fields** (internal to Cloud, not config):
-- `drift_active: bool` — true while a drift is visible (waiting for snapback)
+- `drift_active: bool` — true while a drift is visible (waiting for snapback or self-reset)
 - `drift_start: Option<Instant>` — when the current drift began
+- `ambient_schedule_active: bool` — Z-master-1X: true when the ambient schedule has entries (set from `!ambient_schedule.entries.is_empty()` in `create_cloud`). When false, the drift gate skips the `user_override_since_ambient` check and the drift cycle self-resets (see "Ambient OFF" below).
 
-**Drift gate** (rain.rs): drift fires only when ALL are true:
+**Drift gate** (`cloud/post_rain.rs`): drift fires only when ALL are true:
 - `crystal_dragon` is enabled
 - `drift_active == false` (no drift currently visible)
-- `user_override_since_ambient == false` (no manual user override)
+- `user_override_since_ambient == false` **OR** `ambient_schedule_active == false`
+
+The last condition is the Z-master-1X fix (commit `c12580a`): `user_override_since_ambient` is forced to `true` at startup by `event_loop_setup.rs` (coredump fix, commit `2b0e28b`) and is only cleared by an ambient fire. When the ambient schedule is empty, no ambient fire ever happens, so the flag would otherwise stay `true` forever and permanently block crystal dragon drift. `ambient_schedule_active` is the authoritative signal — when false, the user-override check is skipped entirely.
 
 When drift fires: sets `drift_active = true`, `drift_start = now`,
 changes the palette, sets `user_override_since_ambient = true`.
 
-**Snapback** (input.rs try_auto_snapback): counts idle from `drift_start`
+**Snapback** (input.rs `try_auto_snapback`): counts idle from `drift_start`
 (when drift began), NOT from `last_user_input_at`. When
 `now - drift_start >= ambient-snapback-secs`, snapback reverts the
 palette to ambient and clears `drift_active = false` + `drift_start = None`.
+Snapback only runs when the ambient schedule is non-empty — it early-returns
+on `schedule.entries.is_empty()` (see `input.rs:481`).
+
+**Self-reset when ambient is OFF** (Z-master-1X round 2, commit `40bad33`):
+when `ambient_schedule_active == false`, `try_auto_snapback` never runs
+(no schedule → early-return), so without a self-reset path the first
+drift would set `drift_active = true` and no mechanism would ever clear
+it — permanently blocking all subsequent drifts. The self-reset in
+`post_rain.rs` clears `drift_active` + `drift_start` + resets
+`crystal_dragon_last_poll` when ALL of the following are true:
+`drift_active == true`, `ambient_schedule_active == false`, and
+`now - drift_start >= CRYSTAL_DRAGON_POLLING_SECS` (60s).
+
+The 60s visibility window matches the polling cadence: drift is visible
+for one poll cycle, then the cycle resets so the next poll can fire a
+new drift. When ambient is ON, the snapback path clears `drift_active`
+first (at `ambient-snapback-secs`, default 30s) and the self-reset is a
+no-op — correct ordering (snapback at 30s < self-reset at 60s).
 
 **Timeline** (with `ambient-snapback-secs = 10`, poll = 60s):
 
@@ -143,6 +164,27 @@ T=190:  snapback fires → revert
 
 **Rhythm**: 60s ambient → 10s drift → revert → 60s ambient → 10s drift
 → revert → ... Drift is visible for exactly `ambient-snapback-secs`.
+
+**Timeline (ambient OFF)** — Z-master-1X round 2 (commit `40bad33`):
+
+```
+T=0:    startup → palette=user/config color, drift_active=false,
+        ambient_schedule_active=false
+T=60:   drift fires (12% chance per poll) → palette=neon-green,
+        drift_active=true, drift_start=T60
+T=120:  self-reset fires (120-60=60s >= 60s POLLING_SECS) →
+        drift_active=false, drift_start=None,
+        crystal_dragon_last_poll=T120
+T=180:  drift fires again (12% chance) → palette=ocean,
+        drift_active=true, drift_start=T180
+T=240:  self-reset fires → cycle repeats
+```
+
+**Rhythm (ambient OFF)**: 60s drift visible → reset → 60s drift visible
+→ reset → ... No palette revert (no ambient to revert to) — the previous
+drift color persists until the next drift fires. The 60s visibility
+window is fixed at `CRYSTAL_DRAGON_POLLING_SECS` (not configurable) so
+the cycle cadence matches the poll cadence exactly.
 
 **Edge case: snapback >= 60**: if `ambient-snapback-secs >= 60`, the
 next drift poll (at +60s) finds `drift_active` still true → drift is
