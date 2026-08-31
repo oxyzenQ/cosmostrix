@@ -9,6 +9,27 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### CLI/config depth stresstest — no bugs found + stresstest script added (Z-master-1T)
+
+- **Stresstest scope**: depth stresstest of CLI + config/live-reload for potential bugs. 47 cases covering: CLI value boundaries (fps 0/1/240/999999, speed 0/1/100, density 0/0.01/5.0/-1), flag conflicts (scene+color, scene+scene-custom, msg-mode+CLI, power+crystal), enum values (glitch-level case sensitivity, intro types, color-bg, monolith-size, msg-fill-style), typo suggestions (colr→color, scne→scene, non-numeric fps/speed), config edge cases (empty, unknown key, bad type, out-of-range, dual message keys, malformed TOML), dump-config/testconf validation, and rapid config reloads.
+- **Result**: 47/47 PASS. **NO BUGS FOUND.** The CLI/config system is robust:
+  - Invalid values produce clean error messages (no panics, no crashes).
+  - Unknown config keys are rejected with clear errors.
+  - Out-of-range values are rejected at validation.
+  - Malformed TOML is caught by the parser.
+  - Flag conflicts resolve via the documented priority (CLI > config > scene defaults).
+  - Live-reload watcher is robust: bounded channel (cap 64), panic catch, polling heartbeat fallback, invalid values revert to base.
+  - `--config` path is protected by safepath (security feature — only allowed directories accepted).
+- **Stresstest script added**: `scripts/cli_config_stresstest.sh` — 47 cases, runnable via `bash scripts/cli_config_stresstest.sh`. Complements the existing `scripts/cli_suggestion_stresstest.sh` (18 cases) with broader coverage of value boundaries, config files, and live-reload scenarios.
+- **A/B benchmark** (10s each, no code changes = identical):
+  - avg_fps: 92662 → 92660 (within noise)
+  - dirty_cell_ratio: 2.96% → 2.96% (identical)
+  - total_ns_per_cell: 190.04 → 189.96 (within noise)
+  - alloc_calls: 563 → 563 (identical)
+  - Conclusion: zero regression — stresstest was validation-only.
+- **Files changed**: `scripts/cli_config_stresstest.sh` (new, 47 cases).
+- **Tests**: 1943 unit tests pass. clippy clean, fmt clean, gatekeepers 9/9.
+
 ### CLI/config harmony audit — peak verdict + stale comment fixes (Z-master-T)
 
 - **Audit scope**: deep audit of CLI flags vs config keys for harmony — override priority, parity, conflicts. Owner analogy: "bicycle factory standard, only change body color" — core machinery stays, surface consistency only.
