@@ -32,7 +32,7 @@
 //!   drift, live-config reload) is reflected on the very next frame, with
 //!   no perceptible delay. The 1 Hz rate limit only governs text
 //!   reformatting (p99 sort, format! calls, RSS string).
-//! - **Rain-aesthetic color gradient**: the HUD's 22 lines form a vertical
+//! - **Rain-aesthetic color gradient**: the HUD's 24 lines form a vertical
 //!   brightness gradient that mirrors a falling rain droplet — the bottom
 //!   line (screensize, the terminal-size anchor) is the brightest `head`
 //!   (palette last-stop, the rain's leading bright character), the top
@@ -43,10 +43,11 @@
 //!   `fps`/`tgt`/`max` were the brightest — the user explicitly flagged
 //!   the inversion: 'rain tail is dim head is white' (head leads at the
 //!   bottom of a falling stream).
-//! - **v51 row order (owner reorder mandate 2026-08-31)**: fps / tgt /
+//! - **Row order (v51 + Z-master-1X round 5)**: fps / tgt /
 //!   max / p99 / cpu / rss / ehs / prs / scn / chr / clr / sped / dsty /
-//!   prdr / crdr / ambt / glth / ctun / mnst / cid / up / screensize —
-//!   identity lines above the controls, session footer at the bottom.
+//!   prdr / crdr / ambt / glth / ctun / mnst / dcel / tcel / cid / up /
+//!   screensize — identity lines above the controls, cell efficiency above
+//!   the session footer at the bottom.
 //! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 

@@ -7,18 +7,19 @@
 //! Owns `HudState::update_metrics()` — the 1 Hz metric recompute that
 //! refreshes all HUD text fields (fps, tgt, max, p99, cpu, rss, ehs,
 //! prs, scn, chr, clr, sped, dsty, prdr, crdr, ambt, glth, ctun,
-//! mnst, up, screensize — cid is static, set once in `new()` at row
-//! 19) + recomputes the chroma gradient + resizes the cached_lines
-//! buffer to fit the new content width.
+//! mnst, dcel, tcel, up, screensize — cid is static, set once in
+//! `new()` at row 21) + recomputes the chroma gradient + resizes the
+//! cached_lines buffer to fit the new content width.
 //!
 //! v51 row order (owner mandate 2026-08-31, "reorder/tidying HUD
-//! metrics"): identity/scene lines moved up next to the health core
-//! (scn/chr/clr at rows 8-10, before the user-adjustable sped/dsty at
-//! 11-12), dragon + tuning state follows (prdr/crdr/ambt/glth/ctun/
-//! mnst at rows 13-18), and the session footer closes the dashboard
-//! (cid 19, up 20, screensize 21 — the build identity keeps a
-//! prominent position and the terminal size stays the visual anchor
-//! at the bottom).
+//! metrics") + Z-master-1X round 5 (dcel/tcel added): identity/scene
+//! lines moved up next to the health core (scn/chr/clr at rows 8-10,
+//! before the user-adjustable sped/dsty at 11-12), dragon + tuning
+//! state follows (prdr/crdr/ambt/glth/ctun/mnst at rows 13-18), cell
+//! efficiency (dcel/tcel at rows 19-20), and the session footer closes
+//! the dashboard (cid 21, up 22, screensize 23 — the build identity
+//! keeps a prominent position and the terminal size stays the visual
+//! anchor at the bottom).
 //!
 //! Also owns `HudState::set_metrics_paused()` — the v51 pause-freeze
 //! contract (owner bug fix 2026-08-30): while the rain is paused (or
@@ -198,13 +199,14 @@ impl HudState {
         self.cached_lines[4] = (colors[4], format!(" cpu: {cpu_str}"));
         self.cached_lines[5] = (colors[5], format!(" rss: {rss_str}"));
         // v50 (2026-08-17) HUD expansion → v51 reorder (owner mandate
-        // 2026-08-31): populate the metric rows in the owner's new
-        // order — after the health pair (ehs/prs, rows 6-7) come the
-        // identity lines (scn/chr/clr, rows 8-10), then the
-        // user-adjustable controls (sped/dsty, rows 11-12), then the
-        // dragon + tuning state (prdr/crdr/ambt/glth/ctun/mnst, rows
-        // 13-18), then the session footer (cid 19 static, up 20,
-        // screensize 21). All values come from HudState fields that
+        // 2026-08-31) → Z-master-1X round 5 (dcel/tcel added): populate
+        // the metric rows in the current order — after the health pair
+        // (ehs/prs, rows 6-7) come the identity lines (scn/chr/clr,
+        // rows 8-10), then the user-adjustable controls (sped/dsty,
+        // rows 11-12), then the dragon + tuning state (prdr/crdr/ambt/
+        // glth/ctun/mnst, rows 13-18), then cell efficiency (dcel/tcel,
+        // rows 19-20), then the session footer (cid 21 static, up 22,
+        // screensize 23). All values come from HudState fields that
         // are written by the corresponding setters (called by
         // event_loop). The text is rebuilt here at the 1 Hz tick so
         // number flicker is avoided (matches the fps/p99/max/rss

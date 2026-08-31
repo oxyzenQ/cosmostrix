@@ -9,6 +9,16 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### HUD: deep audit — stale comment fixes + peak verdict (Z-master-1X round 6)
+
+- **Audit scope**: all 24 HUD metrics (rows 0-23) for precision, harmony, stability/LTS. Verified metric formatting, NaN/Inf guards, pause-freeze consistency, and doc accuracy.
+- **Precision verdict**: ALREADY AT PEAK. Every float metric uses appropriate precision — fps/tgt adaptive (1 decimal <100, 0 decimals >=100, humanize >=10K), max/p99 at 3 decimals ms, cpu at 2 decimals %, ehs integer, prs/sped/dsty at 1-2 decimals, dcel count + 1 decimal %. No over-engineering needed.
+- **Harmony verdict**: ALREADY CONSISTENT. All 24 metrics follow the " label: value" pattern, all use the chroma gradient color sweep, all rate-limited at 1 Hz (text reformat) with per-frame color refresh. Percentage metrics use % suffix consistently (cpu, dcel). String metrics (scn/chr/clr/glth/ctun/mnst/prdr/crdr/ambt) use lowercase short labels.
+- **Stability/LTS verdict**: STRONG. NaN/Inf guards on all float setters (ehs, prs, sped, dsty — clamped to 0.0 on non-finite). Division-by-zero guarded in fps (avg_ms > 0.0 check) and dcel (latest_total > 0 check). max_ms guarded in push_frame_time (NaN comparison is false, never stored). Pause-freeze consistent across all samplers (push_frame_time, maybe_sample_rss, maybe_sample_cpu, set_dirty_cell_stats, set_endurance_health_score, set_effective_pressure). The intentional asymmetry where set_endurance_health_score/set_effective_pressure do NOT check `self.visible` (only `self.metrics_paused`) is correct — the event loop always pushes live values so they're fresh when the HUD is toggled on.
+- **Stale comments fixed**: 3 comments in metrics.rs + mod.rs still referenced the old 22-row layout (cid 19, up 20, screensize 21) instead of the 24-row layout (dcel 19, tcel 20, cid 21, up 22, screensize 23). Fixed all to match the current Z-master-1X round 5 layout.
+- **Files changed**: `src/interactive/hud/metrics.rs` (2 stale comment fixes), `src/interactive/hud/mod.rs` (1 stale comment fix — "22 lines" → "24 lines" + row order list updated).
+- **Tests**: 63 HUD tests pass. clippy clean, fmt clean, gatekeepers 9/9.
+
 ### HUD: dcel format combines count + percentage (Z-master-1X round 6)
 
 - **Format change**: `dcel` metric now shows both the rolling average dirty cell count AND the ratio percentage. Old format: `dcel: 6.8%`. New format: `dcel: 120/6.8%` where 120 = rolling avg dirty cell count (integer) and 6.8% = dirty/total ratio. Owner mandate: combine count + percentage so the user sees BOTH the absolute number (how many cells changed) AND the ratio (efficiency at a glance).
