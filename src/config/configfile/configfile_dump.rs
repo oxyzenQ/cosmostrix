@@ -188,9 +188,13 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   message, message-border, msg-mode, msg-fill-style,
 #   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
 #
-# All RUNTIME SHORTKEYS (c/C/s/S/x/X/p/+/-/etc.) work normally during
-# ambient — they set user_override_since_ambient=true so the ambient
-# scheduler yields control until the next phase boundary.
+# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/i/[/]/Up/Down) work normally
+# during ambient — they set user_override_since_ambient=true so the
+# ambient scheduler yields control until the next phase boundary
+# (or after ambient-snapback-secs of input idle). The '+', '-', '_',
+# '=' density aliases were removed (v30 simplify — never documented
+# in --help); use '[' and ']' for density down/up. The 'a' shortcut
+# was removed (v35) — auto-snapback replaced it.
 #
 # To make scene-owned config edits take effect: comment out ALL
 # ambient.HH-MM entries and save. The schedule empties, the ambient

@@ -501,11 +501,17 @@ lives on the event loop / Cloud construction / separate layers):
 `msg-mode`, `msg-fill-style`, `ambient-snapback-secs`, and
 `ambient.<HH-MM>` (editing the schedule itself).
 
-**All runtime shortkeys** (`c`/`C`/`s`/`S`/`x`/`X`/`p`/`+`/`-`/etc.)
+**All runtime shortkeys** (`q`/`r`/`c`/`C`/`s`/`S`/`x`/`X`/`p`/`i`/`[`/`]`/`Up`/`Down`)
 work normally during ambient — they set
 `user_override_since_ambient = true` so the ambient scheduler yields
-control until the next phase boundary. The owner verified this via
-HUD metrics + visual indicators.
+control until the next phase boundary (or after
+`ambient-snapback-secs` of input idle). The `+`/`-`/`_`/`=` density
+aliases were removed (v30 simplify — never documented in `--help`,
+verified no-op by `tests_v51_shortkey_noop.rs`); use `[` and `]` for
+density down/up. The `a` auto-snapback shortcut was removed (v35) —
+auto-snapback replaced it. The owner verified the active shortkey set
+via HUD metrics + visual indicators; the canonical reference is
+`--help` RUNTIME CONTROLS + `docs/RULES.md` "Active runtime keybinds".
 
 **Workaround**: To make scene-owned config edits take effect, comment
 out ALL `ambient.<HH-MM>` entries and save. The schedule empties, the
