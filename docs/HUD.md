@@ -486,6 +486,19 @@ at column 0, row 0).
 - The border is drawn only when the HUD is visible (`visible == true`)
   and `hud_width > 0`.
 
+**Dynamic clean movement (owner bug fix 2026-09-02):** the border
+position tracks `current_width` directly (NOT `max(cur, prev)`), so it
+moves left/right immediately when metric values change width (e.g.
+`dcel` value grows/shrinks). When the HUD shrinks (`prev > cur`), the
+old border cells at col `prev` (right edge) and cols `cur+1..=prev` at
+row 24 (bottom edge + corner) are explicitly blanked BEFORE drawing
+the new border — the metrics padding loop only blanks cols
+`text_len..max(cur,prev)`, which excludes col `prev` itself (the old
+border column). Without this clearing, the border leaves a visible
+"stain" or "ghost" at its old position when it moves left (owner
+reported as "glitch effect" / "bekas/noda setelah bergerak"). With the
+fix, the border moves cleanly with zero residue.
+
 ### Instant palette refresh (no delay on runtime changes)
 
 Color refresh is split out of the 1 Hz metric tick — `HudState::refresh_colors`

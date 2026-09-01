@@ -145,6 +145,51 @@ Docs: `docs/HUD.md` gains a new "Chroma dragon border" subsection
 under the color reference, documenting the shape, color sweep, and
 properties.
 
+### fix: v80.0.0-beta.1 — HUD border dynamic clean movement (residue/stain fix)
+
+Owner bug report (2026-09-02, "visual rating 8/10"): when metric values
+change width (e.g. `dcel` value grows/shrinks), the right border moves
+left/right to adjust position — but it left a visible "stain" or
+"ghost" at its old position, looking like a glitch effect.
+
+Root cause: `draw_border` used `hud_width = max(current_width,
+prev_width)` for the border position. When the HUD shrank, the border
+stayed at the old (wider) position for one frame (via max), then
+jumped left the next frame (when prev caught up to cur). The old
+border column was never blanked — the metrics padding loop only blanks
+cols `text_len..max(cur,prev)`, which excludes col `prev` itself (the
+old border column).
+
+Fix (`src/interactive/hud/hud_init.rs`):
+- Border position now tracks `current_width` directly (NOT max), so it
+  moves immediately when metrics change width.
+- When `prev > cur` (HUD shrank), old border cells at col `prev`
+  (right edge, rows 0..24) and cols `cur+1..=prev` at row 24 (bottom
+  edge + corner) are explicitly blanked BEFORE drawing the new border.
+- When `cur > prev` (HUD grew), no clearing needed — the old border
+  position is inside the new text/padding area, already handled by the
+  metrics padding loop.
+
+2 new regression tests in `src/interactive/hud/tests.rs`:
+- `hud_border_clears_stale_cells_when_width_shrinks`: reproduces the
+  owner's exact scenario (border at col 14, shrinks to col 10,
+  verifies col 14 is fully blanked — no stale `│` or `╯`).
+- `hud_border_grows_right_cleanly`: verifies border moves right
+  cleanly when width grows (no stale cells at old position).
+- Updated `hud_write_to_frame_clears_trailing_cells_when_width_shrinks`
+  (HB-01 test): the border now occupies col `current_width`, so the
+  stale 'e' at col 13 is replaced by `│` (border) instead of ` ` (blank).
+  The test now checks cell (10,1) for the text-area blanking behavior
+  AND cell (13,1) for the border replacement — both verify HB-01 is
+  still fixed (stale chars gone).
+
+All 69 HUD tests pass (67 existing + 2 new), 0 regressions. cargo fmt
++ cargo clippy -D warnings + cargo check --all-targets all clean.
+
+Docs: `docs/HUD.md` "Chroma dragon border" subsection gains a
+"Dynamic clean movement" paragraph documenting the tracking behavior
+and the residue clearing logic.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

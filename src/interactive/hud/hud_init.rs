@@ -233,15 +233,28 @@ impl super::HudState {
     /// block (top + left edges are implied by the screen edge).
     ///
     /// Color sweep:
-    /// - Right edge (rows 0..23, col = hud_width): per-row chroma color
-    ///   from `cached_lines`, sweeping dim tail at the top to bright
-    ///   head at the bottom — mirrors the HUD's own 24-row gradient
-    ///   and the message border's clockwise sweep philosophy.
-    /// - Bottom edge (row 24, cols 0..=hud_width): single bright head
-    ///   color (`cached_lines[23].0`, the palette's last stop — the
-    ///   rain's leading bright character) for a clean closing line.
-    /// - Corner (col hud_width, row 24): '╯' (light up-left corner) in
-    ///   the bright head color, connecting the right + bottom edges.
+    /// - Right edge (rows 0..23, col = current_width): per-row chroma
+    ///   color from `cached_lines`, sweeping dim tail at the top to
+    ///   bright head at the bottom — mirrors the HUD's own 24-row
+    ///   gradient and the message border's clockwise sweep philosophy.
+    /// - Bottom edge (row 24, cols 0..=current_width): single bright
+    ///   head color (`cached_lines[23].0`, the palette's last stop —
+    ///   the rain's leading bright character) for a clean closing line.
+    /// - Corner (col current_width, row 24): '╯' (light up-left corner)
+    ///   in the bright head color, connecting the right + bottom edges.
+    ///
+    /// Dynamic clean movement (owner bug report 2026-09-02, "visual
+    /// rating 8/10 — residue/stain when border moves"): the border
+    /// position tracks `current_width` directly (NOT `max(cur, prev)`),
+    /// so it moves left/right immediately when metric values change
+    /// width (e.g. `dcel` value grows/shrinks). When the HUD shrinks
+    /// (`prev > cur`), the old border cells at col `prev` (right edge)
+    /// and cols `cur+1..=prev` at row 24 (bottom edge + corner) are
+    /// explicitly blanked BEFORE drawing the new border — the metrics
+    /// padding loop only blanks cols `text_len..max(cur,prev)`, which
+    /// excludes col `prev` itself (the old border column). Without
+    /// this clearing, the border leaves a "stain" or "ghost" at its
+    /// old position when it moves left.
     ///
     /// Uses `frame.set()` (not `set_force`) so unchanged border cells
     /// aren't marked dirty — when the HUD width is stable, the border
@@ -249,19 +262,57 @@ impl super::HudState {
     /// `set()` silently skips out-of-bounds cells, so a terminal too
     /// short for row 24 simply omits the bottom edge without panicking.
     fn draw_border(&self, frame: &mut crate::frame::Frame, cols: u16, bg: Option<Color>) {
-        let hud_width = self.current_width.max(self.prev_width);
-        if hud_width == 0 {
+        let cur = self.current_width;
+        let prev = self.prev_width;
+        if cur == 0 && prev == 0 {
             return;
         }
         // Bright head color (palette last stop, cached_lines row 23 =
         // screensize — the visual anchor at the bottom of the HUD).
         let head_color = self.cached_lines[23].0;
 
-        // Right border: col = hud_width, rows 0..24 (all 24 HUD rows).
-        // Per-row chroma color sweep (dim tail at top -> bright head at
-        // bottom), matching the HUD's own gradient direction.
-        let right_col = hud_width;
-        if right_col < cols {
+        // v80.0.0-beta.1 residue fix: when the HUD width shrinks
+        // (prev > cur), the old border cells at col `prev` (right
+        // edge, rows 0..24) and cols `cur+1..=prev` at row 24 (bottom
+        // edge + corner) still hold border chars from the previous
+        // frame. They MUST be blanked explicitly — the metrics padding
+        // loop only blanks cols `text_len..max(cur,prev)`, which
+        // excludes col `prev` itself. Without this, the border leaves
+        // a visible "stain" at its old position when it moves left.
+        if prev > cur {
+            // Clear old right border column at `prev` (rows 0..24).
+            if prev < cols {
+                for row in 0..24u16 {
+                    let blank = crate::cell::Cell {
+                        ch: ' ',
+                        fg: None,
+                        bg,
+                        bold: false,
+                    };
+                    frame.set(prev, row, blank);
+                }
+            }
+            // Clear old bottom border cells at row 24. When cur > 0,
+            // the new border covers cols 0..=cur, so only clear
+            // cur+1..=prev. When cur == 0, no new border is drawn,
+            // so clear the entire old range 0..=prev.
+            let clear_from = if cur == 0 { 0 } else { cur + 1 };
+            for col in clear_from..=prev {
+                if col >= cols {
+                    break;
+                }
+                let blank = crate::cell::Cell {
+                    ch: ' ',
+                    fg: None,
+                    bg,
+                    bold: false,
+                };
+                frame.set(col, 24, blank);
+            }
+        }
+
+        // Draw new right border at `cur` (if cur > 0).
+        if cur > 0 && cur < cols {
             for row in 0..24u16 {
                 let cell = crate::cell::Cell {
                     ch: '│',
@@ -269,28 +320,25 @@ impl super::HudState {
                     bg,
                     bold: false,
                 };
-                frame.set(right_col, row, cell);
+                frame.set(cur, row, cell);
             }
         }
 
-        // Bottom border: row = 24, cols 0..=hud_width.
-        // Single bright head color for a clean closing line. The corner
-        // cell at (hud_width, 24) uses '╯' (light up-left corner) to
-        // connect the right edge (coming from above) and the bottom edge
-        // (going left).
-        let bottom_row = 24u16;
-        for col in 0..=hud_width {
-            if col >= cols {
-                break;
+        // Draw new bottom border at row 24, cols 0..=cur.
+        if cur > 0 {
+            for col in 0..=cur {
+                if col >= cols {
+                    break;
+                }
+                let ch = if col == cur { '╯' } else { '─' };
+                let cell = crate::cell::Cell {
+                    ch,
+                    fg: Some(head_color),
+                    bg,
+                    bold: false,
+                };
+                frame.set(col, 24, cell);
             }
-            let ch = if col == hud_width { '╯' } else { '─' };
-            let cell = crate::cell::Cell {
-                ch,
-                fg: Some(head_color),
-                bg,
-                bold: false,
-            };
-            frame.set(col, bottom_row, cell);
         }
     }
 }

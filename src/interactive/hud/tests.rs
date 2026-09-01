@@ -794,6 +794,15 @@ fn compute_chroma_gradient_24_sweeps_full_palette_range() {
 
 // HB-01 regression test: HUD width shrink (e.g., tgt drops " idle" suffix)
 // must clear the previously-occupied trailing cells immediately.
+//
+// v80.0.0-beta.1 chroma border update: when current_width shrinks to 13,
+// col 13 becomes the new border position (the border tracks current_width
+// directly, not max(cur,prev)). The stale 'e' at col 13 is replaced by
+// the border char '│' — the HB-01 bug (stale 'e' visible) is still fixed,
+// just via border replacement instead of blanking. To also verify that
+// TEXT area trailing cells are still blanked (not just replaced by
+// border), we check cell (10,1) which held 'i' from "idle" and is now
+// in the padding area (blanked to ' ').
 #[test]
 fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
     let mut h = HudState::new();
@@ -817,12 +826,30 @@ fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
 
     h.write_to_frame(&mut frame, cols, None);
 
-    let cleared = frame.get(13, 1).expect("cell must exist after shrink");
+    // Cell (10, 1) held 'i' from "idle" — now in the padding area, must
+    // be blanked (this is the classic HB-01 text-area clearing check).
+    let cleared = frame
+        .get(10, 1)
+        .expect("cell (10,1) must exist after shrink");
     assert_eq!(
         cleared.ch, ' ',
-        "cell (13,1) must be blanked — was residual 'e' bug"
+        "cell (10,1) must be blanked — held stale 'i' from previous wide text (HB-01 bug)"
     );
-    assert!(cleared.fg.is_none(), "cell (13,1) fg must be None");
+    assert!(cleared.fg.is_none(), "cell (10,1) fg must be None");
+
+    // Cell (13, 1) held 'e' from "idle" — now the border position
+    // (current_width = 13). The stale 'e' is replaced by '│', not blanked.
+    let border_cell = frame
+        .get(13, 1)
+        .expect("cell (13,1) must exist after shrink");
+    assert_ne!(
+        border_cell.ch, 'e',
+        "cell (13,1) must not hold stale 'e' — replaced by border (HB-01 still fixed)"
+    );
+    assert_eq!(
+        border_cell.ch, '│',
+        "cell (13,1) is the new border position (current_width = 13)"
+    );
 }
 
 // v80.0.0-beta.1 HUD chroma border regression test (owner mandate 2026-09-02):
@@ -947,4 +974,139 @@ fn hud_border_skips_when_invisible() {
     if let Some(cell) = frame.get(10, 0) {
         assert_ne!(cell.ch, '│', "no right border when HUD is invisible");
     }
+}
+
+// v80.0.0-beta.1 residue fix regression test (owner bug report 2026-09-02):
+// When the HUD width shrinks (e.g. `dcel` value gets shorter), the border
+// moves LEFT to the new `current_width`. The old border cells at the
+// previous (wider) position MUST be blanked — otherwise they leave a
+// visible "stain" or "ghost" that looks like a glitch effect.
+//
+// This test reproduces the exact scenario the owner reported: border at
+// col 14 (wide metrics), then shrinks to col 10 (shorter `dcel` value),
+// then verifies col 14 is fully blanked (no stale `│`).
+#[test]
+fn hud_border_clears_stale_cells_when_width_shrinks() {
+    let mut h = HudState::new();
+    h.toggle(); // make visible
+
+    let test_color = |i: usize| -> Color {
+        Color::Rgb {
+            r: (i * 10) as u8,
+            g: 100,
+            b: 200,
+        }
+    };
+    for i in 0..24 {
+        h.cached_lines[i].0 = test_color(i);
+        h.cached_lines[i].1 = format!(" row{}", i);
+    }
+
+    // Frame 1: width = 14 (wide metrics, e.g. dcel shows a long value).
+    h.current_width = 14;
+    h.prev_width = 14;
+    let cols = 40u16;
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+
+    // Verify border at col 14 (the wide position).
+    assert_eq!(
+        frame.get(14, 0).unwrap().ch,
+        '│',
+        "frame 1: right border at col 14"
+    );
+    assert_eq!(
+        frame.get(14, 24).unwrap().ch,
+        '╯',
+        "frame 1: corner at (14,24)"
+    );
+
+    // Frame 2: width shrinks to 10 (dcel value got shorter).
+    // prev_width is now 14 (set at end of frame 1's write_to_frame).
+    h.current_width = 10;
+    h.write_to_frame(&mut frame, cols, None);
+
+    // New border at col 10.
+    assert_eq!(
+        frame.get(10, 0).unwrap().ch,
+        '│',
+        "frame 2: new right border at col 10"
+    );
+    assert_eq!(
+        frame.get(10, 24).unwrap().ch,
+        '╯',
+        "frame 2: new corner at (10,24)"
+    );
+
+    // OLD border at col 14 MUST be cleared (no residue/stain).
+    let old_right = frame.get(14, 0).expect("old border cell must exist");
+    assert_eq!(
+        old_right.ch, ' ',
+        "frame 2: old right border at col 14 must be blanked (no residue) — was the owner's glitch bug"
+    );
+    assert!(
+        old_right.fg.is_none(),
+        "frame 2: old right border fg must be None"
+    );
+
+    // OLD bottom border cells at cols 11..=14, row 24 MUST be cleared.
+    for col in 11..=14u16 {
+        let old_bottom = frame.get(col, 24).expect("old bottom cell must exist");
+        assert_eq!(
+            old_bottom.ch, ' ',
+            "frame 2: old bottom border at ({},24) must be blanked",
+            col
+        );
+    }
+
+    // OLD corner at (14, 24) MUST be cleared (was '╯', now ' ').
+    let old_corner = frame.get(14, 24).expect("old corner cell must exist");
+    assert_eq!(
+        old_corner.ch, ' ',
+        "frame 2: old corner at (14,24) must be blanked"
+    );
+}
+
+// Border must move RIGHT cleanly when width grows (no stale cells expected,
+// but verify the new position is drawn and no residue at old position).
+#[test]
+fn hud_border_grows_right_cleanly() {
+    let mut h = HudState::new();
+    h.toggle();
+
+    for i in 0..24 {
+        h.cached_lines[i].0 = Color::Rgb {
+            r: 100,
+            g: 100,
+            b: 100,
+        };
+        h.cached_lines[i].1 = format!(" row{}", i);
+    }
+
+    // Frame 1: width = 8.
+    h.current_width = 8;
+    h.prev_width = 8;
+    let cols = 40u16;
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+    assert_eq!(frame.get(8, 0).unwrap().ch, '│');
+
+    // Frame 2: width grows to 12.
+    h.current_width = 12;
+    h.write_to_frame(&mut frame, cols, None);
+
+    // New border at col 12.
+    assert_eq!(
+        frame.get(12, 0).unwrap().ch,
+        '│',
+        "frame 2: new right border at col 12"
+    );
+
+    // Old border at col 8 should now be part of the text/padding area
+    // (the metrics loop blanks it via padding). It must NOT still be '│'.
+    let old_cell = frame.get(8, 0).expect("old border cell must exist");
+    assert_ne!(
+        old_cell.ch, '│',
+        "frame 2: old border at col 8 must not still be the vertical char (should be text or blank)"
+    );
 }
