@@ -95,7 +95,10 @@ pub(crate) fn rebuild_cloud_config(
     // Now: custom name → load the palette (custom wins on collision,
     // mirroring startup); builtin name → clear the palette so the scheme
     // actually takes effect; absent key → keep current state.
-    if !cli.color {
+    // Z-master-2-v2: `--colors-custom <name>` is also an explicit CLI color
+    // intent — a config `color` key must NOT clear the CLI-owned palette on
+    // reload (startup checks args.colors_custom FIRST and never drops it).
+    if !cli.color && !cli.colors_custom {
         if let Some(v) = cfg.get("color") {
             let is_custom = crate::colors_custom::is_colors_custom_name(cfg, v);
             if is_custom {
@@ -142,6 +145,11 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // v16: Custom color palette live reload (if active at startup).
+    // Z-master-2-v2 note: this fires even when cli.colors_custom is set —
+    // that is CORRECT: it re-loads the CLI-owned palette from the (edited)
+    // [colors-custom.<name>] block, which is the documented live-edit
+    // feature for custom palettes. The cli.colors_custom guard above only
+    // prevents the plain `color` key from switching/clearing the palette.
     if let Some(ref name) = new.custom_palette_name {
         if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, name) {
             new.custom_palette = Some(palette);
@@ -192,7 +200,13 @@ pub(crate) fn rebuild_cloud_config(
     // the base-scene (mirroring startup's rain_style_for_custom_scene
     // construction path), and the field layer is applied by the
     // scene-custom tail block below (same layer the startup path uses).
-    if !cli.scene {
+    // Z-master-2-v2: `--scene-custom <name>` is also explicit CLI scene
+    // intent — a config `scene` key must NOT replace the CLI-selected
+    // custom scene on reload (startup applies the CLI scene-custom layer
+    // LAST, so it wins over the config scene key; the guard preserves
+    // that outcome). The tail block below still re-applies the custom
+    // scene's fields, so live-editing [scene-custom.<name>] keeps working.
+    if !cli.scene && !cli.scene_custom {
         if let Some(v) = cfg.get("scene") {
             // v50 fix: update new.scene_name to match the config's scene
             // value. Without this, the live-reload path left scene_name at
@@ -223,7 +237,10 @@ pub(crate) fn rebuild_cloud_config(
                 new.scene_custom_name = None;
                 new.rain_style = scene_info.config.rain_style;
                 if let Some(color) = scene_info.config.color {
-                    if !cli.color && !user_set_color {
+                    // Z-master-2-v2: `--colors-custom` is explicit CLI color
+                    // intent — the scene color default (and the palette clear
+                    // below) must not touch a CLI-owned palette.
+                    if !cli.color && !cli.colors_custom && !user_set_color {
                         if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
                             lr_trace!("scene '{}' applies default color={:?}", v, scheme);
                             new.color_scheme = scheme;
@@ -409,13 +426,23 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // color-bg live reload (true = terminal default; false = solid black).
-    if let Some(v) = cfg.get("color-bg") {
-        new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
-            "black" => false,
-            "default-background" | "default_background" => true,
-            _ => new.default_bg,
-        };
-        lr_trace!("apply color-bg='{}' → default_bg={}", v, new.default_bg);
+    // Z-master-2-v2: `--color-bg` CLI wins over config on live-reload (was:
+    // config-only path, no intent guard — the CLI flag was overridden by a
+    // config edit on next reload; startup gates via config_value).
+    if !cli.color_bg {
+        if let Some(v) = cfg.get("color-bg") {
+            new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
+                "black" => false,
+                "default-background" | "default_background" => true,
+                _ => new.default_bg,
+            };
+            lr_trace!("apply color-bg='{}' → default_bg={}", v, new.default_bg);
+        }
+    } else {
+        lr_trace!(
+            "skip color-bg (CLI explicit) — keeping default_bg={}",
+            new.default_bg
+        );
     }
 
     // Monolith size — v50.0.0-alpha.7: CLI intent guard added (Issue #4).
@@ -453,33 +480,49 @@ pub(crate) fn rebuild_cloud_config(
 
     // (CLI-P-1): live-reload bold/shading-mode/async-mode (previously
     // silently ignored). Mirrors startup parsers with range validation.
-    if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
-        // Range-gate to match startup parse_u8_config("bold", ..., 0, 2).
-        // Upstream validate_config_strictly catches out-of-range before this
-        // runs, but defense-in-depth prevents silent mis-parsing if that
-        // validation ever has a regression.
-        new.bold_mode = match v {
-            0 => crate::runtime::BoldMode::Off,
-            2 => crate::runtime::BoldMode::All,
-            _ => crate::runtime::BoldMode::Random,
-        };
-        if v > 2 {
-            // Out-of-range: log and let validate_config_strictly handle
-            // rejection on next cycle. Do not apply the parsed value.
-            new.bold_mode = base.bold_mode;
+    // Z-master-2-v2: `--bold` CLI wins over config on live-reload (was:
+    // config-only path, no intent guard — the CLI flag was overridden by a
+    // config edit on next reload; startup gates via config_value).
+    if !cli.bold {
+        if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
+            // Range-gate to match startup parse_u8_config("bold", ..., 0, 2).
+            // Upstream validate_config_strictly catches out-of-range before this
+            // runs, but defense-in-depth prevents silent mis-parsing if that
+            // validation ever has a regression.
+            new.bold_mode = match v {
+                0 => crate::runtime::BoldMode::Off,
+                2 => crate::runtime::BoldMode::All,
+                _ => crate::runtime::BoldMode::Random,
+            };
+            if v > 2 {
+                // Out-of-range: log and let validate_config_strictly handle
+                // rejection on next cycle. Do not apply the parsed value.
+                new.bold_mode = base.bold_mode;
+            }
         }
+    } else {
+        lr_trace!("skip bold (CLI explicit) — keeping {:?}", new.bold_mode);
     }
-    if let Some(v) = cfg
-        .get("shading-mode")
-        .and_then(|s| s.trim().parse::<u8>().ok())
-    {
-        new.shading_mode = match v {
-            1 => crate::runtime::ShadingMode::DistanceFromHead,
-            _ => crate::runtime::ShadingMode::Random,
-        };
-        if v > 1 {
-            new.shading_mode = base.shading_mode;
+    // Z-master-2-v2: `--shading-mode` CLI wins over config on live-reload
+    // (was: config-only path, no intent guard — same bug class as bold).
+    if !cli.shading_mode {
+        if let Some(v) = cfg
+            .get("shading-mode")
+            .and_then(|s| s.trim().parse::<u8>().ok())
+        {
+            new.shading_mode = match v {
+                1 => crate::runtime::ShadingMode::DistanceFromHead,
+                _ => crate::runtime::ShadingMode::Random,
+            };
+            if v > 1 {
+                new.shading_mode = base.shading_mode;
+            }
         }
+    } else {
+        lr_trace!(
+            "skip shading-mode (CLI explicit) — keeping {:?}",
+            new.shading_mode
+        );
     }
     // v50.0.0-alpha.7: --async-mode CLI flag now exists. CLI wins over
     // config (was: config-only path, no intent guard — CLI flag was

@@ -229,7 +229,10 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             // palette reference (same layering as the startup path in
             // apply_profile_overrides, which skips colors-custom when the
             // CLI color flag is explicit).
-            if new.cli_explicit.color {
+            // (Z2-1): `--colors-custom` explicit also wins — the CLI-owned
+            // palette must not be replaced by the block's palette reference
+            // on a live-reload re-apply.
+            if new.cli_explicit.color || new.cli_explicit.colors_custom {
                 return false;
             }
             if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, value) {
@@ -332,6 +335,11 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "bold" => {
+            // (Z2-1): CLI gate — `--bold` wins over the block's field
+            // (startup parity: apply_profile_overrides checks is_explicit).
+            if new.cli_explicit.bold {
+                return false;
+            }
             // v51 killer-features hardening: enforce the SAME 0..=2 range as
             // the startup path (apply_profile_overrides uses
             // parse_u8_override(.., 0, 2)) and as --testconf validation
@@ -356,6 +364,12 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             }
         }
         "shading-mode" => {
+            // (Z2-1): CLI gate — `--shading-mode` wins over the block's
+            // field (startup parity: apply_profile_overrides checks
+            // is_explicit).
+            if new.cli_explicit.shading_mode {
+                return false;
+            }
             // v51 killer-features hardening: enforce the SAME 0..=1 range as
             // startup (parse_u8_override(.., 0, 1)) and --testconf — see the
             // bold arm note. Previously any u8 was accepted.

@@ -30,23 +30,23 @@
 
 | Config Key | CLI Flag | Live-Reloads? | Source: `rebuild_cloud_config` line | Notes |
 |------------|----------|:-------------:|:------------------------------------:|-------|
-| `color` | `--color` | OK YES | 581-596 | CLI wins over config (intent preservation via `cli.color`). |
+| `color` | `--color` | OK YES | 581-596 | CLI wins over config (intent preservation via `cli.color`); `--colors-custom` also blocks the key (Z-master-2-v2). |
 | `charset` | `--charset` | OK YES | 605-636 | CLI wins; charset-custom blocks also re-parsed. |
-| `scene` | `--scene` | OK YES | 640-716 | CLI wins; scene defaults re-applied for color/charset/speed/density. |
+| `scene` | `--scene` | OK YES | 640-716 | CLI wins; `--scene-custom` also blocks the config scene key (Z-master-2-v2); scene defaults re-applied for color/charset/speed/density. |
 | `speed` | `--speed` | OK YES | 718-730 | CLI wins. |
 | `density` | `--density` | OK YES | 732-745 | CLI wins; `base_density` also updated. |
 | `fps` | `--fps` | OK YES | 747-759 | CLI wins; `target_fps` updated. |
 | `glitch-level` | `--glitch-level` | OK YES | 767-787 | CLI wins; full preset re-derivation. |
-| `color-bg` | (none) | OK YES | 790-797 | Config-only; flips `default_bg`. |
-| `monolith-size` | `--monolith-size` | OK YES | 800-805 | Config + CLI both applied (no intent gate — bug?). |
+| `color-bg` | `--color-bg` | OK YES | 790-797 | CLI wins (`cli.color_bg` guard, Z-master-2-v2); flips `default_bg`. |
+| `monolith-size` | `--monolith-size` | OK YES | 800-805 | CLI wins (`cli.monolith_size` guard, v50.0.0-alpha.7 Issue #4 fix). |
 | `crystal-dragon` | `--crystal-dragon` | OK YES | 809-815 | CLI wins (`cli.crystal_dragon` guard). |
-| `power-dragon` | `--power-dragon` | OK YES | 821-825 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1 below). |
-| `bold` | `--bold` | OK YES | 829-844 | Range-gated (0-2); no CLI intent gate. |
-| `shading-mode` | `--shading-mode` | OK YES | 845-856 | Range-gated (0-1); no CLI intent gate. |
-| `async-mode` | `--async-mode` | OK YES | 857-861 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1). |
+| `power-dragon` | `--power-dragon` | OK YES | 821-825 | CLI wins (`cli.power_dragon` guard, v50.0.0-alpha.7). |
+| `bold` | `--bold` | OK YES | 829-844 | CLI wins (`cli.bold` guard, Z-master-2-v2); range-gated (0-2). |
+| `shading-mode` | `--shading-mode` | OK YES | 845-856 | CLI wins (`cli.shading_mode` guard, Z-master-2-v2); range-gated (0-1). |
+| `async-mode` | `--async-mode` | OK YES | 857-861 | CLI wins (`cli.async_mode` guard, v50.0.0-alpha.7). |
 | `color.tune.*` | `--color-tune` | OK YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
 | `ambient.HH-MM` | (none) | OK YES | 897-904 | Schedule re-collected; ambient thread notified. |
-| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. Every field arm now honors `cli_explicit.*` (Z-master-1-v2 gap 1); intra-block `color`/`colors-custom` + `charset`/`charset-custom` conflicts resolve deterministically like startup (gap 3). |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (Z-master-1-v2 gap 1 + Z-master-2-v2 bold/shading-mode/colors-custom); intra-block `color`/`colors-custom` + `charset`/`charset-custom` conflicts resolve deterministically like startup (gap 3). |
 | **`message`** | `-m` | X **NO** | (not handled) | Field stays at startup value. `create_cloud` re-calls `set_message` with the OLD value. |
 | **`message-border`** | `-mb` | X **NO** | (not handled) | Same — stays at startup value. |
 | **`msg-mode`** | `--msg-mode` | X **NO** | (not handled) | Field stays at startup value. Default fallback + gate logic only runs at startup. |
@@ -540,6 +540,38 @@ CLI flags (cli_explicit.*)
       > base-scene inherited defaults
         > built-in defaults
 ```
+
+## 12. Z-master-2-v2 Audit — CLI Intent Preservation for Config Keys (2026-09-01)
+
+Owner suspicion: "some potential bug" in CLI + config/live-reload. Depth
+audit of every CLI flag with a matching config key found FIVE flags whose
+CLI intent was silently lost on the first live-reload — the exact bug
+class the project had already fixed for monolith-size (Issue #4),
+power-dragon, async-mode, msg-mode, intro-color, message, and color-tune
+(v50.0.0-alpha.7). The pattern: `CliExplicit` grew a guard per fix, but
+these five were never added:
+
+| # | Flag | Bug (before) | Fix |
+|---|------|--------------|-----|
+| 1 | `--bold N` | config `bold` key overrode the CLI flag on every reload (startup gates via `config_value`) | `CliExplicit.bold` + `if !cli.bold` guard in `rebuild_cloud_config` |
+| 2 | `--shading-mode N` | same class — config `shading-mode` key overrode the flag | `CliExplicit.shading_mode` + guard |
+| 3 | `--color-bg X` | same class — config `color-bg` key overrode the flag | `CliExplicit.color_bg` + guard |
+| 4 | `--colors-custom <name>` | a config `color` key switching to a builtin CLEARED the CLI-owned custom palette (startup never drops it — main.rs checks `--colors-custom` first) | `CliExplicit.colors_custom` + `!cli.colors_custom` gate on the color block AND the scene color-default arm |
+| 5 | `--scene-custom <name>` | a config `scene` key replaced the CLI-selected custom scene AND cleared the `scene_custom_name` tracker (startup applies the CLI scene-custom layer last, so it wins) | `CliExplicit.scene_custom` + `!cli.scene_custom` gate on the scene block; the tail block still re-applies the custom scene's fields so live-editing the block keeps working |
+
+Consequential scene-custom field gates shipped in the same pass: the
+block's `bold` / `shading-mode` / `colors-custom` fields now also honor
+`cli_explicit.*` (mirrors FPS-F4, extending Z-master-1-v2 gap 1 to the
+newly tracked flags).
+
+Verification: 9 regression tests in
+`src/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
+2 `build_cli_explicit` argv-level). Suite green: 1967 passed / 0 failed.
+
+Stale matrix rows fixed in the same pass (section 1): the
+monolith-size / power-dragon / async-mode rows still described the
+pre-alpha.7 behavior ("no intent gate") even though those guards landed
+in v50.0.0-alpha.7 — the rows now match the code.
 
 ---
 <!--

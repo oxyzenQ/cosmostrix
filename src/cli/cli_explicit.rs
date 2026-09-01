@@ -96,6 +96,30 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
             matches.value_source("color_tune"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // Z-master-2-v2: track --bold / --shading-mode / --color-bg /
+        // --colors-custom / --scene-custom CLI explicit (all were missing —
+        // the live-reload path overrode CLI intent on config edit, same bug
+        // class as the monolith-size Issue #4 fix).
+        bold: matches!(
+            matches.value_source("bold"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        shading_mode: matches!(
+            matches.value_source("shading_mode"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        color_bg: matches!(
+            matches.value_source("color_bg"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        colors_custom: matches!(
+            matches.value_source("colors_custom"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
+        scene_custom: matches!(
+            matches.value_source("scene_custom"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
     };
     (cli_explicit_color, cli_explicit)
 }

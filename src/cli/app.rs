@@ -231,6 +231,25 @@ pub(crate) struct CliExplicit {
     /// v50.0.0-alpha.7: track `--color-tune` CLI explicit (was missing;
     /// needed for live-reload color.tune reset-on-comment fix).
     pub color_tune: bool,
+    /// Z-master-2-v2: track `--bold` CLI explicit (was missing — same bug
+    /// class as the monolith-size Issue #4: the config `bold` key silently
+    /// overrode the CLI flag on every live-reload).
+    pub bold: bool,
+    /// Z-master-2-v2: track `--shading-mode` CLI explicit (was missing —
+    /// same bug class; the config `shading-mode` key overrode the flag on
+    /// reload).
+    pub shading_mode: bool,
+    /// Z-master-2-v2: track `--color-bg` CLI explicit (was missing —
+    /// the config `color-bg` key overrode the flag on reload).
+    pub color_bg: bool,
+    /// Z-master-2-v2: track `--colors-custom` CLI explicit (was missing —
+    /// switching the config `color` key to a builtin cleared the CLI-owned
+    /// custom palette on reload; startup never does this).
+    pub colors_custom: bool,
+    /// Z-master-2-v2: track `--scene-custom` CLI explicit (was missing —
+    /// a config `scene` key silently replaced the CLI-selected custom
+    /// scene on reload; startup applies the CLI custom scene last).
+    pub scene_custom: bool,
 }
 
 impl CloudConfig {

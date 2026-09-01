@@ -9,6 +9,33 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### live-reload: CLI intent preservation for 5 more flags (Z-master-2-v2)
+
+Depth audit of CLI + config/live-reload found five flags whose CLI
+intent was silently lost on the first config edit (same bug class as
+the monolith-size Issue #4 / alpha.7 guard family — the guards simply
+were never added):
+
+- --bold, --shading-mode, --color-bg: the matching config key overrode
+  the CLI flag on every live-reload. CliExplicit gained the fields and
+  rebuild_cloud_config gained the guards.
+- --colors-custom: a config `color` key switching to a builtin cleared
+  the CLI-owned custom palette (startup never drops it). The color
+  block and the scene color-default arm now gate on cli.colors_custom.
+- --scene-custom: a config `scene` key replaced the CLI-selected custom
+  scene and cleared the tracker (startup applies the CLI scene-custom
+  layer last). The scene block now gates on cli.scene_custom; the
+  tail block still re-applies the custom scene fields so live-editing
+  the block keeps working.
+- scene-custom block fields bold / shading-mode / colors-custom now
+  honor cli_explicit.* (extends the Z-master-1-v2 field gates to the
+  newly tracked flags).
+
+9 regression tests added (tests_cli_priority.rs). Suite green: 1967/0.
+Stale per-key matrix rows (monolith-size / power-dragon / async-mode
+still described pre-alpha.7 behavior) refreshed in
+docs/LIVE_RELOAD_BEHAVIOR.md section 1 + new section 12.
+
 ### live-reload: killer-features priority contract hardening (Z-master-1-v2)
 
 Depth stresstest of the colors-custom / charset-custom / scene-custom
