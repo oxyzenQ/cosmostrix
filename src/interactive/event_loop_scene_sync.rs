@@ -4,17 +4,88 @@
 //! Runtime scene synchronization for live-reload — extracted from
 //! `event_loop.rs` to keep that file under the 800-LOC cap.
 //!
-//! Owns the `sync_base_cfg_with_runtime_scene()` helper: a pure function
-//! that re-applies a scene's managed defaults (color, charset, speed,
-//! density, rain_style) onto the base `CloudConfig` before
-//! `rebuild_cloud_config` layers user config on top.
+//! Owns the scene-family base resolution used before every
+//! `rebuild_cloud_config` call:
 //!
-//! Called from the live-reload path in `event_loop.rs` whenever the
-//! runtime scene name diverges from `base_cfg.scene_name` (e.g. the user
-//! pressed `x` to cycle scenes, then edited `config.toml` — the rebuild
-//! must respect the new scene's defaults before applying config overrides).
+//! - `resolve_scene_base_action()` — pure decision from the config map
+//!   delta (key present / key just removed / key never present);
+//! - `sync_base_cfg_with_runtime_scene()` — re-applies a runtime scene's
+//!   managed defaults onto the base (shortkey `x`/`X` cycles, ambient
+//!   fires — the runtime scene must survive unrelated config edits);
+//! - `restore_locked_scene_family()` — v51.1 CLI-locked fallback: rolls
+//!   the scene family back to the pristine startup snapshot when the
+//!   config `scene` override is removed (owner contract, 2026-09-01).
+
+use std::collections::HashMap;
 
 use crate::CloudConfig;
+
+/// v51.1 masterclass: what the rebuild base should do with the scene
+/// family, derived from the config map delta.
+#[derive(Debug, PartialEq, Eq)]
+pub(super) enum SceneBaseAction {
+    /// Config `scene` key present — `rebuild_cloud_config`'s scene block
+    /// applies it (config wins: the key is the most recent user intent).
+    ApplyConfig,
+    /// The config `scene` override was just REMOVED (present in the
+    /// previously applied map, absent now — e.g. commented back out).
+    /// The scene family reverts to the LOCKED startup snapshot so the
+    /// rebuild falls back to the CLI-locked (startup-effective) scene.
+    RestoreLocked,
+    /// No scene key before or now — preserve the runtime scene (shortkey
+    /// `x`/`X` cycles, ambient fires, startup scene) by syncing its
+    /// managed defaults into the base.
+    SyncRuntime,
+}
+
+/// Resolve the scene-base action from the config map delta.
+///
+/// Pure function (no I/O) — unit-testable in isolation:
+/// - new map has `scene` → [`SceneBaseAction::ApplyConfig`];
+/// - new map lacks `scene` but the previous map had it →
+///   [`SceneBaseAction::RestoreLocked`] (the override disappeared:
+///   fall back to the CLI lock);
+/// - neither map has `scene` → [`SceneBaseAction::SyncRuntime`]
+///   (keep whatever runtime scene is active).
+pub(super) fn resolve_scene_base_action(
+    new_map: &HashMap<String, String>,
+    prev_map: Option<&HashMap<String, String>>,
+) -> SceneBaseAction {
+    if new_map.contains_key("scene") {
+        SceneBaseAction::ApplyConfig
+    } else if prev_map.is_some_and(|m| m.contains_key("scene")) {
+        SceneBaseAction::RestoreLocked
+    } else {
+        SceneBaseAction::SyncRuntime
+    }
+}
+
+/// Restore the locked startup scene family onto the rebuild base.
+///
+/// v51.1 masterclass (owner contract, 2026-09-01): mirrors
+/// `sync_base_cfg_with_runtime_scene`'s managed-field set (plus `density`,
+/// which travels with `base_density`) — exactly the fields the sync may
+/// have contaminated while a config-driven scene was active. Fields
+/// outside the scene family (fps, glitch, bold, message, …) are never
+/// touched: only the sync writes them into the base, and it does not
+/// write those.
+///
+/// `startup_cfg` is the pristine startup snapshot (CLI >
+/// config@startup resolution baked in, never mutated for the whole
+/// session — `run_interactive` clones it next to `base_cfg`).
+pub(super) fn restore_locked_scene_family(base_cfg: &mut CloudConfig, startup_cfg: &CloudConfig) {
+    // The revert EVENT is traced by the caller (event_loop_config_rebuild.rs)
+    // so it always appears in the debug log; here the field copies are
+    // silent — the "Cloud rebuilt" summary line shows the resulting values.
+    base_cfg.scene_name = startup_cfg.scene_name.clone();
+    base_cfg.color_scheme = startup_cfg.color_scheme;
+    base_cfg.charset_preset = startup_cfg.charset_preset.clone();
+    base_cfg.chars = startup_cfg.chars.clone();
+    base_cfg.speed = startup_cfg.speed;
+    base_cfg.density = startup_cfg.density;
+    base_cfg.base_density = startup_cfg.base_density;
+    base_cfg.rain_style = startup_cfg.rain_style;
+}
 
 /// Sync `base_cfg` with the runtime scene's managed defaults.
 ///
@@ -45,7 +116,12 @@ use crate::CloudConfig;
 /// - `base_cfg`: mutable reference to the CloudConfig used as the rebuild
 ///   base (cloned from the startup `cfg` at the top of `run_interactive`).
 /// - `scene_name`: the runtime scene name (from the event loop's
-///   `scene_name` local, which is updated by `x`/`C`/ambient fires).
+///   `scene_name` local, which is updated by `x`/`X`/ambient fires).
+///
+/// v51.1: the caller (event_loop_config_rebuild.rs) invokes this only on
+/// the [`SceneBaseAction::SyncRuntime`] branch — never while a
+/// config `scene` key is present, and never on the restore branch (the
+/// restore rolls this sync's contamination back to the startup values).
 pub(super) fn sync_base_cfg_with_runtime_scene(base_cfg: &mut CloudConfig, scene_name: &str) {
     if base_cfg.scene_name == scene_name {
         return;
@@ -74,4 +150,247 @@ pub(super) fn sync_base_cfg_with_runtime_scene(base_cfg: &mut CloudConfig, scene
         base_cfg.base_density = density;
     }
     base_cfg.rain_style = sc.rain_style;
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Fixture shaped like the owner's exact run:
+    /// `cosmostrix -v -s -C minimal --scene crystal-dragon -mfs words`
+    /// (scene CLI-locked to crystal-dragon; no --speed/--density/--color).
+    fn locked_crystal_dragon_cfg() -> CloudConfig {
+        CloudConfig {
+            color_mode: crate::runtime::ColorMode::TrueColor,
+            shading_mode: crate::runtime::ShadingMode::Random,
+            bold_mode: crate::runtime::BoldMode::Random,
+            async_mode: true,
+            default_bg: true,
+            color_scheme: crate::runtime::ColorScheme::EnergyZen,
+            custom_palette: None,
+            custom_palette_name: None,
+            // crystal-dragon scene profile (see SCENES table):
+            rain_style: crate::rain_style::RainStyle::Monolith,
+            glitch_enabled: true,
+            glitch_level: crate::config::GlitchLevel::Subtle,
+            glitch_pct: 3.0,
+            glitch_low: 300,
+            glitch_high: 400,
+            linger_low: 400,
+            linger_high: 600,
+            short_pct: 50.0,
+            die_early_pct: 33.0,
+            max_dpc: 5,
+            density: 0.78,
+            speed: 30.0,
+            monolith_size: crate::runtime::MonolithSize::Normal,
+            chars: vec!['0', '1'],
+            message: None,
+            message_border: false,
+            msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
+            target_fps: 60.0,
+            xtermjs_host: false,
+            default_fps_cap: 240.0,
+            duration: None,
+            duration_s: None,
+            bench_frames: None,
+            benchmark: false,
+            bench_duration: None,
+            save_baseline: None,
+            compare_baseline: None,
+            bench_io: false,
+            bench_all: false,
+            bench_scene: None,
+            screen_size: None,
+            color_tune: crate::color_tune::ColorTune::IDENTITY,
+            json: false,
+            verbose: false,
+            density_auto: true,
+            base_density: 0.78,
+            perf_stats: false,
+            screensaver: false,
+            intro: crate::intro_style::IntroType::None,
+            intro_color: None,
+            mouse: false,
+            charset_preset: "zen".to_string(),
+            user_ranges: vec![],
+            def_ascii: false,
+            crystal_dragon: true,
+            power_dragon: true,
+            msg_mode: true,
+            effects_enabled: true,
+            monolith_density_map: None,
+            config_path_for_watcher: None,
+            scene_name: "crystal-dragon".to_string(),
+            scene_custom_name: None,
+            cli_explicit: crate::app::CliExplicit {
+                scene: true,
+                ..crate::app::CliExplicit::default()
+            },
+            ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
+            ambient_snapback_secs: None,
+        }
+    }
+
+    fn map(pairs: &[(&str, &str)]) -> HashMap<String, String> {
+        pairs
+            .iter()
+            .map(|(k, v)| (k.to_string(), v.to_string()))
+            .collect()
+    }
+
+    // ── resolve_scene_base_action: the config map delta rule ──────────
+
+    #[test]
+    fn resolver_key_present_applies_config_scene() {
+        let new = map(&[("scene", "cinematic")]);
+        let prev = map(&[]);
+        assert_eq!(
+            resolve_scene_base_action(&new, Some(&prev)),
+            SceneBaseAction::ApplyConfig
+        );
+    }
+
+    #[test]
+    fn resolver_key_present_wins_even_when_prev_also_had_it() {
+        let new = map(&[("scene", "neon")]);
+        let prev = map(&[("scene", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_action(&new, Some(&prev)),
+            SceneBaseAction::ApplyConfig
+        );
+    }
+
+    #[test]
+    fn resolver_key_removed_restores_locked() {
+        // The owner's exact edit: `scene = cinematic` commented back out.
+        let new = map(&[]);
+        let prev = map(&[("scene", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_action(&new, Some(&prev)),
+            SceneBaseAction::RestoreLocked
+        );
+    }
+
+    #[test]
+    fn resolver_key_never_present_syncs_runtime() {
+        // Shortkey-cycled scene (never a config scene) + unrelated edit.
+        let new = map(&[("fps", "60")]);
+        let prev = map(&[]);
+        assert_eq!(
+            resolve_scene_base_action(&new, Some(&prev)),
+            SceneBaseAction::SyncRuntime
+        );
+    }
+
+    #[test]
+    fn resolver_first_reload_no_prev_map_syncs_runtime() {
+        let new = map(&[("fps", "60")]);
+        assert_eq!(
+            resolve_scene_base_action(&new, None),
+            SceneBaseAction::SyncRuntime
+        );
+    }
+
+    // ── restore_locked_scene_family: rolling back sync contamination ──
+
+    #[test]
+    fn restore_rolls_back_runtime_scene_sync_contamination() {
+        let startup = locked_crystal_dragon_cfg();
+        let mut base = startup.clone();
+        // Simulate a config-driven cinematic phase: the runtime scene sync
+        // copied cinematic's managed defaults into the base.
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        assert_eq!(base.scene_name, "cinematic");
+        assert_eq!(base.speed, 9.0);
+        assert_eq!(base.base_density, 0.75);
+        assert_eq!(base.rain_style, crate::rain_style::RainStyle::Glyph);
+
+        restore_locked_scene_family(&mut base, &startup);
+        assert_eq!(base.scene_name, "crystal-dragon");
+        assert_eq!(base.speed, 30.0);
+        assert_eq!(base.density, 0.78);
+        assert_eq!(base.base_density, 0.78);
+        assert_eq!(base.rain_style, crate::rain_style::RainStyle::Monolith);
+        assert_eq!(base.color_scheme, startup.color_scheme);
+        assert_eq!(base.charset_preset, startup.charset_preset);
+        assert_eq!(base.chars, startup.chars);
+    }
+
+    #[test]
+    fn restore_is_noop_when_base_matches_startup() {
+        let startup = locked_crystal_dragon_cfg();
+        let mut base = startup.clone();
+        restore_locked_scene_family(&mut base, &startup);
+        assert_eq!(base.scene_name, startup.scene_name);
+        assert_eq!(base.speed, startup.speed);
+    }
+
+    // ── sync: shortkey scene preservation (existing behavior locked) ──
+
+    #[test]
+    fn sync_applies_runtime_scene_managed_defaults() {
+        let mut base = locked_crystal_dragon_cfg();
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        assert_eq!(base.scene_name, "cinematic");
+        assert_eq!(base.speed, 9.0);
+        assert_eq!(base.base_density, 0.75);
+        assert_eq!(base.rain_style, crate::rain_style::RainStyle::Glyph);
+    }
+
+    // ── the owner's exact end-to-end scenario (v51.1 contract) ────────
+
+    /// Owner repro: run `--scene crystal-dragon`, edit config.toml to
+    /// uncomment `scene = cinematic` (live-reload switches — good), then
+    /// comment it back out. Before v51.1 the engine STAYED on cinematic
+    /// (the runtime scene sync contaminated the rebuild base + the CLI
+    /// lock was zeroed at the first reload). The contract: the engine
+    /// detects no config value to override the CLI and falls back to the
+    /// locked crystal-dragon — no exit, no rerun.
+    #[test]
+    fn owner_scenario_scene_comment_out_reverts_to_cli_lock() {
+        let startup = locked_crystal_dragon_cfg();
+        let mut base = startup.clone(); // what run_interactive holds
+        let mut prev_map: Option<HashMap<String, String>> = Some(map(&[]));
+
+        // Phase 1 — config gains `scene = cinematic` (uncommented).
+        let phase1 = map(&[("scene", "cinematic")]);
+        let action = resolve_scene_base_action(&phase1, prev_map.as_ref());
+        assert_eq!(action, SceneBaseAction::ApplyConfig);
+        let cfg1 = crate::live_config::rebuild_cloud_config(&base, &phase1);
+        assert_eq!(cfg1.scene_name, "cinematic");
+        assert_eq!(cfg1.speed, 9.0);
+        assert_eq!(cfg1.rain_style, crate::rain_style::RainStyle::Glyph);
+        prev_map = Some(phase1);
+
+        // Phase 2 — `# scene = cinematic` (commented back out).
+        let phase2 = map(&[]);
+        let action = resolve_scene_base_action(&phase2, prev_map.as_ref());
+        assert_eq!(action, SceneBaseAction::RestoreLocked);
+        restore_locked_scene_family(&mut base, &startup);
+        let cfg2 = crate::live_config::rebuild_cloud_config(&base, &phase2);
+        assert_eq!(
+            cfg2.scene_name, "crystal-dragon",
+            "commenting the scene key out must revert to the CLI-locked scene (owner contract)"
+        );
+        assert_eq!(cfg2.speed, 30.0, "crystal-dragon's speed returns");
+        assert_eq!(cfg2.base_density, 0.78, "crystal-dragon's density returns");
+        assert_eq!(
+            cfg2.rain_style,
+            crate::rain_style::RainStyle::Monolith,
+            "crystal-dragon's rain style returns"
+        );
+        prev_map = Some(phase2);
+
+        // Phase 3 — another unrelated edit: scene stays locked (the sync
+        // branch is a no-op because the runtime scene is crystal-dragon
+        // again, matching the base).
+        let phase3 = map(&[("fps", "60")]);
+        let action = resolve_scene_base_action(&phase3, prev_map.as_ref());
+        assert_eq!(action, SceneBaseAction::SyncRuntime);
+        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon");
+        let cfg3 = crate::live_config::rebuild_cloud_config(&base, &phase3);
+        assert_eq!(cfg3.scene_name, "crystal-dragon");
+        assert_eq!(cfg3.target_fps, 60.0);
+    }
 }

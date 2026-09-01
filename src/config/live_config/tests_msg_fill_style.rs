@@ -170,10 +170,12 @@ fn rebuild_msg_fill_style_absent_keeps_startup_value() {
     );
 }
 
-/// CLI -mfs/--msg-fill-style explicit wins over config on live reload
-/// (priority contract: CLI > config.toml).
+/// v51.1 (owner contract): config `msg-fill-style` key PRESENT wins over
+/// the CLI `-mfs` lock at runtime (temporal precedence). The CLI style
+/// returns when the key is commented back out (base keeps the locked
+/// startup style — pinned in tests_cli_fallback.rs).
 #[test]
-fn rebuild_preserves_cli_explicit_msg_fill_style_over_config() {
+fn rebuild_msg_fill_style_key_overrides_cli_lock_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("msg-fill-style".to_string(), "fade".to_string());
     let mut base = minimal_cloud_config();
@@ -184,7 +186,7 @@ fn rebuild_preserves_cli_explicit_msg_fill_style_over_config() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.msg_fill_style,
-        crate::msg_fill_style::MsgFillStyle::Slide,
-        "CLI -mfs slide must NOT be overridden by config msg-fill-style=fade"
+        crate::msg_fill_style::MsgFillStyle::Fade,
+        "config msg-fill-style key present must override the CLI -mfs lock (v51.1)"
     );
 }

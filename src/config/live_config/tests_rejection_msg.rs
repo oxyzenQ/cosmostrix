@@ -382,8 +382,12 @@ fn live_reload_no_config_message_clears_when_msg_mode_false() {
 }
 
 #[test]
-fn live_reload_cli_message_wins_over_config() {
-    // CLI -m explicit (cli.message=true) → config message ignored.
+fn live_reload_cli_message_locked_falls_back_when_config_absent() {
+    // v51.1: config message key PRESENT wins over the CLI -m lock
+    // (temporal precedence) — the rewrite of the old "CLI wins over
+    // config" test. The CLI value becomes the fallback: commenting the
+    // key back out keeps "from-cli" (pinned in tests_cli_fallback.rs,
+    // fallback_message_key_absent_keeps_cli_lock).
     let mut base = minimal_cloud_config();
     base.message = Some("from-cli".to_string());
     base.message_border = false;
@@ -391,13 +395,23 @@ fn live_reload_cli_message_wins_over_config() {
     let mut cfg = HashMap::new();
     cfg.insert("message-border".to_string(), "from-config".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(new.message.as_deref(), Some("from-cli"));
-    assert!(!new.message_border, "CLI -m must keep border=false");
+    assert_eq!(
+        new.message.as_deref(),
+        Some("from-config"),
+        "config message-border key present must override the CLI -m lock (v51.1)"
+    );
+    assert!(
+        new.message_border,
+        "message-border key implies border=true (msg-mode gate passes: default true)"
+    );
 }
 
 #[test]
-fn live_reload_cli_msg_mode_wins_over_config() {
-    // CLI --msg-mode false explicit → config msg-mode=true ignored.
+fn live_reload_config_msg_mode_overrides_cli_lock_when_present() {
+    // v51.1: config `msg-mode=true` key PRESENT wins over the CLI
+    // --msg-mode false lock — so the config message shows. The CLI lock
+    // returns when the key is commented back out (fallback path pinned
+    // in tests_cli_fallback.rs).
     let mut base = minimal_cloud_config();
     base.msg_mode = false;
     base.cli_explicit.msg_mode = true;
@@ -405,17 +419,22 @@ fn live_reload_cli_msg_mode_wins_over_config() {
     cfg.insert("msg-mode".to_string(), "true".to_string());
     cfg.insert("message-border".to_string(), "hello".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
-    // CLI msg-mode=false wins → message suppressed even though config has msg-mode=true + message.
-    assert!(!new.msg_mode, "CLI msg-mode=false must win");
+    assert!(
+        new.msg_mode,
+        "config msg-mode key present must override the CLI lock (v51.1)"
+    );
     assert_eq!(
-        new.message, None,
-        "msg-mode=false must suppress config message"
+        new.message.as_deref(),
+        Some("hello"),
+        "msg-mode=true + config message must show the message"
     );
 }
 
 #[test]
-fn live_reload_power_dragon_respects_cli_explicit() {
-    // CLI --power-dragon false explicit → config power-dragon=true ignored.
+fn live_reload_power_dragon_key_overrides_cli_lock_when_present() {
+    // v51.1: config `power-dragon=true` key PRESENT wins over the CLI
+    // --power-dragon false lock. The CLI value is the fallback on key
+    // absence (pinned in tests_cli_fallback.rs).
     let mut base = minimal_cloud_config();
     base.power_dragon = false;
     base.cli_explicit.power_dragon = true;
@@ -423,14 +442,16 @@ fn live_reload_power_dragon_respects_cli_explicit() {
     cfg.insert("power-dragon".to_string(), "true".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
-        !new.power_dragon,
-        "CLI --power-dragon false must win over config"
+        new.power_dragon,
+        "config power-dragon key present must override the CLI lock (v51.1)"
     );
 }
 
 #[test]
-fn live_reload_async_mode_respects_cli_explicit() {
-    // CLI --async-mode false explicit → config async-mode=true ignored.
+fn live_reload_async_mode_key_overrides_cli_lock_when_present() {
+    // v51.1: config `async-mode=true` key PRESENT wins over the CLI
+    // --async-mode false lock. The CLI value is the fallback on key
+    // absence (pinned in tests_cli_fallback.rs).
     let mut base = minimal_cloud_config();
     base.async_mode = false;
     base.cli_explicit.async_mode = true;
@@ -438,8 +459,8 @@ fn live_reload_async_mode_respects_cli_explicit() {
     cfg.insert("async-mode".to_string(), "true".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
-        !new.async_mode,
-        "CLI --async-mode false must win over config"
+        new.async_mode,
+        "config async-mode key present must override the CLI lock (v51.1)"
     );
 }
 
@@ -469,21 +490,27 @@ fn live_reload_intro_color_invalid_soft_fails() {
 }
 
 #[test]
-fn live_reload_intro_color_cli_explicit_wins() {
-    // CLI --intro-color explicit → config intro-color ignored.
+fn live_reload_intro_color_key_overrides_cli_lock_when_present() {
+    // v51.1: config `intro-color` key PRESENT wins over the CLI
+    // --intro-color lock. The CLI value is the fallback on key absence.
     let mut base = minimal_cloud_config();
     base.intro_color = Some("green".to_string());
     base.cli_explicit.intro_color = true;
     let mut cfg = HashMap::new();
     cfg.insert("intro-color".to_string(), "energy-zen".to_string());
     let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(new.intro_color.as_deref(), Some("green"), "CLI must win");
+    assert_eq!(
+        new.intro_color.as_deref(),
+        Some("energy-zen"),
+        "config intro-color key present must override the CLI lock (v51.1)"
+    );
 }
 
 #[test]
-fn live_reload_monolith_size_respects_cli_explicit() {
-    // CLI --monolith-size large explicit → config monolith-size=small ignored.
-    // v50.0.0-alpha.7: Issue #4 fix — was config-only path, no CLI guard.
+fn live_reload_monolith_size_key_overrides_cli_lock_when_present() {
+    // v51.1: config `monolith-size` key PRESENT wins over the CLI lock
+    // (temporal precedence — the key is the most recent user intent).
+    // The CLI value is the fallback on key absence.
     use crate::runtime::MonolithSize;
     let mut base = minimal_cloud_config();
     base.monolith_size = MonolithSize::Large;
@@ -493,8 +520,8 @@ fn live_reload_monolith_size_respects_cli_explicit() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.monolith_size,
-        MonolithSize::Large,
-        "CLI --monolith-size large must win over config"
+        MonolithSize::Small,
+        "config monolith-size key present must override the CLI lock (v51.1)"
     );
 }
 

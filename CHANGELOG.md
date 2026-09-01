@@ -9,6 +9,36 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v51.1 CLI-locked fallback — config live-reload precedence masterclass
+
+Owner repro (premature logic): `--scene crystal-dragon` + runtime config
+edit `# scene = cinematic` -> `scene = cinematic` (live-reload works) ->
+re-comment `# scene = cinematic` left the engine STUCK on cinematic.
+Root cause was two cooperating defects: the v50.0.0-beta.6 "CLI retired"
+zeroing destroyed every CLI lock at the first config edit (and made all
+21 per-key guards in rebuild_cloud_config dead in production — their unit
+tests passed because they call the function with live flags, which
+production never had), and the runtime scene sync permanently
+contaminated the rebuild base with the config-driven scene. New contract
+(owner's abstract rule): Startup CLI > config.toml > scene defaults;
+Runtime config key > CLI lock > scene defaults — the CLI value stays
+LOCKED underneath, so commenting a key out falls back to the locked
+startup value without exit + rerun (scene, fps, color, charset, tune,
+message, msg-mode, dragons, bold, shading, async, mfs — every family).
+color.tune/message/msg-mode with a CLI lock now survive key removal
+(the alpha.7 guards were dead since beta.6); scene-managed defaults stay
+below the CLI lock (Z-master field gates now actually live). The ambient
+startup deferral now reads CliExplicit::any() (was a 15-of-21-flag chain
+— bold/shading-mode/color-bg/colors-custom/scene-custom/mfs did not
+defer). 20 new tests incl. the owner's end-to-end scenario (9
+scene-sync + 11 fallback), 14 guard tests rewritten; 2015 total, 0
+failed. Live PTY proof: phase-2 revert trace + Cloud-rebuilt profile
+evidence (speed 9.00/0.750 -> 30.00/0.780); pre-v51.1 tree fails the
+same script. 10s A/B with same-system control pair: visual parity
+(entropy -0.10%, gini +0.03%, allocs bit-stable 563/553), fps +2.69%
+vs control. Detail: docs/research/V51_1_CLI_LOCKED_FALLBACK.md +
+LIVE_RELOAD_BEHAVIOR.md section 13.
+
 ### harmony: S-master-7-v2 LTS — 3-dragon harmony re-verification + stale crystal doc sync
 
 Deeper pass over the v1 harmony lock (1dd2ce2), re-verified AT HEAD

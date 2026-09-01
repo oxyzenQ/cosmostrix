@@ -28,32 +28,38 @@
 
 ## 1. Findings — Per-Key Live-Reload Matrix
 
-| Config Key | CLI Flag | Live-Reloads? | Source: `rebuild_cloud_config` line | Notes |
-|------------|----------|:-------------:|:------------------------------------:|-------|
-| `color` | `--color` | OK YES | 581-596 | CLI wins over config (intent preservation via `cli.color`); `--colors-custom` also blocks the key (Z-master-2-v2). |
-| `charset` | `--charset` | OK YES | 605-636 | CLI wins; charset-custom blocks also re-parsed. |
-| `scene` | `--scene` | OK YES | 640-716 | CLI wins; `--scene-custom` also blocks the config scene key (Z-master-2-v2); scene defaults re-applied for color/charset/speed/density. |
-| `speed` | `--speed` | OK YES | 718-730 | CLI wins. |
-| `density` | `--density` | OK YES | 732-745 | CLI wins; `base_density` also updated. |
-| `fps` | `--fps` | OK YES | 747-759 | CLI wins; `target_fps` updated. |
-| `glitch-level` | `--glitch-level` | OK YES | 767-787 | CLI wins; full preset re-derivation. |
-| `color-bg` | `--color-bg` | OK YES | 790-797 | CLI wins (`cli.color_bg` guard, Z-master-2-v2); flips `default_bg`. |
-| `monolith-size` | `--monolith-size` | OK YES | 800-805 | CLI wins (`cli.monolith_size` guard, v50.0.0-alpha.7 Issue #4 fix). |
-| `crystal-dragon` | `--crystal-dragon` | OK YES | 809-815 | CLI wins (`cli.crystal_dragon` guard). |
-| `power-dragon` | `--power-dragon` | OK YES | 821-825 | CLI wins (`cli.power_dragon` guard, v50.0.0-alpha.7). |
-| `bold` | `--bold` | OK YES | 829-844 | CLI wins (`cli.bold` guard, Z-master-2-v2); range-gated (0-2). |
-| `shading-mode` | `--shading-mode` | OK YES | 845-856 | CLI wins (`cli.shading_mode` guard, Z-master-2-v2); range-gated (0-1). |
-| `async-mode` | `--async-mode` | OK YES | 857-861 | CLI wins (`cli.async_mode` guard, v50.0.0-alpha.7). |
-| `color.tune.*` | `--color-tune` | OK YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
-| `ambient.HH-MM` | (none) | OK YES | 897-904 | Schedule re-collected; ambient thread notified. |
-| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (Z-master-1-v2 gap 1 + Z-master-2-v2 bold/shading-mode/colors-custom); intra-block `color`/`colors-custom` + `charset`/`charset-custom` conflicts resolve deterministically like startup (gap 3). |
-| **`message`** | `-m` | X **NO** | (not handled) | Field stays at startup value. `create_cloud` re-calls `set_message` with the OLD value. |
-| **`message-border`** | `-mb` | X **NO** | (not handled) | Same — stays at startup value. |
-| **`msg-mode`** | `--msg-mode` | X **NO** | (not handled) | Field stays at startup value. Default fallback + gate logic only runs at startup. |
-| **`intro-color`** | `--intro-color` | X **NO** | (not handled) | Intro only plays once at startup; live-reload is moot. |
-| **`intro`** | `--intro` | X **NO** | (not handled) | Same — intro is a one-shot animation. |
-| `colors-custom.<name>` | (none) | warning: PARTIAL | 599-603 | Only re-parsed if `custom_palette_name` was set at startup. New palettes added mid-run are not discovered. |
-| `charset-custom.<name>` | (none) | warning: PARTIAL | 609-611 | Only re-parsed if the active charset name matches a custom block. New charsets added mid-run are not discovered. |
+> v51.1 (2026-09-01): the matrix notes below describe the CURRENT
+> contract — `config key present` wins at runtime (most recent user
+> intent), and commenting the key out falls back to the CLI-LOCKED
+> startup value (CLI first, then config@startup, then defaults).
+> See "13. v51.1 CLI-Locked Fallback Contract" for the full story.
+
+| Config Key | CLI Flag | Live-Reloads? | Notes (v51.1) |
+|------------|----------|:-------------:|-------|
+| `color` | `--color` | OK YES | Key present wins (custom names load, builtin switch clears the active palette); key absent falls back to the locked startup color/palette. |
+| `charset` | `--charset` | OK YES | Key present wins (custom blocks re-parsed); absent falls back to the locked startup charset. |
+| `scene` | `--scene` | OK YES | Key present wins (managed defaults apply below the CLI locks); key REMOVED reverts the whole scene family to the locked startup scene (the owner's comment-out scenario). |
+| `speed` | `--speed` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `density` | `--density` | OK YES | Key present wins (`base_density` also updated); absent falls back to the locked startup value. |
+| `fps` | `--fps` | OK YES | Key present wins (`target_fps` updated); absent falls back to the locked startup value. |
+| `glitch-level` | `--glitch-level` | OK YES | Key present wins; full preset re-derivation; absent falls back to the locked startup preset. |
+| `color-bg` | `--color-bg` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `monolith-size` | `--monolith-size` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `crystal-dragon` | `--crystal-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `power-dragon` | `--power-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `bold` | `--bold` | OK YES | Key present wins (range-gated 0-2); absent falls back to the locked startup value. |
+| `shading-mode` | `--shading-mode` | OK YES | Key present wins (range-gated 0-1); absent falls back to the locked startup value. |
+| `async-mode` | `--async-mode` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `color.tune.*` | `--color-tune` | OK YES | Keys present win; ALL absent + CLI lock → keep the locked tune; all absent + no lock → reset to identity (alpha.7 reset-on-comment). |
+| `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (scene defaults sit BELOW the CLI lock); intra-block conflicts resolve deterministically like startup. |
+| `message` / `message-border` | `-m` / `-mb` | OK YES | Key present wins; absent + CLI lock → keep the locked message; absent + no lock → default fallback (alpha.7). |
+| `msg-mode` | `--msg-mode` | OK YES | Key present wins; absent + CLI lock → keep; absent + no lock → default true. |
+| `msg-fill-style` | `-mfs` | OK YES | Key present wins; absent keeps the locked startup style. |
+| `intro-color` | `--intro-color` | OK YES | Key present wins (soft-fail on invalid); absent keeps the locked startup color. |
+| `intro` | `--intro` | X NO (one-shot) | Intro plays once at startup; live-reload is moot. |
+| `colors-custom.<name>` | (none) | warning: PARTIAL | Only re-parsed if `custom_palette_name` was set at startup. New palettes added mid-run are not discovered. |
+| `charset-custom.<name>` | (none) | warning: PARTIAL | Only re-parsed if the active charset name matches a custom block. New charsets added mid-run are not discovered. |
 
 ---
 
@@ -304,7 +310,15 @@ CLI `--monolith-size` wins over config on live-reload.
 
 ### Updated Per-Key Live-Reload Matrix (v51)
 
-| Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? |
+> v51.1 (2026-09-01): the "CLI Intent Guard?" column below describes
+> the v50/v51 guard design (pre-v51.1). The guards as written could
+> never fire in production after v50.0.0-beta.6 zeroed `cli_explicit`
+> at every reload — see section 13 for the v51.1 contract that replaced
+> both the guards-as-blockers and the zeroing: the flags are now the
+> CLI-LOCKED fallback layer (key present wins; key absent falls back
+> to the locked startup value).
+
+| Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? (pre-v51.1 design) |
 |------------|----------|:-------------:|:-----------------:|
 | `color` | `--color` | OK YES | OK YES — v51: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
 | `charset` | `--charset` | OK YES | OK YES |
@@ -531,7 +545,9 @@ Verification: 12 regression tests in
 conflict rules, and the palette-clear-on-scene-switch. Full suite
 green: 1957 passed / 0 failed.
 
-Priority contract (unchanged, now actually enforced on every path):
+Priority contract (as documented at the time — v51.1 REPLACED the
+runtime layer, see section 13; the field layers below the CLI lock are
+unchanged):
 
 ```text
 CLI flags (cli_explicit.*)
@@ -568,10 +584,129 @@ Verification: 9 regression tests in
 `src/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
 2 `build_cli_explicit` argv-level). Suite green: 1967 passed / 0 failed.
 
+> v51.1 note: the five guards added by this audit were DEAD in production
+> from the day they shipped — v50.0.0-beta.6 zeroed `cli_explicit` on
+> every rebuild BEFORE `rebuild_cloud_config` could read the flags, so
+> the tests (which call the function directly with live flags) passed
+> while production never took the guarded path. Section 13 documents the
+> v51.1 fix: the zeroing is gone and the flags drive the locked-fallback
+> contract instead of blocking config keys.
+
 Stale matrix rows fixed in the same pass (section 1): the
 monolith-size / power-dragon / async-mode rows still described the
 pre-alpha.7 behavior ("no intent gate") even though those guards landed
 in v50.0.0-alpha.7 — the rows now match the code.
+
+---
+
+## 13. v51.1 CLI-Locked Fallback Contract (owner audit 2026-09-01)
+
+Owner repro (the "premature logic" report):
+
+```text
+run:  cosmostrix -v -s -C minimal --scene crystal-dragon -mfs words
+edit: # scene = cinematic   ->   scene = cinematic     (live-reload: cinematic — GOOD)
+edit: scene = cinematic     ->   # scene = cinematic   (STILL cinematic — BUG)
+```
+
+The owner's masterclass rule, verbatim intent: at startup the CLI wins
+(high priority); at runtime the winners are the shortkeys (c/s/x) and
+config live-reload; the CLI value stays LOCKED underneath — when a config
+key appears it overrides the CLI value, and when the key is commented back
+out the engine detects that no config value exists to override the CLI and
+falls back to the locked CLI value, without exit and rerun. Not just
+`scene` — `fps`, `color`, and every other config key.
+
+### Root cause (two cooperating defects)
+
+1. **The v50.0.0-beta.6 "temporal precedence" zeroing**
+   (`event_loop_config_rebuild.rs`) set `base_cfg.cli_explicit =
+   CliExplicit::default()` before every rebuild — "CLI retired, config has
+   full authority". This silently destroyed EVERY CLI lock at the first
+   config edit, and it made all 21 per-key guards inside
+   `rebuild_cloud_config` (added by Bug 3, Issue #4, alpha.7, and the
+   Z-master-2-v2 audit) DEAD IN PRODUCTION: the unit tests call the
+   function directly with live flags, so the guard tests passed while the
+   production path never took a guarded branch. Classic premature logic —
+   two priority models half-shipped on top of each other.
+
+2. **The runtime scene sync contamination**
+   (`sync_base_cfg_with_runtime_scene`) copied the runtime scene's managed
+   defaults (color/charset/speed/density/rain_style) into `base_cfg`
+   whenever the config `scene` key was ABSENT — including when the runtime
+   scene had just been set by the config key that was now removed. The
+   base (the locked layer) was permanently contaminated with the
+   config-driven scene, so commenting the key out could never revert.
+
+### The v51.1 contract
+
+```text
+Startup:  CLI > config.toml > scene defaults > built-in defaults
+Runtime:  config key > CLI lock > scene defaults > built-in defaults
+```
+
+- Runtime layering is TEMPORAL: an explicit config key is the most recent
+  user intent, so it overrides the CLI flag — while present.
+- The CLI value stays LOCKED underneath (the pristine startup snapshot
+  `startup_cfg`, cloned once in `run_interactive`, never mutated).
+  Commenting a key out falls back to the locked startup value — CLI
+  first, then config@startup, then defaults. This holds for EVERY key
+  family, not just `scene`.
+- Shortkeys (c/s/x) and ambient fires keep their existing runtime
+  semantics: the scene family survives unrelated config edits via the
+  sync (which now never fires while a config `scene` key is present, and
+  is rolled back by `restore_locked_scene_family` when the key
+  disappears).
+
+### Implementation
+
+- `rebuild_cloud_config` (`src/config/live_config/mod.rs`): every
+  top-level `if !cli.<flag>` blocker guard REMOVED (key present wins);
+  the scene-block INNER gates kept (scene-managed defaults sit BELOW the
+  CLI lock — `config key > CLI lock > scene default`, startup parity);
+  `color.tune` / `message` / `msg-mode` rewritten to the fallback pattern
+  (key present > CLI lock > default/reset-on-comment for lockless runs —
+  the alpha.7 reset semantics survive for runs with no CLI flag).
+- `event_loop_config_rebuild.rs`: the zeroing REMOVED; new
+  `resolve_scene_base_action` delta rule (key present → apply; key just
+  removed → `restore_locked_scene_family(base_cfg, startup_cfg)`;
+  key never present → sync the runtime scene, preserving shortkey and
+  ambient scenes).
+- `event_loop_scene_sync.rs`: new `SceneBaseAction` resolver (pure,
+  unit-testable), new `restore_locked_scene_family` (rolls back the
+  sync's contamination over the exact managed-field set).
+- `event_loop.rs`: `startup_cfg = cfg.clone()` — the immutable locked
+  layer, passed to every rebuild.
+- `CliExplicit::any()` (`src/cli/app.rs`): the ambient startup deferral
+  previously listed only 15 of the 21 flags in an inline `||` chain —
+  `--bold`, `--shading-mode`, `--color-bg`, `--colors-custom`,
+  `--scene-custom`, and `-mfs` did NOT defer ambient despite the
+  documented "ANY CLI flag" rule. `any()` covers all fields by
+  construction.
+
+### Verification
+
+- 20 new regression tests: 9 in
+  `src/interactive/event_loop_scene_sync.rs` (resolver delta rule,
+  restore/sync, and the owner's exact end-to-end scenario) + 11 in
+  `src/config/live_config/tests_cli_fallback.rs` (per-key fallback for
+  fps/bold/color+palette/scene-custom/message/msg-mode/msg-fill-style/
+  color-tune/charset/dragons/async, plus the lockless startup-effective
+  layer). 14 old-contract guard tests rewritten to the new key-present
+  semantics. Full suite: 2015 passed / 0 failed.
+- Live PTY proof (real binary, real watcher, graceful `q` exit, trace
+  drain): phase 1 `apply scene='cinematic'` + `Cloud rebuilt —
+  speed=9.00 density=0.750`; phase 2 `scene key removed — reverting to
+  the locked startup scene 'crystal-dragon' (runtime was 'cinematic')` +
+  `Cloud rebuilt — speed=30.00 density=0.780`; phase 3 `fps='45'`
+  applies with the scene still locked. The same script on the pre-v51.1
+  tree FAILS phase 2 (stays cinematic) — the bug was real and is fixed.
+- 10s monolith 80x24 A/B benchmark with a same-system control pair
+  (machine drift was ±2% during the session): visual parity (entropy
+  -0.10%, gini +0.03%, streams identical, allocs/deallocs bit-stable
+  563/553), avg_fps +2.69% vs the control. Raw JSON:
+  `benchmark/bench-labs/v51_1_cli_fallback/`.
+- Audit doc: `docs/research/V51_1_CLI_LOCKED_FALLBACK.md`.
 
 ---
 <!--

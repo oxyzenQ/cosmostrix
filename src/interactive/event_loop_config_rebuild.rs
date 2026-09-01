@@ -19,15 +19,17 @@ use crate::terminal::Terminal;
 
 /// Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
 ///
-/// Handles the full live-reload rebuild path: scene sync, config rebuild,
-/// ecosystem inheritance, palette transition, HUD sync, ambient schedule
-/// reload + consistency fix, and ambient entry application.
+/// Handles the full live-reload rebuild path: scene base resolution
+/// (v51.1 CLI-locked fallback), config rebuild, ecosystem inheritance,
+/// palette transition, HUD sync, ambient schedule reload + consistency
+/// fix, and ambient entry application.
 ///
 /// Returns true if a rebuild was applied, false if pending_config was None.
 #[allow(clippy::too_many_arguments, clippy::type_complexity)]
 pub(crate) fn apply_config_rebuild(
     pending_config: &mut Option<HashMap<String, String>>,
     base_cfg: &mut CloudConfig,
+    startup_cfg: &CloudConfig,
     cloud: &mut Cloud,
     frame: &mut Frame,
     term: &mut Terminal,
@@ -50,15 +52,54 @@ pub(crate) fn apply_config_rebuild(
     def_ascii: bool,
 ) -> bool {
     if let Some(new_cfg_map) = pending_config.take() {
-        // v50.0.0-beta.6 masterclass: temporal precedence.
-        // Startup: CLI > config > scene defaults.
-        // Runtime: config > scene defaults (CLI retired).
-        // CLI flags are zeroed before rebuild so config has full
-        // authority on live-reload. Scene defaults synced first.
-        if !new_cfg_map.contains_key("scene") {
-            super::event_loop_scene_sync::sync_base_cfg_with_runtime_scene(base_cfg, scene_name);
+        // v51.1 masterclass: CLI-locked fallback (owner contract, 2026-09-01).
+        //
+        // Startup:  CLI > config.toml > scene defaults.
+        // Runtime:  config key present > CLI lock (locked startup value).
+        //
+        // `startup_cfg` is the pristine startup snapshot (never mutated);
+        // `base_cfg` may only diverge from it via the runtime scene sync
+        // below (shortkey/ambient preservation). The v50.0.0-beta.6 model
+        // (zero cli_explicit + unconditional runtime-scene sync) retired the
+        // CLI at the first reload AND permanently contaminated base_cfg's
+        // scene family — so commenting the config `scene` key back out left
+        // the engine stuck on the config-driven scene (the owner's bug:
+        // `--scene crystal-dragon` + `scene = cinematic` + re-comment →
+        // stayed cinematic). The delta-based resolution below fixes both:
+        //
+        //   key present        → rebuild_cloud_config applies it (config
+        //                        wins — most recent user intent);
+        //   key just removed   → restore the LOCKED startup scene family
+        //                        (CLI crystal-dragon returns, no rerun);
+        //   key never present  → keep the runtime scene (shortkey x/X
+        //                        cycles, ambient fires, startup scene) by
+        //                        syncing its managed defaults into base.
+        //
+        // cli_explicit is NOT zeroed anymore — the flags stay alive as the
+        // locked layer for rebuild_cloud_config's fallback arms and the
+        // scene-default gates.
+        match super::event_loop_scene_sync::resolve_scene_base_action(
+            &new_cfg_map,
+            last_applied_cfg_map.as_ref(),
+        ) {
+            super::event_loop_scene_sync::SceneBaseAction::ApplyConfig => {
+                // The scene block inside rebuild_cloud_config applies the
+                // config scene (including the managed defaults, gated on
+                // the CLI locks per field).
+            }
+            super::event_loop_scene_sync::SceneBaseAction::RestoreLocked => {
+                crate::lr_trace!(
+                    "scene key removed — reverting to the locked startup scene '{}' (runtime was '{}')",
+                    startup_cfg.scene_name, scene_name
+                );
+                super::event_loop_scene_sync::restore_locked_scene_family(base_cfg, startup_cfg);
+            }
+            super::event_loop_scene_sync::SceneBaseAction::SyncRuntime => {
+                super::event_loop_scene_sync::sync_base_cfg_with_runtime_scene(
+                    base_cfg, scene_name,
+                );
+            }
         }
-        base_cfg.cli_explicit = crate::app::CliExplicit::default();
         let new_cfg = crate::live_config::rebuild_cloud_config(base_cfg, &new_cfg_map);
         // v50.0.0-alpha.7: track latest config for finalize_session.
         *current_cfg = new_cfg.clone();

@@ -283,11 +283,12 @@ fn rebuild_scene_switch_clears_stale_custom_palette() {
 
 // ── Z-master-2-v2: CLI intent preservation for config keys ────────────
 
-/// (Z2-1): `--bold` CLI explicit must survive a live-reload that applies
-/// the config `bold` key (same bug class as the monolith-size Issue #4
-/// fix — the guard was missing entirely).
+/// (Z2-1, v51.1 rewrite): config `bold` key PRESENT wins over the CLI
+/// `--bold` lock at runtime (temporal precedence). The CLI value is the
+/// fallback when the key is commented out — pinned in
+/// tests_cli_fallback.rs (`fallback_bold_key_absent_keeps_cli_lock`).
 #[test]
-fn rebuild_bold_key_respects_cli_explicit() {
+fn rebuild_bold_key_overrides_cli_lock_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("bold".to_string(), "2".to_string());
     let mut base = minimal_cloud_config();
@@ -296,15 +297,15 @@ fn rebuild_bold_key_respects_cli_explicit() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.bold_mode,
-        crate::runtime::BoldMode::Off,
-        "CLI --bold must win over the config bold key"
+        crate::runtime::BoldMode::All,
+        "config bold key present must override the CLI --bold lock (v51.1)"
     );
 }
 
-/// (Z2-1): `--shading-mode` CLI explicit must survive a live-reload that
-/// applies the config `shading-mode` key.
+/// (Z2-1, v51.1 rewrite): config `shading-mode` key PRESENT wins over
+/// the CLI lock at runtime; the CLI value is the fallback on absence.
 #[test]
-fn rebuild_shading_mode_key_respects_cli_explicit() {
+fn rebuild_shading_mode_key_overrides_cli_lock_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("shading-mode".to_string(), "1".to_string());
     let mut base = minimal_cloud_config();
@@ -313,15 +314,15 @@ fn rebuild_shading_mode_key_respects_cli_explicit() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.shading_mode,
-        crate::runtime::ShadingMode::Random,
-        "CLI --shading-mode must win over the config key"
+        crate::runtime::ShadingMode::DistanceFromHead,
+        "config shading-mode key present must override the CLI lock (v51.1)"
     );
 }
 
-/// (Z2-1): `--color-bg` CLI explicit must survive a live-reload that
-/// applies the config `color-bg` key.
+/// (Z2-1, v51.1 rewrite): config `color-bg` key PRESENT wins over the
+/// CLI lock at runtime; the CLI value is the fallback on absence.
 #[test]
-fn rebuild_color_bg_key_respects_cli_explicit() {
+fn rebuild_color_bg_key_overrides_cli_lock_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("color-bg".to_string(), "black".to_string());
     let mut base = minimal_cloud_config();
@@ -329,17 +330,20 @@ fn rebuild_color_bg_key_respects_cli_explicit() {
     base.cli_explicit.color_bg = true;
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
-        new.default_bg,
-        "CLI --color-bg must win over the config color-bg key"
+        !new.default_bg,
+        "config color-bg key present must override the CLI --color-bg lock (v51.1)"
     );
 }
 
-/// (Z2-2): a config `color` key switching to a builtin must NOT clear a
-/// CLI-owned custom palette (`--colors-custom`). Startup checks
-/// args.colors_custom FIRST and never drops the palette; live-reload must
-/// match.
+/// (Z2-2, v51.1 rewrite): a config `color` key switching to a builtin
+/// now CLEARS a CLI-owned custom palette (`--colors-custom`) — the key
+/// is the most recent user intent. The palette RETURNS when the key is
+/// commented back out (base carries the locked palette) — pinned in
+/// tests_cli_fallback.rs (`fallback_color_key_absent_restores_cli_palette`).
+/// Startup still checks `--colors-custom` FIRST (CLI > config at
+/// startup — the temporal inversion is runtime-only).
 #[test]
-fn rebuild_color_key_does_not_clear_cli_colors_custom_palette() {
+fn rebuild_color_key_clears_cli_colors_custom_palette_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("color".to_string(), "snow".to_string());
     let mut base = minimal_cloud_config();
@@ -355,39 +359,37 @@ fn rebuild_color_key_does_not_clear_cli_colors_custom_palette() {
     base.cli_explicit.colors_custom = true;
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
-        new.custom_palette.is_some(),
-        "CLI --colors-custom palette must survive a config color switch"
+        new.custom_palette.is_none(),
+        "config color key present must clear the CLI-owned palette (v51.1)"
     );
-    assert_eq!(new.custom_palette_name.as_deref(), Some("p1"));
-    // The scheme may be updated (shadowed by the palette) — the palette is
-    // what renders, matching startup behavior.
+    assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Snow);
 }
 
-/// (Z2-3): a config `scene` key must NOT replace the CLI-selected custom
-/// scene (`--scene-custom`). At startup the CLI scene-custom layer applies
-/// LAST (above the config scene); live-reload must preserve that outcome.
+/// (Z2-3, v51.1 rewrite): a config `scene` key PRESENT now replaces the
+/// CLI-selected custom scene (`--scene-custom`) — the key is the most
+/// recent user intent. The custom scene RETURNS when the key is
+/// commented back out (base.scene_custom_name is never cleared — pinned
+/// in tests_cli_fallback.rs,
+/// `fallback_scene_key_absent_restores_cli_scene_custom`).
 #[test]
-fn rebuild_scene_key_does_not_replace_cli_scene_custom() {
+fn rebuild_scene_key_replaces_cli_scene_custom_when_present() {
     let mut cfg = HashMap::new();
     cfg.insert("scene".to_string(), "cinematic".to_string());
     let mut base = minimal_cloud_config();
     base.cli_explicit.scene_custom = true;
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
-        new.scene_name, "test-scene",
-        "CLI --scene-custom must survive a config scene switch"
+        new.scene_name, "cinematic",
+        "config scene key present must replace the CLI --scene-custom selection (v51.1)"
     );
     assert_eq!(
-        new.scene_custom_name.as_deref(),
-        Some("test-scene"),
-        "the custom scene tracker must stay active so the tail block re-applies"
+        new.scene_custom_name, None,
+        "switching to a builtin scene clears the custom-scene tracker (startup parity)"
     );
-    // The custom scene's field layer must still have been re-applied
-    // (still_active matched), proving live-edit of the block keeps working.
     assert_eq!(
         new.color_scheme,
-        crate::runtime::ColorScheme::NeonPurple,
-        "the CLI custom scene keeps the base values when the block has no fields"
+        crate::runtime::ColorScheme::EnergyZen,
+        "cinematic's energy-zen default applies"
     );
 }
 

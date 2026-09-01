@@ -126,6 +126,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     // Store base CloudConfig for rebuilds (clone before any moves).
     let mut base_cfg = cfg.clone();
+    // v51.1 masterclass: pristine startup snapshot — the LOCKED layer
+    // (CLI > config@startup resolution baked in). Never mutated for the
+    // whole session: the live-reload path restores the scene family from
+    // it when the config `scene` key is removed, so a `--scene
+    // crystal-dragon` run returns to crystal-dragon after the config
+    // override is commented back out — no exit, no rerun.
+    let startup_cfg = cfg.clone();
     // v50.0.0-alpha.7: track the LATEST live-reloaded CloudConfig so
     // finalize_session (at exit) reads the EFFECTIVE runtime values,
     // not the startup values. Without this, "final runtime state"
@@ -183,24 +190,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Implementation: check if ANY CliExplicit flag is true. If none,
     // apply ambient instantly. If any, defer (skip startup apply + let
     // auto-snapback handle it after the delay).
-    let cli_has_any_override = {
-        let c = &base_cfg.cli_explicit;
-        c.color
-            || c.charset
-            || c.speed
-            || c.density
-            || c.fps
-            || c.scene
-            || c.glitch_level
-            || c.crystal_dragon
-            || c.power_dragon
-            || c.async_mode
-            || c.msg_mode
-            || c.intro_color
-            || c.message
-            || c.monolith_size
-            || c.color_tune
-    };
+    // v51.1: uses CliExplicit::any() — the old inline `||` chain listed
+    // only 15 of the 21 flags (--bold, --shading-mode, --color-bg,
+    // --colors-custom, --scene-custom, -mfs did NOT defer ambient).
+    let cli_has_any_override = base_cfg.cli_explicit.any();
     let (new_charset, startup_entry) = if cli_has_any_override {
         // CLI flags present: defer ambient. Capture the entry for snapback.
         let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
@@ -269,6 +262,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         super::event_loop_config_rebuild::apply_config_rebuild(
             &mut pending_config,
             &mut base_cfg,
+            &startup_cfg,
             &mut cloud,
             &mut frame,
             &mut term,

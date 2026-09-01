@@ -242,8 +242,12 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // v20: track active custom scene name so live reload can re-apply
         // its fields when the user edits [scene-custom.<name>] in config.
         scene_custom_name: args.scene_custom.clone(),
-        // Bug 3: tracker for CLI-explicit flags, used by rebuild_cloud_config
-        // to enforce CLI > config.toml > scene priority during live reload.
+        // Bug 3: tracker for CLI-explicit flags. v51.1 owner contract: the
+        // flags are the CLI LOCK — startup bakes CLI > config.toml > scene
+        // defaults into this config; at runtime a config key overrides the
+        // flag only while present (rebuild_cloud_config + the event-loop
+        // scene-family restore fall back to these locked values when the
+        // key is commented out).
         cli_explicit,
         // Ambient phase schedule (config-only). Collected from
         // `ambient.<HH-MM>` keys; empty = scheduler idles.

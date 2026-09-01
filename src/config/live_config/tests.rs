@@ -314,10 +314,13 @@ fn rebuild_preserves_scene_name_casing_from_config() {
     );
 }
 
-/// v50 fix: when CLI --scene was explicit, config's scene key must NOT
-/// override scene_name (CLI > config.toml priority contract).
+/// v51.1 (owner contract, 2026-09-01): a runtime config `scene` key
+/// WINS over the CLI-locked scene — temporal precedence, the file edit
+/// is the most recent user intent. The CLI value survives as the
+/// FALLBACK: the end-to-end comment-out scenario is pinned in
+/// tests_cli_fallback.rs (scene reverts to the locked startup values).
 #[test]
-fn rebuild_preserves_cli_explicit_scene_name_over_config() {
+fn rebuild_config_scene_key_overrides_cli_locked_scene() {
     let mut cfg = HashMap::new();
     cfg.insert("scene".to_string(), "monolith".to_string());
     let mut base = minimal_cloud_config();
@@ -325,18 +328,17 @@ fn rebuild_preserves_cli_explicit_scene_name_over_config() {
     base.scene_name = "matrix".to_string();
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
-        new.scene_name, "matrix",
-        "CLI --scene must NOT be overridden by config.toml scene key"
+        new.scene_name, "monolith",
+        "runtime config scene key must override the CLI-locked scene (v51.1)"
     );
 }
 
-/// Bug 3 test: CLI-explicit color must NOT be overridden by config.toml
-/// during live reload. The priority contract is CLI > config.toml > scene.
-/// Without the `cli_explicit` tracker, `rebuild_cloud_config` would
-/// blindly apply `color = "snow"` from config, clobbering the user's
-/// `-c green` CLI flag.
+/// v51.1 (owner contract): a runtime config `color` key WINS over a
+/// CLI `-c green` lock (temporal precedence). The CLI color returns
+/// when the key is commented back out — the CLI-locked fallback is
+/// pinned in tests_cli_fallback.rs.
 #[test]
-fn rebuild_preserves_cli_explicit_color_over_config() {
+fn rebuild_config_color_key_overrides_cli_locked_color() {
     let mut cfg = HashMap::new();
     cfg.insert("color".to_string(), "snow".to_string());
     let mut base = minimal_cloud_config();
@@ -347,8 +349,8 @@ fn rebuild_preserves_cli_explicit_color_over_config() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.color_scheme,
-        crate::runtime::ColorScheme::Green,
-        "CLI --color green must NOT be overridden by config.toml color=snow"
+        crate::runtime::ColorScheme::Snow,
+        "runtime config color key must override the CLI-locked color (v51.1)"
     );
 }
 

@@ -191,9 +191,24 @@ impl CloudConfig {
 }
 
 /// Per-field record of which CloudConfig fields were set via CLI.
-/// Used by `rebuild_cloud_config` to enforce the
-/// **CLI > config.toml > scene default** priority contract across
-/// live reloads.
+///
+/// v51.1 (owner contract, 2026-09-01) — the flags are the CLI LOCK, not a
+/// blocker:
+///
+/// ```text
+/// Startup:  CLI > config.toml > scene defaults > built-in defaults
+/// Runtime:  config key > CLI lock > scene defaults > built-in defaults
+/// ```
+///
+/// At startup the CLI flags win over config.toml. After startup an
+/// explicit config key overrides the flag (the file edit is the most
+/// recent user intent) — but the CLI value stays LOCKED underneath:
+/// when the key is commented out, the engine falls back to the locked
+/// startup value without an exit + rerun. `rebuild_cloud_config` reads
+/// these flags for the fallback arms (color.tune / message / msg-mode)
+/// and the scene-default gates (CLI lock > scene-managed defaults);
+/// `any()` drives the ambient startup deferral (ANY CLI flag present
+/// → ambient waits for the snapback delay).
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct CliExplicit {
     pub color: bool,
@@ -250,6 +265,43 @@ pub(crate) struct CliExplicit {
     /// a config `scene` key silently replaced the CLI-selected custom
     /// scene on reload; startup applies the CLI custom scene last).
     pub scene_custom: bool,
+}
+
+impl CliExplicit {
+    /// True when ANY CLI flag was explicitly set.
+    ///
+    /// Drives the v50.0.0-beta.7 ambient startup deferral ("CLI wins
+    /// first, then ambient takes over after ambient-snapback-secs").
+    /// v51.1: previously an inline `||` chain in event_loop.rs listing
+    /// only 15 of the 21 flags — `--bold`, `--shading-mode`,
+    /// `--color-bg`, `--colors-custom`, `--scene-custom`, and
+    /// `-mfs`/`--msg-fill-style` did NOT defer ambient even though the
+    /// documented rule says "ANY CLI flag". The method covers all
+    /// fields, so future flags are included by construction.
+    #[must_use]
+    pub(crate) const fn any(self) -> bool {
+        self.color
+            || self.charset
+            || self.speed
+            || self.density
+            || self.fps
+            || self.scene
+            || self.glitch_level
+            || self.crystal_dragon
+            || self.power_dragon
+            || self.async_mode
+            || self.msg_mode
+            || self.msg_fill_style
+            || self.intro_color
+            || self.message
+            || self.monolith_size
+            || self.color_tune
+            || self.bold
+            || self.shading_mode
+            || self.color_bg
+            || self.colors_custom
+            || self.scene_custom
+    }
 }
 
 impl CloudConfig {

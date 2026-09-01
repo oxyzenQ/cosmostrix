@@ -5,8 +5,21 @@
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 //!
 //! Captures which CLI flags were explicitly set by the user (via clap's
-//! ValueSource::CommandLine check) so live reload can enforce
-//! CLI > config.toml > scene priority.
+//! ValueSource::CommandLine check). v51.1 owner contract (2026-09-01):
+//! the flags are the CLI LOCK, not a config blocker —
+//!
+//! ```text
+//! Startup:  CLI > config.toml > scene defaults > built-in defaults
+//! Runtime:  config key > CLI lock > scene defaults > built-in defaults
+//! ```
+//!
+//! At startup the CLI flags win over config.toml. After startup an
+//! explicit config key overrides the flag (the file edit is the most
+//! recent user intent), but the CLI value stays locked underneath: when
+//! the key is commented out, the engine falls back to the locked startup
+//! value. `rebuild_cloud_config` reads the flags for the fallback arms
+//! (color.tune / message / msg-mode) and the scene-default gates; the
+//! event loop reads `any()` for the ambient startup deferral.
 
 use clap::ArgMatches;
 
@@ -21,9 +34,11 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
         matches.value_source("color"),
         Some(clap::parser::ValueSource::CommandLine)
     );
-    // Bug 3 fix: capture which CLI flags were explicitly set so live reload
-    // can enforce CLI > config.toml > scene priority (otherwise a CLI flag
-    // like `-c green` would be silently overridden when config is edited).
+    // Bug 3 fix: capture which CLI flags were explicitly set. v51.1 owner
+    // contract: the flags form the CLI LOCK — startup resolution is
+    // CLI > config.toml > scene defaults, and at runtime a config key
+    // overrides the flag only while present (commenting the key out falls
+    // back to the locked startup value).
     let cli_explicit = crate::app::CliExplicit {
         color: cli_explicit_color,
         charset: matches!(
