@@ -122,12 +122,13 @@ fn clap_rejects_invalid_msg_fill_style_value() {
 }
 
 #[test]
-fn clap_default_msg_fill_style_is_typewriter() {
-    // LTS guarantee: no flag → typewriter (pre-v80.0.0-beta.1 behavior preserved).
+fn clap_default_msg_fill_style_is_engrave() {
+    // v80.0.0-beta.2 champion: no flag → engrave (owner champion winner).
+    // The pre-beta.2 default was typewriter for LTS bit-identical parity.
     use clap::Parser;
     let args = crate::config::Args::try_parse_from(["cosmostrix"]).unwrap();
     assert_eq!(
         args.msg_fill_style,
-        crate::msg_fill_style::MsgFillStyle::Typewriter
+        crate::msg_fill_style::MsgFillStyle::Engrave
     );
 }

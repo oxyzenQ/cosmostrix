@@ -21,8 +21,12 @@
 //! | `scorch`    | 80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs | lags text (t^1.5) + smoke |
 //! | `cascade`   | 60 ms/col drop-from-above, 240 ms fall, column-paced waterfall | lags text (t^1.5) |
 //!
-//! Default is `typewriter` — bit-identical to the pre-v80.0.0-beta.1 renderer, so
-//! upgrading changes nothing unless the user opts in (LTS guarantee).
+//! Default is `engrave` (v80.0.0-beta.2 owner champion winner) —
+//! laser engraving with burn-in + hot head glow + spark sidecar. The
+//! pre-beta.2 default was `typewriter` for LTS bit-identical parity;
+//! upgrading to beta.2 changes the default reveal style (users who
+//! want the old default can set `msg-fill-style = "typewriter"` in
+//! config.toml or pass `-mfs typewriter` on the CLI).
 //!
 //! ## One file per style (owner refactor mandate)
 //!

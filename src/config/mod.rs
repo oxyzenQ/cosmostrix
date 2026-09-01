@@ -308,9 +308,10 @@ pub struct Args {
     )]
     pub message: Option<String>,
 
-    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (typewriter
-    /// default = bit-identical to pre-v80.0.0-beta.1; engrave adds the spark
-    /// sidecar; hologram adds a stateless scanline pass; glitch
+    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (engrave
+    /// default from v80.0.0-beta.2 = owner champion winner; typewriter was
+    /// the pre-beta.2 default for LTS bit-identical parity; engrave adds
+    /// the spark sidecar; hologram adds a stateless scanline pass; glitch
     /// extends CellReveal with a glyph_override field; scorch
     /// extends CellReveal with a tint field and adds a smoke
     /// sidecar; cascade reuses the signed slide_rows field for
@@ -319,11 +320,11 @@ pub struct Args {
     /// (cli/argv_expand.rs).
     #[arg(
         long = "msg-fill-style",
-        default_value = "typewriter",
+        default_value = "engrave",
         value_enum,
         help_heading = "COMMON OPTIONS",
         display_order = 71,
-        help = "Message overlay reveal style (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade, default: typewriter)"
+        help = "Message overlay reveal style (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade, default: engrave)"
     )]
     pub msg_fill_style: MsgFillStyle,
 

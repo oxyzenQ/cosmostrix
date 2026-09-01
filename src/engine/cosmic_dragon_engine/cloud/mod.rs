@@ -458,9 +458,14 @@ impl Cloud {
             message_text: None,
             message_border: false,
             message_start_time: None,
-            // v80.0.0-beta.1 msg-fill-style: Typewriter default keeps the pre-v80.0.0-beta.1
-            // reveal behavior bit-identical (LTS guarantee).
-            msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
+            // v80.0.0-beta.2 msg-fill-style: Engrave default (owner champion
+            // winner). The pre-beta.2 default was Typewriter for LTS
+            // bit-identical parity. Cloud::new sets the field here, but the
+            // event loop always calls set_msg_fill_style() with the resolved
+            // CLI/config value before the first frame, so this default only
+            // matters for tests that construct a Cloud without going through
+            // the CLI path.
+            msg_fill_style: crate::msg_fill_style::MsgFillStyle::Engrave,
             message_word_ordinals: Vec::new(),
             border_order: Vec::new(),
             message_top_line: u16::MAX,

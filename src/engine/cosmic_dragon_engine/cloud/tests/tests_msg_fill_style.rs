@@ -529,9 +529,11 @@ fn set_msg_fill_style_restarts_reveal_on_change() {
 }
 
 #[test]
-fn default_style_is_typewriter_bit_identical_contract() {
-    // A fresh Cloud (no explicit style) must render exactly like a
-    // Typewriter-configured cloud — the LTS no-behavior-change guarantee.
+fn default_style_is_engrave_champion_contract() {
+    // v80.0.0-beta.2: the default msg-fill-style is now Engrave (owner
+    // champion winner). The pre-beta.2 default was Typewriter for LTS
+    // bit-identical parity. A fresh Cloud (no explicit style) must render
+    // exactly like an Engrave-configured cloud — the champion contract.
     let mut plain = Cloud::new(
         ColorMode::TrueColor,
         ShadingMode::Random,
@@ -543,22 +545,22 @@ fn default_style_is_typewriter_bit_identical_contract() {
     );
     plain.init_chars(vec!['0', '1']);
     plain.reset(30, 12);
-    assert_eq!(plain.msg_fill_style, MsgFillStyle::Typewriter);
+    assert_eq!(plain.msg_fill_style, MsgFillStyle::Engrave);
 
-    let mut typed = make_cloud_colored(MsgFillStyle::Typewriter);
-    for cloud in [&mut plain, &mut typed] {
+    let mut engraved = make_cloud_colored(MsgFillStyle::Engrave);
+    for cloud in [&mut plain, &mut engraved] {
         set_message_elapsed(cloud, "hello world", 320);
     }
     let mut f1 = Frame::new(30, 12, plain.palette.bg);
     plain.draw_message(&mut f1, Instant::now());
-    let mut f2 = Frame::new(30, 12, typed.palette.bg);
-    typed.draw_message(&mut f2, Instant::now());
+    let mut f2 = Frame::new(30, 12, engraved.palette.bg);
+    engraved.draw_message(&mut f2, Instant::now());
 
     let v1 = visible_content_cells(&f1, &plain);
-    let v2 = visible_content_cells(&f2, &typed);
+    let v2 = visible_content_cells(&f2, &engraved);
     assert_eq!(
         v1, v2,
-        "default cloud and explicit typewriter cloud must reveal identically"
+        "default cloud and explicit engrave cloud must reveal identically"
     );
 }
 

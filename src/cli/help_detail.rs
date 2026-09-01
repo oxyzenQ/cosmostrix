@@ -198,7 +198,7 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: typewriter). Ten
+      Message overlay reveal animation (default: engrave — v80.0.0-beta.2 owner champion). Ten
       styles — nine driven purely by elapsed time (stateless, zero
       per-frame cost), plus engrave and scorch (each adds a bounded
       particle sidecar):

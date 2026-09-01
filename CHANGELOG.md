@@ -272,6 +272,43 @@ All 107 intro tests pass, 0 regressions. cargo fmt + cargo clippy
 Docs: `README.md` `--intro-color` help text updated to mention both
 intro styles and the chroma integration.
 
+### feature: v80.0.0-beta.2 — default msg-fill-style champion = engrave
+
+Owner mandate (2026-09-02): "owner give champion for set mfs style for
+default cosmostrix wins is engrave." The default message overlay reveal
+style is now `engrave` (laser engraving with burn-in + hot head glow +
+spark sidecar) — the owner's champion winner after testing all 10
+styles. The pre-beta.2 default was `typewriter` for LTS bit-identical
+parity.
+
+Changes:
+- `src/config/mod.rs`: clap `default_value = "engrave"` (was
+  `"typewriter"`), help text updated.
+- `src/engine/cosmic_dragon_engine/cloud/mod.rs`: `Cloud::new` default
+  field set to `MsgFillStyle::Engrave` (was `Typewriter`). This only
+  affects tests that construct a Cloud without going through the CLI
+  path — the event loop always calls `set_msg_fill_style()` with the
+  resolved CLI/config value before the first frame.
+- `src/msg_fill_style/mod.rs`: module doc updated to document the new
+  default + the migration path (users who want the old default can set
+  `msg-fill-style = "typewriter"` in config.toml or pass
+  `-mfs typewriter` on the CLI).
+- `src/config/configfile/configfile_dump.rs`: template config comment
+  updated to show `engrave` as the default.
+- `src/cli/help_detail.rs`: `--msg-fill-style` help text updated.
+- `README.md`: `-mfs` flag help + feature description updated.
+
+Tests:
+- Renamed `default_style_is_typewriter_bit_identical_contract` →
+  `default_style_is_engrave_champion_contract` (asserts Engrave default
+  + bit-identical render with explicit Engrave cloud).
+- Renamed `clap_default_msg_fill_style_is_typewriter` →
+  `clap_default_msg_fill_style_is_engrave` (asserts clap default_value
+  is Engrave).
+
+All 95 msg_fill_style tests pass, 0 regressions. cargo fmt + cargo
+clippy `-D warnings` all clean.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density
