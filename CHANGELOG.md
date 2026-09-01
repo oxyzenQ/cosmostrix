@@ -190,6 +190,45 @@ Docs: `docs/HUD.md` "Chroma dragon border" subsection gains a
 "Dynamic clean movement" paragraph documenting the tracking behavior
 and the residue clearing logic.
 
+### audit: v80.0.0-beta.1 — dependency update masterclass framework
+
+Owner confusion (2026-09-02): "if update latest version can break, but
+if not update outdate/deprecated." Resolved with a three-bucket
+framework documented in `docs/DEPENDENCY_AUDIT.md`:
+
+1. **UPDATE NOW** — semver-compatible (patch/minor within the same
+   allowed range). Safe by semver contract. Applied automatically by
+   the `maintenance.yml` weekly cron.
+2. **AUDIT THEN UPDATE** — major version bump (crosses a semver
+   boundary). Requires Cargo.toml constraint change + code audit +
+   migration work. Each dep gets its own PR.
+3. **HOLD** — breaking + low ROI (no CVEs, current version
+   well-maintained, migration cost outweighs benefit).
+
+Per-dependency analysis (from `cargo update --verbose`):
+
+| Dep | Current | Available | Bucket | Notes |
+|-----|---------|-----------|--------|-------|
+| clap | 4.5.61 | 4.6.6 | UPDATE NOW | Relax pin `<4.6` → `<4.7`, zero migration |
+| generic-array | 0.14.7 | 0.14.9 | UPDATE NOW | Transitive (via sha2), patch |
+| notify | 7.0.0 | 8.2.0 | AUDIT THEN UPDATE | Event API rework, 2-4h migration |
+| rand | 0.9.5 | 0.10.2 | AUDIT THEN UPDATE | Rng trait rework, 4-6h migration |
+| signal-hook | 0.3.18 | 0.4.4 | AUDIT THEN UPDATE | Signals API change, 1-2h migration |
+| sha2 | 0.10.9 | 0.11.0 | HOLD | Security-critical path, API rework, low ROI |
+| smallvec | 1.15.2 | 1.16.0 | DONE | Already updated by cargo update |
+
+The "deprecated" fear is overblown: Rust crates don't deprecate in the
+traditional sense. A crate at v0.10.x is still fully functional even if
+v0.11 exists. The only real deprecation is yanking (none of cosmostrix's
+deps are yanked). The real signals to act on: CVEs (monitored daily by
+`gitbot-audit.yml`), unmaintained deps (2+ years no commits), or a
+needed feature in the new version.
+
+Docs: `docs/DEPENDENCY_AUDIT.md` (new) — full framework + per-dep
+analysis + action plan. `docs/SUPPLY_CHAIN.md` — fixed stale notify
+version (`>=6.1, <7` → `>=7, <8`) + added dependency update policy
+subsection cross-referencing the audit doc.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

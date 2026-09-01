@@ -20,8 +20,22 @@ Every dependency that ships with cosmostrix must be auditable. The CI pipeline e
 | `signal-hook` | `0.3` (Unix only) | Graceful shutdown on SIGTERM/SIGHUP/SIGQUIT (v25.13: SIGINT deprecated) | No | No |
 | `libc` | `0.2` (Linux only) | Low-level syscall bindings for terminal size queries | No | No |
 | `ctrlc` | `3.4` (Windows only) | Graceful shutdown handler for Windows console Ctrl-C/SIGBREAK | No | No |
-| `notify` | `>=6.1, <7` (default-features = false) | Cross-platform filesystem watcher for live config reload | No | No |
+| `notify` | `>=7, <8` (default-features = false) | Cross-platform filesystem watcher for live config reload | No | No |
 | `sha2` | `0.10` | SHA-512 for config.toml hashing (live-reload change detection, dump/testconf fingerprints) | No | No |
+
+### Dependency update policy
+
+cosmostrix uses a three-bucket framework for dependency updates:
+**UPDATE NOW** (semver-compatible), **AUDIT THEN UPDATE** (major bump,
+needs migration), **HOLD** (breaking + low ROI). See
+[`docs/DEPENDENCY_AUDIT.md`](DEPENDENCY_AUDIT.md) for the full
+framework, per-dependency analysis, and the action plan.
+
+The `maintenance.yml` weekly cron runs `cargo update --workspace` +
+`cargo audit` + `cargo deny check all` — semver-compatible updates are
+applied automatically with CI verification. Major version bumps require
+manual audit (never auto-applied). CVE monitoring runs daily via
+`gitbot-audit.yml`.
 
 ### Policy Rules
 
