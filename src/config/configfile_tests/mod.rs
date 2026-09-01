@@ -61,10 +61,12 @@ intro = cosmic
 
 #[test]
 fn scene_custom_then_colors_custom_flat_keys_promote() {
-    // v50.0.0-beta.6: flat colors-custom keys nested under a
-    // [scene-custom] block are NO LONGER promoted — they surface as
-    // unknown_keys. The user must write [colors-custom.<name>] as its
-    // own section header to reset scope.
+    // v80.0.0-beta.1: flat colors-custom keys nested under a
+    // [scene-custom] block are NOW promoted (owner bug report relaxation).
+    // Namespaced top-level keys (carrying a dot, like
+    // `colors-custom.<name>.<field>`) are unambiguous root-scope prefixes
+    // — promote them so users can uncomment template blocks without
+    // having to learn TOML scope-reset rules.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
@@ -72,40 +74,128 @@ colors-custom.mythme.bg = \"#0a0a12\"
 colors-custom.mythme.rain = \"#1a0033, #4d0080\"
 ";
     let parsed = parse_config_text(content);
-    // Both flat keys are unknown (nested under scene-custom, not promoted).
-    assert!(
+    // `color = green` stays nested (it's a valid scene-custom field, so it
+    // is recognized in scope — no auto-promote needed, no unknown_key).
+    assert_eq!(
         parsed
-            .unknown_keys
-            .iter()
-            .any(|k| k == "scene-custom.hacker-mode.colors-custom.mythme.bg"),
-        "expected unknown key for nested colors-custom, got: {:?}",
+            .values
+            .get("scene-custom.hacker-mode.color")
+            .map(String::as_str),
+        Some("green"),
+        "scene-custom color field should stay nested"
+    );
+    // Namespaced colors-custom keys are promoted to root scope.
+    assert_eq!(
+        parsed
+            .values
+            .get("colors-custom.mythme.bg")
+            .map(String::as_str),
+        Some("#0a0a12"),
+        "expected colors-custom.mythme.bg promoted to root"
+    );
+    assert_eq!(
+        parsed
+            .values
+            .get("colors-custom.mythme.rain")
+            .map(String::as_str),
+        Some("#1a0033, #4d0080"),
+        "expected colors-custom.mythme.rain promoted to root"
+    );
+    // No unknown keys expected (all three keys are recognized somewhere).
+    assert!(
+        parsed.unknown_keys.is_empty(),
+        "got: {:?}",
         parsed.unknown_keys
     );
-    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
+    // Promotion was recorded for the two colors-custom keys.
+    assert_eq!(parsed.promoted_keys.len(), 2);
 }
 
 #[test]
 fn scene_custom_then_charset_custom_flat_key_promotes() {
-    // v50.0.0-beta.6: flat charset-custom keys nested under a
-    // [scene-custom] block are NO LONGER promoted — they surface as
-    // unknown_keys. The user must write [charset-custom.<name>] as its
-    // own section header.
+    // v80.0.0-beta.1: flat charset-custom keys nested under a
+    // [scene-custom] block are NOW promoted (owner bug report relaxation).
+    // Namespaced top-level keys carrying a dot are unambiguous root-scope
+    // prefixes — promote them so users can uncomment template blocks
+    // without learning TOML scope-reset rules.
     let content = "\
 [scene-custom.hacker-mode]
 color = green
 charset-custom.zen.set = \"|\"
 ";
     let parsed = parse_config_text(content);
-    // Flat key is unknown (nested under scene-custom, not promoted).
-    assert!(
+    // `color = green` stays nested (valid scene-custom field).
+    assert_eq!(
         parsed
-            .unknown_keys
-            .iter()
-            .any(|k| k == "scene-custom.hacker-mode.charset-custom.zen.set"),
-        "expected unknown key for nested charset-custom, got: {:?}",
+            .values
+            .get("scene-custom.hacker-mode.color")
+            .map(String::as_str),
+        Some("green"),
+        "scene-custom color field should stay nested"
+    );
+    // Namespaced charset-custom key is promoted to root scope.
+    assert_eq!(
+        parsed
+            .values
+            .get("charset-custom.zen.set")
+            .map(String::as_str),
+        Some("|"),
+        "expected charset-custom.zen.set promoted to root"
+    );
+    // No unknown keys expected.
+    assert!(
+        parsed.unknown_keys.is_empty(),
+        "got: {:?}",
         parsed.unknown_keys
     );
-    assert!(parsed.promoted_keys.is_empty(), "no promotion expected");
+    // Promotion was recorded.
+    assert_eq!(parsed.promoted_keys.len(), 1);
+}
+
+#[test]
+fn charset_custom_then_ambient_flat_key_promotes() {
+    // v80.0.0-beta.1 regression: the owner's exact bug. After uncommenting
+    // the template's `[charset-custom.cyberpunk_2077]` block, the subsequent
+    // `ambient.<HH-MM>` flat keys (also in the template) were being nested
+    // under the charset-custom block, producing
+    //   unknown key(s): 'charset-custom.cyberpunk_2077.ambient.01-50'
+    // Now namespaced top-level keys are auto-promoted even inside custom
+    // blocks — the user no longer needs to learn TOML scope-reset rules
+    // just to uncomment a template block.
+    let content = "\
+[charset-custom.cyberpunk_2077]
+set = \"0123456789ABCDEF\"
+
+ambient.01-50 = \"signal\"
+ambient.12-00 = \"monolith\"
+";
+    let parsed = parse_config_text(content);
+    assert!(
+        parsed.unknown_keys.is_empty(),
+        "expected no unknown keys, got: {:?}",
+        parsed.unknown_keys
+    );
+    // The charset-custom block's `set` field stays in scope (correct).
+    assert_eq!(
+        parsed
+            .values
+            .get("charset-custom.cyberpunk_2077.set")
+            .map(String::as_str),
+        Some("0123456789ABCDEF")
+    );
+    // The ambient flat keys are promoted to root scope.
+    assert_eq!(
+        parsed.values.get("ambient.01-50").map(String::as_str),
+        Some("signal"),
+        "ambient.01-50 must be promoted to root scope"
+    );
+    assert_eq!(
+        parsed.values.get("ambient.12-00").map(String::as_str),
+        Some("monolith"),
+        "ambient.12-00 must be promoted to root scope"
+    );
+    // Both ambient keys were promoted (recorded for --testconf warning).
+    assert_eq!(parsed.promoted_keys.len(), 2);
 }
 
 #[test]

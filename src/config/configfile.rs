@@ -331,27 +331,23 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 key.clone()
             };
             if !is_known_key(&full_key) {
-                // Auto-promote forgiving parser. If the un-prefixed
-                // key is itself a known top-level key, the user accidentally
-                // nested it under a [section] header (very common when
-                // mixing [scene-custom.<name>] with top-level keys like
-                // `fps` or `speed`). Silently re-home it to root scope and
-                // record the promotion so --testconf can warn the user
-                // about the structural fix.
+                // Auto-promote forgiving parser. If the un-prefixed key is
+                // itself a known top-level key, the user accidentally nested
+                // it under a [section] header (very common when mixing
+                // [scene-custom.<name>] with top-level keys like `fps` or
+                // `speed`). Silently re-home it to root scope and record
+                // the promotion so --testconf can warn the user about the
+                // structural fix.
                 //
-                // v50.0.0-beta.6 FATAL FIX: do NOT auto-promote when inside
-                // a custom block (charset-custom.*, colors-custom.*,
-                // scene-custom.*). These blocks have a strict field
-                // allowlist — unknown fields must be rejected as
-                // unknown_keys, NOT promoted to root scope. Previously,
-                // `color = green` inside `[charset-custom.quantum]` was
-                // promoted to root `color = green`, silently changing the
-                // global color scheme. Now it surfaces as an unknown key
-                // so config_hints can attach a helpful error message.
-                let is_custom_block = current_section.starts_with("charset-custom.")
-                    || current_section.starts_with("colors-custom.")
-                    || current_section.starts_with("scene-custom.");
-                if !current_section.is_empty() && !is_custom_block && is_known_key(&key) {
+                // v50.0.0-beta.6 FATAL FIX (scalar typo guard) +
+                // v80.0.0-beta.1 relaxation (namespaced keys promote even
+                // inside custom blocks): see
+                // `configfile/configfile_promote.rs` for the full history
+                // and the decision rule. Short version: scalar keys like
+                // `color` inside a custom block are typo'd field names
+                // (reject); namespaced keys like `ambient.01-50` are
+                // top-level prefixes the user accidentally nested (promote).
+                if configfile_promote::should_auto_promote(&current_section, &key) {
                     promoted_keys.push((full_key.clone(), key.clone()));
                     // Don't overwrite an explicit root-scope value — first
                     // writer wins (matches TOML semantics for duplicate keys).
@@ -793,6 +789,10 @@ mod configfile_dump;
 pub(crate) use configfile_dump::{
     dump_config_text, dump_config_with_header, extract_template_fingerprint, sha512_hex,
 };
+
+// v80.0.0-beta.1: auto-promote decision rule extracted to keep this file
+// under the 800-line LOC cap. See `configfile_promote::should_auto_promote`.
+mod configfile_promote;
 
 #[cfg(test)]
 #[path = "configfile_tests_inline.rs"]
