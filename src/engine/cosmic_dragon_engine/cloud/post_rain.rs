@@ -290,7 +290,8 @@ impl super::Cloud {
 
         // 8. Draw message box LAST — survives phosphor, anomaly, atmospheric.
         // Glow (60% white blend) + style-driven reveal (msg-fill-style,
-        // default typewriter 80 ms/char; engrave adds its spark pass
+        // default engrave since v80.0.0-beta.2, the owner champion;
+        // typewriter paces at 80 ms/char; engrave adds its spark pass
         // at the end of draw_message; hologram adds its scanline pass;
         // glitch's wrong-glyph substitution is part of the reveal math
         // itself, no extra pass; scorch adds its smoke pass at the end

@@ -88,7 +88,7 @@ hard error. Two-layer enforcement:
    job that does not override `RUSTFLAGS` inherits strictness
    automatically. Per-job `RUSTFLAGS` overrides (macos
    `-C target-cpu=native`, linux v3/v4 matrix `-C target-cpu=x86-64-v3`/`-v4`,
-   windows `-C target-cpu=x86-64`) re-append ` -D warnings` so the
+   windows `-C target-cpu=x86-64`) re-append `-D warnings` so the
    target-cpu tuning is preserved alongside strictness.
 2. **`scripts/ci-strict-build.sh` wrapper** — a belt-and-suspenders
    post-build scanner. Every `cargo build` invocation in a bash-shell
@@ -183,8 +183,8 @@ Fix (`src/interactive/hud/hud_init.rs`):
   AND cell (13,1) for the border replacement — both verify HB-01 is
   still fixed (stale chars gone).
 
-All 69 HUD tests pass (67 existing + 2 new), 0 regressions. cargo fmt
-+ cargo clippy -D warnings + cargo check --all-targets all clean.
+All 69 HUD tests pass (67 existing + 2 new), 0 regressions. cargo fmt +
+cargo clippy -D warnings + cargo check --all-targets all clean.
 
 Docs: `docs/HUD.md` "Chroma dragon border" subsection gains a
 "Dynamic clean movement" paragraph documenting the tracking behavior
@@ -300,14 +300,26 @@ Changes:
 
 Tests:
 - Renamed `default_style_is_typewriter_bit_identical_contract` →
-  `default_style_is_engrave_champion_contract` (asserts Engrave default
-  + bit-identical render with explicit Engrave cloud).
+  `default_style_is_engrave_champion_contract` (asserts Engrave default +
+  bit-identical render with explicit Engrave cloud).
 - Renamed `clap_default_msg_fill_style_is_typewriter` →
   `clap_default_msg_fill_style_is_engrave` (asserts clap default_value
   is Engrave).
 
 All 95 msg_fill_style tests pass, 0 regressions. cargo fmt + cargo
 clippy `-D warnings` all clean.
+
+Follow-up (same mandate, stale-reference sweep): active-code comments
+still claiming typewriter was the default were synced so no reader is
+misled after the champion change — `cloud/message_draw.rs` module doc
+(also fixed doubly-stale "Seven styles ... pulse" — the set is ten
+styles, pulse was removed earlier), `cloud/post_rain.rs` draw-order
+comment, `cli/build_cloud_cfg.rs` style-resolution comment, and five
+test-fixture comments (`config/live_config/tests.rs` + four
+`interactive/tests*.rs`) now state the fixtures pin Typewriter
+explicitly so style-agnostic tests never depend on the champion
+default. `msg_fill_style/typewriter.rs` doc now reads "the
+pre-v80.0.0-beta.2 default" with the pin-back migration path.
 
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 

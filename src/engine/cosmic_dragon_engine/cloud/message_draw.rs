@@ -9,17 +9,17 @@
 //! (BC-01..05 chroma dragon), F2 splash crown sparks, and Z-5 zero-alloc
 //! scratch buffers.
 //!
-//! v80.0.0-beta.1 msg-fill-style: the text reveal is style-driven (see
+//! v80.0.0-beta.2 msg-fill-style: the text reveal is style-driven (see
 //! `msg_fill_style/` — one file per style, dispatch in
-//! `msg_fill_style/mod.rs`). Seven styles are selectable via
+//! `msg_fill_style/mod.rs`). Ten styles are selectable via
 //! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
-//! typewriter (default, bit-identical to pre-v80.0.0-beta.1), fade, words, slide,
-//! pulse, instant, engrave. All timing constants, per-cell reveal
-//! math, and the engrave spark sidecar live in the style files; this
-//! renderer only consumes the dispatch API. The engrave style's
-//! spark pass is implemented in `msg_fill_style/engrave.rs` (the
-//! only stateful member of the family) and is invoked at the end of
-//! this method.
+//! typewriter, fade, words, slide, instant, engrave (default since
+//! v80.0.0-beta.2, the owner champion), hologram, glitch, scorch,
+//! cascade. All timing constants, per-cell reveal math, and the
+//! style sidecars (engrave sparks, scorch smoke) live in the style
+//! files; this renderer only consumes the dispatch API. The stateful
+//! sidecar passes (engrave spark, scorch smoke) and the hologram
+//! scanline sweep are invoked at the end of this method.
 //!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type). The method stays

@@ -1,15 +1,16 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! msg-fill-style `typewriter` — the classic default.
+//! msg-fill-style `typewriter` — the pre-v80.0.0-beta.2 default.
 //!
 //! Per-character reveal at `TYPEWRITER_CHAR_MS` (80 ms) with a
 //! `TYPEWRITER_FADE_MS` (100 ms) per-char fade-in from 30% to 100%
-//! brightness. This is the DEFAULT style and is bit-identical to the
-//! pre-v80.0.0-beta.1 renderer — the reveal pacing (`(elapsed / 80).max(1)`) and
-//! the fade curve are the original formulas, kept verbatim as the LTS
-//! guarantee (upgrading changes nothing unless the user opts in).
-//!
+//! brightness. This was the default through v80.0.0-beta.1 and is
+//! bit-identical to the pre-v80.0.0-beta.1 renderer — the reveal pacing
+//! (`(elapsed / 80).max(1)`) and the fade curve are the original
+//! formulas, kept verbatim. v80.0.0-beta.2 promoted `engrave` to the
+//! default (owner champion); users who prefer the classic reveal can
+//! pin it via `-mfs typewriter` or `msg-fill-style = "typewriter"`.
 //! Border: lags text with the shared `t^1.5` ease-out curve.
 
 use super::{char_fade_in, index_fraction, index_pacing, lagged_border, CellReveal};

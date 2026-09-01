@@ -88,7 +88,7 @@ not "later" (later never comes).
    macos (`-C target-cpu=native`), linux v3/v4 matrix
    (`-C target-cpu=x86-64-v3`/`-v4`), and windows (`-C target-cpu=x86-64`)
    build jobs each set their own `RUSTFLAGS` env (which REPLACES the
-   global one), so each override string has ` -D warnings` appended
+   global one), so each override string has `-D warnings` appended
    to preserve strictness alongside the target-cpu tuning.
 4. **`scripts/ci-strict-build.sh` wrapper** — a belt-and-suspenders
    post-build scanner. Every `cargo build` invocation in a bash-shell

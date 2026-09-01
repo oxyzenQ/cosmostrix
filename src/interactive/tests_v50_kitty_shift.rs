@@ -79,7 +79,10 @@ mod cases_kitty_shift {
             chars: vec!['0', '1'],
             message: None,
             message_border: false,
-            // v80.0.0-beta.1 msg-fill-style: default keeps the classic typewriter reveal.
+            // v80.0.0-beta.2 msg-fill-style: pinned to Typewriter explicitly so these
+            // style-agnostic tests never depend on the champion default (engrave
+            // since v80.0.0-beta.2 - the default contract is locked separately in
+            // tests_msg_fill_style.rs and clap_suggestion.rs).
             msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
             target_fps: 60.0,
             xtermjs_host: false,
