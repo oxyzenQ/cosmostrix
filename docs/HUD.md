@@ -499,6 +499,25 @@ border column). Without this clearing, the border leaves a visible
 reported as "glitch effect" / "bekas/noda setelah bergerak"). With the
 fix, the border moves cleanly with zero residue.
 
+**Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
+harus semi black/fade biar elegant"):** the border edges fade toward
+the screen edge (top-left corner of screen) so the border "emerges
+from shadow" instead of popping in abruptly. This mirrors the message
+border's triangle-wave fade (`cloud/message_draw.rs` BD-02:
+dark→bright→dark around perimeter), applied per-edge with a linear
+ramp:
+- Right edge: row 0 (top, near screen top) = max fade (0.6 blend
+  toward bg = semi-black), row 23 (bottom, head anchor) = no fade.
+  `factor = 0.6 * (1.0 - row / 23.0)`.
+- Bottom edge: col 0 (left, near screen left) = max fade, col cur
+  (corner anchor) = no fade. `factor = 0.6 * (1.0 - col / cur)`.
+- The corner cell (col cur, row 24) is always full-bright (the anchor
+  point).
+
+Uses `chroma_dragon_engine::palette::blend_toward_bg` for the fade —
+the same blend helper the rain droplets use. When `bg` is `None`
+(transparent terminal), it defaults to black `Rgb(0,0,0)`.
+
 ### Instant palette refresh (no delay on runtime changes)
 
 Color refresh is split out of the 1 Hz metric tick — `HudState::refresh_colors`

@@ -856,6 +856,13 @@ fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
 // The HUD draws an L-shape border (right + bottom) using the same chroma
 // dragon palette integration as the message border (BC-01..05). This test
 // verifies the border shape, character set, and per-row color sweep.
+//
+// v80.0.0-beta.1 edge fade update (owner mandate 2026-09-02, "visual 9/10"):
+// the border edges fade toward the screen edge (top-left corner of screen)
+// so the border "emerges from shadow". Right edge: row 0 = max fade, row 23
+// = no fade. Bottom edge: col 0 = max fade, col cur = no fade (corner
+// anchor). This test verifies the fade behavior (faded at screen-edge ends,
+// full-bright at the anchor corner).
 #[test]
 fn hud_border_draws_l_shape_with_chroma_colors() {
     let mut h = HudState::new();
@@ -881,10 +888,14 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
     let cols = 40u16;
     // 30 rows so the bottom border at row 24 is in-bounds.
     let mut frame = crate::frame::Frame::new(cols, 30, None);
+    // bg = None → draw_border defaults to black for the fade target.
     h.write_to_frame(&mut frame, cols, None);
 
-    // Right border: col = 10 (hud_width), rows 0..23, char '│',
-    // color = per-row chroma color from cached_lines[row].
+    let head_color = test_color(23);
+
+    // Right border: col = 10 (hud_width), rows 0..23, char '│'.
+    // Edge fade: row 0 (top) = max fade (blended toward black), row 23
+    // (bottom) = no fade (full head_color).
     for row in 0..24u16 {
         let cell = frame
             .get(10, row)
@@ -894,18 +905,48 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
             "right border at (10,{}) must be the vertical box-drawing char",
             row
         );
-        assert_eq!(
-            cell.fg,
-            Some(test_color(row as usize)),
-            "right border at (10,{}) must use the row's chroma color (per-row sweep)",
-            row
-        );
         assert!(!cell.bold, "border must not be bold");
+
+        // Fade factor: 0.6 * (1.0 - row / 23.0). row 23 → 0.0 (no fade),
+        // row 0 → 0.6 (max fade). Verify behavior:
+        // - row 23: fg == test_color(23) (no fade, full color)
+        // - row 0..22: fg != test_color(row) (faded toward black)
+        if row == 23 {
+            assert_eq!(
+                cell.fg,
+                Some(test_color(23)),
+                "right border at row 23 (head anchor) must have NO fade — full color"
+            );
+        } else {
+            assert_ne!(
+                cell.fg,
+                Some(test_color(row as usize)),
+                "right border at row {} must be faded toward bg (not full color)",
+                row
+            );
+            // Faded color should be darker (each channel < original when
+            // bg is black and original channel > 0).
+            if let Some(Color::Rgb { r, g, b }) = cell.fg {
+                let orig = test_color(row as usize);
+                if let Color::Rgb {
+                    r: or_,
+                    g: og,
+                    b: ob,
+                } = orig
+                {
+                    assert!(
+                        r <= or_ && g <= og && b <= ob,
+                        "faded color at row {} must be <= original on each channel (blend toward black)",
+                        row
+                    );
+                }
+            }
+        }
     }
 
-    // Bottom border: row = 24, cols 0..9, char '─',
-    // color = head_color (cached_lines[23].0, the bright last stop).
-    let head_color = test_color(23);
+    // Bottom border: row = 24, cols 0..9, char '─'.
+    // Edge fade: col 0 (left) = max fade, col 9 (just before corner) =
+    // small fade. The corner at col 10 is tested separately below.
     for col in 0..10u16 {
         let cell = frame
             .get(col, 24)
@@ -915,15 +956,33 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
             "bottom border at ({},24) must be the horizontal box-drawing char",
             col
         );
-        assert_eq!(
+        // All bottom cells are faded (col 0 max, col 9 small) except
+        // the corner at col 10 which has no fade. Cols 0..9 are all
+        // faded (factor > 0 because col < cur=10).
+        assert_ne!(
             cell.fg,
             Some(head_color),
-            "bottom border at ({},24) must use the head color (bright last stop)",
+            "bottom border at col {} must be faded toward bg (not full head_color)",
             col
         );
+        if let Some(Color::Rgb { r, g, b }) = cell.fg {
+            if let Color::Rgb {
+                r: hr,
+                g: hg,
+                b: hb,
+            } = head_color
+            {
+                assert!(
+                    r <= hr && g <= hg && b <= hb,
+                    "faded bottom color at col {} must be <= head_color on each channel",
+                    col
+                );
+            }
+        }
     }
 
-    // Corner: (10, 24), char '╯' (light up-left corner), color = head_color.
+    // Corner: (10, 24), char '╯' (light up-left corner), color = head_color
+    // (NO fade — the corner is the bright anchor point).
     let corner = frame
         .get(10, 24)
         .expect("corner cell at (10,24) must exist");
@@ -934,7 +993,83 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
     assert_eq!(
         corner.fg,
         Some(head_color),
-        "corner must use the head color"
+        "corner must use the head color (NO fade — anchor point)"
+    );
+}
+
+// v80.0.0-beta.1 edge fade gradient test: verify the fade is a LINEAR ramp
+// from max fade (screen-edge end) to no fade (anchor end). The right edge
+// row 0 should be more faded than row 11 (midpoint), which should be more
+// faded than row 23 (no fade). This catches a bug where the fade is
+// applied uniformly instead of as a gradient.
+#[test]
+fn hud_border_edge_fade_is_linear_gradient() {
+    let mut h = HudState::new();
+    h.toggle();
+
+    // Use a single bright color for all rows so the fade is the only
+    // variable (no per-row chroma sweep confounding the comparison).
+    let bright = Color::Rgb {
+        r: 200,
+        g: 200,
+        b: 200,
+    };
+    for i in 0..24 {
+        h.cached_lines[i].0 = bright;
+        h.cached_lines[i].1 = format!(" row{}", i);
+    }
+    h.current_width = 10;
+    h.prev_width = 10;
+
+    let cols = 40u16;
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+
+    // Right edge: extract the R channel (as a proxy for brightness) at
+    // rows 0, 11, 23. With bg=black, fade blends toward (0,0,0), so
+    // R channel = 200 * (1 - fade). row 0 fade=0.6 → R=80. row 11
+    // fade≈0.31 → R≈138. row 23 fade=0.0 → R=200.
+    let r_at = |row: u16| -> u8 {
+        if let Some(Color::Rgb { r, .. }) = frame.get(10, row).and_then(|c| c.fg) {
+            r
+        } else {
+            panic!("no fg at row {}", row)
+        }
+    };
+    let r0 = r_at(0);
+    let r11 = r_at(11);
+    let r23 = r_at(23);
+
+    // Linear gradient: r0 < r11 < r23 (strictly increasing brightness).
+    assert!(
+        r0 < r11,
+        "row 0 (R={}) must be darker than row 11 (R={}) — linear fade gradient",
+        r0,
+        r11
+    );
+    assert!(
+        r11 < r23,
+        "row 11 (R={}) must be darker than row 23 (R={}) — linear fade gradient",
+        r11,
+        r23
+    );
+    // row 23 has no fade → R == 200 (full bright).
+    assert_eq!(
+        r23, 200,
+        "row 23 (anchor) must have NO fade — R == 200 (full bright)"
+    );
+    // row 0 has max fade (0.6) → R ≈ 80 (200 * 0.4, with integer
+    // rounding in lerp_u8 the exact value is 81 — assert a range to
+    // be robust to the rounding).
+    assert!(
+        r0 <= 85,
+        "row 0 (screen-edge end) must have max fade — R <= 85 (got {}), expected ~80",
+        r0
+    );
+    assert!(
+        r0 >= 75,
+        "row 0 (screen-edge end) fade must not be too aggressive — R >= 75 (got {})",
+        r0
     );
 }
 

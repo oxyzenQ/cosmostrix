@@ -243,6 +243,24 @@ impl super::HudState {
     /// - Corner (col current_width, row 24): '╯' (light up-left corner)
     ///   in the bright head color, connecting the right + bottom edges.
     ///
+    /// Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
+    /// harus semi black/fade biar elegant"): the border edges fade
+    /// toward the screen edge (top-left corner of screen) so the
+    /// border "emerges from shadow" instead of popping in abruptly.
+    /// This mirrors the message border's triangle-wave fade
+    /// (`cloud/message_draw.rs` BD-02: dark→bright→dark around
+    /// perimeter), applied per-edge with a linear ramp:
+    /// - Right edge: row 0 (top, near screen top) = max fade (0.6
+    ///   blend toward bg), row 23 (bottom, head anchor) = no fade.
+    ///   factor = 0.6 * (1.0 - row / 23.0).
+    /// - Bottom edge: col 0 (left, near screen left) = max fade,
+    ///   col cur (corner anchor) = no fade.
+    ///   factor = 0.6 * (1.0 - col / cur).
+    ///
+    /// The corner cell (col cur, row 24) is always full-bright (the
+    /// anchor point). Uses `chroma_dragon_engine::palette::blend_toward_bg`
+    /// for the fade — same blend helper the rain droplets use.
+    ///
     /// Dynamic clean movement (owner bug report 2026-09-02, "visual
     /// rating 8/10 — residue/stain when border moves"): the border
     /// position tracks `current_width` directly (NOT `max(cur, prev)`),
@@ -270,6 +288,14 @@ impl super::HudState {
         // Bright head color (palette last stop, cached_lines row 23 =
         // screensize — the visual anchor at the bottom of the HUD).
         let head_color = self.cached_lines[23].0;
+
+        // v80.0.0-beta.1 edge fade: blend toward bg (semi-black) at the
+        // screen-edge ends of each border edge. bg defaults to black
+        // when None (transparent terminal background).
+        let bg_color = bg.unwrap_or(Color::Rgb { r: 0, g: 0, b: 0 });
+        // Max fade factor at the screen-edge end (0.6 = 60% blend
+        // toward bg = semi-black, owner "semi black/fade" mandate).
+        const FADE_MAX: f32 = 0.6;
 
         // v80.0.0-beta.1 residue fix: when the HUD width shrinks
         // (prev > cur), the old border cells at col `prev` (right
@@ -312,11 +338,23 @@ impl super::HudState {
         }
 
         // Draw new right border at `cur` (if cur > 0).
+        // Edge fade: row 0 (top) = max fade toward bg, row 23 (bottom)
+        // = no fade (bright head anchor). Linear ramp.
         if cur > 0 && cur < cols {
             for row in 0..24u16 {
+                // Fade factor: 0.0 at row 23 (no fade), FADE_MAX at row 0.
+                let fade = FADE_MAX * (1.0 - row as f32 / 23.0);
+                let base_color = self.cached_lines[row as usize].0;
+                let fg = if fade > 0.0 {
+                    crate::chroma_dragon_engine::palette::blend_toward_bg(
+                        base_color, bg_color, fade,
+                    )
+                } else {
+                    base_color
+                };
                 let cell = crate::cell::Cell {
                     ch: '│',
-                    fg: Some(self.cached_lines[row as usize].0),
+                    fg: Some(fg),
                     bg,
                     bold: false,
                 };
@@ -325,15 +363,27 @@ impl super::HudState {
         }
 
         // Draw new bottom border at row 24, cols 0..=cur.
+        // Edge fade: col 0 (left, near screen edge) = max fade toward
+        // bg, col cur (corner) = no fade (bright head anchor). Linear
+        // ramp. The corner cell (col == cur) is always full-bright.
         if cur > 0 {
             for col in 0..=cur {
                 if col >= cols {
                     break;
                 }
                 let ch = if col == cur { '╯' } else { '─' };
+                // Fade factor: 0.0 at col cur (no fade), FADE_MAX at col 0.
+                let fade = FADE_MAX * (1.0 - col as f32 / cur as f32);
+                let fg = if fade > 0.0 {
+                    crate::chroma_dragon_engine::palette::blend_toward_bg(
+                        head_color, bg_color, fade,
+                    )
+                } else {
+                    head_color
+                };
                 let cell = crate::cell::Cell {
                     ch,
-                    fg: Some(head_color),
+                    fg: Some(fg),
                     bg,
                     bold: false,
                 };
