@@ -211,7 +211,86 @@ impl super::HudState {
                 frame.set(x, row, cell);
             }
         }
+        // v80.0.0-beta.1 HUD chroma border (owner mandate 2026-09-02):
+        // L-shape border on the right + bottom of the HUD area, using
+        // the same chroma dragon palette integration as the message
+        // border (cloud/message_draw.rs BC-01..05). Same simple function
+        // as the message border, different position: the message border
+        // is a full rectangle around the centered message box; the HUD
+        // border is an L-shape closing the top-left HUD block (top +
+        // left edges are implied by the screen edge at col 0, row 0).
+        self.draw_border(frame, cols, bg);
         // Track the previous width for the next frame's padding calculation.
         self.prev_width = self.current_width;
+    }
+
+    /// v80.0.0-beta.1 HUD chroma border (owner mandate 2026-09-02):
+    /// Draw an L-shape chroma dragon border on the right + bottom of
+    /// the HUD area. Same palette integration as the message border
+    /// (`cloud/message_draw.rs` BC-01..05), different position: the
+    /// message border is a full rectangle around the centered message
+    /// box; the HUD border is an L-shape closing the top-left HUD
+    /// block (top + left edges are implied by the screen edge).
+    ///
+    /// Color sweep:
+    /// - Right edge (rows 0..23, col = hud_width): per-row chroma color
+    ///   from `cached_lines`, sweeping dim tail at the top to bright
+    ///   head at the bottom — mirrors the HUD's own 24-row gradient
+    ///   and the message border's clockwise sweep philosophy.
+    /// - Bottom edge (row 24, cols 0..=hud_width): single bright head
+    ///   color (`cached_lines[23].0`, the palette's last stop — the
+    ///   rain's leading bright character) for a clean closing line.
+    /// - Corner (col hud_width, row 24): '╯' (light up-left corner) in
+    ///   the bright head color, connecting the right + bottom edges.
+    ///
+    /// Uses `frame.set()` (not `set_force`) so unchanged border cells
+    /// aren't marked dirty — when the HUD width is stable, the border
+    /// is a one-time write that the terminal never re-sends. Frame's
+    /// `set()` silently skips out-of-bounds cells, so a terminal too
+    /// short for row 24 simply omits the bottom edge without panicking.
+    fn draw_border(&self, frame: &mut crate::frame::Frame, cols: u16, bg: Option<Color>) {
+        let hud_width = self.current_width.max(self.prev_width);
+        if hud_width == 0 {
+            return;
+        }
+        // Bright head color (palette last stop, cached_lines row 23 =
+        // screensize — the visual anchor at the bottom of the HUD).
+        let head_color = self.cached_lines[23].0;
+
+        // Right border: col = hud_width, rows 0..24 (all 24 HUD rows).
+        // Per-row chroma color sweep (dim tail at top -> bright head at
+        // bottom), matching the HUD's own gradient direction.
+        let right_col = hud_width;
+        if right_col < cols {
+            for row in 0..24u16 {
+                let cell = crate::cell::Cell {
+                    ch: '│',
+                    fg: Some(self.cached_lines[row as usize].0),
+                    bg,
+                    bold: false,
+                };
+                frame.set(right_col, row, cell);
+            }
+        }
+
+        // Bottom border: row = 24, cols 0..=hud_width.
+        // Single bright head color for a clean closing line. The corner
+        // cell at (hud_width, 24) uses '╯' (light up-left corner) to
+        // connect the right edge (coming from above) and the bottom edge
+        // (going left).
+        let bottom_row = 24u16;
+        for col in 0..=hud_width {
+            if col >= cols {
+                break;
+            }
+            let ch = if col == hud_width { '╯' } else { '─' };
+            let cell = crate::cell::Cell {
+                ch,
+                fg: Some(head_color),
+                bg,
+                bold: false,
+            };
+            frame.set(col, bottom_row, cell);
+        }
     }
 }

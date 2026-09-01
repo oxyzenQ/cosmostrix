@@ -106,6 +106,45 @@ workflow. `cargo clippy -- -D warnings` was already strict
 pre-v80.0.0-beta.1; the gap was `cargo build` itself, which is now
 closed.
 
+### feature: v80.0.0-beta.1 — HUD chroma dragon border (L-shape, right + bottom)
+
+Owner mandate (2026-09-02): add a border around the HUD metrics, like
+the `-mb` / `--message-border` around the message box. Same chroma
+dragon palette integration, simple similar function, different
+position.
+
+Implementation (`src/interactive/hud/hud_init.rs`):
+- New `HudState::draw_border()` method, called from `write_to_frame`
+  after the metrics loop.
+- L-shape border on the right + bottom edges of the HUD area (top +
+  left edges are implied by the screen edge at column 0, row 0 — the
+  HUD is flush-left at the top-left corner).
+- Right edge (column = `hud_width`, rows 0..23): vertical `│`
+  characters with a per-row chroma color sweep — row 0 gets the dim
+  tail color, row 23 gets the bright head color, mirroring the HUD's
+  own 24-row gradient and the message border's clockwise sweep
+  philosophy (applied per-LINE instead of per-CELL).
+- Bottom edge (row 24, columns 0..=`hud_width`): horizontal `─`
+  characters in the single bright head color (palette last stop) for a
+  clean closing line.
+- Corner (column `hud_width`, row 24): `╯` (light up-left corner) in
+  the bright head color, connecting the right + bottom edges.
+- Uses `frame.set()` (not `set_force`) so unchanged border cells aren't
+  marked dirty — when the HUD width is stable, the border is a
+  one-time write. Frame's `set()` silently skips out-of-bounds cells,
+  so a terminal too short for row 24 simply omits the bottom edge.
+
+3 new regression tests in `src/interactive/hud/tests.rs`:
+`hud_border_draws_l_shape_with_chroma_colors` (verifies shape, char
+set, per-row color sweep, corner),
+`hud_border_skips_when_hud_width_zero` (no border when HUD is empty),
+`hud_border_skips_when_invisible` (no border when HUD is off). All 67
+HUD tests pass (64 existing + 3 new), 0 regressions.
+
+Docs: `docs/HUD.md` gains a new "Chroma dragon border" subsection
+under the color reference, documenting the shape, color sweep, and
+properties.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

@@ -448,6 +448,44 @@ were the brightest at the TOP. The owner explicitly flagged the inversion:
 "rain tail is dim head is white" — the bright head must lead at the
 bottom, matching a real falling rain stream.
 
+### Chroma dragon border (v80.0.0-beta.1, owner mandate 2026-09-02)
+
+The HUD draws an L-shape chroma dragon border on the right + bottom
+edges of the HUD area, using the same chroma dragon palette integration
+as the message border (`-mb` / `--message-border`, see
+`cloud/message_draw.rs` BC-01..05). Same simple function as the message
+border, different position: the message border is a full rectangle
+around the centered message box; the HUD border is an L-shape closing
+the top-left HUD block (top + left edges are implied by the screen edge
+at column 0, row 0).
+
+**Shape:**
+- **Right edge** (column = `hud_width`, rows 0..23): vertical `│`
+  characters, one per HUD row.
+- **Bottom edge** (row 24, columns 0..=`hud_width`): horizontal `─`
+  characters.
+- **Corner** (column `hud_width`, row 24): `╯` (light up-left corner)
+  connecting the right + bottom edges.
+
+**Color sweep:**
+- The right edge uses a per-row chroma color sweep — row 0 (top, `fps`)
+  gets the dimmest tail color (palette index 1), row 23 (bottom,
+  `screensize`) gets the brightest head color (palette last stop). This
+  mirrors the HUD's own 24-row gradient and the message border's
+  clockwise sweep philosophy, applied per-LINE instead of per-CELL.
+- The bottom edge + corner use the single bright head color (palette
+  last stop) for a clean closing line.
+
+**Properties:**
+- Uses `frame.set()` (not `set_force`) so unchanged border cells aren't
+  marked dirty — when the HUD width is stable, the border is a
+  one-time write that the terminal never re-sends.
+- Frame's `set()` silently skips out-of-bounds cells, so a terminal too
+  short for row 24 (e.g. height < 25) simply omits the bottom edge
+  without panicking.
+- The border is drawn only when the HUD is visible (`visible == true`)
+  and `hud_width > 0`.
+
 ### Instant palette refresh (no delay on runtime changes)
 
 Color refresh is split out of the 1 Hz metric tick — `HudState::refresh_colors`

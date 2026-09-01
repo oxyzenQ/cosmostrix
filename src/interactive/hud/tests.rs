@@ -824,3 +824,127 @@ fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
     );
     assert!(cleared.fg.is_none(), "cell (13,1) fg must be None");
 }
+
+// v80.0.0-beta.1 HUD chroma border regression test (owner mandate 2026-09-02):
+// The HUD draws an L-shape border (right + bottom) using the same chroma
+// dragon palette integration as the message border (BC-01..05). This test
+// verifies the border shape, character set, and per-row color sweep.
+#[test]
+fn hud_border_draws_l_shape_with_chroma_colors() {
+    let mut h = HudState::new();
+    h.toggle(); // make visible
+
+    // Set distinct colors per row so we can verify the per-row sweep on
+    // the right edge. Row 0 (top) is dim, row 23 (bottom) is bright —
+    // matches the HUD's own gradient direction.
+    let test_color = |i: usize| -> Color {
+        Color::Rgb {
+            r: (i * 10) as u8,
+            g: (100 + i * 5) as u8,
+            b: 200,
+        }
+    };
+    for i in 0..24 {
+        h.cached_lines[i].0 = test_color(i);
+        h.cached_lines[i].1 = format!(" row{}", i);
+    }
+    h.current_width = 10;
+    h.prev_width = 10;
+
+    let cols = 40u16;
+    // 30 rows so the bottom border at row 24 is in-bounds.
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+
+    // Right border: col = 10 (hud_width), rows 0..23, char '│',
+    // color = per-row chroma color from cached_lines[row].
+    for row in 0..24u16 {
+        let cell = frame
+            .get(10, row)
+            .unwrap_or_else(|| panic!("right border cell at (10,{}) must exist", row));
+        assert_eq!(
+            cell.ch, '│',
+            "right border at (10,{}) must be the vertical box-drawing char",
+            row
+        );
+        assert_eq!(
+            cell.fg,
+            Some(test_color(row as usize)),
+            "right border at (10,{}) must use the row's chroma color (per-row sweep)",
+            row
+        );
+        assert!(!cell.bold, "border must not be bold");
+    }
+
+    // Bottom border: row = 24, cols 0..9, char '─',
+    // color = head_color (cached_lines[23].0, the bright last stop).
+    let head_color = test_color(23);
+    for col in 0..10u16 {
+        let cell = frame
+            .get(col, 24)
+            .unwrap_or_else(|| panic!("bottom border cell at ({},24) must exist", col));
+        assert_eq!(
+            cell.ch, '─',
+            "bottom border at ({},24) must be the horizontal box-drawing char",
+            col
+        );
+        assert_eq!(
+            cell.fg,
+            Some(head_color),
+            "bottom border at ({},24) must use the head color (bright last stop)",
+            col
+        );
+    }
+
+    // Corner: (10, 24), char '╯' (light up-left corner), color = head_color.
+    let corner = frame
+        .get(10, 24)
+        .expect("corner cell at (10,24) must exist");
+    assert_eq!(
+        corner.ch, '╯',
+        "corner at (10,24) must be the up-left corner char"
+    );
+    assert_eq!(
+        corner.fg,
+        Some(head_color),
+        "corner must use the head color"
+    );
+}
+
+// Border must NOT draw when hud_width is 0 (empty HUD — no metrics yet).
+#[test]
+fn hud_border_skips_when_hud_width_zero() {
+    let mut h = HudState::new();
+    h.toggle();
+    h.current_width = 0;
+    h.prev_width = 0;
+
+    let cols = 40u16;
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+
+    // No bottom border char at row 24.
+    if let Some(cell) = frame.get(0, 24) {
+        assert_ne!(cell.ch, '─', "no bottom border when hud_width is 0");
+    }
+}
+
+// Border must NOT draw when HUD is invisible (write_to_frame early-returns).
+#[test]
+fn hud_border_skips_when_invisible() {
+    let mut h = HudState::new();
+    // Do NOT toggle — HUD stays invisible.
+    h.cached_lines[0].0 = Color::Rgb { r: 255, g: 0, b: 0 };
+    h.cached_lines[0].1 = " test".to_string();
+    h.current_width = 10;
+    h.prev_width = 10;
+
+    let cols = 40u16;
+    let mut frame = crate::frame::Frame::new(cols, 30, None);
+    h.write_to_frame(&mut frame, cols, None);
+
+    // No right border char at col 10.
+    if let Some(cell) = frame.get(10, 0) {
+        assert_ne!(cell.ch, '│', "no right border when HUD is invisible");
+    }
+}
