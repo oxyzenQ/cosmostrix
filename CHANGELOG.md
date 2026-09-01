@@ -9,6 +9,40 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### dragon-engine-v2: depth-verify of d55442d — real, wired, now PROVEN + 1 bug fixed
+
+Owner suspected the Dragon Engine v2 upgrade (commit d55442d) was "not
+real working". Full source-level verification of all 11 v2 features
+(crystal calc-v2, cosmic predictive self-healer / ghost AI / adaptive
+phosphor, chroma Phase 3/4 all-six) at HEAD: every feature is real and
+wired into the production path. What was missing was proof and one
+integration bug:
+
+- Fixed: self-healer `reset()` (fires on every scene switch / config
+  rebuild) leaked the v2 predictive state — `pressure_ema`,
+  `pressure_ema_prev`, `preemptive_throttle_active` survived the reset,
+  letting a phantom trend pre-throttle a fresh scene and a stale active
+  flag suppress re-fires. All three fields now cleared.
+- Added 25 regression tests — the missing proof: calc-v2 DriftHistory
+  (recency factors, ring overwrite, group membership, 20k-sample
+  statistical suppression), predictive EMA (spike fires, noise filtered,
+  gradual-ramp contract, recovery clear, reset clear), ghost AI (hard
+  gate, ramp endpoints + midpoint, pause/transition gates), adaptive
+  phosphor (idle > loaded, monotonic ramp, skip gate, exact decay math
+  200 -> 66 at 50 ms).
+- Docs synced: point_system calc-v1 "the default" stale comment (the
+  default is CalcV2), THREE_DRAGON_ENGINES.md calc-v1 rows + new Cosmic
+  v2 paragraph. Full audit matrix:
+  docs/research/DRAGON_ENGINE_V2_VERIFY.md.
+
+### v80.0.0: crystal-dragon masterclass speed tune (owner directive)
+
+Scene `crystal-dragon` speed 10 -> 30 per owner directive ("too slow,
+fine tune to 30"). The honor scene now moves at living-crystal pace;
+the Monolith segmented structure keeps the meditative texture. All
+other 17 scenes audited against documented design intent — every value
+already at its design point, no further changes (bicycle rule).
+
 ### harmony: Z-master-3-v2 audit — CLI/config priority contract verified end to end
 
 Final pass of the Z-master-v2 LTS trio: verified the CLI > config >

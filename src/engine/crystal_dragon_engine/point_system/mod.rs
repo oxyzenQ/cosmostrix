@@ -209,13 +209,14 @@ pub(crate) fn cdf_select(cdf: &[f32], themes: &[ColorScheme], mt: &mut StdRng) -
     themes[idx.min(themes.len() - 1)]
 }
 
-// ── calc-v1 (preserved — the default, no memory) ────────────────────────
+// ── calc-v1 (preserved — legacy option, no memory) ──────────────────────
 
 /// Select a new color theme using calc-v1 (probabilistic weighted, no memory).
 ///
-/// This is the default calculation method. calc-v2 (with recency memory)
-/// is available via `calc_v2_select` when `CrystalDragonCalcMethod::CalcV2`
-/// is active.
+/// calc-v2 (with recency memory) is the DEFAULT since Dragon Engine v2 —
+/// see `CrystalDragonCalcMethod::CalcV2` in `crystal_dragon_control`.
+/// calc-v1 remains available as the legacy option when the control config
+/// selects `CrystalDragonCalcMethod::Calc`.
 pub(crate) fn calc_v1_select(
     current_point: u8,
     current_scheme: ColorScheme,

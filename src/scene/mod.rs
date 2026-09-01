@@ -308,8 +308,11 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // crystal-dragon: honors the cosmostrix + oxyzenQ journey and the
     // hardthinking-mode reward. The energy-zen palette's crystal-edge
     // magenta stop inspires the name — a dragon carved from living
-    // crystal, breathing violet fire. Slow vast pacing with deep-space
-    // breathing room, matching the meditative focus of hardthinking mode.
+    // crystal, breathing violet fire. v80.0.0 masterclass tune: speed
+    // raised 10 -> 30 (owner directive — the honor scene must move with
+    // living-crystal energy, not crawl); vast pacing is preserved by the
+    // Monolith segmented structure, so the reward scene stays meditative
+    // in texture while finally flowing at premium pace.
     SceneInfo {
         name: "crystal-dragon",
         description: "Dragon Crystal — honors the cosmostrix + oxyzenQ journey; living crystal violet rain, the hardthinking-mode reward",
@@ -317,7 +320,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             color: Some("energy-zen"),
             charset: Some("zen"),
             fps: Some(60.0),
-            speed: Some(10.0),
+            speed: Some(30.0),
             density: Some(0.78),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Monolith,

@@ -344,3 +344,170 @@ fn self_healer_respects_overridden_thresholds_in_observe() {
     assert_eq!(action, SelfHealAction::DowngradeScene);
     assert!(h.is_downgraded());
 }
+
+// ── Dragon Engine v2 depth-verify: predictive EMA throttle ──────────────
+//
+// The v2 merge (d55442d) shipped the EMA trend predictor + PreemptiveThrottle
+// action but ZERO tests for the predictive path (all 18 existing tests cover
+// the reactive P1/P2 paths). These tests are the missing proof that the
+// "heals before it breaks" predictor is real and working.
+
+/// A steep sustained spike (0.1 -> 0.8 held) fires the predictor within
+/// three observations — long before the 30 s reactive downgrade window.
+/// This is the predictor's designed trigger window: instant load spikes
+/// (delta > 0.167/tick => EMA trend > 0.05/tick).
+#[test]
+fn self_healer_v2_preemptive_throttle_fires_on_steep_spike() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    let mut fired = false;
+    // Baseline idle frame, then the spike lands and stays.
+    for (i, p) in [0.1f32, 0.8, 0.8, 0.8, 0.8, 0.8].iter().enumerate() {
+        let t = t0 + Duration::from_secs(i as u64);
+        let action = h.observe(*p, t, None);
+        assert_ne!(
+            action,
+            SelfHealAction::DowngradeScene,
+            "reactive downgrade must not fire — 30s window not elapsed"
+        );
+        if action == SelfHealAction::PreemptiveThrottle {
+            fired = true;
+            break;
+        }
+    }
+    assert!(
+        fired,
+        "a sustained steep spike must fire PreemptiveThrottle within a few frames"
+    );
+    assert!(!h.is_downgraded());
+    assert!(h.preemptive_throttle_active);
+}
+
+/// A gradual ramp (delta 0.05/tick) never crosses the trend threshold
+/// (0.3 * 0.05 = 0.015 < 0.05) — pinned here as the documented noise
+/// filter contract: the predictor targets instant spikes only, gradual
+/// load belongs to the reactive P1 path.
+#[test]
+fn self_healer_v2_gradual_ramp_is_noise_filtered_by_design() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    // 0.10 -> 0.50 over 9 ticks: a realistic gradual load ramp.
+    for i in 0..9 {
+        let p = 0.10 + 0.05 * i as f32;
+        let t = t0 + Duration::from_secs(i);
+        let action = h.observe(p, t, None);
+        assert_ne!(
+            action,
+            SelfHealAction::PreemptiveThrottle,
+            "gradual ramp (0.05/tick) is below the trend threshold — noise filter by design"
+        );
+    }
+    assert!(!h.preemptive_throttle_active);
+}
+
+/// Constant mid-band pressure converges: the trend decays to ~0 before the
+/// EMA crosses pressure_low, so the predictor must stay silent. A gradual
+/// load change is not a spike — no pre-throttling.
+#[test]
+fn self_healer_v2_steady_mid_band_pressure_never_fires_preemptive() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    for i in 0..50 {
+        let t = t0 + Duration::from_secs(i);
+        let action = h.observe(0.35, t, None);
+        assert_ne!(
+            action,
+            SelfHealAction::PreemptiveThrottle,
+            "steady 0.35 must not fire the predictor (trend converges to 0)"
+        );
+    }
+    assert!(!h.preemptive_throttle_active);
+}
+
+/// A single hard spike from idle (0.1 -> 0.8 -> 0.05) jumps the EMA by 0.231
+/// but the EMA (0.261) is still below pressure_low, inside the "no point
+/// throttling at idle" filter — the predictor must NOT fire.
+#[test]
+fn self_healer_v2_single_spike_from_idle_does_not_fire() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    for (i, p) in [0.1f32, 0.8, 0.05].iter().enumerate() {
+        let t = t0 + Duration::from_secs(i as u64);
+        let action = h.observe(*p, t, None);
+        assert_ne!(
+            action,
+            SelfHealAction::PreemptiveThrottle,
+            "single spike from idle must be filtered by the warning-zone gate"
+        );
+        assert_ne!(
+            action,
+            SelfHealAction::DowngradeScene,
+            "one-second spike must not downgrade (30s window)"
+        );
+    }
+    assert!(!h.preemptive_throttle_active);
+}
+
+/// After firing, pressure recovery (EMA <= pressure_low) must clear the
+/// preemptive flag so the next rising trend can fire again.
+#[test]
+fn self_healer_v2_preemptive_clears_when_pressure_recovers() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    // Fire it via a steep sustained spike.
+    let mut fired = false;
+    for (i, p) in [0.1f32, 0.8, 0.8, 0.8, 0.8, 0.8].iter().enumerate() {
+        let action = h.observe(*p, t0 + Duration::from_secs(i as u64), None);
+        if action == SelfHealAction::PreemptiveThrottle {
+            fired = true;
+            break;
+        }
+    }
+    assert!(fired, "precondition: predictor must fire on the spike");
+    assert!(h.preemptive_throttle_active);
+
+    // Recover: idle pressure pulls the EMA below pressure_low within a
+    // few observations (0.42 * 0.7^n + 0.05 -> below 0.3 by n=2).
+    let mut cleared = false;
+    for i in 0..10 {
+        let action = h.observe(0.05, t0 + Duration::from_secs(20 + i), None);
+        assert_ne!(action, SelfHealAction::PreemptiveThrottle);
+        if !h.preemptive_throttle_active {
+            cleared = true;
+            break;
+        }
+    }
+    assert!(
+        cleared,
+        "recovery below pressure_low must clear the preemptive flag"
+    );
+}
+
+/// Regression for the v2 reset gap: reset() (scene switch / config rebuild)
+/// must clear the EMA trend and the preemptive flag — otherwise a phantom
+/// trend carried over from the previous scene could pre-throttle the next
+/// one, and a stale active flag would suppress re-firing.
+#[test]
+fn self_healer_reset_clears_v2_predictive_state() {
+    let mut h = PerformanceSelfHealer::new();
+    let t0 = Instant::now();
+    let mut fired = false;
+    for (i, p) in [0.1f32, 0.8, 0.8, 0.8, 0.8, 0.8].iter().enumerate() {
+        let action = h.observe(*p, t0 + Duration::from_secs(i as u64), None);
+        if action == SelfHealAction::PreemptiveThrottle {
+            fired = true;
+            break;
+        }
+    }
+    assert!(fired, "precondition: predictor must fire on the spike");
+    assert!(h.pressure_ema > 0.0);
+    assert!(h.preemptive_throttle_active);
+
+    h.reset();
+    assert_eq!(h.pressure_ema, 0.0, "reset must zero the EMA");
+    assert_eq!(h.pressure_ema_prev, 0.0, "reset must zero the EMA history");
+    assert!(
+        !h.preemptive_throttle_active,
+        "reset must clear the preemptive flag"
+    );
+}

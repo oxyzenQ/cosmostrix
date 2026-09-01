@@ -511,7 +511,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 **Honor scenes**:
 
-- `crystal-dragon` — living crystal violet rain; honors the cosmostrix + oxyzenQ journey and the hardthinking-mode reward. Uses the `energy-zen` premium palette. `cosmostrix --scene crystal-dragon`.
+- `crystal-dragon` — living crystal violet rain; honors the cosmostrix + oxyzenQ journey and the hardthinking-mode reward. Uses the `energy-zen` premium palette (v80.0.0 masterclass tune: speed 30 — living-crystal energy with Monolith's segmented meditative texture). `cosmostrix --scene crystal-dragon`.
 - `orange-cat` — warm amber-gold gentle rain; in memory of the owner's orange cat (2 Aug 2026). `cosmostrix --scene orange-cat`.
 - `north-stars` — sparse white-gold pinprick starlight; honors 3 AM stargazing. `cosmostrix --scene north-stars`.
 - `curiosity` — vibrant spectrum rainbow rain; honors the owner's wonder, the engine that built cosmostrix. `cosmostrix --scene curiosity`.

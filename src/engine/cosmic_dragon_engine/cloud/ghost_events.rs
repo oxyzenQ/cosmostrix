@@ -126,6 +126,15 @@ impl GhostEventScheduler {
         self.events.is_empty()
     }
 
+    /// Number of active events. Test-only accessor used by the Ghost AI
+    /// pressure-scaling regression tests (Dragon Engine v2 depth-verify):
+    /// lets tests count spawns across many evaluate_triggers() calls
+    /// without touching the private `events` field from outside.
+    #[cfg(test)]
+    pub(crate) fn ghost_count(&self) -> usize {
+        self.events.len()
+    }
+
     /// Enable atmospheric events (called when entering interactive mode).
     pub(crate) fn enable_events(&mut self) {
         self.events_enabled = true;

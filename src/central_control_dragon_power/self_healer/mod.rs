@@ -338,6 +338,15 @@ impl PerformanceSelfHealer {
         self.low_pressure_since = None;
         self.pre_degraded_scene = None;
         self.is_downgraded = false;
+        // Dragon Engine v2: reset the predictive EMA trend state too.
+        // A scene switch (user intent) or config rebuild means the old
+        // pressure history is stale — keeping it would let the healer
+        // fire PreemptiveThrottle on a phantom trend carried over from
+        // the previous scene, or keep a stale preemptive_throttle_active
+        // flag suppressing re-fires after the reset.
+        self.pressure_ema = 0.0;
+        self.pressure_ema_prev = 0.0;
+        self.preemptive_throttle_active = false;
         // Intentionally do NOT reset last_health_mitigation — the cooldown
         // should persist across scene changes to prevent abuse.
     }

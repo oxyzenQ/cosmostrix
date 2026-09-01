@@ -23,6 +23,14 @@ The simulation core. Owns droplet lifecycle, spawn physics, atmospheric
 evolution, cinematic behavior profiles, and the self-healer. Reads
 palette colors produced by Chroma Dragon; never writes palette state.
 
+Dragon Engine v2 additions: the self-healer is now predictive (EMA
+trend with alpha 0.3 fires PreemptiveThrottle when pressure rises
+>0.05/tick inside the warning zone — before the 30s reactive downgrade),
+ghost events are pressure-scaled (ghosts as a living system health
+indicator: frequent at calm, none near the perf gate), and phosphor
+decay is adaptive (trails ~20% longer at idle, shorter under load —
+"the rain breathes with your CPU").
+
 ## 2. Chroma Dragon — `src/engine/chroma_dragon_engine/`
 
 The coloring engine. Owns palette construction (OKLab gradients since
@@ -41,10 +49,10 @@ The ambient intelligence engine. Two subsystems working in harmony:
 ```
 CPU% ──-> point (1-99) ──-> group ──-> weighted theme selection
   │                          │
-  │   1-33 = Cold (14)       │   calc-v1: probabilistic CDF
+  │   1-33 = Cold (14)       │   calc-v2 (DEFAULT): CDF + recency
   │   34-66 = Medium (14)    │   60s polling, 12% drift chance
   │   67-99 = Hot (14)       │   60s dwell hysteresis
-  │                          │
+  │                          │   calc-v1: legacy, no memory
   └── CPU unsupported? ──-> CLOCK fallback (UTC hour -> point)
 ```
 
@@ -63,10 +71,10 @@ Fires at scheduled times, applies scene+palette. Crystal Dragon wins
 
 | File | Role |
 |------|------|
-| `crystal_dragon_control/mod.rs` | Config: polling 60s, calc-v1, CPU/CLOCK mode |
+| `crystal_dragon_control/mod.rs` | Config: polling 60s, calc-v2 (default) / calc-v1 (legacy), CPU/CLOCK mode |
 | `sensor/mod.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
 | `palette_groups/mod.rs` | 44 themes -> Cold/Medium/Hot partition |
-| `point_system/mod.rs` | calc-v1: probabilistic weighted CDF selection |
+| `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring buffer (8 entries, prevents A->B->A oscillation); calc-v1 (legacy): no-memory CDF |
 | `ambient/mod.rs` | Schedule types, parsing, validation, startup apply |
 | `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |
 | `ambient_diag.rs` | Diagnostics counters (exit summary) |
