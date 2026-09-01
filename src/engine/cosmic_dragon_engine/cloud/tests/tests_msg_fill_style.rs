@@ -324,21 +324,24 @@ fn engrave_head_burns_hot_and_cools_off() {
     // settled 'h' (age 900 ms).
     let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
     cloud.set_effects_enabled(false);
-    cloud.set_palette(crate::palette::Palette {
-        colors: vec![
-            crossterm::style::Color::Rgb {
-                r: 60,
-                g: 60,
-                b: 60,
-            },
-            crossterm::style::Color::Rgb {
-                r: 100,
-                g: 100,
-                b: 100,
-            },
-        ],
-        bg: None,
-    });
+    cloud.set_palette(
+        None,
+        crate::palette::Palette {
+            colors: vec![
+                crossterm::style::Color::Rgb {
+                    r: 60,
+                    g: 60,
+                    b: 60,
+                },
+                crossterm::style::Color::Rgb {
+                    r: 100,
+                    g: 100,
+                    b: 100,
+                },
+            ],
+            bg: None,
+        },
+    );
     set_message_elapsed(&mut cloud, "hello world", 900);
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
     cloud.draw_message(&mut frame, Instant::now());

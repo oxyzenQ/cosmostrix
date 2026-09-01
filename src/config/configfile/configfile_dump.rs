@@ -29,8 +29,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Standard Settings
 # All values shown are defaults. Uncomment to override.
 
-# scene = "cinematic"                   # See: cosmostrix --list-scenes
-# color = "energy-zen"                  # See: cosmostrix --list-colors (cinematic default)
+# scene = "cinematic"                   # Built-in name OR a [scene-custom.<name>] block name (v80.0.0-beta.2: custom names accepted — see --list-scenes)
+# color = "energy-zen"                  # Built-in theme OR a [colors-custom.<name>] block name (v80.0.0-beta.2: custom names accepted, same as charset — see --list-colors)
 # charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "black"                   # or "default-background" (default: black)
 # intro = "logo"                        # logo | cosmic | none (default: logo)

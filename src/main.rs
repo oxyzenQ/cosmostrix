@@ -391,14 +391,28 @@ fn main() -> std::io::Result<()> {
         matches.value_source("fps"),
         Some(clap::parser::ValueSource::CommandLine)
     );
-    let fps_user_set = cli_fps_explicit || args.fps != 60.0;
-    // Resolution layer: cli > scene > config > dynamic_default. Computed
-    // BEFORE the dynamic-default override mutates args.fps.
+    // v80.0.0-beta.2 fps-intent fix (owner bug 2026-09-02): the old
+    // `args.fps != 60.0` heuristic cannot distinguish an EXPLICIT 60
+    // (config `fps = 60`, scene-custom block `fps = 60`) from the clap
+    // default 60 — so the dynamic default (144 on high-perf terminals)
+    // silently stomped the user's explicit value, violating the
+    // HIGH_PERF_DEFAULT_FPS contract ("the user's explicit value always
+    // wins"). The config-layer intent tracker (recorded during
+    // apply_config_and_runtime_defaults) now closes the exact-value
+    // collision hole; `!= 60.0` still covers builtin scene templates
+    // with non-60 authored fps (storm 120, matrix_film 22, ...).
+    let fps_config_source = crate::fps_explicit_source();
+    let fps_user_set = cli_fps_explicit || fps_config_source.is_some() || args.fps != 60.0;
+    // Resolution layer: cli > scene-custom > config > scene > dynamic_default.
+    // Computed BEFORE the dynamic-default override mutates args.fps.
     let fps_precedence: &'static str = if cli_fps_explicit {
         "cli"
+    } else if let Some(source) = fps_config_source {
+        source
     } else if fps_user_set {
-        // args.fps != 60.0 but not CLI → set by scene or config. Distinguish
-        // by checking if the active scene has a matching fps override.
+        // args.fps != 60.0 but not CLI/config/scene-custom → set by a
+        // builtin scene template. Distinguish by checking if the active
+        // scene has a matching fps override.
         if args
             .scene
             .as_deref()

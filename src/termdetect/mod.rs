@@ -74,12 +74,22 @@ use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 ///    scene writers override `target_fps` would create a precedence
 ///    ambiguity (which user intent wins?).
 /// 3. **Config.toml `fps =`** — user's persistent default. Applied
-///    ONLY when the user did NOT set `--fps`.
+///    ONLY when the user did NOT set `--fps`. v80.0.0-beta.2: an
+///    explicit config `fps` (including exactly 60) records user
+///    intent via `config::record_fps_explicit` so layer 4 cannot
+///    stomp it (the `args.fps != 60.0` heuristic alone could not
+///    distinguish an explicit 60 from the clap default). The same
+///    intent recording applies to the `[scene-custom.<name>]` block
+///    `fps =` field ("scene-custom" source) — an owner-reported cp77
+///    block with `fps = 60` used to show `tgt: 144` on high-refresh
+///    HUDs.
 /// 4. **Dynamic default fps** — terminal-aware default from this
 ///    module's `dynamic_default_fps` field (144 for high-perf
 ///    terminals, 60 for standard/unknown, 30 for xterm.js hosts).
-///    Applied in `main.rs:669-674` ONLY when none of layers 1-3
-///    produced a value.
+///    Applied in `main.rs` ONLY when no user layer (1, 3, or the
+///    scene-custom field) produced a value. Built-in scene templates
+///    do NOT count as user intent — the dynamic default keeps
+///    refining them (unchanged design).
 /// 5. **xterm.js cap** — `default_fps_cap` (30 FPS) applied AFTER
 ///    layers 1-4 on xterm.js hosts. Even an explicit `--fps 120`
 ///    gets capped to 30 on VSCode's xterm.js to prevent OOM.

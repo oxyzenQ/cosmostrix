@@ -358,8 +358,10 @@ impl CloudConfig {
         // v16: Apply custom palette AFTER cloud.reset() to guarantee no
         // initialization code overwrites it. set_palette handles color_map
         // regen + transition wave + monolith reset internally.
+        // v80.0.0-beta.2 HUD honesty: pass the palette NAME so the Cloud
+        // tracks it for the `clr:` HUD line on every activation path.
         if let Some(ref custom) = self.custom_palette {
-            cloud.set_palette(custom.clone());
+            cloud.set_palette(self.custom_palette_name.as_deref(), custom.clone());
         }
 
         // Apply --color-tune (if non-identity) to the palette AFTER custom

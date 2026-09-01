@@ -666,3 +666,90 @@ fn scene_switch_clears_flash_waves_and_quantum_particles() {
         "quantum_active_count must be reset on scene switch (ME-04)"
     );
 }
+
+// ── v80.0.0-beta.2 HUD honesty: ambient-fired custom palette name ──
+// Owner bug (2026-09-02): an ambient entry firing a [scene-custom.<name>]
+// block with `colors-custom` rendered the custom palette while the HUD
+// `clr:` line kept showing the base-scene scheme name ("clr: Purple" for
+// a storm-based block). The palette name must now travel with the
+// palette through set_palette so the HUD can follow it.
+
+#[test]
+fn apply_ambient_entry_custom_scene_colors_custom_tracks_palette_name() {
+    // Exact owner scenario: ambient fires cp77 (base-scene=storm,
+    // colors-custom=cyberpunk_2077). The base layer sets the storm
+    // scheme (Purple); the field layer must then activate the custom
+    // palette AND record its name for the HUD clr: line.
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 21,
+        minute: 0,
+        scene: "cp77".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.cp77.base-scene".to_string(),
+        "storm".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.cp77.colors-custom".to_string(),
+        "cyberpunk_2077".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.rain".to_string(),
+        "#00fff7,#ff003c".to_string(),
+    );
+    let _charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    assert!(
+        cloud.custom_palette_active,
+        "ambient-fired colors-custom must activate the custom palette"
+    );
+    assert_eq!(
+        cloud.custom_palette_name.as_deref(),
+        Some("cyberpunk_2077"),
+        "the palette NAME must be tracked so the HUD clr: line follows it \
+         (pre-beta.2 it kept showing the storm base scheme 'Purple')"
+    );
+}
+
+#[test]
+fn apply_ambient_entry_custom_scene_color_field_custom_palette_tracks_name() {
+    // Variant: the block references the custom palette through the
+    // `color` field (scene_runtime resolves non-builtin color names via
+    // the custom palette path).
+    let mut cloud = make_cinematic_like_cloud();
+    let entry = AmbientEntry {
+        hour: 22,
+        minute: 0,
+        scene: "nightshift".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.nightshift.base-scene".to_string(),
+        "signal".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.nightshift.color".to_string(),
+        "cyberpunk_2077".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.rain".to_string(),
+        "#00fff7,#ff003c".to_string(),
+    );
+    let _charset_preset = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+    assert!(cloud.custom_palette_active);
+    assert_eq!(
+        cloud.custom_palette_name.as_deref(),
+        Some("cyberpunk_2077"),
+        "color = <custom palette> inside an ambient-fired block must track the name"
+    );
+}

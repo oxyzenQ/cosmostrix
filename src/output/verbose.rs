@@ -533,7 +533,7 @@ fn describe_color_bg(
     custom_palette_bg: Option<Color>,
 ) -> String {
     // Case 1 & 2: custom palette is active. Its bg field (if present) ALWAYS
-    // overrides --color-bg, because `cloud.set_palette(custom)` overwrites
+    // overrides --color-bg, because `cloud.set_palette(name, custom)` overwrites
     // `cloud.palette` wholesale in app.rs::create_cloud.
     if let Some(name) = custom_palette_name {
         return match custom_palette_bg {

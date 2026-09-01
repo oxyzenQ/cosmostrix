@@ -693,3 +693,83 @@ fn crystal_dragon_handles_every_builtin_scheme() {
     // If we got here without panic, every variant is handled by the
     // Crystal Dragon Engine's temperature group mapping.
 }
+
+// ── v80.0.0-beta.2 HUD honesty: custom palette name tracking ──
+// Owner bug (2026-09-02): an ambient-fired [scene-custom.<name>] block
+// with `colors-custom` rendered its palette while the HUD `clr:` line
+// kept showing the base-scene scheme name. The Cloud now tracks the
+// active palette NAME alongside custom_palette_active so the HUD can
+// follow every activation path.
+
+#[test]
+fn set_palette_tracks_custom_palette_name() {
+    let mut cloud = make_green_cloud();
+    assert!(cloud.custom_palette_name.is_none());
+    assert!(!cloud.custom_palette_active);
+    cloud.set_palette(
+        Some("cyberpunk_2077"),
+        crate::palette::Palette {
+            colors: vec![
+                crossterm::style::Color::Rgb {
+                    r: 0,
+                    g: 255,
+                    b: 247,
+                },
+                crossterm::style::Color::Rgb {
+                    r: 255,
+                    g: 0,
+                    b: 60,
+                },
+            ],
+            bg: None,
+        },
+    );
+    assert!(cloud.custom_palette_active);
+    assert_eq!(
+        cloud.custom_palette_name.as_deref(),
+        Some("cyberpunk_2077"),
+        "palette name must be tracked for the clr: HUD line"
+    );
+}
+
+#[test]
+fn set_color_scheme_clears_custom_palette_name() {
+    let mut cloud = make_green_cloud();
+    cloud.set_palette(
+        Some("cyberpunk_2077"),
+        crate::palette::Palette {
+            colors: vec![crossterm::style::Color::Rgb {
+                r: 0,
+                g: 255,
+                b: 247,
+            }],
+            bg: None,
+        },
+    );
+    assert_eq!(cloud.custom_palette_name.as_deref(), Some("cyberpunk_2077"));
+    // A scheme switch ends custom-palette truth — both the flag and the
+    // name must clear together so the HUD falls back to the scheme name.
+    cloud.set_color_scheme(ColorScheme::Purple);
+    assert!(!cloud.custom_palette_active);
+    assert!(
+        cloud.custom_palette_name.is_none(),
+        "name must clear with the flag on scheme switch"
+    );
+}
+
+#[test]
+fn set_palette_without_name_keeps_flag_but_not_name() {
+    // Callers without a meaningful name (ad-hoc test palettes) pass
+    // None — the flag still gates drift suppression, the HUD falls back
+    // to CloudConfig.custom_palette_name (startup path).
+    let mut cloud = make_green_cloud();
+    cloud.set_palette(
+        None,
+        crate::palette::Palette {
+            colors: vec![crossterm::style::Color::Rgb { r: 0, g: 128, b: 0 }],
+            bg: None,
+        },
+    );
+    assert!(cloud.custom_palette_active);
+    assert!(cloud.custom_palette_name.is_none());
+}

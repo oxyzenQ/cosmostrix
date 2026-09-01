@@ -272,16 +272,10 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             }
             continue;
         }
-        // v25: top-level `charset` may name a custom block. Accept if the
-        // block exists in this same config — the block's content was
-        // validated in the branch above.
-        if key == "charset" {
-            let normalized = value.trim().to_ascii_lowercase();
-            let custom_key = format!("charset-custom.{normalized}.set");
-            if parsed.values.contains_key(&custom_key) {
-                continue;
-            }
-        }
+        // v25: top-level `charset` may name a custom block — accepted by
+        // validate_field_value_with_cfg's custom-reference parity layer
+        // (v80.0.0-beta.2, same acceptance as `color` and `scene`). The
+        // block's content was validated in the branch above.
         if let Some(msg) = validate_field_value_with_cfg(key, value, &parsed.values) {
             crate::output::eprintln_error_labeled(&format!("testconf: {key} = {value}: {msg}"));
             errors += 1;
@@ -363,16 +357,11 @@ pub(crate) fn validate_config_strictly(
             break;
         }
         // v25: the top-level `charset` key may reference a custom charset
-        // block (charset-custom.<name>) instead of a built-in preset.
-        // Accept the value if it matches a defined custom block — the
-        // block's content was already validated above.
-        if key == "charset" {
-            let normalized = value.trim().to_ascii_lowercase();
-            let custom_key = format!("charset-custom.{normalized}.set");
-            if cfg.contains_key(&custom_key) {
-                continue;
-            }
-        }
+        // block (charset-custom.<name>) instead of a built-in preset —
+        // accepted by validate_field_value_with_cfg's custom-reference
+        // parity layer (v80.0.0-beta.2), which applies the same acceptance
+        // to `color` and `scene`. The block's content was already validated
+        // above.
         if let Some(msg) = validate_field_value_with_cfg(key, value, cfg) {
             return Err(format!("invalid value '{value}' for '{key}': {msg}"));
         }

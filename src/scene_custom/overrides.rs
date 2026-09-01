@@ -75,6 +75,12 @@ pub(crate) fn apply_profile_overrides(
         if let Some(fps) = parse_f64_override(name, "fps", value, 1.0, 240.0) {
             args.fps = fps;
             modified.insert("fps");
+            // v80.0.0-beta.2 fps-intent: a scene-custom block fps
+            // (including exactly 60) is explicit user intent — record it
+            // so main.rs's dynamic-default layer (144 on high-perf
+            // terminals) cannot stomp it (owner bug: cp77 with fps = 60
+            // showed `tgt: 144` on the HUD).
+            crate::record_fps_explicit("scene-custom");
         }
     }
     if let Some(value) = profile
@@ -175,7 +181,18 @@ pub(crate) fn apply_profile_overrides(
         }
     }
     if let Some(value) = profile.colors_custom.as_deref() {
-        if !is_explicit(matches, "colors_custom") && profile.color.is_none() {
+        // v80.0.0-beta.2 CLI-priority fix (Z1-1 startup parity): an
+        // explicit `-c/--color` wins over the block's palette reference.
+        // The live-reload path (apply_scene_custom_field_to_cloud_config)
+        // already gates on `new.cli_explicit.color` — the Z1-1 comment
+        // there documents "same layering as the startup path", but the
+        // startup path never actually implemented the gate: `-c cosmos
+        // --scene-custom cp77` silently applied the block's colors-custom
+        // palette over the CLI color. Now both paths agree.
+        if !is_explicit(matches, "colors_custom")
+            && !is_explicit(matches, "color")
+            && profile.color.is_none()
+        {
             if is_colors_custom_name(cfg, value) {
                 args.colors_custom = Some(value.to_string());
                 modified.insert("colors_custom");

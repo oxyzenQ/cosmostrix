@@ -138,8 +138,8 @@ The Dragon's roar is not loud — it is precise.
 ### Scenes & Colors
 
 - **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`crystal-dragon`, `orange-cat`, `north-stars`, `curiosity`).
-- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance.
-- **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes.
+- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene <name>` (auto-promotes custom names) or `--scene-custom <name>`, or the `scene = "<name>"` config key; supports `base-scene` inheritance (built-in scenes only — custom scenes cannot inherit from custom scenes). v80.0.0-beta.2: all three selection surfaces (CLI flags, config key, live-reload edit) accept custom names uniformly.
+- **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>`, the `color = "<name>"` config key (custom names accepted, same as charset — v80.0.0-beta.2), or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
 - 44 built-in color themes and 25 character sets.
 - **Color tune** (`--color-tune sat,bright,head,body,tail`) — per-channel multiplier (default 1.0 = identity) that turns all 44 themes into infinite variants.

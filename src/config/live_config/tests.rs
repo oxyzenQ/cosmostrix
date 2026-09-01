@@ -666,3 +666,73 @@ pub(super) fn cfg2base() -> crate::app::CloudConfig {
     base.glitch_enabled = false;
     base
 }
+
+// ── v80.0.0-beta.2 custom-name live-reload parity (owner fatal bug) ──
+// The live-reload watcher validates through the same
+// validate_config_strictly gate (now accepts custom scene/palette
+// references); these tests lock the REBUILD side of the owner's
+// scenario: a config edit switching `scene` to a custom scene name
+// must apply the custom scene through the scene-custom tail layer.
+
+#[test]
+fn rebuild_applies_scene_key_switching_to_custom_scene() {
+    // Owner scenario: config edit `scene = hacker-mode` (previously
+    // rejected by the watcher's validation, blocking the edit with
+    // "Config NOT applied"). After the validator parity fix, the
+    // rebuild must apply the custom scene's base + field layers.
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "hacker-mode".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.base-scene".to_string(),
+        "matrix".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.speed".to_string(),
+        "20".to_string(),
+    );
+    let base = minimal_cloud_config();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.scene_name, "hacker-mode",
+        "scene = <custom> must switch the scene on live-reload rebuild"
+    );
+    assert_eq!(
+        new.scene_custom_name.as_deref(),
+        Some("hacker-mode"),
+        "the scene-custom tail layer must be armed for the custom scene"
+    );
+    // matrix base-scene speed 18 vs block override 20 — the block wins.
+    assert!((new.speed - 20.0).abs() < 0.01);
+}
+
+#[test]
+fn rebuild_custom_scene_colors_custom_sets_palette_name() {
+    // The rebuild path must surface the palette NAME (CloudConfig.
+    // custom_palette_name) for the HUD clr: line — same contract as
+    // the startup path.
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "cp77".to_string());
+    cfg.insert(
+        "scene-custom.cp77.base-scene".to_string(),
+        "storm".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.cp77.colors-custom".to_string(),
+        "cyberpunk_2077".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.rain".to_string(),
+        "#00fff7,#ff003c".to_string(),
+    );
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert!(new.custom_palette.is_some());
+    assert_eq!(
+        new.custom_palette_name.as_deref(),
+        Some("cyberpunk_2077"),
+        "the rebuilt CloudConfig must carry the palette name for the clr: HUD line"
+    );
+}

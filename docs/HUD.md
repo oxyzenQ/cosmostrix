@@ -43,7 +43,7 @@ each line means without reading the full reference below.
 | Row | Label        | Unit           | What it tells you in one sentence                                                                  |
 |-----|--------------|----------------|----------------------------------------------------------------------------------------------------|
 | 0   | `fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
-| 1   | `tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml`. The cap you configured, with optional `idle` / `paused` mode suffix. |
+| 1   | `tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml` / a `[scene-custom.<name>]` block's `fps` field. v80.0.0-beta.2: an explicit `fps = 60` from config or a scene-custom block is honored even on high-refresh terminals (the 144 dynamic default only applies when NO layer expressed fps intent). The cap you configured, with optional `idle` / `paused` mode suffix. |
 | 2   | `max:`      | ms             | Maximum frame time observed in the last 60 seconds. Auto-resets so a startup spike does not dominate forever. |
 | 3   | `p99:`      | ms             | 99th-percentile frame time. The slowest 1% of recent frames — catches spikes `avg` hides.          |
 | 4   | `cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
@@ -52,7 +52,7 @@ each line means without reading the full reference below.
 | 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
 | 8   | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
 | 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
-| 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. Confirms `c`/`C` cycle. |
+| 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. v80.0.0-beta.2: the name follows the palette on every activation path (startup `--colors-custom`, config `color = <custom>`, scene-custom `colors-custom`, ambient fire, live-reload rebuild) — the Cloud tracks it, not just the startup config. Confirms `c`/`C` cycle. |
 | 11  | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
 | 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. v80.0.0-beta.1: DYNAMIC when `prdr:` is on — shows the banded throttle target (dead zone below 5% pressure = the configured density; low 0.84-0.70 / medium 0.70-0.50 / high 0.50-0.10; the configured density is the ceiling). STATIC (fixed configured density) when `prdr:` is off. |
 | 13  | `prdr:`     | on/off         | **Power Dragon** — live power-management state (throttle + idle FPS reduction). Reflects config live-reload. |

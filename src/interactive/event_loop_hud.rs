@@ -49,13 +49,21 @@ pub(crate) fn update_hud_state(
     hud_state.set_scene_name(scene_name);
     hud_state.set_color_scheme(cloud.color_scheme);
     // Show custom palette name on the clr: HUD line when active.
-    // cloud.custom_palette_active tracks whether the user loaded a
-    // --colors-custom palette. current_cfg.custom_palette_name holds
-    // the name. v50.0.0-beta.6 bugfix: uses current_cfg (live-reloaded)
-    // instead of cfg (startup) so live-reload of custom_palette_name
-    // propagates to the clr: HUD line.
+    // v80.0.0-beta.2 HUD honesty (owner bug 2026-09-02): the Cloud now
+    // tracks the active palette NAME itself (cloud.custom_palette_name,
+    // set by every set_palette activation — startup create_cloud,
+    // live-reload rebuild, ambient fire, scene-runtime custom-scene
+    // switch), so `clr:` follows the palette wherever it was activated.
+    // current_cfg.custom_palette_name (startup/live-rebuilt CloudConfig)
+    // remains the fallback for paths that predate name tracking.
+    // Pre-beta.2 the HUD read ONLY current_cfg — an ambient-fired
+    // scene-custom block with `colors-custom` rendered its colors while
+    // the HUD kept showing the base-scene scheme name ("clr: Purple").
     hud_state.set_custom_palette_name(if cloud.custom_palette_active {
-        current_cfg.custom_palette_name.as_deref()
+        cloud
+            .custom_palette_name
+            .as_deref()
+            .or(current_cfg.custom_palette_name.as_deref())
     } else {
         None
     });

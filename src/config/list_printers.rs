@@ -153,7 +153,8 @@ pub(crate) fn print_list_scenes() {
             crate::scene_custom::list_custom_scenes_text(&custom_scenes)
         );
         println!();
-        println!("  Load with: cosmostrix --scene-custom <name>");
+        println!("  Load with: cosmostrix --scene <name> or --scene-custom <name>");
+        println!("  Or set in config: scene = \"<name>\"");
     }
 }
 

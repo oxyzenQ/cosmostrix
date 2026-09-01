@@ -90,10 +90,13 @@ fn scorch_head_burns_hot_with_ember_tint() {
     // Dim green palette so the ember blend is clearly observable
     // (green (0, 255, 0) blended toward ember (255, 100, 30) by 1.0
     // = ember; by 0.0 = green; by 0.5 = muddy midpoint).
-    cloud.set_palette(crate::palette::Palette {
-        colors: vec![crossterm::style::Color::Rgb { r: 0, g: 128, b: 0 }],
-        bg: None,
-    });
+    cloud.set_palette(
+        None,
+        crate::palette::Palette {
+            colors: vec![crossterm::style::Color::Rgb { r: 0, g: 128, b: 0 }],
+            bg: None,
+        },
+    );
     set_message_elapsed(&mut cloud, "hi", 0);
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
     cloud.draw_message(&mut frame, Instant::now());

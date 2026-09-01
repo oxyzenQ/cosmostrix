@@ -56,7 +56,11 @@ impl Cloud {
         // true after `--colors-custom X` + 'c' cycle, falsely blocking
         // --crystal-dragon forever (the drift gate at rain.rs reads
         // this flag). Note: the 'c' cycle path already calls this fn.
+        // v80.0.0-beta.2 HUD honesty: the tracked palette name is cleared
+        // with the flag so the `clr:` HUD line falls back to the scheme
+        // name the moment the custom palette stops being active.
         self.custom_palette_active = false;
+        self.custom_palette_name = None;
         use crate::palette::build_palette;
         let mut new_palette = build_palette(scheme, self.color_mode, self.default_background);
         // v30 strengthen (Bug #5): re-apply color_tune after palette rebuild.
@@ -82,7 +86,14 @@ impl Cloud {
     /// The palette transition wave (cinematic top-to-bottom cascade) works
     /// identically to `set_color_scheme` — the old streams keep their birth
     /// palette below the wave line, and the new palette propagates visually.
-    pub fn set_palette(&mut self, palette: crate::palette::Palette) {
+    ///
+    /// v80.0.0-beta.2 HUD honesty: `name` is the user-facing palette name
+    /// surfaced on the `clr:` HUD line (tracked on the Cloud so runtime
+    /// activation paths — ambient fire, scene-runtime custom-scene
+    /// switch, live-reload rebuild — are as visible as the startup
+    /// `--colors-custom` path). Callers without a meaningful name (unit
+    /// tests constructing ad-hoc palettes) pass None.
+    pub fn set_palette(&mut self, name: Option<&str>, palette: crate::palette::Palette) {
         // (Color-#1): mark custom_palette_active so the drift gate
         // (rain.rs:923 `!custom_palette_active && !ambient_palette_locked`)
         // correctly suppresses palette drift while a custom palette is
@@ -93,6 +104,7 @@ impl Cloud {
         // (Bug #4) was supposed to prevent (it only covered the
         // startup-time --colors-custom case, not the runtime ambient fire).
         self.custom_palette_active = true;
+        self.custom_palette_name = name.map(str::to_string);
         self.apply_new_palette(palette);
     }
 

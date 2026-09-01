@@ -420,6 +420,12 @@ fn apply_config_values(
         if let Some(f) = parse_f64_config("fps", &v, 1.0, 240.0) {
             args.fps = f;
             config_touched.insert("fps");
+            // v80.0.0-beta.2 fps-intent: a config-file fps (including
+            // exactly 60) is explicit user intent — record it so main.rs's
+            // dynamic-default layer (144 on high-perf terminals) cannot
+            // stomp it (the `!= 60.0` heuristic can't tell this 60 from
+            // the clap default).
+            crate::record_fps_explicit("config");
         }
     }
     if let Some(v) = config_value(matches, cfg, "speed", "speed") {

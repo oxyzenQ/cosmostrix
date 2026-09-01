@@ -325,6 +325,17 @@ pub struct Cloud {
         crate::crystal_dragon_engine::point_system::DriftHistory,
     /// v30 Bug #4: true when --colors-custom active.
     pub(crate) custom_palette_active: bool,
+    /// v80.0.0-beta.2 HUD honesty (owner bug 2026-09-02): the NAME of the
+    /// active custom palette, tracked by the Cloud itself so every
+    /// activation path (startup create_cloud, live-reload rebuild, ambient
+    /// fire, scene-runtime custom-scene switch) can surface it on the HUD
+    /// `clr:` line. Previously the HUD read only
+    /// `CloudConfig.custom_palette_name` (startup/live-rebuild), so a
+    /// palette activated Cloud-side (e.g. an ambient entry firing a
+    /// scene-custom block with `colors-custom`) rendered its colors but
+    /// the HUD kept showing the base-scene scheme name ("clr: Purple").
+    /// Cleared together with `custom_palette_active` by `set_color_scheme`.
+    pub(crate) custom_palette_name: Option<String>,
     /// v30 Bug #5: color_tune on Cloud for set_color_scheme re-apply.
     pub(crate) color_tune: crate::color_tune::ColorTune,
     /// true when ambient asserted palette. Cleared by `c`/`C`/`x`.
@@ -544,6 +555,7 @@ impl Cloud {
                 crate::crystal_dragon_engine::point_system::DriftHistory::new(),
             // v30 strengthen: overridden in app.rs create_cloud.
             custom_palette_active: false,
+            custom_palette_name: None,
             color_tune: crate::color_tune::ColorTune::IDENTITY,
             // ambient-harmony flags start false (set by ambient fire,
             // cleared by user override x/c/s).

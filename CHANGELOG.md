@@ -488,6 +488,84 @@ Test/audit surface:
   floor bounds, INV-4/7 hierarchy, INV-5 hue preservation, INV-6
   gap contract); chroma suite 273 passed.
 
+### fix: v80.0.0-beta.2 — custom-name validation parity + HUD fps/clr honesty (owner bug hunt)
+
+Owner bug report (2026-09-02, commit 8e5af0d local build): "owner found
+too many bug... Fatal killers features is premature need improve
+logic." Six verified fixes across two bug clusters, each reproduced
+before the fix and locked with regression tests (suite 2031 → 2050).
+
+Cluster 1 — custom-name validation parity (the fatal killer):
+- `scene = <custom-scene-name>` in config.toml was rejected by every
+  validation layer (--testconf, startup Layer 3, live-reload watcher)
+  with "unknown scene" even though the runtime resolution path
+  accepted it — one config key blocked EVERY launch, including
+  `--scene`, `--scene-custom`, and plain runs (the owner's four
+  fatal-variant transcript).
+- `color = <custom-palette-name>` was rejected with a misleading
+  "Use `colors-custom = test` instead (the `color` field only accepts
+  built-in names)" hint — asymmetric with `charset = <custom>`, which
+  had been accepted since v25. Owner: "if charset can custom but why
+  not for colors?"
+- Fix: `validate_field_value_with_cfg` now accepts custom-block
+  references for `scene` / `color` / `charset` uniformly (top-level
+  keys AND scene-custom block fields — the runtime resolves both
+  surfaces), mirroring the resolution paths in config_apply.rs,
+  main.rs, and scene_runtime.rs. The caller-side charset carve-outs
+  were removed (centralized), and the misleading hint branches were
+  deleted. All three selection surfaces now behave like charset
+  custom: `--scene`/`--scene-custom` accept custom names + builtins,
+  `-c`/`--color`/`--colors-custom` accept custom palettes + builtins,
+  and `scene = <name>` / `color = <name>` config keys accept both.
+- Hunt find (strictness gap): `base-scene = <custom-scene>` passed
+  strict validation silently and only failed as a runtime warning.
+  New `base-scene` validator: must name a BUILT-IN scene (custom
+  scenes cannot inherit from custom scenes — the documented runtime
+  contract).
+
+Cluster 2 — HUD metrics honesty:
+- `tgt: 144` vs scene-custom `fps = 60`: the dynamic default FPS
+  (144 on high-perf terminals) stomped explicit user values because
+  main.rs's `fps_user_set = args.fps != 60.0` heuristic cannot
+  distinguish "user wrote 60" from "clap default is still 60". Hunt
+  find: top-level config `fps = 60` was stomped the same way. Fix:
+  new explicit-fps intent tracker (`config/fps_intent.rs`) — the
+  config layer and scene-custom layer record their intent; the
+  dynamic default now only applies when NO layer expressed fps
+  intent (built-in scene templates deliberately keep the dynamic
+  refinement — unchanged design). FPS precedence chain doc updated
+  (layer 3, incl. the scene-custom field).
+- `clr: Purple` vs `colors-custom = cyberpunk_2077`: the HUD read
+  only `CloudConfig.custom_palette_name` (startup/live-rebuild), so
+  a palette activated Cloud-side (ambient fire, scene-runtime
+  custom-scene switch) rendered its colors while the HUD kept the
+  base-scene scheme name. Fix: the Cloud now tracks the active
+  palette NAME (`custom_palette_name`, set by every `set_palette`
+  activation, cleared with the flag by `set_color_scheme`); the HUD
+  prefers the Cloud's live name with the CloudConfig value as
+  fallback.
+- Hunt find (CLI priority): the startup path's scene-custom
+  `colors-custom` arm was missing the documented Z1-1 gate — an
+  explicit `-c cosmos --scene-custom cp77` silently applied the
+  block's palette over the CLI color. The live-reload path had the
+  gate; startup now matches.
+
+Verification: all four owner fatal variants launch (config with
+`scene = hacker-mode` active: plain, `--scene cp77`,
+`--scene-custom cp77`, `--scene hacker-mode` — zero invalid-config
+errors); `--testconf` accepts `scene`/`color` custom references;
+PTY HUD probes: scene-custom `fps = 60` shows `tgt: 60.0` on a
+high-perf-emulated terminal while unset fps still shows `tgt: 144`
+(dynamic default intact); `-c cosmos` wins over the block's
+colors-custom; `clr:` follows cyberpunk_2077 on every activation
+path. 19 new regression tests (field validators, strict-validation
+integration, startup apply, rebuild, ambient fire, CLI priority,
+fps intent). Suite 2050 passed / 0 failed / 2 ignored.
+
+Docs: README (custom scene/palette selection surfaces + acceptance),
+HUD.md (tgt/clr rows), list_printers hint (`--scene <name> or
+--scene-custom <name>` + config key), termdetect FPS precedence chain.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

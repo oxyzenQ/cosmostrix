@@ -137,73 +137,63 @@ fn color_unknown_is_rejected() {
     assert!(msg.unwrap().contains("unknown color"));
 }
 
-// ── Context-aware hints (validate_field_value_with_cfg) ──
-// Closes the duplicate-usage confusion between `color` (built-in only)
-// and `colors-custom` (references a [colors-custom.<name>] block).
+// ── Context-aware custom-reference acceptance (validate_field_value_with_cfg) ──
+// v80.0.0-beta.2 custom-reference parity (owner bug fix 2026-09-02):
+// `color`, `charset`, and `scene` all accept custom-block references
+// (mirroring the runtime resolution paths). Previously only charset had
+// a caller-side carve-out; color/scene rejected valid custom names with
+// misleading "use X-custom instead" hints while the runtime applied
+// them — the fatal-startup inconsistency the owner reported.
 
 #[test]
-fn color_matching_custom_palette_gets_colors_custom_hint() {
-    // User wrote `color = z` inside a [scene-custom.<name>] block, but `z`
-    // is the name of a [colors-custom.z] block — not a built-in color.
-    // The error must point them at the `colors-custom` field.
+fn color_matching_custom_palette_is_accepted() {
+    // User wrote `color = z` (top-level or inside a scene-custom block),
+    // and `z` is the name of a [colors-custom.z] block — accepted,
+    // exactly like the runtime path (apply_config_values + main.rs
+    // unified resolution + scene_runtime.rs custom.color fallback).
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
     cfg.insert(
         "colors-custom.z.rain".to_string(),
         "#111111,#1ee460".to_string(),
     );
-    let msg = validate_field_value_with_cfg("color", "z", &cfg)
-        .expect("should still error — z is not a built-in color");
     assert!(
-        msg.contains("custom palette"),
-        "error must explain the value is a custom palette: {msg}"
-    );
-    assert!(
-        msg.contains("colors-custom = z"),
-        "error must suggest the `colors-custom = z` field: {msg}"
-    );
-    assert!(
-        msg.contains("--list-colors"),
-        "error must still mention --list-colors for built-in names: {msg}"
+        validate_field_value_with_cfg("color", "z", &cfg).is_none(),
+        "color = <custom palette name> must pass (runtime parity)"
     );
 }
 
 #[test]
-fn color_matching_custom_palette_only_bg_field_still_hinted() {
+fn color_matching_custom_palette_only_bg_field_still_accepted() {
     // A partially-declared [colors-custom.<name>] block (only `bg`, no
-    // `rain`) still counts as a custom palette for hint purposes.
+    // `rain`) still counts as a custom palette reference.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("colors-custom.sunset.bg".to_string(), "#1a0033".to_string());
-    let msg = validate_field_value_with_cfg("color", "sunset", &cfg)
-        .expect("should error — sunset is not a built-in color");
     assert!(
-        msg.contains("colors-custom = sunset"),
-        "hint must fire even with only .bg declared: {msg}"
+        validate_field_value_with_cfg("color", "sunset", &cfg).is_none(),
+        "acceptance must fire even with only .bg declared: matches runtime is_colors_custom_name"
     );
 }
 
 #[test]
-fn color_matching_custom_palette_via_legacy_stops_field_still_hinted() {
+fn color_matching_custom_palette_via_legacy_stops_field_still_accepted() {
     // Older configs may use the deprecated `.stops` alias for `.rain`.
-    // The hint must still fire so users on legacy configs are guided to
-    // the right field.
+    // The acceptance must still fire so legacy configs validate.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert(
         "colors-custom.legacy.stops".to_string(),
         "#ff0000,#00ff00".to_string(),
     );
-    let msg = validate_field_value_with_cfg("color", "legacy", &cfg)
-        .expect("should error — legacy is not a built-in color");
     assert!(
-        msg.contains("colors-custom = legacy"),
-        "hint must fire via legacy .stops field: {msg}"
+        validate_field_value_with_cfg("color", "legacy", &cfg).is_none(),
+        "acceptance must fire via legacy .stops field"
     );
 }
 
 #[test]
 fn color_unknown_with_no_matching_palette_keeps_plain_error() {
-    // No [colors-custom.<name>] block exists for this value — the hint
-    // must NOT fire. The plain "unknown color" error is returned.
+    // No [colors-custom.<name>] block exists for this value — the plain
+    // "unknown color" error is returned.
     let cfg = std::collections::HashMap::new();
     let msg = validate_field_value_with_cfg("color", "not-a-color", &cfg)
         .expect("should error — not-a-color is unknown");
@@ -213,22 +203,20 @@ fn color_unknown_with_no_matching_palette_keeps_plain_error() {
     );
     assert!(
         !msg.contains("colors-custom ="),
-        "hint must NOT fire when no matching palette exists: {msg}"
+        "no stale hint when no matching palette exists: {msg}"
     );
 }
 
 #[test]
 fn color_matching_palette_is_case_insensitive() {
-    // Built-in color names are case-insensitive at runtime; the hint
-    // matching should also be case-insensitive so `color = Z` matches a
-    // declared `[colors-custom.z]` block.
+    // Built-in color names are case-insensitive at runtime; custom
+    // reference matching must be too so `color = Z` matches a declared
+    // `[colors-custom.z]` block.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
-    let msg = validate_field_value_with_cfg("color", "Z", &cfg)
-        .expect("should error — Z is not a built-in color");
     assert!(
-        msg.contains("colors-custom = Z"),
-        "hint must fire case-insensitively and preserve original casing: {msg}"
+        validate_field_value_with_cfg("color", "Z", &cfg).is_none(),
+        "acceptance must fire case-insensitively (runtime parity)"
     );
 }
 
@@ -254,45 +242,34 @@ fn validate_field_value_with_cfg_preserves_other_field_errors() {
     );
 }
 
-// ── charset → charset-custom hint (parity with color hint) ──
+// ── charset custom-reference acceptance (parity with color) ──
 
 #[test]
-fn charset_matching_custom_block_gets_charset_custom_hint() {
-    // User wrote `charset = pipes` inside a [scene-custom.<name>] block,
-    // but `pipes` is the name of a [charset-custom.pipes] block — not a
-    // built-in charset preset. The error must point them at the
-    // `charset-custom` field. (Note: `pipes` is chosen because it is
-    // NOT in the built-in charset list — see src/scene/charset.rs.)
+fn charset_matching_custom_block_is_accepted() {
+    // User wrote `charset = pipes` (top-level or inside a scene-custom
+    // block), and `pipes` is the name of a [charset-custom.pipes] block —
+    // accepted, exactly like the runtime path (main.rs charset
+    // resolution + scene_runtime.rs custom.charset arm both resolve
+    // custom blocks first). (Note: `pipes` is chosen because it is NOT
+    // in the built-in charset list — see src/scene/charset.rs.)
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("charset-custom.pipes.set".to_string(), "|".to_string());
-    let msg = validate_field_value_with_cfg("charset", "pipes", &cfg)
-        .expect("should still error — pipes is not a built-in charset");
     assert!(
-        msg.contains("custom charset"),
-        "error must explain the value is a custom charset: {msg}"
-    );
-    assert!(
-        msg.contains("charset-custom = pipes"),
-        "error must suggest the `charset-custom = pipes` field: {msg}"
-    );
-    assert!(
-        msg.contains("--list-charsets"),
-        "error must still mention --list-charsets for built-in names: {msg}"
+        validate_field_value_with_cfg("charset", "pipes", &cfg).is_none(),
+        "charset = <custom block name> must pass (runtime parity)"
     );
 }
 
 #[test]
 fn charset_matching_custom_block_is_case_insensitive() {
-    // Charset name matching is case-insensitive at runtime; the hint
-    // matching should also be case-insensitive so `charset = PIPES`
-    // matches a declared `[charset-custom.pipes]` block.
+    // Charset name matching is case-insensitive at runtime; custom
+    // reference acceptance must be too so `charset = PIPES` matches a
+    // declared `[charset-custom.pipes]` block.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("charset-custom.pipes.set".to_string(), "|".to_string());
-    let msg = validate_field_value_with_cfg("charset", "PIPES", &cfg)
-        .expect("should error — PIPES is not a built-in charset");
     assert!(
-        msg.contains("charset-custom = PIPES"),
-        "hint must fire case-insensitively and preserve original casing: {msg}"
+        validate_field_value_with_cfg("charset", "PIPES", &cfg).is_none(),
+        "acceptance must fire case-insensitively (runtime parity)"
     );
 }
 
@@ -327,6 +304,89 @@ fn scene_unknown_is_rejected() {
     let msg = validate_field_value("scene", "nonexistent");
     assert!(msg.is_some());
     assert!(msg.unwrap().contains("unknown scene"));
+}
+
+#[test]
+fn scene_matching_custom_block_is_accepted() {
+    // v80.0.0-beta.2 custom-reference parity (owner fatal bug: a config
+    // with `scene = hacker-mode` + a matching [scene-custom.hacker-mode]
+    // block was rejected by every validation layer — testconf, startup
+    // Layer 3, live-reload watcher — while the runtime resolution path
+    // accepted it, blocking ALL launches including CLI overrides).
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert(
+        "scene-custom.hacker-mode.base-scene".to_string(),
+        "matrix".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.speed".to_string(),
+        "20".to_string(),
+    );
+    assert!(
+        validate_field_value_with_cfg("scene", "hacker-mode", &cfg).is_none(),
+        "scene = <custom scene name> must pass when the block exists (runtime parity)"
+    );
+    // Case-insensitive, and recognized via ANY declared block field.
+    assert!(
+        validate_field_value_with_cfg("scene", "HACKER-MODE", &cfg).is_none(),
+        "custom scene acceptance must be case-insensitive"
+    );
+}
+
+#[test]
+fn scene_custom_name_without_block_still_rejected() {
+    // The name matches no built-in AND no [scene-custom.<name>] block —
+    // the plain unknown-scene error must fire (typo protection).
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert(
+        "scene-custom.other-scene.base-scene".to_string(),
+        "matrix".to_string(),
+    );
+    let msg = validate_field_value_with_cfg("scene", "hacker-mode", &cfg)
+        .expect("should error — no matching block or builtin");
+    assert!(
+        msg.contains("unknown scene"),
+        "plain error must be preserved when the block is absent: {msg}"
+    );
+}
+
+#[test]
+fn scene_custom_block_detected_via_any_field() {
+    // A block is recognized by any of its declared fields, not just
+    // base-scene (mirrors collect_custom_scenes which parses all
+    // SCENE_CUSTOM_FIELDS).
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("scene-custom.cp77.density".to_string(), "0.9".to_string());
+    assert!(
+        validate_field_value_with_cfg("scene", "cp77", &cfg).is_none(),
+        "block detected via a non-base-scene field"
+    );
+}
+
+#[test]
+fn base_scene_builtin_is_accepted() {
+    assert!(validate_field_value("base-scene", "storm").is_none());
+    assert!(validate_field_value("base-scene", "monolith").is_none());
+}
+
+#[test]
+fn base_scene_custom_or_unknown_is_rejected() {
+    // v80.0.0-beta.2 hunt: `base-scene` must name a BUILT-IN scene
+    // (custom scenes cannot inherit from custom scenes — runtime
+    // contract in apply_base_scene_to_args). Previously this field
+    // fell through the catch-all and passed strict validation
+    // silently, failing only as a runtime warning.
+    let msg = validate_field_value("base-scene", "hacker-mode")
+        .expect("custom scene name must be rejected as base-scene");
+    assert!(
+        msg.contains("unknown base-scene"),
+        "error must name the field: {msg}"
+    );
+    assert!(
+        msg.contains("built-in"),
+        "error must explain the built-in-only contract: {msg}"
+    );
+    assert!(validate_field_value("base-scene", "nonexistent").is_some());
 }
 
 #[test]
@@ -603,4 +663,80 @@ fn intro_end_to_end_via_validate_config_strictly() {
             "intro={v} must pass strict validation"
         );
     }
+}
+
+// ── v80.0.0-beta.2 end-to-end custom-name acceptance via the exact
+// startup/live-reload/watcher entry point (validate_config_strictly) ──
+// These lock the owner's fatal bug at the integration level: the same
+// function gates startup Layer 3 and the live-reload watcher, so a pass
+// here means `scene = <custom>` / `color = <custom>` configs no longer
+// block launches or live edits.
+
+#[test]
+fn strict_validation_accepts_scene_referencing_custom_block() {
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("scene".to_string(), "hacker-mode".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.base-scene".to_string(),
+        "matrix".to_string(),
+    );
+    assert!(
+        validate_config_strictly(&cfg).is_ok(),
+        "scene = <custom scene name> must pass the startup/live-reload gate"
+    );
+}
+
+#[test]
+fn strict_validation_accepts_color_referencing_custom_palette() {
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("color".to_string(), "test".to_string());
+    cfg.insert("colors-custom.test.bg".to_string(), "#0a0a0a".to_string());
+    cfg.insert(
+        "colors-custom.test.rain".to_string(),
+        "#1a0033,#ffffff".to_string(),
+    );
+    assert!(
+        validate_config_strictly(&cfg).is_ok(),
+        "color = <custom palette name> must pass (charset parity — owner mandate)"
+    );
+}
+
+#[test]
+fn strict_validation_accepts_scene_custom_block_color_custom_palette() {
+    // Inside a scene-custom block, `color = <custom palette>` must also
+    // pass — the runtime (scene_runtime.rs) resolves it through the
+    // custom palette path.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert(
+        "scene-custom.cp77.color".to_string(),
+        "cyberpunk_2077".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.cyberpunk_2077.rain".to_string(),
+        "#00fff7,#ff003c".to_string(),
+    );
+    assert!(
+        validate_config_strictly(&cfg).is_ok(),
+        "scene-custom block color field must accept custom palette references"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_scene_referencing_missing_block() {
+    // Typo protection: no builtin, no matching block → strict rejection.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("scene".to_string(), "hacker-mdoe".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.base-scene".to_string(),
+        "matrix".to_string(),
+    );
+    let err = validate_config_strictly(&cfg).expect_err("typo'd scene name must fail");
+    assert!(
+        err.contains("unknown scene"),
+        "error must be the plain unknown-scene rejection: {err}"
+    );
 }

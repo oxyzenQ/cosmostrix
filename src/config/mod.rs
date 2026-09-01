@@ -27,6 +27,7 @@ pub mod config_io;
 pub mod configfile;
 #[cfg(test)]
 pub mod configfile_tests;
+pub mod fps_intent; // v80.0.0-beta.2 explicit-fps intent tracker
 #[macro_use]
 pub mod live_config_trace;
 pub mod live_config;
@@ -79,6 +80,10 @@ pub(crate) fn color_enabled_stdout() -> bool {
     }
     std::io::stdout().is_terminal()
 }
+
+// v80.0.0-beta.2 fps-intent tracker (extracted to fps_intent.rs to stay
+// under the 800-LOC cap). Re-exported for the existing call sites.
+pub(crate) use fps_intent::{fps_explicit_source, record_fps_explicit};
 
 // Enums
 

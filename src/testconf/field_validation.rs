@@ -111,6 +111,16 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             _ => Some(format!("expected 0 or 1, got '{v}'")),
         },
         // ── Enum-like string values ──
+        //
+        // v80.0.0-beta.2 custom-reference parity: `color`, `charset`, and
+        // `scene` may each name a custom block (`[colors-custom.<name>]`,
+        // `[charset-custom.<name>]`, `[scene-custom.<name>]`) — the runtime
+        // resolution paths (config_apply.rs, main.rs, scene_runtime.rs)
+        // accept both builtins and custom blocks for all three fields.
+        // The BASE validators here check builtins only; the cfg-aware
+        // wrapper `validate_field_value_with_cfg` adds the custom-block
+        // acceptance on top, keeping testconf/startup/live-reload in lock
+        // step with runtime.
         "color" => {
             if theme::canonical_name_for_input(v).is_some() {
                 None
@@ -137,6 +147,24 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             } else {
                 Some(format!(
                     "unknown scene '{v}' (run `cosmostrix --list-scenes` for valid names)"
+                ))
+            }
+        }
+        // `base-scene` inside a [scene-custom.<name>] block must be a
+        // BUILT-IN scene — custom scenes cannot inherit from other custom
+        // scenes (runtime contract: apply_base_scene_to_args and
+        // apply_base_scene_to_cloud_config both warn-and-skip unknown
+        // base-scene names, and scene inheritance chains are not
+        // supported by design). v80.0.0-beta.2 hunt: previously this field
+        // fell through to the catch-all `_ => None` arm, so a config with
+        // `base-scene = <custom-scene>` PASSED strict validation silently
+        // and only failed at runtime as a warning — a strictness gap.
+        "base-scene" => {
+            if crate::scene::get_scene(v).is_some() {
+                None
+            } else {
+                Some(format!(
+                    "unknown base-scene '{v}' (must be a built-in scene name; custom scenes cannot inherit from custom scenes — run `cosmostrix --list-scenes` for valid names)"
                 ))
             }
         }
@@ -261,35 +289,35 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
 
 /// Context-aware wrapper around [`validate_field_value`].
 ///
-/// Accepts the parsed config map so it can emit targeted hints when a value
-/// that failed base validation happens to match a custom block defined
-/// elsewhere in the same config. This closes the duplicate-usage confusion
-/// between paired fields:
-///   - `color` (built-in names only) vs `colors-custom` (references a
-///     `[colors-custom.<name>]` block).
-///   - `charset` (built-in presets only) vs `charset-custom` (references a
-///     `[charset-custom.<name>]` block).
+/// Accepts the parsed config map so it can resolve custom-block
+/// references. v80.0.0-beta.2 custom-reference parity (owner bug fix
+/// 2026-09-02): the three name-bearing fields accept BOTH built-ins and
+/// custom blocks, exactly mirroring the runtime resolution paths:
+///   - `scene = <name>` — built-in scene OR `[scene-custom.<name>]` block
+///     (runtime: config_apply.rs accepts both; scene_runtime.rs applies
+///     the custom block Cloud-side).
+///   - `color = <name>` — built-in theme OR `[colors-custom.<name>]` block
+///     (runtime: apply_config_values + main.rs unified resolution accept
+///     both; scene_runtime.rs resolves a block's `color` field through
+///     the custom palette path when the name is not a built-in).
+///   - `charset = <name>` — built-in preset OR `[charset-custom.<name>]`
+///     block (runtime: main.rs charset resolution and scene_runtime.rs
+///     both try the custom block first).
 ///
-/// When `color = <name>` fails because `<name>` is not a built-in color, but
-/// the config DOES define a `[colors-custom.<name>]` block, the returned
-/// error message points the user to `colors-custom = <name>` instead of just
-/// saying "unknown color". Symmetric hint for `charset` → `charset-custom`.
-/// The hint is only emitted when a matching custom block exists — otherwise
-/// the plain base error is returned unchanged.
+/// The acceptance applies to BOTH top-level keys and
+/// `[scene-custom.<name>]` block fields — the runtime treats both
+/// surfaces identically (a block's `color`/`charset` field resolves
+/// custom names in scene_runtime.rs). Previously only `charset` had a
+/// caller-side top-level carve-out and `color`/`scene` rejected custom
+/// names with misleading "use X-custom instead" hints even though the
+/// runtime happily applied them — the exact inconsistency behind the
+/// owner's fatal-startup bug report (a config with `scene = <custom>`
+/// passed no validation layer at all, blocking every launch).
 ///
 /// Callers that have the parsed config map available should prefer this over
 /// the bare `validate_field_value`. The base function remains available for
 /// contexts (e.g. unit tests, CLI arg parsing) where no surrounding config
 /// exists.
-///
-/// Note on the top-level `charset` carve-out: the `run()` and
-/// `validate_config_strictly()` callers each have a pre-check that silently
-/// accepts `charset = <custom-name>` at the TOP LEVEL (legacy v25 behavior
-/// that predates the explicit `charset-custom` field). That pre-check runs
-/// BEFORE this wrapper, so the charset hint here only fires for the
-/// scene-custom block path — which is exactly the design-consistent
-/// behavior: inside `[scene-custom.<name>]`, the explicit `charset-custom`
-/// field is the canonical way to reference a custom block.
 pub(crate) fn validate_field_value_with_cfg(
     key: &str,
     value: &str,
@@ -343,44 +371,46 @@ pub(crate) fn validate_field_value_with_cfg(
              Use --list-colors to see available themes."
         ));
     }
-    let base = validate_field_value(key, value)?;
-    // Base validation FAILED — `base` holds the plain error message. Try to
-    // enrich it with a context-aware hint before returning.
-    let trimmed = value.trim();
-    if trimmed.is_empty() {
-        return Some(base);
-    }
-    let lower = trimmed.to_ascii_lowercase();
-    if key == "color" {
-        // A `[colors-custom.<name>]` block is recognized by any of its
-        // declared sub-fields. We check all three historical spellings
-        // (.bg, .rain, .stops) so a partially-migrated config still trips
-        // the hint.
-        let bg_key = format!("colors-custom.{lower}.bg");
-        let rain_key = format!("colors-custom.{lower}.rain");
-        let stops_key = format!("colors-custom.{lower}.stops");
-        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
-        {
-            return Some(format!(
-                "unknown color '{value}' — '{value}' is a custom palette name. \
-                 Use `colors-custom = {value}` instead (the `color` field only \
-                 accepts built-in names; run `cosmostrix --list-colors` to see them)."
-            ));
+    // v80.0.0-beta.2 custom-reference parity (owner mandate: "if charset
+    // can custom but why not for colors?" — now all three accept custom
+    // names uniformly, matching runtime): accept `scene`/`color`/
+    // `charset` values that reference a custom block defined elsewhere
+    // in this SAME config. The block's own content is validated by the
+    // colors-custom/charset-custom branches above (and scene-custom
+    // blocks by the caller's block-field loop), so a resolved reference
+    // never masks invalid block data.
+    let lower = value.trim().to_ascii_lowercase();
+    if !lower.is_empty() {
+        match key {
+            "scene" => {
+                // A [scene-custom.<name>] block is recognized by ANY of its
+                // declared fields (base-scene/color/charset/fps/speed/…).
+                let has_block = cfg.keys().any(|k| {
+                    k.starts_with("scene-custom.") && k.split('.').nth(1) == Some(lower.as_str())
+                });
+                if has_block {
+                    return None;
+                }
+            }
+            "color" => {
+                let bg_key = format!("colors-custom.{lower}.bg");
+                let rain_key = format!("colors-custom.{lower}.rain");
+                let stops_key = format!("colors-custom.{lower}.stops");
+                if cfg.contains_key(&bg_key)
+                    || cfg.contains_key(&rain_key)
+                    || cfg.contains_key(&stops_key)
+                {
+                    return None;
+                }
+            }
+            "charset" => {
+                let set_key = format!("charset-custom.{lower}.set");
+                if cfg.contains_key(&set_key) {
+                    return None;
+                }
+            }
+            _ => {}
         }
     }
-    if key == "charset" {
-        // A `[charset-custom.<name>]` block is recognized by its `.set`
-        // sub-field. If the user wrote `charset = <name>` inside a
-        // scene-custom block (where the top-level carve-out does NOT apply),
-        // point them at the explicit `charset-custom` field.
-        let set_key = format!("charset-custom.{lower}.set");
-        if cfg.contains_key(&set_key) {
-            return Some(format!(
-                "unknown charset '{value}' — '{value}' is a custom charset name. \
-                 Use `charset-custom = {value}` instead (the `charset` field only \
-                 accepts built-in names; run `cosmostrix --list-charsets` to see them)."
-            ));
-        }
-    }
-    Some(base)
+    validate_field_value(key, value)
 }

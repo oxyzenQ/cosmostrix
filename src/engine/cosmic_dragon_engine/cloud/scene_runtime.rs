@@ -283,7 +283,10 @@ impl Cloud {
                     self.set_color_scheme(scheme);
                 }
             } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
-                self.set_palette(palette);
+                // v80.0.0-beta.2 HUD honesty: track the palette name on
+                // the Cloud so the `clr:` HUD line follows the custom
+                // palette on this runtime path (not just the startup one).
+                self.set_palette(Some(color_name), palette);
             }
         }
         // `colors-custom` — explicit custom palette name. Applied
@@ -291,7 +294,11 @@ impl Cloud {
         if custom.color.is_none() {
             if let Some(palette_name) = &custom.colors_custom {
                 if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, palette_name) {
-                    self.set_palette(palette);
+                    // v80.0.0-beta.2 HUD honesty (owner bug: an ambient-fired
+                    // cp77 rendered cyberpunk_2077 colors while the HUD kept
+                    // showing the base-scene scheme "clr: Purple") — the
+                    // name now travels with the palette.
+                    self.set_palette(Some(palette_name), palette);
                 }
             }
         }
