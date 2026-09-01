@@ -9,6 +9,25 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### lock: S-master-6-v2 LTS — chroma dragon visual-impact peak audit, locked (no code changes)
+
+The masterclass-most-valuable audit axis. Verified: 12/12 tuning
+constants at sweep-audit-verified sweet spots (palette floor ratio
+0.20 and body-tail gap 2.0 each pinned by named sweep-audit tests
+with the rejected alternatives documented); shipped visual identity
+owner-locked (Deep Focus, preset battle round 2); all six
+dragon-engine-v2 innovations live (cinematic shading path runs
+Bayer dithering + smooth interpolation + subpixel jitter and
+deliberately skips hue-drift stacking per documented design intent);
+resource efficiency at peak (flat ColorCache SGR buffer, borrow-view
+shader context, cold-path OKLab, zero steady-state alloc); security
+surface closed (color_tune strict grammar + range validation,
+colors_custom LTS bounds, defensive palette indexing, zero unsafe).
+10s truecolor control A/B: fps -0.05%, entropy +0.01%, gini -0.00%,
+allocs bit-stable 565. 289 chroma + 36 lock + 1995 full tests green.
+Engine locked at visual peak. Detail:
+docs/archive/audits/S6_V2_CHROMA_VISUAL_PEAK.md.
+
 ### verify: S-master-5-v2 LTS — chroma integrated engine deeper verification (no code changes)
 
 Deeper pass over the v1 verification (dd34821), closing its one gap:

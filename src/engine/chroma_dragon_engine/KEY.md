@@ -8,6 +8,29 @@
 
 ## LOCK
 
+> S-master-6-v2 LTS visual-impact peak audit + LOCK (2026-09-01, commit
+> e93aca5): the masterclass-most-valuable axis. Verified: 12/12 tuning
+> constants at sweep-audit-verified sweet spots (PALETTE_FLOOR_RATIO 0.20
+> and BODY_TAIL_MAX_GAP_RATIO 2.0 each pinned by named sweep-audit tests;
+> head halo / subpixel jitter / column coherence / transition window /
+> anomaly cycle / border-touch amplitudes all documented with rejected
+> alternatives); shipped visual identity owner-locked (Deep Focus,
+> preset battle round 2); all six dragon-engine-v2 innovations live
+> (cinematic shading path intentionally runs Bayer + smooth t_param +
+> subpixel and skips hue-drift stacking per documented design intent);
+> resource efficiency at peak (ColorCache flat SGR buffer, borrow-view
+> ShaderCtx, cold-path OKLab, zero steady-state alloc — 565 bit-stable);
+> security surface closed (color_tune strict grammar + [0,3] range,
+> colors_custom LTS bounds, defensive color_map indexing, zero unsafe in
+> engine). A/B 10s TRUECOLOR control pair: fps -0.05%, entropy +0.01%,
+> gini -0.00%, color_transition_delta +0.45%, allocs bit-stable 565.
+> 289 chroma + 36 lock suite + 1995 full tests green. No code changes —
+> any further gain would change output bits or add unmeasurable churn.
+> The dragon stays LOCKED at visual peak.
+> Detail: docs/archive/audits/S6_V2_CHROMA_VISUAL_PEAK.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-6-v2 chroma visual-impact peak audit, lock intact
+
 > S-master-5-v2 LTS verification (2026-09-01, commit fe571b3): deeper
 > integrated-verification pass over v1 (dd34821). NEW dynamic proof:
 > 10s truecolor-forced benchmark shows the chroma pipeline EXECUTING in
