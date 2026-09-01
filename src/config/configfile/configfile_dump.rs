@@ -34,7 +34,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
 # color-bg = "black"                   # or "default-background" (default: black)
 # intro = "logo"                        # logo | cosmic | none (default: logo)
-# intro-color = "energy-zen"            # intro color override (default: brand EnergyZen — NOT the rain color)
+# intro-color = "energy-zen"            # intro color override for BOTH cosmic + logo styles (default: brand EnergyZen — NOT the rain color). v80.0.0-beta.1: cosmic burst now chroma-integrated like logo — samples the full intro palette gradient, not just 1 accent color.
 
 # Overlay Message
 # Two keys mirror the CLI flags (-m and -mb). If both are present,

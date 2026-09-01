@@ -424,9 +424,12 @@ COMMON OPTIONS
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
       --no-effects                    Disable ALL particle effects (quantum ripple, border spark, click flash waves, anomaly zones). Auto-enabled by --benchmark/--bench-all/--bench-frames (particles are input-driven, never spawn during bench)
-      --intro-color <name>            Intro color override (see --list-colors). When unset, the
-                                      intro uses the brand energy-zen palette — -c/--color/
-                                      --colors-custom never repaint the intro logo.
+      --intro-color <name>            Intro color override for BOTH cosmic + logo styles
+                                      (see --list-colors). When unset, the intro uses the
+                                      brand energy-zen palette — -c/--color/--colors-custom
+                                      never repaint the intro. v80.0.0-beta.1: cosmic burst
+                                      now chroma-integrated like logo — samples the full
+                                      intro palette gradient, not just 1 accent color.
 
 CONFIG
       --config <path>          Load config from an explicit file path

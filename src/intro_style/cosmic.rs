@@ -36,6 +36,7 @@ use crate::frame::Frame;
 use crate::terminal::Terminal;
 
 use crate::chroma_dragon_engine::intro_colors::{COSMIC_COLORS_RGB, SINGULARITY_RGB};
+use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
@@ -148,6 +149,13 @@ pub(super) fn run_cosmic_intro(
             2 => {
                 // Phase 2: Burst. Spawn all particles in the first 200 ms of
                 // the phase so the explosion feels instantaneous.
+                // v80.0.0-beta.1 chroma dragon integration (owner mandate
+                // 2026-09-02): pass the intro palette's color stops so
+                // spawn_burst can sample each particle's color from the
+                // full chroma gradient (like the logo intro does), instead
+                // of using 3 hardcoded accent colors. When the palette is
+                // empty (Mono mode), spawn_burst falls back to
+                // COSMIC_COLORS_RGB with logo_color replacement.
                 if phase_t < 0.08 {
                     spawn_burst(
                         &mut pool,
@@ -156,6 +164,7 @@ pub(super) fn run_cosmic_intro(
                         center_y,
                         BURST_PARTICLE_COUNT,
                         logo_color,
+                        &cloud.palette.colors,
                     );
                 }
             }
@@ -280,7 +289,21 @@ pub(super) fn run_cosmic_intro(
 /// Each particle gets a random angle (0..2π), random speed within
 /// `[BURST_SPEED_MIN, BURST_SPEED_MAX)`, and a random spiral rate
 /// within `[SPIRAL_RATE_MIN, SPIRAL_RATE_MAX)`. Color is sampled from
-/// [`COSMIC_COLORS_RGB`]; glyph from [`BURST_CHARS`].
+/// the intro palette's stops (chroma dragon integration, v80.0.0-beta.1)
+/// when `palette_colors` is non-empty; falls back to
+/// [`COSMIC_COLORS_RGB`] with `logo_color` replacing the default purple
+/// when the palette is empty (Mono mode). Glyph from [`BURST_CHARS`].
+///
+/// v80.0.0-beta.1 chroma dragon integration (owner mandate 2026-09-02):
+/// the cosmic burst now samples each particle's color from the full
+/// intro palette gradient — the same chroma dragon integration the
+/// logo intro uses (`logo_stage_colors` samples `cloud.palette.colors`
+/// vertically in OKLab). This means `--intro-color <theme>` now
+/// repaints the cosmic burst's full color range, not just 1 of 3
+/// hardcoded accent colors. When the palette is empty (Mono mode, no
+/// color stops), the burst falls back to the 3 hardcoded accent colors
+/// (gold / brand-purple / cyan) with `logo_color` replacing the purple
+/// slot — preserving the pre-v80.0.0-beta.1 behavior for Mono mode.
 fn spawn_burst(
     pool: &mut ParticlePool,
     rng: &mut XorShift,
@@ -288,6 +311,7 @@ fn spawn_burst(
     cy: f32,
     count: u32,
     logo_color: (u8, u8, u8),
+    palette_colors: &[Color],
 ) {
     for _ in 0..count {
         let angle = rng.next_f32() * std::f32::consts::TAU;
@@ -295,14 +319,26 @@ fn spawn_burst(
         let spiral_rate = lerp(SPIRAL_RATE_MIN, SPIRAL_RATE_MAX, rng.next_f32())
             * if rng.next_f32() < 0.5 { -1.0 } else { 1.0 };
         let (vx, vy) = (angle.cos() * speed, angle.sin() * speed);
-        // Build color array with logo_color replacing the default purple
-        let cosmic_colors = [
-            COSMIC_COLORS_RGB[0], // gold (accent, always default)
-            logo_color,           // brand color (purple by default, intro-color override when set)
-            COSMIC_COLORS_RGB[2], // cyan (accent, always default)
-        ];
-        let color_idx = (rng.next_u32() % cosmic_colors.len() as u32) as usize;
-        let (r, g, b) = cosmic_colors[color_idx];
+        // v80.0.0-beta.1 chroma dragon integration: sample each
+        // particle's color from the intro palette's stops. Each
+        // particle gets a random palette stop, giving the burst the
+        // full chroma gradient range (matching the logo intro's
+        // per-row palette sampling philosophy). Falls back to the 3
+        // hardcoded accent colors when the palette is empty (Mono).
+        let (r, g, b) = if !palette_colors.is_empty() {
+            let idx = (rng.next_u32() as usize) % palette_colors.len();
+            color_to_rgb(palette_colors[idx])
+        } else {
+            // Mono mode fallback: 3 hardcoded accent colors with
+            // logo_color replacing the default purple slot.
+            let cosmic_colors = [
+                COSMIC_COLORS_RGB[0], // gold (accent, always default)
+                logo_color,           // brand color (intro-color override)
+                COSMIC_COLORS_RGB[2], // cyan (accent, always default)
+            ];
+            let color_idx = (rng.next_u32() % cosmic_colors.len() as u32) as usize;
+            cosmic_colors[color_idx]
+        };
         let ch = BURST_CHARS[(rng.next_u32() % BURST_CHARS.len() as u32) as usize];
         // Slight positional jitter so particles don't all overlap at spawn.
         let x = cx + (rng.next_f32() - 0.5) * 1.5;
@@ -659,7 +695,34 @@ mod tests {
     fn spawn_burst_populates_pool() {
         let mut pool = ParticlePool::new();
         let mut rng = XorShift::new(123);
-        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50, (168, 85, 247));
+        // v80.0.0-beta.1: pass a test palette so chroma dragon integration
+        // is exercised (palette non-empty path). Use a small 3-stop palette.
+        let test_palette = vec![
+            Color::Rgb {
+                r: 100,
+                g: 100,
+                b: 100,
+            },
+            Color::Rgb {
+                r: 168,
+                g: 85,
+                b: 247,
+            },
+            Color::Rgb {
+                r: 255,
+                g: 255,
+                b: 255,
+            },
+        ];
+        spawn_burst(
+            &mut pool,
+            &mut rng,
+            40.0,
+            12.0,
+            50,
+            (168, 85, 247),
+            &test_palette,
+        );
         assert_eq!(pool.active_count(), 50);
         // Each spawned particle should have valid polar + cartesian fields.
         for p in &pool.particles {
@@ -691,7 +754,8 @@ mod tests {
         }
         let mut rng = XorShift::new(456);
         // spawn_burst should silently bail when the pool is full.
-        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50, (168, 85, 247));
+        // Pass an empty palette to exercise the Mono fallback path.
+        spawn_burst(&mut pool, &mut rng, 40.0, 12.0, 50, (168, 85, 247), &[]);
         // No new particles spawned — i.e., no particle should have
         // `active == true` since we filled the pool with INACTIVE (which
         // has `active: false`) and spawn_burst couldn't replace any of them.

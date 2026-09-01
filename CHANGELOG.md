@@ -229,6 +229,49 @@ analysis + action plan. `docs/SUPPLY_CHAIN.md` — fixed stale notify
 version (`>=6.1, <7` → `>=7, <8`) + added dependency update policy
 subsection cross-referencing the audit doc.
 
+### feature: v80.0.0-beta.1 — intro cosmic chroma dragon integration
+
+Owner mandate (2026-09-02): "intro cosmic is missing integrated chroma
+dragon like logo, so when enable set any color like --intro-color
+should only logo can use color if cosmic default not integrated with
+chroma dragon." The cosmic burst intro was using 3 hardcoded accent
+colors (gold/purple/cyan) with only the purple slot replaced by
+`logo_color` — `--intro-color` only changed 1 of 3 colors. The logo
+intro already had full chroma dragon integration (samples
+`cloud.palette.colors` via `logo_stage_colors` in OKLab).
+
+Fix (`src/intro_style/cosmic.rs`):
+- `spawn_burst` now accepts `palette_colors: &[Color]` and samples
+  each particle's color from the intro palette's stops when non-empty.
+  Each particle gets a random palette stop, giving the burst the full
+  chroma gradient range — matching the logo intro's per-row palette
+  sampling philosophy.
+- When the palette is empty (Mono mode, no color stops), the burst
+  falls back to the 3 hardcoded accent colors (gold / brand-purple /
+  cyan) with `logo_color` replacing the purple slot — preserving the
+  pre-v80.0.0-beta.1 behavior for Mono mode.
+- `run_cosmic_intro` now passes `&cloud.palette.colors` to `spawn_burst`.
+- Added `use crate::chroma_dragon_engine::palette::color_to_rgb` import
+  to decode palette `Color` values to `(u8, u8, u8)` tuples for
+  particle storage.
+- Updated 2 existing tests (`spawn_burst_populates_pool`,
+  `spawn_burst_handles_full_pool`) to pass the new `palette_colors`
+  argument.
+
+Misleading comment fix (`src/config/configfile/configfile_dump.rs`):
+- The template config comment for `intro-color` was "intro color
+  override (default: brand EnergyZen — NOT the rain color)" — this was
+  misleading because it implied the override applied to the whole intro,
+  but for cosmic it only changed 1 of 3 hardcoded colors. Now that
+  cosmic is chroma-integrated, the comment is updated to clarify it
+  applies to BOTH cosmic + logo styles.
+
+All 107 intro tests pass, 0 regressions. cargo fmt + cargo clippy
+`-D warnings` all clean.
+
+Docs: `README.md` `--intro-color` help text updated to mention both
+intro styles and the chroma integration.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density
