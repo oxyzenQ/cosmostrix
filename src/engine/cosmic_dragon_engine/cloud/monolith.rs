@@ -534,15 +534,16 @@ impl MonolithRain {
     }
 }
 
-// v50.0.0-beta.7 LOC refactor: 19 free functions extracted to
-// monolith_helpers.rs. Imported here so impl block methods can call them.
+// v50.0.0-beta.7 LOC refactor: free functions extracted to
+// monolith_helpers.rs. Only the functions this file actually calls are
+// imported (S-master-1-v2: the former `#[allow(unused_imports)]` masked
+// 9 dead names — build_segments, draw_spine_cell, layer_from_roll,
+// segment_gap, segment_len, segment_level, spine_envelope, varied_span,
+// varied_speed_mult are used only inside monolith_helpers itself).
 // color_for_level + bold_for_level are re-exported for tests.
-#[allow(unused_imports)]
 use super::monolith_helpers::{
-    activate_stream, build_segments, clear_cell, clear_phosphor_metadata, draw_segments,
-    draw_spine, draw_spine_cell, lane_count, layer_from_roll, segment_gap, segment_len,
-    segment_level, spine_envelope, target_active_count, varied_span, varied_speed_mult,
-    visible_range,
+    activate_stream, clear_cell, clear_phosphor_metadata, draw_segments, draw_spine, lane_count,
+    target_active_count, visible_range,
 };
 #[allow(unused_imports)]
 pub(crate) use super::monolith_helpers::{bold_for_level, color_for_level};

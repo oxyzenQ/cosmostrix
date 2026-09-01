@@ -33,7 +33,7 @@
 //!
 //! The output of every function here MUST be bit-identical to the
 //! inlined math it replaces. This is asserted by
-//! `tests/chroma_legacy_parity.rs` (added in a later commit) which
+//! the inline `mod tests` at the bottom of this file, which
 //! feeds the same inputs to the inlined equation and the legacy
 //! function and asserts `==`. If you change a function here, change
 //! the parity test in lockstep.

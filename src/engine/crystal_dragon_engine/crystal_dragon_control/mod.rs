@@ -69,9 +69,16 @@ pub(crate) enum CrystalDragonSensorMode {
 
 /// Calculation method for theme selection within a temperature group.
 ///
-/// The owner chose calc-v1 (probabilistic weighted selection) for the
-/// initial Crystal Dragon release. calc-v2 (pattern state machine with
-/// memory) is reserved for future implementation.
+/// calc-v1 (probabilistic weighted selection) shipped with the initial
+/// Crystal Dragon release. Since the Dragon Engine v2 upgrade (merge
+/// d55442d) calc-v2 (pattern state machine with recency memory) is
+/// implemented and is the DEFAULT — see `point_system::calc_v2_select`
+/// and the DriftHistory ring buffer. calc-v1 is preserved as the
+/// legacy option.
+///
+/// `allow(dead_code)`: the legacy `Calc` variant is matched in
+/// `runtime_controls::crystal_dragon_tick` but only constructed in
+/// tests — deliberately preserved, not zombie.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[allow(dead_code)]
 pub(crate) enum CrystalDragonCalcMethod {
@@ -79,8 +86,10 @@ pub(crate) enum CrystalDragonCalcMethod {
     /// point receive higher weight, but any theme in the group can be
     /// selected. This produces organic, unpredictable transitions.
     Calc,
-    /// Pattern state machine with memory (NOT YET IMPLEMENTED).
-    /// Reserved for calc-v2 future release.
+    /// Pattern state machine with recency memory (implemented in
+    /// Dragon Engine v2; the default since that merge). Applies a
+    /// recency penalty to recently selected themes, preventing
+    /// A->B->A oscillation — see `point_system::DriftHistory`.
     CalcV2,
 }
 
@@ -90,9 +99,10 @@ pub(crate) enum CrystalDragonCalcMethod {
 ///
 /// All fields use the owner-chosen defaults. This struct exists so
 /// future CLI/config-file exposure can override them without changing
-/// the engine code.
+/// the engine code. S-master-1-v2: every field is now read at runtime
+/// (drift_chance via `crystal_dragon_tick`, cpu_ema_alpha via the
+/// sensor's EMA) — the former duplicate const shadowing is gone.
 #[derive(Clone, Copy, Debug, PartialEq)]
-#[allow(dead_code)]
 pub(crate) struct CrystalDragonControl {
     /// Sensor polling interval in seconds.
     pub polling_secs: f32,

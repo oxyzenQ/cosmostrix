@@ -200,7 +200,7 @@ pub(crate) const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 /// most themes). User visual testing at speed 100 reported trails as "too
 /// dark" — the 0.15 floor produced dim trails that, while aesthetically
 /// preserving dark themes, hurt readability at high rain speed. The
-/// `phase7_print_ratio_sweep_audit` test in `palette_floor_tests.rs`
+/// `phase7_print_ratio_sweep_audit` test in `palette/tests_floor_audit.rs`
 /// verified that 0.20 doubles trail brightness to ~130 across most themes
 /// with **zero** themes hitting the `GLOBAL_MAX_FLOOR` cap (no v17-style
 /// washout). 0.25 would push 4 themes (Spectrum20, Stars, Pluto, Moon)
@@ -250,7 +250,7 @@ pub(crate) const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// User visual testing at speed 100 reported a persistent horizontal-line
 /// illusion — the 2.5x brightness step was still perceptible as a hard
 /// band at high rain speed. The `phase7b_print_gap_ratio_sweep_audit`
-/// test in `palette_floor_tests.rs` verified the impact of each candidate
+/// test in `palette/tests_floor_audit.rs` verified the impact of each candidate
 /// gap target across all 44 themes:
 ///
 ///   gap=2.5 (was):  trail ~130, max_step 2.51x — horizontal-line visible

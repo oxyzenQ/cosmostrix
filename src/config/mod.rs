@@ -760,7 +760,7 @@ pub struct Args {
     // `cloud.glitchy` to false, which is exactly what `--glitch-level none`
     // does). The `noglitch` field is replaced by `glitch_enabled` (positive
     // polarity) on CloudConfig, derived from `glitch_level != GlitchLevel::None`.
-    // See REMOVED_FLAGS in src/validation.rs for the migration message.
+    // See REMOVED_FLAGS in src/validation/mod.rs for the migration message.
 
     // v17 mastery: --rippct / -r CLI flag REMOVED. Use --glitch-level instead.
     #[arg(skip = 33.33333_f32)]

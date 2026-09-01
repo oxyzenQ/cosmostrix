@@ -120,7 +120,7 @@ fn lock_inv15_head_halo_factor_in_range() {
 
 /// INV-16: the Phase 7 tuning constants stay within their empirically
 /// validated ranges. The `phase7_print_ratio_sweep_audit` and
-/// `phase7b_print_gap_ratio_sweep_audit` tests in `palette_floor_tests.rs`
+/// `phase7b_print_gap_ratio_sweep_audit` tests in `palette/tests_floor_audit.rs`
 /// verified these ranges across all 44 themes — drifting outside them
 /// risks either v17-style washout (ratio too high) or "tail too dark"
 /// regression (ratio too low).

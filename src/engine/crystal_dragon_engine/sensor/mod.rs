@@ -60,7 +60,7 @@ use std::time::Instant;
 
 use crate::cpustat;
 use crate::crystal_dragon_engine::crystal_dragon_control::{
-    CrystalDragonControl, CrystalDragonSensorMode, CRYSTAL_DRAGON_CPU_EMA_ALPHA,
+    CrystalDragonControl, CrystalDragonSensorMode,
 };
 use crate::crystal_dragon_engine::palette_groups::TemperatureGroup;
 
@@ -107,6 +107,12 @@ pub(crate) struct CrystalDragonSensor {
     cpu_supported: bool,
     /// Effective sensor mode (may differ from config if CPU unsupported).
     effective_mode: CrystalDragonSensorMode,
+    /// EMA alpha for CPU% smoothing.
+    ///
+    /// S-master-1-v2: copied from `CrystalDragonControl::cpu_ema_alpha` at
+    /// construction so the control field is the single source of truth
+    /// (the `CRYSTAL_DRAGON_CPU_EMA_ALPHA` const only seeds the default).
+    cpu_ema_alpha: f32,
 }
 
 impl CrystalDragonSensor {
@@ -134,6 +140,7 @@ impl CrystalDragonSensor {
             theme_entered_at: now,
             cpu_supported,
             effective_mode,
+            cpu_ema_alpha: control.cpu_ema_alpha,
         }
     }
 
@@ -227,9 +234,7 @@ impl CrystalDragonSensor {
         let percent = ((cpu_delta / wall_delta as f64) * 100.0).clamp(0.0, 999.9) as f32;
         let smoothed = match self.cpu_ema {
             None => percent,
-            Some(prev) => {
-                prev * (1.0 - CRYSTAL_DRAGON_CPU_EMA_ALPHA) + percent * CRYSTAL_DRAGON_CPU_EMA_ALPHA
-            }
+            Some(prev) => prev * (1.0 - self.cpu_ema_alpha) + percent * self.cpu_ema_alpha,
         };
         self.cpu_ema = Some(smoothed);
         self.cpu_ema

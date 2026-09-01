@@ -474,7 +474,7 @@ pub(crate) fn default_config_file_path() -> PathBuf {
 ///
 /// Returns `true` if either `TERMUX_VERSION` is set OR `PREFIX` contains
 /// "com.termux". This is the single source of truth for Termux detection
-/// in the codebase — `safepath.rs` and `verbose.rs` both call this
+/// in the codebase — `safepath/mod.rs` and `output/verbose.rs` both call this
 /// function instead of inlining their own env-var checks.
 #[must_use]
 pub(crate) fn is_termux_environment() -> bool {

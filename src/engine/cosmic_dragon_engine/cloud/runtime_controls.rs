@@ -319,7 +319,6 @@ impl Cloud {
     /// The caller (rain.rs) applies the new scheme via `set_color_scheme`,
     /// which triggers the 300 ms OKLab wave transition via Chroma Dragon.
     pub(crate) fn crystal_dragon_tick(&mut self, now: std::time::Instant) -> Option<ColorScheme> {
-        use crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_DRIFT_CHANCE;
         use crate::crystal_dragon_engine::point_system::{calc_v1_select, calc_v2_select};
 
         // Check if the polling interval has elapsed.
@@ -347,9 +346,13 @@ impl Cloud {
             return None;
         }
 
-        // Probabilistic gate: drift only with CRYSTAL_DRAGON_DRIFT_CHANCE probability.
+        // Probabilistic gate: drift only with control.drift_chance probability.
+        // S-master-1-v2: reads the CrystalDragonControl field (not the
+        // CRYSTAL_DRAGON_DRIFT_CHANCE const) so the documented
+        // "future config override" contract is real — the field is the
+        // single runtime source of truth, the const only seeds the default.
         let chance_dist = Uniform::new(0.0f32, 1.0f32).expect("chance_dist always valid");
-        if chance_dist.sample(&mut self.mt) >= CRYSTAL_DRAGON_DRIFT_CHANCE {
+        if chance_dist.sample(&mut self.mt) >= self.crystal_dragon_control.drift_chance {
             return None;
         }
 

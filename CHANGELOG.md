@@ -9,6 +9,31 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### dragon-hunt: S-master-1-v2 — zombie/stale/duplicate sweep, 4 real findings fixed
+
+Staged audit (deps, cosmostrix root, then src important dirs) for
+spaghetti/burden/duplicate/redundant/stale/zombie code. Deps: all 12
+used, zero zombies. Scripts/root assets: all referenced. Source: 4 real
+findings fixed —
+
+- crystal_dragon_control enum doc claimed calc-v2 "NOT YET IMPLEMENTED"
+  — stale since the Dragon Engine v2 merge (it is the default). Rewritten.
+- CrystalDragonControl.drift_chance + cpu_ema_alpha were zombie fields
+  (runtime read the consts directly, so the documented future-config
+  override could never work). Wired through: tick reads control.drift_chance,
+  sensor copies control.cpu_ema_alpha for its EMA. Consts now only seed
+  defaults; struct-level allow(dead_code) removed. Zero behavior change.
+- monolith.rs: 9 dead helper imports masked by allow(unused_imports)
+  trimmed to the 8 live names.
+- 10 stale file pointers in comments fixed (chroma/* pre-rename paths,
+  palette_floor_tests.rs -> palette/tests_floor_audit.rs,
+  src/validation.rs -> src/validation/mod.rs, safepath.rs -> safepath/mod.rs,
+  legacy parity-test pointer -> its real inline mod tests home).
+
+A/B 10s monolith benchmark: visual bit-parity (entropy +0.01%, gini
+0.00%, streams/allocs identical), fps +1.05% (noise band). Full matrix:
+docs/research/S_MASTER_V2_AUDIT.md.
+
 ### dragon-engine-v2: depth-verify of d55442d — real, wired, now PROVEN + 1 bug fixed
 
 Owner suspected the Dragon Engine v2 upgrade (commit d55442d) was "not

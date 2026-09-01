@@ -5,8 +5,8 @@
 //! body-tail continuity. Extracted from `palette.rs` to keep that file
 //! under the 800-LOC cap.
 //!
-//! Loaded via `#[cfg(test)] #[path = "palette_floor_tests.rs"] mod palette_floor_tests;`
-//! in `palette.rs` — preserves `use super::*` access to palette's private
+//! Declared via `mod tests_floor;` in `palette/mod.rs` — preserves
+//! `use super::*` access to palette's private
 //! helpers (apply_palette_relative_floor, colors_from_stops, etc.).
 
 use super::*;

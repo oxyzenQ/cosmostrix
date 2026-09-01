@@ -14,7 +14,7 @@
 //! On color-scheme change, new droplets inherit the new palette while
 //! existing droplets keep their old colors until they age out —
 //! transition smoothed via Phase 8 hue-preserving chroma shader
-//! (see `chroma/shaders/transition.rs`).
+//! (see `chroma_dragon_engine/shaders/transition/`).
 
 mod border;
 mod border_touch;

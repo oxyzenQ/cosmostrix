@@ -24,9 +24,10 @@
 //! Sub-modules: `base` (cell shader), `transition` (Phase 5/8 perceptual L
 //! + chroma smoothing).
 //!
-//! The oklab/dither/halo/climate concerns live in `chroma/gradient.rs`,
-//! `chroma/shaders/base.rs`, and `chroma/post/climate.rs` respectively —
-//! not under this namespace.
+//! The oklab/dither/halo/climate concerns live in
+//! `chroma_dragon_engine/gradient/`, `chroma_dragon_engine/shaders/base/`,
+//! and `chroma_dragon_engine/post/climate/` respectively — not under this
+//! namespace.
 
 pub(crate) mod base;
 pub(crate) mod transition;

@@ -140,8 +140,8 @@ impl super::Cloud {
                             // actually respected. Previously `>> 31` extracted
                             // only the top bit, collapsing the rate to ~50%
                             // always-corrupt at any fade (the `fade` parameter
-                            // was effectively ignored). Mirrors the climate.rs
-                            // hash pattern at chroma/post/climate.rs:224-227.
+                            // was effectively ignored). Mirrors the climate
+                            // hash pattern at chroma_dragon_engine/post/climate/mod.rs.
                             let hash = (col as u32).wrapping_mul(2654435761)
                                 ^ (line as u32).wrapping_mul(2246822519);
                             if (hash as f32 / (u32::MAX as f32 + 1.0))
