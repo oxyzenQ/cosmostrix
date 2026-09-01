@@ -25,6 +25,11 @@ fn scene_custom_keys_are_recognized() {
     ));
     assert!(!is_scene_custom_config_key("scene-custom..base"));
     assert!(!is_scene_custom_config_key("profile.nightcore.base"));
+    // v80.0.0-beta.2 removal lock: density-map is no longer a valid
+    // scene-custom field (the burden function was retired).
+    assert!(!is_scene_custom_config_key(
+        "scene-custom.hacker-mode.density-map"
+    ));
 }
 
 #[test]
@@ -248,108 +253,6 @@ fn show_custom_scene_text_handles_empty_scene() {
     );
 }
 
-// ── parse_density_map tests ──
-
-#[test]
-fn parse_density_map_valid_csv() {
-    let map = parse_density_map("1.0,0.5,0.0,0.8");
-    assert!(map.is_some());
-    let map = map.unwrap();
-    assert_eq!(map.len(), 4);
-    assert_eq!(map[0], 1.0);
-    assert_eq!(map[1], 0.5);
-    assert_eq!(map[2], 0.0);
-    assert_eq!(map[3], 0.8);
-}
-
-#[test]
-fn parse_density_map_clamps_out_of_range() {
-    let map = parse_density_map("1.5,-0.3,2.0").unwrap();
-    assert_eq!(map[0], 1.0); // 1.5 clamped to 1.0
-    assert_eq!(map[1], 0.0); // -0.3 clamped to 0.0
-    assert_eq!(map[2], 1.0); // 2.0 clamped to 1.0
-}
-
-#[test]
-fn parse_density_map_skips_empty_and_whitespace() {
-    let map = parse_density_map("1.0, , 0.5 ,, 0.0");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap().len(), 3);
-}
-
-#[test]
-fn parse_density_map_empty_string_returns_none() {
-    assert!(parse_density_map("").is_none());
-    assert!(parse_density_map("   ").is_none());
-}
-
-#[test]
-fn parse_density_map_invalid_numbers_return_none() {
-    assert!(parse_density_map("abc,def").is_none());
-    assert!(parse_density_map("not_a_number").is_none());
-}
-
-#[test]
-fn parse_density_map_single_value() {
-    let map = parse_density_map("0.7");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap(), &[0.7]);
-}
-
-#[test]
-fn parse_density_map_mixed_valid_invalid() {
-    // Valid numbers are kept; invalid entries are skipped.
-    let map = parse_density_map("1.0,abc,0.5");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap(), &[1.0, 0.5]);
-}
-
-// v30 fix: quoted CSV strings must work. The configfile parser is a
-// custom line-by-line parser that does NOT strip surrounding quotes
-// from string values, so the leaf parser must do it. Without this,
-// `density-map = "0.05,0.3,1.0"` would parse `"0.05` as the first
-// entry (not a float) and silently produce None at runtime while
-// also failing --testconf.
-#[test]
-fn parse_density_map_accepts_double_quoted_csv() {
-    let map = parse_density_map("\"0.05,0.3,1.0\"");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap(), &[0.05, 0.3, 1.0]);
-}
-
-#[test]
-fn parse_density_map_accepts_single_quoted_csv() {
-    let map = parse_density_map("'0.1, 0.2, 0.3'");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap(), &[0.1, 0.2, 0.3]);
-}
-
-#[test]
-fn parse_density_map_accepts_quoted_with_whitespace_padding() {
-    // User wrote `density-map = " 0.5, 0.5 "` — quotes + outer spaces.
-    let map = parse_density_map("  \"0.5,0.5\"  ");
-    assert!(map.is_some());
-    assert_eq!(map.unwrap(), &[0.5, 0.5]);
-}
-
-#[test]
-fn parse_density_map_quoted_and_unquoted_share_cache_entry() {
-    // Both forms normalize to the same key `"0.5,0.5"` → 0.5,0.5,
-    // so the dedup cache should return the same slice pointer.
-    let a = parse_density_map("0.5,0.5").unwrap();
-    let b = parse_density_map("\"0.5,0.5\"").unwrap();
-    assert!(
-        std::ptr::eq(a.as_ptr(), b.as_ptr()),
-        "quoted and unquoted forms should share the same cached slice"
-    );
-}
-
-#[test]
-fn parse_density_map_quoted_empty_string_returns_none() {
-    assert!(parse_density_map("\"\"").is_none());
-    assert!(parse_density_map("''").is_none());
-}
-
 // ── scene-custom field allowlist / forbidden-field tests ──
 
 #[test]
@@ -367,7 +270,6 @@ fn scene_custom_fields_includes_v30_3_additions() {
         "fps",
         "speed",
         "density",
-        "density-map",
         "async-mode",
     ] {
         assert!(
@@ -523,28 +425,6 @@ fn collect_custom_scenes_skips_oversized_names() {
 use super::*;
 
 // ── v80.0.0-beta.1 killer-features hardening tests ──────────────────────────────
-
-#[test]
-fn parse_density_map_caps_entries_at_max() {
-    // >DENSITY_MAP_MAX_ENTRIES entries must truncate instead of leaking
-    // an unbounded Box::leak slice into the dedup cache (a pasted
-    // mega-CSV used to leak ~8 bytes per entry, permanently).
-    let big = vec!["0.5"; DENSITY_MAP_MAX_ENTRIES + 100].join(",");
-    let map = parse_density_map(&big).expect("map must parse");
-    assert_eq!(
-        map.len(),
-        DENSITY_MAP_MAX_ENTRIES,
-        "density-map must truncate to the entry cap"
-    );
-}
-
-#[test]
-fn parse_density_map_at_cap_is_not_truncated() {
-    let exact = vec!["0.25"; DENSITY_MAP_MAX_ENTRIES].join(",");
-    let map = parse_density_map(&exact).expect("map must parse");
-    assert_eq!(map.len(), DENSITY_MAP_MAX_ENTRIES);
-    assert!(map.iter().all(|v| (*v - 0.25).abs() < 1e-9));
-}
 
 #[test]
 fn show_custom_scene_text_never_renders_forbidden_fields() {

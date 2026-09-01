@@ -54,7 +54,6 @@ pub(crate) struct CfgInputs<'a> {
     pub term_caps: &'a TerminalCaps,
     pub duration_s: Option<f64>,
     pub bench_mode: bool,
-    pub monolith_density_map: Option<&'static [f64]>,
     pub cli_explicit: crate::app::CliExplicit,
 }
 
@@ -97,7 +96,6 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         term_caps,
         duration_s,
         bench_mode,
-        monolith_density_map,
         cli_explicit,
     } = inp;
     let cloud_cfg = CloudConfig {
@@ -212,7 +210,6 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // `no_effects` field will automatically show `true` for any
         // bench mode (--benchmark, --bench-all, --bench-frames).
         effects_enabled: !args.no_effects && !bench_mode,
-        monolith_density_map,
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the
             // watcher watches the file the user is ACTUALLY editing. On

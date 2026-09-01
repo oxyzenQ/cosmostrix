@@ -193,7 +193,7 @@ impl Cloud {
     /// density/glitch-level). Fields not set in the block retain the base
     /// scene's values (or current Cloud state if no base-scene).
     ///
-    /// `fps`, `monolith-size`, `color-bg`, `density-map` are NOT applied at
+    /// `fps`, `monolith-size`, `color-bg` are NOT applied at
     /// runtime — they live on the event loop / Cloud construction path.
     fn apply_custom_scene_runtime(
         &mut self,
@@ -381,7 +381,7 @@ impl Cloud {
             );
             self.set_async(on);
         }
-        // Note: fps, density-map are not runtime-applicable — they are
+        // Note: fps is not runtime-applicable — it is
         // construction-time only. monolith-size and color-bg are forbidden
         // in scene-custom blocks per  owner contract.
 

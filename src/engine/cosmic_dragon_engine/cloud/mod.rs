@@ -32,8 +32,6 @@ mod message_draw;
 mod monolith;
 mod monolith_glyphs;
 mod monolith_helpers;
-#[cfg(test)]
-mod monolith_tests;
 mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
@@ -102,7 +100,6 @@ pub struct Cloud {
     pub(crate) pause: bool,
 
     pub(crate) droplet_density: f32,
-    pub(crate) monolith_density_map: Option<&'static [f64]>,
     pub(crate) droplets_per_sec: f32,
     pub(crate) chars_per_sec: f32,
 
@@ -387,7 +384,6 @@ impl Cloud {
             raining: true,
             pause: false,
             droplet_density: 1.0,
-            monolith_density_map: None,
             droplets_per_sec: 5.0,
             chars_per_sec: 8.0,
             glitchy: true,
@@ -747,10 +743,6 @@ impl Cloud {
             self.stuck_cells_cleared_total,
             self.stuck_sweeps_with_clears,
         )
-    }
-
-    pub fn set_monolith_density_map(&mut self, map: Option<&'static [f64]>) {
-        self.monolith_density_map = map;
     }
 
     /// Phase D Bug #9: carry color_ecosystem + entropy_drift across live-reload

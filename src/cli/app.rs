@@ -133,10 +133,6 @@ pub struct CloudConfig {
     /// flash waves, and anomaly zones (luminance surge / glyph corruption /
     /// pulse wave). Set from CLI --no-effects. Default: true (effects on).
     pub effects_enabled: bool,
-    /// Optional per-column density map for monolith pillar placement.
-    /// Parsed from scene-custom.<name>.density-map config field (CSV f64).
-    /// None = uniform distribution (default).
-    pub(crate) monolith_density_map: Option<&'static [f64]>,
     /// Path to the config file being watched for live reload.
     /// None = no watcher (CLI-only run, no config file).
     pub(crate) config_path_for_watcher: Option<std::path::PathBuf>,
@@ -375,13 +371,6 @@ impl CloudConfig {
             &self.color_tune,
         );
 
-        // v14 Peak Monolith: apply per-column density map if set.
-        // This sculpts pillar formation — columns with weight 0.0 never spawn,
-        // 1.0 always spawn. Enables artistic compositions (twin towers, clusters).
-        if let Some(map) = self.monolith_density_map {
-            cloud.set_monolith_density_map(Some(map));
-        }
-
         // v17 mastery: hover/click visual effects are ALWAYS ON (--mouse flag
         // deleted). Mouse reporting is also always on (terminal-level, blocks
         // text selection). cloud.mouse_enabled now always true.
@@ -493,7 +482,6 @@ impl CloudConfig {
             power_dragon: self.power_dragon,
             msg_mode: self.msg_mode,
             effects_enabled: self.effects_enabled,
-            monolith_density_map: self.monolith_density_map,
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
             scene_custom_name: self.scene_custom_name.clone(),

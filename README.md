@@ -87,14 +87,14 @@ Lives under `src/engine/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`,
 
 ## Architecture
 
-cosmostrix is **not a clone**. The Cosmic Dragon engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, 3-layer parallax, density maps — at practical terminal-bounded FPS (60–240 on Alacritty/kitty/WezTerm) while using only **~4–5 MiB of RAM** and a single CPU core. No GPU. No bloat.
+cosmostrix is **not a clone**. The Cosmic Dragon engine computes only the ~7.5% of cells that change between frames, rather than redrawing the entire screen. This enables cinematic effects — phosphor decay, 3-layer parallax, value-noise density — at practical terminal-bounded FPS (60–240 on Alacritty/kitty/WezTerm) while using only **~4–5 MiB of RAM** and a single CPU core. No GPU. No bloat.
 
 The renderer is structured as six cooperating subsystems:
 
 1. **Diff-based cell renderer** (`src/engine/cosmic_dragon_engine/`) — back-buffer comparison, RLE-batched ANSI output, dirty-region tracking. The core innovation. On a 120×40 terminal: ~360 cell-writes per frame instead of 4,800 (13× I/O reduction).
 2. **3-layer parallax** — far / mid / near layers with independent speed, brightness, length, density, and phosphor-decay multipliers. Three layers is the cinema-standard composition; more would collapse perceptually in a 24-row terminal.
 3. **Phosphor persistence** (`src/engine/cosmic_dragon_engine/cloud/phosphor.rs`) — CRT afterglow with per-layer decay multipliers and bottom-row acceleration. Creates ~400 ms afterglow per glyph.
-4. **Density noise & wind gusts** — Perlin-style density maps for cinematic monolith formations, gust-driven column acceleration for organic motion.
+4. **Density noise & wind gusts** — Perlin-style value-noise density for organic rain distribution, gust-driven column acceleration.
 5. **Ambient scheduler** (`src/engine/crystal_dragon_engine/ambient_scheduler/`) — time-of-day scene scheduling with auto-snapback (idle 30s restores the active ambient phase).
 6. **Chroma Dragon coloring engine** (`src/engine/chroma_dragon_engine/`) — OKLab gradient interpolation, cell-color resolution, transition smoothing, palette-aware anomaly halos. Locked at Phase 9-D.
 
@@ -138,7 +138,7 @@ The Dragon's roar is not loud — it is precise.
 ### Scenes & Colors
 
 - **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`crystal-dragon`, `orange-cat`, `north-stars`, `curiosity`).
-- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance and density-map sculpting.
+- **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene-custom`; supports `base-scene` inheritance.
 - **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>` or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
 - 44 built-in color themes and 25 character sets.

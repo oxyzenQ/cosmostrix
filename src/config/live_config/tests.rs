@@ -138,7 +138,6 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         power_dragon: true,
         msg_mode: true,
         effects_enabled: true,
-        monolith_density_map: None,
         config_path_for_watcher: None,
         scene_name: "test-scene".to_string(),
         scene_custom_name: Some("test-scene".to_string()),
@@ -228,23 +227,6 @@ fn rebuild_applies_scene_custom_speed_and_density_changes() {
     assert_eq!(new.speed, 24.0);
     assert!((new.density - 0.50).abs() < f32::EPSILON);
     assert!((new.base_density - 0.50).abs() < f32::EPSILON);
-}
-
-#[test]
-fn rebuild_applies_scene_custom_density_map_change() {
-    let mut cfg = HashMap::new();
-    cfg.insert(
-        "scene-custom.test-scene.density-map".to_string(),
-        "1.0,0.5,0.0,0.8".to_string(),
-    );
-    let base = minimal_cloud_config();
-    let new = rebuild_cloud_config(&base, &cfg);
-    let map = new
-        .monolith_density_map
-        .expect("density-map must be parsed and applied");
-    assert_eq!(map.len(), 4);
-    assert_eq!(map[0], 1.0);
-    assert_eq!(map[2], 0.0);
 }
 
 #[test]

@@ -29,8 +29,7 @@ use super::helpers::{
     parse_speed_override, parse_u8_override, warn_invalid,
 };
 use super::{
-    apply_base_scene_to_cloud_config, apply_glitch_level_preset_to_cloud_config, parse_density_map,
-    UserProfile,
+    apply_base_scene_to_cloud_config, apply_glitch_level_preset_to_cloud_config, UserProfile,
 };
 
 pub(crate) fn apply_profile_overrides(
@@ -323,13 +322,6 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             use clap::ValueEnum;
             if let Ok(level) = crate::config::GlitchLevel::from_str(value, true) {
                 apply_glitch_level_preset_to_cloud_config(new, level);
-                return true;
-            }
-            false
-        }
-        "density-map" => {
-            if let Some(map) = parse_density_map(value) {
-                new.monolith_density_map = Some(map);
                 return true;
             }
             false

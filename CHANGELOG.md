@@ -321,6 +321,119 @@ explicitly so style-agnostic tests never depend on the champion
 default. `msg_fill_style/typewriter.rs` doc now reads "the
 pre-v80.0.0-beta.2 default" with the pin-back migration path.
 
+### removal: v80.0.0-beta.2 — density-map burden function retired
+
+Owner mandate (2026-09-02): "owner found a burden function
+'density-map' this should remove totally but be careful don't make
+cascade/trigger bug again for others, so no more that burden function
+to reduce cost maintenance and rare to use, for advanced/power user
+can still use before commit this/v80.0.0-beta.1 but now for
+v80.0.0-beta.2 is gone."
+
+The `density-map` feature (hand-authored per-column spawn-weight
+CSVs that sculpted monolith pillar formation via rejection sampling
+in the lane picker) is fully removed. It was rare to use and
+expensive to maintain: a CSV parser with quote-stripping, a
+`Box::leak` dedup cache with a 1024-entry truncation cap, testconf
+validation mirroring the runtime clamps, a preset generator script,
+a config hint pattern, and doc surface across five files — all
+serving a cosmetic shaping option few users ever touched.
+
+Removal map (verified layer by layer, no cascade):
+
+Engine:
+- `cloud/monolith.rs`: `MonolithSpawnParams.density_map` field,
+  `find_inactive_lane` rejection-sampling gate + `rand_chance`
+  parameter removed; spawn selection is uniform again (identical to
+  the pre-v14 lane picker contract). `MonolithRandom.rand_chance`
+  itself stays — `activate_stream` still consumes it.
+- `cloud/mod.rs`: `Cloud.monolith_density_map` field +
+  `set_monolith_density_map()` removed.
+- `cloud/rain_at.rs`: `MonolithSpawnParams` construction no longer
+  feeds the map.
+- `cloud/monolith_tests.rs`: deleted (all four tests were
+  density-map rejection-sampling locks).
+
+CLI plumbing:
+- `cli/app.rs`: `CloudConfig.monolith_density_map` field + the
+  v14 create_cloud wiring removed.
+- `cli/build_cloud_cfg.rs`: `CfgInputs.monolith_density_map`
+  removed.
+- `main.rs`: startup resolution (config load, scene-custom lookup,
+  parse) removed — one less config-file read before the event loop.
+
+Config:
+- `scene_custom/mod.rs`: `density-map` dropped from
+  `PROFILE_FIELDS` + `SCENE_CUSTOM_FIELDS` (owner contract comment
+  updated — density-map joins the FORBIDDEN list), `UserProfile.density_map`
+  field + parser arm removed, `parse_density_map` /
+  `DENSITY_MAP_MAX_ENTRIES` re-exports removed.
+- `scene_custom/display.rs`: `parse_density_map`, the
+  `DENSITY_MAP_CACHE` leak cache, and `DENSITY_MAP_MAX_ENTRIES`
+  deleted (~70 LOC + one `OnceLock<Mutex<HashMap>>` global).
+- `scene_custom/overrides.rs`: live-reload `"density-map"` arm
+  removed — a live edit can no longer inject a map.
+- `configfile.rs`: scene-custom key hint string updated.
+- `configfile/configfile_dump.rs`: template config example line
+  removed.
+- `config_hints/mod.rs`: the beta.1 "section-only, move it inside
+  scene-custom" hint is now a removal hint (auto-color-drift
+  precedent), and a new pattern 2d covers
+  `scene-custom.<name>.density-map` keys (adaptive-custom removal
+  precedent) — users upgrading from beta.1 get a targeted
+  "removed in v80.0.0-beta.2" explanation instead of a generic
+  unknown-key error.
+- `testconf/field_validation.rs`: the density-map CSV validation
+  arm (~62 LOC incl. quote-stripping + clamp-warning mirror logic)
+  removed; `density-map` now surfaces as an unknown block field.
+- `cloud/scene_runtime.rs`: comments no longer list density-map as
+  a construction-time-only field.
+- `diagnostics/info.rs`: `--docs` section 4 rewritten — the
+  engine-side value-noise density (living_rain.rs, a different
+  subsystem) is explicitly called out as untouched.
+
+Tests (suite 2052 → 2027; all removed tests were density-map
+feature locks):
+- `scene_custom/tests.rs`: 14 parse/cache/cap unit tests removed;
+  new negative regression lock —
+  `scene-custom.hacker-mode.density-map` must be rejected as a
+  config key.
+- `testconf/tests.rs`: 7 validation tests removed.
+- `config_hints/tests.rs`: 2 section-move tests replaced by 3
+  removal-hint tests (top-level, snake_case, in-block).
+- `config/live_config/tests.rs`:
+  `rebuild_applies_scene_custom_density_map_change` removed (the
+  live-reload path no longer parses the field).
+- 8 interactive/event-loop test fixtures: `monolith_density_map:
+  None` lines removed.
+
+Scripts:
+- `scripts/gen-density-presets.py` deleted (twin-towers / cascade
+  / throne preset generator — the feature's only consumer surface).
+- `scripts/stress_test_bounds.py`: Stress Test 9
+  (density-map out-of-range warning) removed.
+
+Docs: README.md (3 feature-blurb mentions), docs/RULES.md
+(section renamed to "Config Path Whitelist", cap table row, content
+cap list, scene-custom field table — each now records the removal),
+config template. The `docs/archive/` and `docs/research/` trees are
+dated historical records and intentionally untouched (project convention:
+source code is truth).
+
+Migration: remove `density-map = "..."` entries from config.toml.
+The key now produces a targeted removal hint via --testconf /
+live-reload diagnostics. Users who shaped pillars should use the
+plain `density` field (global spawn fraction) — per-column
+sculpting is gone by design.
+
+Verification: `./scripts/build.sh check-all --quiet` passed
+(clippy `-D warnings`, fmt, LOC, headers, version sync, full test
+suite 2027 passed / 0 failed / 2 ignored). Peak audit verdict: the
+spawn path is leaner (one uniform-selection loop, zero rejection
+sampling, one less `&'static` slice plumbed through CloudConfig);
+remaining subsystems already at peak — no over-engineering
+introduced.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

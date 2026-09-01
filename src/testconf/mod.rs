@@ -190,7 +190,8 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             let value = parsed.values.get(*pk).map(String::as_str).unwrap_or("");
             // Use the canonical PROFILE_FIELDS list so testconf never drifts
             // from the actual config parser. Previously this was a hardcoded
-            // copy that missed 'density-map' when it was added to PROFILE_FIELDS.
+            // copy that drifted when fields were added or removed (the
+            // density-map removal in v80.0.0-beta.2 is the latest example).
             let valid_fields: &[&str] = crate::scene_custom::PROFILE_FIELDS;
             if !valid_fields.contains(&field) {
                 crate::output::eprintln_error_labeled(&format!(

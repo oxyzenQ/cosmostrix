@@ -110,68 +110,6 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             "0" | "1" => None,
             _ => Some(format!("expected 0 or 1, got '{v}'")),
         },
-        // v30 simplify: validate density-map CSV at --testconf time.
-        // Previously, `density-map = "abc,def"` passed --testconf cleanly
-        // but silently became None at runtime (parse_density_map filters
-        // non-numeric entries). Now --testconf fails loudly so users see
-        // the typo before running. Format: comma-separated floats in
-        // [0.0, 1.0], at least one non-empty entry.
-        //
-        // v30 fix: also strip a single pair of surrounding `"` or `'`
-        // before splitting. The configfile parser does NOT strip quotes
-        // from string values, so `density-map = "0.05,0.3,1.0"` would
-        // otherwise split into `"0.05`, `0.3`, `1.0"` and the first/last
-        // entries would fail the f64 parse with a confusing error message.
-        // This mirrors the same quote-stripping logic in parse_density_map.
-        //
-        // v50.0.0-beta.6: out-of-range values are now WARNINGS, not errors.
-        // Runtime parse_density_map clamps to [0.0, 1.0] (1.5 → 1.0, -0.3 →
-        // 0.0), so rejecting at testconf created an ambiguity — testconf
-        // failed but runtime would have worked. Now testconf warns about
-        // the clamp so the user knows, but does not block the config.
-        // Non-numeric entries (typos like "abc") are still hard errors.
-        "density-map" => {
-            let v = v.trim().trim_matches('"').trim_matches('\'').trim();
-            let entries: Vec<&str> = v.split(',').map(|s| s.trim()).collect();
-            let non_empty: Vec<&str> = entries.iter().copied().filter(|s| !s.is_empty()).collect();
-            if non_empty.is_empty() {
-                return Some(format!(
-                    "expected at least one comma-separated float in [0.0, 1.0], got '{v}'"
-                ));
-            }
-            // v80.0.0-beta.1 killer-features hardening: entry-count ceiling mirrors
-            // parse_density_map's runtime truncation (DENSITY_MAP_MAX_ENTRIES
-            // = 1024). Warning, not error — runtime truncates and continues,
-            // so blocking here would create a testconf/runtime divergence.
-            // Matches the out-of-range-clamp warning precedent directly below.
-            if non_empty.len() > crate::scene_custom::DENSITY_MAP_MAX_ENTRIES {
-                crate::output::eprintln_warn_labeled(&format!(
-                    "density-map has {} entries — truncated to {} at runtime",
-                    non_empty.len(),
-                    crate::scene_custom::DENSITY_MAP_MAX_ENTRIES
-                ));
-            }
-            for entry in &non_empty {
-                match entry.parse::<f64>() {
-                    Ok(n) if !(0.0..=1.0).contains(&n) => {
-                        // v50.0.0-beta.6: warn about clamp, don't error.
-                        // Runtime will clamp to [0.0, 1.0] — the user's
-                        // intent is clear, just the value is out of range.
-                        crate::output::eprintln_warn_labeled(&format!(
-                            "density-map entry '{entry}' = {n} is out of range [0.0, 1.0] — will be clamped at runtime"
-                        ));
-                    }
-                    Err(_) => {
-                        return Some(format!(
-                            "expected float in [0.0, 1.0] for entry '{entry}', got '{entry}'"
-                        ));
-                    }
-                    Ok(_) => {}
-                }
-            }
-            None
-        }
-
         // ── Enum-like string values ──
         "color" => {
             if theme::canonical_name_for_input(v).is_some() {

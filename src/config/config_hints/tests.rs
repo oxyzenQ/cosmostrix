@@ -507,28 +507,45 @@ fn random_underscore_key_without_kebab_match_gets_no_snake_hint() {
     );
 }
 
-// ── Phase 5 closure (P1-#8): density-map top-level hint ──
+// ── v80.0.0-beta.2: removed density-map key (feature retired) ──
 
 #[test]
-fn density_map_at_top_level_suggests_section_move() {
+fn density_map_at_top_level_gets_removal_hint() {
     let hint = suggest_for_unknown_key("density-map").expect("expected hint");
     assert!(
-        hint.contains("section-only"),
-        "hint should mention section-only: {hint}"
+        hint.contains("removed in v80.0.0-beta.2"),
+        "hint should mention the removal: {hint}"
     );
     assert!(
-        hint.contains("[scene-custom."),
-        "hint should mention target section: {hint}"
+        hint.contains("Remove this entry"),
+        "hint should tell the user to remove the entry: {hint}"
+    );
+    assert!(
+        !hint.contains("section-only"),
+        "hint must not claim the key is still valid in a section: {hint}"
     );
 }
 
 #[test]
-fn density_map_snake_case_also_gets_section_hint() {
+fn density_map_snake_case_also_gets_removal_hint() {
     let hint = suggest_for_unknown_key("density_map").expect("expected hint");
-    // Even though it has an underscore, pattern 6 fires BEFORE pattern 5
-    // (snake_case check) because density-map is a special section-only field.
-    assert!(hint.contains("section-only"));
+    // The removal pattern fires for the snake_case spelling too, so the
+    // user gets the removal explanation instead of a generic snake_case
+    // or typo hint.
+    assert!(hint.contains("removed in v80.0.0-beta.2"));
     assert!(hint.contains("density-map")); // canonical form in the hint
+}
+
+#[test]
+fn density_map_inside_scene_custom_block_gets_removal_hint() {
+    // The field is no longer part of SCENE_CUSTOM_FIELDS, so a
+    // scene-custom.<name>.density-map key surfaces as unknown and must
+    // get the targeted removal hint (pattern 2d), not a generic
+    // unknown-field error.
+    let hint =
+        suggest_for_unknown_key("scene-custom.hacker-mode.density-map").expect("expected hint");
+    assert!(hint.contains("removed in v80.0.0-beta.2"), "got: {hint}");
+    assert!(hint.contains("uniform"), "got: {hint}");
 }
 
 // ── LTS audit 2026-08-19: removed v15-era `auto-color-drift` key ────────────

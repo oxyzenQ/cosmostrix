@@ -59,7 +59,6 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "fps",
     "speed",
     "density",
-    "density-map",
     "glitch-level",
     "monolith-size",
     "color-bg",
@@ -85,9 +84,6 @@ pub(crate) struct UserProfile {
     pub fps: Option<String>,
     pub speed: Option<String>,
     pub density: Option<String>,
-    /// Comma-separated f64 weights (0.0..=1.0) for monolith pillar placement.
-    /// Parsed into a Vec<f64> and leaked to &'static for Cloud consumption.
-    pub density_map: Option<String>,
     pub glitch_level: Option<String>,
     pub monolith_size: Option<String>,
     pub color_bg: Option<String>,
@@ -127,7 +123,6 @@ pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String
             "fps" => profile.fps = Some(value.clone()),
             "speed" => profile.speed = Some(value.clone()),
             "density" => profile.density = Some(value.clone()),
-            "density-map" => profile.density_map = Some(value.clone()),
             "glitch-level" => profile.glitch_level = Some(value.clone()),
             "monolith-size" => profile.monolith_size = Some(value.clone()),
             "color-bg" => profile.color_bg = Some(value.clone()),
@@ -312,19 +307,19 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 /// Owner contract (2026-08-07):
 /// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
 ///   `charset-custom`, `shading-mode`, `glitch-level`, `fps`, `speed`,
-///   `density`, `density-map`, `async-mode`.
+///   `density`, `async-mode`.
 /// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
 ///   `ambient`, `crystal-dragon`, `color.tune`, `monolith-size`,
-///   `intro`, `color-bg`.
+///   `intro`, `color-bg`, `density-map` (removed in v80.0.0-beta.2 —
+///   the per-column monolith density-map burden function was retired;
+///   configs still carrying it get a targeted removal hint from
+///   `config_hints`).
 ///
 /// `monolith-size` and `color-bg` were accepted (because the
 /// allowlist was `PROFILE_FIELDS`, which included them). They are removed
 /// here because they collide with the ambient simplification: a custom
 /// scene used by an ambient entry should not own monolith-size or
 /// color-bg (those are top-level / scene-managed, not per-block).
-///
-/// `density-map` is retained because it is tightly coupled to `density`
-/// for monolith pillar placement and was already supported.
 pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
     "base-scene",
     "color",
@@ -337,7 +332,6 @@ pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
     "fps",
     "speed",
     "density",
-    "density-map",
     "async-mode",
 ];
 
@@ -399,7 +393,6 @@ pub(crate) fn collect_custom_scenes(
             "fps" => scene.fps = Some(value.clone()),
             "speed" => scene.speed = Some(value.clone()),
             "density" => scene.density = Some(value.clone()),
-            "density-map" => scene.density_map = Some(value.clone()),
             "glitch-level" => scene.glitch_level = Some(value.clone()),
             // new scene-custom fields per owner spec.
             "bold" => scene.bold = Some(value.clone()),
@@ -670,16 +663,14 @@ pub(crate) fn apply_base_scene_to_cloud_config(
 /// are silently dropped (forbidden per owner contract — they should never
 /// reach this function because `is_scene_custom_config_key` filters them
 /// upstream, but we handle them defensively).
-// v50.0.0-beta.7 LOC refactor: display + name validation + density map
-// parser extracted to display.rs to keep mod.rs under the 800-LOC hard
+// v50.0.0-beta.7 LOC refactor: display + name validation extracted to
+// display.rs to keep mod.rs under the 800-LOC hard
 // cap. Re-exported here so all existing call sites resolve unchanged.
 mod display;
 #[cfg(test)]
 #[allow(unused_imports)]
 pub(crate) use display::{is_valid_custom_scene_name, validate_custom_scene_name};
-pub(crate) use display::{
-    list_custom_scenes_text, parse_density_map, show_custom_scene_text, DENSITY_MAP_MAX_ENTRIES,
-};
+pub(crate) use display::{list_custom_scenes_text, show_custom_scene_text};
 
 // v50.0.0-beta.7 LOC refactor: parse helpers extracted to helpers.rs.
 mod helpers;

@@ -276,7 +276,6 @@ mod cases {
             power_dragon: true,
             msg_mode: true,
             effects_enabled: true,
-            monolith_density_map: None,
             config_path_for_watcher: None,
             scene_name: "monolith".to_string(),
             scene_custom_name: None,

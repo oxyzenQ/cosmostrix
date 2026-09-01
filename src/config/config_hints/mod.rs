@@ -118,6 +118,21 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
                  Write: async-mode = true",
             ));
         }
+        // Pattern 2d (v80.0.0-beta.2): removed `density-map` field inside a
+        // [scene-custom.<name>] block. The per-column monolith density-map
+        // burden function was retired in v80.0.0-beta.2 (rare to use,
+        // costly to maintain). Users upgrading from beta.1 who still carry
+        // the field get a targeted removal hint instead of a generic
+        // unknown-field error. Mirrors the adaptive-custom removal
+        // precedent (atmosphere elimination).
+        if segments.len() == 3 && (segments[2] == "density-map" || segments[2] == "density_map") {
+            return Some(format!(
+                "'{key}': the density-map field was removed in v80.0.0-beta.2 \
+                 (monolith pillar sculpting was retired — rare to use, costly \
+                 to maintain). Remove this entry from your config.toml; \
+                 monolith spawn distribution is uniform now."
+            ));
+        }
     }
 
     // Pattern 3 (bug #8): invalid colors-custom field. Triggered
@@ -165,16 +180,19 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         }
     }
 
-    // Pattern 6 (Phase 5 closure P1-#8): density-map at top-level. The
-    // `density-map` key is only valid inside [scene-custom.<name>]
-    // sections. Users who write it at the top level get a generic "unknown
-    // key" error with no explanation that it's a section-only field. This
-    // pattern emits a targeted move hint.
+    // Pattern 6 (v80.0.0-beta.2): removed `density-map` key (former
+    // section-only field). The density-map feature was retired in
+    // v80.0.0-beta.2; before that the key was only valid inside
+    // [scene-custom.<name>] sections and this pattern told users to move
+    // it there. Users upgrading from beta.1 who still have the key — at
+    // the top level or anywhere else — now get a removal hint instead of
+    // a stale move-to-section hint (following the auto-color-drift
+    // removed-key precedent).
     if key == "density-map" || key == "density_map" {
         return Some(format!(
-            "'{key}': density-map is a section-only field — it is NOT valid at the top level. \
-             Move it inside a [scene-custom.<name>] block: \
-             e.g. [scene-custom.foo]\n    density-map = \"0.5,0.3,0.2\""
+            "'{key}': the density-map config key was removed in v80.0.0-beta.2 \
+             (monolith pillar sculpting was retired — rare to use, costly \
+             to maintain). Remove this entry from your config.toml."
         ));
     }
 

@@ -165,17 +165,6 @@ pub(crate) struct MonolithSpawnParams {
     pub(crate) spawn_scale: f32,
     pub(crate) mouse_enabled: bool,
     pub(crate) mouse_col: u16,
-    /// Optional per-column spawn probability weights (0.0..=1.0).
-    ///
-    /// When `Some`, the monolith spawner uses rejection sampling: a candidate
-    /// lane is only accepted if a uniform random draw is `<= map[lane]`. Lanes
-    /// with map value `1.0` always pass; lanes with `0.0` never spawn. When
-    /// `None`, spawn distribution is uniform (default).
-    ///
-    /// The slice length should match the lane count; if shorter, missing lanes
-    /// are treated as `1.0` (always available). If longer, extra entries are
-    /// ignored.
-    pub(crate) density_map: Option<&'static [f64]>,
 }
 
 pub(crate) struct MonolithRandom<'a> {
@@ -342,8 +331,6 @@ impl MonolithRain {
                 params.mouse_col,
                 random.rand_col,
                 random.rng,
-                params.density_map,
-                random.rand_chance,
             ) else {
                 break;
             };
@@ -484,35 +471,21 @@ impl MonolithRain {
         mouse_col: u16,
         rand_col: &Uniform<u16>,
         rng: &mut StdRng,
-        density_map: Option<&'static [f64]>,
-        rand_chance: &Uniform<f32>,
     ) -> Option<usize> {
         let len = self.streams.len();
-        // Try random selection up to 16 times. With a density map, apply
-        // rejection sampling: a candidate lane must pass both the availability
-        // check AND a probability draw against map[lane].
+        // Try random selection up to 16 times: uniform sampling over all
+        // lanes, first available candidate wins. (v80.0.0-beta.2: the
+        // per-column density-map rejection gate was removed together with
+        // the scene-custom density-map feature — spawn is uniform now.)
         for _ in 0..len.min(16) {
             let lane = (rand_col.sample(rng) as usize) % len;
             if !self.lane_is_available(lane, mouse_enabled, mouse_col) {
                 continue;
             }
-            // Density map gate: skip lanes with low spawn probability.
-            if let Some(map) = density_map {
-                let weight = map.get(lane).copied().unwrap_or(1.0);
-                if weight < 1.0 {
-                    // Draw a uniform f32 in [0.0, 1.0) and accept if <= weight.
-                    // rand_chance is Uniform<f32> in [0.0, 1.0).
-                    if rand_chance.sample(rng) > weight as f32 {
-                        continue;
-                    }
-                }
-            }
             return Some(lane);
         }
 
-        // Fallback: linear scan for any available lane. Skip density map here
-        // — if we've exhausted random tries, we'd rather spawn somewhere than
-        // starve the renderer. Density map is a preference, not a hard rule.
+        // Fallback: linear scan for any available lane.
         let start = self.spawn_scan_idx.min(len.saturating_sub(1));
         for offset in 0..len {
             let lane = (start + offset) % len;

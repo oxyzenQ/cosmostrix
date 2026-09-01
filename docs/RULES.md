@@ -99,9 +99,9 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 - **Removed flags** (each has a migration error in `src/validation/mod.rs` `REMOVED_FLAGS` table): v14.0.0 (`--preset`, `--profile`, `--low-power`, `--list-presets`, `--list-profiles`, `--show-preset`, `--dump-profile`, `--list-colors-detail`, `--defaults`, `--tune-visual`); v15.0.0 (`--completions <shell>`); v17.0.0 (`--mouse`, `--info`/`-i`, `--async`/`-a`, `--brightness`/`--saturation`, `--glitchpct`/`--shortpct`/`--rippct`/`--maxdpc`); v25.0.0 (`--charset-file <path>`); v25.0.0-alpha.3 (`--fullwidth`).
 - **Android/Termux**: accept Press + Repeat key events (skip Release).
 
-### Density Map + Config Path Whitelist (Security)
+### Config Path Whitelist (Security)
 
-**Density map**: per-column spawn probability weights (0.0-1.0) for monolith pillar formation. Config: `scene-custom.<name>.density-map = 0.1,0.5,1.0,...`. Generator: `scripts/gen-density-presets.py` (twin-towers, cascade, throne). Rejection sampling in `find_inactive_lane()`.
+**Removed feature (v80.0.0-beta.2)**: the `density-map` per-column spawn-weight config field was retired — a burden function that was rare to use and costly to maintain (CSV parser, `Box::leak` dedup cache, entry cap, testconf validation, generator script, doc surface). Monolith spawn distribution is uniform now; the value-noise density in `living_rain.rs` is untouched (different subsystem). Configs still carrying `scene-custom.<name>.density-map` or a top-level `density-map` get a targeted removal hint from `config_hints`. `scripts/gen-density-presets.py` was deleted.
 
 **Config path whitelist** (enforced by `safepath.rs`): Linux `~/.config/cosmostrix/`, `/etc/cosmostrix/`; macOS `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`; Windows `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`. Rejected: current directory, `/tmp/`, `~/.local/`, `/usr/`, all others.
 
@@ -134,11 +134,11 @@ All 3 custom config systems use the same bounds for consistency. Max **100 block
 |--------|-----------|--------------|-------------|-----------|
 | colors-custom | 100 (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 64 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | OKLab engine only needs 2-16 stops; 100 blocks far exceeds realistic use |
 | charset-custom | 100 (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 chars (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
-| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | 1024 density-map entries (`DENSITY_MAP_MAX_ENTRIES`, v80.0.0-beta.1) | Terminal width bounds real maps at a few hundred columns; the cap stops a pasted mega-CSV from leaking unbounded `Box::leak` memory into the dedup cache |
+| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | — | v80.0.0-beta.2 removed the density-map field (and its 1024-entry cap) entirely; no content cap remains for scene blocks |
 
 When a cap is hit, behavior depends on the cap type:
 
-- **Content cap** (rain stops, charset chars, density-map entries): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`. Density-map values over the entry cap truncate (the first 1024 entries are kept) instead of being rejected — the weights still apply.
+- **Content cap** (rain stops, charset chars): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`.
 - **Block cap** (total blocks per category): silently skipped (no warning — the user would have to define 100+ blocks to hit this, which is almost certainly a script-generated config, not a human typo).
 - **Name length cap**: silently skipped (no warning — almost certainly a typo, warning would be noise).
 
@@ -214,7 +214,7 @@ Custom blocks have a **strict field allowlist** — unknown fields are rejected 
 |-------|---------------|--------|
 | `[colors-custom.<name>]` | `bg`, `rain`, `stops` (deprecated alias) | `is_valid_colors_custom_field()` |
 | `[charset-custom.<name>]` | `set` only | `is_valid_charset_custom_field()` |
-| `[scene-custom.<name>]` | `base-scene`, `color`, `charset`, `bold`, `colors-custom`, `charset-custom`, `shading-mode`, `glitch-level`, `fps`, `speed`, `density`, `density-map`, `async-mode` | `SCENE_CUSTOM_FIELDS` |
+| `[scene-custom.<name>]` | `base-scene`, `color`, `charset`, `bold`, `colors-custom`, `charset-custom`, `shading-mode`, `glitch-level`, `fps`, `speed`, `density`, `async-mode` | `SCENE_CUSTOM_FIELDS` |
 
 Any other field inside these blocks surfaces as an `unknown_key` -> `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
 

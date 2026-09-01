@@ -193,13 +193,15 @@ into the back-buffer's color value, so the diff renderer treats it
 as a normal color change — no special I/O path.
 
 
-4. DENSITY NOISE & WIND GUSTS  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs, src/engine/cosmic_dragon_engine/cloud/monolith.rs)
+4. DENSITY NOISE & WIND GUSTS  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs)
 --------------------------------------------------------------------------------
 
-Per-column density maps sculpt the rain into cinematic shapes — twin
-pillars, central thrones, cascading waterfalls. Density is driven by
-a value-noise function sampled at column position, so the pattern is
-deterministic per terminal size but never repeats row-by-row.
+Density is driven by a value-noise function sampled at column
+position, so the pattern is deterministic per terminal size but
+never repeats row-by-row. (v80.0.0-beta.2: the related-but-separate
+`density-map` config feature — hand-authored per-column spawn
+weights for monolith pillar sculpting — was retired; the engine-side
+value-noise density described here is untouched.)
 
 Wind gusts are sparse global events that briefly accelerate all
 columns in a direction, then decay. They break the visual monotony
@@ -207,9 +209,8 @@ of constant-velocity rain without the cost of per-column physics.
 Gusts are opt-in (atmospheric event subsystem) and disabled by
 default in benchmark mode for reproducibility.
 
-The density-map monolith formations live in `src/engine/cosmic_dragon_engine/cloud/monolith.rs`
-(`MonolithConfig.density_map`); the per-column value-noise density
-+ wind-gust state machine lives in `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`
+The per-column value-noise density + wind-gust state machine lives
+in `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`
 (`GustState`, `density_noise_at`).
 
 

@@ -216,14 +216,6 @@ def test_unknown_fields():
     )
 
 
-# ── Stress Test 9: density-map out-of-range warning ──
-def test_density_map():
-    """density-map with out-of-range values should PASS + warn."""
-    config = '[scene-custom.hacker-mode]\ndensity-map = "0.5,1.5,-0.3,2.0"\n'
-    # Should PASS (warning, not error)
-    test("density_map_out_of_range_warned", config, expect_pass=True)
-
-
 # ── Stress Test 10: valid config (control) ──
 def test_valid_control():
     """Normal valid config should PASS with no warnings."""
@@ -254,7 +246,6 @@ test_rain_stops()
 test_charset_chars()
 test_name_length()
 test_unknown_fields()
-test_density_map()
 test_valid_control()
 
 # ── Report ──
