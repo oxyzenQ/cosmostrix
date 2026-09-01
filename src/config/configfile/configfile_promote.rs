@@ -36,7 +36,7 @@ use crate::configfile::is_known_key;
 /// Decide whether a nested key should be auto-promoted to root scope.
 ///
 /// Returns `true` when ALL of the following hold:
-///   1. We are inside a `[section]` header (current_section is non-empty).
+///   1. We are inside a `[section]` header (`current_section` is non-empty).
 ///   2. The bare key (without the section prefix) is itself a recognized
 ///      top-level key (`is_known_key(&key)` returns `true`).
 ///   3. EITHER we are NOT inside a custom block, OR the bare key is

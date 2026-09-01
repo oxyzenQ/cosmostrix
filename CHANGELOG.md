@@ -9,6 +9,74 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.1 — config live-reload honesty pass + v51 stale-version sweep
+
+Owner-initiated internal research session. Five atomic micro-commits,
+all signed-off by oxyzenQ:
+
+1. **Remove malicious root `KEY.md`.** Owner-identified malicious
+   documentation file at the repo root. Engine sub-tree
+   `KEY.md` files (`src/engine/{cosmic,chroma,crystal}_dragon_engine/KEY.md`)
+   are legitimate per-engine LTS signature locks — preserved verbatim.
+
+2. **Bump stale `v51` annotations to `v80.0.0-beta.1`.** Surgical
+   regex sweep across 96 tracked `*.rs`/`*.md`/`*.toml` files (358
+   replacements). Word-boundary anchored so path / module references
+   (`tests_v51_xxx.rs`, `mod v51_xxx`, `benchmark/bench-labs/v51_2_*`)
+   are preserved verbatim. CHANGELOG.md + `docs/archive/**` +
+   `docs/research/**` + `docs/audits/**` + `benchmark/**` excluded
+   (historical logs and bench artifacts).
+
+3. **Fix live-reload unknown-key bug**
+   `charset-custom.cyberpunk_2077.ambient.01-50`. Root cause: the
+   v50.0.0-beta.6 FATAL FIX in `parse_config_text` blocked auto-promote
+   of ANY key inside a custom block. That fix was correct for SCALAR
+   keys (typo'd field names like `color = green` inside
+   `[charset-custom.quantum]`) but too strict for NAMESPACED
+   top-level keys (`ambient.01-50`, `colors-custom.X.Y`,
+   `charset-custom.X.Y`, `color.tune.bold`) that the user accidentally
+   nested under the previous `[section]` header. The fix relaxes the
+   rule: SCALAR keys (no dot) still rejected as typo'd field names
+   inside custom blocks (FATAL FIX preserved); NAMESPACED keys
+   (containing a dot) auto-promoted to root scope even inside custom
+   blocks. New `src/config/configfile/configfile_promote.rs` module
+   owns the decision rule (extracted to keep `configfile.rs` under
+   the 800-line LOC cap). 3 new/updated tests in
+   `src/config/configfile_tests/mod.rs`; 2046 total tests pass.
+
+4. **Document ambient overlay limitation.** Owner report: cannot
+   set `charset`/`color`/`scene`/`speed`/`density` via config when
+   ambient is active. Source audit
+   (`scene_runtime.rs::apply_builtin_scene_runtime`) confirmed the
+   list is complete (plus `glitch-level` — also scene-owned). Added
+   v80.0.0-beta.1 honesty note below the `ambient.<HH-MM>` examples
+   in the template config (`configfile_dump.rs`). Added Limitation D
+   to `docs/LIVE_RELOAD_BEHAVIOR.md` §8 with root cause, the keys
+   that still work, the workaround (comment out ALL `ambient.*`
+   entries), and why we document instead of fix (config-over-ambient
+   would silently break the time-of-day scheduling model).
+
+5. **Add `docs/CONFIG_LIVE_RELOAD_DISCLAIMER.md`.** Owner philosophy:
+   "config / live-reload is 99%, not 100% perfect. Why? Be honest,
+   limit dev time, and need never perfect because that is the process
+   to evolve. Perfect means stuck — no way to evolve." The new doc
+   captures the philosophy in one focused file: TL;DR, three reasons
+   (honesty over appearance, limited dev time vs unlimited edge
+   cases, never-perfect = still evolving), the 1% tail enumerated as
+   Limitations A–D + atomic-write + single-file-watch + DST +
+   single-ambient-entry + restart-only keys, what this disclaimer is
+   NOT (not a waiver of bug fixes, not a license to break the
+   contract, not a replacement for `--testconf`), and a one-paragraph
+   summary: "Perfect means stuck. The 1% tail is the door we leave
+   open." Linked from `README.md` (limitations section) and
+   `docs/LIVE_RELOAD_BEHAVIOR.md` (companion-document callout).
+
+Verification: `cargo fmt --check` + `cargo clippy -D warnings` +
+`cargo test --bins --no-fail-fast` (2046 passed, 0 failed) clean
+across all five commits. `scripts/inject-disclaimer.sh --check`
+passes for all 151 `.md` files. `scripts/docs-audit.py` reports no
+new broken references introduced.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density
