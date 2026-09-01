@@ -9,6 +9,23 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### verify: S-master-5-v2 LTS — chroma integrated engine deeper verification (no code changes)
+
+Deeper pass over the v1 verification (dd34821), closing its one gap:
+v1's --doctor demo ran on the legacy_rgb branch. NEW evidence: 10s
+truecolor-forced benchmark proves the chroma pipeline EXECUTES in the
+production hot loop (color_transition_delta 94.71 vs 0 mono, entropy
+4.212 vs 3.295, stability excellent, drift -0.24%); --doctor with
+forced truecolor discloses chroma_dragon + oklab/perceptual blend/
+climate post-fx/head halo/l-smoothing. Production-only module census:
+19/19 engine files have non-test callers (zero zombies). All six
+dragon-engine-v2 chroma innovations verified wired always-Some at the
+production DrawCtx site (column coherence LUT, hue drift, subpixel
+jitter, head halo, Bayer dithering, palette-derived ghost base color).
+Fresh counts: 289 chroma tests, 36 lock suite, 1995 full suite, 0
+failed. Engine stays locked. Detail:
+docs/archive/audits/S5_CHROMA_INTEGRATED_VERIFY_V2.md.
+
 ### stability: S-master-4-v2 LTS — deep stability audit, verified at peak (no code changes)
 
 Nine-axis long-run robustness audit (deps + src stability-critical

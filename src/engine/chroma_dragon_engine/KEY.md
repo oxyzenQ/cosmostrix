@@ -8,6 +8,25 @@
 
 ## LOCK
 
+> S-master-5-v2 LTS verification (2026-09-01, commit fe571b3): deeper
+> integrated-verification pass over v1 (dd34821). NEW dynamic proof:
+> 10s truecolor-forced benchmark shows the chroma pipeline EXECUTING in
+> the production hot loop (color_depth=truecolor, color_transition_delta
+> 94.71 vs 0 on mono, entropy 4.212 vs 3.295, stability excellent,
+> drift -0.24%); --doctor on the forced-truecolor path discloses
+> `chroma_dragon` + `oklab gradient, perceptual blend, climate post-fx,
+> head halo, l-smoothing` (v1 could only demo the legacy_rgb branch).
+> Production-only census: 19/19 engine files have non-test callers
+> (zero zombies). All six dragon-engine-v2 innovations verified wired
+> always-Some at the DrawCtx construction site (column_coherence_lut,
+> hue_drift_offset, subpixel_jitter_amplitude, head_halo_factor, Bayer
+> dithering in resolve_cell_color, ghost_base_color from palette darkest
+> stop). Fresh counts: 289 chroma tests, 36 lock suite, 1995 full
+> binary suite, 0 failed. No code changes — engine stays locked at
+> production LTS. Detail: docs/archive/audits/S5_CHROMA_INTEGRATED_VERIFY_V2.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-5-v2 deeper integrated verification (no code change, lock intact)
+
 > S-master-5 verification (2026-09-01): integrated chroma dragon
 > engine confirmed REAL and WORKING. Verification: 289 chroma tests
 > pass (0 fail), 19 lock invariants pass (lock_inv01-19), 36 total
