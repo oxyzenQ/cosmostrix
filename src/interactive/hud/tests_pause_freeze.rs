@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51 pause-freeze tests (owner bug fix 2026-08-30).
+//! v80.0.0-beta.1 pause-freeze tests (owner bug fix 2026-08-30).
 //!
 //! Owner report: "when I pause cosmostrix, some HUD metrics keep
 //! running — time, fps, p99, etc. They should stop, and when I resume

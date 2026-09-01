@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Render-level tests for the v51 msg-fill-style `scorch` style
+//! Render-level tests for the v80.0.0-beta.1 msg-fill-style `scorch` style
 //! (post-glitch follow-up — see
 //! `docs/research/MSG_FILL_STYLE_EXPANSION_RESEARCH.md` §3.C).
 //!

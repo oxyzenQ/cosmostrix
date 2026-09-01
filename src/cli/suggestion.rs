@@ -56,7 +56,7 @@ pub(crate) fn extract_clap_suggestion(err_str: &str) -> Option<String> {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Value suggestion (v51 Z-master-1B did-you-mean audit)
+// Value suggestion (v80.0.0-beta.1 Z-master-1B did-you-mean audit)
 // ─────────────────────────────────────────────────────────────────────────────
 
 /// Levenshtein edit distance (shared engine; the copies in `cli/mod.rs`

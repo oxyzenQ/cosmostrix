@@ -139,7 +139,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                     "expected at least one comma-separated float in [0.0, 1.0], got '{v}'"
                 ));
             }
-            // v51 killer-features hardening: entry-count ceiling mirrors
+            // v80.0.0-beta.1 killer-features hardening: entry-count ceiling mirrors
             // parse_density_map's runtime truncation (DENSITY_MAP_MAX_ENTRIES
             // = 1024). Warning, not error — runtime truncates and continues,
             // so blocking here would create a testconf/runtime divergence.
@@ -287,7 +287,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
-        // v51 msg-fill-style: must match the clap ValueEnum accepted by
+        // v80.0.0-beta.1 msg-fill-style: must match the clap ValueEnum accepted by
         // -mfs/--msg-fill-style. Same uniform-rejection contract as
         // `intro` (bug #17): --testconf, startup validation, and
         // live-reload strict validation all reject invalid values here,

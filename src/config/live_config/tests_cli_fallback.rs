@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51.1 CLI-locked fallback contract (owner directive, 2026-09-01).
+//! v80.0.0-beta.1 CLI-locked fallback contract (owner directive, 2026-09-01).
 //!
 //! Owner repro: `cosmostrix -v -s -C minimal --scene crystal-dragon
 //! -mfs words` + runtime config.toml edit `# scene = cinematic` →

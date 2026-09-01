@@ -308,8 +308,8 @@ pub struct Args {
     )]
     pub message: Option<String>,
 
-    /// v51 msg-fill-style: message overlay reveal style (typewriter
-    /// default = bit-identical to pre-v51; engrave adds the spark
+    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (typewriter
+    /// default = bit-identical to pre-v80.0.0-beta.1; engrave adds the spark
     /// sidecar; hologram adds a stateless scanline pass; glitch
     /// extends CellReveal with a glyph_override field; scorch
     /// extends CellReveal with a tint field and adds a smoke
@@ -664,7 +664,7 @@ pub struct Args {
     /// Default: true (protection enabled). Also configurable via
     /// `power-dragon = false` in config.toml. When false, rain stays
     /// at user-configured density/speed regardless of CPU pressure.
-    /// v51.2: this promise is now enforced on the render path itself —
+    /// v80.0.0-beta.1: this promise is now enforced on the render path itself —
     /// the pressure feed to the cloud is gated to 0.0 (previously only
     /// the HUD display was gated while rain_at() still throttled the
     /// spawn scale), and a stale aggressive_throttle is released.

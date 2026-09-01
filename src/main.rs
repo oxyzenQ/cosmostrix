@@ -264,7 +264,7 @@ fn main() -> std::io::Result<()> {
     // This runs AFTER prevalidation so the internal --message-border token
     // injected here is not caught by the REMOVED_FLAGS check.
     //
-    // v51 msg-fill-style (2026-08-30 LOC refactor): the -mb loop was
+    // v80.0.0-beta.1 msg-fill-style (2026-08-30 LOC refactor): the -mb loop was
     // extracted to cli/argv_expand.rs (main.rs was at 757/800 LOC) and
     // extended with the -mfs <style> → --msg-fill-style <style> shorthand
     // (clap short flags are single-char, so multi-char shorthands must be

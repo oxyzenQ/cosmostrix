@@ -29,7 +29,7 @@ impl super::HudState {
         Self {
             visible: false,
             session_start: Instant::now(),
-            // v51 pause-freeze: metrics stop while paused (owner bug fix
+            // v80.0.0-beta.1 pause-freeze: metrics stop while paused (owner bug fix
             // 2026-08-30). See set_metrics_paused() in metrics.rs.
             metrics_paused: false,
             pause_started_at: None,
@@ -93,7 +93,7 @@ impl super::HudState {
                 // ── Health / pressure (rows 6-7) ──
                 (Color::Yellow, String::new()), // 6: ehs
                 (Color::Yellow, String::new()), // 7: prs
-                // ── Identity lines (rows 8-10) — v51 reorder: moved up
+                // ── Identity lines (rows 8-10) — v80.0.0-beta.1 reorder: moved up
                 //    above the user-adjustable controls ──
                 (Color::Cyan, String::new()), // 8: scn
                 (Color::Cyan, String::new()), // 9: chr

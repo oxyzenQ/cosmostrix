@@ -9,11 +9,11 @@
 //! (BC-01..05 chroma dragon), F2 splash crown sparks, and Z-5 zero-alloc
 //! scratch buffers.
 //!
-//! v51 msg-fill-style: the text reveal is style-driven (see
+//! v80.0.0-beta.1 msg-fill-style: the text reveal is style-driven (see
 //! `msg_fill_style/` — one file per style, dispatch in
 //! `msg_fill_style/mod.rs`). Seven styles are selectable via
 //! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
-//! typewriter (default, bit-identical to pre-v51), fade, words, slide,
+//! typewriter (default, bit-identical to pre-v80.0.0-beta.1), fade, words, slide,
 //! pulse, instant, engrave. All timing constants, per-cell reveal
 //! math, and the engrave spark sidecar live in the style files; this
 //! renderer only consumes the dispatch API. The engrave style's
@@ -73,10 +73,10 @@ impl super::Cloud {
             .message_start_time
             .map(|start| start.elapsed().as_millis() as usize);
 
-        // v51 msg-fill-style: per-style reveal plan. The six stateless
+        // v80.0.0-beta.1 msg-fill-style: per-style reveal plan. The six stateless
         // styles derive everything from elapsed time; engrave keeps the
         // same stateless reveal math but adds a bounded spark sidecar
-        // (msg_fill_style/engrave.rs). Typewriter keeps the exact pre-v51
+        // (msg_fill_style/engrave.rs). Typewriter keeps the exact pre-v80.0.0-beta.1
         // semantics:
         //   reveal_count = (elapsed / 80).max(1).min(total_text)
         //   per-char 100 ms fade-in from 30% brightness.
@@ -100,7 +100,7 @@ impl super::Cloud {
 
         // v25 progressive border: border cells revealed clockwise,
         // lagging behind text reveal (cinematic effect).
-        // v51: per-style — typewriter-paced styles keep the t^1.5 lag,
+        // v80.0.0-beta.1: per-style — typewriter-paced styles keep the t^1.5 lag,
         // fade ramps the border together with the block alpha, instant
         // draws the border on an independent 1 s timeline.
         let text_progress = mfs::text_progress(
@@ -306,7 +306,7 @@ impl super::Cloud {
         self.border_pulses = alive_pulses;
 
         let mut content_idx = 0usize;
-        // v51 msg-fill-style: track the most recently revealed content
+        // v80.0.0-beta.1 msg-fill-style: track the most recently revealed content
         // cell ("the head") for the stateful sidecars (engrave spark
         // pass, scorch smoke pass). Both styles share the same 80 ms/char
         // pacing, so the head index is style-independently
@@ -320,7 +320,7 @@ impl super::Cloud {
             usize::MAX
         };
         let mut head_pos: Option<(u16, u16)> = None;
-        // v51 msg-fill-style (slide): phase-1 cells are drawn one row
+        // v80.0.0-beta.1 msg-fill-style (slide): phase-1 cells are drawn one row
         // below their final position, AFTER the main loop — the row below
         // is itself a message cell (padding / border / next content line)
         // that would otherwise overwrite the sliding glyph in the same
@@ -336,7 +336,7 @@ impl super::Cloud {
             let is_visible_border = mc.val != ' ' && visible_border[idx];
 
             let (ch, cell_fg) = if is_content {
-                // v51: every content cell advances the reading-order
+                // v80.0.0-beta.1: every content cell advances the reading-order
                 // index (was: only when revealed). Per-style visibility
                 // and brightness come from the stateless reveal solver.
                 let idx0 = content_idx;
@@ -353,7 +353,7 @@ impl super::Cloud {
                     reveal_count,
                     block_alpha,
                 );
-                // v51 msg-fill-style (glitch): the per-cell reveal may
+                // v80.0.0-beta.1 msg-fill-style (glitch): the per-cell reveal may
                 // carry a substitute glyph (wrong-glyph during the
                 // settle window). Every stateless style leaves this
                 // `None`, so they remain bit-identical to the pre-glitch
@@ -361,7 +361,7 @@ impl super::Cloud {
                 // deferred second pass so a future slide + glyph-
                 // override combo would Just Work.
                 let glyph = reveal.glyph_override.unwrap_or(mc.val);
-                // v51 msg-fill-style (scorch): the per-cell reveal may
+                // v80.0.0-beta.1 msg-fill-style (scorch): the per-cell reveal may
                 // carry a tint (ember blend during the cool window).
                 // Every stateless style leaves this `None`, so they
                 // remain bit-identical to the pre-scorch renderer.
@@ -429,7 +429,7 @@ impl super::Cloud {
                 // color from the droplet, not static white. LTS invariant
                 // for top corners is RELAXED for transient touch events.
                 //
-                // v51 msg-fill-style (fade): border brightness follows the
+                // v80.0.0-beta.1 msg-fill-style (fade): border brightness follows the
                 // block alpha so the border fades in together with the
                 // text instead of popping in at full color.
                 let base = if style == MsgFillStyle::Fade && block_alpha < 1.0 {
@@ -479,7 +479,7 @@ impl super::Cloud {
             );
         }
 
-        // v51 msg-fill-style (slide): deferred second pass — draw the
+        // v80.0.0-beta.1 msg-fill-style (slide): deferred second pass — draw the
         // mid-slide glyphs one row below their final position. Bounds
         // guard: the row below must exist inside the terminal (the
         // message box has pad_y=1 (+1 border row), so this only fails
@@ -566,7 +566,7 @@ impl super::Cloud {
             }
         }
 
-        // v51 msg-fill-style (engrave): spark pass, LAST so sparks render
+        // v80.0.0-beta.1 msg-fill-style (engrave): spark pass, LAST so sparks render
         // on top of the overlay text (the engraving head throws debris
         // across the freshly burned-in chars). Runs only for engrave;
         // the pass itself early-outs in O(1) when the pool is idle.
@@ -574,7 +574,7 @@ impl super::Cloud {
             self.engrave_spark_pass(frame, now, head_pos, head_idx, message_elapsed_ms);
         }
 
-        // v51 msg-fill-style (scorch): smoke pass, LAST so smoke
+        // v80.0.0-beta.1 msg-fill-style (scorch): smoke pass, LAST so smoke
         // renders on top of the overlay text (the scorching head
         // throws slow upward gray puffs above the freshly burned-in
         // chars). Runs only for scorch; the pass itself early-outs
@@ -585,7 +585,7 @@ impl super::Cloud {
             self.scorch_smoke_pass(frame, now, head_pos, head_idx, message_elapsed_ms);
         }
 
-        // v51 msg-fill-style (hologram): scanline pass, LAST so the
+        // v80.0.0-beta.1 msg-fill-style (hologram): scanline pass, LAST so the
         // scanline renders on top of the overlay text — a single
         // horizontal CRT-style sweep down the box over 600 ms, then
         // gone. Stateless: pure function of elapsed_ms, no pool, no
@@ -598,7 +598,7 @@ impl super::Cloud {
     }
 }
 
-/// v51 msg-fill-style: apply a brightness factor to the message
+/// v80.0.0-beta.1 msg-fill-style: apply a brightness factor to the message
 /// content fg color. Shared by the main content pass, the slide
 /// second pass, and the fade-style border scaling so every style
 /// goes through ONE pipeline.

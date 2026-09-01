@@ -364,7 +364,7 @@ and lets the rebuild path re-apply the ambient phase to a fresh Cloud
 (`event_loop_config_rebuild.rs` re-apply block) so an unrelated config
 edit does not visually kick ambient off.
 
-### Schedule Removal = Overlay Lift (v51.2, owner contract 2026-09-01)
+### Schedule Removal = Overlay Lift (v80.0.0-beta.1, owner contract 2026-09-01)
 
 Removing ALL `ambient.*` keys at runtime (commenting them out) lifts the
 ambient overlay — the same CLI-locked fallback contract the plain `scene`
@@ -385,7 +385,7 @@ key follows (see `docs/LIVE_RELOAD_BEHAVIOR.md` section 14):
 - If the user overrode with a shortkey (`x`/`c`/`s`) after the last
   ambient apply, their scene SURVIVES the removal (shortkeys are the
   runtime top priority).
-- v51.2 honesty fix: the ground-truth nuke no longer fakes
+- v80.0.0-beta.1 honesty fix: the ground-truth nuke no longer fakes
   `user_override_since_ambient = true` when it clears ambient state —
   the flag keeps reporting the true owner so a later rebuild can still
   resolve the overlay lift correctly.

@@ -43,7 +43,7 @@
 //!   `fps`/`tgt`/`max` were the brightest — the user explicitly flagged
 //!   the inversion: 'rain tail is dim head is white' (head leads at the
 //!   bottom of a falling stream).
-//! - **Row order (v51 + Z-master-1X round 5)**: fps / tgt /
+//! - **Row order (v80.0.0-beta.1 + Z-master-1X round 5)**: fps / tgt /
 //!   max / p99 / cpu / rss / ehs / prs / scn / chr / clr / sped / dsty /
 //!   prdr / crdr / ambt / glth / ctun / mnst / dcel / tcel / cid / up /
 //!   screensize — identity lines above the controls, cell efficiency above
@@ -245,7 +245,7 @@ pub(crate) struct HudState {
     // changes (key press, scene cycle, color cycle, config reload) or
     // sampled every frame at 1 Hz (effective_pressure, ehs). The text
     // is rendered into cached_lines[6..=12] on the 1 Hz metric tick
-    // (v51 order: ehs/prs rows 6-7, scn/chr/clr rows 8-10, sped/dsty rows 11-12).
+    // (v80.0.0-beta.1 order: ehs/prs rows 6-7, scn/chr/clr rows 8-10, sped/dsty rows 11-12).
     /// Active scene name (e.g. "cinematic", "matrix", custom). Drives
     /// the `scn:` HUD line so the owner sees confirmation when cycling
     /// scenes with `x` — previously the user had to guess from visuals.
@@ -428,7 +428,7 @@ impl HudState {
     #[inline]
     pub(crate) fn maybe_sample_rss(&mut self) {
         if !self.visible || self.metrics_paused {
-            // Holds the last active reading while paused (v51 freeze).
+            // Holds the last active reading while paused (v80.0.0-beta.1 freeze).
             return;
         }
         let now = Instant::now();
@@ -484,7 +484,7 @@ impl HudState {
             return;
         };
 
-        // v51 pause freeze: cpu% holds its last active value while
+        // v80.0.0-beta.1 pause freeze: cpu% holds its last active value while
         // paused, but the baseline keeps ticking so the first post-resume
         // delta stays a ~1 s window (not the whole idle pause span).
         if self.metrics_paused {
@@ -645,7 +645,7 @@ impl HudState {
     /// degraded, forcing investigation rather than hiding the issue).
     /// In-range values are clamped to [0.0, 100.0].
     pub(crate) fn set_endurance_health_score(&mut self, score: f64) {
-        // v51 pause freeze: hold the last active reading while paused.
+        // v80.0.0-beta.1 pause freeze: hold the last active reading while paused.
         if self.metrics_paused {
             return;
         }
@@ -668,7 +668,7 @@ impl HudState {
     /// (setter + format) is defense-in-depth — a future code path that
     /// bypasses the setter still gets sanitized output.
     pub(crate) fn set_effective_pressure(&mut self, pressure: f32) {
-        // v51 pause freeze: hold the last active reading while paused
+        // v80.0.0-beta.1 pause freeze: hold the last active reading while paused
         // (pressure measured over 4 Hz input polls is meaningless).
         if self.metrics_paused {
             return;
@@ -783,17 +783,17 @@ impl HudState {
     ///   row 5   rss           ← mid
     ///   row 6   ehs           ← mid      (endurance health score)
     ///   row 7   prs           ← trail    (effective pressure)
-    ///   row 8   scn           ← mid      (scene name — v51 reorder)
-    ///   row 9   chr           ← mid      (charset preset — v51 reorder)
-    ///   row 10  clr           ← mid      (color scheme — v51 reorder)
-    ///   row 11  sped          ← mid      (chars/sec speed — v51 reorder)
-    ///   row 12  dsty          ← mid      (density multiplier — v51 reorder)
-    ///   row 13  prdr          ← head     (power-dragon on/off — v51 reorder)
-    ///   row 14  crdr          ← head     (crystal-dragon on/off — v51 reorder)
-    ///   row 15  ambt          ← head     (ambient on/off — v51 reorder)
-    ///   row 16  glth          ← head     (glitch level — v51 reorder)
-    ///   row 17  ctun          ← head     (color tuning — v51 reorder)
-    ///   row 18  mnst          ← head     (monolith size — v51 reorder)
+    ///   row 8   scn           ← mid      (scene name — v80.0.0-beta.1 reorder)
+    ///   row 9   chr           ← mid      (charset preset — v80.0.0-beta.1 reorder)
+    ///   row 10  clr           ← mid      (color scheme — v80.0.0-beta.1 reorder)
+    ///   row 11  sped          ← mid      (chars/sec speed — v80.0.0-beta.1 reorder)
+    ///   row 12  dsty          ← mid      (density multiplier — v80.0.0-beta.1 reorder)
+    ///   row 13  prdr          ← head     (power-dragon on/off — v80.0.0-beta.1 reorder)
+    ///   row 14  crdr          ← head     (crystal-dragon on/off — v80.0.0-beta.1 reorder)
+    ///   row 15  ambt          ← head     (ambient on/off — v80.0.0-beta.1 reorder)
+    ///   row 16  glth          ← head     (glitch level — v80.0.0-beta.1 reorder)
+    ///   row 17  ctun          ← head     (color tuning — v80.0.0-beta.1 reorder)
+    ///   row 18  mnst          ← head     (monolith size — v80.0.0-beta.1 reorder)
     ///   row 19  dcel          ← head     (dirty cell ratio % — Z-master-1X round 5)
     ///   row 20  tcel          ← head     (total cells — Z-master-1X round 5)
     ///   row 21  cid           ← head     (build identity — Z-master-1X round 5: moved down)

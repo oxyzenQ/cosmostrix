@@ -141,7 +141,7 @@ mod audit_tests;
 // perf_pressure is a 0.0–1.0 scalar tracking how overloaded the renderer
 // is relative to the target frame period. It accumulates on overshoot
 // frames (work_s > frame_period_s) and decays on normal frames. Fed into:
-//   - adaptive density throttle (v51.2 owner masterclass — see
+//   - adaptive density throttle (v80.0.0-beta.1 owner masterclass — see
 //     `central_control_rains::compute_spawn_scale`: banded curve with the
 //     configured density as ceiling; replaces the v50 linear
 //     PERF_PRESSURE_SPAWN_FACTOR 0.75/0.9 spawn-scaling curve)

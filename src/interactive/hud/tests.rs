@@ -176,7 +176,7 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 fn hud_has_twenty_four_cached_lines_after_z_master_1x_round5() {
     // Regression guard: the HUD must have exactly 24 cached rows after
     // the Z-master-1X round 5 expansion that added dcel (row 19) + tcel
-    // (row 20) above cid (now row 21). The previous count was 22 (v51
+    // (row 20) above cid (now row 21). The previous count was 22 (v80.0.0-beta.1
     // reorder). If a future change adds or removes a row, this test
     // will catch it.
     let h = HudState::new();
@@ -572,7 +572,7 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
             g: 100,
             b: 200,
         },
-        // v51 reorder: rows 15-18 = ambt/glth/ctun/mnst, 19 = cid,
+        // v80.0.0-beta.1 reorder: rows 15-18 = ambt/glth/ctun/mnst, 19 = cid,
         // 20 = up, 21 = screensize (positional palette comments).
         Color::Rgb {
             r: 100,
@@ -659,7 +659,7 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
 fn hud_cid_line_contains_commit_sha_or_unknown() {
     // v50 (2026-08-15): the cid line was at index [8].
     // v50 (2026-08-17) HUD expansion reorder: moved to the bottom row.
-    // v51 reorder (owner mandate 2026-08-31): cid sits at index [19] —
+    // v80.0.0-beta.1 reorder (owner mandate 2026-08-31): cid sits at index [19] —
     // above the session footer (up [20] + screensize [21]) so the
     // dashboard closes on the terminal size instead.
     // The line must contain the compile-time git short SHA injected by

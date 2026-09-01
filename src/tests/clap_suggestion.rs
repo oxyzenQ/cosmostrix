@@ -64,7 +64,7 @@ fn extracts_no_effects_typo() {
 
 #[test]
 fn extracts_msg_fill_style_long_flag_typo() {
-    // v51 msg-fill-style: a long-flag typo (missing the final 'e') must
+    // v80.0.0-beta.1 msg-fill-style: a long-flag typo (missing the final 'e') must
     // extract the msg-fill-style suggestion so main.rs can append the
     // "tip: a similar argument exists: '--msg-fill-style'" line.
     let err = "error: unexpected argument '--msg-fill-styl' found\n\n  tip: a similar argument exists: '--msg-fill-style'\n\nUsage: cosmostrix --verbose";
@@ -123,7 +123,7 @@ fn clap_rejects_invalid_msg_fill_style_value() {
 
 #[test]
 fn clap_default_msg_fill_style_is_typewriter() {
-    // LTS guarantee: no flag → typewriter (pre-v51 behavior preserved).
+    // LTS guarantee: no flag → typewriter (pre-v80.0.0-beta.1 behavior preserved).
     use clap::Parser;
     let args = crate::config::Args::try_parse_from(["cosmostrix"]).unwrap();
     assert_eq!(

@@ -48,7 +48,7 @@ pub(crate) fn run_self_healer(
         self_healer.reset();
     }
 
-    // v51.2 power-dragon gate: the config contract for `power-dragon = false`
+    // v80.0.0-beta.1 power-dragon gate: the config contract for `power-dragon = false`
     // is "disables aggressive_throttle + idle FPS reduction" — but the flag
     // could have engaged while the dragon was still on and stayed set after
     // a live-reload turned it off (RestoreScene only fires on pressure

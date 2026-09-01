@@ -247,7 +247,7 @@ pub(crate) fn load_custom_palette(
         } else {
             available.join(", ")
         };
-        // v51 did-you-mean audit: suggest the closest defined palette
+        // v80.0.0-beta.1 did-you-mean audit: suggest the closest defined palette
         // (edit-distance <= 2, same policy as every other value surface).
         let tip = crate::cli::suggestion::closest_value_match(
             name,
@@ -267,7 +267,7 @@ pub(crate) fn load_custom_palette(
 /// layers to resolve custom color names (matching top-level config_apply
 /// behavior which resolves via `parse_color_scheme || colors-custom lookup`).
 ///
-/// v51 killer-features hardening: cheap pre-check (mirrors
+/// v80.0.0-beta.1 killer-features hardening: cheap pre-check (mirrors
 /// charset_custom's `contains_key` probe) — if the config defines no
 /// `[colors-custom.*]` blocks at all, skip building the full BTreeMap.
 /// This probe runs on every scene change and live reload via the
@@ -629,7 +629,7 @@ mod tests {
     }
 }
 
-/// v51 did-you-mean audit: unknown palette names suggest the closest
+/// v80.0.0-beta.1 did-you-mean audit: unknown palette names suggest the closest
 /// defined block.
 #[cfg(test)]
 mod suggestion_tests {
@@ -653,7 +653,7 @@ mod suggestion_tests {
     }
 }
 
-/// v51 killer-features hardening: pre-check probe behavior.
+/// v80.0.0-beta.1 killer-features hardening: pre-check probe behavior.
 #[cfg(test)]
 mod precheck_tests {
     use super::*;

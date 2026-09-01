@@ -6,7 +6,7 @@
 //! Per-character reveal at `TYPEWRITER_CHAR_MS` (80 ms) with a
 //! `TYPEWRITER_FADE_MS` (100 ms) per-char fade-in from 30% to 100%
 //! brightness. This is the DEFAULT style and is bit-identical to the
-//! pre-v51 renderer — the reveal pacing (`(elapsed / 80).max(1)`) and
+//! pre-v80.0.0-beta.1 renderer — the reveal pacing (`(elapsed / 80).max(1)`) and
 //! the fade curve are the original formulas, kept verbatim as the LTS
 //! guarantee (upgrading changes nothing unless the user opts in).
 //!
@@ -40,12 +40,12 @@ pub(super) fn reveal(
     }
 }
 
-/// Index budget: 80 ms/char with the pre-v51 `.max(1)` floor.
+/// Index budget: 80 ms/char with the pre-v80.0.0-beta.1 `.max(1)` floor.
 pub(super) fn reveal_budget(elapsed_ms: Option<usize>, total_text: usize) -> usize {
     index_pacing(TYPEWRITER_CHAR_MS, elapsed_ms, total_text)
 }
 
-/// Border lags text (t^1.5) — the pre-v51 cinematic curve.
+/// Border lags text (t^1.5) — the pre-v80.0.0-beta.1 cinematic curve.
 pub(super) fn border_progress(text_progress: f32) -> f32 {
     lagged_border(text_progress)
 }
@@ -96,7 +96,7 @@ mod tests {
 
     #[test]
     fn border_lags_text_with_power_15_for_paced_styles() {
-        // Pre-v51 cinematic behavior preserved for typewriter-style
+        // Pre-v80.0.0-beta.1 cinematic behavior preserved for typewriter-style
         // pacing: border_progress = text_progress^1.5.
         let bp = super::super::border_progress(MsgFillStyle::Typewriter, 0.5, Some(10_000));
         assert!((bp - 0.353_553_39).abs() < 1e-5);

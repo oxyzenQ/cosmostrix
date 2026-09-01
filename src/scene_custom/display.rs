@@ -22,7 +22,7 @@ use std::sync::OnceLock;
 use super::is_valid_profile_name;
 use crate::scene_custom::UserProfile;
 
-/// v51 killer-features hardening: maximum number of entries accepted in a
+/// v80.0.0-beta.1 killer-features hardening: maximum number of entries accepted in a
 /// `density-map` value. The map weights monolith pillar placement per
 /// column region; real terminals are at most a few hundred columns wide, so
 /// 1024 entries is already generous. Without the cap, a pasted 1M-entry CSV
@@ -89,7 +89,7 @@ pub(crate) fn parse_density_map(csv: &str) -> Option<&'static [f64]> {
         if weights.is_empty() {
             return None;
         }
-        // v51 killer-features hardening: cap the entry count BEFORE the
+        // v80.0.0-beta.1 killer-features hardening: cap the entry count BEFORE the
         // leak (a pasted mega-CSV must not leak megabytes into the cache).
         // warn_runtime_or_now keeps mid-session fires buffered (AB-10);
         // identical truncation notes dedup in the warning log.
@@ -148,7 +148,7 @@ pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) ->
 
 /// Render a detailed description of a single custom scene.
 ///
-/// v51 killer-features hardening: `monolith-size` and `color-bg` are
+/// v80.0.0-beta.1 killer-features hardening: `monolith-size` and `color-bg` are
 /// intentionally NOT displayed — they are forbidden in `[scene-custom.*]`
 /// blocks by the owner contract (`SCENE_CUSTOM_FIELDS` excludes them, so
 /// `collect_custom_scenes` never sets those fields). The former display

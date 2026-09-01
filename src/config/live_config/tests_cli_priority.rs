@@ -283,7 +283,7 @@ fn rebuild_scene_switch_clears_stale_custom_palette() {
 
 // ── Z-master-2-v2: CLI intent preservation for config keys ────────────
 
-/// (Z2-1, v51.1 rewrite): config `bold` key PRESENT wins over the CLI
+/// (Z2-1, v80.0.0-beta.1 rewrite): config `bold` key PRESENT wins over the CLI
 /// `--bold` lock at runtime (temporal precedence). The CLI value is the
 /// fallback when the key is commented out — pinned in
 /// tests_cli_fallback.rs (`fallback_bold_key_absent_keeps_cli_lock`).
@@ -298,11 +298,11 @@ fn rebuild_bold_key_overrides_cli_lock_when_present() {
     assert_eq!(
         new.bold_mode,
         crate::runtime::BoldMode::All,
-        "config bold key present must override the CLI --bold lock (v51.1)"
+        "config bold key present must override the CLI --bold lock (v80.0.0-beta.1)"
     );
 }
 
-/// (Z2-1, v51.1 rewrite): config `shading-mode` key PRESENT wins over
+/// (Z2-1, v80.0.0-beta.1 rewrite): config `shading-mode` key PRESENT wins over
 /// the CLI lock at runtime; the CLI value is the fallback on absence.
 #[test]
 fn rebuild_shading_mode_key_overrides_cli_lock_when_present() {
@@ -315,11 +315,11 @@ fn rebuild_shading_mode_key_overrides_cli_lock_when_present() {
     assert_eq!(
         new.shading_mode,
         crate::runtime::ShadingMode::DistanceFromHead,
-        "config shading-mode key present must override the CLI lock (v51.1)"
+        "config shading-mode key present must override the CLI lock (v80.0.0-beta.1)"
     );
 }
 
-/// (Z2-1, v51.1 rewrite): config `color-bg` key PRESENT wins over the
+/// (Z2-1, v80.0.0-beta.1 rewrite): config `color-bg` key PRESENT wins over the
 /// CLI lock at runtime; the CLI value is the fallback on absence.
 #[test]
 fn rebuild_color_bg_key_overrides_cli_lock_when_present() {
@@ -331,11 +331,11 @@ fn rebuild_color_bg_key_overrides_cli_lock_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
         !new.default_bg,
-        "config color-bg key present must override the CLI --color-bg lock (v51.1)"
+        "config color-bg key present must override the CLI --color-bg lock (v80.0.0-beta.1)"
     );
 }
 
-/// (Z2-2, v51.1 rewrite): a config `color` key switching to a builtin
+/// (Z2-2, v80.0.0-beta.1 rewrite): a config `color` key switching to a builtin
 /// now CLEARS a CLI-owned custom palette (`--colors-custom`) — the key
 /// is the most recent user intent. The palette RETURNS when the key is
 /// commented back out (base carries the locked palette) — pinned in
@@ -360,12 +360,12 @@ fn rebuild_color_key_clears_cli_colors_custom_palette_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
         new.custom_palette.is_none(),
-        "config color key present must clear the CLI-owned palette (v51.1)"
+        "config color key present must clear the CLI-owned palette (v80.0.0-beta.1)"
     );
     assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Snow);
 }
 
-/// (Z2-3, v51.1 rewrite): a config `scene` key PRESENT now replaces the
+/// (Z2-3, v80.0.0-beta.1 rewrite): a config `scene` key PRESENT now replaces the
 /// CLI-selected custom scene (`--scene-custom`) — the key is the most
 /// recent user intent. The custom scene RETURNS when the key is
 /// commented back out (base.scene_custom_name is never cleared — pinned
@@ -380,7 +380,7 @@ fn rebuild_scene_key_replaces_cli_scene_custom_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.scene_name, "cinematic",
-        "config scene key present must replace the CLI --scene-custom selection (v51.1)"
+        "config scene key present must replace the CLI --scene-custom selection (v80.0.0-beta.1)"
     );
     assert_eq!(
         new.scene_custom_name, None,

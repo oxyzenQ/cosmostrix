@@ -720,7 +720,7 @@ From **v50.0.0** onward, the following are **frozen** — no breaking changes wi
 - Runtime controls (keyboard shortcuts)
 - Output schemas (`--json` benchmark output, `--doctor` report format)
 
-Breaking changes require a major version bump (e.g. v51.0.0). Minor versions (v50.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §6 for the full stability contract.
+Breaking changes require a major version bump (e.g. v80.0.0-beta.1.0). Minor versions (v50.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §6 for the full stability contract.
 
 ## Support
 

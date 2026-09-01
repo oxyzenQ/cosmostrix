@@ -61,7 +61,7 @@ pub(crate) struct VerboseCtx<'a> {
     /// why their config `message = "hello"` is being ignored (msg_mode=false
     /// suppresses config messages; CLI -m/-mb always wins).
     pub msg_mode: bool,
-    /// v51 msg-fill-style: message overlay reveal style label
+    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style label
     /// (typewriter/fade/words/slide/instant/engrave/hologram/
     /// glitch/scorch/cascade). Printed right after the msg_mode/message
     /// lines so the overlay block reads as one unit: master switch →
@@ -328,7 +328,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         // msg_mode=false → message is None by design.
         output::eprintln_verbose("message:", " (suppressed by msg_mode=false)");
     }
-    // v51 msg-fill-style: always printed (even when msg_mode=false) so
+    // v80.0.0-beta.1 msg-fill-style: always printed (even when msg_mode=false) so
     // users editing config can confirm the key was accepted — mirrors
     // the honest-reporting policy of the intro_color line above.
     output::eprintln_verbose(

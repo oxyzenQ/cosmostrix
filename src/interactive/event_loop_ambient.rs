@@ -4,7 +4,7 @@
 //! Ambient event polling — extracted from `event_loop.rs` to keep that
 //! file under the 800-LOC cap. Pure code motion — no behavior change.
 //!
-//! v51.2 ambient contract (owner-approved extension of the v51.1
+//! v80.0.0-beta.1 ambient contract (owner-approved extension of the v80.0.0-beta.1
 //! CLI-locked fallback audit to the snapback path): `ambient.*` keys are
 //! a config-family overlay. When the schedule is emptied on disk, the
 //! overlay lifts — an ambient-OWNED scene (no user shortkey/CLI override
@@ -81,7 +81,7 @@ pub(crate) fn poll_ambient_events(
                     .is_empty()
                 {
                     last_ambient_entry = None;
-                    // v51.2: BEFORE clearing the tracker, capture whether the
+                    // v80.0.0-beta.1: BEFORE clearing the tracker, capture whether the
                     // current scene is ambient-owned — the nuke must revert
                     // it (the overlay is lifting), not leave it stuck.
                     revert_ambient_owned_scene(
@@ -101,7 +101,7 @@ pub(crate) fn poll_ambient_events(
                     last_ambient_schedule.entries.clear();
                     *last_applied_ambient_entry = None;
                     cloud.ambient_palette_locked = false;
-                    // v51.2: do NOT fake `user_override_since_ambient = true`
+                    // v80.0.0-beta.1: do NOT fake `user_override_since_ambient = true`
                     // here. The visual state is still ambient-owned until the
                     // revert above (or a later rebuild) replaces it; faking
                     // user ownership poisoned the next rebuild's ambient
@@ -178,7 +178,7 @@ pub(crate) fn poll_ambient_events(
             false
         };
     if ground_truth_ambient_empty {
-        // v51.2: same overlay-lift revert as the rx-event nuke above —
+        // v80.0.0-beta.1: same overlay-lift revert as the rx-event nuke above —
         // capture ownership from the pre-clear state, then revert.
         revert_ambient_owned_scene(
             cloud,
@@ -197,7 +197,7 @@ pub(crate) fn poll_ambient_events(
         last_ambient_schedule.entries.clear();
         *last_applied_ambient_entry = None;
         cloud.ambient_palette_locked = false;
-        // v51.2: same honesty rule as the rx-event nuke — no fake user
+        // v80.0.0-beta.1: same honesty rule as the rx-event nuke — no fake user
         // override; the state remains ambient-owned until the revert.
         *ambient_snapback_killed = true;
         ambient_handle.reload(crate::crystal_dragon_engine::ambient::AmbientSchedule::default());
@@ -230,7 +230,7 @@ pub(crate) fn poll_ambient_events(
     }
 }
 
-/// v51.2 ambient overlay lift: revert an ambient-owned scene to the locked
+/// v80.0.0-beta.1 ambient overlay lift: revert an ambient-owned scene to the locked
 /// startup scene family.
 ///
 /// "Ambient-owned" means the last visual change came from an ambient apply

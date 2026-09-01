@@ -211,12 +211,12 @@ pub struct Cloud {
     pub(crate) message_text: Option<String>,
     pub(crate) message_border: bool,
     pub(crate) message_start_time: Option<Instant>,
-    /// v51 msg-fill-style: active reveal style for the message overlay.
+    /// v80.0.0-beta.1 msg-fill-style: active reveal style for the message overlay.
     /// Set from CloudConfig (`-mfs`/`--msg-fill-style` CLI or
     /// `msg-fill-style` config key). Default `Typewriter` = bit-identical
-    /// to the pre-v51 renderer (LTS guarantee).
+    /// to the pre-v80.0.0-beta.1 renderer (LTS guarantee).
     pub(crate) msg_fill_style: crate::msg_fill_style::MsgFillStyle,
-    /// v51 msg-fill-style (words): 1-based word ordinal per message cell,
+    /// v80.0.0-beta.1 msg-fill-style (words): 1-based word ordinal per message cell,
     /// rebuilt in `reset_message` (Z-5 hoisted — no per-frame rebuild).
     /// Content cells carry the ordinal of the word they belong to;
     /// non-content cells (border + spaces) carry the running ordinal
@@ -228,11 +228,11 @@ pub struct Cloud {
     /// `build_border_order` per frame (was O((W+H)×N) per frame; now O(1) borrow).
     pub(crate) border_order: Vec<usize>,
 
-    /// v51 msg-fill-style (engrave): bounded 48-slot spark sidecar
+    /// v80.0.0-beta.1 msg-fill-style (engrave): bounded 48-slot spark sidecar
     /// (dedicated pool — see `msg_fill_style/engrave.rs`).
     pub(crate) engrave: crate::msg_fill_style::engrave::EngraveState,
 
-    /// v51 msg-fill-style (scorch): bounded 16-slot smoke sidecar
+    /// v80.0.0-beta.1 msg-fill-style (scorch): bounded 16-slot smoke sidecar
     /// (dedicated pool — see `msg_fill_style/scorch.rs`).
     pub(crate) scorch: crate::msg_fill_style::scorch::ScorchState,
 
@@ -458,7 +458,7 @@ impl Cloud {
             message_text: None,
             message_border: false,
             message_start_time: None,
-            // v51 msg-fill-style: Typewriter default keeps the pre-v51
+            // v80.0.0-beta.1 msg-fill-style: Typewriter default keeps the pre-v80.0.0-beta.1
             // reveal behavior bit-identical (LTS guarantee).
             msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
             message_word_ordinals: Vec::new(),
@@ -600,7 +600,7 @@ impl Cloud {
     pub fn restart_message_typewriter(&mut self) {
         if self.message_text.is_some() {
             // v52: r restart replays immediately (no intro lead at
-            // runtime). v51 engrave/scorch: re-arm spark/smoke detector.
+            // runtime). v80.0.0-beta.1 engrave/scorch: re-arm spark/smoke detector.
             self.message_start_time = Some(Instant::now());
             self.engrave.reset();
             self.scorch.reset();
@@ -616,9 +616,9 @@ impl Cloud {
         }
     }
 
-    /// v51 msg-fill-style: set the reveal style. On a real change with
+    /// v80.0.0-beta.1 msg-fill-style: set the reveal style. On a real change with
     /// an active message, the reveal restarts immediately (no intro
-    /// lead). v51 engrave/scorch: re-arm spark/smoke detector.
+    /// lead). v80.0.0-beta.1 engrave/scorch: re-arm spark/smoke detector.
     pub fn set_msg_fill_style(&mut self, style: crate::msg_fill_style::MsgFillStyle) {
         if self.msg_fill_style != style {
             self.msg_fill_style = style;

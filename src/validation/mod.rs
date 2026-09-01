@@ -356,7 +356,7 @@ fn validate_enum_value(name: &str, raw: &str, allowed: &[&str]) -> Result<(), St
     if allowed.iter().any(|value| raw.eq_ignore_ascii_case(value)) {
         Ok(())
     } else {
-        // v51 did-you-mean audit: the prevalidator intercepts these enum
+        // v80.0.0-beta.1 did-you-mean audit: the prevalidator intercepts these enum
         // values BEFORE clap's ValueEnum parser sees them, so clap's built-in
         // "tip: a similar value exists" never fires for --glitch-level /
         // --monolith-size / --color-bg. Append the same style of suggestion

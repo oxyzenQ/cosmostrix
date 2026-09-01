@@ -440,9 +440,9 @@ fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
     assert_eq!(sped_line, " sped: 14.0", "row 11 (sped) content mismatch");
 
     // Row 9 — dsty: 2 decimals. Owner mandated `dsty` (NOT `den`).
-    // v50.0.0-beta.6 Option D + v51.2 banded masterclass: dsty is DYNAMIC
+    // v50.0.0-beta.6 Option D + v80.0.0-beta.1 banded masterclass: dsty is DYNAMIC
     // when power-dragon is ON. This test sets power_dragon ON (default) +
-    // pressure=0.123 + density=1.0, so dsty = the v51.2 banded target:
+    // pressure=0.123 + density=1.0, so dsty = the v80.0.0-beta.1 banded target:
     // p=0.123 is in the LOW band (0.05 < p < 0.30), t=(0.123-0.05)/0.25,
     // target = 0.84 - 0.14*t = 0.799 -> 0.80 (rounded to 2 decimals).
     let (_, dsty_line) = &h.cached_lines[12];
@@ -596,11 +596,11 @@ fn hud_final_layout_positions_match_z_master_1x_round5() {
     //   5   rss
     //   6   ehs
     //   7   prs
-    //   8   scn    (v51: moved up — identity lines)
-    //   9   chr    (v51: moved up)
-    //   10  clr    (v51: moved up)
-    //   11  sped   (v51: moved down — user controls after identity)
-    //   12  dsty   (v51: moved down)
+    //   8   scn    (v80.0.0-beta.1: moved up — identity lines)
+    //   9   chr    (v80.0.0-beta.1: moved up)
+    //   10  clr    (v80.0.0-beta.1: moved up)
+    //   11  sped   (v80.0.0-beta.1: moved down — user controls after identity)
+    //   12  dsty   (v80.0.0-beta.1: moved down)
     //   13  prdr
     //   14  crdr
     //   15  ambt

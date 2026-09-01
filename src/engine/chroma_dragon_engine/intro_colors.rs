@@ -91,7 +91,7 @@ pub(crate) const SINGULARITY_RGB: (u8, u8, u8) = (255, 255, 255);
 /// canonical form — when a `Color` is needed (rare), construct it
 /// inline: `Color::Rgb { r: 168, g: 85, b: 247 }`.
 ///
-/// Historical reference for the pre-v51 default flat brand purple —
+/// Historical reference for the pre-v80.0.0-beta.1 default flat brand purple —
 /// kept for reference. The runtime intro color is resolved in
 /// `interactive/event_loop_intro.rs` (brand scheme head).
 #[allow(dead_code)]

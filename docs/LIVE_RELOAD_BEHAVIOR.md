@@ -1,16 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Live-Reload Behavior Research — v51
+# Live-Reload Behavior Research — v80.0.0-beta.1
 
 > **Status**: Option D (masterclass) IMPLEMENTED in v50.0.0-alpha.7.
-> All 4 issues from the v50-beta.3 research are now fixed. The v51
+> All 4 issues from the v50-beta.3 research are now fixed. The v80.0.0-beta.1
 > Z-master-1B audit (2026-08-30) then found and fixed 5 MORE gaps in the
-> custom palette / custom scene switching paths — see "10. v51
+> custom palette / custom scene switching paths — see "10. v80.0.0-beta.1
 > Z-master-1B Audit" below for the per-key matrix update.
 >
 > **Research date**: 2026-08-22 (v50-beta.3)
 > **Implementation date**: 2026-08-22 (v50.0.0-alpha.7)
-> **v51 audit date**: 2026-08-30 (Z-master-1B)
+> **v80.0.0-beta.1 audit date**: 2026-08-30 (Z-master-1B)
 >
 > **Trigger**: owner confusion about which config keys live-reload vs
 > require restart. Specifically: "if I set `msg-mode = false` in config
@@ -28,13 +28,13 @@
 
 ## 1. Findings — Per-Key Live-Reload Matrix
 
-> v51.1 (2026-09-01): the matrix notes below describe the CURRENT
+> v80.0.0-beta.1 (2026-09-01): the matrix notes below describe the CURRENT
 > contract — `config key present` wins at runtime (most recent user
 > intent), and commenting the key out falls back to the CLI-LOCKED
 > startup value (CLI first, then config@startup, then defaults).
-> See "13. v51.1 CLI-Locked Fallback Contract" for the full story.
+> See "13. v80.0.0-beta.1 CLI-Locked Fallback Contract" for the full story.
 
-| Config Key | CLI Flag | Live-Reloads? | Notes (v51.1) |
+| Config Key | CLI Flag | Live-Reloads? | Notes (v80.0.0-beta.1) |
 |------------|----------|:-------------:|-------|
 | `color` | `--color` | OK YES | Key present wins (custom names load, builtin switch clears the active palette); key absent falls back to the locked startup color/palette. |
 | `charset` | `--charset` | OK YES | Key present wins (custom blocks re-parsed); absent falls back to the locked startup charset. |
@@ -51,7 +51,7 @@
 | `shading-mode` | `--shading-mode` | OK YES | Key present wins (range-gated 0-1); absent falls back to the locked startup value. |
 | `async-mode` | `--async-mode` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `color.tune.*` | `--color-tune` | OK YES | Keys present win; ALL absent + CLI lock → keep the locked tune; all absent + no lock → reset to identity (alpha.7 reset-on-comment). |
-| `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. Removing ALL entries lifts the ambient overlay: an ambient-OWNED scene reverts to the locked startup scene family (v51.2, see section 14); a user shortkey scene survives. |
+| `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. Removing ALL entries lifts the ambient overlay: an ambient-OWNED scene reverts to the locked startup scene family (v80.0.0-beta.1, see section 14); a user shortkey scene survives. |
 | `scene-custom.<name>.*` | `--scene-custom` | OK YES | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (scene defaults sit BELOW the CLI lock); intra-block conflicts resolve deterministically like startup. |
 | `message` / `message-border` | `-m` / `-mb` | OK YES | Key present wins; absent + CLI lock → keep the locked message; absent + no lock → default fallback (alpha.7). |
 | `msg-mode` | `--msg-mode` | OK YES | Key present wins; absent + CLI lock → keep; absent + no lock → default true. |
@@ -308,21 +308,21 @@ severity — rarely changes mid-session.
 mirrors the `crystal-dragon` / `power-dragon` / `async-mode` pattern.
 CLI `--monolith-size` wins over config on live-reload.
 
-### Updated Per-Key Live-Reload Matrix (v51)
+### Updated Per-Key Live-Reload Matrix (v80.0.0-beta.1)
 
-> v51.1 (2026-09-01): the "CLI Intent Guard?" column below describes
-> the v50/v51 guard design (pre-v51.1). The guards as written could
+> v80.0.0-beta.1 (2026-09-01): the "CLI Intent Guard?" column below describes
+> the v50/v80.0.0-beta.1 guard design (pre-v80.0.0-beta.1). The guards as written could
 > never fire in production after v50.0.0-beta.6 zeroed `cli_explicit`
-> at every reload — see section 13 for the v51.1 contract that replaced
+> at every reload — see section 13 for the v80.0.0-beta.1 contract that replaced
 > both the guards-as-blockers and the zeroing: the flags are now the
 > CLI-LOCKED fallback layer (key present wins; key absent falls back
 > to the locked startup value).
 
-| Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? (pre-v51.1 design) |
+| Config Key | CLI Flag | Live-Reloads? | CLI Intent Guard? (pre-v80.0.0-beta.1 design) |
 |------------|----------|:-------------:|:-----------------:|
-| `color` | `--color` | OK YES | OK YES — v51: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
+| `color` | `--color` | OK YES | OK YES — v80.0.0-beta.1: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
 | `charset` | `--charset` | OK YES | OK YES |
-| `scene` | `--scene` | OK YES | OK YES — v51: switching TO a `[scene-custom.<name>]` scene now applies base-scene + fields (incl. rain_style); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
+| `scene` | `--scene` | OK YES | OK YES — v80.0.0-beta.1: switching TO a `[scene-custom.<name>]` scene now applies base-scene + fields (incl. rain_style); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
 | `speed` | `--speed` | OK YES | OK YES |
 | `density` | `--density` | OK YES | OK YES |
 | `fps` | `--fps` | OK YES | OK YES |
@@ -335,12 +335,12 @@ CLI `--monolith-size` wins over config on live-reload.
 | `bold` | `--bold` | OK YES | X NO (no CLI intent gate) |
 | `shading-mode` | `--shading-mode` | OK YES | X NO (no CLI intent gate) |
 | `color.tune.*` | `--color-tune` | OK YES | OK YES |
-| `ambient.HH-MM` | (none) | OK YES | N/A (v51.2: full removal reverts ambient-owned scenes — see section 14). |
+| `ambient.HH-MM` | (none) | OK YES | N/A (v80.0.0-beta.1: full removal reverts ambient-owned scenes — see section 14). |
 | `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES |
 | **`message`** | `-m` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`message-border`** | `-mb` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`msg-mode`** | `--msg-mode` | OK YES (FIXED in alpha.7) | OK YES (`cli.msg_mode`) |
-| **`msg-fill-style`** | `-mfs` / `--msg-fill-style` | OK YES (added v51) | OK YES (`cli.msg_fill_style`) |
+| **`msg-fill-style`** | `-mfs` / `--msg-fill-style` | OK YES (added v80.0.0-beta.1) | OK YES (`cli.msg_fill_style`) |
 | **`intro-color`** | `--intro-color` | OK YES (FIXED in alpha.7) | OK YES (`cli.intro_color`) |
 | **`intro`** | `--intro` | X NO (one-shot) | N/A |
 
@@ -464,7 +464,7 @@ NOT reset (CLI wins).
 
 ---
 
-## 9. v51 Z-master-1B Audit — Custom Palette / Scene Switching (2026-08-30)
+## 9. v80.0.0-beta.1 Z-master-1B Audit — Custom Palette / Scene Switching (2026-08-30)
 
 Owner suspicion: "some functions in config.toml don't work at
 live-reload." Deep audit of every `USER_CONFIG_KEYS` entry against
@@ -509,7 +509,7 @@ animation — documented Limitation, not a gap).
 ## 10. Source-Code References (for implementer)
 
 - `rebuild_cloud_config`: `src/config/live_config/mod.rs` (starts near the
-  top of the file; the color/scene/scene-custom blocks are the v51-audited
+  top of the file; the color/scene/scene-custom blocks are the v80.0.0-beta.1-audited
   paths)
 - Event-loop rebuild consumer: `src/interactive/event_loop_config_rebuild.rs`
   (`apply_config_rebuild` — swaps the Cloud + Frame between frames)
@@ -545,7 +545,7 @@ Verification: 12 regression tests in
 conflict rules, and the palette-clear-on-scene-switch. Full suite
 green: 1957 passed / 0 failed.
 
-Priority contract (as documented at the time — v51.1 REPLACED the
+Priority contract (as documented at the time — v80.0.0-beta.1 REPLACED the
 runtime layer, see section 13; the field layers below the CLI lock are
 unchanged):
 
@@ -584,12 +584,12 @@ Verification: 9 regression tests in
 `src/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
 2 `build_cli_explicit` argv-level). Suite green: 1967 passed / 0 failed.
 
-> v51.1 note: the five guards added by this audit were DEAD in production
+> v80.0.0-beta.1 note: the five guards added by this audit were DEAD in production
 > from the day they shipped — v50.0.0-beta.6 zeroed `cli_explicit` on
 > every rebuild BEFORE `rebuild_cloud_config` could read the flags, so
 > the tests (which call the function directly with live flags) passed
 > while production never took the guarded path. Section 13 documents the
-> v51.1 fix: the zeroing is gone and the flags drive the locked-fallback
+> v80.0.0-beta.1 fix: the zeroing is gone and the flags drive the locked-fallback
 > contract instead of blocking config keys.
 
 Stale matrix rows fixed in the same pass (section 1): the
@@ -599,7 +599,7 @@ in v50.0.0-alpha.7 — the rows now match the code.
 
 ---
 
-## 13. v51.1 CLI-Locked Fallback Contract (owner audit 2026-09-01)
+## 13. v80.0.0-beta.1 CLI-Locked Fallback Contract (owner audit 2026-09-01)
 
 Owner repro (the "premature logic" report):
 
@@ -638,7 +638,7 @@ falls back to the locked CLI value, without exit and rerun. Not just
    base (the locked layer) was permanently contaminated with the
    config-driven scene, so commenting the key out could never revert.
 
-### The v51.1 contract
+### The v80.0.0-beta.1 contract
 
 ```text
 Startup:  CLI > config.toml > scene defaults > built-in defaults
@@ -699,7 +699,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
   speed=9.00 density=0.750`; phase 2 `scene key removed — reverting to
   the locked startup scene 'crystal-dragon' (runtime was 'cinematic')` +
   `Cloud rebuilt — speed=30.00 density=0.780`; phase 3 `fps='45'`
-  applies with the scene still locked. The same script on the pre-v51.1
+  applies with the scene still locked. The same script on the pre-v80.0.0-beta.1
   tree FAILS phase 2 (stays cinematic) — the bug was real and is fixed.
 - 10s monolith 80x24 A/B benchmark with a same-system control pair
   (machine drift was ±2% during the session): visual parity (entropy
@@ -710,15 +710,15 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
 
 ---
 
-## 14. v51.2 Ambient Overlay Lift + Power-Dragon Density Gate (owner audit 2026-09-01)
+## 14. v80.0.0-beta.1 Ambient Overlay Lift + Power-Dragon Density Gate (owner audit 2026-09-01)
 
-Two owner-approved extensions of the v51.1 contract, landed the same
+Two owner-approved extensions of the v80.0.0-beta.1 contract, landed the same
 day ("run the same contract audit on the ambient snapback path next ...
 until no remaining more"):
 
 ### 14.1 `ambient.*` is a config-family overlay on the scene family
 
-The v51.1 contract for the plain `scene` key (config present wins;
+The v80.0.0-beta.1 contract for the plain `scene` key (config present wins;
 commented out falls back to the CLI lock) now extends to the ambient
 schedule. `ambient.HH-MM = <scene>` entries are a runtime overlay: while
 present they outrank the CLI-locked scene (same as any config key); when
@@ -743,7 +743,7 @@ Two cooperating paths enforce the lift (whichever sees the file first):
    file while ambient is actively applied, beating the watcher's
    latency). `revert_ambient_owned_scene()` re-applies the locked
    startup scene's runtime profile and rebuilds the render triple.
-   v51.2 also stopped the nuke from faking
+   v80.0.0-beta.1 also stopped the nuke from faking
    `user_override_since_ambient = true` (it poisoned a later rebuild's
    ownership decision into keeping the stale ambient scene).
 2. **Live-reload rebuild** (`event_loop_config_rebuild.rs` via
@@ -764,7 +764,7 @@ stays at user-configured density/speed regardless of CPU pressure" was
 only half-true: v50 Option D gated the HUD display, but
 `cloud.set_perf_pressure()` kept feeding the raw pressure — so
 `rain_at()` still throttled the spawn scale with the dragon "off".
-v51.2 gates the FEED itself (`event_loop_hud.rs`): with power-dragon off
+v80.0.0-beta.1 gates the FEED itself (`event_loop_hud.rs`): with power-dragon off
 the cloud sees pressure 0.0, so every consumer (spawn scale, phosphor
 ramp, glitch gate, atmospheric event gate, CRT vignette) returns to its
 zero-pressure behavior, and `prs:`/`dsty:` stay consistent (both show
@@ -776,7 +776,7 @@ promise "disables aggressive_throttle").
 
 The v50 linear curve `1 - 0.75*p` cut the density nearly in half at
 moderate pressure (the owner observed `dsty: ~0.47` from a configured
-0.85 — "should not extreme throttle"). v51.2 replaces it with the
+0.85 — "should not extreme throttle"). v80.0.0-beta.1 replaces it with the
 owner's banded masterclass (ceiling = the configured density: CLI
 `-d` > config `density` > scene builtin, e.g. monolith 0.85):
 

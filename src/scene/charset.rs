@@ -46,7 +46,7 @@ impl Charset {
     }
 }
 
-/// v51 did-you-mean audit: canonical preset-name list. Kept in lockstep
+/// v80.0.0-beta.1 did-you-mean audit: canonical preset-name list. Kept in lockstep
 /// with the `charset_from_str` match arms and the `--list-charsets`
 /// printer (single source of truth for suggestions; the printer keeps
 /// its own formatted descriptions).
@@ -123,7 +123,7 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
         "runic" => Ok(Charset::RUNIC),
         "zen" => Ok(Charset::ZEN),
         _ => Err({
-            // v51 did-you-mean audit: suggest the closest preset (same
+            // v80.0.0-beta.1 did-you-mean audit: suggest the closest preset (same
             // edit-distance <= 2 policy as colors/scenes). Custom
             // [charset-custom.<name>] blocks are not suggested here —
             // charset_from_str has no config access; --list-charsets
@@ -317,7 +317,7 @@ mod tests {
 mod suggestion_tests {
     use super::*;
 
-    /// v51 did-you-mean audit: unknown charset errors suggest the closest
+    /// v80.0.0-beta.1 did-you-mean audit: unknown charset errors suggest the closest
     /// preset (edit-distance <= 2, same policy as colors).
     #[test]
     fn unknown_charset_typo_suggests_closest_preset() {

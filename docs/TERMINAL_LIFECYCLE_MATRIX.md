@@ -128,7 +128,7 @@ Terminal residue after SIGKILL is expected and documented. The user
 should run manual recovery if needed (`stty sane`, `printf '\033c'`,
 or `cosmostrix --reset-terminal`).
 
-Live verification 2026-08-30 (v51.0.0-beta.1,
+Live verification 2026-08-30 (v80.0.0-beta.1.0-beta.1,
 `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md`): with the normal
 terminal topology (cosmostrix as a foreground child, shell as session
 leader), `kill -9` left the guard child alive and termios was fully

@@ -11,7 +11,7 @@
 //! `new()` at row 21) + recomputes the chroma gradient + resizes the
 //! cached_lines buffer to fit the new content width.
 //!
-//! v51 row order (owner mandate 2026-08-31, "reorder/tidying HUD
+//! v80.0.0-beta.1 row order (owner mandate 2026-08-31, "reorder/tidying HUD
 //! metrics") + Z-master-1X round 5 (dcel/tcel added): identity/scene
 //! lines moved up next to the health core (scn/chr/clr at rows 8-10,
 //! before the user-adjustable sped/dsty at 11-12), dragon + tuning
@@ -21,7 +21,7 @@
 //! keeps a prominent position and the terminal size stays the visual
 //! anchor at the bottom).
 //!
-//! Also owns `HudState::set_metrics_paused()` — the v51 pause-freeze
+//! Also owns `HudState::set_metrics_paused()` — the v80.0.0-beta.1 pause-freeze
 //! contract (owner bug fix 2026-08-30): while the rain is paused (or
 //! decelerating toward pause), every running metric STOPS — uptime,
 //! fps, max, p99, cpu, rss, ehs, prs all hold their last active value,
@@ -44,7 +44,7 @@ use super::{
 };
 
 impl HudState {
-    /// Announce the pause state for metric freezing (v51, owner bug fix
+    /// Announce the pause state for metric freezing (v80.0.0-beta.1, owner bug fix
     /// 2026-08-30). Called every frame by the event loop with
     /// `cloud.is_paused_or_decelerating()` — the SAME predicate the
     /// keybinding pause guard and the mouse click-wave guard use, so the
@@ -107,7 +107,7 @@ impl HudState {
         // < 1d:  Xh:MM    e.g. 1h:03
         // >= 1d: Xd:YYh   e.g. 2d:03h
         //
-        // v51 pause freeze: paused time is EXCLUDED — the open segment
+        // v80.0.0-beta.1 pause freeze: paused time is EXCLUDED — the open segment
         // grows at the same rate as the elapsed clock while paused, so
         // the subtraction pins `up:` at the value it had when 'p' was
         // pressed; on resume it continues from exactly there.
@@ -198,7 +198,7 @@ impl HudState {
         };
         self.cached_lines[4] = (colors[4], format!(" cpu: {cpu_str}"));
         self.cached_lines[5] = (colors[5], format!(" rss: {rss_str}"));
-        // v50 (2026-08-17) HUD expansion → v51 reorder (owner mandate
+        // v50 (2026-08-17) HUD expansion → v80.0.0-beta.1 reorder (owner mandate
         // 2026-08-31) → Z-master-1X round 5 (dcel/tcel added): populate
         // the metric rows in the current order — after the health pair
         // (ehs/prs, rows 6-7) come the identity lines (scn/chr/clr,
@@ -222,7 +222,7 @@ impl HudState {
         let prs_clamped = self.effective_pressure.clamp(0.0, 1.0);
         self.cached_lines[7] = (colors[7], format!(" prs: {prs_clamped:.2}"));
         // scn (scene name): string, no format. User cycles via `x`.
-        // v51: moved up to row 8 — identity lines sit directly under the
+        // v80.0.0-beta.1: moved up to row 8 — identity lines sit directly under the
         // health core (owner reorder mandate).
         self.cached_lines[8] = (colors[8], format!(" scn: {}", self.scene_name));
         // chr (charset preset): string, no format. User cycles via `s`/`S`.
@@ -242,16 +242,16 @@ impl HudState {
         };
         self.cached_lines[10] = (colors[10], clr_line);
         // sped (chars-per-sec speed): 1 decimal. User adjusts via ↑/↓.
-        // v51: moved down to row 11 — user-adjustable controls now follow
+        // v80.0.0-beta.1: moved down to row 11 — user-adjustable controls now follow
         // the identity lines (owner reorder mandate).
         let sped_val = self.chars_per_sec;
         self.cached_lines[11] = (colors[11], format!(" sped: {sped_val:.1}"));
         // dsty (droplet density multiplier): 2 decimals. User adjusts via
         // [/]. Owner explicitly mandated `dsty` label (NOT `den`).
         //
-        // v50.0.0-beta.6 Option D + v51.2 masterclass: when power-dragon is
+        // v50.0.0-beta.6 Option D + v80.0.0-beta.1 masterclass: when power-dragon is
         // ON, dsty is DYNAMIC — it reflects the effective density after the
-        // power-dragon throttle. The v51.2 banded throttle (via
+        // power-dragon throttle. The v80.0.0-beta.1 banded throttle (via
         // compute_spawn_scale, the same function used in rain_at()) uses the
         // user's configured density as the CEILING: dead zone below 5%
         // pressure (dsty = configured density), low band 0.84-0.70, medium
@@ -279,14 +279,14 @@ impl HudState {
         // next 1 Hz tick. Renders as " prdr: on" / " prdr: off" and
         // " crdr: on" / " crdr: off" (lowercase to match the existing
         // HUD label convention: fps/tgt/max/p99/cpu/rss/ehs/prs/etc).
-        // v51 reorder: rows 13-14 (were 15-16).
+        // v80.0.0-beta.1 reorder: rows 13-14 (were 15-16).
         let prdr_val = if self.power_dragon_on { "on" } else { "off" };
         self.cached_lines[13] = (colors[13], format!(" prdr: {prdr_val}"));
         let crdr_val = if self.crystal_dragon_on { "on" } else { "off" };
         self.cached_lines[14] = (colors[14], format!(" crdr: {crdr_val}"));
 
         // v50.0.0-beta.7 Option C expansion — 4 new owner-mandated metrics.
-        // v51 reorder: rows 15-18 (were 17-20).
+        // v80.0.0-beta.1 reorder: rows 15-18 (were 17-20).
         // ambt: ambient on/off (auto-detected from config.toml ambient.HH-MM entries).
         let ambt_val = if self.ambient_on { "on" } else { "off" };
         self.cached_lines[15] = (colors[15], format!(" ambt: {ambt_val}"));

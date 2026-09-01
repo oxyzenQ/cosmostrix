@@ -9,15 +9,15 @@
 //!
 //! - `resolve_scene_base_action()` — pure decision from the config map
 //!   delta (key present / key just removed / key never present);
-//! - `ambient_removed_between_maps()` — v51.2 pure detector for the
+//! - `ambient_removed_between_maps()` — v80.0.0-beta.1 pure detector for the
 //!   ambient overlay lifting (all `ambient.*` keys removed between the
 //!   previously applied map and the new one);
 //! - `sync_base_cfg_with_runtime_scene()` — re-applies a runtime scene's
 //!   managed defaults onto the base (shortkey `x`/`X` cycles, ambient
 //!   fires — the runtime scene must survive unrelated config edits);
-//! - `restore_locked_scene_family()` — v51.1 CLI-locked fallback: rolls
+//! - `restore_locked_scene_family()` — v80.0.0-beta.1 CLI-locked fallback: rolls
 //!   the scene family back to the pristine startup snapshot when the
-//!   config `scene` override is removed, and v51.2: when the ambient
+//!   config `scene` override is removed, and v80.0.0-beta.1: when the ambient
 //!   schedule is removed while it owned the visual state (owner
 //!   contract, 2026-09-01).
 
@@ -25,7 +25,7 @@ use std::collections::HashMap;
 
 use crate::CloudConfig;
 
-/// v51.1 masterclass: what the rebuild base should do with the scene
+/// v80.0.0-beta.1 masterclass: what the rebuild base should do with the scene
 /// family, derived from the config map delta.
 #[derive(Debug, PartialEq, Eq)]
 pub(super) enum SceneBaseAction {
@@ -65,7 +65,7 @@ pub(super) fn resolve_scene_base_action(
     }
 }
 
-/// v51.2 ambient overlay rule (owner contract extension): did the config
+/// v80.0.0-beta.1 ambient overlay rule (owner contract extension): did the config
 /// map delta REMOVE the ambient schedule (all `ambient.*` keys commented
 /// out)?
 ///
@@ -81,7 +81,7 @@ pub(super) fn resolve_scene_base_action(
 /// `scene`-key contract (config present wins, absent reverts to the CLI
 /// lock). Without this, commenting out `ambient.*` left the engine stuck
 /// on the ambient-applied scene (the same "last value sticks" defect
-/// family v51.1 fixed for the scene key).
+/// family v80.0.0-beta.1 fixed for the scene key).
 pub(super) fn ambient_removed_between_maps(
     new_map: &HashMap<String, String>,
     prev_map: Option<&HashMap<String, String>>,
@@ -97,7 +97,7 @@ pub(super) fn ambient_removed_between_maps(
             .is_empty()
 }
 
-/// v51.2: full scene-base decision including the ambient overlay rule.
+/// v80.0.0-beta.1: full scene-base decision including the ambient overlay rule.
 ///
 /// Composes [`resolve_scene_base_action`] with the ambient overlay lift:
 /// when the plain `scene`-key delta resolves to `SyncRuntime` (no scene
@@ -135,7 +135,7 @@ pub(super) fn resolve_scene_base_with_ambient(
 
 /// Restore the locked startup scene family onto the rebuild base.
 ///
-/// v51.1 masterclass (owner contract, 2026-09-01): mirrors
+/// v80.0.0-beta.1 masterclass (owner contract, 2026-09-01): mirrors
 /// `sync_base_cfg_with_runtime_scene`'s managed-field set (plus `density`,
 /// which travels with `base_density`) — exactly the fields the sync may
 /// have contaminated while a config-driven scene was active. Fields
@@ -191,7 +191,7 @@ pub(super) fn restore_locked_scene_family(base_cfg: &mut CloudConfig, startup_cf
 /// - `scene_name`: the runtime scene name (from the event loop's
 ///   `scene_name` local, which is updated by `x`/`X`/ambient fires).
 ///
-/// v51.1: the caller (event_loop_config_rebuild.rs) invokes this only on
+/// v80.0.0-beta.1: the caller (event_loop_config_rebuild.rs) invokes this only on
 /// the [`SceneBaseAction::SyncRuntime`] branch — never while a
 /// config `scene` key is present, and never on the restore branch (the
 /// restore rolls this sync's contamination back to the startup values).
@@ -411,11 +411,11 @@ mod tests {
         assert_eq!(base.rain_style, crate::rain_style::RainStyle::Glyph);
     }
 
-    // ── the owner's exact end-to-end scenario (v51.1 contract) ────────
+    // ── the owner's exact end-to-end scenario (v80.0.0-beta.1 contract) ────────
 
     /// Owner repro: run `--scene crystal-dragon`, edit config.toml to
     /// uncomment `scene = cinematic` (live-reload switches — good), then
-    /// comment it back out. Before v51.1 the engine STAYED on cinematic
+    /// comment it back out. Before v80.0.0-beta.1 the engine STAYED on cinematic
     /// (the runtime scene sync contaminated the rebuild base + the CLI
     /// lock was zeroed at the first reload). The contract: the engine
     /// detects no config value to override the CLI and falls back to the
@@ -467,7 +467,7 @@ mod tests {
         assert_eq!(cfg3.target_fps, 60.0);
     }
 
-    // ── v51.2: ambient overlay lift (ambient snapback contract) ──────
+    // ── v80.0.0-beta.1: ambient overlay lift (ambient snapback contract) ──────
 
     #[test]
     fn ambient_removed_detector_pure_map_delta() {
@@ -573,10 +573,10 @@ mod tests {
         );
     }
 
-    /// Owner repro (ambient variant of the v51.1 contract): run with
+    /// Owner repro (ambient variant of the v80.0.0-beta.1 contract): run with
     /// `--scene crystal-dragon` + `ambient.09-00 = cinematic`. Ambient
     /// applies (snapback/rx), then the user comments out ALL ambient keys.
-    /// Before v51.2 the engine STAYED on cinematic (SyncRuntime synced the
+    /// Before v80.0.0-beta.1 the engine STAYED on cinematic (SyncRuntime synced the
     /// ambient scene into the rebuild base). The contract: the ambient
     /// overlay lifts → the engine falls back to the locked crystal-dragon
     /// — no exit, no rerun.
@@ -608,7 +608,7 @@ mod tests {
             SceneBaseAction::RestoreLocked,
             "ambient comment-out must lift the overlay (restore the CLI lock)"
         );
-        // The runtime scene sync contaminated the base first (pre-v51.2
+        // The runtime scene sync contaminated the base first (pre-v80.0.0-beta.1
         // behavior) — model that, then the restore must roll it back.
         sync_base_cfg_with_runtime_scene(&mut base, runtime_scene);
         restore_locked_scene_family(&mut base, &startup);

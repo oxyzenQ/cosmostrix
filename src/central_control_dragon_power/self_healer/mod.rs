@@ -144,7 +144,7 @@ impl PerformanceSelfHealer {
     /// that dragon power must not change visual identity.
     ///
     /// The new design sets `cloud.aggressive_throttle = true` instead,
-    /// which only affects the spawn-scale formula (v51.2: reads the
+    /// which only affects the spawn-scale formula (v80.0.0-beta.1: reads the
     /// pressure 0.20 deeper on the same band edges — see
     /// `central_control_rains::density_throttle`) and disables glitches
     /// — the user's visual settings are never touched. This constant is

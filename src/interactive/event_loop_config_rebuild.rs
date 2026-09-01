@@ -20,7 +20,7 @@ use crate::terminal::Terminal;
 /// Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
 ///
 /// Handles the full live-reload rebuild path: scene base resolution
-/// (v51.1 CLI-locked fallback), config rebuild, ecosystem inheritance,
+/// (v80.0.0-beta.1 CLI-locked fallback), config rebuild, ecosystem inheritance,
 /// palette transition, HUD sync, ambient schedule reload + consistency
 /// fix, and ambient entry application.
 ///
@@ -52,7 +52,7 @@ pub(crate) fn apply_config_rebuild(
     def_ascii: bool,
 ) -> bool {
     if let Some(new_cfg_map) = pending_config.take() {
-        // v51.1 masterclass: CLI-locked fallback (owner contract, 2026-09-01).
+        // v80.0.0-beta.1 masterclass: CLI-locked fallback (owner contract, 2026-09-01).
         //
         // Startup:  CLI > config.toml > scene defaults.
         // Runtime:  config key present > CLI lock (locked startup value).
@@ -79,7 +79,7 @@ pub(crate) fn apply_config_rebuild(
         // locked layer for rebuild_cloud_config's fallback arms and the
         // scene-default gates.
         //
-        // v51.2 ambient overlay rule (owner contract extension): the
+        // v80.0.0-beta.1 ambient overlay rule (owner contract extension): the
         // `ambient.*` keys are a config-family overlay on the scene family.
         // When they are removed at runtime (all commented out) while the
         // ambient phase OWNS the visual state (no user shortkey/CLI
@@ -90,7 +90,7 @@ pub(crate) fn apply_config_rebuild(
         // `scene`-key contract (config present wins, absent reverts to the
         // CLI lock). Without this, commenting out `ambient.*` left the
         // engine stuck on the ambient-applied scene (the same "last value
-        // sticks" defect family v51.1 fixed for the scene key). A user
+        // sticks" defect family v80.0.0-beta.1 fixed for the scene key). A user
         // override (x/c/s keys) keeps SyncRuntime — the user's scene
         // survives ambient removal (shortkeys outrank the ambient overlay
         // at runtime).
@@ -110,7 +110,7 @@ pub(crate) fn apply_config_rebuild(
                 // the CLI locks per field).
             }
             super::event_loop_scene_sync::SceneBaseAction::RestoreLocked => {
-                // v51.1: the config `scene` key was removed. v51.2: OR the
+                // v80.0.0-beta.1: the config `scene` key was removed. v80.0.0-beta.1: OR the
                 // ambient schedule was removed while it owned the visual
                 // state. Either way the override layer lifts and the scene
                 // family reverts to the locked startup snapshot.

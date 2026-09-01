@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51.2 adaptive density throttle (owner masterclass mandate, 2026-09-01).
+//! v80.0.0-beta.1 adaptive density throttle (owner masterclass mandate, 2026-09-01).
 //!
 //! Banded spawn-scale curve with the user's configured density as the
 //! CEILING — extracted from `central_control_rains/mod.rs` to keep that
@@ -10,7 +10,7 @@
 //! events / parallax), so `crate::central_control_rains::*` and
 //! `crate::constants::*` consumers see no change.
 
-// v51.2 adaptive density throttle bands (owner masterclass mandate,
+// v80.0.0-beta.1 adaptive density throttle bands (owner masterclass mandate,
 // 2026-09-01). Replaces the v50 linear curve `1 - factor*p`
 // (PERF_PRESSURE_SPAWN_FACTOR 0.75/0.9 + scale floors 0.25/0.10), which
 // cut the density nearly in half at moderate pressure (density 0.85 -> ~0.47
@@ -70,7 +70,7 @@ pub(crate) const DENSITY_THROTTLE_HIGH_BOTTOM: f32 = 0.10;
 /// curve or a second constant set.
 pub(crate) const DENSITY_THROTTLE_AGGRESSIVE_SHIFT: f32 = 0.20;
 
-/// v50.0.0-beta.6 Option D + v51.2 banded masterclass: shared
+/// v50.0.0-beta.6 Option D + v80.0.0-beta.1 banded masterclass: shared
 /// spawn-scale computation.
 ///
 /// Single source of truth for the spawn-throttle formula. Called from:

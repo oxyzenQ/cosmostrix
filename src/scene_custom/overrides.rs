@@ -340,7 +340,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             if new.cli_explicit.bold {
                 return false;
             }
-            // v51 killer-features hardening: enforce the SAME 0..=2 range as
+            // v80.0.0-beta.1 killer-features hardening: enforce the SAME 0..=2 range as
             // the startup path (apply_profile_overrides uses
             // parse_u8_override(.., 0, 2)) and as --testconf validation
             // ("expected 0, 1, or 2"). Previously this arm accepted ANY u8
@@ -370,7 +370,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             if new.cli_explicit.shading_mode {
                 return false;
             }
-            // v51 killer-features hardening: enforce the SAME 0..=1 range as
+            // v80.0.0-beta.1 killer-features hardening: enforce the SAME 0..=1 range as
             // startup (parse_u8_override(.., 0, 1)) and --testconf — see the
             // bold arm note. Previously any u8 was accepted.
             match value.trim().parse::<u8>() {
@@ -393,7 +393,7 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             if new.cli_explicit.async_mode {
                 return false;
             }
-            // v51 killer-features hardening: use the shared parse_bool
+            // v80.0.0-beta.1 killer-features hardening: use the shared parse_bool
             // (true/false/1/0/yes/no/on/off — the SAME accepted set as the
             // startup path) instead of treating every non-true string as
             // false. A typo like `async-mode = "banana"` is now rejected

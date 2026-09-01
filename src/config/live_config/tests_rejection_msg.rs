@@ -383,7 +383,7 @@ fn live_reload_no_config_message_clears_when_msg_mode_false() {
 
 #[test]
 fn live_reload_cli_message_locked_falls_back_when_config_absent() {
-    // v51.1: config message key PRESENT wins over the CLI -m lock
+    // v80.0.0-beta.1: config message key PRESENT wins over the CLI -m lock
     // (temporal precedence) — the rewrite of the old "CLI wins over
     // config" test. The CLI value becomes the fallback: commenting the
     // key back out keeps "from-cli" (pinned in tests_cli_fallback.rs,
@@ -398,7 +398,7 @@ fn live_reload_cli_message_locked_falls_back_when_config_absent() {
     assert_eq!(
         new.message.as_deref(),
         Some("from-config"),
-        "config message-border key present must override the CLI -m lock (v51.1)"
+        "config message-border key present must override the CLI -m lock (v80.0.0-beta.1)"
     );
     assert!(
         new.message_border,
@@ -408,7 +408,7 @@ fn live_reload_cli_message_locked_falls_back_when_config_absent() {
 
 #[test]
 fn live_reload_config_msg_mode_overrides_cli_lock_when_present() {
-    // v51.1: config `msg-mode=true` key PRESENT wins over the CLI
+    // v80.0.0-beta.1: config `msg-mode=true` key PRESENT wins over the CLI
     // --msg-mode false lock — so the config message shows. The CLI lock
     // returns when the key is commented back out (fallback path pinned
     // in tests_cli_fallback.rs).
@@ -421,7 +421,7 @@ fn live_reload_config_msg_mode_overrides_cli_lock_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
         new.msg_mode,
-        "config msg-mode key present must override the CLI lock (v51.1)"
+        "config msg-mode key present must override the CLI lock (v80.0.0-beta.1)"
     );
     assert_eq!(
         new.message.as_deref(),
@@ -432,7 +432,7 @@ fn live_reload_config_msg_mode_overrides_cli_lock_when_present() {
 
 #[test]
 fn live_reload_power_dragon_key_overrides_cli_lock_when_present() {
-    // v51.1: config `power-dragon=true` key PRESENT wins over the CLI
+    // v80.0.0-beta.1: config `power-dragon=true` key PRESENT wins over the CLI
     // --power-dragon false lock. The CLI value is the fallback on key
     // absence (pinned in tests_cli_fallback.rs).
     let mut base = minimal_cloud_config();
@@ -443,13 +443,13 @@ fn live_reload_power_dragon_key_overrides_cli_lock_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
         new.power_dragon,
-        "config power-dragon key present must override the CLI lock (v51.1)"
+        "config power-dragon key present must override the CLI lock (v80.0.0-beta.1)"
     );
 }
 
 #[test]
 fn live_reload_async_mode_key_overrides_cli_lock_when_present() {
-    // v51.1: config `async-mode=true` key PRESENT wins over the CLI
+    // v80.0.0-beta.1: config `async-mode=true` key PRESENT wins over the CLI
     // --async-mode false lock. The CLI value is the fallback on key
     // absence (pinned in tests_cli_fallback.rs).
     let mut base = minimal_cloud_config();
@@ -460,7 +460,7 @@ fn live_reload_async_mode_key_overrides_cli_lock_when_present() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
         new.async_mode,
-        "config async-mode key present must override the CLI lock (v51.1)"
+        "config async-mode key present must override the CLI lock (v80.0.0-beta.1)"
     );
 }
 
@@ -491,7 +491,7 @@ fn live_reload_intro_color_invalid_soft_fails() {
 
 #[test]
 fn live_reload_intro_color_key_overrides_cli_lock_when_present() {
-    // v51.1: config `intro-color` key PRESENT wins over the CLI
+    // v80.0.0-beta.1: config `intro-color` key PRESENT wins over the CLI
     // --intro-color lock. The CLI value is the fallback on key absence.
     let mut base = minimal_cloud_config();
     base.intro_color = Some("green".to_string());
@@ -502,13 +502,13 @@ fn live_reload_intro_color_key_overrides_cli_lock_when_present() {
     assert_eq!(
         new.intro_color.as_deref(),
         Some("energy-zen"),
-        "config intro-color key present must override the CLI lock (v51.1)"
+        "config intro-color key present must override the CLI lock (v80.0.0-beta.1)"
     );
 }
 
 #[test]
 fn live_reload_monolith_size_key_overrides_cli_lock_when_present() {
-    // v51.1: config `monolith-size` key PRESENT wins over the CLI lock
+    // v80.0.0-beta.1: config `monolith-size` key PRESENT wins over the CLI lock
     // (temporal precedence — the key is the most recent user intent).
     // The CLI value is the fallback on key absence.
     use crate::runtime::MonolithSize;
@@ -521,7 +521,7 @@ fn live_reload_monolith_size_key_overrides_cli_lock_when_present() {
     assert_eq!(
         new.monolith_size,
         MonolithSize::Small,
-        "config monolith-size key present must override the CLI lock (v51.1)"
+        "config monolith-size key present must override the CLI lock (v80.0.0-beta.1)"
     );
 }
 

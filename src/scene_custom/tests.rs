@@ -522,7 +522,7 @@ fn collect_custom_scenes_skips_oversized_names() {
 }
 use super::*;
 
-// ── v51 killer-features hardening tests ──────────────────────────────
+// ── v80.0.0-beta.1 killer-features hardening tests ──────────────────────────────
 
 #[test]
 fn parse_density_map_caps_entries_at_max() {

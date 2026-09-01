@@ -17,7 +17,7 @@ that previously toggled the HUD position (left <-> right corner) was
 renders flush-left at column 0 (the previous default). There is no `h`
 binding — it is silently ignored (catch-all).
 
-v51 row reorder (owner mandate 2026-08-31, "reorder/tidying HUD
+v80.0.0-beta.1 row reorder (owner mandate 2026-08-31, "reorder/tidying HUD
 metrics"): the identity lines (scn / chr / clr) moved up directly under
 the health pair (ehs / prs), the user-adjustable controls (sped / dsty)
 follow them, the dragon + tuning state (prdr / crdr / ambt / glth /
@@ -54,7 +54,7 @@ each line means without reading the full reference below.
 | 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
 | 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. Confirms `c`/`C` cycle. |
 | 11  | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
-| 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. v51.2: DYNAMIC when `prdr:` is on — shows the banded throttle target (dead zone below 5% pressure = the configured density; low 0.84-0.70 / medium 0.70-0.50 / high 0.50-0.10; the configured density is the ceiling). STATIC (fixed configured density) when `prdr:` is off. |
+| 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. v80.0.0-beta.1: DYNAMIC when `prdr:` is on — shows the banded throttle target (dead zone below 5% pressure = the configured density; low 0.84-0.70 / medium 0.70-0.50 / high 0.50-0.10; the configured density is the ceiling). STATIC (fixed configured density) when `prdr:` is off. |
 | 13  | `prdr:`     | on/off         | **Power Dragon** — live power-management state (throttle + idle FPS reduction). Reflects config live-reload. |
 | 14  | `crdr:`     | on/off         | **Crystal Dragon** — live ambient palette-drift state. Reflects config live-reload. |
 | 15  | `ambt:`     | on/off         | **Ambient scheduler** — whether `config.toml` ambient time-window entries are active. |
@@ -174,7 +174,7 @@ The HUD writes 24 rows into the frame buffer at the top-left corner
 8-10 are the identity lines (scn / chr / clr), rows 11-12 are the
 user-adjustable controls (sped / dsty), rows 13-18 are the dragon +
 tuning state (prdr / crdr / ambt / glth / ctun / mnst), and rows 19-21
-are the session footer (cid / up / screensize) — the v51 owner reorder
+are the session footer (cid / up / screensize) — the v80.0.0-beta.1 owner reorder
 (2026-08-31).
 
 ### 1. `fps: <N>`
@@ -315,7 +315,7 @@ and emitted in `--benchmark` JSON output as the `git_sha` field.
 
 ---
 
-## Pause Freeze (v51)
+## Pause Freeze (v80.0.0-beta.1)
 
 Press `p` and the dashboard stops with the rain. Owner bug fix
 (2026-08-30): previously the HUD kept "running" while paused — uptime

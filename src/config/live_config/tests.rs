@@ -102,7 +102,7 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         chars: vec!['0', '1'],
         message: None,
         message_border: false,
-        // v51 msg-fill-style: default keeps the classic typewriter reveal.
+        // v80.0.0-beta.1 msg-fill-style: default keeps the classic typewriter reveal.
         msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
         target_fps: 60.0,
         xtermjs_host: false,
@@ -314,7 +314,7 @@ fn rebuild_preserves_scene_name_casing_from_config() {
     );
 }
 
-/// v51.1 (owner contract, 2026-09-01): a runtime config `scene` key
+/// v80.0.0-beta.1 (owner contract, 2026-09-01): a runtime config `scene` key
 /// WINS over the CLI-locked scene — temporal precedence, the file edit
 /// is the most recent user intent. The CLI value survives as the
 /// FALLBACK: the end-to-end comment-out scenario is pinned in
@@ -329,11 +329,11 @@ fn rebuild_config_scene_key_overrides_cli_locked_scene() {
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.scene_name, "monolith",
-        "runtime config scene key must override the CLI-locked scene (v51.1)"
+        "runtime config scene key must override the CLI-locked scene (v80.0.0-beta.1)"
     );
 }
 
-/// v51.1 (owner contract): a runtime config `color` key WINS over a
+/// v80.0.0-beta.1 (owner contract): a runtime config `color` key WINS over a
 /// CLI `-c green` lock (temporal precedence). The CLI color returns
 /// when the key is commented back out — the CLI-locked fallback is
 /// pinned in tests_cli_fallback.rs.
@@ -350,7 +350,7 @@ fn rebuild_config_color_key_overrides_cli_locked_color() {
     assert_eq!(
         new.color_scheme,
         crate::runtime::ColorScheme::Snow,
-        "runtime config color key must override the CLI-locked color (v51.1)"
+        "runtime config color key must override the CLI-locked color (v80.0.0-beta.1)"
     );
 }
 
@@ -380,7 +380,7 @@ fn rebuild_preserves_cli_explicit_speed_over_scene() {
     assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
 }
 
-// ── v51 live-reload custom palette / custom scene switching (owner audit 2026-08-30) ──
+// ── v80.0.0-beta.1 live-reload custom palette / custom scene switching (owner audit 2026-08-30) ──
 //
 // Owner report: "some functions in config.toml don't work at live-reload."
 // Four confirmed bugs, all in the custom-palette / custom-scene switching
@@ -612,7 +612,7 @@ fn rebuild_custom_scene_colors_custom_field_loads_palette() {
     assert_eq!(new.custom_palette_name.as_deref(), Some("mycustompal"));
 }
 
-/// v51 startup-parity: switching scenes via config must apply the scene's
+/// v80.0.0-beta.1 startup-parity: switching scenes via config must apply the scene's
 /// fps default (startup's apply_default_scene_values does; the old
 /// live-reload block never did).
 #[test]
@@ -629,7 +629,7 @@ fn rebuild_scene_switch_applies_scene_fps_default() {
     );
 }
 
-/// v51 startup-parity: an explicit `fps` key still wins over the scene's
+/// v80.0.0-beta.1 startup-parity: an explicit `fps` key still wins over the scene's
 /// fps default (layering: config > scene defaults).
 #[test]
 fn rebuild_user_fps_key_wins_over_scene_default() {
@@ -645,7 +645,7 @@ fn rebuild_user_fps_key_wins_over_scene_default() {
     );
 }
 
-/// v51 startup-parity: switching scenes via config must apply the scene's
+/// v80.0.0-beta.1 startup-parity: switching scenes via config must apply the scene's
 /// glitch_level preset (cinematic ships Subtle).
 #[test]
 fn rebuild_scene_switch_applies_scene_glitch_default() {
@@ -663,7 +663,7 @@ fn rebuild_scene_switch_applies_scene_glitch_default() {
     assert!(new.glitch_enabled);
 }
 
-/// v51 startup-parity: an explicit `glitch-level` key still wins over the
+/// v80.0.0-beta.1 startup-parity: an explicit `glitch-level` key still wins over the
 /// scene's glitch default.
 #[test]
 fn rebuild_user_glitch_key_wins_over_scene_default() {

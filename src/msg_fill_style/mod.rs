@@ -3,7 +3,7 @@
 
 //! Message overlay fill (reveal) style selection — one file per style.
 //!
-//! v51 msg-fill-style: the message overlay reveal animation is no longer
+//! v80.0.0-beta.1 msg-fill-style: the message overlay reveal animation is no longer
 //! hardwired to the classic typewriter. Ten styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
@@ -21,7 +21,7 @@
 //! | `scorch`    | 80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs | lags text (t^1.5) + smoke |
 //! | `cascade`   | 60 ms/col drop-from-above, 240 ms fall, column-paced waterfall | lags text (t^1.5) |
 //!
-//! Default is `typewriter` — bit-identical to the pre-v51 renderer, so
+//! Default is `typewriter` — bit-identical to the pre-v80.0.0-beta.1 renderer, so
 //! upgrading changes nothing unless the user opts in (LTS guarantee).
 //!
 //! ## One file per style (owner refactor mandate)
@@ -305,7 +305,7 @@ pub(super) fn char_fade_in(elapsed_ms: Option<usize>, reveal_at_ms: usize, fade_
 }
 
 /// Shared border-lag curve for text-paced styles: `text_progress^1.5`
-/// ease-out — the pre-v51 cinematic behavior. Used by typewriter,
+/// ease-out — the pre-v80.0.0-beta.1 cinematic behavior. Used by typewriter,
 /// slide, engrave, and words.
 #[inline]
 pub(super) fn lagged_border(text_progress: f32) -> f32 {
@@ -313,7 +313,7 @@ pub(super) fn lagged_border(text_progress: f32) -> f32 {
 }
 
 /// Shared index pacing: cells revealed after `per_char_ms` each, with
-/// the pre-v51 `.max(1)` floor (first cell at t=0) and `total_text`
+/// the pre-v80.0.0-beta.1 `.max(1)` floor (first cell at t=0) and `total_text`
 /// ceiling. `elapsed_ms = None` → everything revealed (`usize::MAX`).
 #[inline]
 pub(super) fn index_pacing(
@@ -382,7 +382,7 @@ pub(crate) fn fade_block_alpha(elapsed_ms: Option<usize>) -> f32 {
 /// style, given the style's own text-progress input.
 ///
 /// - Typewriter / slide / engrave / hologram / glitch / scorch / cascade / words: border
-///   lags behind text (`text_progress^1.5` ease-out) — the pre-v51
+///   lags behind text (`text_progress^1.5` ease-out) — the pre-v80.0.0-beta.1
 ///   cinematic behavior.
 /// - Fade: border fades together with the text block.
 /// - Instant: border draws clockwise on an independent 1 s timeline
@@ -444,7 +444,7 @@ pub(crate) fn text_progress(
 /// per-cell and never reads the budget; only the `None` timeline →
 /// `usize::MAX` is meaningful for them).
 ///
-/// The `.max(1)` mirrors the pre-v51 renderer: the first cell appears
+/// The `.max(1)` mirrors the pre-v80.0.0-beta.1 renderer: the first cell appears
 /// immediately so the very first frame is never fully empty.
 #[inline]
 pub(crate) fn index_reveal_count(
@@ -489,7 +489,7 @@ mod tests {
     #[test]
     fn none_elapsed_timeline_settles_everything() {
         // elapsed_ms = None (no animation state): every style must show
-        // all cells at full brightness — matches pre-v51 usize::MAX
+        // all cells at full brightness — matches pre-v80.0.0-beta.1 usize::MAX
         // reveal_count semantics. The draw loop passes the reveal_count
         // from index_reveal_count (usize::MAX when there is no timeline).
         for style in [

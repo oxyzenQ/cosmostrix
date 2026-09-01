@@ -309,7 +309,7 @@ fn closest_color_name(input: &str) -> Option<&'static str> {
     best.map(|(name, _)| name)
 }
 
-// v51 did-you-mean audit: edit_distance moved to cli/suggestion.rs as the
+// v80.0.0-beta.1 did-you-mean audit: edit_distance moved to cli/suggestion.rs as the
 // shared engine (closest_value_match + closest_color_name both use it).
 use suggestion::edit_distance;
 

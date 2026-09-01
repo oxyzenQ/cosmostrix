@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51.2 power-dragon gate regression tests (owner masterclass mandate,
+//! v80.0.0-beta.1 power-dragon gate regression tests (owner masterclass mandate,
 //! 2026-09-01).
 //!
 //! Locks in the render-path contract for `power-dragon = false`:

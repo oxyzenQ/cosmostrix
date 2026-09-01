@@ -65,12 +65,12 @@ pub(super) fn reveal(content_idx: usize, elapsed_ms: Option<usize>) -> CellRevea
     }
 }
 
-/// Index budget: 60 ms/char with the pre-v51 `.max(1)` floor.
+/// Index budget: 60 ms/char with the pre-v80.0.0-beta.1 `.max(1)` floor.
 pub(super) fn reveal_budget(elapsed_ms: Option<usize>, total_text: usize) -> usize {
     index_pacing(SLIDE_CHAR_MS, elapsed_ms, total_text)
 }
 
-/// Border lags text (t^1.5) — the pre-v51 cinematic curve.
+/// Border lags text (t^1.5) — the pre-v80.0.0-beta.1 cinematic curve.
 pub(super) fn border_progress(text_progress: f32) -> f32 {
     lagged_border(text_progress)
 }

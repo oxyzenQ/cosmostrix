@@ -46,7 +46,7 @@ pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ff
     while i < argv.len() {
         let arg = &argv[i];
 
-        // v51 msg-fill-style: -mfs shorthand. Checked BEFORE -mb (no
+        // v80.0.0-beta.1 msg-fill-style: -mfs shorthand. Checked BEFORE -mb (no
         // prefix collision — "-mb" vs "-mfs" differ at the 3rd char).
         if arg == "-mfs" {
             // Space-separated form: the next token is the style value.

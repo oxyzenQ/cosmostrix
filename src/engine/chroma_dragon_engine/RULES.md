@@ -175,7 +175,7 @@ contract intentionally changed, in which case update the count)
 
 **Author**: oxyzenQ
 **Reason**: Add 45th builtin color scheme "Aurora Borealis" to support
-the v51 "Northern Lights" theme pack. Additive change only — no existing
+the v80.0.0-beta.1 "Northern Lights" theme pack. Additive change only — no existing
 code path modified.
 
 **Files changed**:

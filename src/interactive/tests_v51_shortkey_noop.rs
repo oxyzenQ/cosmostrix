@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51 Z-master-1B shortkey audit: exhaustive no-op lock.
+//! v80.0.0-beta.1 Z-master-1B shortkey audit: exhaustive no-op lock.
 //!
 //! Owner mandate: verify that ONLY the documented shortkeys have effects
 //! — every other key must be a complete no-op. Trigger: a user pressing

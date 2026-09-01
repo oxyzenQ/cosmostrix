@@ -5,7 +5,7 @@
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 //!
 //! Captures which CLI flags were explicitly set by the user (via clap's
-//! ValueSource::CommandLine check). v51.1 owner contract (2026-09-01):
+//! ValueSource::CommandLine check). v80.0.0-beta.1 owner contract (2026-09-01):
 //! the flags are the CLI LOCK, not a config blocker —
 //!
 //! ```text
@@ -34,7 +34,7 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
         matches.value_source("color"),
         Some(clap::parser::ValueSource::CommandLine)
     );
-    // Bug 3 fix: capture which CLI flags were explicitly set. v51.1 owner
+    // Bug 3 fix: capture which CLI flags were explicitly set. v80.0.0-beta.1 owner
     // contract: the flags form the CLI LOCK — startup resolution is
     // CLI > config.toml > scene defaults, and at runtime a config key
     // overrides the flag only while present (commenting the key out falls
@@ -85,7 +85,7 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
             matches.value_source("msg_mode"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
-        // v51 msg-fill-style: track -mfs/--msg-fill-style CLI explicit so
+        // v80.0.0-beta.1 msg-fill-style: track -mfs/--msg-fill-style CLI explicit so
         // live-reload preserves CLI intent over config.toml edits.
         msg_fill_style: matches!(
             matches.value_source("msg_fill_style"),

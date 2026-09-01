@@ -65,7 +65,7 @@ pub(crate) type LiveConfigEvent = Result<HashMap<String, String>, String>;
 
 /// Rebuild a CloudConfig from the locked startup base + new config values.
 ///
-/// v51.1 masterclass precedence (owner contract, 2026-09-01):
+/// v80.0.0-beta.1 masterclass precedence (owner contract, 2026-09-01):
 ///
 /// ```text
 /// Startup:  CLI > config.toml > scene defaults > built-in defaults
@@ -92,7 +92,7 @@ pub(crate) fn rebuild_cloud_config(
 ) -> crate::app::CloudConfig {
     let mut new = base.clone();
     // Snapshot CLI-explicit tracker — the LOCKED layer (alive for the whole
-    // session; the v50.0.0-beta.6 zeroing in the caller was removed in v51.1
+    // session; the v50.0.0-beta.6 zeroing in the caller was removed in v80.0.0-beta.1
     // because it destroyed every CLI lock on the first reload).
     // CliExplicit derives Copy, so this is a cheap field copy, not a heap clone.
     let cli = new.cli_explicit;
@@ -101,11 +101,11 @@ pub(crate) fn rebuild_cloud_config(
     let user_set_color = cfg.contains_key("color");
     let user_set_charset = cfg.contains_key("charset");
 
-    // Color scheme — config key present wins over the CLI lock (v51.1
+    // Color scheme — config key present wins over the CLI lock (v80.0.0-beta.1
     // temporal precedence); when the key is absent, base keeps the locked
     // startup value (CLI color first, then config@startup), so no fallback
     // arm is needed here.
-    // v51 (owner audit 2026-08-30): custom-palette parity with the startup
+    // v80.0.0-beta.1 (owner audit 2026-08-30): custom-palette parity with the startup
     // path (main.rs checks `colors-custom` FIRST — v50.0.0-beta.6 Option D).
     // The old live-reload block only parsed BUILTIN scheme names, so:
     //   - switching `color` TO a custom palette name was a silent no-op;
@@ -115,7 +115,7 @@ pub(crate) fn rebuild_cloud_config(
     // Now: custom name → load the palette (custom wins on collision,
     // mirroring startup); builtin name → clear the palette so the scheme
     // actually takes effect; absent key → keep current state.
-    // v51.1: the `!cli.color && !cli.colors_custom` guard is GONE — it
+    // v80.0.0-beta.1: the `!cli.color && !cli.colors_custom` guard is GONE — it
     // encoded the pre-beta.6 "CLI blocks config" model. A runtime config
     // `color` key now overrides a CLI color (and may clear a CLI-owned
     // palette — the owner's contract: the key is the most recent intent);
@@ -174,7 +174,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Charset — config key present wins over the CLI lock (v51.1); when
+    // Charset — config key present wins over the CLI lock (v80.0.0-beta.1); when
     // the key is absent, base keeps the locked startup charset.
     if let Some(v) = cfg.get("charset") {
         // v25: charset-custom.<name> takes precedence over built-in.
@@ -199,14 +199,14 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Scene — config key present wins over the CLI-locked scene (v51.1
+    // Scene — config key present wins over the CLI-locked scene (v80.0.0-beta.1
     // temporal precedence: the key is the most recent user intent). When
     // the key is ABSENT, the fallback is decided by the caller
     // (event_loop_config_rebuild.rs): the scene family reverts to the
     // locked startup snapshot if the key was just removed, or syncs the
     // runtime scene if it was never present — so there is no fallback arm
     // here.
-    // v51 (owner audit 2026-08-30): custom-scene parity. The old block
+    // v80.0.0-beta.1 (owner audit 2026-08-30): custom-scene parity. The old block
     // only resolved BUILTIN scenes (get_scene), so switching `scene` to
     // a custom scene name updated scene_name but left rain_style/color/
     // charset/speed/density at the PREVIOUS scene's values — a visual
@@ -215,7 +215,7 @@ pub(crate) fn rebuild_cloud_config(
     // the base-scene (mirroring startup's rain_style_for_custom_scene
     // construction path), and the field layer is applied by the
     // scene-custom tail block below (same layer the startup path uses).
-    // v51.1: the old `!cli.scene && !cli.scene_custom` outer guard is GONE
+    // v80.0.0-beta.1: the old `!cli.scene && !cli.scene_custom` outer guard is GONE
     // (it encoded the pre-beta.6 "CLI blocks config" model and contradicted
     // the runtime contract). The CLI lock now survives as the FALLBACK
     // layer — a `--scene-custom` selection returns when the config `scene`
@@ -320,7 +320,7 @@ pub(crate) fn rebuild_cloud_config(
                     new.base_density = density;
                 }
             }
-            // v51 (owner audit 2026-08-30): startup-parity — the startup
+            // v80.0.0-beta.1 (owner audit 2026-08-30): startup-parity — the startup
             // path (apply_default_scene_values) also applies the scene's
             // fps and glitch_level defaults; the live-reload block never
             // did, so switching scenes via config.toml silently kept the
@@ -363,7 +363,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Speed — config key present wins over the CLI lock (v51.1 temporal
+    // Speed — config key present wins over the CLI lock (v80.0.0-beta.1 temporal
     // precedence); absent key falls back to the locked startup value in
     // base (CLI speed first), so no fallback arm is needed.
     if let Some(v) = cfg.get("speed") {
@@ -375,7 +375,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Density — config key present wins (v51.1); absent key falls back to
+    // Density — config key present wins (v80.0.0-beta.1); absent key falls back to
     // the locked startup value in base.
     if let Some(v) = cfg.get("density") {
         if let Ok(n) = crate::validation::parse_canonical_f32_range("density", v, 0.01, 5.0) {
@@ -387,7 +387,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // FPS — config key present wins (v51.1); absent key falls back to the
+    // FPS — config key present wins (v80.0.0-beta.1); absent key falls back to the
     // locked startup value in base.
     if let Some(v) = cfg.get("fps") {
         if let Ok(n) = crate::validation::parse_canonical_f64_range("fps", v, 1.0, 240.0) {
@@ -398,7 +398,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Glitch level — config key present wins (v51.1); absent key falls
+    // Glitch level — config key present wins (v80.0.0-beta.1); absent key falls
     // back to the locked startup value in base.
     // (CLI-P-3): re-derive ALL preset values on live reload.
     // (Glitch-BUG3): None arm now resets all 5 preset fields too.
@@ -421,7 +421,7 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // color-bg live reload (true = terminal default; false = solid black).
-    // v51.1: config key present wins over the CLI lock; absent key falls
+    // v80.0.0-beta.1: config key present wins over the CLI lock; absent key falls
     // back to the locked startup value in base.
     if let Some(v) = cfg.get("color-bg") {
         new.default_bg = match v.trim().to_ascii_lowercase().as_str() {
@@ -433,7 +433,7 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // Monolith size — v50.0.0-alpha.7 tracked CLI intent (Issue #4);
-    // v51.1: config key present wins over the CLI lock, absent key falls
+    // v80.0.0-beta.1: config key present wins over the CLI lock, absent key falls
     // back to the locked startup value in base.
     if let Some(v) = cfg.get("monolith-size") {
         use clap::ValueEnum;
@@ -442,7 +442,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // Crystal Dragon Engine — v51.1: config key present wins over the CLI
+    // Crystal Dragon Engine — v80.0.0-beta.1: config key present wins over the CLI
     // lock; absent key falls back to the locked startup value in base.
     if let Some(v) = cfg.get("crystal-dragon") {
         if let Some(b) = crate::config_apply::parse_bool_config("crystal-dragon", v) {
@@ -450,7 +450,7 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
-    // v50.0.0-alpha.7: Power Dragon live reload; v51.1: config key present
+    // v50.0.0-alpha.7: Power Dragon live reload; v80.0.0-beta.1: config key present
     // wins over the CLI lock, absent key falls back to the locked startup
     // value in base. Mirrors crystal-dragon.
     if let Some(v) = cfg.get("power-dragon") {
@@ -461,7 +461,7 @@ pub(crate) fn rebuild_cloud_config(
 
     // (CLI-P-1): live-reload bold/shading-mode/async-mode (previously
     // silently ignored). Mirrors startup parsers with range validation.
-    // v51.1: config key present wins over the CLI lock; absent key falls
+    // v80.0.0-beta.1: config key present wins over the CLI lock; absent key falls
     // back to the locked startup value in base.
     if let Some(v) = cfg.get("bold").and_then(|s| s.trim().parse::<u8>().ok()) {
         // Range-gate to match startup parse_u8_config("bold", ..., 0, 2).
@@ -479,7 +479,7 @@ pub(crate) fn rebuild_cloud_config(
             new.bold_mode = base.bold_mode;
         }
     }
-    // v51.1: config key present wins over the CLI lock; absent key falls
+    // v80.0.0-beta.1: config key present wins over the CLI lock; absent key falls
     // back to the locked startup value in base.
     if let Some(v) = cfg
         .get("shading-mode")
@@ -493,7 +493,7 @@ pub(crate) fn rebuild_cloud_config(
             new.shading_mode = base.shading_mode;
         }
     }
-    // v50.0.0-alpha.7: --async-mode CLI flag; v51.1: config key present
+    // v50.0.0-alpha.7: --async-mode CLI flag; v80.0.0-beta.1: config key present
     // wins over the CLI lock, absent key falls back to the locked startup
     // value in base. Mirrors crystal-dragon.
     if let Some(v) = cfg.get("async-mode") {
@@ -503,7 +503,7 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // v20: scene-custom live reload — re-apply fields if the custom scene
-    // is STILL the active scene. v51 (owner audit 2026-08-30): the tracker
+    // is STILL the active scene. v80.0.0-beta.1 (owner audit 2026-08-30): the tracker
     // is now `new.scene_custom_name` (updated by the scene block above when
     // the user switches scenes) instead of the immutable startup
     // `base.scene_custom_name` — otherwise the stale startup layer kept
@@ -523,7 +523,7 @@ pub(crate) fn rebuild_cloud_config(
     // v50.0.0-alpha.7 fix: when all color.tune.* keys are commented out the
     // parser returns IDENTITY — the correct "reset to default" behavior
     // for a run with no CLI lock.
-    // v51.1 (owner contract): when CLI --color-tune is explicit, an absent
+    // v80.0.0-beta.1 (owner contract): when CLI --color-tune is explicit, an absent
     // [color.tune] block falls back to the LOCKED startup tune instead of
     // resetting to identity — the CLI lock survives the key's removal.
     if cfg.keys().any(|k| k.starts_with("color.tune.")) {
@@ -557,7 +557,7 @@ pub(crate) fn rebuild_cloud_config(
     // docs/LIVE_RELOAD_BEHAVIOR.md Issue #2).
     //
     // Precedence (highest wins):
-    //   1. config `msg-mode` key (v51.1: present key wins over the CLI lock)
+    //   1. config `msg-mode` key (v80.0.0-beta.1: present key wins over the CLI lock)
     //   2. CLI --msg-mode (locked — survives key absence)
     //   3. default true (reset-on-comment, no CLI lock)
     //
@@ -575,7 +575,7 @@ pub(crate) fn rebuild_cloud_config(
     };
     new.msg_mode = msg_mode_on;
 
-    // v51.1: config `message`/`message-border` key present → wins over the
+    // v80.0.0-beta.1: config `message`/`message-border` key present → wins over the
     // CLI -m/-mb lock (temporal precedence — the key is the most recent
     // intent). Absent → the CLI lock keeps the locked startup message
     // (base.message; the CLI -m text returns when the key is commented
@@ -626,7 +626,7 @@ pub(crate) fn rebuild_cloud_config(
             );
         }
     } else if cli.message {
-        // v51.1: CLI -m/-mb locked — the config key's absence reveals
+        // v80.0.0-beta.1: CLI -m/-mb locked — the config key's absence reveals
         // the locked startup message (base.message). No reset-to-default
         // here: the owner contract keeps the CLI value as the fallback.
         lr_trace!(
@@ -659,7 +659,7 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // v50.0.0-alpha.7: Live-reload intro-color (was missing).
-    // v51.1: config key present wins over the CLI lock; absent key keeps
+    // v80.0.0-beta.1: config key present wins over the CLI lock; absent key keeps
     // the locked startup intro color in base. Validates theme name on
     // reload — invalid themes are logged and cleared (mirrors startup
     // behavior, but soft-fail on live-reload to avoid crashing a running
@@ -693,8 +693,8 @@ pub(crate) fn rebuild_cloud_config(
         );
     }
 
-    // v51 msg-fill-style: live-reload the message overlay reveal style.
-    // v51.1: config key present wins over the CLI lock; absent key keeps
+    // v80.0.0-beta.1 msg-fill-style: live-reload the message overlay reveal style.
+    // v80.0.0-beta.1: config key present wins over the CLI lock; absent key keeps
     // the locked startup style in base (there is no "reset-on-comment"
     // semantics for enums — an absent key simply means "unchanged").
     // Invalid values are logged and skipped (soft-fail, mirrors

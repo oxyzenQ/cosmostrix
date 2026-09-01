@@ -92,11 +92,11 @@ fn hud_prdr_crdr_above_cid_in_layout() {
     let (_, crdr_line) = &h2.cached_lines[14];
     assert!(
         prdr_line.starts_with(" prdr: "),
-        "row 13 must be the prdr line (v51 reorder), got: {prdr_line:?}"
+        "row 13 must be the prdr line (v80.0.0-beta.1 reorder), got: {prdr_line:?}"
     );
     assert!(
         crdr_line.starts_with(" crdr: "),
-        "row 14 must be the crdr line (v51 reorder), got: {crdr_line:?}"
+        "row 14 must be the crdr line (v80.0.0-beta.1 reorder), got: {crdr_line:?}"
     );
     // cid is still at row 21 (unchanged from h).
     let (_, cid_line_2) = &h2.cached_lines[21];
@@ -199,9 +199,9 @@ fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
     );
 }
 
-// ── v50.0.0-beta.6 Option D + v51.2 banded masterclass: dynamic dsty ──
+// ── v50.0.0-beta.6 Option D + v80.0.0-beta.1 banded masterclass: dynamic dsty ──
 //
-// dsty is DYNAMIC when power-dragon is ON (reflects the v51.2 banded
+// dsty is DYNAMIC when power-dragon is ON (reflects the v80.0.0-beta.1 banded
 // throttle via compute_spawn_scale: dead zone p<0.05, low 0.84-0.70,
 // medium 0.70-0.50, high 0.50-0.10, configured density as ceiling).
 // dsty is STATIC when power-dragon is OFF (shows the user's configured
@@ -239,7 +239,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_no_pressure() {
 
 #[test]
 fn hud_dsty_dead_zone_below_low_band_entry() {
-    // v51.2: pressure 0.04 (< 0.05 dead-zone threshold) → full density.
+    // v80.0.0-beta.1: pressure 0.04 (< 0.05 dead-zone threshold) → full density.
     // The v50 linear curve already cut 3% at this pressure — the owner's
     // mandate is a dead zone: light overshoot never throttles.
     let mut h = HudState::new();
@@ -256,7 +256,7 @@ fn hud_dsty_dead_zone_below_low_band_entry() {
 
 #[test]
 fn hud_dsty_low_band_starts_at_084_for_monolith_ceiling() {
-    // v51.2 owner example: monolith builtin density 0.85 (the ceiling).
+    // v80.0.0-beta.1 owner example: monolith builtin density 0.85 (the ceiling).
     // First throttle step lands at 0.84 (owner: "reduce density to 0.84,
     // 0.83 ..."). Pressure 0.06 → low-band t=0.04 → target 0.8344 → 0.83.
     let mut h = HudState::new();
@@ -274,7 +274,7 @@ fn hud_dsty_low_band_starts_at_084_for_monolith_ceiling() {
 
 #[test]
 fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
-    // v51.2: p=0.5 → MEDIUM band t=(0.5-0.30)/0.30=0.667 → target
+    // v80.0.0-beta.1: p=0.5 → MEDIUM band t=(0.5-0.30)/0.30=0.667 → target
     // 0.70-0.133=0.5667 → clamp to [0.10, 0.72] → 0.57. (v50 linear gave
     // 0.45 — the owner's "extreme throttle" complaint.)
     let mut h = HudState::new();
@@ -291,7 +291,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
 
 #[test]
 fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
-    // v51.2: p=1.0 → high-band floor 0.10 (owner: "high condition but rare
+    // v80.0.0-beta.1: p=1.0 → high-band floor 0.10 (owner: "high condition but rare
     // can reach 0.50-0.10"). Cheaper than v50's 0.25-scale floor at max —
     // the deep emergency shed the owner mandated.
     let mut h = HudState::new();
@@ -309,7 +309,7 @@ fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
 #[test]
 fn hud_dsty_owner_observed_case_never_below_medium_band() {
     // The owner's observed HUD value ~0.47 came from p≈0.6 (0.85 * (1 -
-    // 0.75*0.6)). v51.2: p=0.6 → exactly the high-band entry → 0.50. The
+    // 0.75*0.6)). v80.0.0-beta.1: p=0.6 → exactly the high-band entry → 0.50. The
     // engine never shows below 0.50 until sustained p ≥ 0.60.
     let mut h = HudState::new();
     h.toggle();
@@ -325,7 +325,7 @@ fn hud_dsty_owner_observed_case_never_below_medium_band() {
 
 #[test]
 fn hud_dsty_aggressive_throttle_drops_harder() {
-    // v51.2: aggressive reads the pressure 0.20 deeper (same band edges).
+    // v80.0.0-beta.1: aggressive reads the pressure 0.20 deeper (same band edges).
     // p=0.5 aggressive → effective 0.70 → high-band t=0.25 → 0.40.
     let mut h = HudState::new();
     h.toggle();
@@ -359,7 +359,7 @@ fn hud_dsty_cli_density_is_ceiling() {
 
 #[test]
 fn hud_dsty_cheap_scene_untouched_until_deep_bands() {
-    // v51.2 self-harmonizing property: a cheap scene (density 0.30) has
+    // v80.0.0-beta.1 self-harmonizing property: a cheap scene (density 0.30) has
     // its ceiling BELOW the low/medium band edges — the throttle is a
     // no-op until the high band crosses 0.30 (p ≥ 0.80). p=0.5 here.
     let mut h = HudState::new();

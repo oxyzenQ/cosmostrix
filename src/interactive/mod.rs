@@ -78,20 +78,20 @@ mod v50_first_reload;
 #[path = "tests_v50_kitty_shift.rs"]
 mod v50_kitty_shift;
 
-// v51 Z-master-1B: intro brand color (EnergyZen, immune to -c) +
+// v80.0.0-beta.1 Z-master-1B: intro brand color (EnergyZen, immune to -c) +
 // pause shortkey isolation ('i' rejected while paused).
 #[cfg(test)]
 #[path = "tests_v51_intro_brand_pause.rs"]
 mod v51_intro_brand_pause;
 
-// v51 Z-master-1B: exhaustive shortkey no-op lock — every key outside
+// v80.0.0-beta.1 Z-master-1B: exhaustive shortkey no-op lock — every key outside
 // the documented active set must be a complete no-op ('a', 'h', Tab,
 // removed density aliases, digits, punctuation, F-keys, ...).
 #[cfg(test)]
 #[path = "tests_v51_shortkey_noop.rs"]
 mod v51_shortkey_noop;
 
-// v51.2 power-dragon gate: render-path pressure feed is gated on
+// v80.0.0-beta.1 power-dragon gate: render-path pressure feed is gated on
 // power-dragon (config promise "user-configured density/speed
 // regardless of CPU pressure") + stale aggressive release.
 #[cfg(test)]
@@ -142,7 +142,7 @@ static FINAL_DENSITY: OnceLock<f32> = OnceLock::new();
 static FINAL_MSG_MODE: OnceLock<bool> = OnceLock::new();
 static FINAL_MESSAGE: OnceLock<Option<String>> = OnceLock::new();
 static FINAL_MESSAGE_BORDER: OnceLock<bool> = OnceLock::new();
-// v51 msg-fill-style: track the effective reveal style so the post-exit
+// v80.0.0-beta.1 msg-fill-style: track the effective reveal style so the post-exit
 // "final runtime state" section can disclose live-reload edits to
 // `msg-fill-style` (same honest-reporting contract as msg_mode/message).
 static FINAL_MSG_FILL_STYLE: OnceLock<String> = OnceLock::new();
@@ -198,7 +198,7 @@ pub(crate) fn set_final_state(
     let _ = FINAL_MSG_MODE.set(msg_mode);
     let _ = FINAL_MESSAGE.set(message.map(|s| s.to_string()));
     let _ = FINAL_MESSAGE_BORDER.set(message_border);
-    // v51 msg-fill-style: stored as the canonical lowercase label.
+    // v80.0.0-beta.1 msg-fill-style: stored as the canonical lowercase label.
     let _ = FINAL_MSG_FILL_STYLE.set(msg_fill_style.to_string());
     let _ = FINAL_POWER_DRAGON.set(power_dragon);
     let _ = FINAL_CRYSTAL_DRAGON.set(crystal_dragon);
@@ -223,7 +223,7 @@ pub(crate) fn last_message_border() -> bool {
     *FINAL_MESSAGE_BORDER.get().unwrap_or(&false)
 }
 
-/// v51 msg-fill-style: accessor for the final reveal style label
+/// v80.0.0-beta.1 msg-fill-style: accessor for the final reveal style label
 /// (post-live-reload). Defaults to "typewriter" when set_final_state
 /// never ran (early-exit paths).
 pub(crate) fn last_msg_fill_style() -> String {
@@ -424,7 +424,7 @@ pub(crate) fn print_final_runtime_state(
             startup_message_border
         );
     }
-    // v51 msg-fill-style: ALWAYS printed (not change-gated) so users can
+    // v80.0.0-beta.1 msg-fill-style: ALWAYS printed (not change-gated) so users can
     // verify the effective reveal style at session end — same policy as
     // the ambient lines below. The `(was X)` suffix appears only when a
     // live-reload edit changed it.

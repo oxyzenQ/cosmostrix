@@ -18,7 +18,7 @@ use crate::config::GlitchLevel;
 /// crystal_dragon to the HUD state so the 1 Hz metric tick renders
 /// current values.
 ///
-/// v51 pause freeze (owner bug fix 2026-08-30): `set_metrics_paused`
+/// v80.0.0-beta.1 pause freeze (owner bug fix 2026-08-30): `set_metrics_paused`
 /// must run BEFORE the metric setters below — on the pause frame it
 /// arms the freeze before any sampler can tick, and on the resume
 /// frame it lifts the freeze before the setters deliver fresh values.
@@ -62,7 +62,7 @@ pub(crate) fn update_hud_state(
     hud_state.set_charset_preset(charset_preset);
     hud_state.set_droplet_density(cloud.droplet_density());
     hud_state.set_chars_per_sec(cloud.chars_per_sec());
-    // v51.2 power-dragon gate (owner masterclass mandate): the pressure
+    // v80.0.0-beta.1 power-dragon gate (owner masterclass mandate): the pressure
     // FEED to the render path is gated on `current_cfg.power_dragon`.
     //
     // v50 Option D gated only the DISPLAY side (dsty static when off) while

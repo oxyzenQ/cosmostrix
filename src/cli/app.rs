@@ -55,10 +55,10 @@ pub struct CloudConfig {
     pub chars: Vec<char>,
     pub message: Option<String>,
     pub message_border: bool,
-    /// v51 msg-fill-style: message overlay reveal style (typewriter /
+    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (typewriter /
     /// fade / words / slide / instant / engrave / hologram / glitch /
     /// scorch / cascade). Default `Typewriter` = bit-identical
-    /// to the pre-v51 renderer (LTS guarantee). Applied in `create_cloud`
+    /// to the pre-v80.0.0-beta.1 renderer (LTS guarantee). Applied in `create_cloud`
     /// via `cloud.set_msg_fill_style` (engrave arms the spark sidecar;
     /// hologram adds a stateless scanline pass; glitch extends
     /// `CellReveal` with `glyph_override`; scorch extends `CellReveal`
@@ -192,7 +192,7 @@ impl CloudConfig {
 
 /// Per-field record of which CloudConfig fields were set via CLI.
 ///
-/// v51.1 (owner contract, 2026-09-01) — the flags are the CLI LOCK, not a
+/// v80.0.0-beta.1 (owner contract, 2026-09-01) — the flags are the CLI LOCK, not a
 /// blocker:
 ///
 /// ```text
@@ -230,7 +230,7 @@ pub(crate) struct CliExplicit {
     /// v50.0.0-alpha.7: track `--msg-mode` CLI explicit (was missing;
     /// needed for live-reload msg-mode gate).
     pub msg_mode: bool,
-    /// v51 msg-fill-style: track `-mfs`/`--msg-fill-style` CLI explicit
+    /// v80.0.0-beta.1 msg-fill-style: track `-mfs`/`--msg-fill-style` CLI explicit
     /// (intent preservation: CLI flag wins over config.toml on live
     /// reload, same contract as every other flag).
     pub msg_fill_style: bool,
@@ -272,7 +272,7 @@ impl CliExplicit {
     ///
     /// Drives the v50.0.0-beta.7 ambient startup deferral ("CLI wins
     /// first, then ambient takes over after ambient-snapback-secs").
-    /// v51.1: previously an inline `||` chain in event_loop.rs listing
+    /// v80.0.0-beta.1: previously an inline `||` chain in event_loop.rs listing
     /// only 15 of the 21 flags — `--bold`, `--shading-mode`,
     /// `--color-bg`, `--colors-custom`, `--scene-custom`, and
     /// `-mfs`/`--msg-fill-style` did NOT defer ambient even though the
@@ -419,7 +419,7 @@ impl CloudConfig {
 
         if let Some(msg) = &self.message {
             cloud.set_message_border(self.message_border);
-            // v51 msg-fill-style: applied before set_message so the very
+            // v80.0.0-beta.1 msg-fill-style: applied before set_message so the very
             // first reveal (post-intro) already uses the user's style.
             cloud.set_msg_fill_style(self.msg_fill_style);
             cloud.set_message(msg);

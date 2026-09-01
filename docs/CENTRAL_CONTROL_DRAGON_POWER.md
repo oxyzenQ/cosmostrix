@@ -157,7 +157,7 @@ perf_pressure — spawn rate, sim factor, glitch intensity, vignette
 intensity — reads `effective_pressure()` instead of a local
 variable.
 
-**v51.2 (2026-09-01):** two additions to this zone.
+**v80.0.0-beta.1 (2026-09-01):** two additions to this zone.
 
 1. The render-path pressure FEED is gated on `power_dragon`
    (`event_loop_hud.rs::update_hud_state`): with the dragon off the
@@ -542,7 +542,7 @@ key call sites:
 | 626–813| `register_activity(&mut power_manager, ...)`            | Reset idle timer on user input (8 sites) |
 | 948    | `power_manager.effective_fps(cloud.pause)`              | Resolve frame period                     |
 | 958    | `power_manager.is_idle()`                               | Adaptive resync scheduling               |
-| (hud)  | `cloud.set_perf_pressure(applied)` (event_loop_hud.rs, v51.2 gated on `power_dragon`) | Feed spawn cascade |
+| (hud)  | `cloud.set_perf_pressure(applied)` (event_loop_hud.rs, v80.0.0-beta.1 gated on `power_dragon`) | Feed spawn cascade |
 | 970    | `power_manager.effective_pressure() as f64 * SIM_PRESSURE_SCALE_FACTOR` | Sim factor      |
 | 1075   | `power_manager.observe_frame_end(work_s, p, o)`         | Update perf_pressure                     |
 | 1140–41| `power_manager.effective_pressure()`                    | Post-run perf summary (avg + max)        |

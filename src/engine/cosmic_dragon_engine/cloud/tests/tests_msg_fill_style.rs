@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Rendering-level tests for the v51 msg-fill-style feature.
+//! Rendering-level tests for the v80.0.0-beta.1 msg-fill-style feature.
 //!
 //! Each test drives `Cloud::draw_message` with a synthetic
 //! `message_start_time` (instant in the past → controlled elapsed ms)

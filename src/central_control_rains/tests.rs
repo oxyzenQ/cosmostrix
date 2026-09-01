@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51.2 adaptive density throttle band tests (owner masterclass
+//! v80.0.0-beta.1 adaptive density throttle band tests (owner masterclass
 //! mandate, 2026-09-01).
 //!
 //! The contract under test (owner's literal numbers, ceiling = the

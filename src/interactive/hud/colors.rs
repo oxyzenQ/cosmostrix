@@ -29,7 +29,7 @@ use crossterm::style::Color;
 // speed / endurance-health-score / effective-pressure / charset).
 // v50.0.0-beta.7: bumped to 22 stops after the Option C expansion
 // (prdr / crdr / ambt / glth / ctun / mnst) + cid.
-// v51 reorder (owner mandate 2026-08-31): same 22 rows, new order —
+// v80.0.0-beta.1 reorder (owner mandate 2026-08-31): same 22 rows, new order —
 // identity lines (scn/chr/clr) above the controls (sped/dsty), dragon +
 // tuning state (prdr/crdr/ambt/glth/ctun/mnst) next, session footer
 // (cid/up/screensize) closing the dashboard. The gradient is positional

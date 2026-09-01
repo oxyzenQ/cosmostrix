@@ -8,7 +8,7 @@
 //! `pub(crate) use types::{constants, cell, rain_style, renderer_info};`
 //! in main.rs so all existing call sites resolve unchanged.
 //!
-//! The v51 msg-fill-style subsystem graduated to its own crate-root
+//! The v80.0.0-beta.1 msg-fill-style subsystem graduated to its own crate-root
 //! directory (`src/msg_fill_style/`, one file per style) in the
 //! owner-mandated plug-and-play refactor.
 

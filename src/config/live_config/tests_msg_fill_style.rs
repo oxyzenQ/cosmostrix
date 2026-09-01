@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51 msg-fill-style live-reload tests, extracted from
+//! v80.0.0-beta.1 msg-fill-style live-reload tests, extracted from
 //! `tests.rs` to keep that file under the 800-LOC hard cap
 //! (see `src/RULES_LOC.md`).
 //!
@@ -23,7 +23,7 @@ use std::collections::HashMap;
 use super::rebuild_cloud_config;
 use super::tests::minimal_cloud_config;
 
-/// The engrave style (v51 follow-up) live-reloads exactly like the
+/// The engrave style (v80.0.0-beta.1 follow-up) live-reloads exactly like the
 /// other styles — the spark sidecar arms on the next style change via
 /// `set_msg_fill_style`.
 #[test]
@@ -170,7 +170,7 @@ fn rebuild_msg_fill_style_absent_keeps_startup_value() {
     );
 }
 
-/// v51.1 (owner contract): config `msg-fill-style` key PRESENT wins over
+/// v80.0.0-beta.1 (owner contract): config `msg-fill-style` key PRESENT wins over
 /// the CLI `-mfs` lock at runtime (temporal precedence). The CLI style
 /// returns when the key is commented back out (base keeps the locked
 /// startup style — pinned in tests_cli_fallback.rs).
@@ -187,6 +187,6 @@ fn rebuild_msg_fill_style_key_overrides_cli_lock_when_present() {
     assert_eq!(
         new.msg_fill_style,
         crate::msg_fill_style::MsgFillStyle::Fade,
-        "config msg-fill-style key present must override the CLI -mfs lock (v51.1)"
+        "config msg-fill-style key present must override the CLI -mfs lock (v80.0.0-beta.1)"
     );
 }

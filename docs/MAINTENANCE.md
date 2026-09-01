@@ -137,7 +137,7 @@ From v50.0.0 onward, the following are **frozen** (no breaking changes without a
 - **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
 
-Breaking changes require a major version bump (e.g. v51.0.0). Minor versions (v50.1.0) may add new features but must not change or remove existing API surface.
+Breaking changes require a major version bump (e.g. v80.0.0-beta.1.0). Minor versions (v50.1.0) may add new features but must not change or remove existing API surface.
 
 ## 8. Architecture Reference
 

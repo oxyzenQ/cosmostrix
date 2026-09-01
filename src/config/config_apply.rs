@@ -546,7 +546,7 @@ fn apply_config_values(
             config_touched.insert("msg-mode");
         }
     }
-    // v51 msg-fill-style: message overlay reveal style. Parsed with clap's
+    // v80.0.0-beta.1 msg-fill-style: message overlay reveal style. Parsed with clap's
     // ValueEnum machinery so the accepted values stay in sync with the
     // -mfs/--msg-fill-style CLI flag. Case-insensitive (config surface is
     // forgiving, mirroring `intro` and `glitch-level`). CLI flag wins over
@@ -605,7 +605,7 @@ fn config_value(
     }
 }
 
-/// v51 did-you-mean audit: suggestion tip for an unknown scene name.
+/// v80.0.0-beta.1 did-you-mean audit: suggestion tip for an unknown scene name.
 ///
 /// Candidates = every builtin scene name + every `[scene-custom.<name>]`
 /// block defined in the config. Uses the shared edit-distance <= 2 policy
@@ -722,7 +722,7 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
 mod config_apply_scene_glitch;
 pub(crate) use config_apply_scene_glitch::{apply_glitch_level_values, apply_scene_values};
 
-/// v51 did-you-mean audit: scene name typo suggestions.
+/// v80.0.0-beta.1 did-you-mean audit: scene name typo suggestions.
 #[cfg(test)]
 mod scene_suggestion_tests {
     use super::*;

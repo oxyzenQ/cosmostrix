@@ -169,7 +169,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // intentional. When the user explicitly set -m (no border), keep
         // their choice.
         message_border: args.message_border || (!bench_mode && args.message.is_none()),
-        // v51 msg-fill-style: pass the resolved reveal style through
+        // v80.0.0-beta.1 msg-fill-style: pass the resolved reveal style through
         // (CLI -mfs/--msg-fill-style wins over the config key — resolved
         // earlier in config_apply; default typewriter).
         msg_fill_style: args.msg_fill_style,
@@ -242,7 +242,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // v20: track active custom scene name so live reload can re-apply
         // its fields when the user edits [scene-custom.<name>] in config.
         scene_custom_name: args.scene_custom.clone(),
-        // Bug 3: tracker for CLI-explicit flags. v51.1 owner contract: the
+        // Bug 3: tracker for CLI-explicit flags. v80.0.0-beta.1 owner contract: the
         // flags are the CLI LOCK — startup bakes CLI > config.toml > scene
         // defaults into this config; at runtime a config key overrides the
         // flag only while present (rebuild_cloud_config + the event-loop

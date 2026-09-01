@@ -568,7 +568,7 @@ pub(crate) const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 
 // ─── Performance tuning (rain-affecting subset) ────────────────────────────
 //
-// v51.2: the adaptive density throttle (banded spawn-scale curve) moved
+// v80.0.0-beta.1: the adaptive density throttle (banded spawn-scale curve) moved
 // to `density_throttle.rs` — same section family, extracted to keep this
 // file under the 800-LOC cap.
 

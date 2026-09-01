@@ -73,7 +73,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 ### CLI Flag Policy
 
-- **Suggestion coverage** (v51 audit + Z-master-1X consistency audit — every CLI/value surface suggests on typos, unified to the `tip: a similar ... exists` format; the legacy `Did you mean` format was fully removed):
+- **Suggestion coverage** (v80.0.0-beta.1 audit + Z-master-1X consistency audit — every CLI/value surface suggests on typos, unified to the `tip: a similar ... exists` format; the legacy `Did you mean` format was fully removed):
   - Long-flag typos (`--scne`): clap's built-in `suggestions` feature (jaro similarity) + `extract_clap_suggestion()` in `src/cli/suggestion.rs`, which reads clap's OWN `tip:` line and appends `tip: a similar argument exists: '--<flag>'` (the two lines can never disagree — the custom Levenshtein engine + hand-maintained KNOWN_LONG_FLAGS list were removed in v50.0.0-beta.7 after the `--disable-effects` rename drift bug).
   - Enum-value typos on clap `value_enum` flags (`--intro`, `--msg-fill-style`, `--bench-scene`, ...): clap's built-in `tip: a similar value exists`.
   - Enum-value typos on prevalidator-intercepted flags (`--glitch-level`, `--monolith-size`, `--color-bg`): `validate_enum_value()` in `src/validation/mod.rs` appends `tip: a similar value exists: '<value>'` via the shared `format_value_suggestion` + `closest_value_match` (edit distance ≤ 2).
@@ -94,7 +94,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
   - Shift is the ONLY accepted modifier (owner policy). Cycle keys `c`/`s`/`x` accept their uppercase form (`C`/`S`/`X` = reverse cycle, produced by Shift or CapsLock); every other key responds only to the bare lowercase press. Ctrl/Alt/Super/Hyper/Meta/Fn combinations are unconditionally rejected by the `is_unmodified_or_shift` allowlist.
   - Kitty-protocol terminals (kitty, Alacritty, WezTerm, ghostty, foot, konsole) report Shift+letter as the BASE lowercase codepoint + SHIFT (`CSI 120;2u` for Shift+X); legacy terminals report the shifted uppercase char. `normalize_shifted_char()` in `src/interactive/input.rs` maps both shapes to the same match arms, so Shift+X/C/S reverse-cycle identically on both terminal families.
 - **Screensaver mode**: all the above keys work normally. Only `q` exits.
-- **Exhaustive no-op lock** (v51 audit): `src/interactive/tests_v51_shortkey_noop.rs` verifies that every key OUTSIDE the active set is a complete no-op — no redraw, no state change (color scheme, charset, scene, density, speed, pause, raining, async_mode all pinned). Covers the owner's exact scenario (`a` — old-version async-toggle muscle memory), every non-active letter a–z/A–Z, digits, punctuation, the removed density aliases (`-`/`_`/`+`/`=`), and non-active special keys (Tab/BackTab/Enter/Backspace/Delete/Insert/Home/End/PageUp/PageDown/Left/Right/Esc/F-keys). Positive controls assert every ACTIVE key still has its documented effect (only `p` returns true from `handle_keybinding`; the other active keys signal redraw via internal force-draw flags).
+- **Exhaustive no-op lock** (v80.0.0-beta.1 audit): `src/interactive/tests_v51_shortkey_noop.rs` verifies that every key OUTSIDE the active set is a complete no-op — no redraw, no state change (color scheme, charset, scene, density, speed, pause, raining, async_mode all pinned). Covers the owner's exact scenario (`a` — old-version async-toggle muscle memory), every non-active letter a–z/A–Z, digits, punctuation, the removed density aliases (`-`/`_`/`+`/`=`), and non-active special keys (Tab/BackTab/Enter/Backspace/Delete/Insert/Home/End/PageUp/PageDown/Left/Right/Esc/F-keys). Positive controls assert every ACTIVE key still has its documented effect (only `p` returns true from `handle_keybinding`; the other active keys signal redraw via internal force-draw flags).
 - **Removed legacy keybinds** (silently ignored via catch-all, were never in `--help`): `-` `_` `+` `=` (density aliases for `[` / `]`); `Ctrl+Z` (in-app suspend); `h` (HUD position toggle — **completely removed**, no binding exists, silently ignored; HUD always renders flush-left at column 0 per v50.0.0-beta.6; HUD visibility is toggled with `i`, not `h`); `Tab`/`BackTab` explicit no-op arm (now catch-all; historical shading-mode toggle that caused phosphor ghost flood — see `tests.rs::tab_*`). Stale doc references to `a`, `m`, `g`, `b`/`B` as "interactive" keys were purged — these were never active.
 - **Removed flags** (each has a migration error in `src/validation/mod.rs` `REMOVED_FLAGS` table): v14.0.0 (`--preset`, `--profile`, `--low-power`, `--list-presets`, `--list-profiles`, `--show-preset`, `--dump-profile`, `--list-colors-detail`, `--defaults`, `--tune-visual`); v15.0.0 (`--completions <shell>`); v17.0.0 (`--mouse`, `--info`/`-i`, `--async`/`-a`, `--brightness`/`--saturation`, `--glitchpct`/`--shortpct`/`--rippct`/`--maxdpc`); v25.0.0 (`--charset-file <path>`); v25.0.0-alpha.3 (`--fullwidth`).
 - **Android/Termux**: accept Press + Repeat key events (skip Release).
@@ -134,7 +134,7 @@ All 3 custom config systems use the same bounds for consistency. Max **100 block
 |--------|-----------|--------------|-------------|-----------|
 | colors-custom | 100 (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 64 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | OKLab engine only needs 2-16 stops; 100 blocks far exceeds realistic use |
 | charset-custom | 100 (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 chars (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
-| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | 1024 density-map entries (`DENSITY_MAP_MAX_ENTRIES`, v51) | Terminal width bounds real maps at a few hundred columns; the cap stops a pasted mega-CSV from leaking unbounded `Box::leak` memory into the dedup cache |
+| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | 1024 density-map entries (`DENSITY_MAP_MAX_ENTRIES`, v80.0.0-beta.1) | Terminal width bounds real maps at a few hundred columns; the cap stops a pasted mega-CSV from leaking unbounded `Box::leak` memory into the dedup cache |
 
 When a cap is hit, behavior depends on the cap type:
 
@@ -144,7 +144,7 @@ When a cap is hit, behavior depends on the cap type:
 
 All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
 
-### Config value quoting invariant (bug #19, v51)
+### Config value quoting invariant (bug #19, v80.0.0-beta.1)
 
 A double-quoted value is NEVER an array. `parse_config_text` snapshots
 `raw_is_quoted` (value starts AND ends with `"`) BEFORE quote-stripping,
@@ -167,7 +167,7 @@ charset-custom validation tests:
 - Duplicate `[section]` headers are last-wins in the forgiving parser
   (same key overwrite, no error).
 
-### Killer-feature warning routing (v51 hardening)
+### Killer-feature warning routing (v80.0.0-beta.1 hardening)
 
 Warnings that can fire on BOTH sides of the interactive session boundary (charset
 wide-char skip notes, custom-vs-builtin name collisions, scene-custom invalid
@@ -179,17 +179,17 @@ The session gate is `INTERACTIVE_SESSION_ACTIVE`, set once at the top of
 several killer-feature notes re-fire per scene change / config save, and the
 post-exit summary must stay readable.
 
-### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D + v51.2 banded masterclass)
+### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D + v80.0.0-beta.1 banded masterclass)
 
-The `dsty:` HUD metric (row 12) is **dynamic when power-dragon is ON** — it reflects the effective density after the v51.2 banded throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density — v51.2 also gates the pressure FEED itself to 0.0, so the render path matches the display).
+The `dsty:` HUD metric (row 12) is **dynamic when power-dragon is ON** — it reflects the effective density after the v80.0.0-beta.1 banded throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density — v80.0.0-beta.1 also gates the pressure FEED itself to 0.0, so the render path matches the display).
 
 **How it works:**
 
 - `dsty:` = `user_density * compute_spawn_scale(pressure, aggressive, user_density)` — the target lands on the banded curve in ABSOLUTE density space
 - `compute_spawn_scale()` is a shared function (`central_control_rains/density_throttle.rs`) — the **same function** used by `rain_at()` in the render path. No formula drift.
-- `pressure` = the APPLIED pressure (v51.2: gated to 0.0 when power-dragon is off; raw `power_manager.effective_pressure()` otherwise)
+- `pressure` = the APPLIED pressure (v80.0.0-beta.1: gated to 0.0 when power-dragon is off; raw `power_manager.effective_pressure()` otherwise)
 - `aggressive` = `cloud.aggressive_throttle` (set by self-healer on sustained high CPU; released when power-dragon turns off)
-- v51.2 bands: dead zone p <= 0.05, low 0.84-0.70, medium 0.70-0.50, high (rare) 0.50-0.10; aggressive reads the pressure +0.20 deeper (same band edges)
+- v80.0.0-beta.1 bands: dead zone p <= 0.05, low 0.84-0.70, medium 0.70-0.50, high (rare) 0.50-0.10; aggressive reads the pressure +0.20 deeper (same band edges)
 
 **Behavior table:**
 

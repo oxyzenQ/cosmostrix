@@ -38,7 +38,7 @@ pub(crate) fn sample_p5_health(
     last_ctxt_sample: &mut Instant,
 ) -> bool {
     // ── P5: Endurance health sampling (ALWAYS ON) ──
-    // v51 pause freeze (owner bug fix 2026-08-30): paused frames are
+    // v80.0.0-beta.1 pause freeze (owner bug fix 2026-08-30): paused frames are
     // 4 Hz input polls, not render work — pushing their near-zero work
     // times would inflate the endurance score during a pause. Gate on
     // the same is_paused_or_decelerating() predicate the HUD freeze uses;

@@ -244,7 +244,7 @@ fn apply_base_scene_to_args(
         if strict_unknown {
             crate::output::eprintln_error_labeled(&message);
         } else {
-            // v51 killer-features hardening: routed (warn_runtime_or_now) —
+            // v80.0.0-beta.1 killer-features hardening: routed (warn_runtime_or_now) —
             // scene layers can re-apply mid-session; a direct eprintln here
             // would leak into the rain matrix (AB-10).
             crate::output::warn_runtime_or_now(&message);
@@ -480,7 +480,7 @@ pub(crate) fn apply_scene_custom_layer(
     } else {
         available.join(", ")
     };
-    // v51 did-you-mean audit: message built by the testable helper below.
+    // v80.0.0-beta.1 did-you-mean audit: message built by the testable helper below.
     let message = unknown_custom_scene_error(name, &available);
     if strict_unknown {
         return Err(message);
@@ -698,7 +698,7 @@ pub(crate) use overrides::{
 #[cfg(test)]
 mod tests;
 
-/// v51 did-you-mean audit: build the "unknown custom scene" error with a
+/// v80.0.0-beta.1 did-you-mean audit: build the "unknown custom scene" error with a
 /// closest-match suggestion (edit-distance <= 2, same policy as every
 /// other value surface). Separate fn so the format is unit-testable
 /// without constructing a full `Args`.

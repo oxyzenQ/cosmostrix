@@ -205,7 +205,7 @@ COMMON OPTIONS:
         typewriter  The classic reveal: one character every 80 ms, each
                     fading in from 30% to 100% brightness over 100 ms.
                     The border lags behind the text (ease-out curve).
-                    This is the pre-v51 default — bit-identical.
+                    This is the pre-v80.0.0-beta.1 default — bit-identical.
         fade        Text appears instantly; the whole block (text and
                     border) fades from 0% to 100% over 800 ms. Fastest
                     path to a readable message.

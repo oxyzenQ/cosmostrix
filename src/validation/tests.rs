@@ -271,7 +271,7 @@ fn force_flag_parses_alongside_dump_config() {
     );
 }
 
-// ── v51 did-you-mean audit: enum value typos must suggest ──────────────
+// ── v80.0.0-beta.1 did-you-mean audit: enum value typos must suggest ──────────────
 
 #[test]
 fn enum_typo_glitch_level_suggests_closest() {

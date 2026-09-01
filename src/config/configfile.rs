@@ -76,7 +76,7 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // CLI -m / -mb always wins over msg-mode=false (CLI precedence).
     // Default: true (message overlay active).
     "msg-mode",
-    // v51 msg-fill-style: message overlay reveal style. Values:
+    // v80.0.0-beta.1 msg-fill-style: message overlay reveal style. Values:
     // "typewriter" | "fade" | "words" | "slide" | "instant"
     // | "engrave" | "hologram" | "glitch" | "scorch" | "cascade".
     // Default: "typewriter". CLI -mfs/--msg-fill-style wins over this

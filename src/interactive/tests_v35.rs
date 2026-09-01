@@ -82,7 +82,7 @@ mod cases_v35 {
             chars: vec!['0', '1'],
             message: None,
             message_border: false,
-            // v51 msg-fill-style: default keeps the classic typewriter reveal.
+            // v80.0.0-beta.1 msg-fill-style: default keeps the classic typewriter reveal.
             msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
             target_fps: 60.0,
             xtermjs_host: false,

@@ -29,7 +29,7 @@ use super::input::{
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
-    // v51 killer-features hardening: mark the interactive session (alt
+    // v80.0.0-beta.1 killer-features hardening: mark the interactive session (alt
     // screen) as active BEFORE any config-block helper can fire a warning —
     // intro sequence + scene changes + live reload all resolve custom
     // palettes/charsets/scenes mid-rain. Warnings routed through
@@ -126,7 +126,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     // Store base CloudConfig for rebuilds (clone before any moves).
     let mut base_cfg = cfg.clone();
-    // v51.1 masterclass: pristine startup snapshot — the LOCKED layer
+    // v80.0.0-beta.1 masterclass: pristine startup snapshot — the LOCKED layer
     // (CLI > config@startup resolution baked in). Never mutated for the
     // whole session: the live-reload path restores the scene family from
     // it when the config `scene` key is removed, so a `--scene
@@ -190,7 +190,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // Implementation: check if ANY CliExplicit flag is true. If none,
     // apply ambient instantly. If any, defer (skip startup apply + let
     // auto-snapback handle it after the delay).
-    // v51.1: uses CliExplicit::any() — the old inline `||` chain listed
+    // v80.0.0-beta.1: uses CliExplicit::any() — the old inline `||` chain listed
     // only 15 of the 21 flags (--bold, --shading-mode, --color-bg,
     // --colors-custom, --scene-custom, -mfs did NOT defer ambient).
     let cli_has_any_override = base_cfg.cli_explicit.any();
@@ -287,7 +287,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // v50.0.0-beta.7 LOC refactor: ambient polling extracted to
         // event_loop_ambient.rs.
-        // v51.2: startup_cfg passed for the ambient overlay-lift revert
+        // v80.0.0-beta.1: startup_cfg passed for the ambient overlay-lift revert
         // (ground-truth nuke path — see event_loop_ambient.rs).
         super::event_loop_ambient::poll_ambient_events(
             &mut cloud,
@@ -425,7 +425,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // Modifier guard: only bare 'i' (NONE). Rejects Shift+'i'
                         // (which produces 'I', no binding) and all other modifiers
                         // (Ctrl/Super/Alt/Hyper/Meta+'i'). See is_unmodified().
-                        // v51 pause isolation (owner bug report 2026-08-30): 'i'
+                        // v80.0.0-beta.1 pause isolation (owner bug report 2026-08-30): 'i'
                         // must NOT respond while paused/decelerating — only 'p'
                         // and 'q' work during pause. The gate lives in input.rs
                         // (hud_toggle_accepted) so the predicate is testable and

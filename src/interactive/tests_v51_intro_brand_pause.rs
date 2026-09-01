@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! v51 Z-master-1B regression tests: intro brand color + pause isolation.
+//! v80.0.0-beta.1 Z-master-1B regression tests: intro brand color + pause isolation.
 //!
 //! Covers two owner bug reports from 2026-08-30:
 //!

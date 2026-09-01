@@ -132,7 +132,7 @@ fn resolve_intro_palette_source(intro_color: Option<&str>) -> IntroPaletteSource
 /// density, glitch, color-tune re-application, etc.) with the palette
 /// forced to the EnergyZen brand scheme. `set_color_scheme` clears
 /// `custom_palette_active`, so a `--colors-custom` palette cannot leak
-/// into the intro either. `pub(super)` for the v51 regression tests
+/// into the intro either. `pub(super)` for the v80.0.0-beta.1 regression tests
 /// (tests_v51_intro_brand_pause.rs).
 pub(super) fn brand_intro_cloud(cfg: &CloudConfig, density: f32) -> Cloud {
     let mut intro_cloud = cfg.create_cloud(density);

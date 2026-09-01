@@ -24,7 +24,7 @@
 //! 1. **Budget gate** (`reveal_count` from `index_reveal_count`):
 //!    `content_idx < reveal_count`. This keeps the reveal pacing
 //!    roughly typewriter-speed (one cell eligible every 80 ms) and
-//!    matches the pre-v51 `usize::MAX` semantics for `None` timeline.
+//!    matches the pre-v80.0.0-beta.1 `usize::MAX` semantics for `None` timeline.
 //! 2. **Scramble gate** (per-cell reveal time): `elapsed_ms >=
 //!    reveal_at(content_idx)` where
 //!    `reveal_at = content_idx * GLITCH_CHAR_MS + scramble_offset(content_idx) * GLITCH_SCRAMBLE_MS`.
@@ -209,12 +209,12 @@ fn glitch_hash(content_idx: usize, seed: u32) -> u32 {
     h
 }
 
-/// Index budget: 80 ms/char with the pre-v51 `.max(1)` floor.
+/// Index budget: 80 ms/char with the pre-v80.0.0-beta.1 `.max(1)` floor.
 pub(super) fn reveal_budget(elapsed_ms: Option<usize>, total_text: usize) -> usize {
     index_pacing(GLITCH_CHAR_MS, elapsed_ms, total_text)
 }
 
-/// Border lags text (t^1.5) — the pre-v51 cinematic curve.
+/// Border lags text (t^1.5) — the pre-v80.0.0-beta.1 cinematic curve.
 pub(super) fn border_progress(text_progress: f32) -> f32 {
     lagged_border(text_progress)
 }

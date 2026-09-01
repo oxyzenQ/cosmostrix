@@ -334,7 +334,7 @@ pub(crate) const BORDER_SPARK_ANGLE_MAX_RAD: f32 = 0.0; // 0°
 /// (vs quantum ripple's 6). Gives "spray" feel without trailing noise.
 pub(crate) const BORDER_SPARK_TRAIL_LEN: usize = 1;
 
-// ── msg-fill-style "engrave" spark (v51) ─────────────────────────────────
+// ── msg-fill-style "engrave" spark (v80.0.0-beta.1) ─────────────────────────────────
 // The engrave spark tuning constants (ENGRAVE_SPARK_POOL_SIZE /
 // ENGRAVE_SPARKS_PER_HEAD / ENGRAVE_SPARK_LIFETIME_SECS /
 // ENGRAVE_SPARK_SPEED) moved to `msg_fill_style/engrave.rs` in the

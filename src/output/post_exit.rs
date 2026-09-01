@@ -86,7 +86,7 @@ pub(crate) fn print_post_exit_verbose(
         cloud_cfg.msg_mode,
         cloud_cfg.message.as_deref(),
         cloud_cfg.message_border,
-        // v51 msg-fill-style: startup reveal style for the (was X)
+        // v80.0.0-beta.1 msg-fill-style: startup reveal style for the (was X)
         // change-tracking suffix.
         cloud_cfg.msg_fill_style.as_str(),
         cloud_cfg.power_dragon,

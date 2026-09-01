@@ -364,7 +364,7 @@ these only if you understand the perf trade-offs.**
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
 | `EVENT_PERF_GATE` | f32 | 0.5 | FPS below which events (anomalies, gusts) are suppressed. |
-| `DENSITY_THROTTLE_P_*` / `DENSITY_THROTTLE_*` | f32 | 0.05/0.30/0.60; 0.84/0.70/0.50/0.10 | v51.2 banded adaptive density throttle (see `density_throttle.rs`): dead zone, then low/medium/high bands in absolute density space; the user's configured density is the ceiling. Replaces the v50 `PERF_SPAWN_SCALE_MIN` 0.25 linear floor. |
+| `DENSITY_THROTTLE_P_*` / `DENSITY_THROTTLE_*` | f32 | 0.05/0.30/0.60; 0.84/0.70/0.50/0.10 | v80.0.0-beta.1 banded adaptive density throttle (see `density_throttle.rs`): dead zone, then low/medium/high bands in absolute density space; the user's configured density is the ceiling. Replaces the v50 `PERF_SPAWN_SCALE_MIN` 0.25 linear floor. |
 | `GLITCH_THRESHOLD` | f32 | 0.35 | (See §3.9.) |
 | `SIM_PRESSURE_SCALE_FACTOR` | f64 | 0.7 | How aggressively sim pressure scales spawn. |
 | `SIM_MIN_FRACTION` | f64 | 0.5 | Min simulation fraction under pressure. |
@@ -660,7 +660,7 @@ RNG_INITIAL_SEED                   = 0x0123_4567
 HEAD_LINGER_BRIGHTNESS_MS          = 300
 FULL_REDRAW_INTERVAL_FRAMES        = 18000
 
-=== Performance (v51.2 banded density throttle) ===
+=== Performance (v80.0.0-beta.1 banded density throttle) ===
 DENSITY_THROTTLE_P_LOW             = 0.05   # dead zone ceiling
 DENSITY_THROTTLE_P_MED             = 0.30   # medium band entry
 DENSITY_THROTTLE_P_HIGH            = 0.60   # high band entry (rare)
@@ -756,7 +756,7 @@ cinematic feel. Default is `true`.
 
 ### Rule 5 — Performance gating constants need benchmarking
 
-Constants in §3.11 (`SIM_*`, `FRAME_SPIN_*`, and the v51.2
+Constants in §3.11 (`SIM_*`, `FRAME_SPIN_*`, and the v80.0.0-beta.1
 `DENSITY_THROTTLE_*` band set in `density_throttle.rs`) are calibrated
 for a balance of visual fidelity and frame-rate
 stability. Changing them without benchmarking on your target

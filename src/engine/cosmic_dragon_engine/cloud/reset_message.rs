@@ -175,7 +175,7 @@ impl super::Cloud {
         // draw_message can borrow it instead of recomputing per frame.
         self.border_order = border::build_border_order(&self.message);
 
-        // v51 msg-fill-style (words): rebuild the per-cell word ordinals.
+        // v80.0.0-beta.1 msg-fill-style (words): rebuild the per-cell word ordinals.
         // A "word" is a maximal run of content cells (non-border-char,
         // i.e. not space and not a box-drawing glyph) between non-content
         // cells. Ordinals are 1-based; a non-content cell carries the
@@ -223,7 +223,7 @@ impl super::Cloud {
         }
         // Pulses from the previous overlay are stale; drop them.
         self.border_pulses.clear();
-        // v51 engrave/scorch: same staleness — sparks/smoke spawned
+        // v80.0.0-beta.1 engrave/scorch: same staleness — sparks/smoke spawned
         // against the old layout must not keep flying, and the
         // movement detector must re-arm for the fresh reveal.
         self.engrave.reset();
