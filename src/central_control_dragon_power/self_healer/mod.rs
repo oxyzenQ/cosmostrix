@@ -208,8 +208,8 @@ impl PerformanceSelfHealer {
         // enough to ignore single-frame jitter.
         const PREDICTIVE_EMA_ALPHA: f32 = 0.3;
         self.pressure_ema_prev = self.pressure_ema;
-        self.pressure_ema = self.pressure_ema * (1.0 - PREDICTIVE_EMA_ALPHA)
-            + perf_pressure * PREDICTIVE_EMA_ALPHA;
+        self.pressure_ema =
+            self.pressure_ema * (1.0 - PREDICTIVE_EMA_ALPHA) + perf_pressure * PREDICTIVE_EMA_ALPHA;
         let trend = self.pressure_ema - self.pressure_ema_prev;
 
         // ── Dragon Engine v2: predictive preemptive throttle ──

@@ -226,8 +226,7 @@ impl GhostEventScheduler {
         // At pressure=0.0 → full GHOST_SPAWN_CHANCE_PER_TICK.
         // At pressure=EVENT_PERF_GATE → 0.0 (no spawn).
         // Linear ramp: chance = base * (1 - pressure / gate).
-        let pressure_factor =
-            1.0 - (perf_pressure / EVENT_PERF_GATE).clamp(0.0, 1.0) as f64;
+        let pressure_factor = 1.0 - (perf_pressure / EVENT_PERF_GATE).clamp(0.0, 1.0) as f64;
         let scaled_chance = GHOST_SPAWN_CHANCE_PER_TICK * pressure_factor;
         if uniform.sample(&mut self.rng) >= scaled_chance {
             return;

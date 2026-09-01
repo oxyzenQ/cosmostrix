@@ -78,9 +78,7 @@ fn assert_files_under_loc_cap_or_exempt(files: &[&str]) {
                 continue 'outer;
             }
         }
-        panic!(
-            "{path}: {count} LOC exceeds {LOC_CAP} cap and has no {LOC_EXEMPT_MARKER} marker"
-        );
+        panic!("{path}: {count} LOC exceeds {LOC_CAP} cap and has no {LOC_EXEMPT_MARKER} marker");
     }
 }
 
