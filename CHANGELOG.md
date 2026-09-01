@@ -77,6 +77,35 @@ across all five commits. `scripts/inject-disclaimer.sh --check`
 passes for all 151 `.md` files. `scripts/docs-audit.py` reports no
 new broken references introduced.
 
+### strict: v80.0.0-beta.1 — CI warnings-as-failures + FAILED CI BUILD summary
+
+Owner mandate (2026-09-02): warnings are NOT ignored. Any rustc/cargo
+warning during a CI build now fails the build — same severity as a
+hard error. Two-layer enforcement:
+
+1. **Global `RUSTFLAGS="-D warnings"` + `RUSTDOCFLAGS="-D warnings"`**
+   at the top-level `env:` block of `.github/workflows/ci.yml`. Every
+   job that does not override `RUSTFLAGS` inherits strictness
+   automatically. Per-job `RUSTFLAGS` overrides (macos
+   `-C target-cpu=native`, linux v3/v4 matrix `-C target-cpu=x86-64-v3`/`-v4`,
+   windows `-C target-cpu=x86-64`) re-append ` -D warnings` so the
+   target-cpu tuning is preserved alongside strictness.
+2. **`scripts/ci-strict-build.sh` wrapper** — a belt-and-suspenders
+   post-build scanner. Every `cargo build` invocation in a bash-shell
+   CI step runs through this wrapper, which captures the full cargo
+   output, scans for `^(warning|error)(\[|:)` lines, and on any match
+   prints a `FAILED CI BUILD` summary block listing every
+   warning/error line, then exits 1. Makes failures visible at the
+   bottom of the step log without scrolling through compilation noise.
+   pwsh-shell build steps (windows) rely on `RUSTFLAGS` alone (the
+   wrapper is bash-only).
+
+Docs: `docs/workflow/ABOUT_CI.md` gains a new "Strict CI policy"
+section documenting the enforcement layers and the contributor fix
+workflow. `cargo clippy -- -D warnings` was already strict
+pre-v80.0.0-beta.1; the gap was `cargo build` itself, which is now
+closed.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

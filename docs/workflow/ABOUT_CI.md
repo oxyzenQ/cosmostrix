@@ -69,6 +69,59 @@ one-commit tree refresh (`shfmt -w scripts/*.sh`, fix new lint
 findings), which is cheaper than carrying version pins for every tool
 and bumping them forever.
 
+## Strict CI policy (owner mandate 2026-09-02)
+
+Warnings are NOT ignored. Any rustc/cargo warning during a CI build
+fails the build — same severity as a hard error. This keeps the build
+output clean and forces every contributor to fix warnings before merge,
+not "later" (later never comes).
+
+### How it is enforced
+
+1. **Global `RUSTFLAGS: "-D warnings"` env** at the top of `ci.yml`
+   applies to every job that does not override `RUSTFLAGS`. `-D warnings`
+   is the rustc flag that promotes every warning to a hard error.
+2. **Global `RUSTDOCFLAGS: "-D warnings"` env** covers `cargo doc`
+   failures (rustdoc emits its own warnings for broken intra-doc
+   links, missing `#[doc]` attributes, etc.).
+3. **Per-job `RUSTFLAGS` overrides re-append `-D warnings`** — the
+   macos (`-C target-cpu=native`), linux v3/v4 matrix
+   (`-C target-cpu=x86-64-v3`/`-v4`), and windows (`-C target-cpu=x86-64`)
+   build jobs each set their own `RUSTFLAGS` env (which REPLACES the
+   global one), so each override string has ` -D warnings` appended
+   to preserve strictness alongside the target-cpu tuning.
+4. **`scripts/ci-strict-build.sh` wrapper** — a belt-and-suspenders
+   post-build scanner. Every `cargo build` invocation in a bash-shell
+   CI step runs through this wrapper, which:
+   - Captures the full cargo output to a temp log.
+   - Scans for lines matching `^(warning|error)(\[|:)` (the standard
+     rustc/cargo diagnostic prefixes).
+   - If ANY warning or error line is found, OR cargo exited non-zero,
+     prints a `FAILED CI BUILD` summary block listing every
+     warning/error line, then exits 1.
+   - This makes the failure immediately visible at the bottom of the
+     step log without scrolling through thousands of compilation lines.
+   - pwsh-shell build steps (windows) cannot use the bash wrapper, so
+     they rely on `RUSTFLAGS` alone — strictness is still enforced,
+     just without the pretty summary block.
+
+### What this means for contributors
+
+A PR that introduces a new warning (unused import, dead code, missing
+`#[doc]` link, clippy lint, etc.) will fail CI. Fix the warning before
+pushing — do not suppress with `#[allow(...)]` unless there is a
+documented reason in the commit message and a follow-up issue.
+
+The local equivalent: `./scripts/build.sh check-all` runs
+`cargo clippy -- -D warnings` (clippy is already strict pre-v80.0.0-beta.1).
+To check `cargo build` locally with the same strictness as CI:
+
+```bash
+RUSTFLAGS="-D warnings" cargo build --profile dev --locked
+# or via the wrapper:
+bash scripts/ci-strict-build.sh -- build --profile dev --locked
+```
+
 ## Release channels (tag conventions)
 
 - `vX.Y.Z-alpha.N` / `vX.Y.Z-beta.N` / `vX.Y.Z-rc.N` -> GitHub **prerelease** + crates.io publish

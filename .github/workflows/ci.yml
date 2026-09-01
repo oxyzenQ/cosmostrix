@@ -38,6 +38,17 @@ env:
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
   RUST_VERSION: "1.98.0"
+  # v80.0.0-beta.1 strict CI (owner mandate 2026-09-02): warnings are
+  # NOT ignored — any rustc/cargo warning fails the build. This is the
+  # global default; jobs that need target-cpu overrides append their
+  # own RUSTFLAGS env (which replaces this one) and MUST re-add
+  # `-D warnings` (see macos/linux-v3-v4/windows build jobs below).
+  # RUSTDOCFLAGS covers `cargo doc` failures (rustdoc emits its own
+  # warnings for broken intra-doc links). Belt-and-suspenders with
+  # scripts/ci-strict-build.sh which scans for warning:/error: lines
+  # post-build and prints a FAILED CI BUILD summary block.
+  RUSTFLAGS: "-D warnings"
+  RUSTDOCFLAGS: "-D warnings"
 
 jobs:
   changes:
@@ -180,7 +191,7 @@ jobs:
         run: cargo test --all --locked
 
       - name: Build (debug)
-        run: cargo build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
 
   macos_build:
     name: Cosmic Dragon Guard - Build (macos native)
@@ -230,10 +241,13 @@ jobs:
 
       - name: Build
         env:
-          RUSTFLAGS: "-C target-cpu=native"
+          # v80.0.0-beta.1 strict CI: -D warnings appended to keep
+          # the per-job target-cpu override while still denying warnings
+          # (the override replaces the global RUSTFLAGS env).
+          RUSTFLAGS: "-C target-cpu=native -D warnings"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target ${{ matrix.target }} --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify build metadata
         shell: bash
@@ -331,7 +345,7 @@ jobs:
           export CC_aarch64_linux_android="${TOOLCHAIN}/bin/aarch64-linux-android21-clang"
           export CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER="${CC_aarch64_linux_android}"
 
-          cargo build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
+          bash scripts/ci-strict-build.sh -- build --profile pro-android-aarch64 --locked --target "${TARGET}" --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
         shell: bash
@@ -399,7 +413,7 @@ jobs:
           CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER: aarch64-linux-gnu-gcc
           COSMOSTRIX_BUILD: linux-aarch64-native
           COSMOSTRIX_PROFILE: pro
-        run: cargo build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/ci-strict-build.sh -- build --profile pro --locked --target aarch64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify embedded build metadata
         shell: bash
@@ -524,7 +538,7 @@ jobs:
             COSMOSTRIX_PROFILE=pro-freebsd-amd64 \
             COSMOSTRIX_LTO=fat \
             COSMOSTRIX_STRIP=yes \
-            cargo build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
+            bash scripts/ci-strict-build.sh -- build --profile pro-freebsd-amd64 --locked --jobs "$(sysctl -n hw.ncpu)"
 
             # Verify embedded build metadata via --doctor (reliable post-strip;
             # strings-based grep is fragile after LTO+strip merges constants).
@@ -600,10 +614,13 @@ jobs:
 
       - name: Build
         env:
-          RUSTFLAGS: ${{ matrix.rustflags }}
+          # v80.0.0-beta.1 strict CI: -D warnings appended to the matrix
+          # rustflags (target-cpu=x86-64-v3/v4) so warnings still fail
+          # the build despite the per-job RUSTFLAGS override.
+          RUSTFLAGS: "${{ matrix.rustflags }} -D warnings"
           COSMOSTRIX_BUILD: ${{ matrix.build }}
           COSMOSTRIX_PROFILE: ${{ matrix.profile }}
-        run: cargo build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
+        run: bash scripts/ci-strict-build.sh -- build --profile ${{ matrix.profile }} --locked --target x86_64-unknown-linux-gnu --jobs "${CARGO_BUILD_JOBS}"
 
       - name: Verify build metadata
         shell: bash
@@ -709,7 +726,11 @@ jobs:
         env:
           COSMOSTRIX_BUILD: windows-x86_64
           COSMOSTRIX_PROFILE: pro-win-amd64
-          RUSTFLAGS: "-C target-cpu=x86-64"
+          # v80.0.0-beta.1 strict CI: -D warnings appended (pwsh build —
+          # strict-runner.sh is bash-only, so RUSTFLAGS enforces strictness
+          # without the pretty FAILED CI BUILD summary block. The summary
+          # is only available on bash-shell build steps.)
+          RUSTFLAGS: "-C target-cpu=x86-64 -D warnings"
         run: cargo build --profile pro-win-amd64 --locked --target x86_64-pc-windows-msvc --jobs "$env:CARGO_BUILD_JOBS"
 
       - name: Verify build metadata
