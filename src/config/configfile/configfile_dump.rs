@@ -168,6 +168,39 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
+
+# IMPORTANT — ambient overlay limitation (v80.0.0-beta.1 honesty note):
+# When ANY ambient.HH-MM entry is active, the ambient scheduler re-applies
+# the scheduled scene's full defaults at every phase boundary. Config keys
+# that the scene owns are OVERWRITTEN on the next ambient tick — editing
+# them in config.toml mid-run is a no-op (or only takes effect between
+# ticks). This is by design: the ambient scene is the ground truth for
+# these fields while the schedule is non-empty.
+#
+# Cannot take effect via config while ambient is active:
+#   scene, color, charset, speed, density, glitch-level
+#   (and any [scene-custom.<name>] block edits to those same fields)
+#
+# Still works via config while ambient is active (NOT scene-owned):
+#   fps, monolith-size, color-bg, bold, shading-mode,
+#   color.tune.* (color tune is a separate layer),
+#   power-dragon, crystal-dragon, async-mode,
+#   message, message-border, msg-mode, msg-fill-style,
+#   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
+#
+# All RUNTIME SHORTKEYS (c/C/s/S/x/X/p/+/-/etc.) work normally during
+# ambient — they set user_override_since_ambient=true so the ambient
+# scheduler yields control until the next phase boundary.
+#
+# To make scene-owned config edits take effect: comment out ALL
+# ambient.HH-MM entries and save. The schedule empties, the ambient
+# overlay lifts (an ambient-owned scene reverts to the locked startup
+# scene family — see docs/LIVE_RELOAD_BEHAVIOR.md section 14), and the
+# scene-owned config keys become live-editable again.
+#
+# See docs/LIVE_RELOAD_BEHAVIOR.md section 8 "Known Limitations" and
+# section 14 "ambient.* is a config-family overlay on the scene family"
+# for the full contract.
 "##
 }
 

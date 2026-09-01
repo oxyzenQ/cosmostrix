@@ -462,6 +462,60 @@ NOT reset (CLI wins).
 - Comment out the line -> rain returns to normal (brightness=1.0) OK
 - CLI `--color-tune bright=2.0` + no config block -> stays at 2.0 OK
 
+### Limitation D: Scene-owned config keys are no-ops while ambient overlay is active (v80.0.0-beta.1 honesty note)
+
+**Symptom**: Owner report — while any `ambient.<HH-MM>` entry is
+active, editing `charset`, `color`, `scene`, `speed`, `density`, or
+`glitch-level` in `config.toml` mid-run appears to be a no-op (or only
+takes effect briefly between ambient ticks, then gets overwritten).
+
+**Root cause**: `Cloud::apply_ambient_entry` (called by the ambient
+scheduler thread on every phase boundary) calls
+`apply_scene_runtime_with_cfg` → `apply_builtin_scene_runtime`, which
+re-applies the scheduled scene's full defaults:
+`rain_style`, `color_scheme`, `chars` (charset), `chars_per_sec`
+(speed), `droplet_density` (density), and `glitch_level`. These six
+fields are scene-owned — the scene is the ground truth for them while
+the ambient schedule is non-empty.
+
+This is by design, not a bug. The ambient scene is the active
+authority for scene-owned fields. Editing those fields via config is
+a temporary override that the next ambient tick re-overwrites with
+the scene's value. The render path is correct and consistent — the
+schedule is just the higher-priority layer while it exists.
+
+**Cannot take effect via config while ambient is active** (scene-owned):
+`scene`, `color`, `charset`, `speed`, `density`, `glitch-level`, and
+any `[scene-custom.<name>]` block edits to those same fields.
+
+**Still works via config while ambient is active** (NOT scene-owned,
+lives on the event loop / Cloud construction / separate layers):
+`fps`, `monolith-size`, `color-bg`, `bold`, `shading-mode`,
+`color.tune.*` (color tune is a separate OKLab layer), `power-dragon`,
+`crystal-dragon`, `async-mode`, `message`, `message-border`,
+`msg-mode`, `msg-fill-style`, `ambient-snapback-secs`, and
+`ambient.<HH-MM>` (editing the schedule itself).
+
+**All runtime shortkeys** (`c`/`C`/`s`/`S`/`x`/`X`/`p`/`+`/`-`/etc.)
+work normally during ambient — they set
+`user_override_since_ambient = true` so the ambient scheduler yields
+control until the next phase boundary. The owner verified this via
+HUD metrics + visual indicators.
+
+**Workaround**: To make scene-owned config edits take effect, comment
+out ALL `ambient.<HH-MM>` entries and save. The schedule empties, the
+ambient overlay lifts (an ambient-owned scene reverts to the locked
+startup scene family — see section 14), and the scene-owned config
+keys become live-editable again. Re-add the ambient entries once the
+config edits are stable.
+
+**Why we document, not fix**: this is the correct behavior for an
+ambient-overlay-on-scene contract. The alternative — letting config
+win over the scheduled scene — would silently break the entire
+time-of-day scheduling model. Honesty over perfection: the contract
+is documented so users understand the layering, and the workaround
+(comment out the schedule) is a single save away.
+
 ---
 
 ## 9. v80.0.0-beta.1 Z-master-1B Audit — Custom Palette / Scene Switching (2026-08-30)
