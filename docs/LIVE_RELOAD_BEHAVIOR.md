@@ -23,6 +23,11 @@
 > file change. Any field NOT touched by this function stays at its
 > startup value — the renderer never sees the new config value until
 > the process is restarted.
+>
+> **Companion document**: [`docs/CONFIG_LIVE_RELOAD_DISCLAIMER.md`](CONFIG_LIVE_RELOAD_DISCLAIMER.md)
+> — the v80.0.0-beta.1 honesty note on why cosmostrix ships 99% reliable
+> live-reload, not 100% perfect. Perfect means stuck; the 1% tail is the
+> evolution surface.
 
 ---
 
