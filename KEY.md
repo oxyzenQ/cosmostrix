@@ -165,6 +165,55 @@ LOCKED. Detail: docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
 > Signoff: **oxyzenQ** — 2026-09-01 — S-master-7-v2 3-dragon harmony
 > re-verification + stale crystal doc sync (no dragon unlocked)
 
+## v51.2 Special Signature (2026-09-01)
+
+**Task**: owner special directive, two parts — (1) the approved
+continuation of the v51.1 contract audit onto the ambient snapback
+path ("until no remaining more"), (2) the power-dragon adaptive
+density masterclass (the owner's `dsty: ~0.47` from a configured 0.85
+"should not extreme throttle" report, with the mandated banding).
+
+**Power-dragon (central control)**: v50's linear spawn curve
+(`1 - 0.75*p`, floors 0.25/0.10) replaced by the owner's banded
+masterclass (`central_control_rains/density_throttle.rs`): dead zone
+p <= 0.05, low 0.84-0.70, medium 0.70-0.50, high (rare) 0.50-0.10, the
+configured density (CLI `-d` > config > scene builtin) as the CEILING,
+aggressive reads +0.20 deeper, NaN-safe. `power-dragon = false` now
+gates the render-path pressure FEED itself (`event_loop_hud.rs`) — the
+long-documented "user-configured density/speed regardless of CPU
+pressure" promise finally holds (v50 Option D gated only the HUD
+display while rain_at kept throttling). Stale `aggressive_throttle`
+releases when the dragon turns off.
+
+**Ambient (crystal engine control surface)**: `ambient.*` keys are a
+config-family overlay — commenting them ALL out lifts the overlay and
+an ambient-OWNED scene reverts to the locked startup scene family (a
+user shortkey scene survives; shortkeys outrank the overlay). Two
+cooperating paths: the ground-truth nuke revert
+(`event_loop_ambient.rs::revert_ambient_owned_scene`, which in
+practice wins the race via the per-frame AB-08 file re-read) and the
+rebuild's upgraded `RestoreLocked` arm
+(`event_loop_scene_sync::resolve_scene_base_with_ambient`). The nukes
+stopped faking `user_override_since_ambient = true` (ownership stays
+honest for later rebuilds).
+
+**Verification**: 2045/2045 tests (30 net new: 14 curve + 8 ambient
+decision + 4 gate + dsty rewrites). Live PTY proof of all three
+ambient phases (apply at 2s, comment-out revert at 5s, comment-in
+re-apply at 10s). 10s monolith 80x24 A/B: visual parity (streams 23
+identical, allocs/deallocs bit-stable 563/553). Dragons stay LOCKED —
+the cosmic spawn-scale call site changed signature only (ceiling
+parameter), zero output-bit change at bench pressure.
+
+**Evidence**: `benchmark/bench-labs/v51_2_pdragon_ambient/` (A/A2
+baseline, B/B2-B4 after, PTY trace). Detail:
+`docs/research/V51_2_POWER_DRAGON_AMBIENT_CONTRACT.md` +
+`docs/LIVE_RELOAD_BEHAVIOR.md` section 14 +
+`docs/AMBIENT_SCHEDULER.md` (overlay lift section).
+
+> Signoff: **oxyzenQ** — 2026-09-01 — v51.2 power-dragon banded
+> density gate + ambient overlay lift (dragons stay locked)
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

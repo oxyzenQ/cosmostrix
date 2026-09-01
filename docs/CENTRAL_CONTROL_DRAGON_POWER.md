@@ -157,6 +157,24 @@ perf_pressure — spawn rate, sim factor, glitch intensity, vignette
 intensity — reads `effective_pressure()` instead of a local
 variable.
 
+**v51.2 (2026-09-01):** two additions to this zone.
+
+1. The render-path pressure FEED is gated on `power_dragon`
+   (`event_loop_hud.rs::update_hud_state`): with the dragon off the
+   cloud receives 0.0, so the documented promise "rain stays at
+   user-configured density/speed regardless of CPU pressure" now
+   holds on the density leg (v50 Option D gated only the HUD display
+   while `rain_at()` kept throttling). The self-healer also releases
+   a stale `aggressive_throttle` when the dragon turns off.
+2. The spawn-scale curve is the owner's banded masterclass
+   (`central_control_rains::density_throttle.rs::compute_spawn_scale`)
+   with the configured density as the CEILING: dead zone p <= 0.05,
+   low 0.84-0.70, medium 0.70-0.50, high (rare) 0.50-0.10; aggressive
+   mode reads the pressure +0.20 deeper (same band edges). This
+   replaced the v50 linear `1 - 0.75*p` curve
+   (`PERF_PRESSURE_SPAWN_FACTOR` 0.75/0.9 + `PERF_SPAWN_SCALE_MIN`
+   0.25/0.10), which cut density 0.85 -> ~0.47 at p ~0.6.
+
 ### Zone 4 — Kernel memory (madvise, already coordinated)
 
 **Status:** already coordinated by `ReclaimState` (1-hour minimum
@@ -524,7 +542,7 @@ key call sites:
 | 626–813| `register_activity(&mut power_manager, ...)`            | Reset idle timer on user input (8 sites) |
 | 948    | `power_manager.effective_fps(cloud.pause)`              | Resolve frame period                     |
 | 958    | `power_manager.is_idle()`                               | Adaptive resync scheduling               |
-| 965    | `cloud.set_perf_pressure(power_manager.effective_pressure())` | Feed spawn cascade             |
+| (hud)  | `cloud.set_perf_pressure(applied)` (event_loop_hud.rs, v51.2 gated on `power_dragon`) | Feed spawn cascade |
 | 970    | `power_manager.effective_pressure() as f64 * SIM_PRESSURE_SCALE_FACTOR` | Sim factor      |
 | 1075   | `power_manager.observe_frame_end(work_s, p, o)`         | Update perf_pressure                     |
 | 1140–41| `power_manager.effective_pressure()`                    | Post-run perf summary (avg + max)        |

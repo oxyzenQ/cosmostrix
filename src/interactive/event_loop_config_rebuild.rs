@@ -78,18 +78,44 @@ pub(crate) fn apply_config_rebuild(
         // cli_explicit is NOT zeroed anymore — the flags stay alive as the
         // locked layer for rebuild_cloud_config's fallback arms and the
         // scene-default gates.
-        match super::event_loop_scene_sync::resolve_scene_base_action(
+        //
+        // v51.2 ambient overlay rule (owner contract extension): the
+        // `ambient.*` keys are a config-family overlay on the scene family.
+        // When they are removed at runtime (all commented out) while the
+        // ambient phase OWNS the visual state (no user shortkey/CLI
+        // override since the last ambient apply, and the live scene is the
+        // one ambient applied), the SyncRuntime arm upgrades to
+        // RestoreLocked — the overlay lifts and the scene family falls
+        // back to the locked startup values, mirroring the plain
+        // `scene`-key contract (config present wins, absent reverts to the
+        // CLI lock). Without this, commenting out `ambient.*` left the
+        // engine stuck on the ambient-applied scene (the same "last value
+        // sticks" defect family v51.1 fixed for the scene key). A user
+        // override (x/c/s keys) keeps SyncRuntime — the user's scene
+        // survives ambient removal (shortkeys outrank the ambient overlay
+        // at runtime).
+        let scene_base_action = super::event_loop_scene_sync::resolve_scene_base_with_ambient(
             &new_cfg_map,
             last_applied_cfg_map.as_ref(),
-        ) {
+            scene_name,
+            cloud.user_override_since_ambient,
+            last_applied_ambient_entry
+                .as_ref()
+                .map(|e| e.scene.as_str()),
+        );
+        match scene_base_action {
             super::event_loop_scene_sync::SceneBaseAction::ApplyConfig => {
                 // The scene block inside rebuild_cloud_config applies the
                 // config scene (including the managed defaults, gated on
                 // the CLI locks per field).
             }
             super::event_loop_scene_sync::SceneBaseAction::RestoreLocked => {
+                // v51.1: the config `scene` key was removed. v51.2: OR the
+                // ambient schedule was removed while it owned the visual
+                // state. Either way the override layer lifts and the scene
+                // family reverts to the locked startup snapshot.
                 crate::lr_trace!(
-                    "scene key removed — reverting to the locked startup scene '{}' (runtime was '{}')",
+                    "scene override removed — reverting to the locked startup scene '{}' (runtime was '{}')",
                     startup_cfg.scene_name, scene_name
                 );
                 super::event_loop_scene_sync::restore_locked_scene_family(base_cfg, startup_cfg);

@@ -222,9 +222,11 @@ use std::time::Duration;
 // 'use crate::constants::*' (which re-exports this module) call sites
 // continue to resolve unchanged.
 mod atmosphere;
+mod density_throttle;
 mod events;
 mod parallax;
 pub(crate) use atmosphere::*;
+pub(crate) use density_throttle::*;
 pub(crate) use events::*;
 pub(crate) use parallax::*;
 
@@ -565,47 +567,10 @@ pub(crate) const HEAD_LINGER_BRIGHTNESS_MS: u64 = 300;
 pub(crate) const FULL_REDRAW_INTERVAL_FRAMES: u64 = 18000;
 
 // ─── Performance tuning (rain-affecting subset) ────────────────────────────
-
-/// Spawn-scale floor under perf pressure (don't go below 25% of target).
-pub(crate) const PERF_SPAWN_SCALE_MIN: f32 = 0.25;
-
-/// AB-11 (dragon power audit, option 2): aggressive spawn-scale floor used
-/// when the self-healer has detected sustained high CPU pressure. Lower
-/// floor (10% vs 25%) allows the engine to shed more load and recover
-/// without touching the user's color/charset/density/speed/glitch_level.
-pub(crate) const PERF_SPAWN_SCALE_MIN_AGGRESSIVE: f32 = 0.10;
-
-/// v50.0.0-beta.6 Option D: shared spawn-scale computation.
-///
-/// Single source of truth for the spawn-throttle formula. Called from:
-/// - `cloud/rain.rs::rain_at()` — the actual render-path throttle
-/// - `interactive/hud/mod.rs::update_metrics()` — the `dsty:` HUD display
-///
-/// This eliminates formula drift: if a constant changes, both the render
-/// path and the HUD update automatically.
-///
-/// `pressure` is the effective pressure (0.0–1.0, clamped internally).
-/// `aggressive` selects the steeper curve (factor 0.9, floor 0.10) used
-/// when the self-healer has detected sustained high CPU.
-///
-/// Returns the spawn-scale multiplier in `[floor, 1.0]`. The caller
-/// multiplies the user's density by this to get the effective density.
-#[must_use]
-pub(crate) fn compute_spawn_scale(pressure: f32, aggressive: bool) -> f32 {
-    let p = pressure.clamp(0.0, 1.0);
-    let (factor, floor) = if aggressive {
-        (
-            crate::central_control_dragon_power::PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE,
-            PERF_SPAWN_SCALE_MIN_AGGRESSIVE,
-        )
-    } else {
-        (
-            crate::central_control_dragon_power::PERF_PRESSURE_SPAWN_FACTOR,
-            PERF_SPAWN_SCALE_MIN,
-        )
-    };
-    (1.0 - (factor * p)).clamp(floor, 1.0)
-}
+//
+// v51.2: the adaptive density throttle (banded spawn-scale curve) moved
+// to `density_throttle.rs` — same section family, extracted to keep this
+// file under the 800-LOC cap.
 
 /// Glitch activation threshold (fraction of cells).
 pub(crate) const GLITCH_THRESHOLD: f32 = 0.35;
@@ -758,3 +723,6 @@ pub(crate) const MONOLITH_SPINE_BRIGHTNESS: f32 = 0.07;
 
 /// Reserved drawn-cell capacity per monolith lane.
 pub(crate) const MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
+
+#[cfg(test)]
+mod tests;

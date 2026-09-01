@@ -9,12 +9,17 @@
 //!
 //! - `resolve_scene_base_action()` — pure decision from the config map
 //!   delta (key present / key just removed / key never present);
+//! - `ambient_removed_between_maps()` — v51.2 pure detector for the
+//!   ambient overlay lifting (all `ambient.*` keys removed between the
+//!   previously applied map and the new one);
 //! - `sync_base_cfg_with_runtime_scene()` — re-applies a runtime scene's
 //!   managed defaults onto the base (shortkey `x`/`X` cycles, ambient
 //!   fires — the runtime scene must survive unrelated config edits);
 //! - `restore_locked_scene_family()` — v51.1 CLI-locked fallback: rolls
 //!   the scene family back to the pristine startup snapshot when the
-//!   config `scene` override is removed (owner contract, 2026-09-01).
+//!   config `scene` override is removed, and v51.2: when the ambient
+//!   schedule is removed while it owned the visual state (owner
+//!   contract, 2026-09-01).
 
 use std::collections::HashMap;
 
@@ -58,6 +63,74 @@ pub(super) fn resolve_scene_base_action(
     } else {
         SceneBaseAction::SyncRuntime
     }
+}
+
+/// v51.2 ambient overlay rule (owner contract extension): did the config
+/// map delta REMOVE the ambient schedule (all `ambient.*` keys commented
+/// out)?
+///
+/// Pure function on the raw config maps — deliberately NOT on the
+/// runtime `last_ambient_schedule`, which the ground-truth nuke may have
+/// already cleared before a rebuild arrives (the applied-map pair is the
+/// durable record of what the engine last agreed to).
+///
+/// Used by `apply_config_rebuild`: when the ambient keys disappear while
+/// the ambient phase owns the visual state, the SyncRuntime arm is
+/// upgraded to RestoreLocked — the ambient overlay lifts and the scene
+/// family falls back to the locked startup values, mirroring the plain
+/// `scene`-key contract (config present wins, absent reverts to the CLI
+/// lock). Without this, commenting out `ambient.*` left the engine stuck
+/// on the ambient-applied scene (the same "last value sticks" defect
+/// family v51.1 fixed for the scene key).
+pub(super) fn ambient_removed_between_maps(
+    new_map: &HashMap<String, String>,
+    prev_map: Option<&HashMap<String, String>>,
+) -> bool {
+    let prev_had_ambient = prev_map.is_some_and(|m| {
+        !crate::crystal_dragon_engine::ambient::collect_ambient_schedule(m)
+            .entries
+            .is_empty()
+    });
+    prev_had_ambient
+        && crate::crystal_dragon_engine::ambient::collect_ambient_schedule(new_map)
+            .entries
+            .is_empty()
+}
+
+/// v51.2: full scene-base decision including the ambient overlay rule.
+///
+/// Composes [`resolve_scene_base_action`] with the ambient overlay lift:
+/// when the plain `scene`-key delta resolves to `SyncRuntime` (no scene
+/// key before or now), the ambient keys disappeared between the applied
+/// maps, AND the ambient phase owns the visual state (no user override
+/// since the last ambient apply + the live scene is the one ambient
+/// applied), the decision upgrades to `RestoreLocked` — the overlay lifts
+/// and the scene family falls back to the locked startup values.
+///
+/// Pure function over its inputs — the ambient-ownership state
+/// (`user_override_since_ambient` + the last applied ambient entry's
+/// scene) is passed in by the caller from the live cloud state BEFORE
+/// any ambient clearing runs.
+pub(super) fn resolve_scene_base_with_ambient(
+    new_map: &HashMap<String, String>,
+    prev_map: Option<&HashMap<String, String>>,
+    runtime_scene: &str,
+    user_override_since_ambient: bool,
+    last_applied_ambient_scene: Option<&str>,
+) -> SceneBaseAction {
+    let action = resolve_scene_base_action(new_map, prev_map);
+    if action != SceneBaseAction::SyncRuntime {
+        // The plain scene-key delta already decided (config key present
+        // wins / key removed restores) — ambient ownership cannot
+        // override those arms.
+        return action;
+    }
+    let ambient_owns_visual =
+        !user_override_since_ambient && last_applied_ambient_scene == Some(runtime_scene);
+    if ambient_removed_between_maps(new_map, prev_map) && ambient_owns_visual {
+        return SceneBaseAction::RestoreLocked;
+    }
+    SceneBaseAction::SyncRuntime
 }
 
 /// Restore the locked startup scene family onto the rebuild base.
@@ -392,5 +465,207 @@ mod tests {
         let cfg3 = crate::live_config::rebuild_cloud_config(&base, &phase3);
         assert_eq!(cfg3.scene_name, "crystal-dragon");
         assert_eq!(cfg3.target_fps, 60.0);
+    }
+
+    // ── v51.2: ambient overlay lift (ambient snapback contract) ──────
+
+    #[test]
+    fn ambient_removed_detector_pure_map_delta() {
+        // Ambient keys present before, absent now → removed.
+        let new = map(&[]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert!(ambient_removed_between_maps(&new, Some(&prev)));
+        // Still present (edited, not removed) → not removed.
+        let new_edited = map(&[("ambient.09-00", "monolith")]);
+        assert!(!ambient_removed_between_maps(&new_edited, Some(&prev)));
+        // Never present → not removed (nothing lifts).
+        assert!(!ambient_removed_between_maps(
+            &new,
+            Some(&map(&[("fps", "60")]))
+        ));
+        // No previous map (first reload) → cannot be "removed".
+        assert!(!ambient_removed_between_maps(&new, None));
+        // Partial removal (one of two keys left) → schedule still active.
+        let prev_two = map(&[
+            ("ambient.09-00", "cinematic"),
+            ("ambient.21-00", "monolith"),
+        ]);
+        let one_left = map(&[("ambient.21-00", "monolith")]);
+        assert!(!ambient_removed_between_maps(&one_left, Some(&prev_two)));
+    }
+
+    #[test]
+    fn ambient_removal_with_ambient_owned_scene_restores_locked() {
+        // Ambient applied cinematic (no user override since) + all ambient
+        // keys commented out → RestoreLocked (NOT SyncRuntime).
+        let new = map(&[]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_with_ambient(
+                &new,
+                Some(&prev),
+                "cinematic",
+                false,             // user_override_since_ambient
+                Some("cinematic"), // last applied ambient scene
+            ),
+            SceneBaseAction::RestoreLocked
+        );
+    }
+
+    #[test]
+    fn ambient_removal_with_user_override_keeps_runtime_scene() {
+        // User pressed `x` after ambient applied (user_override=true) →
+        // their scene survives the ambient removal.
+        let new = map(&[]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_with_ambient(&new, Some(&prev), "signal", true, Some("cinematic")),
+            SceneBaseAction::SyncRuntime
+        );
+    }
+
+    #[test]
+    fn ambient_removal_with_scene_key_present_applies_config() {
+        // The scene key still wins: config scene applies even while the
+        // ambient overlay lifts (plain-key delta outranks ownership).
+        let new = map(&[("scene", "neon")]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_with_ambient(
+                &new,
+                Some(&prev),
+                "cinematic",
+                false,
+                Some("cinematic")
+            ),
+            SceneBaseAction::ApplyConfig
+        );
+    }
+
+    #[test]
+    fn ambient_present_unrelated_edit_syncs_runtime() {
+        // Ambient keys still present + unrelated edit → SyncRuntime (the
+        // rebuild-reapply block re-applies the ambient entry anyway).
+        let new = map(&[("fps", "60"), ("ambient.09-00", "cinematic")]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_with_ambient(
+                &new,
+                Some(&prev),
+                "cinematic",
+                false,
+                Some("cinematic")
+            ),
+            SceneBaseAction::SyncRuntime
+        );
+    }
+
+    #[test]
+    fn drift_changed_scene_is_not_ambient_owned() {
+        // Crystal Dragon drift moved the scene away from the ambient
+        // entry's scene → the runtime scene is NOT ambient-owned → keep
+        // it (SyncRuntime), even though ambient is being removed.
+        let new = map(&[]);
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+        assert_eq!(
+            resolve_scene_base_with_ambient(&new, Some(&prev), "aurora", false, Some("cinematic")),
+            SceneBaseAction::SyncRuntime
+        );
+    }
+
+    /// Owner repro (ambient variant of the v51.1 contract): run with
+    /// `--scene crystal-dragon` + `ambient.09-00 = cinematic`. Ambient
+    /// applies (snapback/rx), then the user comments out ALL ambient keys.
+    /// Before v51.2 the engine STAYED on cinematic (SyncRuntime synced the
+    /// ambient scene into the rebuild base). The contract: the ambient
+    /// overlay lifts → the engine falls back to the locked crystal-dragon
+    /// — no exit, no rerun.
+    #[test]
+    fn owner_scenario_ambient_comment_out_reverts_to_cli_lock() {
+        let startup = locked_crystal_dragon_cfg();
+        let mut base = startup.clone(); // what run_interactive holds
+        let mut prev_map: Option<HashMap<String, String>> =
+            Some(map(&[("ambient.09-00", "cinematic")]));
+
+        // Phase 1 — ambient phase applied cinematic (rx event / snapback).
+        // Model the ambient apply: runtime scene is cinematic, ambient
+        // owns the visual state.
+        let runtime_scene = "cinematic";
+        let user_override = false;
+        let last_ambient_scene = Some("cinematic");
+
+        // Phase 2 — all `ambient.*` keys commented out (live-reload fires).
+        let phase2 = map(&[]);
+        let action = resolve_scene_base_with_ambient(
+            &phase2,
+            prev_map.as_ref(),
+            runtime_scene,
+            user_override,
+            last_ambient_scene,
+        );
+        assert_eq!(
+            action,
+            SceneBaseAction::RestoreLocked,
+            "ambient comment-out must lift the overlay (restore the CLI lock)"
+        );
+        // The runtime scene sync contaminated the base first (pre-v51.2
+        // behavior) — model that, then the restore must roll it back.
+        sync_base_cfg_with_runtime_scene(&mut base, runtime_scene);
+        restore_locked_scene_family(&mut base, &startup);
+        let cfg2 = crate::live_config::rebuild_cloud_config(&base, &phase2);
+        assert_eq!(
+            cfg2.scene_name, "crystal-dragon",
+            "ambient removal must revert to the CLI-locked scene (owner contract)"
+        );
+        assert_eq!(cfg2.speed, 30.0, "crystal-dragon's speed returns");
+        assert_eq!(cfg2.base_density, 0.78, "crystal-dragon's density returns");
+        assert_eq!(
+            cfg2.rain_style,
+            crate::rain_style::RainStyle::Monolith,
+            "crystal-dragon's rain style returns"
+        );
+        prev_map = Some(phase2);
+
+        // Phase 3 — an unrelated edit afterwards: scene stays locked.
+        let phase3 = map(&[("fps", "60")]);
+        let action3 = resolve_scene_base_with_ambient(
+            &phase3,
+            prev_map.as_ref(),
+            "crystal-dragon",
+            false,
+            None, // ambient tracker cleared by the removal
+        );
+        assert_eq!(action3, SceneBaseAction::SyncRuntime);
+        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon"); // no-op
+        let cfg3 = crate::live_config::rebuild_cloud_config(&base, &phase3);
+        assert_eq!(cfg3.scene_name, "crystal-dragon");
+    }
+
+    /// Lockless mirror: no CLI scene lock — startup scene resolution came
+    /// from config/default. Ambient applied a phase, then ambient is
+    /// removed → the overlay lifts back to the startup resolution (the
+    /// lockless comment-out contract: revert to the startup-effective
+    /// family, matching the alpha.7 reset-on-comment pattern).
+    #[test]
+    fn lockless_ambient_comment_out_reverts_to_startup_scene() {
+        let mut startup = locked_crystal_dragon_cfg();
+        // Lockless: no CLI scene flag — startup scene = the resolution
+        // without any CLI override.
+        startup.cli_explicit = crate::app::CliExplicit::default();
+        let mut base = startup.clone();
+        let prev = map(&[("ambient.09-00", "cinematic")]);
+
+        let action = resolve_scene_base_with_ambient(
+            &map(&[]),
+            Some(&prev),
+            "cinematic",
+            false,
+            Some("cinematic"),
+        );
+        assert_eq!(action, SceneBaseAction::RestoreLocked);
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        restore_locked_scene_family(&mut base, &startup);
+        let cfg = crate::live_config::rebuild_cloud_config(&base, &map(&[]));
+        assert_eq!(cfg.scene_name, "crystal-dragon");
     }
 }

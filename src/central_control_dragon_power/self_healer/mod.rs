@@ -144,10 +144,12 @@ impl PerformanceSelfHealer {
     /// that dragon power must not change visual identity.
     ///
     /// The new design sets `cloud.aggressive_throttle = true` instead,
-    /// which only affects the spawn-scale formula (steeper curve + lower
-    /// floor) and disables glitches — the user's visual settings are never
-    /// touched. This constant is kept so the audit trail is visible and
-    /// future contributors understand what the old behavior was.
+    /// which only affects the spawn-scale formula (v51.2: reads the
+    /// pressure 0.20 deeper on the same band edges — see
+    /// `central_control_rains::density_throttle`) and disables glitches
+    /// — the user's visual settings are never touched. This constant is
+    /// kept so the audit trail is visible and future contributors
+    /// understand what the old behavior was.
     #[cfg(test)]
     pub(crate) const FALLBACK_SCENE: &'static str = "low-power";
 

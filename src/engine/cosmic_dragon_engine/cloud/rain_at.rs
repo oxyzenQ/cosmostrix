@@ -205,16 +205,21 @@ impl super::Cloud {
         };
 
         // AB-11 (dragon power audit, option 2): when the self-healer has set
-        // aggressive_throttle, use a steeper curve (0.9 vs 0.75) + lower floor
-        // (0.10 vs 0.25) to shed more spawn load. This does NOT touch the
-        // user's density setting — only the spawn rate multiplier is affected.
+        // aggressive_throttle, the banded curve reads the pressure deeper
+        // (v51.2: +0.20 shift, same band edges) to shed more spawn load. This
+        // does NOT touch the user's density setting — only the spawn rate
+        // multiplier is affected, and the configured density is the ceiling.
         //
-        // v50.0.0-beta.6 Option D: uses the shared `compute_spawn_scale()`
-        // function (single source of truth). The HUD's `dsty:` metric uses
-        // the same function to display the effective density.
+        // v50.0.0-beta.6 Option D + v51.2 masterclass: uses the shared
+        // `compute_spawn_scale()` function (single source of truth). The
+        // HUD's `dsty:` metric uses the same function to display the
+        // effective density. v51.2: the user's configured density
+        // (self.droplet_density — CLI `-d` > config `density` > scene
+        // builtin) is passed as the throttle CEILING.
         let mut spawn_scale = crate::central_control_rains::compute_spawn_scale(
             self.perf_pressure,
             self.aggressive_throttle,
+            self.droplet_density,
         );
         // Apply atmospheric density modulation
         spawn_scale *= 1.0 + self.entropy_drift.density_offset;

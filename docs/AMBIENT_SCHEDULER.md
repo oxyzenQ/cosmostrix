@@ -357,10 +357,42 @@ phase differs from the previously-applied one, the thread fires it on the
 next loop iteration (no boundary wait).
 
 Simplification: because ambient entries are just scene names, there's
-no override layer to re-apply after a live-reload rebuild. The previous
-`last_applied_ambient_entry` tracker (which re-applied overrides
-after Cloud rebuild) is no longer needed — the scene IS the spec, so
-firing the active phase on the next scheduler iteration is sufficient.
+no per-field override layer — the scene IS the spec. The runtime still
+keeps the `last_applied_ambient_entry` tracker (event-loop locals): it
+dedups duplicate rx fires, arms the auto-snapback after a user override,
+and lets the rebuild path re-apply the ambient phase to a fresh Cloud
+(`event_loop_config_rebuild.rs` re-apply block) so an unrelated config
+edit does not visually kick ambient off.
+
+### Schedule Removal = Overlay Lift (v51.2, owner contract 2026-09-01)
+
+Removing ALL `ambient.*` keys at runtime (commenting them out) lifts the
+ambient overlay — the same CLI-locked fallback contract the plain `scene`
+key follows (see `docs/LIVE_RELOAD_BEHAVIOR.md` section 14):
+
+- If the current scene is **ambient-owned** (the last visual change came
+  from an ambient apply — `user_override_since_ambient == false` and the
+  live scene matches the last applied entry), the scene family REVERTS to
+  the locked startup resolution (CLI > config > default). No exit, no
+  rerun. Two cooperating paths enforce this, whichever sees the emptied
+  file first:
+  - the ground-truth nuke in `event_loop_ambient.rs`
+    (`revert_ambient_owned_scene`, driven by the per-frame file re-read
+    while ambient is actively applied), and
+  - the live-reload rebuild
+    (`resolve_scene_base_with_ambient` upgrading `SyncRuntime` to
+    `RestoreLocked` via `ambient_removed_between_maps`).
+- If the user overrode with a shortkey (`x`/`c`/`s`) after the last
+  ambient apply, their scene SURVIVES the removal (shortkeys are the
+  runtime top priority).
+- v51.2 honesty fix: the ground-truth nuke no longer fakes
+  `user_override_since_ambient = true` when it clears ambient state —
+  the flag keeps reporting the true owner so a later rebuild can still
+  resolve the overlay lift correctly.
+
+Commenting the entries back in recovers exactly like startup: the
+scheduler refires the current phase (AB-09 identity reset on empty) and
+ambient takes over again on the next poll.
 
 ### CLI Flag
 

@@ -664,6 +664,10 @@ pub struct Args {
     /// Default: true (protection enabled). Also configurable via
     /// `power-dragon = false` in config.toml. When false, rain stays
     /// at user-configured density/speed regardless of CPU pressure.
+    /// v51.2: this promise is now enforced on the render path itself —
+    /// the pressure feed to the cloud is gated to 0.0 (previously only
+    /// the HUD display was gated while rain_at() still throttled the
+    /// spawn scale), and a stale aggressive_throttle is released.
     /// v50-beta.3: bare `--power-dragon` (no value) errors to prevent
     /// silent toggle (was bool flag, now requires explicit true/false).
     #[arg(

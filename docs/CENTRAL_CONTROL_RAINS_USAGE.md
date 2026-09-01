@@ -364,7 +364,7 @@ these only if you understand the perf trade-offs.**
 | Constant | Type | Current | Effect |
 |----------|------|--------:|--------|
 | `EVENT_PERF_GATE` | f32 | 0.5 | FPS below which events (anomalies, gusts) are suppressed. |
-| `PERF_SPAWN_SCALE_MIN` | f32 | 0.25 | Min spawn scale under SIM pressure. |
+| `DENSITY_THROTTLE_P_*` / `DENSITY_THROTTLE_*` | f32 | 0.05/0.30/0.60; 0.84/0.70/0.50/0.10 | v51.2 banded adaptive density throttle (see `density_throttle.rs`): dead zone, then low/medium/high bands in absolute density space; the user's configured density is the ceiling. Replaces the v50 `PERF_SPAWN_SCALE_MIN` 0.25 linear floor. |
 | `GLITCH_THRESHOLD` | f32 | 0.35 | (See §3.9.) |
 | `SIM_PRESSURE_SCALE_FACTOR` | f64 | 0.7 | How aggressively sim pressure scales spawn. |
 | `SIM_MIN_FRACTION` | f64 | 0.5 | Min simulation fraction under pressure. |
@@ -660,8 +660,15 @@ RNG_INITIAL_SEED                   = 0x0123_4567
 HEAD_LINGER_BRIGHTNESS_MS          = 300
 FULL_REDRAW_INTERVAL_FRAMES        = 18000
 
-=== Performance ===
-PERF_SPAWN_SCALE_MIN               = 0.25
+=== Performance (v51.2 banded density throttle) ===
+DENSITY_THROTTLE_P_LOW             = 0.05   # dead zone ceiling
+DENSITY_THROTTLE_P_MED             = 0.30   # medium band entry
+DENSITY_THROTTLE_P_HIGH            = 0.60   # high band entry (rare)
+DENSITY_THROTTLE_LOW_TOP           = 0.84
+DENSITY_THROTTLE_LOW_BOTTOM        = 0.70
+DENSITY_THROTTLE_MED_BOTTOM        = 0.50
+DENSITY_THROTTLE_HIGH_BOTTOM       = 0.10
+DENSITY_THROTTLE_AGGRESSIVE_SHIFT  = 0.20
 SIM_PRESSURE_SCALE_FACTOR          = 0.7
 SIM_MIN_FRACTION                   = 0.5
 SIM_MAX_CAP_SECS                   = 0.0333
@@ -749,8 +756,9 @@ cinematic feel. Default is `true`.
 
 ### Rule 5 — Performance gating constants need benchmarking
 
-Constants in §3.11 (`SIM_*`, `FRAME_SPIN_*`, `PERF_SPAWN_SCALE_MIN`)
-are calibrated for a balance of visual fidelity and frame-rate
+Constants in §3.11 (`SIM_*`, `FRAME_SPIN_*`, and the v51.2
+`DENSITY_THROTTLE_*` band set in `density_throttle.rs`) are calibrated
+for a balance of visual fidelity and frame-rate
 stability. Changing them without benchmarking on your target
 hardware can cause frame drops, simulation stutters, or watchdog
 trips. If you must tune them, use `--bench-frames 10000 --bench-io`

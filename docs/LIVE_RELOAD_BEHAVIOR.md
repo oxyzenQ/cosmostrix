@@ -51,7 +51,7 @@
 | `shading-mode` | `--shading-mode` | OK YES | Key present wins (range-gated 0-1); absent falls back to the locked startup value. |
 | `async-mode` | `--async-mode` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `color.tune.*` | `--color-tune` | OK YES | Keys present win; ALL absent + CLI lock → keep the locked tune; all absent + no lock → reset to identity (alpha.7 reset-on-comment). |
-| `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. |
+| `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. Removing ALL entries lifts the ambient overlay: an ambient-OWNED scene reverts to the locked startup scene family (v51.2, see section 14); a user shortkey scene survives. |
 | `scene-custom.<name>.*` | `--scene-custom` | OK YES | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (scene defaults sit BELOW the CLI lock); intra-block conflicts resolve deterministically like startup. |
 | `message` / `message-border` | `-m` / `-mb` | OK YES | Key present wins; absent + CLI lock → keep the locked message; absent + no lock → default fallback (alpha.7). |
 | `msg-mode` | `--msg-mode` | OK YES | Key present wins; absent + CLI lock → keep; absent + no lock → default true. |
@@ -335,7 +335,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | `bold` | `--bold` | OK YES | X NO (no CLI intent gate) |
 | `shading-mode` | `--shading-mode` | OK YES | X NO (no CLI intent gate) |
 | `color.tune.*` | `--color-tune` | OK YES | OK YES |
-| `ambient.HH-MM` | (none) | OK YES | N/A |
+| `ambient.HH-MM` | (none) | OK YES | N/A (v51.2: full removal reverts ambient-owned scenes — see section 14). |
 | `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES |
 | **`message`** | `-m` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`message-border`** | `-mb` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
@@ -709,6 +709,101 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
 - Audit doc: `docs/research/V51_1_CLI_LOCKED_FALLBACK.md`.
 
 ---
+
+## 14. v51.2 Ambient Overlay Lift + Power-Dragon Density Gate (owner audit 2026-09-01)
+
+Two owner-approved extensions of the v51.1 contract, landed the same
+day ("run the same contract audit on the ambient snapback path next ...
+until no remaining more"):
+
+### 14.1 `ambient.*` is a config-family overlay on the scene family
+
+The v51.1 contract for the plain `scene` key (config present wins;
+commented out falls back to the CLI lock) now extends to the ambient
+schedule. `ambient.HH-MM = <scene>` entries are a runtime overlay: while
+present they outrank the CLI-locked scene (same as any config key); when
+ALL entries are commented out the overlay LIFTS and the engine falls
+back to the locked startup scene family — no exit, no rerun.
+
+Ownership rule (who owns the current visual state):
+
+- **ambient-owned** — the last visual change came from an ambient apply
+  (rx phase fire, startup instant apply, auto-snapback, or the rebuild
+  re-apply): `user_override_since_ambient == false` AND the live scene
+  matches the last applied ambient entry. Removal reverts the scene to
+  the locked startup resolution (CLI > config > default).
+- **user-owned** — the user pressed `x`/`c`/`s` after the ambient apply:
+  the shortkey scene SURVIVES the ambient removal (shortkeys are the
+  runtime top priority in the owner's contract).
+
+Two cooperating paths enforce the lift (whichever sees the file first):
+
+1. **Ground-truth nuke** (`event_loop_ambient.rs`) — the AB-08 file
+   re-read detects the emptied schedule within one frame (it polls the
+   file while ambient is actively applied, beating the watcher's
+   latency). `revert_ambient_owned_scene()` re-applies the locked
+   startup scene's runtime profile and rebuilds the render triple.
+   v51.2 also stopped the nuke from faking
+   `user_override_since_ambient = true` (it poisoned a later rebuild's
+   ownership decision into keeping the stale ambient scene).
+2. **Live-reload rebuild** (`event_loop_config_rebuild.rs` via
+   `resolve_scene_base_with_ambient` + `ambient_removed_between_maps`)
+   — the watcher-delivered rebuild upgrades its `SyncRuntime` arm to
+   `RestoreLocked` when the maps show the ambient keys removed AND the
+   ambient phase owned the visual state.
+
+Comment-in recovers the same way as startup: the scheduler refires the
+current phase (AB-09 identity reset) and ambient takes over again
+(verified live: revert at ~5s, re-apply at ~10s in the PTY trace,
+`benchmark/bench-labs/v51_2_pdragon_ambient/live_pty_trace.log`).
+
+### 14.2 Power-dragon OFF = fixed density (the documented promise, enforced)
+
+The `--power-dragon false` help text and `config.toml` doc promise "rain
+stays at user-configured density/speed regardless of CPU pressure" was
+only half-true: v50 Option D gated the HUD display, but
+`cloud.set_perf_pressure()` kept feeding the raw pressure — so
+`rain_at()` still throttled the spawn scale with the dragon "off".
+v51.2 gates the FEED itself (`event_loop_hud.rs`): with power-dragon off
+the cloud sees pressure 0.0, so every consumer (spawn scale, phosphor
+ramp, glitch gate, atmospheric event gate, CRT vignette) returns to its
+zero-pressure behavior, and `prs:`/`dsty:` stay consistent (both show
+the applied value). A stale `aggressive_throttle` engaged before the
+dragon was turned off is released by the self-healer (the config
+promise "disables aggressive_throttle").
+
+### 14.3 Banded adaptive density throttle (the `dsty:` curve)
+
+The v50 linear curve `1 - 0.75*p` cut the density nearly in half at
+moderate pressure (the owner observed `dsty: ~0.47` from a configured
+0.85 — "should not extreme throttle"). v51.2 replaces it with the
+owner's banded masterclass (ceiling = the configured density: CLI
+`-d` > config `density` > scene builtin, e.g. monolith 0.85):
+
+| pressure        | condition    | target density          |
+| --------------- | ------------ | ----------------------- |
+| p <= 0.05       | none (dead zone) | the configured density |
+| 0.05 < p < 0.30 | low          | 0.84 -> 0.70            |
+| 0.30 <= p < 0.60 | medium      | 0.70 -> 0.50            |
+| 0.60 <= p <= 1.0 | high (rare) | 0.50 -> 0.10            |
+
+The throttle only ever reduces below the configured value (never above
+it); cheap scenes (density below a band edge) are untouched until the
+deep bands cross them. Aggressive mode (self-healer) reads the pressure
+0.20 deeper — same band edges, no second curve. Constants + curve live
+in `src/central_control_rains/density_throttle.rs` (single source:
+`compute_spawn_scale(pressure, aggressive, density)` feeds both the
+render path and the HUD `dsty:` line).
+
+- Live PTY proof (all three phases): apply at 2s, comment-out revert at
+  5s, comment-in re-apply at 10s.
+- 10s monolith 80x24 A/B: visual parity (entropy -0.02%, gini +0.05%,
+  streams 23 identical, allocs/deallocs bit-stable 563/553). Raw JSON +
+  trace: `benchmark/bench-labs/v51_2_pdragon_ambient/`.
+- Audit doc: `docs/research/V51_2_POWER_DRAGON_AMBIENT_CONTRACT.md`.
+
+---
+
 <!--
   Documentation Disclaimer — read before relying on any data point.
 

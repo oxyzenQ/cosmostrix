@@ -62,8 +62,26 @@ pub(crate) fn update_hud_state(
     hud_state.set_charset_preset(charset_preset);
     hud_state.set_droplet_density(cloud.droplet_density());
     hud_state.set_chars_per_sec(cloud.chars_per_sec());
-    hud_state.set_effective_pressure(power_manager.effective_pressure());
-    cloud.set_perf_pressure(power_manager.effective_pressure());
+    // v51.2 power-dragon gate (owner masterclass mandate): the pressure
+    // FEED to the render path is gated on `current_cfg.power_dragon`.
+    //
+    // v50 Option D gated only the DISPLAY side (dsty static when off) while
+    // `cloud.set_perf_pressure()` kept feeding the raw value — so with
+    // power-dragon off, rain_at() still throttled the spawn scale and the
+    // config promise "rain stays at user-configured density/speed regardless
+    // of CPU pressure" was broken. Now the gated feed drives EVERY cloud
+    // consumer (spawn scale, phosphor ramp, glitch gate, atmospheric event
+    // gate, CRT vignette) to their zero-pressure behavior when the dragon is
+    // off, and the HUD `prs:` line shows the same applied value so prs/dsty
+    // never disagree. `power_manager` still accumulates the real pressure
+    // internally (the self-healer + post-exit report keep their signal).
+    let applied_pressure = if current_cfg.power_dragon {
+        power_manager.effective_pressure()
+    } else {
+        0.0
+    };
+    hud_state.set_effective_pressure(applied_pressure);
+    cloud.set_perf_pressure(applied_pressure);
     // v50.0.0-beta.6 Option D: push the aggressive-throttle flag to the
     // HUD so dsty: can reflect the steeper curve when the self-healer
     // has detected sustained high CPU pressure. Mirrors cloud's flag.

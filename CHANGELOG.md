@@ -9,6 +9,36 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v51.2 power-dragon banded density + ambient overlay lift
+
+Power-dragon adaptive density, owner report: a configured 0.85 density
+showed `dsty: ~0.47` on the HUD at runtime ("should not extreme
+throttle") — and `power-dragon = false` did not actually stop the
+throttle (v50 Option D gated only the HUD display; the render path
+kept feeding raw pressure into the spawn scale, breaking the
+documented "rain stays at user-configured density/speed regardless of
+CPU pressure" promise). v51.2 replaces the linear curve with the
+owner's banded masterclass: dead zone below 5% pressure (full
+configured density), low band 0.84-0.70, medium 0.70-0.50, high (rare)
+0.50-0.10, with the configured density (CLI -d > config density >
+scene builtin) as the ceiling — cheap scenes self-harmonize (a
+0.35-density scene is untouched until the deep bands cross it), and
+the self-healer's aggressive mode reads the pressure 0.20 deeper on
+the same band edges. power-dragon = false now gates the pressure feed
+itself: every cloud consumer returns to zero-pressure behavior, prs:
+and dsty: stay consistent, and a stale aggressive_throttle releases.
+Ambient snapback contract (approved continuation of the v51.1 audit):
+commenting out ALL `ambient.*` keys lifts the ambient overlay — an
+ambient-owned scene reverts to the locked startup scene family (a
+user shortkey scene survives), enforced by both the ground-truth nuke
+revert and the rebuild's RestoreLocked arm; the nukes no longer fake
+user ownership. 30 net new tests (curve bands, ambient decisions,
+power gate), 2045 total, 0 failed. Live PTY proof: ambient apply at
+2s, comment-out revert at 5s, comment-in re-apply at 10s. 10s A/B:
+visual parity, allocs bit-stable 563/553. Detail:
+docs/research/V51_2_POWER_DRAGON_AMBIENT_CONTRACT.md +
+LIVE_RELOAD_BEHAVIOR.md section 14.
+
 ### harmony: v51.1 CLI-locked fallback — config live-reload precedence masterclass
 
 Owner repro (premature logic): `--scene crystal-dragon` + runtime config

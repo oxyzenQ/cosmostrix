@@ -380,6 +380,15 @@ impl HudState {
         self.visible
     }
 
+    /// Read one metric line's rendered text (e.g. row 7 = ` prs:`).
+    /// Test-only accessor for cross-module tests (event_loop_hud gate
+    /// tests live outside this module and cannot read `cached_lines`
+    /// directly). Panics on out-of-range index (24 rows).
+    #[cfg(test)]
+    pub(crate) fn test_metric_line(&self, row: usize) -> &str {
+        &self.cached_lines[row].1
+    }
+
     /// Record a frame time. Called every frame from the event loop.
     /// Cheap when the HUD is off (just one bool check + early return).
     /// Auto-resets max_ms every MAX_RESET_INTERVAL_SECS to prevent a

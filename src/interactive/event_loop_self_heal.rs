@@ -48,6 +48,21 @@ pub(crate) fn run_self_healer(
         self_healer.reset();
     }
 
+    // v51.2 power-dragon gate: the config contract for `power-dragon = false`
+    // is "disables aggressive_throttle + idle FPS reduction" — but the flag
+    // could have engaged while the dragon was still on and stayed set after
+    // a live-reload turned it off (RestoreScene only fires on pressure
+    // recovery). Release it here so glitches / CRT vignette / the spawn
+    // curve return to their zero-pressure behavior immediately, and reset
+    // the downgrade bookkeeping so re-enabling the dragon re-arms cleanly.
+    if !current_cfg.power_dragon && cloud.aggressive_throttle {
+        cloud.set_aggressive_throttle(false);
+        self_healer.reset();
+        crate::live_config::push_runtime_warning(
+            "[self-heal] power-dragon off — releasing aggressive spawn throttle",
+        );
+    }
+
     let heal_action = self_healer.observe(
         power_manager_effective_pressure,
         loop_now,

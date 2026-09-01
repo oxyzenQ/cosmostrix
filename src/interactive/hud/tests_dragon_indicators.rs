@@ -199,11 +199,13 @@ fn hud_prdr_crdr_setter_must_be_called_with_live_value_not_startup_value() {
     );
 }
 
-// ── v50.0.0-beta.6 Option D: dynamic dsty tests ───────────────────
+// ── v50.0.0-beta.6 Option D + v51.2 banded masterclass: dynamic dsty ──
 //
-// dsty is DYNAMIC when power-dragon is ON (reflects throttle via
-// compute_spawn_scale). dsty is STATIC when power-dragon is OFF (shows
-// the user's configured density, no throttle).
+// dsty is DYNAMIC when power-dragon is ON (reflects the v51.2 banded
+// throttle via compute_spawn_scale: dead zone p<0.05, low 0.84-0.70,
+// medium 0.70-0.50, high 0.50-0.10, configured density as ceiling).
+// dsty is STATIC when power-dragon is OFF (shows the user's configured
+// density — the pressure feed itself is gated to 0.0 in update_hud_state).
 
 #[test]
 fn hud_dsty_static_when_power_dragon_off() {
@@ -222,7 +224,7 @@ fn hud_dsty_static_when_power_dragon_off() {
 
 #[test]
 fn hud_dsty_dynamic_when_power_dragon_on_no_pressure() {
-    // power_dragon ON, pressure=0.0 → scale=1.0 → dsty = user density.
+    // power_dragon ON, pressure=0.0 → dead zone → dsty = user density.
     let mut h = HudState::new();
     h.toggle();
     h.set_power_dragon(true);
@@ -231,14 +233,50 @@ fn hud_dsty_dynamic_when_power_dragon_on_no_pressure() {
     h.update_metrics(&[]);
     assert_eq!(
         h.cached_lines[12].1, " dsty: 0.72",
-        "dsty must equal user density when pressure is 0 (no throttle)"
+        "dsty must equal user density when pressure is 0 (dead zone)"
+    );
+}
+
+#[test]
+fn hud_dsty_dead_zone_below_low_band_entry() {
+    // v51.2: pressure 0.04 (< 0.05 dead-zone threshold) → full density.
+    // The v50 linear curve already cut 3% at this pressure — the owner's
+    // mandate is a dead zone: light overshoot never throttles.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.85); // monolith builtin
+    h.set_effective_pressure(0.04);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[12].1, " dsty: 0.85",
+        "pressure below the 0.05 dead-zone threshold must not throttle"
+    );
+}
+
+#[test]
+fn hud_dsty_low_band_starts_at_084_for_monolith_ceiling() {
+    // v51.2 owner example: monolith builtin density 0.85 (the ceiling).
+    // First throttle step lands at 0.84 (owner: "reduce density to 0.84,
+    // 0.83 ..."). Pressure 0.06 → low-band t=0.04 → target 0.8344 → 0.83.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.85);
+    h.set_effective_pressure(0.06);
+    h.update_metrics(&[]);
+    let line = &h.cached_lines[12].1;
+    assert!(
+        line == " dsty: 0.83" || line == " dsty: 0.84",
+        "low-band entry must sit at 0.84-0.83 (gentle first step), got {line:?}"
     );
 }
 
 #[test]
 fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
-    // power_dragon ON, pressure=0.5 → scale = (1 - 0.75*0.5).clamp(0.25,1.0)
-    // = 0.625. dsty = 0.72 * 0.625 = 0.45.
+    // v51.2: p=0.5 → MEDIUM band t=(0.5-0.30)/0.30=0.667 → target
+    // 0.70-0.133=0.5667 → clamp to [0.10, 0.72] → 0.57. (v50 linear gave
+    // 0.45 — the owner's "extreme throttle" complaint.)
     let mut h = HudState::new();
     h.toggle();
     h.set_power_dragon(true);
@@ -246,15 +284,16 @@ fn hud_dsty_dynamic_when_power_dragon_on_half_pressure() {
     h.set_effective_pressure(0.5);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[12].1, " dsty: 0.45",
-        "dsty must be throttled to 0.45 at 50% pressure (0.72 * 0.625)"
+        h.cached_lines[12].1, " dsty: 0.57",
+        "dsty at 50% pressure must stay in the medium band (0.70-0.50): 0.57"
     );
 }
 
 #[test]
 fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
-    // power_dragon ON, pressure=1.0 → scale = (1 - 0.75*1.0).clamp(0.25,1.0)
-    // = 0.25 (floor). dsty = 0.72 * 0.25 = 0.18.
+    // v51.2: p=1.0 → high-band floor 0.10 (owner: "high condition but rare
+    // can reach 0.50-0.10"). Cheaper than v50's 0.25-scale floor at max —
+    // the deep emergency shed the owner mandated.
     let mut h = HudState::new();
     h.toggle();
     h.set_power_dragon(true);
@@ -262,16 +301,32 @@ fn hud_dsty_dynamic_when_power_dragon_on_max_pressure() {
     h.set_effective_pressure(1.0);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[12].1, " dsty: 0.18",
-        "dsty must be floored to 0.18 at 100% pressure (0.72 * 0.25)"
+        h.cached_lines[12].1, " dsty: 0.10",
+        "dsty must floor at the 0.10 absolute band floor at 100% pressure"
+    );
+}
+
+#[test]
+fn hud_dsty_owner_observed_case_never_below_medium_band() {
+    // The owner's observed HUD value ~0.47 came from p≈0.6 (0.85 * (1 -
+    // 0.75*0.6)). v51.2: p=0.6 → exactly the high-band entry → 0.50. The
+    // engine never shows below 0.50 until sustained p ≥ 0.60.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.85);
+    h.set_effective_pressure(0.6);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[12].1, " dsty: 0.50",
+        "p=0.6 (owner's observed regime) must sit at the medium-band floor 0.50, not 0.47"
     );
 }
 
 #[test]
 fn hud_dsty_aggressive_throttle_drops_harder() {
-    // power_dragon ON, pressure=0.5, aggressive_throttle=true
-    // → scale = (1 - 0.9*0.5).clamp(0.10, 1.0) = 0.55
-    // → dsty = 0.72 * 0.55 = 0.396 → 0.40
+    // v51.2: aggressive reads the pressure 0.20 deeper (same band edges).
+    // p=0.5 aggressive → effective 0.70 → high-band t=0.25 → 0.40.
     let mut h = HudState::new();
     h.toggle();
     h.set_power_dragon(true);
@@ -281,14 +336,15 @@ fn hud_dsty_aggressive_throttle_drops_harder() {
     h.update_metrics(&[]);
     assert_eq!(
         h.cached_lines[12].1, " dsty: 0.40",
-        "dsty must drop harder with aggressive_throttle (0.72 * 0.55 = 0.40)"
+        "aggressive_throttle must read one band deeper (0.72-ceiling, 0.40 target)"
     );
 }
 
 #[test]
 fn hud_dsty_cli_density_is_ceiling() {
-    // CLI --density 1.0 sets droplet_density=1.0. Even at max pressure,
-    // dsty = 1.0 * 0.25 = 0.25 (never exceeds 1.0).
+    // CLI --density 1.0 sets droplet_density=1.0. At max pressure the
+    // banded target is the 0.10 absolute floor (never above 1.0, never
+    // below 0.10).
     let mut h = HudState::new();
     h.toggle();
     h.set_power_dragon(true);
@@ -296,7 +352,24 @@ fn hud_dsty_cli_density_is_ceiling() {
     h.set_effective_pressure(1.0); // max pressure
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[12].1, " dsty: 0.25",
-        "CLI density 1.0 caps dsty at 1.0; throttle reduces to 0.25 at max pressure"
+        h.cached_lines[12].1, " dsty: 0.10",
+        "CLI density 1.0 is the ceiling; max pressure floors at the 0.10 band floor"
+    );
+}
+
+#[test]
+fn hud_dsty_cheap_scene_untouched_until_deep_bands() {
+    // v51.2 self-harmonizing property: a cheap scene (density 0.30) has
+    // its ceiling BELOW the low/medium band edges — the throttle is a
+    // no-op until the high band crosses 0.30 (p ≥ 0.80). p=0.5 here.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_power_dragon(true);
+    h.set_droplet_density(0.30);
+    h.set_effective_pressure(0.5);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[12].1, " dsty: 0.30",
+        "cheap scenes (density below the band edges) must not throttle at medium pressure"
     );
 }

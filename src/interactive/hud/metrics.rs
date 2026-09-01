@@ -249,20 +249,22 @@ impl HudState {
         // dsty (droplet density multiplier): 2 decimals. User adjusts via
         // [/]. Owner explicitly mandated `dsty` label (NOT `den`).
         //
-        // v50.0.0-beta.6 Option D: when power-dragon is ON, dsty is DYNAMIC
-        // — it reflects the effective density after power-dragon throttle.
-        // The throttle reduces spawn scale based on CPU pressure (via
-        // compute_spawn_scale, the same function used in rain_at()). When
-        // power-dragon is OFF, dsty is STATIC (shows the user's configured
-        // density, no throttle applied).
-        //
-        // CLI `--density` is the ceiling: the throttle only reduces below
-        // the user's value (scale ≤ 1.0), never above it. So `--density 1.0`
-        // with max pressure shows `dsty: 0.25` (1.0 * 0.25 floor), not 1.0.
+        // v50.0.0-beta.6 Option D + v51.2 masterclass: when power-dragon is
+        // ON, dsty is DYNAMIC — it reflects the effective density after the
+        // power-dragon throttle. The v51.2 banded throttle (via
+        // compute_spawn_scale, the same function used in rain_at()) uses the
+        // user's configured density as the CEILING: dead zone below 5%
+        // pressure (dsty = configured density), low band 0.84-0.70, medium
+        // 0.70-0.50, high (rare) 0.50-0.10 — pressure only ever reduces
+        // below the configured value, never above it. When power-dragon is
+        // OFF, dsty is STATIC (shows the user's configured density, no
+        // throttle applied — the pressure feed itself is gated to 0.0 by
+        // update_hud_state, so prs: and dsty: stay consistent).
         let dsty_val = if self.power_dragon_on {
             let scale = crate::central_control_rains::compute_spawn_scale(
                 self.effective_pressure,
                 self.aggressive_throttle,
+                self.droplet_density,
             );
             self.droplet_density * scale
         } else {

@@ -287,6 +287,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // v50.0.0-beta.7 LOC refactor: ambient polling extracted to
         // event_loop_ambient.rs.
+        // v51.2: startup_cfg passed for the ambient overlay-lift revert
+        // (ground-truth nuke path — see event_loop_ambient.rs).
         super::event_loop_ambient::poll_ambient_events(
             &mut cloud,
             &mut frame,
@@ -307,6 +309,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             &user_ranges,
             def_ascii,
             &current_cfg,
+            &startup_cfg,
             last_user_input_at,
         );
 

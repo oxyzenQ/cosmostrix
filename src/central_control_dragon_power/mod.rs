@@ -141,19 +141,13 @@ mod audit_tests;
 // perf_pressure is a 0.0–1.0 scalar tracking how overloaded the renderer
 // is relative to the target frame period. It accumulates on overshoot
 // frames (work_s > frame_period_s) and decays on normal frames. Fed into:
-//   - spawn rate scaling (PERF_PRESSURE_SPAWN_FACTOR)
+//   - adaptive density throttle (v51.2 owner masterclass — see
+//     `central_control_rains::compute_spawn_scale`: banded curve with the
+//     configured density as ceiling; replaces the v50 linear
+//     PERF_PRESSURE_SPAWN_FACTOR 0.75/0.9 spawn-scaling curve)
 //   - self-healer P1 (downgrade/restore scene)
 //   - self-healer P2 (health mitigation)
 //   - perf stats summary (low/medium/high classification)
-
-/// Pressure spawn scaling factor: reduces spawn rate under perf pressure.
-pub(crate) const PERF_PRESSURE_SPAWN_FACTOR: f32 = 0.75;
-
-/// AB-11 (dragon power audit, option 2): aggressive spawn-scale factor used
-/// when the self-healer has detected sustained high CPU pressure. Steeper
-/// curve (0.9 vs 0.75) sheds more spawns per unit of pressure. This throttles
-/// the spawn rate WITHOUT touching the user's color/charset/density/speed.
-pub(crate) const PERF_PRESSURE_SPAWN_FACTOR_AGGRESSIVE: f32 = 0.9;
 
 /// Performance pressure increment per overshoot frame.
 pub(crate) const PERF_PRESSURE_INCREMENT: f32 = 0.25;

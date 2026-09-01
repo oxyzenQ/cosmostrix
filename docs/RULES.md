@@ -179,29 +179,32 @@ The session gate is `INTERACTIVE_SESSION_ACTIVE`, set once at the top of
 several killer-feature notes re-fire per scene change / config save, and the
 post-exit summary must stay readable.
 
-### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D)
+### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D + v51.2 banded masterclass)
 
-The `dsty:` HUD metric (row 9) is **dynamic when power-dragon is ON** — it reflects the effective density after power-dragon throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density, no throttle applied).
+The `dsty:` HUD metric (row 12) is **dynamic when power-dragon is ON** — it reflects the effective density after the v51.2 banded throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density — v51.2 also gates the pressure FEED itself to 0.0, so the render path matches the display).
 
 **How it works:**
 
-- `dsty:` = `user_density * compute_spawn_scale(pressure, aggressive)`
-- `compute_spawn_scale()` is a shared function (`central_control_rains.rs`) — the **same function** used by `rain_at()` in the render path. No formula drift.
-- `pressure` = `power_manager.effective_pressure()` (0.0–1.0)
-- `aggressive` = `cloud.aggressive_throttle` (set by self-healer on sustained high CPU)
+- `dsty:` = `user_density * compute_spawn_scale(pressure, aggressive, user_density)` — the target lands on the banded curve in ABSOLUTE density space
+- `compute_spawn_scale()` is a shared function (`central_control_rains/density_throttle.rs`) — the **same function** used by `rain_at()` in the render path. No formula drift.
+- `pressure` = the APPLIED pressure (v51.2: gated to 0.0 when power-dragon is off; raw `power_manager.effective_pressure()` otherwise)
+- `aggressive` = `cloud.aggressive_throttle` (set by self-healer on sustained high CPU; released when power-dragon turns off)
+- v51.2 bands: dead zone p <= 0.05, low 0.84-0.70, medium 0.70-0.50, high (rare) 0.50-0.10; aggressive reads the pressure +0.20 deeper (same band edges)
 
 **Behavior table:**
 
 | State | `dsty:` shows | Example |
 |-------|--------------|---------|
-| power-dragon OFF | user density (static) | `dsty: 0.75` |
-| power-dragon ON, no pressure | user density (full) | `dsty: 0.72` |
-| power-dragon ON, 50% pressure | throttled | `dsty: 0.45` (0.72 * 0.625) |
-| power-dragon ON, 100% pressure | floored | `dsty: 0.18` (0.72 * 0.25) |
-| power-dragon ON + aggressive | drops harder | `dsty: 0.40` (0.72 * 0.55) |
-| CLI `--density 1.0` + max pressure | CLI caps, throttle reduces | `dsty: 0.25` (1.0 * 0.25) |
+| power-dragon OFF | user density (static, feed gated) | `dsty: 0.75` |
+| power-dragon ON, pressure in dead zone (p <= 0.05) | user density (full) | `dsty: 0.72` |
+| power-dragon ON, 50% pressure | medium band | `dsty: 0.57` (0.72-ceiling, band target 0.5667) |
+| power-dragon ON, 60% pressure | medium-band floor | `dsty: 0.50` (monolith 0.85's owner-observed regime) |
+| power-dragon ON, 100% pressure | high-band floor | `dsty: 0.10` |
+| power-dragon ON + aggressive | reads one band deeper | `dsty: 0.40` (p=0.5 reads 0.7) |
+| CLI `--density 1.0` + max pressure | CLI is the ceiling, throttle reduces | `dsty: 0.10` |
+| cheap scene (density 0.30), medium pressure | untouched (below band edges) | `dsty: 0.30` |
 
-**CLI wins:** the user's configured density is the **ceiling** — the throttle only reduces below it (scale ≤ 1.0), never above it. So `--density 1.0` with max pressure shows `dsty: 0.25`, not `1.0`.
+**CLI wins:** the user's configured density (CLI `-d` > config `density` > scene builtin) is the **ceiling** — the throttle only ever reduces below it, never above it. Cheap scenes (density below the band edges) self-harmonize: they stay untouched until the deep bands cross them.
 
 Custom blocks have a **strict field allowlist** — unknown fields are rejected as errors, NOT auto-promoted to root scope. This prevents silent side-effects like `color = green` inside `[charset-custom.quantum]` changing the global color scheme.
 

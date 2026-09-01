@@ -440,20 +440,19 @@ fn hud_renders_seven_new_metric_lines_after_setters_and_update() {
     assert_eq!(sped_line, " sped: 14.0", "row 11 (sped) content mismatch");
 
     // Row 9 — dsty: 2 decimals. Owner mandated `dsty` (NOT `den`).
-    // v50.0.0-beta.6 Option D: dsty is now DYNAMIC when power-dragon is ON.
-    // This test sets power_dragon ON (default) + pressure=0.123 + density=1.0,
-    // so dsty = 1.0 * compute_spawn_scale(0.123, false)
-    //        = 1.0 * (1 - 0.75*0.123).clamp(0.25, 1.0)
-    //        = 1.0 * 0.90775
-    //        = 0.91 (rounded to 2 decimals)
+    // v50.0.0-beta.6 Option D + v51.2 banded masterclass: dsty is DYNAMIC
+    // when power-dragon is ON. This test sets power_dragon ON (default) +
+    // pressure=0.123 + density=1.0, so dsty = the v51.2 banded target:
+    // p=0.123 is in the LOW band (0.05 < p < 0.30), t=(0.123-0.05)/0.25,
+    // target = 0.84 - 0.14*t = 0.799 -> 0.80 (rounded to 2 decimals).
     let (_, dsty_line) = &h.cached_lines[12];
     assert!(
         dsty_line.starts_with(" dsty: "),
         "row 12 must start with ' dsty: ', got: {dsty_line:?}"
     );
     assert_eq!(
-        dsty_line, " dsty: 0.91",
-        "row 12 (dsty) content mismatch — dynamic throttle"
+        dsty_line, " dsty: 0.80",
+        "row 12 (dsty) content mismatch — dynamic banded throttle"
     );
 
     // Row 10 — scn: scene name string

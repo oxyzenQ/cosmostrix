@@ -54,7 +54,7 @@ each line means without reading the full reference below.
 | 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
 | 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. Confirms `c`/`C` cycle. |
 | 11  | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
-| 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. |
+| 12  | `dsty:`     | multiplier (2dp) | **Density** — droplet density multiplier. User adjusts via `[`/`]`. Label is `dsty` (NOT `den`) per owner mandate. v51.2: DYNAMIC when `prdr:` is on — shows the banded throttle target (dead zone below 5% pressure = the configured density; low 0.84-0.70 / medium 0.70-0.50 / high 0.50-0.10; the configured density is the ceiling). STATIC (fixed configured density) when `prdr:` is off. |
 | 13  | `prdr:`     | on/off         | **Power Dragon** — live power-management state (throttle + idle FPS reduction). Reflects config live-reload. |
 | 14  | `crdr:`     | on/off         | **Crystal Dragon** — live ambient palette-drift state. Reflects config live-reload. |
 | 15  | `ambt:`     | on/off         | **Ambient scheduler** — whether `config.toml` ambient time-window entries are active. |

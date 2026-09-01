@@ -91,6 +91,13 @@ mod v51_intro_brand_pause;
 #[path = "tests_v51_shortkey_noop.rs"]
 mod v51_shortkey_noop;
 
+// v51.2 power-dragon gate: render-path pressure feed is gated on
+// power-dragon (config promise "user-configured density/speed
+// regardless of CPU pressure") + stale aggressive release.
+#[cfg(test)]
+#[path = "tests_v51_2_power_dragon_gate.rs"]
+mod v51_2_power_dragon_gate;
+
 #[cfg(test)]
 mod tests_v35;
 
