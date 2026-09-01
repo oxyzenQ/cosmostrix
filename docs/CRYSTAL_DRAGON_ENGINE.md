@@ -29,14 +29,14 @@ shader.
 
 | File | Role | LOC |
 |------|------|-----|
-| `crystal_dragon_control/mod.rs` | Config struct + defaults (polling interval, sensor mode, calc method, drift chance, EMA alpha) | 134 |
-| `sensor/mod.rs` | CPU sampling (procfs) + CLOCK fallback (UTC time). Produces a 1–99 **point**. | 276 |
+| `crystal_dragon_control/mod.rs` | Config struct + defaults (polling interval, sensor mode, calc method, drift chance, EMA alpha) | 137 |
+| `sensor/mod.rs` | CPU sampling (procfs) + CLOCK fallback (UTC time). Produces a 1–99 **point**. | 300 |
 | `palette_groups/mod.rs` | 44 builtin themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2). | 129 |
-| `point_system/mod.rs` | calc-v1: probabilistic weighted theme selection within the current group. | 126 |
-| `ambient/mod.rs` | Time-of-day schedule types, config parsing, validation, startup apply. | 520 |
-| `ambient_scheduler/mod.rs` | Background **dynamic idle/wake** thread that fires phase boundaries. | 378 |
+| `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring (8 entries); calc-v1 (legacy): no-memory weighted selection. | 268 |
+| `ambient/mod.rs` | Time-of-day schedule types, config parsing, validation, startup apply. | 524 |
+| `ambient_scheduler/mod.rs` | Background **dynamic idle/wake** thread that fires phase boundaries. | 506 |
 | `ambient_diag.rs` | Diagnostics counters (exit summary, `ambient_diag_summary()`). | 88 |
-| `mod.rs` | Top-level module doc + re-exports. | 74 |
+| `mod.rs` | Top-level module doc + re-exports. | 75 |
 
 Plus per-subsystem `tests.rs` files (Pattern C — dedicated tests/
 subdir convention).
@@ -51,8 +51,8 @@ these via the `CrystalDragonControl` struct.
 |----------|-------|---------|
 | `CRYSTAL_DRAGON_POLLING_SECS` | `60.0` | Sensor sampling interval. At 60 s, drift events fire at most once per minute — slow enough to feel organic. |
 | `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Minimum time in current theme before transition is allowed. Prevents flicker when CPU% hovers near a group boundary. |
-| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Probability that a poll tick actually triggers a drift event. At 60 s × 12 %, drift fires roughly once every 5 minutes. |
-| `CRYSTAL_DRAGON_CPU_EMA_ALPHA` | `0.25` | EMA smoothing for CPU%. 0.25 = 75 % weight on history, 25 % on new sample. |
+| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Default probability that a poll tick actually triggers a drift event. At 60 s × 12 %, drift fires roughly once every 5 minutes. Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
+| `CRYSTAL_DRAGON_CPU_EMA_ALPHA` | `0.25` | Default EMA smoothing for CPU%. 0.25 = 75 % weight on history, 25 % on new sample. The sensor copies `CrystalDragonControl.cpu_ema_alpha` at construction (S-master-1 wiring); this const only seeds the default. |
 
 ### `CrystalDragonControl` struct
 
@@ -63,7 +63,7 @@ pub(crate) struct CrystalDragonControl {
     pub drift_chance: f32,        // 0.12
     pub cpu_ema_alpha: f32,       // 0.25
     pub sensor_mode: CrystalDragonSensorMode,  // Cpu (with Clock fallback)
-    pub calc_method: CrystalDragonCalcMethod, // Calc (calc-v1)
+    pub calc_method: CrystalDragonCalcMethod, // CalcV2 (calc-v2, default)
 }
 ```
 
@@ -80,8 +80,8 @@ pub(crate) enum CrystalDragonSensorMode {
 
 ```rust
 pub(crate) enum CrystalDragonCalcMethod {
-    Calc,    // calc-v1: probabilistic weighted selection (active)
-    CalcV2,  // Pattern state machine with memory (NOT YET IMPLEMENTED — reserved)
+    Calc,    // calc-v1: legacy no-memory weighted selection (constructed only in tests)
+    CalcV2,  // Pattern state machine with DriftHistory recency memory (implemented, the default since Dragon Engine v2)
 }
 ```
 
@@ -185,6 +185,13 @@ fit a single temperature. They remain available via explicit
 into them.
 
 ## 6. calc-v1 Selection Algorithm (Source: `point_system/mod.rs`)
+
+Legacy algorithm, retained for A/B comparison and constructed only in
+tests. The PRODUCTION default is calc-v2 (`calc_v2_select()`), which
+adds an 8-entry `DriftHistory` recency ring: recently selected themes
+get a multiplicative recency penalty so the engine cannot oscillate
+A->B->A and the drift sequence feels more varied. calc-v2 otherwise
+uses the same weighted-CDF machinery documented below.
 
 When a drift event fires (12 % chance per poll tick), the engine runs
 `calc_v1_select()` to pick a new theme from the current temperature
@@ -377,7 +384,7 @@ phase and are now invariants of the engine:
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | HUD indicator | **Silent-Elegant (Option A)** — no HUD indicator, no verbose drift-event logging | The engine should be felt, not seen. |
-| Calc method | **calc-v1** (probabilistic weighted) | calc-v2 (pattern state machine with memory) is reserved for future release. |
+| Calc method | **calc-v2** (pattern state machine with DriftHistory recency memory, default since Dragon Engine v2) | calc-v1 (legacy no-memory weighted selection) retained for A/B and constructed only in tests. |
 | Polling interval | **60 s** | Slow enough to feel organic, fast enough to react to real load within a minute. |
 | Sensor mode | **CPU primary, CLOCK fallback** | CPU is the meaningful signal; CLOCK is the graceful degradation when CPU sampling is unsupported. |
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |
@@ -439,7 +446,7 @@ test subdir convention). Tests cover:
 | `crystal_dragon_control` | `crystal_dragon_control/tests.rs` | Default values match owner-chosen constants |
 | `sensor` | `sensor/tests.rs` | Point-to-group mapping, group-point-range bounds, CLOCK fallback math |
 | `palette_groups` | `palette_groups/tests.rs` | All 44 themes classified, no orphan themes, group counts (14/14/14/2) |
-| `point_system` | `point_system/tests.rs` | calc-v1 distribution properties, no-op skip behavior, uniform fallback |
+| `point_system` | `point_system/tests.rs` | calc-v2 DriftHistory recency + distribution properties, calc-v1 legacy parity, no-op skip behavior, uniform fallback |
 | `ambient` | `ambient/tests.rs` | Config parsing, validation, scene-custom interaction, startup apply |
 | `ambient_scheduler` | `ambient_scheduler/tests.rs` | Dynamic idle/wake timing, reload behavior, edge cases |
 
@@ -453,28 +460,28 @@ cargo test crystal_dragon
 
 ```
 src/engine/crystal_dragon_engine/
-├── mod.rs                          # Top-level doc + re-exports (74 LOC)
+├── mod.rs                          # Top-level doc + re-exports (75 LOC)
 ├── ambient_diag.rs                 # Diagnostics counters (88 LOC)
 ├── ambient/
-│   ├── mod.rs                      # Schedule types + config parsing (520 LOC)
+│   ├── mod.rs                      # Schedule types + config parsing (524 LOC)
 │   └── tests.rs                    # ambient tests (346 LOC)
 ├── ambient_scheduler/
-│   ├── mod.rs                      # Dynamic idle/wake thread (378 LOC)
-│   └── tests.rs                    # Scheduler tests (387 LOC)
+│   ├── mod.rs                      # Dynamic idle/wake thread (506 LOC)
+│   └── tests.rs                    # Scheduler tests (446 LOC)
 ├── crystal_dragon_control/
-│   ├── mod.rs                      # Config struct + constants (134 LOC)
-│   └── tests.rs                    # Control tests (44 LOC)
+│   ├── mod.rs                      # Config struct + constants (137 LOC)
+│   └── tests.rs                    # Control tests (32 LOC)
 ├── palette_groups/
 │   ├── mod.rs                      # 44 themes -> 3 groups (129 LOC)
-│   └── tests.rs                    # Group tests (116 LOC)
+│   └── tests.rs                    # Group tests (71 LOC)
 ├── point_system/
-│   ├── mod.rs                      # calc-v1 weighted selection (126 LOC)
-│   └── tests.rs                    # Point system tests (98 LOC)
+│   ├── mod.rs                      # calc-v2 (default) + calc-v1 selection, DriftHistory (268 LOC)
+│   └── tests.rs                    # Point system tests (242 LOC)
 └── sensor/
-    ├── mod.rs                      # CPU + CLOCK sensor (276 LOC)
-    └── tests.rs                    # Sensor tests (91 LOC)
+    ├── mod.rs                      # CPU + CLOCK sensor (300 LOC)
+    └── tests.rs                    # Sensor tests (164 LOC)
 
-Total: 1,707 LOC (production) + 1,031 LOC (tests) = 2,738 LOC
+Total: 2,019 LOC (production) + 1,801 LOC (tests) = 3,820 LOC
 ```
 
 ## 14. See Also

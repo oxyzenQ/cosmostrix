@@ -8,6 +8,29 @@
 
 ## LOCK
 
+> S-master-7-v2 3-dragon harmony re-verification + LTS (2026-09-01,
+> commit after bf6ef18): the cosmic leg of the harmony chain
+> re-verified at HEAD. set_color_scheme (runtime_controls.rs:51)
+> contract confirmed: scheme store + custom_palette_active clear
+> (Color-#1) + build_palette + apply_tune_to_palette re-apply
+> (Bug-#5 v30 strengthen) -> apply_new_palette (slot rotation, color
+> map regen, column reset, wave timing). post_rain.rs drift gate +
+> 60s drift-cycle self-reset verified current (Z-master-1X round 2).
+> Dragon Engine v2 cosmic features confirmed live: predictive
+> self-heal (EMA slope, PreemptiveThrottle in event_loop_self_heal),
+> pressure-scaled ghost spawn, adaptive phosphor 0.8->1.0 ramp,
+> self_healer reset() preserves v2 state across scene switches
+> (8617360 fix). Dynamic 3-dragon run (10s, crystal+truecolor):
+> stability excellent, zero-drift variance. Dynamic proof at 62326
+> fps truecolor / 93353 fps mono, allocs bit-stable. ZERO cosmic
+> source changes this pass — all 17 lock invariants untouched.
+> 81 lock tests green, 1995 full tests green, mono A/B control
+> -0.03% fps / allocs bit-stable 563. Real deliverable was the
+> stale crystal-side doc sync (see crystal KEY.md).
+> Detail: docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-7-v2 harmony re-verification, cosmic leg, lock intact
+
 > S-master-6 3-dragon harmony lock (2026-09-01): cosmic dragon
 > confirmed in harmony with chroma + crystal. S-master series (S1-S6)
 > made NO changes to cosmic dragon locked invariants. S2 applied 2

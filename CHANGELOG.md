@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: S-master-7-v2 LTS — 3-dragon harmony re-verification + stale crystal doc sync
+
+Deeper pass over the v1 harmony lock (1dd2ce2), re-verified AT HEAD
+because S-master-1-v2 rewired the crystal->cosmic control surface
+after v1: the delegation chain (crystal_dragon_tick reading
+control.drift_chance -> set_color_scheme -> build_palette +
+apply_tune_to_palette -> 300ms transition wave) read end to end —
+intact and improved (calc-v2 DriftHistory default). Cosmic v2
+features confirmed live (PreemptiveThrottle, pressure-scaled ghosts,
+0.8->1.0 adaptive phosphor ramp). Dynamic 3-dragon run (10s,
+crystal+truecolor): all engines active, stability excellent, dwell
+hysteresis correctly suppresses drift in short runs. REAL FIX:
+docs/CRYSTAL_DRAGON_ENGINE.md was stale since d55442d — calc-v1
+documented as active and calc-v2 as "NOT YET IMPLEMENTED" (the
+055a69f code fix missed this doc); 10 sections corrected including
+all LOC counts (2,738 -> 3,820 total) and field-as-source-of-truth
+notes. 81 lock tests, 1995 full tests, 0 failed. A/B control:
+visual bit-parity, allocs bit-stable. All 3 dragons stay locked.
+Detail: docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
+
 ### lock: S-master-6-v2 LTS — chroma dragon visual-impact peak audit, locked (no code changes)
 
 The masterclass-most-valuable audit axis. Verified: 12/12 tuning

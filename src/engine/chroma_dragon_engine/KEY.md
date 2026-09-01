@@ -8,6 +8,24 @@
 
 ## LOCK
 
+> S-master-7-v2 3-dragon harmony re-verification (2026-09-01, commit
+> after bf6ef18): the chroma leg of the harmony chain re-verified at
+> HEAD. The delegation entry point (set_color_scheme ->
+> build_palette + apply_tune_to_palette -> apply_new_palette: slot
+> rotation, color-map regen, column reset, 300ms transition wave)
+> confirmed unchanged since the v2 verification; the transition
+> machinery (TransitionLTable, apply_l_smoothing) exercised and
+> asserted by the 36-test lock suite. Harmony conclusions at HEAD:
+> the S-master-1-v2 crystal-control field wiring feeds this chain
+> unchanged (ColorScheme is a typed enum end to end — no user
+> strings reach palette construction). Dynamic 3-dragon run (10s,
+> crystal+truecolor): stability excellent. ZERO chroma source
+> changes this pass; all 19 lock invariants untouched. 81 lock
+> tests green, 1995 full tests green. Detail:
+> docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-7-v2 harmony re-verification, chroma leg, lock intact
+
 > S-master-6-v2 LTS visual-impact peak audit + LOCK (2026-09-01, commit
 > e93aca5): the masterclass-most-valuable axis. Verified: 12/12 tuning
 > constants at sweep-audit-verified sweet spots (PALETTE_FLOOR_RATIO 0.20

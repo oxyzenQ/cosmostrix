@@ -8,6 +8,28 @@
 
 ## LOCK
 
+> S-master-7-v2 3-dragon harmony re-verification + LTS (2026-09-01,
+> commit after bf6ef18): delegation chain re-verified at HEAD through
+> the S-master-1-v2 wiring changes — crystal_dragon_tick now reads
+> control.drift_chance (field as source of truth) and calc-v2
+> DriftHistory is the default selection; chain intact: tick ->
+> set_color_scheme (custom-palette flag clear + tune re-apply) ->
+> build_palette + apply_tune_to_palette -> transition wave. Dynamic
+> 3-dragon run (10s, crystal+truecolor): stability excellent, drift
+> correctly held by dwell hysteresis in short runs. REAL FIX THIS
+> PASS: docs/CRYSTAL_DRAGON_ENGINE.md was stale since d55442d — it
+> still described calc-v1 as active and calc-v2 as "NOT YET
+> IMPLEMENTED — reserved" (the 055a69f code-comment fix missed this
+> doc); 10 sections corrected (calc method default, enum annotations,
+> decision table, test table, point_system role, all LOC counts,
+> totals 2,738 -> 3,820) plus drift_chance/cpu_ema_alpha
+> field-as-source-of-truth notes. Doc-only: zero crystal source
+> changes, lock invariants untouched. 81 lock tests green, 1995 full
+> tests green, mono A/B control -0.03% fps / allocs bit-stable 563.
+> Detail: docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-01 -- S-master-7-v2 harmony re-verification + stale crystal doc sync, lock intact
+
 > S-master-6 3-dragon harmony lock (2026-09-01): crystal dragon
 > confirmed in harmony with cosmic + chroma. S6 applied 1 hardening
 > fix to ambient_scheduler/mod.rs:152-188 — replaced .expect("spawn

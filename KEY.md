@@ -121,6 +121,50 @@ production LTS.
 > Signoff: **oxyzenQ** — 2026-09-01 — S-master-6 3-dragon harmony lock
 > (additive hardening only, no dragon unlocked)
 
+## S-master-7-v2 Signature (2026-09-01)
+
+**Lock state**: all 3 dragons LOCKED, re-verified at HEAD through the
+full v2 audit series (S4/S5/S6/S7). The delegation chain
+(crystal_dragon_tick -> set_color_scheme -> build_palette +
+apply_tune_to_palette -> apply_new_palette transition wave) was
+re-read at HEAD — intact and improved since the v1 harmony lock
+(calc-v2 DriftHistory default, drift_chance/cpu_ema_alpha as control
+fields per S-master-1-v2, v2-state-preserving self-healer reset).
+Dynamic 3-dragon run (10s monolith, crystal+truecolor): all three
+engines active in one process, stability excellent, dwell hysteresis
+correctly suppresses drift in short runs by design.
+
+**Harmony invariants 1-5**: re-verified, unchanged. Typed-enum
+delegation (no user strings reach palette construction), immutable
+snapshot isolation, Chroma Dragon Routing Rule, thread isolation
+with graceful spawn degradation, per-engine lock integrity.
+
+**Real fix this pass** (docs-only): docs/CRYSTAL_DRAGON_ENGINE.md
+was stale since d55442d — calc-v1 described as active, calc-v2 as
+"NOT YET IMPLEMENTED" (the 055a69f code-comment fix missed this
+doc). 10 sections corrected (calc default, enum annotations,
+decision table, test table, subsystem map, all LOC counts,
+2,738 -> 3,820 total) + drift_chance/cpu_ema_alpha
+field-as-source-of-truth notes.
+
+**Test verification**: 81 lock tests (0 fail), 1995 full binary
+tests (0 fail, 2 ignored), 289 chroma tests, 36 chroma lock-suite
+tests, clippy clean, gate-keepers 8/8.
+
+**A/B benchmark** (10s monolith 80x24, standard protocol): control
+pair A(22b9417) -> B(bf6ef18, docs-only diff): avg_fps -0.03%,
+entropy -0.02%, gini +0.00%, dirty cells -0.01%, allocs/deallocs
+bit-stable 563/553. Truecolor chroma path: 62084 fps A vs 62056 B
+(-0.05%), transition stream 94.71 (flowing), stability excellent.
+Raw: benchmark/bench-labs/S_master_v2_v2/S7_after_control.json.
+
+**3-Dragon Harmony Verdict**: the crystal, chroma, and cosmic
+dragons work together in harmony at HEAD. All three dragons remain
+LOCKED. Detail: docs/archive/audits/S7_V2_3_DRAGON_HARMONY_LOCK.md.
+
+> Signoff: **oxyzenQ** — 2026-09-01 — S-master-7-v2 3-dragon harmony
+> re-verification + stale crystal doc sync (no dragon unlocked)
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
