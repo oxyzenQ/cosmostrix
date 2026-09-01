@@ -78,7 +78,10 @@ pub(crate) fn group_themes(group: TemperatureGroup) -> &'static [ColorScheme] {
             Neon,
             FancyDiamond,
             NeonPurple,
-            // Transitional neutral
+            // Transitional neutral — Pluto's v80.0.0 real-color
+            // retune (muted dusty-tan, was icy blue-gray) still
+            // reads as a warm-leaning neutral that bridges Medium
+            // and Hot, so the drift classification is unchanged.
             Pluto,
         ],
         TemperatureGroup::Hot => &[

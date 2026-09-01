@@ -8,6 +8,28 @@
 
 ## LOCK
 
+> Planet theme real-color data retune (2026-09-02, v80.0.0-beta.2):
+> owner directive — the planet palette family was suspected "not
+> real like planets color". Six `catalog/themes.rs` data palettes
+> retuned to each body's true-color appearance: Mars dusty
+> butterscotch-rust, Venus pale sulfur-cream, Jupiter banded
+> sienna/cream, Saturn hazy butterscotch-gold, Uranus serene pale
+> cyan, Pluto New-Horizons buff-tan (was icy blue-gray — an
+> astronomical misread). Mercury, Moon, Sun, Neptune, Stars
+> verified faithful — unchanged. DATA retune only: engine
+> machinery (floor / continuity / OKLab / shader paths), tuning
+> constants (PALETTE_FLOOR_RATIO 0.20, BODY_TAIL_MAX_GAP_RATIO
+> 2.0), the 44-theme count and every planet head 655 luminance sum
+> are untouched — all 19 lock invariants hold, 273 chroma tests
+> green. Near-dup allowlist hygiene in `palette/tests_audit.rs`:
+> Stars/Pluto + Venus/Saturn entries removed (retune pushed both
+> pairs above the 30 threshold — now distinct palettes);
+> pre-existing stale NeonPurple/Purple + Blue/Ocean entries
+> cleaned. Pluto stays in the Medium "Transitional neutral"
+> drift group — zero ambient cascade. Engine version stays 9-D.
+>
+> Signoff: **oxyzenQ** -- 2026-09-02 -- planet real-color data retune, lock invariants intact
+
 > S-master-7-v2 3-dragon harmony re-verification (2026-09-01, commit
 > after bf6ef18): the chroma leg of the harmony chain re-verified at
 > HEAD. The delegation entry point (set_color_scheme ->

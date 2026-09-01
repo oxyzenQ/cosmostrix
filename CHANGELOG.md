@@ -434,6 +434,60 @@ sampling, one less `&'static` slice plumbed through CloudConfig);
 remaining subsystems already at peak — no over-engineering
 introduced.
 
+### tune: v80.0.0-beta.2 — planet theme real-color masterclass retune
+
+Owner mandate (2026-09-02): "owner suspects all existing builtin
+colors/theme for scope planets is not real like planets color."
+Full audit of the 11 planet & space themes against each body's
+true-color appearance: six palettes retuned, five verified faithful
+and unchanged.
+
+Retuned (stops data only — engine machinery, tuning constants, and
+the 9-step interpolation untouched; every retuned head keeps the
+planet-family 655 luminance sum):
+- `mars`: fire-orange -> dusty butterscotch-rust. Mars is the
+  butterscotch planet (NASA true color), not embers; the neon
+  stops (220,75,30)/(255,130,60) read as fire and are replaced by
+  dusty salmon and pale butterscotch.
+- `venus`: saturated amber-gold -> pale sulfuric yellow-cream.
+  Venus is a nearly featureless pale cream haze, not a gold ingot.
+- `jupiter`: saturated orange ramp -> banded sienna/cream (JunoCam
+  zones and belts), paler and more muted.
+- `saturn`: vivid gold -> hazy pale butterscotch-gold — visibly
+  paler than Jupiter, as it is astronomically.
+- `uranus`: neon cyan flare -> serene pale cyan. Real Uranus is
+  the calmest, most featureless planet in the system, not a neon
+  flare.
+- `pluto`: icy blue-gray -> New-Horizons buff-tan. The old palette
+  was an astronomical misread: New Horizons (2015) imaged a warm
+  buff-tan dwarf with dark red-brown maculae and a pale cream
+  heart. The whole ramp moves from cold steel-blue to dusty tan.
+
+Verified faithful, unchanged: `mercury` (warm gray), `moon` (cool
+gray), `sun` (warm golden-orange), `neptune` (iconic deep azure),
+`stars` (deep-space white-gold). Earth-element themes (`ocean`,
+`forest`, `fire`, `snow`, `aurora`) audited real-faithful —
+unchanged.
+
+Palette group classification: Pluto stays in the Medium group's
+"Transitional neutral" slot — its muted dusty-tan reads as a
+warm-leaning neutral that bridges Medium and Hot; ambient drift
+behavior and the 14/14/14 group contract are untouched (zero
+cascade).
+
+Test/audit surface:
+- `palette/tests_audit.rs` near-duplicate allowlist hygiene:
+  Stars/Pluto and Venus/Saturn entries removed (the retune moved
+  both pairs above the 30 avg-RGB-distance threshold — they now
+  read as distinct palettes); pre-existing stale entries
+  NeonPurple/Purple and Blue/Ocean also removed (the actionable
+  audit had flagged both on beta.2 main). Remaining planet family
+  pairs Venus/Jupiter (26.5) and Jupiter/Saturn (19.1) stay
+  allowlisted as intentional family members.
+- All 19 chroma lock invariants hold (INV-2 44-theme sweep, INV-3
+  floor bounds, INV-4/7 hierarchy, INV-5 hue preservation, INV-6
+  gap contract); chroma suite 273 passed.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

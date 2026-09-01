@@ -700,10 +700,21 @@ pub static THEMES: &[ThemeDef] = &[
             ],
         },
     },
-    // ── 18 PLANET & SPACE THEMES (masterclass tuning) ───────────────────
-    // 4-stop gradients with 9-step interpolation. Head stays tinted with
-    // the body hue (not pure white) so each planet reads as itself rather
-    // than collapsing to a generic white-bright core.
+    // ── 11 PLANET & SPACE THEMES (v80.0.0 real-color masterclass) ───────
+    // 10-12 stop gradient ramps with 9-step interpolation. Every head
+    // stop sums to 655 (the planet-family head-luminance convention) and
+    // stays tinted with the body hue (not pure white) so each planet
+    // reads as itself rather than collapsing to a generic white-bright
+    // core.
+    //
+    // v80.0.0 real-color audit (owner directive 2026-09-02): six palettes
+    // retuned to each body's true-color appearance — Mars dusty
+    // butterscotch-rust, Venus pale sulfur-cream, Jupiter banded
+    // sienna/cream, Saturn hazy butterscotch-gold, Uranus serene pale
+    // cyan, Pluto New-Horizons buff-tan (was icy blue-gray — an
+    // astronomical misread). Mercury and Moon (grayscale), Sun (warm
+    // gold) and Neptune (iconic deep azure) were already faithful and
+    // are unchanged.
     ThemeDef {
         scheme: ColorScheme::Stars,
         def: ThemeColors::Stops {
@@ -727,17 +738,23 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Mars,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color tune: Mars is the butterscotch planet,
+            // not a fire. NASA true-color imagery shows a dusty
+            // rust-brown surface with pale salmon-tan bright regions;
+            // the old neon stops (220,75,30)/(255,130,60) read as
+            // embers. Trail keeps the dark-rust character; head stays
+            // at the family 655 sum.
             stops: &[
-                (15, 0, 0),
-                (40, 8, 5),
-                (87, 21, 11),
-                (138, 34, 18),
-                (140, 35, 18),
-                (220, 75, 30),
-                (255, 130, 60),
-                (255, 172, 115),
-                (255, 215, 170),
-                (241, 221, 193),
+                (14, 4, 2),
+                (38, 14, 6),
+                (72, 28, 12),
+                (110, 45, 20),
+                (148, 63, 28),
+                (150, 65, 30),
+                (190, 100, 55),
+                (215, 135, 90),
+                (235, 170, 130),
+                (236, 220, 199),
             ],
             steps: 9,
         },
@@ -745,18 +762,22 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Venus,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color tune: Venus is a pale sulfuric
+            // yellow-cream haze, nearly featureless — not saturated
+            // amber-gold. Body shifted toward muted old-gold with a
+            // brighter cloud-cream ramp; head unchanged at 655.
             stops: &[
-                (15, 8, 0),
-                (45, 25, 0),
-                (81, 48, 4),
-                (119, 73, 14),
-                (158, 98, 24),
-                (160, 100, 25),
-                (195, 132, 37),
-                (230, 165, 50),
-                (255, 210, 90),
-                (255, 228, 142),
-                (255, 245, 195),
+                (28, 22, 4),
+                (58, 45, 10),
+                (92, 72, 18),
+                (126, 100, 28),
+                (162, 136, 44),
+                (165, 139, 46),
+                (198, 172, 68),
+                (226, 202, 102),
+                (244, 224, 148),
+                (252, 240, 196),
+                (255, 249, 205),
                 (229, 225, 201),
             ],
             steps: 9,
@@ -765,6 +786,8 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Mercury,
         def: ThemeColors::Stops {
+            // Real-color verified v80.0.0: Mercury is gray (a
+            // sun-baked warm-gray ramp) — unchanged.
             stops: &[
                 (5, 5, 5),
                 (25, 24, 23),
@@ -783,17 +806,21 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Jupiter,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color tune: Jupiter reads as cream-tan
+            // zones banded with sienna belts (JunoCam), paler than
+            // the old saturated-orange ramp. Belt browns keep the
+            // banded identity; head unchanged at 655.
             stops: &[
-                (15, 8, 0),
-                (50, 22, 5),
-                (113, 65, 27),
-                (148, 88, 39),
-                (150, 90, 40),
-                (184, 119, 60),
-                (220, 150, 80),
-                (255, 195, 120),
-                (255, 215, 160),
-                (255, 235, 200),
+                (18, 10, 2),
+                (50, 24, 6),
+                (105, 62, 28),
+                (140, 90, 42),
+                (143, 93, 45),
+                (178, 118, 62),
+                (208, 150, 98),
+                (232, 184, 132),
+                (244, 214, 166),
+                (251, 233, 196),
                 (231, 221, 203),
             ],
             steps: 9,
@@ -802,17 +829,22 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Saturn,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color tune: Saturn is a hazy pale
+            // butterscotch-gold — visibly paler and more muted than
+            // Jupiter (as it is astronomically). The old vivid gold
+            // stops (240,175,60)/(255,210,95) over-saturated the
+            // ringed giant; head unchanged at 655.
             stops: &[
-                (20, 12, 0),
-                (60, 35, 5),
-                (93, 59, 13),
-                (129, 85, 23),
-                (168, 113, 34),
-                (170, 115, 35),
-                (240, 175, 60),
-                (255, 210, 95),
-                (255, 228, 145),
-                (255, 245, 195),
+                (22, 14, 2),
+                (55, 34, 8),
+                (88, 58, 16),
+                (125, 88, 28),
+                (162, 105, 38),
+                (164, 107, 40),
+                (202, 148, 62),
+                (230, 182, 96),
+                (246, 212, 138),
+                (252, 232, 178),
                 (229, 225, 201),
             ],
             steps: 9,
@@ -821,18 +853,22 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Uranus,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color tune: Uranus is a serene, nearly
+            // featureless pale cyan — the calmest planet in the
+            // system, not a neon cyan flare. Saturation dialed down
+            // across the body; head unchanged at 655.
             stops: &[
-                (0, 12, 12),
-                (0, 35, 38),
-                (0, 64, 69),
-                (0, 96, 103),
-                (0, 128, 138),
-                (0, 130, 140),
-                (22, 164, 177),
-                (40, 200, 215),
-                (110, 235, 245),
-                (160, 244, 250),
-                (210, 252, 255),
+                (0, 14, 14),
+                (0, 38, 40),
+                (0, 66, 70),
+                (0, 95, 100),
+                (2, 120, 126),
+                (4, 122, 128),
+                (35, 150, 158),
+                (70, 178, 186),
+                (115, 205, 212),
+                (160, 228, 232),
+                (205, 245, 247),
                 (207, 224, 224),
             ],
             steps: 9,
@@ -841,6 +877,9 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Neptune,
         def: ThemeColors::Stops {
+            // Real-color verified v80.0.0: Neptune keeps its iconic
+            // deep azure (the Voyager-2-recognized identity) —
+            // unchanged.
             stops: &[
                 (0, 0, 18),
                 (0, 8, 50),
@@ -858,18 +897,24 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Pluto,
         def: ThemeColors::Stops {
+            // v80.0.0 real-color fix: Pluto is NOT icy blue-gray —
+            // New Horizons (2015) imaged a warm buff-tan dwarf with
+            // dark red-brown maculae and a pale cream heart. The
+            // whole ramp moves from cold steel-blue to dusty tan,
+            // with a macula-brown trail and camel-to-cream body;
+            // head stays at the family 655 sum.
             stops: &[
-                (5, 10, 18),
-                (15, 25, 45),
-                (50, 73, 108),
-                (69, 98, 143),
-                (70, 100, 145),
-                (99, 132, 177),
-                (130, 165, 210),
-                (180, 210, 245),
-                (208, 228, 250),
-                (235, 245, 255),
-                (215, 219, 221),
+                (14, 8, 6),
+                (32, 18, 12),
+                (55, 32, 22),
+                (85, 52, 36),
+                (105, 68, 48),
+                (108, 70, 50),
+                (138, 98, 72),
+                (170, 130, 100),
+                (198, 164, 138),
+                (222, 196, 172),
+                (230, 222, 203),
             ],
             steps: 9,
         },
@@ -877,6 +922,8 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Moon,
         def: ThemeColors::Stops {
+            // Real-color verified v80.0.0: the Moon is a neutral
+            // cool gray with a faint blue tint — unchanged.
             stops: &[
                 (0, 0, 0),
                 (15, 15, 18),
@@ -896,6 +943,9 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Sun,
         def: ThemeColors::Stops {
+            // Real-color verified v80.0.0: the Sun keeps its warm
+            // golden-orange ramp (the perceived solar color) —
+            // unchanged.
             stops: &[
                 (30, 5, 0),
                 (75, 18, 0),

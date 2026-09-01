@@ -165,7 +165,7 @@ Greens, purples, cosmic. Balanced, natural aesthetic.
 |----------|--------|
 | Greens & forest (6) | `Green`, `Green2`, `Green3`, `NeonGreen`, `Forest`, `Aurora` |
 | Purples & cosmic (7) | `Purple`, `Nebula`, `Cosmos`, `Vaporwave`, `Neon`, `FancyDiamond`, `NeonPurple` |
-| Transitional neutral (1) | `Pluto` |
+| Transitional neutral (1) | `Pluto` (v80.0.0 real-color: muted dusty-tan, still a warm-leaning neutral) |
 
 ### 5.3 Hot group (14 themes) — points 67–99
 

@@ -62,7 +62,7 @@ struct NearDupDisposition {
     ///   - differentiate the new theme so it's no longer a near-dup, or
     ///   - add an entry here with an explicit disposition + reason.
     ///
-    /// Dispositions as of v25 (all 13 known pairs):
+    /// Dispositions as of v80.0.0 (all 12 known pairs):
     ///   - All marked `Intentional` — they belong to deliberate aesthetic
     ///     families (planets, synthwave, neon variants, grayscale variants).
     ///
@@ -71,13 +71,6 @@ struct NearDupDisposition {
     /// the need for a follow-up issue.
     #[rustfmt::skip]
     const KNOWN_NEAR_DUPLICATES: &[NearDupDisposition] = &[
-        NearDupDisposition {
-            a: ColorScheme::Venus, b: ColorScheme::Saturn,
-            disposition: Disposition::Intentional,
-            reason: "Both are warm-amber planet palettes (Venus yellow-cream, \
-                     Saturn gold-amber). Part of the planets family; the subtle \
-                     hue shift is the user-facing distinction.",
-        },
         NearDupDisposition {
             a: ColorScheme::Neon, b: ColorScheme::Vaporwave,
             disposition: Disposition::Intentional,
@@ -107,20 +100,15 @@ struct NearDupDisposition {
         NearDupDisposition {
             a: ColorScheme::Venus, b: ColorScheme::Jupiter,
             disposition: Disposition::Intentional,
-            reason: "Both warm planet palettes. Venus is yellow-cream, Jupiter \
-                     is tan-brown. Part of the planets family.",
+            reason: "Both warm planet palettes. Venus is pale sulfur-cream, \
+                     Jupiter is banded sienna/cream. Part of the planets \
+                     family.",
         },
         NearDupDisposition {
             a: ColorScheme::Orange, b: ColorScheme::Fire,
             disposition: Disposition::Intentional,
             reason: "Both warm orange-red. Orange is pure orange, Fire has \
                      more red at the trail. Different aesthetic intent.",
-        },
-        NearDupDisposition {
-            a: ColorScheme::NeonPurple, b: ColorScheme::Purple,
-            disposition: Disposition::Intentional,
-            reason: "Both purple. NeonPurple is more saturated/neon, Purple \
-                     is more royal/lavender. Same pattern as Green/NeonGreen.",
         },
         NearDupDisposition {
             a: ColorScheme::Yellow, b: ColorScheme::Gold,
@@ -131,8 +119,10 @@ struct NearDupDisposition {
         NearDupDisposition {
             a: ColorScheme::Jupiter, b: ColorScheme::Saturn,
             disposition: Disposition::Intentional,
-            reason: "Both warm planet palettes. Jupiter is tan-brown, Saturn \
-                     is gold-amber. Part of the planets family.",
+            reason: "Both warm planet palettes. Jupiter is banded \
+                     sienna/cream, Saturn is hazy butterscotch-gold (paler \
+                     than Jupiter, as it is astronomically). Part of the \
+                     planets family.",
         },
         NearDupDisposition {
             a: ColorScheme::Purple, b: ColorScheme::Nebula,
@@ -154,17 +144,6 @@ struct NearDupDisposition {
                      diamond aesthetic).",
         },
         NearDupDisposition {
-            a: ColorScheme::Blue, b: ColorScheme::Ocean,
-            disposition: Disposition::Intentional,
-            reason: "Both blue-family. Blue is pure royal blue, Ocean is \
-                     blue-cyan (sea-water aesthetic). Polar gradient (sole \
-                     path since v30) shifted intermediate colors so the \
-                     avg RGB distance dropped to 29.9 (just below the 30 \
-                     threshold). The themes are visually distinct — Blue \
-                     stays royal throughout, Ocean has a visible cyan \
-                     body/tail. Different aesthetic intent.",
-        },
-        NearDupDisposition {
             a: ColorScheme::Gray, b: ColorScheme::Mercury,
             disposition: Disposition::Intentional,
             reason: "Both grayscale-family. Gray is neutral gray, Mercury \
@@ -173,17 +152,17 @@ struct NearDupDisposition {
                      reduced the avg RGB distance to 28.9. Visually \
                      distinct — Mercury has a warm tint, Gray is pure neutral.",
         },
-        NearDupDisposition {
-            a: ColorScheme::Stars, b: ColorScheme::Pluto,
-            disposition: Disposition::Intentional,
-            reason: "Both deep-space blue-white. Stars is pinprick starlight \
-                     (sparse white-gold on black), Pluto is icy blue-gray \
-                     (distant dwarf planet). Intermediate stop additions \
-                     (gradient smoothing) reduced avg RGB distance to 29.0. \
-                     Visually distinct — Stars is darker/sparser, Pluto is \
-                     brighter with a blue tint.",
-        },
     ];
+
+// v80.0.0 real-color planet retune — allowlist hygiene notes:
+// - Stars/Pluto removed: Pluto is now New-Horizons buff-tan; the old
+//   blue-white similarity with Stars is gone (distance far above 30).
+// - Venus/Saturn removed: the retune separated them (Venus pale
+//   sulfur-cream vs Saturn hazy butterscotch-gold — avg RGB distance
+//   now >= 30; they read as distinct planets, not family twins).
+// - NeonPurple/Purple and Blue/Ocean removed: pre-existing stale
+//   entries on v80.0.0-beta.2 main (distance already >= 30 before
+//   this retune); the actionable audit flagged them for cleanup.
 
 /// Extract the TrueColor RGB stops for a scheme as a Vec<(u8,u8,u8)>.
 fn truecolor_stops(scheme: ColorScheme) -> Vec<(u8, u8, u8)> {
