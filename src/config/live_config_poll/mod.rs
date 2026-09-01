@@ -74,9 +74,9 @@ const BURST_CYCLES_MAX: u8 = 10;
 /// unset or invalid. Power users on slow filesystems can raise it; users
 /// wanting faster reload can lower it (at the cost of more I/O per second).
 ///
-/// **Perf tradeoff (Phase 4 P4-5):** each poll does `fs::read_to_string`
-/// (allocates a `String` of file size, typically 1-10KB) + content hash
-/// (O(n) over file size). At the default 750ms interval, this is ~13KB/s
+/// **Perf tradeoff (Phase 4 P4-5):** each poll hashes a bounded prefix
+/// of the file via `hash_file_prefix` (at most `HASH_BYTES`, no full-file
+/// String allocation) + mtime/size stat. At the default 750ms interval, this is ~13KB/s
 /// of allocation + ~100μs of hashing — invisible. At the minimum 50ms
 /// interval, allocation rises to ~200KB/s and hashing to ~1.5ms/s —
 /// visible in `perf` profiles but not user-visible. The clamp at 50ms

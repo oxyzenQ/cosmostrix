@@ -61,7 +61,7 @@ pub(crate) fn poll_ambient_events(
     {
         *last_ground_truth_check = Instant::now();
         if let Some(ref path) = config_path_for_ground_truth {
-            if let Ok(c) = std::fs::read_to_string(path) {
+            if let Ok(c) = crate::config_io::read_config_capped(path) {
                 let pv = &crate::configfile::parse_config_text(&c).values;
                 if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
                     .entries
@@ -126,7 +126,7 @@ pub(crate) fn poll_ambient_events(
         if !*ambient_snapback_killed && _ab06_sked_len > 0 && _ab06_last_applied {
             let mut empty = false;
             if let Some(ref path) = config_path_for_ground_truth {
-                if let Ok(c) = std::fs::read_to_string(path) {
+                if let Ok(c) = crate::config_io::read_config_capped(path) {
                     let pv = &crate::configfile::parse_config_text(&c).values;
                     if crate::crystal_dragon_engine::ambient::collect_ambient_schedule(pv)
                         .entries

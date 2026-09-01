@@ -150,6 +150,17 @@ pub(crate) const CONFIG_DIR_NAME: &str = "cosmostrix";
 /// fallback — users upgrading from pre-v10 must rename their file.
 pub(crate) const CONFIG_FILE_NAME: &str = "config.toml";
 
+/// Hard size cap for any config file read (S-master-3-v2 hardening).
+///
+/// Real configs are 1-10 KB; 1 MiB gives ~100x headroom while still
+/// bounding the worst case. Applied by `config_io::read_config_capped`
+/// to every config read path (startup load, /etc fallback, live-reload
+/// watcher reparse, ambient ground-truth check) so a runaway or
+/// maliciously large file in a whitelisted config dir cannot trigger
+/// an unbounded memory read (OOM DoS) — the file is instead treated
+/// as unreadable and defaults apply.
+pub(crate) const CONFIG_FILE_MAX_BYTES: u64 = 1024 * 1024;
+
 /// Default frame dirty capacity pre-allocation.  One Nth of total cells.
 /// 8 is conservative enough for 1024×500 terminals (≈64K pre-alloc) while
 /// still covering most frames without a heap spill.

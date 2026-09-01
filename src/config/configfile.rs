@@ -158,13 +158,16 @@ pub(crate) fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfi
     let path = path_override
         .map(Path::to_path_buf)
         .unwrap_or_else(default_config_file_path);
-    let content = match std::fs::read_to_string(&path) {
+    // S-master-3-v2: size-capped read — an oversized (runaway/malicious)
+    // config in a whitelisted dir is treated as unreadable (defaults or
+    // /etc fallback apply) instead of an unbounded memory read.
+    let content = match crate::config_io::read_config_capped(&path) {
         Ok(c) => c,
         Err(_) => {
             // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
             if path_override.is_none() {
                 let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
-                if let Ok(sys_content) = std::fs::read_to_string(&system_path) {
+                if let Ok(sys_content) = crate::config_io::read_config_capped(&system_path) {
                     sys_content
                 } else {
                     return ParsedConfig {

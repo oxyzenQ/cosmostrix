@@ -14,7 +14,7 @@
 //! existing `crate::live_config::spawn_watcher` call sites resolve
 //! unchanged.
 
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -272,7 +272,7 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
         if !handle_notify_event(
             event_result,
             &target_file,
-            &path,
+            path.as_path(),
             &tx,
             &mut last_event,
             DEBOUNCE_MS,
@@ -292,7 +292,7 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
 pub(crate) fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
     target_file: &Arc<PathBuf>,
-    path: &PathBuf,
+    path: &Path,
     tx: &SyncSender<LiveConfigEvent>,
     last_event: &mut std::time::Instant,
     debounce_ms: u64,
@@ -387,7 +387,9 @@ pub(crate) fn handle_notify_event(
             change_counter.fetch_add(1, Ordering::AcqRel);
 
             // Reparse via parse_config_text to catch malformed_lines AND unknown_keys.
-            let content = match std::fs::read_to_string(path) {
+            // S-master-3-v2: size-capped read — oversized files skip the
+            // reparse (same as a read error) instead of an unbounded read.
+            let content = match crate::config_io::read_config_capped(path) {
                 Ok(c) => c,
                 Err(_) => return true,
             };

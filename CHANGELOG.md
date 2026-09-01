@@ -9,6 +9,28 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### security: S-master-3-v2 LTS — config read size cap (OOM DoS hardening)
+
+Four config read paths loaded the full file into a String with no size
+bound (startup load + /etc fallback, live-reload watcher reparse, and
+the ambient ground-truth check that re-reads every 5s — a runaway or
+hostile multi-GB file in a whitelisted config dir would thrash/OOM the
+process repeatedly). New shared reader `config_io::read_config_capped`
+enforces `CONFIG_FILE_MAX_BYTES` (1 MiB, ~100x the typical config) via
+`Read::take` (no TOCTOU window on concurrently growing files). Oversized
+files map to existing unreadable-file semantics (defaults / skip
+reparse). Verified already-hardened surfaces (no action needed): 35
+unsafe sites all libc-FFI with SAFETY comments, safepath strict
+whitelist, charset-custom control-char rejection, message sanitization
+at both entry points with the 200-char cap. Also: stale live_config_poll
+doc comment corrected (poll hashes an 8 KiB prefix, not a full
+read_to_string), and a &PathBuf -> &Path signature fix surfaced by
+clippy. 4 new tests (accept / exact-cap / over-cap / missing).
+
+A/B 10s monolith benchmark: visual bit-parity, total_ns_per_cell
+-0.65%, avg_fps +0.62% (noise band). Full matrix:
+docs/research/S_MASTER_V2_AUDIT.md.
+
 ### optimize: S-master-2-v2 — verified at peak, no changes (skip per brief)
 
 Hot-path inventory of the per-frame pipeline (per-cell shader LUTs,

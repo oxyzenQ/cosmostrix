@@ -127,6 +127,68 @@ variance) is narrower than any remaining optimization could measure.
 Per the brief: skip, do not over-engineer. Raw JSON:
 benchmark/bench-labs/S_master_v2/S2_control.json.
 
+## Task 3 — S-master-3-v2 security LTS hardening
+
+### Method (staged, important files first)
+
+1. unsafe inventory: 35 sites / 14 files — all libc FFI with per-site
+   SAFETY comments (sysinfo, fstat, localtime_r, madvise, perf
+   counters, fork guard, io_uring in a rejected experiment file).
+   No unsafe touches user-controlled memory layouts. No action.
+2. Path security: safepath strict-whitelist (v14 policy, v16 traversal
+   hardening, symlink-aware) — already LTS-grade. No action.
+3. Input validation: charset-custom rejects control chars + non-1-width
+   chars at parse (hard error); message text sanitized at BOTH entry
+   points (CLI build + live-reload) via sanitize_message_text with
+   MESSAGE_MAX_LEN=200; speed/fps/density ranges validated. Verified
+   — the terminal-injection surfaces I probed were already closed.
+4. Config read paths: FOUND THE GAP.
+
+### Finding and fix (S3-1: unbounded config reads — OOM DoS vector)
+
+Four read paths loaded the FULL config file into a String with no
+size bound, even though the path is safepath-whitelisted:
+
+- `configfile::load_config_file_full` (startup, called by main.rs
+  multiple times) — user config + the /etc fallback;
+- `live_config/watcher.rs` reparse (fires on every file-change event);
+- `event_loop_ambient.rs` ground-truth check — re-reads the file every
+  5 s while an ambient entry is applied, so a multi-GB file (runaway
+  append, log-rotation mistake, or hostile file planted in a
+  whitelisted dir on a shared machine) would thrash/OOM the process
+  repeatedly, not just once.
+
+Fix: `config_io::read_config_capped()` — a shared reader enforcing
+`CONFIG_FILE_MAX_BYTES` (1 MiB, ~100x the typical 1-10 KB config, and
+above the documented sha2 hashing window expectations). The cap is
+enforced via `Read::take` (bounded syscalls, no metadata-then-read
+TOCTOU window — a concurrently growing file stays bounded). Oversized
+files map to the existing unreadable-file semantics: startup falls
+back to defaults, the watcher skips the reparse, the ambient check
+skips. All four call sites converted. Also fixed en route: the
+stale live_config_poll doc comment claiming each poll does a full
+`read_to_string` (the poll path hashes an 8 KiB prefix only), and a
+`&PathBuf` -> `&Path` signature fix the new reader surfaced
+(clippy ptr_arg).
+
+### A/B benchmark (Task 3)
+
+| Metric | A (baseline) | B (S-master-3) | Delta |
+|--------|--------------|----------------|-------|
+| avg_fps | 91805.00 | 92376.52 | +0.62% |
+| frame_entropy_bits | 3.2958 | 3.2949 | -0.03% |
+| density_gini | 0.8960 | 0.8961 | +0.01% |
+| dirty_cells_per_frame | 56.78 | 56.80 | +0.03% |
+| active_streams_avg | 23 | 23 | 0 |
+| alloc_calls | 563 | 564 | +0.18% (startup, +1 alloc) |
+| total_ns_per_cell | 191.82 | 190.57 | -0.65% |
+
+Verdict: visual bit-parity; performance within the natural variance
+band (render_ns_per_cell +4.96% is single-sub-metric jitter — the
+stable aggregates total_ns_per_cell and avg_fps both improved
+slightly; the config-cap code is not on the per-frame path). Raw
+JSON: benchmark/bench-labs/S_master_v2/after_S3.json.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

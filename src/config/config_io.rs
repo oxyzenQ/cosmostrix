@@ -65,3 +65,94 @@ pub(crate) fn write_config_atomic(target_path: &str, text: &str) -> std::io::Res
     std::fs::rename(&tmp_path, target)?;
     Ok(())
 }
+
+/// Read a config-sized text file with a hard size cap
+/// (`CONFIG_FILE_MAX_BYTES`, 1 MiB).
+///
+/// S-master-3-v2 hardening: every config read path funnels through this
+/// helper so a runaway or maliciously large file in a whitelisted
+/// config directory cannot trigger an unbounded `read_to_string` (OOM
+/// DoS vector — the ambient ground-truth check re-reads the file every
+/// 5 s, so a multi-GB file would thrash the process repeatedly). An
+/// oversized file returns `InvalidData` and callers treat it exactly
+/// like an unreadable file: startup falls back to defaults, the
+/// live-reload watcher skips the reparse, the ambient check skips.
+///
+/// The cap is enforced through `Read::take` (bounded syscalls), not a
+/// metadata-then-read check — a file growing concurrently past the cap
+/// is still bounded, with no TOCTOU window.
+pub(crate) fn read_config_capped(path: &std::path::Path) -> std::io::Result<String> {
+    use std::io::Read;
+    let file = std::fs::File::open(path)?;
+    let mut buf = String::new();
+    // take() bounds the read even if the file grows while we read it.
+    // Reading MAX+1 bytes lets us distinguish "at the cap" (ok) from
+    // "past the cap" (reject) without a second stat call.
+    file.take(crate::constants::CONFIG_FILE_MAX_BYTES + 1)
+        .read_to_string(&mut buf)?;
+    if buf.len() as u64 > crate::constants::CONFIG_FILE_MAX_BYTES {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            format!(
+                "config file exceeds the {} byte cap — treating as unreadable \
+                 (defaults apply)",
+                crate::constants::CONFIG_FILE_MAX_BYTES
+            ),
+        ));
+    }
+    Ok(buf)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::read_config_capped;
+    use crate::constants::CONFIG_FILE_MAX_BYTES;
+    use std::io::Write;
+
+    fn tmp_file(name: &str, size: usize) -> std::path::PathBuf {
+        let path =
+            std::env::temp_dir().join(format!("cosmostrix-cap-{name}-{}", std::process::id()));
+        let mut f = std::fs::File::create(&path).unwrap();
+        // Fill with valid UTF-8 so read_to_string cannot fail on encoding.
+        let chunk = "a".repeat(4096);
+        let mut written = 0usize;
+        while written < size {
+            let n = chunk.len().min(size - written);
+            f.write_all(&chunk.as_bytes()[..n]).unwrap();
+            written += n;
+        }
+        path
+    }
+
+    #[test]
+    fn capped_read_accepts_normal_config() {
+        let p = tmp_file("ok", 2048);
+        assert_eq!(read_config_capped(&p).unwrap().len(), 2048);
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn capped_read_accepts_file_at_exact_cap() {
+        let p = tmp_file("edge", CONFIG_FILE_MAX_BYTES as usize);
+        assert_eq!(
+            read_config_capped(&p).unwrap().len() as u64,
+            CONFIG_FILE_MAX_BYTES
+        );
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn capped_read_rejects_file_past_cap() {
+        let p = tmp_file("over", CONFIG_FILE_MAX_BYTES as usize + 1);
+        let err = read_config_capped(&p).unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::InvalidData);
+        let _ = std::fs::remove_file(&p);
+    }
+
+    #[test]
+    fn capped_read_missing_file_is_not_found() {
+        let err = read_config_capped(std::path::Path::new("/nonexistent/cosmostrix/config.toml"))
+            .unwrap_err();
+        assert_eq!(err.kind(), std::io::ErrorKind::NotFound);
+    }
+}
