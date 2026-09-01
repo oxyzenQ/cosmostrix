@@ -9,6 +9,25 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: Z-master-3-v2 audit — CLI/config priority contract verified end to end
+
+Final pass of the Z-master-v2 LTS trio: verified the CLI > config >
+scene-custom > base-scene > builtin precedence contract resolves
+identically at startup and on live-reload for every flag/block
+combination (the 9 gaps found by Z-master-1-v2 / Z-master-2-v2 were
+exactly the places where it did not).
+
+- scripts/custom_features_stresstest.sh: +7 harmony cases asserting
+  RESOLVED values in the benchmark JSON report (--bold 0 with config
+  bold = 2 must report "bold":"Off", etc.) — 34/34 pass.
+- 10s A/B benchmark (monolith 80x24 dry): visual bit-parity
+  (entropy/gini/streams/cells identical to RNG noise) and performance
+  parity (avg_fps -0.17%); report + raw JSON archived under
+  benchmark/bench-labs/Z_master_v2/. Already at peak — no further
+  optimization per task brief.
+- docs/research/Z_MASTER_V2_PRIORITY_AUDIT.md: full method, findings,
+  fix map, and test matrix for all three tasks.
+
 ### live-reload: CLI intent preservation for 5 more flags (Z-master-2-v2)
 
 Depth audit of CLI + config/live-reload found five flags whose CLI

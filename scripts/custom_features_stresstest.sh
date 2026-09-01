@@ -284,6 +284,82 @@ color = "neon-green"
 EOF
 run_case "CLI --colors-custom overrides scene color" "benchmark" -- --config "$TMPDIR_TEST/cli_override.toml" --scene-custom test --colors-custom pal --benchmark --bench-duration 1s
 
+# ── Z-master-3-v2: CLI/config harmony (priority contract, observable) ────
+echo "── harmony: CLI flags vs config keys (resolved values) ──"
+
+# Shared fixture: config keys set for every overridable field + all 3
+# custom feature blocks. Each case then overrides via ONE CLI flag and
+# asserts the RESOLVED value in the benchmark JSON report (the same
+# resolution live-reload must preserve — see tests_cli_priority.rs).
+cat >"$TMPDIR_TEST/harmony.toml" <<'EOF'
+color = "snow"
+charset = "retro"
+scene = "cinematic"
+speed = 20
+bold = 2
+shading-mode = 1
+
+[colors-custom.pal]
+bg = "#0a0a0a"
+rain = "#00ff41,#00b32d,#005c17"
+
+[charset-custom.cs2]
+set = "ABCDEF"
+
+[scene-custom.hx]
+base-scene = "signal"
+color = "green"
+EOF
+
+# CLI --bold 0 must beat config bold = 2 (resolved: "bold":"Off").
+run_case "CLI --bold beats config bold key" '"bold":"Off"' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --bold 0 \
+	--benchmark --bench-duration 1s --json
+
+# CLI --shading-mode 0 must beat config shading-mode = 1.
+run_case "CLI --shading-mode beats config key" '"shading":"Random"' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --shading-mode 0 \
+	--benchmark --bench-duration 1s --json
+
+# CLI --speed 50 must beat config speed = 20.
+run_case "CLI --speed beats config key" '"speed":50' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --speed 50 \
+	--benchmark --bench-duration 1s --json
+
+# CLI --charset cs2 (custom charset) must beat config charset = retro.
+run_case "CLI --charset-custom beats config key" '"charset":"cs2"' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --charset cs2 \
+	--benchmark --bench-duration 1s --json
+
+# CLI --scene-custom hx must beat config scene = cinematic (resolved
+# scene shows the custom scene name, not the config's builtin).
+run_case "CLI --scene-custom beats config scene key" '"scene":"hx"' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --scene-custom hx \
+	--benchmark --bench-duration 1s --json
+
+# CLI --colors-custom pal must beat config color = snow: the palette
+# branch resolves the scheme to the Green placeholder (never "snow"),
+# proving the config builtin did not take over the CLI palette intent.
+run_case "CLI --colors-custom beats config color key" '"color_scheme":"green"' -- \
+	--config "$TMPDIR_TEST/harmony.toml" --colors-custom pal \
+	--benchmark --bench-duration 1s --json
+
+# Conflict inside one block: color + colors-custom — startup resolves
+# like apply_profile_overrides (color wins, palette skipped) and the
+# resolved scheme must be the block's color, not the palette placeholder.
+cat >"$TMPDIR_TEST/block_conflict.toml" <<'EOF'
+[colors-custom.pal]
+rain = "#ff0041,#ff6690"
+
+[scene-custom.dual]
+base-scene = "cinematic"
+color = "green"
+colors-custom = "pal"
+EOF
+run_case "block color+colors-custom resolves like startup" '"color_scheme":"green"' -- \
+	--config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
+	--benchmark --bench-duration 1s --json
+
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do

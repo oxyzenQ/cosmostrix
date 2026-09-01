@@ -110,9 +110,10 @@ fn rebuild_scene_custom_glitch_field_respects_cli_explicit() {
 fn rebuild_scene_custom_colors_custom_field_respects_cli_explicit() {
     let mut cfg = HashMap::new();
     cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
-    cfg.insert("colors-custom.p1.head".to_string(), "#00ff41".to_string());
-    cfg.insert("colors-custom.p1.body".to_string(), "#00b32d".to_string());
-    cfg.insert("colors-custom.p1.tail".to_string(), "#005c17".to_string());
+    cfg.insert(
+        "colors-custom.p1.rain".to_string(),
+        "#00ff41,#00b32d,#005c17".to_string(),
+    );
     cfg.insert(
         "scene-custom.test-scene.colors-custom".to_string(),
         "p1".to_string(),
@@ -136,9 +137,10 @@ fn rebuild_scene_custom_colors_custom_field_respects_cli_explicit() {
 fn rebuild_scene_custom_block_color_beats_colors_custom() {
     let mut cfg = HashMap::new();
     cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
-    cfg.insert("colors-custom.p1.head".to_string(), "#00ff41".to_string());
-    cfg.insert("colors-custom.p1.body".to_string(), "#00b32d".to_string());
-    cfg.insert("colors-custom.p1.tail".to_string(), "#005c17".to_string());
+    cfg.insert(
+        "colors-custom.p1.rain".to_string(),
+        "#00ff41,#00b32d,#005c17".to_string(),
+    );
     cfg.insert(
         "scene-custom.test-scene.color".to_string(),
         "green".to_string(),
@@ -432,13 +434,15 @@ fn rebuild_scene_custom_shading_field_respects_cli_explicit() {
 fn rebuild_scene_custom_colors_custom_field_respects_colors_custom_flag() {
     let mut cfg = HashMap::new();
     cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
-    cfg.insert("colors-custom.p1.head".to_string(), "#00ff41".to_string());
-    cfg.insert("colors-custom.p1.body".to_string(), "#00b32d".to_string());
-    cfg.insert("colors-custom.p1.tail".to_string(), "#005c17".to_string());
+    cfg.insert(
+        "colors-custom.p1.rain".to_string(),
+        "#00ff41,#00b32d,#005c17".to_string(),
+    );
     cfg.insert("colors-custom.p2.bg".to_string(), "#000022".to_string());
-    cfg.insert("colors-custom.p2.head".to_string(), "#41b6ff".to_string());
-    cfg.insert("colors-custom.p2.body".to_string(), "#2d81b6".to_string());
-    cfg.insert("colors-custom.p2.tail".to_string(), "#17532d".to_string());
+    cfg.insert(
+        "colors-custom.p2.rain".to_string(),
+        "#41b6ff,#2d81b6,#17532d".to_string(),
+    );
     cfg.insert(
         "scene-custom.test-scene.colors-custom".to_string(),
         "p2".to_string(),
