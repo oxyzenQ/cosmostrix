@@ -9,6 +9,18 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### optimize: S-master-2-v2 — verified at peak, no changes (skip per brief)
+
+Hot-path inventory of the per-frame pipeline (per-cell shader LUTs,
+allocation profile 0.0006 allocs/frame, bounded per-droplet
+transcendentals, zero TODO markers) plus a control A/B on the
+identical tree: run-to-run noise floor <=0.1% visual / ~1% fps /
+bit-stable alloc count — narrower than any remaining optimization
+could measure. LUT-ing the remaining per-droplet exp/sin calls would
+change output bits (visual regression) for sub-microsecond gains.
+Peak-constrained by design; skipped per the task brief (don't
+over-engineer). Evidence: docs/research/S_MASTER_V2_AUDIT.md.
+
 ### dragon-hunt: S-master-1-v2 — zombie/stale/duplicate sweep, 4 real findings fixed
 
 Staged audit (deps, cosmostrix root, then src important dirs) for

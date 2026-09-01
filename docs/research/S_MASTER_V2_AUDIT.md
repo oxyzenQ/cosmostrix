@@ -74,7 +74,58 @@ any S-master-v2 change).
 Verdict: visual bit-parity (identical to RNG noise level); performance
 within the natural variance band. The touched code (crystal control
 wiring, import lists, comments) is not on the monolith bench hot path.
-Task 2 and Task 3 sections follow below.
+
+## Task 2 — S-master-2-v2 optimize code
+
+### Method (staged, important dirs first)
+
+Hot-path inventory of the per-frame pipeline (event loop -> rain_at ->
+shader -> bolt/ansi writer):
+
+1. Per-cell shader path: already LUT-backed end to end —
+   TRAIL_EXPONENTIAL LUT (shaders/base), column_coherence_lut,
+   precomputed phosphor decay exp factors (6/frame), BOLT branchless
+   digit tables (U8_PADDED + U8_LEN), FlashWaveCtx with precomputed
+   radii and fade and squared-distance early-out.
+2. Allocation profile: 563 alloc calls over 922,938 frames
+   (0.0006/frame) — steady state is zero-alloc; the remaining allocs
+   are construction/resize-time Vec::with_capacity (monolith
+   streams/previous_cells/current_cells).
+3. Remaining transcendentals (all bounded, all deliberate):
+   - droplet/draw.rs head-bloom gaussian exp — per Middle char within
+     HEAD_BLOOM_CELLS of a head (max ~4 cells x ~23 streams), the
+     visual signature itself;
+   - droplet/mod.rs turbulence sin + startup-ease exp — per droplet,
+     ~23 calls/frame, transitional (3 tau window);
+   - rain_at.rs pause/resume/glyph-entry easing exp — once per
+     transition event, not per frame;
+   - flash-wave sqrt — early-out bounding circle skips ~75%.
+   LUT-ing any of these would change output bits (visual regression,
+   violating the no-99%-visual-change mandate) for sub-microsecond
+   gains. Peak-constrained by design.
+4. TODO/FIXME scan: zero markers repo-wide.
+
+### Verdict: ALREADY AT PEAK — skipped per task brief
+
+Past rounds already landed the measurable wins (S_master_dragon S2:
+const-gate fog + direct-index vignette LUT, measured <1% = below the
+noise floor; BOLT; PGO; zero-alloc steady state). Evidence for the
+skip decision, control A/B on the identical tree (055a69f, zero code
+change, 10s monolith 80x24 x2 runs):
+
+| Metric | Run 1 | Run 2 | Delta (noise floor) |
+|--------|-------|-------|---------------------|
+| avg_fps | 92770.83 | 92789.49 | +0.02% |
+| frame_entropy_bits | 3.2962 | 3.2937 | -0.08% |
+| density_gini | 0.8960 | 0.8962 | +0.02% |
+| dirty_cells_per_frame | 56.7773 | 56.7876 | +0.02% |
+| total_ns_per_cell | 189.85 | 189.78 | -0.04% |
+| alloc_calls | 563 | 563 | 0.00% (bit-stable) |
+
+The run-to-run band (<=0.1% visual, ~1% fps including cross-build
+variance) is narrower than any remaining optimization could measure.
+Per the brief: skip, do not over-engineer. Raw JSON:
+benchmark/bench-labs/S_master_v2/S2_control.json.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
