@@ -46,7 +46,7 @@
 | `async-mode` | `--async-mode` | OK YES | 857-861 | Config-only path (no CLI guard — but CLI flag now exists; see Issue #1). |
 | `color.tune.*` | `--color-tune` | OK YES | 868-895 | CLI `--color-tune` preserved when no `[color.tune]` block. |
 | `ambient.HH-MM` | (none) | OK YES | 897-904 | Schedule re-collected; ambient thread notified. |
-| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | 863-866 | Re-applied if the active scene-custom name matches. Every field arm now honors `cli_explicit.*` (Z-master-1-v2 gap 1); intra-block `color`/`colors-custom` + `charset`/`charset-custom` conflicts resolve deterministically like startup (gap 3). |
 | **`message`** | `-m` | X **NO** | (not handled) | Field stays at startup value. `create_cloud` re-calls `set_message` with the OLD value. |
 | **`message-border`** | `-mb` | X **NO** | (not handled) | Same — stays at startup value. |
 | **`msg-mode`** | `--msg-mode` | X **NO** | (not handled) | Field stays at startup value. Default fallback + gate logic only runs at startup. |
@@ -504,9 +504,42 @@ animation — documented Limitation, not a gap).
   mattered): `src/cli/app.rs`
 - Startup custom-first color resolution (parity reference): `src/main.rs`
 - Scene-custom layer: `src/scene_custom/mod.rs`
-  (`apply_scene_custom_to_cloud_config`, `rain_style_for_custom_scene`)
+  (`rain_style_for_custom_scene`; the block applier
+  `apply_scene_custom_to_cloud_config` lives in
+  `src/scene_custom/overrides.rs` since the Z-master-1-v2 refactor)
 - Custom palette loader: `src/engine/chroma_dragon_engine/colors_custom.rs`
   (`load_custom_palette`, `is_colors_custom_name`)
+
+## 11. Z-master-1-v2 Audit — Killer-Features Priority Contract (2026-09-01)
+
+Owner suspicion: "some potential bug" in the killer features
+(colors-custom / charset-custom / scene-custom) under live reload.
+Depth stresstest of the scene-custom re-apply path found FOUR gaps in the
+priority contract — the same bug family as FPS-F4, which had fixed the
+fps field ONLY while every other scene-custom field stayed ungated:
+
+| # | Gap | Symptom | Fix |
+|---|-----|---------|-----|
+| 1 | Scene-custom field layer had no CLI gates (except fps) | `cosmostrix --speed 50 --scene-custom fast` ran at 50 until the FIRST config edit, then the block's `speed` silently won. Same for `density`, `color`, `charset`, `charset-custom`, `colors-custom`, `glitch-level`, `async-mode`. | Every arm in `apply_scene_custom_field_to_cloud_config` now returns early when the matching `cli_explicit.*` flag is set (mirrors FPS-F4). |
+| 2 | Base-scene inheritance layer had no CLI gates (except fps) | Same drift class via `base-scene = <name>` defaults: `--color`/`--charset`/`--speed`/`--density`/`--glitch-level` were re-overridden on every reload. | `apply_base_scene_to_cloud_config` gates each field on `cli_explicit.*` (mirrors the startup `apply_base_scene_to_args` is_explicit checks). |
+| 3 | Intra-block conflict resolution was nondeterministic on reload | A block defining BOTH `color` + `colors-custom` (or `charset` + `charset-custom`) applied in HashMap iteration order at reload, while startup deterministically let `color`/`charset` win (`apply_profile_overrides` skip rule). Reload could load a palette startup never loaded. | `apply_scene_custom_to_cloud_config` pre-scans for `color`/`charset` presence and skips the losing field — startup parity, deterministic. |
+| 4 | Scene switch left a stale custom palette shadowing the new scene | Switching `scene` away from a palette-owning custom scene set the builtin scheme but never cleared `custom_palette`; `create_cloud` applies the palette AFTER the scheme, so the switch was a visual no-op for color. | The builtin-scene color arm now clears `custom_palette` + `custom_palette_name` when it applies the scene color default. |
+
+Verification: 12 regression tests in
+`src/config/live_config/tests_cli_priority.rs` (extracted from
+`tests.rs` to respect the 800-LOC file cap) covering each gate, both
+conflict rules, and the palette-clear-on-scene-switch. Full suite
+green: 1957 passed / 0 failed.
+
+Priority contract (unchanged, now actually enforced on every path):
+
+```text
+CLI flags (cli_explicit.*)
+  > config.toml keys
+    > scene-custom block fields
+      > base-scene inherited defaults
+        > built-in defaults
+```
 
 ---
 <!--

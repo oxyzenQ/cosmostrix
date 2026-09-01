@@ -8,6 +8,8 @@
 //! Owns:
 //! - `apply_profile_overrides`: applies [scene-custom.<name>] block
 //!   fields to Args during startup (CLI > config > scene priority).
+//! - `apply_scene_custom_to_cloud_config`: applies a scene-custom block
+//!   (base-scene layer + field layer) to CloudConfig during live reload.
 //! - `apply_scene_custom_field_to_cloud_config`: applies a single
 //!   scene-custom field to CloudConfig during live reload.
 
@@ -26,7 +28,10 @@ use super::helpers::{
     is_explicit, parse_bool, parse_color_bg, parse_f32_override, parse_f64_override,
     parse_speed_override, parse_u8_override, warn_invalid,
 };
-use super::{apply_glitch_level_preset_to_cloud_config, parse_density_map, UserProfile};
+use super::{
+    apply_base_scene_to_cloud_config, apply_glitch_level_preset_to_cloud_config, parse_density_map,
+    UserProfile,
+};
 
 pub(crate) fn apply_profile_overrides(
     matches: &clap::ArgMatches,
@@ -206,6 +211,13 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
 ) -> bool {
     match field {
         "color" => {
+            // (Z1-1): CLI gate — mirrors the FPS-F4 contract. `--color red`
+            // must survive a live-reload that re-applies the scene-custom
+            // block. Without this gate the block's color field silently
+            // overrode the CLI flag on every config edit.
+            if new.cli_explicit.color {
+                return false;
+            }
             if let Ok(scheme) = crate::cli::parse_color_scheme(value) {
                 new.color_scheme = scheme;
                 return true;
@@ -213,6 +225,13 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "colors-custom" => {
+            // (Z1-1): CLI gate — an explicit `--color` wins over the block's
+            // palette reference (same layering as the startup path in
+            // apply_profile_overrides, which skips colors-custom when the
+            // CLI color flag is explicit).
+            if new.cli_explicit.color {
+                return false;
+            }
             if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, value) {
                 new.custom_palette = Some(palette);
                 new.custom_palette_name = Some(value.to_string());
@@ -221,6 +240,11 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "charset" => {
+            // (Z1-1): CLI gate — `--charset` (or its --charset-custom alias)
+            // must survive a live-reload that re-applies this field.
+            if new.cli_explicit.charset {
+                return false;
+            }
             if let Some(custom_chars) =
                 crate::charset_custom::load_custom_charset_if_matches(cfg, value)
             {
@@ -236,6 +260,10 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "charset-custom" => {
+            // (Z1-1): CLI gate — same contract as the charset arm above.
+            if new.cli_explicit.charset {
+                return false;
+            }
             if let Some(custom_chars) =
                 crate::charset_custom::load_custom_charset_if_matches(cfg, value)
             {
@@ -258,6 +286,10 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "speed" => {
+            // (Z1-1): CLI gate — mirrors FPS-F4 for `--speed`.
+            if new.cli_explicit.speed {
+                return false;
+            }
             if let Ok(n) = crate::validation::parse_canonical_speed("speed", value) {
                 new.speed = n;
                 return true;
@@ -265,6 +297,10 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "density" => {
+            // (Z1-1): CLI gate — mirrors FPS-F4 for `--density`.
+            if new.cli_explicit.density {
+                return false;
+            }
             if let Ok(n) = crate::validation::parse_canonical_f32_range("density", value, 0.01, 5.0)
             {
                 new.density = n;
@@ -274,6 +310,10 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             false
         }
         "glitch-level" => {
+            // (Z1-1): CLI gate — mirrors FPS-F4 for `--glitch-level`.
+            if new.cli_explicit.glitch_level {
+                return false;
+            }
             // (Glitch-BUG4): use shared preset helper. Was only
             // flipping glitch_enabled, leaving glitch_pct/short_pct/etc
             // stale — diverging from startup apply_custom_scene_runtime.
@@ -334,6 +374,11 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
             }
         }
         "async-mode" => {
+            // (Z1-1): CLI gate — `--async-mode` wins over the block's
+            // field (startup parity).
+            if new.cli_explicit.async_mode {
+                return false;
+            }
             // v51 killer-features hardening: use the shared parse_bool
             // (true/false/1/0/yes/no/on/off — the SAME accepted set as the
             // startup path) instead of treating every non-true string as
@@ -353,5 +398,66 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
         // monolith-size and color-bg are FORBIDDEN in scene-custom.
         "monolith-size" | "color-bg" => false,
         _ => false,
+    }
+}
+
+/// Apply a scene-custom block to a CloudConfig during live reload.
+///
+/// pre-pass — apply base-scene's defaults BEFORE the block's own
+/// overrides. This ensures overrides correctly win over base-scene defaults
+/// (e.g. `base-scene = "signal", color = "neon-green"` results in neon-green,
+/// not signal's aurora).
+///
+/// per-field application is delegated to `apply_scene_custom_field_to_cloud_config`
+/// (same module). On any touched field, a runtime warning is buffered via
+/// `live_config::push_runtime_warning` so it lands on the main screen
+/// post-exit (AB-10 rain-screen cleanliness) instead of leaking into the
+/// alt screen mid-rain.
+pub(crate) fn apply_scene_custom_to_cloud_config(
+    new: &mut crate::app::CloudConfig,
+    cfg: &HashMap<String, String>,
+    name: &str,
+) {
+    let normalized = name.trim().to_ascii_lowercase();
+    let prefix = format!("scene-custom.{normalized}.");
+    let mut touched_any = false;
+
+    if apply_base_scene_to_cloud_config(new, cfg, &normalized) {
+        touched_any = true;
+    }
+
+    // (Z1-2): conflict determinism — mirror the startup precedence from
+    // `apply_profile_overrides`: inside a block, `color` beats
+    // `colors-custom` (the palette field is skipped when `color` is
+    // present) and `charset` beats `charset-custom`. The cfg HashMap
+    // iteration below is unordered; without this pre-scan the two fields
+    // could apply in either order across reloads and diverge from the
+    // startup result (startup: `color` wins; reload: whichever field the
+    // HashMap yields last wins).
+    let has_color_field = cfg.contains_key(&format!("{prefix}color"));
+    let has_charset_field = cfg.contains_key(&format!("{prefix}charset"));
+
+    for (key, value) in cfg {
+        let Some(field) = key.strip_prefix(&prefix) else {
+            continue;
+        };
+        if field == "base-scene" || field == "preset" {
+            continue;
+        }
+        if field == "colors-custom" && has_color_field {
+            continue;
+        }
+        if field == "charset-custom" && has_charset_field {
+            continue;
+        }
+        if apply_scene_custom_field_to_cloud_config(new, cfg, &normalized, field, value) {
+            touched_any = true;
+        }
+    }
+
+    if touched_any {
+        crate::live_config::push_runtime_warning(&format!(
+            "[live-reload] scene-custom '{normalized}': re-applied fields from config"
+        ));
     }
 }

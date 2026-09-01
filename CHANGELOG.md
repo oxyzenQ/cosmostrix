@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### live-reload: killer-features priority contract hardening (Z-master-1-v2)
+
+Depth stresstest of the colors-custom / charset-custom / scene-custom
+re-apply path found 4 gaps in the CLI > config > scene priority
+contract, all in the same family as the earlier FPS-F4 fix (which had
+gated fps only):
+
+- Scene-custom field layer: every field arm (`color`, `colors-custom`,
+  `charset`, `charset-custom`, `speed`, `density`, `glitch-level`,
+  `async-mode`) now honors the matching `cli_explicit.*` flag —
+  `cosmostrix --speed 50 --scene-custom fast` no longer drops to the
+  block's speed on the first config edit.
+- Base-scene inheritance layer: `apply_base_scene_to_cloud_config` gates
+  color/charset/speed/density/glitch-level on `cli_explicit.*` (fps was
+  already gated), mirroring startup's `apply_base_scene_to_args`.
+- Intra-block conflicts are deterministic: a block defining BOTH
+  `color` + `colors-custom` (or `charset` + `charset-custom`) now
+  resolves like startup (`color`/`charset` wins, the custom reference is
+  skipped) instead of applying in HashMap iteration order.
+- Scene switch away from a palette-owning custom scene clears the stale
+  `custom_palette` (create_cloud applies the palette after the scheme,
+  so a lingering palette made the switch a visual no-op for color).
+
+12 regression tests added (src/config/live_config/tests_cli_priority.rs,
+extracted to respect the 800-LOC file cap). Suite green: 1957/0.
+
 ### naming: fix kebab-case inconsistency in 4 CLI flags + config keys (Z-master-1X round 10)
 
 - **Audit**: owner requested naming audit for wrong/ambiguous/dangerous/not-masterclass English. Found 4 kebab-case inconsistencies where multi-word flags lacked the `-` separator, breaking the established pattern (`async-mode`, `color-bg`, `crystal-dragon`, `glitch-level`, `monolith-size`, `msg-mode` all use kebab-case).

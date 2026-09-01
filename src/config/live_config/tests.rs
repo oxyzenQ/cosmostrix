@@ -673,7 +673,7 @@ fn rebuild_user_glitch_key_wins_over_scene_default() {
 }
 
 /// Helper: minimal base with glitch fields neutralized for override tests.
-fn cfg2base() -> crate::app::CloudConfig {
+pub(super) fn cfg2base() -> crate::app::CloudConfig {
     let mut base = minimal_cloud_config();
     base.glitch_level = crate::config::GlitchLevel::None;
     base.glitch_enabled = false;

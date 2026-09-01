@@ -291,50 +291,6 @@ fn apply_base_scene_to_args(
     }
 }
 
-/// Apply a scene-custom block to a CloudConfig during live reload.
-///
-/// pre-pass — apply base-scene's defaults BEFORE the block's own
-/// overrides. This ensures overrides correctly win over base-scene defaults
-/// (e.g. `base-scene = "signal", color = "neon-green"` results in neon-green,
-/// not signal's aurora).
-///
-/// per-field application is delegated to `apply_scene_custom_field_to_cloud_config`
-/// (same module). On any touched field, a runtime warning is buffered via
-/// `live_config::push_runtime_warning` so it lands on the main screen
-/// post-exit (AB-10 rain-screen cleanliness) instead of leaking into the
-/// alt screen mid-rain.
-pub(crate) fn apply_scene_custom_to_cloud_config(
-    new: &mut crate::app::CloudConfig,
-    cfg: &HashMap<String, String>,
-    name: &str,
-) {
-    let normalized = name.trim().to_ascii_lowercase();
-    let prefix = format!("scene-custom.{normalized}.");
-    let mut touched_any = false;
-
-    if apply_base_scene_to_cloud_config(new, cfg, &normalized) {
-        touched_any = true;
-    }
-
-    for (key, value) in cfg {
-        let Some(field) = key.strip_prefix(&prefix) else {
-            continue;
-        };
-        if field == "base-scene" || field == "preset" {
-            continue;
-        }
-        if apply_scene_custom_field_to_cloud_config(new, cfg, &normalized, field, value) {
-            touched_any = true;
-        }
-    }
-
-    if touched_any {
-        crate::live_config::push_runtime_warning(&format!(
-            "[live-reload] scene-custom '{normalized}': re-applied fields from config"
-        ));
-    }
-}
-
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
@@ -652,15 +608,26 @@ pub(crate) fn apply_base_scene_to_cloud_config(
         return false;
     };
     let base_cfg = &base_info.config;
+    // (Z1-3): CLI gates on every field — mirrors the startup path
+    // (`apply_base_scene_to_args` checks `is_explicit` per field) and the
+    // FPS-F4 fix that already gated fps here. Without these gates, a
+    // live-reload that re-applies the custom scene silently overrode
+    // `--color`, `--charset`, `--speed`, `--density`, and `--glitch-level`
+    // with the base-scene's defaults, violating the
+    // CLI > config.toml > scene priority contract.
     if let Some(color) = base_cfg.color {
-        if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-            new.color_scheme = scheme;
+        if !new.cli_explicit.color {
+            if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
+                new.color_scheme = scheme;
+            }
         }
     }
     if let Some(charset) = base_cfg.charset {
-        if let Ok(cs) = crate::charset::charset_from_str(charset, false) {
-            new.charset_preset = charset.to_string();
-            new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
+        if !new.cli_explicit.charset {
+            if let Ok(cs) = crate::charset::charset_from_str(charset, false) {
+                new.charset_preset = charset.to_string();
+                new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
+            }
         }
     }
     // (FPS-F4): gate fps with cli_explicit.fps — matches the startup
@@ -674,16 +641,22 @@ pub(crate) fn apply_base_scene_to_cloud_config(
         }
     }
     if let Some(speed) = base_cfg.speed {
-        new.speed = speed;
+        if !new.cli_explicit.speed {
+            new.speed = speed;
+        }
     }
     if let Some(density) = base_cfg.density {
-        new.density = density;
-        new.base_density = density;
+        if !new.cli_explicit.density {
+            new.density = density;
+            new.base_density = density;
+        }
     }
     // (Glitch-BUG4): use shared preset helper — was only flipping
     // glitch_enabled, leaving glitch_pct/short_pct/die_early_pct stale.
     if let Some(glitch) = base_cfg.glitch_level {
-        apply_glitch_level_preset_to_cloud_config(new, glitch);
+        if !new.cli_explicit.glitch_level {
+            apply_glitch_level_preset_to_cloud_config(new, glitch);
+        }
     }
     true
 }
@@ -717,7 +690,10 @@ pub(crate) use helpers::{
     parse_speed_override, parse_u8_override, profile_name_list, warn_invalid,
 };
 #[allow(unused_imports)]
-pub(crate) use overrides::{apply_profile_overrides, apply_scene_custom_field_to_cloud_config};
+pub(crate) use overrides::{
+    apply_profile_overrides, apply_scene_custom_field_to_cloud_config,
+    apply_scene_custom_to_cloud_config,
+};
 
 #[cfg(test)]
 mod tests;

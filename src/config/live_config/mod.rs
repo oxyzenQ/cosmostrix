@@ -227,6 +227,25 @@ pub(crate) fn rebuild_cloud_config(
                         if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
                             lr_trace!("scene '{}' applies default color={:?}", v, scheme);
                             new.color_scheme = scheme;
+                            // (Z1-4): clear any stale custom palette when the
+                            // scene switch actually applies the builtin color
+                            // default. create_cloud applies custom_palette
+                            // AFTER the scheme, so a palette left over from a
+                            // palette-owning custom scene (colors-custom field)
+                            // would silently shadow the scheme the scene
+                            // switch just set — making the switch a visual
+                            // no-op for color. Startup parity: startup
+                            // resolution re-evaluates the palette from scratch
+                            // (main.rs), so no stale palette can survive there.
+                            if new.custom_palette.is_some() {
+                                lr_trace!(
+                                    "clearing custom palette '{}' (scene switched to builtin '{}')",
+                                    new.custom_palette_name.as_deref().unwrap_or("?"),
+                                    v
+                                );
+                                new.custom_palette = None;
+                                new.custom_palette_name = None;
+                            }
                         }
                     } else {
                         lr_trace!("scene '{}' color skipped — user/CLI set", v);
@@ -717,6 +736,8 @@ pub(crate) use watcher::validate_and_send;
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_cli_priority;
 
 #[cfg(test)]
 mod tests_msg_fill_style;
