@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: S-master-4-v2 LTS — deep stability audit, verified at peak (no code changes)
+
+Nine-axis long-run robustness audit (deps + src stability-critical
+subsystems, staged important-dirs-first per brief): panic-path
+inventory (33 production sites, all safe by construction/validation —
+uniform-range expects, predicate-guarded splits, checked-Option
+patterns), v25 double-panic-proof panic hook with terminal-first
+restore, full signal coverage (SIGTERM/HUP/QUIT graceful with bounded
+3s wait, TSTP/CONT suspend/resume, PDEATHSIG fork guard, dead-PTY
+watchdog), named catch_unwind-wrapped flag-bounded threads with no
+per-scene-switch accumulation, poison-tolerant lock discipline
+throughout, all-bounded sync_channel(64) queues with backpressure,
+no constructor-vs-resize window, pinned deps with CI cargo-audit +
+cargo-deny, and a clean KNOWN_ISSUES/backlog cross-check. Zero code
+changes warranted — every candidate gain would be churn without a
+robustness delta (over-engineering per brief). Control A/B on the
+identical tree: visual metrics within the <=0.1-0.2% noise band,
+alloc counts bit-stable (563/553). Full matrix:
+docs/research/S_MASTER_V2_AUDIT.md Task 4.
+
 ### security: S-master-3-v2 LTS — config read size cap (OOM DoS hardening)
 
 Four config read paths loaded the full file into a String with no size

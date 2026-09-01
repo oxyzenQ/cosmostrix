@@ -1,8 +1,8 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# S-master-v2 (1/2/3) Audit — Dragon Hunt / Optimize / Security LTS (2026-09-01)
+# S-master-v2 (1/2/3/4) Audit — Dragon Hunt / Optimize / Security / Stability LTS (2026-09-01)
 
-Owner mandate across all three tasks: master deeper audit of deps,
+Owner mandate across all four tasks: master deeper audit of deps,
 cosmostrix/*, and src/* (staged — important dirs first, not a full
 scan), no 99% visual/performance changes, 10s A/B benchmark
 verification, all docs/reference synced, skip if already peak.
@@ -10,7 +10,8 @@ verification, all docs/reference synced, skip if already peak.
 Benchmark protocol (all tasks): monolith 80x24 dry,
 `--benchmark --json --bench-duration 10s`, identical to the
 Z-master-v2 precedent. Baseline A captured at 8617360 (HEAD before
-any S-master-v2 change).
+any S-master-v2 change). Task 4 baseline captured at 22b9417
+(HEAD before any S-master-4-v2 change).
 
 ## Task 1 — S-master-1-v2 dragon hunt (spaghetti/burden/duplicate/stale/zombie)
 
@@ -188,6 +189,109 @@ band (render_ns_per_cell +4.96% is single-sub-metric jitter — the
 stable aggregates total_ns_per_cell and avg_fps both improved
 slightly; the config-cap code is not on the per-frame path). Raw
 JSON: benchmark/bench-labs/S_master_v2/after_S3.json.
+
+## Task 4 — S-master-4-v2 stability / LTS potential-gain audit
+
+### Method (staged, important dirs first)
+
+Audit axis for this task: LONG-RUN ROBUSTNESS — what keeps the
+process alive and the user's terminal intact across months of LTS
+deployment. Deps stage, then src stability-critical subsystems.
+
+1. **Panic-path inventory (src/*, production code only).**
+   Script-scoped scan (comments + `#[cfg(test)]` blocks stripped,
+   test-only files excluded) for `unwrap`/`expect`/`panic!`/
+   `unreachable!`/`todo!`/`unimplemented!`/`assert*!`: 33 sites
+   across 15 production files. Every site read and classified:
+   - 24x `Uniform::new*` / constructor expects with constant or
+     guarded arguments (swap-before-use, `max(1)` clamps,
+     `saturating_sub`) — safe by construction;
+   - 4x `scene_custom` split-expects behind `is_profile_config_key`/
+     `is_scene_custom_config_key` predicates that perform the exact
+     same split and return `false` on failure — unreachable on
+     unvalidated input;
+   - 3x checked-Option patterns (`expect("checked is_err above")`,
+     `expect("set above")`, `expect("just pushed")`);
+   - 1x `live_config_trace.rs` `(None, None) => unreachable!()` in a
+     diff visitor where the entry exists by iteration contract;
+   - 1x `theme/mod.rs` `assert_eq!` on duplicate alias registration
+     of a static table — fires only on a table-authoring mistake,
+     caught by the test suite before release.
+   ZERO genuine runtime panic risks. No fix warranted.
+2. **Panic hook / terminal restore.** `platform/panic_hook.rs` is
+   v25-hardened: restores the terminal BEFORE printing (Windows
+   silent-exit fix), uses `write_fmt` with errors discarded so the
+   hook itself can never double-panic -> abort -> coredump (the
+   documented journal-entry root cause). `Terminal::drop` honors
+   `TERMINAL_RESTORED_BY_PANIC` to skip double cleanup. No action.
+3. **Signal coverage.** SIGTERM/SIGHUP/SIGQUIT -> graceful shutdown
+   with a bounded 3s signal-thread wait (calibrated to the 2s
+   watchdog + 1s grace); SIGTSTP/SIGCONT -> suspend/resume with
+   mouse-capture release and terminal reinit; SIGINT intentionally
+   not an exit (only 'q'); Windows ctrlc path; `fork_guard.rs`
+   PDEATHSIG protects forked children. No action.
+4. **Thread lifecycle.** All production threads are named
+   (`cx-shutdown-guard`), wrapped in `catch_unwind`
+   (live-reload watcher, ambient scheduler) or flag-bounded
+   (signal threads, watchdog with dead-PTY probe, shutdown guard
+   with 10s force-exit). Watcher/ambient schedulers spawn ONCE at
+   event-loop entry — no per-scene-switch thread accumulation. No
+   action.
+5. **Lock discipline.** Every shared-state lock site uses a
+   poison-tolerant pattern: `if let Ok(guard) = ...lock()` (skip on
+   poison), `unwrap_or_else(|e| e.into_inner())` (recover on
+   poison), or `unwrap()` on a test-only mutex. Zero
+   poisoning-propagation paths. No action.
+6. **Channel bounds.** All mpsc usage is `sync_channel(64)` —
+   bounded queues with `try_send` + `Disconnected`/`Full`
+   backpressure handling (watcher, ambient scheduler). Zero
+   unbounded channels. No action.
+7. **Constructor-vs-resize window.** `Cloud`'s constructor seeds
+   80x24-shaped `Uniform` defaults then immediately calls
+   `reset_with_bounds(cols, lines, ...)` — no frame is ever sampled
+   against the hardcoded defaults. No action.
+8. **Deps / toolchain LTS health.** All 12 production deps pinned
+   (clap `>=4.5,<4.6`, notify `>=7,<8` with per-OS feature matrix,
+   crossterm 0.29 ...); the single RUSTSEC suppression
+   (RUSTSEC-2024-0384 `instant` via notify-types) is documented with
+   rationale; `cargo audit` + `cargo deny` run in CI; toolchain
+   pinned 1.98.0 with an MSRV-sync gatekeeper. No action.
+9. **Open-issue cross-check.** KNOWN_ISSUES.md lists only platform
+   event-delivery quirks (Windows/Termux 'i'-key exit — partial
+   mitigation v30, root cause upstream); FUTURE_BACKLOG.md items
+   are closed/obsolete/parked. No stability-critical open item.
+
+### Verdict: ALREADY AT PEAK — zero code changes, skipped per brief
+
+The stability architecture is comprehensively hardened across all
+nine staged axes. Every candidate "gain" I probed (the 33 panic
+sites, the constructor-default uniforms, the signal-thread bounds)
+documents its own invariant and would return churn without a
+measurable robustness delta — the definition of over-engineering
+the owner's brief forbids.
+
+### A/B benchmark (Task 4 — control pair on identical tree)
+
+Baseline A captured at 22b9417 BEFORE the audit; B run AFTER on the
+byte-identical tree (audit made zero changes — the control pair
+proves it):
+
+| Metric | A (22b9417) | B (control) | Delta |
+|--------|-------------|--------------|-------|
+| avg_fps | 93068.98 | 92995.68 | -0.08% |
+| frame_entropy_bits | 3.2953 | 3.2960 | +0.02% |
+| density_gini | 0.8961 | 0.8956 | -0.05% |
+| dirty_cells_per_frame | 56.76 | 56.83 | +0.14% |
+| active_streams_avg | 23 | 23 | 0 |
+| alloc_calls | 563 | 563 | 0.00% (bit-stable) |
+| dealloc_calls | 553 | 553 | 0.00% (bit-stable) |
+| total_ns_per_cell | 189.32 | 189.21 | -0.06% |
+| frame_time_stability | excellent | excellent | stable |
+
+Verdict: all deltas inside the established run-to-run noise band
+(<=0.1% visual metrics, <=1% fps); allocator counts bit-stable.
+Raw JSON: benchmark/bench-labs/S_master_v2_v2/baseline_S4.json and
+after_S4_control.json.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
