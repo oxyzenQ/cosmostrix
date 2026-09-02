@@ -9,6 +9,51 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.3 — HUD sci-fi dashboard panel (branch `hud-scifi-dashboard`)
+
+Owner decision (Option B + D from
+`docs/research/HUD_LAYOUT_MASTERCLASS_RESEARCH.md`): the HUD renders as
+a bottom-center sci-fi panel. Developed on a separate branch per the
+owner's directive — main is untouched until the owner blesses the look.
+
+- **Layout (Option B — Sci-Fi Panel Grid).** Fixed 46-column x 12-row
+  rounded `╭╮╰╯` frame anchored bottom-center: a bright FPS header
+  strip (fps + tgt centered in `─` fill), a 7x3 metric grid (14-column
+  cells, one-column gutters), a screensize footer strip, and a `▼`
+  tail accent under the frame. All 24 owner-mandated metrics are
+  preserved; the v80.0.0-beta.1 zone order maps to the grid (health
+  opens, performance core rides the bright bottom rows). Message-box
+  collision threshold drops from ~55 to ~32 rows — the documented
+  Option B trade-off.
+- **Style (Option D — complete rounded frame).** The v80.0.0-beta.1
+  L-shape border grew into the full rounded rectangle; the side
+  borders sweep the row gradient (dim top -> bright bottom), the
+  successor of the edge-fade mandate for a panel that no longer hugs
+  a screen edge.
+- **Fixed width (X-1).** `HUD_MIN_WIDTH`/`HUD_MAX_WIDTH` + the
+  dynamic grow/shrink machinery + HB-01 clear-on-shrink residue
+  tracking are retired: cells are always padded to exactly 14 columns
+  at the 1 Hz composition tick, so a center anchor can never jitter
+  and stale trailing characters are re-blanked by the padding itself.
+- **Gradient (compute_chroma_gradient_panel).** One interpolated
+  palette stop per metric, mapped through the panel's VISUAL slots:
+  bright caps (header/footer/corners/accent) + a dim->bright sweep
+  over the 21 grid-body metrics. The falling-rain orientation
+  survives inside the grid body; FPS as a bright hero strip is the
+  owner-approved inversion.
+- **Frame buffer contract unchanged.** 1 Hz text composition, per-frame
+  `refresh_colors`, `frame.set()` dirty-skip economy, pause-freeze,
+  zero-cost-when-off, saturating 80x24-minimum clipping — all INV-1..10
+  invariants from the research doc hold. The `i` toggle, the metric
+  setters, and every metric's meaning are untouched.
+- **Tests.** The L-border/dynamic-width geometry suite is replaced by
+  a panel geometry suite (anchor math, rounded corners, bright caps,
+  side sweep, cell placement, gutter ownership, fixed-width padding
+  overwrite, first-tick guard, INV-8 clipping, composition order,
+  long-value truncation). `scripts/hud_order_e2e.py` re-locked to the
+  panel reading order (24/24 in a real PTY). Suite: 2073 passed /
+  0 failed.
+
 ### harmony: v80.0.0-beta.2 — S-master-HUNT post-LOGIC-3 bug hunt (scene-custom ownership, verbatim lock restore, uniform block validation)
 
 Owner filed three bugs against the S-master-LOGIC-3 build; all three

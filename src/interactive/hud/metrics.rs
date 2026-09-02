@@ -8,18 +8,17 @@
 //! refreshes all HUD text fields (fps, tgt, max, p99, cpu, rss, ehs,
 //! prs, scn, chr, clr, sped, dsty, prdr, crdr, ambt, glth, ctun,
 //! mnst, dcel, tcel, up, screensize — cid is static, set once in
-//! `new()` at row 21) + recomputes the chroma gradient + resizes the
-//! cached_lines buffer to fit the new content width.
+//! `new()` at index 21) + recomputes the chroma gradient + composes
+//! the panel render cache (header/footer strips + 7×3 grid cells —
+//! v80.0.0-beta.3, branch hud-scifi-dashboard, owner-approved Option B).
 //!
-//! v80.0.0-beta.1 row order (owner mandate 2026-08-31, "reorder/tidying HUD
-//! metrics") + Z-master-1X round 5 (dcel/tcel added): identity/scene
-//! lines moved up next to the health core (scn/chr/clr at rows 8-10,
-//! before the user-adjustable sped/dsty at 11-12), dragon + tuning
-//! state follows (prdr/crdr/ambt/glth/ctun/mnst at rows 13-18), cell
-//! efficiency (dcel/tcel at rows 19-20), and the session footer closes
-//! the dashboard (cid 21, up 22, screensize 23 — the build identity
-//! keeps a prominent position and the terminal size stays the visual
-//! anchor at the bottom).
+//! v80.0.0-beta.1 row order (owner mandate 2026-08-31) + Z-master-1X
+//! round 5 (dcel/tcel): identity/scene lines moved up next to the
+//! health core (scn/chr/clr, before the user-adjustable sped/dsty),
+//! dragon + tuning state follows, cell efficiency next, and the
+//! session footer closes the dashboard. v80.0.0-beta.3: those metric
+//! INDICES are frozen as the metrics' identities; where each renders
+//! in the panel is decided solely by HUD_VISUAL_ORDER (hud_init.rs).
 //!
 //! Also owns `HudState::set_metrics_paused()` — the v80.0.0-beta.1 pause-freeze
 //! contract (owner bug fix 2026-08-30): while the rain is paused (or
@@ -30,17 +29,18 @@
 //! where it froze (uptime excludes paused time via the accumulated
 //! `paused_total` + the open `pause_started_at` segment; the CPU
 //! baseline stays warm so the first post-resume delta stays precise).
-//! The `tgt:` line is the ONE live element during pause — its ` paused`
-//! suffix must keep rendering so the user sees WHY the dashboard froze.
+//! The `tgt:` header text is the ONE live element during pause — its
+//! ` paused` suffix must keep rendering so the user sees WHY the
+//! dashboard froze.
 //!
 //! Implemented as a separate `impl HudState` block (Rust allows
 //! multiple impl blocks across files for the same type).
 
 use std::time::Instant;
 
+use super::hud_init::{HUD_GRID_CELL_W, HUD_PANEL_INNER, HUD_VISUAL_ORDER};
 use super::{
-    compute_chroma_gradient_24, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
-    HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
+    compute_chroma_gradient_panel, format_rss_kb, FrameMode, HudState, HUD_METRIC_INTERVAL,
 };
 
 impl HudState {
@@ -97,10 +97,10 @@ impl HudState {
         // from the event loop (between metric ticks), so a runtime palette
         // change appears on the next frame instead of up to 1 second later.
         //
-        // HD-01 (HUD chroma dragon integration): 18-stop sweep — each row
-        // gets a distinct palette stop. Index math: `palette_colors`
-        // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
-        let colors = compute_chroma_gradient_24(palette_colors);
+        // HD-01 (HUD chroma dragon integration, v80.0.0-beta.3 panel
+        // mapping): one palette stop per metric, positioned by VISUAL
+        // slot — see compute_chroma_gradient_panel in colors.rs.
+        let colors = compute_chroma_gradient_panel(palette_colors);
 
         // Session uptime: compound time format.
         // < 1h:  MM:SS    e.g. 59:03
@@ -129,16 +129,13 @@ impl HudState {
             )
         };
 
-        // v16: Dynamic-width HUD. Lines are formatted WITHOUT fixed-width
-        // padding — the HUD width grows/shrinks to fit the longest line.
-        // This prevents truncation when FPS is high (e.g. "45132" needs
-        // more space than "60") and avoids wasted space when values are short.
-        //
-        // Format: " label: value" (no trailing padding — pad is added
-        // dynamically in write_to_frame based on current_width).
-        //
-        // Color assignment uses the rain-aesthetic gradient (dim at top →
-        // head at bottom). See `refresh_colors` docs for the rationale.
+        // v16→v80.0.0-beta.3 line formatting: metric texts keep the
+        // " label: value" shape (no trailing padding — the panel grid
+        // cells are padded/truncated to exactly HUD_GRID_CELL_W columns
+        // at the composition step below). Color assignment uses the
+        // rain-aesthetic panel gradient (dim body top → bright body
+        // bottom, bright header/footer caps). See `refresh_colors`
+        // docs for the rationale.
         let fps_str = if fps >= 1_000.0 {
             crate::humanize::humanize_f64(fps)
         } else if fps >= 100.0 {
@@ -354,13 +351,96 @@ impl HudState {
         let mode = if is_fixed { "fix" } else { "auto" };
         self.cached_lines[23] = (colors[23], format!(" {sw}x{sh} {mode}"));
 
-        // Compute dynamic width: find the longest line, clamp to [min, max].
-        let max_len = self
-            .cached_lines
-            .iter()
-            .map(|(_, s)| s.chars().count())
-            .max()
-            .unwrap_or(HUD_MIN_WIDTH as usize) as u16;
-        self.current_width = max_len.clamp(HUD_MIN_WIDTH, HUD_MAX_WIDTH);
+        // v80.0.0-beta.3 (branch hud-scifi-dashboard, owner-approved
+        // Option B): compose the panel render cache — the header/footer
+        // strip interiors + the 7×3 grid cells — from the freshly
+        // formatted metric texts. This is the 1 Hz text-assembly step
+        // (no number flicker); write_to_frame renders the composed
+        // rows every frame allocation-free.
+        self.compose_panel();
     }
+
+    /// Compose the panel render cache (header strip + footer strip +
+    /// 7×3 grid body) from `cached_lines`. Runs INSIDE the 1 Hz metric
+    /// tick so per-frame rendering stays allocation-free (the text
+    /// churns once per second, matching the number-flicker contract).
+    ///
+    /// Layout recap (see hud_init.rs for the geometry constants):
+    /// - `panel_header`: the interior of the `╭…╮` strip — `fps:` +
+    ///   `tgt:` centered inside `─` fill, exactly HUD_PANEL_INNER cols.
+    /// - `panel_footer`: the interior of the `╰…╯` strip — the
+    ///   screensize text centered inside `─` fill.
+    /// - `panel_grid`: 7 rows × 3 cells, each exactly HUD_GRID_CELL_W
+    ///   columns (label-led, space-padded; long values truncate by
+    ///   char count — UTF-8 boundaries preserved).
+    ///
+    /// The leading space of each cached metric text (" fps: 451") is
+    /// trimmed at composition: in the grid the cell's own left edge
+    /// provides the visual indent, and the header/footer strips get
+    /// flanking spaces from the `─` fill helper.
+    fn compose_panel(&mut self) {
+        // Header strip: "fps: 451  tgt: 60 idle" — the two cap metrics.
+        let fps_txt = self.cached_lines[0].1.trim_start().to_string();
+        let tgt_txt = self.cached_lines[1].1.trim_start().to_string();
+        let header_txt = if tgt_txt.is_empty() {
+            fps_txt
+        } else {
+            format!("{fps_txt}  {tgt_txt}")
+        };
+        self.panel_header = dash_fill_centered(&header_txt, HUD_PANEL_INNER as usize);
+
+        // Footer strip: the screensize metric (slot 23).
+        let footer_txt = self.cached_lines[23].1.trim_start().to_string();
+        self.panel_footer = dash_fill_centered(&footer_txt, HUD_PANEL_INNER as usize);
+
+        // Grid body: 7 rows × 3 cells in VISUAL slot order (slots 2..24).
+        for g in 0..7usize {
+            for c in 0..3usize {
+                let metric = HUD_VISUAL_ORDER[2 + g * 3 + c];
+                self.panel_grid[g][c] = grid_cell(&self.cached_lines[metric].1);
+            }
+        }
+    }
+}
+
+/// Pad/truncate one metric text to exactly HUD_GRID_CELL_W columns.
+///
+/// The leading space of the cached text is trimmed (the cell's left
+/// edge is the indent). Truncation is char-based, so a multi-byte
+/// custom scene/charset name can never split a UTF-8 boundary (INV-3:
+/// the text layer stays ASCII in practice; the char-safety is defense
+/// in depth). Padding uses plain spaces so the fixed-width footprint
+/// guarantees zero re-center jitter (X-1) and full dirty-skip coverage
+/// on stable frames (INV-4).
+fn grid_cell(text: &str) -> String {
+    let mut cell: String = text.trim_start().chars().take(HUD_GRID_CELL_W).collect();
+    let len = cell.chars().count();
+    for _ in len..HUD_GRID_CELL_W {
+        cell.push(' ');
+    }
+    cell
+}
+
+/// Center `text` inside a `width`-column strip using `─` fill, with a
+/// one-column blank cushion on each side of the text (the sci-fi
+/// "instrument strip" look of the owner-approved Option B mock:
+/// `╭──────── fps: 451 ── tgt: 60 ─────────╮`).
+///
+/// Overlong text truncates by char count (defense in depth — the
+/// header's realistic worst case is ~29 columns, far below the 44
+/// budget; the footer ~14).
+fn dash_fill_centered(text: &str, width: usize) -> String {
+    let budget = width.saturating_sub(2); // room for the flanking cushions
+    let taken: String = text.chars().take(budget).collect();
+    let len = taken.chars().count();
+    let fill = width - 2 - len;
+    let left = fill / 2;
+    let right = fill - left;
+    let mut out = String::with_capacity(width);
+    out.extend(std::iter::repeat_n('─', left));
+    out.push(' ');
+    out.push_str(&taken);
+    out.push(' ');
+    out.extend(std::iter::repeat_n('─', right));
+    out
 }

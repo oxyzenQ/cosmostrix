@@ -7,9 +7,16 @@
 
 //! Live HUD overlay for interactive mode.
 //!
-//! Toggle with `i`. When visible, writes a compact 5-line overlay into
-//! the frame buffer (before `term.draw()`) showing real-time FPS, p99,
-//! max frame time, RSS, and session uptime.
+//! Toggle with `i`. When visible, writes a bottom-center sci-fi panel
+//! into the frame buffer (before `term.draw()`): a rounded `╭╮╰╯`
+//! frame holding a 3-column metric grid, a bright FPS header strip, a
+//! screensize footer strip, and a `▼` tail accent. All 24
+//! owner-mandated metrics are carried in the grid — the full list
+//! lives in the row-order note below and in `docs/HUD.md`.
+//! v80.0.0-beta.3 (branch `hud-scifi-dashboard`): layout per the
+//! owner-approved Option B + D from
+//! `docs/research/HUD_LAYOUT_MASTERCLASS_RESEARCH.md`; before that the
+//! HUD was a 24-row dynamic-width column flush-left at column 0.
 //!
 //! ## Design constraints
 //! - **Zero cost when off**: `visible == false` short-circuits all work.
@@ -88,18 +95,12 @@ const HUD_CPU_INTERVAL: Duration = Duration::from_millis(1000);
 /// dominating the max display forever.
 const MAX_RESET_INTERVAL_SECS: u64 = 60;
 
-/// Minimum width of the HUD overlay (for short values).
-/// The actual width is dynamic — grows when values are long (e.g. high FPS).
-const HUD_MIN_WIDTH: u16 = 12;
-
-/// Maximum width cap (prevents HUD from eating the whole terminal).
-/// Bumped from 20 → 22 in v30 to fit the new `cpu: 100.00%` line
-/// (max-width value: ` cpu: 100.00%` = 13 chars + 1 leading space = 14,
-/// but other lines like ` p99: 9999.999ms` already exceed that, so
-/// the practical cap is set by the longest existing line). The bump
-/// ensures the cpu line never gets truncated when fps is high (which
-/// would make ` p99` wrap visually).
-const HUD_MAX_WIDTH: u16 = 24;
+// v80.0.0-beta.3 (branch hud-scifi-dashboard): the dynamic-width era
+// (HUD_MIN_WIDTH 12 / HUD_MAX_WIDTH 24, grow-with-values) is retired —
+// the panel is a FIXED 46-column rectangle (see hud_init.rs
+// HUD_PANEL_WIDTH + HUD_GRID_CELL_W). The X-1 fixed-width mandate from
+// the research doc kills the center-anchor jitter class by construction
+// and retires the HB-01 clear-on-shrink residue machinery with it.
 
 /// Z-master-1X round 5: rolling dirty-cell tracker for the dcel/tcel HUD
 /// metrics. Stores the last 60 frames of (dirty_count, total_cells) so the
@@ -292,12 +293,12 @@ pub(crate) struct HudState {
     // HUD immediately shows the new state on the next 1 Hz metric tick.
     /// Power Dragon on/off. When false, aggressive_throttle + idle FPS
     /// reduction are disabled (owner Option D). Drives the `prdr:` HUD
-    /// line (row 13) so the owner can verify the live-reloaded state
+    /// grid cell (row 3) so the owner can verify the live-reloaded state
     /// without quitting cosmostrix. Default: true (protection enabled).
     power_dragon_on: bool,
     /// Crystal Dragon on/off. When true, the palette drifts through the
     /// configured color range over time (ambient color morphing). Drives
-    /// the `crdr:` HUD line (row 14) so the owner can verify the live-
+    /// the `crdr:` HUD grid cell so the owner can verify the live-
     /// reloaded state. Default: false (drift off — palette is static).
     crystal_dragon_on: bool,
     /// v50.0.0-beta.6 Option D: aggressive-throttle flag (mirrors
@@ -326,24 +327,31 @@ pub(crate) struct HudState {
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
-    /// 24 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
+    /// 24 entries in the v80.0.0-beta.1 + Z-master-1X round 5 metric
+    /// order: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
     /// chr / clr / sped / dsty / prdr / crdr / ambt / glth / ctun /
-    /// mnst / dcel / tcel / cid / up / screensize (Z-master-1X round 5
-    /// owner mandate 2026-08-31: added dcel + tcel above cid). The cid
-    /// line is static (compile-time git SHA injected by build.rs via
-    /// `COSMOSTRIX_GIT_SHA`) at row 21, set once in `new()`; only its
+    /// mnst / dcel / tcel / cid / up / screensize. The indices are the
+    /// metric identities (every content test asserts them); WHERE each
+    /// metric renders inside the panel is decided solely by
+    /// `HUD_VISUAL_ORDER` in hud_init.rs. The cid entry is static
+    /// (compile-time git SHA injected by build.rs via
+    /// `COSMOSTRIX_GIT_SHA`) at index 21, set once in `new()`; only its
     /// color is refreshed by `refresh_colors` every frame.
     cached_lines: [(Color, String); 24],
-    /// Current dynamic HUD width (in terminal columns). Recomputed
-    /// every metric update to fit the longest line. Grows when FPS
-    /// or RSS values are long, shrinks when they're short.
-    current_width: u16,
-    /// HB-01 (HUD residual 'e' bug fix): tracks the previous frame's
-    /// `current_width` so `write_to_frame` can pad to `max(current_width,
-    /// prev_width)`. Without this, when the `tgt:` line drops its ` idle`
-    /// suffix on idle→active transition, the cell at the old column holds
-    /// a residual char (visible `e` of `idle`) until rain passes through.
-    prev_width: u16,
+    /// v80.0.0-beta.3 panel composition cache (branch hud-scifi-dashboard,
+    /// owner-approved Option B): the header strip's interior text
+    /// (exactly HUD_PANEL_INNER columns, `fps:`/`tgt:` centered inside
+    /// `─` fill) — composed at the 1 Hz tick in metrics.rs, rendered
+    /// every frame. Empty until the first tick (write_to_frame skips).
+    panel_header: String,
+    /// Footer strip interior (screensize centered in `─` fill, exactly
+    /// HUD_PANEL_INNER columns) — composed alongside panel_header.
+    panel_footer: String,
+    /// Grid body: 7 rows × 3 cells, each cell exactly HUD_GRID_CELL_W
+    /// columns (padded/truncated at compose time so per-frame rendering
+    /// is allocation-free). Cell (g, c) holds the metric at
+    /// HUD_VISUAL_ORDER[2 + g*3 + c].
+    panel_grid: [[String; 3]; 7],
 }
 
 impl HudState {
@@ -555,14 +563,15 @@ impl HudState {
     // cheap (one field write, no format! call) so the event loop can call
     // them on every frame without measurable cost.
 
-    /// Set the active scene name. Drives the `scn:` HUD line (row 8) for
+    /// Set the active scene name. Drives the `scn:` HUD grid cell for
     /// `x` cycle confirmation. Called by event_loop on init and whenever
     /// the user cycles scenes.
     ///
     /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
     /// chars (by char count, preserving UTF-8 boundaries) so a very
-    /// long custom scene name cannot blow past the HUD_MAX_WIDTH (22
-    /// cols) budget. The ` scn: ` prefix is 5 chars, so 5 + 14 = 19 ≤ 22.
+    /// long custom scene name cannot blow the fixed grid cell budget
+    /// (HUD_GRID_CELL_W = 14 in hud_init.rs; the ` scn: ` prefix
+    /// consumes 5 of them, so the cell-level truncation trims the rest).
     pub(crate) fn set_scene_name(&mut self, name: &str) {
         self.scene_name.clear();
         const SCENE_NAME_MAX_CHARS: usize = 14;
@@ -570,7 +579,7 @@ impl HudState {
             .extend(name.chars().take(SCENE_NAME_MAX_CHARS));
     }
 
-    /// Set the active color scheme. Drives the `clr:` HUD line (row 10)
+    /// Set the active color scheme. Drives the `clr:` HUD grid cell for
     /// for `c` / `C` cycle confirmation. Called by event_loop on init and
     /// whenever the user cycles colors. Rendered via Debug format (matches
     /// `verbose.rs` convention — e.g. `NeonGreen`, `FancyDiamond`).
@@ -587,14 +596,15 @@ impl HudState {
         self.custom_palette_name = name.map(|s| s.to_string());
     }
 
-    /// Set the active charset preset name. Drives the `chr:` HUD line
-    /// (row 9) for `s` / `S` cycle confirmation. Called by event_loop on
+    /// Set the active charset preset name. Drives the `chr:` HUD grid
+    /// cell for `s`/`S` cycle confirmation. Called by event_loop on
     /// init and whenever the user cycles charsets.
     ///
     /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
-    /// chars so a very long custom charset preset name cannot blow past
-    /// the HUD_MAX_WIDTH (22 cols) budget. The ` chr: ` prefix is 6
-    /// chars, so 6 + 14 = 20 ≤ 22.
+    /// chars so a very long custom charset preset name cannot blow the
+    /// fixed grid cell budget (HUD_GRID_CELL_W = 14; the ` chr: `
+    /// prefix consumes 6 of them, so the cell-level truncation trims
+    /// the rest).
     pub(crate) fn set_charset_preset(&mut self, preset: &str) {
         self.charset_preset.clear();
         const CHARSET_PRESET_MAX_CHARS: usize = 14;
@@ -603,7 +613,7 @@ impl HudState {
     }
 
     /// Set the current droplet density multiplier. Drives the `dsty:` HUD
-    /// line (row 12) for `[` / `]` adjustment feedback. Called by event_loop
+    /// grid cell (row 2) for `[` / `]` adjustment feedback. Called by event_loop
     /// on init and whenever the user adjusts density or live-config reloads.
     /// Owner explicitly mandated the `dsty` label (NOT `den`).
     ///
@@ -620,7 +630,7 @@ impl HudState {
     }
 
     /// Set the current chars-per-second speed. Drives the `sped:` HUD line
-    /// (row 11) for `↑` / `↓` adjustment feedback. Called by event_loop on
+    /// (row 2) for `↑` / `↓` adjustment feedback. Called by event_loop on
     /// init and whenever the user adjusts speed or live-config reloads.
     ///
     /// v50 (2026-08-17) HUD metric stability: NaN, infinite, or negative
@@ -636,7 +646,7 @@ impl HudState {
     }
 
     /// Set the Endurance Health Score (0.0-100.0). Drives the `ehs:` HUD
-    /// line (row 6) so the owner can answer "why is the rain behaving this
+    /// grid cell (row 1) so the owner can answer "why is the rain behaving this
     /// way?" without quitting cosmostrix. Called by event_loop on the 1 Hz
     /// adaptive tick (alongside `endurance_health.recompute()`).
     ///
@@ -657,7 +667,7 @@ impl HudState {
     }
 
     /// Set the effective pressure (0.0-1.0, clamped). Drives the `prs:` HUD
-    /// line (row 7) so the owner can see when adaptive throttling engages.
+    /// grid cell (row 1) so the owner can see when adaptive throttling engages.
     /// Called by event_loop every frame (cheap — one field write) so the
     /// pressure value tracks the live adaptive state with no perceptible
     /// delay. Source: `PowerManager::effective_pressure()`.
@@ -681,7 +691,7 @@ impl HudState {
     }
 
     /// Set the power-dragon on/off state. Drives the `prdr:` HUD line
-    /// (row 13) so the owner can verify the live-reloaded state without
+    /// (row 3) so the owner can verify the live-reloaded state without
     /// quitting cosmostrix. Called by event_loop every frame with
     /// `cfg.power_dragon` — when the user edits `power_dragon = false`
     /// in config.toml and live-reload applies it, the HUD reflects the
@@ -697,7 +707,7 @@ impl HudState {
     }
 
     /// Set the crystal-dragon on/off state. Drives the `crdr:` HUD line
-    /// (row 14) so the owner can verify the live-reloaded state. Called
+    /// (grid row 4) so the owner can verify the live-reloaded state. Called
     /// by event_loop every frame with `cfg.crystal_dragon` — when the
     /// user edits `crystal_dragon = true` in config.toml and live-reload
     /// applies it, the HUD reflects the new state. Renders as `crdr: on`
@@ -767,53 +777,22 @@ impl HudState {
     /// calls, RSS string) stays at 1 Hz to avoid number flicker, but
     /// colors update every frame.
     ///
-    /// ## Rain-aesthetic gradient (top dim → bottom bright)
-    /// The 18 HUD rows form a vertical brightness gradient that mirrors a
-    /// falling rain droplet. In the rain visual, the leading character
-    /// (the `head`) is the bright white at the BOTTOM of the stream, and
-    /// the trailing fade (the `tail`) is dim at the TOP. The HUD adopts
-    /// the same orientation:
-    ///
-    /// ```text
-    ///   row 0   fps           ← dim      (tail — palette index 1)
-    ///   row 1   tgt           ← dim
-    ///   row 2   max           ← trail    (palette index n/4)
-    ///   row 3   p99           ← trail
-    ///   row 4   cpu           ← mid      (palette index n/2)
-    ///   row 5   rss           ← mid
-    ///   row 6   ehs           ← mid      (endurance health score)
-    ///   row 7   prs           ← trail    (effective pressure)
-    ///   row 8   scn           ← mid      (scene name — v80.0.0-beta.1 reorder)
-    ///   row 9   chr           ← mid      (charset preset — v80.0.0-beta.1 reorder)
-    ///   row 10  clr           ← mid      (color scheme — v80.0.0-beta.1 reorder)
-    ///   row 11  sped          ← mid      (chars/sec speed — v80.0.0-beta.1 reorder)
-    ///   row 12  dsty          ← mid      (density multiplier — v80.0.0-beta.1 reorder)
-    ///   row 13  prdr          ← head     (power-dragon on/off — v80.0.0-beta.1 reorder)
-    ///   row 14  crdr          ← head     (crystal-dragon on/off — v80.0.0-beta.1 reorder)
-    ///   row 15  ambt          ← head     (ambient on/off — v80.0.0-beta.1 reorder)
-    ///   row 16  glth          ← head     (glitch level — v80.0.0-beta.1 reorder)
-    ///   row 17  ctun          ← head     (color tuning — v80.0.0-beta.1 reorder)
-    ///   row 18  mnst          ← head     (monolith size — v80.0.0-beta.1 reorder)
-    ///   row 19  dcel          ← head     (dirty cell ratio % — Z-master-1X round 5)
-    ///   row 20  tcel          ← head     (total cells — Z-master-1X round 5)
-    ///   row 21  cid           ← head     (build identity — Z-master-1X round 5: moved down)
-    ///   row 22  up            ← head     (session uptime — Z-master-1X round 5: moved down)
-    ///   row 23  screensize    ← head     (rain head — Z-master-1X round 5: moved down)
-    /// ```
-    ///
-    /// Z-master-1X round 5 (owner mandate 2026-08-31): added dcel + tcel
-    /// at rows 19-20 (cell efficiency metrics — owner insight from the
-    /// CELL EFFICIENCY benchmark section). cid moved from row 19 to 21,
-    /// up from 20 to 22, screensize from 21 to 23. The session footer
-    /// still closes the dashboard — cid keeps a head-band position (row 21),
-    /// the terminal size stays the visual anchor at the bottom (row 23).
-    ///
-    /// This inverts the original mapping (where `fps`/`tgt`/`max` were
-    /// brightest at the TOP). The owner explicitly flagged the inversion:
-    /// 'rain tail is dim head is white' — the bright head must lead at
-    /// the bottom, matching a real falling rain stream. The eye now reads
-    /// the HUD as a small rain column hanging in the corner, not as a
-    /// flat block of equally-bright text.
+    /// ## Panel gradient story (v80.0.0-beta.3, bright caps + swept body)
+    /// The bottom-center sci-fi panel reads as a space capsule: the
+    /// header strip (fps/tgt), the footer strip (screensize), the four
+    /// rounded corners, and the `▼` tail accent use the palette's
+    /// BRIGHT head stop (t=1.0) — the owner's "FPS on top" hero and
+    /// the "visual anchor at the very bottom" mandate; the 21
+    /// grid-body metrics sweep dim-tail (t=0.0, first grid row:
+    /// ehs/prs/scn) to bright-head (t=1.0, last grid row: rss/cid/up)
+    /// in visual order (`HUD_VISUAL_ORDER`). The eye reads bright caps
+    /// closing a gradient hull — the falling-rain "dim tail → bright
+    /// head" orientation the owner mandated ('rain tail is dim head
+    /// is white') survives, expressed through the panel's visual slots
+    /// instead of 24 stacked rows. The performance core (max/p99/cpu/
+    /// rss) riding the LAST grid rows keeps the actively-watched
+    /// metrics in the bright band, exactly as the Option B mock
+    /// the owner approved drew them.
     ///
     /// ## Readability guarantee
     /// `brighten_color` applies HSV value scaling (TARGET_V = 200) to every
@@ -827,20 +806,19 @@ impl HudState {
         if !self.visible {
             return;
         }
-        // HD-01 (HUD chroma dragon integration): 16-stop sweep across the
-        // active palette, mapping each of the 16 HUD rows to a distinct
-        // palette stop. Row 0 (fps, top) → palette[0], row 15 (reserved clr,
-        // bottom) → palette[n-1]. The full chroma dragon gradient is now
-        // visible across the HUD — matching the border message gradient's
-        // per-cell sweep philosophy, but applied per-LINE to preserve text
-        // readability (each row keeps one consistent color).
+        // HD-01 (HUD chroma dragon integration, v80.0.0-beta.3 panel
+        // mapping): one palette stop per metric slot. The header pair
+        // (fps/tgt) and the footer (screensize) sit at t=1.0 (bright
+        // head); the 21 grid-body slots sweep t=0.0 (dim tail) to
+        // t=1.0 in visual order — see compute_chroma_gradient_panel in
+        // colors.rs for the mapping table and rationale.
         //
         // `brighten_color` floor (TARGET_V=200) guarantees every stop is
         // legible on a black background, including palette[0] which is
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_24(palette_colors);
+        let colors = compute_chroma_gradient_panel(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -861,16 +839,18 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-// v50.0.0-beta.7 LTS: compute_chroma_gradient_24 + brighten_color
-// extracted to colors.rs to keep this file under the 800-LOC cap.
+// v50.0.0-beta.7 LTS: compute_chroma_gradient_panel (renamed from
+// compute_chroma_gradient_24 in v80.0.0-beta.3 — still 24 stops, one per
+// metric, but mapped through the panel's VISUAL slots) + brighten_color
+// live in colors.rs to keep this file under the 800-LOC cap.
 // Re-exported here so 'use super::*' glob in tests.rs + tests_brighten.rs
-// resolves them unchanged. mod.rs only calls compute_chroma_gradient_24
+// resolves them unchanged. mod.rs only calls compute_chroma_gradient_panel
 // directly; brighten_color is re-exported purely for the test modules
 // (tests_brighten.rs calls it directly), hence the allow(unused_imports).
 mod colors;
 mod hud_init;
 #[allow(unused_imports)]
-pub(crate) use colors::{brighten_color, compute_chroma_gradient_24};
+pub(crate) use colors::{brighten_color, compute_chroma_gradient_panel};
 
 // v50.0.0-beta.7 LOC refactor: update_metrics method extracted to
 // metrics.rs as a separate impl HudState block.

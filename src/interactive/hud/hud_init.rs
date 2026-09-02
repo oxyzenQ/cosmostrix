@@ -1,19 +1,106 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! HUD initialization + frame writing — extracted from
+//! HUD initialization + panel frame writing — extracted from
 //! `hud/mod.rs` to keep that file under the 800-LOC cap.
+//!
+//! v80.0.0-beta.3 (branch `hud-scifi-dashboard`, owner decision D + B
+//! from `docs/research/HUD_LAYOUT_MASTERCLASS_RESEARCH.md`): the HUD
+//! renders as a bottom-center **sci-fi panel grid** — a rounded
+//! `╭╮╰╯` frame (Option B layout) carrying the complete-rounded-frame
+//! finish + tail accent (Option D style). All 24 owner-mandated
+//! metrics are preserved; only the geometry and the visual language
+//! changed. See the research doc for the decision trail and the
+//! trade-offs accepted (fixed width, bottom-center placement).
 
 use std::time::{Duration, Instant};
 
 use crate::runtime::ColorScheme;
 use crossterm::style::Color;
 
-use super::{
-    DirtyCellTracker, FrameMode, HUD_CPU_INTERVAL, HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
-    HUD_RSS_INTERVAL,
-};
+use super::{DirtyCellTracker, FrameMode, HUD_CPU_INTERVAL, HUD_METRIC_INTERVAL, HUD_RSS_INTERVAL};
 use crate::interactive::activity::FrameTimeTracker;
+
+// ── v80.0.0-beta.3 panel geometry (Option B, X-1 fixed width) ───────────
+//
+// The panel is a FIXED-SIZE rectangle anchored bottom-center. Fixed
+// geometry is the X-1 mandate from the research doc: a dynamic-width
+// center-anchored panel re-dirties its whole footprint every time a
+// 1 Hz value-length change shifts the center — visible horizontal
+// jitter plus a full-block dirty re-send. A fixed footprint means the
+// anchor never moves, the center never moves, and the dirty-cell
+// economy (INV-4) keeps steady-state cost near zero: `frame.set`
+// short-circuits on content equality, so only genuinely changing
+// cells (uptime seconds, fps) get re-sent.
+
+/// Total panel width in terminal columns, INCLUDING the two border
+/// columns (`╭`/`│`/`╰` on the left, `╮`/`│`/`╯` on the right).
+///
+/// Derived: 3 grid cells × [`HUD_GRID_CELL_W`] (14) + 2 one-column
+/// gutters between cells + 2 border columns = 3×14 + 2 + 2 = 46.
+/// 46 fits the 80-column minimum terminal (INV-8) with 17 columns of
+/// margin on each side at 80 cols.
+pub(super) const HUD_PANEL_WIDTH: u16 = 46;
+
+/// Interior width (between the border columns) = 44 = 3×14 + 2 gutters.
+pub(super) const HUD_PANEL_INNER: u16 = 44;
+
+/// Fixed width of one grid cell (a metric's `label: value` text,
+/// padded/truncated to exactly this many columns at the 1 Hz
+/// composition tick).
+///
+/// 14 fits every realistic metric value exactly:
+/// `scn: cinematic` (14), `max: 999.999ms` (14), `rss: 1023.9MiB` (14),
+/// `cpu: 999.99%` (13), `glth: default` (13), `cid: 6ed244b` (12).
+/// Pathological caps (`p99: 9999.999ms` = 15, a 14-char custom preset
+/// under `chr:` = 19) truncate — the honest fixed-width trade-off the
+/// owner accepted with Option B. Tofu-safety: truncation is
+/// char-based (`chars().take()`), so UTF-8 boundaries are preserved.
+pub(super) const HUD_GRID_CELL_W: usize = 14;
+
+/// Total panel block height in rows: 11 panel rows + 1 tail-accent row.
+///
+/// Row map (panel-local):
+/// - row 0  : header strip  `╭── fps: …  tgt: … ──╮` (bright)
+/// - row 1  : spacer        `│ … blanks … │`
+/// - rows 2..=8 : grid rows `│ cell cell cell │` (7 rows × 3 cells)
+/// - row 9  : spacer        `│ … blanks … │`
+/// - row 10 : footer strip  `╰── 200x50 auto ──╯` (bright)
+/// - row 11 : tail accent   `▼` centered below the frame (bright)
+///
+/// 12 rows anchored bottom-center keeps the `-mb` message box clean
+/// on terminals ≥ ~32 rows (research §6: threshold = HUD rows +
+/// message-box height ≈ 12 + 5..9) — better than the research
+/// doc's 13-row estimate because the header/footer strips carry
+/// metrics instead of dedicating rows to them.
+pub(super) const HUD_PANEL_ROWS: u16 = 12;
+
+/// Visual slot → metric-index map. The metrics keep their historical
+/// `cached_lines` indices (0..=23, v80.0.0-beta.1 + Z-master-1X round 5
+/// order — every content test asserts those indices); this table says
+/// WHERE each metric sits in the panel:
+///
+/// - slots 0-1  : header strip (fps, tgt) — the owner's "FPS on top"
+/// - slots 2-22 : grid body, 7 rows × 3 cells, zone order per the
+///   approved Option B mock (health → identity → controls → dragons →
+///   efficiency → performance core → session)
+/// - slot 23    : footer strip (screensize) — the "visual anchor at
+///   the very bottom" mandate, now literally the closing line.
+///
+/// THE single source of truth for panel placement: the grid
+/// composition (metrics.rs), the color gradient mapping (colors.rs),
+/// and the side-border sweep (this file) all read this one table.
+pub(super) const HUD_VISUAL_ORDER: [usize; 24] = [
+    0, 1, // header strip: fps, tgt
+    6, 7, 8, // grid row 1: ehs, prs, scn
+    9, 10, 11, // grid row 2: chr, clr, sped
+    12, 13, 14, // grid row 3: dsty, prdr, crdr
+    15, 16, 17, // grid row 4: ambt, glth, ctun
+    18, 19, 20, // grid row 5: mnst, dcel, tcel
+    2, 3, 4, // grid row 6: max, p99, cpu
+    5, 21, 22, // grid row 7: rss, cid, up
+    23, // footer strip: screensize
+];
 
 impl super::HudState {
     pub(crate) fn new() -> Self {
@@ -121,274 +208,179 @@ impl super::HudState {
                 (Color::DarkCyan, String::new()), // 22: up
                 (Color::DarkCyan, String::new()), // 23: screensize
             ],
-            current_width: HUD_MIN_WIDTH,
-            prev_width: HUD_MIN_WIDTH,
+            // v80.0.0-beta.3 panel composition cache — filled at the 1 Hz
+            // metric tick (update_metrics → compose_panel in metrics.rs),
+            // rendered every frame below. Empty until the first tick;
+            // write_to_frame skips rendering while the header is empty
+            // (same one-frame contract the old row cache had).
+            panel_header: String::new(),
+            panel_footer: String::new(),
+            panel_grid: std::array::from_fn(|_| std::array::from_fn(|_| String::new())),
         }
     }
 
-    /// Render the HUD overlay. Called every frame when visible, but
-    /// rate-limited to ~60 Hz (HUD_DISPLAY_MAX_HZ) to avoid wasted ANSI
-    /// escapes at high target_fps. Rain continues at full target_fps.
+    /// Write the HUD panel into the frame buffer. Called every frame
+    /// when visible, BEFORE `term.draw()` so the HUD is part of the
+    /// same frame flush — eliminates flicker.
     ///
-    /// Does NOT clear entire lines — only writes current_width characters
-    /// starting at start_col, so rain on the rest of the line is
-    /// preserved. This was the root cause of the "blank space above
-    /// rain" bug: \x1b[2K cleared all columns, not just the HUD area.
-    /// Write HUD cells into the frame buffer. Called BEFORE term.draw()
-    /// so the HUD is part of the same frame flush — eliminates flicker.
+    /// Uses `frame.set()` (not `set_force`) so unchanged cells aren't
+    /// marked dirty — when metrics are stable, only the changing cells
+    /// (uptime seconds) get re-sent. The panel footprint is FIXED
+    /// (X-1), so the anchor never moves and there is no
+    /// shrink/grow residue class at all — the HB-01 clear-on-shrink
+    /// machinery of the dynamic-width era is retired with it.
     ///
-    /// Uses frame.set() (not set_force) so unchanged cells aren't marked
-    /// dirty — when metrics are stable, only the changing cells (uptime
-    /// seconds) get re-sent.
-    pub(crate) fn write_to_frame(
-        &mut self,
-        frame: &mut crate::frame::Frame,
-        cols: u16,
-        bg: Option<Color>,
-    ) {
+    /// Anchoring (all saturating — a 80x24 terminal is the floor,
+    /// `frame.set` silently clips out-of-bounds cells, INV-8):
+    /// - `start_col  = frame.width.saturating_sub(HUD_PANEL_WIDTH) / 2`
+    ///   (bottom-CENTER; on narrow terminals the panel clips both
+    ///   sides symmetrically).
+    /// - `anchor_row = frame.height.saturating_sub(HUD_PANEL_ROWS)`
+    ///   (the panel block's top row; the `▼` accent lands on the
+    ///   terminal's very last row).
+    ///
+    /// Render order note: `rain_at()` (and the centered `-mb` message
+    /// box inside it) writes FIRST; the HUD writes AFTER — so wherever
+    /// the panel overlaps the message box on short terminals, the HUD
+    /// wins (INV-5, unchanged from the corner era; the collision
+    /// threshold is now ~32 rows instead of ~55 — the Option B
+    /// trade-off the owner accepted).
+    pub(crate) fn write_to_frame(&mut self, frame: &mut crate::frame::Frame, bg: Option<Color>) {
         if !self.visible {
             return;
         }
-        // HB-01: pad to max(current_width, prev_width) so cells from a
-        // previously wider HUD (e.g., after the `tgt:` line drops its
-        // ` idle` suffix on idle→active transition) are cleared. Without
-        // this, the last character of the previously-longer text remains
-        // in the Frame buffer until a rain droplet happens to overwrite
-        // that exact cell — visible as a residual `e` for up to several
-        // seconds. `Frame::set` short-circuits on content equality, so
-        // cells already holding blanks incur zero dirty-mark overhead.
-        let w = self.current_width.max(self.prev_width);
-        // v50.0.0-beta.6: HUD always renders flush-left at column 0.
-        // The previous HudPosition enum + toggle_position method +
-        // start_col() helper have been purged — the 'h' shortkey that
-        // toggled between Left and Right corners was completely removed
-        // (no binding exists, silently ignored). The literal 0 here
-        // replaces the `self.position.start_col(cols, w)` call.
-        let start_col = 0u16;
-        for (i, (color, text)) in self.cached_lines.iter().enumerate() {
-            let row = i as u16;
-            // v50 (2026-08-17) HUD expansion: skip rows whose text is still
-            // empty. The 7 reserved rows 9-15 initialize as empty strings
-            // and must NOT render as space-padded rows — otherwise the HUD
-            // would grow vertically by 7 blank lines before the
-            // data-plumbing commit populates them with real metrics. Once
-            // a row is populated, this guard is a no-op (the text is
-            // non-empty). The padding loop below only runs for rows that
-            // already have visible content, so existing clear-on-shrink
-            // behavior (HB-01) is preserved.
-            if text.is_empty() {
-                continue;
-            }
-            // Write the text characters.
-            for (col_offset, ch) in text.chars().enumerate() {
-                let x = start_col + col_offset as u16;
-                if x >= cols {
-                    break;
-                }
-                let cell = crate::cell::Cell {
-                    ch,
-                    fg: Some(*color),
-                    bg,
-                    bold: false,
-                };
-                frame.set(x, row, cell);
-            }
-            // Pad the rest of the line with spaces to the effective width
-            // so the background covers the full HUD area consistently —
-            // including any cells from a previously wider HUD footprint.
-            let text_len = text.chars().count() as u16;
-            for col_offset in text_len..w {
-                let x = start_col + col_offset;
-                if x >= cols {
-                    break;
-                }
-                let cell = crate::cell::Cell {
-                    ch: ' ',
-                    fg: None,
-                    bg,
-                    bold: false,
-                };
-                frame.set(x, row, cell);
-            }
-        }
-        // v80.0.0-beta.1 HUD chroma border (owner mandate 2026-09-02):
-        // L-shape border on the right + bottom of the HUD area, using
-        // the same chroma dragon palette integration as the message
-        // border (cloud/message_draw.rs BC-01..05). Same simple function
-        // as the message border, different position: the message border
-        // is a full rectangle around the centered message box; the HUD
-        // border is an L-shape closing the top-left HUD block (top +
-        // left edges are implied by the screen edge at col 0, row 0).
-        self.draw_border(frame, cols, bg);
-        // Track the previous width for the next frame's padding calculation.
-        self.prev_width = self.current_width;
-    }
-
-    /// v80.0.0-beta.1 HUD chroma border (owner mandate 2026-09-02):
-    /// Draw an L-shape chroma dragon border on the right + bottom of
-    /// the HUD area. Same palette integration as the message border
-    /// (`cloud/message_draw.rs` BC-01..05), different position: the
-    /// message border is a full rectangle around the centered message
-    /// box; the HUD border is an L-shape closing the top-left HUD
-    /// block (top + left edges are implied by the screen edge).
-    ///
-    /// Color sweep:
-    /// - Right edge (rows 0..23, col = current_width): per-row chroma
-    ///   color from `cached_lines`, sweeping dim tail at the top to
-    ///   bright head at the bottom — mirrors the HUD's own 24-row
-    ///   gradient and the message border's clockwise sweep philosophy.
-    /// - Bottom edge (row 24, cols 0..=current_width): single bright
-    ///   head color (`cached_lines[23].0`, the palette's last stop —
-    ///   the rain's leading bright character) for a clean closing line.
-    /// - Corner (col current_width, row 24): '╯' (light up-left corner)
-    ///   in the bright head color, connecting the right + bottom edges.
-    ///
-    /// Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
-    /// harus semi black/fade biar elegant"): the border edges fade
-    /// toward the screen edge (top-left corner of screen) so the
-    /// border "emerges from shadow" instead of popping in abruptly.
-    /// This mirrors the message border's triangle-wave fade
-    /// (`cloud/message_draw.rs` BD-02: dark→bright→dark around
-    /// perimeter), applied per-edge with a linear ramp:
-    /// - Right edge: row 0 (top, near screen top) = max fade (0.6
-    ///   blend toward bg), row 23 (bottom, head anchor) = no fade.
-    ///   factor = 0.6 * (1.0 - row / 23.0).
-    /// - Bottom edge: col 0 (left, near screen left) = max fade,
-    ///   col cur (corner anchor) = no fade.
-    ///   factor = 0.6 * (1.0 - col / cur).
-    ///
-    /// The corner cell (col cur, row 24) is always full-bright (the
-    /// anchor point). Uses `chroma_dragon_engine::palette::blend_toward_bg`
-    /// for the fade — same blend helper the rain droplets use.
-    ///
-    /// Dynamic clean movement (owner bug report 2026-09-02, "visual
-    /// rating 8/10 — residue/stain when border moves"): the border
-    /// position tracks `current_width` directly (NOT `max(cur, prev)`),
-    /// so it moves left/right immediately when metric values change
-    /// width (e.g. `dcel` value grows/shrinks). When the HUD shrinks
-    /// (`prev > cur`), the old border cells at col `prev` (right edge)
-    /// and cols `cur+1..=prev` at row 24 (bottom edge + corner) are
-    /// explicitly blanked BEFORE drawing the new border — the metrics
-    /// padding loop only blanks cols `text_len..max(cur,prev)`, which
-    /// excludes col `prev` itself (the old border column). Without
-    /// this clearing, the border leaves a "stain" or "ghost" at its
-    /// old position when it moves left.
-    ///
-    /// Uses `frame.set()` (not `set_force`) so unchanged border cells
-    /// aren't marked dirty — when the HUD width is stable, the border
-    /// is a one-time write that the terminal never re-sends. Frame's
-    /// `set()` silently skips out-of-bounds cells, so a terminal too
-    /// short for row 24 simply omits the bottom edge without panicking.
-    fn draw_border(&self, frame: &mut crate::frame::Frame, cols: u16, bg: Option<Color>) {
-        let cur = self.current_width;
-        let prev = self.prev_width;
-        if cur == 0 && prev == 0 {
+        // First-frame guard: the panel text is composed at the 1 Hz
+        // metric tick; between toggle-on and that tick the header is
+        // still empty (mirrors the old empty-row skip). One frame, at
+        // most, before the panel appears.
+        if self.panel_header.is_empty() {
             return;
         }
-        // Bright head color (palette last stop, cached_lines row 23 =
-        // screensize — the visual anchor at the bottom of the HUD).
-        let head_color = self.cached_lines[23].0;
+        let start_col = frame.width.saturating_sub(HUD_PANEL_WIDTH) / 2;
+        let anchor_row = frame.height.saturating_sub(HUD_PANEL_ROWS);
+        // Bright head color — the palette's last stop (the screensize
+        // metric's slot-23 color, t=1.0). Used for the header strip,
+        // the footer strip, the four rounded corners, and the `▼`
+        // tail accent: the panel's "caps + anchor" all share the
+        // brightest color, so the eye reads a bright frame closing a
+        // gradient body.
+        let head = self.cached_lines[23].0;
+        let right_col = start_col + HUD_PANEL_WIDTH - 1;
 
-        // v80.0.0-beta.1 edge fade: blend toward bg (semi-black) at the
-        // screen-edge ends of each border edge. bg defaults to black
-        // when None (transparent terminal background).
-        let bg_color = bg.unwrap_or(Color::Rgb { r: 0, g: 0, b: 0 });
-        // Max fade factor at the screen-edge end (0.6 = 60% blend
-        // toward bg = semi-black, owner "semi black/fade" mandate).
-        const FADE_MAX: f32 = 0.6;
+        // ── Row 0: header strip `╭── fps: …  tgt: … ──╮` (bright) ──
+        self.set_cell(frame, start_col, anchor_row, '╭', Some(head), bg);
+        self.set_cell(frame, right_col, anchor_row, '╮', Some(head), bg);
+        for (i, ch) in self.panel_header.chars().enumerate() {
+            let x = start_col + 1 + i as u16;
+            self.set_cell(frame, x, anchor_row, ch, Some(head), bg);
+        }
 
-        // v80.0.0-beta.1 residue fix: when the HUD width shrinks
-        // (prev > cur), the old border cells at col `prev` (right
-        // edge, rows 0..24) and cols `cur+1..=prev` at row 24 (bottom
-        // edge + corner) still hold border chars from the previous
-        // frame. They MUST be blanked explicitly — the metrics padding
-        // loop only blanks cols `text_len..max(cur,prev)`, which
-        // excludes col `prev` itself. Without this, the border leaves
-        // a visible "stain" at its old position when it moves left.
-        if prev > cur {
-            // Clear old right border column at `prev` (rows 0..24).
-            if prev < cols {
-                for row in 0..24u16 {
-                    let blank = crate::cell::Cell {
-                        ch: ' ',
-                        fg: None,
-                        bg,
-                        bold: false,
-                    };
-                    frame.set(prev, row, blank);
+        // ── Rows 1..=9: spacer + grid body + spacer ──
+        for r in 1u16..=9 {
+            let row = anchor_row + r;
+            // Side borders carry the row's sweep color (dim at the top
+            // → bright at the bottom) — the vertical fade story.
+            let side = self.panel_side_color(r);
+            self.set_cell(frame, start_col, row, '│', Some(side), bg);
+            self.set_cell(frame, right_col, row, '│', Some(side), bg);
+            if (2..=8).contains(&r) {
+                self.write_grid_row(frame, start_col, row, (r - 2) as usize, bg);
+            } else {
+                // Spacer rows: blank interior (the panel owns its full
+                // rect — rain glyphs under it are overwritten).
+                for i in 0..HUD_PANEL_INNER {
+                    self.set_cell(frame, start_col + 1 + i, row, ' ', None, bg);
                 }
-            }
-            // Clear old bottom border cells at row 24. When cur > 0,
-            // the new border covers cols 0..=cur, so only clear
-            // cur+1..=prev. When cur == 0, no new border is drawn,
-            // so clear the entire old range 0..=prev.
-            let clear_from = if cur == 0 { 0 } else { cur + 1 };
-            for col in clear_from..=prev {
-                if col >= cols {
-                    break;
-                }
-                let blank = crate::cell::Cell {
-                    ch: ' ',
-                    fg: None,
-                    bg,
-                    bold: false,
-                };
-                frame.set(col, 24, blank);
             }
         }
 
-        // Draw new right border at `cur` (if cur > 0).
-        // Edge fade: row 0 (top) = max fade toward bg, row 23 (bottom)
-        // = no fade (bright head anchor). Linear ramp.
-        if cur > 0 && cur < cols {
-            for row in 0..24u16 {
-                // Fade factor: 0.0 at row 23 (no fade), FADE_MAX at row 0.
-                let fade = FADE_MAX * (1.0 - row as f32 / 23.0);
-                let base_color = self.cached_lines[row as usize].0;
-                let fg = if fade > 0.0 {
-                    crate::chroma_dragon_engine::palette::blend_toward_bg(
-                        base_color, bg_color, fade,
-                    )
-                } else {
-                    base_color
-                };
-                let cell = crate::cell::Cell {
-                    ch: '│',
-                    fg: Some(fg),
-                    bg,
-                    bold: false,
-                };
-                frame.set(cur, row, cell);
-            }
+        // ── Row 10: footer strip `╰── 200x50 auto ──╯` (bright) ──
+        let footer_row = anchor_row + 10;
+        self.set_cell(frame, start_col, footer_row, '╰', Some(head), bg);
+        self.set_cell(frame, right_col, footer_row, '╯', Some(head), bg);
+        for (i, ch) in self.panel_footer.chars().enumerate() {
+            let x = start_col + 1 + i as u16;
+            self.set_cell(frame, x, footer_row, ch, Some(head), bg);
         }
 
-        // Draw new bottom border at row 24, cols 0..=cur.
-        // Edge fade: col 0 (left, near screen edge) = max fade toward
-        // bg, col cur (corner) = no fade (bright head anchor). Linear
-        // ramp. The corner cell (col == cur) is always full-bright.
-        if cur > 0 {
-            for col in 0..=cur {
-                if col >= cols {
-                    break;
-                }
-                let ch = if col == cur { '╯' } else { '─' };
-                // Fade factor: 0.0 at col cur (no fade), FADE_MAX at col 0.
-                let fade = FADE_MAX * (1.0 - col as f32 / cur as f32);
-                let fg = if fade > 0.0 {
-                    crate::chroma_dragon_engine::palette::blend_toward_bg(
-                        head_color, bg_color, fade,
-                    )
-                } else {
-                    head_color
-                };
-                let cell = crate::cell::Cell {
-                    ch,
-                    fg: Some(fg),
-                    bg,
-                    bold: false,
-                };
-                frame.set(col, 24, cell);
+        // ── Row 11: `▼` tail accent, centered under the frame ──
+        // Decorative only (INV-2: ambiguous-width glyph, one cell —
+        // tofu on the Basic tier is harmless, it cannot misalign
+        // anything because nothing follows it on the row).
+        let accent_col = start_col + (HUD_PANEL_WIDTH - 1) / 2;
+        self.set_cell(frame, accent_col, anchor_row + 11, '▼', Some(head), bg);
+    }
+
+    /// Write one grid row (panel-local rows 2..=8): three metric cells
+    /// (each exactly [`HUD_GRID_CELL_W`] columns, padded at compose
+    /// time) separated by one-column blank gutters. Each cell renders
+    /// in ITS metric's color — the 24-stop chroma gradient sweeps
+    /// through the grid body cell-by-cell (slot order from
+    /// [`HUD_VISUAL_ORDER`]), mirroring the message border's per-cell
+    /// sweep philosophy (BC-02) applied to text cells.
+    fn write_grid_row(
+        &self,
+        frame: &mut crate::frame::Frame,
+        start_col: u16,
+        row: u16,
+        g: usize,
+        bg: Option<Color>,
+    ) {
+        const CELL_STEP: u16 = HUD_GRID_CELL_W as u16 + 1; // 14 + 1 gutter
+        for c in 0..3usize {
+            let metric = HUD_VISUAL_ORDER[2 + g * 3 + c];
+            let cell_color = self.cached_lines[metric].0;
+            let cell_x = start_col + 1 + c as u16 * CELL_STEP;
+            for (i, ch) in self.panel_grid[g][c].chars().enumerate() {
+                self.set_cell(frame, cell_x + i as u16, row, ch, Some(cell_color), bg);
             }
         }
+        // The two gutters (interior offsets 14 and 29) are blank cells
+        // the panel must own — otherwise rain glyphs sit between the
+        // metric cells.
+        for gutter in [HUD_GRID_CELL_W as u16, 2 * CELL_STEP - 1] {
+            self.set_cell(frame, start_col + 1 + gutter, row, ' ', None, bg);
+        }
+    }
+
+    /// Side-border sweep color for panel-local rows 1..=9: the color
+    /// of the metric occupying that visual height, so the frame's
+    /// vertical edges sweep dim→bright in lockstep with the grid
+    /// body. This gradient IS the fade mandate successor — the old
+    /// L-border blended toward the screen edge because the HUD hugged
+    /// the top-left corner; the floating bottom-center panel instead
+    /// fades vertically through the palette sweep (owner "semi
+    /// black/fade biar elegant" intent preserved, re-expressed).
+    fn panel_side_color(&self, r: u16) -> Color {
+        match r {
+            1 => self.cached_lines[HUD_VISUAL_ORDER[2]].0, // spacer: body dim start
+            2..=8 => {
+                let g = (r - 2) as usize;
+                self.cached_lines[HUD_VISUAL_ORDER[2 + g * 3]].0 // row's first cell
+            }
+            _ => self.cached_lines[HUD_VISUAL_ORDER[22]].0, // spacer: body bright end
+        }
+    }
+
+    /// Single-cell write helper — every HUD frame write goes through
+    /// here so the `Cell` construction stays uniform (fg carried,
+    /// bg passed through, never bold).
+    #[inline]
+    fn set_cell(
+        &self,
+        frame: &mut crate::frame::Frame,
+        x: u16,
+        y: u16,
+        ch: char,
+        fg: Option<Color>,
+        bg: Option<Color>,
+    ) {
+        let cell = crate::cell::Cell {
+            ch,
+            fg,
+            bg,
+            bold: false,
+        };
+        frame.set(x, y, cell);
     }
 }

@@ -595,6 +595,42 @@ Future doc-cascade material; recorded here so it is not lost:
 
 ---
 
+## 14. Outcome (owner decision record)
+
+**2026-09-02**: the owner picked **Option D + B** ("gue pick opsi D dan
+B, tapi dibuat branch terpisah bro jangan di main branch ini") — the
+Option B layout (bottom-center sci-fi panel grid) dressed with the
+Option D finish (complete rounded frame + `▼` tail accent).
+
+Implementation landed on branch **`hud-scifi-dashboard`** (per the
+owner's separate-branch directive — main untouched until the owner
+blesses the look). Deviations from the research mock, all honest:
+
+- **12 rows, not 13** — the header/footer strips carry metrics (fps +
+  tgt / screensize) instead of dedicating rows to them, so the block
+  is header + 2 spacers + 7 grid rows + footer + accent. The
+  message-box collision threshold improves accordingly (~32 rows
+  instead of ~36).
+- **Per-metric gradient, not per-row** — each grid cell renders in
+  its metric's own interpolated stop (mapped through the visual
+  order), extending the message border's per-cell sweep philosophy;
+  the side borders sweep in lockstep.
+- **D-finisher optionality resolved** — X-1 fixed width: yes (locked);
+  X-4 `▼` tail accent: yes; X-2 frosted tint: no (kept `bg: None`
+  passthrough — owner did not answer the menu question, so the
+  research default stands); X-3 scanline: no (the doc's own
+  "never bundle with the layout" rule).
+
+Pre-existing doc drift items from section 12 were fixed as part of the
+implementation doc cascade (module doc "5-line overlay", the 20->22 vs
+const-24 width comment, the phantom HUD_DISPLAY_MAX_HZ comment, the
+"16-stop" narration, and HUD.md's "capped at 22 cols" claim).
+
+The research verdict held: the styling half was cheap, the placement
+half carried the cost (test churn ~400 lines, e2e re-lock, HUD.md
+rewrite) — and the fixed-width rule eliminated the jitter class the
+research predicted.
+
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

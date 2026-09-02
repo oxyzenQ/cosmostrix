@@ -2,12 +2,15 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
 
-"""E2E HUD row-order verification for the v51 reorder (owner mandate).
+"""E2E HUD panel-order verification (v80.0.0-beta.3 sci-fi grid).
 
 Spawns cosmostrix in a PTY, skips the intro, toggles the HUD with 'i',
-waits for the 1 Hz metric tick, and asserts the exact row order:
-fps/tgt/max/p99/cpu/rss/ehs/prs/scn/chr/clr/sped/dsty/prdr/crdr/ambt/
-glth/ctun/mnst/cid/up/screensize.
+waits for the 1 Hz metric tick, and asserts the exact panel order:
+fps/tgt ride the bright header strip, the 21 grid-body metrics follow
+in 3-column reading order (ehs/prs/scn, chr/clr/sped, dsty/prdr/crdr,
+ambt/glth/ctun, mnst/dcel/tcel, max/p99/cpu, rss/cid/up), and the
+screensize footer closes the panel. Branch hud-scifi-dashboard,
+owner-approved Option B + D.
 """
 
 import os
@@ -125,10 +128,6 @@ def main():
     expected = [
         "fps",
         "tgt",
-        "max",
-        "p99",
-        "cpu",
-        "rss",
         "ehs",
         "prs",
         "scn",
@@ -144,6 +143,10 @@ def main():
         "mnst",
         "dcel",
         "tcel",
+        "max",
+        "p99",
+        "cpu",
+        "rss",
         "cid",
         "up",
         "size",

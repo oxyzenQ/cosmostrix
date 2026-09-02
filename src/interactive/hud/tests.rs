@@ -404,23 +404,23 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         }, // idx 23 → row 23 (screensize, head)
     ];
     h.refresh_colors(&palette);
-    // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
+    // v80.0.0-beta.3 panel mapping (owner-approved Option B): the fps
+    // header cap (idx 0) sits at t=1.0 = palette[23] = RGB(255,255,255)
+    // — the BRIGHT head. The grid body starts dim at ehs (idx 6,
+    // visual slot 2, t=0.0) = palette[0] brightened to RGB(0,200,0).
     assert_eq!(
         h.cached_lines[0].0,
-        Color::Rgb { r: 0, g: 200, b: 0 },
-        "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
-    );
-    // Row 7 (prs, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
-    // >= TARGET_V(200), returned as-is. With a 24-stop palette + 24 HUD
-    // rows, t = 7/23.0 maps to palette[7] exactly (1:1 mapping).
-    assert_eq!(
-        h.cached_lines[7].0,
         Color::Rgb {
-            r: 220,
-            g: 240,
-            b: 150
+            r: 255,
+            g: 255,
+            b: 255
         },
-        "row 7 (prs) must use palette[7] — near head but not the head"
+        "fps header cap (idx 0) must use palette[23] (bright head) — Option B bright header strip"
+    );
+    assert_eq!(
+        h.cached_lines[6].0,
+        Color::Rgb { r: 0, g: 200, b: 0 },
+        "ehs grid-body start (idx 6) must use palette[0] brightened (dim tail, t=0.0)"
     );
     // Bottom row (screensize, idx 23 — Z-master-1X round 5: moved down
     // from row 21 to row 23) = palette[23] = RGB(255,255,255) — head.
@@ -433,25 +433,25 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         },
         "bottom row (screensize) must use palette[23] (head) — bright head at bottom"
     );
-    // Middle rows should NOT be white — they should be the intermediate
-    // green stops, not the head.
-    assert_ne!(
-        h.cached_lines[2].0,
-        Color::Rgb {
-            r: 255,
-            g: 255,
-            b: 255
-        },
-        "row 2 (max) must NOT use head — only bottom row gets head"
+    // v80.0.0-beta.3: the performance core (max/p99/cpu, visual slots
+    // 17-19, t = 0.75-0.85) rides the BRIGHT band of the grid body —
+    // measurably brighter than the dim body start. With THIS palette
+    // the t=0.75 blend lands inside the white head zone and
+    // blend_toward_rgb's integer rounding keeps it exactly white, so
+    // the honest property is relative brightness, not "not white".
+    let lum = |c: Color| -> u32 {
+        match c {
+            Color::Rgb { r, g, b } => u32::from(r.max(g).max(b)),
+            _ => 0,
+        }
+    };
+    assert!(
+        lum(h.cached_lines[2].0) > lum(h.cached_lines[6].0),
+        "max (t=0.75) must be brighter than ehs (t=0.0) — performance core rides the bright band"
     );
-    assert_ne!(
-        h.cached_lines[4].0,
-        Color::Rgb {
-            r: 255,
-            g: 255,
-            b: 255
-        },
-        "row 4 (cpu) must NOT use head — only bottom row gets head"
+    assert!(
+        lum(h.cached_lines[4].0) > lum(h.cached_lines[6].0),
+        "cpu (t=0.85) must be brighter than ehs (t=0.0) — performance core rides the bright band"
     );
 }
 
@@ -643,15 +643,21 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
         distinct_count >= 20,
         "24-row HUD gradient must produce >=20 distinct colors with a 24-stop palette (got {distinct_count}) — banded gradient would indicate an interpolation regression"
     );
-    // Boundary rows (0 and 23) must still be exact — t=0.0 and t=1.0
-    // land on integer positions with no floating-point drift.
+    // v80.0.0-beta.3 boundary metrics must still be exact — the caps
+    // (fps idx 0 / screensize idx 23) sit at t=1.0 (palette[23]); the
+    // grid-body start (ehs, idx 6, visual slot 2) sits at t=0.0
+    // (palette[0]). No floating-point drift at either boundary.
     assert_eq!(
-        h.cached_lines[0].0, palette[0],
-        "row 0 must use palette[0] exactly (t=0.0, no interpolation)"
+        h.cached_lines[0].0, palette[23],
+        "fps header cap (idx 0) must use palette[23] exactly (t=1.0, no interpolation)"
+    );
+    assert_eq!(
+        h.cached_lines[6].0, palette[0],
+        "ehs grid-body start (idx 6) must use palette[0] exactly (t=0.0, no interpolation)"
     );
     assert_eq!(
         h.cached_lines[23].0, palette[23],
-        "row 23 must use palette[23] exactly (t=1.0, no interpolation)"
+        "screensize footer cap (idx 23) must use palette[23] exactly (t=1.0, no interpolation)"
     );
 }
 
@@ -695,7 +701,7 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
 }
 
 #[test]
-fn compute_chroma_gradient_24_sweeps_full_palette_range() {
+fn compute_chroma_gradient_panel_sweeps_full_palette_range() {
     // HD-01 regression: verify the 24-stop chroma gradient helper maps
     // the first and last HUD rows to the corresponding palette boundary
     // stops. Row 0 → palette[0] (t=0.0), row 23 → palette[n-1] (t=1.0).
@@ -770,10 +776,27 @@ fn compute_chroma_gradient_24_sweeps_full_palette_range() {
             b: 100,
         }, // idx 15 → last stop (t=1.0)
     ];
-    let colors = compute_chroma_gradient_24(&palette);
-    // Row 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0).
-    // t=0.0 maps exactly to palette[0] — no interpolation needed.
-    assert_eq!(colors[0], Color::Rgb { r: 200, g: 0, b: 0 });
+    let colors = compute_chroma_gradient_panel(&palette);
+    // v80.0.0-beta.3 panel mapping: metric 0 (fps, header cap) sits at
+    // t=1.0 → palette[n-1] = RGB(100,100,100) brightened to
+    // RGB(200,200,200) — the bright header strip color.
+    assert_eq!(
+        colors[0],
+        Color::Rgb {
+            r: 200,
+            g: 200,
+            b: 200
+        },
+        "fps (header cap) must use the last palette stop brightened (t=1.0)"
+    );
+    // Metric 6 (ehs, grid body start) sits at visual slot 2 → t=0.0 →
+    // palette[0] = RGB(50,0,0) brightened to RGB(200,0,0) — the dim
+    // tail start of the grid body sweep.
+    assert_eq!(
+        colors[6],
+        Color::Rgb { r: 200, g: 0, b: 0 },
+        "ehs (grid body start) must use palette[0] exactly (t=0.0, no interpolation)"
+    );
     // Row 23 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
     // t=1.0 maps exactly to palette[n-1] — the last stop. max channel is
     // 100, scaled by 200/100 = 2.0x to reach the TARGET_V=200 floor.
@@ -792,456 +815,363 @@ fn compute_chroma_gradient_24_sweeps_full_palette_range() {
     );
 }
 
-// HB-01 regression test: HUD width shrink (e.g., tgt drops " idle" suffix)
-// must clear the previously-occupied trailing cells immediately.
+// ── v80.0.0-beta.3 panel geometry regression tests (branch
+// hud-scifi-dashboard, owner-approved Option B + D) ─────────────────
 //
-// v80.0.0-beta.1 chroma border update: when current_width shrinks to 13,
-// col 13 becomes the new border position (the border tracks current_width
-// directly, not max(cur,prev)). The stale 'e' at col 13 is replaced by
-// the border char '│' — the HB-01 bug (stale 'e' visible) is still fixed,
-// just via border replacement instead of blanking. To also verify that
-// TEXT area trailing cells are still blanked (not just replaced by
-// border), we check cell (10,1) which held 'i' from "idle" and is now
-// in the padding area (blanked to ' ').
-#[test]
-fn hud_write_to_frame_clears_trailing_cells_when_width_shrinks() {
-    let mut h = HudState::new();
-    h.toggle(); // make visible
-                // 14-char string ending in "idle" (mirrors owner repro: " tgt: 144 idle").
-    h.cached_lines[1].1 = " tgt: 144 idle".to_string();
-    h.current_width = 14;
-    h.prev_width = 14;
+// The v80.0.0-beta.1 L-shape border + dynamic-width write_to_frame
+// tests are replaced wholesale: the HUD is now a FIXED 46-col x 12-row
+// bottom-center rounded panel, so the shrink/grow residue class
+// (HB-01) no longer exists — every assertion below locks the stable
+// geometry instead: anchor math, rounded corners, bright caps,
+// side-gradient sweep, grid cell placement, gutter ownership,
+// fixed-width padding overwrite (the HB-01 successor), the first-tick
+// guard, the visibility guard, and INV-8 clipping on small terminals.
 
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 8, None);
-    h.write_to_frame(&mut frame, cols, None);
-
-    assert!(
-        frame.get(13, 1).is_some(),
-        "precondition: cell (13,1) must exist after wide write"
-    );
-
-    h.cached_lines[1].1 = " tgt: 144".to_string();
-    h.current_width = 13; // shrunk
-
-    h.write_to_frame(&mut frame, cols, None);
-
-    // Cell (10, 1) held 'i' from "idle" — now in the padding area, must
-    // be blanked (this is the classic HB-01 text-area clearing check).
-    let cleared = frame
-        .get(10, 1)
-        .expect("cell (10,1) must exist after shrink");
-    assert_eq!(
-        cleared.ch, ' ',
-        "cell (10,1) must be blanked — held stale 'i' from previous wide text (HB-01 bug)"
-    );
-    assert!(cleared.fg.is_none(), "cell (10,1) fg must be None");
-
-    // Cell (13, 1) held 'e' from "idle" — now the border position
-    // (current_width = 13). The stale 'e' is replaced by '│', not blanked.
-    let border_cell = frame
-        .get(13, 1)
-        .expect("cell (13,1) must exist after shrink");
-    assert_ne!(
-        border_cell.ch, 'e',
-        "cell (13,1) must not hold stale 'e' — replaced by border (HB-01 still fixed)"
-    );
-    assert_eq!(
-        border_cell.ch, '│',
-        "cell (13,1) is the new border position (current_width = 13)"
-    );
-}
-
-// v80.0.0-beta.1 HUD chroma border regression test (owner mandate 2026-09-02):
-// The HUD draws an L-shape border (right + bottom) using the same chroma
-// dragon palette integration as the message border (BC-01..05). This test
-// verifies the border shape, character set, and per-row color sweep.
-//
-// v80.0.0-beta.1 edge fade update (owner mandate 2026-09-02, "visual 9/10"):
-// the border edges fade toward the screen edge (top-left corner of screen)
-// so the border "emerges from shadow". Right edge: row 0 = max fade, row 23
-// = no fade. Bottom edge: col 0 = max fade, col cur = no fade (corner
-// anchor). This test verifies the fade behavior (faded at screen-edge ends,
-// full-bright at the anchor corner).
-#[test]
-fn hud_border_draws_l_shape_with_chroma_colors() {
-    let mut h = HudState::new();
-    h.toggle(); // make visible
-
-    // Set distinct colors per row so we can verify the per-row sweep on
-    // the right edge. Row 0 (top) is dim, row 23 (bottom) is bright —
-    // matches the HUD's own gradient direction.
-    let test_color = |i: usize| -> Color {
-        Color::Rgb {
-            r: (i * 10) as u8,
-            g: (100 + i * 5) as u8,
-            b: 200,
-        }
-    };
-    for i in 0..24 {
-        h.cached_lines[i].0 = test_color(i);
-        h.cached_lines[i].1 = format!(" row{}", i);
-    }
-    h.current_width = 10;
-    h.prev_width = 10;
-
-    let cols = 40u16;
-    // 30 rows so the bottom border at row 24 is in-bounds.
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    // bg = None → draw_border defaults to black for the fade target.
-    h.write_to_frame(&mut frame, cols, None);
-
-    let head_color = test_color(23);
-
-    // Right border: col = 10 (hud_width), rows 0..23, char '│'.
-    // Edge fade: row 0 (top) = max fade (blended toward black), row 23
-    // (bottom) = no fade (full head_color).
-    for row in 0..24u16 {
-        let cell = frame
-            .get(10, row)
-            .unwrap_or_else(|| panic!("right border cell at (10,{}) must exist", row));
-        assert_eq!(
-            cell.ch, '│',
-            "right border at (10,{}) must be the vertical box-drawing char",
-            row
-        );
-        assert!(!cell.bold, "border must not be bold");
-
-        // Fade factor: 0.6 * (1.0 - row / 23.0). row 23 → 0.0 (no fade),
-        // row 0 → 0.6 (max fade). Verify behavior:
-        // - row 23: fg == test_color(23) (no fade, full color)
-        // - row 0..22: fg != test_color(row) (faded toward black)
-        if row == 23 {
-            assert_eq!(
-                cell.fg,
-                Some(test_color(23)),
-                "right border at row 23 (head anchor) must have NO fade — full color"
-            );
-        } else {
-            assert_ne!(
-                cell.fg,
-                Some(test_color(row as usize)),
-                "right border at row {} must be faded toward bg (not full color)",
-                row
-            );
-            // Faded color should be darker (each channel < original when
-            // bg is black and original channel > 0).
-            if let Some(Color::Rgb { r, g, b }) = cell.fg {
-                let orig = test_color(row as usize);
-                if let Color::Rgb {
-                    r: or_,
-                    g: og,
-                    b: ob,
-                } = orig
-                {
-                    assert!(
-                        r <= or_ && g <= og && b <= ob,
-                        "faded color at row {} must be <= original on each channel (blend toward black)",
-                        row
-                    );
-                }
-            }
-        }
-    }
-
-    // Bottom border: row = 24, cols 0..9, char '─'.
-    // Edge fade: col 0 (left) = max fade, col 9 (just before corner) =
-    // small fade. The corner at col 10 is tested separately below.
-    for col in 0..10u16 {
-        let cell = frame
-            .get(col, 24)
-            .unwrap_or_else(|| panic!("bottom border cell at ({},24) must exist", col));
-        assert_eq!(
-            cell.ch, '─',
-            "bottom border at ({},24) must be the horizontal box-drawing char",
-            col
-        );
-        // All bottom cells are faded (col 0 max, col 9 small) except
-        // the corner at col 10 which has no fade. Cols 0..9 are all
-        // faded (factor > 0 because col < cur=10).
-        assert_ne!(
-            cell.fg,
-            Some(head_color),
-            "bottom border at col {} must be faded toward bg (not full head_color)",
-            col
-        );
-        if let Some(Color::Rgb { r, g, b }) = cell.fg {
-            if let Color::Rgb {
-                r: hr,
-                g: hg,
-                b: hb,
-            } = head_color
-            {
-                assert!(
-                    r <= hr && g <= hg && b <= hb,
-                    "faded bottom color at col {} must be <= head_color on each channel",
-                    col
-                );
-            }
-        }
-    }
-
-    // Corner: (10, 24), char '╯' (light up-left corner), color = head_color
-    // (NO fade — the corner is the bright anchor point).
-    let corner = frame
-        .get(10, 24)
-        .expect("corner cell at (10,24) must exist");
-    assert_eq!(
-        corner.ch, '╯',
-        "corner at (10,24) must be the up-left corner char"
-    );
-    assert_eq!(
-        corner.fg,
-        Some(head_color),
-        "corner must use the head color (NO fade — anchor point)"
-    );
-}
-
-// v80.0.0-beta.1 edge fade gradient test: verify the fade is a LINEAR ramp
-// from max fade (screen-edge end) to no fade (anchor end). The right edge
-// row 0 should be more faded than row 11 (midpoint), which should be more
-// faded than row 23 (no fade). This catches a bug where the fade is
-// applied uniformly instead of as a gradient.
-#[test]
-fn hud_border_edge_fade_is_linear_gradient() {
+/// Test helper: a visible HUD with a deterministic panel cache.
+/// Texts/colors are set DIRECTLY (not via update_metrics) so the
+/// geometry assertions stay independent of the 1 Hz tick + palette
+/// machinery. The panel cache mimics the exact production shape:
+/// header/footer interiors of 44 cols, grid cells of 14 cols.
+fn panel_hud() -> HudState {
     let mut h = HudState::new();
     h.toggle();
-
-    // Use a single bright color for all rows so the fade is the only
-    // variable (no per-row chroma sweep confounding the comparison).
-    let bright = Color::Rgb {
-        r: 200,
-        g: 200,
-        b: 200,
-    };
-    for i in 0..24 {
-        h.cached_lines[i].0 = bright;
-        h.cached_lines[i].1 = format!(" row{}", i);
-    }
-    h.current_width = 10;
-    h.prev_width = 10;
-
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    h.write_to_frame(&mut frame, cols, None);
-
-    // Right edge: extract the R channel (as a proxy for brightness) at
-    // rows 0, 11, 23. With bg=black, fade blends toward (0,0,0), so
-    // R channel = 200 * (1 - fade). row 0 fade=0.6 → R=80. row 11
-    // fade≈0.31 → R≈138. row 23 fade=0.0 → R=200.
-    let r_at = |row: u16| -> u8 {
-        if let Some(Color::Rgb { r, .. }) = frame.get(10, row).and_then(|c| c.fg) {
-            r
-        } else {
-            panic!("no fg at row {}", row)
-        }
-    };
-    let r0 = r_at(0);
-    let r11 = r_at(11);
-    let r23 = r_at(23);
-
-    // Linear gradient: r0 < r11 < r23 (strictly increasing brightness).
-    assert!(
-        r0 < r11,
-        "row 0 (R={}) must be darker than row 11 (R={}) — linear fade gradient",
-        r0,
-        r11
-    );
-    assert!(
-        r11 < r23,
-        "row 11 (R={}) must be darker than row 23 (R={}) — linear fade gradient",
-        r11,
-        r23
-    );
-    // row 23 has no fade → R == 200 (full bright).
-    assert_eq!(
-        r23, 200,
-        "row 23 (anchor) must have NO fade — R == 200 (full bright)"
-    );
-    // row 0 has max fade (0.6) → R ≈ 80 (200 * 0.4, with integer
-    // rounding in lerp_u8 the exact value is 81 — assert a range to
-    // be robust to the rounding).
-    assert!(
-        r0 <= 85,
-        "row 0 (screen-edge end) must have max fade — R <= 85 (got {}), expected ~80",
-        r0
-    );
-    assert!(
-        r0 >= 75,
-        "row 0 (screen-edge end) fade must not be too aggressive — R >= 75 (got {})",
-        r0
-    );
-}
-
-// Border must NOT draw when hud_width is 0 (empty HUD — no metrics yet).
-#[test]
-fn hud_border_skips_when_hud_width_zero() {
-    let mut h = HudState::new();
-    h.toggle();
-    h.current_width = 0;
-    h.prev_width = 0;
-
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    h.write_to_frame(&mut frame, cols, None);
-
-    // No bottom border char at row 24.
-    if let Some(cell) = frame.get(0, 24) {
-        assert_ne!(cell.ch, '─', "no bottom border when hud_width is 0");
-    }
-}
-
-// Border must NOT draw when HUD is invisible (write_to_frame early-returns).
-#[test]
-fn hud_border_skips_when_invisible() {
-    let mut h = HudState::new();
-    // Do NOT toggle — HUD stays invisible.
-    h.cached_lines[0].0 = Color::Rgb { r: 255, g: 0, b: 0 };
-    h.cached_lines[0].1 = " test".to_string();
-    h.current_width = 10;
-    h.prev_width = 10;
-
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    h.write_to_frame(&mut frame, cols, None);
-
-    // No right border char at col 10.
-    if let Some(cell) = frame.get(10, 0) {
-        assert_ne!(cell.ch, '│', "no right border when HUD is invisible");
-    }
-}
-
-// v80.0.0-beta.1 residue fix regression test (owner bug report 2026-09-02):
-// When the HUD width shrinks (e.g. `dcel` value gets shorter), the border
-// moves LEFT to the new `current_width`. The old border cells at the
-// previous (wider) position MUST be blanked — otherwise they leave a
-// visible "stain" or "ghost" that looks like a glitch effect.
-//
-// This test reproduces the exact scenario the owner reported: border at
-// col 14 (wide metrics), then shrinks to col 10 (shorter `dcel` value),
-// then verifies col 14 is fully blanked (no stale `│`).
-#[test]
-fn hud_border_clears_stale_cells_when_width_shrinks() {
-    let mut h = HudState::new();
-    h.toggle(); // make visible
-
-    let test_color = |i: usize| -> Color {
-        Color::Rgb {
-            r: (i * 10) as u8,
-            g: 100,
-            b: 200,
-        }
-    };
-    for i in 0..24 {
-        h.cached_lines[i].0 = test_color(i);
-        h.cached_lines[i].1 = format!(" row{}", i);
-    }
-
-    // Frame 1: width = 14 (wide metrics, e.g. dcel shows a long value).
-    h.current_width = 14;
-    h.prev_width = 14;
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    h.write_to_frame(&mut frame, cols, None);
-
-    // Verify border at col 14 (the wide position).
-    assert_eq!(
-        frame.get(14, 0).unwrap().ch,
-        '│',
-        "frame 1: right border at col 14"
-    );
-    assert_eq!(
-        frame.get(14, 24).unwrap().ch,
-        '╯',
-        "frame 1: corner at (14,24)"
-    );
-
-    // Frame 2: width shrinks to 10 (dcel value got shorter).
-    // prev_width is now 14 (set at end of frame 1's write_to_frame).
-    h.current_width = 10;
-    h.write_to_frame(&mut frame, cols, None);
-
-    // New border at col 10.
-    assert_eq!(
-        frame.get(10, 0).unwrap().ch,
-        '│',
-        "frame 2: new right border at col 10"
-    );
-    assert_eq!(
-        frame.get(10, 24).unwrap().ch,
-        '╯',
-        "frame 2: new corner at (10,24)"
-    );
-
-    // OLD border at col 14 MUST be cleared (no residue/stain).
-    let old_right = frame.get(14, 0).expect("old border cell must exist");
-    assert_eq!(
-        old_right.ch, ' ',
-        "frame 2: old right border at col 14 must be blanked (no residue) — was the owner's glitch bug"
-    );
-    assert!(
-        old_right.fg.is_none(),
-        "frame 2: old right border fg must be None"
-    );
-
-    // OLD bottom border cells at cols 11..=14, row 24 MUST be cleared.
-    for col in 11..=14u16 {
-        let old_bottom = frame.get(col, 24).expect("old bottom cell must exist");
-        assert_eq!(
-            old_bottom.ch, ' ',
-            "frame 2: old bottom border at ({},24) must be blanked",
-            col
-        );
-    }
-
-    // OLD corner at (14, 24) MUST be cleared (was '╯', now ' ').
-    let old_corner = frame.get(14, 24).expect("old corner cell must exist");
-    assert_eq!(
-        old_corner.ch, ' ',
-        "frame 2: old corner at (14,24) must be blanked"
-    );
-}
-
-// Border must move RIGHT cleanly when width grows (no stale cells expected,
-// but verify the new position is drawn and no residue at old position).
-#[test]
-fn hud_border_grows_right_cleanly() {
-    let mut h = HudState::new();
-    h.toggle();
-
     for i in 0..24 {
         h.cached_lines[i].0 = Color::Rgb {
-            r: 100,
-            g: 100,
-            b: 100,
+            r: 128,
+            g: 128,
+            b: 128,
         };
-        h.cached_lines[i].1 = format!(" row{}", i);
+        h.cached_lines[i].1 = format!(" m{i}");
     }
+    // head cap (screensize metric 23) = white; body start (ehs metric
+    // 6) = dark; body end (up metric 22) = brighter than the middle.
+    h.cached_lines[23].0 = Color::Rgb {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
+    h.cached_lines[6].0 = Color::Rgb {
+        r: 60,
+        g: 60,
+        b: 60,
+    };
+    h.cached_lines[22].0 = Color::Rgb {
+        r: 220,
+        g: 220,
+        b: 220,
+    };
+    h.panel_header = "───────────── fps: 451  tgt: 60 ────────────".to_string();
+    h.panel_footer = "──────────────── 200x50 auto ──────────────".to_string();
+    for g in 0..7usize {
+        for c in 0..3usize {
+            let mut cell = format!("g{g}c{c}");
+            while cell.chars().count() < 14 {
+                cell.push(' ');
+            }
+            h.panel_grid[g][c] = cell;
+        }
+    }
+    h
+}
 
-    // Frame 1: width = 8.
-    h.current_width = 8;
-    h.prev_width = 8;
-    let cols = 40u16;
-    let mut frame = crate::frame::Frame::new(cols, 30, None);
-    h.write_to_frame(&mut frame, cols, None);
-    assert_eq!(frame.get(8, 0).unwrap().ch, '│');
+#[test]
+fn hud_panel_anchors_bottom_center_with_rounded_frame() {
+    let mut h = panel_hud();
+    // 100x40 terminal: start_col = (100-46)/2 = 27, anchor_row =
+    // 40-12 = 28. The full block spans rows 28..=39 (12 rows).
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
 
-    // Frame 2: width grows to 12.
-    h.current_width = 12;
-    h.write_to_frame(&mut frame, cols, None);
+    // Rounded corners (Option D complete frame): bright, exact glyphs.
+    assert_eq!(frame.get(27, 28).unwrap().ch, '╭', "top-left corner");
+    assert_eq!(frame.get(72, 28).unwrap().ch, '╮', "top-right corner");
+    assert_eq!(frame.get(27, 38).unwrap().ch, '╰', "bottom-left corner");
+    assert_eq!(frame.get(72, 38).unwrap().ch, '╯', "bottom-right corner");
+    // Side borders on every body row (panel rows 1..=9 → rows 29..=37).
+    for row in 29..=37u16 {
+        assert_eq!(frame.get(27, row).unwrap().ch, '│', "left side row {row}");
+        assert_eq!(frame.get(72, row).unwrap().ch, '│', "right side row {row}");
+    }
+    // Nothing above the panel anchor: row 27 must stay rain-only.
+    if let Some(cell) = frame.get(50, 27) {
+        assert_ne!(cell.ch, '│', "no panel content above the anchor row");
+    }
+    // Tail accent: a single '▼' centered under the frame on the very
+    // last row (col 27 + (46-1)/2 = 49, row 39).
+    assert_eq!(frame.get(49, 39).unwrap().ch, '▼', "tail accent glyph");
+}
 
-    // New border at col 12.
+#[test]
+fn hud_panel_header_footer_and_accent_are_bright_caps() {
+    let mut h = panel_hud();
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
+    let head = Color::Rgb {
+        r: 255,
+        g: 255,
+        b: 255,
+    };
+    // Header strip interior + corners.
+    assert_eq!(frame.get(28, 28).unwrap().fg, Some(head));
+    assert_eq!(frame.get(71, 28).unwrap().fg, Some(head));
     assert_eq!(
-        frame.get(12, 0).unwrap().ch,
-        '│',
-        "frame 2: new right border at col 12"
+        frame.get(27, 28).unwrap().fg,
+        Some(head),
+        "╭ corner is a cap"
+    );
+    // Footer strip interior + corners.
+    assert_eq!(frame.get(28, 38).unwrap().fg, Some(head));
+    assert_eq!(
+        frame.get(72, 38).unwrap().fg,
+        Some(head),
+        "╯ corner is a cap"
+    );
+    // Tail accent.
+    assert_eq!(
+        frame.get(49, 39).unwrap().fg,
+        Some(head),
+        "▼ accent is a cap"
+    );
+}
+
+#[test]
+fn hud_panel_side_border_sweeps_dim_to_bright_downward() {
+    // The side borders carry the row's sweep color (the metric at that
+    // visual height): row 1 (spacer) = ehs color (60), a mid grid row
+    // = the grey body (128), row 9 (spacer) = up color (220).
+    let mut h = panel_hud();
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
+    let r_at = |row: u16| -> u8 {
+        match frame.get(27, row).and_then(|c| c.fg) {
+            Some(Color::Rgb { r, .. }) => r,
+            other => panic!("no Rgb fg at row {row}: {other:?}"),
+        }
+    };
+    let top = r_at(29); // panel row 1 → ehs (dim body start)
+    let mid = r_at(33); // panel row 5 → mid body
+    let bottom = r_at(37); // panel row 9 → up (bright body end)
+    assert!(
+        top < mid,
+        "side border must brighten downward (top {top} < mid {mid})"
+    );
+    assert!(
+        mid < bottom,
+        "side border must brighten downward (mid {mid} < bottom {bottom})"
+    );
+}
+
+#[test]
+fn hud_panel_grid_cells_render_at_expected_positions() {
+    // Grid row g renders at y = anchor+2+g; cell c spans
+    // x = start_col+1+c*15 .. +14; the 1-col gutters between cells are
+    // owned blanks (fg None) so no rain glyph can sit between cells.
+    let mut h = panel_hud();
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
+    // Grid row 0 (y=30): cells "g0c0", "g0c1", "g0c2".
+    assert_eq!(frame.get(28, 30).unwrap().ch, 'g');
+    assert_eq!(&frame.get(28, 30).unwrap().ch.to_string(), "g");
+    assert_eq!(frame.get(43, 30).unwrap().ch, 'g');
+    assert_eq!(frame.get(58, 30).unwrap().ch, 'g');
+    // Cell text colors follow the metric's own gradient stop: cell
+    // (0,0) is ehs (metric 6, dark) per HUD_VISUAL_ORDER.
+    assert_eq!(
+        frame.get(28, 30).unwrap().fg,
+        Some(Color::Rgb {
+            r: 60,
+            g: 60,
+            b: 60
+        }),
+        "grid cell (0,0) = ehs → its own dim body-start color"
+    );
+    // Gutters: blank, no fg.
+    for gutter_x in [42u16, 57u16] {
+        let cell = frame.get(gutter_x, 30).unwrap();
+        assert_eq!(cell.ch, ' ', "gutter at x={gutter_x} must be blank");
+        assert!(
+            cell.fg.is_none(),
+            "gutter at x={gutter_x} must have fg None"
+        );
+    }
+    // Grid row 6 (y=36) holds the performance core (max/p99/cpu).
+    assert_eq!(frame.get(28, 36).unwrap().ch, 'g');
+}
+
+#[test]
+fn hud_panel_fixed_cells_overwrite_stale_text() {
+    // The HB-01 successor: cells are ALWAYS exactly 14 columns wide
+    // (padded at composition), so a shorter value's padding re-blanks
+    // the stale trailing chars on the very next frame. No width
+    // tracking, no prev_width bookkeeping — the fixed footprint makes
+    // the residue class impossible.
+    let mut h = panel_hud();
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    // "scn: cinematic" fills all 14 columns of cell (0,2) at x=58..71.
+    h.panel_grid[0][2] = "scn: cinematic".to_string();
+    h.write_to_frame(&mut frame, None);
+    assert_eq!(
+        frame.get(58 + 12, 30).unwrap().ch,
+        'i',
+        "precondition: 'i' of cinematic"
+    );
+    // Value shrinks: "scn: matrix" + 3 pad spaces.
+    h.panel_grid[0][2] = "scn: matrix   ".to_string();
+    h.write_to_frame(&mut frame, None);
+    assert_eq!(
+        frame.get(58 + 12, 30).unwrap().ch,
+        ' ',
+        "stale 'i' must be re-blanked by the fixed-width padding (HB-01 successor)"
+    );
+    assert_eq!(
+        frame.get(58 + 8, 30).unwrap().ch,
+        'r',
+        "new value visible at index 8"
+    );
+}
+
+#[test]
+fn hud_panel_skips_when_invisible() {
+    let mut h = panel_hud();
+    h.toggle(); // off again — write_to_frame must early-return.
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
+    if let Some(cell) = frame.get(27, 28) {
+        assert_ne!(cell.ch, '╭', "no panel when HUD is invisible");
+    }
+    if let Some(cell) = frame.get(49, 39) {
+        assert_ne!(cell.ch, '▼', "no accent when HUD is invisible");
+    }
+}
+
+#[test]
+fn hud_panel_skips_until_first_metric_tick() {
+    // panel_header is empty until the first 1 Hz tick composes it —
+    // the one-frame guard after toggle-on (mirrors the old empty-row
+    // skip). Nothing may render before that.
+    let mut h = HudState::new();
+    h.toggle();
+    let mut frame = crate::frame::Frame::new(100, 40, None);
+    h.write_to_frame(&mut frame, None);
+    if let Some(cell) = frame.get(27, 28) {
+        assert_ne!(cell.ch, '╭', "no panel before the first metric tick");
+    }
+}
+
+#[test]
+fn hud_panel_clips_safely_on_small_terminals() {
+    // INV-8: the 80x24 minimum terminal never panics. On a 30x24
+    // frame the panel saturates start_col to 0 and clips both sides
+    // symmetrically; the bottom rows clip past the frame edge.
+    let mut h = panel_hud();
+    let mut frame = crate::frame::Frame::new(30, 24, None);
+    h.write_to_frame(&mut frame, None);
+    assert_eq!(
+        frame.get(0, 12).unwrap().ch,
+        '╭',
+        "clamped anchor at (0,12)"
+    );
+    assert!(
+        frame.get(45, 23).is_none(),
+        "right edge clips silently (x=45 > 29)"
+    );
+    // Even smaller: 20x20 — saturating math everywhere, no panic.
+    let mut frame2 = crate::frame::Frame::new(20, 20, None);
+    h.write_to_frame(&mut frame2, None);
+    assert_eq!(frame2.get(0, 8).unwrap().ch, '╭', "20x20 anchor at (0,8)");
+}
+
+#[test]
+fn hud_compose_panel_builds_grid_in_visual_order() {
+    // Composition test (the 1 Hz text assembly): toggle back-dates the
+    // metric tick, so one update_metrics call composes the whole panel
+    // from the metric fields.
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_screen_size(200, 50, false);
+    h.set_scene_name("cinematic");
+    h.set_charset_preset("binary");
+    h.set_target_fps(60.0);
+    h.update_metrics(&[]);
+
+    // Header: fps + tgt centered in '─' fill, exactly 44 columns.
+    assert_eq!(h.panel_header.chars().count(), 44, "header interior width");
+    assert!(
+        h.panel_header.starts_with('─'),
+        "header starts with dash fill"
+    );
+    assert!(h.panel_header.ends_with('─'), "header ends with dash fill");
+    assert!(h.panel_header.contains("fps:"), "header carries fps");
+    assert!(h.panel_header.contains("tgt: 60.0"), "header carries tgt");
+
+    // Footer: screensize centered in '─' fill.
+    assert_eq!(h.panel_footer.chars().count(), 44, "footer interior width");
+    assert!(
+        h.panel_footer.contains("200x50 auto"),
+        "footer carries screensize"
     );
 
-    // Old border at col 8 should now be part of the text/padding area
-    // (the metrics loop blanks it via padding). It must NOT still be '│'.
-    let old_cell = frame.get(8, 0).expect("old border cell must exist");
-    assert_ne!(
-        old_cell.ch, '│',
-        "frame 2: old border at col 8 must not still be the vertical char (should be text or blank)"
+    // Grid: 7 rows x 3 cells, each exactly 14 columns, in
+    // HUD_VISUAL_ORDER (grid row 0 = ehs/prs/scn, row 1 = chr/clr/sped,
+    // row 6 = max/p99/cpu, row 7-family tail = rss/cid/up).
+    for g in 0..7usize {
+        for c in 0..3usize {
+            assert_eq!(
+                h.panel_grid[g][c].chars().count(),
+                14,
+                "cell ({g},{c}) width"
+            );
+        }
+    }
+    assert!(
+        h.panel_grid[0][2].starts_with("scn: cinematic"),
+        "grid (0,2) = scn, got {:?}",
+        h.panel_grid[0][2]
+    );
+    assert!(
+        h.panel_grid[1][0].starts_with("chr: binary"),
+        "grid (1,0) = chr, got {:?}",
+        h.panel_grid[1][0]
+    );
+    assert!(
+        h.panel_grid[5][0].starts_with("max:"),
+        "grid (5,0) = max (performance core band), got {:?}",
+        h.panel_grid[5][0]
+    );
+    assert!(
+        h.panel_grid[5][1].starts_with("p99:"),
+        "grid (5,1) = p99, got {:?}",
+        h.panel_grid[5][1]
+    );
+    assert!(
+        h.panel_grid[5][2].starts_with("cpu:"),
+        "grid (5,2) = cpu, got {:?}",
+        h.panel_grid[5][2]
+    );
+    assert!(
+        h.panel_grid[5][1].trim_end().ends_with("ms"),
+        "p99 cell keeps its unit after padding, got {:?}",
+        h.panel_grid[5][1]
+    );
+    // cid renders inside the LAST grid row (row 6, cell 1) — never truncated.
+    assert!(
+        h.panel_grid[6][1].starts_with("cid: "),
+        "grid (6,1) = cid, got {:?}",
+        h.panel_grid[6][1]
+    );
+}
+
+#[test]
+fn hud_grid_cells_truncate_long_values_safely() {
+    // A 18-char custom palette name under `clr:` (visual slot 6 →
+    // grid row 1, col 1) must truncate to exactly 14 chars — char-based,
+    // so UTF-8 boundaries are preserved (INV-3 defense in depth).
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_custom_palette_name(Some("superlongpalettename"));
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.panel_grid[1][1], "clr: superlong",
+        "long clr value truncates to the 14-col cell budget"
     );
 }

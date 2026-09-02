@@ -86,10 +86,14 @@ pub(crate) fn run_sim_and_draw(
     // half of each cached_lines tuple.
     hud_state.refresh_colors(cloud.hud_colors());
 
-    // Write HUD into the frame buffer BEFORE term.draw() so it's
-    // part of the same flush — eliminates fullscreen flicker.
+    // Write the HUD panel into the frame buffer BEFORE term.draw() so
+    // it's part of the same flush — eliminates fullscreen flicker.
     // v16: Pass palette bg so HUD background follows --color-bg setting.
-    hud_state.write_to_frame(frame, cloud.cols, cloud.palette.bg);
+    // v80.0.0-beta.3 (branch hud-scifi-dashboard): the panel anchors
+    // itself bottom-center from the FRAME's own dimensions, so the old
+    // `cloud.cols` parameter is gone — the frame grid is what the HUD
+    // writes into and is the authoritative geometry.
+    hud_state.write_to_frame(frame, cloud.palette.bg);
 
     // Cache dirty checks once per frame to avoid redundant method calls.
     let is_dirty_all = frame.is_dirty_all();

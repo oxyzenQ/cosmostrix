@@ -5,7 +5,7 @@
 //! under the 800-LOC cap.
 //!
 //! Owns the chroma dragon gradient computation + hue-preserving
-//! brightness boost for HUD row colors. Both functions are pure
+//! brightness boost for HUD metric colors. Both functions are pure
 //! (stateless, no Cloud coupling) and were the cleanest extraction
 //! targets in the HUD subsystem.
 //!
@@ -15,120 +15,84 @@
 
 use crossterm::style::Color;
 
-// HD-01 (HUD chroma dragon integration): the previous 4-stop
-// `compute_rain_gradient` helper has been replaced by the per-row-stop
-// gradient below. The old design paired 2 HUD rows per palette stop
-// (dim/trail/mid/head × 2 = 8 rows); the new design gives each row its
-// own palette stop, sweeping the full chroma dragon gradient top→bottom.
-// This matches the border message's per-cell chroma sweep philosophy,
-// applied per-LINE for text readability.
-// v50 (2026-08-15): bumped from 8 → 9 stops after adding the `cid:`
-// (commit id) line.
-// v50 (2026-08-17): bumped from 9 → 16 stops to reserve rows 9-15 for
-// the 7 owner-mandated HUD expansion metrics (scene / color / density /
-// speed / endurance-health-score / effective-pressure / charset).
-// v50.0.0-beta.7: bumped to 22 stops after the Option C expansion
-// (prdr / crdr / ambt / glth / ctun / mnst) + cid.
-// v80.0.0-beta.1 reorder (owner mandate 2026-08-31): same 22 rows, new order —
-// identity lines (scn/chr/clr) above the controls (sped/dsty), dragon +
-// tuning state (prdr/crdr/ambt/glth/ctun/mnst) next, session footer
-// (cid/up/screensize) closing the dashboard. The gradient is positional
-// (row i samples t = i/21), so the reorder moves CONTENT between stops;
-// the bright head band now covers the footer (cid/up/screensize).
-// Z-master-1X round 5 (owner mandate 2026-08-31): bumped to 24 stops
-// after adding dcel (dirty cell ratio %) + tcel (total cells) above cid.
-// cid moved from row 19 to row 21, up from 20 to 22, screensize from 21
-// to 23. The gradient divisor is now 23.0 (24 entries, indices 0-23).
+use super::hud_init::HUD_VISUAL_ORDER;
 
-/// HD-01 (HUD chroma dragon integration): compute a 24-stop chroma gradient
-/// sweeping the active palette's full color range across all 24 HUD rows.
+// HD-01 (HUD chroma dragon integration): the previous 4-stop
+// `compute_rain_gradient` helper was replaced by the per-metric-stop
+// gradient. The design gives each metric slot its own palette stop,
+// sweeping the full chroma dragon gradient through the panel's VISUAL
+// order (v80.0.0-beta.3, branch hud-scifi-dashboard).
+// v50 (2026-08-15): bumped to 9 stops after adding the `cid:` line.
+// v50 (2026-08-17): bumped to 16 stops for the 7 owner-mandated HUD
+// expansion metrics.
+// v50.0.0-beta.7: bumped to 22 stops after the Option C expansion.
+// Z-master-1X round 5: bumped to 24 stops after adding dcel + tcel.
+// v80.0.0-beta.3 (owner-approved Option B panel): still 24 stops, but
+// the t-parameter now follows the metric's VISUAL slot in the
+// bottom-center panel (HUD_VISUAL_ORDER) instead of the flat 24-row
+// stack: the header pair (fps/tgt) + footer (screensize) are bright
+// caps (t=1.0) and the 21 grid-body slots sweep t=0.0 → t=1.0.
+
+/// HD-01 (HUD chroma dragon integration): compute the 24-stop chroma
+/// gradient mapped through the panel's VISUAL slot order — one palette
+/// stop per metric, positioned where the metric actually renders.
 ///
-/// Each row `i ∈ [0..24]` samples `palette_colors` at interpolation
-/// parameter `t = i / 23.0`, so row 0 (fps, top) → palette[0] and row 23
-/// (screensize, bottom) → palette[n-1]. This mirrors the border message's
-/// per-cell clockwise sweep (`cloud/message_draw.rs` BC-02) — applied
-/// per-LINE instead of per-cell, because each HUD line is a distinct text
-/// block that needs its own legible color.
+/// v80.0.0-beta.3 (branch hud-scifi-dashboard, owner-approved Option B):
+/// the HUD renders as a bottom-center 3-column grid panel. The t
+/// parameter follows `HUD_VISUAL_ORDER` (hud_init.rs):
 ///
-/// ## Why 24 stops
-/// The HUD renders exactly 24 rows (Z-master-1X round 5, 2026-08-31):
-/// performance core (fps/tgt/max/p99/cpu/rss, rows 0-5) + health pair
-/// (ehs/prs, rows 6-7) + identity lines (scn/chr/clr, rows 8-10) +
-/// user-adjustable controls (sped/dsty, rows 11-12) + dragon and tuning
-/// state (prdr/crdr/ambt/glth/ctun/mnst, rows 13-18) + cell efficiency
-/// (dcel/tcel, rows 19-20) + session footer (cid row 21 static, up row 22,
-/// screensize row 23). Each row gets its own interpolated color stop —
-/// no two rows share the same color unless the palette is shorter than
-/// 24 stops (interpolation handles that case smoothly).
+/// - visual slots 0-1 (header strip: fps, tgt) → t = 1.0 — the BRIGHT
+///   head. "FPS on top" as a bright hero strip is part of the
+///   owner-approved Option B mock (the doc's "bright FPS header strip").
+/// - visual slots 2-22 (grid body, 7 rows × 3 cells) → t sweeps
+///   (v-2)/20.0 from 0.0 (first grid row: ehs/prs/scn — dim tail) to
+///   1.0 (last grid row: rss/cid/up — bright head). The rain-aesthetic
+///   dim→bright orientation survives inside the grid body.
+/// - visual slot 23 (footer strip: screensize) → t = 1.0 — BRIGHT,
+///   matching the header as the panel's closing anchor.
+///
+/// The result reads as bright caps (header + footer + corners + `▼`
+/// accent, which all render in the t=1.0 stop) closing a gradient hull
+/// — the "space capsule" silhouette of the approved Option B mock.
+///
+/// ## Why one color per metric (not per panel ROW)
+/// Each grid cell is a distinct mini text block; giving each metric its
+/// own interpolated stop extends the message border's per-cell sweep
+/// philosophy (BC-02) to text cells, and it keeps the 24-metric color
+/// identities stable across layout changes (indices are the metric
+/// identities — see `cached_lines` in mod.rs).
 ///
 /// ## Brightness floor
 /// `brighten_color` is applied AFTER interpolation to every stop. This
-/// guarantees every HUD row is legible on a black background, even when
-/// palette[0] is a near-black start stop — it gets boosted to neutral
-/// grey RGB(120,120,120) when pure black, preserving readability without
-/// losing the palette's hue identity for non-black stops.
+/// guarantees every metric cell is legible on a black background, even
+/// when palette[0] is a near-black start stop — it gets boosted to
+/// neutral grey RGB(120,120,120) when pure black, preserving readability
+/// without losing the palette's hue identity for non-black stops.
 ///
-/// Returns a fixed-size `[Color; 24]` array (no allocation, stack-only).
-pub(crate) fn compute_chroma_gradient_24(palette_colors: &[Color]) -> [Color; 24] {
+/// Returns a fixed-size `[Color; 24]` array (no allocation, stack-only),
+/// indexed by METRIC index (same indexing as `cached_lines`).
+pub(crate) fn compute_chroma_gradient_panel(palette_colors: &[Color]) -> [Color; 24] {
     let n = palette_colors.len();
-    let mut out = [
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-        Color::DarkGrey,
-    ];
+    let mut out = std::array::from_fn(|_| Color::DarkGrey);
     if n == 0 {
         return out;
     }
-    // v50 (2026-08-17) HUD chroma gradient smoothness fix: replace the
-    // previous discrete sampling `palette_colors[(t * last).round()]` with
-    // `interpolate_palette_color(palette_colors, t)` — the same linear-
-    // interpolation helper used by the border message gradient (C4 fix).
-    //
-    // The previous discrete sampling produced visible bands when the palette
-    // had fewer stops than the HUD has rows (e.g. a 3-stop palette + 22 HUD
-    // rows → 6+ rows sharing the same color block). The owner explicitly
-    // flagged this category as inconsistent with the chroma dragon smoothness
-    // mandate: "audit which color-processing sites are not yet using
-    // chroma dragon interpolation optimally ... can look inconsistent
-    // if not unified". Every visible color surface must route through
-    // the chroma dragon pipeline for consistency.
-    //
-    // With interpolation, every HUD row gets a smoothly-varying color even
-    // when the palette is small — matching the border message's smooth
-    // gradient behavior and the chroma dragon's per-cell sweep philosophy.
-    // The `brighten_color` floor (TARGET_V=200) is still applied AFTER
-    // interpolation to guarantee readability on a black background.
-    //
-    // LTS stability: `interpolate_palette_color` is NaN/Inf-safe (returns
-    // the first stop defensively), so a future bug in upstream palette
-    // generation cannot crash the HUD or produce garbage colors.
-    // Z-master-1X round 5: divisor is 23.0 (24 entries, indices 0-23):
-    // Row 0 → t=0.0, row 23 → t=1.0.
-    for (i, slot) in out.iter_mut().enumerate() {
-        let t = i as f32 / 23.0;
+    // v50 (2026-08-17) smoothness + v80.0.0-beta.3 panel mapping: every
+    // metric's t lands in `interpolate_palette_color` (the same linear-
+    // interpolation helper the border message gradient uses — the C5
+    // fix that eliminated visible bands on small palettes). The t
+    // schedule per visual slot v:
+    //   v ∈ {0, 1, 23} (header/footer caps) → t = 1.0 (bright head)
+    //   v ∈ 2..=22      (grid body)        → t = (v - 2) / 20.0
+    // VISUAL slots map to metric indices via HUD_VISUAL_ORDER, so the
+    // result stays indexed by metric while following VISUAL position.
+    for (v, &metric) in HUD_VISUAL_ORDER.iter().enumerate() {
+        let t = match v {
+            0 | 1 | 23 => 1.0,
+            _ => (v as f32 - 2.0) / 20.0,
+        };
         let interpolated = crate::cloud::interpolate_palette_color(palette_colors, t);
-        *slot = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
+        out[metric] = brighten_color(interpolated.unwrap_or(Color::DarkGrey));
     }
     out
 }

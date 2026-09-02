@@ -4,14 +4,15 @@
 //! HUD chroma gradient + metric stability regression tests — extracted
 //! from `hud/tests.rs` to keep that file under the 800-LOC hard cap.
 //!
-//! Covers: compute_chroma_gradient_24 smoothness + NaN/Inf safety +
+//! Covers: compute_chroma_gradient_panel smoothness + NaN/Inf safety +
 //! metric setter clamping/sanitization.
 
+use super::hud_init::HUD_VISUAL_ORDER;
 use super::*;
 
 // ── v50 (2026-08-17) HUD chroma gradient smoothness regression tests ────
 //
-// C5 fix: compute_chroma_gradient_24 now uses interpolate_palette_color
+// C5 fix (function now compute_chroma_gradient_panel): uses interpolate_palette_color
 // (linear lerp between adjacent palette stops via blend_toward_rgb)
 // instead of discrete sampling `palette_colors[(t * last).round()]`.
 // This eliminates visible bands when the palette has fewer stops than
@@ -19,7 +20,7 @@ use super::*;
 // produced 4/8/4 band blocks; now produces a smooth gradient).
 
 #[test]
-fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
+fn compute_chroma_gradient_panel_smooth_with_small_palette_no_bands() {
     // THE OWNER REGRESSION TEST for HUD chroma gradient smoothness.
     //
     // Before C5: a 3-stop palette (white/grey/black) + 16 HUD rows
@@ -44,7 +45,7 @@ fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
         Color::Rgb { r: 0, g: 255, b: 0 }, // idx 1: green
         Color::Rgb { r: 0, g: 0, b: 255 }, // idx 2: blue
     ];
-    let colors = compute_chroma_gradient_24(&palette);
+    let colors = compute_chroma_gradient_panel(&palette);
     assert_eq!(colors.len(), 24, "HUD gradient must have 24 entries");
 
     // Count distinct colors. With interpolation, every row gets a
@@ -66,34 +67,45 @@ fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
          per palette stop), causing visible bands"
     );
 
-    // Assert NO two adjacent rows share the same color — that's the
-    // visible band the owner reported. With smooth interpolation, every
-    // adjacent pair must differ (since `frac` increments by 1/15 each row
-    // and the blend_toward_rgb factor changes the output).
-    for i in 0..23 {
+    // Assert NO two visually-adjacent GRID-BODY slots share the same
+    // color — that's the visible band the owner reported. With smooth
+    // interpolation every adjacent body pair must differ (the t step is
+    // 1/20 per slot and the blend changes the output).
+    //
+    // v80.0.0-beta.3 panel mapping: the CAPS (fps/tgt header pair and
+    // the screensize footer) intentionally share the bright head color
+    // (t=1.0) — that is the "bright caps" design, not a band — so the
+    // adjacency check walks the VISUAL order over the grid body only
+    // (slots 2..=22, which is where banding would be visible).
+    for v in 2..22usize {
+        let a = colors[HUD_VISUAL_ORDER[v]];
+        let b = colors[HUD_VISUAL_ORDER[v + 1]];
         assert_ne!(
-            colors[i],
-            colors[i + 1],
-            "adjacent HUD rows {i} and {} must NOT share the same color — \
-             that's the visible band the owner reported (palette: red/green/blue)",
-            i + 1
+            a,
+            b,
+            "visually-adjacent grid-body slots {v} and {} must NOT share \
+             the same color — that's the visible band the owner reported \
+             (palette: red/green/blue)",
+            v + 1
         );
     }
+    // The caps all equal the bright head — the intended design.
+    assert_eq!(
+        colors[HUD_VISUAL_ORDER[0]], colors[HUD_VISUAL_ORDER[23]],
+        "fps header cap and screensize footer cap share the bright head stop (by design)"
+    );
 }
 
 #[test]
-fn compute_chroma_gradient_24_large_palette_still_exact_at_integer_t() {
-    // Backward compatibility: with a 24-stop palette (one stop per HUD
-    // row), the interpolated t = i/23.0 lands exactly on integer palette
-    // positions, so the helper returns palette[i] exactly (no
-    // interpolation). The brighten step is then applied as before. This
-    // test verifies the C5 fix does NOT regress the 22-stop-palette
-    // case — every row still gets its dedicated palette stop's color
-    // (post-brighten).
-    //
-    // Z-master-1X round 5: palette expanded from 22 → 24 entries to match
-    // the 24 HUD rows (dcel + tcel added). With 1:1 mapping, t = i/23.0
-    // maps to palette index i*23/23 = i exactly.
+fn compute_chroma_gradient_panel_exact_at_boundary_t() {
+    // Backward compatibility, v80.0.0-beta.3 panel mapping: the exact-
+    // boundary property survives at the visual-slot boundaries. The
+    // grid-body start (ehs, metric 6, visual slot 2, t=0.0) lands
+    // exactly on palette[0]; the body end (up, metric 22, visual slot
+    // 22, t=1.0) and the three caps (fps metric 0, tgt metric 1,
+    // screensize metric 23 — all t=1.0) land exactly on palette[23].
+    // Mid-body slots interpolate between adjacent palette stops (that
+    // is the C5 smoothness fix — bands stay eliminated).
     //
     // Test palette: 24 distinct RGB values, all with max channel >= 200
     // so brighten returns each as-is (isolates the gradient mapping
@@ -105,11 +117,22 @@ fn compute_chroma_gradient_24_large_palette_still_exact_at_integer_t() {
             b: 200,
         })
         .collect();
-    let colors = compute_chroma_gradient_24(&palette);
-    for (i, expected) in palette.iter().enumerate() {
+    let colors = compute_chroma_gradient_panel(&palette);
+    // Body start: t=0.0 → palette[0], exact.
+    assert_eq!(
+        colors[6], palette[0],
+        "ehs (grid body start, t=0.0) must use palette[0] exactly"
+    );
+    // Body end + caps: t=1.0 → palette[23], exact.
+    for (metric, label) in [
+        (0usize, "fps header cap"),
+        (1, "tgt header cap"),
+        (22, "up body end"),
+        (23, "screensize footer cap"),
+    ] {
         assert_eq!(
-            &colors[i], expected,
-            "row {i} must use palette[{i}] exactly (24-stop palette, t lands on integer boundary)"
+            colors[metric], palette[23],
+            "{label} (t=1.0) must use palette[23] exactly"
         );
     }
 }
@@ -346,7 +369,7 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
 fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
     // The `scn:` and `chr:` setters must truncate input to 14 chars (by
     // char count, preserving UTF-8 boundaries) so a very long custom
-    // scene name or charset preset cannot blow past the HUD_MAX_WIDTH
+    // scene name or charset preset cannot blow past the fixed grid cell
     // (22 cols) budget. The ` scn: ` prefix is 6 chars (so 6 + 14 = 20
     // ≤ 22); the ` chr: ` prefix is also 6 chars (so 6 + 14 = 20 ≤ 22).
     let mut h = HudState::new();

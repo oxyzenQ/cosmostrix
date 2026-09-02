@@ -9,22 +9,30 @@ mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
 v50.0.0-beta.7 HUD expansion: the HUD grew from 9 rows to 22 rows,
-then Z-master-1X round 5 added dcel + tcel (24 rows total).
-adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
+then Z-master-1X round 5 added dcel + tcel (24 metrics total), adding
+7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
 that previously toggled the HUD position (left <-> right corner) was
-**completely removed** as unused maintenance cost; the HUD now always
-renders flush-left at column 0 (the previous default). There is no `h`
+**completely removed** as unused maintenance cost. There is no `h`
 binding — it is silently ignored (catch-all).
 
-v80.0.0-beta.1 row reorder (owner mandate 2026-08-31, "reorder/tidying HUD
-metrics"): the identity lines (scn / chr / clr) moved up directly under
-the health pair (ehs / prs), the user-adjustable controls (sped / dsty)
-follow them, the dragon + tuning state (prdr / crdr / ambt / glth /
-ctun / mnst) rides the bright head band, and the session footer (cid /
-up / screensize) closes the dashboard — the build identity keeps a
-prominent position and the terminal size stays the visual anchor at
-the very bottom.
+v80.0.0-beta.1 row reorder (owner mandate 2026-08-31): the identity
+lines (scn / chr / clr) moved up directly under the health pair
+(ehs / prs), the user-adjustable controls (sped / dsty) follow them,
+and the session footer closes the dashboard.
+
+v80.0.0-beta.3 (branch `hud-scifi-dashboard`): the owner approved
+Option B + D from
+`docs/research/HUD_LAYOUT_MASTERCLASS_RESEARCH.md` — the HUD now
+renders as a **bottom-center sci-fi panel**: a fixed 46-column,
+12-row rounded `╭╮╰╯` frame holding a 3-column metric grid, with a
+bright FPS header strip on top (the owner's "FPS on top" ask, made
+structural), the screensize footer strip closing the panel, and a `▼`
+tail accent under the frame. All 24 metrics are preserved; the grid
+cells are fixed-width (14 columns each) so the panel never jitters.
+On terminals shorter than ~32 rows the panel can overlap the `-mb`
+message box (the HUD draws last and wins) — the trade-off the owner
+accepted with Option B.
 
 This document is the canonical reference for what each HUD line means,
 why it can disagree with `--benchmark` numbers, and how to use it to
@@ -38,9 +46,12 @@ or [Common Misreadings](#common-misreadings--pitfalls).
 ## Quick Reference
 
 At-a-glance table for users who just pressed `i` and need to know what
-each line means without reading the full reference below.
+each metric means without reading the full reference below. "Slot" is
+the metric's identity index (cache order); where each one lands inside
+the panel grid is shown in the [Annotated HUD Layout](#annotated-hud-layout)
+below.
 
-| Row | Label        | Unit           | What it tells you in one sentence                                                                  |
+| Slot | Label        | Unit           | What it tells you in one sentence                                                                  |
 |-----|--------------|----------------|----------------------------------------------------------------------------------------------------|
 | 0   | `fps:`      | FPS (number)   | Render-work throughput = `1000 / avg_work_ms`. Often 10-100× higher than `tgt:` because loop sleep is excluded. |
 | 1   | `tgt:`      | FPS (number)   | **Target** FPS cap from `--fps` / `config.toml` / a `[scene-custom.<name>]` block's `fps` field. v80.0.0-beta.2: an explicit `fps = 60` from config or a scene-custom block is honored even on high-refresh terminals (the 144 dynamic default only applies when NO layer expressed fps intent). The cap you configured, with optional `idle` / `paused` mode suffix. |
@@ -82,54 +93,62 @@ each line means without reading the full reference below.
 
 ## Annotated HUD Layout
 
-What you actually see in the top-left corner after pressing `i`. All 24
-rows are visible at once; this mockup annotates each:
+What you actually see at the bottom-center of the terminal after
+pressing `i`. All 24 metrics are visible at once; this mockup annotates
+each grid cell (rows 1-7 of the grid body, cells 1-3 left to right):
 
 ```text
-┌─────────────────────────┐
-│ fps: 451      ◄── 0.  render-work throughput (NOT the cap)
-│ tgt: 60       ◄── 1.  your --fps cap, "60" = sixty FPS target
-│ max: 1.204ms  ◄── 2.  worst frame in last 60s (auto-resets)
-│ p99: 0.832ms  ◄── 3.  slowest 1% of frames (spike detector)
-│ cpu: 1.43%    ◄── 4.  process CPU% (one core = 100%)
-│ rss: 8.2MiB   ◄── 5.  process memory (leak detector)
-│ ehs: 87       ◄── 6.  endurance health score (0-100, 100=stable)
-│ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
-│ scn: cinematic ◄── 8.  scene name (x/X cycle confirmation)
-│ chr: binary   ◄── 9.  charset preset (s/S cycle confirmation)
-│ clr: NeonGreen ◄── 10. color scheme (c/C cycle confirmation)
-│ sped: 14.0    ◄── 11. chars/sec speed (Up/Down adjustable)
-│ dsty: 1.00    ◄── 12. density multiplier ([/]) — `dsty` per owner mandate
-│ prdr: on      ◄── 13. power-dragon (throttle + idle FPS reduction)
-│ crdr: off     ◄── 14. crystal-dragon (ambient palette drift)
-│ ambt: off     ◄── 15. ambient scheduler (config.toml time windows)
-│ glth: default ◄── 16. glitch level (none/subtle/default/intense)
-│ ctun: default ◄── 17. color tuning (default or custom factors)
-│ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
-│ dcel: 57/2.96%   ◄── 19. dirty cells + ratio (humanized count — lower ratio = more efficient)
-│ tcel: 1.9K    ◄── 20. total cells in screen (width × height)
-│ cid: 6ed244b  ◄── 21. build commit id (verify without quitting)
-│ up: 03:42     ◄── 22. session uptime (MM:SS under 1h)
-│ 200x50 auto   ◄── 23. terminal size + mode (auto/fix)
-└─────────────────────────┘
+              ╭───────── fps: 451 ── tgt: 60 ─────────╮
+              │                                       │
+              │ ehs: 87       prs: 0.12     scn: cine │  <- grid 1
+              │ chr: binary   clr: NeonGrn  sped: 14  │  <- grid 2
+              │ dsty: 1.00    prdr: on      crdr: off │  <- grid 3
+              │ ambt: off     glth: def     ctun: def │  <- grid 4
+              │ mnst: normal  dcel: 57/2.9  tcel: 1.9K│  <- grid 5
+              │ max: 1.2ms    p99: 0.832ms  cpu: 1.43%│  <- grid 6
+              │ rss: 8.2MiB   cid: 6ed244b  up: 03:42 │  <- grid 7
+              │                                       │
+              ╰──────────── 200x50 auto ──────────────╯
+                              ▼
 ```
 
-**Color gradient (top dim -> bottom bright):** the HUD mirrors a falling
-rain droplet — the bottom rows (the session footer: `cid`, `up`,
-screensize) earn the brightest `head` stops (rain leading character),
-the top row (`fps`) is the dimmest `tail` (rain trailing fade). The
-screensize row at the very bottom is the visual anchor; the `cid` line
-keeps a prominent head-band position (row 21, Z-master-1X round 5) so
-the owner can verify which commit is running. The `dcel`/`tcel` cell
- efficiency metrics sit at rows 19-20 (directly above `cid`) per owner
-mandate. See [HUD Color Scheme](#hud-color-scheme)
-below for the full palette mapping.
+- **Header strip** (row 0): `fps:` + `tgt:` centered in `─` fill, in
+  the bright head color — the "FPS on top" hero strip.
+- **Grid body** (rows 2-8): 7 rows x 3 cells, 14 columns per cell,
+  one-column gutters between cells. Zone order per the Option B mock:
+  health (ehs/prs) opens, identity (scn/chr/clr) + controls (sped/dsty)
+  follow, dragon + tuning state (prdr/crdr/ambt/glth/ctun/mnst) next,
+  efficiency (mnst/dcel/tcel), then the performance core (max/p99/cpu)
+  and the session tail (rss/cid/up) ride the bright last rows.
+- **Footer strip** (row 10): the screensize `WxH auto/fix` line
+  centered in `─` fill — the visual anchor mandate, now literally the
+  closing line of the panel.
+- **Tail accent** (row 11): a single `▼` under the frame center — the
+  "segitiga" cue, decorative only (tofu on the Linux console is
+  harmless).
 
-**Width is dynamic:** the HUD grows to fit the longest line (capped at
-22 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
-the width out; short values like `fps: 30` let it shrink. The 7 new
-metric rows (ehs/prs/sped/dsty/scn/chr/clr) are all ≤ 18 chars so
-they never dominate the width budget.
+**Color gradient (bright caps + swept body):** the header strip, the
+footer strip, the four rounded corners, and the `▼` accent render in
+the palette's bright head stop; the 21 grid-body metrics sweep the
+dim tail (first grid row) to the bright head (last grid row) in
+reading order. The eye reads bright caps closing a gradient hull —
+the falling-rain "dim tail -> bright head" orientation survives
+inside the grid body. The performance core (max/p99/cpu/rss) sits in
+the bright bottom band by design: those are the actively-watched
+metrics. See [HUD Color Scheme](#hud-color-scheme) below for the full
+palette mapping.
+
+**Fixed width (no jitter):** the panel is a FIXED 46-column rectangle
+(3 cells x 14 + 2 gutters + 2 border columns). Cells are padded (and,
+in pathological cases, truncated) to exactly 14 columns at the 1 Hz
+composition tick, so the panel's anchor never moves and value-length
+changes can never re-center it. Realistic values all fit the budget
+(`scn: cinematic` = 14, `max: 999.999ms` = 14, `rss: 1023.9MiB` = 14);
+pathological caps (`p99: 9999.999ms`, a 14-char custom preset under
+`chr:`) truncate to the cell — the honest fixed-width trade-off the
+owner accepted with Option B. On the 80-column minimum terminal the
+panel centers with 17 columns of margin per side; on narrower
+terminals it clips symmetrically without panicking.
 
 ---
 
@@ -166,16 +185,17 @@ diagnostic recipes for specific symptoms.
 
 ---
 
-## HUD Lines (top-to-bottom)
+## HUD Metrics (panel reading order)
 
-The HUD writes 24 rows into the frame buffer at the top-left corner
-(column 0). Each row is one metric. Rows 0-5 are the performance core
-(unchanged since v50), rows 6-7 are the health pair (ehs / prs), rows
-8-10 are the identity lines (scn / chr / clr), rows 11-12 are the
-user-adjustable controls (sped / dsty), rows 13-18 are the dragon +
-tuning state (prdr / crdr / ambt / glth / ctun / mnst), and rows 19-21
-are the session footer (cid / up / screensize) — the v80.0.0-beta.1 owner reorder
-(2026-08-31).
+The HUD composes a bottom-center panel into the frame buffer: the
+`fps`/`tgt` header strip, a 7x3 grid body, and the `screensize`
+footer strip. Inside the grid (reading order): rows 1-2 carry the
+health pair + identity + controls (ehs / prs / scn, chr / clr / sped,
+dsty), rows 3-5 carry the dragon + tuning state + efficiency (prdr /
+crdr, ambt / glth / ctun, mnst / dcel / tcel), and rows 6-7 close with
+the performance core + session tail (max / p99 / cpu, rss / cid / up)
+in the bright band — the v80.0.0-beta.3 panel placement of the
+v80.0.0-beta.1 owner reorder (2026-08-31).
 
 ### 1. `fps: <N>`
 
@@ -407,116 +427,80 @@ via HSV value scaling so the HUD follows the rain's actual color scheme
 (green rain -> green HUD, amber rain -> amber HUD) instead of washing
 out to grey.
 
-### Rain-aesthetic gradient (top dim -> bottom bright)
+### Panel gradient (bright caps + swept body)
 
-The 24 HUD lines form a vertical brightness gradient that mirrors a
-falling rain droplet — the bottom lines (the session footer:
-`screensize`, `up`, `cid`) are the brightest `head` (palette last-stop,
-the rain's leading bright character), and the top lines (`fps`, `tgt`)
-are the dimmest `tail` (palette index 1, the rain's trailing fade).
-Mid lines span `trail` and `mid` so the eye reads the HUD as a small
-rain column hanging in the corner, not as a flat block of
-equally-bright text.
+The 24 metrics carry a per-metric chroma gradient that mirrors a
+falling rain droplet, expressed through the panel's VISUAL slots
+(v80.0.0-beta.3). The header strip (`fps`, `tgt`), the footer strip
+(`screensize`), the rounded corners, and the `▼` accent use the
+palette's bright head stop (t=1.0) — the "bright caps" of the
+space-capsule silhouette. The 21 grid-body metrics sweep the dim tail
+(t=0.0, first grid row: `ehs`/`prs`/`scn`) to the bright head (t=1.0,
+last grid row: `rss`/`cid`/`up`) in reading order, one interpolated
+palette stop per metric.
 
-| Row | Line         | Color level | Palette position         |
-|-----|--------------|-------------|--------------------------|
-| 0   | `fps`        | dim         | palette index 1 (tail)   |
-| 1   | `tgt`        | dim         | palette index 1 (tail)   |
-| 2   | `max`        | trail       | palette index n/4        |
-| 3   | `p99`        | trail       | palette index n/4        |
-| 4   | `cpu`        | mid         | palette index n/2 (body) |
-| 5   | `rss`        | mid         | palette index n/2 (body) |
-| 6   | `ehs`        | mid         | palette index n/2 (body) |
-| 7   | `prs`        | mid         | palette index n/2 (body) |
-| 8   | `scn`        | trail       | palette index n/4        |
-| 9   | `chr`        | trail       | palette index n/4        |
-| 10  | `clr`        | trail       | palette index n/4        |
-| 11  | `sped`       | trail       | palette index n/4        |
-| 12  | `dsty`       | trail       | palette index n/4        |
-| 13  | `prdr`       | head        | palette last stop        |
-| 14  | `crdr`       | head        | palette last stop        |
-| 15  | `ambt`       | head        | palette last stop        |
-| 16  | `glth`       | head        | palette last stop        |
-| 17  | `ctun`       | head        | palette last stop        |
-| 18  | `mnst`       | head        | palette last stop        |
-| 19  | `cid`        | head        | palette last stop        |
-| 20  | `up`         | head        | palette last stop        |
-| 21  | `screensize` | head        | palette last stop        |
+| Zone            | Metrics                                  | Color level        |
+|-----------------|------------------------------------------|--------------------|
+| header strip    | `fps`, `tgt`                             | bright head (cap)  |
+| grid rows 1-2   | `ehs`/`prs`/`scn`, `chr`/`clr`/`sped`    | dim tail -> trail  |
+| grid rows 3-5   | `dsty`/`prdr`/`crdr`, `ambt`/`glth`/`ctun`, `mnst`/`dcel`/`tcel` | trail -> mid |
+| grid rows 6-7   | `max`/`p99`/`cpu`, `rss`/`cid`/`up`      | mid -> bright head |
+| footer strip    | `screensize`                             | bright head (cap)  |
+| frame + accent  | corners, `▼`                             | bright head (cap)  |
 
-This inverts the original pre-v50-alpha.4 mapping where `fps`/`tgt`/`max`
-were the brightest at the TOP. The owner explicitly flagged the inversion:
-"rain tail is dim head is white" — the bright head must lead at the
-bottom, matching a real falling rain stream.
+The dim->bright orientation the owner mandated ("rain tail is dim
+head is white") survives inside the grid body; the fps header cap is
+the one deliberate inversion — the owner's Option B pick fixes FPS
+at the top of the panel as a bright hero strip.
 
-### Chroma dragon border (v80.0.0-beta.1, owner mandate 2026-09-02)
+### Panel frame (v80.0.0-beta.3, branch hud-scifi-dashboard)
 
-The HUD draws an L-shape chroma dragon border on the right + bottom
-edges of the HUD area, using the same chroma dragon palette integration
-as the message border (`-mb` / `--message-border`, see
-`cloud/message_draw.rs` BC-01..05). Same simple function as the message
-border, different position: the message border is a full rectangle
-around the centered message box; the HUD border is an L-shape closing
-the top-left HUD block (top + left edges are implied by the screen edge
-at column 0, row 0).
+The panel frame completes the rounded-rectangle look the owner asked
+for ("rounded corners / sci-fi space dashboard"): a full `╭ ╮ ╰ ╯ ─ │`
+frame around the grid — the same glyph family and chroma dragon
+palette integration as the message border (`-mb` /
+`cloud/message_draw.rs` BC-01..05), and the same `╯` corner glyph the
+v80.0.0-beta.1 L-border shipped.
 
-**Shape:**
-- **Right edge** (column = `hud_width`, rows 0..23): vertical `│`
-  characters, one per HUD row.
-- **Bottom edge** (row 24, columns 0..=`hud_width`): horizontal `─`
-  characters.
-- **Corner** (column `hud_width`, row 24): `╯` (light up-left corner)
-  connecting the right + bottom edges.
+**Shape (panel-local rows, 12-row block anchored bottom-center):**
+- Row 0: header strip `╭` + `─` fill with `fps:`/`tgt:` + `╮`.
+- Rows 1 and 9: spacer rows (`│` sides, blank interior).
+- Rows 2..8: grid rows (`│` + 3 cells + `│`).
+- Row 10: footer strip `╰` + `─` fill with screensize + `╯`.
+- Row 11: `▼` tail accent centered under the frame.
 
 **Color sweep:**
-- The right edge uses a per-row chroma color sweep — row 0 (top, `fps`)
-  gets the dimmest tail color (palette index 1), row 23 (bottom,
-  `screensize`) gets the brightest head color (palette last stop). This
-  mirrors the HUD's own 24-row gradient and the message border's
-  clockwise sweep philosophy, applied per-LINE instead of per-CELL.
-- The bottom edge + corner use the single bright head color (palette
-  last stop) for a clean closing line.
+- Header strip, footer strip, all four corners, and the `▼` accent:
+  the single bright head color (palette last stop).
+- Side borders: per-row sweep — the color of the metric at that
+  visual height, dim at the top spacer to bright at the bottom
+  spacer. The frame's vertical edges sweep in lockstep with the grid
+  body. This gradient IS the successor of the v80.0.0-beta.1 edge
+  fade mandate ("ujung border semi black/fade biar elegant") — the
+  floating bottom-center panel fades vertically through the palette
+  sweep instead of blending toward a screen edge it no longer hugs.
 
 **Properties:**
-- Uses `frame.set()` (not `set_force`) so unchanged border cells aren't
-  marked dirty — when the HUD width is stable, the border is a
-  one-time write that the terminal never re-sends.
-- Frame's `set()` silently skips out-of-bounds cells, so a terminal too
-  short for row 24 (e.g. height < 25) simply omits the bottom edge
-  without panicking.
-- The border is drawn only when the HUD is visible (`visible == true`)
-  and `hud_width > 0`.
-
-**Dynamic clean movement (owner bug fix 2026-09-02):** the border
-position tracks `current_width` directly (NOT `max(cur, prev)`), so it
-moves left/right immediately when metric values change width (e.g.
-`dcel` value grows/shrinks). When the HUD shrinks (`prev > cur`), the
-old border cells at col `prev` (right edge) and cols `cur+1..=prev` at
-row 24 (bottom edge + corner) are explicitly blanked BEFORE drawing
-the new border — the metrics padding loop only blanks cols
-`text_len..max(cur,prev)`, which excludes col `prev` itself (the old
-border column). Without this clearing, the border leaves a visible
-"stain" or "ghost" at its old position when it moves left (owner
-reported as "glitch effect" / "bekas/noda setelah bergerak"). With the
-fix, the border moves cleanly with zero residue.
-
-**Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
-harus semi black/fade biar elegant"):** the border edges fade toward
-the screen edge (top-left corner of screen) so the border "emerges
-from shadow" instead of popping in abruptly. This mirrors the message
-border's triangle-wave fade (`cloud/message_draw.rs` BD-02:
-dark→bright→dark around perimeter), applied per-edge with a linear
-ramp:
-- Right edge: row 0 (top, near screen top) = max fade (0.6 blend
-  toward bg = semi-black), row 23 (bottom, head anchor) = no fade.
-  `factor = 0.6 * (1.0 - row / 23.0)`.
-- Bottom edge: col 0 (left, near screen left) = max fade, col cur
-  (corner anchor) = no fade. `factor = 0.6 * (1.0 - col / cur)`.
-- The corner cell (col cur, row 24) is always full-bright (the anchor
-  point).
-
-Uses `chroma_dragon_engine::palette::blend_toward_bg` for the fade —
-the same blend helper the rain droplets use. When `bg` is `None`
-(transparent terminal), it defaults to black `Rgb(0,0,0)`.
+- Fixed geometry: the panel is 46 columns x 12 rows, anchored at
+  `(width-46)/2, height-12` with saturating math. It never moves
+  during a session, so the old dynamic-width residue class (HB-01)
+  is retired — cells are always fully padded, stale trailing
+  characters are re-blanked by the padding on the next frame.
+- Uses `frame.set()` (not `set_force`) so unchanged cells aren't
+  marked dirty — when metrics are stable, only the changing cells
+  (uptime seconds) get re-sent.
+- Frame's `set()` silently skips out-of-bounds cells, so narrow or
+  short terminals clip the panel without panicking (80x24 minimum
+  honored; on a 24-row terminal the panel occupies the bottom 12
+  rows).
+- Rendered only when the HUD is visible AND the first 1 Hz metric
+  tick has composed the panel text (one frame after toggle-on, at
+  most).
+- Message-box interaction: the centered `-mb` box draws inside
+  `rain_at()`; the HUD writes after it, so on terminals shorter than
+  ~32 rows the panel occludes the lower rows of the message box
+  (HUD wins — the documented Option B trade-off; on >= ~32-row
+  terminals the two never meet).
 
 ### Instant palette refresh (no delay on runtime changes)
 
@@ -557,15 +541,17 @@ RGB(0,200,0), preserving the green hue).
    terminal skips re-sending them. When metrics are stable, only the
    uptime seconds change between frames.
 
-4. **Dynamic width.** Lines are formatted WITHOUT fixed-width padding.
-   The HUD width grows/shrinks to fit the longest line. Capped at
-   `HUD_MAX_WIDTH` (22 cols) to prevent the HUD from eating the whole
-   terminal. Floor at `HUD_MIN_WIDTH` (12 cols) for short values.
+4. **Fixed width (X-1).** The panel is a fixed 46-column rectangle;
+   each grid cell is padded (or truncated, in pathological cases) to
+   exactly 14 columns at the 1 Hz composition tick. A center-anchored
+   dynamic panel would re-dirty its whole footprint on every
+   value-length change (horizontal jitter + full-block re-send) —
+   the fixed footprint makes both impossible by construction.
 
-5. **No `\x1b[2K` line clear.** The HUD writes only `current_width`
-   characters per line — rain on the rest of the line is preserved.
-   This was the root cause of the historical "blank space above rain"
-   bug: `\x1b[2K` cleared all columns, not just the HUD area.
+5. **No `\x1b[2K` line clear.** The HUD writes only its own panel
+   cells — rain on the rest of the screen is preserved. This was the
+   root cause of the historical "blank space above rain" bug:
+   `\x1b[2K` cleared all columns, not just the HUD area.
 
 ---
 
@@ -586,7 +572,7 @@ the HUD is showing something unexpected and you need a starting point.
 | `cpu:` > 100%                                      | Multi-threaded build spilling onto another core      | Build flags (single-threaded vs multi-threaded)           | Brief spikes are normal. Sustained >100% suggests worker threads are saturated.                 |
 | `up:` shows wrong uptime                           | `session_start` set at HUD creation, not process start | Process start time vs HUD toggle-on time                  | `up:` measures time since the `HudState` was constructed (process startup), not since `i` press. |
 | Screensize shows `200x50 fix` when terminal resized | `--screen-size WxH` was passed, locking the size     | CLI flags / config.toml                                   | Remove `--screen-size` to let the size follow terminal resize (`auto` mode).                    |
-| HUD does not appear after pressing `i`             | HUD is off; or terminal width too small for the HUD_MIN_WIDTH floor (12 cols) | Check terminal size, or toggle off/on again          | The HUD always renders at column 0 (top-left). If invisible, verify the terminal width is ≥ 12 cols. |
+| HUD does not appear after pressing `i`             | HUD is off; or the first 1 Hz tick has not fired yet (one frame) | Toggle off/on again; wait 1s                          | The panel renders bottom-center once composed; on the very first toggle-on it appears after at most one frame + the metric tick. |
 | HUD numbers flicker / change too fast              | Expected at 1 Hz — if faster, check for a regression | `HUD_METRIC_INTERVAL` constant in `src/interactive/hud/mod.rs` | 1 Hz is the world-class standard (htop, mangoHUD). Do not increase the rate.                    |
 | HUD colors look grey / washed out                  | Palette has very dim stops; brighten fallback engaged | Active palette (`c`/`C` to cycle, or check config)        | Pure-black palette stops fall back to neutral grey RGB(120,120,120). Use a palette with non-black stops. |
 

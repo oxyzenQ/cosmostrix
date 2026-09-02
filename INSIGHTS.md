@@ -162,9 +162,14 @@ house style (message border + HUD `╯` corner); the hard cost is the
 bottom-center placement itself (message-box collision geometry,
 dynamic-width jitter, test churn) — not the styling.
 
-**Status**: Research complete, awaiting owner decision (decision menu
-in the research doc §11). No code changed. Priority LOW — after the
-stable release.
+**Status**: DECIDED + IMPLEMENTED. The owner picked **Option D + B**
+(2026-09-02, "gue pick opsi D dan B") and directed implementation onto
+a separate branch — never main until blessed. Landed on branch
+`hud-scifi-dashboard` (v80.0.0-beta.3): fixed 46-col bottom-center
+rounded panel, bright FPS header strip, 7x3 grid, screensize footer,
+`▼` tail accent, fixed-width cells (X-1), bright-caps gradient.
+Research doc carries the outcome record (§14). Main stays clean until
+the owner eyeballs the branch and blesses the look.
 
 ---
 
