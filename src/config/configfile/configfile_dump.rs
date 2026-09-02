@@ -20,7 +20,12 @@ use sha2::{Digest, Sha512};
 pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 #
-# Override priority: CLI flags > config.toml > scene defaults.
+# Override priority at STARTUP: CLI flags > config.toml > scene defaults.
+# At RUNTIME (config save / live-reload): user shortkeys > ambient scene
+# (while a phase is active) > config.toml keys (incl. scene-custom block
+# fields) > the locked CLI startup value > scene defaults. The CLI wins
+# only at startup — a present config key overrides it at runtime; when
+# the key is removed, cosmostrix falls back to the locked startup value.
 # Validate after editing: cosmostrix --testconf
 # File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
 #
@@ -186,15 +191,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   message, message-border, msg-mode, msg-fill-style,
 #   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
 #
-# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/i/[/]/Up/Down) work normally
+# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/[/]/Up/Down) work normally
 # during ambient — they set user_override_since_ambient=true so the
 # ambient scheduler yields control until the next phase boundary
 # (or after ambient-snapback-secs of input idle). The '+', '-', '_',
 # '=' density aliases were removed (v30 simplify — never documented
 # in --help); use '[' and ']' for density down/up. The 'a' shortcut
-# was removed (v35) — auto-snapback replaced it.
+# was removed (v35) — auto-snapback replaced it. There is no 'i'
+# shortkey (verified v80.0.0-beta.2 — stale references removed).
 #
-# To make scene-owned config edits take effect: comment out ALL
+# To make ambient-owned config edits take effect: comment out ALL
 # ambient.HH-MM entries and save. The schedule empties, the ambient
 # overlay lifts (an ambient-owned scene reverts to the locked startup
 # scene family — see docs/LIVE_RELOAD_BEHAVIOR.md section 14), and the

@@ -864,8 +864,10 @@ promise "disables aggressive_throttle").
 The v50 linear curve `1 - 0.75*p` cut the density nearly in half at
 moderate pressure (the owner observed `dsty: ~0.47` from a configured
 0.85 — "should not extreme throttle"). v80.0.0-beta.1 replaces it with the
-owner's banded masterclass (ceiling = the configured density: CLI
-`-d` > config `density` > scene builtin, e.g. monolith 0.85):
+owner's banded masterclass (ceiling = the configured density — startup
+resolution: CLI `-d` > config `density` > scene builtin, e.g. monolith
+0.85; a runtime config `density` edit updates the ceiling live per the
+S-master-LOGIC-3 contract):
 
 | pressure        | condition    | target density          |
 | --------------- | ------------ | ----------------------- |

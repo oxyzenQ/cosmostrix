@@ -2,10 +2,11 @@
 
 # Config / Live-Reload Disclaimer — 99% Not 100% Perfect
 
-> **Status**: v80.0.0-beta.1 honesty note. Owner-mandated. This document
-> is the canonical statement of cosmostrix's posture toward config and
-> live-reload correctness. It does NOT expire when the project reaches
-> stable — it is the stable posture.
+> **Status**: v80.0.0-beta.2 honesty note (updated from the beta.1
+> original). Owner-mandated. This document is the canonical statement
+> of cosmostrix's posture toward config and live-reload correctness. It
+> does NOT expire when the project reaches stable — it is the stable
+> posture.
 
 ## TL;DR
 
@@ -74,11 +75,16 @@ These are documented in detail in `docs/LIVE_RELOAD_BEHAVIOR.md`
   `--dump-config --force`).
 - **Limitation C** — `color.tune` reset-on-comment — **FIXED** in
   v50.0.0-alpha.7 (kept here as historical context).
-- **Limitation D** — Scene-owned config keys (`scene`, `color`,
-  `charset`, `speed`, `density`, `glitch-level`) are no-ops while
-  the ambient overlay is active. Workaround: comment out ALL
-  `ambient.<HH-MM>` entries to lift the overlay. See
-  `docs/LIVE_RELOAD_BEHAVIOR.md` §14 for the ambient overlay contract.
+- **Limitation D** — Ambient-owned config keys (`scene`, `color`,
+  `charset`, `fps`, `speed`, `density`, `glitch-level`) are no-ops
+  while the ambient overlay is active (v80.0.0-beta.2: `fps` joined
+  the list — the ambient scene owns the frame target; a config-set
+  custom palette also loses to the ambient scene's color). Shortkeys
+  still work (they outrank ambient until snapback). Workaround:
+  comment out ALL `ambient.<HH-MM>` entries to lift the overlay. See
+  `docs/LIVE_RELOAD_BEHAVIOR.md` §8 (Limitation D) + §15 (the
+  S-master-LOGIC-3 runtime precedence contract) + §14 (the overlay
+  lift).
 - **Live-reload is not atomic-write safe** with non-atomic editors
   (`echo > config.toml`, `tee`). Use atomic-saving editors (VSCode,
   vim with `writebackup`, Helix, Neovim). On validation failure, the

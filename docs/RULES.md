@@ -204,7 +204,7 @@ The `dsty:` HUD metric (row 12) is **dynamic when power-dragon is ON** — it re
 | CLI `--density 1.0` + max pressure | CLI is the ceiling, throttle reduces | `dsty: 0.10` |
 | cheap scene (density 0.30), medium pressure | untouched (below band edges) | `dsty: 0.30` |
 
-**CLI wins:** the user's configured density (CLI `-d` > config `density` > scene builtin) is the **ceiling** — the throttle only ever reduces below it, never above it. Cheap scenes (density below the band edges) self-harmonize: they stay untouched until the deep bands cross them.
+**CLI wins at startup:** the user's configured density (CLI `-d` > config `density` > scene builtin — the startup resolution order) is the **ceiling** — the throttle only ever reduces below it, never above it. At runtime a config `density` edit updates the effective density (and thus the ceiling) live, per the S-master-LOGIC-3 runtime contract. Cheap scenes (density below the band edges) self-harmonize: they stay untouched until the deep bands cross them.
 
 Custom blocks have a **strict field allowlist** — unknown fields are rejected as errors, NOT auto-promoted to root scope. This prevents silent side-effects like `color = green` inside `[charset-custom.quantum]` changing the global color scheme.
 

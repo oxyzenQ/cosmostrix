@@ -188,6 +188,23 @@ fn dump_config_documents_paired_field_split() {
         dump.contains("REMOVED in v80.0.0-beta.2: base-scene"),
         "template must document the base-scene removal"
     );
+    // v80.0.0-beta.2 (S-master-LOGIC-2): the header must disclose BOTH
+    // precedence chains (startup + runtime) — the startup-only line was
+    // dishonest after the runtime config-wins contract.
+    assert!(
+        dump.contains("Override priority at STARTUP: CLI flags > config.toml > scene defaults."),
+        "template header must disclose the startup chain"
+    );
+    assert!(
+        dump.contains("At RUNTIME (config save / live-reload)"),
+        "template header must disclose the runtime chain"
+    );
+    // LOGIC-2 verification: the stale 'i' shortkey must not appear in the
+    // ambient note's key list (there is no 'i' binding).
+    assert!(
+        !dump.contains("p/i/"),
+        "the shortkey list must not claim a nonexistent 'i' key: found stale list"
+    );
     // Each paired field's doc line should also appear in the custom
     // palettes / custom charsets sections, pointing users at the right
     // reference field.

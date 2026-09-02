@@ -69,6 +69,23 @@ Owner-initiated internal research session (S-master-LOGIC-1/2/3):
    resolution. Owner bug: bold/shading-mode edits were unverifiable
    because the section never showed them.
 
+7. **Ambient description honesty verification (S-master-LOGIC-2).**
+   The two pre-re-clone honesty commits (fa43c986 — ambient overlay
+   limitation in template + live-reload docs; 790d7d2c — the
+   config/live-reload disclaimer doc) were re-verified claim-by-claim
+   against the post-LOGIC-3 code: the ambient re-assertion,
+   shortkey-during-ambient behavior, and the comment-out workaround
+   all hold; the fps-ownership and palette-survival claims were
+   corrected in the LOGIC-3 commit. This pass fixed the remaining
+   stale bits: the config template header now discloses BOTH
+   precedence chains (startup + runtime — the CLI-wins-only line was
+   dishonest), the template's shortkey list no longer claims a
+   nonexistent `i` key (locked by a regression test), the disclaimer
+   doc's Limitation D summary matches the ambient-owned field list
+   (incl. fps) and points at the new contract section, and the
+   power-dragon density-ceiling docs mark their precedence note as
+   startup-resolution-only.
+
 ### harmony: v80.0.0-beta.1 — config live-reload honesty pass + v51 stale-version sweep
 
 Owner-initiated internal research session. Five atomic micro-commits,
