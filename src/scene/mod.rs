@@ -107,7 +107,11 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     },
     SceneInfo {
         name: "signal",
-        description: "Digital transmission — cyan aurora glyphs in box-draw frames",
+        // v80.0.0 sync: "cyan aurora glyphs" -> "aurora glyphs" — the
+        // aurora palette was retuned to real 557.7nm green (earth-
+        // element real-color masterclass), so the palette is now
+        // green-dominant with cyan fringes, not cyan-led.
+        description: "Digital transmission — aurora glyphs in box-draw frames",
         config: SceneConfig {
             color: Some("aurora"),
             charset: Some("retro"),

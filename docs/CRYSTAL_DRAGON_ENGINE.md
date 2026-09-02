@@ -157,6 +157,11 @@ Cool blues, cyans, neutrals, whites. Cool, calm, serene aesthetic.
 | Cool blues & cyans (7) | `Blue`, `Ocean`, `Neptune`, `Uranus`, `Cyan`, `NeonBlue`, `NeonCyan` |
 | Neutrals, whites, grays (7) | `Snow`, `Moon`, `Stars`, `Gray`, `Mercury`, `Carbon`, `NeonWhite` |
 
+v80.0.0 earth-element real-color note: `Snow`'s head was retuned to
+(192,222,241) — a proper Rayleigh ice-blue cast at the 655 family
+luminance sum (was near-neutral gray, which dropped the body hue in
+the final stop). Cold-group classification unchanged.
+
 ### 5.2 Medium group (14 themes) — points 34–66
 
 Greens, purples, cosmic. Balanced, natural aesthetic.
@@ -166,6 +171,13 @@ Greens, purples, cosmic. Balanced, natural aesthetic.
 | Greens & forest (6) | `Green`, `Green2`, `Green3`, `NeonGreen`, `Forest`, `Aurora` |
 | Purples & cosmic (7) | `Purple`, `Nebula`, `Cosmos`, `Vaporwave`, `Neon`, `FancyDiamond`, `NeonPurple` |
 | Transitional neutral (1) | `Pluto` (v80.0.0 real-color: muted dusty-tan, still a warm-leaning neutral) |
+
+v80.0.0 earth-element real-color note: `Forest`'s upper body now uses
+real chlorophyll chartreuse steps (the neon-lime G=255 plateau is
+gone — foliage never pins the green channel while red climbs), and
+`Aurora`'s body now tracks the true oxygen 557.7nm emission green
+(was teal-shifted) with a pale auroral-green head. Green-family
+classification unchanged.
 
 ### 5.3 Hot group (14 themes) — points 67–99
 

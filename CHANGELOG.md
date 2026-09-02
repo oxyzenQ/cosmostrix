@@ -612,6 +612,74 @@ Verification: scene suite 291 passed / 0 failed; full suite, clippy
 -D warnings, fmt, gate-keepers all green on the pinned 1.98.0
 toolchain.
 
+### tune: v80.0.0-beta.2 — earth-element theme real-color masterclass retune
+
+Owner mandate (2026-09-02): "owner suspects all existing builtin
+colors/theme for scope non-planets is not realisme. also on scope
+like in earth elements, ocean, sky, etc reference." Full audit of
+the 33 non-planet themes against real-world colorimetry: three
+retuned, three verified physically faithful, twenty-seven
+aesthetic-by-design (verified in-scope-peak, skipped — no
+over-engineering).
+
+Retuned (stops data only — engine machinery, floor/continuity/OKLab
+pipeline, tuning constants, 44-theme count and group classification
+untouched):
+- `aurora`: the dominant auroral emission is the oxygen 557.7nm
+  line — the iconic curtain green. The old body was teal-shifted
+  (B up to 78% of G) and the head (188,222,245) was blue-dominant,
+  contradicting the ramp's own "pale auroral-green head"
+  documentation. The body now tracks the true 557.7nm green, a cyan
+  shimmer stop keeps the curtain-fringe character, and the head
+  (160,255,240) is pale auroral-green at the 655 family sum.
+- `forest`: the old upper body pinned the green channel at 255 for
+  three consecutive stops (140/168/195,255,~) — neon-lime, not
+  foliage. Real sunlit leaves never max G while R climbs to 195:
+  chlorophyll reflectance keeps every channel in motion and pale
+  foliage desaturates. The plateau is replaced with true chartreuse
+  foliage steps (150,235,120)/(175,240,155)/(195,240,185); tail,
+  canopy and head were already faithful and unchanged.
+- `snow`: snow is never neutral gray in nature — shadowed snow
+  carries a strong blue cast from Rayleigh sky-light. The old head
+  (214,218,223) was near-neutral gray (B-R = 9), dropping the body
+  hue in the final stop and contradicting the "frosty pale-cyan
+  head" documentation. New head (192,222,241) restores the ice cast
+  at the same 655 family sum.
+
+Verified faithful, unchanged (colorimetric analysis):
+- `ocean`: hue pinned 190-207 degrees the whole ramp (water IS
+  consistently blue-cyan), saturation falls as lightness rises
+  (foam desaturates), abyss-to-foam structure matches Jerlov water
+  types.
+- `fire`: Planck-correct ember-to-flame ramp (deep maroon -> blood
+  red -> ember orange -> pale yellow-white core).
+- `blue`: real sky-direction ramp (near-black indigo -> royal ->
+  pale sky-blue head, blue-tinted at 655).
+
+Aesthetic-by-design, out of realism scope, verified peak: the three
+phosphor-CRT greens, eleven neon tube-glow themes, carbon, gray,
+vaporwave, rainbow (OKLCH-uniform), fancydiamond, cosmos, nebula,
+spectrum20, energy-zen.
+
+Test/audit surface: three full-data regression locks added
+(aurora/forest/snow_real_color_stops_locked in
+palette/tests_audit.rs, pinning raw catalog stops plus semantic
+hue/luminance invariants); near-dup actionable audit clean — no new
+pairs (aurora now sits >20 avg RGB distance from every theme, fully
+clear of the green family), no stale entries (Snow/FancyDiamond
+still 26.4, allowlisted); all 19 chroma lock invariants hold.
+
+Cascade sync: scene `signal` description drops the stale "cyan"
+qualifier (the aurora palette is green-dominant after the retune).
+
+Docs: themes.rs per-theme real-color rationale comments; chroma
+engine KEY.md lock log entry; CRYSTAL_DRAGON_ENGINE.md palette
+group table notes (cold + green groups); this entry.
+
+Verification: chroma suite 293 passed / 0 failed (290 + 3 new
+locks); full suite, clippy -D warnings, fmt, gate-keepers all green
+on the pinned 1.98.0 toolchain.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

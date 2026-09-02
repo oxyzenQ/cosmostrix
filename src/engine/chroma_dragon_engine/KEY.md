@@ -8,6 +8,35 @@
 
 ## LOCK
 
+> Earth-element theme real-color data retune (2026-09-02, v80.0.0-beta.2):
+> owner directive — the non-planet builtin colors/themes were suspected
+> "not realisme" with earth-element references (ocean, forest, sky,
+> aurora, snow). Full audit of the 33 non-planet themes: three retuned,
+> ocean/fire/blue verified physically faithful, the remaining 27 are
+> aesthetic-by-design (phosphor greens, neon tubes, synthwave, OKLCH
+> spectrum, premium rarity) where realism is not the identity.
+> Retuned `catalog/themes.rs` data only:
+> - Aurora: body now tracks the true oxygen 557.7nm emission green
+>   (was teal-shifted, B up to 78% of G); head (160,255,240) is pale
+>   auroral-green at the 655 family sum (was blue-dominant 188,222,245
+>   — contradicting the ramp's own "pale auroral-green head" doc).
+> - Forest: neon-lime G=255 plateau (140/168/195,255,~) replaced with
+>   real chlorophyll chartreuse steps — foliage never pins G while R
+>   climbs; tail/canopy/head unchanged.
+> - Snow: head (192,222,241) restores the Rayleigh ice-blue cast
+>   (was near-neutral gray 214,218,223, B-R = 9), same 655 sum.
+> DATA retune only: engine machinery, tuning constants, 44-theme
+> count, group classification (Aurora stays Greens, Snow stays
+> Neutrals) untouched — all 19 lock invariants hold. Near-dup audit
+> clean: no new pairs (Aurora now sits >20 from every theme), no
+> stale entries (Snow/FancyDiamond still 26.4, allowlisted). Three
+> full-data regression locks added in `palette/tests_audit.rs`
+> (aurora/forest/snow_real_color_stops_locked). Engine version 9-D.
+> Cascade sync: scene `signal` description drops the stale "cyan"
+> qualifier (aurora palette is green-dominant now).
+>
+> Signoff: **oxyzenQ** -- 2026-09-02 -- earth-element real-color data retune, lock invariants intact
+
 > Planet theme real-color data retune (2026-09-02, v80.0.0-beta.2):
 > owner directive — the planet palette family was suspected "not
 > real like planets color". Six `catalog/themes.rs` data palettes

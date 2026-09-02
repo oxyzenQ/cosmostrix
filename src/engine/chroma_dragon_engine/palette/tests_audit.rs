@@ -404,3 +404,142 @@ fn audit_near_duplicate_themes_act() {
     // the printed message above flags them for cleanup.
     let _ = stale; // silence unused warning if empty
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// v80.0.0 earth-element real-color retune — regression locks
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Fetch the RAW catalog stops of a theme (pre floor/continuity pipeline).
+///
+/// The v80.0.0 real-color retunes (planets first, earth elements second)
+/// pinned their data here because realism rationale is easy to silently
+/// regress: a well-intentioned "brighten/saturate" pass would reintroduce
+/// the neon-lime foliage, teal aurora body, or gray snow head without any
+/// invariant failing. Pinning the raw catalog data keeps the pipeline
+/// (floor / continuity / OKLab) free to evolve while the source values
+/// stay locked.
+fn raw_stops(scheme: ColorScheme) -> &'static [(u8, u8, u8)] {
+    use crate::chroma_dragon_engine::catalog::{ThemeColors, THEMES};
+    let theme = THEMES
+        .iter()
+        .find(|t| t.scheme == scheme)
+        .unwrap_or_else(|| panic!("{scheme:?} missing from THEMES"));
+    match &theme.def {
+        ThemeColors::Stops { stops, .. } => stops,
+        ThemeColors::StopsWithC16 { stops, .. } => stops,
+        ThemeColors::RgbWithC16 { .. } => panic!("{scheme:?} is not a stops theme"),
+    }
+}
+
+/// Aurora (v80.0.0 real-color): the dominant auroral emission is the
+/// oxygen 557.7nm line — green-dominant body (G > B at every body stop),
+/// cyan shimmer fringe, pale auroral-green head at the 655 family sum.
+/// The pre-retune body was teal-shifted (B up to 78% of G) with a
+/// blue-dominant head.
+#[test]
+fn aurora_real_color_stops_locked() {
+    let stops = raw_stops(ColorScheme::Aurora);
+    assert_eq!(
+        stops,
+        &[
+            (0, 12, 8),
+            (0, 55, 30),
+            (15, 140, 70),
+            (45, 225, 120),
+            (70, 255, 150),
+            (110, 245, 200),
+            (140, 230, 235),
+            (160, 255, 240),
+        ]
+    );
+    // Semantic locks (fail with self-explanatory messages if a future
+    // edit drifts the raw pins): body green-dominant, head green-
+    // dominant at the 655 family luminance sum.
+    for &s in &stops[1..5] {
+        assert!(
+            s.1 > s.2,
+            "aurora body stop {s:?} must be green-dominant (G > B)"
+        );
+    }
+    let head = stops[7];
+    assert_eq!(
+        u16::from(head.0) + u16::from(head.1) + u16::from(head.2),
+        655
+    );
+    assert!(
+        head.1 > head.2,
+        "aurora head {head:?} must stay green-dominant"
+    );
+}
+
+/// Forest (v80.0.0 real-color): real sunlit foliage never pins the green
+/// channel at 255 while red climbs — chlorophyll reflectance keeps every
+/// channel in motion and pale foliage desaturates. The pre-retune upper
+/// body was a neon-lime G=255 plateau (140/168/195, 255, ~).
+#[test]
+fn forest_real_color_stops_locked() {
+    let stops = raw_stops(ColorScheme::Forest);
+    assert_eq!(
+        stops,
+        &[
+            (8, 10, 0),
+            (30, 50, 8),
+            (69, 128, 44),
+            (110, 216, 84),
+            (150, 235, 120),
+            (175, 240, 155),
+            (195, 240, 185),
+            (214, 242, 199),
+        ]
+    );
+    // Semantic locks: no channel pinned at 255 anywhere (no neon
+    // plateau), monotonic luminance climb to the 655 head.
+    for &s in stops {
+        assert!(
+            s.0 < 255 && s.1 < 255 && s.2 < 255,
+            "forest stop {s:?} pins a channel at 255 — neon plateau, not foliage"
+        );
+    }
+    let head = stops[7];
+    assert_eq!(
+        u16::from(head.0) + u16::from(head.1) + u16::from(head.2),
+        655
+    );
+}
+
+/// Snow (v80.0.0 real-color): shadowed snow carries a strong blue cast
+/// (Rayleigh sky-light) and the head must keep that ice tint. The
+/// pre-retune head (214, 218, 223) was near-neutral gray (B-R = 9),
+/// dropping the body hue in the final stop.
+#[test]
+fn snow_real_color_stops_locked() {
+    let stops = raw_stops(ColorScheme::Snow);
+    assert_eq!(
+        stops,
+        &[
+            (3, 8, 18),
+            (20, 38, 65),
+            (73, 94, 123),
+            (132, 156, 185),
+            (180, 210, 245),
+            (185, 215, 250),
+            (205, 228, 252),
+            (225, 240, 255),
+            (192, 222, 241),
+        ]
+    );
+    // Semantic locks: every stop blue-dominant (B > R — the Rayleigh
+    // cast), head at the 655 family luminance sum.
+    for &s in stops {
+        assert!(s.2 > s.0, "snow stop {s:?} must be blue-dominant (B > R)");
+    }
+    let head = stops[8];
+    assert_eq!(
+        u16::from(head.0) + u16::from(head.1) + u16::from(head.2),
+        655
+    );
+    assert!(
+        i32::from(head.2) - i32::from(head.0) >= 40,
+        "snow head {head:?} lost its ice tint (B-R must be clearly visible)"
+    );
+}

@@ -438,16 +438,25 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Forest,
         def: ThemeColors::Stops {
-            // Moss and canopy: forest-floor brown → moss green →
-            // sunlit pale-lime head.
+            // Moss and canopy (v80.0.0 real-color tune): forest-floor
+            // brown -> moss green -> real sunlit foliage -> pale
+            // sage-lime head. The old upper body pinned the green
+            // channel at 255 for three consecutive stops
+            // (140/168/195, 255, ~) — neon-lime, not foliage. Real
+            // sunlit leaves never max G while R climbs to 195:
+            // chlorophyll reflectance keeps every channel in motion,
+            // and pale foliage desaturates rather than saturating.
+            // The plateau is replaced with true chartreuse foliage
+            // steps; tail, canopy and head were already faithful and
+            // are unchanged (head keeps the 655 family luminance sum).
             stops: &[
                 (8, 10, 0),
                 (30, 50, 8),
                 (69, 128, 44),
                 (110, 216, 84),
-                (140, 255, 110),
-                (168, 255, 140),
-                (195, 255, 170),
+                (150, 235, 120),
+                (175, 240, 155),
+                (195, 240, 185),
                 (214, 242, 199),
             ],
             steps: 9,
@@ -523,8 +532,16 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Snow,
         def: ThemeColors::Stops {
-            // Cold white-blue shimmer: deep blue-black → ice blue →
-            // frosty pale-cyan head.
+            // Cold white-blue shimmer (v80.0.0 real-color tune): deep
+            // blue-black -> ice blue -> frosty pale-cyan head. Snow is
+            // never neutral gray in nature — shadowed snow carries a
+            // strong blue cast from Rayleigh sky-light, and the head
+            // must keep that ice tint. The old head (214,218,223) was
+            // near-neutral gray (B-R = 9), dropping the body hue in
+            // the final stop and contradicting this ramp's own
+            // "pale-cyan head" documentation. The new head (192,222,
+            // 241) restores the frosty cyan cast at the same 655
+            // family luminance sum.
             stops: &[
                 (3, 8, 18),
                 (20, 38, 65),
@@ -534,7 +551,7 @@ pub static THEMES: &[ThemeDef] = &[
                 (185, 215, 250),
                 (205, 228, 252),
                 (225, 240, 255),
-                (214, 218, 223),
+                (192, 222, 241),
             ],
             steps: 9,
         },
@@ -542,17 +559,26 @@ pub static THEMES: &[ThemeDef] = &[
     ThemeDef {
         scheme: ColorScheme::Aurora,
         def: ThemeColors::Stops {
-            // Northern-lights: dark green origin → emerald →
-            // cyan-violet shimmer → pale auroral-green head.
+            // Northern-lights (v80.0.0 real-color tune): the dominant
+            // auroral emission is the oxygen 557.7nm line — the
+            // iconic curtain green — with cyan shimmer fringes and a
+            // green-white glow at the brightest core. The old body was
+            // teal-shifted (B up to 78% of G) and the head (188,222,
+            // 245) was blue-dominant, contradicting both the real
+            // structure and this ramp's own "pale auroral-green head"
+            // documentation. The body now tracks the true 557.7nm
+            // green; the cyan shimmer stop keeps the curtain-fringe
+            // character; the head stays at the 655 family sum, now
+            // pale auroral-green as documented.
             stops: &[
                 (0, 12, 8),
-                (0, 55, 35),
-                (21, 131, 95),
-                (49, 216, 162),
-                (70, 255, 200),
-                (105, 238, 225),
-                (140, 220, 250),
-                (188, 222, 245),
+                (0, 55, 30),
+                (15, 140, 70),
+                (45, 225, 120),
+                (70, 255, 150),
+                (110, 245, 200),
+                (140, 230, 235),
+                (160, 255, 240),
             ],
             steps: 9,
         },
