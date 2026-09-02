@@ -134,6 +134,40 @@ appended below.
 
 ---
 
+## Insight 4 — HUD Sci-Fi Dashboard (the "pre-flow-focus" moment)
+
+**Date**: 2026-09-02 (insight the night before; noted ~12:50 before
+entering the day's coding flow)
+
+**Context**: Morning session. The owner had just returned to the laptop
+after breakfast, about to enter flow-focus, when the idea surfaced —
+recorded immediately (this entry) and deliberately deferred so the
+stable-release line keeps priority.
+
+**Observation**: *"The HUD could sit bottom-center as an elegant
+triangle — FPS indicator on top, the other metrics below — dressed like
+a sci-fi space dashboard: rounded corners, separate panels, that
+aesthetic."* Owner posture: leaning both ways ("agak tolak dan agak mau
+test implement") — research first, nothing in the backlog.
+
+**Feature**: `docs/research/HUD_LAYOUT_MASTERCLASS_RESEARCH.md` —
+4-option masterclass audit (A: Apex Pendant — the literal vision;
+B: Sci-Fi Panel Grid; C: Bottom Console Bar; D: Style-Only Evolution
+at the current corner) + 5 documented rejected directions (GPU/kitty
+protocol, app-level transparency, true full-triangle, position toggle,
+scanline layer) + cross-cutting finishers. Key findings: the glyph
+vocabulary (`╭╮╰╯`, `╱╲`, `▲▼`) is fully gate-clean under the
+symbol-only rule (U+2500..U+25FF allowed); rounded corners are already
+house style (message border + HUD `╯` corner); the hard cost is the
+bottom-center placement itself (message-box collision geometry,
+dynamic-width jitter, test churn) — not the styling.
+
+**Status**: Research complete, awaiting owner decision (decision menu
+in the research doc §11). No code changed. Priority LOW — after the
+stable release.
+
+---
+
 ## Future Insights
 
 When a new insight arrives — in a relaxed moment, from watching the
