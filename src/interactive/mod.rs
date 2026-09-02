@@ -65,6 +65,8 @@ mod watchdog;
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
+mod tests_final_state;
+#[cfg(test)]
 mod tests_fmt_opt;
 
 // v50 LTS regression tests (first-reload scene reset crash).
@@ -158,6 +160,25 @@ static FINAL_INTRO_COLOR: OnceLock<Option<String>> = OnceLock::new();
 // ambient-snapback-secs were silently lost on exit).
 static FINAL_AMBIENT_SNAPBACK_SECS: OnceLock<Option<f64>> = OnceLock::new();
 static FINAL_AMBIENT_ENTRIES: OnceLock<usize> = OnceLock::new();
+// v80.0.0-beta.2 (S-master-LOGIC-1): final-state completeness. The
+// post-exit section must disclose EVERY live-reload-able field the
+// user can change mid-run, not just the pre-v80 subset — the owner
+// found bold/shading-mode changes unverifiable because the section
+// never showed them. These seven additions close the gap:
+// - fps: config key, scene-custom block field, ambient scene ownership;
+// - glitch_level: config key + scene/ambient applies (derived from the
+//   live Cloud via Cloud::glitch_level() — the enum on CloudConfig is
+//   stale after an ambient apply);
+// - bold_mode / shading_mode / monolith_size / default_bg / color_tune:
+//   top-level config keys (scene-custom block ownership was REMOVED in
+//   v80.0.0-beta.2, so config + CLI are the only write paths at runtime).
+static FINAL_FPS: OnceLock<f64> = OnceLock::new();
+static FINAL_GLIITCH_LEVEL: OnceLock<String> = OnceLock::new();
+static FINAL_BOLD_MODE: OnceLock<String> = OnceLock::new();
+static FINAL_SHADING_MODE: OnceLock<String> = OnceLock::new();
+static FINAL_MONOLITH_SIZE: OnceLock<String> = OnceLock::new();
+static FINAL_COLOR_BG: OnceLock<bool> = OnceLock::new();
+static FINAL_COLOR_TUNE: OnceLock<String> = OnceLock::new();
 
 /// Store final runtime state for post-exit verbose summary.
 ///
@@ -172,6 +193,11 @@ static FINAL_AMBIENT_ENTRIES: OnceLock<usize> = OnceLock::new();
 /// to ambient-snapback-secs were silently lost on exit, making it
 /// impossible to verify the actual snapback delay in effect when the
 /// session ended).
+/// v80.0.0-beta.2 (S-master-LOGIC-1) additions: fps / glitch_level /
+/// bold / shading / monolith / color_bg / color_tune. Enum values are
+/// stored as their Debug-format labels (e.g. "Random",
+/// "DistanceFromHead", "Intense") so the post-exit printer can compare
+/// startup vs final without importing the enum types here.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn set_final_state(
     color: &str,
@@ -189,6 +215,14 @@ pub(crate) fn set_final_state(
     intro_color: Option<&str>,
     ambient_snapback_secs: Option<f64>,
     ambient_entries: usize,
+    // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness:
+    fps: f64,
+    glitch_level: &str,
+    bold_mode: &str,
+    shading_mode: &str,
+    monolith_size: &str,
+    color_bg: bool,
+    color_tune: &str,
 ) {
     let _ = FINAL_COLOR.set(color.to_string());
     let _ = FINAL_SCENE.set(scene.to_string());
@@ -206,6 +240,14 @@ pub(crate) fn set_final_state(
     let _ = FINAL_INTRO_COLOR.set(intro_color.map(|s| s.to_string()));
     let _ = FINAL_AMBIENT_SNAPBACK_SECS.set(ambient_snapback_secs);
     let _ = FINAL_AMBIENT_ENTRIES.set(ambient_entries);
+    // v80.0.0-beta.2 (S-master-LOGIC-1):
+    let _ = FINAL_FPS.set(fps);
+    let _ = FINAL_GLIITCH_LEVEL.set(glitch_level.to_string());
+    let _ = FINAL_BOLD_MODE.set(bold_mode.to_string());
+    let _ = FINAL_SHADING_MODE.set(shading_mode.to_string());
+    let _ = FINAL_MONOLITH_SIZE.set(monolith_size.to_string());
+    let _ = FINAL_COLOR_BG.set(color_bg);
+    let _ = FINAL_COLOR_TUNE.set(color_tune.to_string());
 }
 
 /// v50.0.0-alpha.7: accessor for final msg_mode (post-live-reload).
@@ -265,6 +307,60 @@ pub(crate) fn last_ambient_snapback_secs() -> Option<f64> {
 /// (post-live-reload). 0 = scheduler idles (no ambient phases configured).
 pub(crate) fn last_ambient_entries() -> usize {
     *FINAL_AMBIENT_ENTRIES.get().unwrap_or(&0)
+}
+
+// v80.0.0-beta.2 (S-master-LOGIC-1) accessors — defaults mirror the
+// pre-v80 startup defaults so early-exit paths (set_final_state never
+// ran) degrade to the same values the old section showed.
+
+/// Final fps target (post-live-reload / ambient ownership). Default 60.0.
+pub(crate) fn last_fps() -> f64 {
+    *FINAL_FPS.get().unwrap_or(&60.0)
+}
+
+/// Final glitch level label (post scene/ambient applies), e.g. "Subtle".
+pub(crate) fn last_glitch_level() -> String {
+    FINAL_GLIITCH_LEVEL
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "Subtle".to_string())
+}
+
+/// Final bold mode label: "Off" | "Random" | "All".
+pub(crate) fn last_bold_mode() -> String {
+    FINAL_BOLD_MODE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "Random".to_string())
+}
+
+/// Final shading mode label: "Random" | "DistanceFromHead".
+pub(crate) fn last_shading_mode() -> String {
+    FINAL_SHADING_MODE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "DistanceFromHead".to_string())
+}
+
+/// Final monolith size label: "Small" | "Normal" | "Large".
+pub(crate) fn last_monolith_size() -> String {
+    FINAL_MONOLITH_SIZE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "Normal".to_string())
+}
+
+/// Final color-bg flag: true = default background, false = solid black.
+pub(crate) fn last_color_bg() -> bool {
+    *FINAL_COLOR_BG.get().unwrap_or(&false)
+}
+
+/// Final color-tune label, e.g. "sat=1.00 bright=1.00 head=1.00 body=1.00 tail=1.00".
+pub(crate) fn last_color_tune() -> String {
+    FINAL_COLOR_TUNE
+        .get()
+        .cloned()
+        .unwrap_or_else(|| "sat=1.00 bright=1.00 head=1.00 body=1.00 tail=1.00".to_string())
 }
 
 /// Format an `Option<&str>` for the live-reload change tracker.
@@ -328,6 +424,18 @@ pub(crate) fn print_final_runtime_state(
     // these were missing entirely from final_runtime_verbose).
     startup_ambient_snapback_secs: Option<f64>,
     startup_ambient_entries: usize,
+    // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness: startup
+    // baselines for the seven newly tracked fields, paired with the
+    // FINAL_* OnceLocks so the section discloses EVERY live-reload-able
+    // dimension (the owner found bold/shading-mode edits unverifiable
+    // because the section never showed them).
+    startup_fps: f64,
+    startup_glitch_level: &str,
+    startup_bold_mode: &str,
+    startup_shading_mode: &str,
+    startup_monolith_size: &str,
+    startup_color_bg: bool,
+    startup_color_tune: &str,
 ) {
     let final_color = last_color_scheme();
     let final_scene = last_scene_name();
@@ -345,6 +453,15 @@ pub(crate) fn print_final_runtime_state(
     // v50.0.0-beta.7 LTS: read final ambient state (post-live-reload).
     let final_ambient_snapback_secs = last_ambient_snapback_secs();
     let final_ambient_entries = last_ambient_entries();
+    // v80.0.0-beta.2 (S-master-LOGIC-1): final values for the newly
+    // tracked dimensions.
+    let final_fps = last_fps();
+    let final_glitch_level = last_glitch_level();
+    let final_bold_mode = last_bold_mode();
+    let final_shading_mode = last_shading_mode();
+    let final_monolith_size = last_monolith_size();
+    let final_color_bg = last_color_bg();
+    let final_color_tune = last_color_tune();
 
     // v50.0.0-rc.1: previously this function early-returned when no field
     // changed, suppressing the entire section. Now the section ALWAYS
@@ -403,6 +520,23 @@ pub(crate) fn print_final_runtime_state(
             startup_density
         );
     }
+    // v80.0.0-beta.2 (S-master-LOGIC-1): fps + glitch_level join the
+    // change-tracked motion fields — both are ambient-owned and
+    // config-editable now, so a mid-run change must be verifiable here.
+    if (final_fps - startup_fps).abs() >= 0.01 {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  fps:{reset}           {:.1} (was {:.1})",
+            final_fps,
+            startup_fps
+        );
+    }
+    if final_glitch_level != startup_glitch_level {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  glitch_level:{reset}  {} (was {})",
+            final_glitch_level,
+            startup_glitch_level
+        );
+    }
     if final_msg_mode != startup_msg_mode {
         crate::output::eprintln_safe!(
             "{purple}[verbose]{reset} {ts} {purple}  msg_mode:{reset}       {} (was {})",
@@ -457,11 +591,59 @@ pub(crate) fn print_final_runtime_state(
             startup_async_mode
         );
     }
+    // v80.0.0-beta.2 (S-master-LOGIC-1): bold / shading — top-level
+    // config keys since the scene-custom v2 schema removed the block
+    // fields; their live-reload edits are finally verifiable here.
+    if final_bold_mode != startup_bold_mode {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  bold:{reset}          {} (was {})",
+            final_bold_mode,
+            startup_bold_mode
+        );
+    }
+    if final_shading_mode != startup_shading_mode {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  shading:{reset}       {} (was {})",
+            final_shading_mode,
+            startup_shading_mode
+        );
+    }
     if final_intro_color != startup_intro_color {
         crate::output::eprintln_safe!(
             "{purple}[verbose]{reset} {ts} {purple}  intro_color:{reset}     {} (was {})",
             fmt_opt_str(final_intro_color),
             fmt_opt_str(startup_intro_color)
+        );
+    }
+    // v80.0.0-beta.2 (S-master-LOGIC-1): monolith / color_bg / color_tune
+    // close the per-key coverage — every live-reload-able config key now
+    // has a final-state line.
+    if final_monolith_size != startup_monolith_size {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  monolith:{reset}      {} (was {})",
+            final_monolith_size,
+            startup_monolith_size
+        );
+    }
+    if final_color_bg != startup_color_bg {
+        let bg_label = |default: bool| {
+            if default {
+                "default"
+            } else {
+                "black"
+            }
+        };
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  color_bg:{reset}      {} (was {})",
+            bg_label(final_color_bg),
+            bg_label(startup_color_bg)
+        );
+    }
+    if final_color_tune != startup_color_tune {
+        crate::output::eprintln_safe!(
+            "{purple}[verbose]{reset} {ts} {purple}  color_tune:{reset}    {} (was {})",
+            final_color_tune,
+            startup_color_tune
         );
     }
 

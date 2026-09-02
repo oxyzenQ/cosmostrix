@@ -60,6 +60,15 @@ Owner-initiated internal research session (S-master-LOGIC-1/2/3):
    `scene_custom_name` + the custom palette roll back with the rest
    of the family.
 
+6. **Final runtime state completeness (S-master-LOGIC-1).** The
+   post-exit `-v` section now tracks EVERY live-reload-able
+   dimension, not just the pre-v80 subset: `fps`, `glitch_level`
+   (derived from the live Cloud so ambient applies are reflected),
+   `bold`, `shading`, `monolith`, `color_bg`, and `color_tune` join
+   the change-tracked set with `(was X)` baselines from the startup
+   resolution. Owner bug: bold/shading-mode edits were unverifiable
+   because the section never showed them.
+
 ### harmony: v80.0.0-beta.1 — config live-reload honesty pass + v51 stale-version sweep
 
 Owner-initiated internal research session. Five atomic micro-commits,

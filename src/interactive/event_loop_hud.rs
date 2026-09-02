@@ -8,7 +8,6 @@ use super::hud::{FrameMode, HudState};
 use crate::app::CloudConfig;
 use crate::central_control_dragon_power::PowerManager;
 use crate::cloud::Cloud;
-use crate::config::GlitchLevel;
 
 /// Update HUD state every frame with live values.
 ///
@@ -116,19 +115,10 @@ pub(crate) fn update_hud_state(
     hud_state.set_ambient_on(!current_cfg.ambient_schedule.entries.is_empty());
     // glth: glitch level — read from cloud state so it follows runtime
     // scene switches (apply_scene_runtime updates cloud.glitchy/glitch_pct,
-    // and apply_glitch_level_runtime sets the level). We derive the
-    // GlitchLevel from cloud.glitch_pct because Cloud doesn't store the
-    // enum (only the resolved numeric values). Thresholds match the
-    // preset definitions in scene_runtime.rs apply_glitch_level_runtime.
-    let cloud_glitch_level = if !cloud.glitchy {
-        GlitchLevel::None
-    } else if cloud.glitch_pct < 0.05 {
-        GlitchLevel::Subtle
-    } else if cloud.glitch_pct < 0.15 {
-        GlitchLevel::Default
-    } else {
-        GlitchLevel::Intense
-    };
+    // and apply_glitch_level_runtime sets the level). v80.0.0-beta.2: the
+    // derivation lives on Cloud (glitch_level()) so the HUD and the
+    // post-exit final-runtime verbose always agree on the EFFECTIVE level.
+    let cloud_glitch_level = cloud.glitch_level();
     hud_state.set_glitch_level(cloud_glitch_level);
     // ctun: custom if any ColorTune field ≠ 1.0 (IDENTITY).
     let ct = &current_cfg.color_tune;

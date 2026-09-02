@@ -501,7 +501,13 @@ DIAGNOSTICS:
       duration (v50.0.0-rc.1), followed by any live-reload field changes,
       the always-printed `ambient_snapback_secs` + `ambient_entries`
       effective values (v50.0.0-beta.7 LTS), and the ambient diagnostics
-      summary.
+      summary. v80.0.0-beta.2 (S-master-LOGIC-1): the change-tracked
+      field list is COMPLETE — every live-reload-able dimension
+      (color_scheme, scene, charset, speed, density, fps, glitch_level,
+      bold, shading, monolith, color_bg, color_tune, msg_*, dragons,
+      async_mode, intro_color) discloses a `value (was startup_value)`
+      line, so heavy mid-run editing shows every change from the
+      startup baseline.
 
 DISCOVERY:
   --list-colors         Show color theme names.

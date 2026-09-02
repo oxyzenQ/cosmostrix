@@ -77,6 +77,22 @@ pub(crate) fn print_post_exit_verbose(
         None => format!("{color_scheme:?}"),
     };
     let startup_scene = args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
+    // v80.0.0-beta.2 (S-master-LOGIC-1): startup baselines for the newly
+    // tracked final-state fields — the (was X) suffixes compare against
+    // the effective startup resolution (post CLI > config > scene
+    // layering), so a mid-run change is always attributable.
+    let startup_glitch_label = format!("{:?}", cloud_cfg.glitch_level);
+    let startup_bold_label = format!("{:?}", cloud_cfg.bold_mode);
+    let startup_shading_label = format!("{:?}", cloud_cfg.shading_mode);
+    let startup_monolith_label = format!("{:?}", cloud_cfg.monolith_size);
+    let startup_color_tune_label = format!(
+        "sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
+        cloud_cfg.color_tune.saturation,
+        cloud_cfg.color_tune.brightness,
+        cloud_cfg.color_tune.head,
+        cloud_cfg.color_tune.body,
+        cloud_cfg.color_tune.tail
+    );
     crate::interactive::print_final_runtime_state(
         &startup_color,
         startup_scene,
@@ -96,6 +112,14 @@ pub(crate) fn print_post_exit_verbose(
         start_time,
         cloud_cfg.ambient_snapback_secs,
         cloud_cfg.ambient_schedule.entries.len(),
+        // v80.0.0-beta.2 (S-master-LOGIC-1) startup baselines:
+        cloud_cfg.target_fps,
+        &startup_glitch_label,
+        &startup_bold_label,
+        &startup_shading_label,
+        &startup_monolith_label,
+        cloud_cfg.default_bg,
+        &startup_color_tune_label,
     );
 }
 

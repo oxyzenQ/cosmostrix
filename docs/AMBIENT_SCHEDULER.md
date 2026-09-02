@@ -322,8 +322,14 @@ loop exits, always — even when no live-reload field changed):
 
 The `ambient_snapback_secs:` + `ambient_entries:` lines are
 **always-printed** (not gated by change) so the user can confirm what
-was actually in effect at session end. The `(was Xs)` suffix appears
-only when a live-reload edit changed the value mid-session:
+was actually in effect at session end. v80.0.0-beta.2
+(S-master-LOGIC-1): the change-tracked field list is complete —
+`fps` and `glitch_level` join the tracked set (both are
+ambient-owned), so an ambient phase applying a scene with fps 12 /
+glitch none shows `fps: 12.0 (was 60.0)` /
+`glitch_level: None (was Subtle)` at exit. The `(was Xs)` suffix appears
+only when a live-reload edit (or ambient apply) changed the value
+mid-session:
 
 ```text
 [verbose] [HH:MM]   ambient_snapback_secs: 10.0s (config) (was 30.0s)

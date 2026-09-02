@@ -162,6 +162,26 @@ pub(crate) fn finalize_session(
         // way to show what snapback delay / schedule count was in effect.
         cfg.ambient_snapback_secs,
         cfg.ambient_schedule.entries.len(),
+        // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness:
+        // fps / bold / shading / monolith / color_bg / color_tune come
+        // from the EFFECTIVE config (current_cfg — post-live-reload,
+        // post-ambient-fps-ownership). glitch_level is derived from the
+        // live Cloud (the enum on the config is stale after an ambient
+        // apply writes the cloud fields directly).
+        cfg.target_fps,
+        &format!("{:?}", cloud.glitch_level()),
+        &format!("{:?}", cfg.bold_mode),
+        &format!("{:?}", cfg.shading_mode),
+        &format!("{:?}", cfg.monolith_size),
+        cfg.default_bg,
+        &format!(
+            "sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
+            cfg.color_tune.saturation,
+            cfg.color_tune.brightness,
+            cfg.color_tune.head,
+            cfg.color_tune.body,
+            cfg.color_tune.tail
+        ),
     );
 
     // v50.0.0-beta.6: final FPS line now printed BEFORE the perf report

@@ -701,6 +701,29 @@ impl Cloud {
         self.color_scheme
     }
 
+    /// Derive the effective `GlitchLevel` from the live Cloud state.
+    ///
+    /// v80.0.0-beta.2 (S-master-LOGIC-1): the Cloud stores the resolved
+    /// numeric glitch fields (glitchy/glitch_pct), not the enum — the
+    /// enum on CloudConfig can be stale after an ambient apply (the
+    /// ambient path writes the cloud fields directly). This derivation
+    /// (shared by the HUD `glth:` line and the post-exit final-runtime
+    /// verbose) always reports the EFFECTIVE level. Thresholds match the
+    /// preset definitions in `apply_glitch_level_runtime`.
+    #[must_use]
+    pub fn glitch_level(&self) -> crate::config::GlitchLevel {
+        use crate::config::GlitchLevel;
+        if !self.glitchy {
+            GlitchLevel::None
+        } else if self.glitch_pct < 0.05 {
+            GlitchLevel::Subtle
+        } else if self.glitch_pct < 0.15 {
+            GlitchLevel::Default
+        } else {
+            GlitchLevel::Intense
+        }
+    }
+
     #[must_use]
     pub fn rain_style(&self) -> RainStyle {
         self.rain_style
