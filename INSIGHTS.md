@@ -201,6 +201,38 @@ stressed non-verbose exit stays silent.
 
 ---
 
+## Insight 6 — The edit that never arrived (empty ≠ absent)
+
+**Date**: 2026-09-03
+**Context**: The owner commented their config keys back out, one family
+at a time, and the engine refused to fall back to the CLI setup — but
+ONLY in one comment order, and an unrelated `msg-fill-style` edit later
+made the right scene reappear. The trace buffer was empty exactly where
+the evidence should have been.
+
+**Observation**: *"A dropped event looks like a precedence bug."* The
+watcher treated a zero-key parse as "empty file, transient atomic save,
+skip" — so the config state the owner created (all keys commented, file
+full of `#` lines) was NEVER DELIVERED, and the rebuild that restores
+the CLI locks never ran. The ambient ground-truth guard sometimes
+rescued the palette (which made it order-dependent), and the guard's
+own per-frame config reads flooded the watcher with inotify Access
+events, exhausting the 1000-entry debug drain — the evidence of the
+dropped event was destroyed by the symptom of the same defect family.
+The fix was a distinction, not a mechanism: content with comment lines
+is a DELIBERATE empty config (deliver it); whitespace-only is transient
+(skip it).
+
+**Feature**: `zero_key_is_deliberate` classification (v80.0.0-alpha.2
+S-master-HUNT-4) + the shared `GROUND_TRUTH_MIN_INTERVAL_SECS` budget.
+Locked by unit tests + the PTY replay harness (both comment orders).
+
+**Status**: Implemented (v80.0.0-alpha.2, S-master-HUNT-4). Verified
+live: both comment orders end at the CLI-locked scene/color/charset,
+4/4 config edits rebuild, the trace drain survives whole sessions.
+
+---
+
 ## Future Insights
 
 When a new insight arrives — in a relaxed moment, from watching the

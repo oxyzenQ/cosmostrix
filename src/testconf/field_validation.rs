@@ -262,7 +262,7 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         }
         // v50.0.0-beta.7: ambient-snapback-secs — float in [0.0, 86400.0].
         // 0.0 = instant snapback, 86400.0 (24h) = effectively disabled.
-        // Default 30.0 when unset. Range matches parse_f64_config in
+        // Default 30.0 when unset. Range matches parse_secs_config in
         // config_apply.rs.
         // v80.0.0-beta.2 usage note (verified 2026-09-02): the snapback
         // timer fires at ANY value in range — including >= 60s. v80.0.0-alpha.1:
@@ -272,10 +272,15 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // freezes new drifts and holds the ambient palette for the whole
         // window (86400 ≈ 24h). See docs/AMBIENT_SCHEDULER.md "Edge case:
         // snapback >= polling".
-        "ambient-snapback-secs" => match v.trim().parse::<f64>() {
+        // v80.0.0-alpha.2: human-duration forms accepted (30, 30s, 1m,
+        // 1h30m) — one vocabulary with the CLI flags (shared
+        // cli::cli_parse::parse_secs_f64 grammar + unit table).
+        "ambient-snapback-secs" => match crate::cli::cli_parse::parse_secs_f64(v.trim()) {
             Ok(n) if (0.0..=86400.0).contains(&n) => None,
-            Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),
-            Err(_) => Some(format!("expected a number in 0.0..=86400.0, got '{v}'")),
+            Ok(n) => Some(format!("expected 0.0..=86400.0 seconds, got {n}")),
+            Err(_) => Some(format!(
+                "expected a duration in 0.0..=86400.0 seconds (e.g. 30, 30s, 1m), got '{v}'"
+            )),
         },
         // v80.0.0-alpha.1: crystal-dragon-secs — float in [0.0, 86400.0].
         // Same range contract as ambient-snapback-secs (the two harmony
@@ -283,10 +288,14 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // v80.0.0-alpha.1 (S-master-HUNT-3): the min-dwell anti-flicker floor is
         // min(60s, cadence) — an explicit faster cadence is REAL (the
         // floor yields); at/slow defaults the 60s floor applies.
-        "crystal-dragon-secs" => match v.trim().parse::<f64>() {
+        // v80.0.0-alpha.2: human-duration forms accepted (60, 60s, 1m,
+        // 1h30m) — one vocabulary with the CLI flags.
+        "crystal-dragon-secs" => match crate::cli::cli_parse::parse_secs_f64(v.trim()) {
             Ok(n) if (0.0..=86400.0).contains(&n) => None,
-            Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),
-            Err(_) => Some(format!("expected a number in 0.0..=86400.0, got '{v}'")),
+            Ok(n) => Some(format!("expected 0.0..=86400.0 seconds, got {n}")),
+            Err(_) => Some(format!(
+                "expected a duration in 0.0..=86400.0 seconds (e.g. 60, 60s, 1m), got '{v}'"
+            )),
         },
         // Keys we don't have a specific validator for — assume OK.
         // Unknown keys are caught earlier by the unknown_keys check.

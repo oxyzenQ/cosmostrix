@@ -118,7 +118,9 @@ The audit confirmed the engine is already at peak. Specifically:
   `Copy` + `Clone` derived. Stack-allocated, no heap.
 - **Constants**: `CRYSTAL_DRAGON_POLLING_SECS=60.0` (v80.0.0-alpha.1:
   the DEFAULT only — the runtime value is `CrystalDragonControl.polling_secs`,
-  user-tunable via `crystal-dragon-secs` CLI/config/live-reload),
+  user-tunable via `crystal-dragon-secs` CLI/config/live-reload; v80.0.0-alpha.2:
+  accepts the human duration forms `45`/`45s`/`1m`/`1h30m` on every surface
+  — one grammar shared with `ambient-snapback-secs` and `--duration`),
   `CRYSTAL_DRAGON_MIN_DWELL_SECS=60.0`, `CRYSTAL_DRAGON_DRIFT_CHANCE=0.12`,
   `CRYSTAL_DRAGON_CPU_EMA_ALPHA=0.25`. All `pub(crate) const`, inlined
   by LLVM.

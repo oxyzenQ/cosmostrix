@@ -57,10 +57,12 @@ pub(crate) fn run_verbose_startup(
     // so verbose reports the EFFECTIVE runtime value (user-set), not the
     // constant 30.0 default. Mirrors the live_config apply path: range
     // 0.0..=86400.0; out-of-range parses to None (default 30s).
+    // v80.0.0-alpha.2: human-duration forms accepted (30, 30s, 1m, 1h30m)
+    // — parse_secs_config shares the CLI flag vocabulary.
     let verbose_ambient_snapback_secs = crate::configfile::load_config_file(args.config.as_deref())
         .get("ambient-snapback-secs")
         .and_then(|v| {
-            crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+            crate::config_apply::parse_secs_config("ambient-snapback-secs", v, 0.0, 86400.0)
         });
     // v80.0.0-alpha.1: crystal-dragon-secs effective value. args.crystal_dragon_secs
     // already reflects the CLI > config merge (config_apply ran earlier in

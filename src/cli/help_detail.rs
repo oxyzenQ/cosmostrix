@@ -81,23 +81,31 @@ COMMON OPTIONS:
       enables point-based temperature group system that drifts the
       color palette based on CPU usage or wall-clock time.
       cosmostrix --crystal-dragon true
+      (Numeric values are rejected with a hint — seconds belong on
+      --crystal-dragon-secs, not this boolean flag.)
 
   --crystal-dragon-secs <SECS>
       Crystal Dragon drift cadence in seconds (default: 60). Range
       0.0-86400.0 — the same range contract as ambient-snapback-secs.
+      Accepts the human duration forms (v80.0.0-alpha.2): 60, 60s, 1m,
+      1h30m — one vocabulary with the config key and --duration.
       This is the harmony knob for running crystal-dragon together
       with ambient: keep ambient-snapback-secs BELOW this value so
       each drift gets its full visibility window before ambient
-      reverts (snapback >= polling stretches the drift cycle to 2x
-      the poll interval — by design, not a bug). Tunable live via
-      the crystal-dragon-secs config key (live-reload applies edits
-      immediately). The min-dwell anti-flicker floor is
-      min(60s, cadence): at the 60s default (or slower) palette flips
-      cap at one per minute; an explicit faster cadence lowers the
-      floor to match — the value you set is the rhythm you get.
-      86400 = poll once per 24h.
+      reverts. With ambient active the rhythm is the interlock of the
+      two knobs (each drift is visible ambient-snapback-secs, then the
+      ambient phase re-asserts; the owner's tuned pair: --crystal-
+      dragon-secs 15s + ambient-snapback-secs 10s). Snapback >= polling
+      stretches the drift cycle (snapback >= polling edge case — by
+      design, not a bug). Tunable live via the crystal-dragon-secs
+      config key (live-reload applies edits immediately). The min-dwell
+      anti-flicker floor is min(60s, cadence): at the 60s default (or
+      slower) palette flips cap at one per minute; an explicit faster
+      cadence lowers the floor to match — the value you set is the
+      rhythm you get. 86400 = poll once per 24h.
       cosmostrix --crystal-dragon-secs 120
-      cosmostrix --crystal-dragon-secs 86400   (once per day)
+      cosmostrix --crystal-dragon-secs 2m        (same as 120)
+      cosmostrix --crystal-dragon-secs 86400     (once per day)
 
   --power-dragon <true|false>
       Power Dragon adaptive protection (default: true). When false,
@@ -581,9 +589,9 @@ ADVANCED (intentionally not in clap's auto-list, but documented here — honest 
       Config: (via --glitch-level preset)
   --duration <seconds>
       Interactive auto-exit after N seconds (min 0.1, max 86400; <=0 disables).
-      Bare float only (e.g. --duration 5 or --duration 0.5). For compound format
-      (5s, 30m, 1h30m) use --bench-duration. NOOP in --benchmark/--bench-frames/
-      --bench-all mode (warned at startup).
+      Accepts the human duration forms (v80.0.0-alpha.2): 5, 5s, 30m, 1h30m —
+      the same vocabulary as --crystal-dragon-secs and the -secs config keys.
+      NOOP in --benchmark/--bench-frames/--bench-all mode (warned at startup).
   --perf-stats
       Print performance statistics summary on exit (interactive mode).
       In --benchmark mode the BenchReportData is always emitted; this

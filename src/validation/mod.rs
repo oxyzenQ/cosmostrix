@@ -348,6 +348,21 @@ fn validate_cli_value(flag: &str, value: &str) -> Result<(), String> {
         CliKind::DecimalF64 { min, max } => {
             parse_canonical_f64_range(spec.name, value, min, max).map(|_| ())
         }
+        CliKind::HumanSecs { min, max } => match crate::cli::cli_parse::parse_secs_f64(value) {
+            Ok(secs) if (min..=max).contains(&secs) => Ok(()),
+            Ok(_) => Err(format!(
+                "error: invalid value for {}: {}\nexpected: duration in range {} (accepts 5, 5s, 1m, 1h30m)",
+                spec.name,
+                value,
+                format_range(min, max)
+            )),
+            Err(_) => Err(format!(
+                "error: invalid value for {}: {}\nexpected: duration in range {} (accepts 5, 5s, 1m, 1h30m)",
+                spec.name,
+                value,
+                format_range(min, max)
+            )),
+        },
         CliKind::Enum { allowed } => validate_enum_value(spec.name, value, allowed),
     }
 }
@@ -383,9 +398,25 @@ struct CliSpec {
 #[derive(Clone, Copy)]
 enum CliKind {
     Speed,
-    DecimalF32 { min: f32, max: f32 },
-    DecimalF64 { min: f64, max: f64 },
-    Enum { allowed: &'static [&'static str] },
+    DecimalF32 {
+        min: f32,
+        max: f32,
+    },
+    DecimalF64 {
+        min: f64,
+        max: f64,
+    },
+    /// v80.0.0-alpha.2: human-duration seconds flag (bare `5`, `5s`,
+    /// `1m`, `1h30m` — the shared cli_parse::parse_secs_f64 grammar).
+    /// The prevalidator must accept the SAME surface as the clap
+    /// value_parser or human forms would die here before clap runs.
+    HumanSecs {
+        min: f64,
+        max: f64,
+    },
+    Enum {
+        allowed: &'static [&'static str],
+    },
 }
 
 fn cli_spec(flag: &str) -> Option<CliSpec> {
@@ -410,7 +441,10 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
         },
         "--duration" => CliSpec {
             name: "--duration",
-            kind: CliKind::DecimalF64 {
+            // v80.0.0-alpha.2: accepts the human duration grammar (5,
+            // 5s, 1m, 1h30m) — mirrors the clap value_parser
+            // (cli::cli_parse::parse_secs_f64).
+            kind: CliKind::HumanSecs {
                 min: 0.1,
                 max: 86400.0,
             },

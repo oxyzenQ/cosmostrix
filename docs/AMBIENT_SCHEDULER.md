@@ -16,11 +16,13 @@ facts the rest of this document assumes, stated without engine jargon:
 | Question | Answer |
 |---|---|
 | How often does crystal-dragon act? | Drift cadence = **`crystal-dragon-secs`** (default **60s**, range 0.0..=86400.0 — CLI `--crystal-dragon-secs`, config key, live-reload). The min-dwell anti-flicker floor is **min(60s, cadence)**: at the default (or slower) palette flips cap at one per minute; a faster explicit cadence is honored as-is (S-master-HUNT-3 — the knob is real below 60s too). Cadence verified live: a 6s cadence drifted at ~6s. |
+| Do the -secs knobs accept human forms? | **YES** (v80.0.0-alpha.2): `45`, `45s`, `1m`, `1h30m` — one vocabulary across `--crystal-dragon-secs`, `--duration`, `--bench-duration`, and the `crystal-dragon-secs` / `ambient-snapback-secs` config keys (CLI and config parse through the same grammar). |
 | What is the ambient snapback? | The ambient phase re-asserting itself after something else took over (a crystal-dragon drift, or your manual `c`/`C`/`x`/`X`/`s`/`S` shortkey). |
 | Default snapback delay? | **30s** (`ambient-snapback-secs`, range 0.0..=86400.0; 0 = instant, 86400 = effectively off). |
 | Does a snapback >= the poll interval still fire? | **YES.** Verified live: a 90s snapback fired at ~90s against the 60s default poll. The timer has no upper-bound bug. A long value only stretches the rhythm (see the next row). |
 | What actually changes with snapback >= polling? | The drift palette **holds** the ambient palette for the whole window and **no new drift can fire** during it — the system looks "stuck on one color" until the snapback lands. At 86400 that is ~24h. |
-| Recommended values when combining? | Keep `ambient-snapback-secs` **under `crystal-dragon-secs`** (<= polling-10s for margin) so each drift reverts before the next poll and the two systems take clean turns. Both knobs are live-reload-able — tune the rhythm online while watching the HUD (v80.0.0-alpha.1). |
+| What is the rhythm with BOTH enabled? (the interlock) | The two knobs interlock: each drift stays visible exactly `ambient-snapback-secs`, then the ambient phase re-asserts and the poll timer restarts — so the cycle is paced by `crystal-dragon-secs` and bounded by the snapback, NOT by either knob alone (a 10s cadence with a 30s snapback does not drift every 10s — this is the documented "collision", not a bug; verified live: 15s/10s config → 5 cycles in ~95s, every drift visible exactly 10.0s). |
+| Recommended values when combining? | Keep `ambient-snapback-secs` **under `crystal-dragon-secs`** (<= polling-10s for margin) so each drift reverts before the next poll and the two systems take clean turns. **Owner's tuned pair (v80.0.0-alpha.2, verified live): `crystal-dragon-secs = 15s` + `ambient-snapback-secs = 10s`.** Both knobs are live-reload-able — tune the rhythm online while watching the HUD (v80.0.0-alpha.1). |
 | I set `density = 0.90` but the HUD shows ~0.65 — bug? | No. `power-dragon` (default on) throttles the *effective* density under pressure; the HUD `dsty:` line shows the effective value. Set `power-dragon = false` (or `--power-dragon false`) for the exact fixed value. |
 | Do I need both dragons? | No. If you do not want drift-vs-ambient interplay, turn either one off — never required together. |
 
@@ -209,6 +211,18 @@ T=190:  snapback fires → revert
 
 **Rhythm**: 60s ambient → 10s drift → revert → 60s ambient → 10s drift
 → revert → ... Drift is visible for exactly `ambient-snapback-secs`.
+
+**The interlock (v80.0.0-alpha.2, owner "collision" question, verified
+live)**: with ambient ON the drift cadence you FEEL is not
+`crystal-dragon-secs` alone — each snapback restarts the poll timer
+(`try_auto_snapback` resets `crystal_dragon_last_poll`), so the cycle
+paces at roughly `crystal-dragon-secs` + the re-assert overhead and each
+drift's visibility is capped at `ambient-snapback-secs`. A 10s cadence
+with the 30s default snapback therefore does NOT drift every 10s. Empirical
+(95s PTY run, `crystal-dragon-secs = 15s` + `ambient-snapback-secs = 10s`):
+5 drift cycles, every drift reverted after exactly 10.0s ("auto-snapback
+after 10.0s (drift_active=true)" ×5 in the trace). The owner's tuned
+harmony pair is exactly that 15s/10s recipe.
 
 **Timeline (ambient OFF)** — Z-master-1X round 2 (commit `40bad33`):
 

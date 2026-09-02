@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-alpha.1 — S-master-HUNT-4 owner bug quintet + human durations (CLI fallback, deferral, interlock docs)
+
+Owner report: commenting config keys back out stopped falling back to
+the CLI setup (order-dependent); `--crystal-dragon 10` (a typo for the
+`-secs` flag) hard-rejected; the crystal-dragon × ambient rhythm felt
+unpredictable; the informational watcher-liveness line still exposed
+after non-verbose runs. All root-caused empirically (PTY harness,
+isolated XDG config, release binary, debug trace drain) before fixing.
+
+- **CLI fallback restored (critical)**: the live-reload watcher DROPPED
+  the edit that comments out the last config key (any zero-key parse
+  was treated as "empty file, skip"), so the rebuild restoring the
+  CLI-locked startup values never ran — the engine stayed on the last
+  config-driven scene/color/charset (order- and timing-dependent
+  because the ambient ground-truth guard sometimes rescued the
+  palette). A zero-key file with comment content is now a DELIBERATE
+  empty config: delivered as the empty map, the rebuild falls back to
+  the CLI locks. Both comment orders verified end-to-end (final state
+  == startup scene/color/charset; 4/4 edits rebuilt).
+- **Ambient deferral survives config edits**: the fresh Cloud built by
+  every rebuild reset `user_override_since_ambient` to false, ending
+  the "CLI wins first, then ambient takes over after
+  ambient-snapback-secs" window at the first config save. The rebuild
+  now restores the pre-rebuild flag after the swap.
+- **Schedule-empty restore is verbatim**: the AB-05 visual restore
+  called `apply_scene_runtime`, re-deriving the scene's DEFAULTS over
+  the just-restored CLI locks (`--scene cosmos -c carbon -C zen` came
+  back as the scene's nebula/binary). Now label-only (`set_scene_label`)
+  — create_cloud already baked the correctly-layered family.
+- **Verbose-only liveness line**: `[live-reload] native watcher silent
+  …` routed to the always-drained warning channel (a bbdd180a
+  regression); now on the verbose-only diag channel.
+- **Human durations everywhere (owner contract)**: `45`, `45.5`,
+  `45s`, `1m`, `1h30m` accepted by `--crystal-dragon-secs`,
+  `--duration`, and the `crystal-dragon-secs` /
+  `ambient-snapback-secs` config keys on every surface (startup,
+  `--testconf`, live-reload validation + apply, template) — one
+  grammar + unit table shared with `--bench-duration`.
+  `--crystal-dragon 10` now errors WITH a hint pointing at
+  `--crystal-dragon-secs`.
+- **Hunt-find — per-frame config read**: the snapback ground-truth
+  guard re-read + re-parsed the config EVERY FRAME while ambient was
+  applied (~60 reads/s), contradicting its "≤ once per 30s" comment;
+  each read also fired an inotify Access event that exhausted the
+  1000-entry debug drain within seconds (destroying trace evidence).
+  Now rate-limited to the shared 5s ground-truth budget.
+- **Crystal-dragon × ambient interlock documented**: each drift is
+  visible exactly `ambient-snapback-secs`, then the ambient phase
+  re-asserts and the poll timer restarts — the rhythm is the interlock
+  of both knobs, not either alone (verified live: 15s/10s config → 5
+  cycles in 95s, every drift reverted at exactly 10.0s; owner's tuned
+  pair `crystal-dragon-secs = 15s` + `ambient-snapback-secs = 10s` now
+  in `--help`, the config template, and the two engine docs).
+- 28 net new tests (2129 total); A/B benchmark parity (all deltas
+  within run noise); fmt + clippy -D warnings clean; gate-keepers 9/9;
+  windows-gnu + freebsd cross-checks clean.
+
 ### docs: v80.0.0-alpha.1 — documentation masterclass de-bloat (owner directive)
 
 Owner audit: the md corpus carried redundant, duplicate, stale-prone

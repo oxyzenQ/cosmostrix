@@ -52,9 +52,18 @@ fn parse_true_false(input: &str) -> Result<bool, String> {
     match input.to_ascii_lowercase().as_str() {
         "true" | "1" | "yes" | "on" => Ok(true),
         "false" | "0" | "no" | "off" => Ok(false),
-        other => Err(format!(
-            "invalid boolean value '{other}' (expected: true|false|1|0|yes|no|on|off)"
-        )),
+        other => {
+            // v80.0.0-alpha.2 (owner typo `--crystal-dragon 10`): hint the
+            // -secs twin when a NUMBER lands on a bool flag.
+            let hint = if other.parse::<f64>().is_ok() {
+                " — numeric values are not booleans; for seconds use --crystal-dragon-secs (e.g. --crystal-dragon-secs 10)"
+            } else {
+                ""
+            };
+            Err(format!(
+                "invalid boolean value '{other}' (expected: true|false|1|0|yes|no|on|off){hint}"
+            ))
+        }
     }
 }
 
@@ -187,10 +196,8 @@ pub struct Args {
     #[arg(
         short = 'C',
         long = "charset",
-        // depth-test fix: --charset-custom alias (pure UX parity with
-        // --colors-custom/--scene-custom — --charset already accepts
-        // built-in presets AND custom names; clap `alias` keeps the
-        // name visible in --help suggestions).
+        // depth-test fix: --charset-custom alias (UX parity with
+        // --colors-custom/--scene-custom; clap alias keeps suggestions).
         alias = "charset-custom",
         default_value = "binary",
         help_heading = "COMMON OPTIONS",
@@ -199,10 +206,8 @@ pub struct Args {
     )]
     pub charset: String,
 
-    // v25: --charset-file CLI flag REMOVED. Custom charsets now live in
-    // config.toml under [charset-custom.<name>] and are loaded via
-    // --charset <name> (or `charset = "<name>"` in config). See
-    // --help and `cosmostrix --dump-config` for the new format.
+    // v25: --charset-file CLI flag REMOVED. Custom charsets live in
+    // config.toml under [charset-custom.<name>]; see --dump-config.
     #[arg(
         short = 'f',
         long = "fps",
@@ -366,12 +371,8 @@ pub struct Args {
     )]
     pub dump_config: Option<String>,
 
-    // v30 (2026-08-05): --force flag. Currently affects --dump-config ONLY
-    // (allows overwriting an existing file at the target path). Other write
-    // operations (--save-baseline, etc.) have their own per-flag overwrite
-    // policy and are not affected by --force. Documented as scoped to make
-    // the contract explicit — users should not assume --force is a global
-    // "yes to all prompts" flag.
+    // v30 (2026-08-05): --force flag. Scoped to --dump-config ONLY (allows
+    // overwriting an existing file); other write ops are unaffected.
     #[arg(
         long = "force",
         help_heading = "CONFIG",
@@ -612,7 +613,8 @@ pub struct Args {
     #[arg(
         long = "duration",
         hide = true,
-        help = "Stop after N seconds (min 0.1 max 86400; <=0 disables)"
+        value_parser = crate::cli::cli_parse::parse_secs_f64,
+        help = "Stop after N seconds (min 0.1 max 86400; accepts 5, 5s, 1m, 1h30m; <=0 disables)"
     )]
     pub duration: Option<f64>,
 
@@ -661,12 +663,15 @@ pub struct Args {
     /// is min(60s, cadence) — an explicit faster cadence lowers the
     /// floor to match (the knob is real); at/above default the 60s floor
     /// applies. 86400 = once per 24h; 0.0 = poll every tick (degenerate).
-    /// Config key: `crystal-dragon-secs`.
+    /// Config key: `crystal-dragon-secs`. v80.0.0-alpha.2: accepts the shared
+    /// human duration vocabulary (60, 60s, 1m, 1h30m, 45.5s) at clap level
+    /// (`cli::cli_parse::parse_secs_f64`); field stays `Option<f64>`.
     #[arg(
         long = "crystal-dragon-secs",
         value_name = "SECS",
         num_args = 1,
-        help = "Crystal Dragon drift cadence in seconds (0.0-86400.0, default: 60) — tune harmony with ambient-snapback-secs"
+        value_parser = crate::cli::cli_parse::parse_secs_f64,
+        help = "Crystal Dragon drift cadence (0.0-86400.0 seconds, default: 60; accepts 60, 60s, 1m, 1h30m) — tune harmony with ambient-snapback-secs"
     )]
     pub crystal_dragon_secs: Option<f64>,
 
@@ -765,13 +770,9 @@ pub struct Args {
     #[arg(skip = 3u8)]
     pub max_droplets_per_column: u8,
 
-    // v30 simplify: --noglitch CLI flag REMOVED. Was a strict duplicate of
-    // `--glitch-level none` (the only behavior `--noglitch` had was to flip
-    // `cloud.glitchy` to false, which is exactly what `--glitch-level none`
-    // does). The `noglitch` field is replaced by `glitch_enabled` (positive
-    // polarity) on CloudConfig, derived from `glitch_level != GlitchLevel::None`.
-    // See REMOVED_FLAGS in src/validation/mod.rs for the migration message.
-
+    // v30 simplify: --noglitch CLI flag REMOVED — a strict duplicate of
+    // `--glitch-level none`; see REMOVED_FLAGS in src/validation/mod.rs.
+    //
     // v17 mastery: --rippct / -r CLI flag REMOVED. Use --glitch-level instead.
     #[arg(skip = 33.33333_f32)]
     pub rippct: f32,

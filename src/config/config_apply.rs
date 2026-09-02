@@ -539,7 +539,9 @@ fn apply_config_values(
     // the two harmony knobs validate identically on every surface
     // (startup, --testconf, live-reload strict validation).
     if let Some(v) = config_value(matches, cfg, "crystal_dragon_secs", "crystal-dragon-secs") {
-        if let Some(secs) = parse_f64_config("crystal-dragon-secs", &v, 0.0, 86400.0) {
+        // v80.0.0-alpha.2: human-duration forms accepted (45, 45s, 1m,
+        // 1h30m) — same vocabulary as the CLI flag, one unit table.
+        if let Some(secs) = parse_secs_config("crystal-dragon-secs", &v, 0.0, 86400.0) {
             args.crystal_dragon_secs = Some(secs);
             config_touched.insert("crystal-dragon-secs");
         }
@@ -666,6 +668,28 @@ pub(crate) fn parse_f64_config(name: &str, value: &str, min: f64, max: f64) -> O
         Err(_) => {
             crate::output::eprintln_error_labeled(&format!(
                 "invalid {name}='{value}' (expected: number in range {min}..={max})"
+            ));
+            None
+        }
+    }
+}
+
+/// v80.0.0-alpha.2: human-duration config parse for the SECONDS keys
+/// (`crystal-dragon-secs`, `ambient-snapback-secs`) — SAME vocabulary as
+/// the CLI flags (45, 45.5, 45s, 1m, 1h30m) via the shared
+/// `cli::cli_parse::parse_secs_f64`. Range/rejection mirror parse_f64_config.
+pub(crate) fn parse_secs_config(name: &str, value: &str, min: f64, max: f64) -> Option<f64> {
+    match crate::cli::cli_parse::parse_secs_f64(value) {
+        Ok(secs) if (min..=max).contains(&secs) => Some(secs),
+        Ok(secs) => {
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' (resolves to {secs}s, expected range {min}..={max})"
+            ));
+            None
+        }
+        Err(e) => {
+            crate::output::eprintln_error_labeled(&format!(
+                "invalid {name}='{value}' ({e}; accepts 45, 45.5, 45s, 1m, 1h30m)"
             ));
             None
         }

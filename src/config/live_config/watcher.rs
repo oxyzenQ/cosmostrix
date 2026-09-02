@@ -263,8 +263,15 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
             native_silence_warned = true;
             let elapsed = loop_start.elapsed().as_secs();
             lr_trace!("LIVENESS: native silent {elapsed}s — poll-only (OK)");
-            // AB-10: buffer — eprintln leaks into the alt screen.
-            push_runtime_warning(&format!(
+            // v80.0.0-alpha.2 (S-master-HUNT-4, owner regression report):
+            // this line is INFORMATIONAL (the polling heartbeat fully
+            // covers detection — nothing is broken), so it belongs on the
+            // VERBOSE-ONLY diag channel (push_runtime_diag, drained only
+            // with --verbose — the bbdd180a contract). The old
+            // push_runtime_warning routing exposed it after EVERY
+            // non-verbose run (owner paste: "! [live-reload] native
+            // watcher silent 33s — polling heartbeat sole detector").
+            crate::live_config::push_runtime_diag(&format!(
                 "[live-reload] native watcher silent {elapsed}s — polling heartbeat sole detector (informational)"
             ));
         }
@@ -283,6 +290,27 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
         }
     }
     lr_trace!("watcher_loop exited");
+}
+
+/// Zero-key parse classification (v80.0.0-alpha.2, S-master-HUNT-4).
+///
+/// `true` = the content has non-whitespace bytes but ZERO parsed keys —
+/// the user deliberately commented out every key (all `#` lines). This is
+/// a VALID empty config: the event MUST be delivered so the rebuild
+/// restores the CLI-locked startup values (config key absent → the CLI
+/// lock resurfaces — the v80 owner contract). The pre-alpha.2 watcher
+/// unconditionally dropped zero-key events, so commenting out the last
+/// config key left the engine stuck on the last config-driven
+/// scene/color/charset forever (owner repro: `--scene cosmos` + config
+/// `scene = cinematic` + `ambient.12-00 = monolith`, both commented back
+/// out → stayed cinematic/monolith instead of returning to cosmos).
+///
+/// `false` = whitespace-only content (0 meaningful bytes) — a transient
+/// artifact of a non-atomic editor save (truncate → write in progress).
+/// Skip: the completed write fires its own event and rebuilds then
+/// (the pre-alpha.2 behavior, kept for this case).
+pub(crate) fn zero_key_is_deliberate(content: &str) -> bool {
+    !content.trim().is_empty()
 }
 
 /// Process a single notify event. Returns `false` if channel closed.
@@ -401,7 +429,14 @@ pub(crate) fn handle_notify_event(
                 parsed.unknown_keys.len()
             );
             if parsed.values.is_empty() && parsed.malformed_lines.is_empty() {
-                return true; // empty parse — likely empty/whitespace-only file
+                if !zero_key_is_deliberate(&content) {
+                    lr_trace!("empty parse (whitespace-only file — transient atomic save) — skipping event");
+                    return true;
+                }
+                lr_trace!(
+                    "zero-key parse (all keys commented out) — sending the empty map (CLI-locked fallback restores)"
+                );
+                // Fall through: validate + send the empty map below.
             }
 
             if let Err(msg) = validate_and_send(&parsed, tx) {

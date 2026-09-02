@@ -85,12 +85,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                       # dwell floor + poll window, not the ~12%/frame chance — that is a
 #                                       # small post-dwell jitter). Organic, not periodic.
 # crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default). Crystal Dragon drift cadence — the
-#                                       # harmony twin of ambient-snapback-secs. Live-reload applies edits
-#                                       # immediately (tune the rhythm online). Min-dwell floor is
-#                                       # min(60s, cadence): at the default (or slower) palette flips cap
-#                                       # at one per minute; a faster explicit cadence is honored as-is.
-#                                       # 86400 = poll once per 24h. CLI: --crystal-dragon-secs.
+#                                       # harmony twin of ambient-snapback-secs. Accepts the human duration
+#                                       # forms (v80.0.0-alpha.2): 60, 60s, 1m, 1h30m — same vocabulary as
+#                                       # the CLI flag. Live-reload applies edits immediately (tune the
+#                                       # rhythm online). Min-dwell floor is min(60s, cadence): at the
+#                                       # default (or slower) palette flips cap at one per minute; a faster
+#                                       # explicit cadence is honored as-is. 86400 = poll once per 24h.
+#                                       # CLI: --crystal-dragon-secs.
 # ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant).
+#                                       # Accepts the human duration forms: 30, 30s, 1m, 1h30m.
 #                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
 #                                       # visible before the ambient phase re-asserts. ANY value fires — a value
 #                                       # >= the poll interval still triggers (verified live at 90s vs 60), it
@@ -99,7 +102,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                       # Harmony sweet spot (v80.0.0-alpha.1, now relative): keep
 #                                       # ambient-snapback-secs UNDER crystal-dragon-secs (<= polling-10s for
 #                                       # margin) so each drift reverts before the next poll — see the timing
-#                                       # guide in the ambient section.
+#                                       # guide in the ambient section. Owner's tuned pair (alpha.2, verified
+#                                       # live): crystal-dragon-secs = 15s + ambient-snapback-secs = 10s.
 # bold = 1                              # 0=off, 1=random, 2=all
 # shading-mode = 1                       # 0=random, 1=cinematic
 

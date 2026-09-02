@@ -742,4 +742,5 @@ mod async_mode;
 mod strict_mode;
 mod v50_beta3_cli_flags;
 mod v50_message_keys;
+mod v80_alpha2_human_secs;
 mod v80_beta2_custom_parity;

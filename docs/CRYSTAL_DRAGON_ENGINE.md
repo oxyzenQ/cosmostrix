@@ -46,11 +46,14 @@ subdir convention).
 v80.0.0-alpha.1: the **polling interval is now user-tunable** — the one
 knob the harmony use-case needs. `--crystal-dragon-secs <SECS>` (CLI) and
 `crystal-dragon-secs = <SECS>` (config key, live-reload-able), range
-`0.0..=86400.0`, default `60.0` (the constant below). Resolution order:
-CLI > config > default; the drift-cycle self-reset follows the configured
-value, not the constant. Every other knob below stays an owner-chosen
-constant (silent-elegant mode — deliberately NOT config-exposed; see the
-over-engineering guard note at `create_cloud`).
+`0.0..=86400.0`, default `60.0` (the constant below). v80.0.0-alpha.2:
+both surfaces accept the **human duration forms** (`45`, `45s`, `1m`,
+`1h30m`) — one grammar shared with `--duration` and
+`ambient-snapback-secs` (`cli::cli_parse::parse_secs_f64`). Resolution
+order: CLI > config > default; the drift-cycle self-reset follows the
+configured value, not the constant. Every other knob below stays an
+owner-chosen constant (silent-elegant mode — deliberately NOT
+config-exposed; see the over-engineering guard note at `create_cloud`).
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
@@ -64,17 +67,23 @@ over-engineering guard note at `create_cloud`).
 ```toml
 # config.toml
 crystal-dragon = true
-crystal-dragon-secs = 120      # poll every 120s (0.0..=86400.0)
-ambient-snapback-secs = 30     # keep snapback UNDER the poll interval
+crystal-dragon-secs = 2m       # poll every 120s — human forms accepted (120, 2m, 1h30m)
+ambient-snapback-secs = 30s    # keep snapback UNDER the poll interval
 ```
 
 The knob exists to resolve the crystal-dragon × ambient timing
 relationship **online**: both timers share one timeline, and the
 recommended configuration is `ambient-snapback-secs <
 crystal-dragon-secs` (<= polling-10s for margin) so each drift gets its
-full visibility window before the ambient phase re-asserts. A snapback
->= the poll interval still fires — it just stretches the drift cycle
-(see `docs/AMBIENT_SCHEDULER.md` "Edge case: snapback >= polling").
+full visibility window before the ambient phase re-asserts. With ambient
+active the rhythm is the **interlock of the two knobs** (each drift
+visible `ambient-snapback-secs`, then the phase re-asserts and the poll
+timer restarts) — a 10s cadence with the 30s default snapback does not
+drift every 10s; the owner's verified pair is `crystal-dragon-secs =
+15s` + `ambient-snapback-secs = 10s` (5 cycles in a 95s run, every drift
+visible exactly 10.0s). A snapback >= the poll interval still fires — it
+just stretches the drift cycle (see `docs/AMBIENT_SCHEDULER.md` "Edge
+case: snapback >= polling" + the interlock note).
 Live-reload applies edits immediately: the rebuilt CloudConfig reaches
 `create_cloud`, which writes `crystal_dragon_control.polling_secs`, and
 `inherit_ecosystem_state` no longer carries the old cloud's control

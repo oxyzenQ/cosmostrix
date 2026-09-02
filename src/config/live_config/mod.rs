@@ -450,13 +450,14 @@ pub(crate) fn rebuild_cloud_config(
     // knob. Config key present (valid) wins over the CLI lock; absent key
     // keeps the locked startup value in base (mirrors crystal-dragon).
     // Out-of-range values are rejected upstream by validate_config_strictly
-    // before rebuild runs, so the parse_f64_config fallback (None → keep
+    // before rebuild runs, so the parse_secs_config fallback (None → keep
     // base) is defense-in-depth only. The new value reaches the Cloud via
     // create_cloud (CloudConfig -> crystal_dragon_control.polling_secs);
     // inherit_ecosystem_state no longer copies the old cloud's control.
+    // v80.0.0-alpha.2: human-duration forms accepted (45, 45s, 1m, 1h30m).
     if let Some(v) = cfg.get("crystal-dragon-secs") {
         if let Some(secs) =
-            crate::config_apply::parse_f64_config("crystal-dragon-secs", v, 0.0, 86400.0)
+            crate::config_apply::parse_secs_config("crystal-dragon-secs", v, 0.0, 86400.0)
         {
             new.crystal_dragon_secs = Some(secs);
             crate::lr_trace!("crystal-dragon-secs: {}", secs);
@@ -755,8 +756,10 @@ pub(crate) fn rebuild_cloud_config(
     // When the key is absent (commented out), fall back to None (default
     // 30s via AUTO_SNAPBACK_DELAY_SECS). Mirrors the color.tune
     // reset-on-comment pattern (LIVE_RELOAD_BEHAVIOR.md Limitation C).
+    // v80.0.0-alpha.2: human-duration forms accepted (30, 30s, 1m, 1h30m)
+    // — same vocabulary as every other seconds-scale input.
     new.ambient_snapback_secs = cfg.get("ambient-snapback-secs").and_then(|v| {
-        crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+        crate::config_apply::parse_secs_config("ambient-snapback-secs", v, 0.0, 86400.0)
     });
     if let Some(secs) = new.ambient_snapback_secs {
         lr_trace!("ambient-snapback-secs: {}", secs);
@@ -791,3 +794,6 @@ mod tests_crystal_dragon_secs;
 
 #[cfg(test)]
 mod tests_effects_gate;
+
+#[cfg(test)]
+mod tests_alpha2_zero_key;

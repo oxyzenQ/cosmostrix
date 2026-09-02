@@ -26,6 +26,21 @@ use crate::crystal_dragon_engine::ambient_scheduler::AmbientSchedulerHandle;
 use crate::frame::Frame;
 use crate::terminal::Terminal;
 
+/// v80.0.0-alpha.2 (S-master-HUNT-4): minimum interval between ANY
+/// ground-truth config re-reads (the rx-event nuke above AND the snapback
+/// guard below share one budget via `last_ground_truth_check`).
+///
+/// Pre-alpha.2 the snapback guard had NO rate limit — it re-read +
+/// re-parsed the config EVERY FRAME while ambient was applied (~60
+/// reads/sec), contradicting its own "≤ once per 30s" comment, flooding
+/// the watcher with inotify Access events (2 trace lines per read — the
+/// 1000-entry debug drain exhausted in seconds), and burning I/O for a
+/// pure backup path. 5s staleness is acceptable: the watcher delivers
+/// real ambient-removal edits within ~100ms (the zero-key fix in
+/// watcher.rs makes even the all-commented case reliable); this guard
+/// only exists to catch watcher-missed removals.
+const GROUND_TRUTH_MIN_INTERVAL_SECS: u64 = 5;
+
 /// Poll ambient phase events + apply ground-truth guard + apply entry.
 ///
 /// Handles AB-03/04 (poll + discard stale), AB-08 (ground-truth file
@@ -80,9 +95,11 @@ pub(crate) fn poll_ambient_events(
     }
     // AB-08: ground-truth guard — if config file on disk says 0 entries but
     // we got an rx event, the event is stale. Discard + nuke ambient state.
-    // v50 audit C-2: rate-limit to 1 check per 5s (was per-frame).
+    // v50 audit C-2: rate-limit to 1 check per GROUND_TRUTH_MIN_INTERVAL_SECS
+    // (was per-frame).
     if last_ambient_entry.is_some()
-        && (*last_ground_truth_check).elapsed() >= std::time::Duration::from_secs(5)
+        && (*last_ground_truth_check).elapsed()
+            >= std::time::Duration::from_secs(GROUND_TRUTH_MIN_INTERVAL_SECS)
     {
         *last_ground_truth_check = Instant::now();
         if let Some(ref path) = config_path_for_ground_truth {
@@ -175,12 +192,25 @@ pub(crate) fn poll_ambient_events(
             fps_intent = crate::scene_custom::ambient_scene_fps(&entry.scene, &cfg_map);
         }
     }
-    // AB-08: snapback ground-truth guard — re-read config file (~50µs I/O, ≤ once per 30s).
+    // AB-08: snapback ground-truth guard — re-read config file (~50µs I/O),
+    // rate-limited to the shared GROUND_TRUTH_MIN_INTERVAL_SECS budget
+    // (see the const doc for the pre-alpha.2 per-frame-read defect this
+    // fixes: I/O burn + inotify Access-event flood exhausting the
+    // 1000-entry debug trace). Backup-only path — the watcher delivers
+    // real ambient-removal edits within ~100ms.
     let _ab06_sked_len = last_ambient_schedule.entries.len() as u64;
     let _ab06_last_applied = last_applied_ambient_entry.is_some();
     super::ambient_diag_snapback_guard(_ab06_sked_len, _ab06_last_applied);
+    let guard_budget_ok = (*last_ground_truth_check).elapsed()
+        >= std::time::Duration::from_secs(GROUND_TRUTH_MIN_INTERVAL_SECS);
     let ground_truth_ambient_empty =
-        if !*ambient_snapback_killed && _ab06_sked_len > 0 && _ab06_last_applied {
+        if !*ambient_snapback_killed && guard_budget_ok && _ab06_sked_len > 0 && _ab06_last_applied
+        {
+            // v80.0.0-alpha.2: consume the shared budget — reset the
+            // timestamp when THIS guard performs a read, so the interval
+            // is actually enforced (the rx-event guard above only resets
+            // when an rx event arrives).
+            *last_ground_truth_check = Instant::now();
             let mut empty = false;
             if let Some(ref path) = config_path_for_ground_truth {
                 if let Ok(c) = crate::config_io::read_config_capped(path) {

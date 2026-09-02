@@ -260,12 +260,14 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         ),
         // v50.0.0-beta.7: ambient-snapback-secs config key (config-only,
         // no CLI flag). None = use default AUTO_SNAPBACK_DELAY_SECS (30.0).
-        // Range 0.0..=86400.0 validated by parse_f64_config. Invalid values
+        // Range 0.0..=86400.0 validated by parse_secs_config. Invalid values
         // emit a startup error and fall back to None (default).
+        // v80.0.0-alpha.2: human-duration forms accepted (30, 30s, 1m,
+        // 1h30m) — same vocabulary as the -secs CLI flags.
         ambient_snapback_secs: configfile::load_config_file(args.config.as_deref())
             .get("ambient-snapback-secs")
             .and_then(|v| {
-                crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
+                crate::config_apply::parse_secs_config("ambient-snapback-secs", v, 0.0, 86400.0)
             }),
         // v80.0.0-alpha.1: crystal-dragon-secs — CLI > config merge already
         // resolved by apply_config_and_runtime_defaults into

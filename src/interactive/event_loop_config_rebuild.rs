@@ -153,6 +153,19 @@ pub(crate) fn apply_config_rebuild(
         let mut new_cloud = new_cfg.create_cloud(density);
         new_cloud.inherit_ecosystem_state(cloud);
         *cloud = new_cloud;
+        // v80.0.0-alpha.2 (S-master-HUNT-4): restore the ambient deferral
+        // flag the fresh Cloud just reset to false (Cloud::new default —
+        // inherit_ecosystem_state does not carry it). Without this, ANY
+        // config edit destroyed the startup CLI deferral
+        // ("CLI wins first, then ambient takes over after
+        // ambient-snapback-secs"): the next rx event / snapback read the
+        // reset flag as "ambient owns" and applied the ambient phase
+        // instantly — the owner's "sometimes works, sometimes not"
+        // timing-dependent fallback. The arms below still own the flag
+        // for their cases (re-apply → false, defer/empty → true); this
+        // restore only covers the no-branch path (e.g. the ambient-adding
+        // edit before the first rx event arrives).
+        cloud.user_override_since_ambient = preserve_user_override;
         cloud.reset(w, h);
         cloud.enable_events();
         cloud.set_component_timing(new_cfg.perf_stats);
@@ -342,21 +355,21 @@ pub(crate) fn apply_config_rebuild(
                 } else {
                     *scene_name = new_cfg.scene_name.clone();
                     *scene_generation = (*scene_generation).wrapping_add(1);
-                    // NOTE (S-master-HUNT): deliberately the BUILTIN-ONLY
-                    // variant — NOT apply_scene_runtime_with_cfg. The
-                    // rebuilt cloud already carries the correct family
-                    // (create_cloud bakes new_cfg, whose family came from
-                    // the restore/sync); re-deriving a CUSTOM scene's
-                    // block layer here would re-stomp the CLI-shadowed
-                    // lock values the restore just put back (the bug-2
-                    // defect family). For custom scene names this call is
-                    // an intentional no-op.
-                    *charset_preset = cloud.apply_scene_runtime(
-                        &*scene_name,
-                        &*charset_preset,
-                        user_ranges,
-                        def_ascii,
-                    );
+                    // v80.0.0-alpha.2 (S-master-HUNT-4, owner bug: color/charset
+                    // came back as the scene's defaults instead of the CLI
+                    // setup): set the LABEL only — create_cloud already baked
+                    // the correct family (new_cfg's color/charset carry the
+                    // restore/sync/config layering WITH the CLI locks).
+                    // apply_scene_runtime re-derives the scene's DEFAULTS
+                    // unconditionally (no cli_explicit gates) and stomped
+                    // the locks: `--scene cosmos -c carbon -C zen` + comment
+                    // out scene/ambient.* returned nebula/binary instead of
+                    // carbon/zen. The S-master-HUNT note below assumed only
+                    // CUSTOM scenes stomp — built-in scenes carry color/charset
+                    // too. Mirrors revert_ambient_owned_scene's verbatim-
+                    // snapshot contract.
+                    cloud.set_scene_label(&*scene_name);
+                    *charset_preset = new_cfg.charset_preset.clone();
                     term.set_color_cache(ColorCache::new(&cloud.palette));
                     *frame = Frame::new(w, h, cloud.palette.bg);
                     super::fill_terminal_bg(cloud.palette.bg);
@@ -364,14 +377,11 @@ pub(crate) fn apply_config_rebuild(
             } else {
                 *scene_name = new_cfg.scene_name.clone();
                 *scene_generation = (*scene_generation).wrapping_add(1);
-                // NOTE (S-master-HUNT): builtin-only variant by design —
-                // see the comment in the preserve branch above.
-                *charset_preset = cloud.apply_scene_runtime(
-                    &*scene_name,
-                    &*charset_preset,
-                    user_ranges,
-                    def_ascii,
-                );
+                // v80.0.0-alpha.2: label-only, same rationale as the preserve
+                // branch above (create_cloud baked the family; re-deriving
+                // the scene defaults stomps the CLI locks).
+                cloud.set_scene_label(&*scene_name);
+                *charset_preset = new_cfg.charset_preset.clone();
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 *frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);

@@ -1227,3 +1227,130 @@ perception is structurally gone.
   parity (all deltas within run noise).
 - Full suite: 2101 passed / 0 failed / 2 ignored; fmt + clippy
   (`--all-targets --all-features -D warnings`) clean.
+
+## 18. v80.0.0-alpha.2 S-master-HUNT-4 — CLI Fallback, Human Durations, Interlock Docs (owner audit 2026-09-03, post-6dbd61e2)
+
+Owner report: commenting config keys back out stopped falling back to the
+CLI setup (order-dependent: comment-scene-first stuck, comment-ambient-first
+worked); `--crystal-dragon 10` (a typo for the -secs flag) hard-rejected;
+the crystal-dragon × ambient rhythm felt unpredictable; the informational
+watcher-liveness line still exposed after non-verbose runs.
+
+### Bug A (critical): "comment out the last key → stuck on the last config scene"
+
+Owner repro (exact): `cosmostrix -s --scene cosmos --crystal-dragon-secs
+10 -c carbon -C zen`, config `scene = cinematic`, then
+`ambient.12-00 = monolith`, then both commented back out — the engine
+stayed cinematic/monolith instead of returning to cosmos/carbon/zen.
+Root cause (empirical, PTY + trace): the watcher DROPPED the edit that
+comments out the last key — `handle_notify_event` treated any zero-key
+parse as "empty file, likely atomic save, skip" (`return true`), so the
+rebuild that restores the CLI locks never ran. Whichever key family was
+commented out LAST never took effect; the ambient ground-truth guard
+sometimes rescued the palette, which made the bug look order- and
+timing-dependent. Fix: zero-key parses are now classified —
+non-whitespace content (comment lines present) is a DELIBERATE empty
+config and is delivered as the empty map (validation passes, the rebuild
+falls back to the CLI-locked startup values); whitespace-only content
+keeps the old skip (transient truncate-then-write). Both comment orders
+now end at the CLI setup (verified end-to-end: final state == startup
+scene/color/charset, cfg_rebuilds 4/4, ambient_entries honestly 0).
+
+### Bug B: the startup ambient deferral died on the first config edit
+
+The fresh Cloud built by every rebuild resets
+`user_override_since_ambient` to false (`Cloud::new` default;
+`inherit_ecosystem_state` does not carry it), so the "CLI wins first,
+then ambient takes over after ambient-snapback-secs" deferral silently
+ended at the first config save — the next rx/snapback applied the
+ambient phase instantly. This is the same family the S-master-HUNT
+deferral-parity fix addressed for the RE-APPLY arm (gated on the
+pre-rebuild flag) — the rx-event path still read the reset flag. Fix:
+`apply_config_rebuild` restores the pre-rebuild flag onto the fresh
+Cloud right after the swap; the re-apply/defer/empty arms still own the
+flag for their cases.
+
+### Bug C: the schedule-empty visual restore re-derived scene defaults over the CLI locks
+
+The AB-05 branches called `cloud.apply_scene_runtime(new scene)` after
+the rebuild — but `create_cloud` already bakes the correctly-layered
+family (restore/sync/config layers, WITH the CLI gates), and the runtime
+call re-applies the scene's DEFAULTS unconditionally (no cli_explicit
+gates): `--scene cosmos -c carbon -C zen` came back as the scene's
+nebula/binary instead of the CLI's carbon/zen. The S-master-HUNT note
+assumed only CUSTOM scenes stomp — built-in scenes carry color/charset
+too. Fix: label-only (`set_scene_label`, the S-master-HUNT-2 helper) +
+`charset_preset` from the rebuilt config — the verbatim-snapshot
+contract the ambient revert already uses.
+
+### Bug D: `[live-reload] native watcher silent …` exposed without `-v`
+
+The informational liveness line (bbdd180a era) still routed through the
+always-drained `push_runtime_warning` channel. Fix: routed to the
+verbose-only diag channel (`push_runtime_diag`) — the bbdd180a contract;
+nothing is actionable in the message (the polling heartbeat fully covers
+detection). Verified: 45s non-verbose run with a mid-run edit shows zero
+`[live-reload]` lines.
+
+### Hunt-finds beyond the owner's list
+
+- **Per-frame config read in the snapback ground-truth guard** — the
+  guard re-read + re-parsed the config EVERY FRAME while ambient was
+  applied (~60 reads/s at 60 FPS), contradicting its own "≤ once per 30s"
+  comment: wasted I/O, and each read fired an inotify `Access(Open)`
+  event back into the watcher loop (2 trace lines each) that exhausted
+  the 1000-entry debug drain within seconds — destroying the trace
+  evidence that debug runs exist for. Fix: the guard shares the
+  GROUND_TRUTH_MIN_INTERVAL_SECS (5s) budget with the rx-event nuke
+  (backup-only path — the watcher delivers real edits within ~100ms).
+- **`--crystal-dragon 10` numeric-bool typo** (the owner's actual input):
+  `parse_true_false` now hints `--crystal-dragon-secs` when a NUMBER
+  lands on a boolean flag, instead of a bare "invalid boolean" error.
+- **Human duration forms everywhere (owner contract: "all consistency,
+  simple human size, valid for CLI and config")**: `45`, `45.5`, `45s`,
+  `1m`, `1h30m` are accepted by `--crystal-dragon-secs`, `--duration`
+  (clap level, field type unchanged), and the `crystal-dragon-secs` /
+  `ambient-snapback-secs` config keys on every surface (startup,
+  `--testconf`, live-reload validation + apply, template guidance) — one
+  grammar + unit table (`cli::cli_parse::parse_secs_f64`), shared with
+  `--bench-duration`. `ambient.<HH-MM>` keys stay time-of-day (different
+  domain); `--glitch-ms`/`--linger-ms` stay milliseconds (different
+  unit — documented decision, not an oversight).
+
+### The crystal-dragon × ambient interlock (documented per owner request)
+
+With ambient active, each drift is visible exactly
+`ambient-snapback-secs`, then the phase re-asserts and the poll timer
+restarts — the rhythm is the INTERLOCK of the two knobs, not either one
+alone (a 10s cadence with the 30s default snapback does not drift every
+10s). Empirical (95s PTY run, 15s/10s): 5 drift cycles, each reverted
+after exactly 10.0s. Owner's tuned harmony pair:
+`crystal-dragon-secs = 15s` + `ambient-snapback-secs = 10s` (now in
+`--help`, the config template, AMBIENT_SCHEDULER.md and
+CRYSTAL_DRAGON_ENGINE.md).
+
+### Verification
+
+- PTY end-to-end (isolated XDG, release binary, debug trace drain):
+  forward AND reverse comment orders both restore the CLI setup
+  (scene/color/charset final == startup; cfg_rebuilds 4/4; honest
+  ambient_entries 0); the deferral survives config edits (ambient
+  applied via snapback, not an instant rx); human forms verified on
+  CLI flag (`45s` → 45.0s), config key (`10s` → 10.0s), live-reload
+  (`15s` → `1m` → final `60.0s (was 15.0s)`), and `--duration 3s`
+  exits at exactly 3.00s.
+- 28 net new tests (2129 total): the zero-key classification + empty-map
+  delivery + rebuild fallback, human-duration parse + clap-level flag
+  forms + config merge + strict-validation accept/reject, the
+  numeric-bool hint, and three routing/state source-scan locks
+  (verbose-only liveness routing, deferral-flag restore, guard
+  rate-limit).
+- A/B benchmark (10s, `--scene cosmos --no-effects --crystal-dragon-secs
+  6`): avg_fps +0.18%, dirty_cells +0.95%, render_ns_per_cell -0.76%,
+  total_ns_per_cell -1.12%, frame_entropy +0.09%, density_gini -0.11%,
+  color_transition_delta 0, peak_rss -0.81% — performance and visual
+  parity (all within run noise); the guard fix REDUCES per-frame I/O in
+  ambient sessions.
+- Full suite: 2129 passed / 0 failed / 2 ignored; fmt + clippy
+  (`--all-targets --all-features -D warnings`) clean; gate-keepers 9/9;
+  windows-gnu + freebsd cross-checks 0 warnings.
