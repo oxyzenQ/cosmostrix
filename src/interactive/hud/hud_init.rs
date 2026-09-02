@@ -126,9 +126,11 @@ impl super::HudState {
         }
     }
 
-    /// Render the HUD overlay. Called every frame when visible, but
-    /// rate-limited to ~60 Hz (HUD_DISPLAY_MAX_HZ) to avoid wasted ANSI
-    /// escapes at high target_fps. Rain continues at full target_fps.
+    /// Render the HUD overlay. Called every frame when visible; the
+    /// METRIC recompute (p99 sort + formatting) is rate-limited to 1 Hz
+    /// (HUD_METRIC_INTERVAL in mod.rs) — the per-frame work is only the
+    /// cell write of the cached lines, so no ANSI escape is wasted at
+    /// high target_fps. Rain continues at full target_fps.
     ///
     /// Does NOT clear entire lines — only writes current_width characters
     /// starting at start_col, so rain on the rest of the line is
@@ -140,6 +142,9 @@ impl super::HudState {
     /// Uses frame.set() (not set_force) so unchanged cells aren't marked
     /// dirty — when metrics are stable, only the changing cells (uptime
     /// seconds) get re-sent.
+    /// (v80.0.0-alpha.1 doc-drift fix: the old comment referenced a
+    /// phantom "HUD_DISPLAY_MAX_HZ ~60 Hz" rate limiter that does not
+    /// exist — the real rate limit is the 1 Hz metric tick.)
     pub(crate) fn write_to_frame(
         &mut self,
         frame: &mut crate::frame::Frame,

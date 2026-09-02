@@ -82,6 +82,21 @@ COMMON OPTIONS:
       color palette based on CPU usage or wall-clock time.
       cosmostrix --crystal-dragon true
 
+  --crystal-dragon-secs <SECS>
+      Crystal Dragon poll interval in seconds (default: 60). Range
+      0.0-86400.0 — the same range contract as ambient-snapback-secs.
+      This is the harmony knob for running crystal-dragon together
+      with ambient: keep ambient-snapback-secs BELOW this value so
+      each drift gets its full visibility window before ambient
+      reverts (snapback >= polling stretches the drift cycle to 2x
+      the poll interval — by design, not a bug). Tunable live via
+      the crystal-dragon-secs config key (live-reload applies edits
+      immediately). The 60s minimum-dwell anti-flicker floor is
+      constant: polling below 60s shifts cadence, palette flips
+      still cap at one per minute. 86400 = poll once per 24h.
+      cosmostrix --crystal-dragon-secs 120
+      cosmostrix --crystal-dragon-secs 86400   (once per day)
+
   --power-dragon <true|false>
       Power Dragon adaptive protection (default: true). When false,
       disables aggressive throttle + idle FPS reduction — rain stays
@@ -95,14 +110,26 @@ COMMON OPTIONS:
       cosmostrix --msg-mode false
 
   --no-effects
-      Disable ALL particle effects (default: effects on). When set,
-      the following subsystems become no-ops:
+      Disable ALL cosmetic effects (default: effects on) — even the
+      most valuable ones, per the owner peak-performance directive.
+      When set, the following subsystems become no-ops:
         - quantum ripple (mouse-click particle burst)
         - border spark (splash crown on message-border touch)
         - mouse-click flash waves (dual-ring expanding rings)
         - anomaly zones (LuminanceSurge / GlyphCorruption / PulseWave)
-      CLI-only (no config key). Useful for VTE terminals (Konsole,
-      GNOME Terminal) where particle effects cause fullscreen lag.
+        - ghost events (cinematic glyph streaks)
+        - emergent storytelling moments (LuminanceSwell/DensityPulse)
+        - msg-fill-style particle sidecars (engrave spark,
+          hologram scanline, scorch smoke)
+        - CRT vignette (top/bottom edge dim post-process)
+        - cursor hover glow (elliptical brightening near the mouse)
+      v80.0.0-alpha.1 audit closed the last two leaks: the CRT
+      vignette and the hover glow used to keep running under this
+      flag. Rain-core visuals are NOT cosmetics and stay on:
+      droplet trails, phosphor fade, palette wave transitions,
+      climate drift. CLI-only (no config key). Useful for VTE
+      terminals (Konsole, GNOME Terminal) where particle effects
+      cause fullscreen lag, and for simple no-effects mode.
       Existing in-flight particles fade out naturally on the next
       update tick — no visual pop.
 

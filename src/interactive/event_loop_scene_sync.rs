@@ -345,6 +345,7 @@ mod tests {
             },
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,
+            crystal_dragon_secs: None,
         }
     }
 

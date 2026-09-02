@@ -9,16 +9,11 @@
 //! - Advanced parameters remain fully functional but are intentionally hidden
 //!   from the casual user.
 
-// Submodule declarations: all config*.rs, live_config*.rs, and test
-// subdirs now live as siblings under src/config/. Re-exported as `pub`
-// so that `pub(crate) use config::*;` in main.rs keeps the 92 existing
-// `crate::config_X::Foo` and `crate::live_config_X::Foo` call sites
-// working unchanged.
-//
-// ORDER MATTERS: `live_config_trace` must be declared before `live_config`
-// so the `lr_trace!` macro is in scope when live_config.rs is parsed.
-// The `#[macro_use]` attribute is defense-in-depth (the macro is also
-// `#[macro_export]`-ed from inside live_config_trace itself).
+// Submodule declarations: all config*.rs / live_config*.rs / test dirs
+// live as siblings under src/config/, re-exported `pub` so main.rs's
+// `pub(crate) use config::*;` keeps the existing call sites working.
+// ORDER MATTERS: live_config_trace must be declared before live_config
+// so `lr_trace!` is in scope (#[macro_use] is defense-in-depth).
 pub mod config_apply;
 #[cfg(test)]
 pub mod config_apply_tests;
@@ -192,14 +187,10 @@ pub struct Args {
     #[arg(
         short = 'C',
         long = "charset",
-        // depth-test fix: --charset-custom as alias. Depth-test user
-        // expected `--charset-custom cat` to work by analogy with
-        // --colors-custom and --scene-custom. The existing --charset flag
-        // already handles BOTH built-in presets AND custom names (loaded
-        // from [charset-custom.<name>] in config.toml), so the alias is
-        // pure UX parity — no behavioral difference. Clap's `alias`
-        // (not `long_alias`) makes the alternate name visible in --help
-        // suggestions and error tips.
+        // depth-test fix: --charset-custom alias (pure UX parity with
+        // --colors-custom/--scene-custom — --charset already accepts
+        // built-in presets AND custom names; clap `alias` keeps the
+        // name visible in --help suggestions).
         alias = "charset-custom",
         default_value = "binary",
         help_heading = "COMMON OPTIONS",
@@ -301,10 +292,9 @@ pub struct Args {
     )]
     pub intro_color: Option<String>,
 
-    // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects are
-    // now ALWAYS ON (cursor glow + strong dual-ring click wave). Mouse reporting
-    // is also always on (blocks text selection). No flag needed — the effect
-    // is part of cosmostrix's signature interactive experience.
+    // v17 mastery: --mouse flag DELETED. Mouse hover/click visual effects
+    // are now ALWAYS ON (glow + dual-ring click wave; reporting always on,
+    // blocks text selection).
     #[arg(
         short = 'm',
         help_heading = "COMMON OPTIONS",
@@ -313,16 +303,12 @@ pub struct Args {
     )]
     pub message: Option<String>,
 
-    /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (engrave
-    /// default from v80.0.0-beta.2 = owner champion winner; typewriter was
-    /// the pre-beta.2 default for LTS bit-identical parity; engrave adds
-    /// the spark sidecar; hologram adds a stateless scanline pass; glitch
-    /// extends CellReveal with a glyph_override field; scorch
-    /// extends CellReveal with a tint field and adds a smoke
-    /// sidecar; cascade reuses the signed slide_rows field for
-    /// drop-from-above). Also settable via the `msg-fill-style`
-    /// config key; `-mfs` is argv-expanded to this flag
-    /// (cli/argv_expand.rs).
+    /// v80.0.0-beta.1 msg-fill-style: reveal style (engrave default from
+    /// beta.2 = owner champion; typewriter was the pre-beta.2 default;
+    /// engrave adds the spark sidecar, hologram a scanline pass, glitch a
+    /// CellReveal glyph_override, scorch a tint + smoke sidecar, cascade
+    /// reuses slide_rows for drop-from-above). Also settable via the
+    /// `msg-fill-style` config key; `-mfs` argv-expands to this flag.
     #[arg(
         long = "msg-fill-style",
         default_value = "engrave",
@@ -651,11 +637,11 @@ pub struct Args {
 
     /// Crystal Dragon Engine: ambient intelligence for palette drift.
     ///
-    /// Maps system state (CPU or clock) to a temperature group (Cold/Medium/Hot)
-    /// and selects color themes via probabilistic weighted calculation.
-    /// Polls every 60 seconds with 300ms OKLab smooth transitions.
-    /// v50-beta.3: CLI flag accepts explicit `true`/`false` value.
-    /// Bare `--crystal-dragon` (no value) errors to prevent silent toggle.
+    /// Maps system state (CPU or clock) to a temperature group
+    /// (Cold/Medium/Hot) and selects color themes probabilistically.
+    /// Polls every `--crystal-dragon-secs` (default 60) with 300ms OKLab
+    /// transitions. v50-beta.3: explicit `true`/`false` value required
+    /// (bare flag errors to prevent silent toggle).
     #[arg(
         long = "crystal-dragon",
         value_name = "BOOL",
@@ -665,17 +651,31 @@ pub struct Args {
     )]
     pub crystal_dragon: Option<bool>,
 
+    /// v80.0.0-alpha.1: Crystal Dragon polling interval (seconds).
+    ///
+    /// Tunable harmony knob for combining crystal-dragon with ambient
+    /// snapback — the drift cycle and the snapback timer share one
+    /// timeline, so the owner/user can now align both online (CLI, config,
+    /// live-reload). Range 0.0..=86400.0 (same as ambient-snapback-secs);
+    /// default 60.0 (CRYSTAL_DRAGON_POLLING_SECS). The 60s minimum-dwell
+    /// anti-flicker floor is unchanged: polling below 60s shifts poll
+    /// cadence, palette flips still cap at one per minute.
+    /// 86400 = poll once per 24h; 0.0 = poll every tick (degenerate —
+    /// dwell still caps drift rate). Config key: `crystal-dragon-secs`.
+    #[arg(
+        long = "crystal-dragon-secs",
+        value_name = "SECS",
+        num_args = 1,
+        help = "Crystal Dragon poll interval in seconds (0.0-86400.0, default: 60) — tune harmony with ambient-snapback-secs"
+    )]
+    pub crystal_dragon_secs: Option<f64>,
+
     /// v50: Power Dragon toggle. CLI flag `--power-dragon <true|false>`.
-    /// When false: disables aggressive_throttle + idle FPS reduction.
-    /// Default: true (protection enabled). Also configurable via
-    /// `power-dragon = false` in config.toml. When false, rain stays
-    /// at user-configured density/speed regardless of CPU pressure.
-    /// v80.0.0-beta.1: this promise is now enforced on the render path itself —
-    /// the pressure feed to the cloud is gated to 0.0 (previously only
-    /// the HUD display was gated while rain_at() still throttled the
-    /// spawn scale), and a stale aggressive_throttle is released.
-    /// v50-beta.3: bare `--power-dragon` (no value) errors to prevent
-    /// silent toggle (was bool flag, now requires explicit true/false).
+    /// When false, disables aggressive_throttle + idle FPS reduction
+    /// (rain stays at user density/speed regardless of CPU pressure;
+    /// v80.0.0-beta.1 enforced on the render path — pressure feed gated
+    /// to 0.0, stale aggressive_throttle released). Default: true.
+    /// Bare flag errors (explicit true/false required).
     #[arg(
         long = "power-dragon",
         value_name = "BOOL",

@@ -397,3 +397,23 @@ mod tests {
         assert_eq!(args.charset, "binary");
     }
 }
+
+// ── v80.0.0-alpha.1: --crystal-dragon-secs flag surface ───────────
+
+/// The flag parses as Option<f64> with no clap-level range gate (the
+/// range is enforced by the same startup validate_f64_range path as
+/// --duration, which main.rs owns — clap value_parser f64 range is
+/// intentionally not duplicated here to keep one error-message voice).
+#[test]
+fn crystal_dragon_secs_parses_from_cli() {
+    use crate::config::Args;
+    use clap::Parser;
+    let args = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", "120"]).unwrap();
+    assert_eq!(args.crystal_dragon_secs, Some(120.0));
+    // Fractional values are accepted (float flag).
+    let args = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", "45.5"]).unwrap();
+    assert_eq!(args.crystal_dragon_secs, Some(45.5));
+    // Default: unset (None) → engine uses the 60s constant.
+    let args = Args::try_parse_from(["cosmostrix"]).unwrap();
+    assert_eq!(args.crystal_dragon_secs, None);
+}

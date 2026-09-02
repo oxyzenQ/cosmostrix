@@ -174,6 +174,9 @@ pub(crate) fn finalize_session(
         // way to show what snapback delay / schedule count was in effect.
         cfg.ambient_snapback_secs,
         cfg.ambient_schedule.entries.len(),
+        // v80.0.0-alpha.1: crystal-dragon-secs effective state
+        // (post-live-reload) — the harmony twin of the snapback value.
+        cfg.crystal_dragon_secs,
         // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness:
         // fps / bold / shading / monolith / color_bg / color_tune come
         // from the EFFECTIVE config (current_cfg — post-live-reload,

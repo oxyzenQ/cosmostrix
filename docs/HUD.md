@@ -126,7 +126,7 @@ mandate. See [HUD Color Scheme](#hud-color-scheme)
 below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
-22 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
+24 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
 the width out; short values like `fps: 30` let it shrink. The 7 new
 metric rows (ehs/prs/sped/dsty/scn/chr/clr) are all ≤ 18 chars so
 they never dominate the width budget.
@@ -559,7 +559,7 @@ RGB(0,200,0), preserving the green hue).
 
 4. **Dynamic width.** Lines are formatted WITHOUT fixed-width padding.
    The HUD width grows/shrinks to fit the longest line. Capped at
-   `HUD_MAX_WIDTH` (22 cols) to prevent the HUD from eating the whole
+   `HUD_MAX_WIDTH` (24 cols) to prevent the HUD from eating the whole
    terminal. Floor at `HUD_MIN_WIDTH` (12 cols) for short values.
 
 5. **No `\x1b[2K` line clear.** The HUD writes only `current_width`

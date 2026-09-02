@@ -605,3 +605,92 @@ fn live_reload_ambient_snapback_secs_86400_is_valid() {
         "ambient-snapback-secs=86400 must be accepted (24h = disabled)"
     );
 }
+
+// ── v80.0.0-alpha.1: crystal-dragon-secs live-reload (harmony twin of the
+// ambient-snapback-secs block above — same semantics, mirrored tests) ──
+
+#[test]
+fn live_reload_crystal_dragon_secs_from_config() {
+    // Config key present (valid) → applied over the base lock.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("crystal-dragon-secs".to_string(), "120".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(120.0),
+        "crystal-dragon-secs=120 must be applied on live-reload"
+    );
+}
+
+#[test]
+fn live_reload_crystal_dragon_secs_present_wins_over_cli_lock() {
+    // CLI lock (--crystal-dragon-secs 90 baked into base) + a present
+    // config key (45) → the key wins (most recent user intent), mirroring
+    // the crystal-dragon bool contract.
+    let mut base = minimal_cloud_config();
+    base.crystal_dragon_secs = Some(90.0);
+    let mut cfg = HashMap::new();
+    cfg.insert("crystal-dragon-secs".to_string(), "45".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(45.0),
+        "present config key must override the CLI lock"
+    );
+}
+
+#[test]
+fn live_reload_crystal_dragon_secs_absent_keeps_cli_lock() {
+    // Key absent (commented out) → the CLI lock survives as the fallback.
+    // (Unlike ambient-snapback-secs — config-only, reset-on-comment — this
+    // knob has a CLI surface, so the lock contract applies.)
+    let mut base = minimal_cloud_config();
+    base.crystal_dragon_secs = Some(90.0);
+    let cfg = HashMap::new();
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(90.0),
+        "absent key must keep the locked startup value"
+    );
+}
+
+#[test]
+fn live_reload_crystal_dragon_secs_invalid_keeps_base() {
+    // Out-of-range → parse_f64_config returns None → base kept
+    // (defense-in-depth; upstream strict validation rejects the file).
+    let mut base = minimal_cloud_config();
+    base.crystal_dragon_secs = Some(90.0);
+    let mut cfg = HashMap::new();
+    cfg.insert("crystal-dragon-secs".to_string(), "999999".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(90.0),
+        "out-of-range crystal-dragon-secs must keep the base value"
+    );
+}
+
+#[test]
+fn live_reload_crystal_dragon_secs_bounds_are_valid() {
+    // 0.0 (lower bound — per-tick poll) and 86400.0 (upper — once/24h)
+    // must both be accepted.
+    let base = minimal_cloud_config();
+    let mut cfg = HashMap::new();
+    cfg.insert("crystal-dragon-secs".to_string(), "0".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(0.0),
+        "crystal-dragon-secs=0 must be accepted"
+    );
+    let mut cfg = HashMap::new();
+    cfg.insert("crystal-dragon-secs".to_string(), "86400".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.crystal_dragon_secs,
+        Some(86400.0),
+        "crystal-dragon-secs=86400 must be accepted"
+    );
+}

@@ -115,7 +115,9 @@ The audit confirmed the engine is already at peak. Specifically:
 
 - **`CrystalDragonControl` struct** — 6 fields, all `f32` or `enum`.
   `Copy` + `Clone` derived. Stack-allocated, no heap.
-- **Constants**: `CRYSTAL_DRAGON_POLLING_SECS=60.0`,
+- **Constants**: `CRYSTAL_DRAGON_POLLING_SECS=60.0` (v80.0.0-alpha.1:
+  the DEFAULT only — the runtime value is `CrystalDragonControl.polling_secs`,
+  user-tunable via `crystal-dragon-secs` CLI/config/live-reload),
   `CRYSTAL_DRAGON_MIN_DWELL_SECS=60.0`, `CRYSTAL_DRAGON_DRIFT_CHANCE=0.12`,
   `CRYSTAL_DRAGON_CPU_EMA_ALPHA=0.25`. All `pub(crate) const`, inlined
   by LLVM.
@@ -159,7 +161,7 @@ is the appropriate action.
 |----------|--------|-----------|
 | HUD indicator | **Silent-Elegant (Option A)** — no HUD indicator, no verbose drift-event logging | The engine should be felt, not seen. |
 | Calc method | **calc-v1** (probabilistic weighted) | calc-v2 (pattern state machine with memory) is reserved for future release. |
-| Polling interval | **60 s** | Slow enough to feel organic, fast enough to react to real load within a minute. |
+| Polling interval | **60 s default** (v80.0.0-alpha.1: tunable via `crystal-dragon-secs`, 0.0..=86400.0 — the harmony knob for ambient snapback coordination) | Slow enough to feel organic, fast enough to react to real load within a minute. |
 | Sensor mode | **CPU primary, CLOCK fallback** | CPU is the meaningful signal; CLOCK is the graceful degradation when CPU sampling is unsupported. |
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |
 | Schedule format | **Single scene name** (no multi-field) | Eliminates override-precedence bug surface. Scene IS the source of truth. |

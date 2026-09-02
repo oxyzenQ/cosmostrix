@@ -210,41 +210,21 @@ pub(crate) fn rebuild_cloud_config(
     // Scene — config key present wins over the CLI-locked scene (v80.0.0-beta.1
     // temporal precedence: the key is the most recent user intent). When
     // the key is ABSENT, the fallback is decided by the caller
-    // (event_loop_config_rebuild.rs): the scene family reverts to the
-    // locked startup snapshot if the key was just removed, or syncs the
-    // runtime scene if it was never present — so there is no fallback arm
-    // here.
-    // v80.0.0-beta.1 (owner audit 2026-08-30): custom-scene parity. The old block
-    // only resolved BUILTIN scenes (get_scene), so switching `scene` to
-    // a custom scene name updated scene_name but left rain_style/color/
-    // charset/speed/density at the PREVIOUS scene's values — a visual
-    // no-op whenever the ambient-schedule scene-change branch did not
-    // fire. Custom scenes are now resolved here: rain_style is always
-    // Glyph (v80.0.0-beta.2: base-scene inheritance removed), and the
-    // (complete) field layer is applied by the scene-custom tail block
-    // below (same layer the startup path uses).
-    // v80.0.0-beta.1: the old `!cli.scene && !cli.scene_custom` outer guard is GONE
-    // (it encoded the pre-beta.6 "CLI blocks config" model and contradicted
-    // the runtime contract). The CLI lock now survives as the FALLBACK
-    // layer — a `--scene-custom` selection returns when the config `scene`
-    // key is commented out, exactly like a `--scene` selection does.
+    // (event_loop_config_rebuild.rs); no fallback arm here.
+    // v80.0.0-beta.1 (owner audit 2026-08-30): custom-scene parity — the old
+    // block only resolved BUILTIN scenes, so switching `scene` to a custom
+    // name updated scene_name but left the visual fields at the PREVIOUS
+    // scene's values. Custom scenes now resolve here (rain_style always
+    // Glyph; the complete field layer applies via the scene-custom tail
+    // block below, same layer startup uses).
+    // v80.0.0-beta.1: the old `!cli.scene && !cli.scene_custom` outer guard is
+    // GONE — the CLI lock survives as the FALLBACK layer (commenting out the
+    // config `scene` key returns the `--scene-custom`/`--scene` selection).
     if let Some(v) = cfg.get("scene") {
-        // v50 fix: update new.scene_name to match the config's scene
-        // value. Without this, the live-reload path left scene_name at
-        // base.scene_name (the previous value), so the HUD 'scn:' line
-        // showed the old scene even though the rain style had already
-        // switched. The event_loop.rs schedule-empty preserve/else
-        // branch compares new_cfg.scene_name against preserved_scene_name
-        // to decide whether to re-apply scene runtime — both values MUST
-        // reflect the config's scene for that branch to fire correctly.
-        // This is the source-of-truth fix; the event_loop.rs else branch
-        // (commit 51ccafe) is the consumer-side mirror.
-        //
-        // Normalization: scene names are case-insensitive at lookup
-        // (scene::get_scene lowercases internally), but the HUD displays
-        // the exact string the user typed. We preserve the original
-        // casing from config for display, matching the startup path in
-        // main.rs (args.scene.as_deref().unwrap_or(DEFAULT_SCENE)).
+        // v50 fix: update new.scene_name to match the config's scene value —
+        // the HUD 'scn:' line and the event_loop schedule-empty branch both
+        // compare against this field. Preserve the user's casing for
+        // display (lookup is case-insensitive; matches startup).
         lr_trace!("apply scene='{}' (updating scene_name)", v);
         new.scene_name = v.clone();
         let normalized_scene = v.trim().to_ascii_lowercase();
@@ -466,6 +446,23 @@ pub(crate) fn rebuild_cloud_config(
         }
     }
 
+    // v80.0.0-alpha.1: crystal-dragon-secs live-reload — the online harmony
+    // knob. Config key present (valid) wins over the CLI lock; absent key
+    // keeps the locked startup value in base (mirrors crystal-dragon).
+    // Out-of-range values are rejected upstream by validate_config_strictly
+    // before rebuild runs, so the parse_f64_config fallback (None → keep
+    // base) is defense-in-depth only. The new value reaches the Cloud via
+    // create_cloud (CloudConfig -> crystal_dragon_control.polling_secs);
+    // inherit_ecosystem_state no longer copies the old cloud's control.
+    if let Some(v) = cfg.get("crystal-dragon-secs") {
+        if let Some(secs) =
+            crate::config_apply::parse_f64_config("crystal-dragon-secs", v, 0.0, 86400.0)
+        {
+            new.crystal_dragon_secs = Some(secs);
+            crate::lr_trace!("crystal-dragon-secs: {}", secs);
+        }
+    }
+
     // v50.0.0-alpha.7: Power Dragon live reload; v80.0.0-beta.1: config key present
     // wins over the CLI lock, absent key falls back to the locked startup
     // value in base. Mirrors crystal-dragon.
@@ -681,18 +678,10 @@ pub(crate) fn rebuild_cloud_config(
         );
     } else {
         // No message in config, no CLI lock. Mirror the startup
-        // default-fallback logic (main.rs:1239-1258): when args.message
-        // is None AND !bench_mode AND msg_mode_on, use default_message_text()
-        // with border. Without this, base.message (which may carry a
-        // config@startup value like "hey") would be preserved instead
-        // of reverting to the default "Experience a masterpiece with
-        // cosmostrix v{}". Reset-on-comment semantics (v50.0.0-alpha.7,
-        // LIVE_RELOAD_BEHAVIOR.md Limitation C) for runs with no CLI
-        // message lock.
-        //
-        // Live-reload only fires in interactive mode (benchmarks exit
-        // immediately, no watcher), so the !bench_mode guard from
-        // main.rs is implicitly satisfied here.
+        // default-fallback: msg_mode_on → default_message_text() with
+        // border; else clear. Reset-on-comment semantics (Limitation C).
+        // Live-reload only fires in interactive mode, so the !bench_mode
+        // guard from main.rs is implicitly satisfied.
         if !msg_mode_on {
             new.message = None;
             new.message_border = false;
@@ -707,9 +696,8 @@ pub(crate) fn rebuild_cloud_config(
     // v50.0.0-alpha.7: Live-reload intro-color (was missing).
     // v80.0.0-beta.1: config key present wins over the CLI lock; absent key keeps
     // the locked startup intro color in base. Validates theme name on
-    // reload — invalid themes are logged and cleared (mirrors startup
-    // behavior, but soft-fail on live-reload to avoid crashing a running
-    // session).
+    // reload — invalid themes are logged and cleared (soft-fail to avoid
+    // crashing a running session).
     if let Some(v) = cfg.get("intro-color") {
         let theme_ok = crate::theme::lookup_theme(v).is_some();
         let custom_ok = cfg.contains_key(&format!("colors-custom.{v}.bg"));
@@ -797,3 +785,6 @@ mod tests_msg_fill_style;
 
 #[cfg(test)]
 mod tests_rejection_msg;
+
+#[cfg(test)]
+mod tests_crystal_dragon_secs;

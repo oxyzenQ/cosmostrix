@@ -265,12 +265,24 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // Default 30.0 when unset. Range matches parse_f64_config in
         // config_apply.rs.
         // v80.0.0-beta.2 usage note (verified 2026-09-02): the snapback
-        // timer fires at ANY value in range — including >= 60s. Keep it
-        // < 60s (<= 50s for margin) when combining ambient with
-        // crystal-dragon: a long window freezes new drifts and holds the
-        // ambient palette for the whole window (86400 ≈ 24h). See
-        // docs/AMBIENT_SCHEDULER.md "Edge case: snapback >= 60".
+        // timer fires at ANY value in range — including >= 60s. v80.0.0-alpha.1:
+        // the guidance is now RELATIVE — keep ambient-snapback-secs below
+        // the effective crystal-dragon-secs (default 60, <= polling-10 for
+        // margin) when combining ambient with crystal-dragon: a long window
+        // freezes new drifts and holds the ambient palette for the whole
+        // window (86400 ≈ 24h). See docs/AMBIENT_SCHEDULER.md "Edge case:
+        // snapback >= polling".
         "ambient-snapback-secs" => match v.trim().parse::<f64>() {
+            Ok(n) if (0.0..=86400.0).contains(&n) => None,
+            Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),
+            Err(_) => Some(format!("expected a number in 0.0..=86400.0, got '{v}'")),
+        },
+        // v80.0.0-alpha.1: crystal-dragon-secs — float in [0.0, 86400.0].
+        // Same range contract as ambient-snapback-secs (the two harmony
+        // knobs share one timeline). Default 60.0 when unset. Values
+        // below 60 shift poll cadence only — the 60s min-dwell
+        // anti-flicker floor still caps palette flips at one per minute.
+        "crystal-dragon-secs" => match v.trim().parse::<f64>() {
             Ok(n) if (0.0..=86400.0).contains(&n) => None,
             Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),
             Err(_) => Some(format!("expected a number in 0.0..=86400.0, got '{v}'")),

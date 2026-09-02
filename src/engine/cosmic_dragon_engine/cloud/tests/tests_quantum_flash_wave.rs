@@ -242,3 +242,33 @@ fn effects_enabled_default_is_true() {
         "effects_enabled must default to true (CLI default = effects on)"
     );
 }
+
+/// v80.0.0-alpha.1 (--no-effects audit closure): the cursor hover glow
+/// must be suppressed under --no-effects. set_mouse_position stores the
+/// u16::MAX "no cursor" sentinel when effects are off, so the droplet
+/// draw path's `ctx.mouse_col != u16::MAX` gate never fires (the
+/// per-cell elliptical-brightening math near the cursor was the last
+/// un-gated cosmetic found by the audit, together with the CRT vignette).
+#[test]
+fn no_effects_stores_mouse_sentinel_suppressing_hover_glow() {
+    let mut cloud = make_truecolor_cloud(ColorScheme::Green);
+    cloud.set_effects_enabled(false);
+    cloud.set_mouse_position(7, 3);
+    assert_eq!(
+        cloud.mouse_col,
+        u16::MAX,
+        "mouse_col must hold the no-cursor sentinel under --no-effects"
+    );
+    assert_eq!(
+        cloud.mouse_line,
+        u16::MAX,
+        "mouse_line must hold the no-cursor sentinel under --no-effects"
+    );
+
+    // Effects re-enabled → position tracking works again (the sentinel
+    // is written per-event, not latched).
+    cloud.set_effects_enabled(true);
+    cloud.set_mouse_position(7, 3);
+    assert_eq!(cloud.mouse_col, 7);
+    assert_eq!(cloud.mouse_line, 3);
+}

@@ -267,6 +267,12 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
             .and_then(|v| {
                 crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
             }),
+        // v80.0.0-alpha.1: crystal-dragon-secs — CLI > config merge already
+        // resolved by apply_config_and_runtime_defaults into
+        // args.crystal_dragon_secs (config_apply.rs). None = default 60.0
+        // (CRYSTAL_DRAGON_POLLING_SECS). Same 0.0..=86400.0 range contract
+        // as ambient-snapback-secs — the two knobs share one timeline.
+        crystal_dragon_secs: args.crystal_dragon_secs,
     };
     cloud_cfg
 }

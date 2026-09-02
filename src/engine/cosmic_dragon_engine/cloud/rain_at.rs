@@ -932,13 +932,15 @@ impl super::Cloud {
         // — negligible vs the ~2200 dirty cells/frame average.
         //
         // PERF-1-Supreme: skip the cinematic CRT vignette in benchmark
-        // mode. The vignette is a pure cosmetic post-process (its own
-        // comment above calls it "cinematic") — it dims edge rows for
-        // the retro CRT look but contributes nothing to the rain +
-        // 3-dragon-engine critical path. Owner directive: bench mode
-        // measures critical path only, so the O(dirty cells in band)
-        // dimming pass must not run during measurement frames.
-        if !self.bench_mode {
+        // mode. PERF-4 (v80.0.0-alpha.1 --no-effects audit): also skip under
+        // --no-effects — the vignette is a pure cosmetic post-process (its
+        // own comment calls it "cinematic"), and the audit found it was the
+        // LAST un-gated cosmetic in interactive no-effects mode: the full
+        // dirty-cell scan + row-factor math + dim pass ran every frame
+        // despite the flag. The two gates together make the contract
+        // total: cosmetics run ONLY when bench_mode == false AND
+        // effects_enabled == true.
+        if !self.bench_mode && self.effects_enabled {
             self.apply_crt_vignette(frame);
         }
 

@@ -112,6 +112,9 @@ pub(crate) fn print_post_exit_verbose(
         start_time,
         cloud_cfg.ambient_snapback_secs,
         cloud_cfg.ambient_schedule.entries.len(),
+        // v80.0.0-alpha.1: crystal-dragon-secs startup baseline (the
+        // post-live-reload final comes from last_crystal_dragon_secs()).
+        cloud_cfg.crystal_dragon_secs,
         // v80.0.0-beta.2 (S-master-LOGIC-1) startup baselines:
         cloud_cfg.target_fps,
         &startup_glitch_label,

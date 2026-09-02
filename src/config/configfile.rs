@@ -41,9 +41,15 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "shading-mode",
     "color-bg",
     "crystal-dragon",
+    // v80.0.0-alpha.1: Crystal Dragon poll interval (seconds). Float
+    // in [0.0, 86400.0], default 60.0. CLI --crystal-dragon-secs wins
+    // over this key. The harmony twin of ambient-snapback-secs — tune
+    // both so snapback < polling for a clean drift cycle (see
+    // docs/CRYSTAL_DRAGON_ENGINE.md and docs/AMBIENT_SCHEDULER.md).
+    "crystal-dragon-secs",
     // v50: Power Dragon toggle. When false, disables aggressive_throttle
     // and idle FPS reduction — rain stays at user-configured density/speed
-    // regardless of CPU pressure. Default: true (protection enabled).
+    // regardless of CPU pressure. Default: true.
     "power-dragon",
     "async-mode",
     // (CLI-D-1 fix): `adaptive-custom` removed from this whitelist.
@@ -83,11 +89,10 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     // config key. Case-insensitive here (config surface is forgiving;
     // the CLI flag itself is case-sensitive, like every other enum key).
     "msg-fill-style",
-    // v50.0.0-beta.7: Config-tunable ambient auto-snapback delay (seconds).
-    // After the user presses x/c/s (manual override) and is then idle for
-    // this many seconds, the event loop re-applies the current ambient
-    // phase. Range: 0.0..=86400.0. Default: 30.0 (when unset). Setting to
-    // 86400 (24h) effectively disables snapback; 0.0 means instant.
+    // v50.0.0-beta.7: ambient auto-snapback delay (seconds). After the
+    // user presses x/c/s and idles this long, the event loop re-applies
+    // the current ambient phase. Range 0.0..=86400.0; default 30.0;
+    // 86400 disables; 0.0 = instant.
     "ambient-snapback-secs",
 ];
 
@@ -114,15 +119,11 @@ pub(crate) struct ParsedConfig {
     /// can warn on stderr. A line lands here when it has no `=` at all, or when
     /// either side of `=` is empty after trimming.
     pub malformed_lines: Vec<String>,
-    /// keys that were auto-promoted from a nested section to root scope.
-    ///
-    /// Each tuple is `(original_nested_key, promoted_root_key)`. Populated when
-    /// the user writes a top-level key (e.g. `fps = 30`) AFTER a
-    /// `[scene-custom.<name>]` table header — TOML parses it as
-    /// `scene-custom.<name>.fps`, but we detect the un-prefixed form is a
-    /// known top-level key and silently re-home it. This lets top-level keys
-    /// and `[scene-custom.<name>]` blocks coexist in the same file without
-    /// forcing the user to learn TOML scope rules.
+    /// keys auto-promoted from a nested section to root scope:
+    /// `(original_nested_key, promoted_root_key)`. A top-level key
+    /// written after a `[section]` header parses as nested; when the
+    /// un-prefixed form is a known top-level key it is re-homed so
+    /// top-level keys and blocks coexist without TOML scope lessons.
     pub promoted_keys: Vec<(String, String)>,
 }
 

@@ -476,6 +476,22 @@ fn main() -> std::io::Result<()> {
         s
     });
 
+    // v80.0.0-alpha.1: --crystal-dragon-secs startup range gate. Same
+    // 0.0..=86400.0 contract as ambient-snapback-secs (the two knobs
+    // share one timeline — see docs/AMBIENT_SCHEDULER.md). Config-file
+    // values are validated by parse_f64_config + --testconf strict
+    // validation; this gate covers the CLI surface. NaN/inf die with a
+    // clear error instead of silently poisoning the engine control.
+    let crystal_dragon_secs = args.crystal_dragon_secs.map(|s| {
+        if !s.is_finite() {
+            ux::die_config(format!(
+                "--crystal-dragon-secs {s}: must be a finite number"
+            ));
+        }
+        ux::or_exit(validate_f64_range("--crystal-dragon-secs", s, 0.0, 86400.0))
+    });
+    args.crystal_dragon_secs = crystal_dragon_secs;
+
     // Unified color resolution (v50.0.0-beta.6 Option D policy: custom wins):
     //   1. --colors-custom <name> → custom palette (explicit intent)
     //   2. -c/--color <name> matches [colors-custom.<name>] → custom wins

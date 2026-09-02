@@ -245,7 +245,11 @@ pub(crate) fn print_doctor_report(args: &Args) {
                 s.field("cpu_ema_percent", "n/a (no sample yet)");
             }
         }
-        s.field("polling_secs", &control.polling_secs.to_string());
+        // v80.0.0-alpha.1: renamed polling_secs -> polling_secs_default so
+        // the label is honest (this probe always shows the DEFAULT 60.0 —
+        // the runtime value may be user-tuned via --crystal-dragon-secs /
+        // the crystal-dragon-secs config key; see CRYSTAL_DRAGON_ENGINE.md).
+        s.field("polling_secs_default", &control.polling_secs.to_string());
         s.field("drift_chance", &control.drift_chance.to_string());
         s.field("source", "diagnostic probe (not runtime state)");
     }

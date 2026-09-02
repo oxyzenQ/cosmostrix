@@ -57,8 +57,9 @@ Benchmark mode measures the **critical path only**: the rain simulation plus the
 |------------------|-----|
 | HUD, intro, message overlay, terminal interaction | Bench paths return before the interactive loop starts |
 | Ghost events (cinematic event engine) | Opt-in; only the interactive loop enables them |
-| Anomaly zones, border-cross cosmetics, CRT vignette | Pure visual cosmetics — gated on `!bench_mode` |
-| Emergent storytelling moments | Cinematic density/luminance/speed perturbation — gated on `!bench_mode` |
+| Anomaly zones, border-cross cosmetics, CRT vignette | Pure visual cosmetics — gated on `!bench_mode && effects_enabled` (v80.0.0-alpha.1: also off under `--no-effects`) |
+| Emergent storytelling moments | Cinematic density/luminance/speed perturbation — gated on `!bench_mode && effects_enabled` |
+| Cursor hover glow | Cosmetic; bench has no mouse events (mouse_col sentinel) — and off under `--no-effects` |
 | Crystal dragon palette drift | Forced off: palette rebuilds inject p99/max timing spikes (deterministic climate drift still runs) |
 | Idle FPS throttle, self-healer, perf_pressure clamps, madvise, xterm.js cap | Interactive-only power management — never engages in bench paths |
 

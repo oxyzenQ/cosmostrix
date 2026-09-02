@@ -70,6 +70,12 @@ pub(crate) fn build_cli_explicit(matches: &ArgMatches) -> (bool, CliExplicit) {
             matches.value_source("crystal_dragon"),
             Some(clap::parser::ValueSource::CommandLine)
         ),
+        // v80.0.0-alpha.1: --crystal-dragon-secs counts as user intent
+        // for the ambient startup deferral (CliExplicit::any()).
+        crystal_dragon_secs: matches!(
+            matches.value_source("crystal_dragon_secs"),
+            Some(clap::parser::ValueSource::CommandLine)
+        ),
         // v50.0.0-alpha.7: track --power-dragon, --async-mode, --msg-mode,
         // --intro-color, and -m/-mb CLI explicit (was missing — live-reload
         // path overrode CLI intent on config edit).

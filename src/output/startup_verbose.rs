@@ -62,6 +62,11 @@ pub(crate) fn run_verbose_startup(
         .and_then(|v| {
             crate::config_apply::parse_f64_config("ambient-snapback-secs", v, 0.0, 86400.0)
         });
+    // v80.0.0-alpha.1: crystal-dragon-secs effective value. args.crystal_dragon_secs
+    // already reflects the CLI > config merge (config_apply ran earlier in
+    // main(), and main.rs validated the range before this point), so this
+    // IS the value the engine will use — no re-reading the file needed.
+    let verbose_crystal_dragon_secs = args.crystal_dragon_secs;
     crate::output::verbose::print_verbose(&crate::output::verbose::VerboseCtx {
         version: env!("CARGO_PKG_VERSION"),
         scene_name: args.scene.as_deref(),
@@ -129,5 +134,6 @@ pub(crate) fn run_verbose_startup(
         scene_custom: args.scene_custom.as_deref(),
         ambient_schedule: &verbose_ambient_schedule,
         ambient_snapback_secs: verbose_ambient_snapback_secs,
+        crystal_dragon_secs: verbose_crystal_dragon_secs,
     });
 }

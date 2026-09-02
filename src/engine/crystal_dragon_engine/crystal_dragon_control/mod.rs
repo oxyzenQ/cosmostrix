@@ -4,8 +4,12 @@
 //! Crystal Dragon Engine configuration.
 //!
 //! Holds the tuning knobs that control how the Crystal Dragon engine
-//! samples the system and selects color themes. These are owner-editable
-//! constants — no runtime config file exposure yet (silent-elegant mode).
+//! samples the system and selects color themes. v80.0.0-alpha.1: the
+//! polling interval is now user-tunable via `--crystal-dragon-secs` /
+//! the `crystal-dragon-secs` config key (range 0.0..=86400.0) — the
+//! harmony twin of `ambient-snapback-secs`. Every other knob remains
+//! an owner-chosen constant (silent-elegant mode: not config-exposed,
+//! deliberately — see the over-engineering guard notes per field).
 
 // ── Polling interval ─────────────────────────────────────────────────────
 
@@ -16,6 +20,13 @@
 /// (probabilistically) transition to a new color theme. This is slow
 /// enough to feel organic rather than mechanical, and fast enough to
 /// react to real load changes within a minute.
+///
+/// v80.0.0-alpha.1: this const seeds the DEFAULT only — the runtime
+/// value lives in `CrystalDragonControl.polling_secs`, overridden by
+/// `--crystal-dragon-secs` / `crystal-dragon-secs` (CLI > config >
+/// default; live-reload re-applies on edit). Applied in
+/// `CloudConfig::create_cloud`; the drift-cycle self-reset in
+/// `post_rain.rs` follows the configured value, not this const.
 pub(crate) const CRYSTAL_DRAGON_POLLING_SECS: f32 = 60.0;
 
 /// Minimum dwell time in the current color theme before a transition

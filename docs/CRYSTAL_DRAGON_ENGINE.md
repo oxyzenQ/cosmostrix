@@ -43,16 +43,54 @@ subdir convention).
 
 ## 3. Configuration Knobs (Source: `crystal_dragon_control/mod.rs`)
 
-All values are `pub(crate) const`. No runtime config file exposure yet
-(silent-elegant mode). Future CLI flags or config keys would override
-these via the `CrystalDragonControl` struct.
+v80.0.0-alpha.1: the **polling interval is now user-tunable** — the one
+knob the harmony use-case needs. `--crystal-dragon-secs <SECS>` (CLI) and
+`crystal-dragon-secs = <SECS>` (config key, live-reload-able), range
+`0.0..=86400.0`, default `60.0` (the constant below). Resolution order:
+CLI > config > default; the drift-cycle self-reset follows the configured
+value, not the constant. Every other knob below stays an owner-chosen
+constant (silent-elegant mode — deliberately NOT config-exposed; see the
+over-engineering guard note at `create_cloud`).
 
 | Constant | Value | Meaning |
 |----------|-------|---------|
-| `CRYSTAL_DRAGON_POLLING_SECS` | `60.0` | Sensor sampling interval. At 60 s, drift events fire at most once per minute — slow enough to feel organic. |
-| `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Minimum time in current theme before transition is allowed. Prevents flicker when CPU% hovers near a group boundary. |
+| `CRYSTAL_DRAGON_POLLING_SECS` | `60.0` | DEFAULT sensor sampling interval (the runtime value lives in `CrystalDragonControl.polling_secs`, user-tunable via `crystal-dragon-secs` since v80.0.0-alpha.1). At 60 s, drift events fire at most once per minute — slow enough to feel organic. |
+| `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Minimum time in current theme before transition is allowed — the anti-flicker floor. Deliberately constant: polling below 60 s shifts poll cadence, palette flips still cap at one per minute. Prevents flicker when CPU% hovers near a group boundary. |
 | `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Default probability that a poll tick actually triggers a drift event. At 60 s × 12 %, drift fires roughly once every 5 minutes. Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
 | `CRYSTAL_DRAGON_CPU_EMA_ALPHA` | `0.25` | Default EMA smoothing for CPU%. 0.25 = 75 % weight on history, 25 % on new sample. The sensor copies `CrystalDragonControl.cpu_ema_alpha` at construction (S-master-1 wiring); this const only seeds the default. |
+
+### `crystal-dragon-secs` — the harmony knob (v80.0.0-alpha.1)
+
+```toml
+# config.toml
+crystal-dragon = true
+crystal-dragon-secs = 120      # poll every 120s (0.0..=86400.0)
+ambient-snapback-secs = 30     # keep snapback UNDER the poll interval
+```
+
+The knob exists to resolve the crystal-dragon × ambient timing
+relationship **online**: both timers share one timeline, and the
+recommended configuration is `ambient-snapback-secs <
+crystal-dragon-secs` (<= polling-10s for margin) so each drift gets its
+full visibility window before the ambient phase re-asserts. A snapback
+>= the poll interval still fires — it just stretches the drift cycle
+(see `docs/AMBIENT_SCHEDULER.md` "Edge case: snapback >= polling").
+Live-reload applies edits immediately: the rebuilt CloudConfig reaches
+`create_cloud`, which writes `crystal_dragon_control.polling_secs`, and
+`inherit_ecosystem_state` no longer carries the old cloud's control
+(that would pin the pre-edit cadence — the exact bug class the knob
+exists to fix). Verbose (`-v`) prints the effective value + provenance
+in the Dragon Systems section, and the post-exit final runtime state
+tracks it with a `(was X)` suffix when a mid-run edit changed it.
+
+The 60 s minimum-dwell floor is NOT affected by the knob: values below
+60 change the poll cadence (and the drift-opportunity density after the
+dwell gate), but palette flips never happen faster than once per minute
+— the anti-flicker contract is constant. 0.0 is a degenerate but legal
+value (poll every tick — the dwell gate still bounds drift); 86400.0
+polls once per 24 h. In benchmark mode the whole engine is forced off
+(`cloud.crystal_dragon = false` for p99/max determinism), so the knob
+has no bench effect.
 
 ### `CrystalDragonControl` struct
 
@@ -399,7 +437,7 @@ phase and are now invariants of the engine:
 |----------|--------|-----------|
 | HUD indicator | **Silent-Elegant (Option A)** — no HUD indicator, no verbose drift-event logging | The engine should be felt, not seen. |
 | Calc method | **calc-v2** (pattern state machine with DriftHistory recency memory, default since Dragon Engine v2) | calc-v1 (legacy no-memory weighted selection) retained for A/B and constructed only in tests. |
-| Polling interval | **60 s** | Slow enough to feel organic, fast enough to react to real load within a minute. |
+| Polling interval | **60 s default** (v80.0.0-alpha.1: user-tunable via `crystal-dragon-secs`, 0.0..=86400.0) | Slow enough to feel organic, fast enough to react to real load within a minute; the tunable exists for ambient harmony, not for its own sake. |
 | Sensor mode | **CPU primary, CLOCK fallback** | CPU is the meaningful signal; CLOCK is the graceful degradation when CPU sampling is unsupported. |
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |
 | Schedule format | **Single scene name** (no multi-field) | Eliminates override-precedence bug surface. Scene IS the source of truth. |
@@ -434,7 +472,8 @@ overrides never block drift (see the Z-master-1X note below).
 stays `true` forever (no ambient fire to clear it), but the drift gate in
 `cloud/post_rain.rs` skips the override check when `ambient_schedule_active == false`.
 So manual user overrides do NOT block crystal dragon drift when ambient is off —
-the engine continues to drift on its 60s poll cadence regardless of the
+the engine continues to drift on its configured poll cadence
+(`crystal-dragon-secs`, default 60s) regardless of the
 override flag. See `docs/AMBIENT_SCHEDULER.md` "Self-reset when ambient is OFF".
 
 ### 11.3 Crystal <-> Ambient scheduler (snapback coordination)
@@ -451,20 +490,25 @@ user goes idle after a manual override):
    Dragon's drift is eligible again on a later tick.
 
 Timing facts (verified 2026-09-02, live PTY run): the snapback fires at
-ANY configured `ambient-snapback-secs` — including values >= 60s (a 90s
-value fired at ~90s). During the drift-visibility window no new drift
+ANY configured `ambient-snapback-secs` — including values >= the poll
+interval (a 90s value fired at ~90s against the 60s default). During the
+drift-visibility window no new drift
 can fire (the `!drift_active` gate), so a long snapback stretches the
-rhythm rather than breaking it. Harmony guidance for combining the two:
-keep `ambient-snapback-secs` under 60s (<= 50s for margin) so each drift
-reverts before the next 60s poll. See `docs/AMBIENT_SCHEDULER.md`
-"Usage Quick Guide" and "Edge case: snapback >= 60" for the full timing
-math.
+rhythm rather than breaking it. Harmony guidance for combining the two
+(v80.0.0-alpha.1, now relative): keep `ambient-snapback-secs` under
+`crystal-dragon-secs` (<= polling-10s for margin) so each drift
+reverts before the next poll. See `docs/AMBIENT_SCHEDULER.md`
+"Usage Quick Guide" and "Edge case: snapback >= polling" for the full timing
+math — and note both knobs are live-reload-able, so the rhythm can be
+tuned online while watching the HUD.
 
 If the user has explicitly disabled ambient (empty schedule or
 `snapback_killed` flag), no snapback occurs — the user's last manual
 selection persists, and the Crystal Dragon's drift cycle self-resets
-every `CRYSTAL_DRAGON_POLLING_SECS` (60s) so drift continues to fire on
-its poll cadence (Z-master-1X round 2, commit `40bad33`).
+after `crystal_dragon_control.polling_secs` (the effective
+`crystal-dragon-secs`, default 60s) so drift continues to fire on
+its poll cadence (Z-master-1X round 2, commit `40bad33`; window made
+configurable-following in v80.0.0-alpha.1).
 
 ## 12. Test Coverage
 

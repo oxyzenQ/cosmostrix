@@ -15,6 +15,7 @@ fn final_state_defaults_then_round_trip() {
     //    the post-exit section stays honest instead of printing
     //    arbitrary zeros.
     assert_eq!(last_fps(), 60.0);
+    assert_eq!(last_crystal_dragon_secs(), None);
     assert_eq!(last_glitch_level(), "Subtle");
     assert_eq!(last_bold_mode(), "Random");
     assert_eq!(last_shading_mode(), "DistanceFromHead");
@@ -44,6 +45,7 @@ fn final_state_defaults_then_round_trip() {
         None,
         Some(30.0),
         1,
+        Some(45.0),
         12.0,
         "None",
         "Off",
@@ -53,6 +55,7 @@ fn final_state_defaults_then_round_trip() {
         "sat=1.20 bright=1.00 head=1.00 body=1.00 tail=1.00",
     );
     assert_eq!(last_fps(), 12.0);
+    assert_eq!(last_crystal_dragon_secs(), Some(45.0));
     assert_eq!(last_glitch_level(), "None");
     assert_eq!(last_bold_mode(), "Off");
     assert_eq!(last_shading_mode(), "Random");

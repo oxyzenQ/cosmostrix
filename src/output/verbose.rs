@@ -96,6 +96,12 @@ pub(crate) struct VerboseCtx<'a> {
     /// `ambient-snapback-secs = 10` and verbose lies "30s" while the
     /// runtime uses 10s. Owner audit found this dishonesty.
     pub ambient_snapback_secs: Option<f64>,
+    /// v80.0.0-alpha.1: effective Crystal Dragon polling interval
+    /// (None = unset → runtime falls back to
+    /// `CRYSTAL_DRAGON_POLLING_SECS` = 60.0). Same honesty contract as
+    /// `ambient_snapback_secs` — the printed value must be the value
+    /// the engine will actually use (CLI > config > default).
+    pub crystal_dragon_secs: Option<f64>,
 }
 
 /// Determine color provenance for verbose annotation.
@@ -177,6 +183,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         scene_custom,
         ambient_schedule,
         ambient_snapback_secs,
+        crystal_dragon_secs,
     } = ctx;
 
     let color_source = resolve_color_source(
@@ -371,6 +378,25 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose(
         "  climate_drift:",
         " always-on (luminance/saturation/hue accumulate regardless of crystal_dragon flag)",
+    );
+    // v80.0.0-alpha.1: report the EFFECTIVE polling interval with its
+    // provenance — same honesty contract as the ambient_snapback_secs line
+    // below (the printed value must be the value the engine will use).
+    // Also prints the harmony hint so users combining ambient + crystal
+    // dragon can read the drift-cycle math right off the verbose dump.
+    let effective_cd_secs = crystal_dragon_secs.unwrap_or(
+        crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS as f64,
+    );
+    let cd_secs_src = if crystal_dragon_secs.is_some() {
+        "CLI/config"
+    } else {
+        "default (unset — 60.0s)"
+    };
+    output::eprintln_verbose(
+        "crystal_dragon_secs:",
+        &format!(
+            " {effective_cd_secs:.1}s ({cd_secs_src}; poll cadence — keep ambient-snapback-secs below this for a clean drift cycle, min-dwell floor 60s caps palette flips)"
+        ),
     );
 
     // ── Ambient ───────────────────────────────────────────────────

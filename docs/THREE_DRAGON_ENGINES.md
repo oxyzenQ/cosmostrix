@@ -47,13 +47,13 @@ The ambient intelligence engine. Two subsystems working in harmony:
 ### 3a. Palette drift (CPU/CLOCK -> theme)
 
 ```
-CPU% ──-> point (1-99) ──-> group ──-> weighted theme selection
+CPU% ──> point (1-99) ──> group ──> weighted theme selection
   │                          │
   │   1-33 = Cold (14)       │   calc-v2 (DEFAULT): CDF + recency
-  │   34-66 = Medium (14)    │   60s polling, 12% drift chance
-  │   67-99 = Hot (14)       │   60s dwell hysteresis
+  │   34-66 = Medium (14)    │   crystal-dragon-secs polling (60s default),
+  │   67-99 = Hot (14)       │   12% drift chance, 60s dwell hysteresis
   │                          │   calc-v1: legacy, no memory
-  └── CPU unsupported? ──-> CLOCK fallback (UTC hour -> point)
+  └── CPU unsupported? ──> CLOCK fallback (UTC hour -> point)
 ```
 
 44 builtin themes: 14 Cold + 14 Medium + 14 Hot + 2 Reserved.
@@ -65,13 +65,15 @@ Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 Time-of-day scene switches via `ambient.HH-MM = <scene>` in config.toml.
 Fires at scheduled times, applies scene+palette. Crystal Dragon wins
 (drift overrides the palette), but ambient snapback reverts after
-`ambient-snapback-secs` of idle — the two systems cooperate.
+`ambient-snapback-secs` of idle — the two systems cooperate, and since
+v80.0.0-alpha.1 both timing knobs are tunable (keep snapback <
+`crystal-dragon-secs` for a clean take-turns rhythm).
 
 ### File architecture
 
 | File | Role |
 |------|------|
-| `crystal_dragon_control/mod.rs` | Config: polling 60s, calc-v2 (default) / calc-v1 (legacy), CPU/CLOCK mode |
+| `crystal_dragon_control/mod.rs` | Config: polling (60s default — `crystal-dragon-secs` tunable, v80.0.0-alpha.1), calc-v2 (default) / calc-v1 (legacy), CPU/CLOCK mode |
 | `sensor/mod.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
 | `palette_groups/mod.rs` | 44 themes -> Cold/Medium/Hot partition |
 | `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring buffer (8 entries, prevents A->B->A oscillation); calc-v1 (legacy): no-memory CDF |

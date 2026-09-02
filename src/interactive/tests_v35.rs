@@ -126,6 +126,7 @@ mod cases_v35 {
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,
+            crystal_dragon_secs: None,
         }
     }
 
@@ -580,6 +581,70 @@ mod cases_v35 {
         );
     }
 
+    /// v80.0.0-alpha.1: the drift-cycle self-reset (ambient off) must
+    /// follow the CONFIGURED polling interval, not the 60s constant —
+    /// a user tuning crystal-dragon-secs=5 must see drift_active clear
+    /// ~5s after the drift fired (one poll cycle), not 60s. Behavioral
+    /// test: run rain_at (which calls post_rain_processing internally)
+    /// with drift state set and a custom polling_secs.
+    #[test]
+    fn drift_self_reset_follows_configured_polling_secs() {
+        use std::time::{Duration, Instant};
+
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = false;
+        // Tuned poll cadence (as create_cloud would apply for
+        // --crystal-dragon-secs 5):
+        cloud.crystal_dragon_control.polling_secs = 5.0;
+        // Drift fired 6s ago — past the 5s configured cycle but far
+        // below the 60s constant (this is the discriminating case: the
+        // old const-based window would NOT have reset yet).
+        let now = Instant::now();
+        cloud.drift_active = true;
+        cloud.drift_start = Some(now - Duration::from_secs(6));
+
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        cloud.rain_at(&mut frame, now);
+
+        assert!(
+            !cloud.drift_active,
+            "self-reset must fire after the CONFIGURED 5s cycle (not the 60s const)"
+        );
+        assert!(
+            cloud.drift_start.is_none(),
+            "drift_start must clear with drift_active"
+        );
+        assert_eq!(
+            cloud.crystal_dragon_last_poll,
+            Some(now),
+            "the poll timer must re-arm from the reset instant"
+        );
+    }
+
+    /// v80.0.0-alpha.1 (companion): with the same 6s elapsed but the
+    /// DEFAULT 60s cadence, the self-reset must NOT fire yet — proves
+    /// the first test discriminates on the configured value.
+    #[test]
+    fn drift_self_reset_waits_at_default_cadence() {
+        use std::time::{Duration, Instant};
+
+        let mut cloud = make_test_cloud();
+        cloud.crystal_dragon = true;
+        cloud.ambient_schedule_active = false;
+        // Default cadence (60s) left untouched.
+        let now = Instant::now();
+        cloud.drift_active = true;
+        cloud.drift_start = Some(now - Duration::from_secs(6));
+
+        let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+        cloud.rain_at(&mut frame, now);
+
+        assert!(
+            cloud.drift_active,
+            "at the default 60s cadence, 6s of drift visibility must NOT self-reset"
+        );
+    }
     // v50 LTS regression tests (first-reload scene reset crash) live in the
     // sibling file `tests_v50_first_reload.rs` (declared at file bottom).
     // Extracted to keep this file under the 800-LOC cap.

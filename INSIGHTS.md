@@ -134,6 +134,38 @@ appended below.
 
 ---
 
+## Insight 4 — The "two clocks" harmony moment
+
+**Date**: 2026-09-02
+**Context**: The owner was combining crystal-dragon with ambient
+snapback and noticed the two systems share ONE timeline: a drift
+becomes visible for exactly `ambient-snapback-secs` before the
+ambient phase re-asserts, and the next drift can only fire on a poll
+boundary. With the poll interval fixed at 60s, the only tuning
+freedom was the snapback side — half a conversation.
+
+**Observation**: *"When two systems cooperate on one timeline, both
+sides of the timing need to be tunable — otherwise the user is
+negotiating with only half a voice."* The moment the poll interval
+became a knob (`crystal-dragon-secs`, range 0.0..=86400.0 — the same
+range contract as `ambient-snapback-secs`), the harmony guidance
+stopped being a fixed rule ("keep snapback < 60") and became a
+relationship ("keep snapback < polling") the user can shape online
+while watching the rain.
+
+**Feature**: `--crystal-dragon-secs` / `crystal-dragon-secs` (CLI,
+config, live-reload — v80.0.0-alpha.1). The drift-cycle self-reset
+follows the configured cadence; verbose, `--doctor`, `--testconf`,
+the template config, and the post-exit final state all disclose the
+effective value. See `docs/CRYSTAL_DRAGON_ENGINE.md` §3
+"`crystal-dragon-secs` — the harmony knob".
+
+**Status**: Implemented (v80.0.0-alpha.1). The 60s minimum-dwell
+anti-flicker floor stays constant on purpose — the insight tuned the
+conversation, not the flicker protection.
+
+---
+
 ## Future Insights
 
 When a new insight arrives — in a relaxed moment, from watching the

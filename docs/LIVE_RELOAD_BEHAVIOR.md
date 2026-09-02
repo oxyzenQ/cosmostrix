@@ -51,6 +51,7 @@
 | `color-bg` | `--color-bg` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `monolith-size` | `--monolith-size` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `crystal-dragon` | `--crystal-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
+| `crystal-dragon-secs` | `--crystal-dragon-secs` | OK YES | v80.0.0-alpha.1 harmony knob: key present (valid 0.0..=86400.0) wins over the CLI lock; absent keeps the locked startup value. Applies to `crystal_dragon_control.polling_secs` on the rebuilt Cloud — `inherit_ecosystem_state` no longer copies the old cloud's control, so the new cadence sticks. |
 | `power-dragon` | `--power-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `bold` | `--bold` | OK YES | Key present wins (range-gated 0-2); absent falls back to the locked startup value. |
 | `shading-mode` | `--shading-mode` | OK YES | Key present wins (range-gated 0-1); absent falls back to the locked startup value. |
@@ -335,6 +336,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | `color-bg` | (none) | OK YES | N/A (no CLI flag) |
 | `monolith-size` | `--monolith-size` | OK YES | OK YES (FIXED in alpha.7) |
 | `crystal-dragon` | `--crystal-dragon` | OK YES | OK YES |
+| `crystal-dragon-secs` | `--crystal-dragon-secs` | OK YES (added v80.0.0-alpha.1) | OK YES (config-present-wins; the CLI lock is the fallback) |
 | `power-dragon` | `--power-dragon` | OK YES | OK YES (FIXED in alpha.7) |
 | `async-mode` | `--async-mode` | OK YES | OK YES (FIXED in alpha.7) |
 | `bold` | `--bold` | OK YES | X NO (no CLI intent gate) |
@@ -508,9 +510,9 @@ ambient re-apply).
 lives on the event loop / Cloud construction / separate layers):
 `monolith-size`, `color-bg`, `bold`, `shading-mode`,
 `color.tune.*` (color tune is a separate OKLab layer), `power-dragon`,
-`crystal-dragon`, `async-mode`, `message`, `message-border`,
-`msg-mode`, `msg-fill-style`, `ambient-snapback-secs`, and
-`ambient.<HH-MM>` (editing the schedule itself).
+`crystal-dragon`, `crystal-dragon-secs`, `async-mode`, `message`,
+`message-border`, `msg-mode`, `msg-fill-style`, `ambient-snapback-secs`,
+and `ambient.<HH-MM>` (editing the schedule itself).
 
 **All runtime shortkeys** (`q`/`r`/`c`/`C`/`s`/`S`/`x`/`X`/`p`/`i`/`[`/`]`/`Up`/`Down`)
 work normally during ambient — they set
@@ -576,9 +578,12 @@ builtin/custom directions, `monolith-size`, `bold`, `shading-mode`,
 `color-bg`, `crystal-dragon`, `power-dragon`, `async-mode`, `speed`,
 `density`, `fps`, `glitch-level`, `color.tune.*` (reset-on-comment),
 `message`/`message-border`/`msg-mode`/`msg-fill-style`, `ambient.HH-MM`,
-`ambient-snapback-secs`, and `charset-custom.<name>` block edits. The only
-restart-only keys remain `intro` and `intro-color` (the intro is a one-shot
-animation — documented Limitation, not a gap).
+`ambient-snapback-secs`, `crystal-dragon-secs` (v80.0.0-alpha.1 — the
+rebuild writes the CloudConfig field; `inherit_ecosystem_state` keeps
+the new cloud's config-derived control), and `charset-custom.<name>`
+block edits. The only restart-only keys remain `intro` and
+`intro-color` (the intro is a one-shot animation — documented
+Limitation, not a gap).
 
 ---
 

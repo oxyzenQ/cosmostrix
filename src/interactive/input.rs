@@ -527,10 +527,12 @@ pub(super) fn try_auto_snapback(
     // Clear drift state — cycle complete, next drift can fire on next poll.
     cloud.drift_active = false;
     cloud.drift_start = None;
-    // Reset the drift poll timer so the next drift fires 60s from now
-    // (not immediately). Without this, the poll is already "due" (60s+
-    // elapsed since last poll) and drift would re-fire instantly,
-    // preventing the ambient palette from being visible.
+    // Reset the drift poll timer so the next drift fires one full polling
+    // cycle from now (not immediately). Without this, the poll is already
+    // "due" (polling-secs+ elapsed since last poll) and drift would
+    // re-fire instantly, preventing the ambient palette from being
+    // visible. v80.0.0-alpha.1: "one polling cycle" = the effective
+    // crystal-dragon-secs, not the old hardcoded 60s.
     cloud.crystal_dragon_last_poll = Some(now);
     crate::interactive::ambient_diag_snapback();
     crate::interactive::ambient_diag_scene_change(&format!("auto-snapback(scene={})", entry.scene));

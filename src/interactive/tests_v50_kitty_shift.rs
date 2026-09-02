@@ -123,6 +123,7 @@ mod cases_kitty_shift {
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,
+            crystal_dragon_secs: None,
         }
     }
 

@@ -128,10 +128,17 @@ pub struct CloudConfig {
     /// message-border config key. CLI -m/-mb always wins (handled in
     /// main.rs). Default: true (message overlay active).
     pub msg_mode: bool,
-    /// PERF-4: particle effects enabled flag. When false, ALL particle
-    /// subsystems are disabled: quantum ripple, border spark, mouse-click
-    /// flash waves, and anomaly zones (luminance surge / glyph corruption /
-    /// pulse wave). Set from CLI --no-effects. Default: true (effects on).
+    /// PERF-4: particle effects enabled flag. When false, ALL cosmetic
+    /// subsystems are disabled — even the most valuable ones (owner
+    /// v80.0.0-alpha.1 directive: "disable all cosmetic effects to peak
+    /// optimize performance"): quantum ripple, border spark, mouse-click
+    /// flash waves, anomaly zones, ghost events, emergent storytelling
+    /// moments, msg-fill-style particle sidecars (engrave spark /
+    /// hologram scanline / scorch smoke), the CRT vignette post-process,
+    /// and the cursor hover glow. Set from CLI --no-effects. Default:
+    /// true (effects on). Auto-forced false in benchmark mode.
+    /// Rain-core visuals (droplet trails, phosphor fade, palette wave
+    /// transitions, climate drift) are NOT cosmetics — they stay on.
     pub effects_enabled: bool,
     /// Path to the config file being watched for live reload.
     /// None = no watcher (CLI-only run, no config file).
@@ -195,6 +202,15 @@ pub struct CloudConfig {
     /// in config.toml (range 0.0..=86400.0). Setting to 86400 (24h)
     /// effectively disables snapback; 0.0 means instant snapback.
     pub(crate) ambient_snapback_secs: Option<f64>,
+    /// v80.0.0-alpha.1: Crystal Dragon polling interval (seconds) — the
+    /// harmony twin of `ambient_snapback_secs`. None = default 60.0
+    /// (CRYSTAL_DRAGON_POLLING_SECS). Set via `--crystal-dragon-secs` or
+    /// the `crystal-dragon-secs` config key (range 0.0..=86400.0,
+    /// validated identically to ambient-snapback-secs). Applied to
+    /// `cloud.crystal_dragon_control.polling_secs` in create_cloud and
+    /// re-applied on live-reload (config key present wins over the CLI
+    /// lock; absent key keeps the locked startup value).
+    pub(crate) crystal_dragon_secs: Option<f64>,
 }
 
 impl CloudConfig {
@@ -203,6 +219,14 @@ impl CloudConfig {
     #[must_use]
     pub(crate) fn effective_snapback_delay(&self, default: f64) -> f64 {
         self.ambient_snapback_secs.unwrap_or(default)
+    }
+
+    /// v80.0.0-alpha.1: resolve the effective Crystal Dragon poll interval
+    /// (f32 for the engine control field). None = default 60.0; Some(n) =
+    /// user-set via CLI/config/live-reload.
+    #[must_use]
+    pub(crate) fn effective_crystal_dragon_secs(&self, default: f32) -> f32 {
+        self.crystal_dragon_secs.map_or(default, |s| s as f32)
     }
 }
 
@@ -237,6 +261,11 @@ pub(crate) struct CliExplicit {
     /// Track whether `--crystal-dragon` was set on CLI (intent
     /// preservation: CLI flag wins over config.toml on live reload).
     pub crystal_dragon: bool,
+    /// v80.0.0-alpha.1: track `--crystal-dragon-secs` CLI explicit — a
+    /// tuning flag still counts as user intent for the v80 ambient
+    /// startup deferral contract ("ANY CLI flag present → ambient waits
+    /// for the snapback delay"), so any() covers it by construction.
+    pub crystal_dragon_secs: bool,
     /// v50.0.0-alpha.7: track `--power-dragon` CLI explicit (was missing;
     /// live-reload path overrode CLI intent on config edit).
     pub power_dragon: bool,
@@ -304,6 +333,7 @@ impl CliExplicit {
             || self.scene
             || self.glitch_level
             || self.crystal_dragon
+            || self.crystal_dragon_secs
             || self.power_dragon
             || self.async_mode
             || self.msg_mode
@@ -401,6 +431,15 @@ impl CloudConfig {
         // Crystal Dragon Engine: when enabled, activates the point-based
         // temperature group system for palette drift.
         cloud.crystal_dragon = self.crystal_dragon;
+        // v80.0.0-alpha.1: apply the tunable polling interval (the
+        // "future CLI flags can override crystal_dragon_control here"
+        // promise from the original comment is now real for this field).
+        // min_dwell_secs stays at its 60s anti-flicker constant — a
+        // deliberate floor, NOT config-exposed (over-engineering guard:
+        // sub-minute palette flipping would read as flicker).
+        cloud.crystal_dragon_control.polling_secs = self.effective_crystal_dragon_secs(
+            crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS,
+        );
         // Z-master-1X bug fix: track whether the ambient scheduler has any
         // entries. When the schedule is empty, the drift gate in
         // `cloud/post_rain.rs` MUST NOT consult `user_override_since_ambient`
@@ -411,9 +450,8 @@ impl CloudConfig {
         // `crdr: on`. The schedule presence is the authoritative signal
         // because ambient fire is the only mechanism that clears the flag.
         cloud.ambient_schedule_active = !self.ambient_schedule.entries.is_empty();
-        // crystal_dragon_sensor and crystal_dragon_control are already
-        // initialized in Cloud::new() with default config. Future CLI
-        // flags can override crystal_dragon_control here.
+        // (crystal_dragon_control polling override applied above — the
+        // sensor/control were already initialized in Cloud::new().)
 
         // v30 strengthen (Bug #4): if a custom palette is active, drift's
         // set_color_scheme would overwrite the user's custom palette with a
@@ -513,6 +551,7 @@ impl CloudConfig {
             cli_explicit: self.cli_explicit,
             ambient_schedule: self.ambient_schedule.clone(),
             ambient_snapback_secs: self.ambient_snapback_secs,
+            crystal_dragon_secs: self.crystal_dragon_secs,
         }
     }
 }

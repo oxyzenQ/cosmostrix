@@ -134,13 +134,18 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     // v60.0.0-beta.1: storytelling now also gated on effects_enabled
     // (PERF-4 --no-effects audit); the test checks for the bench_mode
     // gate which is now `!self.bench_mode && self.effects_enabled`.
+    // v80.0.0-alpha.1 (--no-effects audit closure): the CRT vignette gate
+    // widened the same way — it must ALSO be effects-gated (the audit
+    // found the vignette was the last cosmetic still running under
+    // --no-effects in interactive mode).
     let source = include_str!("../rain_at.rs");
     let post_source = include_str!("../post_rain.rs");
     let combined = format!("{source}\n{post_source}");
 
     assert!(
-        combined.contains("if !self.bench_mode {\n            self.apply_crt_vignette(frame);"),
-        "PERF-1-Supreme: CRT vignette must be gated on !bench_mode in rain_at"
+        combined
+            .contains("if !self.bench_mode && self.effects_enabled {\n            self.apply_crt_vignette(frame);"),
+        "PERF-1-Supreme + PERF-4: CRT vignette must be gated on !bench_mode && effects_enabled in rain_at"
     );
     assert!(
         combined.contains(

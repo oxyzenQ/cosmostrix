@@ -363,9 +363,12 @@ impl super::Droplet {
                 } // end if FOG_ENABLED
 
                 // Cursor glow: cells near mouse cursor get brighter (elliptical falloff).
-                // v30 optimize: const-gate — MOUSE_GLOW_INTENSITY is 0.0 in production,
-                // so LLVM folds this to dead code. `mouse_col != u16::MAX` stays as a
-                // runtime guard for the day glow is re-enabled. See docs/archive/research/MOUSE_EFFECTS_AUDIT.md.
+                // v80.0.0-alpha.1 (--no-effects audit): MOUSE_GLOW_INTENSITY is 0.25 —
+                // the glow is LIVE in production (the old "0.0 / dead code" claim was
+                // stale). The gate is `ctx.mouse_col != u16::MAX`, and set_mouse_position
+                // stores the MAX sentinel whenever effects_enabled is false (--no-effects
+                // / bench), so the glow math is suppressed there; see
+                // docs/archive/research/MOUSE_EFFECTS_AUDIT.md for the tuning history.
                 const GLOW_ENABLED: bool = MOUSE_GLOW_INTENSITY > 0.0;
                 if GLOW_ENABLED && ctx.mouse_col != u16::MAX {
                     let col_dist = if self.bound_col > ctx.mouse_col {

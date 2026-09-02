@@ -7,9 +7,12 @@
 
 //! Live HUD overlay for interactive mode.
 //!
-//! Toggle with `i`. When visible, writes a compact 5-line overlay into
-//! the frame buffer (before `term.draw()`) showing real-time FPS, p99,
-//! max frame time, RSS, and session uptime.
+//! Toggle with `i`. When visible, writes a 24-row metric dashboard into
+//! the frame buffer (before `term.draw()`): the health core (fps / tgt /
+//! max / p99 / cpu / rss / ehs / prs), identity lines (scn / chr / clr),
+//! user-adjustable controls (sped / dsty), dragon + tuning state (prdr /
+//! crdr / ambt / glth / ctun / mnst), cell efficiency (dcel / tcel), and
+//! the session footer (cid / up / screensize).
 //!
 //! ## Design constraints
 //! - **Zero cost when off**: `visible == false` short-circuits all work.
@@ -593,8 +596,9 @@ impl HudState {
     ///
     /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
     /// chars so a very long custom charset preset name cannot blow past
-    /// the HUD_MAX_WIDTH (22 cols) budget. The ` chr: ` prefix is 6
-    /// chars, so 6 + 14 = 20 ≤ 22.
+    /// the HUD_MAX_WIDTH (24 cols) budget. The ` chr: ` prefix is 6
+    /// chars, so 6 + 14 = 20 ≤ 24.
+    /// (v80.0.0-alpha.1 doc-drift fix: comment said 22; the const is 24.)
     pub(crate) fn set_charset_preset(&mut self, preset: &str) {
         self.charset_preset.clear();
         const CHARSET_PRESET_MAX_CHARS: usize = 14;
@@ -827,13 +831,15 @@ impl HudState {
         if !self.visible {
             return;
         }
-        // HD-01 (HUD chroma dragon integration): 16-stop sweep across the
-        // active palette, mapping each of the 16 HUD rows to a distinct
-        // palette stop. Row 0 (fps, top) → palette[0], row 15 (reserved clr,
-        // bottom) → palette[n-1]. The full chroma dragon gradient is now
-        // visible across the HUD — matching the border message gradient's
-        // per-cell sweep philosophy, but applied per-LINE to preserve text
-        // readability (each row keeps one consistent color).
+        // HD-01 (HUD chroma dragon integration): 24-stop sweep across the
+        // active palette, mapping each of the 24 HUD rows to a distinct
+        // palette stop. Row 0 (fps, top) → dim tail stop, row 23
+        // (screensize, bottom) → bright head stop. The full chroma dragon
+        // gradient is now visible across the HUD — matching the border
+        // message gradient's per-cell sweep philosophy, but applied
+        // per-LINE to preserve text readability (each row keeps one
+        // consistent color). (v80.0.0-alpha.1 doc-drift fix: the old
+        // comment described the pre-expansion 16-row layout.)
         //
         // `brighten_color` floor (TARGET_V=200) guarantees every stop is
         // legible on a black background, including palette[0] which is

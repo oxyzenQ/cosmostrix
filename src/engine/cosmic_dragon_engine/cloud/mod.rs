@@ -655,6 +655,22 @@ impl Cloud {
     }
 
     pub fn set_mouse_position(&mut self, col: u16, line: u16) {
+        // v80.0.0-alpha.1 (--no-effects audit, PERF-4 final closure): when
+        // effects are disabled, store the u16::MAX "no cursor" sentinel so
+        // the droplet hover-glow branch (`ctx.mouse_col != u16::MAX`) never
+        // fires — the per-cell elliptical-brightening math near the cursor
+        // is a cosmetic overlay, exactly the class --no-effects exists to
+        // suppress. Position tracking itself stays live (mouse events are
+        // still consumed — blocks drag-select); only the glow read goes
+        // dark. Benchmark mode is unaffected (mouse_col is already MAX
+        // there — no mouse events). This closes the last cosmetic leak
+        // found in the --no-effects audit: hover glow + CRT vignette were
+        // the only two cosmetic paths still running under the flag.
+        if !self.effects_enabled {
+            self.mouse_col = u16::MAX;
+            self.mouse_line = u16::MAX;
+            return;
+        }
         self.mouse_col = col;
         self.mouse_line = line;
     }
@@ -792,23 +808,35 @@ impl Cloud {
     /// `drift_active = true` inherited + snapback disabled, the drift gate
     /// `!drift_active` blocks all future drifts forever — the owner symptom
     /// "ambient dominant, drift rare after live reload, restart fixes it."
-    /// The sensor state (`crystal_dragon_sensor`, `crystal_dragon_control`,
-    /// `crystal_dragon_last_poll`) IS still carried — it represents the engine's
-    /// understanding of the system (CPU point, EMA, theme entered-at), not the
-    /// per-cycle drift bookkeeping. A live reload is a config change; the drift
-    /// cycle should reset cleanly so the next poll can fire a fresh drift.
+    /// The sensor state (`crystal_dragon_sensor`, `crystal_dragon_last_poll`)
+    /// IS still carried — it represents the engine's understanding of the
+    /// system (CPU point, EMA, theme entered-at), not the per-cycle drift
+    /// bookkeeping. A live reload is a config change; the drift cycle should
+    /// reset cleanly so the next poll can fire a fresh drift.
+    ///
+    /// v80.0.0-alpha.1: `crystal_dragon_control` is NO LONGER inherited.
+    /// The fresh Cloud's control is config-derived (create_cloud applies
+    /// `crystal_dragon_secs` from the rebuilt CloudConfig); carrying the
+    /// old cloud's control would pin `polling_secs` to the pre-edit value —
+    /// exactly the bug class the tunable exists to avoid (a live-reload edit
+    /// to `crystal-dragon-secs` would have silently kept the old cadence).
+    /// All other control fields (drift_chance, ema_alpha, dwell floor,
+    /// sensor/calc mode) are constants — the sensor carries its own EMA
+    /// alpha snapshot, so nothing user-visible is lost.
     pub fn inherit_ecosystem_state(&mut self, other: &Cloud) {
         self.color_ecosystem = other.color_ecosystem;
         self.entropy_drift = other.entropy_drift;
         self.start_anchor = other.start_anchor;
         // Crystal Dragon sensor state survives live reload.
         self.crystal_dragon_sensor = other.crystal_dragon_sensor;
-        self.crystal_dragon_control = other.crystal_dragon_control;
         self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
         // Dragon Engine v2: carry drift history across live-reload.
         self.crystal_dragon_drift_history = other.crystal_dragon_drift_history;
         // drift_active + drift_start are NOT inherited — see doc comment above.
         // They default to false / None on the fresh Cloud (set in Cloud::new).
+        // crystal_dragon_control is NOT inherited — see doc comment above
+        // (v80.0.0-alpha.1: the fresh Cloud's control already carries the
+        // live-reloaded polling_secs).
     }
     /// Active scene name. Test-only accessor — production reads the
     /// `scene_name` field directly or via `hud_colors()`.

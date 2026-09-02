@@ -9,6 +9,97 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: v80.0.0-alpha.1 — crystal-dragon-secs harmony knob + --no-effects total closure (owner long-horizon directive)
+
+New pre-release cycle (alpha.1) per owner directive: the feature work
+below restarts the v80 ladder. Three internal-research tasks landed.
+
+1. **`--crystal-dragon-secs` — flexible custom polling time (the harmony
+   knob).** Crystal Dragon can now poll at any interval the user wants:
+   `cosmostrix --crystal-dragon-secs 120` or `crystal-dragon-secs = 120`
+   in config.toml, range **0.0..=86400.0** — exactly the same range
+   contract as `ambient-snapback-secs` (the two timers share one
+   timeline). Default stays 60s (`CRYSTAL_DRAGON_POLLING_SECS` now
+   seeds the default only). Resolution: CLI > config > default;
+   **live-reload applies edits immediately** so the rhythm can be tuned
+   online while watching the HUD. Why it exists: the owner's insight
+   that combining crystal-dragon with ambient snapback forces a timing
+   choice — now BOTH sides are user-tunable (keep
+   `ambient-snapback-secs < crystal-dragon-secs`, <= polling-10s for
+   margin, for the clean take-turns cycle; a snapback >= polling still
+   fires, it just stretches the drift window — documented in
+   `docs/AMBIENT_SCHEDULER.md` "Edge case: snapback >= polling").
+   Engine wiring: `create_cloud` writes
+   `crystal_dragon_control.polling_secs`; the drift-cycle self-reset in
+   `post_rain.rs` follows the CONFIGURED value (was hardcoded 60s —
+   desynced the moment the knob was tuned); `inherit_ecosystem_state`
+   no longer copies the old cloud's control across live-reload (that
+   would pin the pre-edit cadence — the exact bug class this feature
+   avoids). The 60s minimum-dwell anti-flicker floor is deliberately
+   constant: polling below 60s shifts cadence, palette flips still cap
+   at one per minute. Full disclosure surfaces: `-v` Dragon Systems
+   section (effective value + provenance + harmony hint), post-exit
+   final runtime state (`(was X)` change tracking), `--testconf` /
+   startup / live-reload strict validation (range 0.0..=86400.0),
+   `--doctor` (`polling_secs_default`, honestly renamed), template
+   config + `--help` (both carry the relative timing guide).
+   Benchmark mode is unaffected (crystal-dragon is forced off there
+   for determinism).
+
+2. **--no-effects total closure (PERF-4 final).** Owner audit
+   directive: the flag must disable ALL cosmetic effects, "even the
+   best/most valuable", for peak performance in benchmark mode AND
+   simple no-effects interactive mode. Full-subsystem sweep found
+   exactly two remaining leaks, both now closed:
+   - **CRT vignette** — the "cinematic" edge-dim post-process was
+     bench-gated but NOT effects-gated: under interactive
+     `--no-effects` the full dirty-cell scan + row-factor math + dim
+     pass still ran every frame. Gate widened to
+     `!bench_mode && effects_enabled` (rain_at.rs).
+   - **Cursor hover glow** — `MOUSE_GLOW_INTENSITY` is 0.25 (the old
+     "0.0 / dead code" comment was stale-false): the per-cell
+     elliptical brightening near the cursor kept computing under
+     `--no-effects`. `set_mouse_position` now stores the `u16::MAX`
+     no-cursor sentinel when effects are off (position tracking stays
+     live; only the glow read goes dark).
+   Everything else was verified already gated (quantum ripple spawn +
+   apply, flash waves, border spark + touch glow, anomaly spawn +
+   apply, ghost events trigger + render, storytelling moments,
+   engrave/hologram/scorch sidecars) — no zombie/gimmick functions
+   found; the bench `cosmetics_skipped` disclosure list was re-checked
+   against the source. Help text (`--no-effects`) now lists ALL nine
+   disabled subsystems + the rain-core visuals that stay on (droplet
+   trails, phosphor fade, palette waves, climate drift are NOT
+   cosmetics).
+
+3. **HUD / benchmark / verbose master audit (99% precision mandate).**
+   Verified every one of the 24 HUD rows is fed by a live source
+   (setters wired from `update_hud_state` every frame, 1 Hz metric
+   tick, pause-freeze contract, zero cost when off) — no zombie
+   metrics; benchmark report fields re-checked (all consumed, honest
+   labels, cosmetics gating locked by source-scan tests); verbose
+   startup + post-exit verified honest (effective values, not
+   constants). Fixed the five stale-doc spots the HUD masterclass
+   research §12 flagged for main (branch-only until now): the "5-line
+   overlay" module doc (it is 24 rows), the phantom
+   `HUD_DISPLAY_MAX_HZ` claim (the real limit is the 1 Hz metric
+   tick), the "22 cols" width claims (the const is 24), and the
+   "16-stop sweep" narration (24 stops). Peak-audit verdict: all three
+   surfaces already at peak for precision/stability/resource
+   efficiency — the audit output is documentation honesty + the two
+   --no-effects closures, no over-engineering.
+
+4. **Test coverage:** 15 net new tests (2074 → 2089): live-reload
+   semantics (present-wins / absent-keeps-lock / invalid-keeps-base /
+   bounds), config→engine wiring (create_cloud polling override, dwell
+   floor constant, resolve helper), CLI parse surface, strict
+   validation (range / non-numeric / bounds), behavioral drift
+   self-reset at a configured cadence + the default-cadence companion,
+   the inherit no-longer-carries-control contract, and the hover-glow
+   sentinel. 4 existing tests updated for the widened contracts
+   (inherit, bench gate source-scan, template assertions, final-state
+   round-trip).
+
 ### harmony: v80.0.0-beta.2 — S-master-HUNT-2 validation determinism + dragon usage docs (owner cp77x bug)
 
 Owner reported `scene-custom.cp77.color = "cp77x"` (unknown color) being

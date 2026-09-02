@@ -129,9 +129,9 @@ pub(crate) use watchdog::request_graceful_shutdown;
 
 use std::sync::OnceLock;
 
-// Final runtime state — stored as Strings to avoid enum discriminant issues
-// with 52 ColorScheme variants. Set once by event loop before returning.
-// OnceLock eliminates mutex overhead for write-once-read-many semantics.
+// Final runtime state — stored as Strings to avoid enum discriminant
+// issues with 52 ColorScheme variants. Set once by the event loop before
+// returning; OnceLock gives write-once-read-many semantics.
 static FINAL_COLOR: OnceLock<String> = OnceLock::new();
 static FINAL_SCENE: OnceLock<String> = OnceLock::new();
 static FINAL_CHARSET: OnceLock<String> = OnceLock::new();
@@ -152,26 +152,21 @@ static FINAL_POWER_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_CRYSTAL_DRAGON: OnceLock<bool> = OnceLock::new();
 static FINAL_ASYNC_MODE: OnceLock<bool> = OnceLock::new();
 static FINAL_INTRO_COLOR: OnceLock<Option<String>> = OnceLock::new();
-// v50.0.0-beta.7 LTS audit: track ambient runtime state so the post-exit
-// "final runtime state" section can show the EFFECTIVE ambient config —
-// owner found that ambient + ambient-snapback-secs were missing entirely
-// from final_runtime_verbose, making it impossible to verify what value
-// was actually in effect when the session ended (live-reload edits to
-// ambient-snapback-secs were silently lost on exit).
+// v50.0.0-beta.7 LTS audit: ambient runtime state tracked so the post-exit
+// section shows the EFFECTIVE ambient config (edits to
+// ambient-snapback-secs were previously silently lost on exit).
 static FINAL_AMBIENT_SNAPBACK_SECS: OnceLock<Option<f64>> = OnceLock::new();
 static FINAL_AMBIENT_ENTRIES: OnceLock<usize> = OnceLock::new();
-// v80.0.0-beta.2 (S-master-LOGIC-1): final-state completeness. The
-// post-exit section must disclose EVERY live-reload-able field the
-// user can change mid-run, not just the pre-v80 subset — the owner
-// found bold/shading-mode changes unverifiable because the section
-// never showed them. These seven additions close the gap:
-// - fps: config key, scene-custom block field, ambient scene ownership;
-// - glitch_level: config key + scene/ambient applies (derived from the
-//   live Cloud via Cloud::glitch_level() — the enum on CloudConfig is
-//   stale after an ambient apply);
-// - bold_mode / shading_mode / monolith_size / default_bg / color_tune:
-//   top-level config keys (scene-custom block ownership was REMOVED in
-//   v80.0.0-beta.2, so config + CLI are the only write paths at runtime).
+// v80.0.0-alpha.1: final-state tracking for the crystal-dragon-secs
+// harmony knob — a mid-run edit must be verifiable at exit.
+static FINAL_CRYSTAL_DRAGON_SECS: OnceLock<Option<f64>> = OnceLock::new();
+// v80.0.0-beta.2 (S-master-LOGIC-1): final-state completeness — the
+// post-exit section discloses EVERY live-reload-able field (owner found
+// bold/shading-mode edits unverifiable). fps (config key, scene field,
+// ambient ownership), glitch_level (derived from the live Cloud — the
+// CloudConfig enum is stale after an ambient apply), bold/shading/
+// monolith/color_bg/color_tune (top-level keys; scene-custom block
+// ownership was REMOVED in beta.2).
 static FINAL_FPS: OnceLock<f64> = OnceLock::new();
 static FINAL_GLIITCH_LEVEL: OnceLock<String> = OnceLock::new();
 static FINAL_BOLD_MODE: OnceLock<String> = OnceLock::new();
@@ -180,24 +175,11 @@ static FINAL_MONOLITH_SIZE: OnceLock<String> = OnceLock::new();
 static FINAL_COLOR_BG: OnceLock<bool> = OnceLock::new();
 static FINAL_COLOR_TUNE: OnceLock<String> = OnceLock::new();
 
-/// Store final runtime state for post-exit verbose summary.
-///
-/// v50.0.0-alpha.7: extended with msg_mode, message, message_border,
-/// power_dragon, crystal_dragon, async_mode, intro_color — so the
-/// post-exit "final runtime state" section reflects ALL live-reload
-/// changes, not just color/scene/charset/speed/density.
-///
-/// v50.0.0-beta.7 LTS audit: extended with ambient_snapback_secs +
-/// ambient_entries so the final-runtime section reports the EFFECTIVE
-/// ambient config (owner audit found these missing — live-reload edits
-/// to ambient-snapback-secs were silently lost on exit, making it
-/// impossible to verify the actual snapback delay in effect when the
-/// session ended).
-/// v80.0.0-beta.2 (S-master-LOGIC-1) additions: fps / glitch_level /
-/// bold / shading / monolith / color_bg / color_tune. Enum values are
-/// stored as their Debug-format labels (e.g. "Random",
-/// "DistanceFromHead", "Intense") so the post-exit printer can compare
-/// startup vs final without importing the enum types here.
+/// Store final runtime state for post-exit verbose summary. Extended over
+/// v50/v80 to cover EVERY live-reload-able field: msg family, dragons,
+/// async, intro_color, ambient (snapback + entries), fps, glitch, bold,
+/// shading, monolith, color_bg, color_tune, and (v80.0.0-alpha.1)
+/// crystal_dragon_secs — enums stored as Debug labels for (was X) diffs.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn set_final_state(
     color: &str,
@@ -215,6 +197,8 @@ pub(crate) fn set_final_state(
     intro_color: Option<&str>,
     ambient_snapback_secs: Option<f64>,
     ambient_entries: usize,
+    // v80.0.0-alpha.1: effective (post-live-reload) crystal-dragon-secs.
+    crystal_dragon_secs: Option<f64>,
     // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness:
     fps: f64,
     glitch_level: &str,
@@ -240,6 +224,7 @@ pub(crate) fn set_final_state(
     let _ = FINAL_INTRO_COLOR.set(intro_color.map(|s| s.to_string()));
     let _ = FINAL_AMBIENT_SNAPBACK_SECS.set(ambient_snapback_secs);
     let _ = FINAL_AMBIENT_ENTRIES.set(ambient_entries);
+    let _ = FINAL_CRYSTAL_DRAGON_SECS.set(crystal_dragon_secs);
     // v80.0.0-beta.2 (S-master-LOGIC-1):
     let _ = FINAL_FPS.set(fps);
     let _ = FINAL_GLIITCH_LEVEL.set(glitch_level.to_string());
@@ -301,6 +286,13 @@ pub(crate) fn last_intro_color() -> Option<&'static str> {
 /// `ambient-snapback-secs` config key.
 pub(crate) fn last_ambient_snapback_secs() -> Option<f64> {
     FINAL_AMBIENT_SNAPBACK_SECS.get().copied().flatten()
+}
+
+/// v80.0.0-alpha.1: accessor for final crystal_dragon_secs
+/// (post-live-reload). None = unset → runtime used
+/// CRYSTAL_DRAGON_POLLING_SECS (60.0).
+pub(crate) fn last_crystal_dragon_secs() -> Option<f64> {
+    FINAL_CRYSTAL_DRAGON_SECS.get().copied().flatten()
 }
 
 /// v50.0.0-beta.7 LTS: accessor for final ambient schedule entries count
@@ -424,6 +416,9 @@ pub(crate) fn print_final_runtime_state(
     // these were missing entirely from final_runtime_verbose).
     startup_ambient_snapback_secs: Option<f64>,
     startup_ambient_entries: usize,
+    // v80.0.0-alpha.1: startup baseline for the crystal-dragon-secs knob
+    // (paired with last_crystal_dragon_secs() for the (was X) suffix).
+    startup_crystal_dragon_secs: Option<f64>,
     // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness: startup
     // baselines for the seven newly tracked fields, paired with the
     // FINAL_* OnceLocks so the section discloses EVERY live-reload-able
@@ -453,6 +448,8 @@ pub(crate) fn print_final_runtime_state(
     // v50.0.0-beta.7 LTS: read final ambient state (post-live-reload).
     let final_ambient_snapback_secs = last_ambient_snapback_secs();
     let final_ambient_entries = last_ambient_entries();
+    // v80.0.0-alpha.1: final value of the crystal-dragon-secs harmony knob.
+    let final_crystal_dragon_secs = last_crystal_dragon_secs();
     // v80.0.0-beta.2 (S-master-LOGIC-1): final values for the newly
     // tracked dimensions.
     let final_fps = last_fps();
@@ -463,12 +460,9 @@ pub(crate) fn print_final_runtime_state(
     let final_color_bg = last_color_bg();
     let final_color_tune = last_color_tune();
 
-    // v50.0.0-rc.1: previously this function early-returned when no field
-    // changed, suppressing the entire section. Now the section ALWAYS
-    // prints so the user can see the exit_time + duration line regardless
-    // of whether any live-reload edits happened during the session. The
-    // per-field `if final_X != startup_X` guards below still suppress
-    // unchanged fields, keeping the section scannable.
+    // v50.0.0-rc.1: the section ALWAYS prints (exit_time + duration even
+    // with no changes); per-field `if final_X != startup_X` guards below
+    // still suppress unchanged fields, keeping it scannable.
 
     let ts = crate::output::now_hhmm();
     let purple = crate::output::brand_open();
@@ -681,23 +675,41 @@ pub(crate) fn print_final_runtime_state(
         final_ambient_entries
     );
 
+    // v80.0.0-alpha.1: ALWAYS print the crystal-dragon-secs runtime state
+    // (same always-print policy as the ambient lines) so a live-reload edit
+    // to the poll cadence is verifiable at session end. `(was X)` appears
+    // only when startup != final.
+    let cd_secs_now = final_crystal_dragon_secs.unwrap_or(
+        crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS as f64,
+    );
+    let cd_secs_was = startup_crystal_dragon_secs.unwrap_or(
+        crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS as f64,
+    );
+    let cd_secs_src = if final_crystal_dragon_secs.is_some() {
+        "CLI/config"
+    } else {
+        "default (unset — 60.0s)"
+    };
+    let cd_secs_was_label = if final_crystal_dragon_secs != startup_crystal_dragon_secs {
+        format!(" (was {cd_secs_was:.1}s)")
+    } else {
+        String::new()
+    };
+    crate::output::eprintln_safe!(
+        "{purple}[verbose]{reset} {ts} {purple}  crystal_dragon_secs:{reset} {cd_secs_now:.1}s ({cd_secs_src}){cd_secs_was_label}"
+    );
+
     let diag = ambient_diag_summary();
     crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
 }
 
 /// AB-10 (rain-screen cleanliness): emit pre-alt-screen warnings to stderr
-/// BEFORE `Terminal::with_signal_exit()` enters the alternate screen.
-/// Otherwise the warning lines leak into the rain matrix on startup.
-///
-/// Reads the terminal size via `crossterm::terminal::size()`, which does NOT
-/// require raw mode or alt-screen entry. Applies the same clamp(MIN, MAX)
-/// used by `Terminal::size()` so the comparison reflects the renderer's
-/// actual working area.
-///
-/// Two warnings:
-///   1. `--screen-size WxH` exceeds the live terminal size (clipped).
-///   2. Intro requested but terminal smaller than MIN_INTRO_COLS x
-///      MIN_INTRO_LINES (intro will be silently skipped by `run_intro`).
+/// BEFORE `Terminal::with_signal_exit()` enters the alternate screen
+/// (otherwise the lines leak into the rain matrix). Reads the terminal
+/// size via crossterm (no raw mode needed), applying the same clamp
+/// `Terminal::size()` uses. Warns when: (1) `--screen-size WxH` exceeds
+/// the live terminal (clipped); (2) intro requested but the terminal is
+/// smaller than MIN_INTRO_COLS x MIN_INTRO_LINES (intro silently skipped).
 pub(crate) fn emit_pre_alt_screen_warnings(fixed_size: Option<(u16, u16)>, intro_enabled: bool) {
     use crate::constants::{
         MAX_TERMINAL_COLS, MAX_TERMINAL_LINES, MIN_TERMINAL_COLS, MIN_TERMINAL_LINES,

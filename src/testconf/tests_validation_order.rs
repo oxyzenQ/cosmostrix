@@ -128,3 +128,45 @@ fn strict_validation_reports_ambient_error_first_regardless_of_order() {
         "ambient error must surface first: {err}"
     );
 }
+
+// ── v80.0.0-alpha.1: crystal-dragon-secs strict validation ────────────────
+
+#[test]
+fn strict_validation_rejects_out_of_range_crystal_dragon_secs() {
+    // The new harmony knob must validate on ALL surfaces (startup,
+    // --testconf, live-reload) exactly like ambient-snapback-secs —
+    // a typo'd magnitude (999999) is a hard rejection, not a silent
+    // fallback to the 60s default.
+    let mut cfg = owner_cp77_config("cp77");
+    cfg.insert("crystal-dragon-secs".to_string(), "999999".to_string());
+    let err = validate_config_strictly(&cfg)
+        .expect_err("out-of-range crystal-dragon-secs must be rejected");
+    assert!(
+        err.contains("crystal-dragon-secs") && err.contains("86400"),
+        "error must name the key and the range: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_non_numeric_crystal_dragon_secs() {
+    let mut cfg = owner_cp77_config("cp77");
+    cfg.insert("crystal-dragon-secs".to_string(), "fast".to_string());
+    let err = validate_config_strictly(&cfg)
+        .expect_err("non-numeric crystal-dragon-secs must be rejected");
+    assert!(
+        err.contains("crystal-dragon-secs"),
+        "error must name the key: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_accepts_crystal_dragon_secs_bounds() {
+    for v in ["0", "45.5", "86400"] {
+        let mut cfg = owner_cp77_config("cp77");
+        cfg.insert("crystal-dragon-secs".to_string(), v.to_string());
+        assert!(
+            validate_config_strictly(&cfg).is_ok(),
+            "crystal-dragon-secs={v} must be accepted (0.0..=86400.0)"
+        );
+    }
+}

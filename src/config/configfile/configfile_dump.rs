@@ -80,16 +80,24 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                       # ~0.65 under moderate pressure. That is correct behavior, not a bug.
 #                                       # For the exact fixed value: power-dragon = false here or --power-dragon false.
 # crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups).
-#                                       # Cadence: sensor poll every 60s, ~12% drift chance per poll (about one
-#                                       # drift every 5 minutes on average) — organic, not periodic.
+#                                       # Cadence: sensor poll every crystal-dragon-secs, ~12% drift chance per
+#                                       # poll (about one drift every 5 minutes on average at the 60s default) —
+#                                       # organic, not periodic.
+# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default). Crystal Dragon poll interval — the
+#                                       # harmony twin of ambient-snapback-secs. Live-reload applies edits
+#                                       # immediately (tune the rhythm online). The 60s min-dwell floor stays
+#                                       # constant: polling below 60s shifts cadence, palette flips still cap
+#                                       # at one per minute. 86400 = poll once per 24h. CLI: --crystal-dragon-secs.
 # ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant).
 #                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
 #                                       # visible before the ambient phase re-asserts. ANY value fires — a value
-#                                       # >= 60s still triggers (verified live at 90s), it just stretches the
-#                                       # rhythm: the drift palette holds the ambient palette for the whole
-#                                       # window and no new drift can fire during it. 86400 = held ~24h.
-#                                       # Harmony sweet spot: keep it UNDER 60s (<= 50s) so each drift reverts
-#                                       # before the next 60s poll — see the timing guide in the ambient section.
+#                                       # >= the poll interval still triggers (verified live at 90s vs 60), it
+#                                       # just stretches the rhythm: the drift palette holds the ambient palette
+#                                       # for the whole window and no new drift can fire during it. 86400 = held ~24h.
+#                                       # Harmony sweet spot (v80.0.0-alpha.1, now relative): keep
+#                                       # ambient-snapback-secs UNDER crystal-dragon-secs (<= polling-10s for
+#                                       # margin) so each drift reverts before the next poll — see the timing
+#                                       # guide in the ambient section.
 # bold = 1                              # 0=off, 1=random, 2=all
 # shading-mode = 1                       # 0=random, 1=cinematic
 
@@ -187,18 +195,22 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
 #
-# Combining crystal-dragon + ambient (timing guide — verified 2026-09-02):
-# crystal-dragon polls every 60s (~12% drift chance per poll). When a drift
-# fires while an ambient phase is active, the drift palette overrides the
-# ambient palette for ambient-snapback-secs, then ambient re-asserts
-# (snapback). Snapback fires at ANY configured value — including >= 60s
-# (verified live: a 90s snapback fired exactly at ~90s). A long window is
-# not broken, just slower: the drift palette holds the ambient palette for
-# the whole window, and no new drift can fire during it (the next drift is
-# delayed). Harmony sweet spot: keep ambient-snapback-secs < 60 (<= 50s for
-# margin) so each drift reverts before the next 60s poll and the two
-# systems take turns cleanly. If you do not want the interplay at all,
-# turn one of the two off — you never need both.
+# Combining crystal-dragon + ambient (timing guide — verified 2026-09-02,
+# made relative by crystal-dragon-secs in v80.0.0-alpha.1):
+# crystal-dragon polls every crystal-dragon-secs (default 60, ~12% drift
+# chance per poll). When a drift fires while an ambient phase is active,
+# the drift palette overrides the ambient palette for
+# ambient-snapback-secs, then ambient re-asserts (snapback). Snapback
+# fires at ANY configured value — including >= the poll interval
+# (verified live: a 90s snapback fired exactly at ~90s vs the 60s poll).
+# A long window is not broken, just slower: the drift palette holds the
+# ambient palette for the whole window, and no new drift can fire during
+# it (the next drift is delayed). Harmony sweet spot: keep
+# ambient-snapback-secs < crystal-dragon-secs (<= polling-10s for margin)
+# so each drift reverts before the next poll and the two systems take
+# turns cleanly — and both knobs are live-reload-able, so you can tune
+# the rhythm online while watching the HUD. If you do not want the
+# interplay at all, turn one of the two off — you never need both.
 
 # IMPORTANT — ambient overlay precedence (v80.0.0-beta.2 honesty note):
 # When ANY ambient.HH-MM entry is active, the ambient scene is the ground
@@ -218,7 +230,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Still works via config while ambient is active (NOT scene-owned):
 #   monolith-size, color-bg, bold, shading-mode,
 #   color.tune.* (color tune is a separate layer),
-#   power-dragon, crystal-dragon, async-mode,
+#   power-dragon, crystal-dragon, crystal-dragon-secs, async-mode,
 #   message, message-border, msg-mode, msg-fill-style,
 #   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
 #

@@ -221,9 +221,17 @@ fn dump_config_documents_paired_field_split() {
         dump.contains("Combining crystal-dragon + ambient"),
         "template must carry the drift/snapback timing guide"
     );
+    // v80.0.0-alpha.1: the harmony guidance is now RELATIVE — the polling
+    // interval itself is tunable (crystal-dragon-secs), so the fixed
+    // "< 60" advice became stale. The template must teach the relative
+    // rule AND document the new knob itself.
     assert!(
-        dump.contains("keep ambient-snapback-secs < 60"),
-        "template must carry the snapback harmony guidance"
+        dump.contains("keep\n# ambient-snapback-secs < crystal-dragon-secs"),
+        "template must carry the relative snapback/polling harmony guidance"
+    );
+    assert!(
+        dump.contains("# crystal-dragon-secs = 60"),
+        "template must document the crystal-dragon-secs config key"
     );
     assert!(
         dump.contains("EFFECTIVE") && dump.contains("power-dragon = false"),

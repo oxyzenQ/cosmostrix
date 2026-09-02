@@ -549,32 +549,46 @@ fn z_master_1x_round4_inherit_resets_drift_cycle_state() {
 }
 
 /// Z-master-1X round 4: inherit_ecosystem_state still carries the
-/// Crystal Dragon SENSOR state (crystal_dragon_sensor, _control,
-/// _last_poll) across live reload. The sensor represents the engine's
-/// understanding of the system (CPU point, EMA, theme entered-at),
-/// not the per-cycle drift bookkeeping — so it should survive a config
-/// change. This test verifies the sensor state is preserved while the
-/// drift cycle state resets (companion to the test above).
+/// Crystal Dragon SENSOR state (crystal_dragon_sensor, _last_poll)
+/// across live reload. The sensor represents the engine's understanding
+/// of the system (CPU point, EMA, theme entered-at), not the per-cycle
+/// drift bookkeeping — so it should survive a config change. This test
+/// verifies the sensor state is preserved while the drift cycle state
+/// resets (companion to the test above).
+///
+/// v80.0.0-alpha.1: `crystal_dragon_control` is NO LONGER inherited. The
+/// fresh Cloud's control is config-derived (create_cloud applies
+/// `crystal-dragon-secs` from the rebuilt CloudConfig), so carrying the
+/// old control would pin polling_secs to the pre-edit value — the exact
+/// bug the tunable exists to fix. The new_cloud's control must SURVIVE
+/// the inherit untouched.
 #[test]
 fn z_master_1x_round4_inherit_preserves_sensor_state() {
     let mut old_cloud = make_green_cloud();
     old_cloud.crystal_dragon = true;
-    let old_control = old_cloud.crystal_dragon_control;
+    old_cloud.crystal_dragon_control.polling_secs = 120.0; // pre-edit value
     let old_last_poll = old_cloud.crystal_dragon_last_poll;
 
     let mut new_cloud = make_green_cloud();
+    // create_cloud applied the live-reloaded crystal-dragon-secs = 30:
+    new_cloud.crystal_dragon_control.polling_secs = 30.0;
     new_cloud.inherit_ecosystem_state(&old_cloud);
 
-    // control + last_poll ARE inherited (engine state survives).
-    // (sensor itself is Clone+Copy but not PartialEq; we verify via
-    // the control + last_poll fields which are PartialEq-deriving.)
-    assert_eq!(
-        new_cloud.crystal_dragon_control, old_control,
-        "control config must survive live reload"
-    );
+    // last_poll IS inherited (engine state survives).
     assert_eq!(
         new_cloud.crystal_dragon_last_poll, old_last_poll,
         "last_poll timestamp must survive live reload"
+    );
+    // control is NOT inherited: the new cloud keeps its config-derived
+    // polling_secs (30), NOT the old cloud's pre-edit value (120).
+    assert_eq!(
+        new_cloud.crystal_dragon_control.polling_secs, 30.0,
+        "v80.0.0-alpha.1: the fresh Cloud's config-derived control must survive inherit (old-cloud polling would pin the pre-edit cadence)"
+    );
+    assert_eq!(
+        new_cloud.crystal_dragon_control.min_dwell_secs,
+        old_cloud.crystal_dragon_control.min_dwell_secs,
+        "constant control fields are identical between clouds either way"
     );
 }
 

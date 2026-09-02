@@ -147,7 +147,7 @@ The Dragon's roar is not loud — it is precise.
 ### Intelligence & Power
 
 - **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
-- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` — the two systems cooperate by taking turns. Snapback fires at ANY delay value (a 90s snapback fires at ~90s — verified live); keep it under 60s (<= 50s for margin) for the cleanest drift/snapback rhythm. When ambient is off (empty schedule), Crystal Dragon drifts on its 60s poll cadence with a self-resetting cycle (no snapback needed) — see `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide".
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` — the two systems cooperate by taking turns. Snapback fires at ANY delay value (a 90s snapback fires at ~90s — verified live); keep it under the poll interval for the cleanest drift/snapback rhythm. v80.0.0-alpha.1: the poll interval itself is tunable (`--crystal-dragon-secs` / `crystal-dragon-secs` config key, 0.0..=86400.0, default 60, live-reload-able) — the harmony twin of `ambient-snapback-secs` (recommended: snapback < polling, <= polling-10s for margin; the 60s minimum-dwell floor caps palette flips at one per minute). When ambient is off (empty schedule), Crystal Dragon drifts on its poll cadence with a self-resetting cycle (no snapback needed) — see `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide".
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
 - **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer. With it on, the HUD `dsty:` line shows the EFFECTIVE (pressure-banded) density — `density = 0.90` can display ~0.65 under moderate pressure; `power-dragon = false` (or `--power-dragon false`) pins the exact configured value.
@@ -272,7 +272,7 @@ A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms aut
 
 ```bash
 REPO="oxyzenQ/cosmostrix"
-TAG="v80.0.0-beta.2"
+TAG="v80.0.0-alpha.1"
 PLATFORM="linux-amd64-v3"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz"
 curl -LO "https://github.com/${REPO}/releases/download/${TAG}/cosmostrix-${TAG}-${PLATFORM}.tar.gz.sha512sum"

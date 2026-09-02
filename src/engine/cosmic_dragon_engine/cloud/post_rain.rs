@@ -145,11 +145,13 @@ impl super::Cloud {
         // user override is pending. When drift fires, it sets drift_active
         // = true + drift_start = now. try_auto_snapback checks drift_start
         // and reverts after ambient-snapback-secs, clearing drift_active.
-        // This gives a deterministic rhythm:
-        //   60s ambient → drift fires → drift visible for snapback-secs →
-        //   snapback reverts → drift_active cleared → next drift at +60s.
-        // If snapback-secs >= 60, the next drift poll is skipped (drift still
-        // active) — drift fires at +120s instead. This is by design.
+        // This gives a deterministic rhythm (P = effective
+        // crystal-dragon-secs, default 60):
+        //   poll cycle P → drift fires → drift visible for snapback-secs →
+        //   snapback reverts → drift_active cleared → next drift at +P.
+        // If snapback-secs >= P, the next drift poll is skipped (drift still
+        // active) — drift fires at +2P instead. This is by design (see
+        // docs/AMBIENT_SCHEDULER.md "Edge case: snapback >= polling").
         //
         // Z-master-1X bug fix (commit c12580a): the `user_override_since_ambient`
         // gate only applies when ambient is active. That flag is forced to
@@ -166,14 +168,17 @@ impl super::Cloud {
         // was never cleared after the first drift — permanently blocking
         // all subsequent drifts (owner symptom: "1 color change then nothing
         // for 5+ minutes"). The self-reset below clears drift_active after
-        // CRYSTAL_DRAGON_POLLING_SECS of visibility, decoupling the drift
-        // cycle from the ambient snapback mechanism. The 60s window matches
-        // the polling cadence: drift is visible for one poll cycle, then the
-        // cycle resets so the next poll can fire a new drift. When ambient
-        // is ON, the snapback path (which reverts the palette AND clears
-        // drift_active) takes precedence — the self-reset only fires if
-        // snapback hasn't, which is the correct ordering (snapback at 30s
-        // < self-reset at 60s).
+        // one polling cycle of visibility, decoupling the drift cycle from
+        // the ambient snapback mechanism. The window mirrors the CONFIGURED
+        // poll cadence (crystal_dragon_control.polling_secs — v80.0.0-alpha.1:
+        // previously the hardcoded 60s const, which desynced the moment the
+        // user tuned crystal-dragon-secs): drift is visible for one poll
+        // cycle, then the cycle resets so the next poll can fire a new
+        // drift. When ambient is ON, the snapback path (which reverts the
+        // palette AND clears drift_active) takes precedence — the self-reset
+        // only fires if snapback hasn't, which is the correct ordering
+        // (snapback at 30s < self-reset at the poll cycle, in the default
+        // harmony configuration).
         if self.crystal_dragon
             && !self.drift_active
             && (!self.user_override_since_ambient || !self.ambient_schedule_active)
@@ -189,25 +194,24 @@ impl super::Cloud {
         // off. Without this, the first drift sets drift_active=true and no
         // mechanism ever clears it (try_auto_snapback early-returns on
         // empty schedule), so every subsequent poll hits the !drift_active
-        // gate and is blocked. The 60s visibility window matches
-        // CRYSTAL_DRAGON_POLLING_SECS so the next drift is eligible on the
-        // very next poll after the cycle resets. When ambient is on, the
-        // snapback path clears drift_active first (at ~30s) and this branch
+        // gate and is blocked. The visibility window equals the CONFIGURED
+        // poll cadence (crystal_dragon_control.polling_secs — v80.0.0-alpha.1)
+        // so the next drift is eligible on the very next poll after the
+        // cycle resets. When ambient is on, the snapback path clears
+        // drift_active first (at ambient-snapback-secs) and this branch
         // is a no-op (drift_active already false).
         if self.drift_active && !self.ambient_schedule_active {
             if let Some(start) = self.drift_start {
                 let drift_visible_secs = now.saturating_duration_since(start).as_secs_f32();
-                if drift_visible_secs
-                    >= crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS
-                {
+                if drift_visible_secs >= self.crystal_dragon_control.polling_secs {
                     self.drift_active = false;
                     self.drift_start = None;
-                    // Reset the poll timer so the next drift fires 60s from
-                    // now, not instantly (mirrors try_auto_snapback's
-                    // crystal_dragon_last_poll reset at input.rs:534).
-                    // Without this, the poll is already "due" and drift
-                    // would re-fire on the very next frame, preventing the
-                    // just-drifted palette from being visible.
+                    // Reset the poll timer so the next drift fires one full
+                    // polling cycle from now, not instantly (mirrors
+                    // try_auto_snapback's crystal_dragon_last_poll reset at
+                    // input.rs). Without this, the poll is already "due" and
+                    // drift would re-fire on the very next frame, preventing
+                    // the just-drifted palette from being visible.
                     self.crystal_dragon_last_poll = Some(now);
                 }
             }

@@ -533,6 +533,17 @@ fn apply_config_values(
             config_touched.insert("crystal_dragon");
         }
     }
+    // v80.0.0-alpha.1: crystal-dragon-secs — float in [0.0, 86400.0].
+    // CLI --crystal-dragon-secs wins over the config key (config_value's
+    // is_explicit check). Same range contract as ambient-snapback-secs so
+    // the two harmony knobs validate identically on every surface
+    // (startup, --testconf, live-reload strict validation).
+    if let Some(v) = config_value(matches, cfg, "crystal_dragon_secs", "crystal-dragon-secs") {
+        if let Some(secs) = parse_f64_config("crystal-dragon-secs", &v, 0.0, 86400.0) {
+            args.crystal_dragon_secs = Some(secs);
+            config_touched.insert("crystal-dragon-secs");
+        }
+    }
     // v50-beta.3: power-dragon CLI flag now exists (--power-dragon=true|false).
     // CLI wins over config (handled by config_value's is_explicit check).
     // Default when neither CLI nor config provides a value: true (main.rs).

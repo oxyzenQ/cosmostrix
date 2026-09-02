@@ -15,12 +15,12 @@ facts the rest of this document assumes, stated without engine jargon:
 
 | Question | Answer |
 |---|---|
-| How often does crystal-dragon act? | Sensor poll every **60s**; each poll has a **~12% drift chance** (about one drift per 5 minutes on average — organic, not periodic). |
+| How often does crystal-dragon act? | Sensor poll every **`crystal-dragon-secs`** (default **60s**, range 0.0..=86400.0 — CLI `--crystal-dragon-secs`, config key, live-reload); each poll has a **~12% drift chance** (about one drift per 5 minutes on average at 60s — organic, not periodic). |
 | What is the ambient snapback? | The ambient phase re-asserting itself after something else took over (a crystal-dragon drift, or your manual `c`/`C`/`x`/`X`/`s`/`S` shortkey). |
 | Default snapback delay? | **30s** (`ambient-snapback-secs`, range 0.0..=86400.0; 0 = instant, 86400 = effectively off). |
-| Does a snapback >= 60s still fire? | **YES.** Verified live: a 90s snapback fired at ~90s. The timer has no upper-bound bug. A long value only stretches the rhythm (see the next row). |
-| What actually changes with snapback >= 60s? | The drift palette **holds** the ambient palette for the whole window and **no new drift can fire** during it — the system looks "stuck on one color" until the snapback lands. At 86400 that is ~24h. |
-| Recommended value when combining? | Keep `ambient-snapback-secs` **under 60s** (<= 50s for margin) so each drift reverts before the next 60s poll and the two systems take clean turns. |
+| Does a snapback >= the poll interval still fire? | **YES.** Verified live: a 90s snapback fired at ~90s against the 60s default poll. The timer has no upper-bound bug. A long value only stretches the rhythm (see the next row). |
+| What actually changes with snapback >= polling? | The drift palette **holds** the ambient palette for the whole window and **no new drift can fire** during it — the system looks "stuck on one color" until the snapback lands. At 86400 that is ~24h. |
+| Recommended values when combining? | Keep `ambient-snapback-secs` **under `crystal-dragon-secs`** (<= polling-10s for margin) so each drift reverts before the next poll and the two systems take clean turns. Both knobs are live-reload-able — tune the rhythm online while watching the HUD (v80.0.0-alpha.1). |
 | I set `density = 0.90` but the HUD shows ~0.65 — bug? | No. `power-dragon` (default on) throttles the *effective* density under pressure; the HUD `dsty:` line shows the effective value. Set `power-dragon = false` (or `--power-dragon false`) for the exact fixed value. |
 | Do I need both dragons? | No. If you do not want drift-vs-ambient interplay, turn either one off — never required together. |
 
@@ -167,9 +167,13 @@ mechanism that would normally clear `drift_active`. With `drift_active`
 inherited as `true` + snapback disabled, the drift gate `!drift_active`
 would block all future drifts forever — the owner symptom "ambient
 dominant, drift rare after live reload, restart fixes it." The sensor
-state (`crystal_dragon_sensor`, `_control`, `_last_poll`) IS still
-inherited (engine state survives), but the per-cycle drift bookkeeping
-resets cleanly so the next poll can fire a fresh drift.
+state (`crystal_dragon_sensor`, `_last_poll`) IS still inherited (engine
+state survives), but the per-cycle drift bookkeeping resets cleanly so
+the next poll can fire a fresh drift. v80.0.0-alpha.1:
+`crystal_dragon_control` is also no longer inherited — the fresh Cloud's
+control is config-derived (create_cloud applies the live-reloaded
+`crystal-dragon-secs`), so carrying the old control would pin the poll
+cadence to the pre-edit value.
 
 **Self-reset when ambient is OFF** (Z-master-1X round 2, commit `40bad33`):
 when `ambient_schedule_active == false`, `try_auto_snapback` never runs
@@ -179,13 +183,16 @@ it — permanently blocking all subsequent drifts. The self-reset in
 `post_rain.rs` clears `drift_active` + `drift_start` + resets
 `crystal_dragon_last_poll` when ALL of the following are true:
 `drift_active == true`, `ambient_schedule_active == false`, and
-`now - drift_start >= CRYSTAL_DRAGON_POLLING_SECS` (60s).
+`now - drift_start >= crystal_dragon_control.polling_secs` (the effective
+`crystal-dragon-secs`, default 60s — v80.0.0-alpha.1: the window follows
+the CONFIGURED cadence, not the constant).
 
-The 60s visibility window matches the polling cadence: drift is visible
+The visibility window equals the polling cadence: drift is visible
 for one poll cycle, then the cycle resets so the next poll can fire a
 new drift. When ambient is ON, the snapback path clears `drift_active`
 first (at `ambient-snapback-secs`, default 30s) and the self-reset is a
-no-op — correct ordering (snapback at 30s < self-reset at 60s).
+no-op — correct ordering (snapback at 30s < self-reset at the poll cycle,
+in the default harmony configuration).
 
 **Timeline** (with `ambient-snapback-secs = 10`, poll = 60s):
 
@@ -218,15 +225,17 @@ T=180:  drift fires again (12% chance) → palette=ocean,
 T=240:  self-reset fires → cycle repeats
 ```
 
-**Rhythm (ambient OFF)**: 60s drift visible → reset → 60s drift visible
-→ reset → ... No palette revert (no ambient to revert to) — the previous
-drift color persists until the next drift fires. The 60s visibility
-window is fixed at `CRYSTAL_DRAGON_POLLING_SECS` (not configurable) so
-the cycle cadence matches the poll cadence exactly.
+**Rhythm (ambient OFF)**: one poll cycle of drift visibility → reset →
+next cycle → ... No palette revert (no ambient to revert to) — the previous
+drift color persists until the next drift fires. v80.0.0-alpha.1: the
+visibility window follows `crystal-dragon-secs` (default 60s) so the
+cycle cadence always matches the poll cadence exactly — tune the knob
+and the whole rhythm follows.
 
-**Edge case: snapback >= 60**: if `ambient-snapback-secs >= 60`, the
-snapback **still fires** — at exactly `ambient-snapback-secs` after the
-drift began (verified live 2026-09-02: a 90s snapback fired at ~90s;
+**Edge case: snapback >= polling**: if `ambient-snapback-secs >=
+crystal-dragon-secs`, the snapback **still fires** — at exactly
+`ambient-snapback-secs` after the drift began (verified live 2026-09-02:
+a 90s snapback fired at ~90s against the 60s default poll;
 `ambient_diag: snapback=1`, final scene reverted to the ambient phase).
 There is no upper-bound bug and no "collision that starves the timer".
 What actually changes is the RHYTHM, in two ways:
@@ -235,28 +244,33 @@ What actually changes is the RHYTHM, in two ways:
    with 86400 (the documented "effectively disabled" value) the very
    first drift holds the ambient palette for ~24 hours.
 2. No new drift can fire during the window (the `!drift_active` gate).
-   The next drift poll at +60s finds `drift_active` still true and is
-   skipped; drift becomes eligible again only after the snapback clears
-   the flag (next drift at snapback + ~60s).
+   The next drift poll (at +`crystal-dragon-secs`) finds `drift_active`
+   still true and is skipped; drift becomes eligible again only after
+   the snapback clears the flag (next drift at snapback + ~poll).
 
 This is by design — the user chose a long snapback, so drift gets a
 long visible window and the next drift is delayed. To avoid this,
-set `ambient-snapback-secs` to a value **less than 60** (10, 30, 50 —
-the owner's guidance is <= 50s for margin) for the "60s ambient, Ns
-drift" rhythm, or accept a **longer** drift window with skipped polls
-(70, 120, ...). The "snapback never triggers at >= 60s" reading is a
-myth — do not document it anywhere; this section is the correction.
+set `ambient-snapback-secs` to a value **less than
+`crystal-dragon-secs`** (<= polling-10s for margin) for the "Ns ambient,
+Ms drift" rhythm, or accept a **longer** drift window with skipped polls.
+The "snapback never triggers at >= 60s" reading is a myth — do not
+document it anywhere; this section is the correction. With
+`crystal-dragon-secs` now tunable, BOTH sides of the inequality are
+yours to place: raise the poll interval (e.g. 120) instead of lowering
+the snapback, or shorten the poll (e.g. 30) for a faster rhythm —
+keeping the 60s minimum-dwell floor in mind (palette flips never
+faster than one per minute).
 
 **Manual user override**: pressing `c`/`C`/`x` sets
 `user_override_since_ambient = true`, which blocks drift from firing
 until snapback clears it. This is the existing behavior — manual
 overrides always take priority over automatic drift.
 
-**Why no new config keys**: the state machine uses only internal Cloud
-fields (`drift_active`, `drift_start`) + the existing
-`ambient-snapback-secs` config key. No new config keys, no new CLI
-flags, no new persistent settings. The rhythm is fully controlled by
-the existing `ambient-snapback-secs` value.
+**Config surface** (v80.0.0-alpha.1): the state machine uses internal Cloud
+fields (`drift_active`, `drift_start`) + the two user-facing timing knobs:
+`ambient-snapback-secs` (config-only) and `crystal-dragon-secs`
+(CLI `--crystal-dragon-secs` + config key, both live-reload-able). No other
+persistent settings — the rhythm is fully controlled by those two values.
 
 **Note**: climate drift (luminance/saturation/hue modulation, NOT
 palette scheme replacement) always runs via `color_ecosystem.tick()`
