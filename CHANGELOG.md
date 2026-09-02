@@ -566,6 +566,52 @@ Docs: README (custom scene/palette selection surfaces + acceptance),
 HUD.md (tgt/clr rows), list_printers hint (`--scene <name> or
 --scene-custom <name>` + config key), termdetect FPS precedence chain.
 
+### tune: v80.0.0-beta.2 — builtin scene catalog masterclass retune
+
+Owner mandate (2026-09-02): "owner suspects all existing builtin theme
+scene should need fine tuning again because still not masterclass."
+Full audit of all 18 builtin scenes for value/description harmony,
+cross-scene differentiation, and catalog-level coherence. Verdict:
+16 of 18 already peak (owner-directed crystal-dragon speed 30 landed
+earlier; matrix_film/cosmic-dragon/carbonic/honor scenes carry
+documented per-scene rationale; storm 120 fps is architecturally
+sanctioned — native fps range is [1,240] with xterm.js hosts
+independently capped, and the power manager throttles under pressure)
+— skipped, no over-engineering. Two genuine defects retuned:
+
+- `neon`: density 0.90 -> 0.78. The description promises "breathing
+  room", but 0.90 sat within 5% of hacker's 0.95 — an imperceptible
+  gap that read as the same soup with a different palette. 0.78 puts
+  real air between the two cyberpunk scenes (hacker 0.95 = dense
+  terminal overflow, neon 0.78 = pop with room) while staying above
+  matrix's 0.65 so the neon signage still pops. Speed 16 "medium
+  flow" sits on the catalog median — audited peak, unchanged.
+- `cosmos`: density 0.80 -> 0.70. "Spacious starlit drift" at 0.80
+  sat dead-on the catalog median (~0.78) — a median value is not
+  spacious. 0.70 gives the deep-sky scene genuine room while keeping
+  the nebula visibly fuller than its milestone sibling cosmic-dragon
+  (0.65, deliberate kin) and far airier than the overflow scenes
+  (hacker/carbonic 0.95).
+
+Precision/LTS gain — `all_scene_names()` is now derived from the
+`SCENES` catalog (single source of truth) instead of returning a
+hand-maintained duplicate array: a scene added to the catalog can no
+longer be silently forgotten in the list, and the derivation
+immediately exposed a latent defect — the old hand-written array was
+mis-sorted ("curiosity" listed before "crystal-dragon"; byte-wise
+'r' < 'u'). Allocation is confined to error hints and list building;
+the hot render path never calls this.
+
+Test surface: both retunes locked with full-field regression tests
+(cosmos_scene_spacious_drift_density, neon_scene_breathing_room_
+density); the catalog pin test updated for the derived Vec and the
+corrected sort. Scene names, SCENE_ORDER (owner-pinned), and the
+frozen scene-name API surface (MAINTENANCE.md §7) are untouched.
+
+Verification: scene suite 291 passed / 0 failed; full suite, clippy
+-D warnings, fmt, gate-keepers all green on the pinned 1.98.0
+toolchain.
+
 ### harmony: v51.2 power-dragon banded density + ambient overlay lift
 
 Power-dragon adaptive density, owner report: a configured 0.85 density

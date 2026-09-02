@@ -48,17 +48,22 @@ fn cycle_scene_wraps_around() {
 #[test]
 fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
+    // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
+    // (single source of truth — no hand-maintained duplicate array to
+    // drift). This pin documents the full 18-scene catalog and is a
+    // deliberate change-detector: adding a scene must update this list,
+    // which is exactly the moment a reviewer should see the catalog grow.
     assert_eq!(
         all_scene_names(),
-        &[
+        vec![
             "calm",
             "carbonic",
             "cinematic",
             "classic",
             "cosmic-dragon",
             "cosmos",
-            "curiosity",
             "crystal-dragon",
+            "curiosity",
             "hacker",
             "low-power",
             "matrix",
@@ -74,6 +79,38 @@ fn scene_names_are_present() {
     for name in all_scene_names() {
         assert!(get_scene(name).is_some(), "missing scene {name}");
     }
+}
+
+#[test]
+fn cosmos_scene_spacious_drift_density() {
+    // v80.0.0 masterclass tune: density 0.80 -> 0.70 (regression lock).
+    // "Spacious starlit drift" at the 0.78 catalog median was not
+    // spacious. 0.70 restores room while keeping the nebula visibly
+    // fuller than the milestone sibling cosmic-dragon (0.65).
+    let s = get_scene("cosmos").expect("cosmos scene");
+    assert_eq!(s.config.color, Some("nebula"));
+    assert_eq!(s.config.charset, Some("binary"));
+    assert_eq!(s.config.fps, Some(60.0));
+    assert_eq!(s.config.speed, Some(11.0));
+    assert_eq!(s.config.density, Some(0.70));
+    assert_eq!(s.config.glitch_level, Some(GlitchLevel::Subtle));
+    assert_eq!(s.config.rain_style, RainStyle::Glyph);
+}
+
+#[test]
+fn neon_scene_breathing_room_density() {
+    // v80.0.0 masterclass tune: density 0.90 -> 0.78 (regression lock).
+    // The description promises "breathing room"; 0.90 sat within 5% of
+    // hacker's 0.95 (imperceptible). 0.78 gives real separation from
+    // hacker while staying denser than matrix (0.65) so neon still pops.
+    let s = get_scene("neon").expect("neon scene");
+    assert_eq!(s.config.color, Some("neon"));
+    assert_eq!(s.config.charset, Some("cyberpunk"));
+    assert_eq!(s.config.fps, Some(60.0));
+    assert_eq!(s.config.speed, Some(16.0));
+    assert_eq!(s.config.density, Some(0.78));
+    assert_eq!(s.config.glitch_level, Some(GlitchLevel::Default));
+    assert_eq!(s.config.rain_style, RainStyle::Glyph);
 }
 
 #[test]

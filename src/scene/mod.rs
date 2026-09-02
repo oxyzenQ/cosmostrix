@@ -179,7 +179,16 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             charset: Some("binary"),
             fps: Some(60.0),
             speed: Some(11.0),
-            density: Some(0.80),
+            // v80.0.0 masterclass tune: density 0.80 -> 0.70. The
+            // description promises "spacious starlit drift", but 0.80
+            // sat dead-on the catalog median (~0.78) — a median value
+            // is not spacious. 0.70 gives the deep-sky scene genuine
+            // room while keeping the nebula visibly fuller than its
+            // milestone sibling cosmic-dragon (0.65, deliberate kin)
+            // and far airier than the overflow scenes (hacker and
+            // carbonic at 0.95). Speed 11 "drift" and the rest were
+            // audited peak — unchanged.
+            density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
         },
@@ -192,7 +201,16 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             charset: Some("cyberpunk"),
             fps: Some(60.0),
             speed: Some(16.0),
-            density: Some(0.90),
+            // v80.0.0 masterclass tune: density 0.90 -> 0.78. The
+            // description promises "breathing room", but 0.90 sat 5%
+            // under hacker's 0.95 — an imperceptible gap that read as
+            // the same soup with a different palette. 0.78 puts real
+            // air between the two cyberpunk scenes (hacker 0.95 =
+            // dense terminal overflow, neon 0.78 = pop with room)
+            // while staying above matrix's 0.65 so the neon signage
+            // still pops. Speed 16 "medium flow" sits on the catalog
+            // median — audited peak, unchanged.
+            density: Some(0.78),
             glitch_level: Some(GlitchLevel::Default),
             rain_style: RainStyle::Glyph,
         },
@@ -387,28 +405,19 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     },
 ];
 
+/// All builtin scene names, alphabetically sorted.
+///
+/// v80.0.0 masterclass: derived from the `SCENES` catalog instead of
+/// returning a hand-maintained duplicate list — a scene added to the
+/// catalog can no longer be silently forgotten here (single source of
+/// truth; the old hand-written array was a drift class of its own).
+/// Allocation is confined to error hints and list building; the hot
+/// render path never calls this.
 #[must_use]
-pub(crate) fn all_scene_names() -> &'static [&'static str] {
-    &[
-        "calm",
-        "carbonic",
-        "cinematic",
-        "classic",
-        "cosmic-dragon",
-        "cosmos",
-        "curiosity",
-        "crystal-dragon",
-        "hacker",
-        "low-power",
-        "matrix",
-        "matrix_film",
-        "monolith",
-        "neon",
-        "north-stars",
-        "orange-cat",
-        "signal",
-        "storm",
-    ]
+pub(crate) fn all_scene_names() -> Vec<&'static str> {
+    let mut names: Vec<&'static str> = SCENES.iter().map(|s| s.name).collect();
+    names.sort_unstable();
+    names
 }
 
 /// Cycle to the next or previous scene in the ordered cycle.

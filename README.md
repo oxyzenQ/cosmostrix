@@ -505,6 +505,11 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `signal`, `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`, `low-power`
 
+**Masterclass density tune (v80.0.0-beta.2)** — two curated scenes carried values that contradicted their own descriptions:
+
+- `neon` — density 0.78 (was 0.90): "breathing room" is now literal — real separation from `hacker`'s dense 0.95 overflow while still popping above `matrix`'s 0.65.
+- `cosmos` — density 0.70 (was 0.80): "spacious starlit drift" now sits below the catalog median, still visibly fuller than its milestone sibling `cosmic-dragon` (0.65).
+
 **Film homage scene**:
 
 - `matrix_film` — dense phosphor-green katakana rain tuned to the Matrix 1999 cinematic source (palette `neon-green` + charset `matrix` + speed 22 + density 0.85). Not a 1:1 reproduction: cosmostrix's parallax depth, phosphor decay, and head-bloom layer onto the film's foundational look. Distinct from the `matrix` scene (the modern organic cascade, density 0.65, speed 18.0). Use `cosmostrix --scene matrix_film`.
