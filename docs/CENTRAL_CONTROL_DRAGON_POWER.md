@@ -49,12 +49,12 @@ This doc is the complete map of that directory:
 
 ```text
 src/central_control_dragon_power/
-├── mod.rs              (467 LOC) — constants, PowerThresholds, re-exports
-├── phase_predictor.rs  (222 LOC) — P1 PhasePredictor + local_secs_since_midnight
-├── reclaim_state.rs    (188 LOC) — P2 adaptive_resync_interval + P4 ReclaimState
-├── endurance_health.rs (264 LOC) — P5 EnduranceHealth score
-├── self_healer.rs      (522 LOC) — PerformanceSelfHealer + SelfHealAction enum
-└── power_manager.rs    (734 LOC) — PowerManager coordinator (Phase 3)
+├── mod.rs              — constants, PowerThresholds, re-exports
+├── phase_predictor.rs  — P1 PhasePredictor + local_secs_since_midnight
+├── reclaim_state.rs    — P2 adaptive_resync_interval + P4 ReclaimState
+├── endurance_health.rs — P5 EnduranceHealth score
+├── self_healer.rs      — PerformanceSelfHealer + SelfHealAction enum
+└── power_manager.rs    — PowerManager coordinator (Phase 3)
 ```
 
 `mod.rs` declares each submodule `mod X;` and re-exports their public
@@ -66,9 +66,8 @@ file declares it. No call-site changes are needed when a constant
 moves between `constants.rs` and `central_control_dragon_power/mod.rs`.
 
 `src/interactive/adaptive.rs` was the original home of P1/P2/P4/P5
-plus the self-healer (1105 LOC originally). It is now a 93-LOC thin
-shim that only re-exports the same public items from
-`central_control_dragon_power`. New code should depend on
+plus the self-healer. It is now a thin re-export shim for the same
+public items from `central_control_dragon_power`. New code should depend on
 `crate::central_control_dragon_power::*` directly; the shim exists
 for backward source compatibility with any in-flight branches.
 
@@ -309,7 +308,7 @@ lunch, meetings, end-of-day. The predictor learns those boundaries
 and steps the renderer down *before* the threshold fires, smoothing
 the CPU step-down. The reactive threshold remains as a safety net.
 
-**Tests.** 5 tests in `phase_predictor.rs`: empty predictor returns
+**Tests.** Cover: empty predictor returns
 `None`, two-transition predictor returns correct active/idle for
 noon and evening, midnight wrap-around, transition count tracking,
 EMA convergence to within 100 seconds of the true boundary.
@@ -350,7 +349,7 @@ defensive, not load-driven.
 "linux")`. On other platforms it's a no-op. `ReclaimState` is
 cross-platform (it just tracks timestamps).
 
-**Tests.** 5 tests: standard interval under 1 hour, 60s after 1
+**Tests.** Cover: standard interval under 1 hour, 60s after 1
 hour, 120s after 4 hours, initial state should-reclaim,
 min-interval respected.
 
@@ -389,7 +388,7 @@ default). The fix moved the sampling outside the `--perf-stats`
 gate; `--perf-stats` now only controls whether the score is
 *printed* in the post-run summary, not whether it is *computed*.
 
-**Tests.** 5 tests: initial score is 100, RSS variance lowers the
+**Tests.** Cover: initial score is 100, RSS variance lowers the
 score, classification bands, sampling works without perf-stats,
 context-switch rate influence.
 
@@ -449,7 +448,7 @@ when the user is in fixed mode or has explicitly chosen a scene).
 P2 (health mitigation) is orthogonal — it can fire from either the
 Healthy or Downgraded state and does not change the P1 state.
 
-**Tests.** 15 tests covering: initial state, sustained-high
+**Tests.** Cover: initial state, sustained-high
 accumulation, downgrade trigger after 30s, hysteresis break on
 single cool frame, restore trigger after 60s, P2 health mitigation
 fires below threshold, P2 cooldown respected, P2 fires from both
@@ -482,7 +481,7 @@ be added without touching `PowerManager` internals. Until the
 sampler is wired, `set_thermal_pressure` is exercised only by tests;
 the production call site will live in the event loop.
 
-**Tests.** 25 tests in `power_manager.rs` covering: construction
+**Tests.** in `power_manager.rs` cover: construction
 (starts active, zero pressure, fps clamped to ≥1.0), pressure
 accumulation on overshoot, pressure decay on normal frame, thermal
 input added to base, thermal + base clamps to 1.0, thermal input
@@ -642,7 +641,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
   directory module. Behavior code (PhasePredictor, ReclaimState,
   EnduranceHealth, PerformanceSelfHealer, SelfHealAction) moved
   from `src/interactive/adaptive.rs` (1105 LOC) into submodules.
-  `interactive/adaptive.rs` became a 93-LOC thin re-export shim.
+  `interactive/adaptive.rs` became a thin re-export shim.
   Layout mirrors `central_control_rains.rs` extended to a directory
   module.
 - **Phase 3 (PowerManager coordinator)**: added `power_manager.rs`
@@ -712,25 +711,22 @@ WezTerm) no longer see misleading documentation.
 
 ## 12. Verification
 
-The module is verified within the full cosmostrix test suite (1649 tests
-as of 2026-08-23).
-The dragon power module specifically contributes:
+The module is verified within the full cosmostrix test suite (run
+`cargo test --all` for the live count).
+The dragon power module's per-file test files cover:
 
-- `phase_predictor.rs`: 5 tests
-- `reclaim_state.rs`: 5 tests
-- `endurance_health.rs`: 5 tests
-- `self_healer.rs`: 18 tests (15 original + 3 migration tests)
-- `power_manager.rs`: 25 tests
-- `thermal_sampler.rs`: 9 tests
-- `audit_tests.rs`: 13 integration tests (end-to-end contract)
-- `mod.rs`: 10 tests (PowerThresholds + constant sanity + thermal constants)
-
-Total: 90 tests directly exercising the dragon power module.
+- `phase_predictor.rs` — phase prediction edge cases
+- `reclaim_state.rs` — reclaim intervals
+- `endurance_health.rs` — score bands and sampling
+- `self_healer.rs` — downgrade/hysteresis/mitigation
+- `power_manager.rs` — coordinator construction and pressure flow
+- `thermal_sampler.rs` — thermal input plumbing
+- `audit_tests.rs` — end-to-end contract integration tests
+- `mod.rs` — thresholds + constant sanity
 
 `cargo fmt --check` and `cargo clippy --all-targets` are both
-clean. The module is at 2820 LOC across 7 files, well under the
-1500-LOC-per-file cap (largest file: `power_manager.rs` at 736
-LOC).
+clean. Every file in the module stays under the 800-LOC hard cap
+(see `src/RULES_LOC.md`).
 
 The `audit_tests.rs` file is the "not a gimmick" verification
 — 13 integration tests that exercise the public API contract end-to-end:

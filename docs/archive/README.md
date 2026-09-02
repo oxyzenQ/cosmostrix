@@ -16,7 +16,7 @@ active documentation set stays small and current.
 | `CONFIG_SYNC/` | 7 phase reports (Phase 1, 2, 3, 4, 5, 5_FINAL, 6) from the closed CONFIG_SYNC audit. | Moved from `docs/research/CONFIG_SYNC_AUDIT_PHASE*.md` |
 | `cosmic_dragon/` | Two design-exploration docs from the v13.3.0 Cosmic Dragon milestone. | Moved from `docs/COSMIC_DRAGON_EXPLORATION.md` + `docs/COSMIC_DRAGON_FINDINGS.md` |
 | `specs/` | Historical design specifications for eliminated subsystems (`ATMOSPHERE_ENGINE.md`, `CINEMATIC_BREATHING.md`). | Moved from `docs/` |
-| `*.md` (root) | Superseded/historical root docs: `LTS_AUDIT_*` (4 files, one-time audit results), `RAIN_DEPTH_AUDIT.md` (superseded by VISUAL_IDENTITY.md), `SIMD_FEASIBILITY.md` (rejected), `DESIGN_PROPOSAL_POWER_DRAGON_DENSITY.md` (design proposal), `STABILITY_AUDIT.md` (one-time audit), `CPU_USAGE_HONESTY.md` (historical). | Moved from `docs/` root (9 files, v60 archive round) |
+| `*.md` (root) | Superseded/historical root docs: `LTS_AUDIT_*` (one-time audit results), `RAIN_DEPTH_AUDIT.md` (superseded by VISUAL_IDENTITY.md), `SIMD_FEASIBILITY.md` (rejected), `DESIGN_PROPOSAL_POWER_DRAGON_DENSITY.md` (design proposal), `STABILITY_AUDIT.md` (one-time audit), `CPU_USAGE_HONESTY.md` (historical), `SYSTEM_FEELING.md` (historical), `CHANGELOG_PRE_V13.md` (pre-v13 release history). | Moved from `docs/` root across the archive rounds |
 
 ## v60 Archive Round (Z-master-1X)
 

@@ -62,28 +62,21 @@ cosmostrix is built on **three cooperating engines** that split the work along c
 
 ### The Cosmic Dragon Diff-Based Rendering Engine
 
-Lives at the crate root: `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs`, `src/engine/cosmic_dragon_engine/runtime.rs` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
+Lives under `src/engine/cosmic_dragon_engine/` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
 This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable.
 
 ### The Chroma Dragon Coloring Engine
 
-Lives under `src/engine/chroma_dragon_engine/` (`palette`, `catalog`, `gradient`, `shaders`, `post`, `tuning`). Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
+Lives under `src/engine/chroma_dragon_engine/`. Owns every decision about *what color a cell becomes*. Where the Cosmic Dragon asks "did this cell change?", the Chroma Dragon answers "what color should it be now?"
 
-The Chroma Dragon is locked at **Phase 9-D** — 9 phases of perceptual color work, culminating in invariant tests (`src/engine/chroma_dragon_engine/tests/lock.rs`) that assert the engine's public contract on every commit:
-
-- **OKLab gradient interpolation** (Phase 3-A) — perceptually uniform, no muddy mid-tones on hue-crossing gradients
-- **Dragon Awakening** (Phase 4) — temporal column hue coherence, subpixel hue jitter, and head halo via background blend are always-on
-- **Perceptual L + chroma smoothing** (Phase 5 + Phase 8) — palette transitions sweep through a perceptual color space instead of hard-snapping
-- **Palette-relative brightness floor** (Phase 7-c) — brightness floor derived from each palette's own profile; dark themes keep their aesthetic instead of being washed out
-- **Body-tail continuity** (Phase 7-d) — enforces a 2.0× max adjacent brightness gap, killing the horizontal-line illusion at high rain speed
-- **Hue-preserving polar gradient** (Phase 9-A -> 9-D) — sole production OKLab path (Cartesian removed); fully saturated midpoints on opposing-hue gradients
+The Chroma Dragon is locked at **Phase 9-D** — the culmination of the perceptual color work: OKLab gradient interpolation (no muddy mid-tones on hue-crossing gradients), hue-preserving polar gradients, palette-relative brightness floor, body-tail brightness continuity, head halo + subpixel hue jitter, and palette transitions that sweep through perceptual space instead of hard-snapping. A lock suite of invariant tests asserts the engine's public contract on every commit.
 
 See `cosmostrix --docs` for the full technical breakdown, or run `cargo test lock -- --nocapture` to print the engine lock report.
 
 ### The Crystal Dragon Ambient Intelligence Engine
 
-Lives under `src/engine/crystal_dragon_engine/` (`ambient`, `ambient_scheduler`, `sensor`, `palette_groups`, `point_system`, `crystal_dragon_control`). Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
+Lives under `src/engine/crystal_dragon_engine/`. Owns *what mood the rain should have* — ambient palette drift from system state (`--crystal-dragon`), time-of-day scene scheduling via `ambient."HH-MM" = "scene"` config entries, and point-based temperature grouping with OKLab smooth transitions.
 
 ## Architecture
 
@@ -107,7 +100,7 @@ cosmostrix is powered by three Dragon Engines — serious rendering, color, and 
 Every design decision is governed by one question: *does this serve the cinematic aesthetic?* Features that compromise that aesthetic are rejected on principle.
 
 - **No emoji. No wide characters. No colorful pictograms in the rain.** The rain speaks in glyphs: katakana, binary, hacker charset, cosmic runes. This is a permanent design constraint, not a missing feature.
-- **Diff-based rendering is the innovation, not a gimmick.** Near-zero per-frame heap allocation (0.0 allocs/frame on the lean path, ~1.1 on the production-draw I/O path). On a 2-vCPU cloud Xeon the `monolith` scene sustains 103,021 avg_fps at 80×24 (pro-linux-v4, headless dry I/O) — far above the 60 FPS interactive cap. This is what makes the cinematic effects affordable.
+- **Diff-based rendering is the innovation, not a gimmick.** Near-zero per-frame heap allocation (0.0 allocs/frame on the lean path, ~1.1 on the production-draw I/O path). On a 2-vCPU cloud Xeon the `monolith` scene sustains ~100K avg_fps at 80×24 (pro-linux build, headless dry I/O) — far above the 60 FPS interactive cap. This is what makes the cinematic effects affordable.
 - **Perceptual color, not RGB math.** The Chroma Dragon interpolates palettes in OKLab space (perceptually uniform) and smooths palette transitions through the polar chroma ring (hue-preserving). No muddy midpoints, no hard color seams.
 - **CPU-only by choice.** The terminal is a text medium — ANSI escape sequences and copy-pasteable glyphs. GPU image-mode was evaluated and explicitly rejected.
 - **Exclusive by design.** cosmostrix pursues depth — phosphor physics, ambient intelligence, endurance telemetry, perceptual color — that no toy would attempt.
@@ -131,23 +124,23 @@ The Dragon's roar is not loud — it is precise.
 - Color ecosystem with luminance/saturation/hue climate drift (orthogonal to Crystal Dragon palette selection).
 - Configurable speed, density, FPS, and glitch intensity.
 - Density map sculpting — per-column weight maps for cinematic monolith formations.
-- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay (dynamic from Cargo.toml) when neither CLI nor config provides one. `msg-mode = false` (or `--msg-mode false`) disables the overlay; CLI `-m`/`-mb` always wins over `msg-mode=false`. The reveal animation is selectable via `-mfs`/`--msg-fill-style` (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade, default engrave — v80.0.0-beta.2 owner champion) or the `msg-fill-style` config key — `engrave` burns each character in at full brightness with a white-hot engraving head, a cooling heat trail, and a small spark burst per character (respects `--no-effects`); `hologram` projects each character as a hologram — burn-in at full brightness, deterministic per-cell flicker for 150 ms, a 2% breathing ripple that decays over 2 s, and a single CRT-style scanline sweeping the box once over 600 ms (fully stateless, respects `--no-effects`); `glitch` reveals characters in scrambled order (not left-to-right), each newly revealed char flickers between wrong glyphs for 90 ms (Matrix-decode feel) before settling on the true one (fully stateless, no particle sidecar — the glyph substitution IS the reveal math); `scorch` burns each character in with an ember tint (warm orange), cooling to the palette color over 400 ms (factor dips 1.5 → 0.8 → 1.0 — the charred dim sub-effect), and every newly scorch'd char throws a slow upward gray smoke puff (700 ms lifetime, 16-slot pool, respects `--no-effects`); `cascade` reveals each column left-to-right (60 ms/column — faster than typewriter) with each char dropping from 3 rows above its final position, fading in from 40% to 100% over 240 ms — a waterfall feel distinct from typewriter (no drop) and slide (drops from below), fully stateless.
+- Message overlay — display custom text on the rain (`-m "wake up, neo"`, `-mb` for border). Also configurable in `config.toml` via `message` / `message-border` keys; interactive mode defaults to a bordered "cosmostrix v<VERSION>" overlay when neither CLI nor config provides one; `msg-mode = false` (or `--msg-mode false`) disables the overlay, and CLI `-m`/`-mb` always win over it. The reveal animation is selectable via `-mfs`/`--msg-fill-style` (typewriter|fade|words|slide|instant|engrave|hologram|glitch|scorch|cascade, default engrave — v80.0.0-beta.2 owner champion) or the `msg-fill-style` config key. Every style is a distinct cinematic reveal — laser burn-in, hologram projection with CRT scanline, Matrix-decode glyph glitch, ember scorch with smoke, left-to-right cascade — and all of them respect `--no-effects`. Run `--help` for the full per-style breakdown.
 - Alternate screen with diff-based rendering — no scrollback spam, RLE batched output.
-- **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle (k=1.2/s, snaps to fully paused at 5%), ~3.3s wake-up ramp on resume (k=0.9/s, snaps to full speed at 95%); rain, particles, and events freeze gracefully. While paused, ONLY `p` (resume) and `q` (quit) respond — every other shortkey is ignored — and all running HUD metrics freeze at their last active value, resuming with precision (uptime excludes the paused span; paused 4 Hz input-poll ticks never contaminate the fps/p99/ehs windows). Asymmetric k_decel > k_resume preserves the "pause snappy / resume wake-up" feel; glyph scene entry uses the same exp approach family (k=4.28/s, settle 95% at ~700ms) for a consistent cinematic top-entry cascade.
+- **Smooth pause** — `p` toggles pause with the unified **exponential decay** easing family (consistent across pause/resume + glyph scene entry): ~2.5s coast-down to settle, ~3.3s wake-up ramp on resume; rain, particles, and events freeze gracefully. While paused, ONLY `p` (resume) and `q` (quit) respond — every other shortkey is ignored — and all running HUD metrics freeze at their last active value, resuming with precision (uptime excludes the paused span; paused input-poll ticks never contaminate the fps/p99/ehs windows).
 
 ### Scenes & Colors
 
-- **18 built-in scenes** — 3 core atmospheres (cinematic, matrix, monolith), 9 curated scenes (classic, signal, calm, storm, cosmos, neon, hacker, matrix_film, low-power), 1 milestone scene (`cosmic-dragon`), 1 tribute scene (`carbonic`), and 4 honor scenes (`crystal-dragon`, `orange-cat`, `north-stars`, `curiosity`).
+- **Built-in scenes** — core atmospheres, curated scenes, and milestone/tribute/honor scenes. The full list with each scene's character lives in [Scenes](#scenes) below.
 - **User-defined custom scenes** — `[scene-custom.<name>]` blocks in config, applied via `--scene <name>` (auto-promotes custom names) or `--scene-custom <name>`, or the `scene = "<name>"` config key. v80.0.0-beta.2 (S-master-LOGIC-3): a block is a COMPLETE six-dimension profile — `color`/`colors-custom`, `charset`/`charset-custom`, `fps`, `speed`, `density`, `glitch-level`, ALL required (incomplete blocks are rejected); `base-scene` inheritance is REMOVED (custom scenes always render glyph rain); all three selection surfaces (CLI flags, config key, live-reload edit) accept custom names uniformly, and at runtime a present block field overrides the locked CLI startup value (config wins — the CLI lock is only the fallback).
 - **Custom color palettes** — `[colors-custom.<name>]` blocks define 2–10-stop TrueColor palettes; referenced via `--colors <name>`, the `color = "<name>"` config key (custom names accepted, same as charset — v80.0.0-beta.2), or from scenes.
 - **Custom charsets** — `[charset-custom.<name>]` blocks define character sets from Unicode ranges; referenced via `--charset <name>`.
-- 44 built-in color themes and 25 character sets.
-- **Color tune** (`--color-tune sat,bright,head,body,tail`) — per-channel multiplier (default 1.0 = identity) that turns all 44 themes into infinite variants.
+- Dozens of built-in color themes and character sets (`--list-colors` / `--list-charsets` print the live catalog).
+- **Color tune** (`--color-tune sat,bright,head,body,tail`) — per-channel multiplier (default 1.0 = identity) that turns every built-in theme into infinite variants.
 
 ### Intelligence & Power
 
 - **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
-- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` — the two systems cooperate by taking turns. Snapback fires at ANY delay value (a 90s snapback fires at ~90s — verified live); keep it under the poll interval for the cleanest drift/snapback rhythm. v80.0.0-alpha.1: the poll interval itself is tunable (`--crystal-dragon-secs` / `crystal-dragon-secs` config key, 0.0..=86400.0, default 60, live-reload-able) — the harmony twin of `ambient-snapback-secs` (recommended: snapback < polling, <= polling-10s for margin; the min-dwell anti-flicker floor is min(60s, cadence) — the value you set is the rhythm you get, verified live at a 6s cadence). When ambient is off (empty schedule), Crystal Dragon drifts on its poll cadence with a self-resetting cycle (no snapback needed) — see `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide".
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. A dynamic idle/wake scheduler thread spends zero CPU between phase boundaries. Crystal Dragon drift overrides the ambient palette, and the ambient snapback reverts it after `ambient-snapback-secs` — the two systems cooperate by taking turns. Both timing knobs are tunable online (`ambient-snapback-secs` and `--crystal-dragon-secs` / `crystal-dragon-secs`, 0.0..=86400.0, default 60 — keep snapback < polling for the cleanest take-turns rhythm). When ambient is off, Crystal Dragon drifts on its own cadence with a self-resetting cycle. See `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide" for the timing recipes.
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
 - **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer. With it on, the HUD `dsty:` line shows the EFFECTIVE (pressure-banded) density — `density = 0.90` can display ~0.65 under moderate pressure; `power-dragon = false` (or `--power-dragon false`) pins the exact configured value.
@@ -180,7 +173,7 @@ The Dragon's roar is not loud — it is precise.
 cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below is honest about what it does not do — most of these are design choices, not missing features.
 
 - **CPU-only, no GPU.** Rain is rendered as ANSI text over a PTY; no GPU context is ever created (the benchmark reports `gpu_usage: not_applicable`). GPU bitmap rendering was evaluated and rejected because it changes the character-grid aesthetic. See [docs/archive/cosmic_dragon/EXPLORATION.md](docs/archive/cosmic_dragon/EXPLORATION.md).
-- **Interactive FPS is terminal-bounded.** The engine's throughput ceiling on a 2-vCPU cloud Xeon is 103,021 avg_fps on `monolith` at 80×24 (pro-linux-v4, headless dry I/O). Real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). The engine is never the bottleneck — the terminal is.
+- **Interactive FPS is terminal-bounded.** The engine's throughput ceiling on a 2-vCPU cloud Xeon is ~100K avg_fps on `monolith` at 80×24 (pro-linux build, headless dry I/O). Real on-screen FPS is bounded by your terminal emulator's ANSI parse speed (typically 60–240 FPS on Alacritty/kitty, less on slower terminals). The engine is never the bottleneck — the terminal is.
 - **`kill -9` cannot be caught.** No process can intercept SIGKILL. On Linux, a fork-based guard restores `termios` best-effort; on macOS and Windows, run `cosmostrix --reset-terminal` for 5-layer recovery.
 - **SIGTSTP (Ctrl-Z) suspends in raw mode.** The terminal stays in raw mode while cosmostrix is backgrounded. Recovery is automatic on `fg`/SIGCONT as long as nothing else wrote to the TTY.
 - **Windows Terminal cleanup is best-effort** ([#15](https://github.com/oxyzenQ/cosmostrix/issues/15)). Forced termination (task kill, close window, signout) on Windows Terminal / ConHost may leave the terminal in a degraded state (scrolled buffer visible, cursor hidden). Beyond what crossterm provides, cosmostrix does not claim specific guarantees for Windows forced-termination paths. Run `cosmostrix --reset-terminal` to recover.
@@ -454,8 +447,8 @@ DIAGNOSTICS
   -v, --verbose                Print diagnostic info to stderr
 
 DISCOVERY
-      --list-colors            Show color theme names (44 built-in themes)
-      --list-charsets          Show available character sets (25 built-in sets)
+      --list-colors            Show color theme names
+      --list-charsets          Show available character sets
       --list-scenes            Show built-in and custom scenes
       --show-scene <name>      Show full details for a built-in or custom scene
 
@@ -529,7 +522,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle through all 18 built-in scenes (cinematic -> monolith -> matrix -> classic -> … -> curiosity, then back to cinematic).
+Press `x` while running to cycle through all built-in scenes (cinematic -> monolith -> matrix -> classic -> … -> curiosity, then back to cinematic).
 
 ## Configuration
 
@@ -671,20 +664,13 @@ See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide
 
 ## Documentation
 
-- [**Docs Index**](docs/README.md) — **start here** — master index of all docs, source module map
+- [**Docs Index**](docs/README.md) — **start here** — master index of every doc
 - [Changelog](CHANGELOG.md) — release history
 - [Known Issues](KNOWN_ISSUES.md) — platform-specific quirks and workarounds
 - [Insights](INSIGHTS.md) — living idea journal (the story behind features)
-- [System Requirements](docs/SYSTEM_REQUIREMENTS.md) — kernel, glibc/musl, CPU, terminal compatibility matrix
-- [Terminal Compatibility](docs/TERMINAL_COMPATIBILITY.md) — terminal behavior, tmux/SSH, recovery
-- [Maintenance Guide](docs/MAINTENANCE.md) — dormant mode contract, build/test/update procedures, security response
-- [Render Engine](docs/RENDER_ENGINE.md) — diff-based rendering architecture (formal spec)
-- [Cosmic Dragon Architecture](docs/COSMIC_DRAGON_ARCHITECTURE.md) — full architecture deep-dive
-- [Benchmarking Guide](docs/BENCHMARKING.md) — how to run, interpret, and compare results
-- [Advanced Benchmarking](docs/BENCHMARK_ADVANCED.md) — MICROARCHITECTURE and ENERGY metrics
-- [Supply Chain](docs/SUPPLY_CHAIN.md) — supply-chain hardening policy
-- [CI & Release Workflow](docs/workflow/ABOUT_CI.md) — CI pipeline and release process
 - [Contributing Guide](CONTRIBUTING.md) — build, test, coding conventions, PR checklist
+
+Rendering architecture, benchmarking, ambient intelligence, terminal compatibility, supply chain, and the release workflow all live in the [Docs Index](docs/README.md)
 
 ## Development
 
@@ -725,7 +711,7 @@ From **v50.0.0** onward, the following are **frozen** — no breaking changes wi
 
 - CLI flags (names, short/long forms, value types)
 - Config format (`config.toml` keys, value types, TOML structure)
-- Built-in scene names (18), color scheme names (44), charset preset names (25)
+- Built-in scene, color scheme, and charset preset names
 - Runtime controls (keyboard shortcuts)
 - Output schemas (`--json` benchmark output, `--doctor` report format)
 

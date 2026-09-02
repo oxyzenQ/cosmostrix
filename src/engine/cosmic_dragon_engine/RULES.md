@@ -201,8 +201,8 @@ were 0.30s/0.45s — far from "~3s"). Switched to exponential decay
   / `resume_blend = 1.0`) so other subsystems (spawn_remainder reset,
   monolith stream shift, phosphor LUT) see unambiguous transitions.
 - exp() is already used in the locked path elsewhere
-  (`cloud/phosphor.rs:307` LUT build, `chroma_dragon_engine/shaders/
-  base/mod.rs:237` trail LUT), so no new math primitive introduced.
+  (`cloud/phosphor.rs` LUT build, `chroma_dragon_engine/shaders/
+  base/mod.rs` trail LUT), so no new math primitive introduced.
 
 **Files changed** (locked path — production code):
 - `src/engine/cosmic_dragon_engine/cloud/rain.rs` (lines 44-73: decel block
@@ -240,8 +240,8 @@ settle time, no contract change):
 - avg_fps: not formally A/B-benchmarked; per-frame surface is
   negligible — exp() call (~5-10ns) replaces 6 mults (~1-2ns) only
   during the ~2.5s decel / ~3.3s resume windows; zero surface at
-  full-speed steady-state. exp() already used in `cloud/phosphor.rs:307`
-  and `chroma_dragon_engine/shaders/base/mod.rs:237`.
+  full-speed steady-state. exp() already used in `cloud/phosphor.rs`
+  and `chroma_dragon_engine/shaders/base/mod.rs`.
 - alloc_calls: 0 -> 0 (Δ 0% — no heap allocations introduced)
 - peak_rss: unchanged (no new state, no new buffers)
 - stability signals: MATCH (frame_jitter=low,

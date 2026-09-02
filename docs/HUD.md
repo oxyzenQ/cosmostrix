@@ -8,10 +8,9 @@ on `visible == false`). Metrics recompute at 1 Hz (matches htop,
 mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
-v50.0.0-beta.7 HUD expansion: the HUD grew from 9 rows to 22 rows,
-then Z-master-1X round 5 added dcel + tcel (24 rows total).
-adding 7 owner-mandated metric lines (ehs / prs / sped / dsty / scn /
-chr / clr) plus 2 dragon indicator lines (prdr / crdr). The `h` shortkey
+The HUD has grown across versions (expansion history in CHANGELOG.md),
+adding the owner-mandated metric lines (ehs / prs / sped / dsty / scn /
+chr / clr) plus the dragon indicator lines (prdr / crdr). The `h` shortkey
 that previously toggled the HUD position (left <-> right corner) was
 **completely removed** as unused maintenance cost; the HUD now always
 renders flush-left at column 0 (the previous default). There is no `h`
@@ -168,7 +167,7 @@ diagnostic recipes for specific symptoms.
 
 ## HUD Lines (top-to-bottom)
 
-The HUD writes 24 rows into the frame buffer at the top-left corner
+The HUD writes its full row set into the frame buffer at the top-left corner
 (column 0). Each row is one metric. Rows 0-5 are the performance core
 (unchanged since v50), rows 6-7 are the health pair (ehs / prs), rows
 8-10 are the identity lines (scn / chr / clr), rows 11-12 are the

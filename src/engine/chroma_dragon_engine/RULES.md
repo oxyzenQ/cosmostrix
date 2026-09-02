@@ -47,7 +47,8 @@ Before opening a PR that touches any locked file, you MUST:
    cargo test --quiet chroma_dragon_engine::tests::lock
    ```
 
-   All 19 invariants must pass before AND after your change. If your
+   All lock invariants (see the lock suite) must pass before AND after
+your change. If your
    change intentionally modifies a public contract, you MUST update the
    lock suite in the same commit.
 
@@ -160,7 +161,7 @@ the lock commit. Newest entries go at the TOP.
 - color_transition_delta: <before> -> <after> (Δ <+/-%>)
 - stability signals: <MATCH or list any changes>
 
-**Lock suite**: <N>/19 invariants pass (must be 19/19 unless the
+**Lock suite**: all invariants pass (must be all-passing unless the
 contract intentionally changed, in which case update the count)
 
 **Visual audit**: <PASS / FAIL — masterclass brightness profile preserved?>

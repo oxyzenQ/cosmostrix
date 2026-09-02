@@ -57,7 +57,7 @@ CPU% ──> point (1-99) ──> group ──> weighted theme selection
   └── CPU unsupported? ──> CLOCK fallback (UTC hour -> point)
 ```
 
-44 builtin themes: 14 Cold + 14 Medium + 14 Hot + 2 Reserved.
+The builtin themes: roughly even Cold / Medium / Hot groups + reserved.
 Low CPU -> Snow/Moon/Ocean (Cold). High CPU -> Sun/Fire/Red (Hot).
 Transitions delegate to Chroma Dragon for smooth 300 ms OKLab waves.
 
@@ -76,7 +76,7 @@ v80.0.0-alpha.1 both timing knobs are tunable (keep snapback <
 |------|------|
 | `crystal_dragon_control/mod.rs` | Config: polling (60s default — `crystal-dragon-secs` tunable, v80.0.0-alpha.1), calc-v2 (default) / calc-v1 (legacy), CPU/CLOCK mode |
 | `sensor/mod.rs` | CPU sampling (sysinfo/procfs) + CLOCK fallback |
-| `palette_groups/mod.rs` | 44 themes -> Cold/Medium/Hot partition |
+| `palette_groups/mod.rs` | The builtin themes -> Cold/Medium/Hot partition |
 | `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring buffer (8 entries, prevents A->B->A oscillation); calc-v1 (legacy): no-memory CDF |
 | `ambient/mod.rs` | Schedule types, parsing, validation, startup apply |
 | `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |

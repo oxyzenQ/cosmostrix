@@ -28,18 +28,18 @@ The code in this directory has been audited for:
   (zero CPU between phase boundaries, parked in `Condvar::wait_timeout`),
   not a fixed-interval poller. Diagnostics counters are atomic (no Mutex
   contention on hot path).
-- **Strong foundation** — 44 builtin themes partitioned into 3
-  temperature groups (Cold/Medium/Hot, 14 each) + 2 reserved (Rainbow,
-  Spectrum20). calc-v1 probabilistic weighted selection (the locked
-  algorithm; calc-v2 reserved for future).
-- **Stability** — ~1649 tests pass, 0 clippy warnings. Per-
+- **Strong foundation** — the builtin themes partitioned into 3
+  temperature groups (Cold/Medium/Hot) + reserved schemes. calc-v2
+  probabilistic weighted selection with DriftHistory recency memory is
+  the default; calc-v1 no-memory selection remains as legacy fallback.
+- **Stability** — full test suite green, 0 clippy warnings. Per-
   subsystem test files (`*/tests.rs`) cover all public contracts.
 
 ## Audit Findings (No Code Changes Required)
 
 The audit confirmed the engine is already at peak. Specifically:
 
-### 1. Sensor (`sensor/mod.rs`, 276 LOC)
+### 1. Sensor (`sensor/mod.rs`)
 
 - **CPU mode (primary)**: samples process CPU% via
   `crate::cpustat::current_cpu_ns()`, smooths with EMA (alpha=0.25),
@@ -52,9 +52,10 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`shift_in_time()`** — called on resume from pause so the sensor
   doesn't think a long pause was a dwell period. Single `Duration` add.
 
-### 2. Point system (`point_system/mod.rs`, 126 LOC)
+### 2. Point system (`point_system/mod.rs`)
 
-- **calc-v1 algorithm** (the locked selection method):
+- **calc-v1 algorithm** (the legacy selection method; calc-v2 adds a
+  DriftHistory recency ring on the same CDF draw):
   1. Determine temperature group from point (1–33 Cold, 34–66 Medium,
      67–99 Hot).
   2. Compute weight per theme: `1.0 / (1.0 + distance * 0.1)` where
@@ -64,7 +65,7 @@ The audit confirmed the engine is already at peak. Specifically:
   4. Draw uniform `u ∈ [0, 1)`, binary-search CDF via `partition_point`.
   5. Skip current scheme if selected (retry once, then accept no-op).
 - **CDF binary search** uses `slice::partition_point` (O(log N), branch-
-  optimized in stdlib). 14 themes per group -> 4 comparisons worst case.
+  optimized in stdlib). ~14 themes per group -> 4 comparisons worst case.
 - **`Uniform::new(0.0f32, 1.0f32)`** — constructed per call but `expect`
   is branch-predicted away; cost is ~2ns. Could be cached but the call
   is cold-path (12% chance per 60s poll), so optimization has zero
@@ -72,7 +73,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **Uniform fallback** (when all weights sum to zero — impossible with
   current formula but defensive): uniform random index, modulo skip.
 
-### 3. Palette groups (`palette_groups/mod.rs`, 129 LOC)
+### 3. Palette groups (`palette_groups/mod.rs`)
 
 - **`group_themes()`** returns `&'static [ColorScheme]` — no allocation,
   const slices.
@@ -80,7 +81,7 @@ The audit confirmed the engine is already at peak. Specifically:
   point_to_group()` and `super::sensor::group_point_range()` are also
   pure (no mutation, no allocation).
 
-### 4. Ambient scheduler (`ambient_scheduler/mod.rs`, 378 LOC)
+### 4. Ambient scheduler (`ambient_scheduler/mod.rs`)
 
 - **Dynamic idle/wake**: thread computes `time_to_next_phase`, sleeps
   in `Condvar::wait_timeout` until boundary OR condvar notify. **Zero
@@ -93,7 +94,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`spawn_ambient_scheduler()`** returns `AmbientSchedulerHandle`
   with `rx` (mpsc) + `reload()` method. No blocking.
 
-### 5. Ambient (`ambient/mod.rs`, 520 LOC)
+### 5. Ambient (`ambient/mod.rs`)
 
 - **`AmbientEntry`** — `(HH, MM, scene_name: String)`. Heap-allocated
   string is intentional (cold path, parsed once at config load).
@@ -102,7 +103,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`apply_ambient_entry()`** — applies scene + palette, sets
   `ambient_palette_locked = true`. Idempotent (safe to call twice).
 
-### 6. Diagnostics (`ambient_diag.rs`, 88 LOC)
+### 6. Diagnostics (`ambient_diag.rs`)
 
 - **All counters are `AtomicU64`** — no Mutex contention, no allocation.
 - **`LAST_SCENE_CHANGE: Mutex<Option<String>>`** — only Mutex in the
@@ -111,7 +112,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`ambient_diag_summary()`** — formats a single string on exit. Cold
   path, no per-frame cost.
 
-### 7. Control config (`crystal_dragon_control/mod.rs`, 134 LOC)
+### 7. Control config (`crystal_dragon_control/mod.rs`)
 
 - **`CrystalDragonControl` struct** — 6 fields, all `f32` or `enum`.
   `Copy` + `Clone` derived. Stack-allocated, no heap.
@@ -142,25 +143,23 @@ is the appropriate action.
 
 ## Dragon Engine Topology (Locked)
 
-| Subsystem                                  | LOC    | Role                                                                  |
-|--------------------------------------------|-------:|-----------------------------------------------------------------------|
-| `crystal_dragon_engine/ambient/mod.rs`     |    520 | Time-of-day schedule types, config parsing, validation, startup apply |
-| `crystal_dragon_engine/ambient_scheduler/mod.rs` | 378 | Dynamic idle/wake scheduler thread (zero CPU between phase boundaries) |
-| `crystal_dragon_engine/sensor/mod.rs`     |    276 | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1–99 point.    |
-| `crystal_dragon_engine/palette_groups/mod.rs` | 129 | 44 themes -> Cold(14) / Medium(14) / Hot(14) + Reserved(2)             |
-| `crystal_dragon_engine/point_system/mod.rs` |  126 | calc-v1: probabilistic weighted theme selection (CDF + binary search) |
-| `crystal_dragon_engine/crystal_dragon_control/mod.rs` | 134 | Config struct + constants (polling, drift chance, EMA alpha, sensor mode, calc method) |
-| `crystal_dragon_engine/ambient_diag.rs`   |     88 | Atomic counters for diagnostics + exit summary                        |
-| `crystal_dragon_engine/mod.rs`            |     74 | Top-level module doc + re-exports                                    |
-
-**Total**: 1,707 LOC production + 1,031 LOC test suite = 2,738 LOC.
+| Subsystem                                  | Role                                                                  |
+|--------------------------------------------|-----------------------------------------------------------------------|
+| `crystal_dragon_engine/ambient/mod.rs`     | Time-of-day schedule types, config parsing, validation, startup apply |
+| `crystal_dragon_engine/ambient_scheduler/mod.rs` | Dynamic idle/wake scheduler thread (zero CPU between phase boundaries) |
+| `crystal_dragon_engine/sensor/mod.rs`     | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1–99 point.    |
+| `crystal_dragon_engine/palette_groups/mod.rs` | The builtin themes -> Cold / Medium / Hot partition |
+| `crystal_dragon_engine/point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring; calc-v1: legacy no-memory CDF |
+| `crystal_dragon_engine/crystal_dragon_control/mod.rs` | Config struct + constants (polling, drift chance, EMA alpha, sensor mode, calc method) |
+| `crystal_dragon_engine/ambient_diag.rs`   | Atomic counters for diagnostics + exit summary                        |
+| `crystal_dragon_engine/mod.rs`            | Top-level module doc + re-exports                                    |
 
 ## Owner Decisions (Locked)
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
 | HUD indicator | **Silent-Elegant (Option A)** — no HUD indicator, no verbose drift-event logging | The engine should be felt, not seen. |
-| Calc method | **calc-v1** (probabilistic weighted) | calc-v2 (pattern state machine with memory) is reserved for future release. |
+| Calc method | **calc-v2** (weighted CDF + DriftHistory recency memory — default since the Dragon Engine v2 merge) | calc-v1 (no-memory CDF) stays as legacy fallback. |
 | Polling interval | **60 s default** (v80.0.0-alpha.1: tunable via `crystal-dragon-secs`, 0.0..=86400.0 — the harmony knob for ambient snapback coordination) | Slow enough to feel organic, fast enough to react to real load within a minute. |
 | Sensor mode | **CPU primary, CLOCK fallback** | CPU is the meaningful signal; CLOCK is the graceful degradation when CPU sampling is unsupported. |
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |

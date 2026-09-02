@@ -298,7 +298,7 @@ Run B — interactive mode (PTY, 120x35, TERM=xterm-256color):
 **Notes:** the single +272 kB step coincides with the HUD-off/ambient
 window and matches one palette-cache rebuild (bounded per palette). A leak
 signature would be monotonic creep; step-then-flat is bounded caching.
-Long-run confirmation at the 44-palette ceiling (~12 MiB worst case)
+Long-run confirmation at the built-in palette ceiling (~12 MiB worst case)
 awaits the recommended 2 h soak.
 
 ### Run — v4.0.1 — 2026-06-11 — linux-x86_64-v3

@@ -76,7 +76,7 @@ NOT re-exports.
    engine, branded under the same naming convention as the other dragon
    engines (`chroma_dragon_engine/`, `crystal_dragon_engine/`).
 2. **Patches land in place.** New rendering optimizations extend the
-   existing files (under the 1,500-LOC cap, splitting if needed) —
+   existing files (under the 800-LOC cap, splitting if needed) —
    they do not branch into a new namespace.
 3. **Additive experimental growth goes to `cosmic_dragon_incubator/`.**
    This namespace is for new v15+ features. The substantive engine is
@@ -206,7 +206,7 @@ When a `cosmic_dragon_incubator/` module is ready to graduate:
 
 The graduation is a one-way operation. Once a module lives in a
 substantive engine directory, it is part of the stable engine and
-follows the stable engine's rules (1500-LOC cap, no breaking changes
+follows the stable engine's rules (800-LOC cap, no breaking changes
 without a major version bump, etc.).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

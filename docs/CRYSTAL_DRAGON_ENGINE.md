@@ -27,16 +27,16 @@ shader.
 
 ## 2. Subsystem Map (Source of Truth)
 
-| File | Role | LOC |
-|------|------|-----|
-| `crystal_dragon_control/mod.rs` | Config struct + defaults (polling interval, sensor mode, calc method, drift chance, EMA alpha) | 137 |
-| `sensor/mod.rs` | CPU sampling (procfs) + CLOCK fallback (UTC time). Produces a 1–99 **point**. | 300 |
-| `palette_groups/mod.rs` | 44 builtin themes partitioned into Cold(14) / Medium(14) / Hot(14) + Reserved(2). | 129 |
-| `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring (8 entries); calc-v1 (legacy): no-memory weighted selection. | 268 |
-| `ambient/mod.rs` | Time-of-day schedule types, config parsing, validation, startup apply. | 524 |
-| `ambient_scheduler/mod.rs` | Background **dynamic idle/wake** thread that fires phase boundaries. | 506 |
-| `ambient_diag.rs` | Diagnostics counters (exit summary, `ambient_diag_summary()`). | 88 |
-| `mod.rs` | Top-level module doc + re-exports. | 75 |
+| File | Role |
+|------|------|
+| `crystal_dragon_control/mod.rs` | Config struct + defaults (polling interval, sensor mode, calc method, drift chance, EMA alpha) |
+| `sensor/mod.rs` | CPU sampling (procfs) + CLOCK fallback (UTC time). Produces a 1–99 **point**. |
+| `palette_groups/mod.rs` | The builtin themes partitioned into Cold / Medium / Hot + reserved. |
+| `point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring (8 entries); calc-v1 (legacy): no-memory weighted selection. |
+| `ambient/mod.rs` | Time-of-day schedule types, config parsing, validation, startup apply. |
+| `ambient_scheduler/mod.rs` | Background **dynamic idle/wake** thread that fires phase boundaries. |
+| `ambient_diag.rs` | Diagnostics counters (exit summary, `ambient_diag_summary()`). |
+| `mod.rs` | Top-level module doc + re-exports. |
 
 Plus per-subsystem `tests.rs` files (Pattern C — dedicated tests/
 subdir convention).
@@ -188,11 +188,10 @@ the system warms.
 
 ## 5. Palette Groups (Source: `palette_groups/mod.rs`)
 
-All 44 builtin `ColorScheme` variants are partitioned into three
-temperature groups of 14 themes each, plus 2 reserved themes excluded
-from drift.
+All builtin `ColorScheme` variants are partitioned into the three
+temperature groups, plus reserved themes excluded from drift.
 
-### 5.1 Cold group (14 themes) — points 1–33
+### 5.1 Cold group — points 1–33
 
 Cool blues, cyans, neutrals, whites. Cool, calm, serene aesthetic.
 
@@ -206,7 +205,7 @@ v80.0.0 earth-element real-color note: `Snow`'s head was retuned to
 luminance sum (was near-neutral gray, which dropped the body hue in
 the final stop). Cold-group classification unchanged.
 
-### 5.2 Medium group (14 themes) — points 34–66
+### 5.2 Medium group — points 34–66
 
 Greens, purples, cosmic. Balanced, natural aesthetic.
 
@@ -223,7 +222,7 @@ gone — foliage never pins the green channel while red climbs), and
 (was teal-shifted) with a pale auroral-green head. Green-family
 classification unchanged.
 
-### 5.3 Hot group (14 themes) — points 67–99
+### 5.3 Hot group — points 67–99
 
 Warm yellows, oranges, fiery reds. Warm, energetic aesthetic.
 
@@ -525,7 +524,7 @@ test subdir convention). Tests cover:
 |-----------|-----------|----------|
 | `crystal_dragon_control` | `crystal_dragon_control/tests.rs` | Default values match owner-chosen constants |
 | `sensor` | `sensor/tests.rs` | Point-to-group mapping, group-point-range bounds, CLOCK fallback math |
-| `palette_groups` | `palette_groups/tests.rs` | All 44 themes classified, no orphan themes, group counts (14/14/14/2) |
+| `palette_groups` | `palette_groups/tests.rs` | Every theme classified, no orphan themes, group-count balance |
 | `point_system` | `point_system/tests.rs` | calc-v2 DriftHistory recency + distribution properties, calc-v1 legacy parity, no-op skip behavior, uniform fallback |
 | `ambient` | `ambient/tests.rs` | Config parsing, validation, scene-custom interaction, startup apply |
 | `ambient_scheduler` | `ambient_scheduler/tests.rs` | Dynamic idle/wake timing, reload behavior, edge cases |
@@ -540,28 +539,27 @@ cargo test crystal_dragon
 
 ```
 src/engine/crystal_dragon_engine/
-├── mod.rs                          # Top-level doc + re-exports (75 LOC)
-├── ambient_diag.rs                 # Diagnostics counters (88 LOC)
+├── mod.rs                          # Top-level doc + re-exports
+├── ambient_diag.rs                 # Diagnostics counters
 ├── ambient/
-│   ├── mod.rs                      # Schedule types + config parsing (524 LOC)
-│   └── tests.rs                    # ambient tests (346 LOC)
+│   ├── mod.rs                      # Schedule types + config parsing
+│   └── tests.rs                    # ambient tests
 ├── ambient_scheduler/
-│   ├── mod.rs                      # Dynamic idle/wake thread (506 LOC)
-│   └── tests.rs                    # Scheduler tests (446 LOC)
+│   ├── mod.rs                      # Dynamic idle/wake thread
+│   └── tests.rs                    # Scheduler tests
 ├── crystal_dragon_control/
-│   ├── mod.rs                      # Config struct + constants (137 LOC)
-│   └── tests.rs                    # Control tests (32 LOC)
+│   ├── mod.rs                      # Config struct + constants
+│   └── tests.rs                    # Control tests
 ├── palette_groups/
-│   ├── mod.rs                      # 44 themes -> 3 groups (129 LOC)
-│   └── tests.rs                    # Group tests (71 LOC)
+│   ├── mod.rs                      # The builtin themes -> 3 groups
+│   └── tests.rs                    # Group tests
 ├── point_system/
-│   ├── mod.rs                      # calc-v2 (default) + calc-v1 selection, DriftHistory (268 LOC)
-│   └── tests.rs                    # Point system tests (242 LOC)
+│   ├── mod.rs                      # calc-v2 (default) + calc-v1 selection, DriftHistory
+│   └── tests.rs                    # Point system tests
 └── sensor/
-    ├── mod.rs                      # CPU + CLOCK sensor (300 LOC)
-    └── tests.rs                    # Sensor tests (164 LOC)
+    ├── mod.rs                      # CPU + CLOCK sensor
+    └── tests.rs                    # Sensor tests
 
-Total: 2,019 LOC (production) + 1,801 LOC (tests) = 3,820 LOC
 ```
 
 ## 14. See Also

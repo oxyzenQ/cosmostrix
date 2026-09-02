@@ -32,7 +32,7 @@ The code in this directory has been audited for:
   `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`,
   `panic = "unwind"`, `overflow-checks = false`, `strip = true`,
   `incremental = false`.
-- **Stability** — ~1649 tests pass, 0 clippy warnings, all
+- **Stability** — full test suite green, 0 clippy warnings, all
   stability signals match baseline (frame_jitter=low,
   frame_time_stability=excellent, drift=stable).
 
@@ -40,7 +40,7 @@ The code in this directory has been audited for:
 
 The audit confirmed the engine is already at peak. Specifically:
 
-### 1. Frame buffer (`frame.rs`, 404 LOC)
+### 1. Frame buffer (`frame.rs`)
 
 - **Double-buffered generation-based dirty tracking**: O(1) `clear_dirty`
   via single u32 bump (replaces standard O(N) `Vec<bool>` memset).
@@ -52,7 +52,7 @@ The audit confirmed the engine is already at peak. Specifically:
   at 60 FPS) — adds 3-month safety margin before overflow.
 - **7 functions marked `#[inline]`** for hot-path accessors.
 
-### 2. Cloud simulation (`cloud/`, ~8,858 LOC production + ~9,177 LOC tests)
+### 2. Cloud simulation (`cloud/`)
 
 - **`rain_at()`** — the per-frame simulation entry point. Zero allocation
   on hot path (no `format!()`, no `to_string()`, no `Vec::push` outside
@@ -65,7 +65,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`tier2.rs`** — backpressure + RIS reset heuristics (`ByteWindow`
   sliding window), no allocation in hot path.
 
-### 3. Terminal output (`terminal/`, ~2,250 LOC production + ~189 LOC tests)
+### 3. Terminal output (`terminal/`)
 
 - **`Terminal` struct** — 256 KiB BufWriter for single-syscall flush.
   `SYNC_START + ansi_buf + SYNC_END` concatenation eliminates per-frame
@@ -76,11 +76,11 @@ The audit confirmed the engine is already at peak. Specifically:
   recovery (unique among terminal renderers).
 - **`tier2.rs`** — backpressure guard, no allocation in hot path.
 
-### 4. Runtime types (`runtime.rs`, 312 LOC)
+### 4. Runtime types (`runtime.rs`)
 
 - **`ColorPipeline` enum** — `chroma_dragon` / `legacy_rgb` dispatch
   via match (no dyn dispatch overhead).
-- **`ColorScheme` enum** — 44 variants, `repr` implicitly `u8`-sized.
+- **`ColorScheme` enum** — one variant per built-in theme, `repr` implicitly `u8`-sized.
 - **`ColorMode::TrueColor` detection** — probed once at startup,
   cached, no per-frame re-probe.
 
@@ -121,16 +121,14 @@ is the appropriate action.
 
 ## Dragon Engine Topology (Locked)
 
-| Subsystem                                  | LOC    | Role                                                                  |
-|--------------------------------------------|-------:|-----------------------------------------------------------------------|
-| `cosmic_dragon_engine/cloud/`              | ~8,858 | Rain simulation, monolith, render pipeline, ecosystem, phosphor, ghost events (production) |
-| `cosmic_dragon_engine/cloud/tests/`        | ~9,177 | Comprehensive test suite: scene, monolith, quantum, phosphor, edge fade, anomaly, visual depth, color stability |
-| `cosmic_dragon_engine/frame.rs`           |    404 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `cosmic_dragon_engine/terminal/`           |  ~2,250 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, `/dev/tty` fallback (production) |
-| `cosmic_dragon_engine/runtime.rs`          |    312 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
-| `cosmic_dragon_engine/mod.rs`             |     62 | Top-level module doc + re-exports                                         |
-
-**Total**: ~11,886 LOC production + ~9,366 LOC test suite = ~21,252 LOC.
+| Subsystem                                  | Role                                                                  |
+|--------------------------------------------|-----------------------------------------------------------------------|
+| `cosmic_dragon_engine/cloud/`              | Rain simulation, monolith, render pipeline, ecosystem, phosphor, ghost events (production) |
+| `cosmic_dragon_engine/cloud/tests/`        | Comprehensive test suite: scene, monolith, quantum, phosphor, edge fade, anomaly, visual depth, color stability |
+| `cosmic_dragon_engine/frame.rs`           | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `cosmic_dragon_engine/terminal/`           | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, `/dev/tty` fallback (production) |
+| `cosmic_dragon_engine/runtime.rs`          | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
+| `cosmic_dragon_engine/mod.rs`             | Top-level module doc + re-exports                                         |
 
 ## Modification Protocol
 

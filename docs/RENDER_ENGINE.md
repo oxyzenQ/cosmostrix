@@ -24,18 +24,15 @@ The Cosmic Dragon Diff-Based Rendering Engine lives under
 in `main.rs` so all `crate::cloud::*` / `crate::frame::*` /
 `crate::runtime::*` / `crate::terminal::*` call sites resolve unchanged.
 
-| File | LOC | Role |
-|------|----:|------|
-| `src/engine/cosmic_dragon_engine/frame.rs` | 404 | Differential frame buffer with double-buffered generation-based dirty tracking |
-| `src/engine/cosmic_dragon_engine/terminal/` | ~2,250 | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush |
-| `src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs` | 201 | /dev/tty fallback helpers (extracted from terminal.rs in v30 to keep it under the 1500-LOC guard) |
-| `src/engine/cosmic_dragon_engine/runtime.rs` | 312 | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
+| File | Role |
+|------|------|
+| `src/engine/cosmic_dragon_engine/frame.rs` | Differential frame buffer with double-buffered generation-based dirty tracking |
+| `src/engine/cosmic_dragon_engine/terminal/` | Raw-mode guard, alternate screen, RLE-batched ANSI diff pipeline, 256 KiB single-syscall flush, /dev/tty fallback |
+| `src/engine/cosmic_dragon_engine/runtime.rs` | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
 
-Total: ~2,964 LOC (excluding tests). Imported by **every render-path
-module** across `src/` (frame: 25 import lines, terminal: 10, runtime:
-34). These are not a subsystem — they are the **substrate** every
-rendering path stands on. Foundations do not get relocated; they get
-maintained.
+Imported by **every render-path module** across `src/`. These are not a
+subsystem — they are the **substrate** every rendering path stands on.
+Foundations do not get relocated; they get maintained.
 
 ### Why not a folder?
 
@@ -64,7 +61,7 @@ This is a hard policy, not a preference.
    folder. They are crate-level primitives, like `crossterm::event` or
    `std::io`.
 2. **Patches land in place.** New rendering optimizations extend the
-   existing files (under the 1,500-LOC cap, splitting if needed) —
+   existing files (under the 800-LOC cap, splitting if needed) —
    they do not branch into a new namespace.
 3. **Additive growth goes to `src/cosmic_dragon_incubator/`.** The incubator
    namespace exists for new v15+ features. The flat engine is not
@@ -261,7 +258,7 @@ diff path's `emit_sgr()` checks the cache first; only cache misses
 fall through to `write_sgr_colors_buf()` (which formats the SGR
 on-the-fly via `push_u8` — no heap allocation).
 
-For the 44 built-in palettes, the cache hit rate varies significantly
+For the built-in palettes, the cache hit rate varies significantly
 by scene and visual effects enabled. Measured on AMD Ryzen 7 5800HS
 with `--perf-stats` (historical — see `docs/BENCHMARKING.md` §5 for
 the current v50 4-scene reference matrix):

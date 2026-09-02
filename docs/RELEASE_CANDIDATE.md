@@ -58,7 +58,7 @@ Must print `valid JSON`. The JSON object must contain 13 top-level keys: status,
 "$BIN"
 ```
 
-Then press `i` and verify: a top-left overlay appears showing `fps`, `tgt`, `max`, `p99`, `cpu`, `rss`, `ehs`, `prs`, `scn`, `chr`, `clr`, `sped`, `dsty`, `prdr`, `crdr`, `ambt`, `glth`, `ctun`, `mnst`, `cid`, `up`, `screensize` (22 rows, v80.0.0-beta.1 reorder layout); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
+Then press `i` and verify: a top-left overlay appears showing the full HUD row set (fps, tgt, max, p99, cpu, rss, ehs, prs, scn, chr, clr, sped, dsty, dcel, tcel, prdr, crdr, ambt, glth, ctun, mnst, cid, up, screensize — see docs/HUD.md); the overlay updates ~1 time per second without flickering; press `i` again — the overlay disappears cleanly; press `q` — clean exit, terminal restored.
 
 Note: `i` is lowercase-only (uppercase `I` is a no-op — see `docs/HUD.md` and `docs/RULES.md`).
 
@@ -69,7 +69,7 @@ Verify `aur/cosmostrix-bin/PKGBUILD` and `aur/cosmostrix-bin/.SRCINFO` have matc
 ## README / CHANGELOG Guard + Benchmark Interpretation
 
 - README must link to CHANGELOG.md and must not contain release notes sections or old version-history headings.
-- README must stay scannable (no hard line cap — ~700 lines covering dual-engine narrative, full CLI reference, 18 scenes, configuration, 5-platform install, GPG verification, benchmarking).
+- README must stay scannable (no hard line cap — three-engine narrative, full CLI reference, scenes, configuration, multi-platform install, GPG verification, benchmarking).
 - CHANGELOG is the dedicated release history document.
 - Canonical tagline must be aligned across Cargo.toml, README.md, clap about, runtime identity, and AUR pkgdesc.
 

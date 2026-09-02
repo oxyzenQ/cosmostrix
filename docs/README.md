@@ -21,12 +21,12 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 
 | Doc | Covers |
 |-----|--------|
-| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs`) |
+| [RENDER_ENGINE.md](RENDER_ENGINE.md) | Diff-based rendering engine spec (`src/engine/cosmic_dragon_engine/`) |
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [LIVE_RELOAD_BEHAVIOR.md](LIVE_RELOAD_BEHAVIOR.md) | Per-key live-reload matrix (which config keys reload vs. require restart) + masterclass solution options |
 
-**Two cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs`) and the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/engine/chroma_dragon_engine/`).
+**Three cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/engine/cosmic_dragon_engine/`), the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/engine/chroma_dragon_engine/`), and the **Crystal Dragon** ambient intelligence engine (owns *what mood the rain should have* — `src/engine/crystal_dragon_engine/`). See [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md) for the cooperation model.
 
 ## Benchmarking & Performance
 
@@ -51,6 +51,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 | Doc | Covers |
 |-----|--------|
+| [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md) | High-level overview of the three-engine cooperation model (`src/engine/`) |
 | [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/engine/chroma_dragon_engine/`) |
 | [src/engine/chroma_dragon_engine/catalog.rs](../src/engine/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
 | [src/engine/chroma_dragon_engine/palette/mod.rs](../src/engine/chroma_dragon_engine/palette/mod.rs) | Palette construction, OKLab interpolation |
@@ -62,7 +63,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 
 | Doc | Covers |
 |-----|--------|
-| [CRYSTAL_DRAGON_ENGINE.md](CRYSTAL_DRAGON_ENGINE.md) | **Complete documentation** — source-code-as-truth reference for `src/engine/crystal_dragon_engine/`. Covers all 8 subsystems, every constant, the calc-v1 algorithm, and the ambient scheduler. |
+| [CRYSTAL_DRAGON_ENGINE.md](CRYSTAL_DRAGON_ENGINE.md) | **Complete documentation** — source-code-as-truth reference for `src/engine/crystal_dragon_engine/`. Covers every subsystem, the selection algorithms, and the ambient scheduler. |
 | [AMBIENT_SCHEDULER.md](AMBIENT_SCHEDULER.md) | Focused doc on the ambient scheduler thread (time-of-day scene switching) |
 | [src/engine/crystal_dragon_engine/mod.rs](../src/engine/crystal_dragon_engine/mod.rs) | Top-level module doc — the canonical source-of-truth header |
 

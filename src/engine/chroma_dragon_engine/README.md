@@ -27,19 +27,19 @@ this directory has been audited for:
 - **Efficient resource use** — palette slot table with direct indexing
   (no hash lookup on hot path), `ShaderCtx` borrow view (no allocation
   per cell), `TRAIL_EXP_LUT` static lookup table (no per-frame compute).
-- **Strong foundation** — 44-theme registry (`catalog.rs`) is the single
+- **Strong foundation** — the theme registry (`catalog.rs`) is the single
   source of truth for color scheme -> palette mapping. OKLab gradient
   interpolation (`gradient.rs`) is the sole production path (Phase 9-A
   -> 9-D, sRGB-linear fallback removed).
-- **Stability** — ~1649 tests pass, 0 clippy warnings. Lock suite
-  (`chroma_dragon_engine/tests/lock.rs`, 1060 LOC) asserts the engine's
+- **Stability** — full test suite green, 0 clippy warnings. A lock
+  suite (`chroma_dragon_engine/tests/lock.rs`) asserts the engine's
   public contract on every commit.
 
 ## Audit Findings (No Code Changes Required)
 
 The audit confirmed the engine is already at peak. Specifically:
 
-### 1. Palette construction (`palette/mod.rs`, 761 LOC)
+### 1. Palette construction (`palette/mod.rs`)
 
 - **`build_palette()`** — `#[must_use]`, called once per color switch
   (cold path). Constructs `Palette` struct with pre-decoded RGB stops
@@ -50,9 +50,9 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`apply_brightness_rgb_unclamped()`** — `#[inline]`, called per cell
   from `rain_post.rs`. No allocation.
 
-### 2. Shader pipeline (`shaders/`, ~2K LOC across 4 files)
+### 2. Shader pipeline (`shaders/`)
 
-- **`resolve_cell_color()`** (`shaders/base/mod.rs:423`) — the per-cell
+- **`resolve_cell_color()`** (`shaders/base/mod.rs`) — the per-cell
   color decision function. Profile:
   - Takes `&ShaderCtx<'_>` borrow view (zero alloc).
   - Direct array indexing via `palette_slices: [&[Color]; MAX_PALETTE_SLOTS]`
@@ -63,13 +63,13 @@ The audit confirmed the engine is already at peak. Specifically:
     inlines on `-C opt-level=3`.
   - `#[allow(clippy::too_many_arguments)]` — explicit choice to avoid
     struct construction overhead on hot path.
-- **Transition shader** (`shaders/transition/mod.rs`, 344 LOC) —
+- **Transition shader** (`shaders/transition/mod.rs`) —
   OKLab wave transition (300 ms top-to-bottom). `TransitionLTable`
   precomputed at startup, looked up per-cell via direct index.
 - **`ShaderCtx`** — borrow view constructed once per frame from
   `DrawCtx::get_attr()`. No per-cell allocation.
 
-### 3. OKLab gradient (`gradient/mod.rs`, 389 LOC)
+### 3. OKLab gradient (`gradient/mod.rs`)
 
 - **`gradient_from_stops_oklab()`** — Phase 9-A -> 9-D sole production
   path. sRGB -> OKLab -> polar chroma lerp -> sRGB. No allocation in
@@ -77,7 +77,7 @@ The audit confirmed the engine is already at peak. Specifically:
 - **`oklab_to_srgb()` / `srgb_to_oklab()`** — `#[inline]`, called per
   gradient stop (cold path, once per palette build).
 
-### 4. Color cache (`color_cache.rs`, 603 LOC)
+### 4. Color cache (`color_cache.rs`)
 
 - **`ColorCache`** — pre-formatted SGR byte sequences per (palette_stop,
   bold) pair. Eliminates `format!()` calls in the hot path; the
@@ -85,20 +85,21 @@ The audit confirmed the engine is already at peak. Specifically:
 - **Lookup is direct indexing** — `cache[stop_index][bold]` returns
   `&[u8]` slice, zero allocation.
 
-### 5. Post-FX pipeline (`post/`, ~700 LOC across 4 files)
+### 5. Post-FX pipeline (`post/`)
 
-- **`climate.rs`** (246 LOC) — `ClimateCtx` (luminance/saturation/
+- **`climate.rs`** — `ClimateCtx` (luminance/saturation/
   instability shader). Sampled at 1 Hz, not per-frame. No hot-path
   overhead.
-- **`anomaly.rs`** (182 LOC) — palette-aware anomaly halos. Phase 6
+- **`anomaly.rs`** — palette-aware anomaly halos. Phase 6
   locked. Uses `AnomalyHaloMode` enum dispatch (no dyn).
-- **`ghost.rs`** (278 LOC) — phosphor ghost kanji. Halfwidth Katakana
+- **`ghost.rs`** — phosphor ghost kanji. Halfwidth Katakana
   (U+FF66-U+FF9D) to satisfy 1-char-1-cell invariant (Bug #11 fix).
   No allocation in render path.
 
-### 6. Lock suite (`tests/lock.rs`, 1060 LOC)
+### 6. Lock suite (`tests/lock.rs`)
 
-- **19 invariants** asserted on every commit. Covers:
+- **Lock invariants** (the suite grows with the contract) asserted on
+  every commit. Covers:
   - Palette construction idempotency
   - OKLab gradient monotonicity
   - Color cache SGR byte correctness
@@ -108,11 +109,11 @@ The audit confirmed the engine is already at peak. Specifically:
   - Column hue coherence frequency (Phase 4-A)
 - **Test names**: `lock_*` prefix, fail-loud on any regression.
 
-### 7. Catalog registry (`catalog.rs` 215 LOC + `catalog/themes.rs` 948 LOC data)
+### 7. Catalog registry (`catalog.rs` + `catalog/themes.rs` data)
 
 - **`THEMES` static** (in `catalog/themes.rs`, pure data extracted at
   v50.0.0-beta.7) — single source of truth for color scheme ->
-  `ThemeDef` mapping. 44 builtin themes, each defining gradient stops
+  `ThemeDef` mapping. The builtin themes, each defining gradient stops
   plus per-tier fallbacks (`c16` / `ansi`) per its `ThemeColors` variant.
 - **`build_colors()`** — `#[must_use]`, called once per `--color`
   selection. Returns `Vec<Color>` — allocation is intentional (cold
@@ -139,22 +140,19 @@ is the appropriate action.
 
 ## Dragon Engine Topology (Locked)
 
-| Subsystem                              | LOC    | Role                                                                  |
-|----------------------------------------|-------:|-----------------------------------------------------------------------|
-| `chroma_dragon_engine/palette/`         |    761 | Palette construction, OKLab interpolation, blend helpers             |
-| `chroma_dragon_engine/catalog.rs`       |  1,134 | 44-theme registry, `build_colors()`, `ThemeDef`/`ThemeColors`         |
-| `chroma_dragon_engine/shaders/`         |  2,027 | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT`, transition wave |
-| `chroma_dragon_engine/gradient/`        |    389 | OKLab polar interpolation (sole production path since v30)            |
-| `chroma_dragon_engine/legacy.rs`        |    346 | Explicit sRGB-linear fallback math (used when `ColorPipeline::LegacyRgb`) |
-| `chroma_dragon_engine/post/`             |    706 | `climate.rs` (ClimateCtx), `anomaly.rs` (halos), `ghost.rs` (phosphor kanji) |
-| `chroma_dragon_engine/tuning.rs`         |    290 | Phase 4+ tuning constants (innovation C/D/E, L smoothing)             |
-| `chroma_dragon_engine/color_cache.rs`    |    603 | Pre-formatted SGR byte cache (eliminates `format!()` in hot path)     |
-| `chroma_dragon_engine/color_tune.rs`     |    346 | `--color-tune` CLI parsing + `ColorTune` struct                       |
-| `chroma_dragon_engine/colors_custom.rs`  |    507 | Custom palette loading from `[palette.<name>]` config sections        |
-| `chroma_dragon_engine/tests/`           |  6,487 | Lock suite, activation, bold audit, blend, floor, gradient, post tests |
-
-**Total**: ~6,506 LOC of substantive coloring engine code + 6,487 LOC
-test suite.
+| Subsystem                              | Role                                                                  |
+|----------------------------------------|-----------------------------------------------------------------------|
+| `chroma_dragon_engine/palette/`         | Palette construction, OKLab interpolation, blend helpers             |
+| `chroma_dragon_engine/catalog.rs`       | Theme registry, `build_colors()`, `ThemeDef`/`ThemeColors`            |
+| `chroma_dragon_engine/shaders/`         | `ShaderCtx`, `CharLoc`, `resolve_cell_color()`, `TRAIL_EXP_LUT`, transition wave |
+| `chroma_dragon_engine/gradient/`        | OKLab polar interpolation (sole production path since v30)            |
+| `chroma_dragon_engine/legacy.rs`        | Explicit sRGB-linear fallback math (used when `ColorPipeline::LegacyRgb`) |
+| `chroma_dragon_engine/post/`             | `climate.rs` (ClimateCtx), `anomaly.rs` (halos), `ghost.rs` (phosphor kanji) |
+| `chroma_dragon_engine/tuning.rs`         | Phase 4+ tuning constants (innovation C/D/E, L smoothing)             |
+| `chroma_dragon_engine/color_cache.rs`    | Pre-formatted SGR byte cache (eliminates `format!()` in hot path)     |
+| `chroma_dragon_engine/color_tune.rs`     | `--color-tune` CLI parsing + `ColorTune` struct                       |
+| `chroma_dragon_engine/colors_custom.rs`  | Custom palette loading from `[palette.<name>]` config sections        |
+| `chroma_dragon_engine/tests/`           | Lock suite, activation, bold audit, blend, floor, gradient, post tests |
 
 ## Phase History (Locked at 9-D)
 

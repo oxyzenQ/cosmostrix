@@ -194,11 +194,28 @@ fn every_catalog_entry_builds_a_palette() {
 }
 
 #[test]
-fn readme_has_current_theme_count_wording() {
+fn readme_carries_no_hardcoded_theme_count() {
+    // Owner directive (docs masterclass de-bloat): drifty counts stay out
+    // of living docs. The theme catalog is code-owned data that grows
+    // without a README round-trip, so ANY hardcoded count ("42/43/44/45
+    // built-in themes") would go stale between catalog edits. The README
+    // points at `--list-colors` (the live catalog) instead. This test
+    // locks that contract for the whole plausible drift range.
     let readme = include_str!("../../README.md");
-    assert!(!readme.contains("42 themes"));
-    assert!(!readme.contains("42 built-in color schemes"));
-    assert!(readme.contains("44 built-in themes"));
+    for n in 2..=99 {
+        assert!(
+            !readme.contains(&format!("{n} built-in themes")),
+            "README must not hardcode the theme count ({n} built-in themes found) — counts drift, keep the wording count-free"
+        );
+        assert!(
+            !readme.contains(&format!("{n} built-in color schemes")),
+            "README must not hardcode the color-scheme count ({n} built-in color schemes found) — counts drift, keep the wording count-free"
+        );
+    }
+    assert!(
+        readme.contains("--list-colors"),
+        "README should point readers at the live catalog (--list-colors)"
+    );
 }
 
 // ── (bug #13): "did you mean" color name suggestions ──

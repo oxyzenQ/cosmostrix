@@ -249,18 +249,18 @@ key not listed there is silently ignored (catch-all `_ => {}` in
 
 The Cosmic Dragon's codebase is organized by responsibility:
 
-| Layer | Modules | LOC | Tests |
-|-------|---------|-----|-------|
-| Terminal I/O | cosmic_dragon_engine/terminal/, frame.rs, chroma_dragon_engine/color_cache.rs, sgr_format.rs, termdetect/ | ~2,500 | 50+ |
-| Cloud Renderer | cosmic_dragon_engine/cloud/ (18 files + tests/) | ~5,000 | 100+ |
-| Ambient Scheduler | crystal_dragon_engine/ambient/, crystal_dragon_engine/ambient_scheduler/ | ~1,000 | 20+ |
-| Interactive Engine | interactive/ (17 files) | ~2,500 | 60+ |
-| Config System | config/ (config_apply.rs, configfile.rs, config_hints/, live_config/), safepath/, validation/, testconf/ | ~2,500 | 100+ |
-| CLI + Helpers | cli/ (app.rs, cli_parse.rs, help_detail.rs, mod.rs), output/ (report.rs, ux.rs, verbose.rs, message.rs), diagnostics/info.rs | ~1,500 | 30+ |
-| Diagnostics | bench/ (16 files), doctor/, output/report.rs | ~4,000 | 40+ |
-| Cosmic Dragon Incubator | cosmic_dragon_incubator/ (egg/) | ~200 | 2 |
+| Layer | Modules |
+|-------|---------|
+| Terminal I/O | cosmic_dragon_engine/terminal/, frame.rs, chroma_dragon_engine/color_cache.rs, sgr_format.rs, termdetect/ |
+| Cloud Renderer | cosmic_dragon_engine/cloud/ + tests |
+| Ambient Scheduler | crystal_dragon_engine/ambient/, crystal_dragon_engine/ambient_scheduler/ |
+| Interactive Engine | interactive/ |
+| Config System | config/ (config_apply, configfile, config_hints, live_config), safepath/, validation/, testconf/ |
+| CLI + Helpers | cli/, output/, diagnostics/ |
+| Diagnostics | bench/, doctor/, output/report.rs |
+| Cosmic Dragon Incubator | cosmic_dragon_incubator/ |
 
-**Total: ~89K LOC, ~1649 tests pass — see `cargo test --all` for the current count.**
+**Total: ~100K+ LOC of Rust under `src/` — see `cargo test --all` for the current test count.**
 
 ## The Cosmic Dragon's Promise
 

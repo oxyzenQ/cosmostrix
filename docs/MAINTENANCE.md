@@ -81,7 +81,7 @@ If returning after 5-10 years of dormancy, follow this exact sequence. No steps 
 
 | Date | Rust Version | Result | Notes |
 |------|-------------|--------|-------|
-| 2026-08-13 | 1.97.1 | PASS | Full audit session — ~1649 tests (then), all quality gates green. Current: ~1500+ pass. |
+| 2026-08-13 | 1.97.1 | PASS | Full audit session — ~1649 tests (then), all quality gates green. |
 
 ## 6. Dormant Mode Contract
 
@@ -131,9 +131,9 @@ From v50.0.0 onward, the following are **frozen** (no breaking changes without a
 
 - **CLI flags**: all flags in `--help` (names, short/long forms, value types)
 - **Config format**: `config.toml` keys, value types, and TOML structure
-- **Scene names**: all 18 built-in scene names
-- **Color scheme names**: all 44 built-in color scheme names (`THEME_COUNT` in `src/theme/mod.rs`)
-- **Charset preset names**: all 25 built-in charset names
+- **Scene names**: all built-in scene names
+- **Color scheme names**: all built-in color scheme names (`THEME_COUNT` in `src/theme/mod.rs`)
+- **Charset preset names**: all built-in charset names
 - **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
 

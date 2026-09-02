@@ -9,6 +9,52 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: v80.0.0-alpha.1 — documentation masterclass de-bloat (owner directive)
+
+Owner audit: the md corpus carried redundant, duplicate, stale-prone
+content with high maintenance cost. Swept README.md, all active
+`docs/*.md`, engine README/RULES, CONTRIBUTING, and the archive index
+(docs-only pass — zero source changes, so no benchmark A/B per the
+owner rule).
+
+- **Counts told too many times -> one simple statement**: the theme
+  count was asserted in four README spots; scene/charset counts
+  repeated across README, MAINTENANCE, RELEASE_CANDIDATE, RULES.
+  Living docs now carry qualitative statements ("dozens of built-in
+  themes") or single mentions; interface docs keep code-locked
+  contracts (flag ranges, screen limits).
+- **Deep path listings -> engine roots**: "Lives at the crate root:
+  frame.rs, terminal/, terminal_tty.rs, runtime.rs" style enumerations
+  collapsed to `src/engine/<engine>/` across README, docs/README,
+  RENDER_ENGINE, engine READMEs.
+- **Precise drifty numerics -> near-match estimates**: 103,021 avg_fps
+  -> ~100K; ~89K LOC -> ~100K+; per-file LOC columns and "(467 LOC)"
+  annotations dropped from every living topology table (the chroma
+  table still claimed the pre-split 1,134-line catalog.rs next to the
+  post-split 215 — both stale); test-count snapshots replaced by
+  "run `cargo test --all`".
+- **Stale claims corrected (hunted beyond the owner's examples)**:
+  CONTRIBUTING + incubator README + RENDER_ENGINE still cited the
+  retired 1,500-LOC cap (real cap: 800); RELEASE_CANDIDATE said "22
+  rows" HUD (24) and "dual-engine" (three engines); SECURITY_AUDIT
+  said "6 workflows" (10) and carried yml line numbers;
+  docs/README.md said "Two cooperating engines" (three); the crystal
+  engine README still described calc-v1 as the locked method
+  (calc-v2 is default since the Dragon Engine v2 merge — the
+  S-master-7-v2 doc-sync missed the engine-dir README); archive
+  index omitted `SYSTEM_FEELING.md` and `CHANGELOG_PRE_V13.md`.
+- **Bloat/redundancy reduction**: the 560-char msg-fill-style bullet
+  and the version-tagged ambient bullet compressed to contract +
+  pointer; README's 14-row Documentation list deduped to the core
+  five + Docs Index pointer (the index is the single maintained
+  map); chroma phase history compressed to one lock summary;
+  CENTRAL_CONTROL test inventory de-counted; historical A/B lock
+  evidence, frozen research snapshots, and bench-lab data records
+  left untouched (their numbers ARE the record).
+- Bloat-hunt inventory: living-doc drifty-count findings 220 -> ~100
+  (rest are policy constants and frozen signoff history); docs-only,
+  gates re-run clean.
+
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-3 owner bug quartet (message dash, self-heal verbose gate, crystal-dragon-secs dwell yield, --no-effects live-reload survival)
 
 Four owner-reported bugs after the alpha.1 feature round, all

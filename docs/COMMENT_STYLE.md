@@ -48,7 +48,7 @@ and should be used when semantically appropriate**:
 - ` ```text ` for plain-text blocks (ASCII art, benchmark output samples) — **25 instances, consistent**
 - ` ```toml ` for TOML config examples — used in `configfile.rs`, `scene_custom/mod.rs`, `colors_custom.rs`, `crystal_dragon_engine/ambient/mod.rs`
 - ` ```rust ` (implicit, no language tag) — used for doctests
-- ` ```no_run ` for compile-only Rust examples — `output.rs:345`
+- ` ```no_run ` for compile-only Rust examples — `output.rs`
 - ` ```ignore ` for non-compiling Rust illustrations — `ux.rs`, `chroma_dragon_engine/post/anomaly/mod.rs`
 - ` ```json ` for JSON output examples — `bench/bench_json.rs`
 

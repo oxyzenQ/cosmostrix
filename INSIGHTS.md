@@ -193,7 +193,7 @@ actual design decision; everything downstream is arithmetic.
 v80.0.0-alpha.1 S-master-HUNT-3), `min_dwell_secs =
 min(60, polling_secs)` (the floor yields), and
 `create_cloud`-owned `effects_enabled` (one construction site, every
-path). Locked by 12 tests + a PTY replay harness.
+path). Locked by tests + a PTY replay harness.
 
 **Status**: Implemented (v80.0.0-alpha.1, S-master-HUNT-3). Verified
 live: the 6s cadence drifts at ~6s, the dash renders verbatim, a
