@@ -279,22 +279,22 @@ fn lock_inv17_engine_lock_report() {
     eprintln!("  INV-19  ColorPipeline disclosure (chroma first, legacy fallback) [LOCKED]");
     eprintln!();
     eprintln!("  ── Phase history ────────────────────────────────────────────────");
-    eprintln!("  Phase 1   Foundation (palette relocation)            ✓");
-    eprintln!("  Phase 2   Shader extraction                         ✓");
-    eprintln!("  Phase 3   OKLab gradient + Innovations A–H           ✓");
-    eprintln!("  Phase 4   Dragon Awakening (Innovations C/D/E on)    ✓");
-    eprintln!("  Phase 5   Perceptual L smoothing at transitions      ✓");
-    eprintln!("  Phase 6   Palette-aware anomaly halos                ✓");
-    eprintln!("  Phase 7   Palette-relative brightness floor          ✓");
-    eprintln!("  Phase 7-c Floor ratio 0.15 → 0.20 (trail +33%)       ✓");
-    eprintln!("  Phase 7-d Gap ratio 2.5 → 2.0 (step −20%)            ✓");
-    eprintln!("  Phase 8   Hue-preserving chroma smoothing            ✓");
+    eprintln!("  Phase 1   Foundation (palette relocation)            OK");
+    eprintln!("  Phase 2   Shader extraction                         OK");
+    eprintln!("  Phase 3   OKLab gradient + Innovations A–H           OK");
+    eprintln!("  Phase 4   Dragon Awakening (Innovations C/D/E on)    OK");
+    eprintln!("  Phase 5   Perceptual L smoothing at transitions      OK");
+    eprintln!("  Phase 6   Palette-aware anomaly halos                OK");
+    eprintln!("  Phase 7   Palette-relative brightness floor          OK");
+    eprintln!("  Phase 7-c Floor ratio 0.15 → 0.20 (trail +33%)       OK");
+    eprintln!("  Phase 7-d Gap ratio 2.5 → 2.0 (step −20%)            OK");
+    eprintln!("  Phase 8   Hue-preserving chroma smoothing            OK");
     eprintln!(
-        "  Phase 9-A Hue-preserving polar gradient variant      ✓ (was opt-in --polar-gradient)"
+        "  Phase 9-A Hue-preserving polar gradient variant      OK (was opt-in --polar-gradient)"
     );
-    eprintln!("  Phase 9-B ENGINE LOCK (Chroma Dragon)                ✓");
-    eprintln!("  Phase 9-C Cartesian removed — polar is sole path     ✓");
-    eprintln!("  Phase 9-D Chroma audit: ColorPipeline + chroma::legacy ✓");
+    eprintln!("  Phase 9-B ENGINE LOCK (Chroma Dragon)                OK");
+    eprintln!("  Phase 9-C Cartesian removed — polar is sole path     OK");
+    eprintln!("  Phase 9-D Chroma audit: ColorPipeline + chroma::legacy OK");
     eprintln!();
     eprintln!("  ── Polar gradient demo (sole production path) ──────────────────");
     let demo_stops = [(10, 20, 30), (200, 100, 50), (50, 250, 75)];

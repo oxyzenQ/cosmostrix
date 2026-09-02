@@ -69,21 +69,24 @@ log_info() {
 	echo -e "${BLUE}[INFO]${NC} $1"
 }
 
+# v80.0.0-beta.2 owner rule: diagnostic output uses ASCII symbols only
+# (icon glyphs render as tofu/garbage on some OS/terminal combos):
+# [OK] success, [!] warning, [X] error, [>] step, [INFO] info.
 log_success() {
-	echo -e "${GREEN}[✓]${NC} $1"
+	echo -e "${GREEN}[OK]${NC} $1"
 }
 
 log_warning() {
-	echo -e "${YELLOW}[⚠]${NC} $1"
+	echo -e "${YELLOW}[!]${NC} $1"
 }
 
 log_error() {
-	echo -e "${RED}[✗]${NC} $1" >&2
+	echo -e "${RED}[X]${NC} $1" >&2
 }
 
 log_step() {
 	if [ ${QUIET_CHECK} -eq 0 ]; then
-		echo -e "${CYAN}[→]${NC} $1"
+		echo -e "${CYAN}[>]${NC} $1"
 	fi
 }
 
@@ -527,6 +530,35 @@ run_header_check() {
 	fi
 }
 
+run_symbol_only_output_check() {
+	log_step "Checking for icon glyphs in output surfaces (symbol-only rule)..."
+
+	if [ ! -f "scripts/check-symbol-only-output.sh" ]; then
+		log_error "scripts/check-symbol-only-output.sh not found"
+		return 1
+	fi
+
+	if [ ${QUIET_CHECK} -eq 1 ]; then
+		local soo_output
+		soo_output=$(bash scripts/check-symbol-only-output.sh 2>&1)
+		local soo_rc=$?
+		echo "$soo_output" | grep -iE '(FAIL|VIOLATION)' || true
+		if [ $soo_rc -eq 0 ]; then
+			log_success_quietable "Symbol-only output check passed"
+		else
+			log_error "Symbol-only output check failed (icon glyphs in output - see docs/RULES.md Output Glyph Policy)"
+			return 1
+		fi
+	else
+		if bash scripts/check-symbol-only-output.sh; then
+			log_success "Symbol-only output check passed"
+		else
+			log_error "Symbol-only output check failed (icon glyphs in output - see docs/RULES.md Output Glyph Policy)"
+			return 1
+		fi
+	fi
+}
+
 run_version_anti_pattern_check() {
 	log_step "Checking for hardcoded version-string anti-patterns..."
 
@@ -666,6 +698,7 @@ run_comprehensive_check() {
 	run_loc_check || ((failed++))
 	run_header_check || ((failed++))
 	run_version_anti_pattern_check || ((failed++))
+	run_symbol_only_output_check || ((failed++))
 	run_shellcheck || ((failed++))
 	run_python_lint || ((failed++))
 	run_version_sync || ((failed++))
@@ -849,9 +882,9 @@ MIRI VERIFICATION:
 
     Verification status is cached in target/miri-stamp (key=value). A status
     banner is shown at the start of every build.sh invocation:
-      [✓] Miri VERIFIED at <commit> · <timestamp> · N tests (0 fail) · Xs
-      [⚠] Miri STALE — verified at <old>, HEAD is <new>. Re-run to refresh.
-      [✗] Miri FAILED at <commit>. See target/miri-log.txt for details.
+      [OK] Miri VERIFIED at <commit> · <timestamp> · N tests (0 fail) · Xs
+      [!] Miri STALE — verified at <old>, HEAD is <new>. Re-run to refresh.
+      [X] Miri FAILED at <commit>. See target/miri-log.txt for details.
       [INFO] Miri: never run on this workspace.
 
     The stamp is invalidated automatically when HEAD changes (status flips

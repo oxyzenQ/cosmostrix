@@ -255,8 +255,9 @@ print("=" * 70)
 passed = 0
 failed = 0
 for name, status, detail in RESULTS:
-    icon = "✓" if status == "PASS" else "✗"
-    print(f"  {icon} {status:4} {name}")
+    # v80.0.0-beta.2 symbol-only rule: ASCII mark, not an icon glyph
+    mark = "OK" if status == "PASS" else "X"
+    print(f"  {mark:4} {status:4} {name}")
     if status != "PASS":
         print(f"         detail: {detail}")
     if status == "PASS":

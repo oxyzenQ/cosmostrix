@@ -18,6 +18,27 @@ it keeps recovery paths conservative and explicit.
 - Mouse reporting always on (cursor glow + click wave effects; also
   blocks text selection in all modes).
 
+## Diagnostic Glyph Policy (v80.0.0-beta.2)
+
+Everything cosmostrix prints as diagnostics — warnings, errors, status
+lines, banners, bench/test output, and `scripts/*.sh|py` tool output —
+is **ASCII symbols only**: `!` = warning, `error:` = error, `OK`/`+` =
+pass, `X`/`-` = fail, `[INFO] [OK] [!] [X] [>]` = shell log badges.
+Icon glyphs (warning signs, check/cross marks, emoji) are forbidden:
+some OS/terminal combinations render them as tofu or garbage, and a
+diagnostic line that cannot render is a diagnostic line the user never
+receives. Typographic text-presentation glyphs (em dash, prose arrows
+in `old → new` transitions, box-drawing banner rules) remain allowed.
+
+The rain itself is a different layer: charset glyph pools are ART,
+width-filtered at runtime against the terminal's reported support
+(`--charset zen` is a pure-ASCII escape hatch; `--charset minimal` uses
+the nabla glyph, which the vt.c VGA font does not carry — see the
+matrix row for Linux console). Enforcement for the diagnostic layer is
+mechanical: `scripts/check-symbol-only-output.sh` runs in
+`gate-keepers.sh` (check #11) and `build.sh check-all`. Full policy:
+`docs/RULES.md` § Output Glyph Policy.
+
 ## Terminal Matrix
 
 | Terminal | Expected result | Notes |

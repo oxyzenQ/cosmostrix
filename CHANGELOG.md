@@ -9,6 +9,54 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.2 — symbol-only diagnostic output (icon elimination + hard gate)
+
+Owner found icon glyphs in verbose live-reload warnings (proof lines
+carried an icon warning-sign prefix) and ruled: some OS/terminal
+combinations cannot render icons, so **diagnostic output uses ASCII
+symbols only**. Deep audit of every output surface followed; the rule
+is documented and mechanically enforced from this version on.
+
+1. **Runtime warning prefix.** `eprintln_warn_labeled` now prints
+   `! <msg>` (was an icon warning sign). One choke point — all 16
+   direct warning call sites plus every buffered runtime warning
+   drained post-exit (`warn_runtime_or_now` → AB-10 buffer) inherited
+   the fix. The error label (`error:`) was already ASCII and is
+   unchanged.
+
+2. **Full output-surface sweep.** Five more icon sites found and
+   converted: `bench_baseline.rs` status marks (check BETTER →
+   `+ BETTER`, cross WORSE → `- WORSE`, summary markers → `!` / `+` /
+   `OK:`), the Chroma Dragon lock-inventory banner (13 phase marks →
+   `OK`), `scripts/build.sh` log badges (`[OK]` `[!]` `[X]` `[>]` +
+   the Miri status banner heredoc), `scripts/stress_test_bounds.py`
+   report marks, and one tuning doc-comment check mark. Typographic
+   house style is deliberately kept (em dash, prose `old → new`
+   arrows, box-drawing banner rules, math operators) — text-presentation
+   glyphs the owner's own proof line already carries.
+
+3. **Hard enforcement gate (new).** `scripts/check-symbol-only-output.sh`
+   fails the build on any pictograph/dingbat/emoji in the output
+   surfaces (`src/**/*.rs`, `build.rs`, `scripts/*.sh|py`,
+   `benchmark/*.sh`, `.github/workflows/*.yml`,
+   `pgo-runner/src/**/*.rs`) — byte-exact matching,
+   locale-proof, whole-file scan so comments can never keep showcasing
+   a stale icon-format line. Wired into `gate-keepers.sh` (check #11 —
+   now 15 checks) and `build.sh check-all`. Two justified exemptions:
+   the check script itself (embeds the denylist) and
+   `src/output/message.rs` (sanitizer test INPUT needs a real emoji as
+   data). `scripts/emoji-audit.py` doc sweep reclassified in the same
+   rule: check/cross marks map to `OK`/`X` under `--fix` (they are
+   icons, not "functional glyphs").
+
+4. **Docs cascade.** New `docs/RULES.md` § Output Glyph Policy
+   (vocabulary table, forbidden/allowed classes, exemption protocol);
+   `docs/TERMINAL_COMPATIBILITY.md` § Diagnostic Glyph Policy
+   (diagnostics layer vs rain-art layer); the RULES.md naming-collision
+   example was refreshed to the actual current output — it still showed
+   a pre-v50 double-prefix format (`Warning: warning:`) that no build
+   ever printed, now `! custom charset 'zen' overrides ...`.
+
 ### harmony: v80.0.0-beta.2 — S-master-LOGIC-3 runtime precedence masterclass
 
 Owner-initiated internal research session (S-master-LOGIC-1/2/3):

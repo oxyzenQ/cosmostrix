@@ -26,6 +26,9 @@
 #   9.  Rust version sync check
 #  10.  Documentation disclaimer check (all .md files have the
 #       "source code is truth, cross-check before relying" disclaimer)
+#  11.  Symbol-only output guard (v80.0.0-beta.2 owner rule — no icon
+#       glyphs anywhere in src/scripts output surfaces; ASCII symbols
+#       only: "!" = warning, "OK"/"+" = pass, "X"/"-" = fail)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -393,6 +396,19 @@ if [ -f scripts/inject-disclaimer.sh ]; then
 	fi
 else
 	warn "inject-disclaimer.sh not found — skipping"
+fi
+
+# ── 11. Symbol-Only Output Guard (v80.0.0-beta.2) ──────────────────────────
+header "Symbol-Only Output"
+if [ -f scripts/check-symbol-only-output.sh ]; then
+	if bash scripts/check-symbol-only-output.sh 2>&1; then
+		info "symbol-only: no icon glyphs in output surfaces"
+		PASS=$((PASS + 1))
+	else
+		fail "symbol-only: icon glyphs found in output surfaces (v80.0.0-beta.2 rule)"
+	fi
+else
+	warn "check-symbol-only-output.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

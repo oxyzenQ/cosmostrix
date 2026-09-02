@@ -6,8 +6,15 @@
 Scans every git-tracked .md file (excluding docs/archive/** and
 auto-generated bench-labs artifacts). Hits are printed with codepoint +
 line context for mechanical triage. Functional glyphs (arrows, box
-drawing, check/cross marks used as terminal-status semantics) are kept;
-decorative pictographs are flagged.
+drawing, typography) are kept; pictographs are flagged.
+
+v80.0.0-beta.2 (owner rule): diagnostic OUTPUT is symbol-only — icon
+glyphs (U+26A0 warnings, check/cross marks, emoji) are forbidden in
+anything the binary prints because some OS/terminal combos render them
+as tofu. Check/cross marks are therefore no longer "functional":
+0x2713 -> "OK", 0x2717 -> "X" (same mapping as 0x2705/0x274C).
+Runtime-output enforcement is a separate, hard gate:
+scripts/check-symbol-only-output.sh (gate-keepers + build.sh check-all).
 
 Usage: python3 scripts/emoji-audit.py [--fix]
 """
@@ -36,6 +43,8 @@ REPLACEMENTS = {
     0x1F44D: "OK",  # thumbs up
     0x2705: "OK",  # white heavy check mark
     0x274C: "X",  # cross mark
+    0x2713: "OK",  # check mark (v80.0.0-beta.2: no longer "functional")
+    0x2717: "X",  # ballot X (v80.0.0-beta.2: no longer "functional")
     0x26A0: "warning:",  # warning sign
     0x1F512: "",  # lock
     0x1F50E: "",  # magnifying glass
@@ -91,10 +100,12 @@ SUSPECT_RANGES = [
 ]
 
 # Functional glyphs kept (arrows, box-drawing, typography, math).
+# Check/cross marks were REMOVED from this set in v80.0.0-beta.2 — they
+# are icon glyphs under the symbol-only output rule (see docstring).
 KEEP = set(
     list(range(0x2500, 0x25FF + 1))  # box drawing + geometric
     + [0x2192, 0x2190, 0x2191, 0x2193, 0x2194, 0x21D2]  # common arrows
-    + [0x2713, 0x2717, 0x00D7, 0x2014, 0x2013, 0x2026]
+    + [0x00D7, 0x2014, 0x2013, 0x2026]
     + [0x2265, 0x2264, 0x2248, 0x2260, 0x00B1, 0x00B7, 0x00B0]
     + [0x2500, 0x2502, 0x250C, 0x2514, 0x2518, 0x2510]
     + [0x2550, 0x2551, 0x256D, 0x256E, 0x256F, 0x2570]

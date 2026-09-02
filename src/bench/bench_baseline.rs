@@ -56,7 +56,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
         || base_lines.is_some_and(|bl| curr_lines.is_some_and(|cl| bl != cl))
     {
         println!(
-            "  ⚠ WARNING: screen sizes differ (baseline {}x{}, current {}x{})",
+            "  ! WARNING: screen sizes differ (baseline {}x{}, current {}x{})",
             base_cols.unwrap_or(&"?".to_string()),
             base_lines.unwrap_or(&"?".to_string()),
             curr_cols.unwrap_or(&"?".to_string()),
@@ -105,9 +105,9 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
                 let status = if pct.abs() < *threshold {
                     "OK"
                 } else if better {
-                    "✓ BETTER"
+                    "+ BETTER"
                 } else {
-                    "✗ WORSE"
+                    "- WORSE"
                 };
 
                 if status.contains("WORSE") {
@@ -136,11 +136,13 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
 
     println!();
     if regressions > 0 {
-        println!("  ⚠ {regressions} REGRESSION(S) detected!");
+        // v80.0.0-beta.2 symbol-only rule: "!" replaces the icon glyph;
+        // the trailing bang was dropped (the leading "!" already marks it).
+        println!("  ! {regressions} REGRESSION(S) detected");
     } else if improvements > 0 {
-        println!("  ✓ {improvements} improvement(s) detected. No regressions.");
+        println!("  + {improvements} improvement(s) detected. No regressions.");
     } else {
-        println!("  ✓ No significant changes detected.");
+        println!("  OK: no significant changes detected.");
     }
     println!();
 

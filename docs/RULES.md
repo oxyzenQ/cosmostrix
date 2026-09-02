@@ -35,6 +35,63 @@ All core, config, and script files must carry an SPDX license identifier. See `s
 - All tests must pass on every commit.
 - MSRV: Rust 1.98.0 (pinned in `rust-toolchain.toml`).
 
+## Output Glyph Policy (v80.0.0-beta.2)
+
+**Rule (owner directive, 2026-09-02):** everything the binary — or any
+script in `scripts/` — prints as diagnostics (warnings, errors, status
+lines, banners, bench/test output) uses **ASCII symbols only**. Icon
+glyphs are forbidden: some OS/terminal combinations render them as tofu
+or garbage. The trigger was a live-reload warning line carrying an
+icon-glyph warning-sign prefix in verbose output (owner proof:
+`! [live-reload] native watcher silent 852s ...` after the fix).
+
+**Symbol vocabulary** (mirrors `src/output/mod.rs` print helpers and
+`scripts/build.sh` log badges):
+
+| Meaning | Symbol | Where |
+|---|---|---|
+| warning | `!` | `eprintln_warn_labeled` (yellow, bold) |
+| error | `error:` | `eprintln_error_labeled` (red, bold) |
+| pass / positive | `OK` / `+` | lock banner, bench status column |
+| fail / negative | `X` / `-` | lock banner, bench status column |
+| shell badges | `[INFO]` `[OK]` `[!]` `[X]` `[>]` | `build.sh` log_* functions |
+| banner rules | `──` box-drawing | report headers (allowed, see below) |
+
+**Forbidden classes** (mechanically enforced): U+2300–23FF (misc
+technical — clocks, media controls, key caps), U+2600–27BF (misc
+symbols + dingbats — warning sign, check/cross marks), U+2B00–2BFF
+(stars), U+FE0F (emoji variation selector), U+200D (zero-width joiner),
+U+1F000–1FFFF (all astral emoji).
+
+**Allowed non-ASCII** (typographic house style — text-presentation
+glyphs; the owner's own proof line keeps its em dash): `— – … • →`
+(including prose `old → new` transitions), U+2500–25FF box drawing +
+geometric (banner rules, rain art), math operators (`± × ≤ ≥ −`).
+The rain charset pools in `src/scene/charset.rs` are ART —
+runtime-width-filtered per terminal support, not diagnostics.
+`sanitize_message_text` already replaces emoji in user message text
+with `?` (bug #11), so user-supplied text never prints icons either.
+
+**Enforcement:** `scripts/check-symbol-only-output.sh` — a hard gate
+wired into `gate-keepers.sh` (check #11) and `build.sh check-all`.
+Scope: `src/**/*.rs`, `build.rs`, `scripts/*.sh|py`, `benchmark/*.sh`,
+`.github/workflows/*.yml`, `pgo-runner/src/**/*.rs` (that binary prints
+diagnostics too). It is a whole-file scan (comments included — a
+comment must never keep
+showcasing a stale icon-format output line). Exemptions are file-level,
+short, and justified in the script: the check script itself (it embeds
+the denylist) and `src/output/message.rs` (sanitizer test INPUT needs a
+real emoji as data to verify replacement). Doc-prose styling is out of
+scope for this gate — run `scripts/emoji-audit.py` for doc sweeps
+(its check/cross marks were reclassified as icons in this same rule:
+they map to `OK`/`X` under `--fix`).
+
+History: pre-beta.2 the runtime warning prefix, bench status marks
+(check BETTER / cross WORSE), the Chroma Dragon lock-inventory banner,
+`build.sh` log badges, and one Python stress-test report all carried
+icons — inconsistent with the terminals-first contract. All converted
+in v80.0.0-beta.2.
+
 ## Test discipline
 
 Tests must verify **behavior**, never **identity**. A tautological assertion (a constant matching itself) provides zero information and breaks the suite on every unrelated change.
@@ -116,11 +173,14 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 When a custom config block (`[charset-custom.<name>]`, `[colors-custom.<name>]`, `[scene-custom.<name>]`) has the same name as a builtin preset/scene/theme, **custom always wins**. A collision warning is emitted to stderr at startup so the user knows the builtin is being shadowed:
 
 ```
-Warning: warning: custom charset 'zen' overrides builtin — custom wins (Option D policy)
+! custom charset 'zen' overrides builtin — custom wins (Option D policy)
   builtin: builtin preset (see --list-charsets)
   custom:  1 char(s) from [charset-custom.zen]
   To use the builtin, rename the custom block in config.toml.
 ```
+
+(The `!` prefix is the v80.0.0-beta.2 symbol-only rule — see Output
+Glyph Policy above.)
 
 This policy is consistent across all 3 systems (charset, colors, scene). Previously they had inconsistent behavior: charset was custom-wins, colors was builtin-wins, scene was builtin-wins. Now all three are custom-wins with visible warning. The user can always use the explicit flags (`--colors-custom`, `--scene-custom`, `--charset-custom`) for unambiguous intent.
 

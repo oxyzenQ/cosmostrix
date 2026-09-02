@@ -364,13 +364,16 @@ pub(crate) fn eprintln_error_labeled(msg: &str) {
     eprintln_safe!("{} {}", error_bold("error:"), error(msg));
 }
 
-/// Print a labeled warning to stderr: "⚠ <msg>" in yellow.
+/// Print a labeled warning to stderr: "! <msg>" in yellow.
+/// v80.0.0-beta.2: ASCII symbol only — icon glyphs ("\u{26a0}" and every
+/// other pictograph/emoji) render as tofu on some terminals. Enforced by
+/// `scripts/check-symbol-only-output.sh` (gate-keepers + build.sh check-all).
 pub(crate) fn eprintln_warn_labeled(msg: &str) {
     // Phase 5 closure (P3-5): increment the startup warning counter so the
     // caller can emit a summary line at the end of config apply. This helps
     // users who miss individual warnings in noisy startup output.
     STARTUP_WARNING_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    eprintln_safe!("{} {}", warn_bold("⚠"), warn(msg));
+    eprintln_safe!("{} {}", warn_bold("!"), warn(msg));
 }
 
 /// v80.0.0-beta.1 killer-features hardening: route a warning that can fire on BOTH

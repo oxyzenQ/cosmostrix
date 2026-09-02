@@ -254,7 +254,7 @@ pub(crate) const ABSOLUTE_MIN_FLOOR: u16 = 30;
 /// gap target across all 44 themes:
 ///
 ///   gap=2.5 (was):  trail ~130, max_step 2.51x — horizontal-line visible
-///   gap=2.0 (now):  trail ~130, max_step 2.01x — step 20% tighter ✓
+///   gap=2.0 (now):  trail ~130, max_step 2.01x — step 20% tighter (verified)
 ///   gap=1.8:         some themes jump to 160-194 — NeonWhite exceeds v17's
 ///                    180 ceiling (regression on dark-aesthetic preservation)
 ///   gap=1.5:         many themes 200-281 — trails nearly as bright as body,
