@@ -775,7 +775,9 @@ fn main() -> std::io::Result<()> {
     // Live-reload fatal exit ( bug #15): watcher panics + validation
     // v50.0.0-beta.7 LOC refactor: post-exit error handling + warning
     // drain extracted to output/post_exit.rs.
-    crate::output::post_exit::handle_post_exit_errors();
+    // v80.0.0-alpha.1 (S-master-HUNT-3): verbose flag forwarded so the self-heal diagnostic
+    // family drains only under --verbose (owner bug: exposed without -v).
+    crate::output::post_exit::handle_post_exit_errors(args.verbose);
 
     result
 }

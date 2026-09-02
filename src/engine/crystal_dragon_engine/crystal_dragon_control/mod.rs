@@ -33,17 +33,33 @@ pub(crate) const CRYSTAL_DRAGON_POLLING_SECS: f32 = 60.0;
 /// is allowed. Prevents flicker when CPU% hovers near a group boundary.
 /// At 60 s, the theme can change at most once per minute even if
 /// the sensor reports a different group on consecutive polls.
+///
+/// v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: "--crystal-dragon-secs 6 still used 60s"):
+/// this const is the floor at the DEFAULT 60 s cadence — NOT an absolute
+/// lock. `CloudConfig::create_cloud` applies
+/// `min(CRYSTAL_DRAGON_MIN_DWELL_SECS, polling_secs)`: an explicit
+/// faster user cadence lowers the dwell floor to match (the knob must
+/// be real, not a gimmick pinned at 60 s), a slower cadence keeps the
+/// 60 s floor (the poll timer paces it anyway). Anti-flicker for the
+/// untuned case, obedience for the tuned case.
 pub(crate) const CRYSTAL_DRAGON_MIN_DWELL_SECS: f32 = 60.0;
 
 // ── Probabilistic drift chance ───────────────────────────────────────────
 
-/// Probability (0..1) that a poll tick actually triggers a palette drift.
+/// Probability (0..1) that a drift tick actually triggers a palette drift.
 ///
-/// At 0.12 (12%), a drift event fires roughly once every 5 minutes
-/// (60 s poll × ~8.3 ticks per event). This keeps the rain visually
-/// dynamic without constant palette changes. The probabilistic gate
-/// also makes drift timing unpredictable — more cinematic than
-/// deterministic periodic switching.
+/// v80.0.0-alpha.1 (S-master-HUNT-3) precision note (verified empirically in a 100 s PTY
+/// run): `crystal_dragon_tick` is called EVERY FRAME (gated only by the
+/// dwell hysteresis + drift-cycle visibility window), so 0.12 per frame
+/// means a drift fires within ~O(100 ms) of becoming dwell-eligible —
+/// the CADENCE governor is `min_dwell_secs` (+ the polling_secs
+/// visibility window in `post_rain.rs`), NOT this chance. The old
+/// "roughly once every 5 minutes (60 s poll × 8.3 ticks)" comment
+/// described a per-poll gate that never existed; at the default
+/// 60 s dwell the observed cadence is ~60 s. This constant now acts as
+/// a small post-dwell jitter (how quickly after eligibility the drift
+/// fires), which keeps the timing slightly unpredictable — cinematic
+/// without changing the cadence contract.
 pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.12;
 
 // ── EMA smoothing ────────────────────────────────────────────────────────

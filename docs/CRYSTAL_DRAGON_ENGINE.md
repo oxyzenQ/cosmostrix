@@ -55,8 +55,8 @@ over-engineering guard note at `create_cloud`).
 | Constant | Value | Meaning |
 |----------|-------|---------|
 | `CRYSTAL_DRAGON_POLLING_SECS` | `60.0` | DEFAULT sensor sampling interval (the runtime value lives in `CrystalDragonControl.polling_secs`, user-tunable via `crystal-dragon-secs` since v80.0.0-alpha.1). At 60 s, drift events fire at most once per minute — slow enough to feel organic. |
-| `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Minimum time in current theme before transition is allowed — the anti-flicker floor. Deliberately constant: polling below 60 s shifts poll cadence, palette flips still cap at one per minute. Prevents flicker when CPU% hovers near a group boundary. |
-| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Default probability that a poll tick actually triggers a drift event. At 60 s × 12 %, drift fires roughly once every 5 minutes. Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
+| `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Anti-flicker floor at the DEFAULT cadence. S-master-HUNT-3 (v80.0.0-alpha.1): `create_cloud` applies **min(60, polling_secs)** — an explicit faster cadence lowers the floor to match (the knob is real below 60 s, verified live at 6 s), a slower cadence keeps the 60 s floor (the poll timer paces it). Prevents flicker when CPU% hovers near a group boundary in the untuned case. |
+| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Post-dwell jitter: the chance is evaluated per FRAME (the tick runs every frame gated by dwell + the drift-cycle window), so a drift fires within moments of dwell eligibility — the CADENCE governor is the dwell floor + poll window, not this value. The old "roughly once every 5 minutes" claim described a per-poll gate that never existed (verified empirically in a 100 s PTY run: ~60 s cadence at defaults). Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
 | `CRYSTAL_DRAGON_CPU_EMA_ALPHA` | `0.25` | Default EMA smoothing for CPU%. 0.25 = 75 % weight on history, 25 % on new sample. The sensor copies `CrystalDragonControl.cpu_ema_alpha` at construction (S-master-1 wiring); this const only seeds the default. |
 
 ### `crystal-dragon-secs` — the harmony knob (v80.0.0-alpha.1)
@@ -83,14 +83,20 @@ exists to fix). Verbose (`-v`) prints the effective value + provenance
 in the Dragon Systems section, and the post-exit final runtime state
 tracks it with a `(was X)` suffix when a mid-run edit changed it.
 
-The 60 s minimum-dwell floor is NOT affected by the knob: values below
-60 change the poll cadence (and the drift-opportunity density after the
-dwell gate), but palette flips never happen faster than once per minute
-— the anti-flicker contract is constant. 0.0 is a degenerate but legal
-value (poll every tick — the dwell gate still bounds drift); 86400.0
-polls once per 24 h. In benchmark mode the whole engine is forced off
-(`cloud.crystal_dragon = false` for p99/max determinism), so the knob
-has no bench effect.
+The min-dwell anti-flicker floor is **min(60 s, cadence)**
+(S-master-HUNT-3, v80.0.0-alpha.1): at the default (or any slower
+cadence) palette flips cap at once per minute — the anti-flicker
+contract for the untuned case. An explicit FASTER cadence lowers the
+floor to match, because the user asked for that rhythm: the pre-HUNT-3
+"dwell stays a constant 60 s" text described a contract that silently
+pinned every sub-60 s value back to 60 s (owner bug: "--crystal-dragon-secs
+6 still used 60s" — the knob was a no-op gimmick in exactly the range
+it was tuned into; verified live post-fix: a 6 s cadence drifted at
+~6 s). 0.0 is a degenerate but legal value (poll every tick — dwell
+matches the cadence, so drift rate is bounded by the visibility
+window); 86400.0 polls once per 24 h. In benchmark mode the whole
+engine is forced off (`cloud.crystal_dragon = false` for p99/max
+determinism), so the knob has no bench effect.
 
 ### `CrystalDragonControl` struct
 
@@ -437,7 +443,7 @@ phase and are now invariants of the engine:
 |----------|--------|-----------|
 | HUD indicator | **Silent-Elegant (Option A)** — no HUD indicator, no verbose drift-event logging | The engine should be felt, not seen. |
 | Calc method | **calc-v2** (pattern state machine with DriftHistory recency memory, default since Dragon Engine v2) | calc-v1 (legacy no-memory weighted selection) retained for A/B and constructed only in tests. |
-| Polling interval | **60 s default** (v80.0.0-alpha.1: user-tunable via `crystal-dragon-secs`, 0.0..=86400.0) | Slow enough to feel organic, fast enough to react to real load within a minute; the tunable exists for ambient harmony, not for its own sake. |
+| Polling interval | **60 s default** (v80.0.0-alpha.1: user-tunable via `crystal-dragon-secs`, 0.0..=86400.0; min-dwell floor = min(60 s, cadence) since S-master-HUNT-3) | Slow enough to feel organic, fast enough to react to real load within a minute; the tunable exists for ambient harmony, not for its own sake — and it is REAL below 60 s (the floor yields). |
 | Sensor mode | **CPU primary, CLOCK fallback** | CPU is the meaningful signal; CLOCK is the graceful degradation when CPU sampling is unsupported. |
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |
 | Schedule format | **Single scene name** (no multi-field) | Eliminates override-precedence bug surface. Scene IS the source of truth. |

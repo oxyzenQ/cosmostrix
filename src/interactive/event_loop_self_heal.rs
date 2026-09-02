@@ -58,7 +58,11 @@ pub(crate) fn run_self_healer(
     if !current_cfg.power_dragon && cloud.aggressive_throttle {
         cloud.set_aggressive_throttle(false);
         self_healer.reset();
-        crate::live_config::push_runtime_warning(
+        // v80.0.0-alpha.1 (S-master-HUNT-3): verbose-only diagnostic channel — the self-heal
+        // family reports automatic engine behavior, not user-actionable
+        // state, so it surfaces only under --verbose (owner bug: the
+        // predictive-throttle line exposed after every non-verbose run).
+        crate::live_config::push_runtime_diag(
             "[self-heal] power-dragon off — releasing aggressive spawn throttle",
         );
     }
@@ -112,7 +116,7 @@ pub(crate) fn run_self_healer(
             if current_cfg.power_dragon && !self_healer.is_downgraded() {
                 self_healer.record_downgrade(scene_name);
                 cloud.set_aggressive_throttle(true);
-                crate::live_config::push_runtime_warning(&format!(
+                crate::live_config::push_runtime_diag(&format!(
                     "[self-heal] sustained high CPU pressure — throttling spawn rate (visual identity preserved: scene='{}')",
                     scene_name
                 ));
@@ -123,7 +127,7 @@ pub(crate) fn run_self_healer(
             if self_healer.is_downgraded() {
                 self_healer.take_pre_degraded_scene();
                 cloud.set_aggressive_throttle(false);
-                crate::live_config::push_runtime_warning(
+                crate::live_config::push_runtime_diag(
                     "[self-heal] CPU pressure recovered — spawn throttle released",
                 );
             }
@@ -137,7 +141,7 @@ pub(crate) fn run_self_healer(
             // DowngradeScene path can still fire later if pressure sustains.
             if current_cfg.power_dragon {
                 cloud.set_aggressive_throttle(true);
-                crate::live_config::push_runtime_warning(
+                crate::live_config::push_runtime_diag(
                     "[self-heal v2] predictive throttle — CPU pressure rising rapidly, throttling early",
                 );
             }

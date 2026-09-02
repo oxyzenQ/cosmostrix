@@ -50,8 +50,9 @@ The ambient intelligence engine. Two subsystems working in harmony:
 CPU% ──> point (1-99) ──> group ──> weighted theme selection
   │                          │
   │   1-33 = Cold (14)       │   calc-v2 (DEFAULT): CDF + recency
-  │   34-66 = Medium (14)    │   crystal-dragon-secs polling (60s default),
-  │   67-99 = Hot (14)       │   12% drift chance, 60s dwell hysteresis
+  │   34-66 = Medium (14)    │   crystal-dragon-secs cadence (60s default),
+  │   67-99 = Hot (14)       │   12% post-dwell jitter, dwell floor
+  │                          │   = min(60s, cadence) (S-master-HUNT-3)
   │                          │   calc-v1: legacy, no memory
   └── CPU unsupported? ──> CLOCK fallback (UTC hour -> point)
 ```

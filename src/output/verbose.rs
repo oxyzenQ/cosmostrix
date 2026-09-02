@@ -395,7 +395,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose(
         "crystal_dragon_secs:",
         &format!(
-            " {effective_cd_secs:.1}s ({cd_secs_src}; poll cadence — keep ambient-snapback-secs below this for a clean drift cycle, min-dwell floor 60s caps palette flips)"
+            " {effective_cd_secs:.1}s ({cd_secs_src}; drift cadence — keep ambient-snapback-secs below this for a clean drift cycle, min-dwell floor min(60s, cadence))"
         ),
     );
 

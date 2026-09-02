@@ -83,7 +83,7 @@ COMMON OPTIONS:
       cosmostrix --crystal-dragon true
 
   --crystal-dragon-secs <SECS>
-      Crystal Dragon poll interval in seconds (default: 60). Range
+      Crystal Dragon drift cadence in seconds (default: 60). Range
       0.0-86400.0 — the same range contract as ambient-snapback-secs.
       This is the harmony knob for running crystal-dragon together
       with ambient: keep ambient-snapback-secs BELOW this value so
@@ -91,9 +91,11 @@ COMMON OPTIONS:
       reverts (snapback >= polling stretches the drift cycle to 2x
       the poll interval — by design, not a bug). Tunable live via
       the crystal-dragon-secs config key (live-reload applies edits
-      immediately). The 60s minimum-dwell anti-flicker floor is
-      constant: polling below 60s shifts cadence, palette flips
-      still cap at one per minute. 86400 = poll once per 24h.
+      immediately). The min-dwell anti-flicker floor is
+      min(60s, cadence): at the 60s default (or slower) palette flips
+      cap at one per minute; an explicit faster cadence lowers the
+      floor to match — the value you set is the rhythm you get.
+      86400 = poll once per 24h.
       cosmostrix --crystal-dragon-secs 120
       cosmostrix --crystal-dragon-secs 86400   (once per day)
 

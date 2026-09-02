@@ -9,6 +9,80 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-alpha.1 — S-master-HUNT-3 owner bug quartet (message dash, self-heal verbose gate, crystal-dragon-secs dwell yield, --no-effects live-reload survival)
+
+Four owner-reported bugs after the alpha.1 feature round, all
+reproduced empirically before fixing; three share one root-cause family
+(startup-only state the live-reload rebuild lost).
+
+1. **`-m`/`-mb` message text lost its dash** — the runtime message box
+   showed "Experience a masterpiece with cosmostrix v80.0.0 alpha.1"
+   (no dash) while `-v` reported the correct 56-char string. Root
+   cause: the overlay's border-vs-content split was GLYPH-based —
+   `is_border_char(val)` matched `' '`, `'+'`, `'-'`, `'|'` and the
+   box-drawing set, so user text characters colliding with border
+   glyphs were classified as border cells: never revealed as content,
+   drawn blank, excluded from the reveal budget (and in `-m` mode able
+   to fabricate a border order out of user text). Fix: POSITIONAL
+   classification — new `MsgChr.is_border` field, stamped by the
+   layout only where it places a border glyph; user text is always
+   content whatever glyph it carries (`'-'`, `'+'`, `'|'`, even
+   box-drawing). `is_border_char` deleted; every consumer rewired
+   (draw_message counts + per-cell loop, build_border_order, word
+   ordinals). Locked by 7 new tests (`tests_msg_border_positional.rs`).
+
+2. **Self-heal diagnostics exposed without `--verbose`** —
+   `! [self-heal v2] predictive throttle — CPU pressure rising rapidly,
+   throttling early` printed after non-verbose sessions. The whole
+   self-heal family (4 messages) reports what the engine did
+   AUTOMATICALLY to itself — not user-actionable, so surfacing it
+   post-exit is noise. Fix: a verbose-only diagnostic channel
+   (`push_runtime_diag`/`drain_runtime_diags`) with the same AB-10
+   buffering + dedup contract, drained post-exit only under `-v`
+   (`handle_post_exit_errors(verbose)`). Actionable warnings
+   (validation, live-reload degradation) stay always-drained. Locked
+   by channel-isolation + routing source-scan tests.
+
+3. **`--crystal-dragon-secs 6` still drifted at 60s** (after
+   live-enabling the dragon): the min-dwell anti-flicker floor was a
+   constant 60s that outranked the tuned cadence — dwell gated the
+   drift before the poll timer ever did, silently pinning every
+   sub-60s value back to 60s (the knob was a gimmick in exactly the
+   range users tune it into). Fix: `create_cloud` applies
+   `min_dwell_secs = min(60.0, polling_secs)` — the floor YIELDS to an
+   explicit faster cadence, keeps 60s at/above the default. Verified
+   live: the owner's exact scenario (config off -> CLI 6s -> one live
+   edit enabling) now drifts at ~6s rhythm (was ~62s). Also corrected
+   the stale "12% per poll / one drift per 5 minutes" doc claim: the
+   chance is evaluated per frame (post-dwell jitter), the cadence
+   governor is the dwell floor + poll window (100s PTY run: ~60s
+   cadence at defaults).
+
+4. **`--no-effects` died after the first config edit** — the
+   live-reload rebuild (create_cloud + inherit_ecosystem_state +
+   swap) built a fresh Cloud with the `Cloud::new` default
+   `effects_enabled = true`; only the startup path applied the flag.
+   Fix: `create_cloud` owns the gate (field -> Cloud at CONSTRUCTION),
+   so startup, rebuild, bench, and intro clouds all get the same
+   answer. Locked by 2 wiring tests (construction + rebuild path).
+
+5. **"live-reload still needs 2x to confirm"** — empirically disproven
+   as a reload defect: watcher event -> render drain -> rebuild ->
+   final-state tracking all fire on the FIRST save (the 51dcb131
+   determinism fix is intact). The perception was bug 3: the dragon
+   enable applied immediately but the VISIBLE effect (palette drift)
+   arrived ~60s later, so the first save looked ignored. With the
+   dwell floor yielding, the effect lands within seconds of the edit.
+
+A/B benchmark (10s, `--scene cosmos --no-effects
+--crystal-dragon-secs 6`): avg_fps +0.26%, render_ns_per_cell -1.03%,
+peak_rss -1.41%, frame_entropy +0.03%, density_gini -0.06% —
+performance and visual parity (all within run noise). Suite 2089 ->
+2101. Docs cascaded: AMBIENT_SCHEDULER (quick guide + timeline +
+edge-case guidance), CRYSTAL_DRAGON_ENGINE (constants table + knob
+section + decision table), LIVE_RELOAD_BEHAVIOR section 17, template
+config, `--help`, field-validation guidance, verbose line.
+
 ### feature: v80.0.0-alpha.1 — crystal-dragon-secs harmony knob + --no-effects total closure (owner long-horizon directive)
 
 New pre-release cycle (alpha.1) per owner directive: the feature work
@@ -37,7 +111,9 @@ below restarts the v80 ladder. Three internal-research tasks landed.
    would pin the pre-edit cadence — the exact bug class this feature
    avoids). The 60s minimum-dwell anti-flicker floor is deliberately
    constant: polling below 60s shifts cadence, palette flips still cap
-   at one per minute. Full disclosure surfaces: `-v` Dragon Systems
+   at one per minute. (Superseded by the S-master-HUNT-3 entry above:
+   the floor is now min(60s, cadence) — an explicit faster cadence is
+   honored as-is.) Full disclosure surfaces: `-v` Dragon Systems
    section (effective value + provenance + harmony hint), post-exit
    final runtime state (`(was X)` change tracking), `--testconf` /
    startup / live-reload strict validation (range 0.0..=86400.0),

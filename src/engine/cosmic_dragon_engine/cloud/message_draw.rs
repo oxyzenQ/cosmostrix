@@ -31,7 +31,6 @@ use std::time::Instant;
 use crossterm::style::Color;
 
 use crate::cell::Cell;
-use crate::cloud::border::is_border_char;
 use crate::frame::Frame;
 use crate::msg_fill_style::{self as mfs, MsgFillStyle};
 use crate::runtime::{BoldMode, ColorMode};
@@ -56,16 +55,16 @@ impl super::Cloud {
         };
 
         // Count total text (content) chars and border chars.
+        // v80.0.0-alpha.1 (S-master-HUNT-3): positional classification (MsgChr.is_border) —
+        // user text chars ('-', '+', '|', box-drawing) are CONTENT, so the
+        // reveal budget counts them (the old glyph test silently dropped
+        // them, e.g. the default "v80.0.0-alpha.1" message lost its dash).
         let total_text: usize = self
             .message
             .iter()
-            .filter(|mc| !is_border_char(mc.val))
+            .filter(|mc| !mc.is_border && mc.val != ' ')
             .count();
-        let total_border: usize = self
-            .message
-            .iter()
-            .filter(|mc| is_border_char(mc.val) && mc.val != ' ')
-            .count();
+        let total_border: usize = self.message.iter().filter(|mc| mc.is_border).count();
 
         // v30 Hinnant: hoist start.elapsed() above the per-cell loop below
         // (was 1 syscall per revealed content cell, 50-200×/frame).
@@ -332,8 +331,12 @@ impl super::Cloud {
         #[allow(clippy::type_complexity)]
         let mut slide_cells: Vec<(u16, u16, char, f32, Option<(u8, u8, u8, f32)>)> = Vec::new();
         for (idx, mc) in self.message.iter().enumerate() {
-            let is_content = !is_border_char(mc.val);
-            let is_visible_border = mc.val != ' ' && visible_border[idx];
+            // v80.0.0-alpha.1 (S-master-HUNT-3): positional border test — content is anything
+            // the layout did not stamp as a border cell (user text chars of
+            // ANY glyph, incl. '-', '+', '|', box-drawing; interior spaces
+            // stay non-content so they never consume reveal budget).
+            let is_content = !mc.is_border && mc.val != ' ';
+            let is_visible_border = mc.is_border && visible_border[idx];
 
             let (ch, cell_fg) = if is_content {
                 // v80.0.0-beta.1: every content cell advances the reading-order

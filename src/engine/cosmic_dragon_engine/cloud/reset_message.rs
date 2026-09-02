@@ -117,11 +117,20 @@ impl super::Cloud {
                 }
 
                 let mut ch = ' ';
+                // v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: message dash swallowed): the
+                // border-vs-content split is POSITIONAL, not glyph-based.
+                // Only the perimeter cells the layout itself stamps with a
+                // border glyph carry `is_border = true`; user text is always
+                // content, whatever glyph it carries ('-', '+', '|', or even
+                // a box-drawing char — the old `is_border_char(val)` test
+                // rendered those as blank "border" cells).
+                let mut is_border_cell = false;
                 if border == 1 {
                     let is_top = y == 0;
                     let is_bottom = y + 1 == box_h;
                     let is_left = x == 0;
                     let is_right = x + 1 == box_w;
+                    is_border_cell = is_top || is_bottom || is_left || is_right;
                     // v25 cinematic border: rounded corners + smooth lines.
                     ch = if is_top && is_left {
                         '╭'
@@ -166,7 +175,12 @@ impl super::Cloud {
                     }
                 }
 
-                self.message.push(MsgChr { line, col, val: ch });
+                self.message.push(MsgChr {
+                    line,
+                    col,
+                    val: ch,
+                    is_border: is_border_cell,
+                });
             }
         }
 
@@ -176,10 +190,11 @@ impl super::Cloud {
         self.border_order = border::build_border_order(&self.message);
 
         // v80.0.0-beta.1 msg-fill-style (words): rebuild the per-cell word ordinals.
-        // A "word" is a maximal run of content cells (non-border-char,
-        // i.e. not space and not a box-drawing glyph) between non-content
-        // cells. Ordinals are 1-based; a non-content cell carries the
-        // ordinal of the word that just ended (leading padding carries 0)
+        // A "word" is a maximal run of content cells (layout border cells and
+        // spaces — v80.0.0-alpha.1 (S-master-HUNT-3): POSITIONAL border test, not glyph-based,
+        // so a user '-' or '+' inside text no longer ends a word) between
+        // non-content cells. Ordinals are 1-based; a non-content cell carries
+        // the ordinal of the word that just ended (leading padding carries 0)
         // so spaces fade in together with the word they follow.
         // Z-5: hoisted buffer (clear() keeps the allocation — zero-alloc
         // after the first rebuild).
@@ -189,9 +204,9 @@ impl super::Cloud {
             let mut word_ord: u32 = 0;
             let mut in_word = false;
             for mc in &self.message {
-                if border::is_border_char(mc.val) {
-                    // Space / border glyph: ends the current word. The
-                    // next content cell starts a new one.
+                if mc.is_border || mc.val == ' ' {
+                    // Layout border glyph or space: ends the current word.
+                    // The next content cell starts a new one.
                     in_word = false;
                     self.message_word_ordinals.push(word_ord);
                 } else {

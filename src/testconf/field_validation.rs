@@ -279,9 +279,10 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         },
         // v80.0.0-alpha.1: crystal-dragon-secs — float in [0.0, 86400.0].
         // Same range contract as ambient-snapback-secs (the two harmony
-        // knobs share one timeline). Default 60.0 when unset. Values
-        // below 60 shift poll cadence only — the 60s min-dwell
-        // anti-flicker floor still caps palette flips at one per minute.
+        // knobs share one timeline). Default 60.0 when unset.
+        // v80.0.0-alpha.1 (S-master-HUNT-3): the min-dwell anti-flicker floor is
+        // min(60s, cadence) — an explicit faster cadence is REAL (the
+        // floor yields); at/slow defaults the 60s floor applies.
         "crystal-dragon-secs" => match v.trim().parse::<f64>() {
             Ok(n) if (0.0..=86400.0).contains(&n) => None,
             Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),

@@ -15,7 +15,7 @@ facts the rest of this document assumes, stated without engine jargon:
 
 | Question | Answer |
 |---|---|
-| How often does crystal-dragon act? | Sensor poll every **`crystal-dragon-secs`** (default **60s**, range 0.0..=86400.0 — CLI `--crystal-dragon-secs`, config key, live-reload); each poll has a **~12% drift chance** (about one drift per 5 minutes on average at 60s — organic, not periodic). |
+| How often does crystal-dragon act? | Drift cadence = **`crystal-dragon-secs`** (default **60s**, range 0.0..=86400.0 — CLI `--crystal-dragon-secs`, config key, live-reload). The min-dwell anti-flicker floor is **min(60s, cadence)**: at the default (or slower) palette flips cap at one per minute; a faster explicit cadence is honored as-is (S-master-HUNT-3 — the knob is real below 60s too). Cadence verified live: a 6s cadence drifted at ~6s. |
 | What is the ambient snapback? | The ambient phase re-asserting itself after something else took over (a crystal-dragon drift, or your manual `c`/`C`/`x`/`X`/`s`/`S` shortkey). |
 | Default snapback delay? | **30s** (`ambient-snapback-secs`, range 0.0..=86400.0; 0 = instant, 86400 = effectively off). |
 | Does a snapback >= the poll interval still fire? | **YES.** Verified live: a 90s snapback fired at ~90s against the 60s default poll. The timer has no upper-bound bug. A long value only stretches the rhythm (see the next row). |
@@ -215,12 +215,13 @@ T=190:  snapback fires → revert
 ```
 T=0:    startup → palette=user/config color, drift_active=false,
         ambient_schedule_active=false
-T=60:   drift fires (12% chance per poll) → palette=neon-green,
+T=60:   drift fires (dwell floor passed; ~12%/frame chance clears
+        within moments) → palette=neon-green,
         drift_active=true, drift_start=T60
 T=120:  self-reset fires (120-60=60s >= 60s POLLING_SECS) →
         drift_active=false, drift_start=None,
         crystal_dragon_last_poll=T120
-T=180:  drift fires again (12% chance) → palette=ocean,
+T=180:  drift fires again → palette=ocean,
         drift_active=true, drift_start=T180
 T=240:  self-reset fires → cycle repeats
 ```
@@ -257,9 +258,11 @@ The "snapback never triggers at >= 60s" reading is a myth — do not
 document it anywhere; this section is the correction. With
 `crystal-dragon-secs` now tunable, BOTH sides of the inequality are
 yours to place: raise the poll interval (e.g. 120) instead of lowering
-the snapback, or shorten the poll (e.g. 30) for a faster rhythm —
-keeping the 60s minimum-dwell floor in mind (palette flips never
-faster than one per minute).
+the snapback, or shorten the poll (e.g. 30 — or 6) for a faster rhythm.
+The min-dwell anti-flicker floor is **min(60s, cadence)**
+(S-master-HUNT-3): at the default (or slower) palette flips cap at one
+per minute; an explicit faster cadence lowers the floor to match — the
+value you set is the rhythm you get.
 
 **Manual user override**: pressing `c`/`C`/`x` sets
 `user_override_since_ambient = true`, which blocks drift from firing

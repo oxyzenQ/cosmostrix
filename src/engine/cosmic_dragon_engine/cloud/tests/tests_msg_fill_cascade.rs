@@ -115,7 +115,7 @@ fn cascade_drop_glyphs_visible_above_final_position_during_fall() {
     let mc = cloud
         .message
         .iter()
-        .find(|mc| !crate::cloud::border::is_border_char(mc.val))
+        .find(|mc| !mc.is_border && mc.val != ' ')
         .expect("message must have content cells");
     // At 60 ms, column 0 (reveal_at=0) has age 60 ms < 240 → mid-drop.
     // Final cell must be blanked (space) — the glyph is painted above.
@@ -190,7 +190,7 @@ fn cascade_reveal_rearms_fresh_drop_after_typewriter_restart() {
     let mc = cloud
         .message
         .iter()
-        .find(|mc| !crate::cloud::border::is_border_char(mc.val))
+        .find(|mc| !mc.is_border && mc.val != ' ')
         .expect("message must have content");
     let final_cell = frame.get(mc.col, mc.line).expect("final cell exists");
     assert_eq!(

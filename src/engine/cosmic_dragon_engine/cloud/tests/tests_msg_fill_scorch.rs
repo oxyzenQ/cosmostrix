@@ -106,7 +106,7 @@ fn scorch_head_burns_hot_with_ember_tint() {
     let mc = cloud
         .message
         .iter()
-        .find(|mc| !crate::cloud::border::is_border_char(mc.val))
+        .find(|mc| !mc.is_border && mc.val != ' ')
         .expect("message must have content cells");
     let cell = frame
         .get(mc.col, mc.line)

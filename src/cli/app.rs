@@ -428,18 +428,43 @@ impl CloudConfig {
         // text selection). cloud.mouse_enabled now always true.
         cloud.mouse_enabled = true;
 
+        // v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: --no-effects died after the first
+        // config.toml live-reload): create_cloud is the SINGLE source of
+        // truth for the effects gate — the CloudConfig field flows into the
+        // Cloud here, at CONSTRUCTION, so every path that builds a Cloud
+        // from a config gets the same answer. Previously only
+        // event_loop_setup applied it (startup); the live-reload rebuild
+        // (`event_loop_config_rebuild`: create_cloud + inherit + swap)
+        // silently fell back to the Cloud::new default `true`, re-animating
+        // touch sparks / glow / vignette after ANY config edit on a
+        // `--no-effects` run. The setup call is now redundant (kept as
+        // belt-and-suspenders; it passes the identical value).
+        cloud.set_effects_enabled(self.effects_enabled);
+
         // Crystal Dragon Engine: when enabled, activates the point-based
         // temperature group system for palette drift.
         cloud.crystal_dragon = self.crystal_dragon;
         // v80.0.0-alpha.1: apply the tunable polling interval (the
         // "future CLI flags can override crystal_dragon_control here"
         // promise from the original comment is now real for this field).
-        // min_dwell_secs stays at its 60s anti-flicker constant — a
-        // deliberate floor, NOT config-exposed (over-engineering guard:
-        // sub-minute palette flipping would read as flicker).
-        cloud.crystal_dragon_control.polling_secs = self.effective_crystal_dragon_secs(
+        // v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: "--crystal-dragon-secs 6 still used
+        // 60s"): the min-dwell anti-flicker floor now YIELDS to an explicit
+        // faster cadence — min(CRYSTAL_DRAGON_MIN_DWELL_SECS, polling_secs).
+        // The old "dwell stays a fixed 60s" contract silently pinned every
+        // cadence below 60s back to 60s (dwell gated the drift before the
+        // poll timer ever did), making the tunable a no-op gimmick for the
+        // exact range where users wanted it. At the 60s DEFAULT the floor
+        // is unchanged (min(60, 60) = 60 — LTS-safe); a SLOWER cadence
+        // keeps the 60s floor too (min(60, 120) = 60 — the poll timer, not
+        // dwell, paces it). Only an explicit faster cadence lowers the
+        // floor, because the user asked for it.
+        let polling_secs = self.effective_crystal_dragon_secs(
             crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_POLLING_SECS,
         );
+        cloud.crystal_dragon_control.polling_secs = polling_secs;
+        cloud.crystal_dragon_control.min_dwell_secs =
+            crate::crystal_dragon_engine::crystal_dragon_control::CRYSTAL_DRAGON_MIN_DWELL_SECS
+                .min(polling_secs);
         // Z-master-1X bug fix: track whether the ambient scheduler has any
         // entries. When the schedule is empty, the drift gate in
         // `cloud/post_rain.rs` MUST NOT consult `user_override_since_ambient`

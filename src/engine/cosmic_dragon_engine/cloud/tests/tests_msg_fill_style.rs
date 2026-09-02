@@ -49,7 +49,9 @@ pub(super) fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64
 pub(super) fn visible_content_cells(frame: &Frame, cloud: &Cloud) -> Vec<(u16, u16, char)> {
     let mut cells = Vec::new();
     for mc in &cloud.message {
-        if crate::cloud::border::is_border_char(mc.val) {
+        // v80.0.0-alpha.1 (S-master-HUNT-3): positional classification (layout border or
+        // space = not content; user text is always content).
+        if mc.is_border || mc.val == ' ' {
             continue;
         }
         if let Some(cell) = frame.get(mc.col, mc.line) {
@@ -66,7 +68,7 @@ fn visible_border_cells(frame: &Frame, cloud: &Cloud) -> usize {
     cloud
         .message
         .iter()
-        .filter(|mc| crate::cloud::border::is_border_char(mc.val) && mc.val != ' ')
+        .filter(|mc| mc.is_border)
         .filter(|mc| {
             frame
                 .get(mc.col, mc.line)
@@ -76,18 +78,14 @@ fn visible_border_cells(frame: &Frame, cloud: &Cloud) -> usize {
 }
 
 fn total_border_cells(cloud: &Cloud) -> usize {
-    cloud
-        .message
-        .iter()
-        .filter(|mc| crate::cloud::border::is_border_char(mc.val) && mc.val != ' ')
-        .count()
+    cloud.message.iter().filter(|mc| mc.is_border).count()
 }
 
 fn total_content_cells(cloud: &Cloud) -> usize {
     cloud
         .message
         .iter()
-        .filter(|mc| !crate::cloud::border::is_border_char(mc.val))
+        .filter(|mc| !mc.is_border && mc.val != ' ')
         .count()
 }
 

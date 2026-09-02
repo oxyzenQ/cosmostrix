@@ -160,9 +160,44 @@ the template config, and the post-exit final state all disclose the
 effective value. See `docs/CRYSTAL_DRAGON_ENGINE.md` §3
 "`crystal-dragon-secs` — the harmony knob".
 
-**Status**: Implemented (v80.0.0-alpha.1). The 60s minimum-dwell
-anti-flicker floor stays constant on purpose — the insight tuned the
-conversation, not the flicker protection.
+**Status**: Implemented (v80.0.0-alpha.1; dwell floor amended by
+S-master-HUNT-3 — see Insight 5). The 60s minimum-dwell anti-flicker
+floor originally stayed constant on purpose; the owner later showed
+that pinning made the knob a no-op below 60s, so the floor is now
+min(60s, cadence) — anti-flicker for the untuned case, obedience for
+the tuned one.
+
+---
+
+## Insight 5 — The knob that wasn't (glyph vs. position; floor vs. lock)
+
+**Date**: 2026-09-03
+**Context**: The owner tuned `--crystal-dragon-secs 6`, live-enabled
+the dragon, and watched the palette change ~60s later — the exact
+default the knob was supposed to replace. The same session exposed a
+message box that dropped its dash ("v80.0.0 alpha.1") and a
+`--no-effects` flag that silently died on the first config edit.
+
+**Observation**: *"A knob whose floor outranks it is not a knob."*
+Three of the four bugs were the same lesson in different clothes:
+state classified by the WRONG coordinate. The dash was swallowed
+because border membership was decided by GLYPH (what the character
+looks like) instead of POSITION (where the layout put it); the
+6s cadence was pinned because a safety floor behaved like a LOCK
+instead of yielding to explicit user intent; the effects flag died
+because only the startup path applied it (temporal, not structural).
+Classification — of cells, of precedence, of ownership — is the
+actual design decision; everything downstream is arithmetic.
+
+**Feature**: `MsgChr.is_border` (positional border classification,
+v80.0.0-alpha.1 S-master-HUNT-3), `min_dwell_secs =
+min(60, polling_secs)` (the floor yields), and
+`create_cloud`-owned `effects_enabled` (one construction site, every
+path). Locked by 12 tests + a PTY replay harness.
+
+**Status**: Implemented (v80.0.0-alpha.1, S-master-HUNT-3). Verified
+live: the 6s cadence drifts at ~6s, the dash renders verbatim, a
+stressed non-verbose exit stays silent.
 
 ---
 

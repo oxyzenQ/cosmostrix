@@ -1129,3 +1129,101 @@ exit), and `--testconf` all reject in lockstep.
 > from a binary built BEFORE commit 857423da (the symbol-only output
 > pass). Rebuild to pick up the "!" prefixes — the source tree is clean
 > (392 files checked by `scripts/check-symbol-only-output.sh`).
+
+## 17. v80.0.0-alpha.1 S-master-HUNT-3 — Owner Bug Quartet (owner audit 2026-09-03, post-99975614)
+
+Four owner-reported bugs after the alpha.1 feature round, all root-caused
+empirically (PTY harness, isolated XDG config, release binary) before
+fixing. Three of the four shared one root cause family: state that only
+the STARTUP path applied, lost by the live-reload rebuild.
+
+### Bug 1: `-m`/`-mb` message text lost its dash ("v80.0.0 alpha.1")
+
+The runtime message box rendered the default message WITHOUT the dash
+while `-v` reported the correct 56-char string. Root cause: the overlay's
+border-vs-content split was GLYPH-based — `is_border_char(val)` matched
+`' '`, `'+'`, `'-'`, `'|'` and the box-drawing set, so any user text
+character colliding with a border glyph was classified as a border cell
+(never revealed, drawn blank, excluded from the reveal budget; in `-m`
+mode it could even fabricate a border order out of user text). Fix:
+POSITIONAL classification — `MsgChr.is_border`, stamped by the layout
+only where it places a border glyph; user text is always content
+whatever glyph it carries. `is_border_char` deleted; every consumer
+(draw_message counts + per-cell loop, build_border_order, word
+ordinals, border_touch geometry already positional) rewired.
+
+### Bug 2: `[self-heal v2] predictive throttle` exposed without `-v`
+
+The self-heal family (predictive throttle, sustained pressure, throttle
+released, power-dragon release) buffered into the always-drained
+runtime-warning log and printed after EVERY session — including
+non-verbose ones. These messages report what the engine did
+automatically to itself (not user-actionable — that is the point of
+self-healing). Fix: a separate verbose-only diagnostic channel
+(`push_runtime_diag` / `drain_runtime_diags`) with the same AB-10
+buffering + dedup contract, drained post-exit ONLY when the session ran
+`--verbose`/`-v`. Actionable warnings (validation, live-reload
+degradation) stay on the always-drained channel.
+
+### Bug 3: `--crystal-dragon-secs 6` still drifted at 60s (after live-enabling the dragon)
+
+Reproduced: config `crystal-dragon = false`, CLI
+`--crystal-dragon-secs 6`, ONE live edit enabling the dragon — the
+reload applied 1x (verified: watcher event -> rebuild -> final state
+`crystal_dragon: true (was false)`), but the first palette drift fired
+at ~62s, not ~6s. Root cause: `min_dwell_secs` (the anti-flicker floor)
+was a constant 60s that outranked the tuned cadence — dwell gated the
+drift before the poll timer ever did, silently pinning every sub-60s
+value back to 60s (the knob was a no-op gimmick in exactly the range it
+was tuned into). Fix: `create_cloud` applies
+`min_dwell_secs = min(60.0, polling_secs)` — the floor yields to an
+explicit faster cadence, keeps 60s at/above the default. Post-fix
+verified live: the same scenario drifts at ~8s (edit landed at 6s) and
+then holds a ~6s rhythm.
+
+### Bug 3b: `--no-effects` died after the first config edit
+
+The same live-enable scenario resurrected touch sparks / glow /
+vignette after the first config save. Root cause: only
+`event_loop_setup` (startup) applied `CloudConfig.effects_enabled`;
+the rebuild path (create_cloud + inherit_ecosystem_state + swap) built
+a fresh Cloud with the `Cloud::new` default `true`. Fix: `create_cloud`
+owns the gate — the field flows into the Cloud at CONSTRUCTION, so
+every Cloud-building path (startup, rebuild, bench, intro clouds) gets
+the same answer.
+
+### Bug 4: "live-reload still needs 2x to confirm"
+
+Empirically DISPROVEN as a reload defect: the watcher event, the render
+thread drain, the rebuild, and the final-state tracking ALL fire on the
+FIRST save (this is the regression check for the 51dcb131 determinism
+fix — still intact). The perception was the Bug 3 root cause: enabling
+crystal-dragon applied immediately, but the visible effect (palette
+drift) arrived ~60s later, so the save LOOKED ignored until a second
+save (by then the drift had landed). With the dwell floor yielding to
+the cadence, the effect lands within seconds of the edit and the
+perception is structurally gone.
+
+### Verification
+
+- PTY end-to-end (isolated XDG config, release binary, pyte screen
+  replay): the default message renders `v80.0.0-alpha.1` verbatim
+  (bordered AND `-m` no-border modes); the dragon-enable scenario
+  drifts at ~6s cadence (was ~62s); reload applies 1x; non-verbose
+  stressed session shows zero self-heal lines (positive control on
+  this hardware is inconclusive — the 25K-fps Xeon never reaches the
+  internal pressure thresholds; routing locked by tests instead).
+- 12 net new tests: 7 message positional-classification tests
+  (`tests_msg_border_positional.rs` — dash/plus/pipe/box-drawing render,
+  no fabricated border order, word-ordinal join, reveal budget), 2
+  min-dwell contract tests (yield + default/slower hold — replacing
+  the old pin-the-floor test), 2 effects-gate wiring tests
+  (`tests_effects_gate.rs` — construction + rebuild path), 1 diag
+  channel test (dedup + isolation) + 1 routing source-scan lock.
+- A/B benchmark (10s, `--scene cosmos --no-effects --crystal-dragon-secs
+  6`, JSON report): avg_fps +0.26%, avg_frame_time -0.26%,
+  render_ns_per_cell -1.03%, peak_rss -1.41%, dirty cells +0.33%,
+  frame_entropy +0.03%, density_gini -0.06% — performance and visual
+  parity (all deltas within run noise).
+- Full suite: 2101 passed / 0 failed / 2 ignored; fmt + clippy
+  (`--all-targets --all-features -D warnings`) clean.

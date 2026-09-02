@@ -80,14 +80,16 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                       # ~0.65 under moderate pressure. That is correct behavior, not a bug.
 #                                       # For the exact fixed value: power-dragon = false here or --power-dragon false.
 # crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups).
-#                                       # Cadence: sensor poll every crystal-dragon-secs, ~12% drift chance per
-#                                       # poll (about one drift every 5 minutes on average at the 60s default) —
-#                                       # organic, not periodic.
-# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default). Crystal Dragon poll interval — the
+#                                       # Cadence: sensor poll every crystal-dragon-secs; once the dwell floor
+#                                       # passes, a drift fires within moments (the cadence governor is the
+#                                       # dwell floor + poll window, not the ~12%/frame chance — that is a
+#                                       # small post-dwell jitter). Organic, not periodic.
+# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default). Crystal Dragon drift cadence — the
 #                                       # harmony twin of ambient-snapback-secs. Live-reload applies edits
-#                                       # immediately (tune the rhythm online). The 60s min-dwell floor stays
-#                                       # constant: polling below 60s shifts cadence, palette flips still cap
-#                                       # at one per minute. 86400 = poll once per 24h. CLI: --crystal-dragon-secs.
+#                                       # immediately (tune the rhythm online). Min-dwell floor is
+#                                       # min(60s, cadence): at the default (or slower) palette flips cap
+#                                       # at one per minute; a faster explicit cadence is honored as-is.
+#                                       # 86400 = poll once per 24h. CLI: --crystal-dragon-secs.
 # ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant).
 #                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
 #                                       # visible before the ambient phase re-asserts. ANY value fires — a value

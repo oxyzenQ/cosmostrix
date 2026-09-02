@@ -80,6 +80,9 @@ pub(crate) fn setup_terminal_cloud_frame(cfg: &CloudConfig) -> std::io::Result<L
     // P1: per-component timing only when --perf-stats (skips 2 Instant::now()
     // per frame when off, ~40ns saved).
     cloud.set_component_timing(cfg.perf_stats);
+    // v80.0.0-alpha.1 (S-master-HUNT-3): redundant with create_cloud (which has owned the
+    // effects gate since the --no-effects live-reload bug) — kept as
+    // belt-and-suspenders; passes the identical value.
     cloud.set_effects_enabled(cfg.effects_enabled);
     let caps = term.phosphor_tuning();
     cloud.set_phosphor_tuning(caps.0, caps.1, caps.2);

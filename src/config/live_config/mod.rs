@@ -54,9 +54,9 @@ pub(crate) use crate::live_config_state::drain_validation_rejections;
 #[cfg(test)]
 pub(crate) use crate::live_config_state::MAX_REJECTION_LOG;
 pub(crate) use crate::live_config_state::{
-    drain_runtime_warnings, interactive_session_active, push_runtime_warning,
-    push_validation_rejection, set_interactive_session_active, LIVE_RELOAD_ERROR,
-    LIVE_RELOAD_EXIT_CODE,
+    drain_runtime_diags, drain_runtime_warnings, interactive_session_active, push_runtime_diag,
+    push_runtime_warning, push_validation_rejection, set_interactive_session_active,
+    LIVE_RELOAD_ERROR, LIVE_RELOAD_EXIT_CODE,
 };
 
 /// Live config event sent from watcher to render thread.
@@ -788,3 +788,6 @@ mod tests_rejection_msg;
 
 #[cfg(test)]
 mod tests_crystal_dragon_secs;
+
+#[cfg(test)]
+mod tests_effects_gate;

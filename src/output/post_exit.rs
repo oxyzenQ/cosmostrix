@@ -133,11 +133,18 @@ pub(crate) fn print_post_exit_verbose(
 ///    LIVE_RELOAD_EXIT_CODE=2, print the error after Terminal::drop
 ///    (no alt-screen leak) and exit(2).
 /// 2. AB-10: drain buffered runtime warnings + debug traces post-exit.
+/// 3. v80.0.0-alpha.1 (S-master-HUNT-3): drain verbose-only runtime diagnostics (the
+///    self-heal family) ONLY when the session ran with `--verbose`/`-v`
+///    (owner bug: "[self-heal v2] predictive throttle …" exposed after
+///    every non-verbose run). Actionable warnings still always drain.
 ///
 /// On fatal live-reload error, calls `std::process::exit(2)` — does
 /// NOT return. Otherwise returns normally and the caller returns
 /// `result`.
-pub(crate) fn handle_post_exit_errors() {
+///
+/// `verbose` mirrors `args.verbose` from main.rs (the post-exit side
+/// has no other access to the parsed CLI).
+pub(crate) fn handle_post_exit_errors(verbose: bool) {
     // Live-reload fatal exit (bug #15): watcher panics + validation
     // errors set LIVE_RELOAD_EXIT_CODE=2, break the rain loop, print here
     // after Terminal::drop (no alt-screen leak).
@@ -165,6 +172,19 @@ pub(crate) fn handle_post_exit_errors() {
     // AB-10: drain buffered runtime warnings + debug traces post-exit.
     for w in crate::live_config::drain_runtime_warnings() {
         crate::output::eprintln_warn_labeled(&w);
+    }
+    // v80.0.0-alpha.1 (S-master-HUNT-3): verbose-only diagnostics — the self-heal family.
+    // Drained (and printed) only under --verbose: the messages report
+    // automatic engine behavior with no user action required, so a
+    // non-verbose exit must stay clean (owner contract).
+    if verbose {
+        for d in crate::live_config::drain_runtime_diags() {
+            crate::output::eprintln_warn_labeled(&d);
+        }
+    } else {
+        // Non-verbose: discard (the buffer is session-scoped; the process
+        // exits right after, so there is nothing to carry over).
+        let _ = crate::live_config::drain_runtime_diags();
     }
     for t in crate::live_config_trace::drain_debug_traces() {
         crate::output::eprintln_safe!("{t}");

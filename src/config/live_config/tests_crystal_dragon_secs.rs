@@ -47,18 +47,40 @@ fn create_cloud_applies_crystal_dragon_secs_to_engine_control() {
 }
 
 #[test]
-fn create_cloud_keeps_min_dwell_floor_constant() {
-    // The 60s anti-flicker floor is deliberately NOT tunable — polling
-    // below 60 shifts cadence, palette flips still cap at one per minute.
-    // This locks the over-engineering guard.
+fn create_cloud_min_dwell_floor_yields_to_fast_cadence() {
+    // v80.0.0-alpha.1 (S-master-HUNT-3, owner bug: "--crystal-dragon-secs 6 still used
+    // 60s"): the anti-flicker floor is min(60, cadence) — an explicit
+    // faster cadence lowers the floor to match, or the knob would be a
+    // no-op gimmick for exactly the range users tune it into. At the
+    // default (and any slower cadence) the 60s floor still applies.
     let mut tuned = minimal_cloud_config();
     tuned.crystal_dragon_secs = Some(5.0);
     let cloud = tuned.create_cloud(0.75);
     assert_eq!(
-        cloud.crystal_dragon_control.min_dwell_secs, 60.0,
-        "min_dwell_secs must stay at the 60s anti-flicker constant"
+        cloud.crystal_dragon_control.min_dwell_secs, 5.0,
+        "min_dwell_secs must yield to an explicit 5s cadence (the tunable must be real)"
     );
     assert_eq!(cloud.crystal_dragon_control.polling_secs, 5.0);
+}
+
+#[test]
+fn create_cloud_min_dwell_floor_holds_at_default_and_slower() {
+    // Default (unset): floor = 60, cadence = 60 — bit-identical to the
+    // pre-alpha.2 behavior (LTS guard).
+    let base = minimal_cloud_config();
+    let cloud = base.create_cloud(0.75);
+    assert_eq!(cloud.crystal_dragon_control.min_dwell_secs, 60.0);
+    assert_eq!(cloud.crystal_dragon_control.polling_secs, 60.0);
+    // Slower-than-default cadence: floor stays 60 (the poll timer paces
+    // the drift; dwell must not stretch the cycle beyond the poll).
+    let mut slow = minimal_cloud_config();
+    slow.crystal_dragon_secs = Some(86400.0);
+    let cloud = slow.create_cloud(0.75);
+    assert_eq!(
+        cloud.crystal_dragon_control.min_dwell_secs, 60.0,
+        "slower cadence keeps the 60s anti-flicker floor"
+    );
+    assert_eq!(cloud.crystal_dragon_control.polling_secs, 86400.0);
 }
 
 #[test]

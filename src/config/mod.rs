@@ -651,22 +651,22 @@ pub struct Args {
     )]
     pub crystal_dragon: Option<bool>,
 
-    /// v80.0.0-alpha.1: Crystal Dragon polling interval (seconds).
+    /// v80.0.0-alpha.1: Crystal Dragon drift cadence (seconds).
     ///
     /// Tunable harmony knob for combining crystal-dragon with ambient
     /// snapback — the drift cycle and the snapback timer share one
-    /// timeline, so the owner/user can now align both online (CLI, config,
+    /// timeline, so the owner/user can align both online (CLI, config,
     /// live-reload). Range 0.0..=86400.0 (same as ambient-snapback-secs);
-    /// default 60.0 (CRYSTAL_DRAGON_POLLING_SECS). The 60s minimum-dwell
-    /// anti-flicker floor is unchanged: polling below 60s shifts poll
-    /// cadence, palette flips still cap at one per minute.
-    /// 86400 = poll once per 24h; 0.0 = poll every tick (degenerate —
-    /// dwell still caps drift rate). Config key: `crystal-dragon-secs`.
+    /// default 60.0. v80.0.0-alpha.1 (S-master-HUNT-3): the min-dwell anti-flicker floor
+    /// is min(60s, cadence) — an explicit faster cadence lowers the
+    /// floor to match (the knob is real); at/above default the 60s floor
+    /// applies. 86400 = once per 24h; 0.0 = poll every tick (degenerate).
+    /// Config key: `crystal-dragon-secs`.
     #[arg(
         long = "crystal-dragon-secs",
         value_name = "SECS",
         num_args = 1,
-        help = "Crystal Dragon poll interval in seconds (0.0-86400.0, default: 60) — tune harmony with ambient-snapback-secs"
+        help = "Crystal Dragon drift cadence in seconds (0.0-86400.0, default: 60) — tune harmony with ambient-snapback-secs"
     )]
     pub crystal_dragon_secs: Option<f64>,
 

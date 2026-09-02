@@ -38,7 +38,7 @@ use super::tests_msg_fill_style::{make_cloud_colored, set_message_elapsed, visib
 fn drawn_content_cells(frame: &Frame, cloud: &super::super::Cloud) -> Vec<(u16, u16, char)> {
     let mut cells = Vec::new();
     for mc in &cloud.message {
-        if crate::cloud::border::is_border_char(mc.val) {
+        if mc.is_border || mc.val == ' ' {
             continue;
         }
         if let Some(cell) = frame.get(mc.col, mc.line) {

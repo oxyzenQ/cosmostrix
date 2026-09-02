@@ -102,10 +102,22 @@ impl DropletSpawnSpec {
 }
 
 /// A single character in the overlay message box (position + glyph).
+///
+/// `is_border` is the POSITIONAL classification: true iff the overlay
+/// layout itself placed a border glyph at this cell (the perimeter of a
+/// bordered `-mb` box). It is the single source of truth for the
+/// border-vs-content split in `draw_message`, `build_border_order`, and
+/// the word-ordinal builder — the old glyph-based test
+/// (`is_border_char(val)`, which also matched `' '`, `'+'`, `'-'`, `'|'`
+/// and box-drawing glyphs) swallowed user text characters that happen to
+/// collide with border glyphs: `-m "v80.0.0-alpha.1"` rendered the dash
+/// as a blank cell, reading "v80.0.0 alpha.1" (owner bug, v80.0.0-alpha.1 (S-master-HUNT-3)).
+/// User text is ALWAYS content, whatever glyph it carries.
 pub(crate) struct MsgChr {
     pub(crate) line: u16,
     pub(crate) col: u16,
     pub(crate) val: char,
+    pub(crate) is_border: bool,
 }
 
 /// RAIN_BORDER_TOUCH_GLOW (Option C+D): an active touch pulse on a

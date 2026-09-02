@@ -253,6 +253,15 @@ The session gate is `INTERACTIVE_SESSION_ACTIVE`, set once at the top of
 several killer-feature notes re-fire per scene change / config save, and the
 post-exit summary must stay readable.
 
+v80.0.0-alpha.1 (S-master-HUNT-3): the SELF-HEAL family (predictive
+throttle, sustained pressure, throttle released, power-dragon release)
+routes through a separate verbose-only channel — `push_runtime_diag` /
+`drain_runtime_diags` — drained post-exit ONLY when the session ran
+`--verbose`/`-v`. Those messages report automatic engine behavior with
+no user action required; a non-verbose exit stays clean (owner bug:
+the predictive-throttle line exposed after every plain run).
+Actionable warnings stay on the always-drained channel.
+
 ### Dynamic `dsty:` Metric (v50.0.0-beta.6 Option D + v80.0.0-beta.1 banded masterclass)
 
 The `dsty:` HUD metric (row 12) is **dynamic when power-dragon is ON** — it reflects the effective density after the v80.0.0-beta.1 banded throttle. When power-dragon is OFF, `dsty:` is **static** (shows the user's configured density — v80.0.0-beta.1 also gates the pressure FEED itself to 0.0, so the render path matches the display).
