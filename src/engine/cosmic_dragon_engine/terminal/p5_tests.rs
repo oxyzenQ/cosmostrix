@@ -6,6 +6,12 @@
 //! Extracted from `terminal/mod.rs` in the dragon-fight branch.
 //! Declared as `#[cfg(test)] mod p5_tests;` in `terminal/mod.rs`.
 
+// cfg(unix): every test that consumes items from `super::*` (e.g.
+// is_recoverable_io_error in the P3 classification test) is itself
+// cfg(unix); the platform-neutral tests below use only crate::constants.
+// Without this gate the glob import is unused on Windows test builds
+// (-D warnings under clippy --all-targets).
+#[cfg(unix)]
 use super::*;
 use crate::constants::FD_HEALTH_PROBE_INTERVAL_FRAMES;
 

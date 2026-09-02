@@ -132,25 +132,16 @@ impl Default for PhasePredictor {
 /// (power_manager.rs). For environments without timezone support, falls back
 /// to 0.0 (predictions start from midnight).
 /// Delegates to `crate::posix_time::local_tm()` — see that module for the
-/// consolidated POSIX FFI path.
-#[cfg(unix)]
+/// consolidated POSIX FFI path. `local_tm()` has its own platform split
+/// (POSIX `localtime_r` on Unix, UTC-based approximation on Windows), so
+/// this helper is platform-uniform: one body, no cfg gates. This also
+/// keeps `LocalTm::secs_since_midnight` exercised on every platform —
+/// a cfg-gated caller would leave the method dead code under
+/// `-D warnings` on Windows builds.
 pub(crate) fn local_secs_since_midnight() -> f64 {
     crate::posix_time::local_tm()
         .map(|tm| tm.secs_since_midnight())
         .unwrap_or(0.0)
-}
-
-// cfg(not(unix)): Fallback uses UTC seconds. The predictor still works,
-// just in UTC. Mirrors the gate choice in clock.rs and ambient.rs so all
-// Hinnant-style sites agree on what "now" means on macOS/FreeBSD.
-#[cfg(not(unix))]
-pub(crate) fn local_secs_since_midnight() -> f64 {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let secs = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs_f64())
-        .unwrap_or(0.0);
-    secs.rem_euclid(86400.0)
 }
 
 #[cfg(test)]

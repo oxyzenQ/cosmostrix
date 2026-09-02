@@ -38,15 +38,15 @@
 set -euo pipefail
 
 if [[ "${1:-}" != "--" ]]; then
-    echo "Usage: $0 -- <cargo subcommand> [args...]" >&2
-    echo "Example: $0 -- build --profile dev --locked" >&2
-    exit 2
+	echo "Usage: $0 -- <cargo subcommand> [args...]" >&2
+	echo "Example: $0 -- build --profile dev --locked" >&2
+	exit 2
 fi
-shift  # consume the --
+shift # consume the --
 
 if [[ $# -lt 1 ]]; then
-    echo "Error: no cargo subcommand provided after --" >&2
-    exit 2
+	echo "Error: no cargo subcommand provided after --" >&2
+	exit 2
 fi
 
 # Temp log file for post-mortem analysis. mktemp with no args uses
@@ -86,21 +86,21 @@ ERR_COUNT="${ERR_COUNT// /}"
 
 # Strict policy: any warning OR any error OR non-zero cargo exit = failure.
 if [[ -n "${WARN_LINES}" || ${CARGO_EXIT} -ne 0 ]]; then
-    echo ""
-    echo "================================================"
-    echo "FAILED CI BUILD - strict policy triggered"
-    echo "================================================"
-    echo "Command:  cargo $*"
-    echo "Exit:     ${CARGO_EXIT}"
-    echo "Warnings: ${WARN_COUNT}"
-    echo "Errors:   ${ERR_COUNT}"
-    echo "------------------------------------------------"
-    echo "${WARN_LINES}"
-    echo "================================================"
-    # Force failure if cargo didn't already (warning-only case).
-    # When cargo already failed, exit 1 still surfaces the failure
-    # cleanly to GitHub Actions with the summary block above.
-    exit 1
+	echo ""
+	echo "================================================"
+	echo "FAILED CI BUILD - strict policy triggered"
+	echo "================================================"
+	echo "Command:  cargo $*"
+	echo "Exit:     ${CARGO_EXIT}"
+	echo "Warnings: ${WARN_COUNT}"
+	echo "Errors:   ${ERR_COUNT}"
+	echo "------------------------------------------------"
+	echo "${WARN_LINES}"
+	echo "================================================"
+	# Force failure if cargo didn't already (warning-only case).
+	# When cargo already failed, exit 1 still surfaces the failure
+	# cleanly to GitHub Actions with the summary block above.
+	exit 1
 fi
 
 echo "Clean build: 0 warnings, 0 errors."

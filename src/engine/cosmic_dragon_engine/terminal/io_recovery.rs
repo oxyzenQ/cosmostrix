@@ -26,6 +26,9 @@ use std::io::Write as _;
 use crate::tier2::{should_backpressure, should_ris_reset};
 
 // Re-exported from terminal/restore.rs so recover_to_tty can call it.
+// Unix-only: the caller (recover_to_tty's Unix branch) is cfg(unix), so
+// the import must match or Windows builds flag it as unused (-D warnings).
+#[cfg(unix)]
 use super::restore::restore_terminal_best_effort;
 
 impl super::Terminal {

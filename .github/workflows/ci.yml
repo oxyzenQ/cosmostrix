@@ -509,7 +509,13 @@ jobs:
           usesh: true
           mem: 4096
           prepare: |
-            pkg install -y curl ca_root_nss
+            # bash: the run block below invokes `bash scripts/ci-strict-build.sh`
+            # (PIPESTATUS + [[ ]] need real bash). FreeBSD base does NOT ship
+            # bash — without this pkg, step [4/4] dies with `sh: bash: not found`
+            # (exit 127). usesh:true above runs the block itself under POSIX sh,
+            # which is fine: the block is sh-clean; only the strict-build
+            # wrapper is bash-only.
+            pkg install -y curl ca_root_nss bash
             curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --default-toolchain ${{ env.RUST_VERSION }}
             . "$HOME/.cargo/env"
             rustup target add x86_64-unknown-freebsd

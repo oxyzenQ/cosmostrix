@@ -12,8 +12,15 @@
 //! Re-exported from `main.rs` via `pub(crate) use` so the existing
 //! `crate::spawn_kill9_terminal_guard()` call site resolves unchanged.
 
+// Unix-only imports: every call site lives in the cfg(unix) guard
+// implementations (Linux fork+prctl and the non-Linux getppid poller).
+// The Windows body is a no-op, so an unconditional import would be
+// flagged as unused by -D warnings on Windows builds.
+#[cfg(unix)]
 use crate::cosmic_dragon_engine::terminal::restore_terminal_best_effort;
+#[cfg(unix)]
 use crate::diagnostics::info::env_var_truthy;
+#[cfg(unix)]
 use std::io::IsTerminal;
 
 /// Fork guard: protects the terminal from being left in raw mode when

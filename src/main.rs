@@ -78,6 +78,11 @@ pub(crate) use engine::cosmic_dragon_engine::{cloud, frame, runtime, terminal};
 // paths continue to resolve without touching every call site.
 // The actual code lives under src/engine/ — these are pure re-exports.
 pub(crate) use engine::chroma_dragon_engine;
+// cfg(any(unix, test)): the crate-root `crate::cosmic_dragon_engine::*`
+// namespace has exactly two consumers — platform/fork_guard.rs (cfg(unix))
+// and the cloud unit tests (cfg(test)). Without this gate the re-export
+// is unused on Windows non-test builds (-D warnings CI error).
+#[cfg(any(unix, test))]
 pub(crate) use engine::cosmic_dragon_engine;
 pub(crate) use engine::crystal_dragon_engine;
 

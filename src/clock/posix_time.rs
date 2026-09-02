@@ -211,20 +211,6 @@ pub(crate) fn utc_tm() -> UtcTm {
     }
 }
 
-#[cfg(not(unix))]
-impl UtcTm {
-    fn zero() -> Self {
-        Self {
-            year: 0,
-            month: 1,
-            day: 1,
-            hour: 0,
-            minute: 0,
-            second: 0,
-        }
-    }
-}
-
 // ── Convenience helpers ─────────────────────────────────────────────────
 
 impl LocalTm {
