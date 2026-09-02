@@ -199,11 +199,35 @@ fn dump_config_documents_paired_field_split() {
         dump.contains("At RUNTIME (config save / live-reload)"),
         "template header must disclose the runtime chain"
     );
-    // LOGIC-2 verification: the stale 'i' shortkey must not appear in the
-    // ambient note's key list (there is no 'i' binding).
+    // v80.0.0-beta.2 (S-master-HUNT-2, 2026-09-02): the 'i' HUD-toggle
+    // shortkey is REAL (event_loop.rs KeyCode::Char('i') ->
+    // hud_state.toggle(); verified live in a PTY). The old LOGIC-2 note
+    // claimed "there is no 'i' shortkey" — a stale-false claim that hid a
+    // working feature. The template must now document it, and the false
+    // claim must never come back.
     assert!(
-        !dump.contains("p/i/"),
-        "the shortkey list must not claim a nonexistent 'i' key: found stale list"
+        dump.contains("'i' shortkey"),
+        "template must document the real 'i' HUD-toggle shortkey"
+    );
+    assert!(
+        !dump.contains("There is no 'i'"),
+        "template must not claim the 'i' shortkey is nonexistent (it is real)"
+    );
+    // v80.0.0-beta.2 (S-master-HUNT-2): the crystal-dragon / ambient /
+    // power-dragon usage guidance must stay in the template — the owner
+    // mandate (2026-09-02) is that newbies can reason about the timing
+    // math and the density/HUD display straight from the config file.
+    assert!(
+        dump.contains("Combining crystal-dragon + ambient"),
+        "template must carry the drift/snapback timing guide"
+    );
+    assert!(
+        dump.contains("keep ambient-snapback-secs < 60"),
+        "template must carry the snapback harmony guidance"
+    );
+    assert!(
+        dump.contains("EFFECTIVE") && dump.contains("power-dragon = false"),
+        "template must explain the HUD dsty: effective-density display + how to pin it"
     );
     // Each paired field's doc line should also appear in the custom
     // palettes / custom charsets sections, pointing users at the right

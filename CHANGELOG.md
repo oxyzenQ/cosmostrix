@@ -9,6 +9,73 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.2 — S-master-HUNT-2 validation determinism + dragon usage docs (owner cp77x bug)
+
+Owner reported `scene-custom.cp77.color = "cp77x"` (unknown color) being
+silently ignored at startup with `--scene carbonic` — the rain kept the
+scene's default color (HUD `clr: carbon`) instead of exiting 2 — while a
+later live-reload edit DID surface the error, making it look like the
+config needed "2x triggers" to be noticed.
+
+1. **Root cause: nondeterministic validation coverage.**
+   `validate_config_strictly` used to `break` out of its ENTIRE per-key
+   loop after validating the first `ambient.*` key it happened to reach —
+   every key not yet iterated was silently blessed. HashMap iteration
+   order is seed-randomized per instance/thread, so the same file
+   validated differently per run (measured: 11 reject / 9 silent over 20
+   startups) and differently on the watcher thread (live-reload) than on
+   the main thread (startup). Fix: ambient entries validate once in a
+   dedicated pre-pass; the per-key loop iterates SORTED keys (stable
+   first-error across runs/threads) and `continue`s on `ambient.*` —
+   never `break`s. Every key is now always checked. `--testconf` output
+   also iterates sorted for deterministic reports. Pinned by 4 new tests
+   (`tests_validation_order.rs`: rejection with ambient present, valid
+   twin, seed-independence, ambient-error priority).
+
+2. **Live-reload single-trigger consistency (the "2x trigger"
+   complaint).** The file watcher itself was already reliable (hybrid
+   native watcher + 750ms triple-signal poll: mtime/size/SHA-512); the
+   inconsistency was the validation coverage above. After the fix, one
+   trigger is enough: PTY-verified — a single edit introducing `cp77x`
+   fires the watcher, strict validation rejects, cosmostrix exits 2 with
+   the exact live-reload error; a single trivial edit (a space) is
+   detected and re-applied cleanly with no exit.
+
+3. **Dragon usage docs tightened (owner mandate 2026-09-02 — newbies
+   must not stay confused).** Template config + reference docs now carry
+   the timing math and the display semantics straight where users look:
+   crystal-dragon cadence (60s poll, ~12% drift chance per poll);
+   ambient snapback default 30s with the harmony guidance (keep
+   `ambient-snapback-secs` under 60s, <= 50s for margin); power-dragon
+   density display (HUD `dsty:` shows the EFFECTIVE banded density —
+   `density = 0.90` can display ~0.65 under moderate pressure; set
+   `power-dragon = false` to pin the exact value).
+
+4. **The "snapback >= 60s never triggers" myth — corrected with live
+   evidence.** Verified in a PTY (ambient + crystal-dragon on,
+   `ambient-snapback-secs = 90`, CLI `--scene carbonic`): the snapback
+   fired at ~90s (`ambient_diag: snapback=1`, final scene reverted to
+   the ambient phase). A long value stretches the rhythm (the drift
+   palette holds the ambient palette for the whole window and no new
+   drift can fire during it; 86400 ≈ 24h) — it does not starve the
+   timer. `AMBIENT_SCHEDULER.md` gained a "Usage Quick Guide" table +
+   the corrected edge-case section; `CRYSTAL_DRAGON_ENGINE.md` §11 was
+   synced (and its stale `IDLE_AUTO_SNAPBACK_THRESHOLD_SECS` reference
+   fixed).
+
+5. **Stale-doc sweep (same session).** The template's false "There is
+   no 'i' shortkey" claim is gone — 'i' is a real HUD toggle (re-verified
+   live in a PTY; `doctor --self-check` already said so) and the
+   template now documents it; the regression test that locked the false
+   claim was rewritten to lock the truth. `live_config_poll`/`watcher`
+   doc comments no longer mix SHA-256/SHA-512 claims (the code hashes
+   SHA-512).
+
+Verification: 20/20 startup rejections on the owner's exact config
+(was 11/20); PTY live-reload 1x-trigger PASS (invalid + trivial);
+PTY snapback-at-90s PASS; full suite 2074 passed / 0 failed
+(2070 + 4 new).
+
 ### harmony: v80.0.0-beta.2 — S-master-HUNT post-LOGIC-3 bug hunt (scene-custom ownership, verbatim lock restore, uniform block validation)
 
 Owner filed three bugs against the S-master-LOGIC-3 build; all three

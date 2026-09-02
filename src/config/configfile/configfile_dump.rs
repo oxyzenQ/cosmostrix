@@ -74,9 +74,22 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Behavior
 
 # glitch-level = "subtle"               # none | subtle | default | intense (cinematic default)
-# power-dragon = true                   # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings)
-# crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups)
-# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant)
+# power-dragon = true                   # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings).
+#                                       # HUD NOTE: with power-dragon ON, the HUD dsty: line shows the EFFECTIVE
+#                                       # (banded) density, NOT your configured value — density = 0.90 can display
+#                                       # ~0.65 under moderate pressure. That is correct behavior, not a bug.
+#                                       # For the exact fixed value: power-dragon = false here or --power-dragon false.
+# crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups).
+#                                       # Cadence: sensor poll every 60s, ~12% drift chance per poll (about one
+#                                       # drift every 5 minutes on average) — organic, not periodic.
+# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant).
+#                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
+#                                       # visible before the ambient phase re-asserts. ANY value fires — a value
+#                                       # >= 60s still triggers (verified live at 90s), it just stretches the
+#                                       # rhythm: the drift palette holds the ambient palette for the whole
+#                                       # window and no new drift can fire during it. 86400 = held ~24h.
+#                                       # Harmony sweet spot: keep it UNDER 60s (<= 50s) so each drift reverts
+#                                       # before the next 60s poll — see the timing guide in the ambient section.
 # bold = 1                              # 0=off, 1=random, 2=all
 # shading-mode = 1                       # 0=random, 1=cinematic
 
@@ -173,6 +186,19 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
+#
+# Combining crystal-dragon + ambient (timing guide — verified 2026-09-02):
+# crystal-dragon polls every 60s (~12% drift chance per poll). When a drift
+# fires while an ambient phase is active, the drift palette overrides the
+# ambient palette for ambient-snapback-secs, then ambient re-asserts
+# (snapback). Snapback fires at ANY configured value — including >= 60s
+# (verified live: a 90s snapback fired exactly at ~90s). A long window is
+# not broken, just slower: the drift palette holds the ambient palette for
+# the whole window, and no new drift can fire during it (the next drift is
+# delayed). Harmony sweet spot: keep ambient-snapback-secs < 60 (<= 50s for
+# margin) so each drift reverts before the next 60s poll and the two
+# systems take turns cleanly. If you do not want the interplay at all,
+# turn one of the two off — you never need both.
 
 # IMPORTANT — ambient overlay precedence (v80.0.0-beta.2 honesty note):
 # When ANY ambient.HH-MM entry is active, the ambient scene is the ground
@@ -196,14 +222,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   message, message-border, msg-mode, msg-fill-style,
 #   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
 #
-# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/[/]/Up/Down) work normally
+# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/i/[/]/Up/Down) work normally
 # during ambient — they set user_override_since_ambient=true so the
 # ambient scheduler yields control until the next phase boundary
 # (or after ambient-snapback-secs of input idle). The '+', '-', '_',
 # '=' density aliases were removed (v30 simplify — never documented
 # in --help); use '[' and ']' for density down/up. The 'a' shortcut
-# was removed (v35) — auto-snapback replaced it. There is no 'i'
-# shortkey (verified v80.0.0-beta.2 — stale references removed).
+# was removed (v35) — auto-snapback replaced it. The 'i' shortkey
+# toggles the HUD metrics overlay (a REAL binding — re-verified
+# 2026-09-02 after a stale "no 'i' key" claim crept into this note).
 #
 # To make ambient-owned config edits take effect: comment out ALL
 # ambient.HH-MM entries and save. The schedule empties, the ambient

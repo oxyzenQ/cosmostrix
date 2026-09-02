@@ -424,9 +424,11 @@ When the user presses `c` (cycle color), `C` (reverse cycle), or `x`
 
 The Crystal Dragon's next poll tick sees the user override flag and
 **does not drift** — the user is in control. The override persists until
-the user goes idle for the `IDLE_AUTO_SNAPBACK_THRESHOLD_SECS` duration,
-at which point the ambient scheduler (if active) snaps back to the
-scheduled phase.
+the user has been idle for `ambient-snapback-secs` (default 30s,
+`AUTO_SNAPBACK_DELAY_SECS` — the timer reference is the last user input
+when no drift is active), at which point the ambient scheduler (if
+active) snaps back to the scheduled phase. With ambient off, manual
+overrides never block drift (see the Z-master-1X note below).
 
 **Z-master-1X**: when the ambient schedule is empty, `user_override_since_ambient`
 stays `true` forever (no ambient fire to clear it), but the drift gate in
@@ -437,12 +439,26 @@ override flag. See `docs/AMBIENT_SCHEDULER.md` "Self-reset when ambient is OFF".
 
 ### 11.3 Crystal <-> Ambient scheduler (snapback coordination)
 
-If the ambient scheduler has an active phase when the user goes idle:
+If the ambient scheduler has an active phase when a drift fires (or the
+user goes idle after a manual override):
 
-1. The event loop's idle detector fires `should_auto_snapback()`.
-2. The scheduler re-applies the current phase via `apply_ambient_entry`.
+1. The event loop's `try_auto_snapback()` counts from `drift_start`
+   (crystal-dragon drift) or `last_user_input_at` (manual override).
+2. When `ambient-snapback-secs` elapse, the scheduler re-applies the
+   current phase via `apply_ambient_entry`.
 3. `ambient_diag_snapback()` increments.
-4. The Crystal Dragon's drift continues normally on subsequent ticks.
+4. `drift_active` clears and the poll timer resets — the Crystal
+   Dragon's drift is eligible again on a later tick.
+
+Timing facts (verified 2026-09-02, live PTY run): the snapback fires at
+ANY configured `ambient-snapback-secs` — including values >= 60s (a 90s
+value fired at ~90s). During the drift-visibility window no new drift
+can fire (the `!drift_active` gate), so a long snapback stretches the
+rhythm rather than breaking it. Harmony guidance for combining the two:
+keep `ambient-snapback-secs` under 60s (<= 50s for margin) so each drift
+reverts before the next 60s poll. See `docs/AMBIENT_SCHEDULER.md`
+"Usage Quick Guide" and "Edge case: snapback >= 60" for the full timing
+math.
 
 If the user has explicitly disabled ambient (empty schedule or
 `snapback_killed` flag), no snapback occurs — the user's last manual

@@ -171,12 +171,17 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
     }
 
-    // Check scene-custom block keys for correct format AND field value validity
-    let block_keys: Vec<_> = parsed
+    // Check scene-custom block keys for correct format AND field value
+    // validity. Keys are iterated in SORTED order so --testconf's error
+    // output is deterministic across runs (HashMap order is
+    // seed-randomized; sorted iteration gives stable reports — same
+    // contract as validate_config_strictly).
+    let mut block_keys: Vec<_> = parsed
         .values
         .keys()
         .filter(|k| k.starts_with("scene-custom."))
         .collect();
+    block_keys.sort();
     for pk in &block_keys {
         // scene-custom.<name>.<field>
         let parts: Vec<&str> = pk.split('.').collect();
@@ -239,7 +244,12 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // validate_ambient_entries (which checks scene-name validity and
     // rejects legacy multi-field format with a migration message).
     let mut ambient_validated = false;
-    for (key, value) in &parsed.values {
+    // Sorted iteration: deterministic error ordering across runs (the
+    // underlying HashMap order is seed-randomized per process).
+    let mut value_keys: Vec<&String> = parsed.values.keys().collect();
+    value_keys.sort();
+    for key in value_keys {
+        let value = &parsed.values[key];
         if key.starts_with("scene-custom.") {
             continue; // block keys validated above
         }
@@ -322,12 +332,13 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Validate ALL top-level fields in a parsed config HashMap.
+/// Validate ALL fields in a parsed config HashMap — top-level keys AND
+/// custom-block keys (scene-custom.X.field values, colors-custom hex,
+/// charset-custom content, ambient.* scene references).
 ///
-/// Returns `Ok(())` if every top-level key has a valid value, or
-/// `Err(message)` with a human-readable error for the first invalid field.
-/// Block keys (scene-custom.X.field) are skipped —
-/// they're validated separately by --testconf's block-field check.
+/// Returns `Ok(())` if every key has a valid value, or `Err(message)`
+/// with a human-readable error for the first invalid field (see the
+/// determinism note below on which error surfaces first).
 ///
 /// Used by:
 /// - Startup: `apply_config_and_runtime_defaults` rejects invalid config
@@ -344,7 +355,35 @@ pub(crate) fn validate_config_strictly(
     // first (it names the block, not a single key). Startup, the
     // live-reload watcher, and --testconf all reject through here.
     crate::scene_custom::validate_scene_custom_completeness(cfg)?;
-    for (key, value) in cfg {
+
+    // v80.0.0-beta.2 (S-master-HUNT-2, owner cp77x bug 2026-09-02):
+    // deterministic FULL-COVERAGE validation. The old loop `break`ed
+    // after validating the first `ambient.*` key it happened to reach,
+    // which terminated the ENTIRE per-key loop — every key not yet
+    // iterated was silently blessed. HashMap iteration order is
+    // seed-randomized per instance/thread, so coverage depended on
+    // where `ambient.*` landed: a config pairing `ambient.12-00` with
+    // an invalid `scene-custom.<name>.color` errored at startup on some
+    // runs (exit 2) and silently ran the scene's default color on
+    // others (measured: 11 reject / 9 silent over 20 runs). Live-reload
+    // parses on the watcher thread — a different seed — so the same
+    // file also validated differently there, which is exactly why the
+    // owner's error only surfaced AFTER a second config touch.
+    //
+    // Fix: (1) ambient entries are validated ONCE in a dedicated
+    // pre-pass; (2) the per-key loop iterates SORTED keys so the first
+    // reported error is stable across runs and threads (same contract
+    // as `validate_ambient_entries`' own sorted iteration); (3)
+    // `ambient.*` keys `continue` in the loop — never `break` — so
+    // every key is always checked, no matter the hash order.
+    if cfg.keys().any(|k| k.starts_with("ambient.")) {
+        crate::crystal_dragon_engine::ambient::validate_ambient_entries(cfg)?;
+    }
+
+    let mut keys: Vec<&String> = cfg.keys().collect();
+    keys.sort();
+    for key in keys {
+        let value = &cfg[key];
         if key.starts_with("scene-custom.") {
             // v80.0.0-beta.2 (S-master-HUNT, owner bug 3): block fields are
             // VALUE-validated here too — `--testconf` already checked them
@@ -400,16 +439,12 @@ pub(crate) fn validate_config_strictly(
             }
             continue;
         }
-        // Ambient phase scheduler: `ambient.<HH-MM>` keys. The key pattern
-        // (HH-MM format) is validated by is_known_key(); here we validate
-        // the value (positional color/scene + key=value pairs).
+        // Ambient phase scheduler: `ambient.<HH-MM>` keys. Validated as
+        // a group by the pre-pass above (before the loop) — the per-key
+        // loop has nothing left to check here. `continue`, never
+        // `break`: breaking would skip every key not yet iterated.
         if key.starts_with("ambient.") {
-            // validate_ambient_entries validates ALL ambient keys at once
-            // (cross-references colors-custom and charset-custom names),
-            // so we break after the first ambient key to avoid re-running
-            // the same full validation.
-            crate::crystal_dragon_engine::ambient::validate_ambient_entries(cfg)?;
-            break;
+            continue;
         }
         // v25: the top-level `charset` key may reference a custom charset
         // block (charset-custom.<name>) instead of a built-in preset —
@@ -485,3 +520,5 @@ fn is_valid_hex_color(s: &str) -> bool {
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod tests_validation_order;

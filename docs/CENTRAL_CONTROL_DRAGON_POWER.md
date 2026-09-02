@@ -175,6 +175,18 @@ variable.
    (`PERF_PRESSURE_SPAWN_FACTOR` 0.75/0.9 + `PERF_SPAWN_SCALE_MIN`
    0.25/0.10), which cut density 0.85 -> ~0.47 at p ~0.6.
 
+**User-facing note (owner mandate 2026-09-02 — spell this out where
+users look):** with power-dragon ON, the HUD `dsty:` line shows the
+EFFECTIVE (banded) density, not the configured one. A config
+`density = 0.90` displaying `dsty: ~0.65` on the HUD is correct
+behavior — ~0.65 is the medium band under moderate pressure, and the
+configured 0.90 is only the ceiling (dead zone p <= 0.05 shows the
+exact configured value). To pin the exact configured density: set
+`power-dragon = false` in config.toml or pass `--power-dragon false`
+(the render-path pressure feed becomes 0.0 — every consumer,
+including the HUD, returns to zero-pressure behavior). See
+`docs/HUD.md` metric row 12 (`dsty:`) for the band table.
+
 ### Zone 4 — Kernel memory (madvise, already coordinated)
 
 **Status:** already coordinated by `ReclaimState` (1-hour minimum

@@ -27,10 +27,10 @@
 //!   - content hash of the first 8KB (catches in-place content edits that
 //!     didn't change size or mtime — e.g., FUSE mtime bug)
 //!
-//! The content hash is SHA-256 (cryptographic, per owner contract
-//! 2026-08-07). Reading 8KB adds ~100µs overhead per poll — negligible
-//! at 750ms intervals. The previous FNV-1a 64-bit hash was replaced
-//! because owner required cryptographic strength for change detection.
+//! The content hash is SHA-512 (cryptographic, per owner contract
+//! 2026-08-07; upgraded from SHA-256 at v50 for a higher security margin
+//! at negligible cost for small files). Reading 8KB adds ~100µs overhead
+//! per poll — negligible at 750ms intervals.
 
 use std::path::Path;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -303,7 +303,7 @@ const HASH_BYTES: usize = 8 * 1024;
 /// failures are propagated as `None` in the respective snapshot fields.
 ///
 /// Equivalent to `snapshot_file_state_cached(path, None)` — no cache,
-/// always computes the SHA-256 hash. Used by tests + one-off snapshot
+/// always computes the SHA-512 hash. Used by tests + one-off snapshot
 /// sites where no previous state is available.
 pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
     snapshot_file_state_cached(path, None)
@@ -334,7 +334,7 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
 ///   1ms on FAT, 1s on ext3). All exceed the poll interval.
 ///
 /// **Slow path:** when `prev` is `None`, or `prev.mtime` is `None`, or
-/// either `mtime` or `size` differs, the SHA-256 hash is computed via
+/// either `mtime` or `size` differs, the SHA-512 hash is computed via
 /// `hash_file_prefix` and stored in the new snapshot.
 pub(crate) fn snapshot_file_state_cached(
     path: &Path,
@@ -369,7 +369,7 @@ pub(crate) fn snapshot_file_state_cached(
     }
 
     // Slow path: mtime/size changed (or no prev) — compute the hash.
-    // Cost: ~5µs SHA-256 (SHA-NI) + ~80µs file I/O on a warm cache.
+    // Cost: ~5µs SHA-512 (SHA-NI) + ~80µs file I/O on a warm cache.
     let content_hash = hash_file_prefix(path, HASH_BYTES);
 
     FileStateSnapshot {
@@ -379,11 +379,12 @@ pub(crate) fn snapshot_file_state_cached(
     }
 }
 
-/// Compute a SHA-256 hash of the first `max_bytes` of a file.
+/// Compute a SHA-512 hash of the first `max_bytes` of a file.
 /// Returns `None` if the file can't be opened or read.
 ///
-/// upgraded from FNV-1a 64-bit to SHA-256 per owner contract.
-/// SHA-256 gives cryptographic collision resistance — even an attacker
+/// upgraded from FNV-1a 64-bit to SHA-256 per owner contract
+/// (2026-08-07), then to SHA-512 at v50 for a higher security margin.
+/// SHA-512 gives cryptographic collision resistance — even an attacker
 /// (or a buggy editor) crafting two config files with the same hash is
 /// computationally infeasible. The performance cost is ~2x vs FNV-1a
 /// (~100µs per 750ms poll = 0.013% CPU) — still negligible.

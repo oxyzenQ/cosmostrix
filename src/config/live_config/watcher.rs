@@ -342,7 +342,7 @@ pub(crate) fn handle_notify_event(
             // masterclass: use `snapshot_file_state_cached` with the
             // previous snapshot as cache. On the common duplicate-event
             // path (native + poll both fire for the same edit), mtime +
-            // size match → SHA-256 hash is skipped → ~20× faster dedup
+            // size match → SHA-512 hash is skipped → ~20× faster dedup
             // check (~5µs instead of ~100µs).
             //
             // The snapshot is computed INSIDE the lock to avoid a TOCTOU:

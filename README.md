@@ -147,10 +147,10 @@ The Dragon's roar is not loud — it is precise.
 ### Intelligence & Power
 
 - **Crystal Dragon Engine** — ambient intelligence for palette drift from system state (`--crystal-dragon`), point-based temperature grouping (Cold/Medium/Hot) with OKLab smooth transitions.
-- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` of idle — the two systems cooperate by taking turns. When ambient is off (empty schedule), Crystal Dragon drifts on its 60s poll cadence with a self-resetting cycle (no snapback needed) — see `docs/AMBIENT_SCHEDULER.md`.
+- **Ambient scheduler** — time-of-day scene switching via `ambient.HH-MM = <scene>` in config. Dynamic idle/wake scheduler thread (zero CPU between boundaries). Crystal Dragon wins over ambient (drift overrides the palette), but ambient snapback reverts after `ambient-snapback-secs` — the two systems cooperate by taking turns. Snapback fires at ANY delay value (a 90s snapback fires at ~90s — verified live); keep it under 60s (<= 50s for margin) for the cleanest drift/snapback rhythm. When ambient is off (empty schedule), Crystal Dragon drifts on its 60s poll cadence with a self-resetting cycle (no snapback needed) — see `docs/AMBIENT_SCHEDULER.md` "Usage Quick Guide".
 - **Self-healer** — P1 auto scene downgrade (switches to `low-power` under sustained pressure, restores when pressure drops) and P2 endurance health mitigation (full redraw + memory reclaim hints).
 - **Endurance subsystem** — activity prediction, idle coalescing, memory reclaim hints (Linux `madvise`), and Endurance Health Score (0–100) for long-running sessions.
-- **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer.
+- **Power Dragon** — adaptive throttling reduces CPU when idle (30s no-input -> 0.5× FPS). Thermal pressure tracking feeds into the self-healer. With it on, the HUD `dsty:` line shows the EFFECTIVE (pressure-banded) density — `density = 0.90` can display ~0.65 under moderate pressure; `power-dragon = false` (or `--power-dragon false`) pins the exact configured value.
 - **Terminal tier detection** — auto-detects xterm.js hosts (VSCode, web terminals) and caps FPS at 30 to prevent OOM; native terminals get up to 240 FPS.
 
 ### Live Reload & Config

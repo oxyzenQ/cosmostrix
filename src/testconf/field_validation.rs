@@ -264,6 +264,12 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
         // 0.0 = instant snapback, 86400.0 (24h) = effectively disabled.
         // Default 30.0 when unset. Range matches parse_f64_config in
         // config_apply.rs.
+        // v80.0.0-beta.2 usage note (verified 2026-09-02): the snapback
+        // timer fires at ANY value in range — including >= 60s. Keep it
+        // < 60s (<= 50s for margin) when combining ambient with
+        // crystal-dragon: a long window freezes new drifts and holds the
+        // ambient palette for the whole window (86400 ≈ 24h). See
+        // docs/AMBIENT_SCHEDULER.md "Edge case: snapback >= 60".
         "ambient-snapback-secs" => match v.trim().parse::<f64>() {
             Ok(n) if (0.0..=86400.0).contains(&n) => None,
             Ok(n) => Some(format!("expected 0.0..=86400.0, got {n}")),

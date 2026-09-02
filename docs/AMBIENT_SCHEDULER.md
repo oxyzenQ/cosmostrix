@@ -8,6 +8,24 @@ Config-driven time-of-day scene switching — replaces the archived
 **instant switch** (no blend window), and a **dynamic idle/wake scheduler
 thread** (zero CPU between phase boundaries).
 
+## Usage Quick Guide (read this first — verified 2026-09-02)
+
+New to `ambient` + `crystal-dragon` + `power-dragon`? These are the
+facts the rest of this document assumes, stated without engine jargon:
+
+| Question | Answer |
+|---|---|
+| How often does crystal-dragon act? | Sensor poll every **60s**; each poll has a **~12% drift chance** (about one drift per 5 minutes on average — organic, not periodic). |
+| What is the ambient snapback? | The ambient phase re-asserting itself after something else took over (a crystal-dragon drift, or your manual `c`/`C`/`x`/`X`/`s`/`S` shortkey). |
+| Default snapback delay? | **30s** (`ambient-snapback-secs`, range 0.0..=86400.0; 0 = instant, 86400 = effectively off). |
+| Does a snapback >= 60s still fire? | **YES.** Verified live: a 90s snapback fired at ~90s. The timer has no upper-bound bug. A long value only stretches the rhythm (see the next row). |
+| What actually changes with snapback >= 60s? | The drift palette **holds** the ambient palette for the whole window and **no new drift can fire** during it — the system looks "stuck on one color" until the snapback lands. At 86400 that is ~24h. |
+| Recommended value when combining? | Keep `ambient-snapback-secs` **under 60s** (<= 50s for margin) so each drift reverts before the next 60s poll and the two systems take clean turns. |
+| I set `density = 0.90` but the HUD shows ~0.65 — bug? | No. `power-dragon` (default on) throttles the *effective* density under pressure; the HUD `dsty:` line shows the effective value. Set `power-dragon = false` (or `--power-dragon false`) for the exact fixed value. |
+| Do I need both dragons? | No. If you do not want drift-vs-ambient interplay, turn either one off — never required together. |
+
+The rest of this document is the engine-level reference for those facts.
+
 ## Config Format (simplified — breaking change)
 
 ```toml
@@ -207,13 +225,27 @@ window is fixed at `CRYSTAL_DRAGON_POLLING_SECS` (not configurable) so
 the cycle cadence matches the poll cadence exactly.
 
 **Edge case: snapback >= 60**: if `ambient-snapback-secs >= 60`, the
-next drift poll (at +60s) finds `drift_active` still true → drift is
-**skipped**. Drift fires at +120s instead (after snapback cleared the
-flag). This is by design — the user chose a long snapback, so drift
-gets a long visible window and the next drift is delayed. To avoid
-this, set `ambient-snapback-secs` to a value **less than 60** (e.g.
-10, 30, 50) for the "60s ambient, Ns drift" rhythm, or **greater than
-60** (e.g. 70, 120) for a longer drift window with skipped polls.
+snapback **still fires** — at exactly `ambient-snapback-secs` after the
+drift began (verified live 2026-09-02: a 90s snapback fired at ~90s;
+`ambient_diag: snapback=1`, final scene reverted to the ambient phase).
+There is no upper-bound bug and no "collision that starves the timer".
+What actually changes is the RHYTHM, in two ways:
+
+1. The drift palette holds the ambient palette for the whole window —
+   with 86400 (the documented "effectively disabled" value) the very
+   first drift holds the ambient palette for ~24 hours.
+2. No new drift can fire during the window (the `!drift_active` gate).
+   The next drift poll at +60s finds `drift_active` still true and is
+   skipped; drift becomes eligible again only after the snapback clears
+   the flag (next drift at snapback + ~60s).
+
+This is by design — the user chose a long snapback, so drift gets a
+long visible window and the next drift is delayed. To avoid this,
+set `ambient-snapback-secs` to a value **less than 60** (10, 30, 50 —
+the owner's guidance is <= 50s for margin) for the "60s ambient, Ns
+drift" rhythm, or accept a **longer** drift window with skipped polls
+(70, 120, ...). The "snapback never triggers at >= 60s" reading is a
+myth — do not document it anywhere; this section is the correction.
 
 **Manual user override**: pressing `c`/`C`/`x` sets
 `user_override_since_ambient = true`, which blocks drift from firing
