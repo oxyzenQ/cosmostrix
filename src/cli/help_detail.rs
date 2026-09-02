@@ -328,18 +328,21 @@ COMMON OPTIONS:
 
   --scene-custom <name>
       Apply a user-defined custom scene from config. Custom scenes use
-      the [scene-custom.<name>] namespace. Explicit CLI flags always
-      override custom-scene values.
+      the [scene-custom.<name>] namespace. At startup, explicit CLI
+      flags override custom-scene values; at RUNTIME a config save
+      (live-reload) overrides the locked CLI values — the block fields
+      are config content.
 
-      Custom scenes are first-class citizens.  restores the
-      `base-scene` field with cleaner inheritance semantics: when set,
-      the custom scene inherits ALL scene-managed defaults (color,
-      charset, fps, speed, density, glitch-level, rain_style) from the
-      named built-in scene BEFORE applying its own overrides. Without
-      `base-scene`, missing fields fall back to the global default scene
-      (cinematic). When active, the verbose output shows `scene: <name>`
-      and live reload applies edits to the block immediately
-      (color/charset/speed/density/density-map/glitch-level/base-scene).
+      Custom scenes are first-class citizens: a block is a COMPLETE
+      six-dimension profile (color OR colors-custom, charset OR
+      charset-custom, fps, speed, density, glitch-level — ALL
+      required; incomplete blocks are rejected by --testconf,
+      startup, and live-reload). v80.0.0-beta.2: base-scene
+      inheritance is REMOVED — custom scenes always render glyph
+      rain; bold/shading-mode/async-mode are top-level keys, not
+      per-block fields. When active, the verbose output shows
+      `scene: <name>` and live reload re-applies the block fields
+      immediately.
 
       cosmostrix --scene-custom hacker-mode
       cosmostrix --scene-custom nightcore --fps 60
@@ -407,13 +410,19 @@ CONFIG:
       Destructive: replaces the existing file with the example template.
 
   Precedence (highest wins):
-      built-in defaults < scene defaults (fills unset keys only)
-      < config values < config scene-custom
-      < CLI scene < CLI scene-custom
-      < explicit CLI flags.
+      STARTUP: built-in defaults < scene defaults (fills unset keys
+      only) < config values < config scene-custom < CLI scene
+      < CLI scene-custom < explicit CLI flags.
+      RUNTIME: built-in defaults < scene defaults < CLI lock (locked
+      startup value) < config keys incl. scene-custom block fields
+      < ambient scene (while a phase is active) < user shortkeys.
 
-      Key rule: a value set in config.toml ALWAYS wins over a scene's
-      hardcoded default. Scenes only fill keys the user did NOT set.
+      Key rules: a value set in config.toml ALWAYS wins over a scene's
+      hardcoded default (scenes only fill keys the user did NOT set);
+      at runtime a present config key beats the locked CLI value (the
+      CLI lock is only the fallback when the key is removed); while an
+      ambient phase is active, the scheduled scene owns scene, color,
+      charset, fps, speed, density, and glitch-level.
 
 DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and

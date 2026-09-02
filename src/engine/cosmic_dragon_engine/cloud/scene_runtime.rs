@@ -10,8 +10,8 @@
 //! `apply_scene_runtime` now accepts an optional `cfg` parameter
 //! (via the `_with_cfg` variant) so it can resolve custom scenes by looking
 //! up `[scene-custom.<name>]` blocks. When the named scene is a custom
-//! scene, the runtime applies the block's `base-scene` defaults first
-//! (rain_style + scene-managed fields), then the block's own overrides.
+//! scene, the runtime applies the block's complete self-contained field
+//! layer (v80.0.0-beta.2: no `base-scene` inheritance — glyph rain).
 //! Built-in scene names take the fast path (no cfg lookup needed).
 
 use std::collections::HashMap;
@@ -68,13 +68,9 @@ impl Cloud {
     ///
     /// Like [`Cloud::apply_scene_runtime`] but also resolves custom scenes
     /// via `[scene-custom.<name>]` blocks in `cfg`. When `scene_name` is a
-    /// custom scene:
-    ///
-    /// 1. Look up `scene-custom.<name>` block.
-    /// 2. If `base-scene = <built-in>` is set, apply that built-in scene's
-    ///    rain_style + color/charset/speed/density/glitch defaults first.
-    /// 3. Apply the custom block's own overrides (color/charset/speed/
-    ///    density/glitch-level) on top.
+    /// custom scene, apply its (complete, self-contained) field layer —
+    /// v80.0.0-beta.2: no `base-scene` inheritance; custom scenes render
+    /// `RainStyle::Glyph` (see `scene_custom::resolve_rain_style`).
     ///
     /// Built-in scene names take the fast path (same as
     /// `apply_scene_runtime`). Unknown scenes (neither built-in nor a
@@ -137,9 +133,13 @@ impl Cloud {
         // the transition wave destabilizes apply_quantum_ripple's blend base
         // (cell.fg is mid-transition old/new palette mix), producing
         // inconsistent click effect colors — the "snow ice vs spark fire" bug.
+        // v80.0.0-beta.2 (S-master-LOGIC-3): the guard must ALSO fire when a
+        // custom palette is active — the ambient scene owns color, so a
+        // lingering config/CLI palette shadowing the same scheme is cleared
+        // (set_color_scheme drops custom_palette_active + rebuilds).
         if let Some(color_name) = config.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
-                if scheme != self.color_scheme {
+                if scheme != self.color_scheme || self.custom_palette_active {
                     self.set_color_scheme(scheme);
                 }
             }
@@ -187,14 +187,20 @@ impl Cloud {
 
     /// Apply a custom scene (from `[scene-custom.<name>]` block) at runtime.
     ///
-    /// Step 1: apply base-scene's defaults (rain_style + color/charset/speed/
-    /// density/glitch) if `base-scene = <built-in>` is set.
-    /// Step 2: apply the custom block's own overrides (color/charset/speed/
-    /// density/glitch-level). Fields not set in the block retain the base
-    /// scene's values (or current Cloud state if no base-scene).
+    /// v80.0.0-beta.2 schema (S-master-LOGIC-3): the block is a complete
+    /// self-contained profile — no `base-scene` inheritance (custom scenes
+    /// always render `RainStyle::Glyph`), and the field set is exactly the
+    /// six scene-family dimensions (color|colors-custom,
+    /// charset|charset-custom, speed, density, glitch-level; `fps` is
+    /// applied by the event loop via `scene_custom::ambient_scene_fps`).
+    /// `bold`, `shading-mode`, and `async-mode` are NOT scene-family
+    /// dimensions — they were removed from the schema; the top-level
+    /// config keys stay live-reloadable.
     ///
-    /// `fps`, `monolith-size`, `color-bg` are NOT applied at
-    /// runtime — they live on the event loop / Cloud construction path.
+    /// The ambient scheduler outranks config keys for these fields while
+    /// a phase is active (this method is the ambient apply path), and
+    /// outranks locked CLI values unconditionally — the runtime chain is
+    /// shortkeys > ambient scene > config > CLI lock.
     fn apply_custom_scene_runtime(
         &mut self,
         scene_name: &str,
@@ -217,69 +223,25 @@ impl Cloud {
         self.scene_name = scene_name.to_string();
         let mut charset_preset = current_charset_preset.to_string();
 
-        // Step 1: apply base-scene defaults (if any).
-        if let Some(base_name) = custom.base_scene.as_deref() {
-            if let Some(base_info) = crate::scene::get_scene(base_name) {
-                let base_cfg = base_info.config;
-                // rain_style
-                let new_style = base_cfg.rain_style;
-                if self.rain_style != new_style {
-                    self.transition_rain_style(new_style);
-                }
-                // color — guard: skip set_color_scheme when the base-scene's
-                // color matches the current scheme (same rationale as the
-                // built-in path: avoid spurious palette transition wave).
-                if let Some(color_name) = base_cfg.color {
-                    if let Ok(scheme) = parse_color_scheme(color_name) {
-                        if scheme != self.color_scheme {
-                            self.set_color_scheme(scheme);
-                        }
-                    }
-                }
-                // charset — guard: skip transition_chars when the base-scene's
-                // charset matches the current preset (same rationale as the
-                // built-in path: avoid spurious charset transition wave).
-                let base_charset = base_cfg.charset.unwrap_or(current_charset_preset);
-                charset_preset = base_charset.to_string();
-                if base_charset != current_charset_preset {
-                    if let Ok(cs) = charset_from_str(base_charset, def_ascii) {
-                        let chars = build_chars(cs, user_ranges, def_ascii);
-                        self.transition_chars(chars);
-                    }
-                }
-                // speed
-                if let Some(speed) = base_cfg.speed {
-                    self.set_chars_per_sec(speed);
-                }
-                // density
-                if let Some(density) = base_cfg.density {
-                    self.set_droplet_density(density);
-                }
-                // glitch
-                if let Some(glitch) = base_cfg.glitch_level {
-                    self.apply_glitch_level_runtime(glitch);
-                }
-            }
-        } else {
-            // No base-scene — transition rain_style to Glyph (custom scenes
-            // default to Glyph when no base-scene is set, matching the
-            // construction-time rain_style_for_custom_scene fallback).
-            if !matches!(self.rain_style, RainStyle::Glyph) {
-                self.transition_rain_style(RainStyle::Glyph);
-            }
+        // v80.0.0-beta.2: no base-scene layer — custom scenes always
+        // render glyph rain (base-scene inheritance removed with the
+        // schema simplification; see scene_custom::resolve_rain_style).
+        if !matches!(self.rain_style, RainStyle::Glyph) {
+            self.transition_rain_style(RainStyle::Glyph);
         }
 
-        // Step 2: apply custom block overrides.
-        // color (built-in scheme via `color`, OR custom palette via `colors-custom`)
-        // (Color-#2): add `if scheme != self.color_scheme` guard matching
-        // the built-in path (line 142-146). Without this, an ambient fire of a
-        // custom scene whose `color` matches the current scheme triggers a
-        // spurious 300ms palette transition wave — the "snow ice vs spark fire"
-        // bug. The guard at line 234-237 (Step 1 base-scene) already has this
-        // check; this fix makes Step 2 consistent.
+        // Field layer: color (built-in scheme via `color`, OR custom
+        // palette via `colors-custom` / a block-referencing `color`).
+        // (Color-#2): the `scheme != self.color_scheme` guard prevents a
+        // spurious 300ms palette transition wave when the block's color
+        // matches the current scheme (the "snow ice vs spark fire" bug).
+        // v80.0.0-beta.2 (S-master-LOGIC-3): the guard also fires when a
+        // custom palette is active — the ambient scene owns color, so a
+        // lingering config/CLI palette shadowing the same scheme is
+        // cleared (set_color_scheme drops custom_palette_active).
         if let Some(color_name) = &custom.color {
             if let Ok(scheme) = parse_color_scheme(color_name) {
-                if scheme != self.color_scheme {
+                if scheme != self.color_scheme || self.custom_palette_active {
                     self.set_color_scheme(scheme);
                 }
             } else if let Ok(palette) = crate::colors_custom::load_custom_palette(cfg, color_name) {
@@ -345,52 +307,12 @@ impl Cloud {
                 self.apply_glitch_level_runtime(level);
             }
         }
-        // bold (0=Off, 1=Random, 2=All) — matches --bold CLI.
-        // (CLI-V-5): tighten to reject values > 2 (was silently Random).
-        // testconf rejects bold=99 with an error; the startup top-level path
-        // rejects via parse_canonical_u8_range. This makes the runtime scene
-        // path consistent: unknown values are silently ignored (mode unchanged)
-        // rather than silently coerced to Random. Uses a labeled block so we
-        // skip just the assignment, NOT the rest of the function (return would
-        // wrongly skip shading-mode/async-mode/etc. fields below).
-        if let Some(bold_str) = &custom.bold {
-            if let Ok(n) = bold_str.trim().parse::<u8>() {
-                'bold: {
-                    let mode = match n {
-                        0 => crate::runtime::BoldMode::Off,
-                        1 => crate::runtime::BoldMode::Random,
-                        2 => crate::runtime::BoldMode::All,
-                        _ => break 'bold,
-                    };
-                    self.bold_mode = mode;
-                }
-            }
-        }
-        // shading-mode (0=Random, 1=DistanceFromHead).
-        // (CLI-V-5): tighten to reject values > 1 (was silently Random).
-        if let Some(shading_str) = &custom.shading_mode {
-            if let Ok(n) = shading_str.trim().parse::<u8>() {
-                'shading: {
-                    let sm = match n {
-                        0 => crate::runtime::ShadingMode::Random,
-                        1 => crate::runtime::ShadingMode::DistanceFromHead,
-                        _ => break 'shading,
-                    };
-                    self.set_shading_mode(sm);
-                }
-            }
-        }
-        // async-mode (true/false).
-        if let Some(async_str) = &custom.async_mode {
-            let on = matches!(
-                async_str.trim().to_ascii_lowercase().as_str(),
-                "true" | "1" | "yes" | "on"
-            );
-            self.set_async(on);
-        }
-        // Note: fps is not runtime-applicable — it is
-        // construction-time only. monolith-size and color-bg are forbidden
-        // in scene-custom blocks per  owner contract.
+        // Note: fps is applied by the event loop (power manager + HUD)
+        // via `scene_custom::ambient_scene_fps` — the Cloud does not own
+        // frame pacing. bold/shading-mode/async-mode are NOT scene-family
+        // dimensions (removed from the schema in v80.0.0-beta.2; the
+        // top-level config keys stay live-reloadable). monolith-size and
+        // color-bg are forbidden in scene-custom blocks per owner contract.
 
         self.semantic_invalidate = true;
         self.force_draw_everything = true;

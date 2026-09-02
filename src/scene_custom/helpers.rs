@@ -4,21 +4,23 @@
 //! Scene-custom parse helpers — extracted from `scene_custom/mod.rs`
 //! to keep that file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Owns 9 pure helper functions used by apply_profile_overrides +
+//! Owns the pure helper functions used by apply_profile_overrides +
 //! apply_scene_custom_field_to_cloud_config:
-//! - parse_f32_override / parse_f64_override / parse_u8_override: range-validated numeric parsing.
+//! - parse_f32_override / parse_f64_override: range-validated numeric parsing.
 //! - parse_speed_override: speed-specific parser with clamp.
-//! - parse_color_bg: ColorBg enum parser (black/default).
-//! - parse_bool: boolean parser (true/false/1/0/yes/no).
 //! - profile_name_list: comma-separated profile name list.
 //! - is_explicit: clap ValueSource::CommandLine check.
 //! - warn_invalid: warning printer for invalid scene-custom values.
+//!
+//! v80.0.0-beta.2 (S-master-LOGIC-3): parse_u8_override (bold /
+//! shading-mode), parse_color_bg (color-bg), and parse_bool (async-mode)
+//! were removed together with their fields — scene-custom blocks no
+//! longer carry style dimensions.
 
 use std::collections::BTreeMap;
 
 use clap::parser::ValueSource;
 
-use crate::config::ColorBg;
 use crate::constants::{SPEED_MAX, SPEED_MIN};
 use crate::validation::{
     parse_canonical_f32_range, parse_canonical_f64_range, parse_canonical_speed,
@@ -76,46 +78,6 @@ pub(crate) fn parse_speed_override(name: &str, value: &str) -> Option<f32> {
             );
         })
         .ok()
-}
-
-pub(crate) fn parse_color_bg(value: &str) -> Option<ColorBg> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "black" => Some(ColorBg::Black),
-        "default-background" | "default_background" => Some(ColorBg::DefaultBackground),
-        _ => None,
-    }
-}
-
-/// Parse a u8 field for scene-custom/profile application.
-pub(crate) fn parse_u8_override(
-    name: &str,
-    field: &str,
-    value: &str,
-    min: u8,
-    max: u8,
-) -> Option<u8> {
-    let v = value.trim();
-    match v.parse::<u8>() {
-        Ok(n) if n >= min && n <= max => Some(n),
-        _ => {
-            warn_invalid(
-                name,
-                field,
-                value,
-                &format!("integer in range {min}..={max}"),
-            );
-            None
-        }
-    }
-}
-
-/// Parse a bool field ("true"/"false", case-insensitive, also accepts "1"/"0").
-pub(crate) fn parse_bool(value: &str) -> Option<bool> {
-    match value.trim().to_ascii_lowercase().as_str() {
-        "true" | "1" | "yes" | "on" => Some(true),
-        "false" | "0" | "no" | "off" => Some(false),
-        _ => None,
-    }
 }
 
 pub(crate) fn profile_name_list(profiles: &BTreeMap<String, UserProfile>) -> String {

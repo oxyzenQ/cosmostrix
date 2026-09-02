@@ -12,6 +12,7 @@ mod fresh_entry;
 mod residue;
 mod sparse_entry;
 mod transitions;
+mod transitions_ambient;
 
 use super::Cloud;
 use crate::frame::Frame;

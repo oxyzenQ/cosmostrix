@@ -161,18 +161,33 @@ fn dump_config_contains_all_supported_keys() {
 
 #[test]
 fn dump_config_documents_paired_field_split() {
-    // the dump-config template must explicitly document the
-    // split between `color` (built-in) and `colors-custom` (custom
-    // block ref), and the symmetric split for `charset` vs
-    // `charset-custom`. This prevents the duplicate-usage confusion
-    // reported by the owner. The note is enforced by content anchor —
-    // if a future edit removes the "Paired fields" header, this test
-    // fails loudly.
+    // v80.0.0-beta.2: the dump-config template must explicitly document
+    // the paired-field split (`color`/`colors-custom`,
+    // `charset`/`charset-custom`) AND the completeness requirement —
+    // all six dimensions, hard error when incomplete (S-master-LOGIC-3).
+    // Enforced by content anchor: if a future edit drops any anchor,
+    // this test fails loudly.
     let dump = dump_config_text();
     assert!(
-            dump.contains("Paired fields"),
-            "dump config should include the 'Paired fields' note (color vs colors-custom, charset vs charset-custom)"
-        );
+        dump.contains("ALL six dimensions are"),
+        "template must state the completeness requirement"
+    );
+    assert!(
+        dump.contains("incomplete block is a hard error"),
+        "template must warn that incomplete blocks are rejected"
+    );
+    assert!(
+        dump.contains("color OR colors-custom"),
+        "template must document the color pair"
+    );
+    assert!(
+        dump.contains("charset OR charset-custom"),
+        "template must document the charset pair"
+    );
+    assert!(
+        dump.contains("REMOVED in v80.0.0-beta.2: base-scene"),
+        "template must document the base-scene removal"
+    );
     // Each paired field's doc line should also appear in the custom
     // palettes / custom charsets sections, pointing users at the right
     // reference field.

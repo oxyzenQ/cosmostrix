@@ -93,7 +93,11 @@ fn config_scene_custom_name_is_accepted_at_startup_apply() {
     // `scene = hacker-mode` in config.toml must resolve (the fatal
     // "unknown scene" startup error blocked every launch, including CLI
     // overrides, while the runtime path accepted the name).
-    let config = "scene = \"hacker-mode\"\n[scene-custom.hacker-mode]\nbase-scene = \"matrix\"\n";
+    // v80.0.0-beta.2: the block is a complete six-dimension profile
+    // (base-scene removed; completeness is required).
+    let config = "scene = \"hacker-mode\"\n[scene-custom.hacker-mode]\n\
+color = \"green\"\ncharset = \"hacker\"\nfps = 60\nspeed = 28\n\
+density = 1.2\nglitch-level = \"intense\"\n";
     let args = args_with_config(config, &[]);
     assert_eq!(args.scene.as_deref(), Some("hacker-mode"));
     assert_eq!(args.scene_custom.as_deref(), Some("hacker-mode"));

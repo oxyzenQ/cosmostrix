@@ -122,7 +122,9 @@ pub(crate) fn apply_config_rebuild(
             }
             super::event_loop_scene_sync::SceneBaseAction::SyncRuntime => {
                 super::event_loop_scene_sync::sync_base_cfg_with_runtime_scene(
-                    base_cfg, scene_name,
+                    base_cfg,
+                    scene_name,
+                    &new_cfg_map,
                 );
             }
         }
@@ -227,13 +229,27 @@ pub(crate) fn apply_config_rebuild(
             *ambient_snapback_killed = false;
         }
         // re-apply last ambient entry to fresh Cloud.
+        //
+        // v80.0.0-beta.2 (S-master-LOGIC-3): the `!cloud.custom_palette_active`
+        // guard is REMOVED. It encoded "an explicit palette outranks the
+        // ambient overlay", which contradicts the owner's runtime chain
+        // (user shortkeys > ambient scene > config keys > CLI lock): a
+        // config `color = <custom palette>` edit set the flag on the
+        // rebuilt cloud and silently SKIPPED this re-apply, so the
+        // ambient scene's color/charset lost to the config value (owner
+        // bug: ambient hacker-mode active, user set color=test — HUD kept
+        // clr:test instead of the ambient scene's green). The ambient
+        // entry now always re-asserts ownership on rebuild; a user
+        // SHORTKEY override is still respected via the rx-event path's
+        // user_override_since_ambient deferral (snapback re-asserts after
+        // ambient-snapback-secs of idle).
         if let Some(ref last_entry) = last_applied_ambient_entry {
             let still_in = new_cfg
                 .ambient_schedule
                 .entries
                 .iter()
                 .any(|e| e == last_entry);
-            if still_in && !cloud.custom_palette_active {
+            if still_in {
                 let cm = last_applied_cfg_map.clone().unwrap_or_default();
                 *charset_preset = cloud.apply_ambient_entry(
                     last_entry,
@@ -251,6 +267,15 @@ pub(crate) fn apply_config_rebuild(
                 term.set_color_cache(ColorCache::new(&cloud.palette));
                 *frame = Frame::new(w, h, cloud.palette.bg);
                 super::fill_terminal_bg(cloud.palette.bg);
+                // v80.0.0-beta.2 (S-master-LOGIC-3): the ambient scene owns
+                // fps for the same reason it owns color/charset/speed/
+                // density/glitch — apply the scene's declared fps (built-in
+                // default or scene-custom field) to the power manager, HUD
+                // and the effective-config tracker. A scene that declares
+                // no fps leaves the current target untouched.
+                if let Some(fps) = crate::scene_custom::ambient_scene_fps(&last_entry.scene, &cm) {
+                    apply_ambient_fps(fps, cfg, power_manager, hud_state, current_cfg);
+                }
             } else if !still_in {
                 crate::lr_trace!("ambient: last entry no longer in schedule — clearing tracker");
                 *last_applied_ambient_entry = None;
@@ -317,4 +342,32 @@ pub(crate) fn apply_config_rebuild(
     }
 
     false
+}
+
+/// v80.0.0-beta.2 (S-master-LOGIC-3): apply an ambient-owned fps target to
+/// the event-loop frame pacing (power manager + HUD) and the effective
+/// config tracker (`current_cfg.target_fps` — the source the post-exit
+/// final-runtime-state verbose reads).
+///
+/// Shared by `apply_config_rebuild`'s ambient re-apply and (via the
+/// return-value plumbing in `event_loop.rs`) the rx-event / snapback /
+/// overlay-lift paths in `event_loop_ambient.rs`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn apply_ambient_fps(
+    fps: f64,
+    startup_cfg: &CloudConfig,
+    power_manager: &mut PowerManager,
+    hud_state: &mut HudState,
+    current_cfg: &mut CloudConfig,
+) {
+    current_cfg.target_fps = fps;
+    let safe_fps = current_cfg.resolve_capped_fps(startup_cfg.target_fps);
+    power_manager.set_target_fps(safe_fps);
+    hud_state.set_target_fps(safe_fps);
+    crate::lr_trace!(
+        "ambient: fps intent {:.1} applied (capped {:.1}, was startup {:.1})",
+        fps,
+        safe_fps,
+        startup_cfg.target_fps
+    );
 }

@@ -188,11 +188,15 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         } else {
             let field = parts[2];
             let value = parsed.values.get(*pk).map(String::as_str).unwrap_or("");
-            // Use the canonical PROFILE_FIELDS list so testconf never drifts
-            // from the actual config parser. Previously this was a hardcoded
-            // copy that drifted when fields were added or removed (the
-            // density-map removal in v80.0.0-beta.2 is the latest example).
-            let valid_fields: &[&str] = crate::scene_custom::PROFILE_FIELDS;
+            // Use the canonical SCENE_CUSTOM_FIELDS list so testconf never
+            // drifts from the actual config parser. Previously this was a
+            // hardcoded copy that drifted when fields were added or removed
+            // (the density-map removal in v80.0.0-beta.2 is the latest
+            // example). v80.0.0-beta.2 (S-master-LOGIC-3): the list shrunk
+            // to the six scene-family dimensions — base-scene/bold/
+            // shading-mode/async-mode are removed and land here as unknown
+            // block fields (with a targeted migration hint).
+            let valid_fields: &[&str] = crate::scene_custom::SCENE_CUSTOM_FIELDS;
             if !valid_fields.contains(&field) {
                 crate::output::eprintln_error_labeled(&format!(
                     "testconf: unknown block field '{field}' in '{pk}'"
@@ -202,10 +206,11 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             } else {
                 // Field is recognized — now validate the VALUE using the same
                 // rules as top-level keys. Block fields accept the same value
-                // vocabulary (color, charset, scene, atmosphere-regime, etc.).
-                // The context-aware variant emits a richer hint when the value
-                // matches a custom block (e.g. `color = z` where `[colors-custom.z]`
-                // exists — points the user to `colors-custom = z`).
+                // vocabulary (color, charset, fps, speed, density,
+                // glitch-level). The context-aware variant emits a richer
+                // hint when the value matches a custom block (e.g.
+                // `color = z` where `[colors-custom.z]` exists — points the
+                // user to `colors-custom = z`).
                 if let Some(msg) = validate_field_value_with_cfg(field, value, &parsed.values) {
                     crate::output::eprintln_error_labeled(&format!(
                         "testconf: {pk} = {value}: {msg}"
@@ -214,6 +219,17 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                 }
             }
         }
+    }
+
+    // v80.0.0-beta.2 (S-master-LOGIC-3): scene-custom blocks must be
+    // COMPLETELY filled — one of each pair (color|colors-custom,
+    // charset|charset-custom) plus fps, speed, density, glitch-level.
+    // An incomplete block is a hard error (owner mandate: "if user not
+    // complete fill under block scene custom value will be error because
+    // should complete filled").
+    if let Err(msg) = crate::scene_custom::validate_scene_custom_completeness(&parsed.values) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
     }
 
     // Validate known value-ranges for top-level (non-block) keys.
@@ -321,6 +337,13 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
 pub(crate) fn validate_config_strictly(
     cfg: &std::collections::HashMap<String, String>,
 ) -> Result<(), String> {
+    // v80.0.0-beta.2 (S-master-LOGIC-3): scene-custom blocks must be
+    // COMPLETELY filled — one of each pair (color|colors-custom,
+    // charset|charset-custom) plus fps, speed, density, glitch-level.
+    // Runs BEFORE the per-key loop so the completeness error surfaces
+    // first (it names the block, not a single key). Startup, the
+    // live-reload watcher, and --testconf all reject through here.
+    crate::scene_custom::validate_scene_custom_completeness(cfg)?;
     for (key, value) in cfg {
         if key.starts_with("scene-custom.") {
             continue;

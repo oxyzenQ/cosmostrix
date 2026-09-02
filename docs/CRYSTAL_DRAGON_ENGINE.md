@@ -293,10 +293,12 @@ the entry, define a custom scene:
 
 ```toml
 [scene-custom.afternoon]
-base-scene = "signal"      # inherits signal's rain_style + defaults
-color = "neon-purple"      # overrides signal's color
-speed = "50"               # overrides signal's speed
-density = "0.65"           # overrides signal's density
+color = "neon-purple"      # built-in name OR colors-custom = "<palette>"
+charset = "retro"          # built-in preset OR charset-custom = "<set>"
+fps = 60
+speed = "50"
+density = "0.65"
+glitch-level = "subtle"    # all six dimensions required (v80.0.0-beta.2)
 
 # Top-level — outside any [section] block:
 ambient.15-00 = afternoon

@@ -53,7 +53,19 @@ pub(crate) fn poll_ambient_events(
     current_cfg: &crate::app::CloudConfig,
     startup_cfg: &CloudConfig,
     last_user_input_at: std::time::Instant,
-) {
+) -> Option<f64> {
+    // v80.0.0-beta.2 (S-master-LOGIC-3) fps intent: the ambient scene
+    // owns fps exactly like it owns color/charset/speed/density/glitch
+    // (owner contract: "this wins runtime over config: fps, speed,
+    // density, glitch-level, color, charset, scene"). The Cloud does not
+    // own frame pacing, so this function RETURNS the fps the event loop
+    // should apply to the power manager + HUD when an ambient event
+    // changed the effective scene:
+    //   - an rx-event / snapback applied an entry  -> the scene's fps;
+    //   - the overlay lifted (revert to startup)   -> the locked startup
+    //     fps (the CLI/config startup resolution);
+    //   - no state change                          -> None (untouched).
+    let mut fps_intent: Option<f64> = None;
     // AB-03+AB-04: poll ambient phase events. Empty schedule → drain; non-empty → discard stale.
     let mut last_ambient_entry: Option<crate::crystal_dragon_engine::ambient::AmbientEntry> = None;
     if !last_ambient_schedule.entries.is_empty() {
@@ -84,7 +96,7 @@ pub(crate) fn poll_ambient_events(
                     // v80.0.0-beta.1: BEFORE clearing the tracker, capture whether the
                     // current scene is ambient-owned — the nuke must revert
                     // it (the overlay is lifting), not leave it stuck.
-                    revert_ambient_owned_scene(
+                    if revert_ambient_owned_scene(
                         cloud,
                         frame,
                         term,
@@ -92,12 +104,19 @@ pub(crate) fn poll_ambient_events(
                         scene_name,
                         scene_generation,
                         last_applied_ambient_entry,
+                        last_applied_cfg_map,
                         startup_cfg,
                         user_ranges,
                         def_ascii,
                         w,
                         h,
-                    );
+                    ) {
+                        // v80.0.0-beta.2: the overlay lifted — the fps falls
+                        // back to the LOCKED startup resolution (CLI
+                        // --fps/config fps at startup), same as the rest of
+                        // the scene family.
+                        fps_intent = Some(startup_cfg.target_fps);
+                    }
                     last_ambient_schedule.entries.clear();
                     *last_applied_ambient_entry = None;
                     cloud.ambient_palette_locked = false;
@@ -153,6 +172,10 @@ pub(crate) fn poll_ambient_events(
             term.set_color_cache(ColorCache::new(&cloud.palette));
             *frame = Frame::new(w, h, cloud.palette.bg);
             super::fill_terminal_bg(cloud.palette.bg);
+            // v80.0.0-beta.2 (S-master-LOGIC-3): the freshly-applied
+            // ambient scene owns fps too — hand the scene's declared fps
+            // (built-in default or scene-custom field) to the caller.
+            fps_intent = crate::scene_custom::ambient_scene_fps(&entry.scene, &cfg_map);
         }
     }
     // AB-08: snapback ground-truth guard — re-read config file (~50µs I/O, ≤ once per 30s).
@@ -180,7 +203,7 @@ pub(crate) fn poll_ambient_events(
     if ground_truth_ambient_empty {
         // v80.0.0-beta.1: same overlay-lift revert as the rx-event nuke above —
         // capture ownership from the pre-clear state, then revert.
-        revert_ambient_owned_scene(
+        if revert_ambient_owned_scene(
             cloud,
             frame,
             term,
@@ -188,12 +211,15 @@ pub(crate) fn poll_ambient_events(
             scene_name,
             scene_generation,
             last_applied_ambient_entry,
+            last_applied_cfg_map,
             startup_cfg,
             user_ranges,
             def_ascii,
             w,
             h,
-        );
+        ) {
+            fps_intent = Some(startup_cfg.target_fps);
+        }
         last_ambient_schedule.entries.clear();
         *last_applied_ambient_entry = None;
         cloud.ambient_palette_locked = false;
@@ -227,7 +253,16 @@ pub(crate) fn poll_ambient_events(
         *frame = Frame::new(w, h, cloud.palette.bg);
         super::fill_terminal_bg(cloud.palette.bg);
         *next_frame = Instant::now();
+        // v80.0.0-beta.2 (S-master-LOGIC-3): snapback re-asserted the
+        // ambient entry — it owns fps too. The entry the snapback applied
+        // is in `last_applied_ambient_entry` (updated by the callee).
+        if let Some(entry) = last_applied_ambient_entry.as_ref() {
+            let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
+            fps_intent = crate::scene_custom::ambient_scene_fps(&entry.scene, &cfg_map);
+        }
     }
+
+    fps_intent
 }
 
 /// v80.0.0-beta.1 ambient overlay lift: revert an ambient-owned scene to the locked
@@ -254,19 +289,20 @@ fn revert_ambient_owned_scene(
     scene_name: &mut String,
     scene_generation: &mut u64,
     last_applied_ambient_entry: &Option<AmbientEntry>,
+    last_applied_cfg_map: &Option<HashMap<String, String>>,
     startup_cfg: &CloudConfig,
     user_ranges: &[(char, char)],
     def_ascii: bool,
     w: u16,
     h: u16,
-) {
+) -> bool {
     let ambient_owned = !cloud.user_override_since_ambient
         && *scene_name != startup_cfg.scene_name
         && last_applied_ambient_entry
             .as_ref()
             .is_some_and(|e| e.scene == *scene_name);
     if !ambient_owned {
-        return;
+        return false;
     }
     crate::lr_trace!(
         "ambient: schedule emptied — reverting ambient-owned scene '{}' to the locked startup scene '{}'",
@@ -275,14 +311,23 @@ fn revert_ambient_owned_scene(
     );
     *scene_name = startup_cfg.scene_name.clone();
     *scene_generation = (*scene_generation).wrapping_add(1);
-    *charset_preset = cloud.apply_scene_runtime(
+    // v80.0.0-beta.2: use the _with_cfg variant so a CUSTOM locked startup
+    // scene (e.g. `--scene hacker-mode` or config `scene = hacker-mode`)
+    // resolves its [scene-custom.<name>] field layer — the builtin-only
+    // `apply_scene_runtime` was a silent no-op for custom names, leaving
+    // the visual state stuck on the ambient scene while the HUD label
+    // claimed the startup scene.
+    let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
+    *charset_preset = cloud.apply_scene_runtime_with_cfg(
         startup_cfg.scene_name.as_str(),
         &*charset_preset,
         user_ranges,
         def_ascii,
+        &cfg_map,
     );
     cloud.user_override_since_ambient = true;
     term.set_color_cache(ColorCache::new(&cloud.palette));
     *frame = Frame::new(w, h, cloud.palette.bg);
     super::fill_terminal_bg(cloud.palette.bg);
+    true
 }

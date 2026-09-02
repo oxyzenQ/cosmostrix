@@ -9,6 +9,57 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.2 — S-master-LOGIC-3 runtime precedence masterclass
+
+Owner-initiated internal research session (S-master-LOGIC-1/2/3):
+
+1. **Runtime precedence contract fix (S-master-LOGIC-3).** The CLI
+   wins ONLY at startup; at runtime a present config value (including
+   the active `[scene-custom.<name>]` block's fields) overrides the
+   locked CLI value, and the CLI lock survives as the fallback when
+   the key is removed. Root cause: premature "CLI always wins" gates
+   (`cli_explicit.*`) in the live-reload scene-custom field layer —
+   owner bug: `-c test -C test --scene hacker-mode` + config
+   live-reload to a scene-custom block kept the stale CLI color and
+   charset on the HUD. Gates removed; 8 inverted contract regression
+   tests added.
+
+2. **Ambient consistency fix (S-master-LOGIC-3).** While an ambient
+   phase is active, the scheduled scene owns the seven scene-family
+   dimensions (`scene`, `color`, `charset`, `fps`, `speed`, `density`,
+   `glitch-level`) — over config AND CLI locks. Root cause: the
+   rebuild re-apply guard `!cloud.custom_palette_active` let a
+   config-set custom palette skip the ambient re-assertion (owner
+   bug: ambient hacker-mode lost `clr:` to config `color = test`).
+   Guard removed; ambient apply also clears a lingering palette when
+   the scene's scheme matches the current one.
+
+3. **Ambient fps ownership (S-master-LOGIC-3).** fps was
+   construction-time only, so an ambient-applied scene's `fps` never
+   took effect. New `scene_custom::ambient_scene_fps()` resolves the
+   built-in scene default or the scene-custom block field, and the
+   event loop applies it to the power manager + HUD on every ambient
+   apply path (startup, rx-event, snapback, rebuild re-apply); the
+   overlay-lift revert restores the locked startup fps.
+
+4. **Scene-custom schema simplification (S-master-LOGIC-3).** A block
+   is a COMPLETE six-dimension profile: `color`/`colors-custom`,
+   `charset`/`charset-custom`, `fps`, `speed`, `density`,
+   `glitch-level` — ALL required; an incomplete block is a hard
+   validation error at startup, on live-reload, and in `--testconf`.
+   `base-scene` inheritance is REMOVED (custom scenes always render
+   glyph rain) and `bold`/`shading-mode`/`async-mode` are removed
+   from blocks (top-level keys stay live-reloadable). Legacy keys get
+   targeted `config_hints` migration hints.
+
+5. **Overlay-lift revert completeness (S-master-LOGIC-3).** Removing
+   the ambient schedule now reverts the FULL locked startup family:
+   custom startup scenes resolve their block layer
+   (`apply_scene_runtime_with_cfg` — the builtin-only path was a
+   silent no-op for custom names), the locked `fps` returns, and
+   `scene_custom_name` + the custom palette roll back with the rest
+   of the family.
+
 ### harmony: v80.0.0-beta.1 — config live-reload honesty pass + v51 stale-version sweep
 
 Owner-initiated internal research session. Five atomic micro-commits,

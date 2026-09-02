@@ -238,6 +238,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         last_applied_ambient_entry = Some(entry);
         super::ambient_diag_startup();
         super::ambient_diag_scene_change("startup");
+        // v80.0.0-beta.2 (S-master-LOGIC-3): the startup-applied ambient
+        // scene owns fps like every other scene-family dimension — apply
+        // its declared fps (built-in default or scene-custom field) to
+        // the power manager, HUD, and the effective-config tracker.
+        if let Some(fps) = crate::scene_custom::ambient_scene_fps(&scene_name, &initial_cfg_map) {
+            super::event_loop_config_rebuild::apply_ambient_fps(
+                fps,
+                cfg,
+                &mut power_manager,
+                &mut hud_state,
+                &mut current_cfg,
+            );
+        }
     }
     // Track runtime state for post-exit verbose summary.
     while cloud.raining {
@@ -289,7 +302,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // event_loop_ambient.rs.
         // v80.0.0-beta.1: startup_cfg passed for the ambient overlay-lift revert
         // (ground-truth nuke path — see event_loop_ambient.rs).
-        super::event_loop_ambient::poll_ambient_events(
+        // v80.0.0-beta.2 (S-master-LOGIC-3): poll_ambient_events returns
+        // the ambient-owned fps intent (Some when an rx-event / snapback /
+        // overlay-lift changed the effective scene, None otherwise). The
+        // Cloud does not own frame pacing — the event loop applies the
+        // intent to the power manager + HUD + effective-config tracker.
+        if let Some(fps) = super::event_loop_ambient::poll_ambient_events(
             &mut cloud,
             &mut frame,
             &mut term,
@@ -311,7 +329,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             &current_cfg,
             &startup_cfg,
             last_user_input_at,
-        );
+        ) {
+            super::event_loop_config_rebuild::apply_ambient_fps(
+                fps,
+                cfg,
+                &mut power_manager,
+                &mut hud_state,
+                &mut current_cfg,
+            );
+        }
 
         // v50.0.0-beta.7 LOC refactor: adaptive throttling extracted to
         // event_loop_adaptive.rs.

@@ -3,35 +3,35 @@
 
 //! User-defined custom scene support for `[scene-custom.<name>]` config blocks.
 //!
-//! Custom scenes are user-authored themes that stand on their own — they
-//! no longer inherit from a `base-scene`. Missing fields fall back to
-//! global defaults (`DEFAULT_SCENE` = cinematic), not to another named scene.
-//! This makes custom scenes first-class citizens: when invoked via
-//! `--scene-custom <name>`, the verbose output shows `scene: <name>` and
-//! live reload applies edits to the block immediately.
-//!
-//! ## changes
-//!
-//! `base-scene` is RESTORED with cleaner inheritance semantics. When a
-//! `[scene-custom.<name>]` block sets `base-scene = <built-in-scene>`, the
-//! custom scene inherits ALL scene-managed defaults (color, charset, fps,
-//! speed, density, glitch-level, rain_style) from that built-in scene
-//! before applying its own overrides. This lets users write:
+//! v80.0.0-beta.2 schema (owner contract, S-master-LOGIC-3): a custom
+//! scene is a COMPLETE, self-contained profile — exactly six conceptual
+//! fields, ALL required:
 //!
 //! ```toml
-//! [scene-custom.afternoon]
-//! base-scene = "signal"
-//! color = "neon-green"
-//! speed = "50"
+//! [scene-custom.example]
+//! color = "aurora"              # built-in color name  OR:
+//! # colors-custom = "aurora"    # custom palette block reference
+//! charset = "binary"            # built-in charset     OR:
+//! # charset-custom = "binary"   # custom charset block reference
+//! fps = 90
+//! speed = 12
+//! density = 0.90
+//! glitch-level = "none"
 //! ```
 //!
-//! ...and get the `signal` rain style + signal's density/glitch, but with
-//! neon-green color and speed 50.
+//! Each of the six fields must be present (one of each pair) — an
+//! incomplete block is a hard validation error (`--testconf`, startup,
+//! and live-reload all reject it). The block owns the same six
+//! scene-family dimensions an ambient entry owns (scene, color,
+//! charset, fps, speed, density, glitch-level).
 //!
-//! The legacy `preset` field remains removed (it was a confusing synonym
-//! for `base-scene`). Chained inheritance (`base-scene = <custom-name>`)
-//! is NOT supported — base-scene must be a built-in scene name. This
-//! keeps the apply graph a flat 2-level, avoiding cycles.
+//! REMOVED in v80.0.0-beta.2 (owner mandate): `base-scene` (custom
+//! scenes no longer inherit from built-ins — they stand alone and
+//! always render `RainStyle::Glyph`), `bold`, `shading-mode`, and
+//! `async-mode` (not scene-family dimensions; use the top-level
+//! config keys, which stay live-reloadable and are reported in the
+//! final runtime state). Legacy configs carrying these keys get a
+//! targeted removal hint from `config_hints`.
 //!
 //! ## changes (historical)
 //!
@@ -52,50 +52,155 @@ use crate::config::Args;
 /// the recognized field set never drifts between the parser and the
 /// validator. Originally lived in `profile` module; moved here when the
 /// inert profile system was removed.
+///
+/// v80.0.0-beta.2 (S-master-LOGIC-3): shrunk to the six scene-family
+/// dimensions. `base-scene`, `bold`, `shading-mode`, `async-mode`,
+/// `monolith-size`, and `color-bg` are REMOVED — blocks are complete,
+/// self-contained profiles now (see [`SCENE_CUSTOM_REQUIRED_FIELDS`]).
 pub(crate) const PROFILE_FIELDS: &[&str] = &[
-    "base-scene",
     "color",
+    "colors-custom",
     "charset",
+    "charset-custom",
     "fps",
     "speed",
     "density",
     "glitch-level",
-    "monolith-size",
-    "color-bg",
-    // scene-custom-only fields.
-    "bold",
-    "colors-custom",
-    "charset-custom",
-    "shading-mode",
-    "async-mode",
 ];
+
+/// The six required scene-custom dimensions, in error-message order.
+///
+/// Each entry is (primary key, alternative key) — the two pair fields
+/// (`color`/`colors-custom`, `charset`/`charset-custom`) accept either
+/// key; the other four are single mandatory keys. Used by
+/// [`missing_scene_custom_fields`] and the completeness validation so a
+/// half-filled block reports exactly which dimensions are missing
+/// instead of a generic "incomplete" error.
+pub(crate) const SCENE_CUSTOM_REQUIRED_FIELDS: &[(&str, Option<&str>)] = &[
+    ("color", Some("colors-custom")),
+    ("charset", Some("charset-custom")),
+    ("fps", None),
+    ("speed", None),
+    ("density", None),
+    ("glitch-level", None),
+];
+
+/// The six required dimensions as a flat human-readable list for error
+/// messages and hints: "color|colors-custom, charset|charset-custom,
+/// fps, speed, density, glitch-level".
+#[must_use]
+pub(crate) fn scene_custom_required_fields_hint() -> String {
+    SCENE_CUSTOM_REQUIRED_FIELDS
+        .iter()
+        .map(|(primary, alt)| match alt {
+            Some(alt) => format!("{primary}|{alt}"),
+            None => (*primary).to_string(),
+        })
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
+/// List the required dimensions a `[scene-custom.<name>]` block is
+/// missing (empty = complete).
+///
+/// v80.0.0-beta.2 owner contract (S-master-LOGIC-3): a block must be
+/// COMPLETELY filled — `color` or `colors-custom`, `charset` or
+/// `charset-custom`, `fps`, `speed`, `density`, and `glitch-level`.
+/// An incomplete block is a hard validation error, not a
+/// fall-back-to-defaults (the old partial-block model is retired with
+/// `base-scene`). Returns each missing dimension rendered as
+/// "primary|alternative" for the pair fields, bare key otherwise.
+#[must_use]
+pub(crate) fn missing_scene_custom_fields(profile: &UserProfile) -> Vec<String> {
+    let has = |primary: &Option<String>, alt: &Option<String>| primary.is_some() || alt.is_some();
+    let mut missing = Vec::new();
+    if !has(&profile.color, &profile.colors_custom) {
+        missing.push("color|colors-custom".to_string());
+    }
+    if !has(&profile.charset, &profile.charset_custom) {
+        missing.push("charset|charset-custom".to_string());
+    }
+    if profile.fps.is_none() {
+        missing.push("fps".to_string());
+    }
+    if profile.speed.is_none() {
+        missing.push("speed".to_string());
+    }
+    if profile.density.is_none() {
+        missing.push("density".to_string());
+    }
+    if profile.glitch_level.is_none() {
+        missing.push("glitch-level".to_string());
+    }
+    missing
+}
+
+/// Validate that every `[scene-custom.<name>]` block in `cfg` is
+/// COMPLETELY filled (owner contract, S-master-LOGIC-3).
+///
+/// Returns `Err(message)` naming the first incomplete block and its
+/// missing dimensions, `Ok(())` when every block is complete. Called
+/// from `validate_config_strictly` (startup + live-reload + watcher)
+/// and from `--testconf` so all three surfaces reject in lockstep.
+pub(crate) fn validate_scene_custom_completeness(
+    cfg: &HashMap<String, String>,
+) -> Result<(), String> {
+    for (name, profile) in collect_custom_scenes(cfg) {
+        let missing = missing_scene_custom_fields(&profile);
+        if missing.is_empty() {
+            continue;
+        }
+        return Err(format!(
+            "scene-custom '{name}' is incomplete: missing {} — a [scene-custom.<name>] block must be COMPLETELY filled ({}); incomplete blocks are rejected",
+            missing.join(", "),
+            scene_custom_required_fields_hint()
+        ));
+    }
+    Ok(())
+}
+
+/// Resolve the fps a scene (built-in OR custom) declares, if any.
+///
+/// v80.0.0-beta.2 (S-master-LOGIC-3): an ambient entry owns the SAME
+/// scene-family dimensions as a config scene switch — including `fps`
+/// (previously fps was construction-time only, so an ambient-applied
+/// scene-custom `fps = 12` never took effect). Returns:
+/// - built-in scene → the scene's declared fps default;
+/// - custom scene → the block's `fps` field (parsed, range-checked by
+///   strict validation upstream);
+/// - unknown scene / no fps declared → `None` (leave current fps).
+#[must_use]
+pub(crate) fn ambient_scene_fps(scene_name: &str, cfg: &HashMap<String, String>) -> Option<f64> {
+    if let Some(scene_info) = crate::scene::get_scene(scene_name) {
+        return scene_info.config.fps;
+    }
+    let normalized = scene_name.trim().to_ascii_lowercase();
+    let key = format!("scene-custom.{normalized}.fps");
+    cfg.get(&key)
+        .and_then(|v| v.trim().parse::<f64>().ok())
+        .filter(|fps| (1.0..=240.0).contains(fps))
+}
 
 /// Lightweight collection of override fields for a scene-custom block.
 ///
 /// Originally `UserProfile` from the inert `profile` module. The name is
 /// kept to avoid a massive rename across scene-custom code.
+///
+/// v80.0.0-beta.2: only the six scene-family dimensions remain —
+/// `base_scene`, `bold`, `shading_mode`, `async_mode`, `monolith_size`,
+/// and `color_bg` were removed with the schema simplification.
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct UserProfile {
-    /// Optional built-in scene name to inherit defaults from before applying
-    /// this block's own overrides.
-    pub base_scene: Option<String>,
     pub color: Option<String>,
     pub charset: Option<String>,
     pub fps: Option<String>,
     pub speed: Option<String>,
     pub density: Option<String>,
     pub glitch_level: Option<String>,
-    pub monolith_size: Option<String>,
-    pub color_bg: Option<String>,
-    pub bold: Option<String>,
     /// Custom palette name referencing a `[colors-custom.<name>]` block.
     pub colors_custom: Option<String>,
     /// Custom charset name referencing a `[charset-custom.<name>]` block.
     pub charset_custom: Option<String>,
-    /// Shading mode: "0"=Random, "1"=DistanceFromHead.
-    pub shading_mode: Option<String>,
-    /// Async render toggle: "true"/"false".
-    pub async_mode: Option<String>,
 }
 
 /// Collect all `[profile.<name>.<field>]` entries from `cfg`.
@@ -117,20 +222,14 @@ pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
-            "base-scene" => profile.base_scene = Some(value.clone()),
             "color" => profile.color = Some(value.clone()),
             "charset" => profile.charset = Some(value.clone()),
             "fps" => profile.fps = Some(value.clone()),
             "speed" => profile.speed = Some(value.clone()),
             "density" => profile.density = Some(value.clone()),
             "glitch-level" => profile.glitch_level = Some(value.clone()),
-            "monolith-size" => profile.monolith_size = Some(value.clone()),
-            "color-bg" => profile.color_bg = Some(value.clone()),
-            "bold" => profile.bold = Some(value.clone()),
             "colors-custom" => profile.colors_custom = Some(value.clone()),
             "charset-custom" => profile.charset_custom = Some(value.clone()),
-            "shading-mode" => profile.shading_mode = Some(value.clone()),
-            "async-mode" => profile.async_mode = Some(value.clone()),
             _ => {}
         }
     }
@@ -175,8 +274,11 @@ pub(crate) fn is_valid_profile_name(name: &str) -> bool {
 
 /// Apply a scene-custom (or profile) override layer to `args`.
 ///
-/// When `base-scene` is set, the named built-in scene's defaults are
-/// applied first, then the block's own overrides win on top.
+/// v80.0.0-beta.2: no `base-scene` inheritance layer — the block is a
+/// complete self-contained profile (see the module docs). Missing
+/// dimensions are rejected upstream by
+/// `validate_scene_custom_completeness`, so this layer only ever sees
+/// complete blocks.
 pub(crate) fn apply_profile_layer(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -203,87 +305,8 @@ pub(crate) fn apply_profile_layer(
         return Ok(modified);
     };
 
-    if let Some(base_name) = profile.base_scene.as_deref() {
-        apply_base_scene_to_args(
-            matches,
-            args,
-            base_name,
-            &normalized,
-            strict_unknown,
-            &mut modified,
-        );
-    }
     apply_profile_overrides(matches, args, &normalized, profile, cfg, &mut modified);
     Ok(modified)
-}
-
-/// Apply a built-in scene's defaults to `args` as the first inheritance
-/// layer. Mirrors `apply_default_scene_values` but reads from a parameter
-/// scene instead of `args.scene`.
-fn apply_base_scene_to_args(
-    matches: &clap::ArgMatches,
-    args: &mut Args,
-    base_name: &str,
-    profile_name: &str,
-    strict_unknown: bool,
-    modified: &mut HashSet<&'static str>,
-) {
-    let normalized = base_name.trim().to_ascii_lowercase();
-    let Some(scene_info) = crate::scene::get_scene(&normalized) else {
-        let message = format!(
-            "error: unknown base-scene '{base_name}' in profile '{profile_name}'\n\
-             expected one of: {}\n\
-             note: base-scene must be a built-in scene name (custom scenes are not allowed)",
-            crate::scene::all_scene_names().join(", ")
-        );
-        if strict_unknown {
-            crate::output::eprintln_error_labeled(&message);
-        } else {
-            // v80.0.0-beta.1 killer-features hardening: routed (warn_runtime_or_now) —
-            // scene layers can re-apply mid-session; a direct eprintln here
-            // would leak into the rain matrix (AB-10).
-            crate::output::warn_runtime_or_now(&message);
-        }
-        return;
-    };
-    let cfg = &scene_info.config;
-
-    if let Some(color) = cfg.color {
-        if !is_explicit(matches, "color") {
-            args.color = color.to_string();
-            modified.insert("color");
-        }
-    }
-    if let Some(charset) = cfg.charset {
-        if !is_explicit(matches, "charset") {
-            args.charset = charset.to_string();
-            modified.insert("charset");
-        }
-    }
-    if let Some(fps) = cfg.fps {
-        if !is_explicit(matches, "fps") {
-            args.fps = fps;
-            modified.insert("fps");
-        }
-    }
-    if let Some(speed) = cfg.speed {
-        if !is_explicit(matches, "speed") {
-            args.speed = speed;
-            modified.insert("speed");
-        }
-    }
-    if let Some(density) = cfg.density {
-        if !is_explicit(matches, "density") {
-            args.density = density;
-            modified.insert("density");
-        }
-    }
-    if let Some(glitch) = cfg.glitch_level {
-        if !is_explicit(matches, "glitch_level") {
-            args.glitch_level = glitch;
-            modified.insert("glitch_level");
-        }
-    }
 }
 
 /// Config namespace prefix for custom scene blocks.
@@ -304,35 +327,31 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 
 /// explicit field allowlist for `[scene-custom.<name>]` blocks.
 ///
-/// Owner contract (2026-08-07):
-/// - ALLOWED: `base-scene`, `color`, `charset`, `bold`, `colors-custom`,
-///   `charset-custom`, `shading-mode`, `glitch-level`, `fps`, `speed`,
-///   `density`, `async-mode`.
-/// - FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
-///   `ambient`, `crystal-dragon`, `color.tune`, `monolith-size`,
-///   `intro`, `color-bg`, `density-map` (removed in v80.0.0-beta.2 —
-///   the per-column monolith density-map burden function was retired;
-///   configs still carrying it get a targeted removal hint from
-///   `config_hints`).
+/// v80.0.0-beta.2 schema (owner contract, S-master-LOGIC-3): exactly the
+/// six scene-family dimensions. ALLOWED: `color`, `colors-custom`,
+/// `charset`, `charset-custom`, `fps`, `speed`, `density`,
+/// `glitch-level`. Every block must set ALL six dimensions — see
+/// [`SCENE_CUSTOM_REQUIRED_FIELDS`] (incomplete blocks are a hard
+/// validation error).
 ///
-/// `monolith-size` and `color-bg` were accepted (because the
-/// allowlist was `PROFILE_FIELDS`, which included them). They are removed
-/// here because they collide with the ambient simplification: a custom
-/// scene used by an ambient entry should not own monolith-size or
-/// color-bg (those are top-level / scene-managed, not per-block).
+/// FORBIDDEN (rejected as unknown key by `is_scene_custom_config_key`):
+/// - `base-scene`, `bold`, `shading-mode`, `async-mode` — REMOVED in
+///   v80.0.0-beta.2 (custom scenes stand alone; use the top-level keys
+///   for bold/shading-mode/async-mode);
+/// - `monolith-size`, `color-bg`, `ambient`, `crystal-dragon`,
+///   `color.tune`, `intro`, `density-map` (removed in v80.0.0-beta.2 —
+///   the per-column monolith density-map burden function was retired;
+///   configs still carrying them get a targeted removal hint from
+///   `config_hints`).
 pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
-    "base-scene",
     "color",
-    "charset",
-    "bold",
     "colors-custom",
+    "charset",
     "charset-custom",
-    "shading-mode",
-    "glitch-level",
     "fps",
     "speed",
     "density",
-    "async-mode",
+    "glitch-level",
 ];
 
 /// Returns `true` if `key` is a recognized `[scene-custom.<name>.<field>]` key.
@@ -387,21 +406,17 @@ pub(crate) fn collect_custom_scenes(
             .entry(name_lower)
             .or_insert_with(UserProfile::default);
         match field {
-            "base-scene" => scene.base_scene = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
             "fps" => scene.fps = Some(value.clone()),
             "speed" => scene.speed = Some(value.clone()),
             "density" => scene.density = Some(value.clone()),
             "glitch-level" => scene.glitch_level = Some(value.clone()),
-            // new scene-custom fields per owner spec.
-            "bold" => scene.bold = Some(value.clone()),
             "colors-custom" => scene.colors_custom = Some(value.clone()),
             "charset-custom" => scene.charset_custom = Some(value.clone()),
-            "shading-mode" => scene.shading_mode = Some(value.clone()),
-            "async-mode" => scene.async_mode = Some(value.clone()),
-            // monolith-size and color-bg are NOT in SCENE_CUSTOM_FIELDS,
-            // so is_scene_custom_config_key already filtered them out.
+            // Removed fields (base-scene/bold/shading-mode/async-mode/
+            // monolith-size/color-bg) are NOT in SCENE_CUSTOM_FIELDS, so
+            // is_scene_custom_config_key already filtered them out.
             _ => {}
         }
     }
@@ -444,18 +459,14 @@ pub(crate) fn apply_scene_custom_layer(
         )?;
         args.scene_custom = Some(normalized.clone());
         // custom scenes are first-class — args.scene reflects the
-        // custom scene name (not a base-scene) so verbose output and
-        // CloudConfig.scene_name both show `<name>`. Built-in scene defaults
-        // are applied via `apply_profile_layer`'s base-scene inheritance
-        // (when `base-scene = <name>` is set in the block) BEFORE the custom
-        // scene's own overrides. Missing fields retain whatever args already
-        // has (DEFAULT_SCENE = cinematic's values from
-        // apply_default_scene_values).
-        //
-        // rain_style for the custom scene is resolved separately at Cloud
-        // construction time via `rain_style_for_custom_scene` (looks up the
-        // block's `base-scene` field). This keeps args.scene as the custom
-        // name while still honoring base-scene's rain_style (Glyph vs Monolith).
+        // custom scene name so verbose output and
+        // CloudConfig.scene_name both show `<name>`. v80.0.0-beta.2: the
+        // block is a complete self-contained profile (no base-scene
+        // inheritance, no fall-back-to-defaults — incomplete blocks are
+        // rejected upstream by `validate_scene_custom_completeness`).
+        // rain_style for the custom scene is resolved at Cloud
+        // construction time — v80.0.0-beta.2: always Glyph (base-scene
+        // inheritance removed; see `resolve_rain_style`).
         args.scene = Some(normalized);
         return Ok(modified);
     }
@@ -485,45 +496,22 @@ pub(crate) fn apply_scene_custom_layer(
     Ok(HashSet::new())
 }
 
-/// Resolve the rain_style for a custom scene by looking up its `base-scene`.
-///
-/// Returns `None` if:
-/// - The custom scene block doesn't exist in cfg.
-/// - The block has no `base-scene` field.
-/// - The `base-scene` value is not a recognized built-in scene name.
-///
-/// Called from `main.rs` at Cloud construction time and from
-/// `Cloud::apply_ambient_entry` at runtime when an ambient entry references
-/// a custom scene. The returned `RainStyle` is what the Cloud should use
-/// for rain rendering (Glyph vs Monolith).
-#[must_use]
-pub(crate) fn rain_style_for_custom_scene(
-    cfg: &HashMap<String, String>,
-    custom_name: &str,
-) -> Option<crate::rain_style::RainStyle> {
-    let normalized = custom_name.trim().to_ascii_lowercase();
-    let key = format!("scene-custom.{normalized}.base-scene");
-    let base_name = cfg.get(&key)?.trim();
-    crate::scene::rain_style_for_scene(base_name)
-}
-
 /// Resolve the rain_style for any scene name (built-in OR custom).
 ///
-/// if `name` is a built-in scene, returns its rain_style. If `name`
-/// is a custom scene, looks up its `[scene-custom.<name>]` block in `cfg`
-/// and returns the `base-scene`'s rain_style. Returns `RainStyle::Glyph`
-/// (the default) if neither resolves.
+/// If `name` is a built-in scene, returns its rain_style. If `name`
+/// is a custom scene, returns `RainStyle::Glyph` — v80.0.0-beta.2:
+/// `base-scene` inheritance is removed, so custom scenes always render
+/// glyph rain. Returns `RainStyle::Glyph` (the default) if neither
+/// resolves.
 ///
 /// Called from `main.rs` at Cloud construction time.
 #[must_use]
 pub(crate) fn resolve_rain_style(
     name: Option<&str>,
-    cfg: &HashMap<String, String>,
+    _cfg: &HashMap<String, String>,
 ) -> crate::rain_style::RainStyle {
-    name.and_then(|n| {
-        crate::scene::rain_style_for_scene(n).or_else(|| rain_style_for_custom_scene(cfg, n))
-    })
-    .unwrap_or(crate::rain_style::RainStyle::Glyph)
+    name.and_then(crate::scene::rain_style_for_scene)
+        .unwrap_or(crate::rain_style::RainStyle::Glyph)
 }
 
 /// Apply a `[scene-custom.<name>]` block's `base-scene` defaults to a
@@ -536,7 +524,6 @@ pub(crate) fn resolve_rain_style(
 /// now agree on the 5 preset fields per GlitchLevel variant.
 ///
 /// Called from:
-/// - `apply_base_scene_to_cloud_config` when `base_cfg.glitch_level` is Some
 /// - `apply_scene_custom_field_to_cloud_config` "glitch-level" arm
 /// - (live_config.rs top-level `glitch-level` branch has its own inline match
 ///   but the values are identical — kept inline there to avoid a circular dep)
@@ -585,84 +572,6 @@ pub(crate) fn apply_glitch_level_preset_to_cloud_config(
     }
 }
 
-/// extracted from `live_config::apply_scene_custom_to_cloud_config`
-/// to keep that file under the LOC cap. Returns `true` if a base-scene was
-/// found and applied (so the caller can track `touched_any`).
-pub(crate) fn apply_base_scene_to_cloud_config(
-    new: &mut crate::app::CloudConfig,
-    cfg: &HashMap<String, String>,
-    normalized_name: &str,
-) -> bool {
-    let base_key = format!("scene-custom.{normalized_name}.base-scene");
-    let Some(base_name) = cfg.get(&base_key).map(|s| s.trim()) else {
-        return false;
-    };
-    let Some(base_info) = crate::scene::get_scene(base_name) else {
-        return false;
-    };
-    let base_cfg = &base_info.config;
-    // (Z1-3): CLI gates on every field — mirrors the startup path
-    // (`apply_base_scene_to_args` checks `is_explicit` per field) and the
-    // FPS-F4 fix that already gated fps here. Without these gates, a
-    // live-reload that re-applies the custom scene silently overrode
-    // `--color`, `--charset`, `--speed`, `--density`, and `--glitch-level`
-    // with the base-scene's defaults, violating the
-    // CLI > config.toml > scene priority contract.
-    if let Some(color) = base_cfg.color {
-        if !new.cli_explicit.color {
-            if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-                new.color_scheme = scheme;
-            }
-        }
-    }
-    if let Some(charset) = base_cfg.charset {
-        if !new.cli_explicit.charset {
-            if let Ok(cs) = crate::charset::charset_from_str(charset, false) {
-                new.charset_preset = charset.to_string();
-                new.chars = crate::charset::build_chars(cs, &new.user_ranges, new.def_ascii);
-            }
-        }
-    }
-    // (FPS-F4): gate fps with cli_explicit.fps — matches the startup
-    // path (apply_profile_layer → apply_base_scene_to_args checks
-    // is_explicit(matches, "fps")). Without this gate, `cosmostrix --fps 144
-    // --scene-custom my-scene` silently drops to the base-scene's fps on the
-    // first config edit (live-reload path was missing the gate).
-    if let Some(fps) = base_cfg.fps {
-        if !new.cli_explicit.fps {
-            new.target_fps = fps;
-        }
-    }
-    if let Some(speed) = base_cfg.speed {
-        if !new.cli_explicit.speed {
-            new.speed = speed;
-        }
-    }
-    if let Some(density) = base_cfg.density {
-        if !new.cli_explicit.density {
-            new.density = density;
-            new.base_density = density;
-        }
-    }
-    // (Glitch-BUG4): use shared preset helper — was only flipping
-    // glitch_enabled, leaving glitch_pct/short_pct/die_early_pct stale.
-    if let Some(glitch) = base_cfg.glitch_level {
-        if !new.cli_explicit.glitch_level {
-            apply_glitch_level_preset_to_cloud_config(new, glitch);
-        }
-    }
-    true
-}
-
-/// Apply a single `[scene-custom.<name>]` field to a CloudConfig.
-/// Extracted from `live_config::apply_scene_custom_to_cloud_config` to keep
-/// that file under the LOC cap. Returns `true` if the field was recognized
-/// and applied (so the caller can track `touched_any`).
-///
-/// Field allowlist is `SCENE_CUSTOM_FIELDS`. `monolith-size` and `color-bg`
-/// are silently dropped (forbidden per owner contract — they should never
-/// reach this function because `is_scene_custom_config_key` filters them
-/// upstream, but we handle them defensively).
 // v50.0.0-beta.7 LOC refactor: display + name validation extracted to
 // display.rs to keep mod.rs under the 800-LOC hard
 // cap. Re-exported here so all existing call sites resolve unchanged.
@@ -677,8 +586,8 @@ mod helpers;
 mod overrides;
 #[allow(unused_imports)]
 pub(crate) use helpers::{
-    is_explicit, parse_bool, parse_color_bg, parse_f32_override, parse_f64_override,
-    parse_speed_override, parse_u8_override, profile_name_list, warn_invalid,
+    is_explicit, parse_f32_override, parse_f64_override, parse_speed_override, profile_name_list,
+    warn_invalid,
 };
 #[allow(unused_imports)]
 pub(crate) use overrides::{

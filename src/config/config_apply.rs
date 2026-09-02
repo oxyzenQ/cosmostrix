@@ -744,10 +744,12 @@ mod scene_suggestion_tests {
 
     #[test]
     fn scene_suggestion_tip_includes_custom_scenes() {
+        // v80.0.0-beta.2: base-scene is removed — the block is registered
+        // by any of its (six) fields, e.g. color.
         let mut cfg = HashMap::new();
         cfg.insert(
-            "scene-custom.afternoon.base-scene".to_string(),
-            "cinematic".to_string(),
+            "scene-custom.afternoon.color".to_string(),
+            "green".to_string(),
         );
         assert_eq!(
             scene_suggestion_tip("afternon", &cfg),

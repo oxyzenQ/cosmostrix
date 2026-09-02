@@ -80,43 +80,41 @@ pub(crate) fn dump_config_text() -> &'static str {
 # body = 1.0                            # 0.0-3.0
 # tail = 1.0                            # 0.0-3.0
 
-# Custom Scenes
+# Custom Scenes (v80.0.0-beta.2 schema)
 # Define named scenes, load with: cosmostrix --scene-custom <name>
-# Paired fields: `color`/`charset` = built-in name; `colors-custom`/`charset-custom`
-# = block reference. Don't mix — --testconf will hint if you do.
+# A block is a COMPLETE self-contained profile: ALL six dimensions are
+# required (one of each pair). An incomplete block is a hard error at
+# startup, on live-reload, and in --testconf.
+#   color OR colors-custom   = built-in theme name OR custom palette block
+#   charset OR charset-custom = built-in preset OR custom charset block
+#   fps = 1-240, speed = 1-100, density = 0.01-5.0, glitch-level = none|subtle|default|intense
+# Don't mix a pair (both color and colors-custom) — --testconf will hint.
+# REMOVED in v80.0.0-beta.2: base-scene (custom scenes always render glyph
+# rain — no built-in inheritance), bold, shading-mode, async-mode (style
+# keys are top-level, not per-scene).
 
 # [scene-custom.hacker-mode]
-# base-scene = "matrix"                 # inherit defaults from a built-in scene
-# color = "green"                       # built-in color name
-# colors-custom = "neon"                # custom palette name (overrides color)
-# charset = "hacker"                    # built-in charset preset
-# charset-custom = "myglyphs"           # custom charset name (overrides charset)
+# color = "green"                       # built-in color name (OR colors-custom = "<palette>")
+# charset = "hacker"                    # built-in charset (OR charset-custom = "<set>")
+# fps = 60                              # 1-240
 # speed = 28
 # density = 1.2
-# fps = 60                              # 1-240
-# bold = 1                              # 0=off, 1=random, 2=all
-# shading-mode = 1                       # 0=random, 1=cinematic
 # glitch-level = "intense"
-# async-mode = true                     # variable column speeds
 
 # [scene-custom.cyberpunk_2077]
-# base-scene = "storm"                  # inherit storm defaults (purple, cyberpunk)
-# colors-custom = "cyberpunk_2077"
-# charset-custom = "cyberpunk_2077"
+# colors-custom = "cyberpunk_2077"      # see [colors-custom.cyberpunk_2077] below
+# charset-custom = "cyberpunk_2077"     # see [charset-custom.cyberpunk_2077] below
+# fps = 90
 # speed = 12
 # density = 0.90
-# bold = 1
-# shading-mode = 1
-# glitch-level = "intense"
+# glitch-level = "none"
 
 # [scene-custom.tron_legacy]
-# base-scene = "signal"                 # inherit signal defaults (aurora, retro)
 # colors-custom = "tron_legacy"
 # charset-custom = "tron_legacy"
+# fps = 75
 # speed = 8
 # density = 0.70
-# bold = 1
-# shading-mode = 1
 # glitch-level = "subtle"
 
 # Custom Color Palettes
@@ -168,20 +166,21 @@ pub(crate) fn dump_config_text() -> &'static str {
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
 
-# IMPORTANT — ambient overlay limitation (v80.0.0-beta.1 honesty note):
-# When ANY ambient.HH-MM entry is active, the ambient scheduler re-applies
-# the scheduled scene's full defaults at every phase boundary. Config keys
-# that the scene owns are OVERWRITTEN on the next ambient tick — editing
-# them in config.toml mid-run is a no-op (or only takes effect between
-# ticks). This is by design: the ambient scene is the ground truth for
-# these fields while the schedule is non-empty.
+# IMPORTANT — ambient overlay precedence (v80.0.0-beta.2 honesty note):
+# When ANY ambient.HH-MM entry is active, the ambient scene is the ground
+# truth for the scene-family dimensions — it outranks config.toml keys
+# (and locked CLI values) for those fields while the schedule is
+# non-empty. Editing these keys in config mid-run is a no-op until the
+# overlay lifts (a custom palette set via config color does NOT survive
+# either — the ambient scene re-asserts on every rebuild and phase
+# boundary).
 #
-# Cannot take effect via config while ambient is active:
-#   scene, color, charset, speed, density, glitch-level
+# Ambient-owned while a phase is active (config edits are no-ops):
+#   scene, color, charset, fps, speed, density, glitch-level
 #   (and any [scene-custom.<name>] block edits to those same fields)
 #
 # Still works via config while ambient is active (NOT scene-owned):
-#   fps, monolith-size, color-bg, bold, shading-mode,
+#   monolith-size, color-bg, bold, shading-mode,
 #   color.tune.* (color tune is a separate layer),
 #   power-dragon, crystal-dragon, async-mode,
 #   message, message-border, msg-mode, msg-fill-style,

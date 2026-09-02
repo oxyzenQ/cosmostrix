@@ -150,24 +150,12 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 ))
             }
         }
-        // `base-scene` inside a [scene-custom.<name>] block must be a
-        // BUILT-IN scene — custom scenes cannot inherit from other custom
-        // scenes (runtime contract: apply_base_scene_to_args and
-        // apply_base_scene_to_cloud_config both warn-and-skip unknown
-        // base-scene names, and scene inheritance chains are not
-        // supported by design). v80.0.0-beta.2 hunt: previously this field
-        // fell through to the catch-all `_ => None` arm, so a config with
-        // `base-scene = <custom-scene>` PASSED strict validation silently
-        // and only failed at runtime as a warning — a strictness gap.
-        "base-scene" => {
-            if crate::scene::get_scene(v).is_some() {
-                None
-            } else {
-                Some(format!(
-                    "unknown base-scene '{v}' (must be a built-in scene name; custom scenes cannot inherit from custom scenes — run `cosmostrix --list-scenes` for valid names)"
-                ))
-            }
-        }
+        // `base-scene` was REMOVED from [scene-custom.<name>] blocks in
+        // v80.0.0-beta.2 (S-master-LOGIC-3) — custom scenes are complete
+        // self-contained profiles with no built-in inheritance. The key
+        // is rejected upstream as an unknown key (is_known_key ->
+        // SCENE_CUSTOM_FIELDS) with a targeted config_hints migration
+        // hint, so no value validator is needed here.
         // (CLI-D-3): removed dead validators for `atmosphere-regime` /
         // `atmosphere-mode` — these keys are NOT in USER_CONFIG_KEYS (eliminated
         // at commit 07b44b5), so they fall into `unknown_keys` at parse time
@@ -384,7 +372,8 @@ pub(crate) fn validate_field_value_with_cfg(
         match key {
             "scene" => {
                 // A [scene-custom.<name>] block is recognized by ANY of its
-                // declared fields (base-scene/color/charset/fps/speed/…).
+                // declared fields (color/colors-custom/charset/
+                // charset-custom/fps/speed/density/glitch-level).
                 let has_block = cfg.keys().any(|k| {
                     k.starts_with("scene-custom.") && k.split('.').nth(1) == Some(lower.as_str())
                 });

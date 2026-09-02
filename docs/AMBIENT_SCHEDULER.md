@@ -32,14 +32,21 @@ TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
 
 ```toml
 [scene-custom.afternoon]
-base-scene = "signal"          # inherits signal's rain_style + defaults
-color = "energy-zen"          # overrides signal's color
-speed = "50"                   # overrides signal's speed
-density = "0.65"               # overrides signal's density
+color = "energy-zen"           # built-in color name OR colors-custom = "<palette>"
+charset = "retro"              # built-in preset    OR charset-custom = "<set>"
+fps = 60                       # v80.0.0-beta.2: the ambient scene owns fps too
+speed = "50"
+density = "0.65"
+glitch-level = "subtle"
 
 # Top-level — outside any [section] block:
 ambient.15-00 = afternoon
 ```
+
+v80.0.0-beta.2 (S-master-LOGIC-3): the block is a COMPLETE six-dimension
+profile — all fields required (incomplete blocks are rejected by
+`--testconf`, startup, and live-reload). `base-scene` inheritance is
+removed; custom scenes always render glyph rain.
 
 This separates concerns cleanly: the schedule says WHEN, the scene says
 WHAT. There is no override-precedence bug surface because the scene IS
@@ -408,10 +415,11 @@ because the scheduler runs continuously).
 |--------|----------------|
 | `src/engine/crystal_dragon_engine/ambient/mod.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (`AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
 | `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs` | Dynamic idle/wake scheduler thread, `AmbientSchedulerHandle`, `spawn_ambient_scheduler`, `reload` |
-| `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — delegates to `apply_scene_runtime_with_cfg`, which handles both built-in scenes (fast path) and custom scenes (looks up `[scene-custom.<name>]` block, applies `base-scene` defaults first, then the block's own overrides) |
+| `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — delegates to `apply_scene_runtime_with_cfg`, which handles both built-in scenes (fast path) and custom scenes (looks up the `[scene-custom.<name>]` block and applies its complete self-contained field layer — v80.0.0-beta.2: no `base-scene` inheritance, glyph rain always) |
 | `src/interactive/event_loop.rs` | Spawns scheduler at startup, polls `rx` each frame, pushes reload on config change |
-| `src/config/live_config/mod.rs` | `rebuild_cloud_config` collects new schedule from config map; `apply_scene_custom_to_cloud_config` calls `scene_custom::apply_base_scene_to_cloud_config` for base-scene inheritance on live-reload |
-| `src/scene_custom/mod.rs` | `UserProfile` struct (with `base_scene` field), `apply_base_scene_to_args` inheritance layer, `rain_style_for_custom_scene` + `resolve_rain_style` + `apply_base_scene_to_cloud_config` helpers |
+| `src/config/live_config/mod.rs` | `rebuild_cloud_config` collects new schedule from config map; `apply_scene_custom_to_cloud_config` re-applies the (complete) scene-custom field layer on live-reload — v80.0.0-beta.2: config wins over the locked CLI value at runtime (no cli_explicit gates) |
+| `src/scene_custom/mod.rs` | `UserProfile` struct (six scene-family dimensions), `ambient_scene_fps` (built-in default or block field), `validate_scene_custom_completeness` (all six required), `resolve_rain_style` (custom scenes are always Glyph) |
+| `src/interactive/event_loop_ambient.rs` | `poll_ambient_events` — rx-event apply, snapback, overlay-lift revert; v80.0.0-beta.2: returns the ambient-owned fps intent the event loop applies to the power manager + HUD (custom-scene `fps` fields and built-in scene fps defaults take effect on ambient fires; the overlay-lift revert restores the locked startup fps) |
 | `src/config/configfile.rs` | `is_known_key` dispatch + `AMBIENT_CONFIG_KEY_HINT` constant |
 | `src/config/config_hints/mod.rs` | Mis-nest detector for `scene-custom.<name>.ambient.<HH-MM>` |
 | `src/testconf/mod.rs` | Strict validation of `ambient.*` entries (scene name must be built-in OR a defined `[scene-custom.<name>]` block) |

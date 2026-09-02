@@ -327,7 +327,7 @@ CLI `--monolith-size` wins over config on live-reload.
 |------------|----------|:-------------:|:-----------------:|
 | `color` | `--color` | OK YES | OK YES — v80.0.0-beta.1: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
 | `charset` | `--charset` | OK YES | OK YES |
-| `scene` | `--scene` | OK YES | OK YES — v80.0.0-beta.1: switching TO a `[scene-custom.<name>]` scene now applies base-scene + fields (incl. rain_style); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
+| `scene` | `--scene` | OK YES | OK YES — v80.0.0-beta.2: switching TO a `[scene-custom.<name>]` scene applies its COMPLETE six-dimension field layer (always glyph rain — base-scene removed); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
 | `speed` | `--speed` | OK YES | OK YES |
 | `density` | `--density` | OK YES | OK YES |
 | `fps` | `--fps` | OK YES | OK YES |
@@ -341,7 +341,7 @@ CLI `--monolith-size` wins over config on live-reload.
 | `shading-mode` | `--shading-mode` | OK YES | X NO (no CLI intent gate) |
 | `color.tune.*` | `--color-tune` | OK YES | OK YES |
 | `ambient.HH-MM` | (none) | OK YES | N/A (v80.0.0-beta.1: full removal reverts ambient-owned scenes — see section 14). |
-| `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | OK YES — v80.0.0-beta.2 (S-master-LOGIC-3): the block fields are CONFIG content — at runtime they override the locked CLI value (no cli_explicit gates); the CLI lock is only the fallback when the scene override lifts. |
 | **`message`** | `-m` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`message-border`** | `-mb` | OK YES (FIXED in alpha.7) | OK YES (`cli.message`) |
 | **`msg-mode`** | `--msg-mode` | OK YES (FIXED in alpha.7) | OK YES (`cli.msg_mode`) |
@@ -467,35 +467,46 @@ NOT reset (CLI wins).
 - Comment out the line -> rain returns to normal (brightness=1.0) OK
 - CLI `--color-tune bright=2.0` + no config block -> stays at 2.0 OK
 
-### Limitation D: Scene-owned config keys are no-ops while ambient overlay is active (v80.0.0-beta.1 honesty note)
+### Limitation D: Ambient-owned config keys are no-ops while the ambient overlay is active (v80.0.0-beta.2 honesty note)
 
 **Symptom**: Owner report — while any `ambient.<HH-MM>` entry is
-active, editing `charset`, `color`, `scene`, `speed`, `density`, or
-`glitch-level` in `config.toml` mid-run appears to be a no-op (or only
-takes effect briefly between ambient ticks, then gets overwritten).
+active, editing `charset`, `color`, `scene`, `speed`, `density`,
+`glitch-level`, or `fps` in `config.toml` mid-run appears to be a
+no-op (or only takes effect briefly between ambient ticks, then gets
+overwritten).
 
 **Root cause**: `Cloud::apply_ambient_entry` (called by the ambient
-scheduler thread on every phase boundary) calls
-`apply_scene_runtime_with_cfg` → `apply_builtin_scene_runtime`, which
-re-applies the scheduled scene's full defaults:
+scheduler thread on every phase boundary AND re-applied on every
+config rebuild — v80.0.0-beta.2: unconditionally, including over a
+config-set custom palette) calls `apply_scene_runtime_with_cfg`,
+which re-applies the scheduled scene's full profile:
 `rain_style`, `color_scheme`, `chars` (charset), `chars_per_sec`
-(speed), `droplet_density` (density), and `glitch_level`. These six
-fields are scene-owned — the scene is the ground truth for them while
-the ambient schedule is non-empty.
+(speed), `droplet_density` (density), `glitch_level`, and — new in
+v80.0.0-beta.2 — the scene's declared `fps` (via
+`scene_custom::ambient_scene_fps`, applied to the power manager +
+HUD by the event loop). These seven fields are ambient-owned — the
+scheduled scene is the ground truth for them while the ambient
+schedule is non-empty.
 
 This is by design, not a bug. The ambient scene is the active
-authority for scene-owned fields. Editing those fields via config is
-a temporary override that the next ambient tick re-overwrites with
-the scene's value. The render path is correct and consistent — the
-schedule is just the higher-priority layer while it exists.
+authority for ambient-owned fields (owner contract, S-master-LOGIC-3:
+"if user set ambient scene custom/builtin existing this wins runtime
+over config user"). Editing those fields via config is a temporary
+override that the next ambient tick re-overwrites with the scene's
+value. The render path is correct and consistent — the schedule is
+just the higher-priority layer while it exists.
 
-**Cannot take effect via config while ambient is active** (scene-owned):
-`scene`, `color`, `charset`, `speed`, `density`, `glitch-level`, and
-any `[scene-custom.<name>]` block edits to those same fields.
+**Cannot take effect via config while ambient is active** (ambient-owned):
+`scene`, `color`, `charset`, `fps`, `speed`, `density`, `glitch-level`,
+and any `[scene-custom.<name>]` block edits to those same fields
+(including `colors-custom` / `charset-custom` references and a
+config `color = "<custom palette>"` — v80.0.0-beta.2 removed the
+`!custom_palette_active` guard that let a config palette survive the
+ambient re-apply).
 
-**Still works via config while ambient is active** (NOT scene-owned,
+**Still works via config while ambient is active** (NOT ambient-owned,
 lives on the event loop / Cloud construction / separate layers):
-`fps`, `monolith-size`, `color-bg`, `bold`, `shading-mode`,
+`monolith-size`, `color-bg`, `bold`, `shading-mode`,
 `color.tune.*` (color tune is a separate OKLab layer), `power-dragon`,
 `crystal-dragon`, `async-mode`, `message`, `message-border`,
 `msg-mode`, `msg-fill-style`, `ambient-snapback-secs`, and
@@ -583,13 +594,24 @@ animation — documented Limitation, not a gap).
   mattered): `src/cli/app.rs`
 - Startup custom-first color resolution (parity reference): `src/main.rs`
 - Scene-custom layer: `src/scene_custom/mod.rs`
-  (`rain_style_for_custom_scene`; the block applier
-  `apply_scene_custom_to_cloud_config` lives in
+  (`resolve_rain_style` — v80.0.0-beta.2: custom scenes are always Glyph;
+  the block applier `apply_scene_custom_to_cloud_config` lives in
   `src/scene_custom/overrides.rs` since the Z-master-1-v2 refactor)
 - Custom palette loader: `src/engine/chroma_dragon_engine/colors_custom.rs`
   (`load_custom_palette`, `is_colors_custom_name`)
 
 ## 11. Z-master-1-v2 Audit — Killer-Features Priority Contract (2026-09-01)
+
+> **v80.0.0-beta.2 (S-master-LOGIC-3) SUPERSEDES gaps #1 and #2 below**:
+> the CLI gates added by this audit encoded the "CLI always wins at
+> runtime" model the owner explicitly rejected ("should cli is not
+> always wins on runtime, but wins is config on runtime override, if on
+> config no existing to override the cli, so fallback to locked cli
+> value"). The gates are REMOVED — a present scene-custom block field
+> now overrides the locked CLI value at runtime (see section 15), and
+> `base-scene` itself is removed from the schema (custom scenes are
+> complete self-contained profiles). Gap #3 (conflict determinism) and
+> gap #4 (palette clear on scene switch) remain in force.
 
 Owner suspicion: "some potential bug" in the killer features
 (colors-custom / charset-custom / scene-custom) under live reload.
@@ -610,15 +632,15 @@ Verification: 12 regression tests in
 conflict rules, and the palette-clear-on-scene-switch. Full suite
 green: 1957 passed / 0 failed.
 
-Priority contract (as documented at the time — v80.0.0-beta.1 REPLACED the
-runtime layer, see section 13; the field layers below the CLI lock are
-unchanged):
+Priority contract (as documented at the time — v80.0.0-beta.1 replaced the
+runtime layer (section 13) and v80.0.0-beta.2 INVERTED the scene-custom
+field layer (section 15); base-scene inherited defaults are REMOVED):
 
 ```text
-CLI flags (cli_explicit.*)
+CLI flags (cli_explicit.*)        # startup only
   > config.toml keys
-    > scene-custom block fields
-      > base-scene inherited defaults
+    > scene-custom block fields   # runtime: these now BEAT the CLI lock
+      > (base-scene layer — removed in v80.0.0-beta.2)
         > built-in defaults
 ```
 
@@ -866,6 +888,84 @@ render path and the HUD `dsty:` line).
   streams 23 identical, allocs/deallocs bit-stable 563/553). Raw JSON +
   trace: `benchmark/bench-labs/v51_2_pdragon_ambient/`.
 - Audit doc: `docs/research/V51_2_POWER_DRAGON_AMBIENT_CONTRACT.md`.
+
+---
+
+## 15. v80.0.0-beta.2 S-master-LOGIC-3 — Runtime Precedence Masterclass Contract (owner audit 2026-09-02)
+
+Owner report (two bugs, one contract):
+
+1. `cosmostrix -v -s --scene hacker-mode -c test -C test` + config
+   live-reload to `scene = cp77` (block:
+   `colors-custom = cyberpunk_2077`, `charset-custom = cyberpunk_2077`):
+   the HUD switched `scn:` to cp77 but kept the STALE CLI `clr: test` /
+   `chr: test`. fps + glitch-level worked. Root cause: the v80.0.0-beta.1
+   Z1-1/Z2-1/FPS-F4 gates in `apply_scene_custom_field_to_cloud_config`
+   returned early on `cli_explicit.*` — the premature "CLI always wins"
+   model.
+2. Ambient active (hacker-mode via `ambient.13-38`), user edited config
+   `color = test` (custom palette): the ambient scene's color LOST to
+   the config palette. Root cause: the rebuild re-apply guard
+   `still_in && !cloud.custom_palette_active` — a config-set palette
+   skipped the ambient re-assertion entirely.
+
+### The contract (owner's words, formalized)
+
+```text
+Startup:  CLI flags > config.toml > scene defaults > built-in defaults
+Runtime:  user shortkeys
+            > ambient scene (while a phase is active)
+            > config keys (incl. [scene-custom.<name>] block fields)
+            > CLI lock (the locked startup value — fallback only)
+            > scene defaults > built-in defaults
+```
+
+- The CLI wins ONLY at startup. At runtime a PRESENT config value
+  (including the active scene-custom block's fields — the config save
+  is the most recent user intent) overrides the locked CLI value.
+- When the config `scene` key (or the whole ambient schedule) is
+  REMOVED, the scene family falls back to the LOCKED startup
+  resolution: the CLI value if the flag was explicit, else the
+  config@startup value, else the default (RestoreLocked /
+  `revert_ambient_owned_scene` — v80.0.0-beta.2: custom startup scenes
+  resolve their block layer too, and the locked family includes
+  `scene_custom_name` + the custom palette).
+- While an ambient phase is active, the scheduled scene OWNS the seven
+  scene-family dimensions (`scene`, `color`, `charset`, `fps`, `speed`,
+  `density`, `glitch-level`) — over config AND over CLI locks. Style
+  dimensions (`bold`, `shading-mode`, `async-mode`, `color.tune.*`,
+  `monolith-size`, `color-bg`, ...) stay config-owned during ambient.
+- User shortkeys outrank ambient until the next phase boundary (or
+  `ambient-snapback-secs` of idle — snapback re-asserts).
+
+### Changes shipped
+
+| Change | File(s) |
+|--------|---------|
+| cli_explicit gates REMOVED from the scene-custom field layer (config wins at runtime) | `src/scene_custom/overrides.rs` |
+| Ambient re-apply guard `!cloud.custom_palette_active` REMOVED (ambient owns color over config palettes) | `src/interactive/event_loop_config_rebuild.rs` |
+| Ambient scene owns fps: `ambient_scene_fps()` + fps-intent plumbing (startup apply / rx-event / snapback / rebuild re-apply / overlay-lift revert) | `src/scene_custom/mod.rs`, `src/interactive/event_loop_{ambient,config_rebuild}.rs`, `event_loop.rs` |
+| Scene-custom schema: 6 required dimensions (color\|colors-custom, charset\|charset-custom, fps, speed, density, glitch-level); `base-scene`/`bold`/`shading-mode`/`async-mode` REMOVED; incomplete blocks are a hard validation error (startup + live-reload + --testconf) | `src/scene_custom/{mod,overrides,helpers,display}.rs`, `src/testconf/*`, `src/config/config_hints/mod.rs` |
+| Custom scenes are always glyph rain (no base-scene inheritance) | `scene_custom::resolve_rain_style`, `Cloud::apply_custom_scene_runtime` |
+| Ambient apply clears a lingering custom palette even when the scene's scheme matches the current one | `scene_runtime.rs` color arms |
+| Overlay-lift revert resolves CUSTOM startup scenes (`apply_scene_runtime_with_cfg`) and restores the locked fps | `src/interactive/event_loop_ambient.rs` |
+| Locked-family restore covers `scene_custom_name` + custom palette; runtime sync tracks custom scenes for the tail block | `src/interactive/event_loop_scene_sync.rs` |
+| Template + docs honesty sweep (scene-custom section, ambient note: fps is ambient-owned) | `src/config/configfile/configfile_dump.rs`, this file, `docs/AMBIENT_SCHEDULER.md` |
+
+### Verification
+
+- 8 inverted contract tests (`rebuild_scene_custom_*_overrides_cli_lock_at_runtime`
+  family) + 2 removed-field inertness tests in
+  `src/config/live_config/tests_cli_priority.rs`.
+- 5 completeness-validation tests + 6 `ambient_scene_fps` tests +
+  6 schema/display tests in `src/scene_custom/tests.rs`.
+- 2 ambient-owns-color regression tests (config palette loses to the
+  ambient scene; same-scheme palette clear) in
+  `cloud/tests/tests_scene/transitions.rs`.
+- 2 locked-family restore/sync tests in
+  `src/interactive/event_loop_scene_sync.rs`.
+- Base-scene parse-rejection + hint test in `src/testconf/tests.rs`.
+- Full suite: 2060+ tests green.
 
 ---
 

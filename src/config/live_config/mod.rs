@@ -65,12 +65,20 @@ pub(crate) type LiveConfigEvent = Result<HashMap<String, String>, String>;
 
 /// Rebuild a CloudConfig from the locked startup base + new config values.
 ///
-/// v80.0.0-beta.1 masterclass precedence (owner contract, 2026-09-01):
+/// v80.0.0-beta.2 masterclass precedence (owner contract, S-master-LOGIC-3):
 ///
 /// ```text
 /// Startup:  CLI > config.toml > scene defaults > built-in defaults
-/// Runtime:  config key > CLI lock > scene defaults > built-in defaults
+/// Runtime:  user shortkeys > ambient scene > config keys (incl. the
+///           [scene-custom.<name>] block fields) > CLI lock > scene defaults
 /// ```
+///
+/// The runtime chain is the temporal-intent chain: whatever the user
+/// touched LAST wins, and the ambient overlay outranks plain config
+/// keys for the scene-family fields while a phase is active. The CLI
+/// never blocks a present config value at runtime — it only survives
+/// as the locked fallback underneath (see event_loop_scene_sync's
+/// RestoreLocked arm).
 ///
 /// The runtime layering is TEMPORAL: an explicit config key is the most
 /// recent user intent, so it wins over the CLI flag — but the CLI value
@@ -211,10 +219,10 @@ pub(crate) fn rebuild_cloud_config(
     // a custom scene name updated scene_name but left rain_style/color/
     // charset/speed/density at the PREVIOUS scene's values — a visual
     // no-op whenever the ambient-schedule scene-change branch did not
-    // fire. Custom scenes are now resolved here: rain_style comes from
-    // the base-scene (mirroring startup's rain_style_for_custom_scene
-    // construction path), and the field layer is applied by the
-    // scene-custom tail block below (same layer the startup path uses).
+    // fire. Custom scenes are now resolved here: rain_style is always
+    // Glyph (v80.0.0-beta.2: base-scene inheritance removed), and the
+    // (complete) field layer is applied by the scene-custom tail block
+    // below (same layer the startup path uses).
     // v80.0.0-beta.1: the old `!cli.scene && !cli.scene_custom` outer guard is GONE
     // (it encoded the pre-beta.6 "CLI blocks config" model and contradicted
     // the runtime contract). The CLI lock now survives as the FALLBACK
@@ -344,17 +352,17 @@ pub(crate) fn rebuild_cloud_config(
             }
         } else if custom_scenes.contains_key(&normalized_scene) {
             // Custom scene: mark it active so the scene-custom tail
-            // block applies base-scene defaults + field overrides,
-            // and resolve rain_style here (construction-level field
-            // the tail block does not touch).
+            // block applies the (complete) field layer, and resolve
+            // rain_style here (construction-level field the tail
+            // block does not touch). v80.0.0-beta.2: base-scene
+            // inheritance is removed — custom scenes always render
+            // glyph rain.
             lr_trace!(
                 "apply scene='{}' (custom scene: resolving rain_style + field layer)",
                 v
             );
             new.scene_custom_name = Some(v.clone());
-            new.rain_style =
-                crate::scene_custom::rain_style_for_custom_scene(cfg, &normalized_scene)
-                    .unwrap_or(crate::rain_style::RainStyle::Glyph);
+            new.rain_style = crate::rain_style::RainStyle::Glyph;
         } else {
             // Unknown scene — upstream strict validation rejects the
             // config before it reaches the render thread, so this is

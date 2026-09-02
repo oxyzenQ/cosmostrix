@@ -364,29 +364,30 @@ fn scene_custom_block_detected_via_any_field() {
 }
 
 #[test]
-fn base_scene_builtin_is_accepted() {
-    assert!(validate_field_value("base-scene", "storm").is_none());
-    assert!(validate_field_value("base-scene", "monolith").is_none());
-}
-
-#[test]
-fn base_scene_custom_or_unknown_is_rejected() {
-    // v80.0.0-beta.2 hunt: `base-scene` must name a BUILT-IN scene
-    // (custom scenes cannot inherit from custom scenes — runtime
-    // contract in apply_base_scene_to_args). Previously this field
-    // fell through the catch-all and passed strict validation
-    // silently, failing only as a runtime warning.
-    let msg = validate_field_value("base-scene", "hacker-mode")
-        .expect("custom scene name must be rejected as base-scene");
-    assert!(
-        msg.contains("unknown base-scene"),
-        "error must name the field: {msg}"
+fn base_scene_key_is_rejected_at_parse_level() {
+    // v80.0.0-beta.2 (S-master-LOGIC-3): `base-scene` is REMOVED from
+    // scene-custom blocks — custom scenes are complete self-contained
+    // profiles with no built-in inheritance. The key is now rejected by
+    // the parser (unknown key) with a config_hints migration hint; no
+    // value validator exists (the key never reaches validation).
+    let parsed = crate::configfile::parse_config_text(
+        "[scene-custom.hacker-mode]\nbase-scene = \"matrix\"\n",
     );
     assert!(
-        msg.contains("built-in"),
-        "error must explain the built-in-only contract: {msg}"
+        parsed
+            .unknown_keys
+            .iter()
+            .any(|k| k == "scene-custom.hacker-mode.base-scene"),
+        "base-scene must land in unknown_keys: {:?}",
+        parsed.unknown_keys
     );
-    assert!(validate_field_value("base-scene", "nonexistent").is_some());
+    // The removed key carries a targeted migration hint.
+    let hint = crate::config_hints::suggest_for_unknown_key("scene-custom.hacker-mode.base-scene")
+        .expect("base-scene must have a removal hint");
+    assert!(
+        hint.contains("base-scene field was removed"),
+        "hint must explain the removal: {hint}"
+    );
 }
 
 #[test]
@@ -705,11 +706,23 @@ fn strict_validation_accepts_color_referencing_custom_palette() {
 fn strict_validation_accepts_scene_custom_block_color_custom_palette() {
     // Inside a scene-custom block, `color = <custom palette>` must also
     // pass — the runtime (scene_runtime.rs) resolves it through the
-    // custom palette path.
+    // custom palette path. v80.0.0-beta.2: the block must be COMPLETE
+    // (all six dimensions) — completeness runs first.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert(
         "scene-custom.cp77.color".to_string(),
         "cyberpunk_2077".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.cp77.charset".to_string(),
+        "binary".to_string(),
+    );
+    cfg.insert("scene-custom.cp77.fps".to_string(), "12".to_string());
+    cfg.insert("scene-custom.cp77.speed".to_string(), "12".to_string());
+    cfg.insert("scene-custom.cp77.density".to_string(), "0.90".to_string());
+    cfg.insert(
+        "scene-custom.cp77.glitch-level".to_string(),
+        "none".to_string(),
     );
     cfg.insert(
         "colors-custom.cyberpunk_2077.bg".to_string(),

@@ -158,6 +158,16 @@ pub(super) fn restore_locked_scene_family(base_cfg: &mut CloudConfig, startup_cf
     base_cfg.density = startup_cfg.density;
     base_cfg.base_density = startup_cfg.base_density;
     base_cfg.rain_style = startup_cfg.rain_style;
+    // v80.0.0-beta.2 (S-master-LOGIC-3): the custom-scene tracker and the
+    // palette are part of the locked scene family. The runtime sync may
+    // switch both to a config-driven custom scene (scene_custom_name +
+    // a [colors-custom] palette) — without restoring them here, the
+    // scene-custom tail block in rebuild_cloud_config kept re-applying
+    // the REMOVED config scene's field layer (and its palette) on top of
+    // the restored scene name, so the CLI lock never actually returned.
+    base_cfg.scene_custom_name = startup_cfg.scene_custom_name.clone();
+    base_cfg.custom_palette = startup_cfg.custom_palette.clone();
+    base_cfg.custom_palette_name = startup_cfg.custom_palette_name.clone();
 }
 
 /// Sync `base_cfg` with the runtime scene's managed defaults.
@@ -195,12 +205,37 @@ pub(super) fn restore_locked_scene_family(base_cfg: &mut CloudConfig, startup_cf
 /// the [`SceneBaseAction::SyncRuntime`] branch — never while a
 /// config `scene` key is present, and never on the restore branch (the
 /// restore rolls this sync's contamination back to the startup values).
-pub(super) fn sync_base_cfg_with_runtime_scene(base_cfg: &mut CloudConfig, scene_name: &str) {
+pub(super) fn sync_base_cfg_with_runtime_scene(
+    base_cfg: &mut CloudConfig,
+    scene_name: &str,
+    cfg_map: &HashMap<String, String>,
+) {
     if base_cfg.scene_name == scene_name {
         return;
     }
     base_cfg.scene_name = scene_name.to_string();
+    // v80.0.0-beta.2 (S-master-LOGIC-3): sync the custom-scene tracker so
+    // the scene-custom tail block in rebuild_cloud_config re-applies a
+    // CUSTOM runtime scene's field layer on unrelated config edits (the
+    // ambient rx-event path switches scenes without a config `scene`
+    // key — without this sync the block stopped firing after the first
+    // such switch, and the rebuilt cloud fell back to stale field
+    // values until the ambient re-apply rescued the visuals). Built-in
+    // names clear the tracker (no block layer).
+    let normalized = scene_name.trim().to_ascii_lowercase();
+    let is_custom_scene =
+        crate::scene_custom::collect_custom_scenes(cfg_map).contains_key(&normalized);
+    base_cfg.scene_custom_name = if is_custom_scene {
+        Some(normalized)
+    } else {
+        None
+    };
     let Some(scene_info) = crate::scene::get_scene(scene_name) else {
+        // Custom scene: glyph rain (v80.0.0-beta.2 — no base-scene
+        // inheritance); the field layer is re-applied by the tail block.
+        if !matches!(base_cfg.rain_style, crate::rain_style::RainStyle::Glyph) {
+            base_cfg.rain_style = crate::rain_style::RainStyle::Glyph;
+        }
         return;
     };
     let sc = scene_info.config;
@@ -372,7 +407,7 @@ mod tests {
         let mut base = startup.clone();
         // Simulate a config-driven cinematic phase: the runtime scene sync
         // copied cinematic's managed defaults into the base.
-        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic", &HashMap::new());
         assert_eq!(base.scene_name, "cinematic");
         assert_eq!(base.speed, 9.0);
         assert_eq!(base.base_density, 0.75);
@@ -398,12 +433,97 @@ mod tests {
         assert_eq!(base.speed, startup.speed);
     }
 
+    // ── v80.0.0-beta.2 (S-master-LOGIC-3): full locked-family restore ──
+
+    #[test]
+    fn restore_rolls_back_custom_scene_tracker_and_palette() {
+        // The locked family includes the custom-scene tracker + palette.
+        // The runtime sync may switch both to a config-driven custom
+        // scene (scene_custom_name + a colors-custom palette); the
+        // restore must roll them back, or the scene-custom tail block
+        // keeps re-applying the REMOVED config scene's field layer.
+        let mut startup = locked_crystal_dragon_cfg();
+        startup.scene_custom_name = None;
+        startup.custom_palette = None;
+        startup.custom_palette_name = None;
+        let mut base = startup.clone();
+        // Simulate contamination: sync to a custom runtime scene that
+        // carries a palette via its block.
+        let custom_map = map(&[
+            ("scene-custom.cp77.color", "green"),
+            ("scene-custom.cp77.charset", "binary"),
+            ("scene-custom.cp77.fps", "12"),
+            ("scene-custom.cp77.speed", "12"),
+            ("scene-custom.cp77.density", "0.9"),
+            ("scene-custom.cp77.glitch-level", "none"),
+        ]);
+        sync_base_cfg_with_runtime_scene(&mut base, "cp77", &custom_map);
+        assert_eq!(
+            base.scene_custom_name.as_deref(),
+            Some("cp77"),
+            "sync must track the custom runtime scene"
+        );
+        // Simulate the palette contamination directly (the tail block
+        // path would load it from the block's colors-custom field).
+        base.custom_palette = Some(crate::palette::Palette {
+            colors: vec![crossterm::style::Color::Rgb {
+                r: 0,
+                g: 255,
+                b: 65,
+            }],
+            bg: None,
+        });
+        base.custom_palette_name = Some("p1".to_string());
+
+        restore_locked_scene_family(&mut base, &startup);
+        assert_eq!(
+            base.scene_custom_name, startup.scene_custom_name,
+            "restore must roll the custom-scene tracker back to the locked value"
+        );
+        assert!(base.custom_palette.is_none(), "palette must roll back");
+        assert_eq!(base.custom_palette_name, startup.custom_palette_name);
+    }
+
+    #[test]
+    fn sync_tracks_custom_runtime_scene_and_clears_for_builtin() {
+        // A custom runtime scene (ambient fired cp77) must be tracked in
+        // the base so the scene-custom tail block re-applies its field
+        // layer on unrelated config edits; a built-in runtime scene must
+        // clear the tracker.
+        let mut base = locked_crystal_dragon_cfg(); // scene: crystal-dragon
+        let custom_map = map(&[
+            ("scene-custom.cp77.color", "green"),
+            ("scene-custom.cp77.charset", "binary"),
+            ("scene-custom.cp77.fps", "12"),
+            ("scene-custom.cp77.speed", "12"),
+            ("scene-custom.cp77.density", "0.9"),
+            ("scene-custom.cp77.glitch-level", "none"),
+        ]);
+        sync_base_cfg_with_runtime_scene(&mut base, "cp77", &custom_map);
+        assert_eq!(
+            base.scene_custom_name.as_deref(),
+            Some("cp77"),
+            "custom runtime scene must be tracked"
+        );
+        // Custom scenes always render glyph rain now.
+        assert!(matches!(
+            base.rain_style,
+            crate::rain_style::RainStyle::Glyph
+        ));
+        // Switching to a built-in runtime scene clears the tracker.
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic", &custom_map);
+        assert_eq!(
+            base.scene_custom_name, None,
+            "built-in runtime scene must clear the tracker"
+        );
+    }
+
     // ── sync: shortkey scene preservation (existing behavior locked) ──
 
     #[test]
     fn sync_applies_runtime_scene_managed_defaults() {
         let mut base = locked_crystal_dragon_cfg();
-        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic", &HashMap::new());
         assert_eq!(base.scene_name, "cinematic");
         assert_eq!(base.speed, 9.0);
         assert_eq!(base.base_density, 0.75);
@@ -460,7 +580,7 @@ mod tests {
         let phase3 = map(&[("fps", "60")]);
         let action = resolve_scene_base_action(&phase3, prev_map.as_ref());
         assert_eq!(action, SceneBaseAction::SyncRuntime);
-        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon");
+        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon", &map(&[]));
         let cfg3 = crate::live_config::rebuild_cloud_config(&base, &phase3);
         assert_eq!(cfg3.scene_name, "crystal-dragon");
         assert_eq!(cfg3.target_fps, 60.0);
@@ -609,7 +729,7 @@ mod tests {
         );
         // The runtime scene sync contaminated the base first (pre-v80.0.0-beta.1
         // behavior) — model that, then the restore must roll it back.
-        sync_base_cfg_with_runtime_scene(&mut base, runtime_scene);
+        sync_base_cfg_with_runtime_scene(&mut base, runtime_scene, &prev_map.clone().unwrap());
         restore_locked_scene_family(&mut base, &startup);
         let cfg2 = crate::live_config::rebuild_cloud_config(&base, &phase2);
         assert_eq!(
@@ -635,7 +755,7 @@ mod tests {
             None, // ambient tracker cleared by the removal
         );
         assert_eq!(action3, SceneBaseAction::SyncRuntime);
-        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon"); // no-op
+        sync_base_cfg_with_runtime_scene(&mut base, "crystal-dragon", &map(&[])); // no-op
         let cfg3 = crate::live_config::rebuild_cloud_config(&base, &phase3);
         assert_eq!(cfg3.scene_name, "crystal-dragon");
     }
@@ -662,7 +782,7 @@ mod tests {
             Some("cinematic"),
         );
         assert_eq!(action, SceneBaseAction::RestoreLocked);
-        sync_base_cfg_with_runtime_scene(&mut base, "cinematic");
+        sync_base_cfg_with_runtime_scene(&mut base, "cinematic", &HashMap::new());
         restore_locked_scene_family(&mut base, &startup);
         let cfg = crate::live_config::rebuild_cloud_config(&base, &map(&[]));
         assert_eq!(cfg.scene_name, "crystal-dragon");

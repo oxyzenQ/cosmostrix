@@ -50,19 +50,13 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 /// `--list-scenes`. Mirrors the column layout of `scene::list_scenes_text`
 /// so the two groups visually align.
 ///
-/// when a custom scene sets `base-scene`, the listing annotates it
-/// as `name (base: <base-scene>)` so users can see at a glance which
-/// built-in scene a custom scene inherits from. Custom scenes without
-/// `base-scene` render as just `name` (inherit from cinematic implicitly).
+/// v80.0.0-beta.2: custom scenes are self-contained profiles (no
+/// `base-scene` inheritance) — every entry renders as just `name`.
 #[must_use]
 pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
-    for (name, scene) in scenes {
-        if let Some(base) = scene.base_scene.as_deref() {
-            out.push_str(&format!("  {name} (base: {base})\n"));
-        } else {
-            out.push_str(&format!("  {name}\n"));
-        }
+    for name in scenes.keys() {
+        out.push_str(&format!("  {name}\n"));
     }
     out
 }
@@ -81,10 +75,6 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
     out.push_str("  Configuration:\n");
 
     let mut has_field = false;
-    if let Some(base) = scene.base_scene.as_deref() {
-        out.push_str(&format!("    base-scene          = {base}\n"));
-        has_field = true;
-    }
     if let Some(color) = scene.color.as_deref() {
         out.push_str(&format!("    color              = {color}\n"));
         has_field = true;
@@ -109,9 +99,24 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
         out.push_str(&format!("    glitch-level       = {glitch}\n"));
         has_field = true;
     }
+    if let Some(colors_custom) = scene.colors_custom.as_deref() {
+        out.push_str(&format!("    colors-custom      = {colors_custom}\n"));
+        has_field = true;
+    }
+    if let Some(charset_custom) = scene.charset_custom.as_deref() {
+        out.push_str(&format!("    charset-custom     = {charset_custom}\n"));
+        has_field = true;
+    }
 
     if !has_field {
-        out.push_str("    (no fields set — using global defaults from cinematic)\n");
+        out.push_str("    (no fields set — incomplete block; see --testconf)\n");
+    }
+    let missing = crate::scene_custom::missing_scene_custom_fields(scene);
+    if !missing.is_empty() {
+        out.push_str(&format!(
+            "\n  WARNING: incomplete block — missing {}\n  (a [scene-custom.<name>] block must be COMPLETELY filled)\n",
+            missing.join(", ")
+        ));
     }
 
     out.push_str("\n  Use: cosmostrix --scene-custom ");

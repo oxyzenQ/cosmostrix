@@ -485,28 +485,30 @@ fn rebuild_switches_scene_to_custom_scene_at_runtime() {
     );
 }
 
-/// Bug C (rain_style): a custom scene with a monolith base-scene must
-/// resolve RainStyle::Monolith at live-reload (mirrors the startup
-/// construction path via rain_style_for_custom_scene).
+/// v80.0.0-beta.2 (S-master-LOGIC-3): custom scenes are always Glyph rain —
+/// base-scene inheritance is removed from the schema. A config that still
+/// carries a base-scene key gets it rejected upstream (unknown key), and
+/// the rebuild resolves the custom scene to Glyph regardless.
 #[test]
-fn rebuild_custom_scene_resolves_rain_style_from_base_scene() {
+fn rebuild_custom_scene_is_always_glyph_rain() {
     let mut cfg = HashMap::new();
     cfg.insert("scene".to_string(), "pillars".to_string());
     cfg.insert(
-        "scene-custom.pillars.base-scene".to_string(),
-        "monolith".to_string(),
+        "scene-custom.pillars.color".to_string(),
+        "cosmos".to_string(),
     );
-    let base = minimal_cloud_config();
+    let mut base = minimal_cloud_config();
+    base.rain_style = crate::rain_style::RainStyle::Monolith;
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(
         new.rain_style,
-        crate::rain_style::RainStyle::Monolith,
-        "custom scene base-scene rain_style must apply at live-reload"
+        crate::rain_style::RainStyle::Glyph,
+        "custom scenes must resolve to Glyph rain (base-scene removed in v80.0.0-beta.2)"
     );
 }
 
-/// Bug C (no base-scene): a custom scene without base-scene defaults to
-/// Glyph rain (same fallback as startup construction).
+/// A custom scene resolves to Glyph rain even when the previous state
+/// was Monolith (startup construction parity).
 #[test]
 fn rebuild_custom_scene_without_base_scene_defaults_to_glyph() {
     let mut cfg = HashMap::new();
