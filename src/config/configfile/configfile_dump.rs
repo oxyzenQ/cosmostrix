@@ -23,9 +23,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Override priority at STARTUP: CLI flags > config.toml > scene defaults.
 # At RUNTIME (config save / live-reload): user shortkeys > ambient scene
 # (while a phase is active) > config.toml keys (incl. scene-custom block
-# fields) > the locked CLI startup value > scene defaults. The CLI wins
-# only at startup — a present config key overrides it at runtime; when
-# the key is removed, cosmostrix falls back to the locked startup value.
+# fields, when config-side intent selected the block) > the locked CLI
+# startup value > scene defaults. The CLI wins only at startup — a
+# present config key overrides it at runtime; when the key is removed,
+# cosmostrix falls back to the locked startup value (a CLI-selected
+# custom scene keeps its CLI-shadowed fields; a config/ambient-selected
+# one applies the whole block layer).
 # Validate after editing: cosmostrix --testconf
 # File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
 #
@@ -182,7 +185,9 @@ pub(crate) fn dump_config_text() -> &'static str {
 #
 # Ambient-owned while a phase is active (config edits are no-ops):
 #   scene, color, charset, fps, speed, density, glitch-level
-#   (and any [scene-custom.<name>] block edits to those same fields)
+#   (and any [scene-custom.<name>] block edits to those same fields —
+#   but only while config-side intent owns the block; re-assertion is
+#   deferred to snapback after a user shortkey)
 #
 # Still works via config while ambient is active (NOT scene-owned):
 #   monolith-size, color-bg, bold, shading-mode,

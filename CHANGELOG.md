@@ -9,6 +9,61 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-beta.2 — S-master-HUNT post-LOGIC-3 bug hunt (scene-custom ownership, verbatim lock restore, uniform block validation)
+
+Owner filed three bugs against the S-master-LOGIC-3 build; all three
+were reproduced in a PTY harness before fixing, and the audit found the
+same defect family on two more paths.
+
+1. **CLI fallback "sometimes works" (owner bug 1).** Commenting the
+   config `scene` key out should fall back to `--scene carbonic`, but
+   the result flip-flopped. Root cause: the rebuild's ambient re-apply
+   had no `user_override_since_ambient` gate, so any config edit during
+   the startup CLI deferral window applied the deferred ambient scene
+   instantly — jumping the "CLI wins first, then ambient" contract. The
+   re-apply is now gated exactly like the rx-event path (ambient-owned
+   state still re-asserts on every rebuild; a config edit never sets the
+   flag, so config-vs-ambient precedence is unchanged).
+
+2. **Full disable never returns the CLI setup (owner bug 2).** With
+   `scene` + `ambient.*` all commented out, `--scene tron_legacy -c test
+   -C test` kept showing the [scene-custom.tron_legacy] block fields
+   (`chr: tron_legacy`, `clr: tron_legacy`). Root cause: the scene-custom
+   tail block re-derived the block layer over the RESTORED lock — the
+   startup snapshot already resolves CLI flags shadowing block fields.
+   New ownership model: `CloudConfig::scene_custom_config_owned` marks
+   whether the active block layer is runtime config intent (config
+   `scene` key / ambient-selected — overrides CLI locks, LOGIC-3
+   unchanged) or the LOCK (startup / RestoreLocked — per-field
+   `cli_explicit` gates keep CLI-shadowed dimensions locked while block
+   EDITS to non-shadowed fields still apply). The restore is verbatim,
+   and the ambient-overlay-lift revert now copies the snapshot VALUES
+   instead of re-deriving via `apply_scene_runtime_with_cfg` (same
+   stomp on that path).
+
+3. **Silent ignore of invalid scene-custom references (owner bug 3).**
+   `colors-custom = "cosmos"` (a BUILT-IN color, not a
+   `[colors-custom.<name>]` block) passed startup silently and no-oped
+   at runtime. `validate_config_strictly` now validates block field
+   VALUES with the same rules as `--testconf`: reference existence
+   (with a targeted "cosmos is a BUILT-IN color name; use the block's
+   'color' field" hint), fps/speed/density ranges, glitch-level enum.
+   Startup (exit 2), the live-reload watcher, and `--testconf` reject
+   in lockstep.
+
+4. **Honesty alignment.** The post-exit `color_scheme:` line now reads
+   the CLOUD's palette tracker first (same source as the HUD `clr:`
+   line) — the two surfaces can no longer disagree (HUD
+   `clr: tron_legacy` vs final `color_scheme: NeonBlue`).
+
+Verification: PTY end-to-end reproductions before/after (bug 2 final
+state shows no scene/charset/color change lines — the CLI setup returns
+verbatim; the deferral repro stays on `--scene carbonic`; startup exits
+2 with the built-in hint), 15 tests updated/added pinning the refined
+contract. Suite: 2070 passed / 0 failed. Note: the icon glyphs in the
+owner's verbose paste came from a binary built before 857423da — rebuild
+to pick up the `!` prefixes.
+
 ### harmony: v80.0.0-beta.2 — symbol-only diagnostic output (icon elimination + hard gate)
 
 Owner found icon glyphs in verbose live-reload warnings (proof lines

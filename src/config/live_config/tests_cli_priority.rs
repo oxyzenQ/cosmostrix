@@ -30,9 +30,15 @@ use super::*;
 // block values, not stay on the stale CLI test/test.
 
 /// Block speed field overrides the CLI --speed lock at runtime.
+///
+/// v80.0.0-beta.2 (S-master-HUNT): the config `scene` key names the custom
+/// scene, so the block layer is CONFIG-OWNED (no per-field CLI gates —
+/// S-master-LOGIC-3 contract). The lock-owned companion test below pins
+/// the gated behavior.
 #[test]
 fn rebuild_scene_custom_speed_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert(
         "scene-custom.test-scene.speed".to_string(),
         "40".to_string(),
@@ -47,10 +53,12 @@ fn rebuild_scene_custom_speed_field_overrides_cli_lock_at_runtime() {
     );
 }
 
-/// Block density field overrides the CLI --density lock at runtime.
+/// Block density field overrides the CLI --density lock at runtime
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_density_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert(
         "scene-custom.test-scene.density".to_string(),
         "2.5".to_string(),
@@ -65,10 +73,12 @@ fn rebuild_scene_custom_density_field_overrides_cli_lock_at_runtime() {
     );
 }
 
-/// Block color field overrides the CLI --color lock at runtime.
+/// Block color field overrides the CLI --color lock at runtime
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_color_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert(
         "scene-custom.test-scene.color".to_string(),
         "green".to_string(),
@@ -83,10 +93,12 @@ fn rebuild_scene_custom_color_field_overrides_cli_lock_at_runtime() {
     );
 }
 
-/// Block charset field overrides the CLI --charset lock at runtime.
+/// Block charset field overrides the CLI --charset lock at runtime
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_charset_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert(
         "scene-custom.test-scene.charset".to_string(),
         "retro".to_string(),
@@ -102,9 +114,11 @@ fn rebuild_scene_custom_charset_field_overrides_cli_lock_at_runtime() {
 
 /// Block glitch-level field overrides the CLI --glitch-level lock at
 /// runtime (preset values re-derived from the block value).
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_glitch_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert(
         "scene-custom.test-scene.glitch-level".to_string(),
         "intense".to_string(),
@@ -122,9 +136,11 @@ fn rebuild_scene_custom_glitch_field_overrides_cli_lock_at_runtime() {
 
 /// Block colors-custom field overrides the CLI --color lock at runtime —
 /// the block's palette reference swaps in even under an explicit -c.
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_colors_custom_field_overrides_cli_lock_at_runtime() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
     cfg.insert(
         "colors-custom.p1.rain".to_string(),
@@ -148,9 +164,11 @@ fn rebuild_scene_custom_colors_custom_field_overrides_cli_lock_at_runtime() {
 
 /// Block colors-custom field also overrides a CLI-owned --colors-custom
 /// palette reference (the config save is the more recent intent).
+/// (config `scene` key selects the custom scene — config-owned layer).
 #[test]
 fn rebuild_scene_custom_colors_custom_field_overrides_colors_custom_flag() {
     let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "test-scene".to_string());
     cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
     cfg.insert(
         "colors-custom.p1.rain".to_string(),
@@ -521,4 +539,173 @@ fn build_cli_explicit_absent_flags_stay_false() {
     assert!(!cli.color_bg);
     assert!(!cli.colors_custom);
     assert!(!cli.scene_custom);
+}
+
+// ── v80.0.0-beta.2 (S-master-HUNT): lock-owned tracker — per-field CLI gates ──
+// The tracker is LOCK-owned when the startup snapshot selected the custom
+// scene (`--scene <custom>` / `--scene-custom`) or when
+// `restore_locked_scene_family` rolled the family back after the config
+// `scene`/`ambient.*` overlay lifted. The block layer still re-applies
+// (live block EDITS keep working for non-shadowed dimensions) but every
+// dimension the user pinned with an explicit CLI flag keeps its LOCKED
+// startup value — the startup resolution already shadowed the block there.
+// Owner bug this pins: `--scene tron_legacy -c test -C test` + comment out
+// `scene`/`ambient.*` -> charset/color must come back to the CLI setup,
+// not stay stuck on the block values.
+
+/// Lock-owned tracker: a CLI-locked field (charset) survives the block
+/// layer; non-locked fields (speed) still apply (block-edit feature).
+#[test]
+fn rebuild_lock_owned_tracker_cli_locked_charset_survives_block_layer() {
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.test-scene.charset-custom".to_string(),
+        "test-scene".to_string(),
+    );
+    cfg.insert(
+        "charset-custom.test-scene.set".to_string(),
+        "01".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.test-scene.speed".to_string(),
+        "40".to_string(),
+    );
+    let mut base = minimal_cloud_config();
+    base.scene_custom_config_owned = false; // lock-owned (startup/restore)
+    base.charset_preset = "test".to_string(); // CLI -C test locked value
+    base.cli_explicit.charset = true;
+    base.speed = 12.0;
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.charset_preset, "test",
+        "lock-owned tracker: CLI -C lock must survive the block layer"
+    );
+    assert_eq!(
+        new.speed, 40.0,
+        "lock-owned tracker: non-locked block fields still apply (block-edit feature)"
+    );
+}
+
+/// Lock-owned tracker: a CLI-locked palette (-c test) survives the block's
+/// colors-custom reference — the owner bug-2 core scenario.
+#[test]
+fn rebuild_lock_owned_tracker_cli_locked_palette_survives_block_layer() {
+    let mut cfg = HashMap::new();
+    cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
+    cfg.insert(
+        "colors-custom.p1.rain".to_string(),
+        "#00ff41,#00b32d,#005c17".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.test-scene.colors-custom".to_string(),
+        "p1".to_string(),
+    );
+    let mut base = minimal_cloud_config();
+    base.scene_custom_config_owned = false; // lock-owned (startup/restore)
+    base.cli_explicit.color = true;
+    base.custom_palette = Some(crate::palette::Palette {
+        colors: vec![crossterm::style::Color::Rgb {
+            r: 0,
+            g: 255,
+            b: 65,
+        }],
+        bg: None,
+    });
+    base.custom_palette_name = Some("test".to_string()); // CLI -c test
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.custom_palette_name.as_deref(),
+        Some("test"),
+        "lock-owned tracker: CLI -c palette must survive the block's colors-custom field (owner bug 2)"
+    );
+}
+
+/// Config-owned tracker (the ambient-scene sync writes it): the same
+/// CLI-locked palette IS overridden by the block — ambient selection is
+/// runtime config intent (S-master-LOGIC-3).
+#[test]
+fn rebuild_config_owned_tracker_block_overrides_cli_palette() {
+    let mut cfg = HashMap::new();
+    cfg.insert("colors-custom.p1.bg".to_string(), "#0a0a0a".to_string());
+    cfg.insert(
+        "colors-custom.p1.rain".to_string(),
+        "#00ff41,#00b32d,#005c17".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.test-scene.colors-custom".to_string(),
+        "p1".to_string(),
+    );
+    let mut base = minimal_cloud_config();
+    base.scene_custom_config_owned = true; // ambient-synced / scene-key selected
+    base.cli_explicit.color = true;
+    base.custom_palette_name = Some("test".to_string());
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.custom_palette_name.as_deref(),
+        Some("p1"),
+        "config-owned tracker: the block layer wins over the CLI lock (ambient/config selection)"
+    );
+}
+
+/// The restore path's verbatim contract at the rebuild level: after
+/// `restore_locked_scene_family` (base reset to the startup snapshot with
+/// scene_custom_config_owned = false), a rebuild from a map with the
+/// scene key REMOVED must keep the restored family — the tail block must
+/// not re-derive the block's fields over the lock (owner bug 2).
+#[test]
+fn rebuild_after_restore_keeps_locked_startup_family_verbatim() {
+    // Simulate the owner's exact bug-2 shape: startup resolved
+    // scene=tron_legacy (custom), charset=test (CLI -C), palette=test
+    // (CLI -c). The config map now has the block but NO `scene` key and
+    // no ambient entries (both commented out).
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.tron_legacy.charset-custom".to_string(),
+        "tron_legacy".to_string(),
+    );
+    cfg.insert(
+        "charset-custom.tron_legacy.set".to_string(),
+        "01<>|=".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.tron_legacy.colors-custom".to_string(),
+        "tron_legacy".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.tron_legacy.bg".to_string(),
+        "#020808".to_string(),
+    );
+    cfg.insert(
+        "colors-custom.tron_legacy.rain".to_string(),
+        "#00ffff,#00aaff".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.tron_legacy.speed".to_string(),
+        "8".to_string(),
+    );
+    cfg.insert("scene-custom.tron_legacy.fps".to_string(), "75".to_string());
+    let mut base = minimal_cloud_config();
+    base.scene_name = "tron_legacy".to_string();
+    base.scene_custom_name = Some("tron_legacy".to_string());
+    base.scene_custom_config_owned = false; // restored lock
+    base.charset_preset = "test".to_string(); // CLI -C test
+    base.cli_explicit.charset = true;
+    base.custom_palette_name = Some("test".to_string()); // CLI -c test
+    base.cli_explicit.color = true;
+    base.speed = 8.0; // block speed baked at startup (no CLI flag)
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.charset_preset, "test",
+        "restore: charset must stay the CLI-locked startup value"
+    );
+    assert_eq!(
+        new.custom_palette_name.as_deref(),
+        Some("test"),
+        "restore: palette must stay the CLI-locked startup value"
+    );
+    assert_eq!(
+        new.speed, 8.0,
+        "restore: non-locked block fields keep the baked startup value"
+    );
+    assert_eq!(new.scene_name, "tron_legacy");
 }

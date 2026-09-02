@@ -377,6 +377,20 @@ and lets the rebuild path re-apply the ambient phase to a fresh Cloud
 (`event_loop_config_rebuild.rs` re-apply block) so an unrelated config
 edit does not visually kick ambient off.
 
+**Re-apply deferral parity (v80.0.0-beta.2 S-master-HUNT)**: the rebuild
+re-apply is gated on the PRE-rebuild `user_override_since_ambient`. When
+the CLI deferral is still running (CLI flags present, the ambient has not
+applied yet) or the user overrode with a shortkey, a config edit DEFERS
+the re-application — the tracker stays armed and
+`try_auto_snapback` applies the entry after `ambient-snapback-secs` of
+idle, exactly like the rx-event path. Without the gate, any config edit
+during the deferral window applied the ambient scene instantly (owner
+bug 1: the CLI `--scene` fallback looked broken and timing-dependent).
+Ambient-owned state (an entry already applied, no user override since)
+still re-asserts on every rebuild — a config edit never sets
+`user_override_since_ambient`, so config-vs-ambient precedence is
+unchanged.
+
 ### Schedule Removal = Overlay Lift (v80.0.0-beta.1, owner contract 2026-09-01)
 
 Removing ALL `ambient.*` keys at runtime (commenting them out) lifts the
@@ -386,8 +400,12 @@ key follows (see `docs/LIVE_RELOAD_BEHAVIOR.md` section 14):
 - If the current scene is **ambient-owned** (the last visual change came
   from an ambient apply — `user_override_since_ambient == false` and the
   live scene matches the last applied entry), the scene family REVERTS to
-  the locked startup resolution (CLI > config > default). No exit, no
-  rerun. Two cooperating paths enforce this, whichever sees the emptied
+  the locked startup resolution (CLI > config > default) — VERBATIM
+  (v80.0.0-beta.2 S-master-HUNT: the cloud-level revert copies the
+  startup snapshot's VALUES — scene, rain style, palette/scheme,
+  charset, speed, density, glitch — instead of re-deriving them from the
+  scene definition, which re-applied a scene-custom block layer over
+  CLI-shadowed locks like `-c test -C test`). No exit, no rerun. Two cooperating paths enforce this, whichever sees the emptied
   file first:
   - the ground-truth nuke in `event_loop_ambient.rs`
     (`revert_ambient_owned_scene`, driven by the per-frame file re-read

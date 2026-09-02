@@ -239,6 +239,13 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // v20: track active custom scene name so live reload can re-apply
         // its fields when the user edits [scene-custom.<name>] in config.
         scene_custom_name: args.scene_custom.clone(),
+        // v80.0.0-beta.2 (S-master-HUNT): the startup tracker is the LOCK —
+        // the startup snapshot already resolved the block layer (explicit
+        // CLI flags shadow block fields). The scene-custom tail block must
+        // not re-derive fields over this lock; it re-fires only when the
+        // config `scene` key or the ambient scheduler selects the block at
+        // runtime (see CloudConfig::scene_custom_config_owned).
+        scene_custom_config_owned: false,
         // Bug 3: tracker for CLI-explicit flags. v80.0.0-beta.1 owner contract: the
         // flags are the CLI LOCK — startup bakes CLI > config.toml > scene
         // defaults into this config; at runtime a config key overrides the

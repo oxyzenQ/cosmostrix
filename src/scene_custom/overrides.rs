@@ -27,6 +27,18 @@
 //! is the most recent user intent. The old `cli_explicit` gates in the
 //! live-reload field arms (Z1-1/Z2-1/FPS-F4) encoded the premature
 //! "CLI always wins" model the owner rejected; they are gone.
+//!
+//! v80.0.0-beta.2 (S-master-HUNT) ownership refinement: the scene-custom
+//! block layer overrides CLI locks only when RUNTIME CONFIG INTENT
+//! selected the block (the config `scene` key, or the ambient scheduler
+//! via the runtime-scene sync). A LOCK-owned tracker (startup
+//! `--scene <custom>` / `--scene-custom`, or a family just restored
+//! after the overlay lifted) applies block fields per-field gated on
+//! the CLI locks — the startup snapshot already shadowed CLI flags over
+//! block fields, and re-deriving them stomped the lock (owner bug 2:
+//! `-c test -C test` never came back). See
+//! `apply_scene_custom_to_cloud_config` and
+//! `docs/LIVE_RELOAD_BEHAVIOR.md` §16.
 
 use std::collections::{HashMap, HashSet};
 
@@ -298,10 +310,25 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
 /// `live_config::push_runtime_warning` so it lands on the main screen
 /// post-exit (AB-10 rain-screen cleanliness) instead of leaking into the
 /// alt screen mid-rain.
+///
+/// v80.0.0-beta.2 (S-master-HUNT) field-level CLI locks: when the tracker
+/// is LOCK-owned (`config_owned == false` — the startup snapshot selected
+/// the scene via `--scene`/`--scene-custom`, or
+/// `restore_locked_scene_family` just rolled the family back after the
+/// config `scene`/`ambient.*` overlay lifted), each block field is gated
+/// on its CLI lock: a field the user pinned with an explicit CLI flag
+/// (`-c`, `-C`, `--speed`, ...) keeps the locked startup value; the other
+/// block fields still apply, so live EDITS to the block take effect for
+/// non-shadowed dimensions (the v20 block-edit feature). When the tracker
+/// is CONFIG-owned (`config_owned == true` — the config `scene` key or
+/// the ambient scheduler selected the custom scene), no gates fire: the
+/// whole block layer is present config content and wins at runtime over
+/// the locked CLI values (the S-master-LOGIC-3 contract).
 pub(crate) fn apply_scene_custom_to_cloud_config(
     new: &mut crate::app::CloudConfig,
     cfg: &HashMap<String, String>,
     name: &str,
+    config_owned: bool,
 ) {
     let normalized = name.trim().to_ascii_lowercase();
     let prefix = format!("scene-custom.{normalized}.");
@@ -330,6 +357,27 @@ pub(crate) fn apply_scene_custom_to_cloud_config(
         }
         if field == "charset-custom" && has_charset_field {
             continue;
+        }
+        // S-master-HUNT: LOCK-owned tracker — respect the per-field CLI
+        // locks (see the function doc). CONFIG-owned tracker: no gates.
+        if !config_owned {
+            let locked = match field {
+                "color" | "colors-custom" => {
+                    new.cli_explicit.color || new.cli_explicit.colors_custom
+                }
+                "charset" | "charset-custom" => new.cli_explicit.charset,
+                "fps" => new.cli_explicit.fps,
+                "speed" => new.cli_explicit.speed,
+                "density" => new.cli_explicit.density,
+                "glitch-level" => new.cli_explicit.glitch_level,
+                _ => false,
+            };
+            if locked {
+                crate::lr_trace!(
+                    "scene-custom '{normalized}': field '{field}' skipped — CLI lock owns this dimension (tracker is lock-owned)"
+                );
+                continue;
+            }
         }
         if apply_scene_custom_field_to_cloud_config(new, cfg, &normalized, field, value) {
             touched_any = true;

@@ -326,8 +326,20 @@ pub(crate) fn validate_field_value_with_cfg(
         {
             return None;
         }
+        // v80.0.0-beta.2 (S-master-HUNT, owner bug 3): a BUILTIN color name
+        // in `colors-custom` is the classic mistake (the field only accepts
+        // [colors-custom.<name>] blocks — built-ins belong in the `color`
+        // field). Point the user at the right field instead of a bare
+        // "unknown block".
+        let builtin_hint = if theme::canonical_name_for_input(&lower).is_some() {
+            format!(
+                " — '{value}' is a BUILT-IN color name; use the block's 'color' field for built-ins"
+            )
+        } else {
+            String::new()
+        };
         return Some(format!(
-            "unknown colors-custom block '{value}' — define [colors-custom.{value}] in this config (with .bg and .rain/.stops sub-fields)"
+            "unknown colors-custom block '{value}'{builtin_hint} — define [colors-custom.{value}] in this config (with .bg and .rain/.stops sub-fields)"
         ));
     }
     if key == "charset-custom" {
@@ -336,8 +348,15 @@ pub(crate) fn validate_field_value_with_cfg(
         if cfg.contains_key(&set_key) {
             return None;
         }
+        let builtin_hint = if crate::charset::charset_from_str(&lower, false).is_ok() {
+            format!(
+                " — '{value}' is a BUILT-IN charset name; use the block's 'charset' field for built-ins"
+            )
+        } else {
+            String::new()
+        };
         return Some(format!(
-            "unknown charset-custom block '{value}' — define [charset-custom.{value}] in this config (with .set sub-field)"
+            "unknown charset-custom block '{value}'{builtin_hint} — define [charset-custom.{value}] in this config (with .set sub-field)"
         ));
     }
     // intro-color: must be a known builtin theme OR a custom palette

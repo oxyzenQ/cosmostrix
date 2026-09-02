@@ -227,6 +227,20 @@ charset-custom validation tests:
 - Duplicate `[section]` headers are last-wins in the forgiving parser
   (same key overwrite, no error).
 
+### Scene-custom block value validation (v80.0.0-beta.2 S-master-HUNT)
+
+`[scene-custom.<name>]` block field VALUES are validated by
+`validate_config_strictly` with the same rules as `--testconf` (field
+allowlist, `colors-custom`/`charset-custom` reference existence with a
+BUILT-IN-name hint, `fps`/`speed`/`density` ranges, `glitch-level` enum).
+Startup (exit 2), the live-reload watcher (reject + exit 2), and
+`--testconf` reject in lockstep — an invalid reference like
+`colors-custom = "cosmos"` (a built-in color name) is a hard error, never
+a silent runtime no-op. The runtime precedence of the block layer is
+ownership-gated (config/ambient-selected blocks override CLI locks;
+CLI-selected ones keep CLI-shadowed fields locked) — see
+`docs/LIVE_RELOAD_BEHAVIOR.md` §16.
+
 ### Killer-feature warning routing (v80.0.0-beta.1 hardening)
 
 Warnings that can fire on BOTH sides of the interactive session boundary (charset

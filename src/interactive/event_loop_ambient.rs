@@ -104,10 +104,7 @@ pub(crate) fn poll_ambient_events(
                         scene_name,
                         scene_generation,
                         last_applied_ambient_entry,
-                        last_applied_cfg_map,
                         startup_cfg,
-                        user_ranges,
-                        def_ascii,
                         w,
                         h,
                     ) {
@@ -211,10 +208,7 @@ pub(crate) fn poll_ambient_events(
             scene_name,
             scene_generation,
             last_applied_ambient_entry,
-            last_applied_cfg_map,
             startup_cfg,
-            user_ranges,
-            def_ascii,
             w,
             h,
         ) {
@@ -275,11 +269,22 @@ pub(crate) fn poll_ambient_events(
 /// shortkey scene outranks the ambient overlay and survives the removal
 /// (the shortkey is the runtime top priority in the owner's contract).
 ///
-/// The revert mirrors the rebuild path's `RestoreLocked` arm: the scene
-/// name returns to the pristine startup resolution (CLI > config >
-/// default), the scene's runtime profile is re-applied, and the render
-/// triple (ColorCache / Frame / bg fill) is rebuilt. No-op when the scene
-/// is not ambient-owned or already matches the startup scene.
+/// v80.0.0-beta.2 (S-master-HUNT) verbatim-snapshot restore: the revert now
+/// restores the startup snapshot's scene-family VALUES directly instead of
+/// re-deriving them via `apply_scene_runtime_with_cfg(startup scene)`.
+/// Re-derivation re-applied the scene definition + its scene-custom block
+/// layer over the lock — for a CLI-shadowed startup (`--scene hacker-mode
+/// -c test -C test`) that stomped the CLI-locked color/charset back to the
+/// block values, the exact defect family the rebuild path's
+/// `restore_locked_scene_family` fixes (it restores values verbatim and the
+/// tail block is ownership-gated). The cloud-level restore here mirrors
+/// that contract: the snapshot is the resolved truth (CLI flags shadow
+/// scene/block fields at startup), so every dimension comes straight from
+/// `startup_cfg`. `last_applied_cfg_map` is no longer needed — nothing is
+/// re-derived from the config.
+///
+/// No-op when the scene is not ambient-owned or already matches the
+/// startup scene.
 #[allow(clippy::too_many_arguments)]
 fn revert_ambient_owned_scene(
     cloud: &mut Cloud,
@@ -289,10 +294,7 @@ fn revert_ambient_owned_scene(
     scene_name: &mut String,
     scene_generation: &mut u64,
     last_applied_ambient_entry: &Option<AmbientEntry>,
-    last_applied_cfg_map: &Option<HashMap<String, String>>,
     startup_cfg: &CloudConfig,
-    user_ranges: &[(char, char)],
-    def_ascii: bool,
     w: u16,
     h: u16,
 ) -> bool {
@@ -305,26 +307,52 @@ fn revert_ambient_owned_scene(
         return false;
     }
     crate::lr_trace!(
-        "ambient: schedule emptied — reverting ambient-owned scene '{}' to the locked startup scene '{}'",
+        "ambient: schedule emptied — reverting ambient-owned scene '{}' to the locked startup scene '{}' (verbatim snapshot)",
         scene_name,
         startup_cfg.scene_name
     );
     *scene_name = startup_cfg.scene_name.clone();
     *scene_generation = (*scene_generation).wrapping_add(1);
-    // v80.0.0-beta.2: use the _with_cfg variant so a CUSTOM locked startup
-    // scene (e.g. `--scene hacker-mode` or config `scene = hacker-mode`)
-    // resolves its [scene-custom.<name>] field layer — the builtin-only
-    // `apply_scene_runtime` was a silent no-op for custom names, leaving
-    // the visual state stuck on the ambient scene while the HUD label
-    // claimed the startup scene.
-    let cfg_map = last_applied_cfg_map.clone().unwrap_or_default();
-    *charset_preset = cloud.apply_scene_runtime_with_cfg(
-        startup_cfg.scene_name.as_str(),
-        &*charset_preset,
-        user_ranges,
-        def_ascii,
-        &cfg_map,
-    );
+    cloud.set_scene_label(startup_cfg.scene_name.as_str());
+
+    // Rain style: transition only when it actually differs (mirrors the
+    // scene-runtime guards — a same-style transition would needlessly
+    // reset spawn/phosphor state).
+    if cloud.rain_style != startup_cfg.rain_style {
+        cloud.transition_rain_style(startup_cfg.rain_style);
+    }
+
+    // Color: the startup snapshot is the resolved truth. A locked custom
+    // palette is restored as a palette (name + values); otherwise the
+    // locked scheme is restored (set_color_scheme clears any lingering
+    // ambient custom palette, matching startup parity).
+    if let Some(ref locked_palette) = startup_cfg.custom_palette {
+        cloud.set_palette(
+            startup_cfg.custom_palette_name.as_deref(),
+            locked_palette.clone(),
+        );
+    } else {
+        cloud.set_color_scheme(startup_cfg.color_scheme);
+    }
+
+    // Charset: verbatim snapshot values (preset name + resolved glyph
+    // pool). A preset change transitions the pool (same visual continuity
+    // the scene-runtime path gives); an identical preset is a no-op.
+    if *charset_preset != startup_cfg.charset_preset {
+        cloud.transition_chars(startup_cfg.chars.clone());
+    }
+    *charset_preset = startup_cfg.charset_preset.clone();
+
+    // Speed / density / glitch: snapshot values (CLI flags shadowed the
+    // scene/block fields at startup — re-derivation would lose that).
+    cloud.set_chars_per_sec(startup_cfg.speed);
+    cloud.set_droplet_density(startup_cfg.density);
+    cloud.apply_glitch_level_runtime(startup_cfg.glitch_level);
+
+    // Clean redraw bookkeeping (same flags the scene-runtime applies set).
+    cloud.semantic_invalidate = true;
+    cloud.force_draw_everything = true;
+
     cloud.user_override_since_ambient = true;
     term.set_color_cache(ColorCache::new(&cloud.palette));
     *frame = Frame::new(w, h, cloud.palette.bg);

@@ -146,6 +146,26 @@ pub struct CloudConfig {
     /// v20: custom scenes are first-class citizens — this field is the
     /// bridge that lets live reload track which custom scene is active.
     pub(crate) scene_custom_name: Option<String>,
+    /// v80.0.0-beta.2 (S-master-HUNT): is the active scene-custom layer
+    /// owned by RUNTIME CONFIG intent, or by the startup LOCK?
+    ///
+    /// - `true`  — the layer was selected by config-side intent at runtime:
+    ///   the config `scene` key names the custom scene (the scene block in
+    ///   `rebuild_cloud_config`), or the ambient scheduler applied a custom
+    ///   scene (the runtime-scene sync writes the tracker). The tail block
+    ///   re-applies the block's fields — a config-selected block is present
+    ///   config content and wins at runtime (S-master-LOGIC-3).
+    /// - `false` — the tracker reflects the LOCKED startup resolution
+    ///   (startup construction or `restore_locked_scene_family`). The
+    ///   startup snapshot already resolved the block layer correctly
+    ///   (explicit CLI flags shadow block fields, everything else carries
+    ///   the block values), so the tail block must NOT re-derive the
+    ///   fields over the lock — that stomped CLI-shadowed values and kept
+    ///   a REMOVED config scene's profile alive after the overlay lifted
+    ///   (owner bug: `--scene tron_legacy -c test -C test` + comment out
+    ///   `scene`/`ambient.*` -> charset/color stuck on the block values
+    ///   instead of returning to the CLI setup).
+    pub(crate) scene_custom_config_owned: bool,
     /// Bug 3 fix: tracks which CloudConfig fields were set explicitly via
     /// CLI flags (vs derived from config.toml or scene defaults).
     ///
@@ -487,6 +507,9 @@ impl CloudConfig {
             config_path_for_watcher: None, // watcher only for interactive, not benchmark
             scene_name: self.scene_name.clone(),
             scene_custom_name: self.scene_custom_name.clone(),
+            // Benchmark conversion: the tracker reflects the startup
+            // resolution (a lock, never runtime-config-owned).
+            scene_custom_config_owned: false,
             cli_explicit: self.cli_explicit,
             ambient_schedule: self.ambient_schedule.clone(),
             ambient_snapback_secs: self.ambient_snapback_secs,

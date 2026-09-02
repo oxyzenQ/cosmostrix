@@ -84,7 +84,9 @@ These are documented in detail in `docs/LIVE_RELOAD_BEHAVIOR.md`
   comment out ALL `ambient.<HH-MM>` entries to lift the overlay. See
   `docs/LIVE_RELOAD_BEHAVIOR.md` §8 (Limitation D) + §15 (the
   S-master-LOGIC-3 runtime precedence contract) + §14 (the overlay
-  lift).
+  lift) + §16 (the S-master-HUNT ownership refinement: the ambient
+  re-assertion on rebuild is deferred while a user override or the CLI
+  deferral is active — same deferral the rx path gives).
 - **Live-reload is not atomic-write safe** with non-atomic editors
   (`echo > config.toml`, `tee`). Use atomic-saving editors (VSCode,
   vim with `writebackup`, Helix, Neovim). On validation failure, the

@@ -23,7 +23,12 @@
 //! incomplete block is a hard validation error (`--testconf`, startup,
 //! and live-reload all reject it). The block owns the same six
 //! scene-family dimensions an ambient entry owns (scene, color,
-//! charset, fps, speed, density, glitch-level).
+//! charset, fps, speed, density, glitch-level). Field VALUES are
+//! validated too (S-master-HUNT): `colors-custom`/`charset-custom`
+//! must reference blocks that exist in the same config (a BUILT-IN
+//! name gets a targeted "use the `color`/`charset` field" hint — it is
+//! a hard error, never a silent runtime no-op), and the numeric/enum
+//! fields carry the same ranges as their top-level keys.
 //!
 //! REMOVED in v80.0.0-beta.2 (owner mandate): `base-scene` (custom
 //! scenes no longer inherit from built-ins — they stand alone and

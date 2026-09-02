@@ -422,7 +422,11 @@ CONFIG:
       at runtime a present config key beats the locked CLI value (the
       CLI lock is only the fallback when the key is removed); while an
       ambient phase is active, the scheduled scene owns scene, color,
-      charset, fps, speed, density, and glitch-level.
+      charset, fps, speed, density, and glitch-level. A
+      [scene-custom.<name>] block layer overrides CLI locks only when
+      config-side intent selected it (the config scene key or the
+      ambient scheduler); a CLI-selected custom scene keeps the
+      CLI-shadowed fields locked at runtime.
 
 DIAGNOSTICS:
   --doctor       Build info, renderer details, environment diagnostics, and

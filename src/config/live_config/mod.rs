@@ -256,6 +256,10 @@ pub(crate) fn rebuild_cloud_config(
             // scene away from a custom scene used to leave the custom
             // layer overriding the builtin the user switched to).
             new.scene_custom_name = None;
+            // v80.0.0-beta.2 (S-master-HUNT): a builtin selection is never
+            // custom-scene-owned — keep the flag coherent with the None
+            // tracker so a later restore/sync starts from clean state.
+            new.scene_custom_config_owned = false;
             new.rain_style = scene_info.config.rain_style;
             if let Some(color) = scene_info.config.color {
                 // Z-master-2-v2: `--colors-custom` is explicit CLI color
@@ -362,6 +366,10 @@ pub(crate) fn rebuild_cloud_config(
                 v
             );
             new.scene_custom_name = Some(v.clone());
+            // v80.0.0-beta.2 (S-master-HUNT): the config `scene` key names
+            // the custom scene — the block layer is CONFIG-OWNED at runtime
+            // (the tail block may re-apply its fields over CLI locks).
+            new.scene_custom_config_owned = true;
             new.rain_style = crate::rain_style::RainStyle::Glyph;
         } else {
             // Unknown scene — upstream strict validation rejects the
@@ -516,13 +524,43 @@ pub(crate) fn rebuild_cloud_config(
     // the user switches scenes) instead of the immutable startup
     // `base.scene_custom_name` — otherwise the stale startup layer kept
     // overriding every builtin scene the user switched to at runtime.
+    //
+    // v80.0.0-beta.2 (S-master-HUNT) ownership gate: the tail block fires
+    // only when the layer is CONFIG-OWNED (`scene_custom_config_owned`) —
+    // selected at runtime by the config `scene` key (the scene block above
+    // sets it) or by the ambient scheduler (the runtime-scene sync in
+    // event_loop_scene_sync.rs). When the tracker reflects the LOCKED
+    // startup resolution (startup construction or
+    // `restore_locked_scene_family` — e.g. the config `scene` key was just
+    // commented out), the startup snapshot ALREADY resolved the block
+    // layer correctly (explicit CLI flags shadow block fields) and the tail
+    // block must NOT re-derive the fields over the lock. Re-applying there
+    // stomped CLI-shadowed values and kept a REMOVED config scene's profile
+    // alive after the overlay lifted (owner bug: `--scene tron_legacy
+    // -c test -C test` + comment out `scene`/`ambient.*` -> charset/color
+    // stuck on the block values instead of returning to the CLI setup).
     if let Some(custom_name) = new.scene_custom_name.clone() {
         let still_active = new
             .scene_name
             .trim()
             .eq_ignore_ascii_case(custom_name.trim());
-        if still_active {
-            crate::scene_custom::apply_scene_custom_to_cloud_config(&mut new, cfg, &custom_name);
+        if new.scene_custom_config_owned && still_active {
+            crate::scene_custom::apply_scene_custom_to_cloud_config(
+                &mut new,
+                cfg,
+                &custom_name,
+                true,
+            );
+        } else if still_active {
+            // Lock-owned tracker: the block layer still re-applies, but
+            // per-field CLI locks are respected (block EDITS to
+            // non-shadowed dimensions keep working — the v20 feature).
+            crate::scene_custom::apply_scene_custom_to_cloud_config(
+                &mut new,
+                cfg,
+                &custom_name,
+                false,
+            );
         }
     }
 

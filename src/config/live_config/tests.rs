@@ -31,7 +31,10 @@ fn validate_accepts_valid_config() {
 }
 
 #[test]
-fn validate_skips_block_keys() {
+/// v80.0.0-beta.2 (S-master-HUNT, owner bug 3): strict validation no longer
+/// skips `[scene-custom.*]` block keys — field VALUES are validated (same
+/// rules as `--testconf`). Retired/unknown block fields are rejected.
+fn validate_rejects_removed_block_field() {
     let mut cfg = HashMap::new();
     cfg.insert(
         "scene-custom.test.base-scene".to_string(),
@@ -39,15 +42,71 @@ fn validate_skips_block_keys() {
     );
     cfg.insert("speed".to_string(), "30".to_string());
     let result = crate::testconf::validate_config_strictly(&cfg);
-    assert!(result.is_ok());
+    assert!(result.is_err());
+    let msg = result.unwrap_err();
+    assert!(
+        msg.contains("base-scene"),
+        "error must name the removed field, got: {msg}"
+    );
+}
+
+#[test]
+fn validate_rejects_invalid_scene_custom_block_values() {
+    // S-master-HUNT (owner bug 3): block field VALUES are validated by
+    // strict validation (startup + live-reload + testconf in lockstep) —
+    // `colors-custom = "cosmos"` (a BUILTIN, not a block) used to pass
+    // silently and no-op at runtime. Range rules match the top-level keys.
+    let mut cfg = HashMap::new();
+    complete_cp77_block(&mut cfg);
+    cfg.insert(
+        "scene-custom.cp77.colors-custom".to_string(),
+        "cosmos".to_string(), // a BUILTIN color, not a [colors-custom.*] block
+    );
+    let msg = crate::testconf::validate_config_strictly(&cfg)
+        .expect_err("missing colors-custom reference must be rejected");
+    assert!(
+        msg.contains("unknown colors-custom block 'cosmos'"),
+        "{msg}"
+    );
+    assert!(
+        msg.contains("BUILT-IN color name"),
+        "hint for built-ins: {msg}"
+    );
+    // Out-of-range block fps: same range rules as the top-level key.
+    let mut cfg2 = HashMap::new();
+    complete_cp77_block(&mut cfg2);
+    cfg2.insert("scene-custom.cp77.fps".to_string(), "999".to_string());
+    let msg2 = crate::testconf::validate_config_strictly(&cfg2)
+        .expect_err("out-of-range block fps must be rejected");
+    assert!(
+        msg2.contains("out of range") && msg2.contains("fps"),
+        "{msg2}"
+    );
+}
+
+/// A complete, valid v2 `[scene-custom.cp77]` block + its referenced
+/// custom blocks — shared by the block-value validation tests.
+fn complete_cp77_block(cfg: &mut HashMap<String, String>) {
+    for (k, v) in [
+        ("colors-custom.p1.bg", "#0a0a0a"),
+        ("colors-custom.p1.rain", "#00ff41,#00b32d"),
+        ("scene-custom.cp77.colors-custom", "p1"),
+        ("scene-custom.cp77.charset-custom", "cyberpunk_2077"),
+        ("charset-custom.cyberpunk_2077.set", "01AB"),
+        ("scene-custom.cp77.fps", "90"),
+        ("scene-custom.cp77.speed", "12"),
+        ("scene-custom.cp77.density", "0.9"),
+        ("scene-custom.cp77.glitch-level", "none"),
+    ] {
+        cfg.insert(k.to_string(), v.to_string());
+    }
 }
 
 #[test]
 fn validate_rejects_invalid_charset() {
     let mut cfg = HashMap::new();
     cfg.insert("charset".to_string(), "hackeres".to_string());
-    let result = crate::testconf::validate_config_strictly(&cfg);
-    assert!(result.is_err());
+    assert!(crate::testconf::validate_config_strictly(&cfg).is_err());
 }
 
 #[test]
@@ -141,6 +200,8 @@ pub(super) fn minimal_cloud_config() -> crate::app::CloudConfig {
         config_path_for_watcher: None,
         scene_name: "test-scene".to_string(),
         scene_custom_name: Some("test-scene".to_string()),
+        // v80.0.0-beta.2 (S-master-HUNT): lock default — see CloudConfig doc.
+        scene_custom_config_owned: false,
         cli_explicit: crate::app::CliExplicit::default(),
         ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
         ambient_snapback_secs: None,
@@ -249,15 +310,11 @@ fn rebuild_without_scene_custom_name_does_not_apply_custom_fields() {
     );
 }
 
-/// v50 fix: when the user edits `scene = "monolith"` in config.toml,
-/// rebuild_cloud_config must update new.scene_name to match. Before the
-/// fix, only rain_style/color/charset/speed/density were applied —
-/// scene_name stayed at base.scene_name (the previous scene), so the
-/// HUD 'scn:' line showed the old scene name even though the rain had
-/// already switched. This is the source-of-truth fix; the event_loop.rs
-/// else branch (commit 51ccafe) is the consumer-side mirror that
-/// compares new_cfg.scene_name against preserved_scene_name to decide
-/// whether to re-apply scene runtime defaults.
+/// v50 fix: editing `scene = "monolith"` in config.toml must update
+/// new.scene_name to match — before the fix scene_name stayed at the
+/// previous scene, so the HUD 'scn:' line showed the old scene. This is
+/// the source-of-truth fix; the event_loop.rs else branch is the
+/// consumer-side mirror.
 #[test]
 fn rebuild_updates_scene_name_when_config_scene_changes() {
     let mut cfg = HashMap::new();

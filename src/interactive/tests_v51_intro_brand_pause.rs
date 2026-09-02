@@ -93,6 +93,8 @@ mod cases_v51_intro_brand_pause {
             config_path_for_watcher: None,
             scene_name: "monolith".to_string(),
             scene_custom_name: None,
+            // v80.0.0-beta.2 (S-master-HUNT): lock default — see CloudConfig doc.
+            scene_custom_config_owned: false,
             cli_explicit: crate::app::CliExplicit::default(),
             ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
             ambient_snapback_secs: None,

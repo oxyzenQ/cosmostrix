@@ -243,13 +243,31 @@ pub(crate) fn apply_config_rebuild(
         // SHORTKEY override is still respected via the rx-event path's
         // user_override_since_ambient deferral (snapback re-asserts after
         // ambient-snapback-secs of idle).
+        //
+        // v80.0.0-beta.2 (S-master-HUNT) deferral parity: the re-apply is
+        // now gated on the PRE-rebuild `user_override_since_ambient`
+        // (captured in `preserve_user_override` above). Without the gate,
+        // ANY config edit during the startup CLI deferral window (CLI
+        // flags present -> ambient deferred ambient-snapback-secs) jumped
+        // the ambient scene ahead of the deferral contract ("CLI wins
+        // first, then ambient takes over after the delay") — an unrelated
+        // config edit at t=2s applied the ambient scene instantly (owner
+        // bug 1: commenting `scene` during the window left the runtime on
+        // the ambient scene, so the CLI `--scene carbonic` fallback looked
+        // broken and timing-dependent — "sometimes works, sometimes not").
+        // The gate mirrors the rx-event path exactly (poll_ambient_events:
+        // user_override -> store the entry, let try_auto_snapback apply it
+        // after the delay): ambient-owned state (user_override == false)
+        // still re-asserts on every rebuild (the LOGIC-3 contract), a
+        // config edit never sets user_override, so config-vs-ambient
+        // precedence is unchanged.
         if let Some(ref last_entry) = last_applied_ambient_entry {
             let still_in = new_cfg
                 .ambient_schedule
                 .entries
                 .iter()
                 .any(|e| e == last_entry);
-            if still_in {
+            if still_in && !preserve_user_override {
                 let cm = last_applied_cfg_map.clone().unwrap_or_default();
                 *charset_preset = cloud.apply_ambient_entry(
                     last_entry,
@@ -276,6 +294,17 @@ pub(crate) fn apply_config_rebuild(
                 if let Some(fps) = crate::scene_custom::ambient_scene_fps(&last_entry.scene, &cm) {
                     apply_ambient_fps(fps, cfg, power_manager, hud_state, current_cfg);
                 }
+            } else if still_in && preserve_user_override {
+                // S-master-HUNT: deferred — the ambient was NOT applied yet
+                // (startup CLI deferral) or the user overrode it with a
+                // shortkey. Keep the tracker armed and re-assert the
+                // user-override flag on the fresh cloud so the deferral
+                // contract survives the rebuild: try_auto_snapback applies
+                // the entry after ambient-snapback-secs of idle.
+                cloud.user_override_since_ambient = true;
+                crate::lr_trace!(
+                    "ambient: rebuild defers re-apply (user override / CLI deferral active) — snapback will re-assert"
+                );
             } else if !still_in {
                 crate::lr_trace!("ambient: last entry no longer in schedule — clearing tracker");
                 *last_applied_ambient_entry = None;
@@ -313,6 +342,15 @@ pub(crate) fn apply_config_rebuild(
                 } else {
                     *scene_name = new_cfg.scene_name.clone();
                     *scene_generation = (*scene_generation).wrapping_add(1);
+                    // NOTE (S-master-HUNT): deliberately the BUILTIN-ONLY
+                    // variant — NOT apply_scene_runtime_with_cfg. The
+                    // rebuilt cloud already carries the correct family
+                    // (create_cloud bakes new_cfg, whose family came from
+                    // the restore/sync); re-deriving a CUSTOM scene's
+                    // block layer here would re-stomp the CLI-shadowed
+                    // lock values the restore just put back (the bug-2
+                    // defect family). For custom scene names this call is
+                    // an intentional no-op.
                     *charset_preset = cloud.apply_scene_runtime(
                         &*scene_name,
                         &*charset_preset,
@@ -326,6 +364,8 @@ pub(crate) fn apply_config_rebuild(
             } else {
                 *scene_name = new_cfg.scene_name.clone();
                 *scene_generation = (*scene_generation).wrapping_add(1);
+                // NOTE (S-master-HUNT): builtin-only variant by design —
+                // see the comment in the preserve branch above.
                 *charset_preset = cloud.apply_scene_runtime(
                     &*scene_name,
                     &*charset_preset,

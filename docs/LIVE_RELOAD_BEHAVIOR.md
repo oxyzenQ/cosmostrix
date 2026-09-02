@@ -57,7 +57,7 @@
 | `async-mode` | `--async-mode` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `color.tune.*` | `--color-tune` | OK YES | Keys present win; ALL absent + CLI lock → keep the locked tune; all absent + no lock → reset to identity (alpha.7 reset-on-comment). |
 | `ambient.HH-MM` | (none) | OK YES | Schedule re-collected; ambient thread notified. Removing ALL entries lifts the ambient overlay: an ambient-OWNED scene reverts to the locked startup scene family (v80.0.0-beta.1, see section 14); a user shortkey scene survives. |
-| `scene-custom.<name>.*` | `--scene-custom` | OK YES | Re-applied if the active scene-custom name matches. Every field arm honors `cli_explicit.*` (scene defaults sit BELOW the CLI lock); intra-block conflicts resolve deterministically like startup. |
+| `scene-custom.<name>.*` | `--scene-custom` | OK YES | Re-applied if the active scene-custom name matches. v80.0.0-beta.2: CONFIG-owned layer (the config `scene` key or the ambient scheduler selected the scene) overrides CLI locks; LOCK-owned layer (startup/restore) respects per-field `cli_explicit.*` locks — see section 16. Intra-block conflicts resolve deterministically like startup. |
 | `message` / `message-border` | `-m` / `-mb` | OK YES | Key present wins; absent + CLI lock → keep the locked message; absent + no lock → default fallback (alpha.7). |
 | `msg-mode` | `--msg-mode` | OK YES | Key present wins; absent + CLI lock → keep; absent + no lock → default true. |
 | `msg-fill-style` | `-mfs` | OK YES | Key present wins; absent keeps the locked startup style. |
@@ -1004,3 +1004,123 @@ Runtime:  user shortkeys
   If you find a discrepancy, please open a PR — the doc is wrong, not
   the source.
 -->
+
+---
+
+## 16. v80.0.0-beta.2 S-master-HUNT — Scene-Custom Ownership + Verbatim Lock Restore (owner audit 2026-09-02, post-157f627b)
+
+Owner report (three bugs filed against the S-master-LOGIC-3 build):
+
+1. **CLI fallback "sometimes works"**: `cosmostrix -v -s --scene carbonic`
+   with config `scene = <name>` works; commenting the `scene` key out
+   should fall back to `--scene carbonic`, but the result flip-flopped
+   across further config edits.
+2. **Bug 2 (full disable)**: with `scene` + `ambient.*` all commented out,
+   `--scene tron_legacy -c test -C test` showed `chr: tron_legacy` /
+   `clr: tron_legacy` (the [scene-custom.tron_legacy] block fields) — the
+   CLI setup never came back ("this should comeback to user cli setup").
+3. **Bug 3 (silent ignore)**: `[scene-custom.cp77]` with
+   `colors-custom = "cosmos"` (`cosmos` is a BUILT-IN color, not a
+   `[colors-custom.<name>]` block) was silently ignored at runtime — the
+   HUD kept the previous color. Expected: a hard exit error.
+
+### Root causes (all three reproduced in a PTY harness before fixing)
+
+| # | Root cause | Symptom |
+|---|-----------|---------|
+| 1 | The scene-custom TAIL BLOCK in `rebuild_cloud_config` re-applied the block's field layer whenever `scene_custom_name` matched the live scene — INCLUDING when the tracker came from the LOCKED startup snapshot or from `restore_locked_scene_family`. The restore put the CLI-shadowed values back (charset `test`, palette `test`), then the tail block immediately re-derived the block fields over them. | Bug 2: chr/clr stuck on block values after the overlay lifted; persistent across later rebuilds (the base tracker keeps firing). |
+| 2 | The rebuild's ambient re-apply had NO `user_override_since_ambient` gate. During the startup CLI deferral window (CLI flags present, ambient deferred `ambient-snapback-secs`), ANY config edit re-applied the deferred ambient entry instantly — jumping the queue ahead of the "CLI wins first, then ambient" contract. | Bug 1: the CLI fallback looked broken and timing-dependent ("sometimes works, sometimes not") — the ambient scene owned the screen before the user's comment-out edit landed. |
+| 3 | `validate_config_strictly` (startup + live-reload + watcher) SKIPPED `scene-custom.*` keys after the completeness check; only `--testconf` validated block field VALUES. | Bug 3: invalid references passed startup silently and no-oped at runtime. |
+
+### The refined contract (ownership model)
+
+The scene-custom block layer is applied at runtime only when it is
+**runtime config intent**, not when it merely sits in the file:
+
+```text
+Tracker CONFIG-owned (config `scene` key names the block, or the ambient
+scheduler applied the custom scene -> runtime-scene sync marks it):
+  the tail block re-applies ALL block fields — they override CLI locks
+  (S-master-LOGIC-3 contract unchanged).
+
+Tracker LOCK-owned (startup `--scene <custom>` / `--scene-custom`
+selection, or the family was just restored after the config
+`scene`/`ambient.*` overlay lifted):
+  the tail block re-applies block fields PER-FIELD gated on the CLI
+  locks — a dimension the user pinned with an explicit CLI flag
+  (`-c`, `-C`, `--speed`, ...) keeps its LOCKED startup value; other
+  fields still apply (live block EDITS keep working for non-shadowed
+  dimensions, the v20 feature).
+```
+
+`CloudConfig::scene_custom_config_owned` is the ownership flag: written
+`true` by the scene-key custom arm and the runtime-scene sync; `false` at
+startup construction and by `restore_locked_scene_family` (the lock).
+
+The lock restore is **verbatim**: `restore_locked_scene_family` copies the
+startup snapshot's resolved scene family (the startup resolution already
+shadowed CLI flags over block fields), and the tail block cannot
+re-derive over it. The ambient-overlay-lift revert
+(`revert_ambient_owned_scene`) now restores the snapshot VALUES directly
+too (previously it re-derived via `apply_scene_runtime_with_cfg`, which
+re-applied the block layer over a CLI-shadowed lock — the same defect
+family on the nuke path).
+
+The ambient re-apply on rebuild is gated on the PRE-rebuild
+`user_override_since_ambient` (mirroring the rx-event path): an edit
+during the CLI deferral window defers the ambient to snapback instead of
+jumping it in; ambient-owned state (user_override == false, e.g. after a
+snapback or an ambient apply) still re-asserts on every rebuild (the
+LOGIC-3 contract preserved — a config edit never sets user_override, so
+config-vs-ambient precedence is unchanged).
+
+### Bug 3 fix (uniform block-value rejection)
+
+`validate_config_strictly` now validates `[scene-custom.<name>]` block
+field VALUES with the same rules as `--testconf` (field allowlist +
+`validate_field_value_with_cfg`): unknown `colors-custom`/`charset-custom`
+references (with a targeted hint when the value is a BUILT-IN name —
+"cosmos is a BUILT-IN color name; use the block's 'color' field for
+built-ins"), range checks on `fps`/`speed`/`density`, and
+`glitch-level` enum. Startup (exit 2), the live-reload watcher (reject +
+exit), and `--testconf` all reject in lockstep.
+
+### Changes shipped
+
+| Change | File(s) |
+|--------|---------|
+| `CloudConfig::scene_custom_config_owned` ownership flag (scene-key arm, runtime-scene sync, restore, startup) | `src/cli/app.rs`, `src/cli/build_cloud_cfg.rs`, `src/config/live_config/mod.rs`, `src/interactive/event_loop_scene_sync.rs` |
+| Tail block ownership gate + per-field CLI locks for lock-owned trackers | `src/config/live_config/mod.rs`, `src/scene_custom/overrides.rs` |
+| Ambient rebuild re-apply gated on `user_override_since_ambient` (deferral parity with the rx path) | `src/interactive/event_loop_config_rebuild.rs` |
+| Verbatim snapshot restore on the ambient-lift nuke path (values, not re-derivation) | `src/interactive/event_loop_ambient.rs`, `scene_runtime.rs` (`Cloud::set_scene_label`) |
+| Scene-custom block field VALUE validation in strict validation (startup/live-reload/testconf lockstep) + built-in-name hints | `src/testconf/mod.rs`, `src/testconf/field_validation.rs` |
+| Final-state color source aligned with the HUD (cloud palette tracker first) | `src/interactive/event_loop_finalize.rs` |
+| AB-05 branches documented as deliberately builtin-only (custom names no-op) | `src/interactive/event_loop_config_rebuild.rs` |
+
+### Verification
+
+- PTY end-to-end (isolated XDG config, real binary):
+  - bug 2 repro (scene+ambient commented mid-session): final state shows
+    NO scene/charset/color change lines — the CLI setup (`test`/`test`)
+    returns verbatim (before: `charset: tron_legacy (was test)`).
+  - bug 1 deferral repro (comment `scene` inside the deferral window,
+    snapback deadline 60s): the runtime stays on `--scene carbonic`
+    through the whole window (before: the ambient scene jumped in on the
+    first rebuild).
+  - bug 3 repro: startup exits 2 with
+    "unknown colors-custom block 'cosmos' — 'cosmos' is a BUILT-IN color
+    name; use the block's 'color' field for built-ins"; the live-reload
+    edit rejection prints the same message.
+- 11 tests updated to the refined contract (the LOGIC-3 override tests now
+  model the config-selected scene via the `scene` key) + 4 new
+  lock-owned/config-owned/verbatim-restore tests in
+  `src/config/live_config/tests_cli_priority.rs`.
+- Block-value validation tests (removed-field rejection, missing
+  colors-custom reference with the built-in hint, out-of-range fps) in
+  `src/config/live_config/tests.rs` + `src/testconf/tests.rs`.
+- Full suite: 2070 passed / 0 failed / 2 ignored; fmt + clippy clean.
+
+> Owner note: the warning icons in the bug report's verbose paste come
+> from a binary built BEFORE commit 857423da (the symbol-only output
+> pass). Rebuild to pick up the "!" prefixes — the source tree is clean
+> (392 files checked by `scripts/check-symbol-only-output.sh`).

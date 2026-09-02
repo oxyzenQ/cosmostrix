@@ -64,6 +64,19 @@ impl Cloud {
         )
     }
 
+    /// v80.0.0-beta.2 (S-master-HUNT): set the Cloud's scene label WITHOUT
+    /// applying scene defaults.
+    ///
+    /// Used by the ambient-overlay-lift revert
+    /// (`event_loop_ambient::revert_ambient_owned_scene`), which restores
+    /// the locked startup scene family VERBATIM from the startup snapshot
+    /// — re-deriving the scene's defaults (apply_scene_runtime*) would
+    /// re-stomp CLI-shadowed lock values (`--scene hacker-mode -c test`
+    /// would come back with the block's palette, not the CLI's).
+    pub(crate) fn set_scene_label(&mut self, scene_name: &str) {
+        self.scene_name = scene_name.to_string();
+    }
+
     /// Apply a runtime scene switch with custom-scene support.
     ///
     /// Like [`Cloud::apply_scene_runtime`] but also resolves custom scenes

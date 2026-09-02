@@ -675,11 +675,32 @@ fn intro_end_to_end_via_validate_config_strictly() {
 
 #[test]
 fn strict_validation_accepts_scene_referencing_custom_block() {
+    // v80.0.0-beta.2 (S-master-HUNT): updated to the v2 six-field schema —
+    // `base-scene` was retired, and the block-field value validation added
+    // in S-master-HUNT rejects unknown block fields. A COMPLETE, valid
+    // block + `scene = <name>` must still pass the gate.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("scene".to_string(), "hacker-mode".to_string());
     cfg.insert(
-        "scene-custom.hacker-mode.base-scene".to_string(),
-        "matrix".to_string(),
+        "scene-custom.hacker-mode.color".to_string(),
+        "green".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.charset".to_string(),
+        "binary".to_string(),
+    );
+    cfg.insert("scene-custom.hacker-mode.fps".to_string(), "60".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.speed".to_string(),
+        "12".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.density".to_string(),
+        "0.9".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.glitch-level".to_string(),
+        "subtle".to_string(),
     );
     assert!(
         validate_config_strictly(&cfg).is_ok(),
@@ -741,12 +762,21 @@ fn strict_validation_accepts_scene_custom_block_color_custom_palette() {
 #[test]
 fn strict_validation_rejects_scene_referencing_missing_block() {
     // Typo protection: no builtin, no matching block → strict rejection.
+    // (S-master-HUNT: the block must be COMPLETE — the completeness gate
+    // runs before the per-key loop, and retired fields like `base-scene`
+    // are now rejected by the block-field validation.)
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("scene".to_string(), "hacker-mdoe".to_string());
-    cfg.insert(
-        "scene-custom.hacker-mode.base-scene".to_string(),
-        "matrix".to_string(),
-    );
+    for (k, v) in [
+        ("scene-custom.hacker-mode.color", "green"),
+        ("scene-custom.hacker-mode.charset", "binary"),
+        ("scene-custom.hacker-mode.fps", "60"),
+        ("scene-custom.hacker-mode.speed", "12"),
+        ("scene-custom.hacker-mode.density", "0.9"),
+        ("scene-custom.hacker-mode.glitch-level", "subtle"),
+    ] {
+        cfg.insert(k.to_string(), v.to_string());
+    }
     let err = validate_config_strictly(&cfg).expect_err("typo'd scene name must fail");
     assert!(
         err.contains("unknown scene"),

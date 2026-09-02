@@ -158,16 +158,19 @@ pub(super) fn restore_locked_scene_family(base_cfg: &mut CloudConfig, startup_cf
     base_cfg.density = startup_cfg.density;
     base_cfg.base_density = startup_cfg.base_density;
     base_cfg.rain_style = startup_cfg.rain_style;
-    // v80.0.0-beta.2 (S-master-LOGIC-3): the custom-scene tracker and the
-    // palette are part of the locked scene family. The runtime sync may
-    // switch both to a config-driven custom scene (scene_custom_name +
-    // a [colors-custom] palette) — without restoring them here, the
-    // scene-custom tail block in rebuild_cloud_config kept re-applying
-    // the REMOVED config scene's field layer (and its palette) on top of
-    // the restored scene name, so the CLI lock never actually returned.
+    // v80.0.0-beta.2 (S-master-LOGIC-3 + S-master-HUNT): the custom-scene
+    // tracker and the palette are part of the locked scene family — the
+    // runtime sync may switch both to a config-driven custom scene, and
+    // without restoring them the contaminated family survived the overlay
+    // lift. Restoring the tracker alone was NOT enough: the scene-custom
+    // tail block re-derived the block's fields over the lock (stomping
+    // CLI-shadowed `-c test -C test`). The tail block is ownership-gated
+    // (`scene_custom_config_owned`); the restore marks the family
+    // LOCK-OWNED so the startup snapshot survives verbatim.
     base_cfg.scene_custom_name = startup_cfg.scene_custom_name.clone();
     base_cfg.custom_palette = startup_cfg.custom_palette.clone();
     base_cfg.custom_palette_name = startup_cfg.custom_palette_name.clone();
+    base_cfg.scene_custom_config_owned = false;
 }
 
 /// Sync `base_cfg` with the runtime scene's managed defaults.
@@ -230,6 +233,10 @@ pub(super) fn sync_base_cfg_with_runtime_scene(
     } else {
         None
     };
+    // S-master-HUNT: a CUSTOM runtime scene is ambient-selected (the x/X
+    // cycle keys only reach built-ins) — mark it config-owned so the tail
+    // block keeps re-applying its field layer (the beta.2 ambient-rx fix).
+    base_cfg.scene_custom_config_owned = is_custom_scene;
     let Some(scene_info) = crate::scene::get_scene(scene_name) else {
         // Custom scene: glyph rain (v80.0.0-beta.2 — no base-scene
         // inheritance); the field layer is re-applied by the tail block.
@@ -330,6 +337,8 @@ mod tests {
             config_path_for_watcher: None,
             scene_name: "crystal-dragon".to_string(),
             scene_custom_name: None,
+            // v80.0.0-beta.2 (S-master-HUNT): lock default — see CloudConfig doc.
+            scene_custom_config_owned: false,
             cli_explicit: crate::app::CliExplicit {
                 scene: true,
                 ..crate::app::CliExplicit::default()

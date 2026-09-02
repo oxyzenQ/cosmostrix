@@ -346,6 +346,38 @@ pub(crate) fn validate_config_strictly(
     crate::scene_custom::validate_scene_custom_completeness(cfg)?;
     for (key, value) in cfg {
         if key.starts_with("scene-custom.") {
+            // v80.0.0-beta.2 (S-master-HUNT, owner bug 3): block fields are
+            // VALUE-validated here too — `--testconf` already checked them
+            // (run_testconf's block-field loop), but startup and the
+            // live-reload watcher validate through THIS function and used
+            // to skip block keys entirely. A block referencing a missing
+            // custom palette/charset (`colors-custom = "cosmos"` where
+            // cosmos is a BUILTIN color, not a [colors-custom.<name>]
+            // block) therefore passed startup silently and was a silent
+            // no-op at runtime (the HUD kept the previous color/charset).
+            // Now all three surfaces (startup exit 2, live-reload reject,
+            // --testconf) reject invalid block values in lockstep — the
+            // same uniform-rejection contract as every other key.
+            let parts: Vec<&str> = key.split('.').collect();
+            if parts.len() != 3 {
+                return Err(format!(
+                    "malformed block key '{key}' (expected scene-custom.<name>.<field>)"
+                ));
+            }
+            let field = parts[2];
+            if !crate::scene_custom::SCENE_CUSTOM_FIELDS.contains(&field) {
+                // Unknown block fields are also caught upstream as unknown
+                // config keys (is_scene_custom_config_key); this is
+                // defense-in-depth so the strict validator never silently
+                // blesses a drifted field name.
+                return Err(format!(
+                    "unknown block field '{field}' in '{key}' (valid fields: {})",
+                    crate::scene_custom::SCENE_CUSTOM_FIELDS.join(", ")
+                ));
+            }
+            if let Some(msg) = validate_field_value_with_cfg(field, value, cfg) {
+                return Err(format!("invalid value '{value}' for '{key}': {msg}"));
+            }
             continue;
         }
         // colors-custom.<name>.<field> keys: validate hex format.

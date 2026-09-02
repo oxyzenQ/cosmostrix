@@ -133,9 +133,21 @@ pub(crate) fn finalize_session(
         );
     }
 
+    // v80.0.0-beta.2 (S-master-HUNT) source alignment: read the palette
+    // name from the CLOUD first (cloud.custom_palette_name — set by every
+    // set_palette activation), falling back to current_cfg. The HUD `clr:`
+    // line reads the cloud tracker (event_loop_hud.rs); the previous
+    // cfg-only read diverged whenever a runtime activation path (ambient
+    // fire, snapback, scene-runtime custom-scene switch) set the cloud
+    // name without a matching current_cfg update — the HUD said
+    // "clr: tron_legacy" while the final state printed the stale scheme
+    // enum ("color_scheme: NeonBlue"). Both surfaces now report the same
+    // source.
     let final_color_name = if cloud.custom_palette_active {
-        cfg.custom_palette_name
+        cloud
+            .custom_palette_name
             .as_deref()
+            .or(cfg.custom_palette_name.as_deref())
             .map(|n| format!("{n} (custom)"))
             .unwrap_or_else(|| format!("{:?}", cloud.color_scheme()))
     } else {
