@@ -157,7 +157,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Custom Color Palettes
 # Define named palettes, reference via: colors-custom = <name>
 # Hex values MUST be quoted: "#ff0000" (unquoted # = TOML comment).
-# rain stops: min 2, no hard max — but the OKLab gradient engine expands
+# rain stops: min 2, max 64 (COLORS_CUSTOM_MAX_RAIN_STOPS — extra stops
+# silently truncated with a warning). The OKLab gradient engine expands
 # all stops to exactly 9 perceptual samples. 7 stops is the sweet spot
 # (enough anchors for smooth interpolation; more than ~8 gives no
 # visible improvement since output is always 9 samples).

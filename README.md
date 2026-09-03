@@ -622,7 +622,7 @@ renderer can *compute* per second, not how many frames the terminal
 refresh rate, and ANSI output bandwidth. Use `i` (live HUD) during a
 real run to see actual interactive FPS.
 
-Use `--bench-duration N` (min 1s, no maximum) for sustained drift / leak detection:
+Use `--bench-duration N` (min 1s, max 24h — the hard OS-protection ceiling) for sustained drift / leak detection:
 
 ```bash
 target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
