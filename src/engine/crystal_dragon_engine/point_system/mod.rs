@@ -49,9 +49,12 @@ use crate::crystal_dragon_engine::sensor::point_to_group;
 use crate::runtime::ColorScheme;
 
 /// Maximum number of recent selections tracked by calc-v2's recency
-/// ring buffer. 8 entries = 8 × 1 byte = 8 bytes memory. At 12% drift
-/// chance per 60s poll, 8 entries covers ~40 minutes of drift history
-/// (8 / 0.12 × 60s ≈ 4000s). Beyond that, the oldest entry is
+/// ring buffer. 8 entries = 8 × 1 byte = 8 bytes memory. At the
+/// S-master-HUNT-7 deterministic boundary cadence (one drift decision
+/// per poll cycle — every 2 cycles apart with ambient OFF, where the
+/// visibility window owns one full cycle) 8 entries covers ~8 minutes
+/// of drift history at the 60s default (8 × 60s ambient-on rhythm,
+/// ~16 minutes ambient-off). Beyond that, the oldest entry is
 /// overwritten — memory fades naturally.
 const CALC_V2_HISTORY_SIZE: usize = 8;
 

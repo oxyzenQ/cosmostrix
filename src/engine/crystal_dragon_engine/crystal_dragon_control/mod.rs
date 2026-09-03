@@ -50,20 +50,30 @@ pub(crate) const CRYSTAL_DRAGON_MIN_DWELL_SECS: f32 = 60.0;
 
 /// Probability (0..1) that a drift tick actually triggers a palette drift.
 ///
-/// v80.0.0-alpha.1 (S-master-HUNT-6, owner bug 2026-09-03: "the 10m knob
-/// still drifts every 60s + bursts in milliseconds on config edits"):
-/// `crystal_dragon_tick` runs every frame, but the drift DECISION block
-/// only runs on a tick where the polling interval actually elapsed (the
-/// poll gate) — so this chance is evaluated once per POLL BOUNDARY, and
-/// the cadence governor is `polling_secs` (+ the dwell floor and the
-/// drift-cycle visibility window in post_rain.rs), NOT this value.
-/// 0.12 means a drift fires within moments of a boundary becoming
-/// dwell-eligible, which keeps the timing slightly unpredictable —
-/// cinematic without changing the cadence contract. (Pre-HUNT-6 the
-/// dice rolled every frame and the effective cadence was the 60s dwell
-/// floor regardless of a slower `polling_secs` — the exact bug the
-/// owner reported.)
-pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.12;
+/// v80.0.0-alpha.1 (S-master-HUNT-7, owner bug 2026-09-03: "crystal-dragon = 1
+/// in config, HUD shows crdr: on, but nothing drifts; with crystal-dragon-secs
+/// = 3 the knob works"): the shipped default is now 1.0 — a dwell-eligible
+/// poll boundary FIRES the drift deterministically. `crystal_dragon_tick`
+/// runs every frame, but the drift DECISION block only runs on a tick where
+/// the polling interval actually elapsed (the HUNT-6 poll gate), so the
+/// chance is evaluated once per POLL BOUNDARY. At 0.12 the expected time to
+/// the first drift was `polling_secs / 0.12` (8.3 cadences: ~16.7 minutes at
+/// the 120s CLI-locked cadence of the owner's report, ~8.3 minutes even at
+/// the 60s default) while the HUD honestly reported `crdr: on` — the exact
+/// "engine on, nothing happens" regression. The 0.12 value was calibrated
+/// for the pre-HUNT-6 world where the dice rolled EVERY FRAME (a 12% per
+/// frame pass fires within ~8 frames of dwell eligibility); carrying it
+/// across the poll-gate rework silently divided the visible drift rate by
+/// 8.3. The HUNT-6 cadence tests already lock the 1.0 semantics (they force
+/// `drift_chance = 1.0` to make boundary timing deterministic), and
+/// post_rain.rs documents the rhythm as "poll cycle P -> drift fires ->
+/// ... -> next drift at +P" — 1.0 makes the shipped default match that
+/// contract. Unpredictability now lives where it belongs: the theme
+/// SELECTION (calc-v2 weighted draw + recency memory + the sensor point).
+/// The field stays an owner-chosen tuning surface (not config-exposed);
+/// values < 1.0 reintroduce per-boundary dice starvation and are therefore
+/// not shipped.
+pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 1.0;
 
 // ── EMA smoothing ────────────────────────────────────────────────────────
 

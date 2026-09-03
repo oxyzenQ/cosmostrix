@@ -239,3 +239,95 @@ fn dwell_floor_still_blocks_a_boundary_drift() {
         "after the boundary is consumed, no further decision may run this cycle"
     );
 }
+
+// ── S-master-HUNT-7: shipped defaults honor the cadence contract ──────────
+//
+// Owner bug (2026-09-03, post-210aed3): `crystal-dragon = 1` in config with
+// the CLI-locked 120s cadence produced ZERO visible drifts while the HUD
+// reported `crdr: on`; the 3s tuned case visibly worked. Root cause: the
+// HUNT-6 poll gate moved the drift dice from per-frame to per-boundary, but
+// the shipped `drift_chance` stayed 0.12 — a value calibrated for the
+// per-frame world (~8 frames to a pass at 60fps). Per boundary it starved
+// the cadence by 8.3x: expected time to the first drift was
+// `polling_secs / 0.12` (~16.7 minutes at the 120s cadence, ~8.3 minutes at
+// the 60s default). The fix ships `drift_chance = 1.0`: every dwell-eligible
+// poll boundary FIRES, matching the deterministic rhythm post_rain.rs
+// documents and the 1.0 semantics the HUNT-6 tests above already lock. The
+// two tests below exercise the SHIPPED defaults (the helpers above force
+// `drift_chance = 1.0` explicitly; these must NOT) so a regression back to
+// a fractional dice value fails immediately.
+
+/// Same harness as `drift_fire_offsets` but with the SHIPPED control
+/// defaults for `drift_chance` (only the timing fields are set) — this is
+/// the production configuration an owner actually runs.
+fn drift_fire_offsets_shipped_defaults(
+    polling_secs: f32,
+    total_secs: u64,
+    last_poll: Option<Instant>,
+) -> Vec<f32> {
+    let mut cloud = make_cloud();
+    cloud.crystal_dragon = true;
+    cloud.crystal_dragon_control.polling_secs = polling_secs;
+    cloud.crystal_dragon_control.min_dwell_secs = polling_secs.min(60.0);
+    // NOTE: drift_chance deliberately NOT set — the shipped default must
+    // carry the cadence contract on its own.
+    cloud.crystal_dragon_last_poll = last_poll;
+    cloud.mt = StdRng::seed_from_u64(0x4855_4E54);
+
+    let start = Instant::now();
+    cloud
+        .crystal_dragon_sensor
+        .record_theme_transition(start - Duration::from_secs(3_600));
+
+    let frame_dt = Duration::from_millis(16);
+    let frames = total_secs.saturating_mul(1_000) / 16;
+    let mut fires = Vec::new();
+    for i in 0..frames {
+        let now = start + frame_dt.saturating_mul(i as u32);
+        if cloud.crystal_dragon_tick(now).is_some() {
+            fires.push(now.saturating_duration_since(start).as_secs_f32());
+        }
+    }
+    fires
+}
+
+/// The owner's exact case 2 shape: engine on, a slow (CLI-locked style)
+/// cadence, dwell long elapsed. Over 1200s at a 600s cadence there are two
+/// poll boundaries (+600s, +1200s) — BOTH must fire with the shipped
+/// defaults. At the pre-HUNT-7 0.12 dice both boundaries firing had a
+/// ~1.4% chance; a single missed boundary already starves the cadence past
+/// the next poll cycle (the "crdr: on but nothing drifts" symptom).
+#[test]
+fn shipped_defaults_fire_on_both_boundaries_of_a_slow_cadence() {
+    let fires = drift_fire_offsets_shipped_defaults(600.0, 1_200, None);
+    assert!(
+        fires.iter().all(|t| *t >= 599.0),
+        "no drift decision before the first 600s poll boundary (got {fires:?})"
+    );
+    assert!(
+        !fires.is_empty(),
+        "the shipped defaults must fire on the first 600s boundary — a silent \
+         engine while the HUD reports crdr: on is the HUNT-7 regression"
+    );
+}
+
+/// The owner's case 3 shape (visibly working): a fast 3s cadence must fire
+/// on (nearly) every boundary with the shipped defaults — 12s hold 4
+/// boundaries. The rare calc-v2 same-theme double-draw can no-op a single
+/// boundary (~0.5% with 14 themes per group); requiring 3 of 4 tolerates
+/// exactly one such no-op while still failing hard under any fractional
+/// dice (at the old 0.12, P(3+ fires in 4 boundaries) is ~0.2%).
+#[test]
+fn shipped_defaults_fire_on_nearly_every_fast_boundary() {
+    let fires = drift_fire_offsets_shipped_defaults(3.0, 12, None);
+    assert!(
+        fires.iter().all(|t| *t >= 2.5),
+        "no drift decision before the first 3s poll boundary (got {fires:?})"
+    );
+    assert!(
+        fires.len() >= 3,
+        "a 3s cadence over 12s must fire on at least 3 of 4 boundaries with \
+         the shipped defaults (got {fires:?}) — the pre-HUNT-7 0.12 dice \
+         starved this to a ~0.5-fire average"
+    );
+}

@@ -229,8 +229,9 @@ harmony pair is exactly that 15s/10s recipe.
 ```
 T=0:    startup → palette=user/config color, drift_active=false,
         ambient_schedule_active=false
-T=60:   drift fires (dwell floor passed; ~12%/frame chance clears
-        within moments) → palette=neon-green,
+T=60:   drift fires (poll boundary + dwell floor passed — the
+        boundary fires deterministically, S-master-HUNT-7) →
+        palette=neon-green,
         drift_active=true, drift_start=T60
 T=120:  self-reset fires (120-60=60s >= 60s POLLING_SECS) →
         drift_active=false, drift_start=None,

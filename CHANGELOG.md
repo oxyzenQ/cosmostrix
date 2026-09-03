@@ -9,6 +9,54 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-alpha.1 — S-master-HUNT-7 crystal dragon drift-chance cadence starvation
+
+Owner bug report (2026-09-03, post-210aed3): with `crystal-dragon = 1`
+in config (no `crystal-dragon-secs` key), the HUD honestly reported
+`crdr: on` but NOTHING ever drifted at the effective cadence; adding
+`crystal-dragon-secs = 3` made the knob visibly work ("changes every
+3s"), yet the drift pattern still behaved as if a 60s timer governed
+parts of it.
+
+- **Root cause**: the HUNT-6 poll gate moved the drift dice from
+  per-frame to per-poll-boundary, but the shipped
+  `CRYSTAL_DRAGON_DRIFT_CHANCE = 0.12` was calibrated for the
+  per-frame world (12% per frame at ~60fps fires within ~8 frames of
+  dwell eligibility). Evaluated once per boundary it starved the
+  cadence by 8.3x: expected time to the first visible drift became
+  `polling_secs / 0.12` — ~16.7 minutes at the 120s CLI-locked cadence
+  of the owner's report, ~8.3 minutes even at the 60s default — while
+  the HUD reported the engine as on. The fixed-seed session RNG
+  (`RNG_INITIAL_SEED`, reseeded only every 600s) made the sparse
+  boundary draws deterministic, so the owner's slow-cadence case sat
+  silent reproducibly.
+- **Fix**: the shipped default is now `1.0` — every dwell-eligible
+  poll boundary FIRES the drift deterministically. This matches the
+  rhythm `post_rain.rs` already documents ("poll cycle P -> drift
+  fires -> ... -> next drift at +P") and the semantics the HUNT-6
+  cadence tests already lock (they force `drift_chance = 1.0`).
+  Unpredictability now lives where it belongs: theme SELECTION
+  (calc-v2 weighted draw + recency memory + the sensor point), not
+  cadence. The field remains an owner-chosen tuning surface (not
+  config-exposed); values < 1.0 reintroduce per-boundary starvation
+  and are not shipped.
+- **Verified behavior after the fix** (owner's three cases):
+  config off -> no drift (unchanged); config on at a 120s cadence ->
+  first drift exactly one cadence after the enabling edit, then the
+  documented rhythm; config on at a 3s cadence -> the tuned fast
+  rhythm on every boundary. Dwell floor, poll gate, arming tick, and
+  inherit contracts unchanged.
+- **2 new unit tests** exercise the SHIPPED defaults (no forced
+  `drift_chance`) — slow-cadence boundaries must fire, fast-cadence
+  boundaries must fire on nearly every boundary; both fail at 0.12 and
+  pass at 1.0. The control-default test now pins `drift_chance == 1.0`
+  as the regression lock.
+
+Docs synced: CRYSTAL_DRAGON_ENGINE.md constants table + struct comment,
+THREE_DRAGON_ENGINES.md engine map, AMBIENT_SCHEDULER.md ambient-off
+timeline, engine README consts list, point_system DriftHistory horizon
+math, control module + tick gate comments.
+
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-6 crystal cadence poll gate + complete scene bundle on runtime scene key
 
 Owner bug report (2026-09-03, post-dc3d80c): `--crystal-dragon-secs 10m`

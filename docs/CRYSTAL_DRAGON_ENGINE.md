@@ -59,7 +59,7 @@ config-exposed; see the over-engineering guard note at `create_cloud`).
 |----------|-------|---------|
 | `CRYSTAL_DRAGON_POLLING_SECS` | `60.0` | DEFAULT sensor sampling interval AND drift-decision cadence (the runtime value lives in `CrystalDragonControl.polling_secs`, user-tunable via `crystal-dragon-secs` since v80.0.0-alpha.1). At 60 s, drift decisions run at most once per minute — slow enough to feel organic. S-master-HUNT-6 (v80.0.0-alpha.1): the decision is gated on the poll boundary itself, so the configured value is the TRUE cadence governor at every setting (10m = one decision per 10 minutes). |
 | `CRYSTAL_DRAGON_MIN_DWELL_SECS` | `60.0` | Anti-flicker floor at the DEFAULT cadence. S-master-HUNT-3 (v80.0.0-alpha.1): `create_cloud` applies **min(60, polling_secs)** — an explicit faster cadence lowers the floor to match (the knob is real below 60 s, verified live at 6 s), a slower cadence keeps the 60 s floor (the poll timer paces it — enforced for real by the HUNT-6 poll gate: decisions only run on poll boundaries). Prevents flicker when CPU% hovers near a group boundary in the untuned case. |
-| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `0.12` (12 %) | Post-boundary jitter: S-master-HUNT-6 — the chance is evaluated once per POLL BOUNDARY (the decision block only runs on a tick where the polling interval elapsed), so a drift fires within moments of boundary eligibility. The CADENCE governor is `polling_secs` (the poll gate) + the dwell floor + the drift-cycle visibility window, not this value. (Pre-HUNT-6 the dice rolled every frame and the effective cadence was the dwell floor — the owner's "10m knob still drifts every 60s" bug.) Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
+| `CRYSTAL_DRAGON_DRIFT_CHANCE` | `1.0` (100 %) | Deterministic boundary fire: S-master-HUNT-7 (v80.0.0-alpha.1, owner bug 2026-09-03: "crystal-dragon = 1 with HUD `crdr: on` but zero visible drifts") — the chance is evaluated once per POLL BOUNDARY (the decision block only runs on a tick where the polling interval elapsed), and a value below 1.0 starves the cadence by `1/value` poll cycles per drift (0.12 meant ~8.3 cadences between drifts: ~16.7 minutes at a 120 s cadence, ~8.3 minutes even at the 60 s default — while the HUD honestly reported the engine as on). The 0.12 value was calibrated for the pre-HUNT-6 per-frame dice world and silently survived the poll-gate rework. At 1.0 every dwell-eligible boundary FIRES, matching the deterministic rhythm `post_rain.rs` documents and the 1.0 semantics the HUNT-6 cadence tests lock. The CADENCE governor is `polling_secs` (the poll gate) + the dwell floor + the drift-cycle visibility window, not this value; unpredictability lives in the theme SELECTION (calc-v2 weighted draw + recency memory). Since S-master-1 the `CrystalDragonControl.drift_chance` FIELD is the single runtime source of truth (`crystal_dragon_tick` reads the field); this const only seeds the default. |
 | `CRYSTAL_DRAGON_CPU_EMA_ALPHA` | `0.25` | Default EMA smoothing for CPU%. 0.25 = 75 % weight on history, 25 % on new sample. The sensor copies `CrystalDragonControl.cpu_ema_alpha` at construction (S-master-1 wiring); this const only seeds the default. |
 
 ### `crystal-dragon-secs` — the harmony knob (v80.0.0-alpha.1)
@@ -113,7 +113,7 @@ determinism), so the knob has no bench effect.
 pub(crate) struct CrystalDragonControl {
     pub polling_secs: f32,        // 60.0
     pub min_dwell_secs: f32,      // 60.0
-    pub drift_chance: f32,        // 0.12
+    pub drift_chance: f32,        // 1.0 (S-master-HUNT-7 deterministic boundary fire)
     pub cpu_ema_alpha: f32,       // 0.25
     pub sensor_mode: CrystalDragonSensorMode,  // Cpu (with Clock fallback)
     pub calc_method: CrystalDragonCalcMethod, // CalcV2 (calc-v2, default)
@@ -257,9 +257,9 @@ get a multiplicative recency penalty so the engine cannot oscillate
 A->B->A and the drift sequence feels more varied. calc-v2 otherwise
 uses the same weighted-CDF machinery documented below.
 
-When a drift event fires (12 % chance per poll tick), the engine runs
-`calc_v1_select()` to pick a new theme from the current temperature
-group:
+When a drift event fires (every dwell-eligible poll tick — deterministic
+since S-master-HUNT-7), the engine runs the selection below to pick a
+new theme from the current temperature group:
 
 ```
 1. Compute the current group from the current point.

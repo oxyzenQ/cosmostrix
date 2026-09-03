@@ -68,8 +68,9 @@ The audit confirmed the engine is already at peak. Specifically:
   optimized in stdlib). ~14 themes per group -> 4 comparisons worst case.
 - **`Uniform::new(0.0f32, 1.0f32)`** — constructed per call but `expect`
   is branch-predicted away; cost is ~2ns. Could be cached but the call
-  is cold-path (12% chance per 60s poll), so optimization has zero
-  measurable effect.
+  is cold-path (once per poll boundary — the decision block only runs
+  when `polling_secs` elapses; S-master-HUNT-7 fires it deterministically),
+  so optimization has zero measurable effect.
 - **Uniform fallback** (when all weights sum to zero — impossible with
   current formula but defensive): uniform random index, modulo skip.
 
@@ -121,7 +122,9 @@ The audit confirmed the engine is already at peak. Specifically:
   user-tunable via `crystal-dragon-secs` CLI/config/live-reload; v80.0.0-alpha.2:
   accepts the human duration forms `45`/`45s`/`1m`/`1h30m` on every surface
   — one grammar shared with `ambient-snapback-secs` and `--duration`),
-  `CRYSTAL_DRAGON_MIN_DWELL_SECS=60.0`, `CRYSTAL_DRAGON_DRIFT_CHANCE=0.12`,
+  `CRYSTAL_DRAGON_MIN_DWELL_SECS=60.0`, `CRYSTAL_DRAGON_DRIFT_CHANCE=1.0`
+  (S-master-HUNT-7: deterministic boundary fire — the pre-fix 0.12 dice
+  starved the cadence 8.3x per boundary),
   `CRYSTAL_DRAGON_CPU_EMA_ALPHA=0.25`. All `pub(crate) const`, inlined
   by LLVM.
 - **`Default::default()`** — `const fn`-eligible (no runtime cost).

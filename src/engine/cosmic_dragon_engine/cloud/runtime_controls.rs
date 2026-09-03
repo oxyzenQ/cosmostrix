@@ -396,6 +396,12 @@ impl Cloud {
         // CRYSTAL_DRAGON_DRIFT_CHANCE const) so the documented
         // "future config override" contract is real — the field is the
         // single runtime source of truth, the const only seeds the default.
+        // S-master-HUNT-7: the shipped default is 1.0 (deterministic
+        // boundary fire — the documented cadence contract). Fractional
+        // values starve the cadence by 1/value poll cycles per drift; the
+        // pre-HUNT-7 0.12 default made the engine sit silent for ~8.3
+        // cadences while the HUD reported `crdr: on`. The dice stays as an
+        // owner tuning surface only.
         let chance_dist = Uniform::new(0.0f32, 1.0f32).expect("chance_dist always valid");
         if chance_dist.sample(&mut self.mt) >= self.crystal_dragon_control.drift_chance {
             return None;

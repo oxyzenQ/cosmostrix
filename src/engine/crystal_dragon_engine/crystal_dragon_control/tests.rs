@@ -12,7 +12,11 @@ fn default_uses_owner_chosen_values() {
     let cfg = CrystalDragonControl::default();
     assert_eq!(cfg.polling_secs, 60.0);
     assert_eq!(cfg.min_dwell_secs, 60.0);
-    assert!((cfg.drift_chance - 0.12).abs() < f32::EPSILON);
+    // S-master-HUNT-7: 1.0 = deterministic boundary fire (the documented
+    // cadence contract). A regression back to a fractional value would
+    // starve the drift cadence by 1/value cadences per drift (the owner's
+    // "crdr: on but nothing drifts" bug).
+    assert_eq!(cfg.drift_chance, 1.0);
     assert!((cfg.cpu_ema_alpha - 0.25).abs() < f32::EPSILON);
     assert_eq!(cfg.sensor_mode, CrystalDragonSensorMode::Cpu);
     assert_eq!(cfg.calc_method, CrystalDragonCalcMethod::CalcV2);
