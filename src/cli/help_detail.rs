@@ -321,28 +321,6 @@ COMMON OPTIONS:
                     to-left (the sweep crosses small angles last).
                     Fully stateless, zero API extension. No particle
                     sidecar.
-        tide       Traveling sine wave reveal: a sine wave travels
-                    left-to-right across the overlay (wavelength 5
-                    columns, period 800 ms), and each content cell
-                    rides the wave — rising from 1 row below as the
-                    upward slope passes, peaking at 1.3x brightness
-                    at the crest, then settling to 1.0 over 300 ms
-                    as the wave recedes. The first WAVE-COHERENT
-                    style — cells reveal based on the wave's PHASE
-                    at their column. Reuses the signed slide_rows
-                    field (positive = below). Fully stateless, zero
-                    API extension. No particle sidecar.
-        dissolve   Ordered dithering noise-to-text condensation: each
-                    content cell starts as a noise glyph (from a
-                    fixed 8-glyph ASCII table) at 50% brightness and
-                    condenses into its true character over 200 ms.
-                    The noise-to-true swap happens at a per-cell
-                    hashed dither threshold (deterministic — same
-                    cell same threshold every frame), producing the
-                    ordered-dithering pattern (some cells condense
-                    early, some late). Reuses CellReveal.glyph_override
-                    (the glitch extension point). Fully stateless,
-                    zero new API extension. No particle sidecar.
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -359,8 +337,6 @@ COMMON OPTIONS:
       cosmostrix -mfs scorch -mb \"wake up, neo\"
       cosmostrix -mfs cascade -mb \"wake up, neo\"
       cosmostrix -mfs radar -mb \"wake up, neo\"
-      cosmostrix -mfs tide -mb \"wake up, neo\"
-      cosmostrix -mfs dissolve -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

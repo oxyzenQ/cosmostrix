@@ -4,7 +4,7 @@
 //! Message overlay fill (reveal) style selection — one file per style.
 //!
 //! v80.0.0-beta.1 msg-fill-style: the message overlay reveal animation is no longer
-//! hardwired to the classic typewriter. Ten styles are selectable via
+//! hardwired to the classic typewriter. Eleven styles are selectable via
 //! CLI (`-mfs <style>` / `--msg-fill-style <style>`) or config.toml
 //! (`msg-fill-style = "<style>"`):
 //!
@@ -20,6 +20,7 @@
 //! | `glitch`    | 80 ms/char scrambled reveal, wrong-glyph settle, ±20% flicker | lags text (t^1.5) |
 //! | `scorch`    | 80 ms/char ember burn, 400 ms cool tint, slow gray smoke puffs | lags text (t^1.5) + smoke |
 //! | `cascade`   | 60 ms/col drop-from-above, 240 ms fall, column-paced waterfall | lags text (t^1.5) |
+//! | `radar`     | 1500 ms sonar sweep from top-left anchor, 200 ms ping dim-peak-settle, spatial reveal | lags text (t^1.5) |
 //!
 //! Default is `engrave` (v80.0.0-beta.2 owner champion winner) —
 //! laser engraving with burn-in + hot head glow + spark sidecar. The
@@ -76,7 +77,11 @@
 //! (see `scorch.rs` for why a dedicated pool is required). `cascade`
 //! reuses the existing `slide_rows` field (widened from `u16` to
 //! `i16` in this round so negative values mean "drop from above") —
-//! no new field, no sidecar, fully stateless.
+//! no new field, no sidecar, fully stateless. `radar` is purely
+//! brightness-modulated — the spatial sweep is the reveal math, not
+//! a positional or color animation, so it uses only the `factor`
+//! field (no `slide_rows`, no `glyph_override`, no `tint`) — the
+//! first SPATIAL style, fully stateless, zero API extension.
 //!
 //! Placement is a crate-root module (peer of `types/`): the enum is
 //! consumed by both the CLI layer (Args) and the rendering engine
@@ -96,7 +101,6 @@ use clap::ValueEnum;
 // `cloud/mod.rs` stores its `ScorchState` as a Cloud field. Every
 // stateless style is fully encapsulated behind the dispatch below.
 pub(crate) mod cascade;
-pub(crate) mod dissolve;
 pub(crate) mod engrave;
 mod fade;
 pub(crate) mod glitch;
@@ -105,7 +109,6 @@ mod instant;
 pub(crate) mod radar;
 pub(crate) mod scorch;
 mod slide;
-mod tide;
 mod typewriter;
 mod words;
 
@@ -177,30 +180,6 @@ pub enum MsgFillStyle {
     /// `radar.rs`).
     #[value(name = "radar")]
     Radar,
-    /// Traveling sine wave reveal: a sine wave travels left-to-right
-    /// across the overlay (wavelength 5 columns, period 800 ms), and
-    /// each content cell rides the wave — rising from 1 row below
-    /// as the upward slope passes, peaking at 1.3x brightness at the
-    /// crest, then settling to 1.0 over 300 ms as the wave recedes.
-    /// The first WAVE-COHERENT style (dynamic-coherence family) —
-    /// cells reveal based on the wave's PHASE at their column, not
-    /// on a fixed per-char stagger. Reuses the signed `slide_rows`
-    /// field (positive = below) for the rise, same mechanism as slide
-    /// style. Fully stateless, zero API extension (see `tide.rs`).
-    #[value(name = "tide")]
-    Tide,
-    /// Ordered dithering noise-to-text condensation: each content
-    /// cell starts as a noise glyph (from a fixed 8-glyph ASCII
-    /// table) at 50% brightness and "condenses" into its true
-    /// character over 200 ms. The noise→true swap happens at a
-    /// per-cell hashed dither threshold (deterministic — same cell
-    /// same threshold every frame), producing the "ordered
-    /// dithering" pattern (some cells condense early, some late).
-    /// Reuses `CellReveal.glyph_override` (the glitch extension
-    /// point) for the noise-glyph substitution. Fully stateless,
-    /// zero new API extension (see `dissolve.rs`).
-    #[value(name = "dissolve")]
-    Dissolve,
 }
 
 impl MsgFillStyle {
@@ -220,8 +199,6 @@ impl MsgFillStyle {
             Self::Scorch => "scorch",
             Self::Cascade => "cascade",
             Self::Radar => "radar",
-            Self::Tide => "tide",
-            Self::Dissolve => "dissolve",
         }
     }
 
@@ -251,12 +228,6 @@ impl MsgFillStyle {
             }
             Self::Radar => {
                 "radar (1500 ms sonar sweep from top-left anchor, 200 ms ping dim-peak-settle, spatial reveal)"
-            }
-            Self::Tide => {
-                "tide (800 ms traveling sine wave, rise-from-below + 1.3x crest + 300 ms settle, wave-coherent)"
-            }
-            Self::Dissolve => {
-                "dissolve (80 ms/char, 200 ms noise-to-text condensation with per-cell dither threshold)"
             }
         }
     }
@@ -422,8 +393,6 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Scorch => scorch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Cascade => cascade::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Radar => radar::reveal(content_idx, elapsed_ms, reveal_count),
-        MsgFillStyle::Tide => tide::reveal(content_idx, elapsed_ms, reveal_count),
-        MsgFillStyle::Dissolve => dissolve::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -459,8 +428,6 @@ pub(crate) fn border_progress(
         MsgFillStyle::Scorch => scorch::border_progress(text_progress),
         MsgFillStyle::Cascade => cascade::border_progress(text_progress),
         MsgFillStyle::Radar => radar::border_progress(text_progress),
-        MsgFillStyle::Tide => tide::border_progress(text_progress),
-        MsgFillStyle::Dissolve => dissolve::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -492,8 +459,6 @@ pub(crate) fn text_progress(
         MsgFillStyle::Scorch => scorch::text_progress(reveal_count, total_text),
         MsgFillStyle::Cascade => cascade::text_progress(reveal_count, total_text),
         MsgFillStyle::Radar => radar::text_progress(reveal_count, total_text),
-        MsgFillStyle::Tide => tide::text_progress(reveal_count, total_text),
-        MsgFillStyle::Dissolve => dissolve::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -525,8 +490,6 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Scorch => scorch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Cascade => cascade::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Radar => radar::reveal_budget(elapsed_ms, total_text),
-        MsgFillStyle::Tide => tide::reveal_budget(elapsed_ms, total_text),
-        MsgFillStyle::Dissolve => dissolve::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -551,8 +514,6 @@ mod tests {
         assert_eq!(MsgFillStyle::Scorch.as_str(), "scorch");
         assert_eq!(MsgFillStyle::Cascade.as_str(), "cascade");
         assert_eq!(MsgFillStyle::Radar.as_str(), "radar");
-        assert_eq!(MsgFillStyle::Tide.as_str(), "tide");
-        assert_eq!(MsgFillStyle::Dissolve.as_str(), "dissolve");
     }
 
     #[test]
@@ -573,8 +534,6 @@ mod tests {
             MsgFillStyle::Scorch,
             MsgFillStyle::Cascade,
             MsgFillStyle::Radar,
-            MsgFillStyle::Tide,
-            MsgFillStyle::Dissolve,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");
