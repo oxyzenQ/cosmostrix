@@ -157,8 +157,14 @@ mod tests {
 
     #[test]
     fn mfs_equals_form_expands() {
-        let out = expand(&["cosmostrix", "-mfs=pulse"]);
-        assert_eq!(out, vec!["cosmostrix", "--msg-fill-style", "pulse"]);
+        // S-master-HUNT-16: changed test value from "pulse" (removed
+        // MFS style — see CHANGELOG v50 pulse removal) to "radar"
+        // (current live style). The test only verifies the equals-form
+        // expansion mechanics (`-mfs=X` → `--msg-fill-style X`), not
+        // the value's validity — but using a removed style as the
+        // fixture is misleading to future readers.
+        let out = expand(&["cosmostrix", "-mfs=radar"]);
+        assert_eq!(out, vec!["cosmostrix", "--msg-fill-style", "radar"]);
     }
 
     #[test]
