@@ -3,7 +3,7 @@
 
 [package]
 name = "cosmostrix"
-version = "80.0.0-alpha.1"
+version = "100.0.0-nightly.1"
 edition = "2021"
 rust-version = "1.98"
 authors = ["rezky_nightky (oxyzenQ)"]
