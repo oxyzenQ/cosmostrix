@@ -257,7 +257,7 @@ Phase history (locked at Phase 9-D):
   Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
   Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
   Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
-  Phase 9-B ENGINE LOCK: 18 invariants asserted in src/engine/chroma_dragon_engine/tests/lock.rs
+  Phase 9-B ENGINE LOCK: 18 invariants (now 19 — INV-19 added at Phase 9-D)
   Phase 9-C sRGB-linear fallback removal (sole OKLab path)
   Phase 9-D ColorPipeline + chroma::legacy audit: INV-19 added (19 invariants total)
 
