@@ -491,6 +491,50 @@ pub(crate) const QUANTUM_RIPPLE_TRAIL_LEN: usize = 6;
 /// make it disappear too quickly to read as a streak.
 pub(crate) const QUANTUM_RIPPLE_TRAIL_DECAY: f32 = 0.55;
 
+// ── S-master-HUNT-22: real-time particle physics clock ──
+//
+// All transient particle systems (QuantumParticle mouse-click ripples +
+// border-touch sparks, EngraveSpark, ScorchSmoke) integrate physics on
+// REAL elapsed time, capped by this single anti-teleport bound. This
+// replaces the old `min(dt_raw, 1/30, sim_cap)` chain, which silently
+// dilated particle time on slow terminals (see the constant's doc
+// comment below for the full failure analysis).
+
+/// Anti-teleport cap for transient particle physics dt (seconds).
+///
+/// S-master-HUNT-22 (VTE particle stuck/hang, round 2). Particle systems
+/// previously integrated `dt = min(dt_raw, 1/30, sim_cap)` per frame.
+/// On slow CPU-rendered terminals (VTE: GNOME Terminal, Konsole) the
+/// real frame interval is 67-200ms while the cap chain admits only
+/// 15-33ms — so each frame advanced particles a fraction of the wall
+/// clock that actually passed. The effects ran in permanent slow
+/// motion: a 4.0s quantum ripple stretched to 20-40 real seconds of
+/// barely-visible drift ("snow ice"), border-touch sparks lingered
+/// ~2.3s instead of 350ms, and the velocity decay froze mid-air
+/// particles that only vanished once their diluted `sim_age` finally
+/// crossed the lifetime — the exact "slow, then stuck, then vanishes
+/// by itself" symptom reported on VTE.
+///
+/// The fix: particles integrate REAL time (like the co-spawned flash
+/// wave, the border-touch pulse, and ghost events, which already age
+/// by `now - birth`), with this generous anti-teleport bound for the
+/// pathological cases the 1/30 clamp was originally aimed at:
+/// focus loss, SIGSTOP, and the first frame after a stall. 250ms
+/// bounds a worst-case single-frame position hop to ~8 cells at
+/// QUANTUM_RIPPLE_SPEED — invisible next to the burst radius — while
+/// letting a 10 FPS terminal advance a full 100ms of physics per
+/// frame, so effects complete in their intended wall-clock duration.
+///
+/// Pause safety is unaffected: fully-paused runs never call the
+/// particle update (rain_at early-returns), the pause/resume easing
+/// still scales dt via `resume_blend`, and the pause bookkeeping
+/// shifts the per-system `last_update` timestamps forward on unpause.
+/// Rain/monolith keep the separate `max_sim_delta` dilated clock on
+/// purpose: the rain is an ambient field where slow motion reads as
+/// calm, while click sparks are interaction impulses whose perceived
+/// latency is a responsiveness signal.
+pub(crate) const PARTICLE_MAX_FRAME_DT_SECS: f32 = 0.25;
+
 // Message overlay limits
 
 /// Maximum message text length (characters). Prevents excessively long

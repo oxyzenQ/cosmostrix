@@ -360,8 +360,9 @@ fn quantum_particle_expires_within_documented_lifespan() {
         "all spawned particles must be active immediately after click"
     );
 
-    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap),
-    // so a single call with a large time advance only adds 1/30 sec.
+    // S-master-HUNT-21/22: sim_age accumulates the real-time dt
+    // (a single call with a large advance adds at most
+    // PARTICLE_MAX_FRAME_DT_SECS).
     // Loop in 33ms steps until the particles' sim_age exceeds lifetime.
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let mut t = spawn_time;
@@ -407,7 +408,7 @@ fn quantum_active_count_counter_tracks_pool_state() {
         "counter must accumulate across overlapping clicks"
     );
 
-    // S-master-HUNT-21: sim_age accumulates from clamped dt — loop
+    // S-master-HUNT-21/22: sim_age accumulates the real-time dt — loop
     // until all particles expire.
     let now = Instant::now();
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);

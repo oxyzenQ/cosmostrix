@@ -256,7 +256,8 @@ fn scorch_smoke_expires_and_stops_when_reveal_completes() {
     cloud.draw_message(&mut frame, Instant::now());
     assert_eq!(cloud.scorch.active_count, 1);
 
-    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
+    // S-master-HUNT-21/22: sim_age accumulates the real-time dt
+    // (33ms steps stay under the anti-teleport cap).
     // Loop draw_message in 33ms steps until smoke expires (sim_age >= 700ms).
     let mut t = Instant::now();
     while cloud.scorch.active_count > 0 {

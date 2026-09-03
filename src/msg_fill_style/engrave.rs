@@ -69,6 +69,7 @@ use rand::distr::Distribution;
 
 use super::{index_fraction, index_pacing, lagged_border, CellReveal};
 use crate::cell::Cell;
+use crate::constants::PARTICLE_MAX_FRAME_DT_SECS;
 use crate::frame::Frame;
 
 // ── Reveal math (stateless) ────────────────────────────────────────────────
@@ -171,9 +172,9 @@ pub(crate) struct EngraveSpark {
     pub(crate) vx: f32,
     pub(crate) vy: f32,
     pub(crate) birth: Instant,
-    /// S-master-HUNT-21: accumulated simulation age (seconds). See
-    /// QuantumParticle.sim_age for the full rationale — same fix for
-    /// the "stuck then disappears" bug on slow terminals.
+    /// S-master-HUNT-21/22: accumulated simulation age (seconds). See
+    /// QuantumParticle.sim_age for the full rationale — same real-time
+    /// clock fix for the "stuck then disappears" bug on slow terminals.
     pub(crate) sim_age: f32,
     /// Glyph: '·' (debris, ~70%) or '*' (bright fleck, ~30%).
     pub(crate) ch: char,
@@ -338,16 +339,21 @@ impl crate::cloud::Cloud {
             return;
         }
 
-        // Frame-rate-independent motion: real dt since the last
-        // update, clamped to 1/30 s, scaled by resume_blend so sparks
-        // decelerate together with the rain during the pause
-        // coast-down (same contract as apply_quantum_ripple). While
-        // FULLY paused draw_message is not called at all (rain_at
-        // early-returns), so sparks simply freeze mid-air.
+        // S-master-HUNT-22: real-time particle physics (same contract as
+        // apply_quantum_ripple). Sparks integrate the ACTUAL delta since
+        // the last update, bounded only by the
+        // PARTICLE_MAX_FRAME_DT_SECS anti-teleport cap, and scaled by
+        // resume_blend so sparks decelerate together with the rain
+        // during the pause coast-down. While FULLY paused draw_message
+        // is not called at all (rain_at early-returns), so sparks
+        // simply freeze mid-air. The old `min(1/30)` clamp diluted
+        // spark time on slow terminals (10 FPS VTE advanced only
+        // 33ms per 100ms frame), stretching the 200ms burst into
+        // ~600ms of drift.
         let dt = now
             .saturating_duration_since(self.engrave.last_update)
             .as_secs_f32()
-            .min(1.0 / 30.0)
+            .min(PARTICLE_MAX_FRAME_DT_SECS)
             * self.resume_blend.clamp(0.0, 1.0);
         self.engrave.last_update = now;
 
@@ -364,10 +370,12 @@ impl crate::cloud::Cloud {
             if !s.active {
                 continue;
             }
-            // S-master-HUNT-21: use accumulated simulation age instead
-            // of real-time age (now - birth). Same fix as
-            // apply_quantum_ripple — prevents sparks from aging out
-            // before completing their trajectory on slow terminals.
+            // S-master-HUNT-21/22: use accumulated simulation age
+            // instead of real-time age (now - birth). Same real-time
+            // clock as apply_quantum_ripple — motion and aging stay
+            // in lockstep, and the shared dt is real time (HUNT-22),
+            // so sparks complete their trajectory AND their drift in
+            // the intended wall-clock duration on slow terminals.
             s.sim_age += dt;
             if s.sim_age >= ENGRAVE_SPARK_LIFETIME_SECS {
                 s.active = false;

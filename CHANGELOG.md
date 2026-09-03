@@ -9,6 +9,70 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v100.0.0-nightly.1 — S-master-HUNT-22 particle real-time clock (VTE stuck/hang, round 2)
+
+Owner bug report (2026-09-04, post-b22e81a): on VTE terminals
+(GNOME Terminal, Konsole) the mouse-click spark burst and the
+border-touch sparks above the message box drifted slower and slower
+over minutes of clicking ("becomes snow ice"), then appeared stuck
+for seconds before vanishing on their own. The HUNT-21 fix
+(sim_age, b22e81a) had unified particle aging with particle motion
+but the symptom survived.
+
+- **Root cause**: particle physics integrated
+  `dt = min(dt_raw, 1/30, max_sim_delta) * resume_blend` per frame.
+  On VTE the real frame interval is 67-200ms while the cap chain
+  admits only 15-33ms (1/30 clamp, plus `max_sim_delta` pinned at
+  15ms once perf pressure saturates — VTE's CPU rendering cannot hit
+  the 60 FPS target, so `observe_frame_end` overshoot pins
+  `perf_pressure` at 1.0 and `run_sim_and_draw` scales the sim cap to
+  0.3). Each frame therefore advanced particles only 10-30% of the
+  wall-clock time that actually passed: a permanent time dilation.
+  The 4.0s quantum ripple stretched to 20-40 real seconds of slow
+  drift, the 350ms border spark lingered ~2.3s, the velocity decay
+  froze late-life particles mid-air ("stuck"), and each effect only
+  ended once its diluted `sim_age` crossed the lifetime — matching
+  the owner's "slow, then stuck, then disappears by itself" report
+  exactly. The co-spawned flash wave aged by `now - birth` (real
+  time), which is why the click RING looked normal while its sparks
+  crawled: the particle family was the only transient-effect family
+  still on the dilated clock.
+- **Fix**: all transient particle systems (QuantumParticle
+  mouse-click ripples + border-touch splash crowns, EngraveSpark,
+  ScorchSmoke) now integrate REAL elapsed time bounded by the new
+  `PARTICLE_MAX_FRAME_DT_SECS` (0.25s) anti-teleport cap, still
+  scaled by `resume_blend` for the pause decel/resume easing:
+  `dt = min(dt_raw, 0.25) * resume_blend`. Motion and `sim_age`
+  share the same real clock (HUNT-21 invariant preserved), and an
+  effect completes in its intended wall-clock duration at any frame
+  rate. `toggle_pause` BRANCH 2 additionally shifts
+  `engrave.last_update` / `scorch.last_update` forward by the pause
+  duration (same §8.5 family as `last_quantum_update_time`) so
+  mid-flight sparks and smoke resume without burning their
+  anti-teleport budget. The rain and monolith keep the dilated
+  `max_sim_delta` clock on purpose: the rain is an ambient field
+  where slow motion reads as calm, while click sparks are
+  interaction impulses whose perceived latency is a responsiveness
+  signal.
+- **Verified**: 4 new unit tests
+  (`tests_quantum_hunt22.rs`) — a 10 FPS + saturated-sim-cap run
+  must expire a particle within its real lifetime (fails on the old
+  clamped clock, which leaves it alive at ~1.3s sim_age after 4.0
+  real seconds), a 5s stall must integrate exactly the 250ms cap,
+  motion must cover equal real distance at 10 FPS vs 60 FPS (~6x in
+  6x the time), and unpause must shift all three particle clocks.
+  Full suite 2194 passed / 0 failed. 10s A/B benchmark
+  (before/after, `--benchmark --bench-duration 10 --json`):
+  noise-equivalent (avg_fps -0.55%, frame_entropy +0.01%,
+  density_gini -0.00001, dirty cells +0.01%) — the bench path has no
+  clicks, so the particle update stays at its O(1) early-out and the
+  fix is invisible to it, as intended.
+
+Docs synced: KNOWN_ISSUES.md VTE status section (two-layer root
+cause), `PARTICLE_MAX_FRAME_DT_SECS` doc comment, `sim_age` field
+comments, apply_quantum_ripple / draw_engrave_sparks /
+draw_scorch_smoke clock comments, toggle_pause shift comment.
+
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-7 crystal dragon drift-chance cadence starvation
 
 Owner bug report (2026-09-03, post-210aed3): with `crystal-dragon = 1`

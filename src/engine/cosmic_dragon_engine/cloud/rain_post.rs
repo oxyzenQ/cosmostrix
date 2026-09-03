@@ -7,14 +7,14 @@
 //! ring). Both are Cloud methods split from rain.rs to keep that file under the
 //! 800-LOC source cap. Same impl block, just in a sibling file.
 
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crossterm::style::Color;
 
 use crate::constants::{
-    CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, QUANTUM_BODY_TONE_DOWN,
-    QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC, QUANTUM_RIPPLE_TAIL_START_FRAC,
-    QUANTUM_RIPPLE_TRAIL_DECAY, QUANTUM_RIPPLE_VELOCITY_DECAY,
+    CRT_VIGNETTE_HEIGHT, CRT_VIGNETTE_PERF_THRESHOLD, PARTICLE_MAX_FRAME_DT_SECS,
+    QUANTUM_BODY_TONE_DOWN, QUANTUM_RIPPLE_BOUNCE_DAMPING, QUANTUM_RIPPLE_HEAD_END_FRAC,
+    QUANTUM_RIPPLE_TAIL_START_FRAC, QUANTUM_RIPPLE_TRAIL_DECAY, QUANTUM_RIPPLE_VELOCITY_DECAY,
 };
 use crate::frame::Frame;
 
@@ -188,34 +188,40 @@ impl Cloud {
         // scan + palette color decode + per-particle Instant math.
         if self.quantum_active_count == 0 {
             // Keep the timestamp fresh so the first frame after a click
-            // doesn't compute a huge dt (which would otherwise be clamped
-            // to 1/30 sec, causing a tiny position jump on spawn).
+            // doesn't integrate a huge dt (which would otherwise hit the
+            // PARTICLE_MAX_FRAME_DT_SECS anti-teleport cap, causing a
+            // small position hop on spawn).
             self.last_quantum_update_time = now;
             return;
         }
 
-        // Frame-rate-independent motion: use ACTUAL delta time since last
-        // update (not hardcoded 1/60), clamped to 1/30 to prevent teleport
-        // after pause/resume or window focus loss. At 60 FPS this matches
-        // the old behavior; at 30 FPS particles now travel 2x per frame,
-        // preserving intended speed across the 2.5s lifespan.
+        // S-master-HUNT-22: real-time particle physics. Integrate the
+        // ACTUAL delta time since the last update, bounded only by the
+        // PARTICLE_MAX_FRAME_DT_SECS anti-teleport cap (focus loss,
+        // SIGSTOP, first frame after a stall). The previous
+        // `min(dt_raw, 1/30, sim_cap)` chain diluted particle time on
+        // slow terminals: a 67-200ms real frame admitted only 15-33ms
+        // of physics, so the 4.0s ripple stretched to 20-40 wall-clock
+        // seconds of slow drift, border sparks lingered ~2.3s instead
+        // of 350ms, and the velocity decay froze particles mid-air
+        // until the diluted sim_age crossed the lifetime — the
+        // "slow, then stuck, then vanishes by itself" VTE symptom.
         //
-        // Also capped by max_sim_delta (set by the event loop under perf
-        // pressure) so quantum ripple decelerates in lockstep with rain
-        // and monolith when the system is overloaded. Without this cap,
-        // quantum particles would race ahead of the rain during throttling
-        // — visually incongruous (rain crawls, particles zip).
-        // When max_sim_delta is zero (bench mode / tests), the cap is
-        // disabled — matching the droplet/monolith convention.
-        let dt_raw = now
+        // Particles now age and move on the same REAL clock as the
+        // co-spawned flash wave, the border-touch pulse, and ghost
+        // events (all `now - birth`), so a click's ring and its sparks
+        // complete together regardless of terminal speed. The rain and
+        // monolith keep the `max_sim_delta` dilated clock on purpose:
+        // the rain is an ambient field where slow motion reads as
+        // calm, while click sparks are interaction impulses whose
+        // latency is a responsiveness signal. `resume_blend` still
+        // scales dt during the pause decel/resume ramps, and a fully
+        // paused run never reaches this code (rain_at early-returns).
+        let dt = now
             .saturating_duration_since(self.last_quantum_update_time)
-            .as_secs_f32();
-        let sim_cap = if self.max_sim_delta > Duration::from_millis(0) {
-            self.max_sim_delta.as_secs_f32()
-        } else {
-            f32::MAX
-        };
-        let dt = dt_raw.min(1.0 / 30.0).min(sim_cap) * self.resume_blend.clamp(0.0, 1.0);
+            .as_secs_f32()
+            .min(PARTICLE_MAX_FRAME_DT_SECS)
+            * self.resume_blend.clamp(0.0, 1.0);
         self.last_quantum_update_time = now;
 
         let cols = self.cols;
@@ -241,11 +247,13 @@ impl Cloud {
                 continue;
             }
             let age = p.sim_age;
-            // Use the real frame dt (clamped above) so motion stays
-            // consistent regardless of frame rate. At 60 FPS this matches
-            // the old `1/60` behavior exactly; at 30 FPS particles now
-            // travel twice as far per frame, preserving the intended
-            // visual speed across the full 2.5s lifespan.
+            // Motion uses the SAME real-time dt that advances sim_age
+            // above (HUNT-21 invariant), so speed and aging never
+            // desync. Because dt is real time (HUNT-22), motion covers
+            // the same wall-clock distance per second at any frame
+            // rate: at 60 FPS a frame moves 1/60s of physics, at 10
+            // FPS the same 100ms of physics — the terminal's refresh
+            // rate changes smoothness, never speed.
             //
             // v50 (2026-08-17) trail particles: push the CURRENT position
             // (before update) to the trail ring buffer. The trail stores

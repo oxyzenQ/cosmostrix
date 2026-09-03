@@ -429,7 +429,8 @@ fn engrave_sparks_expire_and_stop_when_reveal_completes() {
     cloud.draw_message(&mut frame, Instant::now());
     assert_eq!(cloud.engrave.active_count, 3);
 
-    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
+    // S-master-HUNT-21/22: sim_age accumulates the real-time dt
+    // (33ms steps stay under the anti-teleport cap).
     // Loop draw_message in 33ms steps until sparks expire (sim_age >= 200ms).
     let mut t = Instant::now();
     while cloud.engrave.active_count > 0 {

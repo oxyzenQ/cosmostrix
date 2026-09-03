@@ -70,7 +70,7 @@ fn quantum_bounce_damping_constant_in_sweet_spot() {
 /// `Cloud::set_mouse_click`); internally the particle's float position
 /// is set to `col + 0.5` / `line + 0.5` to mirror `spawn_quantum_ripple`'s
 /// `cx = col as f32 + 0.5` convention.
-fn pin_one_particle(
+pub(super) fn pin_one_particle(
     cloud: &mut Cloud,
     col: u16,
     line: u16,
@@ -328,7 +328,8 @@ fn quantum_bounce_does_not_extend_lifespan() {
         spawn_time,
     );
 
-    // S-master-HUNT-21: sim_age accumulates from clamped dt — loop
+    // S-master-HUNT-21/22: sim_age accumulates the real-time dt (now
+    // bounded by PARTICLE_MAX_FRAME_DT_SECS) — loop
     // until the particle expires (bouncing doesn't extend sim_age).
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
     let mut t = spawn_time;
@@ -565,8 +566,9 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
         };
         frame.set(10, 5, base_cell);
 
-        // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
-        // Use exactly 1/30s steps so sim_age = N/30 exactly — avoids
+        // S-master-HUNT-21/22: sim_age accumulates the real-time dt.
+        // Use exactly 1/30s steps (well under the anti-teleport cap)
+        // so sim_age = N/30 exactly — avoids
         // rounding drift that would shift the brightness curve.
         let target_age = frac * QUANTUM_RIPPLE_LIFETIME_SECS;
         let step = Duration::from_secs_f32(1.0 / 30.0);

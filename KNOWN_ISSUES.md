@@ -214,16 +214,42 @@ prevents perfect stabilization under sustained fullscreen load.
 
 ### Status
 
-**Particle stuck/hang FIXED (S-master-HUNT-21).** The root cause was a
-mismatch between particle aging (real time: `now - birth`) and particle
-motion (clamped dt: `min(1/30, sim_cap) * resume_blend`). On slow VTE
-terminals where frames take 50-200ms, particles aged 3-6x faster than
-they moved — appearing "stuck" then vanishing when their lifetime
-expired before completing their trajectory. The fix adds a `sim_age:
-f32` field to each particle struct (QuantumParticle, EngraveSpark,
-ScorchSmoke). `sim_age` accumulates the SAME clamped `dt` that drives
-motion — so particles age at simulation speed, not wall-clock speed.
-Particles now complete their full trajectory regardless of frame rate.
+**Particle stuck/hang FIXED (S-master-HUNT-21 + S-master-HUNT-22).**
+Two layers were involved; the second completed the fix.
+
+*Layer 1 (HUNT-21): motion/aging unification.* Particle aging was
+real-time (`now - birth`) while motion used the clamped frame dt —
+particles expired before finishing their trajectory. `sim_age` now
+accumulates the same dt that drives motion. This was correct but
+insufficient: it made aging *consistent* with motion without fixing
+what fed both clocks.
+
+*Layer 2 (HUNT-22): the dilated clock itself.* Particle physics
+integrated `dt = min(dt_raw, 1/30, max_sim_delta) * resume_blend` per
+frame. On VTE (10-15 FPS real frames of 67-200ms, with
+`max_sim_delta` pinned at 15ms under saturated perf pressure) each
+frame admitted only 15-33ms of particle time — a permanent 10-30%
+time dilation. A 4.0s click ripple stretched to 20-40 wall-clock
+seconds of slow drift ("snow ice"), border-touch sparks lingered
+~2.3s instead of 350ms, the velocity decay froze particles mid-air
+("stuck"), and they only vanished once the diluted `sim_age` finally
+crossed the lifetime ("disappears by itself"). The co-spawned flash
+wave aged in real time, which is why the click ring looked normal
+while its sparks crawled.
+
+The fix: all transient particle systems (QuantumParticle click
+ripples + border-touch sparks, EngraveSpark, ScorchSmoke) now
+integrate REAL elapsed time bounded by the
+`PARTICLE_MAX_FRAME_DT_SECS` (250ms) anti-teleport cap — the same
+real-time clock the flash wave, border-touch pulse, and ghost events
+already use. Effects complete in their intended wall-clock duration
+at any terminal speed; pause decel/resume easing is preserved via
+`resume_blend`, and unpause shifts the per-system clocks forward so
+no anti-teleport budget is burned after a pause. The rain and
+monolith deliberately keep the dilated `max_sim_delta` clock: the
+rain is an ambient field where slow motion reads as calm, while
+click sparks are interaction impulses whose latency is a
+responsiveness signal.
 
 The VTE ANSI throughput bottleneck itself (slow frame rate on CPU-rendered
 terminals) remains a known limitation — the fix addresses the particle

@@ -61,6 +61,15 @@ impl super::Cloud {
                 self.monolith_rain.shift_active_streams_last_time(elapsed);
                 self.last_phosphor_time += elapsed;
                 self.last_quantum_update_time += elapsed;
+                // S-master-HUNT-22: shift the msg-fill particle clocks
+                // (engrave sparks / scorch smoke) too — same §8.5 family
+                // as last_quantum_update_time above. Their dt is now real
+                // time bounded by PARTICLE_MAX_FRAME_DT_SECS, so a stale
+                // last_update would burn up to 250ms of the anti-teleport
+                // budget on the first post-unpause frame for any sparks
+                // or smoke that were mid-flight when the pause settled.
+                self.engrave.last_update += elapsed;
+                self.scorch.last_update += elapsed;
                 self.last_glitch_time += elapsed;
                 self.next_glitch_time += elapsed;
                 self.last_reseed_time += elapsed;
