@@ -54,7 +54,6 @@ severely or fail entirely:
 
 - **Phosphor decay** (CRT afterglow, ~400ms per glyph fade)
 - **3-layer parallax** (deep/mid/ground depth layers)
-- **Density sculpting** (per-column weight maps for cinematic formations)
 - **Chromatic shockwave** (mouse-click dual-ring ripple with palette HEAD color)
 - **Quantum ripple** (click-triggered particle burst with trail + color cycling)
 - **Live HUD overlay** (16-row real-time metrics at 1 Hz)
@@ -172,7 +171,6 @@ for effects. cosmostrix spends this budget on:
 
 - Phosphor decay (afterglow per glyph, ~400ms fade)
 - 3-layer parallax (deep/mid/ground with different speeds)
-- Density sculpting (per-column weight maps)
 - Mouse effects (glow, flash wave, quantum ripple + trail)
 - Chroma dragon color interpolation (smooth gradients, no bands)
 - Live HUD (16-row real-time metrics)
