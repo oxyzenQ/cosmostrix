@@ -131,7 +131,7 @@ are simple (~50 lines each) and available in `benchmark/`.
 | Chroma dragon interpolation| OK         | X                       |
 | Phosphor decay (CRT glow)  | OK         | X                       |
 | 3-layer parallax depth     | OK         | X                       |
-| Density sculpting          | OK         | X                       |
+| Value-noise density         | OK         | X                       |
 | Mouse click effects        | OK         | X                       |
 | Quantum ripple + trail     | OK         | X                       |
 | Chromatic shockwave        | OK         | X                       |

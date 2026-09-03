@@ -64,7 +64,7 @@ cosmostrix is built on **three cooperating engines** that split the work along c
 
 Lives under `src/engine/cosmic_dragon_engine/` — imported by every render-path module. Owns the **diff-based render loop**: a persistent back-buffer of `Cell` values is compared frame-to-frame, and only changed cells are emitted as ANSI escape sequences (with RLE batching on consecutive dirty cells in the same row). On a typical 120×40 terminal that means ~360 cell-writes per frame instead of 4,800 — a 13× reduction in I/O that compounds with screen size. At 400×200 (80,000 cells) the savings exceed 90%.
 
-This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, density sculpting, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable.
+This is what makes the cinematic effects affordable: phosphor decay, 3-layer parallax, value-noise density, and atmospheric modulation all stack on top of a render path that already only writes the cells that changed. Without the diff engine, those effects would be unrenderable.
 
 ### The Chroma Dragon Coloring Engine
 
