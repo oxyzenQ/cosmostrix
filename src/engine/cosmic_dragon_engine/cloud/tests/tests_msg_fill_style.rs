@@ -429,10 +429,16 @@ fn engrave_sparks_expire_and_stop_when_reveal_completes() {
     cloud.draw_message(&mut frame, Instant::now());
     assert_eq!(cloud.engrave.active_count, 3);
 
-    // 250 ms later (past ENGRAVE_SPARK_LIFETIME_SECS = 0.20 s): the
-    // burst expires AND the parked head spawns no replacement.
+    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
+    // Loop draw_message in 33ms steps until sparks expire (sim_age >= 200ms).
+    let mut t = Instant::now();
+    while cloud.engrave.active_count > 0 {
+        t += Duration::from_millis(33);
+        let mut frame = Frame::new(30, 12, cloud.palette.bg);
+        cloud.draw_message(&mut frame, t);
+    }
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
-    cloud.draw_message(&mut frame, Instant::now() + Duration::from_millis(250));
+    cloud.draw_message(&mut frame, t);
     assert_eq!(
         cloud.engrave.active_count, 0,
         "expired sparks must deactivate with no respawn from a parked head"

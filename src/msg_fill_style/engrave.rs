@@ -171,6 +171,10 @@ pub(crate) struct EngraveSpark {
     pub(crate) vx: f32,
     pub(crate) vy: f32,
     pub(crate) birth: Instant,
+    /// S-master-HUNT-21: accumulated simulation age (seconds). See
+    /// QuantumParticle.sim_age for the full rationale — same fix for
+    /// the "stuck then disappears" bug on slow terminals.
+    pub(crate) sim_age: f32,
     /// Glyph: '·' (debris, ~70%) or '*' (bright fleck, ~30%).
     pub(crate) ch: char,
     /// Palette head color snapshotted at burst time (white-hot on most
@@ -205,6 +209,7 @@ impl EngraveState {
                     vx: 0.0,
                     vy: 0.0,
                     birth: now,
+                    sim_age: 0.0,
                     ch: '·',
                     r: 255,
                     g: 255,
@@ -309,6 +314,7 @@ impl crate::cloud::Cloud {
             p.vx = speed * angle.cos();
             p.vy = speed * angle.sin();
             p.birth = now;
+            p.sim_age = 0.0;
             p.ch = ch;
             p.r = head_rgb.0;
             p.g = head_rgb.1;
@@ -358,11 +364,16 @@ impl crate::cloud::Cloud {
             if !s.active {
                 continue;
             }
-            let age = now.saturating_duration_since(s.birth).as_secs_f32();
-            if age >= ENGRAVE_SPARK_LIFETIME_SECS {
+            // S-master-HUNT-21: use accumulated simulation age instead
+            // of real-time age (now - birth). Same fix as
+            // apply_quantum_ripple — prevents sparks from aging out
+            // before completing their trajectory on slow terminals.
+            s.sim_age += dt;
+            if s.sim_age >= ENGRAVE_SPARK_LIFETIME_SECS {
                 s.active = false;
                 continue;
             }
+            let age = s.sim_age;
             // Ballistic debris: constant velocity, no decay/bounce —
             // 200 ms is too short for either to be visible.
             s.x += s.vx * dt;

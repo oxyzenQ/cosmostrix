@@ -597,6 +597,7 @@ impl Cloud {
             p.trail_count = 0;
             p.max_trail = QUANTUM_RIPPLE_TRAIL_LEN as u8;
             p.lifetime = QUANTUM_RIPPLE_LIFETIME_SECS;
+            p.sim_age = 0.0;
             spawned += 1;
         }
         // Increment active count — tracked incrementally so
@@ -659,6 +660,7 @@ impl Cloud {
             p.trail_count = 0;
             p.max_trail = BORDER_SPARK_TRAIL_LEN as u8;
             p.lifetime = BORDER_SPARK_LIFETIME_SECS;
+            p.sim_age = 0.0;
             spawned += 1;
         }
         self.quantum_active_count = self.quantum_active_count.saturating_add(spawned);

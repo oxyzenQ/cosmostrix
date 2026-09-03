@@ -214,11 +214,20 @@ prevents perfect stabilization under sustained fullscreen load.
 
 ### Status
 
-**Accepted as a known limitation.** The throttle tuning and phosphor
-decay rate increase (v50.0.0-beta.6) improve the situation but cannot
-fully fix VTE's CPU-rendering bottleneck. A more aggressive render
-throttling strategy may be explored in a future LTS update, but is
-not currently planned due to the complexity of VTE's internal buffering.
+**Particle stuck/hang FIXED (S-master-HUNT-21).** The root cause was a
+mismatch between particle aging (real time: `now - birth`) and particle
+motion (clamped dt: `min(1/30, sim_cap) * resume_blend`). On slow VTE
+terminals where frames take 50-200ms, particles aged 3-6x faster than
+they moved — appearing "stuck" then vanishing when their lifetime
+expired before completing their trajectory. The fix adds a `sim_age:
+f32` field to each particle struct (QuantumParticle, EngraveSpark,
+ScorchSmoke). `sim_age` accumulates the SAME clamped `dt` that drives
+motion — so particles age at simulation speed, not wall-clock speed.
+Particles now complete their full trajectory regardless of frame rate.
+
+The VTE ANSI throughput bottleneck itself (slow frame rate on CPU-rendered
+terminals) remains a known limitation — the fix addresses the particle
+*visual* behavior, not the terminal's rendering speed.
 
 ---
 

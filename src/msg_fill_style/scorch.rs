@@ -222,6 +222,9 @@ pub(crate) struct ScorchSmoke {
     pub(crate) vx: f32,
     pub(crate) vy: f32,
     pub(crate) birth: Instant,
+    /// S-master-HUNT-21: accumulated simulation age (seconds). See
+    /// QuantumParticle.sim_age for the full rationale.
+    pub(crate) sim_age: f32,
 }
 
 /// All mutable scorch state, grouped so `Cloud` grows by a single
@@ -250,6 +253,7 @@ impl ScorchState {
                     vx: 0.0,
                     vy: 0.0,
                     birth: now,
+                    sim_age: 0.0,
                 };
                 SCORCH_SMOKE_POOL_SIZE
             ],
@@ -339,6 +343,7 @@ impl crate::cloud::Cloud {
             p.vx = sway;
             p.vy = -speed;
             p.birth = now;
+            p.sim_age = 0.0;
             spawned += 1;
         }
         self.scorch.active_count = self.scorch.active_count.saturating_add(spawned);
@@ -384,11 +389,16 @@ impl crate::cloud::Cloud {
             if !s.active {
                 continue;
             }
-            let age = now.saturating_duration_since(s.birth).as_secs_f32();
-            if age >= SCORCH_SMOKE_LIFETIME_SECS {
+            // S-master-HUNT-21: use accumulated simulation age instead
+            // of real-time age (now - birth). Same fix as
+            // apply_quantum_ripple — prevents smoke from aging out
+            // before completing its drift on slow terminals.
+            s.sim_age += dt;
+            if s.sim_age >= SCORCH_SMOKE_LIFETIME_SECS {
                 s.active = false;
                 continue;
             }
+            let age = s.sim_age;
             // Slow buoyant drift: constant velocity, no bounce —
             // 700 ms is short enough that neither is visible.
             s.x += s.vx * dt;

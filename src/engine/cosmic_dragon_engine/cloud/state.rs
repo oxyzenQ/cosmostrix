@@ -50,6 +50,17 @@ pub(crate) struct QuantumParticle {
     /// `BORDER_SPARK_LIFETIME_SECS` (0.35). The age check + brightness
     /// curve in `apply_quantum_ripple` use this instead of the constant.
     pub lifetime: f32,
+    /// S-master-HUNT-21: accumulated simulation age (seconds). Incremented
+    /// by the SAME clamped `dt` that drives motion — so particles age at
+    /// simulation speed, not wall-clock speed. On slow terminals (VTE),
+    /// where frames take 50-200ms but dt is clamped to ~15-33ms, the
+    /// particle's `sim_age` grows at the clamped rate (matching its
+    /// visible motion), not the real-time rate. This prevents the
+    /// "stuck then disappears" bug where particles aged out (real time
+    /// exceeded lifetime) before completing their trajectory (clamped
+    /// dt only moved them a fraction of the expected distance). The
+    /// `birth: Instant` field is retained for diagnostics.
+    pub sim_age: f32,
 }
 
 /// Per-column tracking for spawn control and speed scaling.

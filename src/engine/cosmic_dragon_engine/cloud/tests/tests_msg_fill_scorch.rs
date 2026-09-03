@@ -256,10 +256,16 @@ fn scorch_smoke_expires_and_stops_when_reveal_completes() {
     cloud.draw_message(&mut frame, Instant::now());
     assert_eq!(cloud.scorch.active_count, 1);
 
-    // 800 ms later (past SCORCH_SMOKE_LIFETIME_SECS = 0.70 s): the
-    // puff expires AND the parked head spawns no replacement.
+    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
+    // Loop draw_message in 33ms steps until smoke expires (sim_age >= 700ms).
+    let mut t = Instant::now();
+    while cloud.scorch.active_count > 0 {
+        t += Duration::from_millis(33);
+        let mut frame = Frame::new(30, 12, cloud.palette.bg);
+        cloud.draw_message(&mut frame, t);
+    }
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
-    cloud.draw_message(&mut frame, Instant::now() + Duration::from_millis(800));
+    cloud.draw_message(&mut frame, t);
     assert_eq!(
         cloud.scorch.active_count, 0,
         "expired smoke must deactivate with no respawn from a parked head"

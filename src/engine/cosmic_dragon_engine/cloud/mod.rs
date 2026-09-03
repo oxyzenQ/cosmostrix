@@ -512,6 +512,7 @@ impl Cloud {
                     trail_count: 0,
                     max_trail: QUANTUM_RIPPLE_TRAIL_LEN as u8,
                     lifetime: QUANTUM_RIPPLE_LIFETIME_SECS,
+                    sim_age: 0.0,
                 };
                 QUANTUM_RIPPLE_POOL_SIZE
             ],

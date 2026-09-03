@@ -227,12 +227,20 @@ impl Cloud {
             if !p.active {
                 continue;
             }
-            let age = now.saturating_duration_since(p.birth).as_secs_f32();
-            if age >= p.lifetime {
+            // S-master-HUNT-21: use accumulated simulation age (sim_age)
+            // instead of real-time age (now - birth). On slow terminals
+            // (VTE, 10-20 FPS), the clamped dt is much smaller than the
+            // real frame time — sim_age grows at the clamped rate,
+            // matching the particle's visible motion. Particles now
+            // complete their full trajectory before expiring, instead
+            // of aging out (real time) while barely moving (clamped dt).
+            p.sim_age += dt;
+            if p.sim_age >= p.lifetime {
                 p.active = false;
                 deactivated += 1;
                 continue;
             }
+            let age = p.sim_age;
             // Use the real frame dt (clamped above) so motion stays
             // consistent regardless of frame rate. At 60 FPS this matches
             // the old `1/60` behavior exactly; at 30 FPS particles now

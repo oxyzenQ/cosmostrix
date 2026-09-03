@@ -31,8 +31,7 @@ use super::super::Cloud;
 // expected brightened cycled color at a given life_frac.
 use crate::constants::{
     COLOR_TRANSITION_DURATION_MS, QUANTUM_BODY_TONE_DOWN, QUANTUM_BRAND_PURPLE_B,
-    QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R, QUANTUM_RIPPLE_LIFETIME_SECS,
-    QUANTUM_RIPPLE_PARTICLE_COUNT,
+    QUANTUM_BRAND_PURPLE_G, QUANTUM_BRAND_PURPLE_R, QUANTUM_RIPPLE_PARTICLE_COUNT,
 };
 use crate::frame::Frame;
 use crate::palette::decode_color;
@@ -361,13 +360,15 @@ fn quantum_particle_expires_within_documented_lifespan() {
         "all spawned particles must be active immediately after click"
     );
 
-    // Advance just past the lifespan and run apply_quantum_ripple
-    // (called internally by rain_at when particles are active).
-    let expire_time =
-        spawn_time + Duration::from_millis(((QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64) + 50);
+    // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap),
+    // so a single call with a large time advance only adds 1/30 sec.
+    // Loop in 33ms steps until the particles' sim_age exceeds lifetime.
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
-    cloud.last_phosphor_time = spawn_time;
-    cloud.rain_at(&mut frame, expire_time);
+    let mut t = spawn_time;
+    while cloud.quantum_active_count > 0 {
+        t += Duration::from_millis(33);
+        cloud.apply_quantum_ripple(&mut frame, t);
+    }
 
     assert_eq!(
         count_active_particles(&cloud),
@@ -406,12 +407,15 @@ fn quantum_active_count_counter_tracks_pool_state() {
         "counter must accumulate across overlapping clicks"
     );
 
-    // Force-expire all particles by advancing well past the lifespan.
+    // S-master-HUNT-21: sim_age accumulates from clamped dt — loop
+    // until all particles expire.
     let now = Instant::now();
-    let expire = now + Duration::from_secs(10);
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
-    cloud.last_phosphor_time = now;
-    cloud.rain_at(&mut frame, expire);
+    let mut t = now;
+    while cloud.quantum_active_count > 0 {
+        t += Duration::from_millis(33);
+        cloud.apply_quantum_ripple(&mut frame, t);
+    }
 
     assert_eq!(
         cloud.quantum_active_count, 0,

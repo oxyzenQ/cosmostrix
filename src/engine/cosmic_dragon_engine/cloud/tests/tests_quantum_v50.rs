@@ -328,13 +328,14 @@ fn quantum_bounce_does_not_extend_lifespan() {
         spawn_time,
     );
 
-    // Advance well past the lifespan. The particle must deactivate even
-    // though it has been bouncing the whole time.
-    let expire_time =
-        spawn_time + Duration::from_millis(((QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64) + 50);
+    // S-master-HUNT-21: sim_age accumulates from clamped dt — loop
+    // until the particle expires (bouncing doesn't extend sim_age).
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
-    cloud.last_phosphor_time = spawn_time;
-    cloud.rain_at(&mut frame, expire_time);
+    let mut t = spawn_time;
+    while cloud.quantum_active_count > 0 {
+        t += Duration::from_millis(33);
+        cloud.apply_quantum_ripple(&mut frame, t);
+    }
 
     let p = &cloud.quantum_particles[idx];
     assert!(
@@ -547,8 +548,6 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
         // — we want to test brightness in isolation.
         let idx = pin_one_particle(&mut cloud, 10, 5, 0.0, 0.0, spawn_time);
 
-        let frame_time = spawn_time
-            + Duration::from_millis((frac * QUANTUM_RIPPLE_LIFETIME_SECS * 1000.0) as u64);
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
         // Pre-set the particle's cell to the base color so the blend
         // produces an observable result (base != target). Without this,
@@ -566,11 +565,22 @@ fn quantum_brightness_curve_three_segments_render_correctly() {
         };
         frame.set(10, 5, base_cell);
 
-        // Call apply_quantum_ripple directly instead of rain_at —
-        // rain_at spawns droplets that may overwrite our pre-set cell,
-        // defeating the brightness isolation. apply_quantum_ripple is
-        // pub(crate) so accessible from this submodule.
-        cloud.apply_quantum_ripple(&mut frame, frame_time);
+        // S-master-HUNT-21: sim_age accumulates from clamped dt (1/30 cap).
+        // Use exactly 1/30s steps so sim_age = N/30 exactly — avoids
+        // rounding drift that would shift the brightness curve.
+        let target_age = frac * QUANTUM_RIPPLE_LIFETIME_SECS;
+        let step = Duration::from_secs_f32(1.0 / 30.0);
+        let mut t = spawn_time;
+        loop {
+            t += step;
+            frame.set(10, 5, base_cell);
+            cloud.apply_quantum_ripple(&mut frame, t);
+            if cloud.quantum_particles[idx].sim_age >= target_age
+                || !cloud.quantum_particles[idx].active
+            {
+                break;
+            }
+        }
 
         let p = &cloud.quantum_particles[idx];
         // Particle must still be active for all tested fracs (< 1.0).
