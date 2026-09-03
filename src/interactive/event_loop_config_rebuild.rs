@@ -194,7 +194,50 @@ pub(crate) fn apply_config_rebuild(
         // the smooth transition used by 'c' keypress, crystal-dragon,
         // and scene runtime. The shader's apply_l_smoothing will
         // interpolate between old and new via OKLab L + polar chroma.
-        if cloud.color_scheme != preserved_color_scheme {
+        // S-master-HUNT-9: palette transition on live config reload — now
+        // driven by CONTENT equality, not scheme-enum equality.
+        //
+        // Previously this check was `cloud.color_scheme != preserved_color_scheme`
+        // (enum-only). That MISSED two cases that produced an instant color
+        // jump because the fresh Cloud's `transition_start` stayed None:
+        //
+        // 1. Custom palette edits (same scheme enum, different palette
+        //    content). `create_cloud` calls `set_palette` -> `apply_new_palette`
+        //    which rotates the palette slot + sets transition_start, BUT
+        //    does NOT populate the prev_slot with the OLD palette (the
+        //    fresh Cloud's prev_slot is None). So the shader reads None
+        //    from prev_slot -> cannot interpolate -> instant jump.
+        //
+        // 2. Color-tune edits (`[color.tune] sat=1.5`). `apply_tune_to_palette`
+        //    mutates `cloud.palette` in place AFTER set_palette (or with
+        //    no set_palette call at all for built-in schemes). No
+        //    transition is armed -> instant jump.
+        //
+        // The content check `cloud.palette != preserved_palette` is a
+        // strict superset of the enum check: if the enum changed, the
+        // content changed too (different scheme -> different colors).
+        // So the enum check is now redundant and removed. The content
+        // check covers all three cases (enum change, custom palette
+        // change, color-tune change) with a single call.
+        //
+        // The PartialEq derive on `Palette` (chroma_dragon_engine/palette/
+        // mod.rs) makes this a deep content comparison: `colors: Vec<Color>`
+        // + `bg: Option<Color>`. Both `Color` (crossterm enum) and
+        // `Vec`/`Option` implement PartialEq, so the derive is safe.
+        //
+        // Same-palette no-op guard: when the config edit did NOT touch
+        // the palette (same scheme + same custom palette + same tune),
+        // `cloud.palette == preserved_palette` and the wave stays dormant
+        // (no false trigger). The `start_transition_from_previous_palette`
+        // contract handles the arming: it overwrites prev_slot with the
+        // OLD palette (so the shader can interpolate old <-> new via
+        // OKLab L + polar chroma) + sets transition_start + force_draw
+        // flags idempotently.
+        //
+        // Note: `preserved_color_scheme` is still captured above because
+        // it is used later (line ~374, ambient-schedule-empty branch) to
+        // preserve the user's color override when the schedule is emptied.
+        if cloud.palette != preserved_palette {
             cloud.start_transition_from_previous_palette(preserved_palette);
         }
         // S-master-HUNT-8: charset transition parity for live config reload.

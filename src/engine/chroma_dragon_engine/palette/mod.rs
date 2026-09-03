@@ -25,7 +25,7 @@ use crossterm::style::Color;
 
 use crate::runtime::{ColorMode, ColorScheme};
 
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Palette {
     pub colors: Vec<Color>,
     pub bg: Option<Color>,
@@ -762,3 +762,6 @@ mod tests_floor;
 
 #[cfg(test)]
 mod tests_floor_audit;
+
+#[cfg(test)]
+mod tests_partial_eq;
