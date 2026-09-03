@@ -577,7 +577,7 @@ fn apply_config_values(
                 config_touched.insert("msg-fill-style");
             }
             Err(_) => crate::output::eprintln_error_labeled(
-                "invalid msg-fill-style='{v}' (allowed: typewriter, fade, words, slide, instant, engrave, hologram, glitch, scorch, cascade)",
+                "invalid msg-fill-style='{v}' (allowed: typewriter, fade, words, slide, instant, engrave, hologram, glitch, scorch, cascade, radar)",
             ),
         }
     }

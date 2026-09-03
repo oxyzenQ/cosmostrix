@@ -84,10 +84,10 @@ pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "msg-mode",
     // v80.0.0-beta.1 msg-fill-style: message overlay reveal style. Values:
     // "typewriter" | "fade" | "words" | "slide" | "instant"
-    // | "engrave" | "hologram" | "glitch" | "scorch" | "cascade".
-    // Default: "typewriter". CLI -mfs/--msg-fill-style wins over this
-    // config key. Case-insensitive here (config surface is forgiving;
-    // the CLI flag itself is case-sensitive, like every other enum key).
+    // | "engrave" | "hologram" | "glitch" | "scorch" | "cascade" | "radar".
+    // Default: "engrave" (v80.0.0-beta.2 owner champion). CLI wins over
+    // this key. Case-insensitive (CLI flag is case-sensitive, like every
+    // other enum key).
     "msg-fill-style",
     // v50.0.0-beta.7: ambient auto-snapback delay (seconds). After the
     // user presses x/c/s and idles this long, the event loop re-applies
