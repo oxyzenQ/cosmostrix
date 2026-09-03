@@ -316,6 +316,24 @@ pub(crate) const COLOR_TRANSITION_INITIAL_VISIBLE_PCT: f32 = 0.12;
 /// Duration of the per-column charset transition wave (ms).
 pub(crate) const CHARSET_TRANSITION_DURATION_MS: u16 = 500;
 
+/// Per-column diagonal stagger for the color + charset transition waves
+/// (S-master-HUNT-15). Each column's wave arrives `STAGGER_PER_COL` rows
+/// later than the previous column, creating a diagonal sweep (top-left
+/// converts first, bottom-right converts last) on top of the existing
+/// vertical smoothstep sweep. The stagger is capped at
+/// `STAGGER_MAX_FRAC * lines` so wide terminals (200+ cols) don't
+/// produce a stagger larger than the screen — the cap ensures the
+/// transition still completes within the duration window.
+pub(crate) const WAVE_DIAGONAL_STAGGER_PER_COL: f32 = 0.15;
+
+/// Maximum stagger as a fraction of lines (30% — the rightmost column
+/// converts at most 30% of lines later than the leftmost). Keeps the
+/// diagonal subtle enough to not delay the transition completion
+/// (the rain_at.rs completion logic clears transition_start after
+/// DURATION_MS regardless, but the VISUAL stagger should stay within
+/// the sweep window for a clean look).
+pub(crate) const WAVE_DIAGONAL_STAGGER_MAX_FRAC: f32 = 0.30;
+
 /// Velocity boost applied to new-generation droplets during an active
 /// transition (creates an incoming-wave feel).
 pub(crate) const TRANSITION_VELOCITY_BOOST: f32 = 0.05;

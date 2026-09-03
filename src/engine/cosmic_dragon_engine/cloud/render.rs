@@ -310,7 +310,15 @@ impl DrawCtx<'_> {
 
         let jitter =
             (((line as u32).wrapping_mul(17) ^ (col as u32).wrapping_mul(31)) % 3) as f32 * 0.18;
-        (line as f32) > wave_line + jitter
+        // S-master-HUNT-15: diagonal stagger — same as the color wave
+        // (see helpers.rs `diagonal_stagger`). Each column's charset
+        // wave arrives STAGGER_PER_COL rows later, creating a diagonal
+        // sweep that matches the color transition. Capped at
+        // STAGGER_MAX_FRAC * lines so wide terminals don't produce a
+        // stagger larger than the screen.
+        let col_stagger = (col as f32 * crate::constants::WAVE_DIAGONAL_STAGGER_PER_COL)
+            .min(self.lines as f32 * crate::constants::WAVE_DIAGONAL_STAGGER_MAX_FRAC);
+        (line as f32 + col_stagger) > wave_line + jitter
     }
 
     /// During a color transition, returns whether a cell at (line, col) should
@@ -333,6 +341,7 @@ impl DrawCtx<'_> {
             palette_slot,
             line,
             col,
+            self.lines,
         )
     }
 

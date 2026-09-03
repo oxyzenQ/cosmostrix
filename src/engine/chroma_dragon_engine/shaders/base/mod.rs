@@ -304,6 +304,7 @@ pub(crate) fn resolve_cell_color(
         palette_slot,
         line,
         col,
+        shader.lines,
     ) {
         palette_slot // Below wave: keep birth palette
     } else {

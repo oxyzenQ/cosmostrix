@@ -138,6 +138,7 @@ pub(crate) fn color_uses_previous_palette(
     palette_slot: u8,
     line: u16,
     col: u16,
+    lines: u16,
 ) -> bool {
     let Some(wave_line) = color_wave_line else {
         return false;
@@ -149,5 +150,22 @@ pub(crate) fn color_uses_previous_palette(
     // Jitter for organic edge (same pattern as charset wave)
     let jitter =
         (((line as u32).wrapping_mul(13) ^ (col as u32).wrapping_mul(29)) % 3) as f32 * 0.15;
-    (line as f32) > wave_line + jitter
+    // S-master-HUNT-15: diagonal stagger — each column's wave arrives
+    // STAGGER_PER_COL rows later than the previous, creating a diagonal
+    // sweep (top-left converts first, bottom-right last) on top of the
+    // vertical smoothstep sweep. Capped at STAGGER_MAX_FRAC * lines so
+    // wide terminals don't produce a stagger larger than the screen.
+    let col_stagger = diagonal_stagger(col, lines);
+    (line as f32 + col_stagger) > wave_line + jitter
+}
+
+/// Compute the per-column diagonal stagger for the transition wave
+/// (S-master-HUNT-15). Returns the row offset added to `line` in the
+/// wave-line comparison, so column N converts `stagger` rows later
+/// than column 0. Capped at `STAGGER_MAX_FRAC * lines`.
+#[inline]
+fn diagonal_stagger(col: u16, lines: u16) -> f32 {
+    let raw = col as f32 * crate::constants::WAVE_DIAGONAL_STAGGER_PER_COL;
+    let cap = lines as f32 * crate::constants::WAVE_DIAGONAL_STAGGER_MAX_FRAC;
+    raw.min(cap)
 }

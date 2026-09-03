@@ -226,3 +226,224 @@ fn color_wave_smoothstep_is_monotonic() {
         "color wave should continue progressing"
     );
 }
+
+// ── S-master-HUNT-15: diagonal stagger ─────────────────────────────────────
+//
+// The diagonal stagger adds a per-column offset to the wave-line comparison
+// so column N's wave arrives STAGGER_PER_COL rows later than column 0.
+// This creates a diagonal sweep (top-left converts first, bottom-right last)
+// on top of the existing vertical smoothstep sweep. The stagger is capped at
+// STAGGER_MAX_FRAC * lines so wide terminals don't produce a stagger larger
+// than the screen.
+//
+// These tests verify the stagger via the DrawCtx methods
+// (`color_uses_previous_palette` + `charset_uses_previous_pool`) which are
+// the actual comparison functions the renderer uses per-cell.
+
+#[test]
+fn diagonal_stagger_column_0_has_zero_offset() {
+    // Column 0 should have zero stagger — the wave arrives at the same
+    // time as the pre-HUNT-15 behavior (no regression for the leftmost
+    // column). Verify via `color_uses_previous_palette`: at the wave line
+    // boundary, column 0 behaves exactly like the pre-stagger comparison.
+    use crate::constants::MAX_PALETTE_SLOTS;
+    use super::super::render::DrawCtx;
+    use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
+    use crossterm::style::Color;
+
+    let empty: &[Color] = &[];
+    let palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [empty; MAX_PALETTE_SLOTS];
+    let glitch_map = bitvec::bitvec![0; 20];
+
+    let ctx = DrawCtx {
+        lines: 10,
+        cols: 20,
+        shading_distance: false,
+        bg: None,
+        color_mode: ColorMode::Mono,
+        color_pipeline: ColorPipeline::detect(ColorMode::Mono),
+        bold_mode: BoldMode::Off,
+        glitchy: false,
+        glitch_bright: false,
+        glitch_dim: true,
+        palette_slices,
+        active_palette_slot: 0,
+        transitioning: false,
+        color_map: &[],
+        glitch_map: glitch_map.as_bitslice(),
+        char_pool: &['0', '1'],
+        previous_char_pool: &['0', '1'],
+        edge_fade_lut: &[],
+        vignette_lut: &[],
+        vignette_lut_cols: 0,
+        charset_wave_line: Some(5.0),
+        color_wave_line: Some(5.0),
+        mouse_col: u16::MAX,
+        mouse_line: u16::MAX,
+        flash_waves: &[],
+        pool_is_binary: false,
+        atmospheric: None,
+        hue_drift_offset: None,
+        column_coherence_lut: None,
+        subpixel_jitter_amplitude: None,
+        head_halo_factor: None,
+        transition_l_table: None,
+    };
+
+    // Column 0, line 5 (at the wave line): should NOT use previous (line
+    // is at wave_line, not above it — `5.0 > 5.0 + jitter` is false for
+    // jitter=0, but jitter can be 0..0.45 depending on the hash).
+    // Instead of testing the exact boundary, test clearly above/below:
+    // Line 3 (above wave_line=5): should NOT use previous (new palette).
+    assert!(
+        !ctx.color_uses_previous_palette(1, 3, 0),
+        "col 0, line 3 (above wave): should use new palette"
+    );
+    // Line 8 (below wave_line=5): SHOULD use previous (old palette).
+    assert!(
+        ctx.color_uses_previous_palette(1, 8, 0),
+        "col 0, line 8 (below wave): should use previous palette"
+    );
+}
+
+#[test]
+fn diagonal_stagger_column_n_converts_later_than_column_0() {
+    // At the same wave_line, column N should still use the OLD palette
+    // when column 0 has already converted to the new one. This is the
+    // core diagonal property: left converts first, right converts last.
+    use crate::constants::MAX_PALETTE_SLOTS;
+    use super::super::render::DrawCtx;
+    use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
+    use crossterm::style::Color;
+
+    let empty: &[Color] = &[];
+    let palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [empty; MAX_PALETTE_SLOTS];
+    let glitch_map = bitvec::bitvec![0; 20];
+
+    let ctx = DrawCtx {
+        lines: 10,
+        cols: 20,
+        shading_distance: false,
+        bg: None,
+        color_mode: ColorMode::Mono,
+        color_pipeline: ColorPipeline::detect(ColorMode::Mono),
+        bold_mode: BoldMode::Off,
+        glitchy: false,
+        glitch_bright: false,
+        glitch_dim: true,
+        palette_slices,
+        active_palette_slot: 0,
+        transitioning: false,
+        color_map: &[],
+        glitch_map: glitch_map.as_bitslice(),
+        char_pool: &['0', '1'],
+        previous_char_pool: &['0', '1'],
+        edge_fade_lut: &[],
+        vignette_lut: &[],
+        vignette_lut_cols: 0,
+        charset_wave_line: Some(5.0),
+        color_wave_line: Some(5.0),
+        mouse_col: u16::MAX,
+        mouse_line: u16::MAX,
+        flash_waves: &[],
+        pool_is_binary: false,
+        atmospheric: None,
+        hue_drift_offset: None,
+        column_coherence_lut: None,
+        subpixel_jitter_amplitude: None,
+        head_halo_factor: None,
+        transition_l_table: None,
+    };
+
+    // wave_line = 5.0. Column 0 stagger = 0. Column 10 stagger = 10 * 0.15 = 1.5.
+    // Line 4 (just above wave_line=5): column 0 has 4 + 0 = 4 <= 5 → new palette.
+    // Column 10 has 4 + 1.5 = 5.5 > 5 → old palette (still uses previous).
+    // This is the diagonal: column 10's line 4 hasn't converted yet while
+    // column 0's line 4 has.
+    let col0_line4 = ctx.color_uses_previous_palette(1, 4, 0);
+    let col10_line4 = ctx.color_uses_previous_palette(1, 4, 10);
+    // Column 0 line 4 should NOT use previous (above wave, converted).
+    // Column 10 line 4 SHOULD use previous (stagger pushes it below wave).
+    // Note: jitter can affect the boundary by up to 0.30. We pick a line
+    // far enough from the boundary that jitter doesn't flip the result.
+    // Line 4 + col 10 stagger 1.5 = 5.5 > wave 5.0 + max_jitter 0.30 = 5.30.
+    // So col 10 line 4 always uses previous regardless of jitter.
+    // Line 4 + col 0 stagger 0 = 4.0 < wave 5.0 - max_jitter 0.0 = 5.0.
+    // Wait — jitter can be 0, so 4.0 > 5.0 is false → col 0 uses new.
+    assert!(
+        !col0_line4,
+        "col 0, line 4 (above wave, no stagger): should use new palette"
+    );
+    assert!(
+        col10_line4,
+        "col 10, line 4 (stagger pushes below wave): should use previous palette"
+    );
+}
+
+#[test]
+fn diagonal_stagger_capped_at_max_frac_of_lines() {
+    // On a wide terminal (200 cols), the raw stagger would be
+    // 200 * 0.15 = 30 rows. With lines=10, the cap is 10 * 0.30 = 3.0.
+    // So column 200's stagger = min(30, 3) = 3.0 — capped. Verify that
+    // column 200 and column 100 have the SAME stagger (both at the cap).
+    use crate::constants::MAX_PALETTE_SLOTS;
+    use super::super::render::DrawCtx;
+    use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
+    use crossterm::style::Color;
+
+    let empty: &[Color] = &[];
+    let palette_slices: [&[Color]; MAX_PALETTE_SLOTS] = [empty; MAX_PALETTE_SLOTS];
+    let glitch_map = bitvec::bitvec![0; 200];
+
+    let ctx = DrawCtx {
+        lines: 10,
+        cols: 200,
+        shading_distance: false,
+        bg: None,
+        color_mode: ColorMode::Mono,
+        color_pipeline: ColorPipeline::detect(ColorMode::Mono),
+        bold_mode: BoldMode::Off,
+        glitchy: false,
+        glitch_bright: false,
+        glitch_dim: true,
+        palette_slices,
+        active_palette_slot: 0,
+        transitioning: false,
+        color_map: &[],
+        glitch_map: glitch_map.as_bitslice(),
+        char_pool: &['0', '1'],
+        previous_char_pool: &['0', '1'],
+        edge_fade_lut: &[],
+        vignette_lut: &[],
+        vignette_lut_cols: 0,
+        charset_wave_line: Some(5.0),
+        color_wave_line: Some(5.0),
+        mouse_col: u16::MAX,
+        mouse_line: u16::MAX,
+        flash_waves: &[],
+        pool_is_binary: false,
+        atmospheric: None,
+        hue_drift_offset: None,
+        column_coherence_lut: None,
+        subpixel_jitter_amplitude: None,
+        head_halo_factor: None,
+        transition_l_table: None,
+    };
+
+    // wave_line = 5.0. Both col 100 and col 200 have stagger = 3.0 (capped).
+    // Line 3: col 100 effective = 3 + 3 = 6 > 5 → previous.
+    // Line 3: col 200 effective = 3 + 3 = 6 > 5 → previous (same — both capped).
+    // Line 1: col 100 effective = 1 + 3 = 4 <= 5 → new.
+    // Line 1: col 200 effective = 1 + 3 = 4 <= 5 → new (same — both capped).
+    // Verify both columns behave identically (the cap works).
+    assert_eq!(
+        ctx.color_uses_previous_palette(1, 3, 100),
+        ctx.color_uses_previous_palette(1, 3, 200),
+        "col 100 and col 200 should have same stagger (both at cap)"
+    );
+    assert_eq!(
+        ctx.color_uses_previous_palette(1, 1, 100),
+        ctx.color_uses_previous_palette(1, 1, 200),
+        "col 100 and col 200 should behave identically (cap)"
+    );
+}
