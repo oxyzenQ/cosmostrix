@@ -328,25 +328,58 @@ impl Cloud {
     /// Returns `Some(new_scheme)` if a drift event should occur, or `None`
     /// if the engine decides to stay on the current theme this tick.
     ///
+    /// v80.0.0-alpha.1 (S-master-HUNT-6, owner bug 2026-09-03:
+    /// "--crystal-dragon-secs 10m still drifts every 60s + burst drift in
+    /// milliseconds after enabling via config"): the drift DECISION is now
+    /// gated on the poll boundary — it may only run on a tick where the
+    /// polling interval actually elapsed. The pre-HUNT-6 code rolled the
+    /// dice EVERY FRAME (gated only by dwell), so the effective cadence was
+    /// `min_dwell_secs` (60s) regardless of a slower `polling_secs`, and
+    /// any live-reload rebuild (which resets `drift_active`) re-armed an
+    /// immediate drift — the "flashy burst" the owner saw on every config
+    /// save. With the poll gate, `polling_secs` is the true cadence
+    /// governor (P=600 → one drift decision per 600s) and rebuilds cannot
+    /// fire mid-cycle: the inherited `crystal_dragon_last_poll` keeps the
+    /// boundary phase across reloads.
+    ///
+    /// First tick (`crystal_dragon_last_poll == None` — engine freshly
+    /// activated): the sensor is polled for the baseline point, but NO
+    /// drift decision runs — the clock is armed and the first decision
+    /// comes one full `polling_secs` after activation. This kills the
+    /// immediate-fire burst when crystal-dragon is enabled mid-session
+    /// (config edit) and the startup flash: enabling the engine with a
+    /// 10m cadence now means the first drift is visibly owed at +10m, not
+    /// fired within ~100ms of the edit.
+    ///
     /// The caller (rain.rs) applies the new scheme via `set_color_scheme`,
     /// which triggers the 300 ms OKLab wave transition via Chroma Dragon.
     pub(crate) fn crystal_dragon_tick(&mut self, now: std::time::Instant) -> Option<ColorScheme> {
         use crate::crystal_dragon_engine::point_system::{calc_v1_select, calc_v2_select};
 
-        // Check if the polling interval has elapsed.
-        let elapsed_since_poll = match self.crystal_dragon_last_poll {
+        // Poll gate: a drift decision may only run on a tick where the
+        // polling interval elapsed (or the arming tick — which polls the
+        // sensor but returns None). `polled` is the cadence governor.
+        let polled = match self.crystal_dragon_last_poll {
             None => {
-                // First poll — initialize timestamp and poll immediately.
+                // Arming tick — engine just activated: sample the sensor
+                // baseline, start the clock, decide nothing yet.
                 self.crystal_dragon_last_poll = Some(now);
                 self.crystal_dragon_sensor.poll(now);
-                0.0
+                false
             }
-            Some(last) => now.saturating_duration_since(last).as_secs_f32(),
+            Some(last) => {
+                let elapsed_since_poll = now.saturating_duration_since(last).as_secs_f32();
+                if elapsed_since_poll >= self.crystal_dragon_control.polling_secs {
+                    self.crystal_dragon_last_poll = Some(now);
+                    self.crystal_dragon_sensor.poll(now);
+                    true
+                } else {
+                    false
+                }
+            }
         };
-
-        if elapsed_since_poll >= self.crystal_dragon_control.polling_secs {
-            self.crystal_dragon_last_poll = Some(now);
-            self.crystal_dragon_sensor.poll(now);
+        if !polled {
+            return None;
         }
 
         // Dwell hysteresis: don't drift if we haven't dwelled in the

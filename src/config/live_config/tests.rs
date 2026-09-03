@@ -409,20 +409,6 @@ fn rebuild_applies_config_color_when_cli_not_explicit() {
     assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Snow);
 }
 
-/// Bug 3 test: CLI-explicit speed must NOT be overridden by scene's
-/// speed default during live reload (CLI wins).
-#[test]
-fn rebuild_preserves_cli_explicit_speed_over_scene() {
-    let mut cfg = HashMap::new();
-    cfg.insert("scene".to_string(), "matrix".to_string());
-    let mut base = minimal_cloud_config();
-    base.cli_explicit.speed = true;
-    base.cli_explicit.scene = false;
-    base.speed = 25.0;
-    let new = rebuild_cloud_config(&base, &cfg);
-    assert_eq!(new.speed, 25.0, "CLI --speed wins over scene default");
-}
-
 // ── v80.0.0-beta.1 live-reload custom palette / custom scene switching (owner audit 2026-08-30) ──
 //
 // Owner report: "some functions in config.toml don't work at live-reload."

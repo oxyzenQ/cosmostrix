@@ -808,11 +808,15 @@ impl Cloud {
     /// `drift_active = true` inherited + snapback disabled, the drift gate
     /// `!drift_active` blocks all future drifts forever — the owner symptom
     /// "ambient dominant, drift rare after live reload, restart fixes it."
-    /// The sensor state (`crystal_dragon_sensor`, `crystal_dragon_last_poll`)
-    /// IS still carried — it represents the engine's understanding of the
-    /// system (CPU point, EMA, theme entered-at), not the per-cycle drift
-    /// bookkeeping. A live reload is a config change; the drift cycle should
-    /// reset cleanly so the next poll can fire a fresh drift.
+    /// The sensor state (`crystal_dragon_sensor`) IS still carried — it
+    /// represents the engine's understanding of the system (CPU point, EMA,
+    /// theme entered-at), not the per-cycle drift bookkeeping. A live reload
+    /// is a config change; the drift cycle should reset cleanly so the next
+    /// poll can fire a fresh drift. `crystal_dragon_last_poll` is carried
+    /// ONLY when the old engine was running (v80.0.0-alpha.1 S-master-HUNT-6,
+    /// see the inline comment at the assignment) so an off->on enable arms
+    /// a fresh cadence clock instead of inheriting a never-ticking stale
+    /// one.
     ///
     /// v80.0.0-alpha.1: `crystal_dragon_control` is NO LONGER inherited.
     /// The fresh Cloud's control is config-derived (create_cloud applies
@@ -829,7 +833,25 @@ impl Cloud {
         self.start_anchor = other.start_anchor;
         // Crystal Dragon sensor state survives live reload.
         self.crystal_dragon_sensor = other.crystal_dragon_sensor;
-        self.crystal_dragon_last_poll = other.crystal_dragon_last_poll;
+        // v80.0.0-alpha.1 (S-master-HUNT-6): the cadence clock survives a
+        // reload only when the engine was ALREADY running. If the previous
+        // cloud had crystal-dragon OFF, the clock is reset to None so the
+        // freshly-enabled engine ARMS (first poll + first decision one
+        // full polling_secs after the enabling edit — see the arming-tick
+        // contract in `crystal_dragon_tick`). Carrying a stale/None clock
+        // from an off engine was harmless pre-HUNT-6 (the decision ran
+        // every frame anyway); with the poll gate it is the difference
+        // between "elegant first drift at +10m" and a mid-cycle burst.
+        // The off->on transition is detected via the OLD cloud's flag:
+        // the fresh Cloud's flag comes from the rebuilt config, so a
+        // same-state reload (on->on) keeps the boundary phase, and
+        // on->off carries a clock that is simply never read (the tick
+        // does not run while the engine is off).
+        self.crystal_dragon_last_poll = if other.crystal_dragon {
+            other.crystal_dragon_last_poll
+        } else {
+            None
+        };
         // Dragon Engine v2: carry drift history across live-reload.
         self.crystal_dragon_drift_history = other.crystal_dragon_drift_history;
         // drift_active + drift_start are NOT inherited — see doc comment above.

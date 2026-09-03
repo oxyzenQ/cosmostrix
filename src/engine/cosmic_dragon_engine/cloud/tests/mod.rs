@@ -7,6 +7,7 @@ mod tests_anomaly;
 mod tests_border_gradient;
 mod tests_color_stability;
 mod tests_compounded_brightness;
+mod tests_crystal_cadence;
 mod tests_dim_bench;
 mod tests_edge_fade;
 mod tests_exp_decay;

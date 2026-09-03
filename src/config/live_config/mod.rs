@@ -208,156 +208,13 @@ pub(crate) fn rebuild_cloud_config(
     }
 
     // Scene — config key present wins over the CLI-locked scene (v80.0.0-beta.1
-    // temporal precedence: the key is the most recent user intent). When
-    // the key is ABSENT, the fallback is decided by the caller
+    // temporal precedence: the key is the most recent user intent). The
+    // key-ABSENT fallback is decided by the caller
     // (event_loop_config_rebuild.rs); no fallback arm here.
-    // v80.0.0-beta.1 (owner audit 2026-08-30): custom-scene parity — the old
-    // block only resolved BUILTIN scenes, so switching `scene` to a custom
-    // name updated scene_name but left the visual fields at the PREVIOUS
-    // scene's values. Custom scenes now resolve here (rain_style always
-    // Glyph; the complete field layer applies via the scene-custom tail
-    // block below, same layer startup uses).
-    // v80.0.0-beta.1: the old `!cli.scene && !cli.scene_custom` outer guard is
-    // GONE — the CLI lock survives as the FALLBACK layer (commenting out the
-    // config `scene` key returns the `--scene-custom`/`--scene` selection).
-    if let Some(v) = cfg.get("scene") {
-        // v50 fix: update new.scene_name to match the config's scene value —
-        // the HUD 'scn:' line and the event_loop schedule-empty branch both
-        // compare against this field. Preserve the user's casing for
-        // display (lookup is case-insensitive; matches startup).
-        lr_trace!("apply scene='{}' (updating scene_name)", v);
-        new.scene_name = v.clone();
-        let normalized_scene = v.trim().to_ascii_lowercase();
-        let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
-        if let Some(scene_info) = crate::scene::get_scene(v) {
-            // Builtin scene: the startup custom-scene layer no longer
-            // applies — clear the tracker so the stale layer is not
-            // re-applied by the tail block below (owner audit: switching
-            // scene away from a custom scene used to leave the custom
-            // layer overriding the builtin the user switched to).
-            new.scene_custom_name = None;
-            // v80.0.0-beta.2 (S-master-HUNT): a builtin selection is never
-            // custom-scene-owned — keep the flag coherent with the None
-            // tracker so a later restore/sync starts from clean state.
-            new.scene_custom_config_owned = false;
-            new.rain_style = scene_info.config.rain_style;
-            if let Some(color) = scene_info.config.color {
-                // Z-master-2-v2: `--colors-custom` is explicit CLI color
-                // intent — the scene color default (and the palette clear
-                // below) must not touch a CLI-owned palette.
-                if !cli.color && !cli.colors_custom && !user_set_color {
-                    if let Ok(scheme) = crate::cli::parse_color_scheme(color) {
-                        lr_trace!("scene '{}' applies default color={:?}", v, scheme);
-                        new.color_scheme = scheme;
-                        // (Z1-4): clear any stale custom palette when the
-                        // scene switch actually applies the builtin color
-                        // default. create_cloud applies custom_palette
-                        // AFTER the scheme, so a palette left over from a
-                        // palette-owning custom scene (colors-custom field)
-                        // would silently shadow the scheme the scene
-                        // switch just set — making the switch a visual
-                        // no-op for color. Startup parity: startup
-                        // resolution re-evaluates the palette from scratch
-                        // (main.rs), so no stale palette can survive there.
-                        if new.custom_palette.is_some() {
-                            lr_trace!(
-                                "clearing custom palette '{}' (scene switched to builtin '{}')",
-                                new.custom_palette_name.as_deref().unwrap_or("?"),
-                                v
-                            );
-                            new.custom_palette = None;
-                            new.custom_palette_name = None;
-                        }
-                    }
-                } else {
-                    lr_trace!("scene '{}' color skipped — user/CLI set", v);
-                }
-            }
-            if let Some(charset_name) = scene_info.config.charset {
-                if !cli.charset && !user_set_charset {
-                    if let Some(custom_chars) =
-                        crate::charset_custom::load_custom_charset_if_matches(cfg, charset_name)
-                    {
-                        lr_trace!(
-                            "scene '{}' applies default charset='{}' (custom)",
-                            v,
-                            charset_name
-                        );
-                        new.charset_preset = charset_name.to_string();
-                        new.chars = custom_chars;
-                    } else if let Ok(charset) =
-                        crate::charset::charset_from_str(charset_name, false)
-                    {
-                        lr_trace!(
-                            "scene '{}' applies default charset='{}' (built-in)",
-                            v,
-                            charset_name
-                        );
-                        new.charset_preset = charset_name.to_string();
-                        new.chars =
-                            crate::charset::build_chars(charset, &new.user_ranges, new.def_ascii);
-                    }
-                } else {
-                    lr_trace!("scene '{}' charset skipped — user/CLI set", v);
-                }
-            }
-            if let Some(speed) = scene_info.config.speed {
-                if !cli.speed {
-                    new.speed = speed;
-                }
-            }
-            if let Some(density) = scene_info.config.density {
-                if !cli.density {
-                    new.density = density;
-                    new.base_density = density;
-                }
-            }
-            // v80.0.0-beta.1 (owner audit 2026-08-30): startup-parity — the startup
-            // path (apply_default_scene_values) also applies the scene's
-            // fps and glitch_level defaults; the live-reload block never
-            // did, so switching scenes via config.toml silently kept the
-            // previous scene's fps cap and glitch preset. Applied here
-            // BEFORE the user-key blocks below, so an explicit `fps` or
-            // `glitch-level` key in config still wins (same layering as
-            // startup: CLI > config > scene defaults).
-            if let Some(fps) = scene_info.config.fps {
-                if !cli.fps {
-                    lr_trace!("scene '{}' applies default fps={}", v, fps);
-                    new.target_fps = fps;
-                }
-            }
-            if let Some(glitch) = scene_info.config.glitch_level {
-                if !cli.glitch_level {
-                    lr_trace!("scene '{}' applies default glitch_level={:?}", v, glitch);
-                    crate::scene_custom::apply_glitch_level_preset_to_cloud_config(
-                        &mut new, glitch,
-                    );
-                }
-            }
-        } else if custom_scenes.contains_key(&normalized_scene) {
-            // Custom scene: mark it active so the scene-custom tail
-            // block applies the (complete) field layer, and resolve
-            // rain_style here (construction-level field the tail
-            // block does not touch). v80.0.0-beta.2: base-scene
-            // inheritance is removed — custom scenes always render
-            // glyph rain.
-            lr_trace!(
-                "apply scene='{}' (custom scene: resolving rain_style + field layer)",
-                v
-            );
-            new.scene_custom_name = Some(v.clone());
-            // v80.0.0-beta.2 (S-master-HUNT): the config `scene` key names
-            // the custom scene — the block layer is CONFIG-OWNED at runtime
-            // (the tail block may re-apply its fields over CLI locks).
-            new.scene_custom_config_owned = true;
-            new.rain_style = crate::rain_style::RainStyle::Glyph;
-        } else {
-            // Unknown scene — upstream strict validation rejects the
-            // config before it reaches the render thread, so this is
-            // defense-in-depth: keep the previous values.
-            lr_trace!("scene='{}' unknown — keeping previous scene values", v);
-        }
-    }
+    // v80.0.0-alpha.1 S-master-HUNT-6: the complete-bundle contract —
+    // when the key is present, the scene's managed defaults outrank the
+    // CLI locks (see scene_apply.rs for the full contract and history).
+    scene_apply::apply_scene_key(&mut new, cfg, user_set_color, user_set_charset);
 
     // Speed — config key present wins over the CLI lock (v80.0.0-beta.1 temporal
     // precedence); absent key falls back to the locked startup value in
@@ -776,12 +633,16 @@ pub(crate) use watcher::spawn_watcher;
 #[cfg(test)]
 pub(crate) use watcher::validate_and_send;
 
+mod scene_apply;
+
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
 mod tests_cli_fallback;
 #[cfg(test)]
 mod tests_cli_priority;
+#[cfg(test)]
+mod tests_scene_hunt6;
 
 #[cfg(test)]
 mod tests_msg_fill_style;

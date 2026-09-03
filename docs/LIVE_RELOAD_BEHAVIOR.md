@@ -43,7 +43,7 @@
 |------------|----------|:-------------:|-------|
 | `color` | `--color` | OK YES | Key present wins (custom names load, builtin switch clears the active palette); key absent falls back to the locked startup color/palette. |
 | `charset` | `--charset` | OK YES | Key present wins (custom blocks re-parsed); absent falls back to the locked startup charset. |
-| `scene` | `--scene` | OK YES | Key present wins (managed defaults apply below the CLI locks); key REMOVED reverts the whole scene family to the locked startup scene (the owner's comment-out scenario). |
+| `scene` | `--scene` | OK YES | Key present wins — v80.0.0-alpha.1 S-master-HUNT-6 (owner mandate 2026-09-03): the scene's COMPLETE bundle (color/charset/speed/density/fps/glitch) applies over the CLI locks (previously the CLI-locked `-c`/`-C` survived the switch, producing a half-applied scene); key REMOVED reverts the whole scene family to the locked startup scene (the owner's comment-out scenario). The config's own `color`/`charset`/`speed`/`density`/`fps`/`glitch-level` keys still outrank the scene defaults (explicit user intent > scene default). |
 | `speed` | `--speed` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `density` | `--density` | OK YES | Key present wins (`base_density` also updated); absent falls back to the locked startup value. |
 | `fps` | `--fps` | OK YES | Key present wins (`target_fps` updated); absent falls back to the locked startup value. |
@@ -51,7 +51,7 @@
 | `color-bg` | `--color-bg` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `monolith-size` | `--monolith-size` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `crystal-dragon` | `--crystal-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
-| `crystal-dragon-secs` | `--crystal-dragon-secs` | OK YES | v80.0.0-alpha.1 harmony knob: key present (valid 0.0..=86400.0) wins over the CLI lock; absent keeps the locked startup value. Applies to `crystal_dragon_control.polling_secs` on the rebuilt Cloud — `inherit_ecosystem_state` no longer copies the old cloud's control, so the new cadence sticks. |
+| `crystal-dragon-secs` | `--crystal-dragon-secs` | OK YES | v80.0.0-alpha.1 harmony knob: key present (valid 0.0..=86400.0) wins over the CLI lock; absent keeps the locked startup value. Applies to `crystal_dragon_control.polling_secs` on the rebuilt Cloud — `inherit_ecosystem_state` no longer copies the old cloud's control, so the new cadence sticks. S-master-HUNT-6: the drift DECISION now runs only on poll boundaries (the arming tick after an off->on enable decides nothing — the first drift is owed one full interval later), so a 10m cadence really means one drift decision per 10 minutes; the cadence phase survives unrelated config edits while the engine is on. |
 | `power-dragon` | `--power-dragon` | OK YES | Key present wins; absent falls back to the locked startup value. |
 | `bold` | `--bold` | OK YES | Key present wins (range-gated 0-2); absent falls back to the locked startup value. |
 | `shading-mode` | `--shading-mode` | OK YES | Key present wins (range-gated 0-1); absent falls back to the locked startup value. |

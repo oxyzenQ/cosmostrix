@@ -40,26 +40,29 @@ pub(crate) const CRYSTAL_DRAGON_POLLING_SECS: f32 = 60.0;
 /// `min(CRYSTAL_DRAGON_MIN_DWELL_SECS, polling_secs)`: an explicit
 /// faster user cadence lowers the dwell floor to match (the knob must
 /// be real, not a gimmick pinned at 60 s), a slower cadence keeps the
-/// 60 s floor (the poll timer paces it anyway). Anti-flicker for the
-/// untuned case, obedience for the tuned case.
+/// 60 s floor (the poll timer paces it — enforced for real by the
+/// S-master-HUNT-6 poll gate: the drift decision only runs on a poll
+/// boundary). Anti-flicker for the untuned case, obedience for the
+/// tuned case.
 pub(crate) const CRYSTAL_DRAGON_MIN_DWELL_SECS: f32 = 60.0;
 
 // ── Probabilistic drift chance ───────────────────────────────────────────
 
 /// Probability (0..1) that a drift tick actually triggers a palette drift.
 ///
-/// v80.0.0-alpha.1 (S-master-HUNT-3) precision note (verified empirically in a 100 s PTY
-/// run): `crystal_dragon_tick` is called EVERY FRAME (gated only by the
-/// dwell hysteresis + drift-cycle visibility window), so 0.12 per frame
-/// means a drift fires within ~O(100 ms) of becoming dwell-eligible —
-/// the CADENCE governor is `min_dwell_secs` (+ the polling_secs
-/// visibility window in `post_rain.rs`), NOT this chance. The old
-/// "roughly once every 5 minutes (60 s poll × 8.3 ticks)" comment
-/// described a per-poll gate that never existed; at the default
-/// 60 s dwell the observed cadence is ~60 s. This constant now acts as
-/// a small post-dwell jitter (how quickly after eligibility the drift
-/// fires), which keeps the timing slightly unpredictable — cinematic
-/// without changing the cadence contract.
+/// v80.0.0-alpha.1 (S-master-HUNT-6, owner bug 2026-09-03: "the 10m knob
+/// still drifts every 60s + bursts in milliseconds on config edits"):
+/// `crystal_dragon_tick` runs every frame, but the drift DECISION block
+/// only runs on a tick where the polling interval actually elapsed (the
+/// poll gate) — so this chance is evaluated once per POLL BOUNDARY, and
+/// the cadence governor is `polling_secs` (+ the dwell floor and the
+/// drift-cycle visibility window in post_rain.rs), NOT this value.
+/// 0.12 means a drift fires within moments of a boundary becoming
+/// dwell-eligible, which keeps the timing slightly unpredictable —
+/// cinematic without changing the cadence contract. (Pre-HUNT-6 the
+/// dice rolled every frame and the effective cadence was the 60s dwell
+/// floor regardless of a slower `polling_secs` — the exact bug the
+/// owner reported.)
 pub(crate) const CRYSTAL_DRAGON_DRIFT_CHANCE: f32 = 0.12;
 
 // ── EMA smoothing ────────────────────────────────────────────────────────

@@ -9,6 +9,69 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-alpha.1 — S-master-HUNT-6 crystal cadence poll gate + complete scene bundle on runtime scene key
+
+Owner bug report (2026-09-03, post-dc3d80c): `--crystal-dragon-secs 10m`
+still drifted every 60s ("hard 60s") and enabling crystal-dragon via a
+config edit produced burst drifts within milliseconds; separately, editing
+`scene = cinematic` into config on a `-c neon-green -C ascii` run applied
+only the numeric scene fields (fps/speed/density/glitch) while the
+CLI-locked color/charset stuck — a half-applied scene (the ambient path
+was already complete, so the behavior was inconsistent between the two
+config-driven scene triggers).
+
+- **Crystal Dragon cadence poll gate (owner bug 1+2)**:
+  `crystal_dragon_tick`'s drift DECISION now runs only on a tick where
+  the polling interval actually elapsed. Pre-HUNT-6 the dice rolled
+  EVERY FRAME (gated only by the 60s dwell floor), so the effective
+  cadence was `min_dwell_secs` regardless of a slower `polling_secs` —
+  `--crystal-dragon-secs 10m` drifted at 60s. Because every live-reload
+  rebuild resets `drift_active` (not inherited, by design), each config
+  save also re-armed an immediate drift — the "flashy burst in
+  milliseconds" on every edit. With the poll gate, `polling_secs` is the
+  true cadence governor at every setting (10m = one drift decision per
+  10 minutes; the 3s tuned case is unchanged; the 60s default is
+  bit-identical). The arming tick (first tick after activation,
+  `last_poll == None`) now samples the sensor but decides nothing — the
+  first drift is owed one full interval after the enabling edit. 7 new
+  unit tests pin the contract (structural timing bounds, RNG-independent).
+- **Off->on enable arms a fresh clock**: `inherit_ecosystem_state` carries
+  `crystal_dragon_last_poll` only when the OLD cloud had the engine ON;
+  an off->on enable (config `crystal-dragon = 1` mid-session) resets the
+  clock to None (arm fresh), and an on->on reload keeps the boundary
+  phase — unrelated config edits can no longer fire a mid-cycle drift.
+- **Complete scene bundle on a runtime `scene` key (owner bug 3+4)**:
+  when the config `scene` key is present at runtime, the selected
+  scene's managed defaults (color/charset/speed/density/fps/glitch —
+  the COMPLETE bundle) outrank the CLI locks, mirroring the ambient
+  apply path (`apply_builtin_scene_runtime`, which never had CLI gates)
+  and the scene-custom block contract. The config's own
+  `color`/`charset` keys (applied earlier in the rebuild) and the
+  `speed`/`density`/`fps`/`glitch-level` user keys (applied after) still
+  outrank the scene defaults. The CLI lock survives as the FALLBACK
+  layer: commenting the `scene` key back out restores the locked
+  startup family via `restore_locked_scene_family` (unchanged, pinned
+  end-to-end). This fixes both the `scene = cinematic` edit AND the
+  ambient-key comment-out path (the ambient overlay lift re-applies the
+  `scene` key through the same block).
+- **LOC-guard refactor**: the scene-key block moved from
+  `live_config/mod.rs` (which the new contract docs pushed to 824 lines)
+  into `live_config/scene_apply.rs` (208 lines) — verbatim body, one
+  indent level out, per `src/RULES_LOC.md`'s migration path. Three new
+  scene-bundle tests live in `tests_scene_hunt6.rs`; the pre-HUNT-6
+  "CLI --speed wins over scene default" test was inverted and renamed
+  to pin the new contract.
+- **Docs synced**: CRYSTAL_DRAGON_ENGINE.md (the constants table now
+  states the poll-boundary decision contract; the stale "evaluated per
+  FRAME / cadence governor is the dwell floor" note corrected),
+  AMBIENT_SCHEDULER.md (FAQ row: slower-than-60s cadence honored
+  verbatim + the arming contract), LIVE_RELOAD_BEHAVIOR.md (the `scene`
+  and `crystal-dragon-secs` rows carry the HUNT-6 contracts).
+- **A/B benchmark (10s, dry)**: no significant changes — avg FPS
+  -0.02%, peak +0.36%, p99 frame time -9.69%, dirty cells/frame -0.07%,
+  ns/cell +0.09% (all within noise; the gate adds one duration
+  comparison per frame, the same cost the poll timer already paid).
+
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-5 uptime tiers + 24h time ceiling + neon CLI colors
 
 Owner task trio (2026-09-03): the HUD `up:` line collapsed multi-day
