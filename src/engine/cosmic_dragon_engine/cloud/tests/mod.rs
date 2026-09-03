@@ -27,6 +27,7 @@ mod tests_quantum;
 mod tests_quantum_flash_wave;
 mod tests_quantum_v50;
 mod tests_scene;
+mod tests_smoothstep_easing;
 mod tests_visual_depth;
 
 use std::time::{Duration, Instant};

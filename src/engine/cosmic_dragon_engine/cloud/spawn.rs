@@ -157,7 +157,16 @@ impl Cloud {
         let start = self.charset_transition_start?;
         let elapsed_ms = now.saturating_duration_since(start).as_millis() as f32;
         let progress = (elapsed_ms / CHARSET_TRANSITION_DURATION_MS as f32).clamp(0.0, 1.0);
-        Some(progress * (self.lines as f32 + 1.0))
+        // S-master-HUNT-10: smoothstep easing (3t^2 - 2t^3) replaces the
+        // linear velocity sweep. The wave now eases in at the top,
+        // accelerates through the middle, and eases out at the bottom —
+        // a more organic, cinematic feel vs the previous mechanical
+        // constant-velocity sweep. smoothstep(0)=0, smoothstep(1)=1,
+        // monotonic on [0,1] — so the wave still starts at row 0, ends
+        // at lines+1, and progresses strictly downward (LTS-safe: all
+        // existing ordering/threshold/completion tests pass unchanged).
+        let eased = progress * progress * (3.0 - 2.0 * progress);
+        Some(eased * (self.lines as f32 + 1.0))
     }
 
     /// Compute the color transition wave line position at the given time.
@@ -177,10 +186,19 @@ impl Cloud {
         // includes the initial visible fraction at t=0.
         let initial_frac = COLOR_TRANSITION_INITIAL_VISIBLE_PCT;
         let progress = (elapsed_ms / duration).clamp(0.0, 1.0);
+        // S-master-HUNT-10: smoothstep easing (3t^2 - 2t^3) on the
+        // post-initial-band progress. The initial band (initial_frac) is
+        // preserved at t=0 (smoothstep(0)=0 — no easing applied to the
+        // initial offset). The remaining sweep (1 - initial_frac) eases
+        // in/out for a cinematic feel vs the previous constant-velocity
+        // linear sweep. smoothstep(1)=1 — full screen still converts at
+        // t=duration (LTS-safe).
+        let eased = progress * progress * (3.0 - 2.0 * progress);
         // At progress=0, wave_line = initial_frac * lines → first band visible.
-        // At progress=1, wave_line = lines + 1 → entire screen converted.
+        // At progress=1, wave_line = initial_frac * lines + (1 - initial_frac) * (lines + 1)
+        //                = lines + 1 - initial_frac ≈ lines + 1 → entire screen converted.
         let wave_line = initial_frac * self.lines as f32
-            + progress * (1.0 - initial_frac) * (self.lines as f32 + 1.0);
+            + eased * (1.0 - initial_frac) * (self.lines as f32 + 1.0);
         Some(wave_line)
     }
 
