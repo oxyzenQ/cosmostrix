@@ -87,7 +87,6 @@ own neon family. Master rating on the prior round: 10/10.
   `--dump-config` template comments, flag help texts. LOC caps honored
   via test-file extraction (`cli_parse_tests.rs`, `output_tests.rs`).
 
-
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-4 owner bug quintet + human durations (CLI fallback, deferral, interlock docs)
 
 Owner report: commenting config keys back out stopped falling back to

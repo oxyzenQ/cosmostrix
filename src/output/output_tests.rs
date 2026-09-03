@@ -12,8 +12,6 @@
 
 use super::*;
 
-use super::*;
-
 #[test]
 fn rgb_constants_match_neon_family_palette() {
     // Source-of-truth: the RGB constants must encode the exact
