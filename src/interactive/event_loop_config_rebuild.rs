@@ -149,6 +149,19 @@ pub(crate) fn apply_config_rebuild(
         let preserve_user_override = cloud.user_override_since_ambient;
         let preserved_color_scheme = cloud.color_scheme;
         let preserved_palette = cloud.palette.clone();
+        // S-master-HUNT-8: capture BOTH the canonical `chars` (for change
+        // detection) AND the shuffled `char_pool` (for the transition
+        // source). The shader reads `previous_char_pool` as the "below
+        // the wave" glyph source, so we need the actual shuffled pool —
+        // but change detection must use `chars` because `char_pool` is
+        // re-shuffled by rebuild_char_pools on every init_chars call
+        // (random sampling via self.mt), so two rebuilds with the SAME
+        // charset produce different `char_pool` Vecs (false-positive
+        // change trigger). `chars` is the canonical input — stable
+        // across shuffles, so `cloud.chars != preserved_chars` is the
+        // correct same-charset no-op guard.
+        let preserved_chars = cloud.chars.clone();
+        let preserved_char_pool = cloud.char_pool.clone();
         let preserved_scene_name = scene_name.clone();
         let mut new_cloud = new_cfg.create_cloud(density);
         new_cloud.inherit_ecosystem_state(cloud);
@@ -183,6 +196,30 @@ pub(crate) fn apply_config_rebuild(
         // interpolate between old and new via OKLab L + polar chroma.
         if cloud.color_scheme != preserved_color_scheme {
             cloud.start_transition_from_previous_palette(preserved_palette);
+        }
+        // S-master-HUNT-8: charset transition parity for live config reload.
+        //
+        // Previously the Cloud rebuild produced an instant glyph swap
+        // (charset_transition_start = None on the fresh Cloud — init_chars
+        // is the instant path, called inside create_cloud). Now, if the
+        // charset changed, we seed `previous_char_pool` with the OLD
+        // shuffled pool and activate the 500ms wave — matching the smooth
+        // transition used by the 's'/'S' shortkey (transition_chars) and
+        // scene runtime. The shader's `charset_wave_line` consults
+        // `previous_char_pool` for cells below the wave and `char_pool`
+        // for cells above it, producing the top-to-bottom sweep.
+        //
+        // Same-charset no-op guard: when the config edit did NOT touch
+        // the charset, `cloud.chars == preserved_chars` (canonical input
+        // — stable across the rebuild's re-shuffle) and the wave stays
+        // dormant — no false trigger (mirrors the color check above).
+        // The `!preserved_char_pool.is_empty()` guard skips the very
+        // first reload on a fresh session (no previous pool to
+        // transition from). Note: we compare `chars` (canonical), NOT
+        // `char_pool` (shuffled) — see the capture comment above for
+        // the rationale.
+        if cloud.chars != preserved_chars && !preserved_char_pool.is_empty() {
+            cloud.start_transition_from_previous_charset(preserved_char_pool);
         }
         // Fresh Cloud from rebuild — reset self-healer.
         self_healer.reset();

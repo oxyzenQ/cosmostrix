@@ -91,6 +91,68 @@ impl Cloud {
         }
     }
 
+    /// Start a 500ms charset transition wave from a previous charset.
+    ///
+    /// Used by live config reload when the charset changes: the Cloud
+    /// rebuild already installed the new `char_pool` via `init_chars`
+    /// inside `create_cloud`, but `init_chars` clears
+    /// `charset_transition_start = None` (instant path). Without this
+    /// call the transition would be an instant glyph jump — inconsistent
+    /// with the `s`/`S` shortkey, which uses `transition_chars` to
+    /// produce a 500ms top-to-bottom wave.
+    ///
+    /// This method mirrors `start_transition_from_previous_palette`
+    /// (the color-subsystem counterpart): the caller captures the OLD
+    /// `char_pool` BEFORE the Cloud rebuild, then passes it here so the
+    /// shader can read both old and new pools during the 500ms wave
+    /// (see rain.rs `charset_wave_line_at`).
+    ///
+    /// This method:
+    /// 1. Stores `prev_chars` in `previous_char_pool` so the per-cell
+    ///    `get_char()` can pick old-pool glyphs below the wave and
+    ///    new-pool glyphs above it.
+    /// 2. Sets `charset_transition_start = Some(now)` to activate the wave.
+    /// 3. Sets `force_draw_everything` + `semantic_invalidate` so the
+    ///    first frame redraws everything under the new charset wave
+    ///    (mirrors `transition_chars` v18 cinematic unification).
+    /// 4. Clears monolith draw history + phosphor state when the rain
+    ///    style is Monolith (mirrors `transition_chars`).
+    ///
+    /// **Precondition**: the caller must ensure that `prev_chars` is
+    /// genuinely different from `self.char_pool` (same-charset no-op
+    /// guard is the caller's responsibility, matching the contract of
+    /// `start_transition_from_previous_palette`). An empty `prev_chars`
+    /// (very first reload on a fresh session) falls back to the binary
+    /// default `['0', '1']` so the wave is visually meaningful rather
+    /// than empty — but the caller's `!prev_chars.is_empty()` guard
+    /// usually prevents this branch entirely.
+    pub fn start_transition_from_previous_charset(&mut self, prev_chars: Vec<char>) {
+        // Install the caller-provided previous chars as the transition
+        // source. The new char_pool is already in place from Cloud
+        // construction (create_cloud -> init_chars); we only need to seed
+        // the "previous" pool and arm the wave start time.
+        self.previous_char_pool = if prev_chars.is_empty() {
+            vec!['0', '1']
+        } else {
+            prev_chars
+        };
+
+        // Activate the 500ms top-to-bottom wave transition.
+        self.charset_transition_start = Some(Instant::now());
+
+        // Force full redraw so the new charset wave is visible on the
+        // next frame across all rain styles (mirrors transition_chars
+        // v18 cinematic unification + start_transition_from_previous_palette
+        // force_draw contract).
+        self.force_draw_everything = true;
+        self.semantic_invalidate = true;
+
+        if matches!(self.rain_style, RainStyle::Monolith) {
+            self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        }
+    }
+
     pub(crate) fn charset_wave_line_at(&self, now: Instant) -> Option<f32> {
         let start = self.charset_transition_start?;
         let elapsed_ms = now.saturating_duration_since(start).as_millis() as f32;

@@ -5,6 +5,7 @@
 
 mod tests_anomaly;
 mod tests_border_gradient;
+mod tests_charset_transition;
 mod tests_color_stability;
 mod tests_compounded_brightness;
 mod tests_crystal_cadence;
@@ -263,6 +264,16 @@ fn charset_transition_completes_and_commits_new_pool() {
     assert!(cloud.previous_char_pool.is_empty());
     assert!(cloud.char_pool.iter().all(|ch| matches!(ch, 'A' | 'B')));
 }
+
+// ── S-master-HUNT-8: live-reload charset transition parity ─────────────────
+//
+// start_transition_from_previous_charset tests live in
+// tests/tests_charset_transition.rs (split from this file to stay under
+// the 800-LOC cap per src/RULES_LOC.md). The function is the
+// charset-subsystem mirror of start_transition_from_previous_palette —
+// called by the live-reload rebuild path (event_loop_config_rebuild)
+// when the charset changes between config edits to re-arm the 500ms
+// wave (parity with the 's'/'S' shortkey which uses transition_chars).
 
 #[test]
 fn pause_freezes_simulation_time() {
