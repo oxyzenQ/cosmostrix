@@ -1,27 +1,44 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Branded CLI output — modern truecolor palette with graceful degradation.
+//! Branded CLI output — cosmostrix neon-family palette with graceful
+//! degradation.
 //!
 //! This module provides color-coded output helpers for CLI text (help,
-//! --doctor, --verbose, --list-*, errors, warnings). It does NOT touch
-//! the rain renderer — that uses its own palette system.
+//! --doctor, --verbose, --list-*, errors, warnings, suggestions). It does
+//! NOT touch the rain renderer — that uses its own palette system.
 //!
-//! ## Color palette (modern Tailwind CSS v3)
+//! ## Color palette (cosmostrix neon family — v80.0.0-alpha.1 S-master-HUNT-5)
 //!
-//! | Semantic | Color | RGB | Tailwind | Use |
-//! |----------|-------|-----|----------|-----|
-//! | Brand | Purple | #A855F7 (168,85,247) | purple-500 | --help, --list-*, --doctor, info |
-//! | Error | Red | #EF4444 (239,68,68) | red-500 | Error messages |
-//! | Warn | Yellow | #EAB308 (234,179,8) | yellow-500 | Warning messages |
-//! | Verbose prefix | Bold purple | #A855F7 bold | purple-500 + bold | `[verbose]` tag |
-//! | Verbose label | Purple | #A855F7 | purple-500 | Field labels in --verbose |
+//! | Semantic | Color | RGB | Neon lineage | Use |
+//! |----------|-------|-----|--------------|-----|
+//! | Brand | Purple | #A855F7 (168,85,247) | NeonPurple band midpoint | --help, --list-*, --doctor, info |
+//! | Error | Red | #FF5A5A (255,90,90) | NeonRed bright body | Error messages |
+//! | Warn | Yellow | #FFEB3C (255,235,60) | NeonYellow head | Warning messages |
+//! | Suggestion | Crystal white | #DCEBFF (220,235,255) | NeonWhite head | tip:/hint:/did-you-mean lines |
+//! | Verbose prefix | Bold purple | #A855F7 bold | NeonPurple band midpoint + bold | `[verbose]` tag |
+//! | Verbose label | Purple | #A855F7 | NeonPurple band midpoint | Field labels in --verbose |
 //! | Verbose value | Default | terminal default | — | Field values (readable) |
 //!
-//! All RGB values are sourced from the Tailwind CSS v3 palette (the de-facto
-//! standard for modern UI design systems). These are NOT the ancient ANSI
-//! 16-color palette from the VT100 era (1978) — they are calibrated for
-//! perceptual uniformity and accessibility on modern displays.
+//! Owner mandate (2026-09-03): the CLI semantic colors are drawn from the
+//! rain renderer's own neon theme family
+//! (`engine/chroma_dragon_engine/catalog/themes.rs`) so the CLI surface
+//! harmonizes with the rain aesthetic:
+//! - error = the NeonRed bright-body stop (255,90,90) — attention-grade
+//!   red that stays readable on black;
+//! - warn = the NeonYellow head stop (255,235,60) — the electric yellow
+//!   that identifies the theme (replacing the darker gold #EAB308);
+//! - suggestion = the NeonWhite head stop (220,235,255) — the tinted
+//!   "crystal white" glow;
+//! - brand keeps #A855F7 — it sits at the NeonPurple band midpoint
+//!   (between stops (134,58,208) and (180,90,255)), a deliberate
+//!   accessibility choice retained as the identity color.
+//!
+//! Every color degrades intelligently to legacy palettes when the
+//! terminal/OS lacks truecolor support (see the capability table below)
+//! — the "legacy colors" fallback the owner specified: Color256 gets the
+//! nearest xterm-256 index, Color16 gets the classic ANSI slot, Mono
+//! gets plain text.
 //!
 //! ## Capability detection (world-class graceful degradation)
 //!
@@ -50,38 +67,75 @@
 use std::io::IsTerminal;
 use std::sync::OnceLock;
 
-// ── Modern RGB color constants (Tailwind CSS v3 palette) ────────────────────
+// ── RGB color constants (cosmostrix neon family) ────────────────────────────
 //
 // These are the canonical 24-bit RGB values. The capability-aware escape
 // functions below select the right encoding (TrueColor / 256 / 16 / none)
-// based on the terminal's detected capability.
+// based on the terminal's detected capability. Lineage: every value is a
+// stop from (or midpoint of) the rain renderer's neon theme catalog
+// (engine/chroma_dragon_engine/catalog/themes.rs) — the CLI surface
+// shares the rain's aesthetic instead of an external design system
+// (S-master-HUNT-5 owner mandate 2026-09-03; previously Tailwind v3).
 
-/// Brand purple RGB: #A855F7 (Tailwind purple-500).
+/// Brand purple RGB: #A855F7 (168,85,247).
+///
+/// NeonPurple band midpoint — sits between the catalog stops
+/// (134,58,208) and (180,90,255); a deliberate accessibility choice
+/// retained as the identity color (unchanged by the neon retune).
 ///
 /// Source of truth for the brand color. The TrueColor escape in
 /// [`brand_open`] encodes these exact values; the 256-color fallback in
 /// [`brand_open`] uses palette index 135 (the closest xterm-256 match,
 /// computed via the 6x6x6 cube: 16 + 36*3 + 6*1 + 5 = 135).
 ///
-/// Referenced by `rgb_constants_match_tailwind_palette` test to verify
+/// Referenced by `rgb_constants_match_neon_family_palette` test to verify
 /// the escape sequences stay in sync with the documented palette.
 #[cfg(test)] // referenced in tests; kept as source-of-truth documentation
 pub const BRAND_PURPLE_RGB: (u8, u8, u8) = (168, 85, 247);
 
-/// Error red RGB: #EF4444 (Tailwind red-500).
+/// Error red RGB: #FF5A5A (255,90,90).
+///
+/// NeonRed bright-body stop (catalog `themes.rs`: the (255,90,90) stop
+/// between body (224,66,66) and shoulder (255,115,118)). Brighter than
+/// the previous Tailwind red-500 (239,68,68) — keeps small error text
+/// readable on black while reading unmistakably as "red".
 ///
 /// 256-color fallback: index 203 (closest match in the 6x6x6 cube:
-/// 16 + 36*5 + 6*1 + 1 = 203).
+/// 16 + 36*5 + 6*1 + 1 = 203 → (255,95,95) — 5/channel off).
 #[cfg(test)] // referenced in tests; kept as source-of-truth documentation
-pub const ERROR_RGB: (u8, u8, u8) = (239, 68, 68);
+pub const ERROR_RGB: (u8, u8, u8) = (255, 90, 90);
 
-/// Warning yellow RGB: #EAB308 (Tailwind yellow-500).
+/// Warning yellow RGB: #FFEB3C (255,235,60).
+///
+/// NeonYellow head stop (catalog `themes.rs`: (255,235,60) — the
+/// electric yellow that IS the theme's identity; the stop the rain's
+/// leading glyphs glow in). Replaces the previous Tailwind gold
+/// (234,179,8): the neon head is the family's true yellow and pops
+/// harder on black.
 ///
 /// 256-color fallback: index 220 (gold — brightest visible yellow in the
-/// xterm-256 palette, chosen over the exact-match 214 for warning
-/// visibility).
+/// xterm-256 palette, chosen over the nearer exact-match indices for
+/// warning visibility; at 256 depth the blue-tinted 60 offset is lost
+/// anyway, so visibility wins).
 #[cfg(test)] // referenced in tests; kept as source-of-truth documentation
-pub const WARN_RGB: (u8, u8, u8) = (234, 179, 8);
+pub const WARN_RGB: (u8, u8, u8) = (255, 235, 60);
+
+/// Suggestion crystal-white RGB: #DCEBFF (220,235,255).
+///
+/// NeonWhite head stop (catalog `themes.rs`: (220,235,255) — the
+/// blue-tinted crystal glow the rain's white theme leads with). Owner
+/// color contract (2026-09-03): suggestions render WHITE, distinct from
+/// error red and warning yellow. Applies to "tip: a similar argument
+/// exists", "hint:", "did you mean", and "[possible values: …]" lines —
+/// whether printed standalone (`suggestion_open`) or embedded inside an
+/// error/warning block (the line-aware `eprintln_error_labeled`).
+///
+/// 256-color fallback: index 255 (238,238,238 — the nearest near-white;
+/// the blue tint cannot survive the 256 palette). Color16 fallback:
+/// bright white (97) — the aixterm bright slot, universally supported,
+/// reads clearly as "white" where the normal 37 can render dim gray.
+#[cfg(test)] // referenced in tests; kept as source-of-truth documentation
+pub const SUGGESTION_RGB: (u8, u8, u8) = (220, 235, 255);
 
 // ── Color capability detection ──────────────────────────────────────────────
 
@@ -215,7 +269,7 @@ pub(crate) fn brand_bold_open() -> &'static str {
 #[must_use]
 pub(crate) fn error_open() -> &'static str {
     match color_capability() {
-        ColorCapability::TrueColor => "\x1b[38;2;239;68;68m",
+        ColorCapability::TrueColor => "\x1b[38;2;255;90;90m",
         ColorCapability::Color256 => "\x1b[38;5;203m",
         ColorCapability::Color16 => "\x1b[31m",
         ColorCapability::Mono => "",
@@ -226,7 +280,7 @@ pub(crate) fn error_open() -> &'static str {
 #[must_use]
 pub(crate) fn error_bold_open() -> &'static str {
     match color_capability() {
-        ColorCapability::TrueColor => "\x1b[1;38;2;239;68;68m",
+        ColorCapability::TrueColor => "\x1b[1;38;2;255;90;90m",
         ColorCapability::Color256 => "\x1b[1;38;5;203m",
         ColorCapability::Color16 => "\x1b[1;31m",
         ColorCapability::Mono => "",
@@ -237,7 +291,7 @@ pub(crate) fn error_bold_open() -> &'static str {
 #[must_use]
 pub(crate) fn warn_open() -> &'static str {
     match color_capability() {
-        ColorCapability::TrueColor => "\x1b[38;2;234;179;8m",
+        ColorCapability::TrueColor => "\x1b[38;2;255;235;60m",
         ColorCapability::Color256 => "\x1b[38;5;220m",
         ColorCapability::Color16 => "\x1b[33m",
         ColorCapability::Mono => "",
@@ -248,9 +302,30 @@ pub(crate) fn warn_open() -> &'static str {
 #[must_use]
 pub(crate) fn warn_bold_open() -> &'static str {
     match color_capability() {
-        ColorCapability::TrueColor => "\x1b[1;38;2;234;179;8m",
+        ColorCapability::TrueColor => "\x1b[1;38;2;255;235;60m",
         ColorCapability::Color256 => "\x1b[1;38;5;220m",
         ColorCapability::Color16 => "\x1b[1;33m",
+        ColorCapability::Mono => "",
+    }
+}
+
+/// Suggestion crystal-white open sequence, capability-aware.
+///
+/// v80.0.0-alpha.1 S-master-HUNT-5 (owner color contract 2026-09-03):
+/// suggestions ("tip:" / "hint:" / did-you-mean / "[possible values: …]"
+/// lines) render WHITE — distinct from error red and warning yellow.
+/// TrueColor: the NeonWhite head stop (220,235,255). Color256: 255
+/// (238,238,238 — nearest near-white; the blue tint cannot survive the
+/// 256 palette). Color16: 97 — the aixterm BRIGHT white slot (universally
+/// supported by xterm-compatible terminals; the normal 37 can render as
+/// dim gray on classic 16-color palettes, which would blur suggestions
+/// into body text). Mono: no color, plain text.
+#[must_use]
+pub(crate) fn suggestion_open() -> &'static str {
+    match color_capability() {
+        ColorCapability::TrueColor => "\x1b[38;2;220;235;255m",
+        ColorCapability::Color256 => "\x1b[38;5;255m",
+        ColorCapability::Color16 => "\x1b[97m",
         ColorCapability::Mono => "",
     }
 }
@@ -312,6 +387,18 @@ pub(crate) fn warn(msg: &str) -> String {
     }
 }
 
+/// Wrap `msg` in suggestion crystal white. Returns plain text if color
+/// is disabled.
+///
+/// S-master-HUNT-5: the suggestion semantic — see [`suggestion_open`].
+#[must_use]
+pub(crate) fn suggestion(msg: &str) -> String {
+    match color_capability() {
+        ColorCapability::Mono => msg.to_string(),
+        _ => format!("{}{}{}", suggestion_open(), msg, reset()),
+    }
+}
+
 // ── Broken-pipe-safe eprintln ────────────────────────────────────────────────
 
 /// Like `eprintln!` but never panics on broken stderr.
@@ -361,7 +448,7 @@ pub(crate) use eprintln_safe;
 
 /// Print a labeled error to stderr: "error: <msg>" in red.
 pub(crate) fn eprintln_error_labeled(msg: &str) {
-    eprintln_safe!("{} {}", error_bold("error:"), error(msg));
+    eprintln_safe!("{}", render_labeled_block("error:", error_bold, error, msg));
 }
 
 /// Print a labeled warning to stderr: "! <msg>" in yellow.
@@ -373,7 +460,87 @@ pub(crate) fn eprintln_warn_labeled(msg: &str) {
     // caller can emit a summary line at the end of config apply. This helps
     // users who miss individual warnings in noisy startup output.
     STARTUP_WARNING_COUNT.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
-    eprintln_safe!("{} {}", warn_bold("!"), warn(msg));
+    eprintln_safe!("{}", render_labeled_block("!", warn_bold, warn, msg));
+}
+
+// ── Line-aware semantic rendering (S-master-HUNT-5) ──────────────────────
+//
+// Owner color contract (2026-09-03): error = red, warning = yellow,
+// SUGGESTION = white — including suggestions that are EMBEDDED inside
+// an error/warning message. Before this, a multi-line error like
+//
+//   error: invalid value for --glitch-level: sutble
+//   expected one of: none, subtle, default, intense
+//     tip: a similar value exists: 'subtle'
+//
+// wrapped EVERY line in red, so the tip (a suggestion, semantically)
+// drowned in the error color. The renderer now recognizes suggestion
+// lines and styles them with the suggestion semantic instead.
+
+/// Recognize a suggestion line inside an error/warning block.
+///
+/// Matches lines whose trimmed content starts with one of the project's
+/// suggestion prefixes: `tip:` (clap-style did-you-mean, the value-
+/// suggestion engine in `cli/suggestion.rs`), `hint:` (config-hints,
+/// testconf), `[possible values: …]` / `(possible values: …)` (enum
+/// value lists), and `did you mean` (legacy phrasing kept for safety).
+/// Indentation is irrelevant — messages compose these lines at varying
+/// depths (`"\n  tip: …"` and friends).
+fn is_suggestion_line(line: &str) -> bool {
+    let t = line.trim_start();
+    t.starts_with("tip:")
+        || t.starts_with("hint:")
+        || t.starts_with("[possible values")
+        || t.starts_with("(possible values")
+        || t.starts_with("did you mean")
+}
+
+/// Render a labeled multi-line message with per-line semantic colors.
+///
+/// The FIRST line gets `{label} {body}` with the label bold in the
+/// message color. Every subsequent line keeps the message color — EXCEPT
+/// suggestion lines (see [`is_suggestion_line`]), which render in the
+/// suggestion (white) semantic. In Mono mode everything is plain text.
+///
+/// `label_wrap`/`body_wrap` are the bold/regular colorizers of the
+/// message semantic (error or warn); the suggestion colorizer is fixed.
+fn render_labeled_block(
+    label: &str,
+    label_wrap: fn(&str) -> String,
+    body_wrap: fn(&str) -> String,
+    msg: &str,
+) -> String {
+    use std::fmt::Write as _;
+
+    let mut lines = msg.split('\n');
+    let mut out = String::with_capacity(msg.len() + 32);
+    // First line: always the labeled head, always the message semantic.
+    if let Some(first) = lines.next() {
+        let _ = write!(out, "{} {}", label_wrap(label), body_wrap(first));
+    }
+    // Subsequent lines: suggestion lines switch to the white semantic.
+    for line in lines {
+        out.push('\n');
+        let styled = if is_suggestion_line(line) {
+            suggestion(line)
+        } else {
+            body_wrap(line)
+        };
+        out.push_str(&styled);
+    }
+    out
+}
+
+/// Print a standalone suggestion line to stderr in suggestion white
+/// (S-master-HUNT-5 owner color contract 2026-09-03).
+///
+/// For hint/tip lines that are NOT embedded in an error/warning block —
+/// e.g. the `testconf: hint: …` guidance lines. Embedded tip lines are
+/// handled automatically by the line-aware [`eprintln_error_labeled`] /
+/// [`eprintln_warn_labeled`] renderers; this helper is for the standalone
+/// case. Broken-pipe-safe via `eprintln_safe!`.
+pub(crate) fn eprintln_suggestion_line(msg: &str) {
+    eprintln_safe!("{}", suggestion(msg));
 }
 
 /// v80.0.0-beta.1 killer-features hardening: route a warning that can fire on BOTH
@@ -522,273 +689,8 @@ pub(crate) fn eprintln_verbose_purple(msg: &str) {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn rgb_constants_match_tailwind_palette() {
-        // Source-of-truth: the RGB constants must encode the exact Tailwind
-        // CSS v3 palette values. Any drift here breaks the brand identity.
-        assert_eq!(BRAND_PURPLE_RGB, (168, 85, 247)); // #A855F7 purple-500
-        assert_eq!(ERROR_RGB, (239, 68, 68)); // #EF4444 red-500
-        assert_eq!(WARN_RGB, (234, 179, 8)); // #EAB308 yellow-500
-    }
-
-    // ── eprintln_safe! macro ──
-
-    #[test]
-    fn eprintln_safe_does_not_panic_with_format_args() {
-        // The macro must accept the same format-arg syntax as eprintln!
-        // and must never panic. We can't easily redirect stderr in a unit
-        // test, so this test only verifies panic-safety — the write goes
-        // to the real stderr (visible if you run with --nocapture).
-        eprintln_safe!("test: {} = {}", "answer", 42);
-        eprintln_safe!("no args");
-        eprintln_safe!("mixed {} {} {}", 1, "two", 3.0);
-    }
-
-    #[test]
-    fn eprintln_safe_handles_empty_string() {
-        // Edge case: empty format string. Must not panic.
-        eprintln_safe!("");
-    }
-
-    #[test]
-    fn eprintln_safe_compiles_with_complex_format() {
-        // Verify the macro accepts the same complex format strings used
-        // in main.rs post-exit paths (named args, precision, mixed types).
-        let purple = "\x1b[35m";
-        let reset = "\x1b[0m";
-        let ts = "12:34";
-        let final_color = "nebula";
-        let startup_color = "vaporwave";
-        eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
-            final_color,
-            startup_color
-        );
-    }
-
-    // ── Phase 5 closure (P3-5): startup warning counter ──
-    //
-    // LTS audit 2026-08-19 (task 5/6): these 2 tests touch the global
-    // `STARTUP_WARNING_COUNT` atomic. When run in parallel with config
-    // apply tests that emit warnings (via `eprintln_warn_labeled`), the
-    // global state races — causing the flaky test failure observed in
-    // prior sessions (`output::tests::eprintln_warn_labeled_increments_counter`
-    // failed once on first run, passed on re-run).
-    //
-    // Fix: serialize the 2 tests via a Mutex guard. The production code
-    // path (single-threaded config apply) is unaffected — only the test
-    // parallelism is constrained.
-
-    /// Mutex guarding tests that touch `STARTUP_WARNING_COUNT`. Without
-    /// this, parallel test execution races on the global atomic.
-    static TEST_WARNING_COUNT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-    #[test]
-    fn reset_clears_warning_count() {
-        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
-        reset_startup_warning_count();
-        assert_eq!(startup_warning_count(), 0);
-    }
-
-    #[test]
-    fn eprintln_warn_labeled_increments_counter() {
-        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
-        reset_startup_warning_count();
-        // eprintln_warn_labeled writes to stderr; we only care about the
-        // counter side-effect. Run it 3 times and verify the count matches.
-        eprintln_warn_labeled("test warning 1");
-        eprintln_warn_labeled("test warning 2");
-        eprintln_warn_labeled("test warning 3");
-        assert_eq!(startup_warning_count(), 3);
-        reset_startup_warning_count();
-    }
-
-    #[test]
-    fn brand_bold_wraps_message() {
-        let wrapped = brand_bold("hello");
-        assert!(wrapped.contains("hello"));
-    }
-
-    #[test]
-    fn error_bold_wraps_message() {
-        let wrapped = error_bold("error:");
-        assert!(wrapped.contains("error:"));
-    }
-
-    #[test]
-    fn verbose_line_contains_prefix_and_label() {
-        let line = verbose_line("scene:", " monolith");
-        assert!(line.contains("[verbose]"));
-        assert!(line.contains("scene:"));
-        assert!(line.contains("monolith"));
-    }
-
-    #[test]
-    fn eprintln_verbose_purple_contains_prefix_and_body() {
-        // The purple-body variant must wrap the body in brand_open (regular,
-        // not bold) AFTER the [verbose] prefix. We verify the format pattern
-        // by exercising the TrueColor branch directly: the body open must
-        // be the regular brand_open escape, and it must appear after the
-        // [verbose] tag. We do NOT call color_capability() here because the
-        // test harness runs with stderr captured as a non-tty, which would
-        // route through the Mono branch (empty escapes) and make the test
-        // non-deterministic across environments.
-        let bold = "\x1b[1;38;2;168;85;247m";
-        let reg = "\x1b[38;2;168;85;247m";
-        let rst = "\x1b[0m";
-        let ts = now_hhmm();
-        let msg = "final runtime state";
-        let line = format!("{bold}[verbose]{rst} {ts} {reg}{msg}{rst}");
-        assert!(line.contains("[verbose]"));
-        assert!(line.contains("final runtime state"));
-        // Body must be wrapped in regular brand_open (not just bold).
-        let verbose_end = line
-            .find("[verbose]")
-            .map(|i| i + "[verbose]".len())
-            .unwrap();
-        let body_open = line.rfind(reg).unwrap();
-        assert!(body_open > verbose_end);
-        // Bold escape must NOT equal regular escape (otherwise the visual
-        // distinction between the prefix and the body would be lost).
-        assert_ne!(bold, reg);
-    }
-
-    #[test]
-    fn color_capability_enum_has_four_variants() {
-        // Sanity check: the capability enum must cover the four degradation
-        // tiers. Adding a new tier requires updating every match in the
-        // escape functions below — the compiler will catch missing arms.
-        let variants = [
-            ColorCapability::Mono,
-            ColorCapability::Color16,
-            ColorCapability::Color256,
-            ColorCapability::TrueColor,
-        ];
-        assert_eq!(variants.len(), 4);
-    }
-
-    #[test]
-    fn brand_open_returns_correct_escape_per_capability() {
-        // Verify the escape mapping for each capability tier. This is the
-        // world-class invariant: every tier must produce a valid escape
-        // (or empty string for Mono), and the TrueColor tier must encode
-        // the exact RGB values from the source-of-truth constants.
-        let truecolor_escape = match ColorCapability::TrueColor {
-            ColorCapability::TrueColor => "\x1b[38;2;168;85;247m",
-            ColorCapability::Color256 => "\x1b[38;5;135m",
-            ColorCapability::Color16 => "\x1b[35m",
-            ColorCapability::Mono => "",
-        };
-        assert!(truecolor_escape.contains("168;85;247"));
-        assert!(truecolor_escape.contains("38;2;"));
-
-        let color256_escape = match ColorCapability::Color256 {
-            ColorCapability::TrueColor => "\x1b[38;2;168;85;247m",
-            ColorCapability::Color256 => "\x1b[38;5;135m",
-            ColorCapability::Color16 => "\x1b[35m",
-            ColorCapability::Mono => "",
-        };
-        // 135 = 16 + 36*3 + 6*1 + 5 (closest xterm-256 cube index for #A855F7)
-        assert!(color256_escape.contains("38;5;135"));
-
-        let color16_escape = match ColorCapability::Color16 {
-            ColorCapability::TrueColor => "\x1b[38;2;168;85;247m",
-            ColorCapability::Color256 => "\x1b[38;5;135m",
-            ColorCapability::Color16 => "\x1b[35m",
-            ColorCapability::Mono => "",
-        };
-        // 35 = ANSI Magenta (closest 16-color to purple #A855F7)
-        assert_eq!(color16_escape, "\x1b[35m");
-
-        let mono_escape = match ColorCapability::Mono {
-            ColorCapability::TrueColor => "\x1b[38;2;168;85;247m",
-            ColorCapability::Color256 => "\x1b[38;5;135m",
-            ColorCapability::Color16 => "\x1b[35m",
-            ColorCapability::Mono => "",
-        };
-        assert_eq!(mono_escape, "");
-    }
-
-    #[test]
-    fn error_open_uses_red_palette_per_capability() {
-        // Error red #EF4444 must map to:
-        // - TrueColor: \x1b[38;2;239;68;68m
-        // - Color256: \x1b[38;5;203m (closest cube index: 16 + 36*5 + 6*1 + 1)
-        // - Color16: \x1b[31m (ANSI Red)
-        // - Mono: empty
-        let truecolor = match ColorCapability::TrueColor {
-            ColorCapability::TrueColor => "\x1b[38;2;239;68;68m",
-            ColorCapability::Color256 => "\x1b[38;5;203m",
-            ColorCapability::Color16 => "\x1b[31m",
-            ColorCapability::Mono => "",
-        };
-        assert!(truecolor.contains("239;68;68"));
-
-        let color256 = match ColorCapability::Color256 {
-            ColorCapability::TrueColor => "\x1b[38;2;239;68;68m",
-            ColorCapability::Color256 => "\x1b[38;5;203m",
-            ColorCapability::Color16 => "\x1b[31m",
-            ColorCapability::Mono => "",
-        };
-        assert!(color256.contains("38;5;203"));
-
-        let color16 = match ColorCapability::Color16 {
-            ColorCapability::TrueColor => "\x1b[38;2;239;68;68m",
-            ColorCapability::Color256 => "\x1b[38;5;203m",
-            ColorCapability::Color16 => "\x1b[31m",
-            ColorCapability::Mono => "",
-        };
-        assert_eq!(color16, "\x1b[31m");
-    }
-
-    #[test]
-    fn warn_open_uses_yellow_palette_per_capability() {
-        // Warn yellow #EAB308 must map to:
-        // - TrueColor: \x1b[38;2;234;179;8m
-        // - Color256: \x1b[38;5;220m (gold — brightest visible yellow)
-        // - Color16: \x1b[33m (ANSI Yellow)
-        // - Mono: empty
-        let truecolor = match ColorCapability::TrueColor {
-            ColorCapability::TrueColor => "\x1b[38;2;234;179;8m",
-            ColorCapability::Color256 => "\x1b[38;5;220m",
-            ColorCapability::Color16 => "\x1b[33m",
-            ColorCapability::Mono => "",
-        };
-        assert!(truecolor.contains("234;179;8"));
-
-        let color256 = match ColorCapability::Color256 {
-            ColorCapability::TrueColor => "\x1b[38;2;234;179;8m",
-            ColorCapability::Color256 => "\x1b[38;5;220m",
-            ColorCapability::Color16 => "\x1b[33m",
-            ColorCapability::Mono => "",
-        };
-        assert!(color256.contains("38;5;220"));
-    }
-
-    #[test]
-    fn reset_returns_universal_ansi_reset_for_non_mono() {
-        // RESET must be \x1b[0m for all color tiers (universal across
-        // truecolor/256/16), and empty string for Mono.
-        let reset_truecolor = match ColorCapability::TrueColor {
-            ColorCapability::TrueColor | ColorCapability::Color256 | ColorCapability::Color16 => {
-                "\x1b[0m"
-            }
-            ColorCapability::Mono => "",
-        };
-        assert_eq!(reset_truecolor, "\x1b[0m");
-
-        let reset_mono = match ColorCapability::Mono {
-            ColorCapability::TrueColor | ColorCapability::Color256 | ColorCapability::Color16 => {
-                "\x1b[0m"
-            }
-            ColorCapability::Mono => "",
-        };
-        assert_eq!(reset_mono, "");
-    }
-}
+#[path = "output_tests.rs"]
+mod tests;
 
 // Submodules (moved from src/ root for clean src/ layout)
 pub(crate) mod message;

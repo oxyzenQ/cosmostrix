@@ -202,3 +202,38 @@ fn pause_freeze_tgt_suffix_still_renders() {
         "the paused suffix must render while metrics are frozen"
     );
 }
+
+/// v80.0.0-alpha.1 S-master-HUNT-5: the `up:` row must render the
+/// tiered formatter (minutes survive the 1h boundary, `m` suffix).
+///
+/// `Instant` on Linux/macOS is bounded by the machine's monotonic
+/// uptime (zero point ≈ boot), so a 3661s backdate only succeeds when
+/// the host has been up longer than that. Fresh CI runners boot under
+/// an hour and hit the fallback branch: there we assert the row is
+/// well-formed tier-0 text (the full tier ladder — days/months/years —
+/// is locked by the exhaustive `clock::format_uptime_tiered` tests,
+/// which need no Instant and cover every boundary).
+#[test]
+fn uptime_row_uses_tiered_formatter() {
+    let mut h = HudState::new();
+    h.toggle();
+    let backdate = Duration::from_secs(3661); // 1h 01m 01s
+    if let Some(then) = Instant::now().checked_sub(backdate) {
+        h.session_start = then;
+        h.last_metric_update = Instant::now()
+            .checked_sub(HUD_METRIC_INTERVAL)
+            .unwrap_or_else(Instant::now);
+        h.update_metrics(&[]);
+        assert_eq!(
+            h.cached_lines[22].1, " up: 1h:01m",
+            "tier-1 row must show the m suffix and whole-minute truncation"
+        );
+    } else {
+        h.update_metrics(&[]);
+        let row = h.cached_lines[22].1.clone();
+        assert!(
+            row.starts_with(" up: ") && row.chars().count() <= 10,
+            "clock range too short for tier-1 backdate — tier-0 fallback must be well-formed: {row:?}"
+        );
+    }
+}

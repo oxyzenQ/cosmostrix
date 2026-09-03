@@ -356,11 +356,14 @@ fn validate_cli_value(flag: &str, value: &str) -> Result<(), String> {
                 value,
                 format_range(min, max)
             )),
-            Err(_) => Err(format!(
-                "error: invalid value for {}: {}\nexpected: duration in range {} (accepts 5, 5s, 1m, 1h30m)",
-                spec.name,
-                value,
-                format_range(min, max)
+            // Parse errors pass the parser's own message through (rather
+            // than the generic "expected: duration in range" line) — the
+            // 24h-ceiling rejection carries the policy reason (owner
+            // mandate: reject WITH the reason), and unknown-unit errors
+            // keep their "use s/m/h/d/w" guidance.
+            Err(e) => Err(format!(
+                "error: invalid value for {}: {}\n{e}",
+                spec.name, value
             )),
         },
         CliKind::Enum { allowed } => validate_enum_value(spec.name, value, allowed),
@@ -444,8 +447,18 @@ fn cli_spec(flag: &str) -> Option<CliSpec> {
             // v80.0.0-alpha.2: accepts the human duration grammar (5,
             // 5s, 1m, 1h30m) — mirrors the clap value_parser
             // (cli::cli_parse::parse_secs_f64).
+            //
+            // S-master-HUNT-5 (2026-09-03): min lowered 0.1 → 0.0.
+            // The flag's documented contract is "<=0 disables" — but the
+            // prevalidator's old 0.1 floor rejected `--duration 0`
+            // BEFORE main.rs's disable special-case could honor it (a
+            // regression introduced when the HumanSecs spec landed in
+            // v80.0.0-alpha.2: the help text and the prevalidator
+            // contradicted each other). 0 is the disable sentinel;
+            // positive values are still floor-checked at 0.1 by the
+            // post-parse range gate in main.rs.
             kind: CliKind::HumanSecs {
-                min: 0.1,
+                min: 0.0,
                 max: 86400.0,
             },
         },

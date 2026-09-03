@@ -480,8 +480,10 @@ DIAGNOSTICS:
       measure pure engine throughput. Add --bench-io for wet I/O.
   --bench-duration <N>
       Benchmark duration (default 5s). Accepts compound forms: 5, 6s, 30m,
-      1h30m. Minimum 1s, no maximum (use for endurance runs). Use with
-      --benchmark for long-run drift / leak / thermal-throttle detection.
+      1h30m, 0.5d. Minimum 1s, maximum 24h — the hard OS-protection ceiling
+      (v80.0.0-alpha.1: every time-scale input is capped at one day; use
+      endurance runs up to 24h, then relaunch). Use with --benchmark for
+      long-run drift / leak / thermal-throttle detection.
       The DRIFT section of the report compares first-half FPS vs second-half FPS.
   --screen-size <WxH>
       Fixed virtual screen size (e.g. 120x40). Min 1x1. Max 1024x500 in

@@ -22,9 +22,66 @@
 //! keys (`crystal-dragon-secs`, `ambient-snapback-secs`) — accepts the
 //! identical `45` / `45.5` / `45s` / `1m` / `2h15m30s` vocabulary
 //! (v80.0.0-alpha.2 owner contract: one human format everywhere).
+//!
+//! ## 24-hour hard ceiling (v80.0.0-alpha.1 S-master-HUNT-5)
+//!
+//! Owner security mandate (2026-09-03): every flag that accepts a
+//! time-scale value is hard-capped at 24 hours ([`DURATION_MAX_SECS`]).
+//! Rationale: cosmostrix is a courteous guest on the host OS — a
+//! flag-requested run longer than a day would hold CPU + terminal
+//! resources indefinitely (performance leakage). The ceiling is
+//! enforced INSIDE both parsers (not at call sites), so no future flag
+//! or config key can accidentally bypass it. Calendar units beyond a
+//! week are rejected at the unit table — elapsed-time formatting is
+//! the HUD's job (see `clock::format_uptime_tiered`), not the input
+//! grammar's.
 
 /// Minimum benchmark duration: 1 second.
 const DURATION_MIN_SECS: u64 = 1;
+
+/// Hard ceiling for EVERY seconds-scale input in cosmostrix: 24 hours
+/// (86,400s). Owner security mandate 2026-09-03 — see module docs.
+///
+/// Enforced structurally inside `parse_secs_f64` (CLI flags + config
+/// keys) and `validate_secs` (`--bench-duration` + the bench frames
+/// watchdog), so the cap cannot be bypassed by any caller. Exactly
+/// 86400 is valid ("1d", "24h", the existing dragon-knob max —
+/// `86400 = poll once per 24h`); only values strictly ABOVE it are
+/// rejected.
+pub(crate) const DURATION_MAX_SECS: f64 = 86_400.0;
+
+/// `DURATION_MAX_SECS` as integer seconds (the u64 parser grammar's
+/// copy — same value, same policy).
+const DURATION_MAX_SECS_U64: u64 = 86_400;
+
+/// The 24h policy sentence shared by both parsers' rejection messages
+/// (single source — the wording must not drift between the f64 and u64
+/// grammar surfaces).
+const DURATION_CEILING_POLICY: &str = "cosmostrix caps every time-scale input \
+     at one day: unbounded runs would hold CPU and terminal resources \
+     on your OS indefinitely — courteous-guest policy";
+
+/// Compose the 24h-policy rejection message for a time-scale input.
+///
+/// The message carries the REASON (owner mandate: "reject error with
+/// that reason"), not just the fact: unbounded runs hold OS resources.
+/// Rendered by every parser surface (CLI prevalidator, clap
+/// value_parser, `--bench-duration`, config-key validation) so the
+/// policy explanation is identical everywhere.
+fn duration_ceiling_error(input: &str, secs: f64) -> String {
+    // Render the seconds count without a trailing ".0" for whole
+    // numbers (799200, not 799200.0) — matches the integer grammar of
+    // --bench-duration and reads cleaner in the f64 paths.
+    let secs_str = if secs.fract() == 0.0 {
+        format!("{}", secs as u64)
+    } else {
+        format!("{secs}")
+    };
+    format!(
+        "'{input}' resolves to {secs_str} seconds — over the 24h (86400s) hard ceiling \
+         ({DURATION_CEILING_POLICY})"
+    )
+}
 
 /// The ONE unit table for every duration input in cosmostrix (seconds).
 ///
@@ -32,6 +89,18 @@ const DURATION_MIN_SECS: u64 = 1;
 ///   - `s` / `sec` / `secs` / `second` / `seconds`  → 1
 ///   - `m` / `min` / `mins` / `minute` / `minutes`  → 60
 ///   - `h` / `hr` / `hrs` / `hour` / `hours`        → 3600
+///   - `d` / `day` / `days`                          → 86400
+///   - `w` / `week` / `weeks`                        → 604800
+///
+/// `d`/`w` (v80.0.0-alpha.1 S-master-HUNT-5): parsing day/week units lets
+/// `--duration 2d` / `1w` fail with the 24h-policy message (the real
+/// reason) instead of a misleading "unknown unit" — while sub-ceiling
+/// day values stay expressible (`0.5d` = 12h, `1d` = exactly the cap).
+/// A week can never be accepted (604800 > 86400) — the unit exists so
+/// the rejection states the policy. Calendar units (`mo`/`y`) are
+/// deliberately NOT in the table: their lengths are not fixed
+/// elapsed-time units (see `clock::format_uptime_tiered` for the
+/// display-side treatment).
 ///
 /// Shared by `parse_duration` (u64, benchmark) and `parse_secs_f64`
 /// (f64, CLI flags + config keys) so the two parsers can never drift.
@@ -40,6 +109,8 @@ fn unit_secs(unit: &str) -> Option<f64> {
         "s" | "sec" | "secs" | "second" | "seconds" => Some(1.0),
         "m" | "min" | "mins" | "minute" | "minutes" => Some(60.0),
         "h" | "hr" | "hrs" | "hour" | "hours" => Some(3600.0),
+        "d" | "day" | "days" => Some(86_400.0),
+        "w" | "week" | "weeks" => Some(604_800.0),
         _ => None,
     }
 }
@@ -52,17 +123,21 @@ fn unit_secs(unit: &str) -> Option<f64> {
 ///   - suffixed    `45s` / `30m` / `2h`   → 45 / 1800 / 7200
 ///   - compound    `1h30m` / `2h15m30s`   → 5400 / 8130
 ///   - fractional  `0.5s` / `1.5m`        → 0.5 / 90
+///   - day/week    `0.5d` / `1d`          → 43200 / 86400 (S-master-HUNT-5)
 ///
 /// Range is the CALLER's contract (the flag/config layer applies its own
-/// min/max, e.g. 0.0..=86400.0 for the dragon knobs) — this fn only
-/// rejects negatives, non-finite values, and malformed input. Callers:
-/// clap `value_parser` for `--crystal-dragon-secs` + `--duration`, and
-/// `config_apply::parse_secs_config` for the two `-secs` config keys.
+/// min/max, e.g. 0.1..=86400.0 for `--duration`) — this fn rejects
+/// negatives, non-finite values, malformed input, AND anything above
+/// the 24h hard ceiling ([`DURATION_MAX_SECS`], enforced HERE so no
+/// caller can bypass it). Callers: clap `value_parser` for
+/// `--crystal-dragon-secs` + `--duration`, and `config_apply::
+/// parse_secs_config` for the two `-secs` config keys.
 ///
 /// # Errors
 /// `Err(String)` (human-readable; the CLI/config layers add the flag/key
 /// label) if the input is empty, has an unknown unit, a missing number or
-/// unit, is negative, or non-finite.
+/// unit, is negative, is non-finite, or resolves to more than 24 hours
+/// (the message carries the policy reason).
 pub(crate) fn parse_secs_f64(input: &str) -> Result<f64, String> {
     let input = input.trim();
 
@@ -73,6 +148,9 @@ pub(crate) fn parse_secs_f64(input: &str) -> Result<f64, String> {
         }
         if n < 0.0 {
             return Err(format!("'{input}' is negative (durations are >= 0)"));
+        }
+        if n > DURATION_MAX_SECS {
+            return Err(duration_ceiling_error(input, n));
         }
         return Ok(n);
     }
@@ -126,11 +204,11 @@ pub(crate) fn parse_secs_f64(input: &str) -> Result<f64, String> {
         }
         if unit_str.is_empty() {
             return Err(format!(
-                "'{input}' is missing a unit after {num_str} (use s/m/h — or a bare number for seconds)"
+                "'{input}' is missing a unit after {num_str} (use s/m/h/d/w — or a bare number for seconds)"
             ));
         }
         let multiplier = unit_secs(&unit_str)
-            .ok_or_else(|| format!("'{input}' has unknown unit '{unit_str}' (use s/m/h)"))?;
+            .ok_or_else(|| format!("'{input}' has unknown unit '{unit_str}' (use s/m/h/d/w)"))?;
 
         total_secs += num * multiplier;
         found_any = true;
@@ -143,6 +221,11 @@ pub(crate) fn parse_secs_f64(input: &str) -> Result<f64, String> {
     }
     if !total_secs.is_finite() || total_secs < 0.0 {
         return Err(format!("'{input}' resolves to an invalid duration"));
+    }
+    // 24h hard ceiling (S-master-HUNT-5): enforced here so no caller can
+    // bypass it. `2d`/`1w`/`222h` reach this check with the parsed total.
+    if total_secs > DURATION_MAX_SECS {
+        return Err(duration_ceiling_error(input, total_secs));
     }
     Ok(total_secs)
 }
@@ -157,7 +240,10 @@ pub(crate) fn parse_secs_f64(input: &str) -> Result<f64, String> {
 ///   - `2h15m30s` → 8130 seconds (full compound)
 ///   - `90` (bare number) → 90 seconds (backward compat)
 ///
-/// Minimum: 1 second. No maximum cap (user responsibility for long runs).
+/// Minimum: 1 second. Maximum: 24 hours — the hard ceiling
+/// ([`DURATION_MAX_SECS`], v80.0.0-alpha.1 S-master-HUNT-5 owner
+/// security mandate; previously "user responsibility", which let
+/// `--bench-duration 222h` launch an unbounded benchmark run).
 ///
 /// # Errors
 /// Returns `Err(String)` with a human-readable error message if:
@@ -216,14 +302,14 @@ pub(crate) fn parse_duration(flag_label: &str, input: &str) -> Result<u64, Strin
         }
         if unit_str.is_empty() {
             return Err(format!(
-                "error: {flag_label} '{input}' missing unit after {num_str} (use s/m/h)"
+                "error: {flag_label} '{input}' missing unit after {num_str} (use s/m/h/d/w)"
             ));
         }
 
         // Shared unit table (unit_secs) — cast to u64 for the integer
         // benchmark grammar. All multipliers are exact integers.
         let multiplier: u64 = unit_secs(&unit_str).map(|s| s as u64).ok_or_else(|| {
-            format!("error: {flag_label} '{input}' has unknown unit '{unit_str}' (use s/m/h)")
+            format!("error: {flag_label} '{input}' has unknown unit '{unit_str}' (use s/m/h/d/w)")
         })?;
 
         total_secs = total_secs.saturating_add(num.saturating_mul(multiplier));
@@ -243,6 +329,15 @@ fn validate_secs(flag_label: &str, secs: u64) -> Result<u64, String> {
     if secs < DURATION_MIN_SECS {
         return Err(format!(
             "error: {flag_label} {secs}s is below the {DURATION_MIN_SECS}-second minimum"
+        ));
+    }
+    // 24h hard ceiling (S-master-HUNT-5): same policy as parse_secs_f64,
+    // integer grammar. The error carries the reason so the user knows
+    // this is a deliberate OS-protection cap, not an arbitrary limit.
+    if secs > DURATION_MAX_SECS_U64 {
+        return Err(format!(
+            "error: {flag_label} {secs}s is over the 24h (86400s) hard ceiling \
+             ({DURATION_CEILING_POLICY})"
         ));
     }
     Ok(secs)
@@ -328,345 +423,5 @@ pub(crate) fn parse_screen_size_optional(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    // ── parse_duration tests ────────────────────────────────────────────
-
-    #[test]
-    fn parse_duration_bare_number_is_seconds() {
-        assert_eq!(parse_duration("--bench-duration", "5").unwrap(), 5);
-        assert_eq!(parse_duration("--bench-duration", "90").unwrap(), 90);
-    }
-
-    // ── parse_secs_f64 tests (v80.0.0-alpha.2 human duration contract) ──
-
-    #[test]
-    fn parse_secs_f64_bare_float_backward_compat() {
-        assert_eq!(parse_secs_f64("45").unwrap(), 45.0);
-        assert_eq!(parse_secs_f64("45.5").unwrap(), 45.5);
-        assert_eq!(parse_secs_f64("0.5").unwrap(), 0.5);
-        assert_eq!(parse_secs_f64("0").unwrap(), 0.0);
-    }
-
-    #[test]
-    fn parse_secs_f64_suffixed_units() {
-        assert_eq!(parse_secs_f64("6s").unwrap(), 6.0);
-        assert_eq!(parse_secs_f64("45s").unwrap(), 45.0);
-        assert_eq!(parse_secs_f64("1m").unwrap(), 60.0);
-        assert_eq!(parse_secs_f64("30m").unwrap(), 1800.0);
-        assert_eq!(parse_secs_f64("1h").unwrap(), 3600.0);
-        assert_eq!(parse_secs_f64("86400s").unwrap(), 86400.0);
-    }
-
-    #[test]
-    fn parse_secs_f64_fractional_suffixed() {
-        assert_eq!(parse_secs_f64("0.5s").unwrap(), 0.5);
-        assert_eq!(parse_secs_f64("1.5m").unwrap(), 90.0);
-        assert!((parse_secs_f64("0.25h").unwrap() - 900.0).abs() < 1e-9);
-    }
-
-    #[test]
-    fn parse_secs_f64_compound() {
-        assert_eq!(parse_secs_f64("1h30m").unwrap(), 5400.0);
-        assert_eq!(parse_secs_f64("2h15m30s").unwrap(), 8130.0);
-        assert_eq!(parse_secs_f64("1m30s").unwrap(), 90.0);
-        assert_eq!(parse_secs_f64("1h 30m").unwrap(), 5400.0);
-    }
-
-    #[test]
-    fn parse_secs_f64_long_units() {
-        assert_eq!(parse_secs_f64("1min").unwrap(), 60.0);
-        assert_eq!(parse_secs_f64("1hour").unwrap(), 3600.0);
-        assert_eq!(parse_secs_f64("1minute").unwrap(), 60.0);
-        assert_eq!(parse_secs_f64("1second").unwrap(), 1.0);
-    }
-
-    #[test]
-    fn parse_secs_f64_rejects_invalid() {
-        assert!(parse_secs_f64("abc").is_err());
-        assert!(parse_secs_f64("6x").is_err());
-        assert!(parse_secs_f64("").is_err());
-        assert!(parse_secs_f64("s").is_err());
-        assert!(parse_secs_f64("1.2.3s").is_err());
-    }
-
-    #[test]
-    fn parse_secs_f64_rejects_negative_and_nonfinite() {
-        assert!(parse_secs_f64("-5").is_err());
-        assert!(parse_secs_f64("-5s").is_err());
-        assert!(parse_secs_f64("inf").is_err());
-        assert!(parse_secs_f64("NaN").is_err());
-    }
-
-    #[test]
-    fn parse_secs_f64_zero_is_valid() {
-        // 0.0 is in-range for the dragon knobs (instant / degenerate poll);
-        // range gates live at the flag/config layers.
-        assert_eq!(parse_secs_f64("0").unwrap(), 0.0);
-        assert_eq!(parse_secs_f64("0s").unwrap(), 0.0);
-    }
-
-    #[test]
-    fn parse_duration_seconds() {
-        assert_eq!(parse_duration("--bench-duration", "6s").unwrap(), 6);
-        assert_eq!(parse_duration("--bench-duration", "1s").unwrap(), 1);
-        assert_eq!(parse_duration("--bench-duration", "100s").unwrap(), 100);
-    }
-
-    #[test]
-    fn parse_duration_minutes() {
-        assert_eq!(parse_duration("--bench-duration", "1m").unwrap(), 60);
-        assert_eq!(parse_duration("--bench-duration", "30m").unwrap(), 1800);
-    }
-
-    #[test]
-    fn parse_duration_hours() {
-        assert_eq!(parse_duration("--bench-duration", "1h").unwrap(), 3600);
-        assert_eq!(parse_duration("--bench-duration", "2h").unwrap(), 7200);
-    }
-
-    #[test]
-    fn parse_duration_compound() {
-        assert_eq!(parse_duration("--bench-duration", "1h30m").unwrap(), 5400);
-        assert_eq!(
-            parse_duration("--bench-duration", "2h15m30s").unwrap(),
-            8130
-        );
-        assert_eq!(parse_duration("--bench-duration", "1m30s").unwrap(), 90);
-    }
-
-    #[test]
-    fn parse_duration_long_units() {
-        assert_eq!(parse_duration("--bench-duration", "1min").unwrap(), 60);
-        assert_eq!(parse_duration("--bench-duration", "1hour").unwrap(), 3600);
-        assert_eq!(parse_duration("--bench-duration", "1minute").unwrap(), 60);
-        assert_eq!(parse_duration("--bench-duration", "1second").unwrap(), 1);
-    }
-
-    #[test]
-    fn parse_duration_rejects_zero() {
-        assert!(parse_duration("--bench-duration", "0").is_err());
-        assert!(parse_duration("--bench-duration", "0s").is_err());
-    }
-
-    #[test]
-    fn parse_duration_rejects_invalid() {
-        assert!(parse_duration("--bench-duration", "abc").is_err());
-        assert!(parse_duration("--bench-duration", "6x").is_err());
-        assert!(parse_duration("--bench-duration", "").is_err());
-        assert!(parse_duration("--bench-duration", "6").is_ok()); // bare number is valid
-    }
-
-    #[test]
-    fn parse_duration_no_max_cap() {
-        // No maximum cap — user can specify very long durations
-        assert_eq!(parse_duration("--bench-duration", "100h").unwrap(), 360000);
-        assert_eq!(
-            parse_duration("--bench-duration", "8784h").unwrap(),
-            31622400
-        ); // ~1 year
-    }
-
-    #[test]
-    fn parse_duration_error_message_uses_correct_flag_label() {
-        // Error messages must attribute failure to the actual flag the user
-        // passed, not a hardcoded "--duration". This was a regression where
-        // `--bench-duration foo` produced "error: --duration 'foo'...".
-        let err = parse_duration("--bench-duration", "abc").unwrap_err();
-        assert!(
-            err.contains("--bench-duration"),
-            "expected error to mention --bench-duration, got: {err}"
-        );
-        assert!(
-            !err.contains("--duration '"),
-            "error should not mention bare --duration, got: {err}"
-        );
-
-        let err = parse_duration("--duration", "6x").unwrap_err();
-        assert!(
-            err.contains("--duration"),
-            "expected error to mention --duration, got: {err}"
-        );
-    }
-
-    // ── parse_screen_size tests ─────────────────────────────────────────
-
-    #[test]
-    fn parse_screen_size_basic() {
-        assert_eq!(parse_screen_size("120x40").unwrap(), (120, 40));
-        assert_eq!(parse_screen_size("12x12").unwrap(), (12, 12));
-        // 1x1 is the minimum accepted (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES = 1x1)
-        assert!(parse_screen_size("1x1").is_ok());
-    }
-
-    #[test]
-    fn parse_screen_size_case_insensitive_x() {
-        assert_eq!(parse_screen_size("200X60").unwrap(), (200, 60));
-        assert_eq!(parse_screen_size("80X24").unwrap(), (80, 24));
-    }
-
-    #[test]
-    fn parse_screen_size_with_spaces() {
-        assert_eq!(parse_screen_size(" 120x40 ").unwrap(), (120, 40));
-        assert_eq!(parse_screen_size("120 x 40").unwrap(), (120, 40));
-    }
-
-    #[test]
-    fn parse_screen_size_rejects_zero() {
-        assert!(parse_screen_size("0x0").is_err());
-        assert!(parse_screen_size("0x10").is_err());
-        assert!(parse_screen_size("10x0").is_err());
-    }
-
-    #[test]
-    fn parse_screen_size_rejects_too_small() {
-        // Minimum is 1x1 (MIN_TERMINAL_COLS x MIN_TERMINAL_LINES = 1)
-        // 0 is rejected (below minimum), 1 is accepted.
-        assert!(parse_screen_size("0x0").is_err());
-        assert!(parse_screen_size("0x1").is_err());
-        assert!(parse_screen_size("1x0").is_err());
-        // 1x1 is the minimum accepted
-        assert!(parse_screen_size("1x1").is_ok());
-    }
-
-    #[test]
-    fn parse_screen_size_rejects_invalid_format() {
-        assert!(parse_screen_size("120").is_err());
-        assert!(parse_screen_size("120x").is_err());
-        assert!(parse_screen_size("x40").is_err());
-        assert!(parse_screen_size("120x40x30").is_err());
-        assert!(parse_screen_size("abc").is_err());
-    }
-
-    #[test]
-    fn parse_screen_size_rejects_non_numeric() {
-        assert!(parse_screen_size("abcx40").is_err());
-        assert!(parse_screen_size("120xabc").is_err());
-    }
-
-    #[test]
-    fn parse_screen_size_large_values() {
-        assert_eq!(parse_screen_size("65535x65535").unwrap(), (65535, 65535));
-        assert_eq!(parse_screen_size("1000x1000").unwrap(), (1000, 1000));
-    }
-
-    // ── depth-test: --charset-custom alias tests ────────────────
-
-    /// depth-test fix: --charset-custom is now an alias for --charset.
-    /// Depth-test user expected `--charset-custom cat` to work by analogy
-    /// with --colors-custom and --scene-custom. The existing --charset
-    /// already handles BOTH built-in presets AND custom names, so the alias
-    /// is pure UX parity. These tests verify clap accepts both forms and
-    /// routes them to the same `charset` field.
-    #[test]
-    fn charset_custom_alias_resolves_to_charset_field() {
-        use crate::config::Args;
-        use clap::Parser;
-        // Long form --charset-custom
-        let args = Args::try_parse_from(["cosmostrix", "--charset-custom", "cat"]).unwrap();
-        assert_eq!(args.charset, "cat");
-    }
-
-    #[test]
-    fn charset_long_form_still_works() {
-        use crate::config::Args;
-        use clap::Parser;
-        // Original --charset long form must still work after alias addition.
-        let args = Args::try_parse_from(["cosmostrix", "--charset", "hex"]).unwrap();
-        assert_eq!(args.charset, "hex");
-    }
-
-    #[test]
-    fn charset_short_form_still_works() {
-        use crate::config::Args;
-        use clap::Parser;
-        // Short -C form must still work.
-        let args = Args::try_parse_from(["cosmostrix", "-C", "binary"]).unwrap();
-        assert_eq!(args.charset, "binary");
-    }
-}
-
-// ── v80.0.0-alpha.1: --crystal-dragon-secs flag surface ───────────
-
-/// The flag parses as Option<f64> with no clap-level range gate (the
-/// range is enforced by the same startup validate_f64_range path as
-/// --duration, which main.rs owns — clap value_parser f64 range is
-/// intentionally not duplicated here to keep one error-message voice).
-/// v80.0.0-alpha.2: the clap value_parser IS parse_secs_f64, so the
-/// human forms (6s, 1m, 1h30m, 45.5s) resolve at parse time — the field
-/// type stays Option<f64>, all downstream consumers unchanged.
-#[test]
-fn crystal_dragon_secs_parses_from_cli() {
-    use crate::config::Args;
-    use clap::Parser;
-    let args = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", "120"]).unwrap();
-    assert_eq!(args.crystal_dragon_secs, Some(120.0));
-    // Fractional values are accepted (float flag).
-    let args = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", "45.5"]).unwrap();
-    assert_eq!(args.crystal_dragon_secs, Some(45.5));
-    // Default: unset (None) → engine uses the 60s constant.
-    let args = Args::try_parse_from(["cosmostrix"]).unwrap();
-    assert_eq!(args.crystal_dragon_secs, None);
-}
-
-// ── v80.0.0-alpha.2: human duration forms on every seconds flag ───
-
-#[test]
-fn crystal_dragon_secs_accepts_human_duration_forms() {
-    use crate::config::Args;
-    use clap::Parser;
-    let cases = [
-        ("6s", 6.0),
-        ("45s", 45.0),
-        ("1m", 60.0),
-        ("15s", 15.0),
-        ("30m", 1800.0),
-        ("1h", 3600.0),
-        ("1h30m", 5400.0),
-        ("45.5s", 45.5),
-        ("90", 90.0),
-    ];
-    for (input, expect) in cases {
-        let args = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", input]).unwrap();
-        assert_eq!(
-            args.crystal_dragon_secs,
-            Some(expect),
-            "--crystal-dragon-secs {input} must parse to {expect}"
-        );
-    }
-}
-
-#[test]
-fn crystal_dragon_secs_rejects_invalid_human_duration() {
-    use crate::config::Args;
-    use clap::Parser;
-    for bad in ["6x", "abc", "-5s", "1.2.3s"] {
-        let err = Args::try_parse_from(["cosmostrix", "--crystal-dragon-secs", bad]);
-        assert!(
-            err.is_err(),
-            "--crystal-dragon-secs {bad} must be rejected at parse time"
-        );
-    }
-}
-
-#[test]
-fn duration_flag_accepts_human_duration_forms() {
-    use crate::config::Args;
-    use clap::Parser;
-    let cases = [
-        ("5", 5.0),
-        ("0.5", 0.5),
-        ("5s", 5.0),
-        ("1m", 60.0),
-        ("1h30m", 5400.0),
-    ];
-    for (input, expect) in cases {
-        let args = Args::try_parse_from(["cosmostrix", "--duration", input]).unwrap();
-        assert_eq!(
-            args.duration,
-            Some(expect),
-            "--duration {input} must parse to {expect}"
-        );
-    }
-}
+#[path = "cli_parse_tests.rs"]
+mod tests;

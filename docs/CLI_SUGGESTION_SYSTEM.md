@@ -41,7 +41,17 @@ let tip = crate::cli::suggestion::closest_value_match(raw, allowed)
 
 ### Argument suggestion
 
-Flag suggestions are rendered inline via `eprintln!` with ANSI color
+Flag suggestions are rendered inline with the SUGGESTION color semantic
+(S-master-HUNT-5 owner color contract 2026-09-03: suggestions render
+WHITE — the NeonWhite head stop #DCEBFF on truecolor, near-white 255 at
+256-color, bright-white 97 at 16-color, plain text under NO_COLOR;
+previously warn-yellow, which blurred guidance into warnings). Value
+tips embedded in error messages are painted the same way automatically
+by the line-aware `output::eprintln_error_labeled` renderer (any line
+starting with `tip:` / `hint:` / `[possible values` inside an
+error/warning block). Standalone hint lines use
+`output::eprintln_suggestion_line`. Legacy: suggestions were rendered
+via bare `eprintln!` with ANSI color
 wrappers in `main.rs` and `argv_expand.rs` — no helper function is
 needed because the format string is always `tip: a similar argument
 exists: '--<flag>'`.

@@ -61,7 +61,7 @@ each line means without reading the full reference below.
 | 17  | `ctun:`     | state          | **Color tuning** — `default` (all factors 1.0) or `custom` (any `--color-tune-*` factor differs). |
 | 18  | `mnst:`     | size           | **Monolith size** — small / normal / large, or `unknown` for non-monolith scenes. |
 | 19  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
-| 20  | `up:`       | MM:SS / Xh:MM / Xd:YYh | Session uptime since process start.                                                       |
+| 22  | `up:`       | MM:SS / Xh:MMm / Xd:HHh:MMm / Xmo:DDd:HHh:MMm / Xy:... | Session uptime since process start (tiered — see section 8). |
 | 21  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
 
 **Symbol legend:**
@@ -108,7 +108,7 @@ rows are visible at once; this mockup annotates each:
 │ dcel: 57/2.96%   ◄── 19. dirty cells + ratio (humanized count — lower ratio = more efficient)
 │ tcel: 1.9K    ◄── 20. total cells in screen (width × height)
 │ cid: 6ed244b  ◄── 21. build commit id (verify without quitting)
-│ up: 03:42     ◄── 22. session uptime (MM:SS under 1h)
+│ up: 1d:07h:22m◄── 22. session uptime (tiered: MM:SS under 1h, then unit-suffixed)
 │ 200x50 auto   ◄── 23. terminal size + mode (auto/fix)
 └─────────────────────────┘
 ```
@@ -299,11 +299,26 @@ and emitted in `--benchmark` JSON output as the `git_sha` field.
 
 ### 8. `up: <duration>`
 
-**Session uptime** since the HUD was created (process startup). Format:
+**Session uptime** since the HUD was created (process startup). Format
+(v80.0.0-alpha.1 S-master-HUNT-5, owner task 2026-09-03 — the tiered
+ladder; the old 3-tier format lost minutes past 1 day and had no
+month/year scale):
 
-- `< 1h`: `MM:SS` (e.g. `59:03`)
-- `< 1d`: `Xh:MM` (e.g. `1h:03`)
-- `>= 1d`: `Xd:YYh` (e.g. `2d:03h`)
+- `< 1h`: `MM:SS` (e.g. `59:03`) — stopwatch precision
+- `< 1d`: `Xh:MMm` (e.g. `8h:01m`) — explicit unit suffixes
+- `< 30d`: `Xd:HHh:MMm` (e.g. `1d:07h:22m`) — minutes survive the day crossing
+- `< 365d`: `Xmo:DDd:HHh:MMm` (e.g. `1mo:01d:22h:10m`) — server-class scale
+- `>= 365d`: `Xy:MOmo:DDd:HHh:MMm` (e.g. `1y:02mo:03d:22h:10m`)
+
+Design contract (single source: `clock::format_uptime_tiered`):
+calendar-fixed elapsed units (1mo = 30d, 1y = 365d — uptime is a
+duration, not a calendar date); zero-padded non-leading units (width
+stability — the HUD box and its chroma border stay still between tier
+crossings); a 19-char value budget matching `HUD_MAX_WIDTH` (24) minus
+the ` up: ` prefix, with least-significant-unit degradation at
+decade+ scale (`10y:11mo:28d:23h`) — mathematically guaranteed to fit
+even at `u64::MAX` seconds. Pause freeze still applies (paused time
+excluded; `up:` pins at its freeze-time value).
 
 ### 9. `<W>x<H> <mode>`
 

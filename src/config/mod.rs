@@ -428,7 +428,7 @@ pub struct Args {
         long = "bench-duration",
         help_heading = "DIAGNOSTICS",
         display_order = 111,
-        help = "Benchmark duration (default 5s). Accepts: 5, 6s, 30m, 1h30m"
+        help = "Benchmark duration (default 5s; max 24h — hard OS-protection ceiling). Accepts: 5, 6s, 30m, 1h30m, 0.5d"
     )]
     pub bench_duration: Option<String>,
 
@@ -614,7 +614,7 @@ pub struct Args {
         long = "duration",
         hide = true,
         value_parser = crate::cli::cli_parse::parse_secs_f64,
-        help = "Stop after N seconds (min 0.1 max 86400; accepts 5, 5s, 1m, 1h30m; <=0 disables)"
+        help = "Stop after N seconds (min 0.1 max 86400 = 24h hard ceiling; accepts 5, 5s, 1m, 1h30m, 0.5d; 0 disables)"
     )]
     pub duration: Option<f64>,
 
@@ -671,7 +671,7 @@ pub struct Args {
         value_name = "SECS",
         num_args = 1,
         value_parser = crate::cli::cli_parse::parse_secs_f64,
-        help = "Crystal Dragon drift cadence (0.0-86400.0 seconds, default: 60; accepts 60, 60s, 1m, 1h30m) — tune harmony with ambient-snapback-secs"
+        help = "Crystal Dragon drift cadence (0.0-86400.0 seconds = 24h ceiling, default: 60; accepts 60, 60s, 1m, 1h30m, 0.5d) — tune harmony with ambient-snapback-secs"
     )]
     pub crystal_dragon_secs: Option<f64>,
 

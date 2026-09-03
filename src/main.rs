@@ -294,10 +294,15 @@ fn main() -> std::io::Result<()> {
                 // Print clap's original error (includes the "tip:" line +
                 // usage), then append our "tip: a similar argument
                 // exists" line using the SAME flag clap already chose.
+                //
+                // S-master-HUNT-5 (owner color contract 2026-09-03):
+                // suggestions render WHITE (suggestion semantic — the
+                // NeonWhite head stop), not warn-yellow. A tip is
+                // guidance, not a warning.
                 e.print().ok();
                 eprintln!(
                     "{}  tip: a similar argument exists: '--{}'{}",
-                    crate::output::warn_open(),
+                    crate::output::suggestion_open(),
                     suggestion,
                     crate::output::reset()
                 );

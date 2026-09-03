@@ -60,13 +60,49 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
 
     let start = Instant::now();
+    // 24h hard ceiling for the frames loop (S-master-HUNT-5, owner
+    // security mandate 2026-09-03): `--bench-frames` is a frame COUNT —
+    // it cannot be range-checked against the 24h policy at parse time
+    // (the wall-clock cost per frame is only knowable at runtime), so
+    // the loop itself carries the ceiling as a watchdog. Checked every
+    // 4096 frames (one `Instant::elapsed` per 4096 iterations ≈ ns-scale
+    // amortized — invisible next to the render work). A `--bench-frames
+    // 999999999999` typo now costs at most one day instead of ~190
+    // years of held CPU. Same policy value as
+    // `cli::cli_parse::DURATION_MAX_SECS` (86400) — duplicated as a
+    // literal here because the const is f64-typed for the parser
+    // grammar; keeping one policy number in two forms beats a cross-
+    // module cast dependency in the bench hot path.
+    const FRAMES_WATCHDOG_INTERVAL: u64 = 4096;
+    let ceiling = Duration::from_secs(86_400);
+    let mut frames_run: u64 = 0;
+    let mut hit_ceiling = false;
     for _ in 0..bench_frames {
+        if frames_run.is_multiple_of(FRAMES_WATCHDOG_INTERVAL) && start.elapsed() >= ceiling {
+            hit_ceiling = true;
+            break;
+        }
         sim_now += target_period;
         cloud.rain_at(&mut frame, sim_now);
         frame.clear_dirty();
+        frames_run += 1;
     }
     let elapsed_s = start.elapsed().as_secs_f64().max(BENCH_ELAPSED_MIN_S);
-    let fps = (bench_frames as f64) / elapsed_s;
+    // Honesty contract: when the watchdog fires, the report must say so
+    // (a truncated frame count without disclosure would look like a
+    // completed run — silently corrupting the FPS denominator).
+    if hit_ceiling {
+        println!(
+            "  watchdog: frames loop stopped at the 24h (86400s) hard ceiling after {frames_run}/{bench_frames} frames \
+             (cosmostrix caps every time-scale run at one day; re-run with a realistic --bench-frames count)"
+        );
+    }
+    let reported_frames = if hit_ceiling {
+        frames_run
+    } else {
+        bench_frames
+    };
+    let fps = (reported_frames as f64) / elapsed_s;
 
     println!("BENCH:");
     println!("  scene: {}", cfg.scene_name);
@@ -81,7 +117,14 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     }
     println!("  cols: {}", w);
     println!("  lines: {}", h);
-    println!("  frames: {}", bench_frames);
+    println!(
+        "  frames: {}",
+        if hit_ceiling {
+            frames_run
+        } else {
+            bench_frames
+        }
+    );
     println!("  elapsed_s: {:.3}", elapsed_s);
     println!("  frames_per_s: {:.3}", fps);
     Ok(())

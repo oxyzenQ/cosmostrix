@@ -118,20 +118,23 @@ fn is_valid_style_value(rest: &str) -> bool {
 /// Reject a `-mfs…` typo with a clap-format error so the UX matches the
 /// long-flag typo path (`--msg-fill-styl` → clap's own "tip:" +
 /// main.rs's "tip: a similar argument exists" line).
+///
+/// v80.0.0-alpha.1 S-master-HUNT-5 (owner color-consistency audit
+/// 2026-09-03): this path previously printed FIVE lines of bare
+/// `eprintln!` — an unbranded `error:` (every other error surface uses
+/// the red branded label), no broken-pipe safety (`eprintln!` panics on
+/// a dead stderr; `ux::die_input` routes through `eprintln_safe!`),
+/// and it printed the tip line TWICE (once uncolored, once warn-yellow
+/// — suggestions were yellow, violating the owner's white-suggestion
+/// contract). Now: one multi-line message through `ux::die_input`; the
+/// line-aware renderer in `eprintln_error_labeled` paints the
+/// `tip:`/`[possible values` lines suggestion-white automatically.
 fn die_mfs_typo(token: &str) -> ! {
-    eprintln!("error: unexpected argument '{token}' found");
-    eprintln!();
-    eprintln!("  tip: a similar argument exists: '--msg-fill-style' (short form: -mfs)");
-    eprintln!(
-        "  [possible values: typewriter, fade, words, slide, instant, engrave, hologram, glitch, scorch, cascade]"
-    );
-    eprintln!();
-    eprintln!(
-        "{}  tip: a similar argument exists: '--msg-fill-style'{}",
-        crate::output::warn_open(),
-        crate::output::reset()
-    );
-    std::process::exit(2);
+    crate::ux::die_input(format!(
+        "unexpected argument '{token}' found\n\n  tip: a similar argument exists: \
+         '--msg-fill-style' (short form: -mfs)\n  [possible values: typewriter, fade, \
+         words, slide, instant, engrave, hologram, glitch, scorch, cascade]"
+    ))
 }
 
 #[cfg(test)]

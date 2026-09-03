@@ -102,10 +102,17 @@ impl HudState {
         // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
         let colors = compute_chroma_gradient_24(palette_colors);
 
-        // Session uptime: compound time format.
-        // < 1h:  MM:SS    e.g. 59:03
-        // < 1d:  Xh:MM    e.g. 1h:03
-        // >= 1d: Xd:YYh   e.g. 2d:03h
+        // Session uptime: tiered compound format (v80.0.0-alpha.1
+        // S-master-HUNT-5, owner task 2026-09-03):
+        //   < 1h:    MM:SS           e.g. 59:03
+        //   < 1d:    Xh:MMm          e.g. 8h:01m   (owner reference)
+        //   < 30d:   Xd:HHh:MMm      e.g. 1d:07h:22m
+        //   < 365d:  Xmo:DDd:HHh:MMm e.g. 1mo:01d:22h:10m
+        //   >= 365d: Xy:MOmo:DDd:HHh:MMm  (degrades past 19 chars)
+        // Minutes survive past the day crossing; calendar-fixed units
+        // (1mo = 30d, 1y = 365d) keep every boundary deterministic —
+        // see `clock::format_uptime_tiered` for the full design contract
+        // (zero-padding rationale, HUD width budget proof, degradation).
         //
         // v80.0.0-beta.1 pause freeze: paused time is EXCLUDED — the open segment
         // grows at the same rate as the elapsed clock while paused, so
@@ -116,18 +123,7 @@ impl HudState {
         if let Some(start) = self.pause_started_at {
             uptime_secs = uptime_secs.saturating_sub(start.elapsed());
         }
-        let uptime_secs = uptime_secs.as_secs();
-        let uptime_str = if uptime_secs < 3600 {
-            format!("{:02}:{:02}", uptime_secs / 60, uptime_secs % 60)
-        } else if uptime_secs < 86_400 {
-            format!("{}h:{:02}", uptime_secs / 3600, (uptime_secs % 3600) / 60)
-        } else {
-            format!(
-                "{}d:{:02}h",
-                uptime_secs / 86_400,
-                (uptime_secs % 86_400) / 3600
-            )
-        };
+        let uptime_str = crate::clock::format_uptime_tiered(uptime_secs.as_secs());
 
         // v16: Dynamic-width HUD. Lines are formatted WITHOUT fixed-width
         // padding — the HUD width grows/shrinks to fit the longest line.

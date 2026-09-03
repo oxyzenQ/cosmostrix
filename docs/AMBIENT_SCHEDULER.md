@@ -330,7 +330,11 @@ ambient-snapback-secs = 120
 
 **Range**: `0.0..=86400.0` (0 = instant, 86400 = 24h). Values outside
 this range are rejected at startup and on live-reload (fall back to
-default 30s). The key is live-reloadable — editing it in config.toml
+default 30s). The 86400 max is also the project-wide 24h hard ceiling
+enforced structurally inside `cli_parse::parse_secs_f64`
+(S-master-HUNT-5 owner security mandate 2026-09-03 — every time-scale
+input capped at one day; rejections state the courteous-guest policy
+reason). The key is live-reloadable — editing it in config.toml
 takes effect on the next frame without restart.
 
 **Why this design**: the default 30s preserves the original v35 behavior

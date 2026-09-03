@@ -80,7 +80,41 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/SIMD_FEASIBI
 
 **Threshold sizing** (all sized for the 30 FPS Tier 1 cap, ~7 MB/sec worst case): `XTERMJS_BYTE_BUDGET_PER_WINDOW` = 40 MB (fires ~5 s sustained max load, then suppresses); `XTERMJS_RIS_RESET_BYTES` = 50 MB (fires ~7 s sustained max load); `XTERMJS_HARD_CEILING_BYTES` = 200 MB (never — RIS at 50 MB fires first); `XTERMJS_BYTE_BUDGET_WINDOW_FRAMES` = 600 frames (20 s rolling window at 30 FPS).
 
-## 9. Recommended Ongoing Security Practices
+## 9. Time-Scale Input Ceiling — 24h Hard Limit (S-master-HUNT-5)
+
+**Owner security mandate (2026-09-03):** every flag that accepts a
+time-scale value is hard-capped at **24 hours (86,400s)**. Rationale:
+cosmostrix is a courteous guest on the host OS — a flag-requested run
+longer than a day would hold CPU and terminal resources indefinitely
+(performance leakage). Before this cap, `--bench-duration 222h`
+launched a benchmark with no wall-clock bound (verified empirically —
+the run had to be timeout-killed), and `--bench-frames 999999999999`
+could hold the CPU for ~190 years.
+
+| Surface | Enforcement | Behavior at the ceiling |
+|---------|-------------|--------------------------|
+| `--bench-duration` | `cli_parse::parse_duration` → `validate_secs` | `24h`/`1d` valid (exactly 86400); anything above rejected with the policy reason |
+| `--duration` | `cli_parse::parse_secs_f64` (structurally) + prevalidator range 0.0..=86400 (0 = disable sentinel) | Same; `0` keeps its documented "disables auto-exit" meaning (a prevalidator regression that rejected `--duration 0` was fixed alongside) |
+| `--crystal-dragon-secs` | `parse_secs_f64` (clap value_parser) + post-parse gate 0..=86400 | Same; day-unit values work below the cap (`0.5d` = 12h) |
+| `ambient-snapback-secs` (config key) | `parse_secs_config(0.0, 86400.0)` — unchanged range, now double-enforced by the parser ceiling | Same |
+| `--bench-frames` (frame count, not a duration) | 24h wall-clock watchdog in the frames loop (checked every 4096 frames, ~ns amortized) | Loop stops at 24h with a disclosed `watchdog:` report line; the FPS denominator uses the frames actually run |
+
+The ceiling lives INSIDE both duration parsers (not at call sites), so
+no future flag or config key can accidentally bypass it. Day (`d`) and
+week (`w`) units are parseable so over-limit inputs like `2d`/`1w` are
+rejected with the real reason (the 24h policy) instead of a misleading
+"unknown unit" — while sub-ceiling day values remain expressible.
+Calendar units (`mo`/`y`) are deliberately NOT input grammar (their
+lengths are not fixed elapsed-time units; the HUD renders them on the
+display side via `clock::format_uptime_tiered`).
+
+Interactive sessions WITHOUT `--duration` are user-supervised (any key
+quits) and remain unbounded by design — the owner's server-class
+multi-day uptime use case (`up: 1mo:1d:22h:10m`) is a supported display
+tier, not a policy violation. The cap governs flag-REQUESTED timed
+behavior only.
+
+## 10. Recommended Ongoing Security Practices
 
 1. Run `cargo audit` weekly (already automated in `gitbot-audit.yml` daily run).
 2. Run `cargo deny check all` before each release (already in `maintenance.yml`).

@@ -84,16 +84,18 @@ pub(crate) fn dump_config_text() -> &'static str {
 #                                       # passes, a drift fires within moments (the cadence governor is the
 #                                       # dwell floor + poll window, not the ~12%/frame chance — that is a
 #                                       # small post-dwell jitter). Organic, not periodic.
-# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default). Crystal Dragon drift cadence — the
-#                                       # harmony twin of ambient-snapback-secs. Accepts the human duration
-#                                       # forms (v80.0.0-alpha.2): 60, 60s, 1m, 1h30m — same vocabulary as
-#                                       # the CLI flag. Live-reload applies edits immediately (tune the
+# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default; the 24h hard ceiling — every
+#                                       # time-scale input is capped at one day, S-master-HUNT-5). Crystal
+#                                       # Dragon drift cadence — the harmony twin of ambient-snapback-secs.
+#                                       # Accepts the human duration forms (v80.0.0-alpha.2): 60, 60s, 1m,
+#                                       # 1h30m, 0.5d — same vocabulary as the CLI flag. Live-reload applies edits immediately (tune the
 #                                       # rhythm online). Min-dwell floor is min(60s, cadence): at the
 #                                       # default (or slower) palette flips cap at one per minute; a faster
 #                                       # explicit cadence is honored as-is. 86400 = poll once per 24h.
 #                                       # CLI: --crystal-dragon-secs.
-# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant).
-#                                       # Accepts the human duration forms: 30, 30s, 1m, 1h30m.
+# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant;
+#                                       # 86400 is also the project-wide 24h hard ceiling). Accepts the
+#                                       # human duration forms: 30, 30s, 1m, 1h30m, 0.5d.
 #                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
 #                                       # visible before the ambient phase re-asserts. ANY value fires — a value
 #                                       # >= the poll interval still triggers (verified live at 90s vs 60), it

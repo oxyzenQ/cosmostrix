@@ -9,6 +9,85 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v80.0.0-alpha.1 — S-master-HUNT-5 uptime tiers + 24h time ceiling + neon CLI colors
+
+Owner task trio (2026-09-03): the HUD `up:` line collapsed multi-day
+sessions to `Xd:YYh` (no minutes, no month/year scale); every time-scale
+flag needed a hard 24h security ceiling (`--bench-duration 222h` verified
+to launch an unbounded run); output colors needed one semantic contract
+(errors red / warnings yellow / suggestions white) drawn from the rain's
+own neon family. Master rating on the prior round: 10/10.
+
+- **HUD uptime tiered ladder (owner task 1)**: `up:` now renders five
+  tiers — `MM:SS` under 1h, `8h:01m` under 1d (explicit unit suffixes,
+  owner reference), `1d:07h:22m` under 30d (minutes survive the day
+  crossing — the core complaint), `1mo:01d:22h:10m` under 365d,
+  `1y:02mo:03d:22h:10m` beyond. Calendar-fixed elapsed units (1mo = 30d,
+  1y = 365d — deterministic, testable); zero-padded non-leading units
+  (HUD width stability — the box and its chroma border stay still
+  between tier rollovers); a 19-char value budget with
+  least-significant-unit degradation at decade scale, mathematically
+  guaranteed to fit even at `u64::MAX` seconds. Single source:
+  `clock::format_uptime_tiered` (12 new unit tests incl. every tier
+  boundary). The verbose-exit prose formatter gained the same
+  day/month/year ladder. Pause freeze contract unchanged (paused time
+  still excluded, pinned at freeze value).
+- **24h hard ceiling on every time-scale input (owner task 2, security)**:
+  `DURATION_MAX_SECS = 86_400` enforced INSIDE both duration parsers
+  (structurally — no caller can bypass it): `--duration`,
+  `--bench-duration`, `--crystal-dragon-secs`, `ambient-snapback-secs`.
+  Rejections carry the policy reason ("courteous-guest OS protection"),
+  per the owner's "reject error with that reason" mandate. Day (`d`) and
+  week (`w`) units joined the shared grammar so `2d`/`1w` fail with the
+  real reason instead of "unknown unit", while sub-ceiling day values
+  stay expressible (`0.5d` = 12h). `--bench-frames` (a frame count, not
+  a duration) gained a 24h wall-clock watchdog in the frames loop
+  (checked every 4096 frames, ~ns amortized; the report discloses the
+  truncation with a `watchdog:` line). Documented in
+  `docs/SECURITY_AUDIT.md` section 9.
+- **Hunt fix — `--duration 0` regression**: the documented "<=0
+  disables" contract was unreachable — the v80.0.0-alpha.2 prevalidator
+  spec (min 0.1) rejected `--duration 0` before main.rs's disable
+  special-case could honor it. Prevalidator range floor lowered to 0.0
+  (0 = the disable sentinel; positive values still floor-checked at 0.1
+  post-parse). Help text corrected.
+- **Hunt fix — mfs typo error path**: `die_mfs_typo` printed five bare
+  `eprintln!` lines (unbranded `error:`, no broken-pipe safety) and
+  printed its tip line TWICE. Now one multi-line message through
+  `ux::die_input` (red branded label, `eprintln_safe!`, tip once).
+- **Neon CLI palette + suggestion semantic (owner task 3, color
+  consistency)**: audit of every print surface found the tip/hint lines
+  rendered warn-yellow (owner contract: suggestions are WHITE), the
+  mfs-typo path unbranded, and testconf hints uncolored. Fixes: (a) new
+  `suggestion_open()`/`suggestion()` — the NeonWhite head stop
+  (220,235,255) on truecolor, near-white 255 at 256-color, bright-white
+  97 at 16-color, plain under NO_COLOR (the owner's "intelligent
+  fallback to legacy colors" — the capability chain was already
+  world-class; the semantic was missing); (b) error red retuned to the
+  NeonRed bright body (255,90,90), warning yellow to the NeonYellow
+  head (255,235,60) — CLI colors now share lineage with the rain
+  catalog; brand purple unchanged (#A855F7, NeonPurple band midpoint);
+  (c) `eprintln_error_labeled`/`eprintln_warn_labeled` are now
+  line-aware: `tip:`/`hint:`/`[possible values`/`did-you-mean` lines
+  embedded in errors/warnings render suggestion-white automatically
+  (previously the whole block drowned in red); (d) testconf hint lines
+  routed through the new `eprintln_suggestion_line` (color + broken-
+  pipe safety); (e) main.rs/argv_expand tip lines moved warn-yellow →
+  suggestion-white.
+- **A/B verification**: 10s benchmark before/after — avg_fps 61426 →
+  61558 (+0.21%), density_gini 0.8124 → 0.8117 (-0.07%),
+  frame_entropy 4.2115 → 4.2136 (+0.05%), dirty cells/frame 154.0 →
+  154.3 (+0.20%), peak RSS 4.32 → 4.28 MiB — all within ±1% run noise;
+  no visual or performance regression (the changes touch the HUD text
+  formatter, parse-time validation, and CLI stderr paths, not the rain
+  engine).
+- **Docs synced**: HUD.md (tier table + section 8 design contract),
+  BENCHMARKING.md (ceiling row), SECURITY_AUDIT.md (new section 9),
+  CLI_SUGGESTION_SYSTEM.md (suggestion color contract), help_detail +
+  `--dump-config` template comments, flag help texts. LOC caps honored
+  via test-file extraction (`cli_parse_tests.rs`, `output_tests.rs`).
+
+
 ### harmony: v80.0.0-alpha.1 — S-master-HUNT-4 owner bug quintet + human durations (CLI fallback, deferral, interlock docs)
 
 Owner report: commenting config keys back out stopped falling back to

@@ -75,10 +75,10 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             crate::output::eprintln_error_labeled(&format!(
                 "testconf: cannot read config file: {e}"
             ));
-            eprintln!(
-                "testconf: hint: run `cosmostrix --config-path` to see the expected location"
+            crate::output::eprintln_suggestion_line(
+                "testconf: hint: run `cosmostrix --config-path` to see the expected location",
             );
-            eprintln!("testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)");
+            crate::output::eprintln_suggestion_line("testconf: hint: cosmostrix --dump-config <config-path>  (writes directly, whitelist-enforced)");
             std::process::exit(2);
         }
     };
@@ -106,7 +106,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             } else {
                 println!("testconf: template drift: detected — header fingerprint differs from built-in template");
                 println!("testconf:   built-in hash: {current_template_hash}");
-                eprintln!(
+                crate::output::eprintln_suggestion_line(
                     "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the template"
                 );
             }
@@ -128,7 +128,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             ));
             errors += 1;
         }
-        eprintln!(
+        crate::output::eprintln_suggestion_line(
             "testconf: hint: comment lines start with '#', blank lines are ignored, all other lines must be 'key = value'"
         );
     }
@@ -144,7 +144,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             // nested under [scene-custom.<name>]). Generic typos get no
             // hint — they fall through to the known-keys list below.
             if let Some(hint) = crate::config_hints::suggest_for_unknown_key(key) {
-                eprintln!("testconf: hint: {hint}");
+                crate::output::eprintln_suggestion_line(&format!("testconf: hint: {hint}"));
             }
             errors += 1;
         }
@@ -206,7 +206,11 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
                 crate::output::eprintln_error_labeled(&format!(
                     "testconf: unknown block field '{field}' in '{pk}'"
                 ));
-                eprintln!("testconf: valid block fields: {}", valid_fields.join(", "));
+                // S-master-HUNT-5: guidance line → suggestion white.
+                crate::output::eprintln_suggestion_line(&format!(
+                    "testconf: valid block fields: {}",
+                    valid_fields.join(", ")
+                ));
                 errors += 1;
             } else {
                 // Field is recognized — now validate the VALUE using the same
