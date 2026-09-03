@@ -321,6 +321,17 @@ COMMON OPTIONS:
                     to-left (the sweep crosses small angles last).
                     Fully stateless, zero API extension. No particle
                     sidecar.
+        tide       Traveling sine wave reveal: a sine wave travels
+                    left-to-right across the overlay (wavelength 5
+                    columns, period 800 ms), and each content cell
+                    rides the wave — rising from 1 row below as the
+                    upward slope passes, peaking at 1.3x brightness
+                    at the crest, then settling to 1.0 over 300 ms
+                    as the wave recedes. The first WAVE-COHERENT
+                    style — cells reveal based on the wave's PHASE
+                    at their column. Reuses the signed slide_rows
+                    field (positive = below). Fully stateless, zero
+                    API extension. No particle sidecar.
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -337,6 +348,7 @@ COMMON OPTIONS:
       cosmostrix -mfs scorch -mb \"wake up, neo\"
       cosmostrix -mfs cascade -mb \"wake up, neo\"
       cosmostrix -mfs radar -mb \"wake up, neo\"
+      cosmostrix -mfs tide -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

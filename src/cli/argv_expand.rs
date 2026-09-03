@@ -133,7 +133,7 @@ fn die_mfs_typo(token: &str) -> ! {
     crate::ux::die_input(format!(
         "unexpected argument '{token}' found\n\n  tip: a similar argument exists: \
          '--msg-fill-style' (short form: -mfs)\n  [possible values: typewriter, fade, \
-         words, slide, instant, engrave, hologram, glitch, scorch, cascade, radar]"
+         words, slide, instant, engrave, hologram, glitch, scorch, cascade, radar, tide]"
     ))
 }
 
@@ -175,6 +175,7 @@ mod tests {
             "scorch",
             "cascade",
             "radar",
+            "tide",
         ] {
             let token = format!("-mfs{value}");
             let out = expand(&["cosmostrix", token.as_str()]);

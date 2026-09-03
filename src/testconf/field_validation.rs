@@ -254,9 +254,9 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
             let lower = v.trim().to_ascii_lowercase();
             match lower.as_str() {
                 "typewriter" | "fade" | "words" | "slide" | "instant"
-                | "engrave" | "hologram" | "glitch" | "scorch" | "cascade" | "radar" => None,
+                | "engrave" | "hologram" | "glitch" | "scorch" | "cascade" | "radar" | "tide" => None,
                 _ => Some(format!(
-                    "expected typewriter/fade/words/slide/instant/engrave/hologram/glitch/scorch/cascade/radar, got '{v}' (run `cosmostrix --help` for valid message fill styles)"
+                    "expected typewriter/fade/words/slide/instant/engrave/hologram/glitch/scorch/cascade/radar/tide, got '{v}' (run `cosmostrix --help` for valid message fill styles)"
                 )),
             }
         }

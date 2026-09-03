@@ -21,6 +21,7 @@ mod tests_msg_fill_hologram;
 mod tests_msg_fill_radar;
 mod tests_msg_fill_scorch;
 mod tests_msg_fill_style;
+mod tests_msg_fill_tide;
 mod tests_phosphor;
 mod tests_phosphor_adaptive;
 mod tests_phosphor_sweep;
