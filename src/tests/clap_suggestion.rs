@@ -102,6 +102,7 @@ fn clap_parses_all_msg_fill_style_values() {
         ("glitch", crate::msg_fill_style::MsgFillStyle::Glitch),
         ("scorch", crate::msg_fill_style::MsgFillStyle::Scorch),
         ("cascade", crate::msg_fill_style::MsgFillStyle::Cascade),
+        ("radar", crate::msg_fill_style::MsgFillStyle::Radar),
     ] {
         let args = crate::config::Args::try_parse_from(["cosmostrix", "--msg-fill-style", value])
             .unwrap_or_else(|e| panic!("--msg-fill-style {value} must parse: {e}"));

@@ -311,6 +311,16 @@ COMMON OPTIONS:
                     BELOW). Fully stateless; reuses the signed
                     slide_rows field (negative = above). No particle
                     sidecar.
+        radar      Sonar sweep reveal: a radar beam rotates clockwise
+                    from the top-left corner anchor over 1500 ms,
+                    and each content cell pings (dim 0.50 -> 1.4x
+                    peak -> settle over 200 ms) when the beam crosses
+                    its angle from the anchor. The first SPATIAL
+                    style — cells reveal based on POSITION, not
+                    index. On a 1-line overlay, cells reveal right-
+                    to-left (the sweep crosses small angles last).
+                    Fully stateless, zero API extension. No particle
+                    sidecar.
       The style applies to the DEFAULT overlay and to -m / -mb /
       config message/message-border alike. Also settable in config.toml:
         msg-fill-style = \"fade\"
@@ -326,6 +336,7 @@ COMMON OPTIONS:
       cosmostrix -mfs glitch -mb \"wake up, neo\"
       cosmostrix -mfs scorch -mb \"wake up, neo\"
       cosmostrix -mfs cascade -mb \"wake up, neo\"
+      cosmostrix -mfs radar -mb \"wake up, neo\"
 
   --glitch-level <none|subtle|default|intense>
       Glitch intensity preset.

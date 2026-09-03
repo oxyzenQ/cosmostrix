@@ -101,6 +101,7 @@ mod fade;
 pub(crate) mod glitch;
 pub(crate) mod hologram;
 mod instant;
+pub(crate) mod radar;
 pub(crate) mod scorch;
 mod slide;
 mod typewriter;
@@ -163,6 +164,17 @@ pub enum MsgFillStyle {
     /// above). No particle sidecar (see `cascade.rs`).
     #[value(name = "cascade")]
     Cascade,
+    /// Sonar sweep reveal: a radar beam rotates clockwise from the
+    /// top-left corner anchor over 1500 ms, and each content cell
+    /// pings (dim → 1.4x peak → settle over 200 ms) when the beam
+    /// crosses its angle from the anchor. The first SPATIAL style
+    /// (all 10 prior styles are time-paced or instant) — cells
+    /// reveal based on their POSITION, not their index. On a 1-line
+    /// overlay, cells reveal right-to-left (the sweep crosses small
+    /// angles last). Fully stateless, zero API extension (see
+    /// `radar.rs`).
+    #[value(name = "radar")]
+    Radar,
 }
 
 impl MsgFillStyle {
@@ -181,6 +193,7 @@ impl MsgFillStyle {
             Self::Glitch => "glitch",
             Self::Scorch => "scorch",
             Self::Cascade => "cascade",
+            Self::Radar => "radar",
         }
     }
 
@@ -207,6 +220,9 @@ impl MsgFillStyle {
             }
             Self::Cascade => {
                 "cascade (60 ms/col drop-from-above, 240 ms fall, column-paced waterfall)"
+            }
+            Self::Radar => {
+                "radar (1500 ms sonar sweep from top-left anchor, 200 ms ping dim-peak-settle, spatial reveal)"
             }
         }
     }
@@ -371,6 +387,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Glitch => glitch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Scorch => scorch::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Cascade => cascade::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Radar => radar::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -405,6 +422,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Glitch => glitch::border_progress(text_progress),
         MsgFillStyle::Scorch => scorch::border_progress(text_progress),
         MsgFillStyle::Cascade => cascade::border_progress(text_progress),
+        MsgFillStyle::Radar => radar::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -435,6 +453,7 @@ pub(crate) fn text_progress(
         MsgFillStyle::Glitch => glitch::text_progress(reveal_count, total_text),
         MsgFillStyle::Scorch => scorch::text_progress(reveal_count, total_text),
         MsgFillStyle::Cascade => cascade::text_progress(reveal_count, total_text),
+        MsgFillStyle::Radar => radar::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -465,6 +484,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Glitch => glitch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Scorch => scorch::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Cascade => cascade::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Radar => radar::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -488,6 +508,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Glitch.as_str(), "glitch");
         assert_eq!(MsgFillStyle::Scorch.as_str(), "scorch");
         assert_eq!(MsgFillStyle::Cascade.as_str(), "cascade");
+        assert_eq!(MsgFillStyle::Radar.as_str(), "radar");
     }
 
     #[test]
@@ -507,6 +528,7 @@ mod tests {
             MsgFillStyle::Glitch,
             MsgFillStyle::Scorch,
             MsgFillStyle::Cascade,
+            MsgFillStyle::Radar,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");
