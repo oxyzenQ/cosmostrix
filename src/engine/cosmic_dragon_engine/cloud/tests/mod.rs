@@ -16,6 +16,7 @@ mod tests_ghost_ai;
 mod tests_monolith;
 mod tests_msg_border_positional;
 mod tests_msg_fill_cascade;
+mod tests_msg_fill_dissolve;
 mod tests_msg_fill_glitch;
 mod tests_msg_fill_hologram;
 mod tests_msg_fill_radar;

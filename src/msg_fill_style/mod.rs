@@ -96,6 +96,7 @@ use clap::ValueEnum;
 // `cloud/mod.rs` stores its `ScorchState` as a Cloud field. Every
 // stateless style is fully encapsulated behind the dispatch below.
 pub(crate) mod cascade;
+pub(crate) mod dissolve;
 pub(crate) mod engrave;
 mod fade;
 pub(crate) mod glitch;
@@ -188,6 +189,18 @@ pub enum MsgFillStyle {
     /// style. Fully stateless, zero API extension (see `tide.rs`).
     #[value(name = "tide")]
     Tide,
+    /// Ordered dithering noise-to-text condensation: each content
+    /// cell starts as a noise glyph (from a fixed 8-glyph ASCII
+    /// table) at 50% brightness and "condenses" into its true
+    /// character over 200 ms. The noise→true swap happens at a
+    /// per-cell hashed dither threshold (deterministic — same cell
+    /// same threshold every frame), producing the "ordered
+    /// dithering" pattern (some cells condense early, some late).
+    /// Reuses `CellReveal.glyph_override` (the glitch extension
+    /// point) for the noise-glyph substitution. Fully stateless,
+    /// zero new API extension (see `dissolve.rs`).
+    #[value(name = "dissolve")]
+    Dissolve,
 }
 
 impl MsgFillStyle {
@@ -208,6 +221,7 @@ impl MsgFillStyle {
             Self::Cascade => "cascade",
             Self::Radar => "radar",
             Self::Tide => "tide",
+            Self::Dissolve => "dissolve",
         }
     }
 
@@ -240,6 +254,9 @@ impl MsgFillStyle {
             }
             Self::Tide => {
                 "tide (800 ms traveling sine wave, rise-from-below + 1.3x crest + 300 ms settle, wave-coherent)"
+            }
+            Self::Dissolve => {
+                "dissolve (80 ms/char, 200 ms noise-to-text condensation with per-cell dither threshold)"
             }
         }
     }
@@ -406,6 +423,7 @@ pub(crate) fn content_reveal(
         MsgFillStyle::Cascade => cascade::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Radar => radar::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Tide => tide::reveal(content_idx, elapsed_ms, reveal_count),
+        MsgFillStyle::Dissolve => dissolve::reveal(content_idx, elapsed_ms, reveal_count),
         MsgFillStyle::Words => words::reveal(word_ord, elapsed_ms),
         MsgFillStyle::Slide => slide::reveal(content_idx, elapsed_ms),
     }
@@ -442,6 +460,7 @@ pub(crate) fn border_progress(
         MsgFillStyle::Cascade => cascade::border_progress(text_progress),
         MsgFillStyle::Radar => radar::border_progress(text_progress),
         MsgFillStyle::Tide => tide::border_progress(text_progress),
+        MsgFillStyle::Dissolve => dissolve::border_progress(text_progress),
         MsgFillStyle::Words => words::border_progress(text_progress),
         MsgFillStyle::Slide => slide::border_progress(text_progress),
     }
@@ -474,6 +493,7 @@ pub(crate) fn text_progress(
         MsgFillStyle::Cascade => cascade::text_progress(reveal_count, total_text),
         MsgFillStyle::Radar => radar::text_progress(reveal_count, total_text),
         MsgFillStyle::Tide => tide::text_progress(reveal_count, total_text),
+        MsgFillStyle::Dissolve => dissolve::text_progress(reveal_count, total_text),
         MsgFillStyle::Words => words::text_progress(total_words, elapsed_ms),
         MsgFillStyle::Slide => slide::text_progress(reveal_count, total_text),
     }
@@ -506,6 +526,7 @@ pub(crate) fn index_reveal_count(
         MsgFillStyle::Cascade => cascade::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Radar => radar::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Tide => tide::reveal_budget(elapsed_ms, total_text),
+        MsgFillStyle::Dissolve => dissolve::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Words => words::reveal_budget(elapsed_ms, total_text),
         MsgFillStyle::Slide => slide::reveal_budget(elapsed_ms, total_text),
     }
@@ -531,6 +552,7 @@ mod tests {
         assert_eq!(MsgFillStyle::Cascade.as_str(), "cascade");
         assert_eq!(MsgFillStyle::Radar.as_str(), "radar");
         assert_eq!(MsgFillStyle::Tide.as_str(), "tide");
+        assert_eq!(MsgFillStyle::Dissolve.as_str(), "dissolve");
     }
 
     #[test]
@@ -552,6 +574,7 @@ mod tests {
             MsgFillStyle::Cascade,
             MsgFillStyle::Radar,
             MsgFillStyle::Tide,
+            MsgFillStyle::Dissolve,
         ] {
             let r = content_reveal(style, 0, 1, None, usize::MAX, 1.0);
             assert!(r.visible, "{style:?} must be visible without a timeline");
