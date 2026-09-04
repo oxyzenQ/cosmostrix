@@ -71,6 +71,14 @@ pub(crate) const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
 /// around the threshold. The hysteresis gap (0.20) is wider than typical
 /// run-to-run pressure noise, so the effect fades smoothly in/out rather
 /// than hard-cutting.
+///
+/// NIGHT-hunter-2: "pressure" here is the cloud's perf_pressure, which is
+/// fed the PowerManager's visual-pressure EMA (tau 2.5 s), not the raw
+/// accumulator — transient output-congestion spikes (sub-second
+/// write-blocking) no longer trip this gate; only sustained congestion
+/// (VTE stale-trails backlog) reaches 0.70. Before the EMA, this gate
+/// skip/resumed ~11 times per minute under marginal drain and each resume
+/// re-rendered the whole aged afterglow set at once.
 pub(crate) const PHOSPHOR_SKIP_HIGH: f32 = 0.70;
 pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 

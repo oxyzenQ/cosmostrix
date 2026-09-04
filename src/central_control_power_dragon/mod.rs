@@ -209,6 +209,38 @@ pub(crate) const OUTPUT_DRAIN_BACKOFF_FALL: f32 = 0.002;
 /// `min(this, base_target_fps)`).
 pub(crate) const OUTPUT_DRAIN_FPS_FLOOR: f64 = 12.0;
 
+/// Time constant (seconds) of the visual-pressure EMA
+/// (NIGHT-hunter-2, 2026-09-04).
+///
+/// `perf_pressure` is a fast-attack control signal: a saturated PTY can
+/// drive write-overshoot to 2.0, and `PERF_PRESSURE_INCREMENT` (0.25) then
+/// pins raw pressure at 1.0 within 2-4 frames. That is correct for the
+/// CONTROL side (drain pacing, self-healer, P2 congestion guard) — those
+/// consumers must react before the pipe spirals. But the VISUAL side was
+/// reading the same raw value, and the two sides want different clocks:
+///
+/// - The pressure spikes of output congestion last ~0.5-2 s (measured on
+///   a rate-limited PTY: pressure strobes 0.0 to 1.0 with a ~1-2 s period
+///   while the drain loop hunts). Feeding that waveform straight into
+///   `cloud.set_perf_pressure` made every visual subsystem strobe with it:
+///   the phosphor decay pass skipped/resumed 9 times in 45 s (each resume
+///   re-rendering the whole aged afterglow set at once — the owner's
+///   "glitch rain shift"), the spawn scale thinned and refilled, glitch
+///   spans toggled, and the sim cap clamped droplet clocks into
+///   lag-then-catch-up wobble.
+/// - The protections those thresholds exist for (VTE stale trails,
+///   xterm.js backlog) develop over TENS of seconds. They do not need
+///   sub-second reactions — they need the signal to still be there after
+///   a few seconds of sustained congestion.
+///
+/// The EMA answers both: with tau = 2.5 s, a sustained full-pressure burst
+/// crosses 0.35 (glitch gate) at ~1.1 s, 0.50/0.70 (phosphor skip
+/// hysteresis) at ~1.7/3.0 s, and saturates ~0.98 by 10 s — so sustained
+/// congestion still fully engages every protection. A 1.5 s transient
+/// spike peaks at ~0.45 and a 0.5 s spike at ~0.18: below every visual
+/// threshold, invisible. The raw control signal is untouched.
+pub(crate) const VISUAL_PRESSURE_EMA_TAU_SECS: f32 = 2.5;
+
 // ─── Idle tiers ──────────────────────────────────────────────────────────────
 //
 // When no user input arrives for IDLE_THRESHOLD_SECS, the renderer enters

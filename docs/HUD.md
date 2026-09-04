@@ -48,7 +48,7 @@ each line means without reading the full reference below.
 | 4   | `cpu:`      | percent        | Process CPU usage. 0-5% typical single-threaded; can briefly exceed 100% on multi-threaded builds. |
 | 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth -> possible leak.                       |
 | 6   | `ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
-| 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — drives spawn rate, sim factor, self-healer. 0.0 = no pressure, 1.0 = max throttle. |
+| 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — the APPLIED (power-dragon-gated, EMA-smoothed) pressure driving spawn rate, phosphor decay, glitch gate, and the sim cap. 0.0 = no pressure, 1.0 = max throttle. Raw fast-attack pressure (drain pacing, self-healer) is internal-only since NIGHT-hunter-2. |
 | 8   | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
 | 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
 | 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. v80.0.0-beta.2: the name follows the palette on every activation path (startup `--colors-custom`, config `color = <custom>`, scene-custom `colors-custom`, ambient fire, live-reload rebuild) — the Cloud tracks it, not just the startup config. Confirms `c`/`C` cycle. |
@@ -93,7 +93,7 @@ rows are visible at once; this mockup annotates each:
 │ cpu: 1.43%    ◄── 4.  process CPU% (one core = 100%)
 │ rss: 8.2MiB   ◄── 5.  process memory (leak detector)
 │ ehs: 87       ◄── 6.  endurance health score (0-100, 100=stable)
-│ prs: 0.12     ◄── 7.  effective pressure (drives spawn+sim+self-healer)
+│ prs: 0.12     ◄── 7.  applied pressure (smoothed; drives spawn+phosphor+sim)
 │ scn: cinematic ◄── 8.  scene name (x/X cycle confirmation)
 │ chr: binary   ◄── 9.  charset preset (s/S cycle confirmation)
 │ clr: NeonGreen ◄── 10. color scheme (c/C cycle confirmation)

@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: v100.0.0-nightly.1 — NIGHT-hunter-2 "glitch rain shift" root-caused and eliminated (owner hunt 2026-09-04)
+
+Owner report: periodic "rain shifts/glitches for a few seconds then
+normal" on every terminal (Alacritty included — terminal-independent),
+within the first minute of a fresh session, absent while the CPU was
+busy with a build, and two instances started together glitched at the
+same second. Introduced by S-master-HUNT-23 (the output drain backoff)
+and still present after HUNT-24/25.
+
+Reproduced and measured on a rate-limited PTY harness
+(`scripts/nh2_pty_harness.py`, emulating a real terminal's drain rate):
+at marginal drain the drain-loop's write-latency overshoot strobes raw
+`perf_pressure` 0.0 to 1.0 with a ~1-2 s period, and every VISUAL
+consumer of that raw signal strobes with it — worst offender: the
+phosphor decay pass's pressure-skip hysteresis (0.50/0.70) skip/resumed
+**11 times in 60 s**; each resume re-rendered the entire aged afterglow
+set at once (frames ballooned to 2-6x normal; the mass repaint
+re-saturated the pipe, re-arming the spike — a self-exciting loop).
+Spawn-scale bands, the glitch gate (0.35), and the sim-delta cap
+(clamped droplet clocks into lag-then-catch-up wobble) flapped on the
+same waveform.
+
+- New `PowerManager::visual_pressure`: an EMA of effective pressure
+  (time constant `VISUAL_PRESSURE_EMA_TAU_SECS` = 2.5 s, wall-clock
+  based, frame-rate independent, 250 ms per-step dt cap for stalls).
+  One helper, `applied_visual_pressure(power_dragon)`, feeds BOTH
+  visual consumers: the cloud pressure feed (spawn scale, phosphor
+  decay ramp + skip hysteresis, glitch gate, atmospheric gate, CRT
+  vignette) and the sim-delta cap. Control-side consumers (drain
+  pacing, self-healer, P5 health, effects congestion gate) keep the
+  raw fast-attack signal unchanged.
+- Verified: marginal-drain reproduction 11 phosphor strobes -> **0**
+  over 60 s; saturated-drain stress 5 MB/s: frames >150 KB 149 -> 90,
+  gap p99 54 -> 44 ms, gaps >50 ms 47 -> 25. Cadence/throughput
+  unchanged (86.0 -> 83.9 fps avg, noise).
+- Hunt bonus (contract hole): the sim-delta cap read raw
+  `effective_pressure()` UNGATED — with `power-dragon = false` it
+  could still slow droplets below configured speed, violating the v80
+  Option D promise ("rain stays at user-configured density/speed
+  regardless of CPU pressure"). Now gated with the same helper.
+- Hunt bonus (regression): the ungated `libc::ENXIO` reference in
+  main.rs (task-6's headless tip) broke the `x86_64-pc-windows-gnu`
+  cross-check; now `#[cfg(unix)]`-gated (the task-6 commit only ran
+  the light fallback gates, not `build.sh check-all`).
+- 10 s A/B benchmark (before = a4194a9, after = this tree): noise
+  equivalent (avg_fps -0.2%, entropy 5.06 both, gini 0.6669 vs
+  0.6653-0.6665, dirty cells 416.6 vs 414.7-416.9).
+- Gates: fmt clean, clippy clean (release, all-targets), 2250/2250
+  unit tests (7 new EMA contract tests + 1 new cloud-feed gate test +
+  the dragon-on test updated to the smoothed-feed contract),
+  build.sh check-all green (incl. all 4 CI cross targets),
+  gate-keepers 10/10. Docs synced: CENTRAL_CONTROL_POWER_DRAGON.md
+  (two pressure clocks + method table + lifecycle diagram),
+  HUD.md (`prs:` row), atmosphere.rs PHOSPHOR_SKIP constants, and 4
+  pre-existing MD038 lint errors in this file fixed
+  (`code span` leading spaces from the task-5 entry).
+
 ### robustness: v100.0.0-nightly.1 — broken-pipe panic class eliminated from every reachable output path (hunt follow-up 2026-09-04)
 
 Found while re-verifying the verbose work: Rust ignores SIGPIPE by
@@ -131,14 +188,14 @@ verified live:
    (18/19/20/23/24).
 
 - `verbose_line` gutter widened 14 → 18: covers every curated label in
-  both dumps (longest: `  chroma_features:` / `  ambient_entries:` /
+  both dumps (longest:   `chroma_features:` /   `ambient_entries:` /
   `config candidates:` at exactly 18). Labels longer than 18 are a
   naming bug, not a rendering case — documented in the doc comment.
 - Four overflow labels renamed to fit the gutter and gain hierarchy:
-  `  chroma_disable_reason:` → `  disable_reason:`,
-  `crystal_dragon_secs:` → `  cadence_secs:` (indented under
+    `chroma_disable_reason:` → `disable_reason:`,
+  `crystal_dragon_secs:` → `cadence_secs:` (indented under
   crystal_dragon — the value text already says "drift cadence"),
-  `ambient_snapback_secs:` → `  snapback_secs:` (indented under the
+  `ambient_snapback_secs:` → `snapback_secs:` (indented under the
   snapback lines), `TERM_PROGRAM_VERSION:` → `TERM_PROG_VER:`.
 - All 25 final-state lines converted to `eprintln_verbose` /
   `eprintln_verbose_purple`: bold `[verbose]` prefix, capability-aware

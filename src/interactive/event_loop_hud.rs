@@ -90,11 +90,17 @@ pub(crate) fn update_hud_state(
     // off, and the HUD `prs:` line shows the same applied value so prs/dsty
     // never disagree. `power_manager` still accumulates the real pressure
     // internally (the self-healer + post-exit report keep their signal).
-    let applied_pressure = if current_cfg.power_dragon {
-        power_manager.effective_pressure()
-    } else {
-        0.0
-    };
+    //
+    // NIGHT-hunter-2: the gated value is now the visual-pressure EMA, not
+    // raw effective_pressure. Raw pressure strobes 0.0 to 1.0 within a few
+    // frames when output congestion comes and goes; every cloud consumer
+    // threshold (phosphor skip hysteresis 0.50/0.70, glitch gate 0.35,
+    // spawn-scale bands) flapped with it — the owner-visible "glitch rain
+    // shift". The EMA (VISUAL_PRESSURE_EMA_TAU_SECS = 2.5 s) keeps
+    // sustained congestion fully protected while transients stay below
+    // every visual threshold. The applied helper is shared with the
+    // sim-delta cap so the two feeds can never disagree.
+    let applied_pressure = power_manager.applied_visual_pressure(current_cfg.power_dragon);
     hud_state.set_effective_pressure(applied_pressure);
     cloud.set_perf_pressure(applied_pressure);
     // v50.0.0-beta.6 Option D: push the aggressive-throttle flag to the

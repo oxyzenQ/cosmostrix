@@ -6,7 +6,6 @@
 
 use std::time::{Duration, Instant};
 
-use super::adaptive::PowerManager;
 use super::hud::HudState;
 use crate::cloud::Cloud;
 use crate::constants::{
@@ -37,14 +36,26 @@ pub(crate) fn run_sim_and_draw(
     frame: &mut Frame,
     hud_state: &mut HudState,
     term: &mut Terminal,
-    power_manager: &PowerManager,
     frame_period: Duration,
+    applied_pressure: f32,
 ) -> Result<SimDrawResult, std::io::Error> {
     let sim_base_s = frame_period.as_secs_f64() * SIM_BASE_MULTIPLIER;
     // (perf audit): clamp lower bound is now `SIM_FACTOR_MIN`
     // from constants.rs — was a hardcoded `0.3` inline.
-    let sim_factor = (1.0
-        - (power_manager.effective_pressure() as f64) * SIM_PRESSURE_SCALE_FACTOR)
+    //
+    // NIGHT-hunter-2: the sim-delta cap reads the applied visual
+    // pressure (power_dragon-gated + EMA-smoothed) instead of raw
+    // effective_pressure. Two defects fixed at once: (1) raw pressure
+    // spikes (output congestion strobing 0.0-1.0 within ~1-2 s) clamped
+    // droplet clocks into lag-then-3x-catch-up wobble — a visible rain
+    // speed discontinuity; the 2.5 s EMA keeps transient spikes below
+    // the clamp region while sustained load still tightens the cap.
+    // (2) the old raw read was NOT gated on power_dragon, so with the
+    // dragon off the cap could still slow droplets below configured
+    // speed — violating the v80 Option D contract ("rain stays at
+    // user-configured density/speed regardless of CPU pressure") that
+    // the cloud feed already honored.
+    let sim_factor = (1.0 - (f64::from(applied_pressure) * SIM_PRESSURE_SCALE_FACTOR))
         .clamp(SIM_FACTOR_MIN, 1.0);
     let sim_min_s = (frame_period.as_secs_f64() * SIM_MIN_FRACTION).max(0.001);
     let sim_max_s = sim_base_s.min(SIM_MAX_CAP_SECS);

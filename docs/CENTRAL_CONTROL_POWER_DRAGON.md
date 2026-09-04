@@ -165,6 +165,13 @@ variable.
    holds on the density leg (v50 Option D gated only the HUD display
    while `rain_at()` kept throttling). The self-healer also releases
    a stale `aggressive_throttle` when the dragon turns off.
+   NIGHT-hunter-2: the gated value is the visual-pressure EMA (see
+   the frame-lifecycle section) and the sim-delta cap in
+   `event_loop_sim_draw.rs` reads the same gated value via the
+   shared `applied_visual_pressure()` helper — before, the cap read
+   raw `effective_pressure()` UNGATED, so with the dragon off the
+   cap could still slow droplets below configured speed (an Option D
+   contract hole found while hunting).
 2. The spawn-scale curve is the owner's banded masterclass
    (`central_control_rains::density_throttle.rs::compute_spawn_scale`)
    with the configured density as the CEILING: dead zone p <= 0.05,
@@ -215,9 +222,15 @@ state that were previously scattered as inline locals in
   `idle_started` — the idle-detection state
 - `base_target_fps: f64` — the upstream-resolved target
 
-Plus the thermal guard input:
+Plus the thermal guard input and the NIGHT-hunter-2 visual EMA state:
 
 - `thermal_pressure: f32` — 0.0 = cool, 1.0 = thermal emergency
+- `visual_pressure: f32` — EMA of effective pressure feeding the
+  visual side (see the frame-lifecycle section for the two-clocks
+  rationale)
+- `last_visual_sample: Instant` — wall-clock timestamp of the last
+  EMA step (real time, not the scheduled frame period, so the filter
+  is frame-rate independent)
 
 The struct is intentionally NOT `Copy` — it owns a `PhasePredictor`
 with EMA state that must be preserved across frames. The event loop
@@ -244,8 +257,10 @@ The event loop calls the methods in this order every frame:
 ```text
 ┌─────────────────────────────────────────────────────────────┐
 │ 1. begin_frame(now)        -> returns is_idle for this frame │
+│      also advances the visual-pressure EMA (NIGHT-hunter-2) │
 │ 2. effective_fps(paused)   -> frame_period = 1.0 / fps       │
-│ 3. effective_pressure()    -> feed cloud + self-healer       │
+│ 3. applied_visual_pressure(dragon) -> feed cloud + sim cap   │
+│      (effective_pressure() still feeds the control side)    │
 │ 4. ── frame work happens ──                                │
 │ 5. observe_frame_end(...)  -> updates perf_pressure          │
 └─────────────────────────────────────────────────────────────┘
@@ -254,6 +269,25 @@ The event loop calls the methods in this order every frame:
 `is_idle()` returns the value computed by the last `begin_frame()`
 call. `effective_pressure()` returns the value updated by the last
 `observe_frame_end()` call (or 0.0 before the first frame).
+
+**NIGHT-hunter-2 (2026-09-04) — the two pressure clocks.** Raw
+`effective_pressure()` is a fast-attack CONTROL signal: a saturated
+PTY pins it at 1.0 within 2-4 frames (write overshoot 2.0 x
+`PERF_PRESSURE_INCREMENT` 0.25). The drain pacing, self-healer, P5
+health and effects congestion gate want exactly that clock. The
+VISUAL side (cloud feed: spawn scale, phosphor decay ramp + skip
+hysteresis, glitch gate, atmospheric gate, CRT vignette — plus the
+sim-delta cap) now reads `applied_visual_pressure(dragon)`: the same
+accumulator behind an EMA with time constant
+`VISUAL_PRESSURE_EMA_TAU_SECS` (2.5 s, wall-clock, frame-rate
+independent). Rationale (measured on a rate-limited PTY): output
+congestion spikes last ~0.5-2 s and strobe raw pressure 0.0 -> 1.0
+with a ~1-2 s period; every visual threshold (phosphor skip
+0.50/0.70, glitch gate 0.35, spawn bands) flapped with it — the
+owner-visible "glitch rain shift" (phosphor pass skipped/resumed 11
+times in 60 s in the marginal-drain reproduction; 0 after the EMA).
+Sustained congestion still crosses every threshold within ~1-3 s, so
+the VTE/xterm.js protections keep their function.
 
 ### Method reference
 
@@ -264,9 +298,10 @@ call. `effective_pressure()` returns the value updated by the last
 | `note_activity(now)`                | yes     | `()`          | User input arrived — reset idle timer                |
 | `set_target_fps(fps)`               | yes     | `()`          | Live config reload changed the base FPS              |
 | `set_thermal_pressure(p)`           | yes     | `()`          | Feature #13 input (0.0–1.0, clamped)                 |
-| `begin_frame(now)`                  | yes     | `bool`        | Compute is_idle for this frame; update predictor     |
+| `begin_frame(now)`                  | yes     | `bool`        | Compute is_idle; update predictor; sample visual EMA |
 | `observe_frame_end(w, p, o)`        | yes     | `()`          | Update perf_pressure from overshoot + write latency  |
-| `effective_pressure()`              | no      | `f32`         | Base pressure + thermal, clamped to [0,1]            |
+| `effective_pressure()`              | no      | `f32`         | Base pressure + thermal, clamped to [0,1] (control side) |
+| `applied_visual_pressure(dragon)`   | no      | `f32`         | EMA pressure for the visual feed (0.0 with dragon off) |
 | `effective_fps(paused)`             | no      | `f64`         | Pause / idle / active cascade                        |
 | `is_idle()`                         | no      | `bool`        | Cached value from `begin_frame()`                    |
 | `idle_started()`                    | no      | `Option<Instant>` | When the current idle window began               |

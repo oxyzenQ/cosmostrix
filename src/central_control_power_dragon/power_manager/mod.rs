@@ -52,8 +52,10 @@
 //! ```text
 //! ┌─────────────────────────────────────────────────────────────┐
 //! │ 1. begin_frame(now)        → returns is_idle for this frame │
+//! │      also advances the visual-pressure EMA (NIGHT-hunter-2) │
 //! │ 2. effective_fps(paused)   → frame_period = 1.0 / fps       │
-//! │ 3. effective_pressure()    → feed cloud + self-healer       │
+//! │ 3. applied_visual_pressure(dragon) → feed cloud + sim cap   │
+//! │      (effective_pressure() still feeds the control side)    │
 //! │ 4. ── frame work happens ──                                │
 //! │ 5. observe_frame_end(...)  → updates perf_pressure          │
 //! │                              + output drain backoff (H23)   │
@@ -126,6 +128,21 @@ pub(crate) struct PowerManager {
     // effective_pressure(). Future feature will sample real thermal
     // data; for now this stays 0.0 unless explicitly set.
     thermal_pressure: f32,
+
+    // ── Visual-pressure EMA (NIGHT-hunter-2) ──
+    /// Low-pass-filtered copy of `effective_pressure` for every VISUAL
+    /// consumer (cloud pressure feed, sim cap). Raw pressure is a
+    /// fast-attack control signal that strobes 0.0 to 1.0 with a ~1-2 s
+    /// period during output congestion; the visual systems reading it
+    /// (phosphor skip hysteresis, spawn scale, glitch gate) strobed with
+    /// it — the owner-visible "glitch rain shift". See
+    /// `VISUAL_PRESSURE_EMA_TAU_SECS` for the time-constant rationale.
+    visual_pressure: f32,
+    /// Timestamp of the last EMA sample. Real wall time, not the
+    /// scheduled frame period, so the filter stays frame-rate
+    /// independent (a 30 FPS and a 144 FPS loop converge on the same
+    /// trajectory for the same pressure input).
+    last_visual_sample: Instant,
 }
 
 impl PowerManager {
@@ -152,6 +169,8 @@ impl PowerManager {
             base_target_fps: base_target_fps.max(1.0),
             drain_backoff: 0.0,
             thermal_pressure: 0.0,
+            visual_pressure: 0.0,
+            last_visual_sample: now,
         }
     }
 
@@ -234,6 +253,26 @@ impl PowerManager {
     /// Returns `is_idle` so the caller can use it for `effective_fps()`
     /// and resync scheduling without a second call.
     pub(crate) fn begin_frame(&mut self, now: Instant) -> bool {
+        // ── NIGHT-hunter-2: visual-pressure EMA sample ──
+        // Advance the low-pass filter toward the CURRENT effective
+        // pressure by the real wall-clock delta. Called once per frame
+        // before any consumer reads it, so the visual side always sees a
+        // coherent, monotonic-in-time signal regardless of where in the
+        // frame the raw accumulator moved. dt is capped at 250 ms so a
+        // long stall (debugger pause, SIGSTOP) cannot teleport the filter
+        // in one step — the EMA re-converges across the frames that
+        // follow instead.
+        let dt_s = now
+            .saturating_duration_since(self.last_visual_sample)
+            .as_secs_f32()
+            .clamp(0.0, 0.25);
+        if dt_s > 0.0 {
+            let alpha = 1.0 - (-dt_s / VISUAL_PRESSURE_EMA_TAU_SECS).exp();
+            let target = (self.perf_pressure + self.thermal_pressure).clamp(0.0, 1.0);
+            self.visual_pressure += (target - self.visual_pressure) * alpha;
+        }
+        self.last_visual_sample = now;
+
         let reactive_idle = now
             .saturating_duration_since(self.last_input_time)
             .as_secs_f64()
@@ -390,6 +429,36 @@ impl PowerManager {
     #[must_use]
     pub(crate) fn drain_backoff(&self) -> f32 {
         self.drain_backoff
+    }
+
+    /// NIGHT-hunter-2: read-only access to the visual-pressure EMA state.
+    ///
+    /// Test-only — production code consumes the EMA through
+    /// [`applied_visual_pressure`](Self::applied_visual_pressure) so the
+    /// power-dragon gate is applied exactly once, at the feed. The EMA
+    /// itself is documented on the field and on
+    /// `VISUAL_PRESSURE_EMA_TAU_SECS`.
+    #[cfg(test)]
+    #[must_use]
+    pub(crate) fn visual_pressure(&self) -> f32 {
+        self.visual_pressure
+    }
+
+    /// NIGHT-hunter-2: the visual pressure the render path applies this
+    /// frame, honoring the v80 power-dragon Option D contract.
+    ///
+    /// `power_dragon_enabled == false` → 0.0 (rain stays at
+    /// user-configured density/speed regardless of CPU pressure — the
+    /// same zero-pressure behavior the gated cloud feed promised); `true`
+    /// → the EMA value. One helper so the cloud feed (event_loop_hud) and
+    /// the sim cap (event_loop_sim_draw) can never disagree.
+    #[must_use]
+    pub(crate) fn applied_visual_pressure(&self, power_dragon_enabled: bool) -> f32 {
+        if power_dragon_enabled {
+            self.visual_pressure
+        } else {
+            0.0
+        }
     }
 
     /// Idle state for the current frame. Returns the value computed by

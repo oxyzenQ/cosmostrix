@@ -546,3 +546,201 @@ fn hunts23_drain_backoff_zero_write_overshoot_no_rise() {
     assert_eq!(pm.drain_backoff(), 0.0);
     assert!((pm.effective_fps(false, true) - 60.0).abs() < 1e-6);
 }
+
+// ── NIGHT-hunter-2: visual-pressure EMA ─────────────────────────────────
+//
+// The EMA decouples the VISUAL pressure consumers (phosphor skip
+// hysteresis, spawn scale, glitch gate, sim cap) from the raw
+// fast-attack control signal. These tests lock the contract the
+// time-constant rationale promises:
+//   - transient congestion spikes stay below every visual threshold
+//   - sustained congestion still fully engages them
+//   - the filter is frame-rate independent (wall-clock based)
+//   - release decays with the documented time constant
+//   - the power-dragon Option D gate returns exactly 0.0 when off
+
+/// Helper: drive `n` frames of full write-overshoot pressure at `fps`
+/// with begin_frame advancing the wall clock, mirroring the production
+/// begin_frame -> observe_frame_end pairing.
+fn nh2_drive_pressure(pm: &mut PowerManager, start: Instant, secs: f64, fps: f64) -> Instant {
+    let step = 1.0 / fps;
+    let n = (secs * fps).round() as i64;
+    let mut t = start;
+    for _ in 0..n.max(0) {
+        t += Duration::from_secs_f64(step);
+        pm.begin_frame(t);
+        // write_overshoot 2.0 (fully blocked flush) pins raw pressure at
+        // 1.0 within a couple frames, exactly like the measured PTY runs.
+        pm.observe_frame_end(0.001, step as f32, 2.0);
+    }
+    t
+}
+
+/// Helper: advance the clock with NO pressure (clean frames).
+fn nh2_drive_calm(pm: &mut PowerManager, start: Instant, secs: f64, fps: f64) -> Instant {
+    let step = 1.0 / fps;
+    let n = (secs * fps).round() as i64;
+    let mut t = start;
+    for _ in 0..n.max(0) {
+        t += Duration::from_secs_f64(step);
+        pm.begin_frame(t);
+        pm.observe_frame_end(0.001, step as f32, 0.0);
+    }
+    t
+}
+
+#[test]
+fn nh2_short_spike_stays_below_every_visual_threshold() {
+    // The measured congestion spikes of the drain loop last ~0.5-1.5 s at
+    // full pressure. With tau = 2.5 s the EMA peak after 1.5 s of full
+    // pressure is 1 - e^(-0.6) ~= 0.45 — below the phosphor skip LOW
+    // threshold (0.50). After 0.5 s it is ~= 0.18, below the glitch gate
+    // (0.35). Both must hold: transients may not move any visual system.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(144.0, now);
+
+    nh2_drive_pressure(&mut pm, now, 0.5, 144.0);
+    assert!(
+        pm.visual_pressure() < 0.35,
+        "0.5s spike must stay below the glitch gate, got {}",
+        pm.visual_pressure()
+    );
+
+    let mut pm2 = PowerManager::new(144.0, now);
+    nh2_drive_pressure(&mut pm2, now, 1.5, 144.0);
+    assert!(
+        pm2.visual_pressure() < 0.50,
+        "1.5s spike must stay below the phosphor skip LOW threshold, got {}",
+        pm2.visual_pressure()
+    );
+}
+
+#[test]
+fn nh2_sustained_congestion_engages_full_protection() {
+    // 8 s of sustained full pressure (the VTE / xterm.js backlog case the
+    // skip thresholds exist for) must bring the EMA past the HIGH
+    // threshold (0.70): 1 - e^(-8/2.5) ~= 0.96. Protection timing shifts
+    // by ~3 s vs raw, which the slow-developing backlog case tolerates.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    let t = nh2_drive_pressure(&mut pm, now, 8.0, 60.0);
+    assert!(
+        pm.visual_pressure() > 0.70,
+        "8s sustained congestion must cross the skip HIGH threshold, got {}",
+        pm.visual_pressure()
+    );
+    // And it must still be rising toward the raw value, not stuck.
+    let t2 = nh2_drive_pressure(&mut pm, t, 4.0, 60.0);
+    assert!(
+        pm.visual_pressure() > 0.90,
+        "12s sustained congestion must approach the raw signal, got {}",
+        pm.visual_pressure()
+    );
+    let _ = t2;
+}
+
+#[test]
+fn nh2_ema_is_frame_rate_independent() {
+    // Same wall time + same pressure input at 30 FPS and 144 FPS must
+    // land on the same EMA value (wall-clock alpha, not per-frame step).
+    let now = Instant::now();
+    let mut pm30 = PowerManager::new(30.0, now);
+    let mut pm144 = PowerManager::new(144.0, now);
+    nh2_drive_pressure(&mut pm30, now, 3.0, 30.0);
+    nh2_drive_pressure(&mut pm144, now, 3.0, 144.0);
+    let a = pm30.visual_pressure();
+    let b = pm144.visual_pressure();
+    assert!(
+        (a - b).abs() < 0.02,
+        "3s of full pressure must filter identically at 30fps ({a}) and 144fps ({b})"
+    );
+}
+
+#[test]
+fn nh2_release_decays_with_documented_time_constant() {
+    // Drive the EMA to ~0.70, release pressure, and verify the decay is
+    // smooth exponential with tau = 2.5 s — NOT a snap to zero like the
+    // raw signal (which hits 0.0 in ~0.8 s at 60 FPS via the 0.02/frame
+    // decay). Two locked properties:
+    //   1. after ~1.7 s (one tau-fraction e^(-1.7/2.5) ~= 0.51) the EMA
+    //      is at or above the idealized instant-zero-target decay value
+    //      peak*e^(-1.7/tau), because the real target (raw pressure)
+    //      itself decays gradually, and the EMA lags behind even that;
+    //   2. the EMA is still materially nonzero — the phosphor/spawn
+    //      systems ramp down over seconds, never step.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    let t = nh2_drive_pressure(&mut pm, now, 3.0, 60.0);
+    let peak = pm.visual_pressure();
+    assert!(peak > 0.65, "precondition: EMA near 0.70, got {peak}");
+
+    let t2 = nh2_drive_calm(&mut pm, t, 1.7, 60.0);
+    let _ = t2;
+    let after = pm.visual_pressure();
+    let ideal_floor = peak * (-1.7f32 / VISUAL_PRESSURE_EMA_TAU_SECS).exp();
+    assert!(
+        after >= ideal_floor - 1e-4,
+        "EMA must decay no faster than the tau=2.5s ideal curve: peak={peak} after={after} ideal={ideal_floor}"
+    );
+    assert!(
+        after < peak,
+        "EMA must be decaying after pressure release: peak={peak} after={after}"
+    );
+    assert!(
+        after > 0.30,
+        "after 1.7s of release the EMA must still be material (no snap), after={after}"
+    );
+}
+
+#[test]
+fn nh2_applied_visual_pressure_gated_by_power_dragon() {
+    // v80 Option D contract, now covering the sim cap too: dragon off →
+    // the applied feed is exactly 0.0 no matter the accumulated pressure.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    nh2_drive_pressure(&mut pm, now, 6.0, 60.0);
+    assert!(pm.visual_pressure() > 0.5);
+    assert_eq!(pm.applied_visual_pressure(false), 0.0);
+    assert!((pm.applied_visual_pressure(true) - pm.visual_pressure()).abs() < 1e-6);
+}
+
+#[test]
+fn nh2_control_side_reads_raw_not_ema() {
+    // The drain pacing / self-healer / P5 consumers keep the raw
+    // fast-attack signal: after a 0.5 s spike the RAW pressure is pinned
+    // at 1.0 while the EMA stays low. Both must be observable at once.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    nh2_drive_pressure(&mut pm, now, 0.5, 60.0);
+    assert!(
+        (pm.effective_pressure() - 1.0).abs() < 1e-6,
+        "raw pressure must still spike to 1.0 for the control side"
+    );
+    assert!(
+        pm.visual_pressure() < 0.35,
+        "while the visual EMA filters the same spike away"
+    );
+}
+
+#[test]
+fn nh2_long_stall_does_not_teleport_the_filter() {
+    // A SIGSTOP/debugger pause of 10 s between frames must not dump the
+    // whole gap into one EMA step (dt capped at 250 ms); the filter moves
+    // at most one cap-sized step per frame and re-converges over the
+    // frames that follow.
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    // Warm the EMA to a known mid value first.
+    let t = nh2_drive_pressure(&mut pm, now, 3.0, 60.0);
+    let before = pm.visual_pressure();
+    // One frame after a 10 s stall, pressure still held (stale-but-present).
+    let t2 = t + Duration::from_secs(10);
+    pm.begin_frame(t2);
+    let after = pm.visual_pressure();
+    // One 250 ms step toward target 1.0: 1 - e^(-0.25/2.5) ~= 0.095.
+    let max_step = (1.0 - before) * 0.11;
+    assert!(
+        (after - before) <= max_step,
+        "single post-stall frame must move the EMA by at most one capped step, before={before} after={after}"
+    );
+}

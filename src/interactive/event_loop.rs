@@ -714,13 +714,18 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         );
         // v50.0.0-beta.7 LOC refactor: sim+draw extracted to
         // event_loop_sim_draw.rs.
+        // NIGHT-hunter-2: the sim-delta cap consumes the same applied
+        // visual pressure that update_hud_state fed the cloud one call
+        // earlier (power_dragon-gated + EMA-smoothed) — one value, one
+        // contract, no drift between the cloud feed and the sim cap.
+        let applied_pressure = power_manager.applied_visual_pressure(current_cfg.power_dragon);
         let sim_draw = super::event_loop_sim_draw::run_sim_and_draw(
             &mut cloud,
             &mut frame,
             &mut hud_state,
             &mut term,
-            &power_manager,
             frame_period,
+            applied_pressure,
         )?;
         let work_start = sim_draw.work_start;
         let is_dirty_all = sim_draw.is_dirty_all;

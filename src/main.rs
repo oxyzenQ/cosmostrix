@@ -762,6 +762,8 @@ fn main() -> std::io::Result<()> {
         let mut msg = format!("{e}");
         // ENXIO = no controlling terminal (headless: cron, ssh without -t,
         // CI) — the most common trigger. Point at the non-interactive modes.
+        // Unix-only (POSIX libc; the ungated ref broke the windows-gnu cross-check).
+        #[cfg(unix)]
         if e.raw_os_error() == Some(libc::ENXIO) {
             msg.push_str(
                 "\n  Interactive mode needs a controlling terminal; this session is headless.\n  Non-interactive alternatives: --benchmark, --doctor, --dump-config.",

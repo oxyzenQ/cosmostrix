@@ -13,13 +13,17 @@
 //!   broken on the density leg).
 //! - The HUD `prs:` metric shows the same APPLIED value (0.00), so
 //!   prs/dsty never disagree.
-//! - `power-dragon = true` keeps feeding the real pressure.
+//! - `power-dragon = true` keeps feeding the pressure — NIGHT-hunter-2
+//!   refines "the pressure" to the visual-pressure EMA: sustained
+//!   pressure reaches the render path, transient spikes are filtered
+//!   at the feed (the raw accumulator is untouched for the control
+//!   side).
 //!
 //! Also locks the self-healer release: a stale `aggressive_throttle`
 //! engaged while the dragon was on is released when the dragon turns
 //! off (config promise: "disables aggressive_throttle").
 
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use crate::app::CloudConfig;
 use crate::cloud::Cloud;
@@ -126,6 +130,23 @@ fn pressurized_manager() -> PowerManager {
     pm
 }
 
+/// Drive SUSTAINED pressure while sampling the visual EMA exactly like
+/// production (begin_frame + observe_frame_end pairs advancing wall
+/// time) — NIGHT-hunter-2 fixture: 6 s of overshoot pins raw pressure at
+/// 1.0 and converges the EMA to ~1 - e^(-6/2.5) ~= 0.91.
+fn pressurized_manager_sustained() -> PowerManager {
+    let start = Instant::now();
+    let mut pm = PowerManager::new(60.0, start);
+    let step = Duration::from_secs_f64(1.0 / 60.0);
+    let mut t = start;
+    for _ in 0..(6 * 60) {
+        t += step;
+        pm.begin_frame(t);
+        pm.observe_frame_end(2.0 / 60.0, 1.0 / 60.0, 0.0);
+    }
+    pm
+}
+
 #[test]
 fn power_dragon_off_feeds_cloud_zero_pressure() {
     let mut cloud = make_cloud();
@@ -156,20 +177,57 @@ fn power_dragon_on_feeds_real_pressure() {
     let mut cloud = make_cloud();
     let mut hud = HudState::new();
     hud.toggle();
-    let pm = pressurized_manager();
+    let pm = pressurized_manager_sustained();
     let cfg = base_cfg(true);
     update_hud_state(&mut hud, &mut cloud, &pm, "monolith", "binary", &cfg);
-    assert_eq!(
-        cloud.perf_pressure,
-        pm.effective_pressure(),
-        "power-dragon ON keeps feeding the real pressure to the render path"
+    assert!(
+        (cloud.perf_pressure - pm.visual_pressure()).abs() < 1e-6,
+        "power-dragon ON feeds the render path the visual-pressure EMA (the applied value)"
+    );
+    assert!(
+        cloud.perf_pressure > 0.85,
+        "sustained pressure must reach the render path (EMA converged, got {})",
+        cloud.perf_pressure
     );
     hud.update_metrics(&[]);
-    let prs = format!(" prs: {:.2}", pm.effective_pressure());
+    let prs = format!(" prs: {:.2}", pm.applied_visual_pressure(true));
     assert_eq!(
         hud.test_metric_line(7),
         prs,
-        "prs: must show the real pressure when the dragon is on"
+        "prs: must show the applied (smoothed) pressure when the dragon is on"
+    );
+}
+
+#[test]
+fn power_dragon_on_filters_transient_spikes_at_the_cloud_feed() {
+    // NIGHT-hunter-2: a sub-second saturation burst (the measured
+    // drain-loop write-blocking spikes) must not strobe the render path
+    // into its pressure behaviors — the EMA stays below every visual
+    // threshold while the RAW accumulator spikes to 1.0 for the
+    // control side.
+    let mut cloud = make_cloud();
+    let mut hud = HudState::new();
+    hud.toggle();
+    let start = Instant::now();
+    let mut pm = PowerManager::new(60.0, start);
+    let step = Duration::from_secs_f64(1.0 / 60.0);
+    let mut t = start;
+    // 0.5 s of fully-blocked flushes (write_overshoot 2.0).
+    for _ in 0..30 {
+        t += step;
+        pm.begin_frame(t);
+        pm.observe_frame_end(0.001, 1.0 / 60.0, 2.0);
+    }
+    assert!(
+        (pm.effective_pressure() - 1.0).abs() < 1e-6,
+        "fixture: raw pressure spikes to 1.0 (control side sees the spike)"
+    );
+    let cfg = base_cfg(true);
+    update_hud_state(&mut hud, &mut cloud, &pm, "monolith", "binary", &cfg);
+    assert!(
+        cloud.perf_pressure < 0.35,
+        "transient spike must stay below every visual threshold at the feed (got {})",
+        cloud.perf_pressure
     );
 }
 
