@@ -745,6 +745,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // v50.0.0-beta.7 LOC refactor: post-draw accounting extracted to
         // event_loop_post_draw.rs.
+        // HUNT-23: did_draw gates the write-latency overshoot (stale
+        // last_write_ns on non-drawing frames must not feed the drain
+        // backoff / perf_pressure).
         let post_draw = super::event_loop_post_draw::post_draw_accounting(
             &mut hud_state,
             &mut power_manager,
@@ -752,6 +755,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             &cloud,
             work_start,
             frame_period_s,
+            did_draw,
         );
         let work_s = post_draw.work_s;
         let overshoot = post_draw.overshoot;
@@ -759,6 +763,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
         // v50.0.0-beta.7 LOC refactor: P5 health sampling extracted to
         // event_loop_p5.rs.
+        // HUNT-23: frame_period_s feeds the utilization-based frame signal.
         if !super::event_loop_p5::sample_p5_health(
             &mut endurance_health,
             &mut hud_state,
@@ -766,6 +771,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             &mut term,
             &mut cloud,
             work_s as f64,
+            frame_period_s,
             work_start,
             &mut perf_rss_samples,
             #[cfg(target_os = "linux")]

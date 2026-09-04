@@ -169,6 +169,11 @@ impl DirtyCellTracker {
 /// or paused. Without this, `--fps 30` + 30s idle made the HUD `fps:` line
 /// drop to ~15 with no explanation — the user had no way to tell whether
 /// the renderer was broken or just idle-throttled.
+///
+/// S-master-HUNT-23: `Drain` announces the output drain backoff — the
+/// terminal cannot drain our ANSI rate, so effective_fps is scaled toward
+/// the terminal's sustainable cadence (see PowerManager::drain_backoff).
+/// Shows on `tgt:` as e.g. `tgt: 36 drain`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
 pub(crate) enum FrameMode {
     /// Normal active rendering at `target_fps`.
@@ -179,6 +184,10 @@ pub(crate) enum FrameMode {
     Idle,
     /// User pressed `p` to pause. Loop ticks at PAUSE_PERIOD_MS.
     Paused,
+    /// Output drain backoff engaged (HUNT-23): the terminal's measured
+    /// write latency exceeds its frame budget, so the cadence is scaled
+    /// down toward the drain rate.
+    Drain,
 }
 
 /// Live HUD overlay state.

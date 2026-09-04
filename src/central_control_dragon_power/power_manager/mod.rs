@@ -56,12 +56,18 @@
 //! │ 3. effective_pressure()    → feed cloud + self-healer       │
 //! │ 4. ── frame work happens ──                                │
 //! │ 5. observe_frame_end(...)  → updates perf_pressure          │
+//! │                              + output drain backoff (H23)   │
 //! └─────────────────────────────────────────────────────────────┘
 //! ```
 //!
 //! `is_idle()` returns the value computed by the last `begin_frame()`
 //! call. `effective_pressure()` returns the value updated by the last
-//! `observe_frame_end()` call (or 0.0 before the first frame).
+//! `observe_frame_end()` call (or 0.0 before the first frame), and
+//! `drain_backoff()` (HUNT-23) returns the output-drain state fed by
+//! the same `observe_frame_end()` — write-latency overshoot from the
+//! last DRAWN frame raises it, clean writes decay it, and
+//! `effective_fps()` scales the non-paused cadence by it so the
+//! output tracks the terminal's sustainable drain rate.
 //!
 //! ## Migration status (Phase 3)
 //!
@@ -106,6 +112,15 @@ pub(crate) struct PowerManager {
     // ── effective FPS state (was event_loop.rs:139, 179) ──
     base_target_fps: f64,
 
+    // ── Output drain backoff (S-master-HUNT-23) ──
+    /// 0.0 = terminal drains everything we write (no backoff);
+    /// 1.0 = maximum backoff (see OUTPUT_DRAIN_BACKOFF_MAX). Rises with
+    /// write-latency overshoot, decays slowly on clean writes. Feeds
+    /// `effective_fps()` so the output cadence tracks the terminal's
+    /// sustainable drain rate instead of flooding a saturated PTY and
+    /// blocking inside flush().
+    drain_backoff: f32,
+
     // ── Thermal guard input (feature #13) ──
     // 0.0 = cool, 1.0 = thermal emergency. Added to perf_pressure in
     // effective_pressure(). Future feature will sample real thermal
@@ -135,6 +150,7 @@ impl PowerManager {
             was_active: true,
             idle_started: None,
             base_target_fps: base_target_fps.max(1.0),
+            drain_backoff: 0.0,
             thermal_pressure: 0.0,
         }
     }
@@ -289,6 +305,22 @@ impl PowerManager {
                 + (write_overshoot * self.thresholds.pressure_increment))
                 .min(1.0);
         }
+
+        // ── S-master-HUNT-23: output drain backoff ──
+        // write_overshoot is derived from the MEASURED terminal write
+        // latency (content write + flush syscall) of the last drawn
+        // frame, relative to the frame period. Nonzero means the
+        // terminal cannot drain our current output rate — raise the
+        // backoff so effective_fps() paces the output to what the
+        // terminal can actually consume. Zero (fast write, or a frame
+        // that did not draw at all — see post_draw_accounting's
+        // did_draw gate) decays it back toward full speed.
+        if write_overshoot > 0.0 {
+            self.drain_backoff =
+                (self.drain_backoff + write_overshoot * OUTPUT_DRAIN_BACKOFF_RISE).min(1.0);
+        } else {
+            self.drain_backoff = (self.drain_backoff - OUTPUT_DRAIN_BACKOFF_FALL).max(0.0);
+        }
     }
 
     /// Effective `perf_pressure` — unified read replacing scattered
@@ -322,6 +354,12 @@ impl PowerManager {
     ///    base × 0.5).
     /// 3. Active → `base_target_fps`.
     ///
+    /// S-master-HUNT-23: when `power_dragon_enabled`, the output drain
+    /// backoff multiplies the non-paused branches so the output cadence
+    /// tracks the terminal's measured drain rate (write latency
+    /// overshoot). The floor is `min(OUTPUT_DRAIN_FPS_FLOOR, base)` so a
+    /// user-configured low base is never RAISED by the floor.
+    ///
     /// This mirrors the previous `if cloud.pause / elif is_idle / else`
     /// cascade in `event_loop.rs:965-972`.
     /// v50: when `power_dragon_enabled` is false, idle FPS reduction
@@ -329,12 +367,29 @@ impl PowerManager {
     #[must_use]
     pub(crate) fn effective_fps(&self, paused: bool, power_dragon_enabled: bool) -> f64 {
         if paused {
-            1000.0 / PAUSE_PERIOD_MS as f64
-        } else if power_dragon_enabled && self.is_idle() {
+            return 1000.0 / PAUSE_PERIOD_MS as f64;
+        }
+        let mut fps = if power_dragon_enabled && self.is_idle() {
             self.base_target_fps * self.thresholds.idle_fps_factor
         } else {
             self.base_target_fps
+        };
+        if power_dragon_enabled {
+            let factor = 1.0 - OUTPUT_DRAIN_BACKOFF_MAX * f64::from(self.drain_backoff);
+            let floor = OUTPUT_DRAIN_FPS_FLOOR.min(self.base_target_fps);
+            fps = (fps * factor).max(floor);
         }
+        fps
+    }
+
+    /// S-master-HUNT-23: current output drain backoff in [0.0, 1.0].
+    /// 0.0 = the terminal drains everything we write; 1.0 = maximum
+    /// backoff applied. Used by the HUD frame-mode selector to tag the
+    /// `tgt:` line with a ` drain` suffix while the cadence is
+    /// drain-limited, and by tests.
+    #[must_use]
+    pub(crate) fn drain_backoff(&self) -> f32 {
+        self.drain_backoff
     }
 
     /// Idle state for the current frame. Returns the value computed by

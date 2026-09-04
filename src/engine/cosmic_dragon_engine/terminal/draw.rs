@@ -18,7 +18,7 @@
 //! The crossover threshold is `DIRTY_THRESHOLD_RATIO` (currently 8 = 12.5%).
 //! See `cosmic_dragon::egg::threshold_sweep` for the benchmark that tuned it.
 
-use std::io::{Result, Write};
+use std::io::Result;
 
 use crossterm::{
     style::{Color, SetBackgroundColor},
@@ -190,9 +190,11 @@ impl Terminal {
             }
 
             // Reset attributes + flush all buffered ANSI bytes in one write_all.
+            // HUNT-23: flush through flush_stdout_timed so the (potentially
+            // blocking) syscall latency feeds last_write_ns.
             ansi_buf.extend_from_slice(b"\x1b[0m");
             self.flush_ansi()?;
-            self.stdout.flush()?;
+            self.flush_stdout_timed()?;
 
             frame.clear_dirty();
             return Ok(());
@@ -371,9 +373,11 @@ impl Terminal {
         }
 
         // Reset attributes + flush all buffered ANSI bytes in one write_all.
+        // HUNT-23: flush through flush_stdout_timed so the (potentially
+        // blocking) syscall latency feeds last_write_ns.
         ansi_buf.extend_from_slice(b"\x1b[0m");
         self.flush_ansi()?;
-        self.stdout.flush()?;
+        self.flush_stdout_timed()?;
         frame.clear_dirty();
         Ok(())
     }

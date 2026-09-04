@@ -9,10 +9,24 @@
 //! - **Memory stability** — RSS variance over recent samples (ring buffer
 //!   of 60 readings). Lower variance = higher score. Sampled on Linux
 //!   via `/proc/self/status`.
-//! - **Frame jitter** — EMA of frame time in ms. Lower jitter = higher
-//!   score. Cross-platform (frame time is always available).
+//! - **Frame work utilization** — EMA of `work_s / frame_period_s`
+//!   (unitless, 1.0 = the frame used its entire budget). Lower
+//!   utilization = higher score. Cross-platform.
 //! - **Context switch rate** — EMA of voluntary switches per second.
 //!   Lower rate = higher score. Sampled on Linux via `/proc/self/stat`.
+//!
+//! S-master-HUNT-23: the frame signal used to be the ABSOLUTE work time
+//! in ms with `100 - ms * 10` — anything ≥ 10 ms scored ZERO, which
+//! calibrated the bands to Alacritty-class renderers only. On VTE or a
+//! busy foot, NORMAL healthy operation (frame work 8–15 ms at a 16.7 ms
+//! budget, utilization 0.5–0.9) already landed in the "investigate"
+//! band (< 60) permanently — terminal slowness was being misread as
+//! process instability, arming the P2 self-healer every 30 s. The
+//! signal is now RELATIVE to the frame period: utilization, so a
+//! terminal that keeps up at its own pace scores healthy, and only
+//! SUSTAINED saturation (> 1.0 utilization EMA) reads as degraded
+//! (floored at 40 — output saturation alone is the drain backoff's and
+//! the spawn throttle's domain, not a memory-mitigation trigger).
 //!
 //! ## Classification bands
 //!
@@ -24,16 +38,16 @@
 //!
 //! ## Weighting
 //!
-//! The score is a weighted average: memory 40%, jitter 35%, context
-//! switches 25%. Memory dominates because RSS variance is the earliest
-//! indicator of a stuck/leaking long-endurance process.
+//! The score is a weighted average: memory 40%, frame utilization 35%,
+//! context switches 25%. Memory dominates because RSS variance is the
+//! earliest indicator of a stuck/leaking long-endurance process.
 //!
 //! All subsystems here are zero-allocation, single-threaded, and
 //! backward-compatible with the existing architecture invariants.
 
 /// Endurance Health Score: a 0–100 metric based on:
 /// - Memory stability (RSS variance over recent samples)
-/// - Frame jitter (rolling average frame time)
+/// - Frame work utilization (EMA of work_s / frame_period_s — HUNT-23)
 /// - Context switch rate (voluntary switches per second)
 ///
 /// The score is designed to be a single number operators can monitor.
@@ -54,19 +68,18 @@ pub(crate) struct EnduranceHealth {
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
     rss_idx: usize,
     rss_count: usize,
-    /// EMA of frame time (ms).
-    frame_jitter_ema: f64,
-    /// CC2-02: per-EMA init flag for `frame_jitter_ema`. Previously the
-    /// `if self.updates == 0` check was shared across `push_frame_time`
-    /// and `push_ctxt_rate`, but `push_frame_time` is called every frame
-    /// (60 FPS) while `recompute()` only runs every 60 frames — so the
-    /// first 59 pushes each overwrote the EMA with the latest value
-    /// instead of doing proper EMA smoothing. Per-EMA init flag fixes this.
-    frame_jitter_set: bool,
+    /// EMA of frame work utilization (`work_s / frame_period_s`, unitless).
+    /// 1.0 = the frame consumed its entire period; < 1.0 = headroom.
+    /// HUNT-23: replaced the absolute-ms EMA, which was calibrated to
+    /// fast terminals only (see module docs).
+    frame_util_ema: f64,
+    /// CC2-02: per-EMA init flag for `frame_util_ema`. The first push
+    /// seeds the EMA; subsequent pushes smooth with alpha 0.05.
+    frame_util_set: bool,
     /// EMA of context switch rate (switches/sec).
     ctxt_switch_ema: f64,
     /// CC2-02: per-EMA init flag for `ctxt_switch_ema`. Same fix as
-    /// `frame_jitter_set` — prevents the first 59 pushes from overwriting
+    /// `frame_util_set` — prevents the first 59 pushes from overwriting
     /// the EMA with the latest value instead of smoothing.
     /// Only read inside `push_ctxt_rate()` which is cfg-gated to Linux.
     #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
@@ -86,8 +99,8 @@ impl EnduranceHealth {
             rss_samples: [0.0; 60],
             rss_idx: 0,
             rss_count: 0,
-            frame_jitter_ema: 0.0,
-            frame_jitter_set: false,
+            frame_util_ema: 0.0,
+            frame_util_set: false,
             ctxt_switch_ema: 0.0,
             ctxt_switch_set: false,
             score: 100.0,
@@ -109,18 +122,20 @@ impl EnduranceHealth {
         }
     }
 
-    /// Update frame jitter EMA. `frame_time_ms` is the latest frame time in ms.
-    pub(crate) fn push_frame_time(&mut self, frame_time_ms: f64) {
+    /// Update the frame work utilization EMA. `utilization` is
+    /// `work_s / frame_period_s` — unitless, 1.0 = the frame used its
+    /// entire budget (HUNT-23: was absolute ms; see module docs for why
+    /// that misclassified healthy slow terminals as unstable). Negative
+    /// inputs are clamped to 0 (defensive — a negative work_s cannot
+    /// occur, but a zero frame_period would produce one).
+    pub(crate) fn push_frame_utilization(&mut self, utilization: f64) {
         // CC2-02: per-EMA init flag so the first push seeds and subsequent
-        // pushes actually do EMA smoothing. Previously the `if self.updates
-        // == 0` check was true for the first 60 frames (because `updates`
-        // is only incremented in `recompute`), so each push overwrote the
-        // EMA with the latest value.
-        if !self.frame_jitter_set {
-            self.frame_jitter_ema = frame_time_ms;
-            self.frame_jitter_set = true;
+        // pushes actually do EMA smoothing.
+        if !self.frame_util_set {
+            self.frame_util_ema = utilization.max(0.0);
+            self.frame_util_set = true;
         } else {
-            self.frame_jitter_ema = 0.95 * self.frame_jitter_ema + 0.05 * frame_time_ms;
+            self.frame_util_ema = 0.95 * self.frame_util_ema + 0.05 * utilization.max(0.0);
         }
     }
 
@@ -161,9 +176,16 @@ impl EnduranceHealth {
         let var = self.rss_variance(mean);
         let rss_score = (100.0 - (var * 0.1)).clamp(0.0, 100.0);
 
-        // Frame jitter score: lower jitter = higher score.
-        // Typical: 0.1–2.0 ms. Score = 100 - jitter*10.
-        let jitter_score = (100.0 - self.frame_jitter_ema * 10.0).clamp(0.0, 100.0);
+        // Frame work utilization score: lower utilization = higher score.
+        // HUNT-23: RELATIVE to the frame period (see module docs).
+        //   util 0.0 → 100   (idle-fast frames)
+        //   util 0.5 → 70    (healthy headroom on a busy terminal)
+        //   util 1.0 → 40    (saturated — floor; output congestion is the
+        //                     drain backoff's domain, not a memory trigger)
+        // Blocked-write spirals push the EMA far above 1.0; the floor
+        // keeps a PURE output-saturation state from arming the P2
+        // memory mitigation on its own (RSS variance must contribute).
+        let jitter_score = (100.0 - self.frame_util_ema * 60.0).clamp(40.0, 100.0);
 
         // Context switch score: lower rate = higher score.
         // Typical: 40–80 switches/sec. Score = 100 - rate*0.5.
@@ -228,35 +250,89 @@ mod tests {
 
     #[test]
     #[cfg(target_os = "linux")]
-    fn health_score_stays_100_with_stable_rss() {
+    fn health_score_stays_healthy_with_stable_rss() {
         let mut h = EnduranceHealth::new();
         // Push 10 identical RSS readings — variance = 0.
         for _ in 0..10 {
             h.push_rss(2800.0);
         }
-        h.push_frame_time(0.5); // 0.5ms jitter
+        h.push_frame_utilization(0.3); // 30% of frame budget used
         h.push_ctxt_rate(60.0); // 60 switches/sec
         h.recompute();
-        // With 0 variance, 0.5ms jitter, 60 switches/sec:
-        // rss_score = 100, jitter_score = 95, ctxt_score = 70
-        // weighted = 100*0.4 + 95*0.35 + 70*0.25 = 40 + 33.25 + 17.5 = 90.75
+        // With 0 variance, util 0.3, 60 switches/sec:
+        // rss_score = 100, util_score = 82, ctxt_score = 70
+        // weighted = 100*0.4 + 82*0.35 + 70*0.25 = 40 + 28.7 + 17.5 = 86.2
         assert!(h.score() > 85.0, "score should be > 85, got {}", h.score());
         assert_eq!(h.classification(), "healthy");
     }
 
     #[test]
     #[cfg(target_os = "linux")]
-    fn health_score_drops_with_high_jitter() {
+    fn health_score_hunts23_busy_terminal_not_investigate() {
+        // S-master-HUNT-23 regression: a VTE/foot frame that uses 12ms of
+        // its 16.7ms budget (util 0.72) is NORMAL for that terminal class.
+        // The old absolute-ms formula (100 - 12*10 = jitter 0) classified
+        // it "investigate" and armed the P2 full-redraw bomb every 30s.
+        // With the utilization signal this must stay OUT of the
+        // investigate band when memory is stable.
         let mut h = EnduranceHealth::new();
         for _ in 0..10 {
             h.push_rss(2800.0);
         }
-        h.push_frame_time(10.0); // 10ms jitter — very high
+        h.push_frame_utilization(0.72); // busy-but-keeping-up terminal
         h.push_ctxt_rate(60.0);
         h.recompute();
-        // jitter_score = 100 - 10*10 = 0
-        // weighted = 100*0.4 + 0*0.35 + 70*0.25 = 40 + 0 + 17.5 = 57.5
-        assert!(h.score() < 65.0, "score should be < 65, got {}", h.score());
+        // util_score = 100 - 0.72*60 = 56.8
+        // weighted = 100*0.4 + 56.8*0.35 + 70*0.25 = 40 + 19.88 + 17.5 = 77.38
+        assert!(
+            h.score() >= 60.0,
+            "busy-but-healthy terminal must not be investigate, got {}",
+            h.score()
+        );
+        assert_ne!(h.classification(), "investigate");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn health_score_pure_output_saturation_not_investigate() {
+        // S-master-HUNT-23: pure output saturation (blocked-write spiral,
+        // EMA util >> 1.0) is the drain backoff's domain — the jitter
+        // contribution floors at 40 so a memory-stable process does NOT
+        // arm the P2 memory mitigation from output congestion alone.
+        let mut h = EnduranceHealth::new();
+        for _ in 0..10 {
+            h.push_rss(2800.0);
+        }
+        h.push_frame_utilization(4.0); // deeply saturated frames
+        h.push_ctxt_rate(60.0);
+        h.recompute();
+        // util_score = floor 40
+        // weighted = 100*0.4 + 40*0.35 + 70*0.25 = 40 + 14 + 17.5 = 71.5
+        assert!(
+            h.score() >= 60.0,
+            "pure output saturation must not be investigate, got {}",
+            h.score()
+        );
+        assert_ne!(h.classification(), "investigate");
+    }
+
+    #[test]
+    #[cfg(target_os = "linux")]
+    fn health_score_investigate_needs_rss_instability() {
+        // The "investigate" band must still be reachable the way it was
+        // designed: memory instability (RSS variance) dominates the score.
+        let mut h = EnduranceHealth::new();
+        for i in 0..10 {
+            h.push_rss(2800.0 + (i as f64) * 120.0); // large swings → high variance
+        }
+        h.push_frame_utilization(1.5);
+        h.push_ctxt_rate(120.0);
+        h.recompute();
+        assert!(
+            h.score() < 60.0,
+            "RSS instability + saturation must reach investigate, got {}",
+            h.score()
+        );
         assert_eq!(h.classification(), "investigate");
     }
 
@@ -268,7 +344,7 @@ mod tests {
         for i in 0..10 {
             h.push_rss(2800.0 + (i as f64) * 50.0); // 2800 → 3250
         }
-        h.push_frame_time(0.5);
+        h.push_frame_utilization(0.3);
         h.push_ctxt_rate(60.0);
         h.recompute();
         // Variance is large → rss_score drops
@@ -284,10 +360,20 @@ mod tests {
     fn health_score_needs_min_samples() {
         let mut h = EnduranceHealth::new();
         h.push_rss(2800.0); // Only 1 sample
-        h.push_frame_time(10.0);
+        h.push_frame_utilization(2.0);
         h.push_ctxt_rate(100.0);
         h.recompute();
         // Should stay at 100 (insufficient data).
         assert_eq!(h.score(), 100.0);
+    }
+
+    #[test]
+    fn frame_utilization_ema_smooths_and_clamps_negatives() {
+        let mut h = EnduranceHealth::new();
+        h.push_frame_utilization(-1.0); // defensive clamp to 0
+        assert_eq!(h.frame_util_ema, 0.0);
+        h.push_frame_utilization(1.0);
+        // 0.95 * 0 + 0.05 * 1.0 = 0.05
+        assert!((h.frame_util_ema - 0.05).abs() < 1e-9);
     }
 }

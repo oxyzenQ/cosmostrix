@@ -30,10 +30,18 @@ pub(crate) fn update_hud_state(
     current_cfg: &CloudConfig,
 ) {
     hud_state.set_metrics_paused(cloud.is_paused_or_decelerating());
+    // HUNT-23: priority paused > idle > drain > active, mirroring
+    // effective_fps()'s resolution order (pause overrides everything;
+    // idle halves the base; the drain backoff multiplies whatever the
+    // non-paused branch produced). The threshold (0.05) matches the
+    // point where the backoff first visibly moves the cadence
+    // (0.05 * 0.75 = ~4% fps reduction).
     let frame_mode = if cloud.pause {
         FrameMode::Paused
     } else if power_manager.is_idle() {
         FrameMode::Idle
+    } else if power_manager.drain_backoff() > 0.05 {
+        FrameMode::Drain
     } else {
         FrameMode::Active
     };

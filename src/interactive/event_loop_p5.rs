@@ -24,6 +24,11 @@ use crate::terminal::Terminal;
 ///
 /// Returns `false` when stdout fd corruption was detected and the caller
 /// should break the rain loop. Returns `true` to continue.
+///
+/// S-master-HUNT-23: `frame_period_s` feeds the utilization signal
+/// (`work_s / frame_period_s`) pushed into EnduranceHealth — the frame
+/// signal is RELATIVE to the frame budget so slow-but-healthy terminals
+/// are not classified as unstable (see endurance_health.rs module docs).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn sample_p5_health(
     endurance_health: &mut EnduranceHealth,
@@ -32,6 +37,7 @@ pub(crate) fn sample_p5_health(
     term: &mut Terminal,
     cloud: &mut Cloud,
     work_s: f64,
+    frame_period_s: f32,
     work_start: Instant,
     perf_rss_samples: &mut u64,
     #[cfg(target_os = "linux")] last_ctxt_switches: &mut u64,
@@ -44,7 +50,9 @@ pub(crate) fn sample_p5_health(
     // the same is_paused_or_decelerating() predicate the HUD freeze uses;
     // on resume the window continues from the last active sample.
     if !cloud.is_paused_or_decelerating() {
-        endurance_health.push_frame_time(work_s * 1000.0);
+        // HUNT-23: utilization (work/budget), not absolute ms — see fn docs.
+        let frame_budget_s = f64::from(frame_period_s).max(1e-6);
+        endurance_health.push_frame_utilization(work_s / frame_budget_s);
     }
     if perf_rss_samples.is_multiple_of(60) {
         #[cfg(target_os = "linux")]

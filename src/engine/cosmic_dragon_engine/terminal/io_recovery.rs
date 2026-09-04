@@ -207,6 +207,34 @@ impl super::Terminal {
         }
     }
 
+    /// S-master-HUNT-23: flush the BufWriter to the real stdout fd, with
+    /// the syscall latency ACCUMULATED into `last_write_ns`.
+    ///
+    /// Before this, only `write_with_recovery` was timed — but that writes
+    /// into the 256 KB `BufWriter`, which is an in-memory copy for any
+    /// frame smaller than the capacity (i.e. every normal frame). The
+    /// actual blocking syscall — the one that stalls when the PTY buffer
+    /// is full because the terminal cannot drain our ANSI rate — happens
+    /// in `BufWriter::flush()`, which was completely untimed. On
+    /// CPU-rendered terminals (VTE, foot) that saturate at fullscreen,
+    /// the power system was blind to the exact latency signal that
+    /// matters, so `perf_pressure` only rose via the coarser total
+    /// frame-work overshoot and the drain never fed back into frame
+    /// pacing.
+    ///
+    /// Accumulating (+=) rather than overwriting keeps the semantics
+    /// "latency of the last DRAWN frame's terminal writes": content write
+    /// (spillover syscalls for >256 KB frames) + final flush. Frames that
+    /// do not draw leave `last_write_ns` stale; the event loop gates the
+    /// overshoot computation on `did_draw` (see post_draw_accounting).
+    #[inline]
+    pub(super) fn flush_stdout_timed(&mut self) -> Result<()> {
+        let start = std::time::Instant::now();
+        let result = self.stdout.flush();
+        self.last_write_ns += start.elapsed().as_nanos() as u64;
+        result
+    }
+
     /// P3 helper: attempt to recover a failed stdout write by routing the
     /// buffer through /dev/tty. See `write_with_recovery` for the full
     /// contract. Returns the original error if recovery is not possible.

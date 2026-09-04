@@ -9,6 +9,88 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v100.0.0-nightly.1 — S-master-HUNT-23 output drain backoff + P2 mitigation congestion guard (VTE/foot stuck, round 3)
+
+Owner bug report (2026-09-04, post-d8d53a1): after HUNT-22 the
+particle clock was real-time, yet on foot and GNOME/kgx the effects
+still slowed over minutes, froze for a few seconds, then
+auto-dismissed. The symptom had to be upstream of particle physics.
+
+- **Root cause (three interlocking defects, all output-side)**:
+  1. *Open-loop output pacing.* `effective_fps()` responded to pause
+     and idle but never to the terminal's actual drain rate. On
+     CPU-rendered terminals at fullscreen (VTE at the 60 FPS default,
+     foot at the 144 FPS high-perf default it is classified under)
+     the ANSI byte rate exceeds what the terminal drains, the PTY
+     buffer fills, and the frame's `flush()` syscall blocks until the
+     terminal catches up — freezing input processing and every
+     effect with it. Sim-time dilation and the spawn throttle reduce
+     the produced bytes, but nothing paced the output cadence.
+  2. *The flush was untimed.* `last_write_ns` timed only the
+     `write_all` into the 256 KB `BufWriter` — an in-memory copy for
+     every normal frame. The actual blocking syscall
+     (`BufWriter::flush`) was invisible, so the power system was
+     blind to the exact latency signal that matters.
+  3. *P2 health mitigation bomb.* `EnduranceHealth` scored the frame
+     signal as ABSOLUTE milliseconds (`100 - ms*10`): anything >= 10ms
+     scored zero — calibrated to Alacritty-class renderers only. A
+     VTE/foot frame that healthily uses 12ms of its 16.7ms budget was
+     classified "investigate" (<60) permanently, arming the P2
+     self-healer every 30s cooldown. P2's "cure" is
+     `force_draw_everything()` — the single largest ANSI burst the
+     renderer can produce (100-400 KB) — pushed into the already
+     saturated pipe: the write blocks for seconds ("stuck"), and when
+     the terminal finally drains, particles that expired during the
+     stall vanish in one step ("auto-dismiss"). Periodic
+     stuck-then-clear every 30s, exactly as reported. Persistent
+     clicking deepened the congestion and stretched frame intervals
+     past the 250ms particle anti-teleport cap, so bursts decayed
+     their velocity in 1-2 giant steps and hung as near-motionless
+     sparks — the "snow/sleet" degradation.
+- **Fix**: four changes, one closed feedback loop.
+  1. `flush_stdout_timed()` — the final flush syscall's latency is
+     now ACCUMULATED into `last_write_ns`, so the measured signal
+     reflects the real blocking point.
+  2. `PowerManager` output drain backoff — `observe_frame_end` maps
+     write-latency overshoot to a `drain_backoff` scalar (rise
+     0.05/unit overshoot, decay 0.002/clean frame), and
+     `effective_fps` scales the non-paused cadence by up to 75%
+     (floor `min(12, base)`), gated on `power_dragon` like the idle
+     reduction. The output loop now settles at the terminal's
+     sustainable drain rate instead of flooding it.
+  3. P2 congestion guard — `TriggerHealthMitigation` skips the
+     full-redraw burst when `effective_pressure >= 0.3` (output
+     congestion); the madvise (P2's actual memory purpose) is kept.
+     The full redraw stays reserved for its original calibration:
+     pressure LOW + genuinely unhealthy process.
+  4. `EnduranceHealth` frame signal is now RELATIVE — the EMA of
+     `work_s / frame_period_s` (utilization), scored
+     `100 - util*60` floored at 40: a busy-but-keeping-up terminal
+     scores healthy, pure output saturation alone cannot arm the
+     memory mitigation (RSS variance must contribute). The event
+     loop also gates the write-overshoot injection on `did_draw` so
+     stale latency from non-drawing frames cannot pin the backoff.
+- **Verified**: 13 new unit tests — drain backoff rise/decay/gating/
+  idle-composition/floor/paused/CPU-vs-write separation
+  (`power_manager/tests.rs`), P2 redraw-forces-at-low-pressure vs
+  skips-under-congestion (`tests_v51_2_power_dragon_gate.rs`),
+  utilization scoring bands (busy terminal not "investigate", pure
+  saturation not "investigate", RSS instability still reaches
+  "investigate", EMA clamping) (`endurance_health.rs`), and the HUD
+  `tgt: N drain` suffix. Full suite 2207 passed / 0 failed. 10s A/B
+  benchmark: noise-equivalent (avg_fps +0.19%, entropy +0.03%,
+  gini -0.01%, dirty cells +0.00%) — the bench path is headless (no
+  terminal drain), so the backoff never engages there, as intended.
+  The interactive effect: on a saturated terminal the HUD now shows
+  `tgt: N drain` while cadence tracks the drain rate; blocked-write
+  stalls shrink to the pipe transit time; the 30s stuck-then-clear
+  cycle is gone.
+
+Docs synced: KNOWN_ISSUES.md VTE section (three-layer root cause +
+foot classification note), power manager frame-lifecycle module
+docs, `last_write_ns` field doc, `OUTPUT_DRAIN_*` constants,
+HUD FrameMode docs.
+
 ### harmony: v100.0.0-nightly.1 — S-master-HUNT-22 particle real-time clock (VTE stuck/hang, round 2)
 
 Owner bug report (2026-09-04, post-b22e81a): on VTE terminals

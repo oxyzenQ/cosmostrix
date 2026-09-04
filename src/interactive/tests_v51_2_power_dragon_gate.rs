@@ -236,3 +236,82 @@ fn power_dragon_on_keeps_aggressive_throttle() {
     // either way the gate itself must not force-release while ON.)
     let _ = cloud.aggressive_throttle;
 }
+
+// ── S-master-HUNT-23: P2 mitigation congestion guard ─────────────────────────
+//
+// The P2 health mitigation (force full redraw + madvise) must NOT push a
+// full-screen redraw (the single largest ANSI burst the renderer can
+// produce) into a pipe that is already congested (pressure >=
+// SELF_HEAL_PRESSURE_LOW). The full redraw stays reserved for its original
+// calibration: pressure LOW + unhealthy process (genuine stuck visual
+// state / desync), where the terminal has drain headroom to absorb it.
+
+/// Drive the healer into the P2 `TriggerHealthMitigation` arm: health score
+/// below the investigate band (60), no prior mitigation (cooldown clear).
+/// Both tests share this setup; only the effective pressure differs.
+fn hunts23_mitigation_setup() -> (
+    crate::interactive::adaptive::PerformanceSelfHealer,
+    crate::interactive::adaptive::ReclaimState,
+) {
+    (
+        crate::interactive::adaptive::PerformanceSelfHealer::new(),
+        crate::interactive::adaptive::ReclaimState::new(),
+    )
+}
+
+#[test]
+fn health_mitigation_forces_redraw_when_pressure_low() {
+    use crate::frame::Frame;
+
+    let mut cloud = make_cloud();
+    let (mut healer, mut reclaim) = hunts23_mitigation_setup();
+    let mut frame = Frame::new(20, 10, cloud.palette.bg);
+    let cfg = base_cfg(true);
+    run_self_healer(
+        &mut healer,
+        &mut reclaim,
+        &mut cloud,
+        &mut frame,
+        &cfg,
+        "monolith",
+        1,
+        1,   // no scene change — healer state must survive
+        0.0, // LOW pressure: terminal has drain headroom
+        Instant::now(),
+        50.0, // health score in the "investigate" band
+    );
+    assert!(
+        cloud.force_draw_everything,
+        "with pressure LOW + unhealthy score, P2 must force the full redraw \
+         (original calibration: clear stuck visual state / desync)"
+    );
+}
+
+#[test]
+fn health_mitigation_hunts23_skips_redraw_when_congested() {
+    use crate::frame::Frame;
+
+    let mut cloud = make_cloud();
+    let (mut healer, mut reclaim) = hunts23_mitigation_setup();
+    let mut frame = Frame::new(20, 10, cloud.palette.bg);
+    let cfg = base_cfg(true);
+    run_self_healer(
+        &mut healer,
+        &mut reclaim,
+        &mut cloud,
+        &mut frame,
+        &cfg,
+        "monolith",
+        1,
+        1,
+        0.5, // CONGESTED: pressure >= SELF_HEAL_PRESSURE_LOW (0.3)
+        Instant::now(),
+        50.0,
+    );
+    assert!(
+        !cloud.force_draw_everything,
+        "HUNT-23: under output congestion the full-redraw bomb must be \
+         skipped — a full-screen ANSI burst into a saturated pipe is what \
+         produced the periodic stuck-then-auto-dismiss VTE/foot symptom"
+    );
+}

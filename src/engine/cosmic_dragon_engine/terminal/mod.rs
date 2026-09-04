@@ -185,10 +185,16 @@ pub(crate) struct Terminal {
     /// propagates and the event loop exits via the normal error path.
     #[cfg(unix)]
     tty_recoveries: u32,
-    /// Latency of the last `write_with_recovery` call, in nanoseconds.
-    /// Read by the event loop to feed `perf_pressure` when writes are
-    /// slow (e.g., VSCode's xterm.js falling behind over long runs).
-    /// Zero until the first flush completes.
+    /// Latency of the last DRAWN frame's terminal writes, in nanoseconds:
+    /// the content `write_all` (spillover syscalls for frames larger than
+    /// the BufWriter capacity) plus the final `flush()` syscall
+    /// (HUNT-23 — the flush is where a saturated PTY actually blocks).
+    /// Read by the event loop to feed `perf_pressure` and the
+    /// output-drain backoff when writes are slow (e.g., VSCode's xterm.js
+    /// falling behind over long runs, or CPU-rendered terminals that
+    /// cannot drain fullscreen ANSI rates). Zero until the first flush
+    /// completes. Stale on frames that do not draw — the event loop's
+    /// post-draw accounting gates the overshoot computation on `did_draw`.
     last_write_ns: u64,
     /// Tier 2: cumulative ANSI bytes flushed since the last RIS reset.
     /// When this crosses `XTERMJS_RIS_RESET_BYTES`, `flush_ansi` emits

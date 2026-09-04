@@ -184,10 +184,18 @@ is unaffected.
 ### Affected platforms
 
 - **Konsole** (KDE): all versions. VTE-based, CPU-rendered.
-- **GNOME Terminal**: all versions. VTE-based, CPU-rendered.
+- **GNOME Terminal / kgx (GNOME Console)**: all versions. VTE-based,
+  CPU-rendered.
 - **Other VTE-based terminals**: XFCE Terminal, Mate Terminal, etc.
-- **Not affected**: Alacritty, kitty, WezTerm, ghostty, foot (GPU-rendered
-  or highly optimized software renderers that keep up with ANSI throughput).
+- **foot**: affected when fullscreen output exceeds its drain rate —
+  foot is classified high-perf (144 FPS default) and its parser is
+  fast, but it is still CPU-rendered; on large cell counts / compositor
+  load it can fall behind the attempted byte rate (HUNT-23; the old
+  "not affected" note was written before the owner reproduced on
+  foot). The drain backoff now paces the cadence to the drain rate
+  instead of flooding it.
+- **Not affected**: Alacritty, kitty, WezTerm, ghostty (GPU-rendered
+  or heavily optimized renderers that sustain the ANSI throughput).
 
 ### Root cause
 
@@ -214,13 +222,58 @@ prevents perfect stabilization under sustained fullscreen load.
 
 ### Status
 
-**Particle stuck/hang FIXED (S-master-HUNT-21 + S-master-HUNT-22).**
-Two layers were involved; the second completed the fix.
+**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23) — three
+layers.** HUNT-23 (round 3) is the systemic layer; the first two are
+summarized below and detailed in the CHANGELOG.
+
+*Layer 3 (HUNT-23): the output-side feedback loop.* The particle
+clock was real-time after HUNT-22, yet foot and GNOME/kgx still
+reproduced: slow over minutes, stuck for a few seconds,
+auto-dismiss. The freeze lived upstream of particle physics —
+three interlocking output-side defects:
+
+1. **Open-loop output pacing.** `effective_fps()` responded to
+   pause/idle but never to the terminal's drain rate. When the ANSI
+   byte rate exceeds what a CPU-rendered terminal drains (VTE at
+   60 FPS, foot at its 144 FPS high-perf default), the PTY buffer
+   fills and the frame's `flush()` syscall blocks until the terminal
+   catches up — the whole event loop freezes with it.
+2. **The blocking syscall was untimed.** `last_write_ns` timed only
+   the in-memory `write_all` into the 256 KB BufWriter; the
+   `BufWriter::flush()` — where the block actually happens — was
+   invisible to the power system.
+3. **P2 health mitigation bomb.** `EnduranceHealth` scored frame
+   work in ABSOLUTE ms (`100 - ms*10`, zero at >= 10ms — an
+   Alacritty-class calibration). A healthy busy VTE/foot frame
+   (12ms of a 16.7ms budget) was classified "investigate"
+   permanently, arming the P2 self-healer every 30s. Its cure,
+   `force_draw_everything()`, is the largest possible ANSI burst
+   (100-400 KB) — bombed into the already saturated pipe, it
+   produced multi-second freezes ("stuck") followed by mass
+   particle expiry on drain ("auto-dismiss"). Persistent clicking
+   deepened the congestion and stretched frames past the 250ms
+   particle anti-teleport cap — bursts lost their velocity in 1-2
+   giant decay steps and hung as near-motionless sparks (the
+   "snow/sleet" degradation).
+
+The fix closes the loop: the flush syscall is timed
+(`flush_stdout_timed`), `PowerManager` converts write-latency
+overshoot into a `drain_backoff` that scales `effective_fps` toward
+the terminal's sustainable rate (up to 75%, floor 12, gated on
+`power-dragon`), the P2 mitigation skips the full-redraw burst under
+congestion (madvise kept; the redraw is reserved for
+low-pressure/genuinely-unhealthy runs), and the health frame signal
+is now utilization (`work_s / frame_period_s`, floored at 40) so
+slow-but-keeping-up terminals score healthy. The HUD `tgt:` line
+shows a `drain` suffix while the backoff is engaged. On a
+saturated terminal the visible behavior is: cadence settles at what
+the terminal can drain, blocked-write stalls shrink to pipe transit
+time, and the 30s stuck-then-clear cycle is gone.
 
 *Layer 1 (HUNT-21): motion/aging unification.* Particle aging was
 real-time (`now - birth`) while motion used the clamped frame dt —
 particles expired before finishing their trajectory. `sim_age` now
-accumulates the same dt that drives motion. This was correct but
+accumulates the same dt that drives motion. Correct but
 insufficient: it made aging *consistent* with motion without fixing
 what fed both clocks.
 

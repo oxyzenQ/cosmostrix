@@ -164,6 +164,50 @@ pub(crate) const PERF_PRESSURE_CLASS_LOW: f64 = 0.05;
 /// 0.30 = 30% average overshoot — sustained mild overload. Above = "high".
 pub(crate) const PERF_PRESSURE_CLASS_MEDIUM: f64 = 0.30;
 
+// ─── Output drain backoff (S-master-HUNT-23) ─────────────────────────────────
+//
+// The output side of the renderer was OPEN-LOOP before HUNT-23: the frame
+// pacing (`effective_fps`) responded to pause and idle, but never to the
+// terminal's actual drain rate. On CPU-rendered terminals (VTE, foot at
+// fullscreen), cosmostrix's ANSI byte rate can exceed what the terminal
+// drains, the PTY buffer fills, and the frame's flush() syscall blocks
+// until the terminal catches up — freezing input processing, particles,
+// and everything else in between. The sim-time dilation (max_sim_delta)
+// and the spawn throttle reduce the PRODUCED bytes, but nothing paced the
+// OUTPUT cadence itself.
+//
+// The drain backoff closes that loop: write latency overshoot (measured
+// per drawn frame, content write + flush syscall) raises `drain_backoff`,
+// which scales the effective FPS down toward the terminal's sustainable
+// rate; clean writes decay it back toward full speed. Gated on
+// power_dragon for consistency with the idle FPS reduction (owner Option
+// D contract: adaptive cadence protection is user-switchable).
+
+/// Maximum fraction of base FPS the drain backoff can remove.
+/// 0.75 → the floor is 25% of base (144→36, 60→15 FPS). Combined with the
+/// sim-time dilation and the spawn throttle, this is enough headroom to
+/// match any terminal that can drain at least a quarter of the attempted
+/// byte rate; terminals slower than that are paced by the (now bounded)
+/// blocking flush itself.
+pub(crate) const OUTPUT_DRAIN_BACKOFF_MAX: f64 = 0.75;
+
+/// Drain backoff rise per unit of write overshoot per frame.
+/// A fully blocked flush (write_overshoot = 2.0) engages the maximum
+/// backoff in ~10 frames (~170 ms at 144 FPS) — fast enough to interrupt
+/// a congestion spiral before the self-healer's 30 s windows matter.
+pub(crate) const OUTPUT_DRAIN_BACKOFF_RISE: f32 = 0.05;
+
+/// Drain backoff decay per clean-write frame. Slow on purpose (full
+/// recovery ≈ 500 frames ≈ 8 s at 60 FPS): prevents flapping on
+/// alternating fast/slow frames and gives the terminal time to prove
+/// sustained drain headroom before cadence returns to full speed.
+pub(crate) const OUTPUT_DRAIN_BACKOFF_FALL: f32 = 0.002;
+
+/// Absolute FPS floor under full drain backoff. Never raises the target
+/// above a user-configured base below this (the floor is
+/// `min(this, base_target_fps)`).
+pub(crate) const OUTPUT_DRAIN_FPS_FLOOR: f64 = 12.0;
+
 // ─── Idle tiers ──────────────────────────────────────────────────────────────
 //
 // When no user input arrives for IDLE_THRESHOLD_SECS, the renderer enters
@@ -221,9 +265,12 @@ pub(crate) const IDLE_RESYNC_TIER_3_SECS: f64 = 120.0;
 //      pressure recovers for a sustained window, restore the prior scene.
 //
 // P2 — Endurance-health mitigations: when the EnduranceHealth score
-//      (RSS variance + frame jitter + context switches) drops into the
-//      "investigate" band, trigger an immediate frame invalidate + memory
-//      reclaim hint to clear potential stuck state.
+//      (RSS variance + frame work utilization + context switches) drops
+//      into the "investigate" band, trigger an immediate frame
+//      invalidate + memory reclaim hint to clear potential stuck state.
+//      (HUNT-23: the frame signal is utilization, not absolute ms, and
+//      the frame invalidate is skipped under output congestion — see
+//      self_healer.rs + event_loop_self_heal.rs.)
 
 /// perf_pressure threshold above which sustained-pressure accumulation
 /// counts toward the auto-downgrade trigger. Set below the phosphor skip

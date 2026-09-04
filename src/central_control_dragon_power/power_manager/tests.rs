@@ -7,6 +7,7 @@
 
 use super::*;
 use std::hint::black_box;
+use std::time::Duration;
 
 /// Helper: construct a PowerManager with a known `last_input_time`
 /// offset so idle-threshold tests are deterministic.
@@ -420,4 +421,128 @@ fn power_dragon_false_does_not_affect_active_fps() {
     let fps_false = pm.effective_fps(false, false);
     assert!((fps_true - 60.0).abs() < 1e-6);
     assert!((fps_false - 60.0).abs() < 1e-6);
+}
+
+// ── S-master-HUNT-23: output drain backoff ────────────────────────────
+//
+// The drain backoff closes the output loop: measured terminal write
+// latency overshoot (content write + flush syscall, per DRAWN frame)
+// scales effective_fps down toward the terminal's sustainable drain
+// rate; clean writes decay it back. These tests lock the math, the
+// power_dragon gate, the composition with idle, the pause override,
+// and the floor interaction with a low user-configured base.
+
+#[test]
+fn hunts23_drain_backoff_rises_on_write_overshoot() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(144.0, now);
+    assert_eq!(pm.drain_backoff(), 0.0);
+    // Fully blocked flush: write_overshoot 2.0 → +0.1 per frame.
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 1.0 / 144.0, 2.0);
+    }
+    assert!(
+        (pm.drain_backoff() - 1.0).abs() < 1e-6,
+        "10 frames of blocked writes must saturate the backoff, got {}",
+        pm.drain_backoff()
+    );
+    // Full backoff → floor at 25% of base: 144 × 0.25 = 36.
+    assert!((pm.effective_fps(false, true) - 36.0).abs() < 1e-6);
+}
+
+#[test]
+fn hunts23_drain_backoff_recovers_slowly_on_clean_writes() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 1.0 / 60.0, 2.0);
+    }
+    assert!((pm.drain_backoff() - 1.0).abs() < 1e-6);
+    // Clean writes decay by OUTPUT_DRAIN_BACKOFF_FALL per frame.
+    pm.observe_frame_end(0.005, 1.0 / 60.0, 0.0);
+    let expected = 1.0 - OUTPUT_DRAIN_BACKOFF_FALL;
+    assert!(
+        (pm.drain_backoff() - expected).abs() < 1e-6,
+        "clean write must decay the backoff by exactly FALL, got {}",
+        pm.drain_backoff()
+    );
+    // Full recovery takes ~1/FALL frames — slow by design (no flapping).
+    for _ in 0..600 {
+        pm.observe_frame_end(0.005, 1.0 / 60.0, 0.0);
+    }
+    assert_eq!(pm.drain_backoff(), 0.0);
+    assert!((pm.effective_fps(false, true) - 60.0).abs() < 1e-6);
+}
+
+#[test]
+fn hunts23_drain_backoff_disabled_when_power_dragon_off() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(144.0, now);
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 1.0 / 144.0, 2.0);
+    }
+    // The backoff STATE still accumulates (the signal is real), but the
+    // cadence must ignore it when the user disabled adaptive protection
+    // (owner Option D contract, same gating as the idle FPS reduction).
+    assert!((pm.drain_backoff() - 1.0).abs() < 1e-6);
+    assert!((pm.effective_fps(false, false) - 144.0).abs() < 1e-6);
+}
+
+#[test]
+fn hunts23_drain_backoff_composes_with_idle() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    // Enter idle (no input for the threshold).
+    let idle_point = now + Duration::from_secs_f64(IDLE_THRESHOLD_SECS + 1.0);
+    pm.begin_frame(idle_point);
+    assert!(pm.is_idle());
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 1.0 / 30.0, 2.0);
+    }
+    // idle (×0.5) then backoff (×0.25): 60 → 30 → 7.5, floored at 12.
+    let fps = pm.effective_fps(false, true);
+    assert!(
+        (fps - 12.0).abs() < 1e-6,
+        "idle + full backoff must hit the floor (12), got {}",
+        fps
+    );
+}
+
+#[test]
+fn hunts23_drain_backoff_floor_never_raises_low_user_base() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(10.0, now); // user pinned --fps 10
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 0.1, 2.0);
+    }
+    let fps = pm.effective_fps(false, true);
+    assert!(
+        fps <= 10.0,
+        "the backoff floor must never RAISE the target above the user base, got {}",
+        fps
+    );
+}
+
+#[test]
+fn hunts23_drain_backoff_paused_takes_precedence() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    for _ in 0..10 {
+        pm.observe_frame_end(0.005, 1.0 / 60.0, 2.0);
+    }
+    let expected = 1000.0 / PAUSE_PERIOD_MS as f64;
+    assert!((pm.effective_fps(true, true) - expected).abs() < 1e-6);
+}
+
+#[test]
+fn hunts23_drain_backoff_zero_write_overshoot_no_rise() {
+    let now = Instant::now();
+    let mut pm = PowerManager::new(60.0, now);
+    // Overshoot from WORK time only (CPU), write clean — backoff must NOT
+    // move: this is CPU pressure (spawn throttle's domain), not drain.
+    for _ in 0..50 {
+        pm.observe_frame_end(0.040, 1.0 / 60.0, 0.0);
+    }
+    assert_eq!(pm.drain_backoff(), 0.0);
+    assert!((pm.effective_fps(false, true) - 60.0).abs() < 1e-6);
 }

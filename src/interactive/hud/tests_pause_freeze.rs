@@ -237,3 +237,26 @@ fn uptime_row_uses_tiered_formatter() {
         );
     }
 }
+
+/// S-master-HUNT-23: the `tgt:` line must render the ` drain` suffix when
+/// the event loop announces the output-drain backoff frame mode — the
+/// terminal's write latency exceeds its frame budget and the cadence is
+/// scaled toward the drain rate. Without the suffix, a user on VTE/foot
+/// would see `tgt: 36` with no explanation, exactly the confusion the
+/// idle suffix was introduced to fix (v30).
+#[test]
+fn hunts23_tgt_suffix_renders_drain_mode() {
+    let mut h = HudState::new();
+    h.toggle();
+    h.set_target_fps(36.0);
+
+    h.set_frame_mode(FrameMode::Drain);
+    h.last_metric_update = Instant::now()
+        .checked_sub(HUD_METRIC_INTERVAL)
+        .unwrap_or_else(Instant::now);
+    h.update_metrics(&[]);
+    assert_eq!(
+        h.cached_lines[1].1, " tgt: 36.0 drain",
+        "the drain suffix must render while the backoff is engaged"
+    );
+}

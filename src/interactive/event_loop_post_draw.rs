@@ -25,6 +25,15 @@ pub(crate) struct PostDrawMetrics {
 ///
 /// Returns (work_s, overshoot, utilization) for downstream consumers
 /// (perf_stats display + self-healer).
+///
+/// S-master-HUNT-23: `did_draw` gates the write-latency overshoot. On
+/// frames that did not draw (no dirty cells), `term.last_write_ns()` is
+/// stale — it still holds the last DRAWN frame's latency. Feeding that
+/// stale value every non-drawing frame would keep the drain backoff and
+/// perf_pressure pinned on old evidence and hide recovery; conversely a
+/// long-stalled frame followed by many no-draw frames would keep
+/// injecting its overshoot forever. Zero on non-drawing frames lets
+/// both decay on real (non-)evidence.
 pub(crate) fn post_draw_accounting(
     hud_state: &mut HudState,
     power_manager: &mut PowerManager,
@@ -32,6 +41,7 @@ pub(crate) fn post_draw_accounting(
     cloud: &Cloud,
     work_start: Instant,
     frame_period_s: f32,
+    did_draw: bool,
 ) -> PostDrawMetrics {
     FRAME_COUNTER.fetch_add(1, Ordering::Relaxed);
 
@@ -46,7 +56,7 @@ pub(crate) fn post_draw_accounting(
     // Otherwise the suppression masks itself: no write_with_recovery
     // call → last_write_ns stale → perf_pressure doesn't accumulate
     // → self-healer never fires even though xterm.js is backing up.
-    let write_overshoot = if frame_period_s > 0.0 {
+    let write_overshoot = if did_draw && frame_period_s > 0.0 {
         let raw = ((term.last_write_ns() as f32 / 1e9) / frame_period_s - 0.5).clamp(0.0, 2.0);
         // Suppressed flush: synthetic 1.0 signal (layered via .max).
         if term.last_flush_suppressed() {

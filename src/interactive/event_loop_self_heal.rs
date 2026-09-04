@@ -16,6 +16,7 @@ use std::time::Instant;
 
 use super::adaptive::{PerformanceSelfHealer, ReclaimState, SelfHealAction};
 use crate::app::CloudConfig;
+use crate::central_control_dragon_power::SELF_HEAL_PRESSURE_LOW;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 
@@ -77,7 +78,28 @@ pub(crate) fn run_self_healer(
         SelfHealAction::TriggerHealthMitigation => {
             // P2: force full redraw + bypass ReclaimState cooldown for
             // immediate madvise hint. Cooldown enforced inside self-healer.
-            cloud.force_draw_everything();
+            //
+            // S-master-HUNT-23 congestion guard: when effective pressure
+            // is elevated (>= SELF_HEAL_PRESSURE_LOW), the dominant cause
+            // is OUTPUT congestion — the terminal cannot drain our ANSI
+            // rate, so flush() blocks and frame work times balloon. A
+            // forced FULL-SCREEN redraw in that state is the single
+            // largest ANSI burst the renderer can produce (every cell,
+            // typically 100-400 KB) pushed into an already saturated
+            // pipe: the write blocks for seconds, the event loop freezes
+            // with it ("particles stuck"), and when the terminal finally
+            // drains, particles that expired during the stall vanish in
+            // one step ("auto-dismiss"). That periodic bomb every 30 s
+            // cooldown was the exact reported VTE/foot symptom. Under
+            // congestion the madvise (cheap, memory-focused — the actual
+            // P2 purpose) is kept and the redraw is skipped; the drain
+            // backoff + spawn throttle handle the congestion itself.
+            // The full redraw still fires when pressure is LOW — the
+            // genuine "stuck visual state / desync" case P2 was designed
+            // to clear (its original calibration).
+            if power_manager_effective_pressure < SELF_HEAL_PRESSURE_LOW {
+                cloud.force_draw_everything();
+            }
             #[cfg(target_os = "linux")]
             {
                 let cells_ptr = frame.cells.as_ptr();

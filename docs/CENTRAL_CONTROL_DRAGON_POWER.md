@@ -413,7 +413,14 @@ call `observe(...)` once per frame and apply the returned
   (`madvise(MADV_DONTNEED)`) to clear potential stuck state. The
   `SELF_HEAL_HEALTH_COOLDOWN_SECS` (30s) cooldown prevents a
   persistently unhealthy process from force-redrawing every
-  recompute cycle.
+  recompute cycle. S-master-HUNT-23 adds a congestion guard: when
+  `effective_pressure >= SELF_HEAL_PRESSURE_LOW` the frame
+  invalidate is skipped (a full-screen redraw into an
+  output-congested pipe is the largest possible ANSI burst and
+  worsens the stall — the exact VTE/foot stuck-then-auto-dismiss
+  symptom); the madvise is kept. The health frame signal is
+  utilization (`work_s / frame_period_s`), not absolute ms, so a
+  busy-but-keeping-up terminal is not classified unhealthy.
 
 **P2 evaluation order.** P2 (health mitigation) is checked *before*
 P1 (scene actions) on every tick. Rationale: P2 is a symptom-level
