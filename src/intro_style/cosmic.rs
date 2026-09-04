@@ -51,7 +51,7 @@ const PHASE4_RAIN_END_MS: u64 = 5_000;
 
 /// Burst particle characters — varied glyphs so the explosion looks like
 /// cosmic debris rather than a uniform dotted cloud.
-pub(crate) const BURST_CHARS: [char; 6] = ['*', '+', '#', '%', '&', '@'];
+pub(crate) const BURST_CHARS: [char; 6] = ['c', '*', '.', '0', 'O', 'o'];
 
 /// Particle lifetime in seconds. Short enough to feel like a phosphor
 /// afterglow; long enough to leave a visible trail during the burst.
