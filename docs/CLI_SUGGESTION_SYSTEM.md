@@ -2,11 +2,19 @@
 
 # CLI Suggestion System — "tip: a similar value exists" / "tip: a similar argument exists"
 
-> Status: CONSISTENCY AUDIT + STRESSTEST (v60.0.0-beta.1, Z-master-1X).
+> Status: CONSISTENCY AUDIT + STRESSTEST (v60.0.0-beta.1, Z-master-1X)
+> and CLI UX CENTRALIZATION (v100.0.0-nightly.1, 2026-09-04).
 > The legacy `Did you mean '<value>'?` format was scattered across
 > 14+ source files with no consistency. This document records the
 > consolidated "tip:" format, the helper API, and the stresstest
 > coverage that verifies every CLI surface suggests on typos.
+>
+> 2026-09-04 update: `src/cli/ux.rs` is now THE presentation contract
+> module — `format_value_suggestion` moved there from
+> `cli/suggestion.rs`, and the `extract_clap_suggestion` string-parser
+> (which re-appended a duplicate flag tip in main.rs) was deleted;
+> clap's own render prints the argument tip exactly once. See
+> `src/cli/ux.rs` module doc for the full canonical error shapes.
 
 ## 1. Two canonical formats
 
@@ -19,12 +27,13 @@ Both formats use the `tip:` prefix (matching clap's own suggestion
 output) and are rendered as a newline-prefixed line so they append
 cleanly to any error message.
 
-## 2. Helper API (`src/cli/suggestion.rs`)
+## 2. Helper API (`src/cli/ux.rs` presentation + `src/cli/suggestion.rs` engine)
 
 ### Value suggestion
 
 ```rust
 /// Returns `\n  tip: a similar value exists: '<value>'`.
+/// (lives in src/cli/ux.rs — the CLI UX contract module)
 pub(crate) fn format_value_suggestion(suggestion: &str) -> String
 ```
 
@@ -35,26 +44,29 @@ config keys). Call sites that already have the closest match via
 
 ```rust
 let tip = crate::cli::suggestion::closest_value_match(raw, allowed)
-    .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
+    .map(|s| crate::cli::ux::format_value_suggestion(&s))
     .unwrap_or_default();
 ```
 
 ### Argument suggestion
 
-Flag suggestions are rendered inline with the SUGGESTION color semantic
-(S-master-HUNT-5 owner color contract 2026-09-03: suggestions render
-WHITE — the NeonWhite head stop #DCEBFF on truecolor, near-white 255 at
-256-color, bright-white 97 at 16-color, plain text under NO_COLOR;
-previously warn-yellow, which blurred guidance into warnings). Value
-tips embedded in error messages are painted the same way automatically
-by the line-aware `output::eprintln_error_labeled` renderer (any line
-starting with `tip:` / `hint:` / `[possible values` inside an
-error/warning block). Standalone hint lines use
-`output::eprintln_suggestion_line`. Legacy: suggestions were rendered
-via bare `eprintln!` with ANSI color
-wrappers in `main.rs` and `argv_expand.rs` — no helper function is
-needed because the format string is always `tip: a similar argument
-exists: '--<flag>'`.
+Flag suggestions are rendered by clap ITSELF: the `suggestions`
+feature puts the tip into the error's `SuggestedArg` context, and the
+cosmostrix-configured `valid` style (in `cli::clap_styles()`, part of
+the 2026-09-04 style harmony) renders it WHITE — the NeonWhite head
+stop #DCEBFF on truecolor, matching the S-master-HUNT-5 owner color
+contract for the ux-side value tips. Value tips embedded in error
+messages are painted the same way automatically by the line-aware
+`output::eprintln_error_labeled` renderer (any line starting with
+`tip:` / `hint:` / `[possible values` inside an error/warning block).
+Standalone hint lines use `output::eprintln_suggestion_line`.
+
+History: v50.0.0-beta.7 → v100.0.0-nightly.1 previously kept a
+string-parser (`extract_clap_suggestion`) that scraped clap's
+rendered tip so main.rs could append a SECOND tip line — producing
+the duplicate "tip: a similar argument exists" lines the owner
+reported on 2026-09-04. Deleted; the render is clap's own, exactly
+once.
 
 ## 3. Engine: `closest_value_match` + `edit_distance`
 
@@ -72,12 +84,12 @@ plain Levenshtein, single insertion/deletion/substitution = distance
 resolve to the FIRST candidate at the best distance.
 
 For FLAG suggestions, clap's own `suggestions` feature (jaro
-similarity) is reused via `extract_clap_suggestion()` — no
-duplicate engine.
+similarity) renders the tip directly — no custom engine, no
+re-rendering, no hand-maintained flag list.
 
 ## 4. Call sites (full sweep)
 
-### Value suggestions (use `format_value_suggestion`)
+### Value suggestions (use `cli::ux::format_value_suggestion`)
 
 | File | Surface | Candidates |
 |------|---------|------------|
@@ -87,14 +99,15 @@ duplicate engine.
 | `src/config/config_apply.rs` | `intro-color`, `scene` | builtin themes + custom palettes |
 | `src/scene/charset.rs` | `--charset` | `CHARSET_PRESET_NAMES` |
 | `src/cli/mod.rs` | `--color` (unknown color) | builtin theme names |
-| `src/config/config_hints/mod.rs` | unknown config key | top-level config keys |
+| `src/config/config_hints/mod.rs` | unknown config key | top-level config keys (uses the shared `edit_distance` from `cli/suggestion.rs`) |
 
-### Argument suggestions (inline `eprintln!`)
+### Argument suggestions (rendered by clap / the ux contract)
 
 | File | Surface | Source |
 |------|---------|-------|
-| `src/main.rs` | unknown `--foo` flag | `extract_clap_suggestion` (reads clap's own tip) |
-| `src/cli/argv_expand.rs` | `-mfs…` typo (attached form) | hardcoded `--msg-fill-style` |
+| `src/cli/ux.rs` (`exit_clap_error`) | every clap parse error | clap's own `SuggestedArg` context — real usage line + help footer appended |
+| `src/cli/argv_expand.rs` | `-mfs…` typo (attached form) | hardcoded `--msg-fill-style` via `ux::die_input_with_usage` |
+| `src/main.rs` (`prevalidate_cli_args`) | removed-flag migration hints | REMOVED_FLAGS table via `ux::die_input_with_usage` |
 
 ## 5. Stresstest coverage
 
@@ -129,12 +142,12 @@ The suggestion engine is stresstested at two levels:
 - custom scene `afternon` → `tip: a similar value exists: 'afternoon'`
 - config key `colr` → `tip: a similar value exists: 'color'`
 
-### Flag suggestion tests (`extract_clap_suggestion`)
+### Flag suggestion tests (structured context, `tests/clap_suggestion.rs`)
 
-- `--no-effecs` → `tip: a similar argument exists: '--no-effects'`
-- `--msg-fill-styl` → `tip: a similar argument exists: '--msg-fill-style'`
-- `--crystal-drago` → `tip: a similar argument exists: '--crystal-dragon'`
-- No suggestion when clap finds no close match
+- `--test` → `SuggestedArg` context points at `--testconf` (the owner's 2026-09-04 case)
+- `--no-effecs` → `SuggestedArg` context points at `--no-effects` (the v50.0.0-beta.7 rename regression)
+- Distant typos (`--zzzzqqqq`) carry no `SuggestedArg` context (no noise)
+- `cli/ux.rs` tests lock the render contract: real usage line (never the suggestion-narrowed `Usage: cosmostrix --testconf`), exactly one tip line, help footer present
 
 ### Negative tests (no false suggestions)
 
@@ -150,7 +163,7 @@ Z-master-1X audit added a shell-based end-to-end stresstest that runs
 the actual `./target/debug/cosmostrix` binary with a battery of typo /
 wrong-value / edge-case inputs and verifies the output format. This
 catches integration issues the unit tests miss (clap's full error
-rendering, argv expansion, the `main.rs` append path).
+rendering, argv expansion, the ux-contract error shapes).
 
 Run it with:
 

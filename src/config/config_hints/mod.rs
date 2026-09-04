@@ -251,7 +251,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         if let Some(suggestion) = closest_top_level_key(key) {
             return Some(format!(
                 "'{key}': unknown key (likely typo){}\n                 Run 'cosmostrix --testconf' to see all valid config keys.",
-                crate::cli::suggestion::format_value_suggestion(suggestion)
+                crate::cli::ux::format_value_suggestion(suggestion)
             ));
         }
     }
@@ -313,30 +313,11 @@ fn closest_top_level_key(input: &str) -> Option<&'static str> {
     best.map(|(s, _)| s)
 }
 
-/// Compute Levenshtein edit distance between two strings.
-/// Used for "did you mean" typo suggestions.
-fn edit_distance(a: &str, b: &str) -> usize {
-    let a: Vec<char> = a.chars().collect();
-    let b: Vec<char> = b.chars().collect();
-    let (m, n) = (a.len(), b.len());
-    if m == 0 {
-        return n;
-    }
-    if n == 0 {
-        return m;
-    }
-    let mut prev: Vec<usize> = (0..=n).collect();
-    let mut curr: Vec<usize> = vec![0; n + 1];
-    for i in 1..=m {
-        curr[0] = i;
-        for j in 1..=n {
-            let cost = if a[i - 1] == b[j - 1] { 0 } else { 1 };
-            curr[j] = (prev[j] + 1).min(curr[j - 1] + 1).min(prev[j - 1] + cost);
-        }
-        std::mem::swap(&mut prev, &mut curr);
-    }
-    prev[n]
-}
+// v100.0.0-nightly.1 CLI UX centralization (2026-09-04): the local
+// edit_distance copy was removed — the shared engine in
+// cli/suggestion.rs is imported instead. The copies in this file and
+// cli/mod.rs predated the v80 consolidation; this was the last one.
+use crate::cli::suggestion::edit_distance;
 
 /// Returns `true` if `field` is a recognized colors-custom field name.
 /// Mirrors `configfile::is_valid_colors_custom_field` (which is private).

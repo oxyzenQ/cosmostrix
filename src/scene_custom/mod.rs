@@ -617,7 +617,7 @@ fn unknown_custom_scene_error(name: &str, available: &[String]) -> String {
         name,
         &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
     )
-    .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
+    .map(|s| crate::cli::ux::format_value_suggestion(&s))
     .unwrap_or_default();
     format!(
         "error: unknown custom scene '{name}'{tip}\nexpected one of: {list}\n\n  Use --list-scenes to see built-in and custom scenes."

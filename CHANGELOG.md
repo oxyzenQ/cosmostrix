@@ -9,6 +9,70 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — CLI UX centralized into cli/ux.rs (owner mandate 2026-09-04, "simple masterclass")
+
+Owner report: CLI UX was inconsistent, untidy, and duplicated across
+surfaces — `--test` printed the tip line TWICE and a misleading
+"Usage: cosmostrix --testconf"; `-g` printed a bare error with no
+usage; different error kinds had different shapes; scattered error
+rendering paths made maintenance risky. Refactored into ONE contract
+module with a single render path per error family.
+
+- New central file `src/cli/ux.rs` — THE contract module for every
+  user-facing CLI error, tip, usage line, and help footer. Holds the
+  fatal helpers moved from `output/ux.rs` (die_input, die_config,
+  or_exit — re-exported as `crate::ux` so all ~50 call sites resolve
+  unchanged), the new clap-error bridge, and the canonical suffixes.
+  `src/output/ux.rs` deleted; `cli/` is the central CLI folder.
+- `cli::ux::exit_clap_error(e, cmd)` is now the single exit path for
+  clap parse errors. Fixes, with structured clap contexts (no string
+  parsing):
+  1. Duplicate tip: the old main.rs interceptor printed clap's error
+     (which already contains the tip) and appended its own
+     "tip: a similar argument exists" line scraped from the rendered
+     string by `extract_clap_suggestion` — deleted along with the
+     scraper (owner's `--test`/`--clr` paste showed the doubled tip).
+  2. Misleading usage: clap injects the suggested flag into usage
+     generation, so `--test` rendered "Usage: cosmostrix --testconf"
+     (reads as if --testconf were required, and diverged from `--clr`
+     which showed "Usage: cosmostrix [OPTIONS]" — same error kind,
+     two shapes). The Usage context is now replaced with the real
+     full usage from `Command::render_usage()` for every error kind.
+  3. Shape drift: missing-value errors (`-g`) had no usage line at
+     all; no error kind carried the "For more information, try
+     '--help'." footer (clap cannot render it: --help is intercepted
+     manually for the curated manual, so clap has no Help-action
+     flag). Every fatal CLI error now ends: message + tips, real
+     usage (structural errors), footer.
+- Style harmony in `clap_styles()`: clap's defaults rendered tips
+  GREEN, errors plain red, invalid values generic yellow — three hues
+  that disagreed with the branded ux path. clap now renders errors
+  bold brand red #FF5A5A, tips suggestion white #DCEBFF, invalid
+  values warn yellow #FFEB3C — verified byte-identical SGR codes on
+  both paths via a PTY harness.
+- Suggestion consolidation: `format_value_suggestion` moved to
+  cli/ux.rs (presentation); the engine stays in cli/suggestion.rs;
+  the last duplicate `edit_distance` copy (config_hints) now imports
+  the shared engine. `main.rs` switched to the non-consuming
+  `try_get_matches_from_mut` so the Command stays available to the
+  error path.
+- Pre-clap unknown-flag errors (REMOVED_FLAGS migration hints, -mfs
+  typo guard) route through the new `die_input_with_usage` so they
+  carry the same usage + footer suffix; CLI flag NaN gates
+  (--duration, --crystal-dragon-secs) misrouted through die_config
+  now use die_input; the stale "exit 1" doc claim on die_config
+  corrected (shipped behavior is exit 2).
+- The misleading main.rs comment claiming "--help always works even
+  if other flags are malformed" corrected to the real contract
+  (clap-level parse errors fire first; making help win would need an
+  ArgAction::Help interception — deliberately not done for behavior
+  stability).
+- Tests: 3 structured suggestion-context tests replace the 5 obsolete
+  string-parser tests; 4 new contract tests in cli/ux.rs lock the
+  render (real usage never the narrowed form, exactly one tip line,
+  footer shape). Stresstests: cli_suggestion 18/18 PASS,
+  cli_config 47/47 PASS with the new shapes.
+
 ### consistency: v100.0.0-nightly.1 — central_control_dragon_power renamed to central_control_power_dragon (owner mandate 2026-09-04)
 
 Owner report: the module folder name `src/central_control_dragon_power/`

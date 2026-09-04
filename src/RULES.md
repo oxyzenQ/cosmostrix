@@ -37,7 +37,7 @@ src/
 ├── central_control_power_dragon/  <- power management, self-healer, thermal
 ├── central_control_rains/     <- rain visual tuning constants
 ├── chroma_dragon_engine/      <- coloring engine (palette, shaders, post-FX)
-├── cli/                       <- CLI args, parsing, help, app struct
+├── cli/                       <- CLI args, parsing, help, app struct, UX contract (ux.rs)
 ├── clock/                     <- wall-clock helpers (Howard Hinnant style)
 ├── config/                    <- config.toml parsing, live-reload, hints
 ├── cosmic_dragon_engine/      <- rendering engine (cloud, frame, terminal, runtime)
@@ -50,7 +50,7 @@ src/
 ├── interactive/               <- event loop, HUD, input handling (intro runner glue: event_loop_intro.rs)
 ├── intro_style/               <- cinematic intro styles (one file per style: cosmic.rs / logo.rs + mod.rs dispatch)
 ├── msg_fill_style/            <- message overlay reveal styles (one file per style: typewriter/fade/words/slide/pulse/instant/engrave.rs + mod.rs dispatch)
-├── output/                    <- output, report, verbose, ux, message
+├── output/                    <- output, report, verbose, message (ux.rs moved to cli/)
 ├── platform/                  <- platform detection, panic hook, update
 ├── safepath/                  <- path validation (security)
 ├── scene/                     <- scene + charset + charset_custom

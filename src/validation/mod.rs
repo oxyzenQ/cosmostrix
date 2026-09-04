@@ -382,7 +382,7 @@ fn validate_enum_value(name: &str, raw: &str, allowed: &[&str]) -> Result<(), St
         // closest_color_name) so every enum surface suggests on typos.
         let suggestion = crate::cli::suggestion::closest_value_match(raw, allowed);
         let tip = match &suggestion {
-            Some(s) => crate::cli::suggestion::format_value_suggestion(s),
+            Some(s) => crate::cli::ux::format_value_suggestion(s),
             None => String::new(),
         };
         Err(format!(

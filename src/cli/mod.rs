@@ -3,6 +3,12 @@
 
 //! CLI presentation helpers: help templates, clap styling, color/charset scheme
 //! parsing, cycling, and terminal color detection.
+//!
+//! v100.0.0-nightly.1 CLI UX centralization (owner mandate 2026-09-04):
+//! `cli/ux.rs` is THE contract module for user-facing CLI errors, tips,
+//! usage lines, and help footers — every fatal CLI path renders through
+//! it (see that file's module doc for the canonical shapes and the list
+//! of historical defects it fixes).
 
 use std::env;
 
@@ -75,6 +81,22 @@ pub(crate) fn clap_styles() -> ClapStyles {
         )
         .literal(ClapStyle::new().effects(ClapEffects::BOLD))
         .placeholder(ClapStyle::new())
+        // v100.0.0-nightly.1 style harmony (owner mandate 2026-09-04,
+        // "totally refactor styles UX cli"): clap's default styles left
+        // error labels plain red, tip/suggestion lines GREEN (clap's
+        // default `valid` color), and invalid values YELLOW — three
+        // hues that disagreed with the branded ux.rs path (brand red
+        // #FF5A5A errors, suggestion white #DCEBFF tips, warn yellow
+        // #FFEB3C). These three entries align clap's error rendering
+        // with the crate::output semantic palette so both surfaces
+        // (clap-rendered and ux-rendered) now look identical:
+        .error(
+            ClapStyle::new()
+                .effects(ClapEffects::BOLD)
+                .fg_color(Some(ClapColor::Rgb(ClapRgbColor(255, 90, 90)))),
+        )
+        .valid(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(220, 235, 255)))))
+        .invalid(ClapStyle::new().fg_color(Some(ClapColor::Rgb(ClapRgbColor(255, 235, 60)))))
 }
 
 // --- Charset helpers ---
@@ -264,7 +286,7 @@ pub fn parse_color_scheme(s: &str) -> Result<ColorScheme, String> {
         if let Some(name) = suggestion {
             format!(
                 "error: unknown color '{s}'{}\n  Use --list-colors to see all available colors.",
-                crate::cli::suggestion::format_value_suggestion(name)
+                crate::cli::ux::format_value_suggestion(name)
             )
         } else {
             format!("error: unknown color '{s}'\n\n  Use --list-colors to see available colors.")
@@ -409,3 +431,4 @@ pub(crate) mod cli_parse;
 pub(crate) mod early_returns;
 pub(crate) mod help_detail;
 pub(crate) mod suggestion;
+pub(crate) mod ux;

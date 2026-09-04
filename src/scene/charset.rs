@@ -129,7 +129,7 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
             // charset_from_str has no config access; --list-charsets
             // lists them.
             let tip = crate::cli::suggestion::closest_value_match(&spec, CHARSET_PRESET_NAMES)
-                .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
+                .map(|s| crate::cli::ux::format_value_suggestion(&s))
                 .unwrap_or_default();
             format!(
                 "error: unknown charset '{spec}'{tip}\n\n  Use --list-charsets to see available charsets."

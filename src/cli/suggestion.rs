@@ -1,59 +1,22 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! CLI suggestion extraction — extracted from `main.rs` to keep that
-//! file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
+//! CLI suggestion ENGINE — the value-suggestion core.
 //!
-//! Owns the `extract_clap_suggestion()` helper: a pure string-parsing
-//! function that reads clap's OWN "tip:" line from its error output
-//! and returns the first suggested flag name (without the `--` prefix).
+//! Owns the shared edit-distance machinery (`edit_distance`,
+//! `closest_value_match`) that sibling modules use to build
+//! closest-match lookups over domain-specific candidate lists
+//! (colors, scenes, charsets, enum values, custom block names).
+//! Presentation (the canonical "tip:" line format) lives in
+//! `cli/ux.rs` — the CLI UX contract module.
 //!
-//! Re-exported from `main.rs` via `pub(crate) use` so all existing
-//! call sites continue to resolve unchanged.
-
-/// Extract clap's OWN suggested flag from its error string.
-///
-/// When clap's `suggestions` feature is enabled and the user types an
-/// unknown flag that is close to a known one, clap appends a line:
-///
-///   ```text
-///   tip: a similar argument exists: '--no-effects'
-///   ```
-///
-/// (or the plural form `tip: some similar arguments exist: '--a', '--b'`).
-///
-/// This function parses that line and returns the FIRST suggested flag
-/// name (without the `--` prefix). By reusing clap's own suggestion
-/// instead of maintaining a separate `KNOWN_LONG_FLAGS` list + Levenshtein
-/// engine, we guarantee:
-///
-/// 1. The "tip:" line from clap and our `format_argument_suggestion`
-///    line ALWAYS agree on which flag to suggest (no more `--clr` ->
-///    tip says `color-bg` but our line says `color` disagreement).
-/// 2. No hand-maintained flag list to drift when flags are renamed
-///    (the v50.0.0-beta.7 `--disable-effects` -> `--no-effects` rename
-///    missed `KNOWN_LONG_FLAGS`, which was the root cause of this bug).
-/// 3. Zero duplicate-engine maintenance overhead.
-///
-/// Returns `None` when clap did not find a close match (no "tip:" line
-/// in the error string).
-pub(crate) fn extract_clap_suggestion(err_str: &str) -> Option<String> {
-    // Clap renders the tip line in two forms:
-    //   singular: "tip: a similar argument exists: '--FLAG'"
-    //   plural:   "tip: some similar arguments exist: '--FLAG1', '--FLAG2'"
-    // Both contain the pattern: '-- followed by the flag name and a closing '
-    // We find the FIRST occurrence after "tip:" to extract the primary suggestion.
-    let tip_marker = "tip:";
-    let tip_pos = err_str.find(tip_marker)?;
-    let after_tip = &err_str[tip_pos..];
-    // Find the first '--FLAG' pattern (clap always wraps flag names in single
-    // quotes with the -- prefix inside the quote).
-    let quote_flag_marker = "'--";
-    let flag_start = after_tip.find(quote_flag_marker)? + quote_flag_marker.len();
-    let rest = &after_tip[flag_start..];
-    let flag_end = rest.find('\'')?;
-    Some(rest[..flag_end].to_string())
-}
+//! History (v100.0.0-nightly.1, 2026-09-04): this file previously
+//! also carried `extract_clap_suggestion`, a string-parser that
+//! scraped clap's rendered "tip:" line to re-append a duplicate tip
+//! in main.rs. Deleted — clap's own render already prints the tip
+//! exactly once, styled white via the `valids` entry in
+//! `clap_styles()`. Structured tests for that contract now live in
+//! `tests/clap_suggestion.rs` and `cli/ux.rs`.
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Value suggestion (v80.0.0-beta.1 Z-master-1B did-you-mean audit)
@@ -117,22 +80,6 @@ pub(crate) fn closest_value_match(input: &str, candidates: &[&str]) -> Option<St
         }
     }
     best.map(|(name, _)| name)
-}
-
-/// Format a VALUE suggestion as a consistent "tip:" line.
-///
-/// Returns `\n  tip: a similar value exists: '<value>'`. This is the
-/// canonical format for all enum/value typo suggestions (colors,
-/// scenes, charsets, glitch-level, msg-fill-style, etc.) —
-/// replacing the legacy `Did you mean '<value>'?` format that was
-/// scattered across 14+ files with no consistency.
-///
-/// For FLAG suggestions (unknown `--foo` flags), the format is
-/// `tip: a similar argument exists: '--flag'` — but those are
-/// rendered inline via `eprintln!` with ANSI color wrappers in
-/// `main.rs` and `argv_expand.rs`, so no helper is needed there.
-pub(crate) fn format_value_suggestion(suggestion: &str) -> String {
-    format!("\n  tip: a similar value exists: '{suggestion}'")
 }
 
 #[cfg(test)]

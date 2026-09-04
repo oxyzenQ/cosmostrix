@@ -253,7 +253,7 @@ pub(crate) fn load_custom_palette(
             name,
             &available.iter().map(|s| s.as_str()).collect::<Vec<_>>(),
         )
-        .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
+        .map(|s| crate::cli::ux::format_value_suggestion(&s))
         .unwrap_or_default();
         format!(
             "custom color '{name}' not found in config{tip}\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."

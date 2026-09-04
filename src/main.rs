@@ -57,13 +57,18 @@ pub(crate) use bench::*;
 // Group: CLI subsystem (cli.rs → mod.rs, cli_parse.rs, app.rs, help_detail.rs)
 mod cli;
 pub(crate) use cli::{app, cli_parse, help_detail};
-// v50.0.0-beta.7 LOC refactor: extract_clap_suggestion + canonicalize_runtime_args
-// moved to cli/suggestion.rs + cli/canonicalize.rs to keep main.rs under 800 LOC.
-// Re-exported at crate root so 'use crate::extract_clap_suggestion' in
-// tests/clap_suggestion.rs + 'crate::canonicalize_runtime_args' in
-// chroma_dragon_engine/tests/color_detection.rs continue to resolve.
+// v50.0.0-beta.7 LOC refactor: canonicalize_runtime_args moved to
+// cli/canonicalize.rs to keep main.rs under 800 LOC. Re-exported at
+// crate root so 'crate::canonicalize_runtime_args' in
+// chroma_dragon_engine/tests/color_detection.rs continues to resolve.
 pub(crate) use cli::canonicalize::canonicalize_runtime_args;
-pub(crate) use cli::suggestion::extract_clap_suggestion;
+// v100.0.0-nightly.1 CLI UX centralization (owner mandate 2026-09-04):
+// cli/ux.rs is THE contract module for every user-facing CLI error,
+// tip, usage line, and help footer (moved from output/ux.rs; the
+// clap-error bridge from this file's old interceptor also lives
+// there). Re-exported at the crate root so all ~50 pre-existing
+// `crate::ux::` call sites resolve unchanged.
+pub(crate) use cli::ux;
 
 // Group: Engine subsystem — three dragon engines under src/engine/
 mod engine;
@@ -127,9 +132,10 @@ mod droplet;
 // in interactive/event_loop_intro.rs)
 mod interactive;
 
-// Group: Output subsystem (output.rs → mod.rs, report.rs, verbose.rs, ux.rs, message.rs)
+// Group: Output subsystem (output.rs → mod.rs, report.rs, verbose.rs, message.rs)
+// (ux.rs moved to cli/ux.rs — see the CLI group comment above.)
 mod output;
-pub(crate) use output::{message, report, ux};
+pub(crate) use output::{message, report};
 
 // Group: Platform subsystem (platform.rs → mod.rs, panic_hook.rs, update.rs)
 mod platform;
@@ -259,7 +265,9 @@ fn main() -> std::io::Result<()> {
     // accepted as a hidden clap boolean).  The -mb shorthand itself is
     // NOT in REMOVED_FLAGS, so it passes prevalidation cleanly.
     if let Err(e) = prevalidate_cli_args(&argv) {
-        ux::die_input(e);
+        // Pre-clap unknown-flag errors carry the real usage line +
+        // help footer (ux contract; see cli/ux.rs).
+        ux::die_input_with_usage(e);
     }
 
     // Expand -mb "text" into --message-border -m "text"
@@ -276,51 +284,28 @@ fn main() -> std::io::Result<()> {
     // rewritten pre-parse; -mfss typos exit with a did-you-mean tip).
     let argv = crate::cli::argv_expand::expand_argv_shorthands(&argv);
 
-    let matches = cmd.try_get_matches_from(&argv).unwrap_or_else(|e| {
-        // Intercept clap's "unexpected argument" errors and append a
-        // "tip: a similar argument exists" suggestion. The suggestion
-        // is extracted from clap's OWN "tip:" line (not a separate
-        // edit-distance engine), which guarantees the two lines always
-        // agree on which flag to suggest and eliminates the
-        // hand-maintained flag list that caused the v50.0.0-beta.7
-        // drift bug (--no-effects was missing from KNOWN_LONG_FLAGS
-        // after the rename from --disable-effects).
-        let err_str = e.to_string();
-        // Only intercept "unexpected argument" errors (not missing-value,
-        // not invalid-value, etc.). For those, fall through to clap's
-        // default error display.
-        if err_str.contains("unexpected argument") {
-            if let Some(suggestion) = extract_clap_suggestion(&err_str) {
-                // Print clap's original error (includes the "tip:" line +
-                // usage), then append our "tip: a similar argument
-                // exists" line using the SAME flag clap already chose.
-                //
-                // S-master-HUNT-5 (owner color contract 2026-09-03):
-                // suggestions render WHITE (suggestion semantic — the
-                // NeonWhite head stop), not warn-yellow. A tip is
-                // guidance, not a warning.
-                e.print().ok();
-                eprintln!(
-                    "{}  tip: a similar argument exists: '--{}'{}",
-                    crate::output::suggestion_open(),
-                    suggestion,
-                    crate::output::reset()
-                );
-                std::process::exit(2);
-            }
-        }
-        // No suggestion found (clap didn't find a close match) — fall
-        // through to clap's default error display.
-        e.exit();
-    });
-    let mut args = Args::from_arg_matches(&matches).unwrap_or_else(|e| e.exit());
+    // try_get_matches_from_mut (not the consuming try_get_matches_from):
+    // the error path needs the Command afterward to render the real
+    // usage line and re-format the error with styles (see cli/ux.rs).
+    let matches = match cmd.try_get_matches_from_mut(&argv) {
+        Ok(m) => m,
+        Err(e) => cli::ux::exit_clap_error(e, &mut cmd),
+    };
+    let mut args =
+        Args::from_arg_matches(&matches).unwrap_or_else(|e| cli::ux::exit_clap_error(e, &mut cmd));
 
     // --help: print the full curated reference manual and exit.
     //
-    // Checked early (before --dump-config, --doctor, --version, etc.) so
-    // `cosmostrix --help` always works even if other flags are malformed
-    // or the config file is broken. This mirrors how clap's auto-help
-    // behaves: help wins over everything else.
+    // Checked early (before --dump-config, --doctor, --version, etc.)
+    // so `cosmostrix --help` works even when the config file is broken
+    // or later-stage validation would fail. Precedence limit (accurate
+    // contract): clap-level parse errors (unknown flag, invalid value)
+    // still fire FIRST because parsing must complete before the help
+    // field can be read — `cosmostrix --help --fps abc` reports the
+    // invalid --fps. Making help win over parse errors would require
+    // an ArgAction::Help arg intercepted as DisplayHelp; deliberately
+    // not done (behavior stability) — see the v100.0.0-nightly.1
+    // CLI UX centralization notes in cli/ux.rs.
     // v50.0.0-beta.7 LOC refactor: pre-config-apply early-return commands
     // extracted to main_early_returns.rs.
     if let Some(result) = crate::cli::early_returns::handle_pre_config_returns(&mut args) {
@@ -473,7 +458,7 @@ fn main() -> std::io::Result<()> {
 
     let duration_s = args.duration.map(|s| {
         if !s.is_finite() {
-            ux::die_config(format!("--duration {s}: must be a finite number"));
+            ux::die_input(format!("--duration {s}: must be a finite number"));
         }
         if s > 0.0 {
             return ux::or_exit(validate_f64_range("--duration", s, 0.1, 86400.0));
@@ -489,7 +474,7 @@ fn main() -> std::io::Result<()> {
     // clear error instead of silently poisoning the engine control.
     let crystal_dragon_secs = args.crystal_dragon_secs.map(|s| {
         if !s.is_finite() {
-            ux::die_config(format!(
+            ux::die_input(format!(
                 "--crystal-dragon-secs {s}: must be a finite number"
             ));
         }

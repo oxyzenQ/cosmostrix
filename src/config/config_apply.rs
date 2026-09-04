@@ -194,7 +194,7 @@ pub(crate) fn apply_config_and_runtime_defaults(
             let hint = match suggestion {
                 Some(name) => format!(
                     "{}\n  Use --list-colors to see all available themes.",
-                    crate::cli::suggestion::format_value_suggestion(name)
+                    crate::cli::ux::format_value_suggestion(name)
                 ),
                 None => String::from("\n  Use --list-colors to see all available themes."),
             };
@@ -639,7 +639,7 @@ fn scene_suggestion_tip(normalized: &str, cfg: &HashMap<String, String>) -> Stri
     let custom_refs: Vec<&str> = custom.iter().map(|s| s.as_str()).collect();
     candidates.extend(custom_refs);
     crate::cli::suggestion::closest_value_match(normalized, &candidates)
-        .map(|s| crate::cli::suggestion::format_value_suggestion(&s))
+        .map(|s| crate::cli::ux::format_value_suggestion(&s))
         .unwrap_or_default()
 }
 
