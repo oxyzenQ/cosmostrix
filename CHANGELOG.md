@@ -9,6 +9,35 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — fatal terminal-session error renders once, branded (hunt follow-up 2026-09-04)
+
+Found while verifying task-5 in a headless environment: an unhandled
+io::Error out of `run_interactive` rendered TWICE — first a plain
+`error: {e}` line written directly by main, then (because `main`
+returned the Err) Rust's default main-Err handler printed a second
+line in Debug format: `Error: Os { code: 6, kind: Uncategorized,
+message: "..." }`. Two renders, two styles, one failure — and the
+second was raw Debug noise, violating main.rs's own documented
+contract ("never propagating a std::io::Error that Rust would render
+as a debug-looking `Error: ...`").
+
+- main.rs: the fatal path now renders ONCE through
+  `eprintln_error_labeled` (branded red, `eprintln_safe!` write —
+  same bulletproof-write contract as the v25 terminal-close coredump
+  fix: write_fmt with discarded errors, no panic chain), then exits
+  explicitly with code 1 after the post-exit warning drain.
+- Exit code 1 preserved (documented contract:
+  TERMINAL_LIFECYCLE_MATRIX.md headless row).
+- ENXIO (no controlling terminal — cron, ssh without -t, CI, the most
+  common trigger) gains a headless tip pointing at the non-interactive
+  modes: `--benchmark`, `--doctor`, `--dump-config`.
+- TERMINAL_LIFECYCLE_MATRIX.md row 12 + terminal-setup section updated
+  (also fixed a pre-existing ordering inaccuracy: the cleanup burst
+  precedes the error line, not the other way around).
+- No A/B benchmark: fatal exit path, render loop untouched.
+- Gates: fmt clean, clippy clean, 2242/2242 unit tests, stresstest
+  28/28, LOC OK (main.rs 798/800).
+
 ### ux: v100.0.0-nightly.1 — verbose line format unified to one value column (owner hunt 2026-09-04)
 
 Owner hunt area: the `-v` verbose line format. Two independent defects

@@ -751,10 +751,23 @@ fn main() -> std::io::Result<()> {
     // double-panic → `abort()` → systemd-coredump. Bulletproof write
     // breaks the chain.
     if let Err(ref e) = result {
-        use std::io::Write;
+        // v100.0.0-nightly.1 (owner hunt): single branded render + explicit
+        // exit 1 (below). Previously this printed a PLAIN "error: {e}" line
+        // and returned the Err, so Rust's default main handler printed a
+        // SECOND line in Debug format ("Error: Os { code: 6, ... }"). Exit
+        // code stays 1 (TERMINAL_LIFECYCLE_MATRIX.md headless row). Goes
+        // through eprintln_safe! (write_fmt, errors discarded) — the same
+        // bulletproof-write contract as the v25 coredump fix above.
         crate::terminal::restore_terminal_best_effort();
-        let _ = std::io::stderr().write_fmt(format_args!("error: {e}\n"));
-        let _ = std::io::stderr().flush();
+        let mut msg = format!("{e}");
+        // ENXIO = no controlling terminal (headless: cron, ssh without -t,
+        // CI) — the most common trigger. Point at the non-interactive modes.
+        if e.raw_os_error() == Some(libc::ENXIO) {
+            msg.push_str(
+                "\n  Interactive mode needs a controlling terminal; this session is headless.\n  Non-interactive alternatives: --benchmark, --doctor, --dump-config.",
+            );
+        }
+        crate::output::eprintln_error_labeled(&msg);
     }
 
     if args.verbose && result.is_ok() {
@@ -776,5 +789,10 @@ fn main() -> std::io::Result<()> {
     // family drains only under --verbose (owner bug: exposed without -v).
     crate::output::post_exit::handle_post_exit_errors(args.verbose);
 
+    // Fatal path exits here (code 1, after the warning drain) so Rust's
+    // default main-Err Debug renderer never fires.
+    if result.is_err() {
+        std::process::exit(1);
+    }
     result
 }

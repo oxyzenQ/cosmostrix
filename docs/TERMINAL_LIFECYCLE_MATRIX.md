@@ -22,7 +22,7 @@ non-destructive behavior.
 | 9 | Windows Terminal reset path | Manual user recovery | User action | User action | User action | N/A | Yes (issue #15) | User-controlled |
 | 10 | tmux | Same as paths 1-7 within tmux pane | Same as triggering path | No (tmux scrollback preserved) | Yes | Same as triggering path | No | No |
 | 11 | ssh | Same as paths 1-7 over remote PTY | Same as triggering path | No (remote scrollback preserved) | Yes | Same as triggering path | Recommended | No |
-| 12 | headless / non-TTY (no controlling terminal) | No terminal state set up — plain interactive run fails fast with `os error 6` (ENXIO), exit 1, after a cleanup burst; `--benchmark` / `--doctor` run cleanly (exit 0) | N/A | N/A | N/A | N/A | No | No |
+| 12 | headless / non-TTY (no controlling terminal) | No terminal state set up — plain interactive run fails fast: cleanup burst, then one branded `error: os error 6` (ENXIO) render with a headless tip pointing at `--benchmark` / `--doctor` / `--dump-config`, exit 1 (v100.0.0-nightly.1: the second raw Rust Debug `Error: Os { ... }` render was removed); `--benchmark` / `--doctor` run cleanly (exit 0) | N/A | N/A | N/A | N/A | No | No |
 | 13 | Benchmark mode (`--benchmark`) | Full via `Terminal::drop()` (same as normal exit) | No | No | Yes | Yes | No | No |
 | 14 | Doctor mode (`--doctor`) | No terminal mode changes — no cleanup needed | N/A | N/A | N/A | N/A | No | No |
 
@@ -187,11 +187,18 @@ over SSH before release if terminal code changes.
 
 When the process has no controlling terminal at all (CI environment,
 cron job, `ssh -T`, piped stdin/stdout with no ctty), a plain
-interactive run fails fast during terminal setup: cosmostrix prints
-`error: No such device or address (os error 6)` (ENXIO from the tty
-open), emits a cleanup burst of reset sequences to stdout, and exits
-with code 1 — no hang, no partial render loop, no terminal state left
-to clean. Verified live 2026-08-30 (see
+interactive run fails fast during terminal setup: cosmostrix emits a
+cleanup burst of reset sequences (restore_terminal_best_effort), then
+prints one branded `error: No such device or address (os error 6)`
+(ENXIO from the tty open) plus a headless tip pointing at the
+non-interactive modes (`--benchmark`, `--doctor`, `--dump-config`),
+and exits with code 1 — no hang, no partial render loop, no terminal
+state left to clean. v100.0.0-nightly.1 (owner hunt 2026-09-04): the
+error used to render TWICE (a plain `error: {e}` line followed by
+Rust's default main-Err Debug render `Error: Os { code: 6, ... }`);
+the fatal path now renders once, branded, via eprintln_error_labeled
+with an explicit exit(1) after the warning drain. Verified live
+2026-08-30 (see
 `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` finding F2).
 
 `--benchmark` and `--doctor` are the supported headless paths: they
