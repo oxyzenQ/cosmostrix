@@ -396,4 +396,5 @@ pub(crate) fn compact_list_text() -> String {
 }
 
 #[cfg(test)]
+#[path = "../../test/theme/tests.rs"]
 mod tests;

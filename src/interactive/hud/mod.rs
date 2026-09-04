@@ -892,14 +892,19 @@ pub(crate) use colors::{brighten_color, compute_chroma_gradient_24};
 mod metrics;
 
 #[cfg(test)]
+#[path = "../../../test/interactive/hud/tests.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "../../../test/interactive/hud/tests_chroma_metrics.rs"]
 mod tests_chroma_metrics;
 #[cfg(test)]
+#[path = "../../../test/interactive/hud/tests_pause_freeze.rs"]
 mod tests_pause_freeze;
 
 #[cfg(test)]
+#[path = "../../../test/interactive/hud/tests_brighten.rs"]
 mod tests_brighten;
 
 #[cfg(test)]
+#[path = "../../../test/interactive/hud/tests_dragon_indicators.rs"]
 mod tests_dragon_indicators;

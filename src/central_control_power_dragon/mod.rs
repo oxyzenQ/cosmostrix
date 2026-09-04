@@ -134,6 +134,7 @@ pub(crate) use self_healer::*;
 pub(crate) use thermal_sampler::*;
 
 #[cfg(test)]
+#[path = "../../test/central_control_power_dragon/audit_tests.rs"]
 mod audit_tests;
 
 // ─── Perf pressure pipeline ─────────────────────────────────────────────────

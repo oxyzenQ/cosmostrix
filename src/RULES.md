@@ -19,7 +19,8 @@ MUST be organized into subdirectories.
   point (`main.rs`) + logically grouped directories. They don't need to
   scan 30+ flat files to understand the codebase structure.
 - **Maintainability**: Each directory is a self-contained subsystem with
-  its own `mod.rs` + submodules + `tests.rs`. Adding a new feature means
+  its own `mod.rs` + submodules; unit tests live in the mirrored `test/`
+  tree (see NIGHT-hunter-1 below). Adding a new feature means
   adding to an existing directory or creating a new one — never adding a
   flat file at the root.
 - **Consistency**: All existing modules already follow this pattern (bench/,
@@ -71,10 +72,19 @@ src/
    (or a thin re-export shim if the module has submodules)
 3. **Declare in `main.rs`**: `mod <module_name>;` (+ `pub(crate) use
    <module_name>::{...};` if re-exporting submodules)
-4. **Add tests**: `src/<module_name>/tests.rs` (Pattern C — dedicated
-   tests/ file)
+4. **Add tests**: `test/<module_name>/tests.rs` (mirrored `test/` tree,
+   declared from the module's `mod.rs` via `#[cfg(test)] #[path = "../../test/<module_name>/tests.rs"] mod tests;`)
 
 **NEVER**: create `src/<module_name>.rs` as a flat file at root.
+
+**NIGHT-hunter-1 (owner mandate 2026-09-04)**: any file whose name contains
+`*test*` lives under the project-root `test/` folder, which mirrors the
+`src/` tree (`src/A/B_tests.rs` → `test/A/B_tests.rs`). The declaring
+`mod.rs` keeps the module identity via a `#[path]` attribute, so the files
+remain unit tests of the binary crate with full private-item access — not
+cargo integration tests. `src/testconf/` is the single sanctioned exception
+(production runtime module for the `--testconf` flag; only its
+`tests.rs`/`tests_validation_order.rs` relocate).
 
 ## Exceptions
 

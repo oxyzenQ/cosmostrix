@@ -129,4 +129,5 @@ pub(crate) fn theme_weight(current_point: u8, theme_index: usize, group_size: us
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/palette_groups/tests.rs"]
 mod tests;

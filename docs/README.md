@@ -112,7 +112,7 @@ cosmostrix --doctor && cosmostrix --benchmark --bench-duration 5s
 
 ## Key Invariants & Doc Maintenance
 
-**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`src/cosmic_dragon_incubator/tests/lock.rs`, `src/engine/chroma_dragon_engine/tests/lock.rs`) must pass on every commit.
+**Invariants**: honesty contract (every flag in `--help`, strict validation); single-threaded (`planned_worker_budget: 0`); CPU-only (no GPU context); zero-alloc hot path; diff-based rendering (never full-screen redraw in interactive mode); lock tests (`test/cosmic_dragon_incubator/tests/lock.rs`, `test/engine/chroma_dragon_engine/tests/lock.rs`) must pass on every commit.
 
 **Adding a doc**: place in `docs/` (or `docs/workflow/`), add to this index, add to README Documentation list, add SPDX header, cross-link from related docs. **Removing/renaming**: grep for old filename, update all cross-references, remove from this index and README list.
 <!-- COSMOSTRIX-DISCLAIMER -->

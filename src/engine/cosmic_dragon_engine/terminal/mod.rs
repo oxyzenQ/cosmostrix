@@ -79,6 +79,7 @@ mod draw;
 mod io_recovery;
 mod last_frame;
 #[cfg(test)]
+#[path = "../../../../test/engine/cosmic_dragon_engine/terminal/p5_tests.rs"]
 mod p5_tests;
 mod restore;
 

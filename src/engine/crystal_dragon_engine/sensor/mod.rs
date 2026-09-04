@@ -297,4 +297,5 @@ pub(crate) fn group_point_range(group: TemperatureGroup) -> (u8, u8) {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/sensor/tests.rs"]
 mod tests;

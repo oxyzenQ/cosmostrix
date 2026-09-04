@@ -74,4 +74,5 @@ pub(crate) mod intro_colors;
 // Tests now live in chroma/tests/ subdir (Pattern C — dedicated tests/).
 // Was previously two separate #[path] declarations (Pattern B).
 #[cfg(test)]
+#[path = "../../../test/engine/chroma_dragon_engine/tests/mod.rs"]
 mod tests;

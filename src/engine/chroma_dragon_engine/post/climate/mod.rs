@@ -243,4 +243,5 @@ pub(crate) fn apply_climate(
 }
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/post/climate/tests.rs"]
 mod tests;

@@ -795,5 +795,5 @@ fn update_rain_droplets(pool: &mut ParticlePool, dt: f32, screen_h: f32) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
-#[path = "logo_tests.rs"]
+#[path = "../../test/intro_style/logo_tests.rs"]
 mod tests;

@@ -542,4 +542,5 @@ pub(crate) mod charset;
 pub(crate) mod charset_custom;
 
 #[cfg(test)]
+#[path = "../../test/scene/tests.rs"]
 mod tests;

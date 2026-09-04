@@ -44,9 +44,11 @@ pub mod bench_progress;
 pub mod bench_report;
 pub mod bench_report_engine;
 #[cfg(test)]
+#[path = "../../test/bench/bench_report_tests.rs"]
 pub mod bench_report_tests;
 pub mod bench_scale;
 #[cfg(test)]
+#[path = "../../test/bench/bench_tests.rs"]
 pub mod bench_tests;
 pub mod bench_visual;
 mod peak_fps;

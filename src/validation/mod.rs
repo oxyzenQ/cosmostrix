@@ -593,6 +593,7 @@ pub(crate) fn validate_u16_range(name: &str, v: u16, min: u16, max: u16) -> Resu
 }
 
 #[cfg(test)]
+#[path = "../../test/validation/tests.rs"]
 mod tests;
 
 // v50.0.0-beta.7: suggest_cli_flag, cli_edit_distance, and KNOWN_LONG_FLAGS

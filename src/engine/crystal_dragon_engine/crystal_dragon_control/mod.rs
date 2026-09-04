@@ -174,4 +174,5 @@ impl Default for CrystalDragonControl {
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/crystal_dragon_control/tests.rs"]
 mod tests;

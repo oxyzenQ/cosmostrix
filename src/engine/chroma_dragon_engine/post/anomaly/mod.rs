@@ -179,4 +179,5 @@ pub(crate) fn anomaly_halo_target(
 }
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/post/anomaly/tests.rs"]
 mod tests;

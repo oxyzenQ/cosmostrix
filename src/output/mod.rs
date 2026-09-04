@@ -689,7 +689,7 @@ pub(crate) fn eprintln_verbose_purple(msg: &str) {
 }
 
 #[cfg(test)]
-#[path = "output_tests.rs"]
+#[path = "../../test/output/output_tests.rs"]
 mod tests;
 
 // Submodules (moved from src/ root for clean src/ layout)

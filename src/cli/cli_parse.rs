@@ -423,5 +423,5 @@ pub(crate) fn parse_screen_size_optional(
 }
 
 #[cfg(test)]
-#[path = "cli_parse_tests.rs"]
+#[path = "../../test/cli/cli_parse_tests.rs"]
 mod tests;

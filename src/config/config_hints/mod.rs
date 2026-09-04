@@ -402,4 +402,5 @@ fn is_top_level_user_key(candidate: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "../../../test/config/config_hints/tests.rs"]
 mod tests;

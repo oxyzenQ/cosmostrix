@@ -796,5 +796,5 @@ pub(crate) use configfile_dump::{
 mod configfile_promote;
 
 #[cfg(test)]
-#[path = "configfile_tests_inline.rs"]
+#[path = "../../test/config/configfile_tests_inline.rs"]
 mod configfile_tests_inline;

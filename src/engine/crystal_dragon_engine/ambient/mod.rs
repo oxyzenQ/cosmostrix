@@ -521,4 +521,5 @@ pub(crate) fn apply_startup_ambient(
 }
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/ambient/tests.rs"]
 mod tests;

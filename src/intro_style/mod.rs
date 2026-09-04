@@ -576,5 +576,5 @@ pub(crate) mod cosmic;
 mod logo;
 
 #[cfg(test)]
-#[path = "tests.rs"]
+#[path = "../../test/intro_style/tests.rs"]
 mod tests;

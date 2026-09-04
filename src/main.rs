@@ -122,6 +122,7 @@ mod doctor;
 
 // Group: Docs tests (integration)
 #[cfg(test)]
+#[path = "../test/docs_tests/mod.rs"]
 mod docs_tests;
 
 // Group: Droplet subsystem
@@ -172,6 +173,7 @@ mod testconf;
 
 // Group: Tests (crate-level integration/regression tests)
 #[cfg(test)]
+#[path = "../test/tests/mod.rs"]
 mod tests;
 
 // Group: Theme subsystem

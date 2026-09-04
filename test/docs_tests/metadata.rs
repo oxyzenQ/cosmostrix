@@ -30,7 +30,7 @@ fn readme_uses_canonical_tagline() {
 fn runtime_identity_uses_canonical_tagline() {
     // renderer_info.rs identity must use env!(CARGO_PKG_DESCRIPTION), not a
     // hardcoded string. This ensures single-source-of-truth from Cargo.toml.
-    let ri = include_str!("../types/renderer_info.rs");
+    let ri = include_str!("../../src/types/renderer_info.rs");
     assert!(
         ri.contains("env!(\"CARGO_PKG_DESCRIPTION\")"),
         "renderer_info.rs identity must use env!(CARGO_PKG_DESCRIPTION), not a hardcoded string"

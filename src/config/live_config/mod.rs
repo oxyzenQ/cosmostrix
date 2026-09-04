@@ -636,25 +636,34 @@ pub(crate) use watcher::validate_and_send;
 mod scene_apply;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_cli_fallback.rs"]
 mod tests_cli_fallback;
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_cli_priority.rs"]
 mod tests_cli_priority;
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_scene_hunt6.rs"]
 mod tests_scene_hunt6;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_msg_fill_style.rs"]
 mod tests_msg_fill_style;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_rejection_msg.rs"]
 mod tests_rejection_msg;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_crystal_dragon_secs.rs"]
 mod tests_crystal_dragon_secs;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_effects_gate.rs"]
 mod tests_effects_gate;
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config/tests_alpha2_zero_key.rs"]
 mod tests_alpha2_zero_key;

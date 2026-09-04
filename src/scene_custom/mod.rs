@@ -601,6 +601,7 @@ pub(crate) use overrides::{
 };
 
 #[cfg(test)]
+#[path = "../../test/scene_custom/tests.rs"]
 mod tests;
 
 /// v80.0.0-beta.1 did-you-mean audit: build the "unknown custom scene" error with a

@@ -74,11 +74,12 @@ All `.rs` files under `src/`, plus `build.rs`.
   contents are genuinely one concern (e.g. a single large `impl` block
   with tightly-coupled methods), leave it. Splitting for the sake of
   hitting 500 introduces artificial boundaries that hurt readability.
-- **Test files**: test files can exceed 800 if they test a single
-  cohesive unit. However, prefer splitting by test category (e.g.
-  `tests_border.rs`, `tests_phosphor.rs`) when the file grows past
-  1000. The gatekeeper allows test files to exceed 800 with a warning
-  (see `scripts/check-rs-loc.sh` for the test-file carve-out).
+- **Test files**: test files live in the mirrored `test/` tree
+  (NIGHT-hunter-1, owner mandate 2026-09-04), which is OUTSIDE the
+  `src/` scan of `scripts/check-rs-loc.sh` — the cap governs production
+  source only. Prefer splitting test files by category (e.g.
+  `tests_border.rs`, `tests_phosphor.rs`) when a file grows past
+  1000 to keep review manageable.
 - **Generated code / genuinely unsplittable files**: vendored codegen
   output or files that cannot be split without decomposing the
   algorithm are exempt via a **self-declaring marker comment**:

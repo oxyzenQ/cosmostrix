@@ -358,7 +358,7 @@ from the event loop) + freeze gates inside the samplers
 (`push_frame_time` / `maybe_sample_rss` / `maybe_sample_cpu` /
 `set_effective_pressure` / `set_endurance_health_score`) — see
 `src/interactive/hud/metrics.rs`. Locked by
-`src/interactive/hud/tests_pause_freeze.rs`.
+`test/interactive/hud/tests_pause_freeze.rs`.
 
 ---
 

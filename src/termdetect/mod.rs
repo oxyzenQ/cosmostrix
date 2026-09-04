@@ -17,12 +17,15 @@ mod hosts;
 mod protocol;
 
 #[cfg(test)]
+#[path = "../../test/termdetect/tests.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "../../test/termdetect/tests_ancestor.rs"]
 mod tests_ancestor;
 
 #[cfg(test)]
+#[path = "../../test/termdetect/tests_hunt24.rs"]
 mod tests_hunt24;
 
 use std::env;

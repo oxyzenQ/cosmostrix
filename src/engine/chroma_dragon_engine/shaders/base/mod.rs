@@ -776,13 +776,17 @@ pub(crate) use helpers::{
 };
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/base/tests.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/base/tests_activation.rs"]
 mod tests_activation;
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/base/tests_bold_audit.rs"]
 mod tests_bold_audit;
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/base/tests_hue_drift.rs"]
 mod tests_hue_drift;

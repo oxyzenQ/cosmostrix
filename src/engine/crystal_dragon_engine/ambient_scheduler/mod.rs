@@ -503,4 +503,5 @@ fn scheduler_loop(
 }
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/ambient_scheduler/tests.rs"]
 mod tests;

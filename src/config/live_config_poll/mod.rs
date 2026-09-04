@@ -416,4 +416,5 @@ fn hash_file_prefix(path: &Path, max_bytes: usize) -> Option<[u8; 64]> {
 }
 
 #[cfg(test)]
+#[path = "../../../test/config/live_config_poll/tests.rs"]
 mod tests;

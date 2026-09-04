@@ -9,6 +9,50 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### repo: NIGHT-hunter-1 — test files relocated into the mirrored `test/` tree (owner mandate 2026-09-04)
+
+Owner mandate (NIGHT-hunter-1): any file whose name contains `*test*`
+lives under the project-root `test/` folder. The tree mirrors `src/`
+exactly (`src/A/B_tests.rs` → `test/A/B_tests.rs`), so every file stays
+at a collision-free, deterministic location.
+
+- 138 files relocated: 71 leaf test files + 7 test directory modules
+  (`test/tests/`, `test/docs_tests/`, `test/config/config_apply_tests/`,
+  `test/config/configfile_tests/`, `test/cosmic_dragon_incubator/tests/`,
+  `test/engine/chroma_dragon_engine/tests/`,
+  `test/engine/cosmic_dragon_engine/cloud/tests/` including its nested
+  `tests_scene/` and `tests_monolith/` subtrees). `git mv` preserves
+  history and 644 file modes.
+- Declaration sites in `src/` keep module identity via house-style
+  `#[cfg(test)] #[path = "..."] mod X;` attributes — the relocated
+  files remain UNIT tests of the binary crate with full private-item
+  access (`use super::*` still resolves), NOT cargo integration tests.
+  Test count unchanged: 2241 passed / 2241.
+- `src/testconf/` is the single sanctioned exception: it is a production
+  runtime module (the `--testconf` flag), not test code — only its
+  `tests.rs` and `tests_validation_order.rs` relocated.
+- Six `include_str!` back-references and 44 CWD-relative path literals
+  inside moved meta-tests (scene-coverage guards reading sibling test
+  sources) re-pointed from their old neighborhoods to `src/`/`test/`
+  as appropriate.
+- Two declaring files crossed the 800-LOC cap from the inserted
+  `#[path]` lines; compressed four redundant comment lines to restore
+  `src/interactive/mod.rs` (798) and `src/config/mod.rs` (800) to cap.
+- src/ drops from 121,463 to 75,165 LOC of scanned production source;
+  `scripts/check-rs-loc.sh` semantics unchanged (cap governs `src/`
+  only, documented in `src/RULES_LOC.md`).
+- Docs: `src/RULES.md` module conventions rewritten for the new layout
+  (NIGHT-hunter-1 codified), `src/RULES_LOC.md` test-file carve-out
+  updated, living docs re-pointed (`docs/README.md`, `docs/RULES.md`,
+  `docs/RELEASE_GUARD.md`, `docs/LIVE_RELOAD_BEHAVIOR.md`, `docs/HUD.md`,
+  `docs/workflow/ABOUT_CI.md`, `docs/TERMINAL_LIFECYCLE_MATRIX.md`).
+  Historical research/archive audits and prior CHANGELOG entries are
+  point-in-time records and were NOT rewritten.
+- No A/B benchmark: `#[path]` attributes and file locations do not
+  affect codegen; the production binary is behavior-identical.
+- Gates: fmt clean, clippy clean, 2241/2241 unit tests, stresstest
+  26/26, LOC caps held.
+
 ### ux: v100.0.0-nightly.1 — case-insensitive flag-suggestion fallback (owner `--LIS` test report 2026-09-04)
 
 Owner report: `--LIS` rendered tip-less while `--lis` suggests

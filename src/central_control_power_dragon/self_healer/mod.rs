@@ -361,4 +361,5 @@ impl Default for PerformanceSelfHealer {
 }
 
 #[cfg(test)]
+#[path = "../../../test/central_control_power_dragon/self_healer/tests.rs"]
 mod tests;

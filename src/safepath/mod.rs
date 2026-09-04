@@ -522,4 +522,5 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<Stri
 }
 
 #[cfg(test)]
+#[path = "../../test/safepath/tests.rs"]
 mod tests;

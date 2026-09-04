@@ -424,4 +424,5 @@ pub(crate) fn oklab_blend_rgb(
 }
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/gradient/tests.rs"]
 mod tests;

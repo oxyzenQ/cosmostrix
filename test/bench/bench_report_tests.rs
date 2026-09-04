@@ -229,7 +229,7 @@ mod tests {
         // (src/RULES_LOC.md). The loc.rs module enforces this globally,
         // but this explicit check catches issues during development
         // before the global test runs.
-        let source = include_str!("bench_report.rs");
+        let source = include_str!("../../src/bench/bench_report.rs");
         let lines = source.lines().count();
         assert!(
             lines < 800,

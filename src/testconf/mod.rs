@@ -523,6 +523,8 @@ fn is_valid_hex_color(s: &str) -> bool {
 }
 
 #[cfg(test)]
+#[path = "../../test/testconf/tests.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "../../test/testconf/tests_validation_order.rs"]
 mod tests_validation_order;

@@ -752,16 +752,21 @@ pub fn build_palette(scheme: ColorScheme, mode: ColorMode, default_background: b
 }
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_audit.rs"]
 mod tests_audit;
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_blend.rs"]
 mod tests_blend;
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_floor.rs"]
 mod tests_floor;
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_floor_audit.rs"]
 mod tests_floor_audit;
 
 #[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_partial_eq.rs"]
 mod tests_partial_eq;

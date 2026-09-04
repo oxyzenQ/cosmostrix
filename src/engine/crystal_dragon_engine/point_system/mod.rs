@@ -268,4 +268,5 @@ pub(crate) fn calc_v1_select(
 // ── Tests ────────────────────────────────────────────────────────────────
 
 #[cfg(test)]
+#[path = "../../../../test/engine/crystal_dragon_engine/point_system/tests.rs"]
 mod tests;

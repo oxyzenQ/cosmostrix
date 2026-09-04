@@ -89,21 +89,21 @@ fn all_rust_files_under_loc_cap() {
     assert_files_under_loc_cap_or_exempt(&[
         "src/engine/cosmic_dragon_engine/cloud/mod.rs",
         "src/engine/cosmic_dragon_engine/cloud/spawn.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/mod.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_visual_depth.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_visual_depth.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
         "src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs",
         "src/engine/cosmic_dragon_engine/cloud/runtime_controls.rs",
     ]);
@@ -115,7 +115,7 @@ fn all_rust_files_under_loc_cap() {
 #[test]
 fn phase4_monolith_facade_stays_small() {
     let content = std::fs::read_to_string(
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
     )
     .unwrap_or_default();
     let count = content.lines().count();
@@ -129,12 +129,12 @@ fn phase4_monolith_facade_stays_small() {
 #[test]
 fn phase4_all_monolith_split_files_under_loc_cap() {
     assert_files_under_loc_cap_or_exempt(&[
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
     ]);
 }
 
@@ -142,7 +142,7 @@ fn phase4_all_monolith_split_files_under_loc_cap() {
 #[test]
 fn phase4_depth_lab_monolith_tests_still_exist() {
     let depth_file = std::fs::read_to_string(
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
     )
     .unwrap_or_default();
     let required_tests = [
@@ -163,11 +163,11 @@ fn phase4_depth_lab_monolith_tests_still_exist() {
 #[test]
 fn phase4_no_monolith_coverage_category_removed() {
     let all_files: String = [
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/core.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/depth.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_monolith/charset.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())
@@ -200,7 +200,7 @@ fn phase4_no_monolith_coverage_category_removed() {
 #[test]
 fn phase5_scene_facade_stays_small() {
     let content =
-        std::fs::read_to_string("src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs")
+        std::fs::read_to_string("test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs")
             .unwrap_or_default();
     let count = content.lines().count();
     assert!(
@@ -213,13 +213,13 @@ fn phase5_scene_facade_stays_small() {
 #[test]
 fn phase5_all_scene_split_files_under_loc_cap() {
     assert_files_under_loc_cap_or_exempt(&[
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/mod.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
     ]);
 }
 
@@ -227,12 +227,12 @@ fn phase5_all_scene_split_files_under_loc_cap() {
 #[test]
 fn phase5_no_scene_coverage_category_removed() {
     let all_files: String = [
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/cycle.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/fresh_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/sparse_entry.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/controls.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())
@@ -263,8 +263,8 @@ fn phase5_no_scene_coverage_category_removed() {
 #[test]
 fn phase5_depth_lab_scene_tests_still_exist() {
     let all_files: String = [
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
-        "src/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/residue.rs",
+        "test/engine/cosmic_dragon_engine/cloud/tests/tests_scene/transitions.rs",
     ]
     .iter()
     .map(|p| std::fs::read_to_string(p).unwrap_or_default())

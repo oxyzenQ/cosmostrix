@@ -403,6 +403,7 @@ impl Droplet {
 // multiplier produces a non-trivial delta on the output channel.
 
 #[cfg(test)]
+#[path = "../../test/droplet/tests.rs"]
 mod tests;
 
 // v50.0.0-beta.7 LOC refactor: Droplet::draw method extracted to draw.rs

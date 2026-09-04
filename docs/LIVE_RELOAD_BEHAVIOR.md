@@ -353,7 +353,7 @@ CLI `--monolith-size` wins over config on live-reload.
 
 ### Stress Tests Added
 
-13 new tests in `src/config/live_config/tests.rs`:
+13 new tests in `test/config/live_config/tests.rs`:
 - `live_reload_message_border_from_config`
 - `live_reload_message_bare_from_config`
 - `live_reload_message_border_wins_over_message`
@@ -558,7 +558,7 @@ paths, all confirmed by failing tests first, then fixed:
 | 4 | Switching `scene` away from a custom scene | The startup `scene_custom_name` tracker was immutable — the stale custom layer re-applied on top of EVERY builtin scene the user switched to. | The tracker is now the rebuilt config's value; the layer only re-applies while the custom scene is still the active scene. |
 | 5 | Scene `fps` / `glitch-level` defaults never applied | Startup (`apply_default_scene_values`) applies the scene's fps + glitch presets; the live-reload scene block only applied color/charset/speed/density/rain_style. | Both arms added to the scene block (before the user-key blocks, so explicit `fps` / `glitch-level` keys still win). |
 
-Verification: 13 new regression tests in `src/config/live_config/tests.rs`
+Verification: 13 new regression tests in `test/config/live_config/tests.rs`
 (`rebuild_switches_color_to_custom_palette_at_runtime`,
 `rebuild_switches_color_away_from_custom_palette`,
 `rebuild_unknown_color_name_keeps_current_palette`,
@@ -632,7 +632,7 @@ fps field ONLY while every other scene-custom field stayed ungated:
 | 4 | Scene switch left a stale custom palette shadowing the new scene | Switching `scene` away from a palette-owning custom scene set the builtin scheme but never cleared `custom_palette`; `create_cloud` applies the palette AFTER the scheme, so the switch was a visual no-op for color. | The builtin-scene color arm now clears `custom_palette` + `custom_palette_name` when it applies the scene color default. |
 
 Verification: 12 regression tests in
-`src/config/live_config/tests_cli_priority.rs` (extracted from
+`test/config/live_config/tests_cli_priority.rs` (extracted from
 `tests.rs` to respect the 800-LOC file cap) covering each gate, both
 conflict rules, and the palette-clear-on-scene-switch. Full suite
 green: 1957 passed / 0 failed.
@@ -673,7 +673,7 @@ block's `bold` / `shading-mode` / `colors-custom` fields now also honor
 newly tracked flags).
 
 Verification: 9 regression tests in
-`src/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
+`test/config/live_config/tests_cli_priority.rs` (7 rebuild-level +
 2 `build_cli_explicit` argv-level). Suite green: 1967 passed / 0 failed.
 
 > v80.0.0-beta.1 note: the five guards added by this audit were DEAD in production
@@ -781,7 +781,7 @@ Runtime:  config key > CLI lock > scene defaults > built-in defaults
 - 20 new regression tests: 9 in
   `src/interactive/event_loop_scene_sync.rs` (resolver delta rule,
   restore/sync, and the owner's exact end-to-end scenario) + 11 in
-  `src/config/live_config/tests_cli_fallback.rs` (per-key fallback for
+  `test/config/live_config/tests_cli_fallback.rs` (per-key fallback for
   fps/bold/color+palette/scene-custom/message/msg-mode/msg-fill-style/
   color-tune/charset/dragons/async, plus the lockless startup-effective
   layer). 14 old-contract guard tests rewritten to the new key-present
@@ -963,7 +963,7 @@ Runtime:  user shortkeys
 
 - 8 inverted contract tests (`rebuild_scene_custom_*_overrides_cli_lock_at_runtime`
   family) + 2 removed-field inertness tests in
-  `src/config/live_config/tests_cli_priority.rs`.
+  `test/config/live_config/tests_cli_priority.rs`.
 - 5 completeness-validation tests + 6 `ambient_scene_fps` tests +
   6 schema/display tests in `src/scene_custom/tests.rs`.
 - 2 ambient-owns-color regression tests (config palette loses to the
@@ -1119,10 +1119,10 @@ exit), and `--testconf` all reject in lockstep.
 - 11 tests updated to the refined contract (the LOGIC-3 override tests now
   model the config-selected scene via the `scene` key) + 4 new
   lock-owned/config-owned/verbatim-restore tests in
-  `src/config/live_config/tests_cli_priority.rs`.
+  `test/config/live_config/tests_cli_priority.rs`.
 - Block-value validation tests (removed-field rejection, missing
   colors-custom reference with the built-in hint, out-of-range fps) in
-  `src/config/live_config/tests.rs` + `src/testconf/tests.rs`.
+  `test/config/live_config/tests.rs` + `src/testconf/tests.rs`.
 - Full suite: 2070 passed / 0 failed / 2 ignored; fmt + clippy clean.
 
 > Owner note: the warning icons in the bug report's verbose paste come

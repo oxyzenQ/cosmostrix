@@ -743,4 +743,5 @@ pub(crate) const MONOLITH_SPINE_BRIGHTNESS: f32 = 0.07;
 pub(crate) const MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 
 #[cfg(test)]
+#[path = "../../test/central_control_rains/tests.rs"]
 mod tests;

@@ -63,47 +63,46 @@ mod signal_handlers;
 mod watchdog;
 
 #[cfg(test)]
+#[path = "../../test/interactive/tests.rs"]
 mod tests;
 #[cfg(test)]
+#[path = "../../test/interactive/tests_final_state.rs"]
 mod tests_final_state;
 #[cfg(test)]
+#[path = "../../test/interactive/tests_fmt_opt.rs"]
 mod tests_fmt_opt;
 
 // v50 LTS regression tests (first-reload scene reset crash).
 #[cfg(test)]
-#[path = "tests_v50_first_reload.rs"]
+#[path = "../../test/interactive/tests_v50_first_reload.rs"]
 mod v50_first_reload;
 
-// v50.0.0-beta.7 Z-master-1B: kitty CSI-u Shift+letter normalization
-// (base lowercase codepoint + SHIFT -> uppercase reverse-cycle arm).
+// v50.0.0-beta.7 Z-master-1B: kitty CSI-u Shift+letter normalization (lowercase codepoint + SHIFT -> uppercase reverse-cycle arm).
 #[cfg(test)]
-#[path = "tests_v50_kitty_shift.rs"]
+#[path = "../../test/interactive/tests_v50_kitty_shift.rs"]
 mod v50_kitty_shift;
 
-// v80.0.0-beta.1 Z-master-1B: intro brand color (EnergyZen, immune to -c) +
-// pause shortkey isolation ('i' rejected while paused).
+// v80.0.0-beta.1 Z-master-1B: intro brand color (EnergyZen, immune to -c) + pause shortkey isolation ('i' rejected while paused).
 #[cfg(test)]
-#[path = "tests_v51_intro_brand_pause.rs"]
+#[path = "../../test/interactive/tests_v51_intro_brand_pause.rs"]
 mod v51_intro_brand_pause;
 
-// v80.0.0-beta.1 Z-master-1B: exhaustive shortkey no-op lock — every key outside
-// the documented active set must be a complete no-op ('a', 'h', Tab,
-// removed density aliases, digits, punctuation, F-keys, ...).
+// v80.0.0-beta.1 Z-master-1B: exhaustive shortkey no-op lock — every key outside the active set is a complete no-op.
 #[cfg(test)]
-#[path = "tests_v51_shortkey_noop.rs"]
+#[path = "../../test/interactive/tests_v51_shortkey_noop.rs"]
 mod v51_shortkey_noop;
 
-// v80.0.0-beta.1 power-dragon gate: render-path pressure feed is gated on
-// power-dragon (config promise "user-configured density/speed
-// regardless of CPU pressure") + stale aggressive release.
+// v80.0.0-beta.1 power-dragon gate: render-path pressure feed gated on power-dragon + stale aggressive release.
 #[cfg(test)]
-#[path = "tests_v51_2_power_dragon_gate.rs"]
+#[path = "../../test/interactive/tests_v51_2_power_dragon_gate.rs"]
 mod v51_2_power_dragon_gate;
 
 #[cfg(test)]
+#[path = "../../test/interactive/tests_v35.rs"]
 mod tests_v35;
 
 #[cfg(test)]
+#[path = "../../test/interactive/tests_v35_modifier_rejection.rs"]
 mod tests_v35_modifier_rejection;
 
 // Re-export ambient_diag from crystal_dragon_engine

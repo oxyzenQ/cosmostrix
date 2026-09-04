@@ -47,6 +47,7 @@ mod spawn_reset;
 mod state;
 
 #[cfg(test)]
+#[path = "../../../../test/engine/cosmic_dragon_engine/cloud/tests/mod.rs"]
 mod tests;
 
 pub(crate) use render::{CharLoc, DrawCtx};

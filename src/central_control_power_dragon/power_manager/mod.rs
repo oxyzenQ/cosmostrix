@@ -439,4 +439,5 @@ impl PowerManager {
 }
 
 #[cfg(test)]
+#[path = "../../../test/central_control_power_dragon/power_manager/tests.rs"]
 mod tests;

@@ -16,11 +16,13 @@
 // so `lr_trace!` is in scope (#[macro_use] is defense-in-depth).
 pub mod config_apply;
 #[cfg(test)]
+#[path = "../../test/config/config_apply_tests/mod.rs"]
 pub mod config_apply_tests;
 pub mod config_hints;
 pub mod config_io;
 pub mod configfile;
 #[cfg(test)]
+#[path = "../../test/config/configfile_tests/mod.rs"]
 pub mod configfile_tests;
 pub mod fps_intent; // v80.0.0-beta.2 explicit-fps intent tracker
 #[macro_use]
@@ -67,8 +69,7 @@ fn parse_true_false(input: &str) -> Result<bool, String> {
     }
 }
 
-/// Test-only accessor for the `parse_true_false` value_parser. Tests can't
-/// reach the private fn directly, so this pub(crate) wrapper exposes it.
+/// Test-only accessor for the `parse_true_false` value_parser (pub(crate) wrapper; tests cannot reach the private fn directly).
 #[cfg(test)]
 pub(crate) fn test_parse_true_false(input: &str) -> Result<bool, String> {
     parse_true_false(input)
@@ -85,8 +86,7 @@ pub(crate) fn color_enabled_stdout() -> bool {
     std::io::stdout().is_terminal()
 }
 
-// v80.0.0-beta.2 fps-intent tracker (extracted to fps_intent.rs to stay
-// under the 800-LOC cap). Re-exported for the existing call sites.
+// v80.0.0-beta.2 fps-intent tracker (extracted to fps_intent.rs for the LOC cap). Re-exported for the call sites.
 pub(crate) use fps_intent::{fps_explicit_source, record_fps_explicit};
 
 // Enums

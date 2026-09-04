@@ -95,4 +95,5 @@ pub(crate) mod egg;
 // Tests now live in cosmic_dragon_incubator/tests/ subdir (Pattern C — dedicated tests/).
 // Was previously a #[path] declaration (Pattern B).
 #[cfg(test)]
+#[path = "../../test/cosmic_dragon_incubator/tests/mod.rs"]
 mod tests;

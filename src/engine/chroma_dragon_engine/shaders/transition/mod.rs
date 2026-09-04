@@ -341,7 +341,9 @@ pub(crate) fn apply_l_smoothing(
 // since v30 — Cartesian variant removed).
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/transition/tests.rs"]
 mod tests;
 
 #[cfg(test)]
+#[path = "../../../../../test/engine/chroma_dragon_engine/shaders/transition/tests_phase8.rs"]
 mod tests_phase8;

@@ -207,7 +207,7 @@ Verify the current version without changes:
 
 ## CI fail-fast guard
 
-CI runs `./scripts/build.sh version-sync` as a dedicated job **before** any Rust build, so a version desync fails the pipeline in seconds. `scripts/check-version-anti-patterns.sh` blocks re-introduction of hardcoded version assertions in `src/`. The compile-time guard in `src/docs_tests/metadata.rs` asserts `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
+CI runs `./scripts/build.sh version-sync` as a dedicated job **before** any Rust build, so a version desync fails the pipeline in seconds. `scripts/check-version-anti-patterns.sh` blocks re-introduction of hardcoded version assertions in `src/`. The compile-time guard in `test/docs_tests/metadata.rs` asserts `Cargo.toml`, `PKGBUILD`, `.SRCINFO`, and the README install tag all agree with `env!("CARGO_PKG_VERSION")`.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

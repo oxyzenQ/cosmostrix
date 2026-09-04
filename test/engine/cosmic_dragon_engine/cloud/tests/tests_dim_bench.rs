@@ -138,8 +138,9 @@ fn bench_cosmetics_gates_exist_in_rain_source() {
     // widened the same way — it must ALSO be effects-gated (the audit
     // found the vignette was the last cosmetic still running under
     // --no-effects in interactive mode).
-    let source = include_str!("../rain_at.rs");
-    let post_source = include_str!("../post_rain.rs");
+    let source = include_str!("../../../../../src/engine/cosmic_dragon_engine/cloud/rain_at.rs");
+    let post_source =
+        include_str!("../../../../../src/engine/cosmic_dragon_engine/cloud/post_rain.rs");
     let combined = format!("{source}\n{post_source}");
 
     assert!(
