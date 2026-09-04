@@ -160,7 +160,7 @@ pub(crate) fn print_list_scenes() {
 
 /// Print details for a single scene by name. Looks up built-in scenes first,
 /// then custom scenes from config. Returns `Ok(())` on success or an error
-/// message suitable for `ux::die_config`.
+/// message suitable for `ux::die_input` (CLI value error: footer family).
 pub(crate) fn print_show_scene(
     name: &str,
     cfg: &std::collections::HashMap<String, String>,
@@ -196,8 +196,15 @@ pub(crate) fn print_show_scene(
     } else {
         available.join(", ")
     };
+    // v100.0.0-nightly.1 footer-consistency sweep (owner report
+    // 2026-09-04): the unknown-scene error now carries the same
+    // did-you-mean tip the --scene path renders (shared
+    // scene_suggestion_tip engine) — before, --show-scene cosmosm
+    // dead-ended with the bare list while --scene cosmosm suggested
+    // 'cosmos'.
+    let tip = super::config_apply::scene_suggestion_tip(&normalized, cfg);
     Err(format!(
-        "error: unknown scene '{name}'\n\n  Available: {list}\n  Use --list-scenes to see all scenes."
+        "error: unknown scene '{name}'{tip}\n\n  Available: {list}\n  Use --list-scenes to see all scenes."
     ))
 }
 
@@ -207,3 +214,48 @@ pub(crate) fn print_show_scene(
 // no verbose alias disclosures. Discovery commands handle discovery.
 //
 // print_help() lives in src/cli/help_detail.rs.
+
+#[cfg(test)]
+mod tests {
+    use super::print_show_scene;
+
+    /// v100.0.0-nightly.1 footer-consistency sweep: an unknown
+    /// `--show-scene` name must carry the SAME did-you-mean tip the
+    /// `--scene` path renders (shared scene_suggestion_tip engine), so
+    /// one typo shape covers both surfaces.
+    #[test]
+    fn show_scene_unknown_name_carries_suggestion_tip() {
+        let cfg = std::collections::HashMap::new();
+        let err = print_show_scene("cosmosm", &cfg).unwrap_err();
+        assert!(
+            err.contains("error: unknown scene 'cosmosm'"),
+            "must name the unknown scene: {err}"
+        );
+        assert!(
+            err.contains("tip: a similar value exists: 'cosmos'"),
+            "must suggest 'cosmos' for 'cosmosm': {err}"
+        );
+        assert!(
+            err.contains("Use --list-scenes to see all scenes."),
+            "must keep the --list-scenes guidance: {err}"
+        );
+    }
+
+    /// Distant names stay tip-free (edit-distance policy) but keep the
+    /// available-scenes list, which is the query surface's value.
+    #[test]
+    fn show_scene_distant_name_keeps_list_without_tip() {
+        let cfg = std::collections::HashMap::new();
+        let err = print_show_scene("zzzzzzzz", &cfg).unwrap_err();
+        assert!(!err.contains("tip:"), "no tip for a distant name: {err}");
+        assert!(err.contains("Available:"), "list must survive: {err}");
+    }
+
+    /// Known builtin scene resolves Ok (guards the tip change against
+    /// breaking the success path).
+    #[test]
+    fn show_scene_known_builtin_is_ok() {
+        let cfg = std::collections::HashMap::new();
+        assert!(print_show_scene("cosmos", &cfg).is_ok());
+    }
+}

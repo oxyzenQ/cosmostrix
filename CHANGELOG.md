@@ -9,6 +9,37 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — fatal-error footer consistency, config-apply error classification (owner test report follow-up 2026-09-04)
+
+Owner report: testing commit ea05ca00 showed `--scene cosmosm`
+ending with NO "For more information, try '--help'." footer while
+`-C asciix` (the same error kind: unknown value + did-you-mean tip)
+ended with it — the shape inconsistency the CLI UX centralization
+missed. Root cause: the whole Err stream out of
+`config_apply::apply_config_and_runtime_defaults` flowed through
+`ux::die_config` (footer-less config family), but that stream mixes
+two error families. The same class of misroute also existed on the
+`--show-scene <unknown>` path (early_returns.rs), which additionally
+dead-ended without a did-you-mean tip.
+
+- New classifier `cli::ux::die_config_apply_error(e)`: config-file
+  failures ("error: invalid config" prefix — malformed lines, unknown
+  keys, invalid file values) keep the die_config shape; CLI
+  value-validation failures (unknown `--scene` / `--scene-custom` /
+  profile names, invalid `--intro-color`) now take the die_input
+  shape with the help footer, same as every other typed-flag
+  validator. The classification rule (stable message prefix) is
+  documented and unit-tested in cli/ux.rs.
+- `--show-scene <unknown>` rerouted from die_config to die_input
+  (footer gained) and now carries the same did-you-mean tip the
+  `--scene` path renders: `scene_suggestion_tip` made pub(crate) and
+  shared by list_printers.rs, so `--show-scene cosmosm` suggests
+  'cosmos' exactly like `--scene cosmosm`. One unknown-scene message
+  shape across every surface.
+- Stresstest: 5 new cases (scene typo footer, distant-scene
+  footer-without-tip, show-scene tip, show-scene footer, malformed
+  config line stays footer-less) — 23 total, all PASS.
+
 ### ux: v100.0.0-nightly.1 — CLI UX centralized into cli/ux.rs (owner mandate 2026-09-04, "simple masterclass")
 
 Owner report: CLI UX was inconsistent, untidy, and duplicated across

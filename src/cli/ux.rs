@@ -13,7 +13,10 @@
 //! 2. pre-clap argv errors (removed-flag migration hints, the -mfs
 //!    typo guard) flow through [`die_input_with_usage`];
 //! 3. post-parse value validation errors flow through [`die_input`];
-//! 4. config-file / runtime failures flow through [`die_config`].
+//! 4. config-file / runtime failures flow through [`die_config`];
+//! 5. the mixed Err stream out of config_apply (config-file failures
+//!    AND CLI value errors) flows through [`die_config_apply_error`],
+//!    which classifies each message into family 3 or 4.
 //!
 //! Canonical shapes (the whole point of this module — before it,
 //! identical error kinds rendered with different shapes, duplicate
@@ -90,10 +93,62 @@ pub(crate) fn die_input_with_usage(msg: impl AsRef<str>) -> ! {
 /// old output/ux.rs claiming exit 1 was stale — code 2 is the shipped
 /// behavior every script and test relies on. No usage line: a config
 /// problem is not an invocation problem.
+///
+/// NOT for value-validation errors that the user just typed on the
+/// CLI — those belong to [`die_input`]. See
+/// [`die_config_apply_error`] for the classifier that splits the two
+/// families.
 #[cold]
 pub(crate) fn die_config(msg: impl AsRef<str>) -> ! {
     print_branded_error(msg.as_ref());
     std::process::exit(2);
+}
+
+/// True when a fatal message is a CONFIG-FILE failure, not a CLI value
+/// error. The classifier behind [`die_config_apply_error`].
+///
+/// Contract: every config-file failure bubbling out of
+/// `config_apply::apply_config_and_runtime_defaults` carries the
+/// "error: invalid config" prefix (malformed lines, unknown keys,
+/// invalid file values — three sites in config_apply.rs, plus the
+/// testconf strict-validation wrap). Messages WITHOUT the prefix are
+/// value-validation failures that originate from CLI flags the user
+/// typed (`--scene`, `--scene-custom`, `--intro-color`, profile
+/// names) — the die_input family.
+fn is_config_file_failure(msg: &str) -> bool {
+    msg.starts_with("error: invalid config")
+}
+
+/// Exit for a fatal error bubbling out of
+/// `config_apply::apply_config_and_runtime_defaults`.
+///
+/// That function returns `Err(String)` for two error families that
+/// render differently (the layer split documented at the top of this
+/// module):
+///
+/// 1. Config-file failures ("error: invalid config" prefix) keep the
+///    [`die_config`] shape: no help footer. The message already
+///    points the user at `--testconf`, and a config problem is not
+///    an invocation problem.
+/// 2. Value-validation failures that originate from CLI flags
+///    (unknown `--scene` / `--scene-custom` / profile names, invalid
+///    `--intro-color`) take the [`die_input`] shape: help footer
+///    appended. Same user mistake, same shape as `-C asciix` (unknown
+///    charset) and every other post-parse validator, so a typed typo
+///    renders identically no matter which flag tripped it.
+///
+/// Owner report 2026-09-04 (the `--scene cosmosm` case): the whole
+/// Err stream used to flow through `die_config`, so the scene error
+/// ended without the "For more information, try '--help'." footer
+/// while the charset error (same error kind, die_input family) ended
+/// with it — the exact shape inconsistency this classifier closes.
+#[cold]
+pub(crate) fn die_config_apply_error(e: String) -> ! {
+    if is_config_file_failure(&e) {
+        die_config(e)
+    } else {
+        die_input(e)
+    }
 }
 
 /// Print an error message in branded red. Strips a leading "error: " prefix
@@ -208,6 +263,43 @@ mod tests {
     #[test]
     fn help_footer_matches_clap_wording() {
         assert_eq!(HELP_FOOTER, "For more information, try '--help'.");
+    }
+
+    // ── die_config_apply_error classifier ──────────────────────────────────
+
+    /// The config-file family keeps the "error: invalid config" prefix
+    /// (three sites in config_apply.rs + the testconf wrap) and must
+    /// keep the footer-less die_config shape.
+    #[test]
+    fn config_file_failures_are_classified_as_config() {
+        for msg in [
+            "error: invalid config — malformed line(s): 'x' (expected 'key = value' syntax)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+            "error: invalid config — unknown key(s): 'sene' (run 'cosmostrix --testconf' for known keys)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+            "error: invalid config — unknown scene 'zzz' (run `cosmostrix --list-scenes` for valid names)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
+        ] {
+            assert!(
+                is_config_file_failure(msg),
+                "config-file failure must classify as config: {msg:?}"
+            );
+        }
+    }
+
+    /// CLI value errors (the owner's 2026-09-04 report family: unknown
+    /// scene, invalid intro-color, profile names) must classify as
+    /// INPUT errors so they gain the help footer.
+    #[test]
+    fn cli_value_errors_are_classified_as_input() {
+        for msg in [
+            "error: unknown scene 'cosmosm'\n  tip: a similar value exists: 'cosmos'\n\n  Use --list-scenes to see available scenes.",
+            "error: invalid intro-color='nebla' — not a builtin theme or custom palette.\n  tip: a similar value exists: 'nebula'\n\n  Use --list-colors to see all available themes.",
+            "error: unknown profile 'cinemtic'\nexpected one of: cinematic, matrix\n\n  Use --list-scenes to see available scenes.",
+            "error: invalid profile: bad name!\nexpected: letters, digits, '-' or '_'",
+        ] {
+            assert!(
+                !is_config_file_failure(msg),
+                "CLI value error must classify as input: {msg:?}"
+            );
+        }
     }
 
     #[test]

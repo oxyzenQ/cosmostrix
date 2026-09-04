@@ -629,8 +629,8 @@ fn config_value(
 /// Candidates = every builtin scene name + every `[scene-custom.<name>]`
 /// block defined in the config. Uses the shared edit-distance <= 2 policy
 /// (same as colors / charsets / enum values), so `--scene cinemtic`
-/// suggests 'cinematic' instead of the bare "use --list-scenes" dead end.
-fn scene_suggestion_tip(normalized: &str, cfg: &HashMap<String, String>) -> String {
+/// suggests 'cinematic' not a dead end. pub(crate): --show-scene shares it.
+pub(crate) fn scene_suggestion_tip(normalized: &str, cfg: &HashMap<String, String>) -> String {
     let mut candidates: Vec<&str> = crate::scene::SCENES.iter().map(|s| s.name).collect();
     let custom: Vec<String> = crate::scene_custom::collect_custom_scenes(cfg)
         .keys()

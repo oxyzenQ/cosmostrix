@@ -227,7 +227,11 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
         let cfg = configfile::load_config_file(args.config.as_deref());
         match print_show_scene(name, &cfg) {
             Ok(()) => return Some(Ok(())),
-            Err(e) => ux::die_config(e),
+            // die_input family: --show-scene <unknown> is a typed CLI
+            // value error — it gains the help footer, same shape as
+            // --scene <unknown> (owner report 2026-09-04 consistency
+            // sweep; previously misrouted through die_config).
+            Err(e) => ux::die_input(e),
         }
     }
 

@@ -97,6 +97,7 @@ re-rendering, no hand-maintained flag list.
 | `src/engine/chroma_dragon_engine/colors_custom.rs` | custom color name | defined palette names |
 | `src/scene_custom/mod.rs` | `--scene-custom` | builtin + custom scene names |
 | `src/config/config_apply.rs` | `intro-color`, `scene` | builtin themes + custom palettes |
+| `src/config/list_printers.rs` | `--show-scene` (unknown name) | builtin + custom scene names (v100.0.0-nightly.1 consistency sweep: shared `scene_suggestion_tip` engine, same tip as `--scene`) |
 | `src/scene/charset.rs` | `--charset` | `CHARSET_PRESET_NAMES` |
 | `src/cli/mod.rs` | `--color` (unknown color) | builtin theme names |
 | `src/config/config_hints/mod.rs` | unknown config key | top-level config keys (uses the shared `edit_distance` from `cli/suggestion.rs`) |
@@ -172,7 +173,7 @@ cargo build --bin cosmostrix
 bash scripts/cli_suggestion_stresstest.sh
 ```
 
-18 cases covering:
+23 cases covering:
 
 - **Long-flag typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
   `--msg-fill-styl`, `--verbos`, `--power-drago` — each must produce
@@ -188,8 +189,14 @@ bash scripts/cli_suggestion_stresstest.sh
   produce a tip (distance > 2 threshold).
 - **Short-form expansion** (1 case): `-mfss` typo must produce the
   `--msg-fill-style` tip.
+- **Help-footer consistency** (5 cases): `--scene cosmosm` renders
+  tip + footer, `--scene zzzzzzz` renders footer without tip,
+  `--show-scene cosmosm` renders the did-you-mean tip + footer, and
+  a malformed config line stays footer-less (the config-file family
+  keeps the die_config shape — see the `die_config_apply_error`
+  classifier in `src/cli/ux.rs`).
 
-Last stresstest run: 18/18 PASS. The script is part of the gatekeeper
+Last stresstest run: 23/23 PASS. The script is part of the gatekeeper
 suite (bash -n syntax-checked; run manually before releases).
 
 ## 6. Migration from `Did you mean`
