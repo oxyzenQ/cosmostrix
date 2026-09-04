@@ -9,6 +9,31 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — --dump-config write-I/O failure joins the die_input family (owner hunt 2026-09-04)
+
+Owner hunt area: the `die_config` site at the `--dump-config` I/O error
+arm. Verified live: a filesystem rejection of a CLI-supplied path
+(Permission denied, Not a directory) rendered as a bare one-liner with
+no help footer and no next-step tip, while the SAME flag's overwrite
+guard — two lines earlier in the same code block — rendered a guided
+5-line message with the footer. One flag, two failure shapes; the bare
+shape read as a bug, and `die_config` (the config-file failure family,
+footer-less by contract) was the wrong family for a filesystem error:
+the config itself was valid, the write target rejected it.
+
+- `early_returns.rs`: the `write_config_atomic` Err arm rerouted
+  `die_config` → `die_input` (footer family), and the message gains
+  guided remedies: verify the directory exists and is writable, the
+  retry command line, and the stdout alternative
+  (`cosmostrix --dump-config` prints the example config with no file
+  write — useful when the disk is full or the directory is locked).
+- Stresstest: 2 new cases (26 → 28) locking the guided-error shape and
+  the footer. Trigger is deterministic for any user including root: a
+  path whose parent component is a FILE makes the atomic write's
+  `create_dir_all` fail with NotADirectory — no permission juggling.
+- No A/B benchmark: the change touches only a fatal pre-render exit
+  path, not the render loop.
+
 ### repo: NIGHT-hunter-1 — test files relocated into the mirrored `test/` tree (owner mandate 2026-09-04)
 
 Owner mandate (NIGHT-hunter-1): any file whose name contains `*test*`

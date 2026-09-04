@@ -148,8 +148,18 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
                 return Some(Ok(()));
             }
             Err(e) => {
-                ux::die_config(format!(
-                    "error: cannot write --dump-config to '{path_str}': {e}"
+                // Family routing: a filesystem rejection of a CLI-supplied
+                // path is an invocation-adjacent failure, same family as the
+                // overwrite guard above (die_input + help footer). The old
+                // die_config route rendered it footer-less and tip-less —
+                // the same flag failing two lines earlier rendered a guided
+                // 5-line message, so the bare shape read as a bug.
+                ux::die_input(format!(
+                    "error: cannot write --dump-config to '{path_str}': {e}\n  \
+                     Verify the directory exists and is writable by this user, then retry:\n    \
+                     cosmostrix --dump-config {path_str}\n  \
+                     Or print the example config to stdout instead (no file write):\n    \
+                     cosmostrix --dump-config"
                 ));
             }
         }

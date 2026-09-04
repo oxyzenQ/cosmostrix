@@ -186,6 +186,25 @@ run_case "malformed config line → error, NO help footer" \
         --config "$tmpcfg"
 rm -f "$tmpcfg"
 
+# ── Category 6b: --dump-config write I/O failure (owner hunt 2026-09-04) ──
+# The I/O arm used die_config (config-file family): footer-less, tip-less,
+# while the same flag's overwrite guard (two lines earlier) rendered a
+# guided message with the help footer. Now both are die_input family.
+# Deterministic trigger for any user incl. root: a path whose parent
+# component is a FILE makes the atomic write's create_dir_all fail with
+# NotADirectory — no permission juggling required.
+blocker=$(mktemp "${cfgdir}/stresstest-blocker.XXXXXX")
+run_case "dump-config I/O failure (parent is a file) → guided error" \
+        "error: cannot write --dump-config" \
+        "tip: a similar" \
+        --dump-config "${blocker}/x.toml"
+
+run_case "dump-config I/O failure → retry guidance + footer" \
+        "For more information, try '--help'." \
+        "" \
+        --dump-config "${blocker}/x.toml"
+rm -f "$blocker"
+
 # ── Category 7: case-insensitive flag rescue (v100.0.0-nightly.1 --LIS) ──
 # clap's did-you-mean is case-sensitive (strsim Jaro): --lis suggests
 # --list-scenes but --LIS scored zero matching chars and rendered
