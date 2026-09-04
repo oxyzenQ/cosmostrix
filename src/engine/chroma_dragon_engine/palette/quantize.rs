@@ -16,17 +16,17 @@
 //!
 //! This module quantizes at exactly that boundary:
 //!
-//! - **Ansi256**: `Color::Rgb` → `Color::AnsiValue(n)` with `n` the
+//! - Ansi256: `Color::Rgb` → `Color::AnsiValue(n)` with `n` the
 //!   exact OKLab-nearest entry of the xterm-256 palette (indices
 //!   16..=255; 0..15 are host-configurable and skipped by convention).
-//! - **Classic16**: `Color::Rgb` → nearest of the 16 canonical xterm
+//! - Classic16: `Color::Rgb` → nearest of the 16 canonical xterm
 //!   base colors as a crossterm named `Color`, which `sgr_format`
 //!   then emits as classic `30-37`/`90-97` (fg) and `40-47`/`100-107`
 //!   (bg) codes — the wire format the capability table in
 //!   `output/mod.rs` documents for Color16.
-//! - **Mono**: any color collapses to `White` (fg) / default (bg) so a
+//! - Mono: any color collapses to `White` (fg) / default (bg) so a
 //!   `--color-mode mono` session never leaks RGB escapes.
-//! - **TrueColor**: passthrough (a quantizer is never constructed for
+//! - TrueColor: passthrough (a quantizer is never constructed for
 //!   truecolor sessions — zero hot-path overhead).
 //!
 //! ## Why OKLab nearest (not the old cube+gray heuristic)

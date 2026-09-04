@@ -17,6 +17,8 @@ use crate::rain_style::RainStyle;
 
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::{DrawCtx, FlashWaveCtx};
+use super::ripple::{RippleStep, RippleSurface};
+use super::vortex::{VortexRandom, VortexSpawnParams, VortexStep};
 use smallvec::SmallVec;
 
 // Phase 3-G: atmospheric ctx for integrated post-processing.
@@ -126,6 +128,17 @@ impl super::Cloud {
                 if matches!(self.rain_style, RainStyle::Monolith) {
                     self.monolith_rain
                         .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Vortex) {
+                    self.vortex_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Ripple) {
+                    self.ripple_surface
+                        .adopt_palette_slot(self.active_palette_slot);
+                    for d in &mut self.droplets {
+                        if d.is_alive {
+                            d.palette_slot = self.active_palette_slot;
+                        }
+                    }
                 } else {
                     for d in &mut self.droplets {
                         if d.is_alive {
@@ -283,6 +296,29 @@ impl super::Cloud {
             };
             self.monolith_rain
                 .spawn(now, elapsed, &mut self.spawn_remainder, params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            // Vortex motes: same accumulator contract as monolith streams
+            // (elapsed clamped by max_sim_delta, fractional remainder
+            // carried in the shared spawn_remainder field).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = VortexSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = VortexRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.vortex_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -300,13 +336,18 @@ impl super::Cloud {
         if self.semantic_invalidate {
             self.semantic_invalidate = false;
             frame.invalidate_semantic(self.palette.bg);
-            if matches!(self.rain_style, RainStyle::Monolith) {
-                self.monolith_rain.clear_draw_history();
-                self.reset_phosphor_state();
-            } else {
+            if self.rain_style.is_droplet_family() {
                 for ch in self.phosphor_base_ch.iter_mut() {
                     *ch = '\0';
                 }
+            } else {
+                // Structured styles: rebuild from an empty diff baseline.
+                if matches!(self.rain_style, RainStyle::Monolith) {
+                    self.monolith_rain.clear_draw_history();
+                } else {
+                    self.vortex_rain.clear_draw_history();
+                }
+                self.reset_phosphor_state();
             }
         }
 
@@ -340,12 +381,16 @@ impl super::Cloud {
             // and the emitted content is identical to the screen — the
             // resync becomes invisible and the transient disappears.
             //
-            // Monolith keeps its historical state reset: its renderer
-            // maintains draw history + spine phosphor that genuinely
-            // needs rebuilding on a forced redraw.
+            // Structured styles keep their historical state reset: their
+            // renderers maintain draw history + phosphor metadata that
+            // genuinely needs rebuilding on a forced redraw.
             if matches!(self.rain_style, RainStyle::Monolith) {
                 frame.clear_with_bg(self.palette.bg);
                 self.monolith_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Vortex) {
+                frame.clear_with_bg(self.palette.bg);
+                self.vortex_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -414,7 +459,34 @@ impl super::Cloud {
                     }
                 }
             }
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            // Vortex: single global-clock step (dt clamped by
+            // max_sim_delta, resume_blend-scaled — see VortexRain::advance).
+            let step = VortexStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            self.vortex_rain.advance(&step);
+            // Ripple surface physics runs with the droplet family below;
+            // vortex has no surface system.
         } else {
+            // Ripple surface physics (ring aging + splash ballistics) runs
+            // with the droplet family — Glyph style skips it entirely.
+            let ripple_on = matches!(self.rain_style, RainStyle::Ripple);
+            let ripple_water_line = RippleSurface::water_line(self.lines);
+            let ripple_droplet_end = RippleSurface::droplet_end_line(self.lines);
+            if ripple_on {
+                let step = RippleStep {
+                    now,
+                    lines: self.lines,
+                    chars_per_sec: self.chars_per_sec * self.speed_mult,
+                    max_sim_delta,
+                    resume_blend: self.resume_blend,
+                };
+                self.ripple_surface.advance(&step);
+            }
             // sim path optimization: split the droplet advance loop into two
             // specialized paths based on `use_sim_cap` (loop-invariant).
             // (PERF-1-Supreme stale-comment fix): both benchmark entry
@@ -471,6 +543,20 @@ impl super::Cloud {
                         cs.num_droplets = cs.num_droplets.saturating_sub(1);
                         cs.can_spawn = true;
                         self.droplet_free_list.push(i);
+                        // Task-18 ripple hook: a droplet head reaching the
+                        // water surface opens a ripple ring + splash. Early
+                        // deaths (glitch rip) die above the surface and the
+                        // hp gate keeps them silent. Bench-visible: this is
+                        // the rain simulation for the ripple style.
+                        if ripple_on && hp >= ripple_droplet_end {
+                            self.ripple_surface.spawn_impact(
+                                col,
+                                ripple_water_line,
+                                self.active_palette_slot,
+                                &self.rand_chance,
+                                &mut self.mt,
+                            );
+                        }
                         continue;
                     }
 
@@ -517,6 +603,20 @@ impl super::Cloud {
                         cs.num_droplets = cs.num_droplets.saturating_sub(1);
                         cs.can_spawn = true;
                         self.droplet_free_list.push(i);
+                        // Task-18 ripple hook: a droplet head reaching the
+                        // water surface opens a ripple ring + splash. Early
+                        // deaths (glitch rip) die above the surface and the
+                        // hp gate keeps them silent. Bench-visible: this is
+                        // the rain simulation for the ripple style.
+                        if ripple_on && hp >= ripple_droplet_end {
+                            self.ripple_surface.spawn_impact(
+                                col,
+                                ripple_water_line,
+                                self.active_palette_slot,
+                                &self.rand_chance,
+                                &mut self.mt,
+                            );
+                        }
                         continue;
                     }
 
@@ -913,6 +1013,20 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.monolith_rain.draw(&ctx, frame, &mut cleanup);
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            // Vortex draw: same phosphor-metadata cleanup contract as the
+            // monolith (cells vacated by orbital motion are cleared via
+            // the drawn-cell diff, phosphor arrays reset in clear_cell).
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.vortex_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {
                 let needs_tail_cleanup = !d.is_alive
@@ -926,6 +1040,21 @@ impl super::Cloud {
                 if !d.is_alive {
                     d.bound_col = u16::MAX;
                 }
+            }
+            // Ripple surface (rings + splashes + shimmer) draws AFTER the
+            // droplets so the water plane reads in front of the rain.
+            if matches!(self.rain_style, RainStyle::Ripple) {
+                let mut cleanup = MonolithCleanup {
+                    lines: self.lines,
+                    bg: self.palette.bg,
+                    phosphor: &mut self.phosphor,
+                    phosphor_base_fg: &mut self.phosphor_base_fg,
+                    phosphor_base_ch: &mut self.phosphor_base_ch,
+                    phosphor_layer: &mut self.phosphor_layer,
+                };
+                let now_secs = now.saturating_duration_since(self.start_anchor).as_secs() as u32;
+                self.ripple_surface
+                    .draw(&ctx, frame, &mut cleanup, now_secs);
             }
         }
 

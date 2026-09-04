@@ -11,7 +11,6 @@ use rand::distr::Distribution;
 use crate::cell::Cell;
 use crate::constants::*;
 use crate::palette;
-use crate::rain_style::RainStyle;
 
 use super::state::{AnomalyKind, AnomalyZone};
 use super::Cloud;
@@ -255,7 +254,10 @@ impl Cloud {
         // spine phosphor cleanup via `clear_spine_phosphor()` (called from
         // rain.rs:519-529), so this Pass 2 protection is structurally
         // unnecessary for that scene family.
-        if !matches!(self.rain_style, RainStyle::Monolith) {
+        // Task-18: the droplet-family styles (Glyph cascade + Ripple
+        // surface rain) own the trail-protection contract; the structured
+        // styles (Monolith, Vortex) keep their own dedicated cleanup.
+        if self.rain_style.is_droplet_family() {
             for d in &self.droplets {
                 if d.bound_col == u16::MAX || !d.is_alive {
                     continue;

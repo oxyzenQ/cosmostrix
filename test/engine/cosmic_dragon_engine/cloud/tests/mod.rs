@@ -29,9 +29,11 @@ mod tests_quantum_flash_wave;
 mod tests_quantum_hunt22;
 mod tests_quantum_v50;
 mod tests_resync_hunt25;
+mod tests_ripple;
 mod tests_scene;
 mod tests_smoothstep_easing;
 mod tests_visual_depth;
+mod tests_vortex;
 
 use std::time::{Duration, Instant};
 

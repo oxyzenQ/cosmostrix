@@ -190,8 +190,9 @@ impl Cloud {
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
         self.last_spawn_time = Instant::now();
-        // Only reset spawn debt for monolith; glyph warm-start sets its own.
-        if matches!(self.rain_style, RainStyle::Monolith) {
+        // Only reset spawn debt for accumulator styles (monolith lanes /
+        // vortex motes); glyph warm-start sets its own.
+        if self.rain_style.uses_spawn_remainder() {
             self.spawn_remainder = 0.0;
         }
 
@@ -330,7 +331,7 @@ impl Cloud {
         self.semantic_invalidate = true;
         self.force_draw_everything = true;
         self.last_spawn_time = Instant::now();
-        if matches!(self.rain_style, RainStyle::Monolith) {
+        if self.rain_style.uses_spawn_remainder() {
             self.spawn_remainder = 0.0;
         }
 
@@ -342,20 +343,42 @@ impl Cloud {
     /// For glyph styles, the droplet pool is re-allocated and warm-started
     /// so the first post-switch frame has visible content immediately.
     pub(crate) fn transition_rain_style(&mut self, new_style: RainStyle) {
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.clear_draw_history();
+        // Clear the OLD style's persistent render state.
+        match self.rain_style {
+            RainStyle::Monolith => self.monolith_rain.clear_draw_history(),
+            // Task-18 hygiene: the new structured/surface styles take a
+            // FULL reset on exit (not just draw history) so no dormant
+            // active-state survives for future style-agnostic readers.
+            // Monolith keeps its shipped clear-draw-history-only exit
+            // (dormant streams are re-reset on re-entry — LTS parity).
+            RainStyle::Vortex => self.vortex_rain.reset(self.cols),
+            RainStyle::Ripple => self.ripple_surface.reset(),
+            RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
-        if matches!(new_style, RainStyle::Monolith) {
-            self.monolith_rain.reset(self.cols);
-            self.droplets.clear();
-            self.spawn_remainder = 0.0;
-            self.glyph_entry_time = None;
-        } else {
-            // Re-allocate glyph droplet pool and warm-start so the
-            // first post-switch frame has visible rain immediately,
-            // preventing the blank-screen bug on monolith→glyph switch.
-            self.ensure_glyph_pool_and_warm_start();
+        match new_style {
+            RainStyle::Monolith => {
+                self.monolith_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Vortex => {
+                self.vortex_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Glyph | RainStyle::Ripple => {
+                // Re-allocate glyph droplet pool and warm-start so the
+                // first post-switch frame has visible rain immediately,
+                // preventing the blank-screen bug on monolith→glyph switch.
+                self.ensure_glyph_pool_and_warm_start();
+                if matches!(new_style, RainStyle::Ripple) {
+                    // Fresh surface: no rings/splashes from the old scene.
+                    self.ripple_surface.reset();
+                }
+            }
         }
         self.reset_phosphor_state();
         // ME-03..ME-05 (mouse-effect state leak fix): clear mouse-click /

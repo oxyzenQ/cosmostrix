@@ -88,6 +88,9 @@ impl Cloud {
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            self.vortex_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -149,6 +152,9 @@ impl Cloud {
 
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            self.vortex_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

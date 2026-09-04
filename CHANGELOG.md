@@ -9,6 +9,51 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: v100.0.0-nightly.1 — rain styles 3 + 4: `vortex` (polar-orbit galaxy drain) and `ripple` (water-surface rain) (task-18, owner-approved 2026-09-05)
+
+Third and fourth rain styles — different motion DNA from both existing
+styles (the cascade and the pillars), landed AFTER the task-17 emission
+fix so both inherit Color16/256 quantization on the wire (PTY-probed:
+mode 16 emits classic `3x`/`9x` only, mode 256 emits `38;5;N` only).
+
+- `vortex` (scene `vortex`, palette `cosmos` + charset `zen`): glyphs
+  spiral inward on Keplerian orbits — angular speed ∝ 1/radius gives a
+  constant cells/sec along every orbit (majestic rim at ~8s/rev, ~1
+  rev/s near the core). Three slowly-precessing spawn-arm concentrations
+  shear into living spiral arms via differential rotation; motes are
+  absorbed at the event-horizon core and respawn at the rim. Comet
+  trails (4-cell) dim one brightness step per cell; matrix-style glyph
+  mutation fires when a head crosses into a new cell.
+- `ripple` (scene `ripple`, palette `ocean` + charset `matrix`): the
+  glyph cascade falls onto a virtual water surface 3 rows above the
+  bottom. Droplet `end_line` is capped above the surface (region
+  contract: droplet fall / splash rise / ring zones are disjoint by
+  construction); each surface impact opens an expanding edge-on ripple
+  ring (sqrt ease-out opening, cps-scaled) plus 2-4 ballistic splash
+  hops, with a deterministic hash-positioned surface shimmer keeping
+  the plane perceptible between impacts.
+- Architecture: `RainStyle` gains `Vortex`/`Ripple` + family helpers
+  (`is_droplet_family` — Glyph + Ripple share the droplet pool and
+  phosphor Pass 2; `uses_spawn_remainder` — Monolith + Vortex). New
+  `cloud/vortex.rs` (560 LOC) and `cloud/ripple.rs` (528 LOC) follow
+  the monolith drawn-cell diff-cleanup pattern; `rain_at` style gates
+  extended; scene catalog grows to 20 scenes (`x`-cycle: cinematic ->
+  monolith -> matrix -> vortex -> ripple -> classic -> ...).
+- Both new systems reset fully on style exit (stricter than monolith's
+  historical draw-history-only exit — dormant-state-proof for future
+  style-agnostic readers).
+- A/B 10s @ 120x40 truecolor (baseline 7df626f vs after): cinematic and
+  monolith noise-equivalent (no regression). New signatures: vortex
+  42,456 fps / 277.9 dirty cells / entropy 6.307 (highest of any style)
+  / gini 0.468 (most even coverage) / drift +0.8%; ripple 5,080 fps /
+  1,248 dirty / entropy 6.211 / gini 0.529 / drift +3.8% — every style
+  now occupies a distinct point in visual-metric space.
+- +18 contracts (tests_vortex + tests_ripple): scene resolution, spawn
+  density target, inward convergence, core absorption, drawn-cell
+  bounds, Kepler bound (compile-time const pin), style transitions
+  both ways, water-line geometry, droplet end-cap, impact hooks, ring
+  expiry, region-contract pins, live frame streams.
+
 ### fix: v100.0.0-nightly.1 — Color16/256/mono emission quantization: the rain renderer now honors the resolved color mode on the wire (task-17, owner-approved Step 1, 2026-09-05)
 
 Defect (found in NIGHT-research-2's PTY probe, owner-approved fix):

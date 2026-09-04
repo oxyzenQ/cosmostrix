@@ -225,10 +225,12 @@ mod atmosphere;
 mod density_throttle;
 mod events;
 mod parallax;
+mod style_rain;
 pub(crate) use atmosphere::*;
 pub(crate) use density_throttle::*;
 pub(crate) use events::*;
 pub(crate) use parallax::*;
+pub(crate) use style_rain::*;
 
 // ─── Exponential trail fade & head bloom ───────────────────────────────────
 

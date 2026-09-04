@@ -87,6 +87,17 @@ farther). The dry-run `ansi_bytes_per_second` remains the disclosed
 19-bytes/cell truecolor-based estimate (see its `basis` field); real
 bytes per frame are measured by the wet I/O scenes.
 
+**task-18 style signatures:** the two new rain styles benchmark like
+this (10s, 120x40, truecolor, 5s discarded warmup): `vortex` sits in
+the structured-performance class with monolith (42K fps, ~278 dirty
+cells/frame, sim 0.013ms) while carrying the highest frame entropy of
+any style (6.307) and the most even density (gini 0.468); `ripple`
+sits in the droplet class with cinematic (~5.1K fps, ~1,248 dirty
+cells — the surface system adds ~280 cells on top of the cascade) with
+entropy 6.211 and gini 0.529. Each style occupies a distinct point in
+(entropy, gini, color-delta) space — per-style benchmarks are directly
+comparable via `--scene <name> --benchmark`.
+
 ## Key Metrics
 
 | Metric | Unit | What it tells you |

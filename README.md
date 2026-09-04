@@ -495,6 +495,11 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 - `matrix` — classic Matrix glyph rain
 - `monolith` — structured cosmostrix Monolith Rain with sparse structured segments
 
+**Style flagships** (rain styles 3 + 4, task-18):
+
+- `vortex` — polar-orbit galaxy drain: glyphs spiral inward on Keplerian orbits (angular speed ∝ 1/radius) toward a glowing core, sheared into living spiral arms by differential rotation. Motion math is 100% distinct from both the cascade and the pillars — no other terminal rain has it. `cosmostrix --scene vortex`
+- `ripple` — water-surface rain: the classic glyph cascade falls onto a shimmering surface plane near the bottom, each impact opening an expanding edge-on ripple ring plus a short splash of hop particles. `cosmostrix --scene ripple`
+
 **Curated scenes** (via `--scene <name>`):
 
 - `signal`, `classic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`, `low-power`
@@ -523,7 +528,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle through all built-in scenes (cinematic -> monolith -> matrix -> classic -> … -> curiosity, then back to cinematic).
+Press `x` while running to cycle through all built-in scenes (cinematic -> monolith -> matrix -> vortex -> ripple -> classic -> … -> curiosity, then back to cinematic).
 
 ## Configuration
 

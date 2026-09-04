@@ -147,6 +147,9 @@ impl Cloud {
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            self.vortex_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
 
         // v16: force_draw_everything is set above so the background
@@ -175,6 +178,8 @@ impl Cloud {
             self.reset_phosphor_state();
             self.semantic_invalidate = true;
         }
+        // Vortex/Ripple have no monolith-size rendering dependency — the
+        // field is stored for a later monolith switch (cheap no-op here).
     }
 
     pub fn set_droplet_density(&mut self, density: f32) {
@@ -268,6 +273,9 @@ impl Cloud {
         self.shading_distance = matches!(sm, ShadingMode::DistanceFromHead);
         if matches!(self.rain_style, RainStyle::Monolith) {
             self.monolith_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Vortex) {
+            self.vortex_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

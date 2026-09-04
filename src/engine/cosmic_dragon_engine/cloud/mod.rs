@@ -39,12 +39,14 @@ mod rain;
 mod rain_at;
 mod rain_post;
 mod render;
+mod ripple;
 mod runtime_controls;
 mod scene_runtime;
 mod spawn;
 mod spawn_logic;
 mod spawn_reset;
 mod state;
+mod vortex;
 
 #[cfg(test)]
 #[path = "../../../../test/engine/cosmic_dragon_engine/cloud/tests/mod.rs"]
@@ -69,7 +71,9 @@ use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
 use monolith::MonolithRain;
+use ripple::RippleSurface;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
+use vortex::VortexRain;
 
 use ghost_events::GhostEventScheduler;
 use render::FlashWave;
@@ -118,6 +122,11 @@ pub struct Cloud {
 
     pub(crate) droplets: Vec<Droplet>,
     pub(crate) monolith_rain: MonolithRain,
+    /// Task-18 third rain style: polar-orbit motes (vortex scene).
+    pub(crate) vortex_rain: VortexRain,
+    /// Task-18 fourth rain style: water-surface rings + splashes
+    /// (ripple scene; droplets still produce the falling rain).
+    pub(crate) ripple_surface: RippleSurface,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -409,6 +418,8 @@ impl Cloud {
             max_droplets_per_column: 3,
             droplets: Vec::new(),
             monolith_rain: MonolithRain::new(),
+            vortex_rain: VortexRain::new(),
+            ripple_surface: RippleSurface::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -763,10 +774,13 @@ impl Cloud {
 
     #[must_use]
     pub fn active_droplet_count(&self) -> usize {
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.monolith_rain.active_count()
-        } else {
-            self.droplets.iter().filter(|d| d.is_alive).count()
+        match self.rain_style {
+            RainStyle::Monolith => self.monolith_rain.active_count(),
+            RainStyle::Vortex => self.vortex_rain.active_count(),
+            // Droplet family: Glyph cascade + Ripple surface droplets.
+            RainStyle::Glyph | RainStyle::Ripple => {
+                self.droplets.iter().filter(|d| d.is_alive).count()
+            }
         }
     }
 

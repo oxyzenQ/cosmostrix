@@ -54,14 +54,20 @@ impl super::Cloud {
         self.cols = cols;
         self.lines = lines;
 
-        if matches!(self.rain_style, RainStyle::Monolith) {
-            self.droplets.clear();
-        } else {
+        // Task-18: structured styles (Monolith, Vortex) keep the droplet
+        // pool empty; droplet-family styles (Glyph, Ripple) allocate it.
+        if self.rain_style.is_droplet_family() {
             let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
             self.droplets.clear();
             self.droplets.resize_with(pool_size, Droplet::new);
+        } else {
+            self.droplets.clear();
         }
+        // Both structured systems stay viewport-ready (style switch is a
+        // pure field flip away); ripple keeps a fixed pool, just clears it.
         self.monolith_rain.reset(self.cols);
+        self.vortex_rain.reset(self.cols);
+        self.ripple_surface.reset();
 
         // Re-seed the droplet free-list: after clear+resize, all droplets
         // are dead (Droplet::new defaults is_alive=false), so every index
@@ -162,7 +168,9 @@ impl super::Cloud {
         self.last_spawn_time = now;
         self.spawn_remainder = 0.0;
         self.force_draw_everything = true;
-        if matches!(self.rain_style, RainStyle::Monolith) {
+        if !self.rain_style.is_droplet_family() {
+            // Structured styles carry drawn-cell diff history that must be
+            // rebuilt after a hard reset.
             self.semantic_invalidate = true;
         }
         self.frames_since_full_redraw = 0;

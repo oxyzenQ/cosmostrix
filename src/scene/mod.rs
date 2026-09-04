@@ -44,36 +44,42 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 18 built-in scenes (owner directive
-/// 2026-08-24: positions 1-3 are fixed; the rest ordered by daily-use
-/// likelihood so the most-switched scenes are the fewest keystrokes
-/// away: core trio -> classic siblings -> atmosphere -> power-saving
-/// utility -> milestone -> tribute -> honor scenes).
+/// Ordered scene cycle — all 20 built-in scenes (owner directive
+/// 2026-08-24: positions 1-3 are fixed; task-18 adds the style flagships
+/// at 4-5; the rest ordered by daily-use likelihood so the most-switched
+/// scenes are the fewest keystrokes away: core trio -> style flagships ->
+/// classic siblings -> atmosphere -> power-saving utility -> milestone ->
+/// tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
     // Core atmospheres (owner-pinned order).
     "cinematic", // 1
     "monolith",  // 2
     "matrix",    // 3
+    // Task-18 style flagships — the polar-orbit and water-surface
+    // styles are signature differentiators (no competitor terminal
+    // has them), so they lead the cycle right after the core trio.
+    "vortex", // 4
+    "ripple", // 5
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 4 — original green-on-black
-    "signal",      // 5 — digital transmission
-    "hacker",      // 6 — high-contrast terminal overflow
-    "matrix_film", // 7 — 1999 film homage
+    "classic",     // 6 — original green-on-black
+    "signal",      // 7 — digital transmission
+    "hacker",      // 8 — high-contrast terminal overflow
+    "matrix_film", // 9 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 8
-    "calm",   // 9
-    "cosmos", // 10
-    "neon",   // 11
+    "storm",  // 10
+    "calm",   // 11
+    "cosmos", // 12
+    "neon",   // 13
     // Utility.
-    "low-power", // 12
+    "low-power", // 14
     // Milestone + tribute.
-    "cosmic-dragon", // 13
-    "carbonic",      // 14
+    "cosmic-dragon", // 15
+    "carbonic",      // 16
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 15
-    "orange-cat",     // 16
-    "north-stars",    // 17
-    "curiosity",      // 18
+    "crystal-dragon", // 17
+    "orange-cat",     // 18
+    "north-stars",    // 19
+    "curiosity",      // 20
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -89,6 +95,33 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.65),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
+        },
+    },
+    // --- Task-18 style flagships (rain styles 3 + 4) ---
+    SceneInfo {
+        name: "vortex",
+        description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
+        config: SceneConfig {
+            color: Some("cosmos"),
+            charset: Some("zen"),
+            fps: Some(60.0),
+            speed: Some(24.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Vortex,
+        },
+    },
+    SceneInfo {
+        name: "ripple",
+        description: "Water-surface rain — glyphs fall onto a shimmering plane, opening ripple rings and splashes",
+        config: SceneConfig {
+            color: Some("ocean"),
+            charset: Some("matrix"),
+            fps: Some(60.0),
+            speed: Some(20.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Ripple,
         },
     },
     SceneInfo {

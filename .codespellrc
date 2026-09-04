@@ -7,4 +7,4 @@ skip = ./.git,./target,./reference,./benchmark/perf.data*,./benchmark/*.out,./be
 #     (cli/suggestion.rs, validation/tests.rs, scene_custom, config_apply)
 # Never "correct" these words in the test fixtures - the tests would stop
 # exercising the typo-tolerance path they exist to verify.
-ignore-words-list = alacritty,cosmostrix,crossterm,katakana,unicode,uptodate,numer,denom,iterm,bu,speeed,charaset,retuned,trough,troughs,statics,pre-emptive,afternon,larg,defualt,Defaul
+ignore-words-list = alacritty,cosmostrix,crossterm,katakana,unicode,uptodate,numer,denom,iterm,bu,speeed,charaset,retuned,trough,troughs,statics,pre-emptive,afternon,larg,defualt,Defaul,precess,precesses,precessing,precession
