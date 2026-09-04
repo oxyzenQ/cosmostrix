@@ -9,6 +9,37 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — case-insensitive flag-suggestion fallback (owner `--LIS` test report 2026-09-04)
+
+Owner report: `--LIS` rendered tip-less while `--lis` suggests
+`--list-scenes`. Root cause: clap's did-you-mean engine compares
+case-SENSITIVELY (strsim Jaro, confidence > 0.7) — an all-caps
+prefix of a known flag scores zero matching chars and gets no
+SuggestedArg context, so the canonical render carries no tip at all.
+
+- New fallback `cli::ux::enrich_unknown_arg_suggestion`, called at
+  the top of `exit_clap_error`: when an UnknownArgument error
+  carries no suggestion, the typed flag (InvalidArg context) is
+  matched case-insensitively against the command's non-hidden long
+  flags and the best match is injected as clap's OWN `SuggestedArg`
+  context — the tip renders in clap's canonical position and white
+  `valid` style, exactly once, with no custom printing and no render
+  surgery. No-op for every other error kind, for errors clap already
+  suggested (never a second tip), and for short/distant inputs.
+- New engine pair in `cli/suggestion.rs`: `jaro_ci` (faithful
+  strsim::jaro port, both sides lowercased) and
+  `closest_long_flag_ci` (> 0.7 threshold, ties resolve to the LAST
+  candidate — mirroring clap's ascending-sort-then-pop so a rescued
+  typo suggests the same flag clap suggests for its lowercase twin:
+  `--LIS` and `--lis` both point at `--list-scenes`). Safety: for
+  lowercase input the scores equal clap's own, and the candidate set
+  is a subset of clap's keymap, so the fallback adds signal only
+  where clap was structurally silent.
+- Stresstest: 3 new cases (--LIS rescues --list-scenes, --HELPSS
+  rescues --help, --x stays tip-less) — 26 total, all PASS. Unit
+  tests: 4 render-contract tests in cli/ux.rs + 7 engine tests in
+  cli/suggestion.rs.
+
 ### ux: v100.0.0-nightly.1 — fatal-error footer consistency, config-apply error classification (owner test report follow-up 2026-09-04)
 
 Owner report: testing commit ea05ca00 showed `--scene cosmosm`

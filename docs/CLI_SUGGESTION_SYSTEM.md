@@ -76,6 +76,12 @@ pub(crate) fn edit_distance(a: &str, b: &str) -> usize
 
 /// Closest candidate within edit distance 2 (case-insensitive), or None.
 pub(crate) fn closest_value_match(input: &str, candidates: &[&str]) -> Option<String>
+
+/// Jaro similarity, case-insensitive (clap's own flag metric, lowercased).
+pub(crate) fn jaro_ci(a: &str, b: &str) -> f64
+
+/// Closest long flag by case-insensitive Jaro (> 0.7, ties -> last).
+pub(crate) fn closest_long_flag_ci(input: &str, candidates: &[&str]) -> Option<String>
 ```
 
 Policy: distance <= 2 catches typos (transposition = distance 2 in
@@ -85,7 +91,14 @@ resolve to the FIRST candidate at the best distance.
 
 For FLAG suggestions, clap's own `suggestions` feature (jaro
 similarity) renders the tip directly — no custom engine, no
-re-rendering, no hand-maintained flag list.
+re-rendering, no hand-maintained flag list. The ONE gap: clap's
+Jaro is case-sensitive, so `--LIS` (all-caps prefix of
+`--list-scenes`) scores zero and renders tip-less while `--lis`
+suggests. `jaro_ci` / `closest_long_flag_ci` close exactly that gap
+as a fallback inside `exit_clap_error` (see the table below): same
+Jaro metric, same > 0.7 threshold, lowercased both sides, ties
+broken to the last candidate (mirroring clap's ascending-sort-then-
+pop), candidates restricted to non-hidden primary long names.
 
 ## 4. Call sites (full sweep)
 
@@ -107,6 +120,7 @@ re-rendering, no hand-maintained flag list.
 | File | Surface | Source |
 |------|---------|-------|
 | `src/cli/ux.rs` (`exit_clap_error`) | every clap parse error | clap's own `SuggestedArg` context — real usage line + help footer appended |
+| `src/cli/ux.rs` (`enrich_unknown_arg_suggestion`) | unknown long flag clap scored tip-less (case variants like `--LIS`) | case-insensitive Jaro fallback (`jaro_ci` / `closest_long_flag_ci` in `cli/suggestion.rs`) injected as clap's OWN `SuggestedArg` context — same tip position, same white style, never a second tip |
 | `src/cli/argv_expand.rs` | `-mfs…` typo (attached form) | hardcoded `--msg-fill-style` via `ux::die_input_with_usage` |
 | `src/main.rs` (`prevalidate_cli_args`) | removed-flag migration hints | REMOVED_FLAGS table via `ux::die_input_with_usage` |
 
@@ -149,6 +163,8 @@ The suggestion engine is stresstested at two levels:
 - `--no-effecs` → `SuggestedArg` context points at `--no-effects` (the v50.0.0-beta.7 rename regression)
 - Distant typos (`--zzzzqqqq`) carry no `SuggestedArg` context (no noise)
 - `cli/ux.rs` tests lock the render contract: real usage line (never the suggestion-narrowed `Usage: cosmostrix --testconf`), exactly one tip line, help footer present
+- `cli/ux.rs` tests lock the case-insensitive fallback: `--LIS` rescues `--list-scenes` (injected as clap's own `SuggestedArg`, rendered exactly once), `--helpss` keeps clap's own `--help` tip untouched, `-x` / `--x` / `--zzzzqqqq` stay silent (clap silence parity), and non-UnknownArgument errors (`--fps` without a value) pass through untouched
+- `cli/suggestion.rs` tests lock the engine: `jaro_ci` equals strsim's Jaro for lowercase input (hand-computed 0.7576 for `lis`/`list-scenes`), rescues case variants case-sensitive Jaro scores zero, and ties break to the last candidate (clap's ascending-sort-then-pop parity)
 
 ### Negative tests (no false suggestions)
 
@@ -173,7 +189,7 @@ cargo build --bin cosmostrix
 bash scripts/cli_suggestion_stresstest.sh
 ```
 
-23 cases covering:
+26 cases covering:
 
 - **Long-flag typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
   `--msg-fill-styl`, `--verbos`, `--power-drago` — each must produce
@@ -195,8 +211,12 @@ bash scripts/cli_suggestion_stresstest.sh
   a malformed config line stays footer-less (the config-file family
   keeps the die_config shape — see the `die_config_apply_error`
   classifier in `src/cli/ux.rs`).
+- **Case-insensitive flag rescue** (3 cases): `--LIS` suggests
+  `--list-scenes`, `--HELPSS` suggests `--help` (both scored zero
+  under clap's case-sensitive Jaro), and `--x` stays tip-less
+  (silence parity with clap — single chars never clear 0.7).
 
-Last stresstest run: 23/23 PASS. The script is part of the gatekeeper
+Last stresstest run: 26/26 PASS. The script is part of the gatekeeper
 suite (bash -n syntax-checked; run manually before releases).
 
 ## 6. Migration from `Did you mean`

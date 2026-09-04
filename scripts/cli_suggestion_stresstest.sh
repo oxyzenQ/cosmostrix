@@ -186,6 +186,26 @@ run_case "malformed config line → error, NO help footer" \
         --config "$tmpcfg"
 rm -f "$tmpcfg"
 
+# ── Category 7: case-insensitive flag rescue (v100.0.0-nightly.1 --LIS) ──
+# clap's did-you-mean is case-sensitive (strsim Jaro): --lis suggests
+# --list-scenes but --LIS scored zero matching chars and rendered
+# tip-less. The ux fallback injects the case-insensitive match as
+# clap's own SuggestedArg context — same tip shape, same position.
+run_case "uppercase prefix '--LIS' → tip --list-scenes (case rescue)" \
+        "tip: a similar argument exists: '--list-scenes'" \
+        "Did you mean" \
+        --LIS
+
+run_case "all-caps typo '--HELPSS' → tip --help (case rescue)" \
+        "tip: a similar argument exists: '--help'" \
+        "Did you mean" \
+        --HELPSS
+
+run_case "single-char unknown '--x' → no tip (clap silence parity)" \
+        "unexpected argument '--x'" \
+        "tip: a similar" \
+        --x
+
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do

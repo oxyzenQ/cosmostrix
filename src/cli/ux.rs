@@ -191,6 +191,58 @@ pub(crate) fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
 
 // ── Clap error bridge ──────────────────────────────────────────────────────
 
+/// Case-insensitive flag-suggestion fallback for clap UnknownArgument
+/// errors (owner report 2026-09-04, the `--LIS` case).
+///
+/// clap's own did-you-mean engine compares case-SENSITIVELY (strsim
+/// Jaro, confidence > 0.7), so `--lis` suggests `--list-scenes` while
+/// `--LIS` — zero matching chars — renders tip-less. When an unknown
+/// LONG flag carries no SuggestedArg context, this injects the best
+/// case-insensitive match (same Jaro metric + threshold, lowercased
+/// both sides) as clap's OWN `SuggestedArg` context, so the tip
+/// renders in clap's canonical position and `valid` (white) style —
+/// no custom printing, no second tip, no render surgery.
+///
+/// Safety of the delta: for already-lowercase input the scores are
+/// identical to clap's (ASCII flags are lowercase), and the candidate
+/// set is a SUBSET of clap's keymap (non-hidden primary long names
+/// only — a hidden flag must never surface via a typo rescue). The
+/// fallback therefore fires only where clap was silent, and only for
+/// case-variant typos clap's engine structurally cannot see.
+///
+/// No-op for: every non-UnknownArgument error kind, errors that
+/// already carry a suggestion (clap's tip is never duplicated), and
+/// dashes-only inputs (short flags like `-x` — Jaro of a single char
+/// never clears 0.7, matching clap's own silence).
+pub(crate) fn enrich_unknown_arg_suggestion(e: &mut clap::Error, cmd: &Command) {
+    if e.kind() != clap::error::ErrorKind::UnknownArgument {
+        return;
+    }
+    if e.get(ContextKind::SuggestedArg).is_some() {
+        return;
+    }
+    // The typed flag lives in the InvalidArg context ("--LIS" / "-x");
+    // strip the dashes so bare flag names compare against bare names.
+    let typed = match e.get(ContextKind::InvalidArg) {
+        Some(ContextValue::String(s)) => s.trim_start_matches('-').to_string(),
+        _ => return,
+    };
+    if typed.is_empty() {
+        return;
+    }
+    let candidates: Vec<&str> = cmd
+        .get_arguments()
+        .filter(|arg| !arg.is_hide_set())
+        .filter_map(|arg| arg.get_long())
+        .collect();
+    if let Some(best) = crate::cli::suggestion::closest_long_flag_ci(&typed, &candidates) {
+        e.insert(
+            ContextKind::SuggestedArg,
+            ContextValue::String(format!("--{best}")),
+        );
+    }
+}
+
 /// Render a clap parse error in the canonical cosmostrix shape and
 /// exit 2. The single exit path for `try_get_matches_from` and
 /// `from_arg_matches` failures.
@@ -213,8 +265,16 @@ pub(crate) fn or_exit<T, E: AsRef<str>>(r: Result<T, E>) -> T {
 /// render already prints the "tip: a similar argument exists" line
 /// from the `SuggestedArg` context (styled white via the `valids`
 /// entry in `clap_styles()`), so this function never appends a
-/// second one.
+/// second one. Case-variant typos clap's engine cannot see (`--LIS`)
+/// are rescued first by [`enrich_unknown_arg_suggestion`] — injected
+/// as clap's own context, rendered exactly once by clap's formatter.
 pub(crate) fn exit_clap_error(mut e: clap::Error, cmd: &mut Command) -> ! {
+    // Case-insensitive rescue first (owner `--LIS` report): injects
+    // the SuggestedArg context when clap's case-sensitive engine
+    // found nothing, so the render below carries the tip exactly once
+    // in clap's canonical position and style.
+    enrich_unknown_arg_suggestion(&mut e, cmd);
+
     // Replace (or add) the usage context with the real full usage.
     // RichFormatter renders the Usage context verbatim; without this,
     // suggestion-carrying errors show the narrowed usage and
@@ -310,6 +370,104 @@ mod tests {
         );
     }
 
+    // ── Case-insensitive flag-suggestion fallback (owner --LIS report) ───
+
+    /// The owner's exact case: `--LIS` (uppercase prefix of
+    /// --list-scenes). clap's case-sensitive engine scores zero
+    /// matches; the fallback must inject `--list-scenes` as clap's OWN
+    /// SuggestedArg context so the canonical render carries exactly
+    /// one tip, the real usage, and the footer shape.
+    #[test]
+    fn case_insensitive_fallback_rescues_lis() {
+        use clap::{CommandFactory, Parser};
+        let mut err = crate::config::Args::try_parse_from(["cosmostrix", "--LIS"])
+            .expect_err("--LIS must be unknown");
+        assert!(
+            err.get(ContextKind::SuggestedArg).is_none(),
+            "precondition: clap's case-sensitive engine must miss --LIS"
+        );
+        let mut cmd = crate::config::Args::command();
+        enrich_unknown_arg_suggestion(&mut err, &cmd);
+        match err.get(ContextKind::SuggestedArg) {
+            Some(ContextValue::String(s)) => assert_eq!(
+                s, "--list-scenes",
+                "--LIS must rescue --list-scenes, got {s:?}"
+            ),
+            other => panic!("expected a rescued SuggestedArg, got {other:?}"),
+        }
+        // Full render contract: one tip, the suggested flag, the real
+        // (never narrowed) usage — same invariants as clap's own path.
+        let real_usage = cmd.render_usage();
+        err.insert(ContextKind::Usage, ContextValue::StyledStr(real_usage));
+        let err = err.format(&mut cmd);
+        let rendered = err.render().to_string();
+        assert_eq!(
+            rendered.matches("tip: a similar argument exists").count(),
+            1,
+            "exactly one tip line expected, got: {rendered}"
+        );
+        assert!(
+            rendered.contains("'--list-scenes'"),
+            "tip must name --list-scenes, got: {rendered}"
+        );
+        assert!(
+            rendered.contains("Usage: cosmostrix [OPTIONS]"),
+            "rendered error must show the real usage, got: {rendered}"
+        );
+    }
+
+    /// A case variant clap itself catches (`--helpss`): the fallback
+    /// must stay silent — clap's tip is never replaced or duplicated.
+    #[test]
+    fn fallback_never_touches_errors_clap_already_suggested() {
+        use clap::{CommandFactory, Parser};
+        let mut err = crate::config::Args::try_parse_from(["cosmostrix", "--helpss"])
+            .expect_err("--helpss must be unknown");
+        let cmd = crate::config::Args::command();
+        enrich_unknown_arg_suggestion(&mut err, &cmd);
+        match err.get(ContextKind::SuggestedArg) {
+            Some(ContextValue::String(s)) => assert_eq!(
+                s, "--help",
+                "clap's own suggestion must survive untouched, got {s:?}"
+            ),
+            other => panic!("clap's suggestion must be present, got {other:?}"),
+        }
+    }
+
+    /// Silence parity: inputs where clap stays silent must stay silent
+    /// after the fallback too (short flags, single chars, distant
+    /// typos) — the rescue adds signal, never noise.
+    #[test]
+    fn fallback_stays_silent_where_clap_is_silent() {
+        use clap::{CommandFactory, Parser};
+        for typed in ["-x", "--x", "--zzzzqqqq"] {
+            let mut err = crate::config::Args::try_parse_from(["cosmostrix", typed])
+                .expect_err(&format!("{typed} must be an unknown-arg error"));
+            let cmd = crate::config::Args::command();
+            enrich_unknown_arg_suggestion(&mut err, &cmd);
+            assert!(
+                err.get(ContextKind::SuggestedArg).is_none(),
+                "{typed} must stay tip-less (clap silence parity)"
+            );
+        }
+    }
+
+    /// The enrichment is scoped to UnknownArgument errors only — a
+    /// missing-value error (e.g. `--fps` without a value) must pass
+    /// through untouched.
+    #[test]
+    fn fallback_ignores_non_unknown_argument_errors() {
+        use clap::{CommandFactory, Parser};
+        let mut err = crate::config::Args::try_parse_from(["cosmostrix", "--fps"])
+            .expect_err("--fps without a value must be a missing-value error");
+        let cmd = crate::config::Args::command();
+        enrich_unknown_arg_suggestion(&mut err, &cmd);
+        assert!(
+            err.get(ContextKind::SuggestedArg).is_none(),
+            "missing-value errors must not gain an argument suggestion"
+        );
+    }
+
     /// The real-usage contract: `Command::render_usage()` (what
     /// `exit_clap_error` injects into every clap error) must be the
     /// plain full-usage form, never a suggestion-narrowed form.
@@ -331,8 +489,7 @@ mod tests {
     /// (message is context-driven, so `insert` steers the render).
     #[test]
     fn usage_context_insert_steers_clap_render() {
-        use clap::CommandFactory;
-        use clap::Parser;
+        use clap::{CommandFactory, Parser};
         let err = crate::config::Args::try_parse_from(["cosmostrix", "--test"])
             .expect_err("--test must be unknown");
         // The parser stored the suggestion-narrowed usage.
