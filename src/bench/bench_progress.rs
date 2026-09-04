@@ -398,7 +398,7 @@ impl BenchProgress {
     ///
     /// After this call the terminal is left in a clean state with the
     /// cursor positioned where the benchmark output originally started.
-    /// The final report should then be printed to **stdout**.
+    /// The final report should then be printed to stdout.
     pub(crate) fn finish(&mut self) {
         if self.should_display() {
             // Verbose path — clear the multi-line live region.

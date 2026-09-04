@@ -12,7 +12,7 @@
 //! ## History
 //!
 //! v50.0.0-beta.6 FATAL FIX: stopped auto-promoting ANY key inside a
-//! custom block (`charset-custom.*`, `colors-custom.*`, `scene-custom.*`)
+//! custom block (`charset-custom.`, `colors-custom.`, `scene-custom.*`)
 //! to prevent silent side-effects like `color = green` inside
 //! `[charset-custom.quantum]` changing the global color scheme.
 //!

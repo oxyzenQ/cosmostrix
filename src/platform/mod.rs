@@ -10,16 +10,16 @@
 //!
 //! ## Design principles
 //!
-//! 1. **Type aliases over traits** — We use type aliases (`TermReinit`)
+//! 1. Type aliases over traits — We use type aliases (`TermReinit`)
 //!    rather than trait objects or enums. This keeps zero
 //!    overhead on all platforms and avoids vtable indirection. The cfg gate
 //!    lives in one place (this file) instead of dozens.
 //!
-//! 2. **Stub types are `()`** — On platforms where a concept doesn't exist
+//! 2. Stub types are `()` — On platforms where a concept doesn't exist
 //!    (e.g. SIGTSTP on Windows), the alias resolves to `()` so callers can
 //!    pass a no-op value without any runtime cost.
 //!
-//! 3. **Helper functions over macros** — Repeated platform-specific logic
+//! 3. Helper functions over macros — Repeated platform-specific logic
 //!    (e.g. reading `/sys` files) is centralized in helper functions here
 //!    rather than duplicated with `#[cfg]` blocks in each consumer.
 
@@ -27,11 +27,11 @@
 
 /// Type alias for the "terminal reinit needed" flag used after SIGCONT.
 ///
-/// - **Unix**: `Arc<AtomicBool>` — shared between the SIGTSTP/SIGCONT signal
+/// - Unix: `Arc<AtomicBool>` — shared between the SIGTSTP/SIGCONT signal
 ///   handler thread and the event loop. The handler sets it to `true` on
 ///   SIGCONT; the event loop swaps it to `false` and reinitializes the
 ///   terminal.
-/// - **Non-Unix (Windows)**: `()` — SIGTSTP/SIGCONT don't exist; ConPTY
+/// - Non-Unix (Windows): `()` — SIGTSTP/SIGCONT don't exist; ConPTY
 ///   handles terminal state automatically.
 ///
 /// ### Impact
@@ -64,8 +64,8 @@ pub(crate) fn default_term_reinit() -> TermReinit {}
 
 /// Swap the `term_reinit` flag and return the old value.
 ///
-/// - **Unix**: calls `AtomicBool::swap(false, AcqRel)` on the inner `Arc<AtomicBool>`.
-/// - **Non-Unix**: always returns `false` (no SIGTSTP/SIGCONT).
+/// - Unix: calls `AtomicBool::swap(false, AcqRel)` on the inner `Arc<AtomicBool>`.
+/// - Non-Unix: always returns `false` (no SIGTSTP/SIGCONT).
 ///
 /// This eliminates the need for `#[cfg(unix)]` at every call site in the
 /// event loop. The compiler inlines the `false` return on non-Unix.

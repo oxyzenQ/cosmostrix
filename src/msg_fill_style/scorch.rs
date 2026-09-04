@@ -25,12 +25,12 @@
 //! at full blend (1.0) with a bright head factor
 //! (1.0 + `SCORCH_HEAD_BOOST` = 1.5). Over `SCORCH_COOL_MS` (400 ms):
 //!
-//! 1. **Early cool** (age 0..200 ms): ember blend 1.0 → 0.5 linear,
+//! 1. Early cool (age 0..200 ms): ember blend 1.0 → 0.5 linear,
 //!    factor 1.5 → `SCORCH_CHAR_DIP` (0.8). The char dims as it
 //!    "chars" — the research doc's "dimmer" sub-effect.
-//! 2. **Late cool** (age 200..400 ms): ember blend 0.5 → 0.0 linear,
+//! 2. Late cool (age 200..400 ms): ember blend 0.5 → 0.0 linear,
 //!    factor 0.8 → 1.0. The char "recovers" to the palette color.
-//! 3. **Settled** (age >= 400 ms): tint = `None`, factor = 1.0 —
+//! 3. Settled (age >= 400 ms): tint = `None`, factor = 1.0 —
 //!    bit-identical to every other settled style.
 //!
 //! Without a timeline (`elapsed_ms = None`), every cell settles

@@ -11,22 +11,22 @@
 //! ## Architecture
 //!
 //! The renderer is organized into clearly separated concerns:
-//! - **Cloud** (`cloud/`): The simulation engine — droplet lifecycle, spawning,
+//! - Cloud (`cloud/`): The simulation engine — droplet lifecycle, spawning,
 //!   atmospheric evolution, and the cinematic behavior profile system.
-//! - **Frame** (`frame.rs`): The backing buffer — differential dirty tracking
+//! - Frame (`frame.rs`): The backing buffer — differential dirty tracking
 //!   with generation-based invalidation for zero-overhead cell reuse.
-//! - **Terminal** (`terminal.rs`): The output layer — ANSI escape sequencing
+//! - Terminal (`terminal.rs`): The output layer — ANSI escape sequencing
 //!   with run-length encoding, batched writes, and cursor optimization.
-//! - **Droplet** (`droplet.rs`): Individual stream physics — gravity acceleration,
+//! - Droplet (`droplet.rs`): Individual stream physics — gravity acceleration,
 //!   velocity turbulence, head bloom, and phosphor afterglow.
-//! - **Chroma Dragon** (`chroma/`): The coloring engine — palette construction,
+//! - Chroma Dragon (`chroma/`): The coloring engine — palette construction,
 //!   OKLab gradients, palette-relative brightness floor, and the shader pipeline
 //!   that decides what color each cell becomes. (Phase 1 relocated the
 //!   pre-existing `palette.rs` and `central_colors.rs` into `chroma/`.)
 //!
 //! ## Motion Philosophy
 //!
-//! cosmostrix prioritizes *perceptual smoothness* over raw frame count.
+//! cosmostrix prioritizes perceptual smoothness over raw frame count.
 //! The adaptive pacing system modulates simulation time under performance
 //! pressure, preferring slight visual slowdown over stutter. Frame timing
 //! uses single-reschedule logic to prevent cascading overshoot jitter.
@@ -74,7 +74,7 @@ pub(crate) use engine::cosmic_dragon_engine::{cloud, frame, runtime, terminal};
 
 // v60 Z-master-1X: re-export the three engine module namespaces at
 // crate root so all existing `crate::cosmic_dragon_engine::*`,
-// `crate::chroma_dragon_engine::*`, `crate::crystal_dragon_engine::*`
+// `crate::chroma_dragon_engine::`, `crate::crystal_dragon_engine::`
 // paths continue to resolve without touching every call site.
 // The actual code lives under src/engine/ — these are pure re-exports.
 pub(crate) use engine::chroma_dragon_engine;
@@ -101,7 +101,7 @@ pub(crate) use cloud::{brightness_factors, cinematic};
 // Group: Cosmic Dragon incubator (experimental / concluded work)
 mod cosmic_dragon_incubator;
 
-// Group: Config subsystem (config*.rs, live_config*.rs, config_hints)
+// Group: Config subsystem (config.rs, live_config.rs, config_hints)
 mod config;
 pub(crate) use config::*;
 

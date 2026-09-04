@@ -140,7 +140,7 @@ pub(crate) fn blend_toward_rgb(
 /// chroma path uses `chroma::palette::blend_toward_white` which
 /// performs the same per-channel blend (the chroma engine's
 /// `blend_toward_bg` is also linear-sRGB; the difference is that the
-/// chroma path's *palette construction* is OKLab, not the blend math).
+/// chroma path's palette construction is OKLab, not the blend math).
 ///
 /// # Parity
 /// Bit-identical to the pre-extraction inline equation

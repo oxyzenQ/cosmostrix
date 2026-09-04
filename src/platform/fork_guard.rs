@@ -34,12 +34,12 @@ use std::io::IsTerminal;
 ///
 /// Three strategies by platform:
 ///
-/// - **Linux**: `fork()` + `prctl(PR_SET_PDEATHSIG)`. A child process holds
+/// - Linux: `fork()` + `prctl(PR_SET_PDEATHSIG)`. A child process holds
 ///   the original termios and waits for SIGTERM (delivered instantly by the
 ///   kernel when the parent dies). Zero latency, zero CPU overhead. This is
 ///   the gold standard — `prctl` is Linux-only.
 ///
-/// - **All other Unix** (macOS, FreeBSD, OpenBSD, NetBSD, Android/Termux):
+/// - All other Unix (macOS, FreeBSD, OpenBSD, NetBSD, Android/Termux):
 ///   A background thread polls `getppid()` every 500ms. When the parent dies,
 ///   the child is reparented to PID 1 (launchd/init) — ppid becomes 1. The
 ///   thread detects this and restores the terminal. 500ms worst-case latency
@@ -47,7 +47,7 @@ use std::io::IsTerminal;
 ///   This covers macOS (no prctl), BSD (no prctl), and Android (fork may be
 ///   restricted by seccomp, but threads always work).
 ///
-/// - **Windows**: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
+/// - Windows: No-op. ConPTY (Windows Terminal, PowerShell 7+) automatically
 ///   restores console state when the attached process exits, even on
 ///   Task Manager kill. Legacy cmd.exe has `SetConsoleMode` but it also
 ///   reverts on process exit. The panic hook and watchdog still cover the

@@ -11,7 +11,7 @@
 //! overlay (the default), a per-column "drop top-to-bottom"
 //! degenerates into a fast left-to-right wipe nearly
 //! indistinguishable from typewriter. This implementation solves
-//! that by adding a **drop-from-above** animation that is visible
+//! that by adding a drop-from-above animation that is visible
 //! even on a 1-line overlay: each char appears N rows ABOVE its
 //! final position and drops down to land, column-paced (not
 //! per-char-paced). The visual reads as "water falling from above,
@@ -29,7 +29,7 @@
 //! fully reveal (vs typewriter's 80 ms × 20 = 1.6 s — cascade is
 //! slightly faster, matching the "waterfall" feel).
 //!
-//! After `reveal_at`, the cell enters a **drop phase** over
+//! After `reveal_at`, the cell enters a drop phase over
 //! `CASCADE_DROP_MS` (240 ms): the glyph starts `CASCADE_DROP_ROWS`
 //! (3) rows above the final position with a dim factor
 //! (`CASCADE_DROP_DIM` = 0.40), then slides down to the final
@@ -48,7 +48,7 @@
 //!
 //! The research doc spec is "columns light up left-to-right". On a
 //! 1-line overlay, each column IS one char, so column-paced = per-
-//! char-paced — but the **drop-from-above** animation is what
+//! char-paced — but the drop-from-above animation is what
 //! makes cascade distinct from typewriter (which just fades in
 //! each char in place). The drop is visible on any overlay height:
 //! the glyph is painted 3 rows above, then the next frame paints it

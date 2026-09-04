@@ -7,7 +7,7 @@
 //! exponential moving average (EMA) of activity transition times
 //! (seconds since midnight) to predict whether the process should be
 //! in active or idle mode. After observing at least 2 full cycles the
-//! predictor becomes a proactive idle signal that fires *before* the
+//! predictor becomes a proactive idle signal that fires before the
 //! reactive 30-second idle threshold — smoothing long-endurance CPU
 //! step-downs at predictable daily boundaries (lunch, end-of-day).
 //!
@@ -25,7 +25,7 @@
 /// Uses exponential moving average (EMA) of activity transition times
 /// (seconds since midnight) to predict whether the process should be in
 /// active or idle mode. After observing ≥2 full cycles, the predictor
-/// becomes a proactive idle signal that fires *before* the reactive
+/// becomes a proactive idle signal that fires before the reactive
 /// 30-second idle threshold — smoothing long-endurance CPU step-downs
 /// at predictable daily boundaries (lunch, end-of-day).
 #[derive(Debug, Clone)]

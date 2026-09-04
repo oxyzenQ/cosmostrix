@@ -181,7 +181,7 @@ fn brand_open_returns_correct_escape_per_capability() {
         ColorCapability::Color16 => "\x1b[35m",
         ColorCapability::Mono => "",
     };
-    // 135 = 16 + 36*3 + 6*1 + 5 (closest xterm-256 cube index for #A855F7)
+    // 135 = 16 + 363 + 61 + 5 (closest xterm-256 cube index for #A855F7)
     assert!(color256_escape.contains("38;5;135"));
 
     let color16_escape = match ColorCapability::Color16 {
@@ -206,7 +206,7 @@ fn brand_open_returns_correct_escape_per_capability() {
 fn error_open_uses_red_palette_per_capability() {
     // Error red #FF5A5A (NeonRed bright body) must map to:
     // - TrueColor: \x1b[38;2;255;90;90m
-    // - Color256: \x1b[38;5;203m (closest cube index: 16 + 36*5 + 6*1 + 1)
+    // - Color256: \x1b[38;5;203m (closest cube index: 16 + 365 + 61 + 1)
     // - Color16: \x1b[31m (ANSI Red)
     // - Mono: empty
     let truecolor = match ColorCapability::TrueColor {

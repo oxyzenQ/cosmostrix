@@ -92,7 +92,7 @@ pub(crate) const MAX_TERMINAL_LINES: u16 = 500;
 
 /// Maximum screen size for benchmark mode (columns).
 ///
-/// Set to 8K UHD width (7680). This is the largest *meaningful* benchmark
+/// Set to 8K UHD width (7680). This is the largest meaningful benchmark
 /// resolution for a CPU + stdout renderer:
 ///   - 8K UHD (7680 × 4320) = 33.2M cells × ~48 B/cell ≈ 1.6 GiB — pushes the
 ///     allocator and dirty-cell pipeline hard without entering OOM-killer territory.
@@ -103,7 +103,7 @@ pub(crate) const MAX_TERMINAL_LINES: u16 = 500;
 ///     renderer. u16 nominally supports up to 65535, but the cell-grid allocation
 ///     is the hard floor.
 ///
-/// Cosmic dragon verdict to "8k or 4k?": **8K UHD is the maximum.** 4K is the
+/// Cosmic dragon verdict to "8k or 4k?": 8K UHD is the maximum. 4K is the
 /// recommended daily-driver; 8K is the ceiling for stress benchmarks. Anything
 /// larger is a memory benchmark, not a render benchmark.
 pub(crate) const BENCH_MAX_COLS: u16 = 7680;
@@ -387,7 +387,7 @@ pub(crate) const QUANTUM_BODY_TONE_DOWN: f32 = 0.72;
 /// `line >= lines`). On small viewports — or when the user clicks near
 /// an edge — most of the 20-particle cohort would expire in the first
 /// few frames, making the burst feel clipped instead of radiating
-/// outward. The requested fix is to make the particles **bounce** off
+/// outward. The requested fix is to make the particles bounce off
 /// the four screen edges, so a click anywhere produces a visible shower
 /// that ricochets around the viewport until the age-based lifespan
 /// (`QUANTUM_RIPPLE_LIFETIME_SECS`) expires.

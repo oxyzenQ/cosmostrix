@@ -118,7 +118,7 @@ impl Cloud {
     /// 4. Clears monolith draw history + phosphor state when the rain
     ///    style is Monolith (mirrors `transition_chars`).
     ///
-    /// **Precondition**: the caller must ensure that `prev_chars` is
+    /// Precondition: the caller must ensure that `prev_chars` is
     /// genuinely different from `self.char_pool` (same-charset no-op
     /// guard is the caller's responsibility, matching the contract of
     /// `start_transition_from_previous_palette`). An empty `prev_chars`
@@ -365,7 +365,7 @@ impl Cloud {
             return false;
         }
         // Cosmic Dragon egg #14: bounds-check + direct indexing instead of .get().
-        // glitch_map is sized cols*lines. idx = col*lines + line.
+        // glitch_map is sized colslines. idx = collines + line.
         // Callers ensure line < lines (checked in do_glitch_span loop),
         // but col may not be checked. Use a single bounds check + direct index.
         let col_usize = col as usize;
@@ -428,7 +428,7 @@ impl Cloud {
     /// droplets. This prevents the "instant wall of rain" look while still
     /// ensuring visible content on the first frame.
     ///
-    /// Seeded droplets get heads near the **top rows** (upper quarter of
+    /// Seeded droplets get heads near the top rows (upper quarter of
     /// the viewport, capped at WARM_START_MAX_HEAD absolute rows) with
     /// short trails starting from row 0.
     ///

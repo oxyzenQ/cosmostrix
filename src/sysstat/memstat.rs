@@ -5,10 +5,10 @@
 //!
 //! Provides a zero-dependency cross-platform "current RSS in KB" sampler.
 //! Supported platforms:
-//! - **Linux**: parses `/proc/self/status` (`VmRSS:` field, in kB).
-//! - **macOS**: queries `mach_task_basic_info` via `libc` (already a transitive
+//! - Linux: parses `/proc/self/status` (`VmRSS:` field, in kB).
+//! - macOS: queries `mach_task_basic_info` via `libc` (already a transitive
 //!   dependency through `signal-hook`).
-//! - **Other Unix / Windows**: returns `None`. The benchmark will omit memory
+//! - Other Unix / Windows: returns `None`. The benchmark will omit memory
 //!   fields rather than emit a fake or zero value. This keeps the report
 //!   honest on platforms we do not yet instrument.
 //!
@@ -17,7 +17,7 @@
 //! - `getrusage`'s `ru_maxrss` is peak RSS over the entire process lifetime
 //!   (and on Linux is in KB, on macOS in bytes), which is misleading for
 //!   per-benchmark attribution. We sample `VmRSS` periodically instead so we
-//!   can compute both peak and average *during the benchmark window*.
+//!   can compute both peak and average during the benchmark window.
 //!
 //! ## Accuracy
 //! RSS is a coarse, OS-level metric. It includes shared pages and is affected

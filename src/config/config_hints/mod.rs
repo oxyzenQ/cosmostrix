@@ -13,11 +13,11 @@
 //! during the depth test and returns a targeted hint explaining
 //! WHERE the key should live:
 //!
-//! 1. **`color.tune.bold`** — `bold` is a top-level key (values 0/1/2),
+//! 1. `color.tune.bold` — `bold` is a top-level key (values 0/1/2),
 //!    not a `[color.tune]` field. The `[color.tune]` section only accepts
 //!    `brightness | saturation | head | body | tail`.
 //!
-//! 2. **`scene-custom.<name>.adaptive-custom.<HH-MM>.<…>`** — the user
+//! 2. `scene-custom.<name>.adaptive-custom.<HH-MM>.<…>` — the user
 //!    wrote `[scene-custom.hacker-mode.adaptive-custom.10-00]` which the
 //!    parser dutifully treats as a 5-segment dotted key. v30 (2026-08-05):
 //!    the `adaptive-custom.*` key namespace was eliminated at commit
@@ -243,7 +243,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
     // `densit` → `density`, `charaset` → `charset`, etc.
     //
     // Only triggered for keys WITHOUT dots — dotted keys are handled by
-    // the patterns above (color.tune.*, scene-custom.*, colors-custom.*).
+    // the patterns above (color.tune., scene-custom., colors-custom.*).
     // A dotted key like `collor.tune.brightness` would NOT trigger this
     // (it would fall through to None), which is correct because the user
     // likely mis-nested the entire section, not just typo'd the prefix.

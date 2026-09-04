@@ -23,11 +23,11 @@ impl super::Cloud {
     /// hardcoding pure white. This extends Phase 3-I's "palette-aware
     /// ghost" pattern to anomaly halos:
     ///
-    /// - **LuminanceSurge** → lifts cells toward the palette's brightest
+    /// - LuminanceSurge → lifts cells toward the palette's brightest
     ///   stop (`palette.colors.last()`). On a NeonRed theme, the surge
     ///   becomes a "lift toward bright red" rather than "lift toward
     ///   white" — preserving palette coherence.
-    /// - **PulseWave** → lifts cells toward a hue-cycled palette stop
+    /// - PulseWave → lifts cells toward a hue-cycled palette stop
     ///   (`(elapsed * ANOMALY_HALO_CYCLE_RATE) % palette.len()`). The
     ///   expanding ring's target color cycles through palette stops as
     ///   it expands, giving PulseWave a distinct visual identity from

@@ -4,13 +4,13 @@
 //! # Central Control — Rains
 //!
 //! Single source of truth for every rain, parallax, phosphor, and
-//! depth-layer tuning parameter. This is the **plug-and-play control
-//! file** for the entire rain visual stack — modeled after
+//! depth-layer tuning parameter. This is the plug-and-play control
+//! file for the entire rain visual stack — modeled after
 //! `chroma/catalog.rs` for color themes.
 //!
 //! ## Scope
 //!
-//! Every constant in this file directly controls *how the rain looks*.
+//! Every constant in this file directly controls how the rain looks.
 //! Anything that affects droplet motion, trail persistence, layer depth,
 //! head/body/tail brightness, fog, vignette, or atmospheric noise lives
 //! here. Non-visual constants (terminal limits, perf counters, buffer
@@ -64,15 +64,15 @@
 //!
 //! ## Easing family policy (v50.0.0-beta.5 masterclass consolidation)
 //!
-//! All **temporal** easing in the rain simulation uses **exponential
-//! decay** (`blend = exp(-k*t)` for decel, `blend = 1 - exp(-k*t)` for
+//! All temporal easing in the rain simulation uses exponential
+//! decay (`blend = exp(-kt)` for decel, `blend = 1 - exp(-kt)` for
 //! accel) — physically motivated drag with a long tail, snap-settled at
 //! a threshold to avoid the asymptotic tail. This is the unified
 //! "masterclass" easing family across:
 //!
-//! - **Pause decel** (`PAUSE_EASE_DECAY_RATE` = 1.2/s, settle 5% @ ~2.5s)
-//! - **Resume accel** (`RESUME_EASE_DECAY_RATE` = 0.9/s, settle 95% @ ~3.3s)
-//! - **Glyph entry ramp** (`GLYPH_ENTRY_RAMP_DECAY_RATE` = 4.28/s, settle 95% @ ~700ms)
+//! - Pause decel (`PAUSE_EASE_DECAY_RATE` = 1.2/s, settle 5% @ ~2.5s)
+//! - Resume accel (`RESUME_EASE_DECAY_RATE` = 0.9/s, settle 95% @ ~3.3s)
+//! - Glyph entry ramp (`GLYPH_ENTRY_RAMP_DECAY_RATE` = 4.28/s, settle 95% @ ~700ms)
 //!
 //! Asymmetric k_decel > k_resume (1.2 vs 0.9) preserves the prior
 //! 0.30s/0.45s "pause snappy / resume wake-up" feel. Glyph entry uses
@@ -81,15 +81,15 @@
 //!
 //! ### What is NOT exp decay (intentionally)
 //!
-//! - **Spatial fades** (edge fade, vignette, brightness bands in
+//! - Spatial fades (edge fade, vignette, brightness bands in
 //!   `cloud/brightness_factors.rs`, `cloud/rain_post.rs`) use
-//!   **smoothstep** (3t^2-2t^3, C1). These are position-based, not
+//!   smoothstep (3t^2-2t^3, C1). These are position-based, not
 //!   time-based — the "blend" parameter is a cell's row/col, not
 //!   elapsed time. Smoothstep's bounded [0,1] domain is correct for
 //!   spatial gradients; exp decay would be inappropriate (the cell at
 //!   row 0 has factor 0 regardless of "elapsed time").
 //!
-//! - **Profile interpolation** (cloud/rain.rs:1024, 30s morph) uses a
+//! - Profile interpolation (cloud/rain.rs:1024, 30s morph) uses a
 //!   smoothstep-shaped per-frame lerp rate that ramps from
 //!   PROFILE_INTERPOLATION_RATE (0.02) to 1.0 over PROFILE_TRANSITION_SECS
 //!   (30s). This is a "slow drift then accelerate then snap" feel —
@@ -97,11 +97,11 @@
 //!   feel. Profile morphs are 30s atmospheric transitions, not motion
 //!   easing, so the different family is correct.
 //!
-//! - **Chroma color transition falloff** (chroma shaders/transition/
+//! - Chroma color transition falloff (chroma shaders/transition/
 //!   mod.rs:288) uses linear falloff for a 3-row spatial window.
 //!   Smoothstep was deliberately rejected as "overkill for 3 lines".
 //!
-//! - **Intro logo Phase 3 fade** (intro_style/logo.rs, phase-3
+//! - Intro logo Phase 3 fade (intro_style/logo.rs, phase-3
 //!   `base_brightness`)
 //!   uses smoothstep (1 - 3t^2+2t^3). This is intro animation, not
 //!   pause/resume lifecycle — outside the easing consolidation scope.
@@ -123,7 +123,7 @@
 //!
 //! ## Calibration history (most recent first)
 //!
-//! - **(peak masterclass cinematic lock + stabilization)**: visual
+//! - (peak masterclass cinematic lock + stabilization): visual
 //!   test rated 10/10 perfect after silent override bug fix + front
 //!   density restoration. No parameter changes — visual tuning is locked.
 //!   Strengthened the bug fixes with permanent regression tests in
@@ -149,7 +149,7 @@
 //!   cinematic.rs are pure consumers — they import from `crate::constants`
 //!   and add zero hardcoded layer values. Editing any rain parameter
 //!   requires touching only this single file.
-//! - **(silent override bug fix + centralization)**: user reported
+//! - (silent override bug fix + centralization): user reported
 //!   "the front layer feels dim, there's no glow" after differential tuning.
 //!   Deep audit found 3 silent override bugs in droplet.rs that made boosts
 //!   > 1.0 completely no-op:
@@ -175,7 +175,7 @@
 //!   `MONOLITH_LAYER_BRIGHTNESS` and `MONOLITH_BREATHING_AMPLITUDE`.
 //!   Now ALL layer-specific tuning lives in this single file — editing
 //!   any rain parameter requires touching only central_control_rains.rs.
-//! - **(differential depth tuning)**: user requested sharper
+//! - (differential depth tuning): user requested sharper
 //!   depth differential — back needs to be slightly more dim, mid needs
 //!   reduced density + slight dim, front needs to read more prominent
 //!   (no dimming). Tuned all three layers in opposite directions to
@@ -189,7 +189,7 @@
 //!   1:6.8:24.1 figure used the pre-restoration 1.00 density.)
 //!   — *Front density later restored; per-droplet boosts fixed in silent
 //!   override bug fix above.*
-//! - **(final — visual test locked)**: after A/B visual testing
+//! - (final — visual test locked): after A/B visual testing
 //!   against option C (density-focused) and option D (haze-focused), the
 //!   parameter set from commit 1e4e3fa (the initial visibility-floor
 //!   raise) was confirmed as the optimal balance. Reverted option C's
@@ -198,18 +198,18 @@
 //!   neither too sparse (C's 0.55 made the field feel empty) nor too
 //!   hazy (D's 1.3 phosphor_decay muted trails). Effective mid energy:
 //!   0.242 (the sweet spot between C's 0.174 and original-v30's 0.334).
-//!   — *Superseded by differential depth tuning.*
-//! - **v30 (option C — density-focused)**: mid layer density dropped
+//!   — Superseded by differential depth tuning.
+//! - v30 (option C — density-focused): mid layer density dropped
 //!   from 0.75 → 0.55 to remove noise via fewer droplets rather than
 //!   dimming. Reverted Option D's mid rollbacks (head_bloom 0.70 → 0.82,
 //!   phosphor_decay 1.3 → 1.0, contrast_red 0.25 → 0.12) since the
 //!   density drop alone is sufficient. Slight contrast_red bump to 0.15
 //!   keeps a hint of haze. Effective mid energy: 0.174 (vs D's 0.187,
-//!   pre-v30's 0.109, original v30's 0.334). — *Reverted by final lock.*
-//! - **v30 (option D — haze-focused)**: rolled back mid head-bloom,
+//!   pre-v30's 0.109, original v30's 0.334). — Reverted by final lock.
+//! - v30 (option D — haze-focused): rolled back mid head-bloom,
 //!   raised mid contrast reduction + phosphor decay. Worked but user
-//!   preferred density-focused approach. — *Reverted by option C.*
-//! - **v30 (initial raise)**: lifted back + mid visibility floor to
+//!   preferred density-focused approach. — Reverted by option C.
+//! - v30 (initial raise): lifted back + mid visibility floor to
 //!   fix "too quiet/dim darkness" complaint. Effective back visibility
 //!   raised 2.5x; effective mid raised 3.06x. — *Confirmed optimal by
 //!   final visual lock; restored as baseline.*

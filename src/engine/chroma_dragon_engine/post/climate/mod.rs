@@ -152,15 +152,15 @@ impl ClimateCtx {
 ///
 /// The math is identical to the pre-Phase-3-G post-hoc pass:
 ///
-/// 1. **Luminance dim** (`lum_fi`): `channel = (channel * fi + 128) >> 8`,
+/// 1. Luminance dim (`lum_fi`): `channel = (channel * fi + 128) >> 8`,
 ///    clamped to `[0, 255]`. Active when total luminance < 1.0.
-/// 2. **Luminance boost** (`lum_wf`): `channel += ((255 - channel) * wf + 128) / 256`,
+/// 2. Luminance boost (`lum_wf`): `channel += ((255 - channel) * wf + 128) / 256`,
 ///    clamped. Active when total luminance > 1.0.
-/// 3. **Saturation** (`sat_ti`): blend toward gray (channel average) by
+/// 3. Saturation (`sat_ti`): blend toward gray (channel average) by
 ///    `ti / 256`. Active when saturation_climate < 1.0.
-/// 4. **Persistence** (`persist_wf`): blend toward white by `wf / 256`.
+/// 4. Persistence (`persist_wf`): blend toward white by `wf / 256`.
 ///    Active when persistence_richness > 0.
-/// 5. **Instability** (`instability_threshold` + `instability_wf`): a
+/// 5. Instability (`instability_threshold` + `instability_wf`): a
 ///    per-cell hash modulo 1000 below `threshold` triggers a white-blend
 ///    by `wf / 256`. Active when instability_pressure > 0.15.
 ///

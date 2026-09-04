@@ -8,8 +8,8 @@
 //!
 //! ### 1. Palette drift (CPU/CLOCK → theme)
 //!
-//! Maps system state (CPU usage or wall-clock time) to a **point** (1–99),
-//! classifies the point into a **temperature group** (Cold / Medium / Hot),
+//! Maps system state (CPU usage or wall-clock time) to a point (1–99),
+//! classifies the point into a temperature group (Cold / Medium / Hot),
 //! and selects a color theme from that group via probabilistic weighted
 //! selection (calc-v1). The selected theme is handed to the Chroma Dragon
 //! engine for a smooth 300 ms OKLab wave transition.
@@ -35,10 +35,10 @@
 //!
 //! ## Owner decisions
 //!
-//! - **Option A (Silent-Elegant)**: no HUD indicator, no verbose logging of drift events
-//! - **calc-v1**: probabilistic weighted selection (not pattern-based calc-v2)
-//! - **Polling 60 s**: sensor sampling every 60 seconds
-//! - **CPU primary**, CLOCK fallback when CPU sampling is unsupported
+//! - Option A (Silent-Elegant): no HUD indicator, no verbose logging of drift events
+//! - calc-v1: probabilistic weighted selection (not pattern-based calc-v2)
+//! - Polling 60 s: sensor sampling every 60 seconds
+//! - CPU primary, CLOCK fallback when CPU sampling is unsupported
 //!
 //! ## Point system
 //!

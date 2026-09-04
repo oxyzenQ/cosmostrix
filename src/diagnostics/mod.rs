@@ -63,9 +63,9 @@ fn detect_variant() -> &'static str {
 /// without manually recording their hardware.
 ///
 /// # Platform support
-/// - **Linux**: parses `/proc/cpuinfo` for the `model name` field.
-/// - **macOS**: queries `machdep.cpu.brand_string` via `sysctlbyname`.
-/// - **Other**: returns `None`.
+/// - Linux: parses `/proc/cpuinfo` for the `model name` field.
+/// - macOS: queries `machdep.cpu.brand_string` via `sysctlbyname`.
+/// - Other: returns `None`.
 #[must_use]
 pub(crate) fn cpu_model_string() -> Option<String> {
     #[cfg(target_os = "linux")]

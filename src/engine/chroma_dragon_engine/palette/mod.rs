@@ -192,7 +192,7 @@ pub(crate) fn color_to_rgb(color: Color) -> (u8, u8, u8) {
                 ];
                 ANSI16_RGB[v as usize]
             } else if v < 232 {
-                // 6x6x6 color cube: index = 16 + 36*r + 6*g + b
+                // 6x6x6 color cube: index = 16 + 36r + 6g + b
                 let v = v - 16;
                 let r_idx = v / 36;
                 let g_idx = (v % 36) / 6;

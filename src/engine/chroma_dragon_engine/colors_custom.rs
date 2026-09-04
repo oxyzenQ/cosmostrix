@@ -469,9 +469,9 @@ mod tests {
     /// polar gradient engine as built-in themes. This integration test
     /// asserts the two properties that prove the bypass is fixed:
     ///
-    /// 1. **Expansion**: 2 raw stops produce COLORS_CUSTOM_PALETTE_STEPS
+    /// 1. Expansion: 2 raw stops produce COLORS_CUSTOM_PALETTE_STEPS
     ///    palette entries (not the raw 2).
-    /// 2. **Midpoint saturation**: the middle palette entry is distinct
+    /// 2. Midpoint saturation: the middle palette entry is distinct
     ///    from both endpoints (after the palette-relative floor is
     ///    applied). This proves the polar OKLab engine is producing
     ///    interpolated colors, not just clamping to one endpoint.

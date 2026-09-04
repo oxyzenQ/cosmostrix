@@ -8,16 +8,16 @@
 //!
 //! # Convention
 //!
-//! **Fatal errors** (exit the process):
+//! Fatal errors (exit the process):
 //! - `die_input(msg)`  — exit 2, for invalid user arguments / usage errors
 //! - `die_config(msg)` — exit 1, for config file / runtime failures
 //!
-//! **Non-fatal warnings** (do not exit):
+//! Non-fatal warnings (do not exit):
 //! - `warn(msg)` — printed to stderr, process continues
 //!
 //! The caller is responsible for formatting the complete message
 //! (including the `error:` / `warning:` prefix).  This module is the
-//! *delivery channel*, not the formatter — it guarantees one message,
+//! delivery channel, not the formatter — it guarantees one message,
 //! one line, one exit code, never a Rust `Debug` wrapper.
 //!
 //! # Anti-pattern (never do this)

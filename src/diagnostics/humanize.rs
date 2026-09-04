@@ -4,9 +4,9 @@
 //! Human-readable number formatting for benchmark + perf-stats + HUD display.
 //!
 //! Two unit families:
-//! - **Counts** (SI / base-1000): `humanize`, `humanize_f64` — for FPS,
+//! - Counts (SI / base-1000): `humanize`, `humanize_f64` — for FPS,
 //!   cells_drawn, cache hits, frame counts. Suffixes K / M / B.
-//! - **Bytes** (binary / base-1024): `humanize_bytes`, `humanize_bytes_f64`,
+//! - Bytes (binary / base-1024): `humanize_bytes`, `humanize_bytes_f64`,
 //!   `humanize_throughput` — for ANSI byte totals, write bandwidth, heap
 //!   sizes. Suffixes B / KiB / MiB / GiB / TiB. Using binary units for
 //!   bytes is unambiguous (1 MiB = 1,048,576 bytes) and matches the

@@ -12,7 +12,7 @@
 //!
 //! - [`io_uring_rejected`] — measures `write()` syscall overhead and computes
 //!   what io_uring would theoretically save at cosmostrix's 60 FPS write rate.
-//!   Verdict: io_uring is **NOT worth it** at 60 writes/sec — the overhead of
+//!   Verdict: io_uring is NOT worth it at 60 writes/sec — the overhead of
 //!   adding the `io_uring` crate + async runtime exceeds the ~54µs/sec savings.
 //!   Renamed in v30 from `io_uring.rs` to make the conclusion visible in the
 //!   file name itself. (Unix-only — uses `libc::write` to `/dev/null`.)
@@ -23,7 +23,7 @@
 //!
 //! ## Policy
 //!
-//! Cosmic Dragon-egg benchmarks are **honest experiments**: they measure, report
+//! Cosmic Dragon-egg benchmarks are honest experiments: they measure, report
 //! findings, and inform decisions. They do NOT become production code paths.
 //! When an experiment concludes, its findings are documented in
 //! `docs/archive/cosmic_dragon/FINDINGS.md` and the benchmark itself stays here as a

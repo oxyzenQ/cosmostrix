@@ -13,7 +13,7 @@
 //! | Hot   | 14    | Warm, fiery, energetic — Sun, Fire, Red, … |
 //! | Reserved | 2  | Not assigned to any temperature group |
 //!
-//! **Reserved** themes (Rainbow, Spectrum20) span the full color spectrum
+//! Reserved themes (Rainbow, Spectrum20) span the full color spectrum
 //! and don't fit a single temperature. They are excluded from Crystal
 //! Dragon drift.
 
@@ -26,9 +26,9 @@ use crate::runtime::ColorScheme;
 /// Each group contains 14 color themes that share a color temperature
 /// aesthetic. The point system maps points 1–99 to these groups:
 ///
-/// - **Cold** (1–33): cool blues, grays, whites, cyans
-/// - **Medium** (34–66): greens, purples, natural tones
-/// - **Hot** (67–99): warm yellows, oranges, reds, fiery tones
+/// - Cold (1–33): cool blues, grays, whites, cyans
+/// - Medium (34–66): greens, purples, natural tones
+/// - Hot (67–99): warm yellows, oranges, reds, fiery tones
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum TemperatureGroup {
     Cold,

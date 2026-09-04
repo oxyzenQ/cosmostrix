@@ -5,7 +5,7 @@
 //!
 //! Single source of truth for every power management, performance
 //! adaptive, and thermal/perf threshold parameter. This is the
-//! **plug-and-play control file** for the entire power stack — modeled
+//! plug-and-play control file for the entire power stack — modeled
 //! after `central_control_rains.rs` for rain visuals.
 //!
 //! ## Scope
@@ -51,31 +51,31 @@
 //! without a coordinator. The PowerThresholds struct below is the first
 //! step toward centralizing them.
 //!
-//! 1. **FPS / frame_period** — 4 independent writers (dynamic-default-fps,
+//! 1. FPS / frame_period — 4 independent writers (dynamic-default-fps,
 //!    xterm.js cap, adaptive throttling, self-healer via low-power scene,
 //!    ambient via scene). See the FPS Precedence Chain doc in
 //!    `termdetect.rs` for the resolution order.
-//!    **audit note (FPS-F2/F3)**: the "self-healer via low-power
+//!    audit note (FPS-F2/F3): the "self-healer via low-power
 //!    scene" and "ambient via scene" writers do NOT actually write
 //!    `target_fps` at runtime — `Cloud::apply_scene_runtime` only applies
 //!    `rain_style/color/charset/speed/density/glitch_level`, NOT `fps`.
-//!    Scene-level `fps =` is **startup-only by design**. The CPU shed
+//!    Scene-level `fps =` is startup-only by design. The CPU shed
 //!    from a self-healer downgrade to "low-power" comes from
 //!    `speed=5`+`density=0.45`+`glitch_level=None`, not from `fps=30`.
 //!    This is intentional — letting the self-healer override the user's
 //!    `--fps` would create a precedence ambiguity (which user intent
 //!    wins?). The runtime layers (idle factor, pause period) are the
 //!    only runtime FPS modifiers.
-//! 2. **Scene / palette** — 2 writers (crystal-dragon, self-healer
+//! 2. Scene / palette — 2 writers (crystal-dragon, self-healer
 //!    downgrade, ambient scheduler). scene_generation counter is reactive
 //!    guard, not a mutex.
-//! 3. **Spawn rate / density** — 4 layered multipliers in cloud/rain.rs
+//! 3. Spawn rate / density — 4 layered multipliers in cloud/rain.rs
 //!    (perf_pressure clamp → entropy → profile → gust → storytelling →
 //!    resume_blend → glyph_entry_ramp). None are aware of each other.
-//! 4. **Kernel memory (madvise)** — 2 writers (reclaim state rate-limited
+//! 4. Kernel memory (madvise) — 2 writers (reclaim state rate-limited
 //!    1h, self-healer P2 bypass cooldown). Self-healer can defeat
 //!    rate-limiting purpose.
-//! 5. **Per-cell color** — 2 writers (climate always-on + atmospheric
+//! 5. Per-cell color — 2 writers (climate always-on + atmospheric
 //!    post-FX). Compose multiplicatively, interaction undocumented.
 //!
 //! ## Section map
@@ -94,18 +94,18 @@
 //!
 //! ## Calibration history
 //!
-//! - **(power audit consolidation)**: extracted all power management
+//! - (power audit consolidation): extracted all power management
 //!   constants from `constants.rs` into this file. Established single
 //!   source of truth. Added `PowerThresholds` struct as the foundation
 //!   for a future `PowerManager` coordinator that will own all signal
 //!   sampling and expose unified `effective_pressure` / `effective_fps`
 //!   / `is_idle` APIs.
-//! - **(Phase 2 migration)**: behavior code moved from
+//! - (Phase 2 migration): behavior code moved from
 //!   `src/interactive/adaptive.rs` into submodules of this directory.
 //!   Each submodule owns one subsystem (phase_predictor, reclaim_state,
 //!   endurance_health, self_healer). `interactive/adaptive.rs` becomes
 //!   a thin re-export shim. Layout mirrors `central_control_rains.rs`.
-//! - **(Phase 3 PowerManager)**: `power_manager` submodule added.
+//! - (Phase 3 PowerManager): `power_manager` submodule added.
 //!   `PowerManager` is the unified coordinator owning `perf_pressure`
 //!   accumulation, `is_idle` detection, and effective FPS resolution.
 //!   Exposes `effective_pressure()` / `effective_fps()` / `is_idle()`
@@ -274,7 +274,7 @@ pub(crate) const IDLE_RESYNC_TIER_3_SECS: f64 = 120.0;
 
 /// perf_pressure threshold above which sustained-pressure accumulation
 /// counts toward the auto-downgrade trigger. Set below the phosphor skip
-/// gate (0.7) so the downgrade fires *before* visual quality degrades.
+/// gate (0.7) so the downgrade fires before visual quality degrades.
 pub(crate) const SELF_HEAL_PRESSURE_HIGH: f32 = 0.6;
 
 /// perf_pressure threshold below which sustained-pressure recovery counts

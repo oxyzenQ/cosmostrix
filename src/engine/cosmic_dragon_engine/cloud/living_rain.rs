@@ -14,7 +14,7 @@
 //! ~40% more droplets; columns with 0.6 spawn ~40% fewer. The hash is
 //! O(1) and branchless — a single `wrapping_mul` + `xor` per query.
 //!
-//! The pattern is **stable within each 10-second window** so the eye
+//! The pattern is stable within each 10-second window so the eye
 //! can perceive "this column is dense, that one is sparse" instead of
 //! seeing per-frame flicker. At each window boundary the pattern shifts
 //! smoothly because the seed changes — no fade, just a new arrangement
@@ -30,7 +30,7 @@
 //!  1.0                 1.0 → peak          peak               peak → 1.0         1.0
 //! ```
 //!
-//! All ramps are **linear** (no sin/cos). The state machine runs once
+//! All ramps are linear (no sin/cos). The state machine runs once
 //! per `rain_at` call, costs ~5ns when IDLE, and stores zero heap state.
 
 use std::time::{Duration, Instant};
@@ -42,7 +42,7 @@ use crate::constants::*;
 
 /// Wind-gust state machine. Lives as a single field on Cloud; advanced
 /// once per frame in `rain_at`. All durations are sampled from the
-/// `GUST_*_MIN_SECS` / `GUST_*_MAX_SECS` ranges when a transition fires.
+/// `GUST__MIN_SECS` / `GUST__MAX_SECS` ranges when a transition fires.
 #[derive(Debug, Clone)]
 pub(crate) struct GustState {
     /// Current phase: Idle / Attack / Hold / Decay.

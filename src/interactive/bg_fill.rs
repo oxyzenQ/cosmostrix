@@ -20,7 +20,7 @@ use crossterm::style::Color;
 
 /// Fill the entire terminal screen with a background color.
 ///
-/// **Scrollback-safe no-op**: The renderer's full redraw already sets
+/// Scrollback-safe no-op: The renderer's full redraw already sets
 /// the correct background on every cell. Pre-filling the alternate screen
 /// (via Clear(All) or space-write) risks clearing the main screen's
 /// scrollback on VTE-based terminals when LeaveAlternateScreen is called.

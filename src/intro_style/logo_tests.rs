@@ -399,7 +399,7 @@ fn update_rain_droplets_advances_position() {
         .iter()
         .find(|p| p.active)
         .expect("droplet should still be active");
-    // y should have advanced by speed*dt = 10*0.5 = 5 cells, so the
+    // y should have advanced by speeddt = 100.5 = 5 cells, so the
     // new y is 5 + 5 = 10.
     assert!(
         (p.y - 10.0).abs() < 0.1,

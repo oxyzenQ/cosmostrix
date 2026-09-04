@@ -13,7 +13,7 @@
 //!
 //! ## Performance claim
 //!
-//! BOLT is a *projected production-path gain*; it is **not bench-measurable**
+//! BOLT is a projected production-path gain; it is not bench-measurable
 //! via `--bench-frames` because `bench_io::emit_cell_lean` was already
 //! table-driven (inline `U8_PADDED` / `U8_LEN` / `BOLD_ESCAPES`) since
 //! `bd11095`. Promoting the tables to a project-wide module and wiring them

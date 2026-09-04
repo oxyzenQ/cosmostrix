@@ -8,12 +8,12 @@
 //! concern — what should cosmostrix do when nothing has changed for a long
 //! time:
 //!
-//! - **P2 (IPAC)** — [`adaptive_resync_interval`] progressively stretches
+//! - P2 (IPAC) — [`adaptive_resync_interval`] progressively stretches
 //!   the idle redraw resync interval (20s → 60s → 120s) based on how long
 //!   the process has been continuously idle. This reduces forced redraw
 //!   CPU spikes during long idle periods (typically 13+ hours per day in
 //!   long-endurance runs).
-//! - **P4 (MPAR)** — [`hint_reclaim_pages`] tells the Linux kernel to
+//! - P4 (MPAR) — [`hint_reclaim_pages`] tells the Linux kernel to
 //!   reclaim stale file-backed frame buffer pages via `madvise(MADV_DONTNEED)`
 //!   during sustained idle. [`ReclaimState`] tracks the last reclaim time
 //!   to avoid hammering madvise on every idle resync — the minimum
@@ -72,25 +72,25 @@ pub(crate) fn adaptive_resync_interval(idle_duration_secs: f64) -> f64 {
 ///
 /// # Semantics (corrected 2026-08-23 — see the safety note below)
 ///
-/// `MADV_DONTNEED` on a private anonymous mapping is **NOT** a
+/// `MADV_DONTNEED` on a private anonymous mapping is NOT a
 /// non-destructive hint: it discards the covered pages, and the next
-/// access repopulates them as **zero-filled pages** (`madvise(2)`:
+/// access repopulates them as zero-filled pages (`madvise(2)`:
 /// "zero-fill-on-demand pages for anonymous private mappings"). Two
 /// consequences are handled explicitly:
 ///
-/// 1. **Zeroed bytes inside the caller's buffer.** Both call sites set
+/// 1. Zeroed bytes inside the caller's buffer. Both call sites set
 ///    `cloud.force_draw_everything()` BEFORE this call, and the next loop
 ///    iteration runs `rain_at()` → `Frame::clear_with_bg()` (which bumps
 ///    the content generation) before any cell is read. The generation
 ///    mismatch makes every zeroed cell read as `blank` — the discarded
 ///    content is never interpreted as a live `Cell` value.
-/// 2. **Zeroed bytes OUTSIDE the caller's buffer — the cross-object
-///    hazard.** `madvise` operates at PAGE granularity, while malloc
+/// 2. Zeroed bytes OUTSIDE the caller's buffer — the cross-object
+///    hazard. `madvise` operates at PAGE granularity, while malloc
 ///    chunks (glibc main arena, for allocations below the dynamic mmap
 ///    threshold) share pages with neighboring chunks. Advising the raw
 ///    `[ptr, ptr+len)` range could zero the edges of adjacent heap
 ///    objects — arbitrary heap corruption. This function therefore
-///    advises only the **interior full pages** of the range (start rounded
+///    advises only the interior full pages of the range (start rounded
 ///    up, end rounded down to the page boundary), which by construction
 ///    contain exclusively the caller's own bytes. Edge pages that might
 ///    be shared are never touched.

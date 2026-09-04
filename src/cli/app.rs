@@ -176,7 +176,7 @@ pub struct CloudConfig {
     /// Bug 3 fix: tracks which CloudConfig fields were set explicitly via
     /// CLI flags (vs derived from config.toml or scene defaults).
     ///
-    /// The priority contract is **CLI > config.toml > scene default**.
+    /// The priority contract is CLI > config.toml > scene default.
     /// At startup, `apply_config_and_runtime_defaults` records which fields
     /// the user set on the command line (via clap's `ValueSource::CommandLine`).
     /// On live reload, `rebuild_cloud_config` consults this tracker to skip
@@ -600,7 +600,7 @@ impl CloudConfig {
 ///     became effective=1.7 — 62% above the monolith ceiling (1.04), maxing
 ///     out the 35% active-lane cap on every non-trivial terminal.
 ///
-/// The new formula is a **width-only dampener** for small terminals:
+/// The new formula is a width-only dampener for small terminals:
 ///
 ///   factor = clamp(cols / 80, 0.6, 1.0)
 ///

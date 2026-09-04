@@ -7,7 +7,7 @@
 //!
 //! The previous archived `adaptive-custom` engine polled every 30 seconds.
 //! That wasted CPU on a quiet machine — most polls found no phase boundary
-//! to fire. The user explicitly asked for a **dynamic idle/wake** scheduler:
+//! to fire. The user explicitly asked for a dynamic idle/wake scheduler:
 //!
 //! > "dynamic clock — it doesn't have to stay awake continuously; idle
 //! > when the time is approaching, then a few seconds before, automatically
@@ -30,7 +30,7 @@
 //!
 //! ## Instant switch
 //!
-//! The user explicitly asked for **instant switch** (no smoothstep blend
+//! The user explicitly asked for instant switch (no smoothstep blend
 //! window). When the thread fires a phase, the entry is sent to the event
 //! loop, which calls `Cloud::apply_ambient_entry` to apply the scene
 //! immediately. The only visual smoothing comes from the existing
@@ -51,18 +51,18 @@
 //!
 //! ## Edge cases
 //!
-//! - **Empty schedule**: thread detects `entries.is_empty()`, sleeps 60
+//! - Empty schedule: thread detects `entries.is_empty()`, sleeps 60
 //!   seconds, then loops (cheap idle poll). On reload with new entries,
 //!   condvar wakes it immediately.
-//! - **Single entry**: thread sleeps until the entry's boundary, fires,
+//! - Single entry: thread sleeps until the entry's boundary, fires,
 //!   then sleeps 24 hours (capped to 1 hour, so it polls hourly — but the
 //!   phase is already applied, so it no-ops).
-//! - **DST spring-forward**: `current_minute_of_day()` returns wall-clock
+//! - DST spring-forward: `current_minute_of_day()` returns wall-clock
 //!   local time. Entries in the skipped hour (02:00–02:59) are never fired.
 //!   Acceptable — user won't notice.
-//! - **DST fall-back**: entries in the repeated hour (01:00–01:59) fire
+//! - DST fall-back: entries in the repeated hour (01:00–01:59) fire
 //!   twice. Acceptable — `apply_ambient_entry` is idempotent.
-//! - **Midnight wrap**: handled in `AmbientSchedule::seconds_to_next_phase`.
+//! - Midnight wrap: handled in `AmbientSchedule::seconds_to_next_phase`.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Condvar, Mutex};

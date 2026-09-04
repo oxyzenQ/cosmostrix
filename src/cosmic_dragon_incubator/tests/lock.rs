@@ -3,7 +3,7 @@
 
 //! # Cosmic Dragon Engine Lock — v30
 //!
-//! Comprehensive invariant suite that **locks** the Cosmic Dragon diff-based
+//! Comprehensive invariant suite that locks the Cosmic Dragon diff-based
 //! rendering engine at its v30 peak. Mirrors the Chroma Dragon lock suite
 //! (`src/engine/chroma_dragon_engine/tests/lock.rs`) — every public contract the render engine
 //! guarantees is asserted here, so any future change that silently regresses
@@ -22,7 +22,7 @@
 //! commit changes the dirty-tracking contract, the diff threshold, the
 //! semantic-gen protocol, or the SGR cache format in a way that breaks
 //! one of these invariants, this module's tests fail and the commit is
-//! rejected at review. The engine is **deliberately done**.
+//! rejected at review. The engine is deliberately done.
 //!
 //! ## Invariant inventory
 //!

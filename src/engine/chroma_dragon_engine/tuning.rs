@@ -202,7 +202,7 @@ pub(crate) const ANOMALY_HALO_CYCLE_RATE: f32 = 4.0;
 /// preserving dark themes, hurt readability at high rain speed. The
 /// `phase7_print_ratio_sweep_audit` test in `palette/tests_floor_audit.rs`
 /// verified that 0.20 doubles trail brightness to ~130 across most themes
-/// with **zero** themes hitting the `GLOBAL_MAX_FLOOR` cap (no v17-style
+/// with zero themes hitting the `GLOBAL_MAX_FLOOR` cap (no v17-style
 /// washout). 0.25 would push 4 themes (Spectrum20, Stars, Pluto, Moon)
 /// into the cap; 0.30 maxes out at 180 for 42/44 themes (full v17
 /// regression). 0.20 is the empirical sweet spot.

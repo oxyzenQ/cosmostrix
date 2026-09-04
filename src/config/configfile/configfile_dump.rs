@@ -318,12 +318,12 @@ pub(crate) fn dump_config_with_header() -> String {
 /// Compute the SHA-512 hex digest of `data`.
 ///
 /// Three distinct scopes:
-///   - `dump_config_with_header()` → fingerprints the **template body** only
+///   - `dump_config_with_header()` → fingerprints the template body only
 ///     (labelled `template-fingerprint` so users don't expect it to match
 ///     `sha512sum` of the full file on disk, which includes header lines).
-///   - `testconf::run()` → fingerprints the **user's config file on disk**
+///   - `testconf::run()` → fingerprints the user's config file on disk
 ///     (matches `sha512sum` exactly).
-///   - `testconf::run()` → also fingerprints the **current built-in template**
+///   - `testconf::run()` → also fingerprints the current built-in template
 ///     at runtime and compares it against the header fingerprint to detect
 ///     template drift (user edited the commented template body).
 ///

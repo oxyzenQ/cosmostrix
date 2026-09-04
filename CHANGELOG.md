@@ -9,6 +9,27 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### consistency: v100.0.0-nightly.1 — comment markdown emphasis ban (owner mandate 2026-09-04)
+
+Owner report: source comments across `src/*` still carried
+markdown-document formatting (`**test**`-style bold, `*test*`-style
+italic) — raw source read like md/mdx pasted into comments. The
+2026-08-19 COMMENT_STYLE resolution ("valid rustdoc, keep it") is
+superseded by this owner mandate: comments are plain prose.
+
+- Swept 378 decorative emphasis markers (bold, italic, and 5
+  multi-line bold spans) across 130 file-passes in `src/**/*.rs`;
+  functional rustdoc is preserved (inline code backticks, code fences
+  including doctests, links, headings). Content inside doc-comment
+  code fences is untouched; asterisks inside inline-code spans
+  (`(channel * fi + 128)`) are untouched.
+- docs/COMMENT_STYLE.md rewritten to codify the new contract
+  (section 2: emphasis banned; section 2.2: plain-prose and CAPS
+  warning-label alternatives; section 6: sweep findings).
+- New gate: scripts/check-comment-style.py (fence-aware,
+  backtick-aware, zero-tolerance) wired into gate-keepers.sh as
+  check 12 — the drift cannot silently return.
+
 ### harmony: v100.0.0-nightly.1 — S-master-HUNT-25 resync redraws without render-state reset ("glitch rain shift", round 5)
 
 Owner bug report (2026-09-04, post-09759d5): snow-ice fixed (HUNT-22/23

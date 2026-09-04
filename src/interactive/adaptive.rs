@@ -6,15 +6,15 @@
 //! This module implements five improvements derived from 72-hour endurance
 //! telemetry analysis:
 //!
-//! - **P1: Phase-Aware Adaptive Pacing (PAP)** — Learns the daily activity
+//! - P1: Phase-Aware Adaptive Pacing (PAP) — Learns the daily activity
 //!   cycle and proactively transitions to idle mode before the reactive
 //!   30-second threshold fires.
-//! - **P2: Idle Phase Aggressive Coalescing (IPAC)** — Progressively stretches
+//! - P2: Idle Phase Aggressive Coalescing (IPAC) — Progressively stretches
 //!   the idle resync interval after sustained inactivity to reduce forced
 //!   redraw CPU spikes.
-//! - **P4: Memory Pressure Adaptive Reclaim (MPAR)** — Hints the kernel to
+//! - P4: Memory Pressure Adaptive Reclaim (MPAR) — Hints the kernel to
 //!   reclaim stale frame buffer pages during idle, smoothing RSS step-downs.
-//! - **P5: Endurance Health Score (EHS)** — A single 0–100 metric tracking
+//! - P5: Endurance Health Score (EHS) — A single 0–100 metric tracking
 //!   memory stability, frame jitter, and context switch rate.
 //!
 //! P3 (Context Switch Batching) is handled at the Terminal level via its

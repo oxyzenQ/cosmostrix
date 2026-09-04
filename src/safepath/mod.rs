@@ -3,7 +3,7 @@
 
 //! Path security validation for file-reading CLI flags.
 //!
-//! **Strict whitelist-only** approach: only explicitly allowed directories
+//! Strict whitelist-only approach: only explicitly allowed directories
 //! can be read. Everything else is rejected — no blacklist to maintain.
 //!
 //! ## Allowed locations

@@ -9,10 +9,10 @@
 //! (performance vs powersave) or SMT is enabled/disabled.
 //!
 //! ## Platform support
-//! - **Cross-platform**: kernel version (uname), libc variant (build-time),
+//! - Cross-platform: kernel version (uname), libc variant (build-time),
 //!   terminal env vars ($TERM, $TERM_PROGRAM, $TERM_PROGRAM_VERSION).
-//! - **Linux-only**: CPU governor, SMT status (read from `/sys`).
-//! - **Other**: emits "unsupported" for the Linux-only fields.
+//! - Linux-only: CPU governor, SMT status (read from `/sys`).
+//! - Other: emits "unsupported" for the Linux-only fields.
 //!
 //! All collection happens once at benchmark start (no per-frame cost).
 //! Reading `/sys` files is ~1µs per file and does not perturb the

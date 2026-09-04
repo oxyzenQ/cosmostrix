@@ -379,28 +379,28 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
 /// Returns the path to the config file.
 ///
 /// Platform-specific resolution:
-/// - **Linux, macOS, FreeBSD, Android (Termux)**: Uses `$XDG_CONFIG_HOME`
+/// - Linux, macOS, FreeBSD, Android (Termux): Uses `$XDG_CONFIG_HOME`
 ///   if set, otherwise `~/.config`. On Termux specifically,
 ///   `XDG_CONFIG_HOME` is deliberately IGNORED (see "Termux fix"
 ///   below) because it may point to `$PREFIX/etc`, a system location
 ///   users don't edit.
-/// - **Windows**: Uses `%APPDATA%\cosmostrix\config.toml` (always absolute).
+/// - Windows: Uses `%APPDATA%\cosmostrix\config.toml` (always absolute).
 ///
 /// System-wide fallback locations (consulted by `resolve_config_path`
 /// when the user-specific path doesn't exist):
-/// - **Linux**: `/etc/cosmostrix/config.toml`
-/// - **macOS**: `~/Library/Application Support/cosmostrix/config.toml`
-/// - **FreeBSD**: `/usr/local/etc/cosmostrix/config.toml`
+/// - Linux: `/etc/cosmostrix/config.toml`
+/// - macOS: `~/Library/Application Support/cosmostrix/config.toml`
+/// - FreeBSD: `/usr/local/etc/cosmostrix/config.toml`
 ///   (FreeBSD uses `/usr/local/etc` for ports/packages, not `/etc`)
-/// - **Android (Termux)**: `$PREFIX/etc/cosmostrix/config.toml`
+/// - Android (Termux): `$PREFIX/etc/cosmostrix/config.toml`
 ///   (typically `/data/data/com.termux/files/usr/etc/cosmostrix/...`)
-/// - **Windows**: `%ProgramData%\cosmostrix\config.toml`
+/// - Windows: `%ProgramData%\cosmostrix\config.toml`
 ///
 /// Looks for `config.toml`. removed the pre-v10 `config` (no
 /// extension) fallback — users upgrading from pre-v10 must rename their
 /// file to `config.toml`.
 ///
-/// **Termux fix**: On Android Termux, the XDG spec is ambiguous —
+/// Termux fix: On Android Termux, the XDG spec is ambiguous —
 /// Termux's default environment does NOT set `XDG_CONFIG_HOME`, but some
 /// Termux setups (e.g., when `termux-x11` or `proot-distro` is involved)
 /// set it to `$PREFIX/etc` (a system location, NOT where users put

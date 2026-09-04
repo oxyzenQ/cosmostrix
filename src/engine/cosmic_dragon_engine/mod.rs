@@ -3,7 +3,7 @@
 
 //! # Cosmic Dragon Engine — Diff-Based Rendering Engine
 //!
-//! This module holds the **substantive rendering engine** code, organized
+//! This module holds the substantive rendering engine code, organized
 //! into 4 cooperating subsystems. Together they implement the Cosmic Dragon
 //! Diff-Based Rendering Engine — cosmostrix's core rendering substrate.
 //!
@@ -52,7 +52,7 @@
 //! `src/cosmic_dragon_incubator/` namespace held experimental work.
 //!
 //! The re-export pattern preserves all existing `crate::cloud::*`,
-//! `crate::frame::*`, `crate::terminal::*`, and `crate::runtime::*` paths
+//! `crate::frame::`, `crate::terminal::`, and `crate::runtime::*` paths
 //! — zero call-site edits needed. The 4 modules retain their internal
 //! structure unchanged.
 

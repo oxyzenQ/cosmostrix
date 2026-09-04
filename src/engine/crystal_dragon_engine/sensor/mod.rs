@@ -3,13 +3,13 @@
 
 //! Crystal Dragon sensor: CPU polling + CLOCK fallback.
 //!
-//! Reads the system state and produces a **point** (1–99) that the
+//! Reads the system state and produces a point (1–99) that the
 //! point system maps to a temperature group and color theme.
 //!
 //! ## CPU mode (primary)
 //!
 //! Samples process CPU% via `cpustat::current_cpu_ns()`, smooths with
-//! an EMA, and maps to 1–99 using a **sqrt curve**:
+//! an EMA, and maps to 1–99 using a sqrt curve:
 //!
 //! ```text
 //! point = clamp(1, 99, round(sqrt(cpu_ema) * 9.9))

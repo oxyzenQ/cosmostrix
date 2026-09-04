@@ -29,8 +29,8 @@
 //!
 //! ## Platform coverage
 //!
-//! - **Unix (Linux/macOS/BSD/Termux)**: `libc::time + localtime_r/gmtime_r`
-//! - **Non-Unix (Windows)**: `SystemTime::now()` UTC-based fallback (less
+//! - Unix (Linux/macOS/BSD/Termux): `libc::time + localtime_r/gmtime_r`
+//! - Non-Unix (Windows): `SystemTime::now()` UTC-based fallback (less
 //!   accurate — no local timezone — but sufficient for scheduler + log-stamp)
 //!
 //! ## LTS stability
@@ -155,29 +155,29 @@ const UPTIME_VALUE_MAX_CHARS: usize = 19;
 ///
 /// ## Design decisions (deliberate, owner-delegated)
 ///
-/// - **Fixed elapsed-time units**: 1mo = 30d, 1y = 365d. Uptime is
-///   *elapsed duration*, not a calendar date — calendar months (28-31d)
+/// - Fixed elapsed-time units: 1mo = 30d, 1y = 365d. Uptime is
+///   elapsed duration, not a calendar date — calendar months (28-31d)
 ///   and leap years would make the display non-deterministic across
 ///   timezones/eras and untestable. Fixed units keep every boundary
 ///   exact (`86_399s` = `23h:59m`, `86_400s` = `1d:00h:00m`).
-/// - **Explicit unit suffixes** on every component ≥ 1h (`8h:01m`, not
+/// - Explicit unit suffixes on every component ≥ 1h (`8h:01m`, not
 ///   `8h:01`): self-describing at every scale once days join in, and
 ///   matches the owner's reference spelling.
-/// - **Zero-padded non-leading units** (`1d:07h:22m`, not `1d:7h:22m`):
+/// - Zero-padded non-leading units (`1d:07h:22m`, not `1d:7h:22m`):
 ///   width stability. Unpadded values jitter the line width at rollover
 ///   (`7h` → `10h`), resizing the dynamic-width HUD box every cycle;
 ///   padding pins the tier width so the HUD frame and its chroma
 ///   border (`draw_border`) stay visually still between tier crossings.
-/// - **Full unit chain, no zero-trimming** (`1mo:00d:00h:10m`, not
+/// - Full unit chain, no zero-trimming (`1mo:00d:00h:10m`, not
 ///   `1mo:10m`): stable per-tier width + unambiguous reading (trimmed
 ///   `1mo:10m` invites misreading the minutes as months).
-/// - **Budget-aware degradation**: while the value exceeds 19 chars
+/// - Budget-aware degradation: while the value exceeds 19 chars
 ///   (the HUD budget, see [`UPTIME_VALUE_MAX_CHARS`]) the
 ///   least-significant unit is dropped. In practice this only fires at
 ///   year ≥ 10 (`10y:11mo:28d:23h` — a decade-scale run where nobody
 ///   reads minutes). The 2-unit floor always fits within the budget
 ///   (12-digit year + `:11mo` = 18 chars), so overflow is impossible.
-/// - **ASCII only**: every component is plain ASCII (`d`, `h`, `m`,
+/// - ASCII only: every component is plain ASCII (`d`, `h`, `m`,
 ///   `mo`, `y` + `:` + digits) — complies with the project-wide
 ///   symbol-only-output policy (see `scripts/check-symbol-only-output.sh`).
 ///

@@ -13,7 +13,7 @@
 //!
 //! ## The answer (from running this bench)
 //!
-//! **NO.** At 60 FPS, cosmostrix does ~60 writes/second.
+//! NO. At 60 FPS, cosmostrix does ~60 writes/second.
 //! - `write()` syscall ≈ 1µs each → 60µs/second → 0.006% of CPU.
 //! - io_uring setup ≈ 50µs one-time, then ≈100ns per submission.
 //! - Net savings: 60µs − 6µs = 54µs/second — negligible.
@@ -21,7 +21,7 @@
 //! io_uring only wins at HIGH IOPS (10,000+ writes/sec). cosmostrix
 //! does 60 writes/sec. The overhead of adding the `io_uring` crate +
 //! async runtime would exceed the savings. The experiment is therefore
-//! **concluded — io_uring is rejected as a production path for cosmostrix**.
+//! concluded — io_uring is rejected as a production path for cosmostrix.
 //!
 //! ## Why this file's name was changed in v30
 //!

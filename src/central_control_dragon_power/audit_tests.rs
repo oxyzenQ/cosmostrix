@@ -5,24 +5,24 @@
 //!
 //! End-to-end verification that the `central_control_dragon_power` module
 //! is a real working coordinator, not a documentation gimmick. Every test
-//! here exercises the *public API contract* that downstream consumers
+//! here exercises the public API contract that downstream consumers
 //! (event_loop.rs, activity.rs, cloud/rain.rs) depend on.
 //!
 //! ## What these tests verify
 //!
-//! 1. **PowerManager is the single owner** of perf_pressure, is_idle, and
+//! 1. PowerManager is the single owner of perf_pressure, is_idle, and
 //!    effective FPS — the three previously-scattered read paths.
-//! 2. **Thermal guard flows through effective_pressure** — a thermal
+//! 2. Thermal guard flows through effective_pressure — a thermal
 //!    input at `set_thermal_pressure()` is visible at every downstream
 //!    read of `effective_pressure()`.
-//! 3. **Self-healer reads from PowerThresholds** — the struct is the
+//! 3. Self-healer reads from PowerThresholds — the struct is the
 //!    sole consumer-facing API for the 6 self-healer thresholds.
-//! 4. **Frame lifecycle is consistent** — begin_frame → effective_fps →
+//! 4. Frame lifecycle is consistent — begin_frame → effective_fps →
 //!    effective_pressure → observe_frame_end produces stable, monotonic
 //!    behavior across a synthetic frame sequence.
-//! 5. **Thermal sampler + normalizer contract** — the pure math is
+//! 5. Thermal sampler + normalizer contract — the pure math is
 //!    correct and the sampler degrades gracefully on missing sysfs.
-//! 6. **Clash zone resolution** — effective_fps is the single owner of
+//! 6. Clash zone resolution — effective_fps is the single owner of
 //!    the pause/idle/active cascade; no other writer can produce a
 //!    different FPS for the same state.
 //!

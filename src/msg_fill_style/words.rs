@@ -13,7 +13,7 @@
 //!
 //! The original words style was just a per-word fade-in — visually
 //! nearly indistinguishable from `fade` (owner feedback: "mirip
-//! mirip/duplicate"). This improvement adds a **land impact flash**:
+//! mirip/duplicate"). This improvement adds a land impact flash:
 //! the moment a word's fade-in completes (age >= `WORDS_FADE_MS`),
 //! the word "lands" with a brightness boost to `1.0 + WORDS_LAND_BOOST`
 //! (1.3x), decaying back to 1.0 over `WORDS_LAND_MS` (80 ms). This

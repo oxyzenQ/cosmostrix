@@ -6,7 +6,7 @@
 //! The coloring counterpart to the Cosmic Dragon rendering engine. Where the
 //! Cosmic Dragon (`src/engine/cosmic_dragon_engine/cloud/`, `src/engine/cosmic_dragon_engine/frame.rs`)
 //! owns the diff-based render loop and droplet simulation, the Chroma Dragon
-//! owns every decision about *what color a cell becomes*.
+//! owns every decision about what color a cell becomes.
 //!
 //! ## Phase 1 — Foundation
 //!

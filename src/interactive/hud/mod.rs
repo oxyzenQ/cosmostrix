@@ -15,18 +15,18 @@
 //! the session footer (cid / up / screensize).
 //!
 //! ## Design constraints
-//! - **Zero cost when off**: `visible == false` short-circuits all work.
-//! - **Metrics at 1 Hz**: p99 sort + string formatting only every 1000ms.
+//! - Zero cost when off: `visible == false` short-circuits all work.
+//! - Metrics at 1 Hz: p99 sort + string formatting only every 1000ms.
 //!   1 Hz is the world-class standard for live HUDs (htop, mangoHUD,
 //!   Steam FPS counter, nvidia-smi) — calm enough that the eye reads
 //!   numbers as stable, fast enough to catch any real spike. The
 //!   previous 4 Hz cadence made FPS/p99 visibly flicker 4×/sec which
 //!   read as "wasteful" even though CPU cost was negligible (~30 µs/s).
-//! - **Frame buffer integration**: HUD cells written via `frame.set()`
+//! - Frame buffer integration: HUD cells written via `frame.set()`
 //!   (not `set_force`) so unchanged cells are NOT marked dirty — the
 //!   terminal skips re-sending them. When metrics are stable, only
 //!   the uptime seconds change between frames.
-//! - **Dynamic palette colors**: HUD colors come from the active rain
+//! - Dynamic palette colors: HUD colors come from the active rain
 //!   palette, hue-preserving brightened via HSV value scaling so the
 //!   HUD follows the rain's actual color scheme (green rain → green
 //!   HUD, amber rain → amber HUD) instead of washing out to grey.
@@ -35,7 +35,7 @@
 //!   drift, live-config reload) is reflected on the very next frame, with
 //!   no perceptible delay. The 1 Hz rate limit only governs text
 //!   reformatting (p99 sort, format! calls, RSS string).
-//! - **Rain-aesthetic color gradient**: the HUD's 24 lines form a vertical
+//! - Rain-aesthetic color gradient: the HUD's 24 lines form a vertical
 //!   brightness gradient that mirrors a falling rain droplet — the bottom
 //!   line (screensize, the terminal-size anchor) is the brightest `head`
 //!   (palette last-stop, the rain's leading bright character), the top
@@ -46,12 +46,12 @@
 //!   `fps`/`tgt`/`max` were the brightest — the user explicitly flagged
 //!   the inversion: 'rain tail is dim head is white' (head leads at the
 //!   bottom of a falling stream).
-//! - **Row order (v80.0.0-beta.1 + Z-master-1X round 5)**: fps / tgt /
+//! - Row order (v80.0.0-beta.1 + Z-master-1X round 5): fps / tgt /
 //!   max / p99 / cpu / rss / ehs / prs / scn / chr / clr / sped / dsty /
 //!   prdr / crdr / ambt / glth / ctun / mnst / dcel / tcel / cid / up /
 //!   screensize — identity lines above the controls, cell efficiency above
 //!   the session footer at the bottom.
-//! - **Auto-reset max**: max_ms resets every 60s to show recent peaks,
+//! - Auto-reset max: max_ms resets every 60s to show recent peaks,
 //!   not a startup spike from 10 minutes ago.
 
 use std::time::{Duration, Instant};
@@ -458,7 +458,7 @@ impl HudState {
     ///
     /// ## Keeps baseline warm even when HUD is off
     /// Unlike `maybe_sample_rss` (which short-circuits on invisible),
-    /// this method samples at 1 Hz **regardless of HUD visibility**.
+    /// this method samples at 1 Hz regardless of HUD visibility.
     /// The reason: CPU% requires a delta between two samples, so a cold
     /// baseline forces the HUD to show `cpu: —` for ~1 second after
     /// toggle-on. By keeping the baseline warm, toggle-on produces an

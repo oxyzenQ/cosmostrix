@@ -4,7 +4,7 @@
 //! Quantum Ripple dynamic-color tests.
 //!
 //! Verifies that each spawned QuantumParticle snapshots the active
-//! palette's **body** color (middle index) at birth, and that this
+//! palette's body color (middle index) at birth, and that this
 //! snapshot is preserved across palette switches — producing a natural
 //! crossfade where the old cohort fades out in its original body color
 //! while new clicks spawn particles in the new body color.

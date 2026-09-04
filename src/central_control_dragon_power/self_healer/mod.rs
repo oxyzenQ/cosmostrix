@@ -7,7 +7,7 @@
 //! machine so the event loop only needs to call `observe(...)` once per
 //! frame and apply the returned [`SelfHealAction`]:
 //!
-//! - **P1 (auto scene downgrade)** — when `perf_pressure` stays at or above
+//! - P1 (auto scene downgrade) — when `perf_pressure` stays at or above
 //!   `PowerThresholds::pressure_high` (0.6) for
 //!   `PowerThresholds::downgrade_secs` (30s), switch to the lighter
 //!   fallback scene ("low-power") to shed load. When pressure stays at or
@@ -15,7 +15,7 @@
 //!   `PowerThresholds::restore_secs` (60s), restore the prior scene.
 //!   Hysteresis gap (0.6 → 0.3) and a middle-band dead zone prevent
 //!   flapping under borderline load.
-//! - **P2 (EnduranceHealth mitigation)** — when the
+//! - P2 (EnduranceHealth mitigation) — when the
 //!   [`EnduranceHealth`](crate::central_control_dragon_power::EnduranceHealth)
 //!   score drops below `PowerThresholds::health_investigate` (60.0, the
 //!   "investigate" band), trigger an immediate frame invalidate + memory
@@ -26,7 +26,7 @@
 //!
 //! ## P2 evaluation order
 //!
-//! P2 (health mitigation) is checked *before* P1 (scene actions) on every
+//! P2 (health mitigation) is checked before P1 (scene actions) on every
 //! tick. Rationale: P2 is a symptom-level response (force redraw +
 //! madvise), while P1 is a cause-level response (shed load). If both
 //! fire on the same tick, the symptom fix lands first so the next health
@@ -63,7 +63,7 @@ use crate::constants::*;
 
 /// Actions the self-healer may request from the event loop.
 ///
-/// The self-healer is a *pure policy* — it does not touch `Cloud`, `Frame`,
+/// The self-healer is a pure policy — it does not touch `Cloud`, `Frame`,
 /// or stdout directly. It returns an action enum, and the event loop applies
 /// it. This keeps the side-effect surface testable in isolation and lets
 /// the event loop batch/defer actions as needed (e.g., skip a downgrade
@@ -194,7 +194,7 @@ impl PerformanceSelfHealer {
     ///
     /// ## P2 evaluation order
     ///
-    /// Health mitigation is checked *before* P1 scene actions. Rationale:
+    /// Health mitigation is checked before P1 scene actions. Rationale:
     /// health mitigation is a symptom-level response (force redraw +
     /// madvise), while P1 is a cause-level response (shed load). If both
     /// fire on the same tick, we want the symptom fix to land first so
@@ -309,14 +309,14 @@ impl PerformanceSelfHealer {
         SelfHealAction::None
     }
 
-    /// Called by the event loop *after* applying a `DowngradeScene` action,
+    /// Called by the event loop after applying a `DowngradeScene` action,
     /// to record the scene name that should be restored later. The caller
     /// passes the scene name that was active immediately before the switch.
     pub(crate) fn record_downgrade(&mut self, prior_scene: &str) {
         self.pre_degraded_scene = Some(prior_scene.to_string());
     }
 
-    /// Called by the event loop *after* applying a `RestoreScene` action,
+    /// Called by the event loop after applying a `RestoreScene` action,
     /// to clear the saved scene. Returns the scene name to restore, or
     /// `None` if no prior scene was recorded (defensive — should not happen
     /// if the state machine is wired correctly).

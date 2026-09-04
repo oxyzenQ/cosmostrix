@@ -60,14 +60,14 @@ use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 ///
 /// ## Resolution-time layers (run once at startup, in main.rs)
 ///
-/// 1. **CLI `--fps`** — explicit user override. Detected via
+/// 1. CLI `--fps` — explicit user override. Detected via
 ///    `matches.value_source("fps") == CommandLine`. Always wins.
-/// 2. **Scene `fps=`** — built-in scenes (e.g., `low-power` sets
+/// 2. Scene `fps=` — built-in scenes (e.g., `low-power` sets
 ///    fps=30, `cosmic-dragon` sets fps=60). Applied in
 ///    `config_apply::apply_scene_values` ONLY when the user did NOT
 ///    set `--fps` AND config.toml did NOT set `fps =`.
-///    **audit note (FPS-F2/F3)**: scene-level `fps =` is
-///    **startup-only by design**. `Cloud::apply_scene_runtime` does
+///    audit note (FPS-F2/F3): scene-level `fps =` is
+///    startup-only by design. `Cloud::apply_scene_runtime` does
 ///    NOT apply `fps` at runtime — only `rain_style`/`color`/`charset`/
 ///    `speed`/`density`/`glitch_level`. So when the self-healer
 ///    downgrades to "low-power" at runtime, or the ambient scheduler
@@ -77,7 +77,7 @@ use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 ///    not from `fps=30`. This is intentional — letting runtime
 ///    scene writers override `target_fps` would create a precedence
 ///    ambiguity (which user intent wins?).
-/// 3. **Config.toml `fps =`** — user's persistent default. Applied
+/// 3. Config.toml `fps =` — user's persistent default. Applied
 ///    ONLY when the user did NOT set `--fps`. v80.0.0-beta.2: an
 ///    explicit config `fps` (including exactly 60) records user
 ///    intent via `config::record_fps_explicit` so layer 4 cannot
@@ -87,25 +87,25 @@ use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 ///    `fps =` field ("scene-custom" source) — an owner-reported cp77
 ///    block with `fps = 60` used to show `tgt: 144` on high-refresh
 ///    HUDs.
-/// 4. **Dynamic default fps** — terminal-aware default from this
+/// 4. Dynamic default fps — terminal-aware default from this
 ///    module's `dynamic_default_fps` field (144 for high-perf
 ///    terminals, 60 for standard/unknown, 30 for xterm.js hosts).
 ///    Applied in `main.rs` ONLY when no user layer (1, 3, or the
 ///    scene-custom field) produced a value. Built-in scene templates
 ///    do NOT count as user intent — the dynamic default keeps
 ///    refining them (unchanged design).
-/// 5. **xterm.js cap** — `default_fps_cap` (30 FPS) applied AFTER
+/// 5. xterm.js cap — `default_fps_cap` (30 FPS) applied AFTER
 ///    layers 1-4 on xterm.js hosts. Even an explicit `--fps 120`
 ///    gets capped to 30 on VSCode's xterm.js to prevent OOM.
 ///    Bypassed in `--benchmark` mode.
 ///
 /// ## Runtime layers (run every frame, in event_loop.rs:966-972)
 ///
-/// 6. **Idle factor** — when `is_idle` is true (no user input for
+/// 6. Idle factor — when `is_idle` is true (no user input for
 ///    `IDLE_THRESHOLD`), `frame_period` is multiplied by
 ///    `1.0 / IDLE_FPS_FACTOR` (i.e., 0.5× → half the FPS). This is
 ///    a frame_period adjustment, NOT a target_fps change.
-/// 7. **Pause period** — when `cloud.pause` is true (user pressed
+/// 7. Pause period — when `cloud.pause` is true (user pressed
 ///    space), `frame_period` is replaced with `PAUSE_PERIOD_MS`
 ///    (250ms = 4 FPS). Highest runtime priority.
 ///

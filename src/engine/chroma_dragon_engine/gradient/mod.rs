@@ -23,11 +23,11 @@
 //!
 //! OKLab interpolates the `(a, b)` chroma axes. Two options exist:
 //!
-//! - **Cartesian** (linear lerp of `a` and `b`): on opposing-hue gradients
+//! - Cartesian (linear lerp of `a` and `b`): on opposing-hue gradients
 //!   (red↔cyan, blue↔yellow), the (a, b) midpoint passes near (0, 0) = gray,
 //!   producing a desaturated midpoint. This is the canonical "Cartesian
 //!   shortcut through gray" failure mode.
-//! - **Polar** (lerp chroma magnitude `C = sqrt(a²+b²)` linearly + rotate hue
+//! - Polar (lerp chroma magnitude `C = sqrt(a²+b²)` linearly + rotate hue
 //!   `h = atan2(b, a)` through the shortest arc): chroma magnitude stays
 //!   high through the midpoint, so the gradient stays saturated.
 //!
@@ -37,7 +37,7 @@
 //! the W3C CSS Color Module Level 4 spec, which defaults `oklch`
 //! interpolation to shortest-arc hue rotation.
 //!
-//! As of v30, polar is the **sole production gradient path**. The Cartesian
+//! As of v30, polar is the sole production gradient path. The Cartesian
 //! variant and the legacy sRGB-linear variant have been removed. The
 //! `--polar-gradient` CLI flag (Phase 9-A opt-in) has been removed — polar
 //! is no longer opt-in, it's the only path.
@@ -143,7 +143,7 @@ pub(crate) fn oklab_to_srgb(l: f32, a: f32, b: f32) -> (u8, u8, u8) {
 /// Polar (chroma + hue) interpolation between two OKLab (a, b) chroma points.
 ///
 /// Chroma magnitude `C = sqrt(a² + b²)` lerps linearly. Hue angle
-/// `h = atan2(b, a)` rotates through the **shortest arc**. This avoids the
+/// `h = atan2(b, a)` rotates through the shortest arc. This avoids the
 /// "Cartesian shortcut through gray" problem: when two hues are roughly
 /// opposite on the chroma ring (e.g. red ↔ cyan), linear (a, b)
 /// interpolation passes near (0, 0), producing a desaturated gray midpoint.

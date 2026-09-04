@@ -9,12 +9,12 @@
 //! "benchmark mainan" from "profiling tool".
 //!
 //! ## Component definitions
-//! - **sim_ms**: time in `cloud.rain_at()` before the first frame mutation
+//! - sim_ms: time in `cloud.rain_at()` before the first frame mutation
 //!   (cinematic events, spawn rate, droplet physics). Read from
 //!   `cloud.last_sim_ms()` after `rain_at` returns.
-//! - **render_ms**: time in `cloud.rain_at()` during phosphor/anomaly/
+//! - render_ms: time in `cloud.rain_at()` during phosphor/anomaly/
 //!   atmospheric frame mutations. Read from `cloud.last_render_ms()`.
-//! - **io_ms**: time OUTSIDE `rain_at()` within the frame loop — dirty
+//! - io_ms: time OUTSIDE `rain_at()` within the frame loop — dirty
 //!   checks, `clear_dirty`, bookkeeping. In benchmark mode NO terminal
 //!   write happens, so this is dirty-tracking overhead, not real IO.
 //!   Labeled honestly in the report.

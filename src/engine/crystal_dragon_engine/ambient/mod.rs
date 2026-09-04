@@ -5,7 +5,7 @@
 //!
 //! Replaces the archived `adaptive-custom` subsystem (eliminated with the
 //! atmosphere engine at commit `07b44b5`). Unlike `adaptive-custom`, this
-//! module is **config-only** (no CLI flag) and uses **instant switch** (no
+//! module is config-only (no CLI flag) and uses instant switch (no
 //! smoothstep blend window) — the user explicitly asked for snappy phase
 //! boundaries, not the imperceptible 5-minute cross-fade the old engine used.
 //!
@@ -15,7 +15,7 @@
 //! ambient.<HH-MM> = <scene-name>
 //! ```
 //!
-//! The value is a **single scene name** — either a built-in scene
+//! The value is a single scene name — either a built-in scene
 //! (`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via
 //! `[scene-custom.<name>]`. All parameters (color, charset, speed, density,
 //! fps, glitch-level, rain_style) live inside the scene itself, eliminating
@@ -26,7 +26,7 @@
 //! accepted `ambient.15-00 = neon-purple, signal, speed=50, density=0.65`.
 //! rejects this with a migration error. To preserve the entry, define
 //! a custom scene that captures the same parameters and reference it from a
-//! TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
+//! TOP-LEVEL `ambient.` key (NEVER place the `ambient.` key inside the
 //! `[scene-custom.<name>]` block — TOML would parse it as
 //! `scene-custom.<name>.ambient.<HH-MM>`, which is rejected as unknown):
 //!
@@ -142,15 +142,15 @@ impl AmbientSchedule {
         self.entries.is_empty()
     }
 
-    /// Find the **current** phase — the latest entry whose `minutes_of_day()`
+    /// Find the current phase — the latest entry whose `minutes_of_day()`
     /// is `<= now_min`. Returns `None` if no entry has fired yet today
     /// (i.e. `now_min` is earlier than the first entry's boundary, which
     /// only happens at startup before the first phase of the day).
     ///
     /// Wrap-around: if `now_min` is 0:30 and the earliest entry is 6:00,
-    /// the "current" phase is the **last** entry of the previous day (it has
-    /// been active since its boundary fired yesterday). This means a **single
-    /// entry** schedule is active ALL DAY (it wraps from yesterday before its
+    /// the "current" phase is the last entry of the previous day (it has
+    /// been active since its boundary fired yesterday). This means a single
+    /// entry schedule is active ALL DAY (it wraps from yesterday before its
     /// boundary and becomes today's phase at/after its boundary). This is
     /// correct by design — ambient is a 24-hour repeating schedule, not a
     /// one-shot timer. To have a scene activate only after a specific time,
@@ -173,7 +173,7 @@ impl AmbientSchedule {
         }
     }
 
-    /// Find the **next** phase — the earliest entry whose `minutes_of_day()`
+    /// Find the next phase — the earliest entry whose `minutes_of_day()`
     /// is `> now_min`. Returns `None` if the schedule is empty.
     ///
     /// Wrap-around: if `now_min` is 23:30 and all entries are <= 23:00, the

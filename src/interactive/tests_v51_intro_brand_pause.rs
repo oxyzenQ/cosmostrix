@@ -5,14 +5,14 @@
 //!
 //! Covers two owner bug reports from 2026-08-30:
 //!
-//! 1. **Intro logo color override** — `cosmostrix -c neon-green` repainted
+//! 1. Intro logo color override — `cosmostrix -c neon-green` repainted
 //!    the intro logo neon-green. Root cause: the unset-`intro_color` path
 //!    passed the LIVE rain cloud to the intro, and `logo_stage_colors()`
 //!    samples the cloud's palette stops. Fix: unset/invalid paths build a
 //!    brand EnergyZen intro cloud (`event_loop_intro::brand_intro_cloud`)
 //!    — `-c`/`--color`/`--colors-custom` never repaint the intro logo.
 //!
-//! 2. **Pause shortkey isolation** — while paused, `i` still toggled the
+//! 2. Pause shortkey isolation — while paused, `i` still toggled the
 //!    HUD because `i` is dispatched in the event loop BEFORE
 //!    `handle_keybinding()`, so the pause guard inside it never saw the
 //!    key. Fix: `input::hud_toggle_accepted()` applies the same predicate

@@ -640,7 +640,7 @@ fn pulse_expires_after_lifetime() {
     );
 }
 
-/// LTS polish (2026-08-26): a second touch to the **same** cell while a
+/// LTS polish (2026-08-26): a second touch to the same cell while a
 /// pulse is still alive MUST refresh the existing entry (re-arm `birth`,
 /// re-snapshot `head_rgb`) instead of pushing a duplicate. This bounds
 /// `self.border_pulses.len() <= self.message.len()` regardless of touch

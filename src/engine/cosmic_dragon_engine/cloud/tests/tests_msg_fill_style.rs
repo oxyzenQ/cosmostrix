@@ -351,7 +351,7 @@ fn engrave_head_burns_hot_and_cools_off() {
         let (r, g, b) = crate::palette::decode_color(fg)?;
         Some(u32::from(r) + u32::from(g) + u32::from(b))
     };
-    // 'h' settled at 100*3 = 300; 'd' cooling at (1 + 1.0*120/300)*300 = 420.
+    // 'h' settled at 1003 = 300; 'd' cooling at (1 + 1.0120/300)*300 = 420.
     let settled = sum_of('h').expect("first char must be visible with an fg");
     let cooling = sum_of('d').expect("last char must be visible with an fg");
     assert_eq!(settled, 300, "cooled char must render at base brightness");

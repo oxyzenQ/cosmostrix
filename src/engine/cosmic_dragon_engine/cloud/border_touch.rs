@@ -42,15 +42,15 @@ impl super::Cloud {
     ///
     /// ## LTS bounds (2026-08-26 polish)
     ///
-    /// The pulse pool is bounded by **deduplication by `msg_idx`**: when a
+    /// The pulse pool is bounded by deduplication by `msg_idx`: when a
     /// new touch lands on a cell that already has an alive pulse, the
-    /// existing pulse is **refreshed** (`birth = now`, `head_rgb =
+    /// existing pulse is refreshed (`birth = now`, `head_rgb =
     /// current`) instead of pushing a new entry. This guarantees
     /// `self.border_pulses.len() <= self.message.len()` at all times —
     /// the upper bound is the number of distinct border cells in the
     /// overlay (typically 50–100), regardless of how many droplets hit
     /// the same column within the lifetime window. The refresh also
-    /// makes the glow **more** dynamic: each re-touch picks up the
+    /// makes the glow more dynamic: each re-touch picks up the
     /// palette's current `head_rgb` (e.g. mid-transition between two
     /// palettes, the glow re-snapshots to the newest stop).
     ///

@@ -46,7 +46,7 @@ pub(crate) fn known_xtermjs_hosts() -> &'static [&'static str] {
 /// xterm.js's in-memory buffer grows unbounded at high frame rates;
 /// 30 FPS keeps the worst-case byte rate under ~7 MB/sec (vs ~13.7 MB/sec
 /// at 60 FPS), which xterm.js can drain over multi-hour runs without
-/// OOMing — *assuming* the Tier 2 RIS reset also fires periodically to
+/// OOMing — assuming the Tier 2 RIS reset also fires periodically to
 /// clear the cumulative buffer. The user's --fps value is clamped to
 /// this cap, not overridden silently — the verbose output discloses the
 /// cap so there's no confusion.

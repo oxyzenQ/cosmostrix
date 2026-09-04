@@ -183,12 +183,12 @@ pub(super) fn spawn_watchdog() {
 ///
 /// # Platform behaviour
 ///
-/// - **Linux**: `isatty(STDOUT_FILENO)`. Returns 0 (false) after the
+/// - Linux: `isatty(STDOUT_FILENO)`. Returns 0 (false) after the
 ///   PTY master is closed.
-/// - **macOS / BSD**: same `isatty()` semantics via kqueue.
-/// - **Windows**: checks if the stdout handle is a console buffer.
+/// - macOS / BSD: same `isatty()` semantics via kqueue.
+/// - Windows: checks if the stdout handle is a console buffer.
 ///   ConPTY handle becomes invalid after force-close.
-/// - **Redirected stdout** (`cosmostrix > file`): returns false. The
+/// - Redirected stdout (`cosmostrix > file`): returns false. The
 ///   watchdog's `stdout_was_terminal` guard suppresses the dead-PTY probe
 ///   in this case — the probe only fires when stdout WAS a terminal at
 ///   startup but is no longer one (force-close, SSH disconnect).

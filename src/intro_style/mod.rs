@@ -143,7 +143,7 @@ pub(crate) const PARTICLE_POOL_SIZE: usize = 512;
 ///
 /// # Skip behavior
 ///
-/// The intro can be exited early by pressing **`q`** (case-insensitive)
+/// The intro can be exited early by pressing `q` (case-insensitive)
 /// or by sending SIGTERM / SIGHUP / SIGQUIT (handled via [`GRACEFUL_SHUTDOWN`]).
 /// Ctrl+C (SIGINT) is deprecated — only 'q' exits cosmostrix.
 /// No other key skips — the intro ignores stray keypresses so accidental
@@ -455,7 +455,7 @@ fn is_skip_key(key_event: &crossterm::event::KeyEvent) -> bool {
 }
 
 /// Drain the terminal event queue non-blocking. Returns `true` if the
-/// intro should skip — but **only** when the user pressed `q` (case-
+/// intro should skip — but only when the user pressed `q` (case-
 /// insensitive) or when [`GRACEFUL_SHUTDOWN`] is set (SIGTERM / SIGHUP / SIGQUIT).
 ///
 /// All other key events are drained and ignored. This is deliberate: the

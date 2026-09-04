@@ -41,7 +41,7 @@ impl LastFrame {
     /// fresh allocation (same as `new`). When no existing frame is
     /// provided, also falls back to `new`.
     ///
-    /// **Safety of `resize_with`**: `Vec::resize_with(new_len, || blank)`
+    /// Safety of `resize_with`: `Vec::resize_with(new_len, || blank)`
     /// first truncates if `new_len < old.len()`, then extends by calling
     /// the closure for each new element. We `clear()` first to drop all
     /// old cell values (which contained previous-frame content) so the

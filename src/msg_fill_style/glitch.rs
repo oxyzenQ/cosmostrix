@@ -21,11 +21,11 @@
 //!
 //! Each content cell has TWO gates:
 //!
-//! 1. **Budget gate** (`reveal_count` from `index_reveal_count`):
+//! 1. Budget gate (`reveal_count` from `index_reveal_count`):
 //!    `content_idx < reveal_count`. This keeps the reveal pacing
 //!    roughly typewriter-speed (one cell eligible every 80 ms) and
 //!    matches the pre-v80.0.0-beta.1 `usize::MAX` semantics for `None` timeline.
-//! 2. **Scramble gate** (per-cell reveal time): `elapsed_ms >=
+//! 2. Scramble gate (per-cell reveal time): `elapsed_ms >=
 //!    reveal_at(content_idx)` where
 //!    `reveal_at = content_idx * GLITCH_CHAR_MS + scramble_offset(content_idx) * GLITCH_SCRAMBLE_MS`.
 //!    The scramble offset is a deterministic hash of the content
@@ -35,8 +35,8 @@
 //!    that the reveal still feels paced (not all-at-once).
 //!
 //! Within the budget but before the scramble gate, the cell is
-//! hidden. After the scramble gate, the cell enters the **settle
-//! window** (90 ms): the glyph is one of `GLITCH_WRONG_GLYPHS`
+//! hidden. After the scramble gate, the cell enters the settle
+//! window (90 ms): the glyph is one of `GLITCH_WRONG_GLYPHS`
 //! (picked deterministically by `hash(content_idx, bucket)`), and
 //! the brightness modulates in `1.0 ± GLITCH_FLICKER_AMPLITUDE`
 //! (±20%). After the settle window, the cell shows the true glyph

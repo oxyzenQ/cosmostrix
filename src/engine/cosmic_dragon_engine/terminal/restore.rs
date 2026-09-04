@@ -139,11 +139,11 @@ pub(crate) const TERMINAL_RESET_SEQUENCE: &str = "\x1b[0m\
 ///
 /// Recovery sequence (defense-in-depth, 5 layers):
 ///
-/// 1. **ANSI restore sequence** — disables all optional modes
-/// 2. **ANSI reset sequence** — clears screen + scrollback + cursor home
-/// 3. **crossterm commands** — LeaveAlternateScreen, Clear, Show cursor
-/// 4. **stty sane** — restores terminal line discipline (raw mode off)
-/// 5. **reset** — external utility that does a full terminal reset
+/// 1. ANSI restore sequence — disables all optional modes
+/// 2. ANSI reset sequence — clears screen + scrollback + cursor home
+/// 3. crossterm commands — LeaveAlternateScreen, Clear, Show cursor
+/// 4. stty sane — restores terminal line discipline (raw mode off)
+/// 5. reset — external utility that does a full terminal reset
 ///    (clears screen, resets modes, restores tabs, etc.)
 ///
 /// Each layer is best-effort — failures are silently ignored because

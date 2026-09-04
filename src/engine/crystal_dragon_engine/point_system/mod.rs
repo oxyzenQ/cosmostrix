@@ -9,7 +9,7 @@
 //! pick the same theme repeatedly (the skip-current retry mitigates
 //! this, but doesn't prevent A→B→A→B oscillation).
 //!
-//! calc-v2 adds a **recency penalty**: themes that were recently
+//! calc-v2 adds a recency penalty: themes that were recently
 //! selected get a lower weight, so the engine naturally avoids
 //! repetition and oscillation. The result is more varied, cinematic
 //! drift — the rain feels like it's exploring the palette, not
@@ -18,7 +18,7 @@
 //! ## Algorithm
 //!
 //! 1. Same as calc-v1: determine group, compute distance-based weights.
-//! 2. **NEW**: multiply each weight by a recency factor based on how
+//! 2. NEW: multiply each weight by a recency factor based on how
 //!    many drifts ago the theme was last selected:
 //!    - Never selected → factor 1.0 (no penalty)
 //!    - Selected 1 drift ago → factor 0.3 (strong penalty, avoids A→B→A)

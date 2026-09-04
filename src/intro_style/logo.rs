@@ -4,7 +4,7 @@
 //! cosmostrix Logo intro — a four-phase cinematic that reveals the
 //! project's ASCII logo and dissolves it into Matrix rain.
 //!
-//! The logo is colored with the **7-stage rain method** (owner
+//! The logo is colored with the 7-stage rain method (owner
 //! directive 2026-08-24): the intro palette's stops (tail = darkest →
 //! head = brightest) are sampled vertically in OKLab, so the logo
 //! reads as a colossal rain droplet — bottom rows carry the tail
@@ -158,7 +158,7 @@ struct LogoCell {
     bx: u16,
     /// Cell Y within the logo bounding box (0 = top row).
     by: u16,
-    /// Squared distance from the logo's *visual centroid* (ink
+    /// Squared distance from the logo's visual centroid (ink
     /// center-of-mass), used to order the dissolve from outermost ring
     /// inward. Stored as f32 for sorting. See [`visual_centroid`].
     dist_sq: f32,

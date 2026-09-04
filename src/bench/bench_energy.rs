@@ -35,7 +35,7 @@ impl EnergySnapshot {
         let mut pkg_count: u32 = 0;
         let mut found = false;
 
-        // Scan /sys/class/powercap/ for any *-rapl:* entries with energy_uj
+        // Scan /sys/class/powercap/ for any -rapl: entries with energy_uj
         // AMD CPUs use the intel-rapl interface (kernel naming legacy)
         // Note: entries in /sys/class/ are symlinks — fs::read_to_string
         // follows symlinks automatically, so this works.

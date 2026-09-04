@@ -7,10 +7,10 @@
 // ecosystem.rs, pause.rs, rain_at.rs, and the interactive event_loop_* family).
 
 //! Core simulation engine for cosmostrix — atmospheric rendering pipeline.
-//! Key systems: **DrawCtx** (read-only renderer snapshot for per-frame
-//! callbacks), **DropletSpawner** (3 parallax layers, see `spawn.rs`),
-//! **GhostEventScheduler** (ghost-kanji events, see `ghost_events.rs`),
-//! **LivingRain** (wind-gust drift, see `living_rain.rs`).
+//! Key systems: DrawCtx (read-only renderer snapshot for per-frame
+//! callbacks), DropletSpawner (3 parallax layers, see `spawn.rs`),
+//! GhostEventScheduler (ghost-kanji events, see `ghost_events.rs`),
+//! LivingRain (wind-gust drift, see `living_rain.rs`).
 //! On color-scheme change, new droplets inherit the new palette while
 //! existing droplets keep their old colors until they age out —
 //! transition smoothed via Phase 8 hue-preserving chroma shader

@@ -18,16 +18,16 @@
 //! through three deterministic phases driven entirely by the elapsed
 //! ms since the cell's reveal:
 //!
-//! 1. **Flicker** (0..150 ms post-reveal): per-cell brightness noise.
+//! 1. Flicker (0..150 ms post-reveal): per-cell brightness noise.
 //!    A deterministic hash of (content_idx, elapsed/40 ms bucket)
 //!    maps to a multiplier in `1.0 ± HOLOGRAM_FLICKER_AMPLITUDE`
 //!    (±30%). The 40 ms bucket gives ~3-4 distinct flicker values per
 //!    cell during the 150 ms window — fast enough to read as
 //!    "hologram interference", slow enough not to strobe.
-//! 2. **Breathing** (150..2150 ms post-reveal): subtle 1-2% sin ripple
+//! 2. Breathing (150..2150 ms post-reveal): subtle 1-2% sin ripple
 //!    on the settled brightness, amplitude decaying linearly to zero
 //!    by the end of the window. Reads as the "hologram is alive" hum.
-//! 3. **Settled** (>= 2150 ms post-reveal): factor = 1.0 exactly.
+//! 3. Settled (>= 2150 ms post-reveal): factor = 1.0 exactly.
 //!    Bit-identical to engrave's cooled state — hologram text is just
 //!    text once the projection stabilizes.
 //!

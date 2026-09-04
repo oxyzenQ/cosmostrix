@@ -13,10 +13,10 @@
 //! ## Why here and not in the intro modules?
 //!
 //! Owner mandate: *"every color-processing site must route through the
-//! chroma dragon pipeline (primary)"*. The intro's color *processing*
+//! chroma dragon pipeline (primary)"*. The intro's color processing
 //! (blending, palette extraction) already routes through the engine via
 //! `gradient::oklab_blend_rgb` and `palette::color_to_rgb`. But the
-//! color *constants* — the actual RGB values that serve as inputs to
+//! color constants — the actual RGB values that serve as inputs to
 //! those operations — lived outside the engine. Moving them here makes
 //! the chroma dragon engine the canonical owner of ALL color data in
 //! cosmostrix, not just the rain palette.
@@ -30,7 +30,7 @@
 //!   can import them, but they are NOT part of the public API.
 //! - All blending of these colors still routes through
 //!   `gradient::oklab_blend_rgb()` at the call site — this module owns
-//!   the *data*, not the *processing*.
+//!   the data, not the processing.
 //!
 //! ## Relationship to `catalog.rs`
 //!

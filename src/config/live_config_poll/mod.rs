@@ -74,7 +74,7 @@ const BURST_CYCLES_MAX: u8 = 10;
 /// unset or invalid. Power users on slow filesystems can raise it; users
 /// wanting faster reload can lower it (at the cost of more I/O per second).
 ///
-/// **Perf tradeoff (Phase 4 P4-5):** each poll hashes a bounded prefix
+/// Perf tradeoff (Phase 4 P4-5): each poll hashes a bounded prefix
 /// of the file via `hash_file_prefix` (at most `HASH_BYTES`, no full-file
 /// String allocation) + mtime/size stat. At the default 750ms interval, this is ~13KB/s
 /// of allocation + ~100μs of hashing — invisible. At the minimum 50ms
@@ -98,7 +98,7 @@ pub(crate) fn env_poll_interval_ms() -> u64 {
 /// (e.g., FreeBSD kqueue feature not active, Android Termux inotify
 /// throttling, restricted containers).
 ///
-/// **Adaptive burst mode (strengthening)**: after ANY change is
+/// Adaptive burst mode (strengthening): after ANY change is
 /// detected — whether by the polling heartbeat itself or by the native
 /// watcher (signalled via `change_counter`) — the poll interval drops to
 /// `BURST_POLL_INTERVAL_MS` (200ms) for `BURST_CYCLES` (5) cycles. This
@@ -111,7 +111,7 @@ pub(crate) fn env_poll_interval_ms() -> u64 {
 /// `watcher_loop` (in `live_config.rs`) treats it identically to a
 /// native modify event.
 ///
-/// **Startup reload prevention**: all three signals are snapshotted at
+/// Startup reload prevention: all three signals are snapshotted at
 /// heartbeat start. The first poll (`base_interval_ms` later) compares
 /// against these initial values — if nothing changed, no event is sent.
 pub(crate) fn polling_heartbeat(
@@ -312,7 +312,7 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
 /// Snapshot the current state of the file at `path`, with an optional
 /// previous snapshot for the fast path.
 ///
-/// **Fast path (masterclass):** when `prev` is `Some` AND its
+/// Fast path (masterclass): when `prev` is `Some` AND its
 /// `mtime` and `size` both match the current file's metadata, the
 /// expensive SHA-512 hash is SKIPPED and `prev.content_hash` is reused.
 /// This drops the per-poll cost from ~100µs (open + read 8KB + hash) to
@@ -333,7 +333,7 @@ pub(crate) fn snapshot_file_state(path: &Path) -> FileStateSnapshot {
 ///   by at least the filesystem's mtime resolution (1ns on ext4/xfs/APFS,
 ///   1ms on FAT, 1s on ext3). All exceed the poll interval.
 ///
-/// **Slow path:** when `prev` is `None`, or `prev.mtime` is `None`, or
+/// Slow path: when `prev` is `None`, or `prev.mtime` is `None`, or
 /// either `mtime` or `size` differs, the SHA-512 hash is computed via
 /// `hash_file_prefix` and stored in the new snapshot.
 pub(crate) fn snapshot_file_state_cached(

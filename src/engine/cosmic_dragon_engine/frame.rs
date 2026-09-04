@@ -12,13 +12,13 @@
 //!
 //! Two independent generation systems coexist:
 //!
-//! 1. **Content generation** (`gen` + `cell_gen: Vec<u32>`): tracks whether
+//! 1. Content generation (`gen` + `cell_gen: Vec<u32>`): tracks whether
 //!    each cell holds live content for the current logical frame or is
 //!    effectively blank. Bumped by [`clear_with_bg`] on semantic resets
 //!    (resize, theme change). See existing docs below.
 //!
-//! 2. **Dirty generation** (`dirty_gen` + `dirty_cell_gen: Vec<u32>`): tracks
-//!    which cells were dirtied *this render frame*. Bumped by [`clear_dirty`]
+//! 2. Dirty generation (`dirty_gen` + `dirty_cell_gen: Vec<u32>`): tracks
+//!    which cells were dirtied this render frame. Bumped by [`clear_dirty`]
 //!    at end of every frame. This is the double-buffer trick: instead of
 //!    memset-clearing a per-cell dirty flag array (O(N) every frame), we bump
 //!    a single u32 counter. All previous dirty stamps become "stale"
@@ -26,7 +26,7 @@
 //!    integer add. No memset, no iteration.
 //!
 //! Dirty indices are still collected into a [`SmallVec`] with 256 inline slots
-//! for fast iteration — the dirty *list* is needed by renderers that iterate
+//! for fast iteration — the dirty list is needed by renderers that iterate
 //! only-changed cells. The SmallVec's `clear()` is O(1) (just resets len), so
 //! the per-frame cost is dominated by the generation bump.
 //!
@@ -174,7 +174,7 @@ impl Frame {
     /// clearing cell content, bumping the generation, or touching dirty
     /// bookkeeping.
     ///
-    /// This is the correct primitive for *resync* redraws (idle resync,
+    /// This is the correct primitive for resync redraws (idle resync,
     /// stuck-cell sweep, ANSI drift redraw, paste/focus regain): the frame
     /// still holds the app's current truth, and the terminal's shadow may
     /// have drifted — the only required action is a full re-emit. The

@@ -37,7 +37,7 @@
 //!
 //! The sweep beam covers a small angular window
 //! (`RADAR_BEAM_WIDTH_RAD` = 18° = ~0.314 rad). When the sweep angle
-//! crosses a cell's angle, the cell enters a **ping phase** over
+//! crosses a cell's angle, the cell enters a ping phase over
 //! `RADAR_PING_MS` (200 ms): the glyph starts at a dim factor
 //! (`RADAR_PING_DIM` = 0.50), spikes to `RADAR_PING_PEAK` (1.4 —
 //! the head boost, same > 1.0 path as engrave/scorch) at the ping

@@ -6,13 +6,13 @@
 //! A single 0–100 metric tracking long-endurance process stability based
 //! on three orthogonal signals:
 //!
-//! - **Memory stability** — RSS variance over recent samples (ring buffer
+//! - Memory stability — RSS variance over recent samples (ring buffer
 //!   of 60 readings). Lower variance = higher score. Sampled on Linux
 //!   via `/proc/self/status`.
-//! - **Frame work utilization** — EMA of `work_s / frame_period_s`
+//! - Frame work utilization — EMA of `work_s / frame_period_s`
 //!   (unitless, 1.0 = the frame used its entire budget). Lower
 //!   utilization = higher score. Cross-platform.
-//! - **Context switch rate** — EMA of voluntary switches per second.
+//! - Context switch rate — EMA of voluntary switches per second.
 //!   Lower rate = higher score. Sampled on Linux via `/proc/self/stat`.
 //!
 //! S-master-HUNT-23: the frame signal used to be the ABSOLUTE work time
@@ -261,7 +261,7 @@ mod tests {
         h.recompute();
         // With 0 variance, util 0.3, 60 switches/sec:
         // rss_score = 100, util_score = 82, ctxt_score = 70
-        // weighted = 100*0.4 + 82*0.35 + 70*0.25 = 40 + 28.7 + 17.5 = 86.2
+        // weighted = 1000.4 + 820.35 + 70*0.25 = 40 + 28.7 + 17.5 = 86.2
         assert!(h.score() > 85.0, "score should be > 85, got {}", h.score());
         assert_eq!(h.classification(), "healthy");
     }
@@ -283,7 +283,7 @@ mod tests {
         h.push_ctxt_rate(60.0);
         h.recompute();
         // util_score = 100 - 0.72*60 = 56.8
-        // weighted = 100*0.4 + 56.8*0.35 + 70*0.25 = 40 + 19.88 + 17.5 = 77.38
+        // weighted = 1000.4 + 56.80.35 + 70*0.25 = 40 + 19.88 + 17.5 = 77.38
         assert!(
             h.score() >= 60.0,
             "busy-but-healthy terminal must not be investigate, got {}",
@@ -307,7 +307,7 @@ mod tests {
         h.push_ctxt_rate(60.0);
         h.recompute();
         // util_score = floor 40
-        // weighted = 100*0.4 + 40*0.35 + 70*0.25 = 40 + 14 + 17.5 = 71.5
+        // weighted = 1000.4 + 400.35 + 70*0.25 = 40 + 14 + 17.5 = 71.5
         assert!(
             h.score() >= 60.0,
             "pure output saturation must not be investigate, got {}",

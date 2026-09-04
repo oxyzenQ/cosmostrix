@@ -19,7 +19,7 @@
 //!    (stays at the clap default 3).
 //!
 //! Key rule: a value explicitly set in config.toml ALWAYS wins over a scene's
-//! hardcoded default. Scenes are templates for *unset* keys, not overrides for
+//! hardcoded default. Scenes are templates for unset keys, not overrides for
 //! user-set keys. This prevents the surprise where `speed = 30` in config gets
 //! silently overwritten by a scene's `speed = 8`.
 //!
@@ -349,7 +349,7 @@ fn apply_default_scene_values(
 
 /// Apply top-level `config.toml` values to `args`.
 ///
-/// **Design note (Phase 4 P4-4 — positive finding, intentional pattern):**
+/// Design note (Phase 4 P4-4 — positive finding, intentional pattern):
 /// This function calls `config_value(matches, cfg, snake_key, kebab_key)`
 /// once per supported config key (17 sequential lookups). An alternative
 /// single-iteration design (`for (key, value) in cfg { match key { ... } }`)

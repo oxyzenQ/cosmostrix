@@ -10,9 +10,9 @@
 //!
 //! ## Two paths
 //!
-//! 1. **Full redraw** (≥12.5% cells dirty, or dim/semantic change): row-RLE
+//! 1. Full redraw (≥12.5% cells dirty, or dim/semantic change): row-RLE
 //!    pass over all cells, accumulates into `ansi_buf`, one `write_all`.
-//! 2. **Differential** (<12.5% cells dirty): flat sorted dirty-index
+//! 2. Differential (<12.5% cells dirty): flat sorted dirty-index
 //!    iteration, contiguous-run detection, per-run MoveTo + SGR batching.
 //!
 //! The crossover threshold is `DIRTY_THRESHOLD_RATIO` (currently 8 = 12.5%).

@@ -15,7 +15,7 @@
 //! to print the panic message. When the terminal is closed (SIGHUP /
 //! PTY destroyed), stderr becomes a broken pipe. `eprintln!` calls
 //! `stderr().write_fmt(...)` which panics on write failure (Rust std
-//! intentionally panics to surface I/O errors). A panic *inside* the
+//! intentionally panics to surface I/O errors). A panic inside the
 //! panic hook is treated as a double-panic by the Rust runtime, which
 //! calls `abort()` → systemd-coredump fires.
 //!

@@ -15,16 +15,16 @@
 //! syscall available on all Unix systems with no permissions required.
 //! It does not give hardware counters, but it does give:
 //!
-//! - **Minor page faults** (`ru_minflt`): page reclaims from the page
+//! - Minor page faults (`ru_minflt`): page reclaims from the page
 //!   cache (no disk I/O). High values indicate memory pressure or
 //!   frequent allocation patterns.
-//! - **Major page faults** (`ru_majflt`): page faults requiring disk
+//! - Major page faults (`ru_majflt`): page faults requiring disk
 //!   I/O. Non-zero indicates the process is touching memory not in RAM
 //!   (swap-in, cold-start file mapping, etc.).
-//! - **Voluntary context switches** (`ru_nvcsw`): the process yielded
+//! - Voluntary context switches (`ru_nvcsw`): the process yielded
 //!   the CPU voluntarily (blocking syscall like `read`, `sleep`).
 //!   High values indicate IO-bound behavior.
-//! - **Involuntary context switches** (`ru_nivcsw`): the process was
+//! - Involuntary context switches (`ru_nivcsw`): the process was
 //!   preempted by the scheduler (time slice expired). High values
 //!   indicate CPU contention.
 //!
@@ -32,8 +32,8 @@
 //! window attribution, we sample at start and end, then compute deltas.
 //!
 //! ## Platform support
-//! - **Linux + macOS**: via `libc::getrusage(RUSAGE_SELF, ...)`.
-//! - **Windows / other**: returns `None` for all fields. The benchmark
+//! - Linux + macOS: via `libc::getrusage(RUSAGE_SELF, ...)`.
+//! - Windows / other: returns `None` for all fields. The benchmark
 //!   report emits "unsupported" with a reason field.
 
 /// Snapshot of process resource counters at a point in time.

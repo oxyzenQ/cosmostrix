@@ -46,7 +46,7 @@
 //!
 //! | Capability | Detection | Output |
 //! |------------|-----------|--------|
-//! | TrueColor | COLORTERM=truecolor/24bit, TERM=*-direct/*-truecolor | `\x1b[38;2;R;G;Bm` (24-bit RGB) |
+//! | TrueColor | COLORTERM=truecolor/24bit, TERM=-direct/-truecolor | `\x1b[38;2;R;G;Bm` (24-bit RGB) |
 //! | Color256 | TERM=*-256color | `\x1b[38;5;Nm` (closest xterm-256 palette index) |
 //! | Color16 | TERM is set but no truecolor/256 indicator | `\x1b[3Nm` (basic 16-color ANSI) |
 //! | Mono | NO_COLOR set, TERM=dumb, CLICOLOR=0, or piped | plain text, no escapes |
@@ -86,7 +86,7 @@ use std::sync::OnceLock;
 /// Source of truth for the brand color. The TrueColor escape in
 /// [`brand_open`] encodes these exact values; the 256-color fallback in
 /// [`brand_open`] uses palette index 135 (the closest xterm-256 match,
-/// computed via the 6x6x6 cube: 16 + 36*3 + 6*1 + 5 = 135).
+/// computed via the 6x6x6 cube: 16 + 363 + 61 + 5 = 135).
 ///
 /// Referenced by `rgb_constants_match_neon_family_palette` test to verify
 /// the escape sequences stay in sync with the documented palette.
@@ -101,7 +101,7 @@ pub const BRAND_PURPLE_RGB: (u8, u8, u8) = (168, 85, 247);
 /// readable on black while reading unmistakably as "red".
 ///
 /// 256-color fallback: index 203 (closest match in the 6x6x6 cube:
-/// 16 + 36*5 + 6*1 + 1 = 203 → (255,95,95) — 5/channel off).
+/// 16 + 365 + 61 + 1 = 203 → (255,95,95) — 5/channel off).
 #[cfg(test)] // referenced in tests; kept as source-of-truth documentation
 pub const ERROR_RGB: (u8, u8, u8) = (255, 90, 90);
 

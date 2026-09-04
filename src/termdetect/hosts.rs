@@ -8,7 +8,7 @@
 /// Kept as a `const` slice (not a `match`) so the test suite can iterate
 /// over the list and verify each host triggers detection.
 ///
-/// **Adding a host**: append the exact `TERM_PROGRAM` string here. The
+/// Adding a host: append the exact `TERM_PROGRAM` string here. The
 /// rest of the detection / capping / RIS-reset machinery keys off the
 /// `xtermjs_host` boolean and is host-agnostic.
 pub(super) const XTERMJS_HOSTS: &[&str] = &[

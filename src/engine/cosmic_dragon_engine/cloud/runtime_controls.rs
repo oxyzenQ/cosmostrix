@@ -293,7 +293,7 @@ impl Cloud {
     /// 3. Sets `force_draw_everything` + `semantic_invalidate` so the
     ///    first frame redraws everything under the new palette.
     ///
-    /// **Precondition**: the caller must ensure that `prev_palette` is
+    /// Precondition: the caller must ensure that `prev_palette` is
     /// genuinely different from `self.palette` (same-scheme no-op guard
     /// is the caller's responsibility, matching the contract of
     /// `set_color_scheme`).

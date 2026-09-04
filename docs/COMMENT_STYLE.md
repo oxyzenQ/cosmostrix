@@ -2,11 +2,24 @@
 
 # Comment Style Guide — Rust Source Comments
 
-> **Audit 2026-08-19**: Owner reported seeing `*abc*` and ` ```txt ` patterns
-> in source comments, considered them "inconsistent". Deep audit confirmed
-> these are **valid rustdoc markdown** that renders correctly in `cargo doc`
-> and IDE tooltips — NOT inconsistencies. This document codifies the
-> convention so future contributors don't introduce actual inconsistencies.
+> **Audit 2026-09-04 (policy change, owner mandate)**: the owner
+> re-reported markdown-looking emphasis (`**test**`-style bold and
+> `*test*`-style italic) in comments across `src/*`, calling the raw
+> source "inconsistent — descriptions read like md/mdx documents pasted
+> into comments". The 2026-08-19 resolution below ("it's valid rustdoc,
+> keep it") is SUPERSEDED: a sweep removed every decorative emphasis
+> marker (378 markers across 130 file-passes: bold, italic, and
+> multi-line bold spans) from all comment types. Comments are now plain
+> prose. This document codifies the new contract, and
+> `scripts/check-comment-style.py` (wired into `gate-keepers.sh`)
+> enforces it so the drift cannot return.
+
+> **Audit 2026-08-19 (superseded)**: owner reported `*abc*` and
+> ` ```txt ` patterns in source comments; the audit then concluded they
+> were valid rustdoc and kept them. The owner's 2026-09-04 re-report
+> rejected that resolution: raw-source readability beats rendered-doc
+> emphasis. Kept from that audit: the comment-type taxonomy (section 1)
+> and the code-fence language table (section 2.1).
 
 ## 1. Comment Types
 
@@ -17,40 +30,48 @@
 | `//` | Line comment | Implementation note, NOT user-facing | X No |
 | `/* */` | Block comment | Rare; multi-line implementation note | X No |
 
-**Rule**: Anything user-facing (API contract, behavior, rationale that
-a user/contributor needs to understand the public surface) goes in
-`///` or `//!`. Implementation details (why this loop is unrolled,
-why this magic number is 256 and not 255) go in `//`.
+**Rule**: anything user-facing (API contract, behavior, rationale that a
+user/contributor needs to understand the public surface) goes in `///`
+or `//!`. Implementation details (why this loop is unrolled, why this
+magic number is 256 and not 255) go in `//`.
 
 ## 2. Markdown in Doc Comments (`///` and `//!`)
 
-Rustdoc supports standard CommonMark. The following are **all valid
-and should be used when semantically appropriate**:
+Rustdoc renders CommonMark, but this codebase deliberately restricts
+itself to the FUNCTIONAL subset. Decorative emphasis is banned — the
+raw source must read as clean prose.
 
-| Syntax | Meaning | Example | When to use |
-|--------|---------|---------|-------------|
-| `*italic*` | Emphasis | `the *current* phase` | When calling attention to a word as a concept |
-| `**bold**` | Strong emphasis | `**WARNING**: panics on empty input` | For warnings, critical notes |
-| `` `code` `` | Inline code | `Returns`Option<Color>`` | For type names, function names, identifiers |
-| ` ```text ` | Plain-text code block | ASCII art, benchmark output | For non-syntax-highlighted blocks |
-| ` ```toml ` | TOML code block | Config examples | For `[section]` + `key = value` snippets |
-| ` ```rust ` | Rust code block (tested) | Doctest examples | For runnable examples — `cargo test` will execute |
-| ` ```no_run ` | Rust code block (compiled, not run) | Compile-check examples | For examples that would block / loop |
-| ` ```ignore ` | Rust code block (not compiled) | Non-runnable Rust | For illustrative Rust that won't compile |
-| ` ```json ` | JSON code block | Benchmark JSON output | For JSON examples |
-| `[link]` | Hyperlink | `[Render Engine](RENDER_ENGINE.md)` | For cross-references |
-| `## Heading` | Section heading | `## Examples` | For organizing long doc comments |
+| Syntax | Meaning | Allowed? | When to use |
+|--------|---------|----------|-------------|
+| `*italic*` | Emphasis | NO — banned 2026-09-04 | Use plain words instead |
+| `**bold**` | Strong emphasis | NO — banned 2026-09-04 | Use plain words (or CAPS for a warning label) |
+| `` `code` `` | Inline code | OK Yes | For type names, function names, identifiers, short expressions |
+| ` ```text ` | Plain-text block | OK Yes | ASCII art, benchmark output (content is NEVER swept) |
+| ` ```toml ` | TOML block | OK Yes | Config examples |
+| ` ```rust ` | Rust block (tested) | OK Yes | Doctest examples — `cargo test` executes them |
+| ` ```no_run ` | Compile-only Rust | OK Yes | Examples that would block / loop |
+| ` ```ignore ` | Non-compiled Rust | OK Yes | Illustrative Rust that won't compile |
+| ` ```json ` | JSON block | OK Yes | Benchmark JSON output |
+| `[link]` | Hyperlink | OK Yes | Cross-references |
+| `## Heading` | Section heading | OK Yes | Organizing long doc comments |
+
+**Why backticks stay while asterisks go**: backticks carry
+information (this exact identifier / literal expression) and are the
+universal rustdoc convention; a comment without them would be harder to
+read. Asterisk emphasis carries only decoration — removing it loses
+nothing in the raw source and only loses visual weight in rendered
+docs. That trade was decided in favor of raw-source readability.
 
 ### 2.1 Code Fence Language Consistency
 
 **Standardized languages used in this codebase**:
 
-- ` ```text ` for plain-text blocks (ASCII art, benchmark output samples) — **25 instances, consistent**
-- ` ```toml ` for TOML config examples — used in `configfile.rs`, `scene_custom/mod.rs`, `colors_custom.rs`, `crystal_dragon_engine/ambient/mod.rs`
+- ` ```text ` for plain-text blocks (ASCII art, benchmark output samples)
+- ` ```toml ` for TOML config examples
 - ` ```rust ` (implicit, no language tag) — used for doctests
-- ` ```no_run ` for compile-only Rust examples — `output.rs`
-- ` ```ignore ` for non-compiling Rust illustrations — `ux.rs`, `chroma_dragon_engine/post/anomaly/mod.rs`
-- ` ```json ` for JSON output examples — `bench/bench_json.rs`
+- ` ```no_run ` for compile-only Rust examples
+- ` ```ignore ` for non-compiling Rust illustrations
+- ` ```json ` for JSON output examples
 
 **NOT acceptable**:
 
@@ -58,24 +79,25 @@ and should be used when semantically appropriate**:
 - ` ``` ` (no language) for non-Rust blocks — always specify the language so syntax highlighters work.
 - ` ```ts ` or ` ```js ` (TypeScript/JavaScript) — this is a Rust project; no JS examples.
 
-### 2.2 Italic vs Bold vs Code — Semantic Distinction
+### 2.2 Emphasis Alternatives (replacing italic/bold)
 
-These three are **NOT interchangeable**. Each serves a distinct purpose:
+| Old (banned) | New (canonical) |
+|--------------|-----------------|
+| `**WARNING**: panics on empty input` | `WARNING: panics on empty input` |
+| `the *current* phase` | `the current phase` |
+| `**NOT worth it** at 60 writes/sec` | `NOT worth it at 60 writes/sec` |
+| `**P1: Phase-Aware Pacing** — learns` | `P1: Phase-Aware Pacing — learns` |
 
-| Want to call attention to… | Use | Example |
-|---------------------------|-----|---------|
-| A concept or term | `*italic*` | `the *current* phase` |
-| A critical warning | `**bold**` | `**WARNING**: panics on empty input` |
-| A type/identifier/keyword | `` `code` `` | `Returns`Option<Color>`` |
-| A multi-line code sample | ` ```lang ` block | see above |
-
-**Do NOT** use `**bold**` for emphasis that should be `*italic*`, and
-**do NOT** use `` `code` `` for terms that aren't actual code identifiers.
+CAPS for warning labels is acceptable (searchable, ASCII-only); CAPS
+for whole sentences is not (shouting). Most former bold/italic spots
+need no replacement at all — the sentence reads the same without the
+asterisks.
 
 ## 3. Line Comments (`//`)
 
 Line comments are for implementation notes only. They do NOT render in
-`cargo doc`, so markdown syntax has no effect.
+`cargo doc`, so markdown syntax has no effect — it is visual noise
+(same rule as doc comments now: none at all).
 
 **Acceptable** in line comments:
 
@@ -87,7 +109,7 @@ Line comments are for implementation notes only. They do NOT render in
 
 **NOT acceptable** in line comments:
 
-- `*italic*` or `**bold**` markdown — it won't render, so it's just visual noise
+- `*italic*` or `**bold**` markdown
 - ` ```text ` code fences — same reason
 - `// TODO:` without context — always explain WHY
 
@@ -100,24 +122,6 @@ Line comments are for implementation notes only. They do NOT render in
 // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
 // so existing tests that verify apply/fallback logic with invalid values
 // still work. Production builds never set this env var.
-```
-
-### 3.2 Example: Bad Line Comment (Avoid)
-
-```rust
-// *Note*: this is **important**.
-// ```text
-// some output
-// ```
-```
-
-The `*Note*` and `**important**` won't render — they're just literal
-asterisks. The ` ```text ` fence is also literal. Use plain prose
-instead:
-
-```rust
-// Note: this is important.
-// some output (just indent, no fence)
 ```
 
 ## 4. Section Headers in Doc Comments
@@ -166,33 +170,35 @@ pub fn scheme_to_palette(scheme: ColorScheme) -> Palette { ... }
 
 This renders as a hyperlink in `cargo doc` and works in IDE go-to-definition.
 
-## 6. Audit Findings (2026-08-19)
+## 6. Audit Findings (2026-09-04 sweep)
 
-The deep audit found **no actual inconsistencies** in the codebase:
+| Pattern | Before sweep | After sweep | Status |
+|---------|--------------|-------------|--------|
+| `**bold**` in `///` / `//!` | 267 lines | 0 | OK Swept |
+| `**bold**` multi-line spans | 5 | 0 | OK Swept (manual pass) |
+| `*italic*` in `///` / `//!` | ~60 lines | 0 | OK Swept |
+| `**bold**` / `*italic*` in `//` | 0 | 0 | OK Never present |
+| ` ```text ` code blocks | ~25 | ~25 | OK Preserved (fence-aware sweep) |
+| ` ```toml ` code blocks | 5 | 5 | OK Preserved |
+| ` ```txt ` (short form) | 0 | 0 | OK Still zero |
+| Inline `` `code` `` backticks | many | many | OK Preserved (functional) |
 
-| Pattern | Count | Status |
-|---------|-------|--------|
-| `*italic*` in `///` / `//!` | 10 | OK All valid rustdoc |
-| `**bold**` in `///` / `//!` | many | OK All valid rustdoc |
-| ` ```text ` code blocks | 25 | OK Consistent (no ` ```txt ` short form) |
-| ` ```toml ` code blocks | 5 | OK Correct for TOML examples |
-| ` ```ignore ` / ` ```no_run ` / ` ```json ` | 6 | OK Correct rustdoc languages |
-| `*italic*` in `//` (non-doc) | 0 | OK No misuse |
-| ` ```txt ` (short form) | 0 | OK Already consistent |
-
-**Conclusion**: The codebase already follows the convention documented
-here. This file exists to **codify** the convention so future
-contributors don't introduce actual inconsistencies.
+The sweep was fence-aware: content inside doc-comment code fences
+(text, toml, json, doctest blocks) was never modified, and inline-code
+spans keep their asterisks (e.g. `(channel * fi + 128)` inside
+backticks is untouched).
 
 ## 7. Enforcement
 
+- `scripts/check-comment-style.py` — gate-keepers check: fails on any
+  `**bold**` or `*italic*` emphasis marker in a comment line (fence
+  content excluded). Zero-tolerance, no allowlist.
 - `cargo clippy::doc_markdown` — catches some markdown issues
 - `cargo doc --no-deps` — builds the docs; warnings indicate broken syntax
-- Code review — humans should verify semantic correctness (italic vs bold
-  vs code)
+- Code review — humans verify semantic correctness
 
-If a contributor introduces ` ```txt ` (short form) or `*italic*` in a
-non-doc comment, the reviewer should request a change per this guide.
+If a contributor reintroduces emphasis markers, the gate blocks the
+commit; rewrite the sentence in plain prose instead.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

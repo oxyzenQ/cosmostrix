@@ -163,7 +163,7 @@ impl Cloud {
     /// crossfade. Expired particles are deactivated (returned to the
     /// free-list).
     ///
-    /// v50 stabilization (owner-requested): particles now **bounce**
+    /// v50 stabilization (owner-requested): particles now bounce
     /// off the four screen edges instead of dying on border crossing.
     /// Each bounce applies `QUANTUM_RIPPLE_BOUNCE_DAMPING` to the
     /// crossed axis only — perpendicular velocity is untouched so the
@@ -375,7 +375,7 @@ impl Cloud {
                 // Normalize life_frac into [0, 1] within the BODY segment.
                 let body_t = (life_frac - QUANTUM_RIPPLE_HEAD_END_FRAC)
                     / (QUANTUM_RIPPLE_TAIL_START_FRAC - QUANTUM_RIPPLE_HEAD_END_FRAC);
-                // smoothstep: t*t*(3 - 2t), C1 continuous at both ends.
+                // smoothstep: tt(3 - 2t), C1 continuous at both ends.
                 // At body_t=0 → 0 (brightness = 1.0); at body_t=1 → 1
                 // (brightness = TAIL_FLOOR).
                 let s = body_t * body_t * (3.0 - 2.0 * body_t);

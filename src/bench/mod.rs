@@ -16,13 +16,13 @@
 //! ## Methodology
 //!
 //! The premium benchmark is designed for reproducibility:
-//! - **Warmup phase** (2s, configurable via `COSMOSTRIX_BENCH_WARMUP_SECS`):
+//! - Warmup phase (2s, configurable via `COSMOSTRIX_BENCH_WARMUP_SECS`):
 //!   Allows the CPU to ramp up frequency and JIT/cache to stabilize.
-//! - **Outlier trimming**: p99 frame time is computed after trimming the top
+//! - Outlier trimming: p99 frame time is computed after trimming the top
 //!   and bottom 1% of samples, eliminating cold-path and OS scheduling noise.
-//! - **Rolling display**: The live UI shows a smoothed average of the last 16
+//! - Rolling display: The live UI shows a smoothed average of the last 16
 //!   frame times, avoiding flicker from per-frame variance.
-//! - **Interrupt support**: Ctrl+C gracefully stops the benchmark and reports
+//! - Interrupt support: Ctrl+C gracefully stops the benchmark and reports
 //!   partial results with an "interrupted" status note.
 
 // Submodule declarations: all bench_*.rs files are now siblings under

@@ -5,18 +5,18 @@
 //!
 //! Provides a zero-dependency cross-platform "current process CPU time in
 //! nanoseconds" sampler. Supported platforms:
-//! - **Linux**: parses `/proc/self/stat` (fields 14 + 15 = utime + stime,
+//! - Linux: parses `/proc/self/stat` (fields 14 + 15 = utime + stime,
 //!   in clock ticks; converted to ns via `sysconf(_SC_CLK_TCK)`).
-//! - **macOS**: queries `mach_task_basic_info` via `libc` — same call as
+//! - macOS: queries `mach_task_basic_info` via `libc` — same call as
 //!   RSS sampling, but reads `user_time` + `system_time` (in Mach time,
 //!   converted to ns via `mach_timebase_info`).
-//! - **Other Unix (BSD, Android, iOS, etc.)**: uses `getrusage(RUSAGE_SELF)`
+//! - Other Unix (BSD, Android, iOS, etc.): uses `getrusage(RUSAGE_SELF)`
 //!   via `libc` — reads `ru_utime` + `ru_stime` (in microseconds, converted
 //!   to ns). This is the universal unix fallback and works on all unix
 //!   targets where `libc::getrusage` and `libc::RUSAGE_SELF` are exposed.
 //!   On Linux/macOS we prefer the more accurate primary path, but
 //!   `getrusage` would also work there as a last resort.
-//! - **Windows / non-unix**: returns `None`. The benchmark will omit
+//! - Windows / non-unix: returns `None`. The benchmark will omit
 //!   CPU% fields rather than emit a fake or zero value.
 //!
 //! ## How CPU% is computed

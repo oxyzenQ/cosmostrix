@@ -27,7 +27,7 @@
 //! `anomaly_halo_target(palette_colors, mode, elapsed)` derives the halo
 //! target color from the active palette:
 //!
-//! - **`LuminanceSurge` mode** → `palette_colors.last()` (the brightest
+//! - `LuminanceSurge` mode → `palette_colors.last()` (the brightest
 //!   stop). A "luminous surge" should lift cells toward the palette's
 //!   natural ceiling, not toward an external pure-white reference. On a
 //!   NeonRed theme, the brightest stop is bright red — the surge becomes
@@ -36,7 +36,7 @@
 //!   near-white (Snow, Gray), behavior is essentially unchanged from
 //!   pre-Phase-6.
 //!
-//! - **`PulseWave mode** → a hue-cycled palette stop:
+//! - `PulseWave mode → a hue-cycled palette stop:
 //!   `palette_colors[(elapsed * ANOMALY_HALO_CYCLE_RATE) as usize %
 //!   palette_colors.len()]`. The expanding ring's target color cycles
 //!   through palette stops as it expands, giving PulseWave a distinct

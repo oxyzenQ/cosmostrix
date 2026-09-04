@@ -69,7 +69,7 @@ fn bayer_dither_preserves_spatial_average() {
     }
     // Average should be ~4.5 (between 4 and 5). With 16 cells and
     // thresholds {0..15}/16, exactly 8 cells round up (frac > t when
-    // t ∈ {0..7}/16) and 8 round down. So sum = 8*4 + 8*5 = 72,
+    // t ∈ {0..7}/16) and 8 round down. So sum = 84 + 85 = 72,
     // average = 4.5 — exactly the continuous value.
     assert_eq!(sum, 72, "16-cell sum should be 8*4 + 8*5 = 72");
     let avg = sum as f32 / 16.0;

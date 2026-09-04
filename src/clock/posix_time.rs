@@ -24,8 +24,8 @@
 //!
 //! ## Platform coverage
 //!
-//! - **Unix (Linux/macOS/BSD/Termux)**: `libc::time + localtime_r/gmtime_r`.
-//! - **Non-Unix (Windows)**: Falls back to `SystemTime::now()` UTC-based
+//! - Unix (Linux/macOS/BSD/Termux): `libc::time + localtime_r/gmtime_r`.
+//! - Non-Unix (Windows): Falls back to `SystemTime::now()` UTC-based
 //!   computation. Less accurate (no local timezone), but sufficient for the
 //!   scheduler and log-stamp use cases.
 
@@ -214,7 +214,7 @@ pub(crate) fn utc_tm() -> UtcTm {
 // ── Convenience helpers ─────────────────────────────────────────────────
 
 impl LocalTm {
-    /// Seconds since midnight: `hour*3600 + min*60 + sec`.
+    /// Seconds since midnight: `hour3600 + min60 + sec`.
     #[must_use]
     pub(crate) fn secs_since_midnight(self) -> f64 {
         (self.hour as f64 * 3600.0) + (self.minute as f64 * 60.0) + self.second as f64

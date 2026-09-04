@@ -67,7 +67,7 @@ fn color_tune_genuine_typo_returns_none() {
     assert_eq!(suggest_for_unknown_key("color.tune.foobar"), None);
 }
 
-// ── suggest_for_unknown_key: scene-custom.*.adaptive-custom.* ─────────
+// ── suggest_for_unknown_key: scene-custom..adaptive-custom. ─────────
 
 #[test]
 fn scene_custom_with_nested_adaptive_custom_returns_hint() {

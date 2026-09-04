@@ -3,7 +3,7 @@
 
 //! # Chroma Dragon Engine Lock — Phase 9-C
 //!
-//! Comprehensive invariant suite that **locks** the Chroma Dragon coloring
+//! Comprehensive invariant suite that locks the Chroma Dragon coloring
 //! engine at its Phase 9 peak. Every public contract the engine guarantees
 //! is asserted here, so any future change that silently regresses an
 //! invariant fails CI before it reaches `main`.
@@ -21,7 +21,7 @@
 //! commit changes any constant, helper, or shader path in a way that
 //! breaks one of these invariants, this module's tests fail and the
 //! commit is rejected at review. The engine is not done — it is
-//! **deliberately done**.
+//! deliberately done.
 //!
 //! ## Invariant inventory
 //!
@@ -60,7 +60,7 @@
 //!
 //! ## Removing an invariant
 //!
-//! Invariants are not removed — they are *relaxed* by editing the test's
+//! Invariants are not removed — they are relaxed by editing the test's
 //! assertion bounds and bumping the engine version. This makes every
 //! contract change auditable in `git log -p src/engine/chroma_dragon_engine/tests/lock.rs`.
 
@@ -303,7 +303,7 @@ fn lock_inv04_head_brighter_than_trail_across_all_themes() {
 /// same. Together they must not introduce a hue shift — only a brightness
 /// shift.
 ///
-/// Tested by reconstructing each theme's stops **without** the floor (raw
+/// Tested by reconstructing each theme's stops without the floor (raw
 /// catalog stops), identifying the dominant channel, and verifying the
 /// floored version has the same dominant channel. We skip palettes whose
 /// raw trail is pure black (sum 0) — those have no hue to preserve, and
