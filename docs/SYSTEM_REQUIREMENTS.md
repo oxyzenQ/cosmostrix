@@ -259,7 +259,9 @@ matrix.
 - **io_uring** — investigated (cosmic-dragon-egg experiment), rejected as not
   worth the complexity at 60 FPS
 - **Network** — fully offline, no telemetry or update checks by default
-  (`--check-update` is opt-in)
+  (`--check-update` is opt-in; it needs `curl` or `wget` on PATH and
+  reports an actionable error with the manual releases URL when neither
+  is installed)
 
 ## Verification
 

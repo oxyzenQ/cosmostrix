@@ -30,7 +30,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/SIMD_FEASIBI
 
 ## 2. Network Access — Opt-in Only, No Telemetry
 
-**No network dependencies in `Cargo.toml`.** The **only** network code is `src/platform/update.rs`: triggered by `cosmostrix --check-update` flag only (never from startup, background timer, or interactive event loop); shells out to system `curl` binary with `--silent --max-time 15` and `User-Agent: cosmostrix`; `GET https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest` with `Accept: application/vnd.github+json` header. **Outbound data**: NONE — no query parameters, no body, no cookies, no auth tokens, no client identifiers beyond the literal string "cosmostrix". Response handling parses `tag_name` from JSON, prints up-to-date or update-available status. No download, no auto-update. `docs/SYSTEM_REQUIREMENTS.md:254` documents: "Network — fully offline, no telemetry or update checks by default".
+**No network dependencies in `Cargo.toml`.** The **only** network code is `src/platform/update.rs`: triggered by `cosmostrix --check-update` flag only (never from startup, background timer, or interactive event loop); shells out to the system `curl` binary with `--silent --max-time 15` and `User-Agent: cosmostrix`, falling back to `wget -q -O - -T 15` when curl is not installed (NIGHT-hunter-7: curl-less systems such as Alpine/busybox or minimal containers); `GET https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest` with `Accept: application/vnd.github+json` header. **Outbound data**: NONE — no query parameters, no body, no cookies, no auth tokens, no client identifiers beyond the literal string "cosmostrix". Response handling parses `tag_name` from JSON, prints up-to-date or update-available status. No download, no auto-update. `docs/SYSTEM_REQUIREMENTS.md:254` documents: "Network — fully offline, no telemetry or update checks by default".
 
 ## 3. Filesystem Access — Strict Whitelist
 
@@ -44,7 +44,7 @@ Documented **"no new unsafe in renderer/core paths"** policy (`docs/SIMD_FEASIBI
 
 ## 4. Process Spawning — 4 Sites, All Defensive
 
-`src/platform/update.rs:98` spawns `curl` (`--silent --max-time 15`) for `--check-update` flag only — no shell, explicit argv. `src/engine/cosmic_dragon_engine/terminal/mod.rs:1092`/`:1098`/`:1103` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `pgo-runner/src/main.rs:58` spawns `bash scripts/build.sh pgo --auto` — dev convenience alias, not part of shipped binary.
+`src/platform/update.rs` spawns `curl` (`--silent --max-time 15`), falling back to `wget` (`-q -O - -T 15`, busybox/GNU-compatible flags) only when curl is absent from PATH — both for the `--check-update` flag only, no shell, explicit argv, and an actionable error naming the manual releases URL when neither tool exists (NIGHT-hunter-7). `src/engine/cosmic_dragon_engine/terminal/mod.rs:1092`/`:1098`/`:1103` spawn `stty sane`/`reset`/`tput reset` for `--reset-terminal` flag only — best-effort recovery. `pgo-runner/src/main.rs:58` spawns `bash scripts/build.sh pgo --auto` — dev convenience alias, not part of shipped binary.
 
 **No `sh -c`, no `bash -c`, no `shell=true`** anywhere. Every spawn uses explicit argv with no shell interpolation. The Linux-only `fork()` inside `main.rs:245` is NOT `process::Command` — it is a raw `libc::fork()` that immediately calls `prctl(PR_SET_PDEATHSIG)` and `sigwait()` in the child, never executing any external program. It exists solely to restore terminal modes if the parent is SIGKILLed.
 

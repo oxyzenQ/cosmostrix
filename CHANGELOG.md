@@ -9,6 +9,39 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### robustness: v100.0.0-nightly.1 — --check-update survives curl-less systems via wget fallback (NIGHT-hunter-7, owner hunt 2026-09-05)
+
+Owner suspicion: "what if the OS doesn't have curl?" — verified and
+closed. Previously `Command::new("curl")` failing with `NotFound`
+produced a dead-end "curl is not available on PATH" error (graceful
+exit 2, never a panic, but useless on Alpine/busybox, minimal
+containers, hardened and older systems). `src/platform/update.rs` now
+implements a two-step fetcher strategy: curl first (unchanged argv
+contract — `--silent --max-time 15`, GitHub JSON accept + UA, trailing
+`--write-out "%{http_code}"` status line for exact 403/404
+classification), falling back to `wget -q -O - -T 15` (the
+busybox/GNU flag intersection, so Alpine works unchanged) when curl is
+absent from PATH — `wget -q -O -` only exits 0 on success-class
+responses, so the exit status carries the failure class (exit 8 = the
+server answered 4xx/5xx; busybox collapses to 1). When neither tool is
+installed, the error is actionable: it names both accepted tools and
+the manual releases URL
+(`https://github.com/oxyzenQ/cosmostrix/releases/latest`) instead of
+a dead end. No dependency added (still std `Command`, no shell, no
+auto-download — the SECURITY_AUDIT network contract is unchanged).
+Documented trade-off: GNU wget has no portable total-time cap
+(`--tries`/`--waitretry` are not busybox-portable), so the fallback is
+bounded by `-T 15` per attempt instead of a hard 15 s cap; it only
+runs when curl is absent and the check is an explicit Ctrl-C-able
+user action. Verified live with stub fetchers: curl exit 6 reports
+"DNS resolution failed", curl-absent + wget-present reports the
+version delta (exit 0), and both-absent reports the actionable error
+(exit 2). Tests: 5 new (curl argv contract, wget argv contract with a
+GNU-only-flag guard, wget exit classification, no-fetcher message
+actionability, curl status-line parsing); docs synced:
+SECURITY_AUDIT.md (network + spawn sections), SYSTEM_REQUIREMENTS.md
+(not-required network note).
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-2 "glitch rain shift" root-caused and eliminated (owner hunt 2026-09-04)
 
 Owner report: periodic "rain shifts/glitches for a few seconds then
