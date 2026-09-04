@@ -4,6 +4,10 @@
 //! Build information, memory estimation, CPU feature detection, and
 //! environment variable helpers.
 
+// Only used inside check_cpu_features(), which is x86_64-only (AVX2/AVX-512
+// detection). On every other target arch (aarch64 linux/macos/android) the
+// import is unused and fails `-D unused-imports` on the CI cross-builds.
+#[cfg(target_arch = "x86_64")]
 use crate::output::eprintln_safe;
 use std::env;
 

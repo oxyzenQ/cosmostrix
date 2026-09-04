@@ -759,10 +759,10 @@ fn main() -> std::io::Result<()> {
         // through eprintln_safe! (write_fmt, errors discarded) — the same
         // bulletproof-write contract as the v25 coredump fix above.
         crate::terminal::restore_terminal_best_effort();
+        // ENXIO = no controlling terminal (headless: cron, ssh without -t, CI).
+        // Unix-only: POSIX libc; ungated ENXIO/mut each broke windows cross-builds.
+        #[cfg_attr(not(unix), allow(unused_mut))]
         let mut msg = format!("{e}");
-        // ENXIO = no controlling terminal (headless: cron, ssh without -t,
-        // CI) — the most common trigger. Point at the non-interactive modes.
-        // Unix-only (POSIX libc; the ungated ref broke the windows-gnu cross-check).
         #[cfg(unix)]
         if e.raw_os_error() == Some(libc::ENXIO) {
             msg.push_str(

@@ -9,6 +9,52 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: v100.0.0-nightly.1 — six red CI checks repaired: shfmt canonical refresh, ruff findings, cross-target cfg warnings (CI repair, owner hunt 2026-09-05)
+
+All six failing checks on the 2026-09-04/05 pushes (Build windows /
+linux-aarch64 / macos / android, Gate-keepers, Project lint) traced
+to four independent causes, none in the render loop:
+
+- Space-indentation artifact: a whole-file rewrite rendered tab
+  indents as 8 spaces, and every locally-run gate silently skipped
+  shfmt (binary not installed) — so gate-keepers.sh (commit 927658a,
+  the comment-style check wiring) plus five more scripts touched by
+  the NIGHT-hunter tasks (b99800b, dd0046f) drifted to
+  non-canonical formatting. Landed the documented remediation: one
+  `shfmt -w scripts/*.sh` refresh under the CI-resolved shfmt
+  v3.14.0 (whitespace-only except one semantically identical
+  compound-command expansion in check-rs-loc.sh; 755 modes
+  preserved).
+- ruff 0.16.6 (CI resolves latest, unpinned by owner policy): three
+  lint findings fixed — PIE810 twice in check-comment-style.py
+  (tuple `startswith`), FURB122 in nh2_pty_harness.py
+  (`f.writelines`), plus the same file's `ruff format` drift.
+- Cross-target `-D warnings` errors invisible on a linux x86_64
+  host: info.rs imported `eprintln_safe` ungated while every call
+  site sits in the x86_64-only check_cpu_features (unused-import on
+  all three aarch64 CI builds — now cfg(target_arch)-gated), and
+  main.rs's fatal-render `let mut msg` is mutated only by the
+  cfg(unix) ENXIO hint (unused-mut on the windows CI build — now
+  `#[cfg_attr(not(unix), allow(unused_mut))]`, comment compressed to
+  hold main.rs at exactly 800 LOC).
+- Local gate gap closed so this class cannot recur silently:
+  build.sh's run_cross_platform_check ran a bare `cargo check` per
+  target — warnings exit 0 locally but are errors under CI's
+  RUSTFLAGS=-D warnings (the f19470a6 lesson's warning arm). The
+  check now carries the same strictness and the reproduce hint
+  includes the flag. The local environment additionally runs the
+  exact CI tool versions (shfmt v3.14.0, ruff 0.16.6, codespell
+  2.4.3, shellcheck 0.10.0) so checks 1c/6b execute instead of
+  warn-skip.
+
+Verified: all five CI cross targets plus windows-gnu pass
+`RUSTFLAGS='-D warnings' cargo check` (bare and COSMOSTRIX_BUILD
+envs); gate-keepers 15/15 locally with shfmt/ruff/codespell/
+shellcheck executing; build.sh check-all green (2268/2268 unit
+tests); script file modes unchanged. No A/B benchmark: zero
+render-loop changes (error-path attribute, import gate, python
+tooling, shell whitespace, build-script check strictness).
+
 ### fix: v100.0.0-nightly.1 — chroma dragon survives COLORTERM-stripped sessions; truecolor-native TERM hints (NIGHT-research-1, owner hunt 2026-09-05)
 
 Owner question: "does the chroma dragon enter the benchmark when the

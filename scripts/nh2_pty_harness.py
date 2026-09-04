@@ -56,9 +56,7 @@ import time
 TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "200x56").split("x"))
 DRAIN_BPS = float(os.environ.get("DRAIN_BPS", "12_000_000"))
 RUN_SECS = float(os.environ.get("RUN_SECS", "60"))
-EVT_LOG = os.environ.get(
-    "EVT_LOG", "/tmp/cosmostrix-nh2/frames.tsv"
-)
+EVT_LOG = os.environ.get("EVT_LOG", "/tmp/cosmostrix-nh2/frames.tsv")
 BIN = os.environ.get("BIN", "target/release/cosmostrix")
 TERM_PROGRAM = os.environ.get("TERM_PROGRAM", "alacritty")
 
@@ -163,12 +161,13 @@ def main() -> int:
     os.makedirs(os.path.dirname(EVT_LOG), exist_ok=True)
     with open(EVT_LOG, "w") as f:
         f.write("# t_end_sec\tframe_bytes\n")
-        for t, b in frames:
-            f.write(f"{t:.6f}\t{b}\n")
+        f.writelines(f"{t:.6f}\t{b}\n" for t, b in frames)
 
     dur = time.monotonic() - start
-    print(f"frames={len(frames)}  span={dur:.0f}s  avg {len(frames)/max(dur,1e-9):.1f} fps  "
-          f"{total/max(dur,1e-9)/1e6:.2f} MB/s  tsv -> {EVT_LOG}")
+    print(
+        f"frames={len(frames)}  span={dur:.0f}s  avg {len(frames) / max(dur, 1e-9):.1f} fps  "
+        f"{total / max(dur, 1e-9) / 1e6:.2f} MB/s  tsv -> {EVT_LOG}"
+    )
 
     # Summary: the signatures NIGHT-hunter-2 locked.
     if len(frames) > 60:
@@ -180,10 +179,14 @@ def main() -> int:
         sizes = sorted(b for t, b in frames if t > 5.0)
         big = sum(1 for b in sizes if b > 150 * 1024)
         gs = sorted(gaps)
-        print(f"frame bytes: p50={sizes[len(sizes)//2]/1024:.0f}KB "
-              f"max={sizes[-1]/1024:.0f}KB  frames>150KB={big}")
-        print(f"gaps ms: p50={gs[len(gs)//2]:.1f} p99={gs[int(len(gs)*0.99)]:.1f} "
-              f"max={max(gs):.0f}  gaps>50ms={sum(1 for g in gaps if g > 50)}")
+        print(
+            f"frame bytes: p50={sizes[len(sizes) // 2] / 1024:.0f}KB "
+            f"max={sizes[-1] / 1024:.0f}KB  frames>150KB={big}"
+        )
+        print(
+            f"gaps ms: p50={gs[len(gs) // 2]:.1f} p99={gs[int(len(gs) * 0.99)]:.1f} "
+            f"max={max(gs):.0f}  gaps>50ms={sum(1 for g in gaps if g > 50)}"
+        )
     return 0
 
 

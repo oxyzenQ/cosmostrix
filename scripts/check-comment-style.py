@@ -58,9 +58,9 @@ def tracked_rs_files() -> list[Path]:
 def doc_fence_toggle(line: str) -> bool:
     """True when a doc-comment line opens/closes a code fence."""
     stripped = line.lstrip()
-    if stripped.startswith("///") or stripped.startswith("//!"):
+    if stripped.startswith(("///", "//!")):
         rest = stripped[3:].strip()
-        if rest.startswith("```") or rest.startswith("~~~"):
+        if rest.startswith(("```", "~~~")):
             return True
     return False
 

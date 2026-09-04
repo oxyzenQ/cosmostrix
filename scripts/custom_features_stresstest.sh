@@ -17,28 +17,28 @@ RESULTS=()
 
 # Helper: run a case, check no crash + optional expected pattern.
 run_case() {
-        local label="$1"
-        local expected="${2:-}"
-        shift 2
-        if [ "${1:-}" = "--" ]; then
-                shift
-        fi
-        local output
-        output=$("$BIN" "$@" 2>&1 || true)
-        if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
-                FAIL=$((FAIL + 1))
-                RESULTS+=("FAIL: $label (CRASH)")
-                BUGS+=("$label: CRASH/panic detected")
-                return
-        fi
-        if [ -z "$expected" ] || echo "$output" | grep -qE "$expected"; then
-                PASS=$((PASS + 1))
-                RESULTS+=("PASS: $label")
-        else
-                FAIL=$((FAIL + 1))
-                RESULTS+=("FAIL: $label (expected: '$expected')")
-                BUGS+=("$label: expected '$expected' not found")
-        fi
+	local label="$1"
+	local expected="${2:-}"
+	shift 2
+	if [ "${1:-}" = "--" ]; then
+		shift
+	fi
+	local output
+	output=$("$BIN" "$@" 2>&1 || true)
+	if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
+		FAIL=$((FAIL + 1))
+		RESULTS+=("FAIL: $label (CRASH)")
+		BUGS+=("$label: CRASH/panic detected")
+		return
+	fi
+	if [ -z "$expected" ] || echo "$output" | grep -qE "$expected"; then
+		PASS=$((PASS + 1))
+		RESULTS+=("PASS: $label")
+	else
+		FAIL=$((FAIL + 1))
+		RESULTS+=("FAIL: $label (expected: '$expected')")
+		BUGS+=("$label: expected '$expected' not found")
+	fi
 }
 
 echo "=== Z-master-1T Depth Stresstest: Killer Features (custom) ==="
@@ -346,36 +346,36 @@ EOF
 
 # CLI --bold 0 must beat config bold = 2 (resolved: "bold":"Off").
 run_case "CLI --bold beats config bold key" '"bold":"Off"' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --bold 0 \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --bold 0 \
+	--benchmark --bench-duration 1s --json
 
 # CLI --shading-mode 0 must beat config shading-mode = 1.
 run_case "CLI --shading-mode beats config key" '"shading":"Random"' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --shading-mode 0 \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --shading-mode 0 \
+	--benchmark --bench-duration 1s --json
 
 # CLI --speed 50 must beat config speed = 20.
 run_case "CLI --speed beats config key" '"speed":50' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --speed 50 \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --speed 50 \
+	--benchmark --bench-duration 1s --json
 
 # CLI --charset cs2 (custom charset) must beat config charset = retro.
 run_case "CLI --charset-custom beats config key" '"charset":"cs2"' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --charset cs2 \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --charset cs2 \
+	--benchmark --bench-duration 1s --json
 
 # CLI --scene-custom hx must beat config scene = cinematic (resolved
 # scene shows the custom scene name, not the config's builtin).
 run_case "CLI --scene-custom beats config scene key" '"scene":"hx"' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --scene-custom hx \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --scene-custom hx \
+	--benchmark --bench-duration 1s --json
 
 # CLI --colors-custom pal must beat config color = snow: the palette
 # branch resolves the scheme to the Green placeholder (never "snow"),
 # proving the config builtin did not take over the CLI palette intent.
 run_case "CLI --colors-custom beats config color key" '"color_scheme":"green"' -- \
-        --config "$TMPDIR_TEST/harmony.toml" --colors-custom pal \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/harmony.toml" --colors-custom pal \
+	--benchmark --bench-duration 1s --json
 
 # Conflict inside one block: color + colors-custom — startup resolves
 # like apply_profile_overrides (color wins, palette skipped) and the
@@ -394,27 +394,27 @@ density = 0.75
 glitch-level = "subtle"
 EOF
 run_case "block color+colors-custom resolves like startup" '"color_scheme":"green"' -- \
-        --config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
-        --benchmark --bench-duration 1s --json
+	--config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
+	--benchmark --bench-duration 1s --json
 
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do
-        echo "  $r"
+	echo "  $r"
 done
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo "  Stresstest Results: ${PASS} passed, ${FAIL} failed"
 echo "═══════════════════════════════════════════════════════════════"
 if [ ${#BUGS[@]} -gt 0 ]; then
-        echo ""
-        echo "BUGS FOUND:"
-        for bug in "${BUGS[@]}"; do
-                echo "  - $bug"
-        done
+	echo ""
+	echo "BUGS FOUND:"
+	for bug in "${BUGS[@]}"; do
+		echo "  - $bug"
+	done
 fi
 echo ""
 if [ "$FAIL" -gt 0 ]; then
-        exit 1
+	exit 1
 fi
 exit 0
