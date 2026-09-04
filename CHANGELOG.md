@@ -9,6 +9,55 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### repo: v100.0.0-nightly.1 — gate scripts resynced onto the mirrored test/ tree (NIGHT-hunter-5, owner mandate 2026-09-05)
+
+The NIGHT-hunter-1 test relocation moved 138 .rs files (46 K LOC) from
+inline `#[cfg(test)]` modules into the mirrored `test/` tree (included
+back via `#[path]` attributes), but the scan scripts still described —
+and in three cases still scanned — the pre-move world. Resync:
+
+- `check-comment-style.py`: scan set extended from `src/**` to
+  `src/**` + `test/**` (git-tracked globs added; docstring updated).
+  Verified: 367 files scanned, 0 emphasis markers — the test tree was
+  clean, now it is also guarded.
+- `check-symbol-only-output.sh`: `find test -name '*.rs'` scan loop
+  added (guarded by `[ -d test ]`), header scope comment updated.
+  Verified: 413 files checked (was 275), no icon glyphs.
+- `stale-hunt.py`: corpus extended to both trees; docstring documents
+  the migration-history exemption (test/tests/mod.rs's "Previously
+  these were flat files at src/ root" is intentional history). Bonus
+  bug fixed while there: the CLI-surface summary printed TWICE (two
+  overlapping `print()` calls, one stale) — now one line that also
+  reports the file count. Verified: 367 files, stale FILE PATHS 0.
+- `check-rs-loc.sh`: scope aligned with the documented policy
+  (src/RULES_LOC.md: "All `.rs` files under `src/`, plus `build.rs`")
+  — build.rs (795 LOC) now actually scanned; header comments state
+  the test/ tree is intentionally OUT of scope (cap governs
+  production source only).
+- `build.sh`: stale Miri comment fixed — "unittests embedded in
+  src/*.rs modules" now reads "declared from src/ modules, with many
+  module bodies living in the mirrored test/ tree via #[path]
+  includes".
+- `gate-keepers.sh`: header descriptions for guards 11/12 updated to
+  the new scan surfaces.
+- Hunt findings fixed (stale path references left behind by the
+  NIGHT-hunter-1 move, surfaced by the extended scanner):
+  `test/engine/chroma_dragon_engine/cloud/tests/tests_scene/mod.rs`
+  and `src/config/live_config_trace.rs` +
+  `src/config/live_config_poll/mod.rs` pointed at `src/tests/loc.rs`
+  (now `test/tests/loc.rs`); `test/engine/chroma_dragon_engine/tests/lock.rs`
+  and `test/cosmic_dragon_incubator/tests/lock.rs` pointed at
+  `src/engine/chroma_dragon_engine/tests/lock.rs` (now the test/ path).
+  `src/RULES_LOC.md`'s generated-code exclusion note no longer
+  describes a hardcoded exclusion list (the mechanism is the
+  self-declaring `LOC_EXEMPT` marker).
+
+Script-only change (comments + scan sets; zero production code
+touched), so the 10 s A/B visual benchmark is not applicable. Gates:
+fmt clean, clippy -D warnings clean, 2256/2256 unit tests, build.sh
+check-all green (check-rs-loc/build.rs included, comment-style 367
+files, symbol-only 413 files), gate-keepers 10/10.
+
 ### docs+ux: v100.0.0-nightly.1 — fatal pipe/redirect usage cataloged, frame-zero non-tty stdout warning (NIGHT-hunter-6, owner hunt 2026-09-05)
 
 Owner report (verbatim transcript): `cosmostrix | less`,

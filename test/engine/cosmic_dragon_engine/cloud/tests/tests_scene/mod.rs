@@ -62,7 +62,7 @@ pub(crate) fn has_dirty_cells(frame: &Frame) -> bool {
 
 // LOC guard — all scene split files must stay under 800 LOC.
 // Files exceeding the cap must self-declare with a `LOC_EXEMPT:` marker
-// (same semantics as src/tests/loc.rs and scripts/check-rs-loc.sh).
+// (same semantics as test/tests/loc.rs and scripts/check-rs-loc.sh).
 
 const LOC_CAP: usize = 800;
 const LOC_EXEMPT_MARKER: &str = "LOC_EXEMPT:";

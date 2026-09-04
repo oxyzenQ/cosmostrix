@@ -3,7 +3,7 @@
 
 //! Polling heartbeat for live config reload — split out of `live_config.rs`
 //! so that file stays under the 800-LOC source cap enforced by
-//! `src/tests/loc.rs`.
+//! `test/tests/loc.rs`.
 //!
 //! ## Termux fix: triple-signal change detection
 //!

@@ -62,7 +62,7 @@
 //!
 //! Invariants are not removed — they are relaxed by editing the test's
 //! assertion bounds and bumping the engine version. This makes every
-//! contract change auditable in `git log -p src/engine/chroma_dragon_engine/tests/lock.rs`.
+//! contract change auditable in `git log -p test/engine/chroma_dragon_engine/tests/lock.rs`.
 
 use crossterm::style::Color;
 

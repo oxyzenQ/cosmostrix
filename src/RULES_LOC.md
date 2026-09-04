@@ -40,9 +40,10 @@ All `.rs` files under `src/`, plus `build.rs`.
 - `target/` (build artifacts)
 - `.git/`
 - Generated code (e.g. `target/`-derived build scripts, vendored
-  codegen). If a generated file would exceed 800, add it to the
-  exclusion list in `scripts/check-rs-loc.sh` with a comment naming
-  the generator.
+  codegen). If a generated file would exceed 800, it self-declares
+  via the `// LOC_EXEMPT:` marker with a comment naming the generator
+  (the script has NO hardcoded exclusion list — the marker lives with
+  the file; NIGHT-hunter-5 sync).
 
 ## How to Refactor a File Over 800
 

@@ -16,7 +16,9 @@ Functional rustdoc constructs are NOT flagged:
   non-space character immediately after the opening asterisk and
   immediately before the closing one).
 
-Checked surface: every git-tracked *.rs file under src/.
+Checked surface: every git-tracked *.rs file under src/ AND test/
+(the mirrored test tree from NIGHT-hunter-1 — its files carry the
+same comment-style contract as production source).
 
 Usage: python3 scripts/check-comment-style.py
 Exit code: 0 = clean, 1 = emphasis markers found (printed with location).
@@ -38,7 +40,14 @@ BACKTICK_RE = re.compile(r"`[^`\n]*`")
 
 def tracked_rs_files() -> list[Path]:
     out = subprocess.run(
-        ["git", "ls-files", "src/**/*.rs", "src/*.rs"],
+        [
+            "git",
+            "ls-files",
+            "src/**/*.rs",
+            "src/*.rs",
+            "test/**/*.rs",
+            "test/*.rs",
+        ],
         capture_output=True,
         text=True,
         check=False,

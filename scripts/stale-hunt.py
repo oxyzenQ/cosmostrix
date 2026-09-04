@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
-"""Stale-reference and duplicate-comment hunter for src/**.rs.
+"""Stale-reference and duplicate-comment hunter for src/**.rs and test/**.rs.
 
 Why not grep: grep matches the WHOLE file, so a flag mentioned inside a
 string literal, an attribute, or the REMOVED_FLAGS registry itself
@@ -28,6 +28,13 @@ Intentional zones (never flagged): src/validation/mod.rs holds the
 REMOVED_FLAGS registry; src/main.rs prevalidation legitimately mentions
 removed flags in its implementation comments.
 
+NIGHT-hunter-5 (2026-09-05): the scan corpus covers the mirrored
+test/ tree (NIGHT-hunter-1) in addition to src/ — its files are real
+source carrying the same comment contracts. Migration-history
+comments that name pre-move paths keep their negation-context
+exemption ("Previously these were flat files at src/ root" in
+test/tests/mod.rs is intentional history, not staleness).
+
 Usage: python3 scripts/stale-hunt.py [--min-dup-len N]
 """
 
@@ -44,7 +51,13 @@ INTENTIONAL_REMOVED_FLAG_FILES = {
     "src/cli/app.rs",  # field definitions may document removed flags
 }
 
-RUST_FILES = sorted((REPO / "src").rglob("*.rs"))
+# NIGHT-hunter-5: scan BOTH trees — src/ (production) and test/
+# (the mirrored test module tree from NIGHT-hunter-1, included into
+# src modules via #[path] attributes; its comments reference the same
+# flags, paths, and crate:: modules and must not go stale either).
+RUST_FILES = sorted((REPO / "src").rglob("*.rs")) + sorted(
+    (REPO / "test").rglob("*.rs")
+)
 
 
 # ── Rust comment extraction (skips strings + attrs) ───────────────────────
@@ -421,10 +434,8 @@ def scan():
     print(
         f"CLI surface: {len(live)} live long flags, "
         f"{len(removed)} removed registered, "
-        f"{len(REEXPORTED_NAMES)} crate-root re-exports"
-    )
-    print(
-        f"CLI surface: {len(live)} live long flags, {len(removed)} removed flags registered"
+        f"{len(REEXPORTED_NAMES)} crate-root re-exports, "
+        f"{len(RUST_FILES)} .rs files scanned"
     )
 
     stale_flags = []

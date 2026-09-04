@@ -17,7 +17,7 @@
 //! matrix (AB-10 rain-screen cleanliness).
 //!
 //! Split into its own module so `live_config.rs` stays under the
-//! 800-LOC source cap enforced by `src/tests/loc.rs`.
+//! 800-LOC source cap enforced by `test/tests/loc.rs`.
 
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Mutex;

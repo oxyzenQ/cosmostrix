@@ -27,11 +27,13 @@
 #  10.  Documentation disclaimer check (all .md files have the
 #       "source code is truth, cross-check before relying" disclaimer)
 #  11.  Symbol-only output guard (v80.0.0-beta.2 owner rule — no icon
-#       glyphs anywhere in src/scripts output surfaces; ASCII symbols
-#       only: "!" = warning, "OK"/"+" = pass, "X"/"-" = fail)
+#       glyphs anywhere in src/test/scripts output surfaces; ASCII
+#       symbols only: "!" = warning, "OK"/"+" = pass, "X"/"-" = fail;
+#       test/ joined the scan scope in NIGHT-hunter-5)
 #  12.  Comment style guard (2026-09-04 owner rule — no decorative
 #       markdown emphasis, bold/italic asterisk markers, in any comment
-#       type; comments are plain prose, see docs/COMMENT_STYLE.md)
+#       type; comments are plain prose, see docs/COMMENT_STYLE.md;
+#       covers src/ AND the mirrored test/ tree since NIGHT-hunter-5)
 #
 # Exit codes:
 #   0 = all checks passed
