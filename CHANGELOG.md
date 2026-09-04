@@ -9,6 +9,49 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: v100.0.0-nightly.1 — verbose line format unified to one value column (owner hunt 2026-09-04)
+
+Owner hunt area: the `-v` verbose line format. Two independent defects
+verified live:
+
+1. **Ragged label gutter.** `verbose_line` padded labels with `{:<14}`
+   — a MINIMUM, not a fixed width — so every label wider than 13 chars
+   pushed its value out of alignment. The live startup dump showed
+   three different value columns (16/17/18) and the longest labels
+   (`chroma_disable_reason:` at 24) drifted to column 24.
+2. **Hand-rolled final-state lines.** The post-exit `final runtime
+   state` block in `interactive/mod.rs` bypassed `verbose_line`
+   entirely: 25 `eprintln_safe!` calls with manual escape injection
+   and manual space padding. They rendered `[verbose]` NON-bold (every
+   other verbose line is bold), duplicated the format contract by
+   hand, and their padding drifted across five different value columns
+   (18/19/20/23/24).
+
+- `verbose_line` gutter widened 14 → 18: covers every curated label in
+  both dumps (longest: `  chroma_features:` / `  ambient_entries:` /
+  `config candidates:` at exactly 18). Labels longer than 18 are a
+  naming bug, not a rendering case — documented in the doc comment.
+- Four overflow labels renamed to fit the gutter and gain hierarchy:
+  `  chroma_disable_reason:` → `  disable_reason:`,
+  `crystal_dragon_secs:` → `  cadence_secs:` (indented under
+  crystal_dragon — the value text already says "drift cadence"),
+  `ambient_snapback_secs:` → `  snapback_secs:` (indented under the
+  snapback lines), `TERM_PROGRAM_VERSION:` → `TERM_PROG_VER:`.
+- All 25 final-state lines converted to `eprintln_verbose` /
+  `eprintln_verbose_purple`: bold `[verbose]` prefix, capability-aware
+  colors, single 18-column gutter, `format!`-built values — the manual
+  `ts`/`purple`/`reset` bindings deleted. Startup and exit dumps now
+  render in one visual language, values aligned at column 20 in both.
+- Contract locked by a new unit test
+  (`verbose_line_aligns_short_and_long_labels_to_one_value_column`):
+  a 4-char label and a 15-char label must start their value at the
+  same index, exactly 36 = 10 (prefix) + 8 (timestamp) + 18 (gutter).
+- Docs: `docs/AMBIENT_SCHEDULER.md` verbose examples re-rendered with
+  the new labels/alignment; `--help` ambient blurb re-pointed to
+  `snapback_secs`. Historical research/archive docs untouched.
+- No A/B benchmark: verbose lines are pre-loop startup diagnostics and
+  post-loop exit summaries; the render loop is untouched.
+
 ### ux: v100.0.0-nightly.1 — --dump-config write-I/O failure joins the die_input family (owner hunt 2026-09-04)
 
 Owner hunt area: the `die_config` site at the `--dump-config` I/O error

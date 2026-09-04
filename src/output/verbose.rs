@@ -237,7 +237,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
             "  chroma_features:",
             " disabled -- legacy sRGB-linear fallback in effect for this color mode",
         );
-        output::eprintln_verbose("  chroma_disable_reason:", &format!(" {reason}"));
+        output::eprintln_verbose("  disable_reason:", &format!(" {reason}"));
     }
     output::eprintln_verbose(
         "color_tune:",
@@ -393,7 +393,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         "default (unset — 60.0s)"
     };
     output::eprintln_verbose(
-        "crystal_dragon_secs:",
+        "  cadence_secs:",
         &format!(
             " {effective_cd_secs:.1}s ({cd_secs_src}; drift cadence — keep ambient-snapback-secs below this for a clean drift cycle, min-dwell floor min(60s, cadence))"
         ),
@@ -430,7 +430,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
             "default (unset in config)"
         };
         output::eprintln_verbose(
-            "ambient_snapback_secs:",
+            "  snapback_secs:",
             &format!(
                 " {effective_snapback:.1}s ({snapback_src} — drift visible for {effective_snapback:.1}s before ambient reverts)"
             ),
@@ -464,7 +464,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("TERM:", &format!(" {term}"));
     output::eprintln_verbose("COLORTERM:", &format!(" {colorterm}"));
     output::eprintln_verbose("TERM_PROGRAM:", &format!(" {term_program}"));
-    output::eprintln_verbose("TERM_PROGRAM_VERSION:", &format!(" {term_version}"));
+    output::eprintln_verbose("TERM_PROG_VER:", &format!(" {term_version}"));
     output::eprintln_verbose("SHELL:", &format!(" {shell}"));
     output::eprintln_verbose("LANG:", &format!(" {lang}"));
     output::eprintln_verbose("isatty(stderr):", &format!(" {is_tty}"));

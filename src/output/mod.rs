@@ -634,14 +634,24 @@ pub(crate) fn now_hhmm() -> String {
 /// dump show the same minute (unless the dump spans a minute boundary).
 ///
 /// Example: `verbose_line("scene:", " monolith")`
-/// → `[verbose] [12:01] scene:       monolith`
+/// → `[verbose] [12:01] scene:             monolith`
+///
+/// Label gutter: 18 columns (v100.0.0-nightly.1 verbose-format audit,
+/// owner hunt 2026-09-04). The previous 14-column gutter silently
+/// overflowed for every label wider than 13 chars — the live dump
+/// showed three different value columns (16, 17, 18) — because Rust's
+/// `{:<14}` pads to a MINIMUM, not a fixed width. 18 covers every
+/// curated label in the startup dump and the final-runtime-state dump
+/// (longest: `  chroma_features:` / `  ambient_entries:` /
+/// `config candidates:` at exactly 18); labels longer than 18 are a
+/// naming bug, not a rendering case.
 #[must_use]
 pub(crate) fn verbose_line(label: &str, value: &str) -> String {
     let ts = now_hhmm();
     match color_capability() {
-        ColorCapability::Mono => format!("[verbose] {ts} {label:<14}{value}"),
+        ColorCapability::Mono => format!("[verbose] {ts} {label:<18}{value}"),
         _ => format!(
-            "{}[verbose]{} {ts} {}{label:<14}{}{value}",
+            "{}[verbose]{} {ts} {}{label:<18}{}{value}",
             brand_bold_open(),
             reset(),
             brand_open(),

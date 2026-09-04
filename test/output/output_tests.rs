@@ -45,18 +45,15 @@ fn eprintln_safe_handles_empty_string() {
 
 #[test]
 fn eprintln_safe_compiles_with_complex_format() {
-    // Verify the macro accepts the same complex format strings used
-    // in main.rs post-exit paths (named args, precision, mixed types).
-    let purple = "\x1b[35m";
-    let reset = "\x1b[0m";
-    let ts = "12:34";
-    let final_color = "nebula";
-    let startup_color = "vaporwave";
-    eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
-        final_color,
-        startup_color
-    );
+    // Verify the macro accepts complex format strings (named args,
+    // precision, mixed types) - the shapes used by the post-exit
+    // verbose paths, which since the v100.0.0-nightly.1 format
+    // unification build their values via format!() and route through
+    // eprintln_verbose instead of hand-rolled escape strings.
+    let label = "  cadence_secs:";
+    let secs = 60.0;
+    let note = "default";
+    eprintln_safe!("[verbose] {label:<18} {secs:.1}s ({note})");
 }
 
 // ── Phase 5 closure (P3-5): startup warning counter ──
@@ -114,6 +111,27 @@ fn verbose_line_contains_prefix_and_label() {
     assert!(line.contains("[verbose]"));
     assert!(line.contains("scene:"));
     assert!(line.contains("monolith"));
+}
+
+#[test]
+fn verbose_line_aligns_short_and_long_labels_to_one_value_column() {
+    // v100.0.0-nightly.1 gutter contract (owner hunt 2026-09-04): the
+    // label field is 18 columns, so a 4-char label and a 15-char label
+    // must start their value at the SAME index. Mode-independent: the
+    // colored branch keeps the padding inside the label color span, so
+    // the " X" marker position is identical either way. The old 14-col
+    // gutter overflowed wide labels and the live dump showed three
+    // different value columns (16, 17, 18).
+    let short = verbose_line("fps:", " X");
+    let long = verbose_line("color_pipeline:", " X");
+    let idx_short = short.find(" X").expect("value marker in short line");
+    let idx_long = long.find(" X").expect("value marker in long line");
+    assert_eq!(
+        idx_short, idx_long,
+        "value column must be identical for short and long labels: short={short:?} long={long:?}"
+    );
+    // Exact contract: "[verbose] " (10) + "[HH:MM] " (8) + 18-col label.
+    assert_eq!(idx_short, 36, "18-column gutter: {short:?}");
 }
 
 #[test]

@@ -359,15 +359,15 @@ starts):
 
 ```text
   ── Ambient ──
-[verbose] [HH:MM] schedule:      3 entries [00-00→monolith, 12-00→calm, 18-00→neon]
-[verbose] [HH:MM] ambient_snapback_secs: 10.0s (from config — drift visible for 10.0s before ambient reverts)
+[verbose] [HH:MM] schedule:       3 entries [00-00→monolith, 12-00→calm, 18-00→neon]
+[verbose] [HH:MM]   snapback_secs:  10.0s (from config — drift visible for 10.0s before ambient reverts)
 [verbose] [HH:MM] auto_snapback: 30.0s idle threshold, 10.0s snapback delay (user overrides via 'c'/'C'/'x'/'s' revert after 10.0s)
 ```
 
 When `ambient-snapback-secs` is **unset** in config, the line reads:
 
 ```text
-[verbose] [HH:MM] ambient_snapback_secs: 30.0s (default (unset in config) — drift visible for 30.0s before ambient reverts)
+[verbose] [HH:MM]   snapback_secs:  30.0s (default (unset in config) — drift visible for 30.0s before ambient reverts)
 ```
 
 Before this LTS fix, the verbose output lied — it always printed the
@@ -381,14 +381,14 @@ loop exits, always — even when no live-reload field changed):
 
 ```text
 [verbose] [HH:MM] final runtime state
-[verbose] [HH:MM]   exit_time:     YYYY-MM-DD HH:MM:SSZ | duration: Xm Ys
+[verbose] [HH:MM]   exit_time:      YYYY-MM-DD HH:MM:SSZ | duration: Xm Ys
 ... (changed live-reload fields, if any) ...
-[verbose] [HH:MM]   ambient_snapback_secs: 10.0s (config)
-[verbose] [HH:MM]   ambient_entries:    3
+[verbose] [HH:MM]   snapback_secs:  10.0s (config)
+[verbose] [HH:MM]   ambient_entries: 3
 [verbose] [HH:MM]   ambient_diag: startup=1 rx=0 reapply=0 snapback=0 ...
 ```
 
-The `ambient_snapback_secs:` + `ambient_entries:` lines are
+The `snapback_secs:` + `ambient_entries:` lines are
 **always-printed** (not gated by change) so the user can confirm what
 was actually in effect at session end. v80.0.0-beta.2
 (S-master-LOGIC-1): the change-tracked field list is complete —
@@ -400,8 +400,8 @@ only when a live-reload edit (or ambient apply) changed the value
 mid-session:
 
 ```text
-[verbose] [HH:MM]   ambient_snapback_secs: 10.0s (config) (was 30.0s)
-[verbose] [HH:MM]   ambient_entries:    3 (was 0)
+[verbose] [HH:MM]   snapback_secs:  10.0s (config) (was 30.0s)
+[verbose] [HH:MM]   ambient_entries: 3 (was 0)
 ```
 
 This closes the LTS audit gap: previously, live-reload edits to

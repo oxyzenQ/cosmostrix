@@ -565,7 +565,7 @@ DIAGNOSTICS:
       or default 30s) + the auto-snapback idle threshold. On exit, prints
       a final runtime state section with the local exit time and total run
       duration (v50.0.0-rc.1), followed by any live-reload field changes,
-      the always-printed `ambient_snapback_secs` + `ambient_entries`
+      the always-printed `snapback_secs` + `ambient_entries`
       effective values (v50.0.0-beta.7 LTS), and the ambient diagnostics
       summary. v80.0.0-beta.2 (S-master-LOGIC-1): the change-tracked
       field list is COMPLETE — every live-reload-able dimension

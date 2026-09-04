@@ -463,9 +463,6 @@ pub(crate) fn print_final_runtime_state(
     // with no changes); per-field `if final_X != startup_X` guards below
     // still suppress unchanged fields, keeping it scannable.
 
-    let ts = crate::output::now_hhmm();
-    let purple = crate::output::brand_open();
-    let reset = crate::output::reset();
     crate::output::eprintln_verbose_purple("final runtime state");
 
     // v50.0.0-beta.6: exit_time now uses UTC (was local + offset in rc.1).
@@ -474,81 +471,76 @@ pub(crate) fn print_final_runtime_state(
     // duration unchanged — monotonic Instant elapsed since main() start.
     let exit_time = crate::clock::now_utc_datetime();
     let duration = crate::clock::format_duration_compact(start_time.elapsed());
-    crate::output::eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  exit_time:{reset}     {exit_time} | duration: {duration}{reset}"
+    crate::output::eprintln_verbose(
+        "  exit_time:",
+        &format!(" {exit_time} | duration: {duration}"),
     );
 
     if final_color != startup_color {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  color_scheme:{reset}  {} (was {})",
-            final_color,
-            startup_color
+        crate::output::eprintln_verbose(
+            "  color_scheme:",
+            &format!(" {} (was {})", final_color, startup_color),
         );
     }
     if final_scene != startup_scene {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  scene:{reset}         {} (was {})",
-            final_scene,
-            startup_scene
+        crate::output::eprintln_verbose(
+            "  scene:",
+            &format!(" {} (was {})", final_scene, startup_scene),
         );
     }
     if final_charset != startup_charset {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  charset:{reset}       {} (was {})",
-            final_charset,
-            startup_charset
+        crate::output::eprintln_verbose(
+            "  charset:",
+            &format!(" {} (was {})", final_charset, startup_charset),
         );
     }
     if (final_speed - startup_speed).abs() >= 0.01 {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  speed:{reset}         {:.1} (was {:.1})",
-            final_speed,
-            startup_speed
+        crate::output::eprintln_verbose(
+            "  speed:",
+            &format!(" {:.1} (was {:.1})", final_speed, startup_speed),
         );
     }
     if (final_density - startup_density).abs() >= 0.01 {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  density:{reset}       {:.2} (was {:.2})",
-            final_density,
-            startup_density
+        crate::output::eprintln_verbose(
+            "  density:",
+            &format!(" {:.2} (was {:.2})", final_density, startup_density),
         );
     }
     // v80.0.0-beta.2 (S-master-LOGIC-1): fps + glitch_level join the
     // change-tracked motion fields — both are ambient-owned and
     // config-editable now, so a mid-run change must be verifiable here.
     if (final_fps - startup_fps).abs() >= 0.01 {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  fps:{reset}           {:.1} (was {:.1})",
-            final_fps,
-            startup_fps
+        crate::output::eprintln_verbose(
+            "  fps:",
+            &format!(" {:.1} (was {:.1})", final_fps, startup_fps),
         );
     }
     if final_glitch_level != startup_glitch_level {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  glitch_level:{reset}  {} (was {})",
-            final_glitch_level,
-            startup_glitch_level
+        crate::output::eprintln_verbose(
+            "  glitch_level:",
+            &format!(" {} (was {})", final_glitch_level, startup_glitch_level),
         );
     }
     if final_msg_mode != startup_msg_mode {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  msg_mode:{reset}       {} (was {})",
-            final_msg_mode,
-            startup_msg_mode
+        crate::output::eprintln_verbose(
+            "  msg_mode:",
+            &format!(" {} (was {})", final_msg_mode, startup_msg_mode),
         );
     }
     if final_message != startup_message {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  message:{reset}        {} (was {})",
-            fmt_opt_str(final_message),
-            fmt_opt_str(startup_message)
+        crate::output::eprintln_verbose(
+            "  message:",
+            &format!(
+                " {} (was {})",
+                fmt_opt_str(final_message),
+                fmt_opt_str(startup_message)
+            ),
         );
     }
     if final_message_border != startup_message_border {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  message_border:{reset} {} (was {})",
-            final_message_border,
-            startup_message_border
+        crate::output::eprintln_verbose(
+            "  message_border:",
+            &format!(" {} (was {})", final_message_border, startup_message_border),
         );
     }
     // v80.0.0-beta.1 msg-fill-style: ALWAYS printed (not change-gated) so users can
@@ -560,62 +552,60 @@ pub(crate) fn print_final_runtime_state(
     } else {
         String::new()
     };
-    crate::output::eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  msg_fill_style:{reset}  {final_msg_fill_style}{style_was_label}"
+    crate::output::eprintln_verbose(
+        "  msg_fill_style:",
+        &format!(" {final_msg_fill_style}{style_was_label}"),
     );
     if final_power_dragon != startup_power_dragon {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  power_dragon:{reset}   {} (was {})",
-            final_power_dragon,
-            startup_power_dragon
+        crate::output::eprintln_verbose(
+            "  power_dragon:",
+            &format!(" {} (was {})", final_power_dragon, startup_power_dragon),
         );
     }
     if final_crystal_dragon != startup_crystal_dragon {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  crystal_dragon:{reset} {} (was {})",
-            final_crystal_dragon,
-            startup_crystal_dragon
+        crate::output::eprintln_verbose(
+            "  crystal_dragon:",
+            &format!(" {} (was {})", final_crystal_dragon, startup_crystal_dragon),
         );
     }
     if final_async_mode != startup_async_mode {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  async_mode:{reset}     {} (was {})",
-            final_async_mode,
-            startup_async_mode
+        crate::output::eprintln_verbose(
+            "  async_mode:",
+            &format!(" {} (was {})", final_async_mode, startup_async_mode),
         );
     }
     // v80.0.0-beta.2 (S-master-LOGIC-1): bold / shading — top-level
     // config keys since the scene-custom v2 schema removed the block
     // fields; their live-reload edits are finally verifiable here.
     if final_bold_mode != startup_bold_mode {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  bold:{reset}          {} (was {})",
-            final_bold_mode,
-            startup_bold_mode
+        crate::output::eprintln_verbose(
+            "  bold:",
+            &format!(" {} (was {})", final_bold_mode, startup_bold_mode),
         );
     }
     if final_shading_mode != startup_shading_mode {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  shading:{reset}       {} (was {})",
-            final_shading_mode,
-            startup_shading_mode
+        crate::output::eprintln_verbose(
+            "  shading:",
+            &format!(" {} (was {})", final_shading_mode, startup_shading_mode),
         );
     }
     if final_intro_color != startup_intro_color {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  intro_color:{reset}     {} (was {})",
-            fmt_opt_str(final_intro_color),
-            fmt_opt_str(startup_intro_color)
+        crate::output::eprintln_verbose(
+            "  intro_color:",
+            &format!(
+                " {} (was {})",
+                fmt_opt_str(final_intro_color),
+                fmt_opt_str(startup_intro_color)
+            ),
         );
     }
     // v80.0.0-beta.2 (S-master-LOGIC-1): monolith / color_bg / color_tune
     // close the per-key coverage — every live-reload-able config key now
     // has a final-state line.
     if final_monolith_size != startup_monolith_size {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  monolith:{reset}      {} (was {})",
-            final_monolith_size,
-            startup_monolith_size
+        crate::output::eprintln_verbose(
+            "  monolith:",
+            &format!(" {} (was {})", final_monolith_size, startup_monolith_size),
         );
     }
     if final_color_bg != startup_color_bg {
@@ -626,17 +616,19 @@ pub(crate) fn print_final_runtime_state(
                 "black"
             }
         };
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  color_bg:{reset}      {} (was {})",
-            bg_label(final_color_bg),
-            bg_label(startup_color_bg)
+        crate::output::eprintln_verbose(
+            "  color_bg:",
+            &format!(
+                " {} (was {})",
+                bg_label(final_color_bg),
+                bg_label(startup_color_bg)
+            ),
         );
     }
     if final_color_tune != startup_color_tune {
-        crate::output::eprintln_safe!(
-            "{purple}[verbose]{reset} {ts} {purple}  color_tune:{reset}    {} (was {})",
-            final_color_tune,
-            startup_color_tune
+        crate::output::eprintln_verbose(
+            "  color_tune:",
+            &format!(" {} (was {})", final_color_tune, startup_color_tune),
         );
     }
 
@@ -661,17 +653,18 @@ pub(crate) fn print_final_runtime_state(
     } else {
         String::new()
     };
-    crate::output::eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  ambient_snapback_secs:{reset} {snapback_now:.1}s ({snapback_src}){snapback_was_label}"
+    crate::output::eprintln_verbose(
+        "  snapback_secs:",
+        &format!(" {snapback_now:.1}s ({snapback_src}){snapback_was_label}"),
     );
     let entries_was_label = if final_ambient_entries != startup_ambient_entries {
         format!(" (was {})", startup_ambient_entries)
     } else {
         String::new()
     };
-    crate::output::eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  ambient_entries:{reset}    {}{entries_was_label}",
-        final_ambient_entries
+    crate::output::eprintln_verbose(
+        "  ambient_entries:",
+        &format!(" {}{entries_was_label}", final_ambient_entries),
     );
 
     // v80.0.0-alpha.1: ALWAYS print the crystal-dragon-secs runtime state
@@ -694,12 +687,13 @@ pub(crate) fn print_final_runtime_state(
     } else {
         String::new()
     };
-    crate::output::eprintln_safe!(
-        "{purple}[verbose]{reset} {ts} {purple}  crystal_dragon_secs:{reset} {cd_secs_now:.1}s ({cd_secs_src}){cd_secs_was_label}"
+    crate::output::eprintln_verbose(
+        "  cadence_secs:",
+        &format!(" {cd_secs_now:.1}s ({cd_secs_src}){cd_secs_was_label}"),
     );
 
     let diag = ambient_diag_summary();
-    crate::output::eprintln_safe!("{purple}[verbose]{reset} {ts} {purple}  {diag}{reset}");
+    crate::output::eprintln_verbose_purple(&format!("  {diag}"));
 }
 
 /// AB-10 (rain-screen cleanliness): emit pre-alt-screen warnings to stderr
