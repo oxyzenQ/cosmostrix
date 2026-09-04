@@ -16,6 +16,8 @@
 //! longer in the graceful-shutdown signal list. SIGTERM/SIGHUP/SIGQUIT
 //! remain for true kill scenarios (system shutdown, terminal close, kill(1)).
 
+#[cfg(windows)]
+use crate::output::eprintln_safe;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 
@@ -132,7 +134,7 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
             std::process::exit(130);
         }
     }) {
-        eprintln!("failed to install Ctrl-Break handler: {}", e);
+        eprintln_safe!("failed to install Ctrl-Break handler: {}", e);
     }
 
     spawn_watchdog();

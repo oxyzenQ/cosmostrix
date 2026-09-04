@@ -20,6 +20,7 @@
 use crate::app::CloudConfig;
 use crate::bench;
 use crate::config::Args;
+use crate::output::println_safe;
 
 /// Check post-config bench dispatchers.
 ///
@@ -38,7 +39,7 @@ pub(crate) fn dispatch_bench(
         match crate::bench_scale::run_scaling_benchmark(cloud_cfg, duration) {
             Ok(results) => {
                 if args.json {
-                    println!(
+                    println_safe!(
                         "{}",
                         crate::bench_scale::build_scaling_json(&results, &cloud_cfg.scene_name)
                     );

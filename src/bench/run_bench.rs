@@ -7,6 +7,7 @@
 //! Owns `run_benchmark()` — the N-frame headless benchmark with
 //! parseable BENCH: format output for CI/regression tracking.
 
+use crate::output::println_safe;
 use std::time::{Duration, Instant};
 
 use crate::constants::*;
@@ -92,7 +93,7 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // (a truncated frame count without disclosure would look like a
     // completed run — silently corrupting the FPS denominator).
     if hit_ceiling {
-        println!(
+        println_safe!(
             "  watchdog: frames loop stopped at the 24h (86400s) hard ceiling after {frames_run}/{bench_frames} frames \
              (cosmostrix caps every time-scale run at one day; re-run with a realistic --bench-frames count)"
         );
@@ -104,20 +105,22 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     let fps = (reported_frames as f64) / elapsed_s;
 
-    println!("BENCH:");
-    println!("  scene: {}", cfg.scene_name);
+    println_safe!("BENCH:");
+    println_safe!("  scene: {}", cfg.scene_name);
     // disclose that monolith is the default + how to override, so
     // CI logs and human users can interpret FPS numbers correctly.
-    println!("  scene_note: default is 'monolith' (peak throughput); override with --scene <name>");
+    println_safe!(
+        "  scene_note: default is 'monolith' (peak throughput); override with --scene <name>"
+    );
     if cfg.scene_name != "monolith" {
-        println!(
+        println_safe!(
             "  disclaimer: scene '{}' is not peak-throughput; compare with 'monolith' for headline FPS",
             cfg.scene_name
         );
     }
-    println!("  cols: {}", w);
-    println!("  lines: {}", h);
-    println!(
+    println_safe!("  cols: {}", w);
+    println_safe!("  lines: {}", h);
+    println_safe!(
         "  frames: {}",
         if hit_ceiling {
             frames_run
@@ -125,7 +128,7 @@ pub(crate) fn run_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
             bench_frames
         }
     );
-    println!("  elapsed_s: {:.3}", elapsed_s);
-    println!("  frames_per_s: {:.3}", fps);
+    println_safe!("  elapsed_s: {:.3}", elapsed_s);
+    println_safe!("  frames_per_s: {:.3}", fps);
     Ok(())
 }

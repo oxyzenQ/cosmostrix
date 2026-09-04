@@ -15,146 +15,147 @@
 //! sites resolve unchanged.
 
 use super::color_enabled_stdout;
+use crate::output::println_safe;
 
 // List printers — clean, no alias noise
 
 pub(crate) fn print_list_charsets() {
     if color_enabled_stdout() {
-        println!(
+        println_safe!(
             "{}AVAILABLE CHARSET PRESETS:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println!("AVAILABLE CHARSET PRESETS:");
+        println_safe!("AVAILABLE CHARSET PRESETS:");
     }
-    println!();
-    println!("  auto         Auto-select (ASCII_SAFE when non-UTF, otherwise matrix)");
-    println!("  matrix       Letters + digits + katakana");
-    println!("  ascii        Letters + digits + punctuation");
-    println!("  extended     Digits + punctuation + katakana");
-    println!("  english      Letters only");
-    println!("  digits       Digits only");
-    println!("  punc         Punctuation only");
-    println!("  binary       0 and 1");
-    println!("  hex          0-9 and A-F");
-    println!("  katakana     Katakana");
-    println!("  greek        Greek");
-    println!("  cyrillic     Cyrillic");
-    println!("  hebrew       Hebrew");
-    println!("  blocks       Block elements");
-    println!("  symbols      Math / technical symbols");
-    println!("  arrows       Arrow symbols");
-    println!("  retro        Box-drawing characters");
-    println!("  cyberpunk    Katakana + hex + symbols");
-    println!("  hacker       Letters + hex + punctuation + symbols");
-    println!("  minimal      Single nabla glyph (∇) — one shape, pure gradient rain");
-    println!("  code         Letters + digits + punctuation + symbols");
-    println!("  dna          DNA bases (ACGT)");
-    println!("  braille      Braille");
-    println!("  runic        Runic");
-    println!("  zen          Pipe character only (default for cinematic & monolith)");
-    println!();
-    println!("  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config).");
+    println_safe!();
+    println_safe!("  auto         Auto-select (ASCII_SAFE when non-UTF, otherwise matrix)");
+    println_safe!("  matrix       Letters + digits + katakana");
+    println_safe!("  ascii        Letters + digits + punctuation");
+    println_safe!("  extended     Digits + punctuation + katakana");
+    println_safe!("  english      Letters only");
+    println_safe!("  digits       Digits only");
+    println_safe!("  punc         Punctuation only");
+    println_safe!("  binary       0 and 1");
+    println_safe!("  hex          0-9 and A-F");
+    println_safe!("  katakana     Katakana");
+    println_safe!("  greek        Greek");
+    println_safe!("  cyrillic     Cyrillic");
+    println_safe!("  hebrew       Hebrew");
+    println_safe!("  blocks       Block elements");
+    println_safe!("  symbols      Math / technical symbols");
+    println_safe!("  arrows       Arrow symbols");
+    println_safe!("  retro        Box-drawing characters");
+    println_safe!("  cyberpunk    Katakana + hex + symbols");
+    println_safe!("  hacker       Letters + hex + punctuation + symbols");
+    println_safe!("  minimal      Single nabla glyph (∇) — one shape, pure gradient rain");
+    println_safe!("  code         Letters + digits + punctuation + symbols");
+    println_safe!("  dna          DNA bases (ACGT)");
+    println_safe!("  braille      Braille");
+    println_safe!("  runic        Runic");
+    println_safe!("  zen          Pipe character only (default for cinematic & monolith)");
+    println_safe!();
+    println_safe!("  Or define a custom charset in config.toml via [charset-custom.<name>] (see --dump-config).");
 
     // v25: Show custom charsets from config (if any).
     let cfg = crate::configfile::load_config_file(None);
     let custom_charsets = crate::charset_custom::collect_charset_custom(&cfg);
     if !custom_charsets.is_empty() {
-        println!();
+        println_safe!();
         if color_enabled_stdout() {
-            println!(
+            println_safe!(
                 "{}CUSTOM CHARACTER SETS (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println!("CUSTOM CHARACTER SETS (from config):");
+            println_safe!("CUSTOM CHARACTER SETS (from config):");
         }
-        println!();
+        println_safe!();
         for (name, def) in &custom_charsets {
-            println!("  {name:<20} {} chars", def.chars.len());
+            println_safe!("  {name:<20} {} chars", def.chars.len());
         }
-        println!();
-        println!("  Load with: cosmostrix -C/--charset/--charset-custom <name>");
-        println!("  Or set in config: charset = \"<name>\"");
+        println_safe!();
+        println_safe!("  Load with: cosmostrix -C/--charset/--charset-custom <name>");
+        println_safe!("  Or set in config: charset = \"<name>\"");
     }
 }
 
 pub(crate) fn print_list_colors() {
     if color_enabled_stdout() {
-        println!(
+        println_safe!(
             "{}AVAILABLE COLOR THEMES:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println!("AVAILABLE COLOR THEMES:");
+        println_safe!("AVAILABLE COLOR THEMES:");
     }
-    println!();
+    println_safe!();
     print!("{}", crate::theme::compact_list_text());
-    println!();
-    println!("{} built-in themes.", crate::theme::theme_count());
+    println_safe!();
+    println_safe!("{} built-in themes.", crate::theme::theme_count());
 
     // v16: Show custom color palettes from config (if any).
     let cfg = crate::configfile::load_config_file(None);
     let custom_palettes = crate::colors_custom::collect_colors_custom(&cfg);
     if !custom_palettes.is_empty() {
-        println!();
+        println_safe!();
         if color_enabled_stdout() {
-            println!(
+            println_safe!(
                 "{}CUSTOM COLOR PALETTES (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println!("CUSTOM COLOR PALETTES (from config):");
+            println_safe!("CUSTOM COLOR PALETTES (from config):");
         }
-        println!();
+        println_safe!();
         for name in custom_palettes.keys() {
-            println!("  {name:<20} custom palette");
+            println_safe!("  {name:<20} custom palette");
         }
-        println!();
-        println!("  Load with: cosmostrix -c/--color/--colors-custom <name>");
-        println!("  Use in ambient: ambient.HH-MM = <name>");
+        println_safe!();
+        println_safe!("  Load with: cosmostrix -c/--color/--colors-custom <name>");
+        println_safe!("  Use in ambient: ambient.HH-MM = <name>");
     }
 }
 
 pub(crate) fn print_list_scenes() {
     if color_enabled_stdout() {
-        println!(
+        println_safe!(
             "{}AVAILABLE SCENES:{}",
             crate::output::brand_bold_open(),
             crate::output::reset()
         );
     } else {
-        println!("AVAILABLE SCENES:");
+        println_safe!("AVAILABLE SCENES:");
     }
-    println!();
+    println_safe!();
     print!("{}", crate::scene::list_scenes_text());
 
     // Append custom scenes from config (if any) under a separate heading.
     let cfg = crate::configfile::load_config_file(None);
     let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
     if !custom_scenes.is_empty() {
-        println!();
+        println_safe!();
         if color_enabled_stdout() {
-            println!(
+            println_safe!(
                 "{}CUSTOM SCENES (from config):{}",
                 crate::output::brand_bold_open(),
                 crate::output::reset()
             );
         } else {
-            println!("CUSTOM SCENES (from config):");
+            println_safe!("CUSTOM SCENES (from config):");
         }
-        println!();
+        println_safe!();
         print!(
             "{}",
             crate::scene_custom::list_custom_scenes_text(&custom_scenes)
         );
-        println!();
-        println!("  Load with: cosmostrix --scene <name> or --scene-custom <name>");
-        println!("  Or set in config: scene = \"<name>\"");
+        println_safe!();
+        println_safe!("  Load with: cosmostrix --scene <name> or --scene-custom <name>");
+        println_safe!("  Or set in config: scene = \"<name>\"");
     }
 }
 

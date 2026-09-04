@@ -192,7 +192,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
         scene_arg,
         *config_path,
     );
-    eprintln!(
+    eprintln_safe!(
         "{}",
         output::brand_bold(&format!(
             "[verbose] {}  cosmostrix v{version} — runtime configuration",
@@ -201,7 +201,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     );
 
     // ── Scene & Color ──────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Scene & Color ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Scene & Color ──"));
     output::eprintln_verbose("scene:", &format!(" {}", scene_name.unwrap_or("default")));
     if let Some(name) = scene_custom {
         output::eprintln_verbose(
@@ -254,14 +254,14 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("color_bg:", &format!(" {bg_label}"));
 
     // ── Glyphs ────────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Glyphs ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Glyphs ──"));
     output::eprintln_verbose(
         "charset:",
         &format!(" {charset_preset} ({} glyphs)", chars.len()),
     );
 
     // ── Motion ────────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Motion ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Motion ──"));
     output::eprintln_verbose("fps:", &format!(" {target_fps:.1}"));
     let caps_for_source = crate::termdetect::detect();
     output::eprintln_verbose(
@@ -283,7 +283,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("async_mode:", &format!(" {async_desc}"));
 
     // ── Style ─────────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Style ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Style ──"));
     output::eprintln_verbose("bold:", &format!(" {bold_mode:?}"));
     output::eprintln_verbose("shading:", &format!(" {shading_mode:?}"));
     output::eprintln_verbose(
@@ -296,7 +296,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     output::eprintln_verbose("glitch_level:", &format!(" {glitch_level}"));
 
     // ── Interaction ───────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Interaction ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Interaction ──"));
     output::eprintln_verbose("mouse:", " always-on (glow + click wave)");
     output::eprintln_verbose("screensaver:", &format!(" {screensaver}"));
     output::eprintln_verbose("intro:", &format!(" {intro_type_label}"));
@@ -347,7 +347,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     }
 
     // ── Dragon Systems ──────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Dragon Systems ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Dragon Systems ──"));
     output::eprintln_verbose(
         "power_dragon:",
         &format!(" {power_dragon} (aggressive throttle + idle FPS reduction)"),
@@ -400,7 +400,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     );
 
     // ── Ambient ───────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Ambient ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Ambient ──"));
     let entries = &ambient_schedule.entries;
     if entries.is_empty() {
         output::eprintln_verbose(
@@ -444,7 +444,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     }
 
     // ── Terminal ──────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Terminal ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Terminal ──"));
     let (sw, sh, size_mode) = match screen_size {
         Some((w, h)) => (*w, *h, "fixed"),
         None => {
@@ -511,7 +511,7 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
     }
 
     // ── Config ────────────────────────────────────────────────────
-    eprintln!("{}", output::brand_bold("  ── Config ──"));
+    eprintln_safe!("{}", output::brand_bold("  ── Config ──"));
     let resolved_config_path = if let Some(p) = config_path {
         p.to_path_buf()
     } else {

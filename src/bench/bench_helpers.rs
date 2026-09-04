@@ -220,13 +220,23 @@ pub(crate) fn warn_bench_noop_flags(args: &Args, fps_user_set: bool) {
     if warns.is_empty() {
         return;
     }
-    eprintln!(
-        "[warn] the following flags have no effect (or a different effect than the name \
-         implies) in benchmark mode:"
+    // v100.0.0-nightly.1 (owner hunt): rendered via the warn family
+    // renderer (branded yellow "! " label, eprintln_safe! bulletproof
+    // write). This used to hand-roll a plain "[warn]" block via raw
+    // eprintln! — visually inconsistent with every other warning in the
+    // binary (the "! [auto-fx] ..." notices) and NOT write-safe: raw
+    // eprintln! panics on a broken stderr pipe (exit 101 when piped
+    // into `head`), the exact chain the v25 coredump fix documented.
+    // Multi-line bodies keep their manual 7-space continuation indent.
+    let mut msg = String::from(
+        "the following flags have no effect (or a different effect than the name \
+         implies) in benchmark mode:",
     );
     for w in &warns {
-        eprintln!("       {w}");
+        msg.push_str("\n       ");
+        msg.push_str(w);
     }
+    crate::output::eprintln_warn_labeled(&msg);
 }
 
 /// Duration of the premium benchmark in seconds (default).

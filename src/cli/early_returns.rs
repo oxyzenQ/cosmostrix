@@ -25,6 +25,7 @@ use crate::configfile;
 use crate::doctor;
 use crate::help_detail;
 use crate::info;
+use crate::output::println_safe;
 use crate::platform::update;
 use crate::safepath::validate_config_path;
 use crate::terminal::reset_terminal_emergency;
@@ -170,14 +171,14 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
         // if user config doesn't exist), not just the default user path.
         let default_path = configfile::default_config_file_path();
         if default_path.exists() {
-            println!("{}", default_path.display());
+            println_safe!("{}", default_path.display());
         } else {
             let candidates = configfile::config_candidate_paths();
             let resolved = candidates
                 .into_iter()
                 .find(|p| p.exists())
                 .unwrap_or(default_path);
-            println!("{}", resolved.display());
+            println_safe!("{}", resolved.display());
         }
         return Some(Ok(()));
     }
@@ -267,7 +268,7 @@ pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<
     }
 
     if args.version {
-        println!("{}", info::version_report());
+        println_safe!("{}", info::version_report());
         return Some(Ok(()));
     }
 
@@ -275,7 +276,7 @@ pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<
         // Print the full engine documentation and architecture overview,
         // then exit. Plain text only (no ANSI) so it pipes cleanly into
         // `less`, `grep`, or documentation generators.
-        println!("{}", info::docs_report());
+        println_safe!("{}", info::docs_report());
         return Some(Ok(()));
     }
 

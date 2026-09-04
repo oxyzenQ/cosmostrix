@@ -12,6 +12,7 @@
 //! Exit code 0 = PASS, 2 = FAIL (errors found).
 
 use crate::configfile;
+use crate::output::{eprintln_safe, println_safe};
 use crate::Args;
 
 // v50.0.0-beta.7 LOC refactor: validate_field_value +
@@ -67,7 +68,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
     };
 
-    println!("testconf: checking {}", path.display());
+    println_safe!("testconf: checking {}", path.display());
 
     let content = match std::fs::read_to_string(&path) {
         Ok(c) => c,
@@ -89,7 +90,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // in bug reports. Uses the same sha2 crate as --dump-config and
     // live-reload change detection (zero new dependencies).
     let file_hash = configfile::sha512_hex(content.as_bytes());
-    println!("testconf: file-sha512: {file_hash}");
+    println_safe!("testconf: file-sha512: {file_hash}");
 
     // v50 (alpha.2): Extract template-fingerprint from the header (if present)
     // and compare against the current built-in template to detect drift.
@@ -97,22 +98,22 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     let current_template_hash = configfile::sha512_hex(configfile::dump_config_text().as_bytes());
     match &header_fp {
         Some(fp) => {
-            println!("testconf: template-fingerprint: {fp}");
+            println_safe!("testconf: template-fingerprint: {fp}");
             if fp == &current_template_hash {
-                println!(
+                println_safe!(
                     "testconf: template drift: none (matches built-in v{} template)",
                     env!("CARGO_PKG_VERSION")
                 );
             } else {
-                println!("testconf: template drift: detected — header fingerprint differs from built-in template");
-                println!("testconf:   built-in hash: {current_template_hash}");
+                println_safe!("testconf: template drift: detected — header fingerprint differs from built-in template");
+                println_safe!("testconf:   built-in hash: {current_template_hash}");
                 crate::output::eprintln_suggestion_line(
                     "testconf: hint: run `cosmostrix --dump-config <path> --force` to regenerate the template"
                 );
             }
         }
         None => {
-            println!("testconf: template-fingerprint: (not found in header — config may be hand-written or older)");
+            println_safe!("testconf: template-fingerprint: (not found in header — config may be hand-written or older)");
         }
     }
 
@@ -148,7 +149,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             }
             errors += 1;
         }
-        eprintln!(
+        eprintln_safe!(
             "testconf: known keys: {}",
             configfile::known_keys().join(", ")
         );
@@ -159,14 +160,14 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // We surface them so users know their TOML structure was off and can
     // optionally fix it for clarity (move the key BEFORE any [section] header).
     if !parsed.promoted_keys.is_empty() {
-        println!(
+        println_safe!(
             "testconf: info: {} key(s) auto-promoted to root scope (TOML mis-nesting, fixed):",
             parsed.promoted_keys.len()
         );
         for (from, to) in &parsed.promoted_keys {
-            println!("testconf:   {from}  →  {to}");
+            println_safe!("testconf:   {from}  →  {to}");
         }
-        println!(
+        println_safe!(
             "testconf: hint: move these keys BEFORE any [section] header to silence this notice"
         );
     }
@@ -281,7 +282,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             // for clarity — `stops` was an undocumented alias that's now
             // explicitly deprecated.
             if key.ends_with(".stops") {
-                println!(
+                println_safe!(
                     "testconf: warning: '{key}' uses deprecated field 'stops' — rename to 'rain' (alias removed in a future release)"
                 );
                 warnings += 1;
@@ -313,8 +314,8 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     }
 
     // Summary (to stdout — machine-parseable)
-    println!();
-    println!(
+    println_safe!();
+    println_safe!(
         "testconf: {} keys parsed, {} errors, {} warnings",
         parsed.values.len(),
         errors,
@@ -331,7 +332,7 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         );
     } else {
         // Success: print to stdout (not stderr) so scripts can capture it.
-        println!("testconf: PASS — config is valid");
+        println_safe!("testconf: PASS — config is valid");
     }
     Ok(())
 }

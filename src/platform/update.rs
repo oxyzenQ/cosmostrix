@@ -1,6 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
+use crate::output::println_safe;
 use std::process::Command;
 
 const GITHUB_API_URL: &str = "https://api.github.com/repos/oxyzenQ/cosmostrix/releases/latest";
@@ -139,11 +140,11 @@ pub(crate) fn check_update(current_version: &str) -> Result<(), String> {
         UpdateStatus::CurrentIsNewer => "current is newer than latest release",
     };
 
-    println!("cosmostrix update check");
-    println!("Current: {}", normalize_version(current_version));
-    println!("Latest:  {}", normalize_version(&latest_tag));
-    println!("Status:  {status}");
-    println!("Source:  {RELEASES_URL}");
+    println_safe!("cosmostrix update check");
+    println_safe!("Current: {}", normalize_version(current_version));
+    println_safe!("Latest:  {}", normalize_version(&latest_tag));
+    println_safe!("Status:  {status}");
+    println_safe!("Source:  {RELEASES_URL}");
 
     Ok(())
 }

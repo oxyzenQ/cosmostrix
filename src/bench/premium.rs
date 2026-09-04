@@ -8,6 +8,7 @@
 //! with live progress feedback and Report-engine enhanced metrics
 //! output. Re-exported from `bench/mod.rs` via `pub(crate) use`.
 
+use crate::output::{eprintln_safe, println_safe};
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
@@ -396,7 +397,7 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     if cfg.verbose {
         let (cleared, sweeps) = cloud.stuck_cell_stats();
         if cleared > 0 {
-            eprintln!(
+            eprintln_safe!(
                 "[stuck-cell-sweep] healed {cleared} cell(s) across {sweeps} sweep(s) during benchmark"
             );
         }
@@ -407,10 +408,10 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // reproducibility), so a resize means the report won't match the user's
     // current terminal. Print to stderr so it doesn't pollute JSON output.
     if terminal_resized_during_bench {
-        eprintln!(
+        eprintln_safe!(
             "  \u{26a0} Terminal resized during benchmark \u{2014} metrics computed at original size {w}x{h}."
         );
-        eprintln!("     Restart benchmark for size-accurate results at the new terminal size.");
+        eprintln_safe!("     Restart benchmark for size-accurate results.");
     }
 
     // Phase 2: Finalize wet I/O metrics
@@ -760,7 +761,7 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     if cfg.json {
         // Print JSON to stdout (only in --json mode).
         if let Some(ref json) = json_opt {
-            println!("{json}");
+            println_safe!("{json}");
         }
     } else {
         crate::bench_report::build_premium_report(&report_data);
@@ -771,14 +772,14 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // pass --json just to save a baseline.
     if let (Some(path), Some(json)) = (cfg.save_baseline.as_ref(), json_opt.as_ref()) {
         if !crate::is_safe_path(path) {
-            eprintln!(
+            eprintln_safe!(
                 "error: --save-baseline '{path}' is outside allowed directories\n  \
                  Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
             );
         } else {
             match crate::bench_baseline::save_baseline(path, json) {
-                Ok(()) => eprintln!("[baseline] saved to {path}"),
-                Err(e) => eprintln!("{e}"),
+                Ok(()) => eprintln_safe!("[baseline] saved to {path}"),
+                Err(e) => eprintln_safe!("{e}"),
             }
         }
     }
@@ -786,12 +787,12 @@ pub(crate) fn run_premium_benchmark(cfg: &CloudConfig) -> std::io::Result<()> {
     // Compare baseline if requested (v17: path whitelist enforced).
     if let (Some(path), Some(json)) = (cfg.compare_baseline.as_ref(), json_opt.as_ref()) {
         if !crate::is_safe_path(path) {
-            eprintln!(
+            eprintln_safe!(
                 "error: --compare-baseline '{path}' is outside allowed directories\n  \
                  Allowed: ~/.config/cosmostrix/, /etc/cosmostrix/"
             );
         } else if let Err(e) = crate::bench_baseline::compare_with_baseline(path, json) {
-            eprintln!("{e}");
+            eprintln_safe!("{e}");
         }
     }
     Ok(())

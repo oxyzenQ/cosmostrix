@@ -4,6 +4,7 @@
 //! Build information, memory estimation, CPU feature detection, and
 //! environment variable helpers.
 
+use crate::output::eprintln_safe;
 use std::env;
 
 use crate::constants::{CHAR_POOL_SIZE, DROPLET_COUNT_FACTOR, GLITCH_POOL_SIZE};
@@ -391,27 +392,27 @@ pub(crate) fn check_cpu_features() {
         } else {
             ("\x1b[1m", reset())
         };
-        eprintln!(
+        eprintln_safe!(
             "{} This binary requires {bold_on}{feature}{bold_off} ({target})",
             error_bold("FATAL:")
         );
-        eprintln!("       but your CPU does not support it.");
-        eprintln!();
+        eprintln_safe!("       but your CPU does not support it.");
+        eprintln_safe!();
     };
 
     if build.contains("-v4") {
         if !std::arch::is_x86_feature_detected!("avx512f") {
             print_fatal("AVX-512", "x86-64-v4");
-            eprintln!("Rebuild with a compatible target:");
-            eprintln!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
-            eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static");
+            eprintln_safe!("Rebuild with a compatible target:");
+            eprintln_safe!("  cargo pro-linux-v3    # x86-64-v3 (AVX2) — modern CPUs");
+            eprintln_safe!("  cargo pro-linux-musl  # x86-64-v3 + musl static");
             std::process::exit(1);
         }
     } else if build.contains("-v3") && !std::arch::is_x86_feature_detected!("avx2") {
         print_fatal("AVX2", "x86-64-v3");
-        eprintln!("Rebuild with:");
-        eprintln!("  cargo pro-linux-musl  # x86-64-v3 + musl static (same baseline)");
-        eprintln!(
+        eprintln_safe!("Rebuild with:");
+        eprintln_safe!("  cargo pro-linux-musl  # x86-64-v3 + musl static (same baseline)");
+        eprintln_safe!(
             "  Note: v1/v2 profiles were dropped in v10.0.0. Use musl for max compatibility."
         );
         std::process::exit(1);

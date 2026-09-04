@@ -10,6 +10,7 @@
 //! a SCALING SUMMARY table at the end.
 
 use crate::bench_report::BenchReportData;
+use crate::output::{eprintln_safe, println_safe};
 
 /// Screen sizes to benchmark in scaling mode.
 const SCALE_SIZES: &[(u16, u16)] = &[(6, 6), (20, 20), (40, 20), (80, 24), (120, 40), (200, 60)];
@@ -23,15 +24,15 @@ pub(crate) fn run_scaling_benchmark(
     let effective_duration = duration_secs.max(1);
     let mut results = Vec::with_capacity(SCALE_SIZES.len());
 
-    eprintln!(
+    eprintln_safe!(
         "[bench-all] Running {size_count} benchmarks ({effective_duration}s each) with scene \"{scene}\"...",
         size_count = SCALE_SIZES.len(),
         scene = cfg.scene_name
     );
-    eprintln!();
+    eprintln_safe!();
 
     for &(w, h) in SCALE_SIZES {
-        eprintln!("[bench-all] {w}x{h}...");
+        eprintln_safe!("[bench-all] {w}x{h}...");
 
         // Create a modified config with this screen size
         let mut scale_cfg = cfg.clone_config();
@@ -115,16 +116,30 @@ pub(crate) struct ScaleResult {
 
 /// Print the scaling summary table.
 fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
-    println!();
-    println!("SCALING SUMMARY (scene: {scene})");
-    println!("──────────────────────────────────");
-    println!(
+    println_safe!();
+    println_safe!("SCALING SUMMARY (scene: {scene})");
+    println_safe!("──────────────────────────────────");
+    println_safe!(
         "  {:<8} {:>6} {:>10} {:>10} {:>6} {:>8} {:>8} {:>8}",
-        "Size", "Cells", "FPS", "ns/cell", "IPC", "Alloc/f", "Entropy", "Gini"
+        "Size",
+        "Cells",
+        "FPS",
+        "ns/cell",
+        "IPC",
+        "Alloc/f",
+        "Entropy",
+        "Gini"
     );
-    println!(
+    println_safe!(
         "  {:<8} {:>6} {:>10} {:>10} {:>6} {:>8} {:>8} {:>8}",
-        "────", "─────", "───", "───────", "───", "───────", "───────", "────"
+        "────",
+        "─────",
+        "───",
+        "───────",
+        "───",
+        "───────",
+        "───────",
+        "────"
     );
 
     for r in results {
@@ -134,7 +149,7 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
             .ipc
             .map(|i| format!("{i:.2}"))
             .unwrap_or_else(|| "—".to_string());
-        println!(
+        println_safe!(
             "  {:<8} {:>6} {:>10} {:>10.2} {:>6} {:>8.1} {:>8.2} {:>8.4}",
             size_str,
             crate::humanize::humanize(r.cells),
@@ -147,13 +162,13 @@ fn print_scaling_summary(results: &[ScaleResult], scene: &str) {
         );
     }
 
-    println!();
-    println!("  Insights:");
-    println!("    • ns/cell stabilizes at large sizes → O(n) confirmed");
-    println!("    • Higher FPS at small sizes = fixed overhead dominates");
-    println!("    • IPC > 2.0 = excellent pipeline utilization");
-    println!("    • Gini near 0 = uniform density; near 1 = concentrated");
-    println!();
+    println_safe!();
+    println_safe!("  Insights:");
+    println_safe!("    • ns/cell stabilizes at large sizes → O(n) confirmed");
+    println_safe!("    • Higher FPS at small sizes = fixed overhead dominates");
+    println_safe!("    • IPC > 2.0 = excellent pipeline utilization");
+    println_safe!("    • Gini near 0 = uniform density; near 1 = concentrated");
+    println_safe!();
 }
 
 /// Format an f64 as a JSON-safe string. Returns "null" for NaN/inf so the

@@ -12,6 +12,7 @@
 //! Comparison flags regressions/improvements per-metric: 5% for FPS,
 //! 10% for frame-time / ns-per-cell, 15% for CPU, 20% for dirty cells.
 
+use crate::output::println_safe;
 use std::collections::HashMap;
 
 /// Metrics to compare with regression/improvement thresholds.
@@ -40,10 +41,10 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     let baseline = parse_json_flat(&baseline_text);
     let current = parse_json_flat(current_json);
 
-    println!();
-    println!("BASELINE COMPARISON");
-    println!("───────────────────");
-    println!("  baseline: {baseline_path}");
+    println_safe!();
+    println_safe!("BASELINE COMPARISON");
+    println_safe!("───────────────────");
+    println_safe!("  baseline: {baseline_path}");
 
     // Check if screen sizes match
     let base_cols = baseline.get("cols").or_else(|| baseline.get("config.cols"));
@@ -55,27 +56,35 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
     if base_cols.is_some_and(|bc| curr_cols.is_some_and(|cc| bc != cc))
         || base_lines.is_some_and(|bl| curr_lines.is_some_and(|cl| bl != cl))
     {
-        println!(
+        println_safe!(
             "  ! WARNING: screen sizes differ (baseline {}x{}, current {}x{})",
             base_cols.unwrap_or(&"?".to_string()),
             base_lines.unwrap_or(&"?".to_string()),
             curr_cols.unwrap_or(&"?".to_string()),
             curr_lines.unwrap_or(&"?".to_string())
         );
-        println!("  Comparison may not be meaningful.");
+        println_safe!("  Comparison may not be meaningful.");
     }
-    println!();
+    println_safe!();
 
     let mut regressions = 0;
     let mut improvements = 0;
 
-    println!(
+    println_safe!(
         "  {:<25} {:>12} {:>12} {:>10} {:>8}",
-        "Metric", "Baseline", "Current", "Delta", "Status"
+        "Metric",
+        "Baseline",
+        "Current",
+        "Delta",
+        "Status"
     );
-    println!(
+    println_safe!(
         "  {:<25} {:>12} {:>12} {:>10} {:>8}",
-        "──────", "────────", "───────", "─────", "──────"
+        "──────",
+        "────────",
+        "───────",
+        "─────",
+        "──────"
     );
 
     for (key, label, threshold) in COMPARE_METRICS {
@@ -116,7 +125,7 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
                     improvements += 1;
                 }
 
-                println!(
+                println_safe!(
                     "  {:<25} {:>12} {:>12} {:>+9.2}% {:>8}",
                     label,
                     crate::humanize::humanize_f64(bv),
@@ -126,25 +135,29 @@ pub(crate) fn compare_with_baseline(baseline_path: &str, current_json: &str) -> 
                 );
             }
             _ => {
-                println!(
+                println_safe!(
                     "  {:<25} {:>12} {:>12} {:>10} {:>8}",
-                    label, "—", "—", "—", "N/A"
+                    label,
+                    "—",
+                    "—",
+                    "—",
+                    "N/A"
                 );
             }
         }
     }
 
-    println!();
+    println_safe!();
     if regressions > 0 {
         // v80.0.0-beta.2 symbol-only rule: "!" replaces the icon glyph;
         // the trailing bang was dropped (the leading "!" already marks it).
-        println!("  ! {regressions} REGRESSION(S) detected");
+        println_safe!("  ! {regressions} REGRESSION(S) detected");
     } else if improvements > 0 {
-        println!("  + {improvements} improvement(s) detected. No regressions.");
+        println_safe!("  + {improvements} improvement(s) detected. No regressions.");
     } else {
-        println!("  OK: no significant changes detected.");
+        println_safe!("  OK: no significant changes detected.");
     }
-    println!();
+    println_safe!();
 
     Ok(())
 }

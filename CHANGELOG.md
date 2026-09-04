@@ -9,6 +9,47 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### robustness: v100.0.0-nightly.1 — broken-pipe panic class eliminated from every reachable output path (hunt follow-up 2026-09-04)
+
+Found while re-verifying the verbose work: Rust ignores SIGPIPE by
+default, so a piped reader that exits early (`head`, `jq`, `grep`)
+turns the next `println!`/`eprintln!` into a PANIC. Verified live with
+three one-command repros, all aborting with exit 101:
+
+- `cosmostrix -v 2>&1 | head -1` (verbose dump, raw `eprintln!` sites)
+- `cosmostrix --benchmark ... | head -1` (bench fleet raw writes)
+- `cosmostrix --doctor 2>&1 | head -2` (report.rs writer closures)
+
+This is exactly the abort chain the v25 terminal-close coredump fix
+documented — but the bulletproof `eprintln_safe!` macro only guarded
+post-exit paths, and its doc still claimed "startup stderr is a
+healthy TTY" (false whenever the user pipes; the doc note predates the
+piped-CLI reality).
+
+- New `println_safe!` macro: the stdout mirror of `eprintln_safe!`
+  (write_fmt + discarded error + flush; zero-arg arm for bare
+  newlines). Reports silently truncate at the pipe boundary and the
+  process exits with its intended code — the standard Unix CLI
+  behavior for closed readers. Deliberately NOT the SIGPIPE=SIG_DFL
+  approach: default-disposition death would bypass the
+  terminal-restore contract and leave raw mode on.
+- Every reachable user-facing write converted (~120 sites across 14
+  files): the verbose dump (10), the shared report writer closures
+  (doctor/docs/list renderers), the whole bench fleet (helpers,
+  premium, scale, run_bench, baseline, dispatch), info variant
+  warnings, testconf report, signal-handler diagnostics, list
+  printers, early returns, update check. Incubator research modules
+  (83 sites, compiled-only, zero callers) left as-is.
+- The benchmark noop-flag warning block re-rendered through
+  `eprintln_warn_labeled` — it hand-rolled a plain `[warn]` prefix via
+  raw `eprintln!`, visually inconsistent with every other warning in
+  the binary (the `! [auto-fx] ...` family) and not write-safe; now a
+  branded `!` label with the same body.
+- All three repros now exit 0; `-v | head` exits with the documented
+  terminal-failure code instead of 101. Suites: 28/28 + 47/47 + 34/34.
+- Gates: fmt clean, clippy clean, 2242/2242 unit tests, LOC caps held
+  (premium.rs recompressed to 799).
+
 ### repo: v100.0.0-nightly.1 — custom_features stresstest fixtures migrated off the removed base-scene schema (hunt follow-up 2026-09-04)
 
 Hunt follow-up while re-validating the full stresstest fleet after the

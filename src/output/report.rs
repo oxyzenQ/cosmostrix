@@ -86,9 +86,9 @@ impl Report {
         let rule: String = "\u{2500}".repeat(self.title.len());
 
         let out_fn: fn(&str) = if to_stderr {
-            |s: &str| eprintln!("{s}")
+            |s: &str| eprintln_safe!("{s}")
         } else {
-            |s: &str| println!("{s}")
+            |s: &str| println_safe!("{s}")
         };
 
         if supports_ansi {

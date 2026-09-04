@@ -399,7 +399,12 @@ pub(crate) fn suggestion(msg: &str) -> String {
     }
 }
 
-// ── Broken-pipe-safe eprintln ────────────────────────────────────────────────
+// ── Broken-pipe-safe println/eprintln ────────────────────────────────────────
+
+// Macros: eprintln_safe! (stderr) and println_safe! (stdout,
+// v100.0.0-nightly.1) — both discard write errors instead of panicking
+// on a broken pipe (Rust ignores SIGPIPE, so `println!`/`eprintln!`
+// abort with exit 101 when a piped reader like `head` exits early).
 
 /// Like `eprintln!` but never panics on broken stderr.
 ///
@@ -422,10 +427,15 @@ pub(crate) fn suggestion(msg: &str) -> String {
 /// - Live-reload error printing (terminal may have been closed mid-session)
 /// - Debug trace draining (same reason)
 /// - Any code path that runs after the rain loop exits
+/// - v100.0.0-nightly.1 (owner hunt): ALL user-facing stderr writes.
+///   The old "startup stderr is a healthy TTY" assumption does not hold
+///   when the user pipes (`cosmostrix -v 2>&1 | head` panicked with exit
+///   101 — verified live); every reachable println!/eprintln! site was
+///   converted to the safe macros.
 ///
 /// `eprintln!` remains fine for:
-/// - Startup output (before alt screen — stderr is a healthy TTY)
 /// - In-loop verbose output (stderr is captured by alt screen but NOT broken)
+/// - Test-only code (no pipe to close)
 ///
 /// # Example
 ///
@@ -435,6 +445,14 @@ pub(crate) fn suggestion(msg: &str) -> String {
 /// eprintln_safe!("[verbose] color_scheme:  {} (was {})", "nebula", "vaporwave");
 /// ```
 macro_rules! eprintln_safe {
+    // Zero-arg arm mirrors std eprintln!(): bare newline. format_args!()
+    // requires at least a format string, so the empty call needs its own
+    // rule (converted call sites like info.rs keep the bare-newline form).
+    () => {{
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!("\n"));
+        let _ = std::io::stderr().flush();
+    }};
     ($($arg:tt)*) => {{
         use std::io::Write;
         let _ = std::io::stderr().write_fmt(format_args!($($arg)*));
@@ -443,6 +461,34 @@ macro_rules! eprintln_safe {
     }};
 }
 pub(crate) use eprintln_safe;
+
+/// Like `println!` but never panics on a broken/closed stdout.
+///
+/// v100.0.0-nightly.1 (owner hunt 2026-09-04): the stdout mirror of
+/// [`eprintln_safe!`]. Rust ignores SIGPIPE by default, so when the user
+/// pipes a report into `head`/`jq`/`grep` and the reader exits early,
+/// `println!` panics on EPIPE — verified live: `cosmostrix --doctor |
+/// head -2` aborted with exit 101. This macro discards the write error:
+/// the report is silently truncated at the pipe boundary and the process
+/// exits with its intended code, the standard Unix CLI behavior for
+/// closed readers. Use it for every report/list/dump output that can be
+/// piped (`--doctor`, `--docs`, `--dump-config`, `--testconf`,
+/// `--list-*`, `--show-*`, benchmark reports).
+macro_rules! println_safe {
+    // Zero-arg arm mirrors std println!(): bare newline.
+    () => {{
+        use std::io::Write;
+        let _ = std::io::stdout().write_fmt(format_args!("\n"));
+        let _ = std::io::stdout().flush();
+    }};
+    ($($arg:tt)*) => {{
+        use std::io::Write;
+        let _ = std::io::stdout().write_fmt(format_args!($($arg)*));
+        let _ = std::io::stdout().write_fmt(format_args!("\n"));
+        let _ = std::io::stdout().flush();
+    }};
+}
+pub(crate) use println_safe;
 
 // ── Print helpers (stderr) ───────────────────────────────────────────────────
 
