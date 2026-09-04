@@ -170,6 +170,30 @@ impl Frame {
         self.clear_with_bg(bg);
     }
 
+    /// S-master-HUNT-25: force the next emit to repaint every cell WITHOUT
+    /// clearing cell content, bumping the generation, or touching dirty
+    /// bookkeeping.
+    ///
+    /// This is the correct primitive for *resync* redraws (idle resync,
+    /// stuck-cell sweep, ANSI drift redraw, paste/focus regain): the frame
+    /// still holds the app's current truth, and the terminal's shadow may
+    /// have drifted — the only required action is a full re-emit. The
+    /// pre-HUNT-25 force path used `clear_with_bg` for this, which also
+    /// wiped every cell and reset the phosphor bookkeeping: the phosphor
+    /// decay state (which trails are dim, bright, or gone) was perturbed
+    /// wholesale at every periodic maintenance redraw, producing a
+    /// multi-frame transient with 2-3x the normal visible glyph count and
+    /// frame size (measured 211-294KB vs 107-148KB steady state at
+    /// 200x60) — the "rain suddenly shifts for a few seconds, then
+    /// returns to normal" glitch reported on every terminal class.
+    ///
+    /// Real semantic changes (charset/palette/style switch) must still go
+    /// through `invalidate_semantic`, which clears content and bumps the
+    /// generation so every cell re-renders under the new semantics.
+    pub fn force_repaint(&mut self) {
+        self.dirty_all = true;
+    }
+
     #[must_use]
     pub fn is_dirty_all(&self) -> bool {
         self.dirty_all

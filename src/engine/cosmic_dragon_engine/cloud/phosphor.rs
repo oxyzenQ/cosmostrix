@@ -178,7 +178,18 @@ impl Cloud {
         tracked_fresh.clear();
 
         // OPTIMIZED: use dirty-index scan when available, full-grid as fallback.
-        if frame.is_dirty_all() {
+        // S-master-HUNT-25: the dirty-index scan is now ALSO preferred on
+        // force_repaint resync frames (dirty_all set for the emitter while
+        // the dirty list still holds exactly the cells the draw pass wrote
+        // this frame). The full-grid scan is reserved for the case where
+        // dirty_all is set AND the dirty list is empty — i.e. after
+        // clear_with_bg emptied it (semantic invalidation / Monolith force
+        // path). Scanning the full grid on a resync frame would re-seed
+        // phosphor energy for every visible cell (their gens all match
+        // current gen because force_repaint does not bump it), resetting
+        // the decay clock of every live afterglow at once — part of the
+        // original maintenance-redraw transient.
+        if frame.is_dirty_all() && frame.dirty_indices().is_empty() {
             // Full-grid scan: clear_with_bg emptied the dirty list.
             for line in 0..lines {
                 for col in 0..self.cols {

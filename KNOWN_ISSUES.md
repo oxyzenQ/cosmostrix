@@ -229,10 +229,30 @@ prevents perfect stabilization under sustained fullscreen load.
 
 ### Status
 
-**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24) —
-four layers, the last one strategic.** HUNT-23 (round 3) is the
+**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24 + HUNT-25) —
+five layers, the last two strategic.** HUNT-23 (round 3) is the
 systemic output layer; HUNT-24 (round 4) is the terminal-class gate;
-the first three are summarized below and detailed in the CHANGELOG.
+HUNT-25 (round 5) is the resync redraw fix; the first three are
+summarized below and detailed in the CHANGELOG.
+
+*Layer 5 (HUNT-25): stop resetting render state at maintenance redraws —
+the "glitch rain shift" on ALL terminals.* The owner's post-HUNT-24
+report: snow-ice confirmed fixed, but the rain still suddenly shifted
+sideways for a few seconds around the first minute ("at certain
+minutes, or simply at 57 seconds from start") — including on
+GPU-accelerated Alacritty, ruling out the CPU-renderer story. Empirical
+PTY audit (90s capture, per-frame size/content analysis): glyph
+positions never shift and the forced repaints were content-identical,
+but every periodic maintenance redraw (idle resync every 20s, stuck-cell
+sweep every 3600 frames, ANSI drift redraw every 18000 frames) called
+`frame.clear_with_bg` + wiped the whole `phosphor_base_ch` array —
+resetting the phosphor decay state wholesale and emitting a 12-18 frame,
+2-3x-sized ANSI burst (3-4.5MB) that terminals cannot drain instantly,
+visibly tearing the screen. Fix: resyncs now use the new
+`Frame::force_repaint` (sets only the repaint flag — cells, generation,
+and phosphor bookkeeping untouched) and `phosphor_decay_pass` prefers
+the dirty-index scan on resync frames. Verified: frame sizes uniform
+(max 133KB vs 297KB; zero frames above 180KB vs 40+ before).
 
 *Layer 4 (HUNT-24): stop feeding the pipe — the effects auto-gate.*
 The owner's post-HUNT-23 report (foot + GNOME/kgx still reproducing

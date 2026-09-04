@@ -312,23 +312,43 @@ impl super::Cloud {
 
         let force_draw_everything = self.force_draw_everything;
         if force_draw_everything {
-            frame.clear_with_bg(self.palette.bg);
-            // Clear stale ghost glyph characters on force_draw_everything.
-            // Without this, a full redraw (triggered by paste, focus regain,
-            // idle resync, etc.) would expose all phosphor_base_ch entries
-            // as visible background charset glyphs — the "ghost background"
-            // bug. Active trail cells will have their phosphor_base_ch
-            // repopulated by Pass 1 (current-gen cells) and Pass 2 (active
-            // droplet trail protection) of phosphor_decay_pass, so clearing
-            // here only affects stale afterglow cells that should not render
-            // character glyphs during a full redraw.
+            // S-master-HUNT-25: resync redraws must NOT reset render state.
+            //
+            // The pre-HUNT-25 path called `frame.clear_with_bg` here —
+            // wiping every cell and (for Glyph styles) the phosphor
+            // glyph bookkeeping — on EVERY force_draw_everything trigger:
+            // idle resync (every 20s of idle), stuck-cell sweep (every
+            // 3600 frames), ANSI drift redraw (every 18000 frames), plus
+            // paste/focus regain. That perturbed the phosphor decay state
+            // wholesale: the next 12-18 frames re-seeded the phosphor
+            // system while thousands of cells jumped brightness classes,
+            // emitting 2-3x-sized frames (measured 211-294KB vs 107-148KB
+            // steady state at 200x60, 12-18 consecutive frames) — a
+            // 3-4.5MB ANSI burst into the pipe. Terminals that cannot
+            // drain that instantly stall the event loop mid-burst and
+            // visibly tear through the transient — the owner-reported
+            // "rain suddenly shifts for a few seconds, then returns to
+            // normal" on every terminal class, landing around the first
+            // minute (the 3600-frame sweep) and at recurring intervals
+            // ("at certain minutes").
+            //
+            // The correct action for a resync is exactly one full re-emit
+            // of the CURRENT frame content: `force_repaint` sets
+            // dirty_all without clearing cells or bumping the generation,
+            // so the draw pass, phosphor decay pass, and stuck-cell
+            // set_force corrections apply exactly as on a normal frame,
+            // and the emitted content is identical to the screen — the
+            // resync becomes invisible and the transient disappears.
+            //
+            // Monolith keeps its historical state reset: its renderer
+            // maintains draw history + spine phosphor that genuinely
+            // needs rebuilding on a forced redraw.
             if matches!(self.rain_style, RainStyle::Monolith) {
+                frame.clear_with_bg(self.palette.bg);
                 self.monolith_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
-                for ch in self.phosphor_base_ch.iter_mut() {
-                    *ch = '\0';
-                }
+                frame.force_repaint();
             }
             self.force_draw_everything = false;
         }

@@ -9,6 +9,66 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v100.0.0-nightly.1 — S-master-HUNT-25 resync redraws without render-state reset ("glitch rain shift", round 5)
+
+Owner bug report (2026-09-04, post-09759d5): snow-ice fixed (HUNT-22/23
+confirmed), but the "glitch rain shift" reproduces on ALL terminals —
+including GPU-accelerated Alacritty, the owner's daily driver. Symptom:
+after roughly a minute of runtime ("at certain minutes, or simply at 57
+seconds from start"), the rain suddenly shifts sideways for a few
+seconds, then returns to normal on its own.
+
+- **Audit first (empirical, PTY harness at 200x60, TERM=alacritty)**:
+  a 90s timed capture was replayed through a VT emulator with per-frame
+  audit. Glyph positions never shift (adjacent-second occupancy-profile
+  correlation r>=0.96, cross-correlation lag 0 at every 0.5s step); the
+  diff-built screen state and the app's forced repaints are
+  content-identical (3/12000 cells, +-1 RGB rounding); density-noise
+  re-rolls and column-coherence perturbation are inert at steady state.
+  The one measured anomaly: full-redraw BURSTS — 12-18 consecutive
+  frames at 211-294KB (vs 107-148KB steady state, i.e. 2-3x) firing at
+  t=34.5/45.4/54.5/74.5 in a 90s run, 2.4x the normal visible glyph
+  count inside the burst frames.
+- **Root cause**: every periodic maintenance redraw — idle resync
+  (every 20s of idle), stuck-cell sweep (every 3600 frames), ANSI drift
+  redraw (every 18000 frames), plus paste/focus regain — entered the
+  `force_draw_everything` branch which called `frame.clear_with_bg` AND
+  wiped the whole `phosphor_base_ch` array. That reset the phosphor
+  decay state wholesale: thousands of afterglow cells jumped brightness
+  classes at once and the following 12-18 frames re-seeded the phosphor
+  system, emitting a 3-4.5MB ANSI burst into the pipe. Any terminal
+  that cannot drain that instantly stalls the event loop mid-burst and
+  visibly tears through the transient — reading as "the rain suddenly
+  shifts for a few seconds, then normal again". Terminal-independent
+  (pure output-side), landing around the first minute (the 3600-frame
+  sweep at real-world effective fps) and at recurring minute intervals
+  — matching the owner's timing report.
+- **Fix**: resync redraws now set only the repaint flag. New
+  `Frame::force_repaint()` sets `dirty_all` WITHOUT clearing cell
+  content, bumping the generation, or touching phosphor bookkeeping —
+  the draw pass, phosphor decay pass, and stuck-cell `set_force`
+  corrections apply exactly as on a normal frame, and the emitted
+  content is identical to the screen. `phosphor_decay_pass` Pass 1 now
+  prefers the dirty-index scan whenever the dirty list is populated
+  (full-grid scan reserved for the genuinely-cleared buffer), so resync
+  frames no longer re-seed phosphor energy for every visible cell.
+  Monolith keeps its historical state reset (draw history + spine
+  phosphor genuinely need rebuilding); real semantic changes still go
+  through `invalidate_semantic` with the full clear.
+- **Verification (empirical)**: 90s PTY capture with the fix — frame
+  size distribution becomes uniform (median 118KB, p99 132KB, max
+  133KB vs 297KB max before; zero frames above 180KB vs 40+ before).
+  The maintenance redraws are now indistinguishable from normal frames.
+- 4 regression tests lock the contract (`tests_resync_hunt25.rs`):
+  force_repaint preserves cells + generation; glyph resync preserves
+  active phosphor base glyph + decay state; stuck-cell sweep still
+  clears through the resync path; monolith force path unchanged.
+- Suite: 2226 passed / 0 failed / 2 ignored. Gates: fmt clean; clippy
+  --release --all-targets 0 warnings; build.sh check-all PASS;
+  gate-keepers 9/9; check-rs-loc OK; perms 644. A/B benchmark 10s:
+  noise-equivalent (avg_fps +0.19%, entropy +0.03%, gini -0.01%) — the
+  fix is inert in bench mode by construction.
+
 ### harmony: v100.0.0-nightly.1 — S-master-HUNT-24 effects auto-gate on CPU-rendered/TTY terminals + foot/konsole high-perf reclassification (VTE/foot stuck, round 4 — strategic)
 
 Owner bug report (2026-09-04, post-36f8620): after HUNT-23, foot and
