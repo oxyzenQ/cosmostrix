@@ -67,7 +67,7 @@ unicode-width = "0.2"
 # that only needed `[HH:MM]` log stamps and a local-hour fraction. Replaced by
 # direct `libc::localtime_r` / `libc::gmtime_r` calls in the `src/clock`
 # module (the historical `local_secs_since_midnight` helper now lives in
-# `src/central_control_dragon_power/phase_predictor.rs`).
+# `src/central_control_power_dragon/phase_predictor.rs`).
 notify = { version = ">=7, <8", default-features = false }
 
 # SHA-512 for config.toml content hashing (live-reload change

@@ -26,58 +26,58 @@
 pub(crate) use crate::constants::*;
 
 // ────────────────────────────────────────────────────────────────────────────
-// P1: Phase-Aware Adaptive Pacing — re-exported from central_control_dragon_power
+// P1: Phase-Aware Adaptive Pacing — re-exported from central_control_power_dragon
 // ────────────────────────────────────────────────────────────────────────────
 //
 // PhasePredictor + local_secs_since_midnight migrated to
-// `crate::central_control_dragon_power::phase_predictor` (Phase 2
+// `crate::central_control_power_dragon::phase_predictor` (Phase 2
 // consolidation). Re-exported here via the `pub(crate) use crate::constants::*`
 // glob (constants.rs re-exports dragon_power, which re-exports phase_predictor).
 // Existing `use super::adaptive::*` imports in event_loop.rs continue to
 // resolve without call-site changes. Once all consumers migrate to importing
-// directly from `crate::central_control_dragon_power::*`, this shim will
+// directly from `crate::central_control_power_dragon::*`, this shim will
 // be removed.
 
 // ────────────────────────────────────────────────────────────────────────────
-// P2 + P4: Re-exported from central_control_dragon_power::reclaim_state
+// P2 + P4: Re-exported from central_control_power_dragon::reclaim_state
 // ────────────────────────────────────────────────────────────────────────────
 //
 // adaptive_resync_interval (P2 IPAC) + hint_reclaim_pages (P4 MPAR) +
 // ReclaimState struct migrated to
-// `crate::central_control_dragon_power::reclaim_state` (Phase 2
+// `crate::central_control_power_dragon::reclaim_state` (Phase 2
 // consolidation). Re-exported here via the `pub(crate) use crate::constants::*`
 // glob (constants.rs re-exports dragon_power, which re-exports reclaim_state).
 // Existing `use super::adaptive::{...}` imports in event_loop.rs continue to
 // resolve without call-site changes.
 
 // ────────────────────────────────────────────────────────────────────────────
-// P5: Endurance Health Score — re-exported from central_control_dragon_power
+// P5: Endurance Health Score — re-exported from central_control_power_dragon
 // ────────────────────────────────────────────────────────────────────────────
 //
 // EnduranceHealth struct + impl + Default migrated to
-// `crate::central_control_dragon_power::endurance_health` (Phase 2
+// `crate::central_control_power_dragon::endurance_health` (Phase 2
 // consolidation). Re-exported here via the `pub(crate) use crate::constants::*`
 // glob (constants.rs re-exports dragon_power, which re-exports
 // endurance_health). Existing `use super::adaptive::{...}` imports in
 // event_loop.rs continue to resolve without call-site changes.
 
 // ────────────────────────────────────────────────────────────────────────────
-// Performance Self-Healer (P1 + P2) — re-exported from central_control_dragon_power
+// Performance Self-Healer (P1 + P2) — re-exported from central_control_power_dragon
 // ────────────────────────────────────────────────────────────────────────────
 //
 // SelfHealAction enum + PerformanceSelfHealer struct + impl + Default
-// migrated to `crate::central_control_dragon_power::self_healer` (Phase 2
+// migrated to `crate::central_control_power_dragon::self_healer` (Phase 2
 // consolidation). Re-exported here via the `pub(crate) use crate::constants::*`
 // glob (constants.rs re-exports dragon_power, which re-exports self_healer).
 // Existing `use super::adaptive::{...}` imports in event_loop.rs continue to
 // resolve without call-site changes.
 //
 // All P1/P2/P4/P5 behavior code has now been migrated to submodules of
-// central_control_dragon_power/. This file is a thin re-export shim only.
+// central_control_power_dragon/. This file is a thin re-export shim only.
 
 #[cfg(test)]
 mod tests {
-    // All tests migrated to submodules of central_control_dragon_power/:
+    // All tests migrated to submodules of central_control_power_dragon/:
     //  - phase_predictor.rs (5 tests: P1 PhasePredictor)
     //  - reclaim_state.rs   (5 tests: P2 resync_interval + P4 ReclaimState)
     //  - endurance_health.rs (5 tests: P5 EnduranceHealth)

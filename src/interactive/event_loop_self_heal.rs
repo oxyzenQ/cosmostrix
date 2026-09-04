@@ -16,7 +16,7 @@ use std::time::Instant;
 
 use super::adaptive::{PerformanceSelfHealer, ReclaimState, SelfHealAction};
 use crate::app::CloudConfig;
-use crate::central_control_dragon_power::SELF_HEAL_PRESSURE_LOW;
+use crate::central_control_power_dragon::SELF_HEAL_PRESSURE_LOW;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 

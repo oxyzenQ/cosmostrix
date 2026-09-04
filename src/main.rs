@@ -87,7 +87,7 @@ pub(crate) use engine::cosmic_dragon_engine;
 pub(crate) use engine::crystal_dragon_engine;
 
 // Group: Central Control — Dragon Power + Rains
-mod central_control_dragon_power;
+mod central_control_power_dragon;
 mod central_control_rains;
 
 // Group: Clock subsystem (mod.rs + posix_time.rs)

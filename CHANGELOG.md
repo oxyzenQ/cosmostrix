@@ -9,6 +9,27 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### consistency: v100.0.0-nightly.1 — central_control_dragon_power renamed to central_control_power_dragon (owner mandate 2026-09-04)
+
+Owner report: the module folder name `src/central_control_dragon_power/`
+did not match its owning flag `--power-dragon` (word order inverted).
+Renamed to `src/central_control_power_dragon/` (word order mirrors the
+flag; aligns with the sibling `src/central_control_rains/` family).
+
+- Folder renamed via `git mv` (history preserved); all `mod`/`use`
+  paths, doc-comment intra-links, `src/RULES.md` module map,
+  `CONTRIBUTING.md` layout table, and live docs updated
+  (`docs/CENTRAL_CONTROL_POWER_DRAGON.md` renamed likewise, with its
+  link in `docs/CRYSTAL_DRAGON_ENGINE.md` and references in
+  `docs/AMBIENT_SCHEDULER.md`,
+  `docs/research/V51_2_POWER_DRAGON_AMBIENT_CONTRACT.md`,
+  `Cargo.toml` comment).
+- Historical records untouched by design: `CHANGELOG.md` past entries
+  and `docs/archive/**` keep the old name (they describe the state of
+  the tree at their time).
+- Pure code motion + reference sync: zero behavior change (same
+  symbols, same exports, same tests).
+
 ### consistency: v100.0.0-nightly.1 — comment markdown emphasis ban (owner mandate 2026-09-04)
 
 Owner report: source comments across `src/*` still carried

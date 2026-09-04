@@ -34,7 +34,7 @@ src/
 ├── RULES.md                   <- this file
 ├── bench/                     <- benchmark subsystem (17 bench_*.rs files)
 ├── bolt/                      <- cross-cutting utility module
-├── central_control_dragon_power/  <- power management, self-healer, thermal
+├── central_control_power_dragon/  <- power management, self-healer, thermal
 ├── central_control_rains/     <- rain visual tuning constants
 ├── chroma_dragon_engine/      <- coloring engine (palette, shaders, post-FX)
 ├── cli/                       <- CLI args, parsing, help, app struct

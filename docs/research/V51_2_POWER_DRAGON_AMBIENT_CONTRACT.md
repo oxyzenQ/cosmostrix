@@ -169,7 +169,7 @@ first):
 | `src/central_control_rains/density_throttle.rs` | NEW — band constants + `compute_spawn_scale` (banded, ceiling, NaN-safe) |
 | `src/central_control_rains/mod.rs` | re-export; old floor constants removed; tests module wired |
 | `src/central_control_rains/tests.rs` | NEW — 14 curve tests (bands, ceiling, cheap scenes, aggressive, NaN) |
-| `src/central_control_dragon_power/mod.rs` | `PERF_PRESSURE_SPAWN_FACTOR`(+AGGR) removed; pipeline doc updated |
+| `src/central_control_power_dragon/mod.rs` | `PERF_PRESSURE_SPAWN_FACTOR`(+AGGR) removed; pipeline doc updated |
 | `src/engine/cosmic_dragon_engine/cloud/rain_at.rs` | passes `droplet_density` as the throttle ceiling |
 | `src/interactive/hud/metrics.rs` | `dsty:` uses the banded curve with the density ceiling |
 | `src/interactive/event_loop_hud.rs` | power-dragon pressure gate (feed 0.0 when off) |

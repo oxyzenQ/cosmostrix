@@ -73,7 +73,7 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 | Chroma Dragon | `src/chroma_dragon_engine/` | OKLab color engine |
 | Cloud | `src/cosmic_dragon_engine/cloud/` | Rain simulation + spawn + render |
 | Droplet | `src/droplet/mod.rs` | Per-droplet visual effects pipeline |
-| Power | `src/central_control_dragon_power/` | Self-healer + power management |
+| Power | `src/central_control_power_dragon/` | Self-healer + power management |
 | Ambient | `src/crystal_dragon_engine/ambient*/mod.rs` | Time-of-day scene scheduling |
 | Live reload | `src/config/live_config*/mod.rs` | Config file watcher + rebuild |
 | Interactive | `src/interactive/` | Event loop + HUD + input + intro |

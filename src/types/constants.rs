@@ -17,10 +17,10 @@ pub(crate) use crate::central_control_rains::*;
 // ─── Power management: single source of truth ──────────────────────────────
 //
 // All power / perf / adaptive / thermal / xterm.js-tier-2 constants live
-// in `central_control_dragon_power.rs`. This re-export keeps every
+// in `central_control_power_dragon.rs`. This re-export keeps every
 // existing `use crate::constants::*;` call site working unchanged.
-// To fine-tune any power parameter, edit `central_control_dragon_power.rs`.
-pub(crate) use crate::central_control_dragon_power::*;
+// To fine-tune any power parameter, edit `central_control_power_dragon.rs`.
+pub(crate) use crate::central_control_power_dragon::*;
 
 // Density & sizing
 
@@ -63,7 +63,7 @@ pub(crate) const RUNTIME_SPEED_MAX: f32 = SPEED_MAX;
 /// Maximum effective Monolith speed, including CLI/config values.
 pub(crate) const MONOLITH_EFFECTIVE_SPEED_MAX: f32 = SPEED_MAX;
 
-// Terminal / rendering (power constants now in central_control_dragon_power.rs)
+// Terminal / rendering (power constants now in central_control_power_dragon.rs)
 
 /// Dirty threshold ratio: if dirty cells >= total/N, do full redraw.
 ///

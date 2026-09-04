@@ -6,7 +6,7 @@
 
 use super::hud::{FrameMode, HudState};
 use crate::app::CloudConfig;
-use crate::central_control_dragon_power::PowerManager;
+use crate::central_control_power_dragon::PowerManager;
 use crate::cloud::Cloud;
 
 /// Update HUD state every frame with live values.

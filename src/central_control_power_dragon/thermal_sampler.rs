@@ -5,7 +5,7 @@
 //!
 //! Reads CPU/SoC thermal zones from the Linux sysfs interface and
 //! normalizes the reading into a 0.0–1.0 pressure scalar consumed by
-//! [`PowerManager::set_thermal_pressure`](crate::central_control_dragon_power::PowerManager::set_thermal_pressure).
+//! [`PowerManager::set_thermal_pressure`](crate::central_control_power_dragon::PowerManager::set_thermal_pressure).
 //!
 //! ## Source
 //!

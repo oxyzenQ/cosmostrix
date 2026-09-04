@@ -575,7 +575,7 @@ src/engine/crystal_dragon_engine/
 
 - [`docs/AMBIENT_SCHEDULER.md`](AMBIENT_SCHEDULER.md) — Focused doc on the ambient scheduler subsystem.
 - [`docs/THREE_DRAGON_ENGINES.md`](THREE_DRAGON_ENGINES.md) — High-level overview of all three dragon engines and how they cooperate.
-- [`docs/CENTRAL_CONTROL_DRAGON_POWER.md`](CENTRAL_CONTROL_DRAGON_POWER.md) — Power management / thermal / self-healing subsystem (separate from Crystal Dragon).
+- [`docs/CENTRAL_CONTROL_POWER_DRAGON.md`](CENTRAL_CONTROL_POWER_DRAGON.md) — Power management / thermal / self-healing subsystem (separate from Crystal Dragon).
 - [`src/engine/chroma_dragon_engine/mod.rs`](../src/engine/chroma_dragon_engine/mod.rs) — The coloring engine that Crystal delegates transitions to.
 - [`src/cosmic_dragon_incubator/mod.rs`](../src/cosmic_dragon_incubator/mod.rs) — The rendering engine (incubator namespace; actual rendering code lives in `src/engine/cosmic_dragon_engine/cloud/`, `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs`).
 <!-- COSMOSTRIX-DISCLAIMER -->

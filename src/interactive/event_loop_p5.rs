@@ -15,7 +15,7 @@ use std::time::Instant;
 
 use super::adaptive::EnduranceHealth;
 use super::hud::HudState;
-use crate::central_control_dragon_power::{sample_thermal_pressure, PowerManager};
+use crate::central_control_power_dragon::{sample_thermal_pressure, PowerManager};
 use crate::cloud::Cloud;
 use crate::constants::{FD_HEALTH_PROBE_INTERVAL_FRAMES, THERMAL_SAMPLER_INTERVAL_FRAMES};
 use crate::terminal::Terminal;

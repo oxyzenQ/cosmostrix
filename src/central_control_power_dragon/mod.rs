@@ -25,7 +25,7 @@
 //! 3. `cargo build --release` — that's it.
 //!
 //! All consumers reference `crate::constants::*` which re-exports
-//! everything from this module via `pub use central_control_dragon_power::*;`.
+//! everything from this module via `pub use central_control_power_dragon::*;`.
 //! No call-site changes needed when tuning.
 //!
 //! ## Feature inventory (12 features)
@@ -115,7 +115,7 @@
 // ─── Behavior submodules ────────────────────────────────────────────────────
 //
 // Each submodule owns one adaptive subsystem. They are declared here so
-// `crate::central_control_dragon_power::*` re-exports their public items
+// `crate::central_control_power_dragon::*` re-exports their public items
 // to all consumers via `crate::constants::*` (which itself re-exports
 // this module).
 

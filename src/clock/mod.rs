@@ -23,7 +23,7 @@
 //! `tzset()`, wrong NULL check) had to be fixed 6 times.
 //!
 //! After: single verified path in `posix_time.rs`. Callers (clock/mod.rs,
-//! `crystal_dragon_engine::ambient`, `central_control_dragon_power::
+//! `crystal_dragon_engine::ambient`, `central_control_power_dragon::
 //! phase_predictor`) get the broken-out fields they need without touching
 //! unsafe code.
 //!

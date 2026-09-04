@@ -3,7 +3,7 @@
 
 //! # Power Stack Integration Audit
 //!
-//! End-to-end verification that the `central_control_dragon_power` module
+//! End-to-end verification that the `central_control_power_dragon` module
 //! is a real working coordinator, not a documentation gimmick. Every test
 //! here exercises the public API contract that downstream consumers
 //! (event_loop.rs, activity.rs, cloud/rain.rs) depend on.
@@ -33,7 +33,7 @@
 
 use std::time::{Duration, Instant};
 
-use crate::central_control_dragon_power::{
+use crate::central_control_power_dragon::{
     normalize_celsius, sample_thermal_pressure, EnduranceHealth, PerformanceSelfHealer,
     PhasePredictor, PowerManager, PowerThresholds, ReclaimState, SelfHealAction,
 };

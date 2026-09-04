@@ -1,11 +1,11 @@
-# `central_control_dragon_power/` — Power, Performance & Adaptive Coordinator
+# `central_control_power_dragon/` — Power, Performance & Adaptive Coordinator
 
 <!-- Copyright (C) 2026 rezky_nightky -->
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
 > **Document ID**: POWER-ARCH-001
 > **Date**: 2026-08
-> **Scope**: `src/central_control_dragon_power/` — every tunable knob,
+> **Scope**: `src/central_control_power_dragon/` — every tunable knob,
 > every adaptive subsystem, and the `PowerManager` coordinator that
 > unifies them
 > **Audience**: cosmostrix contributors who need to understand, tune,
@@ -48,7 +48,7 @@ This doc is the complete map of that directory:
 ## 2. Module layout
 
 ```text
-src/central_control_dragon_power/
+src/central_control_power_dragon/
 ├── mod.rs              — constants, PowerThresholds, re-exports
 ├── phase_predictor.rs  — P1 PhasePredictor + local_secs_since_midnight
 ├── reclaim_state.rs    — P2 adaptive_resync_interval + P4 ReclaimState
@@ -60,15 +60,15 @@ src/central_control_dragon_power/
 `mod.rs` declares each submodule `mod X;` and re-exports their public
 items via `pub(crate) use X::*;`. The constants in `mod.rs` are
 additionally re-exported to the rest of the crate by `constants.rs`
-through `pub use central_control_dragon_power::*;`, so every call
+through `pub use central_control_power_dragon::*;`, so every call
 site can write `crate::constants::SOME_CONSTANT` regardless of which
 file declares it. No call-site changes are needed when a constant
-moves between `constants.rs` and `central_control_dragon_power/mod.rs`.
+moves between `constants.rs` and `central_control_power_dragon/mod.rs`.
 
 `src/interactive/adaptive.rs` was the original home of P1/P2/P4/P5
 plus the self-healer. It is now a thin re-export shim for the same
-public items from `central_control_dragon_power`. New code should depend on
-`crate::central_control_dragon_power::*` directly; the shim exists
+public items from `central_control_power_dragon`. New code should depend on
+`crate::central_control_power_dragon::*` directly; the shim exists
 for backward source compatibility with any in-flight branches.
 
 ---
@@ -228,7 +228,7 @@ methods.
 
 ```rust
 use std::time::Instant;
-use crate::central_control_dragon_power::PowerManager;
+use crate::central_control_power_dragon::PowerManager;
 
 let now = Instant::now();
 let mut power_manager = PowerManager::new(cfg.target_fps, now);
@@ -587,7 +587,7 @@ Every threshold in this module is a named constant in `mod.rs` with
 a doc comment explaining its value and the reasoning behind it.
 Tuning is intentionally low-friction:
 
-1. Find the constant in `src/central_control_dragon_power/mod.rs`.
+1. Find the constant in `src/central_control_power_dragon/mod.rs`.
 2. Read the doc comment — it explains the safe tuning range and
    what breaks if you push outside it.
 3. Change the value.
@@ -641,7 +641,7 @@ range. The clamping is defensive: a misbehaving sampler cannot push
 
 - **Power audit consolidation**: extracted all power
   management constants from `constants.rs` into
-  `central_control_dragon_power.rs` (flat file, 437 LOC). Established
+  `central_control_power_dragon.rs` (flat file, 437 LOC). Established
   single source of truth. Added `PowerThresholds` struct as the
   foundation for a future `PowerManager` coordinator.
 - **Phase 2 (directory module migration)**: converted the flat file to a

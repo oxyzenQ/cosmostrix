@@ -16,7 +16,7 @@
 //!   Hysteresis gap (0.6 → 0.3) and a middle-band dead zone prevent
 //!   flapping under borderline load.
 //! - P2 (EnduranceHealth mitigation) — when the
-//!   [`EnduranceHealth`](crate::central_control_dragon_power::EnduranceHealth)
+//!   [`EnduranceHealth`](crate::central_control_power_dragon::EnduranceHealth)
 //!   score drops below `PowerThresholds::health_investigate` (60.0, the
 //!   "investigate" band), trigger an immediate frame invalidate + memory
 //!   reclaim hint (`madvise(MADV_DONTNEED)`) to clear potential stuck

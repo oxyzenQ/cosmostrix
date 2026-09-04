@@ -5,7 +5,7 @@
 //! to keep that file under the 800-LOC cap. Pure code motion — no behavior change.
 
 use super::activity::FrameTimeTracker;
-use crate::central_control_dragon_power::PowerManager;
+use crate::central_control_power_dragon::PowerManager;
 use crate::frame::Frame;
 
 /// Update performance display counters when --perf-stats is enabled.

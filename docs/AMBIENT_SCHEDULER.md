@@ -308,7 +308,7 @@ The timer resets on **every** keypress (not just `x`/`c`/`s`), so an
 active user cycling through scenes will never be interrupted. The
 snapback only fires after the user stops pressing keys for the
 configured delay. The default is `AUTO_SNAPBACK_DELAY_SECS = 30.0` in
-`src/central_control_dragon_power/mod.rs:198`.
+`src/central_control_power_dragon/mod.rs:198`.
 
 #### Config-tunable snapback delay (v50.0.0-beta.7)
 

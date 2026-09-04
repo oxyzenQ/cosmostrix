@@ -416,14 +416,14 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
             "schedule:",
             &format!(" {} entries [{}]", entries.len(), summary.join(", ")),
         );
-        let idle_secs = crate::central_control_dragon_power::IDLE_THRESHOLD_SECS;
+        let idle_secs = crate::central_control_power_dragon::IDLE_THRESHOLD_SECS;
         // v50.0.0-beta.7 LTS audit: verbose MUST report the actual effective
         // snapback delay (user-set config value, not the constant). Before
         // this fix, `ambient-snapback-secs = 10` in config.toml produced a
         // dishonest "30.0s" line in verbose while the runtime used 10s —
         // owner found this while debugging crystal-dragon drift visibility.
         let effective_snapback = ambient_snapback_secs
-            .unwrap_or(crate::central_control_dragon_power::AUTO_SNAPBACK_DELAY_SECS);
+            .unwrap_or(crate::central_control_power_dragon::AUTO_SNAPBACK_DELAY_SECS);
         let snapback_src = if ambient_snapback_secs.is_some() {
             "from config"
         } else {
