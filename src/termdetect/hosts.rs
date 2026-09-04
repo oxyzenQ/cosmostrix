@@ -42,15 +42,25 @@ pub(super) const XTERMJS_HOSTS: &[&str] = &[
 /// Also expanded the list with Konsole, Windows Terminal, and corrected
 /// `Apple_Terminal` (the previous `apple_Terminal` lowercase form never
 /// matched real Terminal.app emissions).
+///
+/// S-master-HUNT-24: `foot` and `konsole` were REMOVED from this list.
+/// Both are CPU-rendered (foot: fast parser, but the paint pass is CPU;
+/// konsole: QPainter-based widget rendering). Classifying them
+/// high-perf gave the dynamic 144 FPS default — 2.4x the ANSI byte rate
+/// of the standard 60 FPS tier — which a CPU renderer cannot drain at
+/// fullscreen cell counts, reproducing the owner's foot congestion
+/// report. They now fall through to the standard tier (60 FPS default,
+/// VTE-class phosphor tuning) and are flagged `cpu_rendered`, which
+/// auto-disables cosmetic effects (see `CPU_RENDERER_*` detection and
+/// `TerminalCaps::cpu_rendered`). Their kitty-keyboard entries are
+/// untouched — protocol support is orthogonal to renderer class.
 pub(super) const HIGH_PERF_TERMINALS: &[&str] = &[
     "Alacritty",
     "kitty",
     "WezTerm",
     "ghostty",
-    "foot",
     "iTerm.app",
     "Apple_Terminal",
-    "konsole",
     "WindowsTerminal",
 ];
 
@@ -59,14 +69,27 @@ pub(super) const HIGH_PERF_TERMINALS: &[&str] = &[
 /// Matched case-insensitively as a SUBSTRING of TERM (e.g., `xterm-ghostty`
 /// contains `ghostty`). Conservative list — false positives here would
 /// push a slow terminal to 144 FPS, which it can't sustain.
-pub(super) const HIGH_PERF_TERM_HINTS: &[&str] = &[
-    "alacritty",
-    "kitty",
-    "ghostty",
-    "foot",
-    "wezterm",
-    "konsole",
-];
+///
+/// S-master-HUNT-24: `foot` and `konsole` removed (CPU-rendered —
+/// see HIGH_PERF_TERMINALS).
+pub(super) const HIGH_PERF_TERM_HINTS: &[&str] = &["alacritty", "kitty", "ghostty", "wezterm"];
+
+/// `TERM_PROGRAM` values that identify terminals whose renderer is
+/// CPU-only (no GPU compositing of the cell grid). S-master-HUNT-24:
+/// these terminals get cosmetic effects auto-disabled at startup
+/// (owner directive: pure-CPU terminals cannot sustain the effects'
+/// ANSI volume — the particle "snow ice" degradation and the
+/// congestion-stretched glitch animations reproduce exactly there).
+/// GPU+CPU hybrids (Alacritty, kitty, ghostty, WezTerm) keep effects.
+///
+/// Matched case-insensitively as an EXACT TERM_PROGRAM match.
+pub(super) const CPU_RENDERER_TERMINALS: &[&str] = &["foot", "konsole"];
+
+/// `TERM` substring hints for CPU-rendered terminals (layer 4 of
+/// cpu-rendered detection). Matched case-insensitively as a SUBSTRING
+/// of TERM (e.g., `foot-extra` contains `foot`, `vte-256color`
+/// contains `vte`).
+pub(super) const CPU_RENDERER_TERM_HINTS: &[&str] = &["foot", "vte", "gnome", "kgx", "konsole"];
 
 /// `TERM_PROGRAM` values that identify terminals known to support the
 /// kitty keyboard protocol (CSI-u progressive enhancement). When matched,

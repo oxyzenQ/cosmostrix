@@ -107,6 +107,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
 
     let mut last_user_input_at = Instant::now(); // auto-snapback driver
     let mut self_healer = PerformanceSelfHealer::new(); // P1+P2
+                                                        // S-master-HUNT-24: dynamic effects congestion gate (drain-backoff
+                                                        // watcher; the static half of the gate is baked into CloudConfig at
+                                                        // build_cloud_cfg time — see build_cloud_cfg.rs).
+    let mut effects_auto_gate = super::event_loop_post_draw::EffectsAutoGate::new();
 
     let mut charset_preset = cfg.charset_preset.clone();
     let mut scene_name = cfg.scene_name.clone();
@@ -760,6 +764,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         let work_s = post_draw.work_s;
         let overshoot = post_draw.overshoot;
         let utilization = post_draw.utilization;
+
+        // S-master-HUNT-24: dynamic effects congestion gate. Runs after
+        // observe_frame_end (so drain_backoff reflects THIS frame's write
+        // latency) and before the self-healer (which reads effective
+        // pressure, not the backoff). Sticky — once it fires, effects stay
+        // off for the session; brief spikes reset the sustain timer.
+        effects_auto_gate.observe(power_manager.drain_backoff(), loop_now, &mut cloud);
 
         // v50.0.0-beta.7 LOC refactor: P5 health sampling extracted to
         // event_loop_p5.rs.

@@ -183,17 +183,15 @@ is unaffected.
 
 ### Affected platforms
 
-- **Konsole** (KDE): all versions. VTE-based, CPU-rendered.
+- **Konsole** (KDE): all versions. CPU-rendered (QPainter-based KonsolePart).
 - **GNOME Terminal / kgx (GNOME Console)**: all versions. VTE-based,
   CPU-rendered.
 - **Other VTE-based terminals**: XFCE Terminal, Mate Terminal, etc.
-- **foot**: affected when fullscreen output exceeds its drain rate —
-  foot is classified high-perf (144 FPS default) and its parser is
-  fast, but it is still CPU-rendered; on large cell counts / compositor
-  load it can fall behind the attempted byte rate (HUNT-23; the old
-  "not affected" note was written before the owner reproduced on
-  foot). The drain backoff now paces the cadence to the drain rate
-  instead of flooding it.
+- **foot**: CPU-rendered (fast parser, but the paint pass is CPU).
+  HUNT-24 removed foot from the high-perf tier — the old 144 FPS
+  default was 2.4x the byte rate a CPU renderer can drain at
+  fullscreen; foot now defaults to 60 FPS with cosmetic effects
+  auto-disabled, same as the VTE family.
 - **Not affected**: Alacritty, kitty, WezTerm, ghostty (GPU-rendered
   or heavily optimized renderers that sustain the ANSI throughput).
 
@@ -211,7 +209,9 @@ prevents perfect stabilization under sustained fullscreen load.
 ### Workarounds
 
 1. **Use Alacritty** (or another GPU-accelerated terminal) for the best
-   performance. See `docs/TERMINAL_COMPATIBILITY.md` for the full list
+   performance — and for the cosmetic effects layer (particles, flash
+   waves, anomaly zones), which HUNT-24 auto-disables on CPU-rendered
+   terminals. See `docs/TERMINAL_COMPATIBILITY.md` for the full list
    of recommended terminals.
 2. **Run cosmostrix in a smaller window** (non-fullscreen) on VTE
    terminals. The lag only manifests at high cell counts (typically
@@ -219,12 +219,44 @@ prevents perfect stabilization under sustained fullscreen load.
 3. **For benchmarking or performance-critical use**, always use
    Alacritty. The `--benchmark` mode is terminal-independent (headless),
    but interactive fullscreen requires a fast terminal.
+4. **Cosmetic effects on a CPU-rendered terminal**: automatic since
+   HUNT-24 (no manual action needed) — the effects layer silences
+   itself at startup on VTE/konsole/foot/xterm.js/console-TTY. On a
+   terminal the env markers miss, the runtime congestion gate
+   (`--verbose` shows `[auto-fx]` diagnostics) disables them after 4s
+   of sustained output congestion. `--no-effects` remains the explicit
+   manual equivalent.
 
 ### Status
 
-**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23) — three
-layers.** HUNT-23 (round 3) is the systemic layer; the first two are
-summarized below and detailed in the CHANGELOG.
+**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24) —
+four layers, the last one strategic.** HUNT-23 (round 3) is the
+systemic output layer; HUNT-24 (round 4) is the terminal-class gate;
+the first three are summarized below and detailed in the CHANGELOG.
+
+*Layer 4 (HUNT-24): stop feeding the pipe — the effects auto-gate.*
+The owner's post-HUNT-23 report (foot + GNOME/kgx still reproducing
+snow-ice sparks, plus a new congestion-stretched "glitch rain"
+visual drift) plus an empirical PTY audit (the ANSI stream itself is
+cursor-consistent — zero wrap/width violations across 583 KB of
+congested output; the app's own screen content shows no horizontal
+drift) pinned the remaining reproductions on one fact: a pure-CPU
+renderer cannot drain the effects layer's ANSI volume at fullscreen
+cell counts, so every congestion symptom regenerates the moment the
+layer runs there — no matter how correct its clocks are. The fix is
+the owner's own directive: **cosmetic effects (particles, flash
+waves, anomaly zones, ghost events, hover glow, CRT vignette) are
+now auto-disabled on CPU-rendered and TTY terminals** — detected via
+`VTE_VERSION` (GNOME Terminal/kgx/Xfce/Mate), `KONSOLE_VERSION`,
+`TERM=foot`/`TERM_PROGRAM=foot`, xterm.js hosts, and `TERM=linux`/
+`TERM=dumb` (raw console). foot and konsole were also removed from
+the high-perf tier (they are CPU renderers, not 144 FPS terminals —
+that misclassification was the foot flood amplifier). A dynamic
+congestion gate disables effects mid-session (sticky, 4s sustained
+drain backoff) for CPU terminals the env markers cannot see. GPU
+terminals and unknown terminals keep effects; `--no-effects`
+remains the explicit manual equivalent. Rain-core visuals are
+untouched everywhere.
 
 *Layer 3 (HUNT-23): the output-side feedback loop.* The particle
 clock was real-time after HUNT-22, yet foot and GNOME/kgx still

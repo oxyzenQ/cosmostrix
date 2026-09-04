@@ -143,6 +143,18 @@ COMMON OPTIONS:
       Existing in-flight particles fade out naturally on the next
       update tick — no visual pop.
 
+      S-master-HUNT-24 AUTO-GATE: on CPU-rendered terminals (VTE
+      family — GNOME Terminal/kgx, konsole; foot; xterm.js hosts;
+      raw Linux console TTY) the effects layer is now disabled
+      AUTOMATICALLY at startup — a pure-CPU renderer cannot sustain
+      the effects' ANSI rate at fullscreen cell counts (the same
+      contract this flag expresses manually). GPU terminals
+      (Alacritty, kitty, ghostty, WezTerm) and unknown terminals
+      keep effects; unknowns are covered by a runtime gate that
+      disables effects after sustained output congestion (visible
+      in --verbose as [auto-fx] diagnostics). The AUTO-GATE note
+      below the bench note explains when the flag is redundant.
+
       Auto-enabled by --benchmark / --bench-all / --bench-frames:
       particles are input-driven (mouse clicks) and never spawn
       during a benchmark run, so the flag is redundant in bench mode.

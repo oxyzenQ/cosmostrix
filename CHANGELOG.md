@@ -9,6 +9,76 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### harmony: v100.0.0-nightly.1 — S-master-HUNT-24 effects auto-gate on CPU-rendered/TTY terminals + foot/konsole high-perf reclassification (VTE/foot stuck, round 4 — strategic)
+
+Owner bug report (2026-09-04, post-36f8620): after HUNT-23, foot and
+GNOME/kgx still reproduced the snow-ice spark degradation, and a new
+symptom appeared — "glitch rain" visibly drifting for a few seconds
+before settling. Owner directive: effects (particles, etc.) must
+auto-disable when a pure-CPU/TTY terminal is detected.
+
+- **Audit first**: an empirical PTY harness ran the release binary at
+  200x60 under hard congestion (34 KB/s drain) with sustained synthetic
+  clicking. The captured 583 KB ANSI stream is cursor-consistent (zero
+  wrap-pending violations, zero non-1-width runes in the rain loop) and
+  the app's own screen content shows no horizontal drift — the renderer
+  is not desyncing. The remaining reproductions are a LOAD problem:
+  the effects layer's ANSI volume, run into a CPU renderer that cannot
+  drain it.
+- **Root cause**: cosmetic effects ran on every terminal regardless of
+  renderer class. On pure-CPU terminals (VTE family, konsole, foot at
+  fullscreen) the interaction bursts stall the pipe faster than the
+  HUNT-23 drain backoff can react (0.05/unit rise), so frames stretch
+  past the 250 ms particle anti-teleport cap and the sparks decay in
+  giant steps ("snow ice") — and temporal effects (glitch spans, fill
+  animations) render at wildly varying frame intervals, reading as
+  glitch-drift. HUNT-21..23 fixed the clocks; the pipe was still being
+  overfed.
+- **Fix (strategy, per the owner's directive)**: cosmetic effects are
+  auto-disabled at startup on CPU-rendered and TTY terminals. New
+  `TerminalCaps` fields: `cpu_rendered` (detected via `VTE_VERSION`,
+  `KONSOLE_VERSION`, `TERM_PROGRAM`/`TERM` foot+konsole hints, xterm.js
+  hosts) and `console_tty` (`TERM=linux`/`dumb`), surfaced with an
+  `effects_gate_source` string in `-v` verbose output. The gate is
+  baked into `CloudConfig.effects_enabled` in build_cloud_cfg (so the
+  live-reload rebuild contract from HUNT-3 keeps it off), with a
+  `[auto-fx]` runtime diagnostic explaining the decision.
+- **foot + konsole removed from the high-perf tier**: both are
+  CPU-rendered; the 144 FPS dynamic default they received was 2.4x the
+  byte rate a CPU renderer drains at fullscreen — the amplifier behind
+  the owner's foot reproduction. They now take the standard 60 FPS
+  tier with VTE-class phosphor tuning. Kitty-keyboard support is
+  unchanged (protocol support is orthogonal to renderer class).
+- **Dynamic congestion gate (safety net)**: for CPU terminals the env
+  markers cannot see, the event loop watches `drain_backoff` (HUNT-23)
+  and disables effects after 4 s of sustained congestion — sticky for
+  the session (no flapping: a disable-enable loop would pulse the
+  effects layer on a ~30 s period). Threshold 0.20, timer reset on
+  clean frames; inert on `--no-effects` runs.
+- **Empirical verification (and a caught wiring bug)**: the PTY harness
+  re-ran on the patched binary with `VTE_VERSION` set — and caught the
+  gate's first draft ANDing the "effects must be OFF" predicate
+  directly into the enable expression (an inverted gate: effects stayed
+  ON exactly on CPU terminals; `--no-effects` masked it in every
+  unit test because it short-circuits the same expression). The
+  resolver is now a named, unit-tested seam
+  (`resolve_effects_enabled` — inversion-guard tests included). Final
+  matrix on the fixed binary, 200x60 under congestion with sustained
+  clicking: VTE env -> `effects_enabled=false`, zero particle glyphs
+  in the stream; foot TERM -> same via the TERM-substring layer;
+  Alacritty-like env -> effects on, click sparks present (1.7k
+  particle glyphs). The rain field renders normally in all three.
+- Tests: 15 new (6 termdetect gate detection, 5 static-gate
+  predicate/resolver — including the wiring-inversion guard, 4
+  dynamic-gate sustain/stickiness/boundary + 1 compile-time constant
+  contract moved to a `const _` block). Suite: 2224 passed / 0
+  failed / 2 ignored.
+  A/B benchmark (10 s, headless): noise-equivalent — the gate is
+  inert in bench mode by construction (effects are off there already).
+- Docs synced: KNOWN_ISSUES.md (four-layer status, affected-platforms
+  rewrite, workaround 4), --no-effects help (AUTO-GATE note), `-v`
+  verbose `effects_gate:` line, this entry.
+
 ### harmony: v100.0.0-nightly.1 — S-master-HUNT-23 output drain backoff + P2 mitigation congestion guard (VTE/foot stuck, round 3)
 
 Owner bug report (2026-09-04, post-d8d53a1): after HUNT-22 the

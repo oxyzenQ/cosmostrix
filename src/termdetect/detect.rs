@@ -3,20 +3,28 @@
 
 use crate::termdetect::ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 use crate::termdetect::hosts::{
-    HIGH_PERF_TERMINALS, HIGH_PERF_TERM_HINTS, KITTY_KEYBOARD_TERMINALS, KITTY_KEYBOARD_TERM_HINTS,
+    CPU_RENDERER_TERMINALS, CPU_RENDERER_TERM_HINTS, HIGH_PERF_TERMINALS, HIGH_PERF_TERM_HINTS,
+    KITTY_KEYBOARD_TERMINALS, KITTY_KEYBOARD_TERM_HINTS,
 };
 
 /// Returns the detection source if the terminal appears to be a
 /// high-performance emulator. Checks (in order, 5 layers):
 ///   1. TERM_PROGRAM (case-insensitive exact match)
-///   2. KONSOLE_VERSION env var (KDE Konsole doesn't set TERM_PROGRAM)
-///   3. WT_SESSION env var (Windows Terminal)
-///   4. TERM substring hints (e.g., `xterm-ghostty` contains `ghostty`)
-///   5. Linux ancestor process name via /proc walk (catches Alacritty
+///   2. WT_SESSION env var (Windows Terminal)
+///   3. TERM substring hints (e.g., `xterm-ghostty` contains `ghostty`)
+///   4. Linux ancestor process name via /proc walk (catches Alacritty
 ///      launched with TERM=xterm-direct — no TERM_PROGRAM, no hint in TERM)
 ///
 /// Returns Some(source_str) if matched, None if no layer matched.
 /// The source string is shown in `-v` verbose output for transparency.
+///
+/// S-master-HUNT-24: the KONSOLE_VERSION layer was REMOVED. Konsole is
+/// CPU-rendered (QPainter); its old high-perf classification gave the
+/// 144 FPS dynamic default, which konsole's renderer cannot drain at
+/// fullscreen cell counts. KONSOLE_VERSION now feeds
+/// `cpu_renderer_detection_source` instead (effects auto-disable +
+/// standard 60 FPS tier). The kitty-keyboard path still reads
+/// KONSOLE_VERSION — protocol support is orthogonal to renderer class.
 pub(super) fn high_perf_detection_source(term_program: &str, term: &str) -> Option<&'static str> {
     let tp_lower = term_program.to_ascii_lowercase();
     if !tp_lower.is_empty()
@@ -26,15 +34,11 @@ pub(super) fn high_perf_detection_source(term_program: &str, term: &str) -> Opti
     {
         return Some("TERM_PROGRAM");
     }
-    // KDE Konsole: doesn't set TERM_PROGRAM, but exports KONSOLE_VERSION.
-    if std::env::var("KONSOLE_VERSION").is_ok() {
-        return Some("KONSOLE_VERSION");
-    }
     // Windows Terminal: sets WT_SESSION (not TERM_PROGRAM).
     if std::env::var("WT_SESSION").is_ok() {
         return Some("WT_SESSION");
     }
-    // Layer 4: TERM substring hints (case-insensitive).
+    // Layer 3: TERM substring hints (case-insensitive).
     let term_lower = term.to_ascii_lowercase();
     if !term_lower.is_empty()
         && HIGH_PERF_TERM_HINTS
@@ -43,7 +47,7 @@ pub(super) fn high_perf_detection_source(term_program: &str, term: &str) -> Opti
     {
         return Some("TERM substring");
     }
-    // Layer 5: Linux /proc ancestor process name.
+    // Layer 4: Linux /proc ancestor process name.
     let ancestors = ancestor_process_names(10);
     if ancestor_matches_high_perf(&ancestors) {
         // Find the matching ancestor name for the source string.
@@ -60,6 +64,60 @@ pub(super) fn high_perf_detection_source(term_program: &str, term: &str) -> Opti
                 return Some("/proc ancestor");
             }
         }
+    }
+    None
+}
+
+/// Returns the detection source when the terminal is KNOWN to render its
+/// cell grid on the CPU (S-master-HUNT-24). Checked layers:
+///   1. VTE_VERSION env var — every libvte-based terminal (GNOME
+///      Terminal, kgx, Xfce/Mate/Terminology…) exports it.
+///   2. KONSOLE_VERSION env var — KDE Konsole (own renderer, CPU).
+///   3. TERM_PROGRAM (case-insensitive exact match: foot, konsole).
+///   4. TERM substring hints (foot, vte, gnome, kgx, konsole).
+///
+/// xterm.js hosts and the raw Linux console are handled by the caller
+/// (`TerminalCaps::cpu_rendered` in mod.rs) — they already carry their
+/// own detection booleans.
+///
+/// Terminals NOT matched here (Alacritty, kitty, ghostty, WezTerm —
+/// GPU composited) keep cosmetic effects enabled. Unknown/unmatched
+/// terminals also keep effects on; the event loop's dynamic congestion
+/// gate (event_loop_post_draw.rs) is the safety net that catches an
+/// undetected CPU renderer at runtime by watching the drain backoff.
+pub(super) fn cpu_renderer_detection_source(
+    term_program: &str,
+    term: &str,
+) -> Option<&'static str> {
+    // Layer 1: VTE family. GNOME Terminal / kgx do not set TERM_PROGRAM
+    // and use a generic TERM (xterm-256color) — VTE_VERSION is the only
+    // reliable env marker.
+    if std::env::var("VTE_VERSION").is_ok() {
+        return Some("VTE_VERSION");
+    }
+    // Layer 2: KDE Konsole exports KONSOLE_VERSION.
+    if std::env::var("KONSOLE_VERSION").is_ok() {
+        return Some("KONSOLE_VERSION");
+    }
+    // Layer 3: TERM_PROGRAM exact match (foot sets TERM_PROGRAM=foot
+    // in some launch modes).
+    let tp_lower = term_program.to_ascii_lowercase();
+    if !tp_lower.is_empty()
+        && CPU_RENDERER_TERMINALS
+            .iter()
+            .any(|&t| t.eq_ignore_ascii_case(&tp_lower))
+    {
+        return Some("TERM_PROGRAM");
+    }
+    // Layer 4: TERM substring hints (foot's terminfo is `foot` /
+    // `foot-extra`; some distros ship TERM=vte-256color / gnome / kgx).
+    let term_lower = term.to_ascii_lowercase();
+    if !term_lower.is_empty()
+        && CPU_RENDERER_TERM_HINTS
+            .iter()
+            .any(|&hint| term_lower.contains(hint))
+    {
+        return Some("TERM substring");
     }
     None
 }

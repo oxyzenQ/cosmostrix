@@ -52,13 +52,23 @@ fn ancestor_matches_high_perf_detects_terminal_names() {
     assert!(ancestor_matches_high_perf(&["alacritty".to_string()]));
     assert!(ancestor_matches_high_perf(&["kitty".to_string()]));
     assert!(ancestor_matches_high_perf(&["ghostty".to_string()]));
-    assert!(ancestor_matches_high_perf(&["foot".to_string()]));
     assert!(ancestor_matches_high_perf(&["wezterm".to_string()]));
-    assert!(ancestor_matches_high_perf(&["konsole".to_string()]));
 
     // Case-insensitive: "Alacritty" contains "alacritty"
     assert!(ancestor_matches_high_perf(&["Alacritty".to_string()]));
     assert!(ancestor_matches_high_perf(&["KITTY".to_string()]));
+
+    // S-master-HUNT-24: foot + konsole were REMOVED from the high-perf
+    // hint list (CPU-rendered). The ancestor walk must no longer promote
+    // them to the 144 FPS tier.
+    assert!(
+        !ancestor_matches_high_perf(&["foot".to_string()]),
+        "foot is CPU-rendered (HUNT-24): must not match high-perf ancestor hints"
+    );
+    assert!(
+        !ancestor_matches_high_perf(&["konsole".to_string()]),
+        "konsole is CPU-rendered (HUNT-24): must not match high-perf ancestor hints"
+    );
 }
 
 #[test]
@@ -186,18 +196,24 @@ fn dynamic_fps_source_records_term_program_layer() {
 }
 
 #[test]
-fn dynamic_fps_source_records_konsole_layer() {
+fn dynamic_fps_source_konsole_now_standard_tier() {
+    // S-master-HUNT-24: KONSOLE_VERSION no longer feeds the high-perf
+    // tier — konsole is CPU-rendered and lands on the standard 60 FPS
+    // fallback with the effects auto-gate armed via KONSOLE_VERSION.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
     env::set_var("TERM", "xterm-256color");
     env::remove_var("TERM_PROGRAM");
     env::set_var("KONSOLE_VERSION", "230400");
     env::remove_var("WT_SESSION");
+    env::remove_var("VTE_VERSION");
     let caps = detect();
     assert_eq!(
-        caps.dynamic_fps_source, "KONSOLE_VERSION",
-        "source must identify KONSOLE_VERSION as the matching layer"
+        caps.dynamic_fps_source, "standard/unknown fallback",
+        "konsole must fall through to the standard tier (HUNT-24)"
     );
+    assert!(caps.cpu_rendered);
+    assert_eq!(caps.effects_gate_source, "KONSOLE_VERSION");
 }
 
 #[test]

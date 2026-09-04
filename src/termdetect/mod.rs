@@ -6,9 +6,10 @@
 //! Organized into submodules:
 //! - [`hosts`] — terminal name constant tables
 //! - [`ancestor`] — Linux `/proc` ancestor process walk
-//! - [`detect`] — high-perf and kitty-keyboard detection logic
+//! - [`detect`] — high-perf, kitty-keyboard, and CPU-renderer detection logic
 //! - [`protocol`] — protocol constants (sync markers, FPS caps)
 //! - [`tests`] — full test suite
+//! - [`tests_hunt24`] — HUNT-24 effects-gate detection tests
 
 mod ancestor;
 mod detect;
@@ -20,6 +21,9 @@ mod tests;
 
 #[cfg(test)]
 mod tests_ancestor;
+
+#[cfg(test)]
+mod tests_hunt24;
 
 use std::env;
 // Re-export test-only items so tests.rs can find them via super::*.
@@ -41,7 +45,7 @@ pub(crate) use protocol::{known_xtermjs_hosts, RIS_RESET, VSCODE_FPS_CAP};
 pub(crate) use protocol::{SYNC_END, SYNC_START};
 
 // Items used by detect() below.
-use detect::{high_perf_detection_source, kitty_keyboard_supported};
+use detect::{cpu_renderer_detection_source, high_perf_detection_source, kitty_keyboard_supported};
 use hosts::XTERMJS_HOSTS;
 use protocol::{HIGH_PERF_DEFAULT_FPS, STANDARD_DEFAULT_FPS, XTERMJS_FPS_CAP};
 
@@ -208,6 +212,30 @@ pub(crate) struct TerminalCaps {
     /// Only affects terminal velocity (droplet fall speed) — spawn rate,
     /// density, and physics (gravity/turbulence) stay frame-rate-independent.
     pub speed_mult: f32,
+    /// S-master-HUNT-24: true when the terminal is KNOWN to render its
+    /// cell grid on the CPU — the VTE family (VTE_VERSION env), KDE
+    /// Konsole (KONSOLE_VERSION env), foot, xterm.js Electron hosts, or
+    /// the raw Linux console. Cosmetic effects (particles, flash waves,
+    /// anomaly zones, ghost events, hover glow, CRT vignette) are
+    /// auto-disabled at startup on these terminals (owner directive):
+    /// a CPU renderer cannot drain the effects' ANSI volume at
+    /// fullscreen cell counts, which was the sustained breeding ground
+    /// for the "snow ice" spark degradation and the congestion-stretched
+    /// glitch animations (HUNT-21..23 fixed the clocks; HUNT-24 stops
+    /// feeding the pipe). GPU-composited terminals (Alacritty, kitty,
+    /// ghostty, WezTerm) and unknown terminals keep effects — the
+    /// dynamic congestion gate in the event loop covers the unknowns.
+    pub cpu_rendered: bool,
+    /// S-master-HUNT-24: true on the raw Linux virtual console
+    /// (TERM=linux) or a `dumb` terminal. Implies `cpu_rendered`.
+    /// Effects are hard-disabled (same gate), and sync output is off.
+    pub console_tty: bool,
+    /// S-master-HUNT-24: human-readable source of the effects gate
+    /// decision — which detection layer matched ("VTE_VERSION",
+    /// "KONSOLE_VERSION", "TERM=foot", "xtermjs_host", "TERM=linux",
+    /// or "none — effects on"). Surfaced in `-v` verbose output so the
+    /// user can verify why effects were (not) auto-disabled.
+    pub effects_gate_source: &'static str,
 }
 
 /// Run detection from environment variables. Safe to call before any
@@ -306,6 +334,24 @@ pub(crate) fn detect() -> TerminalCaps {
         (1.3, 0.10, 1.3)
     };
 
+    // S-master-HUNT-24: raw console TTY + CPU-renderer detection for the
+    // effects auto-gate (owner directive: pure-CPU terminals must not run
+    // the cosmetic effects layer — they cannot drain its ANSI volume, and
+    // every stuck/snow-ice/glitch reproduction lives exactly there).
+    let console_tty = term.eq_ignore_ascii_case("linux") || term.eq_ignore_ascii_case("dumb");
+    let (cpu_rendered, effects_gate_source) = if console_tty {
+        // The kernel console (TERM=linux) or a dumb terminal: the
+        // slowest possible paint path plus (on the console) no truecolor
+        // support — effects are hard-off.
+        (true, "TERM=linux/dumb (console tty)")
+    } else if xtermjs_host {
+        (true, "xtermjs_host")
+    } else if let Some(source) = cpu_renderer_detection_source(&term_program, &term) {
+        (true, source)
+    } else {
+        (false, "none — effects on")
+    };
+
     TerminalCaps {
         sync_output: sync_ok,
         kitty_keyboard,
@@ -318,5 +364,8 @@ pub(crate) fn detect() -> TerminalCaps {
         phosphor_decay_mult,
         ghost_brightness_cap,
         speed_mult,
+        cpu_rendered,
+        console_tty,
+        effects_gate_source,
     }
 }

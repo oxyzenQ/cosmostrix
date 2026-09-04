@@ -98,6 +98,13 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         bench_mode,
         cli_explicit,
     } = inp;
+    // S-master-HUNT-24: the static CPU/TTY effects gate (owner directive:
+    // pure-CPU/TTY terminals must not run the cosmetic effects layer).
+    // Computed via the shared resolver (unit-tested against the exact
+    // wiring inversion this gate shipped with in its first draft: the
+    // `effects_auto_off_applicable` predicate answers "should effects be
+    // OFF", so it must be NEGATED into the enable expression).
+    let effects_enabled = resolve_effects_enabled(args.no_effects, bench_mode, term_caps);
     let cloud_cfg = CloudConfig {
         color_mode,
         shading_mode,
@@ -209,7 +216,28 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // the cleanest bench numbers. The bench CONFIG report's
         // `no_effects` field will automatically show `true` for any
         // bench mode (--benchmark, --bench-all, --bench-frames).
-        effects_enabled: !args.no_effects && !bench_mode,
+        //
+        // S-master-HUNT-24: the second half of the gate — CPU-rendered
+        // terminals (VTE family, konsole, foot, xterm.js hosts, raw
+        // console TTY) get effects auto-disabled at STARTUP (owner
+        // directive: "effects like particles etc. must auto-disable when
+        // a pure-CPU/TTY terminal is detected"). Three rounds of clock
+        // fixes (HUNT-21/22/23) proved the particle family's clocks and
+        // the output pacing were sound — the remaining reproductions on
+        // foot/GNOME/kgx all trace to one fact: a CPU renderer cannot
+        // drain the effects' ANSI volume at fullscreen cell counts, so
+        // every congestion symptom (snow-ice sparks, stretched glitch
+        // animations, stuck-then-dismiss) regenerates the moment the
+        // effects layer runs there. The gate is static here (known
+        // CPU-rendered) plus dynamic in the event loop (sustained drain
+        // backoff disables effects mid-session for undetected CPU
+        // terminals — see event_loop_post_draw.rs EffectsAutoGate).
+        // `--no-effects` still wins outright; GPU terminals and unknown
+        // terminals keep effects.
+        effects_enabled,
+        // ..and surface WHY when the auto-gate engaged (verbose channel;
+        // also lands in the post-exit diagnostics so the behavior is
+        // never mysterious).
         config_path_for_watcher: {
             // Termux fix: multi-candidate path resolution so the
             // watcher watches the file the user is ACTUALLY editing. On
@@ -276,5 +304,152 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         // as ambient-snapback-secs — the two knobs share one timeline.
         crystal_dragon_secs: args.crystal_dragon_secs,
     };
+
+    // S-master-HUNT-24: surface the auto effects gate decision on the
+    // verbose diagnostics channel — only when it actually changed the
+    // outcome (not --no-effects, not bench mode; those silence effects
+    // for different, already-documented reasons).
+    if !args.no_effects && !bench_mode && effects_auto_off_applicable(term_caps) {
+        crate::live_config::push_runtime_diag(&format!(
+            "[auto-fx] cosmetic effects auto-disabled: CPU-rendered terminal detected via {} (a pure-CPU renderer cannot sustain the effects' ANSI rate; rain-core visuals are unaffected)",
+            term_caps.effects_gate_source
+        ));
+    }
+
     cloud_cfg
+}
+
+/// S-master-HUNT-24: the static CPU/TTY effects gate predicate.
+///
+/// True = cosmetic effects must be auto-disabled for this terminal:
+/// `cpu_rendered` (VTE family / konsole / foot / xterm.js hosts) or
+/// `console_tty` (raw Linux console / dumb). Extracted as a named
+/// function so the gate is unit-testable without building a full
+/// `CfgInputs` (the struct literal above stays a pure field map).
+pub(crate) fn effects_auto_off_applicable(caps: &crate::termdetect::TerminalCaps) -> bool {
+    caps.cpu_rendered || caps.console_tty
+}
+
+/// S-master-HUNT-24: resolve the final `CloudConfig.effects_enabled`.
+///
+/// Precedence: `--no-effects` wins outright; bench mode forces effects
+/// off (particles never spawn there); otherwise the CPU/TTY auto-gate
+/// turns effects OFF when [`effects_auto_off_applicable`] says the
+/// terminal cannot sustain them.
+///
+/// NOTE the negation: `effects_auto_off_applicable` answers "should
+/// effects be OFF" — the first draft of this gate ANDed the predicate
+/// directly into the enable expression (inverting the gate: effects
+/// stayed ON exactly on CPU terminals), caught only by the empirical
+/// PTY harness. The resolver exists as one testable seam so the
+/// wiring can never drift again.
+pub(crate) fn resolve_effects_enabled(
+    no_effects: bool,
+    bench_mode: bool,
+    caps: &crate::termdetect::TerminalCaps,
+) -> bool {
+    !no_effects && !bench_mode && !effects_auto_off_applicable(caps)
+}
+
+#[cfg(test)]
+mod hunt24_effects_gate_tests {
+    //! S-master-HUNT-24: the static CPU/TTY effects gate predicate AND
+    //! the wiring resolver. The resolver tests are the inversion guard:
+    //! the first draft ANDed `effects_auto_off_applicable` (an
+    //! "effects must be OFF" predicate) directly into the enable
+    //! expression — effects stayed ON exactly on CPU terminals — and
+    //! only the empirical PTY harness caught it. These tests lock the
+    //! wiring semantics so a refactor can never re-invert it.
+
+    use crate::termdetect::TerminalCaps;
+
+    /// Minimal caps fixture with only the gate-relevant fields varied.
+    fn caps(cpu_rendered: bool, console_tty: bool) -> TerminalCaps {
+        TerminalCaps {
+            sync_output: true,
+            kitty_keyboard: false,
+            has_alternate_screen: true,
+            xtermjs_host: cpu_rendered,
+            vscode_integrated: false,
+            default_fps_cap: 240.0,
+            dynamic_default_fps: 60.0,
+            dynamic_fps_source: "test",
+            phosphor_decay_mult: 1.0,
+            ghost_brightness_cap: 0.0,
+            speed_mult: 1.0,
+            cpu_rendered,
+            console_tty,
+            effects_gate_source: "test",
+        }
+    }
+
+    #[test]
+    fn gate_off_on_gpu_and_unknown_terminals() {
+        // GPU-classified and unknown terminals keep effects — the
+        // dynamic congestion gate is their safety net, not a guess here.
+        assert!(!super::effects_auto_off_applicable(&caps(false, false)));
+    }
+
+    #[test]
+    fn gate_on_cpu_rendered_and_console_tty() {
+        // Known CPU renderers (VTE / konsole / foot / xterm.js) and the
+        // raw console TTY both silence effects at startup.
+        assert!(super::effects_auto_off_applicable(&caps(true, false)));
+        assert!(super::effects_auto_off_applicable(&caps(false, true)));
+        assert!(super::effects_auto_off_applicable(&caps(true, true)));
+    }
+
+    #[test]
+    fn resolver_keeps_effects_on_gpu_terminals() {
+        assert!(super::resolve_effects_enabled(
+            false,
+            false,
+            &caps(false, false)
+        ));
+    }
+
+    #[test]
+    fn resolver_disables_effects_on_cpu_terminals() {
+        // THE inversion guard: cpu_rendered / console_tty must produce
+        // effects_enabled == FALSE, not true.
+        assert!(
+            !super::resolve_effects_enabled(false, false, &caps(true, false)),
+            "cpu_rendered must DISABLE effects (wiring inversion guard)"
+        );
+        assert!(
+            !super::resolve_effects_enabled(false, false, &caps(false, true)),
+            "console_tty must DISABLE effects (wiring inversion guard)"
+        );
+        assert!(
+            !super::resolve_effects_enabled(false, false, &caps(true, true)),
+            "cpu_rendered + console_tty must DISABLE effects"
+        );
+    }
+
+    #[test]
+    fn resolver_no_effects_and_bench_win() {
+        // --no-effects wins on every terminal class (explicit user off).
+        assert!(!super::resolve_effects_enabled(
+            true,
+            false,
+            &caps(false, false)
+        ));
+        assert!(!super::resolve_effects_enabled(
+            true,
+            false,
+            &caps(true, false)
+        ));
+        // Bench mode forces effects off everywhere (particles never
+        // spawn there) — including GPU terminals.
+        assert!(!super::resolve_effects_enabled(
+            false,
+            true,
+            &caps(false, false)
+        ));
+        assert!(!super::resolve_effects_enabled(
+            false,
+            true,
+            &caps(true, false)
+        ));
+    }
 }

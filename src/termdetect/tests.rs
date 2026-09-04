@@ -29,6 +29,7 @@ pub(super) struct EnvGuard {
     prev_tp: Option<String>,
     prev_konsole_version: Option<String>,
     prev_wt_session: Option<String>,
+    prev_vte_version: Option<String>,
     prev_ancestor_inhibit: bool,
 }
 
@@ -44,6 +45,12 @@ impl EnvGuard {
             prev_tp: env::var("TERM_PROGRAM").ok(),
             prev_konsole_version: env::var("KONSOLE_VERSION").ok(),
             prev_wt_session: env::var("WT_SESSION").ok(),
+            // HUNT-24: VTE_VERSION drives the CPU-renderer effects gate —
+            // must be captured/restored so tests are hermetic AND so a
+            // real VTE_VERSION from the host terminal (when the test
+            // suite runs inside GNOME Terminal) cannot contaminate the
+            // high-perf / cpu-rendered assertions below.
+            prev_vte_version: env::var("VTE_VERSION").ok(),
             prev_ancestor_inhibit,
         }
     }
@@ -72,6 +79,10 @@ impl Drop for EnvGuard {
         match self.prev_wt_session.take() {
             Some(v) => env::set_var("WT_SESSION", v),
             None => env::remove_var("WT_SESSION"),
+        }
+        match self.prev_vte_version.take() {
+            Some(v) => env::set_var("VTE_VERSION", v),
+            None => env::remove_var("VTE_VERSION"),
         }
     }
 }
@@ -114,6 +125,9 @@ fn sync_output_disabled_for_linux_console() {
         phosphor_decay_mult: 1.0,
         ghost_brightness_cap: 0.0,
         speed_mult: 1.0,
+        cpu_rendered: true,
+        console_tty: true,
+        effects_gate_source: "test",
     };
     assert!(!caps.sync_output);
     assert!(
@@ -497,15 +511,16 @@ fn known_hosts_list_has_at_least_five_entries() {
 #[test]
 fn dynamic_default_fps_high_perf_terminal_gets_144() {
     let _guard = ENV_LOCK.lock().unwrap();
+    // HUNT-24: foot + konsole removed from the list — both are
+    // CPU-rendered and fall to the standard 60 FPS tier (their old 144
+    // FPS classification flooded fullscreen CPU pipes).
     for &term in &[
         "Alacritty",
         "kitty",
         "WezTerm",
         "ghostty",
-        "foot",
         "iTerm.app",
         "Apple_Terminal",
-        "konsole",
         "WindowsTerminal",
     ] {
         let _env = EnvGuard::capture();
@@ -515,6 +530,10 @@ fn dynamic_default_fps_high_perf_terminal_gets_144() {
         assert_eq!(
             caps.dynamic_default_fps, 144.0,
             "high-perf terminal {term} must default to 144 FPS"
+        );
+        assert!(
+            !caps.cpu_rendered,
+            "GPU-classified terminal {term} must keep cosmetic effects"
         );
     }
 }
@@ -526,7 +545,7 @@ fn dynamic_default_fps_case_insensitive_match_gets_144() {
     // to 60 FPS, which is the most likely cause of owner's "60 not 144"
     // report.
     let _guard = ENV_LOCK.lock().unwrap();
-    for &term in &["alacritty", "Kitty", "WEZTERM", "GHOSTTY", "FOOT"] {
+    for &term in &["alacritty", "Kitty", "WEZTERM", "GHOSTTY"] {
         let _env = EnvGuard::capture();
         env::set_var("TERM", "xterm-256color");
         env::set_var("TERM_PROGRAM", term);
@@ -543,8 +562,10 @@ fn dynamic_default_fps_term_substring_fallback_gets_144() {
     // hotfix: terminals that don't set TERM_PROGRAM but set a
     // distinctive TERM (e.g., `xterm-ghostty`, `alacritty`) must still
     // get the high-perf default via the TERM substring hint fallback.
+    // HUNT-24: `foot-extra` moved out — foot is CPU-rendered (60 FPS +
+    // effects auto-off, asserted in the HUNT-24 gate tests below).
     let _guard = ENV_LOCK.lock().unwrap();
-    for &term in &["xterm-ghostty", "alacritty", "xterm-kitty", "foot-extra"] {
+    for &term in &["xterm-ghostty", "alacritty", "xterm-kitty"] {
         let _env = EnvGuard::capture();
         env::set_var("TERM", term);
         env::remove_var("TERM_PROGRAM");
@@ -559,9 +580,13 @@ fn dynamic_default_fps_term_substring_fallback_gets_144() {
 }
 
 #[test]
-fn dynamic_default_fps_konsole_via_env_var_gets_144() {
+fn dynamic_default_fps_konsole_via_env_var_is_cpu_rendered_60() {
     // hotfix: KDE Konsole doesn't set TERM_PROGRAM; it exports
     // KONSOLE_VERSION. Detect via that env var.
+    // S-master-HUNT-24: the EXPECTATION FLIPPED — konsole is
+    // CPU-rendered (QPainter), so KONSOLE_VERSION now routes to the
+    // CPU-renderer effects gate (60 FPS tier + cosmetic effects off)
+    // instead of the 144 FPS high-perf tier.
     let _guard = ENV_LOCK.lock().unwrap();
     let _env = EnvGuard::capture();
     env::set_var("TERM", "xterm-256color");
@@ -569,9 +594,17 @@ fn dynamic_default_fps_konsole_via_env_var_gets_144() {
     env::set_var("KONSOLE_VERSION", "230400");
     let caps = detect();
     assert_eq!(
-        caps.dynamic_default_fps, 144.0,
-        "KDE Konsole (KONSOLE_VERSION set) must default to 144 FPS"
+        caps.dynamic_default_fps, 60.0,
+        "KDE Konsole (KONSOLE_VERSION set) is CPU-rendered: 60 FPS tier (HUNT-24)"
     );
+    assert!(
+        caps.cpu_rendered,
+        "KONSOLE_VERSION must flag cpu_rendered (effects auto-disable)"
+    );
+    assert_eq!(caps.effects_gate_source, "KONSOLE_VERSION");
+    // kitty keyboard support is orthogonal to renderer class — konsole
+    // still gets CSI-u modifier reporting.
+    assert!(caps.kitty_keyboard);
 }
 
 #[test]

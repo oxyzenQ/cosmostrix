@@ -492,6 +492,23 @@ pub(crate) fn print_verbose(ctx: &VerboseCtx) {
             caps.sync_output
         ),
     );
+    // S-master-HUNT-24: surface the effects auto-gate decision so the
+    // user can verify WHY effects are (not) disabled — the same
+    // [auto-fx] runtime diagnostic pushed at startup.
+    if caps.cpu_rendered || caps.console_tty {
+        output::eprintln_verbose(
+            "effects_gate:",
+            &format!(
+                " auto-disabled ({} — cosmetic effects off; rain-core visuals unaffected)",
+                caps.effects_gate_source
+            ),
+        );
+    } else {
+        output::eprintln_verbose(
+            "effects_gate:",
+            " on (no CPU-renderer/console marker detected; runtime congestion gate armed)",
+        );
+    }
 
     // ── Config ────────────────────────────────────────────────────
     eprintln!("{}", output::brand_bold("  ── Config ──"));

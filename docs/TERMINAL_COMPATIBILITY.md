@@ -43,15 +43,16 @@ mechanical: `scripts/check-symbol-only-output.sh` runs in
 
 | Terminal | Expected result | Notes |
 | --- | --- | --- |
-| Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. |
-| Konsole | Excellent | Truecolor is expected on modern Konsole. **Known issue:** `Super+C` (Windows-key + c) still cycles color — Konsole's kitty keyboard encoder does not set the `SUPER` bit. See [Known Issues](#known-issues) below. |
-| Kitty | Excellent | Truecolor and Unicode rendering are expected. |
-| Ghostty | Excellent | Truecolor and Unicode rendering are expected. |
-| GNOME Terminal | Good | Truecolor usually works through VTE-based detection. |
+| Alacritty | Excellent | Truecolor is expected. `color-bg = default-background` follows Alacritty's configured background and opacity. Full cosmetic effects (particles, flash waves) stay on — GPU renderer. |
+| Konsole | Good | Truecolor is expected on modern Konsole. CPU-rendered (QPainter): cosmetic effects auto-disabled (HUNT-24) and 60 FPS default tier. **Known issue:** `Super+C` (Windows-key + c) still cycles color — Konsole's kitty keyboard encoder does not set the `SUPER` bit. See [Known Issues](#known-issues) below. |
+| Kitty | Excellent | Truecolor and Unicode rendering are expected. Full cosmetic effects stay on — GPU renderer. |
+| Ghostty | Excellent | Truecolor and Unicode rendering are expected. Full cosmetic effects stay on — GPU renderer. |
+| foot | Good | CPU-rendered (fast parser, CPU paint): cosmetic effects auto-disabled and 60 FPS default (HUNT-24 — it was previously misclassified high-perf at 144 FPS, which flooded fullscreen pipes). Kitty keyboard protocol still enabled. |
+| GNOME Terminal | Good | Truecolor usually works through VTE-based detection. CPU-rendered (VTE): cosmetic effects auto-disabled (HUNT-24, detected via `VTE_VERSION`); rain-core visuals unaffected. |
 | Windows Terminal / PowerShell | Good | `--reset-terminal` is best-effort; user confirmation on Windows builds is still useful. |
 | tmux | Good with config | The outer terminal and tmux must both support RGB for truecolor. **Known issue:** `Super+C` (Windows-key + c) still cycles color inside tmux — tmux translates kitty protocol back to legacy escape sequences, dropping the `SUPER` bit. See [Known Issues](#known-issues) below. |
-| SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. |
-| Linux console / minimal TTY | Basic | Use `--color-mode 256` or `--charset zen` if colors or glyphs look wrong (zen is a single ASCII pipe — the `minimal` preset is the nabla glyph ∇, which the vt.c VGA font does not carry). Synchronized output (mode 2026) is disabled because vt.c does not understand it. **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
+| SSH | Depends on remote env | Forward `TERM`/`COLORTERM` carefully; remote font and locale also matter. If the remote side cannot see the terminal markers, the runtime congestion gate (HUNT-24) covers it: effects disable after 4s of sustained output congestion. |
+| Linux console / minimal TTY | Basic | Use `--color-mode 256` or `--charset zen` if colors or glyphs look wrong (zen is a single ASCII pipe — the `minimal` preset is the nabla glyph ∇, which the vt.c VGA font does not carry). Synchronized output (mode 2026) is disabled because vt.c does not understand it. Cosmetic effects hard-disabled (TTY, HUNT-24). **Known issue:** scrollback is not preserved on `q` quit — see [Known Issues](#known-issues) below. |
 | VSCode integrated terminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=vscode`. Tier 2 defenses apply (FPS cap 30, sync disabled, byte-budget backpressure, periodic RIS reset) but residual lag/stutter is unavoidable — see [Known Issues](#known-issues) below. Override with `--fps 15` for even lower throughput. See `docs/SECURITY_AUDIT.md` §12 for the full crash analysis. |
 | Hyper | Capped (degraded) | Auto-detected via `TERM_PROGRAM=Hyper`. Same Tier 2 defenses as VSCode (Hyper embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
 | WaveTerminal | Capped (degraded) | Auto-detected via `TERM_PROGRAM=WaveTerminal`. Same Tier 2 defenses as VSCode (WaveTerminal embeds xterm.js). Same residual lag/stutter — see [Known Issues](#known-issues) below. |
