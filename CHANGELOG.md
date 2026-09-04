@@ -9,6 +9,45 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### research: v100.0.0-nightly.1 — color space master research: OKLab confirmed peak, alternatives documented-and-rejected (NIGHT-research-3, owner hunt 2026-09-05)
+
+Owner question: "besides OKLab/chroma dragon, what other color science
+is the most valuable for cosmostrix peak? If already peak, skip and
+document why OKLab is the primary." Verdict: peak — no code change to
+the color engine; new docs/research/COLOR_SPACE_MASTER_RESEARCH.md
+locks the rationale with measured evidence:
+
+- Gamut mapping (the one candidate an external review rates "highest
+  value") measured instead of guessed: a Python replication of the
+  production gradient math (benchmark/research/oklab_gamut_probe.py,
+  same matrices, polar lerp, 9 steps) compares the shipped per-channel
+  clamp against a CSS-style chroma-reduction gamut map on the real
+  catalog stops. Blue/Ocean/Cosmos deviate at most 0.33° hue (invisible
+  under 8-bit quantization); Rainbow's 3.69° on 4/9 samples is baked
+  into the hand-approved look — swapping the clamp would re-shade a
+  locked theme. Revisit trigger documented: custom-palette users
+  reporting muddy midpoints on saturated opposing-hue stops.
+- Wide-gamut P3 corrected from "medium value" to not-actionable: SGR
+  38;2 is sRGB by spec and no escape sequence requests P3 for text
+  cells.
+- Alternatives table (CIELAB blue curvature in cosmostrix's
+  blue/cyan heartland, CIELUV, JzAzBz/ICtCp HDR-tuned, CAM16-UCS
+  viewing-condition dependence, HSL/HSV, Okhsl/Okhsv picker-only,
+  Oklch = already implemented as the polar path, linear sRGB for
+  additive-only) with concrete rejection reasons.
+- Round-trip exactness verified one-off exhaustively: a numpy f64
+  replication of the OKLab transform pair round-trips all 16,777,216
+  sRGB colors with max channel error 0 (the shipped f32 path is
+  grid-tested at <=1 LSB, the documented f32->u8 rounding floor).
+- The doc also records the architecture argument: perceptual science
+  at palette-build time, integer stop-index math on the hot path
+  (hue drift is an integer offset, Bayer 4x4 dither, palette-relative
+  floor) — the placement is the design win, already shipped.
+
+Docs + one benchmark/research probe script only; render loop
+untouched, no A/B benchmark applicable. Gates: gate-keepers 15/15
+locally, ruff clean on the new script, codespell clean.
+
 ### fix: v100.0.0-nightly.1 — six red CI checks repaired: shfmt canonical refresh, ruff findings, cross-target cfg warnings (CI repair, owner hunt 2026-09-05)
 
 All six failing checks on the 2026-09-04/05 pushes (Build windows /
