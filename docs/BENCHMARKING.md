@@ -65,6 +65,16 @@ Benchmark mode measures the **critical path only**: the rain simulation plus the
 
 The `cosmetics_skipped` CONFIG line lists the gated set, and `power_dragon` / `crystal_dragon` / `msg_mode` / `no_effects` disclose the effective config state (all four also appear in `--json` output). None of these keys change benchmark numbers — they exist so you can verify your config took effect.
 
+### Which color pipeline the benchmark measures (chroma dragon audit)
+
+The Chroma Dragon engine is **active during `--benchmark`** whenever the resolved color mode is truecolor: the benchmark renders every cell through the same `is_chroma()` branches the interactive loop uses (OKLab palette, climate post-FX, halos, perceptual blend). Only Crystal Dragon *palette drift* is forced off for p99 determinism — the engine itself never is. The report's CONFIG block answers the question without reading source:
+
+- `color_pipeline: chroma_dragon` — the Chroma Dragon engine colored this run.
+- `color_pipeline: legacy_rgb` — the terminal could not represent truecolor, so the legacy sRGB-linear path was measured (auto fallback: tty consoles, 256-color-only terminals, unknown/unset TERM).
+- `chroma_in_benchmark: chroma enabled (...)` — plain-text status line for the same fact.
+
+Truecolor resolves from `COLORTERM=truecolor/24bit`, `TERM` carrying `-direct`/`-truecolor`, or `TERM` naming a truecolor-native terminal (alacritty, xterm-kitty, xterm-ghostty, wezterm, foot, contour — NIGHT-research-1; covers SSH/`sudo` sessions where `COLORTERM` was stripped). Run `cosmostrix --doctor` to see which pipeline your environment resolves; `--color-mode 24` forces truecolor for A/B comparisons of the two pipelines on the same machine.
+
 ## Key Metrics
 
 | Metric | Unit | What it tells you |

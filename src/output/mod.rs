@@ -46,7 +46,7 @@
 //!
 //! | Capability | Detection | Output |
 //! |------------|-----------|--------|
-//! | TrueColor | COLORTERM=truecolor/24bit, TERM=-direct/-truecolor | `\x1b[38;2;R;G;Bm` (24-bit RGB) |
+//! | TrueColor | COLORTERM=truecolor/24bit, TERM=-direct/-truecolor, or TERM carries a truecolor-native name (alacritty/kitty/ghostty/wezterm/foot/contour — NIGHT-research-1) | `\x1b[38;2;R;G;Bm` (24-bit RGB) |
 //! | Color256 | TERM=*-256color | `\x1b[38;5;Nm` (closest xterm-256 palette index) |
 //! | Color16 | TERM is set but no truecolor/256 indicator | `\x1b[3Nm` (basic 16-color ANSI) |
 //! | Mono | NO_COLOR set, TERM=dumb, CLICOLOR=0, or piped | plain text, no escapes |
@@ -164,9 +164,11 @@ pub(crate) enum ColorCapability {
 
     /// 24-bit truecolor (16.7 million colors).
     ///
-    /// Used when COLORTERM=truecolor/24bit is set, or TERM contains
-    /// "-direct" or "-truecolor". This is the modern standard — supported
-    /// by every mainstream terminal since 2009-2010.
+    /// Used when COLORTERM=truecolor/24bit is set, TERM contains
+    /// "-direct" or "-truecolor", or TERM carries a truecolor-native
+    /// terminal name (NIGHT-research-1 — see
+    /// `termdetect::hosts::TRUECOLOR_TERM_HINTS`). This is the modern
+    /// standard — supported by every mainstream terminal since 2009-2010.
     TrueColor,
 }
 
@@ -178,9 +180,15 @@ pub(crate) enum ColorCapability {
 /// 3. stderr is not a TTY → Mono (unless `CLICOLOR_FORCE=1`)
 /// 4. `COLORTERM` contains "truecolor" or "24bit" → TrueColor
 /// 5. `TERM` contains "-direct" or "-truecolor" → TrueColor
-/// 6. `TERM` contains "256color" → Color256
-/// 7. `TERM=dumb` → Mono
-/// 8. Otherwise → Color16 (safe default for older terminals)
+/// 6. `TERM` carries a truecolor-native terminal name (alacritty,
+///    xterm-kitty, xterm-ghostty, wezterm, foot, contour — see
+///    `termdetect::hosts::TRUECOLOR_TERM_HINTS`) → TrueColor.
+///    NIGHT-research-1: keeps the branded UI colors in sync with the
+///    rain pipeline resolution (`cli::detect_color_mode_from_terms`)
+///    for COLORTERM-stripped SSH/sudo sessions.
+/// 7. `TERM` contains "256color" → Color256
+/// 8. `TERM=dumb` → Mono
+/// 9. Otherwise → Color16 (safe default for older terminals)
 #[must_use]
 pub(crate) fn detect_color_capability() -> ColorCapability {
     // NO_COLOR is the de-facto standard for disabling all colors.
@@ -213,6 +221,12 @@ pub(crate) fn detect_color_capability() -> ColorCapability {
         .unwrap_or_default()
         .to_ascii_lowercase();
     if term.contains("-direct") || term.contains("-truecolor") {
+        return ColorCapability::TrueColor;
+    }
+    // NIGHT-research-1: truecolor-native terminal names survive
+    // COLORTERM stripping (SSH/sudo) — mirror the rain pipeline's
+    // resolution so the UI branding and the rain agree.
+    if crate::termdetect::term_hints_truecolor(&term) {
         return ColorCapability::TrueColor;
     }
     if term.contains("256color") {

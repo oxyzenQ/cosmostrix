@@ -9,6 +9,58 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: v100.0.0-nightly.1 — chroma dragon survives COLORTERM-stripped sessions; truecolor-native TERM hints (NIGHT-research-1, owner hunt 2026-09-05)
+
+Owner question: "does the chroma dragon enter the benchmark when the
+user runs `cosmostrix --benchmark`, and is there an auto fallback to
+legacy when the OS/terminal cannot use it (tty, non-terminal,
+unsupported terminal, new unknown terminal)?"
+
+Answers, verified live on the debug binary:
+- YES, the chroma dragon is IN the benchmark: benchmark mode renders
+  every cell through the same `is_chroma()` branches the interactive
+  loop uses (droplet/draw.rs, rain_post.rs, phosphor.rs, ...); only
+  Crystal Dragon palette drift is forced off (p99 determinism). The
+  report's CONFIG block already discloses `color_pipeline:
+  chroma_dragon` + `chroma_in_benchmark`.
+- YES, the auto fallback works and stays conservative: tty
+  (`TERM=linux`), non-terminal (unset TERM), unknown terminals, and
+  256-color-only terminals all resolve `legacy_rgb` with a disclosed
+  disable_reason (locked by 12 new tests).
+
+THE GAP the hunt found (and fixed): sessions where `COLORTERM` is
+stripped in transit — SSH without `SendEnv COLORTERM` (the default),
+`sudo -s`, terminal versions that never set it — degraded
+truecolor-NATIVE terminals to Color16 -> legacy_rgb. `TERM=alacritty`,
+`xterm-kitty`, `xterm-ghostty`, `wezterm`, `foot`, `contour` (with no
+COLORTERM) all rendered the flat legacy look, losing OKLab gradients,
+climate post-FX, and halos — the inverse of the owner directive
+"chroma dragon first -> fallback legacy rgb/srgb".
+
+Fix: `termdetect::hosts::TRUECOLOR_TERM_HINTS` (case-insensitive TERM
+substring table, mirroring `HIGH_PERF_TERM_HINTS` semantics) wired into
+`cli::detect_color_mode_from_terms` (rain pipeline) and
+`output::detect_color_capability` (branding/UI colors) so both
+surfaces agree. Deliberately conservative entries only — terminals
+truecolor by construction; `xterm`/`screen`/`tmux`/`st`/`vte` (VTE and
+tmux >= 3.2 set COLORTERM themselves), Apple Terminal/iTerm2
+(TERM_PROGRAM-identified, TERM=xterm-256color), and `rio` (3-letter
+substring false-positive risk) are deliberately absent, so the
+conservative fallback for every non-identifiable terminal is
+untouched.
+
+Startup-only detection change — the steady-state render loop is
+untouched, so the A/B visual benchmark is not applicable (a
+COLORTERM-truecolor session resolves the identical pipeline before
+and after; verified noise-equivalent). Gates: fmt clean, clippy
+-D warnings clean, 2270/2270 unit tests (12 new NIGHT-research-1
+contracts in `test/engine/chroma_dragon_engine/tests/night_research1.rs`),
+build.sh check-all green, gate-keepers 10/10. Docs synced:
+TERMINAL_COMPATIBILITY.md (resolution chain + SSH section),
+BENCHMARKING.md (which color pipeline the benchmark measures),
+runtime.rs ColorPipeline detection-rule doc, output module
+capability tables.
+
 ### repo: v100.0.0-nightly.1 — gate scripts resynced onto the mirrored test/ tree (NIGHT-hunter-5, owner mandate 2026-09-05)
 
 The NIGHT-hunter-1 test relocation moved 138 .rs files (46 K LOC) from

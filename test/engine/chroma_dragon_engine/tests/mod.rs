@@ -13,3 +13,5 @@ mod color_detection;
 mod lock;
 #[cfg(test)]
 mod lock_inv13_19;
+#[cfg(test)]
+mod night_research1;

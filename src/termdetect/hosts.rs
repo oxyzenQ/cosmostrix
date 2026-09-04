@@ -29,6 +29,60 @@ pub(super) const XTERMJS_HOSTS: &[&str] = &[
     "WarpTerminal",
 ];
 
+/// `TERM` substring hints for terminals that are truecolor-native (24-bit
+/// color is built into the renderer, not a version-dependent feature) and
+/// ship a distinctive `TERM` value, but whose `COLORTERM` advertisement
+/// can be lost in transit: SSH without `SendEnv COLORTERM`, `sudo -s`,
+/// terminal versions that never set it, or a misconfigured multiplexer.
+/// When `TERM` contains one of these names, cosmostrix resolves
+/// `ColorMode::TrueColor` directly so the Chroma Dragon engine stays
+/// active (owner directive: "all color -> chroma dragon first ->
+/// fallback legacy rgb/srgb" — the fallback is for terminals that CANNOT
+/// represent truecolor, not for sessions whose env advertisement was
+/// stripped on the way in).
+///
+/// NIGHT-research-1 (2026-09-05): before this table, `TERM=alacritty`
+/// with no COLORTERM resolved to Color16 -> legacy_rgb even though
+/// Alacritty is truecolor by construction — an SSH session lost the
+/// entire chroma pipeline (OKLab gradients, climate post-FX, halos) and
+/// silently downgraded to the flat legacy look.
+///
+/// Conservative list — every entry is truecolor by construction:
+///   - alacritty: truecolor since first public release (2017)
+///   - kitty: truecolor native, TERM=xterm-kitty
+///   - ghostty: truecolor native, TERM=xterm-ghostty
+///   - wezterm: truecolor native, TERM=wezterm
+///   - foot: truecolor native, TERM=foot / foot-extra
+///   - contour: truecolor native, TERM=contour
+///
+/// Deliberately ABSENT (not verifiable via TERM, or unsafe as a
+/// substring):
+///   - `xterm`, `screen*`, `tmux*`, `st`, `gnome`/`vte`/`kgx`:
+///     256-color or version-dependent. VTE >= 0.44 and tmux >= 3.2
+///     (with RGB/Tc override) set `COLORTERM=truecolor` themselves —
+///     that advertisement remains the signal for them.
+///   - Apple Terminal.app / iTerm2: identified by `TERM_PROGRAM`;
+///     their `TERM` is plain `xterm-256color`, indistinguishable from
+///     real xterm here. iTerm2 sets COLORTERM anyway.
+///   - `rio`: 3-letter substring would false-positive inside unrelated
+///     TERM values; rio's default TERM is xterm-256color anyway.
+///
+/// Matched case-insensitively as a SUBSTRING of TERM, mirroring
+/// HIGH_PERF_TERM_HINTS (e.g. `xterm-kitty` contains `kitty`,
+/// `foot-extra` contains `foot`). Consumed by
+/// `cli::detect_color_mode_from_terms` (the rain pipeline resolution)
+/// and `output::detect_color_capability` (the branding/UI color
+/// resolution) so both surfaces agree on what "truecolor terminal"
+/// means.
+pub(crate) const TRUECOLOR_TERM_HINTS: &[&str] = &[
+    "alacritty",
+    "kitty",
+    "ghostty",
+    "wezterm",
+    "foot",
+    "contour",
+];
+
 /// `TERM_PROGRAM` values that identify high-performance terminal
 /// emulators capable of sustaining 144+ FPS without visual artifacts.
 /// These terminals have GPU-accelerated or highly optimized renderers

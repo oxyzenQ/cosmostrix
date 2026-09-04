@@ -109,6 +109,24 @@ pub fn default_to_ascii() -> bool {
 
 // --- Color mode detection ---
 
+/// Resolve the rain color mode from `COLORTERM` / `TERM`.
+///
+/// Detection chain (first match wins):
+/// 1. `COLORTERM` contains `truecolor`/`24bit` → TrueColor
+/// 2. `TERM` = `dumb` → Mono
+/// 3. `TERM` contains `-truecolor` or ends with `-direct` → TrueColor
+/// 4. `TERM` carries a truecolor-native terminal name (alacritty,
+///    xterm-kitty, xterm-ghostty, wezterm, foot, contour — see
+///    `termdetect::hosts::TRUECOLOR_TERM_HINTS`) → TrueColor.
+///    NIGHT-research-1: covers SSH/`sudo`/older-terminal sessions where
+///    `COLORTERM` was stripped in transit; the owner directive is
+///    "chroma dragon first -> fallback legacy rgb/srgb", so a
+///    truecolor-by-construction terminal must keep the Chroma Dragon
+///    engine active instead of silently degrading to legacy 16-color.
+/// 5. `TERM` contains `256color` → Color256
+/// 6. anything else (unknown/unset TERM, plain xterm, screen, st) →
+///    Color16 → `ColorPipeline::LegacyRgb` (the conservative auto
+///    fallback for terminals that cannot represent truecolor).
 #[must_use]
 pub(crate) fn detect_color_mode_from_terms(colorterm: &str, term: &str) -> ColorMode {
     let colorterm = colorterm.to_ascii_lowercase();
@@ -120,7 +138,10 @@ pub(crate) fn detect_color_mode_from_terms(colorterm: &str, term: &str) -> Color
     if term == "dumb" {
         return ColorMode::Mono;
     }
-    if term.contains("-truecolor") || term.ends_with("-direct") {
+    if term.contains("-truecolor")
+        || term.ends_with("-direct")
+        || crate::termdetect::term_hints_truecolor(&term)
+    {
         return ColorMode::TrueColor;
     }
     if term.contains("256color") {

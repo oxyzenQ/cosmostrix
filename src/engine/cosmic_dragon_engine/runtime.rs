@@ -25,6 +25,15 @@ pub enum ColorMode {
 /// - `ColorMode::TrueColor` -> `ChromaDragon`
 /// - `ColorMode::{Color256, Color16, Mono}` -> `LegacyRgb`
 ///
+/// TrueColor resolves when `COLORTERM` advertises truecolor/24bit, when
+/// `TERM` carries the `-direct`/`-truecolor` marker, or when `TERM`
+/// names a truecolor-native terminal (alacritty, xterm-kitty,
+/// xterm-ghostty, wezterm, foot, contour — NIGHT-research-1, see
+/// `termdetect::hosts::TRUECOLOR_TERM_HINTS`; covers SSH/sudo sessions
+/// where `COLORTERM` was stripped in transit). Everything else — plain
+/// xterm, screen, st, unknown or unset TERM, the raw Linux console,
+/// 256-color modes — falls back to `LegacyRgb` automatically.
+///
 /// The active pipeline is disclosed in `cosmostrix -v`,
 /// `cosmostrix --doctor`, and the benchmark CONFIG block so the user
 /// can verify which path is running.

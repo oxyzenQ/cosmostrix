@@ -44,6 +44,11 @@ pub(crate) use ancestor::{ancestor_matches_high_perf, ancestor_process_names};
 #[cfg(test)]
 pub(crate) use protocol::{known_xtermjs_hosts, RIS_RESET, VSCODE_FPS_CAP};
 
+// Re-export the NIGHT-research-1 truecolor TERM-hint table (and make it
+// reachable for the tests that iterate it). A pub(crate) `use` also
+// binds the name locally, so no separate private import is needed.
+pub(crate) use hosts::TRUECOLOR_TERM_HINTS;
+
 // Re-export protocol constants at crate level.
 pub(crate) use protocol::{SYNC_END, SYNC_START};
 
@@ -371,4 +376,29 @@ pub(crate) fn detect() -> TerminalCaps {
         console_tty,
         effects_gate_source,
     }
+}
+
+/// NIGHT-research-1: true when `term` contains the name of a terminal
+/// that is truecolor-native by construction (see
+/// `hosts::TRUECOLOR_TERM_HINTS` for the table and its rationale).
+///
+/// Purpose: recover the Chroma Dragon pipeline in sessions where the
+/// `COLORTERM=truecolor` advertisement was stripped in transit (SSH
+/// without `SendEnv COLORTERM`, `sudo -s`, terminal versions that never
+/// set it). The owner directive is "chroma dragon first -> fallback
+/// legacy rgb/srgb" — a truecolor-native terminal must not silently
+/// fall back to the legacy 16-color path just because the env var was
+/// lost on the way in.
+///
+/// Matching mirrors `HIGH_PERF_TERM_HINTS`: case-insensitive substring
+/// (`xterm-kitty` contains `kitty`, `foot-extra` contains `foot`).
+/// Unknown terminals still resolve to their conservative mode — this
+/// only upgrades terminals whose identity is itself the proof.
+///
+/// Call sites: `cli::detect_color_mode_from_terms` (rain pipeline) and
+/// `output::detect_color_capability` (branding/UI colors) so both
+/// surfaces agree on what "truecolor terminal" means.
+pub(crate) fn term_hints_truecolor(term: &str) -> bool {
+    let term = term.to_ascii_lowercase();
+    TRUECOLOR_TERM_HINTS.iter().any(|&hint| term.contains(hint))
 }

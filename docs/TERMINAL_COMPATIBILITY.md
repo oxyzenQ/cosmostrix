@@ -110,8 +110,30 @@ Run:
 cosmostrix --doctor
 ```
 
-If `TERM=xterm-256color` and `COLORTERM` is unset, 256-color output is expected.
-Set `COLORTERM=truecolor` only if your terminal really supports truecolor.
+The doctor (and `cosmostrix -v`) disclose the resolved color pipeline
+(`chroma_dragon` or `legacy_rgb`) and, when legacy is active, the reason.
+
+Color mode resolution chain (first match wins):
+
+1. `COLORTERM=truecolor` (or `24bit`) → 24-bit truecolor → chroma dragon.
+2. `TERM=dumb` → mono → legacy.
+3. `TERM` contains `-truecolor` or ends with `-direct` (e.g. `xterm-direct`)
+   → truecolor → chroma dragon.
+4. `TERM` names a truecolor-native terminal — `alacritty`, `xterm-kitty`,
+   `xterm-ghostty`, `wezterm`, `foot`, `contour` (case-insensitive substring;
+   NIGHT-research-1) → truecolor → chroma dragon. This covers SSH sessions
+   and `sudo -s` where `COLORTERM` is stripped in transit: those terminals
+   are truecolor by construction, so the chroma engine stays active
+   (owner directive: chroma dragon first → fallback legacy).
+5. `TERM` contains `256color` → 256-color → legacy sRGB fallback.
+6. Anything else — plain `xterm`, `screen`, `st`, unknown or unset `TERM`,
+   the raw Linux console — → 16-color → legacy fallback (conservative
+   default; a terminal cosmostrix cannot identify is never assumed
+   truecolor).
+
+If `TERM=xterm-256color` and `COLORTERM` is unset, 256-color output is
+expected. Set `COLORTERM=truecolor` only if your terminal really supports
+truecolor, or use `--color-mode 24` to force it for a session.
 
 Inside tmux or screen, the outer terminal and multiplexer config must both
 support RGB. If in doubt, compare outside tmux first.
@@ -157,7 +179,13 @@ also supports truecolor.
 ### SSH Or Headless Usage
 
 For SSH, make sure remote `TERM`, `COLORTERM`, locale, and font expectations
-match the local terminal. For headless environments, prefer:
+match the local terminal. When the remote side cannot see `COLORTERM` (the
+default unless `SendEnv COLORTERM` / `AcceptEnv COLORTERM` is configured),
+cosmostrix still resolves truecolor from a truecolor-native remote `TERM`
+(`alacritty`, `xterm-kitty`, `xterm-ghostty`, `wezterm`, `foot`, `contour`
+— NIGHT-research-1), so the chroma dragon pipeline survives the hop. For
+every other TERM, forward `COLORTERM` or pass `--color-mode 24` once. For
+headless environments, prefer:
 
 ```bash
 cosmostrix --benchmark
