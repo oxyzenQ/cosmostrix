@@ -185,6 +185,8 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Mouse reporting blocks text selection.** crossterm enables mouse reporting for glow/click effects, which prevents terminal text selection. This is always-on (not toggleable) because the mouse effects are a core visual feature.
 - **xterm.js hosts are capped at 30 FPS.** VSCode, web terminals, and other xterm.js-based hosts are auto-detected and capped to prevent multi-hour OOM crashes. This cap cannot be overridden — it is a safety gate, not a configurability gap.
 - **No prebuilt binary for Intel Mac.** Prebuilt releases cover `windows-x86_64`, `windows-arm64`, and `darwin-aarch64-native`. Intel Mac users must build from source.
+- **Interactive mode is not pipe-friendly.** The rain renders raw ANSI frames to stdout at full frame rate. Piping it (`cosmostrix | grep x`) or redirecting it (`cosmostrix > file`) produces megabytes of escape-sequence frame data with no line breaks until the periodic stdout-health probe ends the run (a stderr warning at frame zero names the correct tool). Never `cat` such a dump file into a live terminal. For pipelines and capture use `--benchmark` (plain text); for text reports use `--doctor`, `--dump-config`, or `--docs`. See [`docs/USAGE_PIPE_REDIRECT.md`](docs/USAGE_PIPE_REDIRECT.md) for the full fatal-usage catalog.
+
 - **Screen size limits.** `--screen-size WxH` clamps to a per-mode ceiling:
   - **Interactive mode**: `4×4` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
   - **Benchmark mode**: `4×4` minimum, `7680×4320` (8K UHD) maximum. 4K UHD is the recommended stress test; 8K is the ceiling.

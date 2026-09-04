@@ -362,6 +362,37 @@ terminals) remains a known limitation — the fix addresses the particle
 
 ---
 
+## All platforms: redirecting interactive output produces an ANSI frame dump
+
+### Symptom
+
+Running `cosmostrix > file` (or `nohup cosmostrix &`, which redirects
+stdout to `nohup.out`) writes megabytes of raw ANSI escape-sequence
+frames into the file: no line terminators, one giant "line", full
+escape-sequence soup. The run burns a CPU core for roughly 30-40 s
+(until the periodic stdout-health probe ends it gracefully) and the
+user sees no rain — the frames went to the file.
+
+### Hazard
+
+The dump file is dangerous to inspect casually: `cat`-ing it into a
+live terminal replays RIS/DECSET sequences, cursor addressing, and
+alternate-screen toggles, which can clear the screen, resize the
+viewport, or recolor the session. If you must inspect a dump, use
+`less -R` on a copy, or simply delete it.
+
+### Workaround
+
+Do not pipe or redirect the interactive mode. Use `--benchmark` for
+pipeline-friendly plain-text measurement, `--doctor` / `--dump-config`
+/ `--docs` for text reports, or `-v 2> verbose.log` to capture verbose
+stderr while watching the rain. A stderr warning at frame zero names
+these alternatives whenever interactive mode starts with a non-tty
+stdout. Full catalog: `docs/USAGE_PIPE_REDIRECT.md`
+(NIGHT-hunter-6, 2026-09-05).
+
+---
+
 ## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue

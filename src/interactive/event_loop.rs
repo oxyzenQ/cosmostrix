@@ -29,6 +29,16 @@ use super::input::{
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
+    // NIGHT-hunter-6 (owner hunt 2026-09-05): warn at frame zero when
+    // stdout is piped or redirected — BEFORE the alternate screen is
+    // entered and before set_interactive_session_active() (below)
+    // starts buffering runtime warnings to post-exit (AB-10). Until the
+    // P5 stdout-health probe synthesizes the graceful exit (3600 frames
+    // in), a piped stdout receives raw ANSI frames; this warning
+    // teaches --benchmark / the text modes instead. See
+    // docs/USAGE_PIPE_REDIRECT.md for the full fatal-usage catalog.
+    super::watchdog::warn_if_stdout_not_terminal();
+
     // v80.0.0-beta.1 killer-features hardening: mark the interactive session (alt
     // screen) as active BEFORE any config-block helper can fire a warning —
     // intro sequence + scene changes + live reload all resolve custom

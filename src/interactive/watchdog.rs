@@ -196,8 +196,59 @@ pub(super) fn spawn_watchdog() {
 /// Note: this is intentionally a free function (not a method on
 /// `Terminal`) so the watchdog thread can call it without holding a
 /// reference to the `Terminal` struct (which lives on the main thread).
+/// NIGHT-hunter-6 (owner hunt 2026-09-05): warning text shown at frame
+/// zero when interactive mode starts with stdout piped or redirected.
+/// Pure ASCII (symbol-only output rule). Teaches the correct tool for
+/// each intent instead of letting the user discover the frame dump
+/// empirically.
+pub(crate) const STDOUT_NOT_TTY_WARNING: &str = "stdout is not a terminal (piped or redirected); interactive rain writes raw ANSI frames to stdout, so the pipe or file receives unbounded frame data until the periodic stdout-health probe exits the run. Use --benchmark for measurement pipelines, or --doctor/--dump-config/--docs for text output. See docs/USAGE_PIPE_REDIRECT.md";
+
+/// NIGHT-hunter-6: fire-and-forget startup warning when stdout is not a
+/// TTY. Called at the very top of `run_interactive` — BEFORE the
+/// alternate screen is entered and BEFORE
+/// `live_config::set_interactive_session_active()` starts buffering
+/// runtime warnings to post-exit (AB-10) — so the stderr line reaches
+/// the user immediately.
+///
+/// Why warn instead of refuse: the lifecycle contract
+/// (docs/TERMINAL_LIFECYCLE_MATRIX.md section 12) deliberately allows a
+/// controlling-terminal session with piped stdout — the rain renders
+/// through the pipe (`cosmostrix | less` renders inside the pager), and
+/// a broken pipe after the reader quits is recovered via /dev/tty
+/// (P3). The gap was pedagogy, not safety: until the P5 stdout-health
+/// probe synthesizes the graceful exit after
+/// `FD_HEALTH_PROBE_INTERVAL_FRAMES` (3600) frames — roughly 30-40 s
+/// at typical frame rates — the process burns a full CPU core writing
+/// escape-sequence frames with no line breaks into a pipe or file. A
+/// warning at frame zero converts that into a taught moment without
+/// breaking the documented matrix.
+pub(crate) fn warn_if_stdout_not_terminal() {
+    if !stdout_is_terminal() {
+        crate::output::eprintln_warn_labeled(STDOUT_NOT_TTY_WARNING);
+    }
+}
+
 #[inline]
 fn stdout_is_terminal() -> bool {
     use std::io::IsTerminal;
     std::io::stdout().is_terminal()
+}
+
+#[cfg(test)]
+mod night_hunter_6_tests {
+    use super::*;
+
+    /// NIGHT-hunter-6: the warning must teach both escape hatches
+    /// (benchmark for pipelines, text modes for reports) and point at
+    /// the fatal-usage catalog doc.
+    #[test]
+    fn stdout_not_tty_warning_is_actionable() {
+        assert!(STDOUT_NOT_TTY_WARNING.contains("--benchmark"));
+        assert!(STDOUT_NOT_TTY_WARNING.contains("--dump-config"));
+        assert!(STDOUT_NOT_TTY_WARNING.contains("--doctor"));
+        assert!(STDOUT_NOT_TTY_WARNING.contains("docs/USAGE_PIPE_REDIRECT.md"));
+        // Symbol-only output rule: pure ASCII in anything the binary
+        // prints.
+        assert!(STDOUT_NOT_TTY_WARNING.is_ascii());
+    }
 }

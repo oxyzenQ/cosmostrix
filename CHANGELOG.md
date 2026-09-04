@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs+ux: v100.0.0-nightly.1 — fatal pipe/redirect usage cataloged, frame-zero non-tty stdout warning (NIGHT-hunter-6, owner hunt 2026-09-05)
+
+Owner report (verbatim transcript): `cosmostrix | less`,
+`cosmostrix | grep test`, and `cosmostrix > test_fatal.txt` all ended
+with "[terminal] stdout write failed (broken pipe) — recovered via
+/dev/tty, exiting gracefully", the redirect ran 29 s, and the target
+file came out as "UTF-8 text, with very long lines (65278), with no
+line terminators, with escape sequences" ("dont cat/read that file").
+Root cause of the 29 s mystery: the P5 stdout-health probe
+(`probe_stdout_health`) only fires every
+`FD_HEALTH_PROBE_INTERVAL_FRAMES` = 3600 frames, so a redirected run
+dumps full-speed raw ANSI frames into the file for ~30-40 s before the
+isatty check synthesizes the broken pipe that ends it — the pipe cases
+exit earlier only because the reader dies and the P3 EPIPE recovery
+fires. The behavior itself is the documented lifecycle contract (a
+ctty session with piped stdout still starts; P3 recovers a dead
+reader); the gap was that nothing TAUGHT the user, at the moment of
+misuse, what the correct tool is.
+
+Fix (docs + one surgical warning, no behavior change to the matrix):
+- New `docs/USAGE_PIPE_REDIRECT.md` — the fatal-usage catalog: all
+  three owner scenarios root-caused (P3/P5 mechanisms), the `cat`-the-
+  dump-file hazard (RIS/DECSET replay can clear/resize/recolor the
+  live terminal), the additional fatal variants found in the hunt
+  (`| tee log` double-garbage, `nohup cosmostrix &` silently becoming
+  the file-dump case, `setsid`/headless ENXIO fast-fail as the
+  handled-by-design contrast), the safe patterns (`--benchmark` for
+  pipelines, `--doctor`/`--dump-config`/`--docs` for text,
+  `-v 2> file` while watching), and an exit-code table.
+- `run_interactive` now warns at frame zero when stdout is not a tty
+  (`watchdog::warn_if_stdout_not_terminal`): one branded stderr line
+  naming the correct tool per intent and pointing at the catalog doc.
+  Placed BEFORE the alternate screen is entered and before the AB-10
+  runtime-warning buffering engages, so it reaches the user
+  immediately. Warn-don't-refuse on purpose — refusing would break the
+  documented matrix row where `| less` renders the rain through the
+  pager.
+- `TERMINAL_LIFECYCLE_MATRIX.md`: new row 15 + section 15 (ctty +
+  piped/redirected stdout), section 12's piped-stdout paragraph
+  refreshed to point at the full contract.
+- README Limitations: "Interactive mode is not pipe-friendly" bullet;
+  KNOWN_ISSUES.md: redirect-dump section (symptom/hazard/workaround).
+
+Verified live on a PTY (`script`): the frame-zero warning appears on
+stderr in both the `> file` and `| head -c` reproductions; the
+redirect dump reproduces the owner's exact `file(1)` signature
+("very long lines, no line terminators, with escape sequences").
+Hunt bonus found while verifying: reader death lands in one of two
+panic-free layers — mid-loop EPIPE hits the P3 recovery (exit 0,
+owner transcript), while a reader that dies during setup/intro
+propagates one branded `error: Broken pipe (os error 32)` (exit 1);
+the catalog documents both. Gates: fmt clean, clippy -D warnings
+clean, 2256/2256 unit tests (1 new: warning actionability + ASCII
+contract), build.sh check-all green, gate-keepers 10/10. Steady-state
+render path untouched (one isatty call + one stderr write, both before
+frame 1), so the 10 s A/B visual benchmark is not applicable.
+
 ### robustness: v100.0.0-nightly.1 — --check-update survives curl-less systems via wget fallback (NIGHT-hunter-7, owner hunt 2026-09-05)
 
 Owner suspicion: "what if the OS doesn't have curl?" — verified and

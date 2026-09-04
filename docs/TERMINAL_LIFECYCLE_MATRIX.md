@@ -25,6 +25,7 @@ non-destructive behavior.
 | 12 | headless / non-TTY (no controlling terminal) | No terminal state set up — plain interactive run fails fast: cleanup burst, then one branded `error: os error 6` (ENXIO) render with a headless tip pointing at `--benchmark` / `--doctor` / `--dump-config`, exit 1 (v100.0.0-nightly.1: the second raw Rust Debug `Error: Os { ... }` render was removed); `--benchmark` / `--doctor` run cleanly (exit 0) | N/A | N/A | N/A | N/A | No | No |
 | 13 | Benchmark mode (`--benchmark`) | Full via `Terminal::drop()` (same as normal exit) | No | No | Yes | Yes | No | No |
 | 14 | Doctor mode (`--doctor`) | No terminal mode changes — no cleanup needed | N/A | N/A | N/A | N/A | No | No |
+| 15 | ctty present, stdout piped/redirected (`\| less`, `\| grep`, `> file`) | Interactive run starts and renders raw ANSI frames to the pipe/file; v100.0.0-nightly.1 (NIGHT-hunter-6) prints a branded stderr warning at frame zero naming `--benchmark` / `--doctor` / `--dump-config` / `--docs`; the run ends via the P3 EPIPE recovery when the reader dies (exit 0) or via the P5 isatty probe after `FD_HEALTH_PROBE_INTERVAL_FRAMES` (3600) frames — about 30-40 s (exit 0). See `docs/USAGE_PIPE_REDIRECT.md` | No (frames went to the pipe/file) | No | Yes (P3 recovery path runs `restore_terminal_best_effort`) | Yes | Yes (owner transcript 2026-09-04; warning added 2026-09-05) | No |
 
 ## Detailed Path Descriptions
 
@@ -204,8 +205,10 @@ with an explicit exit(1) after the warning drain. Verified live
 `--benchmark` and `--doctor` are the supported headless paths: they
 run to completion and exit 0 without any alternate screen, raw mode,
 or mouse capture. When a controlling terminal exists but stdout is
-piped, interactive mode still initializes terminal state through
-`/dev/tty`, so use `--benchmark` for measurement pipelines.
+piped or redirected, interactive mode still starts and renders frames
+to stdout — see section 15 and `docs/USAGE_PIPE_REDIRECT.md` for the
+full contract (frame-zero warning, P3/P5 exit paths); use
+`--benchmark` for measurement pipelines.
 
 ### 13. Benchmark Mode (`--benchmark`)
 
@@ -221,6 +224,37 @@ to stdout and is captured by the calling process.
 Doctor mode prints diagnostic information and exits without entering the
 render loop. It does not enter alternate screen mode, does not set raw
 mode, and does not modify terminal state. No cleanup is needed.
+
+### 15. Controlling Terminal with Piped/Redirected stdout
+
+v100.0.0-nightly.1 (NIGHT-hunter-6, owner hunt 2026-09-05). When a
+controlling terminal exists but stdout is a pipe or a file
+(`cosmostrix | less`, `cosmostrix | grep x`, `cosmostrix > file`,
+`nohup cosmostrix &`), the interactive run still starts: terminal state
+initializes through the controlling tty, and the renderer writes raw
+ANSI frames to stdout — wherever it points. Two mechanisms bound the
+run, both pre-existing:
+
+- **P3 reactive recovery**: when the downstream reader dies (pager
+  quit, Ctrl-C killing the reader first), the next frame write fails
+  with EPIPE; the recovery routes the pending buffer through
+  `/dev/tty`, requests graceful shutdown, prints the stderr notice,
+  and the process exits 0 through the normal cleanup path.
+- **P5 proactive probe**: every `FD_HEALTH_PROBE_INTERVAL_FRAMES`
+  (3600) frames the loop calls `isatty(stdout)`; a non-tty stdout
+  synthesizes a BrokenPipe and reuses the P3 recovery — this is what
+  ends a `> file` run after roughly 30-40 s (owner transcript: 29 s).
+
+What NIGHT-hunter-6 added is the frame-zero warning: `run_interactive`
+checks `isatty(stdout)` before entering the alternate screen and, when
+stdout is not a terminal, prints a branded stderr warning naming the
+correct tool for each intent (`--benchmark` for measurement pipelines,
+`--doctor` / `--dump-config` / `--docs` for text) and pointing at
+`docs/USAGE_PIPE_REDIRECT.md`, the fatal-usage catalog (frame-dump
+hazard of `cat`-ing the redirect target, `tee`/`nohup` variants, safe
+alternatives, exit-code table). The warning is printed before the
+AB-10 runtime-warning buffering engages, so it reaches the user
+immediately.
 
 ## Honesty Notes
 
