@@ -17,28 +17,28 @@ RESULTS=()
 
 # Helper: run a case, check no crash + optional expected pattern.
 run_case() {
-	local label="$1"
-	local expected="${2:-}"
-	shift 2
-	if [ "${1:-}" = "--" ]; then
-		shift
-	fi
-	local output
-	output=$("$BIN" "$@" 2>&1 || true)
-	if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
-		FAIL=$((FAIL + 1))
-		RESULTS+=("FAIL: $label (CRASH)")
-		BUGS+=("$label: CRASH/panic detected")
-		return
-	fi
-	if [ -z "$expected" ] || echo "$output" | grep -qE "$expected"; then
-		PASS=$((PASS + 1))
-		RESULTS+=("PASS: $label")
-	else
-		FAIL=$((FAIL + 1))
-		RESULTS+=("FAIL: $label (expected: '$expected')")
-		BUGS+=("$label: expected '$expected' not found")
-	fi
+        local label="$1"
+        local expected="${2:-}"
+        shift 2
+        if [ "${1:-}" = "--" ]; then
+                shift
+        fi
+        local output
+        output=$("$BIN" "$@" 2>&1 || true)
+        if echo "$output" | grep -qiE "panicked|SIGSEGV|core dumped|abort"; then
+                FAIL=$((FAIL + 1))
+                RESULTS+=("FAIL: $label (CRASH)")
+                BUGS+=("$label: CRASH/panic detected")
+                return
+        fi
+        if [ -z "$expected" ] || echo "$output" | grep -qE "$expected"; then
+                PASS=$((PASS + 1))
+                RESULTS+=("PASS: $label")
+        else
+                FAIL=$((FAIL + 1))
+                RESULTS+=("FAIL: $label (expected: '$expected')")
+                BUGS+=("$label: expected '$expected' not found")
+        fi
 }
 
 echo "=== Z-master-1T Depth Stresstest: Killer Features (custom) ==="
@@ -191,65 +191,88 @@ run_case "nonexistent charset name" "error|not found|unknown" -- --config "$TMPD
 # ── scene-custom stresstest ─────────────────────────────────────────────
 echo "── scene-custom ──"
 
-# Valid scene-custom
+# Valid scene-custom (v80.0.0-beta.2 schema: complete six-dimension
+# self-contained profile — no base-scene inheritance; always glyph rain).
 cat >"$TMPDIR_TEST/valid_scene.toml" <<'EOF'
 [scene-custom.test]
-base-scene = "cinematic"
 color = "neon-green"
+charset = "matrix"
+fps = 60
 speed = 15
+density = 0.75
+glitch-level = "subtle"
 EOF
 run_case "valid scene-custom" "benchmark" -- --config "$TMPDIR_TEST/valid_scene.toml" --scene-custom test --benchmark --bench-duration 1s
 
-# Missing base-scene (should use defaults or error)
+# Incomplete block (missing 4 of 6 dimensions) — hard error since
+# v80.0.0-beta.2: incomplete blocks are rejected with the exact
+# missing-dimension list.
 cat >"$TMPDIR_TEST/no_base.toml" <<'EOF'
 [scene-custom.test]
 color = "neon-green"
 speed = 15
 EOF
-run_case "missing base-scene" "" -- --config "$TMPDIR_TEST/no_base.toml" --scene-custom test --benchmark --bench-duration 1s
+run_case "incomplete scene-custom (missing dimensions) → error" "error|incomplete" -- --config "$TMPDIR_TEST/no_base.toml" --scene-custom test --benchmark --bench-duration 1s
 
-# Unknown base-scene name
+# Removed field (base-scene, deleted in v80.0.0-beta.2) — strict
+# reject with the targeted removal hint.
 cat >"$TMPDIR_TEST/bad_base.toml" <<'EOF'
 [scene-custom.test]
 base-scene = "nonexistent_scene"
 color = "neon-green"
 EOF
-run_case "unknown base-scene" "error|unknown" -- --config "$TMPDIR_TEST/bad_base.toml" --scene-custom test --benchmark --bench-duration 1s
+run_case "removed base-scene field → strict reject with hint" "error|removed" -- --config "$TMPDIR_TEST/bad_base.toml" --scene-custom test --benchmark --bench-duration 1s
 
 # Empty scene-custom block
 cat >"$TMPDIR_TEST/empty_scene.toml" <<'EOF'
 [scene-custom.test]
 EOF
-run_case "empty scene-custom block" "" -- --config "$TMPDIR_TEST/empty_scene.toml" --scene-custom test --benchmark --bench-duration 1s
+run_case "empty scene-custom block → incomplete error" "error|incomplete" -- --config "$TMPDIR_TEST/empty_scene.toml" --scene-custom test --benchmark --bench-duration 1s
 
-# scene-custom with both color + colors-custom (conflict)
+# scene-custom with both color + colors-custom (conflict) — startup
+# resolves like apply_profile_overrides: color wins, palette skipped,
+# and the run proceeds (verified: resolved scheme is the block color).
 cat >"$TMPDIR_TEST/dual_color.toml" <<'EOF'
 [colors-custom.pal]
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
-base-scene = "cinematic"
 color = "neon-green"
 colors-custom = "pal"
+charset = "matrix"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
-run_case "color + colors-custom conflict" "" -- --config "$TMPDIR_TEST/dual_color.toml" --scene-custom test --benchmark --bench-duration 1s
+run_case "color + colors-custom conflict → color wins, runs" "benchmark" -- --config "$TMPDIR_TEST/dual_color.toml" --scene-custom test --benchmark --bench-duration 1s
 
-# scene-custom with both charset + charset-custom (conflict)
+# scene-custom with both charset + charset-custom (conflict) —
+# charset wins (same priority contract as the color pair).
 cat >"$TMPDIR_TEST/dual_charset.toml" <<'EOF'
 [charset-custom.cs]
 set = "ABC"
 
 [scene-custom.test]
-base-scene = "cinematic"
 charset = "binary"
 charset-custom = "cs"
+color = "neon-green"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
-run_case "charset + charset-custom conflict" "" -- --config "$TMPDIR_TEST/dual_charset.toml" --scene-custom test --benchmark --bench-duration 1s
+run_case "charset + charset-custom conflict → charset wins, runs" "benchmark" -- --config "$TMPDIR_TEST/dual_charset.toml" --scene-custom test --benchmark --bench-duration 1s
 
 # Nonexistent scene-custom name
 cat >"$TMPDIR_TEST/nonexist_scene.toml" <<'EOF'
 [scene-custom.exists]
-base-scene = "cinematic"
+color = "neon-green"
+charset = "matrix"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
 run_case "nonexistent scene-custom name" "error|not found|unknown" -- --config "$TMPDIR_TEST/nonexist_scene.toml" --scene-custom nonexistent --benchmark --bench-duration 1s
 
@@ -266,10 +289,12 @@ rain = ["#ff0000", "#00ff00", "#0000ff"]
 set = "ABCDEF"
 
 [scene-custom.test]
-base-scene = "cinematic"
 colors-custom = "pal"
 charset-custom = "cs"
+fps = 60
 speed = 20
+density = 0.75
+glitch-level = "subtle"
 EOF
 run_case "all 3 custom features" "benchmark" -- --config "$TMPDIR_TEST/all_custom.toml" --scene-custom test --benchmark --bench-duration 1s
 
@@ -279,8 +304,12 @@ cat >"$TMPDIR_TEST/cli_override.toml" <<'EOF'
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
-base-scene = "cinematic"
 color = "neon-green"
+charset = "matrix"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
 run_case "CLI --colors-custom overrides scene color" "benchmark" -- --config "$TMPDIR_TEST/cli_override.toml" --scene-custom test --colors-custom pal --benchmark --bench-duration 1s
 
@@ -307,42 +336,46 @@ rain = "#00ff41,#00b32d,#005c17"
 set = "ABCDEF"
 
 [scene-custom.hx]
-base-scene = "signal"
 color = "green"
+charset = "matrix"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
 
 # CLI --bold 0 must beat config bold = 2 (resolved: "bold":"Off").
 run_case "CLI --bold beats config bold key" '"bold":"Off"' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --bold 0 \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --bold 0 \
+        --benchmark --bench-duration 1s --json
 
 # CLI --shading-mode 0 must beat config shading-mode = 1.
 run_case "CLI --shading-mode beats config key" '"shading":"Random"' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --shading-mode 0 \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --shading-mode 0 \
+        --benchmark --bench-duration 1s --json
 
 # CLI --speed 50 must beat config speed = 20.
 run_case "CLI --speed beats config key" '"speed":50' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --speed 50 \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --speed 50 \
+        --benchmark --bench-duration 1s --json
 
 # CLI --charset cs2 (custom charset) must beat config charset = retro.
 run_case "CLI --charset-custom beats config key" '"charset":"cs2"' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --charset cs2 \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --charset cs2 \
+        --benchmark --bench-duration 1s --json
 
 # CLI --scene-custom hx must beat config scene = cinematic (resolved
 # scene shows the custom scene name, not the config's builtin).
 run_case "CLI --scene-custom beats config scene key" '"scene":"hx"' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --scene-custom hx \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --scene-custom hx \
+        --benchmark --bench-duration 1s --json
 
 # CLI --colors-custom pal must beat config color = snow: the palette
 # branch resolves the scheme to the Green placeholder (never "snow"),
 # proving the config builtin did not take over the CLI palette intent.
 run_case "CLI --colors-custom beats config color key" '"color_scheme":"green"' -- \
-	--config "$TMPDIR_TEST/harmony.toml" --colors-custom pal \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/harmony.toml" --colors-custom pal \
+        --benchmark --bench-duration 1s --json
 
 # Conflict inside one block: color + colors-custom — startup resolves
 # like apply_profile_overrides (color wins, palette skipped) and the
@@ -352,32 +385,36 @@ cat >"$TMPDIR_TEST/block_conflict.toml" <<'EOF'
 rain = "#ff0041,#ff6690"
 
 [scene-custom.dual]
-base-scene = "cinematic"
 color = "green"
 colors-custom = "pal"
+charset = "matrix"
+fps = 60
+speed = 9
+density = 0.75
+glitch-level = "subtle"
 EOF
 run_case "block color+colors-custom resolves like startup" '"color_scheme":"green"' -- \
-	--config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
-	--benchmark --bench-duration 1s --json
+        --config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
+        --benchmark --bench-duration 1s --json
 
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do
-	echo "  $r"
+        echo "  $r"
 done
 echo ""
 echo "═══════════════════════════════════════════════════════════════"
 echo "  Stresstest Results: ${PASS} passed, ${FAIL} failed"
 echo "═══════════════════════════════════════════════════════════════"
 if [ ${#BUGS[@]} -gt 0 ]; then
-	echo ""
-	echo "BUGS FOUND:"
-	for bug in "${BUGS[@]}"; do
-		echo "  - $bug"
-	done
+        echo ""
+        echo "BUGS FOUND:"
+        for bug in "${BUGS[@]}"; do
+                echo "  - $bug"
+        done
 fi
 echo ""
 if [ "$FAIL" -gt 0 ]; then
-	exit 1
+        exit 1
 fi
 exit 0

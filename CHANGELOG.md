@@ -9,6 +9,39 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### repo: v100.0.0-nightly.1 — custom_features stresstest fixtures migrated off the removed base-scene schema (hunt follow-up 2026-09-04)
+
+Hunt follow-up while re-validating the full stresstest fleet after the
+verbose work: `custom_features_stresstest.sh` ran 24/34 — 10 failures,
+all traced to ONE root cause: the fixtures still encoded the
+pre-v80.0.0-beta.2 scene-custom schema (`base-scene = "..."`), a field
+that strict validation now rejects ("unknown key ... removed in
+v80.0.0-beta.2"). The suite predates the schema change and was never
+re-based on it — it could not verify anything about the custom-feature
+contract it exists to lock.
+
+- All 9 scene-custom fixtures rewritten to the v80+ six-dimension
+  self-contained schema (color|colors-custom, charset|charset-custom,
+  fps, speed, density, glitch-level) — verified against the live
+  validator before locking.
+- Two obsolete cases re-aimed at the CURRENT contract: "missing
+  base-scene" → "incomplete scene-custom (missing dimensions) → error"
+  (asserts the exact missing-dimension error), "unknown base-scene" →
+  "removed base-scene field → strict reject with hint" (asserts the
+  v80 migration hint). The vacuous always-pass cases
+  (expected-pattern "") for the empty block and the two dual-key
+  conflicts now assert the real contract: empty → incomplete error;
+  color+colors-custom → color wins, runs; charset+charset-custom →
+  charset wins, runs (dual-key priority verified live before locking).
+- Suite result: 34/34 PASS (matches the pre-v80 claim in
+  `docs/research/Z_MASTER_V2_PRIORITY_AUDIT.md` — the fleet is whole
+  again: suggestion 28/28, config 47/47, custom-features 34/34).
+- Operational note baked into this entry: the config and
+  custom-features suites drive `./target/release/cosmostrix` (fat-LTO
+  build) — run `cargo build --release` before invoking them in a fresh
+  sandbox; with no release binary every grep-based case fails empty.
+- Gates: bash -n clean, full fleet re-run green.
+
 ### ux: v100.0.0-nightly.1 — fatal terminal-session error renders once, branded (hunt follow-up 2026-09-04)
 
 Found while verifying task-5 in a headless environment: an unhandled
