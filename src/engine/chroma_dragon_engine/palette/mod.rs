@@ -25,6 +25,9 @@ use crossterm::style::Color;
 
 use crate::runtime::{ColorMode, ColorScheme};
 
+pub(crate) mod quantize;
+pub(crate) use quantize::{SgrMode, SgrQuantizer};
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct Palette {
     pub colors: Vec<Color>,
@@ -41,81 +44,27 @@ pub(crate) fn from_rgb_list(list: &[(u8, u8, u8)]) -> Vec<Color> {
         .collect()
 }
 
-fn dist2(r0: u8, g0: u8, b0: u8, r1: u8, g1: u8, b1: u8) -> i32 {
-    let dr = (r0 as i32) - (r1 as i32);
-    let dg = (g0 as i32) - (g1 as i32);
-    let db = (b0 as i32) - (b1 as i32);
-    (dr * dr) + (dg * dg) + (db * db)
-}
-
+/// Map an sRGB color to its exact OKLab-nearest xterm-256 index.
+///
+/// task-17: delegated to `palette::quantize::xterm256_nearest` — the
+/// previous rounded cube-division + cube-vs-gray RGB-Euclidean
+/// comparison is superseded by an exact 240-candidate OKLab scan
+/// (hue-preserving, no dim-blue collapse; see that module's docs).
 fn rgb_to_ansi256(r: u8, g: u8, b: u8) -> u8 {
-    const CUBE_LEVELS: [u8; 6] = [0, 95, 135, 175, 215, 255];
-
-    let r6 = ((r as u16 * 5) + 127) / 255;
-    let g6 = ((g as u16 * 5) + 127) / 255;
-    let b6 = ((b as u16 * 5) + 127) / 255;
-
-    let cr = CUBE_LEVELS[r6 as usize];
-    let cg = CUBE_LEVELS[g6 as usize];
-    let cb = CUBE_LEVELS[b6 as usize];
-    let cube_idx = 16 + (36 * r6 as u8) + (6 * g6 as u8) + (b6 as u8);
-    let cube_dist = dist2(r, g, b, cr, cg, cb);
-
-    let avg = ((r as u16 + g as u16 + b as u16) / 3) as u8;
-    let gray_idx = if avg < 8 {
-        16
-    } else if avg > 238 {
-        231
-    } else {
-        232 + ((avg - 8) / 10)
-    };
-    let (gr, gg, gb) = if gray_idx == 16 {
-        (0, 0, 0)
-    } else if gray_idx == 231 {
-        (255, 255, 255)
-    } else {
-        let v = 8 + 10 * (gray_idx - 232);
-        (v, v, v)
-    };
-    let gray_dist = dist2(r, g, b, gr, gg, gb);
-
-    if gray_dist < cube_dist {
-        gray_idx
-    } else {
-        cube_idx
-    }
+    quantize::xterm256_nearest(r, g, b)
 }
 
+/// Map an sRGB color to the OKLab-nearest canonical base-16 color.
+///
+/// task-17: delegated to `palette::quantize::classic16_nearest` — the
+/// previous 16-entry VGA-table RGB-Euclidean scan is superseded by an
+/// OKLab scan over the canonical xterm base-16 values with the
+/// anti-collapse readability floor (visibly-lit inputs never resolve
+/// to `Black`). The reference table also moved from ad-hoc VGA values
+/// to the xterm-256 standard so `38;5;N` (N < 16) and the classic
+/// `3x`/`9x` codes render identically on xterm-compatible terminals.
 fn rgb_to_color16(r: u8, g: u8, b: u8) -> Color {
-    const TABLE: [(Color, (u8, u8, u8)); 16] = [
-        (Color::Black, (0, 0, 0)),
-        (Color::DarkGrey, (128, 128, 128)),
-        (Color::Grey, (192, 192, 192)),
-        (Color::White, (255, 255, 255)),
-        (Color::DarkRed, (128, 0, 0)),
-        (Color::Red, (255, 0, 0)),
-        (Color::DarkGreen, (0, 128, 0)),
-        (Color::Green, (0, 255, 0)),
-        (Color::DarkBlue, (0, 0, 128)),
-        (Color::Blue, (0, 0, 255)),
-        (Color::DarkCyan, (0, 128, 128)),
-        (Color::Cyan, (0, 255, 255)),
-        (Color::DarkMagenta, (128, 0, 128)),
-        (Color::Magenta, (255, 0, 255)),
-        (Color::DarkYellow, (128, 128, 0)),
-        (Color::Yellow, (255, 255, 0)),
-    ];
-
-    let mut best = Color::White;
-    let mut best_d = i32::MAX;
-    for (c, (cr, cg, cb)) in TABLE {
-        let d = dist2(r, g, b, cr, cg, cb);
-        if d < best_d {
-            best_d = d;
-            best = c;
-        }
-    }
-    best
+    quantize::classic16_nearest(r, g, b)
 }
 
 pub(crate) fn colors_from_rgb(mode: ColorMode, list: &[(u8, u8, u8)]) -> Vec<Color> {

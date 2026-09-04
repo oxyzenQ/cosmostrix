@@ -9,6 +9,90 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: v100.0.0-nightly.1 — Color16/256/mono emission quantization: the rain renderer now honors the resolved color mode on the wire (task-17, owner-approved Step 1, 2026-09-05)
+
+Defect (found in NIGHT-research-2's PTY probe, owner-approved fix):
+the rain render path computed every color in RGB and the SGR emission
+boundary formatted all of them as `38;2;R;G;B` truecolor regardless of
+the session's resolved color mode. A `--color-mode 16` session on an
+80x24 PTY emitted 12,470 truecolor SGRs and 0 classic sequences in
+2.5s; terminals that resolve Color16 or Color256 (linux console, old
+VTE, tmux without Tc) drop `38;2` entirely — palette identity was lost
+and the documented Color16 wire contract (`\x1b[3Nm`, capability table
+in output/mod.rs) was violated. The palette construction had quantized
+correctly all along; the defect was purely at the emission boundary
+(shaded cells miss the ColorCache, whose fallback formatter — and whose
+build-time entries — also decoded named 16-colors back to truecolor).
+
+Fix — quantization at exactly that boundary, nothing upstream moves:
+
+- New `engine/chroma_dragon_engine/palette/quantize.rs`: `SgrMode`
+  (inferred from the palette a ColorCache was built from — the palette
+  already encodes the session mode, so no new state flows through the
+  event loop), exact OKLab-nearest searches over the xterm-256 palette
+  (240 candidates, indices 16..=255) and the canonical xterm base-16
+  table, and a memoized `SgrQuantizer` (flat HashMap keyed by packed
+  RGB; rain shading produces only a few thousand distinct colors per
+  session, so the 240-candidate scan runs once per new color).
+- `Terminal` and `BenchIoWriter` hold one quantizer whenever the
+  session is not truecolor; `emit_sgr` quantizes (fg, bg) BEFORE the
+  cache lookup and the on-the-fly fallback. Truecolor sessions hold no
+  quantizer — the default wire path is byte-identical to before
+  (A/B: 4 interleaved 10s monolith runs each side — entropy 4.838/4.839
+  identical on both sides, gini and color-transition bands overlap,
+  fps +0.5% in the fix side's favor, within run-range overlap).
+- `sgr_format::write_sgr_colors_buf` formats named base-16 colors as
+  their classic codes (`30-37`/`90-97` fg, `40-47`/`100-107` bg).
+  Previously named colors were skipped entirely — a cache-miss cell
+  with a named fg emitted a bg-only escape (no foreground at all).
+- `ColorCache` entries are now built through the quantizer in the
+  palette's own wire space: Color16 caches classic sequences,
+  Color256 caches `38;5;N`, Mono caches `97;49` (bright-white on
+  default). The duplicated build-time formatters in color_cache.rs
+  were removed — one source of truth for the wire format.
+- Palette quantization quality: `rgb_to_ansi256` moves from the
+  rounded cube-division + cube-vs-gray RGB-Euclidean heuristic to the
+  exact OKLab nearest; `rgb_to_color16` moves from a 16-entry ad-hoc
+  VGA table to the canonical xterm base-16 values. The known
+  RGB-Euclidean failure — dim blue (0,0,100) mapping to Black
+  (invisible on the black canvas) — resolves to DarkBlue under OKLab.
+  An anti-collapse floor backs this up: visibly-lit inputs (OKLab
+  L >= 0.15) never quantize to Black in Classic16 mode.
+- benchmark writer mirrors the production boundary: `--color-mode 16`
+  and `--color-mode 256` benchmark runs now emit the wire format those
+  sessions really produce (classic codes / indexed), so the I/O
+  signature and per-frame byte counts reflect reality instead of
+  truecolor bytes.
+
+Live verification (PTY probe, 80x24, 2.5s, TERM=xterm-256color):
+`--color-mode 16` now emits 24,408 classic `3x`/`9x` sequences and 0
+truecolor (was 12,470 truecolor, 0 classic); `--color-mode 256` emits
+12,543 `38;5;N` indexed and 0 truecolor; `--color-mode 24` unchanged.
+Byte side effect: a 16-mode session now writes ~42% fewer ANSI bytes
+than truecolor (399 KB vs 687 KB captured in the same probe window)
+— shorter classic sequences are also a bandwidth win on slow links.
+Benchmark signature change (honest, disclosed): 16/256-mode runs now
+show the wire-correct emission; visual metrics stay in-family
+(monolith 10s: entropy 4.840/4.838/4.838, gini 0.8068-0.8073 for
+16/256/24; color-transition delta 125.09/96.22/97.59 — Color16 jumps
+farther between its 16 discrete colors, Color256's OKLab-nearest
+transitions track truecolor closely).
+
+Known remaining (documented, out of Step-1 scope): the HUD overlay and
+intro surfaces draw through crossterm's own queue and still emit
+whatever crossterm chooses for their colors (1 stray indexed SGR
+observed per 16-mode session vs 24,408 classic ones from the rain
+path); the dry-benchmark `ansi_bytes_per_second` remains the
+disclosed 19-bytes/cell truecolor-based estimate (v50 Issue 3 basis
+note) — wet I/O (`--bench-scene production-draw`) is where real bytes
+are measured.
+
+Gates: cargo fmt clean; clippy -D warnings clean; 2292 tests passed
+(+24 new task-17 contracts: OKLab round-trips, anchors, anti-collapse,
+luminance monotonicity along hue-stable ramps, SgrMode inference,
+memo stability, wire-format sweeps through the quantizer, ColorCache
+entry classes per mode); build.sh check-all EXIT 0; gate-keepers 15/15.
+
 ### research: v100.0.0-nightly.1 — color space master research: OKLab confirmed peak, alternatives documented-and-rejected (NIGHT-research-3, owner hunt 2026-09-05)
 
 Owner question: "besides OKLab/chroma dragon, what other color science

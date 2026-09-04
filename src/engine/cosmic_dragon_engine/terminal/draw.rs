@@ -162,9 +162,17 @@ impl Terminal {
                     }
 
                     // Combined fg+bg SGR — cached when possible
+                    // task-17: quantized at the emission boundary when the
+                    // session is not truecolor (see emit_sgr).
                     let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
                     if color_changed {
-                        Self::emit_sgr(self.color_cache.as_ref(), ansi_buf, cell.fg, cell.bg);
+                        Self::emit_sgr(
+                            self.sgr_quantizer.as_mut(),
+                            self.color_cache.as_ref(),
+                            ansi_buf,
+                            cell.fg,
+                            cell.bg,
+                        );
                         cur_fg = cell.fg;
                         cur_bg = cell.bg;
                     }
@@ -345,9 +353,11 @@ impl Terminal {
             }
 
             // Combined fg+bg SGR — cached when possible
+            // task-17: quantized at the emission boundary when the
+            // session is not truecolor (see emit_sgr).
             let style_changed = fg0 != cur_fg || bg0 != cur_bg;
             if style_changed {
-                Self::emit_sgr(cache_ref, ansi_buf, fg0, bg0);
+                Self::emit_sgr(self.sgr_quantizer.as_mut(), cache_ref, ansi_buf, fg0, bg0);
                 cur_fg = fg0;
                 cur_bg = bg0;
             }

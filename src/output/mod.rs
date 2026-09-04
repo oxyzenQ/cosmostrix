@@ -51,6 +51,13 @@
 //! | Color16 | TERM is set but no truecolor/256 indicator | `\x1b[3Nm` (basic 16-color ANSI) |
 //! | Mono | NO_COLOR set, TERM=dumb, CLICOLOR=0, or piped | plain text, no escapes |
 //!
+//! task-17: the rain renderer's SGR emission boundary now honors this
+//! same table (see `engine/chroma_dragon_engine/palette/quantize.rs`) —
+//! Color256 sessions get OKLab-nearest `38;5;N`, Color16 sessions get
+//! classic `3x`/`9x` codes, mono gets defaults. Before task-17 the rain
+//! path emitted `38;2` regardless of the resolved mode and
+//! non-truecolor terminals dropped it.
+//!
 //! This is the same detection strategy used by `bat`, `fd`, `ripgrep`, and
 //! `cargo` itself. Modern terminals (kitty, wezterm, alacritty, iTerm2 3.5+,
 //! Windows Terminal, foot, xterm, gnome-terminal, konsole) all support

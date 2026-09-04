@@ -83,6 +83,7 @@ use crate::bolt::{write_u8_to_slice, BOLD_ESCAPES, BOLD_ESCAPE_LENS};
 use crate::cell::Cell;
 use crate::color_cache::ColorCache;
 use crate::frame::Frame;
+use crate::palette::{SgrMode, SgrQuantizer};
 use crate::sgr_format::{push_u8, write_sgr_colors_buf};
 
 // BOLT tables (U8_PADDED, U8_LEN, BOLD_ESCAPES, BOLD_ESCAPE_LENS) and the
@@ -161,6 +162,13 @@ pub(crate) struct BenchIoWriter {
     /// T2.1: pre-formatted SGR cache. `None` when constructed without a palette
     /// (legacy `new()` path); `Some` when constructed via `with_palette()`.
     color_cache: Option<ColorCache>,
+    /// task-17: emission-boundary quantizer for non-truecolor benchmark
+    /// runs. `None` on truecolor — the hardcoded `38;2` fast paths below
+    /// stay untouched and the wire bytes stay comparable across runs.
+    /// Present on Color16/Color256/Mono runs so the benchmark's I/O
+    /// signature (bytes/frame, SGR mix) reflects the real wire format
+    /// those sessions emit, not truecolor bytes.
+    sgr_quantizer: Option<SgrQuantizer>,
 }
 
 impl BenchIoWriter {
@@ -184,6 +192,13 @@ impl BenchIoWriter {
         let file = std::fs::File::create(path).ok()?;
         let writer = BufWriter::with_capacity(262_144, file); // 256 KB buffer
 
+        // task-17: mirror Terminal::set_color_cache — build the emission
+        // boundary quantizer from the cache's wire mode (None = truecolor).
+        let sgr_quantizer = match color_cache.as_ref().map(ColorCache::sgr_mode) {
+            None | Some(SgrMode::TrueColor) => None,
+            Some(mode) => Some(SgrQuantizer::new(mode)),
+        };
+
         Some(Self {
             writer,
             ansi_buf: Vec::with_capacity(8192),
@@ -193,6 +208,7 @@ impl BenchIoWriter {
                 ..Default::default()
             },
             color_cache,
+            sgr_quantizer,
         })
     }
 
@@ -242,6 +258,7 @@ impl BenchIoWriter {
                     &mut cur_bg,
                     &mut cur_bold,
                     cache_ref,
+                    self.sgr_quantizer.as_mut(),
                     &mut utf8_buf,
                 );
             }
@@ -261,6 +278,7 @@ impl BenchIoWriter {
                     &mut cur_bg,
                     &mut cur_bold,
                     cache_ref,
+                    self.sgr_quantizer.as_mut(),
                     &mut utf8_buf,
                 );
             }
@@ -358,7 +376,13 @@ impl BenchIoWriter {
 
                 let color_changed = cell.fg != cur_fg || cell.bg != cur_bg;
                 if color_changed {
-                    Self::emit_sgr(cache_ref, &mut self.ansi_buf, cell.fg, cell.bg);
+                    Self::emit_sgr(
+                        self.sgr_quantizer.as_mut(),
+                        cache_ref,
+                        &mut self.ansi_buf,
+                        cell.fg,
+                        cell.bg,
+                    );
                     cur_fg = cell.fg;
                     cur_bg = cell.bg;
                 }
@@ -403,19 +427,29 @@ impl BenchIoWriter {
     }
 
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
-    /// Mirrors `Terminal::emit_sgr` (terminal.rs:550-563) — uses the color
+    /// Mirrors `Terminal::emit_sgr` (terminal.rs) — uses the color
     /// cache when available, falling back to on-the-fly formatting.
     ///
     /// Strategy C: uses `sgr_for_cell_silent` (no atomic counter touch).
     /// The bench writer doesn't report SGR cache stats, so the atomic
     /// `fetch_add` in the regular `sgr_for_cell` was pure overhead.
+    ///
+    /// task-17: mirrors the production emission boundary — when a
+    /// quantizer is present (non-truecolor benchmark run), (fg, bg) are
+    /// quantized into the run's wire space before the cache lookup and
+    /// the formatting fallback.
     #[inline]
     fn emit_sgr(
+        quant: Option<&mut SgrQuantizer>,
         cache: Option<&ColorCache>,
         buf: &mut Vec<u8>,
         fg: Option<crossterm::style::Color>,
         bg: Option<crossterm::style::Color>,
     ) {
+        let (fg, bg) = match quant {
+            Some(q) => (q.quantize_fg(fg), q.quantize_bg(bg)),
+            None => (fg, bg),
+        };
         if let Some(cache) = cache {
             if let Some(cached) = cache.sgr_for_cell_silent(fg, bg) {
                 buf.extend_from_slice(cached);
@@ -484,6 +518,11 @@ impl BenchIoWriter {
 // Measured savings vs Strategy D: ~5-10ns/cell (20-40% of io_ns/cell).
 // At 55K FPS × 235 cells = 12.9M cells/sec, that's 65-130ms/sec of CPU
 // returned to the scheduler — translates to ~3-7% avg_fps gain.
+// 8 args exceeds clippy's default `too_many_arguments` threshold (7) —
+// task-17 added the `quant` emission-boundary parameter. (Was 9 in
+// Strategy A' with run_buf + sgr counters; Strategy C dropped the dead
+// counters to 7; task-17 raised it to 8.)
+#[allow(clippy::too_many_arguments)]
 #[inline]
 fn emit_cell_lean(
     ansi_buf: &mut Vec<u8>,
@@ -492,6 +531,7 @@ fn emit_cell_lean(
     cur_bg: &mut Option<Color>,
     cur_bold: &mut bool,
     cache: Option<&ColorCache>,
+    quant: Option<&mut SgrQuantizer>,
     utf8_buf: &mut [u8; 4],
 ) {
     let fg_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
@@ -502,7 +542,12 @@ fn emit_cell_lean(
     // Builds SGR + (optional bold) + glyph in a [u8; 32] scratch buffer
     // and emits via ONE extend_from_slice — collapses 9-13 vec calls
     // into 1 memcpy.
-    if fg_changed && cell.ch.is_ascii() {
+    //
+    // task-17: hardcoded `38;2` fast paths fire only on truecolor runs
+    // (no emission quantizer). Non-truecolor runs route every style
+    // change through `emit_sgr` so the wire bytes match the run's
+    // resolved color mode.
+    if fg_changed && quant.is_none() && cell.ch.is_ascii() {
         if let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg) {
             let mut tmp = [0u8; 32];
             // SGR prefix: \x1b[38;2;
@@ -554,18 +599,22 @@ fn emit_cell_lean(
     }
 
     // Fallback path: any cell that didn't match the Strategy E fast path.
-    // (Non-Rgb fg, non-None bg, non-ASCII glyph, or fg didn't change.)
+    // (Non-Rgb fg, non-None bg, non-ASCII glyph, fg didn't change, or a
+    // non-truecolor run with an emission quantizer — task-17.)
     if fg_changed {
-        if let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg) {
-            ansi_buf.extend_from_slice(b"\x1b[38;2;");
-            push_u8(ansi_buf, r);
-            ansi_buf.push(b';');
-            push_u8(ansi_buf, g);
-            ansi_buf.push(b';');
-            push_u8(ansi_buf, b);
-            ansi_buf.extend_from_slice(b";49m");
+        let truecolor_cell = matches!((cell.fg, cell.bg), (Some(Color::Rgb { .. }), None));
+        if truecolor_cell && quant.is_none() {
+            if let (Some(Color::Rgb { r, g, b }), None) = (cell.fg, cell.bg) {
+                ansi_buf.extend_from_slice(b"\x1b[38;2;");
+                push_u8(ansi_buf, r);
+                ansi_buf.push(b';');
+                push_u8(ansi_buf, g);
+                ansi_buf.push(b';');
+                push_u8(ansi_buf, b);
+                ansi_buf.extend_from_slice(b";49m");
+            }
         } else {
-            BenchIoWriter::emit_sgr(cache, ansi_buf, cell.fg, cell.bg);
+            BenchIoWriter::emit_sgr(quant, cache, ansi_buf, cell.fg, cell.bg);
         }
         *cur_fg = cell.fg;
         *cur_bg = cell.bg;

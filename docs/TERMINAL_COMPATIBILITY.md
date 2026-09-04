@@ -135,6 +135,30 @@ If `TERM=xterm-256color` and `COLORTERM` is unset, 256-color output is
 expected. Set `COLORTERM=truecolor` only if your terminal really supports
 truecolor, or use `--color-mode 24` to force it for a session.
 
+#### What each mode actually puts on the wire (task-17)
+
+The rain renderer quantizes at the SGR emission boundary, so the escape
+sequences leaving the process always match the resolved mode — this is
+the same contract the CLI output surface (`--help`, `--doctor`) follows:
+
+- **truecolor** → `38;2;R;G;B` / `48;2;R;G;B` (unchanged).
+- **256-color** → `38;5;N` / `48;5;N`, with N the exact OKLab-nearest
+  xterm-256 palette index over the stable 16..=255 region (cube +
+  grayscale ramp; the host-configurable 0-15 slots are skipped).
+- **16-color** → classic `30-37`/`90-97` (fg) and `40-47`/`100-107`
+  (bg) — the sequences every ANSI terminal honors, including the raw
+  Linux console, which drops `38;5;N` and `38;2;R;G;B` entirely.
+  Quantization is OKLab-nearest over the canonical xterm base-16 table
+  with an anti-collapse floor: a visibly-lit glyph (OKLab L >= 0.15)
+  never maps to Black, so dim rain stays visible on the black canvas.
+- **mono** → bright-white on default (`97;49`) — no RGB escapes at all.
+
+Side effect worth knowing: a 16-color session writes roughly 40% fewer
+ANSI bytes than the same truecolor session, which helps on slow serial
+or SSH links. Before task-17 the boundary emitted truecolor regardless
+of the resolved mode; terminals without `38;2` support silently dropped
+it and the rain lost its palette.
+
 Inside tmux or screen, the outer terminal and multiplexer config must both
 support RGB. If in doubt, compare outside tmux first.
 

@@ -75,6 +75,18 @@ The Chroma Dragon engine is **active during `--benchmark`** whenever the resolve
 
 Truecolor resolves from `COLORTERM=truecolor/24bit`, `TERM` carrying `-direct`/`-truecolor`, or `TERM` naming a truecolor-native terminal (alacritty, xterm-kitty, xterm-ghostty, wezterm, foot, contour — NIGHT-research-1; covers SSH/`sudo` sessions where `COLORTERM` was stripped). Run `cosmostrix --doctor` to see which pipeline your environment resolves; `--color-mode 24` forces truecolor for A/B comparisons of the two pipelines on the same machine.
 
+**task-17 emission note:** the benchmark I/O writer mirrors the
+production emission boundary. A `--color-mode 16` run writes classic
+`3x`/`9x` codes and a `--color-mode 256` run writes `38;5;N` indexed
+sequences (OKLab-nearest), exactly like the interactive renderer — a
+pre-task-17 comparison of 16/256 runs against truecolor runs is
+therefore not byte-comparable. Visual metrics stay in-family across
+modes (monolith 10s: entropy 4.840/4.838/4.838 for 16/256/24; Color16
+color-transition delta runs higher because 16 discrete colors jump
+farther). The dry-run `ansi_bytes_per_second` remains the disclosed
+19-bytes/cell truecolor-based estimate (see its `basis` field); real
+bytes per frame are measured by the wet I/O scenes.
+
 ## Key Metrics
 
 | Metric | Unit | What it tells you |

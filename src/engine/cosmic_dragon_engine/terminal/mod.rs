@@ -67,6 +67,7 @@ use crate::constants::{
     RENDER_COMBINED_FLUSH_INIT_CAP, RENDER_ROW_BUF_INIT_CAP, RENDER_RUN_BUF_INIT_CAP,
     SHUTDOWN_TIMEOUT_SECS,
 };
+use crate::palette::{SgrMode, SgrQuantizer};
 use crate::sgr_format::write_sgr_colors_buf;
 use crate::termdetect::TerminalCaps;
 use crate::tier2::ByteWindow;
@@ -161,6 +162,16 @@ pub(crate) struct Terminal {
     term_caps: TerminalCaps,
     /// Color byte cache for palette colors (built after palette is known).
     color_cache: Option<ColorCache>,
+    /// Emission-boundary quantizer for non-truecolor sessions (task-17).
+    ///
+    /// `None` on truecolor sessions — the hot path stays byte-identical
+    /// to the pre-task-17 wire format. Constructed by `set_color_cache`
+    /// from the cache's `sgr_mode()` whenever that mode is not
+    /// TrueColor; `emit_sgr` quantizes cell colors into the session's
+    /// wire space (xterm-256 indices / classic base-16 / mono defaults)
+    /// before the cache lookup and the on-the-fly formatting fallback,
+    /// so the bytes on the wire always match the resolved color mode.
+    sgr_quantizer: Option<SgrQuantizer>,
     /// Cumulative ANSI bytes flushed to stdout across all frames.
     /// Incremented in `flush_ansi()` by `ansi_buf.len()` before clearing.
     /// Used by `--perf-stats` to report average bytes/frame and total bandwidth.
@@ -276,6 +287,7 @@ impl Terminal {
             cursor_hidden: false,
             line_wrap_disabled: false,
             cleaned_up: false,
+            sgr_quantizer: None,
             shutdown_complete: Arc::new(AtomicBool::new(false)),
             term_caps,
             color_cache: None,
@@ -462,7 +474,15 @@ impl Terminal {
 
     /// Set the color byte cache for this terminal session.
     /// Must be called after the palette is built and before the first draw.
+    ///
+    /// task-17: also (re)builds the emission-boundary quantizer from the
+    /// cache's wire mode — non-truecolor sessions get a memoized
+    /// quantizer, truecolor sessions get none (zero overhead).
     pub(crate) fn set_color_cache(&mut self, cache: ColorCache) {
+        self.sgr_quantizer = match cache.sgr_mode() {
+            SgrMode::TrueColor => None,
+            mode => Some(SgrQuantizer::new(mode)),
+        };
         self.color_cache = Some(cache);
     }
 
@@ -544,13 +564,25 @@ impl Terminal {
     /// Emit SGR color bytes for (fg, bg) into the ANSI buffer.
     /// Uses the color cache when available, falling back to on-the-fly
     /// formatting via `write_sgr_colors_buf`.
+    ///
+    /// task-17: when a boundary quantizer is present (non-truecolor
+    /// session), (fg, bg) are quantized into the session's wire space
+    /// FIRST — the cache lookup then matches wire-space palette entries
+    /// and the fallback formats already-quantized colors, so no `38;2`
+    /// truecolor sequence can leave the boundary on a Color16/Color256/
+    /// Mono session.
     #[inline]
     fn emit_sgr(
+        quant: Option<&mut SgrQuantizer>,
         cache: Option<&ColorCache>,
         buf: &mut Vec<u8>,
         fg: Option<Color>,
         bg: Option<Color>,
     ) {
+        let (fg, bg) = match quant {
+            Some(q) => (q.quantize_fg(fg), q.quantize_bg(bg)),
+            None => (fg, bg),
+        };
         if let Some(cache) = cache {
             if let Some(cached) = cache.sgr_for_cell(fg, bg) {
                 buf.extend_from_slice(cached);

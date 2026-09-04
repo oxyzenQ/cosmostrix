@@ -8,8 +8,8 @@
 //! ## How it works
 //!
 //! At startup, the palette's color list is scanned. For each color we
-//! pre-compute the exact ANSI SGR byte sequence (`\x1b[38;2;R;G;Bm`)
-//! and store it in a flat byte buffer with an index table.
+//! pre-compute the exact ANSI SGR byte sequence and store it in a flat
+//! byte buffer with an index table.
 //!
 //! During rendering, instead of calling `write_sgr_colors_buf` (which
 //! encodes integer→ASCII digits, semicolons, and branch logic per call),
@@ -24,12 +24,25 @@
 //!
 //! The cache also pre-formats the "reset to bg" combination (fg=palette
 //! color, bg=terminal bg) — the most common SGR pattern in full redraws.
+//!
+//! ## task-17: wire-space entries
+//!
+//! Entries are built through `palette::quantize::SgrQuantizer` in the
+//! palette's own color mode, so cached bytes carry the session's wire
+//! format (`38;5;N` for Color256, classic `3x`/`9x` codes for Color16,
+//! default-only for Mono) instead of the pre-task-17 always-truecolor
+//! `38;2;R;G;B`. The stored `bg` is likewise the wire-space palette bg —
+//! the same space the emission boundary quantizes cell colors into, so
+//! a quantized cell (fg, bg) that lands on a palette entry hits the
+//! cache instead of falling through to on-the-fly formatting.
 
 use std::sync::atomic::{AtomicU64, Ordering};
 
 use crossterm::style::Color;
 
-use crate::palette::Palette;
+use crate::palette::quantize::SgrMode;
+use crate::palette::{Palette, SgrQuantizer};
+use crate::sgr_format::write_sgr_colors_buf;
 
 /// Pre-formatted ANSI SGR byte sequences for palette colors.
 ///
@@ -47,8 +60,12 @@ use crate::palette::Palette;
 pub(crate) struct ColorCache {
     /// Original palette colors for lookup by Color value.
     colors: Vec<Color>,
-    /// The palette's background color (cached SGR entries include this bg).
+    /// The palette's background color in wire space — the space the
+    /// emission boundary quantizes cell backgrounds into, so cache-hit
+    /// comparison succeeds for quantized (fg, bg) pairs.
     bg: Option<Color>,
+    /// Wire-format mode the entries were built for (task-17).
+    sgr_mode: SgrMode,
     /// Single allocation holding all pre-formatted SGR byte sequences
     /// concatenated together.
     buf: Vec<u8>,
@@ -71,13 +88,17 @@ pub(crate) struct ColorCache {
 impl ColorCache {
     /// Build the cache from a palette.
     ///
-    /// Pre-formats two SGR sequences per palette color:
-    /// 1. `fg=color, bg=palette.bg` (the common case in full redraws)
-    /// 2. Also stores a terminal-reset entry for blank/empty cells (index N).
+    /// Pre-formats one SGR sequence per palette color (fg + palette bg)
+    /// plus a terminal-reset entry for blank/empty cells (index N),
+    /// all in the palette mode's wire format via `SgrQuantizer`.
     pub(crate) fn new(palette: &Palette) -> Self {
         let num_colors = palette.colors.len();
         let colors = palette.colors.clone();
-        let bg = palette.bg;
+        let sgr_mode = SgrMode::from_palette(palette);
+        // Build entries through the quantizer so cached bytes use the
+        // same wire format the emission boundary's miss path emits.
+        let mut quantizer = SgrQuantizer::new(sgr_mode);
+        let bg = quantizer.quantize_bg(palette.bg);
         // +1 for the "bg-only" terminal-reset entry
         let n = num_colors + 1;
         let mut offsets = Vec::with_capacity(n);
@@ -85,22 +106,31 @@ impl ColorCache {
 
         for fg in &palette.colors {
             offsets.push(buf.len());
-            push_sgr_fg_bg(&mut buf, *fg, palette.bg);
+            write_sgr_colors_buf(&mut buf, quantizer.quantize_fg(Some(*fg)), bg);
         }
 
-        // Terminal-reset entry: no fg, bg=palette.bg (used for blank cells)
+        // Terminal-reset entry: no fg, bg=palette bg (used for blank cells)
         offsets.push(buf.len());
-        push_sgr_reset_bg(&mut buf, palette.bg);
+        write_sgr_colors_buf(&mut buf, None, bg);
 
         ColorCache {
             colors,
             bg,
+            sgr_mode,
             buf,
             offsets,
             num_colors,
             sgr_hits: AtomicU64::new(0),
             sgr_misses: AtomicU64::new(0),
         }
+    }
+
+    /// The wire-format mode this cache's entries were built for.
+    /// `Terminal::set_color_cache` reads this to decide whether the
+    /// emission boundary needs a quantizer (TrueColor → none).
+    #[must_use]
+    pub(crate) fn sgr_mode(&self) -> SgrMode {
+        self.sgr_mode
     }
 
     /// Look up the pre-formatted SGR bytes for a palette color index.
@@ -216,122 +246,12 @@ impl ColorCache {
     }
 }
 
-// ── Internal: ANSI byte formatters (build-time only) ────────────────────────
-
-/// Push a u8 as ASCII decimal into buf.
-#[inline]
-fn push_u8(buf: &mut Vec<u8>, n: u8) {
-    if n < 10 {
-        buf.push(b'0' + n);
-    } else if n < 100 {
-        buf.push(b'0' + n / 10);
-        buf.push(b'0' + n % 10);
-    } else {
-        buf.push(b'0' + n / 100);
-        buf.push(b'0' + (n / 10) % 10);
-        buf.push(b'0' + n % 10);
-    }
-}
-
-/// Pre-format `\x1b[38;2;R;G;B;48;2;r;g;bm` for fg + bg into buf.
-fn push_sgr_fg_bg(buf: &mut Vec<u8>, fg: Color, bg: Option<Color>) {
-    buf.extend_from_slice(b"\x1b[");
-    #[allow(clippy::needless_late_init)]
-    let semi: bool;
-    match fg {
-        Color::Rgb { r, g, b } => {
-            buf.extend_from_slice(b"38;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-            semi = true;
-        }
-        Color::AnsiValue(v) => {
-            buf.extend_from_slice(b"38;5;");
-            push_u8(buf, v);
-            semi = true;
-        }
-        Color::Reset | Color::Black => {
-            buf.extend_from_slice(b"39");
-            semi = true;
-        }
-        _ => {
-            // Named colors: decode to RGB and format
-            let (r, g, b) = crate::palette::color_to_rgb(fg);
-            buf.extend_from_slice(b"38;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-            semi = true;
-        }
-    }
-    match bg {
-        Some(Color::Rgb { r, g, b }) => {
-            if semi {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"48;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-        }
-        Some(Color::AnsiValue(v)) => {
-            if semi {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"48;5;");
-            push_u8(buf, v);
-        }
-        Some(Color::Reset) | None => {
-            if semi {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"49");
-        }
-        _ => {
-            let (r, g, b) = crate::palette::color_to_rgb(bg.unwrap_or(Color::Reset));
-            if semi {
-                buf.push(b';');
-            }
-            buf.extend_from_slice(b"48;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-        }
-    }
-    buf.extend_from_slice(b"m");
-}
-
-/// Pre-format `\x1b[39;49m` (or with specific bg) for terminal reset.
-fn push_sgr_reset_bg(buf: &mut Vec<u8>, bg: Option<Color>) {
-    buf.extend_from_slice(b"\x1b[39");
-    match bg {
-        Some(Color::Rgb { r, g, b }) => {
-            buf.extend_from_slice(b";48;2;");
-            push_u8(buf, r);
-            buf.push(b';');
-            push_u8(buf, g);
-            buf.push(b';');
-            push_u8(buf, b);
-        }
-        Some(Color::AnsiValue(v)) => {
-            buf.extend_from_slice(b";48;5;");
-            push_u8(buf, v);
-        }
-        _ => {
-            buf.extend_from_slice(b";49");
-        }
-    }
-    buf.extend_from_slice(b"m");
-}
+// task-17: the build-time formatters (`push_u8`, `push_sgr_fg_bg`,
+// `push_sgr_reset_bg`) were removed — entry construction now delegates
+// to `sgr_format::write_sgr_colors_buf` after quantization, giving one
+// source of truth for the wire format. The old copies decoded named
+// 16-colors back to `38;2` truecolor (the defect task-17 fixes) and
+// mapped Black fg/bg to default (39/49) instead of their classic codes.
 
 #[cfg(test)]
 mod tests {
@@ -599,5 +519,107 @@ mod tests {
                 "silent variant must match loud variant for fg={fg:?} bg={bg:?}"
             );
         }
+    }
+
+    // ── task-17: wire-format contracts ─────────────────────────────────────
+
+    /// Helper: assert every cached SGR entry (including the reset entry)
+    /// satisfies the predicate, and that all entries are well-formed
+    /// escape sequences.
+    fn assert_every_entry(cache: &ColorCache, pred: impl Fn(&str) -> bool, label: &str) {
+        for i in 0..=cache.len() {
+            let sgr = if i == cache.len() {
+                cache.reset_sgr()
+            } else {
+                cache.sgr(i)
+            };
+            let s = std::str::from_utf8(sgr).expect("SGR bytes are ASCII");
+            assert!(s.starts_with("\x1b[") && s.ends_with('m'), "shape: {s:?}");
+            let params = &s[2..s.len() - 1];
+            assert!(pred(params), "{label} violated by entry {i}: {s:?}");
+        }
+    }
+
+    /// Color16 palettes cache classic-code entries — no truecolor, no
+    /// indexed. This is the wire the linux console (and every terminal
+    /// that resolved Color16) actually honors.
+    #[test]
+    fn cache_color16_entries_are_classic_wire() {
+        for scheme in [ColorScheme::Green, ColorScheme::Blue, ColorScheme::Rainbow] {
+            let palette = build_palette(scheme, ColorMode::Color16, false);
+            let cache = ColorCache::new(&palette);
+            assert_eq!(cache.sgr_mode(), crate::palette::SgrMode::Classic16);
+            assert_every_entry(
+                &cache,
+                |p| {
+                    !p.contains("38;2")
+                        && !p.contains("48;2")
+                        && !p.contains("38;5")
+                        && !p.contains("48;5")
+                },
+                "Color16 cache must be classic-only",
+            );
+            // Palette bg is Black (slot 0) → bg code 40, matching the
+            // truecolor path's 48;2;0;0;0 black-canvas semantics.
+            let reset = std::str::from_utf8(cache.reset_sgr()).unwrap();
+            assert!(
+                reset.contains("39;40"),
+                "reset entry must be default-fg on black bg: {reset:?}"
+            );
+        }
+    }
+
+    /// Color256 palettes cache indexed entries — no truecolor.
+    #[test]
+    fn cache_color256_entries_are_indexed_wire() {
+        for scheme in [
+            ColorScheme::Green,
+            ColorScheme::Blue,
+            ColorScheme::Spectrum20,
+        ] {
+            let palette = build_palette(scheme, ColorMode::Color256, false);
+            let cache = ColorCache::new(&palette);
+            assert_eq!(cache.sgr_mode(), crate::palette::SgrMode::Ansi256);
+            assert_every_entry(
+                &cache,
+                |p| {
+                    (p.starts_with("38;5;") || p.starts_with("39"))
+                        && !p.contains("38;2")
+                        && !p.contains("48;2")
+                },
+                "Color256 cache must be indexed-only",
+            );
+        }
+    }
+
+    /// TrueColor palettes keep the historical truecolor wire — the
+    /// emission fix must not regress the default experience.
+    #[test]
+    fn cache_truecolor_entries_stay_truecolor_wire() {
+        let palette = build_palette(ColorScheme::Green, ColorMode::TrueColor, false);
+        let cache = ColorCache::new(&palette);
+        assert_eq!(cache.sgr_mode(), crate::palette::SgrMode::TrueColor);
+        let mut found_truecolor = false;
+        for i in 0..cache.len() {
+            let s = std::str::from_utf8(cache.sgr(i)).unwrap();
+            if s.contains("38;2;") {
+                found_truecolor = true;
+            }
+        }
+        assert!(found_truecolor, "truecolor cache must emit 38;2 entries");
+    }
+
+    /// Mono palettes cache default-only entries (bright-white fg on
+    /// default bg).
+    #[test]
+    fn cache_mono_entries_are_default_wire() {
+        let palette = build_palette(ColorScheme::Green, ColorMode::Mono, false);
+        let cache = ColorCache::new(&palette);
+        assert_eq!(cache.sgr_mode(), crate::palette::SgrMode::Mono);
+        assert_every_entry(
+            &cache,
+            |p| p == "97;49" || p == "39;49",
+            "Mono cache must be default-only",
+        );
     }
 }

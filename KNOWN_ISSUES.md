@@ -11,6 +11,36 @@ see the **Limitations** section of [README.md](README.md).
 
 ---
 
+## Color16/256 sessions: HUD overlay and intro still use crossterm's own color emission (residual, cosmetic)
+
+### Symptom
+
+On a `--color-mode 16` session, the rain itself now emits classic
+`3x`/`9x` codes (task-17), but the HUD overlay and the intro surface
+draw through crossterm's queue API and emit whatever crossterm picks
+for their colors — a stray `38;5;N` per session was observed in the
+task-17 PTY probe (1 vs 24,408 classic sequences from the rain path).
+
+### Affected platforms
+
+Any non-truecolor session (`--color-mode 16`, `--color-mode 256`, or a
+terminal that resolves those modes) that shows the HUD (`i` key) or a
+non-`none` intro.
+
+### Workaround
+
+None needed for the rain — the rain render path is wire-correct.
+Terminals that drop indexed/truecolor escapes simply fall back to the
+current/default color for the HUD text; it stays readable.
+
+### Status
+
+Residual, out of task-17 (Step 1) scope. The HUD/intro surfaces would
+need their own emission-boundary pass through `palette::quantize` if
+16-color purity there is ever required.
+
+---
+
 ## Windows / Android (Termux): `i` key (HUD toggle) may cause sudden exit
 
 ### Symptom
