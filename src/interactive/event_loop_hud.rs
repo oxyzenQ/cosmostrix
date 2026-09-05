@@ -150,8 +150,9 @@ pub(crate) fn update_hud_state(
         hud_state.set_monolith_size_unknown();
     }
     // NIGHT-hunter-9: rain — active rain style. Always meaningful; the
-    // `as_str()` helper returns the canonical CLI label (glyph/monolith/
-    // vortex/ripple). Called every frame so scene switches and
-    // live-config reloads are reflected immediately on the next HUD tick.
+    // `as_str()` helper returns the canonical CLI label (glyph, monolith,
+    // vortex, flux, lorenz, dragon, physarum). Called every frame so scene
+    // switches and live-config reloads are reflected immediately on the
+    // next HUD tick.
     hud_state.set_rain_style(cloud.rain_style());
 }

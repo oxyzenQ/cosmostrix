@@ -60,7 +60,7 @@ each line means without reading the full reference below.
 | 16  | `glth:`     | level          | **Glitch level** — none / subtle / default / intense (from `--glitch-level`). |
 | 17  | `ctun:`     | state          | **Color tuning** — `default` (all factors 1.0) or `custom` (any `--color-tune-*` factor differs). |
 | 18  | `mnst:`     | size           | **Monolith size** — small / normal / large, or `unknown` for non-monolith scenes. |
-| 19  | `rain:`     | label          | **Rain style** (NIGHT-hunter-9) — the active rain style label: glyph / monolith / vortex / ripple. Mirrors the `RainStyle::as_str()` output so the HUD label matches `--show-scene` / `--list-scenes` output exactly. Position above `dcel:` per owner mandate — the user reads the active motion DNA before the cell-efficiency metrics. |
+| 19  | `rain:`     | label          | **Rain style** (NIGHT-hunter-9) — the active rain style label: glyph / monolith / vortex / flux / lorenz / dragon / physarum. Mirrors the `RainStyle::as_str()` output so the HUD label matches `--show-scene` / `--list-scenes` output exactly. Position above `dcel:` per owner mandate — the user reads the active motion DNA before the cell-efficiency metrics. |
 | 20  | `dcel:`     | count/percent  | Dirty cell count + ratio % (rolling avg over 60 frames). Count is humanized (1.2K for 1200). |
 | 21  | `tcel:`     | count          | Total cells in screen (width × height). Stable between resizes. |
 | 22  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
@@ -84,7 +84,7 @@ each line means without reading the full reference below.
 
 ## Annotated HUD Layout
 
-What you actually see in the top-left corner after pressing `i`. All 24
+What you actually see in the top-left corner after pressing `i`. All 25
 rows are visible at once; this mockup annotates each:
 
 ```text
@@ -108,7 +108,7 @@ rows are visible at once; this mockup annotates each:
 │ glth: default ◄── 16. glitch level (none/subtle/default/intense)
 │ ctun: default ◄── 17. color tuning (default or custom factors)
 │ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
-│ rain: lorenz  ◄── 19. rain style (glyph/monolith/vortex/ripple — NIGHT-hunter-9)
+│ rain: lorenz  ◄── 19. rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum — NIGHT-hunter-9)
 │ dcel: 57/2.96%   ◄── 20. dirty cells + ratio (humanized count — lower ratio = more efficient)
 │ tcel: 1.9K    ◄── 21. total cells in screen (width × height)
 │ cid: 6ed244b  ◄── 22. build commit id (verify without quitting)

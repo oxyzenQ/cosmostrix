@@ -316,12 +316,12 @@ impl HudState {
         self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
         // ── Rain style (row 19) — NIGHT-hunter-9 ──
-        // rain: active rain style (glyph/monolith/vortex/ripple/etc).
-        // Position above `dcel:` per owner mandate — the user reads
-        // the active motion DNA before the cell-efficiency metrics.
-        // The `as_str()` helper on RainStyle returns the canonical
-        // lowercase CLI label so the HUD label matches the
-        // `--list-scenes` / `--show-scene` output exactly.
+        // rain: active rain style. Position above `dcel:` per owner
+        // mandate — the user reads the active motion DNA before the
+        // cell-efficiency metrics. The `as_str()` helper on RainStyle
+        // returns the canonical lowercase CLI label (glyph, monolith,
+        // vortex, flux, lorenz, dragon, physarum) so the HUD label
+        // matches the `--list-scenes` / `--show-scene` output exactly.
         let rain_val = self.rain_style.as_str();
         self.cached_lines[19] = (colors[19], format!(" rain: {rain_val}"));
 

@@ -188,6 +188,78 @@ fn hud_has_twenty_five_cached_lines_after_night_hunter_9() {
 }
 
 #[test]
+fn hud_rain_line_defaults_to_glyph() {
+    // NIGHT-hunter-9 verification: a fresh HUD (no set_rain_style call
+    // yet) initializes to Glyph — hud_init.rs seeds rain_style with
+    // RainStyle::Glyph so the row never renders an empty label, even
+    // on the very first frame before the event loop's first
+    // set_rain_style(cloud.rain_style()) call lands.
+    let mut h = HudState::new();
+    h.toggle(); // visible
+    h.update_metrics(&[]);
+    let (_, rain_line) = &h.cached_lines[19];
+    assert_eq!(
+        rain_line.as_str(),
+        " rain: glyph",
+        "fresh HUD must render the Glyph default on the rain row, got: {rain_line:?}"
+    );
+}
+
+#[test]
+fn hud_set_rain_style_renders_every_canonical_label() {
+    // NIGHT-hunter-9 verification: set_rain_style must drive row 19 for
+    // ALL seven canonical labels (glyph, monolith, vortex, flux, lorenz,
+    // dragon, physarum) — the same strings RainStyle::as_str() returns
+    // and the scene-custom `rain` field accepts. Locks the setter ->
+    // update_metrics -> cached_lines[19] chain the event loop relies on
+    // (event_loop_hud.rs calls it every frame).
+    use crate::rain_style::RainStyle;
+    let cases = [
+        (RainStyle::Glyph, "glyph"),
+        (RainStyle::Monolith, "monolith"),
+        (RainStyle::Vortex, "vortex"),
+        (RainStyle::Flux, "flux"),
+        (RainStyle::Lorenz, "lorenz"),
+        (RainStyle::Dragon, "dragon"),
+        (RainStyle::Physarum, "physarum"),
+    ];
+    for (style, label) in cases {
+        let mut h = HudState::new();
+        h.toggle(); // visible
+        h.set_rain_style(style);
+        h.update_metrics(&[]);
+        let (_, rain_line) = &h.cached_lines[19];
+        assert_eq!(
+            rain_line.as_str(),
+            format!(" rain: {label}"),
+            "rain row must render the canonical label for {label}, got: {rain_line:?}"
+        );
+    }
+}
+
+#[test]
+fn hud_rain_line_sits_directly_above_dcel() {
+    // NIGHT-hunter-9 owner mandate: the rain row (19) sits directly
+    // above the dcel row (20) so the user reads the active motion DNA
+    // before the cell-efficiency metrics. Pins the relative layout —
+    // if a future row insertion lands between them, this fails.
+    let mut h = HudState::new();
+    h.toggle(); // visible
+    h.set_rain_style(crate::rain_style::RainStyle::Lorenz);
+    h.update_metrics(&[]);
+    let (_, rain_line) = &h.cached_lines[19];
+    let (_, dcel_line) = &h.cached_lines[20];
+    assert!(
+        rain_line.starts_with(" rain: "),
+        "row 19 must be the rain line, got: {rain_line:?}"
+    );
+    assert!(
+        dcel_line.starts_with(" dcel: "),
+        "row 20 must be the dcel line (directly below rain), got: {dcel_line:?}"
+    );
+}
+
+#[test]
 fn format_rss_kb_renders_suffixes() {
     assert_eq!(format_rss_kb(0), "0KiB");
     assert_eq!(format_rss_kb(512), "512KiB");
