@@ -241,19 +241,31 @@ fn reload_with_renamed_scene_triggers_refire() {
 // where pressing 'x' after 22:10 prevented aurora from re-asserting
 // at 22:10 the next day.
 
-/// Verify the day-boundary refire helper exists and is callable.
+/// Verify the scheduler's wall-clock snapshot is bounded and coherent.
 /// The actual day-rollover behavior is wall-clock-dependent and can't
 /// be tested deterministically without a mock clock, but we can verify
-/// the helper doesn't panic and returns a sane value.
+/// the one-read snapshot (NIGHT-hunter-12: minute + second + yday from
+/// a single `local_tm()` call) never panics and returns sane fields —
+/// including the second clamp (leap-second 60 would fold to 59).
 #[test]
-fn current_yday_returns_sane_value() {
-    let yday = crate::crystal_dragon_engine::ambient::current_yday();
-    // tm_yday is 0..=365 on Unix; non-Unix fallback is (secs/86400)%366.
-    // Either way, it must be in [0, 365] (366 would only occur on Dec 31
-    // of a leap year on Unix, but the fallback mod 366 could produce it).
+fn ambient_clock_snapshot_returns_sane_value() {
+    let snap = crate::crystal_dragon_engine::ambient::AmbientClockSnapshot::now();
     assert!(
-        (0..=366).contains(&yday),
-        "current_yday returned {yday}, expected 0..=366"
+        snap.minute_of_day <= 1439,
+        "minute_of_day out of range: {}",
+        snap.minute_of_day
+    );
+    assert!(
+        snap.second_of_minute <= 59,
+        "second_of_minute out of range: {}",
+        snap.second_of_minute
+    );
+    // tm_yday is 0..=365 on Unix; non-Unix fallback derives the true
+    // day-of-year (0..=365, 366 only on Dec 31 of a leap year).
+    assert!(
+        (0..=366).contains(&snap.yday),
+        "yday out of range: {}",
+        snap.yday
     );
 }
 
@@ -290,6 +302,12 @@ fn single_entry_no_spurious_refire_within_same_day() {
 /// via the event loop's integration tests (which can simulate
 /// `user_override_since_ambient = true` and verify the scheduler's
 /// next fire is applied, not deduped).
+///
+/// NIGHT-hunter-12: the refire's time source is now the per-wake
+/// `AmbientClockSnapshot` (one `local_tm()` call for minute + second +
+/// yday) — the static assertions pin both the tracker and the single
+/// snapshot read so the loop can never regress to multiple torn clock
+/// samples per wake.
 #[test]
 fn day_boundary_refire_code_path_exists() {
     let src = include_str!("../../../../src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs");
@@ -302,8 +320,12 @@ fn day_boundary_refire_code_path_exists() {
         "v35 day-boundary refire comment must exist"
     );
     assert!(
-        src.contains("ambient::current_yday"),
-        "v35 day-boundary refire must call current_yday"
+        src.contains("AmbientClockSnapshot::now()"),
+        "the loop must read the clock via the single per-wake snapshot"
+    );
+    assert!(
+        !src.contains("current_second_of_minute"),
+        "the per-field second helper must stay retired (one clock read per wake)"
     );
 }
 

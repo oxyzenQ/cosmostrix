@@ -413,7 +413,11 @@ pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<
 
 /// Returns the current minute-of-day (0..=1439) from the local wall clock.
 ///
-/// Used by the scheduler thread to compute time-to-next-phase.
+/// Used by event-gated callers only (ambient startup resolve, auto-snapback
+/// phase pick) — each fires at most once per cycle, so a dedicated call is
+/// fine there. The scheduler THREAD uses [`AmbientClockSnapshot`] instead:
+/// it needs minute + second + yday from ONE clock read per wake.
+///
 /// Delegates to `crate::posix_time::local_tm()` — see that module for the
 /// consolidated POSIX FFI path.
 #[must_use]
@@ -423,23 +427,59 @@ pub(crate) fn current_minute_of_day() -> u32 {
         .unwrap_or(0)
 }
 
-/// Returns the current second within the minute (0..=59) from the local
-/// wall clock. Used by the scheduler to compute precise sleep duration.
-#[must_use]
-pub(crate) fn current_second_of_minute() -> u32 {
-    crate::posix_time::local_tm()
-        .map(|tm| tm.second as u32)
-        .unwrap_or(0)
+/// One wall-clock snapshot for the ambient scheduler loop: minute-of-day,
+/// second-of-minute, and day-of-year from a single `local_tm()` call.
+///
+/// NIGHT-hunter-12 (ambient scheduler thread cadence audit): the loop
+/// previously read the clock as three separate calls per idle wake —
+/// `current_minute_of_day()` + `current_second_of_minute()` +
+/// `current_yday()` — and four on a fire wake (`current_yday()` ran twice:
+/// once in the Delivered arm, once unconditionally for the day-boundary
+/// check). Each call re-ran `libc::time` + `libc::localtime_r` (FFI +
+/// timezone conversion). Worse than the redundancy, the minute and second
+/// came from two different clock samples: a wake landing on a minute
+/// boundary could read now_min = 11:59 (sample 1) and now_sec = 0 (sample
+/// 2 at 12:00:00), so `seconds_to_next_phase` computed the sleep from an
+/// instant that never existed and the phase boundary fired up to a minute
+/// late. One struct, one syscall, one consistent instant.
+///
+/// The fallback on clock failure mirrors the pre-hunter-12 helpers'
+/// `unwrap_or(0)` semantics: all fields zero.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct AmbientClockSnapshot {
+    /// Minute of day, 0..=1439.
+    pub(crate) minute_of_day: u32,
+    /// Second within the minute, 0..=59 (a leap-second 60 from
+    /// `localtime_r` clamps to 59, matching the scheduler's previous
+    /// `now_sec.min(59)` handling).
+    pub(crate) second_of_minute: u32,
+    /// Day of year, 0..=365 (366 only on Dec 31 of a leap year).
+    pub(crate) yday: i32,
 }
 
-/// Returns the current day-of-year (0..=365) from the local wall clock.
-///
-/// Used by the ambient scheduler to detect day-boundary crossings.
-/// Delegates to `crate::posix_time::local_tm()`.
-#[must_use]
-pub(crate) fn current_yday() -> i32 {
-    crate::posix_time::local_tm().map(|tm| tm.yday).unwrap_or(0)
+impl AmbientClockSnapshot {
+    /// Capture the wall clock now — one `local_tm()` FFI round-trip.
+    #[must_use]
+    pub(crate) fn now() -> Self {
+        match crate::posix_time::local_tm() {
+            Some(tm) => Self {
+                minute_of_day: tm.minute_of_day(),
+                second_of_minute: tm.second.clamp(0, 59) as u32,
+                yday: tm.yday,
+            },
+            None => Self {
+                minute_of_day: 0,
+                second_of_minute: 0,
+                yday: 0,
+            },
+        }
+    }
 }
+
+// NIGHT-hunter-12: `current_second_of_minute()` and `current_yday()` were
+// removed — the scheduler thread now takes one `AmbientClockSnapshot` per
+// wake instead of three-to-four separate `local_tm()` reads, and no other
+// caller needed the single fields.
 
 /// masterclass: compute the current ambient phase and apply it to the
 /// cloud at startup (synchronous, before the event loop). Returns the new

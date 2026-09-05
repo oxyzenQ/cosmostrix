@@ -505,7 +505,7 @@ because the scheduler runs continuously).
 
 | Module | Responsibility |
 |--------|----------------|
-| `src/engine/crystal_dragon_engine/ambient/mod.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (`AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day`, `current_second_of_minute`) |
+| `src/engine/crystal_dragon_engine/ambient/mod.rs` | Parser, `AmbientEntry` / `AmbientSchedule` structs (`AmbientEntry` is just `{hour, minute, scene}`), `current_phase` / `next_phase` / `seconds_to_next_phase` helpers, strict validation (`validate_ambient_entries`), wall-clock helpers (`current_minute_of_day` for event-gated callers; `AmbientClockSnapshot::now()` — one `local_tm()` read for minute + second + yday — for the scheduler thread, NIGHT-hunter-12) |
 | `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs` | Dynamic idle/wake scheduler thread, `AmbientSchedulerHandle`, `spawn_ambient_scheduler`, `reload` |
 | `src/engine/cosmic_dragon_engine/cloud/scene_runtime.rs` | `Cloud::apply_ambient_entry` — delegates to `apply_scene_runtime_with_cfg`, which handles both built-in scenes (fast path) and custom scenes (looks up the `[scene-custom.<name>]` block and applies its complete self-contained field layer — v80.0.0-beta.2: no `base-scene` inheritance; NIGHT-research-5: rain style picked via block's `rain` field, falls back to Glyph) |
 | `src/interactive/event_loop.rs` | Spawns scheduler at startup, polls `rx` each frame, pushes reload on config change |
@@ -524,7 +524,7 @@ because the scheduler runs continuously).
 | **Empty schedule** (no `ambient.*` keys) | Scheduler thread idles (sleeps 60s, polls for new entries). Zero events fired. Existing scene/params retained. |
 | **Single entry** | Fires at startup (wrap-around: the entry is treated as "yesterday's last active phase" before its boundary, and as "today's active phase" at/after its boundary). This means a single `ambient.03-17 = hacker-mode` is active ALL DAY — it's the only phase, so it carries over from yesterday via midnight wrap-around. This is correct by design (ambient is a 24-hour schedule, not a one-shot timer). If you want the scene to activate only after a specific time, use at least two entries — e.g. `ambient.03-16 = cinematic` then `ambient.03-17 = hacker-mode`. |
 | **Two entries same time** | Configfile parser is `HashMap::insert` (last-writer-wins). One entry survives. |
-| **DST spring-forward** (2:00 AM -> 3:00 AM) | `current_minute_of_day()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
+| **DST spring-forward** (2:00 AM -> 3:00 AM) | `AmbientClockSnapshot::now()` returns wall-clock local time. Entries in the skipped hour (02:00–02:59) are never fired. Acceptable. |
 | **DST fall-back** (2:00 AM repeat) | Entries in the repeated hour (01:00–01:59) fire twice. Acceptable — `apply_ambient_entry` is idempotent. |
 | **Midnight wrap** | Handled in `AmbientSchedule::seconds_to_next_phase` — `(24*60 - now_min + next_min) * 60`. |
 | **Invalid scene name** | Strict reject via `--testconf` (exit 2). Same behavior as `colors-custom` / `scene-custom`. |

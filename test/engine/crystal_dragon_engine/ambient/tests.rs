@@ -331,7 +331,7 @@ fn validate_case_insensitive_custom_scene_lookup() {
     assert!(validate_ambient_entries(&cfg).is_ok());
 }
 
-// ── current_minute_of_day / current_second_of_minute ──
+// ── wall-clock helpers ──
 
 #[test]
 fn current_minute_of_day_bounded() {
@@ -339,8 +339,31 @@ fn current_minute_of_day_bounded() {
     assert!(m < 24 * 60, "minute of day out of range: {m}");
 }
 
+/// NIGHT-hunter-12: the scheduler's one-read snapshot replaces the old
+/// separate second/yday helpers. Its fields must be bounded AND mutually
+/// coherent — minute + second describe the same clock sample (that is the
+/// whole point of the snapshot: the torn minute/second read was the
+/// cadence audit's correctness defect).
 #[test]
-fn current_second_of_minute_bounded() {
-    let s = current_second_of_minute();
-    assert!(s < 60, "second of minute out of range: {s}");
+fn ambient_clock_snapshot_bounded_and_coherent() {
+    use crate::crystal_dragon_engine::ambient::AmbientClockSnapshot;
+    let snap = AmbientClockSnapshot::now();
+    assert!(snap.minute_of_day < 24 * 60, "minute of day out of range");
+    assert!(snap.second_of_minute < 60, "second of minute out of range");
+    assert!(
+        (0..=366).contains(&snap.yday),
+        "yday out of range: {}",
+        snap.yday
+    );
+    // Coherence: the snapshot's total seconds-of-day must round-trip
+    // through a second read taken immediately after within one minute of
+    // slack (wall clock advances between the two reads, never rewinds).
+    let total = snap.minute_of_day * 60 + snap.second_of_minute;
+    let next = AmbientClockSnapshot::now();
+    let next_total = next.minute_of_day * 60 + next.second_of_minute;
+    let drift = (next_total as i64 - total as i64).rem_euclid(86_400);
+    assert!(
+        drift < 120,
+        "two back-to-back snapshots drifted {drift}s — not one consistent clock each"
+    );
 }

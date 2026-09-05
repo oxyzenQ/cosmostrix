@@ -11,8 +11,9 @@
 //!   - `clock.rs::local_hms()`                     — (hour, minute, second)
 //!   - `clock.rs::now_iso_utc()`                   — gmtime_r for ISO UTC
 //!   - `ambient.rs::current_minute_of_day()`       — hour*60 + minute
-//!   - `ambient.rs::current_second_of_minute()`    — second
-//!   - `ambient.rs::current_yday()`                — day-of-year
+//!   - `ambient.rs::AmbientClockSnapshot::now()`   — minute + second + yday
+//!     in one read (NIGHT-hunter-12; absorbed the old separate
+//!     second-of-minute and yday helpers the scheduler used to call)
 //!   - `phase_predictor.rs::local_secs_since_midnight()` — total seconds
 //!
 //! Each duplication had its own `MaybeUninit<libc::tm>`, `tzset()` OnceLock,

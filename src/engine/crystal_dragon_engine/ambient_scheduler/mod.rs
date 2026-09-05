@@ -57,7 +57,7 @@
 //! - Single entry: thread sleeps until the entry's boundary, fires,
 //!   then sleeps 24 hours (capped to 1 hour, so it polls hourly — but the
 //!   phase is already applied, so it no-ops).
-//! - DST spring-forward: `current_minute_of_day()` returns wall-clock
+//! - DST spring-forward: `AmbientClockSnapshot::now()` returns wall-clock
 //!   local time. Entries in the skipped hour (02:00–02:59) are never fired.
 //!   Acceptable — user won't notice.
 //! - DST fall-back: entries in the repeated hour (01:00–01:59) fire
@@ -69,9 +69,7 @@ use std::sync::{Arc, Condvar, Mutex};
 use std::thread;
 use std::time::{Duration, Instant};
 
-use super::ambient::{
-    current_minute_of_day, current_second_of_minute, AmbientEntry, AmbientSchedule,
-};
+use super::ambient::{AmbientClockSnapshot, AmbientEntry, AmbientSchedule};
 
 /// Handle returned by [`spawn_ambient_scheduler`].
 ///
@@ -287,17 +285,21 @@ fn deliver(tx: &std::sync::mpsc::SyncSender<AmbientEntry>, entry: &AmbientEntry)
     }
 }
 
-/// The scheduler thread's main loop. Extracted to a free function so it
-/// can be unit-tested with synthetic clocks (the test passes a mock
-/// `now_min` instead of calling `current_minute_of_day`).
+/// The scheduler thread's main loop. Extracted to a free function for
+/// readability; the pure pieces it drives (`AmbientSchedule::current_phase`,
+/// `seconds_to_next_phase`, `deliver`) are unit-tested directly with
+/// synthetic inputs, and the wall-clock entry point is
+/// `AmbientClockSnapshot::now()` (one `local_tm()` FFI round-trip per
+/// wake — see that type's doc for the NIGHT-hunter-12 cadence audit).
 ///
 /// Production loop:
-/// 1. Read schedule (mutex).
-/// 2. Find current phase (latest entry <= now). If different from last
-///    applied, fire it via `tx.send`.
-/// 3. Compute seconds to next phase boundary.
-/// 4. `cv.wait_timeout(sleep_secs)`.
-/// 5. Loop.
+/// 1. Take one wall-clock snapshot (minute + second + yday, one read).
+/// 2. Read schedule (mutex).
+/// 3. Find current phase (latest entry <= now). If different from last
+///    applied, fire it via the bounded channel.
+/// 4. Compute seconds to next phase boundary.
+/// 5. `cv.wait_timeout(sleep_secs)`.
+/// 6. Loop.
 fn scheduler_loop(
     schedule: Arc<Mutex<AmbientSchedule>>,
     cv: Arc<Condvar>,
@@ -324,8 +326,14 @@ fn scheduler_loop(
     let mut last_fired_yday: i32 = -1;
 
     loop {
-        let now_min = current_minute_of_day();
-        let now_sec = current_second_of_minute();
+        // NIGHT-hunter-12: one snapshot per wake — minute, second, and
+        // yday from a single `local_tm()` call. Previously three FFI
+        // reads per idle wake (four on fire wakes), and the minute/second
+        // pair could be torn across a minute boundary (see
+        // `AmbientClockSnapshot`'s doc for the failure mode).
+        let clock = AmbientClockSnapshot::now();
+        let now_min = clock.minute_of_day;
+        let now_sec = clock.second_of_minute;
 
         // Snapshot the schedule under the lock, compute current phase +
         // sleep duration, then release the lock before sending (so `reload`
@@ -367,7 +375,7 @@ fn scheduler_loop(
                     }
                     DeliverOutcome::Delivered => {
                         last_applied = Some(entry.clone());
-                        last_fired_yday = super::ambient::current_yday();
+                        last_fired_yday = clock.yday;
                     }
                     DeliverOutcome::Saturated => {
                         // Channel full for the whole bounded wait — entry
@@ -411,7 +419,7 @@ fn scheduler_loop(
         // boundary crossings (different entry), and the day-boundary check
         // is a no-op (`yday == last_fired_yday` after the first fire of the
         // day).
-        let today_yday = super::ambient::current_yday();
+        let today_yday = clock.yday;
         if today_yday != last_fired_yday {
             // Set when the day-boundary refire was dropped due to a
             // saturated channel — suppresses marking today as "seen" so
