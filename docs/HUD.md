@@ -506,8 +506,11 @@ at column 0, row 0).
   marked dirty — when the HUD width is stable, the border is a
   one-time write that the terminal never re-sends.
 - Frame's `set()` silently skips out-of-bounds cells, so a terminal too
-  short for row 24 (e.g. height < 25) simply omits the bottom edge
-  without panicking.
+  short for row 25 (e.g. height < 26) simply omits the bottom edge
+  without panicking. (NIGHT-hunter-9 leftover fix, 2026-09-06: the code
+  drew the bottom edge on row 24 — on top of the screensize text —
+  while this document already described the correct row-25 geometry;
+  the code now matches.)
 - The border is drawn only when the HUD is visible (`visible == true`)
   and `hud_width > 0`.
 
