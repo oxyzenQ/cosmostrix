@@ -69,6 +69,7 @@ impl super::Cloud {
         self.monolith_rain.reset(self.cols);
         self.vortex_rain.reset(self.cols);
         self.dragon_rain.reset(self.cols);
+        self.physarum_rain.reset(self.cols);
         self.ripple_surface.reset();
 
         // Re-seed the droplet free-list: after clear+resize, all droplets

@@ -36,6 +36,7 @@ mod monolith_helpers;
 mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
+mod physarum;
 mod rain;
 mod rain_at;
 mod rain_post;
@@ -73,6 +74,7 @@ use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
 use monolith::MonolithRain;
+use physarum::PhysarumRain;
 use ripple::RippleSurface;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
@@ -136,6 +138,13 @@ pub struct Cloud {
     /// following a path-generating head via FABRIK distance
     /// constraints — the signature serpentine silhouette.
     pub(crate) dragon_rain: DragonRain,
+    /// NIGHT-research-6 sixth rain style: bio-inspired slime mold
+    /// (physarum scene). Structured family sibling (no droplet
+    /// pool, uses spawn_remainder like monolith/vortex/dragon).
+    /// Particles follow sense-decide-move-deposit rules on a
+    /// stigmergic trail field — Jeff Jones 2010 model. The
+    /// terminal's discrete cell grid IS the substrate.
+    pub(crate) physarum_rain: PhysarumRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -430,6 +439,7 @@ impl Cloud {
             vortex_rain: VortexRain::new(),
             ripple_surface: RippleSurface::new(),
             dragon_rain: DragonRain::new(),
+            physarum_rain: PhysarumRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -788,6 +798,7 @@ impl Cloud {
             RainStyle::Monolith => self.monolith_rain.active_count(),
             RainStyle::Vortex => self.vortex_rain.active_count(),
             RainStyle::Dragon => self.dragon_rain.active_count(),
+            RainStyle::Physarum => self.physarum_rain.active_count(),
             // Droplet family: Glyph cascade + Ripple surface droplets.
             RainStyle::Glyph | RainStyle::Ripple => {
                 self.droplets.iter().filter(|d| d.is_alive).count()

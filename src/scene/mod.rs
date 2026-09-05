@@ -44,10 +44,11 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 21 built-in scenes (owner directive
+/// Ordered scene cycle — all 22 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 adds the style
 /// flagships at 4-5; NIGHT-research-5 adds the dragon style flagship
-/// at 6; the rest ordered by daily-use likelihood so the most-switched
+/// at 6; NIGHT-research-6 adds the physarum style flagship at 7;
+/// the rest ordered by daily-use likelihood so the most-switched
 /// scenes are the fewest keystrokes away: core trio -> style flagships
 /// -> classic siblings -> atmosphere -> power-saving utility ->
 /// milestone -> tribute -> honor scenes).
@@ -66,26 +67,30 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // with the other style flagships so users cycle through all the
     // signature motion styles in one stretch.
     "cosmic_dragon", // 6
+    // NIGHT-research-6 style flagship — the bio-inspired slime mold
+    // (Jeff Jones 2010 emergent network patterns). The masterpiece
+    // rarity (world-first in terminal matrix rain category).
+    "physarum", // 7
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 7 — original green-on-black
-    "signal",      // 8 — digital transmission
-    "hacker",      // 9 — high-contrast terminal overflow
-    "matrix_film", // 10 — 1999 film homage
+    "classic",     // 8 — original green-on-black
+    "signal",      // 9 — digital transmission
+    "hacker",      // 10 — high-contrast terminal overflow
+    "matrix_film", // 11 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 11
-    "calm",   // 12
-    "cosmos", // 13
-    "neon",   // 14
+    "storm",  // 12
+    "calm",   // 13
+    "cosmos", // 14
+    "neon",   // 15
     // Utility.
-    "low-power", // 15
+    "low-power", // 16
     // Milestone + tribute.
-    "cosmic-dragon", // 16
-    "carbonic",      // 17
+    "cosmic-dragon", // 17
+    "carbonic",      // 18
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 18
-    "orange-cat",     // 19
-    "north-stars",    // 20
-    "curiosity",      // 21
+    "crystal-dragon", // 19
+    "orange-cat",     // 20
+    "north-stars",    // 21
+    "curiosity",      // 22
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -156,6 +161,32 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.55),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Dragon,
+        },
+    },
+    // NIGHT-research-6: physarum — bio-inspired slime mold (Jeff
+    // Jones 2010 model). Particles sense / decide / move / deposit
+    // on a stigmergic trail field, producing emergent network
+    // patterns. The terminal's discrete cell grid IS the substrate
+    // — a 1:1 medium match (masterpiece contract: terminal
+    // limitations BECOME the simulation substrate).
+    // The `cosmos` palette + `binary` charset evoke the deep-space
+    // petri dish aesthetic; speed 18 = steady exploration cadence;
+    // density 0.55 = 30-40 particles (enough for visible networks,
+    // sparse enough for the trail decay to keep patterns alive).
+    // No other terminal matrix rain project ships physarum — this
+    // is the project's first bio-inspired renderer, the rarest
+    // style engineering in the category.
+    SceneInfo {
+        name: "physarum",
+        description: "Physarum slime mold — bio-inspired emergent network patterns; particles sense / decide / move / deposit on a stigmergic trail field (Jeff Jones 2010 model)",
+        config: SceneConfig {
+            color: Some("cosmos"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Physarum,
         },
     },
     SceneInfo {

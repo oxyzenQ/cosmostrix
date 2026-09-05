@@ -17,6 +17,7 @@ use crate::rain_style::RainStyle;
 
 use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
+use super::physarum::{PhysarumRandom, PhysarumSpawnParams, PhysarumStep};
 use super::render::{DrawCtx, FlashWaveCtx};
 use super::ripple::{RippleStep, RippleSurface};
 use super::vortex::{VortexRandom, VortexSpawnParams, VortexStep};
@@ -138,6 +139,13 @@ impl super::Cloud {
                     // transition path; the dragon chain has no droplet
                     // pool, so the segment update alone suffices).
                     self.dragon_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Physarum) {
+                    // NIGHT-research-6: physarum particles adopt the new
+                    // palette slot (parity with the structured-family
+                    // transition path; physarum has no droplet pool,
+                    // so the particle update alone suffices).
+                    self.physarum_rain
                         .adopt_palette_slot(self.active_palette_slot);
                 } else if matches!(self.rain_style, RainStyle::Ripple) {
                     self.ripple_surface
@@ -350,6 +358,30 @@ impl super::Cloud {
             };
             self.dragon_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Physarum) {
+            // NIGHT-research-6: physarum particles use the same
+            // accumulator contract as vortex/dragon (structured
+            // family sibling — same spawn_remainder carry, same
+            // elapsed clamp).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = PhysarumSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = PhysarumRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.physarum_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -377,11 +409,15 @@ impl super::Cloud {
                     self.monolith_rain.clear_draw_history();
                 } else if matches!(self.rain_style, RainStyle::Vortex) {
                     self.vortex_rain.clear_draw_history();
-                } else {
-                    // NIGHT-research-5: dragon is the third structured
-                    // family — clear its draw history on semantic
-                    // invalidation, mirroring monolith/vortex.
+                } else if matches!(self.rain_style, RainStyle::Dragon) {
+                    // NIGHT-research-5: dragon — structured family sibling,
+                    // clear draw history on semantic invalidation.
                     self.dragon_rain.clear_draw_history();
+                } else {
+                    // NIGHT-research-6: physarum is the fourth structured
+                    // family — clear its draw history on semantic
+                    // invalidation, mirroring monolith/vortex/dragon.
+                    self.physarum_rain.clear_draw_history();
                 }
                 self.reset_phosphor_state();
             }
@@ -435,6 +471,17 @@ impl super::Cloud {
                 // + phosphor state reset).
                 frame.clear_with_bg(self.palette.bg);
                 self.dragon_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Physarum) {
+                // NIGHT-research-6: physarum is a structured family
+                // style and follows the same force-draw reset path
+                // as monolith/vortex/dragon (full frame clear + draw
+                // history wipe + phosphor state reset). The trail
+                // field is preserved across force-draw (it's a
+                // simulation state, not a render artifact — wiping
+                // it would lose the network pattern).
+                frame.clear_with_bg(self.palette.bg);
+                self.physarum_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -531,6 +578,22 @@ impl super::Cloud {
                 resume_blend: self.resume_blend,
             };
             self.dragon_rain.advance(&step);
+        } else if matches!(self.rain_style, RainStyle::Physarum) {
+            // NIGHT-research-6: physarum — single global-clock
+            // sense-decide-move-deposit step + trail decay. Same
+            // dt-clamp + resume_blend contract as vortex/dragon.
+            // The advance pass carries viewport geometry (cols,
+            // lines) so the trail field can be sampled at sensor
+            // offsets with wraparound using actual viewport bounds.
+            let step = PhysarumStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                cols: self.cols,
+                lines: self.lines,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            self.physarum_rain.advance(&step);
         } else {
             // Ripple surface physics (ring aging + splash ballistics) runs
             // with the droplet family — Glyph style skips it entirely.
@@ -1102,6 +1165,23 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.dragon_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::Physarum) {
+            // NIGHT-research-6: physarum draw — same diff-cleanup
+            // contract as vortex/dragon (cells vacated by particle
+            // motion are cleared via the drawn-cell diff, phosphor
+            // arrays reset in clear_cell). The renderer is
+            // swarm-agnostic; the same pattern serves any future
+            // stigmergic / multi-agent style.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.physarum_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

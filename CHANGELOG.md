@@ -9,6 +9,67 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-research-6 — `physarum` (bio-inspired slime-mold rain, sixth style — world-first in terminal matrix rain category)
+
+A new rain style implementing the Jeff Jones 2010 slime-mold model:
+particles follow sense / decide / move / deposit rules on a
+stigmergic trail field, producing emergent NETWORK patterns (vein-like
+structures that self-organize from random initial conditions, with no
+central planner). This is the project's first bio-inspired renderer —
+bridging biology (slime mold intelligence — Physarum polycephalum
+solves mazes without nervous system), computer science (stigmergy /
+multi-agent swarms), and generative art (network aesthetics).
+
+- `physarum` (scene `physarum`, palette `cosmos` + charset `binary`):
+  particles sense the trail field at three sensor positions (left-
+  front, front, right-front) and steer toward the strongest signal.
+  Each frame they move one step in their (possibly updated) heading
+  direction (wraparound toroidal substrate — particles that exit one
+  side reappear on the opposite side) and deposit trail chemical at
+  the new cell. Positive feedback between deposition and sensing
+  creates the network — paths that get used attract more traffic,
+  unused paths decay (exponential trail decay each frame, the
+  negative feedback that keeps the network alive).
+- Terminal-limit exploitation — the masterpiece contract: the
+  terminal's discrete cell grid IS the slime-mold substrate (a 2D
+  chemical concentration field, one f32 per cell). No sub-pixel
+  motion, no anti-aliasing — the medium matches the algorithm exactly.
+  The trail field is INTERNAL (used for sensor sampling only); the
+  visible vein network emerges from the engine's existing phosphor
+  decay system. Cells that particles visit often accumulate phosphor
+  (existing slow fade), creating the persistent network look — the
+  terminal's "slow refresh" limitation BECOMES the slime mold's
+  chemical memory.
+- Motion DNA — 100% distinct from cascade (`cinematic`), pillars
+  (`monolith`), polar-orbit (`vortex`), water-surface (`ripple`),
+  serpentine chain (`cosmic_dragon`): each particle is a glyph agent
+  in a multi-agent swarm. Particle head brightness is driven by the
+  trail field value at the head position (high trail = bright vein
+  cell; low trail = exploring dim cell), so the network is visible via
+  the heads themselves — no direct trail field iteration needed
+  (keeps draw cost O(N), not O(cells)).
+- Masterpiece engineering / future-proof legacy: the algorithm is
+  parameter-driven (sensor angle, sensor distance, deposit amount,
+  decay rate, turn speed). The same code produces vastly different
+  emergent patterns — branching trees (small sensor angle), spirals
+  (high turn speed), mazes (low decay), rings (high deposit). This
+  file sets a reusable standard for future bio-inspired styles (ant
+  colonies, flocking birds, schooling fish could all reuse the
+  trail-field + sense-decide-move substrate).
+- Architecture: `RainStyle::Physarum` variant added; `cloud/physarum.rs`
+  (~700 LOC, mirrors vortex/lorenz/dragon structure). Scene catalog
+  grows to 22 scenes; `physarum` takes cycle position 7.
+- A/B 10s @ 80x24 dry (no regression on existing styles): cinematic
+  24K fps / 415 dirty / entropy 5.09 / gini 0.66; monolith 92K / 57 /
+  3.29 / 0.90; vortex 113K / 41 / 4.77 / 0.70; ripple 16K / 505 /
+  5.53 / 0.55; cosmic_dragon 199K / 27 / 4.01 / 0.81; physarum 102K /
+  52 / 4.86 / 0.69 — physarum matches the structured-family
+  performance profile (102K fps, 0.014ms p99) with a distinct visual
+  signature (entropy between vortex and ripple, gini between vortex
+  and cinematic — the emergent network distributes particles across
+  the viewport differently than any single-motion style). No
+  regressions on the other five styles.
+
 ### feat: NIGHT-research-5 — `cosmic_dragon` (Chinese-mythology serpentine dragon rain, fifth rain style)
 
 A new rain style inspired by Chinese mythology (not Western): each

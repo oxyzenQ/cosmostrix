@@ -219,3 +219,112 @@ pub(crate) const DRAGON_CIRCLE_MAX_DURATION: f32 = 6.0;
 /// new cell (mutation tied to motion, like classic matrix rain —
 /// parity with vortex/lorenz shimmer gates).
 pub(crate) const DRAGON_SHIMMER_CHANCE: f32 = 0.4;
+
+// ── Physarum (sixth rain style, NIGHT-research-6) ────────────────────
+// Bio-inspired emergent network model (Jeff Jones 2010): particles
+// follow sense-decide-move-deposit rules on a stigmergic trail field.
+// Three sensor samples steer each particle toward the strongest
+// signal; positive feedback between deposition and sensing creates
+// emergent vein-like networks. Trail decays exponentially (negative
+// feedback) so unused paths fade. The terminal's discrete cell grid
+// IS the substrate — perfect medium match (masterpiece contract).
+
+/// Sensor angle offset (radians, left and right of heading). At
+/// PI/4 (45 degrees), particles sense a 90-degree cone ahead —
+/// the standard Jeff Jones value, produces branching network
+/// patterns. Smaller angles give tighter veining; larger gives
+/// more diffuse coverage.
+pub(crate) const PHYSARUM_SENSOR_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
+
+/// Sensor sample distance (cells ahead of the particle). At 3.0,
+/// particles sense 3 cells in front of them — far enough to detect
+/// oncoming trails but close enough to keep local steering. Larger
+/// values produce global network convergence; smaller produces
+/// local maze-like patterns.
+pub(crate) const PHYSARUM_SENSOR_DISTANCE: f32 = 3.0;
+
+/// Step size per chars_per_sec: step_dist = cps * this * dt. At
+/// 2.0 + speed 18 + 60 FPS, particles move 18 * 2.0 * 0.0167 =
+/// 0.6 cells per frame — visible motion that visits multiple cells
+/// per second (essential for network emergence — too slow and
+/// particles pile up on single cells, too fast and they skip the
+/// sensor sampling window).
+pub(crate) const PHYSARUM_STEP_PER_CPS: f32 = 2.0;
+
+/// Trail deposit amount per particle per second. At 0.5, a cell
+/// visited by one particle for one second accumulates 0.5 trail
+/// value. Combined with the decay rate (0.90/frame at 60 FPS =
+/// ~0.5/sec effective decay), steady-state trail value at a cell
+/// visited continuously = deposit / decay = 0.10 — above the
+/// PHYSARUM_BRIGHTNESS_DIM threshold, so single-particle cells
+/// reach Mid zone, and multi-particle cells accumulate into
+/// Hot/Core (the visible vein signature).
+pub(crate) const PHYSARUM_DEPOSIT_AMOUNT: f32 = 0.5;
+
+/// Trail decay rate per frame (multiplier). At 0.90, the trail
+/// loses 10% of its value per frame — at 60 FPS, an unvisited cell
+/// fades to 1% of its peak value in ~0.44 seconds. This is the
+/// negative feedback that lets unused paths fade so the network
+/// stays alive (without decay, every cell saturates and the
+/// network disappears). Tuned higher than the original 0.92 so
+/// fresh trails are brighter relative to old ones (more visible
+/// vein distinction).
+pub(crate) const PHYSARUM_TRAIL_DECAY: f32 = 0.90;
+
+/// Max turn rate (radians/sec). At 1.0, particles can curve up to
+/// 1 radian per second — produces the organic curved vein signature
+/// (sharp turns would break the network pattern into straight
+/// segments). The actual turn per frame is rate-bounded: turn_rate
+/// * dt_p (where dt_p is per-particle pace-adjusted dt).
+pub(crate) const PHYSARUM_TURN_RATE: f32 = 1.0;
+
+/// Particle lifetime cap (seconds). At 15s, each particle gets
+/// enough time to contribute to multiple network paths before
+/// refresh — the continuous absorption/respawn keeps the
+/// simulation alive without saturating. Shorter → constant respawn
+/// chatter (no network emergence); longer → patterns freeze.
+pub(crate) const PHYSARUM_LIFETIME_SECS: f32 = 15.0;
+
+/// Base active-particle ratio for density scaling. Combined with
+/// PHYSARUM_ACTIVE_DENSITY_MULT, yields 30-60 particles at typical
+/// densities (0.40-0.85). More particles produce denser networks;
+/// fewer produce sparser branching.
+pub(crate) const PHYSARUM_ACTIVE_BASE: f32 = 0.30;
+
+/// Density multiplier for physarum active-count calculation.
+pub(crate) const PHYSARUM_ACTIVE_DENSITY_MULT: f32 = 0.40;
+
+/// Maximum active-particle ratio cap (of the one-particle-per-column
+/// pool). Bounds the active count so very high density settings
+/// don't oversaturate the trail field.
+pub(crate) const PHYSARUM_ACTIVE_MAX: f32 = 0.75;
+
+/// Spawn rate multiplier for particle generation. Steady state
+/// needs target/avg_lifetime particles per second; 0.35x target +
+/// floor 1.5 reaches that with headroom for ramp-up after scene
+/// entry (parity with vortex/lorenz/dragon tuning).
+pub(crate) const PHYSARUM_SPAWN_RATE_MULT: f32 = 0.35;
+
+/// Spawn rate floor (minimum spawns per tick).
+pub(crate) const PHYSARUM_SPAWN_RATE_FLOOR: f32 = 1.5;
+
+/// Matrix-style glyph mutation chance when a particle crosses into
+/// a new cell (mutation tied to motion — parity with the other
+/// structured styles' shimmer gates).
+pub(crate) const PHYSARUM_SHIMMER_CHANCE: f32 = 0.4;
+
+/// Brightness zone boundary: trail value above this → Core (hot
+/// vein). Tuned so cells visited by 4+ particles reach this
+/// brightness (the visible network signature).
+pub(crate) const PHYSARUM_BRIGHTNESS_HOT: f32 = 0.30;
+
+/// Brightness zone boundary: trail value above this → Hot.
+/// Cells visited by 2-3 particles reach this brightness
+/// (sustained vein paths).
+pub(crate) const PHYSARUM_BRIGHTNESS_MID: f32 = 0.15;
+
+/// Brightness zone boundary: trail value above this → Mid; below
+/// → Ghost (exploring new territory, low trail accumulation).
+/// Single-particle-visited cells typically reach this brightness
+/// after sustained deposition (steady-state ~0.10).
+pub(crate) const PHYSARUM_BRIGHTNESS_DIM: f32 = 0.03;
