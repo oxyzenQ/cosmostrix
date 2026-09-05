@@ -25,6 +25,7 @@ mod border_touch;
 pub(crate) mod brightness_factors;
 pub(crate) mod cinematic;
 mod dragon;
+mod dragon_helpers;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod flux;

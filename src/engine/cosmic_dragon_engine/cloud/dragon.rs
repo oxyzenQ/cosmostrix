@@ -43,11 +43,12 @@
 //! motion, parity with vortex/lorenz). Each segment carries its own
 //! glyph; segments don't share glyph state (independent shimmer).
 //!
-//! LOC note: at ~620 lines this matches the vortex/lorenz file
-//! budgets — a single self-contained style system (state, spawn,
-//! advance, draw, and diff cleanup are one algorithm; splitting
-//! them mirrors the monolith family split only once the file
-//! approaches the 800-line hard cap). Well under the hard limit.
+//! LOC note: the render/level/noise helpers live in
+//! `dragon_helpers.rs` since NIGHT-hunter-10 (the main file reached
+//! the 800-line hard cap when the pace-linearity fix + heading LTS
+//! wrap landed — the split mirrors the monolith family split).
+//! Motion, spawn, chain solver and diff cleanup stay here as one
+//! algorithm.
 //!
 //! Cleanup follows the monolith/vortex/lorenz three-pass diff
 //! pattern: draw into `current_cells`, tag with the `drawn_gen`
@@ -64,9 +65,16 @@ use rand::{
 
 use crate::frame::Frame;
 
-use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level};
+use super::dragon_helpers::{
+    dragon_noise_roll, dragon_state_duration, draw_dragon_cell, level_for_segment, pick_pool_char,
+};
+use super::monolith_helpers::clear_cell;
 use super::render::DrawCtx;
+
+/// Heading-accumulator wrap threshold (radians, 64 turns). See the
+/// amortized wrap in `advance` — keeps the unbounded f32 accumulator
+/// inside a range where the ulp stays far below visual resolution.
+const DRAGON_HEADING_WRAP_LIMIT: f32 = 64.0 * std::f32::consts::TAU;
 
 /// One drawn cell (col, line). Own struct instead of reusing
 /// monolith's `DrawnCell` because dragon has no Segment/Spine kind
@@ -129,7 +137,9 @@ pub(crate) struct Dragon {
     pub(crate) state_timer: f32,
     /// Head heading angle (radians). Body inherits via chain constraint.
     pub(crate) heading: f32,
-    /// Per-dragon speed multiplier (0.85..1.15).
+    /// Per-dragon pace multiplier (0.85..1.15) — scales the dragon's
+    /// motion-clock rate (translation, turn rate, state timer and
+    /// aging all advance pace-times faster; linear, never squared).
     pub(crate) pace: f32,
     /// Circle direction: +1 = clockwise, -1 = counter-clockwise.
     /// Re-rolled on each CIRCLE state entry.
@@ -460,6 +470,17 @@ impl DragonRain {
         // only the head needs explicit speed scaling.
         let speed = step.chars_per_sec.max(0.0) * crate::constants::DRAGON_SPEED_SCALE;
 
+        // Per-frame constants hoisted out of the per-dragon loop (they
+        // only depend on the step geometry / fixed constants).
+        let max_x = (step.cols as f32) - 0.5;
+        let max_y = (step.lines as f32) - 0.5;
+        let mid_soar = (crate::constants::DRAGON_SOAR_MIN_DURATION
+            + crate::constants::DRAGON_SOAR_MAX_DURATION)
+            * 0.5;
+        let mid_circle = (crate::constants::DRAGON_CIRCLE_MIN_DURATION
+            + crate::constants::DRAGON_CIRCLE_MAX_DURATION)
+            * 0.5;
+
         let mut absorbed = 0usize;
         for d in &mut self.dragons {
             if !d.active {
@@ -485,9 +506,16 @@ impl DragonRain {
             };
             d.heading += turn_rate * dt_d;
 
-            // Translate head along heading.
-            let vx = d.heading.cos() * speed * d.pace;
-            let vy = d.heading.sin() * speed * d.pace;
+            // Translate head along heading. NIGHT-hunter-10: pace
+            // enters ONLY through dt_d — the previous form multiplied
+            // it into the velocity vector as well, so head translation
+            // scaled with pace squared (0.85..1.15 became 0.72..1.32
+            // effective) while turn rate, state timer and sim_age all
+            // scaled linearly, drifting each dragon off its documented
+            // speed profile and shrinking the FABRIK stability margin
+            // for fast dragons.
+            let vx = d.heading.cos() * speed;
+            let vy = d.heading.sin() * speed;
             // Head is segments[0].
             if let Some(head) = d.segments.first_mut() {
                 head.x += vx * dt_d;
@@ -503,11 +531,6 @@ impl DragonRain {
             // drawable. State timer reset to mid-range — the next
             // stochastic transition (when state_timer expires) will
             // roll fresh values via dragon_noise_roll.
-            let max_x = (step.cols as f32) - 0.5;
-            let max_y = (step.lines as f32) - 0.5;
-            let mid_soar = (crate::constants::DRAGON_SOAR_MIN_DURATION
-                + crate::constants::DRAGON_SOAR_MAX_DURATION)
-                * 0.5;
             if let Some(head) = d.segments.first_mut() {
                 if head.x < 0.5 {
                     head.x = 0.5;
@@ -584,16 +607,8 @@ impl DragonRain {
                 };
                 d.state = new_state;
                 d.state_timer = match new_state {
-                    DragonState::Soar => {
-                        (crate::constants::DRAGON_SOAR_MIN_DURATION
-                            + crate::constants::DRAGON_SOAR_MAX_DURATION)
-                            * 0.5
-                    }
-                    DragonState::Circle => {
-                        (crate::constants::DRAGON_CIRCLE_MIN_DURATION
-                            + crate::constants::DRAGON_CIRCLE_MAX_DURATION)
-                            * 0.5
-                    }
+                    DragonState::Soar => mid_soar,
+                    DragonState::Circle => mid_circle,
                 };
             }
 
@@ -601,6 +616,20 @@ impl DragonRain {
             if d.sim_age >= d.lifetime {
                 d.active = false;
                 absorbed += 1;
+            }
+
+            // LTS (NIGHT-hunter-10): the heading is an unbounded f32
+            // accumulator — turn-rate integration, wall reflections
+            // and state transitions all add to it. Over a multi-day
+            // session the accumulated magnitude grows until the f32
+            // ulp degrades the turn-rate resolution (at ~130K rad the
+            // ulp is ~0.0078 rad). The amortized wrap folds the value
+            // back into [0, TAU) whenever it drifts past 64 turns —
+            // trig-equivalent (cos/sin are 2π-periodic), the branch is
+            // almost never taken, and the wrap threshold keeps the ulp
+            // below 5e-5 rad for the whole wrapped range.
+            if d.heading.abs() > DRAGON_HEADING_WRAP_LIMIT {
+                d.heading = d.heading.rem_euclid(std::f32::consts::TAU);
             }
         }
         if absorbed > 0 {
@@ -721,77 +750,4 @@ impl DragonRain {
             .map(|d| d.state)
             .collect()
     }
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes).
-fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
-}
-
-/// Brightness zone by segment index along the body (head=Core,
-/// first third=Hot, middle third=Mid, tail third=Ghost). The
-/// serpentine fade is the Chinese-dragon body's visible signature.
-pub(crate) fn level_for_segment(index: usize, body_len: usize) -> BrightnessLevel {
-    if body_len == 0 {
-        return BrightnessLevel::Core;
-    }
-    let i = index.min(body_len - 1);
-    let third = body_len / 3;
-    if i == 0 {
-        BrightnessLevel::Core
-    } else if i <= third {
-        BrightnessLevel::Hot
-    } else if i <= third * 2 {
-        BrightnessLevel::Mid
-    } else {
-        BrightnessLevel::Ghost
-    }
-}
-
-/// Roll a state-transition random number from the dragon's sim_age
-/// (deterministic per-dragon — avoids the borrow-checker issues of
-/// passing an RNG into the advance loop where dragon.iter_mut()
-/// already borrows self mutably). The owner mandate is "free flight
-/// then circle then free again" — the stochastic transitions only
-/// need a per-dragon per-frame roll, and sin-age-hash provides that.
-fn dragon_noise_roll(d: &Dragon) -> f32 {
-    let s = (d.sim_age * 7.3 + d.noise_phase).sin();
-    (s + 1.0) * 0.5
-}
-
-/// State duration roll — extracted as a free function so the
-/// activate_dragon path can use it cleanly without the borrow
-/// complexity of an RNG inside the dragon iter loop.
-fn dragon_state_duration(min: f32, max: f32, rand_chance: &Uniform<f32>, rng: &mut StdRng) -> f32 {
-    min + rand_chance.sample(rng) * (max - min)
-}
-
-/// Render one dragon cell (palette-aware color + bold, mono-safe).
-fn draw_dragon_cell(
-    ctx: &DrawCtx<'_>,
-    frame: &mut Frame,
-    col: u16,
-    line: u16,
-    ch: char,
-    palette_slot: u8,
-    level: BrightnessLevel,
-) {
-    if line >= ctx.lines || col >= ctx.cols {
-        return;
-    }
-    let fg = color_for_level(ctx, palette_slot, line, col, level, 1.0);
-    let bold = bold_for_level(ctx.bold_mode, level, line, col);
-    let cell = crate::cell::Cell {
-        ch,
-        fg,
-        bg: ctx.bg,
-        bold,
-    };
-    frame.set(col, line, cell);
 }

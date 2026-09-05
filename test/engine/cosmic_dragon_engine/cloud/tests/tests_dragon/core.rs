@@ -231,3 +231,139 @@ fn dragon_state_machine_visits_both_states() {
         }
     }
 }
+
+// -- NIGHT-hunter-10 contracts (pace linearity + heading LTS wrap) --
+
+/// Spawn two dragons through the production spawn path (allocates the
+/// segment chains), then pin them into a deterministic configuration:
+/// heading +x, Soar with noise_phase 0 and sim_age 0 (both layered-sine
+/// terms vanish at t = 0, so the turn rate is exactly zero and the
+/// heading cannot drift during the measured step).
+fn make_pace_probe_rain() -> crate::cloud::dragon::DragonRain {
+    use rand::distr::Uniform;
+    use rand::rngs::StdRng;
+    use rand::SeedableRng;
+
+    let mut rain = crate::cloud::dragon::DragonRain::new();
+    rain.reset(80);
+    let mut rng = StdRng::seed_from_u64(0xC0FFEE);
+    let rand_chance = Uniform::new(0.0_f32, 1.0).expect("valid uniform");
+    let params = crate::cloud::dragon::DragonSpawnParams {
+        cols: 80,
+        lines: 25,
+        density: 0.55,
+        active_palette_slot: 0,
+        spawn_scale: 1.0,
+    };
+    let mut remainder = 0.0_f32;
+    let mut random = crate::cloud::dragon::DragonRandom {
+        rng: &mut rng,
+        rand_chance: &rand_chance,
+    };
+    // 5 seconds of budget spawns the full fixed pool of 3 dragons.
+    rain.spawn(
+        std::time::Duration::from_secs(5),
+        &mut remainder,
+        &params,
+        &mut random,
+    );
+    assert!(
+        rain.active_count() >= 2,
+        "pace probe needs two live dragons"
+    );
+    for (i, d) in rain.dragons.iter_mut().take(2).enumerate() {
+        d.active = true;
+        d.state = crate::cloud::dragon::DragonState::Soar;
+        d.state_timer = 10.0;
+        d.heading = 0.0;
+        d.noise_phase = 0.0;
+        d.sim_age = 0.0;
+        d.lifetime = 100.0;
+        d.pace = if i == 0 { 1.0 } else { 1.2 };
+        d.segments[0].x = 10.0;
+        d.segments[0].y = 10.0;
+    }
+    rain
+}
+
+#[test]
+fn dragon_head_displacement_scales_linearly_with_pace() {
+    // NIGHT-hunter-10: the documented contract is a per-dragon speed
+    // multiplier of 0.85..1.15 — head displacement must scale LINEARLY
+    // with pace. The pre-fix code folded pace into both the velocity
+    // vector and dt_d, so displacement scaled with pace squared
+    // (0.85..1.15 drifted to 0.72..1.32 effective) while turn rate,
+    // state timer and sim_age all stayed linear — each dragon ran off
+    // its documented speed profile and the fast tail ate into the
+    // sub-cell FABRIK stability margin.
+    let mut rain = make_pace_probe_rain();
+
+    let t0 = Instant::now();
+    let mk_step = |now: Instant| crate::cloud::dragon::DragonStep {
+        now,
+        chars_per_sec: 18.0,
+        cols: 80,
+        lines: 25,
+        max_sim_delta: Duration::from_millis(1000),
+        resume_blend: 1.0,
+    };
+    // First advance only anchors last_step (dt = 0 on a fresh clock).
+    rain.advance(&mk_step(t0));
+    rain.advance(&mk_step(t0 + Duration::from_millis(16)));
+
+    let d0 = (rain.dragons[0].segments[0].x - 10.0).abs();
+    let d1 = (rain.dragons[1].segments[0].x - 10.0).abs();
+    assert!(
+        d0 > 1.0e-4,
+        "reference dragon must actually move (got {d0})"
+    );
+    let ratio = d1 / d0;
+    assert!(
+        (ratio - 1.2).abs() < 0.02,
+        "head displacement must scale linearly with pace: expected 1.2, got {ratio} (pace-squared regression)"
+    );
+}
+
+#[test]
+fn dragon_heading_stays_bounded_after_prolonged_integration() {
+    // LTS: heading is an integrated accumulator (turn rate, wall
+    // reflections, state transitions all add to it). Without the
+    // amortized wrap, a multi-day session accumulates 100K+ radians
+    // and the f32 ulp degrades the turn-rate resolution until the
+    // motion grains. Pin: force-circling for 750 simulated seconds
+    // (1125 radians of turn — nearly 3x the wrap limit) must leave
+    // every heading bounded, finite and trig-valid.
+    let mut rain = make_pace_probe_rain();
+
+    let t0 = Instant::now();
+    let big_dt = Duration::from_millis(250);
+    let wrap_bound = 64.0 * std::f32::consts::TAU + std::f32::consts::TAU;
+    for idx in 0..3000_u32 {
+        // Keep every dragon locked in CIRCLE so the turn rate is the
+        // constant 1.5 rad/s regardless of wall-bounce state snaps.
+        for d in rain.dragons.iter_mut() {
+            if d.active {
+                d.state = crate::cloud::dragon::DragonState::Circle;
+                d.state_timer = 1.0e9;
+                d.lifetime = 1.0e9;
+            }
+        }
+        rain.advance(&crate::cloud::dragon::DragonStep {
+            now: t0 + big_dt * idx,
+            chars_per_sec: 18.0,
+            cols: 80,
+            lines: 25,
+            max_sim_delta: big_dt,
+            resume_blend: 1.0,
+        });
+    }
+    for d in &rain.dragons {
+        if d.active {
+            assert!(
+                d.heading.is_finite() && d.heading.abs() <= wrap_bound,
+                "heading accumulator must stay bounded after prolonged integration (got {})",
+                d.heading
+            );
+        }
+    }
+}
