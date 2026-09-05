@@ -68,8 +68,46 @@ impl RainStyle {
     pub fn uses_spawn_remainder(self) -> bool {
         matches!(
             self,
-            Self::Monolith | Self::Vortex | Self::Flux | Self::Lorenz
-                | Self::Dragon | Self::Physarum
+            Self::Monolith
+                | Self::Vortex
+                | Self::Flux
+                | Self::Lorenz
+                | Self::Dragon
+                | Self::Physarum
         )
+    }
+
+    /// Parse a `RainStyle` from its canonical CLI label (the inverse
+    /// of [`as_str`]). Used by the scene-custom `rain = "..."` field
+    /// so users can pick the rain style by name (e.g. `rain = "lorenz"`
+    /// or `rain = "vortex"`). Case-insensitive, returns `None` for
+    /// unrecognized values so the caller can render a targeted hint
+    /// with the valid labels list.
+    ///
+    /// NIGHT-research-5 (owner-approved): the canonical labels are
+    /// the same lowercase strings [`as_str`] returns — this keeps the
+    /// scene-custom `rain` field consistent with `--show-scene` /
+    /// `--list-scenes` output (no separate alias surface to drift).
+    #[must_use]
+    pub fn from_label(label: &str) -> Option<Self> {
+        match label.trim().to_ascii_lowercase().as_str() {
+            "glyph" => Some(Self::Glyph),
+            "monolith" => Some(Self::Monolith),
+            "vortex" => Some(Self::Vortex),
+            "flux" => Some(Self::Flux),
+            "lorenz" => Some(Self::Lorenz),
+            "dragon" => Some(Self::Dragon),
+            "physarum" => Some(Self::Physarum),
+            _ => None,
+        }
+    }
+
+    /// Human-readable comma-separated list of valid `rain` field
+    /// values, for error messages and config hints. Mirrors the
+    /// `GlitchLevel::from_str` hint convention ("none, subtle,
+    /// default, intense"). Order matches the enum declaration.
+    #[must_use]
+    pub fn valid_labels_hint() -> &'static str {
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum"
     }
 }

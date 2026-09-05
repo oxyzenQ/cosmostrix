@@ -55,6 +55,20 @@ use super::helpers::{
 };
 use super::{apply_glitch_level_preset_to_cloud_config, UserProfile};
 
+/// NIGHT-research-5: parse the scene-custom `rain` field's string value
+/// into a `RainStyle`. Returns `Some(style)` on a valid canonical label
+/// (glyph/monolith/vortex/ripple), `None` on invalid input (caller
+/// renders a targeted hint with the valid list).
+///
+/// The validation is centralized here so both the startup path
+/// (`apply_profile_overrides`) and the live-reload path
+/// (`apply_scene_custom_field_to_cloud_config`) agree on the accepted
+/// labels. Case-insensitive — matches the existing enum-string
+/// convention (`GlitchLevel::from_str(value, true)`).
+fn parse_rain_style_value(value: &str) -> Option<crate::rain_style::RainStyle> {
+    crate::rain_style::RainStyle::from_label(value)
+}
+
 pub(crate) fn apply_profile_overrides(
     matches: &clap::ArgMatches,
     args: &mut Args,
@@ -63,6 +77,24 @@ pub(crate) fn apply_profile_overrides(
     cfg: &HashMap<String, String>,
     modified: &mut HashSet<&'static str>,
 ) {
+    // NIGHT-research-5: `rain` field — validate the canonical label here
+    // (warn on invalid values with the valid-labels hint). The actual
+    // application happens later in `resolve_rain_style` (main.rs) which
+    // reads the block's `rain` value directly from cfg — there's no
+    // `args.rain_style` field because rain style is resolved at Cloud
+    // construction time, not at CLI parse time. The validation here is
+    // still useful: it warns the user immediately at startup about a
+    // typo'd label, instead of silently falling back to Glyph.
+    if let Some(value) = profile.rain.as_deref() {
+        if parse_rain_style_value(value).is_none() {
+            warn_invalid(
+                name,
+                "rain",
+                value,
+                crate::rain_style::RainStyle::valid_labels_hint(),
+            );
+        }
+    }
     if let Some(value) = profile
         .color
         .as_deref()
@@ -201,6 +233,16 @@ pub(crate) fn apply_scene_custom_field_to_cloud_config(
     // config `scene` key is removed (RestoreLocked rolls the whole
     // scene family back to the locked startup snapshot).
     match field {
+        "rain" => {
+            // NIGHT-research-5: parse the rain style label and apply to
+            // CloudConfig.rain_style. Invalid labels return false (caller
+            // buffers a runtime warning via live_config::push_runtime_warning).
+            if let Some(style) = parse_rain_style_value(value) {
+                new.rain_style = style;
+                return true;
+            }
+            false
+        }
         "color" => {
             if let Ok(scheme) = crate::cli::parse_color_scheme(value) {
                 new.color_scheme = scheme;

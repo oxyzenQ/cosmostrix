@@ -675,12 +675,17 @@ fn intro_end_to_end_via_validate_config_strictly() {
 
 #[test]
 fn strict_validation_accepts_scene_referencing_custom_block() {
-    // v80.0.0-beta.2 (S-master-HUNT): updated to the v2 six-field schema —
+    // v80.0.0-beta.2 (S-master-HUNT): updated to the v2 seven-field schema —
     // `base-scene` was retired, and the block-field value validation added
     // in S-master-HUNT rejects unknown block fields. A COMPLETE, valid
     // block + `scene = <name>` must still pass the gate.
+    // NIGHT-research-5: `rain` field added — now required for completeness.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("scene".to_string(), "hacker-mode".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.rain".to_string(),
+        "lorenz".to_string(),
+    );
     cfg.insert(
         "scene-custom.hacker-mode.color".to_string(),
         "green".to_string(),
@@ -728,8 +733,10 @@ fn strict_validation_accepts_scene_custom_block_color_custom_palette() {
     // Inside a scene-custom block, `color = <custom palette>` must also
     // pass — the runtime (scene_runtime.rs) resolves it through the
     // custom palette path. v80.0.0-beta.2: the block must be COMPLETE
-    // (all six dimensions) — completeness runs first.
+    // (all seven dimensions) — completeness runs first.
+    // NIGHT-research-5: `rain` field added.
     let mut cfg = std::collections::HashMap::new();
+    cfg.insert("scene-custom.cp77.rain".to_string(), "monolith".to_string());
     cfg.insert(
         "scene-custom.cp77.color".to_string(),
         "cyberpunk_2077".to_string(),
@@ -768,6 +775,7 @@ fn strict_validation_rejects_scene_referencing_missing_block() {
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("scene".to_string(), "hacker-mdoe".to_string());
     for (k, v) in [
+        ("scene-custom.hacker-mode.rain", "glyph"),
         ("scene-custom.hacker-mode.color", "green"),
         ("scene-custom.hacker-mode.charset", "binary"),
         ("scene-custom.hacker-mode.fps", "60"),

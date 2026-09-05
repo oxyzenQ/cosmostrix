@@ -297,7 +297,7 @@ Custom blocks have a **strict field allowlist** — unknown fields are rejected 
 |-------|---------------|--------|
 | `[colors-custom.<name>]` | `bg`, `rain`, `stops` (deprecated alias) | `is_valid_colors_custom_field()` |
 | `[charset-custom.<name>]` | `set` only | `is_valid_charset_custom_field()` |
-| `[scene-custom.<name>]` | `color`, `colors-custom`, `charset`, `charset-custom`, `fps`, `speed`, `density`, `glitch-level` (all six dimensions required — v80.0.0-beta.2: `base-scene`/`bold`/`shading-mode`/`async-mode` removed) | `SCENE_CUSTOM_FIELDS` |
+| `[scene-custom.<name>]` | `rain`, `color`, `colors-custom`, `charset`, `charset-custom`, `fps`, `speed`, `density`, `glitch-level` (all seven dimensions required — v80.0.0-beta.2: `base-scene`/`bold`/`shading-mode`/`async-mode` removed; NIGHT-research-5: `rain` added) | `SCENE_CUSTOM_FIELDS` |
 
 Any other field inside these blocks surfaces as an `unknown_key` -> `--testconf` reports the error, live-reload rejects the config. The auto-promote path (which previously moved top-level keys like `color`/`intro`/`speed` from inside a custom block to root scope) is **disabled** when `current_section` starts with `charset-custom.`, `colors-custom.`, or `scene-custom.`.
 

@@ -39,7 +39,7 @@
 use std::time::Instant;
 
 use super::{
-    compute_chroma_gradient_24, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
+    compute_chroma_gradient_25, format_rss_kb, FrameMode, HudState, HUD_MAX_WIDTH,
     HUD_METRIC_INTERVAL, HUD_MIN_WIDTH,
 };
 
@@ -100,7 +100,7 @@ impl HudState {
         // HD-01 (HUD chroma dragon integration): 18-stop sweep — each row
         // gets a distinct palette stop. Index math: `palette_colors`
         // sampled at `(i / 17.0 * (n-1)).round()` for i ∈ [0..18].
-        let colors = compute_chroma_gradient_24(palette_colors);
+        let colors = compute_chroma_gradient_25(palette_colors);
 
         // Session uptime: tiered compound format (v80.0.0-alpha.1
         // S-master-HUNT-5, owner task 2026-09-03):
@@ -315,13 +315,25 @@ impl HudState {
         };
         self.cached_lines[18] = (colors[18], format!(" mnst: {mnst_val}"));
 
-        // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
+        // ── Rain style (row 19) — NIGHT-hunter-9 ──
+        // rain: active rain style (glyph/monolith/vortex/ripple/etc).
+        // Position above `dcel:` per owner mandate — the user reads
+        // the active motion DNA before the cell-efficiency metrics.
+        // The `as_str()` helper on RainStyle returns the canonical
+        // lowercase CLI label so the HUD label matches the
+        // `--list-scenes` / `--show-scene` output exactly.
+        let rain_val = self.rain_style.as_str();
+        self.cached_lines[19] = (colors[19], format!(" rain: {rain_val}"));
+
+        // ── Cell efficiency (rows 20-21) — Z-master-1X round 5 ──
         // dcel: dirty cell count + ratio %. Format: " dcel: 1.2K/10.2%"
         // where the count is humanized (1.2K for 1200, raw for <1000) and
         // the percentage is the dirty/total ratio. Owner mandate: combine
         // count + percentage so the user sees BOTH the absolute number
         // AND the ratio. Count uses the same humanize() helper as tcel
         // for consistency (e.g. 120 → "120", 1200 → "1.2K", 12000 → "12K").
+        // NIGHT-hunter-9: shifted down from row 19 to row 20 to make
+        // room for the new `rain:` line above.
         let avg_dirty = self.dirty_cell_tracker.rolling_avg_dirty();
         let latest_total = self.dirty_cell_tracker.latest_total();
         let dcel_pct = if latest_total > 0 {
@@ -331,28 +343,34 @@ impl HudState {
         };
         let dcel_count = avg_dirty.round() as u64;
         let dcel_count_str = crate::humanize::humanize(dcel_count);
-        self.cached_lines[19] = (
-            colors[19],
+        self.cached_lines[20] = (
+            colors[20],
             format!(" dcel: {dcel_count_str}/{dcel_pct:.1}%"),
         );
         // tcel: total cells in the screen (width × height). Driven by
         // terminal size — stable between resizes. Rendered with the
         // same humanize helper as fps for compactness (e.g. 2.8K).
+        // NIGHT-hunter-9: shifted down from row 20 to row 21.
         let tcel_val = crate::humanize::humanize(latest_total);
-        self.cached_lines[20] = (colors[20], format!(" tcel: {tcel_val}"));
+        self.cached_lines[21] = (colors[21], format!(" tcel: {tcel_val}"));
 
-        // cid (row 21) is static — set once in new(), never rewritten
+        // cid (row 22) is static — set once in new(), never rewritten
         // here. Only its color is refreshed by refresh_colors every frame.
         // Z-master-1X round 5: cid moved from row 19 to row 21 to make
         // room for dcel/tcel above it (owner mandate).
+        // NIGHT-hunter-9: cid moved down again from row 21 to row 22
+        // to make room for the new `rain:` line above `dcel:`.
 
         // Session footer (Z-master-1X round 5: up moved from row 20 to 22,
         // screensize from 21 to 23 — terminal size stays the visual anchor
         // at the very bottom of the dashboard).
-        self.cached_lines[22] = (colors[22], format!(" up: {uptime_str}"));
+        // NIGHT-hunter-9: shifted down again — up from 22 to 23,
+        // screensize from 23 to 24 — terminal size still closes the
+        // dashboard at the very bottom row.
+        self.cached_lines[23] = (colors[23], format!(" up: {uptime_str}"));
         let (sw, sh, is_fixed) = self.screen_size;
         let mode = if is_fixed { "fix" } else { "auto" };
-        self.cached_lines[23] = (colors[23], format!(" {sw}x{sh} {mode}"));
+        self.cached_lines[24] = (colors[24], format!(" {sw}x{sh} {mode}"));
 
         // Compute dynamic width: find the longest line, clamp to [min, max].
         let max_len = self

@@ -209,6 +209,10 @@ fn list_custom_scenes_text_renders_plain_names() {
 fn show_custom_scene_text_includes_fields_and_usage() {
     let cfg = HashMap::from([
         (
+            "scene-custom.hacker-mode.rain".to_string(),
+            "lorenz".to_string(),
+        ),
+        (
             "scene-custom.hacker-mode.color".to_string(),
             "green".to_string(),
         ),
@@ -236,6 +240,11 @@ fn show_custom_scene_text_includes_fields_and_usage() {
     assert!(
         text.contains("CUSTOM SCENE: hacker-mode"),
         "header missing: {text}"
+    );
+    // NIGHT-research-5: `rain` field renders first (above color).
+    assert!(
+        text.contains("rain               = lorenz"),
+        "rain field missing (NIGHT-research-5): {text}"
     );
     assert!(
         text.contains("color              = green"),
@@ -289,7 +298,11 @@ fn show_custom_scene_text_warns_on_partial_block() {
         "partial block must warn: {text}"
     );
     assert!(
-        text.contains("missing charset|charset-custom"),
+        text.contains("missing rain"),
+        "warning must name the missing rain field (NIGHT-research-5): {text}"
+    );
+    assert!(
+        text.contains("charset|charset-custom"),
         "warning must name the missing pair: {text}"
     );
 }
@@ -355,6 +368,7 @@ fn collect_custom_scenes_silently_drops_removed_fields() {
 #[test]
 fn completeness_validation_accepts_a_complete_block() {
     let cfg = HashMap::from([
+        ("scene-custom.full.rain".to_string(), "glyph".to_string()),
         ("scene-custom.full.color".to_string(), "green".to_string()),
         (
             "scene-custom.full.charset".to_string(),
@@ -378,6 +392,7 @@ fn completeness_validation_accepts_a_complete_block() {
 fn completeness_validation_accepts_alternative_pair_keys() {
     // colors-custom / charset-custom satisfy the pair dimensions too.
     let cfg = HashMap::from([
+        ("scene-custom.full.rain".to_string(), "monolith".to_string()),
         (
             "scene-custom.full.colors-custom".to_string(),
             "cyberpunk_2077".to_string(),
@@ -402,7 +417,9 @@ fn completeness_validation_accepts_alternative_pair_keys() {
 
 #[test]
 fn completeness_validation_rejects_a_partial_block() {
-    // Only color + speed — the other four dimensions are missing.
+    // Only color + speed — the other five dimensions are missing.
+    // NIGHT-research-5: `rain` is now also required (added to the
+    // missing list).
     let cfg = HashMap::from([
         (
             "scene-custom.partial.color".to_string(),
@@ -416,7 +433,7 @@ fn completeness_validation_rejects_a_partial_block() {
         "error must name the block: {err}"
     );
     assert!(
-        err.contains("missing charset|charset-custom, fps, density, glitch-level"),
+        err.contains("missing rain, charset|charset-custom, fps, density, glitch-level"),
         "error must list the missing dimensions: {err}"
     );
 }
@@ -426,6 +443,7 @@ fn completeness_validation_reports_every_missing_dimension() {
     let cfg = HashMap::from([("scene-custom.bare.fps".to_string(), "60".to_string())]);
     let err = validate_scene_custom_completeness(&cfg).unwrap_err();
     for missing in &[
+        "rain",
         "color|colors-custom",
         "charset|charset-custom",
         "speed",
@@ -446,16 +464,17 @@ fn completeness_validation_ok_when_no_blocks_exist() {
 }
 
 #[test]
-fn required_fields_hint_renders_the_six_dimensions() {
+fn required_fields_hint_renders_the_seven_dimensions() {
     let hint = scene_custom_required_fields_hint();
     assert!(
-        hint.contains("color|colors-custom")
+        hint.contains("rain")
+            && hint.contains("color|colors-custom")
             && hint.contains("charset|charset-custom")
             && hint.contains("fps")
             && hint.contains("speed")
             && hint.contains("density")
             && hint.contains("glitch-level"),
-        "hint must render all six dimensions: {hint}"
+        "hint must render all seven dimensions: {hint}"
     );
 }
 
@@ -545,6 +564,7 @@ fn show_custom_scene_text_never_renders_removed_fields() {
     // (compile-time guarantee); the display must not render them even
     // via field values smuggled through the six surviving dimensions.
     let scene = UserProfile {
+        rain: Some("glyph".to_string()),
         color: Some("green".to_string()),
         charset: Some("hacker".to_string()),
         fps: Some("60".to_string()),

@@ -328,7 +328,7 @@ CLI `--monolith-size` wins over config on live-reload.
 |------------|----------|:-------------:|:-----------------:|
 | `color` | `--color` | OK YES | OK YES — v80.0.0-beta.1: switching TO/FROM a `[colors-custom.<name>]` palette now works (custom wins on collision, startup parity; switching to a builtin clears the active palette). |
 | `charset` | `--charset` | OK YES | OK YES |
-| `scene` | `--scene` | OK YES | OK YES — v80.0.0-beta.2: switching TO a `[scene-custom.<name>]` scene applies its COMPLETE six-dimension field layer (always glyph rain — base-scene removed); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
+| `scene` | `--scene` | OK YES | OK YES — v80.0.0-beta.2: switching TO a `[scene-custom.<name>]` scene applies its COMPLETE seven-dimension field layer (NIGHT-research-5: rain style is now configurable per-block via the `rain` field — was always Glyph before); switching AWAY no longer re-applies the stale custom layer; scene fps + glitch-level defaults now apply (startup parity). |
 | `speed` | `--speed` | OK YES | OK YES |
 | `density` | `--density` | OK YES | OK YES |
 | `fps` | `--fps` | OK YES | OK YES |
@@ -486,9 +486,15 @@ which re-applies the scheduled scene's full profile:
 (speed), `droplet_density` (density), `glitch_level`, and — new in
 v80.0.0-beta.2 — the scene's declared `fps` (via
 `scene_custom::ambient_scene_fps`, applied to the power manager +
-HUD by the event loop). These seven fields are ambient-owned — the
+HUD by the event loop). These eight fields are ambient-owned — the
 scheduled scene is the ground truth for them while the ambient
 schedule is non-empty.
+
+(NIGHT-research-5: the count grew from seven to eight when the
+scene-custom `rain` field landed — `rain_style` is now configurable
+per-block via the canonical label glyph/monolith/vortex/ripple, so
+the ambient scheduler re-applies the block's declared rain style
+just like every other scene-family dimension.)
 
 This is by design, not a bug. The ambient scene is the active
 authority for ambient-owned fields (owner contract, S-master-LOGIC-3:
@@ -599,7 +605,9 @@ Limitation, not a gap).
   mattered): `src/cli/app.rs`
 - Startup custom-first color resolution (parity reference): `src/main.rs`
 - Scene-custom layer: `src/scene_custom/mod.rs`
-  (`resolve_rain_style` — v80.0.0-beta.2: custom scenes are always Glyph;
+  (`resolve_rain_style` — v80.0.0-beta.2: custom scenes were always Glyph;
+   NIGHT-research-5: now consult the block's `rain` field — falls back
+   to Glyph when missing or unrecognized).
   the block applier `apply_scene_custom_to_cloud_config` lives in
   `src/scene_custom/overrides.rs` since the Z-master-1-v2 refactor)
 - Custom palette loader: `src/engine/chroma_dragon_engine/colors_custom.rs`
@@ -952,8 +960,8 @@ Runtime:  user shortkeys
 | cli_explicit gates REMOVED from the scene-custom field layer (config wins at runtime) | `src/scene_custom/overrides.rs` |
 | Ambient re-apply guard `!cloud.custom_palette_active` REMOVED (ambient owns color over config palettes) | `src/interactive/event_loop_config_rebuild.rs` |
 | Ambient scene owns fps: `ambient_scene_fps()` + fps-intent plumbing (startup apply / rx-event / snapback / rebuild re-apply / overlay-lift revert) | `src/scene_custom/mod.rs`, `src/interactive/event_loop_{ambient,config_rebuild}.rs`, `event_loop.rs` |
-| Scene-custom schema: 6 required dimensions (color\|colors-custom, charset\|charset-custom, fps, speed, density, glitch-level); `base-scene`/`bold`/`shading-mode`/`async-mode` REMOVED; incomplete blocks are a hard validation error (startup + live-reload + --testconf) | `src/scene_custom/{mod,overrides,helpers,display}.rs`, `src/testconf/*`, `src/config/config_hints/mod.rs` |
-| Custom scenes are always glyph rain (no base-scene inheritance) | `scene_custom::resolve_rain_style`, `Cloud::apply_custom_scene_runtime` |
+| Scene-custom schema: 7 required dimensions (rain, color\|colors-custom, charset\|charset-custom, fps, speed, density, glitch-level); `base-scene`/`bold`/`shading-mode`/`async-mode` REMOVED; incomplete blocks are a hard validation error (startup + live-reload + --testconf) | `src/scene_custom/{mod,overrides,helpers,display}.rs`, `src/testconf/*`, `src/config/config_hints/mod.rs` |
+| Custom scenes pick rain style via block's `rain` field (NIGHT-research-5 — was always Glyph before) | `scene_custom::resolve_rain_style`, `Cloud::apply_custom_scene_runtime` |
 | Ambient apply clears a lingering custom palette even when the scene's scheme matches the current one | `scene_runtime.rs` color arms |
 | Overlay-lift revert resolves CUSTOM startup scenes (`apply_scene_runtime_with_cfg`) and restores the locked fps | `src/interactive/event_loop_ambient.rs` |
 | Locked-family restore covers `scene_custom_name` + custom palette; runtime sync tracks custom scenes for the tail block | `src/interactive/event_loop_scene_sync.rs` |

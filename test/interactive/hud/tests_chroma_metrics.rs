@@ -4,14 +4,14 @@
 //! HUD chroma gradient + metric stability regression tests — extracted
 //! from `hud/tests.rs` to keep that file under the 800-LOC hard cap.
 //!
-//! Covers: compute_chroma_gradient_24 smoothness + NaN/Inf safety +
+//! Covers: compute_chroma_gradient_25 smoothness + NaN/Inf safety +
 //! metric setter clamping/sanitization.
 
 use super::*;
 
 // ── v50 (2026-08-17) HUD chroma gradient smoothness regression tests ────
 //
-// C5 fix: compute_chroma_gradient_24 now uses interpolate_palette_color
+// C5 fix: compute_chroma_gradient_25 now uses interpolate_palette_color
 // (linear lerp between adjacent palette stops via blend_toward_rgb)
 // instead of discrete sampling `palette_colors[(t * last).round()]`.
 // This eliminates visible bands when the palette has fewer stops than
@@ -19,7 +19,7 @@ use super::*;
 // produced 4/8/4 band blocks; now produces a smooth gradient).
 
 #[test]
-fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
+fn compute_chroma_gradient_25_smooth_with_small_palette_no_bands() {
     // THE OWNER REGRESSION TEST for HUD chroma gradient smoothness.
     //
     // Before C5: a 3-stop palette (white/grey/black) + 16 HUD rows
@@ -44,8 +44,8 @@ fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
         Color::Rgb { r: 0, g: 255, b: 0 }, // idx 1: green
         Color::Rgb { r: 0, g: 0, b: 255 }, // idx 2: blue
     ];
-    let colors = compute_chroma_gradient_24(&palette);
-    assert_eq!(colors.len(), 24, "HUD gradient must have 24 entries");
+    let colors = compute_chroma_gradient_25(&palette);
+    assert_eq!(colors.len(), 25, "HUD gradient must have 25 entries");
 
     // Count distinct colors. With interpolation, every row gets a
     // unique color (22 distinct values, modulo the brighten floor
@@ -70,7 +70,7 @@ fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
     // visible band the owner reported. With smooth interpolation, every
     // adjacent pair must differ (since `frac` increments by 1/15 each row
     // and the blend_toward_rgb factor changes the output).
-    for i in 0..23 {
+    for i in 0..24 {
         assert_ne!(
             colors[i],
             colors[i + 1],
@@ -82,34 +82,38 @@ fn compute_chroma_gradient_24_smooth_with_small_palette_no_bands() {
 }
 
 #[test]
-fn compute_chroma_gradient_24_large_palette_still_exact_at_integer_t() {
-    // Backward compatibility: with a 24-stop palette (one stop per HUD
-    // row), the interpolated t = i/23.0 lands exactly on integer palette
+fn compute_chroma_gradient_25_large_palette_still_exact_at_integer_t() {
+    // Backward compatibility: with a 25-stop palette (one stop per HUD
+    // row), the interpolated t = i/24.0 lands exactly on integer palette
     // positions, so the helper returns palette[i] exactly (no
     // interpolation). The brighten step is then applied as before. This
-    // test verifies the C5 fix does NOT regress the 22-stop-palette
+    // test verifies the C5 fix does NOT regress the 24-stop-palette
     // case — every row still gets its dedicated palette stop's color
     // (post-brighten).
     //
-    // Z-master-1X round 5: palette expanded from 22 → 24 entries to match
+    // Z-master-1X round 5: palette was 22 → 24 entries to match
     // the 24 HUD rows (dcel + tcel added). With 1:1 mapping, t = i/23.0
     // maps to palette index i*23/23 = i exactly.
     //
-    // Test palette: 24 distinct RGB values, all with max channel >= 200
+    // NIGHT-hunter-9: palette expanded from 24 → 25 entries to match
+    // the 25 HUD rows (rain added). With 1:1 mapping, t = i/24.0
+    // maps to palette index i*24/24 = i exactly.
+    //
+    // Test palette: 25 distinct RGB values, all with max channel >= 200
     // so brighten returns each as-is (isolates the gradient mapping
     // from the brightening math).
-    let palette: Vec<Color> = (0..24)
+    let palette: Vec<Color> = (0..25)
         .map(|i| Color::Rgb {
             r: 200 + (i as u8 % 56),
             g: 200,
             b: 200,
         })
         .collect();
-    let colors = compute_chroma_gradient_24(&palette);
+    let colors = compute_chroma_gradient_25(&palette);
     for (i, expected) in palette.iter().enumerate() {
         assert_eq!(
             &colors[i], expected,
-            "row {i} must use palette[{i}] exactly (24-stop palette, t lands on integer boundary)"
+            "row {i} must use palette[{i}] exactly (25-stop palette, t lands on integer boundary)"
         );
     }
 }
@@ -583,11 +587,11 @@ fn hud_endurance_health_score_rounds_to_integer() {
 }
 
 #[test]
-fn hud_final_layout_positions_match_z_master_1x_round5() {
+fn hud_final_layout_positions_match_night_hunter_9() {
     // Regression guard for the row layout. Locks in the position of
     // every row so a future reorder would fail loudly.
     //
-    // Layout (24 rows, Z-master-1X round 5 owner mandate 2026-08-31):
+    // Layout (25 rows, NIGHT-hunter-9 owner mandate 2026-09-05):
     //   0   fps
     //   1   tgt
     //   2   max
@@ -607,26 +611,28 @@ fn hud_final_layout_positions_match_z_master_1x_round5() {
     //   16  glth
     //   17  ctun
     //   18  mnst
-    //   19  dcel   (Z-master-1X round 5: dirty cell ratio %)
-    //   20  tcel   (Z-master-1X round 5: total cells)
-    //   21  cid    (Z-master-1X round 5: moved down from 19 to make room)
-    //   22  up     (Z-master-1X round 5: moved down from 20)
-    //   23  screensize (Z-master-1X round 5: moved down from 21 — visual anchor)
+    //   19  rain   (NIGHT-hunter-9: active rain style, above dcel)
+    //   20  dcel   (NIGHT-hunter-9: shifted down from 19)
+    //   21  tcel   (NIGHT-hunter-9: shifted down from 20)
+    //   22  cid    (NIGHT-hunter-9: shifted down from 21)
+    //   23  up     (NIGHT-hunter-9: shifted down from 22)
+    //   24  screensize (NIGHT-hunter-9: shifted down from 23 — visual anchor)
     let h = HudState::new();
-    // The cid line is static and lives only at row 21.
-    let (_, cid_line) = &h.cached_lines[21];
+    // The cid line is static and lives only at row 22 (NIGHT-hunter-9
+    // shift from row 21).
+    let (_, cid_line) = &h.cached_lines[22];
     assert!(
         cid_line.starts_with(" cid: "),
-        "row 21 must be the cid line (Z-master-1X round 5: above the session footer), got: {cid_line:?}"
+        "row 22 must be the cid line (NIGHT-hunter-9: above the session footer), got: {cid_line:?}"
     );
     // Every OTHER row must NOT contain the cid prefix.
     for (i, (_, text)) in h.cached_lines.iter().enumerate() {
-        if i == 21 {
+        if i == 22 {
             continue;
         }
         assert!(
             !text.starts_with(" cid: "),
-            "row {i} must NOT contain the cid prefix — cid is exclusive to row 21, got: {text:?}"
+            "row {i} must NOT contain the cid prefix — cid is exclusive to row 22, got: {text:?}"
         );
     }
 }

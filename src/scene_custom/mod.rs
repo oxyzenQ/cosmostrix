@@ -4,11 +4,12 @@
 //! User-defined custom scene support for `[scene-custom.<name>]` config blocks.
 //!
 //! v80.0.0-beta.2 schema (owner contract, S-master-LOGIC-3): a custom
-//! scene is a COMPLETE, self-contained profile — exactly six conceptual
-//! fields, ALL required:
+//! scene is a COMPLETE, self-contained profile — exactly seven
+//! conceptual fields, ALL required (NIGHT-research-5: added `rain`):
 //!
 //! ```toml
 //! [scene-custom.example]
+//! rain = "lorenz"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/ripple)
 //! color = "aurora"              # built-in color name  OR:
 //! # colors-custom = "aurora"    # custom palette block reference
 //! charset = "binary"            # built-in charset     OR:
@@ -19,10 +20,10 @@
 //! glitch-level = "none"
 //! ```
 //!
-//! Each of the six fields must be present (one of each pair) — an
+//! Each of the seven fields must be present (one of each pair) — an
 //! incomplete block is a hard validation error (`--testconf`, startup,
-//! and live-reload all reject it). The block owns the same six
-//! scene-family dimensions an ambient entry owns (scene, color,
+//! and live-reload all reject it). The block owns the same seven
+//! scene-family dimensions an ambient entry owns (scene, rain, color,
 //! charset, fps, speed, density, glitch-level). Field VALUES are
 //! validated too (S-master-HUNT): `colors-custom`/`charset-custom`
 //! must reference blocks that exist in the same config (a BUILT-IN
@@ -31,12 +32,20 @@
 //! fields carry the same ranges as their top-level keys.
 //!
 //! REMOVED in v80.0.0-beta.2 (owner mandate): `base-scene` (custom
-//! scenes no longer inherit from built-ins — they stand alone and
-//! always render `RainStyle::Glyph`), `bold`, `shading-mode`, and
-//! `async-mode` (not scene-family dimensions; use the top-level
-//! config keys, which stay live-reloadable and are reported in the
-//! final runtime state). Legacy configs carrying these keys get a
-//! targeted removal hint from `config_hints`.
+//! scenes no longer inherit from built-ins — they stand alone),
+//! `bold`, `shading-mode`, and `async-mode` (not scene-family
+//! dimensions; use the top-level config keys, which stay
+//! live-reloadable and are reported in the final runtime state).
+//! Legacy configs carrying these keys get a targeted removal hint
+//! from `config_hints`.
+//!
+//! NIGHT-research-5 (owner-approved): added the `rain` field. Custom
+//! scenes can now pick any of the existing rain styles (glyph,
+//! monolith, vortex, ripple) — previously custom scenes always
+//! rendered `RainStyle::Glyph`. The `rain` field is validated
+//! against [`crate::rain_style::RainStyle::from_label`] (same
+//! canonical labels as `--show-scene` / `--list-scenes` output).
+//! The user's example: `rain = "lorenz"` selects the lorenz style.
 //!
 //! ## changes (historical)
 //!
@@ -62,7 +71,11 @@ use crate::config::Args;
 /// dimensions. `base-scene`, `bold`, `shading-mode`, `async-mode`,
 /// `monolith-size`, and `color-bg` are REMOVED — blocks are complete,
 /// self-contained profiles now (see [`SCENE_CUSTOM_REQUIRED_FIELDS`]).
+/// NIGHT-research-5 (owner-approved): added `rain` — the seventh
+/// scene-family dimension. Custom scenes can now pick any existing
+/// rain style by name (glyph/monolith/vortex/ripple).
 pub(crate) const PROFILE_FIELDS: &[&str] = &[
+    "rain",
     "color",
     "colors-custom",
     "charset",
@@ -73,15 +86,22 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "glitch-level",
 ];
 
-/// The six required scene-custom dimensions, in error-message order.
+/// The seven required scene-custom dimensions, in error-message order.
 ///
 /// Each entry is (primary key, alternative key) — the two pair fields
 /// (`color`/`colors-custom`, `charset`/`charset-custom`) accept either
-/// key; the other four are single mandatory keys. Used by
+/// key; the other five are single mandatory keys. Used by
 /// [`missing_scene_custom_fields`] and the completeness validation so a
 /// half-filled block reports exactly which dimensions are missing
 /// instead of a generic "incomplete" error.
+///
+/// NIGHT-research-5 (owner-approved): added `rain` as the first entry.
+/// The `rain` field picks a rain style by canonical label (glyph /
+/// monolith / vortex / ripple). It leads the error-message order so a
+/// missing `rain` field is the first thing the user sees when a block
+/// is incomplete — rain style is now the headline dimension.
 pub(crate) const SCENE_CUSTOM_REQUIRED_FIELDS: &[(&str, Option<&str>)] = &[
+    ("rain", None),
     ("color", Some("colors-custom")),
     ("charset", Some("charset-custom")),
     ("fps", None),
@@ -90,8 +110,8 @@ pub(crate) const SCENE_CUSTOM_REQUIRED_FIELDS: &[(&str, Option<&str>)] = &[
     ("glitch-level", None),
 ];
 
-/// The six required dimensions as a flat human-readable list for error
-/// messages and hints: "color|colors-custom, charset|charset-custom,
+/// The seven required dimensions as a flat human-readable list for error
+/// messages and hints: "rain, color|colors-custom, charset|charset-custom,
 /// fps, speed, density, glitch-level".
 #[must_use]
 pub(crate) fn scene_custom_required_fields_hint() -> String {
@@ -119,6 +139,9 @@ pub(crate) fn scene_custom_required_fields_hint() -> String {
 pub(crate) fn missing_scene_custom_fields(profile: &UserProfile) -> Vec<String> {
     let has = |primary: &Option<String>, alt: &Option<String>| primary.is_some() || alt.is_some();
     let mut missing = Vec::new();
+    if profile.rain.is_none() {
+        missing.push("rain".to_string());
+    }
     if !has(&profile.color, &profile.colors_custom) {
         missing.push("color|colors-custom".to_string());
     }
@@ -194,8 +217,15 @@ pub(crate) fn ambient_scene_fps(scene_name: &str, cfg: &HashMap<String, String>)
 /// v80.0.0-beta.2: only the six scene-family dimensions remain —
 /// `base_scene`, `bold`, `shading_mode`, `async_mode`, `monolith_size`,
 /// and `color_bg` were removed with the schema simplification.
+/// NIGHT-research-5: added `rain` — the seventh scene-family dimension
+/// (canonical RainStyle label string, parsed via `RainStyle::from_label`).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub(crate) struct UserProfile {
+    /// NIGHT-research-5: rain style selection. The string is one of
+    /// the canonical `RainStyle::as_str()` labels (glyph / monolith /
+    /// vortex / ripple). Parsed by `RainStyle::from_label` at apply
+    /// time; invalid values get a targeted hint with the valid list.
+    pub rain: Option<String>,
     pub color: Option<String>,
     pub charset: Option<String>,
     pub fps: Option<String>,
@@ -227,6 +257,7 @@ pub(crate) fn collect_profiles(cfg: &HashMap<String, String>) -> BTreeMap<String
             .entry(name.to_ascii_lowercase())
             .or_insert_with(UserProfile::default);
         match field {
+            "rain" => profile.rain = Some(value.clone()),
             "color" => profile.color = Some(value.clone()),
             "charset" => profile.charset = Some(value.clone()),
             "fps" => profile.fps = Some(value.clone()),
@@ -333,9 +364,9 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 /// explicit field allowlist for `[scene-custom.<name>]` blocks.
 ///
 /// v80.0.0-beta.2 schema (owner contract, S-master-LOGIC-3): exactly the
-/// six scene-family dimensions. ALLOWED: `color`, `colors-custom`,
+/// seven scene-family dimensions. ALLOWED: `rain`, `color`, `colors-custom`,
 /// `charset`, `charset-custom`, `fps`, `speed`, `density`,
-/// `glitch-level`. Every block must set ALL six dimensions — see
+/// `glitch-level`. Every block must set ALL seven dimensions — see
 /// [`SCENE_CUSTOM_REQUIRED_FIELDS`] (incomplete blocks are a hard
 /// validation error).
 ///
@@ -348,7 +379,12 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 ///   the per-column monolith density-map burden function was retired;
 ///   configs still carrying them get a targeted removal hint from
 ///   `config_hints`).
+///
+/// NIGHT-research-5 (owner-approved): added `rain` — the seventh
+/// scene-family dimension. Custom scenes can now pick any existing
+/// rain style by canonical label (glyph / monolith / vortex / ripple).
 pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
+    "rain",
     "color",
     "colors-custom",
     "charset",
@@ -411,6 +447,7 @@ pub(crate) fn collect_custom_scenes(
             .entry(name_lower)
             .or_insert_with(UserProfile::default);
         match field {
+            "rain" => scene.rain = Some(value.clone()),
             "color" => scene.color = Some(value.clone()),
             "charset" => scene.charset = Some(value.clone()),
             "fps" => scene.fps = Some(value.clone()),
@@ -503,20 +540,50 @@ pub(crate) fn apply_scene_custom_layer(
 
 /// Resolve the rain_style for any scene name (built-in OR custom).
 ///
-/// If `name` is a built-in scene, returns its rain_style. If `name`
-/// is a custom scene, returns `RainStyle::Glyph` — v80.0.0-beta.2:
-/// `base-scene` inheritance is removed, so custom scenes always render
-/// glyph rain. Returns `RainStyle::Glyph` (the default) if neither
-/// resolves.
+/// Built-in scene → its declared rain_style. Custom scene → the block's
+/// `rain` field value, parsed via [`crate::rain_style::RainStyle::from_label`]
+/// (NIGHT-research-5 owner-approved). Returns `RainStyle::Glyph` (the
+/// default) when the field is missing or unrecognized.
+///
+/// Resolve the rain style for a scene at Cloud construction time.
+///
+/// Built-in scene → the scene's declared rain style.
+/// Custom scene (`[scene-custom.<name>]`) → the block's `rain` field,
+/// parsed via [`crate::rain_style::RainStyle::from_label`]. Falls back
+/// to [`crate::rain_style::RainStyle::Glyph`] when the field is missing
+/// (the completeness validator rejects this upstream, but the fallback
+/// keeps the function total) or when the label is unrecognized (the
+/// apply path renders a targeted warning; startup falls back silently
+/// to keep the rain rendering while the user fixes the config).
+/// Unknown scene / no rain declared → [`crate::rain_style::RainStyle::Glyph`].
+///
+/// NIGHT-research-5 (owner-approved): the `rain` field lets users pick
+/// any existing rain style by canonical label. Previously custom scenes
+/// always rendered `RainStyle::Glyph`; now they're flexible.
 ///
 /// Called from `main.rs` at Cloud construction time.
 #[must_use]
 pub(crate) fn resolve_rain_style(
     name: Option<&str>,
-    _cfg: &HashMap<String, String>,
+    cfg: &HashMap<String, String>,
 ) -> crate::rain_style::RainStyle {
-    name.and_then(crate::scene::rain_style_for_scene)
-        .unwrap_or(crate::rain_style::RainStyle::Glyph)
+    let Some(name) = name else {
+        return crate::rain_style::RainStyle::Glyph;
+    };
+    // Built-in scene → its declared rain style.
+    if let Some(style) = crate::scene::rain_style_for_scene(name) {
+        return style;
+    }
+    // Custom scene → consult the block's `rain` field.
+    let normalized = name.trim().to_ascii_lowercase();
+    let key = format!("scene-custom.{normalized}.rain");
+    if let Some(label) = cfg.get(&key) {
+        if let Some(style) = crate::rain_style::RainStyle::from_label(label) {
+            return style;
+        }
+    }
+    // Fallback: Glyph (the default rain style).
+    crate::rain_style::RainStyle::Glyph
 }
 
 /// Apply a `[scene-custom.<name>]` block's `base-scene` defaults to a

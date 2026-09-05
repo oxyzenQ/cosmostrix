@@ -101,7 +101,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
 
     h.update_metrics(&[]);
-    assert_eq!(h.cached_lines[22].1, " up: 02:00");
+    assert_eq!(h.cached_lines[23].1, " up: 02:00");
 
     // Pause for a moment: uptime must NOT advance.
     h.set_metrics_paused(true);
@@ -111,7 +111,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[22].1, " up: 02:00",
+        h.cached_lines[23].1, " up: 02:00",
         "up: must be frozen while paused"
     );
 
@@ -125,7 +125,7 @@ fn pause_freeze_uptime_excludes_paused_time() {
         .unwrap_or_else(Instant::now);
     h.update_metrics(&[]);
     assert_eq!(
-        h.cached_lines[22].1, " up: 02:00",
+        h.cached_lines[23].1, " up: 02:00",
         "up: must resume exactly where it froze (paused span excluded)"
     );
     assert!(
@@ -225,12 +225,12 @@ fn uptime_row_uses_tiered_formatter() {
             .unwrap_or_else(Instant::now);
         h.update_metrics(&[]);
         assert_eq!(
-            h.cached_lines[22].1, " up: 1h:01m",
+            h.cached_lines[23].1, " up: 1h:01m",
             "tier-1 row must show the m suffix and whole-minute truncation"
         );
     } else {
         h.update_metrics(&[]);
-        let row = h.cached_lines[22].1.clone();
+        let row = h.cached_lines[23].1.clone();
         assert!(
             row.starts_with(" up: ") && row.chars().count() <= 10,
             "clock range too short for tier-1 backdate — tier-0 fallback must be well-formed: {row:?}"

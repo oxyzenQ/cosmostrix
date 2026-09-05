@@ -86,10 +86,13 @@ fn validate_rejects_invalid_scene_custom_block_values() {
 
 /// A complete, valid v2 `[scene-custom.cp77]` block + its referenced
 /// custom blocks — shared by the block-value validation tests.
+/// NIGHT-research-5: includes the `rain` field (now required for
+/// completeness — see SCENE_CUSTOM_REQUIRED_FIELDS).
 fn complete_cp77_block(cfg: &mut HashMap<String, String>) {
     for (k, v) in [
         ("colors-custom.p1.bg", "#0a0a0a"),
         ("colors-custom.p1.rain", "#00ff41,#00b32d"),
+        ("scene-custom.cp77.rain", "vortex"),
         ("scene-custom.cp77.colors-custom", "p1"),
         ("scene-custom.cp77.charset-custom", "cyberpunk_2077"),
         ("charset-custom.cyberpunk_2077.set", "01AB"),

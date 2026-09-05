@@ -75,6 +75,13 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
     out.push_str("  Configuration:\n");
 
     let mut has_field = false;
+    // NIGHT-research-5: `rain` field — the rain style label (glyph /
+    // monolith / vortex / ripple). Rendered first so the user reads
+    // the active motion DNA before the other scene-family fields.
+    if let Some(rain) = scene.rain.as_deref() {
+        out.push_str(&format!("    rain               = {rain}\n"));
+        has_field = true;
+    }
     if let Some(color) = scene.color.as_deref() {
         out.push_str(&format!("    color              = {color}\n"));
         has_field = true;

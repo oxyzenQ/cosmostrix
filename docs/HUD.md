@@ -60,9 +60,12 @@ each line means without reading the full reference below.
 | 16  | `glth:`     | level          | **Glitch level** — none / subtle / default / intense (from `--glitch-level`). |
 | 17  | `ctun:`     | state          | **Color tuning** — `default` (all factors 1.0) or `custom` (any `--color-tune-*` factor differs). |
 | 18  | `mnst:`     | size           | **Monolith size** — small / normal / large, or `unknown` for non-monolith scenes. |
-| 19  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
-| 22  | `up:`       | MM:SS / Xh:MMm / Xd:HHh:MMm / Xmo:DDd:HHh:MMm / Xy:... | Session uptime since process start (tiered — see section 8). |
-| 21  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
+| 19  | `rain:`     | label          | **Rain style** (NIGHT-hunter-9) — the active rain style label: glyph / monolith / vortex / ripple. Mirrors the `RainStyle::as_str()` output so the HUD label matches `--show-scene` / `--list-scenes` output exactly. Position above `dcel:` per owner mandate — the user reads the active motion DNA before the cell-efficiency metrics. |
+| 20  | `dcel:`     | count/percent  | Dirty cell count + ratio % (rolling avg over 60 frames). Count is humanized (1.2K for 1200). |
+| 21  | `tcel:`     | count          | Total cells in screen (width × height). Stable between resizes. |
+| 22  | `cid:`      | hex short SHA  | Build commit id (7-char git short SHA). Lets you verify the exact build without quitting cosmostrix. |
+| 23  | `up:`       | MM:SS / Xh:MMm / Xd:HHh:MMm / Xmo:DDd:HHh:MMm / Xy:... | Session uptime since process start (tiered — see section 8). |
+| 24  | (no label)   | WxH auto/fix   | Terminal size in columns × rows, plus `auto` (follows resize) or `fix` (`--screen-size`).          |
 
 **Symbol legend:**
 
@@ -105,11 +108,12 @@ rows are visible at once; this mockup annotates each:
 │ glth: default ◄── 16. glitch level (none/subtle/default/intense)
 │ ctun: default ◄── 17. color tuning (default or custom factors)
 │ mnst: normal  ◄── 18. monolith size (small/normal/large/unknown)
-│ dcel: 57/2.96%   ◄── 19. dirty cells + ratio (humanized count — lower ratio = more efficient)
-│ tcel: 1.9K    ◄── 20. total cells in screen (width × height)
-│ cid: 6ed244b  ◄── 21. build commit id (verify without quitting)
-│ up: 1d:07h:22m◄── 22. session uptime (tiered: MM:SS under 1h, then unit-suffixed)
-│ 200x50 auto   ◄── 23. terminal size + mode (auto/fix)
+│ rain: lorenz  ◄── 19. rain style (glyph/monolith/vortex/ripple — NIGHT-hunter-9)
+│ dcel: 57/2.96%   ◄── 20. dirty cells + ratio (humanized count — lower ratio = more efficient)
+│ tcel: 1.9K    ◄── 21. total cells in screen (width × height)
+│ cid: 6ed244b  ◄── 22. build commit id (verify without quitting)
+│ up: 1d:07h:22m◄── 23. session uptime (tiered: MM:SS under 1h, then unit-suffixed)
+│ 200x50 auto   ◄── 24. terminal size + mode (auto/fix)
 └─────────────────────────┘
 ```
 
@@ -118,10 +122,14 @@ rain droplet — the bottom rows (the session footer: `cid`, `up`,
 screensize) earn the brightest `head` stops (rain leading character),
 the top row (`fps`) is the dimmest `tail` (rain trailing fade). The
 screensize row at the very bottom is the visual anchor; the `cid` line
-keeps a prominent head-band position (row 21, Z-master-1X round 5) so
-the owner can verify which commit is running. The `dcel`/`tcel` cell
- efficiency metrics sit at rows 19-20 (directly above `cid`) per owner
-mandate. See [HUD Color Scheme](#hud-color-scheme)
+keeps a prominent head-band position (row 22, NIGHT-hunter-9 — was row
+21 in Z-master-1X round 5; moved down to make room for the new `rain:`
+line at row 19) so the owner can verify which commit is running. The
+`rain:` line (NIGHT-hunter-9 — active rain style label, sits at row 19
+above `dcel:` per owner mandate so the user can read the active motion
+DNA before the cell-efficiency metrics) plus the `dcel`/`tcel` cell
+efficiency metrics sit at rows 19-21 (rain at 19, dcel at 20, tcel at
+21 — all directly above `cid` at 22) per owner mandate. See [HUD Color Scheme](#hud-color-scheme)
 below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
@@ -290,7 +298,7 @@ HUD is visible.
 **Why the text never changes:** the SHA is baked into the binary at
 compile time. The line is set once in `HudState::new()` and only its
 color is refreshed by `refresh_colors` every frame (it occupies a
-head-band stop at row 21 — the bright footer region — because the
+head-band stop at row 22 — the bright footer region — because the
 build identity is the most definitive info the owner reads to verify
 which commit is running).
 
@@ -423,7 +431,7 @@ out to grey.
 
 ### Rain-aesthetic gradient (top dim -> bottom bright)
 
-The 24 HUD lines form a vertical brightness gradient that mirrors a
+The 25 HUD lines form a vertical brightness gradient that mirrors a
 falling rain droplet — the bottom lines (the session footer:
 `screensize`, `up`, `cid`) are the brightest `head` (palette last-stop,
 the rain's leading bright character), and the top lines (`fps`, `tgt`)
@@ -453,9 +461,12 @@ equally-bright text.
 | 16  | `glth`       | head        | palette last stop        |
 | 17  | `ctun`       | head        | palette last stop        |
 | 18  | `mnst`       | head        | palette last stop        |
-| 19  | `cid`        | head        | palette last stop        |
-| 20  | `up`         | head        | palette last stop        |
-| 21  | `screensize` | head        | palette last stop        |
+| 19  | `rain`       | head        | palette last stop        |
+| 20  | `dcel`       | head        | palette last stop        |
+| 21  | `tcel`       | head        | palette last stop        |
+| 22  | `cid`        | head        | palette last stop        |
+| 23  | `up`         | head        | palette last stop        |
+| 24  | `screensize` | head        | palette last stop        |
 
 This inverts the original pre-v50-alpha.4 mapping where `fps`/`tgt`/`max`
 were the brightest at the TOP. The owner explicitly flagged the inversion:
@@ -474,18 +485,18 @@ the top-left HUD block (top + left edges are implied by the screen edge
 at column 0, row 0).
 
 **Shape:**
-- **Right edge** (column = `hud_width`, rows 0..23): vertical `│`
+- **Right edge** (column = `hud_width`, rows 0..24): vertical `│`
   characters, one per HUD row.
-- **Bottom edge** (row 24, columns 0..=`hud_width`): horizontal `─`
+- **Bottom edge** (row 25, columns 0..=`hud_width`): horizontal `─`
   characters.
-- **Corner** (column `hud_width`, row 24): `╯` (light up-left corner)
+- **Corner** (column `hud_width`, row 25): `╯` (light up-left corner)
   connecting the right + bottom edges.
 
 **Color sweep:**
 - The right edge uses a per-row chroma color sweep — row 0 (top, `fps`)
-  gets the dimmest tail color (palette index 1), row 23 (bottom,
+  gets the dimmest tail color (palette index 1), row 24 (bottom,
   `screensize`) gets the brightest head color (palette last stop). This
-  mirrors the HUD's own 24-row gradient and the message border's
+  mirrors the HUD's own 25-row gradient and the message border's
   clockwise sweep philosophy, applied per-LINE instead of per-CELL.
 - The bottom edge + corner use the single bright head color (palette
   last stop) for a clean closing line.
@@ -521,8 +532,8 @@ border's triangle-wave fade (`cloud/message_draw.rs` BD-02:
 dark→bright→dark around perimeter), applied per-edge with a linear
 ramp:
 - Right edge: row 0 (top, near screen top) = max fade (0.6 blend
-  toward bg = semi-black), row 23 (bottom, head anchor) = no fade.
-  `factor = 0.6 * (1.0 - row / 23.0)`.
+  toward bg = semi-black), row 24 (bottom, head anchor) = no fade.
+  `factor = 0.6 * (1.0 - row / 24.0)`.
 - Bottom edge: col 0 (left, near screen left) = max fade, col cur
   (corner anchor) = no fade. `factor = 0.6 * (1.0 - col / cur)`.
 - The corner cell (col cur, row 24) is always full-bright (the anchor

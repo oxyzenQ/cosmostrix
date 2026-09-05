@@ -345,12 +345,13 @@ the entry, define a custom scene:
 
 ```toml
 [scene-custom.afternoon]
+rain = "glyph"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/ripple)
 color = "neon-purple"      # built-in name OR colors-custom = "<palette>"
 charset = "retro"          # built-in preset OR charset-custom = "<set>"
 fps = 60
 speed = "50"
 density = "0.65"
-glitch-level = "subtle"    # all six dimensions required (v80.0.0-beta.2)
+glitch-level = "subtle"    # all seven dimensions required (v80.0.0-beta.2 + NIGHT-research-5)
 
 # Top-level — outside any [section] block:
 ambient.15-00 = afternoon

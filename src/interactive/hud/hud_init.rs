@@ -82,6 +82,11 @@ impl super::HudState {
             glitch_level: crate::config::GlitchLevel::None,
             color_tune_custom: false,
             monolith_size: None,
+            // NIGHT-hunter-9: rain style default — Glyph (the default
+            // scene is `cinematic` which uses RainStyle::Glyph). The
+            // event loop calls set_rain_style() every frame so this
+            // initial value is overwritten on the first tick.
+            rain_style: crate::rain_style::RainStyle::Glyph,
             cached_lines: [
                 // ── Performance core (rows 0-5) — unchanged from v50 ──
                 (Color::Cyan, String::new()),    // 0: fps
@@ -108,18 +113,27 @@ impl super::HudState {
                 (Color::DarkCyan, String::new()), // 16: glth
                 (Color::DarkCyan, String::new()), // 17: ctun
                 (Color::DarkCyan, String::new()), // 18: mnst
-                // ── Cell efficiency (rows 19-20) — Z-master-1X round 5 ──
+                // ── Rain style (row 19) — NIGHT-hunter-9 ──
+                // rain: active rain style (glyph/monolith/vortex/ripple).
+                // The owner-mandated position is above `dcel:` so the
+                // user can read the active motion DNA before the
+                // cell-efficiency metrics.
+                (Color::DarkCyan, String::new()), // 19: rain
+                // ── Cell efficiency (rows 20-21) — Z-master-1X round 5 ──
                 // dcel: dirty cell ratio % (rolling avg over 60 frames).
-                (Color::DarkCyan, String::new()), // 19: dcel
+                // NIGHT-hunter-9: shifted down from row 19 to row 20
+                // to make room for the new `rain:` line above.
+                (Color::DarkCyan, String::new()), // 20: dcel
                 // tcel: total cells in the screen (latest sample).
-                (Color::DarkCyan, String::new()), // 20: tcel
+                (Color::DarkCyan, String::new()), // 21: tcel
                 // cid line — commit short SHA, static for the entire process
-                // lifetime. Row 21 (Z-master-1X round 5: moved down from row
-                // 19 to make room for dcel/tcel above it).
+                // lifetime. Row 22 (Z-master-1X round 5: moved down from
+                // row 19; NIGHT-hunter-9: moved down again from row 21
+                // to make room for the new `rain:` line above `dcel:`).
                 (Color::DarkCyan, format!(" cid: {commit_sha}")),
-                // ── Session footer (rows 22-23) ──
-                (Color::DarkCyan, String::new()), // 22: up
-                (Color::DarkCyan, String::new()), // 23: screensize
+                // ── Session footer (rows 23-24) ──
+                (Color::DarkCyan, String::new()), // 23: up
+                (Color::DarkCyan, String::new()), // 24: screensize
             ],
             current_width: HUD_MIN_WIDTH,
             prev_width: HUD_MIN_WIDTH,

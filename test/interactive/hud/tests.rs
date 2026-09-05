@@ -173,17 +173,17 @@ fn hud_cpu_line_renders_percent_with_two_decimals_when_supported() {
 }
 
 #[test]
-fn hud_has_twenty_four_cached_lines_after_z_master_1x_round5() {
-    // Regression guard: the HUD must have exactly 24 cached rows after
-    // the Z-master-1X round 5 expansion that added dcel (row 19) + tcel
-    // (row 20) above cid (now row 21). The previous count was 22 (v80.0.0-beta.1
-    // reorder). If a future change adds or removes a row, this test
-    // will catch it.
+fn hud_has_twenty_five_cached_lines_after_night_hunter_9() {
+    // Regression guard: the HUD must have exactly 25 cached rows after
+    // the NIGHT-hunter-9 expansion that added rain (row 19) above dcel
+    // (now row 20). Previous counts: 22 (v80.0.0-beta.1 reorder), 24
+    // (Z-master-1X round 5 dcel/tcel expansion). If a future change
+    // adds or removes a row, this test will catch it.
     let h = HudState::new();
     assert_eq!(
         h.cached_lines.len(),
-        24,
-        "HUD must have 24 cached rows after the Z-master-1X round 5 dcel/tcel expansion"
+        25,
+        "HUD must have 25 cached rows after the NIGHT-hunter-9 rain expansion"
     );
 }
 
@@ -401,7 +401,13 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
             r: 255,
             g: 255,
             b: 255,
-        }, // idx 23 → row 23 (screensize, head)
+        }, // idx 23
+        // NIGHT-hunter-9: 1 new entry for the rain row above dcel.
+        Color::Rgb {
+            r: 255,
+            g: 255,
+            b: 255,
+        }, // idx 24 → row 24 (screensize, head)
     ];
     h.refresh_colors(&palette);
     // Top row (fps, idx 0) = palette[0] = RGB(0, 50, 0) brightened to RGB(0, 200, 0)
@@ -411,8 +417,8 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         "top row (fps) must use palette[0] (brightened dim) — rain tail at top"
     );
     // Row 7 (prs, idx 7) = palette[7] = RGB(220, 240, 150) — max=240
-    // >= TARGET_V(200), returned as-is. With a 24-stop palette + 24 HUD
-    // rows, t = 7/23.0 maps to palette[7] exactly (1:1 mapping).
+    // >= TARGET_V(200), returned as-is. With a 25-stop palette + 25 HUD
+    // rows, t = 7/24.0 maps to palette[7] exactly (1:1 mapping).
     assert_eq!(
         h.cached_lines[7].0,
         Color::Rgb {
@@ -422,16 +428,16 @@ fn refresh_colors_assigns_dim_to_top_and_head_to_bottom() {
         },
         "row 7 (prs) must use palette[7] — near head but not the head"
     );
-    // Bottom row (screensize, idx 23 — Z-master-1X round 5: moved down
-    // from row 21 to row 23) = palette[23] = RGB(255,255,255) — head.
+    // Bottom row (screensize, idx 24 — NIGHT-hunter-9: moved down from
+    // row 23 to row 24) = palette[24] = RGB(255,255,255) — head.
     assert_eq!(
-        h.cached_lines[23].0,
+        h.cached_lines[24].0,
         Color::Rgb {
             r: 255,
             g: 255,
             b: 255
         },
-        "bottom row (screensize) must use palette[23] (head) — bright head at bottom"
+        "bottom row (screensize) must use palette[24] (head) — bright head at bottom"
     );
     // Middle rows should NOT be white — they should be the intermediate
     // green stops, not the head.
@@ -476,7 +482,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&green_palette);
     assert_eq!(
-        h.cached_lines[23].0,
+        h.cached_lines[24].0,
         Color::Rgb { r: 0, g: 255, b: 0 },
         "first refresh: bottom = green head"
     );
@@ -491,7 +497,7 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
     ];
     h.refresh_colors(&amber_palette);
     assert_eq!(
-        h.cached_lines[23].0,
+        h.cached_lines[24].0,
         Color::Rgb {
             r: 255,
             g: 176,
@@ -502,10 +508,11 @@ fn refresh_colors_picks_up_runtime_palette_change_immediately() {
 }
 
 #[test]
-fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
-    // HD-01: 24 HUD rows now use 24 distinct palette stops (one per row),
+fn refresh_colors_gradient_uses_twenty_five_distinct_stops() {
+    // HD-01: 25 HUD rows now use 25 distinct palette stops (one per row),
     // sweeping the full chroma dragon gradient top→bottom.
     // Z-master-1X round 5: bumped from 22 → 24 stops (dcel + tcel added).
+    // NIGHT-hunter-9: bumped from 24 → 25 stops (rain added above dcel).
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -620,7 +627,14 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
             r: 200,
             g: 220,
             b: 200,
-        }, // idx 23 → row 23 (screensize)
+        }, // idx 23 → row 23
+        // NIGHT-hunter-9: 1 new entry for rain (row 19, above dcel).
+        // The bottom row (screensize) shifted down from row 23 to row 24.
+        Color::Rgb {
+            r: 220,
+            g: 200,
+            b: 180,
+        }, // idx 24 → row 24 (screensize, head)
     ];
     h.refresh_colors(&palette);
     // All palette entries have max channel >= TARGET_V(200), so brighten
@@ -628,6 +642,8 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
     // the brightening math (covered separately by brighten_color_* tests).
     //
     // Z-master-1X round 5: with 24 palette entries + 24 HUD rows, t = i/23.0
+    // (NIGHT-hunter-9: bumped to 25/25, t = i/24.0 — but this test asserts
+    // distinctness, not the exact count, so the bump is safe.)
     // and scaled_t = t * 23 = i exactly — BUT floating-point can make
     // 7/23.0 * 23 = 6.9999... (not exactly 7.0), causing the interpolator
     // to blend between palette[6] and palette[7] with frac=0.9999.
@@ -641,17 +657,17 @@ fn refresh_colors_gradient_uses_twenty_four_distinct_stops() {
     };
     assert!(
         distinct_count >= 20,
-        "24-row HUD gradient must produce >=20 distinct colors with a 24-stop palette (got {distinct_count}) — banded gradient would indicate an interpolation regression"
+        "25-row HUD gradient must produce >=20 distinct colors with a 25-stop palette (got {distinct_count}) — banded gradient would indicate an interpolation regression"
     );
-    // Boundary rows (0 and 23) must still be exact — t=0.0 and t=1.0
+    // Boundary rows (0 and 24) must still be exact — t=0.0 and t=1.0
     // land on integer positions with no floating-point drift.
     assert_eq!(
         h.cached_lines[0].0, palette[0],
         "row 0 must use palette[0] exactly (t=0.0, no interpolation)"
     );
     assert_eq!(
-        h.cached_lines[23].0, palette[23],
-        "row 23 must use palette[23] exactly (t=1.0, no interpolation)"
+        h.cached_lines[24].0, palette[24],
+        "row 24 must use palette[24] exactly (t=1.0, no interpolation)"
     );
 }
 
@@ -665,13 +681,15 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
     // The line must contain the compile-time git short SHA injected by
     // build.rs via `COSMOSTRIX_GIT_SHA`, falling back to "unknown" when
     // the build had no .git dir. The text is set once in `new()` and
-    // never mutated — `update_metrics` skips row 21 entirely so the
+    // never mutated — `update_metrics` skips row 22 entirely so the
     // commit hash remains stable across the entire process lifetime.
     // The owner needs to read the commit hash without quitting cosmostrix.
     // Z-master-1X round 5: cid moved from row 19 to row 21 (dcel/tcel
     // inserted at rows 19-20 above cid).
+    // NIGHT-hunter-9: cid moved down again from row 21 to row 22
+    // (rain inserted at row 19 above dcel, pushing everything down).
     let h = HudState::new();
-    let (_, cid_line) = &h.cached_lines[21];
+    let (_, cid_line) = &h.cached_lines[22];
     assert!(
         cid_line.starts_with(" cid: "),
         "cid line must start with ' cid: ' prefix, got: {cid_line:?}"
@@ -695,11 +713,12 @@ fn hud_cid_line_contains_commit_sha_or_unknown() {
 }
 
 #[test]
-fn compute_chroma_gradient_24_sweeps_full_palette_range() {
-    // HD-01 regression: verify the 24-stop chroma gradient helper maps
+fn compute_chroma_gradient_25_sweeps_full_palette_range() {
+    // HD-01 regression: verify the 25-stop chroma gradient helper maps
     // the first and last HUD rows to the corresponding palette boundary
-    // stops. Row 0 → palette[0] (t=0.0), row 23 → palette[n-1] (t=1.0).
+    // stops. Row 0 → palette[0] (t=0.0), row 24 → palette[n-1] (t=1.0).
     // Z-master-1X round 5: bumped from 22 → 24 stops to add dcel + tcel.
+    // NIGHT-hunter-9: bumped from 24 → 25 stops to add rain above dcel.
     let palette = vec![
         Color::Rgb { r: 50, g: 0, b: 0 }, // idx 0  → row 0 (t=0.0)
         Color::Rgb { r: 0, g: 50, b: 0 }, // idx 1
@@ -770,25 +789,25 @@ fn compute_chroma_gradient_24_sweeps_full_palette_range() {
             b: 100,
         }, // idx 15 → last stop (t=1.0)
     ];
-    let colors = compute_chroma_gradient_24(&palette);
+    let colors = compute_chroma_gradient_25(&palette);
     // Row 0 = palette[0] = RGB(50,0,0) brightened to RGB(200,0,0).
     // t=0.0 maps exactly to palette[0] — no interpolation needed.
     assert_eq!(colors[0], Color::Rgb { r: 200, g: 0, b: 0 });
-    // Row 23 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
+    // Row 24 = palette[15] = RGB(100,100,100) brightened to RGB(200,200,200).
     // t=1.0 maps exactly to palette[n-1] — the last stop. max channel is
     // 100, scaled by 200/100 = 2.0x to reach the TARGET_V=200 floor.
-    // (100 * 200 / 100 = 200.) This is the screensize row (row 23, owner-
-    // mandated bottom — Z-master-1X round 5 moved it down from 21) — the
+    // (100 * 200 / 100 = 200.) This is the screensize row (row 24, owner-
+    // mandated bottom — NIGHT-hunter-9 moved it down from 23) — the
     // chroma gradient sweeps from palette[0] at the top (dim tail) to
     // palette[n-1] at the bottom (bright head).
     assert_eq!(
-        colors[23],
+        colors[24],
         Color::Rgb {
             r: 200,
             g: 200,
             b: 200
         },
-        "screensize row (idx 23) must use the last palette stop brightened to TARGET_V=200"
+        "screensize row (idx 24) must use the last palette stop brightened to TARGET_V=200"
     );
 }
 

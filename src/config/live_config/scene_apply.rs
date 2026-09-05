@@ -195,9 +195,12 @@ pub(super) fn apply_scene_key(
             // Custom scene: mark it active so the scene-custom tail
             // block applies the (complete) field layer, and resolve
             // rain_style here (construction-level field the tail
-            // block does not touch). v80.0.0-beta.2: base-scene
-            // inheritance is removed — custom scenes always render
-            // glyph rain.
+            // block applies via apply_scene_custom_field_to_cloud_config).
+            // NIGHT-research-5 (owner-approved): custom scenes can now
+            // pick any rain style via the block's `rain` field
+            // (canonical label: glyph/monolith/vortex/ripple). The
+            // resolve_rain_style helper consults the block; falls
+            // back to Glyph when the field is missing or unrecognized.
             crate::lr_trace!(
                 "apply scene='{}' (custom scene: resolving rain_style + field layer)",
                 v
@@ -207,7 +210,7 @@ pub(super) fn apply_scene_key(
             // the custom scene — the block layer is CONFIG-OWNED at runtime
             // (the tail block may re-apply its fields over CLI locks).
             new.scene_custom_config_owned = true;
-            new.rain_style = crate::rain_style::RainStyle::Glyph;
+            new.rain_style = crate::scene_custom::resolve_rain_style(Some(v), cfg);
         } else {
             // Unknown scene — upstream strict validation rejects the
             // config before it reaches the render thread, so this is

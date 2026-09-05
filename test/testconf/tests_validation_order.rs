@@ -30,6 +30,7 @@ use super::validate_config_strictly;
 fn owner_cp77_config(color: &str) -> HashMap<String, String> {
     let mut cfg = HashMap::new();
     for (k, v) in [
+        ("scene-custom.cp77.rain", "lorenz"),
         ("scene-custom.cp77.color", color),
         ("scene-custom.cp77.charset", "ascii"),
         ("scene-custom.cp77.fps", "90"),

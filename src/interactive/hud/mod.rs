@@ -335,17 +335,25 @@ pub(crate) struct HudState {
     /// monolith-based. None = "unknown" (non-monolith scene). Drives the
     /// `mnst:` HUD line.
     monolith_size: Option<crate::runtime::MonolithSize>,
+    /// NIGHT-hunter-9: the active rain style. Drives the `rain:`
+    /// HUD line (row 19, above `dcel:`). Set every frame from the
+    /// event loop via `set_rain_style()` — kept current with scene
+    /// switches and live-config reloads so the HUD always reflects
+    /// the rain style actually rendering.
+    rain_style: crate::rain_style::RainStyle,
     /// Cached display strings — reformatted only at 1 Hz, written to
     /// frame buffer every frame via write_to_frame().
     ///
-    /// 24 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
+    /// 25 lines: fps / tgt / max / p99 / cpu / rss / ehs / prs / scn /
     /// chr / clr / sped / dsty / prdr / crdr / ambt / glth / ctun /
-    /// mnst / dcel / tcel / cid / up / screensize (Z-master-1X round 5
-    /// owner mandate 2026-08-31: added dcel + tcel above cid). The cid
-    /// line is static (compile-time git SHA injected by build.rs via
-    /// `COSMOSTRIX_GIT_SHA`) at row 21, set once in `new()`; only its
+    /// mnst / rain / dcel / tcel / cid / up / screensize
+    /// (Z-master-1X round 5 owner mandate 2026-08-31: added dcel +
+    /// tcel above cid. NIGHT-hunter-9 2026-09-05: added rain above
+    /// dcel, bumping the buffer 24 → 25 lines.) The cid line is
+    /// static (compile-time git SHA injected by build.rs via
+    /// `COSMOSTRIX_GIT_SHA`) at row 22, set once in `new()`; only its
     /// color is refreshed by `refresh_colors` every frame.
-    cached_lines: [(Color, String); 24],
+    cached_lines: [(Color, String); 25],
     /// Current dynamic HUD width (in terminal columns). Recomputed
     /// every metric update to fit the longest line. Grows when FPS
     /// or RSS values are long, shrinks when they're short.
@@ -763,6 +771,15 @@ impl HudState {
         self.monolith_size = None;
     }
 
+    /// NIGHT-hunter-9: set the active rain style. Drives the `rain:`
+    /// HUD line (row 19, above `dcel:`). Called every frame from the
+    /// event loop so the HUD always reflects the rain style actually
+    /// rendering (mirrors the per-frame setter pattern of the other
+    /// identity metrics — `scn:`, `chr:`, `clr:`, `mnst:`).
+    pub(crate) fn set_rain_style(&mut self, style: crate::rain_style::RainStyle) {
+        self.rain_style = style;
+    }
+
     /// Refresh HUD line colors from the current palette. Called every
     /// frame when visible — cheap (4 `brighten_color` calls ≈ 2 µs) so
     /// the HUD tracks palette changes (`c`/`C` key cycle, Crystal Dragon
@@ -855,7 +872,7 @@ impl HudState {
         // typically near-black start stop — it gets boosted to neutral
         // grey RGB(120,120,120) when pure black, preserving readability
         // without losing the palette's hue identity for non-black stops.
-        let colors = compute_chroma_gradient_24(palette_colors);
+        let colors = compute_chroma_gradient_25(palette_colors);
         for (i, c) in colors.into_iter().enumerate() {
             self.cached_lines[i].0 = c;
         }
@@ -876,16 +893,16 @@ fn format_rss_kb(kib: u64) -> String {
     }
 }
 
-// v50.0.0-beta.7 LTS: compute_chroma_gradient_24 + brighten_color
+// v50.0.0-beta.7 LTS: compute_chroma_gradient_25 + brighten_color
 // extracted to colors.rs to keep this file under the 800-LOC cap.
 // Re-exported here so 'use super::*' glob in tests.rs + tests_brighten.rs
-// resolves them unchanged. mod.rs only calls compute_chroma_gradient_24
+// resolves them unchanged. mod.rs only calls compute_chroma_gradient_25
 // directly; brighten_color is re-exported purely for the test modules
 // (tests_brighten.rs calls it directly), hence the allow(unused_imports).
 mod colors;
 mod hud_init;
 #[allow(unused_imports)]
-pub(crate) use colors::{brighten_color, compute_chroma_gradient_24};
+pub(crate) use colors::{brighten_color, compute_chroma_gradient_25};
 
 // v50.0.0-beta.7 LOC refactor: update_metrics method extracted to
 // metrics.rs as a separate impl HudState block.
