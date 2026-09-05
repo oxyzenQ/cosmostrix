@@ -532,12 +532,14 @@ fn rebuild_switches_scene_to_custom_scene_at_runtime() {
     );
 }
 
-/// v80.0.0-beta.2 (S-master-LOGIC-3): custom scenes are always Glyph rain —
-/// base-scene inheritance is removed from the schema. A config that still
-/// carries a base-scene key gets it rejected upstream (unknown key), and
-/// the rebuild resolves the custom scene to Glyph regardless.
+/// v80.0.0-beta.2 (S-master-LOGIC-3) + NIGHT-research-5: a custom scene
+/// WITHOUT a `rain` field resolves to Glyph (base-scene inheritance is
+/// removed from the schema — the block's `rain` field is the only way to
+/// pick a non-Glyph style). A config that still carries a base-scene key
+/// gets it rejected upstream (unknown key), and the rebuild resolves the
+/// custom scene to Glyph regardless.
 #[test]
-fn rebuild_custom_scene_is_always_glyph_rain() {
+fn rebuild_custom_scene_without_rain_field_defaults_to_glyph() {
     let mut cfg = HashMap::new();
     cfg.insert("scene".to_string(), "pillars".to_string());
     cfg.insert(
@@ -550,12 +552,39 @@ fn rebuild_custom_scene_is_always_glyph_rain() {
     assert_eq!(
         new.rain_style,
         crate::rain_style::RainStyle::Glyph,
-        "custom scenes must resolve to Glyph rain (base-scene removed in v80.0.0-beta.2)"
+        "custom scene without a rain field must resolve to Glyph rain (base-scene removed in v80.0.0-beta.2; rain field added in NIGHT-research-5)"
     );
 }
 
-/// A custom scene resolves to Glyph rain even when the previous state
-/// was Monolith (startup construction parity).
+/// NIGHT-research-5: a custom scene WITH a `rain` field resolves to that
+/// rain style on live reload — scene_apply.rs consults
+/// resolve_rain_style which reads the block's `rain` field. This is the
+/// live-reload twin of the startup resolution (main.rs).
+#[test]
+fn rebuild_custom_scene_with_rain_field_resolves_its_style() {
+    let mut cfg = HashMap::new();
+    cfg.insert("scene".to_string(), "hacker-mode".to_string());
+    cfg.insert(
+        "scene-custom.hacker-mode.rain".to_string(),
+        "lorenz".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.hacker-mode.color".to_string(),
+        "green".to_string(),
+    );
+    let mut base = minimal_cloud_config();
+    base.rain_style = crate::rain_style::RainStyle::Monolith;
+    let new = rebuild_cloud_config(&base, &cfg);
+    assert_eq!(
+        new.rain_style,
+        crate::rain_style::RainStyle::Lorenz,
+        "custom scene rain = 'lorenz' must switch the live rain style to Lorenz (NIGHT-research-5)"
+    );
+}
+
+/// A custom scene without a rain field resolves to Glyph rain even when
+/// the previous state was Monolith (startup construction parity — the
+/// block field is the only non-Glyph source, NIGHT-research-5).
 #[test]
 fn rebuild_custom_scene_without_base_scene_defaults_to_glyph() {
     let mut cfg = HashMap::new();

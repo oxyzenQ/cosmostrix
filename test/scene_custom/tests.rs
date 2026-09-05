@@ -5,10 +5,11 @@
 //!
 //! Uses `use super::*;` to access parent's private items unchanged.
 //!
-//! v80.0.0-beta.2 (S-master-LOGIC-3): the schema is six required
-//! dimensions (color|colors-custom, charset|charset-custom, fps, speed,
-//! density, glitch-level); base-scene/bold/shading-mode/async-mode are
-//! removed. These tests pin the new contract.
+//! v80.0.0-beta.2 (S-master-LOGIC-3) + NIGHT-research-5: the schema is
+//! seven required dimensions (rain, color|colors-custom,
+//! charset|charset-custom, fps, speed, density, glitch-level);
+//! base-scene/bold/shading-mode/async-mode are removed. These tests pin
+//! the contract, including the per-block rain style selection.
 
 #[test]
 fn scene_custom_keys_are_recognized() {
@@ -98,7 +99,8 @@ fn scene_custom_namespace_constant_matches_prefix() {
     assert_eq!(SCENE_CUSTOM_NAMESPACE, "scene-custom");
 }
 
-// ── resolve_rain_style (v80.0.0-beta.2: custom scenes are always Glyph) ──
+// ── resolve_rain_style (NIGHT-research-5: custom scenes pick the rain
+// style via the block's `rain` field; fallback is Glyph) ──
 
 #[test]
 fn resolve_rain_style_builtin_scene_returns_its_rain_style() {
@@ -109,10 +111,79 @@ fn resolve_rain_style_builtin_scene_returns_its_rain_style() {
 }
 
 #[test]
-fn resolve_rain_style_custom_scene_is_always_glyph() {
+fn resolve_rain_style_custom_scene_with_rain_field_returns_it() {
+    // NIGHT-research-5 core contract: a custom scene's `rain` field
+    // selects the rain style. The owner's canonical example is
+    // `rain = "lorenz"` — it must resolve to the Lorenz style, not the
+    // Glyph fallback.
+    let cfg = HashMap::from([(
+        "scene-custom.hacker-mode.rain".to_string(),
+        "lorenz".to_string(),
+    )]);
+    let rs = resolve_rain_style(Some("hacker-mode"), &cfg);
+    assert_eq!(rs, crate::rain_style::RainStyle::Lorenz);
+}
+
+#[test]
+fn resolve_rain_style_custom_scene_rain_field_accepts_all_styles() {
+    // Every canonical label must round-trip through the block's `rain`
+    // field (glyph, monolith, vortex, flux, lorenz, dragon, physarum) —
+    // the same set RainStyle::from_label accepts and the HUD row 19
+    // renders. Guards against a future style landing without its
+    // scene-custom label wiring.
+    let cases = [
+        ("glyph", crate::rain_style::RainStyle::Glyph),
+        ("monolith", crate::rain_style::RainStyle::Monolith),
+        ("vortex", crate::rain_style::RainStyle::Vortex),
+        ("flux", crate::rain_style::RainStyle::Flux),
+        ("lorenz", crate::rain_style::RainStyle::Lorenz),
+        ("dragon", crate::rain_style::RainStyle::Dragon),
+        ("physarum", crate::rain_style::RainStyle::Physarum),
+    ];
+    for (label, expected) in cases {
+        let cfg = HashMap::from([("scene-custom.any-scene.rain".to_string(), label.to_string())]);
+        let rs = resolve_rain_style(Some("any-scene"), &cfg);
+        assert_eq!(
+            rs, expected,
+            "rain = '{label}' must resolve to {expected:?}"
+        );
+    }
+}
+
+#[test]
+fn resolve_rain_style_custom_scene_rain_label_is_case_insensitive() {
+    // resolve_rain_style normalizes the scene name to lowercase before
+    // building the lookup key, and RainStyle::from_label is
+    // case-insensitive — "Monolith" in the block must still resolve.
+    let cfg = HashMap::from([(
+        "scene-custom.hacker-mode.rain".to_string(),
+        "Monolith".to_string(),
+    )]);
+    let rs = resolve_rain_style(Some("HACKER-MODE"), &cfg);
+    assert_eq!(rs, crate::rain_style::RainStyle::Monolith);
+}
+
+#[test]
+fn resolve_rain_style_custom_scene_invalid_rain_label_falls_back_to_glyph() {
+    // A typo'd label (e.g. the retired "ripple") must fall back to
+    // Glyph instead of failing — startup already warned via
+    // apply_profile_overrides, strict validation rejects it earlier
+    // in the normal flow, and this is the defense-in-depth default.
+    let cfg = HashMap::from([(
+        "scene-custom.hacker-mode.rain".to_string(),
+        "ripple".to_string(),
+    )]);
+    let rs = resolve_rain_style(Some("hacker-mode"), &cfg);
+    assert_eq!(rs, crate::rain_style::RainStyle::Glyph);
+}
+
+#[test]
+fn resolve_rain_style_custom_scene_without_rain_field_defaults_to_glyph() {
     // v80.0.0-beta.2: base-scene inheritance removed — a custom scene
-    // (even one whose legacy config still carries a base-scene key,
-    // which the parser now rejects) resolves to Glyph rain.
+    // with NO `rain` field (even one whose legacy config still carries
+    // a base-scene key, which the parser now rejects) resolves to
+    // Glyph rain. The `rain` field is the ONLY way to pick a non-Glyph
+    // style for a custom scene (NIGHT-research-5).
     let cfg = HashMap::from([
         (
             "scene-custom.afternoon.color".to_string(),
@@ -141,12 +212,102 @@ fn resolve_rain_style_unknown_name_defaults_to_glyph() {
     assert_eq!(rs, crate::rain_style::RainStyle::Glyph);
 }
 
+// ── RainStyle label API (NIGHT-research-5: the `rain` field surface) ──
+//
+// from_label / valid_labels_hint / as_str form the label round-trip the
+// scene-custom `rain` field, the HUD row 19, and --list-scenes all share.
+
+#[test]
+fn rain_style_from_label_accepts_every_canonical_label() {
+    use crate::rain_style::RainStyle;
+    let cases = [
+        ("glyph", RainStyle::Glyph),
+        ("monolith", RainStyle::Monolith),
+        ("vortex", RainStyle::Vortex),
+        ("flux", RainStyle::Flux),
+        ("lorenz", RainStyle::Lorenz),
+        ("dragon", RainStyle::Dragon),
+        ("physarum", RainStyle::Physarum),
+    ];
+    for (label, expected) in cases {
+        assert_eq!(
+            RainStyle::from_label(label),
+            Some(expected),
+            "from_label('{label}') must resolve"
+        );
+    }
+}
+
+#[test]
+fn rain_style_from_label_is_case_insensitive_and_trims() {
+    use crate::rain_style::RainStyle;
+    assert_eq!(RainStyle::from_label("Lorenz"), Some(RainStyle::Lorenz));
+    assert_eq!(RainStyle::from_label("  VORTEX "), Some(RainStyle::Vortex));
+}
+
+#[test]
+fn rain_style_from_label_rejects_invalid_and_retired_labels() {
+    use crate::rain_style::RainStyle;
+    // Retired label (task-19 replaced ripple with flux) and typos must
+    // return None so the caller can render the valid-labels hint.
+    for bad in ["ripple", "lorenzz", "", "glyph2", "unknown"] {
+        assert_eq!(
+            RainStyle::from_label(bad),
+            None,
+            "from_label('{bad}') must be None"
+        );
+    }
+}
+
+#[test]
+fn rain_style_as_str_round_trips_through_from_label() {
+    use crate::rain_style::RainStyle;
+    for style in [
+        RainStyle::Glyph,
+        RainStyle::Monolith,
+        RainStyle::Vortex,
+        RainStyle::Flux,
+        RainStyle::Lorenz,
+        RainStyle::Dragon,
+        RainStyle::Physarum,
+    ] {
+        let label = style.as_str();
+        assert_eq!(
+            RainStyle::from_label(label),
+            Some(style),
+            "as_str()->from_label() must round-trip for {label}"
+        );
+    }
+}
+
+#[test]
+fn rain_style_valid_labels_hint_lists_all_seven_labels() {
+    // The hint is rendered in warn_invalid messages and config hints —
+    // it must name every label from_label accepts (and must NOT name
+    // the retired ripple).
+    let hint = crate::rain_style::RainStyle::valid_labels_hint();
+    for label in [
+        "glyph", "monolith", "vortex", "flux", "lorenz", "dragon", "physarum",
+    ] {
+        assert!(
+            hint.contains(label),
+            "valid_labels_hint must list '{label}', got: {hint}"
+        );
+    }
+    assert!(
+        !hint.contains("ripple"),
+        "valid_labels_hint must not list the retired ripple, got: {hint}"
+    );
+}
+
 #[test]
 fn override_fields_match_v80_beta2_schema() {
-    // v80.0.0-beta.2 (S-master-LOGIC-3): exactly the six scene-family
-    // dimensions. base-scene/bold/shading-mode/async-mode/monolith-size/
-    // color-bg are REMOVED; `preset` remains removed.
+    // v80.0.0-beta.2 (S-master-LOGIC-3) + NIGHT-research-5: exactly the
+    // seven scene-family dimensions. base-scene/bold/shading-mode/
+    // async-mode/monolith-size/color-bg are REMOVED; `preset` remains
+    // removed.
     for field in &[
+        "rain",
         "color",
         "colors-custom",
         "charset",

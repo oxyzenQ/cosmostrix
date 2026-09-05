@@ -345,7 +345,7 @@ the entry, define a custom scene:
 
 ```toml
 [scene-custom.afternoon]
-rain = "glyph"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/ripple)
+rain = "glyph"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum)
 color = "neon-purple"      # built-in name OR colors-custom = "<palette>"
 charset = "retro"          # built-in preset OR charset-custom = "<set>"
 fps = 60

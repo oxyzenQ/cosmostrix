@@ -9,6 +9,49 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-hunter-9 + NIGHT-research-5 — HUD `rain:` metric + scene-custom `rain` field (seventh dimension)
+
+Two owner-approved features landed together in 2b24898 (shared scope:
+HUD + scene-custom schema + `RainStyle` label API), then hardened by a
+follow-up verification pass (a613e0b + the NIGHT-research-5 pass) that
+closed the test/documentation gaps the initial landing left behind.
+
+NIGHT-hunter-9 — HUD rain style metric:
+
+- New HUD row 19 `rain: <style>` shows the active rain style label
+  (glyph, monolith, vortex, flux, lorenz, dragon, physarum), positioned
+  directly above `dcel:` per owner mandate so the user reads the active
+  motion DNA before the cell-efficiency metrics. `HudState` gains the
+  `rain_style` field + `set_rain_style()` setter, driven from the event
+  loop every frame; the HUD buffer grew 24 -> 25 rows and the chroma
+  gradient now computes 25 stops.
+- Verification pass added the missing unit tests (row 19 content for
+  all seven labels, Glyph default, rain-above-dcel layout lock) and
+  extended `scripts/hud_order_e2e.py` from 24 to 25 tracked labels.
+
+NIGHT-research-5 — scene-custom `rain` field (seventh dimension):
+
+- `[scene-custom.<name>]` blocks gain the `rain` field: pick any of the
+  seven rain styles by canonical label, case-insensitive (e.g.
+  `rain = "lorenz"`). `RainStyle` gains `from_label()` +
+  `valid_labels_hint()`; `UserProfile` gains the `rain` field;
+  `SCENE_CUSTOM_REQUIRED_FIELDS` / `SCENE_CUSTOM_FIELDS` /
+  `PROFILE_FIELDS` all list `rain` first, so a block is now a COMPLETE
+  seven-dimension profile (rain, color|colors-custom,
+  charset|charset-custom, fps, speed, density, glitch-level) — the
+  `rain` field is the only non-glyph source since `base-scene`
+  inheritance is gone. Both the startup path (`resolve_rain_style` in
+  main.rs) and the live-reload path (`scene_apply.rs` +
+  `apply_scene_custom_field_to_cloud_config`) resolve the label;
+  invalid labels warn with the valid-labels hint.
+- Verification pass added the missing tests (label round-trip,
+  custom-scene resolution including the owner's `rain = "lorenz"`
+  example, case-insensitivity, retired-label fallback, live-reload
+  style switch) and refreshed stale comments/docs that still described
+  the retired `ripple` style or the old six-dimension schema (README,
+  docs/HUD.md, docs/CRYSTAL_DRAGON_ENGINE.md, scene_custom module
+  docs).
+
 ### feat: NIGHT-research-5/6 merge — `cosmic_dragon` + `physarum` land on main; seven rain styles
 
 Branch `cosmic_dragon` merged into `main` (commit range 2d3e916..0d759c5:

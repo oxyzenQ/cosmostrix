@@ -542,8 +542,8 @@ fn main() -> std::io::Result<()> {
         }
     };
 
-    // rain_style resolution — built-in → its rain_style; custom →
-    // base-scene's rain_style; otherwise → Glyph.
+    // rain_style resolution — built-in → its rain_style; custom → the
+    // block's `rain` field (NIGHT-research-5); otherwise → Glyph.
     let cfg = configfile::load_config_file(args.config.as_deref());
     let rain_style = scene_custom::resolve_rain_style(args.scene.as_deref(), &cfg);
 
