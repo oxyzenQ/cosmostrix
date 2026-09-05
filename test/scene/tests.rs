@@ -9,12 +9,15 @@ use super::*;
 #[test]
 fn cycle_scene_forward_order() {
     // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18 style flagships: vortex -> ripple -> classic.
+    // the style flagships: vortex -> ripple -> cosmic_dragon -> classic.
+    // (NIGHT-research-5: cosmic_dragon inserted at cycle position 6 —
+    // a Chinese-mythology serpentine dragon rain style.)
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
     assert_eq!(cycle_scene("vortex", 1), "ripple");
-    assert_eq!(cycle_scene("ripple", 1), "classic");
+    assert_eq!(cycle_scene("ripple", 1), "cosmic_dragon");
+    assert_eq!(cycle_scene("cosmic_dragon", 1), "classic");
     // Tail of the cycle wraps back to the head.
     assert_eq!(cycle_scene("curiosity", 1), "cinematic");
 }
@@ -36,9 +39,10 @@ fn cycle_scene_unknown_returns_default() {
 
 #[test]
 fn cycle_scene_wraps_around() {
-    // Triple forward from matrix: matrix -> vortex -> ripple -> classic.
+    // Quadruple forward from matrix: matrix -> vortex -> ripple ->
+    // cosmic_dragon -> classic.
     assert_eq!(
-        cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1),
+        cycle_scene(cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1), 1),
         "classic"
     );
     // Double backward from matrix: matrix -> monolith -> cinematic.
@@ -56,9 +60,11 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 20-scene catalog and is a
+    // drift). This pin documents the full 21-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
+    // NIGHT-research-5: cosmic_dragon (underscore) added at position 6
+    // — alphabetically sorted before cosmic-dragon (hyphen).
     assert_eq!(
         all_scene_names(),
         vec![
@@ -67,6 +73,7 @@ fn scene_names_are_present() {
             "cinematic",
             "classic",
             "cosmic-dragon",
+            "cosmic_dragon",
             "cosmos",
             "crystal-dragon",
             "curiosity",
@@ -122,8 +129,10 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_entries() {
-    assert_eq!(SCENES.len(), 20, "catalog must contain 20 built-in scenes");
+fn scene_catalog_has_twenty_one_entries() {
+    // NIGHT-research-5: catalog grew from 20 to 21 scenes (cosmic_dragon
+    // added at cycle position 6 — Chinese-mythology dragon rain style).
+    assert_eq!(SCENES.len(), 21, "catalog must contain 21 built-in scenes");
 }
 
 #[test]
@@ -187,7 +196,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        20,
+        21,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

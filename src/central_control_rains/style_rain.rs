@@ -115,3 +115,91 @@ pub(crate) const RIPPLE_SHIMMER_SPACING: u16 = 8;
 /// Speed normalization: ring/splash rate scale = chars_per_sec / this,
 /// clamped 0.25..3.0 (the vortex/ripple default scenes run speed 18-24).
 pub(crate) const RIPPLE_SPEED_REF_CPS: f32 = 20.0;
+
+// ── Dragon (fifth rain style, NIGHT-research-5) ──────────────────────
+// Chinese-mythology serpentine dragon motion model: each dragon is a
+// chain of segments (head + body + tail) following a path-generating
+// head via FABRIK distance constraints (snake kinematics). The head
+// runs a two-state machine — Soar (smooth random-walk turn rate from
+// layered sine noise) and Circle (constant turn rate producing a
+// circular orbit). Wall bounce reflects velocity and snaps to Soar.
+// Brightness fades along the body (head Core, tail Ghost) — the
+// signature serpentine fade of the Chinese dragon's sinuous body.
+
+/// Body length (segments per dragon, including head). 20 gives a
+/// long, sinuous body — the Chinese-dragon silhouette. Each segment
+/// is one cell; at spacing 1.4 the body spans ~28 cells when
+/// stretched straight.
+pub(crate) const DRAGON_BODY_LEN: usize = 20;
+
+/// Spacing between consecutive body segments (cells). At 1.4 the
+/// body has visible curvature without bunching; smaller values
+/// crowd segments onto the same cell, larger values create gaps.
+pub(crate) const DRAGON_SEGMENT_SPACING: f32 = 1.4;
+
+/// Pool size cap (max concurrent dragons). Pool is sized to
+/// cols/30 (clamped 1..=8), then this hard cap further bounds the
+/// active target. At density 0.55 the active target is 2 dragons.
+pub(crate) const DRAGON_POOL_MAX: usize = 8;
+
+/// Base active-dragon ratio for density scaling.
+pub(crate) const DRAGON_ACTIVE_BASE: f32 = 0.005;
+
+/// Density multiplier for dragon active-count calculation. Combined
+/// with DRAGON_ACTIVE_BASE, yields 1-3 dragons across the standard
+/// density range (0.40-0.85).
+pub(crate) const DRAGON_ACTIVE_DENSITY_MULT: f32 = 0.030;
+
+/// Maximum active-dragon ratio cap. Bounds the active count so a
+/// very high density setting doesn't saturate the pool.
+pub(crate) const DRAGON_ACTIVE_MAX: f32 = 0.030;
+
+/// Spawn rate multiplier for dragon generation. Steady state needs
+/// target/avg_lifetime dragons per second; 0.35x target + floor 1.5
+/// reaches that with headroom for ramp-up after scene entry (parity
+/// with vortex/lorenz tuning).
+pub(crate) const DRAGON_SPAWN_RATE_MULT: f32 = 0.35;
+
+/// Spawn rate floor (minimum spawns per tick).
+pub(crate) const DRAGON_SPAWN_RATE_FLOOR: f32 = 1.5;
+
+/// Mote lifetime cap (seconds). 20s gives each dragon a long
+/// majestic flight — at speed 18 (default scene), the dragon
+/// traverses ~360 cells before refresh. Shorter → constant respawn
+/// chatter; longer → motes pile up.
+pub(crate) const DRAGON_LIFETIME_SECS: f32 = 20.0;
+
+/// Head speed scale (cells/sec per chars_per_sec unit). At 1.0 the
+/// dragon's head moves at the same rate as droplet rain. Lower
+/// values make the dragon more majestic; higher values make it
+/// frantic (out of character for Chinese mythology).
+pub(crate) const DRAGON_SPEED_SCALE: f32 = 1.0;
+
+/// SOAR state turn rate (radians/sec, max). The layered sine
+/// noise in the advance pass scales this — actual turn rate
+/// oscillates between -0.7x and +0.7x of this value, producing
+/// organic free-flight curves.
+pub(crate) const DRAGON_SOAR_TURN_RATE: f32 = 1.5;
+
+/// CIRCLE state turn rate (radians/sec, constant). Combined with
+/// the head speed, produces a circular orbit of radius
+/// speed / turn_rate ≈ 12 cells at speed 18 — visible but not
+/// screen-filling.
+pub(crate) const DRAGON_CIRCLE_TURN_RATE: f32 = 1.5;
+
+/// SOAR state minimum duration (seconds).
+pub(crate) const DRAGON_SOAR_MIN_DURATION: f32 = 4.0;
+
+/// SOAR state maximum duration (seconds).
+pub(crate) const DRAGON_SOAR_MAX_DURATION: f32 = 8.0;
+
+/// CIRCLE state minimum duration (seconds).
+pub(crate) const DRAGON_CIRCLE_MIN_DURATION: f32 = 3.0;
+
+/// CIRCLE state maximum duration (seconds).
+pub(crate) const DRAGON_CIRCLE_MAX_DURATION: f32 = 6.0;
+
+/// Matrix-style glyph mutation chance when a segment crosses into a
+/// new cell (mutation tied to motion, like classic matrix rain —
+/// parity with vortex/lorenz shimmer gates).
+pub(crate) const DRAGON_SHIMMER_CHANCE: f32 = 0.4;

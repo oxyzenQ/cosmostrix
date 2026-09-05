@@ -9,6 +9,62 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-research-5 — `cosmic_dragon` (Chinese-mythology serpentine dragon rain, fifth rain style)
+
+A new rain style inspired by Chinese mythology (not Western): each
+dragon is a chain of segments (head + body + tail) following a
+path-generating head via FABRIK distance constraints (snake
+kinematics). The Chinese dragon's signature serpentine silhouette
+emerges from this chain dynamic without any procedural body animation.
+
+- `cosmic_dragon` (scene `cosmic_dragon`, palette `nebula` + charset
+  `zen`): dragons fly freely, sometimes circle, then fly free again
+  — the owner spec "kadang melingkar, terbang bebas kemana aja". The
+  head runs a two-state machine: SOAR (smooth random-walk turn rate
+  from layered sine noise — two frequencies, randomized phase per
+  dragon, produces organic non-repeating free flight) and CIRCLE
+  (constant-magnitude turn rate producing a circular orbit; direction
+  CW/CCW randomized per state entry). State transitions are
+  stochastic: SOAR lasts 4-8s, CIRCLE lasts 3-6s, weighted transitions
+  (after SOAR 50/50 SOAR/CIRCLE; after CIRCLE 70% SOAR / 30% CIRCLE —
+  favoring free flight). Wall bounce reflects velocity and snaps to
+  SOAR (escape any pinning circle).
+- Motion DNA — 100% distinct from cascade (`cinematic`), pillars
+  (`monolith`), polar-orbit (`vortex`), and water-surface (`ripple`):
+  each dragon is a glyph chain carried by a path-following head. The
+  body inherits the head's path through the FABRIK distance constraint
+  (each segment maintains fixed spacing to the previous) — the
+  serpentine body trails the head organically, producing the
+  signature sinuous silhouette of Chinese dragons in flight.
+- Brightness gradient along the body: head = Core (brightest), first
+  third of body = Hot, middle third = Mid, tail third = Ghost. This
+  serpentine fade is the visible signature — the head leads brightly,
+  the tail fades into mist. Matrix-style glyph mutation: segments
+  re-roll glyphs on cell change (mutation tied to motion, parity with
+  vortex/lorenz).
+- Architecture: `RainStyle::Dragon` variant added; `cloud/dragon.rs`
+  (~800 LOC, mirrors vortex/lorenz structure). The chain renderer is
+  agnostic to the head motion model — swapping the head state machine
+  (e.g., for a bee swarm, fish school, or bird flock) is a single
+  function replacement (the body FABRIK solver is unchanged). The
+  pattern sets a reusable standard for future chain-based styles.
+  Scene catalog grows to 21 scenes; `cosmic_dragon` (underscore)
+  takes cycle position 6 — distinct from the existing `cosmic-dragon`
+  (hyphen) milestone scene.
+- Naming distinction: `cosmic-dragon` (hyphen) is the existing
+  milestone scene (Glyph-style tribute to the temporal-prediction
+  breakthrough, palette `cosmos` + charset `binary`). `cosmic_dragon`
+  (underscore) is the new rain STYLE scene (Dragon-style serpentine
+  chain, palette `nebula` + charset `zen`). Different visual
+  concepts, different rain styles, different palettes.
+- A/B 10s @ 80x24 dry (no regression on existing styles): cinematic
+  24K fps / 416 dirty / entropy 5.09 / gini 0.66; monolith 90K / 57
+  / 3.29 / 0.90; vortex 113K / 41 / 4.77 / 0.70; ripple 15K / 503 /
+  5.53 / 0.55; cosmic_dragon 368K / 9.3 / 2.50 / 0.92 — the dragon
+  is the fastest style (368K fps, fewest dirty cells) with a distinct
+  visual signature (lowest entropy, highest gini = most concentrated
+  serpentine chain). No regressions on the other four styles.
+
 ### feat: v100.0.0-nightly.1 — rain styles 3 + 4: `vortex` (polar-orbit galaxy drain) and `ripple` (water-surface rain) (task-18, owner-approved 2026-09-05)
 
 Third and fourth rain styles — different motion DNA from both existing

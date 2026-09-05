@@ -15,6 +15,7 @@ use crate::constants::*;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
+use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::render::{DrawCtx, FlashWaveCtx};
 use super::ripple::{RippleStep, RippleSurface};
@@ -130,6 +131,13 @@ impl super::Cloud {
                         .adopt_palette_slot(self.active_palette_slot);
                 } else if matches!(self.rain_style, RainStyle::Vortex) {
                     self.vortex_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Dragon) {
+                    // NIGHT-research-5: dragon chains adopt the new palette
+                    // slot (parity with vortex's structured-family
+                    // transition path; the dragon chain has no droplet
+                    // pool, so the segment update alone suffices).
+                    self.dragon_rain
                         .adopt_palette_slot(self.active_palette_slot);
                 } else if matches!(self.rain_style, RainStyle::Ripple) {
                     self.ripple_surface
@@ -319,6 +327,29 @@ impl super::Cloud {
             };
             self.vortex_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon chains use the same accumulator
+            // contract as vortex (structured family sibling — same
+            // spawn_remainder carry, same elapsed clamp).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = DragonSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = DragonRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.dragon_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -344,8 +375,13 @@ impl super::Cloud {
                 // Structured styles: rebuild from an empty diff baseline.
                 if matches!(self.rain_style, RainStyle::Monolith) {
                     self.monolith_rain.clear_draw_history();
-                } else {
+                } else if matches!(self.rain_style, RainStyle::Vortex) {
                     self.vortex_rain.clear_draw_history();
+                } else {
+                    // NIGHT-research-5: dragon is the third structured
+                    // family — clear its draw history on semantic
+                    // invalidation, mirroring monolith/vortex.
+                    self.dragon_rain.clear_draw_history();
                 }
                 self.reset_phosphor_state();
             }
@@ -391,6 +427,14 @@ impl super::Cloud {
             } else if matches!(self.rain_style, RainStyle::Vortex) {
                 frame.clear_with_bg(self.palette.bg);
                 self.vortex_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Dragon) {
+                // NIGHT-research-5: dragon is a structured family style
+                // and follows the same force-draw reset path as
+                // monolith/vortex (full frame clear + draw history wipe
+                // + phosphor state reset).
+                frame.clear_with_bg(self.palette.bg);
+                self.dragon_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -471,6 +515,22 @@ impl super::Cloud {
             self.vortex_rain.advance(&step);
             // Ripple surface physics runs with the droplet family below;
             // vortex has no surface system.
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon — single global-clock state
+            // machine step (head motion + body chain FABRIK update).
+            // Same dt-clamp + resume_blend contract as vortex. The
+            // advance pass carries viewport geometry (cols, lines) so
+            // the wall-bounce reflection can clamp the head to actual
+            // viewport bounds.
+            let step = DragonStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                cols: self.cols,
+                lines: self.lines,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            self.dragon_rain.advance(&step);
         } else {
             // Ripple surface physics (ring aging + splash ballistics) runs
             // with the droplet family — Glyph style skips it entirely.
@@ -1026,6 +1086,22 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.vortex_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon draw — same diff-cleanup contract
+            // as vortex (cells vacated by chain motion are cleared via
+            // the drawn-cell diff, phosphor arrays reset in
+            // clear_cell). The renderer is chain-agnostic; the same
+            // pattern serves any future serpentine / chain-based style.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.dragon_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

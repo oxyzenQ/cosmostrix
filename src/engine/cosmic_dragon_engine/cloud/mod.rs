@@ -24,6 +24,7 @@ mod border_touch;
 // `pub(crate) use cloud::{...};` re-export in main.rs.
 pub(crate) mod brightness_factors;
 pub(crate) mod cinematic;
+mod dragon;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod ghost_events;
@@ -67,6 +68,7 @@ use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
+use dragon::DragonRain;
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
@@ -127,6 +129,13 @@ pub struct Cloud {
     /// Task-18 fourth rain style: water-surface rings + splashes
     /// (ripple scene; droplets still produce the falling rain).
     pub(crate) ripple_surface: RippleSurface,
+    /// NIGHT-research-5 fifth rain style: Chinese-mythology
+    /// serpentine dragon (cosmic_dragon scene). Structured family
+    /// sibling (no droplet pool, uses spawn_remainder like
+    /// monolith/vortex). The dragon is a chain of segments
+    /// following a path-generating head via FABRIK distance
+    /// constraints — the signature serpentine silhouette.
+    pub(crate) dragon_rain: DragonRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -420,6 +429,7 @@ impl Cloud {
             monolith_rain: MonolithRain::new(),
             vortex_rain: VortexRain::new(),
             ripple_surface: RippleSurface::new(),
+            dragon_rain: DragonRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -777,6 +787,7 @@ impl Cloud {
         match self.rain_style {
             RainStyle::Monolith => self.monolith_rain.active_count(),
             RainStyle::Vortex => self.vortex_rain.active_count(),
+            RainStyle::Dragon => self.dragon_rain.active_count(),
             // Droplet family: Glyph cascade + Ripple surface droplets.
             RainStyle::Glyph | RainStyle::Ripple => {
                 self.droplets.iter().filter(|d| d.is_alive).count()

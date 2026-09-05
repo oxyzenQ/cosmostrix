@@ -44,12 +44,13 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 20 built-in scenes (owner directive
-/// 2026-08-24: positions 1-3 are fixed; task-18 adds the style flagships
-/// at 4-5; the rest ordered by daily-use likelihood so the most-switched
-/// scenes are the fewest keystrokes away: core trio -> style flagships ->
-/// classic siblings -> atmosphere -> power-saving utility -> milestone ->
-/// tribute -> honor scenes).
+/// Ordered scene cycle — all 21 built-in scenes (owner directive
+/// 2026-08-24: positions 1-3 are fixed; task-18 adds the style
+/// flagships at 4-5; NIGHT-research-5 adds the dragon style flagship
+/// at 6; the rest ordered by daily-use likelihood so the most-switched
+/// scenes are the fewest keystrokes away: core trio -> style flagships
+/// -> classic siblings -> atmosphere -> power-saving utility ->
+/// milestone -> tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
     // Core atmospheres (owner-pinned order).
     "cinematic", // 1
@@ -60,26 +61,31 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // has them), so they lead the cycle right after the core trio.
     "vortex", // 4
     "ripple", // 5
+    // NIGHT-research-5 style flagship — the Chinese-mythology
+    // serpentine dragon (free flight + occasional circling). Grouped
+    // with the other style flagships so users cycle through all the
+    // signature motion styles in one stretch.
+    "cosmic_dragon", // 6
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 6 — original green-on-black
-    "signal",      // 7 — digital transmission
-    "hacker",      // 8 — high-contrast terminal overflow
-    "matrix_film", // 9 — 1999 film homage
+    "classic",     // 7 — original green-on-black
+    "signal",      // 8 — digital transmission
+    "hacker",      // 9 — high-contrast terminal overflow
+    "matrix_film", // 10 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 10
-    "calm",   // 11
-    "cosmos", // 12
-    "neon",   // 13
+    "storm",  // 11
+    "calm",   // 12
+    "cosmos", // 13
+    "neon",   // 14
     // Utility.
-    "low-power", // 14
+    "low-power", // 15
     // Milestone + tribute.
-    "cosmic-dragon", // 15
-    "carbonic",      // 16
+    "cosmic-dragon", // 16
+    "carbonic",      // 17
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 17
-    "orange-cat",     // 18
-    "north-stars",    // 19
-    "curiosity",      // 20
+    "crystal-dragon", // 18
+    "orange-cat",     // 19
+    "north-stars",    // 20
+    "curiosity",      // 21
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -122,6 +128,31 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Ripple,
+        },
+    },
+    // NIGHT-research-5: cosmic_dragon — Chinese-mythology serpentine
+    // dragon. Distinct from the existing `cosmic-dragon` (hyphen)
+    // milestone scene: cosmic-dragon is a Glyph-style tribute to the
+    // temporal-prediction breakthrough; cosmic_dragon (underscore) is
+    // a new rain STYLE — a structured-family chain renderer with
+    // serpentine motion DNA. The `nebula` palette evokes the cosmic
+    // sky the dragon flies through; `zen` charset keeps the body
+    // clean and Asian-feel. Speed 18 = majestic flight cadence;
+    // density 0.55 = 2 dragons (signature single-dragon feel at low
+    // density). The head state machine alternates Soar (free flight)
+    // and Circle (orbital) per the owner's "kadang melingkar, terbang
+    // bebas kemana aja" spec.
+    SceneInfo {
+        name: "cosmic_dragon",
+        description: "Cosmic Dragon — Chinese-mythology serpentine dragon; free flight with occasional circling, body trails the head in a living chain",
+        config: SceneConfig {
+            color: Some("nebula"),
+            charset: Some("zen"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Dragon,
         },
     },
     SceneInfo {

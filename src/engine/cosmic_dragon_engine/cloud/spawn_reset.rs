@@ -54,8 +54,9 @@ impl super::Cloud {
         self.cols = cols;
         self.lines = lines;
 
-        // Task-18: structured styles (Monolith, Vortex) keep the droplet
-        // pool empty; droplet-family styles (Glyph, Ripple) allocate it.
+        // Task-18/NIGHT-research-5: structured styles (Monolith, Vortex,
+        // Dragon) keep the droplet pool empty; droplet-family styles
+        // (Glyph, Ripple) allocate it.
         if self.rain_style.is_droplet_family() {
             let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
             self.droplets.clear();
@@ -67,6 +68,7 @@ impl super::Cloud {
         // pure field flip away); ripple keeps a fixed pool, just clears it.
         self.monolith_rain.reset(self.cols);
         self.vortex_rain.reset(self.cols);
+        self.dragon_rain.reset(self.cols);
         self.ripple_surface.reset();
 
         // Re-seed the droplet free-list: after clear+resize, all droplets

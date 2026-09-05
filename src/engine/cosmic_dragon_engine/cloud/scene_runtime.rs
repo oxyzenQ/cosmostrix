@@ -352,6 +352,9 @@ impl Cloud {
             // Monolith keeps its shipped clear-draw-history-only exit
             // (dormant streams are re-reset on re-entry — LTS parity).
             RainStyle::Vortex => self.vortex_rain.reset(self.cols),
+            // NIGHT-research-5: dragon takes a full reset on exit —
+            // parity with vortex (the other structured family sibling).
+            RainStyle::Dragon => self.dragon_rain.reset(self.cols),
             RainStyle::Ripple => self.ripple_surface.reset(),
             RainStyle::Glyph => {}
         }
@@ -365,6 +368,15 @@ impl Cloud {
             }
             RainStyle::Vortex => {
                 self.vortex_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Dragon => {
+                // NIGHT-research-5: dragon entry mirrors vortex entry —
+                // structured family sibling (spawn_remainder contract,
+                // no droplet pool, full dragon reset on entry).
+                self.dragon_rain.reset(self.cols);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

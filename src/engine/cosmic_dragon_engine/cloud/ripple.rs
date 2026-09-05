@@ -10,10 +10,10 @@
 //! droplet's head reaches the surface, the death hook in `rain_at`
 //! calls [`RippleSurface::spawn_impact`], which opens:
 //!
-//! - an expanding **ripple ring** — an edge-on wavefront that spreads
+//! - an expanding ripple ring — an edge-on wavefront that spreads
 //!   horizontally along the surface line with a small downward-only
 //!   ellipse bulge (screen-circular with the 1:2 cell aspect), and
-//! - a short **splash** of 2-4 particles hopping up from the impact
+//! - a short splash of 2-4 particles hopping up from the impact
 //!   point under gravity.
 //!
 //! A sparse deterministic "surface shimmer" (hash-positioned Ghost

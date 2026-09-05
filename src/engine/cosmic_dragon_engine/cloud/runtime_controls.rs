@@ -150,6 +150,11 @@ impl Cloud {
         } else if matches!(self.rain_style, RainStyle::Vortex) {
             self.vortex_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon — structured-family sibling,
+            // same draw-history clear on palette change.
+            self.dragon_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
 
         // v16: force_draw_everything is set above so the background
@@ -276,6 +281,11 @@ impl Cloud {
             self.reset_phosphor_state();
         } else if matches!(self.rain_style, RainStyle::Vortex) {
             self.vortex_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon — structured-family sibling,
+            // same draw-history clear on shading mode toggle.
+            self.dragon_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the
