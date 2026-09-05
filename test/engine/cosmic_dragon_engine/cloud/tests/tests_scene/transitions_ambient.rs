@@ -658,3 +658,77 @@ fn ambient_apply_clears_palette_even_when_scheme_matches() {
         "a same-scheme color must still clear the active custom palette (ambient owns color)"
     );
 }
+
+/// NIGHT-hunter-11b regression: the runtime ambient apply path must
+/// resolve the custom block's `rain` field (runtime parity with the
+/// startup and live-reload paths). Before the fix,
+/// `apply_custom_scene_runtime` hardcoded `RainStyle::Glyph`, so an
+/// ambient rx-event for a scene declaring `rain = "lorenz"` silently
+/// reverted the rain field to glyph mid-session.
+#[test]
+fn apply_ambient_entry_custom_scene_resolves_the_rain_field() {
+    use crate::rain_style::RainStyle;
+    let mut cloud = make_cinematic_like_cloud();
+    // Start from a NON-glyph style so the transition is observable.
+    // "monolith" is a built-in scene whose declared rain style is
+    // Monolith — the built-in path already honors it.
+    cloud.apply_scene_runtime("monolith", "zen", &[], false);
+    assert_eq!(
+        cloud.rain_style(),
+        RainStyle::Monolith,
+        "setup: monolith scene must switch the rain style"
+    );
+
+    let entry = AmbientEntry {
+        hour: 21,
+        minute: 0,
+        scene: "lorenz-dream".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.lorenz-dream.rain".to_string(),
+        "lorenz".to_string(),
+    );
+    cfg.insert(
+        "scene-custom.lorenz-dream.color".to_string(),
+        "green".to_string(),
+    );
+    let _ = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    assert_eq!(
+        cloud.rain_style(),
+        RainStyle::Lorenz,
+        "ambient apply of a custom scene with rain = \"lorenz\" must transition the rain field — runtime parity with startup/live-reload"
+    );
+    assert_eq!(cloud.color_scheme(), ColorScheme::Green);
+}
+
+/// NIGHT-hunter-11b companion: a custom block WITHOUT a `rain` field
+/// still falls back to Glyph on the runtime path (resolve_rain_style's
+/// documented fallback — the completeness validator rejects incomplete
+/// blocks upstream, but the runtime stays total).
+#[test]
+fn apply_ambient_entry_custom_scene_without_rain_field_falls_back_to_glyph() {
+    use crate::rain_style::RainStyle;
+    let mut cloud = make_cinematic_like_cloud();
+    cloud.apply_scene_runtime("monolith", "zen", &[], false);
+    assert_eq!(cloud.rain_style(), RainStyle::Monolith);
+
+    let entry = AmbientEntry {
+        hour: 22,
+        minute: 0,
+        scene: "no-rain-field".to_string(),
+    };
+    let mut cfg = HashMap::new();
+    cfg.insert(
+        "scene-custom.no-rain-field.color".to_string(),
+        "blue".to_string(),
+    );
+    let _ = cloud.apply_ambient_entry(&entry, "zen", &[], false, &cfg);
+
+    assert_eq!(
+        cloud.rain_style(),
+        RainStyle::Glyph,
+        "custom block without a rain field must fall back to Glyph on the runtime path"
+    );
+}

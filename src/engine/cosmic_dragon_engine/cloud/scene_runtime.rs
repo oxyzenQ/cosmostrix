@@ -11,7 +11,9 @@
 //! (via the `_with_cfg` variant) so it can resolve custom scenes by looking
 //! up `[scene-custom.<name>]` blocks. When the named scene is a custom
 //! scene, the runtime applies the block's complete self-contained field
-//! layer (v80.0.0-beta.2: no `base-scene` inheritance — glyph rain).
+//! layer — including the block's own `rain` style, resolved via
+//! `scene_custom::resolve_rain_style` (NIGHT-hunter-11b runtime parity
+//! fix; see `apply_custom_scene_runtime`).
 //! Built-in scene names take the fast path (no cfg lookup needed).
 
 use std::collections::HashMap;
@@ -82,8 +84,11 @@ impl Cloud {
     /// Like [`Cloud::apply_scene_runtime`] but also resolves custom scenes
     /// via `[scene-custom.<name>]` blocks in `cfg`. When `scene_name` is a
     /// custom scene, apply its (complete, self-contained) field layer —
-    /// v80.0.0-beta.2: no `base-scene` inheritance; custom scenes render
-    /// `RainStyle::Glyph` (see `scene_custom::resolve_rain_style`).
+    /// v80.0.0-beta.2: no `base-scene` inheritance; the block's `rain` field
+    /// resolves the rain style via `scene_custom::resolve_rain_style`
+    /// (NIGHT-hunter-11b: runtime parity with the startup and live-reload
+    /// paths — this used to hardcode Glyph, silently reverting custom
+    /// scenes applied by the ambient scheduler).
     ///
     /// Built-in scene names take the fast path (same as
     /// `apply_scene_runtime`). Unknown scenes (neither built-in nor a
@@ -202,11 +207,12 @@ impl Cloud {
     /// Apply a custom scene (from `[scene-custom.<name>]` block) at runtime.
     ///
     /// v80.0.0-beta.2 schema (S-master-LOGIC-3): the block is a complete
-    /// self-contained profile — no `base-scene` inheritance (custom scenes
-    /// always render `RainStyle::Glyph`), and the field set is exactly the
-    /// six scene-family dimensions (color|colors-custom,
-    /// charset|charset-custom, speed, density, glitch-level; `fps` is
-    /// applied by the event loop via `scene_custom::ambient_scene_fps`).
+    /// self-contained profile — no `base-scene` inheritance, and the field
+    /// set is exactly the seven scene-family dimensions (rain — the
+    /// NIGHT-research-5 headline field resolved below, plus
+    /// color|colors-custom, charset|charset-custom, speed, density,
+    /// glitch-level; `fps` is applied by the event loop via
+    /// `scene_custom::ambient_scene_fps`).
     /// `bold`, `shading-mode`, and `async-mode` are NOT scene-family
     /// dimensions — they were removed from the schema; the top-level
     /// config keys stay live-reloadable.
@@ -237,11 +243,19 @@ impl Cloud {
         self.scene_name = scene_name.to_string();
         let mut charset_preset = current_charset_preset.to_string();
 
-        // v80.0.0-beta.2: no base-scene layer — custom scenes always
-        // render glyph rain (base-scene inheritance removed with the
-        // schema simplification; see scene_custom::resolve_rain_style).
-        if !matches!(self.rain_style, RainStyle::Glyph) {
-            self.transition_rain_style(RainStyle::Glyph);
+        // NIGHT-hunter-11b (ambient + rain field interaction audit): resolve
+        // the block's `rain` field instead of hardcoding Glyph. The startup
+        // path (main.rs) and the live-reload rebuild (scene_apply.rs) both
+        // resolve the field via scene_custom::resolve_rain_style — the
+        // runtime path did not, so an ambient rx-event (or snapback
+        // re-apply) for a custom scene declaring rain = "lorenz" silently
+        // reverted the rain field to glyph mid-session. resolve_rain_style
+        // falls back to Glyph when the field is missing (the completeness
+        // validator rejects incomplete blocks upstream), so the default
+        // behavior is unchanged.
+        let new_style = crate::scene_custom::resolve_rain_style(Some(&normalized), cfg);
+        if self.rain_style != new_style {
+            self.transition_rain_style(new_style);
         }
 
         // Field layer: color (built-in scheme via `color`, OR custom

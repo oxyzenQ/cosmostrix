@@ -394,12 +394,14 @@ COMMON OPTIONS:
       are config content.
 
       Custom scenes are first-class citizens: a block is a COMPLETE
-      six-dimension profile (color OR colors-custom, charset OR
+      seven-dimension profile (rain, color OR colors-custom, charset OR
       charset-custom, fps, speed, density, glitch-level — ALL
       required; incomplete blocks are rejected by --testconf,
-      startup, and live-reload). v80.0.0-beta.2: base-scene
-      inheritance is REMOVED — custom scenes always render glyph
-      rain; bold/shading-mode/async-mode are top-level keys, not
+      startup, and live-reload). rain picks the motion style by label
+      (glyph, monolith, vortex, flux, lorenz, dragon, physarum).
+      v80.0.0-beta.2: base-scene inheritance is REMOVED — the block's
+      own rain field owns the motion style (NIGHT-research-5);
+      bold/shading-mode/async-mode are top-level keys, not
       per-block fields. When active, the verbose output shows
       `scene: <name>` and live reload re-applies the block fields
       immediately.

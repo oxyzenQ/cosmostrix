@@ -137,10 +137,11 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
         // Pattern 2e (v80.0.0-beta.2, S-master-LOGIC-3): REMOVED
         // scene-custom fields — `base-scene`, `bold`, `shading-mode`,
         // and `async-mode`. Custom scenes are now complete,
-        // self-contained six-dimension profiles (color|colors-custom,
-        // charset|charset-custom, fps, speed, density, glitch-level —
-        // ALL required). base-scene inheritance is gone (custom scenes
-        // always render glyph rain); the style fields moved out of the
+        // self-contained seven-dimension profiles (rain, color|
+        // colors-custom, charset|charset-custom, fps, speed, density,
+        // glitch-level — ALL required). base-scene inheritance is gone
+        // (the block's own `rain` field owns the motion style —
+        // NIGHT-research-5); the style fields moved out of the
         // block to the top-level keys, which stay live-reloadable and
         // are reported in the final runtime state.
         if segments.len() == 3 {

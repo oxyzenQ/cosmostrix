@@ -199,7 +199,8 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
             // hardcoded copy that drifted when fields were added or removed
             // (the density-map removal in v80.0.0-beta.2 is the latest
             // example). v80.0.0-beta.2 (S-master-LOGIC-3): the list shrunk
-            // to the six scene-family dimensions — base-scene/bold/
+            // to the seven scene-family dimensions (rain first —
+            // NIGHT-research-5) — base-scene/bold/
             // shading-mode/async-mode are removed and land here as unknown
             // block fields (with a targeted migration hint).
             let valid_fields: &[&str] = crate::scene_custom::SCENE_CUSTOM_FIELDS;

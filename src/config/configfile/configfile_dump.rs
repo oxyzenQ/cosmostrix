@@ -119,18 +119,20 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # Custom Scenes (v80.0.0-beta.2 schema)
 # Define named scenes, load with: cosmostrix --scene-custom <name>
-# A block is a COMPLETE self-contained profile: ALL six dimensions are
-# required (one of each pair). An incomplete block is a hard error at
-# startup, on live-reload, and in --testconf.
+# A block is a COMPLETE self-contained profile: ALL seven dimensions are
+# required (rain plus one of each pair). An incomplete block is a hard error
+# at startup, on live-reload, and in --testconf.
+#   rain                     = glyph|monolith|vortex|flux|lorenz|dragon|physarum
 #   color OR colors-custom   = built-in theme name OR custom palette block
 #   charset OR charset-custom = built-in preset OR custom charset block
 #   fps = 1-240, speed = 1-100, density = 0.01-5.0, glitch-level = none|subtle|default|intense
 # Don't mix a pair (both color and colors-custom) — --testconf will hint.
-# REMOVED in v80.0.0-beta.2: base-scene (custom scenes always render glyph
-# rain — no built-in inheritance), bold, shading-mode, async-mode (style
-# keys are top-level, not per-scene).
+# REMOVED in v80.0.0-beta.2: base-scene (no built-in inheritance — the
+# block's `rain` field picks the motion style), bold, shading-mode,
+# async-mode (style keys are top-level, not per-scene).
 
 # [scene-custom.hacker-mode]
+# rain = "glyph"                       # rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum)
 # color = "green"                       # built-in color name (OR colors-custom = "<palette>")
 # charset = "hacker"                    # built-in charset (OR charset-custom = "<set>")
 # fps = 60                              # 1-240
@@ -139,6 +141,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "intense"
 
 # [scene-custom.cyberpunk_2077]
+# rain = "monolith"                    # monolith streams for the megacity feel
 # colors-custom = "cyberpunk_2077"      # see [colors-custom.cyberpunk_2077] below
 # charset-custom = "cyberpunk_2077"     # see [charset-custom.cyberpunk_2077] below
 # fps = 90
@@ -147,6 +150,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "none"
 
 # [scene-custom.tron_legacy]
+# rain = "flux"                        # flux field for the light-cycle grid
 # colors-custom = "tron_legacy"
 # charset-custom = "tron_legacy"
 # fps = 75

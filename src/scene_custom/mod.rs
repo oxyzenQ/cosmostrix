@@ -67,14 +67,14 @@ use crate::config::Args;
 /// validator. Originally lived in `profile` module; moved here when the
 /// inert profile system was removed.
 ///
-/// v80.0.0-beta.2 (S-master-LOGIC-3): shrunk to the six scene-family
-/// dimensions. `base-scene`, `bold`, `shading-mode`, `async-mode`,
-/// `monolith-size`, and `color-bg` are REMOVED — blocks are complete,
-/// self-contained profiles now (see [`SCENE_CUSTOM_REQUIRED_FIELDS`]).
-/// NIGHT-research-5 (owner-approved): added `rain` — the seventh
-/// scene-family dimension. Custom scenes can now pick any existing
-/// rain style by name (glyph/monolith/vortex/flux/lorenz/dragon/
-/// physarum).
+/// v80.0.0-beta.2 (S-master-LOGIC-3): shrunk the schema to the
+/// scene-family core — `base-scene`, `bold`, `shading-mode`,
+/// `async-mode`, `monolith-size`, and `color-bg` are REMOVED (blocks
+/// are complete, self-contained profiles; see
+/// [`SCENE_CUSTOM_REQUIRED_FIELDS`]). NIGHT-research-5 (owner-approved)
+/// then added `rain` — the seventh scene-family dimension. Custom
+/// scenes pick their rain style by name (glyph/monolith/vortex/flux/
+/// lorenz/dragon/physarum).
 pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "rain",
     "color",
@@ -215,7 +215,9 @@ pub(crate) fn ambient_scene_fps(scene_name: &str, cfg: &HashMap<String, String>)
 /// Originally `UserProfile` from the inert `profile` module. The name is
 /// kept to avoid a massive rename across scene-custom code.
 ///
-/// v80.0.0-beta.2: only the six scene-family dimensions remain —
+/// v80.0.0-beta.2 (S-master-LOGIC-3): the schema shrank to the
+/// scene-family core; NIGHT-research-5 then added `rain` as the seventh
+/// dimension (all seven required). The removed dimensions:
 /// `base_scene`, `bold`, `shading_mode`, `async_mode`, `monolith_size`,
 /// and `color_bg` were removed with the schema simplification.
 /// NIGHT-research-5: added `rain` — the seventh scene-family dimension
@@ -510,8 +512,9 @@ pub(crate) fn apply_scene_custom_layer(
         // inheritance, no fall-back-to-defaults — incomplete blocks are
         // rejected upstream by `validate_scene_custom_completeness`).
         // rain_style for the custom scene is resolved at Cloud
-        // construction time — v80.0.0-beta.2: always Glyph (base-scene
-        // inheritance removed; see `resolve_rain_style`).
+        // construction time — via `resolve_rain_style` (the block's
+        // `rain` field, Glyph fallback when missing; see
+        // `apply_custom_scene_runtime` for the runtime apply path).
         args.scene = Some(normalized);
         return Ok(modified);
     }

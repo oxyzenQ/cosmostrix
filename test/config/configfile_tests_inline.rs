@@ -164,13 +164,17 @@ fn dump_config_documents_paired_field_split() {
     // v80.0.0-beta.2: the dump-config template must explicitly document
     // the paired-field split (`color`/`colors-custom`,
     // `charset`/`charset-custom`) AND the completeness requirement —
-    // all six dimensions, hard error when incomplete (S-master-LOGIC-3).
-    // Enforced by content anchor: if a future edit drops any anchor,
-    // this test fails loudly.
+    // all seven dimensions (rain first, NIGHT-research-5), hard error
+    // when incomplete (S-master-LOGIC-3). Enforced by content anchor:
+    // if a future edit drops any anchor, this test fails loudly.
     let dump = dump_config_text();
     assert!(
-        dump.contains("ALL six dimensions are"),
+        dump.contains("ALL seven dimensions are"),
         "template must state the completeness requirement"
+    );
+    assert!(
+        dump.contains("rain = \"glyph\""),
+        "template must show the rain field in a scene-custom example (NIGHT-research-5)"
     );
     assert!(
         dump.contains("incomplete block is a hard error"),
