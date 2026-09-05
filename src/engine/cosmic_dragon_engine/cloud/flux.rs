@@ -54,7 +54,7 @@ use crate::frame::Frame;
 
 use super::flux_field::{FluxField, FluxVel};
 use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level};
+use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level, pick_pool_char};
 use super::render::DrawCtx;
 
 /// Trail depth per mote (comet streak length in cells).
@@ -603,17 +603,6 @@ impl FluxRain {
         // and test-only).
         self.active_count = self.motes.iter().filter(|mm| mm.active).count();
     }
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes).
-fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
 }
 
 /// Brightness grade by particle speed (screen units per second):

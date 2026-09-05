@@ -20,17 +20,6 @@ use super::monolith::BrightnessLevel;
 use super::monolith_helpers::{bold_for_level, color_for_level};
 use super::render::DrawCtx;
 
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes).
-pub(super) fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
-}
-
 /// Brightness zone by segment index along the body (head=Core,
 /// first third=Hot, middle third=Mid, tail third=Ghost). The
 /// serpentine fade is the Chinese-dragon body's visible signature.

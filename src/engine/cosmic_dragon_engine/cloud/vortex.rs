@@ -39,11 +39,15 @@ use rand::{
 use crate::frame::Frame;
 
 use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level};
+use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level, pick_pool_char};
 use super::render::DrawCtx;
 
 /// Trail depth per mote (comet streak length in cells).
 pub(crate) const VORTEX_TRAIL_LEN: usize = 4;
+
+/// Arm-precession wrap threshold (radians, 128 turns) — see the
+/// amortized wrap in `advance`.
+const VORTEX_ARM_PHASE_WRAP_LIMIT: f32 = 128.0 * std::f32::consts::TAU;
 
 /// One drawn cell (col, line). Own struct instead of reusing monolith's
 /// `DrawnCell` because vortex has no Segment/Spine kind distinction.
@@ -381,8 +385,17 @@ impl VortexRain {
             self.active_count = self.active_count.saturating_sub(absorbed);
         }
 
-        // Slow arm precession so the spiral pattern drifts around the rim.
+        // Slow arm precession so the spiral pattern drifts around the
+        // rim. LTS (NIGHT-hunter-10): the precession phase is an
+        // unbounded f32 accumulator (no per-mote reset — the arms
+        // precess continuously); the amortized wrap past 128 turns
+        // keeps the ulp far below visual resolution on multi-day
+        // sessions, trig-equivalent (spawn angles only ever enter
+        // arm_center arithmetic that feeds sin/cos).
         self.arm_phase += crate::constants::VORTEX_ARM_PRECESSION * dt;
+        if self.arm_phase.abs() > VORTEX_ARM_PHASE_WRAP_LIMIT {
+            self.arm_phase = self.arm_phase.rem_euclid(std::f32::consts::TAU);
+        }
     }
 
     /// Draw pass — head cell + comet trail + monolith-style diff cleanup.
@@ -502,16 +515,6 @@ impl VortexRain {
     pub(crate) fn drawn_cells_for_test(&self) -> &[VortexCell] {
         &self.current_cells
     }
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback '0'
-/// for the degenerate empty-pool case — production always initializes).
-fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
 }
 
 /// Brightness zone by normalized radius: rim dim → core hot. The three

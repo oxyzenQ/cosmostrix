@@ -11,15 +11,20 @@
 //! Built-in scenes combine the three core runtime styles (`matrix`,
 //! `monolith`, `signal` — the original "rain atmospheres" naming predates
 //! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
-//! subsystem) with nine curated visual scenes (`classic`,
-//! `cinematic`, `calm`, `storm`, `cosmos`, `neon`, `hacker`, `matrix_film`,
-//! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
-//! temporal-prediction breakthrough ( dirty_ratio 18.33% → 0.39%,
-//! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) covers all
-//! 23 built-in scenes (owner directive 2026-08-24): the three core
-//! atmospheres lead (cinematic, monolith, matrix), followed by the
-//! curated classics, atmosphere scenes, the power-saving utility, and
-//! the milestone/tribute/honor scenes as destinations.
+//! subsystem) with the five structured style flagships (`vortex`,
+//! `flux`, `lorenz`, `cosmic_dragon`, `physarum` — task-18/19 +
+//! NIGHT-research-4/5/6, the signature differentiators), nine curated
+//! visual scenes (`classic`, `cinematic`, `calm`, `storm`, `cosmos`,
+//! `neon`, `hacker`, `matrix_film`, `low-power`), the `cosmic-dragon`
+//! milestone scene commemorating the temporal-prediction breakthrough
+//! ( dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the tribute
+//! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
+//! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
+//! covers all 23 built-in scenes (owner directive 2026-08-24): the
+//! three core atmospheres lead (cinematic, monolith, matrix), then
+//! the five style flagships, the curated classics, the atmosphere
+//! scenes, the power-saving utility, and the milestone/tribute/honor
+//! scenes as destinations.
 //!
 //! task-19 + NIGHT-research-4/5/6: the rejected `ripple` style
 //! (water-surface rings) was replaced by `flux` (task-19, PIC/FLIP

@@ -66,7 +66,7 @@ use rand::{
 use crate::frame::Frame;
 
 use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level};
+use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level, pick_pool_char};
 use super::render::DrawCtx;
 
 /// Trail depth per mote (comet streak length in cells). Five cells
@@ -532,9 +532,11 @@ impl LorenzRain {
             let col = col_f.round() as i32;
             let line = line_f.round() as i32;
             if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
-                // Off-screen: still push trail so when the mote
-                // comes back into view the streak resumes from the
-                // last in-bounds position (avoids phantom trails).
+                // Off-screen: skip the draw AND the trail push — the
+                // trail keeps its last in-bounds positions, so when the
+                // mote re-enters the viewport the streak resumes from
+                // the last visible cell (pushing off-screen positions
+                // would leave phantom trail cells pointing outside).
                 continue;
             }
             let (col, line) = (col as u16, line as u16);
@@ -630,17 +632,6 @@ fn lorenz_deriv(x: f32, y: f32, z: f32, sigma: f32, rho: f32, beta: f32) -> (f32
     let dy = x * (rho - z) - y;
     let dz = x * y - beta * z;
     (dx, dy, dz)
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes).
-fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
 }
 
 /// Brightness zone by Lorenz z-coordinate: z high = lobe peak hot;

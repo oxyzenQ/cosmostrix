@@ -421,6 +421,19 @@ pub(crate) fn color_for_level(
     Some(Color::Rgb { r, g, b })
 }
 
+/// Pick a char from the pool via a uniform roll (defensive fallback
+/// '0' for the degenerate empty-pool case — production always
+/// initializes). Shared by every structured style's shimmer gate
+/// (vortex, lorenz, flux, dragon, physarum — consolidated in
+/// NIGHT-hunter-10 from five identical per-file copies).
+pub(crate) fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
+    if pool.is_empty() {
+        return '0';
+    }
+    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
+    pool[idx.min(pool.len() - 1)]
+}
+
 pub(crate) fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, col: u16) -> bool {
     match mode {
         BoldMode::Off => false,

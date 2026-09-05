@@ -9,11 +9,6 @@
 //! (sense/decide/move/deposit + trail decay) stays there as one
 //! algorithm.
 
-use rand::{
-    distr::{Distribution, Uniform},
-    rngs::StdRng,
-};
-
 use crate::frame::Frame;
 
 use super::monolith::BrightnessLevel;
@@ -62,17 +57,6 @@ pub(super) fn sample_trail(field: &[f32], cols: usize, lines: usize, x: f32, y: 
     let cx = cx.min(cols - 1);
     let cy = cy.min(lines - 1);
     field[cx * lines + cy]
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes). Mirrors vortex/lorenz/dragon.
-pub(super) fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
-    }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
 }
 
 /// Brightness zone by trail field value at the head position. The

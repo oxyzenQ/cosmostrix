@@ -66,9 +66,9 @@ use rand::{
 use crate::frame::Frame;
 
 use super::dragon_helpers::{
-    dragon_noise_roll, dragon_state_duration, draw_dragon_cell, level_for_segment, pick_pool_char,
+    dragon_noise_roll, dragon_state_duration, draw_dragon_cell, level_for_segment,
 };
-use super::monolith_helpers::clear_cell;
+use super::monolith_helpers::{clear_cell, pick_pool_char};
 use super::render::DrawCtx;
 
 /// Heading-accumulator wrap threshold (radians, 64 turns). See the

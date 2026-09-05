@@ -357,9 +357,11 @@ COMMON OPTIONS:
       Apply a built-in scene atmosphere. Scenes set color, charset,
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
-      Built-in scenes: cinematic (default), matrix, monolith, signal, classic,
-      calm, storm, cosmos, neon, hacker, low-power, matrix_film, cosmic-dragon,
-      carbonic, crystal-dragon, orange-cat, north-stars, curiosity.
+      Built-in scenes: cinematic (default), matrix, monolith, vortex,
+      flux, lorenz, cosmic_dragon, physarum, signal, classic,
+      calm, storm, cosmos, neon, hacker, low-power, matrix_film,
+      cosmic-dragon, carbonic, crystal-dragon, orange-cat, north-stars,
+      curiosity.
       Use --list-scenes to see all entries with descriptions.
 
       cosmic-dragon is the temporal-prediction milestone scene — a

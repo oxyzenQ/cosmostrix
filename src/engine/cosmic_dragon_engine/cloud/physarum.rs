@@ -82,10 +82,8 @@ use rand::{
 
 use crate::frame::Frame;
 
-use super::monolith_helpers::clear_cell;
-use super::physarum_helpers::{
-    draw_physarum_cell, level_for_trail, pick_pool_char, sample_random, sample_trail,
-};
+use super::monolith_helpers::{clear_cell, pick_pool_char};
+use super::physarum_helpers::{draw_physarum_cell, level_for_trail, sample_random, sample_trail};
 use super::render::DrawCtx;
 
 /// Heading-accumulator wrap threshold (radians, 64 turns). The
