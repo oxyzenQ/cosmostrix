@@ -41,6 +41,7 @@ mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
 mod physarum;
+mod physarum_helpers;
 mod rain;
 mod rain_at;
 mod rain_post;

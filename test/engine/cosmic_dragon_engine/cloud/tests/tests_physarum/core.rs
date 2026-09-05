@@ -223,3 +223,127 @@ fn physarum_emergent_network_pattern_forms() {
         "emergent network must form (max trail {max_trail} should exceed emergence threshold {emergence_threshold})"
     );
 }
+
+// -- NIGHT-hunter-10 contracts (rate-independent decay, sensor
+//    steering signs through the angle-addition ladder, heading LTS) --
+
+/// Build a bare PhysarumRain on an 80x40 field with one hand-pinned
+/// particle and an anchored clock. The first advance anchors
+/// last_step (dt = 0), so callers step from t0 themselves.
+fn bare_rain_with_particle(x: f32, y: f32, heading: f32) -> crate::cloud::physarum::PhysarumRain {
+    let mut rain = crate::cloud::physarum::PhysarumRain::new();
+    rain.reset(80);
+    rain.set_particle_for_test(0, x, y, heading);
+    rain.seed_trail_for_test(80, 40, 0, 0, 0.0);
+    rain
+}
+
+fn step_at(rain: &mut crate::cloud::physarum::PhysarumRain, t0: Instant, idx: u32, step: Duration) {
+    rain.advance(&crate::cloud::physarum::PhysarumStep {
+        now: t0 + step * idx,
+        chars_per_sec: 18.0,
+        cols: 80,
+        lines: 40,
+        max_sim_delta: Duration::from_millis(1000),
+        resume_blend: 1.0,
+    });
+}
+
+#[test]
+fn physarum_trail_decay_is_frame_rate_independent() {
+    // NIGHT-hunter-10: the trail equilibrium must not depend on the
+    // terminal's frame rate. One simulated second elapsed in 60 steps
+    // of 1/60 s or 30 steps of 1/30 s must leave the SAME trail value
+    // (the per-step multiplier is the 60 Hz reference constant raised
+    // to dt*60). The pre-fix code multiplied the per-frame constant
+    // once per advance call, so the 30 Hz cadence decayed half as
+    // often — 0.9^30 vs 0.9^60, 23x more trail left — and the vein
+    // brightness grading against the absolute thresholds shifted
+    // with the display's refresh rate.
+    let run_cadence = |step_secs: f32, steps: u32| -> f32 {
+        // Particle pinned far from the watched cell so its deposits
+        // never contaminate the measurement.
+        let mut rain = bare_rain_with_particle(5.0, 20.0, 0.0);
+        rain.seed_trail_for_test(80, 40, 60, 10, 1.0);
+        let t0 = Instant::now();
+        let step = Duration::from_secs_f32(step_secs);
+        step_at(&mut rain, t0, 0, step); // anchor the clock
+        for i in 1..=steps {
+            step_at(&mut rain, t0, i, step);
+        }
+        rain.trail_value_for_test(60, 10)
+            .expect("watched cell must stay inside the field")
+    };
+    let fast = run_cadence(1.0 / 60.0, 60);
+    let slow = run_cadence(1.0 / 30.0, 30);
+    let scale = fast.abs().max(slow.abs()).max(1.0e-9);
+    assert!(
+        (fast - slow).abs() <= 1.0e-4 * scale,
+        "same simulated time must leave the same trail value: 60Hz cadence {fast} vs 30Hz cadence {slow}"
+    );
+    // And the value must actually be a decayed residue (sanity: the
+    // pre-fix 30 Hz run would leave ~0.042, the fixed run ~0.0018 —
+    // both nonzero, both far below the seeded 1.0).
+    assert!(
+        fast > 0.0 && fast < 0.1,
+        "residue must be a real decayed value, got {fast}"
+    );
+}
+
+#[test]
+fn physarum_sensor_steering_follows_the_strongest_signal() {
+    // Pins the sense-decide sign conventions THROUGH the
+    // angle-addition sensor ladder (NIGHT-hunter-10 replaced six
+    // per-particle trig calls with the hoisted-constant identities):
+    // front-strong -> no turn, left-strong -> negative turn,
+    // right-strong -> positive turn. A sign slip in the identities
+    // would flip the steering direction and fail this test.
+    let dt_step = Duration::from_secs_f32(1.0 / 60.0);
+    let scenarios = [
+        // (seed cell of the strong signal, expected heading delta sign)
+        ((13_u16, 20_u16), 0.0), // front sensor: heading 0 + 3 cells ahead
+        ((12, 18), -1.0),        // left sensor: heading -45 degrees
+        ((12, 22), 1.0),         // right sensor: heading +45 degrees
+    ];
+    for ((seed_col, seed_line), expected_sign) in scenarios {
+        let mut rain = bare_rain_with_particle(10.0, 20.0, 0.0);
+        rain.seed_trail_for_test(80, 40, seed_col, seed_line, 1.0);
+        let t0 = Instant::now();
+        step_at(&mut rain, t0, 0, dt_step); // anchor
+        step_at(&mut rain, t0, 1, dt_step); // one sensed + turned + moved step
+        let heading = rain.particles[0].heading;
+        match expected_sign {
+            s if s < 0.0 => assert!(
+                heading < -1.0e-4,
+                "left-strong trail must steer left (negative heading), got {heading}"
+            ),
+            s if s > 0.0 => assert!(
+                heading > 1.0e-4,
+                "right-strong trail must steer right (positive heading), got {heading}"
+            ),
+            _ => assert!(
+                heading.abs() < 1.0e-4,
+                "front-strong trail must hold the heading exactly, got {heading}"
+            ),
+        }
+    }
+}
+
+#[test]
+fn physarum_heading_wraps_when_the_accumulator_drifts() {
+    // LTS: the steering integrator accumulates turn into a bare f32
+    // heading. Past the wrap limit the f32 ulp grinds the turn-rate
+    // resolution; the amortized wrap folds the value back into
+    // [0, TAU). A particle pinned past the limit must come back
+    // wrapped (and finite) after one step.
+    let mut rain = bare_rain_with_particle(40.0, 20.0, 100_000.0);
+    let t0 = Instant::now();
+    let step = Duration::from_secs_f32(1.0 / 60.0);
+    step_at(&mut rain, t0, 0, step); // anchor
+    step_at(&mut rain, t0, 1, step);
+    let h = rain.particles[0].heading;
+    assert!(
+        h.is_finite() && (0.0..=std::f32::consts::TAU).contains(&h),
+        "heading must fold into [0, TAU] once past the wrap limit (got {h})"
+    );
+}

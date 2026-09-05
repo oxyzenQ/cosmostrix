@@ -82,9 +82,24 @@ use rand::{
 
 use crate::frame::Frame;
 
-use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level};
+use super::monolith_helpers::clear_cell;
+use super::physarum_helpers::{
+    draw_physarum_cell, level_for_trail, pick_pool_char, sample_random, sample_trail,
+};
 use super::render::DrawCtx;
+
+/// Heading-accumulator wrap threshold (radians, 64 turns). The
+/// steering integrator adds the per-frame turn into a bare f32; the
+/// amortized wrap in `advance` folds it back into [0, TAU) once it
+/// drifts past this limit so a multi-day session cannot degrade the
+/// turn-rate resolution (trig-equivalent — cos/sin are 2π-periodic).
+const PHYSARUM_HEADING_WRAP_LIMIT: f32 = 64.0 * std::f32::consts::TAU;
+
+/// Reference cadence (steps per simulated second) the
+/// PHYSARUM_TRAIL_DECAY per-step constant is quoted against. The
+/// advance pass raises the constant to (dt × this) so the decay is
+/// frame-rate independent (see the trail-decay block in `advance`).
+const PHYSARUM_TRAIL_DECAY_REF_HZ: f32 = 60.0;
 
 /// One drawn cell (col, line). Own struct instead of reusing
 /// monolith's `DrawnCell` because physarum has no Segment/Spine
@@ -393,9 +408,11 @@ impl PhysarumRain {
     /// 4. Deposit trail chemical at the new cell position.
     ///
     /// After all particles advance, the trail field decays
-    /// exponentially (multiplied by PHYSARUM_TRAIL_DECAY). This is
-    /// the negative feedback that lets unused paths fade — without
-    /// it, the field saturates and the network disappears.
+    /// exponentially (the 60 Hz reference constant raised to dt×60,
+    /// so the decay is frame-rate independent — see the trail-decay
+    /// block). This is the negative feedback that lets unused paths
+    /// fade — without it, the field saturates and the network
+    /// disappears.
     pub(crate) fn advance(&mut self, step: &PhysarumStep) {
         if self.active_count == 0 {
             self.last_step = Some(step.now);
@@ -444,6 +461,18 @@ impl PhysarumRain {
         let turn_rate = crate::constants::PHYSARUM_TURN_RATE;
         let deposit = crate::constants::PHYSARUM_DEPOSIT_AMOUNT;
 
+        // Sensor direction ladder (NIGHT-hunter-10): the three sample
+        // directions are the heading rotated by -a, 0 and +a. The trig
+        // for the CONSTANT sensor angle is hoisted — one pair per
+        // advance call instead of two per particle — and the
+        // per-particle sensor directions come from the angle-addition
+        // identities (cos(h±a) = cos_h·cos_a ∓ sin_h·sin_a and the
+        // matching sine form): exact math for any sensor-angle tuning,
+        // two trig calls per particle where the previous form spent
+        // six (plus two for the move).
+        let sensor_cos = sensor_angle.cos();
+        let sensor_sin = sensor_angle.sin();
+
         let mut absorbed = 0usize;
         for p in &mut self.particles {
             if !p.active {
@@ -455,29 +484,35 @@ impl PhysarumRain {
             // Three sensor positions: left-front, front, right-front.
             // Sensor samples the trail field at offset distance from
             // the particle, in directions offset by ±sensor_angle.
-            let h = p.heading;
-            let left_h = h - sensor_angle;
-            let right_h = h + sensor_angle;
+            let cos_h = p.heading.cos();
+            let sin_h = p.heading.sin();
+            // Angle-addition ladder (see the hoist comment above):
+            // identical sensor angles to the trig form, four fewer
+            // trig calls per particle.
+            let left_dx = cos_h * sensor_cos + sin_h * sensor_sin;
+            let left_dy = sin_h * sensor_cos - cos_h * sensor_sin;
+            let right_dx = cos_h * sensor_cos - sin_h * sensor_sin;
+            let right_dy = sin_h * sensor_cos + cos_h * sensor_sin;
             let s_front = sample_trail(
                 &self.trail_field,
                 cols_us,
                 lines_us,
-                p.x + h.cos() * sensor_dist,
-                p.y + h.sin() * sensor_dist,
+                p.x + cos_h * sensor_dist,
+                p.y + sin_h * sensor_dist,
             );
             let s_left = sample_trail(
                 &self.trail_field,
                 cols_us,
                 lines_us,
-                p.x + left_h.cos() * sensor_dist,
-                p.y + left_h.sin() * sensor_dist,
+                p.x + left_dx * sensor_dist,
+                p.y + left_dy * sensor_dist,
             );
             let s_right = sample_trail(
                 &self.trail_field,
                 cols_us,
                 lines_us,
-                p.x + right_h.cos() * sensor_dist,
-                p.y + right_h.sin() * sensor_dist,
+                p.x + right_dx * sensor_dist,
+                p.y + right_dy * sensor_dist,
             );
 
             // ── 2. Decide ─────────────────────────────────────────
@@ -499,6 +534,15 @@ impl PhysarumRain {
                 (sample_random(p.sim_age) - 0.5) * turn_rate * dt_p * 2.0
             };
             p.heading += turn;
+
+            // LTS (NIGHT-hunter-10): amortized heading wrap. The
+            // steering integrator accumulates the per-frame turn into
+            // a bare f32; past the wrap limit the ulp starts degrading
+            // the turn resolution. Folding into [0, TAU) is
+            // trig-equivalent and the branch is almost never taken.
+            if p.heading.abs() > PHYSARUM_HEADING_WRAP_LIMIT {
+                p.heading = p.heading.rem_euclid(std::f32::consts::TAU);
+            }
 
             // ── 3. Move (wraparound toroidal substrate) ───────────
             let dist = step_dist * p.pace;
@@ -540,12 +584,25 @@ impl PhysarumRain {
         }
 
         // ── Trail decay (negative feedback) ─────────────────────
-        // Multiply every cell by PHYSARUM_TRAIL_DECAY. Without this,
-        // the field saturates and the network pattern disappears
-        // (every cell ends up with equal high concentration → no
-        // gradient → no steering → no pattern). The decay lets unused
-        // paths fade so the network stays alive.
-        let decay = crate::constants::PHYSARUM_TRAIL_DECAY;
+        // Rate-independent exponential decay (NIGHT-hunter-10): the
+        // per-step multiplier is the 60 Hz reference constant raised
+        // to (dt × 60), so a 144 Hz terminal and a 30 Hz terminal apply
+        // the SAME per-second decay and the field's equilibrium — and
+        // therefore the brightness grading against the absolute
+        // PHYSARUM_BRIGHTNESS_* thresholds — is frame-rate invariant,
+        // the family rate-independence contract flux enforces with its
+        // fixed-step solver. The previous form multiplied the constant
+        // once per advance call, so the equilibrium scaled with the
+        // frame rate (a 144 Hz terminal ran the veins dimmer:
+        // single-particle cells settled near 0.042 instead of ~0.083,
+        // and multi-particle veins graded Hot where 60 Hz graded
+        // Core). dt is the blended sim clock, so the decay also slows
+        // during the resume ramp, consistent with the engine-wide
+        // pause-in-slow-motion philosophy. Without decay the field
+        // saturates and the network pattern disappears (every cell
+        // equal → no gradient → no steering → no pattern); the decay
+        // lets unused paths fade so the network stays alive.
+        let decay = crate::constants::PHYSARUM_TRAIL_DECAY.powf(dt * PHYSARUM_TRAIL_DECAY_REF_HZ);
         for v in &mut self.trail_field {
             *v *= decay;
         }
@@ -678,102 +735,57 @@ impl PhysarumRain {
     pub(crate) fn trail_max_for_test(&self) -> f32 {
         self.trail_field.iter().copied().fold(0.0_f32, f32::max)
     }
-}
 
-/// Sample the trail field at a continuous (x, y) position with
-/// wraparound. Returns 0.0 if the field is empty or the position is
-/// degenerate. The wraparound lets sensor samples near viewport
-/// edges "see" the opposite side — the toroidal topology keeps
-/// networks from clustering at corners (the standard Jeff Jones
-/// model uses wraparound for this reason).
-#[inline]
-fn sample_trail(field: &[f32], cols: usize, lines: usize, x: f32, y: f32) -> f32 {
-    if field.is_empty() || cols == 0 || lines == 0 {
-        return 0.0;
+    /// Trail field read hook (decay-cadence contract tests watch a
+    /// chosen cell without driving particles through it).
+    #[cfg(test)]
+    pub(crate) fn trail_value_for_test(&self, col: u16, line: u16) -> Option<f32> {
+        let idx = col as usize * self.trail_lines as usize + line as usize;
+        self.trail_field.get(idx).copied()
     }
-    let cols_f = cols as f32;
-    let lines_f = lines as f32;
-    // Wraparound modulo (toroidal substrate).
-    let wx = {
-        let mut v = x % cols_f;
-        if v < 0.0 {
-            v += cols_f;
+
+    /// Trail field seed hook (builds targeted trail landscapes for the
+    /// sensor-steering contracts; allocates the field when empty).
+    #[cfg(test)]
+    pub(crate) fn seed_trail_for_test(
+        &mut self,
+        cols: u16,
+        lines: u16,
+        col: u16,
+        line: u16,
+        value: f32,
+    ) {
+        let total = cols as usize * lines as usize;
+        if self.trail_field.len() != total || self.trail_cols != cols || self.trail_lines != lines {
+            self.trail_field.clear();
+            self.trail_field.resize(total, 0.0);
+            self.trail_cols = cols;
+            self.trail_lines = lines;
         }
-        v
-    };
-    let wy = {
-        let mut v = y % lines_f;
-        if v < 0.0 {
-            v += lines_f;
+        let idx = col as usize * lines as usize + line as usize;
+        if idx < self.trail_field.len() {
+            self.trail_field[idx] = value;
         }
-        v
-    };
-    let cx = wx.round() as usize;
-    let cy = wy.round() as usize;
-    let cx = cx.min(cols - 1);
-    let cy = cy.min(lines - 1);
-    field[cx * lines + cy]
-}
-
-/// Pick a char from the pool via a uniform roll (defensive fallback
-/// '0' for the degenerate empty-pool case — production always
-/// initializes). Mirrors vortex/lorenz/dragon.
-fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
-    if pool.is_empty() {
-        return '0';
     }
-    let idx = (rand_chance.sample(rng) * pool.len() as f32) as usize;
-    pool[idx.min(pool.len() - 1)]
-}
 
-/// Brightness zone by trail field value at the head position. The
-/// threshold values are tuned so that the network veins (cells with
-/// accumulated trail from many particle passes) read as Core/Hot,
-/// while exploring particles (cells with low trail) read as Ghost.
-/// This makes the network visible via the heads themselves — the
-/// pattern emerges from the brightness distribution across active
-/// particles, not from a separate trail visualization pass.
-pub(crate) fn level_for_trail(trail_val: f32) -> BrightnessLevel {
-    if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_HOT {
-        BrightnessLevel::Core
-    } else if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_MID {
-        BrightnessLevel::Hot
-    } else if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_DIM {
-        BrightnessLevel::Mid
-    } else {
-        BrightnessLevel::Ghost
+    /// Direct particle write hook (mirrors flux's set_mote_for_test —
+    /// builds targeted sensor/steering scenarios; repairs the active
+    /// count bookkeeping after the direct writes).
+    #[cfg(test)]
+    pub(crate) fn set_particle_for_test(&mut self, idx: usize, x: f32, y: f32, heading: f32) {
+        let p = &mut self.particles[idx];
+        p.active = true;
+        p.x = x;
+        p.y = y;
+        p.heading = heading;
+        p.pace = 1.0;
+        p.sim_age = 0.0;
+        p.lifetime = 1.0e9;
+        p.ch = '0';
+        p.last_col = -1;
+        p.last_line = -1;
+        p.first_frame = true;
+        p.palette_slot = 0;
+        self.active_count = self.particles.iter().filter(|pp| pp.active).count();
     }
-}
-
-/// Deterministic pseudo-random roll from a particle's sim_age +
-/// heading — used for the random tie-break in the decide pass.
-/// Avoids the borrow complexity of threading an RNG into the
-/// advance loop (mirrors `dragon_noise_roll`).
-fn sample_random(sim_age: f32) -> f32 {
-    let s = (sim_age * 17.31).sin();
-    (s + 1.0) * 0.5
-}
-
-/// Render one physarum cell (palette-aware color + bold, mono-safe).
-fn draw_physarum_cell(
-    ctx: &DrawCtx<'_>,
-    frame: &mut Frame,
-    col: u16,
-    line: u16,
-    ch: char,
-    palette_slot: u8,
-    level: BrightnessLevel,
-) {
-    if line >= ctx.lines || col >= ctx.cols {
-        return;
-    }
-    let fg = color_for_level(ctx, palette_slot, line, col, level, 1.0);
-    let bold = bold_for_level(ctx.bold_mode, level, line, col);
-    let cell = crate::cell::Cell {
-        ch,
-        fg,
-        bg: ctx.bg,
-        bold,
-    };
-    frame.set(col, line, cell);
 }

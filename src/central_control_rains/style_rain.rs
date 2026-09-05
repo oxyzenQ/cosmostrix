@@ -454,22 +454,28 @@ pub(crate) const PHYSARUM_STEP_PER_CPS: f32 = 2.0;
 
 /// Trail deposit amount per particle per second. At 0.5, a cell
 /// visited by one particle for one second accumulates 0.5 trail
-/// value. Combined with the decay rate (0.90/frame at 60 FPS =
-/// ~0.5/sec effective decay), steady-state trail value at a cell
-/// visited continuously = deposit / decay = 0.10 — above the
-/// PHYSARUM_BRIGHTNESS_DIM threshold, so single-particle cells
-/// reach Mid zone, and multi-particle cells accumulate into
-/// Hot/Core (the visible vein signature).
+/// value. Against the rate-independent decay (0.90 per 60 Hz
+/// reference step), the steady-state trail at a continuously
+/// visited cell is deposit-per-step / (1 - decay) = (0.5/60)/0.10
+/// ~ 0.083 — above the PHYSARUM_BRIGHTNESS_DIM threshold, so
+/// single-particle cells reach Mid zone, and multi-particle cells
+/// accumulate into Hot/Core (the visible vein signature).
 pub(crate) const PHYSARUM_DEPOSIT_AMOUNT: f32 = 0.5;
 
-/// Trail decay rate per frame (multiplier). At 0.90, the trail
-/// loses 10% of its value per frame — at 60 FPS, an unvisited cell
-/// fades to 1% of its peak value in ~0.44 seconds. This is the
-/// negative feedback that lets unused paths fade so the network
-/// stays alive (without decay, every cell saturates and the
-/// network disappears). Tuned higher than the original 0.92 so
-/// fresh trails are brighter relative to old ones (more visible
-/// vein distinction).
+/// Trail decay rate (per-step multiplier, quoted at the 60 Hz
+/// reference cadence). The advance pass raises this constant to
+/// (dt × 60) — the per-second decay is frame-rate independent, so a
+/// 144 Hz terminal and a 30 Hz terminal produce the same trail
+/// equilibrium and the same vein brightness grading against the
+/// absolute PHYSARUM_BRIGHTNESS_* thresholds (NIGHT-hunter-10; the
+/// former per-frame multiply made the equilibrium scale with the
+/// frame rate). At 0.90, the trail loses 10% of its value per
+/// reference step — at 60 FPS, an unvisited cell fades to 1% of its
+/// peak value in ~0.44 seconds. This is the negative feedback that
+/// lets unused paths fade so the network stays alive (without decay,
+/// every cell saturates and the network disappears). Tuned higher
+/// than the original 0.92 so fresh trails are brighter relative to
+/// old ones (more visible vein distinction).
 pub(crate) const PHYSARUM_TRAIL_DECAY: f32 = 0.90;
 
 /// Max turn rate (radians/sec). At 1.0, particles can curve up to
