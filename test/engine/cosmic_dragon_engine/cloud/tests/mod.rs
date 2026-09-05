@@ -27,6 +27,7 @@ mod tests_msg_fill_style;
 mod tests_phosphor;
 mod tests_phosphor_adaptive;
 mod tests_phosphor_sweep;
+mod tests_phosphor_thaw_hunt2;
 mod tests_physarum;
 mod tests_quantum;
 mod tests_quantum_flash_wave;

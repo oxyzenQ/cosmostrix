@@ -160,6 +160,9 @@ impl super::Cloud {
         self.phosphor_fresh.resize(total, false);
         self.phosphor_in_active.clear();
         self.phosphor_in_active.resize(total, false);
+        self.phosphor_thaw_pending.clear();
+        self.phosphor_thaw_pending.resize(total, false);
+        self.phosphor_thaw_pending_count = 0;
         self.phosphor_active.clear();
 
         // Reset anomaly zones on terminal resize

@@ -445,6 +445,13 @@ impl super::Cloud {
             self.spawn_droplets(now, spawn_scale);
         }
 
+        // S-master-HUNT-26 (NIGHT-hunter-2 round 2): set when this frame
+        // logically cleared the cell contents (semantic invalidation or a
+        // structured-style force clear). Drives the droplet draw pass's
+        // full-body mode — see the `draw_everything` binding below the
+        // DrawCtx construction.
+        let mut content_invalidated = false;
+
         // Process pending semantic invalidation BEFORE force_draw_everything.
         // Semantic mutations (charset switch, shading mode toggle) require
         // invalidate_semantic() which bumps semantic_gen, ensuring the
@@ -457,6 +464,7 @@ impl super::Cloud {
         // Pass 2 (active droplet trail protection) of phosphor_decay_pass.
         if self.semantic_invalidate {
             self.semantic_invalidate = false;
+            content_invalidated = true;
             frame.invalidate_semantic(self.palette.bg);
             if self.rain_style.is_droplet_family() {
                 for ch in self.phosphor_base_ch.iter_mut() {
@@ -523,14 +531,17 @@ impl super::Cloud {
             // renderers maintain draw history + phosphor metadata that
             // genuinely needs rebuilding on a forced redraw.
             if matches!(self.rain_style, RainStyle::Monolith) {
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.monolith_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else if matches!(self.rain_style, RainStyle::Vortex) {
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.vortex_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else if matches!(self.rain_style, RainStyle::Flux) {
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.flux_rain.clear_draw_history();
             } else if matches!(self.rain_style, RainStyle::Lorenz) {
@@ -538,6 +549,7 @@ impl super::Cloud {
                 // and follows the same force-draw reset path as
                 // monolith/vortex/flux (full frame clear + draw history
                 // wipe + phosphor state reset).
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.lorenz_rain.clear_draw_history();
                 self.reset_phosphor_state();
@@ -546,6 +558,7 @@ impl super::Cloud {
                 // and follows the same force-draw reset path as
                 // monolith/vortex (full frame clear + draw history wipe
                 // + phosphor state reset).
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.dragon_rain.clear_draw_history();
                 self.reset_phosphor_state();
@@ -557,6 +570,7 @@ impl super::Cloud {
                 // field is preserved across force-draw (it's a
                 // simulation state, not a render artifact — wiping
                 // it would lose the network pattern).
+                content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.physarum_rain.clear_draw_history();
                 self.reset_phosphor_state();
@@ -891,7 +905,21 @@ impl super::Cloud {
                 });
 
         // Draw pass (split-borrows via DrawCtx)
-        let draw_everything = force_draw_everything;
+        // S-master-HUNT-26 (NIGHT-hunter-2 round 2): droplets draw their
+        // FULL body ranges ONLY when the frame's cell contents were
+        // invalidated this frame (semantic event / structured-style force
+        // clear) — the situation where undrawn cells would otherwise emit
+        // as blanks (a one-frame truncation). A pure resync force
+        // (force_draw_everything without content invalidation — the P2
+        // self-healer, idle resync, stuck-cell sweep, ANSI drift redraw)
+        // re-emits the frame's existing content, so the fractional-body
+        // skip must keep working: flipping it to full bodies on those
+        // frames drew every not-yet-reached body cell at once, a ~1,700
+        // glyph one-frame flash every time a resync fired (the measured
+        // 30 s cadence of the owner-reported "glitch rain shift" — the
+        // P2 mitigation firing on a health score in the investigate band
+        // while drain pressure sat at zero).
+        let draw_everything = content_invalidated;
         // v16: pool_is_binary cached in Cloud, recomputed only on charset change.
         let pool_is_binary = self.char_pool_is_binary;
 

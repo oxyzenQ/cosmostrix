@@ -9,6 +9,98 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: v100.0.0-nightly.1 — S-master-HUNT-26 the "glitch rain shift" actually root-caused: park-epoch bug + P2 resync bomb (NIGHT-hunter-2 round 2, owner hunt 2026-09-05)
+
+Owner report (post-e3d1834, commit-verified on Alacritty 0.17): the EMA
+pressure decoupling killed the strobe, but the glitch survived in a new
+shape — landing in the first ~9-40 s of a fresh session, self-healing,
+absent on the monolith scene, and re-triggerable for a few seconds by
+the FIRST charset/color shortkey (`s/S/c/C`) after a long clean run
+(the rain sweeping left-to-right "like lightning"), with subsequent
+shortkeys clean.
+
+Empirical hunt (two new PTY tools committed alongside: a content-level
+mini-terminal-emulator harness that diffs per-frame screen grids, and a
+full-speed raw spool capture + offline replay — the inline harness
+itself turned out to push the app into its marginal-drain regime, so
+the fast-Alacritty regime needed drain-rate-true capture): the owner
+symptom decomposed into three independent defects.
+
+Defect 1 (the core, all regimes): the phosphor decay pass's park
+branch gated "cell blanked this frame" on the content-EPOCH generation
+(`cell_gen == gen`), which only `clear_with_bg` resets — so "this
+frame" silently meant "any time since the last semantic event". Every
+cell a droplet ever vacated parked at the tail-residual energy
+FOREVER: the CRT afterglow never rendered at steady state (the visible
+trail was only the droplet body itself), the active list grew without
+bound (measured 9,500 cells at 200x56 — every vacated cell since the
+last semantic event), and the next epoch bump (charset shortkey,
+palette drift, ambient snapback) dumped the whole parked set as a mass
+ghost flash. Fixed by making the park check — and Pass 1's full-grid
+capture scan — read the per-frame dirty-generation stamp
+(`Frame::cell_written_this_frame`, now stamped unconditionally in
+set/set_force; the list push stays gated on !dirty_all). Vacated cells
+now get the documented one-frame grace, then decay, render their
+afterglow, and die on schedule; the active list is bounded by the live
+trail; the afterglow is alive again (steady-state colored-ghost
+population measured 50 -> 120-240; bench dirty cells 56.8 -> 140.8 per
+frame at 80x24, entropy 3.29 -> 4.18, gini 0.8962 -> 0.8175 — the
+designed visual finally running; avg_fps 91.5K -> 71.3K in the
+synthetic bench, 500x the 144 fps target with the 10% fast-regime
+emission growth buying the live trails).
+
+Defect 2 (the 30 s cadence on healthy fast terminals): the P2
+self-healer's TriggerHealthMitigation still forced
+`force_draw_everything` every 30 s cooldown whenever the endurance
+health score sat in the investigate band — which a healthy fast
+terminal does (measured ehs 49-58 at 144 fps with drain pressure at
+zero). The resync force frame then (a) flipped the droplet draw's
+fractional-position skip into full-body mode (draw_everything was
+wired to the raw force flag), drawing every not-yet-reached body cell
+at once — a measured ~1,700-glyph one-frame flash every 30 s (the
+owner's "at 57 seconds", the 9-40 s window) — and (b) left the
+MADV_DONTNEED-zeroed frame cells reading as `Cell{ch:'\0'}` because
+the reclaim path's gen-bump assumption stopped holding when HUNT-25
+moved the glyph force to force_repaint, emitting raw NUL bytes
+terminals silently drop. Fixed: droplets draw full bodies only when
+the frame content was actually invalidated this frame (semantic event
+or structured-style force clear — the charset/palette waves keep
+their full-body redraw; pure resyncs keep the fractional skip), and
+the reclaim path re-blanks zeroed cells via the new
+`Frame::normalize_reclaimed_cells` so they emit as proper blanks.
+
+Defect 3 (marginal-drain terminals): the phosphor pressure gate's
+skip hysteresis (0.70/0.50) froze the decay pass under sustained
+congestion while droplet tails kept blanking cells; when the EMA later
+dropped below the resume threshold the pass rendered the entire
+accumulated backlog within one or two frames (measured 6,151 cells at
+200x56 — thousands of blank cells flashing to afterglow at once, a
+2-6x frame-size burst that re-saturated the pipe and re-armed the
+skip, the self-exciting loop). Fixed by the amortized thaw: on resume
+every active cell is marked pending and at most
+PHOSPHOR_THAW_MAX_CELLS_PER_FRAME (600) of them are written per
+frame; the backlog drains as a soft fade-in over ceil(backlog/600)
+frames instead of one dump. Monolith never accumulates a backlog (its
+per-frame clear_cell zeroes energies and the decay pass removes
+zero-energy cells silently) — matching the owner's monolith-immunity
+observation.
+
+Verified end-to-end with the new harness: fast regime (11 MB/s drain,
+144 fps) — the periodic 30 s mass-glyph events and the first-switch
+dump are gone (only the two startup fill-up transients remain, both
+normal); marginal regime (Python-paced reader) — the freeze/thaw churn
+storms and the 6,151-cell switch dumps are gone, the charset switch
+now produces one 535-cell semantic frame plus a smooth ~600-cell/frame
+five-frame fade. 14 new regression tests
+(tests_phosphor_thaw_hunt2.rs: thaw budget, one-frame park, silent
+zero-energy/fresh departures, resync keeps fractional body skip,
+resync does not reseed earlier-frame writes, MADV normalization,
+reskip-mid-thaw, steady-state budget-free operation; the park pin
+verified to fail against the pre-fix code). One legacy test's frame
+lifecycle simulation corrected (clear_with_bg is a semantic event,
+not the per-frame boundary — clear_dirty is). Gates: fmt clean,
+clippy 0 warnings, 2402/2402 unit tests, stresstests green.
+
 ### feat: NIGHT-hunter-9 + NIGHT-research-5 — HUD `rain:` metric + scene-custom `rain` field (seventh dimension)
 
 Two owner-approved features landed together in 2b24898 (shared scope:

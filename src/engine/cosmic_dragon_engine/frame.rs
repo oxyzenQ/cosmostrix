@@ -343,9 +343,20 @@ impl Frame {
             // generation. If the stamp already matches (cell already dirty this
             // frame), skip the push to avoid duplicate entries in the dirty list.
             // Replaces the old `dirty_map[i] == 0` byte check with a u32 compare.
-            if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+            //
+            // S-master-HUNT-26 (NIGHT-hunter-2 round 2): the STAMP is now
+            // unconditional — it doubles as "this cell was written this frame"
+            // bookkeeping (see Frame::cell_written_this_frame), which the
+            // phosphor decay pass reads on its per-frame paths; only the
+            // dirty-LIST push stays gated on !dirty_all (the list is ignored
+            // when the emitter already repaints everything). The stamp leaks
+            // nothing: clear_dirty bumps dirty_gen every frame, so stamps from
+            // previous frames go stale on their own.
+            if self.dirty_cell_gen[i] != self.dirty_gen {
                 self.dirty_cell_gen[i] = self.dirty_gen;
-                self.dirty.push(i);
+                if !self.dirty_all {
+                    self.dirty.push(i);
+                }
             }
         }
     }
@@ -371,10 +382,56 @@ impl Frame {
             // Cosmic Dragon egg #1: direct indexing — index() already bounds-checked.
             self.cells[i] = cell;
             self.cell_gen[i] = self.gen;
-            // Double-buffered dirty mark — see set() for explanation.
-            if !self.dirty_all && self.dirty_cell_gen[i] != self.dirty_gen {
+            // Double-buffered dirty mark — see set() for explanation. HUNT-26:
+            // stamp unconditionally (per-frame "written" bookkeeping), push
+            // only when the dirty list is in use.
+            if self.dirty_cell_gen[i] != self.dirty_gen {
                 self.dirty_cell_gen[i] = self.dirty_gen;
-                self.dirty.push(i);
+                if !self.dirty_all {
+                    self.dirty.push(i);
+                }
+            }
+        }
+    }
+
+    /// Whether the cell's content was written THIS FRAME (via set/set_force).
+    ///
+    /// S-master-HUNT-26 (NIGHT-hunter-2 round 2): this is the per-frame
+    /// signal the render passes were DOCUMENTED to use ("cells currently
+    /// drawn by droplets", "blanked by a tail this frame") but previously
+    /// approximated with the content-EPOCH check `cell_gen == gen` — which
+    /// only clear_with_bg resets, so "this frame" silently meant "any time
+    /// since the last semantic event". That approximation froze the phosphor
+    /// decay pass's park branch on every cell a droplet ever vacated (the
+    /// afterglow never rendered at steady state; the active list grew
+    /// without bound until the next semantic event dumped it as a mass
+    /// flash). The dirty-generation stamp above is bumped every frame by
+    /// clear_dirty, so a matching stamp is exactly "written this frame".
+    #[inline]
+    #[must_use]
+    pub fn cell_written_this_frame(&self, i: usize) -> bool {
+        // P3 direct indexing: callers pass indices from index()/dirty_indices().
+        self.dirty_cell_gen[i] == self.dirty_gen
+    }
+
+    /// Re-normalize cells zeroed by MADV_DONTNEED page reclaim.
+    ///
+    /// S-master-HUNT-26 (NIGHT-hunter-2 round 2): the P2 self-healer's
+    /// hint_reclaim_pages can zap interior pages of `cells` between frames;
+    /// a zapped Cell reads back as `{ch: '\0', fg: None, ...}` from the
+    /// zero-fill, and a gen-matched cell in that state is emitted as a RAW
+    /// NUL byte into the ANSI stream (terminals drop it — a silent
+    /// model/screen divergence until the cell is rewritten). The old code
+    /// assumed rain_at bumps the content generation after every force; it
+    /// does not — HUNT-25 moved the glyph force path to force_repaint.
+    /// This pass re-blanks exactly the zeroed cells (ch == '\0' is the
+    /// zero-fill signature; no legitimate cell ever stores it) so they emit
+    /// as proper blanks and the phosphor park branch sees them normally.
+    /// O(cells) once per P2 mitigation (~30 s) — microseconds.
+    pub fn normalize_reclaimed_cells(&mut self) {
+        for i in 0..self.cells.len() {
+            if self.cells[i].ch == '\0' {
+                self.cells[i] = self.blank;
             }
         }
     }

@@ -82,6 +82,37 @@ pub(crate) const CRT_VIGNETTE_PERF_THRESHOLD: f32 = 0.5;
 pub(crate) const PHOSPHOR_SKIP_HIGH: f32 = 0.70;
 pub(crate) const PHOSPHOR_SKIP_LOW: f32 = 0.50;
 
+/// S-master-HUNT-26 (NIGHT-hunter-2 round 2): per-frame write budget that
+/// amortizes the phosphor decay pass's post-skip thaw.
+///
+/// The M1 skip gate above freezes the decay pass while pressure sits above
+/// the hysteresis band. Droplet tails keep blanking cells during the freeze,
+/// so every cell vacated while frozen joins a growing backlog of active
+/// phosphor cells whose energy never decays and whose ghost is never
+/// written. When pressure finally drops below PHOSPHOR_SKIP_LOW, the pass
+/// used to resume at full rate and render the ENTIRE backlog within one or
+/// two frames (measured 6,151 cells at 200x56: thousands of blank cells
+/// flashing to afterglow at once, a 2-6x frame-size burst that itself
+/// re-saturated the pipe and re-armed the skip). That freeze-thaw cycle is
+/// the residual "glitch rain shift" the owner still reported on top of the
+/// e3d1834 EMA fix: at startup (the fill-up congestion window, first
+/// ~9-40 s) and on the first charset/color shortkey after a long clean run
+/// (the transition's redraw burst re-congests the pipe, arms the skip, and
+/// the eventual resume dumped the backlog).
+///
+/// On resume, backlog cells are marked pending and at most this many of
+/// them are written per frame; the rest stay frozen for the next frame, so
+/// the backlog drains as a soft afterglow fade-in over
+/// ceil(backlog / budget) frames (~10 frames, 170-330 ms, for the measured
+/// worst case) instead of one dump. 600 keeps a thawing frame within roughly
+/// 1.5x the steady-state per-frame dirty-cell count, so the thaw cannot
+/// re-saturate the pipe (breaking the self-exciting skip loop) while
+/// short backlogs still drain within a single frame. Monolith never
+/// accumulates a backlog (its per-frame clear_cell zeroes energies, and the
+/// decay pass removes zero-energy cells silently) — the budget only ever
+/// binds for the droplet family.
+pub(crate) const PHOSPHOR_THAW_MAX_CELLS_PER_FRAME: usize = 600;
+
 // ─── Cinematic radial vignette (edge darkening) ────────────────────────────
 
 /// Intensity of the radial vignette (0.0 = none, 1.0 = full black at edges).

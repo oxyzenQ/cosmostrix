@@ -135,8 +135,40 @@ impl Cloud {
             self.phosphor_skipped = true;
             return;
         }
+        // S-master-HUNT-26 (NIGHT-hunter-2 round 2): the pass is resuming
+        // after a skip episode — arm the thaw backlog.
+        //
+        // While the pass was skipped, droplet tails kept blanking cells and
+        // every vacated cell joined the frozen backlog: still active in
+        // `phosphor_active`, energy never decayed, ghost never written. The
+        // pre-HUNT-26 resume rendered that entire backlog in one or two
+        // frames (measured 6,151 cells at 200x56 — thousands of blank cells
+        // flashing to afterglow at once, the frame-size burst re-saturating
+        // the pipe and re-arming the skip: a self-exciting loop the owner
+        // saw as the residual "glitch rain shift" during the startup
+        // fill-up window and after the first charset/color shortkey).
+        // Marking every active cell pending hands each of them to the
+        // per-frame write budget below, which drains the backlog as a soft
+        // fade-in instead of a dump. Fresh re-captures (Pass 1/2, this
+        // frame) and zero-energy removals clear their marks in the loop,
+        // so the mark set always equals the truly-frozen remainder.
+        let was_skipped = self.phosphor_skipped;
         self.phosphor_skipped = false;
-
+        if was_skipped && !self.phosphor_active.is_empty() {
+            self.phosphor_thaw_pending.clear();
+            self.phosphor_thaw_pending.resize(total, false);
+            // Defensive: Pass 3's own bounds guard tolerates stale out-of-range
+            // entries in phosphor_active (resize races), so the arming skips
+            // them too — bitvec set() would panic on an OOB index.
+            let mut armed = 0usize;
+            for &pidx in &self.phosphor_active {
+                if pidx < total {
+                    self.phosphor_thaw_pending.set(pidx, true);
+                    armed += 1;
+                }
+            }
+            self.phosphor_thaw_pending_count = armed;
+        }
         let bg = self.palette.bg;
         let lines = self.lines;
         let frame_width = frame.width;
@@ -158,7 +190,6 @@ impl Cloud {
                 self.phosphor_fresh.set(pidx, false);
             }
         }
-        let current_gen = frame.current_gen();
         // Reuse the heap capacity from last frame's `phosphor_last_fresh`
         // instead of allocating a fresh SmallVec every frame. The
         // `mem::take` + `clear()` pattern preserves any heap capacity the
@@ -183,17 +214,23 @@ impl Cloud {
         // this frame). The full-grid scan is reserved for the case where
         // dirty_all is set AND the dirty list is empty — i.e. after
         // clear_with_bg emptied it (semantic invalidation / Monolith force
-        // path). Scanning the full grid on a resync frame would re-seed
-        // phosphor energy for every visible cell (their gens all match
-        // current gen because force_repaint does not bump it), resetting
-        // the decay clock of every live afterglow at once — part of the
-        // original maintenance-redraw transient.
+        // path).
+        //
+        // S-master-HUNT-26 (NIGHT-hunter-2 round 2): both paths now gate on
+        // the PER-FRAME write stamp (Frame::cell_written_this_frame) instead
+        // of the content-epoch gen. The epoch check re-captured every cell
+        // written at ANY time since the last semantic event — on a resync
+        // frame that re-seeded phosphor energy for the entire epoch's trail
+        // history at once (the exact transient the HUNT-25 comment below
+        // warned about, reachable because set() does not push to the dirty
+        // list while dirty_all is set). The per-frame stamp captures exactly
+        // "cells currently drawn by droplets" — the documented contract.
         if frame.is_dirty_all() && frame.dirty_indices().is_empty() {
             // Full-grid scan: clear_with_bg emptied the dirty list.
             for line in 0..lines {
                 for col in 0..self.cols {
                     let fidx = line as usize * frame_width as usize + col as usize;
-                    let is_current_gen = frame.cell_gen_at_index(fidx) == current_gen;
+                    let is_current_gen = frame.cell_written_this_frame(fidx);
                     if is_current_gen {
                         let cell = frame.cell_at_index_ref(fidx);
                         if cell.fg.is_some() {
@@ -221,7 +258,7 @@ impl Cloud {
                 if line >= lines || col >= self.cols {
                     continue;
                 }
-                let is_current_gen = frame.cell_gen_at_index(dirty_idx) == current_gen;
+                let is_current_gen = frame.cell_written_this_frame(dirty_idx);
                 if is_current_gen {
                     let cell = frame.cell_at_index_ref(dirty_idx);
                     if cell.fg.is_some() {
@@ -370,6 +407,8 @@ impl Cloud {
         // Pass 3: Decay non-fresh cells with phosphor energy.
         // OPTIMIZED: iterate only active phosphor cells instead of full grid.
         let mut i = 0;
+        // S-master-HUNT-26: writes spent from this frame's thaw budget.
+        let mut thaw_writes = 0usize;
         while i < self.phosphor_active.len() {
             let pidx = self.phosphor_active[i];
             if pidx >= total {
@@ -381,6 +420,13 @@ impl Cloud {
             // Cosmic Dragon egg #10: direct BitVec indexing — pidx from phosphor_active
             // was pushed after bounds-check.
             if self.phosphor_fresh[pidx] {
+                // HUNT-26: a fresh re-capture (a droplet covered the cell this
+                // frame) supersedes backlog membership — the cell is current
+                // again, so it leaves the thaw queue without a write.
+                if self.phosphor_thaw_pending_count > 0 && self.phosphor_thaw_pending[pidx] {
+                    self.phosphor_thaw_pending.set(pidx, false);
+                    self.phosphor_thaw_pending_count -= 1;
+                }
                 i += 1;
                 continue;
             }
@@ -388,6 +434,15 @@ impl Cloud {
             if self.phosphor[pidx] == 0 {
                 self.phosphor_active.swap_remove(i);
                 self.phosphor_in_active.set(pidx, false);
+                // HUNT-26: zero-energy cells leave the backlog silently
+                // (removal without a write — the screen already matches: the
+                // cell was blanked by a droplet tail or by a structured
+                // style's clear_cell). This is the Monolith-immunity path:
+                // styles that zero energies per frame never build a backlog.
+                if self.phosphor_thaw_pending_count > 0 && self.phosphor_thaw_pending[pidx] {
+                    self.phosphor_thaw_pending.set(pidx, false);
+                    self.phosphor_thaw_pending_count -= 1;
+                }
                 continue;
             }
 
@@ -395,13 +450,50 @@ impl Cloud {
             let line = (pidx % lines as usize) as u16;
             let fidx = line as usize * frame_width as usize + col as usize;
 
-            let is_blank_current_gen = frame.cell_gen_at_index(fidx) == current_gen
-                && frame.cell_at_index_ref(fidx).fg.is_none();
+            // Park: a cell whose content was blanked THIS FRAME (a droplet
+            // tail just vacated it) holds at the tail-residual energy for
+            // this frame — the afterglow baseline — and starts decaying on
+            // the next frame.
+            //
+            // S-master-HUNT-26 (NIGHT-hunter-2 round 2): this check used the
+            // content-EPOCH gen (`cell_gen == gen`), which is only reset by
+            // clear_with_bg — so "blanked this frame" silently meant
+            // "blanked at any time since the last semantic event", and every
+            // vacated cell parked FOREVER: the afterglow never rendered at
+            // steady state (the visible trail was only the droplet's own
+            // body), the active list grew without bound (measured 9,500
+            // cells at 200x56 — every cell any droplet ever vacated since
+            // the last semantic event), and the next gen bump (charset
+            // shortkey, palette drift) dumped the whole parked set as a mass
+            // ghost flash — the owner-reported "glitch rain shift". The
+            // per-frame write stamp restores the documented one-frame grace:
+            // vacated cells decay, render their afterglow, and die on the
+            // normal schedule, bounding the active list to the live trail.
+            let is_blank_this_frame =
+                frame.cell_written_this_frame(fidx) && frame.cell_at_index_ref(fidx).fg.is_none();
 
-            if is_blank_current_gen {
+            if is_blank_this_frame {
                 self.phosphor[pidx] = PHOSPHOR_TAIL_RESIDUAL;
                 i += 1;
                 continue;
+            }
+
+            // S-master-HUNT-26: amortized thaw write budget. A pending
+            // (frozen-backlog) cell consumes one budget slot when it reaches
+            // the write section this frame; once the budget is spent the
+            // remaining pending cells stay frozen — no decay, no write — for
+            // the next frame (they keep their mark). Non-pending cells always
+            // run at full rate, so steady-state decay is unaffected by an
+            // in-progress thaw, and the thaw itself cannot balloon the frame
+            // into another pipe-saturating burst.
+            if self.phosphor_thaw_pending_count > 0 && self.phosphor_thaw_pending[pidx] {
+                if thaw_writes >= PHOSPHOR_THAW_MAX_CELLS_PER_FRAME {
+                    i += 1;
+                    continue;
+                }
+                thaw_writes += 1;
+                self.phosphor_thaw_pending.set(pidx, false);
+                self.phosphor_thaw_pending_count -= 1;
             }
 
             if self.phosphor[pidx] == 255 {

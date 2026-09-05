@@ -296,6 +296,10 @@ impl Cloud {
         // these — this matches that behavior for scene switches.
         self.phosphor_fresh.fill(false);
         self.phosphor_in_active.fill(false);
+        // S-master-HUNT-26: a full phosphor state rebuild voids any pending
+        // thaw backlog (the cells it tracked no longer exist).
+        self.phosphor_thaw_pending.fill(false);
+        self.phosphor_thaw_pending_count = 0;
     }
 
     pub(crate) fn recalc_droplets_per_sec(&mut self) {

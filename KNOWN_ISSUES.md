@@ -259,11 +259,27 @@ prevents perfect stabilization under sustained fullscreen load.
 
 ### Status
 
-**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24 + HUNT-25) —
-five layers, the last two strategic.** HUNT-23 (round 3) is the
+**Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24 +
+HUNT-25 + HUNT-26) — six layers, the last three strategic.** HUNT-23 (round 3) is the
 systemic output layer; HUNT-24 (round 4) is the terminal-class gate;
 HUNT-25 (round 5) is the resync redraw fix; the first three are
 summarized below and detailed in the CHANGELOG.
+
+*Layer 6 (HUNT-26): the park-epoch bug + the P2 resync bomb — the ACTUAL
+"glitch rain shift" root cause.* The owner's post-e3d1834 report (glitch
+in the first 9-40 s, monolith immune, first charset/color shortkey
+re-triggering it) finally decomposed the symptom empirically with
+content-level PTY analysis: the phosphor park branch gated "blanked this
+frame" on the content EPOCH (so every vacated cell parked forever, the
+afterglow never rendered, and the active list grew to 9,500 cells until
+the next semantic event dumped it as a mass flash), the P2 self-healer
+bombed healthy fast terminals with a full-body-draw flash every 30 s
+(ehs misreads a healthy 144 fps terminal), and the MADV reclaim path
+emitted NUL bytes after HUNT-25 removed the gen bump its contract
+assumed. Fixes: per-frame write stamps for the park and capture paths,
+full-body draw only on true content invalidation, reclaimed-cell
+normalization, and an amortized post-skip thaw budget (600 cells/frame).
+See the CHANGELOG entry for the measured evidence.
 
 *Layer 5 (HUNT-25): stop resetting render state at maintenance redraws —
 the "glitch rain shift" on ALL terminals.* The owner's post-HUNT-24

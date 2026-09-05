@@ -223,6 +223,19 @@ pub struct Cloud {
     pub(crate) effects_enabled: bool,
     /// M1: hysteresis state for phosphor decay skip (prevents strobing).
     pub(crate) phosphor_skipped: bool,
+    /// S-master-HUNT-26 (NIGHT-hunter-2 round 2): per-cell backlog marks
+    /// for the post-skip phosphor thaw. A set bit marks a cell that is
+    /// still frozen backlog waiting for its amortized write budget (see
+    /// `PHOSPHOR_THAW_MAX_CELLS_PER_FRAME` in atmosphere.rs). Bit and count
+    /// are always updated together: arming sets both, each processed or
+    /// silently-removed pending cell clears both, the full resets clear
+    /// both.
+    pub(crate) phosphor_thaw_pending: BitVec,
+    /// Number of set bits in `phosphor_thaw_pending`. Zero in normal
+    /// operation — the decay-pass hot loop checks this single usize before
+    /// touching the BitVec, so the thaw bookkeeping is one compare per cell
+    /// whenever no thaw is in progress.
+    pub(crate) phosphor_thaw_pending_count: usize,
     /// PERF-3: hysteresis state for phosphor pressure boost (prevents
     /// oscillation on VTE fullscreen). Trigger at >0.30, release at <0.15.
     /// Same hysteresis pattern as `phosphor_skipped`.
@@ -499,6 +512,8 @@ impl Cloud {
             aggressive_throttle: false,
             effects_enabled: true,
             phosphor_skipped: false,
+            phosphor_thaw_pending: BitVec::new(),
+            phosphor_thaw_pending_count: 0,
             phosphor_pressure_boost_active: false,
             phosphor_decay_mult: 1.0,
             ghost_brightness_cap: 0.0,

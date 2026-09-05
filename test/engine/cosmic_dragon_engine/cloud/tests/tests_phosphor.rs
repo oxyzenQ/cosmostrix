@@ -427,17 +427,20 @@ fn stale_phosphor_chars_expire() {
     cloud.droplets_per_sec = 0.0;
     cloud.spawn_remainder = 0.0;
 
-    // Simulate multiple frames of decay. We must clear the frame between
-    // rain_at calls to properly simulate the frame lifecycle: in the real
-    // pipeline, dead droplets' tail cleanup blanks old cells (fg=None),
-    // preventing Pass 1 from marking them as fresh. Since we killed all
-    // droplets before tail cleanup could run, we clear_with_bg to achieve
-    // the same effect — old cells are no longer current_gen, so Pass 1
-    // won't mark them fresh, and Pass 3 can decay them.
+    // Simulate multiple frames of decay. The real frame lifecycle is
+    // rain_at -> draw -> Frame::clear_dirty (which bumps the per-frame
+    // dirty generation, staling every "written this frame" stamp). The
+    // pre-HUNT-26 code approximated the frame boundary with clear_with_bg
+    // (a semantic event), which the epoch-based checks could not tell
+    // apart; the per-frame write stamps that replaced them (HUNT-26)
+    // require the real boundary, so the loop clears dirty like draw()
+    // does. Killing all droplets before their tail cleanup could run left
+    // the cells' content in place — Pass 1 sees no per-frame writes and
+    // marks nothing fresh, so Pass 3 decays the cells normally.
     for frame_idx in 1..=15 {
         let t = base + Duration::from_millis(frame_idx * 17);
         cloud.last_phosphor_time = base + Duration::from_millis((frame_idx - 1) * 17);
-        frame.clear_with_bg(cloud.palette.bg);
+        frame.clear_dirty();
         cloud.rain_at(&mut frame, t);
     }
 
