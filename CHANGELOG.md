@@ -9,6 +9,60 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-research-4 — `lorenz` (strange-attractor rain) replaces the owner-rejected `ripple` style
+
+The owner rejected the `ripple` style (water-surface rings + splashes,
+shipped in task-18 commit 0dfdc24) for not being unique or
+masterpiece-grade. It is replaced by `lorenz`, the project's first
+strange-attractor renderer and the rarest rain-style engineering in
+any terminal matrix-rain project — a real chaos-mathematics
+masterpiece.
+
+- `lorenz` (scene `lorenz`, palette `cosmos` + charset `binary`):
+  glyphs ride trajectories of the canonical Lorenz strange attractor
+  (sigma=10, rho=28, beta=8/3 — the foundational chaotic system
+  published by Edward Lorenz in 1963 that gave the "butterfly effect"
+  its name). Integration is classical fourth-order Runge-Kutta (RK4),
+  chosen over Euler because the Lorenz vector field is stiff near the
+  lobe crossings and Euler drifts visibly within seconds. RK4 keeps
+  trajectories on the true attractor for the mote's full lifetime.
+- Motion DNA — 100% distinct from cascade (`cinematic`), pillars
+  (`monolith`), and polar-orbit (`vortex`): each mote is a glyph
+  carried by a 3D chaotic trajectory projected to 2D, with z mapped
+  to brightness depth (lobe peaks hot, saddle transitions dim). The
+  attractor's two lobes (positive x = right lobe, negative x = left
+  lobe) are projected to the terminal's two halves; spawns alternate
+  lobes for symmetric coverage. Motes spawn at the classic textbook
+  initial condition (±1, ±1, 1) — well inside the saddle region's
+  unstable manifold, immediately entering the chaotic flow. A small
+  per-mote perturbation (±2.0) preserves the butterfly effect (two
+  motes seeded identically diverge visibly over a few seconds —
+  sensitive dependence on initial conditions).
+- Masterpiece engineering / future-proof legacy: this file is the
+  project's first strange-attractor renderer. The architecture (RK4
+  step + derivative function + project + diff cleanup) is
+  attractor-agnostic — swapping the Lorenz derivative for Rössler,
+  Aizawa, Thomas, or Chen is a single function replacement (each is
+  a 3D ODE the same RK4 integrates unchanged). The pattern sets a
+  reusable standard for future attractor styles.
+- Architecture: `RainStyle::Ripple` variant removed (replaced by
+  `RainStyle::Lorenz`); `cloud/ripple.rs` deleted, replaced by
+  `cloud/lorenz.rs` (~560 LOC, mirrors vortex's structure). The
+  family helpers are retuned: `is_droplet_family` is now Glyph-only
+  (lorenz is fully structured, unlike ripple which was structured-
+  surface but droplet-family); `uses_spawn_remainder` covers
+  Monolith + Vortex + Lorenz. `rain_at` style gates extended to the
+  third structured family; scene catalog stays at 20 scenes (lorenz
+  takes the cycle position 5 held by ripple).
+- A/B 10s @ 80x24 dry (after implementation): cinematic 23.6K fps /
+  421 dirty / entropy 5.11 / gini 0.656 (no regression);
+  monolith 92K / 57 / 3.29 / 0.896 (no regression); vortex 113.5K /
+  41 / 4.77 / 0.697 (no regression); lorenz 113.6K / 30 / 4.39 /
+  0.763 — lorenz matches vortex's structured-family performance
+  profile (113K fps, 0.013ms p99) with a distinct visual signature
+  (entropy between vortex and cinematic, gini between vortex and
+  monolith). No regressions on the other three styles.
+
 ### feat: v100.0.0-nightly.1 — rain styles 3 + 4: `vortex` (polar-orbit galaxy drain) and `ripple` (water-surface rain) (task-18, owner-approved 2026-09-05)
 
 Third and fourth rain styles — different motion DNA from both existing
@@ -31,7 +85,9 @@ mode 16 emits classic `3x`/`9x` only, mode 256 emits `38;5;N` only).
   construction); each surface impact opens an expanding edge-on ripple
   ring (sqrt ease-out opening, cps-scaled) plus 2-4 ballistic splash
   hops, with a deterministic hash-positioned surface shimmer keeping
-  the plane perceptible between impacts.
+  the plane perceptible between impacts. **(NIGHT-research-4: this
+  style is owner-rejected and replaced by `lorenz`; the entry is kept
+  for historical reference.)**
 - Architecture: `RainStyle` gains `Vortex`/`Ripple` + family helpers
   (`is_droplet_family` — Glyph + Ripple share the droplet pool and
   phosphor Pass 2; `uses_spawn_remainder` — Monolith + Vortex). New

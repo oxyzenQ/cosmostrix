@@ -352,7 +352,9 @@ impl Cloud {
             // Monolith keeps its shipped clear-draw-history-only exit
             // (dormant streams are re-reset on re-entry — LTS parity).
             RainStyle::Vortex => self.vortex_rain.reset(self.cols),
-            RainStyle::Ripple => self.ripple_surface.reset(),
+            // NIGHT-research-4: lorenz takes a full reset on exit —
+            // parity with vortex (the other structured family sibling).
+            RainStyle::Lorenz => self.lorenz_rain.reset(self.cols),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -369,15 +371,20 @@ impl Cloud {
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;
             }
-            RainStyle::Glyph | RainStyle::Ripple => {
+            RainStyle::Lorenz => {
+                // NIGHT-research-4: lorenz entry mirrors vortex entry —
+                // structured family sibling (spawn_remainder contract,
+                // no droplet pool, full mote reset on entry).
+                self.lorenz_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Glyph => {
                 // Re-allocate glyph droplet pool and warm-start so the
                 // first post-switch frame has visible rain immediately,
                 // preventing the blank-screen bug on monolith→glyph switch.
                 self.ensure_glyph_pool_and_warm_start();
-                if matches!(new_style, RainStyle::Ripple) {
-                    // Fresh surface: no rings/splashes from the old scene.
-                    self.ripple_surface.reset();
-                }
             }
         }
         self.reset_phosphor_state();

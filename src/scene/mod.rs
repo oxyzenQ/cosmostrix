@@ -20,6 +20,11 @@
 //! atmospheres lead (cinematic, monolith, matrix), followed by the
 //! curated classics, atmosphere scenes, the power-saving utility, and
 //! the milestone/tribute/honor scenes as destinations.
+//!
+//! NIGHT-research-4: the cycle position 5 was held by the rejected
+//! `ripple` style (water-surface rings); it is now held by `lorenz`,
+//! a strange-attractor masterpiece (canonical Lorenz ODE integrated
+//! via RK4).
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -45,9 +50,11 @@ pub(crate) struct SceneInfo {
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
 /// Ordered scene cycle — all 20 built-in scenes (owner directive
-/// 2026-08-24: positions 1-3 are fixed; task-18 adds the style flagships
-/// at 4-5; the rest ordered by daily-use likelihood so the most-switched
-/// scenes are the fewest keystrokes away: core trio -> style flagships ->
+/// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
+/// style flagship at 4; NIGHT-research-4 replaced the rejected
+/// ripple at 5 with lorenz, a strange-attractor masterpiece; the
+/// rest ordered by daily-use likelihood so the most-switched scenes
+/// are the fewest keystrokes away: core trio -> style flagships ->
 /// classic siblings -> atmosphere -> power-saving utility -> milestone ->
 /// tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
@@ -55,11 +62,12 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     "cinematic", // 1
     "monolith",  // 2
     "matrix",    // 3
-    // Task-18 style flagships — the polar-orbit and water-surface
-    // styles are signature differentiators (no competitor terminal
-    // has them), so they lead the cycle right after the core trio.
+    // Task-18 vortex + NIGHT-research-4 lorenz — the polar-orbit and
+    // strange-attractor styles are signature differentiators (no
+    // competitor terminal has them), so they lead the cycle right
+    // after the core trio.
     "vortex", // 4
-    "ripple", // 5
+    "lorenz", // 5
     // Classic siblings — the traditional looks users switch to often.
     "classic",     // 6 — original green-on-black
     "signal",      // 7 — digital transmission
@@ -97,7 +105,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // --- Task-18 style flagships (rain styles 3 + 4) ---
+    // --- Task-18/NIGHT-research-4 style flagships (rain styles 3 + 4) ---
     SceneInfo {
         name: "vortex",
         description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
@@ -111,17 +119,28 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Vortex,
         },
     },
+    // NIGHT-research-4: the lorenz scene is the project's flagship
+    // masterpiece — the only terminal rain that renders a real
+    // strange attractor (canonical Lorenz ODE, sigma=10, rho=28,
+    // beta=8/3, RK4-integrated). Two-lobe butterfly projected to 2D
+    // with z-as-depth brightness. The `cosmos` palette + `binary`
+    // charset evoke the deep-space + mathematical-purity aesthetic;
+    // speed 24 (same as vortex) gives the butterfly a majestic
+    // wingbeat cadence (one lobe traversal every ~3-5 s). Density
+    // 0.70 matches vortex so the two scenes cycle-read as siblings.
+    // This scene replaces the owner-rejected `ripple` (water-surface
+    // rings + splashes, deemed not unique/masterpiece-grade).
     SceneInfo {
-        name: "ripple",
-        description: "Water-surface rain — glyphs fall onto a shimmering plane, opening ripple rings and splashes",
+        name: "lorenz",
+        description: "Lorenz strange attractor — glyphs ride the canonical chaotic butterfly (RK4-integrated 3D ODE, two-lobe projection)",
         config: SceneConfig {
-            color: Some("ocean"),
-            charset: Some("matrix"),
+            color: Some("cosmos"),
+            charset: Some("binary"),
             fps: Some(60.0),
-            speed: Some(20.0),
+            speed: Some(24.0),
             density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Ripple,
+            rain_style: RainStyle::Lorenz,
         },
     },
     SceneInfo {

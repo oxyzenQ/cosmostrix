@@ -1,7 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Task-18 tests: the ripple rain style (fourth style, water surface).
+//! NIGHT-research-4 tests: the lorenz rain style (fourth style,
+//! strange attractor — replaces the rejected `ripple` style).
 
 mod core;
 
@@ -13,19 +14,19 @@ pub(crate) use std::time::{Duration, Instant};
 
 // -- Shared test helpers --
 
-pub(crate) fn make_ripple_cloud(cols: u16, lines: u16) -> Cloud {
+pub(crate) fn make_lorenz_cloud(cols: u16, lines: u16) -> Cloud {
     let mut cloud = Cloud::new(
         ColorMode::Mono,
         ShadingMode::Random,
         BoldMode::Off,
         false,
         true,
-        ColorScheme::Ocean,
-        RainStyle::Ripple,
+        ColorScheme::Cosmos,
+        RainStyle::Lorenz,
     );
     cloud.init_chars(vec!['0', '1']);
     cloud.set_droplet_density(0.70);
-    cloud.set_chars_per_sec(20.0);
+    cloud.set_chars_per_sec(24.0);
     cloud.reset(cols, lines);
     cloud.clear_redraw_flags_for_test();
     cloud

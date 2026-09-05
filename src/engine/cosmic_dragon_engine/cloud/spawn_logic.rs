@@ -19,14 +19,11 @@ use super::state::DropletSpawnSpec;
 impl super::Cloud {
     pub(crate) fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
         let mut end_line = self.lines.saturating_sub(1);
-        // Task-18 ripple: the falling rain stops just above the water
-        // surface (region contract — see cloud/ripple.rs). Early-death
-        // rolls are also capped so a glitch-ripped droplet never falls
-        // THROUGH the surface plane without opening a ripple.
-        if matches!(self.rain_style, crate::rain_style::RainStyle::Ripple) {
-            let surface_end = super::ripple::RippleSurface::droplet_end_line(self.lines);
-            end_line = end_line.min(surface_end);
-        }
+        // NIGHT-research-4: the ripple surface contract (capping
+        // droplet end_line above a virtual water plane) is removed —
+        // Lorenz is fully structured (no droplet pool) and never
+        // reaches this branch. The old ripple path was the only
+        // caller that needed the cap; Glyph family is unaffected.
         if self.rand_chance.sample(&mut self.mt) <= self.die_early_pct {
             end_line = self.rand_line.sample(&mut self.mt).min(end_line);
         }

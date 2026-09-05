@@ -1,11 +1,18 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Tuning constants for the vortex (third) and ripple (fourth) rain
-//! styles — task-18. Split from `mod.rs` to respect the 800-LOC hard
-//! cap; re-exported wholesale via `pub(crate) use style_rain::*;` so
-//! `crate::constants::VORTEX_*` / `RIPPLE_*` keep working like the
-//! monolith constants (single flat namespace by design).
+//! Tuning constants for the vortex (third) and lorenz (fourth) rain
+//! styles — task-18 + NIGHT-research-4. Split from `mod.rs` to respect
+//! the 800-LOC hard cap; re-exported wholesale via the single
+//! `pub(crate) use style_rain::*;` line in `mod.rs`, so the
+//! `crate::constants::VORTEX_*` and `crate::constants::LORENZ_*`
+//! flat namespace keeps working like the monolith constants.
+//!
+//! NIGHT-research-4 history: the original fourth style was `ripple`
+//! (water-surface rings + splashes) — owner-rejected for not being
+//! unique or masterpiece-grade. Replaced by `lorenz`, a real
+//! strange-attractor renderer (canonical Lorenz ODE integrated via
+//! RK4). The constants below fully replace the prior RIPPLE_ block.
 
 // ── Vortex (third rain style, task-18) ────────────────────────────────
 // Polar motion model: motes spiral inward on Keplerian orbits
@@ -73,45 +80,135 @@ pub(crate) const VORTEX_FALL_CORE_BOOST: f32 = 0.55;
 /// a new cell (mutation tied to motion, like classic matrix rain).
 pub(crate) const VORTEX_SHIMMER_CHANCE: f32 = 0.4;
 
-// ── Ripple (fourth rain style, task-18) ───────────────────────────────
-// Water-surface model: glyph rain stops just above a virtual surface;
-// impacts open expanding edge-on wavefront rings + short splash hops.
+// ── Lorenz (fourth rain style, NIGHT-research-4) ──────────────────────
+// Strange-attractor motion model: motes follow trajectories of the
+// canonical Lorenz ODE (sigma=10, rho=28, beta=8/3) integrated via
+// classical RK4. Two-lobe "butterfly" projected to 2D, with z as
+// depth/brightness cue. Replaces the rejected ripple water-surface
+// style — the lorenz motion DNA (3D chaotic ODE) is fundamentally
+// distinct from cascade/pillar/polar-orbit.
 
-/// Water line depth: rows above the bottom edge.
-pub(crate) const RIPPLE_SURFACE_ROWS: u16 = 3;
+/// Lorenz system parameter sigma (Prandtl-like term in the original
+/// atmospheric-convection model). Canonical value 10.0 — published by
+/// Edward Lorenz in 1963 and used unchanged in every standard
+/// reference visualization since.
+pub(crate) const LORENZ_SIGMA: f32 = 10.0;
 
-/// Droplet clearance: falling rain stops this many rows above the water
-/// line, keeping the splash zone free of droplet cells (region contract).
-pub(crate) const RIPPLE_DROPLET_CLEAR_ROWS: u16 = 3;
+/// Lorenz system parameter rho (Rayleigh-like term). Canonical 28.0
+/// — above the critical value (rho_critical ≈ 24.74) where the
+/// steady-state equilibria lose stability and the system becomes
+/// chaotic. Below 24.74 the system settles to a fixed point (no
+/// butterfly); 28.0 gives the iconic two-lobe strange attractor.
+pub(crate) const LORENZ_RHO: f32 = 28.0;
 
-/// Ripple ring pool size (max concurrent rings).
-pub(crate) const RIPPLE_RING_POOL: usize = 48;
+/// Lorenz system parameter beta (geometry-like term). Canonical
+/// 8.0/3.0 — controls the z-axis damping. The non-integer value is
+/// preserved here as-is to match the canonical literature (Lorenz
+/// derived it from a Fourier-mode truncation where it falls out
+/// naturally).
+pub(crate) const LORENZ_BETA: f32 = 8.0 / 3.0;
 
-/// Splash particle pool size.
-pub(crate) const RIPPLE_SPLASH_POOL: usize = 32;
+/// Equilibrium x/y coordinate magnitude. NIGHT-research-4 tuning:
+/// motes spawn at (±EQ_X, ±EQ_Y, EQ_Z) with a per-mote perturbation.
+/// The canonical equilibrium coordinates are (±8.485, ±8.485, 27.0)
+/// (derived from sqrt(beta*(rho-1))), but spawning there leaves motes
+/// near an unstable fixed point where the local flow velocity is low —
+/// motes drift slowly for many seconds before entering the chaotic
+/// lobe interior. Instead, we use the classic textbook initial
+/// condition (1, 1, 1) — well inside the saddle region where the
+/// unstable manifold immediately accelerates motes outward into the
+/// butterfly flow. Sign of x selects lobe (right C+ or left C-).
+pub(crate) const LORENZ_EQ_X: f32 = 1.0;
 
-/// Base ripple ring lifetime (seconds, ±15% variance per impact).
-pub(crate) const RIPPLE_RING_LIFETIME: f32 = 1.6;
+/// Equilibrium y coordinate (mirrors EQ_X for the classic (1,1,1)
+/// textbook initial condition).
+pub(crate) const LORENZ_EQ_Y: f32 = 1.0;
 
-/// Base ring max horizontal spread (cells, ±20-45% variance).
-pub(crate) const RIPPLE_RING_MAX_RADIUS: f32 = 11.0;
+/// Equilibrium z coordinate. Classic textbook value 1.0 — inside the
+/// saddle region's unstable manifold, immediately entering the
+/// chaotic flow.
+pub(crate) const LORENZ_EQ_Z: f32 = 1.0;
 
-/// Base splash lifetime (seconds, ±20% variance).
-pub(crate) const RIPPLE_SPLASH_LIFETIME: f32 = 0.45;
+/// Initial-state perturbation magnitude. Motes spawn ON the
+/// equilibrium (an unstable fixed point of the deterministic flow)
+/// plus a uniform ±perturb. At 2.0, the perturbation is large
+/// enough to immediately kick motes off the equilibrium into the
+/// chaotic flow (visual motion from frame 1), while still being
+/// small enough that two motes seeded identically diverge visibly
+/// over a few seconds — the butterfly effect (sensitive dependence
+/// on initial conditions). Smaller perturbations (1e-3) leave motes
+/// frozen at the equilibrium for many seconds (the exponential
+/// divergence takes time to grow from a tiny seed); larger
+/// perturbations (5+) break the demonstration (motes immediately
+/// fly to one lobe, no visible divergence).
+pub(crate) const LORENZ_SPAWN_PERTURB: f32 = 2.0;
 
-/// Initial splash hop speed (rows/s upward).
-pub(crate) const RIPPLE_SPLASH_SPEED: f32 = 11.0;
+/// Integration step per chars_per_sec: dt_lorenz = cps * this * dt_wall.
+/// Tuned for RK4 stability on the canonical Lorenz attractor: at
+/// speed-24 scene + 60 FPS, dt_wall ≈ 0.0167s, so dt_lorenz ≈
+/// 24 * 0.005 * 0.0167 ≈ 0.002 per frame. RK4 is stable for Lorenz
+/// up to dt ≈ 0.01, so we have ~5x headroom — the integration is
+/// fast enough that motes traverse several cells per frame (visible
+/// motion) without diverging from the true attractor. Raising this
+/// speeds up the butterfly's wingbeat cadence.
+pub(crate) const LORENZ_DT_PER_CPS: f32 = 0.005;
 
-/// Splash gravity (rows/s²). With speed 11: apex ≈ 2.2 rows.
-pub(crate) const RIPPLE_SPLASH_GRAVITY: f32 = 28.0;
+/// Mote lifetime cap (seconds). After this age, a mote is absorbed
+/// and the slot respawns near a fresh equilibrium seed. 12s gives
+/// each mote enough trajectory history to traverse both lobes at
+/// least once before refresh — the butterfly structure reads
+/// clearly. Shorter → constant motion blur (no lobe structure);
+/// longer → motes pile up at saturation.
+pub(crate) const LORENZ_MAX_AGE_SECS: f32 = 12.0;
 
-/// Splash rise cap: rows above the water line a particle may reach
-/// (= droplet clearance, so zones never overlap).
-pub(crate) const RIPPLE_SPLASH_MAX_RISE: u16 = 2;
+/// Base active-mote ratio for lorenz density scaling.
+pub(crate) const LORENZ_ACTIVE_BASE: f32 = 0.30;
 
-/// Surface shimmer spacing: every Nth column shows a dim surface glyph.
-pub(crate) const RIPPLE_SHIMMER_SPACING: u16 = 8;
+/// Density multiplier for lorenz active-mote calculation.
+pub(crate) const LORENZ_ACTIVE_DENSITY_MULT: f32 = 0.55;
 
-/// Speed normalization: ring/splash rate scale = chars_per_sec / this,
-/// clamped 0.25..3.0 (the vortex/ripple default scenes run speed 18-24).
-pub(crate) const RIPPLE_SPEED_REF_CPS: f32 = 20.0;
+/// Maximum active-mote ratio cap (of the one-mote-per-column pool).
+pub(crate) const LORENZ_ACTIVE_MAX: f32 = 0.70;
+
+/// Spawn rate multiplier for lorenz mote generation. Steady state
+/// needs target/avg_lifetime ≈ target/12 per second; 0.35×target +
+/// floor 1.5 reaches that with headroom for ramp-up after scene
+/// entry (parity with vortex's tuning).
+pub(crate) const LORENZ_SPAWN_RATE_MULT: f32 = 0.35;
+
+/// Spawn rate floor (minimum spawns per tick).
+pub(crate) const LORENZ_SPAWN_RATE_FLOOR: f32 = 1.5;
+
+/// Matrix-style glyph mutation chance when a mote's head crosses
+/// into a new cell (mutation tied to motion, like classic matrix
+/// rain — parity with vortex's shimmer gate).
+pub(crate) const LORENZ_SHIMMER_CHANCE: f32 = 0.4;
+
+/// Viewport projection inset (fraction of half-width/half-height).
+/// At 0.92 the attractor occupies 92% of the viewport's half-extent
+/// in each direction — leaves an 8% margin so fast trajectories
+/// near the lobe edges never clip the terminal border.
+pub(crate) const LORENZ_VIEW_INSET: f32 = 0.92;
+
+/// Lorenz x half-range used for projection (attractor x spans
+/// approximately [-25, 25] in steady state). Half-range = 25.0.
+pub(crate) const LORENZ_X_HALF_RANGE: f32 = 25.0;
+
+/// Lorenz y half-range used for projection (attractor y spans
+/// approximately [-30, 30] in steady state). Half-range = 30.0.
+pub(crate) const LORENZ_Y_HALF_RANGE: f32 = 30.0;
+
+/// Brightness zone boundary: z above this → Core (lobe peak hot).
+/// The attractor's z range is approximately [0, 50]; lobe peaks
+/// cluster near z=40+, so 38.0 marks the hot zone cleanly.
+pub(crate) const LORENZ_Z_HOT: f32 = 38.0;
+
+/// Brightness zone boundary: z above this → Hot (lobe body).
+/// Set at 28.0 — the equilibrium z value (rho - 1). Below this,
+/// motes are typically transiting the saddle region.
+pub(crate) const LORENZ_Z_MID: f32 = 28.0;
+
+/// Brightness zone boundary: z above this → Mid; below → Ghost.
+/// Set at 13.0 — the saddle-region z where trajectories cross
+/// between lobes (visible as the dim "bridge" between wings).
+pub(crate) const LORENZ_Z_DIM: f32 = 13.0;

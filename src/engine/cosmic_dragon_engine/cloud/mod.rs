@@ -28,6 +28,7 @@ pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod ghost_events;
 mod living_rain;
+mod lorenz;
 mod message_draw;
 mod monolith;
 mod monolith_glyphs;
@@ -39,7 +40,6 @@ mod rain;
 mod rain_at;
 mod rain_post;
 mod render;
-mod ripple;
 mod runtime_controls;
 mod scene_runtime;
 mod spawn;
@@ -70,8 +70,8 @@ use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSi
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
+use lorenz::LorenzRain;
 use monolith::MonolithRain;
-use ripple::RippleSurface;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
 
@@ -124,9 +124,12 @@ pub struct Cloud {
     pub(crate) monolith_rain: MonolithRain,
     /// Task-18 third rain style: polar-orbit motes (vortex scene).
     pub(crate) vortex_rain: VortexRain,
-    /// Task-18 fourth rain style: water-surface rings + splashes
-    /// (ripple scene; droplets still produce the falling rain).
-    pub(crate) ripple_surface: RippleSurface,
+    /// NIGHT-research-4 fourth rain style: strange-attractor motes
+    /// (lorenz scene). Replaces the rejected `ripple_surface`
+    /// field — same struct slot in the Cloud, but a structured
+    /// family member (no droplet pool, uses spawn_remainder like
+    /// vortex) rather than a droplet-family surface system.
+    pub(crate) lorenz_rain: LorenzRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -419,7 +422,7 @@ impl Cloud {
             droplets: Vec::new(),
             monolith_rain: MonolithRain::new(),
             vortex_rain: VortexRain::new(),
-            ripple_surface: RippleSurface::new(),
+            lorenz_rain: LorenzRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -777,10 +780,10 @@ impl Cloud {
         match self.rain_style {
             RainStyle::Monolith => self.monolith_rain.active_count(),
             RainStyle::Vortex => self.vortex_rain.active_count(),
-            // Droplet family: Glyph cascade + Ripple surface droplets.
-            RainStyle::Glyph | RainStyle::Ripple => {
-                self.droplets.iter().filter(|d| d.is_alive).count()
-            }
+            RainStyle::Lorenz => self.lorenz_rain.active_count(),
+            // Droplet family: Glyph cascade only (ripple removed —
+            // its replacement, Lorenz, is structured).
+            RainStyle::Glyph => self.droplets.iter().filter(|d| d.is_alive).count(),
         }
     }
 

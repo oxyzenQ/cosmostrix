@@ -34,8 +34,8 @@ layers and explains how the "deep" structure provides world-class reliability.
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 2: Cloud Renderer (src/engine/cosmic_dragon_engine/cloud/)                           │
 │  Droplet lifecycle, phosphor, 4 rain styles (glyph cascade,     │
-│  monolith pillars, vortex polar orbits, ripple water surface),  │
-│  scene runtime                                                  │
+│  monolith pillars, vortex polar orbits, lorenz strange           │
+│  attractor), scene runtime                                       │
 │  -> Zero-allocation hot path (dirty_map Vec<u8>, phosphor reuse) │
 ├─────────────────────────────────────────────────────────────────┤
 │  Layer 1: Terminal I/O (cosmic_dragon_engine/terminal/, frame.rs, color_cache)   │
