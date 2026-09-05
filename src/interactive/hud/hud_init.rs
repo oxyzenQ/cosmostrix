@@ -252,15 +252,25 @@ impl super::HudState {
     /// block (top + left edges are implied by the screen edge).
     ///
     /// Color sweep:
-    /// - Right edge (rows 0..23, col = current_width): per-row chroma
+    /// - Right edge (rows 0..=24, col = current_width): per-row chroma
     ///   color from `cached_lines`, sweeping dim tail at the top to
-    ///   bright head at the bottom — mirrors the HUD's own 24-row
+    ///   bright head at the bottom — mirrors the HUD's own 25-row
     ///   gradient and the message border's clockwise sweep philosophy.
-    /// - Bottom edge (row 24, cols 0..=current_width): single bright
-    ///   head color (`cached_lines[23].0`, the palette's last stop —
+    /// - Bottom edge (row 25, cols 0..=current_width): single bright
+    ///   head color (`cached_lines[24].0`, the palette's last stop —
     ///   the rain's leading bright character) for a clean closing line.
-    /// - Corner (col current_width, row 24): '╯' (light up-left corner)
+    /// - Corner (col current_width, row 25): '╯' (light up-left corner)
     ///   in the bright head color, connecting the right + bottom edges.
+    ///
+    /// NIGHT-hunter-9 leftover fix (2026-09-06): the HUD grew from 24
+    /// to 25 rows when the `rain:` line was added (screensize moved
+    /// row 23 → 24), but the border kept its old geometry — the bottom
+    /// edge was drawn ON row 24, overwriting the screensize text (the
+    /// e2e row-order script failed to find `100x40 auto`). The L-shape
+    /// now closes BELOW the 25-row HUD block: right edge rows 0..=24,
+    /// bottom edge row 25, corner (current_width, 25). Terminals too
+    /// short for row 25 silently omit the bottom edge (Frame::set
+    /// bounds-skips) — same graceful degradation as before.
     ///
     /// Edge fade (owner mandate 2026-09-02, "visual 9/10 — ujung border
     /// harus semi black/fade biar elegant"): the border edges fade
@@ -304,9 +314,9 @@ impl super::HudState {
         if cur == 0 && prev == 0 {
             return;
         }
-        // Bright head color (palette last stop, cached_lines row 23 =
+        // Bright head color (palette last stop, cached_lines row 24 =
         // screensize — the visual anchor at the bottom of the HUD).
-        let head_color = self.cached_lines[23].0;
+        let head_color = self.cached_lines[24].0;
 
         // v80.0.0-beta.1 edge fade: blend toward bg (semi-black) at the
         // screen-edge ends of each border edge. bg defaults to black
@@ -325,9 +335,9 @@ impl super::HudState {
         // excludes col `prev` itself. Without this, the border leaves
         // a visible "stain" at its old position when it moves left.
         if prev > cur {
-            // Clear old right border column at `prev` (rows 0..24).
+            // Clear old right border column at `prev` (rows 0..25).
             if prev < cols {
-                for row in 0..24u16 {
+                for row in 0..25u16 {
                     let blank = crate::cell::Cell {
                         ch: ' ',
                         fg: None,
@@ -337,7 +347,7 @@ impl super::HudState {
                     frame.set(prev, row, blank);
                 }
             }
-            // Clear old bottom border cells at row 24. When cur > 0,
+            // Clear old bottom border cells at row 25. When cur > 0,
             // the new border covers cols 0..=cur, so only clear
             // cur+1..=prev. When cur == 0, no new border is drawn,
             // so clear the entire old range 0..=prev.
@@ -352,17 +362,17 @@ impl super::HudState {
                     bg,
                     bold: false,
                 };
-                frame.set(col, 24, blank);
+                frame.set(col, 25, blank);
             }
         }
 
         // Draw new right border at `cur` (if cur > 0).
-        // Edge fade: row 0 (top) = max fade toward bg, row 23 (bottom)
+        // Edge fade: row 0 (top) = max fade toward bg, row 24 (bottom)
         // = no fade (bright head anchor). Linear ramp.
         if cur > 0 && cur < cols {
-            for row in 0..24u16 {
-                // Fade factor: 0.0 at row 23 (no fade), FADE_MAX at row 0.
-                let fade = FADE_MAX * (1.0 - row as f32 / 23.0);
+            for row in 0..25u16 {
+                // Fade factor: 0.0 at row 24 (no fade), FADE_MAX at row 0.
+                let fade = FADE_MAX * (1.0 - row as f32 / 24.0);
                 let base_color = self.cached_lines[row as usize].0;
                 let fg = if fade > 0.0 {
                     crate::chroma_dragon_engine::palette::blend_toward_bg(
@@ -381,7 +391,7 @@ impl super::HudState {
             }
         }
 
-        // Draw new bottom border at row 24, cols 0..=cur.
+        // Draw new bottom border at row 25, cols 0..=cur.
         // Edge fade: col 0 (left, near screen edge) = max fade toward
         // bg, col cur (corner) = no fade (bright head anchor). Linear
         // ramp. The corner cell (col == cur) is always full-bright.
@@ -406,7 +416,7 @@ impl super::HudState {
                     bg,
                     bold: false,
                 };
-                frame.set(col, 24, cell);
+                frame.set(col, 25, cell);
             }
         }
     }

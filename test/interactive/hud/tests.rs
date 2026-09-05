@@ -960,7 +960,7 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
     h.toggle(); // make visible
 
     // Set distinct colors per row so we can verify the per-row sweep on
-    // the right edge. Row 0 (top) is dim, row 23 (bottom) is bright —
+    // the right edge. Row 0 (top) is dim, row 24 (bottom) is bright —
     // matches the HUD's own gradient direction.
     let test_color = |i: usize| -> Color {
         Color::Rgb {
@@ -969,7 +969,7 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
             b: 200,
         }
     };
-    for i in 0..24 {
+    for i in 0..25 {
         h.cached_lines[i].0 = test_color(i);
         h.cached_lines[i].1 = format!(" row{}", i);
     }
@@ -977,17 +977,17 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
     h.prev_width = 10;
 
     let cols = 40u16;
-    // 30 rows so the bottom border at row 24 is in-bounds.
+    // 30 rows so the bottom border at row 25 is in-bounds.
     let mut frame = crate::frame::Frame::new(cols, 30, None);
     // bg = None → draw_border defaults to black for the fade target.
     h.write_to_frame(&mut frame, cols, None);
 
-    let head_color = test_color(23);
+    let head_color = test_color(24);
 
-    // Right border: col = 10 (hud_width), rows 0..23, char '│'.
-    // Edge fade: row 0 (top) = max fade (blended toward black), row 23
+    // Right border: col = 10 (hud_width), rows 0..=24, char '│'.
+    // Edge fade: row 0 (top) = max fade (blended toward black), row 24
     // (bottom) = no fade (full head_color).
-    for row in 0..24u16 {
+    for row in 0..25u16 {
         let cell = frame
             .get(10, row)
             .unwrap_or_else(|| panic!("right border cell at (10,{}) must exist", row));
@@ -998,15 +998,15 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
         );
         assert!(!cell.bold, "border must not be bold");
 
-        // Fade factor: 0.6 * (1.0 - row / 23.0). row 23 → 0.0 (no fade),
+        // Fade factor: 0.6 * (1.0 - row / 24.0). row 24 → 0.0 (no fade),
         // row 0 → 0.6 (max fade). Verify behavior:
-        // - row 23: fg == test_color(23) (no fade, full color)
-        // - row 0..22: fg != test_color(row) (faded toward black)
-        if row == 23 {
+        // - row 24: fg == test_color(24) (no fade, full color)
+        // - row 0..23: fg != test_color(row) (faded toward black)
+        if row == 24 {
             assert_eq!(
                 cell.fg,
-                Some(test_color(23)),
-                "right border at row 23 (head anchor) must have NO fade — full color"
+                Some(test_color(24)),
+                "right border at row 24 (head anchor) must have NO fade — full color"
             );
         } else {
             assert_ne!(
@@ -1035,16 +1035,18 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
         }
     }
 
-    // Bottom border: row = 24, cols 0..9, char '─'.
+    // Bottom border: row = 25, cols 0..9, char '─'.
     // Edge fade: col 0 (left) = max fade, col 9 (just before corner) =
     // small fade. The corner at col 10 is tested separately below.
+    // NIGHT-hunter-9 leftover fix: bottom edge moved row 24 → 25 so it
+    // no longer overwrites the screensize text on row 24.
     for col in 0..10u16 {
         let cell = frame
-            .get(col, 24)
-            .unwrap_or_else(|| panic!("bottom border cell at ({},24) must exist", col));
+            .get(col, 25)
+            .unwrap_or_else(|| panic!("bottom border cell at ({},25) must exist", col));
         assert_eq!(
             cell.ch, '─',
-            "bottom border at ({},24) must be the horizontal box-drawing char",
+            "bottom border at ({},25) must be the horizontal box-drawing char",
             col
         );
         // All bottom cells are faded (col 0 max, col 9 small) except
@@ -1072,14 +1074,14 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
         }
     }
 
-    // Corner: (10, 24), char '╯' (light up-left corner), color = head_color
+    // Corner: (10, 25), char '╯' (light up-left corner), color = head_color
     // (NO fade — the corner is the bright anchor point).
     let corner = frame
-        .get(10, 24)
-        .expect("corner cell at (10,24) must exist");
+        .get(10, 25)
+        .expect("corner cell at (10,25) must exist");
     assert_eq!(
         corner.ch, '╯',
-        "corner at (10,24) must be the up-left corner char"
+        "corner at (10,25) must be the up-left corner char"
     );
     assert_eq!(
         corner.fg,
@@ -1090,8 +1092,8 @@ fn hud_border_draws_l_shape_with_chroma_colors() {
 
 // v80.0.0-beta.1 edge fade gradient test: verify the fade is a LINEAR ramp
 // from max fade (screen-edge end) to no fade (anchor end). The right edge
-// row 0 should be more faded than row 11 (midpoint), which should be more
-// faded than row 23 (no fade). This catches a bug where the fade is
+// row 0 should be more faded than row 12 (midpoint), which should be more
+// faded than row 24 (no fade). This catches a bug where the fade is
 // applied uniformly instead of as a gradient.
 #[test]
 fn hud_border_edge_fade_is_linear_gradient() {
@@ -1105,7 +1107,7 @@ fn hud_border_edge_fade_is_linear_gradient() {
         g: 200,
         b: 200,
     };
-    for i in 0..24 {
+    for i in 0..25 {
         h.cached_lines[i].0 = bright;
         h.cached_lines[i].1 = format!(" row{}", i);
     }
@@ -1117,9 +1119,9 @@ fn hud_border_edge_fade_is_linear_gradient() {
     h.write_to_frame(&mut frame, cols, None);
 
     // Right edge: extract the R channel (as a proxy for brightness) at
-    // rows 0, 11, 23. With bg=black, fade blends toward (0,0,0), so
-    // R channel = 200 * (1 - fade). row 0 fade=0.6 → R=80. row 11
-    // fade≈0.31 → R≈138. row 23 fade=0.0 → R=200.
+    // rows 0, 12, 24. With bg=black, fade blends toward (0,0,0), so
+    // R channel = 200 * (1 - fade). row 0 fade=0.6 → R=80. row 12
+    // fade≈0.30 → R≈140. row 24 fade=0.0 → R=200.
     let r_at = |row: u16| -> u8 {
         if let Some(Color::Rgb { r, .. }) = frame.get(10, row).and_then(|c| c.fg) {
             r
@@ -1128,26 +1130,26 @@ fn hud_border_edge_fade_is_linear_gradient() {
         }
     };
     let r0 = r_at(0);
-    let r11 = r_at(11);
-    let r23 = r_at(23);
+    let r12 = r_at(12);
+    let r24 = r_at(24);
 
-    // Linear gradient: r0 < r11 < r23 (strictly increasing brightness).
+    // Linear gradient: r0 < r12 < r24 (strictly increasing brightness).
     assert!(
-        r0 < r11,
-        "row 0 (R={}) must be darker than row 11 (R={}) — linear fade gradient",
+        r0 < r12,
+        "row 0 (R={}) must be darker than row 12 (R={}) — linear fade gradient",
         r0,
-        r11
+        r12
     );
     assert!(
-        r11 < r23,
-        "row 11 (R={}) must be darker than row 23 (R={}) — linear fade gradient",
-        r11,
-        r23
+        r12 < r24,
+        "row 12 (R={}) must be darker than row 24 (R={}) — linear fade gradient",
+        r12,
+        r24
     );
-    // row 23 has no fade → R == 200 (full bright).
+    // row 24 has no fade → R == 200 (full bright).
     assert_eq!(
-        r23, 200,
-        "row 23 (anchor) must have NO fade — R == 200 (full bright)"
+        r24, 200,
+        "row 24 (anchor) must have NO fade — R == 200 (full bright)"
     );
     // row 0 has max fade (0.6) → R ≈ 80 (200 * 0.4, with integer
     // rounding in lerp_u8 the exact value is 81 — assert a range to
@@ -1176,8 +1178,9 @@ fn hud_border_skips_when_hud_width_zero() {
     let mut frame = crate::frame::Frame::new(cols, 30, None);
     h.write_to_frame(&mut frame, cols, None);
 
-    // No bottom border char at row 24.
-    if let Some(cell) = frame.get(0, 24) {
+    // No bottom border char at row 25 (NIGHT-hunter-9 leftover fix:
+    // the bottom edge now lives at row 25, below the 25-row HUD).
+    if let Some(cell) = frame.get(0, 25) {
         assert_ne!(cell.ch, '─', "no bottom border when hud_width is 0");
     }
 }
@@ -1223,7 +1226,7 @@ fn hud_border_clears_stale_cells_when_width_shrinks() {
             b: 200,
         }
     };
-    for i in 0..24 {
+    for i in 0..25 {
         h.cached_lines[i].0 = test_color(i);
         h.cached_lines[i].1 = format!(" row{}", i);
     }
@@ -1242,9 +1245,9 @@ fn hud_border_clears_stale_cells_when_width_shrinks() {
         "frame 1: right border at col 14"
     );
     assert_eq!(
-        frame.get(14, 24).unwrap().ch,
+        frame.get(14, 25).unwrap().ch,
         '╯',
-        "frame 1: corner at (14,24)"
+        "frame 1: corner at (14,25)"
     );
 
     // Frame 2: width shrinks to 10 (dcel value got shorter).
@@ -1259,9 +1262,9 @@ fn hud_border_clears_stale_cells_when_width_shrinks() {
         "frame 2: new right border at col 10"
     );
     assert_eq!(
-        frame.get(10, 24).unwrap().ch,
+        frame.get(10, 25).unwrap().ch,
         '╯',
-        "frame 2: new corner at (10,24)"
+        "frame 2: new corner at (10,25)"
     );
 
     // OLD border at col 14 MUST be cleared (no residue/stain).
@@ -1275,21 +1278,21 @@ fn hud_border_clears_stale_cells_when_width_shrinks() {
         "frame 2: old right border fg must be None"
     );
 
-    // OLD bottom border cells at cols 11..=14, row 24 MUST be cleared.
+    // OLD bottom border cells at cols 11..=14, row 25 MUST be cleared.
     for col in 11..=14u16 {
-        let old_bottom = frame.get(col, 24).expect("old bottom cell must exist");
+        let old_bottom = frame.get(col, 25).expect("old bottom cell must exist");
         assert_eq!(
             old_bottom.ch, ' ',
-            "frame 2: old bottom border at ({},24) must be blanked",
+            "frame 2: old bottom border at ({},25) must be blanked",
             col
         );
     }
 
-    // OLD corner at (14, 24) MUST be cleared (was '╯', now ' ').
-    let old_corner = frame.get(14, 24).expect("old corner cell must exist");
+    // OLD corner at (14, 25) MUST be cleared (was '╯', now ' ').
+    let old_corner = frame.get(14, 25).expect("old corner cell must exist");
     assert_eq!(
         old_corner.ch, ' ',
-        "frame 2: old corner at (14,24) must be blanked"
+        "frame 2: old corner at (14,25) must be blanked"
     );
 }
 
