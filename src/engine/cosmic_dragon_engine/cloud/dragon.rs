@@ -224,10 +224,13 @@ impl DragonRain {
     }
 
     /// Rebuild the dragon pool for a new viewport (or style entry).
-    /// Pool is sized to a fixed maximum (one dragon per N columns;
-    /// active target is a density-driven ratio of that pool).
-    pub(crate) fn reset(&mut self, cols: u16) {
-        let pool_size = ((cols as usize) / 30).clamp(1, 8);
+    /// NIGHT-research-5 owner directive: pool size is fixed at
+    /// DRAGON_POOL_MAX (3 dragons) regardless of viewport width —
+    /// the three dragons match the three dragon engines in
+    /// cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+    /// chroma_dragon_engine).
+    pub(crate) fn reset(&mut self, _cols: u16) {
+        let pool_size = crate::constants::DRAGON_POOL_MAX;
         self.dragons.clear();
         self.dragons.resize_with(pool_size, Dragon::vacant);
         self.active_count = 0;
@@ -259,20 +262,14 @@ impl DragonRain {
         self.drawn_gen_counter = 0;
     }
 
-    /// Steady-state active-dragon target from pool size + density.
-    /// Tuned so density 0.55 → 2 dragons, 0.70 → 3 dragons, 0.40 → 1
-    /// dragon. Chinese dragon is majestic — fewer dragons at low
-    /// density gives the signature single-dragon scene feel.
-    fn target_active_count(pool_size: usize, density: f32) -> usize {
-        if pool_size == 0 {
-            return 0;
-        }
-        let ratio = (crate::constants::DRAGON_ACTIVE_BASE
-            + density.clamp(0.01, 5.0) * crate::constants::DRAGON_ACTIVE_DENSITY_MULT)
-            .clamp(0.005, crate::constants::DRAGON_ACTIVE_MAX);
-        ((pool_size as f32 * ratio * 30.0).round() as usize)
-            .clamp(1, pool_size)
-            .min(crate::constants::DRAGON_POOL_MAX)
+    /// Steady-state active-dragon target. NIGHT-research-5 owner
+    /// directive: fixed at DRAGON_FIXED_ACTIVE (3) regardless of
+    /// pool size or density — the three dragons are a signature,
+    /// matching the three dragon engines in cosmostrix. Density
+    /// now only influences spawn timing (deficit-bounded), not the
+    /// steady-state count.
+    fn target_active_count(_pool_size: usize, _density: f32) -> usize {
+        crate::constants::DRAGON_FIXED_ACTIVE
     }
 
     /// Amortized free-slot scan (rotating cursor — mirrors vortex/

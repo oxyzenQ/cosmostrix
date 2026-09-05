@@ -137,21 +137,37 @@ pub(crate) const DRAGON_BODY_LEN: usize = 20;
 /// crowd segments onto the same cell, larger values create gaps.
 pub(crate) const DRAGON_SEGMENT_SPACING: f32 = 1.4;
 
-/// Pool size cap (max concurrent dragons). Pool is sized to
-/// cols/30 (clamped 1..=8), then this hard cap further bounds the
-/// active target. At density 0.55 the active target is 2 dragons.
-pub(crate) const DRAGON_POOL_MAX: usize = 8;
+/// Pool size cap (max concurrent dragons). NIGHT-research-5 owner
+/// tune: fixed at 3 to match the three dragon engines in
+/// cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+/// chroma_dragon_engine). The active target is also fixed at 3
+/// regardless of density — the dragon count is a deliberate
+/// signature, not a tunable.
+pub(crate) const DRAGON_POOL_MAX: usize = 3;
 
-/// Base active-dragon ratio for density scaling.
+/// Fixed active-dragon count. NIGHT-research-5 owner directive:
+/// always 3 dragons on screen — matches the 3 dragon engines in
+/// cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+/// chroma_dragon_engine). Density no longer affects the count;
+/// density only influences spawn timing (which is already
+/// deficit-bounded by the spawn accumulator).
+pub(crate) const DRAGON_FIXED_ACTIVE: usize = 3;
+
+/// Base active-dragon ratio (DEPRECATED by NIGHT-research-5 owner
+/// directive — kept for compatibility but the active count is now
+/// fixed at DRAGON_FIXED_ACTIVE regardless of density).
+#[allow(dead_code)]
 pub(crate) const DRAGON_ACTIVE_BASE: f32 = 0.005;
 
-/// Density multiplier for dragon active-count calculation. Combined
-/// with DRAGON_ACTIVE_BASE, yields 1-3 dragons across the standard
-/// density range (0.40-0.85).
+/// Density multiplier (DEPRECATED by NIGHT-research-5 owner
+/// directive — kept for compatibility but the active count is now
+/// fixed at DRAGON_FIXED_ACTIVE regardless of density).
+#[allow(dead_code)]
 pub(crate) const DRAGON_ACTIVE_DENSITY_MULT: f32 = 0.030;
 
-/// Maximum active-dragon ratio cap. Bounds the active count so a
-/// very high density setting doesn't saturate the pool.
+/// Maximum active-dragon ratio cap (DEPRECATED by NIGHT-research-5
+/// owner directive — kept for compatibility).
+#[allow(dead_code)]
 pub(crate) const DRAGON_ACTIVE_MAX: f32 = 0.030;
 
 /// Spawn rate multiplier for dragon generation. Steady state needs

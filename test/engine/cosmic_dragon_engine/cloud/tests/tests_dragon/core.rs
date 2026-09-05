@@ -28,17 +28,14 @@ fn dragon_chains_spawn_up_to_density_target() {
     run_frames(&mut cloud, &mut frame, 120, 16);
 
     let active = cloud.dragon_rain.active_count();
-    // At density 0.55 + 120 cols (pool = 120/30 = 4 dragons), the
-    // target is 2 dragons (DRAGON_ACTIVE_BASE + 0.55 * DENSITY_MULT
-    // = 0.0215 ratio, * pool 4 * 30 = 2.6 → 2 active). 2 seconds of
-    // spawn budget reaches the target (deficit-bounded).
-    assert!(
-        active >= 1,
-        "expected at least 1 dragon after 2s of spawn, got {active}"
-    );
-    assert!(
-        active <= 4,
-        "active dragons cannot exceed pool size (got {active})"
+    // NIGHT-research-5 owner directive: dragon count is fixed at 3
+    // regardless of density — matches the three dragon engines in
+    // cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+    // chroma_dragon_engine). 2 seconds of spawn budget reaches the
+    // target (deficit-bounded).
+    assert_eq!(
+        active, 3,
+        "dragon count is fixed at 3 (matches the three dragon engines); got {active}"
     );
 }
 
@@ -88,7 +85,7 @@ fn dragon_motes_absorbed_after_lifetime() {
     run_frames(&mut cloud, &mut frame, 1500, 16);
     let active = cloud.dragon_rain.active_count();
     assert!(
-        active <= 4,
+        active <= 3,
         "lifetime absorption must keep the active population within the pool (got {active})"
     );
 }

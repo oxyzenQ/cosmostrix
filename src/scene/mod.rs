@@ -137,11 +137,14 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // a new rain STYLE — a structured-family chain renderer with
     // serpentine motion DNA. The `nebula` palette evokes the cosmic
     // sky the dragon flies through; `zen` charset keeps the body
-    // clean and Asian-feel. Speed 18 = majestic flight cadence;
-    // density 0.55 = 2 dragons (signature single-dragon feel at low
-    // density). The head state machine alternates Soar (free flight)
-    // and Circle (orbital) per the owner's "kadang melingkar, terbang
-    // bebas kemana aja" spec.
+    // clean and Asian-feel. Speed 18 = majestic flight cadence.
+    // Density no longer affects dragon count — owner directive
+    // fixes the count at 3 dragons to match the three dragon engines
+    // in cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+    // chroma_dragon_engine). The 0.55 value is kept for spawn-timing
+    // parity with the other style flagships. The head state machine
+    // alternates Soar (free flight) and Circle (orbital) per the
+    // owner's "kadang melingkar, terbang bebas kemana aja" spec.
     SceneInfo {
         name: "cosmic_dragon",
         description: "Cosmic Dragon — Chinese-mythology serpentine dragon; free flight with occasional circling, body trails the head in a living chain",
