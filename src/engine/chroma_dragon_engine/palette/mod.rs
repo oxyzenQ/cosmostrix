@@ -719,3 +719,7 @@ mod tests_floor_audit;
 #[cfg(test)]
 #[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_partial_eq.rs"]
 mod tests_partial_eq;
+
+#[cfg(test)]
+#[path = "../../../../test/engine/chroma_dragon_engine/palette/tests_c16_anchor.rs"]
+mod tests_c16_anchor;

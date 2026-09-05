@@ -55,7 +55,13 @@ pub enum ThemeColors {
         steps: usize,
     },
     /// RGB stops + explicit Color16 fallback + ANSI fallback.
-    /// Used by Green/Green2/Green3 which have hand-tuned all 4 tiers.
+    /// Used by the hand-tuned tiers: the Green family, the neon family,
+    /// energy-zen, and the NIGHT-hunter-11a c16 quality-pass themes
+    /// (yellow, venus, moon, stars, rainbow) whose quantized ladders
+    /// violated the anchor invariants (see
+    /// `test/engine/chroma_dragon_engine/palette/tests_c16_anchor.rs`).
+    /// The c16 array follows the 3-anchor ladder convention: Dark*
+    /// trail, bright body, White (or theme-faithful bright) head.
     StopsWithC16 {
         stops: &'static [(u8, u8, u8)],
         steps: usize,

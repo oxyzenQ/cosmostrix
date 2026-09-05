@@ -36,7 +36,12 @@ pub static THEMES: &[ThemeDef] = &[
                 (201, 244, 210),
             ],
             steps: 7,
-            c16: &[Color::DarkGreen, Color::Green],
+            // NIGHT-hunter-11a c16 quality pass: extended from the
+            // 2-anchor [DarkGreen, Green] to the family's 3-anchor
+            // convention (matches green2's quantized head and green3's
+            // White head) — the classic matrix look: dark-green trail,
+            // bright green body, white head bloom.
+            c16: &[Color::DarkGreen, Color::Green, Color::White],
             ansi: &[234, 22, 28, 35, 78, 84, 159],
         },
     },
@@ -77,7 +82,12 @@ pub static THEMES: &[ThemeDef] = &[
                 (190, 242, 223),
             ],
             steps: 7,
-            c16: &[Color::DarkGreen, Color::White],
+            // NIGHT-hunter-11a c16 quality pass: the missing mid anchor
+            // [DarkGreen, White] → [DarkGreen, Green, White] — the
+            // spring-green body (70,255,210) maps to the bright Green
+            // slot, keeping the 3-anchor ladder convention and a
+            // graduated body instead of a two-step jump.
+            c16: &[Color::DarkGreen, Color::Green, Color::White],
             ansi: &[22, 28, 34, 70, 76, 82, 157],
         },
     },
@@ -120,7 +130,11 @@ pub static THEMES: &[ThemeDef] = &[
                 (220, 180, 255),
             ],
             steps: 7,
-            c16: &[Color::Magenta, Color::White],
+            // NIGHT-hunter-11a c16 quality pass: extended from the
+            // 2-anchor [Magenta, White] to the neon family's 3-anchor
+            // convention (matches NeonRed/NeonBlue/NeonCyan): deep
+            // DarkMagenta trail, saturated Magenta body, White head.
+            c16: &[Color::DarkMagenta, Color::Magenta, Color::White],
             ansi: &[53, 90, 135, 177, 213, 225, 231],
         },
     },
@@ -138,7 +152,11 @@ pub static THEMES: &[ThemeDef] = &[
                 (212, 219, 224),
             ],
             steps: 7,
-            c16: &[Color::DarkGrey, Color::White],
+            // NIGHT-hunter-11a c16 quality pass: extended from the
+            // 2-anchor [DarkGrey, White] to the 3-anchor grayscale
+            // ladder [DarkGrey, Grey, White] — a graduated mid step
+            // instead of a two-step jump.
+            c16: &[Color::DarkGrey, Color::Grey, Color::White],
             ansi: &[232, 238, 244, 249, 252, 255, 231],
         },
     },
@@ -276,9 +294,18 @@ pub static THEMES: &[ThemeDef] = &[
     },
     ThemeDef {
         scheme: ColorScheme::Yellow,
-        def: ThemeColors::Stops {
+        def: ThemeColors::StopsWithC16 {
             // Warm signal yellow: dark olive origin → rich amber-yellow →
             // pale buttercream head.
+            //
+            // NIGHT-hunter-11a c16 quality pass: quantization produced an
+            // INVERTED head hierarchy — the saturated body stops landed on
+            // Yellow (slot L 0.97) while the pale buttercream head landed
+            // on Grey (0.92), so the head was the dimmest slot of the top
+            // three. The hand-tuned ladder DarkYellow → Yellow → White
+            // restores a monotone ramp with a bright white head. The ansi
+            // ladder is the exact Color256 output of the pre-change
+            // gradient, so 256-color rendering is byte-identical.
             stops: &[
                 (18, 15, 0),
                 (65, 55, 0),
@@ -290,6 +317,8 @@ pub static THEMES: &[ThemeDef] = &[
                 (237, 233, 185),
             ],
             steps: 9,
+            c16: &[Color::DarkYellow, Color::Yellow, Color::White],
+            ansi: &[237, 237, 94, 142, 220, 227, 228, 228, 223],
         },
     },
     ThemeDef {
@@ -500,7 +529,7 @@ pub static THEMES: &[ThemeDef] = &[
     },
     ThemeDef {
         scheme: ColorScheme::Rainbow,
-        def: ThemeColors::Stops {
+        def: ThemeColors::StopsWithC16 {
             // v30 OKLab/OKLCH audit: previously used raw sRGB primaries
             // (255,0,0), (0,255,0), (0,0,255), etc. While the comment
             // claimed "maximum vibrancy", perceptually pure sRGB green
@@ -517,6 +546,23 @@ pub static THEMES: &[ThemeDef] = &[
             //
             // Head stop L=0.65 (sum 411) — well under the 655 head-
             // luminance cap, so the head bloom doesn't wash it out.
+            //
+            // NIGHT-hunter-11a c16 quality pass: OKLab-nearest
+            // quantization broke the rainbow in two ways — the orange
+            // band collapsed to the NEUTRAL DarkGrey slot (an L-gap
+            // artifact: orange L 0.65 sits between DarkYellow 0.82 and
+            // DarkRed 0.53, and the neutral slot at 0.60 won the
+            // distance contest), and the head (violet) quantized to
+            // Blue (L 0.58), DIMMER than the trail Red (L 0.63) — an
+            // inverted hierarchy. The hand-tuned ladder walks the
+            // saturated hue slots in stop order and closes on Magenta
+            // (the c16 violet, L 0.70 > trail 0.63) so the head keeps
+            // the anchor role. Rainbow is a hue-cycle theme: slot-L
+            // dips inside the ladder are inherent and documented as
+            // the hue-cycle exemption in the c16 anchor invariants.
+            // The ansi ladder is the exact Color256 output of the
+            // pre-change gradient, so 256-color rendering is
+            // byte-identical.
             stops: &[
                 (232, 89, 74),   // red       (OKLCH 29°)
                 (219, 109, 0),   // orange    (OKLCH 60°)
@@ -527,6 +573,18 @@ pub static THEMES: &[ThemeDef] = &[
                 (161, 112, 235), // violet    (OKLCH 300°, head)
             ],
             steps: 9,
+            c16: &[
+                Color::Red,
+                Color::Red,
+                Color::DarkYellow,
+                Color::DarkYellow,
+                Color::DarkGreen,
+                Color::DarkCyan,
+                Color::DarkCyan,
+                Color::Blue,
+                Color::Magenta,
+            ],
+            ansi: &[167, 166, 172, 136, 35, 37, 38, 69, 134],
         },
     },
     ThemeDef {
@@ -743,7 +801,7 @@ pub static THEMES: &[ThemeDef] = &[
     // are unchanged.
     ThemeDef {
         scheme: ColorScheme::Stars,
-        def: ThemeColors::Stops {
+        def: ThemeColors::StopsWithC16 {
             stops: &[
                 (0, 0, 0),
                 (2, 2, 12),
@@ -759,6 +817,23 @@ pub static THEMES: &[ThemeDef] = &[
                 (217, 219, 219),
             ],
             steps: 9,
+            // NIGHT-hunter-11a c16 quality pass: quantization produced a
+            // trail-start defect — the floored black origin rendered as
+            // neutral DarkGrey (L 0.60) BRIGHTER than the deep-blue slots
+            // that followed (0.43), an inverted dip at the trail anchor,
+            // and the near-white stops landed on Grey instead of White.
+            // The hand-tuned ladder keeps the starry identity: deep-blue
+            // trail → icy cyan body → star-white head. The ansi ladder is
+            // the exact Color256 output of the pre-change gradient, so
+            // 256-color rendering is byte-identical.
+            c16: &[
+                Color::DarkBlue,
+                Color::DarkBlue,
+                Color::DarkCyan,
+                Color::Grey,
+                Color::White,
+            ],
+            ansi: &[236, 17, 235, 24, 61, 110, 153, 255, 253],
         },
     },
     ThemeDef {
@@ -787,11 +862,18 @@ pub static THEMES: &[ThemeDef] = &[
     },
     ThemeDef {
         scheme: ColorScheme::Venus,
-        def: ThemeColors::Stops {
+        def: ThemeColors::StopsWithC16 {
             // v80.0.0 real-color tune: Venus is a pale sulfuric
             // yellow-cream haze, nearly featureless — not saturated
             // amber-gold. Body shifted toward muted old-gold with a
             // brighter cloud-cream ramp; head unchanged at 655.
+            //
+            // NIGHT-hunter-11a c16 quality pass: same inverted-head defect
+            // as yellow — the pale cream head quantized to Grey (L 0.92)
+            // under the Yellow body slots (0.97). The hand-tuned ladder
+            // DarkYellow → Yellow → White restores the hierarchy. The
+            // ansi ladder is the exact Color256 output of the pre-change
+            // gradient, so 256-color rendering is byte-identical.
             stops: &[
                 (28, 22, 4),
                 (58, 45, 10),
@@ -807,6 +889,8 @@ pub static THEMES: &[ThemeDef] = &[
                 (229, 225, 201),
             ],
             steps: 9,
+            c16: &[Color::DarkYellow, Color::Yellow, Color::White],
+            ansi: &[237, 237, 94, 136, 143, 185, 222, 230, 254],
         },
     },
     ThemeDef {
@@ -947,9 +1031,18 @@ pub static THEMES: &[ThemeDef] = &[
     },
     ThemeDef {
         scheme: ColorScheme::Moon,
-        def: ThemeColors::Stops {
+        def: ThemeColors::StopsWithC16 {
             // Real-color verified v80.0.0: the Moon is a neutral
             // cool gray with a faint blue tint — unchanged.
+            //
+            // NIGHT-hunter-11a c16 quality pass: quantizing the 11-stop
+            // grayscale ramp collapsed all 9 palette entries onto just
+            // DarkGrey + Grey (the whitish stops L 0.87-0.96 all landed
+            // on Grey 0.92, never White). The hand-tuned 3-anchor
+            // ladder DarkGrey → Grey → White restores a full perceptual
+            // grayscale gradient with a bright head. The ansi ladder is
+            // the exact Color256 output of the pre-change gradient, so
+            // 256-color rendering is byte-identical.
             stops: &[
                 (0, 0, 0),
                 (15, 15, 18),
@@ -964,6 +1057,8 @@ pub static THEMES: &[ThemeDef] = &[
                 (217, 218, 220),
             ],
             steps: 9,
+            c16: &[Color::DarkGrey, Color::Grey, Color::White],
+            ansi: &[236, 236, 238, 239, 242, 247, 188, 255, 253],
         },
     },
     ThemeDef {
@@ -1017,7 +1112,14 @@ pub static THEMES: &[ThemeDef] = &[
                 (230, 200, 255),
             ],
             steps: 7,
-            c16: &[Color::Magenta, Color::White],
+            // NIGHT-hunter-11a c16 quality pass: extended from the
+            // 2-anchor [Magenta, White] to the 3-anchor ladder
+            // [DarkMagenta, Magenta, White] — the deep purple void
+            // trail (4,0,24) now maps to DarkMagenta, the crystal-edge
+            // magenta mid stops map to Magenta, and the pale lilac head
+            // keeps its White bloom. Full 3-anchor graduation for the
+            // signature palette.
+            c16: &[Color::DarkMagenta, Color::Magenta, Color::White],
             ansi: &[53, 90, 135, 177, 207, 225, 231],
         },
     },
