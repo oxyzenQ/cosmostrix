@@ -73,6 +73,13 @@ proptest! {
     /// Multiple keys in a [section] block must all be prefixed correctly.
     /// Unknown keys go to unknown_keys, known keys go to values — but
     /// the parser must never panic and must always prefix with section.
+    /// A key whose UN-prefixed name is itself a known top-level field
+    /// takes the documented third path: auto-promotion to root scope
+    /// (recorded in promoted_keys, value re-homed under the bare name —
+    /// see configfile.rs "Auto-promote forgiving parser"). The property
+    /// models all three destinations (NIGHT-hunter-10: the two-path
+    /// model flaked whenever the random generator produced a known
+    /// short field name like `fps`/`bg`/`set` nested under a section).
     #[test]
     fn prop_section_prefixes_keys(
         section in "[a-z][a-z0-9-]{0,20}",
@@ -86,19 +93,30 @@ proptest! {
             config.push_str(&format!("{k} = \"{v}\"\n"));
         }
         let parsed = parse_config_text(&config);
-        // Each field must appear in either values or unknown_keys,
-        // prefixed with the section name.
+        // Each field must appear in values, unknown_keys or the
+        // promoted_keys record — prefixed with the section name in the
+        // latter two, re-homed to root scope in the first.
         for (k, v) in &fields {
             let full_key = format!("{section}.{k}");
             let in_values = parsed.values.contains_key(&full_key);
             let in_unknown = parsed.unknown_keys.iter().any(|u| u == &full_key);
+            let promoted = parsed.promoted_keys.iter().any(|(full, _)| full == &full_key);
             prop_assert!(
-                in_values || in_unknown,
-                "key '{full_key}' should be in values or unknown_keys"
+                in_values || in_unknown || promoted,
+                "key '{full_key}' should be in values, unknown_keys or promoted_keys"
             );
             // If it's in values, verify the value matches (quotes stripped).
             if let Some(got) = parsed.values.get(&full_key) {
                 prop_assert_eq!(got, v, "value should match (quotes stripped)");
+            }
+            // If it was promoted, the value must exist under the BARE
+            // root-scope name (quotes stripped).
+            if promoted {
+                let bare = parsed.values.get(k);
+                prop_assert!(
+                    bare.is_some(),
+                    "promoted key '{full_key}' must be re-homed under the bare name '{k}'"
+                );
             }
         }
     }
