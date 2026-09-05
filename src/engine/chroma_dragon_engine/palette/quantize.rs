@@ -50,13 +50,35 @@
 //!
 //! ## Memoization
 //!
-//! `SgrQuantizer` memoizes RGB→quantized results in a flat `HashMap`.
-//! Rain shading produces bounded distinct RGB values per session (a
-//! few thousand at most: palette colors × brightness levels), so the
+//! `SgrQuantizer` memoizes RGB→quantized results in a flat hash map
+//! keyed by the packed `(r<<16 | g<<8 | b | is_bg<<24)` integer. Rain
+//! shading produces bounded distinct RGB values per session (a few
+//! thousand at most: palette colors × brightness levels), so the
 //! 240-candidate OKLab scan runs only on first sight of each color;
 //! steady-state cost is one hash lookup per style change.
+//!
+//! NIGHT-hunter-12 (emission-path memo audit) tightened the map on the
+//! hot path:
+//!
+//! - Integer hasher instead of std's SipHash. The default `RandomState`
+//!   defends against hash-flooding attackers, but the memo's keys are
+//!   internal packed integers, not attacker-controlled — each
+//!   steady-state emission lookup paid ~15-25ns of SipHash work for a
+//!   key that is already dense. [`PackedKeyHasher`] is the splitmix64
+//!   finalizer (2 multiplies + 2 shifts, still ~1-2ns) whose downward
+//!   avalanche matters because ladder keys share low-bit structure —
+//!   see its doc — and the spread is pinned by test
+//!   (`packed_key_hasher_spreads_clustered_ladder_keys`).
+//! - Mono short-circuits before the map. The Mono result is a constant
+//!   (fg→`White`, bg→`Reset`) — memoizing a constant both wasted a hash
+//!   insert per first-sight color and grew the map without bound in
+//!   phosphor-decay sessions. Mono now returns directly.
+//! - Warm-start capacity. `with_capacity_and_hasher(256)` covers the
+//!   typical warm-set (palette × brightness ladder ≈ 112-640 entries),
+//!   so warm-up frames pay no grow+rehash chain.
 
 use std::collections::HashMap;
+use std::hash::{BuildHasherDefault, Hasher};
 use std::sync::OnceLock;
 
 use crossterm::style::Color;
@@ -309,6 +331,63 @@ pub(crate) fn named16_slot(color: Color) -> Option<u8> {
 
 // ── Memoized boundary quantizer ─────────────────────────────────────────────
 
+/// Integer hasher for the memo's packed RGB keys.
+///
+/// std's default hasher (SipHash-1-3, randomly seeded) exists to defeat
+/// hash-flooding; the memo's keys are internal packed u32s
+/// (`r<<16 | g<<8 | b | is_bg<<24`), not attacker-controlled input.
+/// Hashing such a key with SipHash costs ~15-25ns per steady-state
+/// emission lookup — measurable on the style-change path of every
+/// non-truecolor frame.
+///
+/// The mix is the splitmix64 finalizer (golden-ratio add, then two
+/// multiply+xorshift stages). A plain multiply is NOT enough here:
+/// ladder keys share low-bit structure — a green brightness sweep
+/// `(0, g, 0)` packs to `g<<8`, which keeps 8 trailing zero bits under
+/// any multiply, and hashbrown's bucket index is the hash's LOW bits,
+/// so the whole ladder would collide into one bucket. The finalizer
+/// avalanches high bits into low bits (pinned by test — see
+/// `packed_key_hasher_spreads_clustered_ladder_keys`), and every stage
+/// is a bijection, so distinct keys keep distinct full hashes.
+#[derive(Default)]
+struct PackedKeyHasher(u64);
+
+impl Hasher for PackedKeyHasher {
+    #[inline]
+    fn finish(&self) -> u64 {
+        self.0
+    }
+
+    /// Never hit for u32 keys (`<u32 as Hash>::hash` calls `write_u32`),
+    /// but kept correct so the hasher stays valid if the key type ever
+    /// widens — mixes FNV-style over the bytes.
+    fn write(&mut self, bytes: &[u8]) {
+        for &b in bytes {
+            self.0 = (self.0 ^ u64::from(b)).wrapping_mul(0x0100_0000_01B3);
+        }
+    }
+
+    #[inline]
+    fn write_u32(&mut self, v: u32) {
+        let mut z = u64::from(v).wrapping_add(0x9E37_79B9_7F4A_7C15);
+        z = (z ^ (z >> 30)).wrapping_mul(0xBF58_476D_1CE4_E5B9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94D0_49BB_1331_11EB);
+        self.0 = z ^ (z >> 31);
+    }
+}
+
+/// The quantizer memo's map type: std SwissTable probing over a
+/// hash-free integer key. `BuildHasherDefault<PackedKeyHasher>` means
+/// `Default` — no per-instance state to construct.
+type MemoMap = HashMap<u32, Color, BuildHasherDefault<PackedKeyHasher>>;
+
+/// Initial memo capacity.
+///
+/// Covers the typical warm-set (7-20 palette colors × ~16-32 brightness
+/// ladder steps ≈ 112-640 entries) so the first frames after palette
+/// build pay no grow-and-rehash chain.
+const MEMO_INITIAL_CAPACITY: usize = 256;
+
 /// Mode-aware RGB quantizer for an SGR emission boundary, with a flat
 /// memo so each distinct input color pays the OKLab scan exactly once.
 ///
@@ -320,7 +399,9 @@ pub(crate) struct SgrQuantizer {
     mode: SgrMode,
     /// Packed `(r<<16 | g<<8 | b)` keyed results. Bit 24 marks the
     /// background direction (fg and bg quantize differently in Mono).
-    memo: HashMap<u32, Color>,
+    /// Integer-hashed ([`PackedKeyHasher`]) — see the module-level
+    /// Memoization notes.
+    memo: MemoMap,
 }
 
 impl SgrQuantizer {
@@ -329,7 +410,10 @@ impl SgrQuantizer {
     pub(crate) fn new(mode: SgrMode) -> Self {
         SgrQuantizer {
             mode,
-            memo: HashMap::new(),
+            memo: MemoMap::with_capacity_and_hasher(
+                MEMO_INITIAL_CAPACITY,
+                BuildHasherDefault::default(),
+            ),
         }
     }
 
@@ -381,7 +465,16 @@ impl SgrQuantizer {
     }
 
     /// Memoized RGB → wire color for the active mode.
+    ///
+    /// Mono short-circuits before the map: the result is a constant of
+    /// `is_bg` alone (`White` fg / `Reset` bg), so a memo lookup (and a
+    /// per-distinct-color insert, growing the map without bound across
+    /// phosphor-decay gradients) would be pure overhead for a constant
+    /// function.
     fn quantize_rgb(&mut self, r: u8, g: u8, b: u8, is_bg: bool) -> Color {
+        if let SgrMode::Mono = self.mode {
+            return mono_wire_color(is_bg);
+        }
         let key = ((r as u32) << 16) | ((g as u32) << 8) | (b as u32) | ((is_bg as u32) << 24);
         if let Some(&cached) = self.memo.get(&key) {
             return cached;

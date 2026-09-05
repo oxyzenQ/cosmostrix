@@ -274,6 +274,120 @@ fn quantizer_memo_is_stable_and_bounded() {
     assert!(distinct_outputs.len() >= 2);
 }
 
+// ── NIGHT-hunter-12: emission-path memo contracts ───────────────────────────
+
+/// The memo's integer hasher must spread clustered keys across buckets.
+///
+/// Rain ladders produce keys that cluster catastrophically under plain
+/// identity hashing: a green brightness sweep is `(0, g, 0)` → packed
+/// keys `g<<8` — and since hashbrown's bucket index is the hash's LOW
+/// bits, a hash without downward avalanche (e.g. a bare multiply — see
+/// the `PackedKeyHasher` doc) puts the whole ladder in one bucket.
+/// This test pins the spread so a future hasher swap cannot silently
+/// regress the SwissTable probe into linear chains.
+///
+/// Threshold calibration: 256 keys scattered into 12-bit buckets
+/// (capacity-4096 table) by a uniform hash yield ~248 distinct (the
+/// birthday bound leaves ~8 collisions); a degenerate hash yields ~1.
+/// The 200 floor sits far below the uniform expectation and far above
+/// any degenerate pattern.
+#[test]
+fn packed_key_hasher_spreads_clustered_ladder_keys() {
+    let bucket_of = |key: u32| -> usize {
+        let mut h = PackedKeyHasher::default();
+        h.write_u32(key);
+        h.finish() as usize & 0xFFF // capacity-4096 bucket index
+    };
+    // Family 1: green ramp (0, g, 0) — keys g<<8.
+    let green_buckets: std::collections::HashSet<usize> =
+        (0u32..256).map(|g| bucket_of(g << 8)).collect();
+    // Family 2: gray ramp (k, k, k) — keys k<<16 | k<<8 | k.
+    let gray_buckets: std::collections::HashSet<usize> = (0u32..256)
+        .map(|k| bucket_of((k << 16) | (k << 8) | k))
+        .collect();
+    // Family 3: bg-direction ladder (0, g, 0, bg) — keys g<<8 | 1<<24.
+    let bg_buckets: std::collections::HashSet<usize> = (0u32..256)
+        .map(|g| bucket_of((g << 8) | (1 << 24)))
+        .collect();
+    assert!(
+        green_buckets.len() >= 200,
+        "green ladder collapsed into {} buckets",
+        green_buckets.len()
+    );
+    assert!(
+        gray_buckets.len() >= 200,
+        "gray ladder collapsed into {} buckets",
+        gray_buckets.len()
+    );
+    assert!(
+        bg_buckets.len() >= 200,
+        "bg-direction ladder collapsed into {} buckets",
+        bg_buckets.len()
+    );
+}
+
+/// Distinct keys must keep distinct full hashes — every stage of the
+/// splitmix64 finalizer (add, odd multiply, xorshift) is a bijection on
+/// u64, so the composition is too. A lossy hash would mean someone
+/// swapped a stage for a non-invertible mix.
+#[test]
+fn packed_key_hasher_distinct_keys_hash_distinct() {
+    let mut seen = std::collections::HashSet::with_capacity(1000);
+    for k in 0..1000u32 {
+        let mut h = PackedKeyHasher::default();
+        h.write_u32(k);
+        seen.insert(h.finish());
+    }
+    assert_eq!(seen.len(), 1000, "hash is not injective over 0..1000");
+}
+
+/// Mono never touches the memo: the result is a constant of the
+/// direction alone, so feeding hundreds of distinct RGBs must leave
+/// the map empty (no lookup work, no unbounded growth) while the wire
+/// results stay fg=White / bg=Reset.
+#[test]
+fn quantizer_mono_memo_stays_empty() {
+    let mut q = SgrQuantizer::new(SgrMode::Mono);
+    for k in 0..500u16 {
+        let v = k as u8;
+        assert_eq!(
+            q.quantize_fg(Some(Color::Rgb { r: v, g: v, b: v })),
+            Some(Color::White),
+            "k={k}"
+        );
+        assert_eq!(
+            q.quantize_bg(Some(Color::Rgb {
+                r: v,
+                g: 255 - v,
+                b: v.wrapping_mul(3)
+            })),
+            Some(Color::Reset),
+            "k={k}"
+        );
+    }
+    assert_eq!(q.memo_len(), 0, "Mono must not memoize a constant function");
+}
+
+/// Ansi256/Classic16 keep memoizing: first sight computes, second sight
+/// hits the map (observable via memo_len growth bounded by distinct
+/// inputs, across BOTH directions — fg and bg keys differ by bit 24).
+#[test]
+fn quantizer_memo_tracks_both_directions_independently() {
+    let mut q = SgrQuantizer::new(SgrMode::Ansi256);
+    let c = Color::Rgb {
+        r: 10,
+        g: 20,
+        b: 30,
+    };
+    q.quantize_fg(Some(c));
+    q.quantize_fg(Some(c)); // memo hit — no new entry
+    assert_eq!(q.memo_len(), 1);
+    q.quantize_bg(Some(c)); // different direction — new entry
+    assert_eq!(q.memo_len(), 2, "fg and bg must occupy distinct memo keys");
+    // Results are direction-correct for Ansi256 (both indexed).
+    assert!(matches!(q.quantize_bg(Some(c)), Some(Color::AnsiValue(_))));
+}
+
 // ── Wire-format contracts through write_sgr_colors_buf ─────────────────────
 
 /// THE task-17 contract: a Classic16 quantized (fg, bg) pair formats as
