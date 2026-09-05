@@ -380,7 +380,7 @@ mod cases {
         let mut scene_generation: u64 = 0;
         let mut visited = Vec::new();
 
-        for _ in 0..3 {
+        for _ in 0..4 {
             call_handle_keybinding_with_scene(
                 &mut cloud,
                 &mut frame,
@@ -394,10 +394,12 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        // 20-scene cycle (owner directive 2026-08-24 + task-18/19 flagships):
-        // from monolith the forward order is matrix -> vortex -> flux.
-        assert_eq!(visited, ["matrix", "vortex", "flux"]);
-        assert_eq!(cloud.active_scene(), "flux");
+        // 21-scene cycle (owner directive 2026-08-24 + task-18/19 +
+        // NIGHT-research-4 flagships): from monolith the forward order
+        // is matrix -> vortex -> flux -> lorenz (both ripple
+        // replacements present, flux at 5 and lorenz at 6).
+        assert_eq!(visited, ["matrix", "vortex", "flux", "lorenz"]);
+        assert_eq!(cloud.active_scene(), "lorenz");
     }
 
     #[test]

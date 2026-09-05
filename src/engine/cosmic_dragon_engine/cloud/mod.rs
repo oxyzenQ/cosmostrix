@@ -30,6 +30,7 @@ mod flux;
 mod flux_field;
 mod ghost_events;
 mod living_rain;
+mod lorenz;
 mod message_draw;
 mod monolith;
 mod monolith_glyphs;
@@ -71,6 +72,7 @@ use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSi
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
+use lorenz::LorenzRain;
 use monolith::MonolithRain;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
@@ -130,6 +132,10 @@ pub struct Cloud {
     /// incompressible liquid (flux scene — replaces the task-18
     /// ripple surface style the owner rejected as not unique).
     pub(crate) flux_rain: FluxRain,
+    /// NIGHT-research-4 fifth rain style: strange-attractor motes
+    /// (lorenz scene). Structured-family member (no droplet pool,
+    /// uses spawn_remainder like vortex).
+    pub(crate) lorenz_rain: LorenzRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -423,6 +429,7 @@ impl Cloud {
             monolith_rain: MonolithRain::new(),
             vortex_rain: VortexRain::new(),
             flux_rain: FluxRain::new(),
+            lorenz_rain: LorenzRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -781,7 +788,9 @@ impl Cloud {
             RainStyle::Monolith => self.monolith_rain.active_count(),
             RainStyle::Vortex => self.vortex_rain.active_count(),
             RainStyle::Flux => self.flux_rain.active_count(),
-            // Droplet family: the Glyph cascade pool.
+            RainStyle::Lorenz => self.lorenz_rain.active_count(),
+            // Droplet family: Glyph cascade only — both ripple
+            // replacements (flux, lorenz) are structured styles.
             RainStyle::Glyph => self.droplets.iter().filter(|d| d.is_alive).count(),
         }
     }

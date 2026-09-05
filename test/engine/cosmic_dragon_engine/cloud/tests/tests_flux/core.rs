@@ -24,11 +24,12 @@ fn flux_scene_resolves_style_and_fields() {
 fn flux_scene_order_position() {
     use crate::scene::SCENE_ORDER;
     // Style flagships follow the core trio (owner-pinned order):
-    // position 4 = vortex, position 5 = flux.
+    // position 4 = vortex, position 5 = flux, position 6 = lorenz
+    // (NIGHT-research-4 merge added lorenz after flux).
     assert_eq!(SCENE_ORDER[3], "vortex");
     assert_eq!(SCENE_ORDER[4], "flux");
     assert_eq!(crate::scene::cycle_scene("vortex", 1), "flux");
-    assert_eq!(crate::scene::cycle_scene("flux", 1), "classic");
+    assert_eq!(crate::scene::cycle_scene("flux", 1), "lorenz");
 }
 
 #[test]

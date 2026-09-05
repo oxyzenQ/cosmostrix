@@ -152,6 +152,10 @@ impl Cloud {
             self.reset_phosphor_state();
         } else if matches!(self.rain_style, RainStyle::Flux) {
             self.flux_rain.clear_draw_history();
+        } else if matches!(self.rain_style, RainStyle::Lorenz) {
+            // NIGHT-research-4: lorenz — structured-family sibling,
+            // same draw-history clear on palette change.
+            self.lorenz_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
 
@@ -282,6 +286,10 @@ impl Cloud {
             self.reset_phosphor_state();
         } else if matches!(self.rain_style, RainStyle::Flux) {
             self.flux_rain.clear_draw_history();
+        } else if matches!(self.rain_style, RainStyle::Lorenz) {
+            // NIGHT-research-4: lorenz — structured-family sibling,
+            // same draw-history clear on shading mode toggle.
+            self.lorenz_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

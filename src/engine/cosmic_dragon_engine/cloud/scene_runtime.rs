@@ -353,6 +353,9 @@ impl Cloud {
             // (dormant streams are re-reset on re-entry — LTS parity).
             RainStyle::Vortex => self.vortex_rain.reset(self.cols),
             RainStyle::Flux => self.flux_rain.reset(self.cols, self.lines),
+            // NIGHT-research-4: lorenz takes a full reset on exit —
+            // parity with vortex (the other structured family sibling).
+            RainStyle::Lorenz => self.lorenz_rain.reset(self.cols),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -371,6 +374,15 @@ impl Cloud {
             }
             RainStyle::Flux => {
                 self.flux_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Lorenz => {
+                // NIGHT-research-4: lorenz entry mirrors vortex entry —
+                // structured family sibling (spawn_remainder contract,
+                // no droplet pool, full mote reset on entry).
+                self.lorenz_rain.reset(self.cols);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

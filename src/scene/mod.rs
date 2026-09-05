@@ -16,10 +16,16 @@
 //! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
 //! temporal-prediction breakthrough ( dirty_ratio 18.33% → 0.39%,
 //! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) covers all
-//! 18 built-in scenes (owner directive 2026-08-24): the three core
+//! 21 built-in scenes (owner directive 2026-08-24): the three core
 //! atmospheres lead (cinematic, monolith, matrix), followed by the
 //! curated classics, atmosphere scenes, the power-saving utility, and
 //! the milestone/tribute/honor scenes as destinations.
+//!
+//! task-19 + NIGHT-research-4: the rejected `ripple` style
+//! (water-surface rings) was replaced by `flux` (task-19, PIC/FLIP
+//! liquid matrix) at cycle position 5; `lorenz` joined at position 6
+//! — a strange-attractor masterpiece (canonical Lorenz ODE
+//! integrated via RK4).
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -44,44 +50,49 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 20 built-in scenes (owner directive
-/// 2026-08-24: positions 1-3 are fixed; task-18 adds the style flagships
-/// at 4-5; the rest ordered by daily-use likelihood so the most-switched
-/// scenes are the fewest keystrokes away: core trio -> style flagships ->
-/// classic siblings -> atmosphere -> power-saving utility -> milestone ->
+/// Ordered scene cycle — all 21 built-in scenes (owner directive
+/// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
+/// style flagship at 4; task-19 replaced the rejected ripple with
+/// flux at 5; the NIGHT-research-4 merge added lorenz, a
+/// strange-attractor masterpiece, at 6; the rest ordered by
+/// daily-use likelihood so the most-switched scenes are the fewest
+/// keystrokes away: core trio -> style flagships -> classic
+/// siblings -> atmosphere -> power-saving utility -> milestone ->
 /// tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
     // Core atmospheres (owner-pinned order).
     "cinematic", // 1
     "monolith",  // 2
     "matrix",    // 3
-    // Task-18/19 style flagships — the polar-orbit and liquid-fluid
-    // styles are signature differentiators (no competitor terminal
-    // has them; the flux style carries a real incompressible
-    // Navier-Stokes projection in its critical path), so they lead
-    // the cycle right after the core trio.
+    // Task-18/19 + NIGHT-research-4 style flagships — the
+    // polar-orbit, liquid-fluid and strange-attractor styles are
+    // signature differentiators (no competitor terminal has them;
+    // the flux style carries a real incompressible Navier-Stokes
+    // projection in its critical path), so they lead the cycle
+    // right after the core trio.
     "vortex", // 4
     "flux",   // 5
+    "lorenz", // 6
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 6 — original green-on-black
-    "signal",      // 7 — digital transmission
-    "hacker",      // 8 — high-contrast terminal overflow
-    "matrix_film", // 9 — 1999 film homage
+    "classic",     // 7 — original green-on-black
+    "signal",      // 8 — digital transmission
+    "hacker",      // 9 — high-contrast terminal overflow
+    "matrix_film", // 10 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 10
-    "calm",   // 11
-    "cosmos", // 12
-    "neon",   // 13
+    "storm",  // 11
+    "calm",   // 12
+    "cosmos", // 13
+    "neon",   // 14
     // Utility.
-    "low-power", // 14
+    "low-power", // 15
     // Milestone + tribute.
-    "cosmic-dragon", // 15
-    "carbonic",      // 16
+    "cosmic-dragon", // 16
+    "carbonic",      // 17
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 17
-    "orange-cat",     // 18
-    "north-stars",    // 19
-    "curiosity",      // 20
+    "crystal-dragon", // 18
+    "orange-cat",     // 19
+    "north-stars",    // 20
+    "curiosity",      // 21
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -99,7 +110,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // --- Task-18/19 style flagships (rain styles 3 + 4) ---
+    // --- Task-18/19 + NIGHT-research-4 style flagships (rain styles 3, 4 and 5) ---
     SceneInfo {
         name: "vortex",
         description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
@@ -124,6 +135,32 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Flux,
+        },
+    },
+    // NIGHT-research-4: the lorenz scene is the project's flagship
+    // masterpiece — the only terminal rain that renders a real
+    // strange attractor (canonical Lorenz ODE, sigma=10, rho=28,
+    // beta=8/3, RK4-integrated). Two-lobe butterfly projected to 2D
+    // with z-as-depth brightness. The `cosmos` palette + `binary`
+    // charset evoke the deep-space + mathematical-purity aesthetic;
+    // speed 24 (same as vortex) gives the butterfly a majestic
+    // wingbeat cadence (one lobe traversal every ~3-5 s). Density
+    // 0.70 matches vortex so the two scenes cycle-read as siblings.
+    // Catalog history: ripple (water-surface rings) was
+    // owner-rejected and removed by task-19's flux; this scene
+    // joined at cycle position 6 via the NIGHT-research-4 merge as
+    // the fifth rain style.
+    SceneInfo {
+        name: "lorenz",
+        description: "Lorenz strange attractor — glyphs ride the canonical chaotic butterfly (RK4-integrated 3D ODE, two-lobe projection)",
+        config: SceneConfig {
+            color: Some("cosmos"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(24.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Lorenz,
         },
     },
     SceneInfo {

@@ -9,12 +9,16 @@ use super::*;
 #[test]
 fn cycle_scene_forward_order() {
     // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18/19 style flagships: vortex -> flux -> classic.
+    // the task-18/19 + NIGHT-research-4 style flagships:
+    // vortex -> flux -> lorenz -> classic (both ripple
+    // replacements present; lorenz is a strange-attractor
+    // masterpiece).
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
     assert_eq!(cycle_scene("vortex", 1), "flux");
-    assert_eq!(cycle_scene("flux", 1), "classic");
+    assert_eq!(cycle_scene("flux", 1), "lorenz");
+    assert_eq!(cycle_scene("lorenz", 1), "classic");
     // Tail of the cycle wraps back to the head.
     assert_eq!(cycle_scene("curiosity", 1), "cinematic");
 }
@@ -36,10 +40,10 @@ fn cycle_scene_unknown_returns_default() {
 
 #[test]
 fn cycle_scene_wraps_around() {
-    // Triple forward from matrix: matrix -> vortex -> flux -> classic.
+    // Triple forward from matrix: matrix -> vortex -> flux -> lorenz.
     assert_eq!(
         cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1),
-        "classic"
+        "lorenz"
     );
     // Double backward from matrix: matrix -> monolith -> cinematic.
     assert_eq!(cycle_scene(cycle_scene("matrix", -1), -1), "cinematic");
@@ -56,7 +60,7 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 20-scene catalog and is a
+    // drift). This pin documents the full 21-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
     assert_eq!(
@@ -72,6 +76,7 @@ fn scene_names_are_present() {
             "curiosity",
             "flux",
             "hacker",
+            "lorenz",
             "low-power",
             "matrix",
             "matrix_film",
@@ -122,8 +127,8 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_entries() {
-    assert_eq!(SCENES.len(), 20, "catalog must contain 20 built-in scenes");
+fn scene_catalog_has_twenty_one_entries() {
+    assert_eq!(SCENES.len(), 21, "catalog must contain 21 built-in scenes");
 }
 
 #[test]
@@ -187,7 +192,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        20,
+        21,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

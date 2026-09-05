@@ -19,6 +19,11 @@ use super::state::DropletSpawnSpec;
 impl super::Cloud {
     pub(crate) fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
         let mut end_line = self.lines.saturating_sub(1);
+        // The ripple surface contract (capping droplet end_line above
+        // a virtual water plane) is removed — Flux and Lorenz are fully
+        // structured (no droplet pool) and never reach this branch. The
+        // old ripple path was the only caller that needed the cap;
+        // Glyph family is unaffected.
         if self.rand_chance.sample(&mut self.mt) <= self.die_early_pct {
             end_line = self.rand_line.sample(&mut self.mt).min(end_line);
         }
