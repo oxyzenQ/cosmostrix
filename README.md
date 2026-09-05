@@ -495,10 +495,13 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 - `matrix` — classic Matrix glyph rain
 - `monolith` — structured cosmostrix Monolith Rain with sparse structured segments
 
-**Style flagships** (rain styles 3 + 4, task-18/19):
+**Style flagships** (rain styles 3 through 7, task-18/19 + NIGHT-research-4/5/6):
 
 - `vortex` — polar-orbit galaxy drain: glyphs spiral inward on Keplerian orbits (angular speed ∝ 1/radius) toward a glowing core, sheared into living spiral arms by differential rotation. Motion math is 100% distinct from both the cascade and the pillars — no other terminal rain has it. `cosmostrix --scene vortex`
 - `flux` — liquid matrix: the code rain falls through a living incompressible fluid. A real PIC/FLIP particle-grid hybrid solver (the film-VFX fluid method, shrunk to terminal scale) runs in the render path — every glyph is a fluid particle splatting momentum onto a velocity grid, a Jacobi pressure projection enforces incompressibility, and the FLIP/PIC readback carries the flow back to the glyphs. Falling jets shear into emergent eddies; brightness maps particle speed (Doppler-style flow visualization); the minimal charset renders it all as falling nabla ∇ — the gradient operator the projection literally computes. No terminal rain renderer (or any matrix rain, verified against the full ecosystem) has a real Navier-Stokes projection in its critical path. `cosmostrix --scene flux`
+- `lorenz` — strange attractor: glyphs ride the canonical Lorenz butterfly (sigma=10, rho=28, beta=8/3 — the 1963 system that gave the butterfly effect its name, integrated with classical RK4 and projected to 2D with z as depth-brightness). Two identically-seeded motes diverge visibly within seconds — sensitive dependence on initial conditions rendered as rain. The first strange-attractor renderer in any terminal matrix rain project. `cosmostrix --scene lorenz`
+- `cosmic_dragon` — Chinese-mythology serpentine dragon: three dragons (owner-fixed count, matching the project's three dragon engines) fly free and occasionally circle per the owner spec. Each dragon is a chain of segments trailing a path-generating head via FABRIK distance constraints — the sinuous silhouette emerges from the chain dynamics alone, no procedural body animation. Brightness fades head-to-tail (Core to Ghost). `cosmostrix --scene cosmic_dragon`
+- `physarum` — slime-mold network: a bio-inspired multi-agent swarm running the Jeff Jones 2010 Physarum model — particles sense, decide, move and deposit on a stigmergic trail field, and vein-like emergent networks self-organize from purely local rules. The terminal's discrete cell grid IS the chemical substrate (1:1 medium match); world-first in the terminal matrix rain category. `cosmostrix --scene physarum`
 
 **Curated scenes** (via `--scene <name>`):
 
@@ -528,7 +531,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle through all built-in scenes (cinematic -> monolith -> matrix -> vortex -> flux -> classic -> … -> curiosity, then back to cinematic).
+Press `x` while running to cycle through all built-in scenes (cinematic -> monolith -> matrix -> vortex -> flux -> lorenz -> cosmic_dragon -> physarum -> classic -> … -> curiosity, then back to cinematic).
 
 ## Configuration
 

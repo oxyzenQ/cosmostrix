@@ -356,6 +356,13 @@ impl Cloud {
             // NIGHT-research-4: lorenz takes a full reset on exit —
             // parity with vortex (the other structured family sibling).
             RainStyle::Lorenz => self.lorenz_rain.reset(self.cols),
+            // NIGHT-research-5: dragon takes a full reset on exit —
+            // parity with vortex (the other structured family sibling).
+            RainStyle::Dragon => self.dragon_rain.reset(self.cols),
+            // NIGHT-research-6: physarum takes a full reset on exit —
+            // parity with vortex/dragon (structured family sibling).
+            // The trail field is cleared too (fresh substrate on next entry).
+            RainStyle::Physarum => self.physarum_rain.reset(self.cols),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -383,6 +390,25 @@ impl Cloud {
                 // structured family sibling (spawn_remainder contract,
                 // no droplet pool, full mote reset on entry).
                 self.lorenz_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Dragon => {
+                // NIGHT-research-5: dragon entry mirrors vortex entry —
+                // structured family sibling (spawn_remainder contract,
+                // no droplet pool, full dragon reset on entry).
+                self.dragon_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Physarum => {
+                // NIGHT-research-6: physarum entry mirrors vortex/dragon
+                // entry — structured family sibling (spawn_remainder
+                // contract, no droplet pool, full particle + trail
+                // field reset on entry — fresh substrate).
+                self.physarum_rain.reset(self.cols);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

@@ -9,6 +9,165 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-research-5/6 merge — `cosmic_dragon` + `physarum` land on main; seven rain styles
+
+Branch `cosmic_dragon` merged into `main` (commit range 2d3e916..0d759c5:
+NIGHT-research-5 `cosmic_dragon` serpentine dragon, the dragon-count
+follow-up fixing the active count at 3 to match the three dragon
+engines, and NIGHT-research-6 `physarum` slime mold). The merge is
+divergent: the branch forked from the task-18 baseline (which still
+carried the owner-rejected `ripple`), while main had since replaced
+`ripple` with `flux` (task-19) and merged `lorenz` (NIGHT-research-4).
+The union keeps every surviving style — the catalog is now seven rain
+styles (glyph cascade, monolith pillars, vortex polar orbits, flux
+PIC/FLIP liquid, lorenz strange attractor, cosmic_dragon serpentine
+chain, physarum slime-mold networks) and 23 scenes in the interactive
+cycle (cosmic_dragon at position 7, physarum at 8, classic through
+curiosity renumbered 9-23). Union resolution across the style registry
+(`RainStyle` enum + family helpers — the ripple modify/delete conflict
+resolved to deletion per the owner's task-19 verdict), the scene
+catalog (`SCENE_ORDER` union, header and catalog-count pins 21 -> 23),
+the dispatch chain (`rain_at`/`spawn`/`scene_runtime`/
+`runtime_controls`/`spawn_reset` style-gate arm unions), the Cloud
+struct/constructor fields, the style constants (`DRAGON_*` and
+`PHYSARUM_*` blocks appended after `FLUX_*`/`LORENZ_*` in
+style_rain.rs, the branch's `RIPPLE_SPEED_REF_CPS` remnant dropped),
+and the mirrored test tree (`tests_dragon` + `tests_physarum` beside
+`tests_flux` + `tests_lorenz`). The scene-catalog pin tests and the
+cycle-order tests adapt to 23 scenes; the x-cycle test now walks five
+hops through all four style flagships after the core trio.
+- A/B 10s @ 120x40 truecolor (after merge): cinematic 6.0K fps / 984
+  dirty / entropy 5.64 / gini 0.668 (noise-equivalent to the 0dfdc24
+  baseline); monolith 34.3K / 291 / 4.84 / 0.807 (no regression);
+  vortex 41.7K / 278 / 6.31 / 0.468 (identical to baseline); flux
+  31.6K / 102 / 5.73 / 0.627 (matches the task-19 entry); lorenz
+  52.3K / 138 / 5.87 / 0.597 (healthy). New signatures:
+  cosmic_dragon 126.8K fps / 74.7 dirty / entropy 5.15 / gini 0.731 —
+  the fastest style in the catalog with the fewest dirty cells (three
+  serpentine chains) and the most concentrated density of the
+  structured flagships; physarum 63.3K fps / 99.6 dirty / entropy
+  5.74 / gini 0.624 — structured-class performance whose (entropy,
+  gini) point lands near flux while the emergent-network motion
+  signature stays 100% distinct. No regressions on the five
+  pre-existing styles.
+
+### feat: NIGHT-research-6 — `physarum` (bio-inspired slime-mold rain, sixth style — world-first in terminal matrix rain category)
+
+A new rain style implementing the Jeff Jones 2010 slime-mold model:
+particles follow sense / decide / move / deposit rules on a
+stigmergic trail field, producing emergent NETWORK patterns (vein-like
+structures that self-organize from random initial conditions, with no
+central planner). This is the project's first bio-inspired renderer —
+bridging biology (slime mold intelligence — Physarum polycephalum
+solves mazes without nervous system), computer science (stigmergy /
+multi-agent swarms), and generative art (network aesthetics).
+
+- `physarum` (scene `physarum`, palette `cosmos` + charset `binary`):
+  particles sense the trail field at three sensor positions (left-
+  front, front, right-front) and steer toward the strongest signal.
+  Each frame they move one step in their (possibly updated) heading
+  direction (wraparound toroidal substrate — particles that exit one
+  side reappear on the opposite side) and deposit trail chemical at
+  the new cell. Positive feedback between deposition and sensing
+  creates the network — paths that get used attract more traffic,
+  unused paths decay (exponential trail decay each frame, the
+  negative feedback that keeps the network alive).
+- Terminal-limit exploitation — the masterpiece contract: the
+  terminal's discrete cell grid IS the slime-mold substrate (a 2D
+  chemical concentration field, one f32 per cell). No sub-pixel
+  motion, no anti-aliasing — the medium matches the algorithm exactly.
+  The trail field is INTERNAL (used for sensor sampling only); the
+  visible vein network emerges from the engine's existing phosphor
+  decay system. Cells that particles visit often accumulate phosphor
+  (existing slow fade), creating the persistent network look — the
+  terminal's "slow refresh" limitation BECOMES the slime mold's
+  chemical memory.
+- Motion DNA — 100% distinct from cascade (`cinematic`), pillars
+  (`monolith`), polar-orbit (`vortex`), water-surface (`ripple`),
+  serpentine chain (`cosmic_dragon`): each particle is a glyph agent
+  in a multi-agent swarm. Particle head brightness is driven by the
+  trail field value at the head position (high trail = bright vein
+  cell; low trail = exploring dim cell), so the network is visible via
+  the heads themselves — no direct trail field iteration needed
+  (keeps draw cost O(N), not O(cells)).
+- Masterpiece engineering / future-proof legacy: the algorithm is
+  parameter-driven (sensor angle, sensor distance, deposit amount,
+  decay rate, turn speed). The same code produces vastly different
+  emergent patterns — branching trees (small sensor angle), spirals
+  (high turn speed), mazes (low decay), rings (high deposit). This
+  file sets a reusable standard for future bio-inspired styles (ant
+  colonies, flocking birds, schooling fish could all reuse the
+  trail-field + sense-decide-move substrate).
+- Architecture: `RainStyle::Physarum` variant added; `cloud/physarum.rs`
+  (~700 LOC, mirrors vortex/lorenz/dragon structure). Scene catalog
+  grows to 22 scenes; `physarum` takes cycle position 7.
+- A/B 10s @ 80x24 dry (no regression on existing styles): cinematic
+  24K fps / 415 dirty / entropy 5.09 / gini 0.66; monolith 92K / 57 /
+  3.29 / 0.90; vortex 113K / 41 / 4.77 / 0.70; ripple 16K / 505 /
+  5.53 / 0.55; cosmic_dragon 199K / 27 / 4.01 / 0.81; physarum 102K /
+  52 / 4.86 / 0.69 — physarum matches the structured-family
+  performance profile (102K fps, 0.014ms p99) with a distinct visual
+  signature (entropy between vortex and ripple, gini between vortex
+  and cinematic — the emergent network distributes particles across
+  the viewport differently than any single-motion style). No
+  regressions on the other five styles.
+
+### feat: NIGHT-research-5 — `cosmic_dragon` (Chinese-mythology serpentine dragon rain, fifth rain style)
+
+A new rain style inspired by Chinese mythology (not Western): each
+dragon is a chain of segments (head + body + tail) following a
+path-generating head via FABRIK distance constraints (snake
+kinematics). The Chinese dragon's signature serpentine silhouette
+emerges from this chain dynamic without any procedural body animation.
+
+- `cosmic_dragon` (scene `cosmic_dragon`, palette `nebula` + charset
+  `zen`): dragons fly freely, sometimes circle, then fly free again
+  — the owner spec "kadang melingkar, terbang bebas kemana aja". The
+  head runs a two-state machine: SOAR (smooth random-walk turn rate
+  from layered sine noise — two frequencies, randomized phase per
+  dragon, produces organic non-repeating free flight) and CIRCLE
+  (constant-magnitude turn rate producing a circular orbit; direction
+  CW/CCW randomized per state entry). State transitions are
+  stochastic: SOAR lasts 4-8s, CIRCLE lasts 3-6s, weighted transitions
+  (after SOAR 50/50 SOAR/CIRCLE; after CIRCLE 70% SOAR / 30% CIRCLE —
+  favoring free flight). Wall bounce reflects velocity and snaps to
+  SOAR (escape any pinning circle).
+- Motion DNA — 100% distinct from cascade (`cinematic`), pillars
+  (`monolith`), polar-orbit (`vortex`), and water-surface (`ripple`):
+  each dragon is a glyph chain carried by a path-following head. The
+  body inherits the head's path through the FABRIK distance constraint
+  (each segment maintains fixed spacing to the previous) — the
+  serpentine body trails the head organically, producing the
+  signature sinuous silhouette of Chinese dragons in flight.
+- Brightness gradient along the body: head = Core (brightest), first
+  third of body = Hot, middle third = Mid, tail third = Ghost. This
+  serpentine fade is the visible signature — the head leads brightly,
+  the tail fades into mist. Matrix-style glyph mutation: segments
+  re-roll glyphs on cell change (mutation tied to motion, parity with
+  vortex/lorenz).
+- Architecture: `RainStyle::Dragon` variant added; `cloud/dragon.rs`
+  (~800 LOC, mirrors vortex/lorenz structure). The chain renderer is
+  agnostic to the head motion model — swapping the head state machine
+  (e.g., for a bee swarm, fish school, or bird flock) is a single
+  function replacement (the body FABRIK solver is unchanged). The
+  pattern sets a reusable standard for future chain-based styles.
+  Scene catalog grows to 21 scenes; `cosmic_dragon` (underscore)
+  takes cycle position 6 — distinct from the existing `cosmic-dragon`
+  (hyphen) milestone scene.
+- Naming distinction: `cosmic-dragon` (hyphen) is the existing
+  milestone scene (Glyph-style tribute to the temporal-prediction
+  breakthrough, palette `cosmos` + charset `binary`). `cosmic_dragon`
+  (underscore) is the new rain STYLE scene (Dragon-style serpentine
+  chain, palette `nebula` + charset `zen`). Different visual
+  concepts, different rain styles, different palettes.
+- A/B 10s @ 80x24 dry (no regression on existing styles): cinematic
+  24K fps / 416 dirty / entropy 5.09 / gini 0.66; monolith 90K / 57
+  / 3.29 / 0.90; vortex 113K / 41 / 4.77 / 0.70; ripple 15K / 503 /
+  5.53 / 0.55; cosmic_dragon 368K / 9.3 / 2.50 / 0.92 — the dragon
+  is the fastest style (368K fps, fewest dirty cells) with a distinct
+  visual signature (lowest entropy, highest gini = most concentrated
+  serpentine chain). No regressions on the other four styles.
+
 ### feat: NIGHT-research-4 merge — `lorenz` strange attractor lands on main; five rain styles
 
 Branch `night-research-4/lorenz-strange-attractor` merged into `main`.

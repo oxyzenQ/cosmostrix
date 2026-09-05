@@ -24,6 +24,7 @@ mod border_touch;
 // `pub(crate) use cloud::{...};` re-export in main.rs.
 pub(crate) mod brightness_factors;
 pub(crate) mod cinematic;
+mod dragon;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
 mod flux;
@@ -38,6 +39,7 @@ mod monolith_helpers;
 mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
+mod physarum;
 mod rain;
 mod rain_at;
 mod rain_post;
@@ -69,11 +71,13 @@ use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
+use dragon::DragonRain;
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
 };
 use lorenz::LorenzRain;
 use monolith::MonolithRain;
+use physarum::PhysarumRain;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
 
@@ -136,6 +140,20 @@ pub struct Cloud {
     /// (lorenz scene). Structured-family member (no droplet pool,
     /// uses spawn_remainder like vortex).
     pub(crate) lorenz_rain: LorenzRain,
+    /// NIGHT-research-5 sixth rain style: Chinese-mythology
+    /// serpentine dragon (cosmic_dragon scene). Structured family
+    /// sibling (no droplet pool, uses spawn_remainder like
+    /// monolith/vortex). The dragon is a chain of segments
+    /// following a path-generating head via FABRIK distance
+    /// constraints — the signature serpentine silhouette.
+    pub(crate) dragon_rain: DragonRain,
+    /// NIGHT-research-6 seventh rain style: bio-inspired slime mold
+    /// (physarum scene). Structured family sibling (no droplet
+    /// pool, uses spawn_remainder like monolith/vortex/dragon).
+    /// Particles follow sense-decide-move-deposit rules on a
+    /// stigmergic trail field — Jeff Jones 2010 model. The
+    /// terminal's discrete cell grid IS the substrate.
+    pub(crate) physarum_rain: PhysarumRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -430,6 +448,8 @@ impl Cloud {
             vortex_rain: VortexRain::new(),
             flux_rain: FluxRain::new(),
             lorenz_rain: LorenzRain::new(),
+            dragon_rain: DragonRain::new(),
+            physarum_rain: PhysarumRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -789,8 +809,11 @@ impl Cloud {
             RainStyle::Vortex => self.vortex_rain.active_count(),
             RainStyle::Flux => self.flux_rain.active_count(),
             RainStyle::Lorenz => self.lorenz_rain.active_count(),
+            RainStyle::Dragon => self.dragon_rain.active_count(),
+            RainStyle::Physarum => self.physarum_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
-            // replacements (flux, lorenz) are structured styles.
+            // replacements (flux, lorenz) and the dragon/physarum
+            // additions are structured styles.
             RainStyle::Glyph => self.droplets.iter().filter(|d| d.is_alive).count(),
         }
     }

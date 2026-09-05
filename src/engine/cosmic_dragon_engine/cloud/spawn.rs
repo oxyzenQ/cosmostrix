@@ -98,6 +98,16 @@ impl Cloud {
             // contract on charset switch (mirrors monolith/vortex/flux).
             self.lorenz_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon — structured-family sibling,
+            // same draw-history clear on charset switch.
+            self.dragon_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Physarum) {
+            // NIGHT-research-6: physarum — structured-family sibling,
+            // same draw-history clear on charset switch.
+            self.physarum_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -169,6 +179,16 @@ impl Cloud {
             // NIGHT-research-4: lorenz — structured-family sibling,
             // same draw-history clear on charset switch.
             self.lorenz_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Dragon) {
+            // NIGHT-research-5: dragon — structured-family sibling,
+            // same draw-history clear on palette change.
+            self.dragon_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Physarum) {
+            // NIGHT-research-6: physarum — structured-family sibling,
+            // same draw-history clear on palette change.
+            self.physarum_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

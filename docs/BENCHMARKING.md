@@ -87,20 +87,29 @@ farther). The dry-run `ansi_bytes_per_second` remains the disclosed
 19-bytes/cell truecolor-based estimate (see its `basis` field); real
 bytes per frame are measured by the wet I/O scenes.
 
-**task-18/19 style signatures:** the two structured flagship styles
-benchmark like this (10s, 120x40, truecolor, 5s discarded warmup):
-`vortex` sits in the structured-performance class with monolith
-(42K fps, ~278 dirty cells/frame, sim 0.013ms) while carrying the
-highest frame entropy of any style (6.307) and the most even
-density (gini 0.468); `flux` (task-19, supersedes the rejected
-ripple style) also sits in the structured class at ~32.8K fps with
-the LOWEST dirty-cell count of any style (~102/frame — fluid
-particles move coherently with the flow, so the diff engine barely
-works), entropy 5.73 and gini 0.626, drift +0.3%. The PIC/FLIP
+**task-18/19 + NIGHT-research-4/5/6 style signatures:** the five
+structured flagship styles benchmark like this (10s, 120x40,
+truecolor, 5s discarded warmup): `vortex` sits in the
+structured-performance class with monolith (42K fps, ~278 dirty
+cells/frame, sim 0.013ms) while carrying the highest frame entropy
+of any style (6.31) and the most even density (gini 0.468); `flux`
+(task-19, supersedes the rejected ripple style) sits in the
+structured class at ~32K fps with the LOWEST dirty-cell count of
+any style (~102/frame — fluid particles move coherently with the
+flow, so the diff engine barely works), entropy 5.73 and gini
+0.627, drift under 0.4%; `lorenz` (NIGHT-research-4) runs at ~52.3K
+fps / ~138 dirty / entropy 5.87 / gini 0.597; `cosmic_dragon`
+(NIGHT-research-5) is the FASTEST style at ~126.8K fps with the
+fewest dirty cells (~75/frame — only three serpentine chains are
+on screen), entropy 5.15 and the most concentrated density of the
+structured flagships (gini 0.731); `physarum` (NIGHT-research-6)
+runs at ~63.3K fps with ~100 dirty cells/frame, entropy 5.74 and
+gini 0.624 — its (entropy, gini) point lands near flux (emergent
+networks spread particles across the viewport much like a fluid)
+while its motion signature remains 100% distinct. The PIC/FLIP
 solver itself costs ~0.006ms/frame (fixed 60Hz stepping, one step
-per bench frame). Each style occupies a distinct point in
-(entropy, gini, color-delta) space — per-style benchmarks are
-directly comparable via `--scene <name> --benchmark`.
+per bench frame). Per-style benchmarks are directly comparable via
+`--scene <name> --benchmark`.
 
 ## Key Metrics
 

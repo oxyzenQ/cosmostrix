@@ -9,16 +9,19 @@ use super::*;
 #[test]
 fn cycle_scene_forward_order() {
     // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18/19 + NIGHT-research-4 style flagships:
-    // vortex -> flux -> lorenz -> classic (both ripple
-    // replacements present; lorenz is a strange-attractor
-    // masterpiece).
+    // the task-18/19 + NIGHT-research-4/5/6 style flagships:
+    // vortex -> flux -> lorenz -> cosmic_dragon -> physarum ->
+    // classic (both ripple replacements present; lorenz is a
+    // strange-attractor masterpiece; physarum is the bio-inspired
+    // slime-mold style).
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
     assert_eq!(cycle_scene("vortex", 1), "flux");
     assert_eq!(cycle_scene("flux", 1), "lorenz");
-    assert_eq!(cycle_scene("lorenz", 1), "classic");
+    assert_eq!(cycle_scene("lorenz", 1), "cosmic_dragon");
+    assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
+    assert_eq!(cycle_scene("physarum", 1), "classic");
     // Tail of the cycle wraps back to the head.
     assert_eq!(cycle_scene("curiosity", 1), "cinematic");
 }
@@ -40,10 +43,14 @@ fn cycle_scene_unknown_returns_default() {
 
 #[test]
 fn cycle_scene_wraps_around() {
-    // Triple forward from matrix: matrix -> vortex -> flux -> lorenz.
+    // Quintuple forward from matrix: matrix -> vortex -> flux ->
+    // lorenz -> cosmic_dragon -> physarum.
     assert_eq!(
-        cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1),
-        "lorenz"
+        cycle_scene(
+            cycle_scene(cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1), 1),
+            1
+        ),
+        "physarum"
     );
     // Double backward from matrix: matrix -> monolith -> cinematic.
     assert_eq!(cycle_scene(cycle_scene("matrix", -1), -1), "cinematic");
@@ -60,9 +67,11 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 21-scene catalog and is a
+    // drift). This pin documents the full 23-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
+    // NIGHT-research-5/6: cosmic_dragon + physarum joined at cycle
+    // positions 7-8; physarum sorts alphabetically after orange-cat.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -71,6 +80,7 @@ fn scene_names_are_present() {
             "cinematic",
             "classic",
             "cosmic-dragon",
+            "cosmic_dragon",
             "cosmos",
             "crystal-dragon",
             "curiosity",
@@ -84,6 +94,7 @@ fn scene_names_are_present() {
             "neon",
             "north-stars",
             "orange-cat",
+            "physarum",
             "signal",
             "storm",
             "vortex",
@@ -127,8 +138,11 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_one_entries() {
-    assert_eq!(SCENES.len(), 21, "catalog must contain 21 built-in scenes");
+fn scene_catalog_has_twenty_three_entries() {
+    // NIGHT-research-5/6: catalog grew from 21 to 23 scenes
+    // (cosmic_dragon + physarum joined at cycle positions 7-8 —
+    // the serpentine-dragon and slime-mold rain styles).
+    assert_eq!(SCENES.len(), 23, "catalog must contain 23 built-in scenes");
 }
 
 #[test]
@@ -192,7 +206,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        21,
+        23,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

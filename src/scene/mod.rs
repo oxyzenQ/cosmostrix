@@ -16,16 +16,19 @@
 //! `low-power`) plus the `cosmic-dragon` milestone scene commemorating the
 //! temporal-prediction breakthrough ( dirty_ratio 18.33% → 0.39%,
 //! FPS 7,843 → 29,773). The interactive cycle (`SCENE_ORDER`) covers all
-//! 21 built-in scenes (owner directive 2026-08-24): the three core
+//! 23 built-in scenes (owner directive 2026-08-24): the three core
 //! atmospheres lead (cinematic, monolith, matrix), followed by the
 //! curated classics, atmosphere scenes, the power-saving utility, and
 //! the milestone/tribute/honor scenes as destinations.
 //!
-//! task-19 + NIGHT-research-4: the rejected `ripple` style
+//! task-19 + NIGHT-research-4/5/6: the rejected `ripple` style
 //! (water-surface rings) was replaced by `flux` (task-19, PIC/FLIP
 //! liquid matrix) at cycle position 5; `lorenz` joined at position 6
 //! — a strange-attractor masterpiece (canonical Lorenz ODE
-//! integrated via RK4).
+//! integrated via RK4); `cosmic_dragon` joined at position 7 — the
+//! Chinese-mythology serpentine dragon (NIGHT-research-5); `physarum`
+//! joined at position 8 — the bio-inspired slime mold (Jeff Jones
+//! 2010 emergent networks, NIGHT-research-6).
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -50,49 +53,60 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 21 built-in scenes (owner directive
+/// Ordered scene cycle — all 23 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
 /// style flagship at 4; task-19 replaced the rejected ripple with
 /// flux at 5; the NIGHT-research-4 merge added lorenz, a
-/// strange-attractor masterpiece, at 6; the rest ordered by
-/// daily-use likelihood so the most-switched scenes are the fewest
-/// keystrokes away: core trio -> style flagships -> classic
-/// siblings -> atmosphere -> power-saving utility -> milestone ->
-/// tribute -> honor scenes).
+/// strange-attractor masterpiece, at 6; NIGHT-research-5 added the
+/// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
+/// physarum style flagship at 8; the rest ordered by daily-use
+/// likelihood so the most-switched scenes are the fewest keystrokes
+/// away: core trio -> style flagships -> classic siblings ->
+/// atmosphere -> power-saving utility -> milestone -> tribute ->
+/// honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
     // Core atmospheres (owner-pinned order).
     "cinematic", // 1
     "monolith",  // 2
     "matrix",    // 3
-    // Task-18/19 + NIGHT-research-4 style flagships — the
-    // polar-orbit, liquid-fluid and strange-attractor styles are
-    // signature differentiators (no competitor terminal has them;
-    // the flux style carries a real incompressible Navier-Stokes
-    // projection in its critical path), so they lead the cycle
-    // right after the core trio.
+    // Task-18/19 + NIGHT-research-4/5/6 style flagships — the
+    // polar-orbit, liquid-fluid, strange-attractor, serpentine-dragon
+    // and slime-mold styles are signature differentiators (no
+    // competitor terminal has them; the flux style carries a real
+    // incompressible Navier-Stokes projection in its critical path),
+    // so they lead the cycle right after the core trio.
     "vortex", // 4
     "flux",   // 5
     "lorenz", // 6
+    // NIGHT-research-5 style flagship — the Chinese-mythology
+    // serpentine dragon (free flight + occasional circling), grouped
+    // with the other style flagships so users cycle through all the
+    // signature motion styles in one stretch.
+    "cosmic_dragon", // 7
+    // NIGHT-research-6 style flagship — the bio-inspired slime mold
+    // (Jeff Jones 2010 emergent network patterns). The masterpiece
+    // rarity (world-first in the terminal matrix rain category).
+    "physarum", // 8
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 7 — original green-on-black
-    "signal",      // 8 — digital transmission
-    "hacker",      // 9 — high-contrast terminal overflow
-    "matrix_film", // 10 — 1999 film homage
+    "classic",     // 9 — original green-on-black
+    "signal",      // 10 — digital transmission
+    "hacker",      // 11 — high-contrast terminal overflow
+    "matrix_film", // 12 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 11
-    "calm",   // 12
-    "cosmos", // 13
-    "neon",   // 14
+    "storm",  // 13
+    "calm",   // 14
+    "cosmos", // 15
+    "neon",   // 16
     // Utility.
-    "low-power", // 15
+    "low-power", // 17
     // Milestone + tribute.
-    "cosmic-dragon", // 16
-    "carbonic",      // 17
+    "cosmic-dragon", // 18
+    "carbonic",      // 19
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 18
-    "orange-cat",     // 19
-    "north-stars",    // 20
-    "curiosity",      // 21
+    "crystal-dragon", // 20
+    "orange-cat",     // 21
+    "north-stars",    // 22
+    "curiosity",      // 23
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -110,7 +124,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // --- Task-18/19 + NIGHT-research-4 style flagships (rain styles 3, 4 and 5) ---
+    // --- Task-18/19 + NIGHT-research-4/5/6 style flagships (rain styles 3 through 7) ---
     SceneInfo {
         name: "vortex",
         description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
@@ -161,6 +175,60 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Lorenz,
+        },
+    },
+    // NIGHT-research-5: cosmic_dragon — Chinese-mythology serpentine
+    // dragon. Distinct from the existing `cosmic-dragon` (hyphen)
+    // milestone scene: cosmic-dragon is a Glyph-style tribute to the
+    // temporal-prediction breakthrough; cosmic_dragon (underscore) is
+    // a new rain STYLE — a structured-family chain renderer with
+    // serpentine motion DNA. The `nebula` palette evokes the cosmic
+    // sky the dragon flies through; `zen` charset keeps the body
+    // clean and Asian-feel. Speed 18 = majestic flight cadence.
+    // Density no longer affects dragon count — owner directive
+    // fixes the count at 3 dragons to match the three dragon engines
+    // in cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
+    // chroma_dragon_engine). The 0.55 value is kept for spawn-timing
+    // parity with the other style flagships. The head state machine
+    // alternates Soar (free flight) and Circle (orbital) per the
+    // owner's "kadang melingkar, terbang bebas kemana aja" spec.
+    SceneInfo {
+        name: "cosmic_dragon",
+        description: "Cosmic Dragon — Chinese-mythology serpentine dragon; free flight with occasional circling, body trails the head in a living chain",
+        config: SceneConfig {
+            color: Some("nebula"),
+            charset: Some("zen"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Dragon,
+        },
+    },
+    // NIGHT-research-6: physarum — bio-inspired slime mold (Jeff
+    // Jones 2010 model). Particles sense / decide / move / deposit
+    // on a stigmergic trail field, producing emergent network
+    // patterns. The terminal's discrete cell grid IS the substrate
+    // — a 1:1 medium match (masterpiece contract: terminal
+    // limitations BECOME the simulation substrate).
+    // The `cosmos` palette + `binary` charset evoke the deep-space
+    // petri dish aesthetic; speed 18 = steady exploration cadence;
+    // density 0.55 = 30-40 particles (enough for visible networks,
+    // sparse enough for the trail decay to keep patterns alive).
+    // No other terminal matrix rain project ships physarum — this
+    // is the project's first bio-inspired renderer, the rarest
+    // style engineering in the category.
+    SceneInfo {
+        name: "physarum",
+        description: "Physarum slime mold — bio-inspired emergent network patterns; particles sense / decide / move / deposit on a stigmergic trail field (Jeff Jones 2010 model)",
+        config: SceneConfig {
+            color: Some("cosmos"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Physarum,
         },
     },
     SceneInfo {
