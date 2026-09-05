@@ -492,9 +492,10 @@ schedule is non-empty.
 
 (NIGHT-research-5: the count grew from seven to eight when the
 scene-custom `rain` field landed — `rain_style` is now configurable
-per-block via the canonical label glyph/monolith/vortex/ripple, so
-the ambient scheduler re-applies the block's declared rain style
-just like every other scene-family dimension.)
+per-block via the canonical label (glyph, monolith, vortex, flux,
+lorenz, dragon, physarum), so the ambient scheduler re-applies the
+block's declared rain style just like every other scene-family
+dimension.)
 
 This is by design, not a bug. The ambient scene is the active
 authority for ambient-owned fields (owner contract, S-master-LOGIC-3:

@@ -114,10 +114,10 @@ impl super::HudState {
                 (Color::DarkCyan, String::new()), // 17: ctun
                 (Color::DarkCyan, String::new()), // 18: mnst
                 // ── Rain style (row 19) — NIGHT-hunter-9 ──
-                // rain: active rain style (glyph/monolith/vortex/ripple).
-                // The owner-mandated position is above `dcel:` so the
-                // user can read the active motion DNA before the
-                // cell-efficiency metrics.
+                // rain: active rain style (glyph, monolith, vortex,
+                // flux, lorenz, dragon, physarum). The owner-mandated
+                // position is above `dcel:` so the user can read the
+                // active motion DNA before the cell-efficiency metrics.
                 (Color::DarkCyan, String::new()), // 19: rain
                 // ── Cell efficiency (rows 20-21) — Z-master-1X round 5 ──
                 // dcel: dirty cell ratio % (rolling avg over 60 frames).
