@@ -193,23 +193,32 @@ impl super::Cloud {
         // unfrozen snap.
         //
         // §8.4 preserved: interpolate from `resume_blend_start` → 1.0
-        // rather than always 0 → 1.0 (lets aborted-decel resumes start
-        // at e.g. 0.4 — the abort path snaps resume_blend to 1.0 in
-        // toggle_pause() BRANCH 1, but the resume_blend_start field is
-        // still consulted here for forward-compat with hybrid resume
-        // paths that may set a partial-start value).
+        // rather than always 0 → 1.0.
         //
-        // The 0.05 floor is kept as a safety net for the very first
-        // frame (exp decay has no flat-start window — it rises
-        // immediately — but the floor guards against any future path
-        // that leaves resume_blend_start at 0 with resume_start just
-        // set, before the easing branch updates it).
+        // NIGHT-hunter-8 (owner: "no more jump" on 'p'): two smoothness
+        // defects fixed.
+        // 1. The 0.05 floor is REMOVED. It made the first post-resume
+        //    frame jump from 0% (frozen) to 5% speed — a hard
+        //    discontinuity, and for frames while approach < 0.05 it
+        //    CLAMPED the ramp flat. The exp-in curve rises immediately
+        //    on its own (at 60fps the first frame reaches ~1.4%), so the
+        //    floor guarded nothing reachable.
+        // 2. Abort-resumes (BRANCH 1: 'p' pressed mid-decel) start from
+        //    the decel's blend via resume_blend_start > 0 — they use the
+        //    FAST abort rate (RESUME_ABORT_EASE_DECAY_RATE) so the
+        //    cancel recovers in ~0.5s without either the old slow-drag
+        //    ("rain stuck") or the hard snap to 1.0 (the "little jump").
         if let Some(rs) = self.resume_start {
             let t = now.saturating_duration_since(rs).as_secs_f32();
             // exp-IN: 1 - exp(-k*t). Rises from 0 (t=0) toward 1 asymptotically.
-            let approach = 1.0 - (-RESUME_EASE_DECAY_RATE * t).exp();
+            let k = if self.resume_blend_start > 0.0 {
+                RESUME_ABORT_EASE_DECAY_RATE
+            } else {
+                RESUME_EASE_DECAY_RATE
+            };
+            let approach = 1.0 - (-k * t).exp();
             let start = self.resume_blend_start;
-            self.resume_blend = (start + (1.0 - start) * approach).max(0.05);
+            self.resume_blend = start + (1.0 - start) * approach;
             if self.resume_blend >= RESUME_EASE_SETTLE_FRAC {
                 // Settled — snap to full speed (avoids exp's asymptotic tail).
                 self.resume_blend = 1.0;

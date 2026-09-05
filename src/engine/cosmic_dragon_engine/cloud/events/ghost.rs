@@ -81,6 +81,13 @@ impl CinematicEvent for GhostEvent {
         ctx.now.saturating_duration_since(self.spawn_time) >= self.duration
     }
 
+    // NIGHT-hunter-8: pause-duration shift (see the trait method's doc).
+    // Without it, a ghost mid-life at resume aged by the full pause and
+    // expired in a single frame — pop-out instead of fade-out.
+    fn shift_in_time(&mut self, delta: std::time::Duration) {
+        self.spawn_time += delta;
+    }
+
     fn render(&self, ctx: &EventCtx, frame: &mut Frame) {
         let elapsed = ctx
             .now

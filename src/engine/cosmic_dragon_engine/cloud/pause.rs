@@ -5,8 +5,9 @@
 //! file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
 //! Owns `Cloud::toggle_pause()` — the pause/resume state machine with
-//! exponential decay easing (BRANCH 1: abort decel → resume, BRANCH 2:
-//! pause → start decel, BRANCH 3: resume → start accel).
+//! exponential decay easing (BRANCH 1: abort decel → FAST smooth resume
+//! ramp from the current blend — NIGHT-hunter-8, BRANCH 2: pause →
+//! start decel, BRANCH 3: resume → start accel).
 //!
 //! Implemented as a separate `impl Cloud` block.
 
@@ -21,20 +22,30 @@ impl super::Cloud {
         //
         // When the user presses 'p' during deceleration, they're
         // cancelling the pause. This typically happens during rapid
-        // p-taps. The old code captured the current pause_blend as
-        // resume_blend_start (which could be near 0 after significant
-        // deceleration), causing a slow ramp from ~0→1.0 that made
-        // the rain look "stuck" for seconds (owner-reported bug).
+        // p-taps.
         //
-        // Fix: snap resume_blend to 1.0 (full speed) immediately.
-        // The deceleration was aborted — there's no visual discontinuity
-        // because pause_blend was still close to 1.0 for rapid taps.
+        // NIGHT-hunter-8 (owner report: "little jump" on rapid p-taps):
+        // the old fix captured the current pause_blend as
+        // resume_blend_start (near 0 after significant deceleration)
+        // and the slow wake-up ramp made the rain look "stuck" for
+        // seconds; the later fix snapped resume_blend to 1.0, which
+        // traded the stuck bug for a hard velocity jump — a tap at
+        // t≈1s into the decel snapped the rain from ~30% to 100% speed
+        // in a single frame.
+        //
+        // The smooth fix: start a resume ramp FROM the current decel
+        // blend (§8.4 interpolation already supports a non-zero start)
+        // with the FAST abort rate (RESUME_ABORT_EASE_DECAY_RATE — see
+        // its doc for the derivation). The blend is continuous with the
+        // decel value at the abort instant, the recovery completes in
+        // ~0.5s, and rain_at's rate branch keys off
+        // resume_blend_start > 0 to pick the fast constant.
         if self.pause_start.is_some() {
             self.pause_start = None;
             self.pause = false;
             self.pause_time = None;
-            self.resume_blend = 1.0;
-            self.resume_start = None;
+            self.resume_blend_start = self.resume_blend.max(0.05);
+            self.resume_start = Some(Instant::now());
             return true;
         }
         // BRANCH 2: fully paused → unpause. Shift every last_*_time
@@ -104,6 +115,21 @@ impl super::Cloud {
                 if let Some(ref mut ge) = self.glyph_entry_time {
                     *ge += elapsed;
                 }
+                // NIGHT-hunter-8 (pause/resume smoothness audit): the
+                // wind-gust state machine and the cinematic event clocks
+                // were NOT in the §8.5 shift family. On resume, gust's
+                // first tick compared now - phase_start against a
+                // phase_duration that the pause had already exceeded —
+                // one transition fired per tick, so a gust mid-Attack
+                // (multiplier 0.6) jumped straight to its Hold PEAK (up
+                // to 1.8x) in a single frame, a visible spawn surge; a
+                // gust mid-Decay snapped to idle 1.0. Ghost events aged
+                // by the full pause duration and expired instantly — a
+                // pop-out instead of their fade-out. Both now shift by
+                // the pause duration, continuing exactly where they
+                // froze.
+                self.gust.shift_in_time(elapsed);
+                self.event_manager.shift_in_time(elapsed);
                 // v30 fix: shift ALL active flash wave births (was single slot).
                 for w in &mut self.flash_waves {
                     if w.active {

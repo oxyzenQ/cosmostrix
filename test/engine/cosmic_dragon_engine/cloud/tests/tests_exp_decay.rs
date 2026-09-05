@@ -61,9 +61,11 @@ fn pause_decel_exp_decay_settles_at_documented_threshold() {
     );
 }
 
-/// Verify the resume accel exp decay math: at t=0, blend = 0.05 (floor);
-/// at t=SETTLE (~3.3s for k=0.9), blend >= 95% → snap to full speed.
-/// This locks the asymmetric k_resume=0.9 / settle 95% contract.
+/// Verify the resume accel exp decay math: at t=0, blend starts at ~0
+/// (NO floor — NIGHT-hunter-8 removed the 0.05 first-frame jump, the
+/// rain eases from frozen continuously); at t=SETTLE (~3.3s for k=0.9),
+/// blend >= 95% → snap to full speed. This locks the asymmetric
+/// k_resume=0.9 / settle 95% contract.
 #[test]
 fn resume_accel_exp_decay_settles_at_documented_threshold() {
     let mut cloud = make_cloud();
@@ -80,11 +82,14 @@ fn resume_accel_exp_decay_settles_at_documented_threshold() {
         "blend starts at 0 right after toggle"
     );
 
-    // At t=0 (first frame), approach = 0, blend = max(0, 0.05) = 0.05 (floor).
+    // At t=0 (first frame), approach = 0, blend = 0.0 — NO floor jump
+    // (NIGHT-hunter-8: the old 0.05 floor made the first frame jump
+    // from frozen 0% to 5% speed in one step).
     cloud.rain_at(&mut frame, now);
     assert!(
-        cloud.resume_blend >= 0.05,
-        "first-frame blend must hit the 0.05 floor (approach=0 + floor)"
+        cloud.resume_blend < 0.02,
+        "first-frame blend must start near zero (got {}) — no 0.05 floor jump",
+        cloud.resume_blend
     );
     assert!(
         cloud.resume_start.is_some(),
@@ -111,6 +116,68 @@ fn resume_accel_exp_decay_settles_at_documented_threshold() {
     assert!(
         cloud.resume_start.is_none(),
         "resume_start cleared after settle snap"
+    );
+}
+
+/// NIGHT-hunter-8: aborting a mid-deceleration pause (rapid p-tap) must
+/// ramp smoothly from the CURRENT decel blend with the FAST abort rate —
+/// not snap to 1.0 (the "little jump" the owner reported) and not drag
+/// through the slow wake-up ramp (the old "rain stuck" bug).
+#[test]
+fn abort_decel_ramps_smoothly_from_current_blend_with_fast_rate() {
+    let mut cloud = make_cloud();
+    let mut frame = Frame::new(20, 10, cloud.palette.bg);
+    let now = Instant::now();
+
+    // Start deceleration, advance to t=1s (blend = exp(-1.2) ≈ 0.301).
+    cloud.toggle_pause(); // BRANCH 3
+    cloud.rain_at(&mut frame, now + Duration::from_secs(1));
+    let blend_at_abort = cloud.resume_blend;
+    assert!(
+        (blend_at_abort - 0.301).abs() < 0.01,
+        "setup: decel blend at t=1s should be ~0.30, got {blend_at_abort}"
+    );
+
+    // Abort: 'p' again at t=1s.
+    cloud.toggle_pause(); // BRANCH 1
+    assert!(
+        cloud.resume_start.is_some(),
+        "BRANCH 1 must start a resume ramp (NIGHT-hunter-8 — was a hard snap)"
+    );
+    assert!(
+        cloud.pause_start.is_none(),
+        "BRANCH 1 must clear pause_start"
+    );
+    assert_eq!(
+        cloud.resume_blend, blend_at_abort,
+        "BRANCH 1 must preserve the current blend (no snap — continuity at the abort instant)"
+    );
+    assert_eq!(
+        cloud.resume_blend_start, blend_at_abort,
+        "the ramp must interpolate from the decel's blend value"
+    );
+
+    // First frame after abort: blend barely moves (continuous, no jump).
+    let t_abort = cloud.resume_start.unwrap();
+    cloud.rain_at(&mut frame, t_abort + Duration::from_millis(16));
+    assert!(
+        (cloud.resume_blend - blend_at_abort).abs() < 0.08,
+        "first post-abort frame must move gradually (got {} from {})",
+        cloud.resume_blend,
+        blend_at_abort
+    );
+
+    // Fast rate: 95% within ~0.6s (the slow 0.9 rate would need ~2.8s
+    // from this start — the old stuck-feel).
+    cloud.rain_at(&mut frame, t_abort + Duration::from_millis(600));
+    assert!(
+        cloud.resume_blend >= 0.95 || cloud.resume_start.is_none(),
+        "fast abort rate must recover ~95% within 0.6s (got {})",
+        cloud.resume_blend
+    );
+    assert_eq!(
+        cloud.resume_blend, 1.0,
+        "settled abort ramp must snap cleanly to full speed"
     );
 }
 
@@ -181,15 +248,17 @@ fn pause_start_and_resume_start_never_coexist_across_toggle_branches() {
         "BRANCH 3 must clear resume_start"
     );
 
-    // BRANCH 1: abort decel → both cleared (snap to full speed).
+    // BRANCH 1: abort decel → pause_start cleared, a FAST resume ramp
+    // takes over (NIGHT-hunter-8 — the hard snap to 1.0 was the owner's
+    // "little jump"; the ramp preserves blend continuity).
     cloud.toggle_pause();
     assert!(
         cloud.pause_start.is_none(),
         "BRANCH 1 must clear pause_start"
     );
     assert!(
-        cloud.resume_start.is_none(),
-        "BRANCH 1 must NOT start a resume ramp (instant snap to 1.0)"
+        cloud.resume_start.is_some(),
+        "BRANCH 1 must start the fast abort-resume ramp (NIGHT-hunter-8)"
     );
 
     // BRANCH 2: fully paused → unpause → resume_start set, pause_start cleared.

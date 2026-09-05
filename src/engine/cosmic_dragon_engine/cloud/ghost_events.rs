@@ -79,6 +79,17 @@ pub(crate) trait CinematicEvent: Send {
     fn is_pre_rain(&self) -> bool {
         false
     }
+
+    /// NIGHT-hunter-8: shift the event's internal clock forward by a
+    /// pause duration so a resume does not instantly age it.
+    ///
+    /// Events whose age derives from `ctx.now - spawn_time` (ghosts)
+    /// implement this; events without wall-clock state keep the no-op
+    /// default. Called from `toggle_pause()` BRANCH 2 for every active
+    /// event — without the shift, a ghost mid-life at resume aged by the
+    /// full pause duration, exceeded its lifetime, and vanished in one
+    /// frame (a pop-out instead of the intended fade-out).
+    fn shift_in_time(&mut self, _delta: std::time::Duration) {}
 }
 
 // ── Event Manager ─────────────────────────────────────────────────────────
@@ -138,6 +149,16 @@ impl GhostEventScheduler {
     /// Enable atmospheric events (called when entering interactive mode).
     pub(crate) fn enable_events(&mut self) {
         self.events_enabled = true;
+    }
+
+    /// NIGHT-hunter-8: shift every active event's clock forward by the
+    /// pause duration (see `CinematicEvent::shift_in_time`). Called from
+    /// `toggle_pause()` BRANCH 2 alongside the other §8.5 timestamp
+    /// shifts. O(active events) — typically 0-2.
+    pub(crate) fn shift_in_time(&mut self, delta: std::time::Duration) {
+        for event in &mut self.events {
+            event.shift_in_time(delta);
+        }
     }
 
     // ── Trigger Evaluation ────────────────────────────────────────────────

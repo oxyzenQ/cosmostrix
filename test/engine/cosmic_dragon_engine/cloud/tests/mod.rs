@@ -714,10 +714,12 @@ fn is_paused_or_decelerating_catches_both_states() {
 }
 
 #[test]
-fn abort_deceleration_snaps_resume_blend_to_full_speed() {
+fn abort_deceleration_starts_smooth_fast_resume_ramp() {
     // Rapid p-tap scenario: start decel, immediately abort.
-    // Resume_blend must be 1.0 (full speed), not a low value
-    // that causes the rain to appear "stuck" for seconds.
+    // NIGHT-hunter-8: the abort preserves the current blend (no snap —
+    // the owner's "little jump") and starts a FAST resume ramp that
+    // recovers full speed in ~0.5s, so the rain never looks "stuck"
+    // (the old slow-ramp bug the snap was introduced to fix).
     let mut cloud = make_cloud();
     cloud.resume_blend = 1.0;
 
@@ -735,12 +737,21 @@ fn abort_deceleration_snaps_resume_blend_to_full_speed() {
         "pause_start must be cleared after abort"
     );
     assert!(!cloud.pause, "cloud must not be paused after abort");
-    assert_eq!(
-        cloud.resume_blend, 1.0,
-        "resume_blend must snap to 1.0 on decel abort, not ramp from a low value"
+    // Blend continuity at the abort instant (decel barely moved for a
+    // rapid tap, so the blend stays ~1.0 — but it is PRESERVED, not
+    // snapped).
+    assert!(
+        cloud.resume_blend > 0.9,
+        "abort must preserve the current blend (got {}), not reset it",
+        cloud.resume_blend
     );
     assert!(
-        cloud.resume_start.is_none(),
-        "no resume ramp needed when aborting deceleration"
+        cloud.resume_start.is_some(),
+        "BRANCH 1 must start the fast abort-resume ramp (NIGHT-hunter-8)"
+    );
+    assert!(
+        cloud.resume_blend_start > 0.0,
+        "the ramp must interpolate from the preserved blend"
     );
 }
+mod tests_pause_smooth_hunt8;

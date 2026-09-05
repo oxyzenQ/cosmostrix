@@ -213,6 +213,21 @@ pub(crate) const PAUSE_EASE_DECAY_RATE: f32 = 1.2;
 /// feel where the resume ramp is perceptibly longer than the pause ramp.
 pub(crate) const RESUME_EASE_DECAY_RATE: f32 = 0.9;
 
+/// Per-second decay rate for the ABORT-resume ramp (NIGHT-hunter-8).
+///
+/// When the user presses `p` mid-deceleration (cancelling the pause),
+/// the resume ramp starts from the CURRENT decel blend, not from 0.
+/// The slow wake-up rate (0.9) would drag that recovery out to ~3s —
+/// the old "rain looks stuck" bug — while the pre-NIGHT-hunter-8 code
+/// snapped to 1.0 instantly, a visible velocity jump (the owner's
+/// "little jump" on rapid p-taps). The fast abort rate recovers 95%
+/// within ~0.5-0.6s from ANY starting blend: smooth enough to read as
+/// inertia recovery, fast enough to feel like a cancel.
+///
+/// From blend 0.30: reach 0.95 at t = -ln(1 - 0.65/0.70)/5.0 ≈ 0.52s.
+/// From blend 0.05: reach 0.95 at t = -ln(1 - 0.90/0.95)/5.0 ≈ 0.59s.
+pub(crate) const RESUME_ABORT_EASE_DECAY_RATE: f32 = 5.0;
+
 /// Settle threshold for pause decel — when `pause_blend` drops below
 /// this, snap to fully paused. 5% matches the README's "~3s coast-down"
 /// promise and is well below the perceptual motion floor.

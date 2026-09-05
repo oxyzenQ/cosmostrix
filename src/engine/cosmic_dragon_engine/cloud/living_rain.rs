@@ -153,6 +153,26 @@ impl GustState {
         self.multiplier = 1.0;
     }
 
+    /// NIGHT-hunter-8: shift the phase clock forward by a pause duration.
+    ///
+    /// `phase_start` is wall-clock, and the gust does not tick while the
+    /// rain is fully paused (`rain_at` early-returns). Without this
+    /// shift, the first post-resume tick compared `now - phase_start`
+    /// (which includes the pause) against `phase_duration` — the phase
+    /// had "completed" during the pause, so ONE transition fired and the
+    /// multiplier jumped to the next phase's pinned value: a gust
+    /// mid-Attack (interpolating toward its peak) landed directly ON the
+    /// Hold peak (up to `GUST_PEAK_MAX`) in a single frame — a visible
+    /// spawn-scale surge; a gust mid-Decay snapped back to idle 1.0.
+    /// Shifting keeps `now - phase_start` identical to its value at the
+    /// pause settle, so the gust resumes exactly where it froze. This
+    /// matches the §8.5 timestamp-shift family used for every other
+    /// wall-clock subsystem (entropy drift, crystal dragon sensor,
+    /// storytelling).
+    pub(crate) fn shift_in_time(&mut self, delta: Duration) {
+        self.phase_start += delta;
+    }
+
     // ── Linear interpolation within the current phase ──
 
     fn interpolate_within_phase(&self, elapsed: Duration) -> f32 {
