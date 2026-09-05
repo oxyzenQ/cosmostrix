@@ -346,13 +346,13 @@ impl Cloud {
         // Clear the OLD style's persistent render state.
         match self.rain_style {
             RainStyle::Monolith => self.monolith_rain.clear_draw_history(),
-            // Task-18 hygiene: the new structured/surface styles take a
+            // Task-18/19 hygiene: the new structured styles take a
             // FULL reset on exit (not just draw history) so no dormant
             // active-state survives for future style-agnostic readers.
             // Monolith keeps its shipped clear-draw-history-only exit
             // (dormant streams are re-reset on re-entry — LTS parity).
             RainStyle::Vortex => self.vortex_rain.reset(self.cols),
-            RainStyle::Ripple => self.ripple_surface.reset(),
+            RainStyle::Flux => self.flux_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -369,15 +369,17 @@ impl Cloud {
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;
             }
-            RainStyle::Glyph | RainStyle::Ripple => {
+            RainStyle::Flux => {
+                self.flux_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Glyph => {
                 // Re-allocate glyph droplet pool and warm-start so the
                 // first post-switch frame has visible rain immediately,
                 // preventing the blank-screen bug on monolith→glyph switch.
                 self.ensure_glyph_pool_and_warm_start();
-                if matches!(new_style, RainStyle::Ripple) {
-                    // Fresh surface: no rings/splashes from the old scene.
-                    self.ripple_surface.reset();
-                }
             }
         }
         self.reset_phosphor_state();

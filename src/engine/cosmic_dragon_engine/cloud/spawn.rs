@@ -91,6 +91,9 @@ impl Cloud {
         } else if matches!(self.rain_style, RainStyle::Vortex) {
             self.vortex_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Flux) {
+            self.flux_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -155,6 +158,9 @@ impl Cloud {
             self.reset_phosphor_state();
         } else if matches!(self.rain_style, RainStyle::Vortex) {
             self.vortex_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Flux) {
+            self.flux_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

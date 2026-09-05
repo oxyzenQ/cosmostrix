@@ -87,16 +87,20 @@ farther). The dry-run `ansi_bytes_per_second` remains the disclosed
 19-bytes/cell truecolor-based estimate (see its `basis` field); real
 bytes per frame are measured by the wet I/O scenes.
 
-**task-18 style signatures:** the two new rain styles benchmark like
-this (10s, 120x40, truecolor, 5s discarded warmup): `vortex` sits in
-the structured-performance class with monolith (42K fps, ~278 dirty
-cells/frame, sim 0.013ms) while carrying the highest frame entropy of
-any style (6.307) and the most even density (gini 0.468); `ripple`
-sits in the droplet class with cinematic (~5.1K fps, ~1,248 dirty
-cells — the surface system adds ~280 cells on top of the cascade) with
-entropy 6.211 and gini 0.529. Each style occupies a distinct point in
-(entropy, gini, color-delta) space — per-style benchmarks are directly
-comparable via `--scene <name> --benchmark`.
+**task-18/19 style signatures:** the two structured flagship styles
+benchmark like this (10s, 120x40, truecolor, 5s discarded warmup):
+`vortex` sits in the structured-performance class with monolith
+(42K fps, ~278 dirty cells/frame, sim 0.013ms) while carrying the
+highest frame entropy of any style (6.307) and the most even
+density (gini 0.468); `flux` (task-19, supersedes the rejected
+ripple style) also sits in the structured class at ~32.8K fps with
+the LOWEST dirty-cell count of any style (~102/frame — fluid
+particles move coherently with the flow, so the diff engine barely
+works), entropy 5.73 and gini 0.626, drift +0.3%. The PIC/FLIP
+solver itself costs ~0.006ms/frame (fixed 60Hz stepping, one step
+per bench frame). Each style occupies a distinct point in
+(entropy, gini, color-delta) space — per-style benchmarks are
+directly comparable via `--scene <name> --benchmark`.
 
 ## Key Metrics
 

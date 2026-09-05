@@ -254,9 +254,9 @@ impl Cloud {
         // spine phosphor cleanup via `clear_spine_phosphor()` (called from
         // rain.rs:519-529), so this Pass 2 protection is structurally
         // unnecessary for that scene family.
-        // Task-18: the droplet-family styles (Glyph cascade + Ripple
-        // surface rain) own the trail-protection contract; the structured
-        // styles (Monolith, Vortex) keep their own dedicated cleanup.
+        // Task-19: the droplet-family style (Glyph cascade) owns the
+        // trail-protection contract; the structured styles (Monolith,
+        // Vortex, Flux) keep their own dedicated cleanup.
         if self.rain_style.is_droplet_family() {
             for d in &self.droplets {
                 if d.bound_col == u16::MAX || !d.is_alive {

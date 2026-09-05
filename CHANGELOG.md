@@ -9,6 +9,82 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: v100.0.0-nightly.1 — rain style 4 replacement: `flux` liquid matrix (PIC/FLIP incompressible fluid) supersedes the owner-rejected `ripple` style (task-19, owner-approved 2026-09-05)
+
+The task-18 `ripple` water-surface style was rejected by the owner on
+visual review (commit 0dfdc24): "not unique and masterpiece". Task-19
+replaces it with the rarest motion DNA available: a real fluid solver.
+
+Rarity verification (2026-09-05, web-audited): the intersection of
+"matrix rain" and "real incompressible Navier-Stokes solver" is empty
+across the entire ecosystem — cmatrix, unimatrix, tmatrix, the Python/
+WebGL/bash remakes and the screensaver ports are all plain column
+cascades, and the existing fluid-simulation projects (Unity, GPU
+shaders, tutorial code) are standalone. No matrix rain renderer has
+ever shipped a CFD projection in its render path. cosmostrix is first.
+
+- `flux` (scene `flux`, palette `ocean` + charset `minimal`): the code
+  rain falls through a living incompressible liquid. Every simulated
+  tick runs a full PIC/FLIP particle-grid hybrid pipeline — the
+  algorithm family film-VFX fluid solvers use (PIC 1957 / FLIP 1986,
+  Zhu & Bridson 2005 lineage), shrunk to terminal scale:
+  1. P2G: each glyph is a fluid particle splatting its momentum
+     bilinearly onto a half-resolution screen-space velocity grid.
+  2. Gravity on weight-carrying nodes (the fluid exists where the
+     glyphs are — calm regions stay calm).
+  3. Pressure projection: divergence, Jacobi Poisson solve
+     (4 iterations, Neumann boundaries), gradient subtraction — the
+     incompressibility constraint of the Navier-Stokes equations.
+     Falling jets push neighboring fluid aside, shear layers curl
+     into eddies: emergent Kelvin-Helmholtz structure, never scripted.
+  4. G2P: the FLIP/PIC hybrid readback (0.9 FLIP preserves particle
+     energy and detail, 0.1 PIC damps numerical instability).
+- Visual identity: brightness maps particle speed (Doppler-style flow
+  visualization — hot jets, dim eddies, ghost drift); comet trails
+  (3-cell); matrix-style glyph mutation on cell crossing. The minimal
+  charset renders the whole scene as falling nabla ∇ glyphs — the
+  gradient operator the projection step literally computes. Every
+  style occupies a distinct point in visual-metric space (below).
+- Determinism and rate independence: fixed-step accumulator
+  (FLUX_SIM_DT = 1/60 s, capped 2 steps/frame, backlog dropped on
+  slow terminals — anti-teleport). The benchmark's uniform stepping
+  integrates exactly one solver step per frame; 144 Hz terminals run
+  identical 60 Hz physics; the resume easing slows the accumulator
+  growth so an unpause wakes the liquid in cinematic slow motion.
+- Architecture: `RainStyle::Flux` replaces `RainStyle::Ripple`
+  (structured family — droplet family is now Glyph-only; spawn
+  remainder covers Monolith | Vortex | Flux). New
+  `cloud/flux_field.rs` (361 LOC — the reusable solver platform:
+  P2G, projection, G2P sampling, wall/open boundaries, zero per-frame
+  allocation via ping-pong pressure buffers) and `cloud/flux.rs`
+  (669 LOC — mote pool, spawn accumulator, fixed-step advance, draw plus
+  monolith three-pass diff cleanup). `cloud/ripple.rs` (528 LOC) and
+  its surface hooks in `rain_at`/`spawn_logic` are removed; the
+  `RIPPLE_*` style constants are replaced by the `FLUX_*` set in
+  style_rain.rs.
+  Scene catalog stays 20 scenes (`x`-cycle: cinematic -> monolith ->
+  matrix -> vortex -> flux -> classic -> ...).
+- A/B 10s @ 120x40 truecolor (baseline 0dfdc24 vs after): cinematic,
+  monolith and vortex all noise-equivalent (entropy/gini identical to
+  2-3 decimals, fps within run-range). Flux signature: 32,758 fps
+  (structured class, 6.5x the rejected ripple style's 5,080), 102
+  dirty cells/frame — the LOWEST of any style (fluid particles move
+  coherently with the flow, so the diff engine barely works), entropy
+  5.73, gini 0.626, drift +0.30%. Solver cost: ~0.006 ms/frame.
+- +20 contracts (tests_flux, replacing tests_ripple's 8): scene
+  resolution + cycle order, spawn density ramp to steady state,
+  fixed-step determinism (4 steps / 5 frames; 500 ms stall caps at 2
+  and drops backlog), gravity speed-key scaling, net-sinking majority,
+  bottom-exit recycling, drawn-cell bounds, frame-stream liveness,
+  style transitions both ways, active-count routing, solver numerics
+  (P2G splat identity, momentum averaging, vacuum calm, gravity
+  impulse survival, divergence halved by projection — THE
+  incompressibility contract, wall no-through-flow, out-of-range
+  clamping, non-finite splat rejection), plus compile-time pins.
+- Gates: cargo fmt clean; clippy -D warnings clean; 2,323 tests
+  passed; build.sh check-all EXIT 0; gate-keepers all-installed
+  checks green.
+
 ### feat: v100.0.0-nightly.1 — rain styles 3 + 4: `vortex` (polar-orbit galaxy drain) and `ripple` (water-surface rain) (task-18, owner-approved 2026-09-05)
 
 Third and fourth rain styles — different motion DNA from both existing

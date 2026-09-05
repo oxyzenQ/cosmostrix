@@ -55,11 +55,13 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     "cinematic", // 1
     "monolith",  // 2
     "matrix",    // 3
-    // Task-18 style flagships — the polar-orbit and water-surface
+    // Task-18/19 style flagships — the polar-orbit and liquid-fluid
     // styles are signature differentiators (no competitor terminal
-    // has them), so they lead the cycle right after the core trio.
+    // has them; the flux style carries a real incompressible
+    // Navier-Stokes projection in its critical path), so they lead
+    // the cycle right after the core trio.
     "vortex", // 4
-    "ripple", // 5
+    "flux",   // 5
     // Classic siblings — the traditional looks users switch to often.
     "classic",     // 6 — original green-on-black
     "signal",      // 7 — digital transmission
@@ -97,7 +99,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Glyph,
         },
     },
-    // --- Task-18 style flagships (rain styles 3 + 4) ---
+    // --- Task-18/19 style flagships (rain styles 3 + 4) ---
     SceneInfo {
         name: "vortex",
         description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
@@ -112,16 +114,16 @@ pub(crate) const SCENES: &[SceneInfo] = &[
         },
     },
     SceneInfo {
-        name: "ripple",
-        description: "Water-surface rain — glyphs fall onto a shimmering plane, opening ripple rings and splashes",
+        name: "flux",
+        description: "Liquid matrix — code rain falling through a living incompressible fluid; jets shear into emergent eddies",
         config: SceneConfig {
             color: Some("ocean"),
-            charset: Some("matrix"),
+            charset: Some("minimal"),
             fps: Some(60.0),
-            speed: Some(20.0),
+            speed: Some(18.0),
             density: Some(0.70),
             glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Ripple,
+            rain_style: RainStyle::Flux,
         },
     },
     SceneInfo {

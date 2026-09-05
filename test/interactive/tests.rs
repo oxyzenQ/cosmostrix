@@ -394,10 +394,10 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        // 20-scene cycle (owner directive 2026-08-24 + task-18 flagships):
-        // from monolith the forward order is matrix -> vortex -> ripple.
-        assert_eq!(visited, ["matrix", "vortex", "ripple"]);
-        assert_eq!(cloud.active_scene(), "ripple");
+        // 20-scene cycle (owner directive 2026-08-24 + task-18/19 flagships):
+        // from monolith the forward order is matrix -> vortex -> flux.
+        assert_eq!(visited, ["matrix", "vortex", "flux"]);
+        assert_eq!(cloud.active_scene(), "flux");
     }
 
     #[test]
