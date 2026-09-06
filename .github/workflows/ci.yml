@@ -817,37 +817,6 @@ jobs:
       - name: cargo deny
         run: cargo deny check all
 
-  project_lint:
-    name: Cosmic Dragon Guard - Project lint (codespell + ruff)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-
-      - name: Install lint tools
-        # Unpinned on purpose (owner policy 2026-08-30): CI-installed deps
-        # resolve their latest upstream release at run time - zero hardcoded
-        # dep versions in .github/*, minimal maintenance. When a new ruff
-        # or codespell release ships new default rules, fix the findings in
-        # the tree (or extend the inline ignore lists) in the same window.
-        # See docs/workflow/ABOUT_CI.md (Dependency version policy).
-        run: |
-          python3 -m pip install --user codespell ruff
-
-      - name: Run ruff check (Python lint)
-        run: ruff check scripts/*.py
-
-      - name: Run ruff format --check (Python format)
-        run: ruff format --check scripts/*.py
-
-      - name: Run codespell
-        run: |
-          if [ -f .codespellrc ]; then
-            codespell --config .codespellrc .
-          else
-            codespell --skip './.git,./target,./assets,./dist,./node_modules' .
-          fi
-
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true

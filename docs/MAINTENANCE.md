@@ -38,7 +38,6 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 |----------|------|---------|---------|
 | CI | `ci.yml` | push + PR (src/**) | Build + test + clippy + fmt + deny + MSRV |
 | Cosmic Dragon Guard - Gate-keepers | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: bash -n + shellcheck + shfmt (all installed in CI, none skipped), yamllint, actionlint, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| Workflow CI | `workflow-ci.yml` | push + PR (.github/**) | Validate workflow YAML syntax + actionlint |
 | Miri | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection (6 audited modules) |
 | Security Audit | `gitbot-audit.yml` | daily cron | Security advisory + dependency policy |
 | CodeQL | `codeql.yml` | weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |

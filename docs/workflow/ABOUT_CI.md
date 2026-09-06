@@ -16,7 +16,6 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| `workflow-ci.yml` | push + PR to `main` (`.github/**` paths) | actionlint + yamllint + YAML syntax for every workflow file |
 
 ## Dependency version policy (owner decision 2026-08-30)
 
@@ -45,16 +44,20 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   hands the r-style name (e.g. `r29`) to `nttld/setup-ndk`. It fails
   loudly when nothing resolves — never a silent fallback to a pin.
   Second same-day blind spot found while verifying: `crates-io.yml`
-  carried a 216-character line (born in 6031438) that only
-  `workflow-ci.yml` catches — the local `gate-keepers.sh` yamllint check
-  ran with `line-length: disable`, so it could never see what CI
-  enforces. Gate check 2 now lints `.github/**` under the repo
-  `.yamllint` config (exact CI parity) and keeps the relaxed inline
-  config only for `aur/`/`.cargo` (not CI-linted). Lesson recorded:
-  after any `.github/*` or policy change, verify the affected CI JOBS
-  (not just the Gate-keepers workflow) actually ran green once — and
-  local gates must enforce the same rules CI enforces, or they are
-  theater.
+  carried a 216-character line (born in 6031438) that only the
+  dedicated workflow-ci workflow caught at the time — the local
+  `gate-keepers.sh` yamllint check ran with `line-length: disable`,
+  so it could never see what CI enforces. Gate check 2 now lints
+  `.github/**` under the repo `.yamllint` config (exact CI parity)
+  and keeps the relaxed inline config only for `aur/`/`.cargo` (not
+  CI-linted). The dedicated workflow-ci.yml was removed in
+  NIGHT-enhanced-hunt-C because `cosmic-dragon-guard.yml` running
+  `gate-keepers.sh` now covers actionlint + yamllint + TOML syntax
+  for every `.github/**` file on every push + PR to main. Lesson
+  recorded: after any `.github/*` or policy change, verify the
+  affected CI JOBS (not just the Gate-keepers workflow) actually ran
+  green once — and local gates must enforce the same rules CI
+  enforces, or they are theater.
 - **Rust toolchain is the deliberate exception**: it is LTS-locked, not
   floating. `rust-toolchain.toml` is the single source of truth; CI jobs
   that pass an explicit version use the `RUST_VERSION` env, which gate
