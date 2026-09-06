@@ -386,6 +386,17 @@ pub(crate) const DRAGON_SPAWN_RATE_FLOOR: f32 = 1.5;
 /// chatter; longer → motes pile up.
 pub(crate) const DRAGON_LIFETIME_SECS: f32 = 20.0;
 
+/// NIGHT-enhanced-4: entry-reveal duration (seconds). When a dragon
+/// spawns, it enters from the top of the viewport with a graceful
+/// head-down heading and the body chain unfurls segment-by-segment
+/// from head to tail over this duration. 1.5s is long enough to read
+/// as an elegant, majestic entrance (not an instant pop) but short
+/// enough that the dragon reaches full body before the viewer's
+/// attention drifts. The entry uses an ease-out curve (smooth start,
+/// gentle settle) so the reveal decelerates naturally — the last few
+/// tail segments arrive softly, like a brush stroke settling.
+pub(crate) const DRAGON_ENTRY_DURATION_SECS: f32 = 1.5;
+
 /// Head speed scale (cells/sec per chars_per_sec unit). At 1.0 the
 /// dragon's head moves at the same rate as droplet rain. Lower
 /// values make the dragon more majestic; higher values make it

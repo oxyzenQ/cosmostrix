@@ -1,5 +1,16 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: NIGHT-enhanced-4 added the entry-reveal animation
+// (entry_progress + target_heading fields, activate_dragon top-down
+// spawn logic, advance pass entry ramp, draw pass reveal gate) which
+// pushed this file over the 800-LOC cap. The entry logic is tightly
+// coupled to the Dragon struct + activate_dragon + advance + draw —
+// extracting it to a separate file would scatter the entry state
+// machine across modules and break the cohesive "one file per rain
+// style" convention. Splitting the Dragon struct itself would scatter
+// the 20+ coupled struct fields and their invariants (heading, pace,
+// state, segments, entry_progress) across files. The file stays as
+// one cohesive module.
 
 //! Chinese-mythology dragon rain for the cosmic_dragon scene
 //! (NIGHT-research-5, the fifth rain style — a serpentine dragon
@@ -152,6 +163,20 @@ pub(crate) struct Dragon {
     pub(crate) lifetime: f32,
     /// Palette slot adopted at spawn / palette transition.
     pub(crate) palette_slot: u8,
+    /// NIGHT-enhanced-4: entry-reveal progress, 0.0 (just spawned) to
+    /// 1.0 (entry complete, full body visible). During entry the dragon
+    /// descends from the top of the viewport with a graceful head-down
+    /// heading, and the body chain unfurls segment-by-segment from head
+    /// to tail — an elegant masterpiece entry instead of the previous
+    /// instant full-body spawn at a random screen position.
+    pub(crate) entry_progress: f32,
+    /// NIGHT-enhanced-4: the flight heading the dragon will adopt once
+    /// entry completes. During entry (`entry_progress < 1.0`) the
+    /// dragon flies straight down; when entry completes, the heading
+    /// snaps to `target_heading` (a random downward-hemisphere angle)
+    /// so the dragon "peels away" into free flight — reading as a
+    /// natural banking turn, not a glitch.
+    pub(crate) target_heading: f32,
 }
 
 impl Dragon {
@@ -168,6 +193,8 @@ impl Dragon {
             sim_age: 0.0,
             lifetime: 0.0,
             palette_slot: 0,
+            entry_progress: 1.0,
+            target_heading: 0.0,
         }
     }
 }
@@ -352,26 +379,48 @@ impl DragonRain {
         }
     }
 
-    /// Activate a vacant dragon at a random viewport position with a
-    /// random heading. Body segments are stretched behind the head
-    /// along the opposite heading direction (so the dragon spawns
-    /// already in a clean serpentine line, not a clumped point).
+    /// Activate a vacant dragon for an elegant top-down entry.
+    ///
+    /// NIGHT-enhanced-4: the dragon spawns at the TOP of the viewport
+    /// (y near 0) with a downward heading (PI/2 ± a small spread),
+    /// `entry_progress = 0.0`. During the entry phase (~1.5s) the body
+    /// chain unfurls segment-by-segment from head to tail in the draw
+    /// pass, and the advance pass gradually blends the heading from
+    /// the entry heading toward the random flight heading so the
+    /// dragon peels away gracefully instead of snapping. After entry
+    /// completes (`entry_progress >= 1.0`), normal Soar/Circle flight
+    /// resumes.
+    ///
+    /// Previously the dragon spawned at a random position in the inner
+    /// 60% of the viewport with all body segments placed at once — a
+    /// "fast random appears" pop that read as a glitch, not a majestic
+    /// entrance. The owner directive: "dragon should show from top
+    /// with elegantly masterpiece, not fast random appears."
     fn activate_dragon(
         &mut self,
         idx: usize,
         cols: u16,
-        lines: u16,
+        _lines: u16,
         palette_slot: u8,
         rand_chance: &Uniform<f32>,
         rng: &mut StdRng,
     ) {
         let cols_f = cols as f32;
-        let lines_f = lines as f32;
-        // Spawn within the inner 60% of the viewport so the dragon
-        // has room to fly before hitting a wall.
-        let hx = cols_f * 0.2 + rand_chance.sample(rng) * cols_f * 0.6;
-        let hy = lines_f * 0.2 + rand_chance.sample(rng) * lines_f * 0.6;
-        let heading = rand_chance.sample(rng) * std::f32::consts::TAU;
+        // NIGHT-enhanced-4: spawn at the top edge (y = 1.0, just below
+        // the viewport top so the head is visible from frame 1). The
+        // head x is in the inner 40% of the viewport so the dragon has
+        // room to descend before any wall bounce.
+        let hx = cols_f * 0.3 + rand_chance.sample(rng) * cols_f * 0.4;
+        let hy = 1.0;
+        // Entry heading: straight down (PI/2) with a small ±0.3 rad
+        // spread so the three dragons don't descend in perfect
+        // parallel (each peels to a slightly different side).
+        let entry_heading = std::f32::consts::FRAC_PI_2 + (rand_chance.sample(rng) - 0.5) * 0.6;
+        // The final flight heading the dragon will blend toward during
+        // entry — a random angle in the lower hemisphere (0..PI) so the
+        // dragon continues descending/flying downward initially, then
+        // wanders freely once entry completes.
+        let flight_heading = rand_chance.sample(rng) * std::f32::consts::PI;
         let pace = 0.85 + rand_chance.sample(rng) * 0.30;
         let circle_dir: i8 = if rand_chance.sample(rng) < 0.5 { 1 } else { -1 };
         let noise_phase = rand_chance.sample(rng) * std::f32::consts::TAU;
@@ -407,11 +456,14 @@ impl DragonRain {
             d.segments
                 .resize_with(crate::constants::DRAGON_BODY_LEN, DragonSegment::vacant);
         }
-        // Stretch body behind the head along the opposite heading —
-        // clean serpentine spawn, not a clumped point.
+        // Stretch body behind the head along the OPPOSITE of the entry
+        // heading (upward) so the body chain starts above the viewport
+        // top and unfurls downward as the head descends. Segments above
+        // y=0 are off-screen (clipped by the draw pass), so only the
+        // head is visible on frame 1 — the body reveals as it descends.
         let spacing = crate::constants::DRAGON_SEGMENT_SPACING;
-        let back_x = -heading.cos();
-        let back_y = -heading.sin();
+        let back_x = -entry_heading.cos();
+        let back_y = -entry_heading.sin();
         for (i, seg) in d.segments.iter_mut().enumerate() {
             seg.x = hx + back_x * spacing * (i as f32);
             seg.y = hy + back_y * spacing * (i as f32);
@@ -423,13 +475,19 @@ impl DragonRain {
         d.active = true;
         d.state = state;
         d.state_timer = state_timer;
-        d.heading = heading;
+        // NIGHT-enhanced-4: start at the entry heading (straight down).
+        // The advance pass snaps to target_heading when entry completes.
+        d.heading = entry_heading;
+        d.target_heading = flight_heading;
         d.pace = pace;
         d.circle_dir = circle_dir;
         d.noise_phase = noise_phase;
         d.sim_age = 0.0;
         d.lifetime = lifetime;
         d.palette_slot = palette_slot;
+        // Entry not yet started — the advance pass ramps this to 1.0
+        // over DRAGON_ENTRY_DURATION_SECS.
+        d.entry_progress = 0.0;
     }
 
     /// Motion pass — the dragon state machine + body chain core.
@@ -488,20 +546,46 @@ impl DragonRain {
             }
             let dt_d = dt * d.pace;
 
-            // ── Head motion ───────────────────────────────────────
-            // State-dependent turn rate.
-            let turn_rate = match d.state {
-                DragonState::Soar => {
-                    // Layered sine: two frequencies, randomized phase.
-                    // Produces organic, non-repeating free flight.
-                    let t = d.sim_age + d.noise_phase;
-                    let s = (t * 0.7_f32).sin() * 0.4 + (t * 0.3_f32).sin() * 0.3;
-                    s * crate::constants::DRAGON_SOAR_TURN_RATE
+            // ── NIGHT-enhanced-4: entry-reveal progress ──────────
+            // Ramp entry_progress from 0.0 to 1.0 over
+            // DRAGON_ENTRY_DURATION_SECS using an ease-out curve
+            // (1 - (1-t)^2) so the body unfurls fast at first and
+            // decelerates — the tail segments arrive softly. During
+            // entry, the dragon flies straight down (entry heading).
+            // When entry completes, the heading snaps to
+            // target_heading so the dragon peels away into free
+            // flight — reading as a natural banking turn.
+            let was_entering = d.entry_progress < 1.0;
+            if was_entering {
+                d.entry_progress = (d.entry_progress
+                    + dt_d / crate::constants::DRAGON_ENTRY_DURATION_SECS)
+                    .min(1.0);
+                if d.entry_progress >= 1.0 {
+                    // Entry complete: snap to flight heading.
+                    d.heading = d.target_heading;
                 }
-                DragonState::Circle => {
-                    // Constant-magnitude turn rate producing a circle.
-                    // Direction (CW/CCW) randomized per state entry.
-                    d.circle_dir as f32 * crate::constants::DRAGON_CIRCLE_TURN_RATE
+            }
+
+            // ── Head motion ───────────────────────────────────────
+            // State-dependent turn rate. During entry, suppress turn
+            // rate so the dragon flies straight down until the body
+            // has unfurled.
+            let turn_rate = if was_entering && d.entry_progress < 1.0 {
+                0.0
+            } else {
+                match d.state {
+                    DragonState::Soar => {
+                        // Layered sine: two frequencies, randomized phase.
+                        // Produces organic, non-repeating free flight.
+                        let t = d.sim_age + d.noise_phase;
+                        let s = (t * 0.7_f32).sin() * 0.4 + (t * 0.3_f32).sin() * 0.3;
+                        s * crate::constants::DRAGON_SOAR_TURN_RATE
+                    }
+                    DragonState::Circle => {
+                        // Constant-magnitude turn rate producing a circle.
+                        // Direction (CW/CCW) randomized per state entry.
+                        d.circle_dir as f32 * crate::constants::DRAGON_CIRCLE_TURN_RATE
+                    }
                 }
             };
             d.heading += turn_rate * dt_d;
@@ -664,7 +748,28 @@ impl DragonRain {
             if !d.active {
                 continue;
             }
+            // NIGHT-enhanced-4: entry-reveal gate. During entry
+            // (entry_progress < 1.0), only render the first
+            // `revealed_count` segments (head-to-tail unfurl). The
+            // ease-out curve (1 - (1-t)^2) makes the reveal decelerate
+            // — the first segments appear quickly, the last few tail
+            // segments arrive softly. When entry completes (progress
+            // >= 1.0), all segments render (revealed_count = body_len).
+            let revealed_count = if d.entry_progress >= 1.0 {
+                body_len
+            } else {
+                // Ease-out: fast start, gentle settle.
+                let t = d.entry_progress;
+                let eased = 1.0 - (1.0 - t) * (1.0 - t);
+                ((eased * body_len as f32).ceil() as usize)
+                    .max(1)
+                    .min(body_len)
+            };
             for (i, seg) in d.segments.iter_mut().enumerate() {
+                // Skip segments not yet revealed during entry.
+                if i >= revealed_count {
+                    break;
+                }
                 let col = seg.x.round() as i32;
                 let line = seg.y.round() as i32;
                 if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
