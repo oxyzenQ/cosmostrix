@@ -65,15 +65,25 @@ export CARGO_TERM_COLOR=always
 QUIET_CHECK=0
 
 # Functions
+# NIGHT-enhanced-3: log_info / log_success now respect QUIET_CHECK
+# directly so the section banners ("=== Comprehensive Code Quality
+# Check ==="), per-step "OK" lines and Miri status banner are hidden
+# in `check-all -q`. log_step already had the gate; log_warning /
+# log_error never gate (they are the failure/warning surface the
+# quiet mode is meant to surface).
 log_info() {
-	echo -e "${BLUE}[INFO]${NC} $1"
+	if [ ${QUIET_CHECK} -eq 0 ]; then
+		echo -e "${BLUE}[INFO]${NC} $1"
+	fi
 }
 
 # v80.0.0-beta.2 owner rule: diagnostic output uses ASCII symbols only
 # (icon glyphs render as tofu/garbage on some OS/terminal combos):
 # [OK] success, [!] warning, [X] error, [>] step, [INFO] info.
 log_success() {
-	echo -e "${GREEN}[OK]${NC} $1"
+	if [ ${QUIET_CHECK} -eq 0 ]; then
+		echo -e "${GREEN}[OK]${NC} $1"
+	fi
 }
 
 log_warning() {
@@ -90,9 +100,13 @@ log_step() {
 	fi
 }
 
+# log_success_quietable is retained for backward compatibility with
+# the many existing call sites that already use it. After NIGHT-
+# enhanced-3 it is functionally identical to log_success (both gate
+# on QUIET_CHECK), but the explicit name documents intent at the
+# call site: "this success message is safe to suppress in quiet
+# mode" (as opposed to a hard-won one we always want to print).
 log_success_quietable() {
-	# In quiet mode, skip the success message entirely.
-	# In normal mode, behave like log_success.
 	if [ ${QUIET_CHECK} -eq 0 ]; then
 		log_success "$1"
 	fi
@@ -337,8 +351,12 @@ run_tests() {
 		if [ ${QUIET_CHECK} -eq 1 ]; then
 			test_output=$(cargo test --target "${TARGET}" --jobs "${MAX_JOBS}" -- --test-threads="${MAX_JOBS}" 2>&1)
 			local rc=$?
-			# In quiet mode, show only failures + summary line
-			echo "$test_output" | grep -E '(FAILED|failures:|test result:)' || true
+			# NIGHT-enhanced-3: hide the "test result: ok. <N> passed"
+			# success line - only surface actual failures. The previous
+			# `test result:` match was leaking the passing summary into
+			# quiet output, contradicting the -q brief ("only failures/
+			# warnings").
+			echo "$test_output" | grep -E '(FAILED|failures:|error\[|panicked at|^test .* FAILED)' || true
 			if [ $rc -eq 0 ]; then
 				log_success_quietable "All tests passed"
 			else
@@ -386,8 +404,26 @@ run_clippy() {
 run_fmt_check() {
 	log_step "Checking code formatting..."
 
+	# NIGHT-enhanced-3: in quiet mode, capture `cargo fmt --check`
+	# output and surface only the actual formatting violations
+	# (the "Diff in <path>:" headers and unified diff hunks). The
+	# success path is silent - log_success_quietable gates on
+	# QUIET_CHECK, and the empty captured output produces no
+	# stdout. Without this branch, cargo fmt would write its diff
+	# directly to stdout even in quiet mode.
+	if [ ${QUIET_CHECK} -eq 1 ]; then
+		local fmt_output
+		fmt_output=$(cargo fmt --all -- --check 2>&1)
+		local rc=$?
+		if [ $rc -ne 0 ]; then
+			echo "$fmt_output"
+			log_error "Formatting issues found. Run: cargo fmt --all"
+		fi
+		return $rc
+	fi
+
 	if cargo fmt --all -- --check 2>&1; then
-		log_success_quietable "Code formatting is correct"
+		log_success "Code formatting is correct"
 		return 0
 	else
 		log_error "Formatting issues found. Run: cargo fmt --all"
@@ -488,7 +524,23 @@ run_loc_check() {
 	if [ ${QUIET_CHECK} -eq 1 ]; then
 		loc_output=$(bash scripts/check-rs-loc.sh 2>&1)
 		local rc=$?
-		echo "$loc_output" | grep -E '(FAIL|ERROR|over|exceeds)' || true
+		# NIGHT-enhanced-3: the old grep `(FAIL|ERROR|over|exceeds)`
+		# was too permissive - the substring "over" also matches
+		# filenames containing "recovery", "overrides", "discover"
+		# etc., leaking unrelated LOC count lines into the quiet
+		# output. Tighten to the actual violation surface:
+		# - "VIOLATES" matches the per-file `^^^ VIOLATES <N> limit`
+		#   line emitted by check-rs-loc.sh when a file exceeds the
+		#   cap without an exemption marker.
+		# - "^FAIL:" matches the trailing summary block printed only
+		#   when at least one non-exempt violation exists.
+		# - "ERROR" matches any future hard-error path.
+		# The summary lines ("Files over 800 (exempt ...): N",
+		# "Files over 800 (NOT exempt - BUILD FAIL): 0") are
+		# intentionally NOT matched - they are success-path
+		# informational output (the count of exempt files is debt
+		# tracking, not a failure).
+		echo "$loc_output" | grep -E '(VIOLATES|^FAIL:|ERROR)' || true
 		if [ $rc -eq 0 ]; then
 			log_success_quietable "LOC check passed"
 		else
@@ -575,7 +627,14 @@ run_version_anti_pattern_check() {
 	if [ ${QUIET_CHECK} -eq 1 ]; then
 		vap_output=$(bash scripts/check-version-anti-patterns.sh 2>&1)
 		local rc=$?
-		echo "$vap_output" | grep -iE '(FAIL|ERROR|found|anti-pattern)' || true
+		# NIGHT-enhanced-3: the old grep
+		# `(FAIL|ERROR|found|anti-pattern)` also matched the
+		# success-path line "OK: <N> source files checked, no
+		# version-anti-pattern violations" because the success
+		# summary itself contains the word "anti-pattern".
+		# Tighten to the actual violation surface: per-file
+		# `VIOLATION: <path>` lines and the `^FAIL:` summary block.
+		echo "$vap_output" | grep -E '(^VIOLATION:|^FAIL:|ERROR)' || true
 		if [ $rc -eq 0 ]; then
 			log_success_quietable "Version anti-pattern check passed"
 		else
@@ -693,9 +752,16 @@ run_python_lint() {
 run_comprehensive_check() {
 	local failed=0
 
-	echo ""
-	log_info "=== Comprehensive Code Quality Check ==="
-	echo ""
+	# NIGHT-enhanced-3: the section banner and surrounding blank
+	# lines are noise in `check-all -q` mode (success/passed output
+	# is hidden). log_info already gates on QUIET_CHECK, but the
+	# bare `echo ""` calls bypass any gate - guard them too so
+	# quiet mode produces only failures/warnings with zero framing.
+	if [ ${QUIET_CHECK} -eq 0 ]; then
+		echo ""
+		log_info "=== Comprehensive Code Quality Check ==="
+		echo ""
+	fi
 
 	check_rust_toolchain || ((failed++))
 	run_fmt_check || ((failed++))
@@ -711,7 +777,9 @@ run_comprehensive_check() {
 	run_tests || ((failed++))
 	run_audit || ((failed++))
 
-	echo ""
+	if [ ${QUIET_CHECK} -eq 0 ]; then
+		echo ""
+	fi
 	if [ $failed -eq 0 ]; then
 		log_success "All quality checks passed!"
 		return 0
@@ -836,7 +904,13 @@ OPTIONS:
     --no-install    Don't auto-install nightly/miri (fail if missing)
     --full          Run full lib test suite under Miri (slow, may fail on FFI)
     --quiet-miri    Suppress Miri status banner (for CI jobs that don't care)
-    --quiet, -q     Suppress passing output in check-all, only show failures/warnings
+    --quiet, -q     Suppress passing output in check-all: hide [INFO]/[OK]/
+		    [>] step banners, Miri status, section dividers, and
+		    per-check success summaries. Only failures ([X]),
+		    warnings ([!]) and underlying-tool violation output
+		    (cargo fmt diffs, clippy errors, test failures, LOC
+		    VIOLATES lines, version-anti-pattern FAIL blocks)
+		    are surfaced. Use in CI and fast local re-checks.
 
 ENVIRONMENT:
     COSMOSTRIX_JOBS             Override CPU core limit (default: 75% of cores, max 8)
@@ -1086,9 +1160,12 @@ readonly MIRI_AUDIT_MODULES=(
 )
 
 # Print one-line Miri status banner. Called from main() before dispatch.
-# Quiet when --quiet-miri is passed (CI jobs that don't care).
+# Quiet when --quiet-miri is passed (CI jobs that don't care), and also
+# quiet under --quiet/-q (NIGHT-enhanced-3) since the banner is
+# informational status output, not a failure/warning.
 show_miri_status() {
 	[ "${MIRI_QUIET:-0}" = "1" ] && return 0
+	[ "${QUIET_CHECK:-0}" = "1" ] && return 0
 
 	local head head_short
 	head=$(git rev-parse HEAD 2>/dev/null || echo "")
