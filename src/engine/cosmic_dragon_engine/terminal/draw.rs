@@ -124,10 +124,37 @@ impl Terminal {
             // don't spuriously re-trigger full redraws for this generation.
             last.semantic_gen = frame.semantic_gen;
 
-            // PERF(v10): True single-pass RLE — accumulate characters into row_buf,
-            // flush only when style actually changes.  Eliminates one
-            // cell_at_index_ref(idx+1) generation-check per cell (~4800
-            // calls on a 200×40 terminal per full redraw).
+            // S-master-HUNT-27: cell-level skip in the full-redraw path.
+            //
+            // Previously this loop emitted EVERY cell unconditionally
+            // (SGR + char for each of the WxH cells). On an idle resync
+            // (dirty_all set by force_repaint, no actual content change),
+            // this re-emitted the entire screen as a ~50KB ANSI burst
+            // every 20s — the owner-reported "glitch rain shift" that
+            // survived 4 fix attempts (HUNT-23 through HUNT-26) because
+            // all of them fixed cloud-side state but never touched this
+            // emit path.
+            //
+            // The fix: compare each cell against last.cells[idx] (the
+            // previous frame's screen state). Unchanged cells are
+            // skipped entirely — no SGR, no char, no row_buf push. The
+            // MoveTo is deferred until the first changed cell in each
+            // row, so a row with zero changes emits zero bytes. On a
+            // stable screen (the idle resync case), the entire full
+            // redraw emits zero content bytes (just the final \x1b[0m
+            // reset), making the resync truly invisible.
+            //
+            // When a skip breaks the contiguous char run, row_buf is
+            // flushed (accumulated chars emitted at the cursor's natural
+            // position), and the next changed cell emits a MoveTo to
+            // reposition. This preserves the RLE-style char accumulation
+            // for runs of changed cells while skipping unchanged ones.
+            //
+            // First-full-redraw safety: when needs_new_last is true
+            // (resize/semantic change), last.cells is freshly allocated
+            // with blank cells. Every non-blank cell is "changed", so
+            // no skip happens — the first full redraw emits everything
+            // as before.
             let row_buf = &mut self.row_buf;
             let ansi_buf = &mut self.ansi_buf;
             row_buf.clear();
@@ -137,21 +164,44 @@ impl Terminal {
             if row_buf.capacity() < need_cap {
                 row_buf.reserve(need_cap - row_buf.capacity());
             }
-            // MoveTo(0,0) directly into ansi_buf
-            ansi_buf.extend_from_slice(b"\x1b[1;1H");
+
+            let width_usize = frame.width as usize;
             for y in 0..frame.height {
-                if y > 0 {
-                    // MoveTo(0, y) directly into ansi_buf
-                    ansi_buf.push(0x1b);
-                    ansi_buf.push(b'[');
-                    push_u16(ansi_buf, y + 1);
-                    ansi_buf.extend_from_slice(b";1H");
-                }
                 row_buf.clear();
-                let width_usize = frame.width as usize;
+                // HUNT-27: defer MoveTo until the first changed cell.
+                // need_move starts true so the first changed cell (if any)
+                // positions the cursor. A row with zero changed cells
+                // emits zero bytes.
+                let mut need_move = true;
+
                 for x in 0..frame.width {
                     let idx = y as usize * width_usize + x as usize;
                     let cell = frame.cell_at_index(idx);
+
+                    // HUNT-27: skip unchanged cells.
+                    if cell == last.cells[idx] {
+                        // Flush accumulated row_buf before the skip —
+                        // the contiguous char run ends here, and the
+                        // cursor won't advance past this cell.
+                        if !row_buf.is_empty() {
+                            ansi_buf.extend_from_slice(row_buf.as_bytes());
+                            row_buf.clear();
+                        }
+                        need_move = true;
+                        continue;
+                    }
+
+                    // Changed cell — emit MoveTo if needed (first
+                    // changed cell in the row, or after a skip).
+                    if need_move {
+                        ansi_buf.push(0x1b);
+                        ansi_buf.push(b'[');
+                        push_u16(ansi_buf, y + 1);
+                        ansi_buf.push(b';');
+                        push_u16(ansi_buf, x + 1);
+                        ansi_buf.push(b'H');
+                        need_move = false;
+                    }
 
                     // Flush row_buf on any style change
                     let style_changed =
