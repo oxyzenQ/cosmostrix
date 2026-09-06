@@ -89,7 +89,7 @@ fn hunt4_dragon_spawns_at_top() {
     // At least one dragon head should be in the upper half of the
     // viewport (y < 20 for a 40-line viewport). This confirms the
     // entry is from the top — without the fix, dragons spawned at
-    // random y positions (0.2*40 to 0.8*40 = 8 to 32), so some
+    // random y positions (0.2 x 40 to 0.8 x 40 = 8 to 32), so some
     // heads would be in the lower half.
     assert!(
         min_head_y < 20.0,

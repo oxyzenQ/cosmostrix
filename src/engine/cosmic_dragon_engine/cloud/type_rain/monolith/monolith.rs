@@ -319,7 +319,16 @@ impl MonolithRain {
             return;
         }
 
-        self.refresh_active_count();
+        // NIGHT-hunter-14 (LTS audit): removed refresh_active_count() —
+        // active_count is already maintained incrementally in ALL paths:
+        // - reset(): sets to 0
+        // - spawn() via activate_stream: active_count += 1
+        // - advance() deactivation: active_count -= 1
+        // - deactivate_all_for_test: sets to 0
+        // The old refresh_active_count() iterated ALL streams (O(cols))
+        // every spawn pass to recompute what was already correct — a
+        // redundant O(cols) scan per frame. Removing it saves ~120
+        // comparisons + filter + count at 120 cols, every frame.
         let target = target_active_count(self.streams.len(), params.density);
         if self.active_count >= target {
             *spawn_remainder = (*spawn_remainder).min(SPAWN_REMAINDER_CAP);
@@ -488,10 +497,6 @@ impl MonolithRain {
         }
 
         std::mem::swap(&mut self.previous_cells, &mut self.current_cells);
-    }
-
-    fn refresh_active_count(&mut self) {
-        self.active_count = self.streams.iter().filter(|stream| stream.active).count();
     }
 
     pub(crate) fn find_inactive_lane(
