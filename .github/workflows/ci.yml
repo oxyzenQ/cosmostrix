@@ -1,5 +1,15 @@
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+#
+# NIGHT-enhanced-hunt-E: the `paths:` filter is the single trigger
+# gate. The former `changes` job (git diff + regex to skip
+# downstream jobs when only doc files changed) was removed — it
+# duplicated the `paths:` filter and added a whole CI job just for
+# the marginal case of `src/**/*.md`-only changes (doc files change
+# rarely + CI caches make re-runs fast). The `.codespellrc` entry
+# was also removed from `paths:` because no ci.yml job reads it
+# after Hunt-C removed the `project_lint` job (codespell is now
+# handled by cosmic-dragon-guard.yml running gate-keepers.sh).
 
 name: Cosmic Dragon Guard - CI
 
@@ -15,7 +25,6 @@ name: Cosmic Dragon Guard - CI
       - '.cargo/**'
       - 'scripts/**'
       - 'deny.toml'
-      - '.codespellrc'
   pull_request:
     branches: ["main"]
     paths:
@@ -27,7 +36,6 @@ name: Cosmic Dragon Guard - CI
       - '.cargo/**'
       - 'scripts/**'
       - 'deny.toml'
-      - '.codespellrc'
 
 permissions:
   contents: read
@@ -51,34 +59,7 @@ env:
   RUSTDOCFLAGS: "-D warnings"
 
 jobs:
-  changes:
-    runs-on: ubuntu-latest
-    outputs:
-      core: ${{ steps.detect.outputs.core }}
-    steps:
-      - uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-      - name: Detect core file changes
-        id: detect
-        run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            BASE="${{ github.event.pull_request.base.sha }}"
-            HEAD="${{ github.event.pull_request.head.sha }}"
-          else
-            BASE=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
-            HEAD="${{ github.sha }}"
-          fi
-          FILES=$(git diff --name-only "$BASE" "$HEAD" 2>/dev/null || git ls-files)
-          if echo "$FILES" | grep -qE '\.(rs|toml)$|Cargo\.lock$|^build\.rs$|^rust-toolchain|^scripts/|^\.cargo/'; then
-            echo "core=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "core=false" >> "$GITHUB_OUTPUT"
-          fi
-
   security:
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
     name: Cosmic Dragon Guard - Security audit
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -111,8 +92,6 @@ jobs:
   # so a desync fails the pipeline in ~10s instead of waiting for a full
   # test job. Needs only bash + the repo files; no Rust toolchain, no cache.
   version-sync:
-    needs: changes
-    if: needs.changes.outputs.core == 'true'
     name: Cosmic Dragon Guard - Version sync guard
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -696,8 +675,7 @@ jobs:
           fi
 
   windows_build:
-    needs: [changes, version-sync]
-    if: needs.changes.outputs.core == 'true'
+    needs: [version-sync]
     name: Cosmic Dragon Guard - Build (windows)
     runs-on: windows-latest
     timeout-minutes: 30
