@@ -82,9 +82,9 @@ use rand::{
 
 use crate::frame::Frame;
 
-use super::monolith_helpers::{clear_cell, pick_pool_char};
+use super::super::super::render::DrawCtx;
+use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
 use super::physarum_helpers::{draw_physarum_cell, level_for_trail, sample_random, sample_trail};
-use super::render::DrawCtx;
 
 /// Heading-accumulator wrap threshold (radians, 64 turns). The
 /// steering integrator adds the per-frame turn into a bare f32; the
@@ -629,7 +629,7 @@ impl PhysarumRain {
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,
-        cleanup: &mut super::monolith::MonolithCleanup<'_>,
+        cleanup: &mut super::super::monolith::MonolithCleanup<'_>,
         rng: &mut StdRng,
         rand_chance: &Uniform<f32>,
     ) {

@@ -24,24 +24,14 @@ mod border_touch;
 // `pub(crate) use cloud::{...};` re-export in main.rs.
 pub(crate) mod brightness_factors;
 pub(crate) mod cinematic;
-mod dragon;
-mod dragon_helpers;
 pub(crate) mod ecosystem;
 pub(crate) mod events;
-mod flux;
-mod flux_field;
 mod ghost_events;
 mod living_rain;
-mod lorenz;
 mod message_draw;
-mod monolith;
-mod monolith_glyphs;
-mod monolith_helpers;
 mod palette_blend;
 mod phosphor;
 mod phosphor_anomaly;
-mod physarum;
-mod physarum_helpers;
 mod rain;
 mod rain_at;
 mod rain_post;
@@ -52,7 +42,29 @@ mod spawn;
 mod spawn_logic;
 mod spawn_reset;
 mod state;
-mod vortex;
+
+// NIGHT-enhanced-1: rain-style families now live under `type_rain/`,
+// each style grouped into its own subdirectory alongside its extracted
+// helpers (lorenz/lorenz.rs, dragon/dragon.rs + dragon_helpers.rs, ...).
+// The flat `mod lorenz; mod dragon; ...` declarations are replaced by a
+// single `mod type_rain;` plus backward-compat `use` aliases so the 39
+// existing `crate::cloud::monolith::*` / `crate::cloud::dragon::*` /
+// `crate::cloud::physarum::*` / `crate::cloud::flux_field::*` test
+// references keep resolving unchanged.
+pub(crate) mod type_rain;
+pub(crate) use type_rain::dragon;
+pub(crate) use type_rain::flux;
+pub(crate) use type_rain::lorenz;
+pub(crate) use type_rain::monolith;
+pub(crate) use type_rain::physarum;
+pub(crate) use type_rain::vortex;
+// `flux_field` is a sibling of `flux.rs` inside `type_rain/flux/`, so the
+// alias reaches one level deeper than the family-level aliases above.
+// `#[allow(unused_imports)]` is needed because the bin target never
+// touches `cloud::flux_field::*` directly — it's only consumed by
+// `test/engine/.../tests_flux/physics.rs` via `crate::cloud::flux_field`.
+#[allow(unused_imports)]
+pub(crate) use type_rain::flux::flux_field;
 
 #[cfg(test)]
 #[path = "../../../../test/engine/cosmic_dragon_engine/cloud/tests/mod.rs"]

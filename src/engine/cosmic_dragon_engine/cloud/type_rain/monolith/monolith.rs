@@ -20,7 +20,7 @@ use crate::constants::SPAWN_REMAINDER_CAP;
 use crate::frame::Frame;
 use crate::runtime::MonolithSize;
 
-use super::render::DrawCtx;
+use super::super::super::render::DrawCtx;
 
 // All tuning constants now centralized in central_control_rains.rs.
 // MAX_SEGMENTS is a local structural const — Rust requires a concrete

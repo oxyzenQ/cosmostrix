@@ -91,7 +91,7 @@ pub(crate) const VORTEX_SHIMMER_CHANCE: f32 = 0.4;
 // ── Flux (fourth rain style, task-19 — supersedes the rejected
 // task-18 ripple style) ─────────────────────────────────────────────
 // Liquid rain model: glyphs are fluid particles in a PIC/FLIP
-// hybrid solver (see cloud/flux_field.rs). All values in screen
+// hybrid solver (see cloud/type_rain/flux/flux_field.rs). All values in screen
 // units — one unit equals one terminal column width on both axes
 // (one vertical unit spans two cell lines); velocities are units
 // per second, gravity units per second squared.

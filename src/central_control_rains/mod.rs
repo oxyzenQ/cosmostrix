@@ -633,7 +633,7 @@ pub(crate) const SIM_FACTOR_MIN: f64 = 0.3;
 
 // ─── Monolith scene — per-layer tuning ─────────────────────────────────────
 //
-// The Monolith scene (cloud/monolith.rs + cinematic.rs) has its own
+// The Monolith scene (cloud/type_rain/monolith/monolith.rs + cinematic.rs) has its own
 // per-layer brightness and breathing multipliers that track the rain
 // field's depth gradient. Previously these were hardcoded in monolith.rs
 // and cinematic.rs as match arms — every rain parameter change required

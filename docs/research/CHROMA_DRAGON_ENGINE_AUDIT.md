@@ -305,7 +305,7 @@ frame.set_force(self.col, self.line, Cell {
 
 ### A10. Monolith Render
 
-**File**: `src/engine/cosmic_dragon_engine/cloud/monolith.rs:894`
+**File**: `src/engine/cosmic_dragon_engine/cloud/type_rain/monolith/monolith.rs:894`
 
 ```rust
 Some(Color::Rgb { r, g, b })
@@ -651,7 +651,7 @@ Add a `--no-chroma` flag that forces `ColorPipeline::LegacyRgb` regardless of `C
 | **P9** | Migrate A1 (quantum ripple spawn + render) — biggest change, stores `Color` not `(r,g,b)` on particle. | +40 / -30 | High (changes particle struct layout, regression-tests in `tests_quantum.rs` need update) |
 | **P10** | Migrate A9 (ghost event render) — `apply_brightness_rgb` for opacity fade. | +5 / -8 | Low |
 | **P11** | Migrate A4 (head self-bloom) — needs new `boost_toward_white_perceptual` chroma helper (OKLab L lift). | +30 / -10 | Medium (new chroma helper, needs lock_tests invariant) |
-| **P12** | Migrate A10 (monolith render) — full audit of `cloud/monolith.rs` color pipeline. | TBD | High (monolith is complex) |
+| **P12** | Migrate A10 (monolith render) — full audit of `cloud/type_rain/monolith/monolith.rs` color pipeline. | TBD | High (monolith is complex) |
 | **P13** | Fix C1 (info.rs docs_report outdated sRGB-linear fallback claim). | +3 / -2 | Zero (docs only) |
 | **P14** | Add `INV-19: ColorPipeline disclosure` to `chroma_dragon_engine/tests/lock.rs` — assert that verbose/doctor/bench all disclose the pipeline. | +60 | Zero (test only) |
 

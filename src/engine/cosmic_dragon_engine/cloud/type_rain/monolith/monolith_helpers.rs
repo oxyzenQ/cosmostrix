@@ -1,7 +1,8 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Monolith drawing helpers — extracted from `cloud/monolith.rs` to
+//! Monolith drawing helpers — extracted from
+//! `cloud/type_rain/monolith/monolith.rs` to
 //! keep that file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
 //! Owns 19 free functions used by MonolithRain's spawn/advance/draw
@@ -25,12 +26,12 @@ use crate::palette;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize};
 use crate::terminal::blank_cell;
 
+use super::super::super::render::DrawCtx;
 use super::monolith::{
     ActivationParams, BrightnessLevel, DrawnCell, DrawnCellKind, MonolithCleanup, MonolithStream,
     Segment, SegmentKind, SpineTone, MAX_SEGMENTS,
 };
 use super::monolith_glyphs::{segment_char, spine_char};
-use super::render::DrawCtx;
 
 pub(super) fn activate_stream(
     stream: &mut MonolithStream,
@@ -445,7 +446,7 @@ pub(crate) fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, 
     }
 }
 
-pub(super) fn clear_cell(
+pub(crate) fn clear_cell(
     frame: &mut Frame,
     cleanup: &mut MonolithCleanup<'_>,
     col: u16,

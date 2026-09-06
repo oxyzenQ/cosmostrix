@@ -3,8 +3,8 @@
 
 //! Charset-aware glyph mapping for Monolith Rain.
 
+use super::super::super::render::DrawCtx;
 use super::monolith::SegmentKind;
-use super::render::DrawCtx;
 
 const SPINE_PERIOD: u16 = 3;
 

@@ -12,7 +12,7 @@
 //!   [`RainStyle::Physarum`]) — dedicated state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
-//!   incompressible fluid (see `cloud/flux_field.rs`); Lorenz moves
+//!   incompressible fluid (see `cloud/type_rain/flux/flux_field.rs`); Lorenz moves
 //!   glyphs along the canonical strange-attractor trajectory
 //!   (RK4-integrated 3D chaos projected to 2D, two-lobe butterfly);
 //!   Dragon moves a serpentine chain of segments following a

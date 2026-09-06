@@ -15,10 +15,10 @@ use rand::{
 
 use crate::frame::Frame;
 
+use super::super::super::render::DrawCtx;
+use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
+use super::super::monolith::BrightnessLevel;
 use super::dragon::Dragon;
-use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, color_for_level};
-use super::render::DrawCtx;
 
 /// Brightness zone by segment index along the body (head=Core,
 /// first third=Hot, middle third=Mid, tail third=Ghost). The

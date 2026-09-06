@@ -65,11 +65,11 @@ use rand::{
 
 use crate::frame::Frame;
 
+use super::super::super::render::DrawCtx;
+use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
 use super::dragon_helpers::{
     dragon_noise_roll, dragon_state_duration, draw_dragon_cell, level_for_segment,
 };
-use super::monolith_helpers::{clear_cell, pick_pool_char};
-use super::render::DrawCtx;
 
 /// Heading-accumulator wrap threshold (radians, 64 turns). See the
 /// amortized wrap in `advance` — keeps the unbounded f32 accumulator
@@ -652,7 +652,7 @@ impl DragonRain {
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,
-        cleanup: &mut super::monolith::MonolithCleanup<'_>,
+        cleanup: &mut super::super::monolith::MonolithCleanup<'_>,
         rng: &mut StdRng,
         rand_chance: &Uniform<f32>,
     ) {

@@ -52,10 +52,12 @@ use rand::{
 
 use crate::frame::Frame;
 
+use super::super::super::render::DrawCtx;
+use super::super::monolith::monolith_helpers::{
+    bold_for_level, clear_cell, color_for_level, pick_pool_char,
+};
+use super::super::monolith::BrightnessLevel;
 use super::flux_field::{FluxField, FluxVel};
-use super::monolith::BrightnessLevel;
-use super::monolith_helpers::{bold_for_level, clear_cell, color_for_level, pick_pool_char};
-use super::render::DrawCtx;
 
 /// Trail depth per mote (comet streak length in cells).
 pub(crate) const FLUX_TRAIL_LEN: usize = 3;
@@ -466,7 +468,7 @@ impl FluxRain {
         &mut self,
         ctx: &DrawCtx<'_>,
         frame: &mut Frame,
-        cleanup: &mut super::monolith::MonolithCleanup<'_>,
+        cleanup: &mut super::super::monolith::MonolithCleanup<'_>,
         rng: &mut StdRng,
         rand_chance: &Uniform<f32>,
     ) {
