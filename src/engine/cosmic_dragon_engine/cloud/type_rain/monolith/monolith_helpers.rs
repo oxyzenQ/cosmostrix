@@ -427,7 +427,21 @@ pub(crate) fn color_for_level(
 /// initializes). Shared by every structured style's shimmer gate
 /// (vortex, lorenz, flux, dragon, physarum — consolidated in
 /// NIGHT-hunter-10 from five identical per-file copies).
-pub(crate) fn pick_pool_char(pool: &[char], rand_chance: &Uniform<f32>, rng: &mut StdRng) -> char {
+///
+/// `pick_pool_char` is `pub(in super::super)` (= `pub(in cloud::type_rain)`)
+/// rather than `pub(crate)` (NIGHT-enhanced-hunt-D): the only
+/// consumers are the five non-monolith rain-style families which
+/// share the monolith shimmer pick. Tightening from `pub(crate)` to
+/// `pub(in cloud::type_rain)` prevents the function from leaking past
+/// the rain-style boundary into unrelated cloud infrastructure or the
+/// wider crate, matching the `clear_cell` visibility from
+/// NIGHT-enhanced-hunt-A. Tests don't reference `pick_pool_char`
+/// directly (only in comments), so no test breaks.
+pub(in super::super) fn pick_pool_char(
+    pool: &[char],
+    rand_chance: &Uniform<f32>,
+    rng: &mut StdRng,
+) -> char {
     if pool.is_empty() {
         return '0';
     }
