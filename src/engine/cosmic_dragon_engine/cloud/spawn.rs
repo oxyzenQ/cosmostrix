@@ -521,7 +521,7 @@ impl Cloud {
 
             // NIGHT-hunter-14: pop the slot from the free list instead of
             // direct-indexing `droplets[i]`. The free-list contract (see
-            // spawn_logic.rs) is "contains exactly the dead droplet
+            // type_rain/glyph/spawn_logic.rs) is "contains exactly the dead droplet
             // indices"; the previous direct index seeded ALIVE droplets at
             // 0..seed_limit while their indices stayed in the list, so
             // under pool pressure a later spawn could pop an alive index

@@ -20,6 +20,7 @@
 //! the engine boundary.
 //!
 //! Members (NIGHT-enhanced-1 directory-per-style layout):
+//! - `glyph` - droplet-family rain (column cascade, shared Droplet pool).
 //! - `lorenz` - chaotic-attractor rain (Lorenz 1963 strange attractor).
 //! - `dragon` - Chinese-dragon serpentine body state machine.
 //! - `monolith` - vertical monolith rain with brightness spine +
@@ -37,6 +38,7 @@
 
 pub(crate) mod dragon;
 pub(crate) mod flux;
+pub(crate) mod glyph;
 pub(crate) mod lorenz;
 pub(crate) mod monolith;
 pub(crate) mod physarum;

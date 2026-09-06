@@ -8,7 +8,7 @@
 //!
 //! 1. Glyph warm-start free-list violation (spawn.rs
 //!    `ensure_glyph_pool_and_warm_start`). The free-list contract is
-//!    "contains exactly the dead droplet indices" (spawn_logic.rs); the
+//!    "contains exactly the dead droplet indices" (type_rain/glyph/spawn_logic.rs); the
 //!    warm-start loop seeded ALIVE droplets by direct index
 //!    (`&mut self.droplets[i]`) without popping their slots, so the
 //!    invariant broke on every glyph scene entry. Under pool pressure a

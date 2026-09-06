@@ -39,7 +39,6 @@ mod render;
 mod runtime_controls;
 mod scene_runtime;
 mod spawn;
-mod spawn_logic;
 mod spawn_reset;
 mod state;
 
@@ -51,6 +50,12 @@ mod state;
 // existing `crate::cloud::monolith::*` / `crate::cloud::dragon::*` /
 // `crate::cloud::physarum::*` / `crate::cloud::flux_field::*` test
 // references keep resolving unchanged.
+//
+// NIGHT-enhanced-1-fixup: `spawn_logic` (the Glyph droplet spawn path)
+// moved to `type_rain/glyph/spawn_logic.rs` — the 7th rain-style family.
+// No backward-compat alias needed because `spawn_logic` was an
+// `impl Cloud` block (methods accessed via `self.spawn_droplets(...)`,
+// not via `crate::cloud::spawn_logic::*`).
 pub(crate) mod type_rain;
 pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;

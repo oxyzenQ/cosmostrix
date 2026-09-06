@@ -1,11 +1,25 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Spawn logic — extracted from `cloud/spawn.rs` to keep that file
-//! under the 800-LOC hard cap (see `src/RULES_LOC.md`).
+//! Glyph rain style — droplet spawn logic.
 //!
 //! Owns `Cloud::spawn_droplets()` + `Cloud::build_droplet_spec()` —
-//! the per-frame droplet spawn decision + spec construction.
+//! the per-frame droplet spawn decision + spec construction for the
+//! Glyph (droplet-family) rain style. Originally extracted from
+//! `cloud/spawn.rs` to keep that file under the 800-LOC hard cap
+//! (see `src/RULES_LOC.md`); relocated to `type_rain/glyph/` in
+//! NIGHT-enhanced-1-fixup so the Glyph family has its own directory
+//! alongside the other six rain styles.
+//!
+//! The Glyph rain style is architecturally different from the six
+//! structured styles (lorenz, dragon, monolith, physarum, vortex,
+//! flux): it has no `<name>Rain` state-machine struct. Instead it
+//! renders through the shared `Droplet` pool (`crate::droplet::Droplet`)
+//! with column-cascade motion and phosphor Pass 2 protection. The
+//! other Glyph-specific methods that remain in `cloud/spawn.rs`
+//! (`recalc_droplets_per_sec`, `update_droplet_speeds`,
+//! `ensure_glyph_pool_and_warm_start`) are coupled to the general
+//! Cloud lifecycle methods in that file and are not moved here.
 
 use std::time::{Duration, Instant};
 
@@ -14,9 +28,9 @@ use rand::distr::Distribution;
 
 use crate::constants::*;
 
-use super::state::DropletSpawnSpec;
+use super::super::super::state::DropletSpawnSpec;
 
-impl super::Cloud {
+impl super::super::super::Cloud {
     pub(crate) fn build_droplet_spec(&mut self, col: u16) -> DropletSpawnSpec {
         let mut end_line = self.lines.saturating_sub(1);
         // The ripple surface contract (capping droplet end_line above
@@ -234,8 +248,10 @@ impl super::Cloud {
             // in [DENSITY_NOISE_MIN, DENSITY_NOISE_MAX] that re-rolls every
             // DENSITY_NOISE_PERIOD_SECS. Kills the "uniform grid" feel
             // without per-frame allocation — single O(1) hash per spawn.
-            let col_modifier =
-                super::living_rain::column_density_modifier(col, now_secs_for_density);
+            let col_modifier = super::super::super::living_rain::column_density_modifier(
+                col,
+                now_secs_for_density,
+            );
             let effective_density = density_mult * col_modifier;
             if self.rand_chance.sample(&mut self.mt) > effective_density {
                 continue;
