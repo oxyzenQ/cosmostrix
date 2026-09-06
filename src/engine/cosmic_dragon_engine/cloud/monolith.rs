@@ -281,6 +281,23 @@ impl MonolithRain {
             .collect()
     }
 
+    /// NIGHT-hunter-14: test hook — force the drawn-gen counter to probe
+    /// the u32 wrap guard without running 4 billion frames.
+    #[cfg(test)]
+    pub(crate) fn force_drawn_gen_counter_for_test(&mut self, value: u32) {
+        self.drawn_gen_counter = value;
+    }
+
+    #[cfg(test)]
+    pub(crate) fn drawn_gen_counter_for_test(&self) -> u32 {
+        self.drawn_gen_counter
+    }
+
+    #[cfg(test)]
+    pub(crate) fn drawn_gen_tags_for_test(&self) -> &[u32] {
+        &self.drawn_gen
+    }
+
     pub(crate) fn clear_spine_phosphor(&self, cleanup: &mut MonolithCleanup<'_>) {
         for cell in &self.previous_cells {
             if matches!(cell.kind, DrawnCellKind::Spine) {
@@ -424,11 +441,23 @@ impl MonolithRain {
         // counter, so a single u32 write marks "drawn this frame" without
         // needing to clear the array.
         self.drawn_gen_counter = self.drawn_gen_counter.wrapping_add(1);
-        let gen = self.drawn_gen_counter;
         let need_len = self.streams.len().saturating_mul(lines_us);
         if self.drawn_gen.len() != need_len {
             self.drawn_gen.resize(need_len, 0);
         }
+        // NIGHT-hunter-14: u32 wrap guard — mirrors Frame's
+        // GEN_RESET_THRESHOLD contract (frame.rs). Without it, a 2.2-year
+        // continuous session wraps the counter back over stale tag values:
+        // a false "redrawn this frame" match in Pass 3 would skip a needed
+        // clear_cell, dropping that position from the diff history with no
+        // production recovery path (the stuck-cell sweep is debug-gated).
+        // On wrap, zero every tag and restart the counter at 1 — 0 stays
+        // the "never drawn" sentinel, so no stale tag can collide.
+        if self.drawn_gen_counter == 0 {
+            self.drawn_gen.fill(0);
+            self.drawn_gen_counter = 1;
+        }
+        let gen = self.drawn_gen_counter;
         for cell in &self.current_cells {
             let idx = cell.col as usize * lines_us + cell.line as usize;
             // Direct index is safe: col < cols (checked at stream creation)

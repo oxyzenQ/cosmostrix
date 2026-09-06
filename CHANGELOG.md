@@ -9,6 +9,56 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: v100.0.0-nightly.1 — NIGHT-hunter-14 deep audit of the two original rain styles (glyph + monolith): warm-start free-list leak + drawn-gen wrap guard
+
+Owner-mandated deep audit of the two ORIGINAL rain styles (Glyph and
+Monolith), closing the loop on the NIGHT-hunter-10 series that audited
+the five newer structured styles (vortex, lorenz, physarum,
+cosmic_dragon, flux). Two defect classes found and fixed; the rest of
+both styles' hot paths verified at peak (droplet draw: hoisted
+head-brightness/transition-energy/frac-progress, LUT'd edge fade +
+vignette, chroma-routed blend chains; monolith draw: drawn-gen skip
+pass, per-stream tone hoist, direct-indexed arrays — no further gains
+available without over-engineering).
+
+1. Glyph warm-start free-list violation (correctness + LTS).
+   `ensure_glyph_pool_and_warm_start` (spawn.rs) seeded scene-entry
+   droplets by DIRECT pool indexing (`&mut self.droplets[i]`) without
+   popping their slots from `droplet_free_list`, whose contract is
+   "contains exactly the dead droplet indices" (spawn_logic.rs). Under
+   pool pressure a later spawn could pop an ALIVE index and silently
+   overwrite a live droplet mid-fall; the old column's
+   `col_stat.num_droplets` budget then leaked permanently (death
+   decrements only the OVERWRITTEN droplet's new column), thinning that
+   column's rain density until the next reset or scene switch. Fix: the
+   warm-start loop pops its slots from the free list (invariant exact;
+   `break` covers exhaustion). Five regression tests in
+   tests_hunt14.rs pin the invariant, the pool conservation law
+   (free-list length + alive == pool size), column-budget exactness
+   under sustained spawn pressure, and exhaustion termination — the
+   invariant pins verified to FAIL against the pre-fix code.
+
+2. Monolith drawn-gen u32 wrap (LTS). The Pass 2 tag counter
+   (`drawn_gen_counter`) had no wrap guard — unlike its twin in
+   frame.rs (`GEN_RESET_THRESHOLD`). After a ~2.2-year continuous
+   session the counter wraps back over stale tag values; a false
+   "redrawn this frame" match in Pass 3 skips a needed clear_cell and
+   drops that position from the diff history with no production
+   recovery path (the stuck-cell sweep is debug-gated). Fix: on wrap,
+   zero every tag and restart the counter at 1 (0 stays the
+   "never drawn" sentinel — same semantics as Frame's guard). Two
+   regression tests pin the wrap fold (tags never exceed the counter)
+   and that vacated cells still clear across the wrap boundary.
+
+Gates: cargo fmt clean, clippy 0 warnings, 2407/2407 unit tests,
+build.sh check-all green, gate-keepers 10/10. 10s A/B (monolith + matrix
+scenes, 120x40, interleaved same-machine builds, warm discarded):
+noise-equivalent — monolith 35.5K/35.5K fps, entropy 4.838/4.838,
+gini 0.8072/0.8073; matrix ~6.3K fps, entropy 5.740/5.743, gini
+0.6429/0.6414. Expected: neither fix touches the steady-state hot path
+(the warm start runs only on scene entry; the wrap guard is a
+never-taken branch inside any realistic bench window).
+
 ### stability: v100.0.0-nightly.1 — S-master-HUNT-26 the "glitch rain shift" actually root-caused: park-epoch bug + P2 resync bomb (NIGHT-hunter-2 round 2, owner hunt 2026-09-05)
 
 Owner report (post-e3d1834, commit-verified on Alacritty 0.17): the EMA

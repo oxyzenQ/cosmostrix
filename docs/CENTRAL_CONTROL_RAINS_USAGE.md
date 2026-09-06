@@ -326,6 +326,17 @@ Controls spawn rate mechanics — how droplets enter the field.
 - **Faster field fill at startup**: raise `WARM_START_SEED_FRACTION` from 0.12 -> 0.25.
 - **Slower, more cinematic fill**: lower `WARM_START_SEED_FRACTION` from 0.12 -> 0.05.
 
+**Implementation note (NIGHT-hunter-14)**: the warm start seeds its
+droplets by POPPING slots from the droplet free-list (never by direct
+pool indexing). The free-list contract is "contains exactly the dead
+droplet indices" — the historical direct-index seeding left the
+freshly-activated indices inside the list, so under pool pressure a
+later spawn could pop an ALIVE index and overwrite a live droplet
+mid-fall, permanently leaking the old column's `num_droplets` spawn
+budget (decrements only happen on the overwritten droplet's death,
+which decrements the NEW column). Keep the invariant exact if you touch
+this path.
+
 ### 3.9 Glitch system (lines 819–828)
 
 Controls visual corruption — the "Matrix glitch" effect.

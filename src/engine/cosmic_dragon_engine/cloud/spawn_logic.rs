@@ -245,7 +245,11 @@ impl super::Cloud {
             // that searched droplets[] for the next !is_alive slot. The
             // free-list is seeded in reset() with 0..len and maintained
             // push-on-death / pop-on-spawn, so it always contains exactly
-            // the dead droplet indices.
+            // the dead droplet indices. (NIGHT-hunter-14:
+            // ensure_glyph_pool_and_warm_start now also POPS its seeded
+            // slots — the old direct-index seeding left alive droplets
+            // inside the list, breaking this exactness under pool
+            // pressure.)
             let Some(di) = self.droplet_free_list.pop() else {
                 break;
             };

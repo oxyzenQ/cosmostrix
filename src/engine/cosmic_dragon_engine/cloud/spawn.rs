@@ -519,9 +519,26 @@ impl Cloud {
                 continue;
             }
 
+            // NIGHT-hunter-14: pop the slot from the free list instead of
+            // direct-indexing `droplets[i]`. The free-list contract (see
+            // spawn_logic.rs) is "contains exactly the dead droplet
+            // indices"; the previous direct index seeded ALIVE droplets at
+            // 0..seed_limit while their indices stayed in the list, so
+            // under pool pressure a later spawn could pop an alive index
+            // and silently overwrite a live droplet mid-fall — the old
+            // column's `col_stat.num_droplets` was never decremented
+            // (decrements happen only on the OVERWRITTEN droplet's death,
+            // which decrements the NEW column), leaking spawn budget from
+            // the old column permanently (until the next reset or scene
+            // switch) and thinning its rain density. Popping keeps the
+            // invariant exact; `break` covers pool exhaustion.
+            let Some(di) = self.droplet_free_list.pop() else {
+                break;
+            };
+
             let spec = self.build_droplet_spec(col);
             let end_line = spec.end_line;
-            let d = &mut self.droplets[i];
+            let d = &mut self.droplets[di];
             spec.apply_to(d);
 
             // Fresh-entry: head near the top, not scattered mid-screen.
