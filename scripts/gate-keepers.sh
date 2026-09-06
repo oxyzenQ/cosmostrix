@@ -354,12 +354,22 @@ else
 fi
 
 # ── 8. LOC Guard (800-line hard cap) ───────────────────────────────────────
+# NIGHT-enhanced-hunt-F: capture the full check-rs-loc.sh output and
+# only surface it when the check FAILS. The previous `| tail -3` pipe
+# printed the "OK (with migration debt): N file(s) exceed 800" success-
+# path summary even when there were zero violations — noise that
+# contradicts the gate-keepers "only show what matters" principle.
+# On failure, print the full output (not just tail -3) so the
+# contributor sees the VIOLATES lines AND the FAIL summary block.
 header "LOC Guard"
 if [ -f scripts/check-rs-loc.sh ]; then
-	if bash scripts/check-rs-loc.sh 2>&1 | tail -3; then
+	LOC_OUTPUT=$(bash scripts/check-rs-loc.sh 2>&1)
+	LOC_RC=$?
+	if [ "$LOC_RC" -eq 0 ]; then
 		info "LOC guard: all .rs files ≤800 lines"
 		PASS=$((PASS + 1))
 	else
+		echo "$LOC_OUTPUT"
 		fail "LOC guard: some .rs files exceed 800 lines"
 	fi
 else
