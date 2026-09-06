@@ -10,14 +10,19 @@
 //!   (activate_stream, build_segments,
 //!   draw_spine, color_for_level, ...).
 //!
-//! `bold_for_level` and `color_for_level` are re-exported here because
-//! lorenz, vortex, dragon, physarum and flux all share the monolith
-//! brightness ladder and palette logic - keeping the canonical
-//! re-export at the family root avoids each consumer reaching into
-//! `monolith::monolith_helpers::*` directly. `clear_cell` and
-//! `pick_pool_char` are also re-exported for the same reason (the
-//! 4 non-monolith rain styles clear cells via the same path so the
-//! phosphor metadata stays consistent across styles).
+//! `bold_for_level`, `color_for_level` and `pick_pool_char` are
+//! re-exported here because lorenz, vortex, dragon, physarum and flux
+//! all share the monolith brightness ladder and palette logic -
+//! keeping the canonical re-export at the family root avoids each
+//! consumer reaching into `monolith::monolith_helpers::*` directly.
+//!
+//! `clear_cell` is NOT re-exported here: after NIGHT-enhanced-hunt-A
+//! its visibility is `pub(in cloud::type_rain)` (tighter than
+//! `pub(crate)`), so the 5 cross-family consumers import it directly
+//! from `monolith_helpers` via `super::super::monolith::monolith_helpers::
+//! clear_cell`. A `pub(crate) use` re-export would be a privacy upgrade
+//! and fail to compile. Tests don't reference `clear_cell` directly
+//! (only in comments), so no test breaks.
 
 pub(crate) mod monolith;
 pub(crate) mod monolith_glyphs;
@@ -36,4 +41,4 @@ pub(crate) use monolith::{
     MonolithSpawnParams,
 };
 #[allow(unused_imports)]
-pub(crate) use monolith_helpers::{bold_for_level, clear_cell, color_for_level, pick_pool_char};
+pub(crate) use monolith_helpers::{bold_for_level, color_for_level, pick_pool_char};

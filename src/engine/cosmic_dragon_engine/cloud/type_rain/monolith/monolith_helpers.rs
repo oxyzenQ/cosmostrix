@@ -446,7 +446,15 @@ pub(crate) fn bold_for_level(mode: BoldMode, level: BrightnessLevel, line: u16, 
     }
 }
 
-pub(crate) fn clear_cell(
+/// `clear_cell` is `pub(in super::super)` (= `pub(in cloud::type_rain)`)
+/// rather than `pub(crate)`: the only consumers are the five non-monolith
+/// rain-style families (lorenz, vortex, dragon, physarum, flux) which
+/// clear cells via the same path so phosphor metadata stays consistent
+/// across styles. Tightening from `pub(crate)` to `pub(in cloud::
+/// type_rain)` prevents the function from leaking past the rain-style
+/// boundary into unrelated cloud infrastructure or the wider crate.
+/// (NIGHT-enhanced-hunt-A)
+pub(in super::super) fn clear_cell(
     frame: &mut Frame,
     cleanup: &mut MonolithCleanup<'_>,
     col: u16,
