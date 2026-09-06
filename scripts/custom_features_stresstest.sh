@@ -195,6 +195,7 @@ echo "── scene-custom ──"
 # self-contained profile — no base-scene inheritance; always glyph rain).
 cat >"$TMPDIR_TEST/valid_scene.toml" <<'EOF'
 [scene-custom.test]
+rain = "glyph"
 color = "neon-green"
 charset = "matrix"
 fps = 60
@@ -209,6 +210,7 @@ run_case "valid scene-custom" "benchmark" -- --config "$TMPDIR_TEST/valid_scene.
 # missing-dimension list.
 cat >"$TMPDIR_TEST/no_base.toml" <<'EOF'
 [scene-custom.test]
+rain = "glyph"
 color = "neon-green"
 speed = 15
 EOF
@@ -218,6 +220,7 @@ run_case "incomplete scene-custom (missing dimensions) → error" "error|incompl
 # reject with the targeted removal hint.
 cat >"$TMPDIR_TEST/bad_base.toml" <<'EOF'
 [scene-custom.test]
+rain = "glyph"
 base-scene = "nonexistent_scene"
 color = "neon-green"
 EOF
@@ -226,6 +229,7 @@ run_case "removed base-scene field → strict reject with hint" "error|removed" 
 # Empty scene-custom block
 cat >"$TMPDIR_TEST/empty_scene.toml" <<'EOF'
 [scene-custom.test]
+rain = "glyph"
 EOF
 run_case "empty scene-custom block → incomplete error" "error|incomplete" -- --config "$TMPDIR_TEST/empty_scene.toml" --scene-custom test --benchmark --bench-duration 1s
 
@@ -237,6 +241,7 @@ cat >"$TMPDIR_TEST/dual_color.toml" <<'EOF'
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
+rain = "glyph"
 color = "neon-green"
 colors-custom = "pal"
 charset = "matrix"
@@ -254,6 +259,7 @@ cat >"$TMPDIR_TEST/dual_charset.toml" <<'EOF'
 set = "ABC"
 
 [scene-custom.test]
+rain = "glyph"
 charset = "binary"
 charset-custom = "cs"
 color = "neon-green"
@@ -267,6 +273,7 @@ run_case "charset + charset-custom conflict → charset wins, runs" "benchmark" 
 # Nonexistent scene-custom name
 cat >"$TMPDIR_TEST/nonexist_scene.toml" <<'EOF'
 [scene-custom.exists]
+rain = "glyph"
 color = "neon-green"
 charset = "matrix"
 fps = 60
@@ -289,6 +296,7 @@ rain = ["#ff0000", "#00ff00", "#0000ff"]
 set = "ABCDEF"
 
 [scene-custom.test]
+rain = "glyph"
 colors-custom = "pal"
 charset-custom = "cs"
 fps = 60
@@ -304,6 +312,7 @@ cat >"$TMPDIR_TEST/cli_override.toml" <<'EOF'
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
+rain = "glyph"
 color = "neon-green"
 charset = "matrix"
 fps = 60
@@ -336,6 +345,7 @@ rain = "#00ff41,#00b32d,#005c17"
 set = "ABCDEF"
 
 [scene-custom.hx]
+rain = "glyph"
 color = "green"
 charset = "matrix"
 fps = 60
@@ -385,6 +395,7 @@ cat >"$TMPDIR_TEST/block_conflict.toml" <<'EOF'
 rain = "#ff0041,#ff6690"
 
 [scene-custom.dual]
+rain = "glyph"
 color = "green"
 colors-custom = "pal"
 charset = "matrix"
