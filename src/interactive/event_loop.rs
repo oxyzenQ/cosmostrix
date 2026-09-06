@@ -460,8 +460,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             continue;
                         }
                         // HUD toggle ('i'): check BEFORE screensaver exit to prevent
-                        // self-exit on Android/Termux. v30: lowercase-only. Toggling
-                        // OFF calls force_draw_everything() to clear stale HUD residue.
+                        // self-exit on Android/Termux. v30: lowercase-only.
+                        // Toggling OFF calls force_draw_everything() to clear
+                        // stale HUD residue.
+                        // NIGHT-hunter-16: for Glyph (droplet family),
+                        // force_draw_everything() routes through
+                        // Frame::force_repaint() (HUNT-25) which only sets
+                        // dirty_all=true WITHOUT bumping the content gen or
+                        // clearing cells. HUNT-27's cell-level skip in
+                        // term.draw() then sees frame.cells[idx] (old HUD
+                        // text) == last.cells[idx] (old HUD text) → SKIP →
+                        // stale HUD metrics stay on screen until a rain
+                        // droplet happens to overwrite those exact cells
+                        // ("after some seconds hide/clean and need rain
+                        // passed it for cleaning" — owner report).
+                        // Structured styles don't have this bug because their
+                        // force_draw_everything block calls clear_with_bg()
+                        // (bumps gen → cells read as blank → emit → cleared).
+                        // Fix: arm semantic_invalidate = true so the
+                        // invalidate_semantic() path runs BEFORE the
+                        // force_draw_everything block. invalidate_semantic()
+                        // calls clear_with_bg() which bumps gen → all cells
+                        // read as blank via the gen-mismatch path → HUNT-27
+                        // cell-skip sees blank != old_HUD_text → emit → HUD
+                        // cleared immediately on ALL 7 rain styles.
                         // Modifier guard: only bare 'i' (NONE). Rejects Shift+'i'
                         // (which produces 'I', no binding) and all other modifiers
                         // (Ctrl/Super/Alt/Hyper/Meta+'i'). See is_unmodified().
@@ -476,6 +498,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         {
                             let now_visible = hud_state.toggle();
                             if !now_visible {
+                                cloud.semantic_invalidate = true;
                                 cloud.force_draw_everything();
                             }
                             // Set next_frame=activity_time so HUD appears immediately;
