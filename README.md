@@ -516,9 +516,10 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `matrix_film` — dense phosphor-green katakana rain tuned to the Matrix 1999 cinematic source (palette `neon-green` + charset `matrix` + speed 22 + density 0.85). Not a 1:1 reproduction: cosmostrix's parallax depth, phosphor decay, and head-bloom layer onto the film's foundational look. Distinct from the `matrix` scene (the modern organic cascade, density 0.65, speed 18.0). Use `cosmostrix --scene matrix_film`.
 
-**Milestone scene**:
+**Milestone scenes**:
 
 - `cosmic-dragon` — deep-space binary rain commemorating the temporal-prediction breakthrough (horizon=12 + skip-draw + persistent cells: dirty_ratio 18.33% -> 0.39%, FPS +280%). Use `cosmostrix --scene cosmic-dragon`.
+- `dragon_hunt` — the biggest-bug-hunt milestone: the "glitch rain shift" run to ground after a 26-round hunt (NIGHT-hunter-2, HUNT-23..26). The Lorenz butterfly glides clean through the `nebula` palette on `blocks` glyphs — glitch level none, the glitch is dead. Use `cosmostrix --scene dragon_hunt`.
 
 **Honor scenes**:
 

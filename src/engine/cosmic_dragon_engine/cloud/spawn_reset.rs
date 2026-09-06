@@ -179,11 +179,25 @@ impl super::Cloud {
         self.last_spawn_time = now;
         self.spawn_remainder = 0.0;
         self.force_draw_everything = true;
-        if !self.rain_style.is_droplet_family() {
-            // Structured styles carry drawn-cell diff history that must be
-            // rebuilt after a hard reset.
-            self.semantic_invalidate = true;
-        }
+        // NIGHT-hunter-15: a hard reset is a semantic event for EVERY
+        // style, not just the structured family. The 'r' shortkey calls
+        // reset() + force_draw_everything(); for Glyph (droplet family)
+        // the force flag used to be consumed by the HUNT-25 resync path
+        // (Frame::force_repaint — re-emit current content, NO clear),
+        // so the pre-restart glyphs stayed on screen while the droplet
+        // pool and phosphor arrays were wiped: no droplet owned those
+        // cells and the phosphor decay system no longer tracked them,
+        // leaving the owner-reported permanent "bekas rain" residue
+        // (restart appeared stuck, then rain resumed over the old
+        // frame). Arming semantic_invalidate routes the first
+        // post-restart frame through invalidate_semantic (full logical
+        // clear + gen bump + terminal LastFrame resync) — the same
+        // contract scene switches already honor
+        // (transition_rain_style/apply_scene_runtime arm this for every
+        // style). All other reset() callers rebuild the Frame fresh
+        // (resize, live-reload, intro re-read, startup), where the
+        // extra invalidation on an already-blank frame is a no-op.
+        self.semantic_invalidate = true;
         self.frames_since_full_redraw = 0;
         self.frames_since_stuck_sweep = 0;
         self.last_reseed_time = now;

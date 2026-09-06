@@ -22,6 +22,10 @@ fn cycle_scene_forward_order() {
     assert_eq!(cycle_scene("lorenz", 1), "cosmic_dragon");
     assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
     assert_eq!(cycle_scene("physarum", 1), "classic");
+    // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
+    // right after the cosmic-dragon milestone (positions 18-19).
+    assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
+    assert_eq!(cycle_scene("dragon_hunt", 1), "carbonic");
     // Tail of the cycle wraps back to the head.
     assert_eq!(cycle_scene("curiosity", 1), "cinematic");
 }
@@ -67,11 +71,13 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 23-scene catalog and is a
+    // drift). This pin documents the full 24-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
     // NIGHT-research-5/6: cosmic_dragon + physarum joined at cycle
     // positions 7-8; physarum sorts alphabetically after orange-cat.
+    // NIGHT-hunter-15: dragon_hunt joined at cycle position 19; sorts
+    // alphabetically after curiosity, before flux.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -84,6 +90,7 @@ fn scene_names_are_present() {
             "cosmos",
             "crystal-dragon",
             "curiosity",
+            "dragon_hunt",
             "flux",
             "hacker",
             "lorenz",
@@ -138,11 +145,13 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_three_entries() {
+fn scene_catalog_has_twenty_four_entries() {
     // NIGHT-research-5/6: catalog grew from 21 to 23 scenes
     // (cosmic_dragon + physarum joined at cycle positions 7-8 —
     // the serpentine-dragon and slime-mold rain styles).
-    assert_eq!(SCENES.len(), 23, "catalog must contain 23 built-in scenes");
+    // NIGHT-hunter-15: dragon_hunt joined at cycle position 19 —
+    // the biggest-bug-hunt milestone (glitch rain shift).
+    assert_eq!(SCENES.len(), 24, "catalog must contain 24 built-in scenes");
 }
 
 #[test]
@@ -201,12 +210,34 @@ fn cosmic_dragon_scene_marks_temporal_prediction_milestone() {
 }
 
 #[test]
+fn dragon_hunt_scene_marks_biggest_bug_hunt_milestone() {
+    // NIGHT-hunter-15: the dragon_hunt milestone commemorates the
+    // biggest bug hunt in cosmostrix history — the "glitch rain
+    // shift" run to ground across HUNT-23..26. Lorenz rain in the
+    // nebula palette with the blocks charset (owner spec);
+    // glitch level none — the glitch is dead.
+    let s = get_scene("dragon_hunt").expect("dragon_hunt scene");
+    assert_eq!(s.config.color, Some("nebula"));
+    assert_eq!(s.config.charset, Some("blocks"));
+    assert_eq!(s.config.fps, Some(60.0));
+    assert_eq!(s.config.speed, Some(22.0));
+    assert_eq!(s.config.density, Some(0.70));
+    assert_eq!(s.config.glitch_level, Some(GlitchLevel::None));
+    assert_eq!(s.config.rain_style, RainStyle::Lorenz);
+    assert!(
+        s.description.contains("glitch rain shift"),
+        "dragon_hunt description must reference the bug hunt: {}",
+        s.description
+    );
+}
+
+#[test]
 fn scene_cycle_order_is_preserved() {
     // Owner-pinned first three (2026-08-24 directive) + full coverage.
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        23,
+        24,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

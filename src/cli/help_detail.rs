@@ -360,8 +360,8 @@ COMMON OPTIONS:
       Built-in scenes: cinematic (default), matrix, monolith, vortex,
       flux, lorenz, cosmic_dragon, physarum, signal, classic,
       calm, storm, cosmos, neon, hacker, low-power, matrix_film,
-      cosmic-dragon, carbonic, crystal-dragon, orange-cat, north-stars,
-      curiosity.
+      cosmic-dragon, dragon_hunt, carbonic, crystal-dragon, orange-cat,
+      north-stars, curiosity.
       Use --list-scenes to see all entries with descriptions.
 
       cosmic-dragon is the temporal-prediction milestone scene — a
@@ -370,6 +370,13 @@ COMMON OPTIONS:
       from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773
       (+280%). It is the visible reward for the achievement, not part
       of the interactive x cycle.
+
+      dragon_hunt is the biggest-bug-hunt milestone scene (cycle
+      position 19, right after cosmic-dragon): the Lorenz butterfly
+      gliding through the nebula palette on blocks glyphs — the
+      visible reward for running the \"glitch rain shift\" to ground
+      (NIGHT-hunter-2, HUNT-23..26). Glitch level none: the glitch
+      is dead.
 
       carbonic is a tribute to that same experiment. The temporal-
       prediction code was ultimately reverted in v25 because it
@@ -386,6 +393,7 @@ COMMON OPTIONS:
       cosmostrix --scene storm
       cosmostrix --scene low-power
       cosmostrix --scene cosmic-dragon
+      cosmostrix --scene dragon_hunt
       cosmostrix --scene carbonic
 
   --scene-custom <name>

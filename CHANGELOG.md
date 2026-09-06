@@ -9,6 +9,84 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
+
+Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did
+not restart the field — the screen appeared stuck for a moment, then
+rain resumed falling on top of the old glyphs, which stayed permanently
+("bekas rain sebelumnya yang stuck"). Every other style cleared and
+restarted from the top as documented; the owner asked to fix glyph and
+verify the other six styles, then commemorate the biggest bug hunt with
+a milestone scene.
+
+Root cause: the 'r' handler calls `cloud.reset()` +
+`cloud.force_draw_everything()`. `reset_with_bounds` armed
+`semantic_invalidate` only for STRUCTURED styles — for the droplet
+family (glyph) the force flag was consumed by the HUNT-25 resync path
+(`Frame::force_repaint` — re-emit current content, NO clear), so the
+frame kept the pre-restart glyphs while the simulation state (droplet
+pool, phosphor arrays) was wiped: no droplet owned those cells anymore
+and the phosphor decay system no longer tracked them, so nothing could
+ever blank them. Pre-HUNT-25 the glyph force branch called
+`clear_with_bg` (which cleared the screen on restart, alongside the
+resync mass-dump HUNT-25 fixed); the force_repaint swap removed the
+restart clear as collateral damage. Fix: `reset_with_bounds` arms
+`semantic_invalidate` for EVERY style — a hard reset is a semantic
+event, the same contract scene switches already honor — so the first
+post-restart frame routes through `invalidate_semantic` (full logical
+clear + generation bump + terminal LastFrame resync) before the force
+branch. Bare resyncs (idle resync, stuck sweep, P2 mitigation — force
+flag WITHOUT a reset) keep the HUNT-25 non-perturbing contract. All
+other reset() callers rebuild the Frame fresh (resize, live-reload,
+intro re-read, startup, bench), where the invalidation on an
+already-blank frame is a no-op.
+
+Verification: three new regression tests in tests_restart_hunt15.rs —
+the glyph restart pin (content epoch + semantic_gen must bump, every
+pre-restart cell must blank; verified to FAIL on the pre-fix code), the
+all-seven-styles restart contract (no cell may retain pre-restart
+content unless the fresh simulation rewrote it this frame — pins the
+six structured styles that already passed so none can regress), and the
+bare-resync non-regression (force flag without reset preserves content
+and generations — the HUNT-25 contract). End-to-end: a new committed
+PTY evidence tool, scripts/nh15_restart_e2e.py, renders the ANSI stream
+through the nh2 mini terminal emulator and asserts the screen blanks
+to <10% within 0.3 s of the key and refills from the top (with
+`--intro none` to keep the key past the startup animation): the fixed
+binary clears at +0.01 s in 3/3 runs; the pre-fix binary retains the
+residue (no clear within the window) in 3/3 runs — the owner's symptom
+reproduced and eliminated at the real terminal boundary. Monolith,
+lorenz, and the new dragon_hunt scene verified the same way.
+
+Milestone (owner spec): the `dragon_hunt` scene — the biggest bug hunt
+in cosmostrix history, the "glitch rain shift" run to ground across
+HUNT-23..26 (26 rounds: output drain backoff, EMA pressure decoupling,
+the phosphor park-epoch fix, the P2 resync full-body flash fix, the
+MADV NUL emission fix, the amortized thaw). The Lorenz butterfly — the
+engine's strange attractor, the motion the hunters chased the ghost
+through — rendered in the `nebula` palette on `blocks` glyphs at cycle
+position 19 (milestone group, right after cosmic-dragon). Speed 22 (a
+hair under the lorenz flagship's 24: the hunt is over, the butterfly
+glides), density 0.70 (flagship parity), glitch level NONE — the glitch
+is dead. Catalog grows 23 -> 24 scenes; the scene-count pins, the
+sorted name list, the x-cycle order pins, the --scene help list, and
+the README milestone section all updated; a stale "21-scene cycle"
+comment in the interactive tests corrected.
+
+Gates: cargo fmt clean, clippy 0 warnings, 2411/2411 unit tests
+(2407 + 3 restart + 1 scene pin), build.sh check-all green (cargo-audit
+skipped: not installed, same as prior sessions), gate-keepers 10/10,
+LOC caps respected (scene/mod.rs 729, help_detail.rs 703,
+spawn_reset.rs 228). 10s A/B benchmark (cinematic + matrix scenes,
+120x40, interleaved same-machine builds, warm discarded):
+noise-equivalent — cinematic 6570/6490 fps (matrix 6259/6308 — the
+delta flips sign across scenes, run noise), entropy 5.748/5.744 and
+5.748/5.747, gini 0.6401/0.6406 and 0.6398/0.6407. Expected: the
+semantic flag fires once per reset (frame 1 of a bench run, where
+dirty_all was already set) and never again. dragon_hunt first baseline:
+54.3K fps, p99 0.024 ms, entropy 5.883, gini 0.5925 — in family with
+the lorenz flagship.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-14 deep audit of the two original rain styles (glyph + monolith): warm-start free-list leak + drawn-gen wrap guard
 
 Owner-mandated deep audit of the two ORIGINAL rain styles (Glyph and

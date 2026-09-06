@@ -17,10 +17,13 @@
 //! visual scenes (`classic`, `cinematic`, `calm`, `storm`, `cosmos`,
 //! `neon`, `hacker`, `matrix_film`, `low-power`), the `cosmic-dragon`
 //! milestone scene commemorating the temporal-prediction breakthrough
-//! ( dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), and the tribute
+//! ( dirty_ratio 18.33% → 0.39%, FPS 7,843 → 29,773), the
+//! `dragon_hunt` milestone scene commemorating the biggest bug hunt —
+//! the "glitch rain shift" run to ground by the NIGHT hunters
+//! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 23 built-in scenes (owner directive 2026-08-24): the
+//! covers all 24 built-in scenes (owner directive 2026-08-24): the
 //! three core atmospheres lead (cinematic, monolith, matrix), then
 //! the five style flagships, the curated classics, the atmosphere
 //! scenes, the power-saving utility, and the milestone/tribute/honor
@@ -58,13 +61,15 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 23 built-in scenes (owner directive
+/// Ordered scene cycle — all 24 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
 /// style flagship at 4; task-19 replaced the rejected ripple with
 /// flux at 5; the NIGHT-research-4 merge added lorenz, a
 /// strange-attractor masterpiece, at 6; NIGHT-research-5 added the
 /// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
-/// physarum style flagship at 8; the rest ordered by daily-use
+/// physarum style flagship at 8; NIGHT-hunter-15 added the dragon_hunt
+/// milestone (the glitch-rain-shift bug-hunt reward) at 19; the rest
+/// ordered by daily-use
 /// likelihood so the most-switched scenes are the fewest keystrokes
 /// away: core trio -> style flagships -> classic siblings ->
 /// atmosphere -> power-saving utility -> milestone -> tribute ->
@@ -106,12 +111,13 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     "low-power", // 17
     // Milestone + tribute.
     "cosmic-dragon", // 18
-    "carbonic",      // 19
+    "dragon_hunt",   // 19
+    "carbonic",      // 20
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 20
-    "orange-cat",     // 21
-    "north-stars",    // 22
-    "curiosity",      // 23
+    "crystal-dragon", // 21
+    "orange-cat",     // 22
+    "north-stars",    // 23
+    "curiosity",      // 24
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -438,6 +444,38 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.65),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Glyph,
+        },
+    },
+    // --- Milestone scene: dragon_hunt (NIGHT-hunter-15) ---
+    //
+    // Commemorates the biggest bug hunt in cosmostrix history: the
+    // "glitch rain shift" — the rain visibly shifting sideways for a
+    // few seconds on real terminals (owner-reported on every terminal
+    // class, first minute of a fresh session, monolith immune, the
+    // first s/S/c/C shortkey re-triggering it as a left-to-right
+    // lightning sweep). The hunt ran 26 rounds across HUNT-23..26
+    // (output drain backoff, EMA pressure decoupling, the phosphor
+    // park-epoch fix, the P2 resync full-body flash fix, the MADV NUL
+    // emission fix, the amortized thaw) before the last ghost was run
+    // to ground at e58f8b8.
+    //
+    // The scene is the visible reward: the Lorenz butterfly — the
+    // engine's strange attractor, the motion the hunters chased the
+    // ghost through — rendered in the `nebula` palette with the
+    // `blocks` charset. Speed 22 (a hair under the lorenz flagship's
+    // 24: the hunt is over, the butterfly glides). Density 0.70
+    // matches the flagship. Glitch level NONE — the glitch is dead.
+    SceneInfo {
+        name: "dragon_hunt",
+        description: "Dragon Hunt — the biggest bug hunt: the glitch rain shift, run to ground; the Lorenz butterfly glides clean through nebula where the ghost once hid",
+        config: SceneConfig {
+            color: Some("nebula"),
+            charset: Some("blocks"),
+            fps: Some(60.0),
+            speed: Some(22.0),
+            density: Some(0.70),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Lorenz,
         },
     },
     // --- Tribute scene: carbonic ---

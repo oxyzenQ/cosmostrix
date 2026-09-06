@@ -140,11 +140,28 @@ def test_charset_blocks():
 
 # ── Stress Test 4: scene-custom 101+ blocks ──
 def test_scene_blocks():
-    """Generate 105 scene-custom blocks (over the 100 cap)."""
+    """Generate 105 scene-custom blocks (over the 100 cap).
+
+    NIGHT-hunter-15 repair: the template predated the v80.0.0-beta.2
+    strict schema (a scene-custom block must be COMPLETE — rain,
+    color|colors-custom, charset|charset-custom, fps, speed, density,
+    glitch-level; no base-scene inheritance). The stale partial block
+    failed on every binary regardless of the cap being exercised; the
+    template now emits schema-complete blocks so the test measures the
+    block cap again (verified failing identically pre/post the
+    NIGHT-hunter-15 code change — the failure was the template, not
+    the code).
+    """
     lines = []
     for i in range(105):
         lines.append(f"[scene-custom.scene{i}]")
+        lines.append("rain = glyph")
         lines.append("color = green")
+        lines.append("charset = binary")
+        lines.append("fps = 60")
+        lines.append("speed = 12")
+        lines.append("density = 0.65")
+        lines.append("glitch-level = subtle")
         lines.append("")
     config = "\n".join(lines) + "\n"
     test("scene_105_blocks_capped", config, expect_pass=True)
@@ -218,7 +235,14 @@ def test_unknown_fields():
 
 # ── Stress Test 10: valid config (control) ──
 def test_valid_control():
-    """Normal valid config should PASS with no warnings."""
+    """Normal valid config should PASS with no warnings.
+
+    NIGHT-hunter-15 repair: the old template used `base-scene` (removed
+    in v80.0.0-beta.2 — no base-scene inheritance) and a partial
+    scene-custom block, which the strict schema rejects on every
+    binary; the control config was never actually valid. The
+    scene-custom block is now schema-complete.
+    """
     config = """[colors-custom.sunset]
 bg = "#0a0a12"
 rain = "#1a0033, #4d0080, #9933ff, #cc66ff, #ffffff"
@@ -227,9 +251,13 @@ rain = "#1a0033, #4d0080, #9933ff, #cc66ff, #ffffff"
 set = "|"
 
 [scene-custom.afternoon]
-base-scene = "signal"
+rain = glyph
 color = "neon-green"
-speed = "50"
+charset = binary
+fps = 60
+speed = 50
+density = 0.65
+glitch-level = subtle
 """
     test("valid_config_control", config, expect_pass=True)
 

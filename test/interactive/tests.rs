@@ -394,8 +394,9 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        // 21-scene cycle (owner directive 2026-08-24 + task-18/19 +
-        // NIGHT-research-4 flagships): from monolith the forward order
+        // 24-scene cycle (owner directive 2026-08-24 + task-18/19 +
+        // NIGHT-research-4/5/6 flagships + NIGHT-hunter-15 milestone):
+        // from monolith the forward order
         // is matrix -> vortex -> flux -> lorenz (both ripple
         // replacements present, flux at 5 and lorenz at 6).
         assert_eq!(visited, ["matrix", "vortex", "flux", "lorenz"]);
