@@ -355,10 +355,17 @@ pub(crate) const STDOUT_FALLBACK_MAX_RECOVERIES: u32 = 3;
 
 // ─── P4: stuck-cell sweep ────────────────────────────────────────────────────
 
-/// Frames between stuck-cell sweeps. 3600 frames ≈ 60s at 60 FPS.
-/// Deliberately longer than FULL_REDRAW_INTERVAL_FRAMES — the full redraw
-/// catches most stuck cells; the sweep catches drift between redraws.
-pub(crate) const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 3600;
+/// Frames between stuck-cell sweeps. 600 frames ≈ 10s at 60 FPS.
+/// NIGHT-hunter-17: reduced from 3600 (60s) to 600 (10s). The old 60s
+/// interval relied on the full-redraw to catch most stuck cells between
+/// sweeps, but HUNT-27's cell-level skip in the full-redraw path means
+/// unchanged cells are skipped — stuck cells (whose frame content
+/// matches last frame's screen) are never cleared by the full redraw.
+/// The sweep is now the ONLY mechanism that clears stuck cells, so it
+/// must run more frequently. 10s is short enough that the owner won't
+/// perceive stuck cells as "permanent" but long enough to avoid
+/// measurable overhead (O(W×H + droplets) ≈ 12K ops every 10s).
+pub(crate) const STUCK_CELL_SWEEP_INTERVAL_FRAMES: u64 = 600;
 
 /// Maximum stuck cells the sweep clears per pass. Prevents a pathological
 /// case (e.g., after a resize race) from clearing tens of thousands of
@@ -367,10 +374,11 @@ pub(crate) const STUCK_CELL_MAX_PER_SWEEP: usize = 256;
 
 // ─── P5: fd health probe ─────────────────────────────────────────────────────
 
-/// Frames between proactive stdout fd health probes. 3600 frames ≈ 60s
-/// at 60 FPS. Matches the P4 stuck-cell sweep cadence — both are
-/// "background hygiene" passes on the same slow tick.
-pub(crate) const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 3600;
+/// Frames between proactive stdout fd health probes. 600 frames ≈ 10s
+/// at 60 FPS. Matches the P4 stuck-cell sweep cadence (NIGHT-hunter-17
+/// reduced both from 3600/60s to 600/10s) — both are "background
+/// hygiene" passes on the same slow tick.
+pub(crate) const FD_HEALTH_PROBE_INTERVAL_FRAMES: u64 = 600;
 
 // ─── Feature #13: thermal sensor sampling ────────────────────────────────────
 //

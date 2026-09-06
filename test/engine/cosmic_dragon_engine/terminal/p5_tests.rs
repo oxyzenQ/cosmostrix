@@ -42,7 +42,7 @@ fn p5_probe_interval_matches_p4_sweep_cadence() {
     use crate::constants::STUCK_CELL_SWEEP_INTERVAL_FRAMES;
     assert_eq!(
         FD_HEALTH_PROBE_INTERVAL_FRAMES, STUCK_CELL_SWEEP_INTERVAL_FRAMES,
-        "P5 probe cadence should match P4 sweep cadence (both are 60s background hygiene)"
+        "P5 probe cadence should match P4 sweep cadence (both are 10s background hygiene after NIGHT-hunter-17)"
     );
 }
 

@@ -40,8 +40,12 @@ fn count_glyph_cells(frame: &Frame, cols: u16, lines: u16) -> usize {
 }
 
 #[test]
-fn p4_sweep_skips_when_component_timing_disabled() {
-    // Production interactive mode (no --perf-stats) → sweep is a no-op.
+fn p4_sweep_runs_when_component_timing_disabled() {
+    // NIGHT-hunter-17: the sweep now runs even when enable_component_timing
+    // is false (production interactive mode, no --perf-stats). The old
+    // behavior was: sweep was a no-op unless --perf-stats was passed,
+    // which meant stuck rain cells never got cleared on interactive runs.
+    // The sweep is a correctness mechanism, not a profiling one.
     let mut cloud = make_cloud(); // timing disabled by default
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
 
@@ -60,15 +64,15 @@ fn p4_sweep_skips_when_component_timing_disabled() {
     // Pre-condition: the cell has a glyph.
     assert!(frame.get(0, 0).unwrap().fg.is_some());
 
-    // Bump the counter past the threshold to confirm the gate is on
-    // enable_component_timing, not just the counter.
+    // Bump the counter past the threshold so the sweep fires.
     cloud.frames_since_stuck_sweep = STUCK_CELL_SWEEP_INTERVAL_FRAMES + 1;
     cloud.stuck_cell_sweep(&mut frame);
 
-    // The cell should still be there — sweep didn't run.
+    // The cell should be CLEARED — the sweep runs regardless of
+    // enable_component_timing (NIGHT-hunter-17 fix).
     assert!(
-        frame.get(0, 0).unwrap().fg.is_some(),
-        "sweep must be a no-op when enable_component_timing is false"
+        frame.get(0, 0).unwrap().fg.is_none(),
+        "sweep must clear stuck cells even when enable_component_timing is false"
     );
 }
 

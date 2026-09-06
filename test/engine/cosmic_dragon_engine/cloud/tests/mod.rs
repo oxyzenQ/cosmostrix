@@ -39,6 +39,7 @@ mod tests_restart_hunt15;
 mod tests_resync_hunt25;
 mod tests_scene;
 mod tests_smoothstep_easing;
+mod tests_stuck_cells_hunt17;
 mod tests_visual_depth;
 mod tests_vortex;
 

@@ -260,8 +260,11 @@ impl super::Cloud {
     /// `enable_stuck_cell_sweep` is false (independent of `enable_component_timing`).
     /// Default true for interactive runs; set to false in benchmark mode
     /// (`bench.rs`) so the sweep's Vec growth does not pollute realloc
-    /// counters. The body still respects `enable_component_timing` as a
-    /// second short-circuit (kept for backwards compatibility with `--perf-stats`).
+    /// counters.
+    /// NIGHT-hunter-17: removed the `enable_component_timing` second
+    /// short-circuit — it meant the sweep NEVER ran unless `--perf-stats`
+    /// was passed, leaving stuck rain cells on screen for interactive
+    /// runs. The sweep is a correctness mechanism, not a profiling one.
     /// The sweep also short-circuits when a message box is active
     /// (its overlay cells would be false positives).
     ///
@@ -276,11 +279,15 @@ impl super::Cloud {
         if !self.enable_stuck_cell_sweep {
             return;
         }
-        // Legacy gate: still respect enable_component_timing (preserves
-        // the pre-T1.1 behavior where --perf-stats toggled the sweep).
-        if !self.enable_component_timing {
-            return;
-        }
+        // NIGHT-hunter-17: removed the `enable_component_timing` gate
+        // that was kept "for backwards compatibility with --perf-stats".
+        // That gate meant the sweep NEVER ran unless --perf-stats was
+        // passed — the exact reason stuck rain cells persisted for the
+        // owner (running -v -s, not --perf-stats). The sweep is a
+        // correctness mechanism (clear stuck cells), not a profiling
+        // mechanism; it must run on every interactive session.
+        // enable_stuck_cell_sweep (default true, benchmark false) is the
+        // correct gate.
         // Skip when a message box is active — overlay cells would trigger
         // false positives (they're written this frame, have fg, but no
         // droplet covers them by design).
@@ -300,7 +307,6 @@ impl super::Cloud {
         }
 
         let width = self.cols;
-        let current_gen = frame.current_gen();
         let blank_cell = Cell::blank_with_bg(self.palette.bg);
 
         // Pre-compute each active droplet's visible trail range so the
@@ -326,12 +332,21 @@ impl super::Cloud {
 
         let mut stuck_count: usize = 0;
         for i in 0..total {
-            // Cell must have been written this frame (gen matches).
-            if frame.cell_gen_at_index(i) != current_gen {
-                continue;
-            }
+            // NIGHT-hunter-17: the sweep must check ALL cells, not just
+            // cells written this frame. A stuck cell is a cell whose
+            // content (a visible glyph) persists in frame.cells[i] but
+            // is NOT tracked by phosphor and NOT covered by an active
+            // droplet. Before this fix, the sweep gated on
+            // `cell_gen_at_index(i) == current_gen` (written this frame),
+            // which meant stale cells (written in a previous frame, never
+            // cleared) were SKIPPED — the exact cells that get stuck.
+            //
+            // Use frame.cells[i] directly (the actual stored content)
+            // instead of cell_at_index_ref(i) (which returns blank for
+            // stale cells via the gen-mismatch path). A stale cell with
+            // a real glyph in frame.cells[i] is the stuck-cell signature.
+            let cell = frame.cells[i];
             // Cell must have a visible glyph (fg set).
-            let cell = frame.cell_at_index_ref(i);
             if cell.fg.is_none() {
                 continue;
             }
