@@ -4,9 +4,11 @@
 // (spin_phase + conveyor bookkeeping), the entry spiral gate and the
 // formation intro (formation clock, formed flag, seed-dot rendering,
 // horizon-bloom filter) on top of the ball/ring orchestrator, stage
-// 2.4 added the see-saw roll scheduler field, and stage 2.6 added
-// the halo stream pool arms (a second lane pool with its own
-// spawn/advance/draw passes) — pushing this file over the 800-LOC
+// 2.4 added the see-saw roll scheduler field, stage 2.6 added the
+// halo stream pool arms (a second lane pool with its own
+// spawn/advance/draw passes), and stage 2.7 added the upper-lane
+// toggle field of the double-crown stream split plus the tier
+// head-floor call in the draw pass — pushing this file over the 800-LOC
 // cap. The per-mote physics + roll scheduler (ring.rs), the halo
 // stream physics (halo.rs), the ball cell helpers (ball_helpers.rs)
 // and the formation phase math (formation.rs) are already split
@@ -63,7 +65,7 @@
 //! more hold across the whole 15-180 degree attitude window, with
 //! exactly the 90-degree vertical attitude excluded.
 //!
-//! Stage 2.6 (owner 9.9/10 feedback, this round): the stack closes
+//! Stage 2.6 (owner 9.9/10 feedback): the stack closes
 //! into the one-compact-family read — the main disk drops a little
 //! below its default center position, the upper two bands pull down
 //! with it (the almost-fused grouping, the family reads dense), and
@@ -76,6 +78,21 @@
 //! sense. Geometry stays fraction-based end to end, so the whole
 //! system scales with any screen size (the dynamic-size contract
 //! the owner pinned this round).
+//!
+//! Stage 2.7 (owner 9.95/10 feedback, this round): the halo split
+//! becomes the DOUBLE UPWARD STREAM — a second upper lane on the
+//! 1.48-radius arc joins the 1.30 lensing circle (two distinct
+//! crowns of the same rider population, the upward-curving read
+//! doubled through two arcs) while the lower stream drops to a RARE
+//! echo under the shadow. The stack family descends below the
+//! viewport center (all three snug bands now read as light hanging
+//! under the equator, the real Gargantua composition: crown above,
+//! disk line below) and the main band stretches a quarter longer
+//! (the owner's 1 cm -> 1.25 cm length analogy). The snug upper
+//! stacks' heads burn more bright/white — their z-ladder base
+//! floors at Hot before the proximity grade (`floor_head_base_at_hot`
+//! in ring.rs), so stacks 2 and 3 read Core (white) across their
+//! reach.
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
@@ -131,9 +148,9 @@ use super::formation::{
 };
 use super::halo::{activate_halo_mote, advance_halo_mote, halo_mote_visible, project_halo_mote};
 use super::ring::{
-    activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
-    proximity_level, step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep,
-    RingMote, RingRoll,
+    activate_ring_mote, advance_ring_mote, floor_head_base_at_hot, level_for_ring_z,
+    occludes_ring_cell, project_ring_mote, proximity_level, step_down_level, BlackHoleRandom,
+    BlackHoleSpawnParams, BlackHoleStep, RingMote, RingRoll,
 };
 
 /// One drawn ball cell: grid position plus its radial brightness band.
@@ -190,8 +207,9 @@ pub(crate) struct BlackHoleRain {
     spawn_scan_idx: usize,
     /// Stage-2.6 halo streams: the arc-riding companion pool (one
     /// mote per column, the lane model — the physics lives in
-    /// `halo.rs`). The upper-stream riders co-ride the lensing arc
-    /// (the doubled upward curve), the lower-stream riders the
+    /// `halo.rs`). The stage-2.7 double upward stream: the inner
+    /// upper riders co-ride the lensing arc (1.30), the outer upper
+    /// riders the wider crown (1.48), the lower riders the rare
     /// mirrored circle under the shadow.
     halo_motes: Vec<RingMote>,
     /// Active halo mote count (the halo spawn target's deficit
@@ -205,13 +223,20 @@ pub(crate) struct BlackHoleRain {
     /// keeps its own because the two pools budget independently).
     halo_spawn_remainder: f32,
     /// Bresenham stream-split accumulator: each halo activation adds
-    /// the upper stream's share and the running fractional part
-    /// decides the tag — the 0.56 / 0.44 split holds EXACTLY on every
-    /// pool fill (a random pick would only hold on average, and a
-    /// small pool can land a visibly inverted split on an unlucky
-    /// seed — the lower stream must read slightly sparser EVERY run,
-    /// the deterministic splitter guarantees it).
+    /// the upper FAMILY's combined share (the two upper crowns, 0.82)
+    /// and the running fractional part decides upper family vs the
+    /// rare lower stream — the split holds EXACTLY on every pool fill
+    /// (a random pick would only hold on average, and a small pool
+    /// can land a visibly inverted split on an unlucky seed — the
+    /// lower stream must read rare EVERY run, the deterministic
+    /// splitter guarantees it).
     halo_tag_acc: f32,
+    /// Upper-family lane toggle (stage 2.7, the double upward
+    /// stream): alternates every upper-family activation between the
+    /// inner crown (1.30 lensing circle) and the outer crown (1.48
+    /// arc) — the strict alternation splits the family exactly in
+    /// half, matching the two streams' equal spawn weights.
+    halo_upper_lane: bool,
     /// Alternating lobe selector for the Lorenz-state seeding (parity
     /// with the lorenz style's spawn — balanced wobble distribution).
     next_lobe: u8,
@@ -291,6 +316,7 @@ impl BlackHoleRain {
             halo_scan_idx: 0,
             halo_spawn_remainder: 0.0,
             halo_tag_acc: 0.0,
+            halo_upper_lane: false,
             next_lobe: 0,
             last_step: None,
             center_col: 0,
@@ -466,6 +492,7 @@ impl BlackHoleRain {
         self.halo_scan_idx = 0;
         self.halo_spawn_remainder = 0.0;
         self.halo_tag_acc = 0.0;
+        self.halo_upper_lane = false;
         self.next_lobe = 0;
         self.last_step = None;
     }
@@ -624,11 +651,11 @@ impl BlackHoleRain {
             }
         }
 
-        // Halo streams (stage 2.6): the arc pool spawns on the same
-        // deficit-bounded accumulator contract — the upper and lower
-        // stream tags ride the weighted pick inside the activation,
-        // so the doubled lensing arc and its sparser mirror fill at
-        // the same gradual pace as the disk bands.
+        // Halo streams (stage 2.6, re-split stage 2.7): the arc pool
+        // spawns on the same deficit-bounded accumulator contract —
+        // the three lane tags ride the weighted pick inside the
+        // activation, so the double crown and its rare mirror fill
+        // at the same gradual pace as the disk bands.
         let halo_target = Self::target_active_halo(self.halo_motes.len(), params.density);
         if self.active_halo >= halo_target {
             self.halo_spawn_remainder = self
@@ -655,15 +682,25 @@ impl BlackHoleRain {
             let Some(idx) = self.find_inactive_halo() else {
                 break;
             };
-            // The Bresenham stream split: the accumulator walks the
-            // upper share's fractional budget, so consecutive
-            // activations interleave the two tags at exactly the
-            // 0.56 / 0.44 ratio (the lower stream reads slightly
-            // sparser on every seed, every pool fill).
-            self.halo_tag_acc += crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT;
+            // The stage-2.7 three-way split: the Bresenham accumulator
+            // walks the upper FAMILY's combined share (inner + outer
+            // crowns, 0.82); a fill below 1.0 lands the rare lower
+            // stream, a wrap lands the upper family — and within the
+            // family the lane toggle alternates inner/outer at
+            // exactly the two crowns' equal shares, so the double
+            // upward stream fills evenly and the lower stream stays
+            // rare on every seed, every pool fill.
+            self.halo_tag_acc += crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT
+                + crate::constants::BLACK_HOLE_HALO_OUTER_WEIGHT;
             let stream_tag = if self.halo_tag_acc >= 1.0 {
                 self.halo_tag_acc -= 1.0;
-                super::halo::HALO_STREAM_TAG_UPPER
+                if self.halo_upper_lane {
+                    self.halo_upper_lane = false;
+                    super::halo::HALO_STREAM_TAG_UPPER
+                } else {
+                    self.halo_upper_lane = true;
+                    super::halo::HALO_STREAM_TAG_UPPER_OUTER
+                }
             } else {
                 super::halo::HALO_STREAM_TAG_LOWER
             };
@@ -972,11 +1009,19 @@ impl BlackHoleRain {
                 // two rungs up (Mid/Hot bases land at Core — the white
                 // "head white" the owner asked for), far out it steps
                 // down the fade ladder (the ends dissolve into dim
-                // wisps).
+                // wisps). Stage 2.7 (owner 9.95/10 feedback): the snug
+                // upper stacks' bases floor at Hot, so stacks 2 and 3
+                // read Core (white) across their reach — the more
+                // bright/white head ruling.
                 let head_dx = (col_f - cx_f) / CELL_ASPECT_DIVISOR;
                 let head_dy = line_f - cy_f;
                 let head_dist_norm = (head_dx * head_dx + head_dy * head_dy).sqrt() / outer_r;
-                let head_level = proximity_level(level_for_ring_z(m.z), head_dist_norm);
+                let head_base = if m.tier >= 1 {
+                    floor_head_base_at_hot(level_for_ring_z(m.z))
+                } else {
+                    level_for_ring_z(m.z)
+                };
+                let head_level = proximity_level(head_base, head_dist_norm);
 
                 // Matrix shimmer: mutate the glyph when the head lands
                 // on a new cell (previous trail head differs), gated
@@ -1046,17 +1091,19 @@ impl BlackHoleRain {
             }
         }
 
-        // Stage 2.6 halo streams: project every active rider onto its
+        // Stage 2.7 halo streams: project every active rider onto its
         // arc circle around the cached ball anchor (rolled by the
         // live see-saw angle with the rest of the system), draw the
         // head + comet trail through the stream-visibility filter
-        // (each mote draws only on its own semicircle — the upper
-        // stream over the shadow, the lower under it), and record
-        // the drawn cells into the same diff-cleanup stream. No
-        // occlusion rule: the arc band (1.20-1.40 outer radii) never
-        // enters the ball silhouette. Bounds-checked per cell so a
-        // live resize window (geometry rebuilt on reset) never paints
-        // outside the viewport — the dynamic-screen-size contract.
+        // (each mote draws only on its own semicircle — the two
+        // upper crowns over the shadow, the rare lower echo under
+        // it), and record the drawn cells into the same
+        // diff-cleanup stream. No occlusion rule: the arc bands
+        // (1.20-1.40 outer radii for the inner crowns, 1.38-1.58 for
+        // the outer) never enter the ball silhouette. Bounds-checked
+        // per cell so a live resize window (geometry rebuilt on
+        // reset) never paints outside the viewport — the
+        // dynamic-screen-size contract.
         if self.active_halo > 0 && self.ball_outer_r >= 1.0 {
             let cx_f = self.center_col as f32;
             let cy_f = self.center_line as f32;

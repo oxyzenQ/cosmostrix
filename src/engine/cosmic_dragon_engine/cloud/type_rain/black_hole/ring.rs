@@ -68,22 +68,27 @@
 //! belt, and the stage-2.3 fade ladder past 1.40 radii (the owner's
 //! "particles near the hole burn white, the ones moving away fade").
 //! Distance is invariant under the roll, so the glow stays anchored
-//! to the hole at every tilt angle.
+//! to the hole at every tilt angle. Stage 2.7 (owner 9.95/10
+//! feedback) floors the snug upper bands' base at Hot
+//! (`floor_head_base_at_hot`) — their heads read Core (white).
 //!
-//! The three-tier stack (stage 2.4, tightened stage 2.5): the
-//! mote pool carries three bands whose geometry comes from the
-//! `BLACK_HOLE_RING_TIERS` table — tier 0 is the approved
-//! equatorial main disk, tier 1 a shorter band one snug step above
-//! it, tier 2 the shortest band one more snug step up (the owner's
-//! one-meter-gap ruling: the upper two lines sit close to the main
-//! line and to each other, the tight stacked-arcs family over the
-//! shadow). The upper tiers skip the lensing arc
-//! and the occlusion rule (lensed images read in front of the hole
-//! at any height); their two flow strands straddle the band center
-//! so the orbit reads as a thin ribbon, not a retraced line. Tier
-//! assignment rides the spawn pass (weighted by each tier's share);
-//! the Keplerian pace scales per tier so the inner bands visibly
-//! race the outer one — the differential rotation of a real disk.
+//! The three-tier stack (stage 2.4, tightened stage 2.5, descended
+//! stage 2.7): the mote pool carries three bands whose geometry
+//! comes from the `BLACK_HOLE_RING_TIERS` table — tier 0 is the
+//! approved equatorial main disk, tier 1 a shorter band one snug
+//! step above it, tier 2 the shortest band one more snug step up
+//! (the owner's one-meter-gap ruling: the upper two lines sit close
+//! to the main line and to each other, the tight stacked-arcs
+//! family over the shadow; the stage-2.7 descent drops all three
+//! band centers below center and stretches the main band a quarter
+//! — his 1 cm -> 1.25 cm analogy). The upper tiers
+//! skip the lensing arc and the occlusion rule (lensed images read
+//! in front of the hole at any height); their two flow strands
+//! straddle the band center so the orbit reads as a thin ribbon,
+//! not a retraced line. Tier assignment rides the spawn pass
+//! (weighted by each tier's share); the Keplerian pace scales per
+//! tier so the inner bands visibly race the outer one — the
+//! differential rotation of a real disk.
 //!
 //! The see-saw roll (stage 2.4, the lever motion): `RingRoll` owns
 //! the stack's attitude angle — 0 is the flat horizontal rest line
@@ -106,19 +111,16 @@
 //! popping in on the orbit. The same read serves the steady-state
 //! respawn and the formation intro's accretion phase.
 //!
-//! Family contracts honored: pool = one mote per column (lane
-//! model), deficit-bounded spawn accumulator with fractional
-//! remainder, lifetime absorption with per-mote variance,
-//! motion-gated matrix shimmer, comet trail with the dimming ladder,
-//! palette-slot adoption, three-pass diff cleanup (driven from the
-//! ball file's draw pass).
+//! Family contracts honored: one mote per column (lane model),
+//! deficit-bounded spawn accumulator, lifetime absorption with
+//! variance, motion-gated shimmer, comet trail, palette adoption,
+//! three-pass diff cleanup (driven from the ball file's draw pass).
 //!
 //! Stage 2.6 note: the RK4 core and the radial normalization live
-//! here as pub(crate) helpers (`rk4_lorenz_step`, `ring_r_norm`)
-//! because the halo stream motes (`halo.rs`) ride the same
-//! attractor and the same wobble source — one integrator, two
-//! projections (the flat disk ellipse and the arc circles over and
-//! under the shadow).
+//! here as pub(crate) helpers because the halo stream motes
+//! (`halo.rs`) ride the same attractor — one integrator, two
+//! projections (the flat ellipse and the arc circles). The halo
+//! pool reuses the tier byte as its stream tag (inner/lower/outer).
 
 use std::time::{Duration, Instant};
 
@@ -142,7 +144,8 @@ pub(crate) struct RingMote {
     /// Tier band of the stage-2.4 stack (0 = the equatorial main
     /// disk, 1 = the upper band, 2 = the rim-hugging band). Chosen
     /// at activation from the tier table's spawn weights; clamped
-    /// lookups make any stale value safe.
+    /// lookups make any stale value safe. The halo pool reuses the
+    /// byte as its stream tag (inner upper / lower / outer upper).
     pub(crate) tier: u8,
     /// Orbital angle around the ball (radians, unbounded — read
     /// through sin/cos so no wrapping bookkeeping is needed).
@@ -379,8 +382,8 @@ pub(crate) fn rk4_lorenz_step(x: &mut f32, y: &mut f32, z: &mut f32, dt: f32) {
 /// tier band around the ball center, rolled by the live see-saw
 /// angle. Horizontal reach is the tier's semi-major axis (the
 /// tier-table major scale times `MAJOR_FRACTION` of the viewport
-/// unit, clamped to 92% of the viewport's half-width so the extremes
-/// never clip on narrow terminals); vertical squeeze is the tier's
+/// unit; the wobble-inclusive radius clamps to 92% of the
+/// viewport's half-width so the extremes never clip); the tier's
 /// semi-minor axis; the band center rides the tier's offset above
 /// the equator. The attractor's radial coordinate wobbles the
 /// semi-major axis; its z displaces the mote out of the ring plane
@@ -407,9 +410,13 @@ pub(crate) fn project_ring_mote(
     let unit = ball_outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
     let r_norm = ring_r_norm(m);
     let entry = entry_radius_scale(m.sim_age);
-    let a_mean = (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * tier.major_scale * unit)
-        .min(major_limit);
-    let a = (a_mean + tier.wobble_fraction * ball_outer_r * r_norm).max(0.15) * entry;
+    // Stage 2.7: the clamp bounds the wobble-inclusive radius (the
+    // widened 1.25x reach would otherwise clip the tips off-screen).
+    let a_mean = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * tier.major_scale * unit;
+    let a = (a_mean + tier.wobble_fraction * ball_outer_r * r_norm)
+        .min(major_limit)
+        .max(0.15)
+        * entry;
     let b = (tier.minor_fraction * unit * (1.0 + 0.15 * r_norm)).max(0.05) * entry;
     let cos_phi = m.phi.cos();
     let sin_phi = m.phi.sin();
@@ -558,6 +565,17 @@ pub(crate) fn level_for_ring_z(z: f32) -> BrightnessLevel {
         BrightnessLevel::Mid
     } else {
         BrightnessLevel::Ghost
+    }
+}
+
+/// Stage 2.7 (owner 9.95/10 feedback): the snug upper stacks' heads
+/// read more bright/white — their z-ladder base floors at Hot, so
+/// tiers 1-2 land Core (the white head) across their reach; tier 0
+/// keeps the plain z-graded base (the approved head mix).
+pub(crate) fn floor_head_base_at_hot(level: BrightnessLevel) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Core => BrightnessLevel::Core,
+        _ => BrightnessLevel::Hot,
     }
 }
 

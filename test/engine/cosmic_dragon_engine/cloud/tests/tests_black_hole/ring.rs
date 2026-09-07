@@ -21,7 +21,12 @@
 //! arc-riding pool whose upper stream doubles the upward-curving
 //! density, the mirrored lower stream running slightly sparser, the
 //! disk's rotational sense, and the dynamic-screen-size resize
-//! contract. Covers spawning + orbital advance, the band geometry,
+//! contract. Stage 2.7 (owner 9.95/10 feedback) re-pins: the whole
+//! stack family descends below the viewport center, the main band
+//! stretches a quarter longer, the halo split becomes the double
+//! upward stream (two upper crowns) with the lower stream rare, and
+//! the snug upper stacks' heads floor at white. Covers spawning +
+//! orbital advance, the band geometry,
 //! the occlusion contract, style-transition recycling, and the
 //! shipped motion constants (RK4 stability regime, majestic lap
 //! pace).
@@ -32,6 +37,7 @@ use super::*;
 use crate::cloud::type_rain::black_hole::black_hole::{level_rank, CELL_ASPECT_DIVISOR};
 use crate::cloud::type_rain::black_hole::halo::{
     halo_mote_visible, project_halo_mote, HALO_STREAM_TAG_LOWER, HALO_STREAM_TAG_UPPER,
+    HALO_STREAM_TAG_UPPER_OUTER,
 };
 use crate::cloud::type_rain::black_hole::ring::{
     occludes_ring_cell, project_ring_mote, proximity_level, RingRoll,
@@ -138,8 +144,11 @@ fn black_hole_ring_heads_stay_in_the_band() {
     // motes (sim_age below the entry window) are still on their
     // drift-in spiral and may sit beyond it — they are excluded
     // (the entry spiral is a separate contract below). The reach is
-    // per-tier (the stage-2.6 widened main disk reads 1.10x the
-    // major fraction), so the bound is the table's worst case.
+    // per-tier (the stage-2.7 stretched main disk reads 1.375x the
+    // major fraction — the owner's 1 cm -> 1.25 cm ruling), so the
+    // bound is the table's worst case; the projection clamps the
+    // wobble-inclusive radius at the major limit, so steady heads
+    // stay inside the viewport.
     let entry_settle_secs = 3.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU;
     let a_max = crate::constants::BLACK_HOLE_RING_TIERS
         .iter()
@@ -571,20 +580,20 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     // The owner's stage-2.3 feedback (9.5/10): the solid line must
     // read at the vertical MIDDLE of the core, not below it. The
     // near side's sine is squashed to NEAR_SQUASH of the minor axis,
-    // so the deepest crossing dip is half a minor axis below center
-    // (previously a full minor axis — the "line below the core"
-    // read). Stage 2.6 adds the band-center offset to the dip: the
-    // owner's slight descent of the main disk drops the whole band
-    // (the crossing line with it) a small fraction below the
-    // geometric center. Regression guard: removing the squash fails
-    // the dip-bound assertion.
+    // so the deepest crossing dip is half a minor axis below the
+    // band's rest plane (previously a full minor axis — the "line
+    // below the core" read). Stage 2.7 (owner 9.95/10 feedback):
+    // the whole family descends below the viewport center — the
+    // crossing line rides with the dropped main band (his ruling:
+    // the light reads below center). Regression guard: removing
+    // the squash fails the exact dip assertion.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
     let unit = geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
     // The pinned mote parks r_norm at 0 (no wobble) and z at the
     // normalization center (no tilt), so the dip is pure ellipse
-    // geometry: NEAR_SQUASH x MINOR x unit, plus the stage-2.6
-    // band-center drop (a negative offset deepens the dip).
+    // geometry: NEAR_SQUASH x MINOR x unit, plus the stage-2.7
+    // whole-family drop (a negative offset deepens the dip).
     let expected_dip = crate::constants::BLACK_HOLE_RING_NEAR_SQUASH
         * crate::constants::BLACK_HOLE_RING_MINOR_FRACTION
         * unit
@@ -604,14 +613,16 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     );
     assert!(
         line_front - geo.cy
-            < crate::constants::BLACK_HOLE_RING_MINOR_FRACTION * unit + 0.10 * geo.outer_r,
-        "crossing dip must stay near the equatorial band (the unsquashed old geometry)"
+            < -crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r
+                + crate::constants::BLACK_HOLE_RING_MINOR_FRACTION * unit
+                + 0.10 * geo.outer_r,
+        "crossing dip must stay near the dropped equatorial band (the unsquashed old geometry)"
     );
 
     // The whole near side stays within the squashed band: every
     // near-side phase projects between the band's rest plane and the
-    // dip (the rest plane itself sits slightly below the viewport
-    // center at stage 2.6).
+    // dip (the rest plane itself sits below the viewport center at
+    // stage 2.7 — the whole-family descent).
     let band_plane =
         geo.cy - crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r;
     for deg in 5..175 {
@@ -1185,9 +1196,10 @@ fn black_hole_ring_roll_engages_through_the_live_clock() {
     );
 }
 
-// -- Stage 2.6: the halo streams — the doubled upward arc, the
-// mirrored sparser lower stream, the arc band geometry, the disk's
-// rotational sense, and the dynamic-screen-size contract --
+// -- Stage 2.6/2.7: the halo streams — the double upward arcs
+// (inner + outer crowns), the rare mirrored lower stream, the arc
+// band geometry, the disk's rotational sense, and the
+// dynamic-screen-size contract --
 
 /// A settled stream rider's projected distance from the hole center
 /// (aspect-corrected, in ball outer radii) — the arc band check's
@@ -1203,12 +1215,13 @@ fn halo_rider_dist_norm(
 
 #[test]
 fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
-    // The stage-2.6 contract: the halo pool spawns (same accumulator
+    // The stage-2.7 contract: the halo pool spawns (same accumulator
     // + formation gate as the ring), the visible riders draw on
-    // their own semicircles — the upper stream strictly above the
-    // viewport center, the lower strictly below — and every settled
-    // head stays in the viewport and on the arc band (the thin
-    // plasma circle around the shadow, never inside the silhouette).
+    // their own semicircles — both upper crowns strictly above the
+    // viewport center, the rare lower stream strictly below — and
+    // every settled head stays in the viewport and on its own arc's
+    // band (the thin plasma circle around the shadow, never inside
+    // the silhouette).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -1222,15 +1235,22 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
     let active = cloud.black_hole_rain.active_halo_for_test();
     assert!(active > 0, "the halo pool must spawn riders (got {active})");
 
-    let mut upper = 0usize;
+    let mut upper_inner = 0usize;
+    let mut upper_outer = 0usize;
     let mut lower = 0usize;
-    let mut on_band = 0usize;
     let wobble = crate::constants::BLACK_HOLE_HALO_WOBBLE_FRACTION;
-    let arc = crate::constants::BLACK_HOLE_HALO_ARC_FRACTION;
+    // Each lane's arc fraction (the tag lookup the projection runs).
+    let arc_of = |tier: u8| {
+        if tier == HALO_STREAM_TAG_UPPER_OUTER {
+            crate::constants::BLACK_HOLE_HALO_OUTER_ARC_FRACTION
+        } else if tier == HALO_STREAM_TAG_LOWER {
+            crate::constants::BLACK_HOLE_HALO_LOWER_ARC_FRACTION
+        } else {
+            crate::constants::BLACK_HOLE_HALO_ARC_FRACTION
+        }
+    };
     // r_norm clamps to [-1.0, 1.2], so the settled radius band spans
     // arc - wobble .. arc + 1.2 * wobble outer radii (plus rounding).
-    let band_lo = arc - wobble - 0.10;
-    let band_hi = arc + 1.2 * wobble + 0.10;
     for m in cloud.black_hole_rain.halo_motes_for_test() {
         if !m.active || m.sim_age < entry_settle_secs {
             continue;
@@ -1238,10 +1258,10 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
         if !halo_mote_visible(m) {
             continue;
         }
-        if m.tier == HALO_STREAM_TAG_UPPER {
-            upper += 1;
-        } else {
-            lower += 1;
+        match m.tier {
+            HALO_STREAM_TAG_UPPER => upper_inner += 1,
+            HALO_STREAM_TAG_UPPER_OUTER => upper_outer += 1,
+            _ => lower += 1,
         }
         let (col, line) = project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, roll);
         assert!(
@@ -1252,10 +1272,10 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
             line >= 0.0 && line < lines as f32,
             "halo rider line out of viewport ({line})"
         );
-        if m.tier == HALO_STREAM_TAG_UPPER {
+        if m.tier != HALO_STREAM_TAG_LOWER {
             assert!(
                 line < geo.cy,
-                "an upper-stream rider must draw above the center (line {line}, cy {})",
+                "an upper-crown rider must draw above the center (line {line}, cy {})",
                 geo.cy
             );
         } else {
@@ -1265,33 +1285,42 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
                 geo.cy
             );
         }
+        let arc = arc_of(m.tier);
+        let band_lo = arc - wobble - 0.10;
+        let band_hi = arc + 1.2 * wobble + 0.10;
         let d = halo_rider_dist_norm(m, &geo, roll);
         assert!(
             d >= band_lo && d <= band_hi,
-            "halo rider escaped the arc band (dist {d} not in [{band_lo}, {band_hi}])"
+            "halo rider escaped its arc band (dist {d} not in [{band_lo}, {band_hi}])"
         );
         assert!(
             d > 1.0,
             "a halo rider must never enter the ball silhouette (dist {d})"
         );
-        on_band += 1;
     }
-    assert!(on_band > 0, "no settled visible riders to check");
-    assert!(upper > 0, "the upper stream must host visible riders");
-    assert!(lower > 0, "the lower stream must host visible riders");
+    assert!(
+        upper_inner > 0,
+        "the inner upper crown must host visible riders"
+    );
+    assert!(
+        upper_outer > 0,
+        "the outer upper crown must host visible riders (the double stream)"
+    );
+    assert!(lower > 0, "the rare lower stream must still show riders");
 }
 
 #[test]
 fn black_hole_halo_doubles_the_upward_arc_density() {
-    // The owner's stage-2.6 read: the particles curving up over the
-    // hole must be about TWICE as dense as before. The upward
-    // population is the far-side lensing arc riders (the ring's
-    // tier-0 far side) PLUS the upper halo stream; the contract
-    // holds when the upper halo stream at least matches the far-side
-    // count (doubling it — the halo pool targets the ring pool's own
-    // fill fraction, and the upper share is sized to match the
-    // tier-0 far-side share) and the total reads well past 1.5x the
-    // old figure.
+    // The owner's stage-2.7 read: the upward stream is now a DOUBLE
+    // upward stream — two upper crowns of the same rider population
+    // (the inner co-riding the lensing circle, the outer on the
+    // wider arc). The upward population is the far-side lensing arc
+    // riders (the ring's tier-0 far side) PLUS the two halo crowns;
+    // the contract holds when the halo crowns together at least
+    // match the far-side count (the upward read well past double the
+    // pre-stream figure), BOTH crowns host visible riders (the
+    // double, not one thickened band), and the outer crown rides
+    // clear of the inner band (two distinct arcs).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -1304,11 +1333,17 @@ fn black_hole_halo_doubles_the_upward_arc_density() {
         .iter()
         .filter(|m| m.active && m.tier == 0 && m.phi.sin() < 0.0)
         .count();
-    let halo_upper: usize = cloud
+    let halo_inner: usize = cloud
         .black_hole_rain
         .halo_motes_for_test()
         .iter()
         .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER && halo_mote_visible(m))
+        .count();
+    let halo_outer: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER_OUTER && halo_mote_visible(m))
         .count();
 
     assert!(
@@ -1316,8 +1351,17 @@ fn black_hole_halo_doubles_the_upward_arc_density() {
         "the lensing arc must host riders (got {far_side})"
     );
     assert!(
+        halo_inner > 0,
+        "the inner upper crown must host riders (got {halo_inner})"
+    );
+    assert!(
+        halo_outer > 0,
+        "the outer upper crown must host riders (got {halo_outer})"
+    );
+    let halo_upper = halo_inner + halo_outer;
+    assert!(
         halo_upper as f64 >= 0.45 * far_side as f64,
-        "the upper halo stream must about match the lensing riders ({halo_upper} vs {far_side})"
+        "the double crown must about match the lensing riders ({halo_upper} vs {far_side})"
     );
     assert!(
         (halo_upper + far_side) as f64 >= 1.50 * far_side as f64,
@@ -1330,26 +1374,34 @@ fn black_hole_halo_doubles_the_upward_arc_density() {
 
 #[test]
 fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
-    // The owner's mirrored-stream read: the lower stream carries
-    // slightly fewer particles than the one above. The split runs
-    // the deterministic Bresenham accumulator, so the TAG counts
-    // hold the exact 0.56 / 0.44 ratio on every pool fill (no spawn
-    // luck — a random pick could invert a small pool on one seed);
-    // the visible populations follow the tags (every rider draws on
-    // its own semicircle). Contract: the tagged split sits within
-    // one mote of the exact ratio, and the lower tag count stays
-    // strictly below the upper one.
+    // The owner's stage-2.7 read: the lower stream must carry only
+    // RARE particles against the double crown above. The split runs
+    // the deterministic Bresenham accumulator plus the lane toggle,
+    // so the TAG counts hold the exact 0.82 / 0.18 family-vs-lower
+    // ratio on every pool fill (no spawn luck — a random pick could
+    // invert a small pool on one seed); the visible populations
+    // follow the tags (every rider draws on its own semicircle).
+    // Contract: the tagged split sits within one mote of the exact
+    // share, the two upper crowns carry EQUAL counts (the lane
+    // toggle's strict alternation), and the lower tag count stays
+    // well below the upper family.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
     run_frames_to_steady(&mut cloud, &mut frame);
     run_frames(&mut cloud, &mut frame, 300, 16);
 
-    let tagged_upper: usize = cloud
+    let tagged_upper_inner: usize = cloud
         .black_hole_rain
         .halo_motes_for_test()
         .iter()
         .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER)
+        .count();
+    let tagged_upper_outer: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER_OUTER)
         .count();
     let tagged_lower: usize = cloud
         .black_hole_rain
@@ -1357,28 +1409,34 @@ fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
         .iter()
         .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER)
         .count();
+    let tagged_upper = tagged_upper_inner + tagged_upper_outer;
     let active = cloud.black_hole_rain.active_halo_for_test();
-    let ideal_upper = crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT * active as f32;
+    let ideal_upper = (crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT
+        + crate::constants::BLACK_HOLE_HALO_OUTER_WEIGHT)
+        * active as f32;
 
     assert!(active > 0, "the halo pool must be active (got {active})");
     assert!(
         (tagged_upper as f32 - ideal_upper).abs() <= 1.0,
-        "the Bresenham split must hold the exact share ({tagged_upper} of {active}, ideal {ideal_upper})"
+        "the Bresenham split must hold the exact family share ({tagged_upper} of {active}, ideal {ideal_upper})"
     );
     assert!(
-        tagged_lower < tagged_upper,
-        "the lower stream must carry slightly fewer riders ({tagged_lower} vs {tagged_upper})"
+        (tagged_upper_inner as i32 - tagged_upper_outer as i32).abs() <= 1,
+        "the lane toggle must alternate the two crowns evenly ({tagged_upper_inner} vs {tagged_upper_outer})"
+    );
+    assert!(
+        4.0 * (tagged_lower as f32) < 3.0 * tagged_upper as f32,
+        "the lower stream must read rare against the double crown ({tagged_lower} vs {tagged_upper})"
     );
 
     // The visible populations follow the tags: both semicircles host
     // riders (the handoff sweep keeps each side populated), and the
-    // lower visible count sits below the upper (the tag majority
-    // dominates the per-frame visibility noise).
+    // lower visible count sits below the upper family.
     let visible_upper: usize = cloud
         .black_hole_rain
         .halo_motes_for_test()
         .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER && halo_mote_visible(m))
+        .filter(|m| m.active && m.tier != HALO_STREAM_TAG_LOWER && halo_mote_visible(m))
         .count();
     let visible_lower: usize = cloud
         .black_hole_rain
@@ -1386,8 +1444,8 @@ fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
         .iter()
         .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER && halo_mote_visible(m))
         .count();
-    assert!(visible_upper > 0, "the upper stream must show riders");
-    assert!(visible_lower > 0, "the lower stream must show riders");
+    assert!(visible_upper > 0, "the double crown must show riders");
+    assert!(visible_lower > 0, "the rare lower stream must show riders");
 }
 
 #[test]
