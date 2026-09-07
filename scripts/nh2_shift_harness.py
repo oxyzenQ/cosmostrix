@@ -82,7 +82,10 @@ class Screen:
         self.bold = False
         self.residual = bytearray()
         # grid[y][x] = (ch, fg, bg, bold)
-        self.grid = [[(" ", DEFAULT_FG, DEFAULT_FG, False) for _ in range(cols)] for _ in range(rows)]
+        self.grid = [
+            [(" ", DEFAULT_FG, DEFAULT_FG, False) for _ in range(cols)]
+            for _ in range(rows)
+        ]
 
     def put(self, ch):
         w = char_width(ch)
@@ -198,7 +201,9 @@ class Screen:
             p = params.decode("ascii", "ignore") or "0"
             if p in ("2", "3"):
                 blank = (" ", self.fg, self.bg, False)
-                self.grid = [[blank for _ in range(self.cols)] for _ in range(self.rows)]
+                self.grid = [
+                    [blank for _ in range(self.cols)] for _ in range(self.rows)
+                ]
         elif final == 0x4B:  # EL
             p = params.decode("ascii", "ignore") or "0"
             blank = (" ", self.fg, self.bg, False)
@@ -265,14 +270,11 @@ class Screen:
 
 def row_occupancy(row):
     # occupied = visible glyph or colored space (trail ghost)
-    return [
-        1 if (ch != " " or fg != DEFAULT_FG) else 0
-        for (ch, fg, bg, bold) in row
-    ]
+    return [1 if (ch != " " or fg != DEFAULT_FG) else 0 for (ch, fg, bg, bold) in row]
 
 
 def cell_kind(cell):
-    ch, fg, bg, bold = cell
+    ch, fg, _bg, _bold = cell
     if ch not in (" ", ""):
         return "G"  # glyph
     if fg != DEFAULT_FG:
@@ -311,8 +313,14 @@ def classify(prev, cur):
 
 def dump_grid(snap, path):
     with open(path, "w") as f:
-        for row in snap:
-            f.write("".join(ch if ch not in (" ", "") else ("." if ch == " " else "") for (ch, fg, bg, bold) in row) + "\n")
+        f.writelines(
+            "".join(
+                ch if ch not in (" ", "") else ("." if ch == " " else "")
+                for (ch, fg, bg, bold) in row
+            )
+            + "\n"
+            for row in snap
+        )
 
 
 def analyze(prev, cur, max_lag=12, min_match=0.7, min_occ=8):
@@ -489,7 +497,10 @@ def main() -> int:
                         rows_out.append(f"{t_end:.3f}\t{frame_idx}\t0\t0\t{churn}\t")
                     if churn > 500:
                         cc = classify(prev_snap, snap)
-                        cc_s = " ".join(f"{k}={v}" for k, v in sorted(cc.items(), key=lambda kv: -kv[1]))
+                        cc_s = " ".join(
+                            f"{k}={v}"
+                            for k, v in sorted(cc.items(), key=lambda kv: -kv[1])
+                        )
                         g, c, b = composition(snap)
                         print(
                             f"[hi-churn] t={t_end:7.2f}s f#{frame_idx:6d} churn={churn:5d} G={g} C={c} B={b}  {cc_s}",
@@ -497,7 +508,9 @@ def main() -> int:
                         )
                         if churn > 2000 and dump_count[0] < 6:
                             dump_count[0] += 1
-                            base = f"/tmp/cosmostrix-nh2/dump_{dump_count[0]}_{t_end:.2f}"
+                            base = (
+                                f"/tmp/cosmostrix-nh2/dump_{dump_count[0]}_{t_end:.2f}"
+                            )
                             dump_grid(prev_snap, base + "_prev.txt")
                             dump_grid(snap, base + "_cur.txt")
                 prev_snap = snap
@@ -535,11 +548,8 @@ def main() -> int:
         f.write("# t_end_sec\tframe_idx\tlag\trows_shifted\tchurn_cells\trows\n")
         f.write("\n".join(rows_out) + "\n")
 
-    shifts = [r for r in rows_out if not r.endswith("\t0\t0\t") and not r.endswith("\t0\t")]
     nonzero = [
-        [x for x in r.split("\t")]
-        for r in rows_out
-        if r.split("\t")[2] not in ("0",)
+        [x for x in r.split("\t")] for r in rows_out if r.split("\t")[2] not in ("0",)
     ]
     print(
         f"frames={frame_idx}  span={time.monotonic() - start:.0f}s  "
@@ -548,14 +558,16 @@ def main() -> int:
     if hud_log:
         print("HUD telemetry (t, prs, dsty, ehs, fps, tgt, G, C, B):")
         for t, prs, dsty, ehs, fps, tgt, g, c, b in hud_log:
-            print(f"  t={t:7.2f}s prs={prs:>5} dsty={dsty:>5} ehs={ehs:>5} fps={fps:>6} tgt={tgt:>4} G={g:5d} C={c:5d} B={b:5d}")
+            print(
+                f"  t={t:7.2f}s prs={prs:>5} dsty={dsty:>5} ehs={ehs:>5} fps={fps:>6} tgt={tgt:>4} G={g:5d} C={c:5d} B={b:5d}"
+            )
     if nonzero:
         print("NON-ZERO-LAG ROW SHIFTS (t, frame, lag, nrows, churn):")
-        shown = 0
-        for t, fi, lag, nrows, churn, *_ in nonzero:
-            print(f"  t={float(t):7.2f}s f#{int(fi):6d} lag={int(lag):+3d} rows={int(nrows):3d} churn={int(churn):5d}")
-            shown += 1
-            if shown > 80:
+        for shown, (t, fi, lag, nrows, churn, *_) in enumerate(nonzero):
+            print(
+                f"  t={float(t):7.2f}s f#{int(fi):6d} lag={int(lag):+3d} rows={int(nrows):3d} churn={int(churn):5d}"
+            )
+            if shown >= 80:
                 print("  ... (truncated)")
                 break
     else:

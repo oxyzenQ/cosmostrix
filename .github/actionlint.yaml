@@ -1,0 +1,14 @@
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
+# actionlint configuration. The repo pins no actionlint version (CI
+# installs the latest upstream release per the owner's floating-dep
+# policy), so this file carries the knowledge a freshly-released
+# actionlint may not have yet.
+self-hosted-runner:
+  labels:
+    # windows-11-arm is a real GitHub-hosted runner label (verified
+    # compile-clean 2026-08-23, used by release.yml's arm64 build
+    # matrix). Older actionlint label databases do not know it and
+    # fail the runner-label check without this declaration.
+    - windows-11-arm

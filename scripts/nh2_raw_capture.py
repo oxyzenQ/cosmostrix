@@ -35,15 +35,13 @@ import subprocess
 import termios
 import time
 
-from nh2_shift_harness import (  # noqa: E402
+from nh2_shift_harness import (
     BSU_OFF,
     BSU_ON,
     Screen,
     analyze,
-    cell_kind,
     classify,
     composition,
-    row_occupancy,
 )
 
 TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "200x56").split("x"))
@@ -105,7 +103,7 @@ def capture() -> int:
             if now >= deadline or proc.poll() is not None:
                 break
             while next_key < len(keys) and now - start >= keys[next_key][0]:
-                t, ch = keys[next_key]
+                _t, ch = keys[next_key]
                 try:
                     os.write(master_fd, ch.encode())
                     print(f"[key] t={now - start:6.1f}s sent {ch!r}", flush=True)
@@ -138,18 +136,22 @@ def capture() -> int:
         f.write("# t_rel\tbytes\n")
         f.writelines(f"{t:.6f}\t{b}\n" for t, b in chunks)
     dur = time.monotonic() - start
-    print(f"captured {total/1e6:.1f} MB over {dur:.0f}s -> {RAW} ({len(chunks)} chunks)")
+    print(
+        f"captured {total / 1e6:.1f} MB over {dur:.0f}s -> {RAW} ({len(chunks)} chunks)"
+    )
     return 0
 
 
 def analyze_stream() -> int:
-    data = open(RAW, "rb").read()
+    with open(RAW, "rb") as f:
+        data = f.read()
     ts = []
-    for line in open(RAW + ".tsv"):
-        if line.startswith("#"):
-            continue
-        t_s, b_s = line.split("\t")
-        ts.append((float(t_s), int(b_s)))
+    with open(RAW + ".tsv") as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            t_s, b_s = line.split("\t")
+            ts.append((float(t_s), int(b_s)))
 
     screen = Screen(TERM_COLS, TERM_ROWS)
     prev_snap = None
@@ -199,7 +201,8 @@ def analyze_stream() -> int:
                     if churn > 300 or mass:
                         cc = classify(prev_snap, snap)
                         cc_s = " ".join(
-                            f"{k}={v}" for k, v in sorted(cc.items(), key=lambda kv: -kv[1])
+                            f"{k}={v}"
+                            for k, v in sorted(cc.items(), key=lambda kv: -kv[1])
                         )
                         g, c, b = composition(snap)
                         events.append(
@@ -213,15 +216,15 @@ def analyze_stream() -> int:
                             )
                     if t_now - last_hud_t >= 0.5:
                         last_hud_t = t_now
-                        text = "\n".join("".join(c[0] for c in row) for row in screen.grid)
+                        text = "\n".join(
+                            "".join(c[0] for c in row) for row in screen.grid
+                        )
                         m_p = re.search(r"prs:\s*([0-9.]+)", text)
                         m_d = re.search(r"dsty:\s*([0-9.]+)", text)
                         m_f = re.search(r"fps:\s*([0-9.]+)", text)
                         m_e = re.search(r"ehs:\s*([0-9.]+)", text)
                         g, c, b = composition(snap)
-                        hud_rows.append(
-                            (t_now, m_p, m_d, m_f, m_e, g, c, b)
-                        )
+                        hud_rows.append((t_now, m_p, m_d, m_f, m_e, g, c, b))
                 prev_snap = snap
                 in_frame = False
             else:

@@ -36,7 +36,7 @@ import termios
 import time
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from nh2_shift_harness import Screen  # noqa: E402  (shared mini emulator)
+from nh2_shift_harness import Screen
 
 TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "200x56").split("x"))
 RUN_SECS = float(os.environ.get("RUN_SECS", "9"))
@@ -61,7 +61,9 @@ def visible_glyphs(screen):
 def main() -> int:
     master_fd, slave_fd = pty.openpty()
     os.set_blocking(master_fd, False)
-    fcntl.ioctl(slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0))
+    fcntl.ioctl(
+        slave_fd, termios.TIOCSWINSZ, struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0)
+    )
 
     env = dict(os.environ)
     for k in ("NO_COLOR", "CLICOLOR", "CLICOLOR_FORCE"):
@@ -182,7 +184,9 @@ def main() -> int:
             break
         if vis < pre_count * 0.10:
             cleared = True
-            print(f"[ok] t={t:5.2f}s screen cleared ({vis}/{pre_count} glyphs, +{t - RESTART_AT:.2f}s)")
+            print(
+                f"[ok] t={t:5.2f}s screen cleared ({vis}/{pre_count} glyphs, +{t - RESTART_AT:.2f}s)"
+            )
             break
     if cleared:
         for t, vis in post_frames:
