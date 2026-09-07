@@ -10,16 +10,20 @@
 // toggle field of the double-crown stream split plus the tier
 // head-floor call in the draw pass — pushing this file over the 800-LOC
 // cap. The per-mote physics + roll scheduler (ring.rs), the halo
-// stream physics (halo.rs), the ball cell helpers (ball_helpers.rs)
+// stream physics (halo.rs), the infall layer's whole third pool
+// (infall.rs — stage 3), the ball cell helpers (ball_helpers.rs)
 // and the formation phase math (formation.rs) are already split
 // out; what remains is one impl whose draw/spawn/advance passes
 // share the private field set — a further split would need
 // pub(super) field exposure across sibling modules, a worse
 // encapsulation trade than the cap debt (same call as dragon.rs's
-// entry-reveal exemption).
+// entry-reveal exemption). The stage-3 infall stream owns its pool
+// outright in its own module, so the orchestrator grows only its
+// pass calls — the cap debt does not compound with the third pool.
 
 //! Black hole rain for the sorgonemous_intrascals scene (NIGHT-special-1,
-//! the eighth rain style — stage 2: the ball plus the orbital ring).
+//! the eighth rain style — stage 3: the ball, the orbital ring stack
+//! with its halo streams, and the glyph infall).
 //!
 //! Motion DNA — 100% distinct from every existing style: the screen hosts
 //! a single gravitating body, not a particle field. Stage 1 rendered the
@@ -79,20 +83,31 @@
 //! system scales with any screen size (the dynamic-size contract
 //! the owner pinned this round).
 //!
-//! Stage 2.7 (owner 9.95/10 feedback, this round): the halo split
-//! becomes the DOUBLE UPWARD STREAM — a second upper lane on the
-//! 1.48-radius arc joins the 1.30 lensing circle (two distinct
-//! crowns of the same rider population, the upward-curving read
-//! doubled through two arcs) while the lower stream drops to a RARE
-//! echo under the shadow. The stack family descends below the
-//! viewport center (all three snug bands now read as light hanging
-//! under the equator, the real Gargantua composition: crown above,
-//! disk line below) and the main band stretches a quarter longer
-//! (the owner's 1 cm -> 1.25 cm length analogy). The snug upper
-//! stacks' heads burn more bright/white — their z-ladder base
-//! floors at Hot before the proximity grade (`floor_head_base_at_hot`
-//! in ring.rs), so stacks 2 and 3 read Core (white) across their
-//! reach.
+//! Stage 2.7 (owner 9.95/10 feedback, rated 10/10 masterpiece): the
+//! halo split became the DOUBLE UPWARD STREAM — a second upper lane
+//! on the 1.48-radius arc joined the 1.30 lensing circle (two
+//! distinct crowns of the same rider population) while the lower
+//! stream dropped to a RARE echo under the shadow. The stack family
+//! descended below the viewport center (crown above, disk line
+//! below, the real Gargantua composition), the main band stretched a
+//! quarter longer, and the snug upper stacks' heads burned white.
+//!
+//! Stage 3 (owner green light after the 10/10): the GLYPH INFALL —
+//! the rain itself becomes the accretion material (the whole layer
+//! lives in `infall.rs`: the third mote pool plus its physics,
+//! spawn/advance/draw passes). Glyphs spawn above the viewport and
+//! fall through the hole's inverse-square gravitational field,
+//! blended to zero just past the disk's reach — straight ambient
+//! rain far from the system, elegant arcs near it. Inside the
+//! capture radius an accretion brake decays the tangential velocity
+//! (angular momentum radiated into the disk), so passing glyphs
+//! whip around and decay into tightening inspirals instead of
+//! flying by; a mote that crosses the event horizon is eaten, its
+//! final flash on the photon ring. Brightness is speed-graded
+//! (kinetic heat — accretion heating) composed with the shared
+//! proximity ladder: the far rain reads Ghost, the whip Core white.
+//! Geometry is fraction-based end to end, so the system scales with
+//! any screen size (the dynamic-size contract the owner pinned).
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
@@ -109,12 +124,13 @@
 //!
 //! Stage roadmap (owner-approved staged rollout, one commit per stage):
 //! - stage 1: the ball — owner visual verification (rated 10/10).
-//! - stage 2 (this file + `ring.rs`): the orbital ring — motes on a
-//!   tilted Keplerian ellipse, turbulence integrated with the same RK4
-//!   machinery the lorenz style ships (the integrator is
-//!   attractor-agnostic; see `type_rain/lorenz/lorenz.rs`).
-//! - stage 3: glyph rain infall — falling glyphs that bend elegantly
-//!   into the core when they approach the ring's capture radius.
+//! - stage 2 (this file + `ring.rs`/`halo.rs`, revisions 2.1-2.7): the
+//!   orbital ring stack + the double halo stream — owner visual
+//!   verification (stage 2.7 rated 10/10, masterpiece).
+//! - stage 3 (`infall.rs`, shipped): glyph rain infall — falling
+//!   glyphs that bend elegantly into the core when they approach the
+//!   ring's capture radius, spiraling through the accretion brake
+//!   and vanishing at the event horizon.
 //!
 //! The glyph pool for each cell re-rolls through a low-probability
 //! shimmer gate (matrix DNA: mutation is the engine's life sign), and a
@@ -147,6 +163,7 @@ use super::formation::{
     FormationPhase,
 };
 use super::halo::{activate_halo_mote, advance_halo_mote, halo_mote_visible, project_halo_mote};
+use super::infall::InfallStream;
 use super::ring::{
     activate_ring_mote, advance_ring_mote, floor_head_base_at_hot, level_for_ring_z,
     occludes_ring_cell, project_ring_mote, proximity_level, step_down_level, BlackHoleRandom,
@@ -222,6 +239,13 @@ pub(crate) struct BlackHoleRain {
     /// counterpart lives in the cloud layer's shared field; the halo
     /// keeps its own because the two pools budget independently).
     halo_spawn_remainder: f32,
+    /// Stage 3 glyph infall: the third mote pool — falling glyphs
+    /// bending through the hole's gravitational field into the core
+    /// (the whole layer — pool, physics, spawn/advance/draw passes —
+    /// lives in `infall.rs`; this field is the orchestrator's only
+    /// handle on it, keeping the LOC cap debt of this file flat as
+    /// the system grows its third pool).
+    infall: InfallStream,
     /// Bresenham stream-split accumulator: each halo activation adds
     /// the upper FAMILY's combined share (the two upper crowns, 0.82)
     /// and the running fractional part decides upper family vs the
@@ -317,6 +341,7 @@ impl BlackHoleRain {
             halo_spawn_remainder: 0.0,
             halo_tag_acc: 0.0,
             halo_upper_lane: false,
+            infall: InfallStream::new(),
             next_lobe: 0,
             last_step: None,
             center_col: 0,
@@ -351,7 +376,7 @@ impl BlackHoleRain {
         if cols == 0 || lines == 0 {
             self.glyphs.clear();
             self.glyphs_stale = true;
-            self.reset_mote_pools(0);
+            self.reset_mote_pools(0, 0, 0.0);
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
@@ -374,7 +399,7 @@ impl BlackHoleRain {
         if outer_r - core_r < 1.0 {
             self.glyphs.clear();
             self.glyphs_stale = true;
-            self.reset_mote_pools(0);
+            self.reset_mote_pools(0, lines, 0.0);
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
@@ -454,7 +479,7 @@ impl BlackHoleRain {
             })
             .collect();
 
-        self.reset_mote_pools(cols);
+        self.reset_mote_pools(cols, lines, outer_r);
         self.clear_draw_history();
     }
 
@@ -473,13 +498,15 @@ impl BlackHoleRain {
         self.roll = RingRoll::new();
     }
 
-    /// Rebuild the ring and halo mote pools: one mote per column
+    /// Rebuild the ring, halo and infall pools: one mote per column
     /// each (the family lane model — a wider viewport hosts a longer
     /// ring AND a denser stream population, so both pools resize),
     /// all vacant. Pass 0 to leave the pools empty (degenerate
     /// viewports with no ball anchor). The shared clock resets once
-    /// for both pools (one motion clock per body system).
-    fn reset_mote_pools(&mut self, cols: u16) {
+    /// for all pools (one motion clock per body system), and the
+    /// infall layer's spawn/exit envelope re-caches from the ball
+    /// anchor (stage 3).
+    fn reset_mote_pools(&mut self, cols: u16, lines: u16, ball_outer_r: f32) {
         self.motes.clear();
         self.halo_motes.clear();
         if cols > 0 {
@@ -493,22 +520,23 @@ impl BlackHoleRain {
         self.halo_spawn_remainder = 0.0;
         self.halo_tag_acc = 0.0;
         self.halo_upper_lane = false;
+        self.infall.reset_pool(cols, lines, ball_outer_r);
         self.next_lobe = 0;
         self.last_step = None;
     }
 
     /// Steady-state drawn-glyph count (the HUD active metric): every
     /// ball annulus cell plus every active ring mote head plus every
-    /// active halo stream rider — the honest figure of what the
-    /// style animates each frame.
+    /// active halo stream rider plus every falling infall glyph — the
+    /// honest figure of what the style animates each frame.
     pub(crate) fn active_count(&self) -> usize {
-        self.ring_cells.len() + self.active_motes + self.active_halo
+        self.ring_cells.len() + self.active_motes + self.active_halo + self.infall.active_count()
     }
 
     /// Palette transition completion: the ball adopts the new slot,
-    /// and so does every active ring mote and halo stream rider
-    /// (family contract — parity with the lorenz/vortex mote
-    /// adoption).
+    /// and so does every active ring mote, halo stream rider and
+    /// infalling glyph (family contract — parity with the
+    /// lorenz/vortex mote adoption).
     pub(crate) fn adopt_palette_slot(&mut self, palette_slot: u8) {
         self.palette_slot = palette_slot;
         for m in &mut self.motes {
@@ -521,6 +549,7 @@ impl BlackHoleRain {
                 m.palette_slot = palette_slot;
             }
         }
+        self.infall.adopt_palette_slot(palette_slot);
     }
 
     /// Steady-state active-mote target from pool size + density
@@ -585,10 +614,11 @@ impl BlackHoleRain {
     /// `LorenzRain::spawn` (deficit-bounded budget + fractional
     /// remainder carry). New motes enter at a uniform random orbital
     /// phase, so the stream populates around the full circumference
-    /// instead of clumping at one angle. The stage-2.6 halo pool
-    /// spawns through the same contract right after the ring block
-    /// (its remainder is internal: the two pools budget independently,
-    /// the cloud layer's shared field stays the ring's).
+    /// instead of clumping at one angle. The stage-2.6 halo pool and
+    /// the stage-3 infall pool spawn through the same contract right
+    /// after the ring block (their remainders are internal: the three
+    /// pools budget independently, the cloud layer's shared field
+    /// stays the ring's).
     pub(crate) fn spawn(
         &mut self,
         elapsed: Duration,
@@ -604,16 +634,19 @@ impl BlackHoleRain {
         {
             *spawn_remainder = 0.0;
             self.halo_spawn_remainder = 0.0;
+            self.infall.hold_spawn_budget();
             return;
         }
 
         // Formation gate (stage 2.2): accretion begins only when the
-        // hole is whole — no motes orbit a half-born horizon. The
-        // remainder is zeroed so the post-formation spawn budget
-        // starts clean instead of banking pre-formation elapsed time.
+        // hole is whole — no motes orbit a half-born horizon, and no
+        // rain falls into it. The remainders are zeroed so the
+        // post-formation spawn budgets start clean instead of banking
+        // pre-formation elapsed time.
         if !self.formed {
             *spawn_remainder = 0.0;
             self.halo_spawn_remainder = 0.0;
+            self.infall.hold_spawn_budget();
             return;
         }
 
@@ -650,6 +683,13 @@ impl BlackHoleRain {
                 }
             }
         }
+
+        // Stage 3 glyph infall: the falling-rain pool spawns on the
+        // same deficit-bounded accumulator contract (its own internal
+        // remainder, the cached spawn envelope from the ball anchor).
+        // Runs BEFORE the halo block so the halo's early returns skip
+        // nothing of the rain.
+        self.infall.spawn(elapsed, params, random);
 
         // Halo streams (stage 2.6, re-split stage 2.7): the arc pool
         // spawns on the same deficit-bounded accumulator contract —
@@ -718,12 +758,13 @@ impl BlackHoleRain {
         }
     }
 
-    /// Motion pass — the clock owner for the ring and the halo
-    /// streams (the per-mote RK4 Lorenz step + Keplerian advance
-    /// live in `ring.rs` and `halo.rs`). dt = now - last_step
-    /// clamped by max_sim_delta and scaled by resume_blend (the
-    /// anti-teleport contract shared with the structured family); a
-    /// fully-paused run simply stops integrating. The ball's rim
+    /// Motion pass — the clock owner for the ring, the halo streams
+    /// and the glyph infall (the per-mote RK4 Lorenz step + Keplerian
+    /// advance live in `ring.rs` and `halo.rs`; the infall's
+    /// gravitational integration lives in `infall.rs`). dt = now -
+    /// last_step clamped by max_sim_delta and scaled by resume_blend
+    /// (the anti-teleport contract shared with the structured family);
+    /// a fully-paused run simply stops integrating. The ball's rim
     /// spin advances on the same clock and the same mean omega as
     /// the motes — the co-rotation contract — even while no mote is
     /// active (the hole spins on its own phase from the first
@@ -780,7 +821,7 @@ impl BlackHoleRain {
             }
         }
 
-        if self.active_motes == 0 && self.active_halo == 0 {
+        if self.active_motes == 0 && self.active_halo == 0 && self.infall.active_count() == 0 {
             return;
         }
 
@@ -815,6 +856,12 @@ impl BlackHoleRain {
                 self.active_halo = self.active_halo.saturating_sub(halo_absorbed);
             }
         }
+
+        // Glyph infall (stage 3): the falling rain integrates on the
+        // same wall clock through its own sim-time coupling — one
+        // field, one clock, three projections. Pause freezes a glyph
+        // mid-plunge, resume continues the fall.
+        self.infall.advance(dt_wall, step.chars_per_sec);
     }
 
     /// Drop the diff-cleanup history and arm a full glyph re-roll
@@ -951,6 +998,12 @@ impl BlackHoleRain {
             }
         }
 
+        // The cached ball anchor as floats — one read for the ring,
+        // the halo and the infall draw arms below (the projection
+        // families all key on the same center).
+        let cx_f = self.center_col as f32;
+        let cy_f = self.center_line as f32;
+
         // Stage 2: the orbital ring — project every active mote onto
         // its tier band's ellipse around the cached ball anchor, rolled
         // by the live see-saw angle, draw the head + comet trail
@@ -959,8 +1012,6 @@ impl BlackHoleRain {
         // the drawn cells into the same diff-cleanup stream as the ball
         // (one unified current_cells / drawn_gen pipeline).
         if self.active_motes > 0 && self.ball_outer_r >= 1.0 {
-            let cx_f = self.center_col as f32;
-            let cy_f = self.center_line as f32;
             let outer_r = self.ball_outer_r;
             // Semi-major clamp: 92% of the viewport's half-width (in
             // line-height units) so the disk extremes never clip on
@@ -1105,8 +1156,6 @@ impl BlackHoleRain {
         // reset) never paints outside the viewport — the
         // dynamic-screen-size contract.
         if self.active_halo > 0 && self.ball_outer_r >= 1.0 {
-            let cx_f = self.center_col as f32;
-            let cy_f = self.center_line as f32;
             let outer_r = self.ball_outer_r;
             let roll = self.roll.angle();
             for m in &mut self.halo_motes {
@@ -1189,6 +1238,27 @@ impl BlackHoleRain {
                 m.push_trail(col, line);
             }
         }
+
+        // Stage 3 glyph infall: project every active falling glyph
+        // through the hole's gravitational field onto the screen (the
+        // cached ball anchor + outer radius), grade its head by speed
+        // and proximity (kinetic heat composed with the family
+        // ladder), draw the head + comet trail, and record the cells
+        // into the same unified diff-cleanup stream. The empty core is
+        // never painted (the absorption retires a mote exactly at the
+        // horizon); bounds-checked per cell so a live resize window
+        // never paints outside the viewport — the dynamic-screen-size
+        // contract.
+        self.infall.draw(super::infall::InfallDrawArgs {
+            ctx,
+            frame,
+            rng,
+            rand_chance,
+            cx: cx_f,
+            cy: cy_f,
+            ball_outer_r: self.ball_outer_r,
+            current_cells: &mut self.current_cells,
+        });
 
         // Pass 2: generation-tag every drawn cell (monolith pattern —
         // u32 counter bump instead of clearing the array). Rebuilt when
@@ -1322,6 +1392,20 @@ impl BlackHoleRain {
     /// Active halo stream rider count.
     pub(crate) fn active_halo_for_test(&self) -> usize {
         self.active_halo
+    }
+
+    #[cfg(test)]
+    /// The stage-3 infall pool (the falling glyph motes).
+    pub(crate) fn infall_motes_for_test(
+        &self,
+    ) -> &[crate::cloud::type_rain::black_hole::infall::InfallMote] {
+        self.infall.motes_for_test()
+    }
+
+    #[cfg(test)]
+    /// Active falling-glyph count (the rain layer's population).
+    pub(crate) fn active_infall_for_test(&self) -> usize {
+        self.infall.active_infall_for_test()
     }
 
     #[cfg(test)]

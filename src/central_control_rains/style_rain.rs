@@ -1124,6 +1124,157 @@ pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_FLOOR: f32 = 1.5;
 /// populated in the steady state.
 pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 16.0;
 
+// ── Black hole glyph infall (stage 3, NIGHT-special-1) ────────────────
+// The third act: the rain itself becomes the accretion material.
+// Glyphs spawn above the viewport and fall through the hole's
+// gravitational field — straight ambient rain far from the system,
+// elegant arcs near it, a decaying spiral into the shadow for the
+// captured. Motion DNA: inverse-square gravity toward the hole with
+// the field's magnitude blended to zero at the influence edge (just
+// past the disk's reach), plus an accretion brake inside the capture
+// radius (infalling material shocks against the disk and radiates
+// angular momentum away — the drag that turns hyperbolic fly-bys
+// into tightening inspirals). Motes that cross the event horizon are
+// eaten: never drawn inside the empty core, their final flash on the
+// photon ring. Brightness is speed-graded (kinetic heat — the
+// faster the mote, the brighter the base) composed with the shared
+// proximity ladder, so the whip-around reads Core white while the
+// far ambient rain reads Ghost. Every length is a fraction of the
+// ball outer radius and every speed scales with the viewport unit,
+// so the infall reads identically on any screen size.
+
+/// Base active-mote ratio of the infall pool (pool = one infall mote
+/// per column, the family lane model). 0.18 keeps the rain an AMBIENT
+/// layer — sparse streaks over a dark sky, never a downpour: the hole
+/// stays the hero of the composition, the rain the weather around it
+/// (the density slider still scales it through the multiplier below).
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_BASE: f32 = 0.18;
+
+/// Density multiplier for the infall active-count target: the same
+/// sensitivity as the ring's, so the slider moves both layers
+/// proportionally (the ambient read holds across the range).
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_DENSITY_MULT: f32 = 0.35;
+
+/// Maximum active-mote ratio cap of the infall pool. 0.55 keeps even
+/// max-density rain below the disk's population — the accretion
+/// material must read subordinate to the approved stack.
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_MAX: f32 = 0.55;
+
+/// Spawn rate multiplier for the infall pool (parity with the ring's
+/// accumulator arithmetic: fraction-of-target + floor reaches the
+/// steady target with a gentle ramp-up — rain drifts in, it never
+/// bursts in).
+pub(crate) const BLACK_HOLE_INFALL_SPAWN_RATE_MULT: f32 = 0.30;
+
+/// Spawn rate floor (minimum infall spawns per second).
+pub(crate) const BLACK_HOLE_INFALL_SPAWN_RATE_FLOOR: f32 = 0.8;
+
+/// Infall mote lifetime cap in seconds (±15% per-mote variance, the
+/// family contract). 13 s is the backstop, not the rule: most motes
+/// end earlier by absorption (the horizon eats them) or by exiting
+/// the viewport — the lifetime only sweeps strays caught in a high
+/// tangential orbit that the brake has not yet decayed.
+pub(crate) const BLACK_HOLE_INFALL_MAX_AGE_SECS: f32 = 13.0;
+
+/// Gravitational acceleration constant of the hole, in ball-outer-radii
+/// cubed per sim-second squared (a = G / r^2 in outer-r units; one
+/// sim-second is one wall-second at the scene's reference 12 cps, so
+/// the speed keys scale the whole field uniformly and the trajectory
+/// shapes survive them). 5.2 sets the circular speed at the photon ring
+/// (r = 1.0 outer radii) to sqrt(5.2) = 2.28 outer radii/sim-s — a whip,
+/// against the ~1.4 outer radii/sim-s orbital speed of the disk's inner
+/// edge: material visibly accelerates as it falls the last stretch
+/// (Kepler's second law, the exchange of height for speed).
+pub(crate) const BLACK_HOLE_INFALL_GRAVITY: f32 = 5.2;
+
+/// Field influence radius in ball outer radii: the smoothstep blend
+/// that fades the gravitational pull to zero. 2.80 sits just past the
+/// tier-0 disk's semi-major reach (1.375 x 1.05 / 0.55 = 2.62 outer
+/// radii), so the bending zone and the disk read as one system — rain
+/// crossing the disk's reach starts to curve, rain outside it falls
+/// straight (the ambient matrix read the scene keeps at its edges).
+pub(crate) const BLACK_HOLE_INFALL_INFLUENCE_FRACTION: f32 = 2.80;
+
+/// Capture radius in ball outer radii where the accretion brake takes
+/// hold (velocity bleeding off inside, full strength by the inner
+/// blend). 1.95 sits inside the disk's reach but outside the halo
+/// crowns' wobble band (1.48 + 0.10): glyphs crossing the strong
+/// field get braked and spiral in, glyphs skimming wider keep their
+/// speed and swing past — the deflection fly-by read of light
+/// passing a deep well.
+pub(crate) const BLACK_HOLE_INFALL_CAPTURE_FRACTION: f32 = 1.95;
+
+/// Accretion brake rate: the exponential tangential-velocity decay per
+/// sim-second at full capture strength (v_t *= exp(-DRAG_RATE x dt x
+/// capture_blend) — the brake eats angular momentum, never the radial
+/// plunge). 0.62 decays a captured mote's tangential speed by half every
+/// ~1.1 sim-s — the inspiral tightens lap by lap (the read of material
+/// shedding angular momentum into the disk), while gravity keeps feeding
+/// the radial plunge, so capture always resolves into the horizon within
+/// a few seconds.
+pub(crate) const BLACK_HOLE_INFALL_DRAG_RATE: f32 = 0.62;
+
+/// Fall speed of a fresh infall mote, in ball outer radii per
+/// sim-second. 1.32 reads as a calm drift next to the disk's own pace
+/// (the disk's inner edge orbits at ~1.4), so the rain's arrival at the
+/// field feels like weather, not a volley — and the far ambient rain's
+/// Ghost-dim straight lines stay calm against the bright stack.
+pub(crate) const BLACK_HOLE_INFALL_FALL_SPEED: f32 = 1.32;
+
+/// Sim-time coupling to the speed keys: sim-seconds per wall-second per
+/// chars_per_sec (dt_sim = dt_wall x cps x SIM_TIME_PER_CPS). One
+/// sim-second equals one wall-second at the scene's reference 12 cps;
+/// the up/down speed keys scale positions, velocities AND gravity
+/// together (the whole field runs on one clock), so trajectory shapes
+/// are invariant under the speed setting — the family's speed contract,
+/// expressed as one scalar.
+pub(crate) const BLACK_HOLE_INFALL_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+/// Maximum horizontal drift of a fresh infall mote as a fraction of
+/// its fall speed (uniform ±DRIFT). 0.45 spreads the impact
+/// parameters: some glyphs fall dead-center (the plunge read), most
+/// pass offset (the bend and whip reads) — the spread that keeps
+/// every capture unique.
+pub(crate) const BLACK_HOLE_INFALL_DRIFT_FRACTION: f32 = 0.45;
+
+/// Speed ladder rung 1: below this mote speed (outer radii per
+/// sim-second) the base brightness reads Ghost — slow distant rain, the
+/// ambient sprinkle far from the field.
+pub(crate) const BLACK_HOLE_INFALL_SPEED_GHOST: f32 = 1.10;
+
+/// Speed ladder rung 2: below this the base reads Mid, above Hot —
+/// the falling rain's typical band (the fresh fall speed of 1.32 reads
+/// Mid; the fall through the inner field accelerates a mote past this
+/// rung on approach).
+pub(crate) const BLACK_HOLE_INFALL_SPEED_MID: f32 = 2.05;
+
+/// Speed ladder rung 3: above this mote speed the base reads Core —
+/// the whip (the kinetic-heat flash of the periapsis pass, composed
+/// with the proximity grade's two-rung bump it lands deep white).
+pub(crate) const BLACK_HOLE_INFALL_SPEED_CORE: f32 = 3.30;
+
+/// Comet trail length of the infall motes (the streak behind the
+/// falling glyph, one brightness rung dimmer per cell — the whip
+/// arcs read as streaks, the calm fall as a soft tail).
+pub(crate) const BLACK_HOLE_INFALL_TRAIL_LEN: usize = 4;
+
+/// Motion-gated shimmer chance for the infall heads (mutation tied
+/// to motion, the family life sign — a glyph re-rolls its character
+/// when its head lands on a new cell, at the same rate the ring
+/// heads do).
+pub(crate) const BLACK_HOLE_INFALL_SHIMMER_CHANCE: f32 = 0.4;
+
+// Compile-time contracts on the infall geometry: the capture radius
+// must sit inside the influence edge (the brake lives inside the
+// field), the influence edge must clear the disk's tier-0 reach
+// (1.375 x 1.05 / 0.55 = 2.62 outer radii — the bending zone covers
+// the system), and the speed ladder must be strictly ordered (the
+// kinetic-heat grade climbs monotonically).
+const _: () = assert!(BLACK_HOLE_INFALL_CAPTURE_FRACTION < BLACK_HOLE_INFALL_INFLUENCE_FRACTION);
+const _: () = assert!(BLACK_HOLE_INFALL_INFLUENCE_FRACTION > 2.62);
+const _: () = assert!(BLACK_HOLE_INFALL_SPEED_GHOST < BLACK_HOLE_INFALL_SPEED_MID);
+const _: () = assert!(BLACK_HOLE_INFALL_SPEED_MID < BLACK_HOLE_INFALL_SPEED_CORE);
+
 // ── Black hole formation intro (stage 2.2, NIGHT-special-1) ────────────
 // The hole's birth sequence — stellar collapse as the intro: a tiny
 // singularity seed fades in at the center, the collapse flares it

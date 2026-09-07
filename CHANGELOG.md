@@ -386,6 +386,80 @@ dynamic-screen-size resize transitions — 36/36 black hole
 contracts, 2456/2456 suite green, fmt/clippy clean, LOC
 exemption note extended, version untouched.
 
+### feature: NIGHT-special-1 stage 3 — the glyph infall (the rain becomes the accretion material)
+
+Owner green light (stage 2.7 rated 10/10 — masterpiece) opened
+the final stage of the rollout: the matrix rain itself falls
+into the hole. The third act gives the scene its weather: a
+sparse, ambient glyph rain spawning above the viewport that
+falls through the hole's gravitational field — straight matrix
+lines at the screen's edges, elegant arcs through the system's
+reach, captured spirals into the shadow.
+
+Motion DNA (new module `infall.rs`, the sixth of the family
+split — it owns its pool, physics and spawn/advance/draw passes
+outright, so the orchestrator grows only pass calls and the
+LOC cap debt of the main file stays flat): inverse-square
+gravity toward the hole with the field's magnitude
+smoothstep-blended to zero at the influence edge (2.80 ball
+outer radii, just past the tier-0 disk's 2.62 reach — the
+bending zone and the disk read as one system), plus an
+ACCRETION BRAKE inside the capture radius (1.95 outer radii):
+the tangential velocity decays exponentially (0.62 per
+sim-second at full strength, the physical read of infalling
+material shocking against the disk and radiating angular
+momentum away) while the radial plunge is untouched — fly-bys
+become tightening inspirals, exactly how real accretion
+resolves. A mote crossing the event horizon (the core
+fraction) is EATEN: retired, never drawn inside the empty
+core, its final flash landing on the photon ring (the
+proximity grade's two-rung bump). Integration is sub-stepped
+semi-implicit Euler (velocity first, then position — the
+symplectic ordering), the substeps capped so no lag spike can
+tunnel a mote through the horizon.
+
+Brightness is speed-graded (KINETIC HEAT — the accretion
+heating read: the faster the glyph, the brighter the base)
+composed with the family's shared proximity ladder: the far
+ambient rain reads Ghost through the fade ladder, the
+accelerating approach Hot, the periapsis whip Core white.
+Sim-time: one sim-second equals one wall-second at the scene's
+reference 12 cps, dt_sim = dt_wall x cps x SIM_TIME_PER_CPS —
+the speed keys scale positions, velocities and gravity
+together, so trajectory shapes are invariant under the speed
+setting (the family's speed contract as one scalar).
+
+Family contracts carried onto the third pool: one lane per
+column, deficit-bounded spawn accumulator with its own
+fractional remainder (held zero through the formation intro —
+no rain falls into a half-born hole), lifetime absorption with
+±15% variance, per-mote pace variance, palette adoption, comet
+trails, motion-gated shimmer, the unified three-pass diff
+cleanup (an eaten glyph's streak is cleared by the diff on the
+next frame — the contract's most load-bearing use yet), and
+the dynamic-screen-size contract end to end (the physics runs
+in ball-outer-radius units, the projection multiplies through
+the cached outer radius; resize rebuilds the pool and the
+spawn/exit envelope).
+
+Constants: fifteen new stage-3 scalars in style_rain.rs with
+compile-time contracts (capture inside influence, influence
+clears the disk reach, the speed ladder strictly ordered).
+
+Tests (`tests_black_hole/infall.rs`, 19 contracts): spawn +
+fall after formation, the formation gate, straight far rain
+(beyond the field), the bend toward the hole resolving into
+capture, the sub-circular inspiral (radius never climbs above
+the launch, ends eaten), the dead-center plunge, the fall's
+acceleration, the brake's radial asymmetry, departure despawn,
+the kinetic-heat ladder and its composition with proximity,
+the never-paints-the-empty-core footprint (heads and trails,
+the ring's approved crossing read scoped out), draw bounds,
+clean resize, the ambient cap target, style-transition
+recycle, pause freeze, speed-key sim-time scaling, and the
+shimmer mutation — 56/56 black hole contracts, suite green,
+fmt/clippy clean, version untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

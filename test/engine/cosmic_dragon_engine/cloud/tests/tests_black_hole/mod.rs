@@ -3,10 +3,12 @@
 
 //! NIGHT-special-1 tests: the black hole rain style (eighth style,
 //! the sorgonemous_intrascals scene — the event-horizon ball, its
-//! stage-2 orbital ring and the stage-2.2 formation intro).
+//! stage-2 orbital ring, the stage-2.2 formation intro, and the
+//! stage-3 glyph infall).
 
 mod core;
 mod formation;
+mod infall;
 mod ring;
 
 pub(crate) use crate::cloud::Cloud;
