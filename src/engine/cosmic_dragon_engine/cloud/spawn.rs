@@ -113,6 +113,12 @@ impl Cloud {
             // ball surface never carries glyphs from the old pool.
             self.black_hole_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aeolian) {
+            // NIGHT-special-2: aeolian — structured-family sibling,
+            // same draw-history clear on charset switch (string
+            // cells re-pick glyphs from the new pool).
+            self.aeolian_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -200,6 +206,12 @@ impl Cloud {
             // same draw-history clear on palette change (the re-roll arm
             // covers the charset-switch half of this contract).
             self.black_hole_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aeolian) {
+            // NIGHT-special-2: aeolian — structured-family sibling,
+            // same draw-history clear on palette change (string glyphs
+            // re-pick under the transition wave).
+            self.aeolian_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

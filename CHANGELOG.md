@@ -9,6 +9,60 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-special-2 — the aeolian weave, the first original-math rain style + aeolian scene (the rain plays the instrument)
+
+Owner directive (2026-09-08): a new rain type whose motion DNA uses NO
+existing mathematical reference — original math derived by the
+engineering AI for the terminal medium itself, the LEAP-engine
+spirit. The ninth style: glyph rain falls onto invisible horizontal
+strings and plucks them. The invented system ("the six laws of the
+weave", fully derived and documented in
+src/engine/cosmic_dragon_engine/cloud/type_rain/aeolian/mod.rs):
+
+- Law 1, the hop-clock lattice: each channel cell carries excitation
+  mass and a private phase clock; a completed clock hops the WHOLE
+  mass one cell (merge on arrival, surplus carried — exact rate
+  keeping). Two voices: bright mass sprints at 50 cells/s in rigid
+  lockstep (zero numerical diffusion — pulses keep their shape for
+  their whole lifetime), dim residue crawls at 3. Two earlier
+  formulations (a Michaelis blend, a smooth bistable blend) were
+  derived, tested, and rejected: both obey a max principle that
+  flattens every pulse into a dim ramp within ~1.5 s (no racing
+  fronts, no crossing knots) — the design history is preserved in
+  the derivation essay.
+- Law 2, wall reflection: hops off the screen edge re-enter the
+  opposite channel at 0.85 (deferred application — even reflected
+  mass moves at most one cell per tick).
+- Law 3, self-similar decay: uniform exp shrink — shape-preserving
+  fade.
+- Law 4, the pluck: a capture injects the drop's kinetic charge
+  symmetrically into both channels across a three-cell profile;
+  half the captures also ring the string below (the aftershock
+  cascade).
+- Law 5, the capture field: bright antinodes eat rain, silent
+  strings let it through — the feedback loop that self-organizes
+  the weather onto the ringing zones, saturated structurally by the
+  L1 bound.
+- Law 6, resonance seeking: drops bend toward passing wavefronts
+  and surf-kick through them (the interference streak).
+
+Stability: a discrete L1 contraction proof (hops are conservative
+transfers, decay shrinks, walls return at most what they receive)
+bounds the field unconditionally at any dt — the steady state rings
+exactly as loud as the rain plays it. FPS invariance wherever
+rate x dt < 1; no tunneling ever (sweep order + deferred
+reflections). The scene ships the calm-sky weather dial family
+(stage-4 DNA: sparse drizzle, trickle cadence, dim entry) so the
+instrument stays the hero. Scene: aurora palette + runic charset,
+cycle position 10. 24 behavior contracts (the L1 proof's
+observables, urgency, FPS invariance, reflection, knots, capture
+feedback, pause/resize/transition/speed/trickle). A/B 10 s
+benchmarks: zero regression on cinematic + sorgonemous_intrascals
+(visual metrics identical to three decimals); the aeolian profile:
+158,630 fps, 46 dirty cells/frame, entropy 4.98, gini 0.65 — the
+cheapest structured style in the catalog
+(benchmark/bench-labs/night_special2/AB_REPORT.md).
+
 ### feature: NIGHT-special-1 — the black hole rain style + sorgonemous_intrascals scene (stage 1: the event-horizon ball)
 
 Owner spec (2026-09-07): a new rain style `black_hole` and a new scene

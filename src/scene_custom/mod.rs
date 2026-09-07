@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [scene-custom.example]
-//! rain = "lorenz"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole)
+//! rain = "lorenz"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole/aeolian)
 //! color = "aurora"              # built-in color name  OR:
 //! # colors-custom = "aurora"    # custom palette block reference
 //! charset = "binary"            # built-in charset     OR:
@@ -41,7 +41,7 @@
 //!
 //! NIGHT-research-5 (owner-approved): added the `rain` field. Custom
 //! scenes can now pick any of the eight existing rain styles (glyph,
-//! monolith, vortex, flux, lorenz, dragon, physarum, black_hole) — previously
+//! monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian) — previously
 //! custom scenes always rendered `RainStyle::Glyph`. The `rain` field is validated
 //! against [`crate::rain_style::RainStyle::from_label`] (same
 //! canonical labels as `--show-scene` / `--list-scenes` output).
@@ -74,7 +74,7 @@ use crate::config::Args;
 /// [`SCENE_CUSTOM_REQUIRED_FIELDS`]). NIGHT-research-5 (owner-approved)
 /// then added `rain` — the seventh scene-family dimension. Custom
 /// scenes pick their rain style by name (glyph/monolith/vortex/flux/
-/// lorenz/dragon/physarum/black_hole).
+/// lorenz/dragon/physarum/black_hole/aeolian).
 pub(crate) const PROFILE_FIELDS: &[&str] = &[
     "rain",
     "color",
@@ -98,7 +98,7 @@ pub(crate) const PROFILE_FIELDS: &[&str] = &[
 ///
 /// NIGHT-research-5 (owner-approved): added `rain` as the first entry.
 /// The `rain` field picks a rain style by canonical label (glyph,
-/// monolith, vortex, flux, lorenz, dragon, physarum, black_hole). It leads the error-message order so a
+/// monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian). It leads the error-message order so a
 /// missing `rain` field is the first thing the user sees when a block
 /// is incomplete — rain style is now the headline dimension.
 pub(crate) const SCENE_CUSTOM_REQUIRED_FIELDS: &[(&str, Option<&str>)] = &[
@@ -226,7 +226,7 @@ pub(crate) fn ambient_scene_fps(scene_name: &str, cfg: &HashMap<String, String>)
 pub(crate) struct UserProfile {
     /// NIGHT-research-5: rain style selection. The string is one of
     /// the canonical `RainStyle::as_str()` labels (glyph, monolith,
-    /// vortex, flux, lorenz, dragon, physarum, black_hole). Parsed by
+    /// vortex, flux, lorenz, dragon, physarum, black_hole, aeolian). Parsed by
     /// `RainStyle::from_label` at apply time; invalid values get a
     /// targeted hint with the valid list.
     pub rain: Option<String>,
@@ -387,7 +387,7 @@ pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 /// NIGHT-research-5 (owner-approved): added `rain` — the seventh
 /// scene-family dimension. Custom scenes can now pick any existing
 /// rain style by canonical label (glyph, monolith, vortex, flux,
-/// lorenz, dragon, physarum, black_hole).
+/// lorenz, dragon, physarum, black_hole, aeolian).
 pub(crate) const SCENE_CUSTOM_FIELDS: &[&str] = &[
     "rain",
     "color",

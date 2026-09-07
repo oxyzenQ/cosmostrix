@@ -9,12 +9,13 @@ use super::*;
 #[test]
 fn cycle_scene_forward_order() {
     // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1 style
+    // the task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2 style
     // flagships: vortex -> flux -> lorenz -> cosmic_dragon -> physarum
-    // -> sorgonemous_intrascals -> classic (both ripple replacements
-    // present; lorenz is a strange-attractor masterpiece; physarum is
-    // the bio-inspired slime-mold style; sorgonemous_intrascals is the
-    // black hole — NIGHT-special-1 stage 1 ships the ball).
+    // -> sorgonemous_intrascals -> aeolian -> classic (both ripple
+    // replacements present; lorenz is a strange-attractor masterpiece;
+    // physarum is the bio-inspired slime-mold style;
+    // sorgonemous_intrascals is the black hole — NIGHT-special-1;
+    // aeolian is the invented string weave — NIGHT-special-2).
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
@@ -23,7 +24,8 @@ fn cycle_scene_forward_order() {
     assert_eq!(cycle_scene("lorenz", 1), "cosmic_dragon");
     assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
     assert_eq!(cycle_scene("physarum", 1), "sorgonemous_intrascals");
-    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "classic");
+    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "aeolian");
+    assert_eq!(cycle_scene("aeolian", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -73,7 +75,7 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 25-scene catalog and is a
+    // drift). This pin documents the full 26-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
     // NIGHT-research-5/6: cosmic_dragon + physarum joined at cycle
@@ -82,9 +84,12 @@ fn scene_names_are_present() {
     // alphabetically after curiosity, before flux.
     // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
     // 9; sorts alphabetically after signal, before storm.
+    // NIGHT-special-2: aeolian joined at cycle position 10; sorts
+    // alphabetically first (before calm).
     assert_eq!(
         all_scene_names(),
         vec![
+            "aeolian",
             "calm",
             "carbonic",
             "cinematic",
@@ -150,7 +155,7 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_five_entries() {
+fn scene_catalog_has_twenty_six_entries() {
     // NIGHT-research-5/6: catalog grew from 21 to 23 scenes
     // (cosmic_dragon + physarum joined at cycle positions 7-8 —
     // the serpentine-dragon and slime-mold rain styles).
@@ -158,7 +163,9 @@ fn scene_catalog_has_twenty_five_entries() {
     // the biggest-bug-hunt milestone (glitch rain shift).
     // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
     // 9 — the black hole flagship (stage 1: the event-horizon ball).
-    assert_eq!(SCENES.len(), 25, "catalog must contain 25 built-in scenes");
+    // NIGHT-special-2: aeolian joined at cycle position 10 — the
+    // invented string weave (the rain plays the instrument).
+    assert_eq!(SCENES.len(), 26, "catalog must contain 26 built-in scenes");
 }
 
 #[test]
@@ -244,7 +251,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        25,
+        26,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

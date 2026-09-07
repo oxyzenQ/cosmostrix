@@ -380,6 +380,11 @@ impl Cloud {
             // NIGHT-special-1: the black hole ball takes a full reset on
             // exit — parity with the structured family siblings.
             RainStyle::BlackHole => self.black_hole_rain.reset(self.cols, self.lines),
+            // NIGHT-special-2: the aeolian weave takes a full reset on
+            // exit — parity with the structured family siblings (the
+            // string field is wiped too: a dormant instrument must
+            // not carry a ringing field into the next entry).
+            RainStyle::Aeolian => self.aeolian_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -440,6 +445,17 @@ impl Cloud {
                 // the hole from the singularity.
                 self.black_hole_rain.reset(self.cols, self.lines);
                 self.black_hole_rain.begin_formation();
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Aeolian => {
+                // NIGHT-special-2: aeolian entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // weave rebuild on entry — fresh strings and a fresh
+                // drop pool; the instrument starts silent and the
+                // weather reveals it).
+                self.aeolian_rain.reset(self.cols, self.lines);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

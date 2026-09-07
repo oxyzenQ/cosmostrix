@@ -199,7 +199,7 @@ pub(super) fn apply_scene_key(
             // NIGHT-research-5 (owner-approved): custom scenes can now
             // pick any rain style via the block's `rain` field
             // (canonical label: glyph, monolith, vortex, flux, lorenz,
-            // dragon, physarum, black_hole). The resolve_rain_style helper consults
+            // dragon, physarum, black_hole, aeolian). The resolve_rain_style helper consults
             // the block; falls back to Glyph when the field is missing
             // or unrecognized.
             crate::lr_trace!(

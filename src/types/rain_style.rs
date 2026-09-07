@@ -3,14 +3,15 @@
 
 //! Internal rain style selection.
 //!
-//! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1,
-//! eight styles):
+//! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
+//! + NIGHT-special-2, nine styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
 //! - Structured family ([`RainStyle::Monolith`], [`RainStyle::Vortex`],
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
-//!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`]) — dedicated state machines with
+//!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
+//!   [`RainStyle::Aeolian`]) — dedicated state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
 //!   incompressible fluid (see `cloud/type_rain/flux/flux_field.rs`); Lorenz moves
@@ -26,7 +27,12 @@
 //!   BlackHole renders a gravitating body — a centered ball with a
 //!   black empty event-horizon core (NIGHT-special-1 staged rollout:
 //!   stage 1 ships the ball, the RK4 orbital ring and the glyph infall
-//!   follow in stages 2 and 3).
+//!   follow in stages 2 and 3); Aeolian runs the invented string
+//!   weave — glyph rain falls onto invisible horizontal strings,
+//!   plucks them, and surfs the ringing wavefronts (NIGHT-special-2:
+//!   the first style whose motion math was derived in this repo
+//!   from first principles, carrying no existing reference — the
+//!   six laws of the weave, see `cloud/type_rain/aeolian/mod.rs`).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -38,6 +44,7 @@ pub enum RainStyle {
     Dragon,
     Physarum,
     BlackHole,
+    Aeolian,
 }
 
 impl RainStyle {
@@ -52,6 +59,7 @@ impl RainStyle {
             Self::Dragon => "dragon",
             Self::Physarum => "physarum",
             Self::BlackHole => "black_hole",
+            Self::Aeolian => "aeolian",
         }
     }
 
@@ -69,9 +77,9 @@ impl RainStyle {
     /// True for styles that integrate spawn through the fractional
     /// `spawn_remainder` accumulator (Monolith lanes, Vortex motes,
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
-    /// particles, and since stage 2 the BlackHole orbital-ring motes).
-    /// Glyph-family spawn uses per-column timing instead. The stage 3
-    /// glyph infall will reuse the same accumulator path.
+    /// particles, the BlackHole orbital-ring motes since stage 2,
+    /// and the Aeolian drops since NIGHT-special-2).
+    /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
         matches!(
@@ -83,6 +91,7 @@ impl RainStyle {
                 | Self::Dragon
                 | Self::Physarum
                 | Self::BlackHole
+                | Self::Aeolian
         )
     }
 
@@ -108,6 +117,7 @@ impl RainStyle {
             "dragon" => Some(Self::Dragon),
             "physarum" => Some(Self::Physarum),
             "black_hole" | "blackhole" => Some(Self::BlackHole),
+            "aeolian" => Some(Self::Aeolian),
             _ => None,
         }
     }
@@ -118,6 +128,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian"
     }
 }

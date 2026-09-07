@@ -3,6 +3,7 @@
 
 //! Core tests for the cloud module (rain, pause/resume, transitions, spawn).
 
+mod tests_aeolian;
 mod tests_anomaly;
 mod tests_black_hole;
 mod tests_border_gradient;

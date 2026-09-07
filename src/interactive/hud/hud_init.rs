@@ -115,7 +115,7 @@ impl super::HudState {
                 (Color::DarkCyan, String::new()), // 18: mnst
                 // ── Rain style (row 19) — NIGHT-hunter-9 ──
                 // rain: active rain style (glyph, monolith, vortex,
-                // flux, lorenz, dragon, physarum, black_hole). The owner-mandated
+                // flux, lorenz, dragon, physarum, black_hole, aeolian). The owner-mandated
                 // position is above `dcel:` so the user can read the
                 // active motion DNA before the cell-efficiency metrics.
                 (Color::DarkCyan, String::new()), // 19: rain

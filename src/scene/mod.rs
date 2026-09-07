@@ -11,11 +11,11 @@
 //! Built-in scenes combine the three core runtime styles (`matrix`,
 //! `monolith`, `signal` — the original "rain atmospheres" naming predates
 //! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
-//! subsystem) with the six structured style flagships (`vortex`,
+//! subsystem) with the seven structured style flagships (`vortex`,
 //! `flux`, `lorenz`, `cosmic_dragon`, `physarum`,
-//! `sorgonemous_intrascals` — task-18/19 +
-//! NIGHT-research-4/5/6 + NIGHT-special-1, the signature differentiators),
-//! nine curated
+//! `sorgonemous_intrascals`, `aeolian` — task-18/19 +
+//! NIGHT-research-4/5/6 + NIGHT-special-1/2, the signature
+//! differentiators), nine curated
 //! visual scenes (`classic`, `cinematic`, `calm`, `storm`, `cosmos`,
 //! `neon`, `hacker`, `matrix_film`, `low-power`), the `cosmic-dragon`
 //! milestone scene commemorating the temporal-prediction breakthrough
@@ -25,7 +25,7 @@
 //! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 25 built-in scenes (owner directive 2026-08-24): the
+//! covers all 26 built-in scenes: the
 //! three core atmospheres lead (cinematic, monolith, matrix), then
 //! the style flagships, the curated classics, the atmosphere
 //! scenes, the power-saving utility, and the milestone/tribute/honor
@@ -41,7 +41,10 @@
 //! 2010 emergent networks, NIGHT-research-6);
 //! `sorgonemous_intrascals` joined at position 9 — the black hole
 //! (NIGHT-special-1 staged rollout: stage 1 ships the
-//! event-horizon ball, the RK4 orbital ring and glyph infall follow).
+//! event-horizon ball, the RK4 orbital ring and glyph infall follow);
+//! `aeolian` joined at position 10 — the invented string weave
+//! (NIGHT-special-2: the rain plays the instrument, original motion
+//! math with no existing reference).
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -66,16 +69,17 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 25 built-in scenes (owner directive
+/// Ordered scene cycle — all 26 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
 /// style flagship at 4; task-19 replaced the rejected ripple with
 /// flux at 5; the NIGHT-research-4 merge added lorenz, a
 /// strange-attractor masterpiece, at 6; NIGHT-research-5 added the
 /// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
 /// physarum style flagship at 8; NIGHT-special-1 added the black
-/// hole flagship sorgonemous_intrascals at 9; NIGHT-hunter-15 added
-/// the dragon_hunt
-/// milestone (the glitch-rain-shift bug-hunt reward) at 19; the rest
+/// hole flagship sorgonemous_intrascals at 9; NIGHT-special-2 added
+/// the aeolian weave flagship at 10; NIGHT-hunter-15 added the
+/// dragon_hunt
+/// milestone (the glitch-rain-shift bug-hunt reward) at 21; the rest
 /// ordered by daily-use
 /// likelihood so the most-switched scenes are the fewest keystrokes
 /// away: core trio -> style flagships -> classic siblings ->
@@ -110,27 +114,34 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // infall land in stages 2 and 3). Grouped with the style
     // flagships so the cycle tours all signature motion styles.
     "sorgonemous_intrascals", // 9
+    // NIGHT-special-2 style flagship — the aeolian weave. The
+    // invented string instrument played by the falling rain:
+    // original motion math (the six laws of the weave, derived in
+    // this repo — no existing reference), the calm-sky weather
+    // dial family. Grouped with the style flagships so the cycle
+    // tours all signature motion styles.
+    "aeolian", // 10
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 9 — original green-on-black
-    "signal",      // 10 — digital transmission
-    "hacker",      // 11 — high-contrast terminal overflow
-    "matrix_film", // 12 — 1999 film homage
+    "classic",     // 11 — original green-on-black
+    "signal",      // 12 — digital transmission
+    "hacker",      // 13 — high-contrast terminal overflow
+    "matrix_film", // 14 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 13
-    "calm",   // 14
-    "cosmos", // 15
-    "neon",   // 16
+    "storm",  // 15
+    "calm",   // 16
+    "cosmos", // 17
+    "neon",   // 18
     // Utility.
-    "low-power", // 17
+    "low-power", // 19
     // Milestone + tribute.
-    "cosmic-dragon", // 18
-    "dragon_hunt",   // 19
-    "carbonic",      // 20
+    "cosmic-dragon", // 20
+    "dragon_hunt",   // 21
+    "carbonic",      // 22
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 21
-    "orange-cat",     // 22
-    "north-stars",    // 23
-    "curiosity",      // 24
+    "crystal-dragon", // 23
+    "orange-cat",     // 24
+    "north-stars",    // 25
+    "curiosity",      // 26
 ];
 
 pub(crate) const SCENES: &[SceneInfo] = &[
@@ -278,6 +289,27 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.55),
             glitch_level: Some(GlitchLevel::None),
             rain_style: RainStyle::BlackHole,
+        },
+    },
+    // NIGHT-special-2: aeolian — the invented string weave, the
+    // project's first original-math rain style (the six laws were
+    // derived in this repo — see cloud/type_rain/aeolian/mod.rs).
+    // The name is the wind's own: the Aeolian harp is played by
+    // moving air, this one by falling light. Aurora (557.7nm green,
+    // the sky's own emission line) + runic strokes (the chime
+    // marks). Speed 16 = calm weather; density 0.55 = flagship
+    // parity (the calm-sky dial keeps the drizzle sparse anyway).
+    SceneInfo {
+        name: "aeolian",
+        description: "Aeolian weave — the rain plays the instrument; glyphs fall onto invisible strings, pluck traveling light packets that sharpen as they race and knot where they cross, while the weather bends toward the resonance",
+        config: SceneConfig {
+            color: Some("aurora"),
+            charset: Some("runic"),
+            fps: Some(60.0),
+            speed: Some(16.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::Subtle),
+            rain_style: RainStyle::Aeolian,
         },
     },
     SceneInfo {

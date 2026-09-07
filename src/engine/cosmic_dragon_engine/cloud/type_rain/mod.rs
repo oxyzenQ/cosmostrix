@@ -31,6 +31,10 @@
 //! - `black_hole` - event-horizon ball for the sorgonemous_intrascals
 //!   scene (NIGHT-special-1; staged rollout — stage 1 ships the ball,
 //!   the RK4 ring and glyph infall follow in stages 2 and 3).
+//! - `aeolian` - the invented string-weave rain (NIGHT-special-2,
+//!   the ninth style: the rain plays the instrument — original
+//!   motion DNA with no existing mathematical reference, the six
+//!   laws of the weave derived in `aeolian/mod.rs`).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -39,6 +43,7 @@
 //! and shares its name with the family directory for navigational
 //! symmetry with `dragon/dragon.rs`, `monolith/monolith.rs`, etc.
 
+pub(crate) mod aeolian;
 pub(crate) mod black_hole;
 pub(crate) mod dragon;
 pub(crate) mod flux;

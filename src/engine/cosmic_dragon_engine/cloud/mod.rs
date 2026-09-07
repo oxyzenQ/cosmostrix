@@ -57,6 +57,7 @@ mod state;
 // `impl Cloud` block (methods accessed via `self.spawn_droplets(...)`,
 // not via `crate::cloud::spawn_logic::*`).
 pub(crate) mod type_rain;
+pub(crate) use type_rain::aeolian;
 pub(crate) use type_rain::black_hole;
 pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;
@@ -91,6 +92,7 @@ use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
+use aeolian::AeolianRain;
 use black_hole::BlackHoleRain;
 use dragon::DragonRain;
 use ecosystem::{
@@ -182,6 +184,13 @@ pub struct Cloud {
     /// event-horizon core; the RK4 orbital ring and glyph infall
     /// land in stages 2 and 3.
     pub(crate) black_hole_rain: BlackHoleRain,
+    /// NIGHT-special-2 ninth rain style: the aeolian weave — the
+    /// invented string instrument played by the falling rain (see
+    /// `type_rain/aeolian/mod.rs` for the six laws and the L1
+    /// stability proof). Structured family sibling (no droplet
+    /// pool); the family's first stochastic advance pass (the
+    /// capture/through coin the field brightness weights).
+    pub(crate) aeolian_rain: AeolianRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -492,6 +501,7 @@ impl Cloud {
             dragon_rain: DragonRain::new(),
             physarum_rain: PhysarumRain::new(),
             black_hole_rain: BlackHoleRain::new(),
+            aeolian_rain: AeolianRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -856,6 +866,7 @@ impl Cloud {
             RainStyle::Dragon => self.dragon_rain.active_count(),
             RainStyle::Physarum => self.physarum_rain.active_count(),
             RainStyle::BlackHole => self.black_hole_rain.active_count(),
+            RainStyle::Aeolian => self.aeolian_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

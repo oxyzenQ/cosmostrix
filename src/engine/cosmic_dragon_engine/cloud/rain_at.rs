@@ -15,6 +15,7 @@ use crate::constants::*;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
+use super::aeolian::{AeolianRandom, AeolianSpawnParams, AeolianStep};
 use super::black_hole::{BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep};
 use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::flux::{FluxRandom, FluxSpawnParams, FluxStep};
@@ -164,6 +165,13 @@ impl super::Cloud {
                     // palette slot (single body, one slot for every cell —
                     // parity with the structured-family transition path).
                     self.black_hole_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Aeolian) {
+                    // NIGHT-special-2: the aeolian weave adopts the new
+                    // palette slot (the string field is one body, one
+                    // slot; drops adopt individually — parity with the
+                    // structured-family transition path).
+                    self.aeolian_rain
                         .adopt_palette_slot(self.active_palette_slot);
                 } else {
                     for d in &mut self.droplets {
@@ -472,6 +480,30 @@ impl super::Cloud {
             };
             self.black_hole_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Aeolian) {
+            // NIGHT-special-2: the aeolian drops spawn on the same
+            // accumulator contract as the structured family (elapsed
+            // clamped by max_sim_delta, fractional remainder carried
+            // in the shared spawn_remainder field).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = AeolianSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = AeolianRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.aeolian_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -524,6 +556,13 @@ impl super::Cloud {
                     // invalidation, mirroring the other structured styles
                     // (also arms the ball's glyph re-roll).
                     self.black_hole_rain.clear_draw_history();
+                } else if matches!(self.rain_style, RainStyle::Aeolian) {
+                    // NIGHT-special-2: aeolian — structured family
+                    // sibling, clear draw history on semantic
+                    // invalidation (string glyphs re-pick on the next
+                    // draw; the field state itself survives — wiping
+                    // it would silence a ringing instrument).
+                    self.aeolian_rain.clear_draw_history();
                 } else {
                     // NIGHT-research-4: lorenz — the last structured
                     // family member; clear its draw history on semantic
@@ -621,6 +660,17 @@ impl super::Cloud {
                 content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.black_hole_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Aeolian) {
+                // NIGHT-special-2: the aeolian weave is a structured
+                // family style and follows the same force-draw reset
+                // path (full frame clear + draw history wipe + phosphor
+                // state reset). The string field survives (simulation
+                // state — the instrument keeps ringing through the
+                // redraw; only the render history is rebuilt).
+                content_invalidated = true;
+                frame.clear_with_bg(self.palette.bg);
+                self.aeolian_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -769,6 +819,27 @@ impl super::Cloud {
                 resume_blend: self.resume_blend,
             };
             self.black_hole_rain.advance(&step);
+        } else if matches!(self.rain_style, RainStyle::Aeolian) {
+            // NIGHT-special-2: the aeolian weave takes the same
+            // dt-clamp + resume_blend contract as the structured
+            // siblings (one global clock; the string conduction
+            // sweep, the drop physics and the capture rolls live in
+            // type_rain/aeolian/). The advance pass is the family's
+            // first stochastic pass — the RNG bundle rides along
+            // for the capture/through coin.
+            let step = AeolianStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                cols: self.cols,
+                lines: self.lines,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            let mut random = AeolianRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.aeolian_rain.advance(&step, &mut random);
         } else {
             // Glyph family: droplet advance (no surface system —
             // ripple's water-line physics was removed along with
@@ -1391,6 +1462,23 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.black_hole_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::Aeolian) {
+            // NIGHT-special-2: aeolian draw — same diff-cleanup
+            // contract as the structured siblings (string cells the
+            // decay silences and trail cells the rain vacates are
+            // cleared via the drawn-cell diff; phosphor arrays reset
+            // in clear_cell). The renderer is weave-agnostic; the
+            // same pattern serves any future field-coupled style.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.aeolian_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

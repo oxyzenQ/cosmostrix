@@ -1328,3 +1328,268 @@ pub(crate) const BLACK_HOLE_FORM_COLLAPSE_SECS: f32 = 0.5;
 /// the "small dot explodes into the hole" read, ~1.2 s so the
 /// expansion is unmistakable without strobing.
 pub(crate) const BLACK_HOLE_FORM_HORIZON_SECS: f32 = 1.2;
+
+// ── Aeolian weave (NIGHT-special-2, the ninth style) ────────────────────
+// The invented system, born in this repo (owner directive: a rain
+// type with no existing mathematical reference — original motion
+// DNA, the LEAP-engine spirit: an equation set no textbook carries,
+// derived from first principles FOR the terminal medium). The
+// complete derivation and the six laws of the weave live in
+// type_rain/aeolian/mod.rs; the constants here are the shipped
+// calibration.
+
+// Population dials (the stage-4 calm-sky DNA: the rain is an
+// ambient minority layer — a drizzle over a dark sky, never a
+// downpour — so the strings stay the hero of the composition).
+
+/// Base active-drop ratio of the aeolian pool (pool = one drop per
+/// column, the family lane model). 0.05 matches the infall's
+/// stage-4 sparse base: occasional falling glyphs over the dark
+/// sky, the strings revealed only where the rain plays them.
+pub(crate) const AEOLIAN_ACTIVE_BASE: f32 = 0.05;
+
+/// Density multiplier for the aeolian active-count target (the
+/// slider thickens the drizzle gently, never floods the sky — the
+/// stage-4 sensitivity family, 0.09).
+pub(crate) const AEOLIAN_ACTIVE_DENSITY_MULT: f32 = 0.09;
+
+/// Maximum active-drop ratio cap of the aeolian pool (even at full
+/// slider the rain stays a clear minority of the lanes — the calm
+/// sky the owner approved on the black hole's stage 4).
+pub(crate) const AEOLIAN_ACTIVE_MAX: f32 = 0.16;
+
+/// Spawn rate multiplier for the aeolian pool (accumulator
+/// arithmetic identical to the family: fraction-of-target + floor,
+/// deficit-bounded — rain drifts in one glyph at a time, never
+/// bursts).
+pub(crate) const AEOLIAN_SPAWN_RATE_MULT: f32 = 0.30;
+
+/// Spawn rate floor (minimum aeolian spawns per second). 0.25 —
+/// the stage-4 trickle cadence: a fresh glyph at most every four
+/// seconds on the quietest pools, so the top edge never reads a
+/// rhythm of pops.
+pub(crate) const AEOLIAN_SPAWN_RATE_FLOOR: f32 = 0.25;
+
+/// Drop lifetime cap in seconds (+-15% per-mote variance, the
+/// family contract). 15 s is the backstop: most drops end earlier
+/// (captured by a string, or absorbed at the bottom edge).
+pub(crate) const AEOLIAN_MAX_AGE_SECS: f32 = 15.0;
+
+// Drop physics (the rain half of the weave).
+
+/// Gravitational acceleration of a falling drop, in lines per
+/// sim-second squared. 1.6 keeps the fall a drift: from rest a
+/// drop crosses a 40-line screen in ~7 s at terminal speed —
+/// weather, not a volley.
+pub(crate) const AEOLIAN_DROP_GRAVITY: f32 = 1.6;
+
+/// Terminal fall speed cap, in lines per sim-second. 4.0 is the
+/// fastest a drop may fall: bright long streaks read as rain
+/// sheets, not spam.
+pub(crate) const AEOLIAN_DROP_TERMINAL: f32 = 4.0;
+
+/// Fresh drop fall speed, in lines per sim-second. 1.2 is the calm
+/// entry: a glyph appearing at the top edge reads as a slow dim
+/// drift (Ghost on the kinetic ladder — the stage-4 dim-entry
+/// elegance).
+pub(crate) const AEOLIAN_DROP_FALL_BASE: f32 = 1.2;
+
+/// Maximum horizontal drift of a fresh drop as a fraction of its
+/// fall speed (uniform +-DRIFT): 0.35 spreads the landing sites so
+/// consecutive plucks never ring the same column in rhythm.
+pub(crate) const AEOLIAN_DROP_DRIFT_FRACTION: f32 = 0.35;
+
+/// Resonance-seeking gain: lateral acceleration per unit field
+/// slope, in cells per sim-second squared. 5.5 slides a drop a few
+/// cells toward a passing packet's crest over its descent — the
+/// bend that reads as the glyphs hearing the music.
+pub(crate) const AEOLIAN_SEEK_GAIN: f32 = 5.5;
+
+/// Lateral drag rate: exponential decay of a drop's lateral
+/// velocity per sim-second (vx *= exp(-rate x dt)). 2.1 settles the
+/// seeking without orbiting — a drop homes in and lands, it does
+/// not circle.
+pub(crate) const AEOLIAN_SEEK_DRAG: f32 = 2.1;
+
+/// Vertical range around a string within which a drop feels the
+/// field's slope, in lines. 4.5: the bend begins a comfortable
+/// distance above the string and completes by impact.
+pub(crate) const AEOLIAN_SEEK_RANGE: f32 = 4.5;
+
+/// Base capture probability at a string when the local field is
+/// dark (u = 0): 0.35 of falling glyphs slip through a silent
+/// string — the sky below stays alive with through-rain.
+pub(crate) const AEOLIAN_CAPTURE_BASE: f32 = 0.35;
+
+/// Capture probability gain per unit field brightness (probability
+/// = base + gain x min(1, u / level-hot)): bright antinodes eat
+/// rain, silent strings let it pass — the feedback that
+/// concentrates the weather onto the ringing zones (the
+/// self-organization loop of the weave).
+pub(crate) const AEOLIAN_CAPTURE_GAIN: f32 = 0.55;
+
+/// Graze pluck fraction: a drop that PASSES a string still rings
+/// it faintly (pluck gain x 0.25) — the through-rain keeps the
+/// instrument murmuring between captures.
+pub(crate) const AEOLIAN_PASS_GRAZE: f32 = 0.25;
+
+/// Surf kick: vertical speed gained by crossing a bright packet
+/// (lines per sim-second per unit amplitude). 1.4 makes a drop
+/// flare and accelerate as it punches through a wavefront — the
+/// interference streak.
+pub(crate) const AEOLIAN_SURF_KICK: f32 = 1.4;
+
+/// Charge accumulation rate: a drop's pluck charge grows with its
+/// fall speed (charge += |vy| x rate x dt). 0.22: a full 40-line
+/// descent at terminal speed charges ~2.3 — deep fast drops ring
+/// the strings hard, shallow grazes softly.
+pub(crate) const AEOLIAN_CHARGE_RATE: f32 = 0.22;
+
+/// Fresh drop charge seed: every impact has a floor (0.4) so even
+/// a top-string graze speaks audibly.
+pub(crate) const AEOLIAN_CHARGE_SEED: f32 = 0.4;
+
+/// Kinetic ladder rung 1: below this fall speed (lines per
+/// sim-second) the drop reads Ghost. 1.45 sits ABOVE the fresh
+/// fall speed (1.2) — the dim calm entry (the stage-4 elegance
+/// read, identical intent to the infall's ladder).
+pub(crate) const AEOLIAN_SPEED_GHOST: f32 = 1.45;
+
+/// Kinetic ladder rung 2: below this the drop reads Mid, above it
+/// Hot — the accelerating fall's band (a drop that has surfed a
+/// wavefront or fallen deep reads bright).
+pub(crate) const AEOLIAN_SPEED_MID: f32 = 2.4;
+
+/// Kinetic ladder rung 3: above this fall speed the drop reads
+/// Core — the white streak of a drop punching a bright packet at
+/// full surf kick.
+pub(crate) const AEOLIAN_SPEED_CORE: f32 = 3.6;
+
+/// Comet trail length of the falling drops (cells behind the head,
+/// one brightness rung dimmer per cell).
+pub(crate) const AEOLIAN_TRAIL_LEN: usize = 3;
+
+/// Motion-gated shimmer chance for the drop heads (mutation tied
+/// to motion, the family life sign — a glyph re-rolls when its
+/// head lands on a new cell).
+pub(crate) const AEOLIAN_SHIMMER_CHANCE: f32 = 0.4;
+
+// String physics (the instrument half of the weave).
+
+/// The signal hop rate: a bright channel cell's clock speed, in
+/// cells per sim-second (a struck packet's sprint — 50 cells/s
+/// crosses a 120-col screen in ~2.4 s, a 200-col screen in ~4 s,
+/// under one string-decay half-life). Kept under the 60-fps
+/// saturation point (50 x 1/60 = 0.83 hops/tick < 1) so the hop
+/// clock never accumulates phase debt at 60 fps — the speed
+/// contract stays exactly rate-based there (debt only engages
+/// below ~24 fps, a graceful slowdown).
+pub(crate) const AEOLIAN_HOP_FAST: f32 = 50.0;
+
+/// The residue crawl rate: a dim channel cell's clock speed (the
+/// seep of the wake a racing signal sheds, and the slow fade of
+/// the decayed field). 3 cells/s moves the residue ~4-6 cells over
+/// its decay lifetime — the wake reads as a lingering shimmer
+/// around the impact zone, not a second traveling packet.
+pub(crate) const AEOLIAN_HOP_SLOW: f32 = 3.0;
+
+/// The signal threshold: a channel cell whose mass sits at or
+/// above this amplitude runs its hop clock at the sprint rate (the
+/// racing signal); below it, at the residue crawl. The QUANTIZED
+/// two-voice switch is deliberate — every bright cell of a pulse
+/// runs at the same rate, so the pulse hops in lockstep and
+/// translates rigidly (a smooth rate curve would shear the pulse
+/// apart within a few ticks). 0.9 sits under typical pluck
+/// amplitudes (a charged capture injects 1.0-3.0 per channel), so
+/// a fresh strike sprints immediately and only its decayed wake
+/// lingers. Decay carries a cell monotonically from the signal
+/// voice to the residue voice (mass only shrinks between plucks),
+/// so the switch never oscillates.
+pub(crate) const AEOLIAN_URGENCY_SWITCH: f32 = 0.9;
+
+/// Self-similar decay rate of the string field (amplitude x
+/// exp(-rate x dt), the shape-preserving shrink). 0.35 gives a
+/// packet a 2 s half-life: long enough to cross half a wide
+/// screen, short enough that silence returns between plucks.
+pub(crate) const AEOLIAN_STRING_DECAY: f32 = 0.35;
+
+/// Wall reflection fraction: a packet reaching the screen edge
+/// re-enters the opposite channel at 0.85 of its amplitude — the
+/// instrument is closed, the walls are the bridge's nut. 15% of
+/// the energy is absorbed per bounce (the walls also mute).
+pub(crate) const AEOLIAN_WALL_REFLECT: f32 = 0.85;
+
+/// Pluck gain: channel amplitude injected per unit drop charge
+/// (symmetric split into BOTH channels — the classic pluck read:
+/// light races away from the impact in both directions).
+pub(crate) const AEOLIAN_PLUCK_GAIN: f32 = 0.85;
+
+/// Inter-string resonance echo: probability that a captured drop's
+/// impact also seeds a faint packet on the string BELOW (same
+/// column, symmetric split) — the frame resonates, the cascade
+/// read. 0.5: half the captures ring the neighbor.
+pub(crate) const AEOLIAN_ECHO_CHANCE: f32 = 0.5;
+
+/// Echo seed amplitude as a fraction of the parent pluck: 0.45 —
+/// the aftershock reads as a dim murmur on the next string, never
+/// a second voice.
+pub(crate) const AEOLIAN_ECHO_GAIN: f32 = 0.45;
+
+// Draw thresholds (field amplitude to brightness ladder).
+
+/// Draw floor: a string cell below this combined amplitude is not
+/// drawn at all — the instrument is INVISIBLE until played (the
+/// dark sky stays dark where the strings are silent).
+pub(crate) const AEOLIAN_DRAW_FLOOR: f32 = 0.14;
+
+/// Mid rung: combined amplitude above this reads Mid on the
+/// brightness ladder (the packet body).
+pub(crate) const AEOLIAN_LEVEL_MID: f32 = 0.6;
+
+/// Hot rung: combined amplitude above this reads Hot (the packet
+/// crest).
+pub(crate) const AEOLIAN_LEVEL_HOT: f32 = 1.4;
+
+/// Knot threshold: when BOTH channels at a cell exceed this
+/// amplitude, counter-propagating packets overlap there and the
+/// cell reads Core white — the interference knot, the signature
+/// read of the weave.
+pub(crate) const AEOLIAN_KNOT_LEVEL: f32 = 0.5;
+
+/// Sim-time coupling to the speed keys: sim-seconds per
+/// wall-second per chars_per_sec (dt_sim = dt_wall x cps x
+/// SIM_TIME_PER_CPS). One sim-second equals one wall-second at the
+/// scene's reference 12 cps; the speed keys scale the rain, the
+/// conduction and the decay on one clock — the family's speed
+/// contract, trajectory shapes invariant.
+pub(crate) const AEOLIAN_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+/// Maximum strings drawn, by viewport height (52 lines and up
+/// draws 4, 34..=51 draws 3, 18..=33 draws 2, anything less 1):
+/// one string per ~13-17 lines keeps the resonance bands separated
+/// enough for the eye to read each instrument individually.
+pub(crate) const AEOLIAN_STRING_LINES_PER: u16 = 17;
+
+// Compile-time contracts on the aeolian calibration: the ladder
+// must be strictly ordered (kinetic heat climbs monotonically),
+// the draw thresholds must be ordered with the floor lowest (a
+// cell can only climb the ladder), capture probability must stay
+// a probability, the hop rates must be ordered (residue crawls
+// slower than the signal sprints), and the sprint must stay under
+// the 60-fps saturation point (one hop per tick at most — the
+// no-tunneling guarantee; the signal threshold must sit under a
+// typical pluck so strikes sprint from birth).
+const _: () = assert!(AEOLIAN_SPEED_GHOST < AEOLIAN_SPEED_MID);
+const _: () = assert!(AEOLIAN_SPEED_MID < AEOLIAN_SPEED_CORE);
+const _: () = assert!(AEOLIAN_DRAW_FLOOR < AEOLIAN_LEVEL_MID);
+const _: () = assert!(AEOLIAN_LEVEL_MID < AEOLIAN_LEVEL_HOT);
+const _: () = assert!(AEOLIAN_KNOT_LEVEL > AEOLIAN_DRAW_FLOOR);
+const _: () = assert!(AEOLIAN_CAPTURE_BASE + AEOLIAN_CAPTURE_GAIN <= 1.0);
+const _: () = assert!(AEOLIAN_WALL_REFLECT <= 1.0);
+const _: () = assert!(AEOLIAN_DROP_FALL_BASE < AEOLIAN_DROP_TERMINAL);
+const _: () = assert!(AEOLIAN_URGENCY_SWITCH > 0.0);
+const _: () = assert!(AEOLIAN_HOP_SLOW < AEOLIAN_HOP_FAST);
+const _: () = assert!(AEOLIAN_HOP_FAST / 60.0 < 1.0);
+// A charged capture (charge ~2 from a mid-fall drop) plucks a
+// center cell of 2 x PLUCK_GAIN — that must sprint from birth.
+const _: () = assert!(AEOLIAN_URGENCY_SWITCH < 2.0 * AEOLIAN_PLUCK_GAIN);
