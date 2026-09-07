@@ -274,10 +274,11 @@ impl InfallStream {
     }
 
     /// Steady-state active target from pool size + density — the
-    /// infall twin of the ring's and halo's targets: a low base (the
-    /// rain is an AMBIENT layer, the hole stays the hero), the same
-    /// density sensitivity so the slider moves both layers
-    /// proportionally, capped below the disk's population.
+    /// infall twin of the ring's and halo's targets: a sparse base
+    /// (the rain is an AMBIENT layer, the hole stays the hero), a
+    /// softened density sensitivity (stage 4: the slider thickens the
+    /// drizzle gently instead of flooding the sky), capped at a clear
+    /// minority of the lanes so the rain never rivals the stack.
     fn target_active(lanes: usize, density: f32) -> usize {
         if lanes == 0 {
             return 0;

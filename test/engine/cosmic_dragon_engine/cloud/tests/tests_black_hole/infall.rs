@@ -48,15 +48,29 @@ fn fly(m: &mut InfallMote, sim_secs: f32) -> bool {
     advance_infall_mote(m, sim_secs, PIN_EXIT_W, PIN_EXIT_H)
 }
 
+/// Drive the cloud to the steady state AND past the rain's slow fill:
+/// the stage-4 trickle reaches its lane budget over several seconds
+/// (the calm ramp is part of the read, not a bug), so the infall
+/// contracts must observe the filled sky, not the arrival. The 220
+/// shared frames carry the formation intro; 600 more (9.6 s of rain
+/// at the harness clock) let the drizzle settle at its sparse target.
+fn run_frames_to_rain_steady(cloud: &mut Cloud, frame: &mut Frame) {
+    run_frames_to_steady(cloud, frame);
+    run_frames(cloud, frame, 600, 16);
+}
+
 #[test]
 fn black_hole_infall_spawns_rain_after_formation() {
     // The stage-3 contract: after the formation intro the third pool
     // fills — glyphs fall over the system (the ambient layer), and
-    // every active mote is in flight (below its spawn line, moving).
+    // every active mote is in flight (inside the envelope, moving).
+    // The long window also catches mid-life motes: a captured glyph
+    // whipping its inspiral can travel upward for a stretch, so the
+    // flight check is the mote's speed, not the sign of vy.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
 
     let active = cloud.black_hole_rain.active_infall_for_test();
     assert!(active > 0, "the infall must spawn glyphs (got {active})");
@@ -68,9 +82,11 @@ fn black_hole_infall_spawns_rain_after_formation() {
     );
     let mut flying = 0;
     for m in motes.iter().filter(|m| m.active) {
+        let speed_sq = m.vx * m.vx + m.vy * m.vy;
         assert!(
-            m.vy > 0.0,
-            "an infalling glyph must move down the screen (vy {})",
+            speed_sq > 1.0e-6,
+            "an active glyph must be in flight (vx {} vy {})",
+            m.vx,
             m.vy
         );
         assert!(
@@ -272,13 +288,16 @@ fn black_hole_infall_departed_motes_despawn() {
 
 #[test]
 fn black_hole_infall_speed_ladder_grades_kinetic_heat() {
-    // The kinetic-heat ladder: slow distant rain Ghost, the fall Mid,
-    // the approach Hot, the whip Core.
+    // The kinetic-heat ladder: slow distant rain Ghost, the calm
+    // entry Ghost (stage 4: a fresh drop at the fall speed reads dim —
+    // only the fall's own acceleration lifts the ladder), the
+    // accelerating fall Mid, the approach Hot, the whip Core.
     assert!(matches!(level_for_speed(0.8), BrightnessLevel::Ghost));
     assert!(matches!(
         level_for_speed(crate::constants::BLACK_HOLE_INFALL_FALL_SPEED),
-        BrightnessLevel::Mid
+        BrightnessLevel::Ghost
     ));
+    assert!(matches!(level_for_speed(1.8), BrightnessLevel::Mid));
     assert!(matches!(level_for_speed(2.5), BrightnessLevel::Hot));
     assert!(matches!(level_for_speed(3.6), BrightnessLevel::Core));
 }
@@ -374,7 +393,7 @@ fn black_hole_infall_resizes_cleanly() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
 
     let (cols2, lines2) = (90, 30);
     let mut frame2 = Frame::new(cols2, lines2, cloud.palette.bg);
@@ -393,7 +412,7 @@ fn black_hole_infall_resizes_cleanly() {
     // The resize keeps the formed flag — the rain re-fills without
     // replaying the birth sequence.
     assert!(cloud.black_hole_rain.formed_for_test());
-    run_frames_to_steady(&mut cloud, &mut frame2);
+    run_frames_to_rain_steady(&mut cloud, &mut frame2);
     assert!(
         cloud.black_hole_rain.active_infall_for_test() > 0,
         "the rain must re-fill on the resized geometry"
@@ -425,7 +444,7 @@ fn black_hole_infall_survives_style_transition() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
     assert!(cloud.black_hole_rain.active_infall_for_test() > 0);
 
     cloud.transition_rain_style(RainStyle::Vortex);
@@ -437,8 +456,9 @@ fn black_hole_infall_survives_style_transition() {
 
     cloud.transition_rain_style(RainStyle::BlackHole);
     // Re-entry replays the formation intro (the rain gate reopens
-    // when the hole is whole) — fast-forward to steady.
-    run_frames_to_steady(&mut cloud, &mut frame);
+    // when the hole is whole) — fast-forward to the filled sparse
+    // steady state.
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
     assert!(
         cloud.black_hole_rain.active_infall_for_test() > 0,
         "the rain must re-form after the style transition"
@@ -452,7 +472,7 @@ fn black_hole_infall_pause_freezes_the_rain() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
     let before: Vec<(f32, f32)> = cloud
         .black_hole_rain
         .infall_motes_for_test()
@@ -539,34 +559,41 @@ fn black_hole_infall_shimmer_mutates_on_new_cells() {
     // stays continuously in flight re-rolls its character as its
     // head lands on new cells (the only path an active mote's
     // character can change; recycled motes are filtered out by the
-    // age comparison).
+    // age comparison). The stage-4 sparse cadence hosts fewer glyphs
+    // with shorter lives at any instant, so the harness samples
+    // several short windows and accumulates the evidence — at least
+    // one continuously-flying glyph must have re-rolled somewhere.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
 
-    let start: Vec<(usize, f32, char)> = cloud
-        .black_hole_rain
-        .infall_motes_for_test()
-        .iter()
-        .enumerate()
-        .filter(|(_, m)| m.active)
-        .map(|(i, m)| (i, m.sim_age, m.ch))
-        .collect();
-    assert!(!start.is_empty(), "the rain must be flying to mutate");
-    run_frames(&mut cloud, &mut frame, 120, 16);
-    let motes = cloud.black_hole_rain.infall_motes_for_test();
-    let mut tracked = 0;
-    let mut changed = 0;
-    for (i, age0, ch0) in &start {
-        let m = &motes[*i];
-        // Continuously alive across the window (an older age than
-        // the snapshot's rules out an absorbed-and-respawned recycle).
-        if m.active && m.sim_age > age0 + 1.5 {
-            tracked += 1;
-            if m.ch != *ch0 {
-                changed += 1;
+    let mut tracked = 0usize;
+    let mut changed = 0usize;
+    for _ in 0..4 {
+        let start: Vec<(usize, f32, char)> = cloud
+            .black_hole_rain
+            .infall_motes_for_test()
+            .iter()
+            .enumerate()
+            .filter(|(_, m)| m.active)
+            .map(|(i, m)| (i, m.sim_age, m.ch))
+            .collect();
+        run_frames(&mut cloud, &mut frame, 100, 16);
+        let motes = cloud.black_hole_rain.infall_motes_for_test();
+        for (i, age0, ch0) in &start {
+            let m = &motes[*i];
+            // Continuously alive across the window (an older age than
+            // the snapshot's rules out an absorbed-and-respawned recycle).
+            if m.active && m.sim_age > age0 + 1.5 {
+                tracked += 1;
+                if m.ch != *ch0 {
+                    changed += 1;
+                }
             }
+        }
+        if changed > 0 {
+            break;
         }
     }
     assert!(tracked > 0, "some glyphs must fly continuously ({tracked})");
@@ -586,11 +613,14 @@ fn black_hole_infall_lights_up_on_approach() {
     // upper corners where only the dim ambient rain travels. Only
     // the screen ABOVE the stack's latitude counts (the disk's own
     // bands and the ball's lower half stay out of the measurement).
+    // The stage-4 sparse rain visits the far band in crossings, not
+    // constant occupancy, so the zones accumulate across a run of
+    // frames on one continuous clock (a single frame's snapshot can
+    // miss the corner traffic entirely).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames_to_steady(&mut cloud, &mut frame);
-    run_frames(&mut cloud, &mut frame, 300, 16);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
 
     let unit = (cols as f32 / 4.0).min(lines as f32 / 2.0);
     let outer_r = unit * crate::constants::BLACK_HOLE_BALL_FRACTION;
@@ -600,24 +630,35 @@ fn black_hole_infall_lights_up_on_approach() {
     let mut near_count = 0usize;
     let mut far_ranks = 0usize;
     let mut far_count = 0usize;
-    for cell in cloud.black_hole_rain.drawn_cells_for_test() {
-        // The upper screen only (line <= cy + 3): the halo crowns,
-        // the falling rain, and the annulus's top arc — the stack's
-        // bands sit below the filter line.
-        if cell.line as f32 > cy + 3.0 {
-            continue;
+    // Continue the timeline comfortably past the clock the harness
+    // already advanced, and seed both timers one frame back so every
+    // sampled frame sees a clean inter-frame delta (no catch-up gap).
+    let start = Instant::now() + Duration::from_secs(30);
+    cloud.last_spawn_time = start - Duration::from_millis(16);
+    cloud.last_phosphor_time = start - Duration::from_millis(16);
+    for idx in 0..200u64 {
+        let now = start + Duration::from_millis(idx * 16);
+        cloud.rain_at(&mut frame, now);
+        for cell in cloud.black_hole_rain.drawn_cells_for_test() {
+            // The upper screen only (line <= cy + 3): the halo crowns,
+            // the falling rain, and the annulus's top arc — the stack's
+            // bands sit below the filter line.
+            if cell.line as f32 > cy + 3.0 {
+                continue;
+            }
+            let dx = (cell.col as f32 - cx) / 2.0;
+            let dy = cell.line as f32 - cy;
+            let dist_norm = (dx * dx + dy * dy).sqrt() / outer_r;
+            let rank = level_rank(cell.level) as usize;
+            if (0.7..=1.7).contains(&dist_norm) {
+                near_ranks += rank;
+                near_count += 1;
+            } else if (2.75..=3.4).contains(&dist_norm) {
+                far_ranks += rank;
+                far_count += 1;
+            }
         }
-        let dx = (cell.col as f32 - cx) / 2.0;
-        let dy = cell.line as f32 - cy;
-        let dist_norm = (dx * dx + dy * dy).sqrt() / outer_r;
-        let rank = level_rank(cell.level) as usize;
-        if (0.7..=1.7).contains(&dist_norm) {
-            near_ranks += rank;
-            near_count += 1;
-        } else if (2.75..=3.4).contains(&dist_norm) {
-            far_ranks += rank;
-            far_count += 1;
-        }
+        frame.clear_dirty();
     }
     // Both zones populated (the crowns + near rain in the near band,
     // the ambient rain passing the upper corners in the far band);
@@ -629,5 +670,69 @@ fn black_hole_infall_lights_up_on_approach() {
     assert!(
         near_mean > far_mean,
         "the approach must brighten the rain (near {near_mean} vs far {far_mean})"
+    );
+}
+
+#[test]
+fn black_hole_infall_stays_a_sparse_minority() {
+    // The stage-4 calm contract: the rain is weather, not a crowd.
+    // At the engine's default density (1.0) the lane target keeps the
+    // active population a small minority of the columns, and the live
+    // pool at the harness density settles just as sparse — the clean,
+    // uncrowded sky the owner asked for (stage 3 filled roughly half
+    // the lanes at default density; the read was a downpour).
+    let lanes = 200usize;
+    let target = InfallStream::target_active_for_test(lanes, 1.0);
+    assert!(
+        (target as f32 / lanes as f32) <= 0.20,
+        "default density must keep the rain a sparse minority (target {target} of {lanes})"
+    );
+
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
+    let active = cloud.black_hole_rain.active_infall_for_test();
+    assert!(active > 0, "the rain must still live (got {active})");
+    assert!(
+        (active as f32 / cols as f32) <= 0.20,
+        "the steady rain must stay a sparse minority ({active} of {cols})"
+    );
+}
+
+#[test]
+fn black_hole_infall_trickles_never_bursts() {
+    // The stage-4 cadence contract: replacements arrive one at a
+    // time — no frame may spawn two or more glyphs at once (the
+    // trickle read: rain drifts in, never bursts in from the top).
+    // Drives one continuous clock frame by frame and watches the
+    // active count's per-frame jumps, from the formation intro
+    // through the filled steady state.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+
+    let start = Instant::now();
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    let mut max_jump = 0usize;
+    for idx in 0..820u64 {
+        let now = start + Duration::from_millis(idx * 16);
+        let prev = cloud.black_hole_rain.active_infall_for_test();
+        cloud.rain_at(&mut frame, now);
+        let jump = cloud
+            .black_hole_rain
+            .active_infall_for_test()
+            .saturating_sub(prev);
+        max_jump = max_jump.max(jump);
+        frame.clear_dirty();
+    }
+    assert!(
+        cloud.black_hole_rain.active_infall_for_test() > 0,
+        "the rain must be flying by the window's end"
+    );
+    assert!(
+        max_jump <= 1,
+        "a frame spawned {max_jump} glyphs at once — the rain must trickle, not burst"
     );
 }

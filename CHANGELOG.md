@@ -460,6 +460,56 @@ recycle, pause freeze, speed-key sim-time scaling, and the
 shimmer mutation — 56/56 black hole contracts, suite green,
 fmt/clippy clean, version untouched.
 
+### feature: NIGHT-special-1 stage 4 — the calm sky (owner-feedback tune: sparse, elegant, uncrowded)
+
+Owner verdict on stage 3 (9/10): "the rain is too much... not
+too like spam... clean not crowded." The motion DNA shipped in
+stage 3 stays untouched — gravity, the accretion brake, the
+inspirals, the horizon eating glyphs — and the WEATHER is
+retuned around one principle: the rain is an ambient layer,
+never a downpour; the hole stays the hero.
+
+The crowd was the steady population: at the engine's default
+density the stage-3 target filled roughly half the screen's
+columns with falling streaks (~3.4x the read the owner
+approved as "weather"). The population dial moved, not the
+pace: the active-target base 0.18 -> 0.05, the density
+multiplier 0.35 -> 0.09, the ratio cap 0.55 -> 0.16 (even the
+full slider keeps the rain a clear minority of the lanes,
+subordinate to the stack). The spawn cadence followed the
+smaller budget: the floor 0.8 -> 0.25 spawns per second on
+the quietest pools (the multiplier kept at the family's 0.30
+so the smaller lane budget still fills — equilibrium settles
+to a gentle drizzle, roughly a tenth of the columns, with
+replacements arriving one at a time).
+
+The elegance of the drop itself is the dim entry: the
+kinetic-heat ladder's Ghost rung moved 1.10 -> 1.45, ABOVE
+the fresh fall speed (1.32), so a glyph crossing the top edge
+reads dim and quiet — only its own accelerating fall lifts it
+up the ladder (Mid as the field takes hold, Hot on approach,
+the Core-white periapsis whip). The far ambient rain now
+reads Ghost its whole straight fall: the screen's edges stay
+dark and calm while the action concentrates where the physics
+is.
+
+Tests (`tests_black_hole/infall.rs`, 58 total black hole
+contracts): the harness adapted to the sparse steady state —
+the rain-steady helper drives past the trickle's fill ramp,
+the pool test's flight check widens from "moving down" to
+"in flight" (a captured inspiral legitimately travels
+upward for a stretch), the shimmer samples several short
+windows (fewer glyphs with shorter lives at any instant),
+and the approach-brightness zones accumulate across a run of
+frames on one continuous clock (the far band is visited in
+crossings, not constant occupancy). Two new stage-4
+contracts pin the tune: the sparse minority (the default
+density's target keeps the rain a small minority of the
+lanes, the live pool as sparse) and the trickle cadence (no
+frame ever spawns two or more glyphs — rain drifts in, it
+never bursts in). Suite 2478/2478, fmt/clippy clean, version
+untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

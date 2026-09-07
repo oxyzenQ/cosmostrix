@@ -1124,7 +1124,7 @@ pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_FLOOR: f32 = 1.5;
 /// populated in the steady state.
 pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 16.0;
 
-// ── Black hole glyph infall (stage 3, NIGHT-special-1) ────────────────
+// ── Black hole glyph infall (stage 3, NIGHT-special-1; stage 4 calm) ───
 // The third act: the rain itself becomes the accretion material.
 // Glyphs spawn above the viewport and fall through the hole's
 // gravitational field — straight ambient rain far from the system,
@@ -1141,33 +1141,53 @@ pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 16.0;
 // proximity ladder, so the whip-around reads Core white while the
 // far ambient rain reads Ghost. Every length is a fraction of the
 // ball outer radius and every speed scales with the viewport unit,
-// so the infall reads identically on any screen size.
+// so the infall reads identically on any screen size. Stage 4 (the
+// calm sky, owner verdict on stage 3: 9/10, "too much rain") keeps
+// the motion DNA untouched and tunes only the WEATHER: a sparse
+// lane population, a trickle spawn cadence, and a dim calm entry —
+// the clean, uncrowded read.
 
 /// Base active-mote ratio of the infall pool (pool = one infall mote
-/// per column, the family lane model). 0.18 keeps the rain an AMBIENT
-/// layer — sparse streaks over a dark sky, never a downpour: the hole
-/// stays the hero of the composition, the rain the weather around it
-/// (the density slider still scales it through the multiplier below).
-pub(crate) const BLACK_HOLE_INFALL_ACTIVE_BASE: f32 = 0.18;
+/// per column, the family lane model). 0.05 keeps the rain a SPARSE
+/// ambient layer — occasional streaks over a dark sky, never a
+/// downpour: the hole stays the hero of the composition, the rain
+/// the weather around it (the density slider still scales it through
+/// the multiplier below). Stage 4 (owner verdict 9/10: "too much
+/// rain, spammy from the top") cut this from 0.18 — at the engine's
+/// default density the steady population dropped from roughly half
+/// the screen's columns to about one in seven, the calm the owner
+/// asked for.
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_BASE: f32 = 0.05;
 
 /// Density multiplier for the infall active-count target: the same
-/// sensitivity as the ring's, so the slider moves both layers
-/// proportionally (the ambient read holds across the range).
-pub(crate) const BLACK_HOLE_INFALL_ACTIVE_DENSITY_MULT: f32 = 0.35;
+/// sensitivity family as the ring's (softened in stage 4 from 0.35 to
+/// 0.09 so the slider stays proportional at the new sparse base —
+/// sliding density up no longer floods the sky, it thickens the
+/// drizzle gently), so the ambient read holds across the range.
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_DENSITY_MULT: f32 = 0.09;
 
-/// Maximum active-mote ratio cap of the infall pool. 0.55 keeps even
-/// max-density rain below the disk's population — the accretion
-/// material must read subordinate to the approved stack.
-pub(crate) const BLACK_HOLE_INFALL_ACTIVE_MAX: f32 = 0.55;
+/// Maximum active-mote ratio cap of the infall pool. 0.16 keeps even
+/// max-density rain a clear minority of the lanes — the accretion
+/// material must read subordinate to the approved stack (stage 4:
+/// cut from 0.55, which at full slider let the rain rival the disk
+/// itself — the crowd the owner rejected).
+pub(crate) const BLACK_HOLE_INFALL_ACTIVE_MAX: f32 = 0.16;
 
 /// Spawn rate multiplier for the infall pool (parity with the ring's
 /// accumulator arithmetic: fraction-of-target + floor reaches the
 /// steady target with a gentle ramp-up — rain drifts in, it never
-/// bursts in).
+/// bursts in). Kept from stage 3: the stage-4 cut landed on the
+/// TARGET (the crowd was the population, not the pace), so the same
+/// multiplier now fills a lane budget roughly four times smaller —
+/// appearances slow with the crowd and the equilibrium settles
+/// well below the cap, a gentle drizzle that never floods the sky.
 pub(crate) const BLACK_HOLE_INFALL_SPAWN_RATE_MULT: f32 = 0.30;
 
-/// Spawn rate floor (minimum infall spawns per second).
-pub(crate) const BLACK_HOLE_INFALL_SPAWN_RATE_FLOOR: f32 = 0.8;
+/// Spawn rate floor (minimum infall spawns per second). Stage 4 cut
+/// it from 0.8 to 0.25 — a fresh glyph at most every four seconds on
+/// the quietest pools, so even a long watch never reads a rhythm of
+/// pops from the top edge (the elegance the owner asked for).
+pub(crate) const BLACK_HOLE_INFALL_SPAWN_RATE_FLOOR: f32 = 0.25;
 
 /// Infall mote lifetime cap in seconds (±15% per-mote variance, the
 /// family contract). 13 s is the backstop, not the rule: most motes
@@ -1239,13 +1259,20 @@ pub(crate) const BLACK_HOLE_INFALL_DRIFT_FRACTION: f32 = 0.45;
 
 /// Speed ladder rung 1: below this mote speed (outer radii per
 /// sim-second) the base brightness reads Ghost — slow distant rain, the
-/// ambient sprinkle far from the field.
-pub(crate) const BLACK_HOLE_INFALL_SPEED_GHOST: f32 = 1.10;
+/// ambient sprinkle far from the field. 1.45 sits ABOVE the fresh fall
+/// speed (1.32): a glyph entering at the top edge reads dim and quiet,
+/// and only the accelerating fall through the field lifts it up the
+/// ladder — the calm entry is the stage-4 elegance read (previously
+/// 1.10, which lit every fresh drop Mid-bright the moment it appeared
+/// — part of the spammy read the owner rejected).
+pub(crate) const BLACK_HOLE_INFALL_SPEED_GHOST: f32 = 1.45;
 
 /// Speed ladder rung 2: below this the base reads Mid, above Hot —
-/// the falling rain's typical band (the fresh fall speed of 1.32 reads
-/// Mid; the fall through the inner field accelerates a mote past this
-/// rung on approach).
+/// the accelerating fall's band (a mote that has fallen deep enough
+/// into the field to pick up speed reads Mid; the approach past this
+/// rung reads Hot). The fresh fall speed of 1.32 sits BELOW it since
+/// stage 4 — the calm entry reads Ghost and only the fall's own
+/// acceleration brightens the glyph.
 pub(crate) const BLACK_HOLE_INFALL_SPEED_MID: f32 = 2.05;
 
 /// Speed ladder rung 3: above this mote speed the base reads Core —
