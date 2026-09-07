@@ -15,7 +15,7 @@
 #   6b. ruff           - python lint/format on scripts/*.py
 #   6c. naming         - lowercase project name outside docs/archive/
 #   7.  SPDX headers   - git-tracked code/config/doc files
-#   8.  LOC guard      - .rs files <= 1500 lines
+#   8.  LOC guard      - .rs files <= 800 lines (src/RULES_LOC.md)
 #   9.  Rust version   - toolchain / MSRV / CI env in sync
 #  10.  Disclaimer     - all .md files carry the source-is-truth disclaimer
 #

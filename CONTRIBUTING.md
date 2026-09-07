@@ -23,7 +23,7 @@ cargo test --all --locked      # run full test suite
 ./scripts/build.sh check-all   # full gatekeeper (fmt + clippy + test + audit)
 ```
 
-All 11 gatekeeper checks must pass before any commit.
+All gatekeeper checks must pass before any commit.
 
 ## 2. Coding Conventions
 
@@ -56,7 +56,7 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 - [ ] No new `unwrap()` in non-test code
 - [ ] No new `unsafe` without SAFETY comment
 - [ ] No `eprintln!`/`write_fmt` in rain-active code paths (use buffer)
-- [ ] File LOC stays under 1,500 (1,000 for `cloud/mod.rs`)
+- [ ] File LOC stays under the 800 hard cap (500 soft target — see `src/RULES_LOC.md`; split with the `#[path = "..."] mod` pattern or an `// LOC_EXEMPT:` marker with justification)
 - [ ] SPDX header on new files
 - [ ] Commit message follows the format above
 
@@ -69,17 +69,17 @@ Types: `fix`, `feat`, `refactor`, `docs`, `chore`, `perf`, `test`. Examples: `fi
 
 | Subsystem | Module | Purpose |
 |-----------|--------|---------|
-| Cosmic Dragon | `src/cosmic_dragon_engine/frame.rs`, `src/cosmic_dragon_engine/terminal/`, `src/cosmic_dragon_engine/runtime.rs` | Diff-based rendering engine |
-| Chroma Dragon | `src/chroma_dragon_engine/` | OKLab color engine |
-| Cloud | `src/cosmic_dragon_engine/cloud/` | Rain simulation + spawn + render |
+| Cosmic Dragon | `src/engine/cosmic_dragon_engine/frame.rs`, `src/engine/cosmic_dragon_engine/terminal/`, `src/engine/cosmic_dragon_engine/runtime.rs` | Diff-based rendering engine |
+| Chroma Dragon | `src/engine/chroma_dragon_engine/` | OKLab color engine |
+| Cloud | `src/engine/cosmic_dragon_engine/cloud/` | Rain simulation + spawn + render |
 | Droplet | `src/droplet/mod.rs` | Per-droplet visual effects pipeline |
 | Power | `src/central_control_power_dragon/` | Self-healer + power management |
-| Ambient | `src/crystal_dragon_engine/ambient*/mod.rs` | Time-of-day scene scheduling |
+| Ambient | `src/engine/crystal_dragon_engine/ambient*/mod.rs` | Time-of-day scene scheduling |
 | Live reload | `src/config/live_config*/mod.rs` | Config file watcher + rebuild |
 | Interactive | `src/interactive/` | Event loop + HUD + input + intro |
-| Config | `src/config/configfile.rs`, `src/config/*.rs` | TOML parser + validation |
+| Config | `src/config/configfile.rs`, `src/config/*.rs` | Flat-file parser + validation |
 
-Full audit: [`docs/audits/COSMIC_DRAGON_AUDIT.md`](docs/audits/COSMIC_DRAGON_AUDIT.md)
+Full audit: [`docs/archive/audits/COSMIC_DRAGON_AUDIT.md`](docs/archive/audits/COSMIC_DRAGON_AUDIT.md)
 
 Copyright (C) 2026 rezky_nightky (oxyzenQ). All rights reserved.
 <!-- COSMOSTRIX-DISCLAIMER -->

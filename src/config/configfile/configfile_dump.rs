@@ -21,251 +21,141 @@ pub(crate) fn dump_config_text() -> &'static str {
     r##"# cosmostrix configuration
 #
 # Override priority at STARTUP: CLI flags > config.toml > scene defaults.
-# At RUNTIME (config save / live-reload): user shortkeys > ambient scene
-# (while a phase is active) > config.toml keys (incl. scene-custom block
-# fields, when config-side intent selected the block) > the locked CLI
-# startup value > scene defaults. The CLI wins only at startup — a
-# present config key overrides it at runtime; when the key is removed,
-# cosmostrix falls back to the locked startup value (a CLI-selected
-# custom scene keeps its CLI-shadowed fields; a config/ambient-selected
-# one applies the whole block layer).
+# At RUNTIME (config save / live-reload): shortkeys > the active ambient
+# phase > config.toml keys > the locked CLI startup value (the full
+# contract lives in docs/LIVE_RELOAD_BEHAVIOR.md).
 # Validate after editing: cosmostrix --testconf
-# File location: ~/.config/cosmostrix/config.toml (see --help for platform paths)
-#
-# See --list-scenes, --list-colors, --list-charsets
+# Location: ~/.config/cosmostrix/config.toml (platform paths: --help)
+# Catalogs: --list-scenes, --list-colors, --list-charsets
 
-# Standard Settings
-# All values shown are defaults. Uncomment to override.
+# -- Standard settings (defaults shown; uncomment to override) ------
 
-# scene = "cinematic"                   # Built-in name OR a [scene-custom.<name>] block name (v80.0.0-beta.2: custom names accepted — see --list-scenes)
-# color = "energy-zen"                  # Built-in theme OR a [colors-custom.<name>] block name (v80.0.0-beta.2: custom names accepted, same as charset — see --list-colors)
-# charset = "zen"                       # See: cosmostrix --list-charsets (cinematic default)
-# color-bg = "black"                   # or "default-background" (default: black)
-# intro = "logo"                        # logo | cosmic | none (default: logo)
-# intro-color = "energy-zen"            # intro color override for BOTH cosmic + logo styles (default: brand EnergyZen — NOT the rain color). v80.0.0-beta.1: cosmic burst now chroma-integrated like logo — samples the full intro palette gradient, not just 1 accent color.
+# scene = "cinematic"        # built-in name OR a [scene-custom.<name>] block
+# color = "energy-zen"       # built-in theme OR a [colors-custom.<name>] block
+# charset = "zen"            # built-in preset (--list-charsets)
+# color-bg = "black"         # or "default-background"
+# intro = "logo"             # logo | cosmic | none
+# intro-color = "energy-zen" # intro override (default: brand EnergyZen, never the rain color)
 
-# Overlay Message
-# Two keys mirror the CLI flags (-m and -mb). If both are present,
-# `message-border` wins (border=true). When neither CLI nor config
-# provides a message, interactive mode defaults to a bordered overlay
-# showing "Experience a masterpiece with cosmostrix v<CARGO_PKG_VERSION>"
-# (dynamic via env!, never hardcoded — see default_message_text in
-# src/types/constants.rs). Benchmark mode never shows a message overlay.
-# Max text length: 200 characters (MESSAGE_MAX_LEN in src/types/constants.rs).
-# msg-mode master switch (default: true): when false, disables BOTH the
-# default message AND any config message/message-border. CLI -m / -mb
-# always wins over msg-mode=false. Set false to turn off the overlay
-# entirely via config without removing the message/message-border lines.
+# -- Overlay message ------------------------------------------------
 
-# message         = "A masterpiece"     # message WITHOUT border (matches -m)
-# message-border  = "A masterpiece"     # message WITH border    (matches -mb)
-# msg-mode        = true                # true = overlay active (default), false = suppressed
-# msg-fill-style  = "engrave"            # typewriter | fade | words | slide | instant | engrave | hologram | glitch | scorch | cascade | radar (default: engrave — v80.0.0-beta.2 owner champion)
-#                                       # reveal animation for the overlay (CLI: -mfs/--msg-fill-style)
+# message         = "A masterpiece" # without border (matches -m)
+# message-border  = "A masterpiece" # with border (matches -mb; wins if both present)
+# msg-mode        = true            # false suppresses the overlay entirely (CLI -m/-mb still wins)
+# msg-fill-style  = "engrave"       # reveal animation: typewriter | fade | words | slide | instant
+#                                    # engrave | hologram | glitch | scorch | cascade | radar
 
-# Motion
+# Message notes: max 200 characters; no message anywhere -> interactive
+# mode shows the bordered default "Experience a masterpiece with
+# cosmostrix v<version>"; benchmark mode never shows an overlay.
 
-# fps = 60                              # 1-240 (default: dynamic — 60 or 144 on high-refresh)
-# speed = 9                             # 1-100 (cinematic default)
-# density = 0.75                        # 0.01-5.0 (cinematic default)
-# async-mode = true                     # variable column speeds (CLI: --async-mode true|false)
-# monolith-size = "normal"              # small | normal | large (monolith scene only)
+# -- Motion ----------------------------------------------------------
 
-# Behavior
+# fps = 60                    # 1-240 (default: dynamic, 60 or 144 on high-refresh)
+# speed = 9                   # 1-100
+# density = 0.75              # 0.01-5.0
+# async-mode = true           # variable column speeds
+# monolith-size = "normal"    # small | normal | large (monolith scene only)
 
-# glitch-level = "subtle"               # none | subtle | default | intense (cinematic default)
-# power-dragon = true                   # Power Dragon adaptive protection (true=throttle on pressure, false=keep user settings).
-#                                       # HUD NOTE: with power-dragon ON, the HUD dsty: line shows the EFFECTIVE
-#                                       # (banded) density, NOT your configured value — density = 0.90 can display
-#                                       # ~0.65 under moderate pressure. That is correct behavior, not a bug.
-#                                       # For the exact fixed value: power-dragon = false here or --power-dragon false.
-# crystal-dragon = false                # Crystal Dragon ambient color drift (point-based temperature groups).
-#                                       # Cadence: sensor poll every crystal-dragon-secs; once the dwell floor
-#                                       # passes, a drift fires within moments (the cadence governor is the
-#                                       # dwell floor + poll window, not the ~12%/frame chance — that is a
-#                                       # small post-dwell jitter). Organic, not periodic.
-# crystal-dragon-secs = 60              # 0.0..=86400.0 (60s default; the 24h hard ceiling — every
-#                                       # time-scale input is capped at one day, S-master-HUNT-5). Crystal
-#                                       # Dragon drift cadence — the harmony twin of ambient-snapback-secs.
-#                                       # Accepts the human duration forms (v80.0.0-alpha.2): 60, 60s, 1m,
-#                                       # 1h30m, 0.5d — same vocabulary as the CLI flag. Live-reload applies edits immediately (tune the
-#                                       # rhythm online). Min-dwell floor is min(60s, cadence): at the
-#                                       # default (or slower) palette flips cap at one per minute; a faster
-#                                       # explicit cadence is honored as-is. 86400 = poll once per 24h.
-#                                       # CLI: --crystal-dragon-secs.
-# ambient-snapback-secs = 30            # 0.0..=86400.0 (30s default; 86400=disable snapback; 0=instant;
-#                                       # 86400 is also the project-wide 24h hard ceiling). Accepts the
-#                                       # human duration forms: 30, 30s, 1m, 1h30m, 0.5d.
-#                                       # How long a crystal-dragon drift (or your manual shortkey override) stays
-#                                       # visible before the ambient phase re-asserts. ANY value fires — a value
-#                                       # >= the poll interval still triggers (verified live at 90s vs 60), it
-#                                       # just stretches the rhythm: the drift palette holds the ambient palette
-#                                       # for the whole window and no new drift can fire during it. 86400 = held ~24h.
-#                                       # Harmony sweet spot (v80.0.0-alpha.1, now relative): keep
-#                                       # ambient-snapback-secs UNDER crystal-dragon-secs (<= polling-10s for
-#                                       # margin) so each drift reverts before the next poll — see the timing
-#                                       # guide in the ambient section. Owner's tuned pair (alpha.2, verified
-#                                       # live): crystal-dragon-secs = 15s + ambient-snapback-secs = 10s.
-# bold = 1                              # 0=off, 1=random, 2=all
-# shading-mode = 1                       # 0=random, 1=cinematic
+# -- Behavior ---------------------------------------------------------
 
-# Color Tuning
+# glitch-level = "subtle"       # none | subtle | default | intense
+# bold = 1                      # 0=off, 1=random, 2=all
+# shading-mode = 1              # 0=random, 1=cinematic
+# power-dragon = true           # adaptive throttle. With it ON, the HUD dsty: line shows
+#                               # the EFFECTIVE (banded) density, not the configured one —
+#                               # that is correct, not a bug. For the exact fixed value:
+#                               # power-dragon = false (or --power-dragon false).
+# crystal-dragon = false        # ambient palette drift (see docs/AMBIENT_SCHEDULER.md)
+# crystal-dragon-secs = 60      # drift poll cadence: 0.0-86400.0, human forms
+#                               # (60s, 1m, 1h30m); live-reloadable
+# ambient-snapback-secs = 30    # how long a drift (or shortkey override) holds
+#                               # before the ambient phase re-asserts; 86400
+#                               # disables. Harmony: keep this UNDER
+#                               # crystal-dragon-secs (timing guide:
+#                               # docs/AMBIENT_SCHEDULER.md)
+
+# -- Color tuning -----------------------------------------------------
+
 # [color.tune]
-# brightness = 1.0                      # global (0.0-3.0, default 1.0)
-# saturation = 1.0                      # 0.0-3.0 (0.0 = grayscale, >1.0 = oversaturate)
-# head = 1.0                            # 0.0-3.0
-# body = 1.0                            # 0.0-3.0
-# tail = 1.0                            # 0.0-3.0
+# brightness = 1.0              # global 0.0-3.0
+# saturation = 1.0              # 0.0-3.0 (0.0 = grayscale)
+# head = 1.0                    # 0.0-3.0
+# body = 1.0                    # 0.0-3.0
+# tail = 1.0                    # 0.0-3.0
 
-# Custom Scenes (v80.0.0-beta.2 schema)
-# Define named scenes, load with: cosmostrix --scene-custom <name>
-# A block is a COMPLETE self-contained profile: ALL seven dimensions are
-# required (rain plus one of each pair). An incomplete block is a hard error
-# at startup, on live-reload, and in --testconf.
-#   rain                     = glyph|monolith|vortex|flux|lorenz|dragon|physarum|black_hole|aeolian
-#   color OR colors-custom   = built-in theme name OR custom palette block
-#   charset OR charset-custom = built-in preset OR custom charset block
-#   fps = 1-240, speed = 1-100, density = 0.01-5.0, glitch-level = none|subtle|default|intense
-# Don't mix a pair (both color and colors-custom) — --testconf will hint.
-# REMOVED in v80.0.0-beta.2: base-scene (no built-in inheritance — the
-# block's `rain` field picks the motion style), bold, shading-mode,
-# async-mode (style keys are top-level, not per-scene).
+# -- Custom scenes ----------------------------------------------------
+# Load with: cosmostrix --scene-custom <name>. A block is a COMPLETE
+# profile: ALL seven dimensions are required —
+#   color OR colors-custom — the palette pair (never both)
+#   charset OR charset-custom — the glyph pair (never both)
+#   rain, fps, speed, density, glitch-level
+#   an incomplete block is a hard error at startup, live-reload and
+#   --testconf.
+#   rain = glyph|monolith|vortex|flux|lorenz|dragon|physarum|black_hole|aeolian
+# REMOVED in v80.0.0-beta.2: base-scene inheritance (the rain field owns
+# the style). bold/shading-mode/async-mode are top-level keys, not
+# per-scene.
 
 # [scene-custom.hacker-mode]
-# rain = "glyph"                       # rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole/aeolian)
-# color = "green"                       # built-in color name (OR colors-custom = "<palette>")
-# charset = "hacker"                    # built-in charset (OR charset-custom = "<set>")
-# fps = 60                              # 1-240
+# rain = "glyph"
+# color = "green"
+# charset = "hacker"
+# fps = 60
 # speed = 28
 # density = 1.2
 # glitch-level = "intense"
 
-# [scene-custom.cyberpunk_2077]
-# rain = "monolith"                    # monolith streams for the megacity feel
-# colors-custom = "cyberpunk_2077"      # see [colors-custom.cyberpunk_2077] below
-# charset-custom = "cyberpunk_2077"     # see [charset-custom.cyberpunk_2077] below
-# fps = 90
-# speed = 12
-# density = 0.90
-# glitch-level = "none"
-
-# [scene-custom.tron_legacy]
-# rain = "flux"                        # flux field for the light-cycle grid
-# colors-custom = "tron_legacy"
-# charset-custom = "tron_legacy"
-# fps = 75
-# speed = 8
-# density = 0.70
-# glitch-level = "subtle"
-
-# Custom Color Palettes
-# Define named palettes, reference via: colors-custom = <name>
-# Hex values MUST be quoted: "#ff0000" (unquoted # = TOML comment).
-# rain stops: min 2, max 64 (COLORS_CUSTOM_MAX_RAIN_STOPS — extra stops
-# silently truncated with a warning). The OKLab gradient engine expands
-# all stops to exactly 9 perceptual samples. 7 stops is the sweet spot
-# (enough anchors for smooth interpolation; more than ~8 gives no
-# visible improvement since output is always 9 samples).
+# -- Custom palettes ----------------------------------------------------
+# Reference from a scene-custom block via: colors-custom = <name>.
+# Hex values MUST be quoted (unquoted # starts a TOML comment).
+# rain stops: min 2, max 64 — 7 is the sweet spot (the OKLab engine
+# expands all stops to 9 perceptual samples).
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
 # rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
-# [colors-custom.cyberpunk_2077]
-# bg = "#0A0008"
-# rain = ["#FFE100", "#FF6B00", "#FF0066", "#FF00CC", "#CC00FF", "#00FFFF", "#E0E0E0"]
-
-# [colors-custom.tron_legacy]
-# bg = "#02080C"
-# rain = ["#002B4D", "#0066AA", "#00BBEE", "#22DDFF", "#88EEFF", "#CCF4FF", "#FFFFFF"]
-
-# Custom Character Sets
-# Define named charsets, reference via: charset-custom = <name>
-# Rules: printable chars only. Controls → error. Wide/zero-width (CJK, emoji) → silently skipped with warning.
-#        max 256 characters per set (exceeding = error at startup/--testconf). TOML is UTF-8 — type the actual glyphs.
-#        Any single-width glyph is legal incl. [ ] # = — always quote the value (set = "[" works; a lone " is not expressible).
-# Activate: cosmostrix --charset <name>  or  charset = "<name>"
+# -- Custom charsets ----------------------------------------------------
+# Reference from a scene-custom block via: charset-custom = <name>.
+# Printable single-width glyphs only (max 256; wide/zero-width are
+# skipped with a warning). Always quote the set (set = "[" works).
 
 # [charset-custom.zen]
 # set = "|"
 
-# [charset-custom.quantum]
-# set = "∀∃∄∅∈∉∋∌∏∑∫∂∆∇√∞≈≠≤≥±∓×÷⊕⊗⊖⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"
-
-# [charset-custom.cyberpunk_2077]
-# set = "0123456789ABCDEF<>{}[]|=+*ｱｲｳｴｵﾊﾋﾌﾍﾎﾏ"
-
-# [charset-custom.tron_legacy]
-# set = "0123456789ABCDEF←→↑↓█▌▐░▒▓│─┤├┬┴┼"
-
-# Ambient Phase Scheduler
-# Time-of-day scene switches. Config-only (no CLI flag).
-# Format: ambient.<HH-MM> = <scene-name>  (24-hour, zero-padded)
-# Live reload: edits take effect on save.
-# Max 256 entries.
+# -- Ambient Phase Scheduler -------------------------------------------
+# Time-of-day scene switches (config-only, live-reload on save,
+# max 256 entries):
+#   ambient.<HH-MM> = <scene-name>
 
 # ambient.06-00 = "signal"
 # ambient.12-00 = "monolith"
 # ambient.20-00 = "cinematic"
-#
-# Combining crystal-dragon + ambient (timing guide — verified 2026-09-02,
-# made relative by crystal-dragon-secs in v80.0.0-alpha.1):
-# crystal-dragon polls every crystal-dragon-secs (default 60, ~12% drift
-# chance per poll). When a drift fires while an ambient phase is active,
-# the drift palette overrides the ambient palette for
-# ambient-snapback-secs, then ambient re-asserts (snapback). Snapback
-# fires at ANY configured value — including >= the poll interval
-# (verified live: a 90s snapback fired exactly at ~90s vs the 60s poll).
-# A long window is not broken, just slower: the drift palette holds the
-# ambient palette for the whole window, and no new drift can fire during
-# it (the next drift is delayed). Harmony sweet spot: keep
-# ambient-snapback-secs < crystal-dragon-secs (<= polling-10s for margin)
-# so each drift reverts before the next poll and the two systems take
-# turns cleanly — and both knobs are live-reload-able, so you can tune
-# the rhythm online while watching the HUD. If you do not want the
-# interplay at all, turn one of the two off — you never need both.
 
-# IMPORTANT — ambient overlay precedence (v80.0.0-beta.2 honesty note):
-# When ANY ambient.HH-MM entry is active, the ambient scene is the ground
-# truth for the scene-family dimensions — it outranks config.toml keys
-# (and locked CLI values) for those fields while the schedule is
-# non-empty. Editing these keys in config mid-run is a no-op until the
-# overlay lifts (a custom palette set via config color does NOT survive
-# either — the ambient scene re-asserts on every rebuild and phase
-# boundary).
+# Combining crystal-dragon + ambient: when a drift fires while an
+# ambient phase is active, the drift palette holds for
+# ambient-snapback-secs, then the ambient scene re-asserts
+# (snapback). Any configured value fires — a longer window just
+# holds longer and delays the next drift. Harmony rule: keep
+# ambient-snapback-secs < crystal-dragon-secs so each drift reverts
+# before the next poll and the two systems take turns cleanly (both
+# knobs are live-reload-able — tune the rhythm while watching the
+# HUD). Do not want the interplay at all? Turn one of the two off.
 #
-# Ambient-owned while a phase is active (config edits are no-ops):
-#   scene, color, charset, fps, speed, density, glitch-level
-#   (and any [scene-custom.<name>] block edits to those same fields —
-#   but only while config-side intent owns the block; re-assertion is
-#   deferred to snapback after a user shortkey)
-#
-# Still works via config while ambient is active (NOT scene-owned):
-#   monolith-size, color-bg, bold, shading-mode,
-#   color.tune.* (color tune is a separate layer),
-#   power-dragon, crystal-dragon, crystal-dragon-secs, async-mode,
-#   message, message-border, msg-mode, msg-fill-style,
-#   ambient-snapback-secs, ambient.HH-MM (editing the schedule itself)
-#
-# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/i/[/]/Up/Down) work normally
-# during ambient — they set user_override_since_ambient=true so the
-# ambient scheduler yields control until the next phase boundary
-# (or after ambient-snapback-secs of input idle). The '+', '-', '_',
-# '=' density aliases were removed (v30 simplify — never documented
-# in --help); use '[' and ']' for density down/up. The 'a' shortcut
-# was removed (v35) — auto-snapback replaced it. The 'i' shortkey
-# toggles the HUD metrics overlay (a REAL binding — re-verified
-# 2026-09-02 after a stale "no 'i' key" claim crept into this note).
-#
-# To make ambient-owned config edits take effect: comment out ALL
-# ambient.HH-MM entries and save. The schedule empties, the ambient
-# overlay lifts (an ambient-owned scene reverts to the locked startup
-# scene family — see docs/LIVE_RELOAD_BEHAVIOR.md section 14), and the
-# scene-owned config keys become live-editable again.
-#
-# See docs/LIVE_RELOAD_BEHAVIOR.md section 8 "Known Limitations" and
-# section 14 "ambient.* is a config-family overlay on the scene family"
-# for the full contract.
+# While ANY entry is active, the ambient scene owns the scene-family
+# fields — edits to scene, color, charset, fps, speed, density or
+# glitch-level in this file are no-ops until the schedule empties
+# (comment out ALL ambient.HH-MM entries and save to lift the
+# overlay). Still live while ambient runs: monolith-size, color-bg,
+# bold, shading-mode, color.tune.*, power-dragon, crystal-dragon,
+# crystal-dragon-secs, async-mode, the message keys,
+# ambient-snapback-secs and the schedule itself.
+# All RUNTIME SHORTKEYS (q/r/c/C/s/S/x/X/p/i/Up/Down) work during
+# ambient and take control until the next phase boundary. The
+# 'i' shortkey toggles the HUD metrics overlay (a real binding).
+# '[' and ']' adjust density down/up. Full contract:
+# docs/LIVE_RELOAD_BEHAVIOR.md sections 8 and 14.
 "##
 }
 
