@@ -54,7 +54,7 @@ fn black_hole_ring_spawns_motes_and_orbits() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 60, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
 
     let active = cloud.black_hole_rain.active_motes_for_test();
     assert!(active > 0, "the ring must spawn motes (got {active})");
@@ -103,6 +103,7 @@ fn black_hole_ring_heads_stay_in_the_band() {
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
     // Long enough that early-spawned motes pass the entry settle
     // window (3 tau) and sit on the steady disk for the band check.
+    run_frames_to_steady(&mut cloud, &mut frame);
     run_frames(&mut cloud, &mut frame, 210, 16);
 
     let geo = BallGeometry::new(cols, lines);
@@ -155,6 +156,7 @@ fn black_hole_ring_occlusion_hides_far_side() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
     run_frames(&mut cloud, &mut frame, 120, 16);
 
     let geo = BallGeometry::new(cols, lines);
@@ -203,7 +205,7 @@ fn black_hole_ring_survives_style_transition() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 60, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
     assert!(
         cloud.black_hole_rain.active_motes_for_test() > 0,
         "motes must be active before the transition"
@@ -217,7 +219,10 @@ fn black_hole_ring_survives_style_transition() {
     );
 
     cloud.transition_rain_style(RainStyle::BlackHole);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    // Re-entry replays the formation intro (accretion gate closed
+    // until the hole is whole) — fast-forward to steady, where the
+    // ring must have respawned.
+    run_frames_to_steady(&mut cloud, &mut frame);
     assert!(
         cloud.black_hole_rain.active_motes_for_test() > 0,
         "style re-entry must respawn the ring"

@@ -134,6 +134,49 @@ lockstep tracking of the ring's mean omega; the band test re-based
 on the new geometry with a settled-age filter), 16/16 black-hole
 tests green.
 
+### feature: NIGHT-special-1 stage 2.2 — the formation intro: the hole is born, not popped in
+
+Owner question (stage-2 verification round): the black hole
+appeared suddenly on start — should it instead follow the real
+character (slow fade, small dot exploding, sudden)? Answer: the
+physically evocative combination, staged as stellar collapse. A
+tiny singularity seed glyph fades in slowly at the viewport center
+(1.4 s, brightness ramping up the ladder — the "appearing slowly"
+half of the owner's options), the collapse phase flares it to Core
+and a four-cell cross around it (0.5 s — the last light of the
+collapsing star), the event horizon then blooms outward from the
+inside on a cubic ease-out (1.2 s — the "small dot explodes" half,
+photon-ring cells appearing first and the outer rim last), and
+once the hole is whole the accretion begins: the mote spawn gate
+opens and fresh motes drift in on the stage-2.1 entry spiral to
+settle onto the ring.
+
+Engineering: the phase math (phase classification, timeline
+constants, seed/collapse level ladders, the horizon-bloom
+visibility curve) lives in `type_rain/black_hole/formation.rs`;
+`black_hole.rs` owns the mutable half — the formation clock riding
+the advance pass's dt-wall (pause freezes the birth mid-sequence,
+resume continues it, exactly like the motes), the formed flag
+gating the spawn accumulator, and the seed-dot renderer (center
+glyph + collapse cross, cells flowing through the same three-pass
+diff-cleanup stream so the bloom cleanly erases them). Style ENTRY
+replays the sequence (`begin_formation` wired in scene_runtime);
+a pure resize rebuilds the geometry but keeps the steady state —
+the hole re-forms only when the scene is re-entered. The ball's
+rim spin runs from frame one, so the surface is already rotating
+as the horizon blooms. black_hole.rs takes an LOC_EXEMPT marker
+(same call as dragon.rs's entry-reveal: the orchestrator's
+draw/spawn/advance passes share the private field set; the
+physics, cell helpers and phase math are already split out).
+
+Tests: 4 new contracts (the birth sequence's drawn-cell timeline —
+dot only, partial bloom, full ball; the spawn gate closing until
+the formed flag flips; resize preserving the steady state; style
+re-entry replaying from the singularity), the existing
+core/ring contracts fast-forwarded to the steady state via a
+shared harness helper, 2440/2440 suite green, fmt/clippy clean,
+build.sh check-all exit 0, gate-keepers 10/10, version untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

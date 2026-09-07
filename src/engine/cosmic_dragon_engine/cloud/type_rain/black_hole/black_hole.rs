@@ -1,5 +1,16 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: NIGHT-special-1 stages 2.1/2.2 added the rim spin
+// (spin_phase + conveyor bookkeeping), the entry spiral gate and the
+// formation intro (formation clock, formed flag, seed-dot rendering,
+// horizon-bloom filter) on top of the ball/ring orchestrator, pushing
+// this file over the 800-LOC cap. The per-mote physics (ring.rs),
+// the ball cell helpers (ball_helpers.rs) and the formation phase
+// math (formation.rs) are already split out; what remains is one
+// impl whose draw/spawn/advance passes share the private field set —
+// a further split would need pub(super) field exposure across
+// sibling modules, a worse encapsulation trade than the cap debt
+// (same call as dragon.rs's entry-reveal exemption).
 
 //! Black hole rain for the sorgonemous_intrascals scene (NIGHT-special-1,
 //! the eighth rain style — stage 2: the ball plus the orbital ring).
@@ -63,6 +74,10 @@ use super::super::super::render::DrawCtx;
 use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 use super::ball_helpers::{bump_level, conveyor_char, draw_ball_cell, level_for_ring_band};
+use super::formation::{
+    cross_active, formation_phase, horizon_visibility, seed_center_level, seed_cross_level,
+    FormationPhase,
+};
 use super::ring::{
     activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
     step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep, RingMote,
@@ -146,6 +161,25 @@ pub(crate) struct BlackHoleRain {
     /// Last conveyor bucket index per cell (parallel to `ring_cells`
     /// — motion-gated glyph re-roll bookkeeping).
     cell_buckets: Vec<i32>,
+    /// Per-cell normalized radius (0.0 at the event horizon, 1.0 at
+    /// the outer rim; parallel to `ring_cells`) — the formation
+    /// intro's horizon-bloom filter input.
+    cell_dist_norm: Vec<f32>,
+    /// Formation clock (seconds since formation start; rides the
+    /// advance pass's dt-wall — pause stops the birth mid-phase and
+    /// resume continues it, exactly like the motes).
+    formation_t: f32,
+    /// Set once the horizon bloom completes — the steady-state gate
+    /// for mote spawning (accretion begins when the hole is whole).
+    /// A pure resize keeps it set (the hole does not re-form on a
+    /// resize); style re-entry clears it via `begin_formation`.
+    formed: bool,
+    /// The seed glyph (the singularity dot's character — persisted
+    /// so the dot doesn't flicker, re-rolled on entry/shimmer).
+    seed_glyph: char,
+    /// Arms a seed glyph re-roll on the next draw (style entry / draw
+    /// history invalidation).
+    seed_stale: bool,
     /// Last frame's drawn cells (diff cleanup input).
     previous_cells: Vec<BlackHoleCell>,
     /// This frame's drawn cells (diff cleanup output).
@@ -175,6 +209,11 @@ impl BlackHoleRain {
             spin_phase: 0.0,
             cell_angles: Vec::new(),
             cell_buckets: Vec::new(),
+            cell_dist_norm: Vec::new(),
+            formation_t: 0.0,
+            formed: false,
+            seed_glyph: '0',
+            seed_stale: true,
             previous_cells: Vec::new(),
             current_cells: Vec::new(),
             drawn_gen: Vec::new(),
@@ -201,6 +240,7 @@ impl BlackHoleRain {
             self.ball_outer_r = 0.0;
             self.cell_angles.clear();
             self.cell_buckets.clear();
+            self.cell_dist_norm.clear();
             self.clear_draw_history();
             return;
         }
@@ -223,6 +263,7 @@ impl BlackHoleRain {
             self.ball_outer_r = 0.0;
             self.cell_angles.clear();
             self.cell_buckets.clear();
+            self.cell_dist_norm.clear();
             self.clear_draw_history();
             return;
         }
@@ -273,7 +314,9 @@ impl BlackHoleRain {
         // (aspect-corrected, the same units the ring projection uses)
         // drives the sliding glyph buckets — the visible surface
         // rotation of the ball. Buckets start at 0 so the first draw
-        // re-rolls every glyph to its bucket's character.
+        // re-rolls every glyph to its bucket's character. The
+        // normalized radius (formation's horizon-bloom filter) is
+        // captured in the same pass.
         self.cell_angles = self
             .ring_cells
             .iter()
@@ -284,9 +327,29 @@ impl BlackHoleRain {
             })
             .collect();
         self.cell_buckets = vec![0; self.ring_cells.len()];
+        self.cell_dist_norm = self
+            .ring_cells
+            .iter()
+            .map(|c| {
+                let dx = (c.col as f32 - cx as f32) / CELL_ASPECT_DIVISOR;
+                let dy = c.line as f32 - cy as f32;
+                ((dx * dx + dy * dy).sqrt() - core_r) / annulus_width
+            })
+            .collect();
 
         self.reset_ring_motes(cols);
         self.clear_draw_history();
+    }
+
+    /// Replay the formation intro (stage 2.2): rewind the formation
+    /// clock and clear the formed flag — the next frames run the
+    /// birth sequence (seed dot -> collapse flare -> horizon bloom ->
+    /// accretion). Called on style ENTRY only (scene switches and
+    /// first launch); a pure resize keeps the steady state.
+    pub(crate) fn begin_formation(&mut self) {
+        self.formation_t = 0.0;
+        self.formed = false;
+        self.seed_stale = true;
     }
 
     /// Rebuild the ring mote pool: one mote per column (the family
@@ -372,6 +435,15 @@ impl BlackHoleRain {
             return;
         }
 
+        // Formation gate (stage 2.2): accretion begins only when the
+        // hole is whole — no motes orbit a half-born horizon. The
+        // remainder is zeroed so the post-formation spawn budget
+        // starts clean instead of banking pre-formation elapsed time.
+        if !self.formed {
+            *spawn_remainder = 0.0;
+            return;
+        }
+
         let target = Self::target_active_motes(self.motes.len(), params.density);
         if self.active_motes >= target {
             *spawn_remainder = (*spawn_remainder).min(crate::constants::SPAWN_REMAINDER_CAP);
@@ -452,6 +524,19 @@ impl BlackHoleRain {
         // with its ring, per the owner's stage-2 feedback).
         self.spin_phase += omega_base * dt_wall * crate::constants::BLACK_HOLE_RING_SPIN_RATE;
 
+        // Formation clock (stage 2.2): the birth sequence rides the
+        // same wall-clock dt as everything else — pause freezes the
+        // hole mid-birth, resume continues it. The clock stops for
+        // good once the horizon bloom completes (the formed flag
+        // then opens the spawn gate).
+        if !self.formed {
+            let total = super::formation::formation_total_secs();
+            self.formation_t = (self.formation_t + dt_wall).min(total);
+            if self.formation_t >= total {
+                self.formed = true;
+            }
+        }
+
         if self.active_motes == 0 {
             return;
         }
@@ -480,6 +565,7 @@ impl BlackHoleRain {
         self.drawn_gen_counter = 0;
         self.drawn_gen_dims = (0, 0);
         self.glyphs_stale = true;
+        self.seed_stale = true;
     }
 
     /// Draw pass — full annulus render + ring mote render +
@@ -512,72 +598,95 @@ impl BlackHoleRain {
             self.glyphs_stale = false;
         }
 
-        for (idx, cell) in self.ring_cells.iter().enumerate() {
-            if cell.col >= ctx.cols || cell.line >= ctx.lines {
-                // Viewport shrank without a reset (live resize window):
-                // skip out-of-bounds geometry this frame; the resize
-                // handler calls reset() and rebuilds the annulus.
-                continue;
+        // Formation intro (stage 2.2): during the dot phases only the
+        // singularity seed (plus its collapse cross flare) draws — the
+        // annulus and the ring do not exist yet. During the horizon
+        // bloom the annulus draws from the inside out (photon-ring
+        // cells first, outer rim last) on the ease-out visibility; the
+        // steady state draws everything. The dot cells flow through
+        // the same current_cells stream so the diff cleanup clears
+        // them when the bloom replaces them.
+        match formation_phase(self.formation_t) {
+            FormationPhase::Seed | FormationPhase::Collapse => {
+                self.draw_seed_dot(ctx, frame, rand_chance, rng);
             }
+            FormationPhase::Horizon | FormationPhase::Steady => {
+                let visibility = horizon_visibility(self.formation_t);
+                for (idx, cell) in self.ring_cells.iter().enumerate() {
+                    if cell.col >= ctx.cols || cell.line >= ctx.lines {
+                        // Viewport shrank without a reset (live resize window):
+                        // skip out-of-bounds geometry this frame; the resize
+                        // handler calls reset() and rebuilds the annulus.
+                        continue;
+                    }
+                    // Horizon bloom filter: cells beyond the current bloom
+                    // radius are not drawn yet (the annulus grows from the
+                    // inside out). The filter is geometry-static — the cell
+                    // list never reorders, only the cut advances.
+                    if self.cell_dist_norm.len() > idx && self.cell_dist_norm[idx] > visibility {
+                        continue;
+                    }
 
-            // Rim conveyor (stage 2.1 — the visible ball rotation): the
-            // glyph pattern is bucketed by angle and the buckets slide
-            // around the annulus with the spin phase. When a cell's
-            // bucket changes the glyph re-rolls to the new bucket's
-            // deterministic character — motion-gated mutation, the same
-            // life-sign DNA as the family's shimmer gates.
-            if self.cell_angles.len() > idx && self.cell_buckets.len() > idx {
-                let bucket = ((self.cell_angles[idx] - self.spin_phase)
-                    / crate::constants::BLACK_HOLE_RING_CONVEYOR_ARC)
-                    .floor() as i32;
-                if bucket != self.cell_buckets[idx] {
-                    self.cell_buckets[idx] = bucket;
-                    self.glyphs[idx] = conveyor_char(ctx.char_pool, bucket);
+                    // Rim conveyor (stage 2.1 — the visible ball rotation): the
+                    // glyph pattern is bucketed by angle and the buckets slide
+                    // around the annulus with the spin phase. When a cell's
+                    // bucket changes the glyph re-rolls to the new bucket's
+                    // deterministic character — motion-gated mutation, the same
+                    // life-sign DNA as the family's shimmer gates.
+                    if self.cell_angles.len() > idx && self.cell_buckets.len() > idx {
+                        let bucket = ((self.cell_angles[idx] - self.spin_phase)
+                            / crate::constants::BLACK_HOLE_RING_CONVEYOR_ARC)
+                            .floor() as i32;
+                        if bucket != self.cell_buckets[idx] {
+                            self.cell_buckets[idx] = bucket;
+                            self.glyphs[idx] = conveyor_char(ctx.char_pool, bucket);
+                        }
+                    }
+                    // Matrix shimmer: low-probability glyph mutation is the
+                    // engine's life sign (every style carries one); the ball
+                    // stays calm, a slow surface flicker at the event horizon.
+                    if self.glyphs.len() > idx
+                        && rand_chance.sample(rng) < crate::constants::BLACK_HOLE_SHIMMER_CHANCE
+                    {
+                        self.glyphs[idx] = pick_pool_char(ctx.char_pool, rand_chance, rng);
+                    }
+                    let ch = if self.glyphs.len() > idx {
+                        self.glyphs[idx]
+                    } else {
+                        '0'
+                    };
+
+                    // Doppler-style lobe (stage 2.1): a bright band sweeps
+                    // around the rim with the spin phase — cells near the lobe
+                    // peak brighten one rung, cells near the opposite point dim
+                    // one. The radial band structure is untouched (bump applied
+                    // at draw time only, clamped to the ladder), so the
+                    // approved photon-ring read stays intact while the surface
+                    // visibly rotates left-to-right in lockstep with the ring.
+                    let level = if self.cell_angles.len() > idx {
+                        let lobe = (self.cell_angles[idx] - self.spin_phase).cos();
+                        if lobe > crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
+                            bump_level(cell.level, 1)
+                        } else if lobe < -crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
+                            bump_level(cell.level, -1)
+                        } else {
+                            cell.level
+                        }
+                    } else {
+                        cell.level
+                    };
+                    draw_ball_cell(
+                        ctx,
+                        frame,
+                        cell.col,
+                        cell.line,
+                        ch,
+                        self.palette_slot,
+                        level,
+                    );
+                    self.current_cells.push(*cell);
                 }
             }
-            // Matrix shimmer: low-probability glyph mutation is the
-            // engine's life sign (every style carries one); the ball
-            // stays calm, a slow surface flicker at the event horizon.
-            if self.glyphs.len() > idx
-                && rand_chance.sample(rng) < crate::constants::BLACK_HOLE_SHIMMER_CHANCE
-            {
-                self.glyphs[idx] = pick_pool_char(ctx.char_pool, rand_chance, rng);
-            }
-            let ch = if self.glyphs.len() > idx {
-                self.glyphs[idx]
-            } else {
-                '0'
-            };
-
-            // Doppler-style lobe (stage 2.1): a bright band sweeps
-            // around the rim with the spin phase — cells near the lobe
-            // peak brighten one rung, cells near the opposite point dim
-            // one. The radial band structure is untouched (bump applied
-            // at draw time only, clamped to the ladder), so the
-            // approved photon-ring read stays intact while the surface
-            // visibly rotates left-to-right in lockstep with the ring.
-            let level = if self.cell_angles.len() > idx {
-                let lobe = (self.cell_angles[idx] - self.spin_phase).cos();
-                if lobe > crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
-                    bump_level(cell.level, 1)
-                } else if lobe < -crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
-                    bump_level(cell.level, -1)
-                } else {
-                    cell.level
-                }
-            } else {
-                cell.level
-            };
-            draw_ball_cell(
-                ctx,
-                frame,
-                cell.col,
-                cell.line,
-                ch,
-                self.palette_slot,
-                level,
-            );
-            self.current_cells.push(*cell);
         }
 
         // Stage 2: the orbital ring — project every active mote onto
@@ -697,6 +806,74 @@ impl BlackHoleRain {
         std::mem::swap(&mut self.previous_cells, &mut self.current_cells);
     }
 
+    /// The seed dot phases' renderer: the singularity glyph at the
+    /// viewport center (brightness ramped by the formation phase)
+    /// plus, during the collapse, the four-cell cross flare around
+    /// it. Bounds-checked like every other draw arm; the cells join
+    /// the unified diff-cleanup stream so the horizon bloom cleanly
+    /// erases them when it takes over.
+    fn draw_seed_dot(
+        &mut self,
+        ctx: &DrawCtx<'_>,
+        frame: &mut Frame,
+        rand_chance: &Uniform<f32>,
+        rng: &mut StdRng,
+    ) {
+        // The seed glyph persists (no per-frame flicker); it re-rolls
+        // on entry (seed_stale) and at the calm shimmer rate — the
+        // same life-sign contract the annulus carries.
+        if self.seed_stale {
+            self.seed_glyph = pick_pool_char(ctx.char_pool, rand_chance, rng);
+            self.seed_stale = false;
+        } else if rand_chance.sample(rng) < crate::constants::BLACK_HOLE_SHIMMER_CHANCE {
+            self.seed_glyph = pick_pool_char(ctx.char_pool, rand_chance, rng);
+        }
+
+        let t = self.formation_t;
+        let level = seed_center_level(t);
+        let (cc, cl) = (self.center_col, self.center_line);
+        if cc >= 0 && cl >= 0 && (cc as u16) < ctx.cols && (cl as u16) < ctx.lines {
+            let (col, line) = (cc as u16, cl as u16);
+            draw_ball_cell(
+                ctx,
+                frame,
+                col,
+                line,
+                self.seed_glyph,
+                self.palette_slot,
+                level,
+            );
+            self.current_cells.push(BlackHoleCell { col, line, level });
+        }
+
+        // Collapse flare: the four cross cells around the seed.
+        if cross_active(t) {
+            let cross_level = seed_cross_level(t);
+            for (dx, dy) in [(1, 0), (-1, 0), (0, 1), (0, -1)] {
+                let col = cc + dx;
+                let line = cl + dy;
+                if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
+                    continue;
+                }
+                let (col, line) = (col as u16, line as u16);
+                draw_ball_cell(
+                    ctx,
+                    frame,
+                    col,
+                    line,
+                    self.seed_glyph,
+                    self.palette_slot,
+                    cross_level,
+                );
+                self.current_cells.push(BlackHoleCell {
+                    col,
+                    line,
+                    level: cross_level,
+                });
+            }
+        }
+    }
+
     // -- Test-only diagnostics (mirrors the monolith/vortex *_for_test API) --
 
     #[cfg(test)]
@@ -723,5 +900,17 @@ impl BlackHoleRain {
     /// Ball rim spin phase (the co-rotation contract's observable).
     pub(crate) fn spin_phase_for_test(&self) -> f32 {
         self.spin_phase
+    }
+
+    #[cfg(test)]
+    /// Formation clock (seconds since formation start).
+    pub(crate) fn formation_t_for_test(&self) -> f32 {
+        self.formation_t
+    }
+
+    #[cfg(test)]
+    /// Steady-state gate (true once the horizon bloom completed).
+    pub(crate) fn formed_for_test(&self) -> bool {
+        self.formed
     }
 }

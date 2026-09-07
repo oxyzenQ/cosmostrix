@@ -434,7 +434,12 @@ impl Cloud {
                 // NIGHT-special-1: black hole entry mirrors the
                 // structured-family contract (no droplet pool, full ball
                 // rebuild on entry — fresh geometry for the viewport).
+                // Stage 2.2: entry replays the formation intro (seed dot
+                // -> collapse -> horizon bloom -> accretion) — a pure
+                // resize keeps the steady state, a scene entry re-forms
+                // the hole from the singularity.
                 self.black_hole_rain.reset(self.cols, self.lines);
+                self.black_hole_rain.begin_formation();
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

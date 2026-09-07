@@ -726,3 +726,30 @@ pub(crate) const BLACK_HOLE_RING_Z_NORM_CENTER: f32 = 27.0;
 /// Attractor z normalization gain (the canonical attractor z range
 /// [0, 50] spans ±23 around the center).
 pub(crate) const BLACK_HOLE_RING_Z_NORM_GAIN: f32 = 1.0 / 23.0;
+
+// ── Black hole formation intro (stage 2.2, NIGHT-special-1) ────────────
+// The hole's birth sequence — stellar collapse as the intro: a tiny
+// singularity seed fades in at the center, the collapse flares it
+// to peak brightness, the event horizon blooms outward from the
+// center, then the ring accretes in (motes drift in on the entry
+// spiral). Durations in wall-clock seconds; the sequence rides the
+// engine's shared dt clock so pause/resume and the speed keys feel
+// native. Style entry replays it; a pure resize does not (the hole
+// re-forms only when the scene is re-entered).
+
+/// Seed phase duration: one glyph fading in at the viewport center
+/// (Ghost -> Dim -> Mid up the brightness ladder). 1.4 s reads as
+/// "appearing slowly" — the deliberate opposite of the pop-in the
+/// owner flagged.
+pub(crate) const BLACK_HOLE_FORM_SEED_SECS: f32 = 1.4;
+
+/// Collapse phase duration: the seed brightens to Core and a
+/// four-cell cross flares around it — the last light of the
+/// collapsing star, the pre-explosion beat.
+pub(crate) const BLACK_HOLE_FORM_COLLAPSE_SECS: f32 = 0.5;
+
+/// Horizon bloom duration: the annulus grows from the inside out
+/// (photon-ring cells first, outer rim last) on a cubic ease-out —
+/// the "small dot explodes into the hole" read, ~1.2 s so the
+/// expansion is unmistakable without strobing.
+pub(crate) const BLACK_HOLE_FORM_HORIZON_SECS: f32 = 1.2;

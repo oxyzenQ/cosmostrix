@@ -40,7 +40,7 @@ fn black_hole_ball_draws_cells_at_every_viewport_size() {
     for (cols, lines) in [(80, 24), (105, 64), (120, 40), (200, 60), (400, 100)] {
         let mut cloud = make_black_hole_cloud(cols, lines);
         let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-        run_frames(&mut cloud, &mut frame, 30, 16);
+        run_frames_to_steady(&mut cloud, &mut frame);
         let ring = cloud.black_hole_rain.ring_cells_for_test();
         assert!(!ring.is_empty(), "ball must draw cells at {cols}x{lines}");
         for cell in ring {
@@ -74,7 +74,7 @@ fn black_hole_core_is_empty_and_ball_is_centered() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
 
     let ring = cloud.black_hole_rain.ring_cells_for_test();
     let unit = (cols as f32 / 4.0).min(lines as f32 / 2.0);
@@ -150,7 +150,7 @@ fn black_hole_radial_bands_all_present() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
 
     let ranks: Vec<u8> = cloud
         .black_hole_rain
@@ -198,7 +198,7 @@ fn black_hole_geometry_is_static_across_frames() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
 
     let before: Vec<(u16, u16)> = cloud
         .black_hole_rain
@@ -224,12 +224,14 @@ fn black_hole_style_transition_rebuilds_cleanly() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    run_frames_to_steady(&mut cloud, &mut frame);
     let ring_before = cloud.black_hole_rain.ring_cells_for_test().len();
 
     cloud.transition_rain_style(RainStyle::Vortex);
     cloud.transition_rain_style(RainStyle::BlackHole);
-    run_frames(&mut cloud, &mut frame, 30, 16);
+    // Re-entry replays the formation intro — fast-forward to the
+    // steady state before asserting the rebuild.
+    run_frames_to_steady(&mut cloud, &mut frame);
 
     assert_eq!(
         cloud.black_hole_rain.ring_cells_for_test().len(),

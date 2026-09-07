@@ -2,10 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! NIGHT-special-1 tests: the black hole rain style (eighth style,
-//! the sorgonemous_intrascals scene — the event-horizon ball and its
-//! stage-2 orbital ring).
+//! the sorgonemous_intrascals scene — the event-horizon ball, its
+//! stage-2 orbital ring and the stage-2.2 formation intro).
 
 mod core;
+mod formation;
 mod ring;
 
 pub(crate) use crate::cloud::Cloud;
@@ -48,4 +49,12 @@ pub(crate) fn run_frames(cloud: &mut Cloud, frame: &mut Frame, frames: u32, step
         cloud.rain_at(frame, now);
         frame.clear_dirty();
     }
+}
+
+/// Drive the cloud past the ~3.1 s formation intro (seed dot ->
+/// collapse -> horizon bloom) so geometry, mote and draw contracts
+/// assert the STEADY state — the formation sequence itself is covered
+/// by `formation.rs`. 220 frames x 16 ms = 3.52 s.
+pub(crate) fn run_frames_to_steady(cloud: &mut Cloud, frame: &mut Frame) {
+    run_frames(cloud, frame, 220, 16);
 }
