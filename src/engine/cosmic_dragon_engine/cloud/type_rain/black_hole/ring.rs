@@ -112,6 +112,13 @@
 //! motion-gated matrix shimmer, comet trail with the dimming ladder,
 //! palette-slot adoption, three-pass diff cleanup (driven from the
 //! ball file's draw pass).
+//!
+//! Stage 2.6 note: the RK4 core and the radial normalization live
+//! here as pub(crate) helpers (`rk4_lorenz_step`, `ring_r_norm`)
+//! because the halo stream motes (`halo.rs`) ride the same
+//! attractor and the same wobble source — one integrator, two
+//! projections (the flat disk ellipse and the arc circles over and
+//! under the shadow).
 
 use std::time::{Duration, Instant};
 
@@ -305,39 +312,7 @@ pub(crate) fn advance_ring_mote(
     omega_base: f32,
 ) -> bool {
     let dt = dt_lorenz_base * m.pace;
-    let sigma = crate::constants::LORENZ_SIGMA;
-    let rho = crate::constants::LORENZ_RHO;
-    let beta = crate::constants::LORENZ_BETA;
-
-    // RK4 step (classical 4th-order Runge-Kutta).
-    let (k1x, k1y, k1z) = lorenz_deriv(m.x, m.y, m.z, sigma, rho, beta);
-    let (k2x, k2y, k2z) = lorenz_deriv(
-        m.x + 0.5 * dt * k1x,
-        m.y + 0.5 * dt * k1y,
-        m.z + 0.5 * dt * k1z,
-        sigma,
-        rho,
-        beta,
-    );
-    let (k3x, k3y, k3z) = lorenz_deriv(
-        m.x + 0.5 * dt * k2x,
-        m.y + 0.5 * dt * k2y,
-        m.z + 0.5 * dt * k2z,
-        sigma,
-        rho,
-        beta,
-    );
-    let (k4x, k4y, k4z) = lorenz_deriv(
-        m.x + dt * k3x,
-        m.y + dt * k3y,
-        m.z + dt * k3z,
-        sigma,
-        rho,
-        beta,
-    );
-    m.x += (dt / 6.0) * (k1x + 2.0 * k2x + 2.0 * k3x + k4x);
-    m.y += (dt / 6.0) * (k1y + 2.0 * k2y + 2.0 * k3y + k4y);
-    m.z += (dt / 6.0) * (k1z + 2.0 * k2z + 2.0 * k3z + k4z);
+    rk4_lorenz_step(&mut m.x, &mut m.y, &mut m.z, dt);
 
     // Keplerian mean motion, sheared by the current wobbled radius
     // and paced by the tier band (stage 2.4: the inner bands orbit
@@ -357,6 +332,47 @@ pub(crate) fn advance_ring_mote(
         return true;
     }
     false
+}
+
+/// One classical RK4 step of the canonical Lorenz system over the
+/// raw state coordinates (the integrator core the lorenz style
+/// ships — extracted at stage 2.6 so the halo stream motes in
+/// `halo.rs` ride the exact same mathematics: one attractor, one
+/// integrator, two projections). Pure function, four derivative
+/// evaluations per call.
+pub(crate) fn rk4_lorenz_step(x: &mut f32, y: &mut f32, z: &mut f32, dt: f32) {
+    let sigma = crate::constants::LORENZ_SIGMA;
+    let rho = crate::constants::LORENZ_RHO;
+    let beta = crate::constants::LORENZ_BETA;
+
+    let (k1x, k1y, k1z) = lorenz_deriv(*x, *y, *z, sigma, rho, beta);
+    let (k2x, k2y, k2z) = lorenz_deriv(
+        *x + 0.5 * dt * k1x,
+        *y + 0.5 * dt * k1y,
+        *z + 0.5 * dt * k1z,
+        sigma,
+        rho,
+        beta,
+    );
+    let (k3x, k3y, k3z) = lorenz_deriv(
+        *x + 0.5 * dt * k2x,
+        *y + 0.5 * dt * k2y,
+        *z + 0.5 * dt * k2z,
+        sigma,
+        rho,
+        beta,
+    );
+    let (k4x, k4y, k4z) = lorenz_deriv(
+        *x + dt * k3x,
+        *y + dt * k3y,
+        *z + dt * k3z,
+        sigma,
+        rho,
+        beta,
+    );
+    *x += (dt / 6.0) * (k1x + 2.0 * k2x + 2.0 * k3x + k4x);
+    *y += (dt / 6.0) * (k1y + 2.0 * k2y + 2.0 * k3y + k4y);
+    *z += (dt / 6.0) * (k1z + 2.0 * k2z + 2.0 * k3z + k4z);
 }
 
 /// Project a mote onto the screen: the wide orbital ellipse of its
@@ -589,7 +605,9 @@ fn ring_radius_ratio(m: &RingMote) -> f32 {
 /// Normalized attractor radial coordinate (the wobble source):
 /// distance from the attractor z-axis, centered on the lobe radius
 /// and scaled by its reciprocal, clamped to the visible band.
-fn ring_r_norm(m: &RingMote) -> f32 {
+/// Shared with `halo.rs` (the stream riders wobble their arc radius
+/// through the same normalization).
+pub(crate) fn ring_r_norm(m: &RingMote) -> f32 {
     let r_l = (m.x * m.x + m.y * m.y).sqrt();
     ((r_l - crate::constants::BLACK_HOLE_RING_R_NORM_CENTER)
         * crate::constants::BLACK_HOLE_RING_R_NORM_GAIN)

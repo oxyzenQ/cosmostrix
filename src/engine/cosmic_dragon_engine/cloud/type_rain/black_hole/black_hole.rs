@@ -3,15 +3,18 @@
 // LOC_EXEMPT: NIGHT-special-1 stages 2.1/2.2 added the rim spin
 // (spin_phase + conveyor bookkeeping), the entry spiral gate and the
 // formation intro (formation clock, formed flag, seed-dot rendering,
-// horizon-bloom filter) on top of the ball/ring orchestrator, and
-// stage 2.4 added the see-saw roll scheduler field — pushing this
-// file over the 800-LOC cap. The per-mote physics + roll scheduler
-// (ring.rs), the ball cell helpers (ball_helpers.rs) and the
-// formation phase math (formation.rs) are already split out; what
-// remains is one impl whose draw/spawn/advance passes share the
-// private field set — a further split would need pub(super) field
-// exposure across sibling modules, a worse encapsulation trade than
-// the cap debt (same call as dragon.rs's entry-reveal exemption).
+// horizon-bloom filter) on top of the ball/ring orchestrator, stage
+// 2.4 added the see-saw roll scheduler field, and stage 2.6 added
+// the halo stream pool arms (a second lane pool with its own
+// spawn/advance/draw passes) — pushing this file over the 800-LOC
+// cap. The per-mote physics + roll scheduler (ring.rs), the halo
+// stream physics (halo.rs), the ball cell helpers (ball_helpers.rs)
+// and the formation phase math (formation.rs) are already split
+// out; what remains is one impl whose draw/spawn/advance passes
+// share the private field set — a further split would need
+// pub(super) field exposure across sibling modules, a worse
+// encapsulation trade than the cap debt (same call as dragon.rs's
+// entry-reveal exemption).
 
 //! Black hole rain for the sorgonemous_intrascals scene (NIGHT-special-1,
 //! the eighth rain style — stage 2: the ball plus the orbital ring).
@@ -59,6 +62,20 @@
 //! the see-saw roll's long dwell improved to a more special 30 s-or-
 //! more hold across the whole 15-180 degree attitude window, with
 //! exactly the 90-degree vertical attitude excluded.
+//!
+//! Stage 2.6 (owner 9.9/10 feedback, this round): the stack closes
+//! into the one-compact-family read — the main disk drops a little
+//! below its default center position, the upper two bands pull down
+//! with it (the almost-fused grouping, the family reads dense), and
+//! the two longest bands widen a little more. The halo streams join
+//! the system (physics in `halo.rs`): a second mote pool whose
+//! riders orbit the arc circle over and under the shadow — the
+//! upper stream doubles the upward-curving particle density by
+//! co-riding the lensing arc, the lower stream mirrors it under the
+//! hole slightly sparser, both circulating in the disk's rotational
+//! sense. Geometry stays fraction-based end to end, so the whole
+//! system scales with any screen size (the dynamic-size contract
+//! the owner pinned this round).
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
@@ -112,6 +129,7 @@ use super::formation::{
     cross_active, formation_phase, horizon_visibility, seed_center_level, seed_cross_level,
     FormationPhase,
 };
+use super::halo::{activate_halo_mote, advance_halo_mote, halo_mote_visible, project_halo_mote};
 use super::ring::{
     activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
     proximity_level, step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep,
@@ -170,6 +188,30 @@ pub(crate) struct BlackHoleRain {
     /// Rotating scan cursor for amortized O(1) free-slot search
     /// (mirrors `VortexRain::spawn_scan_idx`).
     spawn_scan_idx: usize,
+    /// Stage-2.6 halo streams: the arc-riding companion pool (one
+    /// mote per column, the lane model — the physics lives in
+    /// `halo.rs`). The upper-stream riders co-ride the lensing arc
+    /// (the doubled upward curve), the lower-stream riders the
+    /// mirrored circle under the shadow.
+    halo_motes: Vec<RingMote>,
+    /// Active halo mote count (the halo spawn target's deficit
+    /// baseline).
+    active_halo: usize,
+    /// Rotating scan cursor for the halo pool's free-slot search
+    /// (same amortization contract as the ring's cursor).
+    halo_scan_idx: usize,
+    /// Fractional spawn-remainder carry of the halo pool (the ring's
+    /// counterpart lives in the cloud layer's shared field; the halo
+    /// keeps its own because the two pools budget independently).
+    halo_spawn_remainder: f32,
+    /// Bresenham stream-split accumulator: each halo activation adds
+    /// the upper stream's share and the running fractional part
+    /// decides the tag — the 0.56 / 0.44 split holds EXACTLY on every
+    /// pool fill (a random pick would only hold on average, and a
+    /// small pool can land a visibly inverted split on an unlucky
+    /// seed — the lower stream must read slightly sparser EVERY run,
+    /// the deterministic splitter guarantees it).
+    halo_tag_acc: f32,
     /// Alternating lobe selector for the Lorenz-state seeding (parity
     /// with the lorenz style's spawn — balanced wobble distribution).
     next_lobe: u8,
@@ -244,6 +286,11 @@ impl BlackHoleRain {
             motes: Vec::new(),
             active_motes: 0,
             spawn_scan_idx: 0,
+            halo_motes: Vec::new(),
+            active_halo: 0,
+            halo_scan_idx: 0,
+            halo_spawn_remainder: 0.0,
+            halo_tag_acc: 0.0,
             next_lobe: 0,
             last_step: None,
             center_col: 0,
@@ -278,7 +325,7 @@ impl BlackHoleRain {
         if cols == 0 || lines == 0 {
             self.glyphs.clear();
             self.glyphs_stale = true;
-            self.reset_ring_motes(0);
+            self.reset_mote_pools(0);
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
@@ -301,7 +348,7 @@ impl BlackHoleRain {
         if outer_r - core_r < 1.0 {
             self.glyphs.clear();
             self.glyphs_stale = true;
-            self.reset_ring_motes(0);
+            self.reset_mote_pools(0);
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
@@ -381,7 +428,7 @@ impl BlackHoleRain {
             })
             .collect();
 
-        self.reset_ring_motes(cols);
+        self.reset_mote_pools(cols);
         self.clear_draw_history();
     }
 
@@ -400,34 +447,49 @@ impl BlackHoleRain {
         self.roll = RingRoll::new();
     }
 
-    /// Rebuild the ring mote pool: one mote per column (the family
-    /// lane model — a wider viewport hosts a longer ring, so more
-    /// motes), all vacant. Pass 0 to leave the pool empty (degenerate
-    /// viewports with no ball anchor).
-    fn reset_ring_motes(&mut self, cols: u16) {
+    /// Rebuild the ring and halo mote pools: one mote per column
+    /// each (the family lane model — a wider viewport hosts a longer
+    /// ring AND a denser stream population, so both pools resize),
+    /// all vacant. Pass 0 to leave the pools empty (degenerate
+    /// viewports with no ball anchor). The shared clock resets once
+    /// for both pools (one motion clock per body system).
+    fn reset_mote_pools(&mut self, cols: u16) {
         self.motes.clear();
+        self.halo_motes.clear();
         if cols > 0 {
             self.motes.resize_with(cols as usize, RingMote::vacant);
+            self.halo_motes.resize_with(cols as usize, RingMote::vacant);
         }
         self.active_motes = 0;
         self.spawn_scan_idx = 0;
+        self.active_halo = 0;
+        self.halo_scan_idx = 0;
+        self.halo_spawn_remainder = 0.0;
+        self.halo_tag_acc = 0.0;
         self.next_lobe = 0;
         self.last_step = None;
     }
 
     /// Steady-state drawn-glyph count (the HUD active metric): every
-    /// ball annulus cell plus every active ring mote head — the honest
-    /// figure of what the style animates each frame.
+    /// ball annulus cell plus every active ring mote head plus every
+    /// active halo stream rider — the honest figure of what the
+    /// style animates each frame.
     pub(crate) fn active_count(&self) -> usize {
-        self.ring_cells.len() + self.active_motes
+        self.ring_cells.len() + self.active_motes + self.active_halo
     }
 
     /// Palette transition completion: the ball adopts the new slot,
-    /// and so does every active ring mote (family contract — parity
-    /// with the lorenz/vortex mote adoption).
+    /// and so does every active ring mote and halo stream rider
+    /// (family contract — parity with the lorenz/vortex mote
+    /// adoption).
     pub(crate) fn adopt_palette_slot(&mut self, palette_slot: u8) {
         self.palette_slot = palette_slot;
         for m in &mut self.motes {
+            if m.active {
+                m.palette_slot = palette_slot;
+            }
+        }
+        for m in &mut self.halo_motes {
             if m.active {
                 m.palette_slot = palette_slot;
             }
@@ -449,28 +511,57 @@ impl BlackHoleRain {
         ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
     }
 
-    /// Amortized free-slot scan (rotating cursor — mirrors vortex's
-    /// `find_inactive_mote`).
-    fn find_inactive_mote(&mut self) -> Option<usize> {
-        let len = self.motes.len();
+    /// Steady-state active-halo target from pool size + density (the
+    /// halo twin of `target_active_motes`: the base is lower because
+    /// each rider is visible only through its own semicircle — the
+    /// pool carries both streams' traffic).
+    fn target_active_halo(lanes: usize, density: f32) -> usize {
+        if lanes == 0 {
+            return 0;
+        }
+        let ratio = (crate::constants::BLACK_HOLE_HALO_ACTIVE_BASE
+            + density.clamp(0.01, 5.0) * crate::constants::BLACK_HOLE_HALO_ACTIVE_DENSITY_MULT)
+            .clamp(0.02, crate::constants::BLACK_HOLE_HALO_ACTIVE_MAX);
+        ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
+    }
+
+    /// Amortized free-slot scan over a mote pool (rotating cursor —
+    /// mirrors vortex's `find_inactive_mote`); shared by the ring and
+    /// halo pools so both spawn passes amortize identically.
+    fn find_inactive_in(pool: &[RingMote], cursor: &mut usize) -> Option<usize> {
+        let len = pool.len();
         if len == 0 {
             return None;
         }
         for step in 0..len {
-            let idx = (self.spawn_scan_idx + step) % len;
-            if !self.motes[idx].active {
-                self.spawn_scan_idx = (idx + 1) % len;
+            let idx = (*cursor + step) % len;
+            if !pool[idx].active {
+                *cursor = (idx + 1) % len;
                 return Some(idx);
             }
         }
         None
     }
 
+    /// Amortized free-slot scan (rotating cursor — mirrors vortex's
+    /// `find_inactive_mote`).
+    fn find_inactive_mote(&mut self) -> Option<usize> {
+        Self::find_inactive_in(&self.motes, &mut self.spawn_scan_idx)
+    }
+
+    /// The halo pool's free-slot scan (the ring twin's cursor).
+    fn find_inactive_halo(&mut self) -> Option<usize> {
+        Self::find_inactive_in(&self.halo_motes, &mut self.halo_scan_idx)
+    }
+
     /// Spawn pass — accumulator pattern identical to
     /// `LorenzRain::spawn` (deficit-bounded budget + fractional
     /// remainder carry). New motes enter at a uniform random orbital
     /// phase, so the stream populates around the full circumference
-    /// instead of clumping at one angle.
+    /// instead of clumping at one angle. The stage-2.6 halo pool
+    /// spawns through the same contract right after the ring block
+    /// (its remainder is internal: the two pools budget independently,
+    /// the cloud layer's shared field stays the ring's).
     pub(crate) fn spawn(
         &mut self,
         elapsed: Duration,
@@ -478,9 +569,14 @@ impl BlackHoleRain {
         params: &BlackHoleSpawnParams,
         random: &mut BlackHoleRandom<'_>,
     ) {
-        if params.cols == 0 || params.lines == 0 || self.motes.is_empty() || self.ball_outer_r < 1.0
+        if params.cols == 0
+            || params.lines == 0
+            || self.motes.is_empty()
+            || self.halo_motes.is_empty()
+            || self.ball_outer_r < 1.0
         {
             *spawn_remainder = 0.0;
+            self.halo_spawn_remainder = 0.0;
             return;
         }
 
@@ -490,58 +586,111 @@ impl BlackHoleRain {
         // starts clean instead of banking pre-formation elapsed time.
         if !self.formed {
             *spawn_remainder = 0.0;
+            self.halo_spawn_remainder = 0.0;
             return;
         }
 
         let target = Self::target_active_motes(self.motes.len(), params.density);
         if self.active_motes >= target {
             *spawn_remainder = (*spawn_remainder).min(crate::constants::SPAWN_REMAINDER_CAP);
-            return;
+        } else {
+            let deficit = target - self.active_motes;
+            let spawn_rate = (target as f32 * crate::constants::BLACK_HOLE_RING_SPAWN_RATE_MULT
+                + crate::constants::BLACK_HOLE_RING_SPAWN_RATE_FLOOR)
+                * params.spawn_scale;
+            let budget = elapsed.as_secs_f32() * spawn_rate
+                + (*spawn_remainder).min(crate::constants::SPAWN_REMAINDER_CAP);
+            if !budget.is_finite() || budget <= 0.0 {
+                *spawn_remainder = 0.0;
+            } else {
+                let to_spawn = (budget.floor() as usize).min(deficit);
+                *spawn_remainder =
+                    (budget - to_spawn as f32).min(crate::constants::SPAWN_REMAINDER_CAP);
+                for _ in 0..to_spawn {
+                    let Some(idx) = self.find_inactive_mote() else {
+                        break;
+                    };
+                    let lobe_sign = if self.next_lobe == 0 { 1.0 } else { -1.0 };
+                    self.next_lobe = (self.next_lobe + 1) % 2;
+                    activate_ring_mote(
+                        &mut self.motes[idx],
+                        lobe_sign,
+                        params.active_palette_slot,
+                        random.rand_chance,
+                        random.rng,
+                    );
+                    self.active_motes += 1;
+                }
+            }
         }
 
-        let deficit = target - self.active_motes;
-        let spawn_rate = (target as f32 * crate::constants::BLACK_HOLE_RING_SPAWN_RATE_MULT
-            + crate::constants::BLACK_HOLE_RING_SPAWN_RATE_FLOOR)
+        // Halo streams (stage 2.6): the arc pool spawns on the same
+        // deficit-bounded accumulator contract — the upper and lower
+        // stream tags ride the weighted pick inside the activation,
+        // so the doubled lensing arc and its sparser mirror fill at
+        // the same gradual pace as the disk bands.
+        let halo_target = Self::target_active_halo(self.halo_motes.len(), params.density);
+        if self.active_halo >= halo_target {
+            self.halo_spawn_remainder = self
+                .halo_spawn_remainder
+                .min(crate::constants::SPAWN_REMAINDER_CAP);
+            return;
+        }
+        let halo_deficit = halo_target - self.active_halo;
+        let halo_rate = (halo_target as f32 * crate::constants::BLACK_HOLE_HALO_SPAWN_RATE_MULT
+            + crate::constants::BLACK_HOLE_HALO_SPAWN_RATE_FLOOR)
             * params.spawn_scale;
-        let budget = elapsed.as_secs_f32() * spawn_rate
-            + (*spawn_remainder).min(crate::constants::SPAWN_REMAINDER_CAP);
-        if !budget.is_finite() || budget <= 0.0 {
-            *spawn_remainder = 0.0;
+        let halo_budget = elapsed.as_secs_f32() * halo_rate
+            + self
+                .halo_spawn_remainder
+                .min(crate::constants::SPAWN_REMAINDER_CAP);
+        if !halo_budget.is_finite() || halo_budget <= 0.0 {
+            self.halo_spawn_remainder = 0.0;
             return;
         }
-
-        let to_spawn = (budget.floor() as usize).min(deficit);
-        *spawn_remainder = (budget - to_spawn as f32).min(crate::constants::SPAWN_REMAINDER_CAP);
-        if to_spawn == 0 {
-            return;
-        }
-
-        for _ in 0..to_spawn {
-            let Some(idx) = self.find_inactive_mote() else {
+        let halo_to_spawn = (halo_budget.floor() as usize).min(halo_deficit);
+        self.halo_spawn_remainder =
+            (halo_budget - halo_to_spawn as f32).min(crate::constants::SPAWN_REMAINDER_CAP);
+        for _ in 0..halo_to_spawn {
+            let Some(idx) = self.find_inactive_halo() else {
                 break;
+            };
+            // The Bresenham stream split: the accumulator walks the
+            // upper share's fractional budget, so consecutive
+            // activations interleave the two tags at exactly the
+            // 0.56 / 0.44 ratio (the lower stream reads slightly
+            // sparser on every seed, every pool fill).
+            self.halo_tag_acc += crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT;
+            let stream_tag = if self.halo_tag_acc >= 1.0 {
+                self.halo_tag_acc -= 1.0;
+                super::halo::HALO_STREAM_TAG_UPPER
+            } else {
+                super::halo::HALO_STREAM_TAG_LOWER
             };
             let lobe_sign = if self.next_lobe == 0 { 1.0 } else { -1.0 };
             self.next_lobe = (self.next_lobe + 1) % 2;
-            activate_ring_mote(
-                &mut self.motes[idx],
+            activate_halo_mote(
+                &mut self.halo_motes[idx],
+                stream_tag,
                 lobe_sign,
                 params.active_palette_slot,
                 random.rand_chance,
                 random.rng,
             );
-            self.active_motes += 1;
+            self.active_halo += 1;
         }
     }
 
-    /// Motion pass — the clock owner for the ring (the per-mote RK4
-    /// Lorenz step + Keplerian advance live in `ring.rs`). dt = now -
-    /// last_step clamped by max_sim_delta and scaled by resume_blend
-    /// (the anti-teleport contract shared with the structured
-    /// family); a fully-paused run simply stops integrating. The
-    /// ball's rim spin advances on the same clock and the same mean
-    /// omega as the motes — the co-rotation contract — even while no
-    /// mote is active (the hole spins on its own phase from the
-    /// first frame).
+    /// Motion pass — the clock owner for the ring and the halo
+    /// streams (the per-mote RK4 Lorenz step + Keplerian advance
+    /// live in `ring.rs` and `halo.rs`). dt = now - last_step
+    /// clamped by max_sim_delta and scaled by resume_blend (the
+    /// anti-teleport contract shared with the structured family); a
+    /// fully-paused run simply stops integrating. The ball's rim
+    /// spin advances on the same clock and the same mean omega as
+    /// the motes — the co-rotation contract — even while no mote is
+    /// active (the hole spins on its own phase from the first
+    /// frame).
     pub(crate) fn advance(&mut self, step: &BlackHoleStep) {
         let dt_wall = match self.last_step {
             Some(last) => {
@@ -594,7 +743,7 @@ impl BlackHoleRain {
             }
         }
 
-        if self.active_motes == 0 {
+        if self.active_motes == 0 && self.active_halo == 0 {
             return;
         }
 
@@ -609,6 +758,25 @@ impl BlackHoleRain {
         }
         if absorbed > 0 {
             self.active_motes = self.active_motes.saturating_sub(absorbed);
+        }
+
+        // Halo streams (stage 2.6): the arc riders integrate on the
+        // same clock, the same attractor time and the same base
+        // omega — only their Keplerian pace (the outer-lane scaling)
+        // and their projection differ from the ring motes.
+        if self.active_halo > 0 {
+            let mut halo_absorbed = 0usize;
+            for m in &mut self.halo_motes {
+                if !m.active {
+                    continue;
+                }
+                if advance_halo_mote(m, dt_wall, dt_lorenz_base, omega_base) {
+                    halo_absorbed += 1;
+                }
+            }
+            if halo_absorbed > 0 {
+                self.active_halo = self.active_halo.saturating_sub(halo_absorbed);
+            }
         }
     }
 
@@ -878,6 +1046,103 @@ impl BlackHoleRain {
             }
         }
 
+        // Stage 2.6 halo streams: project every active rider onto its
+        // arc circle around the cached ball anchor (rolled by the
+        // live see-saw angle with the rest of the system), draw the
+        // head + comet trail through the stream-visibility filter
+        // (each mote draws only on its own semicircle — the upper
+        // stream over the shadow, the lower under it), and record
+        // the drawn cells into the same diff-cleanup stream. No
+        // occlusion rule: the arc band (1.20-1.40 outer radii) never
+        // enters the ball silhouette. Bounds-checked per cell so a
+        // live resize window (geometry rebuilt on reset) never paints
+        // outside the viewport — the dynamic-screen-size contract.
+        if self.active_halo > 0 && self.ball_outer_r >= 1.0 {
+            let cx_f = self.center_col as f32;
+            let cy_f = self.center_line as f32;
+            let outer_r = self.ball_outer_r;
+            let roll = self.roll.angle();
+            for m in &mut self.halo_motes {
+                if !m.active {
+                    continue;
+                }
+                // The stream filter: hidden motes retire their trail
+                // (the handoff at the extreme clears the streak so
+                // the re-emergence on the opposite limb never paints
+                // a teleporting tail) and skip the frame entirely.
+                if !halo_mote_visible(m) {
+                    m.trail_len = 0;
+                    continue;
+                }
+                let (col_f, line_f) = project_halo_mote(m, cx_f, cy_f, outer_r, roll);
+                let col = col_f.round() as i32;
+                let line = line_f.round() as i32;
+                if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
+                    // Off-screen: skip the draw AND the trail push —
+                    // the trail keeps its last in-bounds positions
+                    // (the entry spiral drifts young motes beyond the
+                    // arc; they re-enter as they settle).
+                    continue;
+                }
+                let (col, line) = (col as u16, line as u16);
+
+                // Proximity grade: same distance key as the ring
+                // heads — the arc circle sits at 1.30 outer radii,
+                // just inside the hot radius, so the stream riders
+                // burn white-hot like the lensing arc they share the
+                // road with (the whole-crown glow the owner approved).
+                let head_dx = (col_f - cx_f) / CELL_ASPECT_DIVISOR;
+                let head_dy = line_f - cy_f;
+                let head_dist_norm = (head_dx * head_dx + head_dy * head_dy).sqrt() / outer_r;
+                let head_level = proximity_level(level_for_ring_z(m.z), head_dist_norm);
+
+                // Matrix shimmer: the same motion-gated mutation gate
+                // the ring heads carry (mutation tied to motion —
+                // the family life sign).
+                if m.trail_len > 0 {
+                    let (prev_col, prev_line) = m.trail[(m.trail_len - 1) as usize];
+                    if (prev_col != col || prev_line != line)
+                        && rand_chance.sample(rng)
+                            < crate::constants::BLACK_HOLE_RING_SHIMMER_CHANCE
+                    {
+                        m.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
+                    }
+                } else {
+                    m.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
+                }
+
+                // Head: the graded level, always drawn (no occlusion
+                // path for the arc band).
+                draw_ball_cell(ctx, frame, col, line, m.ch, m.palette_slot, head_level);
+                self.current_cells.push(BlackHoleCell {
+                    col,
+                    line,
+                    level: head_level,
+                });
+
+                // Comet trail: previously occupied cells, one
+                // brightness rung dimmer each, drawn only while in
+                // bounds (the streak follows the arc's curvature —
+                // the comet read on the crown and under the foot).
+                for t in 0..m.trail_len as usize {
+                    let (tc, tl) = m.trail[t];
+                    if tc >= ctx.cols || tl >= ctx.lines {
+                        continue;
+                    }
+                    let depth = (m.trail_len as usize - t).min(4) as u8;
+                    let trail_level = step_down_level(head_level, depth);
+                    draw_ball_cell(ctx, frame, tc, tl, m.ch, m.palette_slot, trail_level);
+                    self.current_cells.push(BlackHoleCell {
+                        col: tc,
+                        line: tl,
+                        level: trail_level,
+                    });
+                }
+
+                m.push_trail(col, line);
+            }
+        }
+
         // Pass 2: generation-tag every drawn cell (monolith pattern —
         // u32 counter bump instead of clearing the array). Rebuilt when
         // the viewport dimensions change; sized to the full grid because
@@ -998,6 +1263,18 @@ impl BlackHoleRain {
     #[cfg(test)]
     pub(crate) fn active_motes_for_test(&self) -> usize {
         self.active_motes
+    }
+
+    #[cfg(test)]
+    /// The stage-2.6 halo stream pool (the arc riders).
+    pub(crate) fn halo_motes_for_test(&self) -> &[RingMote] {
+        &self.halo_motes
+    }
+
+    #[cfg(test)]
+    /// Active halo stream rider count.
+    pub(crate) fn active_halo_for_test(&self) -> usize {
+        self.active_halo
     }
 
     #[cfg(test)]

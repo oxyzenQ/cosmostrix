@@ -299,6 +299,93 @@ engagement test extended past the longer flat hold — 31/31
 black hole contracts, suite green, fmt/clippy clean, version
 untouched.
 
+### feature: NIGHT-special-1 stage 2.6 — the one-compact-family stack and the halo streams (the doubled upward curve + the mirrored lower stream)
+
+Owner verification (stage 2.5 at 9.9/10) landed four reads: the
+snug stack still reads a notch loose — stack 1 must descend a
+little from its default center position, stacks 2 and 3 must sit
+ALMOST FUSED with it (his wording: the family must read dense),
+stacks 1 and 2 must widen a little more; the particles curving
+up over the hole must double their density; a NEW stream must
+curve down under the hole — the same motion, the opposite
+position, slightly fewer particles, the rotation following the
+disk; and the whole style must hold the dynamic-screen-size
+contract.
+
+The one-compact-family stack: the tier table's center offsets
+move to -0.08 / +0.05 / +0.15 ball outer radii (center steps
+0.13 / 0.10 — the near-merged grouping where the stage-2.5
+spread read a hand's width apart), and the two longest bands
+widen (major scales 1.00 / 0.72 -> 1.10 / 0.80). The main disk's
+mid-band now sits 0.08 outer radii below the viewport center
+(the slight descent), the crossing dip deepening with it; the
+upper tiers braid into the space just above the dropped
+equatorial band (tier 1's strands ~0.01-0.15 outer radii above
+center, tier 2's ~0.12-0.22), the whole family packing into
+~0.33 outer radii of vertical span — the dense stacked-lines
+read under the 1.30 lensing arc crown.
+
+The halo streams (`halo.rs`, the fifth module of the family
+split): a second mote pool (one lane per column, the family
+contract) whose riders orbit the ARC CIRCLE around the shadow
+instead of the flat ellipse. Each mote rides the full circle
+with the ring's own motion DNA — the RK4 Lorenz step (extracted
+to a shared `rk4_lorenz_step` core in ring.rs: one attractor,
+one integrator, two projections), a Keplerian rate paced to the
+arc radius (0.74x — the outer-lane read of Kepler's third law),
+the radial coordinate wobbling the arc into a thin plasma band,
+the z coordinate grading the brightness, the entry-spiral
+drift-in, the comet trail, the motion-gated shimmer. The mote's
+tag picks its semicircle: the upper stream co-rides the 1.30
+lensing circle — its riders share the road with the far-side
+lensed image, doubling the upward-curving population without
+touching the ring pool's tier shares; the lower stream mirrors
+the circle under the shadow, slightly sparser. The handoffs land
+at the arc extremes where the lensing arc already blends into
+the equatorial band (particles read as merging into the disk
+line and re-emerging from the opposite limb); crossing into the
+hidden half retires the trail so the re-emergence never paints
+a teleporting tail. No occlusion rule (the arc band spans
+1.20-1.40 outer radii, never entering the silhouette); the
+see-saw roll rotates the projection with the rest of the system.
+
+The stream split runs a deterministic Bresenham accumulator
+(each activation adds the upper share's 0.56 to a fractional
+budget that decides the tag), so the 0.56 / 0.44 split holds
+EXACTLY on every pool fill — a random pick only holds on
+average, and a small pool can land a visibly inverted split on
+an unlucky seed. The halo pool's active target mirrors the ring
+pool's own base and density multiplier, so the doubling read
+holds proportionally at every density setting. Spawn rides the
+same deficit-bounded accumulator contract (its own internal
+remainder), the formation gate opens the arcs only after the
+horizon bloom, and the shared clock/advance/draw passes step
+both pools — the cloud layer's spawn/advance/draw arms are
+untouched (the pool lives entirely inside the black hole
+module). The HUD active count now includes the stream riders.
+
+Dynamic screen size: every halo length is a fraction of the ball
+outer radius (itself a fraction of the viewport's limiting
+half-extent), the pool rebuilds to the new column count on
+reset, and every draw bounds-checks per cell — verified across
+resize transitions at 200x60, 120x40, 80x24 and 105x64.
+
+Tests: the tier stack contract re-pinned to the near-merged
+geometry (the main disk below center, steps within 0.10-0.30 and
+0.04-0.20 outer radii, the whole family packing under 0.40, the
+widened reach past the old span, descending lengths), the
+crossing dip re-pinned with the descent, the band escape guard
+now table-driven per tier, the roll pivot carrying the lowered
+band's rest offset rigidly; the halo contracts pin the arc ride
+(visible riders strictly on their own semicircles, in viewport,
+on the 1.20-1.42 band, outside the silhouette), the doubling
+(upper halo + far side past 1.5x the old figure), the exact
+Bresenham split (within one mote of the ideal, lower strictly
+sparser), the shared rotational sense (angles advance), and the
+dynamic-screen-size resize transitions — 36/36 black hole
+contracts, 2456/2456 suite green, fmt/clippy clean, LOC
+exemption note extended, version untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

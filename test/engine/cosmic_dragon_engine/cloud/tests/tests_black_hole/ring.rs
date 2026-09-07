@@ -11,19 +11,28 @@
 //! brightness profile (white heads near the hole, the fade ladder
 //! far out), the three-tier Interstellar stack (longest band, the
 //! upper shorter bands snug above it with differential Keplerian
-//! pacing — the stage-2.5 one-meter-gap ruling) and the see-saw
-//! roll scheduler (every attitude in the 15-180 degree window,
-//! with the vertical 90-degree attitude excluded, parks at a long
-//! 30 s-or-more hold; the flat rest line stays the single longest
-//! pose; excursions alternate sign). Covers spawning + orbital
-//! advance, the band geometry, the occlusion contract,
-//! style-transition recycling, and the shipped motion constants
-//! (RK4 stability regime, majestic lap pace).
+//! pacing — the stage-2.6 one-compact-family ruling: the main disk
+//! slightly below center, the upper bands almost fused with it, the
+//! two longest bands widened) and the see-saw roll scheduler (every
+//! attitude in the 15-180 degree window, with the vertical
+//! 90-degree attitude excluded, parks at a long 30 s-or-more hold;
+//! the flat rest line stays the single longest pose; excursions
+//! alternate sign). Stage 2.6 adds the halo stream contracts: the
+//! arc-riding pool whose upper stream doubles the upward-curving
+//! density, the mirrored lower stream running slightly sparser, the
+//! disk's rotational sense, and the dynamic-screen-size resize
+//! contract. Covers spawning + orbital advance, the band geometry,
+//! the occlusion contract, style-transition recycling, and the
+//! shipped motion constants (RK4 stability regime, majestic lap
+//! pace).
 
 use std::collections::HashSet;
 
 use super::*;
-use crate::cloud::type_rain::black_hole::black_hole::level_rank;
+use crate::cloud::type_rain::black_hole::black_hole::{level_rank, CELL_ASPECT_DIVISOR};
+use crate::cloud::type_rain::black_hole::halo::{
+    halo_mote_visible, project_halo_mote, HALO_STREAM_TAG_LOWER, HALO_STREAM_TAG_UPPER,
+};
 use crate::cloud::type_rain::black_hole::ring::{
     occludes_ring_cell, project_ring_mote, proximity_level, RingRoll,
 };
@@ -123,15 +132,27 @@ fn black_hole_ring_heads_stay_in_the_band() {
 
     let geo = BallGeometry::new(cols, lines);
     let unit = geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
-    let a_mean = (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * unit).min(geo.major_limit);
     // The band contract: steady-age motes stay inside the orbital
     // band (the farthest horizontal reach, or the lensing halo's
     // radius, whichever is greater) and inside the viewport. Fresh
     // motes (sim_age below the entry window) are still on their
     // drift-in spiral and may sit beyond it — they are excluded
-    // (the entry spiral is a separate contract below).
+    // (the entry spiral is a separate contract below). The reach is
+    // per-tier (the stage-2.6 widened main disk reads 1.10x the
+    // major fraction), so the bound is the table's worst case.
     let entry_settle_secs = 3.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU;
-    let band_max = (a_mean + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * geo.outer_r * 1.2)
+    let a_max = crate::constants::BLACK_HOLE_RING_TIERS
+        .iter()
+        .map(|t| {
+            (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * t.major_scale * unit)
+                .min(geo.major_limit)
+        })
+        .fold(0.0_f32, f32::max);
+    let wobble_max = crate::constants::BLACK_HOLE_RING_TIERS
+        .iter()
+        .map(|t| t.wobble_fraction)
+        .fold(0.0_f32, f32::max);
+    let band_max = (a_max + wobble_max * geo.outer_r * 1.2)
         .max(geo.outer_r * crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION)
         + 0.1;
 
@@ -451,10 +472,15 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     let side = pinned_mote(0.0, 30.0);
     let (_, line_side) =
         project_ring_mote(&side, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    // The stage-2.6 band-center offset: the main disk's rest plane
+    // now sits slightly below the viewport center (the owner's
+    // slight descent of stack 1), so the extreme lands on that
+    // plane, not on the geometric center line.
+    let band_plane =
+        geo.cy - crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r;
     assert!(
-        (line_side - geo.cy).abs() < 0.01,
-        "disk extreme must sit on the disk plane (line {line_side}, cy {})",
-        geo.cy
+        (line_side - band_plane).abs() < 0.01,
+        "disk extreme must sit on the band's rest plane (line {line_side}, plane {band_plane})"
     );
 
     // The lift is monotonic in backness: a quarter-behind mote sits
@@ -464,9 +490,8 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     let (_, line_quarter) =
         project_ring_mote(&quarter, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
-        line_quarter < geo.cy && line_quarter > line_behind,
-        "lift must rise smoothly (quarter {line_quarter} vs plane {} vs apex {line_behind})",
-        geo.cy
+        line_quarter < band_plane && line_quarter > line_behind,
+        "lift must rise smoothly (quarter {line_quarter} vs plane {band_plane} vs apex {line_behind})"
     );
 }
 
@@ -548,17 +573,22 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     // near side's sine is squashed to NEAR_SQUASH of the minor axis,
     // so the deepest crossing dip is half a minor axis below center
     // (previously a full minor axis — the "line below the core"
-    // read). Regression guard: removing the squash fails the
-    // dip-bound assertion.
+    // read). Stage 2.6 adds the band-center offset to the dip: the
+    // owner's slight descent of the main disk drops the whole band
+    // (the crossing line with it) a small fraction below the
+    // geometric center. Regression guard: removing the squash fails
+    // the dip-bound assertion.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
     let unit = geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
     // The pinned mote parks r_norm at 0 (no wobble) and z at the
     // normalization center (no tilt), so the dip is pure ellipse
-    // geometry: NEAR_SQUASH x MINOR x unit.
+    // geometry: NEAR_SQUASH x MINOR x unit, plus the stage-2.6
+    // band-center drop (a negative offset deepens the dip).
     let expected_dip = crate::constants::BLACK_HOLE_RING_NEAR_SQUASH
         * crate::constants::BLACK_HOLE_RING_MINOR_FRACTION
-        * unit;
+        * unit
+        - crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r;
 
     let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
     let (_, line_front) =
@@ -573,18 +603,23 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
         line_front - geo.cy
     );
     assert!(
-        line_front - geo.cy < crate::constants::BLACK_HOLE_RING_MINOR_FRACTION * unit,
-        "crossing dip must stay under the full minor axis (the unsquashed old geometry)"
+        line_front - geo.cy
+            < crate::constants::BLACK_HOLE_RING_MINOR_FRACTION * unit + 0.10 * geo.outer_r,
+        "crossing dip must stay near the equatorial band (the unsquashed old geometry)"
     );
 
     // The whole near side stays within the squashed band: every
-    // near-side phase projects between the equator and the dip.
+    // near-side phase projects between the band's rest plane and the
+    // dip (the rest plane itself sits slightly below the viewport
+    // center at stage 2.6).
+    let band_plane =
+        geo.cy - crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r;
     for deg in 5..175 {
         let phi = (deg as f32).to_radians();
         let m = pinned_mote(phi, 30.0);
         let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
         assert!(
-            line >= geo.cy - 0.05 && line <= geo.cy + expected_dip + 0.05,
+            line >= band_plane - 0.05 && line <= geo.cy + expected_dip + 0.05,
             "near-side phase {deg} deg escaped the equatorial band (line {line})"
         );
     }
@@ -722,16 +757,18 @@ fn pinned_tier_mote(
 
 #[test]
 fn black_hole_ring_tier_stack_steps_up_and_shortens() {
-    // The owner's Interstellar ladder: stage 1 the longest band on
-    // the equator, stage 2 above it and shorter, stage 3 the
-    // shortest — and the stage-2.5 snug-gap ruling: the upper two
-    // lines sit a hand's width above the main band and each other
-    // (the owner's analogy: two objects one meter apart, not ten).
-    // Contract at the flat attitude: each tier's mid-band sits
-    // strictly above the one below with a distinct-but-small step,
-    // the horizontal reaches descend, and the whole stack stays on
-    // the shadow's face (below the rim, under the lensing arc) —
-    // the stacked-arcs-over-the-shadow read.
+    // The owner's Interstellar ladder: stage 1 the longest band, stage
+    // 2 above it and shorter, stage 3 the shortest — and the
+    // stage-2.6 one-compact-family ruling (the 9.9/10 feedback): the
+    // main disk drops a little below its default center position,
+    // the upper two lines sit almost fused with it and each other
+    // (his wording: the family must read dense), and the two longest
+    // bands widen a little more. Contract at the flat attitude: each
+    // tier's mid-band sits strictly above the one below with a
+    // tiny-but-distinct step, the whole family packs into a small
+    // fraction of the ball, the horizontal reaches descend, and the
+    // stack stays on the shadow's face (below the rim, under the
+    // lensing arc) — the braided stacked-arcs-over-the-shadow read.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
 
@@ -747,50 +784,67 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
     // Stepping upward: each band strictly above the previous.
     assert!(
         line_t1 < line_t0 - 0.5,
-        "tier 1 must sit above the equator band ({line_t1} vs {line_t0})"
+        "tier 1 must sit above the main band ({line_t1} vs {line_t0})"
     );
     assert!(
         line_t2 < line_t1 - 0.5,
         "tier 2 must sit above tier 1 ({line_t2} vs {line_t1})"
     );
 
-    // The snug-gap contract (stage 2.5, the owner's one-meter-gap
-    // ruling): the center-to-center steps are a small fraction of
-    // the ball — never the old ten-meter sprawl — while staying
-    // distinct strokes.
+    // The stage-2.6 descent: the main disk (the owner's stack 1)
+    // mid-band sits strictly below the viewport center — the slight
+    // drop from the default center position he asked for.
     assert!(
-        line_t0 - line_t1 < 0.40 * geo.outer_r,
+        line_t0 > geo.cy + 0.05,
+        "the main disk's mid-band must sit below the default center (line {line_t0}, cy {})",
+        geo.cy
+    );
+
+    // The almost-fused contract (stage 2.6): the center-to-center
+    // steps are a very small fraction of the ball — the near-merged
+    // family read — while staying distinct strokes.
+    assert!(
+        line_t0 - line_t1 < 0.30 * geo.outer_r,
         "tier 1 must hug the main band (step {} vs {})",
         line_t0 - line_t1,
-        0.40 * geo.outer_r
+        0.30 * geo.outer_r
     );
     assert!(
-        line_t0 - line_t1 > 0.15 * geo.outer_r,
+        line_t0 - line_t1 > 0.10 * geo.outer_r,
         "tier 1 must stay a distinct line (step {})",
         line_t0 - line_t1
     );
     assert!(
-        line_t1 - line_t2 < 0.30 * geo.outer_r,
+        line_t1 - line_t2 < 0.20 * geo.outer_r,
         "tier 2 must hug tier 1 (step {} vs {})",
         line_t1 - line_t2,
-        0.30 * geo.outer_r
+        0.20 * geo.outer_r
     );
     assert!(
-        line_t1 - line_t2 > 0.12 * geo.outer_r,
+        line_t1 - line_t2 > 0.04 * geo.outer_r,
         "tier 2 must stay a distinct line (step {})",
         line_t1 - line_t2
     );
 
-    // The whole stack crosses the shadow's face just above the
-    // equatorial band (below the rim) — the tight stacked-arcs
-    // read over the shadow.
+    // The whole family packs into a small fraction of the ball —
+    // the dense one-compact-family read (the stage-2.6 "padat"
+    // ruling: stacks 2 and 3 almost fused with stack 1).
+    assert!(
+        line_t0 - line_t2 < 0.40 * geo.outer_r,
+        "the stack must pack into a compact family (span {} vs {})",
+        line_t0 - line_t2,
+        0.40 * geo.outer_r
+    );
+
+    // The whole stack crosses the shadow's face (below the rim) —
+    // the braided stacked-arcs read over the shadow.
     assert!(
         line_t2 > geo.cy - geo.outer_r,
         "tier 2 must stay on the shadow face, below the rim (line {line_t2}, rim {})",
         geo.cy - geo.outer_r
     );
     // Tier 2 stays under the lensing arc apex (the halo crown sits
-    // well above the snug family).
+    // well above the family).
     let behind = pinned_tier_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0, 0);
     let (_, line_arc) =
         project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
@@ -817,6 +871,23 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
         reach(2),
         reach(1)
     );
+
+    // The stage-2.6 widening: the main disk's reach reads wider than
+    // the plain major fraction (1.10x scale — the owner's "expand
+    // width a little more" for stacks 1 and 2).
+    assert!(
+        reach(0) > 1.05 * crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * unit_reach(&geo),
+        "the widened main disk must reach past the old span ({} vs {})",
+        reach(0),
+        1.05 * crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * unit_reach(&geo)
+    );
+}
+
+/// The viewport unit expressed in column reach (the tier reach
+/// helper's denominator: the major fraction times the unit, in
+/// columns, through the cell aspect divisor).
+fn unit_reach(geo: &BallGeometry) -> f32 {
+    geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION * CELL_ASPECT_DIVISOR
 }
 
 #[test]
@@ -888,14 +959,23 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
         "the pivot must preserve the distance from the hole ({d_flat} vs {d_roll})"
     );
 
-    // Tier 0's left extreme: flat at the far left, rolled 90 degrees
-    // it points straight up above the ball (left end up).
+    // Tier 0's left extreme: flat at the far left (dropped to the
+    // band's stage-2.6 rest offset below center), rolled 90 degrees
+    // it points straight up above the ball (left end up). The pivot
+    // is rigid: the lowered band's rest offset rides the rotation —
+    // the flat offset below center reappears as the same magnitude
+    // of horizontal displacement from the center column (one rigid
+    // body, offset and all).
     let left = pinned_tier_mote(std::f32::consts::PI, 30.0, 0);
+    let (_, line_l_flat) =
+        project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     let (col_l, line_l) =
         project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
+    let rest_offset = line_l_flat - geo.cy;
+    let expected_col = geo.cx - rest_offset * CELL_ASPECT_DIVISOR;
     assert!(
-        (col_l - geo.cx).abs() < 0.02,
-        "the left extreme must sit on the center column when vertical"
+        (col_l - expected_col).abs() < 0.05,
+        "the quarter turn must carry the band's rest offset rigidly (col {col_l} vs {expected_col})"
     );
     assert!(
         line_l < geo.cy - geo.outer_r,
@@ -1103,4 +1183,302 @@ fn black_hole_ring_roll_engages_through_the_live_clock() {
         angle.abs() < std::f32::consts::FRAC_PI_2 - 0.02,
         "the live roll must never park on the vertical attitude (angle {angle})"
     );
+}
+
+// -- Stage 2.6: the halo streams — the doubled upward arc, the
+// mirrored sparser lower stream, the arc band geometry, the disk's
+// rotational sense, and the dynamic-screen-size contract --
+
+/// A settled stream rider's projected distance from the hole center
+/// (aspect-corrected, in ball outer radii) — the arc band check's
+/// core measurement.
+fn halo_rider_dist_norm(
+    m: &crate::cloud::type_rain::black_hole::ring::RingMote,
+    geo: &BallGeometry,
+    roll: f32,
+) -> f32 {
+    let (col, line) = project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, roll);
+    geo.dist(col, line) / geo.outer_r
+}
+
+#[test]
+fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
+    // The stage-2.6 contract: the halo pool spawns (same accumulator
+    // + formation gate as the ring), the visible riders draw on
+    // their own semicircles — the upper stream strictly above the
+    // viewport center, the lower strictly below — and every settled
+    // head stays in the viewport and on the arc band (the thin
+    // plasma circle around the shadow, never inside the silhouette).
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames(&mut cloud, &mut frame, 300, 16);
+
+    let geo = BallGeometry::new(cols, lines);
+    let entry_settle_secs = 3.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU;
+    let roll = cloud.black_hole_rain.roll_angle_for_test();
+
+    let active = cloud.black_hole_rain.active_halo_for_test();
+    assert!(active > 0, "the halo pool must spawn riders (got {active})");
+
+    let mut upper = 0usize;
+    let mut lower = 0usize;
+    let mut on_band = 0usize;
+    let wobble = crate::constants::BLACK_HOLE_HALO_WOBBLE_FRACTION;
+    let arc = crate::constants::BLACK_HOLE_HALO_ARC_FRACTION;
+    // r_norm clamps to [-1.0, 1.2], so the settled radius band spans
+    // arc - wobble .. arc + 1.2 * wobble outer radii (plus rounding).
+    let band_lo = arc - wobble - 0.10;
+    let band_hi = arc + 1.2 * wobble + 0.10;
+    for m in cloud.black_hole_rain.halo_motes_for_test() {
+        if !m.active || m.sim_age < entry_settle_secs {
+            continue;
+        }
+        if !halo_mote_visible(m) {
+            continue;
+        }
+        if m.tier == HALO_STREAM_TAG_UPPER {
+            upper += 1;
+        } else {
+            lower += 1;
+        }
+        let (col, line) = project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, roll);
+        assert!(
+            col >= 0.0 && col < cols as f32,
+            "halo rider column out of viewport ({col})"
+        );
+        assert!(
+            line >= 0.0 && line < lines as f32,
+            "halo rider line out of viewport ({line})"
+        );
+        if m.tier == HALO_STREAM_TAG_UPPER {
+            assert!(
+                line < geo.cy,
+                "an upper-stream rider must draw above the center (line {line}, cy {})",
+                geo.cy
+            );
+        } else {
+            assert!(
+                line > geo.cy,
+                "a lower-stream rider must draw below the center (line {line}, cy {})",
+                geo.cy
+            );
+        }
+        let d = halo_rider_dist_norm(m, &geo, roll);
+        assert!(
+            d >= band_lo && d <= band_hi,
+            "halo rider escaped the arc band (dist {d} not in [{band_lo}, {band_hi}])"
+        );
+        assert!(
+            d > 1.0,
+            "a halo rider must never enter the ball silhouette (dist {d})"
+        );
+        on_band += 1;
+    }
+    assert!(on_band > 0, "no settled visible riders to check");
+    assert!(upper > 0, "the upper stream must host visible riders");
+    assert!(lower > 0, "the lower stream must host visible riders");
+}
+
+#[test]
+fn black_hole_halo_doubles_the_upward_arc_density() {
+    // The owner's stage-2.6 read: the particles curving up over the
+    // hole must be about TWICE as dense as before. The upward
+    // population is the far-side lensing arc riders (the ring's
+    // tier-0 far side) PLUS the upper halo stream; the contract
+    // holds when the upper halo stream at least matches the far-side
+    // count (doubling it — the halo pool targets the ring pool's own
+    // fill fraction, and the upper share is sized to match the
+    // tier-0 far-side share) and the total reads well past 1.5x the
+    // old figure.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames(&mut cloud, &mut frame, 300, 16);
+
+    let far_side: usize = cloud
+        .black_hole_rain
+        .motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == 0 && m.phi.sin() < 0.0)
+        .count();
+    let halo_upper: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER && halo_mote_visible(m))
+        .count();
+
+    assert!(
+        far_side > 0,
+        "the lensing arc must host riders (got {far_side})"
+    );
+    assert!(
+        halo_upper as f64 >= 0.45 * far_side as f64,
+        "the upper halo stream must about match the lensing riders ({halo_upper} vs {far_side})"
+    );
+    assert!(
+        (halo_upper + far_side) as f64 >= 1.50 * far_side as f64,
+        "the upward curve must read about twice as dense ({} + {} vs 1.5x {})",
+        halo_upper,
+        far_side,
+        far_side
+    );
+}
+
+#[test]
+fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
+    // The owner's mirrored-stream read: the lower stream carries
+    // slightly fewer particles than the one above. The split runs
+    // the deterministic Bresenham accumulator, so the TAG counts
+    // hold the exact 0.56 / 0.44 ratio on every pool fill (no spawn
+    // luck — a random pick could invert a small pool on one seed);
+    // the visible populations follow the tags (every rider draws on
+    // its own semicircle). Contract: the tagged split sits within
+    // one mote of the exact ratio, and the lower tag count stays
+    // strictly below the upper one.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames(&mut cloud, &mut frame, 300, 16);
+
+    let tagged_upper: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER)
+        .count();
+    let tagged_lower: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER)
+        .count();
+    let active = cloud.black_hole_rain.active_halo_for_test();
+    let ideal_upper = crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT * active as f32;
+
+    assert!(active > 0, "the halo pool must be active (got {active})");
+    assert!(
+        (tagged_upper as f32 - ideal_upper).abs() <= 1.0,
+        "the Bresenham split must hold the exact share ({tagged_upper} of {active}, ideal {ideal_upper})"
+    );
+    assert!(
+        tagged_lower < tagged_upper,
+        "the lower stream must carry slightly fewer riders ({tagged_lower} vs {tagged_upper})"
+    );
+
+    // The visible populations follow the tags: both semicircles host
+    // riders (the handoff sweep keeps each side populated), and the
+    // lower visible count sits below the upper (the tag majority
+    // dominates the per-frame visibility noise).
+    let visible_upper: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER && halo_mote_visible(m))
+        .count();
+    let visible_lower: usize = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER && halo_mote_visible(m))
+        .count();
+    assert!(visible_upper > 0, "the upper stream must show riders");
+    assert!(visible_lower > 0, "the lower stream must show riders");
+}
+
+#[test]
+fn black_hole_halo_orbits_in_the_disk_direction() {
+    // The rotational-sense contract (the owner's wording: the
+    // rotation follows the one above): the halo riders' angles
+    // strictly advance on the shared clock — the same positive
+    // phi convention the ring motes carry — so the streams
+    // circulate with the disk, never against it.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+
+    let before: Vec<Option<f32>> = cloud
+        .black_hole_rain
+        .halo_motes_for_test()
+        .iter()
+        .map(|m| if m.active { Some(m.phi) } else { None })
+        .collect();
+    // 30 frames at 60 FPS = 0.48 s — well under the 16 s minimum
+    // lifetime, so every before-active rider is still comparable.
+    run_frames(&mut cloud, &mut frame, 30, 16);
+    let riders = cloud.black_hole_rain.halo_motes_for_test();
+    let mut compared = 0;
+    for (idx, was) in before.iter().enumerate() {
+        if let Some(phi_before) = was {
+            let m = &riders[idx];
+            assert!(
+                m.active,
+                "halo rider {idx} absorbed too early (lifetime contract)"
+            );
+            assert!(
+                m.phi > phi_before + 0.01,
+                "halo rider {idx} angle stalled ({} -> {})",
+                phi_before,
+                m.phi
+            );
+            compared += 1;
+        }
+    }
+    assert!(compared > 0, "no active halo riders to compare");
+}
+
+#[test]
+fn black_hole_style_supports_dynamic_screen_size() {
+    // The owner's stage-2.6 pin: the black hole rain must support
+    // dynamic screen sizes. Resize across the terminal classes
+    // (wider, taller, smaller): the pools rebuild to the new width,
+    // the steady state resumes without re-forming, and every drawn
+    // cell (ball annulus, ring motes, halo riders) stays inside the
+    // new viewport — no out-of-bounds paint through the whole
+    // transition window.
+    for (cols, lines) in [(200, 60), (120, 40), (80, 24), (105, 64)] {
+        let mut cloud = make_black_hole_cloud(120, 40);
+        let mut frame = Frame::new(120, 40, cloud.palette.bg);
+        run_frames_to_steady(&mut cloud, &mut frame);
+
+        cloud.reset(cols, lines);
+        let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+        run_frames(&mut cloud, &mut frame, 60, 16);
+
+        assert!(
+            cloud.black_hole_rain.motes_for_test().len() == cols as usize,
+            "the ring pool must rebuild to the new width ({cols} cols)"
+        );
+        assert!(
+            cloud.black_hole_rain.halo_motes_for_test().len() == cols as usize,
+            "the halo pool must rebuild to the new width ({cols} cols)"
+        );
+        assert!(
+            cloud.black_hole_rain.formed_for_test(),
+            "a pure resize must keep the hole formed at {cols}x{lines}"
+        );
+        for cell in cloud.black_hole_rain.drawn_cells_for_test() {
+            assert!(
+                cell.col < cols,
+                "drawn cell column out of bounds at {cols}x{lines} ({} >= {})",
+                cell.col,
+                cols
+            );
+            assert!(
+                cell.line < lines,
+                "drawn cell line out of bounds at {cols}x{lines} ({} >= {})",
+                cell.line,
+                lines
+            );
+        }
+        assert!(
+            cloud.black_hole_rain.active_halo_for_test() > 0,
+            "the halo streams must resume at {cols}x{lines}"
+        );
+    }
 }

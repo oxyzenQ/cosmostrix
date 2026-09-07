@@ -620,27 +620,34 @@ pub(crate) const BLACK_HOLE_RING_MAJOR_FRACTION: f32 = 1.05;
 /// stacked-lines family of the Gargantua imagery. Stage 2.5, the
 /// owner's snug-gap ruling: the upper two lines must sit close to
 /// the main line and to each other (his analogy measures two
-/// objects ten meters apart when they should read one meter apart),
-/// so every center-to-center step is a small fraction of the ball
-/// and the ribbons hug the equatorial band like the stacked lensed
-/// arcs over the shadow. All lengths are fractions (the semi-major
-/// scale multiplies the main disk's major fraction, the minor
-/// multiplies the viewport unit, offsets and tilts multiply the
-/// ball outer radius) so the stack scales with any screen size
+/// objects ten meters apart when they should read one meter apart).
+/// Stage 2.6 (owner 9.9/10 feedback) closes the gap to the
+/// near-merged read: the main disk drops a little below its default
+/// center position, the upper two bands pull down with it into the
+/// one-compact-family read (his wording: stacks 2 and 3 sit almost
+/// fused with stack 1 so the family reads dense), and the two
+/// longest bands widen a little more. All lengths are fractions (the
+/// semi-major scale multiplies the main disk's major fraction, the
+/// minor multiplies the viewport unit, offsets and tilts multiply
+/// the ball outer radius) so the stack scales with any screen size
 /// exactly like the ball.
 pub(crate) struct BlackHoleRingTier {
     /// Semi-major scale of this tier (times the main disk's
-    /// MAJOR_FRACTION reach): 1.00 / 0.72 / 0.52 — the descending
-    /// staircase of the stacked lines.
+    /// MAJOR_FRACTION reach): 1.10 / 0.80 / 0.52 — the descending
+    /// staircase of the stacked lines, the two longest bands widened
+    /// a little more at stage 2.6 (the owner's 9.9/10 feedback).
     pub(crate) major_scale: f32,
     /// Semi-minor axis of this tier's orbit (fraction of the
     /// viewport unit — the vertical thickness of the band).
     pub(crate) minor_fraction: f32,
-    /// Band center offset above the equator, in ball outer radii:
-    /// 0.00 (on the equator) / 0.22 (a snug step above the main
-    /// line) / 0.42 (one more snug step) — the stage-2.5 tight
-    /// stack (the old 0.80/1.13 sprawl read as a ten-meter gap; the
-    /// owner wants the one-meter read, lines a hand's width apart).
+    /// Band center offset from the ball's equator, in ball outer
+    /// radii: -0.08 (the stage-2.6 slight drop of the main disk
+    /// below its default center position) / 0.05 (a near-merged
+    /// step above the dropped main line) / 0.15 (one more compact
+    /// step) — the stage-2.6 one-compact-family ruling: the upper
+    /// two lines sit almost fused with the main band (his wording:
+    /// the family must read dense, the lines a hand's width apart),
+    /// replacing the stage-2.5 0.22/0.42 spread.
     pub(crate) center_offset: f32,
     /// Near-strand squash factor: the in-front half maps its sine
     /// onto this fraction of the minor axis (the strand separation
@@ -665,24 +672,23 @@ pub(crate) struct BlackHoleRingTier {
 }
 
 /// The three-tier Interstellar stack (stage 2.4, tightened stage
-/// 2.5). Tier 0 mirrors the approved stage-2.3 main disk exactly
-/// (the scalar constants it references are the same values the
-/// 9.7/10 verdict was earned with); tiers 1-2 step up, shorten, and
-/// SNUG against the equatorial line — the stage-2.5 owner ruling:
-/// the upper two lines must sit close to the main line and to each
-/// other (his analogy: two objects ten meters apart should read
-/// one meter apart), so the center steps are 0.22/0.20 outer radii
-/// and the ribbons carry matching thin minors. The vertical budget:
-/// tier 1's strands span ~0.12-0.28 outer radii above center, tier
-/// 2's ~0.35-0.45 — the whole stack crosses the shadow's face just
-/// above the equatorial band, the tight stacked-arcs read of the
-/// Interstellar imagery, with the 1.30 lensing arc crown well above
-/// the family.
+/// 2.5, closed to the near-merged read stage 2.6). Tier 0 carries
+/// the approved equatorial main disk scalars plus the stage-2.6
+/// reads: the band drops 0.08 outer radii below the default center
+/// position (the owner's slight descent) and its reach widens to
+/// 1.10x the major fraction; tiers 1-2 pull down into the
+/// one-compact-family grouping — center steps 0.13/0.10 outer radii
+/// (the owner's almost-fused ruling: the family must read dense),
+/// tier 1 widening to 0.80x. The vertical budget: tier 1's strands
+/// span ~0.01-0.15 outer radii above the ball center, tier 2's
+/// ~0.12-0.22 — the whole stack crosses the shadow's face as a
+/// tight braided family just above the dropped equatorial band,
+/// with the 1.30 lensing arc crown well above the family.
 pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
     BlackHoleRingTier {
-        major_scale: 1.00,
+        major_scale: 1.10,
         minor_fraction: BLACK_HOLE_RING_MINOR_FRACTION,
-        center_offset: 0.00,
+        center_offset: -0.08,
         near_squash: BLACK_HOLE_RING_NEAR_SQUASH,
         wobble_fraction: BLACK_HOLE_RING_WOBBLE_FRACTION,
         z_tilt: BLACK_HOLE_RING_Z_TILT,
@@ -690,9 +696,9 @@ pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
         spawn_weight: 0.52,
     },
     BlackHoleRingTier {
-        major_scale: 0.72,
+        major_scale: 0.80,
         minor_fraction: 0.055,
-        center_offset: 0.22,
+        center_offset: 0.05,
         near_squash: 0.42,
         wobble_fraction: 0.20,
         z_tilt: 0.05,
@@ -702,7 +708,7 @@ pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
     BlackHoleRingTier {
         major_scale: 0.52,
         minor_fraction: 0.04,
-        center_offset: 0.42,
+        center_offset: 0.15,
         near_squash: 0.38,
         wobble_fraction: 0.14,
         z_tilt: 0.035,
@@ -969,6 +975,111 @@ pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 6] = [85.0, 60.0, 50.0, 45.0, 
 /// first — the disk sweeps through horizontal and keeps going, the
 /// continuous lever wave of the owner's example sequence.
 pub(crate) const BLACK_HOLE_ROLL_CHAIN_PCT: u32 = 35;
+
+// ── Black hole halo streams (stage 2.6, NIGHT-special-1) ────────────────
+// The arc-riding companion streams of the disk stack (the owner's
+// 9.9/10 feedback): the particles curving up over the hole double
+// their density, and a new mirrored stream curves down under it —
+// same motion DNA as the ring motes (RK4 Lorenz turbulence, Kepler
+// mean motion, entry-spiral drift-in, proximity brightness, comet
+// trails), but the orbit is the ARC CIRCLE around the shadow instead
+// of the flat ellipse: each stream mote rides the full circle and
+// draws only on its own semicircle (the upper stream above the
+// equator, the lower below), handing off at the extremes where the
+// arcs meet the equatorial band — the read of plasma sweeping over
+// the top and under the bottom of the shadow, circulating in the
+// same rotational sense as the disk. Geometry is fractions of the
+// ball outer radius, so the streams scale with any screen size.
+
+/// Upper halo stream arc radius as a multiple of the ball outer
+/// radius. 1.30 co-rides the lensing halo circle — the new stream's
+/// riders share the road with the far-side lensed image, which is
+/// exactly the doubling the owner asked for: the upward-curving
+/// population reads twice as dense without thickening the flat disk
+/// line (the ring pool's tier shares are untouched).
+pub(crate) const BLACK_HOLE_HALO_ARC_FRACTION: f32 = 1.30;
+
+/// Lower halo stream arc radius as a multiple of the ball outer
+/// radius. 1.30 mirrors the upper circle under the shadow (the
+/// owner's wording: same as the above, just the opposite position
+/// below) — the pair completes the photon-ring read around the hole.
+pub(crate) const BLACK_HOLE_HALO_LOWER_ARC_FRACTION: f32 = 1.30;
+
+/// Radial turbulence amplitude of the halo streams (multiple of the
+/// ball outer radius, driven by the attractor's radial coordinate —
+/// the same wobble source the ring motes use). 0.10 gives each arc a
+/// thin plasma thickness without ever dipping inside the ball
+/// silhouette (1.30 - 0.10 = 1.20 outer radii minimum — no
+/// occlusion rule needed for the stream riders).
+pub(crate) const BLACK_HOLE_HALO_WOBBLE_FRACTION: f32 = 0.10;
+
+/// Spawn share of the upper halo stream (the weights sum to 1.0):
+/// 0.56 targets an upper visible population roughly equal to the
+/// far-side lensing arc's transient riders — together the upward
+/// curve reads about twice as dense as before, per the owner's
+/// stage-2.6 feedback ("two times more and denser than now").
+pub(crate) const BLACK_HOLE_HALO_UPPER_WEIGHT: f32 = 0.56;
+
+/// Spawn share of the lower halo stream — 0.44 keeps the mirrored
+/// stream slightly sparser than the upper one (the owner's wording:
+/// "slightly fewer particles than the above"), a subtle asymmetry
+/// that keeps the composition anchored on the lensing crown.
+pub(crate) const BLACK_HOLE_HALO_LOWER_WEIGHT: f32 = 0.44;
+
+// Compile-time contracts on the stream weights: the two shares
+// partition the pool (sum to one — the halo activation reads the
+// upper bound and falls through to the lower), and the upper share
+// stays the larger one (the lower stream must read slightly sparser
+// than the one above it, per the owner's stage-2.6 wording).
+const _: () = assert!(
+    BLACK_HOLE_HALO_UPPER_WEIGHT + BLACK_HOLE_HALO_LOWER_WEIGHT > 0.99
+        && BLACK_HOLE_HALO_UPPER_WEIGHT + BLACK_HOLE_HALO_LOWER_WEIGHT < 1.01
+);
+const _: () = assert!(BLACK_HOLE_HALO_UPPER_WEIGHT > BLACK_HOLE_HALO_LOWER_WEIGHT);
+
+/// Keplerian pace multiplier of the halo streams at the arc radius.
+/// (1.30 / 1.05)^(-3/2) is about 0.74: the arcs sit beyond the disk's
+/// mean radius, so their riders orbit visibly slower — Kepler's
+/// third law across the whole system, the outer-lane read (and the
+/// upper sweep still flows left-to-right over the top, matching the
+/// far-side lensing direction — the rotation follows the disk).
+pub(crate) const BLACK_HOLE_HALO_PACE: f32 = 0.74;
+
+/// Base active-mote ratio of the halo pool (pool = one stream mote
+/// per column, the family lane model). Mirrors the ring pool's own
+/// base exactly: the halo pool fills to the same fraction of its
+/// lanes as the ring does at every density setting, so the upper
+/// stream's visible share (roughly a quarter of the pool — the tag
+/// split times the visible half-lap) tracks the far-side lensing
+/// population (roughly the ring's tier-0 share times its far half)
+/// proportionally — the about-2x upward-curve read holds across the
+/// whole density range, not just at one setting.
+pub(crate) const BLACK_HOLE_HALO_ACTIVE_BASE: f32 = 0.75;
+
+/// Density multiplier for the halo active-count target (mirrors the
+/// ring's multiplier — same reason as the base: proportional
+/// doubling at every density).
+pub(crate) const BLACK_HOLE_HALO_ACTIVE_DENSITY_MULT: f32 = 0.35;
+
+/// Maximum active-mote ratio cap of the halo pool — the full pool is
+/// the honest ceiling (parity with the ring's stage-2.3 cap).
+pub(crate) const BLACK_HOLE_HALO_ACTIVE_MAX: f32 = 1.0;
+
+/// Spawn rate multiplier for the halo pool (parity with the ring's
+/// accumulator arithmetic: 0.35x target + the floor reaches the
+/// steady target with ramp-up headroom).
+pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_MULT: f32 = 0.35;
+
+/// Spawn rate floor (minimum halo spawns per second).
+pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_FLOOR: f32 = 1.5;
+
+/// Halo mote lifetime cap in seconds (with the same ±15% per-mote
+/// variance the ring motes carry). 16 s is slightly over one arc lap
+/// at the scene default speed (the halo pace 0.74 stretches the
+/// ~11.6 s base lap to ~15.7 s), so most riders complete a full
+/// circuit — one visible sweep and one hidden transit — before
+/// recycling, keeping the visible density steady.
+pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 16.0;
 
 // ── Black hole formation intro (stage 2.2, NIGHT-special-1) ────────────
 // The hole's birth sequence — stellar collapse as the intro: a tiny
