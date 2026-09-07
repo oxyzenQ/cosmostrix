@@ -11,9 +11,11 @@
 //! Built-in scenes combine the three core runtime styles (`matrix`,
 //! `monolith`, `signal` — the original "rain atmospheres" naming predates
 //! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
-//! subsystem) with the five structured style flagships (`vortex`,
-//! `flux`, `lorenz`, `cosmic_dragon`, `physarum` — task-18/19 +
-//! NIGHT-research-4/5/6, the signature differentiators), nine curated
+//! subsystem) with the six structured style flagships (`vortex`,
+//! `flux`, `lorenz`, `cosmic_dragon`, `physarum`,
+//! `sorgonemous_intrascals` — task-18/19 +
+//! NIGHT-research-4/5/6 + NIGHT-special-1, the signature differentiators),
+//! nine curated
 //! visual scenes (`classic`, `cinematic`, `calm`, `storm`, `cosmos`,
 //! `neon`, `hacker`, `matrix_film`, `low-power`), the `cosmic-dragon`
 //! milestone scene commemorating the temporal-prediction breakthrough
@@ -23,9 +25,9 @@
 //! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 24 built-in scenes (owner directive 2026-08-24): the
+//! covers all 25 built-in scenes (owner directive 2026-08-24): the
 //! three core atmospheres lead (cinematic, monolith, matrix), then
-//! the five style flagships, the curated classics, the atmosphere
+//! the style flagships, the curated classics, the atmosphere
 //! scenes, the power-saving utility, and the milestone/tribute/honor
 //! scenes as destinations.
 //!
@@ -36,7 +38,10 @@
 //! integrated via RK4); `cosmic_dragon` joined at position 7 — the
 //! Chinese-mythology serpentine dragon (NIGHT-research-5); `physarum`
 //! joined at position 8 — the bio-inspired slime mold (Jeff Jones
-//! 2010 emergent networks, NIGHT-research-6).
+//! 2010 emergent networks, NIGHT-research-6);
+//! `sorgonemous_intrascals` joined at position 9 — the black hole
+//! (NIGHT-special-1 staged rollout: stage 1 ships the
+//! event-horizon ball, the RK4 orbital ring and glyph infall follow).
 
 use crate::config::GlitchLevel;
 use crate::rain_style::RainStyle;
@@ -61,13 +66,15 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 24 built-in scenes (owner directive
+/// Ordered scene cycle — all 25 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
 /// style flagship at 4; task-19 replaced the rejected ripple with
 /// flux at 5; the NIGHT-research-4 merge added lorenz, a
 /// strange-attractor masterpiece, at 6; NIGHT-research-5 added the
 /// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
-/// physarum style flagship at 8; NIGHT-hunter-15 added the dragon_hunt
+/// physarum style flagship at 8; NIGHT-special-1 added the black
+/// hole flagship sorgonemous_intrascals at 9; NIGHT-hunter-15 added
+/// the dragon_hunt
 /// milestone (the glitch-rain-shift bug-hunt reward) at 19; the rest
 /// ordered by daily-use
 /// likelihood so the most-switched scenes are the fewest keystrokes
@@ -97,6 +104,12 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // (Jeff Jones 2010 emergent network patterns). The masterpiece
     // rarity (world-first in the terminal matrix rain category).
     "physarum", // 8
+    // NIGHT-special-1 style flagship — the black hole. A gravitating
+    // body with a black empty event-horizon core (staged rollout:
+    // stage 1 ships the ball; the RK4 orbital ring and the glyph
+    // infall land in stages 2 and 3). Grouped with the style
+    // flagships so the cycle tours all signature motion styles.
+    "sorgonemous_intrascals", // 9
     // Classic siblings — the traditional looks users switch to often.
     "classic",     // 9 — original green-on-black
     "signal",      // 10 — digital transmission
@@ -240,6 +253,31 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             density: Some(0.55),
             glitch_level: Some(GlitchLevel::Subtle),
             rain_style: RainStyle::Physarum,
+        },
+    },
+    // NIGHT-special-1: sorgonemous_intrascals — the black hole flagship
+    // scene. The name is the owner's own coinage, born on a night walk
+    // under the stars (kept verbatim per owner directive, joined with
+    // an underscore to match the cosmic_dragon / matrix_film flagship
+    // naming convention). The energy-zen palette + binary charset per
+    // the owner spec: brand-crystal light wrapping an absolute void.
+    // Stage 1 renders the event-horizon ball — a centered medium ball
+    // with a black empty core and a photon-ring rim, dynamic for any
+    // screen size. Speed 12 gives the hole a contemplative cadence;
+    // density 0.55 is inert at stage 1 (no glyph rain yet) and will
+    // drive the stage 3 infall when it lands. Glitch level none —
+    // the void is still.
+    SceneInfo {
+        name: "sorgonemous_intrascals",
+        description: "Sorgonemous Intrascals — black hole event horizon; a centered ball of light wrapping a black empty core (stage 1: the ball; the orbital ring and glyph infall follow)",
+        config: SceneConfig {
+            color: Some("energy-zen"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(12.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::BlackHole,
         },
     },
     SceneInfo {

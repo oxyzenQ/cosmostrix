@@ -122,7 +122,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # A block is a COMPLETE self-contained profile: ALL seven dimensions are
 # required (rain plus one of each pair). An incomplete block is a hard error
 # at startup, on live-reload, and in --testconf.
-#   rain                     = glyph|monolith|vortex|flux|lorenz|dragon|physarum
+#   rain                     = glyph|monolith|vortex|flux|lorenz|dragon|physarum|black_hole
 #   color OR colors-custom   = built-in theme name OR custom palette block
 #   charset OR charset-custom = built-in preset OR custom charset block
 #   fps = 1-240, speed = 1-100, density = 0.01-5.0, glitch-level = none|subtle|default|intense
@@ -132,7 +132,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # async-mode (style keys are top-level, not per-scene).
 
 # [scene-custom.hacker-mode]
-# rain = "glyph"                       # rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum)
+# rain = "glyph"                       # rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole)
 # color = "green"                       # built-in color name (OR colors-custom = "<palette>")
 # charset = "hacker"                    # built-in charset (OR charset-custom = "<set>")
 # fps = 60                              # 1-240

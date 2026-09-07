@@ -9,11 +9,12 @@ use super::*;
 #[test]
 fn cycle_scene_forward_order() {
     // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18/19 + NIGHT-research-4/5/6 style flagships:
-    // vortex -> flux -> lorenz -> cosmic_dragon -> physarum ->
-    // classic (both ripple replacements present; lorenz is a
-    // strange-attractor masterpiece; physarum is the bio-inspired
-    // slime-mold style).
+    // the task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1 style
+    // flagships: vortex -> flux -> lorenz -> cosmic_dragon -> physarum
+    // -> sorgonemous_intrascals -> classic (both ripple replacements
+    // present; lorenz is a strange-attractor masterpiece; physarum is
+    // the bio-inspired slime-mold style; sorgonemous_intrascals is the
+    // black hole — NIGHT-special-1 stage 1 ships the ball).
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
@@ -21,7 +22,8 @@ fn cycle_scene_forward_order() {
     assert_eq!(cycle_scene("flux", 1), "lorenz");
     assert_eq!(cycle_scene("lorenz", 1), "cosmic_dragon");
     assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
-    assert_eq!(cycle_scene("physarum", 1), "classic");
+    assert_eq!(cycle_scene("physarum", 1), "sorgonemous_intrascals");
+    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -71,13 +73,15 @@ fn scene_names_are_present() {
     assert_eq!(DEFAULT_SCENE, "cinematic");
     // v80.0.0 masterclass: all_scene_names() is DERIVED from SCENES
     // (single source of truth — no hand-maintained duplicate array to
-    // drift). This pin documents the full 24-scene catalog and is a
+    // drift). This pin documents the full 25-scene catalog and is a
     // deliberate change-detector: adding a scene must update this list,
     // which is exactly the moment a reviewer should see the catalog grow.
     // NIGHT-research-5/6: cosmic_dragon + physarum joined at cycle
     // positions 7-8; physarum sorts alphabetically after orange-cat.
     // NIGHT-hunter-15: dragon_hunt joined at cycle position 19; sorts
     // alphabetically after curiosity, before flux.
+    // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
+    // 9; sorts alphabetically after signal, before storm.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -103,6 +107,7 @@ fn scene_names_are_present() {
             "orange-cat",
             "physarum",
             "signal",
+            "sorgonemous_intrascals",
             "storm",
             "vortex",
         ]
@@ -145,13 +150,15 @@ fn neon_scene_breathing_room_density() {
 }
 
 #[test]
-fn scene_catalog_has_twenty_four_entries() {
+fn scene_catalog_has_twenty_five_entries() {
     // NIGHT-research-5/6: catalog grew from 21 to 23 scenes
     // (cosmic_dragon + physarum joined at cycle positions 7-8 —
     // the serpentine-dragon and slime-mold rain styles).
     // NIGHT-hunter-15: dragon_hunt joined at cycle position 19 —
     // the biggest-bug-hunt milestone (glitch rain shift).
-    assert_eq!(SCENES.len(), 24, "catalog must contain 24 built-in scenes");
+    // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
+    // 9 — the black hole flagship (stage 1: the event-horizon ball).
+    assert_eq!(SCENES.len(), 25, "catalog must contain 25 built-in scenes");
 }
 
 #[test]
@@ -237,7 +244,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        24,
+        25,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —
@@ -309,6 +316,25 @@ fn calm_scene_uses_ocean_zen_density() {
     assert_eq!(s.config.speed, Some(6.0));
     assert_eq!(s.config.density, Some(0.40));
     assert_eq!(s.config.glitch_level, Some(GlitchLevel::None));
+}
+
+#[test]
+fn sorgonemous_intrascals_scene_marks_black_hole_flagship() {
+    // NIGHT-special-1 stage 1: the black hole flagship — owner spec
+    // is the energy-zen palette, binary charset, a centered medium
+    // ball with a black empty core. The description must reference
+    // the black hole so the scene's purpose is self-documenting via
+    // --list-scenes / --show-scene.
+    let s = get_scene("sorgonemous_intrascals").expect("sorgonemous_intrascals scene");
+    assert_eq!(s.config.color, Some("energy-zen"));
+    assert_eq!(s.config.charset, Some("binary"));
+    assert_eq!(s.config.fps, Some(60.0));
+    assert_eq!(s.config.rain_style, RainStyle::BlackHole);
+    assert!(
+        s.description.contains("black hole"),
+        "sorgonemous_intrascals description must reference the black hole: {}",
+        s.description
+    );
 }
 
 #[test]

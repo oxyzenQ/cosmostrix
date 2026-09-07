@@ -546,3 +546,32 @@ pub(crate) const PHYSARUM_BRIGHTNESS_MID: f32 = 0.15;
 /// Single-particle-visited cells typically reach this brightness
 /// after sustained deposition (steady-state ~0.10).
 pub(crate) const PHYSARUM_BRIGHTNESS_DIM: f32 = 0.03;
+
+// ── Black hole (eighth rain style, NIGHT-special-1) ────────────────────
+// A gravitating body, not a particle field: a centered medium ball
+// with a black empty event-horizon core and a photon-ring rim that
+// fades outward into the dark (the sorgonemous_intrascals scene).
+// Staged rollout — stage 1 ships the ball; stage 2 adds the RK4
+// orbital ring, stage 3 the glyph infall. All radius math runs in
+// line-height units so the geometry scales with any screen size.
+
+/// Ball outer radius as a fraction of the viewport's limiting
+/// half-extent (in line-height units: min(cols / 4, lines / 2)).
+/// 0.55 reads as a medium ball on every terminal class — roughly a
+/// third of the short axis at 80x24 and the same proportion at
+/// 400x100, matching the owner's "medium size ball" spec.
+pub(crate) const BLACK_HOLE_BALL_FRACTION: f32 = 0.55;
+
+/// Event-horizon (empty core) radius as a fraction of the ball outer
+/// radius. The core is never drawn — it shows the background, the
+/// hole itself. 0.58 leaves a visible annulus on small terminals
+/// while keeping the empty middle unmistakably dominant, per the
+/// owner's "core is black/empty" spec.
+pub(crate) const BLACK_HOLE_CORE_FRACTION: f32 = 0.58;
+
+/// Per-cell per-frame glyph re-roll chance for the ball surface (the
+/// matrix-shimmer life sign every style carries). Far below the
+/// motion-gated shimmer of the particle styles because the ball is
+/// static: 0.02 at 60 FPS re-rolls each cell about once per 0.8 s —
+/// a calm surface flicker at the event horizon, not a chaotic storm.
+pub(crate) const BLACK_HOLE_SHIMMER_CHANCE: f32 = 0.02;

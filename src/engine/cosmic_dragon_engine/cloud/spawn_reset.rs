@@ -54,13 +54,14 @@ impl super::Cloud {
         self.cols = cols;
         self.lines = lines;
 
-        // Task-18/19 + NIGHT-research-4/5/6: structured styles
-        // (Monolith, Vortex, Flux, Lorenz, Dragon, Physarum) keep the
-        // droplet pool empty; the droplet-family style (Glyph)
-        // allocates it. (Ripple was structured-but-droplet-family in
+        // Task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1: structured
+        // styles (Monolith, Vortex, Flux, Lorenz, Dragon, Physarum,
+        // BlackHole) keep the droplet pool empty; the droplet-family
+        // style (Glyph) allocates it. (Ripple was structured-but-droplet-family in
         // the old design — task-19 replaced it with fully-structured
         // Flux; NIGHT-research-4/5/6 added Lorenz, Dragon and
-        // Physarum, which all share the Vortex contract.)
+        // Physarum, which all share the Vortex contract; NIGHT-special-1
+        // added the black hole ball, which shares it too.)
         if self.rain_style.is_droplet_family() {
             let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
             self.droplets.clear();
@@ -76,6 +77,7 @@ impl super::Cloud {
         self.lorenz_rain.reset(self.cols);
         self.dragon_rain.reset(self.cols);
         self.physarum_rain.reset(self.cols);
+        self.black_hole_rain.reset(self.cols, self.lines);
 
         // Re-seed the droplet free-list: after clear+resize, all droplets
         // are dead (Droplet::new defaults is_alive=false), so every index

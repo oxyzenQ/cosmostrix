@@ -377,6 +377,9 @@ impl Cloud {
             // parity with vortex/dragon (structured family sibling).
             // The trail field is cleared too (fresh substrate on next entry).
             RainStyle::Physarum => self.physarum_rain.reset(self.cols),
+            // NIGHT-special-1: the black hole ball takes a full reset on
+            // exit — parity with the structured family siblings.
+            RainStyle::BlackHole => self.black_hole_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -423,6 +426,15 @@ impl Cloud {
                 // contract, no droplet pool, full particle + trail
                 // field reset on entry — fresh substrate).
                 self.physarum_rain.reset(self.cols);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::BlackHole => {
+                // NIGHT-special-1: black hole entry mirrors the
+                // structured-family contract (no droplet pool, full ball
+                // rebuild on entry — fresh geometry for the viewport).
+                self.black_hole_rain.reset(self.cols, self.lines);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

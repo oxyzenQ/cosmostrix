@@ -107,6 +107,12 @@ impl Cloud {
             // same draw-history clear on charset switch.
             self.physarum_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::BlackHole) {
+            // NIGHT-special-1: black hole — structured-family sibling.
+            // clear_draw_history also arms a full glyph re-roll so the
+            // ball surface never carries glyphs from the old pool.
+            self.black_hole_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -188,6 +194,12 @@ impl Cloud {
             // NIGHT-research-6: physarum — structured-family sibling,
             // same draw-history clear on palette change.
             self.physarum_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::BlackHole) {
+            // NIGHT-special-1: black hole — structured-family sibling,
+            // same draw-history clear on palette change (the re-roll arm
+            // covers the charset-switch half of this contract).
+            self.black_hole_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

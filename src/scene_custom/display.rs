@@ -76,7 +76,7 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
 
     let mut has_field = false;
     // NIGHT-research-5: `rain` field — the rain style label (glyph,
-    // monolith, vortex, flux, lorenz, dragon, physarum). Rendered
+    // monolith, vortex, flux, lorenz, dragon, physarum, black_hole). Rendered
     // first so the user reads the active motion DNA before the other
     // scene-family fields.
     if let Some(rain) = scene.rain.as_deref() {

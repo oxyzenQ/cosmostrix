@@ -358,7 +358,8 @@ COMMON OPTIONS:
       fps, speed, density, glitch-level, and rain style to curated
       values. Explicit CLI flags always override scene-managed values.
       Built-in scenes: cinematic (default), matrix, monolith, vortex,
-      flux, lorenz, cosmic_dragon, physarum, signal, classic,
+      flux, lorenz, cosmic_dragon, physarum,
+      sorgonemous_intrascals, signal, classic,
       calm, storm, cosmos, neon, hacker, low-power, matrix_film,
       cosmic-dragon, dragon_hunt, carbonic, crystal-dragon, orange-cat,
       north-stars, curiosity.
@@ -408,7 +409,8 @@ COMMON OPTIONS:
       charset-custom, fps, speed, density, glitch-level — ALL
       required; incomplete blocks are rejected by --testconf,
       startup, and live-reload). rain picks the motion style by label
-      (glyph, monolith, vortex, flux, lorenz, dragon, physarum).
+      (glyph, monolith, vortex, flux, lorenz, dragon, physarum,
+      black_hole).
       v80.0.0-beta.2: base-scene inheritance is REMOVED — the block's
       own rain field owns the motion style (NIGHT-research-5);
       bold/shading-mode/async-mode are top-level keys, not

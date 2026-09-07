@@ -57,6 +57,7 @@ mod state;
 // `impl Cloud` block (methods accessed via `self.spawn_droplets(...)`,
 // not via `crate::cloud::spawn_logic::*`).
 pub(crate) mod type_rain;
+pub(crate) use type_rain::black_hole;
 pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;
 pub(crate) use type_rain::lorenz;
@@ -90,6 +91,7 @@ use crate::palette::{build_palette, Palette};
 use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
+use black_hole::BlackHoleRain;
 use dragon::DragonRain;
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
@@ -173,6 +175,13 @@ pub struct Cloud {
     /// stigmergic trail field — Jeff Jones 2010 model. The
     /// terminal's discrete cell grid IS the substrate.
     pub(crate) physarum_rain: PhysarumRain,
+    /// NIGHT-special-1 eighth rain style: black hole ball
+    /// (sorgonemous_intrascals scene). Structured family sibling
+    /// (no droplet pool). Stage 1 renders the gravitating body
+    /// itself — a centered medium ball with a black empty
+    /// event-horizon core; the RK4 orbital ring and glyph infall
+    /// land in stages 2 and 3.
+    pub(crate) black_hole_rain: BlackHoleRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -482,6 +491,7 @@ impl Cloud {
             lorenz_rain: LorenzRain::new(),
             dragon_rain: DragonRain::new(),
             physarum_rain: PhysarumRain::new(),
+            black_hole_rain: BlackHoleRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -845,6 +855,7 @@ impl Cloud {
             RainStyle::Lorenz => self.lorenz_rain.active_count(),
             RainStyle::Dragon => self.dragon_rain.active_count(),
             RainStyle::Physarum => self.physarum_rain.active_count(),
+            RainStyle::BlackHole => self.black_hole_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

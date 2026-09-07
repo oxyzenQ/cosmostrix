@@ -158,6 +158,12 @@ impl super::Cloud {
                     // so the particle update alone suffices).
                     self.physarum_rain
                         .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::BlackHole) {
+                    // NIGHT-special-1: the black hole ball adopts the new
+                    // palette slot (single body, one slot for every cell —
+                    // parity with the structured-family transition path).
+                    self.black_hole_rain
+                        .adopt_palette_slot(self.active_palette_slot);
                 } else {
                     for d in &mut self.droplets {
                         if d.is_alive {
@@ -441,6 +447,13 @@ impl super::Cloud {
             };
             self.physarum_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::BlackHole) {
+            // NIGHT-special-1 stage 1: the ball spawns nothing — the
+            // body IS the visual (reset builds the geometry, draw
+            // renders it). Keep the shared spawn clock fresh so no
+            // stale elapsed accumulates for future stages (the stage 3
+            // glyph infall will replace this arm with a real spawner).
+            self.last_spawn_time = now;
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -487,6 +500,12 @@ impl super::Cloud {
                     // sibling, clear draw history on semantic
                     // invalidation, mirroring monolith/vortex/dragon.
                     self.physarum_rain.clear_draw_history();
+                } else if matches!(self.rain_style, RainStyle::BlackHole) {
+                    // NIGHT-special-1: black hole — structured family
+                    // sibling, clear draw history on semantic
+                    // invalidation, mirroring the other structured styles
+                    // (also arms the ball's glyph re-roll).
+                    self.black_hole_rain.clear_draw_history();
                 } else {
                     // NIGHT-research-4: lorenz — the last structured
                     // family member; clear its draw history on semantic
@@ -573,6 +592,17 @@ impl super::Cloud {
                 content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.physarum_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::BlackHole) {
+                // NIGHT-special-1: the black hole ball is a structured
+                // family style and follows the same force-draw reset path
+                // as the other structured styles (full frame clear + draw
+                // history wipe + phosphor state reset). The ball geometry
+                // itself is preserved (reset-state, not render artifact —
+                // wiping it would flash the hole away).
+                content_invalidated = true;
+                frame.clear_with_bg(self.palette.bg);
+                self.black_hole_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -708,6 +738,11 @@ impl super::Cloud {
                 resume_blend: self.resume_blend,
             };
             self.physarum_rain.advance(&step);
+        } else if matches!(self.rain_style, RainStyle::BlackHole) {
+            // NIGHT-special-1 stage 1: the ball is static — nothing to
+            // integrate yet. Stage 2 (the RK4 orbital ring) and stage 3
+            // (the glyph infall) will grow a BlackHoleStep here on the
+            // same dt-clamp + resume_blend contract as the siblings.
         } else {
             // Glyph family: droplet advance (no surface system —
             // ripple's water-line physics was removed along with
@@ -1313,6 +1348,23 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.physarum_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::BlackHole) {
+            // NIGHT-special-1: black hole draw — same diff-cleanup
+            // contract as the structured siblings (the stage-1 ball is
+            // static so the diff is a no-op today; stage 2's moving ring
+            // and stage 3's infalling glyphs will vacate cells and rely
+            // on exactly this contract). The renderer is body-agnostic;
+            // the same pattern serves the future ring + infall layers.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.black_hole_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

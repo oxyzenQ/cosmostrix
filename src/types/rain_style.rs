@@ -3,13 +3,14 @@
 
 //! Internal rain style selection.
 //!
-//! Style families (task-19 + NIGHT-research-4/5/6, seven styles):
+//! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1,
+//! eight styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
 //! - Structured family ([`RainStyle::Monolith`], [`RainStyle::Vortex`],
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
-//!   [`RainStyle::Physarum`]) — dedicated state machines with
+//!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`]) — dedicated state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
 //!   incompressible fluid (see `cloud/type_rain/flux/flux_field.rs`); Lorenz moves
@@ -21,7 +22,11 @@
 //!   Physarum runs the Jeff Jones 2010 slime-mold model — particles
 //!   sense / decide / move / deposit on a stigmergic trail field,
 //!   producing emergent network patterns (bio-inspired algorithm —
-//!   the terminal's discrete cell grid IS the slime-mold substrate).
+//!   the terminal's discrete cell grid IS the slime-mold substrate);
+//!   BlackHole renders a gravitating body — a centered ball with a
+//!   black empty event-horizon core (NIGHT-special-1 staged rollout:
+//!   stage 1 ships the ball, the RK4 orbital ring and the glyph infall
+//!   follow in stages 2 and 3).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -32,6 +37,7 @@ pub enum RainStyle {
     Lorenz,
     Dragon,
     Physarum,
+    BlackHole,
 }
 
 impl RainStyle {
@@ -45,6 +51,7 @@ impl RainStyle {
             Self::Lorenz => "lorenz",
             Self::Dragon => "dragon",
             Self::Physarum => "physarum",
+            Self::BlackHole => "black_hole",
         }
     }
 
@@ -63,7 +70,9 @@ impl RainStyle {
     /// `spawn_remainder` accumulator (Monolith lanes, Vortex motes,
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
     /// particles). Glyph-family spawn uses
-    /// per-column timing instead.
+    /// per-column timing instead. BlackHole spawns nothing at stage 1
+    /// (the ball is the whole visual); the stage 3 glyph infall will
+    /// revisit this classification when it lands.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
         matches!(
@@ -98,6 +107,7 @@ impl RainStyle {
             "lorenz" => Some(Self::Lorenz),
             "dragon" => Some(Self::Dragon),
             "physarum" => Some(Self::Physarum),
+            "black_hole" | "blackhole" => Some(Self::BlackHole),
             _ => None,
         }
     }
@@ -108,6 +118,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole"
     }
 }

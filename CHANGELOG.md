@@ -9,6 +9,42 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-special-1 — the black hole rain style + sorgonemous_intrascals scene (stage 1: the event-horizon ball)
+
+Owner spec (2026-09-07): a new rain style `black_hole` and a new scene
+`sorgonemous_intrascals` (energy-zen palette, binary charset) — a
+gravitating body instead of a particle field, staged one commit per
+stage for owner visual verification. Stage 1 ships the event-horizon
+ball: a centered medium ball, geometry dynamic for any screen size
+(radius fractions of the viewport's limiting half-extent,
+aspect-corrected cell math), a black empty core (never drawn — the
+hole itself), and a photon-ring radial brightness ramp (Core band
+hugging the horizon, fading outward to Ghost) with a calm surface
+shimmer. Stage 2 (the RK4 orbital ring — the lorenz integrator is
+attractor-agnostic and reusable) and stage 3 (the glyph infall —
+falling glyphs bending elegantly into the core near the ring) follow
+per the staged rollout.
+
+Wiring follows the structured-family contract (vortex/lorenz/dragon/
+physarum pattern): `RainStyle::BlackHole` (canonical label
+`black_hole`, not droplet-family, no spawn-remainder at stage 1), the
+`type_rain/black_hole` module (cached annulus geometry rebuilt on
+reset, monolith three-pass diff cleanup, a charset-switch glyph
+re-roll arm so the ball never carries stale-pool glyphs), dispatch
+arms in spawn / runtime_controls / rain_at / scene_runtime /
+spawn_reset, constants in style_rain.rs, and the scene entry at cycle
+position 9 after physarum. Catalog grows 24 -> 25 scenes; the
+scene-count pins, the sorted name list, the x-cycle order pins, the
+--scene help list, the scene-custom style label lists, the
+configfile dump comments, and the README style-flagship section all
+updated.
+
+Gates: cargo fmt clean, clippy 0 warnings, 2427/2427 unit tests
+(2420 prior + 6 black-hole behavior contracts + 1 scene pin), build.sh
+check-all green (cargo-audit skipped: not installed, same as prior
+sessions), gate-keepers 10/10, comment-style 0 emphasis markers, LOC
+caps respected.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did
