@@ -575,3 +575,109 @@ pub(crate) const BLACK_HOLE_CORE_FRACTION: f32 = 0.58;
 /// static: 0.02 at 60 FPS re-rolls each cell about once per 0.8 s —
 /// a calm surface flicker at the event horizon, not a chaotic storm.
 pub(crate) const BLACK_HOLE_SHIMMER_CHANCE: f32 = 0.02;
+
+// ── Black hole orbital ring (stage 2, NIGHT-special-1) ─────────────────
+// RK4-Lorenz-turbulent motes orbiting the ball on a tilted ellipse —
+// the accretion-stream read. The mean motion is Keplerian (inner
+// motes orbit faster, the differential rotation of a real disk);
+// the canonical Lorenz attractor (sigma 10, rho 28, beta 8/3 — the
+// same system the lorenz style renders) drives the turbulence: its
+// radial coordinate wobbles the orbital radius, its z displaces the
+// mote out of the ring plane and grades the glyph brightness. All
+// ring radii are multiples of the ball outer radius, so the band
+// scales with any screen size like the ball does.
+
+/// Mean ring radius as a multiple of the ball outer radius. 1.38
+/// leaves a thin dark gap between the photon ring and the stream —
+/// the read of every real accretion-disk image (the disk starts
+/// outside the shadow, never touching it).
+pub(crate) const BLACK_HOLE_RING_RADIUS_FRACTION: f32 = 1.38;
+
+/// Radial turbulence amplitude as a multiple of the ball outer
+/// radius, driven by the attractor's radial coordinate (the lobe
+/// distance). 0.34 swings the band across roughly a third of the
+/// ball radius — a living plasma stream, not a rigid hoop.
+pub(crate) const BLACK_HOLE_RING_WOBBLE_FRACTION: f32 = 0.34;
+
+/// Vertical squeeze of the orbital ellipse. The disk is viewed from
+/// slightly above: 0.45 flattens the circle into the tilted-ellipse
+/// read of the iconic black-hole imagery (EHT M87*, Gargantua).
+pub(crate) const BLACK_HOLE_RING_TILT: f32 = 0.45;
+
+/// Out-of-plane displacement amplitude (the attractor z mapped onto
+/// the screen vertical), as a multiple of the ball outer radius.
+/// Small on purpose: 0.18 lets motes breathe around the disk plane
+/// instead of flying off it — the thickness cue of a real disk.
+pub(crate) const BLACK_HOLE_RING_Z_TILT: f32 = 0.18;
+
+/// Trail depth per mote (comet streak length in cells). Four cells
+/// matches the vortex drain streak: at the ring's tangential speed
+/// the head crosses a new cell every few frames, so four cells show
+/// a short luminous arc trailing each mote.
+pub(crate) const BLACK_HOLE_RING_TRAIL_LEN: usize = 4;
+
+/// Mote lifetime cap in seconds (with ±15% per-mote variance at
+/// spawn, so absorption is staggered — no rhythmic mass respawn).
+/// 14 s is slightly calmer than lorenz's 12 s: one orbit at the
+/// scene default speed takes ~11.6 s, so most motes complete a
+/// full lap before recycling.
+pub(crate) const BLACK_HOLE_RING_MAX_AGE_SECS: f32 = 14.0;
+
+/// Base active-mote ratio for density scaling (pool = one mote per
+/// column, the family lane model). 0.22 keeps the ring a stream of
+/// individuals, not a solid band.
+pub(crate) const BLACK_HOLE_RING_ACTIVE_BASE: f32 = 0.22;
+
+/// Density multiplier for the ring active-count target.
+pub(crate) const BLACK_HOLE_RING_ACTIVE_DENSITY_MULT: f32 = 0.35;
+
+/// Maximum active-mote ratio cap of the pool — bounds the stream
+/// density so extreme settings don't saturate the band.
+pub(crate) const BLACK_HOLE_RING_ACTIVE_MAX: f32 = 0.55;
+
+/// Spawn rate multiplier (steady state needs target/avg_lifetime
+/// motes per second; 0.35x target + floor 1.5 reaches it with
+/// ramp-up headroom — parity with vortex/lorenz/physarum).
+pub(crate) const BLACK_HOLE_RING_SPAWN_RATE_MULT: f32 = 0.35;
+
+/// Spawn rate floor (minimum spawns per second).
+pub(crate) const BLACK_HOLE_RING_SPAWN_RATE_FLOOR: f32 = 1.5;
+
+/// Matrix-style glyph mutation chance when a mote head crosses into
+/// a new cell (mutation tied to motion — the family shimmer gate).
+pub(crate) const BLACK_HOLE_RING_SHIMMER_CHANCE: f32 = 0.4;
+
+/// RK4 integration step per cell of speed: chars_per_sec mapped onto
+/// attractor time (parity with LORENZ_DT_PER_CPS — the same
+/// canonical system, the same stability regime; RK4 stays stable
+/// for dt well under 0.01).
+pub(crate) const BLACK_HOLE_RING_DT_PER_CPS: f32 = 0.005;
+
+/// Mean orbital angular rate per cell of speed (radians per
+/// second). At the scene default speed 12 the ring completes one
+/// lap in ~11.6 s — a majestic pace; the up/down speed keys scale
+/// it linearly like every other style.
+pub(crate) const BLACK_HOLE_RING_OMEGA_PER_CPS: f32 = 0.045;
+
+/// Keplerian shear exponent (Kepler's third law: omega scales with
+/// r to the minus three-halves). Motes wobbled inward orbit
+/// visibly faster than ones wobbled outward — the differential
+/// rotation signature of a real accretion disk.
+pub(crate) const BLACK_HOLE_RING_KEPLER_EXP: f32 = 1.5;
+
+/// Attractor radial center for the wobble normalization: the lobe
+/// radius sqrt(beta*(rho-1)) of the canonical system (about 8.485).
+/// The mote's distance from the attractor z-axis, normalized around
+/// this center, drives the orbital-radius turbulence.
+pub(crate) const BLACK_HOLE_RING_R_NORM_CENTER: f32 = 8.5;
+
+/// Attractor radial normalization gain (1 / R_NORM_CENTER).
+pub(crate) const BLACK_HOLE_RING_R_NORM_GAIN: f32 = 1.0 / 8.5;
+
+/// Attractor z center for the out-of-plane normalization: the lobe
+/// altitude rho - 1 = 27 of the canonical system.
+pub(crate) const BLACK_HOLE_RING_Z_NORM_CENTER: f32 = 27.0;
+
+/// Attractor z normalization gain (the canonical attractor z range
+/// [0, 50] spans ±23 around the center).
+pub(crate) const BLACK_HOLE_RING_Z_NORM_GAIN: f32 = 1.0 / 23.0;

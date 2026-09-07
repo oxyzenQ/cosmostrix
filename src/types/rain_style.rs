@@ -69,10 +69,9 @@ impl RainStyle {
     /// True for styles that integrate spawn through the fractional
     /// `spawn_remainder` accumulator (Monolith lanes, Vortex motes,
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
-    /// particles). Glyph-family spawn uses
-    /// per-column timing instead. BlackHole spawns nothing at stage 1
-    /// (the ball is the whole visual); the stage 3 glyph infall will
-    /// revisit this classification when it lands.
+    /// particles, and since stage 2 the BlackHole orbital-ring motes).
+    /// Glyph-family spawn uses per-column timing instead. The stage 3
+    /// glyph infall will reuse the same accumulator path.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
         matches!(
@@ -83,6 +82,7 @@ impl RainStyle {
                 | Self::Lorenz
                 | Self::Dragon
                 | Self::Physarum
+                | Self::BlackHole
         )
     }
 

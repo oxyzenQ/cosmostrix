@@ -2,9 +2,11 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! NIGHT-special-1 tests: the black hole rain style (eighth style,
-//! the sorgonemous_intrascals event-horizon ball — stage 1).
+//! the sorgonemous_intrascals scene — the event-horizon ball and its
+//! stage-2 orbital ring).
 
 mod core;
+mod ring;
 
 pub(crate) use crate::cloud::Cloud;
 pub(crate) use crate::frame::Frame;
@@ -28,6 +30,11 @@ pub(crate) fn make_black_hole_cloud(cols: u16, lines: u16) -> Cloud {
     cloud.set_droplet_density(0.55);
     cloud.set_chars_per_sec(12.0);
     cloud.reset(cols, lines);
+    // Set max_sim_delta so the advance pass integrates the orbital
+    // ring (without this, max_sim_delta defaults to ZERO and the
+    // advance dt clamps to zero — the same harness note the dragon
+    // and flux test trees carry). One frame step at 60 FPS.
+    cloud.set_max_sim_delta(Duration::from_millis(16));
     cloud.clear_redraw_flags_for_test();
     cloud
 }

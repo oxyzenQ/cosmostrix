@@ -15,6 +15,7 @@ use crate::constants::*;
 use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
+use super::black_hole::{BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep};
 use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::flux::{FluxRandom, FluxSpawnParams, FluxStep};
 use super::lorenz::{LorenzRandom, LorenzSpawnParams, LorenzStep};
@@ -448,12 +449,29 @@ impl super::Cloud {
             self.physarum_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else if matches!(self.rain_style, RainStyle::BlackHole) {
-            // NIGHT-special-1 stage 1: the ball spawns nothing — the
-            // body IS the visual (reset builds the geometry, draw
-            // renders it). Keep the shared spawn clock fresh so no
-            // stale elapsed accumulates for future stages (the stage 3
-            // glyph infall will replace this arm with a real spawner).
+            // NIGHT-special-1 stage 2: the orbital ring spawns motes on
+            // the same accumulator contract as lorenz/vortex (elapsed
+            // clamped by max_sim_delta, fractional remainder carried
+            // in the shared spawn_remainder field).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
             self.last_spawn_time = now;
+
+            let params = BlackHoleSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = BlackHoleRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.black_hole_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -739,10 +757,18 @@ impl super::Cloud {
             };
             self.physarum_rain.advance(&step);
         } else if matches!(self.rain_style, RainStyle::BlackHole) {
-            // NIGHT-special-1 stage 1: the ball is static — nothing to
-            // integrate yet. Stage 2 (the RK4 orbital ring) and stage 3
-            // (the glyph infall) will grow a BlackHoleStep here on the
-            // same dt-clamp + resume_blend contract as the siblings.
+            // NIGHT-special-1 stage 2: the orbital ring takes the same
+            // dt-clamp + resume_blend contract as the structured
+            // siblings (single global clock; the per-mote RK4 Lorenz
+            // step + Keplerian advance live in
+            // type_rain/black_hole/ring.rs).
+            let step = BlackHoleStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            self.black_hole_rain.advance(&step);
         } else {
             // Glyph family: droplet advance (no surface system —
             // ripple's water-line physics was removed along with

@@ -1,0 +1,341 @@
+// Copyright (C) 2026 rezky_nightky
+// SPDX-License-Identifier: GPL-3.0-only
+
+//! Black hole orbital ring (NIGHT-special-1 stage 2): the physics
+//! half of the ring, split from `black_hole.rs` the way the
+//! monolith/dragon families split their helpers (the ball geometry,
+//! the mote pool bookkeeping and the diff-cleanup orchestration stay
+//! in the main file; the per-mote math lives here).
+//!
+//! Motion DNA — Keplerian mean orbit laminated with RK4 Lorenz
+//! turbulence: each mote is a glyph carried around the ball on a
+//! tilted ellipse. The mean motion is a circular orbit whose angular
+//! rate follows Kepler's third law (omega scales with the mote's
+//! current wobbled radius to the minus three-halves) — motes wobbled
+//! inward visibly outpace ones wobbled outward, the differential
+//! rotation of a real accretion disk. Superposed on that mean flow,
+//! the canonical Lorenz attractor (sigma 10, rho 28, beta 8/3 — the
+//! same system the lorenz style renders, the foundational chaotic
+//! ODE of nonlinear dynamics) is integrated per mote with classical
+//! fourth-order Runge-Kutta: the attractor's radial coordinate
+//! wobbles the orbital radius, its z coordinate displaces the mote
+//! out of the ring plane and grades the glyph brightness through the
+//! shared z ladder. The result reads as a turbulent plasma stream
+//! orbiting the hole — not a rigid hoop, not a chaotic scribble:
+//! chaos laminated onto an orbit.
+//!
+//! Occlusion (the 3D read): the ellipse's upper half is the far
+//! side of the tilted disk. Motes whose screen cells fall inside the
+//! ball silhouette above the viewport center are passing behind the
+//! hole and are skipped; near-side motes cross in front of the event
+//! horizon, drawing over the empty core — the tilted-disk money
+//! shot.
+//!
+//! Family contracts honored: pool = one mote per column (lane
+//! model), deficit-bounded spawn accumulator with fractional
+//! remainder, lifetime absorption with per-mote variance,
+//! motion-gated matrix shimmer, comet trail with the dimming ladder,
+//! palette-slot adoption, three-pass diff cleanup (driven from the
+//! ball file's draw pass).
+
+use std::time::{Duration, Instant};
+
+use rand::{
+    distr::{Distribution, Uniform},
+    rngs::StdRng,
+};
+
+use super::super::monolith::BrightnessLevel;
+use super::black_hole::CELL_ASPECT_DIVISOR;
+
+/// One orbital mote: a glyph riding a Keplerian ring whose turbulence
+/// is the RK4-integrated Lorenz state (x, y, z). Same field set as
+/// `LorenzMote` plus the orbital angle — the struct stays
+/// plain-old-data so the pool is one flat Vec (cache-friendly, no
+/// per-frame allocation).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct RingMote {
+    pub(crate) active: bool,
+    /// Orbital angle around the ball (radians, unbounded — read
+    /// through sin/cos so no wrapping bookkeeping is needed).
+    pub(crate) phi: f32,
+    /// Lorenz state vector — the turbulence source. Seeded near the
+    /// textbook initial condition (±1, 1, 1) with per-mote
+    /// perturbation, exactly like the lorenz style's motes.
+    pub(crate) x: f32,
+    pub(crate) y: f32,
+    pub(crate) z: f32,
+    /// Simulation age in seconds (drives absorption).
+    pub(crate) sim_age: f32,
+    /// Per-mote lifetime cap (±15% variance at spawn).
+    pub(crate) lifetime: f32,
+    /// Per-mote pace multiplier (0.85..1.15) so even identically
+    /// seeded motes drift apart in phase over time.
+    pub(crate) pace: f32,
+    /// Glyph carried by the mote; re-rolled matrix-style when the
+    /// head crosses into a new cell (mutation tied to motion).
+    pub(crate) ch: char,
+    /// Palette slot adopted at spawn / palette transition.
+    pub(crate) palette_slot: u8,
+    /// Ring buffer of the last head cell positions (oldest first).
+    pub(crate) trail: [(u16, u16); crate::constants::BLACK_HOLE_RING_TRAIL_LEN],
+    pub(crate) trail_len: u8,
+}
+
+impl RingMote {
+    pub(crate) const fn vacant() -> Self {
+        Self {
+            active: false,
+            phi: 0.0,
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            sim_age: 0.0,
+            lifetime: 0.0,
+            pace: 1.0,
+            ch: '0',
+            palette_slot: 0,
+            trail: [(0, 0); crate::constants::BLACK_HOLE_RING_TRAIL_LEN],
+            trail_len: 0,
+        }
+    }
+
+    /// Shift-left ring-buffer push (mirrors `LorenzMote::push_trail`):
+    /// drop the oldest position, append the newest at the tail.
+    pub(crate) fn push_trail(&mut self, col: u16, line: u16) {
+        let len = crate::constants::BLACK_HOLE_RING_TRAIL_LEN;
+        if self.trail_len as usize >= len {
+            for i in 0..len - 1 {
+                self.trail[i] = self.trail[i + 1];
+            }
+            self.trail[len - 1] = (col, line);
+        } else {
+            let idx = self.trail_len as usize;
+            self.trail[idx] = (col, line);
+            self.trail_len += 1;
+        }
+    }
+}
+
+/// Spawn inputs (mirrors `LorenzSpawnParams` — the bundle keeps
+/// clippy's too-many-arguments threshold respected at the call site).
+pub(crate) struct BlackHoleSpawnParams {
+    pub(crate) cols: u16,
+    pub(crate) lines: u16,
+    pub(crate) density: f32,
+    pub(crate) active_palette_slot: u8,
+    pub(crate) spawn_scale: f32,
+}
+
+/// RNG bundle (mirrors `LorenzRandom`).
+pub(crate) struct BlackHoleRandom<'a> {
+    pub(crate) rng: &'a mut StdRng,
+    pub(crate) rand_chance: &'a Uniform<f32>,
+}
+
+/// Per-frame step inputs for the advance pass (mirrors `LorenzStep`):
+/// time + speed only — the projection derives viewport geometry from
+/// the cached ball anchor at draw time.
+pub(crate) struct BlackHoleStep {
+    pub(crate) now: Instant,
+    /// chars_per_sec already multiplied by the terminal speed_mult.
+    /// Scales both the RK4 attractor time and the Keplerian angular
+    /// rate, so the up/down speed keys feel native on the orbit.
+    pub(crate) chars_per_sec: f32,
+    pub(crate) max_sim_delta: Duration,
+    pub(crate) resume_blend: f32,
+}
+
+/// Activate a vacant mote: a uniform random orbital phase (spawns
+/// spread around the full circumference from the first frame — no
+/// clumping), the Lorenz state seeded at the textbook (±1, 1, 1)
+/// initial condition (the sign selects the lobe, parity with the
+/// lorenz style's spawn so the wobble distribution starts balanced),
+/// and per-mote pace / lifetime variance so no two motes march in
+/// lockstep.
+pub(crate) fn activate_ring_mote(
+    m: &mut RingMote,
+    lobe_sign: f32,
+    palette_slot: u8,
+    rand_chance: &Uniform<f32>,
+    rng: &mut StdRng,
+) {
+    m.active = true;
+    m.phi = rand_chance.sample(rng) * std::f32::consts::TAU;
+
+    let perturb = crate::constants::LORENZ_SPAWN_PERTURB;
+    m.x = lobe_sign + (rand_chance.sample(rng) - 0.5) * 2.0 * perturb;
+    m.y = 1.0 + (rand_chance.sample(rng) - 0.5) * 2.0 * perturb;
+    m.z = 1.0 + (rand_chance.sample(rng) - 0.5) * 2.0 * perturb;
+
+    m.sim_age = 0.0;
+    m.lifetime =
+        crate::constants::BLACK_HOLE_RING_MAX_AGE_SECS * (0.85 + rand_chance.sample(rng) * 0.30);
+    m.pace = 0.85 + rand_chance.sample(rng) * 0.30;
+    m.palette_slot = palette_slot;
+    m.trail_len = 0;
+}
+
+/// Advance one mote by one frame: a single RK4 step of the canonical
+/// Lorenz system (the integrator core is identical to the lorenz
+/// style's — sigma/rho/beta come from the shared LORENZ_ constants
+/// because the attractor is the same; only what the state drives
+/// differs), then the Keplerian orbital advance. The angular rate is
+/// modulated by the mote's CURRENT wobbled radius — the same
+/// turbulence that moves the mote radially also speeds it up and
+/// slows it down, which is the shear signature of a real disk.
+/// Returns true when the mote was absorbed (lifetime reached).
+pub(crate) fn advance_ring_mote(
+    m: &mut RingMote,
+    dt_wall: f32,
+    dt_lorenz_base: f32,
+    omega_base: f32,
+) -> bool {
+    let dt = dt_lorenz_base * m.pace;
+    let sigma = crate::constants::LORENZ_SIGMA;
+    let rho = crate::constants::LORENZ_RHO;
+    let beta = crate::constants::LORENZ_BETA;
+
+    // RK4 step (classical 4th-order Runge-Kutta).
+    let (k1x, k1y, k1z) = lorenz_deriv(m.x, m.y, m.z, sigma, rho, beta);
+    let (k2x, k2y, k2z) = lorenz_deriv(
+        m.x + 0.5 * dt * k1x,
+        m.y + 0.5 * dt * k1y,
+        m.z + 0.5 * dt * k1z,
+        sigma,
+        rho,
+        beta,
+    );
+    let (k3x, k3y, k3z) = lorenz_deriv(
+        m.x + 0.5 * dt * k2x,
+        m.y + 0.5 * dt * k2y,
+        m.z + 0.5 * dt * k2z,
+        sigma,
+        rho,
+        beta,
+    );
+    let (k4x, k4y, k4z) = lorenz_deriv(
+        m.x + dt * k3x,
+        m.y + dt * k3y,
+        m.z + dt * k3z,
+        sigma,
+        rho,
+        beta,
+    );
+    m.x += (dt / 6.0) * (k1x + 2.0 * k2x + 2.0 * k3x + k4x);
+    m.y += (dt / 6.0) * (k1y + 2.0 * k2y + 2.0 * k3y + k4y);
+    m.z += (dt / 6.0) * (k1z + 2.0 * k2z + 2.0 * k3z + k4z);
+
+    // Keplerian mean motion, sheared by the current wobbled radius.
+    let ratio = ring_radius_ratio(m);
+    let omega = omega_base * m.pace * ratio.powf(-crate::constants::BLACK_HOLE_RING_KEPLER_EXP);
+    m.phi += omega * dt_wall;
+
+    m.sim_age += dt_wall;
+    if m.sim_age >= m.lifetime {
+        m.active = false;
+        m.trail_len = 0;
+        return true;
+    }
+    false
+}
+
+/// Project a mote onto the screen: the orbital ellipse around the
+/// ball center. Horizontal extent is the full wobbled radius
+/// (aspect-corrected — a column covers half a line-height of screen
+/// distance); vertical extent is squeezed by the tilt (the 3D disk
+/// read); the attractor z displaces the mote out of the ring plane
+/// (z high reads up, matching the brightness ladder's depth cue).
+/// Returns float cell coordinates — the caller rounds, bounds-checks
+/// and applies the occlusion rule (lorenz draw parity).
+pub(crate) fn project_ring_mote(m: &RingMote, cx: f32, cy: f32, ball_outer_r: f32) -> (f32, f32) {
+    let r_norm = ring_r_norm(m);
+    let ring_r = (ball_outer_r
+        * (crate::constants::BLACK_HOLE_RING_RADIUS_FRACTION
+            + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * r_norm))
+        .max(0.15);
+    let z_norm = ((m.z - crate::constants::BLACK_HOLE_RING_Z_NORM_CENTER)
+        * crate::constants::BLACK_HOLE_RING_Z_NORM_GAIN)
+        .clamp(-1.0, 1.0);
+    let z_disp = z_norm * crate::constants::BLACK_HOLE_RING_Z_TILT * ball_outer_r;
+    let col = cx + m.phi.cos() * ring_r * CELL_ASPECT_DIVISOR;
+    let line = cy + m.phi.sin() * ring_r * crate::constants::BLACK_HOLE_RING_TILT - z_disp;
+    (col, line)
+}
+
+/// Occlusion rule (the 3D read): a cell inside the ball silhouette
+/// ABOVE the viewport center belongs to the far side of the tilted
+/// disk — the mote is passing behind the hole, hidden by the body.
+/// Cells below the center are the near side: they draw in front of
+/// the annulus and across the empty core (the crossing read).
+/// Distance is aspect-corrected and in line-height units, the same
+/// math the ball raster uses.
+pub(crate) fn occludes_ring_cell(col: u16, line: u16, cx: i32, cy: i32, ball_outer_r: f32) -> bool {
+    let dx = col as f32 - cx as f32;
+    let dy = line as f32 - cy as f32;
+    let dist = ((dx / CELL_ASPECT_DIVISOR).powi(2) + dy.powi(2)).sqrt();
+    dist < ball_outer_r && (line as i32) < cy
+}
+
+/// Brightness zone by attractor z (the mote depth cue). Reuses the
+/// lorenz style's zone boundaries — the ring integrates the SAME
+/// canonical system, so the z semantics (lobe peaks near 40 hot,
+/// saddle crossings near 13 dim) transfer unchanged.
+pub(crate) fn level_for_ring_z(z: f32) -> BrightnessLevel {
+    if z > crate::constants::LORENZ_Z_HOT {
+        BrightnessLevel::Core
+    } else if z > crate::constants::LORENZ_Z_MID {
+        BrightnessLevel::Hot
+    } else if z > crate::constants::LORENZ_Z_DIM {
+        BrightnessLevel::Mid
+    } else {
+        BrightnessLevel::Ghost
+    }
+}
+
+/// Step a brightness level down (toward Ghost) by `depth` ladder
+/// rungs (mirrors the vortex/lorenz trail ladder — the family's
+/// comet-dimming rule, one rung per trail cell).
+pub(crate) fn step_down_level(level: BrightnessLevel, depth: u8) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Core if depth >= 2 => BrightnessLevel::Mid,
+        BrightnessLevel::Core => BrightnessLevel::Hot,
+        BrightnessLevel::Hot if depth >= 2 => BrightnessLevel::Ghost,
+        BrightnessLevel::Hot => BrightnessLevel::Mid,
+        BrightnessLevel::Mid => BrightnessLevel::Ghost,
+        BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Ghost,
+    }
+}
+
+/// The canonical Lorenz derivative (right-hand side of the ODE) —
+/// identical to the lorenz style's integrator core: the attractor is
+/// the same, only the projection differs. Pure function, called four
+/// times per RK4 step.
+#[inline]
+fn lorenz_deriv(x: f32, y: f32, z: f32, sigma: f32, rho: f32, beta: f32) -> (f32, f32, f32) {
+    let dx = sigma * (y - x);
+    let dy = x * (rho - z) - y;
+    let dz = x * y - beta * z;
+    (dx, dy, dz)
+}
+
+/// Current orbital radius as a ratio of the mean ring radius — the
+/// Keplerian shear input. The attractor radial coordinate is
+/// normalized around the lobe radius and clamped, so the ratio stays
+/// inside roughly [0.75, 1.30]: always positive (the powf in the
+/// advance pass requires it) and bounded (the shear stays visible
+/// without whipping).
+fn ring_radius_ratio(m: &RingMote) -> f32 {
+    1.0 + (crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * ring_r_norm(m))
+        / crate::constants::BLACK_HOLE_RING_RADIUS_FRACTION
+}
+
+/// Normalized attractor radial coordinate (the wobble source):
+/// distance from the attractor z-axis, centered on the lobe radius
+/// and scaled by its reciprocal, clamped to the visible band.
+fn ring_r_norm(m: &RingMote) -> f32 {
+    let r_l = (m.x * m.x + m.y * m.y).sqrt();
+    ((r_l - crate::constants::BLACK_HOLE_RING_R_NORM_CENTER)
+        * crate::constants::BLACK_HOLE_RING_R_NORM_GAIN)
+        .clamp(-1.0, 1.2)
+}

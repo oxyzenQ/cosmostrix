@@ -45,6 +45,49 @@ check-all green (cargo-audit skipped: not installed, same as prior
 sessions), gate-keepers 10/10, comment-style 0 emphasis markers, LOC
 caps respected.
 
+### feature: NIGHT-special-1 stage 2 — the black hole orbital ring (RK4 Lorenz turbulence on a Keplerian ellipse)
+
+Owner verified stage 1 (the ball) at 10/10 and approved the ring
+stage. Motion DNA: each mote is a glyph riding a tilted ellipse
+around the ball. The mean motion is Keplerian — the angular rate
+scales with the mote's current wobbled radius to the minus
+three-halves (Kepler's third law), so motes wobbled inward visibly
+outpace ones wobbled outward, the differential rotation of a real
+accretion disk. Superposed on that mean flow, the canonical Lorenz
+attractor (the same sigma 10 / rho 28 / beta 8/3 system the lorenz
+style renders) is integrated per mote with classical RK4: the
+attractor's radial coordinate wobbles the orbital radius, its z
+displaces the mote out of the disk plane and grades the glyph
+brightness through the shared z ladder. Far-side motes passing
+inside the ball silhouette are occluded (the hole hides them);
+near-side motes cross in front of the annulus and the empty core —
+the tilted-disk 3D layering read of the iconic imagery.
+
+Engineering: the per-mote physics lives in
+`type_rain/black_hole/ring.rs` (RingMote + RK4 + projection +
+occlusion, split from the ball file the way monolith/dragon split
+their helpers); `black_hole.rs` owns the mote pool, the spawn
+accumulator (deficit-bounded + fractional remainder — BlackHole now
+returns true from `uses_spawn_remainder`), the advance clock
+(dt-clamp + resume_blend, same as the structured siblings), and the
+draw pass (heads + four-cell comet trails, far-side cells skipped,
+all drawn cells flowing through the existing three-pass diff
+cleanup — now load-bearing as motes vacate cells while orbiting).
+Comet trails dim through the family ladder; the motion-gated
+shimmer, palette-slot adoption per mote, and lifetime absorption
+(14s ± 15%) all follow the structured-family contracts. 19 ring
+constants in style_rain.rs (band radii, tilt, Kepler exponent,
+attractor normalization, spawn/active ratios), every radius a
+multiple of the ball outer radius so the ring scales with any
+screen size.
+
+Tests: 6 new ring behavior contracts (spawn + strict orbital
+advance per mote, band + viewport bounds, far-side occlusion
+cross-checked against the drawn-cell set, style-transition recycle,
+lap-pace sanity, RK4 stability regime) plus a compile-time Kepler
+exponent pin; the stage-1 core contracts updated for the mote layer
+(drawn cells and active count now cover the ball plus the ring).
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

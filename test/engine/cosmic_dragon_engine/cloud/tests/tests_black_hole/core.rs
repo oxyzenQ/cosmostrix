@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! Core black-hole-style behavior contracts (NIGHT-special-1 stage 1):
+//! Core black-hole-style behavior contracts (NIGHT-special-1):
 //! scene resolution, dynamic geometry across viewport sizes, the empty
 //! event-horizon core, radial band coverage, static-geometry stability
 //! across frames, and the drawn-cell bounds contract.
@@ -17,11 +17,11 @@ fn black_hole_scene_resolves_style_and_fields() {
     assert_eq!(s.config.color, Some("energy-zen"));
     assert_eq!(s.config.charset, Some("binary"));
     // Style dispatch sanity: the style helper families classify the
-    // black hole as structured (not droplet family). Stage 1 spawns no
-    // glyphs, so the spawn-remainder accumulator is not used yet — the
-    // stage 3 glyph infall will revisit this classification.
+    // black hole as structured (not droplet family). Since stage 2 the
+    // orbital ring spawns through the shared fractional accumulator
+    // (family contract — the stage 3 glyph infall will reuse it).
     assert!(!RainStyle::BlackHole.is_droplet_family());
-    assert!(!RainStyle::BlackHole.uses_spawn_remainder());
+    assert!(RainStyle::BlackHole.uses_spawn_remainder());
     // Label roundtrip: the canonical CLI label parses back to the
     // variant and renders forward to the same string (the scene-custom
     // `rain` field depends on this contract).
@@ -51,17 +51,16 @@ fn black_hole_ball_draws_cells_at_every_viewport_size() {
             );
         }
         // Every ring cell is also a drawn cell this frame (the ball
-        // redraws its full annulus each pass — no orphan geometry).
+        // redraws its full annulus each pass — no orphan geometry),
+        // and the stage-2 orbital ring adds its mote cells on top.
         let drawn = cloud.black_hole_rain.drawn_cells_for_test();
-        assert_eq!(
-            drawn.len(),
-            ring.len(),
-            "drawn cells must match ring cells at {cols}x{lines}"
+        assert!(
+            drawn.len() >= ring.len(),
+            "drawn cells must cover the ball at {cols}x{lines}"
         );
-        assert_eq!(
-            cloud.black_hole_rain.active_count(),
-            ring.len(),
-            "active count must match ring cells at {cols}x{lines}"
+        assert!(
+            cloud.black_hole_rain.active_count() >= ring.len(),
+            "active count must cover the ball cells at {cols}x{lines}"
         );
     }
 }
@@ -193,8 +192,9 @@ fn black_hole_radial_bands_all_present() {
 
 #[test]
 fn black_hole_geometry_is_static_across_frames() {
-    // Stage 1 contract: the ball does not move. The ring geometry must
-    // be identical across frames (only the shimmering glyphs change).
+    // Stage 1 contract: the ball geometry does not move. The ring
+    // geometry must be identical across frames (only the shimmering
+    // glyphs and the stage-2 orbiting motes change).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -236,9 +236,8 @@ fn black_hole_style_transition_rebuilds_cleanly() {
         ring_before,
         "re-entry must rebuild the same annulus"
     );
-    assert_eq!(
-        cloud.black_hole_rain.drawn_cells_for_test().len(),
-        ring_before,
-        "re-entry must draw the full annulus"
+    assert!(
+        cloud.black_hole_rain.drawn_cells_for_test().len() >= ring_before,
+        "re-entry must draw the full annulus (plus any spawned ring motes)"
     );
 }
