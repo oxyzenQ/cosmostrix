@@ -609,20 +609,25 @@ pub(crate) const BLACK_HOLE_SHIMMER_CHANCE: f32 = 0.02;
 pub(crate) const BLACK_HOLE_RING_MAJOR_FRACTION: f32 = 1.05;
 
 /// Per-tier disk geometry (stage 2.4, the owner's Interstellar stack:
-/// "stage 1 ring paling panjang, stage 2 di atasnya agak pendek,
-/// stage 3 paling pendek dan paling dekat dengan black hole"). The
-/// ring pool carries three concentric bands: tier 0 is the 9.7/10
-/// approved equatorial main disk (its values mirror the stage-2.3
-/// scalars — the table is now the single source of truth, the
-/// scalars it references stay for the test pins); tier 1 is the
-/// upper band crossing the annulus face above the equator, a bit
-/// shorter; tier 2 is the shortest band hugging the rim just above
-/// the photon ring — the closest line to the hole, stacked like the
-/// stepped lensed bands of the Gargantua imagery. All lengths are
-/// fractions (the semi-major scale multiplies the main disk's major
-/// fraction, the minor multiplies the viewport unit, offsets and
-/// tilts multiply the ball outer radius) so the stack scales with
-/// any screen size exactly like the ball.
+/// "the stage-1 ring is the longest, stage 2 sits above it a bit
+/// shorter, stage 3 is the shortest and closest to the black hole").
+/// The ring pool carries three concentric bands: tier 0 is the
+/// 9.7/10 approved equatorial main disk (its values mirror the
+/// stage-2.3 scalars — the table is now the single source of truth,
+/// the scalars it references stay for the test pins); tier 1 is a
+/// shorter band a small step above the equatorial line; tier 2 is
+/// the shortest band one more small step up — the tight
+/// stacked-lines family of the Gargantua imagery. Stage 2.5, the
+/// owner's snug-gap ruling: the upper two lines must sit close to
+/// the main line and to each other (his analogy measures two
+/// objects ten meters apart when they should read one meter apart),
+/// so every center-to-center step is a small fraction of the ball
+/// and the ribbons hug the equatorial band like the stacked lensed
+/// arcs over the shadow. All lengths are fractions (the semi-major
+/// scale multiplies the main disk's major fraction, the minor
+/// multiplies the viewport unit, offsets and tilts multiply the
+/// ball outer radius) so the stack scales with any screen size
+/// exactly like the ball.
 pub(crate) struct BlackHoleRingTier {
     /// Semi-major scale of this tier (times the main disk's
     /// MAJOR_FRACTION reach): 1.00 / 0.72 / 0.52 — the descending
@@ -632,8 +637,10 @@ pub(crate) struct BlackHoleRingTier {
     /// viewport unit — the vertical thickness of the band).
     pub(crate) minor_fraction: f32,
     /// Band center offset above the equator, in ball outer radii:
-    /// 0.00 (on the equator) / 0.80 (across the upper annulus) /
-    /// 1.13 (just above the rim, hugging the hole).
+    /// 0.00 (on the equator) / 0.22 (a snug step above the main
+    /// line) / 0.42 (one more snug step) — the stage-2.5 tight
+    /// stack (the old 0.80/1.13 sprawl read as a ten-meter gap; the
+    /// owner wants the one-meter read, lines a hand's width apart).
     pub(crate) center_offset: f32,
     /// Near-strand squash factor: the in-front half maps its sine
     /// onto this fraction of the minor axis (the strand separation
@@ -657,14 +664,20 @@ pub(crate) struct BlackHoleRingTier {
     pub(crate) spawn_weight: f32,
 }
 
-/// The three-tier Interstellar stack (stage 2.4). Tier 0 mirrors the
-/// approved stage-2.3 main disk exactly (the scalar constants it
-/// references are the same values the 9.7/10 verdict was earned
-/// with); tiers 1-2 step up, shorten, and hug the hole. The vertical
-/// budget: tier 1's strands span 0.68-0.98 outer radii above center
-/// (across the annulus face, clear of the 0.58 event horizon), tier
-/// 2's span 1.04-1.27 (hugging the rim, under the 1.30 lensing arc
-/// apex) — a staircase of lines with breathing room between them.
+/// The three-tier Interstellar stack (stage 2.4, tightened stage
+/// 2.5). Tier 0 mirrors the approved stage-2.3 main disk exactly
+/// (the scalar constants it references are the same values the
+/// 9.7/10 verdict was earned with); tiers 1-2 step up, shorten, and
+/// SNUG against the equatorial line — the stage-2.5 owner ruling:
+/// the upper two lines must sit close to the main line and to each
+/// other (his analogy: two objects ten meters apart should read
+/// one meter apart), so the center steps are 0.22/0.20 outer radii
+/// and the ribbons carry matching thin minors. The vertical budget:
+/// tier 1's strands span ~0.12-0.28 outer radii above center, tier
+/// 2's ~0.35-0.45 — the whole stack crosses the shadow's face just
+/// above the equatorial band, the tight stacked-arcs read of the
+/// Interstellar imagery, with the 1.30 lensing arc crown well above
+/// the family.
 pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
     BlackHoleRingTier {
         major_scale: 1.00,
@@ -678,21 +691,21 @@ pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
     },
     BlackHoleRingTier {
         major_scale: 0.72,
-        minor_fraction: 0.08,
-        center_offset: 0.80,
-        near_squash: 0.45,
-        wobble_fraction: 0.26,
-        z_tilt: 0.07,
+        minor_fraction: 0.055,
+        center_offset: 0.22,
+        near_squash: 0.42,
+        wobble_fraction: 0.20,
+        z_tilt: 0.05,
         pace: 1.6,
         spawn_weight: 0.30,
     },
     BlackHoleRingTier {
         major_scale: 0.52,
-        minor_fraction: 0.05,
-        center_offset: 1.13,
-        near_squash: 0.40,
-        wobble_fraction: 0.19,
-        z_tilt: 0.05,
+        minor_fraction: 0.04,
+        center_offset: 0.42,
+        near_squash: 0.38,
+        wobble_fraction: 0.14,
+        z_tilt: 0.035,
         pace: 2.4,
         spawn_weight: 0.18,
     },
@@ -703,7 +716,7 @@ pub(crate) const BLACK_HOLE_RING_TIERS: [BlackHoleRingTier; 3] = [
 /// exactly edge-on — the Gargantua read of the owner's stage-2.3
 /// feedback (9.5/10): the Interstellar disk reads as one thin
 /// horizontal line through the shadow's middle, not a fat band
-/// ("padat sampai terlihat garis horizontal"). Halved from 0.28 at
+/// ("dense enough to read as a horizontal line"). Halved from 0.28 at
 /// the same time the near side gained its vertical squash and the
 /// density floor tripled — thinner geometry, more glyphs, solid
 /// line. Tier 0's value in the stage-2.4 tier table (the upper
@@ -714,8 +727,8 @@ pub(crate) const BLACK_HOLE_RING_MINOR_FRACTION: f32 = 0.14;
 /// maps its sine onto this fraction of the semi-minor axis, so the
 /// crossing band hugs the equator instead of dipping a full minor
 /// axis below it. Stage 2.3 owner feedback: the solid line must sit
-/// at the vertical MIDDLE of the core ("garisnya harusnya berada di
-/// tengah core blackhole, kalo yang sekarang malah berada di bawahnya")
+/// at the vertical MIDDLE of the core ("the line should sit at the
+/// middle of the black hole core — right now it sits below it")
 /// — with 0.5 the near side spans only half a minor axis below the
 /// center, and together with the z-tilt breathing the band reads
 /// centered on the shadow. The far side keeps the full factor: it
@@ -779,8 +792,8 @@ pub(crate) const BLACK_HOLE_RING_WOBBLE_FRACTION: f32 = 0.34;
 pub(crate) const BLACK_HOLE_RING_Z_TILT: f32 = 0.12;
 
 /// Proximity-brightness hot radius (stage 2.4, the owner's 9.7/10
-/// feedback: "particles yang masih didekat blackhole harusnya terang,
-/// simple pakai head white"). Motes whose projected screen distance
+/// feedback: "particles still near the black hole must be bright —
+/// simply use the white head"). Motes whose projected screen distance
 /// from the hole's center falls below this multiple of the ball
 /// outer radius step UP two ladder rungs at draw time — Mid and Hot
 /// bases land at Core, the white-hot plasma: the crossing band
@@ -795,9 +808,9 @@ pub(crate) const BLACK_HOLE_RING_HOT_RADIUS: f32 = 1.32;
 /// rung — the outer disk thins out with distance from the hole. The
 /// owner's Interstellar reference: the dense white line ends in a
 /// few sparse particles, a smooth transition into the dark
-/// ("di ujung garis putih itu ada sedikit beberapa partikel jadi
-/// terlihat smooth transisi"), and his stage-2.4 wording: "yang
-/// menjauh itu pudar/kurang terang" (the ones moving away fade).
+/// ("the end of the white line carries a few sparse particles so
+/// the transition reads smooth"), and his stage-2.4 wording: "the
+/// ones moving away fade, less bright".
 /// 1.40 keeps the flat main line bright out to ~70% of its reach
 /// before the dissolve begins.
 pub(crate) const BLACK_HOLE_RING_FADE_START: f32 = 1.40;
@@ -896,49 +909,60 @@ pub(crate) const BLACK_HOLE_RING_Z_NORM_CENTER: f32 = 27.0;
 pub(crate) const BLACK_HOLE_RING_Z_NORM_GAIN: f32 = 1.0 / 23.0;
 
 // ── Black hole see-saw roll (stage 2.4, NIGHT-special-1) ────────────────
-// The owner's lever motion ("ringnya bisa naik dan turun kanan kiri
-// seperti pengungkit"): the whole disk stack pivots around the hole
+// The owner's lever motion ("the ring can rise and fall left and
+// right like a lever"): the whole disk stack pivots around the hole
 // in the screen plane. The flat horizontal line (180 degrees in the
-// owner's wording) is the REST mode and dominates the timeline; the
-// excursions tilt the stack — left end rising while the right end
-// descends — up to a vertical line (90 degrees), held a few seconds,
-// then eased back or chained into the next tilt. The angle is the
-// deviation from horizontal in radians, positive = left side up.
+// owner's wording) is the REST mode; the excursions tilt the stack
+// — left end rising while the right end descends — through the
+// 15-180 degree attitude window with exactly the vertical
+// 90-degree attitude excluded (the stage-2.5 owner ruling), every
+// attitude parked at a LONG hold (30 s or more — the improved,
+// more special long duration), then eased onward or chained into
+// the next tilt. The angle is the deviation from horizontal in
+// radians, positive = left side up.
 
-/// Hold duration of the flat rest mode (seconds). 30 s per the
-/// owner's spec: "paling lama durasinya ada di 180 degree garis
-/// horizontal mode sekitar 30 detik" — the horizontal Gargantua
-/// read is the steady look; the tilts are punctuation, not the
-/// sentence.
-pub(crate) const BLACK_HOLE_ROLL_FLAT_HOLD: f32 = 30.0;
+/// Hold duration of the flat rest mode (seconds). 36 s keeps the
+/// flat line the single longest pose on the timeline — the owner's
+/// spec that the 180-degree horizontal mode holds the longest
+/// (originally ~30 s), now sitting above the 30 s tilt holds so the
+/// Gargantua read stays the identity of the scene while every
+/// attitude enjoys a 30 s-or-more dwell.
+pub(crate) const BLACK_HOLE_ROLL_FLAT_HOLD: f32 = 36.0;
 
-/// Hold duration of a tilted excursion (seconds). A few seconds per
-/// the owner's spec ("max 180-90 degre dalam beberapa detik lalu
-/// automatic pindah posisi lagi") — long enough to read the tilted
-/// stack, short enough that the flat line stays the identity of the
-/// scene.
-pub(crate) const BLACK_HOLE_ROLL_TILT_HOLD: f32 = 4.5;
+/// Hold duration of a tilted excursion (seconds). 30 s per the
+/// stage-2.5 owner ruling — the long duration now applies across
+/// the whole 15-180 degree attitude window (not only the flat
+/// line), making each tilted pose a deliberate, special vista
+/// instead of a quick punctuation. The sweeps between attitudes
+/// still resolve within a few seconds, so the lever always reads
+/// alive.
+pub(crate) const BLACK_HOLE_ROLL_TILT_HOLD: f32 = 30.0;
 
 /// Roll sweep rate (radians per second). 0.42 carries a full
-/// 90-degree sweep in ~3.7 s — the "naik turun dalam beberapa
-/// detik" read: deliberate, gravitational, never a snap.
+/// 85-degree sweep in ~3.5 s — the "up and down within a few
+/// seconds" read: deliberate, gravitational, never a snap.
 pub(crate) const BLACK_HOLE_ROLL_RATE: f32 = 0.42;
 
 /// Minimum roll-turn duration (seconds) — small corrections near the
 /// rest line still read as motion, not teleport.
 pub(crate) const BLACK_HOLE_ROLL_TURN_MIN_SECS: f32 = 1.2;
 
-/// Maximum roll-turn duration (seconds) — a full 180-degree sweep
-/// (chaining from +90 to -90 through the flat line) clamps here so
-/// even the widest lever swing resolves within ~5.5 s.
+/// Maximum roll-turn duration (seconds) — the widest chained swing
+/// (from +85 to -85 degrees through the flat line, 170 degrees)
+/// clamps here so even the biggest lever sweep resolves within
+/// ~5.5 s.
 pub(crate) const BLACK_HOLE_ROLL_TURN_MAX_SECS: f32 = 5.5;
 
 /// The excursion menu (degrees of tilt from the horizontal rest
-/// line). 90 appears twice so the signature vertical-line read comes
-/// up most often; 60/45/35/25 fill out the owner's "180, 50, 135,
-/// etc" ladder of intermediate attitudes. The sign alternates every
-/// excursion ("naik turun bergantian") — left-up, then right-up.
-pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 6] = [90.0, 90.0, 60.0, 45.0, 35.0, 25.0];
+/// line). The stage-2.5 contract: the attitude window spans
+/// 15-180 degrees in the owner's convention (180 = the flat rest
+/// line, 90 = vertical) with exactly 90 excluded — the lever
+/// sweeps the shallow 15/30/45/50-degree tilts, the mid 60, and
+/// the steep 85 (a near-vertical diagonal that keeps the drama of
+/// the old vertical pose without ever parking on the excluded
+/// attitude), the sign alternating every excursion so left-up and
+/// right-up tilts take turns.
+pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 6] = [85.0, 60.0, 50.0, 45.0, 30.0, 15.0];
 
 /// Chance (percent) that a tilted excursion chains directly into the
 /// next tilted excursion instead of returning to the flat rest line

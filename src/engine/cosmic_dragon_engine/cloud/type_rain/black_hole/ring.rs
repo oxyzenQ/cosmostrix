@@ -70,12 +70,14 @@
 //! Distance is invariant under the roll, so the glow stays anchored
 //! to the hole at every tilt angle.
 //!
-//! The three-tier stack (stage 2.4, the Interstellar ladder): the
+//! The three-tier stack (stage 2.4, tightened stage 2.5): the
 //! mote pool carries three bands whose geometry comes from the
 //! `BLACK_HOLE_RING_TIERS` table — tier 0 is the approved
-//! equatorial main disk, tier 1 a shorter band above it across the
-//! annulus face, tier 2 the shortest band hugging the rim (the
-//! closest line to the hole). The upper tiers skip the lensing arc
+//! equatorial main disk, tier 1 a shorter band one snug step above
+//! it, tier 2 the shortest band one more snug step up (the owner's
+//! one-meter-gap ruling: the upper two lines sit close to the main
+//! line and to each other, the tight stacked-arcs family over the
+//! shadow). The upper tiers skip the lensing arc
 //! and the occlusion rule (lensed images read in front of the hole
 //! at any height); their two flow strands straddle the band center
 //! so the orbit reads as a thin ribbon, not a retraced line. Tier
@@ -85,14 +87,16 @@
 //!
 //! The see-saw roll (stage 2.4, the lever motion): `RingRoll` owns
 //! the stack's attitude angle — 0 is the flat horizontal rest line
-//! (the dominant mode, ~30 s holds), excursions tilt the whole stack
-//! up to 90 degrees with alternating sign, eased smoothstep sweeps
+//! (180 degrees in the owner's convention, the single longest pose
+//! at a 36 s hold), excursions tilt the whole stack through the
+//! 15-180 degree attitude window with exactly the vertical 90-degree
+//! attitude excluded, every attitude parked at a long 30 s hold,
+//! alternating sign, eased smoothstep sweeps
 //! at a fixed angular rate, occasionally chaining tilt to tilt
 //! through the rest line. The projection rotates every mote's
 //! disk-plane offset by the live angle before the aspect
 //! conversion, so the stack pivots rigidly around the hole: left end
-//! up, right end down, the vertical-line read of the owner's
-//! example. The lensing arc rotates with the stack — physically
+//! up, right end down. The lensing arc rotates with the stack — physically
 //! correct, the lensed image always sits perpendicular to the disk
 //! plane.
 //!
@@ -592,17 +596,23 @@ fn ring_r_norm(m: &RingMote) -> f32 {
         .clamp(-1.0, 1.2)
 }
 
-/// The see-saw roll scheduler (stage 2.4, the owner's lever motion):
-/// a deterministic state machine that owns the disk stack's attitude
-/// angle in the screen plane. 0 is the flat horizontal rest line —
-/// the Gargantua read, held the longest (the flat hold, ~30 s per
-/// the owner's spec). When the hold lapses the stack turns to a
-/// tilted excursion from the angle menu (90/60/45/35/25 degrees, 90
-/// weighted double), the sign alternating every excursion so the
-/// left-up and right-up tilts take turns ("naik turun bergantian").
-/// Turns are eased smoothstep sweeps at a fixed angular rate (a
-/// 90-degree pivot resolves in ~3.7 s, "dalam beberapa detik"),
-/// duration clamped so the widest 180-degree chain still reads as
+/// The see-saw roll scheduler (stage 2.4, the owner's lever motion,
+/// retuned stage 2.5): a deterministic state machine that owns the
+/// disk stack's attitude angle in the screen plane. 0 is the flat
+/// horizontal rest line — the Gargantua read, held the longest
+/// (the flat hold, 36 s, still the single longest pose per the
+/// owner's spec). The attitude window spans 15-180 degrees in the
+/// owner's convention (180 = flat, 90 = vertical) with exactly the
+/// 90-degree attitude excluded, and every tilted attitude now
+/// holds a LONG 30 s dwell — the stage-2.5 improved long duration,
+/// more special across the whole window instead of only the flat
+/// line. The excursion ladder runs shallow 15/30/45/50-degree
+/// tilts, the mid 60, and the steep 85 (the near-vertical diagonal
+/// that keeps the old vertical drama without parking on the
+/// excluded attitude), the sign alternating every excursion so the
+/// left-up and right-up tilts take turns. Turns are eased smoothstep sweeps at a fixed angular rate (a
+/// 85-degree pivot resolves in ~3.5 s, "within a few seconds"),
+/// duration clamped so the widest 170-degree chain still reads as
 /// one deliberate swing. An excursion either returns to the rest
 /// line (the default) or chains straight into the next excursion —
 /// the disk sweeps through horizontal and keeps going, the
@@ -693,8 +703,10 @@ impl RingRoll {
         }
     }
 
-    /// Hold duration for an attitude: the flat rest line dominates
-    /// the timeline (~30 s); a tilted excursion holds a few seconds.
+    /// Hold duration for an attitude: every attitude now parks for
+    /// its long dwell — 36 s at the flat rest line (the single
+    /// longest pose), 30 s at a tilted excursion (the stage-2.5
+    /// improved long duration across the whole attitude window).
     fn hold_for(&self, target: f32) -> f32 {
         if target.abs() < 1.0e-4 {
             crate::constants::BLACK_HOLE_ROLL_FLAT_HOLD

@@ -215,7 +215,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // chroma_dragon_engine). The 0.55 value is kept for spawn-timing
     // parity with the other style flagships. The head state machine
     // alternates Soar (free flight) and Circle (orbital) per the
-    // owner's "kadang melingkar, terbang bebas kemana aja" spec.
+    // owner's "sometimes circling, sometimes flying free anywhere" spec.
     SceneInfo {
         name: "cosmic_dragon",
         description: "Cosmic Dragon — Chinese-mythology serpentine dragon; free flight with occasional circling, body trails the head in a living chain",
@@ -269,7 +269,7 @@ pub(crate) const SCENES: &[SceneInfo] = &[
     // the void is still.
     SceneInfo {
         name: "sorgonemous_intrascals",
-        description: "Sorgonemous Intrascals — black hole event horizon; a centered ball of light wrapping a black empty core (stage 1: the ball; the orbital ring and glyph infall follow)",
+        description: "Sorgonemous Intrascals — black hole event horizon; a centered ball of light wrapping a black empty core, ringed by a three-tier accretion disk that pivots around the hole (glyph infall follows)",
         config: SceneConfig {
             color: Some("energy-zen"),
             charset: Some("binary"),

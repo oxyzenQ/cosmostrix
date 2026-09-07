@@ -248,12 +248,63 @@ the live spawn, and the roll engaging through the live clock —
 31/31 black hole contracts, 2451/2451 suite green, fmt/clippy
 clean, version untouched.
 
+### feature: NIGHT-special-1 stage 2.5 — the snug three-tier stack and the long-dwell see-saw roll
+
+Owner verification (stage 2.4 at 9.8/10) landed two reads plus a
+language reminder: the three-tier Interstellar stack must sit
+SNUG — tier 2 and tier 3 close to tier 1 and to each other (his
+analogy: two objects ten meters apart should read one meter
+apart, so the stack reads as a tight family of stacked lines),
+the see-saw roll's long dwell must improve to a more special
+30 s-or-more hold across the 15-180 degree attitude window with
+exactly the 90-degree vertical attitude excluded, and every
+comment, doc and commit message in the repo must stay pure
+English (the stage-2.4 owner quotes embedded in comments are now
+translated).
+
+The snug stack: the tier table's center offsets drop 0.80/1.13 ->
+0.22/0.42 ball outer radii (center steps 0.22/0.20), the upper
+minors thin 0.08/0.05 -> 0.055/0.04 so the ribbons match the
+tight spacing, and the squash/wobble/z-tilt scales trim to keep
+the upper lines crisp. The whole family now crosses the shadow's
+face just above the equatorial band (tier 1's strands
+~0.12-0.28 outer radii above center, tier 2's ~0.35-0.45), under
+the 1.30 lensing arc crown — the stacked-arcs-over-the-shadow
+read of the film's imagery, no longer a sprawl up the rim.
+
+The see-saw roll: every attitude now parks for a long hold —
+36 s at the flat rest line (still the single longest pose, the
+Gargantua identity) and 30 s at each tilted excursion (the
+improved long duration, previously a 4.5 s punctuation). The
+excursion menu re-ladders to the 15-180 degree window with the
+vertical 90-degree attitude excluded: shallow 15/30/45/50-degree
+tilts, the mid 60, and the steep 85 (a near-vertical diagonal
+that keeps the old vertical drama without ever parking on the
+excluded attitude). Sweeps stay eased smoothstep at the 0.42
+rad/s rate (an 85-degree pivot resolves in ~3.5 s), the sign
+still alternates, and the 35% chain chance still sweeps
+tilt-to-tilt through the rest line.
+
+Tests: the tier stack contract re-pinned to the snug geometry
+(strict upward steps with the one-meter-gap bounds — tier 1's
+step within 0.15-0.40 and tier 2's within 0.12-0.30 outer radii,
+the stack on the shadow face below the rim, under the arc apex,
+descending reaches), and the see-saw contract re-pinned to the
+new schedule (menu pin — no 90-degree rung, every rung within
+15-85; the 36 s flat hold; the 30 s tilt holds measured through
+bit-identical parked runs; the flat line the single longest
+pose; the excluded-attitude bound at every sample; both
+directions; sustained returns to rest) with the live-clock
+engagement test extended past the longer flat hold — 31/31
+black hole contracts, suite green, fmt/clippy clean, version
+untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did
 not restart the field — the screen appeared stuck for a moment, then
 rain resumed falling on top of the old glyphs, which stayed permanently
-("bekas rain sebelumnya yang stuck"). Every other style cleared and
+("the previous rain lingering, stuck on screen"). Every other style cleared and
 restarted from the top as documented; the owner asked to fix glyph and
 verify the other six styles, then commemorate the biggest bug hunt with
 a milestone scene.
@@ -624,7 +675,7 @@ emerges from this chain dynamic without any procedural body animation.
 
 - `cosmic_dragon` (scene `cosmic_dragon`, palette `nebula` + charset
   `zen`): dragons fly freely, sometimes circle, then fly free again
-  — the owner spec "kadang melingkar, terbang bebas kemana aja". The
+  — the owner spec "sometimes circling, sometimes flying free anywhere". The
   head runs a two-state machine: SOAR (smooth random-walk turn rate
   from layered sine noise — two frequencies, randomized phase per
   dragon, produces organic non-repeating free flight) and CIRCLE

@@ -9,11 +9,13 @@
 //! the core's vertical middle), the side-aware occlusion and the
 //! solid-band density; and the stage-2.4 reads: the proximity
 //! brightness profile (white heads near the hole, the fade ladder
-//! far out), the three-tier Interstellar stack (longest band, upper
-//! shorter band, rim-hugging shortest band with differential
-//! Keplerian pacing) and the see-saw roll scheduler (the flat rest
-//! line dominates, tilted excursions alternate sign, the angle
-//! stays within the vertical bound). Covers spawning + orbital
+//! far out), the three-tier Interstellar stack (longest band, the
+//! upper shorter bands snug above it with differential Keplerian
+//! pacing — the stage-2.5 one-meter-gap ruling) and the see-saw
+//! roll scheduler (every attitude in the 15-180 degree window,
+//! with the vertical 90-degree attitude excluded, parks at a long
+//! 30 s-or-more hold; the flat rest line stays the single longest
+//! pose; excursions alternate sign). Covers spawning + orbital
 //! advance, the band geometry, the occlusion contract,
 //! style-transition recycling, and the shipped motion constants
 //! (RK4 stability regime, majestic lap pace).
@@ -242,7 +244,10 @@ fn black_hole_ring_occlusion_is_side_aware() {
 fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
     // Integration half of the occlusion contract: whatever the draw
     // pass put inside the ball silhouette (excluding the ball's own
-    // annulus cells) must belong to a NEAR-side mote. Replicated
+    // annulus cells) must belong to a front-drawing mote — near-side
+    // tier 0 (the crossing read) or any tier 1-2 mote (the
+    // lensed-image ribbons the stage-2.5 snug stack runs across the
+    // shadow face). Replicated
     // here from the live mote state — with one timing subtlety: the
     // draw iterates each mote's trail BEFORE pushing the current
     // head into it, so the trail cells of the frame under test are
@@ -273,13 +278,17 @@ fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
         .collect();
 
     // Legit inside-silhouette cells: every in-bounds head of a
-    // near-side mote (live post-advance phi — what the draw
-    // projected) plus the snapshot's trail cells (what the draw
-    // iterated before its own push). Near cells are never occluded,
-    // so both sets draw whenever in bounds.
+    // front-drawing mote (the draw pass's rule: near-side tier 0, or
+    // ANY tier 1-2 — the upper bands are lensed-image ribbons that
+    // read in front of the hole at any height, so their far strands
+    // cross the shadow face with the snug stack; live post-advance
+    // phi — what the draw projected) plus the snapshot's trail cells
+    // (what the draw iterated before its own push). Front-drawing
+    // cells are never occluded, so both sets draw whenever in
+    // bounds.
     let mut legit_near: HashSet<(u16, u16)> = HashSet::new();
     for (idx, m) in cloud.black_hole_rain.motes_for_test().iter().enumerate() {
-        if !m.active || m.phi.sin() < 0.0 {
+        if !m.active || (m.tier == 0 && m.phi.sin() < 0.0) {
             continue;
         }
         let (col_f, line_f) =
@@ -313,7 +322,7 @@ fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
             inside_drawn += 1;
             assert!(
                 legit_near.contains(&(cell.col, cell.line)),
-                "mote cell inside the silhouette is not near-side ({}, {})",
+                "mote cell inside the silhouette is not front-drawing ({}, {})",
                 cell.col,
                 cell.line
             );
@@ -609,8 +618,8 @@ fn black_hole_ring_proximity_profile_brightens_the_inner_disk() {
     // warm belt to the fade start steps up one; past the fade start
     // the level steps DOWN one to three rungs over the fade span
     // (the line's ends dissolve into sparse dim wisps, the smooth
-    // transition of the Interstellar reference — "yang menjauh itu
-    // pudar").
+    // transition of the Interstellar reference — "the ones moving
+    // away fade").
     let crossing = 0.5; // in front of the shadow, deep inside the hot radius
     let arc = crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION; // the halo circle
     let warm = crate::constants::BLACK_HOLE_RING_HOT_RADIUS
@@ -715,15 +724,16 @@ fn pinned_tier_mote(
 fn black_hole_ring_tier_stack_steps_up_and_shortens() {
     // The owner's Interstellar ladder: stage 1 the longest band on
     // the equator, stage 2 above it and shorter, stage 3 the
-    // shortest and closest to the hole. Contract at the flat
-    // attitude: each tier's mid-band sits strictly above the one
-    // below, the horizontal reaches descend, tier 1's band crosses
-    // the annulus face above the event horizon, tier 2's band hugs
-    // just above the rim (the closest line to the hole) and stays
-    // under the lensing arc apex.
+    // shortest — and the stage-2.5 snug-gap ruling: the upper two
+    // lines sit a hand's width above the main band and each other
+    // (the owner's analogy: two objects one meter apart, not ten).
+    // Contract at the flat attitude: each tier's mid-band sits
+    // strictly above the one below with a distinct-but-small step,
+    // the horizontal reaches descend, and the whole stack stays on
+    // the shadow's face (below the rim, under the lensing arc) —
+    // the stacked-arcs-over-the-shadow read.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
-    let core_r = geo.outer_r * crate::constants::BLACK_HOLE_CORE_FRACTION;
 
     let mid = |tier: u8| {
         let m = pinned_tier_mote(std::f32::consts::FRAC_PI_2, 30.0, tier);
@@ -744,25 +754,43 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
         "tier 2 must sit above tier 1 ({line_t2} vs {line_t1})"
     );
 
-    // Tier 1: across the annulus face — above the horizon, below
-    // the rim.
+    // The snug-gap contract (stage 2.5, the owner's one-meter-gap
+    // ruling): the center-to-center steps are a small fraction of
+    // the ball — never the old ten-meter sprawl — while staying
+    // distinct strokes.
     assert!(
-        line_t1 < geo.cy - core_r,
-        "tier 1 must clear the event horizon (line {line_t1}, horizon {})",
-        geo.cy - core_r
+        line_t0 - line_t1 < 0.40 * geo.outer_r,
+        "tier 1 must hug the main band (step {} vs {})",
+        line_t0 - line_t1,
+        0.40 * geo.outer_r
     );
     assert!(
-        line_t1 > geo.cy - geo.outer_r,
-        "tier 1 must cross the annulus face below the rim (line {line_t1})"
+        line_t0 - line_t1 > 0.15 * geo.outer_r,
+        "tier 1 must stay a distinct line (step {})",
+        line_t0 - line_t1
+    );
+    assert!(
+        line_t1 - line_t2 < 0.30 * geo.outer_r,
+        "tier 2 must hug tier 1 (step {} vs {})",
+        line_t1 - line_t2,
+        0.30 * geo.outer_r
+    );
+    assert!(
+        line_t1 - line_t2 > 0.12 * geo.outer_r,
+        "tier 2 must stay a distinct line (step {})",
+        line_t1 - line_t2
     );
 
-    // Tier 2: hugging just above the rim — the closest line to the
-    // hole — and under the lensing arc apex.
+    // The whole stack crosses the shadow's face just above the
+    // equatorial band (below the rim) — the tight stacked-arcs
+    // read over the shadow.
     assert!(
-        line_t2 < geo.cy - geo.outer_r,
-        "tier 2 must hug above the rim (line {line_t2}, rim {})",
+        line_t2 > geo.cy - geo.outer_r,
+        "tier 2 must stay on the shadow face, below the rim (line {line_t2}, rim {})",
         geo.cy - geo.outer_r
     );
+    // Tier 2 stays under the lensing arc apex (the halo crown sits
+    // well above the snug family).
     let behind = pinned_tier_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0, 0);
     let (_, line_arc) =
         project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
@@ -817,7 +845,7 @@ fn black_hole_ring_inner_tiers_orbit_faster() {
     }
     assert!(
         m2.phi > m0.phi + 0.25,
-        "the rim-hugging tier must outpace the main disk ({} vs {})",
+        "the inner tier must outpace the main disk ({} vs {})",
         m2.phi,
         m0.phi
     );
@@ -825,12 +853,14 @@ fn black_hole_ring_inner_tiers_orbit_faster() {
 
 #[test]
 fn black_hole_ring_roll_pivots_the_stack_rigidly() {
-    // The lever contract: a 90-degree roll turns the horizontal
-    // stack into vertical lines — a Euclidean pivot around the hole
-    // (distance from the center preserved, the line-height-unit
-    // rotation run before the cell-aspect conversion), with the LEFT
-    // end rising and the right end dropping (the owner's example
-    // direction).
+    // The lever contract (the projection math pin): a 90-degree
+    // roll INPUT turns the horizontal stack into vertical lines —
+    // a Euclidean pivot around the hole (distance from the center
+    // preserved, the line-height-unit rotation run before the
+    // cell-aspect conversion), with the LEFT end rising and the
+    // right end dropping (the owner's example direction). The
+    // scheduler never targets this attitude (excluded per the
+    // stage-2.5 ruling); the projection itself supports any angle.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
     let roll90 = std::f32::consts::FRAC_PI_2;
@@ -875,32 +905,46 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
 
 #[test]
 fn black_hole_ring_roll_seesaw_contract() {
-    // The see-saw schedule (owner's stage-2.4 spec): the flat rest
-    // line dominates the timeline (the first 30 s stay horizontal);
-    // excursions engage, stay within the 90-degree bound, occur in
-    // BOTH directions (the sign alternates — "naik turun
-    // bergantian"), and return to the rest line. Deterministic by
-    // construction (hash-driven, no RNG).
+    // The see-saw schedule (owner's stage-2.5 spec): the attitude
+    // window spans 15-180 degrees (the owner's convention: 180 =
+    // the flat rest line, 90 = vertical) with exactly 90 excluded
+    // from the menu; every attitude parks at a LONG hold (30 s or
+    // more — the improved, more special long duration), the flat
+    // rest line the single longest pose; excursions engage in BOTH
+    // directions (the sign alternates, up and down taking turns)
+    // and return to the rest line. Deterministic by construction
+    // (hash-driven, no RNG).
+
+    // Menu pin: no 90-degree rung, every rung inside the shallow-
+    // to-steep 15-85 window of the owner's attitude range.
+    for &deg in crate::constants::BLACK_HOLE_ROLL_TILT_DEGS.iter() {
+        assert!(
+            deg != 90.0 && (15.0..=85.0).contains(&deg),
+            "the tilt menu must span 15-85 degrees without the excluded 90-degree attitude (got {deg})"
+        );
+    }
+
     let mut roll = RingRoll::new();
 
-    // The opening flat hold: 29 s in, still flat.
-    roll.tick(29.0);
+    // The opening flat hold: 35 s in, still flat.
+    roll.tick(35.0);
     assert!(
         roll.angle().abs() < 1.0e-4,
         "the stack must hold the flat rest line for the flat hold (got {})",
         roll.angle()
     );
 
-    // The first excursion: 40 s in, tilted.
-    roll.tick(11.0);
+    // The first excursion: 42 s in, tilted — and strictly below
+    // the excluded vertical attitude.
+    roll.tick(7.0);
     assert!(
         roll.angle().abs() > 0.05,
         "the first excursion must engage (angle {})",
         roll.angle()
     );
     assert!(
-        roll.angle().abs() <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
-        "the roll must never pass vertical (angle {})",
+        roll.angle().abs() < std::f32::consts::FRAC_PI_2 - 0.02,
+        "the roll must never park on the vertical attitude (angle {})",
         roll.angle()
     );
 
@@ -910,6 +954,13 @@ fn black_hole_ring_roll_seesaw_contract() {
     let mut max_abs = 0.0f32;
     let mut saw_positive = false;
     let mut saw_negative = false;
+    // Parked runs: the angle stays bit-identical while an attitude
+    // holds — the direct measure of the hold durations (a sweep
+    // changes the angle every tick, a hold freezes it).
+    let mut prev_angle = 0.0f32;
+    let mut park_run = 0.0f32;
+    let mut max_park_flat = 0.0f32;
+    let mut max_park_tilt = 0.0f32;
     // "Returns to rest": a tilt episode (angle clearly away from the
     // rest line) is later followed by a SUSTAINED flat run — a
     // chained sweep only passes through flat, it does not park.
@@ -942,15 +993,40 @@ fn black_hole_ring_roll_seesaw_contract() {
         } else {
             flat_run = 0.0;
         }
+        if after.to_bits() == prev_angle.to_bits() {
+            park_run += step;
+        } else {
+            park_run = 0.0;
+            prev_angle = after;
+        }
+        if park_run > 0.0 {
+            if after.abs() < 1.0e-4 {
+                max_park_flat = max_park_flat.max(park_run);
+            } else if after.abs() > 0.05 {
+                max_park_tilt = max_park_tilt.max(park_run);
+            }
+        }
         total += step;
     }
     assert!(
-        max_abs <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
-        "the roll must stay within the vertical bound over time (max {max_abs})"
+        max_abs < std::f32::consts::FRAC_PI_2 - 0.02,
+        "the roll must never reach the excluded vertical attitude over time (max {max_abs})"
     );
     assert!(
-        flat_secs > 0.4 * 600.0,
-        "the flat rest line must dominate the timeline ({flat_secs} of 600 s)"
+        flat_secs > 0.30 * 600.0,
+        "the flat rest line must keep a strong share of the timeline ({flat_secs} of 600 s)"
+    );
+    assert!(
+        max_park_flat >= 35.0,
+        "the flat hold must park for ~36 s (max flat park {max_park_flat})"
+    );
+    assert!(
+        max_park_tilt >= 29.0,
+        "the improved long dwell must park tilted attitudes for ~30 s (max tilt park {max_park_tilt})"
+    );
+    assert!(
+        max_park_flat > max_park_tilt,
+        "the flat rest line must stay the single longest pose (flat {max_park_flat} vs tilt {max_park_tilt})"
     );
     assert!(
         saw_positive && saw_negative,
@@ -1010,13 +1086,13 @@ fn black_hole_ring_populates_all_three_tiers() {
 #[test]
 fn black_hole_ring_roll_engages_through_the_live_clock() {
     // Wiring contract: the advance pass ticks the roll on the wall
-    // clock — 31 s of frames (past the 30 s flat hold) must show a
-    // nonzero attitude through the live accessor, bounded by the
-    // vertical limit.
+    // clock — 42 s of frames (past the 36 s flat hold and the first
+    // sweep) must show a nonzero attitude through the live
+    // accessor, strictly below the excluded vertical attitude.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 1941, 16);
+    run_frames(&mut cloud, &mut frame, 2625, 16);
 
     let angle = cloud.black_hole_rain.roll_angle_for_test();
     assert!(
@@ -1024,7 +1100,7 @@ fn black_hole_ring_roll_engages_through_the_live_clock() {
         "the first excursion must engage through the live clock (angle {angle})"
     );
     assert!(
-        angle.abs() <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
-        "the live roll must stay within the vertical bound (angle {angle})"
+        angle.abs() < std::f32::consts::FRAC_PI_2 - 0.02,
+        "the live roll must never park on the vertical attitude (angle {angle})"
     );
 }

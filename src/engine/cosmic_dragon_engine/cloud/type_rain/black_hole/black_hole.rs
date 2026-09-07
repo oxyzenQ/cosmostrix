@@ -43,13 +43,22 @@
 //! (`proximity_level` in ring.rs — two rungs up near the hole for the
 //! white-hot "head white", the stage-2.3 fade ladder far away); the
 //! disk stack now carries three tiers (the Interstellar ladder — the
-//! long equatorial band, a shorter band above it, the shortest band
-//! hugging the rim closest to the hole; the upper tiers draw in front
+//! long equatorial band, a shorter band a snug step above it, the
+//! shortest band one more snug step up; the upper tiers draw in front
 //! at any height and orbit visibly faster); and the whole stack
 //! see-saws around the hole (`RingRoll` in ring.rs — the flat
-//! horizontal line dominates at ~30 s holds, eased excursions tilt
-//! the stack up to a vertical line with alternating sign, sometimes
-//! chaining tilt to tilt through the rest line).
+//! horizontal line holds the single longest pose, eased excursions
+//! sweep the 15-180 degree attitude window with the vertical
+//! 90-degree attitude excluded, alternating sign, sometimes chaining
+//! tilt to tilt through the rest line).
+//!
+//! Stage 2.5 (owner 9.8/10 feedback): the three-tier stack tightened
+//! into the snug family the owner asked for — the upper two lines now
+//! sit a small step above the equatorial band and each other (his
+//! one-meter-gap analogy: the old layout read ten meters apart), and
+//! the see-saw roll's long dwell improved to a more special 30 s-or-
+//! more hold across the whole 15-180 degree attitude window, with
+//! exactly the 90-degree vertical attitude excluded.
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
