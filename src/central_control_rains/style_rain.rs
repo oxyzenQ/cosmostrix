@@ -577,32 +577,77 @@ pub(crate) const BLACK_HOLE_CORE_FRACTION: f32 = 0.58;
 pub(crate) const BLACK_HOLE_SHIMMER_CHANCE: f32 = 0.02;
 
 // ── Black hole orbital ring (stage 2, NIGHT-special-1) ─────────────────
-// RK4-Lorenz-turbulent motes orbiting the ball on a tilted ellipse —
-// the accretion-stream read. The mean motion is Keplerian (inner
-// motes orbit faster, the differential rotation of a real disk);
-// the canonical Lorenz attractor (sigma 10, rho 28, beta 8/3 — the
-// same system the lorenz style renders) drives the turbulence: its
-// radial coordinate wobbles the orbital radius, its z displaces the
-// mote out of the ring plane and grades the glyph brightness. All
-// ring radii are multiples of the ball outer radius, so the band
-// scales with any screen size like the ball does.
+// RK4-Lorenz-turbulent motes orbiting the ball on a wide tilted
+// ellipse — the accretion-disk read of the iconic imagery (EHT M87*,
+// Gargantua): a disk that stretches far left and right of the
+// shadow, near side crossing in front of the hole, far side lensed
+// up and over the top (gravitational lensing bends the far-side
+// light into the halo arc above the shadow). The mean motion is
+// Keplerian (inner motes orbit faster, the differential rotation of
+// a real disk); the canonical Lorenz attractor (sigma 10, rho 28,
+// beta 8/3 — the same system the lorenz style renders) drives the
+// turbulence: its radial coordinate wobbles the orbital radius, its
+// z displaces the mote out of the ring plane and grades the glyph
+// brightness. Ellipse radii are fractions of the viewport unit (the
+// same unit the ball scales from), so the disk scales with any
+// screen size like the ball does.
 
-/// Mean ring radius as a multiple of the ball outer radius. 1.38
-/// leaves a thin dark gap between the photon ring and the stream —
-/// the read of every real accretion-disk image (the disk starts
-/// outside the shadow, never touching it).
-pub(crate) const BLACK_HOLE_RING_RADIUS_FRACTION: f32 = 1.38;
+/// Orbital ellipse semi-major axis (the horizontal reach) as a
+/// fraction of the viewport unit. 1.05 stretches the disk to about
+/// twice the ball's radius left and right of the shadow — the wide
+/// left-right read of every real accretion-disk image, per the
+/// owner's stage-2 feedback ("the ring should be long left-right").
+pub(crate) const BLACK_HOLE_RING_MAJOR_FRACTION: f32 = 1.05;
+
+/// Orbital ellipse semi-minor axis (the vertical squeeze) as a
+/// fraction of the viewport unit. 0.28 renders the disk near edge-on
+/// — a thin stream crossing in front of the hole's lower half while
+/// the far side arcs over the top.
+pub(crate) const BLACK_HOLE_RING_MINOR_FRACTION: f32 = 0.28;
+
+/// Gravitational-lensing halo radius as a multiple of the ball outer
+/// radius. Far-side motes are re-projected onto an arc of this
+/// radius over the top of the shadow: 1.30 hugs just above the
+/// photon ring, the bright halo of the iconic images — the
+/// "particles curve upward as they approach the hole's edge" read
+/// from the owner's stage-2 feedback.
+pub(crate) const BLACK_HOLE_RING_LENS_ARC_FRACTION: f32 = 1.30;
+
+/// Entry spiral radius excess for freshly spawned motes: new motes
+/// materialize 55% beyond the disk and settle onto the ring
+/// exponentially — accretion from outside, not pop-in on the orbit.
+/// Also gives steady-state respawns their drift-in read.
+pub(crate) const BLACK_HOLE_RING_ENTRY_BOOST: f32 = 0.55;
+
+/// Entry spiral decay time constant in seconds (the excess radius
+/// decays to 5% within ~3 tau ≈ 2.7 s).
+pub(crate) const BLACK_HOLE_RING_ENTRY_TAU: f32 = 0.9;
+
+/// Ball rim co-rotation rate as a multiple of the ring's mean
+/// angular rate. 1.0 locks the hole's rim to the disk's phase — the
+/// glyphs and the Doppler-style bright lobe circulate left-to-right
+/// around the event horizon in lockstep with the orbiting stream
+/// (the owner's stage-2 feedback: the hole must visibly spin,
+/// synchronized with the ring).
+pub(crate) const BLACK_HOLE_RING_SPIN_RATE: f32 = 1.0;
+
+/// Angular width of one rim conveyor bucket (radians). The rim's
+/// glyph pattern is bucketed at this granularity and the buckets
+/// slide around the annulus with the spin phase — the visible
+/// surface rotation of the ball.
+pub(crate) const BLACK_HOLE_RING_CONVEYOR_ARC: f32 = 0.26;
+
+/// Cosine threshold of the rotating Doppler-style brightness lobe on
+/// the rim: cells within ±53 degrees of the lobe peak brighten one
+/// ladder rung, cells near the opposite point dim one — a hot spot
+/// sweeping around the event horizon with the spin.
+pub(crate) const BLACK_HOLE_RING_LOBE_GAIN: f32 = 0.6;
 
 /// Radial turbulence amplitude as a multiple of the ball outer
 /// radius, driven by the attractor's radial coordinate (the lobe
 /// distance). 0.34 swings the band across roughly a third of the
 /// ball radius — a living plasma stream, not a rigid hoop.
 pub(crate) const BLACK_HOLE_RING_WOBBLE_FRACTION: f32 = 0.34;
-
-/// Vertical squeeze of the orbital ellipse. The disk is viewed from
-/// slightly above: 0.45 flattens the circle into the tilted-ellipse
-/// read of the iconic black-hole imagery (EHT M87*, Gargantua).
-pub(crate) const BLACK_HOLE_RING_TILT: f32 = 0.45;
 
 /// Out-of-plane displacement amplitude (the attractor z mapped onto
 /// the screen vertical), as a multiple of the ball outer radius.

@@ -88,6 +88,52 @@ lap-pace sanity, RK4 stability regime) plus a compile-time Kepler
 exponent pin; the stage-1 core contracts updated for the mote layer
 (drawn cells and active count now cover the ball plus the ring).
 
+### feature: NIGHT-special-1 stage 2.1 — owner-feedback iteration: the wide Gargantua disk, the lensing halo, and the co-rotating hole
+
+Owner verified stage 2 at 8/10 with three directional notes, all
+validated against the real imagery (EHT M87*, Gargantua): the disk
+must read LONG left-to-right of the shadow, particles approaching
+the hole's edge must curve UP over the top, and the hole itself must
+visibly rotate in sync with the ring (it read as static).
+
+The wide disk: the projection's ellipse is re-proportioned — the
+semi-major axis is now a fraction of the viewport unit (clamped to
+92% of the half-width so extremes never clip on narrow terminals),
+reaching about twice the ball's radius left and right, with a thin
+near edge-on semi-minor axis. The old ring-radius/tilt constants are
+retired; the Kepler shear input tracks the new a/a_mean.
+
+The lensing halo: the far side no longer hides flat behind the hole
+— gravitational lensing bends it over the top. Far-side motes blend
+onto a circular halo arc (radius 1.30x the ball, aspect-corrected
+round on screen) whose apex sits just above the photon ring; the
+blend is smooth in backness so the stream climbs continuously from
+the limb, vanishes briefly behind the silhouette, re-emerges on the
+upper arc and sails over the top — the iconic halo read.
+
+The co-rotating hole: the ball's rim now spins on the same clock and
+the same mean omega as the ring (SPIN_RATE 1.0 = lockstep). Two
+coupled mechanisms make it visible: a glyph conveyor (the rim's
+pattern is bucketed by angle and the buckets slide around the
+annulus with the spin phase — motion-gated deterministic re-rolls,
+so the binary charset reads as a circulating 0/1 stream) and a
+Doppler-style brightness lobe (cells near the rotating peak brighten
+one ladder rung, near the opposite point dim one — the radial band
+structure untouched, bump applied at draw time only). The spin
+advances even with zero motes active (own clock, not the pool).
+
+Entry spiral: freshly spawned motes materialize 55% beyond the disk
+and settle onto it exponentially (tau 0.9 s) — accretion from
+outside instead of pop-in, for both the steady-state respawn and the
+upcoming formation intro.
+
+Tests: 4 new contracts (the lens lift — apex above the ball top,
+near side below center, continuity at the extremes, smooth rise;
+the entry spiral's monotonic settle; the spin phase's advance and
+lockstep tracking of the ring's mean omega; the band test re-based
+on the new geometry with a settled-age filter), 16/16 black-hole
+tests green.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

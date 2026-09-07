@@ -60,10 +60,9 @@ use rand::{
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{
-    bold_for_level, clear_cell, color_for_level, pick_pool_char,
-};
+use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
+use super::ball_helpers::{bump_level, conveyor_char, draw_ball_cell, level_for_ring_band};
 use super::ring::{
     activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
     step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep, RingMote,
@@ -135,6 +134,18 @@ pub(crate) struct BlackHoleRain {
     /// Cached ball outer radius in line-height units — the ring
     /// radii are multiples of it (scales with any screen size).
     ball_outer_r: f32,
+    /// Ball rim spin phase (radians, unbounded — read through cos so
+    /// no wrapping bookkeeping). Advanced by the same clock and
+    /// omega as the ring's mean motion: the hole visibly rotates
+    /// with its disk (stage 2.1, owner feedback).
+    spin_phase: f32,
+    /// Per-cell aspect-corrected angle around the ball center
+    /// (parallel to `ring_cells` — the conveyor's input geometry,
+    /// computed once at reset).
+    cell_angles: Vec<f32>,
+    /// Last conveyor bucket index per cell (parallel to `ring_cells`
+    /// — motion-gated glyph re-roll bookkeeping).
+    cell_buckets: Vec<i32>,
     /// Last frame's drawn cells (diff cleanup input).
     previous_cells: Vec<BlackHoleCell>,
     /// This frame's drawn cells (diff cleanup output).
@@ -161,6 +172,9 @@ impl BlackHoleRain {
             center_col: 0,
             center_line: 0,
             ball_outer_r: 0.0,
+            spin_phase: 0.0,
+            cell_angles: Vec::new(),
+            cell_buckets: Vec::new(),
             previous_cells: Vec::new(),
             current_cells: Vec::new(),
             drawn_gen: Vec::new(),
@@ -185,6 +199,8 @@ impl BlackHoleRain {
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
+            self.cell_angles.clear();
+            self.cell_buckets.clear();
             self.clear_draw_history();
             return;
         }
@@ -205,6 +221,8 @@ impl BlackHoleRain {
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
+            self.cell_angles.clear();
+            self.cell_buckets.clear();
             self.clear_draw_history();
             return;
         }
@@ -250,6 +268,23 @@ impl BlackHoleRain {
         self.glyphs.clear();
         self.glyphs.resize_with(self.ring_cells.len(), || '0');
         self.glyphs_stale = true;
+
+        // Rim conveyor geometry: each cell's angle around the center
+        // (aspect-corrected, the same units the ring projection uses)
+        // drives the sliding glyph buckets — the visible surface
+        // rotation of the ball. Buckets start at 0 so the first draw
+        // re-rolls every glyph to its bucket's character.
+        self.cell_angles = self
+            .ring_cells
+            .iter()
+            .map(|c| {
+                let dx = (c.col as f32 - cx as f32) / CELL_ASPECT_DIVISOR;
+                let dy = c.line as f32 - cy as f32;
+                dy.atan2(dx)
+            })
+            .collect();
+        self.cell_buckets = vec![0; self.ring_cells.len()];
+
         self.reset_ring_motes(cols);
         self.clear_draw_history();
     }
@@ -381,12 +416,12 @@ impl BlackHoleRain {
     /// Lorenz step + Keplerian advance live in `ring.rs`). dt = now -
     /// last_step clamped by max_sim_delta and scaled by resume_blend
     /// (the anti-teleport contract shared with the structured
-    /// family); a fully-paused run simply stops integrating.
+    /// family); a fully-paused run simply stops integrating. The
+    /// ball's rim spin advances on the same clock and the same mean
+    /// omega as the motes — the co-rotation contract — even while no
+    /// mote is active (the hole spins on its own phase from the
+    /// first frame).
     pub(crate) fn advance(&mut self, step: &BlackHoleStep) {
-        if self.active_motes == 0 {
-            self.last_step = Some(step.now);
-            return;
-        }
         let dt_wall = match self.last_step {
             Some(last) => {
                 step.now
@@ -410,6 +445,16 @@ impl BlackHoleRain {
             step.chars_per_sec.max(0.0) * crate::constants::BLACK_HOLE_RING_DT_PER_CPS * dt_wall;
         let omega_base =
             step.chars_per_sec.max(0.0) * crate::constants::BLACK_HOLE_RING_OMEGA_PER_CPS;
+
+        // Ball rim co-rotation: the spin phase rides the same clock
+        // and omega as the ring's mean motion, scaled by SPIN_RATE
+        // (1.0 = lockstep with the disk's phase — the hole rotates
+        // with its ring, per the owner's stage-2 feedback).
+        self.spin_phase += omega_base * dt_wall * crate::constants::BLACK_HOLE_RING_SPIN_RATE;
+
+        if self.active_motes == 0 {
+            return;
+        }
 
         let mut absorbed = 0usize;
         for m in &mut self.motes {
@@ -474,6 +519,22 @@ impl BlackHoleRain {
                 // handler calls reset() and rebuilds the annulus.
                 continue;
             }
+
+            // Rim conveyor (stage 2.1 — the visible ball rotation): the
+            // glyph pattern is bucketed by angle and the buckets slide
+            // around the annulus with the spin phase. When a cell's
+            // bucket changes the glyph re-rolls to the new bucket's
+            // deterministic character — motion-gated mutation, the same
+            // life-sign DNA as the family's shimmer gates.
+            if self.cell_angles.len() > idx && self.cell_buckets.len() > idx {
+                let bucket = ((self.cell_angles[idx] - self.spin_phase)
+                    / crate::constants::BLACK_HOLE_RING_CONVEYOR_ARC)
+                    .floor() as i32;
+                if bucket != self.cell_buckets[idx] {
+                    self.cell_buckets[idx] = bucket;
+                    self.glyphs[idx] = conveyor_char(ctx.char_pool, bucket);
+                }
+            }
             // Matrix shimmer: low-probability glyph mutation is the
             // engine's life sign (every style carries one); the ball
             // stays calm, a slow surface flicker at the event horizon.
@@ -487,6 +548,26 @@ impl BlackHoleRain {
             } else {
                 '0'
             };
+
+            // Doppler-style lobe (stage 2.1): a bright band sweeps
+            // around the rim with the spin phase — cells near the lobe
+            // peak brighten one rung, cells near the opposite point dim
+            // one. The radial band structure is untouched (bump applied
+            // at draw time only, clamped to the ladder), so the
+            // approved photon-ring read stays intact while the surface
+            // visibly rotates left-to-right in lockstep with the ring.
+            let level = if self.cell_angles.len() > idx {
+                let lobe = (self.cell_angles[idx] - self.spin_phase).cos();
+                if lobe > crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
+                    bump_level(cell.level, 1)
+                } else if lobe < -crate::constants::BLACK_HOLE_RING_LOBE_GAIN {
+                    bump_level(cell.level, -1)
+                } else {
+                    cell.level
+                }
+            } else {
+                cell.level
+            };
             draw_ball_cell(
                 ctx,
                 frame,
@@ -494,25 +575,29 @@ impl BlackHoleRain {
                 cell.line,
                 ch,
                 self.palette_slot,
-                cell.level,
+                level,
             );
             self.current_cells.push(*cell);
         }
 
         // Stage 2: the orbital ring — project every active mote onto
-        // the tilted ellipse around the cached ball anchor, draw the
-        // head + comet trail (occluded far-side cells skipped), and
-        // record the drawn cells into the same diff-cleanup stream as
+        // the wide tilted ellipse around the cached ball anchor, draw
+        // the head + comet trail (occluded far-side cells skipped),
+        // and record the drawn cells into the same diff-cleanup stream as
         // the ball (one unified current_cells / drawn_gen pipeline).
         if self.active_motes > 0 && self.ball_outer_r >= 1.0 {
             let cx_f = self.center_col as f32;
             let cy_f = self.center_line as f32;
             let outer_r = self.ball_outer_r;
+            // Semi-major clamp: 92% of the viewport's half-width (in
+            // line-height units) so the disk extremes never clip on
+            // narrow terminals — the wide-disk read survives resize.
+            let major_limit = 0.92 * ctx.cols as f32 / (CELL_ASPECT_DIVISOR * 2.0);
             for m in &mut self.motes {
                 if !m.active {
                     continue;
                 }
-                let (col_f, line_f) = project_ring_mote(m, cx_f, cy_f, outer_r);
+                let (col_f, line_f) = project_ring_mote(m, cx_f, cy_f, outer_r, major_limit);
                 let col = col_f.round() as i32;
                 let line = line_f.round() as i32;
                 if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
@@ -633,44 +718,10 @@ impl BlackHoleRain {
     pub(crate) fn active_motes_for_test(&self) -> usize {
         self.active_motes
     }
-}
 
-/// Radial brightness band for the annulus: `t` is the normalized radial
-/// position, 0.0 at the core edge (event horizon) and 1.0 at the outer
-/// rim. Inverted from the vortex drain — the photon ring hugs the hole:
-/// the innermost band is Core (brightest), fading outward to Ghost.
-pub(crate) fn level_for_ring_band(t: f32) -> BrightnessLevel {
-    if t < 0.18 {
-        BrightnessLevel::Core
-    } else if t < 0.45 {
-        BrightnessLevel::Hot
-    } else if t < 0.75 {
-        BrightnessLevel::Mid
-    } else {
-        BrightnessLevel::Ghost
+    #[cfg(test)]
+    /// Ball rim spin phase (the co-rotation contract's observable).
+    pub(crate) fn spin_phase_for_test(&self) -> f32 {
+        self.spin_phase
     }
-}
-
-/// Render one ball cell (palette-aware color + bold, mono-safe).
-fn draw_ball_cell(
-    ctx: &DrawCtx<'_>,
-    frame: &mut Frame,
-    col: u16,
-    line: u16,
-    ch: char,
-    palette_slot: u8,
-    level: BrightnessLevel,
-) {
-    if line >= ctx.lines || col >= ctx.cols {
-        return;
-    }
-    let fg = color_for_level(ctx, palette_slot, line, col, level, 1.0);
-    let bold = bold_for_level(ctx.bold_mode, level, line, col);
-    let cell = crate::cell::Cell {
-        ch,
-        fg,
-        bg: ctx.bg,
-        bold,
-    };
-    frame.set(col, line, cell);
 }

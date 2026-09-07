@@ -31,6 +31,22 @@
 //! horizon, drawing over the empty core — the tilted-disk money
 //! shot.
 //!
+//! Gravitational lensing (stage 2.1, owner visual feedback): the
+//! far side of the disk does not hide flat behind the hole — light
+//! from behind bends over the top of the shadow. Far-side motes are
+//! re-projected onto a halo arc (radius a multiple of the ball)
+//! whose apex sits just above the photon ring, smoothly blended into
+//! the flat ellipse at the disk's left and right extremes: the
+//! stream climbs from the limb, vanishes briefly behind the shadow,
+//! re-emerges on the upper arc, and sails over the top — the
+//! iconic lensed halo of every real black-hole image.
+//!
+//! Entry spiral (the accretion read): freshly spawned motes carry
+//! an entry radius excess that decays exponentially — material
+//! drifts in from beyond the disk and settles onto the ring, never
+//! popping in on the orbit. The same read serves the steady-state
+//! respawn and the formation intro's accretion phase.
+//!
 //! Family contracts honored: pool = one mote per column (lane
 //! model), deficit-bounded spawn accumulator with fractional
 //! remainder, lifetime absorption with per-mote variance,
@@ -240,27 +256,73 @@ pub(crate) fn advance_ring_mote(
     false
 }
 
-/// Project a mote onto the screen: the orbital ellipse around the
-/// ball center. Horizontal extent is the full wobbled radius
-/// (aspect-corrected — a column covers half a line-height of screen
-/// distance); vertical extent is squeezed by the tilt (the 3D disk
-/// read); the attractor z displaces the mote out of the ring plane
-/// (z high reads up, matching the brightness ladder's depth cue).
-/// Returns float cell coordinates — the caller rounds, bounds-checks
-/// and applies the occlusion rule (lorenz draw parity).
-pub(crate) fn project_ring_mote(m: &RingMote, cx: f32, cy: f32, ball_outer_r: f32) -> (f32, f32) {
+/// Project a mote onto the screen: the wide orbital ellipse around
+/// the ball center. Horizontal reach is the semi-major axis
+/// (`MAJOR_FRACTION` of the viewport unit, clamped to 92% of the
+/// viewport's half-width so the extremes never clip on narrow
+/// terminals); vertical squeeze is the semi-minor axis (`MINOR_FRACTION`
+/// of the unit — the near edge-on read). The attractor's radial
+/// coordinate wobbles the semi-major axis; its z displaces the mote
+/// out of the ring plane (z high reads up, matching the brightness
+/// ladder's depth cue). On the far side the projection blends into
+/// the lensing halo arc over the top of the shadow, and the entry
+/// spiral scales both axes for young motes. Returns float cell
+/// coordinates — the caller rounds, bounds-checks and applies the
+/// occlusion rule (lorenz draw parity).
+pub(crate) fn project_ring_mote(
+    m: &RingMote,
+    cx: f32,
+    cy: f32,
+    ball_outer_r: f32,
+    major_limit: f32,
+) -> (f32, f32) {
+    let unit = ball_outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
     let r_norm = ring_r_norm(m);
-    let ring_r = (ball_outer_r
-        * (crate::constants::BLACK_HOLE_RING_RADIUS_FRACTION
-            + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * r_norm))
-        .max(0.15);
+    let entry = entry_radius_scale(m.sim_age);
+    let a_mean = (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * unit).min(major_limit);
+    let a = (a_mean + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * ball_outer_r * r_norm)
+        .max(0.15)
+        * entry;
+    let b = (crate::constants::BLACK_HOLE_RING_MINOR_FRACTION * unit * (1.0 + 0.15 * r_norm))
+        .max(0.05)
+        * entry;
+    let cos_phi = m.phi.cos();
+    let sin_phi = m.phi.sin();
+    let col = cx + cos_phi * a * CELL_ASPECT_DIVISOR;
+    let mut line = cy + sin_phi * b;
+
+    // Gravitational lensing: the far side (sin < 0, above center)
+    // blends onto a halo arc over the top of the shadow. Backness
+    // runs 0 at the disk extremes to 1 directly behind; the blend is
+    // a smoothstep so the rise reads as one continuous curve. The
+    // arc is a circle (in line-height units, round on screen like
+    // the ball) of radius LENS_ARC_FRACTION x ball_outer_r — the
+    // arc term flattens to cy beyond the arc's horizontal reach, so
+    // the projection is continuous where the halo meets the disk.
+    let backness = (-sin_phi).clamp(0.0, 1.0);
+    if backness > 0.0 {
+        let r_arc = ball_outer_r * crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION;
+        let x_off = (cos_phi * a).clamp(-r_arc, r_arc);
+        let arc_y = cy - (r_arc * r_arc - x_off * x_off).sqrt();
+        let w = backness * backness * (3.0 - 2.0 * backness);
+        line = line * (1.0 - w) + arc_y * w;
+    }
+
     let z_norm = ((m.z - crate::constants::BLACK_HOLE_RING_Z_NORM_CENTER)
         * crate::constants::BLACK_HOLE_RING_Z_NORM_GAIN)
         .clamp(-1.0, 1.0);
-    let z_disp = z_norm * crate::constants::BLACK_HOLE_RING_Z_TILT * ball_outer_r;
-    let col = cx + m.phi.cos() * ring_r * CELL_ASPECT_DIVISOR;
-    let line = cy + m.phi.sin() * ring_r * crate::constants::BLACK_HOLE_RING_TILT - z_disp;
+    line -= z_norm * crate::constants::BLACK_HOLE_RING_Z_TILT * ball_outer_r;
     (col, line)
+}
+
+/// Entry spiral radius scale for a mote of the given simulation age:
+/// 1 + ENTRY_BOOST at age 0, settling exponentially to 1.0 with the
+/// ENTRY_TAU time constant. Young motes project beyond the disk and
+/// drift in — the accretion read (fresh material falling toward the
+/// ring instead of appearing on it).
+pub(crate) fn entry_radius_scale(sim_age: f32) -> f32 {
+    1.0 + crate::constants::BLACK_HOLE_RING_ENTRY_BOOST
+        * (-sim_age / crate::constants::BLACK_HOLE_RING_ENTRY_TAU).exp()
 }
 
 /// Occlusion rule (the 3D read): a cell inside the ball silhouette
@@ -322,12 +384,15 @@ fn lorenz_deriv(x: f32, y: f32, z: f32, sigma: f32, rho: f32, beta: f32) -> (f32
 /// Current orbital radius as a ratio of the mean ring radius — the
 /// Keplerian shear input. The attractor radial coordinate is
 /// normalized around the lobe radius and clamped, so the ratio stays
-/// inside roughly [0.75, 1.30]: always positive (the powf in the
+/// inside roughly [0.8, 1.2]: always positive (the powf in the
 /// advance pass requires it) and bounded (the shear stays visible
-/// without whipping).
+/// without whipping). Mirrors the projection's a/a_mean (the wobble
+/// amplitude over the mean semi-major axis, both in ball-radius
+/// units).
 fn ring_radius_ratio(m: &RingMote) -> f32 {
-    1.0 + (crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * ring_r_norm(m))
-        / crate::constants::BLACK_HOLE_RING_RADIUS_FRACTION
+    let a_mean_in_outer_r = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION
+        / crate::constants::BLACK_HOLE_BALL_FRACTION;
+    1.0 + (crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * ring_r_norm(m)) / a_mean_in_outer_r
 }
 
 /// Normalized attractor radial coordinate (the wobble source):

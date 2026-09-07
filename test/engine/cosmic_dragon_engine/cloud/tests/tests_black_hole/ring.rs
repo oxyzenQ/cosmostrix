@@ -2,7 +2,9 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! NIGHT-special-1 stage 2 tests: the orbital ring — RK4-Lorenz
-//! turbulence on a tilted Keplerian ellipse around the ball. Covers
+//! turbulence on a wide tilted Keplerian ellipse around the ball,
+//! with the stage-2.1 reads: gravitational-lensing halo over the
+//! top, ball rim co-rotation, entry spiral for fresh motes. Covers
 //! spawning + orbital advance, the band geometry, the far-side
 //! occlusion contract, style-transition recycling, and the shipped
 //! motion constants (RK4 stability regime, majestic lap pace).
@@ -18,6 +20,10 @@ struct BallGeometry {
     cx: f32,
     cy: f32,
     outer_r: f32,
+    /// Semi-major clamp passed to the projection (92% of the
+    /// viewport half-width, line-height units — mirrors the draw
+    /// pass's own clamp).
+    major_limit: f32,
 }
 
 impl BallGeometry {
@@ -27,6 +33,7 @@ impl BallGeometry {
             cx: ((cols - 1) / 2) as f32,
             cy: ((lines - 1) / 2) as f32,
             outer_r: unit * crate::constants::BLACK_HOLE_BALL_FRACTION,
+            major_limit: 0.92 * cols as f32 / 4.0,
         }
     }
 
@@ -94,20 +101,31 @@ fn black_hole_ring_heads_stay_in_the_band() {
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 90, 16);
+    // Long enough that early-spawned motes pass the entry settle
+    // window (3 tau) and sit on the steady disk for the band check.
+    run_frames(&mut cloud, &mut frame, 210, 16);
 
     let geo = BallGeometry::new(cols, lines);
-    let band_max = geo.outer_r
-        * (crate::constants::BLACK_HOLE_RING_RADIUS_FRACTION
-            + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * 1.2);
+    let unit = geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
+    let a_mean = (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * unit).min(geo.major_limit);
+    // The band contract: steady-age motes stay inside the orbital
+    // band (the farthest horizontal reach, or the lensing halo's
+    // radius, whichever is greater) and inside the viewport. Fresh
+    // motes (sim_age below the entry window) are still on their
+    // drift-in spiral and may sit beyond it — they are excluded
+    // (the entry spiral is a separate contract below).
+    let entry_settle_secs = 3.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU;
+    let band_max = (a_mean + crate::constants::BLACK_HOLE_RING_WOBBLE_FRACTION * geo.outer_r * 1.2)
+        .max(geo.outer_r * crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION)
+        + 0.1;
 
     let mut projected = 0;
     for m in cloud.black_hole_rain.motes_for_test() {
-        if !m.active {
+        if !m.active || m.sim_age < entry_settle_secs {
             continue;
         }
         projected += 1;
-        let (col_f, line_f) = project_ring_mote(m, geo.cx, geo.cy, geo.outer_r);
+        let (col_f, line_f) = project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
         let col = col_f.round();
         let line = line_f.round();
         assert!(
@@ -124,7 +142,7 @@ fn black_hole_ring_heads_stay_in_the_band() {
             "ring head escaped the band (dist {dist} > {band_max})"
         );
     }
-    assert!(projected > 0, "no active motes to project");
+    assert!(projected > 0, "no settled motes to project");
 }
 
 #[test]
@@ -239,3 +257,136 @@ fn black_hole_ring_rk4_step_bounded() {
 // third law (minus three-halves) — any drift here would silently
 // change the differential-rotation signature of the disk.
 const _: () = assert!(crate::constants::BLACK_HOLE_RING_KEPLER_EXP == 1.5);
+
+// -- Stage 2.1: the gravitational-lensing halo, the entry spiral,
+// and the ball's co-rotation --
+
+/// A synthetic mote pinned to a given orbital phase with the Lorenz
+/// state parked at the normalization centers (r_norm = 0, z_norm =
+/// 0) — projection geometry in isolation, no turbulence.
+fn pinned_mote(phi: f32, sim_age: f32) -> crate::cloud::type_rain::black_hole::ring::RingMote {
+    let mut m = crate::cloud::type_rain::black_hole::ring::RingMote::vacant();
+    m.active = true;
+    m.phi = phi;
+    m.sim_age = sim_age;
+    m.x = crate::constants::BLACK_HOLE_RING_R_NORM_CENTER;
+    m.y = 0.0;
+    m.z = crate::constants::BLACK_HOLE_RING_Z_NORM_CENTER;
+    m
+}
+
+#[test]
+fn black_hole_ring_lens_lifts_far_side_over_the_top() {
+    // The owner's stage-2 feedback: particles approaching the hole's
+    // edge must curve UP. Contract: directly behind the hole the far
+    // side projects onto the halo arc ABOVE the ball's top (the
+    // lensed image); directly in front it crosses BELOW the center
+    // (the near side in front of the shadow); at the extremes it
+    // meets the disk plane (continuity — no jump between the flat
+    // ellipse and the arc).
+    let (cols, lines) = (120, 40);
+    let geo = BallGeometry::new(cols, lines);
+
+    let behind = pinned_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0);
+    let (_, line_behind) = project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    assert!(
+        line_behind < geo.cy - geo.outer_r,
+        "far-side center must project above the ball top (line {line_behind}, cy {}, top {})",
+        geo.cy,
+        geo.cy - geo.outer_r
+    );
+
+    let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
+    let (_, line_front) = project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    assert!(
+        line_front > geo.cy,
+        "near-side center must project below the viewport center (line {line_front})"
+    );
+
+    let side = pinned_mote(0.0, 30.0);
+    let (_, line_side) = project_ring_mote(&side, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    assert!(
+        (line_side - geo.cy).abs() < 0.01,
+        "disk extreme must sit on the disk plane (line {line_side}, cy {})",
+        geo.cy
+    );
+
+    // The lift is monotonic in backness: a quarter-behind mote sits
+    // strictly between the plane and the apex — the curve reads as a
+    // continuous rise, not a teleport.
+    let quarter = pinned_mote(std::f32::consts::PI + std::f32::consts::FRAC_PI_4, 30.0);
+    let (_, line_quarter) =
+        project_ring_mote(&quarter, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    assert!(
+        line_quarter < geo.cy && line_quarter > line_behind,
+        "lift must rise smoothly (quarter {line_quarter} vs plane {} vs apex {line_behind})",
+        geo.cy
+    );
+}
+
+#[test]
+fn black_hole_ring_entry_spiral_drifts_inward() {
+    // The accretion read: a fresh mote projects beyond the disk and
+    // settles onto it exponentially — strictly closer to the center
+    // as it ages, never farther.
+    let (cols, lines) = (120, 40);
+    let geo = BallGeometry::new(cols, lines);
+
+    let young = pinned_mote(0.0, 0.05);
+    let old = pinned_mote(0.0, 30.0);
+    let (col_young, _) = project_ring_mote(&young, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (col_old, _) = project_ring_mote(&old, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let reach_young = (col_young - geo.cx).abs();
+    let reach_old = (col_old - geo.cx).abs();
+    assert!(
+        reach_young > reach_old + 0.5,
+        "fresh mote must start beyond the disk (reach {reach_young} vs settled {reach_old})"
+    );
+
+    // Monotonic settle over the decay window.
+    let mid = pinned_mote(0.0, 2.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU);
+    let (col_mid, _) = project_ring_mote(&mid, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let reach_mid = (col_mid - geo.cx).abs();
+    assert!(
+        reach_young > reach_mid && reach_mid > reach_old,
+        "entry settle must be monotonic (young {reach_young} > mid {reach_mid} > old {reach_old})"
+    );
+}
+
+#[test]
+fn black_hole_ball_spin_advances_with_the_ring() {
+    // The co-rotation contract: the rim's spin phase strictly
+    // advances on the shared clock (the hole visibly rotates, never
+    // stalls), even before any mote has spawned — the phase rides
+    // the advance pass's global clock, not the mote pool.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 60, 16);
+
+    let spin_before = cloud.black_hole_rain.spin_phase_for_test();
+    assert!(
+        spin_before > 0.0,
+        "spin phase must advance from zero (got {spin_before})"
+    );
+    run_frames(&mut cloud, &mut frame, 30, 16);
+    let spin_after = cloud.black_hole_rain.spin_phase_for_test();
+    assert!(
+        spin_after > spin_before + 0.01,
+        "spin phase stalled ({} -> {})",
+        spin_before,
+        spin_after
+    );
+
+    // Sync sanity: at the scene default speed the spin advances at
+    // SPIN_RATE x the ring's mean omega — one rim lap per disk lap
+    // at rate 1.0 (the lockstep the owner asked for). The first
+    // frame only arms the clock (last_step None -> dt 0), so 60
+    // frames = 59 x 16 ms of spin time.
+    let omega = 12.0 * crate::constants::BLACK_HOLE_RING_OMEGA_PER_CPS;
+    let expected = omega * crate::constants::BLACK_HOLE_RING_SPIN_RATE * (59.0 * 0.016);
+    assert!(
+        (spin_before - expected).abs() < 0.05,
+        "spin phase must track the ring's mean motion (got {spin_before}, want ~{expected})"
+    );
+}
