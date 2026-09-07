@@ -26,6 +26,17 @@
 //! ellipse, far side passing behind the hole, near side crossing in
 //! front of the core (the per-mote physics lives in `ring.rs`).
 //!
+//! Stage 2.3 (owner 9.5/10 feedback, the Gargantua reference): the disk
+//! is now an equatorial crossing — the near side's sine squashed to half
+//! the minor axis so the solid line hugs the vertical MIDDLE of the core,
+//! the near/far occlusion keyed on the orbit side instead of screen
+//! height (near-side cells the z-tilt lifts above the equator used to be
+//! eaten by the old rule — half of why the line read below center), the
+//! active-mote floor raised to 0.55 of the pool so the band knits into
+//! the near-continuous bright line of the Interstellar imagery, and the
+//! disk gained a radial brightness profile (inner-zone bump across the
+//! shadow, rung-fade at the line's ends — the smooth sparse transition).
+//!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
 //! runs in line-height units: a cell offset (dx cols, dy lines) sits at
@@ -79,8 +90,9 @@ use super::formation::{
     FormationPhase,
 };
 use super::ring::{
-    activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
-    step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep, RingMote,
+    activate_ring_mote, advance_ring_mote, disk_profile_level, level_for_ring_z,
+    occludes_ring_cell, project_ring_mote, step_down_level, BlackHoleRandom, BlackHoleSpawnParams,
+    BlackHoleStep, RingMote,
 };
 
 /// One drawn ball cell: grid position plus its radial brightness band.
@@ -388,8 +400,9 @@ impl BlackHoleRain {
 
     /// Steady-state active-mote target from pool size + density
     /// (mirrors `LorenzRain::target_active_count` with the ring's
-    /// ratios — a sparser stream than the lorenz field because the
-    /// ring is a band, not the whole viewport).
+    /// ratios — stage 2.3 raises the floor to 0.55 and the cap to
+    /// the full pool: the ring must read as a solid band, not a
+    /// sparse stream, per the owner's Gargantua reference).
     fn target_active_motes(lanes: usize, density: f32) -> usize {
         if lanes == 0 {
             return 0;
@@ -719,6 +732,17 @@ impl BlackHoleRain {
                 }
                 let (col, line) = (col as u16, line as u16);
 
+                // The mote's side is a property of the orbit (the sign
+                // of sin phi), known exactly — the stage-2.3 occlusion
+                // rule keys on it: near-side motes draw in front of
+                // the hole at any height (the z-tilt breathes them
+                // above the equator without vanishing), far-side
+                // motes hide only while inside the silhouette. Shared
+                // by the head and the trail cells below (the side can
+                // only flip at the extremes, which sit outside the
+                // silhouette — no flip artifact is visible).
+                let near_side = m.phi.sin() >= 0.0;
+
                 // Matrix shimmer: mutate the glyph when the head lands
                 // on a new cell (previous trail head differs), gated
                 // by the family chance constant.
@@ -734,12 +758,20 @@ impl BlackHoleRain {
                     m.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
                 }
 
-                let head_level = level_for_ring_z(m.z);
-
-                // Head: near-side motes crossing the silhouette draw in
-                // front of the annulus / empty core; far-side motes are
-                // hidden behind the ball (the 3D layering read).
-                if !occludes_ring_cell(col, line, self.center_col, self.center_line, outer_r) {
+                // Head: the attractor-z depth cue graded by the disk's
+                // radial profile (stage 2.3 — hot inner zone across the
+                // shadow, fading rungs at the line's extremes), then the
+                // side-aware occlusion (near side always in front, far
+                // side hidden inside the silhouette).
+                let head_level = disk_profile_level(level_for_ring_z(m.z), m.phi);
+                if !occludes_ring_cell(
+                    col,
+                    line,
+                    self.center_col,
+                    self.center_line,
+                    outer_r,
+                    near_side,
+                ) {
                     draw_ball_cell(ctx, frame, col, line, m.ch, m.palette_slot, head_level);
                     self.current_cells.push(BlackHoleCell {
                         col,
@@ -757,7 +789,14 @@ impl BlackHoleRain {
                     if tc >= ctx.cols || tl >= ctx.lines {
                         continue;
                     }
-                    if occludes_ring_cell(tc, tl, self.center_col, self.center_line, outer_r) {
+                    if occludes_ring_cell(
+                        tc,
+                        tl,
+                        self.center_col,
+                        self.center_line,
+                        outer_r,
+                        near_side,
+                    ) {
                         continue;
                     }
                     let depth = (m.trail_len as usize - t).min(4) as u8;

@@ -1,9 +1,16 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: pure tuning-constants file — every style's motion/density
+// constants with their mandatory why-docs, no logic (same data-file class
+// as themes.rs). NIGHT-special-1 stage 2.3 added the equatorial-disk
+// constants and pushed it 4 lines over; splitting the single tuning
+// surface by style family would scatter the owner's visual-feedback
+// rationale across files (RULES_LOC.md "When NOT to Split").
 
 //! Tuning constants for the vortex (third), flux (fourth), lorenz
-//! (fifth), dragon (sixth) and physarum (seventh) rain styles —
-//! task-18/task-19 + NIGHT-research-4/5/6.
+//! (fifth), dragon (sixth), physarum (seventh) and black hole
+//! (eighth, NIGHT-special-1) rain styles — task-18/task-19 +
+//! NIGHT-research-4/5/6.
 //! Split from `mod.rs` to respect the 800-LOC hard cap; re-exported
 //! wholesale via the style_rain glob use so the `VORTEX_*`,
 //! `FLUX_*`, `LORENZ_*`, `DRAGON_*` and `PHYSARUM_*` flat-namespace
@@ -600,10 +607,27 @@ pub(crate) const BLACK_HOLE_SHIMMER_CHANCE: f32 = 0.02;
 pub(crate) const BLACK_HOLE_RING_MAJOR_FRACTION: f32 = 1.05;
 
 /// Orbital ellipse semi-minor axis (the vertical squeeze) as a
-/// fraction of the viewport unit. 0.28 renders the disk near edge-on
-/// — a thin stream crossing in front of the hole's lower half while
-/// the far side arcs over the top.
-pub(crate) const BLACK_HOLE_RING_MINOR_FRACTION: f32 = 0.28;
+/// fraction of the viewport unit. 0.14 renders the disk almost
+/// exactly edge-on — the Gargantua read of the owner's stage-2.3
+/// feedback (9.5/10): the Interstellar disk reads as one thin
+/// horizontal line through the shadow's middle, not a fat band
+/// ("padat sampai terlihat garis horizontal"). Halved from 0.28 at
+/// the same time the near side gained its vertical squash and the
+/// density floor tripled — thinner geometry, more glyphs, solid
+/// line.
+pub(crate) const BLACK_HOLE_RING_MINOR_FRACTION: f32 = 0.14;
+
+/// Near-side vertical squash factor: the in-front half of the orbit
+/// maps its sine onto this fraction of the semi-minor axis, so the
+/// crossing band hugs the equator instead of dipping a full minor
+/// axis below it. Stage 2.3 owner feedback: the solid line must sit
+/// at the vertical MIDDLE of the core ("garisnya harusnya berada di
+/// tengah core blackhole, kalo yang sekarang malah berada di bawahnya")
+/// — with 0.5 the near side spans only half a minor axis below the
+/// center, and together with the z-tilt breathing the band reads
+/// centered on the shadow. The far side keeps the full factor: it
+/// belongs to the arms rising into the lensing halo.
+pub(crate) const BLACK_HOLE_RING_NEAR_SQUASH: f32 = 0.5;
 
 /// Gravitational-lensing halo radius as a multiple of the ball outer
 /// radius. Far-side motes are re-projected onto an arc of this
@@ -651,9 +675,34 @@ pub(crate) const BLACK_HOLE_RING_WOBBLE_FRACTION: f32 = 0.34;
 
 /// Out-of-plane displacement amplitude (the attractor z mapped onto
 /// the screen vertical), as a multiple of the ball outer radius.
-/// Small on purpose: 0.18 lets motes breathe around the disk plane
-/// instead of flying off it — the thickness cue of a real disk.
-pub(crate) const BLACK_HOLE_RING_Z_TILT: f32 = 0.18;
+/// Tightened 0.18 -> 0.12 for the stage-2.3 thin-disk read: the band
+/// breathes around the equatorial plane (the thickness cue of a real
+/// disk) without inflating the solid line into a ribbon — at the
+/// scene default the excursions stay under ~1.2 lines at 120x40.
+pub(crate) const BLACK_HOLE_RING_Z_TILT: f32 = 0.12;
+
+/// Inner-disk brightness zone: motes whose |cos phi| (the horizontal
+/// orbital position, 0 directly in front / behind, 1 at the line's
+/// extremes) falls below this bound brighten one ladder rung at draw
+/// time — the hot inner edge of a real accretion disk, and the
+/// "solid white horizontal line" read of the owner's stage-2.3
+/// feedback: the brightest plasma sits across the shadow and (lensed)
+/// over the top, exactly where Gargantua glows hardest.
+pub(crate) const BLACK_HOLE_RING_INNER_ZONE: f32 = 0.45;
+
+/// Edge-fade start: beyond this |cos phi| the disk brightness steps
+/// down toward Ghost rung by rung — the outer disk thins out. The
+/// owner's Interstellar reference: the dense white line ends in a
+/// few sparse particles, a smooth transition into the dark
+/// ("di ujung garis putih itu ada sedikit beberapa partikel jadi
+/// terlihat smooth transisi").
+pub(crate) const BLACK_HOLE_RING_EDGE_FADE_START: f32 = 0.68;
+
+/// Edge-fade depth: the maximum ladder rungs stepped down at the
+/// line's extremes (|cos phi| -> 1). 3 rungs lands most extreme-dwell
+/// motes at Ghost — dim wisps — while the mid-band stays untouched,
+/// the smooth density falloff of a real disk fading with radius.
+pub(crate) const BLACK_HOLE_RING_EDGE_FADE_RUNGS: u8 = 3;
 
 /// Trail depth per mote (comet streak length in cells). Four cells
 /// matches the vortex drain streak: at the ring's tangential speed
@@ -669,16 +718,23 @@ pub(crate) const BLACK_HOLE_RING_TRAIL_LEN: usize = 4;
 pub(crate) const BLACK_HOLE_RING_MAX_AGE_SECS: f32 = 14.0;
 
 /// Base active-mote ratio for density scaling (pool = one mote per
-/// column, the family lane model). 0.22 keeps the ring a stream of
-/// individuals, not a solid band.
-pub(crate) const BLACK_HOLE_RING_ACTIVE_BASE: f32 = 0.22;
+/// column, the family lane model). Raised 0.22 -> 0.55 for the
+/// stage-2.3 solid-band read: at the scene density 0.55 the target
+/// sits near 74% of the pool, and the comet trails knit the band
+/// into the near-continuous horizontal line of the owner's
+/// Interstellar reference (a stream of individuals reads as gaps,
+/// not a line).
+pub(crate) const BLACK_HOLE_RING_ACTIVE_BASE: f32 = 0.55;
 
 /// Density multiplier for the ring active-count target.
 pub(crate) const BLACK_HOLE_RING_ACTIVE_DENSITY_MULT: f32 = 0.35;
 
 /// Maximum active-mote ratio cap of the pool — bounds the stream
-/// density so extreme settings don't saturate the band.
-pub(crate) const BLACK_HOLE_RING_ACTIVE_MAX: f32 = 0.55;
+/// density so extreme settings don't saturate the band. Raised
+/// 0.55 -> 1.0 for stage 2.3: a full pool is the honest ceiling for
+/// the solid-line read (every column hosts a mote), and the spawn
+/// accumulator's deficit bound already keeps the fill gradual.
+pub(crate) const BLACK_HOLE_RING_ACTIVE_MAX: f32 = 1.0;
 
 /// Spawn rate multiplier (steady state needs target/avg_lifetime
 /// motes per second; 0.35x target + floor 1.5 reaches it with

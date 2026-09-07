@@ -24,12 +24,20 @@
 //! orbiting the hole — not a rigid hoop, not a chaotic scribble:
 //! chaos laminated onto an orbit.
 //!
-//! Occlusion (the 3D read): the ellipse's upper half is the far
-//! side of the tilted disk. Motes whose screen cells fall inside the
-//! ball silhouette above the viewport center are passing behind the
-//! hole and are skipped; near-side motes cross in front of the event
-//! horizon, drawing over the empty core — the tilted-disk money
-//! shot.
+//! Occlusion (the 3D read): the near side of the disk passes in
+//! FRONT of the hole — its cells always draw, even across the event
+//! horizon (the crossing read) and even when the z-tilt breathes a
+//! near-side mote above the equator. The far side passes BEHIND the
+//! hole — any far-side cell inside the ball silhouette is skipped,
+//! at any height (the lensing re-projection carries the visible far
+//! side onto the halo arc outside the silhouette, so nothing of the
+//! far side is lost, only the physically-hidden segment).
+//! Stage 2.3 note: the previous screen-height discriminator (hide
+//! above the viewport center) also ate near-side cells the z-tilt
+//! lifted above the equator — one of the two reasons the crossing
+//! line read below the shadow's middle (owner's 9.5/10 feedback).
+//! The side is a property of the orbit (the sign of sin phi), known
+//! exactly, so the rule now keys on it instead of the screen y.
 //!
 //! Gravitational lensing (stage 2.1, owner visual feedback): the
 //! far side of the disk does not hide flat behind the hole — light
@@ -40,6 +48,17 @@
 //! stream climbs from the limb, vanishes briefly behind the shadow,
 //! re-emerges on the upper arc, and sails over the top — the
 //! iconic lensed halo of every real black-hole image.
+//!
+//! Equatorial crossing + disk brightness profile (stage 2.3, owner
+//! 9.5/10 feedback, the Gargantua reference): the near side's sine
+//! is squashed to half the minor axis so the crossing band hugs the
+//! vertical middle of the core (the Interstellar line crosses the
+//! shadow's equator, not its lower half), and the disk carries a
+//! radial brightness profile at draw time — one rung up inside the
+//! inner zone (the hot plasma across the shadow, the "solid white
+//! line"), one to three rungs down past the fade start (the line's
+//! ends dissolve into a few dim particles, the smooth transition of
+//! the reference imagery).
 //!
 //! Entry spiral (the accretion read): freshly spawned motes carry
 //! an entry radius excess that decays exponentially — material
@@ -62,6 +81,7 @@ use rand::{
 };
 
 use super::super::monolith::BrightnessLevel;
+use super::ball_helpers::bump_level;
 use super::black_hole::CELL_ASPECT_DIVISOR;
 
 /// One orbital mote: a glyph riding a Keplerian ring whose turbulence
@@ -264,11 +284,14 @@ pub(crate) fn advance_ring_mote(
 /// of the unit — the near edge-on read). The attractor's radial
 /// coordinate wobbles the semi-major axis; its z displaces the mote
 /// out of the ring plane (z high reads up, matching the brightness
-/// ladder's depth cue). On the far side the projection blends into
-/// the lensing halo arc over the top of the shadow, and the entry
-/// spiral scales both axes for young motes. Returns float cell
-/// coordinates — the caller rounds, bounds-checks and applies the
-/// occlusion rule (lorenz draw parity).
+/// ladder's depth cue). The near side's sine is squashed to
+/// `NEAR_SQUASH` of the minor axis — the crossing band hugs the
+/// equator (stage 2.3: the line reads at the vertical middle of the
+/// core, not a full minor axis below it). On the far side the
+/// projection blends into the lensing halo arc over the top of the
+/// shadow, and the entry spiral scales both axes for young motes.
+/// Returns float cell coordinates — the caller rounds, bounds-checks
+/// and applies the occlusion rule (lorenz draw parity).
 pub(crate) fn project_ring_mote(
     m: &RingMote,
     cx: f32,
@@ -288,8 +311,18 @@ pub(crate) fn project_ring_mote(
         * entry;
     let cos_phi = m.phi.cos();
     let sin_phi = m.phi.sin();
+    // Equatorial squash (stage 2.3): the in-front half maps its sine
+    // onto NEAR_SQUASH of the minor axis so the crossing line sits at
+    // the core's vertical middle; the far half keeps the full factor
+    // for its rise into the lensing halo. Both sides stay continuous
+    // at the extremes (sin = 0 on either side of the branch).
+    let sy = if sin_phi >= 0.0 {
+        sin_phi * crate::constants::BLACK_HOLE_RING_NEAR_SQUASH
+    } else {
+        sin_phi
+    };
     let col = cx + cos_phi * a * CELL_ASPECT_DIVISOR;
-    let mut line = cy + sin_phi * b;
+    let mut line = cy + sy * b;
 
     // Gravitational lensing: the far side (sin < 0, above center)
     // blends onto a halo arc over the top of the shadow. Backness
@@ -325,18 +358,57 @@ pub(crate) fn entry_radius_scale(sim_age: f32) -> f32 {
         * (-sim_age / crate::constants::BLACK_HOLE_RING_ENTRY_TAU).exp()
 }
 
-/// Occlusion rule (the 3D read): a cell inside the ball silhouette
-/// ABOVE the viewport center belongs to the far side of the tilted
-/// disk — the mote is passing behind the hole, hidden by the body.
-/// Cells below the center are the near side: they draw in front of
-/// the annulus and across the empty core (the crossing read).
-/// Distance is aspect-corrected and in line-height units, the same
-/// math the ball raster uses.
-pub(crate) fn occludes_ring_cell(col: u16, line: u16, cx: i32, cy: i32, ball_outer_r: f32) -> bool {
+/// Occlusion rule (the 3D read, stage 2.3 — side-aware): the caller
+/// knows the mote's side exactly (the sign of sin phi), so the rule
+/// keys on physics, not screen position. A near-side cell passes in
+/// front of the hole — never occluded, even above the equator (the
+/// z-tilt breathes near motes both ways) and even across the empty
+/// core (the crossing read). A far-side cell inside the ball
+/// silhouette is behind the hole — hidden at any height; the visible
+/// far side lives on the lensing halo arc outside the silhouette,
+/// so only the physically-hidden segment is dropped. Distance is
+/// aspect-corrected and in line-height units, the same math the
+/// ball raster uses.
+pub(crate) fn occludes_ring_cell(
+    col: u16,
+    line: u16,
+    cx: i32,
+    cy: i32,
+    ball_outer_r: f32,
+    near_side: bool,
+) -> bool {
+    if near_side {
+        return false;
+    }
     let dx = col as f32 - cx as f32;
     let dy = line as f32 - cy as f32;
     let dist = ((dx / CELL_ASPECT_DIVISOR).powi(2) + dy.powi(2)).sqrt();
-    dist < ball_outer_r && (line as i32) < cy
+    dist < ball_outer_r
+}
+
+/// Disk radial brightness profile (stage 2.3, the Gargantua read):
+/// grades a mote's brightness by its horizontal orbital position
+/// `|cos phi|` — 0 directly in front of (or lensed behind) the
+/// shadow, 1 at the line's left/right extremes. Inside the inner
+/// zone the level steps UP one rung (the hot inner disk — the solid
+/// bright line across the core); beyond the fade start it steps
+/// DOWN one to `EDGE_FADE_RUNGS` rungs (the line's ends dissolve
+/// into sparse dim wisps, the smooth transition of the reference
+/// imagery). Between the two bounds the attractor-z ladder rules
+/// alone. Applied to the head at draw time; the comet trail steps
+/// down from the graded head, so the ends fade together.
+pub(crate) fn disk_profile_level(base: BrightnessLevel, phi: f32) -> BrightnessLevel {
+    let c = phi.cos().abs();
+    if c < crate::constants::BLACK_HOLE_RING_INNER_ZONE {
+        bump_level(base, 1)
+    } else if c > crate::constants::BLACK_HOLE_RING_EDGE_FADE_START {
+        let span = 1.0 - crate::constants::BLACK_HOLE_RING_EDGE_FADE_START;
+        let t = ((c - crate::constants::BLACK_HOLE_RING_EDGE_FADE_START) / span).clamp(0.0, 1.0);
+        let rungs = (t * crate::constants::BLACK_HOLE_RING_EDGE_FADE_RUNGS as f32).round() as u8;
+        step_down_level(base, rungs)
+    } else {
+        base
+    }
 }
 
 /// Brightness zone by attractor z (the mote depth cue). Reuses the
