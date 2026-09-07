@@ -177,6 +177,77 @@ core/ring contracts fast-forwarded to the steady state via a
 shared harness helper, 2440/2440 suite green, fmt/clippy clean,
 build.sh check-all exit 0, gate-keepers 10/10, version untouched.
 
+### feature: NIGHT-special-1 stage 2.3 + 2.4 — the Gargantua disk pass, the proximity glow, the see-saw roll, and the three-tier Interstellar stack
+
+Owner verification rounds (stage 2.2 9.5/10, then 9.7/10): the
+disk must read like Gargantua's — dense enough to be a solid
+horizontal white line through the shadow's middle with sparse
+dissolving ends — then, for the last polish, particles near the
+hole must burn white while the distant ones fade, the ring must
+pivot like a lever (left end up, right end down, through the
+vertical and back), and the disk must split into the stacked
+lensed bands of the film's imagery.
+
+Stage 2.3 (the solid-line pass): the active-mote floor rose
+(0.22 -> 0.55 -> pool cap 1.0) so the steady-state target sits
+near 74% of the pool and the comet trails knit the band into the
+near-continuous line; the near side's sine squashed to half the
+minor axis (the crossing hugs the core's vertical middle); the
+occlusion rule re-keyed on the orbit side (sign of sin phi
+instead of screen height — near-side cells the z-tilt lifts above
+the equator now draw, far-side cells hide anywhere inside the
+silhouette); and a radial brightness profile graded the heads by
+horizontal orbital position (inner-zone bump, rung fade at the
+extremes).
+
+Stage 2.4 (owner 9.7/10 -> the 10/10 ask): the brightness key
+moved from the orbital angle to the projected screen distance
+from the hole — `proximity_level` steps two rungs up inside the
+hot radius (1.32 ball radii: the crossing band across the shadow
+AND the whole lensing arc land at Core — the white "head white"),
+one rung in the warm belt, and the fade ladder past 1.40 radii
+(the ends and the far disk dissolve into Ghost wisps; fresh
+entry-spiral motes drift in dark and ignite as they settle).
+Distance is rotation-invariant, so the glow rides the hole at
+every roll angle. The ring pool now carries three tier bands from
+the new `BLACK_HOLE_RING_TIERS` table: tier 0 the approved
+equatorial main disk, tier 1 a shorter band above it across the
+annulus face, tier 2 the shortest band hugging the rim — the
+closest line to the hole — stacked like the film's stepped
+lensed bands, with per-tier Kepler pacing (1.6x/2.4x, the inner
+bands visibly race), per-tier wobble/tilt scales, and the spawn
+weights 52/30/18 (the active floor raised 0.55 -> 0.75 so tier
+0's share still covers the equatorial line; the 9.7 solidity
+verdict must not regress). The upper tiers skip the lensing arc
+and the occlusion rule (lensed images read in front at any
+height); their two flow strands straddle the band center, so the
+orbit reads as a thin ribbon, not a retraced line. And the whole
+stack see-saws: `RingRoll`, a deterministic hash-driven schedule
+(no RNG — the advance pass owns no generator), holds the flat
+horizontal line ~30 s (the dominant mode), sweeps eased
+smoothstep excursions at a fixed angular rate (90 degrees in
+~3.7 s) from the tilt menu (90 weighted double, then 60/45/35/25)
+with the sign alternating every excursion, and chains 35% of
+tilts straight into the next through the rest line — the
+continuous lever wave. The projection rotates every mote's
+disk-plane offset by the live angle in line-height units before
+the cell-aspect conversion: a true Euclidean pivot around the
+hole, stack, lensing halo and breathing bands as one rigid body;
+the flat mode is reset on style entry, kept across a pure resize.
+
+Tests: the ring tree re-pinned to the new contracts — the
+proximity zones (Core at the crossing and the arc, warm belt,
+monotonic fade to Ghost), the tier stack (stepping upward,
+descending reaches, tier 1 across the annulus face clear of the
+horizon, tier 2 hugging above the rim and under the arc apex),
+the per-tier Kepler pace differential, the rigid 90-degree pivot
+(distance preserved, left end up), the see-saw schedule (flat
+dominance, vertical bound, both directions, sustained returns to
+rest, bit-exact determinism), the three-tier population through
+the live spawn, and the roll engaging through the live clock —
+31/31 black hole contracts, 2451/2451 suite green, fmt/clippy
+clean, version untouched.
+
 ### stability: v100.0.0-nightly.1 — NIGHT-hunter-15 'r' restart residue on glyph + the dragon_hunt milestone scene
 
 Owner report (2026-09-06, post-e58f8b8): pressing 'r' on glyph rain did

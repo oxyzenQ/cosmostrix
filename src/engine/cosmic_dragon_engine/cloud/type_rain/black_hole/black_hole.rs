@@ -3,14 +3,15 @@
 // LOC_EXEMPT: NIGHT-special-1 stages 2.1/2.2 added the rim spin
 // (spin_phase + conveyor bookkeeping), the entry spiral gate and the
 // formation intro (formation clock, formed flag, seed-dot rendering,
-// horizon-bloom filter) on top of the ball/ring orchestrator, pushing
-// this file over the 800-LOC cap. The per-mote physics (ring.rs),
-// the ball cell helpers (ball_helpers.rs) and the formation phase
-// math (formation.rs) are already split out; what remains is one
-// impl whose draw/spawn/advance passes share the private field set —
-// a further split would need pub(super) field exposure across
-// sibling modules, a worse encapsulation trade than the cap debt
-// (same call as dragon.rs's entry-reveal exemption).
+// horizon-bloom filter) on top of the ball/ring orchestrator, and
+// stage 2.4 added the see-saw roll scheduler field — pushing this
+// file over the 800-LOC cap. The per-mote physics + roll scheduler
+// (ring.rs), the ball cell helpers (ball_helpers.rs) and the
+// formation phase math (formation.rs) are already split out; what
+// remains is one impl whose draw/spawn/advance passes share the
+// private field set — a further split would need pub(super) field
+// exposure across sibling modules, a worse encapsulation trade than
+// the cap debt (same call as dragon.rs's entry-reveal exemption).
 
 //! Black hole rain for the sorgonemous_intrascals scene (NIGHT-special-1,
 //! the eighth rain style — stage 2: the ball plus the orbital ring).
@@ -36,6 +37,19 @@
 //! the near-continuous bright line of the Interstellar imagery, and the
 //! disk gained a radial brightness profile (inner-zone bump across the
 //! shadow, rung-fade at the line's ends — the smooth sparse transition).
+//!
+//! Stage 2.4 (owner 9.7/10 feedback, three reads): the brightness key
+//! moved from the orbital angle to the projected DISTANCE from the hole
+//! (`proximity_level` in ring.rs — two rungs up near the hole for the
+//! white-hot "head white", the stage-2.3 fade ladder far away); the
+//! disk stack now carries three tiers (the Interstellar ladder — the
+//! long equatorial band, a shorter band above it, the shortest band
+//! hugging the rim closest to the hole; the upper tiers draw in front
+//! at any height and orbit visibly faster); and the whole stack
+//! see-saws around the hole (`RingRoll` in ring.rs — the flat
+//! horizontal line dominates at ~30 s holds, eased excursions tilt
+//! the stack up to a vertical line with alternating sign, sometimes
+//! chaining tilt to tilt through the rest line).
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
@@ -90,9 +104,9 @@ use super::formation::{
     FormationPhase,
 };
 use super::ring::{
-    activate_ring_mote, advance_ring_mote, disk_profile_level, level_for_ring_z,
-    occludes_ring_cell, project_ring_mote, step_down_level, BlackHoleRandom, BlackHoleSpawnParams,
-    BlackHoleStep, RingMote,
+    activate_ring_mote, advance_ring_mote, level_for_ring_z, occludes_ring_cell, project_ring_mote,
+    proximity_level, step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep,
+    RingMote, RingRoll,
 };
 
 /// One drawn ball cell: grid position plus its radial brightness band.
@@ -166,6 +180,14 @@ pub(crate) struct BlackHoleRain {
     /// omega as the ring's mean motion: the hole visibly rotates
     /// with its disk (stage 2.1, owner feedback).
     spin_phase: f32,
+    /// Stage-2.4 see-saw roll scheduler: the disk stack's attitude
+    /// angle (0 = the flat horizontal rest line, positive lifts the
+    /// left end). Ticked on the advance pass's wall clock; the draw
+    /// pass feeds the live angle to every ring projection so the
+    /// whole stack pivots rigidly around the hole. Reset on style
+    /// entry (fresh choreography with the formation); a pure resize
+    /// keeps the current attitude.
+    roll: RingRoll,
     /// Per-cell aspect-corrected angle around the ball center
     /// (parallel to `ring_cells` — the conveyor's input geometry,
     /// computed once at reset).
@@ -219,6 +241,7 @@ impl BlackHoleRain {
             center_line: 0,
             ball_outer_r: 0.0,
             spin_phase: 0.0,
+            roll: RingRoll::new(),
             cell_angles: Vec::new(),
             cell_buckets: Vec::new(),
             cell_dist_norm: Vec::new(),
@@ -357,11 +380,15 @@ impl BlackHoleRain {
     /// clock and clear the formed flag — the next frames run the
     /// birth sequence (seed dot -> collapse flare -> horizon bloom ->
     /// accretion). Called on style ENTRY only (scene switches and
-    /// first launch); a pure resize keeps the steady state.
+    /// first launch); a pure resize keeps the steady state. Stage
+    /// 2.4: the roll scheduler resets too — the stack enters flat
+    /// and holds the horizontal Gargantua line for the first flat
+    /// hold before its first tilt.
     pub(crate) fn begin_formation(&mut self) {
         self.formation_t = 0.0;
         self.formed = false;
         self.seed_stale = true;
+        self.roll = RingRoll::new();
     }
 
     /// Rebuild the ring mote pool: one mote per column (the family
@@ -537,6 +564,14 @@ impl BlackHoleRain {
         // with its ring, per the owner's stage-2 feedback).
         self.spin_phase += omega_base * dt_wall * crate::constants::BLACK_HOLE_RING_SPIN_RATE;
 
+        // See-saw roll (stage 2.4, the lever): the stack's attitude
+        // rides the same wall clock — pause freezes the lever
+        // mid-swing, resume continues the pivot. Ticked even with no
+        // active motes (the schedule is the disk's, not any single
+        // mote's), so the first excursion timing is anchored to the
+        // formation, not to the spawn luck.
+        self.roll.tick(dt_wall);
+
         // Formation clock (stage 2.2): the birth sequence rides the
         // same wall-clock dt as everything else — pause freezes the
         // hole mid-birth, resume continues it. The clock stops for
@@ -703,10 +738,12 @@ impl BlackHoleRain {
         }
 
         // Stage 2: the orbital ring — project every active mote onto
-        // the wide tilted ellipse around the cached ball anchor, draw
-        // the head + comet trail (occluded far-side cells skipped),
-        // and record the drawn cells into the same diff-cleanup stream as
-        // the ball (one unified current_cells / drawn_gen pipeline).
+        // its tier band's ellipse around the cached ball anchor, rolled
+        // by the live see-saw angle, draw the head + comet trail
+        // (occluded far-side tier-0 cells skipped; the upper tiers are
+        // lensed bands that read in front at any height), and record
+        // the drawn cells into the same diff-cleanup stream as the ball
+        // (one unified current_cells / drawn_gen pipeline).
         if self.active_motes > 0 && self.ball_outer_r >= 1.0 {
             let cx_f = self.center_col as f32;
             let cy_f = self.center_line as f32;
@@ -715,11 +752,15 @@ impl BlackHoleRain {
             // line-height units) so the disk extremes never clip on
             // narrow terminals — the wide-disk read survives resize.
             let major_limit = 0.92 * ctx.cols as f32 / (CELL_ASPECT_DIVISOR * 2.0);
+            // The live see-saw angle (stage 2.4): one read per frame,
+            // every mote of every tier pivots on it — the rigid-lever
+            // read the owner asked for.
+            let roll = self.roll.angle();
             for m in &mut self.motes {
                 if !m.active {
                     continue;
                 }
-                let (col_f, line_f) = project_ring_mote(m, cx_f, cy_f, outer_r, major_limit);
+                let (col_f, line_f) = project_ring_mote(m, cx_f, cy_f, outer_r, major_limit, roll);
                 let col = col_f.round() as i32;
                 let line = line_f.round() as i32;
                 if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
@@ -737,11 +778,28 @@ impl BlackHoleRain {
                 // rule keys on it: near-side motes draw in front of
                 // the hole at any height (the z-tilt breathes them
                 // above the equator without vanishing), far-side
-                // motes hide only while inside the silhouette. Shared
+                // motes hide only while inside the silhouette. The
+                // stage-2.4 upper tiers are lensed-image bands — they
+                // read in front of the hole at any height, so they
+                // take the near-side path unconditionally. Shared
                 // by the head and the trail cells below (the side can
                 // only flip at the extremes, which sit outside the
                 // silhouette — no flip artifact is visible).
-                let near_side = m.phi.sin() >= 0.0;
+                let near_side = m.tier > 0 || m.phi.sin() >= 0.0;
+
+                // Proximity grade (stage 2.4, the owner's 9.7/10
+                // feedback): the head's projected distance from the
+                // hole's center, in ball radii — distance, not orbital
+                // angle, because the roll preserves it: the glow rides
+                // the hole at every tilt. Near the hole the head steps
+                // two rungs up (Mid/Hot bases land at Core — the white
+                // "head white" the owner asked for), far out it steps
+                // down the fade ladder (the ends dissolve into dim
+                // wisps).
+                let head_dx = (col_f - cx_f) / CELL_ASPECT_DIVISOR;
+                let head_dy = line_f - cy_f;
+                let head_dist_norm = (head_dx * head_dx + head_dy * head_dy).sqrt() / outer_r;
+                let head_level = proximity_level(level_for_ring_z(m.z), head_dist_norm);
 
                 // Matrix shimmer: mutate the glyph when the head lands
                 // on a new cell (previous trail head differs), gated
@@ -758,12 +816,10 @@ impl BlackHoleRain {
                     m.ch = pick_pool_char(ctx.char_pool, rand_chance, rng);
                 }
 
-                // Head: the attractor-z depth cue graded by the disk's
-                // radial profile (stage 2.3 — hot inner zone across the
-                // shadow, fading rungs at the line's extremes), then the
-                // side-aware occlusion (near side always in front, far
-                // side hidden inside the silhouette).
-                let head_level = disk_profile_level(level_for_ring_z(m.z), m.phi);
+                // Head: the graded level (white-hot near the hole,
+                // fading at the outer disk) through the side-aware
+                // occlusion (near side always in front, far side
+                // hidden inside the silhouette).
                 if !occludes_ring_cell(
                     col,
                     line,
@@ -939,6 +995,13 @@ impl BlackHoleRain {
     /// Ball rim spin phase (the co-rotation contract's observable).
     pub(crate) fn spin_phase_for_test(&self) -> f32 {
         self.spin_phase
+    }
+
+    #[cfg(test)]
+    /// See-saw roll angle (radians; 0 = the flat horizontal rest
+    /// line, positive lifts the left end of the stack).
+    pub(crate) fn roll_angle_for_test(&self) -> f32 {
+        self.roll.angle()
     }
 
     #[cfg(test)]

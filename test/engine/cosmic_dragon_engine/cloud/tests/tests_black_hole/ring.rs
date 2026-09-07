@@ -4,20 +4,26 @@
 //! NIGHT-special-1 stage 2 tests: the orbital ring — RK4-Lorenz
 //! turbulence on a wide tilted Keplerian ellipse around the ball,
 //! with the stage-2.1 reads: gravitational-lensing halo over the
-//! top, ball rim co-rotation, entry spiral for fresh motes, and the
+//! top, ball rim co-rotation, entry spiral for fresh motes; the
 //! stage-2.3 reads: the equatorial crossing (the solid line hugs
-//! the core's vertical middle), the side-aware occlusion, the disk
-//! radial brightness profile and the solid-band density. Covers
-//! spawning + orbital advance, the band geometry, the occlusion
-//! contract, style-transition recycling, and the shipped
-//! motion constants (RK4 stability regime, majestic lap pace).
+//! the core's vertical middle), the side-aware occlusion and the
+//! solid-band density; and the stage-2.4 reads: the proximity
+//! brightness profile (white heads near the hole, the fade ladder
+//! far out), the three-tier Interstellar stack (longest band, upper
+//! shorter band, rim-hugging shortest band with differential
+//! Keplerian pacing) and the see-saw roll scheduler (the flat rest
+//! line dominates, tilted excursions alternate sign, the angle
+//! stays within the vertical bound). Covers spawning + orbital
+//! advance, the band geometry, the occlusion contract,
+//! style-transition recycling, and the shipped motion constants
+//! (RK4 stability regime, majestic lap pace).
 
 use std::collections::HashSet;
 
 use super::*;
 use crate::cloud::type_rain::black_hole::black_hole::level_rank;
 use crate::cloud::type_rain::black_hole::ring::{
-    disk_profile_level, occludes_ring_cell, project_ring_mote,
+    occludes_ring_cell, project_ring_mote, proximity_level, RingRoll,
 };
 use crate::cloud::type_rain::monolith::BrightnessLevel;
 
@@ -133,7 +139,8 @@ fn black_hole_ring_heads_stay_in_the_band() {
             continue;
         }
         projected += 1;
-        let (col_f, line_f) = project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+        let (col_f, line_f) =
+            project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
         let col = col_f.round();
         let line = line_f.round();
         assert!(
@@ -275,7 +282,8 @@ fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
         if !m.active || m.phi.sin() < 0.0 {
             continue;
         }
-        let (col_f, line_f) = project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+        let (col_f, line_f) =
+            project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
         let col = col_f.round() as i32;
         let line = line_f.round() as i32;
         if col < 0 || line < 0 || col >= cols as i32 || line >= lines as i32 {
@@ -414,7 +422,8 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     let geo = BallGeometry::new(cols, lines);
 
     let behind = pinned_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_behind) = project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (_, line_behind) =
+        project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
         line_behind < geo.cy - geo.outer_r,
         "far-side center must project above the ball top (line {line_behind}, cy {}, top {})",
@@ -423,14 +432,16 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     );
 
     let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_front) = project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (_, line_front) =
+        project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
         line_front > geo.cy,
         "near-side center must project below the viewport center (line {line_front})"
     );
 
     let side = pinned_mote(0.0, 30.0);
-    let (_, line_side) = project_ring_mote(&side, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (_, line_side) =
+        project_ring_mote(&side, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
         (line_side - geo.cy).abs() < 0.01,
         "disk extreme must sit on the disk plane (line {line_side}, cy {})",
@@ -442,7 +453,7 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     // continuous rise, not a teleport.
     let quarter = pinned_mote(std::f32::consts::PI + std::f32::consts::FRAC_PI_4, 30.0);
     let (_, line_quarter) =
-        project_ring_mote(&quarter, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+        project_ring_mote(&quarter, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
         line_quarter < geo.cy && line_quarter > line_behind,
         "lift must rise smoothly (quarter {line_quarter} vs plane {} vs apex {line_behind})",
@@ -460,8 +471,9 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
 
     let young = pinned_mote(0.0, 0.05);
     let old = pinned_mote(0.0, 30.0);
-    let (col_young, _) = project_ring_mote(&young, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
-    let (col_old, _) = project_ring_mote(&old, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (col_young, _) =
+        project_ring_mote(&young, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (col_old, _) = project_ring_mote(&old, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     let reach_young = (col_young - geo.cx).abs();
     let reach_old = (col_old - geo.cx).abs();
     assert!(
@@ -471,7 +483,7 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
 
     // Monotonic settle over the decay window.
     let mid = pinned_mote(0.0, 2.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU);
-    let (col_mid, _) = project_ring_mote(&mid, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (col_mid, _) = project_ring_mote(&mid, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     let reach_mid = (col_mid - geo.cx).abs();
     assert!(
         reach_young > reach_mid && reach_mid > reach_old,
@@ -540,7 +552,8 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
         * unit;
 
     let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_front) = project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+    let (_, line_front) =
+        project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
     assert!(
         line_front > geo.cy,
         "the near side still crosses in FRONT (below center), got {line_front}"
@@ -560,7 +573,7 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     for deg in 5..175 {
         let phi = (deg as f32).to_radians();
         let m = pinned_mote(phi, 30.0);
-        let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+        let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
         assert!(
             line >= geo.cy - 0.05 && line <= geo.cy + expected_dip + 0.05,
             "near-side phase {deg} deg escaped the equatorial band (line {line})"
@@ -575,8 +588,10 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     for base in [0.0, std::f32::consts::PI] {
         let below = pinned_mote(base - 0.008, 30.0);
         let above = pinned_mote(base + 0.008, 30.0);
-        let (_, l_below) = project_ring_mote(&below, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
-        let (_, l_above) = project_ring_mote(&above, geo.cx, geo.cy, geo.outer_r, geo.major_limit);
+        let (_, l_below) =
+            project_ring_mote(&below, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (_, l_above) =
+            project_ring_mote(&above, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
         assert!(
             (l_below - l_above).abs() < 0.05,
             "seam at the disk extreme (phi {base}: {l_below} vs {l_above})"
@@ -585,56 +600,69 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
 }
 
 #[test]
-fn black_hole_ring_disk_profile_fades_the_edges() {
-    // The Gargantua read: brightness keyed on |cos phi| — the hot
-    // inner zone across the shadow steps UP one rung (the solid
-    // white line), the mid zone is untouched, and past the fade
-    // start the level steps DOWN one to three rungs (the line's
-    // ends dissolve into sparse dim wisps, the smooth transition).
-    let inner = std::f32::consts::FRAC_PI_2; // cos = 0: directly across the shadow
-    let mid = std::f32::consts::FRAC_PI_3; // cos = 0.5: between the zones
-    let fade_edge = 0.75_f32.acos(); // cos = 0.75: 1 rung down
-    let fade_deep = 0.85_f32.acos(); // cos = 0.85: 2 rungs down
-    let extreme = 0.0; // cos = 1: the line's very end, 3 rungs down
+fn black_hole_ring_proximity_profile_brightens_the_inner_disk() {
+    // The stage-2.4 contract (owner 9.7/10 feedback): brightness
+    // keyed on the projected DISTANCE from the hole (in ball radii)
+    // — inside the hot radius the level steps UP two rungs (Mid and
+    // Hot bases land at Core, the "head white" white-hot read: the
+    // crossing band across the shadow and the lensing arc); the
+    // warm belt to the fade start steps up one; past the fade start
+    // the level steps DOWN one to three rungs over the fade span
+    // (the line's ends dissolve into sparse dim wisps, the smooth
+    // transition of the Interstellar reference — "yang menjauh itu
+    // pudar").
+    let crossing = 0.5; // in front of the shadow, deep inside the hot radius
+    let arc = crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION; // the halo circle
+    let warm = crate::constants::BLACK_HOLE_RING_HOT_RADIUS
+        + (crate::constants::BLACK_HOLE_RING_FADE_START
+            - crate::constants::BLACK_HOLE_RING_HOT_RADIUS)
+            * 0.5; // between the two bounds
+    let fade_edge = crate::constants::BLACK_HOLE_RING_FADE_START + 0.12; // ~1 rung down
+    let extreme = 2.0; // the line's far end: 3 rungs down
 
-    // Inner zone: one rung up, clamped at Core.
+    // Hot zone: two rungs up, clamped at Core.
     assert_eq!(
-        level_rank(disk_profile_level(BrightnessLevel::Mid, inner)),
-        level_rank(BrightnessLevel::Hot),
-        "inner-zone Mid must bump to Hot (the solid bright line)"
-    );
-    assert_eq!(
-        level_rank(disk_profile_level(BrightnessLevel::Core, inner)),
+        level_rank(proximity_level(BrightnessLevel::Mid, crossing)),
         level_rank(BrightnessLevel::Core),
-        "inner-zone Core must stay clamped at Core"
+        "crossing Mid must burn at Core (the white head)"
     );
-
-    // Mid zone: untouched.
     assert_eq!(
-        level_rank(disk_profile_level(BrightnessLevel::Mid, mid)),
-        level_rank(BrightnessLevel::Mid),
-        "mid-zone level must pass through untouched"
+        level_rank(proximity_level(BrightnessLevel::Hot, crossing)),
+        level_rank(BrightnessLevel::Core),
+        "crossing Hot must stay clamped at Core"
+    );
+    assert_eq!(
+        level_rank(proximity_level(BrightnessLevel::Mid, arc)),
+        level_rank(BrightnessLevel::Core),
+        "the lensing arc circle must burn at Core (bright rising particles)"
     );
 
-    // Fade ladder: monotonically dimmer toward the extreme.
-    let hot_edge = level_rank(disk_profile_level(BrightnessLevel::Hot, fade_edge));
-    let hot_deep = level_rank(disk_profile_level(BrightnessLevel::Hot, fade_deep));
-    let hot_extreme = level_rank(disk_profile_level(BrightnessLevel::Hot, extreme));
-    assert_eq!(hot_edge, 2, "cos 0.75 steps Hot down one rung to Mid");
-    assert_eq!(hot_deep, 0, "cos 0.85 steps Hot down to Ghost");
+    // Warm belt: one rung up.
+    assert_eq!(
+        level_rank(proximity_level(BrightnessLevel::Mid, warm)),
+        level_rank(BrightnessLevel::Hot),
+        "warm-belt Mid must bump to Hot"
+    );
+
+    // Fade ladder: monotonically dimmer with distance.
+    let hot_edge = level_rank(proximity_level(BrightnessLevel::Hot, fade_edge));
+    let hot_extreme = level_rank(proximity_level(BrightnessLevel::Hot, extreme));
+    assert_eq!(
+        hot_edge, 2,
+        "just past the fade start Hot steps down to Mid"
+    );
     assert_eq!(
         hot_extreme, 0,
-        "the extreme steps Hot down to Ghost (sparse wisps)"
+        "the far end steps Hot down to Ghost (sparse wisps)"
     );
-
-    // The extremes of the orbit are where motes dwell longest
-    // (horizontal speed -> 0), so the fade also thins the trail:
-    // the trail steps down FROM the graded head. Sanity-check the
-    // ordering: graded(extreme) is strictly dimmer than graded(inner).
     assert!(
-        level_rank(disk_profile_level(BrightnessLevel::Hot, extreme))
-            < level_rank(disk_profile_level(BrightnessLevel::Hot, inner)),
-        "the profile must fade monotonically from inner zone to extreme"
+        hot_extreme < level_rank(proximity_level(BrightnessLevel::Hot, crossing)),
+        "the profile must fade monotonically from the hole outward"
+    );
+    assert!(
+        level_rank(proximity_level(BrightnessLevel::Mid, warm))
+            > level_rank(proximity_level(BrightnessLevel::Mid, extreme)),
+        "the warm belt must stay brighter than the faded extremes"
     );
 }
 
@@ -662,5 +690,341 @@ fn black_hole_ring_reads_as_a_solid_band() {
     assert!(
         active <= pool,
         "active count cannot exceed the pool ({active}/{pool})"
+    );
+}
+
+// -- Stage 2.4: the three-tier Interstellar stack, the tier pacing,
+// and the see-saw roll scheduler --
+
+/// A pinned mote on a given tier band (the stack's projection
+/// geometry in isolation — the same pinned-attractor trick as
+/// `pinned_mote`, plus the tier byte and a lifetime that survives
+/// the advance pass).
+fn pinned_tier_mote(
+    phi: f32,
+    sim_age: f32,
+    tier: u8,
+) -> crate::cloud::type_rain::black_hole::ring::RingMote {
+    let mut m = pinned_mote(phi, sim_age);
+    m.tier = tier;
+    m.lifetime = 100.0;
+    m
+}
+
+#[test]
+fn black_hole_ring_tier_stack_steps_up_and_shortens() {
+    // The owner's Interstellar ladder: stage 1 the longest band on
+    // the equator, stage 2 above it and shorter, stage 3 the
+    // shortest and closest to the hole. Contract at the flat
+    // attitude: each tier's mid-band sits strictly above the one
+    // below, the horizontal reaches descend, tier 1's band crosses
+    // the annulus face above the event horizon, tier 2's band hugs
+    // just above the rim (the closest line to the hole) and stays
+    // under the lensing arc apex.
+    let (cols, lines) = (120, 40);
+    let geo = BallGeometry::new(cols, lines);
+    let core_r = geo.outer_r * crate::constants::BLACK_HOLE_CORE_FRACTION;
+
+    let mid = |tier: u8| {
+        let m = pinned_tier_mote(std::f32::consts::FRAC_PI_2, 30.0, tier);
+        let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        line
+    };
+    let line_t0 = mid(0);
+    let line_t1 = mid(1);
+    let line_t2 = mid(2);
+
+    // Stepping upward: each band strictly above the previous.
+    assert!(
+        line_t1 < line_t0 - 0.5,
+        "tier 1 must sit above the equator band ({line_t1} vs {line_t0})"
+    );
+    assert!(
+        line_t2 < line_t1 - 0.5,
+        "tier 2 must sit above tier 1 ({line_t2} vs {line_t1})"
+    );
+
+    // Tier 1: across the annulus face — above the horizon, below
+    // the rim.
+    assert!(
+        line_t1 < geo.cy - core_r,
+        "tier 1 must clear the event horizon (line {line_t1}, horizon {})",
+        geo.cy - core_r
+    );
+    assert!(
+        line_t1 > geo.cy - geo.outer_r,
+        "tier 1 must cross the annulus face below the rim (line {line_t1})"
+    );
+
+    // Tier 2: hugging just above the rim — the closest line to the
+    // hole — and under the lensing arc apex.
+    assert!(
+        line_t2 < geo.cy - geo.outer_r,
+        "tier 2 must hug above the rim (line {line_t2}, rim {})",
+        geo.cy - geo.outer_r
+    );
+    let behind = pinned_tier_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0, 0);
+    let (_, line_arc) =
+        project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    assert!(
+        line_t2 > line_arc,
+        "tier 2 must stay under the lensing arc apex ({line_t2} vs {line_arc})"
+    );
+
+    // Descending lengths: the flat reaches at the extremes.
+    let reach = |tier: u8| {
+        let m = pinned_tier_mote(0.0, 30.0, tier);
+        let (col, _) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        (col - geo.cx).abs()
+    };
+    assert!(
+        reach(1) < reach(0) - 1.0,
+        "tier 1 must be shorter than the main disk ({} vs {})",
+        reach(1),
+        reach(0)
+    );
+    assert!(
+        reach(2) < reach(1) - 1.0,
+        "tier 2 must be the shortest band ({} vs {})",
+        reach(2),
+        reach(1)
+    );
+}
+
+#[test]
+fn black_hole_ring_inner_tiers_orbit_faster() {
+    // Kepler across the stack: the inner bands (closer to the hole)
+    // lap visibly faster than the main disk — the differential
+    // rotation of a real multi-ring disk, the owner's tier design
+    // made physical.
+    let mut m0 = pinned_tier_mote(0.0, 5.0, 0);
+    let mut m2 = pinned_tier_mote(0.0, 5.0, 2);
+    let omega_base = 12.0 * crate::constants::BLACK_HOLE_RING_OMEGA_PER_CPS;
+    let dt_lorenz = 12.0 * crate::constants::BLACK_HOLE_RING_DT_PER_CPS * (1.0 / 60.0);
+    for _ in 0..60 {
+        crate::cloud::type_rain::black_hole::ring::advance_ring_mote(
+            &mut m0,
+            1.0 / 60.0,
+            dt_lorenz,
+            omega_base,
+        );
+        crate::cloud::type_rain::black_hole::ring::advance_ring_mote(
+            &mut m2,
+            1.0 / 60.0,
+            dt_lorenz,
+            omega_base,
+        );
+    }
+    assert!(
+        m2.phi > m0.phi + 0.25,
+        "the rim-hugging tier must outpace the main disk ({} vs {})",
+        m2.phi,
+        m0.phi
+    );
+}
+
+#[test]
+fn black_hole_ring_roll_pivots_the_stack_rigidly() {
+    // The lever contract: a 90-degree roll turns the horizontal
+    // stack into vertical lines — a Euclidean pivot around the hole
+    // (distance from the center preserved, the line-height-unit
+    // rotation run before the cell-aspect conversion), with the LEFT
+    // end rising and the right end dropping (the owner's example
+    // direction).
+    let (cols, lines) = (120, 40);
+    let geo = BallGeometry::new(cols, lines);
+    let roll90 = std::f32::consts::FRAC_PI_2;
+
+    // Tier 2's mid-band point (x = 0 when flat): rolled a quarter
+    // turn it lands on the center row, the same distance from the
+    // hole.
+    let m2 = pinned_tier_mote(std::f32::consts::FRAC_PI_2, 30.0, 2);
+    let (col_flat, line_flat) =
+        project_ring_mote(&m2, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (col_roll, line_roll) =
+        project_ring_mote(&m2, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
+    assert!(
+        (col_flat - geo.cx).abs() < 0.02,
+        "the tier-2 mid-band must start on the center column when flat"
+    );
+    assert!(
+        (line_roll - geo.cy).abs() < 0.02,
+        "the tier-2 mid-band must land on the center row at a quarter turn"
+    );
+    let d_flat = geo.dist(col_flat, line_flat);
+    let d_roll = geo.dist(col_roll, line_roll);
+    assert!(
+        (d_flat - d_roll).abs() < 0.02,
+        "the pivot must preserve the distance from the hole ({d_flat} vs {d_roll})"
+    );
+
+    // Tier 0's left extreme: flat at the far left, rolled 90 degrees
+    // it points straight up above the ball (left end up).
+    let left = pinned_tier_mote(std::f32::consts::PI, 30.0, 0);
+    let (col_l, line_l) =
+        project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
+    assert!(
+        (col_l - geo.cx).abs() < 0.02,
+        "the left extreme must sit on the center column when vertical"
+    );
+    assert!(
+        line_l < geo.cy - geo.outer_r,
+        "the left extreme must rise above the ball (left end up, got {line_l})"
+    );
+}
+
+#[test]
+fn black_hole_ring_roll_seesaw_contract() {
+    // The see-saw schedule (owner's stage-2.4 spec): the flat rest
+    // line dominates the timeline (the first 30 s stay horizontal);
+    // excursions engage, stay within the 90-degree bound, occur in
+    // BOTH directions (the sign alternates — "naik turun
+    // bergantian"), and return to the rest line. Deterministic by
+    // construction (hash-driven, no RNG).
+    let mut roll = RingRoll::new();
+
+    // The opening flat hold: 29 s in, still flat.
+    roll.tick(29.0);
+    assert!(
+        roll.angle().abs() < 1.0e-4,
+        "the stack must hold the flat rest line for the flat hold (got {})",
+        roll.angle()
+    );
+
+    // The first excursion: 40 s in, tilted.
+    roll.tick(11.0);
+    assert!(
+        roll.angle().abs() > 0.05,
+        "the first excursion must engage (angle {})",
+        roll.angle()
+    );
+    assert!(
+        roll.angle().abs() <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
+        "the roll must never pass vertical (angle {})",
+        roll.angle()
+    );
+
+    // Long-run invariants over ten minutes.
+    let mut roll = RingRoll::new();
+    let mut flat_secs = 0.0f32;
+    let mut max_abs = 0.0f32;
+    let mut saw_positive = false;
+    let mut saw_negative = false;
+    // "Returns to rest": a tilt episode (angle clearly away from the
+    // rest line) is later followed by a SUSTAINED flat run — a
+    // chained sweep only passes through flat, it does not park.
+    let mut tilted = false;
+    let mut flat_run = 0.0f32;
+    let mut back_to_rest = false;
+    let step = 0.1;
+    let mut total = 0.0;
+    while total < 600.0 {
+        roll.tick(step);
+        let after = roll.angle();
+        if after.abs() < 0.02 {
+            flat_secs += step;
+        }
+        max_abs = max_abs.max(after.abs());
+        if after > 0.2 {
+            saw_positive = true;
+        }
+        if after < -0.2 {
+            saw_negative = true;
+        }
+        if after.abs() > 0.4 {
+            tilted = true;
+            flat_run = 0.0;
+        } else if after.abs() < 0.03 {
+            flat_run += step;
+            if tilted && flat_run >= 1.0 {
+                back_to_rest = true;
+            }
+        } else {
+            flat_run = 0.0;
+        }
+        total += step;
+    }
+    assert!(
+        max_abs <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
+        "the roll must stay within the vertical bound over time (max {max_abs})"
+    );
+    assert!(
+        flat_secs > 0.4 * 600.0,
+        "the flat rest line must dominate the timeline ({flat_secs} of 600 s)"
+    );
+    assert!(
+        saw_positive && saw_negative,
+        "excursions must alternate direction (pos {saw_positive}, neg {saw_negative})"
+    );
+    assert!(back_to_rest, "excursions must return to the rest line");
+}
+
+#[test]
+fn black_hole_ring_roll_schedule_is_deterministic() {
+    // Two fresh schedulers ticked identically must agree bit-for-bit
+    // — the choreography is a hash of the step counter, not RNG, so
+    // every run (and every test) plays the same sequence.
+    let mut a = RingRoll::new();
+    let mut b = RingRoll::new();
+    for _ in 0..2000 {
+        a.tick(0.37);
+        b.tick(0.37);
+    }
+    assert_eq!(
+        a.angle().to_bits(),
+        b.angle().to_bits(),
+        "the roll schedule must be deterministic"
+    );
+}
+
+#[test]
+fn black_hole_ring_populates_all_three_tiers() {
+    // The stack's spawn weights must light up every band: after
+    // steady state each tier hosts a healthy share of the active
+    // pool (the stacked-lines read needs all three lines alive).
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+    run_frames(&mut cloud, &mut frame, 300, 16);
+
+    let mut per_tier = [0usize; 3];
+    let mut active_total = 0usize;
+    for m in cloud.black_hole_rain.motes_for_test() {
+        if !m.active {
+            continue;
+        }
+        active_total += 1;
+        let idx = (m.tier as usize).min(2);
+        per_tier[idx] += 1;
+    }
+    assert!(active_total > 0, "the pool must be active");
+    for (tier, count) in per_tier.iter().enumerate() {
+        assert!(
+            *count > 4,
+            "tier {tier} must host motes (got {count} of {active_total})"
+        );
+    }
+}
+
+#[test]
+fn black_hole_ring_roll_engages_through_the_live_clock() {
+    // Wiring contract: the advance pass ticks the roll on the wall
+    // clock — 31 s of frames (past the 30 s flat hold) must show a
+    // nonzero attitude through the live accessor, bounded by the
+    // vertical limit.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 1941, 16);
+
+    let angle = cloud.black_hole_rain.roll_angle_for_test();
+    assert!(
+        angle.abs() > 0.05,
+        "the first excursion must engage through the live clock (angle {angle})"
+    );
+    assert!(
+        angle.abs() <= std::f32::consts::FRAC_PI_2 + 1.0e-4,
+        "the live roll must stay within the vertical bound (angle {angle})"
     );
 }
