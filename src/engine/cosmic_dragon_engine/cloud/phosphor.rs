@@ -227,8 +227,30 @@ impl Cloud {
         // "cells currently drawn by droplets" — the documented contract.
         if frame.is_dirty_all() && frame.dirty_indices().is_empty() {
             // Full-grid scan: clear_with_bg emptied the dirty list.
+            //
+            // NIGHT-hunter-4: this branch iterates CLOUD-space dimensions
+            // (self.lines x self.cols) but indexes FRAME-space buffers
+            // (fidx = line * frame_width + col, then direct indexing in
+            // cell_written_this_frame / cell_at_index_ref — no internal
+            // bounds check). The dirty-index branch below already guards
+            // the mirror-image divergence (line 258: frame-space cell vs
+            // cloud dims); this branch lacked the inverse guard. Every
+            // current construction site pairs the dimensions (resize,
+            // rebuild, ambient, intro, bench all rebuild cloud and frame
+            // together with identical clamps), so the invariant holds
+            // today — but one future refactor that mutates only one side
+            // would convert this scan into a per-frame panic. Both loops
+            // ascend monotonically, so `break` skips the whole
+            // out-of-range tail with a single branch per row/column.
+            let frame_height = frame.height;
             for line in 0..lines {
+                if line >= frame_height {
+                    break;
+                }
                 for col in 0..self.cols {
+                    if col >= frame_width {
+                        break;
+                    }
                     let fidx = line as usize * frame_width as usize + col as usize;
                     let is_current_gen = frame.cell_written_this_frame(fidx);
                     if is_current_gen {

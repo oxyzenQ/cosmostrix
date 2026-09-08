@@ -791,3 +791,74 @@ fn phosphor_last_fresh_capacity_preserved_across_frames() {
 // The sweep is a debug-only watchdog that catches cells the phosphor system
 // misses. These tests were extracted to `tests_phosphor_sweep.rs` to keep
 // this file under the 800-LOC cap.
+
+// ── NIGHT-hunter-4: full-grid scan dimension-divergence guard ───────────────
+//
+// The full-grid branch of phosphor_decay_pass (dirty_all set + empty dirty
+// list, i.e. the clear_with_bg / semantic-invalidation path) iterates
+// CLOUD-space dimensions but indexes FRAME-space buffers with direct
+// indexing. The dirty-index branch has guarded the mirror-image divergence
+// since the HUNT-25 era; the full-grid branch was audited to lack the
+// inverse guard. These tests pin the divergence tolerance.
+#[test]
+fn phosphor_full_grid_scan_tolerates_frame_smaller_than_cloud() {
+    let mut cloud = make_cloud();
+    // Cloud stays at its constructed 20x10; the frame is deliberately
+    // smaller on both axes. This is the divergence the guard must absorb
+    // instead of panicking on fidx = line * frame_width + col.
+    let mut frame = Frame::new(17, 8, cloud.palette.bg);
+    // clear_with_bg: sets dirty_all = true AND empties the dirty list —
+    // exactly the full-grid-scan precondition.
+    frame.clear_with_bg(cloud.palette.bg);
+    assert!(frame.is_dirty_all());
+    assert!(frame.dirty_indices().is_empty());
+
+    // Reaching this line without a panic is the contract.
+    cloud.phosphor_decay_pass(&mut frame, 1.0 / 60.0);
+}
+
+#[test]
+fn phosphor_full_grid_scan_tolerates_narrower_frame() {
+    // Width-only divergence (heights equal): every row hits the col guard.
+    let mut cloud = make_cloud();
+    let mut frame = Frame::new(3, 10, cloud.palette.bg);
+    frame.clear_with_bg(cloud.palette.bg);
+    cloud.phosphor_decay_pass(&mut frame, 1.0 / 60.0);
+}
+
+#[test]
+fn phosphor_full_grid_scan_tolerates_shorter_frame() {
+    // Height-only divergence (widths equal): the line guard fires first.
+    let mut cloud = make_cloud();
+    let mut frame = Frame::new(20, 4, cloud.palette.bg);
+    frame.clear_with_bg(cloud.palette.bg);
+    cloud.phosphor_decay_pass(&mut frame, 1.0 / 60.0);
+}
+
+#[test]
+fn phosphor_full_grid_scan_unchanged_when_dims_match() {
+    // Control: equal dims (the production invariant) must keep working —
+    // the guards are dead branches in the paired-dimension world and must
+    // not alter capture behavior. Production order inside one frame is
+    // clear_with_bg (semantic invalidation) -> draw pass writes cells
+    // (fresh dirty stamps + fresh content gen) -> phosphor_decay_pass
+    // scans. rain_at owns the draw + internal decay pass, so the frame is
+    // pre-cleared and rain_at is invoked on it; its internal pass takes
+    // the FULL-GRID branch (dirty_all set, dirty list never populated
+    // while dirty_all is set) and must still capture the written cells.
+    let mut cloud = make_cloud();
+    let now = Instant::now();
+    let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
+    frame.clear_with_bg(cloud.palette.bg);
+    // Backdate the spawn clock (same trick as
+    // active_trail_cells_are_protected_from_phosphor_decay) so the first
+    // rain_at actually spawns droplets — a fresh cloud otherwise renders
+    // an empty first frame and Pass 1 has nothing to capture.
+    cloud.last_spawn_time = now - Duration::from_secs(1);
+    cloud.rain_at(&mut frame, now);
+    assert!(
+        !cloud.phosphor_last_fresh.is_empty(),
+        "paired-dimension full-grid pass must still capture the frame's \
+         written cells (guards must not over-skip)"
+    );
+}

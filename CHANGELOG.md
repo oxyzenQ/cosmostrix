@@ -9,6 +9,43 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-4 — panic-hook worker containment + phosphor full-grid scan guard (two hidden defects, root-caused and pinned)
+
+Depth audit for hidden bugs and premature logic (owner hunt
+2026-09-08). Two genuine defects surfaced, both fixed with regression
+tests; the full verified-safe catalog is in
+docs/research/NIGHT_HUNTER_4_BUG_HUNT.md so the next hunt does not
+re-till this ground.
+
+- Panic hook (src/platform/panic_hook.rs): Rust runs the global hook
+  BEFORE unwinding, including for panics a worker thread's
+  catch_unwind is about to catch and recover from. The old hook
+  therefore restored the terminal MID-RAIN on a caught watcher/poller/
+  ambient panic (alt screen left while the main loop kept rendering)
+  and armed TERMINAL_RESTORED_BY_PANIC — a flag with one store site
+  and no reset — so the final Terminal::drop skipped cleanup and
+  leaked raw mode / the alt screen at exit. The hook now captures the
+  installing (main) thread's id and performs teardown only for
+  main-thread panics (the only ones that escape to process death);
+  worker panics keep their designed recovery (catch_unwind + AB-10
+  buffered diagnostics + poller restart). 3 tests pin the contract.
+- Phosphor full-grid scan (cloud/phosphor.rs): the
+  semantic-invalidation branch (dirty_all + empty dirty list, the
+  clear_with_bg path) iterated CLOUD dimensions but indexed FRAME
+  buffers with direct indexing — unguarded, while the sibling
+  dirty-index branch has guarded the mirror divergence since HUNT-25.
+  Not reachable today (all construction sites pair the dimensions),
+  but one refactor away from a per-frame panic. Both loops now guard
+  frame bounds with one compare per row / column-leading-cell
+  (monotonic break). 4 tests pin the tolerance plus the paired-dims
+  control.
+
+A/B 10 s benches (benchmark/bench-labs/night_hunter4/): zero visual
+regression — entropy, gini, and dirty-cell populations identical to
+the third decimal on cinematic (the phosphor path) and monolith
+(structured-family control); fps deltas +0.23% / +1.11% are inside
+the documented same-tree noise band.
+
 ### audit: NIGHT-hunter-3 — full-process flow audit (start to end): master flow confirmed, three warts cataloged
 
 Owner suspicion after a hidden-bug fix: premature flow, spaghetti
