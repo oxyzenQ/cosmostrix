@@ -43,7 +43,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # message-border  = "A masterpiece" # with border (matches -mb; wins if both present)
 # msg-mode        = true            # false suppresses the overlay entirely (CLI -m/-mb still wins)
 # msg-fill-style  = "engrave"       # reveal animation: typewriter | fade | words | slide | instant
-#                                    # engrave | hologram | glitch | scorch | cascade | radar
+#                                   # engrave | hologram | glitch | scorch | cascade | radar
 
 # Message notes: max 200 characters; no message anywhere -> interactive
 # mode shows the bordered default "Experience a masterpiece with
@@ -62,13 +62,17 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "subtle"       # none | subtle | default | intense
 # bold = 1                      # 0=off, 1=random, 2=all
 # shading-mode = 1              # 0=random, 1=cinematic
+#
 # power-dragon = true           # adaptive throttle. With it ON, the HUD dsty: line shows
 #                               # the EFFECTIVE (banded) density, not the configured one —
 #                               # that is correct, not a bug. For the exact fixed value:
 #                               # power-dragon = false (or --power-dragon false).
+#
 # crystal-dragon = false        # ambient palette drift (see docs/AMBIENT_SCHEDULER.md)
+#
 # crystal-dragon-secs = 60      # drift poll cadence: 0.0-86400.0, human forms
 #                               # (60s, 1m, 1h30m); live-reloadable
+#
 # ambient-snapback-secs = 30    # how long a drift (or shortkey override) holds
 #                               # before the ambient phase re-asserts; 86400
 #                               # disables. Harmony: keep this UNDER
