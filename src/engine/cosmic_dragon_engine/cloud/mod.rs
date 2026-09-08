@@ -59,6 +59,7 @@ mod state;
 pub(crate) mod type_rain;
 pub(crate) use type_rain::aeolian;
 pub(crate) use type_rain::black_hole;
+pub(crate) use type_rain::dna_helix;
 pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;
 pub(crate) use type_rain::lorenz;
@@ -95,6 +96,7 @@ use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSi
 
 use aeolian::AeolianRain;
 use black_hole::BlackHoleRain;
+use dna_helix::DnaHelixRain;
 use dragon::DragonRain;
 use ecosystem::{
     BehaviorProfile, ColorEcosystem, EntropyDrift, ProfileParams, RendererMemory, StorytellingState,
@@ -201,6 +203,15 @@ pub struct Cloud {
     /// wind re-rolls, breath re-anchors, flare clock re-rolls and
     /// the granulation walk ride the RNG bundle).
     pub(crate) solar_flare_rain: SolarFlareRain,
+    /// NIGHT-research-7 eleventh rain style: the DNA helix — the
+    /// rotating ladder of glyph strands spanned by Watson-Crick
+    /// base-pair rungs, fed by the nucleotide soup and swept by
+    /// the replication fork (see `type_rain/dna_helix/mod.rs` for
+    /// the five laws of the ladder). Structured family sibling
+    /// (no droplet pool); a stochastic advance pass (the
+    /// replication clock re-arms, the fork-pass mutations re-roll
+    /// and the soup's brownian drift ride the RNG bundle).
+    pub(crate) dna_helix_rain: DnaHelixRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -512,6 +523,7 @@ impl Cloud {
             black_hole_rain: BlackHoleRain::new(),
             aeolian_rain: AeolianRain::new(),
             solar_flare_rain: SolarFlareRain::new(),
+            dna_helix_rain: DnaHelixRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -878,6 +890,7 @@ impl Cloud {
             RainStyle::BlackHole => self.black_hole_rain.active_count(),
             RainStyle::Aeolian => self.aeolian_rain.active_count(),
             RainStyle::SolarFlare => self.solar_flare_rain.active_count(),
+            RainStyle::DnaHelix => self.dna_helix_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

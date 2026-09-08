@@ -96,7 +96,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 #   rain, fps, speed, density, glitch-level
 #   an incomplete block is a hard error at startup, live-reload and
 #   --testconf.
-#   rain = glyph|monolith|vortex|flux|lorenz|dragon|physarum|black_hole|aeolian|solar_flare
+#   rain = glyph|monolith|vortex|flux|lorenz|dragon|physarum|black_hole|aeolian|solar_flare|dna_helix
 # REMOVED in v80.0.0-beta.2: base-scene inheritance (the rain field owns
 # the style). bold/shading-mode/async-mode are top-level keys, not
 # per-scene.

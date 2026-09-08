@@ -57,7 +57,8 @@ use super::{apply_glitch_level_preset_to_cloud_config, UserProfile};
 
 /// NIGHT-research-5: parse the scene-custom `rain` field's string value
 /// into a `RainStyle`. Returns `Some(style)` on a valid canonical label
-/// (glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare), `None` on
+/// (glyph, monolith, vortex, flux, lorenz, dragon, physarum,
+/// black_hole, aeolian, solar_flare, dna_helix), `None` on
 /// invalid input (caller renders a targeted hint with the valid list).
 ///
 /// The validation is centralized here so both the startup path

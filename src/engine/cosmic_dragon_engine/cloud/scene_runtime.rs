@@ -390,6 +390,7 @@ impl Cloud {
             // arcade is wiped too: a dormant star must not carry a
             // painted corona into the next entry).
             RainStyle::SolarFlare => self.solar_flare_rain.reset(self.cols, self.lines),
+            RainStyle::DnaHelix => self.dna_helix_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -472,6 +473,17 @@ impl Cloud {
                 // drop pool; the star starts unpainted and the
                 // coronal rain reveals it).
                 self.solar_flare_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::DnaHelix => {
+                // NIGHT-research-7: dna_helix entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // molecule rebuild on entry — fresh rungs and a
+                // fresh nucleotide pool; the genome starts
+                // untranscribed and the soup reveals it).
+                self.dna_helix_rain.reset(self.cols, self.lines);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

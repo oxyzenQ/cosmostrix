@@ -130,27 +130,35 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // Grouped with the style flagships so the cycle tours all
     // signature motion styles.
     "solar_flare", // 11
+    // NIGHT-research-7 style flagship — the double helix, the
+    // owner's DeepSeek-researched first pick. The rain writes the
+    // genome: a rotating glyph ladder of Watson-Crick base pairs,
+    // fed by the nucleotide soup, swept by the replication fork
+    // (the five laws of the ladder, derived in this repo — see
+    // cloud/type_rain/dna_helix/mod.rs). Grouped with the style
+    // flagships so the cycle tours all signature motion styles.
+    "dna_helix", // 12
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 12 — original green-on-black
-    "signal",      // 13 — digital transmission
-    "hacker",      // 14 — high-contrast terminal overflow
-    "matrix_film", // 15 — 1999 film homage
+    "classic",     // 13 — original green-on-black
+    "signal",      // 14 — digital transmission
+    "hacker",      // 15 — high-contrast terminal overflow
+    "matrix_film", // 16 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 16
-    "calm",   // 17
-    "cosmos", // 18
-    "neon",   // 19
+    "storm",  // 17
+    "calm",   // 18
+    "cosmos", // 19
+    "neon",   // 20
     // Utility.
-    "low-power", // 20
+    "low-power", // 21
     // Milestone + tribute.
-    "cosmic-dragon", // 21
-    "dragon_hunt",   // 22
-    "carbonic",      // 23
+    "cosmic-dragon", // 22
+    "dragon_hunt",   // 23
+    "carbonic",      // 24
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 24
-    "orange-cat",     // 25
-    "north-stars",    // 26
-    "curiosity",      // 27
+    "crystal-dragon", // 25
+    "orange-cat",     // 26
+    "north-stars",    // 27
+    "curiosity",      // 28
 ];
 
 /// The built-in scene catalog — extracted to `catalog.rs`

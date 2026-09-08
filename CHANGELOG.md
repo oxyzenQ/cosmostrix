@@ -9,6 +9,71 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-7 — the DNA helix, the eleventh rain style (the rain writes the genome)
+
+- The owner's DeepSeek-researched shortlist, first pick (the second
+  lands as the murmuration): `dna_helix` — a rotating double helix
+  of glyph strands spanned by Watson-Crick base-pair rungs, fed by
+  a nucleotide soup, periodically swept by a replication fork. The
+  five laws of the ladder are derived in
+  `src/engine/cosmic_dragon_engine/cloud/type_rain/dna_helix/mod.rs`;
+  the executable calibration ships in `central_control_rains/style_rain.rs`.
+- Law 1 (the turn): theta(y) = phi + y k with one full turn every
+  22 lines — 11 base pairs per turn, B-DNA's 10.5 honored at
+  terminal legibility; the molecule rotates as one body on the
+  family clock, and the X crossings (the projection of one strand
+  passing in front of the other) drift down the screen for free.
+- Law 2 (the pairing): a rung every 2 lines carries a Watson-Crick
+  pair; the rung ends show the bases (A/T/G/C — semantic identity
+  glyphs that survive charset switches, the dragon-head
+  precedent), dashed bond glyphs span between them, and every cell
+  interpolates the strand depths for the 3D read (front half one
+  rung brighter, back half dimmer).
+- Law 3 (the recency): each rung carries a hard-clamped synthesis
+  charge that decays exponentially — the light shows where the
+  genome has been recently written (the corona's deposition
+  economy, on a ladder instead of a star).
+- Law 4 (the replication): a clocked fork sweeps top-to-bottom —
+  dissolving the rungs in its Gaussian window, bowing the strands
+  apart (the Y), re-synthesizing fresh pairs behind itself with the
+  pair re-rolled (a visible mutation), and trailing a brightness
+  wake down the molecule.
+- Law 5 (the soup): free nucleotides fall in the capture band
+  (terminal velocity + clamped brownian drift); a drop crossing a
+  rung line inside the rung's span is absorbed — the charge
+  deposits and, on the mutation chance, the pair re-rolls: the rain
+  visibly edits the genome it lands on. Calm-sky dial (the
+  molecule is the hero).
+- Scene `dna_helix` at cycle position 12: neptune palette (the
+  iconic deep azure — the classic DNA-illustration blue) + the dna
+  charset (A/C/G/T bases, shipped since the charset catalog's dna
+  preset — the scene finally gives it its flagship). Speed 14,
+  density 0.50, glitch none (the mutation is the drama).
+- Full structured-family contract: lane pool, accumulator spawn,
+  one sim clock, palette adoption, drawn-cell diff cleanup
+  (generation-tagged), style transition arms in all six dispatch
+  chains (spawn / advance / draw / semantic / force-draw /
+  charset-palette clears).
+- 25 behavior contracts (tests_dna_helix): rung registry, rotation
+  uniformity, strand mirror + crossings, span breathing, Watson-
+  Crick complementarity, bounded charge, the fork travel / dissolve
+  / re-synthesis / mutation / bow envelope / re-arm cycle, spawn
+  dial, monotone fall, absorption + mutation through the pipeline,
+  drawn bounds, repaint without residue, pause freeze, style
+  round-trip, speed scaling, sustained boundedness, degenerate
+  narrow terminals. 2586 tests pass (+25); clippy -D warnings
+  clean.
+- A/B 10 s benchmarks (benchmark/bench-labs/night_research7_dna/):
+  zero visual regression on cinematic + aeolian + solar_flare (the
+  three probes; dirty cells, entropy and gini identical to the
+  third decimal — the fps deltas +2.3/+1.5/-1.0% are LTO code
+  layout, the bench path adds zero work to the probe scenes), the
+  new scene's own profile at 96.6K fps / 102.0 dirty cells /
+  4.859 entropy / 0.692 gini — the second-fastest structured
+  style after the aeolian, and a concentrated composition (a
+  single centered body with empty sky, the black-hole read —
+  honest to the single-molecule architecture).
+
 ### stability: NIGHT-hunter-25 — the too_many_arguments census, part 1: four stale allows deleted, two cold-path signatures bundled
 
 - Census audit: of the 12 remaining `#[allow(clippy::too_many_arguments)]`

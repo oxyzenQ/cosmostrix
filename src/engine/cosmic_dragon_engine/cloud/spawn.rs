@@ -125,6 +125,13 @@ impl Cloud {
             // re-pick glyphs from the new pool).
             self.solar_flare_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::DnaHelix) {
+            // NIGHT-research-7: dna_helix — structured-family sibling,
+            // same draw-history clear on charset switch (bond cells
+            // re-pick glyphs from the new pool; the base-pair ends
+            // keep their A/T/G/C identity glyphs).
+            self.dna_helix_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -224,6 +231,12 @@ impl Cloud {
             // same draw-history clear on palette change (arc glyphs
             // re-pick under the transition wave).
             self.solar_flare_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::DnaHelix) {
+            // NIGHT-research-7: dna_helix — structured-family sibling,
+            // same draw-history clear on palette change (bond glyphs
+            // re-pick under the transition wave).
+            self.dna_helix_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

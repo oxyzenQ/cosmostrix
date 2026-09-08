@@ -40,6 +40,11 @@
 //!   magnetism — original motion DNA, the five laws of the corona
 //!   derived in `solar_flare/mod.rs`; replaces the retired
 //!   aurora veil, NIGHT-special-3, owner-rated 5/10).
+//! - `dna_helix` - the double-helix rain (NIGHT-research-7, the
+//!   eleventh style: the rain writes the genome — the five laws
+//!   of the ladder derived in `dna_helix/mod.rs`; the owner's
+//!   DeepSeek-researched first pick, a canonical structure mapped
+//!   to the terminal grid).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -50,6 +55,7 @@
 
 pub(crate) mod aeolian;
 pub(crate) mod black_hole;
+pub(crate) mod dna_helix;
 pub(crate) mod dragon;
 pub(crate) mod flux;
 pub(crate) mod glyph;

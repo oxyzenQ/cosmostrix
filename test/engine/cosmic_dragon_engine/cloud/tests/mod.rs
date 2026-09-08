@@ -12,6 +12,7 @@ mod tests_color_stability;
 mod tests_compounded_brightness;
 mod tests_crystal_cadence;
 mod tests_dim_bench;
+mod tests_dna_helix;
 mod tests_dragon;
 mod tests_dragon_entry_hunt4;
 mod tests_edge_fade;

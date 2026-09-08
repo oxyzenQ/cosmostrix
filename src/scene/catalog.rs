@@ -211,6 +211,38 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::SolarFlare,
         },
     },
+    // NIGHT-research-7: dna_helix — the double helix, the owner's
+    // DeepSeek-researched first pick (the second lands as the
+    // murmuration). A rotating glyph ladder: two backbone strands
+    // spiraling a vertical axis (one turn every 22 lines — 11 base
+    // pairs per turn, B-DNA's 10.5 honored), spanned by Watson-Crick
+    // rungs whose projected width breathes with the turn (the X
+    // crossings drift as it rotates). The `neptune` palette (the
+    // iconic deep azure — the classic DNA-illustration blue) pairs
+    // with the `dna` charset (A/C/G/T bases): the rung ends show
+    // real complementary pairs (A-T, G-C). The rain is the
+    // nucleotide soup: falling base glyphs charged into the rungs
+    // they land on (a mutation chance re-rolls the pair — the rain
+    // visibly edits the genome). Periodically a replication fork
+    // sweeps top-to-bottom: dissolving rungs, bowing the strands
+    // apart (the Y), re-synthesizing fresh bright pairs behind
+    // itself. Speed 14 = the majestic turn (a full rotation every
+    // ~11 s at scene speed); density 0.50 = the calm-sky dial (the
+    // molecule is the hero, the soup the minority layer); glitch
+    // none — the genome is clean, the mutation is the drama.
+    SceneInfo {
+        name: "dna_helix",
+        description: "DNA Helix — the rain writes the genome; two glyph strands spiral a rotating ladder of Watson-Crick base pairs, nucleotide rain charges the rungs it lands on, and a replication fork periodically unzips, sweeps and re-writes the molecule",
+        config: SceneConfig {
+            color: Some("neptune"),
+            charset: Some("dna"),
+            fps: Some(60.0),
+            speed: Some(14.0),
+            density: Some(0.50),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::DnaHelix,
+        },
+    },
     SceneInfo {
         name: "monolith",
         description:

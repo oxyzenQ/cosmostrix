@@ -1923,3 +1923,164 @@ const _: () = assert!(SOLAR_WALL_DAMP <= 1.0);
 const _: () = assert!(SOLAR_W_MIN > 0.0);
 const _: () = assert!(SOLAR_SURFACE_LINES >= 1);
 const _: () = assert!(SOLAR_TOURNAMENT >= 1);
+
+// ── DNA helix (NIGHT-research-7, the eleventh style) ──────────────
+//
+// The rain writes the genome: a rotating double helix of glyph
+// strands spanned by Watson-Crick base-pair rungs, fed by a
+// nucleotide soup, periodically swept by a replication fork that
+// dissolves, widens and re-synthesizes the ladder (the pair
+// re-rolled — the visible mutation). The complete derivation and
+// the five laws of the ladder live in
+// type_rain/dna_helix/mod.rs; the constants here are the shipped
+// calibration.
+
+// The turn (law 1).
+
+/// One full helical turn every this many lines. Real B-DNA packs
+/// ~10.5 base pairs per turn; with a rung every 2 lines this
+/// gives 11 — the biology honored at terminal legibility.
+pub(crate) const DNA_TURN_LINES: u16 = 22;
+
+/// Helix rotation rate in radians per sim-second. At the scene's
+/// 14 cps the effective rate is ~0.58 rad/s — a full turn every
+/// ~11 wall-seconds, the majestic corkscrew.
+pub(crate) const DNA_ROT_RATE: f32 = 0.5;
+
+/// The radius as a fraction of the viewport width.
+pub(crate) const DNA_R_FRAC: f32 = 0.21;
+
+/// The minimum radius in columns (narrow terminals keep a
+/// readable helix).
+pub(crate) const DNA_R_MIN: f32 = 3.5;
+
+/// The maximum radius in columns (wide terminals: the icon stays
+/// an icon — the single-body flagship aesthetic).
+pub(crate) const DNA_R_MAX: f32 = 16.0;
+
+// The pairing (law 2).
+
+/// One base-pair rung every this many lines (the ladder's line
+/// registry: rung i lives at line 1 + i x RUNG_STEP).
+pub(crate) const DNA_RUNG_STEP: u16 = 2;
+
+// The recency (law 3).
+
+/// The synthesis charge's hard clamp (bounded by construction).
+pub(crate) const DNA_CHARGE_MAX: f32 = 2.6;
+
+/// Charge decay per sim-second (exponential — the genome cools).
+pub(crate) const DNA_CHARGE_DECAY: f32 = 0.35;
+
+/// The recency ladder rungs (Ghost the archive, Mid transcribed,
+/// Hot fresh, Core the replication window).
+pub(crate) const DNA_CHARGE_LEVEL_MID: f32 = 0.25;
+pub(crate) const DNA_CHARGE_LEVEL_HOT: f32 = 0.7;
+pub(crate) const DNA_CHARGE_LEVEL_CORE: f32 = 1.5;
+
+// The replication fork (law 4).
+
+/// The fork's travel rate in lines per sim-second (a 60-line
+/// molecule sweeps in ~7.5 sim-seconds).
+pub(crate) const DNA_FORK_RATE: f32 = 8.0;
+
+/// The fork envelope's base sigma in lines (the bow width and the
+/// dissolution window scale with it; clamped to 35% of the height
+/// and floored at 2 — see `fork_sigma`).
+pub(crate) const DNA_FORK_GAP: f32 = 7.0;
+
+/// The strand bow amplitude at the fork center (the Y: the local
+/// radius grows by up to +85%).
+pub(crate) const DNA_BOW_MAX: f32 = 0.85;
+
+/// Mean sim-seconds between replication sweeps (variance banded
+/// 0.6-1.4x at re-arm).
+pub(crate) const DNA_REPLICATION_CLOCK_MEAN: f32 = 12.0;
+
+// The soup (law 5).
+
+/// The capture band's half width as a radius multiple (the soup
+/// falls a little past the strand extremes).
+pub(crate) const DNA_CAPTURE_BAND_MULT: f32 = 1.6;
+
+/// The capture margin beyond the rung span's ends, in cells.
+pub(crate) const DNA_CAPTURE_MARGIN: f32 = 1.5;
+
+/// The nucleotide's terminal fall speed in lines per sim-second
+/// (scaled by the sim clock — the family speed contract).
+pub(crate) const DNA_FALL_MULT: f32 = 8.0;
+
+/// The fall speed's variance band (+- this fraction of the
+/// speed).
+pub(crate) const DNA_FALL_BAND: f32 = 0.25;
+
+/// The brownian lateral drift's random-walk gain.
+pub(crate) const DNA_DRIFT_RATE: f32 = 3.0;
+
+/// The drift velocity's clamp in columns per sim-second.
+pub(crate) const DNA_DRIFT_MAX: f32 = 0.8;
+
+/// Charge deposited by one absorbed nucleotide.
+pub(crate) const DNA_DEPOSIT_RATE: f32 = 0.35;
+
+/// The chance an absorption re-rolls the rung's pair (the
+/// substitution mutation — the rain visibly edits the genome).
+pub(crate) const DNA_MUTATION_CHANCE: f32 = 0.35;
+
+/// The nucleotide lifetime backstop in sim-seconds (+-15% at
+/// spawn).
+pub(crate) const DNA_MAX_AGE_SECS: f32 = 16.0;
+
+// Population dials (the calm-sky family: the molecule is the
+// hero, the soup the minority layer).
+
+pub(crate) const DNA_ACTIVE_BASE: f32 = 0.06;
+pub(crate) const DNA_ACTIVE_DENSITY_MULT: f32 = 0.05;
+pub(crate) const DNA_ACTIVE_MAX: f32 = 0.16;
+
+/// Spawn rate multiplier + floor (the trickle equilibrium).
+pub(crate) const DNA_SPAWN_RATE_MULT: f32 = 0.30;
+pub(crate) const DNA_SPAWN_RATE_FLOOR: f32 = 0.25;
+
+/// Comet trail length in cells (the falling nucleotide's wake).
+pub(crate) const DNA_TRAIL_LEN: usize = 2;
+
+/// Quiet-genome shimmer chance per frame (the fabric identity's
+/// re-roll rate — the archive holds its letters).
+pub(crate) const DNA_SHIMMER_QUIET: f32 = 0.05;
+
+/// Hot-genome shimmer chance per frame (fresh synthesis flickers
+/// — the mutation rate reads off the recency).
+pub(crate) const DNA_SHIMMER_HOT: f32 = 0.25;
+
+/// Sim-time coupling to the speed keys (the family contract — see
+/// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 14 cps).
+pub(crate) const DNA_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// Compile-time contracts on the ladder calibration: the radius
+// band is strictly ordered, the recency ladder is strictly
+// ordered with the clamp above the Core rung, the population dials
+// are ordered (base under the max cap), the fork rate and the
+// fall speed are strictly positive, the capture geometry is
+// positive, the mutation chance is a proper fraction, and the
+// twist/pair ratio honors the B-DNA turn (TURN_LINES over
+// RUNG_STEP stays near 11 base pairs per turn).
+const _: () = assert!(DNA_R_MIN < DNA_R_MAX);
+const _: () = assert!(DNA_R_FRAC > 0.0);
+const _: () = assert!(DNA_CHARGE_LEVEL_MID < DNA_CHARGE_LEVEL_HOT);
+const _: () = assert!(DNA_CHARGE_LEVEL_HOT < DNA_CHARGE_LEVEL_CORE);
+const _: () = assert!(DNA_CHARGE_LEVEL_CORE < DNA_CHARGE_MAX);
+const _: () = assert!(DNA_ACTIVE_BASE < DNA_ACTIVE_MAX);
+const _: () = assert!(DNA_FORK_RATE > 0.0);
+const _: () = assert!(DNA_FALL_MULT > 0.0);
+const _: () = assert!(DNA_CAPTURE_BAND_MULT > 0.0);
+const _: () = assert!(DNA_CAPTURE_MARGIN >= 0.0);
+const _: () = assert!(DNA_MUTATION_CHANCE >= 0.0 && DNA_MUTATION_CHANCE <= 1.0);
+const _: () = assert!(DNA_RUNG_STEP >= 1);
+const _: () = assert!(DNA_TURN_LINES > DNA_RUNG_STEP);
+const _: () = assert!(DNA_TURN_LINES / DNA_RUNG_STEP >= 10);
+const _: () = assert!(DNA_TURN_LINES / DNA_RUNG_STEP <= 12);
+const _: () = assert!(DNA_BOW_MAX >= 0.0);
+const _: () = assert!(DNA_DRIFT_MAX > 0.0);
+const _: () = assert!(DNA_SHIMMER_QUIET < DNA_SHIMMER_HOT);
+const _: () = assert!(DNA_SHIMMER_HOT <= 1.0);

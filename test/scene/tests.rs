@@ -26,7 +26,10 @@ fn cycle_scene_forward_order() {
     assert_eq!(cycle_scene("physarum", 1), "sorgonemous_intrascals");
     assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "aeolian");
     assert_eq!(cycle_scene("aeolian", 1), "solar_flare");
-    assert_eq!(cycle_scene("solar_flare", 1), "classic");
+    // NIGHT-research-7: dna_helix joined at cycle position 12 —
+    // the double helix (the rain writes the genome).
+    assert_eq!(cycle_scene("solar_flare", 1), "dna_helix");
+    assert_eq!(cycle_scene("dna_helix", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -89,6 +92,8 @@ fn scene_names_are_present() {
     // NIGHT-special-4: solar_flare joined at cycle position 11
     // (replacing the retired aurora veil, NIGHT-special-3). Both
     // sort alphabetically before calm.
+    // NIGHT-research-7: dna_helix joined at cycle position 12;
+    // sorts alphabetically after curiosity, before dragon_hunt.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -102,6 +107,7 @@ fn scene_names_are_present() {
             "cosmos",
             "crystal-dragon",
             "curiosity",
+            "dna_helix",
             "dragon_hunt",
             "flux",
             "hacker",
@@ -169,7 +175,9 @@ fn scene_catalog_has_twenty_six_entries() {
     // 9 — the black hole flagship (stage 1: the event-horizon ball).
     // NIGHT-special-2: aeolian joined at cycle position 10 — the
     // invented string weave (the rain plays the instrument).
-    assert_eq!(SCENES.len(), 27, "catalog must contain 27 built-in scenes");
+    // NIGHT-research-7: dna_helix joined at cycle position 12 —
+    // the double helix (the rain writes the genome).
+    assert_eq!(SCENES.len(), 28, "catalog must contain 28 built-in scenes");
 }
 
 #[test]
@@ -255,7 +263,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        27,
+        28,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

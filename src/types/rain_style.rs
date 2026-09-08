@@ -4,14 +4,15 @@
 //! Internal rain style selection.
 //!
 //! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2 + NIGHT-special-4, ten styles):
+//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7, eleven styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
 //! - Structured family ([`RainStyle::Monolith`], [`RainStyle::Vortex`],
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
 //!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
-//!   [`RainStyle::Aeolian`], [`RainStyle::SolarFlare`]) — dedicated
+//!   [`RainStyle::Aeolian`], [`RainStyle::SolarFlare`],
+//!   [`RainStyle::DnaHelix`]) — dedicated
 //!   state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
@@ -39,7 +40,14 @@
 //!   with energy-conserving acceleration and flashes the footpoints
 //!   it lands on until a flux-laden loop erupts (NIGHT-special-4:
 //!   the third original-math style — the five laws of the corona,
-//!   see `cloud/type_rain/solar_flare/mod.rs`).
+//!   see `cloud/type_rain/solar_flare/mod.rs`); DnaHelix renders a
+//!   rotating double helix of glyph strands spanned by Watson-Crick
+//!   base-pair rungs, fed by a nucleotide soup, periodically swept
+//!   by a replication fork that dissolves, widens and re-synthesizes
+//!   the ladder — the pair re-rolled, a visible mutation
+//!   (NIGHT-research-7: the eleventh style, the DeepSeek-researched
+//!   first pick — the five laws of the ladder, see
+//!   `cloud/type_rain/dna_helix/mod.rs`).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -53,6 +61,7 @@ pub enum RainStyle {
     BlackHole,
     Aeolian,
     SolarFlare,
+    DnaHelix,
 }
 
 impl RainStyle {
@@ -69,6 +78,7 @@ impl RainStyle {
             Self::BlackHole => "black_hole",
             Self::Aeolian => "aeolian",
             Self::SolarFlare => "solar_flare",
+            Self::DnaHelix => "dna_helix",
         }
     }
 
@@ -77,7 +87,7 @@ impl RainStyle {
     /// (Flux replaced the task-18 Ripple surface style, which was
     /// the second droplet-family member). Gates that previously
     /// read `!matches!(style, Monolith)` should read this instead —
-    /// nine non-droplet styles exist now.
+    /// ten non-droplet styles exist now.
     #[must_use]
     pub fn is_droplet_family(self) -> bool {
         matches!(self, Self::Glyph)
@@ -87,8 +97,9 @@ impl RainStyle {
     /// `spawn_remainder` accumulator (Monolith lanes, Vortex motes,
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
     /// particles, the BlackHole orbital-ring motes since stage 2,
-    /// the Aeolian drops since NIGHT-special-2, and the SolarFlare
-    /// drops since NIGHT-special-4).
+    /// the Aeolian drops since NIGHT-special-2, the SolarFlare
+    /// drops since NIGHT-special-4, and the DnaHelix nucleotides
+    /// since NIGHT-research-7).
     /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
@@ -103,6 +114,7 @@ impl RainStyle {
                 | Self::BlackHole
                 | Self::Aeolian
                 | Self::SolarFlare
+                | Self::DnaHelix
         )
     }
 
@@ -130,6 +142,7 @@ impl RainStyle {
             "black_hole" | "blackhole" => Some(Self::BlackHole),
             "aeolian" => Some(Self::Aeolian),
             "solar_flare" | "solarflare" | "flare" => Some(Self::SolarFlare),
+            "dna_helix" | "dnahelix" | "dna" => Some(Self::DnaHelix),
             _ => None,
         }
     }
@@ -140,6 +153,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix"
     }
 }

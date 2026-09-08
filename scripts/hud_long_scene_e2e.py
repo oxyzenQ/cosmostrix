@@ -24,7 +24,6 @@ name is on SCREEN row 8 with the chroma border column past the text
 
 import os
 import pty
-import re
 import select
 import sys
 import threading
@@ -68,12 +67,18 @@ def main():
     pid, fd = pty.fork()
     if pid == 0:
         os.environ["TERM"] = "xterm-256color"
-        os.execv(BIN, [
+        os.execv(
             BIN,
-            "--config", config_path,
-            "--scene-custom", SCENE_NAME,
-            "--fps", "60",
-        ])
+            [
+                BIN,
+                "--config",
+                config_path,
+                "--scene-custom",
+                SCENE_NAME,
+                "--fps",
+                "60",
+            ],
+        )
 
     # Set the PTY window size BEFORE the app reads it (mirrors
     # hud_order_e2e.py — a fresh PTY is 1x1 and the app measures at
