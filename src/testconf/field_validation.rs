@@ -388,7 +388,10 @@ pub(crate) fn validate_field_value_with_cfg(
         ));
     }
     // intro-color: must be a known builtin theme OR a custom palette
-    // defined in [colors-custom.<name>]. Same logic as config_apply.rs.
+    // defined in [colors-custom.<name>]. NIGHT-hunter-23: aligned with
+    // config_apply.rs — both now accept rain-only palettes (bg optional)
+    // and normalize value case; config_apply uses the canonical
+    // is_colors_custom_name helper.
     if key == "intro-color" {
         let lower = value.trim().to_ascii_lowercase();
         if theme::canonical_name_for_input(&lower).is_some() {

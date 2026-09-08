@@ -558,7 +558,10 @@ pub(crate) fn rebuild_cloud_config(
     // crashing a running session).
     if let Some(v) = cfg.get("intro-color") {
         let theme_ok = crate::theme::lookup_theme(v).is_some();
-        let custom_ok = cfg.contains_key(&format!("colors-custom.{v}.bg"));
+        // NIGHT-hunter-23: canonical palette-name recognition (see
+        // config_apply.rs — the old bg-only, case-sensitive probe
+        // rejected valid rain-only palettes and mixed-case values).
+        let custom_ok = crate::colors_custom::is_colors_custom_name(cfg, v);
         if theme_ok || custom_ok {
             new.intro_color = Some(v.clone());
             lr_trace!("apply intro-color='{}'", v);

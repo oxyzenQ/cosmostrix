@@ -165,24 +165,22 @@ pub(crate) fn apply_config_and_runtime_defaults(
         }
     }
 
-    // v50-beta.3: intro-color validation runs unconditionally (even when cfg
-    // is empty) because the value may come from the CLI flag --intro-color.
-    // apply_config_values is gated on `!cfg.is_empty()`, so we cannot rely
-    // on it to fire when only the CLI flag is set. Validation lives here.
-    //
-    // CLI flag --intro-color <name> populates args.intro_color via clap; the
-    // config key intro-color = "name" is read from cfg. Either way,
-    // validation must fire to reject unknown theme names. Unlike other
-    // config values that warn-and-continue, intro-color is a hard error:
-    // the renderer cannot build a palette for a non-existent theme, so we
-    // exit early with a clear message + "did you mean" suggestion.
+    // v50-beta.3: intro-color validation runs unconditionally (even when
+    // cfg is empty) because the value may come from the CLI flag; the
+    // config key intro-color = "name" is read from cfg. Either way it is
+    // a hard error: the renderer cannot build a palette for a
+    // non-existent theme, so we exit early with a clear message +
+    // "did you mean" suggestion.
     let intro_color_value: Option<String> = args
         .intro_color
         .clone()
         .or_else(|| cfg.get("intro-color").cloned());
     if let Some(v) = intro_color_value {
         let theme_ok = crate::theme::lookup_theme(&v).is_some();
-        let custom_ok = cfg.contains_key(&format!("colors-custom.{v}.bg"));
+        // NIGHT-hunter-23: canonical palette-name recognition (same
+        // helper as the `color =` gate) — the old bg-only case-sensitive
+        // probe rejected rain-only palettes and mixed-case values.
+        let custom_ok = crate::colors_custom::is_colors_custom_name(&cfg, &v);
         if theme_ok || custom_ok {
             args.intro_color = Some(v);
             config_touched.insert("intro-color");

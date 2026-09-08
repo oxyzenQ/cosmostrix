@@ -9,6 +9,34 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-23 — intro-color gate read the wrong key (hidden defect); watcher 8-param signature bundled
+
+The post-exit/final-state + live-reload sweep. Two findings: one
+hidden defect (end-to-end repro), one flow-elegance fix.
+
+- Hidden defect fixed: both intro-color validation gates (startup
+  hard-error in config_apply, live-reload soft-fail clear) probed
+  `colors-custom.{name}.bg` — bg is OPTIONAL in the palette schema and
+  the probe was case-sensitive against parser-lowercased keys. A valid
+  rain-only palette was a hard startup error for `intro-color = mine`
+  while `color = mine` loaded the same palette fine from the same
+  file; `intro-color = MINE` failed the same way; a mid-run switch to
+  a rain-only palette was silently cleared. `--testconf` said the
+  config was valid (its own probe is any-of-3 fields, lowercased) —
+  three surfaces disagreed. Both gates now use the canonical
+  is_colors_custom_name helper (the same one the `color =` gate uses).
+- Elegance fix: the watcher family's last too_many_arguments allow
+  carried the watched file TWICE (an &Arc<PathBuf> for the event
+  filter + a &Path for the snapshot/read — same file, two views);
+  bundled into a WatchSession struct, 8 params -> 2, handler made
+  module-private.
+- Verification: 2551 tests pass (+5 gate tests); live-reload PTY e2e
+  (mid-run intro-color switch to a rain-only palette applied, honestly
+  diffed at exit: "mine2" (was "mine")); 10s A/B pro benches —
+  monolith visual metrics identical to the third decimal, cinematic
+  inside the documented noise band. Full report:
+  docs/research/NIGHT_HUNTER_23_INTRO_COLOR_GATE.md.
+
 ### stability: NIGHT-hunter-22 (F2) — duration dual-field deleted; duration_s is the single source of truth
 
 The NIGHT-hunter-3 flow audit's wart F2: CloudConfig carried TWO

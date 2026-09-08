@@ -813,3 +813,54 @@ fn rebuild_custom_scene_colors_custom_sets_palette_name() {
         "the rebuilt CloudConfig must carry the palette name for the clr: HUD line"
     );
 }
+
+// ── NIGHT-hunter-23 (F-23-1): live-reload intro-color gate ──
+// The old probe (`colors-custom.{v}.bg`) cleared valid intro-colors on
+// reload: rain-only palettes (bg optional) and mixed-case values. The
+// gate now uses the canonical is_colors_custom_name helper — same
+// recognition as the `color =` key and the startup gate.
+
+#[test]
+fn rebuild_intro_color_keeps_rain_only_custom_palette() {
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "mine".to_string());
+    cfg.insert(
+        "colors-custom.mine.rain".to_string(),
+        "#00ff66, #ffffff".to_string(),
+    );
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.intro_color.as_deref(),
+        Some("mine"),
+        "rain-only custom palette must survive a live-reload intro-color edit"
+    );
+}
+
+#[test]
+fn rebuild_intro_color_recognizes_mixed_case_value() {
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "MINE".to_string());
+    cfg.insert(
+        "colors-custom.mine.rain".to_string(),
+        "#00ff66, #ffffff".to_string(),
+    );
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert_eq!(
+        new.intro_color.as_deref(),
+        Some("MINE"),
+        "mixed-case intro-color value must survive a live-reload edit"
+    );
+}
+
+#[test]
+fn rebuild_intro_color_unknown_name_still_cleared() {
+    // Control: a genuinely unknown name (no theme, no block) keeps the
+    // soft-fail clear on live-reload.
+    let mut cfg = HashMap::new();
+    cfg.insert("intro-color".to_string(), "nosuchthing".to_string());
+    let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
+    assert!(
+        new.intro_color.is_none(),
+        "unknown intro-color must be cleared on live-reload (soft-fail)"
+    );
+}

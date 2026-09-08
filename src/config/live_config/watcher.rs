@@ -14,7 +14,7 @@
 //! existing `crate::live_config::spawn_watcher` call sites resolve
 //! unchanged.
 
-use std::path::{Path, PathBuf};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::mpsc::{self, Receiver, SyncSender};
 use std::sync::{Arc, Mutex};
@@ -216,7 +216,21 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
     }
 
     let target_file = Arc::new(path.clone());
-    let mut last_event = std::time::Instant::now();
+
+    // NIGHT-hunter-23: the per-event handler's session state (watched
+    // file + channel + debounce/dedup/burst state) is bundled into ONE
+    // struct — the former 8-parameter signature carried the file twice
+    // (an `&Arc<PathBuf>` for the touches-target filter + a `&Path` for
+    // the snapshot/read — same file, two views, the dual-field hazard
+    // as positional parameters) under a `too_many_arguments` allow.
+    let mut session = WatchSession {
+        file: target_file,
+        tx: &tx,
+        last_event: std::time::Instant::now(),
+        debounce_ms: DEBOUNCE_MS,
+        last_processed_state,
+        change_counter,
+    };
 
     // native watcher liveness diagnostic.
     const NATIVE_SILENCE_WARN_SECS: u64 = 30;
@@ -276,16 +290,7 @@ pub(crate) fn watcher_loop(path: PathBuf, tx: SyncSender<LiveConfigEvent>) {
             ));
         }
 
-        if !handle_notify_event(
-            event_result,
-            &target_file,
-            path.as_path(),
-            &tx,
-            &mut last_event,
-            DEBOUNCE_MS,
-            &last_processed_state,
-            &change_counter,
-        ) {
+        if !handle_notify_event(event_result, &mut session) {
             break;
         }
     }
@@ -313,23 +318,41 @@ pub(crate) fn zero_key_is_deliberate(content: &str) -> bool {
     !content.trim().is_empty()
 }
 
+/// Shared watcher-session state — one instance per [`watcher_loop`],
+/// threaded through every `handle_notify_event` call.
+///
+/// NIGHT-hunter-23: bundles what the former 8-parameter signature
+/// threaded positionally — the watched file (ONE field: the event
+/// filter and the snapshot/read path structurally cannot diverge), the
+/// render-thread channel, the debounce anchor, the dedup snapshot, and
+/// the polling heartbeat's burst-mode signal.
+struct WatchSession<'a> {
+    /// The watched config file — single source of truth for both the
+    /// touches-target event filter and the snapshot/read path.
+    file: Arc<PathBuf>,
+    /// Output channel to the render thread (validated configs / errors).
+    tx: &'a SyncSender<LiveConfigEvent>,
+    /// Debounce anchor — updated when an event is accepted.
+    last_event: std::time::Instant,
+    /// Leading-edge debounce window.
+    debounce_ms: u64,
+    /// Dedup snapshot (mtime + size + content hash), shared with the
+    /// polling heartbeat thread via the Arc.
+    last_processed_state: Arc<Mutex<FileStateSnapshot>>,
+    /// Burst-mode signal for the polling heartbeat.
+    change_counter: Arc<AtomicU64>,
+}
+
 /// Process a single notify event. Returns `false` if channel closed.
 /// Dedup: mtime + size + content hash; drops if all three equal
 /// `last_processed_state` (critical on Termux where mtime is unreliable).
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn handle_notify_event(
+fn handle_notify_event(
     event_result: notify::Result<notify::Event>,
-    target_file: &Arc<PathBuf>,
-    path: &Path,
-    tx: &SyncSender<LiveConfigEvent>,
-    last_event: &mut std::time::Instant,
-    debounce_ms: u64,
-    last_processed_state: &Arc<Mutex<FileStateSnapshot>>,
-    change_counter: &Arc<AtomicU64>,
+    session: &mut WatchSession,
 ) -> bool {
     match event_result {
         Ok(event) => {
-            let touches_target = event.paths.iter().any(|p| p == &**target_file);
+            let touches_target = event.paths.iter().any(|p| p == &*session.file);
             if !touches_target {
                 lr_trace!(
                     "event ignored (does not touch target): kind={:?} paths={:?}",
@@ -351,15 +374,15 @@ pub(crate) fn handle_notify_event(
             // Debounce: catch native event bursts (atomic-save = 3-5 events/50ms).
             // Snapshot dedup below catches cross-source duplicates.
             let now = std::time::Instant::now();
-            if now.duration_since(*last_event) < Duration::from_millis(debounce_ms) {
+            if now.duration_since(session.last_event) < Duration::from_millis(session.debounce_ms) {
                 lr_trace!(
                     "event debounced (within {}ms of last): kind={:?}",
-                    debounce_ms,
+                    session.debounce_ms,
                     event.kind
                 );
                 return true;
             }
-            *last_event = now;
+            session.last_event = now;
 
             // Small delay for atomic-save rename completion.
             std::thread::sleep(Duration::from_millis(50));
@@ -380,11 +403,11 @@ pub(crate) fn handle_notify_event(
             // because the fast path is just `metadata()` (~5µs).
             let current_state = {
                 // P1-#11: poison-safe lock. Poisoned mutex → skip, don't panic.
-                let guard = match last_processed_state.lock() {
+                let guard = match session.last_processed_state.lock() {
                     Ok(g) => g,
                     Err(_) => return true,
                 };
-                snapshot_file_state_cached(path, Some(&*guard))
+                snapshot_file_state_cached(session.file.as_path(), Some(&*guard))
             };
             if current_state.size.is_none() {
                 // File doesn't exist (atomic save in progress) — skip.
@@ -393,7 +416,7 @@ pub(crate) fn handle_notify_event(
             }
             {
                 // P1-#11: poison-safe lock. Poisoned mutex → skip, don't panic.
-                let mut guard = match last_processed_state.lock() {
+                let mut guard = match session.last_processed_state.lock() {
                     Ok(g) => g,
                     Err(_) => return true,
                 };
@@ -412,12 +435,12 @@ pub(crate) fn handle_notify_event(
 
             // strengthening: signal polling heartbeat to enter burst
             // mode (200ms × 5 cycles) to catch rapid follow-up edits.
-            change_counter.fetch_add(1, Ordering::AcqRel);
+            session.change_counter.fetch_add(1, Ordering::AcqRel);
 
             // Reparse via parse_config_text to catch malformed_lines AND unknown_keys.
             // S-master-3-v2: size-capped read — oversized files skip the
             // reparse (same as a read error) instead of an unbounded read.
-            let content = match crate::config_io::read_config_capped(path) {
+            let content = match crate::config_io::read_config_capped(session.file.as_path()) {
                 Ok(c) => c,
                 Err(_) => return true,
             };
@@ -439,7 +462,7 @@ pub(crate) fn handle_notify_event(
                 // Fall through: validate + send the empty map below.
             }
 
-            if let Err(msg) = validate_and_send(&parsed, tx) {
+            if let Err(msg) = validate_and_send(&parsed, session.tx) {
                 // (bug #15): DO NOT write to stderr here. The watcher
                 // thread runs concurrently with the rain render loop, and any
                 // stderr write during rain leaks into the alternate-screen

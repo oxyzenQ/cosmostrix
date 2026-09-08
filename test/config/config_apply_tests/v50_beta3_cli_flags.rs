@@ -114,3 +114,39 @@ fn cli_intro_color_valid_theme_accepted() {
     let args = args_with_config("", &["--intro-color", "energy-zen"]);
     assert_eq!(args.intro_color.as_deref(), Some("energy-zen"));
 }
+
+// ── NIGHT-hunter-23: intro-color custom-palette recognition (F-23-1) ──
+// The old gate probed `colors-custom.{v}.bg` — bg-only (bg is OPTIONAL in
+// the palette schema) and case-sensitive (the parser lowercases keys).
+// A rain-only palette or a mixed-case value was a hard startup error while
+// `color = <same name>` loaded fine from the same config; testconf's own
+// any-of-3/lowercase probe said "valid". These pin the canonical-helper
+// behavior at the startup gate (unknown-name rejection is already pinned
+// by cli_intro_color_rejects_unknown_theme above).
+
+#[test]
+fn cli_intro_color_accepts_rain_only_custom_palette() {
+    // bg is optional — a rain-only palette is a valid custom palette and
+    // must be accepted as intro-color (the exact repro: previously a hard
+    // "not a builtin theme or custom palette" error at startup).
+    let config = "[colors-custom.mine]\nrain = \"#00ff66, #ffffff\"\n";
+    let args = args_with_config(config, &["--intro-color", "mine"]);
+    assert_eq!(
+        args.intro_color.as_deref(),
+        Some("mine"),
+        "rain-only custom palette must be a valid intro-color"
+    );
+}
+
+#[test]
+fn cli_intro_color_custom_palette_value_case_insensitive() {
+    // `intro-color = MINE` with a lowercase block: the parser lowercases
+    // keys and the loader normalizes the name — the gate must too.
+    let config = "[colors-custom.mine]\nrain = \"#00ff66, #ffffff\"\n";
+    let args = args_with_config(config, &["--intro-color", "MINE"]);
+    assert_eq!(
+        args.intro_color.as_deref(),
+        Some("MINE"),
+        "mixed-case intro-color value must be recognized (case-insensitive)"
+    );
+}
