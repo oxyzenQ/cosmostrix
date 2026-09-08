@@ -164,14 +164,25 @@ fn color_matching_custom_palette_is_accepted() {
 }
 
 #[test]
-fn color_matching_custom_palette_only_bg_field_still_accepted() {
-    // A partially-declared [colors-custom.<name>] block (only `bg`, no
-    // `rain`) still counts as a custom palette reference.
+fn color_referencing_bg_only_custom_palette_is_rejected() {
+    // NIGHT-hunter-24 (F-24-1): a bg-only [colors-custom.<name>] block
+    // is RECOGNIZED as a custom reference by the runtime gate
+    // (is_colors_custom_name — collect builds the entry) but CANNOT
+    // LOAD: to_palette hard-errors on rain < 2. This test previously
+    // pinned the drifted acceptance ("only_bg_field_still_accepted"),
+    // which matched the gate while the run died at load right after —
+    // the exact F-23-1 split-verdict signature, at the value boundary.
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("colors-custom.sunset.bg".to_string(), "#1a0033".to_string());
+    let msg = validate_field_value_with_cfg("color", "sunset", &cfg)
+        .expect("bg-only palette reference must be rejected");
     assert!(
-        validate_field_value_with_cfg("color", "sunset", &cfg).is_none(),
-        "acceptance must fire even with only .bg declared: matches runtime is_colors_custom_name"
+        msg.contains("cannot build"),
+        "error must be the load-contract rejection: {msg}"
+    );
+    assert!(
+        msg.contains("at least 2"),
+        "error must carry the runtime's own to_palette message: {msg}"
     );
 }
 
@@ -211,9 +222,14 @@ fn color_unknown_with_no_matching_palette_keeps_plain_error() {
 fn color_matching_palette_is_case_insensitive() {
     // Built-in color names are case-insensitive at runtime; custom
     // reference matching must be too so `color = Z` matches a declared
-    // `[colors-custom.z]` block.
+    // `[colors-custom.z]` block. Fixture carries 2 valid rain stops —
+    // the F-24-1 load contract (recognition alone is not acceptance).
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
+    cfg.insert(
+        "colors-custom.z.rain".to_string(),
+        "#111111,#1ee460".to_string(),
+    );
     assert!(
         validate_field_value_with_cfg("color", "Z", &cfg).is_none(),
         "acceptance must fire case-insensitively (runtime parity)"
@@ -789,5 +805,135 @@ fn strict_validation_rejects_scene_referencing_missing_block() {
     assert!(
         err.contains("unknown scene"),
         "error must be the plain unknown-scene rejection: {err}"
+    );
+}
+
+// ── NIGHT-hunter-24 (F-24-1): the colors-custom load contract ──
+// The runtime constructor (`to_palette`) requires >= 2 parseable rain
+// stops; before F-24-1 no validation surface checked the count, so a
+// bg-only / single-stop / empty-array block passed --testconf, then
+// died at load (startup exit) or silently no-opped (intro brand
+// fallback, live-reload "keeping current", scene-runtime skip). All
+// three surfaces now reject in lockstep with the runtime's own error.
+
+#[test]
+fn color_referencing_single_stop_palette_is_rejected() {
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("colors-custom.z.rain".to_string(), "#111111".to_string());
+    let msg = validate_field_value_with_cfg("color", "z", &cfg)
+        .expect("single-stop palette reference must be rejected");
+    assert!(
+        msg.contains("at least 2"),
+        "error must carry the runtime's to_palette message: {msg}"
+    );
+}
+
+#[test]
+fn intro_color_referencing_deficient_palette_is_rejected() {
+    // The intro surface: --testconf used to PASS here while the intro
+    // silently fell back to the brand palette (event_loop_intro.rs).
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("intro-color".to_string(), "mine".to_string());
+    cfg.insert("colors-custom.mine.bg".to_string(), "#0a0a12".to_string());
+    let msg = validate_field_value_with_cfg("intro-color", "mine", &cfg)
+        .expect("deficient intro-color palette must be rejected");
+    assert!(
+        msg.contains("intro-color 'mine' cannot build"),
+        "error must name the intro-color field: {msg}"
+    );
+    // Control: a 2-stop rain-only palette stays accepted (F-23-1 holds).
+    cfg.insert(
+        "colors-custom.mine.rain".to_string(),
+        "#00ff66,#ffffff".to_string(),
+    );
+    assert!(validate_field_value_with_cfg("intro-color", "mine", &cfg).is_none());
+}
+
+#[test]
+fn colors_custom_field_referencing_deficient_block_is_rejected() {
+    // The scene-custom `colors-custom = <name>` field surface.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert(
+        "colors-custom.stops_only.stops".to_string(),
+        "#ff0000".to_string(),
+    );
+    let msg = validate_field_value_with_cfg("colors-custom", "stops_only", &cfg)
+        .expect("single-stop stops-only block must be rejected");
+    assert!(
+        msg.contains("cannot build"),
+        "error must be the load-contract rejection: {msg}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_deficient_unreferenced_palette_block() {
+    // The completeness analogue: a defined block that cannot build a
+    // palette is dead weight unreferenced and a split-verdict defect
+    // when referenced — rejected regardless of reference existence.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("colors-custom.z.bg".to_string(), "#0a0a12".to_string());
+    let err =
+        validate_config_strictly(&cfg).expect_err("bg-only block must fail strict validation");
+    assert!(
+        err.contains("colors-custom.z"),
+        "error must name the deficient block: {err}"
+    );
+    assert!(
+        err.contains("at least 2"),
+        "error must carry the runtime's to_palette message: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_color_referencing_bg_only_palette() {
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("color".to_string(), "z".to_string());
+    cfg.insert("colors-custom.z.bg".to_string(), "#0a0a12".to_string());
+    let err =
+        validate_config_strictly(&cfg).expect_err("color referencing a bg-only palette must fail");
+    // The block-level gate runs before the per-key loop, so the
+    // block-level error wins deterministically.
+    assert!(
+        err.contains("colors-custom.z"),
+        "block-level error must surface first: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_empty_array_rain_deterministically() {
+    // `rain = "[]"` passes the per-key hex check (zero stops parsed)
+    // but the block cannot build — and the rejection must be identical
+    // from any HashMap seed (startup thread vs watcher thread).
+    let mk = || {
+        let mut cfg = std::collections::HashMap::new();
+        cfg.insert("colors-custom.z.rain".to_string(), "[]".to_string());
+        cfg
+    };
+    let a = mk();
+    let mut b = std::collections::HashMap::new();
+    for (k, v) in a.iter() {
+        b.insert(k.clone(), v.clone());
+    }
+    let err_a = validate_config_strictly(&a).expect_err("empty-array rain must fail");
+    let err_b = validate_config_strictly(&b).expect_err("empty-array rain must fail");
+    assert_eq!(
+        err_a, err_b,
+        "same config must produce the same first error"
+    );
+}
+
+#[test]
+fn strict_validation_accepts_rain_only_two_stop_palette() {
+    // The F-23-1 acceptance holds under the load contract: bg is
+    // optional, rain-only with 2+ stops is a complete palette.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("color".to_string(), "mine".to_string());
+    cfg.insert(
+        "colors-custom.mine.rain".to_string(),
+        "#00ff66,#ffffff".to_string(),
+    );
+    assert!(
+        validate_config_strictly(&cfg).is_ok(),
+        "rain-only 2-stop palette must pass (F-23-1 + F-24-1 together)"
     );
 }

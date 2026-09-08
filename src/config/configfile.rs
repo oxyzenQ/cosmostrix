@@ -652,8 +652,14 @@ fn is_valid_custom_name(name: &str) -> bool {
 /// use `bg`. `stops` is a deprecated alias for `rain` (still accepted,
 /// `--testconf` emits a deprecation warning). Brings the key-checker in
 /// sync with `validate_colors_custom_value`, which already handled `.stops`.
+///
+/// NIGHT-hunter-24 (F-24-4): promoted to `pub(crate)` — config_hints
+/// previously kept a hand-written twin (`is_valid_colors_custom_field_str`)
+/// "kept in sync via tests". The F-23-1 defect came from exactly this
+/// shape (duplicated predicates drifting apart), so the twin is deleted
+/// and both call sites share this one definition.
 #[inline]
-fn is_valid_colors_custom_field(field: &str) -> bool {
+pub(crate) fn is_valid_colors_custom_field(field: &str) -> bool {
     matches!(field, "bg" | "rain" | "stops")
 }
 

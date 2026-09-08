@@ -197,7 +197,7 @@ pub(crate) fn suggest_for_unknown_key(key: &str) -> Option<String> {
                 // Defensive guard: if the field is one of the three valid
                 // ones, the key wouldn't have reached unknown_keys in normal
                 // flow — but be paranoid and don't emit a misleading hint.
-                if !is_valid_colors_custom_field_str(field) {
+                if !crate::configfile::is_valid_colors_custom_field(field) {
                     return Some(colors_custom_field_hint(key, field));
                 }
             }
@@ -320,13 +320,11 @@ fn closest_top_level_key(input: &str) -> Option<&'static str> {
 // cli/mod.rs predated the v80 consolidation; this was the last one.
 use crate::cli::suggestion::edit_distance;
 
-/// Returns `true` if `field` is a recognized colors-custom field name.
-/// Mirrors `configfile::is_valid_colors_custom_field` (which is private).
-/// Kept in sync via tests in this module.
-#[inline]
-fn is_valid_colors_custom_field_str(field: &str) -> bool {
-    matches!(field, "bg" | "rain" | "stops")
-}
+// NIGHT-hunter-24 (F-24-4): the local hand-written twin of configfile's
+// `is_valid_colors_custom_field` ("kept in sync via tests") is removed —
+// duplicated predicates are the exact root-cause shape of the F-23-1
+// multi-surface drift. The canonical definition was promoted to
+// pub(crate) in configfile.rs and is used at the call site above.
 
 /// Build a targeted hint for an invalid `colors-custom.<name>.<field>` key.
 ///

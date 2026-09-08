@@ -243,6 +243,17 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         errors += 1;
     }
 
+    // NIGHT-hunter-24 (F-24-1): every DEFINED [colors-custom.<name>]
+    // block must satisfy the runtime load contract (rain >= 2 valid
+    // hex stops) — the colors-custom analogue of the completeness
+    // mandate above. Same uniform-rejection contract as
+    // validate_config_strictly, so --testconf's verdict matches what
+    // startup and the live-reload watcher will actually enforce.
+    if let Some(msg) = crate::colors_custom::validate_colors_custom_blocks(&parsed.values) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
+    }
+
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
@@ -361,6 +372,16 @@ pub(crate) fn validate_config_strictly(
     // first (it names the block, not a single key). Startup, the
     // live-reload watcher, and --testconf all reject through here.
     crate::scene_custom::validate_scene_custom_completeness(cfg)?;
+
+    // NIGHT-hunter-24 (F-24-1): every DEFINED [colors-custom.<name>]
+    // block must satisfy the runtime load contract (rain >= 2 valid
+    // stops). Runs with the completeness gate, before the per-key loop,
+    // so block-level errors (which name the block) surface before
+    // single-key errors — and the reject verdict is identical on all
+    // three surfaces (startup, live-reload watcher, --testconf).
+    if let Some(msg) = crate::colors_custom::validate_colors_custom_blocks(cfg) {
+        return Err(msg);
+    }
 
     // v80.0.0-beta.2 (S-master-HUNT-2, owner cp77x bug 2026-09-02):
     // deterministic FULL-COVERAGE validation. The old loop `break`ed

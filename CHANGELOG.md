@@ -9,6 +9,49 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-24 — the colors-custom load contract now enforced by every validation surface (hidden split-verdict defect)
+
+The `--testconf`/validation-layer sweep (the F-23-1 drift species'
+habitat). One hidden defect, three same-species cleanups.
+
+- Hidden defect fixed: the runtime palette constructor
+  (`to_palette`) requires at least 2 parseable rain stops and
+  hard-errors below that — but no validation surface ever checked the
+  count. A bg-only / single-stop / empty-array `[colors-custom.<name>]`
+  block passed `--testconf` (PASS — config is valid) and then: died at
+  startup for `--colors-custom`/`color =` (raw to_palette error after
+  validation had blessed the file), silently fell back to the brand
+  palette for `intro-color =`, and silently no-opped on live reload
+  and scene-runtime ambient (debug trace only, HUD never moved). One
+  config, four verdicts — the F-23-1 multi-surface disagreement at the
+  value boundary. New single-source contract helpers
+  (`colors_custom_load_error` + `validate_colors_custom_blocks`) make
+  the validation layer ask the loader itself, so the two cannot drift
+  apart: all three surfaces (startup exit 2, live-reload watcher
+  rejection, `--testconf` FAIL) now reject with the runtime's own
+  message. The block-level gate is the colors-custom analogue of the
+  scene-custom completeness mandate: a defined block must be able to
+  build a palette, referenced or not.
+- Elegance fix: the any-of-3 key probe (bg || rain || stops
+  contains_key) was hand-copied three times in
+  `validate_field_value_with_cfg` — the same duplication shape that
+  caused F-23-1. All three branches now use the canonical
+  `is_colors_custom_name` + the load-contract check.
+- Twin-predicate seed removed: config_hints'
+  `is_valid_colors_custom_field_str` (hand-written mirror of
+  configfile's private `is_valid_colors_custom_field`, "kept in sync
+  via tests") is deleted; the canonical function is promoted to
+  `pub(crate)` and shared.
+- Docs: the colors_custom module doc claimed `ambient.22-00 =
+  <palette>` as a use form — ambient keys name a scene, never a
+  palette directly. Stale example corrected.
+- Tests: +10 (3 inline contract-helper tests, 7 validation-surface
+  tests including a flipped drift-pin — the old
+  `only_bg_field_still_accepted` test had pinned the defect).
+  2561 total. A/B 10 s benches: zero visual regression, fps deltas
+  inside the noise band with interleaved runs (bench path bypasses
+  validation entirely).
+
 ### stability: NIGHT-hunter-23 — intro-color gate read the wrong key (hidden defect); watcher 8-param signature bundled
 
 The post-exit/final-state + live-reload sweep. Two findings: one

@@ -11,10 +11,10 @@
 //! rain = "#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"
 //! ```
 //!
-//! Load with `--colors-custom sunset` or use in an ambient phase:
-//! ```toml
-//! ambient.22-00 = sunset
-//! ```
+//! Load with `--colors-custom sunset`, or reference it as
+//! `color = sunset` (top-level or inside a scene-custom block — the
+//! form ambient phases use, since `ambient.<HH-MM>` names a scene,
+//! never a palette directly).
 
 use std::collections::{BTreeMap, HashMap};
 
@@ -279,6 +279,59 @@ pub(crate) fn is_colors_custom_name(cfg: &HashMap<String, String>, name: &str) -
     }
     let palettes = collect_colors_custom(cfg);
     palettes.contains_key(&name.trim().to_ascii_lowercase())
+}
+
+/// NIGHT-hunter-24 (F-24-1): the load contract for a referenced
+/// `[colors-custom.<name>]` block, asked of the loader itself.
+///
+/// `to_palette` (the constructor every load path funnels through —
+/// startup `--colors-custom`/`color =`, `intro-color =`, live reload,
+/// scene-runtime ambient) hard-errors when a block carries fewer than
+/// 2 parseable rain stops. Before this helper the validation layer
+/// (`--testconf`, startup, live-reload watcher) checked only hex FORMAT,
+/// never the stop COUNT: a bg-only / single-stop / empty-array block
+/// passed every gate, then died at load (startup exit) or silently
+/// no-opped (intro brand fallback, live-reload "keeping current").
+/// Validation now asks the runtime constructor directly, so the two
+/// layers cannot drift apart again.
+///
+/// Returns `None` when `name` is not a colors-custom block (the caller's
+/// unknown-name path owns that case) or when the block builds a valid
+/// palette; `Some(err)` carries the exact `to_palette` error.
+#[must_use]
+pub(crate) fn colors_custom_load_error(
+    cfg: &HashMap<String, String>,
+    name: &str,
+) -> Option<String> {
+    if !cfg.keys().any(|k| k.starts_with("colors-custom.")) {
+        return None;
+    }
+    let normalized = name.trim().to_ascii_lowercase();
+    collect_colors_custom(cfg)
+        .get(&normalized)
+        .and_then(|def| def.to_palette().err())
+}
+
+/// NIGHT-hunter-24 (F-24-1): every DEFINED `[colors-custom.<name>]`
+/// block must satisfy the load contract — the colors-custom analogue of
+/// the scene-custom completeness mandate. A block that cannot build a
+/// palette is dead weight unreferenced, and a split-verdict defect when
+/// referenced (testconf PASS / startup fatal / live-reload silent
+/// no-op), so deficient blocks are rejected whether or not a reference
+/// exists. BTreeMap iteration is sorted — the first reported block is
+/// deterministic across hash seeds (same contract as every validator
+/// in the layer).
+#[must_use]
+pub(crate) fn validate_colors_custom_blocks(cfg: &HashMap<String, String>) -> Option<String> {
+    if !cfg.keys().any(|k| k.starts_with("colors-custom.")) {
+        return None;
+    }
+    for (name, def) in collect_colors_custom(cfg) {
+        if let Err(e) = def.to_palette() {
+            return Some(format!("colors-custom.{name}: {e}"));
+        }
+    }
+    None
 }
 
 #[cfg(test)]
@@ -670,5 +723,49 @@ mod precheck_tests {
         );
         assert!(is_colors_custom_name(&cfg, "sunset"));
         assert!(!is_colors_custom_name(&cfg, "sunris"));
+    }
+
+    // ── NIGHT-hunter-24 (F-24-1): load-contract helpers ──
+
+    #[test]
+    fn load_error_none_for_valid_block_and_unknown_name() {
+        let mut cfg = HashMap::new();
+        cfg.insert(
+            "colors-custom.z.rain".to_string(),
+            "#111111, #1ee460".to_string(),
+        );
+        assert_eq!(colors_custom_load_error(&cfg, "z"), None);
+        // Not a block: the caller's unknown-name path owns this case.
+        assert_eq!(colors_custom_load_error(&cfg, "nope"), None);
+        assert_eq!(colors_custom_load_error(&HashMap::new(), "z"), None);
+    }
+
+    #[test]
+    fn load_error_some_for_deficient_blocks() {
+        // bg-only: entry exists, rain empty → to_palette error.
+        let mut cfg = HashMap::new();
+        cfg.insert("colors-custom.z.bg".to_string(), "#0a0a0a".to_string());
+        let e = colors_custom_load_error(&cfg, "z").expect("bg-only must error");
+        assert!(e.contains("at least 2"), "got: {e}");
+        // Single valid stop.
+        cfg.insert("colors-custom.z.rain".to_string(), "#111111".to_string());
+        assert!(colors_custom_load_error(&cfg, "z").is_some());
+        // Case-insensitive + trimmed lookup.
+        assert!(colors_custom_load_error(&cfg, " Z ").is_some());
+    }
+
+    #[test]
+    fn validate_blocks_rejects_deficient_and_accepts_complete() {
+        let mut cfg = HashMap::new();
+        cfg.insert("colors-custom.bad.bg".to_string(), "#0a0a0a".to_string());
+        cfg.insert(
+            "colors-custom.good.rain".to_string(),
+            "#111111, #1ee460".to_string(),
+        );
+        let e = validate_colors_custom_blocks(&cfg).expect("deficient block must error");
+        assert!(e.contains("colors-custom.bad"), "got: {e}");
+        cfg.remove("colors-custom.bad.bg");
+        assert_eq!(validate_colors_custom_blocks(&cfg), None);
+        assert_eq!(validate_colors_custom_blocks(&HashMap::new()), None);
     }
 }

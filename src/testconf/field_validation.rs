@@ -346,29 +346,35 @@ pub(crate) fn validate_field_value_with_cfg(
     // --testconf, then failed at runtime with no warning. Run BEFORE the
     // base call so they short-circuit when the reference is broken.
     if key == "colors-custom" {
-        let lower = value.trim().to_ascii_lowercase();
-        let bg_key = format!("colors-custom.{lower}.bg");
-        let rain_key = format!("colors-custom.{lower}.rain");
-        let stops_key = format!("colors-custom.{lower}.stops");
-        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
-        {
-            return None;
+        // NIGHT-hunter-24 (F-24-2): the hand-copied any-of-3 key probe
+        // (bg || rain || stops contains_key) is replaced by the canonical
+        // helper — the same recognition the runtime gates use — plus the
+        // load-contract check (F-24-1) so a recognized-but-deficient
+        // block is rejected here exactly as `to_palette` would reject it
+        // at load time.
+        if !crate::colors_custom::is_colors_custom_name(cfg, value) {
+            // v80.0.0-beta.2 (S-master-HUNT, owner bug 3): a BUILTIN color name
+            // in `colors-custom` is the classic mistake (the field only accepts
+            // [colors-custom.<name>] blocks — built-ins belong in the `color`
+            // field). Point the user at the right field instead of a bare
+            // "unknown block".
+            let builtin_hint = if theme::canonical_name_for_input(value.trim()).is_some() {
+                format!(
+                    " — '{value}' is a BUILT-IN color name; use the block's 'color' field for built-ins"
+                )
+            } else {
+                String::new()
+            };
+            return Some(format!(
+                "unknown colors-custom block '{value}'{builtin_hint} — define [colors-custom.{value}] in this config (with .bg and .rain/.stops sub-fields)"
+            ));
         }
-        // v80.0.0-beta.2 (S-master-HUNT, owner bug 3): a BUILTIN color name
-        // in `colors-custom` is the classic mistake (the field only accepts
-        // [colors-custom.<name>] blocks — built-ins belong in the `color`
-        // field). Point the user at the right field instead of a bare
-        // "unknown block".
-        let builtin_hint = if theme::canonical_name_for_input(&lower).is_some() {
-            format!(
-                " — '{value}' is a BUILT-IN color name; use the block's 'color' field for built-ins"
-            )
-        } else {
-            String::new()
-        };
-        return Some(format!(
-            "unknown colors-custom block '{value}'{builtin_hint} — define [colors-custom.{value}] in this config (with .bg and .rain/.stops sub-fields)"
-        ));
+        if let Some(e) = crate::colors_custom::colors_custom_load_error(cfg, value) {
+            return Some(format!(
+                "colors-custom '{value}' cannot build a palette: {e}"
+            ));
+        }
+        return None;
     }
     if key == "charset-custom" {
         let lower = value.trim().to_ascii_lowercase();
@@ -389,25 +395,26 @@ pub(crate) fn validate_field_value_with_cfg(
     }
     // intro-color: must be a known builtin theme OR a custom palette
     // defined in [colors-custom.<name>]. NIGHT-hunter-23: aligned with
-    // config_apply.rs — both now accept rain-only palettes (bg optional)
-    // and normalize value case; config_apply uses the canonical
-    // is_colors_custom_name helper.
+    // config_apply.rs — both accept rain-only palettes (bg optional)
+    // and normalize value case via the canonical helpers. NIGHT-hunter-24
+    // (F-24-1): a recognized block must ALSO satisfy the runtime load
+    // contract — otherwise --testconf reports PASS while the intro
+    // silently falls back to the brand palette (event_loop_intro.rs).
     if key == "intro-color" {
         let lower = value.trim().to_ascii_lowercase();
         if theme::canonical_name_for_input(&lower).is_some() {
             return None;
         }
-        let bg_key = format!("colors-custom.{lower}.bg");
-        let rain_key = format!("colors-custom.{lower}.rain");
-        let stops_key = format!("colors-custom.{lower}.stops");
-        if cfg.contains_key(&bg_key) || cfg.contains_key(&rain_key) || cfg.contains_key(&stops_key)
-        {
-            return None;
+        if !crate::colors_custom::is_colors_custom_name(cfg, value) {
+            return Some(format!(
+                "unknown intro-color '{value}' — not a builtin theme or custom palette. \
+                 Use --list-colors to see available themes."
+            ));
         }
-        return Some(format!(
-            "unknown intro-color '{value}' — not a builtin theme or custom palette. \
-             Use --list-colors to see available themes."
-        ));
+        if let Some(e) = crate::colors_custom::colors_custom_load_error(cfg, value) {
+            return Some(format!("intro-color '{value}' cannot build a palette: {e}"));
+        }
+        return None;
     }
     // v80.0.0-beta.2 custom-reference parity (owner mandate: "if charset
     // can custom but why not for colors?" — now all three accept custom
@@ -432,13 +439,17 @@ pub(crate) fn validate_field_value_with_cfg(
                 }
             }
             "color" => {
-                let bg_key = format!("colors-custom.{lower}.bg");
-                let rain_key = format!("colors-custom.{lower}.rain");
-                let stops_key = format!("colors-custom.{lower}.stops");
-                if cfg.contains_key(&bg_key)
-                    || cfg.contains_key(&rain_key)
-                    || cfg.contains_key(&stops_key)
-                {
+                // NIGHT-hunter-24 (F-24-2): canonical recognition (same
+                // helper the runtime gate uses) + the F-24-1 load
+                // contract — a recognized block that cannot build a
+                // palette is rejected with the runtime's own error
+                // instead of being blessed here and dying at load.
+                if crate::colors_custom::is_colors_custom_name(cfg, value) {
+                    if let Some(e) = crate::colors_custom::colors_custom_load_error(cfg, value) {
+                        return Some(format!(
+                            "color '{value}' references a custom palette that cannot build: {e}"
+                        ));
+                    }
                     return None;
                 }
             }
