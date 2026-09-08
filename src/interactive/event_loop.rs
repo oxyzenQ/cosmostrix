@@ -1,12 +1,21 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
-// LOC_EXEMPT: while-cloud.raining loop with deeply coupled mutable state across 20+ extracted sibling modules; further splitting requires a context struct refactor.
 
 //! Main interactive event loop.
 //!
 //! Contains the `run_interactive()` function that drives the entire
 //! interactive mode: signal handling, frame pacing, input dispatch,
 //! simulation stepping, rendering, and performance reporting.
+//!
+//! NIGHT-hunter-21 (wart #3, owner mandate 2026-09-08): the ~45 loop
+//! state locals that were threaded into the sibling modules as
+//! positional `&mut` parameters now live in one
+//! [`LoopCtx`][super::event_loop_ctx::LoopCtx] (domain sub-structs:
+//! scene identity, config layers, ambient state, perf counters). See
+//! `event_loop_ctx.rs` for the hazard analysis this removes. The
+//! sibling signatures shrank accordingly — the two monsters
+//! (`apply_config_rebuild`, `poll_ambient_events`) now take one
+//! `&mut LoopCtx` instead of 23/21 parameters.
 
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
@@ -19,13 +28,10 @@ use crate::frame::Frame;
 use crate::terminal::{is_terminal_gone, Terminal};
 
 use super::super::{effective_density, CloudConfig};
-use super::activity::{register_activity, spin_wait, FrameTimeTracker};
-use super::adaptive::{EnduranceHealth, PerformanceSelfHealer, ReclaimState};
+use super::activity::{register_activity, spin_wait};
+use super::event_loop_ctx::{FrameObs, LoopCtx, LoopCtxCore, SceneIdentity};
 use super::event_loop_finalize::finalize_session;
-use super::hud::HudState;
-use super::input::{
-    handle_keybinding, hud_toggle_accepted, is_unmodified, KeybindingCtx, PasteBurstGuard,
-};
+use super::input::{handle_keybinding, hud_toggle_accepted, is_unmodified, KeybindingCtx};
 use super::watchdog::{GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE};
 
 pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
@@ -80,55 +86,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         Some(start_time + Duration::from_secs_f64(s))
     });
 
-    let mut next_frame = Instant::now();
-    // (Phase 3): PowerManager owns perf_pressure, is_idle, effective FPS.
-    let mut power_manager = PowerManager::new(cfg.target_fps, Instant::now());
-
-    let mut perf_frames: u64 = 0;
-    let mut perf_drawn_frames: u64 = 0;
-    let mut perf_work_sum_s: f64 = 0.0;
-    let mut perf_work_max_s: f64 = 0.0;
-    let mut perf_pressure_sum: f64 = 0.0;
-    let mut perf_pressure_max: f32 = 0.0;
-    let mut perf_overshoot_frames: u64 = 0;
-    let (mut perf_utilization_sum, mut perf_utilization_max) = (0.0_f64, 0.0_f32);
-    let mut frame_time_tracker: FrameTimeTracker = FrameTimeTracker::new();
-
-    // Live HUD overlay ('i' toggles). Zero cost when off.
-    let mut hud_state: HudState = HudState::new();
-    hud_state.set_screen_size(w, h, cfg.screen_size.is_some());
-    hud_state.set_target_fps(cfg.target_fps); // seed so `tgt:` is right from frame 1
-
-    // Perceived-motion diagnostics: visible-change vs idle frames.
-    let mut perf_idle_frames: u64 = 0;
-    let mut perf_dirty_sum: u64 = 0;
-    let mut perf_dirty_samples: u64 = 0;
-
-    let mut last_resize_event: Option<Instant> = None; // resize debounce
-
-    let mut last_resync_time = Instant::now(); // Cloud concern, not power
-
-    let mut reclaim_state = ReclaimState::new(); // P4 madvise rate-limiter
-    let mut endurance_health = EnduranceHealth::new(); // P5 health score
-    #[cfg(target_os = "linux")] // /proc sampling; macOS stays 0
-    let mut last_ctxt_switches: u64 = 0;
-    let mut last_ctxt_sample = Instant::now();
-    let mut perf_rss_samples: u64 = 0;
-
-    let mut last_user_input_at = Instant::now(); // auto-snapback driver
-    let mut self_healer = PerformanceSelfHealer::new(); // P1+P2
-                                                        // S-master-HUNT-24: dynamic effects congestion gate (drain-backoff
-                                                        // watcher; the static half of the gate is baked into CloudConfig at
-                                                        // build_cloud_cfg time — see build_cloud_cfg.rs).
-    let mut effects_auto_gate = super::event_loop_post_draw::EffectsAutoGate::new();
-
-    let mut charset_preset = cfg.charset_preset.clone();
-    let mut scene_name = cfg.scene_name.clone();
-    let mut scene_generation: u64 = 0; // Phase D: u64 compare vs String clone
-    let user_ranges = cfg.user_ranges.clone();
-    let def_ascii = cfg.def_ascii;
-    let mut paste_guard = PasteBurstGuard::default();
-
+    // NIGHT-hunter-21: build the loop context — every piece of state the
+    // rain loop mutates, in one struct (see event_loop_ctx.rs). The intro
+    // ran BEFORE this point (it owns term/cloud/frame/w/h pre-loop); the
+    // startup-ambient block below runs AFTER it (it mutates ctx fields
+    // like every other pre-frame step). startup_cfg is the pristine
+    // LOCKED layer (full contract: ConfigLayers::startup docs in
+    // event_loop_ctx.rs — replaces both the old `startup_cfg` local AND
+    // the `cfg` fn arg the siblings threaded as duplicate same-typed
+    // refs).
+    let startup_cfg = cfg.clone();
     // Live config reload: spawn watcher for config.toml changes.
     // The watcher thread sends validated config HashMaps via mpsc channel.
     // We try_recv() each frame (non-blocking, ~1ns on empty channel).
@@ -138,96 +105,70 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     } else {
         None
     };
-    // Store base CloudConfig for rebuilds (clone before any moves).
-    let mut base_cfg = cfg.clone();
-    // v80.0.0-beta.1 masterclass: pristine startup snapshot — the LOCKED layer
-    // (CLI > config@startup resolution baked in). Never mutated for the
-    // whole session: the live-reload path restores the scene family from
-    // it when the config `scene` key is removed, so a `--scene
-    // crystal-dragon` run returns to crystal-dragon after the config
-    // override is commented back out — no exit, no rerun.
-    let startup_cfg = cfg.clone();
-    // v50.0.0-alpha.7: track the LATEST live-reloaded CloudConfig so
-    // finalize_session (at exit) reads the EFFECTIVE runtime values,
-    // not the startup values. Without this, "final runtime state"
-    // verbose section shows startup values (e.g. crystal_dragon=false)
-    // instead of the live-reloaded values (e.g. crystal_dragon=true).
-    let mut current_cfg = cfg.clone();
-    // Pending rebuild: set when watcher sends new config, applied at top of next frame.
-    let mut pending_config: Option<std::collections::HashMap<String, String>> = None;
-
     // Ambient scheduler: idle/wake thread sends AmbientEntry via mpsc.
-    let mut ambient_handle =
-        crate::crystal_dragon_engine::ambient_scheduler::spawn_ambient_scheduler(
-            base_cfg.ambient_schedule.clone(),
-        );
-    let mut last_ambient_schedule = base_cfg.ambient_schedule.clone();
-    // last-applied ambient entry — re-applied after live-reload rebuilds.
-    let mut last_applied_ambient_entry: Option<
-        crate::crystal_dragon_engine::ambient::AmbientEntry,
-    > = None;
-    // AB-07: permanent snapback kill — once schedule is detected empty
-    // (by any path), auto-snapback is disabled until a new rx event is
-    // applied from a non-empty schedule.
-    let mut ambient_snapback_killed: bool = false;
-    // v50 audit C-2: rate-limit the ground-truth file re-read to 1 per 5s
-    // instead of per-frame. The previous code read + TOML-parsed the config
-    // file every frame when ambient was active — ~60 reads/sec + 60 parses/sec.
-    // The 30s idle-snapback latency tolerates 5s staleness.
-    let mut last_ground_truth_check: Instant = Instant::now();
-    // AB-08: config file path for ground-truth re-read. The watcher can
-    // lose events, leaving all cached state stale. File on disk is truth.
-    let config_path_for_ground_truth = base_cfg.config_path_for_watcher.clone();
+    let ambient_handle = crate::crystal_dragon_engine::ambient_scheduler::spawn_ambient_scheduler(
+        startup_cfg.ambient_schedule.clone(),
+    );
     //  last-applied cfg map for diff trace + startup ambient.
-    let initial_cfg_map = base_cfg
+    let initial_cfg_map = startup_cfg
         .config_path_for_watcher
         .as_deref()
         .map(|p| crate::configfile::load_config_file(Some(p)))
         .unwrap_or_default();
-    let mut last_applied_cfg_map: Option<std::collections::HashMap<String, String>> =
-        Some(initial_cfg_map.clone());
+    let mut ctx = LoopCtx::new(
+        LoopCtxCore {
+            term,
+            cloud,
+            frame,
+            w,
+            h,
+        },
+        startup_cfg,
+        ambient_handle,
+        SceneIdentity {
+            charset_preset: cfg.charset_preset.clone(),
+            scene_name: cfg.scene_name.clone(),
+            scene_generation: 0, // Phase D: u64 compare vs String clone
+        },
+        cfg.user_ranges.clone(),
+        cfg.def_ascii,
+    );
+    // Last-applied cfg map (diff trace source) — set post-construction
+    // (needs the file-loaded map, not a ctx-derived clone).
+    ctx.config.last_applied_map = Some(initial_cfg_map.clone());
 
-    // v50.0.0-beta.7 masterclass: ambient startup delay.
-    //
-    // Owner's simple rule:
-    //   - No CLI flags at all → ambient applies INSTANTLY (no delay).
-    //     Example: `cosmostrix -v` (debug only, no scene/color/charset).
-    //   - ANY CLI flag (--scene, --color, --charset, etc.) → ambient
-    //     DEFERS for ambient-snapback-secs (default 30s). CLI wins first,
-    //     then ambient takes over after the delay.
-    //
-    // This avoids confusion: user runs `cosmostrix --scene matrix` with
-    // `ambient.12-00 = monolith` and sees matrix first, then after 30s
-    // monolith kicks in. Without the delay, ambient immediately overrides
-    // the CLI scene — user thinks `--scene matrix` is broken.
-    //
-    // Implementation: check if ANY CliExplicit flag is true. If none,
-    // apply ambient instantly. If any, defer (skip startup apply + let
-    // auto-snapback handle it after the delay).
-    // v80.0.0-beta.1: uses CliExplicit::any() — the old inline `||` chain listed
-    // only 15 of the 21 flags (--bold, --shading-mode, --color-bg,
-    // --colors-custom, --scene-custom, -mfs did NOT defer ambient).
-    let cli_has_any_override = base_cfg.cli_explicit.any();
+    // v50.0.0-beta.7 masterclass: ambient startup delay (owner rule: no
+    // CLI flags → ambient applies INSTANTLY; ANY CLI flag → ambient
+    // defers ambient-snapback-secs so CLI wins first, then ambient takes
+    // over — without the delay, ambient stomps `--scene matrix` at once
+    // and the flag looks broken). v80.0.0-beta.1: uses CliExplicit::any()
+    // — the old inline `||` chain listed only 15 of the 21 flags.
+    let cli_has_any_override = ctx.config.base.cli_explicit.any();
     let (new_charset, startup_entry) = if cli_has_any_override {
         // CLI flags present: defer ambient. Capture the entry for snapback.
         let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
-        let deferred_entry = base_cfg.ambient_schedule.current_phase(now_min).cloned();
+        let deferred_entry = ctx
+            .config
+            .base
+            .ambient_schedule
+            .current_phase(now_min)
+            .cloned();
         crate::lr_trace!(
             "ambient: startup — CLI flags detected, deferring ambient apply until snapback. Entry: {:?}",
             deferred_entry.as_ref().map(|e| &e.scene)
         );
-        last_applied_ambient_entry = deferred_entry;
+        ctx.ambient.last_applied_entry = deferred_entry;
         // Keep user_override_since_ambient = true so poll_ambient_events
         // defers re-application (the else-if branch in poll_ambient_events).
-        (charset_preset.clone(), None)
+        (ctx.scene.charset_preset.clone(), None)
     } else {
         // No CLI flags: apply ambient instantly (original behavior).
         crate::crystal_dragon_engine::ambient::apply_startup_ambient(
-            &mut cloud,
-            &base_cfg.ambient_schedule,
-            &charset_preset,
-            &user_ranges,
-            def_ascii,
+            &mut ctx.cloud,
+            &ctx.config.base.ambient_schedule,
+            &ctx.scene.charset_preset,
+            &ctx.user_ranges,
+            ctx.def_ascii,
             &initial_cfg_map,
         )
     };
@@ -241,36 +182,37 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     };
     super::set_startup_ambient_info(&ambient_info);
     if let Some(entry) = startup_entry {
-        charset_preset = new_charset;
-        scene_name = entry.scene.clone();
-        scene_generation = scene_generation.wrapping_add(1);
-        cloud.user_override_since_ambient = false;
-        cloud.ambient_palette_locked = true;
-        term.set_color_cache(ColorCache::new(&cloud.palette));
-        frame = Frame::new(w, h, cloud.palette.bg);
-        super::fill_terminal_bg(cloud.palette.bg);
-        last_applied_ambient_entry = Some(entry);
+        ctx.scene.charset_preset = new_charset;
+        ctx.scene.scene_name = entry.scene.clone();
+        ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
+        ctx.cloud.user_override_since_ambient = false;
+        ctx.cloud.ambient_palette_locked = true;
+        ctx.term
+            .set_color_cache(ColorCache::new(&ctx.cloud.palette));
+        ctx.frame = Frame::new(ctx.w, ctx.h, ctx.cloud.palette.bg);
+        super::fill_terminal_bg(ctx.cloud.palette.bg);
+        ctx.ambient.last_applied_entry = Some(entry);
         super::ambient_diag_startup();
         super::ambient_diag_scene_change("startup");
         // v80.0.0-beta.2 (S-master-LOGIC-3): the startup-applied ambient
         // scene owns fps like every other scene-family dimension — apply
         // its declared fps (built-in default or scene-custom field) to
         // the power manager, HUD, and the effective-config tracker.
-        if let Some(fps) = crate::scene_custom::ambient_scene_fps(&scene_name, &initial_cfg_map) {
-            super::event_loop_config_rebuild::apply_ambient_fps(
-                fps,
-                cfg,
-                &mut power_manager,
-                &mut hud_state,
-                &mut current_cfg,
-            );
+        if let Some(fps) =
+            crate::scene_custom::ambient_scene_fps(&ctx.scene.scene_name, &initial_cfg_map)
+        {
+            super::event_loop_config_rebuild::apply_ambient_fps(fps, &mut ctx);
         }
     }
+    // Seed the HUD so `tgt:` + the screen size are right from frame 1.
+    ctx.hud_state
+        .set_screen_size(ctx.w, ctx.h, ctx.config.startup.screen_size.is_some());
+    ctx.hud_state.set_target_fps(ctx.config.startup.target_fps);
     // Track runtime state for post-exit verbose summary.
-    while cloud.raining {
+    while ctx.cloud.raining {
         // Graceful shutdown from signal handler (clean exit via Terminal::drop).
         if GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
-            cloud.raining = false;
+            ctx.cloud.raining = false;
             break;
         }
 
@@ -278,39 +220,19 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // event_loop_config_drain.rs.
         if !super::event_loop_config_drain::drain_config_events(
             &config_rx,
-            &mut pending_config,
-            &mut cloud,
+            &mut ctx.config.pending,
+            &mut ctx.cloud,
         ) {
             break;
         }
 
         // v50.0.0-beta.7 LOC refactor: config rebuild extracted to
         // event_loop_config_rebuild.rs.
-        super::event_loop_config_rebuild::apply_config_rebuild(
-            &mut pending_config,
-            &mut base_cfg,
-            &startup_cfg,
-            &mut cloud,
-            &mut frame,
-            &mut term,
-            &mut power_manager,
-            &mut hud_state,
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &mut current_cfg,
-            &mut last_applied_cfg_map,
-            &mut last_ambient_schedule,
-            &mut ambient_handle,
-            &mut last_applied_ambient_entry,
-            &mut ambient_snapback_killed,
-            cfg,
-            w,
-            h,
-            &user_ranges,
-            &mut self_healer,
-            def_ascii,
-        );
+        // NIGHT-hunter-21: the 23-parameter signature collapsed to the
+        // context struct (the old list carried four same-typed
+        // CloudConfig refs — base/startup/current/cfg — plus the
+        // charset/scene &mut String pair and w/h; all are ctx fields now).
+        super::event_loop_config_rebuild::apply_config_rebuild(&mut ctx);
 
         // v50.0.0-beta.7 LOC refactor: ambient polling extracted to
         // event_loop_ambient.rs.
@@ -321,73 +243,38 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // overlay-lift changed the effective scene, None otherwise). The
         // Cloud does not own frame pacing — the event loop applies the
         // intent to the power manager + HUD + effective-config tracker.
-        if let Some(fps) = super::event_loop_ambient::poll_ambient_events(
-            &mut cloud,
-            &mut frame,
-            &mut term,
-            &mut charset_preset,
-            &mut scene_name,
-            &mut scene_generation,
-            &last_applied_cfg_map,
-            &mut last_ambient_schedule,
-            &mut ambient_handle,
-            &mut last_applied_ambient_entry,
-            &mut ambient_snapback_killed,
-            &mut last_ground_truth_check,
-            &config_path_for_ground_truth,
-            &mut next_frame,
-            w,
-            h,
-            &user_ranges,
-            def_ascii,
-            &current_cfg,
-            &startup_cfg,
-            last_user_input_at,
-        ) {
-            super::event_loop_config_rebuild::apply_ambient_fps(
-                fps,
-                cfg,
-                &mut power_manager,
-                &mut hud_state,
-                &mut current_cfg,
-            );
+        // NIGHT-hunter-21: the 21-parameter signature collapsed to the
+        // context struct.
+        if let Some(fps) = super::event_loop_ambient::poll_ambient_events(&mut ctx) {
+            super::event_loop_config_rebuild::apply_ambient_fps(fps, &mut ctx);
         }
 
         // v50.0.0-beta.7 LOC refactor: adaptive throttling extracted to
-        // event_loop_adaptive.rs.
-        let throttle = super::event_loop_adaptive::run_adaptive_throttle(
-            &mut cloud,
-            &mut frame,
-            &mut power_manager,
-            &mut reclaim_state,
-            &mut last_resync_time,
-            &mut next_frame,
-            scene_generation,
-        );
+        // event_loop_adaptive.rs. NIGHT-hunter-21: takes the context.
+        let throttle = super::event_loop_adaptive::run_adaptive_throttle(&mut ctx);
         let loop_now = throttle.loop_now;
         let is_idle = throttle.is_idle;
         let scene_generation_at_frame_start = throttle.scene_generation_at_frame_start;
 
         // P2: reuse loop_now (captured at top of loop) instead of another Instant::now().
         if end_time.is_some_and(|end| loop_now >= end) {
-            cloud.raining = false;
+            ctx.cloud.raining = false;
             break;
         }
         let mut pending_resize: Option<(u16, u16)> = None;
         if crate::platform::swap_term_reinit(&term_reinit) {
-            drop(term);
-            term = Terminal::with_signal_exit(signal_exit.clone())?;
+            ctx.term = Terminal::with_signal_exit(signal_exit.clone())?;
             // v17: always re-enable mouse reporting after SIGCONT (see
             // startup comment for rationale — block copy in all modes).
-            if term.enable_mouse_capture().is_ok() {
+            if ctx.term.enable_mouse_capture().is_ok() {
                 MOUSE_CAPTURE_ACTIVE.store(true, Ordering::Release);
             }
-            let (nw, nh) = term.size()?;
+            let (nw, nh) = ctx.term.size()?;
             pending_resize = Some((nw, nh));
-            cloud.force_draw_everything();
+            ctx.cloud.force_draw_everything();
             let reinit_time = Instant::now();
-            last_resync_time = reinit_time;
-            next_frame = reinit_time;
+            ctx.last_resync_time = reinit_time;
+            ctx.next_frame = reinit_time;
         }
         loop {
             // Drain pending events. On Windows (ConPTY) and Termux (Android
@@ -401,7 +288,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(false) => break,
                     Err(e) if is_terminal_gone(&e) => {
-                        cloud.raining = false;
+                        ctx.cloud.raining = false;
                         break;
                     }
                     Err(_) => break,
@@ -410,7 +297,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 let ev = match Terminal::read_event() {
                     Ok(e) => e,
                     Err(e) if is_terminal_gone(&e) => {
-                        cloud.raining = false;
+                        ctx.cloud.raining = false;
                         break;
                     }
                     Err(_) => break,
@@ -418,14 +305,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 match ev {
                     Event::Resize(nw, nh) => {
                         // --screen-size: ignore terminal resize when in fixed mode
-                        if cfg.screen_size.is_some() {
+                        if ctx.config.startup.screen_size.is_some() {
                             // Fixed mode — ignore resize, keep virtual size
                         } else {
                             // Dynamic mode — clamp to safe bounds before storing
                             let cw = nw.clamp(MIN_TERMINAL_COLS, MAX_TERMINAL_COLS);
                             let ch = nh.clamp(MIN_TERMINAL_LINES, MAX_TERMINAL_LINES);
                             pending_resize = Some((cw, ch));
-                            last_resize_event = Some(Instant::now());
+                            ctx.last_resize_event = Some(Instant::now());
                         }
                     }
                     Event::Key(k) => {
@@ -447,16 +334,16 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             continue;
                         }
                         let activity_time = Instant::now();
-                        if paste_guard.ignore_plain_key(&k, activity_time) {
+                        if ctx.paste_guard.ignore_plain_key(&k, activity_time) {
                             let _ = register_activity(
-                                &mut power_manager,
-                                &mut last_resync_time,
+                                &mut ctx.power_manager,
+                                &mut ctx.last_resync_time,
                                 activity_time,
                                 is_idle,
                                 false,
                             );
-                            cloud.force_draw_everything();
-                            next_frame = activity_time;
+                            ctx.cloud.force_draw_everything();
+                            ctx.next_frame = activity_time;
                             continue;
                         }
                         // HUD toggle ('i'): check BEFORE screensaver exit to prevent
@@ -492,25 +379,25 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // and 'q' work during pause. The gate lives in input.rs
                         // (hud_toggle_accepted) so the predicate is testable and
                         // identical to the handle_keybinding pause guard.
-                        if hud_toggle_accepted(&cloud)
+                        if hud_toggle_accepted(&ctx.cloud)
                             && is_unmodified(k.modifiers)
                             && matches!(k.code, KeyCode::Char('i'))
                         {
-                            let now_visible = hud_state.toggle();
+                            let now_visible = ctx.hud_state.toggle();
                             if !now_visible {
-                                cloud.semantic_invalidate = true;
-                                cloud.force_draw_everything();
+                                ctx.cloud.semantic_invalidate = true;
+                                ctx.cloud.force_draw_everything();
                             }
                             // Set next_frame=activity_time so HUD appears immediately;
                             // otherwise idle-mode delay could defer render by seconds.
                             let _ = register_activity(
-                                &mut power_manager,
-                                &mut last_resync_time,
+                                &mut ctx.power_manager,
+                                &mut ctx.last_resync_time,
                                 activity_time,
                                 is_idle,
                                 false,
                             );
-                            next_frame = activity_time;
+                            ctx.next_frame = activity_time;
                             continue;
                         }
                         // v50.0.0-beta.6: the 'h' shortkey is REMOVED
@@ -518,17 +405,17 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // HUD always renders flush-left at column 0. Any
                         // user input resets idle timer for adaptive throttling.
                         if register_activity(
-                            &mut power_manager,
-                            &mut last_resync_time,
+                            &mut ctx.power_manager,
+                            &mut ctx.last_resync_time,
                             activity_time,
                             is_idle,
                             false,
                         ) {
-                            cloud.force_draw_everything();
-                            next_frame = activity_time;
+                            ctx.cloud.force_draw_everything();
+                            ctx.next_frame = activity_time;
                         }
                         // refresh auto-snapback idle timer on every key press.
-                        last_user_input_at = activity_time;
+                        ctx.last_user_input_at = activity_time;
                         // Process the keybinding. This lets interactive
                         // keys (q, c/C, s/S, x/X, p, i, [, ], r,
                         // Up/Down) work identically in --screensaver
@@ -537,46 +424,46 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // documented in docs/SCREENSAVER_MODE.md.
                         let redraw_needed = handle_keybinding(
                             &mut KeybindingCtx {
-                                cloud: &mut cloud,
-                                frame: &mut frame,
-                                charset_preset: &mut charset_preset,
-                                scene_name: &mut scene_name,
-                                scene_generation: &mut scene_generation,
-                                user_ranges: &user_ranges,
-                                def_ascii,
-                                cfg,
+                                cloud: &mut ctx.cloud,
+                                frame: &mut ctx.frame,
+                                charset_preset: &mut ctx.scene.charset_preset,
+                                scene_name: &mut ctx.scene.scene_name,
+                                scene_generation: &mut ctx.scene.scene_generation,
+                                user_ranges: &ctx.user_ranges,
+                                def_ascii: ctx.def_ascii,
+                                cfg: &ctx.config.startup,
                                 term_reinit: &term_reinit,
                             },
                             &k,
                         );
-                        if cfg.screensaver {
+                        if ctx.config.startup.screensaver {
                             // Screensaver: break the event drain immediately
                             // once 'q' cleared cloud.raining (queued events are
                             // discarded instead of drained — see
                             // docs/SCREENSAVER_MODE.md §2 for the full audit).
                             // Mouse click doesn't exit (v17). Only 'q' quits.
-                            if !cloud.raining {
+                            if !ctx.cloud.raining {
                                 break;
                             }
                             // No is_recognized_key check — all unrecognized
                             // keys fall through to handle_keybinding's
                             // `_ => {}` catch-all and are silently ignored.
                         } else if redraw_needed {
-                            next_frame = Instant::now();
+                            ctx.next_frame = Instant::now();
                         }
                     }
                     Event::Paste(_) => {
                         let activity_time = Instant::now();
-                        paste_guard.note_bracketed_paste(activity_time);
+                        ctx.paste_guard.note_bracketed_paste(activity_time);
                         let _ = register_activity(
-                            &mut power_manager,
-                            &mut last_resync_time,
+                            &mut ctx.power_manager,
+                            &mut ctx.last_resync_time,
                             activity_time,
                             is_idle,
                             false,
                         );
-                        cloud.force_draw_everything();
-                        next_frame = activity_time;
+                        ctx.cloud.force_draw_everything();
+                        ctx.next_frame = activity_time;
                     }
                     Event::Mouse(m) => {
                         // Mouse events always captured (blocks drag-select). No force_draw
@@ -586,8 +473,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         let is_click = matches!(m.kind, MouseEventKind::Down(_));
                         let was_idle = is_idle;
                         let _ = register_activity(
-                            &mut power_manager,
-                            &mut last_resync_time,
+                            &mut ctx.power_manager,
+                            &mut ctx.last_resync_time,
                             activity_time,
                             was_idle,
                             false,
@@ -605,27 +492,27 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         // suppressed.
                         // Mouse position is still tracked (hover glow) and
                         // the event is still consumed (blocks drag-select).
-                        cloud.set_mouse_position(m.column, m.row);
-                        if is_click && !cloud.is_paused_or_decelerating() {
-                            cloud.set_mouse_click(m.column, m.row);
+                        ctx.cloud.set_mouse_position(m.column, m.row);
+                        if is_click && !ctx.cloud.is_paused_or_decelerating() {
+                            ctx.cloud.set_mouse_click(m.column, m.row);
                             // Wake renderer immediately on idle→active click.
                             if was_idle {
-                                cloud.force_draw_everything();
-                                next_frame = activity_time;
+                                ctx.cloud.force_draw_everything();
+                                ctx.next_frame = activity_time;
                             }
                         }
                     }
                     Event::FocusGained => {
                         let activity_time = Instant::now();
                         if register_activity(
-                            &mut power_manager,
-                            &mut last_resync_time,
+                            &mut ctx.power_manager,
+                            &mut ctx.last_resync_time,
                             activity_time,
                             is_idle,
                             true,
                         ) {
-                            cloud.force_draw_everything();
-                            next_frame = activity_time;
+                            ctx.cloud.force_draw_everything();
+                            ctx.next_frame = activity_time;
                         }
                     }
                     _ => {}
@@ -634,11 +521,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             // Break when resize debounce elapses (coalesces drag storms), or
             // immediately on SIGHUP/SIGTERM / dead PTY. Without the shutdown
             // check, the wait loop burns CPU until next_frame after the signal.
-            if !cloud.raining || GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
+            if !ctx.cloud.raining || GRACEFUL_SHUTDOWN.load(Ordering::Acquire) {
                 break;
             }
             if pending_resize.is_some() {
-                let debounce_elapsed = last_resize_event
+                let debounce_elapsed = ctx
+                    .last_resize_event
                     .map(|t| t.elapsed() >= Duration::from_millis(RESIZE_DEBOUNCE_MS))
                     .unwrap_or(true);
                 if debounce_elapsed {
@@ -647,15 +535,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
             }
             let now = Instant::now();
             // Monotonic clock jump guard
-            let frame_elapsed = now.saturating_duration_since(next_frame);
+            let frame_elapsed = now.saturating_duration_since(ctx.next_frame);
             if frame_elapsed.as_secs_f64() > CLOCK_JUMP_GUARD_SECS {
-                next_frame = now;
+                ctx.next_frame = now;
                 break;
             }
-            if now >= next_frame {
+            if now >= ctx.next_frame {
                 break;
             }
-            let mut timeout = next_frame - now;
+            let mut timeout = ctx.next_frame - now;
             if let Some(end) = end_time {
                 if now >= end {
                     break;
@@ -676,7 +564,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                     Ok(true) => continue,
                     Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
-                        cloud.raining = false;
+                        ctx.cloud.raining = false;
                         break;
                     }
                     Err(e) => return Err(e),
@@ -685,39 +573,30 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                 // The spin is capped at 1ms internally to handle edge cases.
                 // Only reached when poll returned Ok(false) — no events, so
                 // spinning to the deadline is the correct behavior.
-                spin_wait(next_frame);
+                spin_wait(ctx.next_frame);
             } else {
                 // Already close to deadline (< 500μs away): spin-wait to hit
                 // it precisely, then drain any events that arrived.
-                spin_wait(next_frame);
+                spin_wait(ctx.next_frame);
                 match Terminal::poll_event(Duration::from_millis(0)) {
                     Ok(true) => continue,
                     Ok(false) => {}
                     Err(e) if is_terminal_gone(&e) => {
-                        cloud.raining = false;
+                        ctx.cloud.raining = false;
                         break;
                     }
                     Err(e) => return Err(e),
                 }
             }
         }
-        if !cloud.raining {
+        if !ctx.cloud.raining {
             break;
         }
         // v50.0.0-beta.7 LOC refactor: resize handler extracted to
-        // event_loop_resize.rs.
-        super::event_loop_resize::handle_resize(
-            pending_resize,
-            &mut w,
-            &mut h,
-            &mut cloud,
-            &mut frame,
-            &mut hud_state,
-            &mut term,
-            &current_cfg,
-            &mut last_resync_time,
-            cfg.screen_size.is_some(),
-        );
+        // event_loop_resize.rs. NIGHT-hunter-21: takes the context + the
+        // pending resize (the fixed-screen-size flag is derived from
+        // ctx.config.startup inside).
+        super::event_loop_resize::handle_resize(&mut ctx, pending_resize);
         // Key handling can toggle pause/resume after the frame period was
         // chosen for the wait phase. Recompute before simulation and
         // scheduling so the first resumed frame does not inherit the paused
@@ -727,7 +606,9 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // v50.0.0-beta.6: use current_cfg.power_dragon (live-reloaded) so
         // live-reloading power_dragon=false immediately affects frame pacing.
         let frame_period = Duration::from_secs_f64(
-            1.0 / power_manager.effective_fps(cloud.pause, current_cfg.power_dragon),
+            1.0 / ctx
+                .power_manager
+                .effective_fps(ctx.cloud.pause, ctx.config.current.power_dragon),
         );
         let frame_period_s = frame_period.as_secs_f32().max(0.000_001);
         // v30 (2026-08-05): announce frame pacing mode to the HUD so the
@@ -738,12 +619,12 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // v50.0.0-beta.7 LOC refactor: HUD state update extracted to
         // event_loop_hud.rs.
         super::event_loop_hud::update_hud_state(
-            &mut hud_state,
-            &mut cloud,
-            &power_manager,
-            &scene_name,
-            &charset_preset,
-            &current_cfg,
+            &mut ctx.hud_state,
+            &mut ctx.cloud,
+            &ctx.power_manager,
+            &ctx.scene.scene_name,
+            &ctx.scene.charset_preset,
+            &ctx.config.current,
         );
         // v50.0.0-beta.7 LOC refactor: sim+draw extracted to
         // event_loop_sim_draw.rs.
@@ -751,12 +632,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // visual pressure that update_hud_state fed the cloud one call
         // earlier (power_dragon-gated + EMA-smoothed) — one value, one
         // contract, no drift between the cloud feed and the sim cap.
-        let applied_pressure = power_manager.applied_visual_pressure(current_cfg.power_dragon);
+        let applied_pressure = ctx
+            .power_manager
+            .applied_visual_pressure(ctx.config.current.power_dragon);
         let sim_draw = super::event_loop_sim_draw::run_sim_and_draw(
-            &mut cloud,
-            &mut frame,
-            &mut hud_state,
-            &mut term,
+            &mut ctx.cloud,
+            &mut ctx.frame,
+            &mut ctx.hud_state,
+            &mut ctx.term,
             frame_period,
             applied_pressure,
         )?;
@@ -776,13 +659,13 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // screen size). Dirty count = dirty_len (or full screen if
         // is_dirty_all — sim_draw signals "everything changed").
         {
-            let total_cells = (frame.width as u64) * (frame.height as u64);
+            let total_cells = (ctx.frame.width as u64) * (ctx.frame.height as u64);
             let dirty_count = if is_dirty_all {
                 total_cells
             } else {
                 dirty_len as u64
             };
-            hud_state.set_dirty_cell_stats(dirty_count, total_cells);
+            ctx.hud_state.set_dirty_cell_stats(dirty_count, total_cells);
         }
 
         // v50.0.0-beta.7 LOC refactor: post-draw accounting extracted to
@@ -791,10 +674,10 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // last_write_ns on non-drawing frames must not feed the drain
         // backoff / perf_pressure).
         let post_draw = super::event_loop_post_draw::post_draw_accounting(
-            &mut hud_state,
-            &mut power_manager,
-            &term,
-            &cloud,
+            &mut ctx.hud_state,
+            &mut ctx.power_manager,
+            &ctx.term,
+            &ctx.cloud,
             work_start,
             frame_period_s,
             did_draw,
@@ -808,69 +691,57 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // latency) and before the self-healer (which reads effective
         // pressure, not the backoff). Sticky — once it fires, effects stay
         // off for the session; brief spikes reset the sustain timer.
-        effects_auto_gate.observe(power_manager.drain_backoff(), loop_now, &mut cloud);
+        ctx.effects_auto_gate
+            .observe(ctx.power_manager.drain_backoff(), loop_now, &mut ctx.cloud);
 
         // v50.0.0-beta.7 LOC refactor: P5 health sampling extracted to
         // event_loop_p5.rs.
         // HUNT-23: frame_period_s feeds the utilization-based frame signal.
-        if !super::event_loop_p5::sample_p5_health(
-            &mut endurance_health,
-            &mut hud_state,
-            &mut power_manager,
-            &mut term,
-            &mut cloud,
-            work_s as f64,
-            frame_period_s,
+        // NIGHT-hunter-21: the per-frame observation values (work_s,
+        // frame_period_s, work_start, did_draw, dirty_len, overshoot,
+        // utilization) travel in one named-field FrameObs from here on —
+        // the frame-tail siblings share it, so the three f32 values are no
+        // longer positionally transposable.
+        let obs = FrameObs {
             work_start,
-            &mut perf_rss_samples,
-            #[cfg(target_os = "linux")]
-            &mut last_ctxt_switches,
-            &mut last_ctxt_sample,
-        ) {
-            break;
-        }
-
-        // v50.0.0-beta.7 LOC refactor: perf stats display extracted to
-        // event_loop_perf_stats.rs.
-        super::event_loop_perf_stats::update_perf_stats(
-            &mut perf_frames,
-            &mut perf_drawn_frames,
-            &mut perf_idle_frames,
-            &mut perf_dirty_sum,
-            &mut perf_dirty_samples,
-            &mut perf_work_sum_s,
-            &mut perf_work_max_s,
-            &mut perf_pressure_sum,
-            &mut perf_pressure_max,
-            &mut perf_utilization_sum,
-            &mut perf_utilization_max,
-            &mut perf_overshoot_frames,
-            &mut frame_time_tracker,
-            &frame,
-            &power_manager,
             work_s,
+            frame_period_s,
             did_draw,
             is_dirty_all,
             dirty_len,
             overshoot,
             utilization,
-            cfg.perf_stats,
-        );
+        };
+        if !super::event_loop_p5::sample_p5_health(&mut ctx, &obs) {
+            break;
+        }
+
+        // v50.0.0-beta.7 LOC refactor: perf stats display extracted to
+        // event_loop_perf_stats.rs.
+        super::event_loop_perf_stats::update_perf_stats(&mut ctx, &obs);
 
         // v50.0.0-beta.7 LOC refactor: performance self-healer extracted
-        // to event_loop_self_heal.rs.
+        // to event_loop_self_heal.rs. NIGHT-hunter-21: value inputs travel
+        // in the named-field HealInputs struct (the old positional list
+        // carried the scene-generation u64 pair + three float/timestamp
+        // values); the four mutable targets stay granular — distinct
+        // types, compiler-checked against transposition — so the unit
+        // tests keep constructing four small objects instead of a full
+        // context.
         super::event_loop_self_heal::run_self_healer(
-            &mut self_healer,
-            &mut reclaim_state,
-            &mut cloud,
-            &mut frame,
-            &current_cfg,
-            &scene_name,
-            scene_generation,
-            scene_generation_at_frame_start,
-            power_manager.effective_pressure(),
-            loop_now,
-            endurance_health.score(),
+            &mut ctx.self_healer,
+            &mut ctx.reclaim_state,
+            &mut ctx.cloud,
+            &mut ctx.frame,
+            super::event_loop_self_heal::HealInputs {
+                cfg: &ctx.config.current,
+                scene_name: &ctx.scene.scene_name,
+                scene_generation: ctx.scene.scene_generation,
+                scene_generation_at_frame_start,
+                effective_pressure: ctx.power_manager.effective_pressure(),
+                loop_now,
+                endurance_health_score: ctx.endurance_health.score(),
+            },
         );
 
         // Schedule next frame relative to the ideal deadline, using the
@@ -880,8 +751,8 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
         // double-advancing (which caused visible stutter on frames that took
         // just 1μs too long).
         let frame_ts = work_start;
-        let next = next_frame.checked_add(frame_period).unwrap_or(frame_ts);
-        next_frame = if frame_ts > next {
+        let next = ctx.next_frame.checked_add(frame_period).unwrap_or(frame_ts);
+        ctx.next_frame = if frame_ts > next {
             frame_ts.checked_add(frame_period).unwrap_or(frame_ts)
         } else {
             next
@@ -896,29 +767,29 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let stats =
         super::event_loop_stats::build_session_stats(super::event_loop_stats::StatsInputs {
             start_time,
-            perf_frames,
-            perf_drawn_frames,
-            perf_idle_frames,
-            perf_overshoot_frames,
-            perf_dirty_sum,
-            perf_dirty_samples,
-            perf_work_sum_s,
-            perf_work_max_s,
-            perf_pressure_sum,
-            perf_pressure_max,
-            perf_utilization_sum,
-            perf_utilization_max,
-            frame_time_tracker: &frame_time_tracker,
-            power_manager: &power_manager,
-            endurance_health: &endurance_health,
-            cloud: &cloud,
+            perf_frames: ctx.perf.frames,
+            perf_drawn_frames: ctx.perf.drawn_frames,
+            perf_idle_frames: ctx.perf.idle_frames,
+            perf_overshoot_frames: ctx.perf.overshoot_frames,
+            perf_dirty_sum: ctx.perf.dirty_sum,
+            perf_dirty_samples: ctx.perf.dirty_samples,
+            perf_work_sum_s: ctx.perf.work_sum_s,
+            perf_work_max_s: ctx.perf.work_max_s,
+            perf_pressure_sum: ctx.perf.pressure_sum,
+            perf_pressure_max: ctx.perf.pressure_max,
+            perf_utilization_sum: ctx.perf.utilization_sum,
+            perf_utilization_max: ctx.perf.utilization_max,
+            frame_time_tracker: &ctx.frame_time_tracker,
+            power_manager: &ctx.power_manager,
+            endurance_health: &ctx.endurance_health,
+            cloud: &ctx.cloud,
         });
     finalize_session(
         &stats,
-        term,
-        &cloud,
-        &scene_name,
-        &charset_preset,
-        &current_cfg,
+        ctx.term,
+        &ctx.cloud,
+        &ctx.scene.scene_name,
+        &ctx.scene.charset_preset,
+        &ctx.config.current,
     )
 }

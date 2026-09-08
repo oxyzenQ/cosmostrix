@@ -3,64 +3,49 @@
 
 //! Performance stats display accounting — extracted from `event_loop.rs`
 //! to keep that file under the 800-LOC cap. Pure code motion — no behavior change.
+//!
+//! NIGHT-hunter-21: takes the loop context + the per-frame observation.
+//! The old 22-parameter signature carried twelve mutable accumulators
+//! (the `f64` trio `perf_work_sum_s`/`perf_pressure_sum`/
+//! `perf_utilization_sum` was positionally transposable) and eight
+//! trailing frame values — the accumulators are `ctx.perf` named
+//! fields now, the frame values travel in [`FrameObs`] named fields.
 
-use super::activity::FrameTimeTracker;
-use crate::central_control_power_dragon::PowerManager;
-use crate::frame::Frame;
+use super::event_loop_ctx::{FrameObs, LoopCtx};
 
 /// Update performance display counters when --perf-stats is enabled.
 ///
-/// Always increments perf_frames + pushes frame time (for post-exit FPS
-/// summary). When --perf-stats is on, also tracks drawn/idle frames,
-/// dirty-cell accounting, work time, pressure, utilization, and overshoot.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn update_perf_stats(
-    perf_frames: &mut u64,
-    perf_drawn_frames: &mut u64,
-    perf_idle_frames: &mut u64,
-    perf_dirty_sum: &mut u64,
-    perf_dirty_samples: &mut u64,
-    perf_work_sum_s: &mut f64,
-    perf_work_max_s: &mut f64,
-    perf_pressure_sum: &mut f64,
-    perf_pressure_max: &mut f32,
-    perf_utilization_sum: &mut f64,
-    perf_utilization_max: &mut f32,
-    perf_overshoot_frames: &mut u64,
-    frame_time_tracker: &mut FrameTimeTracker,
-    frame: &Frame,
-    power_manager: &PowerManager,
-    work_s: f32,
-    did_draw: bool,
-    is_dirty_all: bool,
-    dirty_len: usize,
-    overshoot: f32,
-    utilization: f32,
-    perf_stats_enabled: bool,
-) {
-    *perf_frames = perf_frames.saturating_add(1);
-    frame_time_tracker.push(work_s as f64 * 1000.0);
-    if perf_stats_enabled {
-        if did_draw {
-            *perf_drawn_frames = perf_drawn_frames.saturating_add(1);
+/// Always increments `ctx.perf.frames` + pushes the frame time (for
+/// the post-exit FPS summary). When --perf-stats is on (`ctx.config
+/// .startup.perf_stats`), also tracks drawn/idle frames, dirty-cell
+/// accounting, work time, pressure, utilization, and overshoot.
+pub(crate) fn update_perf_stats(ctx: &mut LoopCtx, obs: &FrameObs) {
+    ctx.perf.frames = ctx.perf.frames.saturating_add(1);
+    ctx.frame_time_tracker.push(obs.work_s as f64 * 1000.0);
+    if ctx.config.startup.perf_stats {
+        if obs.did_draw {
+            ctx.perf.drawn_frames = ctx.perf.drawn_frames.saturating_add(1);
         } else {
-            *perf_idle_frames = perf_idle_frames.saturating_add(1);
+            ctx.perf.idle_frames = ctx.perf.idle_frames.saturating_add(1);
         }
-        let dirty_count = if is_dirty_all {
-            (frame.width as u64) * (frame.height as u64)
+        let dirty_count = if obs.is_dirty_all {
+            (ctx.frame.width as u64) * (ctx.frame.height as u64)
         } else {
-            dirty_len as u64
+            obs.dirty_len as u64
         };
-        *perf_dirty_sum = perf_dirty_sum.saturating_add(dirty_count);
-        *perf_dirty_samples = perf_dirty_samples.saturating_add(1);
-        *perf_work_sum_s += work_s as f64;
-        *perf_work_max_s = perf_work_max_s.max(work_s as f64);
-        *perf_pressure_sum += power_manager.effective_pressure() as f64;
-        *perf_pressure_max = perf_pressure_max.max(power_manager.effective_pressure());
-        *perf_utilization_sum += utilization as f64;
-        *perf_utilization_max = perf_utilization_max.max(utilization);
-        if overshoot > 0.0 {
-            *perf_overshoot_frames = perf_overshoot_frames.saturating_add(1);
+        ctx.perf.dirty_sum = ctx.perf.dirty_sum.saturating_add(dirty_count);
+        ctx.perf.dirty_samples = ctx.perf.dirty_samples.saturating_add(1);
+        ctx.perf.work_sum_s += obs.work_s as f64;
+        ctx.perf.work_max_s = ctx.perf.work_max_s.max(obs.work_s as f64);
+        ctx.perf.pressure_sum += ctx.power_manager.effective_pressure() as f64;
+        ctx.perf.pressure_max = ctx
+            .perf
+            .pressure_max
+            .max(ctx.power_manager.effective_pressure());
+        ctx.perf.utilization_sum += obs.utilization as f64;
+        ctx.perf.utilization_max = ctx.perf.utilization_max.max(obs.utilization);
+        if obs.overshoot > 0.0 {
+            ctx.perf.overshoot_frames = ctx.perf.overshoot_frames.saturating_add(1);
         }
     }
 }

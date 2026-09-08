@@ -20,6 +20,7 @@ use crate::rain_style::RainStyle;
 use crate::scene;
 
 use super::super::{cycle_charset_preset, cycle_color_scheme, CloudConfig};
+use super::event_loop_ctx::LoopCtx;
 
 const PASTE_BURST_SUPPRESS_MS: u64 = 50;
 
@@ -460,25 +461,17 @@ pub(super) fn should_auto_snapback(
 /// This is the automatic replacement for the v35 'a' shortcut. The
 /// harmony flags (`user_override_since_ambient`, `ambient_palette_locked`)
 /// are updated on successful apply — same as a scheduler fire.
-#[allow(clippy::too_many_arguments)]
-pub(super) fn try_auto_snapback(
-    cloud: &mut Cloud,
-    charset_preset: &mut String,
-    scene_name: &mut String,
-    scene_generation: &mut u64,
-    last_applied_ambient_entry: &mut Option<crate::crystal_dragon_engine::ambient::AmbientEntry>,
-    schedule: &crate::crystal_dragon_engine::ambient::AmbientSchedule,
-    last_cfg_map: &Option<std::collections::HashMap<String, String>>,
-    user_ranges: &[(char, char)],
-    def_ascii: bool,
-    last_user_input_at: Instant,
-    auto_snapback_delay_secs: f64,
-) -> bool {
+/// NIGHT-hunter-21: takes the loop context — the old 11-parameter list
+/// carried the `charset_preset`/`scene_name` `&mut String` pair plus the
+/// ambient tracker fields; every one is a named ctx field now. The
+/// snapback delay derives from `ctx.config.current` inside (the caller
+/// previously threaded it as a computed value).
+pub(super) fn try_auto_snapback(ctx: &mut LoopCtx) -> bool {
     // AB-04: explicit empty-schedule guard — never snapback when
     // the schedule is empty. current_phase() returns None for empty
     // schedules, but this guard is belt-and-suspenders: it avoids
     // even calling current_phase() and makes the intent explicit.
-    if schedule.entries.is_empty() {
+    if ctx.ambient.last_schedule.entries.is_empty() {
         return false;
     }
     // AB-05: no previous ambient entry → nothing to snapback to.
@@ -486,7 +479,7 @@ pub(super) fn try_auto_snapback(
     // this prevents snapback from re-applying a stale ambient scene
     // even if last_ambient_schedule hasn't been updated yet (file
     // watcher latency window).
-    if last_applied_ambient_entry.is_none() {
+    if ctx.ambient.last_applied_entry.is_none() {
         return false;
     }
     let now = Instant::now();
@@ -495,45 +488,52 @@ pub(super) fn try_auto_snapback(
     // This gives drift exactly ambient-snapback-secs of visibility before
     // ambient reverts. When drift is NOT active (no drift has fired this
     // cycle), fall back to last_user_input_at for manual user overrides.
-    let snapback_ref = cloud.drift_start.unwrap_or(last_user_input_at);
+    let snapback_ref = ctx.cloud.drift_start.unwrap_or(ctx.last_user_input_at);
     let idle_secs = now.saturating_duration_since(snapback_ref).as_secs_f64();
     if !should_auto_snapback(
-        cloud.user_override_since_ambient,
+        ctx.cloud.user_override_since_ambient,
         idle_secs,
-        auto_snapback_delay_secs,
+        ctx.config
+            .current
+            .effective_snapback_delay(crate::constants::AUTO_SNAPBACK_DELAY_SECS),
     ) {
         return false;
     }
     let now_min = crate::crystal_dragon_engine::ambient::current_minute_of_day();
-    let Some(entry) = schedule.current_phase(now_min).cloned() else {
+    let Some(entry) = ctx.ambient.last_schedule.current_phase(now_min).cloned() else {
         return false;
     };
-    let cfg_map = last_cfg_map.clone().unwrap_or_default();
+    let cfg_map = ctx.config.last_applied_map.clone().unwrap_or_default();
     crate::lr_trace!(
         "ambient: auto-snapback after {:.1}s (drift_active={}) — applying phase {:02}:{:02} (scene={})",
         idle_secs,
-        cloud.drift_active,
+        ctx.cloud.drift_active,
         entry.hour,
         entry.minute,
         entry.scene
     );
-    *charset_preset =
-        cloud.apply_ambient_entry(&entry, charset_preset, user_ranges, def_ascii, &cfg_map);
-    *last_applied_ambient_entry = Some(entry.clone());
-    *scene_name = entry.scene.clone();
-    *scene_generation = scene_generation.wrapping_add(1);
-    cloud.user_override_since_ambient = false;
-    cloud.ambient_palette_locked = true;
+    ctx.scene.charset_preset = ctx.cloud.apply_ambient_entry(
+        &entry,
+        &ctx.scene.charset_preset,
+        &ctx.user_ranges,
+        ctx.def_ascii,
+        &cfg_map,
+    );
+    ctx.ambient.last_applied_entry = Some(entry.clone());
+    ctx.scene.scene_name = entry.scene.clone();
+    ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
+    ctx.cloud.user_override_since_ambient = false;
+    ctx.cloud.ambient_palette_locked = true;
     // Clear drift state — cycle complete, next drift can fire on next poll.
-    cloud.drift_active = false;
-    cloud.drift_start = None;
+    ctx.cloud.drift_active = false;
+    ctx.cloud.drift_start = None;
     // Reset the drift poll timer so the next drift fires one full polling
     // cycle from now (not immediately). Without this, the poll is already
     // "due" (polling-secs+ elapsed since last poll) and drift would
     // re-fire instantly, preventing the ambient palette from being
     // visible. v80.0.0-alpha.1: "one polling cycle" = the effective
     // crystal-dragon-secs, not the old hardcoded 60s.
-    cloud.crystal_dragon_last_poll = Some(now);
+    ctx.cloud.crystal_dragon_last_poll = Some(now);
     crate::interactive::ambient_diag_snapback();
     crate::interactive::ambient_diag_scene_change(&format!("auto-snapback(scene={})", entry.scene));
     true

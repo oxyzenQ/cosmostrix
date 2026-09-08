@@ -20,6 +20,34 @@ use crate::central_control_power_dragon::SELF_HEAL_PRESSURE_LOW;
 use crate::cloud::Cloud;
 use crate::frame::Frame;
 
+/// Value inputs for [`run_self_healer`] — the per-frame observation the
+/// policy consumes.
+///
+/// NIGHT-hunter-21: these seven values were the trailing positional
+/// parameters of the old 11-parameter signature — the
+/// `scene_generation`/`scene_generation_at_frame_start` `u64` pair and
+/// the pressure/score float pair were positionally transposable. Named
+/// fields end that. The four MUTABLE targets (healer, reclaim, cloud,
+/// frame) stay granular: they are distinct types, so the compiler
+/// already rejects transposition — and the unit tests keep constructing
+/// four small objects instead of a full loop context.
+pub(crate) struct HealInputs<'a> {
+    /// Live-reloaded effective config (power_dragon gate).
+    pub cfg: &'a CloudConfig,
+    /// Active scene name (downgrade diagnostics + policy bookkeeping).
+    pub scene_name: &'a str,
+    /// Current scene-family change counter.
+    pub scene_generation: u64,
+    /// Scene-family counter captured at frame start (reset detector).
+    pub scene_generation_at_frame_start: u64,
+    /// PowerManager effective pressure (the applied feed).
+    pub effective_pressure: f32,
+    /// Frame-start timestamp (reclaim cooldown bookkeeping).
+    pub loop_now: Instant,
+    /// Endurance health score (P5, always-on sampling).
+    pub endurance_health_score: f64,
+}
+
 /// Run the performance self-healer for one frame.
 ///
 /// Resets on scene change, observes current pressure + endurance score,
@@ -27,25 +55,18 @@ use crate::frame::Frame;
 /// or restore). Mutates cloud/frame/reclaim_state/self_healer as needed.
 /// Note: `frame` is only used on Linux (madvise hint path). On non-Linux
 /// it's accepted but unused — prefixed with `_frame` via #[allow(unused)].
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn run_self_healer(
     self_healer: &mut PerformanceSelfHealer,
     reclaim_state: &mut ReclaimState,
     cloud: &mut Cloud,
     #[allow(unused_variables)] frame: &mut Frame,
-    current_cfg: &CloudConfig,
-    scene_name: &str,
-    scene_generation: u64,
-    scene_generation_at_frame_start: u64,
-    power_manager_effective_pressure: f32,
-    loop_now: Instant,
-    endurance_health_score: f64,
+    inputs: HealInputs,
 ) {
     // Performance self-healer (P1+P2): pure policy returning an action
     // enum. always pass Some(score) (P5 sampling always-on).
     // Reset on scene change BEFORE observe() so we don't fire on the
     // same frame the user switched. Phase D: u64 counter compare.
-    if scene_generation != scene_generation_at_frame_start {
+    if inputs.scene_generation != inputs.scene_generation_at_frame_start {
         self_healer.reset();
     }
 
@@ -56,7 +77,7 @@ pub(crate) fn run_self_healer(
     // recovery). Release it here so glitches / CRT vignette / the spawn
     // curve return to their zero-pressure behavior immediately, and reset
     // the downgrade bookkeeping so re-enabling the dragon re-arms cleanly.
-    if !current_cfg.power_dragon && cloud.aggressive_throttle {
+    if !inputs.cfg.power_dragon && cloud.aggressive_throttle {
         cloud.set_aggressive_throttle(false);
         self_healer.reset();
         // v80.0.0-alpha.1 (S-master-HUNT-3): verbose-only diagnostic channel — the self-heal
@@ -69,9 +90,9 @@ pub(crate) fn run_self_healer(
     }
 
     let heal_action = self_healer.observe(
-        power_manager_effective_pressure,
-        loop_now,
-        Some(endurance_health_score),
+        inputs.effective_pressure,
+        inputs.loop_now,
+        Some(inputs.endurance_health_score),
     );
     match heal_action {
         SelfHealAction::None => {}
@@ -97,7 +118,7 @@ pub(crate) fn run_self_healer(
             // The full redraw still fires when pressure is LOW — the
             // genuine "stuck visual state / desync" case P2 was designed
             // to clear (its original calibration).
-            if power_manager_effective_pressure < SELF_HEAL_PRESSURE_LOW {
+            if inputs.effective_pressure < SELF_HEAL_PRESSURE_LOW {
                 cloud.force_draw_everything();
             }
             #[cfg(target_os = "linux")]
@@ -125,13 +146,13 @@ pub(crate) fn run_self_healer(
                     super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
                 }
                 frame.normalize_reclaimed_cells();
-                reclaim_state.mark_reclaimed(loop_now);
+                reclaim_state.mark_reclaimed(inputs.loop_now);
             }
             #[cfg(not(target_os = "linux"))]
             {
                 // Non-Linux: madvise no-op, but mark reclaim state for
                 // consistency with the P4 path.
-                reclaim_state.mark_reclaimed(loop_now);
+                reclaim_state.mark_reclaimed(inputs.loop_now);
             }
         }
         SelfHealAction::DowngradeScene => {
@@ -145,12 +166,12 @@ pub(crate) fn run_self_healer(
             // v50.0.0-beta.6: use current_cfg.power_dragon (live-reloaded)
             // so live-reloading power_dragon=false immediately disables
             // the throttle — previously used stale startup cfg.power_dragon.
-            if current_cfg.power_dragon && !self_healer.is_downgraded() {
-                self_healer.record_downgrade(scene_name);
+            if inputs.cfg.power_dragon && !self_healer.is_downgraded() {
+                self_healer.record_downgrade(inputs.scene_name);
                 cloud.set_aggressive_throttle(true);
                 crate::live_config::push_runtime_diag(&format!(
                     "[self-heal] sustained high CPU pressure — throttling spawn rate (visual identity preserved: scene='{}')",
-                    scene_name
+                    inputs.scene_name
                 ));
             }
         }
@@ -171,7 +192,7 @@ pub(crate) fn run_self_healer(
             // it causes frame drops. Same flag as DowngradeScene but lighter
             // (no scene change, no pre_degraded_scene capture). The reactive
             // DowngradeScene path can still fire later if pressure sustains.
-            if current_cfg.power_dragon {
+            if inputs.cfg.power_dragon {
                 cloud.set_aggressive_throttle(true);
                 crate::live_config::push_runtime_diag(
                     "[self-heal v2] predictive throttle — CPU pressure rising rapidly, throttling early",

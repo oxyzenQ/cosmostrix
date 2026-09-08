@@ -27,6 +27,7 @@ use std::time::{Duration, Instant};
 
 use crate::app::CloudConfig;
 use crate::cloud::Cloud;
+use crate::interactive::event_loop_self_heal::HealInputs;
 use crate::interactive::hud::HudState;
 use crate::interactive::{event_loop_hud::update_hud_state, event_loop_self_heal::run_self_healer};
 use crate::rain_style::RainStyle;
@@ -250,13 +251,16 @@ fn power_dragon_off_releases_stale_aggressive_throttle() {
         &mut reclaim,
         &mut cloud,
         &mut frame,
-        &cfg,
-        "monolith",
-        1,
-        1, // same scene generation — no reset from the scene-change guard
-        0.9,
-        Instant::now(),
-        100.0,
+        HealInputs {
+            cfg: &cfg,
+            scene_name: "monolith",
+            scene_generation: 1,
+            // same scene generation — no reset from the scene-change guard
+            scene_generation_at_frame_start: 1,
+            effective_pressure: 0.9,
+            loop_now: Instant::now(),
+            endurance_health_score: 100.0,
+        },
     );
     assert!(
         !cloud.aggressive_throttle,
@@ -280,13 +284,16 @@ fn power_dragon_on_keeps_aggressive_throttle() {
         &mut reclaim,
         &mut cloud,
         &mut frame,
-        &cfg,
-        "monolith",
-        1,
-        1,
-        0.2, // low pressure — recovery path
-        Instant::now(),
-        100.0,
+        HealInputs {
+            cfg: &cfg,
+            scene_name: "monolith",
+            scene_generation: 1,
+            scene_generation_at_frame_start: 1,
+            // low pressure — recovery path
+            effective_pressure: 0.2,
+            loop_now: Instant::now(),
+            endurance_health_score: 100.0,
+        },
     );
     // The dragon is on: the flag lifecycle stays owned by the
     // self-healer policy (RestoreScene on recovery), not the gate.
@@ -330,13 +337,18 @@ fn health_mitigation_forces_redraw_when_pressure_low() {
         &mut reclaim,
         &mut cloud,
         &mut frame,
-        &cfg,
-        "monolith",
-        1,
-        1,   // no scene change — healer state must survive
-        0.0, // LOW pressure: terminal has drain headroom
-        Instant::now(),
-        50.0, // health score in the "investigate" band
+        HealInputs {
+            cfg: &cfg,
+            scene_name: "monolith",
+            scene_generation: 1,
+            // no scene change — healer state must survive
+            scene_generation_at_frame_start: 1,
+            // LOW pressure: terminal has drain headroom
+            effective_pressure: 0.0,
+            loop_now: Instant::now(),
+            // health score in the "investigate" band
+            endurance_health_score: 50.0,
+        },
     );
     assert!(
         cloud.force_draw_everything,
@@ -358,13 +370,16 @@ fn health_mitigation_hunts23_skips_redraw_when_congested() {
         &mut reclaim,
         &mut cloud,
         &mut frame,
-        &cfg,
-        "monolith",
-        1,
-        1,
-        0.5, // CONGESTED: pressure >= SELF_HEAL_PRESSURE_LOW (0.3)
-        Instant::now(),
-        50.0,
+        HealInputs {
+            cfg: &cfg,
+            scene_name: "monolith",
+            scene_generation: 1,
+            scene_generation_at_frame_start: 1,
+            // CONGESTED: pressure >= SELF_HEAL_PRESSURE_LOW (0.3)
+            effective_pressure: 0.5,
+            loop_now: Instant::now(),
+            endurance_health_score: 50.0,
+        },
     );
     assert!(
         !cloud.force_draw_everything,

@@ -123,7 +123,7 @@ main()
    delete the raw field from `CloudConfig` and keep only the
    validated one.
 3. **The rain loop's coupled mutable state (acknowledged).**
-   `event_loop.rs` carries an explicit `LOC_EXEMPT`: the
+   `event_loop.rs` carried an explicit `LOC_EXEMPT`: the
    `while cloud.raining` loop threads ~20 mutable borrows through the
    extracted sibling modules because they all operate on the same
    session state. The file documents that a context-struct refactor
@@ -131,6 +131,13 @@ main()
    structural debt in the flow — and it is acknowledged, bounded, and
    documented rather than hidden, which is the difference between
    debt and spaghetti.
+   **RESOLVED 2026-09-08 (NIGHT-hunter-21):** the `LoopCtx` context
+   struct now owns the loop state (scene identity / config layers /
+   ambient / perf sub-structs), the sibling signatures collapsed
+   (23-param apply_config_rebuild → 1), the exemption is lifted
+   (924 → 795 LOC), and the same-type cross-wire hazards the
+   positional lists carried are named fields. See
+   NIGHT_HUNTER_21_CTX_REFACTOR.md.
 
 ## Verdict
 

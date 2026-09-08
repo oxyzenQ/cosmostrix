@@ -9,6 +9,44 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-21 — wart #3 resolved: event-loop context-struct refactor (owner mandate)
+
+The NIGHT-hunter-3 flow audit cataloged the rain loop's coupled
+mutable state as the largest structural debt ("the context-struct
+refactor is the biggest candidate for the next stability gain"). This
+hunt executed it: ~45 loop-state locals became one `LoopCtx`
+(src/interactive/event_loop_ctx.rs) with domain sub-structs (scene
+identity, config layers, ambient state, perf counters, per-frame
+observation), and the sibling signatures collapsed accordingly.
+
+- Stability gain, concretely: the old positional lists carried
+  same-typed pairs and quadruples the compiler could not guard —
+  `base_cfg`/`startup_cfg`/`current_cfg`/`cfg` (four CloudConfig refs
+  in apply_config_rebuild), `charset_preset`/`scene_name` (&mut
+  String pair), 12 perf accumulators (f64 trio among them), `w`/`h`.
+  A transposed call compiled and silently routed state to the wrong
+  layer. Every hazard is a named field now — the compiler rejects
+  what it previously could not see. The duplicate
+  `cfg`/`startup_cfg` threading (content-identical clones) collapsed
+  into the single `ctx.config.startup` layer.
+- Signature conversions: apply_config_rebuild 23 → 1 param;
+  poll_ambient_events 21 → 1; update_perf_stats 22 → 2; and
+  sample_p5_health / handle_resize / run_adaptive_throttle /
+  try_auto_snapback / revert_ambient_owned_scene / apply_ambient_fps
+  similarly. run_self_healer keeps granular distinct-typed mutables +
+  a named HealInputs struct (test ergonomics preserved).
+  `too_many_arguments` suppressions in the family: 13 → 3 (the
+  remainder are post-exit verbose printers, out of scope).
+- event_loop.rs: 924 → 795 LOC with the LOC_EXEMPT REMOVED — under
+  the 800 cap without exemption for the first time since the v50
+  split.
+- Verification: 2536 tests pass; clippy -D warnings clean; PTY e2e on
+  the refactored loop all green (HUD row order 25/25, hunter-20
+  long-scene case, canonical live-reload scene switch mid-rain);
+  10 s A/B benches within the documented noise band with identical
+  monolith visual metrics. Full report:
+  docs/research/NIGHT_HUNTER_21_CTX_REFACTOR.md.
+
 ### ux: NIGHT-hunter-20 — HUD 64-column minimum usable width (owner mandate)
 
 Loading a scene with a long name hard-cut the `scn:` HUD metric line:

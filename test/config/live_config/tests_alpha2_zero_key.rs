@@ -212,14 +212,17 @@ fn rebuild_restores_ambient_deferral_flag_after_cloud_swap() {
     // right after the swap or the startup CLI deferral dies on the first
     // config edit (the rx/snapback paths then apply ambient instantly).
     let r = src("src/interactive/event_loop_config_rebuild.rs");
+    // NIGHT-hunter-21: the context-struct refactor renamed the swap to
+    // `ctx.cloud = new_cloud` — the structural invariant (swap followed
+    // by the flag restore) is what this test pins.
     let swap_idx = r
-        .find("*cloud = new_cloud")
+        .find("ctx.cloud = new_cloud")
         .expect("rebuild must swap the cloud");
     // 1200 chars covers the explanatory comment between the swap and the
     // restore line.
     let window = &r[swap_idx..swap_idx + 1200];
     assert!(
-        window.contains("cloud.user_override_since_ambient = preserve_user_override"),
+        window.contains("ctx.cloud.user_override_since_ambient = preserve_user_override"),
         "the flag restore must sit right after the cloud swap, window:\n{window}"
     );
 }

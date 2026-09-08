@@ -3,19 +3,17 @@
 
 //! Config rebuild — extracted from `event_loop.rs` to keep that file
 //! under the 800-LOC cap. Pure code motion — no behavior change.
+//!
+//! NIGHT-hunter-21: takes the loop context — the old 23-parameter
+//! signature carried four same-typed CloudConfig refs
+//! (base/startup/current/cfg), the `ctx.scene.charset_preset`/`ctx.scene.scene_name`
+//! `&mut String` pair, and the `w`/`h` `u16` pair; every one of them
+//! is a named ctx field now and cannot be transposed at a call site.
 
-use std::collections::HashMap;
-
-use super::adaptive::{PerformanceSelfHealer, PowerManager};
-use super::hud::HudState;
-use crate::app::CloudConfig;
-use crate::cloud::Cloud;
+use super::event_loop_ctx::LoopCtx;
 use crate::color_cache::ColorCache;
-use crate::crystal_dragon_engine::ambient::{AmbientEntry, AmbientSchedule};
-use crate::crystal_dragon_engine::ambient_scheduler::AmbientSchedulerHandle;
 use crate::effective_density;
 use crate::frame::Frame;
-use crate::terminal::Terminal;
 
 /// Apply pending Cloud rebuild (swaps Cloud + Frame between frames).
 ///
@@ -24,44 +22,25 @@ use crate::terminal::Terminal;
 /// palette transition, HUD sync, ambient schedule reload + consistency
 /// fix, and ambient entry application.
 ///
-/// Returns true if a rebuild was applied, false if pending_config was None.
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub(crate) fn apply_config_rebuild(
-    pending_config: &mut Option<HashMap<String, String>>,
-    base_cfg: &mut CloudConfig,
-    startup_cfg: &CloudConfig,
-    cloud: &mut Cloud,
-    frame: &mut Frame,
-    term: &mut Terminal,
-    power_manager: &mut PowerManager,
-    hud_state: &mut HudState,
-    charset_preset: &mut String,
-    scene_name: &mut String,
-    scene_generation: &mut u64,
-    current_cfg: &mut CloudConfig,
-    last_applied_cfg_map: &mut Option<HashMap<String, String>>,
-    last_ambient_schedule: &mut AmbientSchedule,
-    ambient_handle: &mut AmbientSchedulerHandle,
-    last_applied_ambient_entry: &mut Option<AmbientEntry>,
-    ambient_snapback_killed: &mut bool,
-    cfg: &CloudConfig,
-    w: u16,
-    h: u16,
-    user_ranges: &[(char, char)],
-    self_healer: &mut PerformanceSelfHealer,
-    def_ascii: bool,
-) -> bool {
-    if let Some(new_cfg_map) = pending_config.take() {
+/// Returns true if a rebuild was applied, false if `ctx.config.pending`
+/// was None.
+///
+/// NIGHT-hunter-21: the former 23 positional parameters are ctx fields
+/// (see the module doc). The config-layer reads/writes are
+/// `ctx.config.{base,startup,current,pending,last_applied_map}` — named
+/// fields, so the four same-typed refs can never be cross-wired again.
+pub(crate) fn apply_config_rebuild(ctx: &mut LoopCtx) -> bool {
+    if let Some(new_cfg_map) = ctx.config.pending.take() {
         // v80.0.0-beta.1 masterclass: CLI-locked fallback (owner contract, 2026-09-01).
         //
         // Startup:  CLI > config.toml > scene defaults.
         // Runtime:  config key present > CLI lock (locked startup value).
         //
-        // `startup_cfg` is the pristine startup snapshot (never mutated);
-        // `base_cfg` may only diverge from it via the runtime scene sync
+        // `ctx.config.startup` is the pristine startup snapshot (never mutated);
+        // `ctx.config.base` may only diverge from it via the runtime scene sync
         // below (shortkey/ambient preservation). The v50.0.0-beta.6 model
         // (zero cli_explicit + unconditional runtime-scene sync) retired the
-        // CLI at the first reload AND permanently contaminated base_cfg's
+        // CLI at the first reload AND permanently contaminated ctx.config.base's
         // scene family — so commenting the config `scene` key back out left
         // the engine stuck on the config-driven scene (the owner's bug:
         // `--scene crystal-dragon` + `scene = cinematic` + re-comment →
@@ -96,10 +75,11 @@ pub(crate) fn apply_config_rebuild(
         // at runtime).
         let scene_base_action = super::event_loop_scene_sync::resolve_scene_base_with_ambient(
             &new_cfg_map,
-            last_applied_cfg_map.as_ref(),
-            scene_name,
-            cloud.user_override_since_ambient,
-            last_applied_ambient_entry
+            ctx.config.last_applied_map.as_ref(),
+            &ctx.scene.scene_name,
+            ctx.cloud.user_override_since_ambient,
+            ctx.ambient
+                .last_applied_entry
                 .as_ref()
                 .map(|e| e.scene.as_str()),
         );
@@ -116,22 +96,25 @@ pub(crate) fn apply_config_rebuild(
                 // family reverts to the locked startup snapshot.
                 crate::lr_trace!(
                     "scene override removed — reverting to the locked startup scene '{}' (runtime was '{}')",
-                    startup_cfg.scene_name, scene_name
+                    ctx.config.startup.scene_name, ctx.scene.scene_name
                 );
-                super::event_loop_scene_sync::restore_locked_scene_family(base_cfg, startup_cfg);
+                super::event_loop_scene_sync::restore_locked_scene_family(
+                    &mut ctx.config.base,
+                    &ctx.config.startup,
+                );
             }
             super::event_loop_scene_sync::SceneBaseAction::SyncRuntime => {
                 super::event_loop_scene_sync::sync_base_cfg_with_runtime_scene(
-                    base_cfg,
-                    scene_name,
+                    &mut ctx.config.base,
+                    &ctx.scene.scene_name,
                     &new_cfg_map,
                 );
             }
         }
-        let new_cfg = crate::live_config::rebuild_cloud_config(base_cfg, &new_cfg_map);
+        let new_cfg = crate::live_config::rebuild_cloud_config(&ctx.config.base, &new_cfg_map);
         // v50.0.0-alpha.7: track latest config for finalize_session.
-        *current_cfg = new_cfg.clone();
-        let density = effective_density(new_cfg.base_density, w, new_cfg.density_auto);
+        ctx.config.current = new_cfg.clone();
+        let density = effective_density(new_cfg.base_density, ctx.w, new_cfg.density_auto);
         // v25: bulletproof trace that rebuild reached render thread.
         crate::live_config_trace::trace_rebuild_applied(
             &new_cfg.color_scheme,
@@ -142,13 +125,16 @@ pub(crate) fn apply_config_rebuild(
         );
 
         // field-level config diff trace (extracted to live_config_trace.rs).
-        crate::live_config_trace::trace_config_diff(last_applied_cfg_map.as_ref(), &new_cfg_map);
-        *last_applied_cfg_map = Some(new_cfg_map.clone());
+        crate::live_config_trace::trace_config_diff(
+            ctx.config.last_applied_map.as_ref(),
+            &new_cfg_map,
+        );
+        ctx.config.last_applied_map = Some(new_cfg_map.clone());
         // Phase D #9: preserve ecosystem + post-FX across reload.
         // AB-02: capture override state for schedule-empty restore.
-        let preserve_user_override = cloud.user_override_since_ambient;
-        let preserved_color_scheme = cloud.color_scheme;
-        let preserved_palette = cloud.palette.clone();
+        let preserve_user_override = ctx.cloud.user_override_since_ambient;
+        let preserved_color_scheme = ctx.cloud.color_scheme;
+        let preserved_palette = ctx.cloud.palette.clone();
         // S-master-HUNT-8: capture BOTH the canonical `chars` (for change
         // detection) AND the shuffled `char_pool` (for the transition
         // source). The shader reads `previous_char_pool` as the "below
@@ -158,14 +144,14 @@ pub(crate) fn apply_config_rebuild(
         // (random sampling via self.mt), so two rebuilds with the SAME
         // charset produce different `char_pool` Vecs (false-positive
         // change trigger). `chars` is the canonical input — stable
-        // across shuffles, so `cloud.chars != preserved_chars` is the
+        // across shuffles, so `ctx.cloud.chars != preserved_chars` is the
         // correct same-charset no-op guard.
-        let preserved_chars = cloud.chars.clone();
-        let preserved_char_pool = cloud.char_pool.clone();
-        let preserved_scene_name = scene_name.clone();
+        let preserved_chars = ctx.cloud.chars.clone();
+        let preserved_char_pool = ctx.cloud.char_pool.clone();
+        let preserved_scene_name = ctx.scene.scene_name.clone();
         let mut new_cloud = new_cfg.create_cloud(density);
-        new_cloud.inherit_ecosystem_state(cloud);
-        *cloud = new_cloud;
+        new_cloud.inherit_ecosystem_state(&ctx.cloud);
+        ctx.cloud = new_cloud;
         // v80.0.0-alpha.2 (S-master-HUNT-4): restore the ambient deferral
         // flag the fresh Cloud just reset to false (Cloud::new default —
         // inherit_ecosystem_state does not carry it). Without this, ANY
@@ -178,13 +164,13 @@ pub(crate) fn apply_config_rebuild(
         // for their cases (re-apply → false, defer/empty → true); this
         // restore only covers the no-branch path (e.g. the ambient-adding
         // edit before the first rx event arrives).
-        cloud.user_override_since_ambient = preserve_user_override;
-        cloud.reset(w, h);
-        cloud.enable_events();
-        cloud.set_component_timing(new_cfg.perf_stats);
+        ctx.cloud.user_override_since_ambient = preserve_user_override;
+        ctx.cloud.reset(ctx.w, ctx.h);
+        ctx.cloud.enable_events();
+        ctx.cloud.set_component_timing(new_cfg.perf_stats);
         // v50.0.0-beta.6: re-apply phosphor tuning + speed after rebuild.
-        let c = term.phosphor_tuning();
-        cloud.set_phosphor_tuning(c.0, c.1, c.2);
+        let c = ctx.term.phosphor_tuning();
+        ctx.cloud.set_phosphor_tuning(c.0, c.1, c.2);
         // Smooth palette transition on live config reload.
         //
         // Previously, the Cloud rebuild produced an instant color jump
@@ -197,7 +183,7 @@ pub(crate) fn apply_config_rebuild(
         // S-master-HUNT-9: palette transition on live config reload — now
         // driven by CONTENT equality, not scheme-enum equality.
         //
-        // Previously this check was `cloud.color_scheme != preserved_color_scheme`
+        // Previously this check was `ctx.cloud.color_scheme != preserved_color_scheme`
         // (enum-only). That MISSED two cases that produced an instant color
         // jump because the fresh Cloud's `transition_start` stayed None:
         //
@@ -209,11 +195,11 @@ pub(crate) fn apply_config_rebuild(
         //    from prev_slot -> cannot interpolate -> instant jump.
         //
         // 2. Color-tune edits (`[color.tune] sat=1.5`). `apply_tune_to_palette`
-        //    mutates `cloud.palette` in place AFTER set_palette (or with
+        //    mutates `ctx.cloud.palette` in place AFTER set_palette (or with
         //    no set_palette call at all for built-in schemes). No
         //    transition is armed -> instant jump.
         //
-        // The content check `cloud.palette != preserved_palette` is a
+        // The content check `ctx.cloud.palette != preserved_palette` is a
         // strict superset of the enum check: if the enum changed, the
         // content changed too (different scheme -> different colors).
         // So the enum check is now redundant and removed. The content
@@ -227,7 +213,7 @@ pub(crate) fn apply_config_rebuild(
         //
         // Same-palette no-op guard: when the config edit did NOT touch
         // the palette (same scheme + same custom palette + same tune),
-        // `cloud.palette == preserved_palette` and the wave stays dormant
+        // `ctx.cloud.palette == preserved_palette` and the wave stays dormant
         // (no false trigger). The `start_transition_from_previous_palette`
         // contract handles the arming: it overwrites prev_slot with the
         // OLD palette (so the shader can interpolate old <-> new via
@@ -237,8 +223,9 @@ pub(crate) fn apply_config_rebuild(
         // Note: `preserved_color_scheme` is still captured above because
         // it is used later (line ~374, ambient-schedule-empty branch) to
         // preserve the user's color override when the schedule is emptied.
-        if cloud.palette != preserved_palette {
-            cloud.start_transition_from_previous_palette(preserved_palette);
+        if ctx.cloud.palette != preserved_palette {
+            ctx.cloud
+                .start_transition_from_previous_palette(preserved_palette);
         }
         // S-master-HUNT-8: charset transition parity for live config reload.
         //
@@ -253,7 +240,7 @@ pub(crate) fn apply_config_rebuild(
         // for cells above it, producing the top-to-bottom sweep.
         //
         // Same-charset no-op guard: when the config edit did NOT touch
-        // the charset, `cloud.chars == preserved_chars` (canonical input
+        // the charset, `ctx.cloud.chars == preserved_chars` (canonical input
         // — stable across the rebuild's re-shuffle) and the wave stays
         // dormant — no false trigger (mirrors the color check above).
         // The `!preserved_char_pool.is_empty()` guard skips the very
@@ -261,74 +248,76 @@ pub(crate) fn apply_config_rebuild(
         // transition from). Note: we compare `chars` (canonical), NOT
         // `char_pool` (shuffled) — see the capture comment above for
         // the rationale.
-        if cloud.chars != preserved_chars && !preserved_char_pool.is_empty() {
-            cloud.start_transition_from_previous_charset(preserved_char_pool);
+        if ctx.cloud.chars != preserved_chars && !preserved_char_pool.is_empty() {
+            ctx.cloud
+                .start_transition_from_previous_charset(preserved_char_pool);
         }
         // Fresh Cloud from rebuild — reset self-healer.
-        self_healer.reset();
+        ctx.self_healer.reset();
         // Rebuild color cache + frame + fill bg + charset.
-        term.set_color_cache(ColorCache::new(&cloud.palette));
-        *frame = Frame::new(w, h, cloud.palette.bg);
-        super::fill_terminal_bg(cloud.palette.bg);
-        *charset_preset = new_cfg.charset_preset.clone();
+        ctx.term
+            .set_color_cache(ColorCache::new(&ctx.cloud.palette));
+        ctx.frame = Frame::new(ctx.w, ctx.h, ctx.cloud.palette.bg);
+        super::fill_terminal_bg(ctx.cloud.palette.bg);
+        ctx.scene.charset_preset = new_cfg.charset_preset.clone();
         //  recompute target FPS from new config.
-        let safe_fps = new_cfg.resolve_capped_fps(cfg.target_fps);
-        power_manager.set_target_fps(safe_fps);
+        let safe_fps = new_cfg.resolve_capped_fps(ctx.config.startup.target_fps);
+        ctx.power_manager.set_target_fps(safe_fps);
         // v30: keep HUD tgt: in sync with live-reloaded fps.
-        hud_state.set_target_fps(safe_fps);
+        ctx.hud_state.set_target_fps(safe_fps);
         // AB-07: count every config rebuild for diagnostics.
         super::ambient_diag_config_rebuild();
         // Ambient: push new schedule to scheduler if it changed.
-        if new_cfg.ambient_schedule != *last_ambient_schedule {
+        if new_cfg.ambient_schedule != ctx.ambient.last_schedule {
             super::ambient_diag_schedule_reload();
-            ambient_handle.reload(new_cfg.ambient_schedule.clone());
-            *last_ambient_schedule = new_cfg.ambient_schedule.clone();
+            ctx.ambient.handle.reload(new_cfg.ambient_schedule.clone());
+            ctx.ambient.last_schedule = new_cfg.ambient_schedule.clone();
             if new_cfg.ambient_schedule.entries.is_empty() {
                 super::ambient_diag_schedule_empty();
-                if let Some(ref le) = last_applied_ambient_entry {
-                    if *scene_name == le.scene {
-                        *scene_name = new_cfg.scene_name.clone();
-                        *scene_generation = (*scene_generation).wrapping_add(1);
+                if let Some(ref le) = ctx.ambient.last_applied_entry {
+                    if ctx.scene.scene_name == le.scene {
+                        ctx.scene.scene_name = new_cfg.scene_name.clone();
+                        ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
                     }
                 }
-                *last_applied_ambient_entry = None;
-                cloud.ambient_palette_locked = false;
-                cloud.user_override_since_ambient = true;
-                *ambient_snapback_killed = true;
+                ctx.ambient.last_applied_entry = None;
+                ctx.cloud.ambient_palette_locked = false;
+                ctx.cloud.user_override_since_ambient = true;
+                ctx.ambient.snapback_killed = true;
                 super::ambient_diag_snapback_killed();
             }
         }
         // AB-07: consistency fix — if rebuilt config has empty schedule
         // but stale state remains, clean up immediately.
         if new_cfg.ambient_schedule.entries.is_empty() {
-            if last_applied_ambient_entry.is_some()
-                || cloud.ambient_palette_locked
-                || !last_ambient_schedule.entries.is_empty()
+            if ctx.ambient.last_applied_entry.is_some()
+                || ctx.cloud.ambient_palette_locked
+                || !ctx.ambient.last_schedule.entries.is_empty()
             {
                 super::ambient_diag_consistency_fix();
-                if !last_ambient_schedule.entries.is_empty() {
-                    ambient_handle.reload(new_cfg.ambient_schedule.clone());
-                    *last_ambient_schedule = new_cfg.ambient_schedule.clone();
+                if !ctx.ambient.last_schedule.entries.is_empty() {
+                    ctx.ambient.handle.reload(new_cfg.ambient_schedule.clone());
+                    ctx.ambient.last_schedule = new_cfg.ambient_schedule.clone();
                     super::ambient_diag_schedule_reload();
                     super::ambient_diag_schedule_empty();
                 }
-                *last_applied_ambient_entry = None;
-                cloud.ambient_palette_locked = false;
-                cloud.user_override_since_ambient = true;
-                *ambient_snapback_killed = true;
+                ctx.ambient.last_applied_entry = None;
+                ctx.cloud.ambient_palette_locked = false;
+                ctx.cloud.user_override_since_ambient = true;
+                ctx.ambient.snapback_killed = true;
                 super::ambient_diag_snapback_killed();
             }
-        } else if *ambient_snapback_killed {
-            *ambient_snapback_killed = false;
+        } else if ctx.ambient.snapback_killed {
+            ctx.ambient.snapback_killed = false;
         }
         // re-apply last ambient entry to fresh Cloud.
         //
-        // v80.0.0-beta.2 (S-master-LOGIC-3): the `!cloud.custom_palette_active`
+        // v80.0.0-beta.2 (S-master-LOGIC-3): the `!ctx.cloud.custom_palette_active`
         // guard is REMOVED. It encoded "an explicit palette outranks the
         // ambient overlay", which contradicts the owner's runtime chain
         // (user shortkeys > ambient scene > config keys > CLI lock): a
         // config `color = <custom palette>` edit set the flag on the
-        // rebuilt cloud and silently SKIPPED this re-apply, so the
+        // rebuilt ctx.cloud and silently SKIPPED this re-apply, so the
         // ambient scene's color/charset lost to the config value (owner
         // bug: ambient hacker-mode active, user set color=test — HUD kept
         // clr:test instead of the ambient scene's green). The ambient
@@ -354,30 +343,31 @@ pub(crate) fn apply_config_rebuild(
         // still re-asserts on every rebuild (the LOGIC-3 contract), a
         // config edit never sets user_override, so config-vs-ambient
         // precedence is unchanged.
-        if let Some(ref last_entry) = last_applied_ambient_entry {
+        if let Some(ref last_entry) = ctx.ambient.last_applied_entry {
             let still_in = new_cfg
                 .ambient_schedule
                 .entries
                 .iter()
                 .any(|e| e == last_entry);
             if still_in && !preserve_user_override {
-                let cm = last_applied_cfg_map.clone().unwrap_or_default();
-                *charset_preset = cloud.apply_ambient_entry(
+                let cm = ctx.config.last_applied_map.clone().unwrap_or_default();
+                ctx.scene.charset_preset = ctx.cloud.apply_ambient_entry(
                     last_entry,
-                    &*charset_preset,
-                    user_ranges,
-                    def_ascii,
+                    &ctx.scene.charset_preset,
+                    &ctx.user_ranges,
+                    ctx.def_ascii,
                     &cm,
                 );
-                *scene_name = last_entry.scene.clone();
-                *scene_generation = (*scene_generation).wrapping_add(1);
-                cloud.user_override_since_ambient = false;
-                cloud.ambient_palette_locked = true;
+                ctx.scene.scene_name = last_entry.scene.clone();
+                ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
+                ctx.cloud.user_override_since_ambient = false;
+                ctx.cloud.ambient_palette_locked = true;
                 super::ambient_diag_reapply();
                 super::ambient_diag_scene_change("rebuild-reapply");
-                term.set_color_cache(ColorCache::new(&cloud.palette));
-                *frame = Frame::new(w, h, cloud.palette.bg);
-                super::fill_terminal_bg(cloud.palette.bg);
+                ctx.term
+                    .set_color_cache(ColorCache::new(&ctx.cloud.palette));
+                ctx.frame = Frame::new(ctx.w, ctx.h, ctx.cloud.palette.bg);
+                super::fill_terminal_bg(ctx.cloud.palette.bg);
                 // v80.0.0-beta.2 (S-master-LOGIC-3): the ambient scene owns
                 // fps for the same reason it owns color/charset/speed/
                 // density/glitch — apply the scene's declared fps (built-in
@@ -385,22 +375,22 @@ pub(crate) fn apply_config_rebuild(
                 // and the effective-config tracker. A scene that declares
                 // no fps leaves the current target untouched.
                 if let Some(fps) = crate::scene_custom::ambient_scene_fps(&last_entry.scene, &cm) {
-                    apply_ambient_fps(fps, cfg, power_manager, hud_state, current_cfg);
+                    apply_ambient_fps(fps, ctx);
                 }
             } else if still_in && preserve_user_override {
                 // S-master-HUNT: deferred — the ambient was NOT applied yet
                 // (startup CLI deferral) or the user overrode it with a
                 // shortkey. Keep the tracker armed and re-assert the
-                // user-override flag on the fresh cloud so the deferral
+                // user-override flag on the fresh ctx.cloud so the deferral
                 // contract survives the rebuild: try_auto_snapback applies
                 // the entry after ambient-snapback-secs of idle.
-                cloud.user_override_since_ambient = true;
+                ctx.cloud.user_override_since_ambient = true;
                 crate::lr_trace!(
                     "ambient: rebuild defers re-apply (user override / CLI deferral active) — snapback will re-assert"
                 );
             } else if !still_in {
                 crate::lr_trace!("ambient: last entry no longer in schedule — clearing tracker");
-                *last_applied_ambient_entry = None;
+                ctx.ambient.last_applied_entry = None;
             }
         }
         // AB-05: full visual-state restore when schedule emptied.
@@ -415,26 +405,26 @@ pub(crate) fn apply_config_rebuild(
                 // where editing config.toml (e.g. color to "greens")
                 // left the HUD showing the old scheme name.
                 if new_cfg.color_scheme == preserved_color_scheme {
-                    cloud.color_scheme = preserved_color_scheme;
+                    ctx.cloud.color_scheme = preserved_color_scheme;
                 }
-                // v50 fix: same pattern for scene_name — only preserve
+                // v50 fix: same pattern for ctx.scene.scene_name — only preserve
                 // if the config didn't explicitly change the scene. When
                 // the config DID change the scene (new != preserved),
                 // respect it by applying the new scene's runtime defaults
                 // (mirrors the non-preserve branch below). Without this
-                // else branch, the local `scene_name` variable — the
+                // else branch, the local `ctx.scene.scene_name` variable — the
                 // HUD's source of truth (line 925: set_scene_name) — was
                 // left stale at the old value, so the `scn:` HUD line
                 // showed the previous scene even after the user edited
-                // config.toml. Unlike `cloud.color_scheme` (a Cloud field
-                // auto-refreshed by `cloud = new_cloud` at line 297),
-                // `scene_name` is a local variable and must be explicitly
+                // config.toml. Unlike `ctx.cloud.color_scheme` (a Cloud field
+                // auto-refreshed by `ctx.cloud = new_cloud` at line 297),
+                // `ctx.scene.scene_name` is a local variable and must be explicitly
                 // updated here.
                 if new_cfg.scene_name == preserved_scene_name {
-                    *scene_name = preserved_scene_name;
+                    ctx.scene.scene_name = preserved_scene_name;
                 } else {
-                    *scene_name = new_cfg.scene_name.clone();
-                    *scene_generation = (*scene_generation).wrapping_add(1);
+                    ctx.scene.scene_name = new_cfg.scene_name.clone();
+                    ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
                     // v80.0.0-alpha.2 (S-master-HUNT-4, owner bug: color/charset
                     // came back as the scene's defaults instead of the CLI
                     // setup): set the LABEL only — create_cloud already baked
@@ -448,26 +438,28 @@ pub(crate) fn apply_config_rebuild(
                     // CUSTOM scenes stomp — built-in scenes carry color/charset
                     // too. Mirrors revert_ambient_owned_scene's verbatim-
                     // snapshot contract.
-                    cloud.set_scene_label(&*scene_name);
-                    *charset_preset = new_cfg.charset_preset.clone();
-                    term.set_color_cache(ColorCache::new(&cloud.palette));
-                    *frame = Frame::new(w, h, cloud.palette.bg);
-                    super::fill_terminal_bg(cloud.palette.bg);
+                    ctx.cloud.set_scene_label(&ctx.scene.scene_name);
+                    ctx.scene.charset_preset = new_cfg.charset_preset.clone();
+                    ctx.term
+                        .set_color_cache(ColorCache::new(&ctx.cloud.palette));
+                    ctx.frame = Frame::new(ctx.w, ctx.h, ctx.cloud.palette.bg);
+                    super::fill_terminal_bg(ctx.cloud.palette.bg);
                 }
             } else {
-                *scene_name = new_cfg.scene_name.clone();
-                *scene_generation = (*scene_generation).wrapping_add(1);
+                ctx.scene.scene_name = new_cfg.scene_name.clone();
+                ctx.scene.scene_generation = ctx.scene.scene_generation.wrapping_add(1);
                 // v80.0.0-alpha.2: label-only, same rationale as the preserve
                 // branch above (create_cloud baked the family; re-deriving
                 // the scene defaults stomps the CLI locks).
-                cloud.set_scene_label(&*scene_name);
-                *charset_preset = new_cfg.charset_preset.clone();
-                term.set_color_cache(ColorCache::new(&cloud.palette));
-                *frame = Frame::new(w, h, cloud.palette.bg);
-                super::fill_terminal_bg(cloud.palette.bg);
+                ctx.cloud.set_scene_label(&ctx.scene.scene_name);
+                ctx.scene.charset_preset = new_cfg.charset_preset.clone();
+                ctx.term
+                    .set_color_cache(ColorCache::new(&ctx.cloud.palette));
+                ctx.frame = Frame::new(ctx.w, ctx.h, ctx.cloud.palette.bg);
+                super::fill_terminal_bg(ctx.cloud.palette.bg);
             }
-            cloud.user_override_since_ambient = true;
-            cloud.ambient_palette_locked = false;
+            ctx.cloud.user_override_since_ambient = true;
+            ctx.cloud.ambient_palette_locked = false;
         }
     }
 
@@ -476,28 +468,29 @@ pub(crate) fn apply_config_rebuild(
 
 /// v80.0.0-beta.2 (S-master-LOGIC-3): apply an ambient-owned fps target to
 /// the event-loop frame pacing (power manager + HUD) and the effective
-/// config tracker (`current_cfg.target_fps` — the source the post-exit
-/// final-runtime-state verbose reads).
+/// config tracker (`ctx.config.current.target_fps` — the source the
+/// post-exit final-runtime-state verbose reads).
 ///
 /// Shared by `apply_config_rebuild`'s ambient re-apply and (via the
 /// return-value plumbing in `event_loop.rs`) the rx-event / snapback /
 /// overlay-lift paths in `event_loop_ambient.rs`.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn apply_ambient_fps(
-    fps: f64,
-    startup_cfg: &CloudConfig,
-    power_manager: &mut PowerManager,
-    hud_state: &mut HudState,
-    current_cfg: &mut CloudConfig,
-) {
-    current_cfg.target_fps = fps;
-    let safe_fps = current_cfg.resolve_capped_fps(startup_cfg.target_fps);
-    power_manager.set_target_fps(safe_fps);
-    hud_state.set_target_fps(safe_fps);
+///
+/// NIGHT-hunter-21: takes the context — the old five-parameter list
+/// paired a `&CloudConfig` (startup) with a `&mut CloudConfig`
+/// (current), a same-type cross-wire hazard, and carried a stale
+/// `too_many_arguments` allow (the threshold is 7; the list was 5).
+pub(crate) fn apply_ambient_fps(fps: f64, ctx: &mut LoopCtx) {
+    ctx.config.current.target_fps = fps;
+    let safe_fps = ctx
+        .config
+        .current
+        .resolve_capped_fps(ctx.config.startup.target_fps);
+    ctx.power_manager.set_target_fps(safe_fps);
+    ctx.hud_state.set_target_fps(safe_fps);
     crate::lr_trace!(
         "ambient: fps intent {:.1} applied (capped {:.1}, was startup {:.1})",
         fps,
         safe_fps,
-        startup_cfg.target_fps
+        ctx.config.startup.target_fps
     );
 }
