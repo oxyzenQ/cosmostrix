@@ -16,6 +16,7 @@ use crate::frame::Frame;
 use crate::rain_style::RainStyle;
 
 use super::aeolian::{AeolianRandom, AeolianSpawnParams, AeolianStep};
+use super::aurora::{AuroraRandom, AuroraSpawnParams, AuroraStep};
 use super::black_hole::{BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep};
 use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::flux::{FluxRandom, FluxSpawnParams, FluxStep};
@@ -172,6 +173,13 @@ impl super::Cloud {
                     // slot; drops adopt individually — parity with the
                     // structured-family transition path).
                     self.aeolian_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Aurora) {
+                    // NIGHT-special-3: the aurora veil adopts the new
+                    // palette slot (the ray lattice is one body, one
+                    // slot; drops adopt individually — parity with the
+                    // structured-family transition path).
+                    self.aurora_rain
                         .adopt_palette_slot(self.active_palette_slot);
                 } else {
                     for d in &mut self.droplets {
@@ -504,6 +512,30 @@ impl super::Cloud {
             };
             self.aeolian_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: the aurora drops spawn on the same
+            // accumulator contract as the structured family (elapsed
+            // clamped by max_sim_delta, fractional remainder carried
+            // in the shared spawn_remainder field).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = AuroraSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = AuroraRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.aurora_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -563,6 +595,13 @@ impl super::Cloud {
                     // draw; the field state itself survives — wiping
                     // it would silence a ringing instrument).
                     self.aeolian_rain.clear_draw_history();
+                } else if matches!(self.rain_style, RainStyle::Aurora) {
+                    // NIGHT-special-3: aurora — structured family
+                    // sibling, clear draw history on semantic
+                    // invalidation (curtain glyphs re-pick on the next
+                    // draw; the lattice state itself survives — wiping
+                    // it would erase a painted sky).
+                    self.aurora_rain.clear_draw_history();
                 } else {
                     // NIGHT-research-4: lorenz — the last structured
                     // family member; clear its draw history on semantic
@@ -671,6 +710,17 @@ impl super::Cloud {
                 content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.aeolian_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Aurora) {
+                // NIGHT-special-3: the aurora veil is a structured
+                // family style and follows the same force-draw reset
+                // path (full frame clear + draw history wipe + phosphor
+                // state reset). The ray lattice survives (simulation
+                // state — the sky keeps its curtains through the
+                // redraw; only the render history is rebuilt).
+                content_invalidated = true;
+                frame.clear_with_bg(self.palette.bg);
+                self.aurora_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -840,6 +890,27 @@ impl super::Cloud {
                 rand_chance: &self.rand_chance,
             };
             self.aeolian_rain.advance(&step, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: the aurora veil takes the same
+            // dt-clamp + resume_blend contract as the structured
+            // siblings (one global clock; the lattice breath, the
+            // drop physics and the absorption rolls live in
+            // type_rain/aurora/). The advance pass is the family's
+            // second stochastic pass — the RNG bundle rides along
+            // for the wind, anchor and dwell re-rolls.
+            let step = AuroraStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                cols: self.cols,
+                lines: self.lines,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            let mut random = AuroraRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.aurora_rain.advance(&step, &mut random);
         } else {
             // Glyph family: droplet advance (no surface system —
             // ripple's water-line physics was removed along with
@@ -1479,6 +1550,24 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.aeolian_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: aurora draw — same diff-cleanup
+            // contract as the structured siblings (curtain cells the
+            // depth breath vacates and trail cells the rain vacates
+            // are cleared via the drawn-cell diff; phosphor arrays
+            // reset in clear_cell). The renderer is veil-agnostic;
+            // the same pattern serves any future lattice-carried
+            // style.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.aurora_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

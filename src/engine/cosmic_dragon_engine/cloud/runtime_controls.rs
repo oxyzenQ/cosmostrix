@@ -177,6 +177,11 @@ impl Cloud {
             // same draw-history clear on palette change.
             self.aeolian_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: aurora — structured-family sibling,
+            // same draw-history clear on palette change.
+            self.aurora_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
 
         // v16: force_draw_everything is set above so the background
@@ -330,6 +335,11 @@ impl Cloud {
             // NIGHT-special-2: aeolian — structured-family sibling,
             // same draw-history clear on shading mode toggle.
             self.aeolian_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: aurora — structured-family sibling,
+            // same draw-history clear on shading mode toggle.
+            self.aurora_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

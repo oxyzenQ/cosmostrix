@@ -1593,3 +1593,255 @@ const _: () = assert!(AEOLIAN_HOP_FAST / 60.0 < 1.0);
 // A charged capture (charge ~2 from a mid-fall drop) plucks a
 // center cell of 2 x PLUCK_GAIN — that must sprint from birth.
 const _: () = assert!(AEOLIAN_URGENCY_SWITCH < 2.0 * AEOLIAN_PLUCK_GAIN);
+
+// ── Aurora veil (NIGHT-special-3, the tenth style) ─────────────────────
+// The second invented system, born in this repo (the NIGHT-special-2
+// directive carried forward: motion DNA with no existing
+// mathematical reference — original derivation, the LEAP-engine
+// spirit). The complete derivation and the five laws of the polar
+// veil live in type_rain/aurora/mod.rs; the constants here are the
+// shipped calibration.
+
+// The ray lattice (law 1).
+
+/// Ray-bead lattice spacing: one bead (one curtain) per this many
+/// columns of viewport width. 6 keeps the veil airy — a curtain, a
+/// gap, a curtain — while still reading as one connected sky.
+pub(crate) const AURORA_RAY_SPACING_COLS: u16 = 6;
+
+/// Hard cap on the bead count (beyond 24 curtains the repulsion pass
+/// and the draw budget stop scaling; a 200-column terminal already
+/// saturates the sky).
+pub(crate) const AURORA_RAY_MAX: usize = 24;
+
+/// Wind span: the global drift target re-rolls within
+/// plus-or-minus this many columns per sim-second. 0.85 is a slow
+/// advect — the whole veil crosses the screen in tens of seconds,
+/// the majestic read.
+pub(crate) const AURORA_WIND_SPAN: f32 = 0.85;
+
+/// Wind relaxation rate: the actual wind eases toward its target at
+/// this rate per sim-second (the target itself re-rolls every
+/// WIND_HOLD_MEAN-ish seconds — the direction never snaps).
+pub(crate) const AURORA_WIND_RELAX: f32 = 0.5;
+
+/// Mean wind hold: average sim-seconds between wind target
+/// re-rolls (rolled with 0.6x-1.4x variance — no rhythmic gusting).
+pub(crate) const AURORA_WIND_HOLD_MEAN: f32 = 7.0;
+
+/// Wind coupling: each bead's velocity relaxes toward the global
+/// wind at this rate per sim-second (repulsion rides on top as the
+/// local correction).
+pub(crate) const AURORA_WIND_COUPLE: f32 = 0.9;
+
+/// Flux-tube repulsion gain: adjacent bead pairs push apart with
+/// GAIN / floored-gap (columns per sim-second squared). 9.0 with the
+/// 6-column spacing holds the equilibrium coverage without packing
+/// the walls.
+pub(crate) const AURORA_REPULSION: f32 = 9.0;
+
+/// Repulsion gap floor: the smallest gap the inverse-gap force
+/// sees (prevents the singularity when two beads collide).
+pub(crate) const AURORA_GAP_FLOOR: f32 = 2.0;
+
+/// Bead velocity clamp (columns per sim-second) — the lattice's
+/// hard speed bound (law 1).
+pub(crate) const AURORA_VX_MAX: f32 = 3.2;
+
+/// Wall bounce damping: a bead hitting a screen edge keeps this
+/// fraction of its speed, reversed. 0.55 reads as a soft deflect,
+/// not a mirror.
+pub(crate) const AURORA_WALL_DAMP: f32 = 0.55;
+
+// The substorm breath (law 2).
+
+/// Minimum emission depth in lines (a curtain never collapses
+/// below a stubby fringe).
+pub(crate) const AURORA_DEPTH_MIN: f32 = 3.0;
+
+/// LOW band start: fraction of the viewport height (LOW curtains
+/// hang at 0.24-0.34 — the shallow layer).
+pub(crate) const AURORA_DEPTH_LOW_FRAC: f32 = 0.24;
+
+/// LOW band width (as a fraction of viewport height).
+pub(crate) const AURORA_DEPTH_LOW_SPAN: f32 = 0.10;
+
+/// HIGH band start: fraction of the viewport height (HIGH curtains
+/// hang at 0.46-0.60 — the deep layer). Disjoint from LOW by
+/// construction: the veil reads as two distinct altitudes.
+pub(crate) const AURORA_DEPTH_HIGH_FRAC: f32 = 0.46;
+
+/// HIGH band width (as a fraction of viewport height).
+pub(crate) const AURORA_DEPTH_HIGH_SPAN: f32 = 0.14;
+
+/// Depth glide rate: the depth eases toward its anchor at this rate
+/// per sim-second (an anchor flip resolves over ~1 s — the curtain
+/// visibly descends or retreats, never snaps).
+pub(crate) const AURORA_DEPTH_RELAX: f32 = 1.3;
+
+/// Mean anchor dwell: average sim-seconds a bead rests on its
+/// current band before flipping to the other (rolled with
+/// 0.5x-1.5x variance — the substorm onsets never march in
+/// rhythm).
+pub(crate) const AURORA_DWELL_MEAN: f32 = 7.0;
+
+// The emission charge (law 4).
+
+/// Glow decay rate per sim-second: the fringe cools at exp(-rate x
+/// dt). 0.42 keeps a charged fringe bright for a few seconds after
+/// its last landing.
+pub(crate) const AURORA_GLOW_DECAY: f32 = 0.42;
+
+/// Glow hard clamp (law 4b — bounded by construction). 2.6 sits
+/// above the Core flare threshold so a heavy landing sequence can
+/// hold the white read briefly.
+pub(crate) const AURORA_GLOW_MAX: f32 = 2.6;
+
+/// Absorption gain: absorbed charge enters the glow multiplied by
+/// this (the emission efficiency of the layer).
+pub(crate) const AURORA_GLOW_GAIN: f32 = 1.0;
+
+/// Hot rung: glow above this reads Hot on the fringe ladder (the
+/// charged emission layer) and arms the flank spill.
+pub(crate) const AURORA_GLOW_LEVEL_HOT: f32 = 0.7;
+
+/// Core rung: glow above this AND a fresh flare age reads Core —
+/// the landing punch.
+pub(crate) const AURORA_GLOW_LEVEL_CORE: f32 = 1.5;
+
+/// Flare window: sim-seconds after an absorption during which a
+/// strong glow reads Core (the punch resolves quickly into the
+/// steady Hot glow).
+pub(crate) const AURORA_FLARE_SECS: f32 = 0.5;
+
+// The precipitation funnel (law 3).
+
+/// Funnel gain: lateral acceleration toward the target ray's
+/// column, glow-weighted (columns per sim-second squared).
+pub(crate) const AURORA_SEEK_GAIN: f32 = 3.2;
+
+/// Funnel range: a drop within this many lines ABOVE the target
+/// ray's emission depth starts bending toward the ray (the
+/// magnetic funnel read).
+pub(crate) const AURORA_SEEK_RANGE: f32 = 6.0;
+
+/// Lateral drag: the drop's lateral velocity decays at this rate
+/// per sim-second (the bend stays a bend).
+pub(crate) const AURORA_SEEK_DRAG: f32 = 1.9;
+
+// Drop pool dials (the calm-sky family contract).
+
+/// Base active-drop ratio of the aurora pool (pool = one drop per
+/// column, the family lane model). 0.05 matches the stage-4
+/// calm-sky DNA: a sparse drizzle of precipitation over the veil.
+pub(crate) const AURORA_ACTIVE_BASE: f32 = 0.05;
+
+/// Density multiplier for the active-count target.
+pub(crate) const AURORA_ACTIVE_DENSITY_MULT: f32 = 0.06;
+
+/// Maximum active-drop ratio cap of the aurora pool (even at full
+/// density the precipitation stays a minority layer — the veil is
+/// the hero of the composition).
+pub(crate) const AURORA_ACTIVE_MAX: f32 = 0.14;
+
+/// Spawn rate multiplier for the aurora pool (accumulator
+/// contract).
+pub(crate) const AURORA_SPAWN_RATE_MULT: f32 = 0.28;
+
+/// Spawn rate floor (minimum aurora spawns per second).
+pub(crate) const AURORA_SPAWN_RATE_FLOOR: f32 = 0.22;
+
+/// Lifetime backstop in sim-seconds.
+pub(crate) const AURORA_MAX_AGE_SECS: f32 = 18.0;
+
+/// Drop gravity (lines per sim-second squared) — the gentle fall
+/// of charged particles, not a downpour.
+pub(crate) const AURORA_DROP_GRAVITY: f32 = 0.9;
+
+/// Drop terminal velocity cap (lines per sim-second).
+pub(crate) const AURORA_DROP_TERMINAL: f32 = 3.4;
+
+/// Fresh fall speed at spawn (the calm Ghost entry).
+pub(crate) const AURORA_DROP_FALL_BASE: f32 = 1.1;
+
+/// Lateral drift fraction at spawn: the seed drift is this fraction
+/// of the fall speed (consecutive landings never align in rhythm).
+pub(crate) const AURORA_DROP_DRIFT_FRACTION: f32 = 0.30;
+
+/// Charge accumulation rate: kinetic charge grows by |vy| x RATE x
+/// dt over the fall (deep fast drops flare the fringe hard).
+pub(crate) const AURORA_CHARGE_RATE: f32 = 0.17;
+
+/// Charge floor every absorption carries (a fresh drop still
+/// murmurs the fringe).
+pub(crate) const AURORA_CHARGE_SEED: f32 = 0.25;
+
+// The kinetic-heat ladder (drop head brightness).
+
+/// Ghost rung ceiling: fall speeds at or below this read Ghost.
+pub(crate) const AURORA_SPEED_GHOST: f32 = 1.4;
+
+/// Mid rung ceiling: fall speeds above GHOST up to this read Mid.
+pub(crate) const AURORA_SPEED_MID: f32 = 2.0;
+
+/// Hot rung ceiling: fall speeds above MID up to this read Hot;
+/// above it the rare full-terminal dive reads Core.
+pub(crate) const AURORA_SPEED_CORE: f32 = 3.0;
+
+/// Comet trail length behind a drop head.
+pub(crate) const AURORA_TRAIL_LEN: usize = 2;
+
+// The shimmer law (law 5).
+
+/// Body shimmer chance per frame: the fabric re-rolls rarely (a
+/// slow air flicker).
+pub(crate) const AURORA_SHIMMER_BODY: f32 = 0.06;
+
+/// Fringe shimmer chance per frame: the emission layer flickers
+/// hard (also the drop-head re-roll rate — the family contract).
+pub(crate) const AURORA_SHIMMER_FRINGE: f32 = 0.38;
+
+// The fabric ramp (draw presentation).
+
+/// Body factor at the top edge: the diffuse ceiling of a curtain.
+pub(crate) const AURORA_BODY_FACTOR_TOP: f32 = 0.34;
+
+/// Body factor at the fringe: the brightest fabric cell.
+pub(crate) const AURORA_BODY_FACTOR_FRINGE: f32 = 0.88;
+
+/// Fabric ramp time constant (in lines above the fringe): the
+/// exponential fade's length scale — bright near the emission
+/// layer, diffusing into the dark above.
+pub(crate) const AURORA_BODY_TAU: f32 = 3.2;
+
+/// Corona depth: this many cells above the fringe step down from
+/// the fringe's ladder rung (the emission glow zone).
+pub(crate) const AURORA_CORONA_DEPTH: u8 = 2;
+
+/// Fringe glow boost: the fringe cell's color factor is
+/// 1 + glow x BOOST (blends toward white while charged — capped by
+/// the monolith white-boost cap downstream).
+pub(crate) const AURORA_FRINGE_BOOST: f32 = 0.35;
+
+/// Sim-time coupling to the speed keys (the family contract — see
+/// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 14 cps).
+pub(crate) const AURORA_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// Compile-time contracts on the aurora calibration: the depth bands
+// must be disjoint (LOW entirely below HIGH — the two-altitude
+// read), the glow ladder strictly ordered with the clamp above the
+// Core rung, the kinetic ladder ordered, the ramp factors ordered,
+// the fall base under the terminal cap, and the population dials
+// ordered (base under the max cap).
+const _: () = assert!(AURORA_DEPTH_LOW_FRAC + AURORA_DEPTH_LOW_SPAN < AURORA_DEPTH_HIGH_FRAC);
+const _: () = assert!(AURORA_GLOW_LEVEL_HOT < AURORA_GLOW_LEVEL_CORE);
+const _: () = assert!(AURORA_GLOW_LEVEL_CORE < AURORA_GLOW_MAX);
+const _: () = assert!(AURORA_SPEED_GHOST < AURORA_SPEED_MID);
+const _: () = assert!(AURORA_SPEED_MID < AURORA_SPEED_CORE);
+const _: () = assert!(AURORA_SPEED_CORE < AURORA_DROP_TERMINAL);
+const _: () = assert!(AURORA_BODY_FACTOR_TOP < AURORA_BODY_FACTOR_FRINGE);
+const _: () = assert!(AURORA_DROP_FALL_BASE < AURORA_DROP_TERMINAL);
+const _: () = assert!(AURORA_ACTIVE_BASE < AURORA_ACTIVE_MAX);
+const _: () = assert!(AURORA_GAP_FLOOR > 0.0);
+const _: () = assert!(AURORA_REPULSION > 0.0);
+const _: () = assert!(AURORA_WALL_DAMP <= 1.0);

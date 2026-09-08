@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-special-3 — the aurora rain style + aurora scene (the rain paints the light)
+
+Owner request (2026-09-08, the aeolian's 10/10): "what else can you
+do — can an aurora rain type be done?" Answered by building it: the
+tenth style, the second original-math flagship (the NIGHT-special-2
+invention directive carried forward — motion DNA with no existing
+mathematical reference). The invented system ("the five laws of the
+polar veil", fully derived and documented in
+src/engine/cosmic_dragon_engine/cloud/type_rain/aurora/mod.rs):
+
+- Law 1, the ray lattice: ray beads (one per ~6 columns) drift on a
+  global wind (target re-rolled every few seconds, eased toward
+  exponentially) while adjacent pairs repel with an inverse-gap
+  force — the veil spreads into organic, uneven coverage and
+  advects slowly across the sky. Velocities clamp, positions clamp
+  with damped wall bounces.
+- Law 2, the substorm breath: each bead's emission depth glides
+  exponentially toward a private anchor that flips between two
+  DISJOINT bands (24-34% and 46-60% of the viewport height) on
+  rolled dwell intervals — the quantized two-band choice makes the
+  veil read as curtains hanging at distinct altitudes (the layered
+  aurora), never a uniform mush; an anchor flip resolves over ~1 s
+  (the curtain visibly descends or retreats).
+- Law 3, the precipitation funnel: falling drops within seek range
+  of the nearest ray's depth bend toward its column with a
+  glow-weighted gain — bright fringes attract the weather harder,
+  closing the self-organization loop (the sky concentrates its
+  light where the rain has been landing).
+- Law 4, the emission charge: a drop absorbed at its ray's depth
+  deposits its kinetic charge into the fringe glow (exponential
+  decay + hard clamp — bounded by construction). The fringe climbs
+  the ladder Mid (baseline) / Hot (charged) / Core (the fresh
+  landing flare window) and spills into its flanking columns one
+  rung dimmer while Hot or brighter.
+- Law 5, the shimmer law: curtain cells keep the glyph the frame
+  already carries (the fabric identity); re-rolls ladder with
+  brightness — the body shimmers rarely, the fringe often.
+
+Stability is by construction, not by tuning: every state variable
+is hard-bounded (velocity/position/depth clamps, glow cap,
+lane-bounded pool with terminal velocity + lifetime backstop), and
+absorption is a STATE test (drop depth >= emission depth), not a
+crossing test — no tunneling at any dt, at any frame rate. Scene:
+aurora palette (557.7nm green — the oxygen line the real curtains
+burn on) + greek charset, cycle position 11, the calm-sky weather
+dial (sparse drizzle, the veil the hero). 21 behavior contracts
+(lattice spread, wall bounds, two-band breath, bounded glow,
+fringe ladder, nearest-ray, spawn target, fall, funnel, absorption
+charging the fringe, drawn bounds, diff cleanup, pause freeze,
+style transitions, speed scaling, sustained boundedness). Scene
+catalog extraction: SCENES moved to src/scene/catalog.rs (the
+table outgrew mod.rs's 800-line hard cap — the RULES_LOC
+sibling-file recipe, call sites unchanged via re-export).
+benchmark/bench-labs/night_special3/AB_REPORT.md carries the 10 s
+A/B: zero regression on the cinematic + sorgonemous + aeolian
+probes, plus the aurora's own profile.
+
 ### feature: NIGHT-special-2 — the aeolian weave, the first original-math rain style + aeolian scene (the rain plays the instrument)
 
 Owner directive (2026-09-08): a new rain type whose motion DNA uses NO

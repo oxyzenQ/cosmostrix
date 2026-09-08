@@ -94,7 +94,7 @@ Files with "Historical research snapshot" headers:
 
 - `~1500+ tests` in `CHANGELOG.md` (3 occurrences) + `KEY.md` (2
   occurrences) — accurate at time of writing (the `~` prefix means
-  "approximately"). Current count is 2505 but historical entries
+  "approximately"). Current count is 2524 but historical entries
   should not be retroactively updated.
 - `43 themes` in `CHANGELOG.md` — accurate at time of writing
   (EnergyZen was added later, bumping to 44).

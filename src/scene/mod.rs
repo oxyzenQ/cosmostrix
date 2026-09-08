@@ -25,7 +25,7 @@
 //! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 26 built-in scenes: the
+//! covers all 27 built-in scenes: the
 //! three core atmospheres lead (cinematic, monolith, matrix), then
 //! the style flagships, the curated classics, the atmosphere
 //! scenes, the power-saving utility, and the milestone/tribute/honor
@@ -69,7 +69,7 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 26 built-in scenes (owner directive
+/// Ordered scene cycle — all 27 built-in scenes (owner directive
 /// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
 /// style flagship at 4; task-19 replaced the rejected ripple with
 /// flux at 5; the NIGHT-research-4 merge added lorenz, a
@@ -77,7 +77,8 @@ pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 /// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
 /// physarum style flagship at 8; NIGHT-special-1 added the black
 /// hole flagship sorgonemous_intrascals at 9; NIGHT-special-2 added
-/// the aeolian weave flagship at 10; NIGHT-hunter-15 added the
+/// the aeolian weave flagship at 10; NIGHT-special-3 added the
+/// polar-veil flagship aurora at 11; NIGHT-hunter-15 added the
 /// dragon_hunt
 /// milestone (the glitch-rain-shift bug-hunt reward) at 21; the rest
 /// ordered by daily-use
@@ -121,546 +122,41 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // dial family. Grouped with the style flagships so the cycle
     // tours all signature motion styles.
     "aeolian", // 10
+    // NIGHT-special-3 style flagship — the polar veil. The second
+    // invented-original-math rain style: ray-bead curtains painted
+    // by the precipitation they absorb (the five laws of the veil,
+    // derived in this repo — see cloud/type_rain/aurora/mod.rs).
+    // Grouped with the style flagships so the cycle tours all
+    // signature motion styles.
+    "aurora", // 11
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 11 — original green-on-black
-    "signal",      // 12 — digital transmission
-    "hacker",      // 13 — high-contrast terminal overflow
-    "matrix_film", // 14 — 1999 film homage
+    "classic",     // 12 — original green-on-black
+    "signal",      // 13 — digital transmission
+    "hacker",      // 14 — high-contrast terminal overflow
+    "matrix_film", // 15 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 15
-    "calm",   // 16
-    "cosmos", // 17
-    "neon",   // 18
+    "storm",  // 16
+    "calm",   // 17
+    "cosmos", // 18
+    "neon",   // 19
     // Utility.
-    "low-power", // 19
+    "low-power", // 20
     // Milestone + tribute.
-    "cosmic-dragon", // 20
-    "dragon_hunt",   // 21
-    "carbonic",      // 22
+    "cosmic-dragon", // 21
+    "dragon_hunt",   // 22
+    "carbonic",      // 23
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 23
-    "orange-cat",     // 24
-    "north-stars",    // 25
-    "curiosity",      // 26
+    "crystal-dragon", // 24
+    "orange-cat",     // 25
+    "north-stars",    // 26
+    "curiosity",      // 27
 ];
 
-pub(crate) const SCENES: &[SceneInfo] = &[
-    // --- Original runtime scenes (interactive cycle entries) ---
-    SceneInfo {
-        name: "matrix",
-        description: "Classic Matrix glyph rain — organic cascade with katakana flow",
-        config: SceneConfig {
-            color: Some("neon-green"),
-            charset: Some("matrix"),
-            fps: Some(60.0),
-            speed: Some(18.0),
-            density: Some(0.65),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // --- Task-18/19 + NIGHT-research-4/5/6 style flagships (rain styles 3 through 7) ---
-    SceneInfo {
-        name: "vortex",
-        description: "Polar-orbit galaxy drain — glyphs spiral inward on Keplerian orbits toward a glowing core",
-        config: SceneConfig {
-            color: Some("cosmos"),
-            charset: Some("zen"),
-            fps: Some(60.0),
-            speed: Some(24.0),
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Vortex,
-        },
-    },
-    SceneInfo {
-        name: "flux",
-        description: "Liquid matrix — code rain falling through a living incompressible fluid; jets shear into emergent eddies",
-        config: SceneConfig {
-            color: Some("ocean"),
-            charset: Some("minimal"),
-            fps: Some(60.0),
-            speed: Some(18.0),
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Flux,
-        },
-    },
-    // NIGHT-research-4: the lorenz scene is the project's flagship
-    // masterpiece — the only terminal rain that renders a real
-    // strange attractor (canonical Lorenz ODE, sigma=10, rho=28,
-    // beta=8/3, RK4-integrated). Two-lobe butterfly projected to 2D
-    // with z-as-depth brightness. The `cosmos` palette + `binary`
-    // charset evoke the deep-space + mathematical-purity aesthetic;
-    // speed 24 (same as vortex) gives the butterfly a majestic
-    // wingbeat cadence (one lobe traversal every ~3-5 s). Density
-    // 0.70 matches vortex so the two scenes cycle-read as siblings.
-    // Catalog history: ripple (water-surface rings) was
-    // owner-rejected and removed by task-19's flux; this scene
-    // joined at cycle position 6 via the NIGHT-research-4 merge as
-    // the fifth rain style.
-    SceneInfo {
-        name: "lorenz",
-        description: "Lorenz strange attractor — glyphs ride the canonical chaotic butterfly (RK4-integrated 3D ODE, two-lobe projection)",
-        config: SceneConfig {
-            color: Some("cosmos"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(24.0),
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Lorenz,
-        },
-    },
-    // NIGHT-research-5: cosmic_dragon — Chinese-mythology serpentine
-    // dragon. Distinct from the existing `cosmic-dragon` (hyphen)
-    // milestone scene: cosmic-dragon is a Glyph-style tribute to the
-    // temporal-prediction breakthrough; cosmic_dragon (underscore) is
-    // a new rain STYLE — a structured-family chain renderer with
-    // serpentine motion DNA. The `nebula` palette evokes the cosmic
-    // sky the dragon flies through; `zen` charset keeps the body
-    // clean and Asian-feel. Speed 18 = majestic flight cadence.
-    // Density no longer affects dragon count — owner directive
-    // fixes the count at 3 dragons to match the three dragon engines
-    // in cosmostrix (cosmic_dragon_engine, crystal_dragon_engine,
-    // chroma_dragon_engine). The 0.55 value is kept for spawn-timing
-    // parity with the other style flagships. The head state machine
-    // alternates Soar (free flight) and Circle (orbital) per the
-    // owner's "sometimes circling, sometimes flying free anywhere" spec.
-    SceneInfo {
-        name: "cosmic_dragon",
-        description: "Cosmic Dragon — Chinese-mythology serpentine dragon; free flight with occasional circling, body trails the head in a living chain",
-        config: SceneConfig {
-            color: Some("nebula"),
-            charset: Some("zen"),
-            fps: Some(60.0),
-            speed: Some(18.0),
-            density: Some(0.55),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Dragon,
-        },
-    },
-    // NIGHT-research-6: physarum — bio-inspired slime mold (Jeff
-    // Jones 2010 model). Particles sense / decide / move / deposit
-    // on a stigmergic trail field, producing emergent network
-    // patterns. The terminal's discrete cell grid IS the substrate
-    // — a 1:1 medium match (masterpiece contract: terminal
-    // limitations BECOME the simulation substrate).
-    // The `cosmos` palette + `binary` charset evoke the deep-space
-    // petri dish aesthetic; speed 18 = steady exploration cadence;
-    // density 0.55 = 30-40 particles (enough for visible networks,
-    // sparse enough for the trail decay to keep patterns alive).
-    // No other terminal matrix rain project ships physarum — this
-    // is the project's first bio-inspired renderer, the rarest
-    // style engineering in the category.
-    SceneInfo {
-        name: "physarum",
-        description: "Physarum slime mold — bio-inspired emergent network patterns; particles sense / decide / move / deposit on a stigmergic trail field (Jeff Jones 2010 model)",
-        config: SceneConfig {
-            color: Some("cosmos"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(18.0),
-            density: Some(0.55),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Physarum,
-        },
-    },
-    // NIGHT-special-1: sorgonemous_intrascals — the black hole flagship
-    // scene. The name is the owner's own coinage, born on a night walk
-    // under the stars (kept verbatim per owner directive, joined with
-    // an underscore to match the cosmic_dragon / matrix_film flagship
-    // naming convention). The energy-zen palette + binary charset per
-    // the owner spec: brand-crystal light wrapping an absolute void.
-    // Stage 1 renders the event-horizon ball — a centered medium ball
-    // with a black empty core and a photon-ring rim, dynamic for any
-    // screen size. Speed 12 gives the hole a contemplative cadence;
-    // density 0.55 is inert at stage 1 (no glyph rain yet) and will
-    // drive the stage 3 infall when it lands. Glitch level none —
-    // the void is still.
-    SceneInfo {
-        name: "sorgonemous_intrascals",
-        description: "Sorgonemous Intrascals — black hole event horizon; a centered ball of light wrapping a black empty core, ringed by a three-tier accretion disk that pivots around the hole (glyph infall follows)",
-        config: SceneConfig {
-            color: Some("energy-zen"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(12.0),
-            density: Some(0.55),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::BlackHole,
-        },
-    },
-    // NIGHT-special-2: aeolian — the invented string weave, the
-    // project's first original-math rain style (the six laws were
-    // derived in this repo — see cloud/type_rain/aeolian/mod.rs).
-    // The name is the wind's own: the Aeolian harp is played by
-    // moving air, this one by falling light. Aurora (557.7nm green,
-    // the sky's own emission line) + runic strokes (the chime
-    // marks). Speed 16 = calm weather; density 0.55 = flagship
-    // parity (the calm-sky dial keeps the drizzle sparse anyway).
-    SceneInfo {
-        name: "aeolian",
-        description: "Aeolian weave — the rain plays the instrument; glyphs fall onto invisible strings, pluck traveling light packets that sharpen as they race and knot where they cross, while the weather bends toward the resonance",
-        config: SceneConfig {
-            color: Some("aurora"),
-            charset: Some("runic"),
-            fps: Some(60.0),
-            speed: Some(16.0),
-            density: Some(0.55),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Aeolian,
-        },
-    },
-    SceneInfo {
-        name: "monolith",
-        description:
-            "Signature structured segmented rain — dense zen pillars with premium pacing",
-        config: SceneConfig {
-            color: Some("energy-zen"),
-            charset: Some("zen"),
-            fps: Some(60.0),
-            speed: Some(30.0),
-            density: Some(0.85),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Monolith,
-        },
-    },
-    SceneInfo {
-        name: "signal",
-        // v80.0.0 sync: "cyan aurora glyphs" -> "aurora glyphs" — the
-        // aurora palette was retuned to real 557.7nm green (earth-
-        // element real-color masterclass), so the palette is now
-        // green-dominant with cyan fringes, not cyan-led.
-        description: "Digital transmission — aurora glyphs in box-draw frames",
-        config: SceneConfig {
-            color: Some("aurora"),
-            charset: Some("retro"),
-            fps: Some(60.0),
-            speed: Some(14.0),
-            density: Some(0.55),
-            glitch_level: Some(GlitchLevel::Default),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // --- Curated visual scenes ---
-    SceneInfo {
-        name: "classic",
-        description: "Original green-on-black — slow contemplative katakana cascade",
-        config: SceneConfig {
-            color: Some("green"),
-            charset: Some("matrix"),
-            fps: Some(60.0),
-            speed: Some(12.0),
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "cinematic",
-        description: "Cosmic zen — slow vast pacing with deep-space breathing room",
-        config: SceneConfig {
-            color: Some("energy-zen"),
-            charset: Some("zen"),
-            fps: Some(60.0),
-            speed: Some(9.0),
-            density: Some(0.75),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "calm",
-        description: "Gentle ocean — zen minimal density, slow meditative flow",
-        config: SceneConfig {
-            color: Some("ocean"),
-            charset: Some("minimal"),
-            fps: Some(60.0),
-            speed: Some(6.0),
-            density: Some(0.40),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "storm",
-        description: "Fast intense purple cyberpunk — dense aggressive neon chaos",
-        config: SceneConfig {
-            color: Some("purple"),
-            charset: Some("cyberpunk"),
-            fps: Some(120.0),
-            speed: Some(28.0),
-            density: Some(1.10),
-            glitch_level: Some(GlitchLevel::Intense),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "cosmos",
-        description: "Deep-space cosmos — nebula gradient with spacious starlit drift",
-        config: SceneConfig {
-            color: Some("nebula"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(11.0),
-            // v80.0.0 masterclass tune: density 0.80 -> 0.70. The
-            // description promises "spacious starlit drift", but 0.80
-            // sat dead-on the catalog median (~0.78) — a median value
-            // is not spacious. 0.70 gives the deep-sky scene genuine
-            // room while keeping the nebula visibly fuller than its
-            // milestone sibling cosmic-dragon (0.65, deliberate kin)
-            // and far airier than the overflow scenes (hacker and
-            // carbonic at 0.95). Speed 11 "drift" and the rest were
-            // audited peak — unchanged.
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "neon",
-        description: "Vibrant cyberpunk — neon pop with breathing room and medium flow",
-        config: SceneConfig {
-            color: Some("neon"),
-            charset: Some("cyberpunk"),
-            fps: Some(60.0),
-            speed: Some(16.0),
-            // v80.0.0 masterclass tune: density 0.90 -> 0.78. The
-            // description promises "breathing room", but 0.90 sat 5%
-            // under hacker's 0.95 — an imperceptible gap that read as
-            // the same soup with a different palette. 0.78 puts real
-            // air between the two cyberpunk scenes (hacker 0.95 =
-            // dense terminal overflow, neon 0.78 = pop with room)
-            // while staying above matrix's 0.65 so the neon signage
-            // still pops. Speed 16 "medium flow" sits on the catalog
-            // median — audited peak, unchanged.
-            density: Some(0.78),
-            glitch_level: Some(GlitchLevel::Default),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "hacker",
-        description: "Green hacker aesthetic — dense high-speed terminal overflow",
-        config: SceneConfig {
-            color: Some("green"),
-            charset: Some("hacker"),
-            fps: Some(60.0),
-            speed: Some(24.0),
-            density: Some(0.95),
-            glitch_level: Some(GlitchLevel::Default),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // --- Film homage scene: matrix_film ---
-    //
-    // Tuned to capture the visual fingerprint of the Matrix 1999 code rain:
-    // dense phosphor-green katakana+digit columns falling at cinematic pace.
-    // This is not a 1:1 reproduction — cosmostrix remains its own frontier —
-    // but a scene that lets the engine's parallax depth, phosphor decay, and
-    // head-bloom layer onto the film's foundational look.
-    //
-    // Distinct from the `matrix` scene (the modern organic cascade, density
-    // 0.65, speed 18.0): matrix_film pushes density to 0.85 and speed to 22.0
-    // to match the film's packed-column, steady-fall rhythm. Charset `matrix`
-    // (katakana + Latin digits + letters) is literally the film's glyph set.
-    // Palette `neon-green` keeps the canonical Matrix green. Glitch stays
-    // Subtle — the film has occasional flickers but is mostly clean. Rain
-    // style is Glyph (Monolith is cosmostrix's own invention, not
-    // film-accurate). FPS 60 keeps motion smooth; the film's 24fps cadence
-    // would look choppy against cosmostrix's frontier pacing.
-    SceneInfo {
-        name: "matrix_film",
-        description: "Matrix Film — 1999 cinematic homage; dense phosphor-green katakana rain with cosmostrix frontier depth",
-        config: SceneConfig {
-            color: Some("neon-green"),
-            charset: Some("matrix"),
-            fps: Some(60.0),
-            speed: Some(22.0),
-            density: Some(0.85),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    SceneInfo {
-        name: "low-power",
-        description: "Ultra power-saving — 30 FPS, minimal density, no glitch",
-        config: SceneConfig {
-            color: Some("green"),
-            charset: Some("binary"),
-            fps: Some(30.0),
-            speed: Some(5.0),
-            density: Some(0.45),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // --- Milestone scene (commemorates the temporal-prediction breakthrough) ---
-    //  horizon=12 + skip-draw + persistent cells slashed dirty_ratio
-    // from 18.33% to 0.39% and boosted avg_fps from 7,843 to 29,773 — a 280%
-    // speedup with 99.6% fewer drawn cells. This scene is the visible reward
-    // for that achievement: a deep-space binary rain that, like the Cosmic Dragon,
-    // sees its own future. Palette `cosmos` + charset `binary` mirror the
-    // cinematic base; speed 12 + density 0.65 give it room to breathe.
-    SceneInfo {
-        name: "cosmic-dragon",
-        description: "Cosmic Dragon — temporal-prediction milestone; deep-space binary rain that sees its own future",
-        config: SceneConfig {
-            color: Some("cosmos"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(12.0),
-            density: Some(0.65),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // --- Milestone scene: dragon_hunt (NIGHT-hunter-15) ---
-    //
-    // Commemorates the biggest bug hunt in cosmostrix history: the
-    // "glitch rain shift" — the rain visibly shifting sideways for a
-    // few seconds on real terminals (owner-reported on every terminal
-    // class, first minute of a fresh session, monolith immune, the
-    // first s/S/c/C shortkey re-triggering it as a left-to-right
-    // lightning sweep). The hunt ran 26 rounds across HUNT-23..26
-    // (output drain backoff, EMA pressure decoupling, the phosphor
-    // park-epoch fix, the P2 resync full-body flash fix, the MADV NUL
-    // emission fix, the amortized thaw) before the last ghost was run
-    // to ground at e58f8b8.
-    //
-    // The scene is the visible reward: the Lorenz butterfly — the
-    // engine's strange attractor, the motion the hunters chased the
-    // ghost through — rendered in the `nebula` palette with the
-    // `blocks` charset. Speed 22 (a hair under the lorenz flagship's
-    // 24: the hunt is over, the butterfly glides). Density 0.70
-    // matches the flagship. Glitch level NONE — the glitch is dead.
-    SceneInfo {
-        name: "dragon_hunt",
-        description: "Dragon Hunt — the biggest bug hunt: the glitch rain shift, run to ground; the Lorenz butterfly glides clean through nebula where the ghost once hid",
-        config: SceneConfig {
-            color: Some("nebula"),
-            charset: Some("blocks"),
-            fps: Some(60.0),
-            speed: Some(22.0),
-            density: Some(0.70),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Lorenz,
-        },
-    },
-    // --- Tribute scene: carbonic ---
-    //
-    // Honors the +280% FPS achievement of the temporal-prediction
-    // experiment ( 7,843 → 29,773 FPS, dirty_ratio 18.33% →
-    // 0.39%). The experiment was ultimately reverted in v25 because
-    // it compromised the cinematic visual quality, but the lessons
-    // learned — about prediction, drift tolerance, and the
-    // tension between performance and beauty — remain invaluable.
-    //
-    // `carbonic` evokes the aesthetic of carbon fiber: dark, dense,
-    // futuristic, and resilient. The `carbon` palette (dark-grey-to-
-    // silver ramp, head RGB 230/240/250 — compliant with the
-    // head-not-pure-white invariant) gives a sleek metallic feel.
-    // `binary` charset keeps the visual high-tech and minimal.
-    // Speed 18 + density 0.95 produce a dense, energetic rain that
-    // showcases the engine's throughput. Subtle glitch hints at the
-    // controlled chaos of the prediction experiment.
-    SceneInfo {
-        name: "carbonic",
-        description: "Carbonic — tribute to the temporal-prediction experiment; dense metallic carbon-fiber binary rain",
-        config: SceneConfig {
-            color: Some("carbon"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(18.0),
-            density: Some(0.95),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // ── Honor scenes ──────────────────────────────────────────────
-    //
-    // crystal-dragon: honors the cosmostrix + oxyzenQ journey and the
-    // hardthinking-mode reward. The energy-zen palette's crystal-edge
-    // magenta stop inspires the name — a dragon carved from living
-    // crystal, breathing violet fire. v80.0.0 masterclass tune: speed
-    // raised 10 -> 30 (owner directive — the honor scene must move with
-    // living-crystal energy, not crawl); vast pacing is preserved by the
-    // Monolith segmented structure, so the reward scene stays meditative
-    // in texture while finally flowing at premium pace.
-    SceneInfo {
-        name: "crystal-dragon",
-        description: "Dragon Crystal — honors the cosmostrix + oxyzenQ journey; living crystal violet rain, the hardthinking-mode reward",
-        config: SceneConfig {
-            color: Some("energy-zen"),
-            charset: Some("zen"),
-            fps: Some(60.0),
-            speed: Some(30.0),
-            density: Some(0.78),
-            glitch_level: Some(GlitchLevel::Subtle),
-            rain_style: RainStyle::Monolith,
-        },
-    },
-    // orange-cat: honors the owner's orange cat, who passed on 2 Aug 2026.
-    // A warm amber-gold rain, gentle and contemplative — like afternoon
-    // sunlight through a window where a cat used to sleep. Slow pace,
-    // minimal density, no glitch. The `orange` palette ranges from
-    // deep ember to bright honey, mirroring a tabby's coat. The
-    // `minimal` charset (single nabla glyph since the 2026-08-30 owner
-    // pick) keeps the visual quiet and meditative.
-    SceneInfo {
-        name: "orange-cat",
-        description: "Orange Cat — in memory of the owner's orange cat (2 Aug 2026); warm amber-gold gentle contemplative rain",
-        config: SceneConfig {
-            color: Some("orange"),
-            charset: Some("minimal"),
-            fps: Some(60.0),
-            speed: Some(7.0),
-            density: Some(0.45),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // north-stars: honors the owner's habit of watching stars at 3 AM.
-    // A cool white-gold rain on deep space, sparse and distant — like
-    // looking up at a winter sky. The `stars` palette (white-gold
-    // gradient) + `binary` charset evokes pinprick starlight. Very low
-    // density (0.35) + slow speed (5.0) for the quiet vastness of 3 AM.
-    // No glitch — the night sky is still.
-    SceneInfo {
-        name: "north-stars",
-        description: "North Stars — honors 3 AM stargazing; sparse white-gold pinprick starlight on deep space",
-        config: SceneConfig {
-            color: Some("stars"),
-            charset: Some("binary"),
-            fps: Some(60.0),
-            speed: Some(5.0),
-            density: Some(0.35),
-            glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-    // curiosity: honors the owner's curiosity — the engine that built
-    // cosmostrix. A vibrant spectrum rain, ever-shifting, dense and
-    // inquisitive. The `rainbow` palette cycles through the full hue
-    // range, mirroring the restless color of wonder. `cyberpunk` charset
-    // + speed 20 + density 0.90 produce a dense, energetic flow that
-    // showcases the engine's full chroma range. Default glitch hints at
-    // the creative chaos of exploration.
-    SceneInfo {
-        name: "curiosity",
-        description: "Curiosity — honors the owner's wonder; vibrant spectrum rainbow rain, the engine that built cosmostrix",
-        config: SceneConfig {
-            color: Some("rainbow"),
-            charset: Some("cyberpunk"),
-            fps: Some(60.0),
-            speed: Some(20.0),
-            density: Some(0.90),
-            glitch_level: Some(GlitchLevel::Default),
-            rain_style: RainStyle::Glyph,
-        },
-    },
-];
+/// The built-in scene catalog — extracted to `catalog.rs`
+/// (NIGHT-special-3: the table outgrew this file's 800-line cap;
+/// re-exported here so every `crate::scene::SCENES` consumer keeps
+/// resolving — the RULES_LOC extraction recipe).
+pub(crate) use catalog::SCENES;
 
 /// All builtin scene names, alphabetically sorted.
 ///
@@ -791,6 +287,7 @@ fn glitch_label(level: crate::config::GlitchLevel) -> &'static str {
     }
 }
 
+pub(crate) mod catalog;
 pub(crate) mod charset;
 pub(crate) mod charset_custom;
 

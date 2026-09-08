@@ -4,14 +4,15 @@
 //! Internal rain style selection.
 //!
 //! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2, nine styles):
+//! + NIGHT-special-2 + NIGHT-special-3, ten styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
 //! - Structured family ([`RainStyle::Monolith`], [`RainStyle::Vortex`],
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
 //!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
-//!   [`RainStyle::Aeolian`]) — dedicated state machines with
+//!   [`RainStyle::Aeolian`], [`RainStyle::Aurora`]) — dedicated
+//!   state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
 //!   incompressible fluid (see `cloud/type_rain/flux/flux_field.rs`); Lorenz moves
@@ -32,7 +33,12 @@
 //!   plucks them, and surfs the ringing wavefronts (NIGHT-special-2:
 //!   the first style whose motion math was derived in this repo
 //!   from first principles, carrying no existing reference — the
-//!   six laws of the weave, see `cloud/type_rain/aeolian/mod.rs`).
+//!   six laws of the weave, see `cloud/type_rain/aeolian/mod.rs`);
+//!   Aurora runs the invented polar veil — a drifting ray-bead
+//!   lattice carries vertical glyph curtains whose fringe glow is
+//!   charged by the precipitation it absorbs (NIGHT-special-3: the
+//!   second original-math style — the five laws of the veil, see
+//!   `cloud/type_rain/aurora/mod.rs`).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -45,6 +51,7 @@ pub enum RainStyle {
     Physarum,
     BlackHole,
     Aeolian,
+    Aurora,
 }
 
 impl RainStyle {
@@ -60,6 +67,7 @@ impl RainStyle {
             Self::Physarum => "physarum",
             Self::BlackHole => "black_hole",
             Self::Aeolian => "aeolian",
+            Self::Aurora => "aurora",
         }
     }
 
@@ -92,6 +100,7 @@ impl RainStyle {
                 | Self::Physarum
                 | Self::BlackHole
                 | Self::Aeolian
+                | Self::Aurora
         )
     }
 
@@ -118,6 +127,7 @@ impl RainStyle {
             "physarum" => Some(Self::Physarum),
             "black_hole" | "blackhole" => Some(Self::BlackHole),
             "aeolian" => Some(Self::Aeolian),
+            "aurora" => Some(Self::Aurora),
             _ => None,
         }
     }
@@ -128,6 +138,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, aurora"
     }
 }

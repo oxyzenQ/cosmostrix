@@ -320,7 +320,8 @@ impl HudState {
         // mandate — the user reads the active motion DNA before the
         // cell-efficiency metrics. The `as_str()` helper on RainStyle
         // returns the canonical lowercase CLI label (glyph, monolith,
-        // vortex, flux, lorenz, dragon, physarum, black_hole, aeolian) so the HUD label
+        // vortex, flux, lorenz, dragon, physarum, black_hole, aeolian,
+        // aurora) so the HUD label
         // matches the `--list-scenes` / `--show-scene` output exactly.
         let rain_val = self.rain_style.as_str();
         self.cached_lines[19] = (colors[19], format!(" rain: {rain_val}"));

@@ -385,6 +385,11 @@ impl Cloud {
             // string field is wiped too: a dormant instrument must
             // not carry a ringing field into the next entry).
             RainStyle::Aeolian => self.aeolian_rain.reset(self.cols, self.lines),
+            // NIGHT-special-3: the aurora veil takes a full reset on
+            // exit — parity with the structured family siblings (the
+            // lattice is wiped too: a dormant sky must not carry a
+            // painted veil into the next entry).
+            RainStyle::Aurora => self.aurora_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -456,6 +461,17 @@ impl Cloud {
                 // drop pool; the instrument starts silent and the
                 // weather reveals it).
                 self.aeolian_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Aurora => {
+                // NIGHT-special-3: aurora entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // veil rebuild on entry — fresh lattice and a fresh
+                // drop pool; the sky starts unpainted and the
+                // precipitation reveals it).
+                self.aurora_rain.reset(self.cols, self.lines);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

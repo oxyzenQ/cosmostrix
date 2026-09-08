@@ -119,6 +119,12 @@ impl Cloud {
             // cells re-pick glyphs from the new pool).
             self.aeolian_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: aurora — structured-family sibling,
+            // same draw-history clear on charset switch (curtain
+            // cells re-pick glyphs from the new pool).
+            self.aurora_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -212,6 +218,12 @@ impl Cloud {
             // same draw-history clear on palette change (string glyphs
             // re-pick under the transition wave).
             self.aeolian_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Aurora) {
+            // NIGHT-special-3: aurora — structured-family sibling,
+            // same draw-history clear on palette change (curtain
+            // glyphs re-pick under the transition wave).
+            self.aurora_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }
