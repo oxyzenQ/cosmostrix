@@ -9,6 +9,24 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### audit: NIGHT-hunter-3 — full-process flow audit (start to end): master flow confirmed, three warts cataloged
+
+Owner suspicion after a hidden-bug fix: premature flow, spaghetti
+risk. Answer: master flow, not spaghetti — one entry funnel (main),
+one state owner per concern, one exit funnel (finalize_session +
+Terminal::drop), idempotent defense layers, and a linear
+start-to-end pipeline traceable in one pass
+(docs/research/NIGHT_HUNTER_3_FLOW_AUDIT.md carries the full flow
+map and per-segment verdicts). Three warts cataloged for future
+work, all previously acknowledged in-tree or quantified as
+negligible by this audit: config.toml is parsed 9x per interactive
+startup (~1 ms total, freshness benefit documented),
+CloudConfig carries a redundant duration/duration_s dual field
+(values coincide by construction today), and event_loop.rs's
+20-sibling-module mutable-state coupling (its own LOC_EXEMPT
+documents the context-struct refactor prerequisite). No behavior
+changed in this task.
+
 ### feature: NIGHT-special-4 — the solar flare rain style + solar_flare scene (the rain rides the magnetism); the aurora veil retired
 
 Owner verdict (2026-09-08): the aurora veil rated 5/10 and retired
