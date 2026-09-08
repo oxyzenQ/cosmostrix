@@ -102,7 +102,35 @@ const HUD_MIN_WIDTH: u16 = 12;
 /// the practical cap is set by the longest existing line). The bump
 /// ensures the cpu line never gets truncated when fps is high (which
 /// would make ` p99` wrap visually).
-const HUD_MAX_WIDTH: u16 = 24;
+///
+/// NIGHT-hunter-20 (owner mandate 2026-09-08): bumped 24 → 64. The
+/// owner loads scenes with long names and the identity lines were
+/// hard-cut to fit the old 24-col budget — `scn:
+/// example_1234_test_this_long` displayed as `scn: example_1234_t`
+/// (the 14-char setter truncation designed around the old cap, with
+/// the chroma border column sitting exactly where the text ends, so
+/// the cut READ as "hardcut by border"). 64 usable columns is the
+/// owner-mandated minimum budget: the HUD still grows dynamically to
+/// the longest line, but a long scene name now renders in full. The
+/// border, padding, and shrink-clear logic all track `current_width`
+/// already, so the wider budget needs no geometry changes —
+/// `draw_border` bounds-checks against the terminal width and simply
+/// omits the right edge on terminals narrower than the HUD (text is
+/// clipped at the screen edge with the same graceful degradation as
+/// before).
+const HUD_MAX_WIDTH: u16 = 64;
+
+/// NIGHT-hunter-20 (owner mandate 2026-09-08): identity-value char
+/// budget shared by the three string setters (`scn:` scene name,
+/// `chr:` charset preset, `clr:` custom palette name). HUD_MAX_WIDTH
+/// (64) minus the 6-char label prefixes (` scn: `, ` chr: `,
+/// ` clr: `) leaves 58 chars for the value. Truncation is by char
+/// count (preserving UTF-8 boundaries, matching the
+/// `String::extend(chars().take(n))` idiom). This guarantees the
+/// invariant the border depends on: no HUD line can exceed
+/// HUD_MAX_WIDTH, so the chroma border column (drawn AT
+/// `current_width`) can never land mid-text and visually cut a value.
+const HUD_IDENTITY_VALUE_MAX_CHARS: usize = 58;
 
 /// Z-master-1X round 5: rolling dirty-cell tracker for the dcel/tcel HUD
 /// metrics. Stores the last 60 frames of (dirty_count, total_cells) so the
@@ -579,15 +607,18 @@ impl HudState {
     /// `x` cycle confirmation. Called by event_loop on init and whenever
     /// the user cycles scenes.
     ///
-    /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
-    /// chars (by char count, preserving UTF-8 boundaries) so a very
-    /// long custom scene name cannot blow past the HUD_MAX_WIDTH (22
-    /// cols) budget. The ` scn: ` prefix is 5 chars, so 5 + 14 = 19 ≤ 22.
+    /// v50 (2026-08-17) HUD metric stability + NIGHT-hunter-20 (owner
+    /// mandate 2026-09-08): truncates the input to
+    /// HUD_IDENTITY_VALUE_MAX_CHARS (58) chars (by char count,
+    /// preserving UTF-8 boundaries) so a very long custom scene name
+    /// cannot blow past the HUD_MAX_WIDTH (64 cols) budget. The
+    /// ` scn: ` prefix is 6 chars, so 6 + 58 = 64 ≤ 64 — the owner's
+    /// `scn: example_1234_test_this_long` (33 chars) now renders in
+    /// full instead of being cut to `scn: example_1234_t`.
     pub(crate) fn set_scene_name(&mut self, name: &str) {
         self.scene_name.clear();
-        const SCENE_NAME_MAX_CHARS: usize = 14;
         self.scene_name
-            .extend(name.chars().take(SCENE_NAME_MAX_CHARS));
+            .extend(name.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
     }
 
     /// Set the active color scheme. Drives the `clr:` HUD line (row 10)
@@ -603,24 +634,40 @@ impl HudState {
     /// Set the active custom palette name. Takes priority over the builtin
     /// `ColorScheme` Debug format for the `clr:` HUD line. Called by
     /// event_loop when --colors-custom is active.
+    ///
+    /// NIGHT-hunter-20 (owner mandate 2026-09-08): truncates the name to
+    /// HUD_IDENTITY_VALUE_MAX_CHARS (58) chars (by char count,
+    /// preserving UTF-8 boundaries). This closes a latent gap: `scn:` and
+    /// `chr:` were truncated to their budget, but the custom palette name
+    /// was NOT — a long name pushed the `clr:` line past the width cap so
+    /// the chroma border column landed mid-text and visually cut the
+    /// value (the exact "hardcut by border" symptom the owner reported on
+    /// `scn:`, surviving on `clr:` after this hunt fixed the scn side).
+    /// The ` clr: ` prefix is 6 chars, so 6 + 58 = 64 ≤ HUD_MAX_WIDTH.
     pub(crate) fn set_custom_palette_name(&mut self, name: Option<&str>) {
-        self.custom_palette_name = name.map(|s| s.to_string());
+        self.custom_palette_name = name.map(|s| {
+            let mut truncated = String::new();
+            truncated.extend(s.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
+            truncated
+        });
     }
 
     /// Set the active charset preset name. Drives the `chr:` HUD line
     /// (row 9) for `s` / `S` cycle confirmation. Called by event_loop on
     /// init and whenever the user cycles charsets.
     ///
-    /// v50 (2026-08-17) HUD metric stability: truncates the input to 14
-    /// chars so a very long custom charset preset name cannot blow past
-    /// the HUD_MAX_WIDTH (24 cols) budget. The ` chr: ` prefix is 6
-    /// chars, so 6 + 14 = 20 ≤ 24.
+    /// v50 (2026-08-17) HUD metric stability + NIGHT-hunter-20 (owner
+    /// mandate 2026-09-08): truncates the input to
+    /// HUD_IDENTITY_VALUE_MAX_CHARS (58) chars so a very long custom
+    /// charset preset name cannot blow past the HUD_MAX_WIDTH (64
+    /// cols) budget. The ` chr: ` prefix is 6 chars, so 6 + 58 = 64
+    /// ≤ 64.
     /// (v80.0.0-alpha.1 doc-drift fix: comment said 22; the const is 24.)
+    /// (NIGHT-hunter-20 doc-drift fix: const is now 64.)
     pub(crate) fn set_charset_preset(&mut self, preset: &str) {
         self.charset_preset.clear();
-        const CHARSET_PRESET_MAX_CHARS: usize = 14;
         self.charset_preset
-            .extend(preset.chars().take(CHARSET_PRESET_MAX_CHARS));
+            .extend(preset.chars().take(HUD_IDENTITY_VALUE_MAX_CHARS));
     }
 
     /// Set the current droplet density multiplier. Drives the `dsty:` HUD

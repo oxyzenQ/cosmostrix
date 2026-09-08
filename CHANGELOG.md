@@ -9,6 +9,39 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### ux: NIGHT-hunter-20 — HUD 64-column minimum usable width (owner mandate)
+
+Loading a scene with a long name hard-cut the `scn:` HUD metric line:
+`scn: example_1234_test_this_long` displayed as `scn: example_1234_t`
+(14-char setter truncation designed around the old 24-col HUD width
+cap, with the chroma border column landing exactly at the cut so it
+read as "hardcut by border"). The owner mandated a minimum usable HUD
+width of 64 characters.
+
+- HUD_MAX_WIDTH 24 → 64 (`src/interactive/hud/mod.rs`); the dynamic
+  width, padding, and chroma border all track it unchanged, and
+  terminals narrower than the HUD keep their graceful degradation.
+- Identity-line truncation raised 14 → 58 chars
+  (HUD_IDENTITY_VALUE_MAX_CHARS = 64 − 6-char label prefixes) for
+  `scn:` (scene) and `chr:` (charset) — the owner's 27-char example
+  now renders in full.
+- Latent sibling closed: `clr:` custom palette names had NO
+  truncation, so a long name pushed its line past the width cap and
+  the border landed mid-text (the only genuine border-clip). All
+  three identity setters now share the 58-char budget, so no HUD line
+  can exceed the cap.
+- E2E verification hardening: new `scripts/ansi_screen.py` (mini ANSI
+  screen reconstructor) + new `scripts/hud_long_scene_e2e.py` (owner
+  case: full name on reconstructed screen row 8, border past text);
+  `scripts/hud_order_e2e.py` repaired — it asserted label order in the
+  RAW ANSI stream, which is invalid when the differential renderer
+  paints one HUD toggle across multiple frame flushes (pre-existing
+  red on baseline b8efb15, now green via screen-row assertions).
+- 2 new + 1 updated unit test; 10 s A/B bench clean (visual metrics
+  identical to the third decimal on monolith; cinematic inside the
+  documented noise band; HudState is never constructed on the bench
+  path). Full report: docs/research/NIGHT_HUNTER_20_HUD_WIDTH.md.
+
 ### stability: NIGHT-hunter-4 — panic-hook worker containment + phosphor full-grid scan guard (two hidden defects, root-caused and pinned)
 
 Depth audit for hidden bugs and premature logic (owner hunt

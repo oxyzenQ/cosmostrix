@@ -8,6 +8,22 @@ Spawns cosmostrix in a PTY, skips the intro, toggles the HUD with 'i',
 waits for the 1 Hz metric tick, and asserts the exact row order:
 fps/tgt/max/p99/cpu/rss/ehs/prs/scn/chr/clr/sped/dsty/prdr/crdr/ambt/
 glth/ctun/mnst/cid/up/screensize.
+
+NIGHT-hunter-20 (2026-09-08) methodology fix: the original version
+asserted the order of label occurrences in the RAW ANSI stream. That
+proxy is invalid — the differential renderer may paint one HUD toggle
+across MULTIPLE frame flushes (each bounded by a synchronized-output
+`ESC[?2026l` marker), and the flush emission order follows the dirty
+cell population, not the visual row layout. The observed failure mode:
+the bottom HUD rows (cid/up/screensize + border) flushed in frame A
+and the top rows (fps..) in frame B, so `cid`'s stream position sorted
+FIRST while the on-screen layout was perfectly correct. The fix:
+reconstruct the virtual terminal screen from the ANSI stream (shared
+`ansi_screen.py` mini-emulator) and assert the label order by reading
+the SCREEN ROWS — what the user actually sees. This ran red on the
+baseline tree (b8efb15) with the old methodology and green with the
+screen reconstruction on the same binary, confirming the script —
+not the renderer — was the defect.
 """
 
 import os
@@ -17,6 +33,9 @@ import select
 import sys
 import threading
 import time
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from ansi_screen import reconstruct_screen
 
 BIN = "./target/release/cosmostrix"
 COLS, ROWS = 100, 40
@@ -79,50 +98,53 @@ def main():
     with lock:
         text = bytes(buf).decode("utf-8", errors="replace")
 
-    # Strip ANSI escapes for row scanning
-    clean = re.sub(r"\x1b\[[0-9;?]*[a-zA-Z]", "", text)
-    clean = re.sub(r"\x1b\][^\x07]*\x07", "", clean)
+    # Reconstruct the virtual terminal screen from the ANSI stream and
+    # assert the row order by READING THE SCREEN — the raw stream's
+    # emission order follows the dirty-cell flush population, not the
+    # visual layout (see the module docstring for the failure history).
+    screen = reconstruct_screen(text, COLS, ROWS)
 
     order_pats = [
-        (r"\bfps:", "fps"),
-        (r"\btgt:", "tgt"),
-        (r"\bmax:", "max"),
-        (r"\bp99:", "p99"),
-        (r"\bcpu:", "cpu"),
-        (r"\brss:", "rss"),
-        (r"\behs:", "ehs"),
-        (r"\bprs:", "prs"),
-        (r"\bscn:", "scn"),
-        (r"\bchr:", "chr"),
-        (r"\bclr:", "clr"),
-        (r"\bsped:", "sped"),
-        (r"\bdsty:", "dsty"),
-        (r"\bprdr:", "prdr"),
-        (r"\bcrdr:", "crdr"),
-        (r"\bambt:", "ambt"),
-        (r"\bglth:", "glth"),
-        (r"\bctun:", "ctun"),
-        (r"\bmnst:", "mnst"),
-        (r"\brain:", "rain"),
-        (r"\bdcel:", "dcel"),
-        (r"\btcel:", "tcel"),
-        (r"\bcid:", "cid"),
-        (r"\bup:", "up"),
-        (r"\d+x\d+ (?:auto|fix)", "size"),
+        (r"^\s*fps:", "fps"),
+        (r"^\s*tgt:", "tgt"),
+        (r"^\s*max:", "max"),
+        (r"^\s*p99:", "p99"),
+        (r"^\s*cpu:", "cpu"),
+        (r"^\s*rss:", "rss"),
+        (r"^\s*ehs:", "ehs"),
+        (r"^\s*prs:", "prs"),
+        (r"^\s*scn:", "scn"),
+        (r"^\s*chr:", "chr"),
+        (r"^\s*clr:", "clr"),
+        (r"^\s*sped:", "sped"),
+        (r"^\s*dsty:", "dsty"),
+        (r"^\s*prdr:", "prdr"),
+        (r"^\s*crdr:", "crdr"),
+        (r"^\s*ambt:", "ambt"),
+        (r"^\s*glth:", "glth"),
+        (r"^\s*ctun:", "ctun"),
+        (r"^\s*mnst:", "mnst"),
+        (r"^\s*rain:", "rain"),
+        (r"^\s*dcel:", "dcel"),
+        (r"^\s*tcel:", "tcel"),
+        (r"^\s*cid:", "cid"),
+        (r"^\s*up:", "up"),
+        (r"^\s*\d+x\d+ (?:auto|fix)", "size"),
     ]
-    # Use the LAST occurrence of each label (the HUD repaints every frame;
-    # the final paint has the complete refreshed content).
-    positions = []
-    for pat, name in order_pats:
-        matches = list(re.finditer(pat, clean))
-        if matches:
-            positions.append((matches[-1].start(), name))
-        else:
-            positions.append((10**9, name))
-    names = [n for _, n in sorted(positions)]
-    present = {n for p, n in positions if p < 10**9}
+    # Map each screen row to the label it starts with (rows 0..25 — the
+    # HUD block plus the border row). The screen reconstruction reflects
+    # the FINAL painted state, so stale intermediate frames cannot skew
+    # the result the way raw stream positions did.
+    row_labels = {}
+    for row_idx, row_text in enumerate(screen[:26]):
+        for pat, name in order_pats:
+            if re.match(pat, row_text):
+                row_labels[name] = row_idx
+                break
+    names = [n for n, _ in sorted(row_labels.items(), key=lambda kv: kv[1])]
+    present = set(row_labels)
     print("labels found:", len(present), "of 25 ->", sorted(present))
-    print("screen order (by last occurrence):", names)
+    print("screen order (by screen row):", names)
     expected = [
         "fps",
         "tgt",

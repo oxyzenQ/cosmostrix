@@ -118,15 +118,20 @@ pub(crate) fn now_utc_datetime() -> String {
 /// Maximum width (chars) of the value part produced by
 /// [`format_uptime_tiered`] — the tiered uptime formatter's width budget.
 ///
-/// Derivation: the HUD's widest line budget is `HUD_MAX_WIDTH` = 24
-/// columns (`src/interactive/hud/mod.rs`) and the `up:` line prefix
-/// `" up: "` occupies 5 of them, leaving 19 for the value. The
-/// degradation rule in `format_uptime_tiered` drops the
-/// least-significant unit while the composed value exceeds this
-/// budget. Mathematical guarantee (see the formatter's docs): the
-/// 2-unit floor always fits — even `u64::MAX` seconds (≈ 584 billion
-/// years, 12-digit year count) composes to an 18-char value — so the
-/// budget can NEVER be exceeded, only approached.
+/// Derivation: the HUD's widest line budget is `HUD_MAX_WIDTH` =
+/// 64 columns (`src/interactive/hud/mod.rs`, NIGHT-hunter-20) and the
+/// `up:` line prefix `" up: "` occupies 5 of them, leaving 59 for the
+/// value. The budget is kept at 19 (the pre-NIGHT-hunter-20 derivation:
+/// 24-col cap − 5 prefix chars) because the ladder's mathematical
+/// guarantee already bounds the value at 19 chars — even `u64::MAX`
+/// seconds (≈ 584 billion years, 12-digit year count) composes to an
+/// 18-char value — so the extra headroom under the wider HUD budget
+/// is never needed, and a tighter budget keeps the `up:` line compact
+/// next to the long identity lines. The degradation rule in
+/// `format_uptime_tiered` drops the least-significant unit while the
+/// composed value exceeds this budget. Mathematical guarantee (see the
+/// formatter's docs): the 2-unit floor always fits — so the budget can
+/// NEVER be exceeded, only approached.
 const UPTIME_VALUE_MAX_CHARS: usize = 19;
 
 /// Format session uptime (whole seconds) as a tiered compound string.

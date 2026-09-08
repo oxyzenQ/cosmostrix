@@ -348,11 +348,12 @@ fn hud_set_droplet_density_clamps_nan_and_negative() {
 
 #[test]
 fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
-    // The `scn:` and `chr:` setters must truncate input to 14 chars (by
+    // The `scn:` and `chr:` setters must truncate input to 58 chars (by
     // char count, preserving UTF-8 boundaries) so a very long custom
     // scene name or charset preset cannot blow past the HUD_MAX_WIDTH
-    // (22 cols) budget. The ` scn: ` prefix is 6 chars (so 6 + 14 = 20
-    // ≤ 22); the ` chr: ` prefix is also 6 chars (so 6 + 14 = 20 ≤ 22).
+    // (64 cols, NIGHT-hunter-20) budget. The ` scn: ` prefix is 6
+    // chars (so 6 + 58 = 64 ≤ 64); the ` chr: ` prefix is also 6 chars
+    // (so 6 + 58 = 64 ≤ 64).
     let mut h = HudState::new();
     h.toggle();
     let palette = vec![
@@ -364,38 +365,132 @@ fn hud_set_scene_name_and_charset_preset_truncate_long_input() {
         16
     ];
 
-    // Long scene name (30 chars) → truncated to 14
-    let long_name = "abcdefghijklmnopqrstuvwxyz1234"; // 30 chars
-    h.set_scene_name(long_name);
+    // Long scene name (80 chars) → truncated to 58
+    let long_name = "a".repeat(80);
+    h.set_scene_name(&long_name);
     h.update_metrics(&palette);
     let (_, scn_line) = &h.cached_lines[8];
     assert_eq!(
-        scn_line, " scn: abcdefghijklmn",
-        "scn line must truncate to first 14 chars of long scene name"
+        scn_line,
+        &format!(" scn: {}", "a".repeat(58)),
+        "scn line must truncate to first 58 chars of long scene name"
     );
     assert_eq!(
         scn_line.chars().count(),
-        20,
-        "truncated scn line must be 6 + 14 = 20 chars (prefix ' scn: ' is 6 chars)"
+        64,
+        "truncated scn line must be 6 + 58 = 64 chars (prefix ' scn: ' is 6 chars)"
+    );
+    assert_eq!(
+        h.current_width, 64,
+        "current_width must clamp at HUD_MAX_WIDTH when the longest line hits 64"
     );
 
-    // Long charset preset (26 chars) → truncated to 14
-    let long_preset = "PRESET0123456789abcdefghij"; // 26 chars
+    // Long charset preset (80 chars) → truncated to 58
+    let long_preset = "P".repeat(80);
     h.last_metric_update = Instant::now()
         .checked_sub(Duration::from_secs(2))
         .unwrap_or_else(Instant::now);
-    h.set_charset_preset(long_preset);
+    h.set_charset_preset(&long_preset);
     h.update_metrics(&palette);
     let (_, chr_line) = &h.cached_lines[9];
     assert_eq!(
-        chr_line, " chr: PRESET01234567",
-        "chr line must truncate to first 14 chars of long charset preset"
+        chr_line,
+        &format!(" chr: {}", "P".repeat(58)),
+        "chr line must truncate to first 58 chars of long charset preset"
     );
     assert_eq!(
         chr_line.chars().count(),
-        20,
-        "truncated chr line must be 6 + 14 = 20 chars (prefix ' chr: ' is 6 chars)"
+        64,
+        "truncated chr line must be 6 + 58 = 64 chars (prefix ' chr: ' is 6 chars)"
     );
+}
+
+#[test]
+fn hud_long_scene_name_renders_in_full_owner_case() {
+    // NIGHT-hunter-20 regression (owner bug report 2026-09-08): loading
+    // a scene with a long name hard-cut the `scn:` metric line — the
+    // 14-char setter truncation (designed around the old 24-col
+    // HUD_MAX_WIDTH) displayed `scn: example_1234_t` for the scene
+    // `example_1234_test_this_long`, with the chroma border column
+    // sitting exactly at the cut. The owner mandated a minimum usable
+    // HUD width of 64 characters. This test locks the owner's exact
+    // case: the full 27-char scene name renders and the dynamic HUD
+    // width grows to fit (33 cols), with the border safely past the
+    // last text column.
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    h.set_scene_name("example_1234_test_this_long"); // 27 chars
+    h.update_metrics(&palette);
+    let (_, scn_line) = &h.cached_lines[8];
+    assert_eq!(
+        scn_line, " scn: example_1234_test_this_long",
+        "owner case: long scene name must render in full (no hardcut)"
+    );
+    assert_eq!(scn_line.chars().count(), 33);
+    assert_eq!(
+        h.current_width, 33,
+        "HUD width must grow past the old 24-col cap to fit the long line"
+    );
+}
+
+#[test]
+fn hud_custom_palette_name_truncates_to_identity_budget() {
+    // NIGHT-hunter-20: the custom palette name (`clr:` line) was the
+    // one identity string WITHOUT a truncation limit — a long name
+    // pushed the line past the width cap so the chroma border column
+    // landed mid-text and visually cut the value (the same "hardcut by
+    // border" symptom the owner reported on `scn:`, surviving on
+    // `clr:`). The setter now truncates to the shared identity budget
+    // (58 chars), guaranteeing no HUD line exceeds HUD_MAX_WIDTH.
+    let mut h = HudState::new();
+    h.toggle();
+    let palette = vec![
+        Color::Rgb {
+            r: 100,
+            g: 200,
+            b: 50
+        };
+        16
+    ];
+
+    // Short name: unchanged, full display.
+    h.set_custom_palette_name(Some("cyberpunk_2077"));
+    h.update_metrics(&palette);
+    let (_, clr_line) = &h.cached_lines[10];
+    assert_eq!(clr_line, " clr: cyberpunk_2077");
+
+    // Long name (80 chars) → truncated to 58.
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.set_custom_palette_name(Some(&"z".repeat(80)));
+    h.update_metrics(&palette);
+    let (_, clr_line) = &h.cached_lines[10];
+    assert_eq!(
+        clr_line,
+        &format!(" clr: {}", "z".repeat(58)),
+        "clr line must truncate custom palette name to 58 chars"
+    );
+    assert_eq!(clr_line.chars().count(), 64);
+    assert_eq!(h.current_width, 64);
+
+    // None: falls back to the builtin scheme Debug format (unchanged).
+    h.last_metric_update = Instant::now()
+        .checked_sub(Duration::from_secs(2))
+        .unwrap_or_else(Instant::now);
+    h.set_custom_palette_name(None);
+    h.update_metrics(&palette);
+    let (_, clr_line) = &h.cached_lines[10];
+    assert_eq!(clr_line, " clr: Green");
 }
 // ── v50 (2026-08-17) HUD expansion content tests ───────────────────
 //

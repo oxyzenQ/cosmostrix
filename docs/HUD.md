@@ -49,7 +49,7 @@ each line means without reading the full reference below.
 | 5   | `rss:`      | KiB / MiB      | Process resident set size (memory). Watch for steady growth -> possible leak.                       |
 | 6   | `ehs:`      | 0-100 (int)    | **Endurance Health Score** — long-endurance process stability from RSS variance + frame jitter + ctxt-switch rate. 100 = stable, <50 = degraded. |
 | 7   | `prs:`      | 0.00-1.00      | **Effective Pressure** — the APPLIED (power-dragon-gated, EMA-smoothed) pressure driving spawn rate, phosphor decay, glitch gate, and the sim cap. 0.0 = no pressure, 1.0 = max throttle. Raw fast-attack pressure (drain pacing, self-healer) is internal-only since NIGHT-hunter-2. |
-| 8   | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. |
+| 8   | `scn:`      | string         | **Scene name** — current scene (e.g. `cinematic`, `matrix`, or a custom scene). Confirms `x` cycle position. NIGHT-hunter-20: long custom names render in full (up to 58 chars; the old 14-char hard cut that displayed `scn: example_1234_t` for `example_1234_test_this_long` is gone). |
 | 9   | `chr:`      | string         | **Charset preset** — current charset (e.g. `binary`, `zen`). Confirms `s`/`S` cycle position. |
 | 10  | `clr:`      | string (Debug) | **Color scheme** — active scheme name via Debug format (e.g. `NeonGreen`, `FancyDiamond`), or the custom palette name. v80.0.0-beta.2: the name follows the palette on every activation path (startup `--colors-custom`, config `color = <custom>`, scene-custom `colors-custom`, ambient fire, live-reload rebuild) — the Cloud tracks it, not just the startup config. Confirms `c`/`C` cycle. |
 | 11  | `sped:`     | chars/sec (1dp) | **Speed** — chars-per-second. User adjusts via `Up`/`Down`. Confirms the actual sanitized value (matches `--speed`). |
@@ -133,10 +133,14 @@ efficiency metrics sit at rows 19-21 (rain at 19, dcel at 20, tcel at
 below for the full palette mapping.
 
 **Width is dynamic:** the HUD grows to fit the longest line (capped at
-24 cols, floored at 12 cols). High-FPS values like `fps: 11000` push
-the width out; short values like `fps: 30` let it shrink. The 7 new
-metric rows (ehs/prs/sped/dsty/scn/chr/clr) are all ≤ 18 chars so
-they never dominate the width budget.
+64 cols, floored at 12 cols; NIGHT-hunter-20 raised the cap 24 → 64 so
+long custom scene names render in full instead of hard-cut — see the
+`scn:` row note above). High-FPS values like `fps: 11000` push
+the width out; short values like `fps: 30` let it shrink. The identity
+string rows (scn/chr/clr) truncate their values at 58 chars
+(`HUD_IDENTITY_VALUE_MAX_CHARS` = 64 − 6-char label prefixes) so no
+line can exceed the cap and the chroma border column can never land
+mid-text.
 
 ---
 
@@ -322,8 +326,10 @@ Design contract (single source: `clock::format_uptime_tiered`):
 calendar-fixed elapsed units (1mo = 30d, 1y = 365d — uptime is a
 duration, not a calendar date); zero-padded non-leading units (width
 stability — the HUD box and its chroma border stay still between tier
-crossings); a 19-char value budget matching `HUD_MAX_WIDTH` (24) minus
-the ` up: ` prefix, with least-significant-unit degradation at
+crossings); a 19-char value budget (derived when HUD_MAX_WIDTH was 24 —
+the cap is 64 since NIGHT-hunter-20, but the ladder's mathematical max
+is 19 anyway, so the budget stays tight and the line compact) with
+least-significant-unit degradation at
 decade+ scale (`10y:11mo:28d:23h`) — mathematically guaranteed to fit
 even at `u64::MAX` seconds. Pause freeze still applies (paused time
 excluded; `up:` pins at its freeze-time value).

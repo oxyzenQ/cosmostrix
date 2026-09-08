@@ -155,7 +155,11 @@ impl HudState {
         //   ` tgt: 30 drain`  — HUNT-23 output drain backoff engaged: the
         //                      terminal's write latency exceeds the frame
         //                      budget, cadence scaled toward the drain rate
-        // Format chosen to be compact (≤14 chars) so HUD width stays ≤22.
+        // Format chosen to be compact (≤15 chars) so the tgt line never
+        // dominates the dynamic HUD width. (NIGHT-hunter-20 doc-drift
+        // fix: the old comment said "≤14 chars so HUD width stays ≤22" —
+        // the cap is 64 now, but the compactness goal still stands: the
+        // identity lines (scn/chr/clr), not tgt, are the width drivers.)
         let tgt_str = if self.target_fps >= 100.0 {
             format!("{:.0}", self.target_fps)
         } else {
