@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-22 (F1) — 9x startup config parse memoized; intro palette path divergence fixed
+
+The NIGHT-hunter-3 flow audit's wart F1: a normal startup re-read and
+re-parsed the config file 9 times (11 under --verbose) — and two of
+the nine sites had drifted onto DIFFERENT files, hiding a real defect.
+
+- New src/config/configfile_load.rs: the loader family (capped read +
+  /etc fallback) moved out of configfile.rs (800-LOC cap) with a
+  startup-parse memo keyed by resolved path — one disk read + one
+  parse for the whole startup; the live-reload watcher bypasses the
+  memo (mid-run edits unaffected); poisoned lock degrades to a fresh
+  parse.
+- Hidden bug fixed: the intro's custom palette loaded from the
+  DEFAULT config path while validation read `--config` — so
+  `cosmostrix --config custom.toml --intro-color <custom>` validated
+  fine, then silently fell back to the brand intro. The intro now
+  reads the ACTIVE config path (cfg.config_path_for_watcher) via the
+  extracted, testable `intro_custom_palette` helper — and hits the
+  same memo entry validation used.
+- Verification: 2543 tests pass (+4: three memo contract tests, one
+  intro palette path regression); PTY startup smoke on the real
+  binary (config + verbose + post-exit chain) green; 10s A/B pro
+  benches — monolith visual metrics identical to the third decimal,
+  cinematic inside the documented noise band. Full report:
+  docs/research/NIGHT_HUNTER_22_F1_CONFIG_PARSE.md.
+
 ### stability: NIGHT-hunter-22 — post-exit printer value-structs; the interactive family reaches zero suppressions
 
 The three remaining `too_many_arguments` suppressions (the post-exit

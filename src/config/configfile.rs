@@ -6,6 +6,13 @@
 //! Reads an explicit `--config <PATH>` file or the default
 //! `~/.config/cosmostrix/config.toml` (or `$XDG_CONFIG_HOME/cosmostrix/config.toml`).
 //!
+//! NIGHT-hunter-22: the LOADER family (path resolution + disk read +
+//! /etc fallback + the startup-parse memo) lives in the sibling
+//! `configfile_load.rs`; the two entry points are re-exported below so
+//! every historical `crate::configfile::load_config_file*` path keeps
+//! resolving. This module keeps the TEXT parser (line → key/value +
+//! diagnostics) and the path-resolution helpers.
+//!
 //! ## Philosophy
 //!
 //! The config file exposes daily-driver settings. It stays intentionally
@@ -27,6 +34,10 @@ use std::path::{Path, PathBuf};
 
 use crate::constants::{CONFIG_DIR_NAME, CONFIG_FILE_NAME};
 use crate::scene_custom::is_scene_custom_config_key;
+
+// Loader family re-export (NIGHT-hunter-22 extraction — see
+// configfile_load.rs for the memo that collapsed the 9x startup parse).
+pub(crate) use super::configfile_load::{load_config_file, load_config_file_full};
 
 pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
@@ -109,7 +120,7 @@ const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head
 /// See `src/engine/crystal_dragon_engine/ambient/mod.rs` and `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs`.
 const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
-#[derive(Debug, Default, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, PartialEq, Eq)]
 pub(crate) struct ParsedConfig {
     pub values: HashMap<String, String>,
     pub unknown_keys: Vec<String>,
@@ -125,71 +136,6 @@ pub(crate) struct ParsedConfig {
     /// un-prefixed form is a known top-level key it is re-homed so
     /// top-level keys and blocks coexist without TOML scope lessons.
     pub promoted_keys: Vec<(String, String)>,
-}
-
-/// Load config file and return a HashMap of key → value pairs.
-/// Returns empty HashMap if file doesn't exist or can't be read.
-/// Warns on stderr for unrecognized keys (likely typos).
-///
-/// Search order when no explicit path is given:
-/// 1. `$XDG_CONFIG_HOME/cosmostrix/config.toml` (or `~/.config/cosmostrix/config.toml`)
-/// 2. `/etc/cosmostrix/config.toml` (system-wide default, installed by AUR/package manager)
-///
-/// This means AUR users get a working default config out of the box —
-/// the package installs `/etc/cosmostrix/config.toml`, and cosmostrix
-/// reads it automatically if no user-level config exists.
-#[must_use]
-pub(crate) fn load_config_file(path_override: Option<&Path>) -> HashMap<String, String> {
-    load_config_file_full(path_override).values
-}
-
-/// Phase 5 closure (P4-8): load config file and return the FULL parse result
-/// (including `malformed_lines` and `unknown_keys` vectors).
-///
-/// `load_config_file` discards these vectors (it only returns `values`).
-/// Callers that need malformed/unknown detection (e.g. startup validation in
-/// `config_apply.rs`) previously had to re-read + re-parse the file from disk
-/// to recover them. This function eliminates the redundant disk read by
-/// returning the full `ParsedConfig` in one pass.
-///
-/// Most callers should use `load_config_file` (which returns just the values
-/// HashMap). Use this function only when you need the malformed/unknown vectors.
-#[must_use]
-pub(crate) fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfig {
-    let path = path_override
-        .map(Path::to_path_buf)
-        .unwrap_or_else(default_config_file_path);
-    // S-master-3-v2: size-capped read — an oversized (runaway/malicious)
-    // config in a whitelisted dir is treated as unreadable (defaults or
-    // /etc fallback apply) instead of an unbounded memory read.
-    let content = match crate::config_io::read_config_capped(&path) {
-        Ok(c) => c,
-        Err(_) => {
-            // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
-            if path_override.is_none() {
-                let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
-                if let Ok(sys_content) = crate::config_io::read_config_capped(&system_path) {
-                    sys_content
-                } else {
-                    return ParsedConfig {
-                        values: HashMap::new(),
-                        unknown_keys: Vec::new(),
-                        malformed_lines: Vec::new(),
-                        promoted_keys: Vec::new(),
-                    };
-                }
-            } else {
-                return ParsedConfig {
-                    values: HashMap::new(),
-                    unknown_keys: Vec::new(),
-                    malformed_lines: Vec::new(),
-                    promoted_keys: Vec::new(),
-                };
-            }
-        }
-    };
-
-    parse_config_text(&content)
 }
 
 #[must_use]

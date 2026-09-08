@@ -223,3 +223,135 @@ mod cases_v51_intro_brand_pause {
         );
     }
 }
+
+/// NIGHT-hunter-22 (wart F1): the intro's custom palette must load from
+/// the ACTIVE config path (cfg.config_path_for_watcher — resolved from
+/// --config), not the default path. The old `load_config_file(None)`
+/// diverged from config_apply's validation (which reads args.config):
+/// `--config custom.toml --intro-color <custom>` validated fine, then
+/// the intro silently fell back to the brand logo.
+mod cases_nh22_intro_palette_path {
+    use crate::interactive::event_loop_intro::intro_custom_palette;
+    use crate::CloudConfig;
+
+    /// Same baseline as `make_test_config()` above (test fixture, stable
+    /// — the repo's documented duplication idiom for test fixtures).
+    fn make_test_config() -> CloudConfig {
+        crate::CloudConfig {
+            color_mode: crate::runtime::ColorMode::TrueColor,
+            shading_mode: crate::runtime::ShadingMode::Random,
+            bold_mode: crate::runtime::BoldMode::Off,
+            async_mode: false,
+            default_bg: true,
+            color_scheme: crate::runtime::ColorScheme::NeonGreen,
+            custom_palette: None,
+            custom_palette_name: None,
+            rain_style: crate::rain_style::RainStyle::Glyph,
+            glitch_enabled: false,
+            glitch_level: crate::config::GlitchLevel::None,
+            glitch_pct: 0.0,
+            glitch_low: 0,
+            glitch_high: 0,
+            linger_low: 0,
+            linger_high: 0,
+            short_pct: 0.0,
+            die_early_pct: 0.0,
+            max_dpc: 1,
+            density: 0.8,
+            speed: 8.0,
+            monolith_size: crate::runtime::MonolithSize::Normal,
+            chars: vec!['0', '1'],
+            message: None,
+            message_border: false,
+            msg_fill_style: crate::msg_fill_style::MsgFillStyle::Typewriter,
+            target_fps: 60.0,
+            xtermjs_host: false,
+            default_fps_cap: 240.0,
+            duration: None,
+            duration_s: None,
+            bench_frames: None,
+            benchmark: false,
+            bench_duration: None,
+            save_baseline: None,
+            compare_baseline: None,
+            bench_io: false,
+            bench_all: false,
+            bench_scene: None,
+            screen_size: None,
+            color_tune: crate::color_tune::ColorTune::IDENTITY,
+            json: false,
+            verbose: false,
+            density_auto: false,
+            base_density: 0.8,
+            perf_stats: false,
+            screensaver: false,
+            intro: crate::intro_style::IntroType::None,
+            intro_color: None,
+            mouse: false,
+            charset_preset: String::from("binary"),
+            user_ranges: vec![],
+            def_ascii: true,
+            crystal_dragon: false,
+            power_dragon: true,
+            msg_mode: true,
+            effects_enabled: true,
+            config_path_for_watcher: None,
+            scene_name: "monolith".to_string(),
+            scene_custom_name: None,
+            scene_custom_config_owned: false,
+            cli_explicit: crate::app::CliExplicit::default(),
+            ambient_schedule: crate::crystal_dragon_engine::ambient::AmbientSchedule::default(),
+            ambient_snapback_secs: None,
+            crystal_dragon_secs: None,
+        }
+    }
+
+    /// Unique temp config path (config_apply_tests idiom — parallel-safe).
+    fn write_temp_config(content: &str) -> std::path::PathBuf {
+        use std::sync::atomic::{AtomicU64, Ordering};
+        static SEQ: AtomicU64 = AtomicU64::new(0);
+        let mut path = std::env::temp_dir();
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .expect("system clock after unix epoch")
+            .as_nanos();
+        let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+        path.push(format!(
+            "cosmostrix-intro-palette-{}-{nanos}-{seq}.toml",
+            std::process::id()
+        ));
+        std::fs::write(&path, content).expect("write temp config");
+        path
+    }
+
+    #[test]
+    fn intro_custom_palette_reads_active_config_path() {
+        // 1. A palette defined in the active config MUST load — this is
+        //    the exact `--config custom.toml --intro-color introfix`
+        //    scenario that previously fell back to the brand intro.
+        let with_palette =
+            write_temp_config("[colors-custom.introfix]\nrain = \"#000000, #ffffff\"\n");
+        let mut cfg = make_test_config();
+        cfg.config_path_for_watcher = Some(with_palette.clone());
+        cfg.intro_color = Some("introfix".to_string());
+        let palette = intro_custom_palette(&cfg)
+            .expect("the intro palette must load from the ACTIVE config path");
+        assert!(
+            !palette.colors.is_empty(),
+            "fixture sanity: two CSV stops expand to palette samples"
+        );
+
+        // 2. The same config pointing at a file WITHOUT the palette must
+        //    fail (the documented case-4 brand fallback) — proving the
+        //    loader reads the GIVEN path, not the default path.
+        let without_palette = write_temp_config("");
+        cfg.config_path_for_watcher = Some(without_palette.clone());
+        assert!(
+            intro_custom_palette(&cfg).is_err(),
+            "no palette in the active config must be a load error"
+        );
+
+        let _ = std::fs::remove_file(&with_palette);
+        let _ = std::fs::remove_file(&without_palette);
+    }
+}

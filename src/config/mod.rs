@@ -6,14 +6,12 @@
 //! cosmostrix follows a curated simplicity philosophy:
 //! - `--help` prints the full curated reference manual (single-tier help)
 //! - `--glitch-level` provides a grouped interface over individual tuning knobs
-//! - Advanced parameters remain fully functional but are intentionally hidden
-//!   from the casual user.
+//! - Advanced parameters remain functional but hidden from the casual user.
 
-// Submodule declarations: all config.rs / live_config.rs / test dirs
-// live as siblings under src/config/, re-exported `pub` so main.rs's
+// Submodule declarations: config.rs / live_config.rs / test dirs are
+// siblings under src/config/, re-exported `pub` so main.rs's
 // `pub(crate) use config::*;` keeps the existing call sites working.
-// ORDER MATTERS: live_config_trace must be declared before live_config
-// so `lr_trace!` is in scope (#[macro_use] is defense-in-depth).
+// ORDER MATTERS: live_config_trace precedes live_config (lr_trace! scope).
 pub mod config_apply;
 #[cfg(test)]
 #[path = "../../test/config/config_apply_tests/mod.rs"]
@@ -21,6 +19,8 @@ pub mod config_apply_tests;
 pub mod config_hints;
 pub mod config_io;
 pub mod configfile;
+// NIGHT-hunter-22 (wart F1): loader + startup-parse memo (configfile re-export).
+pub mod configfile_load;
 #[cfg(test)]
 #[path = "../../test/config/configfile_tests/mod.rs"]
 pub mod configfile_tests;

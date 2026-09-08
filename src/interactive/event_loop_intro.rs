@@ -140,6 +140,23 @@ pub(super) fn brand_intro_cloud(cfg: &CloudConfig, density: f32) -> Cloud {
     intro_cloud
 }
 
+/// Load the custom palette for the intro from the ACTIVE config path.
+///
+/// NIGHT-hunter-22 (wart F1): the palette must come from the same file
+/// the startup validation read (`cfg.config_path_for_watcher` — the
+/// path resolved from `--config` at build time), NOT the default
+/// path. The previous `load_config_file(None)` diverged from
+/// `config_apply`'s validation (which reads `args.config`): with
+/// `--config custom.toml` + `--intro-color <custom>`, validation
+/// passed but this re-read found no palette in the DEFAULT file and
+/// silently fell back to the brand intro. With the startup-parse
+/// memo this also reuses the SAME parse (zero extra disk reads).
+pub(super) fn intro_custom_palette(cfg: &CloudConfig) -> Result<crate::palette::Palette, String> {
+    let name = cfg.intro_color.as_deref().unwrap_or_default();
+    let cfg_map = crate::configfile::load_config_file(cfg.config_path_for_watcher.as_deref());
+    crate::colors_custom::load_custom_palette(&cfg_map, name)
+}
+
 /// Resolve `cfg.intro_color` and run the intro animation.
 ///
 /// Per the priority chain:
@@ -182,9 +199,7 @@ fn run_intro_with_color_resolution(
             crate::intro_style::run_intro(term, frame, &intro_cloud, w, h, cfg.intro, logo_color)
         }
         IntroPaletteSource::Custom => {
-            let name = cfg.intro_color.as_deref().unwrap_or_default();
-            let cfg_map = crate::configfile::load_config_file(None);
-            match crate::colors_custom::load_custom_palette(&cfg_map, name) {
+            match intro_custom_palette(cfg) {
                 Ok(palette) => {
                     let mut intro_cloud = cfg.create_cloud(density);
                     intro_cloud.palette = palette;

@@ -549,3 +549,71 @@ fn extract_template_fingerprint_only_scans_first_6_lines() {
         "should not find fingerprint beyond first 6 lines"
     );
 }
+
+// ── NIGHT-hunter-22: startup-parse memo (configfile_load.rs) ──────────────
+
+/// Unique temp config path (the config_apply_tests idiom — parallel-safe:
+/// pid + nanos + per-test-process counter).
+fn unique_temp_config(content: &str) -> PathBuf {
+    use std::sync::atomic::{AtomicU64, Ordering};
+    static SEQ: AtomicU64 = AtomicU64::new(0);
+    let mut path = std::env::temp_dir();
+    let nanos = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .expect("system clock after unix epoch")
+        .as_nanos();
+    let seq = SEQ.fetch_add(1, Ordering::Relaxed);
+    path.push(format!(
+        "cosmostrix-configfile-memo-{}-{nanos}-{seq}.toml",
+        std::process::id()
+    ));
+    std::fs::write(&path, content).expect("write temp config");
+    path
+}
+
+#[test]
+fn startup_memo_serves_one_coherent_parse_per_path() {
+    // The config file is stable for the whole startup window; a second
+    // load (even after an on-disk rewrite between the calls) must serve
+    // the FIRST coherent parse. Mid-run edits flow through the
+    // live-reload watcher, never back through the startup loader.
+    let path = unique_temp_config("color = green\nspeed = 8\n");
+    let first = load_config_file(Some(path.as_path()));
+    // Rewrite the file on disk between the two loads.
+    std::fs::write(&path, "color = red\nspeed = 1\n").expect("rewrite temp config");
+    let second = load_config_file(Some(path.as_path()));
+    assert_eq!(first, second, "the memo must serve the startup parse");
+    assert_eq!(first.get("color").map(String::as_str), Some("green"));
+    let _ = std::fs::remove_file(&path);
+}
+
+#[test]
+fn startup_memo_is_keyed_by_path() {
+    // Two different --config overrides never alias through the memo.
+    let path_a = unique_temp_config("color = green\n");
+    let path_b = unique_temp_config("color = ocean\n");
+    let a = load_config_file(Some(path_a.as_path()));
+    let b = load_config_file(Some(path_b.as_path()));
+    assert_eq!(a.get("color").map(String::as_str), Some("green"));
+    assert_eq!(b.get("color").map(String::as_str), Some("ocean"));
+    // First path still serves its own parse after the other path loaded.
+    let a_again = load_config_file(Some(path_a.as_path()));
+    assert_eq!(a_again.get("color").map(String::as_str), Some("green"));
+    let _ = std::fs::remove_file(&path_a);
+    let _ = std::fs::remove_file(&path_b);
+}
+
+#[test]
+fn startup_memo_carries_full_diagnostics() {
+    // load_config_file_full through the memo: the diagnostics vectors
+    // (malformed lines) are part of the same coherent snapshot.
+    let path = unique_temp_config("color = green\nnot a toml line\n");
+    let parsed = load_config_file_full(Some(path.as_path()));
+    assert!(parsed
+        .malformed_lines
+        .contains(&"not a toml line".to_string()));
+    // The memo hit returns the SAME diagnostics.
+    let again = load_config_file_full(Some(path.as_path()));
+    assert_eq!(parsed, again);
+    let _ = std::fs::remove_file(&path);
+}
