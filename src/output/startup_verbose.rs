@@ -11,34 +11,95 @@
 use crate::config::Args;
 use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn run_verbose_startup(
-    args: &Args,
-    rain_style: crate::rain_style::RainStyle,
-    color_scheme: ColorScheme,
-    color_mode: ColorMode,
-    color_tune: crate::color_tune::ColorTune,
-    #[allow(unused_variables)] custom_palette: &Option<crate::palette::Palette>,
-    custom_palette_name: &Option<String>,
-    custom_palette_bg: Option<crossterm::style::Color>,
-    charset_preset: &str,
-    chars: &[char],
-    target_fps: f64,
-    fps_precedence: &'static str,
-    speed: f32,
-    base_density: f32,
-    density_auto: bool,
-    effective_async: bool,
-    bold_mode: BoldMode,
-    shading_mode: ShadingMode,
-    glitch_pct: f32,
-    glitch_low: u16,
-    glitch_high: u16,
-    screen_size: Option<(u16, u16)>,
-    bench_mode: bool,
-    cli_explicit_color: bool,
-    default_message_text: &str,
-) {
+/// Inputs collected in `main()` for the `--verbose` pre-launch dump.
+///
+/// NIGHT-hunter-25: the 25-positional-parameter signature is bundled
+/// into one value object (the same pattern as hunter-22's
+/// `CfgInputs`) — the printer reads named fields and the single call
+/// site in main.rs constructs them by name, so same-typed neighbors
+/// (two f32 densities, three u16 glitch bounds, fps/speed pairs) can
+/// no longer cross-wire. The dead `custom_palette` param (never read
+/// by the body — its `allow(unused_variables)` was the band-aid) is
+/// dropped outright: the dump prints the palette NAME and BG, both
+/// still carried here.
+pub(crate) struct VerboseInputs<'a> {
+    /// CLI args (scene/intro/config path/fps precedence source).
+    pub args: &'a Args,
+    /// Resolved rain style.
+    pub rain_style: crate::rain_style::RainStyle,
+    /// Resolved color scheme.
+    pub color_scheme: ColorScheme,
+    /// Resolved color mode.
+    pub color_mode: ColorMode,
+    /// Resolved color tune.
+    pub color_tune: crate::color_tune::ColorTune,
+    /// Active custom palette NAME (None when a builtin scheme runs).
+    pub custom_palette_name: &'a Option<String>,
+    /// Active custom palette BG color (None = terminal default).
+    pub custom_palette_bg: Option<crossterm::style::Color>,
+    /// Resolved charset preset label.
+    pub charset_preset: &'a str,
+    /// Resolved charset glyphs.
+    pub chars: &'a [char],
+    /// Target FPS.
+    pub target_fps: f64,
+    /// Which source won the FPS resolution.
+    pub fps_precedence: &'static str,
+    /// Rain speed.
+    pub speed: f32,
+    /// Base density.
+    pub base_density: f32,
+    /// Whether density auto-adjusted from terminal size.
+    pub density_auto: bool,
+    /// Effective async mode.
+    pub effective_async: bool,
+    /// Bold mode.
+    pub bold_mode: BoldMode,
+    /// Shading mode.
+    pub shading_mode: ShadingMode,
+    /// Glitch percentage.
+    pub glitch_pct: f32,
+    /// Glitch low bound.
+    pub glitch_low: u16,
+    /// Glitch high bound.
+    pub glitch_high: u16,
+    /// Parsed --screen-size (validated once in main).
+    pub screen_size: Option<(u16, u16)>,
+    /// Bench mode flag.
+    pub bench_mode: bool,
+    /// Whether the color came from an explicit CLI flag.
+    pub cli_explicit_color: bool,
+    /// Default message text.
+    pub default_message_text: &'a str,
+}
+
+pub(crate) fn run_verbose_startup(vi: VerboseInputs<'_>) {
+    let VerboseInputs {
+        args,
+        rain_style,
+        color_scheme,
+        color_mode,
+        color_tune,
+        custom_palette_name,
+        custom_palette_bg,
+        charset_preset,
+        chars,
+        target_fps,
+        fps_precedence,
+        speed,
+        base_density,
+        density_auto,
+        effective_async,
+        bold_mode,
+        shading_mode,
+        glitch_pct,
+        glitch_low,
+        glitch_high,
+        screen_size,
+        bench_mode,
+        cli_explicit_color,
+        default_message_text,
+    } = vi;
     // Resolve the intro type label for verbose output. Mirrors the
     // resolution in CloudConfig below: CLI --intro wins, else default
     // Logo. We emit the lowercase value-enum name to match the

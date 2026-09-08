@@ -16,7 +16,7 @@
 use std::sync::atomic::Ordering;
 use std::time::{Duration, Instant};
 
-use crate::bench_helpers::format_backpressure_section;
+use crate::bench_helpers::{format_backpressure_section, BackpressureStats};
 use crate::cloud::Cloud;
 use crate::constants::*;
 use crate::humanize::{humanize, humanize_bytes, humanize_bytes_f64, humanize_throughput};
@@ -339,19 +339,22 @@ fn print_perf_report(
         // avg_frame_period_ms = elapsed/frames (the FULL period: work +
         // sleep + event polling) — bridges the pressure-vs-utilization gap
         // (audit 2026-08-23).
+        // NIGHT-hunter-25: named-field construction (was 11 positionals).
         format_backpressure_section(
             &mut r,
-            avg_pressure,
-            stats.perf_pressure_max,
-            stats.perf_utilization_sum,
-            stats.perf_utilization_max,
-            stats.perf_frames,
-            Duration::from_secs_f64(1.0 / stats.power_manager_base_target_fps),
-            avg_work_ms,
-            pressure_class,
-            stats.perf_overshoot_frames,
-            overshoot_ratio,
-            (elapsed_s / frames.max(1) as f64) * 1000.0,
+            &BackpressureStats {
+                avg_pressure,
+                peak_pressure: stats.perf_pressure_max,
+                utilization_sum: stats.perf_utilization_sum,
+                utilization_max: stats.perf_utilization_max,
+                frames: stats.perf_frames,
+                target_period: Duration::from_secs_f64(1.0 / stats.power_manager_base_target_fps),
+                avg_work_ms,
+                pressure_class,
+                overshoot_frames: stats.perf_overshoot_frames,
+                overshoot_ratio,
+                avg_frame_period_ms: (elapsed_s / frames.max(1) as f64) * 1000.0,
+            },
         );
     }
 

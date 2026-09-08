@@ -83,31 +83,69 @@ pub(crate) fn bench_warmup_secs() -> u64 {
 /// exit report. Extracted from `event_loop.rs` to keep that file under the
 /// 800-LOC project cap.
 ///
-/// Emits two metric families:
+/// Backpressure section inputs — the load-shed and budget numbers the
+/// section prints.
+///
+/// Two measurement families, deliberately kept side by side:
 ///
 /// 1. `avg` / `peak` — the legacy load-shed signal `clamp(work/budget - 1, 0, 2)`.
 ///    Non-zero ONLY when the renderer can't keep up with `--fps`. On healthy
 ///    hardware this stays at 0.000 by design.
 ///
-/// 2. `budget_utilization_avg` / `budget_utilization_peak` / `budget_headroom_avg`
+/// 2. `budget_utilization` (`utilization_sum`/`utilization_max`)
 ///    — the companion metric that is ALWAYS non-zero (work_s / target_period).
 ///    This is what makes the section informative even when backpressure is 0:
 ///    the user sees how much of the frame budget the renderer is consuming.
-#[allow(clippy::too_many_arguments)] // one-off report formatter, struct would be overkill
+///
+/// NIGHT-hunter-25: the 11-positional-parameter formatter signature (with
+/// same-typed f64/f32 neighbors — avg vs utilization_sum, peak vs
+/// utilization_max — that could silently cross-wire) is bundled into one
+/// value object, the same pattern as hunter-22's SessionState. The old
+/// "struct would be overkill" note predates the 11th parameter
+/// (avg_frame_period_ms, audit 2026-08-23).
+pub(crate) struct BackpressureStats<'a> {
+    /// Load-shed pressure average (0.0 on healthy hardware).
+    pub avg_pressure: f64,
+    /// Load-shed pressure peak.
+    pub peak_pressure: f32,
+    /// Sum of per-frame budget utilization (divide by `frames` for avg).
+    pub utilization_sum: f64,
+    /// Peak per-frame budget utilization.
+    pub utilization_max: f32,
+    /// Total frames in the measurement window.
+    pub frames: u64,
+    /// Target frame period (1 / target_fps).
+    pub target_period: std::time::Duration,
+    /// Average renderer work per frame, in milliseconds.
+    pub avg_work_ms: f64,
+    /// Pressure classification label ("low"/"medium"/"high").
+    pub pressure_class: &'a str,
+    /// Frames whose period exceeded the target.
+    pub overshoot_frames: u64,
+    /// Overshoot frames as a percentage of total.
+    pub overshoot_ratio: f64,
+    /// Average FULL frame period (work + sleep + event polling), in ms.
+    pub avg_frame_period_ms: f64,
+}
+
+/// Emit the BACKPRESSURE section of the performance report.
 pub(crate) fn format_backpressure_section(
     r: &mut crate::report::Report,
-    avg_pressure: f64,
-    peak_pressure: f32,
-    utilization_sum: f64,
-    utilization_max: f32,
-    frames: u64,
-    target_period: std::time::Duration,
-    avg_work_ms: f64,
-    pressure_class: &str,
-    overshoot_frames: u64,
-    overshoot_ratio: f64,
-    avg_frame_period_ms: f64,
+    stats: &BackpressureStats<'_>,
 ) {
+    let BackpressureStats {
+        avg_pressure,
+        peak_pressure,
+        utilization_sum,
+        utilization_max,
+        frames,
+        target_period,
+        avg_work_ms,
+        pressure_class,
+        overshoot_frames,
+        overshoot_ratio,
+        avg_frame_period_ms,
+    } = *stats;
     let s = r.section("BACKPRESSURE");
     // Audit 2026-08-23: the section previously looked self-contradictory —
     // "classification: high" next to "budget_utilization_avg: 5.67%".
@@ -307,6 +345,7 @@ pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
 mod tests {
     use super::format_backpressure_section;
     use super::resolve_bench_duration;
+    use super::BackpressureStats;
     use super::BENCHMARK_DURATION_SECS;
     use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
     use crate::bench_report::ACTIVE_FRAME_RATIO_MEANING;
@@ -324,23 +363,27 @@ mod tests {
         // per frame, well under the 16.67ms budget). Verify the function
         // runs without panic and accepts the healthy-hardware signal
         // pattern (zero backpressure, non-zero utilization).
+        // NIGHT-hunter-25: the fixture constructs named fields — the
+        // same-typed positional neighbors can no longer cross-wire.
         let mut r = Report::new("TEST");
         let frames = 600u64;
         let utilization_per_frame = 0.074 / (1000.0 * (1.0 / 60.0)); // 0.00444
         let utilization_sum = utilization_per_frame * frames as f64;
         format_backpressure_section(
             &mut r,
-            0.0,                          // avg_pressure (0 on healthy hw)
-            0.0,                          // peak_pressure
-            utilization_sum,              // sum of utilization across frames
-            utilization_per_frame as f32, // max utilization
-            frames,
-            Duration::from_secs_f64(1.0 / 60.0),
-            0.074, // avg_work_ms
-            "low",
-            0,
-            0.0,
-            16.667, // avg_frame_period_ms (healthy: ~= target)
+            &BackpressureStats {
+                avg_pressure: 0.0, // 0 on healthy hw
+                peak_pressure: 0.0,
+                utilization_sum,
+                utilization_max: utilization_per_frame as f32,
+                frames,
+                target_period: Duration::from_secs_f64(1.0 / 60.0),
+                avg_work_ms: 0.074,
+                pressure_class: "low",
+                overshoot_frames: 0,
+                overshoot_ratio: 0.0,
+                avg_frame_period_ms: 16.667, // healthy: ~= target
+            },
         );
         // Smoke test: function completed without panic. The actual output
         // format is verified by the existing perf-stats integration test

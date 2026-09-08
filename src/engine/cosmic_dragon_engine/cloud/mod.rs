@@ -465,7 +465,6 @@ pub struct Cloud {
 }
 
 impl Cloud {
-    #[allow(clippy::too_many_arguments)]
     pub fn new(
         color_mode: ColorMode,
         shading_mode: ShadingMode,

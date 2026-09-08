@@ -9,6 +9,41 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-25 — the too_many_arguments census, part 1: four stale allows deleted, two cold-path signatures bundled
+
+- Census audit: of the 12 remaining `#[allow(clippy::too_many_arguments)]`
+  suppressions, FOUR were already dead (clippy -D warnings passes with
+  them deleted): `evaluate_triggers` dropped to 6 args in the v30
+  dragon-egg hunt but kept its allow; `CfgInputs` carries one on a
+  STRUCT declaration (the lint never fires on structs — a leftover
+  from the pre-refactor function it replaced) while `build_cloud_cfg`
+  itself now takes one parameter; `Cloud::new` sits at exactly 7 (the
+  lint fires above 7). Stale allows are their own defect class: they
+  advertise signature debt that no longer exists and silently mask
+  future parameter growth.
+- Cold-path refactor: `run_verbose_startup` (25 positional parameters,
+  same-typed neighbor hazards — two f32 densities, three u16 glitch
+  bounds) bundled into `VerboseInputs<'a>` (the CfgInputs pattern).
+  En route the dead `custom_palette` param — never read by the body,
+  `allow(unused_variables)` band-aid — is dropped; the dump prints
+  the palette NAME and BG, both still carried.
+- Cold-path refactor: `format_backpressure_section` (11 positionals
+  with cross-wirable f64/f32 pairs) bundled into
+  `BackpressureStats<'a>`; both call sites construct named fields.
+  The old "struct would be overkill" comment predated the 11th
+  parameter.
+- 2561 tests pass (pure signature refactor, no count change);
+  check-all -q exit 0; gate-keepers 10/10; main.rs trimmed to 799 LOC
+  after the named-field construction (same precedent as hunter-23).
+  PTY smoke: `--verbose` and `--perf-stats` both render through the
+  new structs, exit 0. A/B 10 s benches: performance-neutral (after
+  side measured faster — noise; the bench loop executes none of the
+  changed code).
+- Remaining census (6, all hot per-frame paths, next hunt): shaders
+  `resolve_cell_color` + render `get_attr` (one bundle design fixes
+  both), solar `draw_solar_cell`, intro `render_particle_cell`,
+  `post_rain_processing`, bench `emit_cell_lean`.
+
 ### stability: NIGHT-hunter-24 — the colors-custom load contract now enforced by every validation surface (hidden split-verdict defect)
 
 The `--testconf`/validation-layer sweep (the F-23-1 drift species'

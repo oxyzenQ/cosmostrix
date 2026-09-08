@@ -660,41 +660,40 @@ fn main() -> std::io::Result<()> {
     ));
 
     // ── Verbose output (before CloudConfig moves values) ──
-    // v50.0.0-beta.7 LOC refactor: CliExplicit construction extracted to
-    // cli/cli_explicit.rs.
     let (cli_explicit_color, cli_explicit) = crate::cli::cli_explicit::build_cli_explicit(&matches);
     if args.verbose {
+        // NIGHT-hunter-25: named-field construction (was 25 positionals;
+        // the dead custom_palette arg is not passed at all anymore).
         crate::output::startup_verbose::run_verbose_startup(
-            &args,
-            rain_style,
-            color_scheme,
-            color_mode,
-            color_tune,
-            &custom_palette,
-            &custom_palette_name,
-            custom_palette.as_ref().and_then(|p| p.bg),
-            &charset_preset,
-            &chars,
-            target_fps,
-            fps_precedence,
-            speed,
-            base_density,
-            density_auto,
-            effective_async,
-            bold_mode,
-            shading_mode,
-            glitch_pct,
-            glitch_low,
-            glitch_high,
-            screen_size,
-            bench_mode,
-            cli_explicit_color,
-            &default_message_text(),
+            crate::output::startup_verbose::VerboseInputs {
+                args: &args,
+                rain_style,
+                color_scheme,
+                color_mode,
+                color_tune,
+                custom_palette_name: &custom_palette_name,
+                custom_palette_bg: custom_palette.as_ref().and_then(|p| p.bg),
+                charset_preset: &charset_preset,
+                chars: &chars,
+                target_fps,
+                fps_precedence,
+                speed,
+                base_density,
+                density_auto,
+                effective_async,
+                bold_mode,
+                shading_mode,
+                glitch_pct,
+                glitch_low,
+                glitch_high,
+                screen_size,
+                bench_mode,
+                cli_explicit_color,
+                default_message_text: &default_message_text(),
+            },
         );
     }
     // CliExplicit is Copy — field copy after CloudConfig move (avoids E0382).
-    // v50.0.0-beta.7 LOC refactor: CloudConfig construction extracted to
-    // cli/build_cloud_cfg.rs.
     let cloud_cfg =
         crate::cli::build_cloud_cfg::build_cloud_cfg(crate::cli::build_cloud_cfg::CfgInputs {
             args: &args,

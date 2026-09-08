@@ -21,7 +21,6 @@ use crate::runtime::{BoldMode, ColorMode, ColorScheme, ShadingMode};
 use crate::types::constants::{default_message_text, MESSAGE_MAX_LEN};
 
 /// Inputs collected from CLI arg validation in `main()`.
-#[allow(clippy::too_many_arguments, clippy::missing_docs_in_private_items)]
 pub(crate) struct CfgInputs<'a> {
     pub args: &'a Args,
     pub color_mode: ColorMode,
@@ -58,7 +57,6 @@ pub(crate) struct CfgInputs<'a> {
 }
 
 /// Build the final `CloudConfig` from validated inputs.
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
     // Note: `args` is `&Args` (immutable). The original main.rs used
     // `args.intro_color.take()` which mutates args. Since this function

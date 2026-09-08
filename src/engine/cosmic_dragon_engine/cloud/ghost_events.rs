@@ -169,7 +169,6 @@ impl GhostEventScheduler {
     /// `anomaly_density`, `palette_color`) that were computed by the
     /// caller every frame just to be passed in here and then ignored.
     /// The remaining parameters are all read by the trigger logic.
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn evaluate_triggers(
         &mut self,
         perf_pressure: f32,
