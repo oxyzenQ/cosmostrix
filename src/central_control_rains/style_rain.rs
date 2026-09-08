@@ -1594,254 +1594,332 @@ const _: () = assert!(AEOLIAN_HOP_FAST / 60.0 < 1.0);
 // center cell of 2 x PLUCK_GAIN — that must sprint from birth.
 const _: () = assert!(AEOLIAN_URGENCY_SWITCH < 2.0 * AEOLIAN_PLUCK_GAIN);
 
-// ── Aurora veil (NIGHT-special-3, the tenth style) ─────────────────────
-// The second invented system, born in this repo (the NIGHT-special-2
+// ── Solar flare corona (NIGHT-special-4, the tenth style) ──────────────
+// The third invented system, born in this repo (the NIGHT-special-2
 // directive carried forward: motion DNA with no existing
 // mathematical reference — original derivation, the LEAP-engine
-// spirit). The complete derivation and the five laws of the polar
-// veil live in type_rain/aurora/mod.rs; the constants here are the
+// spirit). The complete derivation and the five laws of the corona
+// live in type_rain/solar_flare/mod.rs; the constants here are the
 // shipped calibration.
 
-// The ray lattice (law 1).
+// The magnetic carpet (law 1).
 
-/// Ray-bead lattice spacing: one bead (one curtain) per this many
-/// columns of viewport width. 6 keeps the veil airy — a curtain, a
-/// gap, a curtain — while still reading as one connected sky.
-pub(crate) const AURORA_RAY_SPACING_COLS: u16 = 6;
+/// Loop arcade spacing: one coronal loop per this many columns of
+/// viewport width. 10 keeps the arcade airy — an arc, a gap, an
+/// arc — while the loops still read as one connected corona.
+pub(crate) const SOLAR_LOOP_SPACING_COLS: u16 = 10;
 
-/// Hard cap on the bead count (beyond 24 curtains the repulsion pass
-/// and the draw budget stop scaling; a 200-column terminal already
-/// saturates the sky).
-pub(crate) const AURORA_RAY_MAX: usize = 24;
+/// Hard cap on the loop count (beyond 8 arcs the repulsion pass and
+/// the draw budget stop scaling; a 200-column terminal already
+/// saturates the corona).
+pub(crate) const SOLAR_LOOP_MAX: usize = 8;
 
-/// Wind span: the global drift target re-rolls within
-/// plus-or-minus this many columns per sim-second. 0.85 is a slow
-/// advect — the whole veil crosses the screen in tens of seconds,
-/// the majestic read.
-pub(crate) const AURORA_WIND_SPAN: f32 = 0.85;
+/// Minimum footpoint span in columns (an arc narrower than 8 cells
+/// stops reading as a loop and starts reading as a dash).
+pub(crate) const SOLAR_W_MIN: f32 = 8.0;
 
-/// Wind relaxation rate: the actual wind eases toward its target at
-/// this rate per sim-second (the target itself re-rolls every
-/// WIND_HOLD_MEAN-ish seconds — the direction never snaps).
-pub(crate) const AURORA_WIND_RELAX: f32 = 0.5;
+/// Maximum footpoint span as a fraction of viewport width (0.30 —
+/// a loop wider than a third of the screen dwarfs its neighbors).
+pub(crate) const SOLAR_W_MAX_FRAC: f32 = 0.30;
 
-/// Mean wind hold: average sim-seconds between wind target
+/// Width breath glide rate: the span eases toward its anchor at
+/// this rate per sim-second (an anchor resolve reads as the loop
+/// slowly fattening or slimming, never snapping).
+pub(crate) const SOLAR_W_RELAX: f32 = 0.8;
+
+/// Mean breath dwell: average sim-seconds a loop holds its span and
+/// height anchors before re-rolling (rolled with 0.5x-1.5x variance
+/// — the breaths never march in rhythm).
+pub(crate) const SOLAR_W_DWELL_MEAN: f32 = 9.0;
+
+/// Minimum apex height in lines (a flatter arc stops reading as a
+/// coronal loop).
+pub(crate) const SOLAR_H_MIN: f32 = 3.0;
+
+/// Quiet apex height band (fractions of the usable height above the
+/// surface): Stable loops breathe between these.
+pub(crate) const SOLAR_ARC_MIN_FRAC: f32 = 0.16;
+pub(crate) const SOLAR_ARC_MAX_FRAC: f32 = 0.52;
+
+/// Hard height cap (fraction of the usable height): the stretched
+/// erupting arc never leaves the sky.
+pub(crate) const SOLAR_H_CAP_FRAC: f32 = 0.78;
+
+/// Height glide rate per sim-second (emergence grows over ~1 s; the
+/// eruption stretch resolves over ~1 s — visible, never a snap).
+pub(crate) const SOLAR_H_RELAX: f32 = 1.4;
+
+/// Wind span: the global arcade drift target re-rolls within
+/// plus-or-minus this many columns per sim-second. 0.5 is a slow
+/// advect — the whole corona crosses the screen in tens of seconds,
+/// the majestic differential-rotation read.
+pub(crate) const SOLAR_WIND_SPAN: f32 = 0.5;
+
+/// Wind relaxation rate per sim-second (the drift direction never
+/// snaps — it eases).
+pub(crate) const SOLAR_WIND_RELAX: f32 = 0.5;
+
+/// Mean wind hold: average sim-seconds between drift target
 /// re-rolls (rolled with 0.6x-1.4x variance — no rhythmic gusting).
-pub(crate) const AURORA_WIND_HOLD_MEAN: f32 = 7.0;
+pub(crate) const SOLAR_WIND_HOLD_MEAN: f32 = 8.0;
 
-/// Wind coupling: each bead's velocity relaxes toward the global
-/// wind at this rate per sim-second (repulsion rides on top as the
-/// local correction).
-pub(crate) const AURORA_WIND_COUPLE: f32 = 0.9;
+/// Wind coupling: each loop's drift relaxes toward the global wind
+/// at this rate per sim-second (repulsion rides on top as the local
+/// correction; erupting/detaching loops decouple — they are leaving
+/// the carpet and hold their momentum).
+pub(crate) const SOLAR_WIND_COUPLE: f32 = 0.8;
 
-/// Flux-tube repulsion gain: adjacent bead pairs push apart with
-/// GAIN / floored-gap (columns per sim-second squared). 9.0 with the
-/// 6-column spacing holds the equilibrium coverage without packing
-/// the walls.
-pub(crate) const AURORA_REPULSION: f32 = 9.0;
+/// Footpoint repulsion gain: facing feet of adjacent loops push
+/// apart with GAIN / floored-gap (columns per sim-second squared).
+/// 7.0 with the 10-column spacing holds the equilibrium coverage
+/// without packing the walls.
+pub(crate) const SOLAR_REPULSION: f32 = 7.0;
 
-/// Repulsion gap floor: the smallest gap the inverse-gap force
-/// sees (prevents the singularity when two beads collide).
-pub(crate) const AURORA_GAP_FLOOR: f32 = 2.0;
+/// Repulsion gap floor: the smallest gap the inverse-gap force sees
+/// (prevents the singularity when two footpoints collide).
+pub(crate) const SOLAR_GAP_FLOOR: f32 = 3.0;
 
-/// Bead velocity clamp (columns per sim-second) — the lattice's
-/// hard speed bound (law 1).
-pub(crate) const AURORA_VX_MAX: f32 = 3.2;
+/// Loop drift clamp (columns per sim-second) — the carpet's hard
+/// speed bound (law 1).
+pub(crate) const SOLAR_DRIFT_MAX: f32 = 2.0;
 
-/// Wall bounce damping: a bead hitting a screen edge keeps this
-/// fraction of its speed, reversed. 0.55 reads as a soft deflect,
-/// not a mirror.
-pub(crate) const AURORA_WALL_DAMP: f32 = 0.55;
+/// Wall bounce damping: a loop's feet hitting a screen edge keep
+/// this fraction of the drift, reversed. 0.55 reads as a soft
+/// deflect, not a mirror.
+pub(crate) const SOLAR_WALL_DAMP: f32 = 0.55;
 
-// The substorm breath (law 2).
+/// Emergence duration: a fresh arc grows out of the photosphere
+/// over this many sim-seconds (flux emergence).
+pub(crate) const SOLAR_EMERGE_SECS: f32 = 1.2;
 
-/// Minimum emission depth in lines (a curtain never collapses
-/// below a stubby fringe).
-pub(crate) const AURORA_DEPTH_MIN: f32 = 3.0;
+/// Eruption duration: the flare stretch lasts this many sim-seconds
+/// before the lift-off.
+pub(crate) const SOLAR_ERUPT_SECS: f32 = 1.4;
 
-/// LOW band start: fraction of the viewport height (LOW curtains
-/// hang at 0.24-0.34 — the shallow layer).
-pub(crate) const AURORA_DEPTH_LOW_FRAC: f32 = 0.24;
+/// Detach duration: the lifted arc rises and dissolves over this
+/// many sim-seconds.
+pub(crate) const SOLAR_DETACH_SECS: f32 = 1.8;
 
-/// LOW band width (as a fraction of viewport height).
-pub(crate) const AURORA_DEPTH_LOW_SPAN: f32 = 0.10;
+/// Detach lift rate (lines per sim-second): the translating arc's
+/// rise speed during the lift-off.
+pub(crate) const SOLAR_DETACH_LIFT_RATE: f32 = 6.0;
 
-/// HIGH band start: fraction of the viewport height (HIGH curtains
-/// hang at 0.46-0.60 — the deep layer). Disjoint from LOW by
-/// construction: the veil reads as two distinct altitudes.
-pub(crate) const AURORA_DEPTH_HIGH_FRAC: f32 = 0.46;
+/// Eruption stretch factor: the erupting apex target grows to this
+/// multiple of the loop's natural height (the star throws its loop
+/// tall before it tears free).
+pub(crate) const SOLAR_STRETCH: f32 = 1.9;
 
-/// HIGH band width (as a fraction of viewport height).
-pub(crate) const AURORA_DEPTH_HIGH_SPAN: f32 = 0.14;
+// The footpoint deposition (law 3).
 
-/// Depth glide rate: the depth eases toward its anchor at this rate
-/// per sim-second (an anchor flip resolves over ~1 s — the curtain
-/// visibly descends or retreats, never snaps).
-pub(crate) const AURORA_DEPTH_RELAX: f32 = 1.3;
+/// Flux decay rate per sim-second: the corona cools at exp(-rate x
+/// dt). 0.38 keeps a fed loop hot for a few seconds after its last
+/// landing.
+pub(crate) const SOLAR_FLUX_DECAY: f32 = 0.38;
 
-/// Mean anchor dwell: average sim-seconds a bead rests on its
-/// current band before flipping to the other (rolled with
-/// 0.5x-1.5x variance — the substorm onsets never march in
-/// rhythm).
-pub(crate) const AURORA_DWELL_MEAN: f32 = 7.0;
-
-// The emission charge (law 4).
-
-/// Glow decay rate per sim-second: the fringe cools at exp(-rate x
-/// dt). 0.42 keeps a charged fringe bright for a few seconds after
-/// its last landing.
-pub(crate) const AURORA_GLOW_DECAY: f32 = 0.42;
-
-/// Glow hard clamp (law 4b — bounded by construction). 2.6 sits
+/// Flux hard clamp (law 3b — bounded by construction). 2.6 sits
 /// above the Core flare threshold so a heavy landing sequence can
 /// hold the white read briefly.
-pub(crate) const AURORA_GLOW_MAX: f32 = 2.6;
+pub(crate) const SOLAR_FLUX_MAX: f32 = 2.6;
 
-/// Absorption gain: absorbed charge enters the glow multiplied by
-/// this (the emission efficiency of the layer).
-pub(crate) const AURORA_GLOW_GAIN: f32 = 1.0;
+/// Deposition gain: a landing's kinetic charge enters the flux
+/// multiplied by this (the heating efficiency of the footpoint).
+pub(crate) const SOLAR_FLUX_GAIN: f32 = 1.0;
 
-/// Hot rung: glow above this reads Hot on the fringe ladder (the
-/// charged emission layer) and arms the flank spill.
-pub(crate) const AURORA_GLOW_LEVEL_HOT: f32 = 0.7;
+/// Mid rung: flux above this reads Mid on the loop ladder (a
+/// rained-on loop — the coronal read's working dim).
+pub(crate) const SOLAR_FLUX_LEVEL_MID: f32 = 0.25;
 
-/// Core rung: glow above this AND a fresh flare age reads Core —
-/// the landing punch.
-pub(crate) const AURORA_GLOW_LEVEL_CORE: f32 = 1.5;
+/// Hot rung: flux above this reads Hot (a heavily-fed arcade
+/// member) and arms the apex condensation glow.
+pub(crate) const SOLAR_FLUX_LEVEL_HOT: f32 = 0.7;
 
-/// Flare window: sim-seconds after an absorption during which a
-/// strong glow reads Core (the punch resolves quickly into the
-/// steady Hot glow).
-pub(crate) const AURORA_FLARE_SECS: f32 = 0.5;
+/// Core rung: flux above this AND a fresh flash reads Core — the
+/// flaring punch.
+pub(crate) const SOLAR_FLUX_LEVEL_CORE: f32 = 1.5;
 
-// The precipitation funnel (law 3).
+/// Flash window: sim-seconds after a landing during which the
+/// footpoint cells read one rung hotter (the landing punch) and a
+/// strong flux reads Core.
+pub(crate) const SOLAR_FLASH_SECS: f32 = 0.6;
 
-/// Funnel gain: lateral acceleration toward the target ray's
-/// column, glow-weighted (columns per sim-second squared).
-pub(crate) const AURORA_SEEK_GAIN: f32 = 3.2;
+// The flare eruption (law 4).
 
-/// Funnel range: a drop within this many lines ABOVE the target
-/// ray's emission depth starts bending toward the ray (the
-/// magnetic funnel read).
-pub(crate) const AURORA_SEEK_RANGE: f32 = 6.0;
+/// Eruption threshold: a Stable loop's flux must cross this before
+/// the flare gate will consider it (the corona stores its rain
+/// before it detonates).
+pub(crate) const SOLAR_FLUX_ERUPT_THRESHOLD: f32 = 1.1;
 
-/// Lateral drag: the drop's lateral velocity decays at this rate
-/// per sim-second (the bend stays a bend).
-pub(crate) const AURORA_SEEK_DRAG: f32 = 1.9;
+/// Mean flare cadence: sim-seconds between eruption opportunities
+/// (the global gate — a flare is a singular event, never a chorus;
+/// at most one erupting loop at a time). Rolled with 0.5x-1.5x
+/// variance.
+pub(crate) const SOLAR_FLARE_CLOCK_MEAN: f32 = 9.0;
+
+/// The apex burst count: fresh ejecta spawned at the erupting loop's
+/// top (the spray).
+pub(crate) const SOLAR_EJECTA_BURST: usize = 5;
+
+// The coronal condensation (law 2).
+
+/// Thermal kick v0 (lines per sim-second): every descent starts
+/// from this speed at the apex (the lazy departure — energy
+/// conservation's baseline). Strictly positive by contract: the
+/// riding s-motion is monotone because of it.
+pub(crate) const SOLAR_RAIN_V0: f32 = 0.7;
+
+/// Leg gravity (lines per sim-second squared): the energy budget the
+/// closed-form speed draws from — v = sqrt(v0^2 + 2 G h (2|s-0.5|)^2).
+pub(crate) const SOLAR_LEG_G: f32 = 7.5;
+
+/// Condensation window: fresh riders spawn at s within
+/// plus-or-minus this of the apex (condensation happens near the
+/// loop top).
+pub(crate) const SOLAR_RAIN_SPAN: f32 = 0.16;
+
+/// Hot-loop tournament league: the spawn samples this many loops and
+/// rains on the flux-richest (law 2's concentration arm — the
+/// arcade members that have been rained on collect the next
+/// condensations).
+pub(crate) const SOLAR_TOURNAMENT: usize = 4;
+
+/// Deposition rate: a landing's charge is its arrival speed times
+/// this, plus the seed floor.
+pub(crate) const SOLAR_DEPOSIT_RATE: f32 = 0.16;
+
+/// Deposition seed: every landing carries this floor (a fresh drop
+/// still murmurs the footpoint).
+pub(crate) const SOLAR_DEPOSIT_SEED: f32 = 0.25;
+
+// The ejecta ballistics (law 4).
+
+/// Rider fling gain: a converted rider's along-arc speed becomes its
+/// ejection speed times this.
+pub(crate) const SOLAR_EJECTA_FLING: f32 = 1.2;
+
+/// Upward kick added to every flung rider (the flare throws plasma
+/// off the star, not along it).
+pub(crate) const SOLAR_EJECTA_RISE: f32 = 1.5;
+
+/// Apex-burst speed band (lines per sim-second): fresh spray leaves
+/// the loop top within this range.
+pub(crate) const SOLAR_EJECTA_SPEED_MIN: f32 = 2.0;
+pub(crate) const SOLAR_EJECTA_SPEED_MAX: f32 = 4.5;
+
+/// Ejecta lateral spread (columns per sim-second, plus-or-minus).
+pub(crate) const SOLAR_EJECTA_SPREAD: f32 = 1.6;
+
+/// Stellar gravity on the ejecta (lines per sim-second squared):
+/// decelerates the rise, pulls the spent sparks back toward the
+/// photosphere (the splash arm).
+pub(crate) const SOLAR_EJECTA_G: f32 = 2.4;
+
+/// Ejecta lifetime (sim-seconds, +-25% variance): the fade clock.
+pub(crate) const SOLAR_EJECTA_LIFE: f32 = 3.0;
+
+/// Splash heat: an ejecta landing back on the photosphere deposits
+/// this into the granule it hits.
+pub(crate) const SOLAR_SPLASH_HEAT: f32 = 0.45;
+
+// The granulation surface (law 5).
+
+/// Surface band height in lines (the loop feet sit on the top line).
+pub(crate) const SOLAR_SURFACE_LINES: u16 = 2;
+
+/// Granulation random-walk step per sim-second (the convection
+/// grit's flicker speed).
+pub(crate) const SOLAR_GRANULE_STEP: f32 = 0.9;
+
+/// Granule heat bounds (the walk clamps inside this band).
+pub(crate) const SOLAR_GRANULE_MIN: f32 = 0.10;
+pub(crate) const SOLAR_GRANULE_MAX: f32 = 0.95;
 
 // Drop pool dials (the calm-sky family contract).
 
-/// Base active-drop ratio of the aurora pool (pool = one drop per
+/// Base active-drop ratio of the solar pool (pool = one drop per
 /// column, the family lane model). 0.05 matches the stage-4
-/// calm-sky DNA: a sparse drizzle of precipitation over the veil.
-pub(crate) const AURORA_ACTIVE_BASE: f32 = 0.05;
+/// calm-sky DNA: a sparse drizzle of coronal rain over the arcade.
+pub(crate) const SOLAR_ACTIVE_BASE: f32 = 0.05;
 
 /// Density multiplier for the active-count target.
-pub(crate) const AURORA_ACTIVE_DENSITY_MULT: f32 = 0.06;
+pub(crate) const SOLAR_ACTIVE_DENSITY_MULT: f32 = 0.06;
 
-/// Maximum active-drop ratio cap of the aurora pool (even at full
-/// density the precipitation stays a minority layer — the veil is
+/// Maximum active-drop ratio cap of the solar pool (even at full
+/// density the coronal rain stays a minority layer — the arcade is
 /// the hero of the composition).
-pub(crate) const AURORA_ACTIVE_MAX: f32 = 0.14;
+pub(crate) const SOLAR_ACTIVE_MAX: f32 = 0.14;
 
-/// Spawn rate multiplier for the aurora pool (accumulator
-/// contract).
-pub(crate) const AURORA_SPAWN_RATE_MULT: f32 = 0.28;
+/// Spawn rate multiplier for the solar pool (accumulator contract).
+pub(crate) const SOLAR_SPAWN_RATE_MULT: f32 = 0.28;
 
-/// Spawn rate floor (minimum aurora spawns per second).
-pub(crate) const AURORA_SPAWN_RATE_FLOOR: f32 = 0.22;
+/// Spawn rate floor (minimum solar spawns per second).
+pub(crate) const SOLAR_SPAWN_RATE_FLOOR: f32 = 0.22;
 
 /// Lifetime backstop in sim-seconds.
-pub(crate) const AURORA_MAX_AGE_SECS: f32 = 18.0;
-
-/// Drop gravity (lines per sim-second squared) — the gentle fall
-/// of charged particles, not a downpour.
-pub(crate) const AURORA_DROP_GRAVITY: f32 = 0.9;
-
-/// Drop terminal velocity cap (lines per sim-second).
-pub(crate) const AURORA_DROP_TERMINAL: f32 = 3.4;
-
-/// Fresh fall speed at spawn (the calm Ghost entry).
-pub(crate) const AURORA_DROP_FALL_BASE: f32 = 1.1;
-
-/// Lateral drift fraction at spawn: the seed drift is this fraction
-/// of the fall speed (consecutive landings never align in rhythm).
-pub(crate) const AURORA_DROP_DRIFT_FRACTION: f32 = 0.30;
-
-/// Charge accumulation rate: kinetic charge grows by |vy| x RATE x
-/// dt over the fall (deep fast drops flare the fringe hard).
-pub(crate) const AURORA_CHARGE_RATE: f32 = 0.17;
-
-/// Charge floor every absorption carries (a fresh drop still
-/// murmurs the fringe).
-pub(crate) const AURORA_CHARGE_SEED: f32 = 0.25;
+pub(crate) const SOLAR_MAX_AGE_SECS: f32 = 18.0;
 
 // The kinetic-heat ladder (drop head brightness).
 
-/// Ghost rung ceiling: fall speeds at or below this read Ghost.
-pub(crate) const AURORA_SPEED_GHOST: f32 = 1.4;
+/// Ghost rung ceiling: riding speeds at or below this read Ghost.
+pub(crate) const SOLAR_SPEED_GHOST: f32 = 1.4;
 
-/// Mid rung ceiling: fall speeds above GHOST up to this read Mid.
-pub(crate) const AURORA_SPEED_MID: f32 = 2.0;
+/// Mid rung ceiling: riding speeds above GHOST up to this read Mid.
+pub(crate) const SOLAR_SPEED_MID: f32 = 2.0;
 
-/// Hot rung ceiling: fall speeds above MID up to this read Hot;
-/// above it the rare full-terminal dive reads Core.
-pub(crate) const AURORA_SPEED_CORE: f32 = 3.0;
+/// Hot rung ceiling: riding speeds above MID up to this read Hot;
+/// above it the full-speed footpoint arrival reads Core.
+pub(crate) const SOLAR_SPEED_CORE: f32 = 3.0;
 
 /// Comet trail length behind a drop head.
-pub(crate) const AURORA_TRAIL_LEN: usize = 2;
+pub(crate) const SOLAR_TRAIL_LEN: usize = 2;
 
 // The shimmer law (law 5).
 
-/// Body shimmer chance per frame: the fabric re-rolls rarely (a
-/// slow air flicker).
-pub(crate) const AURORA_SHIMMER_BODY: f32 = 0.06;
+/// Arc shimmer chance per frame: the quiet corona re-rolls rarely (a
+/// slow coronal flicker).
+pub(crate) const SOLAR_SHIMMER_ARC: f32 = 0.06;
 
-/// Fringe shimmer chance per frame: the emission layer flickers
-/// hard (also the drop-head re-roll rate — the family contract).
-pub(crate) const AURORA_SHIMMER_FRINGE: f32 = 0.38;
+/// Hot shimmer chance per frame: a flaring loop or a bright
+/// footpoint flickers hard (also the drop-head re-roll rate — the
+/// family contract).
+pub(crate) const SOLAR_SHIMMER_HOT: f32 = 0.30;
 
-// The fabric ramp (draw presentation).
-
-/// Body factor at the top edge: the diffuse ceiling of a curtain.
-pub(crate) const AURORA_BODY_FACTOR_TOP: f32 = 0.34;
-
-/// Body factor at the fringe: the brightest fabric cell.
-pub(crate) const AURORA_BODY_FACTOR_FRINGE: f32 = 0.88;
-
-/// Fabric ramp time constant (in lines above the fringe): the
-/// exponential fade's length scale — bright near the emission
-/// layer, diffusing into the dark above.
-pub(crate) const AURORA_BODY_TAU: f32 = 3.2;
-
-/// Corona depth: this many cells above the fringe step down from
-/// the fringe's ladder rung (the emission glow zone).
-pub(crate) const AURORA_CORONA_DEPTH: u8 = 2;
-
-/// Fringe glow boost: the fringe cell's color factor is
-/// 1 + glow x BOOST (blends toward white while charged — capped by
-/// the monolith white-boost cap downstream).
-pub(crate) const AURORA_FRINGE_BOOST: f32 = 0.35;
+/// Surface shimmer chance per frame: the granulation grit twinkles
+/// at its own pace, between the quiet arcs and the flares.
+pub(crate) const SOLAR_SHIMMER_SURFACE: f32 = 0.10;
 
 /// Sim-time coupling to the speed keys (the family contract — see
 /// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 14 cps).
-pub(crate) const AURORA_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+pub(crate) const SOLAR_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
 
-// Compile-time contracts on the aurora calibration: the depth bands
-// must be disjoint (LOW entirely below HIGH — the two-altitude
-// read), the glow ladder strictly ordered with the clamp above the
-// Core rung, the kinetic ladder ordered, the ramp factors ordered,
-// the fall base under the terminal cap, and the population dials
-// ordered (base under the max cap).
-const _: () = assert!(AURORA_DEPTH_LOW_FRAC + AURORA_DEPTH_LOW_SPAN < AURORA_DEPTH_HIGH_FRAC);
-const _: () = assert!(AURORA_GLOW_LEVEL_HOT < AURORA_GLOW_LEVEL_CORE);
-const _: () = assert!(AURORA_GLOW_LEVEL_CORE < AURORA_GLOW_MAX);
-const _: () = assert!(AURORA_SPEED_GHOST < AURORA_SPEED_MID);
-const _: () = assert!(AURORA_SPEED_MID < AURORA_SPEED_CORE);
-const _: () = assert!(AURORA_SPEED_CORE < AURORA_DROP_TERMINAL);
-const _: () = assert!(AURORA_BODY_FACTOR_TOP < AURORA_BODY_FACTOR_FRINGE);
-const _: () = assert!(AURORA_DROP_FALL_BASE < AURORA_DROP_TERMINAL);
-const _: () = assert!(AURORA_ACTIVE_BASE < AURORA_ACTIVE_MAX);
-const _: () = assert!(AURORA_GAP_FLOOR > 0.0);
-const _: () = assert!(AURORA_REPULSION > 0.0);
-const _: () = assert!(AURORA_WALL_DAMP <= 1.0);
+// Compile-time contracts on the corona calibration: the height band
+// is strictly ordered with the cap above it, the stretch factor
+// grows, the flux ladder is strictly ordered with the clamp above
+// the Core rung, the eruption threshold sits between Hot and the
+// clamp, the kinetic ladder is ordered, the population dials are
+// ordered (base under the max cap), the thermal kick is strictly
+// positive (the monotone-riding guarantee), the leg gravity and
+// the ejecta speeds are positive, and the wall damping is a proper
+// fraction.
+const _: () = assert!(SOLAR_ARC_MIN_FRAC < SOLAR_ARC_MAX_FRAC);
+const _: () = assert!(SOLAR_ARC_MAX_FRAC < SOLAR_H_CAP_FRAC);
+const _: () = assert!(SOLAR_STRETCH > 1.0);
+const _: () = assert!(SOLAR_FLUX_LEVEL_MID < SOLAR_FLUX_LEVEL_HOT);
+const _: () = assert!(SOLAR_FLUX_LEVEL_HOT < SOLAR_FLUX_LEVEL_CORE);
+const _: () = assert!(SOLAR_FLUX_LEVEL_CORE < SOLAR_FLUX_MAX);
+const _: () = assert!(SOLAR_FLUX_LEVEL_HOT < SOLAR_FLUX_ERUPT_THRESHOLD);
+const _: () = assert!(SOLAR_FLUX_ERUPT_THRESHOLD < SOLAR_FLUX_MAX);
+const _: () = assert!(SOLAR_SPEED_GHOST < SOLAR_SPEED_MID);
+const _: () = assert!(SOLAR_SPEED_MID < SOLAR_SPEED_CORE);
+const _: () = assert!(SOLAR_ACTIVE_BASE < SOLAR_ACTIVE_MAX);
+const _: () = assert!(SOLAR_RAIN_V0 > 0.0);
+const _: () = assert!(SOLAR_LEG_G > 0.0);
+const _: () = assert!(SOLAR_EJECTA_SPEED_MIN < SOLAR_EJECTA_SPEED_MAX);
+const _: () = assert!(SOLAR_EJECTA_SPEED_MIN > 0.0);
+const _: () = assert!(SOLAR_EJECTA_G > 0.0);
+const _: () = assert!(SOLAR_EJECTA_LIFE > 0.0);
+const _: () = assert!(SOLAR_GAP_FLOOR > 0.0);
+const _: () = assert!(SOLAR_REPULSION > 0.0);
+const _: () = assert!(SOLAR_WALL_DAMP <= 1.0);
+const _: () = assert!(SOLAR_W_MIN > 0.0);
+const _: () = assert!(SOLAR_SURFACE_LINES >= 1);
+const _: () = assert!(SOLAR_TOURNAMENT >= 1);

@@ -122,13 +122,14 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // dial family. Grouped with the style flagships so the cycle
     // tours all signature motion styles.
     "aeolian", // 10
-    // NIGHT-special-3 style flagship — the polar veil. The second
-    // invented-original-math rain style: ray-bead curtains painted
-    // by the precipitation they absorb (the five laws of the veil,
-    // derived in this repo — see cloud/type_rain/aurora/mod.rs).
+    // NIGHT-special-4 style flagship — the corona arcade. The third
+    // invented-original-math rain style: magnetic loops fed by the
+    // coronal rain until they flare (the five laws of the corona,
+    // derived in this repo — see cloud/type_rain/solar_flare/mod.rs;
+    // replaces the retired aurora veil, NIGHT-special-3).
     // Grouped with the style flagships so the cycle tours all
     // signature motion styles.
-    "aurora", // 11
+    "solar_flare", // 11
     // Classic siblings — the traditional looks users switch to often.
     "classic",     // 12 — original green-on-black
     "signal",      // 13 — digital transmission

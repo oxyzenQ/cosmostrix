@@ -35,9 +35,11 @@
 //!   the ninth style: the rain plays the instrument — original
 //!   motion DNA with no existing mathematical reference, the six
 //!   laws of the weave derived in `aeolian/mod.rs`).
-//! - `aurora` - the invented polar-veil rain (NIGHT-special-3, the
-//!   tenth style: the rain paints the light — original motion DNA,
-//!   the five laws of the veil derived in `aurora/mod.rs`).
+//! - `solar_flare` - the invented corona-arcade rain
+//!   (NIGHT-special-4, the tenth style: the rain rides the
+//!   magnetism — original motion DNA, the five laws of the corona
+//!   derived in `solar_flare/mod.rs`; replaces the retired
+//!   aurora veil, NIGHT-special-3, owner-rated 5/10).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -47,7 +49,6 @@
 //! symmetry with `dragon/dragon.rs`, `monolith/monolith.rs`, etc.
 
 pub(crate) mod aeolian;
-pub(crate) mod aurora;
 pub(crate) mod black_hole;
 pub(crate) mod dragon;
 pub(crate) mod flux;
@@ -55,4 +56,5 @@ pub(crate) mod glyph;
 pub(crate) mod lorenz;
 pub(crate) mod monolith;
 pub(crate) mod physarum;
+pub(crate) mod solar_flare;
 pub(crate) mod vortex;

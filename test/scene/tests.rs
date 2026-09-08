@@ -25,8 +25,8 @@ fn cycle_scene_forward_order() {
     assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
     assert_eq!(cycle_scene("physarum", 1), "sorgonemous_intrascals");
     assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "aeolian");
-    assert_eq!(cycle_scene("aeolian", 1), "aurora");
-    assert_eq!(cycle_scene("aurora", 1), "classic");
+    assert_eq!(cycle_scene("aeolian", 1), "solar_flare");
+    assert_eq!(cycle_scene("solar_flare", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -86,13 +86,13 @@ fn scene_names_are_present() {
     // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
     // 9; sorts alphabetically after signal, before storm.
     // NIGHT-special-2: aeolian joined at cycle position 10;
-    // NIGHT-special-3: aurora joined at cycle position 11. Both
+    // NIGHT-special-4: solar_flare joined at cycle position 11
+    // (replacing the retired aurora veil, NIGHT-special-3). Both
     // sort alphabetically before calm.
     assert_eq!(
         all_scene_names(),
         vec![
             "aeolian",
-            "aurora",
             "calm",
             "carbonic",
             "cinematic",
@@ -115,6 +115,7 @@ fn scene_names_are_present() {
             "orange-cat",
             "physarum",
             "signal",
+            "solar_flare",
             "sorgonemous_intrascals",
             "storm",
             "vortex",

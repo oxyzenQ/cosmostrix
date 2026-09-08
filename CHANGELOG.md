@@ -9,6 +9,72 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-special-4 — the solar flare rain style + solar_flare scene (the rain rides the magnetism); the aurora veil retired
+
+Owner verdict (2026-09-08): the aurora veil rated 5/10 and retired
+at the owner's direction — "remove it and change it to solar flare
+(corona loops magnetic)". Answered by building its successor in the
+same slot: the tenth style stays an original-math flagship (the
+NIGHT-special-2 invention directive carried forward — motion DNA
+with no existing mathematical reference), now as a corona arcade
+instead of a polar veil. The invented system ("the five laws of the
+corona", fully derived and documented in
+src/engine/cosmic_dragon_engine/cloud/type_rain/solar_flare/mod.rs):
+
+- Law 1, the magnetic carpet: coronal loops (one per ~10 columns)
+  root at two footpoints on a granulated photosphere; facing feet
+  repel with an inverse-gap force, spans and apex heights breathe
+  toward re-rolled anchors on rolled dwells, and the whole arcade
+  drifts on a slow global wind. The lifecycle is the carpet's
+  turnover — Emerging (the arc grows out of the surface), Stable,
+  Erupting, Detaching (the lifted arc rises and dissolves), then
+  re-Emerging elsewhere.
+- Law 2, the coronal condensation: drops condense near loop tops
+  (weighted toward hot loops by tournament selection) and ride the
+  legs down with a CLOSED-FORM energy-conserving speed
+  v = sqrt(v0^2 + 2 g h (2|s-0.5|)^2) — bounded by construction,
+  exact at any dt, monotonically accelerating; the landing is a
+  state test on monotone s-motion (no tunneling at any dt, any
+  frame rate).
+- Law 3, the footpoint deposition: landings charge the loop's flux
+  (exponential cooling + hard clamp) and flash the footpoint cells
+  — the light in this sky is where the rain has been landing, the
+  aurora funnel's arcade heir.
+- Law 4, the flare eruption: a loop whose flux crosses the
+  threshold destabilizes when the global flare clock allows it (one
+  flare at a time — a singular event): the apex stretches ~2x, the
+  riders are flung as ballistic ejecta (tangent fling + upward
+  kick), a burst sprays from the apex, then the arc lifts off and
+  dissolves while a fresh loop emerges. Ejecta fly ballistic arcs
+  under stellar gravity and splash heat back into the granules
+  they land on.
+- Law 5, the shimmer law: field cells (arc filaments, granulation)
+  keep the glyph the frame already carries; re-rolls ladder with
+  heat — the quiet corona shimmers rarely, the flare flickers hard.
+
+Stability is by construction, not by tuning: every state variable
+is hard-bounded (drift/span/height clamps with damped wall
+reflection, hard-capped flux, the closed-form speed bound,
+age-capped ejecta with wall + surface kills, lane-bounded pool
+with a lifetime backstop). Scene: sun palette (the real-color
+golden-orange photosphere ramp) + greek charset, cycle position 11
+(replacing the retired aurora), the calm-sky weather dial (sparse
+coronal rain, the arcade the hero). 22 behavior contracts (carpet
+spread, wall bounds, width breath, bounded flux, the flare ladder,
+the flare gate, the eruption cycle + ejecta, spawn target, the
+energy-conserving descent, the closed-form speed bound, drawn
+bounds, diff cleanup, pause freeze, style transitions, speed
+scaling, sustained boundedness). One real bug the contracts caught
+before ship: the wall clamp's upper bound let a loop's right
+footpoint sit one cell past the last column (cx <= cols - margin
+admits foot_right = cols); pinned by law1_loops_stay_inside_the_
+viewport, fixed to cols - 1 - margin. LOC discipline: the draw
+pass split into type_rain/solar_flare/draw.rs at the 800-line hard
+cap (the monolith family's monolith_glyphs.rs split pattern).
+benchmark/bench-labs/night_special4/AB_REPORT.md carries the 10 s
+A/B: zero regression on the cinematic + sorgonemous + aeolian
+probes, plus the solar_flare profile.
+
 ### feature: NIGHT-special-3 — the aurora rain style + aurora scene (the rain paints the light)
 
 Owner request (2026-09-08, the aeolian's 10/10): "what else can you

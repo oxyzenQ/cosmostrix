@@ -177,10 +177,10 @@ impl Cloud {
             // same draw-history clear on palette change.
             self.aeolian_rain.clear_draw_history();
             self.reset_phosphor_state();
-        } else if matches!(self.rain_style, RainStyle::Aurora) {
-            // NIGHT-special-3: aurora — structured-family sibling,
+        } else if matches!(self.rain_style, RainStyle::SolarFlare) {
+            // NIGHT-special-4: solar_flare — structured-family sibling,
             // same draw-history clear on palette change.
-            self.aurora_rain.clear_draw_history();
+            self.solar_flare_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
 
@@ -336,10 +336,10 @@ impl Cloud {
             // same draw-history clear on shading mode toggle.
             self.aeolian_rain.clear_draw_history();
             self.reset_phosphor_state();
-        } else if matches!(self.rain_style, RainStyle::Aurora) {
-            // NIGHT-special-3: aurora — structured-family sibling,
+        } else if matches!(self.rain_style, RainStyle::SolarFlare) {
+            // NIGHT-special-4: solar_flare — structured-family sibling,
             // same draw-history clear on shading mode toggle.
-            self.aurora_rain.clear_draw_history();
+            self.solar_flare_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

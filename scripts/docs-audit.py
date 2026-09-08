@@ -130,9 +130,11 @@ print("\n=== 3. STALE COUNT CLAIMS (source of truth in parens) ===")
 count_patterns = [
     (r"\b43 themes\b|\b43 builtin\b|themes\*? == 43", "44 themes (catalog.rs)"),
     (r"\b18 invariants\b", "19 invariants (chroma lock suite)"),
-    (r"\b1[45]\d\d\+? tests\b", "2524 tests (current suite)"),
-    (r"~1,?500 tests\b", "2524 tests (current suite)"),
-    (r"\b220\+ source files\b|\b226 source\b", "434 .rs files (current)"),
+    (r"\b1[45]\d\d\+? tests\b", "2527 tests (current suite)"),
+    (r"~1,?500 tests\b", "2527 tests (current suite)"),
+    (r"\b220\+ source files\b|\b226 source\b", "438 .rs files (current)"),
+    (r"\b2524 tests\b", "2527 tests (current suite)"),
+    (r"\b434 \.rs files\b", "438 .rs files (current)"),
     (r"Phase 9-B", "Phase 9-D (final form)"),
 ]
 count_hits = defaultdict(list)

@@ -5,7 +5,6 @@
 
 mod tests_aeolian;
 mod tests_anomaly;
-mod tests_aurora;
 mod tests_black_hole;
 mod tests_border_gradient;
 mod tests_charset_transition;
@@ -43,6 +42,7 @@ mod tests_restart_hunt15;
 mod tests_resync_hunt25;
 mod tests_scene;
 mod tests_smoothstep_easing;
+mod tests_solar_flare;
 mod tests_stuck_cells_hunt17;
 mod tests_visual_depth;
 mod tests_vortex;

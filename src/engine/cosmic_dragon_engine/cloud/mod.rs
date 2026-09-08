@@ -58,13 +58,13 @@ mod state;
 // not via `crate::cloud::spawn_logic::*`).
 pub(crate) mod type_rain;
 pub(crate) use type_rain::aeolian;
-pub(crate) use type_rain::aurora;
 pub(crate) use type_rain::black_hole;
 pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;
 pub(crate) use type_rain::lorenz;
 pub(crate) use type_rain::monolith;
 pub(crate) use type_rain::physarum;
+pub(crate) use type_rain::solar_flare;
 pub(crate) use type_rain::vortex;
 // `flux_field` is a sibling of `flux.rs` inside `type_rain/flux/`, so the
 // alias reaches one level deeper than the family-level aliases above.
@@ -94,7 +94,6 @@ use crate::rain_style::RainStyle;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline, ColorScheme, MonolithSize, ShadingMode};
 
 use aeolian::AeolianRain;
-use aurora::AuroraRain;
 use black_hole::BlackHoleRain;
 use dragon::DragonRain;
 use ecosystem::{
@@ -103,6 +102,7 @@ use ecosystem::{
 use lorenz::LorenzRain;
 use monolith::MonolithRain;
 use physarum::PhysarumRain;
+use solar_flare::SolarFlareRain;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
 
@@ -193,14 +193,14 @@ pub struct Cloud {
     /// pool); the family's first stochastic advance pass (the
     /// capture/through coin the field brightness weights).
     pub(crate) aeolian_rain: AeolianRain,
-    /// NIGHT-special-3 tenth rain style: the aurora veil — the
-    /// invented polar curtain painted by the falling rain (see
-    /// `type_rain/aurora/mod.rs` for the five laws and the
+    /// NIGHT-special-4 tenth rain style: the solar flare corona —
+    /// the invented arcade rained on by the coronal rain (see
+    /// `type_rain/solar_flare/mod.rs` for the five laws and the
     /// bounded-by-construction stability note). Structured family
-    /// sibling (no droplet pool); the family's second stochastic
-    /// advance pass (the wind re-rolls, anchor flips and dwell
-    /// re-rolls ride the RNG bundle).
-    pub(crate) aurora_rain: AuroraRain,
+    /// sibling (no droplet pool); a stochastic advance pass (the
+    /// wind re-rolls, breath re-anchors, flare clock re-rolls and
+    /// the granulation walk ride the RNG bundle).
+    pub(crate) solar_flare_rain: SolarFlareRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -512,7 +512,7 @@ impl Cloud {
             physarum_rain: PhysarumRain::new(),
             black_hole_rain: BlackHoleRain::new(),
             aeolian_rain: AeolianRain::new(),
-            aurora_rain: AuroraRain::new(),
+            solar_flare_rain: SolarFlareRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -878,7 +878,7 @@ impl Cloud {
             RainStyle::Physarum => self.physarum_rain.active_count(),
             RainStyle::BlackHole => self.black_hole_rain.active_count(),
             RainStyle::Aeolian => self.aeolian_rain.active_count(),
-            RainStyle::Aurora => self.aurora_rain.active_count(),
+            RainStyle::SolarFlare => self.solar_flare_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

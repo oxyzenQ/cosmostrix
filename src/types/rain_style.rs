@@ -4,14 +4,14 @@
 //! Internal rain style selection.
 //!
 //! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2 + NIGHT-special-3, ten styles):
+//! + NIGHT-special-2 + NIGHT-special-4, ten styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
 //! - Structured family ([`RainStyle::Monolith`], [`RainStyle::Vortex`],
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
 //!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
-//!   [`RainStyle::Aeolian`], [`RainStyle::Aurora`]) — dedicated
+//!   [`RainStyle::Aeolian`], [`RainStyle::SolarFlare`]) — dedicated
 //!   state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
@@ -34,11 +34,12 @@
 //!   the first style whose motion math was derived in this repo
 //!   from first principles, carrying no existing reference — the
 //!   six laws of the weave, see `cloud/type_rain/aeolian/mod.rs`);
-//!   Aurora runs the invented polar veil — a drifting ray-bead
-//!   lattice carries vertical glyph curtains whose fringe glow is
-//!   charged by the precipitation it absorbs (NIGHT-special-3: the
-//!   second original-math style — the five laws of the veil, see
-//!   `cloud/type_rain/aurora/mod.rs`).
+//!   SolarFlare runs the invented corona arcade — glyph rain
+//!   condenses at the tops of magnetic loops, slides down the legs
+//!   with energy-conserving acceleration and flashes the footpoints
+//!   it lands on until a flux-laden loop erupts (NIGHT-special-4:
+//!   the third original-math style — the five laws of the corona,
+//!   see `cloud/type_rain/solar_flare/mod.rs`).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -51,7 +52,7 @@ pub enum RainStyle {
     Physarum,
     BlackHole,
     Aeolian,
-    Aurora,
+    SolarFlare,
 }
 
 impl RainStyle {
@@ -67,7 +68,7 @@ impl RainStyle {
             Self::Physarum => "physarum",
             Self::BlackHole => "black_hole",
             Self::Aeolian => "aeolian",
-            Self::Aurora => "aurora",
+            Self::SolarFlare => "solar_flare",
         }
     }
 
@@ -76,7 +77,7 @@ impl RainStyle {
     /// (Flux replaced the task-18 Ripple surface style, which was
     /// the second droplet-family member). Gates that previously
     /// read `!matches!(style, Monolith)` should read this instead —
-    /// six non-droplet styles exist now.
+    /// nine non-droplet styles exist now.
     #[must_use]
     pub fn is_droplet_family(self) -> bool {
         matches!(self, Self::Glyph)
@@ -86,7 +87,8 @@ impl RainStyle {
     /// `spawn_remainder` accumulator (Monolith lanes, Vortex motes,
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
     /// particles, the BlackHole orbital-ring motes since stage 2,
-    /// and the Aeolian drops since NIGHT-special-2).
+    /// the Aeolian drops since NIGHT-special-2, and the SolarFlare
+    /// drops since NIGHT-special-4).
     /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
@@ -100,7 +102,7 @@ impl RainStyle {
                 | Self::Physarum
                 | Self::BlackHole
                 | Self::Aeolian
-                | Self::Aurora
+                | Self::SolarFlare
         )
     }
 
@@ -127,7 +129,7 @@ impl RainStyle {
             "physarum" => Some(Self::Physarum),
             "black_hole" | "blackhole" => Some(Self::BlackHole),
             "aeolian" => Some(Self::Aeolian),
-            "aurora" => Some(Self::Aurora),
+            "solar_flare" | "solarflare" | "flare" => Some(Self::SolarFlare),
             _ => None,
         }
     }
@@ -138,6 +140,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, aurora"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare"
     }
 }

@@ -187,27 +187,28 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Aeolian,
         },
     },
-    // NIGHT-special-3: aurora — the invented polar veil, the
-    // second original-math rain style (the five laws derived in
-    // this repo — see cloud/type_rain/aurora/mod.rs). The name is
-    // the sky's own: the curtain light IS the precipitation's
-    // landing record. Aurora palette (557.7nm green, the oxygen
-    // emission line the real curtains burn on) + greek glyphs (the
-    // celestial-mechanics strokes). Speed 14 = the majestic drift;
-    // density 0.50 = the calm-sky dial (the veil is the hero, the
-    // drizzle a minority layer); glitch none — the polar night is
-    // clean.
+    // NIGHT-special-4: solar_flare — the corona arcade, the third
+    // original-math rain style (the five laws derived in this repo
+    // — see cloud/type_rain/solar_flare/mod.rs; replaces the retired
+    // aurora veil, NIGHT-special-3, owner-rated 5/10). The name is
+    // the owner's own pick: the flare IS the magnetic arcade's
+    // violent rebirth. Sun palette (the real-color golden-orange
+    // photosphere ramp) + greek glyphs (the stellar-notation
+    // strokes). Speed 14 = the majestic corona; density 0.50 = the
+    // calm-sky dial (the arcade is the hero, the coronal rain a
+    // minority layer); glitch none — the corona is clean, the
+    // eruption is the drama.
     SceneInfo {
-        name: "aurora",
-        description: "Polar veil — vertical glyph curtains hang from a drifting ray lattice and breathe between two depth bands; falling precipitation funnels into the brightest fringes and flares them, the rain literally painting the light",
+        name: "solar_flare",
+        description: "Corona arcade — magnetic glyph arcs rooted on a granulated photosphere breathe and drift; coronal rain condenses at the loop tops and slides down the legs, flashing the footpoints it lands on; a flux-laden loop erupts — stretching, spraying ejecta, lifting off — and a fresh arc emerges from the surface",
         config: SceneConfig {
-            color: Some("aurora"),
+            color: Some("sun"),
             charset: Some("greek"),
             fps: Some(60.0),
             speed: Some(14.0),
             density: Some(0.50),
             glitch_level: Some(GlitchLevel::None),
-            rain_style: RainStyle::Aurora,
+            rain_style: RainStyle::SolarFlare,
         },
     },
     SceneInfo {
