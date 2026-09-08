@@ -45,6 +45,10 @@
 //!   of the ladder derived in `dna_helix/mod.rs`; the owner's
 //!   DeepSeek-researched first pick, a canonical structure mapped
 //!   to the terminal grid).
+//! - `murmuration` - the Reynolds boids flock (NIGHT-research-7,
+//!   the twelfth style: the rain is a flock — the five laws of
+//!   the flock derived in `murmuration/mod.rs`; the shortlist's
+//!   second pick, canonical boids mapped through a spatial hash).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -61,6 +65,7 @@ pub(crate) mod flux;
 pub(crate) mod glyph;
 pub(crate) mod lorenz;
 pub(crate) mod monolith;
+pub(crate) mod murmuration;
 pub(crate) mod physarum;
 pub(crate) mod solar_flare;
 pub(crate) mod vortex;

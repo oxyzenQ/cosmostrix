@@ -9,6 +9,58 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-7 — the murmuration, the twelfth rain style (the rain is a flock)
+
+- The owner's DeepSeek-researched shortlist, second pick: `murmuration`
+  — a Reynolds 1987 boids flock over a spatial hash, with the
+  roaming anchor, the breathing cohesion and the clocked predator
+  startle. The five laws of the flock are derived in
+  `src/engine/cosmic_dragon_engine/cloud/type_rain/murmuration/mod.rs`;
+  the calibration ships in `central_control_rains/style_rain.rs`.
+- Law 1 (the three forces): separation (inverse-distance push, the
+  3-cell minimum spacing IS the bird density), alignment (the mean
+  heading match that makes a hundred strokes read as one body),
+  cohesion (the weak spring to the local centroid) — semi-implicit
+  Euler with the [7, 26] cells/sim-s flight band and a clamped
+  jitter walk.
+- Law 2 (the neighbor window): the 8-cell radius IS the hash
+  bucket size; each bird scans its 3x3 buckets — O(n) pair checks
+  (the enabling engineering: 100-220 birds at the cost of a
+  30-bird naive scan), the window sized to the starling
+  topological number ~7.
+- Law 3 (the thought): a roaming anchor (weak attraction, the
+  macro travel) + the wall banking (soft inward steering in the
+  9-cell margin — birds curve along the edges, never hit them).
+- Law 4 (the breathing): the cohesion weight cycles on a slow
+  sine — the signature tighten/loosen shape cycles, emergent from
+  one scalar.
+- Law 5 (the startle): a clocked predator (one Core-bright glyph
+  for 0.8 sim-s) kicks every bird inside the 14-cell panic radius
+  outward — the flock blooms apart, floors near max, re-gathers.
+- Scene `murmuration` at cycle position 13: gold palette
+  (previously unclaimed — starlings catching the last sun) +
+  minimal charset (the nabla flying-V). Speed 18, density 0.55
+  (the flock-size dial — the flock IS the scene), glitch none.
+- Full structured-family contract (lane pool, accumulator spawn
+  as the staggered entry, one sim clock, palette adoption,
+  generation-tagged diff cleanup, all six dispatch chains, the
+  live density dial re-sizing the pool through the spawn pass).
+- 27 behavior contracts (tests_murmuration): the flight band,
+  separation/cohesion/banking physics, the startle saturation,
+  the hash window, the anchor roam, the emergent coherence
+  (radius of gyration bounded) and separation (closest pair
+  bounded), the breathing band, the scatter-and-regather cycle,
+  drawn bounds, repaint, pause, transitions, speed scaling,
+  sustained boundedness, degenerate terminals. 2613 tests pass
+  (+27); clippy -D warnings clean.
+- A/B 10 s benchmarks (benchmark/bench-labs/night_research7_murm/):
+  zero visual regression on cinematic + aeolian + dna_helix (the
+  probes; metrics identical to the third decimal), the new scene's
+  own profile at 24.9K fps / 144.5 dirty cells / 4.841 entropy /
+  0.685 gini — honest physics cost (every frame integrates every
+  bird; the sorgonemous band) and a concentrated flock
+  composition.
+
 ### feature: NIGHT-research-7 — the DNA helix, the eleventh rain style (the rain writes the genome)
 
 - The owner's DeepSeek-researched shortlist, first pick (the second

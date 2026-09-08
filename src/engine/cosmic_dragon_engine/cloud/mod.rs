@@ -64,6 +64,7 @@ pub(crate) use type_rain::dragon;
 pub(crate) use type_rain::flux;
 pub(crate) use type_rain::lorenz;
 pub(crate) use type_rain::monolith;
+pub(crate) use type_rain::murmuration;
 pub(crate) use type_rain::physarum;
 pub(crate) use type_rain::solar_flare;
 pub(crate) use type_rain::vortex;
@@ -103,6 +104,7 @@ use ecosystem::{
 };
 use lorenz::LorenzRain;
 use monolith::MonolithRain;
+use murmuration::MurmurationRain;
 use physarum::PhysarumRain;
 use solar_flare::SolarFlareRain;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
@@ -212,6 +214,13 @@ pub struct Cloud {
     /// replication clock re-arms, the fork-pass mutations re-roll
     /// and the soup's brownian drift ride the RNG bundle).
     pub(crate) dna_helix_rain: DnaHelixRain,
+    /// NIGHT-research-7 twelfth rain style: the murmuration — the
+    /// Reynolds boids flock over a spatial hash (see
+    /// `type_rain/murmuration/mod.rs` for the five laws of the
+    /// flock). Structured family sibling (no droplet pool); a
+    /// stochastic advance pass (the jitter walk, the anchor
+    /// re-rolls and the startle clock ride the RNG bundle).
+    pub(crate) murmuration_rain: MurmurationRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -524,6 +533,7 @@ impl Cloud {
             aeolian_rain: AeolianRain::new(),
             solar_flare_rain: SolarFlareRain::new(),
             dna_helix_rain: DnaHelixRain::new(),
+            murmuration_rain: MurmurationRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -891,6 +901,7 @@ impl Cloud {
             RainStyle::Aeolian => self.aeolian_rain.active_count(),
             RainStyle::SolarFlare => self.solar_flare_rain.active_count(),
             RainStyle::DnaHelix => self.dna_helix_rain.active_count(),
+            RainStyle::Murmuration => self.murmuration_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

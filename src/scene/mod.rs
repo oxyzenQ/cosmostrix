@@ -138,27 +138,36 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // cloud/type_rain/dna_helix/mod.rs). Grouped with the style
     // flagships so the cycle tours all signature motion styles.
     "dna_helix", // 12
+    // NIGHT-research-7 style flagship — the murmuration, the
+    // owner's DeepSeek-researched second pick. The rain is a
+    // flock: Reynolds boids over a spatial hash, a roaming
+    // anchor, a breathing cohesion and a clocked predator
+    // startle (the five laws of the flock, derived in this repo —
+    // see cloud/type_rain/murmuration/mod.rs). Grouped with the
+    // style flagships so the cycle tours all signature motion
+    // styles.
+    "murmuration", // 13
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 13 — original green-on-black
-    "signal",      // 14 — digital transmission
-    "hacker",      // 15 — high-contrast terminal overflow
-    "matrix_film", // 16 — 1999 film homage
+    "classic",     // 14 — original green-on-black
+    "signal",      // 15 — digital transmission
+    "hacker",      // 16 — high-contrast terminal overflow
+    "matrix_film", // 17 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 17
-    "calm",   // 18
-    "cosmos", // 19
-    "neon",   // 20
+    "storm",  // 18
+    "calm",   // 19
+    "cosmos", // 20
+    "neon",   // 21
     // Utility.
-    "low-power", // 21
+    "low-power", // 22
     // Milestone + tribute.
-    "cosmic-dragon", // 22
-    "dragon_hunt",   // 23
-    "carbonic",      // 24
+    "cosmic-dragon", // 23
+    "dragon_hunt",   // 24
+    "carbonic",      // 25
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 25
-    "orange-cat",     // 26
-    "north-stars",    // 27
-    "curiosity",      // 28
+    "crystal-dragon", // 26
+    "orange-cat",     // 27
+    "north-stars",    // 28
+    "curiosity",      // 29
 ];
 
 /// The built-in scene catalog — extracted to `catalog.rs`

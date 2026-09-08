@@ -4,7 +4,7 @@
 //! Internal rain style selection.
 //!
 //! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7, eleven styles):
+//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7, twelve styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
@@ -47,7 +47,14 @@
 //!   the ladder — the pair re-rolled, a visible mutation
 //!   (NIGHT-research-7: the eleventh style, the DeepSeek-researched
 //!   first pick — the five laws of the ladder, see
-//!   `cloud/type_rain/dna_helix/mod.rs`).
+//!   `cloud/type_rain/dna_helix/mod.rs`); Murmuration runs the
+//!   Reynolds 1987 boids flock — hundreds of glyph birds flying
+//!   as one shape-shifting body over a spatial hash (separation,
+//!   alignment, cohesion + a roaming anchor, a breathing
+//!   cohesion and a clocked predator startle — the five laws of
+//!   the flock, see `cloud/type_rain/murmuration/mod.rs`;
+//!   NIGHT-research-7, the twelfth style, the shortlist's second
+//!   pick).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -62,6 +69,7 @@ pub enum RainStyle {
     Aeolian,
     SolarFlare,
     DnaHelix,
+    Murmuration,
 }
 
 impl RainStyle {
@@ -79,6 +87,7 @@ impl RainStyle {
             Self::Aeolian => "aeolian",
             Self::SolarFlare => "solar_flare",
             Self::DnaHelix => "dna_helix",
+            Self::Murmuration => "murmuration",
         }
     }
 
@@ -98,8 +107,8 @@ impl RainStyle {
     /// Flux fluid particles, Lorenz motes, Dragon chains, Physarum
     /// particles, the BlackHole orbital-ring motes since stage 2,
     /// the Aeolian drops since NIGHT-special-2, the SolarFlare
-    /// drops since NIGHT-special-4, and the DnaHelix nucleotides
-    /// since NIGHT-research-7).
+    /// drops since NIGHT-special-4, the DnaHelix nucleotides and
+    /// the Murmuration birds since NIGHT-research-7).
     /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
@@ -115,6 +124,7 @@ impl RainStyle {
                 | Self::Aeolian
                 | Self::SolarFlare
                 | Self::DnaHelix
+                | Self::Murmuration
         )
     }
 
@@ -143,6 +153,7 @@ impl RainStyle {
             "aeolian" => Some(Self::Aeolian),
             "solar_flare" | "solarflare" | "flare" => Some(Self::SolarFlare),
             "dna_helix" | "dnahelix" | "dna" => Some(Self::DnaHelix),
+            "murmuration" | "murmur" | "starlings" => Some(Self::Murmuration),
             _ => None,
         }
     }
@@ -153,6 +164,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix, murmuration"
     }
 }

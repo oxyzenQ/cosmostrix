@@ -187,6 +187,11 @@ impl Cloud {
             // same draw-history clear on palette change.
             self.dna_helix_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: murmuration — structured-family
+            // sibling, same draw-history clear on palette change.
+            self.murmuration_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
 
         // v16: force_draw_everything is set above so the background
@@ -350,6 +355,12 @@ impl Cloud {
             // NIGHT-research-7: dna_helix — structured-family sibling,
             // same draw-history clear on shading mode toggle.
             self.dna_helix_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: murmuration — structured-family
+            // sibling, same draw-history clear on shading mode
+            // toggle.
+            self.murmuration_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

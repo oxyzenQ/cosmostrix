@@ -9,7 +9,7 @@
 //!
 //! ```toml
 //! [scene-custom.example]
-//! rain = "lorenz"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole/aeolian/solar_flare/dna_helix)
+//! rain = "lorenz"               # NIGHT-research-5: pick rain style (glyph/monolith/vortex/flux/lorenz/dragon/physarum/black_hole/aeolian/solar_flare/dna_helix/murmuration)
 //! color = "aurora"              # built-in color name  OR:
 //! # colors-custom = "aurora"    # custom palette block reference
 //! charset = "binary"            # built-in charset     OR:

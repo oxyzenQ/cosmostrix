@@ -22,6 +22,7 @@ use super::dragon::{DragonRandom, DragonSpawnParams, DragonStep};
 use super::flux::{FluxRandom, FluxSpawnParams, FluxStep};
 use super::lorenz::{LorenzRandom, LorenzSpawnParams, LorenzStep};
 use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
+use super::murmuration::{BirdRandom, MurmSpawnParams, MurmStep};
 use super::physarum::{PhysarumRandom, PhysarumSpawnParams, PhysarumStep};
 use super::render::{DrawCtx, FlashWaveCtx};
 use super::solar_flare::{SolarFlareSpawnParams, SolarFlareStep, SolarRandom};
@@ -188,6 +189,12 @@ impl super::Cloud {
                     // nucleotides adopt individually — parity with
                     // the structured-family transition path).
                     self.dna_helix_rain
+                        .adopt_palette_slot(self.active_palette_slot);
+                } else if matches!(self.rain_style, RainStyle::Murmuration) {
+                    // NIGHT-research-7: the flock adopts the new palette
+                    // slot (every bird individually — parity with the
+                    // structured-family transition path).
+                    self.murmuration_rain
                         .adopt_palette_slot(self.active_palette_slot);
                 } else {
                     for d in &mut self.droplets {
@@ -568,6 +575,30 @@ impl super::Cloud {
             };
             self.dna_helix_rain
                 .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: the flock assembles through the same
+            // accumulator contract as the structured family (the
+            // staggered entry — birds fly in from the edges, the
+            // flock builds over the first seconds).
+            let mut elapsed = now.saturating_duration_since(self.last_spawn_time);
+            if self.max_sim_delta > std::time::Duration::from_millis(0) {
+                elapsed = elapsed.min(self.max_sim_delta);
+            }
+            self.last_spawn_time = now;
+
+            let params = MurmSpawnParams {
+                cols: self.cols,
+                lines: self.lines,
+                density: self.droplet_density,
+                active_palette_slot: self.active_palette_slot,
+                spawn_scale,
+            };
+            let mut random = BirdRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.murmuration_rain
+                .spawn(elapsed, &mut self.spawn_remainder, &params, &mut random);
         } else {
             self.spawn_droplets(now, spawn_scale);
         }
@@ -641,6 +672,13 @@ impl super::Cloud {
                     // draw; the genome state itself survives — wiping
                     // it would erase a transcribed genome).
                     self.dna_helix_rain.clear_draw_history();
+                } else if matches!(self.rain_style, RainStyle::Murmuration) {
+                    // NIGHT-research-7: murmuration — structured family
+                    // sibling, clear draw history on semantic
+                    // invalidation (bird glyphs re-pick on the next
+                    // draw; the flock state itself survives — wiping
+                    // it would scatter a formed flock).
+                    self.murmuration_rain.clear_draw_history();
                 } else {
                     // NIGHT-research-4: lorenz — the last structured
                     // family member; clear its draw history on semantic
@@ -772,6 +810,17 @@ impl super::Cloud {
                 content_invalidated = true;
                 frame.clear_with_bg(self.palette.bg);
                 self.dna_helix_rain.clear_draw_history();
+                self.reset_phosphor_state();
+            } else if matches!(self.rain_style, RainStyle::Murmuration) {
+                // NIGHT-research-7: the murmuration is a structured
+                // family style and follows the same force-draw reset
+                // path (full frame clear + draw history wipe + phosphor
+                // state reset). The flock survives (simulation state —
+                // the birds keep flying through the redraw; only the
+                // render history is rebuilt).
+                content_invalidated = true;
+                frame.clear_with_bg(self.palette.bg);
+                self.murmuration_rain.clear_draw_history();
                 self.reset_phosphor_state();
             } else {
                 frame.force_repaint();
@@ -983,6 +1032,28 @@ impl super::Cloud {
                 rand_chance: &self.rand_chance,
             };
             self.dna_helix_rain.advance(&step, &mut random);
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: the flock takes the same dt-clamp +
+            // resume_blend contract as the structured siblings (one
+            // global clock; the force pass, the anchor walk, the
+            // breathing oscillator and the startle clock live in
+            // type_rain/murmuration/). The advance pass is a
+            // stochastic pass — the RNG bundle rides along for the
+            // jitter walk, the anchor re-rolls and the startle
+            // clock.
+            let step = MurmStep {
+                now,
+                chars_per_sec: self.chars_per_sec * self.speed_mult,
+                cols: self.cols,
+                lines: self.lines,
+                max_sim_delta,
+                resume_blend: self.resume_blend,
+            };
+            let mut random = BirdRandom {
+                rng: &mut self.mt,
+                rand_chance: &self.rand_chance,
+            };
+            self.murmuration_rain.advance(&step, &mut random);
         } else {
             // Glyph family: droplet advance (no surface system —
             // ripple's water-line physics was removed along with
@@ -1659,6 +1730,23 @@ impl super::Cloud {
                 phosphor_layer: &mut self.phosphor_layer,
             };
             self.dna_helix_rain
+                .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: murmuration draw — same diff-cleanup
+            // contract as the structured siblings (trail cells the
+            // flight vacates and the predator flash's cell are
+            // cleared via the drawn-cell diff; phosphor arrays
+            // reset in clear_cell). The renderer is swarm-agnostic;
+            // the same pattern serves any future flocking style.
+            let mut cleanup = MonolithCleanup {
+                lines: self.lines,
+                bg: self.palette.bg,
+                phosphor: &mut self.phosphor,
+                phosphor_base_fg: &mut self.phosphor_base_fg,
+                phosphor_base_ch: &mut self.phosphor_base_ch,
+                phosphor_layer: &mut self.phosphor_layer,
+            };
+            self.murmuration_rain
                 .draw(&ctx, frame, &mut cleanup, &mut self.mt, &self.rand_chance);
         } else {
             for d in &mut self.droplets {

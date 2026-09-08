@@ -2084,3 +2084,156 @@ const _: () = assert!(DNA_BOW_MAX >= 0.0);
 const _: () = assert!(DNA_DRIFT_MAX > 0.0);
 const _: () = assert!(DNA_SHIMMER_QUIET < DNA_SHIMMER_HOT);
 const _: () = assert!(DNA_SHIMMER_HOT <= 1.0);
+
+// ── Murmuration (NIGHT-research-7, the twelfth style) ─────────────
+//
+// The rain is a flock: a starling murmuration wheeling over a
+// dark sky — Reynolds 1987 boids (separation, alignment,
+// cohesion) mapped to the terminal grid through a spatial hash,
+// with a roaming anchor (the flock's thought), a breathing
+// cohesion weight (the signature tighten/loosen shape cycles)
+// and a clocked predator startle (the scatter-and-regather
+// drama). The complete derivation and the five laws of the flock
+// live in type_rain/murmuration/mod.rs; the constants here are
+// the shipped calibration.
+
+// Population dials (the flock IS the scene — the hero dial).
+
+/// The minimum flock (a narrow terminal still reads as a flock).
+pub(crate) const MURM_MIN_BIRDS: usize = 24;
+
+/// The maximum flock (the O(n) hash keeps 200 birds cheap, but
+/// the dirty-cell budget caps the visual density).
+pub(crate) const MURM_MAX_BIRDS: usize = 220;
+
+/// The neighbor window (law 2): the alignment/cohesion radius in
+/// cells — the hash bucket size. Sized so the average bird scans
+/// the starling topological number (~7 neighbors) at the shipped
+/// population dial.
+pub(crate) const MURM_NEIGHBOR_R: f32 = 8.0;
+
+/// The separation radius (law 1): birds inside this push apart —
+/// the minimum spacing IS the visual bird density.
+pub(crate) const MURM_SEP_R: f32 = 3.0;
+
+// The triad weights (law 1, cells per sim-second squared).
+
+/// Separation: the strongest local rule (birds never overlap).
+pub(crate) const MURM_SEP_W: f32 = 90.0;
+
+/// Alignment: steer toward the neighbors' mean heading.
+pub(crate) const MURM_ALIGN_W: f32 = 26.0;
+
+/// Cohesion base weight: the weak spring toward the local
+/// centroid (the breathing oscillator modulates it, law 4).
+pub(crate) const MURM_COH_W: f32 = 1.6;
+
+/// The flight band (law 1's speed clamps): a starling never
+/// hovers, never teleports.
+pub(crate) const MURM_SPEED_MIN: f32 = 7.0;
+pub(crate) const MURM_SPEED_MAX: f32 = 26.0;
+
+// The kinetic ladder (the draw read).
+
+pub(crate) const MURM_SPEED_GHOST: f32 = 10.0;
+pub(crate) const MURM_SPEED_MID: f32 = 15.0;
+pub(crate) const MURM_SPEED_CORE: f32 = 21.0;
+
+// The thought (law 3, the roaming anchor).
+
+/// The anchor attraction weight (weak against the triad — the
+/// macro intent, never the collapse).
+pub(crate) const MURM_ANCHOR_W: f32 = 0.05;
+
+/// The anchor's roam speed in cells per sim-second.
+pub(crate) const MURM_ANCHOR_SPEED: f32 = 7.0;
+
+/// Mean sim-seconds between the anchor's target re-rolls.
+pub(crate) const MURM_ANCHOR_HOLD: f32 = 5.0;
+
+/// The wall banking margin (cells) and weight: birds near the
+/// margins steer inward — they curve along the edge, never hit it.
+pub(crate) const MURM_WALL_MARGIN: f32 = 9.0;
+pub(crate) const MURM_WALL_W: f32 = 50.0;
+
+// The breathing (law 4, the shape cycle).
+
+/// The cohesion multiplier's base + amplitude: the flock cycles
+/// between (base - amp) loose and (base + amp) tight — the
+/// signature murmuration shape-shift.
+pub(crate) const MURM_BREATH_BASE: f32 = 1.0;
+pub(crate) const MURM_BREATH_AMP: f32 = 0.75;
+
+/// The breathing rate in radians per sim-second (a full
+/// tighten/loosen cycle every ~14 sim-seconds).
+pub(crate) const MURM_BREATH_RATE: f32 = 0.45;
+
+// The startle (law 5, the predator).
+
+/// Mean sim-seconds between startles (variance banded at fire).
+pub(crate) const MURM_STARTLE_CLOCK_MEAN: f32 = 11.0;
+
+/// The panic radius in cells (the scatter's reach).
+pub(crate) const MURM_PANIC_R: f32 = 14.0;
+
+/// The panic impulse: the velocity kick's magnitude (an impulse,
+/// not a force — the scatter is instant; the speed clamp
+/// saturates it at V_MAX).
+pub(crate) const MURM_PANIC_IMPULSE: f32 = 34.0;
+
+/// The predator flash window in sim-seconds (the raptor's glyph
+/// burns at Core while the scatter blooms).
+pub(crate) const MURM_PANIC_FLASH_SECS: f32 = 0.8;
+
+/// The panic speed floor's window: a startled bird flies floored
+/// near max for this long after the kick.
+pub(crate) const MURM_PANIC_FLOOR_SECS: f32 = 1.2;
+
+// The organic wobble + the render contract.
+
+/// The jitter acceleration's magnitude (the clamped random walk
+/// that keeps the flock organic — no dead-locked symmetric
+/// configurations).
+pub(crate) const MURM_JITTER_W: f32 = 16.0;
+
+/// Comet trail length in cells (the flight's wake).
+pub(crate) const MURM_TRAIL_LEN: usize = 2;
+
+/// The bird glyph's motion-gated shimmer chance (the family
+/// contract — mutation tied to motion, deterministic under the
+/// bench's uniform stepping).
+pub(crate) const MURM_SHIMMER_CHANCE: f32 = 0.12;
+
+/// The staggered entry's spawn rate (the accumulator contract —
+/// the flock assembles over the first seconds).
+pub(crate) const MURM_SPAWN_RATE_MULT: f32 = 0.45;
+pub(crate) const MURM_SPAWN_RATE_FLOOR: f32 = 0.8;
+
+/// Sim-time coupling to the speed keys (the family contract — see
+/// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 18 cps).
+pub(crate) const MURM_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// Compile-time contracts on the flock calibration: the flight
+// band is strictly ordered with the kinetic ladder inside it, the
+// radii are ordered (separation inside the neighbor window), the
+// breathing never goes negative (a repulsive cohesion would tear
+// the flock), the population band is ordered, the panic impulse
+// is positive, the anchor weight is a small fraction of the
+// cohesion weight (the thought steers, it never collapses), and
+// the wall weight dominates the anchor pull (banking wins).
+const _: () = assert!(MURM_MIN_BIRDS < MURM_MAX_BIRDS);
+const _: () = assert!(MURM_SEP_R < MURM_NEIGHBOR_R);
+const _: () = assert!(MURM_SPEED_MIN < MURM_SPEED_GHOST);
+const _: () = assert!(MURM_SPEED_GHOST < MURM_SPEED_MID);
+const _: () = assert!(MURM_SPEED_MID < MURM_SPEED_CORE);
+const _: () = assert!(MURM_SPEED_CORE < MURM_SPEED_MAX);
+const _: () = assert!(MURM_BREATH_BASE - MURM_BREATH_AMP > 0.0);
+const _: () = assert!(MURM_BREATH_BASE + MURM_BREATH_AMP < 3.0);
+const _: () = assert!(MURM_ANCHOR_W > 0.0);
+const _: () = assert!(MURM_ANCHOR_W < MURM_COH_W);
+const _: () = assert!(MURM_PANIC_IMPULSE > 0.0);
+const _: () = assert!(MURM_PANIC_R > MURM_NEIGHBOR_R);
+const _: () = assert!(MURM_STARTLE_CLOCK_MEAN > 0.0);
+const _: () = assert!(MURM_BREATH_RATE > 0.0);
+const _: () = assert!(MURM_TRAIL_LEN >= 1);
+const _: () = assert!(MURM_SHIMMER_CHANCE > 0.0 && MURM_SHIMMER_CHANCE <= 1.0);

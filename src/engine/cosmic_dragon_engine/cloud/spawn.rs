@@ -132,6 +132,12 @@ impl Cloud {
             // keep their A/T/G/C identity glyphs).
             self.dna_helix_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: murmuration — structured-family
+            // sibling, same draw-history clear on charset switch
+            // (bird glyphs re-pick from the new pool).
+            self.murmuration_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
     }
 
@@ -237,6 +243,12 @@ impl Cloud {
             // same draw-history clear on palette change (bond glyphs
             // re-pick under the transition wave).
             self.dna_helix_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Murmuration) {
+            // NIGHT-research-7: murmuration — structured-family
+            // sibling, same draw-history clear on palette change
+            // (bird glyphs re-pick under the transition wave).
+            self.murmuration_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

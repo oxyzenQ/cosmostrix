@@ -391,6 +391,7 @@ impl Cloud {
             // painted corona into the next entry).
             RainStyle::SolarFlare => self.solar_flare_rain.reset(self.cols, self.lines),
             RainStyle::DnaHelix => self.dna_helix_rain.reset(self.cols, self.lines),
+            RainStyle::Murmuration => self.murmuration_rain.reset(self.cols, self.lines),
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -484,6 +485,17 @@ impl Cloud {
                 // fresh nucleotide pool; the genome starts
                 // untranscribed and the soup reveals it).
                 self.dna_helix_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Murmuration => {
+                // NIGHT-research-7: murmuration entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // flock rebuild on entry — a fresh pool of vacant
+                // birds; the sky starts empty and the staggered
+                // entry assembles the flock).
+                self.murmuration_rain.reset(self.cols, self.lines);
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

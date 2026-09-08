@@ -243,6 +243,38 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::DnaHelix,
         },
     },
+    // NIGHT-research-7: murmuration — the Reynolds boids flock, the
+    // owner's DeepSeek-researched second pick. Hundreds of glyph
+    // birds (nabla strokes, the minimal charset — each a small
+    // flying-V silhouette) wheel over a dark sky as one
+    // shape-shifting body: the Reynolds triad (separation,
+    // alignment, cohesion) integrated on the family clock over a
+    // spatial hash (the terminal's cell grid IS the neighbor
+    // graph — the physarum medium-match precedent). The flock's
+    // thought is a roaming anchor (the macro travel); the
+    // cohesion weight breathes on a slow oscillator (the
+    // signature tighten-into-a-ball / loosen-into-a-cloud cycles);
+    // and on a clocked startle a predator flashes and the flock
+    // blooms apart, then re-gathers — the scatter drama. The
+    // `gold` palette (previously unclaimed): the birds read as
+    // starlings catching the last sun on a black dusk sky.
+    // Speed 18 = the darting flight cadence; density 0.55 drives
+    // the flock size (~86 birds at 120 cols — the hero dial, the
+    // flock IS the scene); glitch none — the sky is still, the
+    // startle is the drama.
+    SceneInfo {
+        name: "murmuration",
+        description: "Murmuration — the rain is a flock; hundreds of glyph starlings wheel and pour as one shape-shifting body (Reynolds boids), tightening into balls, loosening into clouds, scattering at a predator's flash and re-gathering",
+        config: SceneConfig {
+            color: Some("gold"),
+            charset: Some("minimal"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Murmuration,
+        },
+    },
     SceneInfo {
         name: "monolith",
         description:

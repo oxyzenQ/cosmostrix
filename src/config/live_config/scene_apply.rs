@@ -200,7 +200,7 @@ pub(super) fn apply_scene_key(
             // pick any rain style via the block's `rain` field
             // (canonical label: glyph, monolith, vortex, flux, lorenz,
             // dragon, physarum, black_hole, aeolian, solar_flare,
-            // dna_helix). The resolve_rain_style helper consults
+            // dna_helix, murmuration). The resolve_rain_style helper consults
             // the block; falls back to Glyph when the field is missing
             // or unrecognized.
             crate::lr_trace!(
