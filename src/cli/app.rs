@@ -71,7 +71,11 @@ pub struct CloudConfig {
     /// when the user edits `fps =` in config.toml. See `resolve_capped_fps`.
     pub(crate) xtermjs_host: bool,
     pub(crate) default_fps_cap: f64,
-    pub duration: Option<f64>,
+    /// Auto-exit deadline in seconds — the SINGLE duration source of
+    /// truth (NIGHT-hunter-22 F2: the raw `duration` twin is deleted;
+    /// this field is the validated `args.duration` — finite, in range
+    /// 0.1..=86400, or 0 = run forever; `0` is meaningful and passed
+    /// through, the loop treats <= 0.0 as no deadline).
     pub duration_s: Option<f64>,
     pub bench_frames: Option<u64>,
     pub benchmark: bool,
@@ -539,7 +543,6 @@ impl CloudConfig {
             target_fps: self.target_fps,
             xtermjs_host: self.xtermjs_host,
             default_fps_cap: self.default_fps_cap,
-            duration: self.duration,
             duration_s: self.duration_s,
             bench_frames: self.bench_frames,
             benchmark: self.benchmark,

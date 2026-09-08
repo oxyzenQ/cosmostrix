@@ -112,6 +112,14 @@ main()
    file as of its own moment). Verdict: maintainability wart, safe to
    leave; a `ParsedConfig` threaded through main is the natural fix
    if ever wanted.
+   **RESOLVED 2026-09-09 (NIGHT-hunter-22 F1):** the loader family now
+   lives in `configfile_load.rs` with a startup-parse memo keyed by
+   resolved path — the whole startup performs ONE disk read + ONE
+   parse; the live-reload watcher bypasses the memo so mid-run edits
+   are unaffected. The same hunt also found the two sites that had
+   drifted onto DIFFERENT files (the intro palette read the default
+   path while validation read `--config`). See
+   NIGHT_HUNTER_22_F1_CONFIG_PARSE.md.
 2. **`duration` / `duration_s` dual field.** `CloudConfig` carries both
    the raw `args.duration` and the validated `duration_s`;
    `event_loop.rs`'s end-time computation validates one and then reads
@@ -122,6 +130,11 @@ main()
    bug the day one field gains another writer. A future cleanup should
    delete the raw field from `CloudConfig` and keep only the
    validated one.
+   **RESOLVED 2026-09-09 (NIGHT-hunter-22 F2):** the raw twin is
+   deleted; `duration_s` (the validated value) is the single source
+   of truth, the end-time derivation is a single-source read, and
+   source-text contract tests pin the deletion. See
+   NIGHT_HUNTER_22_F2_DURATION_DUAL_FIELD.md.
 3. **The rain loop's coupled mutable state (acknowledged).**
    `event_loop.rs` carried an explicit `LOC_EXEMPT`: the
    `while cloud.raining` loop threads ~20 mutable borrows through the

@@ -78,13 +78,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     )?;
 
     let start_time = Instant::now();
-    let end_time = cfg.duration_s.and_then(|s| {
-        if !s.is_finite() || s <= 0.0 {
-            return None;
-        }
-        let s = cfg.duration.unwrap_or(s);
-        Some(start_time + Duration::from_secs_f64(s))
-    });
+    // NIGHT-hunter-22 F2: `duration_s` is the single duration source of
+    // truth (validated at startup: finite, 0.1..=86400 in range, or the
+    // 0 = run-forever sentinel). The old cross-read of the raw twin
+    // field is gone — it always resolved to the same value by
+    // construction (both fields came from args.duration).
+    let end_time = cfg
+        .duration_s
+        .filter(|s| s.is_finite() && *s > 0.0)
+        .map(|s| start_time + Duration::from_secs_f64(s));
 
     // NIGHT-hunter-21: build the loop context — every piece of state the
     // rain loop mutates, in one struct (see event_loop_ctx.rs). The intro

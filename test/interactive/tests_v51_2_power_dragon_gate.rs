@@ -65,7 +65,6 @@ fn base_cfg(power_dragon: bool) -> CloudConfig {
         target_fps: 60.0,
         xtermjs_host: false,
         default_fps_cap: 240.0,
-        duration: None,
         duration_s: None,
         bench_frames: None,
         benchmark: false,

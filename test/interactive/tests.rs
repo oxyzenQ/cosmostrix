@@ -248,7 +248,6 @@ mod cases {
             target_fps: 60.0,
             xtermjs_host: false,
             default_fps_cap: 240.0,
-            duration: None,
             duration_s: None,
             bench_frames: None,
             benchmark: false,
@@ -763,5 +762,67 @@ mod cases {
             "click while active must NOT update last_resync_time"
         );
         assert!(!pm.is_idle(), "click must still reset the idle timer");
+    }
+}
+
+/// NIGHT-hunter-22 (F2): `duration_s` is the single duration source of
+/// truth in CloudConfig. The raw `duration` twin (a verbatim copy of
+/// `args.duration` one line away, same `Option<f64>` type — the
+/// cross-wire hazard the hunter-3 audit cataloged as wart F2) was
+/// deleted; these source-text contract assertions pin the deletion so
+/// the twin cannot silently return.
+#[cfg(test)]
+mod nh22_f2_duration_single_source {
+    const APP_RS: &str = include_str!("../../src/cli/app.rs");
+    const BUILD_CLOUD_CFG_RS: &str = include_str!("../../src/cli/build_cloud_cfg.rs");
+    const EVENT_LOOP_RS: &str = include_str!("../../src/interactive/event_loop.rs");
+
+    #[test]
+    fn cloudconfig_declares_exactly_one_duration_field() {
+        // The validated field is present...
+        assert!(
+            APP_RS.contains("pub duration_s: Option<f64>"),
+            "CloudConfig must declare the validated duration_s field"
+        );
+        // ...and the raw twin is gone (the whole point of F2: two
+        // same-typed Option<f64> fields one line apart is the exact
+        // shape that becomes a bug the day one gains another writer).
+        assert!(
+            !APP_RS.contains("pub duration: Option<f64>"),
+            "the raw duration twin must not come back to CloudConfig"
+        );
+        // clone_config copies exactly one duration field.
+        assert!(
+            !APP_RS.contains("duration: self.duration,"),
+            "clone_config must not copy a removed duration twin"
+        );
+    }
+
+    #[test]
+    fn build_cloud_cfg_threads_only_the_validated_field() {
+        assert!(
+            !BUILD_CLOUD_CFG_RS.contains("duration: args.duration,"),
+            "build_cloud_cfg must not stuff the raw args.duration into CloudConfig"
+        );
+        assert!(
+            BUILD_CLOUD_CFG_RS.contains("duration_s,"),
+            "build_cloud_cfg threads the validated duration_s"
+        );
+    }
+
+    #[test]
+    fn event_loop_reads_only_duration_s() {
+        // The pre-F2 end-time computation read duration_s as the trigger
+        // and then cross-read `cfg.duration.unwrap_or(s)` — dead
+        // defensiveness (the fields coincided by construction) that the
+        // audit flagged. The single-source read replaces it.
+        assert!(
+            !EVENT_LOOP_RS.contains("cfg.duration.unwrap_or"),
+            "the event loop must not cross-read a second duration field"
+        );
+        assert!(
+            EVENT_LOOP_RS.contains("cfg\n        .duration_s"),
+            "the end-time derivation reads duration_s (single source of truth)"
+        );
     }
 }

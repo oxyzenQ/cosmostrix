@@ -9,6 +9,28 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-22 (F2) — duration dual-field deleted; duration_s is the single source of truth
+
+The NIGHT-hunter-3 flow audit's wart F2: CloudConfig carried TWO
+same-typed duration fields one line apart — the raw `duration`
+(verbatim args.duration) and the validated `duration_s` — and the
+event loop's end-time computation read one as the trigger then
+overrode the value from the other via unwrap_or (dead defensiveness
+today, a cross-wire bug the day one field gains another writer).
+
+- CloudConfig.duration (the raw twin) is deleted; duration_s — the
+  value main.rs validated (finite, 0.1..=86400, or the 0
+  run-forever sentinel) — is the single source of truth, and the
+  end_time derivation is a single-source filter+map.
+- 12 literal sites updated (1 source fixture + 11 test fixtures);
+  3 new source-text contract tests pin the deletion so the twin
+  cannot silently return.
+- Verification: 2546 tests pass; timed PTY smoke (--duration 0.6
+  exits at ~630 ms, no-duration control runs forever); 10s A/B pro
+  benches — monolith visual metrics identical to the third decimal,
+  cinematic inside the documented noise band. Full report:
+  docs/research/NIGHT_HUNTER_22_F2_DURATION_DUAL_FIELD.md.
+
 ### stability: NIGHT-hunter-22 (F1) — 9x startup config parse memoized; intro palette path divergence fixed
 
 The NIGHT-hunter-3 flow audit's wart F1: a normal startup re-read and

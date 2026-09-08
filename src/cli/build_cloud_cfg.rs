@@ -181,7 +181,9 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         target_fps,
         xtermjs_host: term_caps.xtermjs_host, // (FPS-F1): live-reload cap
         default_fps_cap: term_caps.default_fps_cap,
-        duration: args.duration,
+        // NIGHT-hunter-22 F2: single duration source of truth — the
+        // validated `duration_s` only (the raw args.duration twin was
+        // deleted from CloudConfig).
         duration_s,
         bench_frames: args.bench_frames,
         benchmark: args.benchmark,
