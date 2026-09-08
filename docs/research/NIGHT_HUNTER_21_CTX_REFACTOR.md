@@ -92,6 +92,8 @@ context.
   `print_final_runtime_state`) are post-exit verbose printers taking
   immutable VALUE tuples — a different wart family (not mutable-state
   coupling), left for a future hunt by scope discipline.
+  (Resolved in NIGHT-hunter-22 — value-struct bundling, see
+  `NIGHT_HUNTER_22_FINAL_STATE_VALUES.md`.)
 - The raining-loop family now carries **zero** suppressions.
 
 ## Verification

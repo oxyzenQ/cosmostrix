@@ -781,7 +781,7 @@ fn main() -> std::io::Result<()> {
         // - "final runtime state" section via
         //   interactive::print_final_runtime_state (exit_time + duration
         //   + live-reload field changes + always-printed ambient lines)
-        output::post_exit::print_post_exit_verbose(&args, &cloud_cfg, color_scheme, start_time);
+        output::post_exit::print_post_exit_verbose(&cloud_cfg, color_scheme, start_time);
     }
 
     // Live-reload fatal exit ( bug #15): watcher panics + validation

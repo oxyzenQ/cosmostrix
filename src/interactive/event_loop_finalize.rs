@@ -26,6 +26,7 @@ use crate::terminal::Terminal;
 use crate::CloudConfig;
 
 use super::activity::FrameTimeTracker;
+use super::final_state::SessionState;
 use super::watchdog::SHUTDOWN;
 
 /// Bundled perf counters + references needed by the post-loop report.
@@ -58,6 +59,51 @@ pub(crate) struct SessionStats<'a> {
     pub power_manager_base_target_fps: f64,
     pub endurance_health_score: f64,
     pub endurance_health_classification: &'static str,
+}
+
+/// Terminal IO snapshot — the encoding + tier2 counters captured from
+/// the terminal right before `drop(term)` (unreadable after the drop).
+///
+/// The two tuple getters ([`Terminal::encoding_stats`],
+/// [`Terminal::tier2_stats`]) return unnamed positional counters;
+/// bundling them here gives the perf-report call named fields —
+/// NIGHT-hunter-22 closed the last `too_many_arguments` allow in the
+/// interactive family with exactly this bundle (the printer took 10
+/// positional params, seven of them indistinguishable `u64`s).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub(crate) struct TerminalIoStats {
+    /// Total ANSI bytes written this session.
+    pub enc_bytes: u64,
+    /// Flush operations performed.
+    pub enc_flushes: u64,
+    /// SGR color-cache hits.
+    pub sgr_hits: u64,
+    /// SGR color-cache misses.
+    pub sgr_misses: u64,
+    /// Tier 2 backpressure skips (xterm.js hosts only).
+    pub tier2_skips: u64,
+    /// Tier 2 RIS resets issued.
+    pub tier2_resets: u64,
+    /// Bytes written since the last RIS reset.
+    pub tier2_bytes_since: u64,
+}
+
+impl TerminalIoStats {
+    /// Capture both counter tuples as one named bundle. Must run BEFORE
+    /// `drop(term)` — the terminal owns the counters.
+    fn capture(term: &Terminal) -> Self {
+        let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
+        let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
+        Self {
+            enc_bytes,
+            enc_flushes,
+            sgr_hits,
+            sgr_misses,
+            tier2_skips,
+            tier2_resets,
+            tier2_bytes_since,
+        }
+    }
 }
 
 /// Run the entire post-loop finalization sequence.
@@ -97,8 +143,9 @@ pub(crate) fn finalize_session(
         final_avg_fps, final_instant_fps, cfg.target_fps, stats.perf_frames, final_elapsed_s
     );
 
-    let (enc_bytes, enc_flushes, sgr_hits, sgr_misses) = term.encoding_stats();
-    let (tier2_skips, tier2_resets, tier2_bytes_since) = term.tier2_stats();
+    // NIGHT-hunter-22: the IO counters are captured as one named bundle
+    // (the tuples never flow onward as positional parameters).
+    let io = TerminalIoStats::capture(&term);
 
     // AB-10: drop the terminal BEFORE any stderr write so the alt screen
     // is restored and the final FPS line lands on the main screen, not
@@ -119,85 +166,20 @@ pub(crate) fn finalize_session(
     // restores the main screen. Using eprint() (stderr) so the report
     // survives the restore.
     if cfg.perf_stats {
-        print_perf_report(
-            stats,
-            final_elapsed_s,
-            final_instant_fps,
-            enc_bytes,
-            enc_flushes,
-            sgr_hits,
-            sgr_misses,
-            tier2_skips,
-            tier2_resets,
-            tier2_bytes_since,
-        );
+        print_perf_report(stats, &io, final_elapsed_s, final_instant_fps);
     }
 
-    // v80.0.0-beta.2 (S-master-HUNT) source alignment: read the palette
-    // name from the CLOUD first (cloud.custom_palette_name — set by every
-    // set_palette activation), falling back to current_cfg. The HUD `clr:`
-    // line reads the cloud tracker (event_loop_hud.rs); the previous
-    // cfg-only read diverged whenever a runtime activation path (ambient
-    // fire, snapback, scene-runtime custom-scene switch) set the cloud
-    // name without a matching current_cfg update — the HUD said
-    // "clr: tron_legacy" while the final state printed the stale scheme
-    // enum ("color_scheme: NeonBlue"). Both surfaces now report the same
-    // source.
-    let final_color_name = if cloud.custom_palette_active {
-        cloud
-            .custom_palette_name
-            .as_deref()
-            .or(cfg.custom_palette_name.as_deref())
-            .map(|n| format!("{n} (custom)"))
-            .unwrap_or_else(|| format!("{:?}", cloud.color_scheme()))
-    } else {
-        format!("{:?}", cloud.color_scheme())
-    };
-    super::set_final_state(
-        &final_color_name,
+    // NIGHT-hunter-22: the 25-positional-param handoff is now one
+    // value-struct snapshot — SessionState::from_live reads the live
+    // Cloud + effective config and set_final_state moves the fields into
+    // the FINAL_* OnceLocks. The v80 source-alignment rationale for the
+    // color label lives on the constructor (final_state.rs).
+    super::set_final_state(SessionState::from_live(
+        cloud,
+        cfg,
         scene_name,
         charset_preset,
-        cloud.chars_per_sec,
-        cloud.droplet_density,
-        // v50.0.0-alpha.7: extended fields for live-reload honesty.
-        cfg.msg_mode,
-        cfg.message.as_deref(),
-        cfg.message_border,
-        // v80.0.0-beta.1 msg-fill-style: effective reveal style (post-live-reload).
-        cfg.msg_fill_style.as_str(),
-        cfg.power_dragon,
-        cfg.crystal_dragon,
-        cfg.async_mode,
-        cfg.intro_color.as_deref(),
-        // v50.0.0-beta.7 LTS: ambient effective state (post-live-reload).
-        // Owner audit: previously missing — final_runtime_verbose had no
-        // way to show what snapback delay / schedule count was in effect.
-        cfg.ambient_snapback_secs,
-        cfg.ambient_schedule.entries.len(),
-        // v80.0.0-alpha.1: crystal-dragon-secs effective state
-        // (post-live-reload) — the harmony twin of the snapback value.
-        cfg.crystal_dragon_secs,
-        // v80.0.0-beta.2 (S-master-LOGIC-1) final-state completeness:
-        // fps / bold / shading / monolith / color_bg / color_tune come
-        // from the EFFECTIVE config (current_cfg — post-live-reload,
-        // post-ambient-fps-ownership). glitch_level is derived from the
-        // live Cloud (the enum on the config is stale after an ambient
-        // apply writes the cloud fields directly).
-        cfg.target_fps,
-        &format!("{:?}", cloud.glitch_level()),
-        &format!("{:?}", cfg.bold_mode),
-        &format!("{:?}", cfg.shading_mode),
-        &format!("{:?}", cfg.monolith_size),
-        cfg.default_bg,
-        &format!(
-            "sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
-            cfg.color_tune.saturation,
-            cfg.color_tune.brightness,
-            cfg.color_tune.head,
-            cfg.color_tune.body,
-            cfg.color_tune.tail
-        ),
-    );
+    ));
 
     // v50.0.0-beta.6: final FPS line now printed BEFORE the perf report
     // (moved above — see the comment near the drop(term) call). This
@@ -210,20 +192,24 @@ pub(crate) fn finalize_session(
 /// Build + print the `--perf-stats` performance report.
 ///
 /// Pure formatting — no mutation of `stats`. Gated by `cfg.perf_stats` in
-/// the caller; this function assumes the gate is already open.
-#[allow(clippy::too_many_arguments)]
+/// the caller; this function assumes the gate is already open. The
+/// terminal counters arrive as one named bundle ([`TerminalIoStats`],
+/// captured before the drop) instead of seven positional `u64`s.
 fn print_perf_report(
     stats: &SessionStats,
+    io: &TerminalIoStats,
     elapsed_s: f64,
     final_instant_fps: f64,
-    enc_bytes: u64,
-    enc_flushes: u64,
-    sgr_hits: u64,
-    sgr_misses: u64,
-    tier2_skips: u64,
-    tier2_resets: u64,
-    tier2_bytes_since: u64,
 ) {
+    let TerminalIoStats {
+        enc_bytes,
+        enc_flushes,
+        sgr_hits,
+        sgr_misses,
+        tier2_skips,
+        tier2_resets,
+        tier2_bytes_since,
+    } = *io;
     let frames = stats.perf_frames.max(1);
     let avg_work_ms = (stats.perf_work_sum_s / frames as f64) * 1000.0;
     let avg_pressure = stats.perf_pressure_sum / frames as f64;

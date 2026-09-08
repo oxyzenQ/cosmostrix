@@ -20,27 +20,31 @@
 //!    field changes + the always-printed `ambient_snapback_secs:` +
 //!    `ambient_entries:` lines (v50.0.0-beta.7 LTS audit).
 //!
-//! The startup color + scene are passed in so the section's `(was X)`
-//! change-tracking suffix can compare startup vs final values.
+//! The startup snapshot is built from the startup CloudConfig (v50.0.0
+//! beta baseline); the final values are read from the `OnceLock` statics
+//! populated by `interactive::set_final_state()` during
+//! `event_loop_finalize`.
 
 use std::time::Instant;
 
-use crate::config::Args;
 use crate::runtime::ColorScheme;
 use crate::CloudConfig;
 
 /// Print the post-exit verbose dump (startup ambient info + final runtime
 /// state section).
 ///
-/// Only fires when `args.verbose == true` AND `result.is_ok()`. On error
-/// paths, the caller prints the error directly and skips this section.
+/// Only fires when `args.verbose == true` AND `result.is_ok()` (the
+/// caller gates both). On error paths, the caller prints the error
+/// directly and skips this section. The verbose flag itself is not
+/// needed here — the section is only reachable under `--verbose`.
 ///
 /// Parameters:
-/// - `args`: CLI args (for `args.scene` — the startup scene name, used
-///   to label the `scene:` change-tracking line).
-/// - `cloud_cfg`: the startup CloudConfig (the FINAL values are read
-///   from the `OnceLock` statics populated by
-///   `interactive::set_final_state()` during `event_loop_finalize`).
+/// - `cloud_cfg`: the startup CloudConfig — the source the
+///   [`crate::interactive::SessionState::from_startup`] snapshot reads
+///   (scene name included — `cloud_cfg.scene_name` is the same
+///   resolution the event loop launched with, replacing the old
+///   re-derivation from `args.scene`; NIGHT-hunter-22 dropped the
+///   now-redundant `args` parameter).
 /// - `color_scheme`: the startup `ColorScheme` enum value (used to label
 ///   the `color_scheme:` change-tracking line; the final value comes from
 ///   `cloud.color_scheme()` captured at session end).
@@ -48,7 +52,6 @@ use crate::CloudConfig;
 ///   `main()`. Used by `print_final_runtime_state()` to compute
 ///   `duration: Xm Ys` (monotonic — NTP-safe).
 pub(crate) fn print_post_exit_verbose(
-    args: &Args,
     cloud_cfg: &CloudConfig,
     color_scheme: ColorScheme,
     start_time: Instant,
@@ -72,58 +75,12 @@ pub(crate) fn print_post_exit_verbose(
     // v50.0.0-beta.7 LTS: ambient_snapback_secs + ambient_entries are
     // always-printed so the user can verify the effective ambient config
     // at session end (owner audit: previously missing entirely).
-    let startup_color = match cloud_cfg.custom_palette_name.as_deref() {
-        Some(name) => format!("{name} (custom)"),
-        None => format!("{color_scheme:?}"),
-    };
-    let startup_scene = args.scene.as_deref().unwrap_or(crate::scene::DEFAULT_SCENE);
-    // v80.0.0-beta.2 (S-master-LOGIC-1): startup baselines for the newly
-    // tracked final-state fields — the (was X) suffixes compare against
-    // the effective startup resolution (post CLI > config > scene
-    // layering), so a mid-run change is always attributable.
-    let startup_glitch_label = format!("{:?}", cloud_cfg.glitch_level);
-    let startup_bold_label = format!("{:?}", cloud_cfg.bold_mode);
-    let startup_shading_label = format!("{:?}", cloud_cfg.shading_mode);
-    let startup_monolith_label = format!("{:?}", cloud_cfg.monolith_size);
-    let startup_color_tune_label = format!(
-        "sat={:.2} bright={:.2} head={:.2} body={:.2} tail={:.2}",
-        cloud_cfg.color_tune.saturation,
-        cloud_cfg.color_tune.brightness,
-        cloud_cfg.color_tune.head,
-        cloud_cfg.color_tune.body,
-        cloud_cfg.color_tune.tail
-    );
-    crate::interactive::print_final_runtime_state(
-        &startup_color,
-        startup_scene,
-        &cloud_cfg.charset_preset,
-        cloud_cfg.speed,
-        cloud_cfg.density,
-        cloud_cfg.msg_mode,
-        cloud_cfg.message.as_deref(),
-        cloud_cfg.message_border,
-        // v80.0.0-beta.1 msg-fill-style: startup reveal style for the (was X)
-        // change-tracking suffix.
-        cloud_cfg.msg_fill_style.as_str(),
-        cloud_cfg.power_dragon,
-        cloud_cfg.crystal_dragon,
-        cloud_cfg.async_mode,
-        cloud_cfg.intro_color.as_deref(),
-        start_time,
-        cloud_cfg.ambient_snapback_secs,
-        cloud_cfg.ambient_schedule.entries.len(),
-        // v80.0.0-alpha.1: crystal-dragon-secs startup baseline (the
-        // post-live-reload final comes from last_crystal_dragon_secs()).
-        cloud_cfg.crystal_dragon_secs,
-        // v80.0.0-beta.2 (S-master-LOGIC-1) startup baselines:
-        cloud_cfg.target_fps,
-        &startup_glitch_label,
-        &startup_bold_label,
-        &startup_shading_label,
-        &startup_monolith_label,
-        cloud_cfg.default_bg,
-        &startup_color_tune_label,
-    );
+    //
+    // NIGHT-hunter-22: the 26-param printer call is now a two-argument
+    // diff — one startup snapshot (built from the same CloudConfig the
+    // event loop launched with) plus the program-start Instant.
+    let startup = crate::interactive::SessionState::from_startup(cloud_cfg, color_scheme);
+    crate::interactive::print_final_runtime_state(&startup, start_time);
 }
 
 /// Handle post-exit error reporting + warning drain.

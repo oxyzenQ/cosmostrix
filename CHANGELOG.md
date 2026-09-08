@@ -9,6 +9,45 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-22 — post-exit printer value-structs; the interactive family reaches zero suppressions
+
+The three remaining `too_many_arguments` suppressions (the post-exit
+verbose printers NIGHT-hunter-21 left out of scope) are resolved with
+value-struct bundling — the last wart of the signature family.
+
+- New `SessionState` value struct (src/interactive/final_state.rs):
+  one point-in-time snapshot of all 23 live-reload-able fields with
+  two constructors — `from_startup` (the resolution the session
+  launched with) and `from_live` (the effective state at loop exit,
+  read from the live Cloud). `set_final_state` 25 params → 1;
+  `print_final_runtime_state` 26 params → 2 (snapshot + start
+  Instant).
+- `TerminalIoStats` bundle in event_loop_finalize.rs: the seven
+  unnamed positional `u64` counters (encoding + tier2 tuples) became
+  named fields captured once before the terminal drop.
+  `print_perf_report` 10 params → 4.
+- The final-state family moved out of interactive/mod.rs into
+  final_state.rs (794 → 175 LOC); every historical call path keeps
+  resolving via facade re-exports.
+- Bonus warts closed on the same surface: the duplicated
+  color-tune label format (two hand-rolled copies) became one shared
+  helper; `print_post_exit_verbose` dropped its `args` parameter
+  (scene now read from `cloud_cfg.scene_name`, the same resolution
+  the loop launched with — the old re-derivation from `args.scene`
+  was a duplicate source); the private `FINAL_GLIITCH_LEVEL` typo
+  fixed; the v50 accessors gained the default + round-trip coverage
+  they never had (full 23-field storage mapping pinned).
+- Pre-existing gatekeeper debt fixed in passing: hunter-21's
+  event_loop_ctx.rs doc comments carried bold/italic markdown
+  emphasis, violating the 2026-09-04 comment-style rule (4 markers;
+  rewritten as plain prose so the gatekeeper is green again).
+- Verification: 2539 tests pass (+3 new SessionState mapping tests);
+  clippy -D warnings clean; gate-keepers 10/10; 10 s A/B benches:
+  monolith visual metrics identical to the third decimal, cinematic
+  inside the documented noise band (bench path structurally excludes
+  the post-exit family). Full report:
+  docs/research/NIGHT_HUNTER_22_FINAL_STATE_VALUES.md.
+
 ### stability: NIGHT-hunter-21 — wart #3 resolved: event-loop context-struct refactor (owner mandate)
 
 The NIGHT-hunter-3 flow audit cataloged the rain loop's coupled

@@ -11,7 +11,7 @@
 //! in `run_interactive`, threaded into the siblings as positional
 //! `&mut` parameters. That left two structural hazards:
 //!
-//! 1. **Same-type cross-wiring.** Several sibling signatures carried
+//! 1. Same-type cross-wiring. Several sibling signatures carried
 //!    adjacent parameters of identical type — `charset_preset: &mut
 //!    String, scene_name: &mut String`, `base_cfg: &mut CloudConfig,
 //!    current_cfg: &mut CloudConfig, startup_cfg: &CloudConfig, cfg:
@@ -21,14 +21,14 @@
 //!    a call site compiles cleanly and silently routes state to the
 //!    wrong layer. Thirteen `#[allow(clippy::too_many_arguments)]`
 //!    suppressions across the family quantified the wart.
-//! 2. **Signature churn.** Adding one piece of loop state meant
+//! 2. Signature churn. Adding one piece of loop state meant
 //!    editing the signatures (and every call site) of every sibling
 //!    that needed it — the reason `event_loop.rs` carried a
 //!    LOC_EXEMPT ("further splitting requires a context struct
 //!    refactor").
 //!
 //! The fix: bundle the state into [`LoopCtx`] with domain sub-structs
-//! so every former positional hazard becomes a *named field*
+//! so every former positional hazard becomes a named field
 //! (`ctx.config.base` vs `ctx.config.current` cannot be transposed),
 //! and the two monster functions
 //! ([`apply_config_rebuild`][super::event_loop_config_rebuild] and
@@ -107,7 +107,7 @@ pub(crate) struct SceneIdentity {
 /// into `startup`. Runtime contract (v80.0.0-beta.1, owner mandate
 /// 2026-09-01):
 ///
-/// - `startup` — pristine snapshot, **never mutated** for the whole
+/// - `startup` — pristine snapshot, never mutated for the whole
 ///   session. The live-reload path restores the scene family from it
 ///   when the config `scene` key is removed, so a `--scene
 ///   crystal-dragon` run returns to crystal-dragon after the config
