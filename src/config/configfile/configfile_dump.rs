@@ -110,6 +110,24 @@ pub(crate) fn dump_config_text() -> &'static str {
 # density = 1.2
 # glitch-level = "intense"
 
+# [scene-custom.cyberpunk_2077]
+# rain = "monolith"                    # monolith streams for the megacity feel
+# colors-custom = "cyberpunk_2077"      # see [colors-custom.cyberpunk_2077] below
+# charset-custom = "cyberpunk_2077"     # see [charset-custom.cyberpunk_2077] below
+# fps = 90
+# speed = 12
+# density = 0.90
+# glitch-level = "none"
+
+# [scene-custom.tron_legacy]
+# rain = "flux"                        # flux field for the light-cycle grid
+# colors-custom = "tron_legacy"
+# charset-custom = "tron_legacy"
+# fps = 75
+# speed = 8
+# density = 0.70
+# glitch-level = "subtle"
+
 # -- Custom palettes ----------------------------------------------------
 # Reference from a scene-custom block via: colors-custom = <name>.
 # Hex values MUST be quoted (unquoted # starts a TOML comment).
@@ -120,6 +138,14 @@ pub(crate) fn dump_config_text() -> &'static str {
 # bg = "#0a0a0a"
 # rain = ["#1a0033", "#4d0080", "#9933ff", "#cc66ff", "#e6b3ff", "#f2ccff", "#ffffff"]
 
+# [colors-custom.cyberpunk_2077]
+# bg = "#0A0008"
+# rain = ["#FFE100", "#FF6B00", "#FF0066", "#FF00CC", "#CC00FF", "#00FFFF", "#E0E0E0"]
+
+# [colors-custom.tron_legacy]
+# bg = "#02080C"
+# rain = ["#002B4D", "#0066AA", "#00BBEE", "#22DDFF", "#88EEFF", "#CCF4FF", "#FFFFFF"]
+
 # -- Custom charsets ----------------------------------------------------
 # Reference from a scene-custom block via: charset-custom = <name>.
 # Printable single-width glyphs only (max 256; wide/zero-width are
@@ -127,6 +153,15 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # [charset-custom.zen]
 # set = "|"
+
+# [charset-custom.quantum]
+# set = "∀∃∄∅∈∉∋∌∏∑∫∂∆∇√∞≈≠≤≥±∓×÷⊕⊗⊘⊙⊚⊛⊜⊝⊞⊟⊠⊡⊢⊣⊤⊥⊦⊧⊨⊩⊪⊫⊬⊭⊮⊯"
+
+# [charset-custom.cyberpunk_2077]
+# set = "0123456789ABCDEF<>{}[]|=+*ｱｲｳｴｵﾊﾋﾌﾍﾎﾏ"
+
+# [charset-custom.tron_legacy]
+# set = "0123456789ABCDEF←→↑↓█▌▐░▒▓│─┤├┬┴┼"
 
 # -- Ambient Phase Scheduler -------------------------------------------
 # Time-of-day scene switches (config-only, live-reload on save,

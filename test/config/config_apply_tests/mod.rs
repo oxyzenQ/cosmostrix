@@ -740,6 +740,7 @@ fn parse_bool_config_rejects_invalid_values() {
 // v50-beta.3 CLI flag tests extracted to v50_beta3_cli_flags.rs.
 mod async_mode;
 mod strict_mode;
+mod template_presets;
 mod v50_beta3_cli_flags;
 mod v50_message_keys;
 mod v80_alpha2_human_secs;

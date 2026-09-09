@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: the three themed config presets return (cyberpunk_2077, quantum, tron_legacy) — cut in the NIGHT-quality-1 template rewrite, restored verbatim with end-to-end load tests
+
+- Owner directive 2026-09-10: the cyberpunk_2077, quantum and
+  tron_legacy presets were removed when NIGHT-quality-1 rewrote the
+  dump-config template from 269 to 138 body lines — they return now,
+  text-identical to the pre-rewrite blocks.
+- Restored: two complete themed scenes (`[scene-custom.cyberpunk_2077]`
+  monolith streams / fps 90 / speed 12 / density 0.90 / glitch none;
+  `[scene-custom.tron_legacy]` flux field / fps 75 / speed 8 /
+  density 0.70 / glitch subtle), two 7-stop palettes
+  (`[colors-custom.cyberpunk_2077]` yellow-magenta-cyan on near-black;
+  `[colors-custom.tron_legacy]` deep-blue-to-white grid), and three
+  charsets (`[charset-custom.quantum]` the math-symbol set,
+  `[charset-custom.cyberpunk_2077]` hex + half-width katakana,
+  `[charset-custom.tron_legacy]` hex + box-drawing).
+- Verified with four new tests (config_apply_tests/template_presets.rs):
+  the template carries all seven block anchors; both scene blocks load
+  end-to-end through `--scene-custom` (the seven-dimension contract
+  resolves the palette reference, the charset reference and the
+  numeric quartet); and every glyph of all three charset sets parses
+  through the single-width filter (math symbols, half-width katakana,
+  box-drawing — none wide, none dropped).
+- Template text only — no render-path code changed, so the A/B
+  benches are skipped per the task rules' waste guard (startup text
+  cannot move fps, dirty cells, gini or entropy).
+
 ### feature: NIGHT-lts-2 + NIGHT-lts-5 — the x/X scene cycle re-ordered around the owner's signature pair (black hole leads, glyph default second); the default launch scene approval recorded (cinematic = glyph, first signature; sorgonemous_intrascals = black hole, second signature)
 
 - NIGHT-lts-5 (owner approval, recorded): the default signature rain
