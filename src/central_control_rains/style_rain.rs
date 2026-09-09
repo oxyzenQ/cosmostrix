@@ -2307,3 +2307,223 @@ const _: () = assert!(MURM_STARTLE_CLOCK_MEAN > 0.0);
 const _: () = assert!(MURM_BREATH_RATE > 0.0);
 const _: () = assert!(MURM_TRAIL_LEN >= 1);
 const _: () = assert!(MURM_SHIMMER_CHANCE > 0.0 && MURM_SHIMMER_CHANCE <= 1.0);
+
+// ── Quasar (NIGHT-research-8, the thirteenth style) ──────────────
+//
+// The rain feeds the engine: a quasar is a supermassive black hole
+// eating ferociously — a cold gas cloud falls in, spirals into a
+// Keplerian accretion disk (the inner laps lapping the outer, one
+// limb doppler-brightened), the core ignites white-hot, and the
+// poles fire relativistic jets. The black hole rain style is the
+// SAME engine silent; the quasar is it running at full power. The
+// complete derivation and the five laws of the engine live in
+// type_rain/quasar/mod.rs; the constants here are the shipped
+// calibration.
+
+// Population dials (the engine IS the scene — the hero dial, the
+// murmuration precedent).
+
+/// The minimum engine (a narrow terminal still reads as a quasar).
+pub(crate) const QUAS_MIN_DISK: usize = 24;
+
+/// The maximum disk (the dirty-cell budget caps the visual density;
+/// the disk is the brightest surface, so its cap leads).
+pub(crate) const QUAS_MAX_DISK: usize = 96;
+
+/// Jet particles per beam (two beams — the recycling stream that
+/// reads as the collimated outflow). Sized so the beam reads as a
+/// near-continuous column: the particles bunch at the slow base
+/// (the energy density) and spread at the fast tip, and 22 over a
+/// 16-row beam still holds a solid line through the gaps.
+pub(crate) const QUAS_JET_PER_BEAM: usize = 22;
+
+/// The halo population band (the host glow).
+pub(crate) const QUAS_MIN_HALO: usize = 8;
+pub(crate) const QUAS_MAX_HALO: usize = 22;
+
+/// The steady infall dial (the calm-sky feeder — a sparse ambient
+/// drizzle, never a downpour; the murmuration calm-sky dial
+/// family) and the ignition multiplier (the thick cold cloud: the
+/// broth runs thicker while the engine is dark, the DNA genesis
+/// soup precedent).
+pub(crate) const QUAS_INFALL_MIN: usize = 6;
+pub(crate) const QUAS_INFALL_MAX: usize = 20;
+pub(crate) const QUAS_IGNITION_INFALL_MULT: f32 = 2.2;
+
+// The disk (law 2 — Kepler + doppler).
+
+/// Disk tilt: the vertical squash of the orbit ellipse (a disk seen
+/// at ~76 degrees inclination — the classic thin-ellipse quasar
+/// read, wide enough that the shear is legible on the cell grid).
+pub(crate) const QUAS_DISK_TILT: f32 = 0.24;
+
+/// The inner disk edge (the ISCO homage): orbit fractions run
+/// [QUAS_DISK_INNER, 1.0] of the disk semi-major axis.
+pub(crate) const QUAS_DISK_INNER: f32 = 0.30;
+
+/// Kepler's constant: omega = K / f^1.5 (the third law — the inner
+/// edge laps the outer ~6x, the shear IS the rotation read).
+pub(crate) const QUAS_KEPLER_K: f32 = 0.16;
+
+/// The doppler beaming weight: the brightness factor swings
+/// [1 - W, 1 + W] across the disk (the approaching limb brightens,
+/// the receding dims — the M87 photograph's signature asymmetry).
+pub(crate) const QUAS_DOPPLER_W: f32 = 0.45;
+
+/// The doppler rung threshold: |los| beyond this shifts the
+/// brightness rung one step (mono-safe — the asymmetry survives
+/// colorless terminals).
+pub(crate) const QUAS_DOPPLER_RUNG: f32 = 0.5;
+
+/// The circularization damping time constant (sim-seconds): a
+/// captured gas streamer eases onto its target orbit (the disk
+/// assembles without a pop).
+pub(crate) const QUAS_CIRC_TAU: f32 = 0.9;
+
+// The fuel (law 3 — the infall rain).
+
+/// The infall base rate in orbit-fraction per sim-second (scaled by
+/// the inward acceleration below — the plunge accelerates as the
+/// gravity tightens). Calibrated so a streamer's transit runs
+/// ~3 sim-seconds: the disk is ~90 percent condensed when the
+/// core lights, and completes over the first breath of the
+/// steady state.
+pub(crate) const QUAS_INFALL_RATE: f32 = 0.22;
+
+/// The infall spiral wind (radians per sim-second at the outer
+/// edge; tightens with 1/f — the streamer coils as it falls).
+pub(crate) const QUAS_INFALL_SPIN: f32 = 0.50;
+
+/// The fresh-feed charge decay time constant (sim-seconds): the
+/// light that shows where the engine has been recently fed (the
+/// DNA rung-charge economy, the disk's heir).
+pub(crate) const QUAS_CHARGE_TAU: f32 = 3.2;
+
+/// The charge rung threshold: a freshly-fed disk cell reads one
+/// rung hotter while its charge is above this.
+pub(crate) const QUAS_CHARGE_RUNG: f32 = 0.55;
+
+// The jets (law 4 — the exhaust).
+
+/// The jet base speed in beam-fraction per sim-second (s advances
+/// on v(s) = V0 (1 + ACC s) — the relativistic acceleration, the
+/// tip outraces the collar).
+pub(crate) const QUAS_JET_V0: f32 = 0.16;
+pub(crate) const QUAS_JET_ACC: f32 = 2.4;
+
+/// The jet precession rate (radians per sim-second — the beams'
+/// slow conical wobble; a full sweep every ~28 sim-seconds).
+pub(crate) const QUAS_PREC_RATE: f32 = 0.22;
+
+/// The jet helix: the beam's particles ride a helix of this
+/// amplitude (cells, at the tip — the amplitude grows with s), one
+/// full turn every 1/QUAS_HELIX_TURNS of the beam.
+pub(crate) const QUAS_HELIX_AMP: f32 = 1.6;
+pub(crate) const QUAS_HELIX_TURNS: f32 = 1.2;
+
+/// The knot window (beam-fraction): the flare-launched shock
+/// brightens every jet particle inside this band of the knot's
+/// position (the traveling pulse — the engine's heartbeat read up
+/// the beam).
+pub(crate) const QUAS_KNOT_W: f32 = 0.14;
+
+/// The knot's travel speed (beam-fraction per sim-second —
+/// slower than the beam's fastest particles: the knot rides the
+/// stream, it never outruns it).
+pub(crate) const QUAS_KNOT_V: f32 = 0.50;
+
+// The core and the glow (laws 1 and 5).
+
+/// The core pulse rate (radians per sim-second — the luminosity
+/// breathing, a full cycle every ~7 sim-seconds).
+pub(crate) const QUAS_PULSE_RATE: f32 = 0.9;
+
+/// The feed-flare clock mean (sim-seconds between flares, variance
+/// banded at fire — the drama event, the murmuration startle's
+/// heir): a gas clump arrives, the core flares, the infall surges
+/// and a knot climbs each beam.
+pub(crate) const QUAS_FLARE_CLOCK_MEAN: f32 = 9.0;
+
+/// The feed-flare window (sim-seconds): the core's lock above its
+/// pulse peak while the clump burns in.
+pub(crate) const QUAS_FLARE_WINDOW: f32 = 2.0;
+
+/// The feed-flare infall surge multiplier (the clump: the rain
+/// itself thickens for the window).
+pub(crate) const QUAS_FLARE_SURGE: f32 = 2.5;
+
+// The ignition (law 0 — the birth, the DNA genesis contract).
+
+/// The dark cloud window (sim-seconds): cold gas falls, nothing
+/// burns.
+pub(crate) const QUAS_IGNITION_DARK_SECS: f32 = 2.0;
+
+/// The disk assembly window (sim-seconds): captured streamers
+/// circularize, the disk condenses.
+pub(crate) const QUAS_IGNITION_DISK_SECS: f32 = 2.6;
+
+/// The first light window (sim-seconds): the core ignites and the
+/// luminosity ramps to full.
+pub(crate) const QUAS_IGNITION_LIGHT_SECS: f32 = 1.6;
+
+/// The jet extension window (sim-seconds): the beams push out to
+/// full length.
+pub(crate) const QUAS_IGNITION_JET_SECS: f32 = 1.9;
+
+// The render contract.
+
+/// The disk/jet/infall glyph's motion-gated shimmer chance (the
+/// family contract — mutation tied to motion, deterministic under
+/// the bench's uniform stepping).
+pub(crate) const QUAS_SHIMMER_CHANCE: f32 = 0.12;
+
+/// The staggered infall spawn rate (the accumulator contract — the
+/// cloud assembles over the first seconds).
+pub(crate) const QUAS_SPAWN_RATE_MULT: f32 = 0.50;
+pub(crate) const QUAS_SPAWN_RATE_FLOOR: f32 = 1.2;
+
+/// Sim-time coupling to the speed keys (the family contract — see
+/// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 18 cps).
+pub(crate) const QUAS_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// Compile-time contracts on the engine calibration: the ignition
+// windows are strictly positive (the phase classifier's ordering
+// depends on every window being reachable), the ignition
+// multiplier surges (a thinner broth would starve the birth), the
+// doppler swing stays inside the factor's brightening band and the
+// rung threshold sits inside the |los| unit range, the Kepler
+// constant keeps the inner edge turning slower than a blur and the
+// outer edge faster than a still life, the fuel falls inward
+// (rate positive) and the charge decays (tau positive), the jets
+// accelerate (ACC positive) and outrun their own knots (the knot
+// rides the beam slower than the beam's fastest particles — the
+// pulse reads as a wave, not a teleport), the population bands are
+// ordered, the pulse beats, the flare clock ticks, the surge
+// thickens, and the halo band brackets the disk's outer edge.
+const _: () = assert!(QUAS_IGNITION_DARK_SECS > 0.0);
+const _: () = assert!(QUAS_IGNITION_DISK_SECS > 0.0);
+const _: () = assert!(QUAS_IGNITION_LIGHT_SECS > 0.0);
+const _: () = assert!(QUAS_IGNITION_JET_SECS > 0.0);
+const _: () = assert!(QUAS_IGNITION_INFALL_MULT > 1.0);
+const _: () = assert!(QUAS_FLARE_SURGE > 1.0);
+const _: () = assert!(QUAS_DOPPLER_W > 0.0 && QUAS_DOPPLER_W < 1.0);
+const _: () = assert!(QUAS_DOPPLER_RUNG > 0.0 && QUAS_DOPPLER_RUNG < 1.0);
+const _: () = assert!(QUAS_DISK_INNER > 0.0 && QUAS_DISK_INNER < 1.0);
+const _: () = assert!(QUAS_DISK_TILT > 0.0 && QUAS_DISK_TILT < 1.0);
+const _: () = assert!(QUAS_KEPLER_K > 0.0);
+const _: () = assert!(QUAS_KEPLER_K / (QUAS_DISK_INNER * QUAS_DISK_INNER) < 2.0);
+const _: () = assert!(QUAS_KEPLER_K > 0.05);
+const _: () = assert!(QUAS_INFALL_RATE > 0.0);
+const _: () = assert!(QUAS_CHARGE_TAU > 0.0);
+const _: () = assert!(QUAS_JET_V0 > 0.0 && QUAS_JET_ACC > 0.0);
+const _: () = assert!(QUAS_KNOT_V > 0.0);
+const _: () = assert!(QUAS_JET_V0 * (1.0 + QUAS_JET_ACC) > QUAS_KNOT_V);
+const _: () = assert!(QUAS_KNOT_W > 0.0 && QUAS_KNOT_W < 1.0);
+const _: () = assert!(QUAS_MIN_DISK < QUAS_MAX_DISK);
+const _: () = assert!(QUAS_MIN_HALO < QUAS_MAX_HALO);
+const _: () = assert!(QUAS_MIN_HALO < QUAS_MAX_DISK);
+const _: () = assert!(QUAS_PULSE_RATE > 0.0);
+const _: () = assert!(QUAS_FLARE_CLOCK_MEAN > 0.0);
+const _: () = assert!(QUAS_FLARE_WINDOW > 0.0);
+const _: () = assert!(QUAS_SHIMMER_CHANCE > 0.0 && QUAS_SHIMMER_CHANCE <= 1.0);
+const _: () = assert!(QUAS_INFALL_MIN < QUAS_INFALL_MAX);

@@ -275,6 +275,40 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Murmuration,
         },
     },
+    // NIGHT-research-8: quasar — the feeding engine, the owner's
+    // pick over the neural-network proposal. A supermassive black
+    // hole at full power: cold glyph gas rains onto a Keplerian
+    // accretion disk (the inner ring lapping the outer six times
+    // over, the approaching limb doppler-brightened — the M87
+    // photograph's signature asymmetry), the core breathes
+    // white-hot, and the poles fire precessing relativistic jets
+    // that knot when a gas clump arrives and the engine flares.
+    // The black hole rain style is the SAME engine silent; the
+    // quasar is it running at full power — the sibling pair
+    // completes the story. And it IGNITES (law 0, the DNA genesis
+    // contract): the entry replays the birth — the dark cloud
+    // falls, the disk condenses from the captures, the core
+    // lights, the jets fire. The `stars` palette (previously
+    // north-stars' honor-sky ramp): the deep-space
+    // blue-black-to-white read of a telescope frame. Braille
+    // glyphs: the plasma reads as granulated light, not letters.
+    // Speed 18 = the family reference; density 0.60 drives the
+    // disk's ring count (the hero dial — the engine IS the
+    // scene); glitch none — the sky is still, the flare is the
+    // drama.
+    SceneInfo {
+        name: "quasar",
+        description: "Quasar — the rain feeds the engine; a supermassive black hole at full power: cold glyph gas spirals into a Keplerian accretion disk (the inner ring lapping the outer, one limb doppler-brightened), the core ignites white-hot and breathes, and the poles fire precessing relativistic jets that knot when the engine flares",
+        config: SceneConfig {
+            color: Some("stars"),
+            charset: Some("braille"),
+            fps: Some(60.0),
+            speed: Some(18.0),
+            density: Some(0.60),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Quasar,
+        },
+    },
     SceneInfo {
         name: "monolith",
         description:

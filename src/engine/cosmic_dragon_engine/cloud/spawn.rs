@@ -45,6 +45,10 @@ impl Cloud {
         // the Z-6 "critical path only" contract, and the genesis
         // tests pin the choreography frame by frame instead).
         self.dna_helix_rain.fast_forward_genesis();
+        // NIGHT-research-8: same contract for the quasar ignition —
+        // fast-forward the bench to the burning engine (the birth
+        // is pinned by the ignition tests instead).
+        self.quasar_rain.fast_forward_ignition();
         // Z-6: mark benchmark mode — rain_at skips message cosmetics
         // (draw_message + border-cross detection). Owner directive: bench
         // mode measures critical path only (rain + 3 dragons), not cosmetics.
@@ -144,6 +148,12 @@ impl Cloud {
             // sibling, same draw-history clear on charset switch
             // (bird glyphs re-pick from the new pool).
             self.murmuration_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Quasar) {
+            // NIGHT-research-8: quasar — structured-family
+            // sibling, same draw-history clear on charset switch
+            // (particle glyphs re-pick from the new pool).
+            self.quasar_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }
@@ -256,6 +266,12 @@ impl Cloud {
             // sibling, same draw-history clear on palette change
             // (bird glyphs re-pick under the transition wave).
             self.murmuration_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Quasar) {
+            // NIGHT-research-8: quasar — structured-family
+            // sibling, same draw-history clear on palette change
+            // (particle glyphs re-pick under the transition wave).
+            self.quasar_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

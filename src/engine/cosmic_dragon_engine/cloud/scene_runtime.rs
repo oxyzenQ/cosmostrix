@@ -392,6 +392,17 @@ impl Cloud {
             RainStyle::SolarFlare => self.solar_flare_rain.reset(self.cols, self.lines),
             RainStyle::DnaHelix => self.dna_helix_rain.reset(self.cols, self.lines),
             RainStyle::Murmuration => self.murmuration_rain.reset(self.cols, self.lines),
+            // NIGHT-research-8: the engine takes a full reset on
+            // exit and DISARMS — the pools wipe and the ignition
+            // re-arms, so the dormant engine counts nothing (the
+            // family exit contract) and the next entry replays the
+            // birth (a pure resize on the burning engine keeps the
+            // steady state — that path is spawn_reset's, not this
+            // one).
+            RainStyle::Quasar => {
+                self.quasar_rain.reset(self.cols, self.lines);
+                self.quasar_rain.begin_ignition();
+            }
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -502,6 +513,20 @@ impl Cloud {
                 // birds; the sky starts empty and the staggered
                 // entry assembles the flock).
                 self.murmuration_rain.reset(self.cols, self.lines);
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Quasar => {
+                // NIGHT-research-8: quasar entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // engine rebuild on entry) and replays the ignition:
+                // the cold cloud falls, the disk condenses from the
+                // captures, the core lights, the jets fire (the DNA
+                // genesis contract — the entry is the birth; a pure
+                // resize keeps the burning engine).
+                self.quasar_rain.reset(self.cols, self.lines);
+                self.quasar_rain.begin_ignition();
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

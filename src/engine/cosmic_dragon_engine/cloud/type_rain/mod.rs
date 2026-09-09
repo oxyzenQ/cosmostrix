@@ -49,6 +49,13 @@
 //!   the twelfth style: the rain is a flock — the five laws of
 //!   the flock derived in `murmuration/mod.rs`; the shortlist's
 //!   second pick, canonical boids mapped through a spatial hash).
+//! - `quasar` - the feeding engine (NIGHT-research-8, the
+//!   thirteenth style: the rain feeds the engine — the five laws
+//!   of the engine derived in `quasar/mod.rs`; the owner's pick
+//!   over the neural-network proposal, the canonical active
+//!   galactic nucleus mapped to the terminal grid: Keplerian
+//!   disk, doppler beaming, relativistic jets, the ignition
+//!   birth).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -67,5 +74,6 @@ pub(crate) mod lorenz;
 pub(crate) mod monolith;
 pub(crate) mod murmuration;
 pub(crate) mod physarum;
+pub(crate) mod quasar;
 pub(crate) mod solar_flare;
 pub(crate) mod vortex;

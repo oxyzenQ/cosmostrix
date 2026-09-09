@@ -66,6 +66,7 @@ pub(crate) use type_rain::lorenz;
 pub(crate) use type_rain::monolith;
 pub(crate) use type_rain::murmuration;
 pub(crate) use type_rain::physarum;
+pub(crate) use type_rain::quasar;
 pub(crate) use type_rain::solar_flare;
 pub(crate) use type_rain::vortex;
 // `flux_field` is a sibling of `flux.rs` inside `type_rain/flux/`, so the
@@ -106,6 +107,7 @@ use lorenz::LorenzRain;
 use monolith::MonolithRain;
 use murmuration::MurmurationRain;
 use physarum::PhysarumRain;
+use quasar::QuasarRain;
 use solar_flare::SolarFlareRain;
 use state::{AnomalyZone, BorderPulse, ColumnStatus, MsgChr, QuantumParticle};
 use vortex::VortexRain;
@@ -221,6 +223,14 @@ pub struct Cloud {
     /// stochastic advance pass (the jitter walk, the anchor
     /// re-rolls and the startle clock ride the RNG bundle).
     pub(crate) murmuration_rain: MurmurationRain,
+    /// NIGHT-research-8 thirteenth rain style: the quasar — the
+    /// feeding engine, a supermassive black hole at full power
+    /// (see `type_rain/quasar/mod.rs` for the five laws of the
+    /// engine). Structured family sibling (no droplet pool); a
+    /// stochastic advance pass (the infall spawn rolls, the
+    /// capture target rolls and the flare clock re-arms ride
+    /// the RNG bundle).
+    pub(crate) quasar_rain: QuasarRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -534,6 +544,7 @@ impl Cloud {
             solar_flare_rain: SolarFlareRain::new(),
             dna_helix_rain: DnaHelixRain::new(),
             murmuration_rain: MurmurationRain::new(),
+            quasar_rain: QuasarRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -902,6 +913,7 @@ impl Cloud {
             RainStyle::SolarFlare => self.solar_flare_rain.active_count(),
             RainStyle::DnaHelix => self.dna_helix_rain.active_count(),
             RainStyle::Murmuration => self.murmuration_rain.active_count(),
+            RainStyle::Quasar => self.quasar_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

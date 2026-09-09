@@ -152,7 +152,7 @@ pub(crate) fn update_hud_state(
     // NIGHT-hunter-9: rain — active rain style. Always meaningful; the
     // `as_str()` helper returns the canonical CLI label (glyph, monolith,
     // vortex, flux, lorenz, dragon, physarum, black_hole, aeolian,
-    // solar_flare, dna_helix, murmuration). Called every frame so scene
+    // solar_flare, dna_helix, murmuration, quasar). Called every frame so scene
     // switches and live-config reloads are reflected immediately on the
     // next HUD tick.
     hud_state.set_rain_style(cloud.rain_style());

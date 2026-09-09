@@ -9,6 +9,60 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-8 — the quasar, the thirteenth rain style (the rain feeds the engine)
+
+- Owner-approved pick over the neural-network proposal (the DNA
+  genesis round's question): the canonical active galactic
+  nucleus mapped to the terminal grid — the black hole rain
+  style's LOUD sibling, the same engine running at full power.
+  `cosmostrix --scene quasar` (stars palette, braille charset,
+  cycle position 14, grouped with the style flagships).
+- The engine: a Keplerian accretion disk (omega ~ r^-1.5 — the
+  inner ring laps the outer ~6x, the shear IS the rotation read)
+  on the classic tilted-ellipse projection, the radial
+  temperature ladder, and the doppler beaming collapsed to a
+  mono-safe brightness-rung asymmetry (the approaching limb steps
+  up, the receding dims — the M87 photograph's signature). The
+  core breathes white-hot with a pulse-following glow ring; the
+  poles fire precessing relativistic jets (recycling streams with
+  per-particle energy shares — the spread that keeps a beam from
+  riding in lockstep — knots traveling as flare-launched pulses);
+  a sparse halo annulus glides in from beyond the frame and
+  breathes with the core.
+- The rain is the fuel: infalling streamers spiral in on the
+  accelerating plunge, and the capture economy builds the disk
+  from them — a landing streamer either births an orbit (charged
+  to full, the DNA rung-charge economy's heir) or re-charges the
+  nearest-angle orbit. The starvation lesson from the DNA helix
+  is a pinned contract (the counters stay honest, tests assert
+  it).
+- The ignition (the owner's genesis mandate): every scene entry
+  replays the birth — the dark cloud falls, the disk condenses
+  from the captures, the core lights, the jets push out — four
+  continuous phases with an exact no-seam handoff to the steady
+  law. A pure resize keeps the burning engine; the bench
+  fast-forwards (the Z-6 critical-path contract); 25 test
+  contracts pin the sequence and the orchestration.
+- The feed-flare clock (the drama event, the murmuration
+  startle's heir): a gas clump arrives — the core locks above its
+  peak, the infall surges, a knot climbs each beam, and the
+  core's glyph re-rolls (event-gated mutation).
+- Hunt-find (the owner's mandate): the scene/mod.rs doc header
+  still claimed "27 built-in scenes" and a "seven structured
+  style flagships" list that predated solar_flare, dna_helix and
+  murmuration — both stale for two rounds; corrected to the live
+  counts (30 scenes, eleven flagships). The rain_style.rs
+  "ten non-droplet styles" comment was likewise two styles
+  behind (now twelve). The scene-count change-detectors moved
+  29 -> 30 as designed.
+- Verification: full suite 2655 passed / 0 failed (was 2630);
+  fmt + clippy -D warnings clean; PTY shape smoke
+  (scripts/quasar_smoke.py: the dark cloud leaves the core's home
+  empty, the steady engine draws the core + beams there); 10 s
+  A/B bench on four probes with zero visual regression
+  (benchmark/bench-labs/night_research8_quasar/QUASAR_AB.md);
+  the quasar itself: 96,350 fps, 84.7 dirty cells/frame.
+
 ### feature: NIGHT-research-7 (part 3) — the DNA genesis, the molecule is born before it stands
 
 - Owner round 9/10 feedback: the style entered with the molecule

@@ -4,7 +4,8 @@
 //! Internal rain style selection.
 //!
 //! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7, twelve styles):
+//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7
+//! + NIGHT-research-8, thirteen styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
@@ -12,7 +13,8 @@
 //!   [`RainStyle::Flux`], [`RainStyle::Lorenz`], [`RainStyle::Dragon`],
 //!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
 //!   [`RainStyle::Aeolian`], [`RainStyle::SolarFlare`],
-//!   [`RainStyle::DnaHelix`]) — dedicated
+//!   [`RainStyle::DnaHelix`], [`RainStyle::Murmuration`],
+//!   [`RainStyle::Quasar`]) — dedicated
 //!   state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
@@ -54,7 +56,15 @@
 //!   cohesion and a clocked predator startle — the five laws of
 //!   the flock, see `cloud/type_rain/murmuration/mod.rs`;
 //!   NIGHT-research-7, the twelfth style, the shortlist's second
-//!   pick).
+//!   pick); Quasar runs the feeding engine — a supermassive
+//!   black hole at full power: glyph gas rains onto a Keplerian
+//!   accretion disk (the inner ring lapping the outer, one limb
+//!   doppler-brightened), the core breathes white-hot, and the
+//!   poles fire precessing, knotting relativistic jets, with
+//!   every falling glyph the fuel (the five laws of the engine,
+//!   see `cloud/type_rain/quasar/mod.rs`; NIGHT-research-8, the
+//!   thirteenth style, the owner's pick over the neural-network
+//!   proposal).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -70,6 +80,7 @@ pub enum RainStyle {
     SolarFlare,
     DnaHelix,
     Murmuration,
+    Quasar,
 }
 
 impl RainStyle {
@@ -88,6 +99,7 @@ impl RainStyle {
             Self::SolarFlare => "solar_flare",
             Self::DnaHelix => "dna_helix",
             Self::Murmuration => "murmuration",
+            Self::Quasar => "quasar",
         }
     }
 
@@ -96,7 +108,7 @@ impl RainStyle {
     /// (Flux replaced the task-18 Ripple surface style, which was
     /// the second droplet-family member). Gates that previously
     /// read `!matches!(style, Monolith)` should read this instead —
-    /// ten non-droplet styles exist now.
+    /// twelve non-droplet styles exist now.
     #[must_use]
     pub fn is_droplet_family(self) -> bool {
         matches!(self, Self::Glyph)
@@ -108,7 +120,8 @@ impl RainStyle {
     /// particles, the BlackHole orbital-ring motes since stage 2,
     /// the Aeolian drops since NIGHT-special-2, the SolarFlare
     /// drops since NIGHT-special-4, the DnaHelix nucleotides and
-    /// the Murmuration birds since NIGHT-research-7).
+    /// the Murmuration birds since NIGHT-research-7, the Quasar
+    /// infall streamers since NIGHT-research-8).
     /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
@@ -125,6 +138,7 @@ impl RainStyle {
                 | Self::SolarFlare
                 | Self::DnaHelix
                 | Self::Murmuration
+                | Self::Quasar
         )
     }
 
@@ -154,6 +168,7 @@ impl RainStyle {
             "solar_flare" | "solarflare" | "flare" => Some(Self::SolarFlare),
             "dna_helix" | "dnahelix" | "dna" => Some(Self::DnaHelix),
             "murmuration" | "murmur" | "starlings" => Some(Self::Murmuration),
+            "quasar" | "agn" => Some(Self::Quasar),
             _ => None,
         }
     }
@@ -164,6 +179,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix, murmuration"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar"
     }
 }

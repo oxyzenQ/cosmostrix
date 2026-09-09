@@ -31,7 +31,10 @@ fn cycle_scene_forward_order() {
     // murmuration joined at cycle position 13 — the boids flock.
     assert_eq!(cycle_scene("solar_flare", 1), "dna_helix");
     assert_eq!(cycle_scene("dna_helix", 1), "murmuration");
-    assert_eq!(cycle_scene("murmuration", 1), "classic");
+    // NIGHT-research-8: quasar joined at cycle position 14 — the
+    // feeding engine (the rain feeds the engine).
+    assert_eq!(cycle_scene("murmuration", 1), "quasar");
+    assert_eq!(cycle_scene("quasar", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -96,6 +99,8 @@ fn scene_names_are_present() {
     // sort alphabetically before calm.
     // NIGHT-research-7: dna_helix joined at cycle position 12;
     // sorts alphabetically after curiosity, before dragon_hunt.
+    // NIGHT-research-8: quasar joined at cycle position 14;
+    // sorts alphabetically after physarum, before signal.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -123,6 +128,7 @@ fn scene_names_are_present() {
             "north-stars",
             "orange-cat",
             "physarum",
+            "quasar",
             "signal",
             "solar_flare",
             "sorgonemous_intrascals",
@@ -182,7 +188,7 @@ fn scene_catalog_has_twenty_six_entries() {
     // the double helix (the rain writes the genome);
     // murmuration joined at cycle position 13 — the boids flock
     // (the rain is a flock).
-    assert_eq!(SCENES.len(), 29, "catalog must contain 29 built-in scenes");
+    assert_eq!(SCENES.len(), 30, "catalog must contain 30 built-in scenes");
 }
 
 #[test]
@@ -268,7 +274,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        29,
+        30,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —
