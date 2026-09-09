@@ -9,6 +9,42 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-hunter-18 — the low-terminal cinematic-intro auto-skip (the owner's "no need cinematic mode" half); the high-perf peak audit closes the other half (nothing held back)
+
+- Audit finding: the owner directive was already 80 percent
+  implemented — S-master-HUNT-24 ships the effects auto-gate
+  (`effects_auto_off_applicable`: console TTY / dumb / pure-CPU
+  renderers resolve effects_enabled false at startup, with the
+  `[auto-fx]` verbose notice), and the termdetect layer already
+  tiers high-perf terminals to peak: dynamic default fps 144
+  (60 standard), 240 fps ceiling (30 on xterm.js), phosphor decay
+  1.0 (1.3 VTE / 1.6 xterm.js), no ghost brightness cap (0.10 /
+  0.15), speed mult 1.0, sync output, kitty keyboard where
+  supported, effects on. High-perf = peak: confirmed, nothing to
+  unleash.
+- The gap was the cinematic intro: the particle-driven intro
+  sequence played even on the raw Linux console and dumb terminals
+  (the intro's only gates were terminal size and the skip key).
+  NIGHT-hunter-18 adds `resolve_intro_type()` in build_cloud_cfg —
+  a unit-testable seam mirroring `resolve_effects_enabled`: the
+  built-in Logo default resolves to None on the effects-gate
+  population (low terminals, the owner's "no need cinematic mode"
+  half); an explicit `--intro` value always wins (the CLI-lock
+  precedence chain — the user who asks for the intro on a low
+  terminal gets it); bench mode resolves to None.
+- The `[auto-intro]` verbose diagnostic surfaces the skip decision
+  the same way the `[auto-fx]` notice does — only when it actually
+  changed the outcome.
+- Four new tests (hunter18_intro_gate_tests): high-perf keeps the
+  Logo default, low terminals skip it, explicit --intro always
+  wins both directions, bench resolves to None.
+- Docs synced: the `--intro` and `--no-effects` help sections and
+  the README intro bullet now document both auto-gates.
+- The change is startup-resolution only — the intro gate sits on
+  the interactive path (event_loop), unreachable from the bench
+  harness (bench mode pins intro None before the gate), so the
+  A/B benches are skipped per the task rules' waste guard.
+
 ### feature: the three themed config presets return (cyberpunk_2077, quantum, tron_legacy) — cut in the NIGHT-quality-1 template rewrite, restored verbatim with end-to-end load tests
 
 - Owner directive 2026-09-10: the cyberpunk_2077, quantum and

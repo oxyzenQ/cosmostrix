@@ -141,7 +141,10 @@ COMMON OPTIONS:
       terminals (Konsole, GNOME Terminal) where particle effects
       cause fullscreen lag, and for simple no-effects mode.
       Existing in-flight particles fade out naturally on the next
-      update tick — no visual pop.
+      update tick — no visual pop. On low terminals (raw console
+      TTY, dumb, pure-CPU renderers) effects auto-disable at startup
+      (NIGHT-hunter-18 / S-master-HUNT-24) — this flag forces the
+      same state everywhere else too.
 
       S-master-HUNT-24 AUTO-GATE: on CPU-rendered terminals (VTE
       family — GNOME Terminal/kgx, konsole; foot; xterm.js hosts;
@@ -192,6 +195,10 @@ COMMON OPTIONS:
       Cinematic intro played before the rain engine starts. Pick one
       of three modes (default: logo). The intro plays automatically
       when cosmostrix starts; pass --intro none to skip it entirely.
+      On low terminals (raw console TTY, dumb, pure-CPU renderers)
+      the default intro auto-skips (NIGHT-hunter-18) — the cinematic
+      particle sequence cannot read on that paint path. An explicit
+      --intro value always overrides the auto-skip.
         logo    cosmostrix Logo intro (~4.5s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the

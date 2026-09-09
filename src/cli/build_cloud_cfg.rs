@@ -199,7 +199,7 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         base_density,
         perf_stats: args.perf_stats,
         screensaver: args.screensaver,
-        intro: args.intro.unwrap_or(crate::intro_style::IntroType::Logo),
+        intro: resolve_intro_type(args.intro, term_caps, bench_mode),
         intro_color: args.intro_color.clone(),
         mouse: true, // v17: always-on (--mouse flag deleted)
         charset_preset,
@@ -316,6 +316,16 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         ));
     }
 
+    // NIGHT-hunter-18: surface the cinematic-intro auto-skip the same
+    // way — only when it actually changed the outcome (no explicit
+    // --intro; bench mode pins None through its own args path).
+    if args.intro.is_none() && !bench_mode && effects_auto_off_applicable(term_caps) {
+        crate::live_config::push_runtime_diag(&format!(
+            "[auto-intro] cinematic intro auto-skipped: low terminal detected via {} (the particle-driven intro cannot read on this paint path; an explicit --intro overrides)",
+            term_caps.effects_gate_source
+        ));
+    }
+
     cloud_cfg
 }
 
@@ -349,6 +359,35 @@ pub(crate) fn resolve_effects_enabled(
     caps: &crate::termdetect::TerminalCaps,
 ) -> bool {
     !no_effects && !bench_mode && !effects_auto_off_applicable(caps)
+}
+
+/// NIGHT-hunter-18: resolve the final cinematic-intro type.
+///
+/// The owner directive: high-perf terminals get everything (the intro
+/// stays at its built-in Logo default); low terminals — console TTYs,
+/// dumb terminals, pure-CPU renderers, the same population the
+/// S-master-HUNT-24 effects gate covers — skip the cinematic intro
+/// ("no need cinematic mode"): the intro is a particle-driven cinematic
+/// sequence, pure overhead on a paint path that cannot sustain it.
+///
+/// Precedence mirrors the effects gate's: an explicitly chosen
+/// `--intro` value ALWAYS wins (the CLI-lock precedence chain — the
+/// user who asks for the intro on a low terminal gets it); bench mode
+/// resolves to None (its args pin it before this gate); otherwise the
+/// low-terminal gate decides; the built-in default stays Logo.
+pub(crate) fn resolve_intro_type(
+    intro: Option<crate::intro_style::IntroType>,
+    caps: &crate::termdetect::TerminalCaps,
+    bench_mode: bool,
+) -> crate::intro_style::IntroType {
+    use crate::intro_style::IntroType;
+    if let Some(explicit) = intro {
+        return explicit;
+    }
+    if bench_mode || effects_auto_off_applicable(caps) {
+        return IntroType::None;
+    }
+    IntroType::Logo
 }
 
 #[cfg(test)]
@@ -451,5 +490,91 @@ mod hunt24_effects_gate_tests {
             true,
             &caps(true, false)
         ));
+    }
+}
+
+#[cfg(test)]
+mod hunter18_intro_gate_tests {
+    //! NIGHT-hunter-18: the cinematic-intro auto-skip for low
+    //! terminals. The gate reuses the S-master-HUNT-24 effects-gate
+    //! population (console TTYs, dumb terminals, pure-CPU renderers):
+    //! the owner directive is "if on low terminal no need cinematic
+    //! mode" — the particle-driven intro cannot read there, so the
+    //! built-in Logo default resolves to None. An explicit --intro
+    //! always wins (CLI-lock precedence, same philosophy as the
+    //! effects gate's --no-effects).
+
+    use crate::intro_style::IntroType;
+    use crate::termdetect::TerminalCaps;
+
+    /// Minimal caps fixture with only the gate-relevant fields varied
+    /// (same shape as the hunt24 fixture — stable test fixtures are
+    /// this repo's accepted duplication).
+    fn caps(cpu_rendered: bool, console_tty: bool) -> TerminalCaps {
+        TerminalCaps {
+            sync_output: true,
+            kitty_keyboard: false,
+            has_alternate_screen: true,
+            xtermjs_host: cpu_rendered,
+            vscode_integrated: false,
+            default_fps_cap: 240.0,
+            dynamic_default_fps: 60.0,
+            dynamic_fps_source: "test",
+            phosphor_decay_mult: 1.0,
+            ghost_brightness_cap: 0.0,
+            speed_mult: 1.0,
+            cpu_rendered,
+            console_tty,
+            effects_gate_source: "test",
+        }
+    }
+
+    #[test]
+    fn high_perf_terminals_keep_the_logo_intro() {
+        // Peak power on high-perf terminals: the built-in default
+        // stays Logo (the full cinematic sequence plays).
+        assert_eq!(
+            super::resolve_intro_type(None, &caps(false, false), false),
+            IntroType::Logo
+        );
+    }
+
+    #[test]
+    fn low_terminals_skip_the_default_intro() {
+        // Console TTYs, dumb terminals and pure-CPU renderers resolve
+        // the built-in default to None — no cinematic mode there.
+        assert_eq!(
+            super::resolve_intro_type(None, &caps(true, false), false),
+            IntroType::None
+        );
+        assert_eq!(
+            super::resolve_intro_type(None, &caps(false, true), false),
+            IntroType::None
+        );
+    }
+
+    #[test]
+    fn explicit_intro_always_wins() {
+        // The CLI-lock precedence chain: a user who explicitly asks
+        // for the intro on a low terminal gets it.
+        assert_eq!(
+            super::resolve_intro_type(Some(IntroType::Logo), &caps(true, true), false),
+            IntroType::Logo
+        );
+        // And an explicit none stays none on a high-perf terminal.
+        assert_eq!(
+            super::resolve_intro_type(Some(IntroType::None), &caps(false, false), false),
+            IntroType::None
+        );
+    }
+
+    #[test]
+    fn bench_mode_resolves_to_none() {
+        // Bench mode never plays the intro; the resolver reflects it
+        // even if the args arrive unpinned.
+        assert_eq!(
+            super::resolve_intro_type(None, &caps(false, false), true),
+            IntroType::None
+        );
     }
 }
