@@ -42,7 +42,10 @@ src/engine/chroma_dragon_engine/                                <- the engine
 ├── catalog.rs                             <- THEMES registry (43 themes), ThemeDef
 ├── gradient.rs                            <- OKLab polar interpolation (sole prod path)
 ├── shaders/
-│   ├── base.rs                            <- ShaderCtx + resolve_cell_color() <- THE convergence point
+│   ├── base/                              <- ShaderCtx + resolve_cell_color() <- THE convergence point
+│   │   ├── mod.rs                         <- CellPaint bundle + resolve_cell_color + ShaderCtx
+│   │   ├── helpers.rs                     <- TRAIL_EXP_LUT, BAYER_4X4, jitter/coherence helpers
+│   │   └── test_util.rs                   <- cfg(test) test fixtures (make_test_shader, test_paint)
 │   ├── transition.rs                      <- TransitionLTable, apply_l_smoothing (Phase 5)
 │   └── mod.rs
 ├── post/
@@ -66,7 +69,7 @@ src/engine/chroma_dragon_engine/                                <- the engine
 | `blend_toward_bg(color, bg, factor) -> Color` | `chroma::palette` | Blend `color` toward `bg` by `factor` (OKLab-friendly linear RGB blend) |
 | `blend_toward_white(color, factor) -> Color` | `chroma::palette` | Convenience: `blend_toward_bg(color, Color::Rgb{255,255,255}, factor)` |
 | `format_color_hex(bg) -> String` | `chroma::palette` | `"#rrggbb"` for verbose/doctor output |
-| `resolve_cell_color(shader, slot, line, col, val, loc, head_put_line, length) -> (Option<Color>, bool)` | `chroma::shaders::base` | The cell-color convergence point (palette + position + glyph + transition + head-state + halo + L-smoothing + jitter + climate) |
+| `resolve_cell_color(shader, paint: CellPaint) -> (Option<Color>, bool)` | `chroma::shaders::base` | The cell-color convergence point (palette + position + glyph + transition + head-state + halo + L-smoothing + jitter + climate). The seven per-cell positionals ride the `CellPaint` bundle since NIGHT-hunter-25 part 2 (named fields, all-Copy scalars) |
 | `apply_climate(r, g, b, line, col, ctx) -> (u8,u8,u8)` | `chroma::post::climate` | Atmospheric post-FX on raw RGB |
 | `ghost_base_color(palette_colors) -> (u8,u8,u8)` | `chroma::post::ghost` | Palette-aware ghost color (replaces hardcoded `(18,22,18)`) |
 | `anomaly_halo_target(palette_colors, anomaly_kind) -> Option<Color>` | `chroma::post::anomaly` | Palette-aware anomaly halo target |

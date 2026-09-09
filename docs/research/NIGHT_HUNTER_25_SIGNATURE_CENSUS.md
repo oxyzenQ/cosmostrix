@@ -75,6 +75,12 @@ point), cloud/render `get_attr` (its thin wrapper — one bundle
 design fixes both), solar_flare `draw_solar_cell`, intro_style
 `render_particle_cell`, cloud/post_rain `post_rain_processing`,
 bench_io `emit_cell_lean`.
+
+> CLOSED by NIGHT-hunter-25 part 2 (see
+> `NIGHT_HUNTER_25_PART2_SHARED_BUNDLE.md`): all six ride value
+> bundles — `CellPaint` shared by the shader/render pair,
+> `SolarCellPaint`, `ParticlePaint`, `PostRainInputs`, `StyleCursor`.
+> src/ reached zero too_many_arguments suppressions.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
