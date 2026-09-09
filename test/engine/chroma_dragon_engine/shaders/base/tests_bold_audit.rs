@@ -17,7 +17,9 @@
 use bitvec::prelude::BitSlice;
 use crossterm::style::Color;
 
-use crate::chroma_dragon_engine::shaders::base::{resolve_cell_color, CharLoc, ShaderCtx};
+use crate::chroma_dragon_engine::shaders::base::{
+    resolve_cell_color, test_paint, CharLoc, ShaderCtx,
+};
 use crate::constants::MAX_PALETTE_SLOTS;
 use crate::runtime::{BoldMode, ColorMode};
 
@@ -88,9 +90,9 @@ fn bold_off_vs_all_middle_cells_differ() {
     for line in 10..20 {
         for col in 0..20 {
             let (_, bold_off) =
-                resolve_cell_color(&shader_off, 0, line, col, 'x', CharLoc::Middle, 25, 20);
+                resolve_cell_color(&shader_off, test_paint(line, col, CharLoc::Middle, 25, 20));
             let (_, bold_all) =
-                resolve_cell_color(&shader_all, 0, line, col, 'x', CharLoc::Middle, 25, 20);
+                resolve_cell_color(&shader_all, test_paint(line, col, CharLoc::Middle, 25, 20));
             if bold_off != bold_all {
                 diffs += 1;
             }
@@ -114,7 +116,8 @@ fn bold_off_middle_cells_never_bold() {
 
     for line in 5..25 {
         for col in 0..30 {
-            let (_, bold) = resolve_cell_color(&shader, 0, line, col, 'x', CharLoc::Middle, 30, 30);
+            let (_, bold) =
+                resolve_cell_color(&shader, test_paint(line, col, CharLoc::Middle, 30, 30));
             assert!(
                 !bold,
                 "BoldMode::Off: Middle cell at ({line},{col}) should NOT be bold"
@@ -135,7 +138,8 @@ fn bold_all_middle_cells_always_bold() {
 
     for line in 5..25 {
         for col in 0..30 {
-            let (_, bold) = resolve_cell_color(&shader, 0, line, col, 'x', CharLoc::Middle, 30, 30);
+            let (_, bold) =
+                resolve_cell_color(&shader, test_paint(line, col, CharLoc::Middle, 30, 30));
             assert!(
                 bold,
                 "BoldMode::All: Middle cell at ({line},{col}) should be bold"
@@ -159,7 +163,8 @@ fn bold_random_middle_cells_produce_mixed_values() {
     let mut non_bold_count = 0;
     for line in 0..50 {
         for col in 0..50 {
-            let (_, bold) = resolve_cell_color(&shader, 0, line, col, 'x', CharLoc::Middle, 30, 30);
+            let (_, bold) =
+                resolve_cell_color(&shader, test_paint(line, col, CharLoc::Middle, 30, 30));
             if bold {
                 bold_count += 1;
             } else {
@@ -198,8 +203,8 @@ fn bold_mode_affects_head_cells() {
     let shader_off = make_shader(&slots, color_map, false, BoldMode::Off);
     let shader_all = make_shader(&slots, color_map, false, BoldMode::All);
 
-    let (_, bold_off) = resolve_cell_color(&shader_off, 0, 20, 5, 'x', CharLoc::Head, 20, 10);
-    let (_, bold_all) = resolve_cell_color(&shader_all, 0, 20, 5, 'x', CharLoc::Head, 20, 10);
+    let (_, bold_off) = resolve_cell_color(&shader_off, test_paint(20, 5, CharLoc::Head, 20, 10));
+    let (_, bold_all) = resolve_cell_color(&shader_all, test_paint(20, 5, CharLoc::Head, 20, 10));
     assert!(
         !bold_off,
         "BoldMode::Off: Head cell should be non-bold (match block overrides Head's bold=true)"
@@ -219,8 +224,8 @@ fn bold_all_overrides_tail_to_bold() {
     let shader_off = make_shader(&slots, color_map, false, BoldMode::Off);
     let shader_all = make_shader(&slots, color_map, false, BoldMode::All);
 
-    let (_, bold_off) = resolve_cell_color(&shader_off, 0, 10, 5, 'x', CharLoc::Tail, 20, 10);
-    let (_, bold_all) = resolve_cell_color(&shader_all, 0, 10, 5, 'x', CharLoc::Tail, 20, 10);
+    let (_, bold_off) = resolve_cell_color(&shader_off, test_paint(10, 5, CharLoc::Tail, 20, 10));
+    let (_, bold_all) = resolve_cell_color(&shader_all, test_paint(10, 5, CharLoc::Tail, 20, 10));
     assert!(!bold_off, "BoldMode::Off: Tail cell should be non-bold");
     assert!(
         bold_all,
@@ -248,10 +253,14 @@ fn shading_mode_random_vs_distance_produces_different_colors() {
     let mut diffs = 0;
     for line in 10..20 {
         for col in 0..20 {
-            let (fg_random, _) =
-                resolve_cell_color(&shader_random, 0, line, col, 'x', CharLoc::Middle, 25, 20);
-            let (fg_distance, _) =
-                resolve_cell_color(&shader_distance, 0, line, col, 'x', CharLoc::Middle, 25, 20);
+            let (fg_random, _) = resolve_cell_color(
+                &shader_random,
+                test_paint(line, col, CharLoc::Middle, 25, 20),
+            );
+            let (fg_distance, _) = resolve_cell_color(
+                &shader_distance,
+                test_paint(line, col, CharLoc::Middle, 25, 20),
+            );
             if fg_random != fg_distance {
                 diffs += 1;
             }
@@ -284,13 +293,7 @@ fn shading_mode_distance_produces_head_to_tail_decay() {
         let line = head_put_line - dist;
         let (fg, _) = resolve_cell_color(
             &shader,
-            0,
-            line,
-            5,
-            'x',
-            CharLoc::Middle,
-            head_put_line,
-            length,
+            test_paint(line, 5, CharLoc::Middle, head_put_line, length),
         );
         colors_by_distance.push((dist, fg));
     }

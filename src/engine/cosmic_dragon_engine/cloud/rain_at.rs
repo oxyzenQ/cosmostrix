@@ -25,6 +25,7 @@ use super::monolith::{MonolithCleanup, MonolithRandom, MonolithSpawnParams};
 use super::murmuration::{BirdRandom, MurmSpawnParams, MurmStep};
 use super::neural::{NeurSpawnParams, NeurStep, NeuralRandom};
 use super::physarum::{PhysarumRandom, PhysarumSpawnParams, PhysarumStep};
+use super::post_rain::PostRainInputs;
 use super::quasar::{QuasSpawnParams, QuasStep, QuasarRandom};
 use super::render::{DrawCtx, FlashWaveCtx};
 use super::solar_flare::{SolarFlareSpawnParams, SolarFlareStep, SolarRandom};
@@ -2040,13 +2041,15 @@ impl super::Cloud {
 
         self.post_rain_processing(
             frame,
-            now,
-            enable_timing,
-            t1,
-            phosphor_elapsed,
-            time_for_glitch,
-            glitch_due,
-            in_transition,
+            PostRainInputs {
+                now,
+                t1,
+                phosphor_elapsed,
+                enable_timing,
+                time_for_glitch,
+                glitch_due,
+                in_transition,
+            },
         );
     }
 }

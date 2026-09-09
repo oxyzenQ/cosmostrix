@@ -46,7 +46,7 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
 
     let mut shader_off = make_test_shader(&slots, color_map, false);
     shader_off.column_coherence_lut = None;
-    let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_off, _) = resolve_cell_color(&shader_off, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_off, Some(palette[2]));
 
     // phase=π/2, col=0 → perturbation +1 → color_idx 3.
@@ -56,7 +56,7 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
         .collect();
     let mut shader_up = make_test_shader(&slots, color_map, false);
     shader_up.column_coherence_lut = Some(&lut_up);
-    let (fg_up, _) = resolve_cell_color(&shader_up, 0, 19, 0, 'x', CharLoc::Middle, 20, 12);
+    let (fg_up, _) = resolve_cell_color(&shader_up, test_paint(19, 0, CharLoc::Middle, 20, 12));
     assert_eq!(
         fg_up,
         Some(palette[3]),
@@ -69,7 +69,7 @@ fn phase4a_column_coherence_perturbs_middle_cell() {
         .collect();
     let mut shader_dn = make_test_shader(&slots, color_map, false);
     shader_dn.column_coherence_lut = Some(&lut_dn);
-    let (fg_dn, _) = resolve_cell_color(&shader_dn, 0, 19, 0, 'x', CharLoc::Middle, 20, 12);
+    let (fg_dn, _) = resolve_cell_color(&shader_dn, test_paint(19, 0, CharLoc::Middle, 20, 12));
     assert_eq!(
         fg_dn,
         Some(palette[1]),
@@ -105,8 +105,8 @@ fn phase4a_column_coherence_skipped_under_shading_distance() {
     let mut shader_on = make_test_shader(&slots, color_map, true);
     shader_on.column_coherence_lut = Some(&lut);
 
-    let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
-    let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_off, _) = resolve_cell_color(&shader_off, test_paint(19, 5, CharLoc::Middle, 20, 12));
+    let (fg_on, _) = resolve_cell_color(&shader_on, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(
         fg_off, fg_on,
         "column_coherence must not affect shading_distance path"
@@ -139,13 +139,13 @@ fn phase4b_subpixel_jitter_perturbs_resolved_rgb() {
     // None: result is exactly palette[0].
     let mut shader_off = make_test_shader(&slots, color_map, false);
     shader_off.subpixel_jitter_amplitude = None;
-    let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_off, _) = resolve_cell_color(&shader_off, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_off, Some(palette[0]));
 
     // Some(3): result is palette[0] perturbed by ±3 per channel.
     let mut shader_on = make_test_shader(&slots, color_map, false);
     shader_on.subpixel_jitter_amplitude = Some(3);
-    let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_on, _) = resolve_cell_color(&shader_on, test_paint(19, 5, CharLoc::Middle, 20, 12));
     let Color::Rgb { r, g, b } = fg_on.expect("Some when amp set") else {
         panic!("expected Rgb");
     };
@@ -184,8 +184,8 @@ fn phase4b_subpixel_jitter_zero_amplitude_matches_none() {
     let mut shader_zero = make_test_shader(&slots, color_map, false);
     shader_zero.subpixel_jitter_amplitude = Some(0);
 
-    let (fg_none, _) = resolve_cell_color(&shader_none, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
-    let (fg_zero, _) = resolve_cell_color(&shader_zero, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_none, _) = resolve_cell_color(&shader_none, test_paint(19, 5, CharLoc::Middle, 20, 12));
+    let (fg_zero, _) = resolve_cell_color(&shader_zero, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_none, fg_zero, "amplitude=0 must match None (both no-op)");
 }
 
@@ -216,7 +216,8 @@ fn phase4d_head_halo_blends_toward_bg() {
     // None: Head returns exactly palette[0] = (200, 200, 200).
     let mut shader_off = make_test_shader(&slots, color_map, false);
     shader_off.head_halo_factor = None;
-    let (fg_off, bold_off) = resolve_cell_color(&shader_off, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_off, bold_off) =
+        resolve_cell_color(&shader_off, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg_off, Some(palette[0]));
     assert!(bold_off, "Head must be bold");
 
@@ -228,7 +229,7 @@ fn phase4d_head_halo_blends_toward_bg() {
     let mut shader_on = make_test_shader(&slots, color_map, false);
     shader_on.head_halo_factor = Some(0.5);
     shader_on.bg = Some(bg);
-    let (fg_on, bold_on) = resolve_cell_color(&shader_on, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_on, bold_on) = resolve_cell_color(&shader_on, test_paint(20, 5, CharLoc::Head, 20, 12));
     let Color::Rgb { r, g, b } = fg_on.expect("Some when factor+bg set") else {
         panic!("expected Rgb");
     };
@@ -279,7 +280,7 @@ fn phase4d_head_halo_skipped_for_middle_and_tail() {
     // lerp_u8 integer rounding produces ~126, not exactly 125 — we assert
     // the value is strictly dimmer than the unhaloed head (250) and strictly
     // brighter than the bg (0).
-    let (fg_head, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_head, _) = resolve_cell_color(&shader, test_paint(20, 5, CharLoc::Head, 20, 12));
     let Color::Rgb { r, .. } = fg_head.expect("Some") else {
         panic!("expected Rgb");
     };
@@ -289,14 +290,14 @@ fn phase4d_head_halo_skipped_for_middle_and_tail() {
     );
 
     // Middle: NOT haloed (returns stop 1 = 150 unchanged).
-    let (fg_mid, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_mid, _) = resolve_cell_color(&shader, test_paint(19, 5, CharLoc::Middle, 20, 12));
     let Color::Rgb { r, .. } = fg_mid.expect("Some") else {
         panic!("expected Rgb");
     };
     assert_eq!(r, 150, "Middle must NOT be haloed");
 
     // Tail: NOT haloed (returns stop 0 = 50 unchanged).
-    let (fg_tail, _) = resolve_cell_color(&shader, 0, 18, 5, 'x', CharLoc::Tail, 20, 12);
+    let (fg_tail, _) = resolve_cell_color(&shader, test_paint(18, 5, CharLoc::Tail, 20, 12));
     let Color::Rgb { r, .. } = fg_tail.expect("Some") else {
         panic!("expected Rgb");
     };
@@ -320,7 +321,7 @@ fn phase4d_head_halo_none_factor_is_noop() {
     let mut shader = make_test_shader(&slots, color_map, false);
     shader.head_halo_factor = None;
     shader.bg = Some(Color::Rgb { r: 0, g: 0, b: 0 });
-    let (fg, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg, _) = resolve_cell_color(&shader, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg, Some(palette[0]), "None factor must be a no-op");
 }
 
@@ -342,14 +343,14 @@ fn phase4d_head_halo_none_or_reset_bg_is_noop() {
     let mut shader_none = make_test_shader(&slots, color_map, false);
     shader_none.head_halo_factor = Some(0.5);
     shader_none.bg = None;
-    let (fg_none, _) = resolve_cell_color(&shader_none, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_none, _) = resolve_cell_color(&shader_none, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg_none, Some(palette[0]), "None bg must be a no-op");
 
     // bg = Color::Reset
     let mut shader_reset = make_test_shader(&slots, color_map, false);
     shader_reset.head_halo_factor = Some(0.5);
     shader_reset.bg = Some(Color::Reset);
-    let (fg_reset, _) = resolve_cell_color(&shader_reset, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_reset, _) = resolve_cell_color(&shader_reset, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg_reset, Some(palette[0]), "Reset bg must be a no-op");
 }
 
@@ -370,6 +371,6 @@ fn phase4d_head_halo_zero_factor_is_noop() {
     let mut shader = make_test_shader(&slots, color_map, false);
     shader.head_halo_factor = Some(0.0);
     shader.bg = Some(Color::Rgb { r: 0, g: 0, b: 0 });
-    let (fg, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg, _) = resolve_cell_color(&shader, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg, Some(palette[0]), "factor=0.0 must be a no-op");
 }

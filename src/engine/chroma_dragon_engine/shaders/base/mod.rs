@@ -9,7 +9,11 @@
 //! Extracted verbatim from `cloud::render::DrawCtx::get_attr()` in Chroma
 //! Dragon Phase 2. The body is identical; only the receiver changed from
 //! `&DrawCtx` (which carries many non-color fields) to `&ShaderCtx` (which
-//! carries only the inputs the shader actually reads).
+//! carries only the inputs the shader actually reads). NIGHT-hunter-25
+//! part 2 replaced the seven per-cell positional parameters with the
+//! shared [`CellPaint`] bundle — the same design on both sides of the
+//! shader/render pair, with named-field call sites and no lint
+//! suppressions.
 //!
 //! ## Performance
 //!
@@ -17,7 +21,10 @@
 //! view — no allocation, no virtual dispatch. The function and its helper
 //! `color_uses_previous_palette()` are marked `#[inline]` so LLVM can fold
 //! the `DrawCtx → ShaderCtx → resolve_cell_color` chain at the call site,
-//! yielding identical codegen to the pre-extraction monolith.
+//! yielding identical codegen to the pre-extraction monolith. The
+//! `CellPaint` bundle is all-`Copy` scalars, so it scalar-replaces to the
+//! same register-level parameter passing (A/B verified, NIGHT-hunter-25
+//! part 2).
 
 use bitvec::prelude::BitSlice;
 use crossterm::style::Color;
@@ -50,6 +57,45 @@ pub(crate) enum CharLoc {
         total: u8,
     },
     Head,
+}
+
+/// The per-cell paint request — the one shared bundle design for the
+/// shader/render pair (NIGHT-hunter-25 part 2).
+///
+/// `resolve_cell_color()` (the shader) and `DrawCtx::get_attr()` (the
+/// renderer's thin wrapper) previously forwarded the same seven per-cell
+/// positionals in lockstep: `palette_slot, line, col, val, loc,
+/// head_put_line, length`. Both carried a `#[allow(clippy::too_many_arguments)]`
+/// and both shared the classic positional hazards — `line`/`col` are both
+/// `u16` and `head_put_line`/`length` are both `u16`, so a swapped pair at a
+/// call site compiles cleanly and silently paints the wrong cell.
+///
+/// The bundle is the fix: named fields make every call site self-documenting,
+/// the lint threshold drops to two arguments on both sides, and a future
+/// per-cell input (a new shader phase) becomes a named-field addition instead
+/// of an eighth positional. All fields are `Copy` scalars, so the struct is
+/// `Copy` (16 bytes) — LLVM scalar-replaces it at the call site, yielding the
+/// same register-level codegen as the seven positional parameters it replaces
+/// (verified by the NIGHT-hunter-25 part 2 A/B benches: the inner loop is
+/// performance-neutral within noise).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct CellPaint {
+    /// The droplet's birth palette slot (generation-based rendering).
+    pub palette_slot: u8,
+    /// Cell line (row) within the viewport.
+    pub line: u16,
+    /// Cell column within the viewport.
+    pub col: u16,
+    /// The glyph to render (feeds `BoldMode::Random` hashing only).
+    pub val: char,
+    /// Position of the cell within its droplet (palette stop selector).
+    pub loc: CharLoc,
+    /// The droplet's head line (feeds shading-distance decay + luminance
+    /// remap distances).
+    pub head_put_line: u16,
+    /// The droplet's total cell length (feeds decay normalization +
+    /// short-droplet remap eligibility).
+    pub length: u16,
 }
 
 /// Read-only borrow view of the per-frame inputs that `resolve_cell_color`
@@ -224,76 +270,30 @@ pub(crate) struct ShaderCtx<'a> {
         Option<&'a crate::chroma_dragon_engine::shaders::transition::TransitionLTable>,
 }
 
-/// Precomputed exponential decay lookup table for trail brightness.
-/// Maps 256 normalized distances → exp(-TRAIL_EXPONENTIAL_K * t).
-/// Eliminates ~3,000 exp() calls per frame in shading_distance mode.
-///
-/// Moved here from `cloud::render` in Phase 2 — it is a shader resource
-/// owned by the chroma engine, not by the renderer.
-pub(crate) static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::LazyLock::new(|| {
-    let mut lut = [0.0f32; 256];
-    for (i, entry) in lut.iter_mut().enumerate() {
-        let t = i as f32 / 255.0;
-        *entry = (-(TRAIL_EXPONENTIAL_K as f32) * t).exp();
-    }
-    lut
-});
-
-/// Phase 3-F (Chroma Dragon Innovation F): luminance-remap threshold for
-/// short droplets.
-///
-/// Droplets with `length <= SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD` get
-/// their `CharLoc::Middle` cells remapped from the (random-uniform)
-/// `color_map` value to a position-based ramp that spans the full palette
-/// range — head-adjacent cells land on the brightest stop, tail-adjacent
-/// cells on the darkest. Without this, short droplets (4–8 cells) sample
-/// only 2–6 random `color_map` entries and look perceptually flat compared
-/// to long droplets where the same random distribution produces visible
-/// shimmering across many cells.
-///
-/// Threshold of 8 = 2× `MIN_DROPLET_LENGTH` (4). Below this, the visible
-/// Middle range is too small for the random color_map to read as a
-/// gradient. Above this, the existing color_map path produces enough
-/// inter-cell variation to look natural.
-///
-/// Only applies when `!shading_distance` — that branch already has its
-/// own length-aware exponential decay ramp. Also only applies to
-/// `CharLoc::Middle` — Head and Tail stops are pinned by the shader
-/// (`last` and `0` respectively) and should not be perturbed.
-const SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD: u16 = 8;
-
-/// Bayer 4×4 ordered dithering threshold matrix.
-///
-/// Each entry is in {0..=15}. The cell at `(line, col)` reads
-/// `BAYER_4X4[line & 3][col & 3]`, divides by 16, and compares against the
-/// fractional part of the continuous color value to decide whether to round
-/// up or down. The matrix is laid out so the spatial average of the
-/// up/down decisions equals undithered rounding — no brightness shift,
-/// just banding broken into fine-grain texture.
-///
-/// Phase 3-B (Chroma Dragon Innovation B): eliminates visible banding on
-/// long shading-distance droplets where many cells would otherwise share
-/// the same `color_idx`.
-pub(super) const BAYER_4X4: [[u8; 4]; 4] =
-    [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
-
 /// Resolve a single cell's `(foreground, bold)` attribute pair.
 ///
 /// This is the renderer's convergence point for palette, position, glyph,
 /// transition, and head-state signals. Pure function — no hidden state,
 /// no allocation, no side effects.
+///
+/// The per-cell inputs arrive as one [`CellPaint`] bundle (the shared
+/// design with `DrawCtx::get_attr()`, NIGHT-hunter-25 part 2). The
+/// bundle is destructured once at the top so the body reads the seven
+/// scalars exactly as it did when they were positional parameters.
 #[inline]
-#[allow(clippy::too_many_arguments)]
 pub(crate) fn resolve_cell_color(
     shader: &ShaderCtx<'_>,
-    palette_slot: u8,
-    line: u16,
-    col: u16,
-    val: char,
-    loc: CharLoc,
-    head_put_line: u16,
-    length: u16,
+    paint: CellPaint,
 ) -> (Option<Color>, bool) {
+    let CellPaint {
+        palette_slot,
+        line,
+        col,
+        val,
+        loc,
+        head_put_line,
+        length,
+    } = paint;
     // Resolve this stream's palette from the generation table.
     // During a color transition, cells above the wave line adopt the new
     // (active) palette even if the droplet was born with the old one,
@@ -722,58 +722,34 @@ pub(crate) fn resolve_cell_color(
     (fg, bold)
 }
 
-/// Test helper: build a minimal ShaderCtx for testing resolve_cell_color.
-/// Caller supplies the `palette_slices` array (so it outlives the
-/// ShaderCtx borrow) and the color_map slice. color_map is initialized
-/// to a constant value in the tests so we can detect when the remap
-/// overrides it.
-#[cfg(test)]
-pub(super) fn make_test_shader<'a>(
-    palette_slices: &'a [&'a [Color]; MAX_PALETTE_SLOTS],
-    color_map: &'a [u8],
-    shading_distance: bool,
-) -> ShaderCtx<'a> {
-    ShaderCtx {
-        palette_slices,
-        active_palette_slot: 0,
-        color_wave_line: None,
-        bold_mode: BoldMode::Random,
-        lines: 50,
-        color_map,
-        shading_distance,
-        glitchy: false,
-        glitch_map: <&BitSlice>::default(),
-        glitch_bright: false,
-        glitch_dim: false,
-        color_mode: ColorMode::TrueColor,
-        column_coherence_lut: None,
-        subpixel_jitter_amplitude: None,
-        atmospheric: None,
-        hue_drift_offset: None,
-        head_halo_factor: None,
-        transition_l_table: None,
-        bg: None,
-    }
-}
-
-/// Test helper: build a `MAX_PALETTE_SLOTS`-sized palette_slices array with
-/// slot 0 pointing to the given palette and all other slots empty.
-#[cfg(test)]
-pub(super) fn slot_array(palette: &[Color]) -> [&[Color]; MAX_PALETTE_SLOTS] {
-    let mut arr: [&[Color]; MAX_PALETTE_SLOTS] = [&[]; MAX_PALETTE_SLOTS];
-    arr[0] = palette;
-    arr
-}
-
 // v50.0.0-beta.7 LOC refactor: 6 shader helper functions extracted to
 // helpers.rs. The pub(crate) ones are re-exported here; the pub(super)
 // ones (bayer_threshold, cell_hash, apply_subpixel_jitter) are imported
 // for direct use in resolve_cell_color.
+//
+// NIGHT-hunter-25 part 2 LOC split: the three shader constants
+// (TRAIL_EXP_LUT, SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD, BAYER_4X4)
+// moved to helpers.rs and the shared test-support helpers
+// (make_test_shader, slot_array, test_paint) to test_util.rs — the
+// CellPaint bundle pushed this file over the 800-line hard cap.
+// TRAIL_EXP_LUT rides the pub(crate) re-export below so the
+// `crate::...::base::TRAIL_EXP_LUT` path stays alive (doc references
+// keep resolving).
 mod helpers;
-use helpers::{apply_subpixel_jitter, bayer_threshold, cell_hash};
-pub(crate) use helpers::{
-    color_uses_previous_palette, column_coherence_perturbation, hue_drift_offset,
+use helpers::{
+    apply_subpixel_jitter, bayer_threshold, cell_hash, SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD,
 };
+pub(crate) use helpers::{
+    color_uses_previous_palette, column_coherence_perturbation, hue_drift_offset, TRAIL_EXP_LUT,
+};
+
+// Test-support helpers shared by the four #[path] test modules below.
+// The pub(super) re-export keeps both the `use super::*` globs and the
+// explicit `crate::...::base::test_paint` path imports resolving.
+#[cfg(test)]
+mod test_util;
+#[cfg(test)]
+pub(super) use test_util::{make_test_shader, slot_array, test_paint};
 
 #[cfg(test)]
 #[path = "../../../../../test/engine/chroma_dragon_engine/shaders/base/tests.rs"]

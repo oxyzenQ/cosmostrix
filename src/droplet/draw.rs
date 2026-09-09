@@ -12,7 +12,7 @@
 
 use crossterm::style::Color;
 
-use crate::cloud::{CharLoc, DrawCtx};
+use crate::cloud::{CellPaint, CharLoc, DrawCtx};
 use crate::constants::{
     EDGE_FADE_BOLD_THRESHOLD, FOG_MIN_FACTOR, FOG_ROWS, FRACTIONAL_BLOOM_AMP, HEAD_BLOOM_CELLS,
     HEAD_BLOOM_INTENSITY, HEAD_BLOOM_SIGMA, HEAD_SELFBLOOM_BASE, HEAD_SHIMMER_PERIOD_SECS,
@@ -154,15 +154,21 @@ impl super::Droplet {
                 continue;
             }
 
-            let (fg, bold) = ctx.get_attr(
-                self.palette_slot,
+            // NIGHT-hunter-25 part 2: the seven per-cell positionals ride one
+            // CellPaint bundle — named fields kill the line/col and
+            // head_put_line/length cross-wire hazards at this, the hottest
+            // call site in the engine (every visible droplet cell, every
+            // frame). All-Copy scalars, so codegen matches the positional
+            // form (A/B verified).
+            let (fg, bold) = ctx.get_attr(CellPaint {
+                palette_slot: self.palette_slot,
                 line,
-                self.bound_col,
+                col: self.bound_col,
                 val,
                 loc,
-                self.head_put_line,
-                self.length,
-            );
+                head_put_line: self.head_put_line,
+                length: self.length,
+            });
 
             // head_bright was hoisted out of the loop above — reuse cached value.
 

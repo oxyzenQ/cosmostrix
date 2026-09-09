@@ -34,8 +34,8 @@ COLS, ROWS = 80, 40
 # The engine's geometry at 80x40 (QuasGeom::for_viewport): the
 # core sits at (39.5, 17.2); the beams fire the central column
 # band; the cold rain spawns at the rim (|x - 39.5| >= 34).
-CORE_BOX = (36, 43, 15, 20)   # cols 36-43, lines 15-20
-BEAM_COLS = (36, 43)          # the precessing beams +- the helix
+CORE_BOX = (36, 43, 15, 20)  # cols 36-43, lines 15-20
+BEAM_COLS = (36, 43)  # the precessing beams +- the helix
 
 
 def capture(seconds: float) -> str:
@@ -49,11 +49,22 @@ def capture(seconds: float) -> str:
     env = dict(os.environ)
     env["TERM"] = "xterm-256color"
     proc = subprocess.Popen(
-        ["./target/release/cosmostrix", "--scene", "quasar",
-         "--intro", "none", "--msg-mode", "false",
-         "--duration", f"{seconds + 0.5:.1f}"],
-        stdin=slave, stdout=slave, stderr=slave,
-        close_fds=True, env=env,
+        [
+            "./target/release/cosmostrix",
+            "--scene",
+            "quasar",
+            "--intro",
+            "none",
+            "--msg-mode",
+            "false",
+            "--duration",
+            f"{seconds + 0.5:.1f}",
+        ],
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        close_fds=True,
+        env=env,
     )
     os.close(slave)
     buf = b""

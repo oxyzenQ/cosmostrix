@@ -19,19 +19,53 @@ use super::ecosystem::EmergentMoment;
 
 use crate::constants::*;
 
+/// The per-frame pass state carried by `post_rain_processing`
+/// (NIGHT-hunter-25 part 2).
+///
+/// The eight previous positionals formed two cross-wirable same-typed
+/// pairs (`now`/`t1` both `Instant`, plus three adjacent bools —
+/// `time_for_glitch`, `glitch_due`, `in_transition`) at the single call
+/// site in `rain_at.rs`. A swapped pair compiles cleanly and silently
+/// changes glitch timing. The value object makes the one construction
+/// named-field explicit; the pass signature drops to three arguments
+/// (self + frame + bundle). Semantics: `now` is the current frame
+/// instant, `t1` the pass start (delta drives the component-timing
+/// report), `phosphor_elapsed` the seconds since the phosphor pass
+/// (drives anomaly spawn probability), and the three bools are the
+/// glitch/transition gates snapshot for this frame.
+#[derive(Clone, Copy)]
+pub(crate) struct PostRainInputs {
+    /// Current frame instant (anomaly expiry, glitch timing windows).
+    pub now: Instant,
+    /// Pass start instant — the delta is reported under component timing.
+    pub t1: Instant,
+    /// Seconds elapsed since the phosphor decay pass (anomaly spawn rate).
+    pub phosphor_elapsed: f32,
+    /// Component-timing gate (mirrors the draw pass's timing flag).
+    pub enable_timing: bool,
+    /// Glitch cadence gate: true when the frame lands in a glitch window.
+    pub time_for_glitch: bool,
+    /// Glitch cadence gate: true when a glitch is due to fire this window.
+    pub glitch_due: bool,
+    /// True while a color/charset transition is sweeping (suppresses events).
+    pub in_transition: bool,
+}
+
 impl super::Cloud {
-    #[allow(clippy::too_many_arguments)]
     pub(crate) fn post_rain_processing(
         &mut self,
         frame: &mut crate::frame::Frame,
-        now: Instant,
-        enable_timing: bool,
-        t1: Instant,
-        phosphor_elapsed: f32,
-        time_for_glitch: bool,
-        glitch_due: bool,
-        in_transition: bool,
+        inputs: PostRainInputs,
     ) {
+        let PostRainInputs {
+            now,
+            enable_timing,
+            t1,
+            phosphor_elapsed,
+            time_for_glitch,
+            glitch_due,
+            in_transition,
+        } = inputs;
         // --- Rare anomaly events ---
         // Check for new anomaly spawn. The product of multipliers creates a
         // (Glitch-P1 fix): gate spawn by `perf_pressure < EVENT_PERF_GATE`,

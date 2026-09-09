@@ -40,8 +40,7 @@
 //!   `dissolve_progress` bitmap is a stack-allocated `bool` array sized
 //!   to the logo's cell count.
 //! * Reuses the existing `Terminal` / `Frame` / `Cell` pipeline.
-//! * `FRAME_COUNTER` is bumped each frame so the watchdog doesn't kill
-//!   us during the cinematic.
+//! * `FRAME_COUNTER` is bumped each frame so the watchdog doesn't kill us.
 
 use std::time::Instant;
 
@@ -57,7 +56,7 @@ use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, IntroOutcome, Particle, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
+    should_skip, IntroOutcome, Particle, ParticlePaint, ParticlePool, XorShift, PARTICLE_POOL_SIZE,
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -105,11 +104,10 @@ const LOGO_ART: &str = concat!(
     "             'l:  =  .ihMwi*^",
 );
 
-// Brand color constant now lives in the chroma dragon engine
-// (`chroma_dragon_engine::intro_colors::LOGO_COLOR_RGB`).
-// This module uses the `logo_color` parameter (passed at runtime)
-// instead of referencing the constant directly. The caller resolves
-// it: brand energy-zen head by default, `--intro-color` override.
+// Brand color constant lives in the chroma dragon engine
+// (`intro_colors::LOGO_COLOR_RGB`); this module uses the runtime
+// `logo_color` parameter (brand energy-zen head by default,
+// `--intro-color` override).
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Phase + spawn constants
@@ -670,34 +668,37 @@ pub(super) fn run_logo_intro(
                 continue;
             }
             let life_t = (p.life / p.max_life).clamp(0.0, 1.0);
-            let droplet_rgb = palette_rgb;
             render_particle_cell(
                 frame,
                 w,
                 h,
-                p.x,
-                p.y,
-                p.ch,
-                droplet_rgb,
-                palette_bg,
-                life_t,
-                true,
+                ParticlePaint {
+                    x: p.x,
+                    y: p.y,
+                    ch: p.ch,
+                    rgb: palette_rgb,
+                    bg: palette_bg,
+                    life_t,
+                    bold: true,
+                },
             );
             // Dim trailing cell directly above the droplet for a streak.
             let trail_y = p.y - 1.0;
             let trail_brightness = life_t * 0.4;
-            let trail_rgb = lerp_rgb((0, 0, 0), droplet_rgb, trail_brightness);
+            let trail_rgb = lerp_rgb((0, 0, 0), palette_rgb, trail_brightness);
             render_particle_cell(
                 frame,
                 w,
                 h,
-                p.x,
-                trail_y,
-                p.ch,
-                trail_rgb,
-                palette_bg,
-                trail_brightness,
-                false,
+                ParticlePaint {
+                    x: p.x,
+                    y: trail_y,
+                    ch: p.ch,
+                    rgb: trail_rgb,
+                    bg: palette_bg,
+                    life_t: trail_brightness,
+                    bold: false,
+                },
             );
         }
 

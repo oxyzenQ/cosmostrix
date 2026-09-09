@@ -9,6 +9,7 @@
 //! `use super::*` access to base's private helpers (column_coherence_perturbation,
 //! cell_hash, apply_subpixel_jitter, make_test_shader, slot_array, etc.)
 //! without any visibility changes.
+use super::helpers::BAYER_4X4;
 use super::*;
 
 /// Bayer matrix tiles every 4×4 block — same (line, col) mod 4 returns
@@ -475,23 +476,23 @@ fn short_droplet_middle_cells_get_remapped() {
     // dist=2 → t = 1 → color_idx = 0
     let (fg1, _) = resolve_cell_color(
         &shader,
-        0,
-        19, // line (head_put_line - 1)
-        5,  // col
-        'x',
-        CharLoc::Middle,
-        20, // head_put_line
-        4,  // length
+        test_paint(
+            19, // line (head_put_line - 1)
+            5,  // col
+            CharLoc::Middle,
+            20, // head_put_line
+            4,  // length
+        ),
     );
     let (fg2, _) = resolve_cell_color(
         &shader,
-        0,
-        18, // line (head_put_line - 2)
-        5,
-        'x',
-        CharLoc::Middle,
-        20,
-        4,
+        test_paint(
+            18, // line (head_put_line - 2)
+            5,
+            CharLoc::Middle,
+            20,
+            4,
+        ),
     );
     // fg1 should be palette[4] (brightest), fg2 should be palette[0] (darkest)
     assert_eq!(
@@ -527,13 +528,13 @@ fn long_droplet_middle_cells_unchanged() {
     // Remap NOT applied → color_idx stays at color_map value = 2.
     let (fg, _) = resolve_cell_color(
         &shader,
-        0,
-        19,
-        5,
-        'x',
-        CharLoc::Middle,
-        20,
-        9, // length > threshold
+        test_paint(
+            19,
+            5,
+            CharLoc::Middle,
+            20,
+            9, // length > threshold
+        ),
     );
     assert_eq!(
         fg,
@@ -559,7 +560,7 @@ fn threshold_boundary_length_8_remapped() {
     let shader = make_test_shader(&slots, color_map, false);
 
     // length=8 (= threshold). denom = 5. dist=1 → t=0 → color_idx = 4 (last).
-    let (fg, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 8);
+    let (fg, _) = resolve_cell_color(&shader, test_paint(19, 5, CharLoc::Middle, 20, 8));
     assert_eq!(
         fg,
         Some(palette[4]),
@@ -587,7 +588,7 @@ fn shading_distance_disables_remap() {
     // length=4 with shading_distance=true. Remap NOT applied —
     // shading_distance path overrides color_idx with exponential decay.
     // Just verify it doesn't panic and returns some color.
-    let (fg, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 4);
+    let (fg, _) = resolve_cell_color(&shader, test_paint(19, 5, CharLoc::Middle, 20, 4));
     assert!(fg.is_some(), "shading_distance path must return a color");
 }
 
@@ -610,23 +611,23 @@ fn head_and_tail_unaffected_by_remap() {
     // length=4 (short). Head should be palette[4] (last). Tail should be palette[0].
     let (fg_head, bold_head) = resolve_cell_color(
         &shader,
-        0,
-        20, // head line
-        5,
-        'x',
-        CharLoc::Head,
-        20,
-        4,
+        test_paint(
+            20, // head line
+            5,
+            CharLoc::Head,
+            20,
+            4,
+        ),
     );
     let (fg_tail, bold_tail) = resolve_cell_color(
         &shader,
-        0,
-        17, // tail line (head - 3)
-        5,
-        'x',
-        CharLoc::Tail,
-        20,
-        4,
+        test_paint(
+            17, // tail line (head - 3)
+            5,
+            CharLoc::Tail,
+            20,
+            4,
+        ),
     );
     assert_eq!(fg_head, Some(palette[4]));
     assert!(bold_head, "Head should be bold");
@@ -655,8 +656,8 @@ fn short_droplet_produces_visible_gradient() {
     // length=4, 8-stop palette (last=7). denom = 1.
     // Middle1 (dist=1): t=0 → color_idx = 7 (last)
     // Middle2 (dist=2): t=1 → color_idx = 0
-    let (fg_m1, _) = resolve_cell_color(&shader, 0, 19, 5, 'x', CharLoc::Middle, 20, 4);
-    let (fg_m2, _) = resolve_cell_color(&shader, 0, 18, 5, 'x', CharLoc::Middle, 20, 4);
+    let (fg_m1, _) = resolve_cell_color(&shader, test_paint(19, 5, CharLoc::Middle, 20, 4));
+    let (fg_m2, _) = resolve_cell_color(&shader, test_paint(18, 5, CharLoc::Middle, 20, 4));
     // The two Middle cells must differ — that's the whole point of 3-F.
     assert_ne!(
         fg_m1, fg_m2,

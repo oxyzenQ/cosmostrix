@@ -37,8 +37,8 @@ COLS, ROWS = 80, 40
 # 6.4. The signal phase's streamers absorb AT the input line —
 # they never enter the machine's band below it.
 MACHINE_BOX = (5, 75, 13, 37)  # cols 5-75, lines 13-37
-INPUT_BOX = (5, 75, 8, 12)     # the input band +- the jitter
-OUTPUT_BOX = (5, 75, 32, 36)   # the output band +- the jitter
+INPUT_BOX = (5, 75, 8, 12)  # the input band +- the jitter
+OUTPUT_BOX = (5, 75, 32, 36)  # the output band +- the jitter
 
 
 def capture(seconds: float) -> str:
@@ -52,11 +52,22 @@ def capture(seconds: float) -> str:
     env = dict(os.environ)
     env["TERM"] = "xterm-256color"
     proc = subprocess.Popen(
-        ["./target/release/cosmostrix", "--scene", "neural",
-         "--intro", "none", "--msg-mode", "false",
-         "--duration", f"{seconds + 0.5:.1f}"],
-        stdin=slave, stdout=slave, stderr=slave,
-        close_fds=True, env=env,
+        [
+            "./target/release/cosmostrix",
+            "--scene",
+            "neural",
+            "--intro",
+            "none",
+            "--msg-mode",
+            "false",
+            "--duration",
+            f"{seconds + 0.5:.1f}",
+        ],
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        close_fds=True,
+        env=env,
     )
     os.close(slave)
     buf = b""
@@ -118,8 +129,10 @@ def run():
     steady_band = box_cells(steady_grid, MACHINE_BOX)
     steady_input = box_cells(steady_grid, INPUT_BOX)
     steady_output = box_cells(steady_grid, OUTPUT_BOX)
-    print(f"steady machine-band: {steady_band:3d}  input: {steady_input:3d}  "
-          f"output: {steady_output:3d}")
+    print(
+        f"steady machine-band: {steady_band:3d}  input: {steady_input:3d}  "
+        f"output: {steady_output:3d}"
+    )
     if steady_band < 30:
         print("FAIL: the machine never wove its loom")
         ok = False

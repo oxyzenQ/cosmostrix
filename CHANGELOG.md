@@ -9,6 +9,41 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-hunter-25 part 2 — the hot cell-draw family bundled (one shared CellPaint design for the shader/render pair), two inherited defects repaired
+
+- The six deferred hot-path signatures from part 1 now ride value
+  bundles: `CellPaint` (the pair — `resolve_cell_color` and
+  `DrawCtx::get_attr` share ONE bundle design, so the shader and the
+  renderer can never drift on parameter order again),
+  `SolarCellPaint`, `ParticlePaint`, `PostRainInputs`, and
+  `StyleCursor` (three `&mut` style refs folded into one). src/
+  reaches zero `too_many_arguments` suppressions. Every bundle is
+  all-`Copy` scalars and destructured once at the top of the body —
+  zero algorithm change; the named fields kill the cross-wire
+  hazards (line/col, head_put_line/length, now/t1, three adjacent
+  bools) at the engine's hottest call sites.
+- En-route LOC split: `CellPaint` pushed shaders/base/mod.rs over
+  the 800-line cap — the three shader constants moved to helpers.rs
+  (`TRAIL_EXP_LUT` re-exported so every path keeps resolving) and
+  the test-support helpers to a new cfg(test) `test_util.rs`, joined
+  by a `test_paint()` fixture that keeps the 47 shader test call
+  sites one line each. mod.rs lands at 768.
+- Inherited defect 1 (verified): the neural commit shipped with a
+  red test — `cycle_scene_forward_order` at HEAD still expected
+  quasar → classic while src cycles to neural (stash-and-run:
+  FAILED). The missed assertions ride this commit.
+- Inherited defect 2 (verified by gate-keepers):
+  NIGHT_RESEARCH_9_NEURAL.md was the only .md of 185 missing the
+  standard disclaimer; injected, the gate reads 16/16.
+- Anti-finding recorded: a manual per-droplet `ShaderCtx` hoist
+  measured noise-scale contradictory deltas — the `#[inline]` pair
+  already folds the chain; the comment on `get_attr` now says so.
+- 2671 tests pass, 0 failed; check-all -q exit 0 (well under the
+  2-minute local budget); gate-keepers 16/16. A/B 10 s benches:
+  performance- and visual-neutral within noise (density gini, frame
+  entropy, fps, dirty cells) — the bundle scalar-replaces to the
+  same register-level parameter passing.
+
 ### feature: NIGHT-research-9 — the neural network, the fourteenth rain style (the rain trains the network)
 
 - The owner-approved runner-up finally seated (the quasar round's

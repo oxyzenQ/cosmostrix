@@ -12,12 +12,73 @@
 //! - `apply_subpixel_jitter`: RGB subpixel dithering for smooth gradients.
 //! - `color_uses_previous_palette`: color transition wave test.
 //!
+//! Plus the three shader constants moved here in the NIGHT-hunter-25
+//! part 2 LOC split (the CellPaint bundle pushed mod.rs over the cap):
+//! `TRAIL_EXP_LUT`, `SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD`, and
+//! `BAYER_4X4`.
+//!
 //! Re-exported from `shaders/base/mod.rs` via `pub(crate) use` so all
 //! existing call sites resolve unchanged.
 
 use crossterm::style::Color;
 
-use super::BAYER_4X4;
+use crate::constants::TRAIL_EXPONENTIAL_K;
+
+/// Precomputed exponential decay lookup table for trail brightness.
+/// Maps 256 normalized distances → exp(-TRAIL_EXPONENTIAL_K * t).
+/// Eliminates ~3,000 exp() calls per frame in shading_distance mode.
+///
+/// Moved from `cloud::render` in Phase 2 (it is a shader resource owned
+/// by the chroma engine, not by the renderer); relocated to helpers.rs
+/// in the NIGHT-hunter-25 part 2 LOC split. The `pub(crate) use`
+/// re-export in mod.rs keeps the `crate::...::base::TRAIL_EXP_LUT`
+/// path alive.
+pub(crate) static TRAIL_EXP_LUT: std::sync::LazyLock<[f32; 256]> = std::sync::LazyLock::new(|| {
+    let mut lut = [0.0f32; 256];
+    for (i, entry) in lut.iter_mut().enumerate() {
+        let t = i as f32 / 255.0;
+        *entry = (-(TRAIL_EXPONENTIAL_K as f32) * t).exp();
+    }
+    lut
+});
+
+/// Phase 3-F (Chroma Dragon Innovation F): luminance-remap threshold for
+/// short droplets.
+///
+/// Droplets with `length <= SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD` get
+/// their `CharLoc::Middle` cells remapped from the (random-uniform)
+/// `color_map` value to a position-based ramp that spans the full palette
+/// range — head-adjacent cells land on the brightest stop, tail-adjacent
+/// cells on the darkest. Without this, short droplets (4–8 cells) sample
+/// only 2–6 random `color_map` entries and look perceptually flat compared
+/// to long droplets where the same random distribution produces visible
+/// shimmering across many cells.
+///
+/// Threshold of 8 = 2× `MIN_DROPLET_LENGTH` (4). Below this, the visible
+/// Middle range is too small for the random color_map to read as a
+/// gradient. Above this, the existing color_map path produces enough
+/// inter-cell variation to look natural.
+///
+/// Only applies when `!shading_distance` — that branch already has its
+/// own length-aware exponential decay ramp. Also only applies to
+/// `CharLoc::Middle` — Head and Tail stops are pinned by the shader
+/// (`last` and `0` respectively) and should not be perturbed.
+pub(super) const SHORT_DROPLET_LUMINANCE_REMAP_THRESHOLD: u16 = 8;
+
+/// Bayer 4×4 ordered dithering threshold matrix.
+///
+/// Each entry is in {0..=15}. The cell at `(line, col)` reads
+/// `BAYER_4X4[line & 3][col & 3]`, divides by 16, and compares against the
+/// fractional part of the continuous color value to decide whether to round
+/// up or down. The matrix is laid out so the spatial average of the
+/// up/down decisions equals undithered rounding — no brightness shift,
+/// just banding broken into fine-grain texture.
+///
+/// Phase 3-B (Chroma Dragon Innovation B): eliminates visible banding on
+/// long shading-distance droplets where many cells would otherwise share
+/// the same `color_idx`.
+pub(super) const BAYER_4X4: [[u8; 4]; 4] =
+    [[0, 8, 2, 10], [12, 4, 14, 6], [3, 11, 1, 9], [15, 7, 13, 5]];
 
 pub(super) fn bayer_threshold(line: u16, col: u16) -> u8 {
     // Bitwise AND with 3 is equivalent to % 4 but avoids the division.

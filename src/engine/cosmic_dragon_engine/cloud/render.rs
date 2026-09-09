@@ -23,7 +23,10 @@ use crate::runtime::BoldMode;
 // Re-export the moved types so every existing `use crate::cloud::render::CharLoc`
 // or `crate::cloud::CharLoc` reference continues to resolve unchanged. The
 // `pub use` also brings `CharLoc` into local scope for use in `get_attr`'s
-// signature below.
+// signature below. `CellPaint` (NIGHT-hunter-25 part 2) rides the same
+// re-export chain so callers can `use crate::cloud::CellPaint` symmetrically
+// with `CharLoc`.
+pub(crate) use crate::chroma_dragon_engine::shaders::base::CellPaint;
 pub(crate) use crate::chroma_dragon_engine::shaders::base::CharLoc;
 
 /// Pre-computed view of an active mouse-click flash wave (v30 fix).
@@ -350,19 +353,17 @@ impl DrawCtx<'_> {
     /// Builds a `ShaderCtx` borrow view from the relevant DrawCtx fields and
     /// delegates. The shader body is identical to the pre-Phase-2 inlined
     /// body — `#[inline]` on both sides lets LLVM fold the chain at the call
-    /// site, yielding equivalent codegen.
+    /// site, yielding equivalent codegen (the NIGHT-hunter-25 part 2 hunt
+    /// re-verified this empirically: a manual per-droplet hoist of the view
+    /// construction measured noise-scale, contradictory deltas across
+    /// scenes — the compiler already folds the chain; do not hoist by hand).
+    ///
+    /// The per-cell inputs arrive as one [`CellPaint`] bundle — the shared
+    /// design with the shader side (NIGHT-hunter-25 part 2). The renderer
+    /// and the shader read the same named fields, so the pair can never
+    /// drift apart on parameter order again.
     #[inline]
-    #[allow(clippy::too_many_arguments)]
-    pub(crate) fn get_attr(
-        &self,
-        palette_slot: u8,
-        line: u16,
-        col: u16,
-        val: char,
-        loc: CharLoc,
-        head_put_line: u16,
-        length: u16,
-    ) -> (Option<Color>, bool) {
+    pub(crate) fn get_attr(&self, paint: CellPaint) -> (Option<Color>, bool) {
         let shader = ShaderCtx {
             palette_slices: &self.palette_slices,
             active_palette_slot: self.active_palette_slot,
@@ -414,15 +415,6 @@ impl DrawCtx<'_> {
             // returns cheaply when this is None.
             transition_l_table: self.transition_l_table,
         };
-        resolve_cell_color(
-            &shader,
-            palette_slot,
-            line,
-            col,
-            val,
-            loc,
-            head_put_line,
-            length,
-        )
+        resolve_cell_color(&shader, paint)
     }
 }

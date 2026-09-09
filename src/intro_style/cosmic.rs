@@ -40,7 +40,7 @@ use crate::chroma_dragon_engine::palette::color_to_rgb;
 
 use super::{
     end_frame, lerp, lerp_rgb, palette_target_rgb, rain_chars, render_particle_cell, seed_rng,
-    should_skip, IntroOutcome, Particle, ParticlePool, XorShift,
+    should_skip, IntroOutcome, Particle, ParticlePaint, ParticlePool, XorShift,
 };
 
 /// Phase boundaries (milliseconds from intro start).
@@ -244,13 +244,15 @@ pub(super) fn run_cosmic_intro(
                 frame,
                 w,
                 h,
-                p.x,
-                p.y,
-                p.ch,
-                (p.r, p.g, p.b),
-                palette_bg,
-                life_t,
-                true,
+                ParticlePaint {
+                    x: p.x,
+                    y: p.y,
+                    ch: p.ch,
+                    rgb: (p.r, p.g, p.b),
+                    bg: palette_bg,
+                    life_t,
+                    bold: true,
+                },
             );
             // Trail: 2 trailing cells behind the particle (only during
             // burst phase when particles are fast-moving). Trail cells
@@ -265,13 +267,15 @@ pub(super) fn run_cosmic_intro(
                         frame,
                         w,
                         h,
-                        tx,
-                        ty,
-                        p.ch,
-                        trail_rgb,
-                        palette_bg,
-                        trail_brightness,
-                        false,
+                        ParticlePaint {
+                            x: tx,
+                            y: ty,
+                            ch: p.ch,
+                            rgb: trail_rgb,
+                            bg: palette_bg,
+                            life_t: trail_brightness,
+                            bold: false,
+                        },
                     );
                 }
             }

@@ -34,7 +34,10 @@ fn cycle_scene_forward_order() {
     // NIGHT-research-8: quasar joined at cycle position 14 — the
     // feeding engine (the rain feeds the engine).
     assert_eq!(cycle_scene("murmuration", 1), "quasar");
-    assert_eq!(cycle_scene("quasar", 1), "classic");
+    // NIGHT-research-9: neural joined at cycle position 15 — the
+    // training network (the rain trains the network).
+    assert_eq!(cycle_scene("quasar", 1), "neural");
+    assert_eq!(cycle_scene("neural", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
     // right after the cosmic-dragon milestone (positions 18-19).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
@@ -101,6 +104,8 @@ fn scene_names_are_present() {
     // sorts alphabetically after curiosity, before dragon_hunt.
     // NIGHT-research-8: quasar joined at cycle position 14;
     // sorts alphabetically after physarum, before signal.
+    // NIGHT-research-9: neural joined at cycle position 15;
+    // sorts alphabetically after neon, before north-stars.
     assert_eq!(
         all_scene_names(),
         vec![
@@ -125,6 +130,7 @@ fn scene_names_are_present() {
             "monolith",
             "murmuration",
             "neon",
+            "neural",
             "north-stars",
             "orange-cat",
             "physarum",
@@ -276,7 +282,7 @@ fn scene_cycle_order_is_preserved() {
     assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
     assert_eq!(
         SCENE_ORDER.len(),
-        30,
+        31,
         "all built-in scenes must be cyclable"
     );
     // Every SCENES entry must appear in SCENE_ORDER exactly once —

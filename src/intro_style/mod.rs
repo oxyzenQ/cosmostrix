@@ -518,22 +518,45 @@ pub(crate) fn should_skip() -> std::io::Result<bool> {
     }
 }
 
+/// One intro particle cell's paint request — the value object carried by
+/// `render_particle_cell` (NIGHT-hunter-25 part 2).
+///
+/// The seven previous positionals were cross-wirable at four call sites
+/// (`x`/`y` both `f32`, `life_t` also `f32`; the logo trail passes
+/// `trail_brightness` where the head passes `life_t` — a same-typed
+/// neighbor swap that compiles cleanly). Named fields make the intent
+/// of each call site explicit and drop the function to four arguments
+/// (frame + viewport bounds + bundle).
+#[derive(Clone, Copy)]
+pub(crate) struct ParticlePaint {
+    /// Particle position in cell-space floats (rounded at the cell grid).
+    pub x: f32,
+    pub y: f32,
+    /// Glyph to render for this particle.
+    pub ch: char,
+    /// Particle color (faded toward black by inverse life ratio).
+    pub rgb: (u8, u8, u8),
+    /// Cell background (the style's palette bg).
+    pub bg: Option<Color>,
+    /// Life ratio [0,1] — 1 = newborn (full color), 0 = dead (black).
+    pub life_t: f32,
+    /// Cell bold flag.
+    pub bold: bool,
+}
+
 /// Render a single particle cell at `(x, y)` with the given color,
 /// interpolating toward black by the inverse life ratio (so particles
 /// fade as they age). `bold` controls the cell's bold flag.
-#[allow(clippy::too_many_arguments)]
-pub(crate) fn render_particle_cell(
-    frame: &mut Frame,
-    w: u16,
-    h: u16,
-    x: f32,
-    y: f32,
-    ch: char,
-    rgb: (u8, u8, u8),
-    bg: Option<Color>,
-    life_t: f32,
-    bold: bool,
-) {
+pub(crate) fn render_particle_cell(frame: &mut Frame, w: u16, h: u16, paint: ParticlePaint) {
+    let ParticlePaint {
+        x,
+        y,
+        ch,
+        rgb,
+        bg,
+        life_t,
+        bold,
+    } = paint;
     let xi = x as u16;
     let yi = y as u16;
     if xi < w && yi < h {

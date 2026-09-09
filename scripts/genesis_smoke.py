@@ -44,11 +44,22 @@ def capture(seconds: float) -> str:
     env = dict(os.environ)
     env["TERM"] = "xterm-256color"
     proc = subprocess.Popen(
-        ["./target/release/cosmostrix", "--scene", "dna_helix",
-         "--intro", "none", "--msg-mode", "false",
-         "--duration", f"{seconds + 0.5:.1f}"],
-        stdin=slave, stdout=slave, stderr=slave,
-        close_fds=True, env=env,
+        [
+            "./target/release/cosmostrix",
+            "--scene",
+            "dna_helix",
+            "--intro",
+            "none",
+            "--msg-mode",
+            "false",
+            "--duration",
+            f"{seconds + 0.5:.1f}",
+        ],
+        stdin=slave,
+        stdout=slave,
+        stderr=slave,
+        close_fds=True,
+        env=env,
     )
     os.close(slave)
     buf = b""

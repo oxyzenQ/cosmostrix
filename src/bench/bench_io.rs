@@ -239,9 +239,8 @@ impl BenchIoWriter {
         }
 
         // Current SGR state — only emit on change (mirrors Terminal::draw).
-        let mut cur_fg: Option<crossterm::style::Color> = None;
-        let mut cur_bg: Option<crossterm::style::Color> = None;
-        let mut cur_bold = false;
+        // NIGHT-hunter-25 part 2: the fg/bg/bold triple rides one StyleCursor.
+        let mut cursor = StyleCursor::default();
         let cache_ref = self.color_cache.as_ref();
         // Stack-allocated UTF-8 encoding buffer — zero alloc per cell.
         let mut utf8_buf = [0u8; 4];
@@ -254,9 +253,7 @@ impl BenchIoWriter {
                 emit_cell_lean(
                     &mut self.ansi_buf,
                     cell,
-                    &mut cur_fg,
-                    &mut cur_bg,
-                    &mut cur_bold,
+                    &mut cursor,
                     cache_ref,
                     self.sgr_quantizer.as_mut(),
                     &mut utf8_buf,
@@ -274,9 +271,7 @@ impl BenchIoWriter {
                 emit_cell_lean(
                     &mut self.ansi_buf,
                     cell,
-                    &mut cur_fg,
-                    &mut cur_bg,
-                    &mut cur_bold,
+                    &mut cursor,
                     cache_ref,
                     self.sgr_quantizer.as_mut(),
                     &mut utf8_buf,
@@ -468,6 +463,23 @@ impl BenchIoWriter {
     }
 }
 
+/// Per-run SGR style tracking for `emit_cell_lean` (NIGHT-hunter-25
+/// part 2).
+///
+/// The three values (current fg, current bg, current bold) previously
+/// arrived as three separate `&mut` positionals at both call sites in
+/// `write_frame`; they now ride one struct owned by the caller and
+/// passed as a single `&mut` — 6 function arguments, no lint
+/// suppression, and the style state reads as one concept instead of
+/// three scattered locals. SGR bytes are emitted only when a cell's
+/// style differs from this cursor (mirrors Terminal::draw's tracking).
+#[derive(Debug, Default)]
+struct StyleCursor {
+    fg: Option<Color>,
+    bg: Option<Color>,
+    bold: bool,
+}
+
 /// Strategy B+C+D+E: emit one cell with per-cell style tracking. No run
 /// detection, no sort — just check if style changed since the previous cell
 /// and emit SGR only on change. Same byte count as RLE for matrix rain
@@ -480,9 +492,15 @@ impl BenchIoWriter {
 /// `&mut self` from an existing `&self.color_cache` borrow, but it CAN
 /// split disjoint field references passed as separate arguments.
 //
-// 7 args is at clippy's default `too_many_arguments` threshold, so no
-// `#[allow]` needed. (Was 9 in Strategy A' with run_buf + sgr counters;
-// Strategy C dropped the dead counters.)
+// Per-cell style tracking (NIGHT-hunter-25 part 2): the three cursor
+// values (fg, bg, bold) previously arrived as three separate `&mut`
+// positionals; they now ride one `StyleCursor` struct owned by the
+// caller, passed as a single `&mut` — the function drops to 6 args,
+// under the lint threshold with no allow. (Signature history: was 9 in
+// Strategy A' with run_buf + sgr counters; Strategy C dropped the dead
+// counters to 7; task-17 added the quant emission-boundary parameter
+// and raised it to 8; hunter-25 part 2 folded the three style-cursor
+// refs into the bundle.)
 //
 // Strategy D: inline fast path for (Some(Rgb), None) — the matrix rain
 // hot case where fg is a unique truecolor per cell and bg is the palette
@@ -518,24 +536,17 @@ impl BenchIoWriter {
 // Measured savings vs Strategy D: ~5-10ns/cell (20-40% of io_ns/cell).
 // At 55K FPS × 235 cells = 12.9M cells/sec, that's 65-130ms/sec of CPU
 // returned to the scheduler — translates to ~3-7% avg_fps gain.
-// 8 args exceeds clippy's default `too_many_arguments` threshold (7) —
-// task-17 added the `quant` emission-boundary parameter. (Was 9 in
-// Strategy A' with run_buf + sgr counters; Strategy C dropped the dead
-// counters to 7; task-17 raised it to 8.)
-#[allow(clippy::too_many_arguments)]
 #[inline]
 fn emit_cell_lean(
     ansi_buf: &mut Vec<u8>,
     cell: &Cell,
-    cur_fg: &mut Option<Color>,
-    cur_bg: &mut Option<Color>,
-    cur_bold: &mut bool,
+    cursor: &mut StyleCursor,
     cache: Option<&ColorCache>,
     quant: Option<&mut SgrQuantizer>,
     utf8_buf: &mut [u8; 4],
 ) {
-    let fg_changed = cell.fg != *cur_fg || cell.bg != *cur_bg;
-    let bold_changed = cell.bold != *cur_bold;
+    let fg_changed = cell.fg != cursor.fg || cell.bg != cursor.bg;
+    let bold_changed = cell.bold != cursor.bold;
 
     // Strategy E: combined stack-buffer fast path.
     // Fires when fg changed AND (fg=Some(Rgb), bg=None) AND ch is ASCII.
@@ -586,14 +597,14 @@ fn emit_cell_lean(
                 let len = BOLD_ESCAPE_LENS[idx];
                 tmp[pos..pos + len].copy_from_slice(BOLD_ESCAPES[idx]);
                 pos += len;
-                *cur_bold = cell.bold;
+                cursor.bold = cell.bold;
             }
             // Glyph (ASCII — 1 byte, no encode_utf8 needed)
             tmp[pos] = cell.ch as u8;
             pos += 1;
             ansi_buf.extend_from_slice(&tmp[..pos]);
-            *cur_fg = cell.fg;
-            *cur_bg = cell.bg;
+            cursor.fg = cell.fg;
+            cursor.bg = cell.bg;
             return;
         }
     }
@@ -616,14 +627,14 @@ fn emit_cell_lean(
         } else {
             BenchIoWriter::emit_sgr(quant, cache, ansi_buf, cell.fg, cell.bg);
         }
-        *cur_fg = cell.fg;
-        *cur_bg = cell.bg;
+        cursor.fg = cell.fg;
+        cursor.bg = cell.bg;
     }
     if bold_changed {
         // Branchless: same table-indexed lookup as the fast path.
         let idx = cell.bold as usize;
         ansi_buf.extend_from_slice(BOLD_ESCAPES[idx]);
-        *cur_bold = cell.bold;
+        cursor.bold = cell.bold;
     }
     // ASCII fast path for the glyph — skip encode_utf8 (codepoint-range
     // branch + &str construction) for the common case (binary charset,

@@ -61,8 +61,10 @@ The audit confirmed the engine is already at peak. Specifically:
     indexing, bounds-checked defensively.
   - Returns `(Option<Color>, bool)` tuple — no allocation, compiler
     inlines on `-C opt-level=3`.
-  - `#[allow(clippy::too_many_arguments)]` — explicit choice to avoid
-    struct construction overhead on hot path.
+  - Per-cell inputs ride one `CellPaint` value object (NIGHT-hunter-25
+    part 2) — all-`Copy` scalars, scalar-replaced at the call site, so
+    codegen matches the seven-positional form it replaced (A/B
+    verified) while named fields kill the cross-wire hazards.
 - **Transition shader** (`shaders/transition/mod.rs`) —
   OKLab wave transition (300 ms top-to-bottom). `TransitionLTable`
   precomputed at startup, looked up per-cell via direct index.

@@ -83,12 +83,14 @@ impl SolarFlareRain {
             draw_solar_cell(
                 ctx,
                 frame,
-                col,
-                surface_top,
-                ch,
-                self.field_palette_slot,
-                level,
-                0.6 + heat * 0.4,
+                SolarCellPaint {
+                    col,
+                    line: surface_top,
+                    ch,
+                    palette_slot: self.field_palette_slot,
+                    level,
+                    factor: 0.6 + heat * 0.4,
+                },
             );
             self.current_cells.push(SolarCell {
                 col,
@@ -108,12 +110,14 @@ impl SolarFlareRain {
                 draw_solar_cell(
                     ctx,
                     frame,
-                    col,
-                    surface_top + 1,
-                    ch,
-                    self.field_palette_slot,
-                    dim,
-                    0.5 + heat * 0.3,
+                    SolarCellPaint {
+                        col,
+                        line: surface_top + 1,
+                        ch,
+                        palette_slot: self.field_palette_slot,
+                        level: dim,
+                        factor: 0.5 + heat * 0.3,
+                    },
                 );
                 self.current_cells.push(SolarCell {
                     col,
@@ -149,12 +153,14 @@ impl SolarFlareRain {
                 draw_solar_cell(
                     ctx,
                     frame,
-                    col,
-                    surface_top,
-                    ch,
-                    self.field_palette_slot,
-                    boosted,
-                    1.0,
+                    SolarCellPaint {
+                        col,
+                        line: surface_top,
+                        ch,
+                        palette_slot: self.field_palette_slot,
+                        level: boosted,
+                        factor: 1.0,
+                    },
                 );
                 self.current_cells.push(SolarCell {
                     col,
@@ -220,12 +226,14 @@ impl SolarFlareRain {
                 draw_solar_cell(
                     ctx,
                     frame,
-                    col,
-                    line,
-                    ch,
-                    self.field_palette_slot,
-                    level,
-                    fade,
+                    SolarCellPaint {
+                        col,
+                        line,
+                        ch,
+                        palette_slot: self.field_palette_slot,
+                        level,
+                        factor: fade,
+                    },
                 );
                 self.current_cells.push(SolarCell { col, line });
             }
@@ -261,7 +269,18 @@ impl SolarFlareRain {
             }
 
             let head_level = d.kinetic_level();
-            draw_solar_cell(ctx, frame, col, line, d.ch, d.palette_slot, head_level, 1.0);
+            draw_solar_cell(
+                ctx,
+                frame,
+                SolarCellPaint {
+                    col,
+                    line,
+                    ch: d.ch,
+                    palette_slot: d.palette_slot,
+                    level: head_level,
+                    factor: 1.0,
+                },
+            );
             self.current_cells.push(SolarCell { col, line });
 
             // Comet trail: previously occupied cells (the descent
@@ -274,7 +293,18 @@ impl SolarFlareRain {
                     }
                     let depth = (d.trail_len() as usize - t).min(3) as u8;
                     let trail_level = step_down_level(head_level, depth);
-                    draw_solar_cell(ctx, frame, tc, tl, d.ch, d.palette_slot, trail_level, 1.0);
+                    draw_solar_cell(
+                        ctx,
+                        frame,
+                        SolarCellPaint {
+                            col: tc,
+                            line: tl,
+                            ch: d.ch,
+                            palette_slot: d.palette_slot,
+                            level: trail_level,
+                            factor: 1.0,
+                        },
+                    );
                     self.current_cells.push(SolarCell { col: tc, line: tl });
                 }
             }
@@ -358,20 +388,36 @@ fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
     }
 }
 
-/// Render one solar cell (palette-aware color + bold, mono-safe).
-/// 8 args exceeds clippy's default `too_many_arguments` threshold (7) —
-/// the factor arg is the same aurora draw-helper precedent.
-#[allow(clippy::too_many_arguments)]
-fn draw_solar_cell(
-    ctx: &DrawCtx<'_>,
-    frame: &mut Frame,
+/// One solar cell's paint request — the value object carried by
+/// `draw_solar_cell` (NIGHT-hunter-25 part 2).
+///
+/// The six previous positionals had two same-typed neighbor hazards
+/// (`col`/`line` both `u16`) across six call sites in this file; a
+/// swapped pair compiled cleanly and painted the wrong cell. Named
+/// fields make every call site self-documenting and drop the function
+/// under the lint threshold (ctx + frame + bundle). All fields are
+/// `Copy`, so the bundle scalar-replaces to the same register passing
+/// as the positional form (A/B verified).
+#[derive(Clone, Copy)]
+struct SolarCellPaint {
     col: u16,
     line: u16,
     ch: char,
     palette_slot: u8,
     level: BrightnessLevel,
     factor: f32,
-) {
+}
+
+/// Render one solar cell (palette-aware color + bold, mono-safe).
+fn draw_solar_cell(ctx: &DrawCtx<'_>, frame: &mut Frame, paint: SolarCellPaint) {
+    let SolarCellPaint {
+        col,
+        line,
+        ch,
+        palette_slot,
+        level,
+        factor,
+    } = paint;
     if line >= ctx.lines || col >= ctx.cols {
         return;
     }

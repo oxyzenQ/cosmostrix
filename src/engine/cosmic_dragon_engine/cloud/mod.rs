@@ -82,7 +82,7 @@ pub(crate) use type_rain::flux::flux_field;
 #[path = "../../../../test/engine/cosmic_dragon_engine/cloud/tests/mod.rs"]
 mod tests;
 
-pub(crate) use render::{CharLoc, DrawCtx};
+pub(crate) use render::{CellPaint, CharLoc, DrawCtx};
 
 use std::time::{Duration, Instant};
 

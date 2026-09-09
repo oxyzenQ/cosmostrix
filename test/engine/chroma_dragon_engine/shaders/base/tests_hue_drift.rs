@@ -75,12 +75,13 @@ fn hue_drift_shifts_middle_color() {
 
     let slots = slot_array(palette);
     let shader_none = make_test_shader(&slots, color_map, false);
-    let (fg_none, _) = resolve_cell_color(&shader_none, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_none, _) = resolve_cell_color(&shader_none, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_none, Some(palette[3]));
 
     let mut shader_drift = make_test_shader(&slots, color_map, false);
     shader_drift.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
-    let (fg_drift, _) = resolve_cell_color(&shader_drift, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_drift, _) =
+        resolve_cell_color(&shader_drift, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_drift, Some(palette[5]), "hue_drift=π should shift 3 → 5");
 }
 
@@ -102,10 +103,10 @@ fn hue_drift_does_not_affect_head_or_tail() {
     let mut shader = make_test_shader(&slots, color_map, false);
     shader.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
 
-    let (fg_head, _) = resolve_cell_color(&shader, 0, 20, 5, 'x', CharLoc::Head, 20, 12);
+    let (fg_head, _) = resolve_cell_color(&shader, test_paint(20, 5, CharLoc::Head, 20, 12));
     assert_eq!(fg_head, Some(palette[7]));
 
-    let (fg_tail, _) = resolve_cell_color(&shader, 0, 9, 5, 'x', CharLoc::Tail, 20, 12);
+    let (fg_tail, _) = resolve_cell_color(&shader, test_paint(9, 5, CharLoc::Tail, 20, 12));
     assert_eq!(fg_tail, Some(palette[0]));
 }
 
@@ -130,8 +131,8 @@ fn hue_drift_skipped_under_shading_distance() {
     let mut shader_on = make_test_shader(&slots, color_map, true);
     shader_on.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
 
-    let (fg_off, _) = resolve_cell_color(&shader_off, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
-    let (fg_on, _) = resolve_cell_color(&shader_on, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_off, _) = resolve_cell_color(&shader_off, test_paint(19, 5, CharLoc::Middle, 20, 12));
+    let (fg_on, _) = resolve_cell_color(&shader_on, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(
         fg_off, fg_on,
         "hue_drift must not affect shading_distance path"
@@ -157,7 +158,7 @@ fn hue_drift_clamps_to_palette_range() {
     let slots_lo = slot_array(palette);
     let mut shader_lo = make_test_shader(&slots_lo, color_map_lo, false);
     shader_lo.hue_drift_offset = Some(hue_drift_offset(-std::f32::consts::PI));
-    let (fg_lo, _) = resolve_cell_color(&shader_lo, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_lo, _) = resolve_cell_color(&shader_lo, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_lo, Some(palette[0]));
 
     // Upper bound: color_map=2, hue_drift=+π → offset +2, clamped to 2.
@@ -166,6 +167,6 @@ fn hue_drift_clamps_to_palette_range() {
     let slots_hi = slot_array(palette);
     let mut shader_hi = make_test_shader(&slots_hi, color_map_hi, false);
     shader_hi.hue_drift_offset = Some(hue_drift_offset(std::f32::consts::PI));
-    let (fg_hi, _) = resolve_cell_color(&shader_hi, 0, 19, 5, 'x', CharLoc::Middle, 20, 12);
+    let (fg_hi, _) = resolve_cell_color(&shader_hi, test_paint(19, 5, CharLoc::Middle, 20, 12));
     assert_eq!(fg_hi, Some(palette[2]));
 }
