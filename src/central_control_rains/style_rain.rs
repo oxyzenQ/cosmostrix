@@ -2038,8 +2038,20 @@ pub(crate) const DNA_ACTIVE_BASE: f32 = 0.06;
 pub(crate) const DNA_ACTIVE_DENSITY_MULT: f32 = 0.05;
 pub(crate) const DNA_ACTIVE_MAX: f32 = 0.16;
 
-/// Spawn rate multiplier + floor (the trickle equilibrium).
-pub(crate) const DNA_SPAWN_RATE_MULT: f32 = 0.30;
+/// Spawn rate multiplier + floor (the trickle equilibrium). Part 3
+/// hunt-find: the multiplier was calibrated at 0.30 under the
+/// active-counter leak (every absorption permanently ate one unit
+/// of the spawn budget, so the gate read a population the pool no
+/// longer carried and the 0.30 trickle was never asked to actually
+/// sustain the target). With the leak fixed the true drain is
+/// visible — an absorbed nucleotide lives ~1.7 sim-s, not the
+/// 16-s lifetime backstop — and the rate must double to hold the
+/// lane target (rate x mean-life = target: 6.85 x 1.7 ~ 11.6 on
+/// the 120-lane reference dial). The equilibrium still reads as a
+/// trickle: the population holds the sparse-minority band the
+/// calm-sky dial promises, it just no longer decays to zero over a
+/// long session.
+pub(crate) const DNA_SPAWN_RATE_MULT: f32 = 0.60;
 pub(crate) const DNA_SPAWN_RATE_FLOOR: f32 = 0.25;
 
 /// Comet trail length in cells (the falling nucleotide's wake).
@@ -2056,6 +2068,59 @@ pub(crate) const DNA_SHIMMER_HOT: f32 = 0.25;
 /// Sim-time coupling to the speed keys (the family contract — see
 /// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 14 cps).
 pub(crate) const DNA_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// ── DNA genesis (NIGHT-research-7 part 3, law 0) ──────────────────
+//
+// The birth sequence the entry replays: soup -> ladder -> windup
+// -> steady (see type_rain/dna_helix/genesis.rs for the phase
+// math). The whole timeline rides the molecule's sim clock (the
+// family speed contract — the speed keys scale the birth with
+// the molecule), and every window is expressed in sim-seconds so
+// the choreography is viewport-invariant (the fronts travel as a
+// fraction of the height, not at an absolute rate — the fork's
+// absolute rate is a steady-state law, the genesis a one-shot
+// presentation).
+
+/// Primordial-soup dwell (sim-seconds): the sky carries the
+/// nucleotide rain alone — no molecule, the broth before the
+/// genome. The spawn dial runs its genesis multiplier through
+/// the dwell and the ladder window because the soup IS the scene
+/// while the molecule is absent or assembling.
+pub(crate) const DNA_GENESIS_SOUP_SECS: f32 = 1.8;
+
+/// Ladder-assembly window (sim-seconds): the assembly wave writes
+/// the rungs top-down (each crossed rung stamped to max charge
+/// with a rolled pair — the fork's fresh-write economy borrowed
+/// for the birth) while the strand radius grows from the axis
+/// (the spine splits into the two strands, cubic ease-out). The
+/// rotation is held through the window so the flat ladder stays
+/// face-on (a rotating flat ladder periodically collapses
+/// edge-on to a single line).
+pub(crate) const DNA_GENESIS_LADDER_SECS: f32 = 2.6;
+
+/// Wind-up window (sim-seconds): the twist front zips from the
+/// top — above the front the strands carry the full steady law,
+/// below it the flat ladder extends at the front's angle (the
+/// wound top drags the flat tail around the axis as it descends,
+/// the physical read of winding a ribbon from one end). The
+/// rotation resumes with the windup; at its end the geometry
+/// evaluates exactly to the steady law (the final front is the
+/// full height — no seam, no pop).
+pub(crate) const DNA_GENESIS_WINDUP_SECS: f32 = 2.4;
+
+/// The primordial-soup thickness multiplier on the spawn dial
+/// while the molecule is absent or assembling: the broth carries
+/// multiples of the steady sparse target. The steady dial hands
+/// the sky back to the molecule as the hero once the genome
+/// exists.
+pub(crate) const DNA_GENESIS_SOUP_MULT: f32 = 2.5;
+
+/// The genesis-phase active ceiling (the calm-sky ACTIVE_MAX is
+/// the steady contract; the broth's ceiling is its own — while
+/// the molecule is absent a denser rain is the composition). The
+/// excess thins through the floor expiry and the lifetime
+/// backstop when the steady dial returns, never a mass kill.
+pub(crate) const DNA_GENESIS_ACTIVE_MAX: f32 = 0.28;
 
 // Compile-time contracts on the ladder calibration: the radius
 // band is strictly ordered, the recency ladder is strictly
@@ -2084,6 +2149,11 @@ const _: () = assert!(DNA_BOW_MAX >= 0.0);
 const _: () = assert!(DNA_DRIFT_MAX > 0.0);
 const _: () = assert!(DNA_SHIMMER_QUIET < DNA_SHIMMER_HOT);
 const _: () = assert!(DNA_SHIMMER_HOT <= 1.0);
+const _: () = assert!(DNA_GENESIS_SOUP_SECS > 0.0);
+const _: () = assert!(DNA_GENESIS_LADDER_SECS > 0.0);
+const _: () = assert!(DNA_GENESIS_WINDUP_SECS > 0.0);
+const _: () = assert!(DNA_GENESIS_SOUP_MULT > 1.0);
+const _: () = assert!(DNA_GENESIS_ACTIVE_MAX > DNA_ACTIVE_MAX);
 
 // ── Murmuration (NIGHT-research-7, the twelfth style) ─────────────
 //

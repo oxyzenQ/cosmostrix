@@ -9,6 +9,78 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-7 (part 3) — the DNA genesis, the molecule is born before it stands
+
+- Owner round 9/10 feedback: the style entered with the molecule
+  already standing — the birth of the genome should be the entry's
+  first act. The entry now replays the genesis, the
+  molecular-origin story in four continuous phases (the black
+  hole's `begin_formation` contract: a pure resize keeps the
+  steady state, a scene entry re-forms; the bench fast-forwards —
+  one-shot choreography is not steady-state throughput, the Z-6
+  critical-path contract). Derived and documented as law 0 in
+  `src/engine/cosmic_dragon_engine/cloud/type_rain/dna_helix/mod.rs`,
+  the phase math split into `dna_helix/genesis.rs`.
+- The soup: the primordial nucleotide rain falls alone for ~1.8
+  sim-s (no molecule cell draws; the spawn dial runs its genesis
+  multiplier — the broth IS the scene while the molecule is
+  absent, then thins through the floor expiry as the genome takes
+  over).
+- The ladder: the axis spine appears at zero radius and splits
+  into the two strands (cubic ease-out, the legibility floor
+  lifted through the growth) while the assembly wave writes rungs
+  top-down — each crossed rung stamped to max charge with a rolled
+  pair, the fork's fresh-write economy borrowed for the birth (the
+  genome writes itself into existence, its trail of light decaying
+  under law 3 as the wave travels). The rotation is held through
+  the window so the flat ladder stays face-on.
+- The windup: the twist zips in from the top — above the front the
+  strands carry the full steady law, below it the flat extension
+  holds the front's angle (the wound top drags the flat tail
+  around the axis, the physical read of winding a ribbon from one
+  end). At the windup's end the geometry evaluates exactly to the
+  steady law — the final front is the full height, no seam, no
+  pop. The rotation and the replication fork's clock both resume
+  only on the completed genome (no replication before the genome
+  exists).
+- Hunt-find (the owner's mandate, found and fixed): the shipped
+  nucleotide pool STARVED — an absorbed drop never decremented
+  the active counter, so every absorption permanently ate one
+  unit of the spawn budget; the gate compared the inflated count
+  and over a long session the soup decayed to a silent sky (the
+  shipped spawn-rate calibration was tuned under the leak's
+  cover — `DNA_SPAWN_RATE_MULT` 0.30 -> 0.60 now actually holds
+  the lane target the calm-sky dial promises). One counter line
+  and one dial; the pool recycles as its own doc always claimed.
+- 17 new genesis contracts (tests_dna_helix/genesis.rs: the
+  timeline classifier, the clock clamp + one-shot flag, the soup's
+  draw/absorption gates, the top-down materialization with fresh
+  light, the flat face-on ladder geometry, the windup's exact
+  seam identity, the steady-law handoff, the held rotation, the
+  fork gate, the fast-forward, the thick-then-thin broth, the
+  re-entry replay, the resize keeps-steady, the bench
+  fast-forward, the per-frame bounds sweep, the fronts'
+  monotonicity, the assembly charge clamp); the two geometry tests
+  now pin phase-0 crossings (the face-on birth presentation
+  carries a different crossing alignment). Full suite: 2630
+  passed / 0 failed (was 2613 — +17). PTY smoke
+  (scripts/genesis_smoke.py, the ansi_screen reconstructor): the
+  shape signature holds on screen — soup 10 scattered cells, flat
+  ladder 90 cells with two straight full-height columns, wound
+  steady helix 168 cells with the columns dissolved.
+- A/B 10 s (`benchmark/bench-labs/night_research7_dna/genesis/`):
+  cinematic 460.0->458.1 dirty / 5.170->5.163 entropy /
+  0.638->0.639 gini; aeolian 46.0->45.9 / 4.982->4.977 / 0.645->
+  0.646; solar_flare 247.8->249.4 / 6.025->6.050 / 0.325->0.318 —
+  zero visual regression, fps deltas (+0.6/-0.1/-0.5%) inside the
+  interleaved-run noise band. The dna_helix scene's own profile:
+  89,322 fps / 108.0 dirty / 4.971 entropy / 0.672 gini — the
+  deltas from A (96,906 / 101.9 / 4.860 / 0.691) are the
+  starvation fix working (the soup now sustains its ~11-drop dial
+  target instead of decaying inside the window: +6 dirty cells of
+  living rain, and the spread light reads as +0.111 entropy /
+  -0.019 gini), not a render regression (see GENESIS_AB.md).
+
 ### feature: NIGHT-research-7 — the murmuration, the twelfth rain style (the rain is a flock)
 
 - The owner's DeepSeek-researched shortlist, second pick: `murmuration`

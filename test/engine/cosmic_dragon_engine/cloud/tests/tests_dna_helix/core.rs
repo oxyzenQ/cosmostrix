@@ -175,9 +175,13 @@ fn dna_repaints_without_residue() {
     // The diff-cleanup contract: after the molecule settles, a
     // force-redraw + continued frames must leave the drawn cell
     // set covering the same population (no stale cells and no
-    // residue ghosts — the monolith family's repaint test).
+    // residue ghosts — the monolith family's repaint test). Driven
+    // past the genesis first so the baseline is the steady
+    // molecule (the birth sequence's growing population is pinned
+    // in genesis.rs).
     let mut cloud = make_dna_cloud(80, 40);
     let mut frame = Frame::new(80, 40, cloud.palette.bg);
+    run_past_genesis(&mut cloud, &mut frame);
     run_frames(&mut cloud, &mut frame, 300, 16);
     let baseline = cloud.dna_helix_rain.drawn_cells_for_test().len();
     cloud.clear_redraw_flags_for_test();
@@ -285,12 +289,18 @@ fn dna_speed_keys_scale_the_whole_molecule() {
     // The family speed contract: at double chars_per_sec the
     // rotation advances double over the same wall-time (the turn,
     // the fork and the fall ride one clock — shapes invariant).
+    // Measured on the formed molecule (the genesis rides the same
+    // clock — the speed keys fast-forward the birth too — but its
+    // held rotation through the soup and ladder is pinned
+    // separately in genesis.rs).
     let run_phase = |cps: f32| -> f32 {
         let mut cloud = make_dna_cloud(80, 40);
         cloud.set_chars_per_sec(cps);
         let mut frame = Frame::new(80, 40, cloud.palette.bg);
+        run_past_genesis(&mut cloud, &mut frame);
+        let phase0 = cloud.dna_helix_rain.genome_for_test().phase;
         run_frames(&mut cloud, &mut frame, 60, 16);
-        cloud.dna_helix_rain.genome_for_test().phase
+        cloud.dna_helix_rain.genome_for_test().phase - phase0
     };
     let slow = run_phase(14.0);
     let fast = run_phase(28.0);

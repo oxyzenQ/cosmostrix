@@ -41,8 +41,9 @@ use rand::distr::Distribution;
 use crate::constants::{
     DNA_ACTIVE_BASE, DNA_ACTIVE_DENSITY_MULT, DNA_ACTIVE_MAX, DNA_CAPTURE_BAND_MULT,
     DNA_CAPTURE_MARGIN, DNA_DEPOSIT_RATE, DNA_DRIFT_MAX, DNA_DRIFT_RATE, DNA_FALL_BAND,
-    DNA_FALL_MULT, DNA_MAX_AGE_SECS, DNA_MUTATION_CHANCE, DNA_SIM_TIME_PER_CPS,
-    DNA_SPAWN_RATE_FLOOR, DNA_SPAWN_RATE_MULT, SPAWN_REMAINDER_CAP,
+    DNA_FALL_MULT, DNA_GENESIS_ACTIVE_MAX, DNA_GENESIS_SOUP_MULT, DNA_MAX_AGE_SECS,
+    DNA_MUTATION_CHANCE, DNA_SIM_TIME_PER_CPS, DNA_SPAWN_RATE_FLOOR, DNA_SPAWN_RATE_MULT,
+    SPAWN_REMAINDER_CAP,
 };
 
 use super::drops::NucleotideDrop;
@@ -175,16 +176,45 @@ impl DnaHelixRain {
         self.drawn_gen_counter = 0;
     }
 
+    /// Replay the genesis intro (law 0, part 3): rewind the birth
+    /// clock — the next frames run the soup -> ladder -> windup
+    /// sequence. Called on style ENTRY only (scene switches and
+    /// first launch); a pure resize keeps the steady state (the
+    /// black hole's `begin_formation` contract — the scene
+    /// runtime's entry arm calls this right after the reset).
+    pub(crate) fn begin_genesis(&mut self) {
+        self.genome.begin_genesis();
+    }
+
+    /// Fast-forward the genesis to the steady molecule (the bench
+    /// path): the birth sequence is one-shot choreography, not
+    /// steady-state throughput — at the default scene speed it
+    /// would own ~60 percent of a 10 s bench window, so benchmark
+    /// mode measures the formed molecule instead (the Z-6
+    /// "critical path only" contract; the sequence itself is
+    /// pinned by the genesis tests, which drive it frame by
+    /// frame).
+    pub(crate) fn fast_forward_genesis(&mut self) {
+        self.genome.fast_forward_genesis();
+    }
+
     /// Steady-state active-drop target from pool size + density
     /// (mirrors `SolarFlareRain::target_active_count`): the
     /// calm-sky dial family — a sparse ambient soup, never a
-    /// downpour (the molecule is the hero).
-    fn target_active_count(lanes: usize, density: f32) -> usize {
+    /// downpour (the molecule is the hero). While the primordial
+    /// soup runs (law 0) the dial multiplies and the ceiling
+    /// lifts to the genesis cap: the broth is thicker than the
+    /// steady drizzle because while the molecule is absent the
+    /// soup IS the scene.
+    fn target_active_count(lanes: usize, density: f32, thick_soup: bool) -> usize {
         if lanes == 0 {
             return 0;
         }
-        let ratio = (DNA_ACTIVE_BASE + density.clamp(0.01, 5.0) * DNA_ACTIVE_DENSITY_MULT)
+        let mut ratio = (DNA_ACTIVE_BASE + density.clamp(0.01, 5.0) * DNA_ACTIVE_DENSITY_MULT)
             .clamp(0.02, DNA_ACTIVE_MAX);
+        if thick_soup {
+            ratio = (ratio * DNA_GENESIS_SOUP_MULT).clamp(0.02, DNA_GENESIS_ACTIVE_MAX);
+        }
         ((lanes as f32 * ratio).round() as usize).clamp(1, lanes)
     }
 
@@ -222,7 +252,11 @@ impl DnaHelixRain {
             return;
         }
 
-        let target = Self::target_active_count(self.drops.len(), params.density);
+        let target = Self::target_active_count(
+            self.drops.len(),
+            params.density,
+            self.genome.primordial_soup(),
+        );
         if self.active_count >= target {
             *spawn_remainder = (*spawn_remainder).min(SPAWN_REMAINDER_CAP);
             return;
@@ -293,7 +327,11 @@ impl DnaHelixRain {
     ///    floor expiry and the lifetime backstop sweep the rest.
     ///    Absorptions are collected and applied after the loop
     ///    (the solar landings pattern — the genome needs the &mut
-    ///    while the drop loop holds the pool).
+    ///    while the drop loop holds the pool). Every drop that
+    ///    leaves the pool — absorbed, floor-expired or
+    ///    lifetime-expired — decrements the active counter (the
+    ///    spawn budget stays honest; see the hunt-find note at
+    ///    the absorption arm).
     pub(crate) fn advance(&mut self, step: &DnaStep, random: &mut DnaRandom<'_>) {
         let has_genome = !self.genome.rungs().is_empty();
         if self.active_count == 0 && !has_genome {
@@ -367,7 +405,9 @@ impl DnaHelixRain {
             // rung's projected span (+- the capture margin). The
             // test is a crossing test on a strictly increasing y
             // (terminal velocity, vy > 0) — no tunneling past a
-            // rung line at any dt.
+            // rung line at any dt. Law 0's gate: only a BUILT rung
+            // catches (through the soup no rung exists — the
+            // primordial rain falls through to the floor).
             let mut was_absorbed = false;
             for ri in 0..rung_count {
                 let Some(rung_line) = self.genome.rung_line(ri) else {
@@ -375,6 +415,9 @@ impl DnaHelixRain {
                 };
                 let rl = rung_line as f32;
                 if !(prev_y < rl && d.y >= rl) {
+                    continue;
+                }
+                if !self.genome.rung_built(ri) {
                     continue;
                 }
                 let Some((left, right)) = self.genome.rung_span(ri) else {
@@ -394,6 +437,17 @@ impl DnaHelixRain {
             if was_absorbed {
                 d.active = false;
                 d.clear_trail();
+                // The absorbed drop leaves the pool exactly like a
+                // floor-expired one — the counter must follow (part
+                // 3 hunt-find: the shipped code skipped this
+                // decrement, so every absorption permanently ate
+                // one unit of the active budget; the spawn gate
+                // compared the inflated count and the soup slowly
+                // STARVED — the trickle the spawn pass promises
+                // ("absorbed + floor-expired drops recycle") never
+                // came, and over a long session the sky went quiet.
+                // One line, the pool recycles as documented.)
+                died += 1;
                 continue;
             }
 

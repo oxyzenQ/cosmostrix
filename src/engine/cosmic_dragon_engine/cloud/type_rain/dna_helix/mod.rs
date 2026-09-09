@@ -22,6 +22,19 @@
 //! every pass a visible MUTATION, the pair re-rolled. The molecule
 //! never stops transcribing.
 //!
+//! And it is BORN (part 3, the owner's 9/10 round): the style does
+//! not enter with the molecule already standing — the entry replays
+//! the genesis, the molecular-origin story in four continuous
+//! phases (see `genesis.rs`): the primordial soup (the nucleotide
+//! rain alone, the broth running thicker than the steady drizzle),
+//! the ladder (the axis spine splitting into two strands as the
+//! radius grows, the assembly wave writing rungs top-down with the
+//! fresh-write light), the windup (the twist zipping in from the
+//! top, the wound region dragging the flat tail around the axis),
+//! and the steady molecule (the laws below, exactly — the last
+//! windup frame and the first steady frame evaluate to identical
+//! geometry, no seam, no pop).
+//!
 //! ## Origin
 //!
 //! NIGHT-research-7 (the owner's DeepSeek-researched shortlist,
@@ -36,7 +49,7 @@
 //! the equation set tuned by derivation for the grid, in the house
 //! derivation style.
 //!
-//! ## The ladder equations (the five laws)
+//! ## The ladder equations (the six laws)
 //!
 //! The molecule is one body: a center column cx, a radius R in
 //! columns, a twist k radians per line (k = 2pi / TURN_LINES — one
@@ -44,6 +57,28 @@
 //! lines that is TURN_LINES / RUNG_STEP ~ 11 base pairs per turn,
 //! B-DNA's 10.5 honored), and a rotation phase phi. The weather is
 //! the drop pool (the family lane model, one slot per column).
+//!
+//! ### Law 0 — the genesis (the birth sequence, part 3)
+//!
+//! The entry does not present a finished molecule — it replays the
+//! formation, the black hole's begin_formation contract translated
+//! to the genome (a pure resize keeps the steady state; a scene
+//! entry re-forms). Four phases on the sim clock (the family speed
+//! contract scales the birth with the molecule — the speed keys
+//! fast-forward the origin story too): the soup (no molecule, the
+//! spawn dial multiplied), the ladder (the radius grows from the
+//! axis — the spine splits into the two strands, cubic ease-out —
+//! while the assembly wave writes rungs top-down, each crossed rung
+//! stamped to max charge with a rolled pair: the genome writes
+//! itself into existence), the windup (the twist front zips down
+//! from the top: above it the steady law, below it the flat
+//! extension at the front's angle), and the steady state (the
+//! remaining laws, exactly — the windup's final front is the full
+//! height, so the seam evaluates identically on both sides). The
+//! rotation is HELD through soup and ladder (the flat pre-molecule
+//! stays face-on — a rotating flat ladder periodically collapses
+//! edge-on to a line), and the fork is gated: no replication before
+//! the genome exists.
 //!
 //! ### Law 1 — the turn (uniform rotation, one clock)
 //!
@@ -145,9 +180,13 @@
 //!
 //! ## Module map
 //!
+//! - `genesis.rs` — the birth sequence's pure phase math (law 0:
+//!   the timeline classifier, the two fronts, the radius growth
+//!   — the black hole's `formation.rs` split pattern).
 //! - `helix.rs` — the genome: the rung states (pair, charge,
-//!   dissolution), the fork, the rotation phase, the closed-form
-//!   geometry queries (laws 1-4 executable form).
+//!   dissolution), the fork, the rotation phase, the genesis
+//!   clock and formed flag, the closed-form geometry queries
+//!   (laws 0-4 executable form).
 //! - `drops.rs` — the soup: the nucleotide drop state struct (law
 //!   5's carrier).
 //! - `dna_helix.rs` — the orchestration: pool, spawn accumulator,
@@ -159,6 +198,7 @@
 pub(crate) mod dna_helix;
 pub(crate) mod draw;
 pub(crate) mod drops;
+pub(crate) mod genesis;
 pub(crate) mod helix;
 
 pub(crate) use dna_helix::{DnaHelixRain, DnaSpawnParams, DnaStep};

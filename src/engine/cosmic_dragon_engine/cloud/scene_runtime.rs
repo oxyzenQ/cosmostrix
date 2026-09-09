@@ -483,8 +483,14 @@ impl Cloud {
                 // structured-family contract (no droplet pool, full
                 // molecule rebuild on entry — fresh rungs and a
                 // fresh nucleotide pool; the genome starts
-                // untranscribed and the soup reveals it).
+                // untranscribed and the soup reveals it). Part 3:
+                // entry replays the genesis intro (soup -> ladder
+                // -> windup -> steady), the begin_formation
+                // precedent — a pure resize keeps the steady
+                // state, a scene entry re-forms the molecule from
+                // the primordial broth.
                 self.dna_helix_rain.reset(self.cols, self.lines);
+                self.dna_helix_rain.begin_genesis();
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

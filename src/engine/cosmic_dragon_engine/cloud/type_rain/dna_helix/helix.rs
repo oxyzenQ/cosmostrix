@@ -7,11 +7,12 @@
 //! This module owns the molecule's executable state: the rung
 //! table (one rung every RUNG_STEP lines — pair state, synthesis
 //! charge, the fork's dissolution window), the rotation phase,
-//! the replication fork, and the closed-form geometry queries
-//! the draw pass consumes (strand positions, rung spans, the bow
-//! envelope). The full derivation essay lives in
-//! `type_rain/dna_helix/mod.rs`; this file is the executable form
-//! of laws 1 through 4.
+//! the replication fork, the genesis clock (law 0 — the birth
+//! sequence's mutable half, see genesis.rs), and the closed-form
+//! geometry queries the draw pass consumes (strand positions,
+//! rung spans, the bow envelope). The full derivation essay lives
+//! in `type_rain/dna_helix/mod.rs`; this file is the executable
+//! form of laws 0 through 4.
 //!
 //! Storage: one flat `Vec<DnaRung>` indexed by rung ordinal (line
 //! = 1 + idx x RUNG_STEP, clamped to the viewport height — the
@@ -32,6 +33,11 @@ use crate::constants::{
 };
 
 use super::super::monolith::BrightnessLevel;
+
+use super::genesis::{
+    genesis_phase, genesis_radius_growth, genesis_total_secs, ladder_front, windup_front,
+    GenesisPhase,
+};
 
 /// RNG bundle (the advance pass is a stochastic pass in the family
 /// sense: the replication clock re-rolls, the fork-pass mutations
@@ -125,6 +131,19 @@ pub(crate) struct DnaGenome {
     pub(crate) fork_y: f32,
     /// Sim-seconds until the next sweep opens (Armed only).
     replication_clock: f32,
+    /// Genesis clock (law 0): sim-seconds since the birth
+    /// sequence began. Rides the same sim clock as every
+    /// molecule rate (the family speed contract scales the birth
+    /// with the molecule — the black hole's formation rides
+    /// wall-time instead, its own precedent).
+    genesis_t: f32,
+    /// The genesis completion flag: false while the birth
+    /// sequence runs (the fork gate, the strand and rung queries
+    /// and the spawn dial read it). Flips once, stays — style
+    /// entry re-arms it through `begin_genesis` (the black
+    /// hole's `begin_formation` contract: a pure resize keeps
+    /// the steady state, a scene entry re-forms).
+    formed: bool,
     /// Viewport (kept for the reset and the bounds queries).
     cols: u16,
     lines: u16,
@@ -134,13 +153,24 @@ impl DnaGenome {
     pub(crate) fn new() -> Self {
         Self {
             rungs: Vec::new(),
-            phase: 0.0,
+            // Face-on birth presentation: the pre-molecule holds
+            // this angle through the soup and the ladder (sin at
+            // the max — the flat ladder spans its widest rungs);
+            // a zero phase would present the forming ladder
+            // edge-on, a single collapsing line.
+            phase: std::f32::consts::FRAC_PI_2,
             twist: std::f32::consts::TAU / DNA_TURN_LINES as f32,
             cx: 0.0,
             radius: 0.0,
             fork_phase: ForkPhase::Armed,
             fork_y: 0.0,
             replication_clock: DNA_REPLICATION_CLOCK_MEAN,
+            genesis_t: 0.0,
+            // A fresh construction is unborn (the first launch's
+            // genesis plays without a scene transition arming it
+            // — the black hole's default-unformed precedent); the
+            // bench path fast-forwards past the sequence.
+            formed: false,
             cols: 0,
             lines: 0,
         }
@@ -151,7 +181,11 @@ impl DnaGenome {
     /// growing viewport must not snap the turn), charges wiped (a
     /// dormant molecule must not carry painted recency into the
     /// next entry — the solar arcade-reset precedent), fork
-    /// re-armed. The family reset contract is RNG-free.
+    /// re-armed. The genesis clock and the formed flag are NOT
+    /// touched (the black hole's reset contract): a pure resize
+    /// keeps the steady state, and style entry follows this reset
+    /// with `begin_genesis` when the birth sequence should replay.
+    /// The family reset contract is RNG-free.
     pub(crate) fn reset(&mut self, cols: u16, lines: u16) {
         self.cols = cols;
         self.lines = lines;
@@ -186,6 +220,62 @@ impl DnaGenome {
         self.lines
     }
 
+    /// Replay the genesis intro (law 0): rewind the genesis
+    /// clock, clear the formed flag and present the molecule
+    /// face-on — the next frames run the birth sequence (soup
+    /// -> ladder -> windup). Called on style ENTRY only (scene
+    /// switches and first launch); a pure resize keeps the
+    /// steady state (the black hole's `begin_formation`
+    /// contract).
+    pub(crate) fn begin_genesis(&mut self) {
+        self.genesis_t = 0.0;
+        self.formed = false;
+        self.phase = std::f32::consts::FRAC_PI_2;
+    }
+
+    /// Skip straight to the steady molecule (the bench path and
+    /// the steady-state tests): the clock parks at the total, the
+    /// formed flag flips, and no assembly charges are written —
+    /// the cold post-reset molecule, exactly the pre-genesis
+    /// bench profile (regression comparability).
+    pub(crate) fn fast_forward_genesis(&mut self) {
+        self.genesis_t = genesis_total_secs();
+        self.formed = true;
+    }
+
+    /// Law 0's draw gate: do the strands draw at all right now?
+    /// False through the primordial soup (the sky is rain alone);
+    /// true from the ladder on (the axis spine onward).
+    pub(crate) fn molecule_visible(&self) -> bool {
+        self.formed || genesis_phase(self.genesis_t) != GenesisPhase::Soup
+    }
+
+    /// Law 0's thick-broth dial: is the spawn target running its
+    /// genesis multiplier right now (the molecule absent or still
+    /// assembling — the soup IS the scene)?
+    pub(crate) fn primordial_soup(&self) -> bool {
+        !self.formed
+            && matches!(
+                genesis_phase(self.genesis_t),
+                GenesisPhase::Soup | GenesisPhase::Ladder
+            )
+    }
+
+    /// Law 0's rung gate: has the assembly wave written this rung
+    /// yet? Closed-form — the rung's line against the wave
+    /// position (no per-rung build state, the module's
+    /// no-per-cell-fields contract). All rungs are built in the
+    /// steady state.
+    pub(crate) fn rung_built(&self, idx: usize) -> bool {
+        if self.formed {
+            return true;
+        }
+        match self.rung_line(idx) {
+            Some(line) => (line as f32) <= ladder_front(self.genesis_t, self.lines),
+            None => false,
+        }
+    }
+
     /// Law 5's deposition: an absorbed nucleotide deposits its
     /// charge (hard-clamped — bounded by construction) and, when
     /// the caller's mutation roll fired, re-rolls the pair (the
@@ -211,7 +301,29 @@ impl DnaGenome {
 
     /// Law 1: the strand angle at line y (radians, unbounded —
     /// trig-equivalent; the phase accumulator wraps).
+    ///
+    /// Law 0's deformation while the molecule is unborn: the soup
+    /// and the ladder hold ONE angle for every line (the flat
+    /// pre-molecule, face-on by construction); the windup zips
+    /// the twist in from the top — above the front the strand
+    /// carries the full steady law, below it the flat extension
+    /// (the angle at the front, held constant down the ladder —
+    /// the wound top drags the flat tail around the axis as it
+    /// descends). At the windup's end the front is the full
+    /// height and the formula evaluates exactly to the steady
+    /// law (no seam, no pop).
     pub(crate) fn strand_angle(&self, line: f32) -> f32 {
+        if !self.formed {
+            match genesis_phase(self.genesis_t) {
+                GenesisPhase::Soup | GenesisPhase::Ladder => return self.phase,
+                GenesisPhase::Windup => {
+                    let front = windup_front(self.genesis_t, self.lines);
+                    let y = line.min(front);
+                    return self.phase + y * self.twist;
+                }
+                GenesisPhase::Steady => {}
+            }
+        }
         self.phase + line * self.twist
     }
 
@@ -230,7 +342,20 @@ impl DnaGenome {
 
     /// The effective radius at line y (base x bow scale), clamped
     /// so the bowed strands never leave the viewport margins.
+    ///
+    /// Law 0's deformation while the molecule is unborn: the
+    /// radius grows from the axis (the spine splitting into the
+    /// two strands, cubic ease-out over the ladder window) and
+    /// the legibility floor is lifted through the growth (a
+    /// clamped-to-R_MIN spine would never read as the single seed
+    /// line); the top clamp (the viewport margin) holds
+    /// throughout. The bow is quiescent during the genesis (the
+    /// fork is gated), so the product composes safely.
     pub(crate) fn effective_radius(&self, line: f32) -> f32 {
+        if !self.formed {
+            return (self.radius * self.radius_scale(line) * genesis_radius_growth(self.genesis_t))
+                .min(self.margin_radius());
+        }
         let r = self.radius * self.radius_scale(line);
         r.clamp(DNA_R_MIN, self.margin_radius())
     }
@@ -286,23 +411,50 @@ impl DnaGenome {
         }
     }
 
-    /// Law 4: the replication clock arms the fork after the mean
-    /// dwell (variance banded). Traveling: fork_y advances at the
-    /// fork rate; the rung whose line the center crosses
-    /// re-synthesizes (charge to max, the pair RE-ROLLED — the
-    /// mutation). The fork exits at the floor and re-arms.
+    /// Law 0 (the clock) + laws 1, 3, 4: the molecule breathes.
+    ///
+    /// The genesis clock advances once per tick (clamped at the
+    /// total — one shot); the assembly wave's crossing test runs
+    /// against the pre-update clock the same frame (the fork's
+    /// prev/curr pattern, so a lag spike's large dt still writes
+    /// every rung the front jumped past). The rotation is HELD
+    /// through the soup and the ladder (the flat pre-molecule
+    /// stays face-on) and resumes with the windup. The fork is
+    /// gated: no replication before the genome exists — the
+    /// replication clock holds at its reset value until the
+    /// molecule completes.
     pub(crate) fn advance(&mut self, dt: f32, random: &mut DnaRandom<'_>) {
         if dt <= 0.0 || self.rungs.is_empty() {
             return;
         }
 
-        // Law 1 — the turn: one uniform rotation on the sim clock.
-        self.phase += DNA_ROT_RATE * dt;
-        // The vortex arm-phase precedent: wrap past 128 turns so
-        // the f32 ulp stays far below visual resolution on
-        // multi-day sessions (trig-equivalent).
-        if self.phase.abs() > DNA_PHASE_WRAP_LIMIT {
-            self.phase = self.phase.rem_euclid(std::f32::consts::TAU);
+        // Law 0 — the genesis clock (one shot, sim-time).
+        let prev_genesis_t = self.genesis_t;
+        if !self.formed {
+            self.genesis_t = (self.genesis_t + dt).min(genesis_total_secs());
+            if self.genesis_t >= genesis_total_secs() {
+                self.formed = true;
+            }
+        }
+
+        // Law 1 — the turn: one uniform rotation on the sim clock,
+        // held while the pre-molecule assembles (a rotating flat
+        // ladder periodically collapses edge-on to a single
+        // line — the face-on presentation is the birth's stage
+        // lighting; the windup resumes the turn).
+        let rotation_held = !self.formed
+            && matches!(
+                genesis_phase(self.genesis_t),
+                GenesisPhase::Soup | GenesisPhase::Ladder
+            );
+        if !rotation_held {
+            self.phase += DNA_ROT_RATE * dt;
+            // The vortex arm-phase precedent: wrap past 128 turns so
+            // the f32 ulp stays far below visual resolution on
+            // multi-day sessions (trig-equivalent).
+            if self.phase.abs() > DNA_PHASE_WRAP_LIMIT {
+                self.phase = self.phase.rem_euclid(std::f32::consts::TAU);
+            }
         }
 
         // Law 3 — the recency decay (strict, per rung).
@@ -310,41 +462,66 @@ impl DnaGenome {
             r.charge *= (-DNA_CHARGE_DECAY * dt).exp();
         }
 
-        // Law 4 — the fork.
-        let floor_f = self.lines.saturating_sub(1) as f32;
-        match self.fork_phase {
-            ForkPhase::Armed => {
-                self.replication_clock -= dt;
-                if self.replication_clock <= 0.0 {
-                    self.fork_phase = ForkPhase::Traveling;
-                    // Entry above the screen: the wave ARRIVES (the
-                    // first rungs dissolve as it sweeps in, never
-                    // a pop).
-                    self.fork_y = -fork_sigma(self.lines);
-                    self.replication_clock = 0.0;
-                }
-            }
-            ForkPhase::Traveling => {
-                let prev = self.fork_y;
-                self.fork_y += DNA_FORK_RATE * dt;
-                // Every rung whose line the center crossed this
-                // tick re-synthesizes (mutation included). The
-                // line registry is a pure function of the ordinal
-                // (no rung state), so the pass reads it without
-                // touching the borrow.
-                let floor = self.lines.saturating_sub(1);
+        // Law 0's assembly wave (the ladder window): every rung
+        // whose line the front crossed this tick is WRITTEN — the
+        // charge stamps to max and the pair rolls (the fork's
+        // fresh-write economy borrowed for the birth; the genome
+        // writes itself into existence, top-down, its trail of
+        // light decaying under law 3 as the wave travels on).
+        if !self.formed {
+            let floor = self.lines.saturating_sub(1);
+            let prev_front = ladder_front(prev_genesis_t, self.lines);
+            let front = ladder_front(self.genesis_t, self.lines);
+            if front > prev_front {
                 for (idx, r) in self.rungs.iter_mut().enumerate() {
                     let line_f = rung_line_for_idx(idx, floor) as f32;
-                    if prev < line_f && self.fork_y >= line_f {
+                    if prev_front < line_f && front >= line_f {
                         r.charge = DNA_CHARGE_MAX;
                         r.pair = BasePair::from_roll(random.rand_chance.sample(random.rng));
                     }
                 }
-                if self.fork_y > floor_f + fork_sigma(self.lines) {
-                    self.fork_phase = ForkPhase::Armed;
-                    self.fork_y = 0.0;
-                    self.replication_clock = DNA_REPLICATION_CLOCK_MEAN
-                        * (0.6 + random.rand_chance.sample(random.rng) * 0.8);
+            }
+        }
+
+        // Law 4 — the fork (gated on the completed genome: the
+        // replication clock counts down only in the steady
+        // state — no replication before the molecule exists).
+        let floor_f = self.lines.saturating_sub(1) as f32;
+        if self.formed {
+            match self.fork_phase {
+                ForkPhase::Armed => {
+                    self.replication_clock -= dt;
+                    if self.replication_clock <= 0.0 {
+                        self.fork_phase = ForkPhase::Traveling;
+                        // Entry above the screen: the wave ARRIVES (the
+                        // first rungs dissolve as it sweeps in, never
+                        // a pop).
+                        self.fork_y = -fork_sigma(self.lines);
+                        self.replication_clock = 0.0;
+                    }
+                }
+                ForkPhase::Traveling => {
+                    let prev = self.fork_y;
+                    self.fork_y += DNA_FORK_RATE * dt;
+                    // Every rung whose line the center crossed this
+                    // tick re-synthesizes (mutation included). The
+                    // line registry is a pure function of the ordinal
+                    // (no rung state), so the pass reads it without
+                    // touching the borrow.
+                    let floor = self.lines.saturating_sub(1);
+                    for (idx, r) in self.rungs.iter_mut().enumerate() {
+                        let line_f = rung_line_for_idx(idx, floor) as f32;
+                        if prev < line_f && self.fork_y >= line_f {
+                            r.charge = DNA_CHARGE_MAX;
+                            r.pair = BasePair::from_roll(random.rand_chance.sample(random.rng));
+                        }
+                    }
+                    if self.fork_y > floor_f + fork_sigma(self.lines) {
+                        self.fork_phase = ForkPhase::Armed;
+                        self.fork_y = 0.0;
+                        self.replication_clock = DNA_REPLICATION_CLOCK_MEAN
+                            * (0.6 + random.rand_chance.sample(random.rng) * 0.8);
+                    }
                 }
             }
         }
@@ -382,6 +559,34 @@ impl DnaGenome {
         if let Some(r) = self.rungs.get_mut(idx) {
             r.charge = charge;
         }
+    }
+
+    /// The genesis completion flag (the formation tests' arm — the
+    /// black hole's `formed_for_test` contract).
+    #[cfg(test)]
+    pub(crate) fn formed_for_test(&self) -> bool {
+        self.formed
+    }
+
+    /// The genesis clock in sim-seconds (the timeline tests' read).
+    #[cfg(test)]
+    pub(crate) fn genesis_t_for_test(&self) -> f32 {
+        self.genesis_t
+    }
+
+    /// The twist in radians per line (the genesis geometry tests'
+    /// expected-law input, k = 2pi / TURN_LINES).
+    #[cfg(test)]
+    pub(crate) fn twist_for_test(&self) -> f32 {
+        self.twist
+    }
+
+    /// Force the rotation phase (the steady-geometry tests'
+    /// deterministic arm — the crossings' alignment against the
+    /// odd-line rung registry is phase-sensitive).
+    #[cfg(test)]
+    pub(crate) fn plant_phase_for_test(&mut self, phase: f32) {
+        self.phase = phase;
     }
 }
 

@@ -38,6 +38,13 @@ impl Cloud {
     /// consistent at bench-bounded dimensions.
     pub fn reset_bench(&mut self, cols: u16, lines: u16) {
         self.reset_with_bounds(cols, lines, BENCH_MAX_COLS, BENCH_MAX_LINES);
+        // NIGHT-research-7 part 3: the DNA genesis is one-shot birth
+        // choreography, not steady-state throughput — fast-forward
+        // the bench to the formed molecule (the sequence would own
+        // ~60 percent of a 10 s window at the default scene speed;
+        // the Z-6 "critical path only" contract, and the genesis
+        // tests pin the choreography frame by frame instead).
+        self.dna_helix_rain.fast_forward_genesis();
         // Z-6: mark benchmark mode — rain_at skips message cosmetics
         // (draw_message + border-cross detection). Owner directive: bench
         // mode measures critical path only (rain + 3 dragons), not cosmetics.

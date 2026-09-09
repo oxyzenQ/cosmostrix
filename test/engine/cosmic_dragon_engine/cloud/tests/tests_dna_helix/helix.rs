@@ -20,6 +20,16 @@ fn make_genome(cols: u16, lines: u16) -> DnaGenome {
     g
 }
 
+/// The steady-state arm: a genome with the genesis fast-forwarded
+/// (the laws 1-4 contracts below pin the formed molecule — the
+/// birth sequence has its own file, genesis.rs; the black hole
+/// tree's drive-past-formation pattern).
+fn make_formed_genome(cols: u16, lines: u16) -> DnaGenome {
+    let mut g = make_genome(cols, lines);
+    g.fast_forward_genesis();
+    g
+}
+
 fn advance_genome(g: &mut DnaGenome, secs: f32) {
     let (mut rng, chance) = fixed_random(42);
     let mut random = DnaRandom {
@@ -59,8 +69,10 @@ fn dna_genome_rung_count_follows_height() {
 #[test]
 fn dna_rotation_advances_phase_uniformly() {
     // Law 1: the phase advances at the helical rate per sim-second
-    // — the whole molecule turns as one body.
-    let mut g = make_genome(80, 40);
+    // — the whole molecule turns as one body (the formed molecule;
+    // the genesis holds the rotation through the soup and ladder,
+    // pinned separately in genesis.rs).
+    let mut g = make_formed_genome(80, 40);
     let phase0 = g.phase;
     advance_genome(&mut g, 1.0);
     assert!(
@@ -76,7 +88,13 @@ fn dna_strands_mirror_and_cross() {
     // axis (x_B = 2cx - x_A, depth negated). Over a full turn each
     // strand sweeps the full radius band and the pair passes
     // through the crossing (same column, opposite depth).
-    let g = make_genome(80, 40);
+    // Phase 0: the crossings land ON integer lines (y = 0, 11, 22,
+    // 33 at the 22-line turn) — the phase-pinned geometry the
+    // crossing assertions read (the formed genome otherwise carries
+    // the face-on birth presentation, whose crossings fall between
+    // the lines).
+    let mut g = make_formed_genome(80, 40);
+    g.plant_phase_for_test(0.0);
     let cx = g.center_x();
     let mut crossed = false;
     for line in 0..40 {
@@ -102,7 +120,10 @@ fn dna_rung_spans_breathe_with_the_turn() {
     // — wide at the lateral swing, tight at the crossings. Over
     // the full height the span set must contain both wide and
     // tight members, and every span stays inside the viewport.
-    let g = make_genome(80, 40);
+    // Phase 0 lands the crossings on rung lines (the deterministic
+    // alignment; see the mirror test's note).
+    let mut g = make_formed_genome(80, 40);
+    g.plant_phase_for_test(0.0);
     let mut widths = Vec::new();
     for idx in 0..g.rung_count_for_test() {
         let (l, r) = g.rung_span(idx).expect("rung span");
@@ -174,7 +195,7 @@ fn dna_charge_ladder_reads_the_recency() {
 fn dna_fork_travels_down_and_re_arms() {
     // Law 4: an armed fork opens after the clock, travels to the
     // floor at the fork rate, then re-arms with a fresh clock.
-    let mut g = make_genome(80, 40);
+    let mut g = make_formed_genome(80, 40);
     g.plant_fork_for_test(ForkPhase::Armed, 0.0, 0.001);
     advance_genome(&mut g, 0.01);
     assert_eq!(g.fork_phase, ForkPhase::Traveling);
@@ -199,7 +220,7 @@ fn dna_fork_resynthesizes_rungs_it_passes() {
     // screen (the real entry contract) and travel one sim-second:
     // the fork reaches line ~3, crossing the rungs at lines 1 and
     // 3 (ordinals 0 and 1).
-    let mut g = make_genome(80, 40);
+    let mut g = make_formed_genome(80, 40);
     g.plant_fork_for_test(ForkPhase::Traveling, -5.0, 0.0);
     advance_genome(&mut g, 1.0);
     let charged = (0..g.rung_count_for_test())
@@ -243,7 +264,7 @@ fn dna_fork_dissolves_the_window_rungs() {
 fn dna_fork_bow_peaks_at_the_fork() {
     // Law 4's Y: the radius scale peaks at the fork center and
     // decays with distance (a Gaussian envelope). 1.0 far away.
-    let mut g = make_genome(80, 40);
+    let mut g = make_formed_genome(80, 40);
     g.plant_fork_for_test(ForkPhase::Traveling, 20.0, 0.0);
     let at_fork = g.radius_scale(20.0);
     let near = g.radius_scale(17.0);

@@ -3,14 +3,16 @@
 
 //! NIGHT-research-7 tests: the DNA helix rain style (eleventh
 //! style, the rain writes the genome). The contracts here pin the
-//! five laws of the ladder at both levels: the genome in isolation
-//! (the turn, the pairing, the recency decay, the replication
-//! fork's travel, dissolve and re-synthesis) and the full
-//! orchestration (spawn, the nucleotide fall, the rung absorption
-//! and mutation, the drawn bounds, the diff cleanup, pause,
-//! transitions, speed scaling, sustained boundedness).
+//! six laws of the ladder at both levels: the genome in isolation
+//! (the genesis birth sequence, the turn, the pairing, the recency
+//! decay, the replication fork's travel, dissolve and
+//! re-synthesis) and the full orchestration (spawn, the nucleotide
+//! fall, the rung absorption and mutation, the drawn bounds, the
+//! diff cleanup, pause, transitions, speed scaling, sustained
+//! boundedness).
 
 mod core;
+mod genesis;
 mod helix;
 
 pub(crate) use crate::cloud::Cloud;
@@ -54,4 +56,16 @@ pub(crate) fn run_frames(cloud: &mut Cloud, frame: &mut Frame, frames: u32, step
         cloud.rain_at(frame, now);
         frame.clear_dirty();
     }
+}
+
+/// Drive the cloud past the genesis intro (the birth sequence,
+/// ~6.8 sim-s — the black hole tree's drive-past-formation
+/// helper pattern). 420 frames x 16 ms at the harness's 14 cps =
+/// ~8.2 sim-s, comfortably past the windup's end; the replication
+/// fork's first sweep (12 sim-s mean clock) has NOT opened yet, so
+/// the formed molecule the steady-state tests below inspect is
+/// the fork-quiet one. The sequence itself is pinned by
+/// `genesis.rs`.
+pub(crate) fn run_past_genesis(cloud: &mut Cloud, frame: &mut Frame) {
+    run_frames(cloud, frame, 420, 16);
 }

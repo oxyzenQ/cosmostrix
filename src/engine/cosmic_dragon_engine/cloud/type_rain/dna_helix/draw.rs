@@ -63,35 +63,46 @@ impl DnaHelixRain {
 
         // Pass A — the strands: one glyph cell per strand per
         // line, back half first (so the front half overdraws at
-        // the crossing cells — the occlusion read).
-        for line in 0..ctx.lines {
-            let line_f = line as f32;
-            let (ax, ad) = self.genome.strand_a(line_f);
-            let (bx, bd) = self.genome.strand_b(line_f);
-            // The fork's lead-in bow also lifts the strands above
-            // the fork slightly (the Y's arms rise) — a small
-            // upward bow reads as the strands peeling apart.
-            let bow_lift = self.strand_bow_lift(line_f);
-            for (x, depth) in [(ax, ad), (bx, bd)] {
-                if let Some(cell) = draw_strand_cell(
-                    ctx,
-                    frame,
-                    (x, line_f - bow_lift),
-                    depth,
-                    self.field_palette_slot,
-                    rng,
-                    rand_chance,
-                ) {
-                    self.current_cells.push(cell);
+        // the crossing cells — the occlusion read). Law 0's soup
+        // gate: through the primordial dwell the molecule draws
+        // NOTHING (the sky is rain alone); the first molecule
+        // cells appear with the ladder — the axis spine at zero
+        // radius, splitting apart as the radius grows.
+        if self.genome.molecule_visible() {
+            for line in 0..ctx.lines {
+                let line_f = line as f32;
+                let (ax, ad) = self.genome.strand_a(line_f);
+                let (bx, bd) = self.genome.strand_b(line_f);
+                // The fork's lead-in bow also lifts the strands above
+                // the fork slightly (the Y's arms rise) — a small
+                // upward bow reads as the strands peeling apart.
+                let bow_lift = self.strand_bow_lift(line_f);
+                for (x, depth) in [(ax, ad), (bx, bd)] {
+                    if let Some(cell) = draw_strand_cell(
+                        ctx,
+                        frame,
+                        (x, line_f - bow_lift),
+                        depth,
+                        self.field_palette_slot,
+                        rng,
+                        rand_chance,
+                    ) {
+                        self.current_cells.push(cell);
+                    }
                 }
             }
         }
 
         // Pass B — the rungs: each expands into its projected
         // span of cells (the dissolve window's rungs are skipped —
-        // the fork reads as the open Y).
+        // the fork reads as the open Y; the unbuilt rungs are
+        // skipped too — the genesis assembly wave writes the
+        // ladder top-down, and a rung draws only once written).
         for (idx, rung) in self.genome.rungs().iter().enumerate() {
             if self.genome.rung_dissolved(idx) {
+                continue;
+            }
+            if !self.genome.rung_built(idx) {
                 continue;
             }
             let rung_line = rung_line_for_idx(idx, ctx.lines);

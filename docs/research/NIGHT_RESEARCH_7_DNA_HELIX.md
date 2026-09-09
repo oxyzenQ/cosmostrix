@@ -8,6 +8,8 @@ second — each lands as its own commit so the owner can rate them
 independently, the corona arcade commit ce7b6f4 the 10/10
 reference). This document is the DNA helix half: the research, the
 derivation, the implementation map, and the verification record.
+Part 3 (the owner's 9/10 round): the genesis — the birth sequence
+the entry now replays before the molecule stands.
 
 ## The research
 
@@ -27,11 +29,30 @@ ladder rungs, front bright / back dim). The canonical reference
 the rung recency economy, the fork's traveling-wave envelope) is
 derived here, in the house derivation style.
 
-## The five laws of the ladder
+## The six laws of the ladder
 
 (Complete derivation essay: `type_rain/dna_helix/mod.rs` — the
 commit mirrors the solar flare's law-structured documentation.)
 
+0. **The genesis (part 3)** — the entry replays the birth: the
+   soup (the nucleotide rain alone for ~1.8 sim-s, the spawn
+   dial multiplied — the broth IS the scene while the molecule is
+   absent), the ladder (the axis spine splitting into the two
+   strands, radius cubic ease-out from zero with the legibility
+   floor lifted; the assembly wave writing rungs top-down, each
+   crossed rung stamped to max charge with a rolled pair — the
+   fork's fresh-write economy borrowed for the birth; the
+   rotation HELD so the flat ladder stays face-on), the windup
+   (the twist front zipping from the top: above it the steady
+   law, below it the flat extension at the front's angle — the
+   wound top drags the flat tail around the axis), and the
+   steady molecule (the remaining laws, exactly — the final
+   front is the full height, so the seam evaluates identically
+   on both sides; the rotation and the replication clock resume
+   only here: no replication before the genome exists). The
+   black hole's begin_formation contract (entry re-forms, resize
+   keeps steady, bench fast-forwards), riding the molecule's
+   sim clock (the family speed contract scales the birth).
 1. **The turn** — theta(y) = phi + y k; k = 2pi / 22 rad/line
    (one full turn every 22 lines; with a rung every 2 lines that
    is 11 base pairs per turn — B-DNA's 10.5 honored at terminal
@@ -109,35 +130,47 @@ composition-inversion logic).
 
 - `src/engine/cosmic_dragon_engine/cloud/type_rain/dna_helix/mod.rs`
   — the derivation essay + module map.
+- `genesis.rs` — the birth sequence's pure phase math (law 0: the
+  timeline classifier, the two fronts, the radius growth — the
+  black hole's `formation.rs` split pattern).
 - `helix.rs` — the genome: rung table (pair, charge), the
-  rotation phase, the fork state machine, the closed-form geometry
+  rotation phase, the genesis clock + formed flag, the
+  replication fork state machine, the closed-form geometry
   queries (strand positions/depths, rung spans, the bow envelope,
-  the dissolve window), laws 1-4 executable form.
+  the dissolve window — genesis-aware), laws 0-4 executable
+  form.
 - `drops.rs` — the nucleotide drop (position, terminal velocity,
   brownian drift, trail, the age ladder).
 - `dna_helix.rs` — the orchestration: lane pool, accumulator
-  spawn (capture-band rolls), advance (genome first, then the drop
-  physics with the collect-then-apply absorption — the solar
-  landings pattern), test diagnostics.
+  spawn (capture-band rolls, the genesis thick-broth dial),
+  advance (genome first, then the drop physics with the
+  collect-then-apply absorption — the solar landings pattern —
+  and the build-gated absorption + honest pool counter), test
+  diagnostics.
 - `draw.rs` — the draw pass: strands (back-then-front over the
-  frame, the bow lift), rungs (dashed bonds, base ends,
-  depth-stepped ladder), soup (heads + 2-cell comet trails), the
+  frame, the bow lift, the soup-phase visibility gate), rungs
+  (dashed bonds, base ends, depth-stepped ladder, the built-rung
+  gate), soup (heads + 2-cell comet trails), the
   generation-tagged diff cleanup. Split from the orchestration at
   the 800-LOC cap (the monolith family's split pattern).
-- `central_control_rains/style_rain.rs` — the 30 shipped
-  constants and their compile-time calibration contracts.
+- `central_control_rains/style_rain.rs` — the shipped
+  constants and their compile-time calibration contracts (part 3
+  adds the five genesis dials; the spawn multiplier recalibrated
+  0.30 -> 0.60 for the honest pool counter).
 - Integration: `RainStyle::DnaHelix` (labels `dna_helix` /
   `dnahelix` / `dna`), the Cloud field + the six dispatch chains
   (rain_at: adopt/spawn/semantic/force-draw/advance/draw; spawn:
   charset + palette; runtime_controls: palette + shading;
-  scene_runtime: exit + entry; spawn_reset: the full reset), the
-  scene catalog entry, SCENE_ORDER position 12, and the ten
-  label-list comment surfaces (help_detail, scene_custom family,
-  configfile_dump, scene_apply, the HUD trio).
+  scene_runtime: exit + entry — the entry arm replays the
+  genesis; spawn_reset: the full reset; spawn: reset_bench
+  fast-forwards), the scene catalog entry, SCENE_ORDER position
+  12, and the ten label-list comment surfaces (help_detail,
+  scene_custom family, configfile_dump, scene_apply, the HUD
+  trio).
 
 ## Verification record
 
-- **Tests**: 25 new behavior contracts (tests_dna_helix: 13
+- **Tests (part 1)**: 25 behavior contracts (tests_dna_helix: 13
   genome-level and 12 orchestration) — the rung registry,
   rotation uniformity,
   strand mirror + crossings, span breathing, Watson-Crick
@@ -148,7 +181,27 @@ composition-inversion logic).
   speed scaling, sustained boundedness (3600 frames), degenerate
   narrow terminals (20x6). Full suite: 2586 passed / 0 failed
   (was 2561 — +25).
-- **A/B 10 s** (`benchmark/bench-labs/night_research7_dna/`):
+- **Tests (part 3, the genesis)**: 17 new contracts
+  (tests_dna_helix/genesis.rs) — the timeline classifier, the
+  clock clamp + one-shot formed flag, the soup's
+  molecule-invisible + absorption-gated contracts, the top-down
+  materialization with fresh light, the flat face-on ladder
+  geometry (below the legibility floor early), the windup's exact
+  seam identity (the flat tail holds the front's angle; the
+  steady law holds above it), the completion's exact steady-law
+  handoff, the held rotation through soup and ladder, the fork
+  gate (no replication before the genome exists), the
+  fast-forward's cold-molecule bench parity, the thick-then-thin
+  primordial broth, the re-entry replay, the resize
+  keeps-steady-state (both formed and mid-formation), the bench
+  fast-forward, the per-frame bounds sweep across the whole
+  sequence, the fronts' monotone travel, the assembly charge
+  clamp. The two steady geometry tests now pin phase-0
+  crossings (the face-on birth presentation carries a different
+  crossing alignment — the plant_phase_for_test arm). Full
+  suite: 2630 passed / 0 failed (was 2613 — +17).
+- **A/B 10 s (part 1)**
+  (`benchmark/bench-labs/night_research7_dna/`):
   cinematic 460.9->457.3 dirty / 5.174->5.165 entropy / 0.637->
   0.639 gini; aeolian 45.9->46.0 / 4.979->4.979 / 0.646->0.646;
   solar_flare 247.5->249.5 / 6.037->6.037 / 0.325->0.325 — zero
@@ -156,10 +209,26 @@ composition-inversion logic).
   (+2.3/+1.5/-1.0%) inside the interleaved-run noise band. The new
   scene: 96,591 fps / 102.0 dirty / 4.859 entropy / 0.692 gini
   (the concentrated single-body composition — see AB_REPORT.md).
-- **PTY smoke**: the 100x40 visual reconstruction shows the
+- **A/B 10 s (part 3)**
+  (`benchmark/bench-labs/night_research7_dna/genesis/`): the
+  three probes match to the third decimal (cinematic 460.0->458.1
+  / aeolian 46.0->45.9 / solar_flare 247.8->249.4; fps deltas
+  +0.6/-0.1/-0.5%, noise). The dna_helix scene: 96,906 -> 89,322
+  fps / 101.9 -> 108.0 dirty / 4.860 -> 4.971 entropy / 0.691 ->
+  0.672 gini — the deltas are the starvation fix working (the
+  soup sustains its dial target instead of decaying inside the
+  window; see GENESIS_AB.md for the decomposition and the
+  bench-skip rationale).
+- **PTY smoke (part 3)** (scripts/genesis_smoke.py, the
+  ansi_screen reconstructor): the shape signature holds on
+  screen — the soup sky carries 10 scattered cells with no
+  dominant column, the flat ladder 90 cells with two straight
+  full-height strand columns, the wound steady helix 168 cells
+  with the columns dissolved into the twist.
+- **PTY smoke (part 1)**: the 100x40 visual reconstruction shows the
   alternating strand-rung ladder, the dashed bonds, the X
   crossings at the ~11-line half-turn, and the sparse soup
-  (scripts/dna_visual_check.py, the ansi_screen reconstructor); a
+  (the ansi_screen reconstructor); a
   16 s direct run exits cleanly at the duration cap with a full
   ANSI stream.
 - **Quality gates**: cargo fmt clean; clippy -D warnings clean
@@ -168,12 +237,50 @@ composition-inversion logic).
 
 ## Design notes (the honest trade-offs)
 
+- **The bench skips the genesis (and says so)**: the birth is
+  one-shot choreography — at the default scene speed it would own
+  ~60 percent of a 10 s bench window, so reset_bench
+  fast-forwards to the formed molecule (the Z-6 "critical path
+  only" contract, message-cosmetics precedent) and the sequence
+  is pinned instead by 17 deterministic tests + the PTY shape
+  smoke. The black hole's wall-clock formation (3.1 s of an
+  ~11 s bench) was left to play; the DNA genesis is 2.2x longer
+  by design — the skip is the honest line between presentation
+  and throughput.
+- **The genesis rides sim-time, not wall-time** (a deliberate
+  divergence from the black hole precedent): the DNA module's
+  family contract puts every molecule rate on the one sim clock,
+  so the speed keys scale the birth with the molecule — the
+  shapes survive the speed keys together, and a paused run
+  freezes mid-birth.
+- **The rotation is held through soup and ladder**: a rotating
+  flat ladder periodically collapses edge-on to a single line
+  (sin sweeping through zero); the pre-molecule presents face-on
+  (phase pinned at pi/2 on entry) and the windup resumes the
+  turn — the winding reads as the physical drag of the wound top
+  on the flat tail below it.
+- **The thick broth is a dial, not a gate**: the inverse of the
+  black hole's spawn gate (its weather waits for the hole); the
+  DNA soup IS act one, so the spawn target multiplies through
+  soup and ladder (~2.5x, its own ceiling) and thins through the
+  floor expiry when the genome takes over — the excess dies one
+  at a time, never a mass kill.
+- **The starvation fix is one counter line + one dial**: the
+  shipped pool leaked one active-budget unit per absorption (the
+  gate then read a population the pool no longer carried, and
+  the sky went quiet over a long session — the leak also masked
+  the spawn-rate miscalibration, so the multiplier doubles to
+  actually hold the lane target). The hunt-find is documented at
+  the absorption arm and in the constant's comment.
 - **Canonical, not original-math**: the double helix is a borrowed
   reference (like Lorenz 1963 / Jones 2010 / PIC-FLIP before it) —
   the original-math line stays with aeolian and the corona. The
   derived contribution is the terminal mapping: the projection
   economy (the rung geometry IS the projection), the recency
-  economy, and the fork's traveling-wave envelope.
+  economy, the fork's traveling-wave envelope, and (part 3) the
+  genesis's continuous four-phase deformation — every seam
+  evaluates identically on both sides, no pops anywhere in the
+  birth.
 - **One helix, centered** (not a lane of helices on wide
   terminals): the single-body flagship aesthetic the black hole
   established — the icon stays an icon; the soup fills the sky.
