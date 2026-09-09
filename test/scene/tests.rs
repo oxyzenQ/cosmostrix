@@ -188,7 +188,9 @@ fn scene_catalog_has_twenty_six_entries() {
     // the double helix (the rain writes the genome);
     // murmuration joined at cycle position 13 — the boids flock
     // (the rain is a flock).
-    assert_eq!(SCENES.len(), 30, "catalog must contain 30 built-in scenes");
+    // NIGHT-research-9: neural joined at cycle position 15 — the
+    // training network (the rain trains the machine).
+    assert_eq!(SCENES.len(), 31, "catalog must contain 31 built-in scenes");
 }
 
 #[test]

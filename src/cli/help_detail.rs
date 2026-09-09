@@ -360,7 +360,7 @@ COMMON OPTIONS:
       Built-in scenes: cinematic (default), matrix, monolith, vortex,
       flux, lorenz, cosmic_dragon, physarum,
       sorgonemous_intrascals, aeolian, solar_flare, dna_helix,
-      murmuration, quasar, signal, classic,
+      murmuration, quasar, neural, signal, classic,
       calm, storm, cosmos, neon, hacker, low-power, matrix_film,
       cosmic-dragon, dragon_hunt, carbonic, crystal-dragon, orange-cat,
       north-stars, curiosity.
@@ -411,7 +411,7 @@ COMMON OPTIONS:
       required; incomplete blocks are rejected by --testconf,
       startup, and live-reload). rain picks the motion style by label
       (glyph, monolith, vortex, flux, lorenz, dragon, physarum,
-      black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar).
+      black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar, neural).
       v80.0.0-beta.2: base-scene inheritance is REMOVED — the block's
       own rain field owns the motion style (NIGHT-research-5);
       bold/shading-mode/async-mode are top-level keys, not

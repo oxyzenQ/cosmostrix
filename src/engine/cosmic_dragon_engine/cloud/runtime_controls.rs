@@ -197,6 +197,11 @@ impl Cloud {
             // sibling, same draw-history clear on palette change.
             self.quasar_rain.clear_draw_history();
             self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Neural) {
+            // NIGHT-research-9: neural — structured-family
+            // sibling, same draw-history clear on palette change.
+            self.neural_rain.clear_draw_history();
+            self.reset_phosphor_state();
         }
 
         // v16: force_draw_everything is set above so the background
@@ -372,6 +377,12 @@ impl Cloud {
             // sibling, same draw-history clear on shading mode
             // toggle.
             self.quasar_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Neural) {
+            // NIGHT-research-9: neural — structured-family
+            // sibling, same draw-history clear on shading mode
+            // toggle.
+            self.neural_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
         // Shading mode is a renderer semantic mutation — invalidate the

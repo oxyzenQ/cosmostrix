@@ -2527,3 +2527,200 @@ const _: () = assert!(QUAS_FLARE_CLOCK_MEAN > 0.0);
 const _: () = assert!(QUAS_FLARE_WINDOW > 0.0);
 const _: () = assert!(QUAS_SHIMMER_CHANCE > 0.0 && QUAS_SHIMMER_CHANCE <= 1.0);
 const _: () = assert!(QUAS_INFALL_MIN < QUAS_INFALL_MAX);
+
+// ── Neural (NIGHT-research-9, the fourteenth style) ───────────────
+
+/// The input band's population bounds (the widest layer — the
+/// data needs bandwidth; the viewport derivation clamps inside).
+pub(crate) const NEUR_INPUT_MIN: usize = 4;
+pub(crate) const NEUR_INPUT_MAX: usize = 14;
+
+/// The hidden/output layers' population floor (a layer exists
+/// even on degenerate viewports — the machine stays valid).
+pub(crate) const NEUR_HIDDEN_FLOOR: usize = 2;
+
+/// The streamer (data) population bounds for the accumulator.
+pub(crate) const NEUR_MIN_STREAMER: usize = 5;
+pub(crate) const NEUR_MAX_STREAMER: usize = 16;
+
+/// The burst surge's hard cap on the live streamer target (the
+/// clump never floods the dirty-cell budget).
+pub(crate) const NEUR_STREAMER_SURGE_CAP: usize = 26;
+
+/// The fixed pulse pool size (the signal traffic bound — a
+/// saturated volley sheds load, never grows the pool).
+pub(crate) const NEUR_PULSE_POOL: usize = 64;
+
+/// The per-node fanout (the wiring density — every source reaches
+/// FANOUT targets in the next layer).
+pub(crate) const NEUR_FANOUT: usize = 3;
+
+/// The input band's anchor (fraction of the frame's height — the
+/// data lands near the top; the composition leaves the rain its
+/// share of the sky).
+pub(crate) const NEUR_INPUT_Y_FRAC: f32 = 0.26;
+
+/// The output band's anchor (fraction of the height — the answer
+/// lands near the floor).
+pub(crate) const NEUR_OUTPUT_Y_FRAC: f32 = 0.86;
+
+/// The layer grid's horizontal margin (fraction of the width).
+pub(crate) const NEUR_X_MARGIN_FRAC: f32 = 0.08;
+
+/// The golden-angle y-jitter's amplitude (cells — the lattice
+/// must not read as a machine grid).
+pub(crate) const NEUR_Y_JITTER: f32 = 1.5;
+
+/// The firing threshold (the all-or-nothing spike's gate).
+pub(crate) const NEUR_THRESHOLD: f32 = 1.0;
+
+/// The potential's hard cap (bounded by construction, not by
+/// hope — a saturated cell clamps, it never explodes).
+pub(crate) const NEUR_POT_CAP: f32 = 2.0;
+
+/// The membrane leak's time constant (sim-seconds — the
+/// forgetting window: kicks that do not sum to a thought inside
+/// it decay away).
+pub(crate) const NEUR_LEAK_TAU: f32 = 1.8;
+
+/// The refractory window (sim-seconds — no fire while it burns;
+/// a saturated cell sheds load like the real substrate).
+pub(crate) const NEUR_REFRACTORY: f32 = 0.5;
+
+/// The fired flash's decay constant (sim-seconds — the spike's
+/// afterglow).
+pub(crate) const NEUR_FLASH_TAU: f32 = 0.35;
+
+/// The wire weight's floor and span (the delivery charge in
+/// [MIN, MIN + SPAN] — one arrival is sub-threshold by design:
+/// a single meal is not a thought).
+pub(crate) const NEUR_WEIGHT_MIN: f32 = 0.55;
+pub(crate) const NEUR_WEIGHT_SPAN: f32 = 0.30;
+
+/// The pulse travel speed (cells per sim-second) and its per-
+/// pulse spread share (the rolled speed keeps waves from reading
+/// as a grid — the jet energy-share's heir).
+pub(crate) const NEUR_PULSE_V: f32 = 7.0;
+pub(crate) const NEUR_PULSE_SPREAD: f32 = 0.25;
+
+/// The wire's signal-glow decay (sim-seconds — the light shows
+/// where signals have recently passed).
+pub(crate) const NEUR_GLOW_TAU: f32 = 1.4;
+
+/// The spontaneous input kick's Poisson rate (per input neuron
+/// per sim-second — the machine idles alive between meals) and
+/// the kick's size.
+pub(crate) const NEUR_SPONT_RATE: f32 = 0.22;
+pub(crate) const NEUR_SPONT_KICK: f32 = 0.38;
+
+/// The streamer capture's kick (the steady feed's charge — the
+/// data feeds the machine until it thinks).
+pub(crate) const NEUR_CAPTURE_KICK: f32 = 0.55;
+
+/// The thought-burst clock's mean (sim-seconds — the drama
+/// event's cadence; re-armed with the family's 0.6-1.4 roll),
+/// the burst window (the surge's duration), the volley size
+/// (inputs force-fired together) and the streamer surge (the
+/// data thickens while the machine thinks).
+pub(crate) const NEUR_BURST_CLOCK_MEAN: f32 = 8.0;
+pub(crate) const NEUR_BURST_WINDOW: f32 = 1.8;
+pub(crate) const NEUR_BURST_INPUTS: usize = 4;
+pub(crate) const NEUR_BURST_SURGE: f32 = 2.2;
+
+/// The plasticity clock's mean (sim-seconds — at most one
+/// rewire in flight, the bounded learning), the retire fade's
+/// duration (the wire dims out while its riding pulses land)
+/// and the growth duration (the successor's reach-out, and the
+/// genesis wires' growth rate).
+pub(crate) const NEUR_REWIRE_CLOCK_MEAN: f32 = 7.5;
+pub(crate) const NEUR_REWIRE_FADE_SECS: f32 = 1.1;
+pub(crate) const NEUR_GROW_SECS: f32 = 1.4;
+
+/// The wire sweep's stagger window (sim-seconds from the wire
+/// phase's start — the growth sweeps the machine layer-pair by
+/// layer-pair, finishing inside the thought window).
+pub(crate) const NEUR_WIRE_STAGGER_WINDOW: f32 = 1.0;
+
+/// The genesis timeline (sim-seconds per phase: the data falls,
+/// the layers build, the dendrites reach out, the first thought
+/// fires — the DNA genesis contract's heir).
+pub(crate) const NEUR_GENESIS_SIGNAL_SECS: f32 = 2.2;
+pub(crate) const NEUR_GENESIS_LAYERS_SECS: f32 = 2.6;
+pub(crate) const NEUR_GENESIS_WIRE_SECS: f32 = 1.8;
+pub(crate) const NEUR_GENESIS_THOUGHT_SECS: f32 = 1.6;
+
+/// The streamer fall speed's floor and span (cells per
+/// sim-second — the rain does not fall in lockstep) and the
+/// sway's amplitude (cells).
+pub(crate) const NEUR_FALL_MIN: f32 = 2.8;
+pub(crate) const NEUR_FALL_SPAN: f32 = 1.6;
+pub(crate) const NEUR_DRIFT_AMP: f32 = 0.8;
+
+/// The moving cells' shimmer chance (the family contract).
+pub(crate) const NEUR_SHIMMER_CHANCE: f32 = 0.12;
+
+/// The staggered streamer spawn rate (the accumulator contract —
+/// the data cloud assembles over the first seconds).
+pub(crate) const NEUR_SPAWN_RATE_MULT: f32 = 0.50;
+pub(crate) const NEUR_SPAWN_RATE_FLOOR: f32 = 1.2;
+
+/// The genesis's thick data cloud (while the machine is unbuilt
+/// the rain IS the scene — the DNA soup precedent).
+pub(crate) const NEUR_GENESIS_SIGNAL_MULT: f32 = 2.2;
+
+/// Sim-time coupling to the speed keys (the family contract — see
+/// AEOLIAN_SIM_TIME_PER_CPS; the reference scene speed is 16 cps).
+pub(crate) const NEUR_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
+
+// Compile-time contracts on the machine's calibration: the
+// genesis windows are strictly positive (the phase classifier's
+// ordering depends on every window being reachable), the signal
+// multiplier surges (a thinner cloud would starve the birth),
+// the potential's cap sits above the threshold (a clamped cell
+// still reads as saturating, not as dead), the leak forgets and
+// the refractory ends (positive taus), the wires carry weight
+// (positive floor and span, one arrival sub-threshold by
+// design), the pulses travel (positive speed, bounded spread),
+// the glow fades, the clocks tick, the volley fits the input
+// band and the pool absorbs a full fanout volley (the burst
+// never sheds load on a healthy machine), the population bands
+// are ordered, the layer anchors bracket the frame, the streamers
+// fall (positive floor and span), the surge thickens, and the
+// shimmer stays a chance.
+const _: () = assert!(NEUR_GENESIS_SIGNAL_SECS > 0.0);
+const _: () = assert!(NEUR_GENESIS_LAYERS_SECS > 0.0);
+const _: () = assert!(NEUR_GENESIS_WIRE_SECS > 0.0);
+const _: () = assert!(NEUR_GENESIS_THOUGHT_SECS > 0.0);
+const _: () = assert!(NEUR_GENESIS_SIGNAL_MULT > 1.0);
+const _: () = assert!(NEUR_BURST_SURGE > 1.0);
+const _: () = assert!(NEUR_THRESHOLD > 0.0);
+const _: () = assert!(NEUR_POT_CAP > NEUR_THRESHOLD);
+const _: () = assert!(NEUR_LEAK_TAU > 0.0);
+const _: () = assert!(NEUR_REFRACTORY > 0.0);
+const _: () = assert!(NEUR_FLASH_TAU > 0.0);
+const _: () = assert!(NEUR_PULSE_V > 0.0);
+const _: () = assert!(NEUR_PULSE_SPREAD > 0.0 && NEUR_PULSE_SPREAD < 1.0);
+const _: () = assert!(NEUR_GLOW_TAU > 0.0);
+const _: () = assert!(NEUR_WEIGHT_MIN > 0.0 && NEUR_WEIGHT_SPAN > 0.0);
+const _: () = assert!(NEUR_WEIGHT_MIN + NEUR_WEIGHT_SPAN < NEUR_THRESHOLD);
+const _: () = assert!(NEUR_MIN_STREAMER < NEUR_MAX_STREAMER);
+const _: () = assert!(NEUR_MAX_STREAMER < NEUR_STREAMER_SURGE_CAP);
+const _: () = assert!(NEUR_INPUT_MIN < NEUR_INPUT_MAX);
+const _: () = assert!(NEUR_HIDDEN_FLOOR >= 2);
+const _: () = assert!(NEUR_FANOUT > 0);
+const _: () = assert!(NEUR_PULSE_POOL > NEUR_INPUT_MAX * NEUR_FANOUT);
+const _: () = assert!(NEUR_BURST_CLOCK_MEAN > 0.0);
+const _: () = assert!(NEUR_BURST_WINDOW > 0.0);
+const _: () = assert!(NEUR_BURST_INPUTS > 0 && NEUR_BURST_INPUTS <= NEUR_INPUT_MIN);
+const _: () = assert!(NEUR_REWIRE_CLOCK_MEAN > 0.0);
+const _: () = assert!(NEUR_REWIRE_FADE_SECS > 0.0);
+const _: () = assert!(NEUR_GROW_SECS > 0.0);
+const _: () = assert!(NEUR_WIRE_STAGGER_WINDOW > 0.0);
+const _: () = assert!(
+    NEUR_WIRE_STAGGER_WINDOW + NEUR_GROW_SECS < NEUR_GENESIS_WIRE_SECS + NEUR_GENESIS_THOUGHT_SECS
+);
+const _: () = assert!(NEUR_SHIMMER_CHANCE > 0.0 && NEUR_SHIMMER_CHANCE <= 1.0);
+const _: () = assert!(NEUR_INPUT_Y_FRAC > 0.0 && NEUR_INPUT_Y_FRAC < NEUR_OUTPUT_Y_FRAC);
+const _: () = assert!(NEUR_OUTPUT_Y_FRAC < 1.0);
+const _: () = assert!(NEUR_FALL_MIN > 0.0 && NEUR_FALL_SPAN > 0.0);
+const _: () = assert!(NEUR_Y_JITTER > 0.0);

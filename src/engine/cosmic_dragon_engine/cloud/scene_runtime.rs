@@ -403,6 +403,17 @@ impl Cloud {
                 self.quasar_rain.reset(self.cols, self.lines);
                 self.quasar_rain.begin_ignition();
             }
+            // NIGHT-research-9: the machine takes a full reset on
+            // exit and DISARMS — the pools wipe and the genesis
+            // re-arms, so the dormant machine counts nothing (the
+            // family exit contract) and the next entry replays
+            // the training run (a pure resize on the lit machine
+            // keeps the steady state — that path is spawn_reset's,
+            // not this one).
+            RainStyle::Neural => {
+                self.neural_rain.reset(self.cols, self.lines);
+                self.neural_rain.begin_genesis();
+            }
             RainStyle::Glyph => {}
         }
         self.rain_style = new_style;
@@ -527,6 +538,21 @@ impl Cloud {
                 // resize keeps the burning engine).
                 self.quasar_rain.reset(self.cols, self.lines);
                 self.quasar_rain.begin_ignition();
+                self.droplets.clear();
+                self.spawn_remainder = 0.0;
+                self.glyph_entry_time = None;
+            }
+            RainStyle::Neural => {
+                // NIGHT-research-9: neural entry mirrors the
+                // structured-family contract (no droplet pool, full
+                // machine rebuild on entry) and replays the genesis:
+                // the data falls, the layers build from the
+                // captures, the dendrites reach out, the first
+                // thought fires (the DNA genesis contract — the
+                // entry is the birth; a pure resize keeps the
+                // trained network).
+                self.neural_rain.reset(self.cols, self.lines);
+                self.neural_rain.begin_genesis();
                 self.droplets.clear();
                 self.spawn_remainder = 0.0;
                 self.glyph_entry_time = None;

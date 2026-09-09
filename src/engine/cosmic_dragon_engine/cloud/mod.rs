@@ -65,6 +65,7 @@ pub(crate) use type_rain::flux;
 pub(crate) use type_rain::lorenz;
 pub(crate) use type_rain::monolith;
 pub(crate) use type_rain::murmuration;
+pub(crate) use type_rain::neural;
 pub(crate) use type_rain::physarum;
 pub(crate) use type_rain::quasar;
 pub(crate) use type_rain::solar_flare;
@@ -106,6 +107,7 @@ use ecosystem::{
 use lorenz::LorenzRain;
 use monolith::MonolithRain;
 use murmuration::MurmurationRain;
+use neural::NeuralRain;
 use physarum::PhysarumRain;
 use quasar::QuasarRain;
 use solar_flare::SolarFlareRain;
@@ -231,6 +233,11 @@ pub struct Cloud {
     /// capture target rolls and the flare clock re-arms ride
     /// the RNG bundle).
     pub(crate) quasar_rain: QuasarRain,
+    /// The neural training network (NIGHT-research-9, the
+    /// fourteenth style — the rain trains the network; the
+    /// spont kicks, the burst picks and the rewire targets ride
+    /// the RNG bundle).
+    pub(crate) neural_rain: NeuralRain,
 
     pub(crate) chars: Vec<char>,
     pub(crate) char_pool: Vec<char>,
@@ -545,6 +552,7 @@ impl Cloud {
             dna_helix_rain: DnaHelixRain::new(),
             murmuration_rain: MurmurationRain::new(),
             quasar_rain: QuasarRain::new(),
+            neural_rain: NeuralRain::new(),
             chars: Vec::new(),
             char_pool: Vec::new(),
             previous_char_pool: Vec::new(),
@@ -914,6 +922,7 @@ impl Cloud {
             RainStyle::DnaHelix => self.dna_helix_rain.active_count(),
             RainStyle::Murmuration => self.murmuration_rain.active_count(),
             RainStyle::Quasar => self.quasar_rain.active_count(),
+            RainStyle::Neural => self.neural_rain.active_count(),
             // Droplet family: Glyph cascade only — both ripple
             // replacements (flux, lorenz) and the dragon/physarum
             // additions are structured styles.

@@ -309,6 +309,39 @@ pub(crate) const SCENES: &[SceneInfo] = &[
             rain_style: RainStyle::Quasar,
         },
     },
+    // NIGHT-research-9: neural — the training network, the
+    // runner-up proposal finally seated after the quasar round.
+    // A mind assembling itself under a data stream: glyph
+    // signals fall onto an input band of integrate-and-fire
+    // neurons, charge them past the threshold, and fire pulses
+    // down dendritic wires that bow from layer to layer — one
+    // signal is sub-threshold (a single meal is not a thought),
+    // but the burst clock fires a clump of inputs together and
+    // the wave crosses the whole machine, the output band
+    // flaring as it lands. Slow plasticity retires old wires and
+    // grows new ones (the topology rewrites itself forever).
+    // And it is BORN (law 0, the DNA genesis contract): the
+    // entry replays the training run — the data falls, the
+    // layers materialize from the captures, the dendrites reach
+    // out, the first thought fires. The `cyan` palette: the
+    // electric-signal read of a live circuit. Binary glyphs: the
+    // data reads as bits, not letters. Speed 16 = the measured
+    // signal cadence (a touch under the family reference); the
+    // density 0.55 dial reads as the sky's data rate; glitch
+    // none — the machine is precise, the burst is the drama.
+    SceneInfo {
+        name: "neural",
+        description: "Neural Network — the rain trains the network; glyph data falls onto an input band of integrate-and-fire neurons and fires pulses down dendritic wires from layer to layer, a thought burst periodically crosses the whole machine while slow plasticity rewires old synapses and grows new ones",
+        config: SceneConfig {
+            color: Some("cyan"),
+            charset: Some("binary"),
+            fps: Some(60.0),
+            speed: Some(16.0),
+            density: Some(0.55),
+            glitch_level: Some(GlitchLevel::None),
+            rain_style: RainStyle::Neural,
+        },
+    },
     SceneInfo {
         name: "monolith",
         description:

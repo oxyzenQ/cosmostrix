@@ -49,6 +49,10 @@ impl Cloud {
         // fast-forward the bench to the burning engine (the birth
         // is pinned by the ignition tests instead).
         self.quasar_rain.fast_forward_ignition();
+        // NIGHT-research-9: same contract for the neural genesis —
+        // fast-forward the bench to the trained machine (the birth
+        // is pinned by the genesis tests instead).
+        self.neural_rain.fast_forward_genesis();
         // Z-6: mark benchmark mode — rain_at skips message cosmetics
         // (draw_message + border-cross detection). Owner directive: bench
         // mode measures critical path only (rain + 3 dragons), not cosmetics.
@@ -154,6 +158,12 @@ impl Cloud {
             // sibling, same draw-history clear on charset switch
             // (particle glyphs re-pick from the new pool).
             self.quasar_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Neural) {
+            // NIGHT-research-9: neural — structured-family
+            // sibling, same draw-history clear on charset switch
+            // (cell glyphs re-pick from the new pool).
+            self.neural_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }
@@ -272,6 +282,12 @@ impl Cloud {
             // sibling, same draw-history clear on palette change
             // (particle glyphs re-pick under the transition wave).
             self.quasar_rain.clear_draw_history();
+            self.reset_phosphor_state();
+        } else if matches!(self.rain_style, RainStyle::Neural) {
+            // NIGHT-research-9: neural — structured-family
+            // sibling, same draw-history clear on palette change
+            // (cell glyphs re-pick under the transition wave).
+            self.neural_rain.clear_draw_history();
             self.reset_phosphor_state();
         }
     }

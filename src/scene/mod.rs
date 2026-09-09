@@ -11,12 +11,12 @@
 //! Built-in scenes combine the three core runtime styles (`matrix`,
 //! `monolith`, `signal` — the original "rain atmospheres" naming predates
 //! the v4.0.0 atmosphere engine and is unrelated to that now-eliminated
-//! subsystem) with the eleven structured style flagships (`vortex`,
+//! subsystem) with the twelve structured style flagships (`vortex`,
 //! `flux`, `lorenz`, `cosmic_dragon`, `physarum`,
 //! `sorgonemous_intrascals`, `aeolian`, `solar_flare`, `dna_helix`,
-//! `murmuration`, `quasar` — task-18/19 +
+//! `murmuration`, `quasar`, `neural` — task-18/19 +
 //! NIGHT-research-4/5/6 + NIGHT-special-1/2/4 +
-//! NIGHT-research-7/8, the signature
+//! NIGHT-research-7/8/9, the signature
 //! differentiators), nine curated
 //! visual scenes (`classic`, `cinematic`, `calm`, `storm`, `cosmos`,
 //! `neon`, `hacker`, `matrix_film`, `low-power`), the `cosmic-dragon`
@@ -27,7 +27,7 @@
 //! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 30 built-in scenes: the
+//! covers all 31 built-in scenes: the
 //! three core atmospheres lead (cinematic, monolith, matrix), then
 //! the style flagships, the curated classics, the atmosphere
 //! scenes, the power-saving utility, and the milestone/tribute/honor
@@ -159,27 +159,38 @@ pub(crate) const SCENE_ORDER: &[&str] = &[
     // with the style flagships so the cycle tours all signature
     // motion styles.
     "quasar", // 14
+    // NIGHT-research-9 style flagship — the neural network, the
+    // runner-up proposal finally seated after the quasar round.
+    // The rain trains the network: glyph data falls onto an
+    // input band of integrate-and-fire neurons, pulses ride
+    // dendritic wires from layer to layer, a thought burst
+    // crosses the machine and slow plasticity rewires the
+    // topology (the five laws of the network, derived in
+    // this repo — see cloud/type_rain/neural/mod.rs). Grouped
+    // with the style flagships so the cycle tours all
+    // signature motion styles.
+    "neural", // 15
     // Classic siblings — the traditional looks users switch to often.
-    "classic",     // 15 — original green-on-black
-    "signal",      // 16 — digital transmission
-    "hacker",      // 17 — high-contrast terminal overflow
-    "matrix_film", // 18 — 1999 film homage
+    "classic",     // 16 — original green-on-black
+    "signal",      // 17 — digital transmission
+    "hacker",      // 18 — high-contrast terminal overflow
+    "matrix_film", // 19 — 1999 film homage
     // Atmosphere scenes — intensity then calm, then space and neon.
-    "storm",  // 19
-    "calm",   // 20
-    "cosmos", // 21
-    "neon",   // 22
+    "storm",  // 20
+    "calm",   // 21
+    "cosmos", // 22
+    "neon",   // 23
     // Utility.
-    "low-power", // 23
+    "low-power", // 24
     // Milestone + tribute.
-    "cosmic-dragon", // 24
-    "dragon_hunt",   // 25
-    "carbonic",      // 26
+    "cosmic-dragon", // 25
+    "dragon_hunt",   // 26
+    "carbonic",      // 27
     // Honor scenes — destinations, cycled last.
-    "crystal-dragon", // 27
-    "orange-cat",     // 28
-    "north-stars",    // 29
-    "curiosity",      // 30
+    "crystal-dragon", // 28
+    "orange-cat",     // 29
+    "north-stars",    // 30
+    "curiosity",      // 31
 ];
 
 /// The built-in scene catalog — extracted to `catalog.rs`

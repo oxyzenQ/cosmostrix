@@ -9,6 +9,57 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-9 — the neural network, the fourteenth rain style (the rain trains the network)
+
+- The owner-approved runner-up finally seated (the quasar round's
+  question answered the other way first): the registry's
+  machine-mind domain — nature, life, the cosmos, and now the
+  mind. `cosmostrix --scene neural` (cyan palette, binary
+  charset, cycle position 15, grouped with the style flagships).
+- The architecture: layered integrate-and-fire neurons laid out
+  horizontally with the signal flowing DOWNWARD — the rain's own
+  direction, so the data literally streams through the machine
+  (the input band widest under the sky, tapering to the sparse
+  output; the golden-angle y-jitter keeps the lattice organic;
+  the output reads one rung hotter — the answer).
+- The neuron: a bounded potential integrating kicks, leaking
+  exponentially (the forgetting), firing at the threshold into a
+  refractory window (a saturated cell sheds load like the real
+  substrate), the fired flash decaying and the glyph re-rolling
+  on fire (event-gated); the input band idles alive on
+  spontaneous Poisson kicks between meals.
+- The rain is the data: streamers fall onto the input band
+  (columns biased toward the built inputs — the data aims at the
+  machine); a landing streamer either births the next neuron
+  (the fresh-write economy — the network is literally BUILT from
+  the rain) or kicks the nearest input. The pulses: glyph signals
+  riding precomputed dendritic paths at rolled speeds, delivering
+  the wire's weight on arrival and lighting the wire's glow; the
+  thought-burst clock is the drama event (a clump of inputs
+  force-fires, the wave crosses the machine, the output flares,
+  the data surges).
+- The plasticity: the rewire clock retires one healthy wire at a
+  time (a slow fade while its riding pulses land) and grows the
+  successor in the SAME slot to a NEW target — the wire count is
+  constant by construction; the machine's topology rewrites
+  itself forever without flooding.
+- The genesis (the owner's mandate): every scene entry replays
+  the training run — the data falls, the layers materialize from
+  the captures, the dendrites reach out in a staggered sweep,
+  the wiring completes and the first thought fires (a pure
+  resize keeps the trained machine; the bench fast-forwards).
+- The wire budget is constant by design: the idle wire draws
+  every third path cell (the dashed loom) and the events raise
+  the brightness rung, never the cell count — the dirty-cell
+  budget survives the drama by construction.
+- Style registry surface: `RainStyle::Neural` (labels `neural` /
+  `neural_network` / `neuralnet` / `nn`), the NEUR_* calibration
+  section with compile-time contracts, the 31-scene catalog (the
+  count detectors moved 30 -> 31 as designed), the eight-file
+  module split honoring the 800-LOC cap, the neural contracts in
+  `tests_neural/`, and `scripts/neural_smoke.py` (the PTY shape
+  smoke, quasar_smoke's heir).
+
 ### feature: NIGHT-research-8 — the quasar, the thirteenth rain style (the rain feeds the engine)
 
 - Owner-approved pick over the neural-network proposal (the DNA

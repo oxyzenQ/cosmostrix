@@ -55,9 +55,9 @@ impl super::Cloud {
         self.lines = lines;
 
         // Task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2/4
-        // + NIGHT-research-7/8: structured styles (Monolith, Vortex,
+        // + NIGHT-research-7/8/9: structured styles (Monolith, Vortex,
         // Flux, Lorenz, Dragon, Physarum, BlackHole, Aeolian,
-        // SolarFlare, DnaHelix, Murmuration, Quasar) keep the
+        // SolarFlare, DnaHelix, Murmuration, Quasar, Neural) keep the
         // droplet pool empty; the droplet-family style (Glyph)
         // allocates it. (Ripple was structured-but-droplet-family
         // in the old design — task-19 replaced it with
@@ -67,7 +67,8 @@ impl super::Cloud {
         // shares it too; NIGHT-special-2 added the aeolian weave;
         // NIGHT-special-4 added the corona arcade; NIGHT-research-7
         // added the DNA helix and the murmuration flock;
-        // NIGHT-research-8 added the quasar engine.)
+        // NIGHT-research-8 added the quasar engine; NIGHT-research-9
+        // added the neural network.)
         if self.rain_style.is_droplet_family() {
             let pool_size = (DROPLET_COUNT_FACTOR * self.cols as f32).round() as usize;
             self.droplets.clear();
@@ -89,6 +90,7 @@ impl super::Cloud {
         self.dna_helix_rain.reset(self.cols, self.lines);
         self.murmuration_rain.reset(self.cols, self.lines);
         self.quasar_rain.reset(self.cols, self.lines);
+        self.neural_rain.reset(self.cols, self.lines);
 
         // Re-seed the droplet free-list: after clear+resize, all droplets
         // are dead (Droplet::new defaults is_alive=false), so every index

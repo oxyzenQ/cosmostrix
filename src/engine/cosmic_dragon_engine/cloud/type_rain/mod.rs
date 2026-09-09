@@ -56,6 +56,14 @@
 //!   galactic nucleus mapped to the terminal grid: Keplerian
 //!   disk, doppler beaming, relativistic jets, the ignition
 //!   birth).
+//! - `neural` - the training network (NIGHT-research-9, the
+//!   fourteenth style: the rain trains the network — the five
+//!   laws of the network derived in `neural/mod.rs`; the
+//!   neural-network proposal finally seated after the quasar
+//!   round, the registry's machine-mind domain: layered
+//!   integrate-and-fire neurons, dendritic pulse wiring, the
+//!   thought-burst waves, the plasticity rewiring, the genesis
+//!   training run).
 //!
 //! `module_inception` (`pub(crate) mod lorenz;` inside `type_rain/
 //! lorenz/mod.rs`) is allowed at the file level because the directory
@@ -73,6 +81,7 @@ pub(crate) mod glyph;
 pub(crate) mod lorenz;
 pub(crate) mod monolith;
 pub(crate) mod murmuration;
+pub(crate) mod neural;
 pub(crate) mod physarum;
 pub(crate) mod quasar;
 pub(crate) mod solar_flare;

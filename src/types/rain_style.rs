@@ -3,9 +3,10 @@
 
 //! Internal rain style selection.
 //!
-//! Style families (task-19 + NIGHT-research-4/5/6 + NIGHT-special-1
-//! + NIGHT-special-2 + NIGHT-special-4 + NIGHT-research-7
-//! + NIGHT-research-8, thirteen styles):
+//! Style families (task-19 + NIGHT-research-4/5/6 +
+//! NIGHT-special-1 + NIGHT-special-2 + NIGHT-special-4 +
+//! NIGHT-research-7 + NIGHT-research-8 + NIGHT-research-9,
+//! fourteen styles):
 //! - Droplet family ([`RainStyle::Glyph`]) — rendered by the shared
 //!   droplet pool (column-cascade motion, spawn_droplets, phosphor
 //!   Pass 2 protection).
@@ -14,7 +15,7 @@
 //!   [`RainStyle::Physarum`], [`RainStyle::BlackHole`],
 //!   [`RainStyle::Aeolian`], [`RainStyle::SolarFlare`],
 //!   [`RainStyle::DnaHelix`], [`RainStyle::Murmuration`],
-//!   [`RainStyle::Quasar`]) — dedicated
+//!   [`RainStyle::Quasar`], [`RainStyle::Neural`]) — dedicated
 //!   state machines with
 //!   drawn-cell diff cleanup; no droplet pool. Vortex moves glyphs
 //!   on polar Keplerian orbits; Flux moves glyphs through a PIC/FLIP
@@ -64,7 +65,15 @@
 //!   every falling glyph the fuel (the five laws of the engine,
 //!   see `cloud/type_rain/quasar/mod.rs`; NIGHT-research-8, the
 //!   thirteenth style, the owner's pick over the neural-network
-//!   proposal).
+//!   proposal); Neural runs the training network — glyph data
+//!   falls onto an input band of integrate-and-fire neurons,
+//!   pulses ride dendritic wires from layer to layer, a
+//!   thought-burst clock fires whole waves through the machine
+//!   and slow plasticity rewires the topology (the five laws of
+//!   the network, see `cloud/type_rain/neural/mod.rs`;
+//!   NIGHT-research-9, the fourteenth style — the runner-up
+//!   proposal finally seated, the registry's machine-mind
+//!   domain).
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum RainStyle {
@@ -81,6 +90,7 @@ pub enum RainStyle {
     DnaHelix,
     Murmuration,
     Quasar,
+    Neural,
 }
 
 impl RainStyle {
@@ -100,6 +110,7 @@ impl RainStyle {
             Self::DnaHelix => "dna_helix",
             Self::Murmuration => "murmuration",
             Self::Quasar => "quasar",
+            Self::Neural => "neural",
         }
     }
 
@@ -108,7 +119,7 @@ impl RainStyle {
     /// (Flux replaced the task-18 Ripple surface style, which was
     /// the second droplet-family member). Gates that previously
     /// read `!matches!(style, Monolith)` should read this instead —
-    /// twelve non-droplet styles exist now.
+    /// thirteen non-droplet styles exist now.
     #[must_use]
     pub fn is_droplet_family(self) -> bool {
         matches!(self, Self::Glyph)
@@ -121,7 +132,8 @@ impl RainStyle {
     /// the Aeolian drops since NIGHT-special-2, the SolarFlare
     /// drops since NIGHT-special-4, the DnaHelix nucleotides and
     /// the Murmuration birds since NIGHT-research-7, the Quasar
-    /// infall streamers since NIGHT-research-8).
+    /// infall streamers since NIGHT-research-8, the Neural data
+    /// streamers since NIGHT-research-9).
     /// Glyph-family spawn uses per-column timing instead.
     #[must_use]
     pub fn uses_spawn_remainder(self) -> bool {
@@ -139,6 +151,7 @@ impl RainStyle {
                 | Self::DnaHelix
                 | Self::Murmuration
                 | Self::Quasar
+                | Self::Neural
         )
     }
 
@@ -169,6 +182,7 @@ impl RainStyle {
             "dna_helix" | "dnahelix" | "dna" => Some(Self::DnaHelix),
             "murmuration" | "murmur" | "starlings" => Some(Self::Murmuration),
             "quasar" | "agn" => Some(Self::Quasar),
+            "neural" | "neural_network" | "neuralnet" | "nn" => Some(Self::Neural),
             _ => None,
         }
     }
@@ -179,6 +193,6 @@ impl RainStyle {
     /// default, intense"). Order matches the enum declaration.
     #[must_use]
     pub fn valid_labels_hint() -> &'static str {
-        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar"
+        "glyph, monolith, vortex, flux, lorenz, dragon, physarum, black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar, neural"
     }
 }
