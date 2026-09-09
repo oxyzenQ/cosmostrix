@@ -411,12 +411,14 @@ to verify the actual snapback delay in effect when the session ended.
 #### The cinematic/monolith shared-color gotcha
 
 If the ambient phase is `monolith` (default color: `neon-purple`) and
-the user presses `x`, the first scene in the cycle is `cinematic` —
-which **also defaults to `neon-purple`**. So the first `x` press may
-produce **no visible color change** (only the rain style/charset changes
-underneath). Press `x` again to cycle to `matrix` (green) or another
-scene with a distinct color. This is not a bug — it's a consequence of
-two scenes sharing the same default palette.
+the user presses `x`, the next scene in the cycle (NIGHT-lts-2 order)
+is `lorenz` — but the neighboring cycle scenes share palettes too:
+`cinematic` (one `X` press backward) **also defaults to `neon-purple`**.
+So a cycle step may produce **no visible color change** (only the rain
+style/charset changes underneath). Keep pressing `x` to reach `matrix`
+(green) or another scene with a distinct color. This is not a bug —
+it's a consequence of neighboring scenes sharing the same default
+palette.
 
 #### Summary of override behavior
 

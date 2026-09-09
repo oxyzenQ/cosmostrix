@@ -9,6 +9,35 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-lts-2 + NIGHT-lts-5 — the x/X scene cycle re-ordered around the owner's signature pair (black hole leads, glyph default second); the default launch scene approval recorded (cinematic = glyph, first signature; sorgonemous_intrascals = black hole, second signature)
+
+- NIGHT-lts-5 (owner approval, recorded): the default signature rain
+  is the glyph — scene name `cinematic`, the launch default
+  (DEFAULT_SCENE, already asserted by tests, unchanged) — and the
+  second signature is the black hole, scene name
+  `sorgonemous_intrascals` (the owner's own coinage, NIGHT-special-1).
+- NIGHT-lts-2 (owner directive): the x/X cycle order now leads with
+  the signature pair — `sorgonemous_intrascals` first, `cinematic`
+  second — then `monolith` (3) and `lorenz` (4); `matrix`, `vortex`,
+  `flux` and the style flagships follow; the tail still ends at
+  `curiosity` and wraps back to the black hole. One X-press from the
+  launch default reaches the black hole; the full 31-scene tour
+  starts and ends on the owner's two signatures.
+- Adjacency changes rippled through the suite: monolith forward now
+  goes to lorenz (was matrix), flux forward to cosmic_dragon (was
+  lorenz), physarum forward to aeolian (was the black hole), the
+  tail wrap lands on sorgonemous_intrascals (was cinematic). Six
+  test surfaces updated (scene forward/backward/wrap/order-pin,
+  flux position pin, interactive x/X and kitty Shift+X).
+- Docs synced: README cycle line (which was also missing `neural`
+  since NIGHT-research-9 — fixed en route), the ambient scheduler
+  gotcha (the cinematic/monolith shared-palette note now describes
+  the new neighbors), scene/mod.rs order comments renumbered.
+- Zero render-path code changed (an array reorder plus comments);
+  the bench harness drives scenes via `--scene` and never exercises
+  the cycle, so the A/B benches would measure pure noise — skipped
+  for this change per the task rules' waste guard.
+
 ### stability: NIGHT-hunter-25 part 2 — the hot cell-draw family bundled (one shared CellPaint design for the shader/render pair), two inherited defects repaired
 
 - The six deferred hot-path signatures from part 1 now ride value

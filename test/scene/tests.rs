@@ -8,51 +8,55 @@ use super::*;
 
 #[test]
 fn cycle_scene_forward_order() {
-    // Owner-pinned core trio: cinematic -> monolith -> matrix; then
-    // the task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2 style
-    // flagships: vortex -> flux -> lorenz -> cosmic_dragon -> physarum
-    // -> sorgonemous_intrascals -> aeolian -> classic (both ripple
-    // replacements present; lorenz is a strange-attractor masterpiece;
-    // physarum is the bio-inspired slime-mold style;
-    // sorgonemous_intrascals is the black hole — NIGHT-special-1;
-    // aeolian is the invented string weave — NIGHT-special-2).
+    // NIGHT-lts-2 (owner-pinned new order): the signature pair
+    // leads — sorgonemous_intrascals (the black hole, the owner's
+    // second signature) first, cinematic (the glyph default, the
+    // launch default) second — then monolith and lorenz; matrix,
+    // vortex and the style flagships follow; the tail wraps back
+    // to the black hole.
+    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "cinematic");
     assert_eq!(cycle_scene("cinematic", 1), "monolith");
-    assert_eq!(cycle_scene("monolith", 1), "matrix");
+    assert_eq!(cycle_scene("monolith", 1), "lorenz");
+    assert_eq!(cycle_scene("lorenz", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
     assert_eq!(cycle_scene("vortex", 1), "flux");
-    assert_eq!(cycle_scene("flux", 1), "lorenz");
-    assert_eq!(cycle_scene("lorenz", 1), "cosmic_dragon");
+    assert_eq!(cycle_scene("flux", 1), "cosmic_dragon");
     assert_eq!(cycle_scene("cosmic_dragon", 1), "physarum");
-    assert_eq!(cycle_scene("physarum", 1), "sorgonemous_intrascals");
-    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "aeolian");
+    assert_eq!(cycle_scene("physarum", 1), "aeolian");
     assert_eq!(cycle_scene("aeolian", 1), "solar_flare");
-    // NIGHT-research-7: dna_helix joined at cycle position 12 —
+    // NIGHT-research-7: dna_helix at cycle position 12 —
     // the double helix (the rain writes the genome);
-    // murmuration joined at cycle position 13 — the boids flock.
+    // murmuration at cycle position 13 — the boids flock.
     assert_eq!(cycle_scene("solar_flare", 1), "dna_helix");
     assert_eq!(cycle_scene("dna_helix", 1), "murmuration");
-    // NIGHT-research-8: quasar joined at cycle position 14 — the
+    // NIGHT-research-8: quasar at cycle position 14 — the
     // feeding engine (the rain feeds the engine).
     assert_eq!(cycle_scene("murmuration", 1), "quasar");
-    // NIGHT-research-9: neural joined at cycle position 15 — the
+    // NIGHT-research-9: neural at cycle position 15 — the
     // training network (the rain trains the network).
     assert_eq!(cycle_scene("quasar", 1), "neural");
     assert_eq!(cycle_scene("neural", 1), "classic");
     // NIGHT-hunter-15: the dragon_hunt milestone sits in the cycle
-    // right after the cosmic-dragon milestone (positions 18-19).
+    // right after the cosmic-dragon milestone (positions 25-26).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
     assert_eq!(cycle_scene("dragon_hunt", 1), "carbonic");
-    // Tail of the cycle wraps back to the head.
-    assert_eq!(cycle_scene("curiosity", 1), "cinematic");
+    // Tail of the cycle wraps back to the head (the black hole).
+    assert_eq!(cycle_scene("curiosity", 1), "sorgonemous_intrascals");
 }
 
 #[test]
 fn cycle_scene_backward_order() {
-    // Core trio backward: matrix -> monolith -> cinematic.
-    assert_eq!(cycle_scene("matrix", -1), "monolith");
+    // NIGHT-lts-2: backward from matrix hits lorenz (position 4);
+    // monolith backward is the launch default cinematic; the head
+    // (the black hole) backward wraps to the tail.
+    assert_eq!(cycle_scene("matrix", -1), "lorenz");
     assert_eq!(cycle_scene("monolith", -1), "cinematic");
+    // One X-press from the launch default reaches the black hole
+    // (the owner's second signature — the pairing the NIGHT-lts-2
+    // order exists to express).
+    assert_eq!(cycle_scene("cinematic", -1), "sorgonemous_intrascals");
     // Head wraps backward to the tail.
-    assert_eq!(cycle_scene("cinematic", -1), "curiosity");
+    assert_eq!(cycle_scene("sorgonemous_intrascals", -1), "curiosity");
 }
 
 #[test]
@@ -63,17 +67,17 @@ fn cycle_scene_unknown_returns_default() {
 
 #[test]
 fn cycle_scene_wraps_around() {
-    // Quintuple forward from matrix: matrix -> vortex -> flux ->
-    // lorenz -> cosmic_dragon -> physarum.
+    // Quintuple forward from matrix (NIGHT-lts-2 order): matrix ->
+    // vortex -> flux -> cosmic_dragon -> physarum -> aeolian.
     assert_eq!(
         cycle_scene(
             cycle_scene(cycle_scene(cycle_scene(cycle_scene("matrix", 1), 1), 1), 1),
             1
         ),
-        "physarum"
+        "aeolian"
     );
-    // Double backward from matrix: matrix -> monolith -> cinematic.
-    assert_eq!(cycle_scene(cycle_scene("matrix", -1), -1), "cinematic");
+    // Double backward from matrix: matrix -> lorenz -> monolith.
+    assert_eq!(cycle_scene(cycle_scene("matrix", -1), -1), "monolith");
     // Full lap forward returns to start.
     let mut cur = "cinematic";
     for _ in 0..SCENE_ORDER.len() {
@@ -94,8 +98,10 @@ fn scene_names_are_present() {
     // positions 7-8; physarum sorts alphabetically after orange-cat.
     // NIGHT-hunter-15: dragon_hunt joined at cycle position 19; sorts
     // alphabetically after curiosity, before flux.
-    // NIGHT-special-1: sorgonemous_intrascals joined at cycle position
-    // 9; sorts alphabetically after signal, before storm.
+    // NIGHT-special-1: sorgonemous_intrascals joined at cycle
+    // position 9 (now cycle position 1 — the NIGHT-lts-2 owner
+    // directive moved the black hole to the head of the cycle);
+    // sorts alphabetically after signal, before storm.
     // NIGHT-special-2: aeolian joined at cycle position 10;
     // NIGHT-special-4: solar_flare joined at cycle position 11
     // (replacing the retired aurora veil, NIGHT-special-3). Both
@@ -278,8 +284,14 @@ fn dragon_hunt_scene_marks_biggest_bug_hunt_milestone() {
 
 #[test]
 fn scene_cycle_order_is_preserved() {
-    // Owner-pinned first three (2026-08-24 directive) + full coverage.
-    assert_eq!(&SCENE_ORDER[..3], &["cinematic", "monolith", "matrix"]);
+    // NIGHT-lts-2 owner-pinned first four (2026-09-10 directive):
+    // the signature pair (black hole + glyph default) then monolith
+    // and lorenz. Full coverage: every SCENES entry appears exactly
+    // once (a new scene that forgets to join the cycle fails here).
+    assert_eq!(
+        &SCENE_ORDER[..4],
+        &["sorgonemous_intrascals", "cinematic", "monolith", "lorenz"]
+    );
     assert_eq!(
         SCENE_ORDER.len(),
         31,

@@ -212,8 +212,8 @@ mod cases_kitty_shift {
         );
 
         assert_eq!(
-            scene_name, "monolith",
-            "kitty CSI-u Shift+X must cycle scene in reverse (matrix -> monolith)"
+            scene_name, "lorenz",
+            "kitty CSI-u Shift+X must cycle scene in reverse (matrix -> lorenz, NIGHT-lts-2 order)"
         );
     }
 

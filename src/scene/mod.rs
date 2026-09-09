@@ -71,52 +71,40 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 30 built-in scenes (owner directive
-/// 2026-08-24: positions 1-3 are fixed; task-18 added the vortex
-/// style flagship at 4; task-19 replaced the rejected ripple with
-/// flux at 5; the NIGHT-research-4 merge added lorenz, a
-/// strange-attractor masterpiece, at 6; NIGHT-research-5 added the
-/// cosmic_dragon style flagship at 7; NIGHT-research-6 added the
-/// physarum style flagship at 8; NIGHT-special-1 added the black
-/// hole flagship sorgonemous_intrascals at 9; NIGHT-special-2 added
-/// the aeolian weave flagship at 10; NIGHT-special-3 added the
-/// polar-veil flagship aurora at 11; NIGHT-hunter-15 added the
-/// dragon_hunt
-/// milestone (the glitch-rain-shift bug-hunt reward) at 21; the rest
-/// ordered by daily-use
-/// likelihood so the most-switched scenes are the fewest keystrokes
-/// away: core trio -> style flagships -> classic siblings ->
-/// atmosphere -> power-saving utility -> milestone -> tribute ->
-/// honor scenes).
+/// Ordered scene cycle — all 31 built-in scenes. NIGHT-lts-2
+/// (owner directive 2026-09-10): the x/X cycle leads with the
+/// owner's two signature scenes — sorgonemous_intrascals (the
+/// black hole, the second signature, NIGHT-lts-5) first,
+/// cinematic (the glyph rain, the launch default and the first
+/// signature) second — then monolith and lorenz; matrix follows
+/// at 5 and the rest keeps the previous relative order
+/// (style flagships -> classic siblings -> atmosphere ->
+/// power-saving utility -> milestone -> tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
-    // Core atmospheres (owner-pinned order).
-    "cinematic", // 1
-    "monolith",  // 2
-    "matrix",    // 3
-    // Task-18/19 + NIGHT-research-4/5/6 style flagships — the
-    // polar-orbit, liquid-fluid, strange-attractor, serpentine-dragon
-    // and slime-mold styles are signature differentiators (no
-    // competitor terminal has them; the flux style carries a real
-    // incompressible Navier-Stokes projection in its critical path),
-    // so they lead the cycle right after the core trio.
-    "vortex", // 4
-    "flux",   // 5
-    "lorenz", // 6
-    // NIGHT-research-5 style flagship — the Chinese-mythology
-    // serpentine dragon (free flight + occasional circling), grouped
-    // with the other style flagships so users cycle through all the
-    // signature motion styles in one stretch.
-    "cosmic_dragon", // 7
-    // NIGHT-research-6 style flagship — the bio-inspired slime mold
-    // (Jeff Jones 2010 emergent network patterns). The masterpiece
-    // rarity (world-first in the terminal matrix rain category).
-    "physarum", // 8
-    // NIGHT-special-1 style flagship — the black hole. A gravitating
-    // body with a black empty event-horizon core (staged rollout:
-    // stage 1 ships the ball; the RK4 orbital ring and the glyph
-    // infall land in stages 2 and 3). Grouped with the style
-    // flagships so the cycle tours all signature motion styles.
-    "sorgonemous_intrascals", // 9
+    // NIGHT-lts-2 signature pair (owner-pinned order): the black
+    // hole leads the cycle, the glyph default follows — the two
+    // scenes the owner calls his signatures are the first two
+    // keystrokes of the tour. The default launch scene stays
+    // cinematic (DEFAULT_SCENE, NIGHT-lts-5 owner approval), so
+    // one X-press from the launch default reaches the black hole.
+    "sorgonemous_intrascals", // 1 — second signature (the black hole)
+    "cinematic",              // 2 — first signature (the default rain)
+    // NIGHT-lts-2: monolith and lorenz follow the signature pair
+    // (owner-pinned positions 3 and 4).
+    "monolith", // 3
+    "lorenz",   // 4
+    // Core atmosphere sibling + task-18/19 + NIGHT-research-4/5/6
+    // style flagships — the liquid-fluid, polar-orbit,
+    // serpentine-dragon and slime-mold styles are signature
+    // differentiators (no competitor terminal has them; the flux
+    // style carries a real incompressible Navier-Stokes projection
+    // in its critical path), so they keep leading the cycle right
+    // after the owner-pinned quartet.
+    "matrix",        // 5
+    "vortex",        // 6
+    "flux",          // 7
+    "cosmic_dragon", // 8
+    "physarum",      // 9
     // NIGHT-special-2 style flagship — the aeolian weave. The
     // invented string instrument played by the falling rain:
     // original motion math (the six laws of the weave, derived in
@@ -216,8 +204,11 @@ pub(crate) fn all_scene_names() -> Vec<&'static str> {
 
 /// Cycle to the next or previous scene in the ordered cycle.
 /// Returns the next scene name.
-/// Forward:  cinematic -> monolith -> matrix -> classic -> ... -> curiosity
-/// Backward: the reverse. Unknown names fall back to DEFAULT_SCENE.
+/// Forward (NIGHT-lts-2 order): sorgonemous_intrascals -> cinematic
+/// -> monolith -> lorenz -> matrix -> vortex -> flux -> ... ->
+/// curiosity -> sorgonemous_intrascals (wraps).
+/// Backward: the reverse. Unknown names fall back to DEFAULT_SCENE
+/// (cinematic — the launch default, NIGHT-lts-5 owner approval).
 #[must_use]
 pub(crate) fn cycle_scene(current: &str, dir: i32) -> &'static str {
     let Some(pos) = SCENE_ORDER.iter().position(|&n| n == current) else {

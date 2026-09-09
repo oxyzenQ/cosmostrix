@@ -364,8 +364,8 @@ mod cases {
             &default_term_reinit(),
         );
 
-        assert_eq!(scene_name, "matrix");
-        assert_eq!(cloud.active_scene(), "matrix");
+        assert_eq!(scene_name, "lorenz");
+        assert_eq!(cloud.active_scene(), "lorenz");
     }
 
     #[test]
@@ -393,13 +393,11 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        // 24-scene cycle (owner directive 2026-08-24 + task-18/19 +
-        // NIGHT-research-4/5/6 flagships + NIGHT-hunter-15 milestone):
-        // from monolith the forward order
-        // is matrix -> vortex -> flux -> lorenz (both ripple
-        // replacements present, flux at 5 and lorenz at 6).
-        assert_eq!(visited, ["matrix", "vortex", "flux", "lorenz"]);
-        assert_eq!(cloud.active_scene(), "lorenz");
+        // 31-scene cycle (NIGHT-lts-2 owner directive: the signature
+        // pair leads, monolith sits at position 3): from monolith
+        // the forward order is lorenz -> matrix -> vortex -> flux.
+        assert_eq!(visited, ["lorenz", "matrix", "vortex", "flux"]);
+        assert_eq!(cloud.active_scene(), "flux");
     }
 
     #[test]
@@ -423,7 +421,8 @@ mod cases {
             &default_term_reinit(),
         );
 
-        // 'X' on monolith (index 1 in SCENE_ORDER) should go to cinematic (index 0).
+        // 'X' on monolith (index 2 in SCENE_ORDER, NIGHT-lts-2) should
+        // go to cinematic (index 1, the launch default).
         assert_eq!(
             scene_name, "cinematic",
             "uppercase X must cycle scene in reverse"
