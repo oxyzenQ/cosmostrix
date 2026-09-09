@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-lts-1 stage 1 — the master depth audit of black hole + quasar: both at peak, zero code changes (the report is the product; stage 2 awaits owner approval)
+
+- Owner directive: master depth audit for all scenes and type rains,
+  staged pair by pair; stage 1 = blackhole + quasar, report to owner.
+- Full read of every advance/draw/spawn hot path across the 13 files
+  (5 427 LOC). Panic/unwrap/expect scan: ZERO hits. Const assertions
+  pin the physics invariants. 82 contract tests across the two
+  styles.
+- Verdict: both at peak — dt saturating+clamped+resume-blended, phase
+  wraps at 64 turns, clamps at every use site (defensive in depth),
+  per-frame hoisting, amortized O(1) free-slot scans, zero hot-loop
+  allocations, fraction-based geometry (the dynamic-size contract).
+- Five micro-observations quantified and skipped (the
+  over-engineering guard): redundant parallel-array bounds checks
+  (~0.003 percent of frame cost), sqrt-vs-squared occlusion compare
+  (~600 ns/frame), per-mote Kepler powf (already the fast f^-1.5
+  form), the u32 generation-counter wrap (unreachable in practice),
+  first-frame reserve ordering. None buys a perceivable anything.
+- Baseline 10 s pro benches recorded in the report:
+  sorgonemous_intrascals 25 914 avg fps / 330.3 dirty cells per
+  frame / gini 0.554 / entropy 5.483; quasar 96 525 / 84.8 / 0.711 /
+  4.789 — both one to two orders of magnitude beyond any terminal's
+  display rate (the quantitative peak verdict).
+- Docs-only change — no benchmark per the task rules (the numbers
+  above are this build's baseline measurements, not an A/B).
+
 ### feature: NIGHT-hunter-18 — the low-terminal cinematic-intro auto-skip (the owner's "no need cinematic mode" half); the high-perf peak audit closes the other half (nothing held back)
 
 - Audit finding: the owner directive was already 80 percent
