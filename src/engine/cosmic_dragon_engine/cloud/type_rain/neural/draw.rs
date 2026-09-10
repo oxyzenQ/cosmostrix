@@ -44,7 +44,7 @@ use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
 use super::super::monolith::monolith_helpers::{
-    bold_for_level, clear_cell, color_for_level, pick_pool_char,
+    bold_for_level, clear_cell, clear_phosphor_metadata, color_for_level, pick_pool_char,
 };
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 use super::genesis::GenesisPhase;
@@ -340,6 +340,13 @@ impl NeuralRain {
             if idx < self.drawn_gen.len() {
                 self.drawn_gen[idx] = gen;
             }
+            // NIGHT-hunter-29 (the phosphor ownership rule — the
+            // doc on clear_phosphor_metadata): a cell drawn this
+            // frame is owned by the draw, so its phosphor state
+            // is zeroed every frame — no ghost-vs-draw strobe at
+            // the freeze/resume window (the black hole's owner
+            // report generalized to the whole family tree).
+            clear_phosphor_metadata(cleanup, cell.col, cell.line);
         }
 
         // Clear previous cells NOT redrawn this frame.

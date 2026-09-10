@@ -489,7 +489,37 @@ pub(in super::super) fn clear_cell(
     frame.set_force(col, line, blank_cell(cleanup.bg));
 }
 
-pub(super) fn clear_phosphor_metadata(cleanup: &mut MonolithCleanup<'_>, col: u16, line: u16) {
+/// `clear_phosphor_metadata` is `pub(in super::super)` (=
+/// `pub(in cloud::type_rain)`) for the same NIGHT-enhanced-hunt-A
+/// boundary reason as `clear_cell` above: every structured family's
+/// draw pass owns its drawn cells' phosphor state (the ownership
+/// rule below) and needs this zeroing primitive.
+///
+/// The phosphor ownership rule (NIGHT-hunter-29): a cell the family
+/// draws THIS frame is owned by the draw — its drawn content is the
+/// ground truth, and the phosphor pass must not decay it into a
+/// ghost. Without the per-frame zeroing, a persistently-drawn cell
+/// (identical content frame over frame — the ball annulus, slow
+/// tier motes, frozen-field cells during the pause decel and the
+/// resume ramp) falls out of the phosphor pass's fresh set and the
+/// ghost write (the A19 tracked path or the A20 orphan fallback)
+/// dims it; the next frame's family draw restores the drawn state;
+/// the cycle repeats as a period-2 full-population brightness
+/// strobe that is blend-independent — at the resume instant, when
+/// every other motion is ramping from frozen, that strobe is the
+/// only visible movement (the owner's micro jump on the black hole
+/// at sorgonemous_intrascals). The glyph family never had this
+/// fight because Pass 2 of the phosphor decay marks every
+/// droplet-covered cell fresh each frame; monolith had it only for
+/// the spine (clear_spine_phosphor). The structured families apply
+/// the same immunity to their whole drawn set — vacated cells keep
+/// the `clear_cell` zeroing, so no family ever leaves afterglow
+/// state behind a cell it still owns.
+pub(in super::super) fn clear_phosphor_metadata(
+    cleanup: &mut MonolithCleanup<'_>,
+    col: u16,
+    line: u16,
+) {
     if line >= cleanup.lines {
         return;
     }

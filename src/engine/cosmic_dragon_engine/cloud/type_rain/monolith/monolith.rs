@@ -475,6 +475,14 @@ impl MonolithRain {
             if idx < self.drawn_gen.len() {
                 self.drawn_gen[idx] = gen;
             }
+            // NIGHT-hunter-29 (the phosphor ownership rule — the
+            // doc on clear_phosphor_metadata): a cell drawn this
+            // frame is owned by the draw, so its phosphor state
+            // is zeroed every frame. This generalizes the old
+            // spine-only clear_spine_phosphor immunity to the
+            // falling segments too (their cells persist just as
+            // long through a freeze window).
+            clear_phosphor_metadata(cleanup, cell.col, cell.line);
         }
 
         // Pass 3: Clear only previous_cells NOT redrawn this frame.

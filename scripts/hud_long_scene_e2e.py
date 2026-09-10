@@ -46,7 +46,9 @@ if not BIN:
             BIN = candidate
             break
     if not BIN:
-        sys.exit("no cosmostrix binary: build `cargo build --profile pro` or `--release`")
+        sys.exit(
+            "no cosmostrix binary: build `cargo build --profile pro` or `--release`"
+        )
 COLS, ROWS = 100, 40
 
 SCENE_NAME = "example_1234_test_this_long"

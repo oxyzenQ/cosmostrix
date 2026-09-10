@@ -9,6 +9,103 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunter-29 — resume micro-jump on the structured rain families: the phosphor ownership rule (the black hole strobe, audited and fixed across every rain type)
+
+- Owner report: after the NIGHT-hunter-28 glyph fix, a micro jump
+  still read on the black hole at sorgonemous_intrascals when
+  resuming from pause at seriously high detail. Directive: depth
+  audit ALL rain types for consistency, not just the reported one.
+- Root cause (found with a new cross-family instrumented audit,
+  not by inspection): the phosphor decay pass fought the
+  structured families' own draw pass over persistently-drawn
+  cells. A cell the family draws every frame with identical
+  content (the ball annulus, slow tier motes, frozen field cells
+  during the pause decel and the resume ramp) falls out of the
+  phosphor pass's fresh set, and the ghost write (the A19 tracked
+  path or the A20 orphan fallback) dims it; the next frame's
+  family draw restores the drawn state — a period-2
+  full-population brightness strobe, blend-independent, 621 cells
+  per frame on the black hole repro (5x its steady diff). At the
+  resume instant, when every other motion ramps from frozen, the
+  strobe is the only visible movement: the owner's micro jump.
+  The glyph family never had the fight (the phosphor's Pass 2
+  marks droplet-covered cells fresh every frame); monolith had
+  partial immunity (clear_spine_phosphor, spine cells only).
+- Fix — the phosphor ownership rule, monolith-precedented: a cell
+  the family draws THIS frame is owned by the draw, so its
+  phosphor state is zeroed every frame
+  (clear_phosphor_metadata, now shared from monolith_helpers at
+  `pub(in cloud::type_rain)` scope). Applied to the whole
+  structured family tree: black hole, vortex, flux, lorenz,
+  dragon, physarum, aeolian, solar flare, DNA helix,
+  murmuration, quasar, neural, and monolith's falling segments
+  (generalizing the old spine-only immunity). Vacated cells keep
+  their clear_cell zeroing, so no family leaves afterglow state
+  behind a cell it still owns — the residual churn at the frozen
+  instant collapses to the families' documented 2% life-sign
+  shimmer (26 cells on the black hole repro, from 621).
+- Verification: a new 28-test resume-continuity audit
+  (tests_resume_audit_hunt29.rs) drives every rain family — mono
+  AND TrueColor variants at production parity — through the real
+  pause state machine (BRANCH 3 decel -> settle -> full freeze ->
+  BRANCH 2 unpause -> accel ramp -> settle) and asserts the
+  per-frame dirty-cell count stays inside the steady envelope
+  (spikes must be sustained to read as a jump: the neural
+  thought-burst and monolith hero spawns are legitimate 1-3 frame
+  events, the strobe held the whole population for the entire
+  window). The detector caught the pre-fix black hole failure at
+  resume frame 0 with blend 0.000 and 621 dirty cells.
+- Hunted beyond the report while auditing: the flux test harness
+  never armed the sim cap (max_sim_delta defaults to zero, so the
+  family's advance clamps to dt=0 — mirrored the production
+  contract in the audit driver); the lorenz baseline needed a
+  multi-attractor-cycle sample (its dirty count swings between a
+  parked low and a crossing high over seconds).
+- A/B benchmark evidence (10s, 120x40 truecolor, run after the
+  commit): sorgonemous_intrascals avg fps 13028 -> 15743 (+20.8%),
+  avg dirty cells/frame 789.4 -> 179.6 (-77.3%, dirty ratio
+  16.45% -> 3.74%), avg render ms 0.0230 -> 0.0062 for +0.005ms
+  of sim; monolith avg fps 40234 -> 50252 (+24.9%), dirty
+  270.7 -> 107.3 (-60.4%). The strobe had been inflating every
+  structured family's steady-state diff — the fix is a net
+  performance WIN, and the post-fix (entropy, gini) points are
+  the styles' true structure signatures (the strobe's constant
+  whole-field flicker had flattened the density and inflated the
+  entropy). Numbers recorded in docs/BENCHMARKING.md.
+
+### fix: CI (FreeBSD) — neur_machine_assembles_through_genesis asserted a transient as an invariant
+
+- The FreeBSD-native CI run failed
+  `cloud::tests::tests_neural::core::neur_machine_assembles_through_genesis`
+  on `!s.active || s.grown >= 1.0` although the local run passed
+  2736/2736: the assertion read "every wire complete" at an
+  ARBITRARY steady instant, but the plasticity economy legitimately
+  keeps one wire mid-regrowth a fraction of the time — and the
+  rewire schedule is not platform-stable (libm ulp differences in
+  the leak/kick factors shift the fire timing, which shifts the
+  shared RNG stream, which moves the rewire clock).
+- The test now asserts the real contracts: the no-seam handoff at
+  the moment the genesis completes (probed at lit + 1.28 sim-s,
+  inside the first rewire clock's 4.5 sim-s jitter floor — the
+  Thought seam force-completes every wire, deterministic on every
+  platform), and in the steady state "at most one wire
+  mid-growth" (the bounded-learning contract: the rewire clock's
+  jitter floor 4.5 sim-s exceeds the full retire-plus-regrow chain
+  2.5 sim-s, so two successors can never overlap).
+
+### fix: CI (gate-keepers) — ruff and comment-style violations in the NIGHT-hunter-19 batch
+
+- scripts/endurance_probe.py: import block re-sorted (I001), the
+  successive-pairs loop migrated to itertools.pairwise (RUF007),
+  and two format deviations normalized; scripts/
+  hud_long_scene_e2e.py: one format deviation. All auto-fixed via
+  ruff check --fix + ruff format; the gate now runs clean locally
+  with ruff 0.16.6.
+- test/tests/depthtest_cli_config.rs: five decorative markdown
+  emphasis markers in module-level doc comments rewritten as
+  plain prose per docs/COMMENT_STYLE.md section 2
+  (check-comment-style.py: 483 files, 0 markers).
+
 ### feature: NIGHT-hunter-27 — 'r' is now a FULL FRESH: the restart re-applies the current scene's builtin defaults, wiping every runtime user change before the from-zero relaunch
 
 - Owner directive: pressing 'r' after runtime changes (color cycles

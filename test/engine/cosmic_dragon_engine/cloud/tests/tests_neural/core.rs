@@ -48,14 +48,45 @@ fn neural_scene_resolves_style_and_fields() {
 fn neur_machine_assembles_through_genesis() {
     // The birth contract: the genesis completes over its window
     // and the steady machine carries the full population with
-    // every wire complete.
+    // every wire complete at the no-seam handoff (in the steady
+    // state the plasticity economy keeps at most one wire
+    // mid-lifecycle — the bounded-learning contract below).
     let mut cloud = make_neur_cloud(120, 40);
     let mut frame = Frame::new(120, 40, cloud.palette.bg);
     // The genesis is one-shot choreography: ~8.2 sim-s at the
     // reference dial, then the steady state. Run well past it so
     // the capture economy and the wire sweep complete.
     let genesis_frames = (8.2 / DT_SIM_PER_FRAME).ceil() as u32;
-    run_frames(&mut cloud, &mut frame, genesis_frames + 900, 16);
+    // The handoff probe rides the run's own time anchor: a
+    // second run_frames call would re-anchor on a fresh
+    // Instant::now, and the machine's dt would freeze at zero
+    // until the synthetic clock caught back up.
+    let start = Instant::now();
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    // The first plasticity rewire cannot fire before the rewire
+    // clock's jitter floor (NEUR_REWIRE_CLOCK_MEAN * 0.6 = 4.5
+    // sim-s after lit), so probing at +60 frames (1.28 sim-s)
+    // still sees the machine exactly as the genesis left it.
+    let handoff_frame = genesis_frames + 60;
+    for idx in 0..(genesis_frames + 900) {
+        let now = start + Duration::from_millis(idx as u64 * 16);
+        cloud.rain_at(&mut frame, now);
+        frame.clear_dirty();
+        if idx == handoff_frame {
+            // The no-seam handoff: the Thought seam force-completes
+            // every wire, so the whole population stands complete
+            // here — any incomplete wire would be a seam.
+            assert!(
+                cloud
+                    .neural_rain
+                    .synapses
+                    .iter()
+                    .all(|s| !s.active || s.grown >= 1.0),
+                "a genesis wire was still growing at the steady handoff"
+            );
+        }
+    }
     assert!(
         cloud.neural_rain.lit_for_test(),
         "the machine never lit (t = {:.2})",
@@ -65,12 +96,25 @@ fn neur_machine_assembles_through_genesis() {
         cloud.neural_rain.node_active_for_test(),
         cloud.neural_rain.nodes.len()
     );
-    // The no-seam handoff: every wire stands complete.
-    assert!(cloud
+    // The steady machine: the plasticity economy keeps at most
+    // ONE wire mid-growth at any instant (the rewire clock's
+    // jitter floor, 4.5 sim-s, exceeds the full
+    // retire-plus-regrow chain, 2.5 sim-s, so two successors can
+    // never overlap). The exact rewire schedule is not
+    // platform-stable — libm ulp differences in the leak and
+    // kick factors shift the fire timing, which shifts the
+    // shared RNG stream — so a mid-growth successor at this
+    // arbitrary instant is the economy working, not a seam.
+    let mid_growth = cloud
         .neural_rain
         .synapses
         .iter()
-        .all(|s| !s.active || s.grown >= 1.0));
+        .filter(|s| s.active && s.grown < 1.0)
+        .count();
+    assert!(
+        mid_growth <= 1,
+        "{mid_growth} wires mid-growth at once — the bounded-learning contract allows one"
+    );
     // The architecture: layered, with the output band present.
     let layers = cloud.neural_rain.geom.nodes_per_layer.clone();
     assert!(layers.len() >= 3);

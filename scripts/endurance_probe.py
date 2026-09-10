@@ -20,15 +20,16 @@ SIZE (default 200x56), RSS_SLOPE_LIMIT_MB_PER_MIN (default 1.0),
 CPU_LIMIT_PCT (default 40).
 """
 
+import fcntl
 import os
 import pty
 import select
 import signal
 import struct
-import fcntl
-import termios
 import sys
+import termios
 import time
+from itertools import pairwise
 
 BIN = os.environ.get("BIN", "target/release/cosmostrix")
 RUN_SECS = float(os.environ.get("RUN_SECS", "120"))
@@ -149,7 +150,7 @@ def main():
     # CPU per interval
     findings = []
     cpu_pcts = []
-    for a, b in zip(samples, samples[1:]):
+    for a, b in pairwise(samples):
         wall = b["t"] - a["t"]
         cpu_pct = (b["cpu_ticks"] - a["cpu_ticks"]) / HZ / wall * 100.0
         cpu_pcts.append(cpu_pct)
@@ -186,11 +187,9 @@ def main():
     ivcs_end = samples[-1]["ivcs"]
 
     print(f"samples: {len(samples)}  interval: {SAMPLE_SECS}s  run: {RUN_SECS:.0f}s")
-    print(f"scene: {SCENE}  size: {COLS}x{ROWS}  drain: {DRAIN_BPS/1e6:.0f} MB/s")
+    print(f"scene: {SCENE}  size: {COLS}x{ROWS}  drain: {DRAIN_BPS / 1e6:.0f} MB/s")
     print(f"cpu max: {max_cpu:.1f}%  cpu steady avg: {avg_steady:.1f}%")
-    print(
-        f"rss: start {rss_start:.1f} MB  end {rss_end:.1f} MB  max {rss_max:.1f} MB"
-    )
+    print(f"rss: start {rss_start:.1f} MB  end {rss_end:.1f} MB  max {rss_max:.1f} MB")
     print(f"rss slope after warmup: {rss_slope_mb_min:+.2f} MB/min")
     print(f"minor faults after warmup: {flt_rate:.1f}/s")
     print(f"ctx switches: vol {vcs_end}  invol {ivcs_end}")

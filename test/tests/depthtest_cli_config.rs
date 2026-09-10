@@ -19,21 +19,21 @@
 //! ```
 //!
 //! Contracts under stress:
-//! 1. **No panic on any input** — a config editor (or a shell loop)
+//! 1. No panic on any input — a config editor (or a shell loop)
 //!    can write ANY byte sequence into config.toml while cosmostrix
 //!    is running; the watcher thread must never die from it (the
 //!    polling heartbeat restarts on panic today, but the watcher
 //!    loop itself is only poison-guarded — a parse panic would take
 //!    the reload path down to poll-only).
-//! 2. **Deterministic classification** — the same input must always
+//! 2. Deterministic classification — the same input must always
 //!    classify the same way (parse → same keys, validate → same
 //!    verdict) so the startup, watcher, and --testconf surfaces stay
 //!    in lockstep (the S-master-HUNT-2 contract).
-//! 3. **Rebuild invariants** — whatever survives validation, the
+//! 3. Rebuild invariants — whatever survives validation, the
 //!    rebuilt CloudConfig must keep every numeric field finite and
 //!    inside its documented operating range (NaN/inf leaking into
 //!    the render loop would poison frame pacing and spawn math).
-//! 4. **argv expansion safety** — the pre-clap rewrite must be
+//! 4. argv expansion safety — the pre-clap rewrite must be
 //!    total: every token either passes through byte-identical or
 //!    expands to the documented long form (the -mfs typo arm is
 //!    process-exiting by design and is excluded from the pool).
@@ -157,7 +157,7 @@ const NUMERIC_KEYS: &[(&str, f64, f64)] = &[
 ];
 
 /// Valid builtin scene names (source of truth: catalog.rs SCENES) —
-/// used to generate *valid* random scene entries for the pipeline.
+/// used to generate valid random scene entries for the pipeline.
 const SOME_SCENES: &[&str] = &[
     "sorgonemous_intrascals",
     "aeolian",

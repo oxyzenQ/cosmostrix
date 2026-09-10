@@ -77,7 +77,9 @@ use rand::{
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
+use super::super::monolith::monolith_helpers::{
+    clear_cell, clear_phosphor_metadata, pick_pool_char,
+};
 use super::dragon_helpers::{
     dragon_noise_roll, dragon_state_duration, draw_dragon_cell, level_for_segment,
 };
@@ -817,6 +819,13 @@ impl DragonRain {
             if idx < self.drawn_gen.len() {
                 self.drawn_gen[idx] = gen;
             }
+            // NIGHT-hunter-29 (the phosphor ownership rule — the
+            // doc on clear_phosphor_metadata): a cell drawn this
+            // frame is owned by the draw, so its phosphor state
+            // is zeroed every frame — no ghost-vs-draw strobe at
+            // the freeze/resume window (the black hole's owner
+            // report generalized to the whole family tree).
+            clear_phosphor_metadata(cleanup, cell.col, cell.line);
         }
 
         // Pass 3: clear previous cells NOT redrawn this frame.

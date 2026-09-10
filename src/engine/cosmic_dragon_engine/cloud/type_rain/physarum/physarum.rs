@@ -83,7 +83,9 @@ use rand::{
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
+use super::super::monolith::monolith_helpers::{
+    clear_cell, clear_phosphor_metadata, pick_pool_char,
+};
 use super::physarum_helpers::{draw_physarum_cell, level_for_trail, sample_random, sample_trail};
 
 /// Heading-accumulator wrap threshold (radians, 64 turns). The
@@ -702,6 +704,10 @@ impl PhysarumRain {
             if idx < self.drawn_gen.len() {
                 self.drawn_gen[idx] = gen;
             }
+            // NIGHT-hunter-29 (the phosphor ownership rule — see the
+            // doc on clear_phosphor_metadata): the drawn cell is
+            // owned by the draw; no ghost-vs-draw strobe.
+            clear_phosphor_metadata(cleanup, cell.col, cell.line);
         }
 
         // Pass 3: clear previous cells NOT redrawn this frame.

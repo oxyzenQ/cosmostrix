@@ -117,6 +117,23 @@ noise-yardstick methodology, and the audit's codegen controls
 (the numbers in this section above are the historical 120x40
 truecolor signatures and remain valid for that profile).
 
+**NIGHT-hunter-29 (2026-09-10, the phosphor ownership rule):** the
+fix removed the phosphor ghost-vs-draw strobe that had been
+inflating every structured family's steady-state diff (the
+afterglow pass dimmed persistently-drawn cells, the family draw
+restored them — a period-2 full-population churn). 10s A/B at
+120x40 truecolor, `--scene sorgonemous_intrascals`: avg fps
+13028 -> 15743 (+20.8%), avg dirty cells/frame 789.4 -> 179.6
+(-77.3%, dirty ratio 16.45% -> 3.74%), avg render ms 0.0230 ->
+0.0062 (-73%) for +0.005ms of sim (the per-drawn-cell phosphor
+zeroing). `--scene monolith`: avg fps 40234 -> 50252 (+24.9%),
+dirty 270.7 -> 107.3 (-60.4%). The (entropy, gini) points shift
+accordingly (black hole entropy 6.11 -> 5.94, gini 0.544 ->
+0.580; monolith entropy 4.81 -> 3.92, gini 0.811 -> 0.894): the
+strobe's constant whole-field flicker had artificially flattened
+the density distribution and inflated the entropy — the
+post-fix points are the styles' true structure signatures.
+
 ## Key Metrics
 
 | Metric | Unit | What it tells you |

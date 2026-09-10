@@ -45,6 +45,7 @@ mod tests_quantum_v50;
 mod tests_quasar;
 mod tests_restart_hunt15;
 mod tests_restart_lts3;
+mod tests_resume_audit_hunt29;
 mod tests_resync_hunt25;
 mod tests_scene;
 mod tests_smoothstep_easing;

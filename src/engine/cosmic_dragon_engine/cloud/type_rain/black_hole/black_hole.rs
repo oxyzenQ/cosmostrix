@@ -155,7 +155,9 @@ use rand::{
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
-use super::super::monolith::monolith_helpers::{clear_cell, pick_pool_char};
+use super::super::monolith::monolith_helpers::{
+    clear_cell, clear_phosphor_metadata, pick_pool_char,
+};
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 use super::ball_helpers::{bump_level, conveyor_char, draw_ball_cell, level_for_ring_band};
 use super::formation::{
@@ -1288,6 +1290,17 @@ impl BlackHoleRain {
             if idx < self.drawn_gen.len() {
                 self.drawn_gen[idx] = gen;
             }
+            // NIGHT-hunter-29 (the phosphor ownership rule — the doc
+            // on clear_phosphor_metadata): a cell drawn this frame is
+            // owned by the draw; zeroing its phosphor state every
+            // frame kills the period-2 ghost-vs-draw strobe that was
+            // the owner's resume micro jump on this style (the whole
+            // drawn population — ball annulus, ring tiers, halo
+            // crowns, infall streaks — flickered between the drawn
+            // state and the A20 orphan ghost's dim palette tint at
+            // full rate, blend-independent, most visible exactly
+            // when the resume ramp freezes every other motion).
+            clear_phosphor_metadata(cleanup, cell.col, cell.line);
         }
 
         // Pass 3: clear previous cells NOT redrawn this frame.
