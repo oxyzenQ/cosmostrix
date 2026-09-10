@@ -36,8 +36,9 @@ use crate::constants::{
     AEOLIAN_CAPTURE_GAIN, AEOLIAN_CHARGE_RATE, AEOLIAN_DRAW_FLOOR, AEOLIAN_DROP_GRAVITY,
     AEOLIAN_DROP_TERMINAL, AEOLIAN_ECHO_CHANCE, AEOLIAN_ECHO_GAIN, AEOLIAN_LEVEL_HOT,
     AEOLIAN_MAX_AGE_SECS, AEOLIAN_PASS_GRAZE, AEOLIAN_PLUCK_GAIN, AEOLIAN_SEEK_DRAG,
-    AEOLIAN_SEEK_GAIN, AEOLIAN_SEEK_RANGE, AEOLIAN_SHIMMER_CHANCE, AEOLIAN_SIM_TIME_PER_CPS,
-    AEOLIAN_SPAWN_RATE_FLOOR, AEOLIAN_SPAWN_RATE_MULT, AEOLIAN_SURF_KICK, SPAWN_REMAINDER_CAP,
+    AEOLIAN_SEEK_GAIN, AEOLIAN_SEEK_RANGE, AEOLIAN_SEEK_VX_LIMIT, AEOLIAN_SHIMMER_CHANCE,
+    AEOLIAN_SIM_TIME_PER_CPS, AEOLIAN_SPAWN_RATE_FLOOR, AEOLIAN_SPAWN_RATE_MULT, AEOLIAN_SURF_KICK,
+    SPAWN_REMAINDER_CAP,
 };
 
 use super::super::super::render::DrawCtx;
@@ -334,7 +335,7 @@ impl AeolianRain {
                         d.vx += AEOLIAN_SEEK_GAIN * slope * dt_sim;
                         // Lateral velocity stays a bend, never a
                         // slide: clamp to a fraction of the fall.
-                        d.vx = d.vx.clamp(-3.0, 3.0);
+                        d.vx = d.vx.clamp(-AEOLIAN_SEEK_VX_LIMIT, AEOLIAN_SEEK_VX_LIMIT);
                     }
                 }
                 // Lateral drag + integration, wall-clamped.

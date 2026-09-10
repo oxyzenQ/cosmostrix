@@ -55,6 +55,12 @@
 /// Grid node spacing in screen units, both axes.
 pub(crate) const FLUX_GRID_SPACING: f32 = 2.0;
 
+/// P2G weight floor: a node whose accumulated particle weight sits
+/// at or below this epsilon is treated as empty (calm). Both the
+/// accumulator normalization and the gravity pass share the
+/// threshold — the fluid exists where the glyphs are.
+const FLUX_WEIGHT_FLOOR: f32 = 1.0e-6;
+
 /// One velocity sample in screen units per second.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct FluxVel {
@@ -161,7 +167,7 @@ impl FluxField {
         let n = self.u.len();
         for idx in 0..n {
             let w = self.w_acc[idx];
-            if w > 1.0e-6 {
+            if w > FLUX_WEIGHT_FLOOR {
                 self.u[idx] = self.u_acc[idx] / w;
                 self.v[idx] = self.v_acc[idx] / w;
             } else {
@@ -179,7 +185,7 @@ impl FluxField {
         self.v_prev.copy_from_slice(&self.v);
         if gravity != 0.0 {
             for idx in 0..self.v.len() {
-                if self.w_acc[idx] > 1.0e-6 {
+                if self.w_acc[idx] > FLUX_WEIGHT_FLOOR {
                     self.v[idx] += gravity * dt;
                 }
             }

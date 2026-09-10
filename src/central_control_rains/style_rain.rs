@@ -1424,6 +1424,11 @@ pub(crate) const AEOLIAN_SEEK_DRAG: f32 = 2.1;
 /// distance above the string and completes by impact.
 pub(crate) const AEOLIAN_SEEK_RANGE: f32 = 4.5;
 
+/// Lateral bend speed limit, in cells per sim-second, clamped
+/// symmetric: the seeking stays a bend, never a slide — vx is held
+/// to a fraction of the fall so a homing drop still reads as rain.
+pub(crate) const AEOLIAN_SEEK_VX_LIMIT: f32 = 3.0;
+
 /// Base capture probability at a string when the local field is
 /// dark (u = 0): 0.35 of falling glyphs slip through a silent
 /// string — the sky below stays alive with through-rain.
