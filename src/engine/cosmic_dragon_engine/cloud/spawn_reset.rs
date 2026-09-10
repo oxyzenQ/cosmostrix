@@ -188,7 +188,13 @@ impl super::Cloud {
         self.anomaly_zones.clear();
 
         if self.message_text.is_some() {
-            self.reset_message();
+            // NIGHT-hunter-26 (owner report 2026-09-10): resize must not
+            // restart the message reveal. Geometry-only relayout — the
+            // reveal timeline, engrave sparks, scorch smoke, and touch
+            // pulses all continue (pre-hunter-26 this was reset_message(),
+            // which wiped the sidecars and re-armed the movement detector:
+            // the visible "half little reload" on every mfs style).
+            self.relayout_message();
         }
 
         let now = Instant::now();

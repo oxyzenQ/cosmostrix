@@ -301,8 +301,14 @@ impl crate::cloud::Cloud {
         // timeline stalls, the head stops advancing, and `head_idx`
         // stops changing — puffs stop with it. No timeline (None)
         // means bench/edge paths: never spawn, keep decaying.
+        // NIGHT-hunter-26: FORWARD movement only (mirror of the engrave
+        // detector): a resize can remap content indices and move the
+        // head BACKWARD — not a newly scorch'd char, no puff.
+        // last_head == usize::MAX is the fresh-reveal sentinel.
         if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms) {
-            if head_idx != self.scorch.last_head {
+            if head_idx != self.scorch.last_head
+                && (self.scorch.last_head == usize::MAX || head_idx > self.scorch.last_head)
+            {
                 self.scorch.last_head = head_idx;
                 if self.effects_enabled {
                     self.spawn_scorch_puff(col, line, now);

@@ -277,7 +277,7 @@ impl super::Cloud {
             } else {
                 0.0
             };
-            if pf > 0.0 && pf > pulse_factor[p.msg_idx] {
+            if pf > 0.0 && p.msg_idx < pulse_factor.len() && pf > pulse_factor[p.msg_idx] {
                 pulse_factor[p.msg_idx] = pf;
                 pulse_color[p.msg_idx] = p.head_rgb;
             }

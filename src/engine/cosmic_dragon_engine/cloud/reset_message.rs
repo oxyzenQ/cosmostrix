@@ -4,10 +4,30 @@
 //! Message overlay reset — extracted from `cloud/mod.rs` to keep that
 //! file under the 800-LOC hard cap (see `src/RULES_LOC.md`).
 //!
-//! Owns `Cloud::reset_message()` — rebuilds the message cell grid
-//! (content + border) from `message_text`, computes the clockwise
-//! `border_order` (BN-01/02 Dragon Hunt), and clears stale
-//! `border_pulses`.
+//! Owns `Cloud::reset_message()` / `Cloud::relayout_message()` —
+//! rebuilds the message cell grid (content + border) from
+//! `message_text`, computes the clockwise `border_order`
+//! (BN-01/02 Dragon Hunt), and clears stale `border_pulses`.
+//!
+//! NIGHT-hunter-26 (owner report 2026-09-10): resize must NOT restart
+//! the message reveal. Two entry points now split the two concerns
+//! that used to be conflated here:
+//!
+//! - `reset_message()` — geometry rebuild + fresh-reveal resets
+//!   (sidecar reset + pulse wipe). Callers: `set_message` (new
+//!   message), `set_msg_fill_style` (reveal restarts by contract),
+//!   `restart_message_typewriter` (the 'r' relaunch — owner-excluded
+//!   from hunter-26).
+//! - `relayout_message()` — geometry rebuild ONLY. The reveal
+//!   timeline, the in-flight engrave sparks / scorch smoke, and the
+//!   touch pulses all CONTINUE (they are time-derived or physically
+//!   decaying; none is geometry-anchored). Callers: the resize path
+//!   (`reset_with_bounds`) and the border toggle
+//!   (`set_message_border` — the overlay gains/loses a border ring,
+//!   the message itself is not new). This is the fix for the
+//!   owner-visible "half little reload" on every mfs style during
+//!   resize: sparks/smoke vanished and a spurious burst fired at the
+//!   current reveal head because the movement detector re-armed.
 //!
 //! Implemented as a separate `impl Cloud` block (Rust allows multiple
 //! impl blocks across files for the same type).
@@ -16,7 +36,27 @@ use super::border;
 use super::state::MsgChr;
 
 impl super::Cloud {
+    /// Full reset: rebuild the layout AND arm a fresh reveal (sidecars
+    /// and pulses dropped). Only for paths where the reveal timeline
+    /// itself restarts (set_message, set_msg_fill_style,
+    /// restart_message_typewriter).
     pub(crate) fn reset_message(&mut self) {
+        self.relayout_message();
+        // Pulses from the previous overlay are stale; drop them.
+        self.border_pulses.clear();
+        // v80.0.0-beta.1 engrave/scorch: same staleness — sparks/smoke
+        // spawned against the old overlay must not keep flying, and the
+        // movement detector must re-arm for the fresh reveal.
+        self.engrave.reset();
+        self.scorch.reset();
+    }
+
+    /// Geometry-only rebuild (NIGHT-hunter-26): re-center the overlay
+    /// for the current dimensions, keep the reveal timeline, the
+    /// in-flight sidecars, and the touch pulses running. A resize is an
+    /// interrupt, not a replay — same philosophy as the Phase D
+    /// drift-state contract in `reset_with_bounds`.
+    pub(crate) fn relayout_message(&mut self) {
         let Some(text) = self.message_text.as_deref() else {
             return;
         };
@@ -236,12 +276,12 @@ impl super::Cloud {
             self.message_left_col = 0;
             self.message_right_col = 0;
         }
-        // Pulses from the previous overlay are stale; drop them.
-        self.border_pulses.clear();
-        // v80.0.0-beta.1 engrave/scorch: same staleness — sparks/smoke spawned
-        // against the old layout must not keep flying, and the
-        // movement detector must re-arm for the fresh reveal.
-        self.engrave.reset();
-        self.scorch.reset();
+        // NIGHT-hunter-26: pulses + engrave/scorch sidecars intentionally
+        // SURVIVE here (see relayout_message doc). In-flight sparks/smoke
+        // are physically decaying particles, not layout-anchored state;
+        // the draw pass bounds-checks every pulse index against the
+        // rebuilt grid (message_draw.rs), and the engrave/scorch movement
+        // detectors only fire on FORWARD head movement (no spurious
+        // burst at the current head after a remap).
     }
 }

@@ -260,8 +260,17 @@ impl crate::cloud::Cloud {
         // timeline stalls, the head stops advancing, and `head_idx`
         // stops changing — bursts stop with it. No timeline (None)
         // means bench/edge paths: never spawn, keep decaying.
+        // NIGHT-hunter-26: FORWARD movement only. A resize can remap
+        // content indices (narrow terminal re-wraps the text), which
+        // moves the head BACKWARD — that is not a newly engraved char,
+        // and bursting there was half of the owner's reported
+        // "half little reload" on resize. last_head == usize::MAX is
+        // the fresh-reveal sentinel: the first burst of a fresh reveal
+        // still fires.
         if let (Some((col, line)), Some(_)) = (head_pos, elapsed_ms) {
-            if head_idx != self.engrave.last_head {
+            if head_idx != self.engrave.last_head
+                && (self.engrave.last_head == usize::MAX || head_idx > self.engrave.last_head)
+            {
                 self.engrave.last_head = head_idx;
                 if self.effects_enabled {
                     // Palette head color (near-white on most schemes):

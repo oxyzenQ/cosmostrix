@@ -9,6 +9,36 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunter-26 — resize no longer half-reloads the message overlay: the mfs reveal, sparks, smoke, and touch pulses all continue through a resize (the 'r' shortkey remains the only full replay)
+
+- Owner report: with msg mode active, resizing the terminal made
+  every mfs style "like want reload but just half little" — subtle
+  enough to need sharp eyes. Root cause: the resize path's
+  `reset_message()` conflated the geometry rebuild (legitimately
+  resize-dependent) with the fresh-reveal resets (sidecar wipe +
+  movement-detector re-arm). The reveal timeline itself never
+  stopped, but every in-flight engrave spark / scorch smoke puff /
+  border-touch pulse vanished, and the re-armed detector fired a
+  spurious burst at the long-revealed head on the next frame.
+- Surgical split: `reset_message()` = `relayout_message()` +
+  fresh-reveal resets. Resize (`reset_with_bounds`) and the 'm'/'mb'
+  border toggle now call the geometry-only `relayout_message()` —
+  a resize is an interrupt, not a replay (same philosophy as the
+  Phase D drift-state contract). `set_message`,
+  `set_msg_fill_style`, and the 'r' restart keep the full reset —
+  the owner-excluded replay paths are pinned by tests to stay
+  restarts.
+- The engrave/scorch movement detectors now fire on FORWARD head
+  movement only: a height-truncating resize moves the reveal head
+  BACKWARD (the budget clamps to the smaller wrapped layout), and
+  bursting on a backward jump was the phantom re-engraving flash.
+- The border-pulse draw pass bounds-checks `msg_idx` against the
+  rebuilt grid (pulses survive layout rebuilds now, so a stale
+  index is dropped instead of indexing out of bounds).
+- Nine new regression tests; full suite 2712 passed / 0 failed.
+  Root cause + evidence: docs/research/
+  NIGHT_HUNTER_26_MSG_RESIZE_RELOAD.md.
+
 ### stability: NIGHT-lts-4 — the master endurance audit: CPU, memory, fd/threads, GPU-freedom, and bloat-freedom all measured at peak; zero code changes (the report + reusable probe are the product)
 
 - New evidence machine: scripts/endurance_probe.py — release binary

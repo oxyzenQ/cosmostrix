@@ -30,6 +30,7 @@ mod tests_msg_fill_hologram;
 mod tests_msg_fill_radar;
 mod tests_msg_fill_scorch;
 mod tests_msg_fill_style;
+mod tests_msg_resize_hunter26;
 mod tests_murmuration;
 mod tests_neural;
 mod tests_phosphor;

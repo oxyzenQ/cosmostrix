@@ -772,7 +772,13 @@ impl Cloud {
     pub fn set_message_border(&mut self, on: bool) {
         self.message_border = on;
         if self.message_text.is_some() {
-            self.reset_message();
+            // NIGHT-hunter-26: the border toggle is a LAYOUT change, not
+            // a new message — the reveal timeline keeps running, so the
+            // sidecars and touch pulses keep running too (geometry-only
+            // relayout). The pre-hunter-26 reset_message() call here
+            // produced the same vanish + spurious-burst half-reload the
+            // owner reported for resize.
+            self.relayout_message();
             self.force_draw_everything = true;
         }
     }
