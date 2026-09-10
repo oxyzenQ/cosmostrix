@@ -55,7 +55,7 @@ use std::time::{Duration, Instant};
 
 use crossterm::style::Color;
 
-use super::render::DrawCtx;
+use super::render::{DrawCtx, PaletteLadder};
 use super::Cloud;
 // v50 (2026-08-17) border gradient fix: expose the interpolation helper to
 // the test submodule so tests/tests_border_gradient.rs can verify the smooth
@@ -244,6 +244,7 @@ fn charset_wave_uses_old_rows_below_and_new_rows_above() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -478,6 +479,7 @@ fn color_uses_previous_palette_below_wave_line() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 1,
         transitioning: true,
         color_map: &[],

@@ -26,7 +26,7 @@ use crate::palette;
 use crate::runtime::{BoldMode, ColorMode, MonolithSize};
 use crate::terminal::blank_cell;
 
-use super::super::super::render::DrawCtx;
+use super::super::super::render::{DrawCtx, PaletteLadder};
 use super::monolith::{
     ActivationParams, BrightnessLevel, DrawnCell, DrawnCellKind, MonolithCleanup, MonolithStream,
     Segment, SegmentKind, SpineTone, MAX_SEGMENTS,
@@ -326,6 +326,15 @@ pub(crate) fn color_for_level(
     } else {
         &[]
     };
+    // NIGHT-lts-5b: the brightness ladder rides alongside the slices
+    // (derived once per DrawCtx construction), so the per-cell cost is
+    // one array lookup instead of re-deriving the four stop indices
+    // (three integer divisions on a loop-invariant `last`).
+    let mut ladder = if slot_idx < MAX_PALETTE_SLOTS {
+        ctx.palette_ladders[slot_idx]
+    } else {
+        PaletteLadder::EMPTY
+    };
     if colors.is_empty() {
         let active_idx = ctx.active_palette_slot as usize;
         colors = if active_idx < MAX_PALETTE_SLOTS {
@@ -333,27 +342,27 @@ pub(crate) fn color_for_level(
         } else {
             &[]
         };
+        ladder = if active_idx < MAX_PALETTE_SLOTS {
+            ctx.palette_ladders[active_idx]
+        } else {
+            PaletteLadder::EMPTY
+        };
     }
     if colors.is_empty() {
         return None;
     }
 
-    let last = colors.len().saturating_sub(1);
-    let first_visible = usize::from(last > 0);
     // v17 mastery: raised palette indices for vivid high-contrast rain.
     // Old values were too dim — body cells (Ghost/Dim/Mid) were at 20-40%
     // of palette brightness, making the rain look dark/dim.
-    // New values: Ghost/Dim at 33%, Mid at 60%, Hot at 85%, Core at 100%.
-    let ghost_idx = (last / 3).max(first_visible); // visible trace at 33%
+    // New values: Ghost/Dim at 33%, Mid at 60%, Hot at 85%, Core at 100%
+    // (equations now live in PaletteLadder::from_len — values unchanged).
     let idx = match level {
-        BrightnessLevel::Ghost => ghost_idx,
-        BrightnessLevel::Dim => ghost_idx,
-        // Mid: raised from 40% to 60% for clear body visibility
-        BrightnessLevel::Mid => (last * 3) / 5,
-        // Hot: raised from 80% to 85% for sharper afterglow contrast
-        BrightnessLevel::Hot => (last * 17) / 20,
-        // Core: always brightest
-        BrightnessLevel::Core => last,
+        BrightnessLevel::Ghost => ladder.ghost_idx,
+        BrightnessLevel::Dim => ladder.ghost_idx,
+        BrightnessLevel::Mid => ladder.mid_idx,
+        BrightnessLevel::Hot => ladder.hot_idx,
+        BrightnessLevel::Core => ladder.core_idx,
     };
     let base_color = colors[idx];
     let factor = factor.max(0.0);

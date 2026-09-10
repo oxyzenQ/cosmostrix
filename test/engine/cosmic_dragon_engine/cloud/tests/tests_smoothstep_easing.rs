@@ -246,7 +246,7 @@ fn diagonal_stagger_column_0_has_zero_offset() {
     // time as the pre-HUNT-15 behavior (no regression for the leftmost
     // column). Verify via `color_uses_previous_palette`: at the wave line
     // boundary, column 0 behaves exactly like the pre-stagger comparison.
-    use super::super::render::DrawCtx;
+    use super::super::render::{DrawCtx, PaletteLadder};
     use crate::constants::MAX_PALETTE_SLOTS;
     use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
     use crossterm::style::Color;
@@ -267,6 +267,7 @@ fn diagonal_stagger_column_0_has_zero_offset() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -311,7 +312,7 @@ fn diagonal_stagger_column_n_converts_later_than_column_0() {
     // At the same wave_line, column N should still use the OLD palette
     // when column 0 has already converted to the new one. This is the
     // core diagonal property: left converts first, right converts last.
-    use super::super::render::DrawCtx;
+    use super::super::render::{DrawCtx, PaletteLadder};
     use crate::constants::MAX_PALETTE_SLOTS;
     use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
     use crossterm::style::Color;
@@ -332,6 +333,7 @@ fn diagonal_stagger_column_n_converts_later_than_column_0() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -386,7 +388,7 @@ fn diagonal_stagger_capped_at_max_frac_of_lines() {
     // 200 * 0.15 = 30 rows. With lines=10, the cap is 10 * 0.30 = 3.0.
     // So column 200's stagger = min(30, 3) = 3.0 — capped. Verify that
     // column 200 and column 100 have the SAME stagger (both at the cap).
-    use super::super::render::DrawCtx;
+    use super::super::render::{DrawCtx, PaletteLadder};
     use crate::constants::MAX_PALETTE_SLOTS;
     use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
     use crossterm::style::Color;
@@ -407,6 +409,7 @@ fn diagonal_stagger_capped_at_max_frac_of_lines() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],

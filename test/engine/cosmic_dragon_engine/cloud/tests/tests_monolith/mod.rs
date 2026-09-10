@@ -13,6 +13,7 @@
 mod charset;
 mod core;
 mod depth;
+mod palette_ladder;
 mod residue;
 mod transitions;
 

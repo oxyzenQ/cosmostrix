@@ -138,7 +138,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
     // distinct levels. On a black background, this prevents the "flat wall
     // of grey" muddy residue artifact where levels become indistinguishable.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::DrawCtx;
+    use crate::cloud::render::{DrawCtx, PaletteLadder};
     use crossterm::style::Color;
 
     let colors: Vec<Color> = (0..=9)
@@ -164,6 +164,7 @@ fn hero_spine_trail_empty_space_have_distinct_brightness() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -480,7 +481,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
     // strictly increasing luminance. This is the core cinematic depth
     // invariant — flattening it creates the "flat wall of grey" artifact.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::DrawCtx;
+    use crate::cloud::render::{DrawCtx, PaletteLadder};
 
     let colors: Vec<Color> = (0..=9)
         .map(|i| Color::Rgb {
@@ -505,6 +506,7 @@ fn depth_lab_brightness_level_four_tier_hierarchy() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -610,7 +612,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
     // wall instead of clear depth hierarchy. Verify that ghost cells
     // on dark backgrounds use very low luminance values.
     use crate::cloud::monolith::BrightnessLevel;
-    use crate::cloud::render::DrawCtx;
+    use crate::cloud::render::{DrawCtx, PaletteLadder};
 
     // Three distinct dark palette profiles
     let profiles: Vec<Vec<Color>> = vec![
@@ -659,6 +661,7 @@ fn depth_lab_no_muddy_residue_on_dark_backgrounds() {
             glitch_bright: false,
             glitch_dim: true,
             palette_slices,
+            palette_ladders: PaletteLadder::from_slices(&palette_slices),
             active_palette_slot: 0,
             transitioning: false,
             color_map: &[],

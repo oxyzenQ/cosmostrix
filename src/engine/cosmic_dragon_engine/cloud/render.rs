@@ -74,6 +74,78 @@ pub(crate) struct FlashWave {
     pub birth: std::time::Instant,
 }
 
+/// Precomputed level-to-palette-stop indices for the structured rain
+/// families (NIGHT-lts-5b). The brightness-ladder mapping depends only
+/// on the palette length, so the four indices are derived once per
+/// `DrawCtx` construction (per frame) instead of per drawn cell —
+/// the same equations as the old inline math in `color_for_level`
+/// (v17 mastery values, bit-identical by construction).
+///
+/// The fields are raw `usize` stops (not a `BrightnessLevel` keyed
+/// method) so this render-layer struct stays independent of the
+/// monolith type tree; `color_for_level` performs the level match
+/// at its own call site.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PaletteLadder {
+    /// Ghost/Dim stop: visible trace at 33% (v17 mastery — Ghost/Dim
+    /// at 33%, Mid at 60%, Hot at 85%, Core at 100% of the palette).
+    pub ghost_idx: usize,
+    /// Mid stop: 60% for clear body visibility (raised from 40%).
+    pub mid_idx: usize,
+    /// Hot stop: 85% for sharper afterglow contrast (raised from 80%).
+    pub hot_idx: usize,
+    /// Core stop: always the brightest (last) stop.
+    pub core_idx: usize,
+}
+
+impl PaletteLadder {
+    /// All-zero ladder for empty palette slots. Never indexed against
+    /// a non-empty slice: `color_for_level` returns early when the
+    /// resolved slice is empty.
+    pub(crate) const EMPTY: PaletteLadder = PaletteLadder {
+        ghost_idx: 0,
+        mid_idx: 0,
+        hot_idx: 0,
+        core_idx: 0,
+    };
+
+    /// Derive the ladder from a palette's stop count. Mirrors the
+    /// equations `color_for_level` evaluated per drawn cell before
+    /// NIGHT-lts-5b (values unchanged; only the evaluation site moved).
+    #[must_use]
+    pub(crate) fn from_len(len: usize) -> PaletteLadder {
+        let last = len.saturating_sub(1);
+        let first_visible = usize::from(last > 0);
+        PaletteLadder {
+            // Visible trace at 33% — `max(first_visible)` keeps a
+            // single-stop palette visible instead of pinning index 0
+            // below the visible floor.
+            ghost_idx: (last / 3).max(first_visible),
+            // 60% of the palette for body visibility.
+            mid_idx: (last * 3) / 5,
+            // 85% for sharper afterglow contrast.
+            hot_idx: (last * 17) / 20,
+            // Core is always the brightest stop.
+            core_idx: last,
+        }
+    }
+
+    /// Derive one ladder per palette slot, aligned with `DrawCtx`'s
+    /// `palette_slices` (same order, same lengths — the two fields
+    /// stay consistent by construction when built through this
+    /// helper).
+    #[must_use]
+    pub(crate) fn from_slices(
+        slices: &[&[Color]; MAX_PALETTE_SLOTS],
+    ) -> [PaletteLadder; MAX_PALETTE_SLOTS] {
+        let mut ladders = [PaletteLadder::EMPTY; MAX_PALETTE_SLOTS];
+        for (ladder, slice) in ladders.iter_mut().zip(slices.iter()) {
+            *ladder = PaletteLadder::from_len(slice.len());
+        }
+        ladders
+    }
+}
+
 /// Read-only drawing context passed to `Droplet::draw` to avoid borrowing
 /// the entire `Cloud` (which would conflict with the mutable droplet loop).
 pub(crate) struct DrawCtx<'a> {
@@ -103,6 +175,14 @@ pub(crate) struct DrawCtx<'a> {
     /// Per-slot palette color arrays for generation-based rendering.
     /// Index by droplet's `palette_slot` to resolve its birth palette.
     pub palette_slices: [&'a [Color]; MAX_PALETTE_SLOTS],
+
+    /// Per-slot precomputed brightness-ladder indices (NIGHT-lts-5b),
+    /// aligned with `palette_slices` by `PaletteLadder::from_slices`.
+    /// Replaces the per-drawn-cell level-to-stop divisions in
+    /// `color_for_level` (the structured families' shared ladder —
+    /// monolith, lorenz, vortex, dragon, physarum, flux and the
+    /// inheritors) with one array lookup per cell.
+    pub palette_ladders: [PaletteLadder; MAX_PALETTE_SLOTS],
 
     /// Which palette slot is the currently active (latest) one.
     /// Used for transition glow effects on new-generation streams.

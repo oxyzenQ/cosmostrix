@@ -27,7 +27,7 @@ use super::neural::{NeurSpawnParams, NeurStep, NeuralRandom};
 use super::physarum::{PhysarumRandom, PhysarumSpawnParams, PhysarumStep};
 use super::post_rain::PostRainInputs;
 use super::quasar::{QuasSpawnParams, QuasStep, QuasarRandom};
-use super::render::{DrawCtx, FlashWaveCtx};
+use super::render::{DrawCtx, FlashWaveCtx, PaletteLadder};
 use super::solar_flare::{SolarFlareSpawnParams, SolarFlareStep, SolarRandom};
 use super::vortex::{VortexRandom, VortexSpawnParams, VortexStep};
 use smallvec::SmallVec;
@@ -1348,6 +1348,11 @@ impl super::Cloud {
                 *slot = &p.colors;
             }
         }
+        // NIGHT-lts-5b: derive the per-slot brightness ladders from the
+        // same slices, once per frame. color_for_level previously
+        // re-derived the four level-to-stop indices per drawn cell
+        // (three integer divisions on a loop-invariant `last`).
+        let palette_ladders = PaletteLadder::from_slices(&palette_slices);
 
         let transitioning = self.transition_start.is_some();
         let charset_wave_line = if self.charset_transition_start.is_some() {
@@ -1644,6 +1649,7 @@ impl super::Cloud {
             glitch_bright,
             glitch_dim,
             palette_slices,
+            palette_ladders,
             active_palette_slot: self.active_palette_slot,
             transitioning,
             color_map: &self.color_map,

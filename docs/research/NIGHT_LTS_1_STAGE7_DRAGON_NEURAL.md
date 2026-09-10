@@ -75,7 +75,11 @@ quantification — the honest peak verdict.
    capacity-pre-allocated. Skipped.
 6. `color_for_level` palette-index ladder — the stages 2-6
    cross-family verdicts stand (signature shared by six families,
-   sub-microsecond, LLVM-CSE'd). Cited.
+   sub-microsecond, LLVM-CSE'd). Cited. (Resolved after the audit:
+   the owner approved the hoist as NIGHT-lts-5b — see
+   NIGHT_LTS_5_PALETTE_LADDER.md; the A/B confirmed the verdicts:
+   no scene gained, the change ships as the explicit-semantics
+   contract.)
 7. Dragon sway/circle/noise coefficients (0.7/0.3, 13.7, 7.3) —
    characteristic formula coefficients documented in place; naming
    them adds no tuning surface. Skipped.

@@ -12,7 +12,7 @@ use super::{
     Frame,
 };
 use crate::cloud::monolith::BrightnessLevel;
-use crate::cloud::render::DrawCtx;
+use crate::cloud::render::{DrawCtx, PaletteLadder};
 use crate::constants::MAX_PALETTE_SLOTS;
 use crate::runtime::{BoldMode, ColorMode, ColorPipeline};
 use crossterm::style::Color;
@@ -153,6 +153,7 @@ fn monolith_color_for_level_ghost_is_faintest() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
@@ -221,6 +222,7 @@ fn monolith_background_muddy_residue_guard() {
         glitch_bright: false,
         glitch_dim: true,
         palette_slices,
+        palette_ladders: PaletteLadder::from_slices(&palette_slices),
         active_palette_slot: 0,
         transitioning: false,
         color_map: &[],
