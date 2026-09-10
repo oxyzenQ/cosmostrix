@@ -48,6 +48,11 @@ use std::sync::Mutex;
 
 use super::configfile::{default_config_file_path, parse_config_text, ParsedConfig};
 
+// NIGHT-depthtest-2 hunt-30: the platform system path lives HERE (the
+// loader's default-path fallback is its primary consumer) and is
+// re-exported through `configfile` so `config_candidate_paths()` and
+// the tests share the same one definition.
+
 /// Load config file and return a HashMap of key → value pairs.
 /// Returns empty HashMap if file doesn't exist or can't be read.
 /// Warns on stderr for unrecognized keys (likely typos).
@@ -95,6 +100,30 @@ pub(crate) fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfi
     parsed
 }
 
+/// The platform's DOCUMENTED system-wide config path — the
+/// package-manager convention. FreeBSD installs ports/packages under
+/// `/usr/local/etc` (its `/etc` is reserved for the base system);
+/// everywhere else the convention is `/etc`.
+///
+/// NIGHT-depthtest-2 hunt-30: before this helper, both the loader
+/// fallback and `config_candidate_paths()` hardcoded `/etc`, so on
+/// FreeBSD a system-wide install was silently never found (startup
+/// ran pure defaults, --testconf/--config-path reported a missing
+/// file, and the live-reload watcher never watched the real config).
+#[cfg(target_os = "freebsd")]
+pub(crate) fn system_wide_config_path() -> PathBuf {
+    PathBuf::from("/usr/local/etc")
+        .join(crate::constants::CONFIG_DIR_NAME)
+        .join(crate::constants::CONFIG_FILE_NAME)
+}
+
+#[cfg(not(target_os = "freebsd"))]
+pub(crate) fn system_wide_config_path() -> PathBuf {
+    PathBuf::from("/etc")
+        .join(crate::constants::CONFIG_DIR_NAME)
+        .join(crate::constants::CONFIG_FILE_NAME)
+}
+
 /// Single-path disk parse with the system-wide fallback.
 ///
 /// `allow_system_fallback` mirrors the historical contract: only a
@@ -118,9 +147,13 @@ fn parse_config_at(path: &Path, allow_system_fallback: bool) -> ParsedConfig {
     let content = match crate::config_io::read_config_capped(path) {
         Ok(c) => c,
         Err(e) => {
-            // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
+            // Fallback: try the platform's system-wide config (see
+            // configfile::system_wide_config_path — /usr/local/etc on
+            // FreeBSD per the ports/packages convention, /etc
+            // elsewhere; NIGHT-depthtest-2 hunt-30 fixed the hardcoded
+            // /etc that silently missed FreeBSD system installs).
             if allow_system_fallback {
-                let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
+                let system_path = system_wide_config_path();
                 match crate::config_io::read_config_capped(&system_path) {
                     Ok(sys_content) => sys_content,
                     Err(_) => return ParsedConfig::default(),

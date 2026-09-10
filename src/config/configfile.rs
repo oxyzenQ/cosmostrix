@@ -37,7 +37,9 @@ use crate::scene_custom::is_scene_custom_config_key;
 
 // Loader family re-export (NIGHT-hunter-22 extraction — see
 // configfile_load.rs for the memo that collapsed the 9x startup parse).
-pub(crate) use super::configfile_load::{load_config_file, load_config_file_full};
+pub(crate) use super::configfile_load::{
+    load_config_file, load_config_file_full, system_wide_config_path,
+};
 
 pub(crate) const USER_CONFIG_KEYS: &[&str] = &[
     "scene",
@@ -510,7 +512,11 @@ pub(crate) fn resolve_watcher_config_path(cli_config: Option<&Path>) -> (PathBuf
 /// 1. `~/.config/cosmostrix/config.toml` (XDG default, where users edit)
 /// 2. `$XDG_CONFIG_HOME/cosmostrix/config.toml` (if XDG_CONFIG_HOME is
 ///    set DIFFERENTLY from $HOME/.config — covers system-wide setups)
-/// 3. `/etc/cosmostrix/config.toml` (system-wide, installed by package managers)
+/// 3. The platform's system-wide path (see `system_wide_config_path`:
+///    `/usr/local/etc/cosmostrix/config.toml` on FreeBSD — its
+///    ports/packages convention, with the Linux-style `/etc` spelling
+///    kept as a trailing fallback for hand-placed configs — and
+///    `/etc/cosmostrix/config.toml` everywhere else)
 /// 4. `/sdcard/cosmostrix/config.toml` (Termux external storage)
 ///
 /// On Termux, candidate #1 is always `~/.config/cosmostrix/config.toml`
@@ -554,12 +560,23 @@ pub(crate) fn config_candidate_paths() -> Vec<PathBuf> {
         }
     }
 
-    // Candidate #4: /etc/cosmostrix/config.toml (system-wide).
-    let system = PathBuf::from("/etc")
-        .join(CONFIG_DIR_NAME)
-        .join(CONFIG_FILE_NAME);
+    // Candidate #4: the platform's system-wide config (see
+    // system_wide_config_path — /usr/local/etc on FreeBSD, /et al.
+    // elsewhere; hunt-30). On FreeBSD the Linux-style /etc spelling
+    // stays in the list AFTER the convention path for hand-placed
+    // configs; non-FreeBSD platforms keep /etc-only behavior.
+    let system = system_wide_config_path();
     if !candidates.contains(&system) {
         candidates.push(system);
+    }
+    #[cfg(target_os = "freebsd")]
+    {
+        let legacy_etc = PathBuf::from("/etc")
+            .join(CONFIG_DIR_NAME)
+            .join(CONFIG_FILE_NAME);
+        if !candidates.contains(&legacy_etc) {
+            candidates.push(legacy_etc);
+        }
     }
 
     // Candidate #5: /sdcard/cosmostrix/config.toml (Termux external

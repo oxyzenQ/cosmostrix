@@ -64,15 +64,30 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
   `gate-keepers.sh` as check 13, so CI enforces the rule. The audit
   passes clean today: the codebase prose was already English; the
   detector + gate make it stay that way.
-- Tests: 24 new regression tests
+- hunt-30 (found by the audit, not reported): the FreeBSD
+  system-wide config path `/usr/local/etc/cosmostrix/config.toml`
+  was whitelisted for reading and documented everywhere, but was
+  never a candidate in `config_candidate_paths()` and never the
+  loader's default-path fallback (both hardcoded `/etc`). A
+  system-wide FreeBSD install silently never loaded its config —
+  startup ran pure defaults, `--testconf` and `--config-path`
+  reported a missing file, and the live-reload watcher never
+  watched the real config. New `system_wide_config_path()` (owned
+  by the loader, re-exported through `configfile`) gives both call
+  sites one definition: `/usr/local/etc` on FreeBSD (the
+  ports/packages convention, with the Linux-style `/etc` kept as a
+  trailing fallback candidate for hand-placed configs), `/etc`
+  elsewhere — non-FreeBSD behavior is unchanged.
+- Tests: 25 new regression tests
   (`test/tests/depthtest_cli_config2.rs`) pinning the suggestion
   validator contract (both owner transcripts), parser duplicate
   detection (custom blocks, case-insensitive sections, root keys,
   ambient slots, promoted-key non-interference), the three-surface
   lockstep, explicit-read-error behavior (missing vs
   empty-existing vs comment-only), the case-insensitive extension
-  rule, and the dump-template pure-English invariant. Full suite:
-  2788 passed / 0 failed.
+  rule, the dump-template pure-English invariant, and the
+  platform-documented system-wide candidate. Full suite:
+  2789 passed / 0 failed.
 
 ### fix: NIGHT-hunter-29 — resume micro-jump on the structured rain families: the phosphor ownership rule (the black hole strobe, audited and fixed across every rain type)
 

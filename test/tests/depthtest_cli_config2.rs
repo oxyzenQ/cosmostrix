@@ -490,3 +490,42 @@ fn dump_template_non_ascii_lines_are_charset_data_only() {
         );
     }
 }
+
+// ─────────────────────────────────────────────────────────────────
+// Section 6: system-wide config candidates (hunt-30, FreeBSD)
+// ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn candidate_paths_include_the_documented_system_wide_config() {
+    // The platform's DOCUMENTED system path must be a candidate:
+    // /usr/local/etc/cosmostrix/config.toml on FreeBSD (the
+    // ports/packages convention its /etc is reserved against),
+    // /etc/cosmostrix/config.toml everywhere else. Pre-fix, both the
+    // candidate list and the loader fallback hardcoded /etc — a
+    // system-wide FreeBSD install silently never loaded and the
+    // watcher never watched it.
+    let candidates = crate::configfile::config_candidate_paths();
+    let expected = crate::configfile::system_wide_config_path();
+    assert!(
+        candidates.contains(&expected),
+        "system-wide path {expected:?} must be a candidate: {candidates:?}"
+    );
+    // The candidate list stays duplicate-free regardless of platform.
+    let mut seen = std::collections::HashSet::new();
+    for c in &candidates {
+        assert!(seen.insert(c.clone()), "duplicate candidate: {c:?}");
+    }
+    // The loader fallback and the candidate list share ONE definition
+    // (system_wide_config_path) — pin the per-platform spelling so a
+    // future path change is a loud test failure, not a silent miss.
+    #[cfg(target_os = "freebsd")]
+    assert!(
+        expected.ends_with("usr/local/etc/cosmostrix/config.toml"),
+        "FreeBSD system path must follow the ports convention: {expected:?}"
+    );
+    #[cfg(not(target_os = "freebsd"))]
+    assert!(
+        expected.ends_with("/etc/cosmostrix/config.toml") && !expected.starts_with("/usr/local"),
+        "non-FreeBSD system path stays the historical /etc: {expected:?}"
+    );
+}
