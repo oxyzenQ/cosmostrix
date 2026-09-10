@@ -33,7 +33,18 @@ use super::super::monolith::monolith_helpers::{
 use super::super::monolith::{BrightnessLevel, MonolithCleanup};
 
 use super::dna_helix::{DnaCell, DnaHelixRain};
-use super::helix::{charge_level, fork_sigma, rung_line_for_idx, ForkPhase};
+use super::helix::{charge_level, fork_sigma, rung_depth_blend, rung_line_for_idx, ForkPhase};
+
+/// Law 1's front-deep Hot threshold: a strand crossing reads Hot
+/// once its depth passes this band (the crossing X's bright front
+/// strand over the dim back one).
+const STRAND_DEPTH_HOT: f32 = 0.55;
+
+/// Law 2's depth-blend band: a rung cell steps its level up or
+/// down once the blended depth crosses this fraction of the
+/// strand depth (the 3D read without a z-buffer). Symmetric
+/// about zero — the two comparison sites share it.
+const RUNG_DEPTH_BLEND_BAND: f32 = 0.30;
 
 impl DnaHelixRain {
     /// Draw pass — the strands (back then front), then the rungs
@@ -71,8 +82,10 @@ impl DnaHelixRain {
         if self.genome.molecule_visible() {
             for line in 0..ctx.lines {
                 let line_f = line as f32;
-                let (ax, ad) = self.genome.strand_a(line_f);
-                let (bx, bd) = self.genome.strand_b(line_f);
+                // One projection read per line: strand A plus the
+                // mirror (the pair contract — strand_a evaluated
+                // once, not once per strand).
+                let ((ax, ad), (bx, bd)) = self.genome.strand_pair(line_f);
                 // The fork's lead-in bow also lifts the strands above
                 // the fork slightly (the Y's arms rise) — a small
                 // upward bow reads as the strands peeling apart.
@@ -106,7 +119,11 @@ impl DnaHelixRain {
                 continue;
             }
             let rung_line = rung_line_for_idx(idx, ctx.lines);
-            let Some((left, right)) = self.genome.rung_span(idx) else {
+            // The rung's geometry in one projection (span ends +
+            // the strand A depth the per-cell blend reads): the
+            // per-rung invariant, hoisted out of the span-cell
+            // loop — the per-cell work is the blend alone.
+            let Some((left, right, ad)) = self.genome.rung_geometry(idx) else {
                 continue;
             };
             let level = charge_level(rung.charge);
@@ -137,7 +154,7 @@ impl DnaHelixRain {
                     continue;
                 }
                 let t = ((col as f32 - left) / span).clamp(0.0, 1.0);
-                let depth = self.genome.rung_depth(idx, t).unwrap_or(0.0);
+                let depth = rung_depth_blend(ad, t);
                 let cell_level = depth_level(level, depth);
                 let ch = if offset == 0 {
                     base_l
@@ -283,7 +300,7 @@ fn draw_strand_cell(
 
 /// Law 1's ladder read: the strand depth to brightness rung.
 pub(crate) fn strand_level(depth: f32) -> BrightnessLevel {
-    if depth > 0.55 {
+    if depth > STRAND_DEPTH_HOT {
         BrightnessLevel::Hot
     } else if depth >= 0.0 {
         BrightnessLevel::Mid
@@ -295,9 +312,9 @@ pub(crate) fn strand_level(depth: f32) -> BrightnessLevel {
 /// Law 2's depth blend: the rung's base level (from the charge)
 /// stepped up on the front half, down on the back half.
 fn depth_level(level: BrightnessLevel, depth: f32) -> BrightnessLevel {
-    if depth > 0.30 {
+    if depth > RUNG_DEPTH_BLEND_BAND {
         step_up_level(level)
-    } else if depth < -0.30 {
+    } else if depth < -RUNG_DEPTH_BLEND_BAND {
         step_down_level(level, 1)
     } else {
         level

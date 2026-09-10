@@ -370,33 +370,50 @@ impl DnaGenome {
     /// Depth in [-1, 1]: positive is front (toward the viewer).
     pub(crate) fn strand_a(&self, line: f32) -> (f32, f32) {
         let theta = self.strand_angle(line);
-        let x = self.cx + self.effective_radius(line) * theta.sin();
-        (x, theta.cos())
+        // One trig evaluation per read (the stage-4 physarum
+        // precedent: the pair at one angle ships as sin_cos — and
+        // this stage's .text-md5 control proved the baseline binary
+        // already emits the fused call here, so the fusion is
+        // codegen-identical, explicit optimizer-independent
+        // semantics).
+        let (sin_t, cos_t) = theta.sin_cos();
+        let x = self.cx + self.effective_radius(line) * sin_t;
+        (x, cos_t)
     }
 
-    /// Strand B position (x, depth) at line y — the minus strand
-    /// (theta + pi: x mirrored, depth negated).
-    pub(crate) fn strand_b(&self, line: f32) -> (f32, f32) {
+    /// Both strands at line y in one projection — strand A's
+    /// closed form plus the theta+pi mirror (x mirrored about
+    /// the axis, depth negated — strand_b's formula on the shared
+    /// evaluation: one strand_a read per line instead of two, the
+    /// draw pass's strand-pass contract). Bit-identical to
+    /// strand_a(line) followed by the mirror arithmetic.
+    pub(crate) fn strand_pair(&self, line: f32) -> ((f32, f32), (f32, f32)) {
         let (ax, ad) = self.strand_a(line);
-        (2.0 * self.cx - ax, -ad)
+        ((ax, ad), (2.0 * self.cx - ax, -ad))
+    }
+
+    /// Law 2: the rung geometry in one projection — (left x,
+    /// right x, strand A depth) at the rung's line. The span is
+    /// the projection between the two strand ends, stretched by
+    /// the local bow so the Y's rungs widen with the strands; the
+    /// depth is strand A's at the rung's line (the depth blend's
+    /// input). Fusing the reads lets the draw pass evaluate the
+    /// strand projection once per rung instead of once per span
+    /// cell (the rung geometry is per-rung, not per-cell, work).
+    /// Bit-identical to the separate span/depth queries.
+    pub(crate) fn rung_geometry(&self, idx: usize) -> Option<(f32, f32, f32)> {
+        let line = self.rung_line(idx)? as f32;
+        let (ax, ad) = self.strand_a(line);
+        let bx = 2.0 * self.cx - ax;
+        Some((ax.min(bx), ax.max(bx), ad))
     }
 
     /// Law 2: the rung span (left x, right x) at the rung's line —
     /// the projection between the two strand ends, stretched by
     /// the local bow so the Y's rungs widen with the strands.
     pub(crate) fn rung_span(&self, idx: usize) -> Option<(f32, f32)> {
-        let line = self.rung_line(idx)? as f32;
-        let (ax, _) = self.strand_a(line);
-        let (bx, _) = self.strand_b(line);
-        Some((ax.min(bx), ax.max(bx)))
-    }
-
-    /// The rung depth blend at fraction t in [0, 1] across the
-    /// span (law 2: the rung cell interpolates the strand depths).
-    pub(crate) fn rung_depth(&self, idx: usize, t: f32) -> Option<f32> {
-        let line = self.rung_line(idx)? as f32;
-        let (_, ad) = self.strand_a(line);
-        Some(ad * (1.0 - t) - ad * t)
+        let (left, right, _) = self.rung_geometry(idx)?;
+        Some((left, right))
     }
 
     /// Law 4's window: is the rung at `idx` dissolved right now
@@ -457,7 +474,12 @@ impl DnaGenome {
             }
         }
 
-        // Law 3 — the recency decay (strict, per rung).
+        // Law 3 — the recency decay (strict, per rung). The
+        // exp() is loop-invariant in dt and LLVM already hoists
+        // it (this stage's disassembly control: the baseline
+        // binary evaluates expf once before the multiply loop and
+        // even vectorizes the loop) — the source form stays the
+        // family's per-rung shape.
         for r in &mut self.rungs {
             r.charge *= (-DNA_CHARGE_DECAY * dt).exp();
         }
@@ -628,6 +650,16 @@ pub(crate) fn helix_radius(cols: u16) -> f32 {
 /// collapses to a spike.
 pub(crate) fn fork_sigma(lines: u16) -> f32 {
     DNA_FORK_GAP.min(lines.max(4) as f32 * 0.35).max(2.0)
+}
+
+/// Law 2's depth blend at fraction t in [0, 1] across the span:
+/// the rung cell interpolates the strand depths (the front half
+/// reads one rung brighter, the back half dimmer). Takes the
+/// strand A depth from the `rung_geometry` snapshot so the
+/// per-cell read never re-evaluates the strand projection —
+/// bit-identical to the former per-cell `rung_depth` query.
+pub(crate) fn rung_depth_blend(ad: f32, t: f32) -> f32 {
+    ad * (1.0 - t) - ad * t
 }
 
 /// Law 3's draw read: the recency ladder (the genome's own

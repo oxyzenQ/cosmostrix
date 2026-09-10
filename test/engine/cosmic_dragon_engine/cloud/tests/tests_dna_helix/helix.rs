@@ -98,8 +98,10 @@ fn dna_strands_mirror_and_cross() {
     let cx = g.center_x();
     let mut crossed = false;
     for line in 0..40 {
-        let (ax, ad) = g.strand_a(line as f32);
-        let (bx, bd) = g.strand_b(line as f32);
+        // strand_pair: one projection read per line (strand A plus
+        // the mirror — the draw pass's contract, the same values
+        // the former separate strand_a + strand_b reads returned).
+        let ((ax, ad), (bx, bd)) = g.strand_pair(line as f32);
         assert!((bx - (2.0 * cx - ax)).abs() < 1e-3, "strand B not mirrored");
         assert!((bd + ad).abs() < 1e-3, "strand B depth not negated");
         // Both strands stay inside the viewport margins.

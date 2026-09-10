@@ -37,6 +37,12 @@ use super::boids::{
     flock_forces, integrate_bird, startle, Anchor, Bird, BirdRandom, Edge, FlockCtx, MurmHash,
 };
 
+/// Phase wrap threshold for the breathing oscillator (radians, 64
+/// turns — the vortex arm-phase precedent, law 4's LTS note;
+/// mirrors `DNA_PHASE_WRAP_LIMIT` in helix.rs: the f32 ulp stays
+/// far below visual resolution on multi-day sessions).
+const MURM_BREATH_WRAP_LIMIT: f32 = std::f32::consts::TAU * 64.0;
+
 /// One drawn cell (col, line) — the diff-cleanup currency (same
 /// shape as the family's cells).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -346,7 +352,7 @@ impl MurmurationRain {
 
         // 1. The clocks.
         self.breath_phase += MURM_BREATH_RATE * dt_sim;
-        if self.breath_phase > std::f32::consts::TAU * 64.0 {
+        if self.breath_phase > MURM_BREATH_WRAP_LIMIT {
             self.breath_phase = self.breath_phase.rem_euclid(std::f32::consts::TAU);
         }
         self.anchor.advance(dt_sim, step.cols, step.lines, random);
