@@ -32,7 +32,21 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from ansi_screen import reconstruct_screen
 
-BIN = "./target/pro/cosmostrix"
+# NIGHT-lts-7: BIN resolution with fallback. The script was hardcoded to
+# the `pro` profile and FAILED ("scn row does not carry the full scene
+# name", scn row empty) on any machine that had only built `release` —
+# the child exec'd a nonexistent path, died instantly, and the empty
+# screen read as a renderer defect. Resolution order: BIN env override,
+# then target/pro, then target/release. The pro profile stays preferred
+# (owner release-class binary) but release is a valid e2e surface.
+BIN = os.environ.get("BIN", "")
+if not BIN:
+    for candidate in ("./target/pro/cosmostrix", "./target/release/cosmostrix"):
+        if os.path.exists(candidate):
+            BIN = candidate
+            break
+    if not BIN:
+        sys.exit("no cosmostrix binary: build `cargo build --profile pro` or `--release`")
 COLS, ROWS = 100, 40
 
 SCENE_NAME = "example_1234_test_this_long"

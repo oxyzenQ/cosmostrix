@@ -9,6 +9,37 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-lts-7 — the HUD metrics depth audit: realtime, accurate, zero measurable overhead, stable; one e2e-harness robustness fix (zero metric-code changes)
+
+- Audited the full HUD metrics surface: hud/ (975-LOC state module +
+  metrics + init + colors), event_loop_hud.rs per-frame push,
+  sysstat/ samplers, FrameTimeTracker, and both e2e scripts.
+- Realtime verified: 1 Hz metric tick with deliberately aligned
+  metric/RSS/CPU intervals (same tick, half the fast-path timestamp
+  comparisons); colors refresh every frame so palette changes land
+  next-frame.
+- Accuracy verified contract-by-contract: cpu% is two-sample delta
+  math (div-zero guarded, warm baseline for instant toggle-on,
+  pause-aware window); rss reads VmRSS with honest "—" fallbacks;
+  p99 sorts a stack-anchored 60-slot snapshot (~300 ns); dcel is a
+  60-frame rolling average with a pause-freeze contract; uptime
+  excludes paused time at sub-second precision with deterministic
+  calendar units.
+- Overhead measured at zero: A/B on the pro binary (200x56 PTY,
+  60 FPS, continuous drain) — HUD off 4.76% vs HUD on 4.47%; the
+  delta is run-to-run noise. Structural: one ~2 KiB /proc read per
+  second, clear+push_str setters, &'static str mode suffixes,
+  dirty-tracked frame writes.
+- Stability verified by e2e: hud_order_e2e.py PASS (25/25 labels,
+  exact screen-row order); hud_long_scene_e2e.py PASS (27-char
+  scene name renders in full, border past the text).
+- One finding, fixed: hud_long_scene_e2e.py hardcoded the
+  target/pro binary path and produced a FALSE renderer failure on
+  release-only machines (the exec died instantly, the empty screen
+  read as a defect). BIN now resolves env override > pro > release
+  with a clear fatal message when nothing exists.
+- Full evidence: docs/research/NIGHT_LTS_7_HUD_METRICS.md.
+
 ### fix: NIGHT-hunter-26 — resize no longer half-reloads the message overlay: the mfs reveal, sparks, smoke, and touch pulses all continue through a resize (the 'r' shortkey remains the only full replay)
 
 - Owner report: with msg mode active, resizing the terminal made
