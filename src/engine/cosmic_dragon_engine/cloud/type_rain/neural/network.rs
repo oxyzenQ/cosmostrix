@@ -541,33 +541,65 @@ pub(crate) fn fall_speed(roll: f32) -> f32 {
     NEUR_FALL_MIN + roll * NEUR_FALL_SPAN
 }
 
+/// The per-frame physics factors for the neural machine (the
+/// stage-1 quasar StepFactors precedent): the membrane leak, the
+/// fired flash and the signal glow are pure functions of the
+/// frame's sim dt, so the advance pass evaluates each exponential
+/// once per frame and threads this snapshot — the per-neuron and
+/// per-synapse steps multiply instead of re-evaluating. Carries
+/// the dt too (the refractory window, the retire fade and the
+/// ages are dt-linear, not exponential). Bit-identical to the
+/// former per-element evaluation.
+pub(crate) struct NeurFactors {
+    /// The frame's sim dt.
+    pub(crate) dt: f32,
+    /// Law 1's membrane leak: `(-dt / NEUR_LEAK_TAU).exp()`.
+    pub(crate) leak: f32,
+    /// Law 1's fired-flash decay: `(-dt / NEUR_FLASH_TAU).exp()`.
+    pub(crate) flash: f32,
+    /// Law 5's signal-glow decay: `(-dt / NEUR_GLOW_TAU).exp()`.
+    pub(crate) glow: f32,
+}
+
+impl NeurFactors {
+    /// Evaluate the factors for one frame's sim dt.
+    pub(crate) fn for_dt(dt: f32) -> Self {
+        Self {
+            dt,
+            leak: (-dt / NEUR_LEAK_TAU).exp(),
+            flash: (-dt / NEUR_FLASH_TAU).exp(),
+            glow: (-dt / crate::constants::NEUR_GLOW_TAU).exp(),
+        }
+    }
+}
+
 /// Law 1's neuron step: the membrane leaks (exponential
 /// forgetting toward zero), the refractory window counts down,
 /// the fired flash decays. The potential never leaves
 /// [0, NEUR_POT_CAP] (the callers' kicks clamp; the leak only
 /// shrinks).
-pub(crate) fn neuron_step(p: &mut Neuron, dt: f32) {
-    p.potential *= (-dt / NEUR_LEAK_TAU).exp();
-    p.refract = (p.refract - dt).max(0.0);
-    p.flash *= (-dt / NEUR_FLASH_TAU).exp();
-    p.age += dt;
+pub(crate) fn neuron_step(p: &mut Neuron, step: &NeurFactors) {
+    p.potential *= step.leak;
+    p.refract = (p.refract - step.dt).max(0.0);
+    p.flash *= step.flash;
+    p.age += step.dt;
 }
 
 /// Law 5's synapse step: the retire fade decays (the rewire
 /// economy's dim-out — returns true when it completes, the caller
 /// grows the successor), and the signal glow decays (the light
 /// shows where signals have RECENTLY passed).
-pub(crate) fn synapse_step(p: &mut Synapse, dt: f32) -> bool {
+pub(crate) fn synapse_step(p: &mut Synapse, step: &NeurFactors) -> bool {
     if p.fade < 1.0 {
-        p.fade -= dt / crate::constants::NEUR_REWIRE_FADE_SECS;
+        p.fade -= step.dt / crate::constants::NEUR_REWIRE_FADE_SECS;
         if p.fade <= 0.0 {
             p.fade = 0.0;
             p.active = false;
             return true;
         }
     }
-    p.glow *= (-dt / crate::constants::NEUR_GLOW_TAU).exp();
-    p.age += dt;
+    p.glow *= step.glow;
+    p.age += step.dt;
     false
 }
 

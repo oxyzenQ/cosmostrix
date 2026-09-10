@@ -598,8 +598,13 @@ impl DragonRain {
             // scaled linearly, drifting each dragon off its documented
             // speed profile and shrinking the FABRIK stability margin
             // for fast dragons.
-            let vx = d.heading.cos() * speed;
-            let vy = d.heading.sin() * speed;
+            // One trig evaluation for the translation (the stage-1
+            // RollFrame / stage-6 sin_cos precedent): the heading's
+            // sin/cos pair at one angle reads as sin_cos — the
+            // fused call returns the same values, bit-identical.
+            let (h_sin, h_cos) = d.heading.sin_cos();
+            let vx = h_cos * speed;
+            let vy = h_sin * speed;
             // Head is segments[0].
             if let Some(head) = d.segments.first_mut() {
                 head.x += vx * dt_d;

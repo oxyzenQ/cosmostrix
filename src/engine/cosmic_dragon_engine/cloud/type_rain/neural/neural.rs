@@ -36,8 +36,8 @@ use crate::constants::{
 
 use super::genesis::{genesis_phase, genesis_total_secs, GenesisPhase};
 use super::network::{
-    growth_step, neuron_step, pulse_step, streamer_step, synapse_step, NeuralGeom, NeuralRandom,
-    Neuron, Pulse, Streamer, Synapse,
+    growth_step, neuron_step, pulse_step, streamer_step, synapse_step, NeurFactors, NeuralGeom,
+    NeuralRandom, Neuron, Pulse, Streamer, Synapse,
 };
 
 /// One drawn cell (col, line) — the diff-cleanup currency (same
@@ -580,10 +580,14 @@ impl NeuralRain {
             }
         }
 
-        // 3. The physics.
+        // 3. The physics. The decay factors below are pure functions
+        // of the frame's sim dt — one NeurFactors snapshot per frame (the
+        // stage-1 quasar StepFactors precedent) instead of three exp()
+        // re-evaluations per active element.
+        let step = NeurFactors::for_dt(dt_sim);
         for n in &mut self.nodes {
             if n.active {
-                neuron_step(n, dt_sim);
+                neuron_step(n, &step);
             }
         }
         // The spontaneous input kicks (a lit machine idles alive
@@ -603,10 +607,10 @@ impl NeuralRain {
         }
         let mut retired = false;
         for s in &mut self.synapses {
-            if synapse_step(s, dt_sim) {
+            if synapse_step(s, &step) {
                 retired = true;
             }
-            growth_step(s, dt_sim);
+            growth_step(s, step.dt);
         }
         if retired {
             // The fade completed: the successor grows in the same
