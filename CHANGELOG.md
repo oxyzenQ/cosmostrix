@@ -90,8 +90,16 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
   sizing. 64/64 black hole contracts, full suite 2792 green,
   fmt/clippy clean, version untouched.
 - A/B benchmark evidence (10s, 120x40, wet IO, run after the
-  commit): recorded in docs/BENCHMARKING.md — neutral within noise
-  (startup-geometry-only changes; the infall spawn math is O(1)).
+  commit): recorded in docs/BENCHMARKING.md — a performance WIN,
+  not a regression: avg fps 2042.2 -> 2330.0 (+14.1%), p99 frame
+  time -22.1%, avg dirty cells/frame 184.0 -> 161.0 (-12.5%). The
+  win is mechanical: the width-capped ball at 120x40 drops the
+  shadow from 11 to 9 line-height radii and the annulus area (the
+  per-frame ball cell count) scales with r squared — about a
+  third fewer ball cells drawn and diffed every frame. Visual
+  signature shifts track the geometry (entropy 6.00 -> 5.96
+  noise, gini 0.5642 -> 0.5758 — the smaller shadow concentrates
+  the composition slightly).
 
 ### fix: NIGHT-depthtest-2 & hunt-30 — CLI/config duplicate-name audit, silent-failure hunt, self-consistent dump-config suggestions, and the pure-English language gate
 

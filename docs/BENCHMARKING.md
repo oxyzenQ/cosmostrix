@@ -117,6 +117,28 @@ noise-yardstick methodology, and the audit's codegen controls
 (the numbers in this section above are the historical 120x40
 truecolor signatures and remain valid for that profile).
 
+**NIGHT-research-9 (2026-09-11, the black hole masterclass physics
+pass):** the corotation spawn (an O(1) per-mote angular-momentum
+derivation), the width-capped ball, the stretched disk unit, the
+proximity-ladder gain, the radial-speed brightness input, and the
+see-saw window re-cut with the dynamic tilt cap. 10s A/B at
+120x40 wet IO vs the parent commit (before bc132c2, after
+43dafb9, dev profile, same two-run discard-warmup protocol):
+sorgonemous_intrascals avg fps 2042.2 -> 2330.0 (+14.1%), median
+2072.4 -> 2359.1, p99 frame time 0.648 -> 0.505 ms (-22.1%), max
+frame 1.680 -> 1.297 ms, avg dirty cells/frame 184.0 -> 161.0
+(-12.5%, dirty ratio 3.83% -> 3.36%), frame time stability
+excellent on both sides, allocator flat (heap retained 0 B). The
+win is mechanical, not noise: the width-capped ball at 120x40
+drops the shadow from 11 to 9 line-height radii, and the annulus
+area (the per-frame ball cell count) scales with r squared —
+about a third fewer ball cells drawn and diffed every frame, with
+the disk motes, halo riders, and infall glyphs at their usual
+populations. Visual signature shifts track the geometry change
+exactly as intended: entropy 6.00 -> 5.96 (noise), density gini
+0.5642 -> 0.5758 (the smaller shadow concentrates the composition
+slightly), color transition delta 0.00 on both sides.
+
 **NIGHT-depthtest-2 (2026-09-11, CLI/config validation surface):** the
 duplicate-key/section detection, the explicit `--config` read-error
 path, and the FreeBSD system-path candidate are all STARTUP-time
