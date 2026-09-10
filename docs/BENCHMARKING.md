@@ -117,6 +117,18 @@ noise-yardstick methodology, and the audit's codegen controls
 (the numbers in this section above are the historical 120x40
 truecolor signatures and remain valid for that profile).
 
+**NIGHT-depthtest-2 (2026-09-11, CLI/config validation surface):** the
+duplicate-key/section detection, the explicit `--config` read-error
+path, and the FreeBSD system-path candidate are all STARTUP-time
+changes (parse + validation once per process, or once per
+config-save on the watcher thread); the render loop is untouched.
+10s A/B at 120x40 truecolor vs the parent commit (before 2a7e406,
+after ce696e3): every metric within +/-0.3% (sorgonemous_intrascals
+avg fps 13882.9 -> 13901.4, dirty cells/frame 228.86 -> 228.73,
+entropy 6.042 -> 6.047, gini 0.5505 -> 0.5491; monolith avg fps
+36963.3 -> 36970.9, dirty 182.74 -> 182.91) — measurement noise,
+no regression, visual structure signatures identical.
+
 **NIGHT-hunter-29 (2026-09-10, the phosphor ownership rule):** the
 fix removed the phosphor ghost-vs-draw strobe that had been
 inflating every structured family's steady-state diff (the
