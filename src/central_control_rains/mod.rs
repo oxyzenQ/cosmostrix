@@ -741,6 +741,17 @@ pub(crate) const MONOLITH_SPINE_PERIOD: u16 = 3;
 /// Spine brightness relative to surrounding segments.
 pub(crate) const MONOLITH_SPINE_BRIGHTNESS: f32 = 0.07;
 
+/// Spine ghost-tone discount applied on top of
+/// [`MONOLITH_SPINE_BRIGHTNESS`] and the layer ladder.
+///
+/// The spine is drawn at the Ghost brightness level, so its color
+/// factor carries one extra discount relative to the segment bodies.
+/// Promoted from the inline `0.72` magic number in `draw_spine_cell`
+/// during the NIGHT-lts-1 stage 2 audit (value unchanged) so the full
+/// spine tone chain reads as named factors, matching the
+/// centralization pattern of the other monolith tuning constants.
+pub(crate) const MONOLITH_SPINE_GHOST_TONE: f32 = 0.72;
+
 /// Reserved drawn-cell capacity per monolith lane.
 pub(crate) const MONOLITH_DRAWN_CELLS_PER_LANE_RESERVE: usize = 32;
 

@@ -179,7 +179,7 @@ pub(super) fn draw_spine_cell(
         edge_fade
             * MONOLITH_SPINE_BRIGHTNESS
             * MONOLITH_LAYER_BRIGHTNESS[stream.layer as usize]
-            * 0.72
+            * MONOLITH_SPINE_GHOST_TONE
             * tone.breath,
     );
     frame.set(
