@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-lts-4 — the master endurance audit: CPU, memory, fd/threads, GPU-freedom, and bloat-freedom all measured at peak; zero code changes (the report + reusable probe are the product)
+
+- New evidence machine: scripts/endurance_probe.py — release binary
+  in a PTY (200x56, 144 FPS dynamic default, 12 MB/s marginal
+  drain), sampling /proc for CPU, VmRSS, page faults, and context
+  switches. Reproducible with RUN_SECS/SAMPLE_SECS/SCENE/SIZE/
+  DRAIN_BPS knobs.
+- CPU verdict: steady 5.7-7.2% of one core at 144 FPS under
+  marginal drain (cinematic + sorgonemous_intrascals). The poll +
+  <=500 us spin hybrid, PowerManager effective_fps, thermal shed,
+  drain backoff, and the dead-PTY guard all hold it there.
+- Memory verdict: NOT a leak — slope decays +1.69 -> +0.56 ->
+  +0.32 MB/min across 30 s / 3 min / 6 min runs (asymptotic ~9 MB
+  cinematic plateau, ~6.4 MB black hole). A true leak is linear;
+  this is scene pools filling once.
+- fd count flat at 10, threads flat at 5 (no leaks); minor faults
+  1.3-8.6/s (no page churn); voluntary context switches ~131/s
+  (sleeping, not spinning).
+- No GPU: zero GPU dependencies or code paths (doctor contract:
+  "CPU+stdout renderer; no GPU context is ever created").
+- No bloat: 10 direct deps, all load-bearing, all
+  default-features-minimal; chrono previously removed for libc
+  calls; 2.9 MB release binary.
+- Full evidence table + method: docs/research/
+  NIGHT_LTS_4_ENDURANCE_RESOURCES.md.
+
 ### stability: NIGHT-lts-6 — the early-return command ladder is now single-sourced, documented, and test-pinned (owner report: combined commands like `-v -s --dump-config ... --version --doctor` must pick one winner, deterministically, to avoid confusion)
 
 - Owner report: running several print-and-exit commands together
