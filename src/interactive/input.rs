@@ -295,10 +295,14 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // uppercase. E.g. 'q' quits, 'Q' does nothing.
         (KeyCode::Char('q'), KeyModifiers::NONE) => cloud.raining = false,
         (KeyCode::Char('r'), KeyModifiers::NONE) => {
-            cloud.reset(frame.width, frame.height);
-            cloud.force_draw_everything();
-            // Restart message typewriter so 'r' gives a full cinematic
-            // replay — rain reseed + message types out from scratch.
+            // NIGHT-lts-3: a restart is a relaunch, not a resize —
+            // replay the startup state from zero (fresh RNG stream,
+            // fresh drift, birth choreography re-armed for the
+            // choreographed families) so 'r' behaves exactly like a
+            // fresh launch of the current scene. Restart the message
+            // typewriter too, so 'r' gives the full cinematic replay
+            // — rain reseed + message types out from scratch.
+            cloud.restart_from_zero(frame.width, frame.height);
             cloud.restart_message_typewriter();
         }
         // Color cycle: 'c' forward, 'C' (shift+c) reverse.

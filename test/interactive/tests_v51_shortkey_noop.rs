@@ -14,7 +14,7 @@
 //! | Key | Effect | Handled in |
 //! |-----|--------|-----------|
 //! | `q` | Quit | input.rs |
-//! | `r` | Reset animation + restart message typewriter | input.rs |
+//! | `r` | Restart from zero + restart message typewriter (NIGHT-lts-3) | input.rs |
 //! | `c` / `C` | Cycle color scheme fwd / reverse | input.rs |
 //! | `s` / `S` | Cycle charset preset fwd / reverse | input.rs |
 //! | `p` | Pause / resume (during pause: only `p` and `q` respond) | input.rs |

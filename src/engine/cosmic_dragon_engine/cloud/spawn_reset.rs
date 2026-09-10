@@ -13,7 +13,11 @@
 use std::time::{Duration, Instant};
 
 #[allow(unused_imports)]
-use rand::distr::{Distribution, Uniform};
+use rand::{
+    distr::{Distribution, Uniform},
+    rngs::StdRng,
+    SeedableRng,
+};
 
 #[allow(unused_imports)]
 use crate::constants::*;
@@ -23,7 +27,7 @@ use crate::droplet::Droplet;
 use crate::rain_style::RainStyle;
 
 #[allow(unused_imports)]
-use super::ecosystem::{RendererMemory, StorytellingState};
+use super::ecosystem::{ColorEcosystem, EntropyDrift, RendererMemory, StorytellingState};
 #[allow(unused_imports)]
 use super::state::ColumnStatus;
 
@@ -239,5 +243,82 @@ impl super::Cloud {
         self.event_manager.reset(now);
         self.gust = crate::cloud::living_rain::GustState::new(now);
         // Note: profile and profile params are preserved across resets
+    }
+
+    /// NIGHT-lts-3: the full fresh-start restart (the 'r' shortkey).
+    ///
+    /// The owner contract: a restart must behave exactly like a fresh
+    /// startup — a real start from zero. The 'r' handler previously
+    /// ran only [`Self::reset`], whose semantics are the resize
+    /// contract: it rebuilds geometry and empties the pools but
+    /// deliberately preserves
+    /// (a) each choreographed family's birth state — the black hole
+    ///     popped in already formed, the DNA molecule already stood,
+    ///     the quasar engine already burned, the neural machine
+    ///     already trained, while a fresh construction is unborn and
+    ///     plays the birth sequence (the owner's reported repro),
+    /// (b) the deterministic RNG streams mid-course — every launch
+    ///     seeds `StdRng` from `RNG_INITIAL_SEED`, so a relaunch replays
+    ///     the same glyph rolls and spawn draws a restart must match,
+    /// (c) the ecosystem/drift accumulators and the time anchor —
+    ///     Phase D Bugs #8/#9 keep those across resize and live-reload
+    ///     (an interrupt must not snap the visual climate); a restart
+    ///     is a relaunch, not an interrupt, so from zero means from
+    ///     the unevolved state,
+    /// (d) any pause/resume easing in flight.
+    ///
+    /// This method layers the missing fresh-start state on top of the
+    /// full reset and re-arms the birth choreography for the current
+    /// style, so 'r' equals a same-config relaunch. The plain
+    /// structured families need nothing beyond the full reset (pools
+    /// vacant — identical to both startup and scene entry), and the
+    /// glyph family matches a fresh launch by design: the empty pool
+    /// fills through natural spawn, and the warm-start ramp belongs
+    /// to style transitions, not launches.
+    pub fn restart_from_zero(&mut self, cols: u16, lines: u16) {
+        // Re-seed FIRST: reset() samples the glitch clock from the
+        // RNG, and a fresh launch consumes the stream from position
+        // zero — the re-seed must precede the reset's sample so the
+        // restart draws the same values a startup drew.
+        self.mt = StdRng::seed_from_u64(RNG_INITIAL_SEED);
+
+        // The full reset: geometry, pools, maps, LUTs, message,
+        // semantic invalidation, force redraw, subsystem clocks.
+        self.reset(cols, lines);
+
+        // Fresh anchor and drift accumulators (startup constructs
+        // these at Cloud::new; resize/live-reload keep them by the
+        // Phase D contract — a restart does not).
+        let now = Instant::now();
+        self.start_anchor = now;
+        self.color_ecosystem = ColorEcosystem::new(now);
+        self.entropy_drift = EntropyDrift::new(now);
+
+        // The event scheduler's dedicated RNG replays the startup
+        // event sequence (reset() only drops the active events).
+        self.event_manager.restart_rng();
+
+        // Pause/resume family: startup runs unpaused at full rate. A
+        // restart during decel/resume easing must not carry the
+        // blend — it would throttle the reborn rain for no reason.
+        self.pause = false;
+        self.pause_start = None;
+        self.pause_time = None;
+        self.resume_start = None;
+        self.resume_blend = 1.0;
+        self.resume_blend_start = 0.0;
+
+        // The birth choreography (the scene-entry contract): re-arm
+        // the intro sequences for the choreographed families exactly
+        // as a scene entry would.
+        match self.rain_style {
+            RainStyle::BlackHole => self.black_hole_rain.begin_formation(),
+            RainStyle::DnaHelix => self.dna_helix_rain.begin_genesis(),
+            RainStyle::Quasar => self.quasar_rain.begin_ignition(),
+            RainStyle::Neural => self.neural_rain.begin_genesis(),
+            // The plain structured families and Glyph: the full reset
+            // above already equals the startup state.
+            _ => {}
+        }
     }
 }

@@ -9,6 +9,46 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-lts-3 — the 'r' restart now starts from zero like a fresh launch (the owner's black hole report: the restarted hole popped in already formed); restart + dynamic-resize contracts audited and pinned across all fourteen type rains
+
+- Owner report: pressing 'r' on the black hole scene restarted
+  into a state "very different from startup" — not a real start
+  from zero. Root cause: the 'r' handler ran the resize-semantics
+  reset, which rebuilds geometry and empties pools but preserves
+  each choreographed family's birth state — the hole's `formed`
+  flag survived, so it popped in fully formed instead of replaying
+  the formation intro a fresh launch plays. The same divergence
+  silently affected DNA helix (molecule pre-born), quasar (engine
+  pre-lit) and neural (machine pre-trained).
+- New `Cloud::restart_from_zero`: a restart is a relaunch, not a
+  resize. It re-seeds the deterministic RNG stream before the full
+  reset (so the reset's glitch-clock draw consumes the launch
+  stream), re-captures the time anchor, reconstructs the
+  ecosystem/drift accumulators at their unevolved defaults,
+  re-seeds the ghost-event scheduler's dedicated RNG, clears any
+  pause/resume easing in flight, and re-arms the birth
+  choreography for the current style (black hole formation, DNA
+  genesis, quasar ignition, neural genesis) — the same contract a
+  scene entry honors. The plain structured families and the glyph
+  family already matched startup through the full reset alone.
+- The resize contract is kept distinct and test-pinned: a pure
+  resize still keeps the steady state (an interrupt must not
+  replay births or snap the visual climate); 'r' is the only
+  relaunch path. Dynamic screen size verified for all fourteen
+  styles: resize up and down rebuilds every family for the new
+  viewport with live in-bounds content.
+- Nine new restart tests (choreography replays for the four
+  families with the owner's exact repro, the RNG from-zero
+  contract, pause/anchor clear, cinematic refill, resize up/down
+  for every style, the resize-vs-restart distinction); the
+  HUNT-15 restart-clearance loop extended from seven to all
+  fourteen styles. Help text, README and RULES.md keybind tables
+  now say "restart from zero" instead of "reset animation".
+- Zero hot-path code changed (restart_from_zero is the 'r'
+  keybind's cold path; the bench harness never presses 'r'), so
+  the A/B benches are skipped per the waste guard. Full audit
+  table and evidence: docs/research/NIGHT_LTS_3_RESTART_CONSISTENCY.md.
+
 ### feature: NIGHT-lts-5 — the x/X scene cycle head swaps to the owner's approved signature order (cinematic, the glyph default, first; sorgonemous_intrascals, the black hole, second)
 
 - Owner approval (2026-09-10): the default signature rain is the

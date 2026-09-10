@@ -83,10 +83,10 @@ fn draw_content_and_collect(cloud: &mut Cloud, frame: &mut Frame, frames: u32) -
         .collect()
 }
 
-/// The exact 'r' shortkey sequence from interactive/input.rs.
+/// The exact 'r' shortkey sequence from interactive/input.rs
+/// (NIGHT-lts-3: restart_from_zero + the message typewriter replay).
 fn press_r(cloud: &mut Cloud, frame: &mut Frame) {
-    cloud.reset(frame.width, frame.height);
-    cloud.force_draw_everything();
+    cloud.restart_from_zero(frame.width, frame.height);
     cloud.restart_message_typewriter();
 }
 
@@ -136,14 +136,18 @@ fn hunt15_restart_glyph_clears_old_rain() {
     }
 }
 
-/// The restart contract for ALL seven styles: after 'r', no cell may
+/// The restart contract for ALL fourteen styles: after 'r', no cell may
 /// retain PRE-restart content unless the fresh simulation legitimately
-/// rewrote it this frame. Glyph fails pre-fix; the six structured
-/// styles passed via their clear_with_bg force branch — this pins them
-/// so none of the seven can ever regress.
+/// rewrote it this frame. Glyph fails pre-fix (HUNT-15); the structured
+/// styles pass via their clear_with_bg force branch — this pins them
+/// so none of the fourteen can ever regress.
 /// 120 frames (~2 s at 16 ms) at 60x25: flux ramps its mote pool under
 /// production sim-cap semantics (no artificial backlog — see
 /// tests_flux/core.rs flux_spawn_reaches_density_target).
+/// NIGHT-lts-3: the seven families that joined after HUNT-15 (black
+/// hole, aeolian, solar flare, dna helix, murmuration, quasar, neural)
+/// join the loop — the owner directive extends the restart audit to
+/// every type rain.
 #[test]
 fn hunt15_restart_clears_old_rain_for_every_style() {
     for style in [
@@ -154,6 +158,13 @@ fn hunt15_restart_clears_old_rain_for_every_style() {
         RainStyle::Lorenz,
         RainStyle::Dragon,
         RainStyle::Physarum,
+        RainStyle::BlackHole,
+        RainStyle::Aeolian,
+        RainStyle::SolarFlare,
+        RainStyle::DnaHelix,
+        RainStyle::Murmuration,
+        RainStyle::Quasar,
+        RainStyle::Neural,
     ] {
         let mut cloud = make_style_cloud(style, 60, 25);
         let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);

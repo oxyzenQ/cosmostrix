@@ -132,6 +132,18 @@ impl GhostEventScheduler {
         self.events.clear();
     }
 
+    /// NIGHT-lts-3: fresh-start re-seed for the 'r' restart.
+    ///
+    /// `reset` drops active events but keeps the event RNG mid-course,
+    /// so a restarted session would draw a different event sequence
+    /// than a fresh launch. A restart is a relaunch: re-seed the
+    /// dedicated RNG from the construction constant so the event
+    /// stream replays the startup sequence.
+    pub(crate) fn restart_rng(&mut self) {
+        self.events.clear();
+        self.rng = StdRng::seed_from_u64(RNG_INITIAL_SEED ^ EVENT_RNG_XOR);
+    }
+
     /// Returns true if no events are active.
     pub(crate) fn is_empty(&self) -> bool {
         self.events.is_empty()

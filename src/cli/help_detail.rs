@@ -661,7 +661,7 @@ RUNTIME CONTROLS:
   c / C         Cycle theme       s / S      Cycle charset
   x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed
-  r            Reset animation
+  r            Restart from zero (like a fresh launch)
   i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
                 sped / dsty / scn / chr / clr / up / screensize / cid)
                 See docs/HUD.md for what each line means, why `fps:` ≠ `--fps`,
