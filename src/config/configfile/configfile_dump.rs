@@ -111,7 +111,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "intense"
 
 # [scene-custom.cyberpunk_2077]
-# rain = "monolith"                    # monolith streams for the megacity feel
+# rain = "monolith"                     # monolith streams for the megacity feel
 # colors-custom = "cyberpunk_2077"      # see [colors-custom.cyberpunk_2077] below
 # charset-custom = "cyberpunk_2077"     # see [charset-custom.cyberpunk_2077] below
 # fps = 90
@@ -120,7 +120,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # glitch-level = "none"
 
 # [scene-custom.tron_legacy]
-# rain = "flux"                        # flux field for the light-cycle grid
+# rain = "flux"                         # flux field for the light-cycle grid
 # colors-custom = "tron_legacy"
 # charset-custom = "tron_legacy"
 # fps = 75
