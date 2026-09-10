@@ -245,7 +245,8 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
             // config at the path, causing data loss if the user pointed
             // it at their carefully-tuned ~/.config/cosmostrix/config.toml.
             // Now: if the file exists, exit with a clear error + suggest
-            // writing to a .new suffix instead.
+            // a sibling path that passes every validation rule (see
+            // `dump_config_overwrite_refusal`).
             //
             // v30 (2026-08-05): --force flag bypasses this guard. Use
             // case: a user who has read the existing config, decided they
@@ -255,14 +256,7 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
             // tells the user about --force so they don't have to read the
             // docs to discover it.
             if std::path::Path::new(&resolved_path).exists() && !args.force {
-                ux::die_input(format!(
-                    "error: --dump-config refuses to overwrite existing file '{path_str}'\n  \
-                     Move the existing file aside first, or write to a new path:\n    \
-                     cosmostrix --dump-config {path_str}.new\n  \
-                     Then review the new file and rename if appropriate.\n  \
-                     To overwrite deliberately (destructive), pass --force:\n    \
-                     cosmostrix --dump-config {path_str} --force"
-                ));
+                ux::die_input(dump_config_overwrite_refusal(path_str));
             }
             // v30: atomic write via temp-file + fsync + rename.
             // Previously a direct `std::fs::write` — if the process was
@@ -435,6 +429,45 @@ pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<
 
         None => None,
     }
+}
+
+/// Build the `--dump-config` overwrite-refusal message for an existing
+/// config at `path_str`.
+///
+/// NIGHT-depthtest-2 (owner report 2026-09-11): the message used to
+/// suggest `cosmostrix --dump-config <path>.new` — a path the same
+/// command then REJECTED with "must have a .toml extension"
+/// (`validate_config_path` requires the final extension to be `.toml`,
+/// and `config.toml.new` ends in `.new`). The owner hit exactly that
+/// loop: follow the suggestion, get a second error. The suggested path
+/// must itself satisfy every validation rule the flag enforces, so the
+/// suggestion is now `<stem>.new.toml` (the final extension is `.toml`,
+/// the name still reads as "the new one next to the old one", and the
+/// review-then-rename workflow is unchanged: rename `config.new.toml`
+/// over `config.toml` after moving the old file aside).
+///
+/// Pure function (no I/O, no process exit) so the regression suite can
+/// assert the suggestion/validator contract directly: the suggested
+/// path ends in `.toml`, differs from the guarded path, and the
+/// `--force` escape hatch is still advertised.
+pub(crate) fn dump_config_overwrite_refusal(path_str: &str) -> String {
+    // path_str passed validate_config_path immediately before this
+    // call, so it ends with .toml (case-insensitive). The fallback
+    // (append instead of replace) keeps the function total if a
+    // future caller loosens that ordering — the suggestion stays
+    // valid either way (a .toml-suffixed sibling). strip_suffix runs
+    // on the ORIGINAL string: lowering first would corrupt the
+    // suggested path when the stem contains uppercase letters.
+    let stem = path_str.strip_suffix(".toml").unwrap_or(path_str);
+    let suggested = format!("{stem}.new.toml");
+    format!(
+        "error: --dump-config refuses to overwrite existing file '{path_str}'\n  \
+         Move the existing file aside first, or write to a new path:\n    \
+         cosmostrix --dump-config {suggested}\n  \
+         Then review the new file and rename if appropriate.\n  \
+         To overwrite deliberately (destructive), pass --force:\n    \
+         cosmostrix --dump-config {path_str} --force"
+    )
 }
 
 #[cfg(test)]

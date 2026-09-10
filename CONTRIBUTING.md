@@ -33,6 +33,8 @@ All gatekeeper checks must pass before any commit.
 
 **Python scripts**: all `scripts/*.py` must pass `ruff check` + `ruff format --check`.
 
+**Language (pure English, 2026-09-11 owner rule)**: commit messages, code comments, strings, docs, and diagnostic output are English only. The gatekeeper enforces this (`scripts/language_audit.py`, check 13) — it fails on human-language content (non-Latin letter runs of two or more characters, and Latin-script words with diacritics outside the scientific proper-noun allowlist). Functional categories are kept by design: isolated math/unit letters (µs, π/2, Δx), charset glyph data lines (the themed presets are data, not prose), and the unicode-stress fixture files listed with reasons inside the script. New non-English prose must be translated before commit; new glyph-data contexts get a documented exemption entry in the script, never a silent pass.
+
 **Naming**: the project name is always lowercase `cosmostrix` — never the capitalized form — including at the start of sentences and in headings (lowercase-brand convention, like `iPhone`). This matches the binary name, the Cargo package name, and the repository URL. The gatekeeper enforces this (zero capitalized hits allowed outside `docs/archive/`); archived historical documents are exempt. Dragon names are separate proper nouns and keep their capitals: Cosmic Dragon, Chroma Dragon, Crystal Dragon.
 
 ## 3. Commit + PR Guidelines

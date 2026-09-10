@@ -9,6 +9,71 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-depthtest-2 & hunt-30 — CLI/config duplicate-name audit, silent-failure hunt, self-consistent dump-config suggestions, and the pure-English language gate
+
+- Owner report (two transcripts): `--dump-config <existing>` refuses
+  to overwrite and suggests writing to
+  `~/.config/cosmostrix/config.toml.new` — following that exact
+  suggestion then failed with "must have a .toml extension". The
+  error message recommended a path the same command rejected.
+- Fix: the refusal now suggests `<stem>.new.toml` (final extension
+  `.toml`, so the suggestion passes every validation rule the flag
+  itself enforces; the review-then-rename workflow is unchanged).
+  Message construction lives in the pure
+  `dump_config_overwrite_refusal()` for direct regression coverage
+  (the suggested path is asserted to survive `validate_config_path`).
+- Duplicate-name audit (charset/colors/scene-custom): real TOML
+  rejects duplicate keys and duplicate `[section]` headers with a
+  hard parse error; cosmostrix's forgiving parser silently merged
+  reopened sections and let the last writer silently win duplicate
+  keys — a duplicated `[scene-custom.x]` / `[colors-custom.x]` /
+  `[charset-custom.x]` block was indistinguishable from a single
+  edited one, and a duplicated key (including `ambient.HH-MM`
+  slots) silently switched values. `ParsedConfig` now records
+  `duplicate_keys` + `duplicate_sections`; the map keeps the
+  documented merge/last-wins semantics for the validation-bypass
+  path. All three validation surfaces reject in lockstep (the
+  S-master-HUNT-2 uniform-rejection contract): startup exit 2
+  (Layer 1.5, new `config_apply_diagnostics.rs`),
+  `--testconf` (duplicate_diagnostics errors), and the live-reload
+  watcher (`validate_and_send` rejects between malformed and
+  unknown — an editor that duplicates a block mid-save no longer
+  gets a silently-merged "successful" reload).
+- Silent-failure hunt: an explicit `--config <path>` that cannot be
+  read (missing, unreadable, over the size cap) previously produced
+  a silent empty parse and a full run on defaults — a typo'd path
+  was indistinguishable from an intentional default run. The read
+  failure is now recorded in `ParsedConfig::read_error` and startup
+  exits with the real reason. The default-path load is exempt by
+  design (missing default config = normal first run, /etc fallback
+  applies); an existing empty or all-comments config still applies
+  (the deliberate-empty contract is unchanged).
+- `.toml` extension check is now case-insensitive: Windows
+  filesystems are case-insensitive, so `CONFIG.TOML` is the same
+  file there — the CLI layer no longer contradicts the whitelist.
+  On Unix a cased miss now lands in the new explicit-read-error
+  path with a clear message instead of a bare extension rejection.
+- Pure-English rule (owner directive 2026-09-11): commit messages,
+  comments, strings, docs and diagnostics are English only. New
+  `scripts/language_audit.py` scans every tracked text file and
+  fails on human-language content (non-Latin letter runs of 2+,
+  non-allowlisted Latin diacritic words), keeping functional
+  categories by design: isolated math/unit letters (µs, π/2, Δx),
+  charset glyph data lines, and unicode-stress fixture files (each
+  exemption documented inline in the script). Wired into
+  `gate-keepers.sh` as check 13, so CI enforces the rule. The audit
+  passes clean today: the codebase prose was already English; the
+  detector + gate make it stay that way.
+- Tests: 24 new regression tests
+  (`test/tests/depthtest_cli_config2.rs`) pinning the suggestion
+  validator contract (both owner transcripts), parser duplicate
+  detection (custom blocks, case-insensitive sections, root keys,
+  ambient slots, promoted-key non-interference), the three-surface
+  lockstep, explicit-read-error behavior (missing vs
+  empty-existing vs comment-only), the case-insensitive extension
+  rule, and the dump-template pure-English invariant. Full suite:
+  2788 passed / 0 failed.
+
 ### fix: NIGHT-hunter-29 — resume micro-jump on the structured rain families: the phosphor ownership rule (the black hole strobe, audited and fixed across every rain type)
 
 - Owner report: after the NIGHT-hunter-28 glyph fix, a micro jump

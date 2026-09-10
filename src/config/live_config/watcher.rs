@@ -512,6 +512,32 @@ pub(crate) fn validate_and_send(
         return Err(msg);
     }
 
+    // NIGHT-depthtest-2: duplicate keys / duplicate [section] headers.
+    // Real TOML rejects both; the forgiving parser records them. The
+    // live-reload surface must reject in lockstep with startup and
+    // --testconf (the S-master-HUNT-2 uniform-rejection contract) —
+    // otherwise an editor that duplicates a block mid-save would run
+    // the silently-merged version after a "successful" reload. Same
+    // layer position as startup: syntax (malformed) -> structure
+    // (duplicates) -> semantics (unknown keys, values).
+    if !parsed.duplicate_keys.is_empty() || !parsed.duplicate_sections.is_empty() {
+        let mut dup_report: Vec<String> = Vec::new();
+        for section in parsed.duplicate_sections.iter().take(3) {
+            dup_report.push(format!("section [{section}] defined more than once"));
+        }
+        for key in parsed.duplicate_keys.iter().take(3) {
+            dup_report.push(format!("key '{key}' defined more than once"));
+        }
+        let msg = format!(
+            "duplicate definition(s): {} (TOML forbids redefining a key or a [section] — delete the duplicate line(s)/header(s))",
+            dup_report.join("; ")
+        );
+        // (bug #14): surface to session rejection log.
+        push_validation_rejection(&msg);
+        let _ = tx.try_send(Err(msg.clone()));
+        return Err(msg);
+    }
+
     // Check unknown keys.
     if !parsed.unknown_keys.is_empty() {
         let keys: Vec<&str> = parsed

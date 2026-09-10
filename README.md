@@ -554,13 +554,17 @@ Persistent defaults can be set in `~/.config/cosmostrix/config.toml` (or `$XDG_C
 - `%ProgramData%\cosmostrix\` (Windows — system-wide)
 - `/sdcard/cosmostrix/` (Android Termux — external storage, accessible from other apps)
 
-Everything else is rejected: current directory (`.`), `/tmp/`, home root (`~`), `~/.local/`, `/usr/`, `/opt/`, `/var/`, all relative paths, and all other absolute paths. `--config` and `--dump-config <path>` files must also have a `.toml` extension.
+Everything else is rejected: current directory (`.`), `/tmp/`, home root (`~`), `~/.local/`, `/usr/`, `/opt/`, `/var/`, all relative paths, and all other absolute paths. `--config` and `--dump-config <path>` files must also have a `.toml` extension (case-insensitive: `CONFIG.TOML` is accepted, matching Windows filesystem behavior).
+
+An explicit `--config <path>` must point to an existing, readable file — a missing or unreadable path is a hard error (with the read failure reason), never a silent fallback to defaults. The default-path lookup (with the `/etc` fallback) only applies when `--config` is omitted: a missing default config is a normal first run. Config validation is strict everywhere: malformed lines, unknown keys, invalid values, and duplicate definitions (a key or `[section]` written twice — TOML forbids redefining either) are all hard errors at startup, at `--testconf`, and on live reload.
 
 To generate a starter config, use `--dump-config` with an explicit path:
 
 ```bash
 cosmostrix --dump-config ~/.config/cosmostrix/config.toml
 ```
+
+`--dump-config` refuses to overwrite an existing file (data-loss guard; pass `--force` to overwrite deliberately). The refusal suggests writing to a sibling like `config.new.toml` — a suggestion that satisfies every validation rule the flag enforces (the `.toml` final extension included), so following it verbatim works.
 
 Shell redirection (`cosmostrix --dump-config > file`) is **blocked** — cosmostrix detects stdout-redirected-to-file and refuses to write, because the shell bypasses the whitelist. Use the explicit path form above for file output. Piping to another command (`cosmostrix --dump-config | less`) is allowed for viewing.
 

@@ -459,8 +459,14 @@ CONFIG:
       With a path: writes to that file. The path must:
         1. Be inside ~/.config/cosmostrix/ or /etc/cosmostrix/
            (strict whitelist, same as --config)
-        2. Have a .toml extension (strict, same as --config)
+        2. Have a .toml extension (strict, same as --config;
+           case-insensitive: CONFIG.TOML is accepted)
       Everything else is rejected.
+
+      If the target file already exists, --dump-config refuses to
+      overwrite it (data-loss guard) and suggests a sibling name
+      like config.new.toml — a suggestion that satisfies both rules
+      above, so following it verbatim works. --force overwrites.
 
       Examples (correct):
         cosmostrix --dump-config                                   # view on TTY

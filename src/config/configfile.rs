@@ -120,23 +120,12 @@ const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head
 /// See `src/engine/crystal_dragon_engine/ambient/mod.rs` and `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs`.
 const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
-#[derive(Debug, Default, Clone, PartialEq, Eq)]
-pub(crate) struct ParsedConfig {
-    pub values: HashMap<String, String>,
-    pub unknown_keys: Vec<String>,
-    /// Non-empty, non-comment lines that do not match `key = value` syntax.
-    ///
-    /// Tracked so `--testconf` can report them as errors and `load_config_file`
-    /// can warn on stderr. A line lands here when it has no `=` at all, or when
-    /// either side of `=` is empty after trimming.
-    pub malformed_lines: Vec<String>,
-    /// keys auto-promoted from a nested section to root scope:
-    /// `(original_nested_key, promoted_root_key)`. A top-level key
-    /// written after a `[section]` header parses as nested; when the
-    /// un-prefixed form is a known top-level key it is re-homed so
-    /// top-level keys and blocks coexist without TOML scope lessons.
-    pub promoted_keys: Vec<(String, String)>,
-}
+// NIGHT-depthtest-2: ParsedConfig (now carrying the duplicate-key /
+// duplicate-section / read-error diagnostics) extracted to
+// configfile_parsed.rs for the 800-LOC cap. Re-exported here so all
+// `configfile::ParsedConfig` call sites resolve unchanged.
+mod configfile_parsed;
+pub(crate) use configfile_parsed::ParsedConfig;
 
 #[must_use]
 pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
@@ -144,6 +133,16 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
     let mut unknown_keys = Vec::new();
     let mut malformed_lines = Vec::new();
     let mut promoted_keys: Vec<(String, String)> = Vec::new();
+    // NIGHT-depthtest-2 duplicate tracking: section headers already
+    // opened (the parser lowercases section names, so the set is
+    // case-insensitive by construction) and the diagnostic vectors
+    // fed to the three validation layers. The value-map behavior is
+    // deliberately unchanged (merge + last-wins) — the fix is
+    // DETECTION, not a new key-resolution policy, so a validation
+    // bypass keeps the old semantics for the survivors.
+    let mut seen_sections: std::collections::HashSet<String> = std::collections::HashSet::new();
+    let mut duplicate_keys: Vec<String> = Vec::new();
+    let mut duplicate_sections: Vec<String> = Vec::new();
 
     let mut current_section: String = String::new();
 
@@ -166,6 +165,15 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 malformed_lines.push(stripped.to_string());
                 i += 1;
                 continue;
+            }
+            // NIGHT-depthtest-2: a reopened [section] is a TOML table
+            // redefinition — real TOML hard-errors, the old parser
+            // silently merged the two blocks (the duplicate-name class
+            // for [scene-custom.x] / [colors-custom.x] /
+            // [charset-custom.x]). Record the repeat; the merge itself
+            // stays (the validation layer owns the reject).
+            if !seen_sections.insert(section.clone()) {
+                duplicate_sections.push(section.clone());
             }
             current_section = section;
             i += 1;
@@ -296,14 +304,29 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
                 // top-level prefixes the user accidentally nested (promote).
                 if configfile_promote::should_auto_promote(&current_section, &key) {
                     promoted_keys.push((full_key.clone(), key.clone()));
-                    // Don't overwrite an explicit root-scope value — first
-                    // writer wins (matches TOML semantics for duplicate keys).
+                    // Root scope wins over the accidental re-home: the
+                    // FIRST writer (an explicit root-scope line above)
+                    // is the deliberate one, so or_insert keeps it. This
+                    // deliberately DIVERGES from strict TOML (which
+                    // rejects any duplicate key outright) — that is the
+                    // documented forgiveness feature of the auto-promote
+                    // parser, and the promotion is reported by
+                    // --testconf as an info notice so the divergence is
+                    // visible, not silent.
                     map.entry(key).or_insert(value);
                 } else {
                     unknown_keys.push(full_key);
                 }
                 i += 1;
                 continue;
+            }
+            // NIGHT-depthtest-2: a key defined twice in the same scope
+            // is a TOML duplicate-key error. Real TOML rejects the file;
+            // the old parser let the last writer silently win. Record
+            // the repeat (the insert below still last-wins — see the
+            // struct docs for why the map behavior is unchanged).
+            if map.contains_key(&full_key) {
+                duplicate_keys.push(full_key.clone());
             }
             map.insert(full_key, value);
         } else {
@@ -319,6 +342,11 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
         unknown_keys,
         malformed_lines,
         promoted_keys,
+        duplicate_keys,
+        duplicate_sections,
+        // Text-level parse: no disk I/O happened, so no read error.
+        // Only configfile_load::parse_config_at can set this.
+        read_error: None,
     }
 }
 

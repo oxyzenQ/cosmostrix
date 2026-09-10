@@ -631,7 +631,7 @@ pub(crate) fn rebuild_cloud_config(
 // v50.0.0-beta.7 LOC refactor: watcher thread functions extracted to
 // watcher.rs. Re-exported here so all call sites (including tests via
 // 'use super::*' glob) resolve unchanged.
-mod watcher;
+pub(crate) mod watcher;
 pub(crate) use watcher::spawn_watcher;
 #[cfg(test)]
 pub(crate) use watcher::validate_and_send;

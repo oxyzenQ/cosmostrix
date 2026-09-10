@@ -18,6 +18,8 @@ mod clap_suggestion;
 #[cfg(test)]
 mod depthtest_cli_config;
 #[cfg(test)]
+mod depthtest_cli_config2;
+#[cfg(test)]
 mod loc;
 #[cfg(test)]
 mod property;

@@ -6,6 +6,7 @@
 //! Reads `~/.config/cosmostrix/config` (or `--config PATH`) and reports:
 //!   - Unknown keys (likely typos)
 //!   - Malformed scene-custom keys
+//!   - Duplicate keys / duplicate [section] headers (NIGHT-depthtest-2)
 //!   - Out-of-range values for known numeric keys
 //!   - Invalid enum values (color, scene, monolith-size, glitch-level)
 //!
@@ -131,6 +132,21 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         }
         crate::output::eprintln_suggestion_line(
             "testconf: hint: comment lines start with '#', blank lines are ignored, all other lines must be 'key = value'"
+        );
+    }
+
+    // NIGHT-depthtest-2: duplicate keys / duplicate [section] headers.
+    // Real TOML rejects both; the forgiving parser records them instead
+    // of silently merging (sections) or silently taking the last writer
+    // (keys). Report as hard errors — the same verdict startup and the
+    // live-reload watcher give (the S-master-HUNT-2 lockstep contract).
+    for msg in duplicate_diagnostics(&parsed) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
+    }
+    if !parsed.duplicate_keys.is_empty() || !parsed.duplicate_sections.is_empty() {
+        crate::output::eprintln_suggestion_line(
+            "testconf: hint: TOML forbids redefining a key or a [section] — delete the duplicate line(s)/header(s)"
         );
     }
 
@@ -347,6 +363,32 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         println_safe!("testconf: PASS — config is valid");
     }
     Ok(())
+}
+
+/// Build the per-finding error lines for duplicate keys / duplicate
+/// section headers (NIGHT-depthtest-2).
+///
+/// Pure function so the regression suite can assert the full
+/// duplicate-reporting contract without driving `run()` (which owns
+/// file I/O and the process exit). Used by `run()` between the
+/// malformed-line report and the unknown-key report — the same
+/// position the duplicate layer occupies in startup validation and
+/// the watcher's `validate_and_send` (syntax first, structure second,
+/// semantics third).
+#[must_use]
+pub(crate) fn duplicate_diagnostics(parsed: &configfile::ParsedConfig) -> Vec<String> {
+    let mut out = Vec::new();
+    for section in &parsed.duplicate_sections {
+        out.push(format!(
+            "duplicate section '[{section}]' — the block is defined more than once (TOML table redefinition; the parser merged them silently before this fix)"
+        ));
+    }
+    for key in &parsed.duplicate_keys {
+        out.push(format!(
+            "duplicate key '{key}' — defined more than once in the same scope (last value wins; remove the earlier line)"
+        ));
+    }
+    out
 }
 
 /// Validate ALL fields in a parsed config HashMap — top-level keys AND

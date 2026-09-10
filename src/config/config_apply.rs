@@ -85,7 +85,15 @@ pub(crate) fn apply_config_and_runtime_defaults(
     // unknown) and then re-read + re-parsed the file at line 200 to recover
     // them — a redundant ~200μs disk read on every startup.
     let parsed_cfg = crate::configfile::load_config_file_full(args.config.as_deref());
-    let cfg = parsed_cfg.values;
+
+    // NIGHT-depthtest-2 layers 0 + 1.5 (read errors, duplicates) —
+    // message construction lives in config_apply_diagnostics.rs.
+    if let Some(err) =
+        config_apply_diagnostics::startup_read_error(args.config.as_deref(), &parsed_cfg)
+    {
+        return Err(err);
+    }
+
     if args.verbose {
         // Show the ACTUALLY-RESOLVED config path (with system fallback),
         // not just the default user path. After a --system install where
@@ -102,69 +110,56 @@ pub(crate) fn apply_config_and_runtime_defaults(
             });
         crate::output::eprintln_verbose_raw(&format!(
             "config loaded from: {config_path_display} ({} keys)",
-            cfg.len()
+            parsed_cfg.values.len()
         ));
         // List the actual keys so the user can see exactly what is set.
         // This is critical for debugging config issues — without this list,
         // the user only sees "(N keys)" and has to manually re-read the
         // config file to figure out which keys are active.
-        if !cfg.is_empty() {
-            let mut keys: Vec<&str> = cfg.keys().map(String::as_str).collect();
+        if !parsed_cfg.values.is_empty() {
+            let mut keys: Vec<&str> = parsed_cfg.values.keys().map(String::as_str).collect();
             keys.sort();
             crate::output::eprintln_verbose_raw(&format!("config keys: {}", keys.join(", ")));
         }
     }
 
     // Strict startup validation: if config has ANY error (malformed lines,
-    // unknown keys, or invalid values), exit. This matches --testconf
-    // behavior: invalid config = exit code 2, not silent fallback.
-    //
-    // Phase 5 closure (P4-8): we now have malformed_lines + unknown_keys from
-    // the single load_config_file_full call above — no redundant re-read.
+    // duplicate definitions, unknown keys, or invalid values), exit. This
+    // matches --testconf behavior: invalid config = exit code 2, not silent
+    // fallback. Message construction for layers 1/1.5/2 lives in
+    // config_apply_diagnostics.rs (NIGHT-depthtest-2 extraction).
     //
     // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
     // so existing tests that verify apply/fallback logic with invalid values
     // still work. Production builds never set this env var.
-    if !cfg.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err() {
-        // Layer 1: malformed lines (stray text without 'key = value')
-        if !parsed_cfg.malformed_lines.is_empty() {
-            let lines: Vec<&str> = parsed_cfg
-                .malformed_lines
-                .iter()
-                .take(3)
-                .map(String::as_str)
-                .collect();
-            return Err(format!(
-                "error: invalid config — malformed line(s): '{}' (expected 'key = value' syntax)\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
-                lines.join(", ")
-            ));
+    if !parsed_cfg.values.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err()
+    {
+        // Layer 1: malformed lines (stray text without 'key = value').
+        if let Some(err) = config_apply_diagnostics::startup_malformed_error(&parsed_cfg) {
+            return Err(err);
         }
 
-        // Layer 2: unknown keys (typos)
-        if !parsed_cfg.unknown_keys.is_empty() {
-            let keys: Vec<&str> = parsed_cfg
-                .unknown_keys
-                .iter()
-                .take(3)
-                .map(String::as_str)
-                .collect();
-            // depth-test fix: targeted "did you mean" hints for
-            // structural TOML mistakes (e.g. bold under [color.tune]).
-            let hints = crate::config_hints::format_hints_block(&parsed_cfg.unknown_keys);
-            return Err(format!(
-                "error: invalid config — unknown key(s): '{}' (run 'cosmostrix --testconf' for known keys){hints}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details.",
-                keys.join(", ")
-            ));
+        // Layer 1.5 (NIGHT-depthtest-2): duplicate keys / duplicate
+        // [section] headers — rejected in lockstep with --testconf and
+        // the live-reload watcher.
+        if let Some(err) = config_apply_diagnostics::startup_duplicate_error(&parsed_cfg) {
+            return Err(err);
+        }
+
+        // Layer 2: unknown keys (typos).
+        if let Some(err) = config_apply_diagnostics::startup_unknown_error(&parsed_cfg) {
+            return Err(err);
         }
 
         // Layer 3: invalid values (out of range, unknown enum, etc.)
-        if let Err(msg) = crate::testconf::validate_config_strictly(&cfg) {
+        if let Err(msg) = crate::testconf::validate_config_strictly(&parsed_cfg.values) {
             return Err(format!(
                 "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
             ));
         }
     }
 
+    let cfg = parsed_cfg.values;
     // v50-beta.3: intro-color validation runs unconditionally (even when
     // cfg is empty) because the value may come from the CLI flag; the
     // config key intro-color = "name" is read from cfg. Either way it is
@@ -758,6 +753,7 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
 
 // v50.0.0-beta.7 LOC refactor: apply_scene_values + apply_glitch_level_values
 // extracted to config_apply_scene_glitch.rs.
+mod config_apply_diagnostics;
 mod config_apply_scene_glitch;
 pub(crate) use config_apply_scene_glitch::{apply_glitch_level_values, apply_scene_values};
 

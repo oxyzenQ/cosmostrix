@@ -34,6 +34,10 @@
 #       markdown emphasis, bold/italic asterisk markers, in any comment
 #       type; comments are plain prose, see docs/COMMENT_STYLE.md;
 #       covers src/ AND the mirrored test/ tree since NIGHT-hunter-5)
+#  13.  Language audit (2026-09-11 owner rule, NIGHT-depthtest-2 —
+#       pure English: commit messages, comments, strings, docs and
+#       diagnostics; scripts/language_audit.py classifies functional
+#       glyph data, math notation and unicode-stress fixtures as kept)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -439,6 +443,25 @@ if [ -f scripts/check-comment-style.py ] && command -v python3 >/dev/null 2>&1; 
 	fi
 else
 	warn "check-comment-style.py or python3 not found — skipping"
+fi
+
+# ── 13. Language Audit (pure-English rule, 2026-09-11) ─────────────────────
+# Owner mandate (NIGHT-depthtest-2): commit messages, comments, strings,
+# docs, and diagnostics are English only. The detector classifies
+# non-ASCII content: letter runs of 2+ in a non-Latin script and
+# non-allowlisted Latin diacritic words are language (fail); isolated
+# math/unit letters, charset glyph data lines, and unicode-stress
+# fixture files are functional (kept, each exemption carries its
+# reason in the script).
+header "Language Audit (pure English)"
+if [ -f scripts/language_audit.py ] && command -v python3 >/dev/null 2>&1; then
+	if python3 scripts/language_audit.py 2>&1; then
+		PASS=$((PASS + 1))
+	else
+		fail "language-audit: non-English human language content found (see scripts/language_audit.py)"
+	fi
+else
+	warn "language_audit.py or python3 not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

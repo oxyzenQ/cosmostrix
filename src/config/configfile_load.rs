@@ -102,13 +102,22 @@ pub(crate) fn load_config_file_full(path_override: Option<&Path>) -> ParsedConfi
 /// `/etc/cosmostrix/config.toml` when the user path is unreadable —
 /// an explicit override that fails reads as empty (the user asked for
 /// that exact file).
+///
+/// NIGHT-depthtest-2: the explicit-override failure branch now records
+/// the read error in `ParsedConfig::read_error` instead of returning a
+/// bare empty parse. `apply_config_and_runtime_defaults` turns that
+/// into a hard startup error — the user named a specific file, and
+/// silently running defaults on a typo'd path is the silent-failure
+/// class this hunt closes. The default-path branch keeps returning a
+/// clean empty parse (a missing default config is a normal first run;
+/// the /etc fallback and built-in defaults apply by design).
 fn parse_config_at(path: &Path, allow_system_fallback: bool) -> ParsedConfig {
     // S-master-3-v2: size-capped read — an oversized (runaway/malicious)
     // config in a whitelisted dir is treated as unreadable (defaults or
     // /etc fallback apply) instead of an unbounded memory read.
     let content = match crate::config_io::read_config_capped(path) {
         Ok(c) => c,
-        Err(_) => {
+        Err(e) => {
             // Fallback: try system-wide config at /etc/cosmostrix/config.toml.
             if allow_system_fallback {
                 let system_path = PathBuf::from("/etc/cosmostrix/config.toml");
@@ -117,7 +126,14 @@ fn parse_config_at(path: &Path, allow_system_fallback: bool) -> ParsedConfig {
                     Err(_) => return ParsedConfig::default(),
                 }
             } else {
-                return ParsedConfig::default();
+                // Explicit --config override that could not be read.
+                // Record WHY so startup can reject with the real reason
+                // (missing file, permission denied, size cap) instead of
+                // a generic "file not found".
+                return ParsedConfig {
+                    read_error: Some(format!("cannot read config file: {e}")),
+                    ..ParsedConfig::default()
+                };
             }
         }
     };

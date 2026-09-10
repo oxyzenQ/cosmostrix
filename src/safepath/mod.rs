@@ -512,7 +512,16 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<Stri
     }
     // Strict: only .toml files allowed. Prevents reading arbitrary
     // file types (.c, .txt, .py, .sh, etc.) via --config.
-    if !path_str.ends_with(".toml") {
+    // NIGHT-depthtest-2: case-insensitive match. Windows filesystems
+    // are case-insensitive, so `CONFIG.TOML` is the SAME file as
+    // `config.toml` there — rejecting it at the CLI layer while the
+    // whitelist accepted it (is_safe_path runs on the resolved path)
+    // produced a contradictory pair of errors. On Unix the check is
+    // harmlessly more permissive: the file must still exist with that
+    // exact name on a case-sensitive filesystem, and a miss now lands
+    // in the explicit --config read-error path (a clear "file not
+    // found" instead of a bare extension rejection).
+    if !path_str.to_ascii_lowercase().ends_with(".toml") {
         return Err(format!(
             "error: --config '{path_str}' must have a .toml extension\n  \
              Only TOML config files are accepted."
