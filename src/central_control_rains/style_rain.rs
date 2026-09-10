@@ -68,6 +68,14 @@ pub(crate) const VORTEX_ARM_PRECESSION: f32 = 0.045;
 /// view as they drift inward — no pop-in).
 pub(crate) const VORTEX_RIM_JITTER: f32 = 0.08;
 
+/// Brightness-zone boundary: normalized radii above this read Ghost
+/// (the dim rim zone of the drain's luminance gradient).
+pub(crate) const VORTEX_ZONE_RIM: f32 = 0.66;
+
+/// Brightness-zone boundary: radii above this (and at or below the rim
+/// boundary) read Mid; below it down to the core radius, Hot.
+pub(crate) const VORTEX_ZONE_MID: f32 = 0.33;
+
 /// Event-horizon radius: motes below this normalized radius are absorbed.
 pub(crate) const VORTEX_CORE_R: f32 = 0.075;
 
@@ -1832,6 +1840,14 @@ pub(crate) const SOLAR_GRANULE_STEP: f32 = 0.9;
 /// Granule heat bounds (the walk clamps inside this band).
 pub(crate) const SOLAR_GRANULE_MIN: f32 = 0.10;
 pub(crate) const SOLAR_GRANULE_MAX: f32 = 0.95;
+
+/// Mid rung: granule heat above this reads Mid on the granulation
+/// ladder (warm convection grit).
+pub(crate) const SOLAR_GRANULE_LEVEL_MID: f32 = 0.50;
+
+/// Hot rung: granule heat above this reads Hot (the hottest
+/// convection cells).
+pub(crate) const SOLAR_GRANULE_LEVEL_HOT: f32 = 0.80;
 
 // Drop pool dials (the calm-sky family contract).
 

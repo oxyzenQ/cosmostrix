@@ -430,8 +430,7 @@ impl VortexRain {
             if !m.active {
                 continue;
             }
-            let cos_a = m.angle.cos();
-            let sin_a = m.angle.sin();
+            let (sin_a, cos_a) = m.angle.sin_cos();
             let col_f = cx + m.radius * cos_a * max_rx;
             let line_f = cy + m.radius * sin_a * max_ry;
             let col = col_f.round() as i32;
@@ -523,9 +522,9 @@ impl VortexRain {
 /// zone boundaries give the drain a visible luminance gradient even in
 /// Color16 mode (palette index selection, not blend math).
 pub(crate) fn level_for_radius(radius: f32) -> BrightnessLevel {
-    if radius > 0.66 {
+    if radius > crate::constants::VORTEX_ZONE_RIM {
         BrightnessLevel::Ghost
-    } else if radius > 0.33 {
+    } else if radius > crate::constants::VORTEX_ZONE_MID {
         BrightnessLevel::Mid
     } else if radius > crate::constants::VORTEX_CORE_R {
         BrightnessLevel::Hot

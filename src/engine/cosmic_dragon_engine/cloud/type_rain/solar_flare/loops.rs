@@ -29,11 +29,12 @@ use crate::constants::{
     SOLAR_ARC_MAX_FRAC, SOLAR_ARC_MIN_FRAC, SOLAR_DETACH_LIFT_RATE, SOLAR_DETACH_SECS,
     SOLAR_DRIFT_MAX, SOLAR_EMERGE_SECS, SOLAR_ERUPT_SECS, SOLAR_FLARE_CLOCK_MEAN, SOLAR_FLASH_SECS,
     SOLAR_FLUX_DECAY, SOLAR_FLUX_ERUPT_THRESHOLD, SOLAR_FLUX_GAIN, SOLAR_FLUX_LEVEL_CORE,
-    SOLAR_FLUX_LEVEL_HOT, SOLAR_FLUX_LEVEL_MID, SOLAR_FLUX_MAX, SOLAR_GAP_FLOOR, SOLAR_GRANULE_MAX,
-    SOLAR_GRANULE_MIN, SOLAR_GRANULE_STEP, SOLAR_H_CAP_FRAC, SOLAR_H_MIN, SOLAR_H_RELAX,
-    SOLAR_LOOP_MAX, SOLAR_LOOP_SPACING_COLS, SOLAR_REPULSION, SOLAR_STRETCH, SOLAR_SURFACE_LINES,
-    SOLAR_WALL_DAMP, SOLAR_WIND_COUPLE, SOLAR_WIND_HOLD_MEAN, SOLAR_WIND_RELAX, SOLAR_WIND_SPAN,
-    SOLAR_W_DWELL_MEAN, SOLAR_W_MAX_FRAC, SOLAR_W_MIN, SOLAR_W_RELAX,
+    SOLAR_FLUX_LEVEL_HOT, SOLAR_FLUX_LEVEL_MID, SOLAR_FLUX_MAX, SOLAR_GAP_FLOOR,
+    SOLAR_GRANULE_LEVEL_HOT, SOLAR_GRANULE_LEVEL_MID, SOLAR_GRANULE_MAX, SOLAR_GRANULE_MIN,
+    SOLAR_GRANULE_STEP, SOLAR_H_CAP_FRAC, SOLAR_H_MIN, SOLAR_H_RELAX, SOLAR_LOOP_MAX,
+    SOLAR_LOOP_SPACING_COLS, SOLAR_REPULSION, SOLAR_STRETCH, SOLAR_SURFACE_LINES, SOLAR_WALL_DAMP,
+    SOLAR_WIND_COUPLE, SOLAR_WIND_HOLD_MEAN, SOLAR_WIND_RELAX, SOLAR_WIND_SPAN, SOLAR_W_DWELL_MEAN,
+    SOLAR_W_MAX_FRAC, SOLAR_W_MIN, SOLAR_W_RELAX,
 };
 
 use super::super::monolith::BrightnessLevel;
@@ -328,8 +329,12 @@ impl CoronaArcade {
         }
 
         // Per-loop integration: phase clock, carpet forces, breath,
-        // flux decay.
+        // flux decay. Law 3a's decay factor is dt-only, so it is
+        // evaluated once per frame and shared by every loop (the
+        // stage-1 StepFactors pattern — value identical, semantics
+        // explicit).
         let wind = self.wind;
+        let flux_decay = (-SOLAR_FLUX_DECAY * dt).exp();
         for lp in &mut self.loops {
             // Lifecycle clocks (laws 1 + 4).
             lp.phase_clock += dt;
@@ -422,7 +427,7 @@ impl CoronaArcade {
             lp.h = lp.h.clamp(0.0, h_cap);
 
             // Law 3a — flux decay (the corona cools; the flash ages).
-            lp.flux *= (-SOLAR_FLUX_DECAY * dt).exp();
+            lp.flux *= flux_decay;
             lp.flare_age += dt;
         }
 
@@ -550,9 +555,9 @@ pub(crate) fn loop_level(flux: f32, flare_age: f32) -> BrightnessLevel {
 /// The granulation ladder (law 5's surface read): quiet grit reads
 /// Ghost, warm granules Mid, the hottest convection cells Hot.
 pub(crate) fn granule_level(heat: f32) -> BrightnessLevel {
-    if heat > 0.80 {
+    if heat > SOLAR_GRANULE_LEVEL_HOT {
         BrightnessLevel::Hot
-    } else if heat > 0.50 {
+    } else if heat > SOLAR_GRANULE_LEVEL_MID {
         BrightnessLevel::Mid
     } else {
         BrightnessLevel::Ghost
