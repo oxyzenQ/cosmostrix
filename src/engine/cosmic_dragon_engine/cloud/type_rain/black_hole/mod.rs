@@ -13,6 +13,7 @@ pub(crate) mod formation;
 pub(crate) mod halo;
 pub(crate) mod infall;
 pub(crate) mod ring;
+pub(crate) mod roll;
 
 pub(crate) use black_hole::BlackHoleRain;
 pub(crate) use ring::{BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep};

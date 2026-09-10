@@ -736,3 +736,85 @@ fn black_hole_infall_trickles_never_bursts() {
         "a frame spawned {max_jump} glyphs at once — the rain must trickle, not burst"
     );
 }
+
+#[test]
+fn black_hole_infall_corotates_with_the_disk() {
+    // The NIGHT-research-9 masterclass contract: the ambient rain
+    // shares the disk's angular momentum axis. Every infalling glyph
+    // is born corotating — the specific angular momentum (x times vy
+    // minus y times vx; y-down screen convention, the same sign the
+    // ring motes carry
+    // with their positive-phi advance) is POSITIVE at spawn, gravity
+    // (a central force) preserves it exactly, and the accretion brake
+    // only decays its magnitude toward zero — so no live mote may
+    // ever carry the counter-rotating sign. Two layers: the direct
+    // spawn contract (every activate sample, strict) and the
+    // steady-state invariant (every live mote, tolerant of the
+    // brake-decayed plunge near zero).
+    use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
+
+    // Layer 1 — the spawn contract over a wide spawn envelope.
+    let rand_chance = Uniform::new(0.0, 1.0).unwrap();
+    let mut rng = StdRng::seed_from_u64(20260911);
+    let fall = crate::constants::BLACK_HOLE_INFALL_FALL_SPEED;
+    let (spawn_half_w, spawn_half_h) = (3.3_f32, 2.0_f32);
+    let h = spawn_half_h + 0.25;
+    let mut min_ell = f32::MAX;
+    let mut max_ell = f32::MIN;
+    for _ in 0..4000 {
+        let mut m = InfallMote::vacant();
+        crate::cloud::type_rain::black_hole::infall::activate_infall_mote(
+            &mut m,
+            spawn_half_w,
+            spawn_half_h,
+            0,
+            &rand_chance,
+            &mut rng,
+        );
+        let l = m.x * m.vy - m.y * m.vx;
+        assert!(
+            l > fall * crate::constants::BLACK_HOLE_INFALL_COROTATION_MIN * 0.99,
+            "a spawned glyph must corotate (L {l} at x {} vx {})",
+            m.x,
+            m.vx
+        );
+        // The derived impact parameter: the ballistic crossing of the
+        // hole's latitude lands at |x| = ell (inside the sampled
+        // range, never beyond it).
+        let ell = m.x + m.vx * (h / fall);
+        min_ell = min_ell.min(ell);
+        max_ell = max_ell.max(ell);
+    }
+    assert!(
+        max_ell <= crate::constants::BLACK_HOLE_INFALL_COROTATION_MAX + 1.0e-4,
+        "the impact parameter must stay inside the sampled range (max {max_ell})"
+    );
+    assert!(
+        min_ell >= crate::constants::BLACK_HOLE_INFALL_COROTATION_MIN - 1.0e-4,
+        "the impact parameter must stay inside the sampled range (min {min_ell})"
+    );
+
+    // Layer 2 — the steady-state invariant: every live mote (spawned,
+    // bent, braked, mid-whip) keeps the corotating sign.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_rain_steady(&mut cloud, &mut frame);
+    let mut live = 0;
+    for m in cloud
+        .black_hole_rain
+        .infall_motes_for_test()
+        .iter()
+        .filter(|m| m.active)
+    {
+        let l = m.x * m.vy - m.y * m.vx;
+        assert!(
+            l > -0.05,
+            "a live glyph must never carry the counter-rotating sign (L {l} at x {} y {})",
+            m.x,
+            m.y
+        );
+        live += 1;
+    }
+    assert!(live > 0, "no live glyphs to verify");
+}

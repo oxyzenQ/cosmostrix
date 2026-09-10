@@ -40,8 +40,9 @@ use crate::cloud::type_rain::black_hole::halo::{
     HALO_STREAM_TAG_UPPER_OUTER,
 };
 use crate::cloud::type_rain::black_hole::ring::{
-    occludes_ring_cell, project_ring_mote, proximity_level, RingRoll,
+    occludes_ring_cell, project_ring_mote, proximity_level,
 };
+use crate::cloud::type_rain::black_hole::roll::RingRoll;
 use crate::cloud::type_rain::black_hole::RollFrame;
 use crate::cloud::type_rain::monolith::BrightnessLevel;
 
@@ -51,6 +52,10 @@ struct BallGeometry {
     cx: f32,
     cy: f32,
     outer_r: f32,
+    /// The disk's scale unit (NIGHT-research-9: the larger of the
+    /// viewport's limiting half-extent and the disk width fraction
+    /// of the half-width — mirrors the reset pass's own stretch).
+    disk_unit: f32,
     /// Semi-major clamp passed to the projection (92% of the
     /// viewport half-width, line-height units — mirrors the draw
     /// pass's own clamp).
@@ -59,11 +64,16 @@ struct BallGeometry {
 
 impl BallGeometry {
     fn new(cols: u16, lines: u16) -> Self {
-        let unit = (cols as f32 / 4.0).min(lines as f32 / 2.0);
+        let half_w = cols as f32 / 4.0;
+        let half_h = lines as f32 / 2.0;
+        let unit = half_w.min(half_h);
+        let outer_r = (unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+            .min(half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
         Self {
             cx: ((cols - 1) / 2) as f32,
             cy: ((lines - 1) / 2) as f32,
-            outer_r: unit * crate::constants::BLACK_HOLE_BALL_FRACTION,
+            outer_r,
+            disk_unit: unit.max(half_w * crate::constants::BLACK_HOLE_DISK_WIDTH_FRACTION),
             major_limit: 0.92 * cols as f32 / 4.0,
         }
     }
@@ -138,7 +148,9 @@ fn black_hole_ring_heads_stay_in_the_band() {
     run_frames(&mut cloud, &mut frame, 210, 16);
 
     let geo = BallGeometry::new(cols, lines);
-    let unit = geo.outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
+    // NIGHT-research-9: the tier semi-majors key on the disk unit (the
+    // width-stretched scale base), not the ball-derived unit.
+    let unit = geo.disk_unit;
     // The band contract: steady-age motes stay inside the orbital
     // band (the farthest horizontal reach, or the lensing halo's
     // radius, whichever is greater) and inside the viewport. Fresh
@@ -177,6 +189,7 @@ fn black_hole_ring_heads_stay_in_the_band() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -333,6 +346,7 @@ fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -479,6 +493,7 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -495,6 +510,7 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -509,6 +525,7 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -532,6 +549,7 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -556,6 +574,7 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -564,6 +583,7 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -581,6 +601,7 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -662,6 +683,7 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -696,6 +718,7 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -718,6 +741,7 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -726,6 +750,7 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -872,6 +897,7 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -951,6 +977,7 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
@@ -967,6 +994,7 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
             geo.cx,
             geo.cy,
             geo.outer_r,
+            geo.disk_unit,
             geo.major_limit,
             RollFrame::FLAT,
         );
@@ -1019,12 +1047,14 @@ fn black_hole_ring_inner_tiers_orbit_faster() {
             1.0 / 60.0,
             dt_lorenz,
             omega_base,
+            1.0,
         );
         crate::cloud::type_rain::black_hole::ring::advance_ring_mote(
             &mut m2,
             1.0 / 60.0,
             dt_lorenz,
             omega_base,
+            1.0,
         );
     }
     assert!(
@@ -1058,11 +1088,19 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
-    let (col_roll, line_roll) =
-        project_ring_mote(&m2, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
+    let (col_roll, line_roll) = project_ring_mote(
+        &m2,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.disk_unit,
+        geo.major_limit,
+        roll90,
+    );
     assert!(
         (col_flat - geo.cx).abs() < 0.02,
         "the tier-2 mid-band must start on the center column when flat"
@@ -1091,11 +1129,19 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
         geo.cx,
         geo.cy,
         geo.outer_r,
+        geo.disk_unit,
         geo.major_limit,
         RollFrame::FLAT,
     );
-    let (col_l, line_l) =
-        project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
+    let (col_l, line_l) = project_ring_mote(
+        &left,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.disk_unit,
+        geo.major_limit,
+        roll90,
+    );
     let rest_offset = line_l_flat - geo.cy;
     let expected_col = geo.cx - rest_offset * CELL_ASPECT_DIVISOR;
     assert!(
@@ -1655,4 +1701,69 @@ fn black_hole_style_supports_dynamic_screen_size() {
             "the halo streams must resume at {cols}x{lines}"
         );
     }
+}
+
+#[test]
+fn black_hole_ring_roll_respects_the_dynamic_tilt_cap() {
+    // The NIGHT-research-9 anti-clip guard: the dynamic tilt cap
+    // lowers the attitude ceiling below the menu's 60-degree max on
+    // viewports whose vertical budget cannot host the full rung (a
+    // stretched wide-screen disk tilts shallower — a long thin disk
+    // must). The scheduler clamps the menu pick to the cap, never
+    // arms an attitude beyond it, and a shrink applied mid-hold arms
+    // an immediate eased return to the rest line.
+
+    // A tight cap: excursions never exceed it over a long window.
+    let cap = 25.0_f32.to_radians();
+    let mut roll = RingRoll::new();
+    roll.set_tilt_cap(cap);
+    // The first flat hold plus a long sampling window: every armed
+    // target (parked or swept) stays at or below the cap.
+    let mut max_seen = 0.0_f32;
+    for _ in 0..12000 {
+        roll.tick(0.1);
+        max_seen = max_seen.max(roll.angle().abs());
+        assert!(
+            roll.angle().abs() <= cap + 1.0e-4,
+            "the roll must never exceed the tilt cap ({} > {})",
+            roll.angle().abs(),
+            cap
+        );
+    }
+    assert!(
+        max_seen > cap * 0.75,
+        "the capped excursions must still engage meaningfully (max {max_seen})"
+    );
+
+    // The shrink recovery: parked at a tilted attitude, a resize
+    // that tightens the cap below it must arm the immediate return —
+    // the angle leaves the out-of-window attitude within one turn
+    // segment (never parking the remaining dwell).
+    let mut roll = RingRoll::new();
+    // Reach the first tilted attitude (parked or mid-sweep — the
+    // recovery contract holds either way): sample at fine steps
+    // until the stack leaves the rest line.
+    let mut angle_before = 0.0_f32;
+    for _ in 0..4000 {
+        roll.tick(0.1);
+        if roll.angle().abs() > 0.3 {
+            angle_before = roll.angle().abs();
+            break;
+        }
+    }
+    assert!(
+        angle_before > 0.3,
+        "the harness must reach a tilted attitude before the shrink (angle {angle_before})"
+    );
+    // The shrink: cap below the current attitude.
+    let small_cap = (angle_before * 0.5).max(0.05);
+    roll.set_tilt_cap(small_cap);
+    // The return resolves within the max turn duration; after it,
+    // the angle sits at or below the new cap (parked at rest).
+    roll.tick(crate::constants::BLACK_HOLE_ROLL_TURN_MAX_SECS + 1.0);
+    assert!(
+        roll.angle().abs() <= small_cap + 1.0e-3,
+        "the shrink must return the stack inside the new cap ({} > {small_cap})",
+        roll.angle().abs()
+    );
 }

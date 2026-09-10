@@ -9,6 +9,90 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-9 — the black hole masterclass physics pass: disk-corotation infall, width-adaptive composition, and the see-saw window re-cut
+
+- Owner report (three reads): the disk at stage 3 reads
+  counter-rotating (captures whipping around the shadow against the
+  disk's flow — the disk reads left-to-right at the start, the
+  opposite later); on narrow terminals the ball reads too big (it
+  should shrink so the disk reads long, with wide terminals scaling
+  up into the majestic read); and the disk parked near vertical
+  (the 70-110 degree window) clips against the terminal screen
+  limits and reads ugly.
+- Root cause of the counter-rotation: the infall's spawn drift was
+  symmetric noise, so roughly half the captured glyphs carried the
+  disk's angular momentum sign and half the opposite — the left-side
+  captures in particular are born counter-rotating under a symmetric
+  drift, and their whip-arounds circulate against the disk's
+  rotational sense at exactly the stage-3 moment the owner watched.
+- Fix 1 — corotation by construction (`infall.rs`): each glyph now
+  samples a specific angular momentum ell (uniform in the new
+  `BLACK_HOLE_INFALL_COROTATION_MIN`/`_MAX` range, outer radii) and
+  derives its horizontal drift from the exact angular-momentum
+  identity, so the specific angular momentum (x times vy minus y times
+  vx) is positive at spawn for every x (the
+  ring motes' sign), gravity preserves it exactly (a central force),
+  and the accretion brake only decays its magnitude — no live mote
+  can ever carry the counter-rotating sign. The ballistic crossing
+  of the hole's latitude lands at |x| = ell (the sampled impact
+  parameter — the capture-variety spread preserved); the left-side
+  feeding streams carry the stronger rightward drift corotation
+  requires there, the coherent-vorticity read of ambient material
+  sharing the disk's rotation axis. The retired
+  `BLACK_HOLE_INFALL_DRIFT_FRACTION` (symmetric ±0.45 drift) is
+  deleted with its doc.
+- Fix 1 companion — kinetic heat is now the RADIAL approach speed
+  (the plunge component): the corotating drift is the ambient
+  medium's cold inherited angular momentum, not heat, so the calm
+  Ghost entry survives the new drift field (grading total speed
+  would have lit every feeding stream Hot at spawn); the periapsis
+  whip still flashes (approach speed spikes + the proximity bump).
+- Fix 2 — width-adaptive composition (`black_hole.rs` reset pass):
+  the ball is capped at `BLACK_HOLE_BALL_WIDTH_MAX` (0.30) of the
+  viewport half-width — wherever the cap binds (every viewport up
+  to roughly 1.8:1 aspect, the common terminal classes) the shadow
+  reads 30% of the terminal width and the disk dominates (the
+  narrow-screen read); the disk's scale unit becomes the larger of
+  the limiting half-extent and `BLACK_HOLE_DISK_WIDTH_FRACTION`
+  (0.72) of the half-width — on wide terminals the disk stretches
+  to the projection's 92%-of-half-width clamp (the majestic
+  full-width read), and the tier semi-majors key on it
+  (`project_ring_mote` gained a `disk_unit` argument). The ring
+  proximity ladder rides the stretch gain (`proximity_gain`), the
+  Keplerian shear normalization tracks the real semi-major-to-ball
+  ratio (`advance_ring_mote` gained a `disk_gain` argument), and
+  the tier semi-minors/offsets stay ball-keyed — the stretched disk
+  reads thinner, the physical Gargantua proportion.
+- Fix 3 — the see-saw window re-cut (`roll.rs`, split from
+  `ring.rs` for the 800-line cap): the excursion menu drops the
+  85-degree rung (`BLACK_HOLE_ROLL_TILT_DEGS` is now
+  [60, 50, 45, 30, 15]) so the whole 70-110 degree near-vertical
+  window is excluded outright — the disk never parks or sweeps
+  where the screen would clip it. A DYNAMIC tilt cap
+  (`RingRoll::set_tilt_cap`) derives from the viewport's vertical
+  budget (92% of the half-height over the tier-0 semi-major with
+  wobble headroom): viewports that cannot host the 60-degree rung
+  get the rung lowered (a stretched wide-screen disk tilts
+  shallower — a long thin disk must), and a shrink applied
+  mid-hold arms an immediate eased return to the rest line (a
+  resize while tilted never leaves the stack clipped for the
+  remaining dwell). Style re-entry re-applies the stored cap to
+  the fresh scheduler.
+- Tests: the see-saw contract re-pinned to the new menu and the
+  excluded-window bound; the infall corotation contract pinned two
+  ways (4000-sample strict spawn check incl. the impact-parameter
+  range, plus the steady-state live-mote invariant); the
+  width-adaptive composition contract pinned across the terminal
+  classes (120x40, 200x50, 105x64, 80x24 — ball cap, disk stretch,
+  92% reach guard); the tilt-cap contract pinned (tight-cap
+  excursion bound over 20 minutes of schedule, mid-hold shrink
+  recovery); the band/core geometry pins re-derived for the new
+  sizing. 64/64 black hole contracts, full suite 2792 green,
+  fmt/clippy clean, version untouched.
+- A/B benchmark evidence (10s, 120x40, wet IO, run after the
+  commit): recorded in docs/BENCHMARKING.md — neutral within noise
+  (startup-geometry-only changes; the infall spawn math is O(1)).
+
 ### fix: NIGHT-depthtest-2 & hunt-30 — CLI/config duplicate-name audit, silent-failure hunt, self-consistent dump-config suggestions, and the pure-English language gate
 
 - Owner report (two transcripts): `--dump-config <existing>` refuses

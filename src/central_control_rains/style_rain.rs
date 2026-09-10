@@ -576,8 +576,43 @@ pub(crate) const PHYSARUM_BRIGHTNESS_DIM: f32 = 0.03;
 /// half-extent (in line-height units: min(cols / 4, lines / 2)).
 /// 0.55 reads as a medium ball on every terminal class — roughly a
 /// third of the short axis at 80x24 and the same proportion at
-/// 400x100, matching the owner's "medium size ball" spec.
+/// 400x100, matching the owner's "medium size ball" spec. The
+/// effective ball is additionally capped by
+/// `BLACK_HOLE_BALL_WIDTH_MAX` of the viewport half-width
+/// (NIGHT-research-9): on narrow terminals the width cap wins, the
+/// shadow shrinks, and the disk dominates the composition.
 pub(crate) const BLACK_HOLE_BALL_FRACTION: f32 = 0.55;
+
+/// Ball radius cap as a share of the viewport half-width (in
+/// line-height units), NIGHT-research-9: the owner's narrow-screen
+/// report — "when the terminal width is narrow the ball reads too
+/// big; it should shrink so the disk reads long". Wherever the cap
+/// binds (every viewport up to roughly 1.8:1 aspect — the common
+/// terminal classes), the ball's diameter spans 30% of the terminal
+/// width, putting the ball-to-disk diameter ratio near 0.33 against
+/// the disk's 92%-of-half-width reach — the Gargantua/EHT read
+/// where the disk stretches far beyond the shadow. On the widest
+/// viewports (aspect beyond ~1.8:1) the ball fraction of the
+/// limiting half-extent drops below the cap and the height bound
+/// takes over — the disk then stretches proportionally further
+/// still (the wide-terminal majestic read paired with
+/// `BLACK_HOLE_DISK_WIDTH_FRACTION`).
+pub(crate) const BLACK_HOLE_BALL_WIDTH_MAX: f32 = 0.30;
+
+/// Disk reach floor as a share of the viewport half-width (in
+/// line-height units), NIGHT-research-9: the disk's scale unit is
+/// the larger of the viewport's limiting half-extent and this
+/// fraction of the half-width. On wide terminals (width more than
+/// ~2.8x the height) the height-limited unit leaves large empty
+/// side margins — the disk covers only ~72% of the width at 4:1.
+/// The 0.72 floor pushes the tier-0 semi-major to the projection's
+/// 92%-of-half-width clamp instead, so the disk fills the width
+/// and the wide terminal reads majestic, per the owner's ask
+/// ("a big terminal should perform and look masterclass"). The
+/// per-mote clamp stays the hard guard: the disk can never exceed
+/// 92% of the half-width on any viewport. On width-limited
+/// viewports the floor never engages and geometry is unchanged.
+pub(crate) const BLACK_HOLE_DISK_WIDTH_FRACTION: f32 = 0.72;
 
 /// Event-horizon (empty core) radius as a fraction of the ball outer
 /// radius. The core is never drawn — it shows the background, the
@@ -969,15 +1004,20 @@ pub(crate) const BLACK_HOLE_ROLL_TURN_MIN_SECS: f32 = 1.2;
 pub(crate) const BLACK_HOLE_ROLL_TURN_MAX_SECS: f32 = 5.5;
 
 /// The excursion menu (degrees of tilt from the horizontal rest
-/// line). The stage-2.5 contract: the attitude window spans
-/// 15-180 degrees in the owner's convention (180 = the flat rest
-/// line, 90 = vertical) with exactly 90 excluded — the lever
-/// sweeps the shallow 15/30/45/50-degree tilts, the mid 60, and
-/// the steep 85 (a near-vertical diagonal that keeps the drama of
-/// the old vertical pose without ever parking on the excluded
-/// attitude), the sign alternating every excursion so left-up and
-/// right-up tilts take turns.
-pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 6] = [85.0, 60.0, 50.0, 45.0, 30.0, 15.0];
+/// line). The NIGHT-research-9 contract (owner mandate 2026-09-11):
+/// the whole 70-110 degree near-vertical window is excluded — the
+/// owner's report, "the disk gets cut off by the terminal screen
+/// limit at those attitudes and reads ugly". The menu therefore
+/// tops out at 60 degrees, comfortably below the window's 70-degree
+/// edge: the lever sweeps the shallow 15/30/45-degree tilts and the
+/// mid 50/60, the sign alternating every excursion so left-up and
+/// right-up tilts take turns. The steep 85-degree rung of the
+/// stage-2.5 menu is retired; the dynamic tilt cap
+/// (see `RingRoll::set_tilt_cap`) can lower the effective ceiling
+/// further on viewports whose vertical budget cannot host even the
+/// 60-degree rung, but the menu never arms an attitude inside the
+/// excluded window on any viewport.
+pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 5] = [60.0, 50.0, 45.0, 30.0, 15.0];
 
 /// Chance (percent) that a tilted excursion chains directly into the
 /// next tilted excursion instead of returning to the flat rest line
@@ -1258,12 +1298,26 @@ pub(crate) const BLACK_HOLE_INFALL_FALL_SPEED: f32 = 1.32;
 /// expressed as one scalar.
 pub(crate) const BLACK_HOLE_INFALL_SIM_TIME_PER_CPS: f32 = 1.0 / 12.0;
 
-/// Maximum horizontal drift of a fresh infall mote as a fraction of
-/// its fall speed (uniform ±DRIFT). 0.45 spreads the impact
-/// parameters: some glyphs fall dead-center (the plunge read), most
-/// pass offset (the bend and whip reads) — the spread that keeps
-/// every capture unique.
-pub(crate) const BLACK_HOLE_INFALL_DRIFT_FRACTION: f32 = 0.45;
+/// Corotation impact-parameter range (in ball outer radii),
+/// NIGHT-research-9: the ambient rain shares the disk's angular
+/// momentum axis, so every infalling glyph is born corotating with
+/// the accretion disk (the owner's report: captures whipping around
+/// the shadow against the disk's rotation read as the disk
+/// "counter-rotating"; a real black hole's infalling material
+/// corotates — the disk exists because the captured material's net
+/// angular momentum is coherent). The spawn samples a specific
+/// angular momentum ell uniform in [MIN, MAX] and derives the
+/// horizontal drift from it, so a glyph's ballistic crossing of the
+/// hole's latitude lands at |x| = ell — the impact-parameter spread
+/// that keeps every capture unique, now with a guaranteed
+/// corotating sign: the specific angular momentum (x times vy minus
+/// y times vx) is positive (in the y-down screen convention) for
+/// every spawn, the
+/// same sign the ring motes carry. 0.30 keeps the tight plunges
+/// (near-radial dives); 1.60 keeps the wide fly-bys that bend
+/// gently past the field's edge.
+pub(crate) const BLACK_HOLE_INFALL_COROTATION_MIN: f32 = 0.30;
+pub(crate) const BLACK_HOLE_INFALL_COROTATION_MAX: f32 = 1.60;
 
 /// Speed ladder rung 1: below this mote speed (outer radii per
 /// sim-second) the base brightness reads Ghost — slow distant rain, the
@@ -1304,10 +1358,22 @@ pub(crate) const BLACK_HOLE_INFALL_SHIMMER_CHANCE: f32 = 0.4;
 // field), the influence edge must clear the disk's tier-0 reach
 // (1.375 x 1.05 / 0.55 = 2.62 outer radii — the bending zone covers
 // the system), and the speed ladder must be strictly ordered (the
-// kinetic-heat grade climbs monotonically).
+// kinetic-heat grade climbs monotonically). NIGHT-research-9 adds:
+// the corotation impact-parameter range must be positive and
+// ordered (every spawn carries the disk's rotational sign), the
+// ball width cap and the disk width floor must stay inside (0, 1)
+// (shares of the viewport half-width), and the tilt menu must stay
+// below the 70-degree edge of the excluded near-vertical window.
 const _: () = assert!(BLACK_HOLE_INFALL_CAPTURE_FRACTION < BLACK_HOLE_INFALL_INFLUENCE_FRACTION);
 const _: () = assert!(BLACK_HOLE_INFALL_INFLUENCE_FRACTION > 2.62);
 const _: () = assert!(BLACK_HOLE_INFALL_SPEED_GHOST < BLACK_HOLE_INFALL_SPEED_MID);
+const _: () = assert!(BLACK_HOLE_INFALL_COROTATION_MIN > 0.0);
+const _: () = assert!(BLACK_HOLE_INFALL_COROTATION_MIN < BLACK_HOLE_INFALL_COROTATION_MAX);
+const _: () = assert!(BLACK_HOLE_BALL_WIDTH_MAX > 0.0 && BLACK_HOLE_BALL_WIDTH_MAX < 1.0);
+const _: () = assert!(BLACK_HOLE_DISK_WIDTH_FRACTION > 0.0 && BLACK_HOLE_DISK_WIDTH_FRACTION < 1.0);
+const _: () = assert!(BLACK_HOLE_BALL_WIDTH_MAX < BLACK_HOLE_DISK_WIDTH_FRACTION);
+const _: () = assert!(BLACK_HOLE_ROLL_TILT_DEGS[0] < 70.0);
+const _: () = assert!(BLACK_HOLE_ROLL_TILT_DEGS[BLACK_HOLE_ROLL_TILT_DEGS.len() - 1] >= 15.0);
 const _: () = assert!(BLACK_HOLE_INFALL_SPEED_MID < BLACK_HOLE_INFALL_SPEED_CORE);
 
 // ── Black hole formation intro (stage 2.2, NIGHT-special-1) ────────────

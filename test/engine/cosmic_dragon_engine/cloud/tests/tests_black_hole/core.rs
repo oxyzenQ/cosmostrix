@@ -77,9 +77,21 @@ fn black_hole_core_is_empty_and_ball_is_centered() {
     run_frames_to_steady(&mut cloud, &mut frame);
 
     let ring = cloud.black_hole_rain.ring_cells_for_test();
-    let unit = (cols as f32 / 4.0).min(lines as f32 / 2.0);
-    let outer_r = unit * crate::constants::BLACK_HOLE_BALL_FRACTION;
+    // NIGHT-research-9: the ball is width-capped — mirror the reset
+    // pass's sizing (the smaller of the ball fraction of the limiting
+    // half-extent and the width cap share of the half-width), asserted
+    // against the orchestrator's own cached radius.
+    let half_w = cols as f32 / 4.0;
+    let unit = half_w.min(lines as f32 / 2.0);
+    let outer_r = (unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+        .min(half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
     let core_r = outer_r * crate::constants::BLACK_HOLE_CORE_FRACTION;
+    assert!(
+        (cloud.black_hole_rain.ball_outer_r_for_test() - outer_r).abs() < 1.0e-4,
+        "the cached ball radius must match the width-capped sizing ({} vs {})",
+        cloud.black_hole_rain.ball_outer_r_for_test(),
+        outer_r
+    );
     // Integer center cell — the same discrete midpoint the renderer
     // scans around ((n - 1) / 2).
     let cx = ((cols - 1) / 2) as f32;
@@ -242,4 +254,85 @@ fn black_hole_style_transition_rebuilds_cleanly() {
         cloud.black_hole_rain.drawn_cells_for_test().len() >= ring_before,
         "re-entry must draw the full annulus (plus any spawned ring motes)"
     );
+}
+
+#[test]
+fn black_hole_composition_adapts_to_the_viewport_width() {
+    // The NIGHT-research-9 dynamic-size contract: the ball is
+    // width-capped (30% of the terminal width wherever the cap binds
+    // — every viewport up to roughly 1.8:1 aspect, the owner's
+    // narrow-screen read: a small shadow, a long disk), the disk's
+    // scale unit stretches to fill the width on wide terminals (the
+    // majestic full-width read), and on the widest viewports the
+    // height bound takes the ball back over. The tier-0 reach keys
+    // on the disk unit and never exceeds the 92%-of-half-width
+    // clamp.
+    for (cols, lines) in [(120, 40), (200, 50), (105, 64), (80, 24)] {
+        let mut cloud = make_black_hole_cloud(cols, lines);
+        let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+        run_frames_to_steady(&mut cloud, &mut frame);
+
+        let half_w = cols as f32 / 4.0;
+        let half_h = lines as f32 / 2.0;
+        let unit = half_w.min(half_h);
+        let outer_r = (unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+            .min(half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
+        let disk_unit = unit.max(half_w * crate::constants::BLACK_HOLE_DISK_WIDTH_FRACTION);
+
+        let ball = cloud.black_hole_rain.ball_outer_r_for_test();
+        assert!(
+            (ball - outer_r).abs() < 1.0e-4,
+            "the ball must follow the width-capped sizing at {cols}x{lines} ({} vs {outer_r})",
+            ball
+        );
+        assert!(
+            ball <= half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX + 1.0e-4,
+            "the ball must never exceed the width cap at {cols}x{lines} ({ball})"
+        );
+        let disk = cloud.black_hole_rain.disk_unit_for_test();
+        assert!(
+            (disk - disk_unit).abs() < 1.0e-4,
+            "the disk unit must follow the width-stretched sizing at {cols}x{lines} ({} vs {disk_unit})",
+            disk
+        );
+        // The tier-0 reach: the disk's semi-major, clamped at 92% of
+        // the half-width (the projection's own guard — asserted here
+        // so the stretch can never push the disk off-screen).
+        let reach = (crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION
+            * crate::constants::BLACK_HOLE_RING_TIERS[0].major_scale
+            * disk)
+            .min(0.92 * half_w);
+        assert!(
+            reach <= 0.92 * half_w + 1.0e-3,
+            "the tier-0 reach must never exceed the 92% half-width clamp at {cols}x{lines} ({reach})"
+        );
+        // The wide-terminal stretch: where the width floor exceeds
+        // the limiting half-extent, the disk unit must grow past it.
+        let width_floor = half_w * crate::constants::BLACK_HOLE_DISK_WIDTH_FRACTION;
+        if width_floor > unit + 1.0e-4 {
+            assert!(
+                disk > unit + 1.0e-4,
+                "the disk unit must stretch past the limiting half-extent at {cols}x{lines}"
+            );
+        }
+        // The see-saw's dynamic tilt cap: derived from the vertical
+        // budget over the tier-0 semi-major — positive, at or below
+        // the menu max, and meaningfully engaged on these classes
+        // (the stretched disk tilts shallower than the 60-degree rung).
+        let cap = cloud.black_hole_rain.roll_tilt_cap_for_test();
+        let menu_max = crate::cloud::type_rain::black_hole::roll::RingRoll::MENU_MAX_RADIANS;
+        assert!(
+            cap > 0.2 && cap <= menu_max,
+            "the tilt cap must be engaged inside the window at {cols}x{lines} ({cap})"
+        );
+        // The narrow-screen read: wherever the cap binds, the ball
+        // reads 30% of the terminal width.
+        if outer_r < unit * crate::constants::BLACK_HOLE_BALL_FRACTION - 1.0e-4 {
+            let share = ball * 2.0 * 2.0 / cols as f32;
+            assert!(
+                (share - crate::constants::BLACK_HOLE_BALL_WIDTH_MAX).abs() < 1.0e-3,
+                "the capped ball must span BALL_WIDTH_MAX of the width at {cols}x{lines} ({share})"
+            );
+        }
+    }
 }

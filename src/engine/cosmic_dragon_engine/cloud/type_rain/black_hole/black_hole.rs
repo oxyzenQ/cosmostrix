@@ -57,17 +57,16 @@
 //! at any height and orbit visibly faster); and the whole stack
 //! see-saws around the hole (`RingRoll` in ring.rs — the flat
 //! horizontal line holds the single longest pose, eased excursions
-//! sweep the 15-180 degree attitude window with the vertical
-//! 90-degree attitude excluded, alternating sign, sometimes chaining
-//! tilt to tilt through the rest line).
+//! sweep the shallow-to-mid 15-60 degree attitude window with the
+//! whole 70-110 degree near-vertical band excluded, alternating
+//! sign, sometimes chaining tilt to tilt through the rest line).
 //!
 //! Stage 2.5 (owner 9.8/10 feedback): the three-tier stack tightened
 //! into the snug family the owner asked for — the upper two lines now
 //! sit a small step above the equatorial band and each other (his
 //! one-meter-gap analogy: the old layout read ten meters apart), and
 //! the see-saw roll's long dwell improved to a more special 30 s-or-
-//! more hold across the whole 15-180 degree attitude window, with
-//! exactly the 90-degree vertical attitude excluded.
+//! more hold across the whole attitude window.
 //!
 //! Stage 2.6 (owner 9.9/10 feedback): the stack closes
 //! into the one-compact-family read — the main disk drops a little
@@ -103,11 +102,30 @@
 //! (angular momentum radiated into the disk), so passing glyphs
 //! whip around and decay into tightening inspirals instead of
 //! flying by; a mote that crosses the event horizon is eaten, its
-//! final flash on the photon ring. Brightness is speed-graded
-//! (kinetic heat — accretion heating) composed with the shared
-//! proximity ladder: the far rain reads Ghost, the whip Core white.
+//! final flash on the photon ring. Brightness is graded by the
+//! radial approach speed (kinetic heat — the plunge component)
+//! composed with the shared proximity ladder: the far rain reads
+//! Ghost, the whip Core white.
 //! Geometry is fraction-based end to end, so the system scales with
 //! any screen size (the dynamic-size contract the owner pinned).
+//!
+//! NIGHT-research-9 (the masterclass physics pass, owner mandate
+//! 2026-09-11): three reads, three fixes. (1) The disk's rotation
+//! direction now reads coherent end to end — every infalling glyph
+//! is born corotating with the disk (a sampled specific angular
+//! momentum with the disk's sign; see `activate_infall_mote`), so
+//! no capture ever whips against the disk's rotational sense — the
+//! ambient rain field reads as one vorticity feeding the hole.
+//! (2) The composition adapts to the viewport's width: the ball is
+//! width-capped (30% of the terminal width wherever the cap binds —
+//! the narrow-screen read: a small shadow, a long disk), and the
+//! disk's scale unit stretches to fill the width on wide terminals
+//! (the majestic full-width read). (3) The see-saw's attitude window
+//! is re-cut: the 70-110 degree near-vertical band is excluded
+//! outright (the disk never parks or sweeps where the terminal
+//! screen would clip it), with a dynamic tilt cap lowering the
+//! ceiling further on viewports whose vertical budget cannot host
+//! the menu's 60-degree rung.
 //!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
@@ -169,8 +187,9 @@ use super::infall::InfallStream;
 use super::ring::{
     activate_ring_mote, advance_ring_mote, floor_head_base_at_hot, level_for_ring_z,
     occludes_ring_cell, project_ring_mote, proximity_level, step_down_level, BlackHoleRandom,
-    BlackHoleSpawnParams, BlackHoleStep, RingMote, RingRoll,
+    BlackHoleSpawnParams, BlackHoleStep, RingMote,
 };
+use super::roll::RingRoll;
 use super::RollFrame;
 
 /// One drawn ball cell: grid position plus its radial brightness band.
@@ -277,7 +296,30 @@ pub(crate) struct BlackHoleRain {
     center_line: i32,
     /// Cached ball outer radius in line-height units — the ring
     /// radii are multiples of it (scales with any screen size).
+    /// NIGHT-research-9: the effective radius is the SMALLER of the
+    /// ball fraction of the viewport's limiting half-extent and the
+    /// width cap (`BLACK_HOLE_BALL_WIDTH_MAX` of the half-width), so
+    /// narrow viewports shrink the shadow and the disk dominates.
     ball_outer_r: f32,
+    /// The disk's scale unit (line-height units) — the LARGER of the
+    /// viewport's limiting half-extent and
+    /// `BLACK_HOLE_DISK_WIDTH_FRACTION` of the half-width
+    /// (NIGHT-research-9). The tier semi-major axes key on this, not
+    /// on the ball: wide terminals stretch the disk toward the 92%
+    /// half-width clamp (the majestic full-width read) while the
+    /// ball/halo family stays proportionally compact.
+    disk_unit: f32,
+    /// The ring proximity ladder's gain (dimensionless, 1.0 at the
+    /// canonical ball-to-disk proportion): the fade/hot keypoints
+    /// scale with the disk unit's stretch so the brightness profile
+    /// rides the disk's real reach at every viewport class.
+    proximity_gain: f32,
+    /// The see-saw's dynamic attitude ceiling (radians, positive) —
+    /// the menu pick clamp, recomputed at reset from the vertical
+    /// budget (92% of the half-height over the tier-0 semi-major
+    /// with wobble headroom). Stored so style re-entry can re-apply
+    /// it to a freshly constructed scheduler.
+    roll_tilt_cap: f32,
     /// Ball rim spin phase (radians, unbounded — read through cos so
     /// no wrapping bookkeeping). Advanced by the same clock and
     /// omega as the ring's mean motion: the hole visibly rotates
@@ -350,6 +392,9 @@ impl BlackHoleRain {
             center_col: 0,
             center_line: 0,
             ball_outer_r: 0.0,
+            disk_unit: 0.0,
+            proximity_gain: 1.0,
+            roll_tilt_cap: RingRoll::MENU_MAX_RADIANS,
             spin_phase: 0.0,
             roll: RingRoll::new(),
             cell_angles: Vec::new(),
@@ -369,11 +414,26 @@ impl BlackHoleRain {
 
     /// Rebuild the ball geometry for a new viewport (or style entry).
     ///
-    /// The outer radius is a fraction of the viewport's limiting
-    /// half-extent (line-height units): `unit = min(cols / 4, lines / 2)`
-    /// — `cols / 4` is the half-width expressed in line units through the
-    /// cell aspect, `lines / 2` the half-height. A medium ball reads at
-    /// roughly a third of the screen's short axis on every terminal size.
+    /// The outer radius is the SMALLER of the ball fraction of the
+    /// viewport's limiting half-extent (line-height units: `unit =
+    /// min(cols / 4, lines / 2)` — `cols / 4` is the half-width
+    /// expressed in line units through the cell aspect, `lines / 2`
+    /// the half-height) and the width cap share of the half-width
+    /// (NIGHT-research-9, `BLACK_HOLE_BALL_WIDTH_MAX`): the cap binds
+    /// on every viewport up to roughly 1.8:1 aspect (the common
+    /// terminal classes — the shadow reads 30% of the terminal width,
+    /// the disk dominates the composition, the owner's narrow-screen
+    /// read); beyond that the height bound takes over.
+    ///
+    /// The disk's scale unit (stored as `disk_unit`) is the LARGER of
+    /// the limiting half-extent and
+    /// `BLACK_HOLE_DISK_WIDTH_FRACTION` of the half-width: on wide
+    /// viewports the disk stretches toward the projection's
+    /// 92%-of-half-width clamp (the majestic full-width read) while
+    /// the ball/halo family stays ball-keyed. The ring proximity
+    /// ladder's gain (`proximity_gain`) and the see-saw's dynamic
+    /// tilt cap (`roll_tilt_cap`, from the vertical budget over the
+    /// tier-0 semi-major) are recomputed in the same pass.
     pub(crate) fn reset(&mut self, cols: u16, lines: u16) {
         self.ring_cells.clear();
         if cols == 0 || lines == 0 {
@@ -383,6 +443,8 @@ impl BlackHoleRain {
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
+            self.disk_unit = 0.0;
+            self.proximity_gain = 1.0;
             self.cell_angles.clear();
             self.cell_buckets.clear();
             self.cell_dist_norm.clear();
@@ -390,9 +452,36 @@ impl BlackHoleRain {
             return;
         }
 
-        let unit = (cols as f32 / (CELL_ASPECT_DIVISOR * 2.0)).min(lines as f32 / 2.0);
-        let outer_r = unit * crate::constants::BLACK_HOLE_BALL_FRACTION;
+        let half_w = cols as f32 / (CELL_ASPECT_DIVISOR * 2.0);
+        let half_h = lines as f32 / 2.0;
+        let unit = half_w.min(half_h);
+        // NIGHT-research-9 sizing: width-capped ball (the shadow never
+        // exceeds BALL_WIDTH_MAX of the half-width, so narrow viewports
+        // shrink it and the disk reads long), width-stretched disk unit
+        // (wide viewports fill the width), and the derived gain/cap.
+        let outer_r = (unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+            .min(half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
         let core_r = outer_r * crate::constants::BLACK_HOLE_CORE_FRACTION;
+        self.disk_unit = unit.max(half_w * crate::constants::BLACK_HOLE_DISK_WIDTH_FRACTION);
+        // The proximity ladder's gain: the disk unit's stretch factor
+        // vs the canonical ball-derived unit (1.0 whenever the ball is
+        // neither width-capped nor the disk width-stretched).
+        self.proximity_gain =
+            self.disk_unit * crate::constants::BLACK_HOLE_BALL_FRACTION / outer_r.max(0.05);
+        // The see-saw's dynamic tilt cap: the tier-0 semi-major (with
+        // wobble headroom) times the tilt's sine must stay inside 92%
+        // of the half-height — the NIGHT-research-9 anti-clip guard
+        // (the 70-110 degree window is excluded outright by the menu;
+        // this cap lowers the ceiling for viewports whose vertical
+        // budget cannot host even the 60-degree rung).
+        let a_tier0 = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION
+            * crate::constants::BLACK_HOLE_RING_TIERS[0].major_scale
+            * self.disk_unit
+            * 1.10;
+        self.roll_tilt_cap = ((0.92 * half_h / a_tier0.max(0.05)).clamp(0.0, 1.0))
+            .asin()
+            .min(RingRoll::MENU_MAX_RADIANS);
+        self.roll.set_tilt_cap(self.roll_tilt_cap);
 
         // Degenerate viewport guard: a ball thinner than one cell of
         // annulus width draws nothing (prevents a zero-width division
@@ -406,6 +495,8 @@ impl BlackHoleRain {
             self.center_col = 0;
             self.center_line = 0;
             self.ball_outer_r = 0.0;
+            self.disk_unit = 0.0;
+            self.proximity_gain = 1.0;
             self.cell_angles.clear();
             self.cell_buckets.clear();
             self.cell_dist_norm.clear();
@@ -493,12 +584,15 @@ impl BlackHoleRain {
     /// first launch); a pure resize keeps the steady state. Stage
     /// 2.4: the roll scheduler resets too — the stack enters flat
     /// and holds the horizontal Gargantua line for the first flat
-    /// hold before its first tilt.
+    /// hold before its first tilt. NIGHT-research-9: the fresh
+    /// scheduler re-applies the stored dynamic tilt cap (the
+    /// viewport's vertical budget survives the re-entry).
     pub(crate) fn begin_formation(&mut self) {
         self.formation_t = 0.0;
         self.formed = false;
         self.seed_stale = true;
         self.roll = RingRoll::new();
+        self.roll.set_tilt_cap(self.roll_tilt_cap);
     }
 
     /// Rebuild the ring, halo and infall pools: one mote per column
@@ -829,11 +923,15 @@ impl BlackHoleRain {
         }
 
         let mut absorbed = 0usize;
+        // The disk gain (NIGHT-research-9): the disk unit's stretch
+        // factor, threaded to the Keplerian shear normalization so the
+        // advance physics tracks the real semi-major-to-ball ratio.
+        let disk_gain = self.proximity_gain;
         for m in &mut self.motes {
             if !m.active {
                 continue;
             }
-            if advance_ring_mote(m, dt_wall, dt_lorenz_base, omega_base) {
+            if advance_ring_mote(m, dt_wall, dt_lorenz_base, omega_base, disk_gain) {
                 absorbed += 1;
             }
         }
@@ -1022,6 +1120,11 @@ impl BlackHoleRain {
         // (one unified current_cells / drawn_gen pipeline).
         if self.active_motes > 0 && self.ball_outer_r >= 1.0 {
             let outer_r = self.ball_outer_r;
+            // The disk unit + proximity gain (NIGHT-research-9): the
+            // semi-major axes key on the width-stretched disk unit, the
+            // fade/hot keypoints ride the stretch gain.
+            let disk_unit = self.disk_unit;
+            let prox_gain = self.proximity_gain;
             // Semi-major clamp: 92% of the viewport's half-width (in
             // line-height units) so the disk extremes never clip on
             // narrow terminals — the wide-disk read survives resize.
@@ -1035,7 +1138,8 @@ impl BlackHoleRain {
                 if !m.active {
                     continue;
                 }
-                let (col_f, line_f) = project_ring_mote(m, cx_f, cy_f, outer_r, major_limit, roll);
+                let (col_f, line_f) =
+                    project_ring_mote(m, cx_f, cy_f, outer_r, disk_unit, major_limit, roll);
                 let col = col_f.round() as i32;
                 let line = line_f.round() as i32;
                 if col < 0 || line < 0 || col >= ctx.cols as i32 || line >= ctx.lines as i32 {
@@ -1082,7 +1186,11 @@ impl BlackHoleRain {
                 } else {
                     level_for_ring_z(m.z)
                 };
-                let head_level = proximity_level(head_base, head_dist_norm);
+                // NIGHT-research-9: the ladder's input rides the stretch
+                // gain, so the hot/warm/fade keypoints track the disk's
+                // real reach (a width-stretched disk fades at its tips,
+                // not at the canonical ball-relative distances).
+                let head_level = proximity_level(head_base, head_dist_norm * prox_gain);
 
                 // Matrix shimmer: mutate the glyph when the head lands
                 // on a new cell (previous trail head differs), gated
@@ -1443,6 +1551,27 @@ impl BlackHoleRain {
     /// line, positive lifts the left end of the stack).
     pub(crate) fn roll_angle_for_test(&self) -> f32 {
         self.roll.angle()
+    }
+
+    #[cfg(test)]
+    /// Ball outer radius (line-height units) — the width-capped
+    /// effective radius (NIGHT-research-9's dynamic-size observable).
+    pub(crate) fn ball_outer_r_for_test(&self) -> f32 {
+        self.ball_outer_r
+    }
+
+    #[cfg(test)]
+    /// Disk scale unit (line-height units) — the width-stretched
+    /// scale base of the tier semi-major axes.
+    pub(crate) fn disk_unit_for_test(&self) -> f32 {
+        self.disk_unit
+    }
+
+    #[cfg(test)]
+    /// The see-saw's dynamic tilt cap (radians, positive) — the
+    /// menu pick clamp derived from the viewport's vertical budget.
+    pub(crate) fn roll_tilt_cap_for_test(&self) -> f32 {
+        self.roll_tilt_cap
     }
 
     #[cfg(test)]

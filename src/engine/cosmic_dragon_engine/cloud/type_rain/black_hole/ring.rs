@@ -308,12 +308,17 @@ pub(crate) fn activate_ring_mote(
 /// modulated by the mote's CURRENT wobbled radius — the same
 /// turbulence that moves the mote radially also speeds it up and
 /// slows it down, which is the shear signature of a real disk.
-/// Returns true when the mote was absorbed (lifetime reached).
+/// `disk_gain` (NIGHT-research-9) carries the disk unit's stretch
+/// factor (disk_unit x BALL_FRACTION / ball_outer_r; 1.0 canonical)
+/// so the shear normalization tracks the real semi-major-to-ball
+/// ratio on stretched viewports. Returns true when the mote was
+/// absorbed (lifetime reached).
 pub(crate) fn advance_ring_mote(
     m: &mut RingMote,
     dt_wall: f32,
     dt_lorenz_base: f32,
     omega_base: f32,
+    disk_gain: f32,
 ) -> bool {
     let dt = dt_lorenz_base * m.pace;
     rk4_lorenz_step(&mut m.x, &mut m.y, &mut m.z, dt);
@@ -322,7 +327,7 @@ pub(crate) fn advance_ring_mote(
     // and paced by the tier band (stage 2.4: the inner bands orbit
     // visibly faster — Kepler's third law across the stack, the
     // differential rotation of a real multi-ring disk).
-    let ratio = ring_radius_ratio(m);
+    let ratio = ring_radius_ratio(m, disk_gain);
     let omega = omega_base
         * m.pace
         * tier_spec(m.tier).pace
@@ -381,12 +386,17 @@ pub(crate) fn rk4_lorenz_step(x: &mut f32, y: &mut f32, z: &mut f32, dt: f32) {
 
 /// Project a mote onto the screen: the wide orbital ellipse of its
 /// tier band around the ball center, rolled by the live see-saw
-/// angle. Horizontal reach is the tier's semi-major axis (the
-/// tier-table major scale times `MAJOR_FRACTION` of the viewport
-/// unit; the wobble-inclusive radius clamps to 92% of the
-/// viewport's half-width so the extremes never clip); the tier's
-/// semi-minor axis; the band center rides the tier's offset above
-/// the equator. The attractor's radial coordinate wobbles the
+/// angle. Horizontal reach is the tier's semi-major axis (the tier
+/// table major scale times `MAJOR_FRACTION` of the DISK unit — the
+/// width-stretched scale base, NIGHT-research-9: `disk_unit` is the
+/// larger of the viewport's limiting half-extent and
+/// `BLACK_HOLE_DISK_WIDTH_FRACTION` of the half-width, so wide
+/// terminals host a proportionally longer disk; the wobble-inclusive
+/// radius still clamps to 92% of the viewport's half-width so the
+/// extremes never clip); the tier's semi-minor axis and band offsets
+/// stay keyed to the ball (the family hugs the shadow — the
+/// stretched disk reads thinner, the physical Gargantua proportion).
+/// The attractor's radial coordinate wobbles the
 /// semi-major axis; its z displaces the mote out of the ring plane
 /// (z high reads up, matching the brightness ladder's depth cue).
 /// The near side's sine is squashed to the tier's squash factor of
@@ -404,6 +414,7 @@ pub(crate) fn project_ring_mote(
     cx: f32,
     cy: f32,
     ball_outer_r: f32,
+    disk_unit: f32,
     major_limit: f32,
     roll: RollFrame,
 ) -> (f32, f32) {
@@ -413,7 +424,9 @@ pub(crate) fn project_ring_mote(
     let entry = entry_radius_scale(m.sim_age);
     // Stage 2.7: the clamp bounds the wobble-inclusive radius (the
     // widened 1.25x reach would otherwise clip the tips off-screen).
-    let a_mean = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * tier.major_scale * unit;
+    // NIGHT-research-9: the semi-major scales from the disk unit, not
+    // the ball-derived unit — the wide-terminal stretch.
+    let a_mean = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * tier.major_scale * disk_unit;
     let a = (a_mean + tier.wobble_fraction * ball_outer_r * r_norm)
         .min(major_limit)
         .max(0.15)
@@ -613,11 +626,15 @@ fn lorenz_deriv(x: f32, y: f32, z: f32, sigma: f32, rho: f32, beta: f32) -> (f32
 /// powf in the advance pass requires it) and bounded (the shear
 /// stays visible without whipping). The mean radius is per-tier
 /// (stage 2.4) so each band's shear matches its own wobble scale —
-/// the tier-0 path is numerically the pre-2.4 formula.
-fn ring_radius_ratio(m: &RingMote) -> f32 {
+/// the tier-0 path is numerically the pre-2.4 formula. The
+/// `disk_gain` argument (NIGHT-research-9) scales the mean to the
+/// live semi-major-to-ball ratio, so a width-stretched disk's shear
+/// normalization stays physically keyed to its real reach.
+fn ring_radius_ratio(m: &RingMote, disk_gain: f32) -> f32 {
     let tier = tier_spec(m.tier);
     let a_mean_in_outer_r = crate::constants::BLACK_HOLE_RING_MAJOR_FRACTION * tier.major_scale
-        / crate::constants::BLACK_HOLE_BALL_FRACTION;
+        / crate::constants::BLACK_HOLE_BALL_FRACTION
+        * disk_gain.max(0.05);
     1.0 + (tier.wobble_fraction * ring_r_norm(m)) / a_mean_in_outer_r
 }
 
@@ -631,169 +648,4 @@ pub(crate) fn ring_r_norm(m: &RingMote) -> f32 {
     ((r_l - crate::constants::BLACK_HOLE_RING_R_NORM_CENTER)
         * crate::constants::BLACK_HOLE_RING_R_NORM_GAIN)
         .clamp(-1.0, 1.2)
-}
-
-/// The see-saw roll scheduler (stage 2.4, the owner's lever motion,
-/// retuned stage 2.5): a deterministic state machine that owns the
-/// disk stack's attitude angle in the screen plane. 0 is the flat
-/// horizontal rest line — the Gargantua read, held the longest
-/// (the flat hold, 36 s, still the single longest pose per the
-/// owner's spec). The attitude window spans 15-180 degrees in the
-/// owner's convention (180 = flat, 90 = vertical) with exactly the
-/// 90-degree attitude excluded, and every tilted attitude now
-/// holds a LONG 30 s dwell — the stage-2.5 improved long duration,
-/// more special across the whole window instead of only the flat
-/// line. The excursion ladder runs shallow 15/30/45/50-degree
-/// tilts, the mid 60, and the steep 85 (the near-vertical diagonal
-/// that keeps the old vertical drama without parking on the
-/// excluded attitude), the sign alternating every excursion so the
-/// left-up and right-up tilts take turns. Turns are eased smoothstep sweeps at a fixed angular rate (a
-/// 85-degree pivot resolves in ~3.5 s, "within a few seconds"),
-/// duration clamped so the widest 170-degree chain still reads as
-/// one deliberate swing. An excursion either returns to the rest
-/// line (the default) or chains straight into the next excursion —
-/// the disk sweeps through horizontal and keeps going, the
-/// continuous lever wave. The schedule is hash-driven (no RNG — the
-/// advance pass owns no generator), so every run plays the same
-/// choreography and the tests can pin it.
-pub(crate) struct RingRoll {
-    /// Current attitude angle (radians; 0 = horizontal, positive
-    /// lifts the left end and drops the right end).
-    angle: f32,
-    /// Turn start angle and target (the eased lerp's endpoints).
-    from: f32,
-    target: f32,
-    /// Seconds remaining in the current segment: the turn's
-    /// remaining sweep time while turning, the hold countdown while
-    /// resting at `target`.
-    remaining: f32,
-    /// Total duration of the current segment (the easing denominator).
-    segment_dur: f32,
-    /// True while sweeping between attitudes, false while holding.
-    turning: bool,
-    /// Sign of the NEXT excursion (+1.0 left-up / -1.0 right-up) —
-    /// flipped every excursion so the tilts alternate.
-    sign: f32,
-    /// Schedule step counter (the hash seed — increments every
-    /// decision, keeping the sequence deterministic yet varied).
-    seq: u32,
-}
-
-impl RingRoll {
-    /// Fresh schedule: flat at the rest line, holding for the flat
-    /// hold — the stack introduces itself as the horizontal
-    /// Gargantua disk before the first tilt.
-    pub(crate) const fn new() -> Self {
-        Self {
-            angle: 0.0,
-            from: 0.0,
-            target: 0.0,
-            remaining: crate::constants::BLACK_HOLE_ROLL_FLAT_HOLD,
-            segment_dur: crate::constants::BLACK_HOLE_ROLL_FLAT_HOLD,
-            turning: false,
-            sign: 1.0,
-            seq: 0,
-        }
-    }
-
-    /// The live attitude angle (radians) — the projection's roll
-    /// input.
-    pub(crate) fn angle(&self) -> f32 {
-        self.angle
-    }
-
-    /// Advance the schedule by `dt` wall seconds (the same clock the
-    /// motes, the spin and the formation ride — pause freezes the
-    /// lever mid-swing, resume continues it). A step that outlives
-    /// its segment rolls the leftover time into the next one, so a
-    /// large test step (or a slow frame) lands on the same schedule
-    /// point as many small ones.
-    pub(crate) fn tick(&mut self, dt: f32) {
-        let mut leftover = dt;
-        while leftover > 0.0 {
-            if self.turning {
-                let take = leftover.min(self.remaining.max(0.0));
-                self.remaining -= take;
-                leftover -= take;
-                if self.remaining <= 0.0 {
-                    // The sweep landed: hold at the target attitude.
-                    self.angle = self.target;
-                    self.turning = false;
-                    self.remaining = self.hold_for(self.target);
-                    self.segment_dur = self.remaining;
-                } else {
-                    // Eased sweep progress (smoothstep: slow departure,
-                    // fast middle, soft arrival — a gravitational pivot,
-                    // not a linear slide).
-                    let p = 1.0 - (self.remaining / self.segment_dur).clamp(0.0, 1.0);
-                    let e = p * p * (3.0 - 2.0 * p);
-                    self.angle = self.from + (self.target - self.from) * e;
-                }
-            } else {
-                let take = leftover.min(self.remaining.max(0.0));
-                self.remaining -= take;
-                leftover -= take;
-                if self.remaining <= 0.0 {
-                    self.begin_turn();
-                }
-            }
-        }
-    }
-
-    /// Hold duration for an attitude: every attitude now parks for
-    /// its long dwell — 36 s at the flat rest line (the single
-    /// longest pose), 30 s at a tilted excursion (the stage-2.5
-    /// improved long duration across the whole attitude window).
-    fn hold_for(&self, target: f32) -> f32 {
-        if target.abs() < 1.0e-4 {
-            crate::constants::BLACK_HOLE_ROLL_FLAT_HOLD
-        } else {
-            crate::constants::BLACK_HOLE_ROLL_TILT_HOLD
-        }
-    }
-
-    /// Choose and arm the next turn. From the rest line: always an
-    /// excursion. From an excursion: usually back to rest, sometimes
-    /// (the chain chance) straight into the next excursion with the
-    /// sign flipped — the lever wave that sweeps through horizontal
-    /// without parking.
-    fn begin_turn(&mut self) {
-        let at_rest = self.target.abs() < 1.0e-4;
-        let chain = !at_rest
-            && (schedule_hash(self.seq, 1) % 100)
-                < crate::constants::BLACK_HOLE_ROLL_CHAIN_PCT as u64;
-        let target = if at_rest || chain {
-            // Outward (or chained) excursion: flip the sign, pick the
-            // tilt magnitude from the menu.
-            self.sign = -self.sign;
-            let degs = crate::constants::BLACK_HOLE_ROLL_TILT_DEGS[(schedule_hash(self.seq, 2)
-                % crate::constants::BLACK_HOLE_ROLL_TILT_DEGS.len() as u64)
-                as usize];
-            self.sign * degs.to_radians()
-        } else {
-            0.0
-        };
-        let delta = (target - self.angle).abs();
-        self.from = self.angle;
-        self.target = target;
-        self.segment_dur = (delta / crate::constants::BLACK_HOLE_ROLL_RATE)
-            .clamp(
-                crate::constants::BLACK_HOLE_ROLL_TURN_MIN_SECS,
-                crate::constants::BLACK_HOLE_ROLL_TURN_MAX_SECS,
-            )
-            .max(0.05);
-        self.remaining = self.segment_dur;
-        self.turning = true;
-        self.seq = self.seq.wrapping_add(1);
-    }
-}
-
-/// Deterministic schedule hash (a Knuth multiplicative mix of the
-/// step counter and a salt — the same trick the rim conveyor's glyph
-/// hash uses). Two salts spread the magnitude pick and the chain
-/// decision so consecutive steps cannot correlate.
-fn schedule_hash(seq: u32, salt: u32) -> u64 {
-    (seq as u64)
-        .wrapping_mul(2_654_435_761)
-        .wrapping_add((salt as u64).wrapping_mul(40_503))
 }

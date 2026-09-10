@@ -26,12 +26,20 @@
 //! horizon is eaten — deactivated, never drawn inside the empty core
 //! — its final flash on the photon ring.
 //!
-//! Brightness is speed-graded (kinetic heat — the faster the mote,
-//! the brighter the base: the physical read of accretion heating)
-//! composed with the family's shared proximity ladder, so the far
-//! ambient rain reads Ghost while the periapsis whip reads Core
-//! white. Comet trails streak the arcs; the glyph re-rolls on new
-//! cells through the motion-gated shimmer (the family life sign).
+//! Corotation (NIGHT-research-9, the masterclass physics mandate):
+//! the ambient rain shares the disk's angular momentum axis — every
+//! glyph is BORN corotating with the accretion disk (see
+//! `activate_infall_mote`), so all captures whip around the shadow
+//! in the disk's rotational sense, never against it. The whole rain
+//! field reads as one coherent vorticity feeding the disk.
+//!
+//! Brightness is graded by the RADIAL approach speed (kinetic heat —
+//! the plunge component burns; the corotating drift is the ambient
+//! medium's cold inherited angular momentum) composed with the
+//! family's shared proximity ladder, so the far ambient rain reads
+//! Ghost while the periapsis whip reads Core white. Comet trails
+//! streak the arcs; the glyph re-rolls on new cells through the
+//! motion-gated shimmer (the family life sign).
 //!
 //! Sim-time: one sim-second is one wall-second at the scene's
 //! reference 12 cps; dt_sim = dt_wall x cps x SIM_TIME_PER_CPS. The
@@ -443,12 +451,16 @@ impl InfallStream {
             let (col, line) = (col as u16, line as u16);
 
             // Kinetic heat composed with the proximity grade: the
-            // mote's speed and screen distance (in ball radii — the
-            // physics already carries it as r) feed the family's two
-            // ladders. The whip near the shadow reads deep white, the
-            // far ambient rain reads Ghost through the fade ladder.
-            let speed = (m.vx * m.vx + m.vy * m.vy).sqrt();
+            // mote's RADIAL approach speed (the plunge component —
+            // the corotating drift is the ambient medium's cold bulk
+            // flow, inherited angular momentum, not heat; only the
+            // fall toward the hole burns) and screen distance (in
+            // ball radii — the physics already carries it as r) feed
+            // the family's two ladders. The whip near the shadow
+            // reads deep white, the far ambient rain reads Ghost
+            // through the fade ladder.
             let dist_norm = (m.x * m.x + m.y * m.y).sqrt();
+            let speed = ((m.vx * m.x + m.vy * m.y) / dist_norm.max(0.05)).abs();
             let head_level = proximity_level(level_for_speed(speed), dist_norm);
 
             // The empty core is never painted (stage-1 contract): a
@@ -529,9 +541,30 @@ impl InfallStream {
 
 /// Activate a vacant mote above the viewport: a uniform horizontal
 /// position across the spawn envelope, the entry line just past the
-/// top edge (drift in — never a pop-in), the fall speed straight down
-/// plus a uniform drift fraction of it (the impact-parameter spread),
-/// and the family's per-mote lifetime / pace variance.
+/// top edge (drift in — never a pop-in), the fall speed straight
+/// down, and the family's per-mote lifetime / pace variance.
+///
+/// Corotation (NIGHT-research-9): the horizontal drift is not
+/// symmetric noise but a corotating field — the ambient rain shares
+/// the disk's angular momentum axis, so every glyph inspirals in
+/// the disk's rotational sense (the disk's near side crosses
+/// right-to-left, its lensed far side sweeps left-to-right, and the
+/// captures whip the same way). The spawn samples a specific
+/// angular momentum ell uniform in the corotation range (in outer
+/// radii) and derives the drift from the exact angular-momentum
+/// identity: with y = -(spawn_half_h + 0.25) and vy = FALL_SPEED,
+/// the specific angular momentum (x times vy minus y times vx)
+/// equals FALL_SPEED times ell exactly when vx equals FALL_SPEED
+/// times (ell minus x) over h — positive by
+/// construction for every spawn x, the same sign the ring motes
+/// carry (y-down screen convention). The ballistic crossing of the
+/// hole's latitude then lands at |x| = ell: the sampled impact
+/// parameter, the spread that keeps every capture unique. The
+/// left-side feeding streams carry the stronger rightward drift
+/// (corotation there requires it — material at the left of the
+/// hole moving down is counter-rotating unless it drifts right),
+/// the masterclass read of a coherent vorticity field feeding the
+/// disk.
 pub(crate) fn activate_infall_mote(
     m: &mut InfallMote,
     spawn_half_w: f32,
@@ -543,10 +576,14 @@ pub(crate) fn activate_infall_mote(
     m.active = true;
     m.x = (rand_chance.sample(rng) * 2.0 - 1.0) * spawn_half_w;
     m.y = -(spawn_half_h + 0.25);
-    let drift =
-        crate::constants::BLACK_HOLE_INFALL_DRIFT_FRACTION * (rand_chance.sample(rng) * 2.0 - 1.0);
-    m.vx = crate::constants::BLACK_HOLE_INFALL_FALL_SPEED * drift;
-    m.vy = crate::constants::BLACK_HOLE_INFALL_FALL_SPEED;
+    let fall = crate::constants::BLACK_HOLE_INFALL_FALL_SPEED;
+    let ell = crate::constants::BLACK_HOLE_INFALL_COROTATION_MIN
+        + rand_chance.sample(rng)
+            * (crate::constants::BLACK_HOLE_INFALL_COROTATION_MAX
+                - crate::constants::BLACK_HOLE_INFALL_COROTATION_MIN);
+    let h = spawn_half_h + 0.25;
+    m.vx = fall * (ell - m.x) / h;
+    m.vy = fall;
     m.sim_age = 0.0;
     m.lifetime =
         crate::constants::BLACK_HOLE_INFALL_MAX_AGE_SECS * (0.85 + rand_chance.sample(rng) * 0.30);
