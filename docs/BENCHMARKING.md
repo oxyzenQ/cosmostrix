@@ -109,7 +109,13 @@ networks spread particles across the viewport much like a fluid)
 while its motion signature remains 100% distinct. The PIC/FLIP
 solver itself costs ~0.006ms/frame (fixed 60Hz stepping, one step
 per bench frame). Per-style benchmarks are directly comparable via
-`--scene <name> --benchmark`.
+`--scene <name> --benchmark`. The NIGHT-lts-1 master depth audit
+(2026-09-10, stages 1-7) re-benched all fourteen styles at the
+default 80x24 profile with per-stage A/B evidence — see
+`docs/research/NIGHT_LTS_1_STAGE*.md` for those numbers, the
+noise-yardstick methodology, and the audit's codegen controls
+(the numbers in this section above are the historical 120x40
+truecolor signatures and remain valid for that profile).
 
 ## Key Metrics
 
