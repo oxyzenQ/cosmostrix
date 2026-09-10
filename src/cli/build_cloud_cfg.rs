@@ -316,15 +316,13 @@ pub(crate) fn build_cloud_cfg(inp: CfgInputs<'_>) -> CloudConfig {
         ));
     }
 
-    // NIGHT-hunter-18: surface the cinematic-intro auto-skip the same
-    // way — only when it actually changed the outcome (no explicit
-    // --intro; bench mode pins None through its own args path).
-    if args.intro.is_none() && !bench_mode && effects_auto_off_applicable(term_caps) {
-        crate::live_config::push_runtime_diag(&format!(
-            "[auto-intro] cinematic intro auto-skipped: low terminal detected via {} (the particle-driven intro cannot read on this paint path; an explicit --intro overrides)",
-            term_caps.effects_gate_source
-        ));
-    }
+    // NIGHT-hunter-18 (2026-09-10 revision): the intro is identity —
+    // it plays on EVERY terminal class, high or low. The earlier
+    // auto-skip for low terminals was reverted by the owner's
+    // directive ("don't disable any intro style for any condition
+    // because that's important for the identity of cosmostrix");
+    // only the cosmetic-effects layer is perf-gated (the auto-fx
+    // gate above + --no-effects), never the intro.
 
     cloud_cfg
 }
@@ -361,30 +359,33 @@ pub(crate) fn resolve_effects_enabled(
     !no_effects && !bench_mode && !effects_auto_off_applicable(caps)
 }
 
-/// NIGHT-hunter-18: resolve the final cinematic-intro type.
+/// NIGHT-hunter-18 (2026-09-10 revision): resolve the final intro type.
 ///
-/// The owner directive: high-perf terminals get everything (the intro
-/// stays at its built-in Logo default); low terminals — console TTYs,
-/// dumb terminals, pure-CPU renderers, the same population the
-/// S-master-HUNT-24 effects gate covers — skip the cinematic intro
-/// ("no need cinematic mode"): the intro is a particle-driven cinematic
-/// sequence, pure overhead on a paint path that cannot sustain it.
+/// The owner directive, revised: "don't disable any intro style for
+/// any condition because that's important for the identity of
+/// cosmostrix." The intro is identity — it plays on EVERY terminal
+/// class, high-perf and low alike; only the cosmetic-effects layer is
+/// perf-gated (S-master-HUNT-24's auto-fx + --no-effects), never the
+/// intro. The earlier auto-skip of the built-in default on low
+/// terminals (console TTY, dumb, pure-CPU renderers) was reverted by
+/// this directive.
 ///
-/// Precedence mirrors the effects gate's: an explicitly chosen
-/// `--intro` value ALWAYS wins (the CLI-lock precedence chain — the
-/// user who asks for the intro on a low terminal gets it); bench mode
-/// resolves to None (its args pin it before this gate); otherwise the
-/// low-terminal gate decides; the built-in default stays Logo.
+/// Precedence: an explicitly chosen `--intro` value ALWAYS wins (the
+/// CLI-lock precedence chain); bench mode resolves to None (its args
+/// pin it before this gate — a measurement run must not spend its
+/// window on the intro); the built-in default stays Logo on every
+/// terminal.
 pub(crate) fn resolve_intro_type(
     intro: Option<crate::intro_style::IntroType>,
     caps: &crate::termdetect::TerminalCaps,
     bench_mode: bool,
 ) -> crate::intro_style::IntroType {
     use crate::intro_style::IntroType;
+    let _ = caps; // identity contract: the terminal class never gates the intro
     if let Some(explicit) = intro {
         return explicit;
     }
-    if bench_mode || effects_auto_off_applicable(caps) {
+    if bench_mode {
         return IntroType::None;
     }
     IntroType::Logo
@@ -495,14 +496,15 @@ mod hunt24_effects_gate_tests {
 
 #[cfg(test)]
 mod hunter18_intro_gate_tests {
-    //! NIGHT-hunter-18: the cinematic-intro auto-skip for low
-    //! terminals. The gate reuses the S-master-HUNT-24 effects-gate
-    //! population (console TTYs, dumb terminals, pure-CPU renderers):
-    //! the owner directive is "if on low terminal no need cinematic
-    //! mode" — the particle-driven intro cannot read there, so the
-    //! built-in Logo default resolves to None. An explicit --intro
-    //! always wins (CLI-lock precedence, same philosophy as the
-    //! effects gate's --no-effects).
+    //! NIGHT-hunter-18 (2026-09-10 revision): the intro is identity —
+    //! it plays on EVERY terminal class, high or low. The owner's
+    //! revised directive ("don't disable any intro style for any
+    //! condition because that's important for the identity of
+    //! cosmostrix") reverted the earlier auto-skip for low terminals:
+    //! only the cosmetic-effects layer is perf-gated (the hunt24
+    //! tests next door), never the intro. An explicit --intro still
+    //! always wins (CLI-lock precedence) and bench mode still pins
+    //! None (a measurement window is not a terminal condition).
 
     use crate::intro_style::IntroType;
     use crate::termdetect::TerminalCaps;
@@ -540,26 +542,36 @@ mod hunter18_intro_gate_tests {
     }
 
     #[test]
-    fn low_terminals_skip_the_default_intro() {
-        // Console TTYs, dumb terminals and pure-CPU renderers resolve
-        // the built-in default to None — no cinematic mode there.
+    fn low_terminals_keep_the_logo_intro() {
+        // The identity contract (owner revision 2026-09-10): console
+        // TTYs, dumb terminals and pure-CPU renderers play the SAME
+        // intro — the terminal class never gates it. The effects
+        // layer auto-disables there (hunt24), the intro does not.
         assert_eq!(
             super::resolve_intro_type(None, &caps(true, false), false),
-            IntroType::None
+            IntroType::Logo
         );
         assert_eq!(
             super::resolve_intro_type(None, &caps(false, true), false),
-            IntroType::None
+            IntroType::Logo
+        );
+        assert_eq!(
+            super::resolve_intro_type(None, &caps(true, true), false),
+            IntroType::Logo
         );
     }
 
     #[test]
     fn explicit_intro_always_wins() {
         // The CLI-lock precedence chain: a user who explicitly asks
-        // for the intro on a low terminal gets it.
+        // for an intro style gets it on any terminal.
         assert_eq!(
             super::resolve_intro_type(Some(IntroType::Logo), &caps(true, true), false),
             IntroType::Logo
+        );
+        assert_eq!(
+            super::resolve_intro_type(Some(IntroType::Cosmic), &caps(true, true), false),
+            IntroType::Cosmic
         );
         // And an explicit none stays none on a high-perf terminal.
         assert_eq!(
@@ -571,7 +583,9 @@ mod hunter18_intro_gate_tests {
     #[test]
     fn bench_mode_resolves_to_none() {
         // Bench mode never plays the intro; the resolver reflects it
-        // even if the args arrive unpinned.
+        // even if the args arrive unpinned (a measurement window is
+        // not a terminal condition — the identity rule does not
+        // reach it).
         assert_eq!(
             super::resolve_intro_type(None, &caps(false, false), true),
             IntroType::None

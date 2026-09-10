@@ -195,10 +195,11 @@ COMMON OPTIONS:
       Cinematic intro played before the rain engine starts. Pick one
       of three modes (default: logo). The intro plays automatically
       when cosmostrix starts; pass --intro none to skip it entirely.
-      On low terminals (raw console TTY, dumb, pure-CPU renderers)
-      the default intro auto-skips (NIGHT-hunter-18) — the cinematic
-      particle sequence cannot read on that paint path. An explicit
-      --intro value always overrides the auto-skip.
+      The intro is identity (NIGHT-hunter-18 revision): it plays on
+      EVERY terminal class — high-perf and low (console TTY, dumb,
+      pure-CPU renderers) alike — the terminal class never gates it.
+      Only the cosmetic-effects layer is perf-gated on low terminals
+      (see --no-effects); an explicit --intro value always wins.
         logo    cosmostrix Logo intro (~4.5s). The ASCII logo fades in
                 character by character, a spark falls from the top of
                 the screen and ignites the logo on impact, then the
