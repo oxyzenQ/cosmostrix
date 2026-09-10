@@ -32,6 +32,38 @@ use crate::constants::{
 
 use rand::{distr::Uniform, rngs::StdRng};
 
+/// Per-frame integration factors (NIGHT-lts-1 stage 1): the
+/// exponential decay terms of the disk and halo steps depend only
+/// on the frame's shared sim dt — every particle of a frame steps
+/// on the same dt, so the advance pass evaluates the three exp()
+/// calls ONCE per frame and threads this `Copy` snapshot through
+/// every particle's step. The per-particle steps used to
+/// re-evaluate two exp() per disk particle and one per halo rider
+/// per frame for three values that are identical across the pools
+/// (hundreds of redundant transcendentals per frame at bench
+/// populations).
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct StepFactors {
+    /// Disk circularization damping (1 - exp(-dt / QUAS_CIRC_TAU)).
+    pub(crate) circ_damp: f32,
+    /// Fresh-feed charge decay (exp(-dt / QUAS_CHARGE_TAU)).
+    pub(crate) charge_decay: f32,
+    /// Halo circularization damping (1 - exp(-dt / QUAS_HALO_CIRC_TAU)).
+    pub(crate) halo_damp: f32,
+}
+
+impl StepFactors {
+    /// Evaluate the frame's decay factors for the shared sim dt.
+    #[must_use]
+    pub(crate) fn for_dt(dt: f32) -> Self {
+        Self {
+            circ_damp: 1.0 - (-dt / crate::constants::QUAS_CIRC_TAU).exp(),
+            charge_decay: (-dt / crate::constants::QUAS_CHARGE_TAU).exp(),
+            halo_damp: 1.0 - (-dt / crate::constants::QUAS_HALO_CIRC_TAU).exp(),
+        }
+    }
+}
+
 /// RNG bundle (the advance pass is a stochastic pass in the family
 /// sense: the infall spawn rolls, the flare clock re-arms and the
 /// capture charges ride along).
@@ -370,30 +402,32 @@ pub(crate) fn infall_spin(f: f32) -> f32 {
 /// circularization), the feed charge decays, the age accrues.
 /// The angle wraps at 64 turns (f32 precision kept); f never
 /// leaves [DISK_INNER, 1] (the damping only moves it toward its
-/// clamped target).
-pub(crate) fn disk_step(p: &mut Particle, dt: f32) {
+/// clamped target). The exponential decay terms arrive
+/// precomputed in `fx` (NIGHT-lts-1 stage 1) — they depend only on
+/// the frame's shared dt, not on the particle.
+pub(crate) fn disk_step(p: &mut Particle, dt: f32, fx: StepFactors) {
     let omega = disk_omega(p.f);
     p.theta += omega * dt;
     if p.theta > std::f32::consts::TAU * 64.0 {
         p.theta = p.theta.rem_euclid(std::f32::consts::TAU);
     }
     // Circularization: exponential ease onto the target orbit.
-    let damp = 1.0 - (-dt / crate::constants::QUAS_CIRC_TAU).exp();
-    p.f += (p.target_f - p.f) * damp;
+    p.f += (p.target_f - p.f) * fx.circ_damp;
     // The fresh-feed light decays.
-    p.charge *= (-dt / crate::constants::QUAS_CHARGE_TAU).exp();
+    p.charge *= fx.charge_decay;
     p.age += dt;
 }
 
 /// Law 5's halo step: the slow orbit advances, the glide-in
-/// eases onto the annulus target.
-pub(crate) fn halo_step(p: &mut Particle, dt: f32) {
+/// eases onto the annulus target. The damping term arrives
+/// precomputed in `fx` (NIGHT-lts-1 stage 1) — it depends only on
+/// the frame's shared dt, not on the rider.
+pub(crate) fn halo_step(p: &mut Particle, dt: f32, fx: StepFactors) {
     p.theta += halo_omega(p.f) * dt;
     if p.theta > std::f32::consts::TAU * 64.0 {
         p.theta = p.theta.rem_euclid(std::f32::consts::TAU);
     }
-    let damp = 1.0 - (-dt / 1.6).exp();
-    p.f += (p.target_f - p.f) * damp;
+    p.f += (p.target_f - p.f) * fx.halo_damp;
     p.age += dt;
 }
 

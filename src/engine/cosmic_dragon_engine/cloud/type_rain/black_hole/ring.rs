@@ -132,6 +132,7 @@ use rand::{
 use super::super::monolith::BrightnessLevel;
 use super::ball_helpers::bump_level;
 use super::black_hole::CELL_ASPECT_DIVISOR;
+use super::RollFrame;
 
 /// One orbital mote: a glyph riding a Keplerian ring whose turbulence
 /// is the RK4-integrated Lorenz state (x, y, z). Same field set as
@@ -404,7 +405,7 @@ pub(crate) fn project_ring_mote(
     cy: f32,
     ball_outer_r: f32,
     major_limit: f32,
-    roll: f32,
+    roll: RollFrame,
 ) -> (f32, f32) {
     let tier = tier_spec(m.tier);
     let unit = ball_outer_r / crate::constants::BLACK_HOLE_BALL_FRACTION;
@@ -418,8 +419,8 @@ pub(crate) fn project_ring_mote(
         .max(0.15)
         * entry;
     let b = (tier.minor_fraction * unit * (1.0 + 0.15 * r_norm)).max(0.05) * entry;
-    let cos_phi = m.phi.cos();
-    let sin_phi = m.phi.sin();
+    // One fused trig evaluation per mote (NIGHT-lts-1 stage 1).
+    let (sin_phi, cos_phi) = m.phi.sin_cos();
     // Equatorial squash (stage 2.3): the in-front half maps its sine
     // onto the tier's squash factor of the minor axis so the crossing
     // line hugs its rest height; the far half keeps the full factor
@@ -472,10 +473,10 @@ pub(crate) fn project_ring_mote(
     // only converts through the cell aspect afterwards. Applied
     // AFTER the arc blend and the z-tilt: the whole stack — flat
     // disk, lensing halo, breathing bands — pivots as one rigid
-    // body around the hole.
-    let (x_r, y_r) = if roll != 0.0 {
-        let (s, c) = (roll.sin(), roll.cos());
-        (x * c - y * s, x * s + y * c)
+    // body around the hole. The trig pair arrives precomputed in
+    // the `RollFrame` snapshot (NIGHT-lts-1 stage 1).
+    let (x_r, y_r) = if !roll.is_flat() {
+        (x * roll.cos - y * roll.sin, x * roll.sin + y * roll.cos)
     } else {
         (x, y)
     };

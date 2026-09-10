@@ -169,6 +169,7 @@ use super::ring::{
     occludes_ring_cell, project_ring_mote, proximity_level, step_down_level, BlackHoleRandom,
     BlackHoleSpawnParams, BlackHoleStep, RingMote, RingRoll,
 };
+use super::RollFrame;
 
 /// One drawn ball cell: grid position plus its radial brightness band.
 /// Own struct instead of reusing monolith's `DrawnCell` because the ball
@@ -1003,6 +1004,12 @@ impl BlackHoleRain {
         // families all key on the same center).
         let cx_f = self.center_col as f32;
         let cy_f = self.center_line as f32;
+        // The frame's see-saw snapshot (NIGHT-lts-1 stage 1): one
+        // trig pair per frame feeds both pools' projections — the
+        // attitude angle is rigid across the whole stack within the
+        // frame, so the per-mote projections used to re-evaluate it
+        // per mote.
+        let roll_frame = RollFrame::from_angle(self.roll.angle());
 
         // Stage 2: the orbital ring — project every active mote onto
         // its tier band's ellipse around the cached ball anchor, rolled
@@ -1017,10 +1024,11 @@ impl BlackHoleRain {
             // line-height units) so the disk extremes never clip on
             // narrow terminals — the wide-disk read survives resize.
             let major_limit = 0.92 * ctx.cols as f32 / (CELL_ASPECT_DIVISOR * 2.0);
-            // The live see-saw angle (stage 2.4): one read per frame,
-            // every mote of every tier pivots on it — the rigid-lever
-            // read the owner asked for.
-            let roll = self.roll.angle();
+            // The live see-saw angle rides the frame's RollFrame
+            // snapshot (stage 2.4: one read per frame, every mote of
+            // every tier pivots on it — the rigid-lever read the
+            // owner asked for).
+            let roll = roll_frame;
             for m in &mut self.motes {
                 if !m.active {
                     continue;
@@ -1157,7 +1165,10 @@ impl BlackHoleRain {
         // dynamic-screen-size contract.
         if self.active_halo > 0 && self.ball_outer_r >= 1.0 {
             let outer_r = self.ball_outer_r;
-            let roll = self.roll.angle();
+            // The frame's RollFrame snapshot — same angle the ring
+            // projected through (the whole system pivots as one
+            // rigid body).
+            let roll = roll_frame;
             for m in &mut self.halo_motes {
                 if !m.active {
                     continue;

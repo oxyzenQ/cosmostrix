@@ -2380,6 +2380,13 @@ pub(crate) const QUAS_DOPPLER_RUNG: f32 = 0.5;
 /// assembles without a pop).
 pub(crate) const QUAS_CIRC_TAU: f32 = 0.9;
 
+/// The halo circularization damping time constant (sim-seconds):
+/// the host halo's riders glide onto their annulus (the same
+/// exponential ease the disk uses, on the halo's slower clock).
+/// NIGHT-lts-1 stage 1 promoted the inline 1.6 magic number of
+/// `halo_step` to this named constant — the value is unchanged.
+pub(crate) const QUAS_HALO_CIRC_TAU: f32 = 1.6;
+
 // The fuel (law 3 — the infall rain).
 
 /// The infall base rate in orbit-fraction per sim-second (scaled by

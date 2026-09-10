@@ -65,6 +65,7 @@ use rand::{
 
 use super::black_hole::CELL_ASPECT_DIVISOR;
 use super::ring::{entry_radius_scale, ring_r_norm, rk4_lorenz_step, RingMote};
+use super::RollFrame;
 
 /// Stream tag: the inner upper halo stream (the rider draws on the
 /// upper semicircle of the 1.30-radius lensing circle over the
@@ -177,7 +178,7 @@ pub(crate) fn project_halo_mote(
     cx: f32,
     cy: f32,
     ball_outer_r: f32,
-    roll: f32,
+    roll: RollFrame,
 ) -> (f32, f32) {
     let arc_r = ball_outer_r * halo_arc_fraction(m);
     let r_norm = ring_r_norm(m);
@@ -186,15 +187,18 @@ pub(crate) fn project_halo_mote(
         .max(0.2)
         * entry;
 
-    let x = -r * m.phi.cos();
-    let y = -r * m.phi.sin();
+    // One fused trig evaluation per rider (NIGHT-lts-1 stage 1).
+    let (sin_phi, cos_phi) = m.phi.sin_cos();
+    let x = -r * cos_phi;
+    let y = -r * sin_phi;
 
     // See-saw roll: same rigid-pivot rotation the ring projection
     // applies (a circle is roll-invariant, but the riders' phases
-    // stay synced with the tilted disk's extremes).
-    let (x_r, y_r) = if roll != 0.0 {
-        let (s, c) = (roll.sin(), roll.cos());
-        (x * c - y * s, x * s + y * c)
+    // stay synced with the tilted disk's extremes). The trig pair
+    // arrives precomputed in the `RollFrame` snapshot (NIGHT-lts-1
+    // stage 1) — the angle is shared by every rider of the frame.
+    let (x_r, y_r) = if !roll.is_flat() {
+        (x * roll.cos - y * roll.sin, x * roll.sin + y * roll.cos)
     } else {
         (x, y)
     };

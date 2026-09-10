@@ -42,6 +42,7 @@ use crate::cloud::type_rain::black_hole::halo::{
 use crate::cloud::type_rain::black_hole::ring::{
     occludes_ring_cell, project_ring_mote, proximity_level, RingRoll,
 };
+use crate::cloud::type_rain::black_hole::RollFrame;
 use crate::cloud::type_rain::monolith::BrightnessLevel;
 
 /// Shared geometry for the projection checks (mirrors the ball
@@ -171,8 +172,14 @@ fn black_hole_ring_heads_stay_in_the_band() {
             continue;
         }
         projected += 1;
-        let (col_f, line_f) =
-            project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (col_f, line_f) = project_ring_mote(
+            m,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         let col = col_f.round();
         let line = line_f.round();
         assert!(
@@ -321,8 +328,14 @@ fn black_hole_ring_draws_no_far_side_cells_inside_the_silhouette() {
         if !m.active || (m.tier == 0 && m.phi.sin() < 0.0) {
             continue;
         }
-        let (col_f, line_f) =
-            project_ring_mote(m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (col_f, line_f) = project_ring_mote(
+            m,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         let col = col_f.round() as i32;
         let line = line_f.round() as i32;
         if col < 0 || line < 0 || col >= cols as i32 || line >= lines as i32 {
@@ -461,8 +474,14 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     let geo = BallGeometry::new(cols, lines);
 
     let behind = pinned_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_behind) =
-        project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_behind) = project_ring_mote(
+        &behind,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     assert!(
         line_behind < geo.cy - geo.outer_r,
         "far-side center must project above the ball top (line {line_behind}, cy {}, top {})",
@@ -471,16 +490,28 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     );
 
     let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_front) =
-        project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_front) = project_ring_mote(
+        &front,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     assert!(
         line_front > geo.cy,
         "near-side center must project below the viewport center (line {line_front})"
     );
 
     let side = pinned_mote(0.0, 30.0);
-    let (_, line_side) =
-        project_ring_mote(&side, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_side) = project_ring_mote(
+        &side,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     // The stage-2.6 band-center offset: the main disk's rest plane
     // now sits slightly below the viewport center (the owner's
     // slight descent of stack 1), so the extreme lands on that
@@ -496,8 +527,14 @@ fn black_hole_ring_lens_lifts_far_side_over_the_top() {
     // strictly between the plane and the apex — the curve reads as a
     // continuous rise, not a teleport.
     let quarter = pinned_mote(std::f32::consts::PI + std::f32::consts::FRAC_PI_4, 30.0);
-    let (_, line_quarter) =
-        project_ring_mote(&quarter, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_quarter) = project_ring_mote(
+        &quarter,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     assert!(
         line_quarter < band_plane && line_quarter > line_behind,
         "lift must rise smoothly (quarter {line_quarter} vs plane {band_plane} vs apex {line_behind})"
@@ -514,9 +551,22 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
 
     let young = pinned_mote(0.0, 0.05);
     let old = pinned_mote(0.0, 30.0);
-    let (col_young, _) =
-        project_ring_mote(&young, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
-    let (col_old, _) = project_ring_mote(&old, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (col_young, _) = project_ring_mote(
+        &young,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
+    let (col_old, _) = project_ring_mote(
+        &old,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     let reach_young = (col_young - geo.cx).abs();
     let reach_old = (col_old - geo.cx).abs();
     assert!(
@@ -526,7 +576,14 @@ fn black_hole_ring_entry_spiral_drifts_inward() {
 
     // Monotonic settle over the decay window.
     let mid = pinned_mote(0.0, 2.0 * crate::constants::BLACK_HOLE_RING_ENTRY_TAU);
-    let (col_mid, _) = project_ring_mote(&mid, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (col_mid, _) = project_ring_mote(
+        &mid,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     let reach_mid = (col_mid - geo.cx).abs();
     assert!(
         reach_young > reach_mid && reach_mid > reach_old,
@@ -600,8 +657,14 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
         - crate::constants::BLACK_HOLE_RING_TIERS[0].center_offset * geo.outer_r;
 
     let front = pinned_mote(std::f32::consts::FRAC_PI_2, 30.0);
-    let (_, line_front) =
-        project_ring_mote(&front, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_front) = project_ring_mote(
+        &front,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     assert!(
         line_front > geo.cy,
         "the near side still crosses in FRONT (below center), got {line_front}"
@@ -628,7 +691,14 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     for deg in 5..175 {
         let phi = (deg as f32).to_radians();
         let m = pinned_mote(phi, 30.0);
-        let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (_, line) = project_ring_mote(
+            &m,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         assert!(
             line >= band_plane - 0.05 && line <= geo.cy + expected_dip + 0.05,
             "near-side phase {deg} deg escaped the equatorial band (line {line})"
@@ -643,10 +713,22 @@ fn black_hole_ring_crossing_band_hugs_the_equator() {
     for base in [0.0, std::f32::consts::PI] {
         let below = pinned_mote(base - 0.008, 30.0);
         let above = pinned_mote(base + 0.008, 30.0);
-        let (_, l_below) =
-            project_ring_mote(&below, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
-        let (_, l_above) =
-            project_ring_mote(&above, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (_, l_below) = project_ring_mote(
+            &below,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
+        let (_, l_above) = project_ring_mote(
+            &above,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         assert!(
             (l_below - l_above).abs() < 0.05,
             "seam at the disk extreme (phi {base}: {l_below} vs {l_above})"
@@ -785,7 +867,14 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
 
     let mid = |tier: u8| {
         let m = pinned_tier_mote(std::f32::consts::FRAC_PI_2, 30.0, tier);
-        let (_, line) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (_, line) = project_ring_mote(
+            &m,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         line
     };
     let line_t0 = mid(0);
@@ -857,8 +946,14 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
     // Tier 2 stays under the lensing arc apex (the halo crown sits
     // well above the family).
     let behind = pinned_tier_mote(3.0 * std::f32::consts::FRAC_PI_2, 30.0, 0);
-    let (_, line_arc) =
-        project_ring_mote(&behind, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_arc) = project_ring_mote(
+        &behind,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     assert!(
         line_t2 > line_arc,
         "tier 2 must stay under the lensing arc apex ({line_t2} vs {line_arc})"
@@ -867,7 +962,14 @@ fn black_hole_ring_tier_stack_steps_up_and_shortens() {
     // Descending lengths: the flat reaches at the extremes.
     let reach = |tier: u8| {
         let m = pinned_tier_mote(0.0, 30.0, tier);
-        let (col, _) = project_ring_mote(&m, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+        let (col, _) = project_ring_mote(
+            &m,
+            geo.cx,
+            geo.cy,
+            geo.outer_r,
+            geo.major_limit,
+            RollFrame::FLAT,
+        );
         (col - geo.cx).abs()
     };
     assert!(
@@ -945,14 +1047,20 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
     // stage-2.5 ruling); the projection itself supports any angle.
     let (cols, lines) = (120, 40);
     let geo = BallGeometry::new(cols, lines);
-    let roll90 = std::f32::consts::FRAC_PI_2;
+    let roll90 = RollFrame::from_angle(std::f32::consts::FRAC_PI_2);
 
     // Tier 2's mid-band point (x = 0 when flat): rolled a quarter
     // turn it lands on the center row, the same distance from the
     // hole.
     let m2 = pinned_tier_mote(std::f32::consts::FRAC_PI_2, 30.0, 2);
-    let (col_flat, line_flat) =
-        project_ring_mote(&m2, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (col_flat, line_flat) = project_ring_mote(
+        &m2,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     let (col_roll, line_roll) =
         project_ring_mote(&m2, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
     assert!(
@@ -978,8 +1086,14 @@ fn black_hole_ring_roll_pivots_the_stack_rigidly() {
     // of horizontal displacement from the center column (one rigid
     // body, offset and all).
     let left = pinned_tier_mote(std::f32::consts::PI, 30.0, 0);
-    let (_, line_l_flat) =
-        project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, 0.0);
+    let (_, line_l_flat) = project_ring_mote(
+        &left,
+        geo.cx,
+        geo.cy,
+        geo.outer_r,
+        geo.major_limit,
+        RollFrame::FLAT,
+    );
     let (col_l, line_l) =
         project_ring_mote(&left, geo.cx, geo.cy, geo.outer_r, geo.major_limit, roll90);
     let rest_offset = line_l_flat - geo.cy;
@@ -1209,7 +1323,8 @@ fn halo_rider_dist_norm(
     geo: &BallGeometry,
     roll: f32,
 ) -> f32 {
-    let (col, line) = project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, roll);
+    let (col, line) =
+        project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, RollFrame::from_angle(roll));
     geo.dist(col, line) / geo.outer_r
 }
 
@@ -1263,7 +1378,8 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
             HALO_STREAM_TAG_UPPER_OUTER => upper_outer += 1,
             _ => lower += 1,
         }
-        let (col, line) = project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, roll);
+        let (col, line) =
+            project_halo_mote(m, geo.cx, geo.cy, geo.outer_r, RollFrame::from_angle(roll));
         assert!(
             col >= 0.0 && col < cols as f32,
             "halo rider column out of viewport ({col})"

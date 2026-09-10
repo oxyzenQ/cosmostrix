@@ -35,7 +35,7 @@ use crate::constants::{
 
 use super::ignition::{ignition_phase, ignition_total_secs, IgnitionPhase};
 use super::particles::{
-    disk_step, halo_step, infall_step, jet_step, Particle, QuasGeom, QuasarRandom,
+    disk_step, halo_step, infall_step, jet_step, Particle, QuasGeom, QuasarRandom, StepFactors,
 };
 
 /// One drawn cell (col, line) — the diff-cleanup currency (same
@@ -572,6 +572,10 @@ impl QuasarRain {
         // The family speed contract: one sim clock for the orbits,
         // the rain, the beams, the pulse and the ignition alike.
         let dt_sim = dt_wall * step.chars_per_sec.max(0.0) * QUAS_SIM_TIME_PER_CPS;
+        // The frame's decay factors (NIGHT-lts-1 stage 1): every
+        // particle steps on the same dt_sim, so the three exp()
+        // evaluations happen once here instead of per particle.
+        let fx = StepFactors::for_dt(dt_sim);
 
         // 1. The ignition clock.
         if !self.lit {
@@ -641,12 +645,12 @@ impl QuasarRain {
         // 4. The physics.
         for p in &mut self.halo {
             if p.active {
-                halo_step(p, dt_sim);
+                halo_step(p, dt_sim, fx);
             }
         }
         for p in &mut self.disk {
             if p.active {
-                disk_step(p, dt_sim);
+                disk_step(p, dt_sim, fx);
             }
         }
         if self.jets_fired {

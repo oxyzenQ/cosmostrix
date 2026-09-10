@@ -90,6 +90,13 @@ Five dimensions checked, each clean:
 5. quasar draw does not `reserve()` current_cells before the first
    pass (black hole does) — capacity persists after the first
    frames regardless. Skipped.
+6. The re-audit's two hoisting findings (roll trig per mote, exp
+   decay per particle) were first BELIEVED to be missed wins —
+   the A/B below proves the optimizer had already lifted them
+   (neutral deltas). They ship as explicit source semantics, not
+   as performance claims. Their measured cost before the fix was
+   effectively zero; that is why items 1-5 stay skipped: the same
+   optimizer argument covers them.
 
 ## Baseline measurements (pro profile, 10 s, this audit's build)
 
@@ -103,11 +110,65 @@ terminal's display rate — the frame budget is nowhere near
 pressure, which is the quantitative form of the peak verdict: any
 micro-optimization here buys nothing the user could perceive.
 
+## Stage 1 re-audit addendum (same day): explicit hot-loop hoisting
+
+An independent re-audit of the same scope found two latent
+redundancies the first pass missed, implemented the explicit fix,
+and A/B-verified the result — the fix is performance-neutral and
+visual-neutral, which is itself the load-bearing evidence that the
+compiler was already performing the hoisting (LLVM inlines the
+small per-particle step functions, then LICM lifts the
+loop-invariant transcendentals). The changes ship anyway because
+they convert optimizer-dependent behavior into guaranteed source
+semantics:
+
+1. **Black hole — `RollFrame` (mod.rs):** the see-saw roll angle
+   was hoisted per frame, but its `sin`/`cos` pair was re-evaluated
+   per mote in `project_ring_mote`/`project_halo_mote` (the angle
+   is rigid across the whole stack within a frame). The draw pass
+   now snapshots one `RollFrame` per frame and threads the `Copy`
+   pair through both pools' projections; `m.phi` evaluation fused
+   to `sin_cos()` at the same time. The 20 projection test call
+   sites pin the flat fixture through `RollFrame::FLAT`.
+2. **Quasar — `StepFactors` (particles.rs):** `disk_step` and
+   `halo_step` re-evaluated two and one `exp()` per particle per
+   frame for three dt-only values; the advance pass now evaluates
+   the three factors once per frame and threads the snapshot.
+3. **Quasar — the inline `1.6` magic number of `halo_step`'s
+   circularization damping promoted to the named constant
+   `QUAS_HALO_CIRC_TAU` (value unchanged).
+
+### A/B (10 s benches, this sandbox, 2 runs per side, run-averaged)
+
+| scene | metric | baseline | after | delta |
+|---|---|---|---|---|
+| sorgonemous_intrascals | avg fps | 25 812.13 | 25 803.41 | −0.03 % |
+| sorgonemous_intrascals | sim ms | 0.027909 | 0.027831 | −0.28 % |
+| sorgonemous_intrascals | dirty cells | 330.69 | 330.33 | −0.11 % |
+| sorgonemous_intrascals | density gini | 0.5532 | 0.5530 | −0.04 % |
+| sorgonemous_intrascals | entropy bits | 5.4837 | 5.4846 | +0.02 % |
+| quasar | avg fps | 96 576.78 | 96 510.77 | −0.07 % |
+| quasar | sim ms | 0.007135 | 0.007138 | +0.04 % |
+| quasar | dirty cells | 84.72 | 84.72 | 0.00 % |
+| quasar | density gini | 0.7111 | 0.7112 | +0.01 % |
+| quasar | entropy bits | 4.7862 | 4.7869 | +0.01 % |
+
+Run-level spread (the noise yardstick): 0.22 % (black hole) and
+0.06 % (quasar) — every delta sits inside it. The explicit hoisting
+matters where the optimizer cannot be trusted to keep it: debug
+builds (no inlining), future growth past an inline threshold, and
+cross-backend codegen variance. The fused `sin_cos` and the named
+constant are pure hygiene. Full A/B JSONs in
+`benchmark/bench-labs/night_lts1_stage1/`.
+
 ## Stage gate
 
-Stage 1 complete. No code changes warranted — the two styles are
-at peak (the audit's product is this report). Awaiting the owner's
-approval to open stage 2: glyph + monolith.
+Stage 1 complete: the re-audit's explicit-hoisting pass is shipped,
+A/B-verified performance- and visual-neutral, with the full gate
+suite green (fmt, clippy --all-targets, build.sh check-all -q,
+gate-keepers.sh 10/10, 2 679 tests). The two styles are confirmed
+at peak — now with measured evidence rather than assertion.
+Awaiting the owner's approval to open stage 2: glyph + monolith.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
