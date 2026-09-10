@@ -27,11 +27,11 @@
 //! (NIGHT-hunter-15), the tribute
 //! and honor destinations (`carbonic`, `crystal-dragon`, `orange-cat`,
 //! `north-stars`, `curiosity`). The interactive cycle (`SCENE_ORDER`)
-//! covers all 31 built-in scenes: the
-//! three core atmospheres lead (cinematic, monolith, matrix), then
-//! the style flagships, the curated classics, the atmosphere
-//! scenes, the power-saving utility, and the milestone/tribute/honor
-//! scenes as destinations.
+//! covers all 31 built-in scenes: the owner's signature pair leads
+//! (cinematic, sorgonemous_intrascals — NIGHT-lts-5), then monolith,
+//! lorenz and matrix, then the style flagships, the curated classics,
+//! the atmosphere scenes, the power-saving utility, and the
+//! milestone/tribute/honor scenes as destinations.
 //!
 //! task-19 + NIGHT-research-4/5/6: the rejected `ripple` style
 //! (water-surface rings) was replaced by `flux` (task-19, PIC/FLIP
@@ -71,24 +71,24 @@ pub(crate) struct SceneInfo {
 
 pub(crate) const DEFAULT_SCENE: &str = "cinematic";
 
-/// Ordered scene cycle — all 31 built-in scenes. NIGHT-lts-2
-/// (owner directive 2026-09-10): the x/X cycle leads with the
-/// owner's two signature scenes — sorgonemous_intrascals (the
-/// black hole, the second signature, NIGHT-lts-5) first,
-/// cinematic (the glyph rain, the launch default and the first
-/// signature) second — then monolith and lorenz; matrix follows
-/// at 5 and the rest keeps the previous relative order
-/// (style flagships -> classic siblings -> atmosphere ->
-/// power-saving utility -> milestone -> tribute -> honor scenes).
+/// Ordered scene cycle — all 31 built-in scenes. NIGHT-lts-5
+/// (owner approval 2026-09-10): the x/X cycle leads with the
+/// owner's two signature scenes — cinematic (the glyph rain, the
+/// launch default and the first signature) first,
+/// sorgonemous_intrascals (the black hole, the second signature)
+/// second — then monolith and lorenz; matrix follows at 5 and
+/// the rest keeps the previous relative order (style flagships
+/// -> classic siblings -> atmosphere -> power-saving utility ->
+/// milestone -> tribute -> honor scenes).
 pub(crate) const SCENE_ORDER: &[&str] = &[
-    // NIGHT-lts-2 signature pair (owner-pinned order): the black
-    // hole leads the cycle, the glyph default follows — the two
-    // scenes the owner calls his signatures are the first two
-    // keystrokes of the tour. The default launch scene stays
-    // cinematic (DEFAULT_SCENE, NIGHT-lts-5 owner approval), so
-    // one X-press from the launch default reaches the black hole.
-    "sorgonemous_intrascals", // 1 — second signature (the black hole)
-    "cinematic",              // 2 — first signature (the default rain)
+    // NIGHT-lts-5 signature pair (owner-approved order): the glyph
+    // default leads the cycle, the black hole follows — the owner's
+    // first and second signatures are the first two keystrokes of
+    // the tour. The head of the cycle IS the launch default
+    // (DEFAULT_SCENE = cinematic), so a fresh launch and a full x/X
+    // tour now open on the same scene.
+    "cinematic",              // 1 — first signature (the default rain)
+    "sorgonemous_intrascals", // 2 — second signature (the black hole)
     // NIGHT-lts-2: monolith and lorenz follow the signature pair
     // (owner-pinned positions 3 and 4).
     "monolith", // 3
@@ -204,9 +204,9 @@ pub(crate) fn all_scene_names() -> Vec<&'static str> {
 
 /// Cycle to the next or previous scene in the ordered cycle.
 /// Returns the next scene name.
-/// Forward (NIGHT-lts-2 order): sorgonemous_intrascals -> cinematic
+/// Forward (NIGHT-lts-5 order): cinematic -> sorgonemous_intrascals
 /// -> monolith -> lorenz -> matrix -> vortex -> flux -> ... ->
-/// curiosity -> sorgonemous_intrascals (wraps).
+/// curiosity -> cinematic (wraps).
 /// Backward: the reverse. Unknown names fall back to DEFAULT_SCENE
 /// (cinematic — the launch default, NIGHT-lts-5 owner approval).
 #[must_use]

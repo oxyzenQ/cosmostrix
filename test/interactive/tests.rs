@@ -393,7 +393,7 @@ mod cases {
             visited.push(scene_name.clone());
         }
 
-        // 31-scene cycle (NIGHT-lts-2 owner directive: the signature
+        // 31-scene cycle (NIGHT-lts-5 owner approval: the signature
         // pair leads, monolith sits at position 3): from monolith
         // the forward order is lorenz -> matrix -> vortex -> flux.
         assert_eq!(visited, ["lorenz", "matrix", "vortex", "flux"]);
@@ -421,10 +421,11 @@ mod cases {
             &default_term_reinit(),
         );
 
-        // 'X' on monolith (index 2 in SCENE_ORDER, NIGHT-lts-2) should
-        // go to cinematic (index 1, the launch default).
+        // 'X' on monolith (index 2 in SCENE_ORDER, NIGHT-lts-5) should
+        // go to sorgonemous_intrascals (index 1, the black hole, the
+        // second signature).
         assert_eq!(
-            scene_name, "cinematic",
+            scene_name, "sorgonemous_intrascals",
             "uppercase X must cycle scene in reverse"
         );
     }

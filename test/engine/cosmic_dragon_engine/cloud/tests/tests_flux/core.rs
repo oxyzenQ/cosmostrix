@@ -23,8 +23,8 @@ fn flux_scene_resolves_style_and_fields() {
 #[test]
 fn flux_scene_order_position() {
     use crate::scene::SCENE_ORDER;
-    // NIGHT-lts-2 (owner-pinned new order): the signature pair
-    // (black hole + glyph default) plus monolith and lorenz lead,
+    // NIGHT-lts-5 (owner-approved order): the signature pair
+    // (glyph default + black hole) plus monolith and lorenz lead,
     // so position 6 = vortex, position 7 = flux (1-based), and
     // flux's forward neighbor is cosmic_dragon.
     assert_eq!(SCENE_ORDER[5], "vortex");

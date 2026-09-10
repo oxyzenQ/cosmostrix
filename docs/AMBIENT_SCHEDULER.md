@@ -408,17 +408,18 @@ This closes the LTS audit gap: previously, live-reload edits to
 `ambient-snapback-secs` were silently lost on exit — there was no way
 to verify the actual snapback delay in effect when the session ended.
 
-#### The cinematic/monolith shared-color gotcha
+#### The same-palette head-of-cycle gotcha
 
-If the ambient phase is `monolith` (default color: `neon-purple`) and
-the user presses `x`, the next scene in the cycle (NIGHT-lts-2 order)
-is `lorenz` — but the neighboring cycle scenes share palettes too:
-`cinematic` (one `X` press backward) **also defaults to `neon-purple`**.
-So a cycle step may produce **no visible color change** (only the rain
-style/charset changes underneath). Keep pressing `x` to reach `matrix`
-(green) or another scene with a distinct color. This is not a bug —
-it's a consequence of neighboring scenes sharing the same default
-palette.
+If the ambient phase is `monolith` (default color: `energy-zen`) and
+the user presses `x`, the next scene in the cycle (NIGHT-lts-5 order)
+is `lorenz` (`cosmos` — a visible change). But the head of the cycle
+is a same-palette trio: `cinematic`, `sorgonemous_intrascals` and
+`monolith` **all default to `energy-zen`** (the purple-neon rarity).
+So a cycle step inside that trio may produce **no visible color
+change** (only the rain style/charset changes underneath). Keep
+pressing `x` to reach `lorenz` (`cosmos`), `matrix` (green) or
+another scene with a distinct color. This is not a bug — it's a
+consequence of neighboring scenes sharing the same default palette.
 
 #### Summary of override behavior
 

@@ -539,7 +539,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `carbonic` — dense metallic carbon-fiber binary rain (palette `carbon` + charset `binary` + speed 18 + density 0.95). A tribute to the temporal-prediction experiment that was ultimately reverted for cinematic visual quality, but whose lessons about prediction, drift tolerance, and the tension between performance and beauty remain invaluable. Use `cosmostrix --scene carbonic`.
 
-Press `x` while running to cycle through all built-in scenes (sorgonemous_intrascals -> cinematic -> monolith -> lorenz -> matrix -> vortex -> flux -> cosmic_dragon -> physarum -> aeolian -> solar_flare -> dna_helix -> murmuration -> quasar -> neural -> classic -> … -> curiosity, then back to sorgonemous_intrascals). The default launch scene is `cinematic` (the glyph rain — the owner's first signature; the black hole is the second, NIGHT-lts-5).
+Press `x` while running to cycle through all built-in scenes (cinematic -> sorgonemous_intrascals -> monolith -> lorenz -> matrix -> vortex -> flux -> cosmic_dragon -> physarum -> aeolian -> solar_flare -> dna_helix -> murmuration -> quasar -> neural -> classic -> … -> curiosity, then back to cinematic). The default launch scene is `cinematic` (the glyph rain — the owner's first signature and the head of the cycle; the black hole is the second, NIGHT-lts-5).
 
 ## Configuration
 

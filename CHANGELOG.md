@@ -9,6 +9,35 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-lts-5 — the x/X scene cycle head swaps to the owner's approved signature order (cinematic, the glyph default, first; sorgonemous_intrascals, the black hole, second)
+
+- Owner approval (2026-09-10): the default signature rain is the
+  glyph — scene name `cinematic` — and the second signature is the
+  black hole — scene name `sorgonemous_intrascals`. SCENE_ORDER
+  positions 1 and 2 swap accordingly; monolith (3) and lorenz (4)
+  onward are untouched, so every downstream adjacency keeps its
+  NIGHT-lts-2 placement.
+- The head of the cycle is now the launch default itself
+  (DEFAULT_SCENE = cinematic): a fresh launch and a full x/X tour
+  open on the same scene, and the tour's first `x` keystroke lands
+  on the black hole.
+- Adjacency changes rippled through the suite: cinematic forward
+  goes to the black hole (was monolith), monolith backward to the
+  black hole (was cinematic), the tail wrap lands on cinematic
+  (was the black hole). Four test surfaces updated (scene
+  forward/backward/order-pin, interactive uppercase-X) plus two
+  comment syncs (interactive forward-order, flux position pin).
+- Docs synced: README cycle line, the ambient scheduler
+  same-palette gotcha (the head trio `cinematic` /
+  `sorgonemous_intrascals` / `monolith` all default to
+  `energy-zen` — also fixing the stale `neon-purple` palette name
+  en route), scene/mod.rs order comments renumbered.
+- Zero render-path code changed (an array head swap plus
+  comments); the bench harness drives scenes via `--scene` and
+  never exercises the cycle, so the A/B benches would measure
+  pure noise — skipped for this change per the task rules'
+  waste guard.
+
 ### docs: NIGHT-lts-1 stage 1 — the master depth audit of black hole + quasar: both at peak, zero code changes (the report is the product; stage 2 awaits owner approval)
 
 - Owner directive: master depth audit for all scenes and type rains,

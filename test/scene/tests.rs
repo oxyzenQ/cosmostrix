@@ -8,14 +8,14 @@ use super::*;
 
 #[test]
 fn cycle_scene_forward_order() {
-    // NIGHT-lts-2 (owner-pinned new order): the signature pair
-    // leads — sorgonemous_intrascals (the black hole, the owner's
-    // second signature) first, cinematic (the glyph default, the
-    // launch default) second — then monolith and lorenz; matrix,
-    // vortex and the style flagships follow; the tail wraps back
-    // to the black hole.
-    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "cinematic");
-    assert_eq!(cycle_scene("cinematic", 1), "monolith");
+    // NIGHT-lts-5 (owner-approved order): the signature pair
+    // leads — cinematic (the glyph default, the launch default,
+    // the owner's first signature) first, sorgonemous_intrascals
+    // (the black hole, the second signature) second — then
+    // monolith and lorenz; matrix, vortex and the style flagships
+    // follow; the tail wraps back to the glyph default.
+    assert_eq!(cycle_scene("cinematic", 1), "sorgonemous_intrascals");
+    assert_eq!(cycle_scene("sorgonemous_intrascals", 1), "monolith");
     assert_eq!(cycle_scene("monolith", 1), "lorenz");
     assert_eq!(cycle_scene("lorenz", 1), "matrix");
     assert_eq!(cycle_scene("matrix", 1), "vortex");
@@ -40,23 +40,23 @@ fn cycle_scene_forward_order() {
     // right after the cosmic-dragon milestone (positions 25-26).
     assert_eq!(cycle_scene("cosmic-dragon", 1), "dragon_hunt");
     assert_eq!(cycle_scene("dragon_hunt", 1), "carbonic");
-    // Tail of the cycle wraps back to the head (the black hole).
-    assert_eq!(cycle_scene("curiosity", 1), "sorgonemous_intrascals");
+    // Tail of the cycle wraps back to the head (the glyph default).
+    assert_eq!(cycle_scene("curiosity", 1), "cinematic");
 }
 
 #[test]
 fn cycle_scene_backward_order() {
-    // NIGHT-lts-2: backward from matrix hits lorenz (position 4);
-    // monolith backward is the launch default cinematic; the head
-    // (the black hole) backward wraps to the tail.
+    // NIGHT-lts-5: backward from matrix hits lorenz (position 4);
+    // monolith backward is the black hole (the second signature);
+    // the head (the glyph default) backward wraps to the tail.
     assert_eq!(cycle_scene("matrix", -1), "lorenz");
-    assert_eq!(cycle_scene("monolith", -1), "cinematic");
-    // One X-press from the launch default reaches the black hole
-    // (the owner's second signature — the pairing the NIGHT-lts-2
-    // order exists to express).
-    assert_eq!(cycle_scene("cinematic", -1), "sorgonemous_intrascals");
+    assert_eq!(cycle_scene("monolith", -1), "sorgonemous_intrascals");
+    // One X-press backward from the black hole returns to the
+    // launch default (the owner's first signature — the pairing
+    // the NIGHT-lts-5 order exists to express).
+    assert_eq!(cycle_scene("sorgonemous_intrascals", -1), "cinematic");
     // Head wraps backward to the tail.
-    assert_eq!(cycle_scene("sorgonemous_intrascals", -1), "curiosity");
+    assert_eq!(cycle_scene("cinematic", -1), "curiosity");
 }
 
 #[test]
@@ -99,9 +99,9 @@ fn scene_names_are_present() {
     // NIGHT-hunter-15: dragon_hunt joined at cycle position 19; sorts
     // alphabetically after curiosity, before flux.
     // NIGHT-special-1: sorgonemous_intrascals joined at cycle
-    // position 9 (now cycle position 1 — the NIGHT-lts-2 owner
-    // directive moved the black hole to the head of the cycle);
-    // sorts alphabetically after signal, before storm.
+    // position 9 (now cycle position 2 — the NIGHT-lts-5 owner
+    // approval seats the black hole second, behind the glyph
+    // default); sorts alphabetically after signal, before storm.
     // NIGHT-special-2: aeolian joined at cycle position 10;
     // NIGHT-special-4: solar_flare joined at cycle position 11
     // (replacing the retired aurora veil, NIGHT-special-3). Both
@@ -284,13 +284,13 @@ fn dragon_hunt_scene_marks_biggest_bug_hunt_milestone() {
 
 #[test]
 fn scene_cycle_order_is_preserved() {
-    // NIGHT-lts-2 owner-pinned first four (2026-09-10 directive):
-    // the signature pair (black hole + glyph default) then monolith
+    // NIGHT-lts-5 owner-approved first four (2026-09-10 approval):
+    // the signature pair (glyph default + black hole) then monolith
     // and lorenz. Full coverage: every SCENES entry appears exactly
     // once (a new scene that forgets to join the cycle fails here).
     assert_eq!(
         &SCENE_ORDER[..4],
-        &["sorgonemous_intrascals", "cinematic", "monolith", "lorenz"]
+        &["cinematic", "sorgonemous_intrascals", "monolith", "lorenz"]
     );
     assert_eq!(
         SCENE_ORDER.len(),
