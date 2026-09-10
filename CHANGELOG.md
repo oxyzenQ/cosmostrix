@@ -9,6 +9,97 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-hunter-27 — 'r' is now a FULL FRESH: the restart re-applies the current scene's builtin defaults, wiping every runtime user change before the from-zero relaunch
+
+- Owner directive: pressing 'r' after runtime changes (color cycles
+  via 'c'/'C', charset via 's'/'S', speed via Up/Down, density via
+  '['/']', or a live-reloaded config key) returned "your changes,
+  reseeded" instead of the scene's own defaults — sorgonemous_intrascals
+  came back green, not energy-zen/binary/speed-12/density-0.55.
+- The 'r' arm now layers the scene's builtin field set back on top
+  BEFORE the NIGHT-lts-3 relaunch, through the same
+  `apply_scene_runtime_with_cfg` path the 'x'/'X' scene cycle uses:
+  color (also dropping any active custom palette), charset, speed,
+  density, glitch level, and rain style all return to the scene's
+  values. Custom scenes re-apply their complete `[scene-custom]`
+  block layer through the last-applied config map (the same map the
+  live-reload rebuild consults).
+- Ownership + harmony state is reset to fresh-launch parity: the
+  ambient override flags mirror the 'x' cycle contract (snapback
+  timer re-arms, palette lock clears), and any mid-flight Crystal
+  Dragon drift retires (drift_active/drift_start cleared, poll cycle
+  re-armed) so the re-applied palette is ground truth.
+- Scene fps is re-asserted through the ambient-fps application point
+  (power manager + HUD + effective-config tracker) — the scene
+  family owns fps and the Cloud does not pace frames; custom scenes
+  with `fps ≠ 60` restore correctly. The key dispatch contract grew
+  a `KeyOutcome::FreshScene` variant (was a bare bool) so the event
+  loop can perform the follow-up the Cloud cannot.
+- Semantics preserved: 'r' remains suppressed while paused or
+  decelerating (only 'p' and 'q' respond — the pause isolation
+  contract), still relaunches from zero (fresh RNG stream, birth
+  choreography replayed, message typewriter restarted), and still
+  does not change which scene is active.
+- Regression suite: test/interactive/tests_night_hunter27.rs — 7
+  tests covering the owner's exact flagship repro, the from-zero
+  replay, scene identity, ambient/drift reset, pause suppression,
+  custom-scene blocks, and the legacy wake contract for all other
+  keys.
+
+### fix: NIGHT-hunter-28 — resume from pause is now phase-continuous: no more brightness-reshuffle pop at high detail
+
+- Owner report: pause (deceleration) reads smooth and elegant, but
+  resume "still has a small jump" at seriously high detail. Root
+  cause found in `toggle_pause()` BRANCH 2: the unpause path
+  re-randomized every live droplet's `advance_remainder`
+  (`rand_chance.sample()`). That remainder drives BOTH the head
+  cell's brightness ramp (`1.0 + fractional_progress × 0.15` — the
+  per-frame "energy building" pulse) and the timing of the next row
+  advance, so the re-randomization reshuffled every visible head's
+  brightness by up to ±15% in a single frame — a global shimmer pop
+  exactly at the resume instant, most visible with many heads, long
+  tails, and phosphor afterglow.
+- Fix: preserve the frozen phase. The pause freezes remainders
+  mid-phase and the resume continues from exactly those values —
+  C0-continuous in both brightness and advance timing. The old
+  lockstep guard this randomization replaced was for an even older
+  bug (zeroing the remainders synchronized them); with
+  SPAWN_PHASE_JITTER=true the spawn-time spread survives the
+  freeze/thaw, so preservation has no lockstep and no pop.
+- Structured families (black hole, vortex, dragon, …) were already
+  jump-free via the clamp-and-blend dt contract; this fix closes the
+  glyph-family gap.
+- Regression suite: two tests in tests_exp_decay.rs lock the exact
+  phase equality across the unpause call and the preserved spread
+  (no lockstep) after resume.
+
+### fix: NIGHT-hunter-19 & depthtest-1 — CLI + config/live-reload depth audit: 15-test seeded stresstest harness; one startup crash fixed (empty-argv panic)
+
+- Depth audit of the full CLI chain (argv expansion → clap parse →
+  canonicalize) and the full live-reload chain (config text parser →
+  strict validation → watcher debounce/dedup → rebuild_cloud_config),
+  including the capped-read I/O layer and the 24h duration ceiling.
+- New harness: test/tests/depthtest_cli_config.rs — 15 deterministic
+  (seeded xorshift) stress tests across seven surfaces: argv
+  expansion totality, adversarial clap argv, the numeric CLI parsers
+  (NaN/inf/unicode-digit/overflow corpora), config-text parser
+  permutations (quote/bracket/CRLF/section/array pitfalls), strict
+  per-key validation classification, rebuild invariants (finite +
+  in-range numerics, non-empty charset pool, key-reflection
+  contract), and the full watcher pipeline (parse → validate →
+  rebuild) over random mutations of a valid config file.
+- Bug found and fixed: `expand_argv_shorthands` indexed `argv[0]`
+  directly — a crash-on-startup when the process is exec'd with an
+  empty argv list (execve accepts `[NULL]`; `std::env::args_os()`
+  then yields zero items). Now guarded with `first()`; clap handles
+  the missing program name itself. Locked by a regression test.
+- Verified clean: the strict gate classifies every known key ×
+  adversarial value deterministically (the S-master-HUNT-2
+  lockstep contract holds), the rebuild layer never lets a NaN/inf
+  or out-of-range value reach frame pacing or spawn math even when
+  validation regresses (defense-in-depth holds), and the malformed
+  report diagnostic always traces back to a real input line.
+
 ### stability: NIGHT-lts-7 — the HUD metrics depth audit: realtime, accurate, zero measurable overhead, stable; one e2e-harness robustness fix (zero metric-code changes)
 
 - Audited the full HUD metrics surface: hud/ (975-LOC state module +

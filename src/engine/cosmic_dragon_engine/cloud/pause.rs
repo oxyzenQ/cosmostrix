@@ -61,10 +61,39 @@ impl super::Cloud {
                     if d.is_alive {
                         d.increment_time(elapsed);
                         d.last_time = Some(now);
-                        // randomize advance_remainder on resume (was 0,
-                        // caused lockstep "loncat" pops). Jitter spreads them,
-                        // matching apply_phase_jitter's per-droplet phase.
-                        d.advance_remainder = self.rand_chance.sample(&mut self.mt);
+                        // NIGHT-hunter-28 (owner report: "for resume like
+                        // still have small jump so feel not smooth
+                        // elegantly when see seriously high detail"):
+                        // the phase is PRESERVED, not re-randomized.
+                        //
+                        // Droplet::head_brightness() is driven by
+                        // advance_remainder (the "energy building"
+                        // ramp: brightness = 1.0 + remainder × 0.15),
+                        // and the remainder also decides WHEN the next
+                        // row advance lands. The old re-randomization
+                        // (`d.advance_remainder = rand_chance.sample()`)
+                        // therefore reshuffled EVERY droplet's head
+                        // brightness by up to ±15% and its advance
+                        // timing by up to a full row IN ONE FRAME — a
+                        // global shimmer/pop exactly at the resume
+                        // instant, most visible at high detail (many
+                        // heads + long tails + phosphor afterglow).
+                        //
+                        // The freeze already preserves the spread:
+                        // SPAWN_PHASE_JITTER=true staggers every
+                        // droplet's remainder at spawn, and the pause
+                        // simply freezes it mid-phase — resuming from
+                        // the frozen values is continuous in BOTH
+                        // brightness and advance timing (C0 in the
+                        // position, C0 in the visual ramp). The
+                        // lockstep this line once guarded against came
+                        // from an older resume path that ZEROED the
+                        // remainders ("was 0, caused lockstep 'loncat'
+                        // pops") — dropping to a fixed constant is
+                        // what synchronized them, and the jitter spread
+                        // was the workaround. Preserving the frozen
+                        // phase is strictly better: no lockstep (the
+                        // spawn-time spread survives) AND no pop.
                     }
                 }
                 // §H10: shift monolith streams' last_time forward by

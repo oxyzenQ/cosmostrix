@@ -173,9 +173,11 @@ mod cases_kitty_shift {
                 def_ascii: true,
                 cfg,
                 term_reinit,
+                cfg_map: None,
             },
             key,
         )
+        .wakes_renderer()
     }
 
     fn key_with_mod(ch: char, mods: KeyModifiers) -> KeyEvent {

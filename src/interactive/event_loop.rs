@@ -418,13 +418,11 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                         }
                         // refresh auto-snapback idle timer on every key press.
                         ctx.last_user_input_at = activity_time;
-                        // Process the keybinding. This lets interactive
-                        // keys (q, c/C, s/S, x/X, p, i, [, ], r,
-                        // Up/Down) work identically in --screensaver
-                        // mode and normal mode — the ONLY differences
-                        // are the two micro-scale scheduling details
-                        // documented in docs/SCREENSAVER_MODE.md.
-                        let redraw_needed = handle_keybinding(
+                        // Process the keybinding. Interactive keys
+                        // (q, c/C, s/S, x/X, p, i, r, [, ], Up/Down)
+                        // work identically in both modes — see
+                        // docs/SCREENSAVER_MODE.md.
+                        let key_outcome = handle_keybinding(
                             &mut KeybindingCtx {
                                 cloud: &mut ctx.cloud,
                                 frame: &mut ctx.frame,
@@ -435,9 +433,14 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                                 def_ascii: ctx.def_ascii,
                                 cfg: &ctx.config.startup,
                                 term_reinit: &term_reinit,
+                                cfg_map: ctx.config.last_applied_map.as_ref(),
                             },
                             &k,
                         );
+                        // NIGHT-hunter-27: 'r' — re-assert scene fps.
+                        if matches!(key_outcome, super::input::KeyOutcome::FreshScene) {
+                            super::event_loop_config_rebuild::apply_fresh_scene_fps(&mut ctx);
+                        }
                         if ctx.config.startup.screensaver {
                             // Screensaver: break the event drain immediately
                             // once 'q' cleared cloud.raining (queued events are
@@ -450,7 +453,7 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
                             // No is_recognized_key check — all unrecognized
                             // keys fall through to handle_keybinding's
                             // `_ => {}` catch-all and are silently ignored.
-                        } else if redraw_needed {
+                        } else if key_outcome.wakes_renderer() {
                             ctx.next_frame = Instant::now();
                         }
                     }

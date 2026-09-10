@@ -97,6 +97,13 @@ mod v50_kitty_shift;
 #[path = "../../test/interactive/tests_v51_intro_brand_pause.rs"]
 mod v51_intro_brand_pause;
 
+// NIGHT-hunter-27: 'r' full-fresh regression suite — the scene's
+// builtin defaults are re-applied over every runtime user change
+// (shortkey cycles + live-reload) before the from-zero relaunch.
+#[cfg(test)]
+#[path = "../../test/interactive/tests_night_hunter27.rs"]
+mod tests_night_hunter27;
+
 // v80.0.0-beta.1 Z-master-1B: exhaustive shortkey no-op lock — every key outside the active set is a complete no-op.
 #[cfg(test)]
 #[path = "../../test/interactive/tests_v51_shortkey_noop.rs"]

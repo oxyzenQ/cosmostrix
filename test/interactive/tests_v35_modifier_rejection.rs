@@ -179,9 +179,11 @@ mod cases_modifier_rejection {
                 def_ascii: true,
                 cfg,
                 term_reinit,
+                cfg_map: None,
             },
             key,
         )
+        .wakes_renderer()
     }
 
     // ── Modifier rejection tests (v50 alpha.3) ─────────────────────────────

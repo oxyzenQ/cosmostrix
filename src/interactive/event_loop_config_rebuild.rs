@@ -10,6 +10,8 @@
 //! `&mut String` pair, and the `w`/`h` `u16` pair; every one of them
 //! is a named ctx field now and cannot be transposed at a call site.
 
+use std::collections::HashMap;
+
 use super::event_loop_ctx::LoopCtx;
 use crate::color_cache::ColorCache;
 use crate::effective_density;
@@ -479,6 +481,35 @@ pub(crate) fn apply_config_rebuild(ctx: &mut LoopCtx) -> bool {
 /// paired a `&CloudConfig` (startup) with a `&mut CloudConfig`
 /// (current), a same-type cross-wire hazard, and carried a stale
 /// `too_many_arguments` allow (the threshold is 7; the list was 5).
+/// NIGHT-hunter-27: event-loop follow-up for the 'r' full-fresh restart.
+///
+/// The input layer's 'r' arm re-applied the current scene's builtin
+/// defaults (color/charset/speed/density/glitch/rain style) and
+/// relaunched the cloud from zero. The scene FAMILY also owns fps,
+/// and the Cloud does not pace frames — this re-asserts the scene's
+/// fps intent through `apply_ambient_fps` below: the power manager,
+/// the HUD, and the effective-config tracker stay in sync — exactly
+/// as an ambient scene fire would.
+///
+/// Builtin scenes declare their fps in the catalog
+/// (`scene_info.config.fps`); custom scenes resolve it from the
+/// `[scene-custom.<name>].fps` block in the last-applied config map
+/// (the same map the live-reload rebuild uses). No fps field → no
+/// pacing change (the current cadence stands).
+pub(super) fn apply_fresh_scene_fps(ctx: &mut LoopCtx) {
+    let empty_map = HashMap::new();
+    let cfg_map = ctx.config.last_applied_map.as_ref().unwrap_or(&empty_map);
+    let scene = ctx.scene.scene_name.clone();
+    if let Some(fps) = crate::scene_custom::ambient_scene_fps(&scene, cfg_map) {
+        crate::lr_trace!(
+            "fresh-scene 'r': re-asserting scene fps intent {:.1} (scene {})",
+            fps,
+            scene
+        );
+        apply_ambient_fps(fps, ctx);
+    }
+}
+
 pub(crate) fn apply_ambient_fps(fps: f64, ctx: &mut LoopCtx) {
     ctx.config.current.target_fps = fps;
     let safe_fps = ctx

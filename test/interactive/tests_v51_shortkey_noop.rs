@@ -156,8 +156,9 @@ mod cases_v51_shortkey_noop {
             def_ascii: true,
             cfg: &cfg,
             term_reinit: &term_reinit,
+            cfg_map: None,
         };
-        handle_keybinding(&mut ctx, &key_event(code))
+        handle_keybinding(&mut ctx, &key_event(code)).wakes_renderer()
     }
 
     /// Assert a key is a COMPLETE no-op: no redraw, no state change.
@@ -208,11 +209,15 @@ mod cases_v51_shortkey_noop {
         assert_no_op(KeyCode::Char('a'), "'a' (removed async/ambient toggle)");
     }
 
-    /// Every lowercase/uppercase letter outside the active set {c,s,x,q,p}
-    /// (plus their uppercase forms {C,S,X} which ARE active) is a no-op.
+    /// Every lowercase/uppercase letter outside the active set
+    /// {c,s,x,q,p,r} (plus their uppercase forms {C,S,X} which ARE
+    /// active) is a no-op. 'r' joined the wake-contract set at
+    /// NIGHT-hunter-27 (the full-fresh restart returns FreshScene —
+    /// it wakes the renderer; before that its restart ran silently on
+    /// the next scheduled frame, which is why the older list missed it).
     #[test]
     fn all_non_active_letters_are_no_ops() {
-        let active_lowercase = ['q', 'c', 's', 'x', 'p'];
+        let active_lowercase = ['q', 'c', 's', 'x', 'p', 'r'];
         let active_uppercase = ['C', 'S', 'X'];
         for ch in 'a'..='z' {
             if !active_lowercase.contains(&ch) {
@@ -369,6 +374,7 @@ mod cases_v51_shortkey_noop {
             def_ascii: true,
             cfg: &cfg,
             term_reinit: &term_reinit,
+            cfg_map: None,
         };
         let _ = handle_keybinding(&mut ctx, &key_event(KeyCode::Char('s')));
         assert_ne!(
@@ -397,6 +403,7 @@ mod cases_v51_shortkey_noop {
             def_ascii: true,
             cfg: &cfg,
             term_reinit: &term_reinit,
+            cfg_map: None,
         };
         let _ = handle_keybinding(&mut ctx, &key_event(KeyCode::Char('x')));
         assert_ne!(scene_name, "monolith", "'x' must advance the scene");

@@ -36,12 +36,23 @@ use crate::msg_fill_style::MsgFillStyle;
 
 /// Expand the `-mb` / `-mfs` shorthands in the raw argv.
 ///
-/// The returned vector always starts with `argv[0]` (the program name)
-/// and preserves the order of all other tokens. Exits with code 2 on a
-/// `-mfs…` typo.
+/// The returned vector starts with `argv[0]` (the program name) when
+/// present and preserves the order of all other tokens. Exits with
+/// code 2 on a `-mfs…` typo.
+///
+/// depthtest-1 (NIGHT-hunter-19): argv CAN be empty — `execve()`
+/// accepts an empty argvp (`[NULL]`), and `std::env::args_os()`
+/// then yields zero items. The old `argv[0]` direct index panicked
+/// (index out of bounds) before clap ever ran — a crash-on-startup
+/// reachable from a wrapper script that re-execs cosmostrix with a
+/// scrubbed argv. The first() guard degrades to an empty expansion;
+/// clap handles the missing program name itself (falls back to the
+/// command's name for usage lines).
 pub(crate) fn expand_argv_shorthands(argv: &[std::ffi::OsString]) -> Vec<std::ffi::OsString> {
     let mut expanded: Vec<std::ffi::OsString> = Vec::with_capacity(argv.len() + 1);
-    expanded.push(argv[0].clone());
+    if let Some(program) = argv.first() {
+        expanded.push(program.clone());
+    }
     let mut i = 1;
     while i < argv.len() {
         let arg = &argv[i];

@@ -7,6 +7,7 @@
 //! out rapid printable key events that occur during bracketed paste
 //! sequences (which arrive as individual Key events on some terminals).
 
+use std::collections::HashMap;
 use std::time::{Duration, Instant};
 
 use crate::platform::TermReinit;
@@ -185,9 +186,50 @@ pub(super) struct KeybindingCtx<'a> {
     pub def_ascii: bool,
     pub cfg: &'a CloudConfig,
     pub term_reinit: &'a TermReinit,
+    /// NIGHT-hunter-27: the last-applied config map (live-reload state)
+    /// — `None` in unit tests. The 'r' full-fresh reset resolves CUSTOM
+    /// scenes (`[scene-custom.<name>]` blocks) through
+    /// `apply_scene_runtime_with_cfg`, which needs the map to find the
+    /// block's field layer. Built-in scenes take the fast path and never
+    /// consult it.
+    pub cfg_map: Option<&'a HashMap<String, String>>,
 }
 
-pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::KeyEvent) -> bool {
+/// Outcome of a keybinding dispatch — the event loop's follow-up
+/// contract (NIGHT-hunter-27).
+///
+/// The old `bool` return ("redraw now?") could not distinguish a plain
+/// state change from the 'r' full-fresh scene reset, whose follow-up
+/// (re-asserting the scene's fps intent on the power manager + HUD)
+/// only the event loop can perform — the Cloud does not own frame
+/// pacing.
+#[derive(Debug)]
+pub(super) enum KeyOutcome {
+    /// No loop-level follow-up (the key was a no-op, or the change is
+    /// fully absorbed by the next regularly scheduled frame).
+    None,
+    /// Wake the renderer immediately (cloud state changed visually).
+    RedrawNow,
+    /// NIGHT-hunter-27: 'r' pressed — the scene's builtin defaults were
+    /// re-applied and the cloud relaunched from zero. The event loop
+    /// re-asserts the scene-family fps intent (custom scenes may declare
+    /// fps ≠ 60) and wakes the renderer for the first reborn frame.
+    FreshScene,
+}
+
+impl KeyOutcome {
+    /// Boolean view of the legacy redraw contract — `true` when the
+    /// renderer should be woken immediately. Kept for the test
+    /// wrappers, which assert the wake/no-wake behavior of every key.
+    pub(super) fn wakes_renderer(&self) -> bool {
+        !matches!(self, KeyOutcome::None)
+    }
+}
+
+pub(super) fn handle_keybinding(
+    ctx: &mut KeybindingCtx,
+    k: &crossterm::event::KeyEvent,
+) -> KeyOutcome {
     let cloud = &mut *ctx.cloud;
     let frame = &mut *ctx.frame;
     let charset_preset = &mut *ctx.charset_preset;
@@ -218,17 +260,28 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // a pause-related state where user interactions should be
     // suppressed (owner-reported bug: rapid p-taps left effects
     // hanging).
+    //
+    // NIGHT-hunter-27: 'r' is deliberately INSIDE the suppression set —
+    // a restart while paused would race the pause/resume easing state
+    // machine (restart_from_zero clears the pause family, but the
+    // guard's queued-state rationale applies: the user's mental model
+    // during pause is "inspect the frozen frame", and 'r' remains one
+    // 'p' away). Resume first, then 'r' for the full fresh relaunch.
     if cloud.is_paused_or_decelerating() {
         match (code, modifiers) {
             (KeyCode::Char('p'), KeyModifiers::NONE) => {
-                return cloud.toggle_pause();
+                return if cloud.toggle_pause() {
+                    KeyOutcome::RedrawNow
+                } else {
+                    KeyOutcome::None
+                };
             }
             (KeyCode::Char('q'), KeyModifiers::NONE) => {
                 // Allow quit during pause
             }
             _ => {
                 // Silently ignore all other keys during pause
-                return false;
+                return KeyOutcome::None;
             }
         }
     }
@@ -271,7 +324,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
     // Shift+C. That is accepted behavior: both produce the uppercase
     // letter, both reverse-cycle.
     if !is_unmodified_or_shift(modifiers) {
-        return false;
+        return KeyOutcome::None;
     }
 
     // Quit policy: only 'q' exits. Esc, Ctrl+C (SIGINT is deprecated),
@@ -295,6 +348,55 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         // uppercase. E.g. 'q' quits, 'Q' does nothing.
         (KeyCode::Char('q'), KeyModifiers::NONE) => cloud.raining = false,
         (KeyCode::Char('r'), KeyModifiers::NONE) => {
+            // NIGHT-hunter-27 (owner directive): 'r' is a FULL FRESH —
+            // not a reseed. Before NIGHT-lts-3's restart_from_zero, 'r'
+            // only replayed the rain (fresh RNG, birth choreography).
+            // But every runtime mutation the user made since launch —
+            // 'c'/'C' color cycles, 's'/'S' charset cycles, Up/Down
+            // speed, '['/']' density, live-reloaded config keys —
+            // survived the restart: pressing 'r' on
+            // sorgonemous_intrascals after switching to green came
+            // back as "green rain, reseeded", not the scene's
+            // energy-zen/binary/speed-12/density-0.55 builtin.
+            //
+            // The fix layers the scene's OWN defaults back on top
+            // before the relaunch, through the same
+            // apply_scene_runtime path the 'x'/'X' scene cycle uses
+            // (the runtime scene-application contract: scene-managed
+            // fields are re-asserted wholesale). This wipes:
+            //   • color  → the scene's palette (also drops any active
+            //     custom palette — set_color_scheme clears it),
+            //   • charset → the scene's preset,
+            //   • speed / density → the scene's numbers,
+            //   • glitch-level → the scene's level,
+            //   • rain style → the scene's style (live-reloaded scene
+            //     keys could have transitioned it away).
+            // Custom scenes ([scene-custom.<name>] blocks) resolve
+            // through the same map the live-reload rebuild uses, so
+            // their complete field layer re-applies too.
+            let empty_map = HashMap::new();
+            let cfg_map = ctx.cfg_map.unwrap_or(&empty_map);
+            *charset_preset = cloud.apply_scene_runtime_with_cfg(
+                scene_name,
+                charset_preset,
+                user_ranges,
+                def_ascii,
+                cfg_map,
+            );
+            // Mirror the 'x' scene-cycle ownership contract: the user
+            // pressed a key and took ownership of the visual state —
+            // the ambient scheduler's snapback timer re-arms instead
+            // of immediately re-asserting a phase over the fresh
+            // scene, and Crystal Dragon drift is free to begin a new
+            // cycle from the re-applied palette.
+            cloud.user_override_since_ambient = true;
+            cloud.ambient_palette_locked = false;
+            // A fresh launch has no drift in flight — retire any
+            // mid-cycle drift so the fresh scene's palette is the
+            // ground truth (same clearing the snapback performs).
+            cloud.drift_active = false;
+            cloud.drift_start = None;
+            cloud.crystal_dragon_last_poll = Some(Instant::now());
             // NIGHT-lts-3: a restart is a relaunch, not a resize —
             // replay the startup state from zero (fresh RNG stream,
             // fresh drift, birth choreography re-armed for the
@@ -302,8 +404,20 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
             // fresh launch of the current scene. Restart the message
             // typewriter too, so 'r' gives the full cinematic replay
             // — rain reseed + message types out from scratch.
+            // ORDER: the scene defaults must land BEFORE the
+            // from-zero relaunch — restart_from_zero re-arms the
+            // birth choreography for the CURRENT rain_style, so a
+            // live-reload style change must be transitioned first.
             cloud.restart_from_zero(frame.width, frame.height);
             cloud.restart_message_typewriter();
+            // Bump the scene-family generation so the self-healer
+            // resets (a relaunch is a new perf baseline — parity with
+            // the 'x' cycle, which bumps on every family change).
+            *scene_generation = scene_generation.wrapping_add(1);
+            // FreshScene: the event loop re-asserts the scene's fps
+            // intent (power manager + HUD) and wakes the renderer for
+            // the first reborn frame.
+            return KeyOutcome::FreshScene;
         }
         // Color cycle: 'c' forward, 'C' (shift+c) reverse.
         // v30 simplify had removed uppercase 'C'/'S' for consistency; owner
@@ -353,7 +467,11 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         }
 
         (KeyCode::Char('p'), KeyModifiers::NONE) => {
-            return cloud.toggle_pause();
+            return if cloud.toggle_pause() {
+                KeyOutcome::RedrawNow
+            } else {
+                KeyOutcome::None
+            };
         }
         (KeyCode::Char('x'), KeyModifiers::NONE) => {
             let next = scene::cycle_scene(scene_name, 1);
@@ -416,7 +534,7 @@ pub(super) fn handle_keybinding(ctx: &mut KeybindingCtx, k: &crossterm::event::K
         _ => {}
     }
 
-    false
+    KeyOutcome::None
 }
 
 pub(super) fn runtime_speed_clamp(cps: f32, rain_style: RainStyle) -> f32 {

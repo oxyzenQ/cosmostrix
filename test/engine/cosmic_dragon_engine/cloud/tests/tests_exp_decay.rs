@@ -274,3 +274,157 @@ fn pause_start_and_resume_start_never_coexist_across_toggle_branches() {
         "BRANCH 2 must set resume_start"
     );
 }
+
+// ─────────────────────────────────────────────────────────────────
+// NIGHT-hunter-28: resume phase continuity (the "small jump" fix)
+// ─────────────────────────────────────────────────────────────────
+
+/// NIGHT-hunter-28 (owner report: "for resume like still have small
+/// jump so feel not smooth elegantly when see seriously high
+/// detail"): unpause must preserve every droplet's frozen
+/// `advance_remainder` — NOT re-randomize it.
+///
+/// The remainder drives BOTH head brightness
+/// (`1.0 + fractional_progress * FRACTIONAL_HEAD_BRIGHTNESS_AMP`) and
+/// the timing of the next row advance. The old
+/// `rand_chance.sample()` re-randomization reshuffled every head's
+/// brightness by up to ±15% in a single frame — the global shimmer
+/// pop at the resume instant. Preservation is C0-continuous in both
+/// the visual ramp and the advance schedule, and the spawn-time
+/// phase jitter (SPAWN_PHASE_JITTER=true) already guarantees the
+/// spread the old randomization tried to re-inject after the
+/// zeroing bug.
+#[test]
+fn unpause_preserves_frozen_advance_remainders_night_hunter28() {
+    let mut cloud = make_cloud();
+    let mut frame = Frame::new(60, 40, cloud.palette.bg);
+    let now = Instant::now();
+
+    // Run the rain so a spread of live droplets exists.
+    let mut t = now;
+    for _ in 0..30 {
+        cloud.rain_at(&mut frame, t);
+        t += Duration::from_millis(16);
+    }
+
+    // Fully pause (decel through settle — the real user path). The
+    // population may naturally churn DURING the decel window (tails
+    // expire at the decaying blend) — that is not what this test
+    // locks. The contract is at the FREEZE boundary: once fully
+    // paused, rain_at returns early and NOTHING mutates; unpause
+    // must hand the renderer the SAME frozen phases.
+    cloud.toggle_pause(); // BRANCH 3: start decel
+    let mut tp = t;
+    for _ in 0..200 {
+        // ~3.2s of decel: settles to `pause = true`.
+        cloud.rain_at(&mut frame, tp);
+        if cloud.pause {
+            break;
+        }
+        tp += Duration::from_millis(16);
+    }
+    assert!(cloud.pause, "precondition: fully paused");
+
+    // Snapshot the frozen phases (the full pause guarantees no
+    // further mutation — rain_at returns before touching droplets).
+    let remainders_frozen: Vec<f32> = cloud
+        .droplets
+        .iter()
+        .filter(|d| d.is_alive)
+        .map(|d| d.advance_remainder)
+        .collect();
+    assert!(
+        remainders_frozen.len() > 3,
+        "precondition: a live droplet population exists after the decel window"
+    );
+    // Belt-and-suspenders: a paused rain_at must not move them.
+    cloud.rain_at(&mut frame, tp + Duration::from_millis(16));
+    let remainders_still: Vec<f32> = cloud
+        .droplets
+        .iter()
+        .filter(|d| d.is_alive)
+        .map(|d| d.advance_remainder)
+        .collect();
+    assert_eq!(
+        remainders_still, remainders_frozen,
+        "the freeze itself must not touch the phase"
+    );
+
+    // THE FIX: the unpause call itself must preserve every frozen
+    // remainder. The old code re-randomized each one here
+    // (`rand_chance.sample()`) — the global brightness reshuffle
+    // behind the owner's resume "small jump". Nothing runs between
+    // the toggle and the snapshot, so this is an exact-equality
+    // contract on the removed mutation.
+    cloud.toggle_pause(); // BRANCH 2: unpause
+    let remainders_after: Vec<f32> = cloud
+        .droplets
+        .iter()
+        .filter(|d| d.is_alive)
+        .map(|d| d.advance_remainder)
+        .collect();
+    assert_eq!(
+        remainders_after, remainders_frozen,
+        "NIGHT-hunter-28: unpause must preserve the frozen phase (no re-randomization)"
+    );
+
+    // The continuation itself (first frames advancing at the growing
+    // resume blend) is already locked by the exp-decay math tests
+    // above — `advance(now, lines, resume_blend)` is the same
+    // time-scaled path the decel uses, and the phase equality at the
+    // toggle boundary (the removed mutation) is the complete
+    // regression contract for this fix.
+}
+
+/// The complementary half of NIGHT-hunter-28: the preserved remainders
+/// must retain their SPREAD (no lockstep). This locks the reason the
+/// old zeroing + randomization existed — with preservation, the
+/// spawn-time jitter carries the spread through the freeze/thaw, so
+/// the resumed rain does not march in synchronized rows.
+#[test]
+fn preserved_remainders_keep_their_spread_after_resume_night_hunter28() {
+    let mut cloud = make_cloud();
+    let mut frame = Frame::new(80, 40, cloud.palette.bg);
+    let now = Instant::now();
+
+    let mut t = now;
+    for _ in 0..40 {
+        cloud.rain_at(&mut frame, t);
+        t += Duration::from_millis(16);
+    }
+    let remainders: Vec<f32> = cloud
+        .droplets
+        .iter()
+        .filter(|d| d.is_alive)
+        .map(|d| d.advance_remainder)
+        .collect();
+    assert!(remainders.len() > 3, "precondition: live population");
+
+    // Pause through settle, then unpause.
+    cloud.toggle_pause();
+    let mut tp = t;
+    for _ in 0..200 {
+        cloud.rain_at(&mut frame, tp);
+        if cloud.pause {
+            break;
+        }
+        tp += Duration::from_millis(16);
+    }
+    cloud.toggle_pause();
+
+    let after: Vec<f32> = cloud
+        .droplets
+        .iter()
+        .filter(|d| d.is_alive)
+        .map(|d| d.advance_remainder)
+        .collect();
+    // Distinct-enough spread: at least 3 distinct values across the
+    // population (a lockstep would collapse them all to one).
+    let mut distinct = after.clone();
+    distinct.sort_by(|a, b| a.partial_cmp(b).unwrap());
+    distinct.dedup_by(|a, b| (*a - *b).abs() < 0.05);
+    assert!(
+        distinct.len() >= 3,
+        "resumed remainders lost their spread (lockstep): {after:?}"
+    );
+}

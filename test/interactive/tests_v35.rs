@@ -177,9 +177,11 @@ mod cases_v35 {
                 def_ascii: true,
                 cfg,
                 term_reinit,
+                cfg_map: None,
             },
             key,
         )
+        .wakes_renderer()
     }
 
     #[test]
