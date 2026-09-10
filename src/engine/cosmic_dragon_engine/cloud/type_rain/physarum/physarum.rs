@@ -461,15 +461,15 @@ impl PhysarumRain {
 
         // Sensor direction ladder (NIGHT-hunter-10): the three sample
         // directions are the heading rotated by -a, 0 and +a. The trig
-        // for the CONSTANT sensor angle is hoisted — one pair per
-        // advance call instead of two per particle — and the
-        // per-particle sensor directions come from the angle-addition
-        // identities (cos(h±a) = cos_h·cos_a ∓ sin_h·sin_a and the
-        // matching sine form): exact math for any sensor-angle tuning,
-        // two trig calls per particle where the previous form spent
-        // six (plus two for the move).
-        let sensor_cos = sensor_angle.cos();
-        let sensor_sin = sensor_angle.sin();
+        // for the CONSTANT sensor angle is hoisted — one fused
+        // sin_cos pair per advance call instead of two separate
+        // evaluations per particle — and the per-particle sensor
+        // directions come from the angle-addition identities
+        // (cos(h±a) = cos_h·cos_a ∓ sin_h·sin_a and the matching
+        // sine form): exact math for any sensor-angle tuning, one
+        // fused pair per particle where the pre-hunter-10 form spent
+        // six trig calls (plus two for the move).
+        let (sensor_sin, sensor_cos) = sensor_angle.sin_cos();
 
         let mut absorbed = 0usize;
         for p in &mut self.particles {
@@ -482,11 +482,12 @@ impl PhysarumRain {
             // Three sensor positions: left-front, front, right-front.
             // Sensor samples the trail field at offset distance from
             // the particle, in directions offset by ±sensor_angle.
-            let cos_h = p.heading.cos();
-            let sin_h = p.heading.sin();
+            // Fused pair (the stage-1/stage-3 sin_cos precedent):
+            // both values from one evaluation, results bit-identical
+            // to the separate calls.
+            let (sin_h, cos_h) = p.heading.sin_cos();
             // Angle-addition ladder (see the hoist comment above):
-            // identical sensor angles to the trig form, four fewer
-            // trig calls per particle.
+            // identical sensor angles to the trig form.
             let left_dx = cos_h * sensor_cos + sin_h * sensor_sin;
             let left_dy = sin_h * sensor_cos - cos_h * sensor_sin;
             let right_dx = cos_h * sensor_cos - sin_h * sensor_sin;
@@ -544,8 +545,12 @@ impl PhysarumRain {
 
             // ── 3. Move (wraparound toroidal substrate) ───────────
             let dist = step_dist * p.pace;
-            p.x += p.heading.cos() * dist;
-            p.y += p.heading.sin() * dist;
+            // Post-turn heading: a fresh fused pair — the heading
+            // changed since the sensor read, so the values differ
+            // from sin_h/cos_h (bit-identical to the separate calls).
+            let (sin_move, cos_move) = p.heading.sin_cos();
+            p.x += cos_move * dist;
+            p.y += sin_move * dist;
             // Wraparound: modulo arithmetic keeps the particle on
             // the torus. The trail field is also indexed with
             // wraparound in sample_trail, so sensing and motion
