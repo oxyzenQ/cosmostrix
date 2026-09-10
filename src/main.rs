@@ -308,8 +308,10 @@ fn main() -> std::io::Result<()> {
     // an ArgAction::Help arg intercepted as DisplayHelp; deliberately
     // not done (behavior stability) — see the v100.0.0-nightly.1
     // CLI UX centralization notes in cli/ux.rs.
-    // v50.0.0-beta.7 LOC refactor: pre-config-apply early-return commands
-    // extracted to main_early_returns.rs.
+    // The full early-return precedence ladder (which command wins when
+    // several are combined, e.g. `-v -s --dump-config --version
+    // --doctor`) is documented + test-pinned in cli/early_returns.rs
+    // (NIGHT-lts-6).
     if let Some(result) = crate::cli::early_returns::handle_pre_config_returns(&mut args) {
         return result;
     }
@@ -355,13 +357,12 @@ fn main() -> std::io::Result<()> {
     }
     canonicalize_runtime_args(&mut args);
 
-    if args.doctor {
-        doctor::print_doctor_report(&args);
-        return Ok(());
-    }
-    // v50.0.0-beta.7 LOC refactor: post-config-apply early-return commands
-    // (--doctor, --version, --docs, --check-update) extracted to
-    // main_early_returns.rs.
+    // NIGHT-lts-6 (2026-09-10): the `if args.doctor { ... }` block that
+    // lived here was DEAD DUPLICATE dispatch — handle_post_config_returns
+    // below also handles --doctor, but this block fired first, making that
+    // branch unreachable. Exactly the ordering-drift confusion the lts-6
+    // audit exists to eliminate. The canonical early-return ladder (and
+    // its tests) lives in cli/early_returns.rs.
     if let Some(result) = crate::cli::early_returns::handle_post_config_returns(&args) {
         return result;
     }

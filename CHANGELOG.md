@@ -9,6 +9,42 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### stability: NIGHT-lts-6 — the early-return command ladder is now single-sourced, documented, and test-pinned (owner report: combined commands like `-v -s --dump-config ... --version --doctor` must pick one winner, deterministically, to avoid confusion)
+
+- Owner report: running several print-and-exit commands together
+  (`cosmostrix -v -s --dump-config <path> --version --doctor`)
+  should never be a guessing game — exactly one must fire, and the
+  winner must not depend on the order the flags were typed.
+- Removed a dead duplicate dispatch: `main.rs` carried its own
+  `if args.doctor` block that fired BEFORE
+  `handle_post_config_returns`, making the --doctor branch there
+  unreachable (a v50 LOC-refactor leftover). The exact
+  ordering-drift class the owner flagged — two owners for one
+  command is how behavior silently diverges. --doctor now has a
+  single owner: the post-config dispatcher.
+- The canonical ladder is now documented in one place
+  (`src/cli/early_returns.rs` module docs): parse errors > --help >
+  --reset-terminal > --dump-config > --config-path > --testconf >
+  --list-scenes > --list-charsets > --list-colors > --show-scene >
+  [config apply] > --doctor > --version > --docs > --check-update >
+  benchmark > interactive. Pre-config commands work with a broken
+  or missing config file; post-config commands report the merged
+  config view. Runtime flags (-v, -s, ...) are inert when an early
+  return fires (standard early-exit semantics).
+- The ladder order is encoded once in two pure classification
+  functions (`classify_pre_config` / `classify_post_config` — no
+  I/O, no exits) consumed by both dispatchers, so it can never
+  silently drift between the two phases.
+- Nine new precedence tests pin the full pairwise matrix
+  (owner's combined-command case included, both argv orders) plus
+  the phase boundaries: pre-config flags are invisible to the
+  post-config classifier and vice versa.
+- Behavior-preservation verified: the full smoke matrix
+  (version/doctor/dump-config/help/docs/config-path/list/testconf,
+  14 combinations, both argv orders) is byte-identical before and
+  after. Startup latency measured at 2-4 ms (debug build) — the
+  early-return paths are already at peak; no optimization needed.
+
 ### stability: NIGHT-lts-3 — the 'r' restart now starts from zero like a fresh launch (the owner's black hole report: the restarted hole popped in already formed); restart + dynamic-resize contracts audited and pinned across all fourteen type rains
 
 - Owner report: pressing 'r' on the black hole scene restarted
