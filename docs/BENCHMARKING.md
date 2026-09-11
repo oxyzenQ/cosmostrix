@@ -117,6 +117,36 @@ noise-yardstick methodology, and the audit's codegen controls
 (the numbers in this section above are the historical 120x40
 truecolor signatures and remain valid for that profile).
 
+**NIGHT-research-10 (2026-09-11, the black hole photon line, triple
+crown, and head-white ladder):** the rim photon line (the annulus's
+outer band flipping to Core — a level re-banding, zero new cells),
+the five-lane halo re-split (the same rider population redistributed
+across three crowns and two lower arcs — zero new motes), and the
+two head-white ladders (the crown gain and the tier-0 near-ball
+floor — per-head ladder lookups only). 10s A/B at 120x40 wet IO
+vs the parent commit (before 0f8f42f, after 954e3d7, dev profile,
+same two-run discard-warmup protocol): sorgonemous_intrascals avg
+fps 1706.1 -> 1652.5 (-3.1%, confirmation run 1678.0 — call it
+-2 to -3%), median 1737.5 -> 1708.2, p99 frame time 0.770 ->
+0.677 ms (-12.1%), p99.9 1.071 -> 1.008 ms, avg dirty cells/frame
+198.8 -> 217.2 (+9.3%, dirty ratio 4.14% -> 4.53%), frame time
+stability excellent on both sides, allocator flat (heap retained
+0 B, peak RSS 9.02 -> 9.07 MiB). The cost is mechanical and
+owner-directed: the lower family's doubled share (0.18 -> 0.28 of
+the halo pool) puts more riders on the arcs that cross the disk
+band's zone under the shadow, so more cells change hands between
+populations per frame (the +18 dirty cells), and the tier-0 floor
+plus the brighter Core trails repaint more near-ball levels per
+frame; nothing allocates (flat heap, same pool sizes — the
+features are level and tag changes, not population changes).
+Visual signature shifts track the intent: entropy 6.07 -> 6.09
+(noise), density gini 0.5487 -> 0.5440 (the doubled lower arcs
+spread the composition slightly wider below the shadow), color
+transition delta 136.9 -> 132.9 (the crowns sit steadier at Core
+white — less palette wandering on the upper family). The one-off
+8.3 ms max-frame spike in the first after-run did not reproduce
+(confirmation max 4.9 ms — OS jitter, not a code path).
+
 **NIGHT-research-9 (2026-09-11, the black hole masterclass physics
 pass):** the corotation spawn (an O(1) per-mote angular-momentum
 derivation), the width-capped ball, the stretched disk unit, the

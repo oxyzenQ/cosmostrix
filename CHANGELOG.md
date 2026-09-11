@@ -9,6 +9,71 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-10 — the black hole photon line, the triple crown, and the head-white ladder
+
+- Owner feedback round (the Interstellar/NASA imagery read, four
+  asks): the real photographs show a thin ring like a line inside
+  the ball's disk (the photon ring hugging the shadow's edge — the
+  owner asked whether it was needed; it is the trademark of the EHT
+  photographs and Gargantua's render, so yes); the upper ring
+  should grow from two to three stages so it reads thick like the
+  center ring's three-tier stack; the lower ring should double to
+  two; and the three upper rings should burn brighter, dominantly
+  head-white like the rain-glyph heads — plus the center ring's
+  near-ball reach reads a bit dark where the imagery burns
+  brightest.
+- The rim photon line (`ball_helpers.rs`): the annulus's outer band
+  flips to Core — the thin bright line at the shadow's edge. The
+  line width is the larger of `BLACK_HOLE_PHOTON_RIM_FRACTION`
+  (0.12) of the annulus and `BLACK_HOLE_PHOTON_RIM_MIN_CELLS`
+  (1.0 line-height units), so the line stays thin on every terminal
+  class yet never collapses to a sub-cell sliver the raster misses
+  on the smallest viewports. The Ghost fringe is retired — the Mid
+  body runs sharp up to the line (the EHT edge read), and the
+  Doppler lobe still breathes the line (Core bumps clamp, the
+  opposite lobe steps one rung down).
+- The triple crown and the doubled echo (`halo.rs` +
+  `style_rain.rs`): the upper family grows to three crowns riding
+  the 1.30 / 1.48 / 1.66-radius arcs (the new
+  `BLACK_HOLE_HALO_TOP_ARC_FRACTION`, Keplerian pace 0.50 — the
+  slowest lane of the system, three visibly distinct moving arcs),
+  while the lower family doubles to two mirrored arcs (1.30 and the
+  new `BLACK_HOLE_HALO_LOWER_OUTER_ARC_FRACTION` 1.48). The spawn
+  split walks the upper family's 0.72 combined share (0.24 per
+  crown, 0.14 per lower lane — the five weights partition the pool
+  with compile-time contracts) through the same Bresenham
+  accumulator, now with a three-step crown round robin
+  (`halo_crown_step`) and a lower lane toggle (`halo_lower_lane`):
+  every lane fills exactly at its weight on every pool fill, no
+  spawn luck. The apex fits every viewport by construction (the
+  ball never exceeds 0.55 of the half-height, and 1.78 times that
+  stays inside the vertical budget even at the wobble extremes).
+- The head-white crowns (`halo.rs` `halo_head_level`): every
+  upper-family head floors at Hot (the same floor the disk's snug
+  tiers carry) and its proximity-ladder distance input is pulled
+  inward by the new `BLACK_HOLE_HALO_CROWN_GAIN` (0.34 outer radii
+  — the lensing light-path compression that makes the photon ring
+  the brightest structure in the iconic images), so all three
+  crowns burn Core white across their reach; the entry-spiral
+  drift-in still reads dim and ignites as the rider settles (the
+  accretion read survives the gain), and the lower arcs keep the
+  plain z-graded ladder — the dimmer mirrored echo.
+- The white crossing band (`ring.rs` `ring_head_base`): the tier-0
+  equatorial band's head base floors at Hot whenever the head rides
+  inside the hot radius, so the center ring's near-ball reach lands
+  Core white after the ladder's +2 bump (a Ghost-zone z base used
+  to land only Mid — the dim read the owner reported); the far arms
+  keep the plain z-graded base and dissolve through the fade ladder
+  as before, and the snug tiers keep their stage-2.7 floor
+  everywhere.
+- Tests: 67 black hole contracts (re-pinned: the radial-band
+  contract for the rim ladder, the halo stream split for five
+  lanes, the sparser-lower contract for the round robin; new: the
+  rim photon line's presence/thinness/outside-wrap plus the 80x24
+  one-cell-floor survival, the crown head-white pure-ladder
+  contract, the near-ball crossing-band pure-ladder contract). Full
+  suite 2795 green.
+
 ### feature: NIGHT-research-9 — the black hole masterclass physics pass: disk-corotation infall, width-adaptive composition, and the see-saw window re-cut
 
 - Owner report (three reads): the disk at stage 3 reads
