@@ -9,6 +9,43 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-docs-2 — the LTS docs completeness audit (source code = truth) and the stale-reference cleanup
+
+- Owner brief: all documents complete before the stable LTS
+  release, source code = truth. 101 non-archive .md files audited
+  against the source, the live `--help`, and the live `--list-*`
+  discovery commands (six checks: stale file paths, config-key
+  coverage, live counts, TODO markers, version drift, docs index
+  coverage). Audit record:
+  `docs/audits/DOCS_LTS_COMPLETENESS_2026-09-11.md`.
+- Verdict: config keys 0/41 undocumented; all 55 --help flags
+  documented; scene/theme/charset/msg-fill-style counts match the
+  live discovery output; zero open TODO markers; zero current
+  version mislabeling.
+- Fixed: 15 broken cross-references in 7 live docs that pointed at
+  files moved to docs/archive/ (CENTRAL_CONTROL_RAINS_USAGE,
+  MAINTENANCE, PHILOSOPHY, SECURITY_AUDIT, TERMINAL_LIFECYCLE_MATRIX,
+  VISUAL_IDENTITY, LIVE_RELOAD_BEHAVIOR) — all links now resolve at
+  their archive location.
+- Fixed: RELEASE_GUARD.md Gates 2/4 and the future-release pattern
+  taught removed scripts (rc-smoke.sh, release-benchmark-report.sh)
+  as live gates — now the current tooling (build.sh check-all,
+  gate-keepers, verify-release-build) and the manual 5-run
+  benchmark loop; HIST_BENCH.md's removed-script how-tos rewritten
+  as historical records.
+- Fixed: docs/README.md index gaps — eight live documents were not
+  indexed (CENTRAL_CONTROL_POWER_DRAGON, CLI_SUGGESTION_SYSTEM,
+  CONFIG_LIVE_RELOAD_DISCLAIMER, DEPENDENCY_AUDIT, SECURITY_AUDIT,
+  USAGE_PIPE_REDIRECT, VISUAL_IDENTITY, FUTURE_BACKLOG); every
+  docs/*.md file is now indexed (completeness check: zero gaps).
+- Verified already-correct: ENDURANCE.md (self-declared historical
+  record with a dated removal note), FUTURE_BACKLOG.md (its
+  references are the migration table itself), CHANGELOG/research/KEY
+  historical records, and the illustrative path examples in
+  src/RULES.md and RENDER_ENGINE.md.
+- Docs-only change: no source touched, full suite 2863/2863, no
+  benchmark (docs-only rule).
+
 ### fix: NIGHT-depthtest-3 — oversized custom-block names: silent collector skip promoted to a hard validation error, plus the line-1-to-end config.toml depth stress e2e
 
 - Owner repro (2026-09-11): a complete `[scene-custom.<65+-char

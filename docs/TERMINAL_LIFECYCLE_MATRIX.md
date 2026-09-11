@@ -130,7 +130,7 @@ should run manual recovery if needed (`stty sane`, `printf '\033c'`,
 or `cosmostrix --reset-terminal`).
 
 Live verification 2026-08-30 (v80.0.0-beta.1.0-beta.1,
-`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md`): with the normal
+`docs/archive/audits/LTS_MATRIX_MIDSESSION_RETEST.md`): with the normal
 terminal topology (cosmostrix as a foreground child, shell as session
 leader), `kill -9` left the guard child alive and termios was fully
 restored to cooked mode within 0.5 s. Edge case: when cosmostrix itself
@@ -200,7 +200,7 @@ Rust's default main-Err Debug render `Error: Os { code: 6, ... }`);
 the fatal path now renders once, branded, via eprintln_error_labeled
 with an explicit exit(1) after the warning drain. Verified live
 2026-08-30 (see
-`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` finding F2).
+`docs/archive/audits/LTS_MATRIX_MIDSESSION_RETEST.md` finding F2).
 
 `--benchmark` and `--doctor` are the supported headless paths: they
 run to completion and exit 0 without any alternate screen, raw mode,

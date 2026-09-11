@@ -140,7 +140,7 @@ Focus won the owner's terminal A/B verdict on 2026-08-23.
 These documents describe **historical** states, not the current one. They
 are retained for their analysis quality:
 
-- `docs/RAIN_DEPTH_AUDIT.md` — describes Option F, superseded by Cinema Noir
+- `docs/archive/RAIN_DEPTH_AUDIT.md` — describes Option F, superseded by Cinema Noir
   (two back-layer values differ from current source).
 - `docs/research/VISUAL_MODE_AUDIT.md` — describes the v30.2 masterclass
   retune, superseded by Option F and then Cinema Noir.

@@ -158,7 +158,7 @@ confuse users." Here are 4 options, ranked by effort vs. impact.
 
 ### Option A — Document the behavior (zero code change, immediate)
 
-Add a "Live-Reload Behavior" table to `docs/LTS_AUDIT_CONFIG_LIVE_RELOAD.md`
+Add a "Live-Reload Behavior" table to `docs/archive/LTS_AUDIT_CONFIG_LIVE_RELOAD.md`
 and the `--help` output. Make it crystal clear which keys live-reload
 and which require restart.
 

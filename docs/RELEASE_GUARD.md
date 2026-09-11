@@ -32,11 +32,19 @@ Run the complete check suite:
 cargo fmt --all -- --check
 cargo test --all --locked
 cargo clippy --locked --all-targets --all-features -- -D warnings
-./scripts/rc-smoke.sh
+./scripts/build.sh check-all -q
+./scripts/gate-keepers.sh
+./scripts/verify-release-build.sh
 ```
 
-All tests must pass.  Clippy must produce zero warnings.  RC smoke must
-pass all checks.
+All tests must pass.  Clippy must produce zero warnings.  The
+build.sh comprehensive check, the 16-check gate-keeper sweep, and the
+release-build verification (binary sizes, `--doctor`, metadata,
+strip status) must all pass.
+
+> History: this gate previously ran `scripts/rc-smoke.sh`, removed
+> in a dead-script cleanup; its coverage lives on in
+> `gate-keepers.sh` + `verify-release-build.sh`.
 
 ### Gate 3 — Final release binary build
 
@@ -54,21 +62,10 @@ target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix -V
 
 ### Gate 4 — 5-run benchmark
 
-Run 5 benchmark iterations and record the results.  The helper script
-automates collection and Markdown generation:
-
-```bash
-# Generate a report section for review (does NOT edit files):
-./scripts/release-benchmark-report.sh X.Y.Z
-
-# Custom run count, skip build:
-./scripts/release-benchmark-report.sh X.Y.Z --runs 5 --no-build
-
-# Output goes to stdout — review, then paste into benchmark/HIST_BENCH.md.
-# The script validates invariants and fails if they are violated.
-```
-
-Manual process (if script is not used):
+Run 5 benchmark iterations and record the results.  The historical
+`scripts/release-benchmark-report.sh` helper was removed in a
+dead-script cleanup; the manual loop below is the canonical process
+(`--benchmark --json` per run, 5 runs plus one 60 s drift run):
 
 ```bash
 BIN="target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix"
@@ -224,10 +221,12 @@ Verify the binary checksum matches before updating the AUR package.
 When preparing release N:
 
 1. Complete all feature work and validation.
-2. Run the benchmark report helper (Gate 4):
+2. Run the benchmark collection loop (Gate 4 — the 5-run manual
+   loop above; the historical report helper was removed):
 
    ```bash
-   ./scripts/release-benchmark-report.sh X.Y.Z > /tmp/bench-report.md
+   BIN="target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix"
+   for i in 1 2 3 4 5; do "$BIN" --benchmark; sleep 3; done
    ```
 
 3. Review the generated Markdown, then add it to

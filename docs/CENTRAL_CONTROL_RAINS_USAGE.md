@@ -18,7 +18,7 @@
 
 cosmostrix ships with a single locked visual tuning — currently
 **Option F "Film Matrix Hero"** (see
-[`docs/RAIN_DEPTH_AUDIT.md`](./RAIN_DEPTH_AUDIT.md) for the rationale
+[`docs/archive/RAIN_DEPTH_AUDIT.md`](./archive/RAIN_DEPTH_AUDIT.md) for the rationale
 behind that lock). Option F was calibrated against a "hero cinematic"
 reference (Blade Runner 2049 rain, Ghost in the Shell opening descent,
 The Matrix dojo scene). It is the optimal tuning for *that specific*
@@ -1155,7 +1155,7 @@ your tuning is hue-specific, either:
 
 ## 10. References
 
-- [`docs/RAIN_DEPTH_AUDIT.md`](./RAIN_DEPTH_AUDIT.md) — the Option F
+- [`docs/archive/RAIN_DEPTH_AUDIT.md`](./archive/RAIN_DEPTH_AUDIT.md) — the Option F
   "Film Matrix Hero" calibration audit with the 4-mechanism 10/10
   analysis.
 - [`src/central_control_rains/mod.rs`](../src/central_control_rains/mod.rs) —

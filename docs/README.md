@@ -25,6 +25,8 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [COSMIC_DRAGON_ARCHITECTURE.md](COSMIC_DRAGON_ARCHITECTURE.md) | Full architecture deep-dive (`src/`) |
 | [PHILOSOPHY.md](PHILOSOPHY.md) | Why cosmostrix exists, design principles |
 | [LIVE_RELOAD_BEHAVIOR.md](LIVE_RELOAD_BEHAVIOR.md) | Per-key live-reload matrix (which config keys reload vs. require restart) + masterclass solution options |
+| [CONFIG_LIVE_RELOAD_DISCLAIMER.md](CONFIG_LIVE_RELOAD_DISCLAIMER.md) | Honest-limitations philosophy for config live-reload (the 99%, not 100% contract) |
+| [CLI_SUGGESTION_SYSTEM.md](CLI_SUGGESTION_SYSTEM.md) | Did-you-mean suggestion engine (edit-distance policy, shared by every value surface) |
 
 **Three cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/engine/cosmic_dragon_engine/`), the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/engine/chroma_dragon_engine/`), and the **Crystal Dragon** ambient intelligence engine (owns *what mood the rain should have* — `src/engine/crystal_dragon_engine/`). See [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md) for the cooperation model.
 
@@ -38,6 +40,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [ENDURANCE.md](ENDURANCE.md) | Long-run endurance testing, memory leak detection |
 | [RELEASE_GUARD.md](RELEASE_GUARD.md) | Performance regression gates for releases |
 | [RAPL_ACCESS.md](RAPL_ACCESS.md) | Granting RAPL read access for ENERGY metrics |
+| [CENTRAL_CONTROL_POWER_DRAGON.md](CENTRAL_CONTROL_POWER_DRAGON.md) | Power Dragon subsystem (aggressive throttle, idle FPS reduction, thermal + self-heal gates) — off-switch: `power-dragon = false` |
 
 ## Rain Visuals & Tuning
 
@@ -52,6 +55,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | Doc | Covers |
 |-----|--------|
 | [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md) | High-level overview of the three-engine cooperation model (`src/engine/`) |
+| [VISUAL_IDENTITY.md](VISUAL_IDENTITY.md) | The visual identity system — depth layers, palette narrative, identity decisions |
 | [../README.md § Chroma Dragon](../README.md#the-chroma-dragon-coloring-engine) | High-level overview, Phase 9-D lock (`src/engine/chroma_dragon_engine/`) |
 | [src/engine/chroma_dragon_engine/catalog.rs](../src/engine/chroma_dragon_engine/catalog.rs) | **Central color theme registry** — single source of truth |
 | [src/engine/chroma_dragon_engine/palette/mod.rs](../src/engine/chroma_dragon_engine/palette/mod.rs) | Palette construction, OKLab interpolation |
@@ -76,6 +80,7 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [TERMINAL_COMPATIBILITY.md](TERMINAL_COMPATIBILITY.md) | Terminal behavior matrix, tmux/SSH, known quirks |
 | [TERMINAL_KILL_CLEANUP.md](TERMINAL_KILL_CLEANUP.md) | Kill/crash recovery |
 | [TERMINAL_LIFECYCLE_MATRIX.md](TERMINAL_LIFECYCLE_MATRIX.md) | Full terminal lifecycle (init, alt screen, raw mode, cleanup) |
+| [USAGE_PIPE_REDIRECT.md](USAGE_PIPE_REDIRECT.md) | Why interactive mode is not pipe-friendly — the fatal-usage catalog |
 | [HUD.md](HUD.md) | Live HUD overlay reference |
 | [SCREENSAVER_MODE.md](SCREENSAVER_MODE.md) | `--screensaver` behavioral audit: what actually differs vs default mode |
 
@@ -96,7 +101,11 @@ The atmosphere engine subsystem was eliminated at commit `07b44b5` (2026-08-05).
 | [RELEASE_CANDIDATE.md](RELEASE_CANDIDATE.md) | Release candidate checklist |
 | [VERIFY_RELEASE.md](VERIFY_RELEASE.md) | Post-release artifact verification |
 | [SUPPLY_CHAIN.md](SUPPLY_CHAIN.md) | Supply-chain hardening (cargo-deny, audit, MSRV) |
+| [DEPENDENCY_AUDIT.md](DEPENDENCY_AUDIT.md) | Dependency inventory and audit record |
+| [SECURITY_AUDIT.md](SECURITY_AUDIT.md) | Security posture summary (unsafe policy, attack-surface notes) |
 | [SYSTEM_REQUIREMENTS.md](SYSTEM_REQUIREMENTS.md) | Kernel, glibc/musl, CPU, terminal matrix |
+
+Also: [FUTURE_BACKLOG.md](FUTURE_BACKLOG.md) — the parked-ideas and file-migration record (where removed scripts/docs went).
 
 Other meta docs: [RULES.md](RULES.md) (conventions), [BRANDING.md](BRANDING.md) (brand identity), [MAINTENANCE.md](MAINTENANCE.md) (dormant-mode guide), [../KNOWN_ISSUES.md](../KNOWN_ISSUES.md), [../CHANGELOG.md](../CHANGELOG.md), [../CONTRIBUTING.md](../CONTRIBUTING.md).
 

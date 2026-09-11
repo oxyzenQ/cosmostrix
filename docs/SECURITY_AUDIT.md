@@ -12,7 +12,7 @@
 > (the adaptive.rs time FFI consolidated into clock/posix_time.rs). The
 > capability-class analysis (network, filesystem, subprocess, environment)
 > remains valid. The current, corrected reference is
-> [`docs/audits/SECURITY_VULNERABILITY_AUDIT.md`](audits/SECURITY_VULNERABILITY_AUDIT.md).
+> [`docs/audits/SECURITY_VULNERABILITY_AUDIT.md`](archive/audits/SECURITY_VULNERABILITY_AUDIT.md).
 
 **Audit date**: 2026-08-05 · **Subject**: `cosmostrix` · **Scope**: full source tree (`src/`, `build.rs`, `scripts/`, `.github/workflows/`, `aur/`) · **Methodology**: automated `rg` sweeps for every sensitive capability class + manual review.
 
@@ -22,7 +22,7 @@
 
 ## 1. `unsafe` Usage — 15 Sites, All Sound
 
-Documented **"no new unsafe in renderer/core paths"** policy (`docs/SIMD_FEASIBILITY.md` §1, §2.3; `docs/RULES.md`). Every `unsafe` site is FFI into `libc`/Mach and carries a `// SAFETY:` comment. **No `unsafe` in the renderer hot path** (verified by `src/diagnostics/info.rs:300`). **Total**: 15 distinct sites + 1 `unsafe fn` definition.
+Documented **"no new unsafe in renderer/core paths"** policy (`docs/archive/SIMD_FEASIBILITY.md` §1, §2.3; `docs/RULES.md`). Every `unsafe` site is FFI into `libc`/Mach and carries a `// SAFETY:` comment. **No `unsafe` in the renderer hot path** (verified by `src/diagnostics/info.rs:300`). **Total**: 15 distinct sites + 1 `unsafe fn` definition.
 
 **By category**: macOS Mach `task_info` (2 sites: `sysstat/memstat.rs:111`, `sysstat/cpustat.rs:137`); Linux `libc::stat`/`fstat` (2: `main.rs:218, 221`); Linux fork-based SIGKILL guard (1: `main.rs:245` — `prctl(PR_SET_PDEATHSIG)` + `sigwait`, opt-out `COSMOSTRIX_NO_FORK_GUARD=1`); `perf_event_open` Linux bench-only (3: `bench/bench_perf.rs:86, 124, 138`); `/dev/null` write test-only (2: `cosmic_dragon_incubator/egg/io_uring_rejected.rs:68, 84` — `#[cfg(test)]`); custom allocator (1: `diagnostics/alloc_trace.rs:46` — thin atomic-counter wrapper over `System`, ~2ns overhead, Miri-verified); macOS `sysctlbyname` (1: `diagnostics/info.rs:111`); POSIX `getrusage` (2: `sysstat/usagestat.rs:85`, `sysstat/cpustat.rs:198`); POSIX `uname` (1: `sysstat/envstat.rs:95`); POSIX `time`/`localtime_r` (3: `interactive/adaptive.rs:136, 145, 150` — thread-safe, `MaybeUninit`+`assume_init` after non-NULL); Linux `madvise(MADV_DONTNEED)` (1 fn + 2 calls: `interactive/adaptive.rs:218`, `interactive/event_loop.rs:604, 1239` — best-effort, null/zero-length guarded).
 
@@ -125,10 +125,10 @@ behavior only.
 ## Cross-References
 
 - `docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md` — detailed `unsafe` review
-- `docs/SIMD_FEASIBILITY.md` — "no new unsafe" policy rationale
+- `docs/archive/SIMD_FEASIBILITY.md` — "no new unsafe" policy rationale
 - `docs/RULES.md` — project rules including unsafe policy
 - `docs/SUPPLY_CHAIN.md` — supply chain security notes
-- `docs/STABILITY_AUDIT.md` — four-layer cleanup audit
+- `docs/archive/STABILITY_AUDIT.md` — four-layer cleanup audit
 - `docs/ENDURANCE.md` — long-running stability methodology
 - `docs/TERMINAL_COMPATIBILITY.md` — terminal compatibility matrix
 - `deny.toml` — license + advisory policy

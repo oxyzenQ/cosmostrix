@@ -94,23 +94,23 @@ path (Cosmic Dragon engine runs single-threaded in headless benchmark mode).
 ## Competitor Comparison
 
 For a side-by-side resource usage comparison (CPU time + peak RSS) of
-cosmostrix vs up to 7 competitor matrix rain tools, run:
-
-```bash
-./scripts/bench-compare.sh --duration 30
-```
-
-All installed tools are spawned inside a real PTY (via Python's
-`pty.openpty`) and measured **directly** on the tool process — not
-through a wrapper shell. This is the only fair way: terminal-aware
+cosmostrix vs up to 7 competitor matrix rain tools, the historical
+`scripts/bench-compare.sh` helper (removed in a dead-script cleanup)
+spawned all installed tools inside a real PTY (via Python's
+`pty.openpty`) and measured them **directly** on the tool process —
+not through a wrapper shell. That is the only fair way: terminal-aware
 tools (cosmostrix, neo-matrix, cxxmatrix) require a real TTY to run
-their event loops. CPU is measured via `resource.getrusage` delta;
-peak RSS via `/proc/<pid>/status` polling.
+their event loops. CPU was measured via `resource.getrusage` delta;
+peak RSS via `/proc/<pid>/status` polling. The comparison record it
+produced lives in `benchmark/research/COMPETITOR_COMPARISON.md`;
+re-run the measurement by replicating that PTY harness against the
+current binary.
 
 ### Example Results — AMD Ryzen 7 5800HS, Linux 7.1.3, 30s per tool, 8 tools
 
-Measured with `./scripts/bench-compare.sh --duration 30 --no-build` on
-cosmostrix v14.0.0 (commit e958d84, pro-linux-v3 profile, AVX2 detected).
+Measured with the historical `scripts/bench-compare.sh --duration 30
+--no-build` helper on cosmostrix v14.0.0 (commit e958d84,
+pro-linux-v3 profile, AVX2 detected).
 
 | Tool | Language | CPU time (s) | CPU % | Peak RSS (MiB) |
 |------|----------|-------------:|------:|---------------:|
@@ -1139,21 +1139,17 @@ Run the full comparison script:
 bash benchmark/benchmark.sh
 ```
 
-Generate a release benchmark report (prints Markdown to stdout):
+Generate a release benchmark report — the historical
+`scripts/release-benchmark-report.sh` helper was removed in a
+dead-script cleanup; the canonical process is the Gate 4 manual
+loop (5 runs of `--benchmark` + one 60 s drift run) documented in
+`docs/RELEASE_GUARD.md`, with the per-run metrics recorded into
+this file per the Release Benchmark Rule below.
 
-```bash
-./scripts/release-benchmark-report.sh X.Y.Z
-```
-
-The release report script runs N benchmark iterations, validates renderer
-invariants, and prints a Markdown section ready for review and pasting
-into this file.  It does not auto-edit files.  See `docs/RELEASE_GUARD.md`
-Gate 4 for details.
-
-The script builds comparison profiles and records optional `hyperfine`, `perf`,
-and Valgrind outputs when those tools are installed. CI intentionally does not
-gate on benchmark numbers; they are measurement aids, not stable pass/fail
-thresholds.
+The comparison profile builder (`benchmark/benchmark.sh`) records
+optional `hyperfine`, `perf`, and Valgrind outputs when those tools
+are installed. CI intentionally does not gate on benchmark numbers;
+they are measurement aids, not stable pass/fail thresholds.
 
 ## Release Benchmark Rule
 

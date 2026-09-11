@@ -26,7 +26,7 @@ The terminal is a single-writer device; parallelism does not help. cosmostrix em
 
 ## 3. No Manual SIMD Intrinsics
 
-LLVM auto-vectorization under `x86-64-v3` (AVX2) is active. Manual SIMD intrinsics were evaluated in `docs/SIMD_FEASIBILITY.md` and explicitly rejected: 5–15% gain (marginal); requires `unsafe` blocks in the renderer hot path (violates the no-unsafe-in-renderer policy); platform-specific maintenance burden (AVX2, AVX-512, NEON, SVE). The auto-vectorizer already captures most of the win without the cost.
+LLVM auto-vectorization under `x86-64-v3` (AVX2) is active. Manual SIMD intrinsics were evaluated in `docs/archive/SIMD_FEASIBILITY.md` and explicitly rejected: 5–15% gain (marginal); requires `unsafe` blocks in the renderer hot path (violates the no-unsafe-in-renderer policy); platform-specific maintenance burden (AVX2, AVX-512, NEON, SVE). The auto-vectorizer already captures most of the win without the cost.
 
 ## 4. Scene-Naming Honesty
 
@@ -50,7 +50,7 @@ The `--doctor` command prints `sigkill: cannot be caught or guaranteed` to every
 
 - [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) — §3.4 GPU Offload (rejected)
 - [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) — terminal bottleneck analysis
-- [SIMD_FEASIBILITY.md](SIMD_FEASIBILITY.md) — manual SIMD rejection
+- [SIMD_FEASIBILITY.md](archive/SIMD_FEASIBILITY.md) — manual SIMD rejection
 - [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) — scene-naming contract (vocabulary spec archived 2026-08-05 alongside atmosphere engine elimination; the scene-naming honesty rule still applies, see §4 of this doc)
 - [RELEASE_GUARD.md](RELEASE_GUARD.md) — honesty rules
 - [RENDER_ENGINE.md](RENDER_ENGINE.md) — renderer architecture
