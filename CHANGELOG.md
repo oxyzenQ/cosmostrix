@@ -9,6 +9,41 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### test: NIGHT-depthtest-2 e2e — the priority and duplicate-name contracts proven on the real binary
+
+- The depth test round the owner called for: CLI & config.toml
+  focus, duplicate names for charset/colors/scene custom blocks
+  end to end, and the priority contract pinned — "cli is wins on
+  startup, config key/shortkey is wins on runtime".
+- New harness `scripts/depthtest2_cli_config_e2e.py` (PTY, real
+  release binary, no in-process shortcuts): the ANSI stream's
+  24-bit fg colors are the source of truth. A hue classifier
+  averages BRIGHT cells (R+G+B > 250, the head-level stops) per
+  time window and reads channel RATIOS — the shading ladder
+  blends between stops, so ratios carry the family signature
+  (red G ~ B, gold G >> B, blue B > G > R).
+- Four scenarios, fourteen expectations, all green on the pinned
+  toolchain: (1) CLI-wins-startup — config color=blue + CLI -c
+  red renders RED; (2) config-wins-runtime — a mid-run edit to
+  color=gold renders GOLD over the locked CLI red (the
+  S-master-LOGIC-3 contract); (3) shortkey-wins-runtime — 'C'
+  at t=3 s cycles the scheme instantly (blue -> warm family;
+  'C' chosen over 'c' because blue's forward neighbor cyan
+  shares the blue channel signature); (4) duplicate names —
+  duplicate [charset-custom.x] / [colors-custom.x] /
+  [scene-custom.x] headers rejected on all three surfaces
+  (--testconf exit 2, startup exit 2, live-reload watcher
+  reject + exit 2, the lockstep contract from the previous
+  NIGHT-depthtest-2 round).
+- Verification of the previous round's in-crate coverage held
+  (duplicates: parse + watcher + testconf + startup; priority:
+  tests_cli_priority / tests_cli_fallback / config_apply_tests)
+  — this round closes the gap those could not: the real binary,
+  the real watcher thread, the real inotify path, the real key
+  handling, all in one session.
+- ruff-clean, 755, standard e2e harness conventions (usage
+  docstring, env knobs, exit codes: 0 = all met, 1 = regressed).
+
 ### fix: NIGHT-hunt-31-supermassive — the rain-label validation gap, the intro-handover flash, and five stale mfs surfaces
 
 - Owner hunt 1 (the silent typo): `rain = "glyphj"` in a
