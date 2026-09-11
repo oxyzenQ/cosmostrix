@@ -5,10 +5,11 @@
 //! free functions that turn one annulus cell into a frame cell —
 //! split from `black_hole.rs` the way `monolith_helpers.rs` splits
 //! from the monolith body, keeping the main file under the LOC cap.
-//! Owns: the radial band ladder (the photon-ring gradient), the rim
-//! conveyor's deterministic glyph hash, the Doppler-style lobe's
-//! brightness bump, and the shared cell renderer (palette-aware
-//! color + bold, mono-safe).
+//! Owns: the radial band ladder (the photon-ring gradient plus the
+//! NIGHT-research-10 rim photon line), the rim conveyor's
+//! deterministic glyph hash, the Doppler-style lobe's brightness
+//! bump, and the shared cell renderer (palette-aware color + bold,
+//! mono-safe).
 
 use crate::frame::Frame;
 
@@ -18,17 +19,31 @@ use super::super::monolith::BrightnessLevel;
 
 /// Radial brightness band for the annulus: `t` is the normalized radial
 /// position, 0.0 at the core edge (event horizon) and 1.0 at the outer
-/// rim. Inverted from the vortex drain — the photon ring hugs the hole:
-/// the innermost band is Core (brightest), fading outward to Ghost.
-pub(crate) fn level_for_ring_band(t: f32) -> BrightnessLevel {
-    if t < 0.18 {
+/// rim; `annulus_width` is the annulus's width in line-height units
+/// (the rim photon line's thickness floor keys on it). Inverted from
+/// the vortex drain — the photon ring hugs the hole: the innermost
+/// band is Core (brightest), fading outward through Hot and Mid.
+/// NIGHT-research-10 (the owner's Interstellar/NASA imagery read): the
+/// outer band flips back UP to Core — the thin bright photon LINE at
+/// the shadow's edge, the trademark of the EHT photographs and
+/// Gargantua's render. The line's band width is the larger of a
+/// `PHOTON_RIM_FRACTION` share of the annulus and a one-cell floor
+/// (`PHOTON_RIM_MIN_CELLS`), so the line stays thin on every terminal
+/// class yet never collapses to a sub-cell sliver the raster misses;
+/// the Mid body runs right up to the line so the edge reads sharp
+/// against the sky instead of dissolving through a Ghost fringe.
+pub(crate) fn level_for_ring_band(t: f32, annulus_width: f32) -> BrightnessLevel {
+    let rim_width = (annulus_width * crate::constants::BLACK_HOLE_PHOTON_RIM_FRACTION)
+        .max(crate::constants::BLACK_HOLE_PHOTON_RIM_MIN_CELLS);
+    let rim_t = 1.0 - rim_width / annulus_width;
+    // The two photon structures share the Core band: the horizon
+    // ring at the inner edge and the rim line at the shadow's edge.
+    if t < 0.18 || t >= rim_t {
         BrightnessLevel::Core
     } else if t < 0.45 {
         BrightnessLevel::Hot
-    } else if t < 0.75 {
-        BrightnessLevel::Mid
     } else {
-        BrightnessLevel::Ghost
+        BrightnessLevel::Mid
     }
 }
 

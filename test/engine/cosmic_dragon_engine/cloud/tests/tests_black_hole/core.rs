@@ -3,7 +3,8 @@
 
 //! Core black-hole-style behavior contracts (NIGHT-special-1):
 //! scene resolution, dynamic geometry across viewport sizes, the empty
-//! event-horizon core, radial band coverage, static-geometry stability
+//! event-horizon core, radial band coverage (plus the
+//! NIGHT-research-10 rim photon line), static-geometry stability
 //! across frames, and the drawn-cell bounds contract.
 
 use super::*;
@@ -156,9 +157,13 @@ fn black_hole_core_is_empty_and_ball_is_centered() {
 
 #[test]
 fn black_hole_radial_bands_all_present() {
-    // The photon-ring gradient: Core band hugs the event horizon, Ghost
-    // band fades at the outer rim — the inverted drain look. At 120x40
-    // every band is at least one cell wide.
+    // The photon-ring gradient with the NIGHT-research-10 rim line:
+    // Core band hugs the event horizon, Hot and Mid carry the body,
+    // and the outer band flips back up to Core — the thin photon
+    // LINE at the shadow's edge. At 120x40 every band is at least
+    // one cell wide. The Ghost fringe is retired: the Mid body runs
+    // right up to the rim line so the edge reads sharp against the
+    // sky (the EHT read) instead of dissolving through a dim fringe.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -170,7 +175,7 @@ fn black_hole_radial_bands_all_present() {
         .iter()
         .map(|c| level_rank(c.level))
         .collect();
-    for expected in [0u8, 2u8, 3u8, 4u8] {
+    for expected in [2u8, 3u8, 4u8] {
         assert!(
             ranks.contains(&expected),
             "radial band rank {expected} missing from the annulus"
@@ -178,7 +183,7 @@ fn black_hole_radial_bands_all_present() {
     }
     // The brightest band (Core, rank 4) must hug the INNER edge: at
     // least one Core cell must sit closer to the center than every
-    // Ghost cell (rank 0) — the photon ring wraps the hole, not the rim.
+    // Hot cell (rank 3) — the horizon photon ring wraps the hole.
     let cx = ((cols - 1) / 2) as f32;
     let cy = ((lines - 1) / 2) as f32;
     let dist = |col: u16, line: u16| ((col as f32 - cx) / 2.0).powi(2) + (line as f32 - cy).powi(2);
@@ -189,16 +194,113 @@ fn black_hole_radial_bands_all_present() {
         .filter(|c| level_rank(c.level) == 4)
         .map(|c| dist(c.col, c.line))
         .fold(f32::MAX, f32::min);
-    let ghost_min = cloud
+    let hot_min = cloud
         .black_hole_rain
         .ring_cells_for_test()
         .iter()
-        .filter(|c| level_rank(c.level) == 0)
+        .filter(|c| level_rank(c.level) == 3)
         .map(|c| dist(c.col, c.line))
         .fold(f32::MAX, f32::min);
     assert!(
-        core_min < ghost_min,
-        "Core band must sit inside the Ghost band (photon ring at the horizon)"
+        core_min < hot_min,
+        "Core band must sit inside the Hot band (photon ring at the horizon)"
+    );
+}
+
+#[test]
+fn black_hole_ball_carries_the_rim_photon_line() {
+    // The NIGHT-research-10 rim photon line: the thin bright ring
+    // hugging the shadow's edge INSIDE the annulus (the owner's
+    // Interstellar/NASA imagery read — a thin line shaped like the
+    // ball). Contract: Core cells exist in the outer radial zone on
+    // every terminal class (the one-cell floor keeps the line alive
+    // even where the annulus is barely two cells wide), every
+    // rim-line cell sits farther from the center than every Hot
+    // cell (the line wraps the OUTSIDE, never a general brightening
+    // of the annulus), and the line stays a thin minority of the
+    // annulus population at the standard class (a line, not a band).
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    run_frames_to_steady(&mut cloud, &mut frame);
+
+    let cx = ((cols - 1) / 2) as f32;
+    let cy = ((lines - 1) / 2) as f32;
+    let dist = |col: u16, line: u16| ((col as f32 - cx) / 2.0).powi(2) + (line as f32 - cy).powi(2);
+
+    let cells = cloud.black_hole_rain.ring_cells_for_test();
+    let total = cells.len();
+    assert!(total > 0, "the annulus must be non-empty at 120x40");
+
+    // The rim line: Core cells in the outer half of the annulus
+    // (the inner-zone Core cells are the horizon ring — the outer
+    // half filters them out).
+    let half_w = cols as f32 / 4.0;
+    let half_h = lines as f32 / 2.0;
+    let unit = half_w.min(half_h);
+    let outer_r = (unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+        .min(half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
+    let core_r = outer_r * crate::constants::BLACK_HOLE_CORE_FRACTION;
+    let annulus = outer_r - core_r;
+    let outer_zone = core_r + 0.5 * annulus;
+    let dist_real = |col: u16, line: u16| {
+        (((col as f32 - cx) / 2.0).powi(2) + (line as f32 - cy).powi(2)).sqrt()
+    };
+
+    let rim: Vec<&crate::cloud::type_rain::black_hole::black_hole::BlackHoleCell> = cells
+        .iter()
+        .filter(|c| level_rank(c.level) == 4 && dist_real(c.col, c.line) > outer_zone)
+        .collect();
+    assert!(
+        !rim.is_empty(),
+        "the rim photon line must host Core cells at 120x40"
+    );
+
+    // The line wraps the outside: every rim-line cell sits farther
+    // from the center than every Hot cell (the inner body band).
+    let hot_max = cells
+        .iter()
+        .filter(|c| level_rank(c.level) == 3)
+        .map(|c| dist(c.col, c.line))
+        .fold(f32::MIN, f32::max);
+    let rim_min = rim
+        .iter()
+        .map(|c| dist(c.col, c.line))
+        .fold(f32::MAX, f32::min);
+    assert!(
+        rim_min > hot_max,
+        "the rim line must sit outside every Hot cell (the line at the shadow's edge)"
+    );
+
+    // The line stays thin: a minority of the annulus population.
+    assert!(
+        (rim.len() as f32 / total as f32) < 0.40,
+        "the rim line must stay a thin minority of the annulus ({} of {})",
+        rim.len(),
+        total
+    );
+
+    // The one-cell floor keeps the line alive on the smallest class.
+    let mut small_cloud = make_black_hole_cloud(80, 24);
+    let mut small_frame = Frame::new(80, 24, small_cloud.palette.bg);
+    run_frames_to_steady(&mut small_cloud, &mut small_frame);
+    let small_cells = small_cloud.black_hole_rain.ring_cells_for_test();
+    let s_cx = ((80 - 1) / 2) as f32;
+    let s_cy = ((24 - 1) / 2) as f32;
+    let s_half_w = 80.0_f32 / 4.0;
+    let s_half_h = 24.0_f32 / 2.0;
+    let s_unit = s_half_w.min(s_half_h);
+    let s_outer = (s_unit * crate::constants::BLACK_HOLE_BALL_FRACTION)
+        .min(s_half_w * crate::constants::BLACK_HOLE_BALL_WIDTH_MAX);
+    let s_core = s_outer * crate::constants::BLACK_HOLE_CORE_FRACTION;
+    let s_outer_zone = s_core + 0.5 * (s_outer - s_core);
+    let s_rim = small_cells.iter().filter(|c| {
+        let d = (((c.col as f32 - s_cx) / 2.0).powi(2) + (c.line as f32 - s_cy).powi(2)).sqrt();
+        level_rank(c.level) == 4 && d > s_outer_zone
+    });
+    assert!(
+        s_rim.count() > 0,
+        "the rim photon line must survive the 80x24 floor (the one-cell width floor)"
     );
 }
 

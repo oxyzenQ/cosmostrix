@@ -127,6 +127,26 @@
 //! ceiling further on viewports whose vertical budget cannot host
 //! the menu's 60-degree rung.
 //!
+//! NIGHT-research-10 (the Interstellar/NASA imagery round, owner
+//! feedback 2026-09-11): four reads. (1) The ball carries the rim
+//! photon LINE — the thin bright ring hugging the shadow's edge
+//! inside the annulus, the trademark of the EHT photographs and
+//! Gargantua's render (`level_for_ring_band` flips its outer band
+//! to Core, thin by a proportional band width with a one-cell
+//! floor so the line never vanishes on small viewports).
+//! (2) The upper halo family grows to THREE crowns (1.30 / 1.48 /
+//! 1.66 arcs — the thick triple-crown band matching the disk
+//! stack's three-tier read) while the lower family doubles to TWO
+//! mirrored arcs (1.30 / 1.48 under the shadow). (3) The crowns
+//! burn head-white — the Hot floor plus the lensing gain that
+//! seats every crown rider deep inside the proximity ladder's hot
+//! zone (`halo_head_level` in `halo.rs`), the dominant white head
+//! of the rain-glyph heads the owner asked for. (4) The disk's
+//! tier-0 crossing band floors at Hot inside the hot radius
+//! (`ring_head_base` in `ring.rs`), so the center ring burns white
+//! near the ball like the crowns instead of the dim Mid it used
+//! to land after the ladder's bump.
+//!
 //! Geometry: terminal cells are roughly 1:2 (width:height), so a circle
 //! on the physical screen is an ellipse in cell space. All radius math
 //! runs in line-height units: a cell offset (dx cols, dy lines) sits at
@@ -137,14 +157,17 @@
 //! Radial brightness: the annulus between the core radius and the outer
 //! radius is banded like the vortex drain, but inverted — the brightest
 //! zone hugs the event horizon (the accretion photon ring) and dims
-//! toward the outer rim, the way a real black hole silhouette reads:
-//! a dark core wrapped in a thin blazing edge.
+//! toward the mid body, then the outer band flips back up to the thin
+//! blazing rim line — the NIGHT-research-10 photon line at the shadow's
+//! edge, the way a real black hole silhouette reads: a dark core
+//! wrapped in a thin blazing edge, doubled at the horizon and the rim.
 //!
 //! Stage roadmap (owner-approved staged rollout, one commit per stage):
 //! - stage 1: the ball — owner visual verification (rated 10/10).
-//! - stage 2 (this file + `ring.rs`/`halo.rs`, revisions 2.1-2.7): the
-//!   orbital ring stack + the double halo stream — owner visual
-//!   verification (stage 2.7 rated 10/10, masterpiece).
+//! - stage 2 (this file + `ring.rs`/`halo.rs`, revisions 2.1-2.7 plus
+//!   the NIGHT-research-10 five-lane re-split): the orbital ring
+//!   stack + the halo stream family — owner visual verification
+//!   (stage 2.7 rated 10/10, masterpiece).
 //! - stage 3 (`infall.rs`, shipped): glyph rain infall — falling
 //!   glyphs that bend elegantly into the core when they approach the
 //!   ring's capture radius, spiraling through the accretion brake
@@ -182,12 +205,14 @@ use super::formation::{
     cross_active, formation_phase, horizon_visibility, seed_center_level, seed_cross_level,
     FormationPhase,
 };
-use super::halo::{activate_halo_mote, advance_halo_mote, halo_mote_visible, project_halo_mote};
+use super::halo::{
+    activate_halo_mote, advance_halo_mote, halo_head_level, halo_mote_visible, project_halo_mote,
+};
 use super::infall::InfallStream;
 use super::ring::{
-    activate_ring_mote, advance_ring_mote, floor_head_base_at_hot, level_for_ring_z,
-    occludes_ring_cell, project_ring_mote, proximity_level, step_down_level, BlackHoleRandom,
-    BlackHoleSpawnParams, BlackHoleStep, RingMote,
+    activate_ring_mote, advance_ring_mote, occludes_ring_cell, project_ring_mote, proximity_level,
+    ring_head_base, step_down_level, BlackHoleRandom, BlackHoleSpawnParams, BlackHoleStep,
+    RingMote,
 };
 use super::roll::RingRoll;
 use super::RollFrame;
@@ -246,10 +271,10 @@ pub(crate) struct BlackHoleRain {
     spawn_scan_idx: usize,
     /// Stage-2.6 halo streams: the arc-riding companion pool (one
     /// mote per column, the lane model — the physics lives in
-    /// `halo.rs`). The stage-2.7 double upward stream: the inner
-    /// upper riders co-ride the lensing arc (1.30), the outer upper
-    /// riders the wider crown (1.48), the lower riders the rare
-    /// mirrored circle under the shadow.
+    /// `halo.rs`). NIGHT-research-10: the upper family's THREE
+    /// crowns ride the lensing arc (1.30), the mid arc (1.48) and
+    /// the top arc (1.66) over the shadow, the lower family's two
+    /// mirrored arcs ride the 1.30 and 1.48 circles under it.
     halo_motes: Vec<RingMote>,
     /// Active halo mote count (the halo spawn target's deficit
     /// baseline).
@@ -269,20 +294,26 @@ pub(crate) struct BlackHoleRain {
     /// the system grows its third pool).
     infall: InfallStream,
     /// Bresenham stream-split accumulator: each halo activation adds
-    /// the upper FAMILY's combined share (the two upper crowns, 0.82)
+    /// the upper FAMILY's combined share (the three crowns, 0.72)
     /// and the running fractional part decides upper family vs the
-    /// rare lower stream — the split holds EXACTLY on every pool fill
+    /// sparser lower family — the split holds EXACTLY on every pool fill
     /// (a random pick would only hold on average, and a small pool
     /// can land a visibly inverted split on an unlucky seed — the
-    /// lower stream must read rare EVERY run, the deterministic
+    /// lower family must read the echo EVERY run, the deterministic
     /// splitter guarantees it).
     halo_tag_acc: f32,
-    /// Upper-family lane toggle (stage 2.7, the double upward
-    /// stream): alternates every upper-family activation between the
-    /// inner crown (1.30 lensing circle) and the outer crown (1.48
-    /// arc) — the strict alternation splits the family exactly in
-    /// half, matching the two streams' equal spawn weights.
-    halo_upper_lane: bool,
+    /// Upper-family round-robin cursor (NIGHT-research-10, the
+    /// triple crown): steps through the inner crown (1.30 lensing
+    /// circle), the mid crown (1.48 arc) and the top crown (1.66
+    /// arc) in strict rotation — the exact three-way split matching
+    /// the three streams' equal spawn weights.
+    halo_crown_step: u8,
+    /// Lower-family lane toggle (NIGHT-research-10, the doubled
+    /// echo): alternates every lower-family activation between the
+    /// inner mirrored arc (1.30) and the outer mirrored arc (1.48) —
+    /// the strict alternation splits the lower family exactly in
+    /// half, matching the two lower lanes' equal spawn weights.
+    halo_lower_lane: bool,
     /// Alternating lobe selector for the Lorenz-state seeding (parity
     /// with the lorenz style's spawn — balanced wobble distribution).
     next_lobe: u8,
@@ -385,7 +416,8 @@ impl BlackHoleRain {
             halo_scan_idx: 0,
             halo_spawn_remainder: 0.0,
             halo_tag_acc: 0.0,
-            halo_upper_lane: false,
+            halo_crown_step: 0,
+            halo_lower_lane: false,
             infall: InfallStream::new(),
             next_lobe: 0,
             last_step: None,
@@ -537,7 +569,7 @@ impl BlackHoleRain {
                 self.ring_cells.push(BlackHoleCell {
                     col,
                     line,
-                    level: level_for_ring_band(t),
+                    level: level_for_ring_band(t, annulus_width),
                 });
             }
         }
@@ -616,7 +648,8 @@ impl BlackHoleRain {
         self.halo_scan_idx = 0;
         self.halo_spawn_remainder = 0.0;
         self.halo_tag_acc = 0.0;
-        self.halo_upper_lane = false;
+        self.halo_crown_step = 0;
+        self.halo_lower_lane = false;
         self.infall.reset_pool(cols, lines, ball_outer_r);
         self.next_lobe = 0;
         self.last_step = None;
@@ -788,11 +821,12 @@ impl BlackHoleRain {
         // nothing of the rain.
         self.infall.spawn(elapsed, params, random);
 
-        // Halo streams (stage 2.6, re-split stage 2.7): the arc pool
-        // spawns on the same deficit-bounded accumulator contract —
-        // the three lane tags ride the weighted pick inside the
-        // activation, so the double crown and its rare mirror fill
-        // at the same gradual pace as the disk bands.
+        // Halo streams (stage 2.6, re-split stage 2.7, five lanes
+        // NIGHT-research-10): the arc pool spawns on the same
+        // deficit-bounded accumulator contract — the five lane tags
+        // ride the weighted pick inside the activation, so the triple
+        // crown and its two mirrored lower arcs fill at the same
+        // gradual pace as the disk bands.
         let halo_target = Self::target_active_halo(self.halo_motes.len(), params.density);
         if self.active_halo >= halo_target {
             self.halo_spawn_remainder = self
@@ -819,27 +853,42 @@ impl BlackHoleRain {
             let Some(idx) = self.find_inactive_halo() else {
                 break;
             };
-            // The stage-2.7 three-way split: the Bresenham accumulator
-            // walks the upper FAMILY's combined share (inner + outer
-            // crowns, 0.82); a fill below 1.0 lands the rare lower
-            // stream, a wrap lands the upper family — and within the
-            // family the lane toggle alternates inner/outer at
-            // exactly the two crowns' equal shares, so the double
-            // upward stream fills evenly and the lower stream stays
-            // rare on every seed, every pool fill.
+            // The NIGHT-research-10 five-lane split: the Bresenham
+            // accumulator walks the upper FAMILY's combined share
+            // (inner + mid + top crowns, 0.72); a fill below 1.0
+            // lands the lower family, a wrap lands the upper family —
+            // within the upper family the round-robin cursor cycles
+            // the three crowns at exactly their equal shares (the
+            // triple crown fills evenly), and within the lower family
+            // the lane toggle alternates the two mirrored arcs at
+            // their equal shares, so the doubled echo fills evenly
+            // while staying the sparser family on every seed, every
+            // pool fill.
             self.halo_tag_acc += crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT
-                + crate::constants::BLACK_HOLE_HALO_OUTER_WEIGHT;
+                + crate::constants::BLACK_HOLE_HALO_OUTER_WEIGHT
+                + crate::constants::BLACK_HOLE_HALO_TOP_WEIGHT;
             let stream_tag = if self.halo_tag_acc >= 1.0 {
                 self.halo_tag_acc -= 1.0;
-                if self.halo_upper_lane {
-                    self.halo_upper_lane = false;
-                    super::halo::HALO_STREAM_TAG_UPPER
-                } else {
-                    self.halo_upper_lane = true;
-                    super::halo::HALO_STREAM_TAG_UPPER_OUTER
+                match self.halo_crown_step {
+                    0 => {
+                        self.halo_crown_step = 1;
+                        super::halo::HALO_STREAM_TAG_UPPER
+                    }
+                    1 => {
+                        self.halo_crown_step = 2;
+                        super::halo::HALO_STREAM_TAG_UPPER_OUTER
+                    }
+                    _ => {
+                        self.halo_crown_step = 0;
+                        super::halo::HALO_STREAM_TAG_UPPER_TOP
+                    }
                 }
-            } else {
+            } else if self.halo_lower_lane {
+                self.halo_lower_lane = false;
                 super::halo::HALO_STREAM_TAG_LOWER
+            } else {
+                self.halo_lower_lane = true;
+                super::halo::HALO_STREAM_TAG_LOWER_OUTER
             };
             let lobe_sign = if self.next_lobe == 0 { 1.0 } else { -1.0 };
             self.next_lobe = (self.next_lobe + 1) % 2;
@@ -1177,19 +1226,20 @@ impl BlackHoleRain {
                 // wisps). Stage 2.7 (owner 9.95/10 feedback): the snug
                 // upper stacks' bases floor at Hot, so stacks 2 and 3
                 // read Core (white) across their reach — the more
-                // bright/white head ruling.
+                // bright/white head ruling. NIGHT-research-10 (the
+                // owner's follow-up): the tier-0 crossing band floors
+                // at Hot too whenever it rides inside the hot radius,
+                // so the disk's near-ball reach burns Core white like
+                // the crowns — the old Ghost-zone z bases landed only
+                // Mid after the bump and read dark against the halo.
                 let head_dx = (col_f - cx_f) / CELL_ASPECT_DIVISOR;
                 let head_dy = line_f - cy_f;
                 let head_dist_norm = (head_dx * head_dx + head_dy * head_dy).sqrt() / outer_r;
-                let head_base = if m.tier >= 1 {
-                    floor_head_base_at_hot(level_for_ring_z(m.z))
-                } else {
-                    level_for_ring_z(m.z)
-                };
                 // NIGHT-research-9: the ladder's input rides the stretch
                 // gain, so the hot/warm/fade keypoints track the disk's
                 // real reach (a width-stretched disk fades at its tips,
                 // not at the canonical ball-relative distances).
+                let head_base = ring_head_base(m.tier, head_dist_norm * prox_gain, m.z);
                 let head_level = proximity_level(head_base, head_dist_norm * prox_gain);
 
                 // Matrix shimmer: mutate the glyph when the head lands
@@ -1260,18 +1310,19 @@ impl BlackHoleRain {
             }
         }
 
-        // Stage 2.7 halo streams: project every active rider onto its
-        // arc circle around the cached ball anchor (rolled by the
-        // live see-saw angle with the rest of the system), draw the
-        // head + comet trail through the stream-visibility filter
-        // (each mote draws only on its own semicircle — the two
-        // upper crowns over the shadow, the rare lower echo under
-        // it), and record the drawn cells into the same
-        // diff-cleanup stream. No occlusion rule: the arc bands
-        // (1.20-1.40 outer radii for the inner crowns, 1.38-1.58 for
-        // the outer) never enter the ball silhouette. Bounds-checked
-        // per cell so a live resize window (geometry rebuilt on
-        // reset) never paints outside the viewport — the
+        // Stage 2.7 halo streams (five lanes NIGHT-research-10):
+        // project every active rider onto its arc circle around the
+        // cached ball anchor (rolled by the live see-saw angle with
+        // the rest of the system), draw the head + comet trail
+        // through the stream-visibility filter (each mote draws only
+        // on its own semicircle — the three upper crowns over the
+        // shadow, the two mirrored lower arcs under it), and record
+        // the drawn cells into the same diff-cleanup stream. No
+        // occlusion rule: the arc bands (1.20-1.40 outer radii for
+        // the inner lanes, 1.38-1.58 for the 1.48 lanes, 1.56-1.78
+        // for the top crown) never enter the ball silhouette.
+        // Bounds-checked per cell so a live resize window (geometry
+        // rebuilt on reset) never paints outside the viewport — the
         // dynamic-screen-size contract.
         if self.active_halo > 0 && self.ball_outer_r >= 1.0 {
             let outer_r = self.ball_outer_r;
@@ -1303,15 +1354,19 @@ impl BlackHoleRain {
                 }
                 let (col, line) = (col as u16, line as u16);
 
-                // Proximity grade: same distance key as the ring
-                // heads — the arc circle sits at 1.30 outer radii,
-                // just inside the hot radius, so the stream riders
-                // burn white-hot like the lensing arc they share the
-                // road with (the whole-crown glow the owner approved).
+                // Head-white grade (NIGHT-research-10, the owner's
+                // ruling): same distance key as the ring heads, run
+                // through `halo_head_level` — the upper family's
+                // crowns burn Core white (the Hot floor plus the
+                // lensing gain that seats every crown deep inside
+                // the ladder's hot zone, the head white of the
+                // rain-glyph heads), while the lower family's
+                // mirrored arcs keep the plain z-graded ladder —
+                // the dimmer echo under the shadow.
                 let head_dx = (col_f - cx_f) / CELL_ASPECT_DIVISOR;
                 let head_dy = line_f - cy_f;
                 let head_dist_norm = (head_dx * head_dx + head_dy * head_dy).sqrt() / outer_r;
-                let head_level = proximity_level(level_for_ring_z(m.z), head_dist_norm);
+                let head_level = halo_head_level(m, head_dist_norm);
 
                 // Matrix shimmer: the same motion-gated mutation gate
                 // the ring heads carry (mutation tied to motion —

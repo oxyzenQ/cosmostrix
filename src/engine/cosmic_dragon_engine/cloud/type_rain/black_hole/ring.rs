@@ -593,6 +593,27 @@ pub(crate) fn floor_head_base_at_hot(level: BrightnessLevel) -> BrightnessLevel 
     }
 }
 
+/// The disk mote's head base ladder (NIGHT-research-10): tiers 1-2
+/// floor at Hot (the stage-2.7 white-stack ruling, unchanged), and
+/// the tier-0 equatorial band floors at Hot too whenever the head
+/// rides inside the hot radius — the owner's report, "the center
+/// ring reads a bit dark near the ball": a Ghost-zone z base stepped
+/// up two rungs by the proximity ladder lands only Mid, so the
+/// crossing band across the shadow dimmed exactly where the iconic
+/// imagery burns brightest. With the floor, the near-ball tier-0
+/// heads land Core (white) after the ladder's +2 bump — the disk's
+/// inner reach matches the crowns' head-white read — while the far
+/// arms keep the plain z-graded base and dissolve through the fade
+/// ladder as before.
+pub(crate) fn ring_head_base(tier: u8, dist_norm: f32, z: f32) -> BrightnessLevel {
+    let z_level = level_for_ring_z(z);
+    if tier >= 1 || dist_norm < crate::constants::BLACK_HOLE_RING_HOT_RADIUS {
+        floor_head_base_at_hot(z_level)
+    } else {
+        z_level
+    }
+}
+
 /// Step a brightness level down (toward Ghost) by `depth` ladder
 /// rungs (mirrors the vortex/lorenz trail ladder — the family's
 /// comet-dimming rule, one rung per trail cell).

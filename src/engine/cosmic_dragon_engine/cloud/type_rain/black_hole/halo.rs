@@ -2,7 +2,7 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Black hole halo streams (NIGHT-special-1 stage 2.6, re-weighted
-//! stage 2.7): the arc-riding companion pool of the disk stack —
+//! stage 2.7, five lanes NIGHT-research-10): the arc-riding companion pool of the disk stack —
 //! the per-mote physics half, split from `black_hole.rs` exactly the
 //! way `ring.rs` splits the ring physics (the pool bookkeeping, the
 //! spawn/advance/draw orchestration and the diff-cleanup stream stay
@@ -14,7 +14,11 @@
 //! slightly fewer particles, the rotation following the disk. The
 //! owner read (the 9.95/10 round): the upward curve is now a DOUBLE
 //! upward stream — two distinct crowns over the shadow — and the
-//! lower stream drops to a RARE echo. The design: a second mote pool
+//! lower stream drops to a RARE echo. The owner read
+//! (NIGHT-research-10, the Interstellar/NASA imagery round): the
+//! upper family grows to THREE crowns — the thick triple-crown band
+//! matching the disk stack's own three-tier read — and the lower
+//! family doubles to TWO mirrored arcs under the shadow. The design: a second mote pool
 //! (one lane per column, the family contract) whose riders orbit the
 //! ARC CIRCLE around the shadow instead of the flat ellipse. Each
 //! mote rides the full circle with the ring's own motion DNA — one
@@ -29,15 +33,18 @@
 //! motion-gated shimmer.
 //!
 //! The streams: the mote's tag picks the semicircle AND the arc it
-//! draws on — tier byte 0 rides the INNER UPPER arc (the
+//! draws on — tier byte 0 rides the INNER UPPER crown (the
 //! 1.30-radius lensing circle — its riders share the road with the
 //! far-side lensed image, the white-hot inner crown), tier byte 2
-//! rides the OUTER UPPER arc (the 1.48-radius circle, the second
-//! lane of the stage-2.7 double upward stream — clear of the inner
-//! crown's wobble band so the two arcs read as two distinct
-//! crowns), tier byte 1 rides the LOWER arc (the mirrored circle
-//! under the shadow, the owner's opposite-position stream, now RARE
-//! per the spawn weights). The ride is the full circle; the draw
+//! rides the MID UPPER crown (the 1.48-radius circle, the second
+//! lane of the stage-2.7 double upward stream), tier byte 3 rides
+//! the TOP UPPER crown (the 1.66-radius circle, the third lane of
+//! the NIGHT-research-10 triple — the thick upper band the owner
+//! asked to match the center ring's three-tier stack), tier byte 1
+//! rides the INNER LOWER arc (the 1.30-radius mirrored circle under
+//! the shadow), and tier byte 4 rides the OUTER LOWER arc (the
+//! 1.48-radius mirrored circle, the NIGHT-research-10 second lower
+//! ring). The ride is the full circle; the draw
 //! filter hides each mote through the opposite semicircle, so the
 //! handoffs land at the extremes where the arcs meet the equatorial
 //! band — the read of plasma sweeping over the top and under the
@@ -45,8 +52,18 @@
 //! (the upper sweeps run left limb to apex to right limb, the
 //! far-side lensing direction).
 //!
-//! No occlusion rule: the arc circles sit at 1.30 and 1.48 outer
-//! radii with a 0.10 wobble band, so a rider never dips inside the
+//! Brightness (NIGHT-research-10, the owner's head-white ruling):
+//! the crown heads burn white — `halo_head_level` floors every
+//! upper-family base at Hot and pulls the proximity ladder's
+//! distance input inward by the lensing gain (the crowns are the
+//! lensed image of the far-side disk — the light-path compression
+//! that makes the photon ring the brightest structure in the iconic
+//! images), so the crown riders land Core, the head white of the
+//! rain-glyph heads. The lower arcs keep the plain z-graded ladder:
+//! the dimmer mirrored echo under the shadow.
+//!
+//! No occlusion rule: the arc circles sit at 1.30, 1.48 and 1.66
+//! outer radii with a 0.10 wobble band, so a rider never dips inside the
 //! 1.0-radius silhouette (the entry spiral only adds outward
 //! distance). The see-saw roll rotates the projection like every
 //! other body of the system — a circle maps onto itself, but the
@@ -63,30 +80,56 @@ use rand::{
     rngs::StdRng,
 };
 
+use super::super::monolith::BrightnessLevel;
 use super::black_hole::CELL_ASPECT_DIVISOR;
-use super::ring::{entry_radius_scale, ring_r_norm, rk4_lorenz_step, RingMote};
+use super::ring::{
+    entry_radius_scale, floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm,
+    rk4_lorenz_step, RingMote,
+};
 use super::RollFrame;
 
 /// Stream tag: the inner upper halo stream (the rider draws on the
 /// upper semicircle of the 1.30-radius lensing circle over the
-/// shadow — the inner crown of the stage-2.7 double upward stream).
+/// shadow — the inner crown of the upper family).
 pub(crate) const HALO_STREAM_TAG_UPPER: u8 = 0;
 
-/// Stream tag: the lower halo stream (the rider draws on the lower
-/// semicircle — the mirrored circle under the shadow, the rare
-/// stage-2.7 echo).
+/// Stream tag: the inner lower halo stream (the rider draws on the
+/// lower semicircle of the 1.30-radius mirrored circle under the
+/// shadow — the inner of the two lower arcs, the mirrored echo).
 pub(crate) const HALO_STREAM_TAG_LOWER: u8 = 1;
 
-/// Stream tag: the outer upper halo stream (the rider draws on the
-/// upper semicircle of the 1.48-radius circle — the outer crown of
-/// the stage-2.7 double upward stream, the owner's 9.95/10 ruling).
+/// Stream tag: the mid upper halo stream (the rider draws on the
+/// upper semicircle of the 1.48-radius circle — the mid crown of
+/// the upper family, the second lane of the stage-2.7 double
+/// upward stream).
 pub(crate) const HALO_STREAM_TAG_UPPER_OUTER: u8 = 2;
+
+/// Stream tag: the top upper halo stream (NIGHT-research-10: the
+/// rider draws on the upper semicircle of the 1.66-radius circle —
+/// the top crown, the third and outermost lane of the triple crown
+/// the owner asked to read thick like the center ring's three-tier
+/// stack).
+pub(crate) const HALO_STREAM_TAG_UPPER_TOP: u8 = 3;
+
+/// Stream tag: the outer lower halo stream (NIGHT-research-10: the
+/// rider draws on the lower semicircle of the 1.48-radius mirrored
+/// circle — the outer of the two lower arcs, the second mirrored
+/// ring under the shadow).
+pub(crate) const HALO_STREAM_TAG_LOWER_OUTER: u8 = 4;
+
+/// True when a stream tag belongs to the upper family (the three
+/// crowns over the shadow) — the family split the visibility filter
+/// and the head-white ladder key on.
+pub(crate) fn halo_stream_is_upper(tier: u8) -> bool {
+    !matches!(tier, HALO_STREAM_TAG_LOWER | HALO_STREAM_TAG_LOWER_OUTER)
+}
 
 /// Activate a vacant halo stream mote with its stream tag chosen by
 /// the caller (the split runs a deterministic fractional accumulator
-/// plus a lane toggle in the spawn pass — see `BlackHoleRain::spawn`
-/// — so the two upper crowns hold exactly equal shares and the lower
-/// stream stays exactly rare on every pool fill, no spawn luck). The
+/// plus lane toggles in the spawn pass — see `BlackHoleRain::spawn`
+/// — so the three crowns hold exactly equal shares, the two lower
+/// lanes hold exactly equal shares, and the lower family stays
+/// exactly the sparser one on every pool fill, no spawn luck). The
 /// rest is the ring motes' own recipe: a uniform random orbital
 /// phase (riders spread around the full circle from the first
 /// frame), the same textbook Lorenz seed and per-mote pace / lifetime
@@ -102,7 +145,7 @@ pub(crate) fn activate_halo_mote(
     m.active = true;
     // Stream tag: reuses the mote's tier byte (the halo pool never
     // reads the ring's tier table — the tag is a plain stream id,
-    // stored verbatim so all three lanes round-trip through the
+    // stored verbatim so all five lanes round-trip through the
     // clamped tier lookups of the physics below).
     m.tier = stream_tag;
     m.phi = rand_chance.sample(rng) * std::f32::consts::TAU;
@@ -125,9 +168,9 @@ pub(crate) fn activate_halo_mote(
 /// radius. The shear input is the same wobble ratio (normalized
 /// around the arc's own mean radius), so the turbulence that
 /// thickens the band also speeds and slows the riders — the
-/// differential-rotation signature carried onto the arcs. The outer
-/// crown's Keplerian pace is slower than the inner lanes (Kepler's
-/// third law across the double stream). Returns true when the mote
+/// differential-rotation signature carried onto the arcs. The wider
+/// lanes' Keplerian pace is slower than the inner ones (Kepler's
+/// third law across the five lanes). Returns true when the mote
 /// was absorbed (lifetime reached).
 pub(crate) fn advance_halo_mote(
     m: &mut RingMote,
@@ -210,38 +253,67 @@ pub(crate) fn project_halo_mote(
 /// The stream-visibility filter: a mote draws only on its own
 /// semicircle. The disk-plane offset is y = -r sin(phi), so the ride
 /// carries the mote ABOVE the equator exactly while sin(phi) > 0 —
-/// both upper tags (the inner and outer crowns of the double upward
-/// stream) draw through that half of the lap and hide through the
-/// other, the lower tag the mirror image. The handoffs land at the
-/// circles' horizontal extremes, the zone where the arcs already
-/// blend into the equatorial band — the streams read as merging
-/// into the disk line and re-emerging from the opposite limb.
-/// Crossing into the hidden half retires the trail (the caller's
-/// job) so the re-emergence never paints a teleporting tail.
+/// the upper family's three crowns draw through that half of the
+/// lap and hide through the other, the lower family's two mirrored
+/// arcs the mirror image. The handoffs land at the circles'
+/// horizontal extremes, the zone where the arcs already blend into
+/// the equatorial band — the streams read as merging into the disk
+/// line and re-emerging from the opposite limb. Crossing into the
+/// hidden half retires the trail (the caller's job) so the
+/// re-emergence never paints a teleporting tail.
 pub(crate) fn halo_mote_visible(m: &RingMote) -> bool {
     let above_center = m.phi.sin() > 0.0;
-    (m.tier != HALO_STREAM_TAG_LOWER) == above_center
+    halo_stream_is_upper(m.tier) == above_center
 }
 
 /// The arc radius fraction of a mote's stream (the tag lookup — the
-/// inner upper crown co-rides the lensing circle, the outer upper
-/// crown rides the wider double-stream arc, the lower stream its
-/// mirrored twin).
+/// inner crown co-rides the lensing circle, the mid and top crowns
+/// ride the wider circles of the triple, the lower family mirrors
+/// the inner and mid circles under the shadow).
 fn halo_arc_fraction(m: &RingMote) -> f32 {
     match m.tier {
         HALO_STREAM_TAG_UPPER => crate::constants::BLACK_HOLE_HALO_ARC_FRACTION,
         HALO_STREAM_TAG_UPPER_OUTER => crate::constants::BLACK_HOLE_HALO_OUTER_ARC_FRACTION,
+        HALO_STREAM_TAG_UPPER_TOP => crate::constants::BLACK_HOLE_HALO_TOP_ARC_FRACTION,
+        HALO_STREAM_TAG_LOWER_OUTER => crate::constants::BLACK_HOLE_HALO_LOWER_OUTER_ARC_FRACTION,
         _ => crate::constants::BLACK_HOLE_HALO_LOWER_ARC_FRACTION,
     }
 }
 
 /// The Keplerian pace multiplier of a mote's stream (the tag lookup
-/// — the outer crown rides the slowest lane of the system, Kepler's
-/// third law between the two crowns of the double upward stream).
+/// — the lanes ride ever slower circles: the 1.30 lanes at the halo
+/// pace, the 1.48 lanes at the outer pace, the top crown slowest of
+/// the system, Kepler's third law across the five lanes).
 fn halo_kepler_pace(m: &RingMote) -> f32 {
-    if m.tier == HALO_STREAM_TAG_UPPER_OUTER {
-        crate::constants::BLACK_HOLE_HALO_OUTER_PACE
+    match m.tier {
+        HALO_STREAM_TAG_UPPER_TOP => crate::constants::BLACK_HOLE_HALO_TOP_PACE,
+        HALO_STREAM_TAG_UPPER_OUTER | HALO_STREAM_TAG_LOWER_OUTER => {
+            crate::constants::BLACK_HOLE_HALO_OUTER_PACE
+        }
+        _ => crate::constants::BLACK_HOLE_HALO_PACE,
+    }
+}
+
+/// The stream mote's head brightness (NIGHT-research-10, the owner's
+/// head-white ruling): `dist_norm` is the head's projected distance
+/// from the hole's center in ball outer radii. The upper family's
+/// crowns burn white — the z-ladder base floors at Hot (the same
+/// floor the disk's snug tiers carry) and the proximity ladder's
+/// distance input is pulled inward by the lensing gain (the crowns
+/// are the lensed image of the far-side disk, the light-path
+/// compression that makes the photon ring the brightest structure
+/// in the iconic images), so every crown rider lands Core — the
+/// head white of the rain-glyph heads — across its reach, while the
+/// entry-spiral drift-in still reads dim and ignites as the rider
+/// settles (the accretion read survives the gain). The lower family
+/// keeps the plain z-graded ladder composed with the raw distance —
+/// the dimmer mirrored echo under the shadow.
+pub(crate) fn halo_head_level(m: &RingMote, dist_norm: f32) -> BrightnessLevel {
+    let base = level_for_ring_z(m.z);
+    if halo_stream_is_upper(m.tier) {
+        let lensed = dist_norm - crate::constants::BLACK_HOLE_HALO_CROWN_GAIN;
+        proximity_level(floor_head_base_at_hot(base), lensed)
     } else {
-        crate::constants::BLACK_HOLE_HALO_PACE
+        proximity_level(base, dist_norm)
     }
 }
