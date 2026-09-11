@@ -117,6 +117,36 @@ noise-yardstick methodology, and the audit's codegen controls
 (the numbers in this section above are the historical 120x40
 truecolor signatures and remain valid for that profile).
 
+**NIGHT-research-11 (2026-09-11, the black hole soft-light cap and
+all-lanes consistency):** the soft-head cap (one extra ladder step
+per glyph head — a pure level re-grade), the halo pool doubling
+(2 riders per lane per column, one rider per lane per two columns:
+roughly 2x the halo population — more RK4 integrations, projections
+and draw cells per frame), the lockstep pace (the lanes advance at
+the ring's tier-0 mean motion — same per-frame work, different
+phase), and the round-robin tag split (a simpler spawn branch). 10s
+A/B at 120x40 wet IO vs the parent commit (before 88ae1d7, after
+136ca38, dev profile, same two-run discard-warmup protocol):
+sorgonemous_intrascals avg fps 2320.0 -> 1955.8 (-15.7%,
+confirmation run 1960.6 — call it -15.5%), median 2356.3 ->
+1979.9, p99 frame time 0.519 -> 0.594 ms, p99.9 0.782 -> 0.759 ms,
+avg dirty cells/frame 181.3 -> 214.7 (+18.4%, dirty ratio 3.78% ->
+4.47%), frame time stability excellent on both sides (drift -0.37%
+vs -0.11%), allocator flat (heap retained 0 B, peak RSS 8.97 ->
+8.96 MiB — the doubled pool rides in the same allocation budget,
+the Vec grows at reset). The cost is mechanical and owner-directed:
+the density ask doubles the stream population, so the advance pass
+integrates ~2x the riders and the draw pass paints ~2x the lane
+cells (the +34 dirty cells/frame); the soft-head cap and the
+lockstep re-branch are level/branch changes with no measurable
+cost. At 1956 fps the scene still sits far above any terminal's
+display rate — the headroom is the honest price of the
+all-lanes-consistent read. Visual signature shifts track the
+intent: entropy 6.01 -> 6.05 and density gini 0.5655 -> 0.5544
+(the denser, evenly split lanes spread the composition wider and
+more evenly across the viewport — the consistent-rings read), color
+transition delta 0.00 -> 0.00 (the bench palette holds steady).
+
 **NIGHT-research-10 (2026-09-11, the black hole photon line, triple
 crown, and head-white ladder):** the rim photon line (the annulus's
 outer band flipping to Core — a level re-banding, zero new cells),

@@ -9,6 +9,49 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-11 — the black hole soft-light cap and the all-lanes consistency
+
+- Owner verdict round (9.1/10, three asks): the head-white is too
+  bright — it strained the eyes; the rings above and below the
+  shadow read inconsistent with the center ring (speed, density,
+  smoothness); and the center ring's near-ball band is too bright.
+  The cinematic read the owner asked for: soft, elegant, consistent.
+- The soft glyph heads (`ring.rs` + `halo.rs`): `soft_head_level`
+  caps every composed glyph-head level one rung below Core, applied
+  at the ring draw site after the proximity ladder and inside
+  `halo_head_level`. The crowns, the tier-0 crossing band and the
+  snug stacks burn the warm Hot ceiling — the full palette without
+  the Core blend toward white — while the distance key, the Hot
+  floors and the fade ladder keep shaping the band below the
+  ceiling exactly as before. The Core white stays reserved for the
+  ball's own thin photon structures (the horizon ring and the rim
+  photon line) and the infall's transient whip-around flash.
+- The all-lanes consistency (`halo.rs` + `style_rain.rs` +
+  `black_hole.rs`): the five stream lanes unify with the center
+  ring. Lockstep pace — every lane rides the ring's tier-0 mean
+  motion (the per-lane Keplerian pace ladder 0.74 / 0.60 / 0.50 is
+  retired). A doubled pool (`BLACK_HOLE_HALO_POOL_PER_COL` 2 — one
+  rider per lane per two columns) seats each lane's
+  semicircle-filtered visible population at the tier-0 main line's
+  own linear cell density, proportional at every density setting.
+  An even five-way round-robin tag split retires the weighted
+  0.72/0.28 family split — the lower arcs carry the same population
+  as the crowns. The halo lifetime pins at the ring's own 14 s
+  cadence.
+- The infall shimmer test hardening (`tests_black_hole/infall.rs`):
+  the old end-state age heuristic could not distinguish a respawned
+  early-window mote from a true survivor — the halo rework's
+  RNG-stream shift exposed the fragility. The harness now tracks
+  continuity per frame on the `run_frames` clock contract (an
+  absorption deactivates the mote, a respawn resets its age — both
+  break the chain), with a shorter 70-frame window seated inside
+  the flight distribution.
+- Tests: 69 black hole contracts (three re-pinned: the soft warm
+  ceiling on the stream heads and the crossing band, the equal
+  five-lane population split, the pool-multiplier resize; two new:
+  the soft-head cap unit contract, the lockstep pace). Full suite
+  2797 green.
+
 ### feature: NIGHT-research-10 — the black hole photon line, the triple crown, and the head-white ladder
 
 - Owner feedback round (the Interstellar/NASA imagery read, four
