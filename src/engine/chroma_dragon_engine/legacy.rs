@@ -173,15 +173,19 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 /// # Arguments
 /// * `r, g, b` - input sRGB channel values
 /// * `factor` - boost amount, `0.0` = identity, `0.5` = +50% brightness,
-///   `1.0` = +100% (clamped to 255 per channel).
+///   `1.0` = +100% (the scale renormalizes so no channel passes the
+///   display's saturation edge — see the NR26 cap below).
 ///
 /// # Returns
 /// Boosted `(r, g, b)` triple. Each channel is computed as
-/// `(c as f32 * (1.0 + factor)).round().clamp(0.0, 255.0) as u8`
-/// which matches the original inline equation bit-for-bit.
+/// `(c as f32 * scale).round().clamp(0.0, 255.0) as u8` with
+/// `scale = min(1.0 + factor, 255.0 / max(r, g, b))` — the
+/// NIGHT-research-26 in-hue cap (grey sources stay bit-identical
+/// to the retired clamp equation; see the parity tests).
 ///
 /// # Parity
-/// Bit-identical to the pre-extraction inline equation.
+/// Bit-identical to `chroma::palette::boost_rgb` (the chroma
+/// engine's copy of the same renormalized scale).
 ///
 /// # Caller status ( P11 migration)
 /// Wired into `droplet::CellShader::shade` head self-bloom for the
@@ -192,7 +196,10 @@ pub(crate) fn blend_toward_white(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u
 #[inline]
 #[must_use]
 pub(crate) fn boost_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
-    let scale = 1.0 + factor;
+    let max_c = r.max(g).max(b) as f32;
+    // f32 division: max_c = 0 gives +inf, so the scale is the plain
+    // boost and black stays black (0 x anything).
+    let scale = (1.0 + factor).min(255.0 / max_c);
     (
         (r as f32 * scale).round().clamp(0.0, 255.0) as u8,
         (g as f32 * scale).round().clamp(0.0, 255.0) as u8,

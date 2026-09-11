@@ -320,22 +320,37 @@ pub(crate) fn blend_toward_bg_rgb(
     )
 }
 
-/// Multiplicative RGB boost. `out = (r, g, b) * (1.0 + factor)`, clamped
-/// to `[0, 255]`. Used by the head self-bloom effect (the head glyph gets
-/// a multiplicative brightness boost scaled by the parallax layer's
-/// self-bloom multiplier).
+/// Multiplicative RGB boost, capped in-hue (the
+/// NIGHT-research-26 soft cap). `out = (r, g, b) * scale` with
+/// `scale = min(1.0 + factor, 255.0 / max(r, g, b))` — the boost
+/// lifts the head within its own hue and never past the display's
+/// saturation edge. Used by the head self-bloom effect (the head
+/// glyph gets a multiplicative brightness boost scaled by the
+/// parallax layer's self-bloom multiplier).
 ///
-/// (chroma audit, A4): added for the head self-bloom hot path.
-/// The equation is bit-identical to `chroma::legacy::boost_rgb` -- both
-/// use `(c as f32 * (1.0 + factor)).round().clamp(0.0, 255.0) as u8`.
-/// The audit proposed a future "perceptual OKLab L lift" variant that
-/// would preserve hue+chroma more accurately, but that is a behavior
-/// change requiring a separate owner approval. This commit lands the
-/// safe migration (same equation, auditability refactor only).
+/// The retired hard clamp flattened the sub-dominant channels onto
+/// their saturated sibling (the front layer's 0.234 x 1.20 washed
+/// the tinted head toward white — the themes' own "head stays
+/// tinted, not pure white" principle, violated exactly at the
+/// clamp). The renormalized scale preserves the source's channel
+/// ratios by construction: a head already at the edge (any 255
+/// channel) has nowhere in-hue to go, so the boost reads as
+/// identity; a grey source (r = g = b) stays bit-identical to the
+/// legacy equation (the renormalized product lands at the same
+/// clamp the old code produced); black stays black.
+///
+/// (chroma audit, A4): the equation is bit-identical to
+/// `chroma::legacy::boost_rgb` — both compute the same
+/// renormalized scale. The audit proposed a future "perceptual
+/// OKLab L lift" variant; that remains a separate behavior change
+/// requiring owner approval.
 #[inline]
 #[must_use]
 pub(crate) fn boost_rgb(r: u8, g: u8, b: u8, factor: f32) -> (u8, u8, u8) {
-    let scale = 1.0 + factor;
+    let max_c = r.max(g).max(b) as f32;
+    // f32 division: max_c = 0 gives +inf, so the scale is the plain
+    // boost and black stays black (0 x anything).
+    let scale = (1.0 + factor).min(255.0 / max_c);
     (
         (r as f32 * scale).round().clamp(0.0, 255.0) as u8,
         (g as f32 * scale).round().clamp(0.0, 255.0) as u8,

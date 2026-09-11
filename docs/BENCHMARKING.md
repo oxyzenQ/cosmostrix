@@ -174,6 +174,29 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-26 (2026-09-11, the glyph in-hue self-bloom cap
+round):** the tier-three closer — the audit's highest-scored scene
+already soft by design, carrying one clamp edge: the front-layer
+self-bloom (0.234 x 1.20) flattened the head's sub-dominant
+channels onto their saturated sibling (the NeonGreen head stop
+(195, 255, 205) washed to (250, 255, 255)). The cap renormalizes
+the boost's scale against the source's own max channel — ratios
+hold by construction, grey sources stay bit-identical to the
+retired equation, and the mono bench provably skips the changed
+path (mono resolves fg to None before the effects chain). 10s A/B
+at 120x40 wet IO (dev profile, the matrix scene as the glyph
+style's RainStyle::Glyph proxy, two-run discard-warmup): the
+same-moment A/A comparison (a stashed pre-change build benched
+back-to-back) reads flat — avg fps 643.1 vs 657.6-658.7 (within
+the load-sensitive wall-clock scene's run-to-run spread), avg
+dirty cells/frame 1209.2 vs 1207.7-1212.0, density gini within
+0.005, heap retained 0 B, peak RSS 9.34 -> 9.17 MiB. The formal
+baseline (the 04:58 tier-3 batch: 628.7 avg, 1247.3 dirty)
+carries the morning's machine-load offset, not a code effect —
+recorded honestly; the color math is pinned by the six new
+tests_glyph contracts instead (the audit's "the cap is unpinned"
+finding, closed).
+
 **NIGHT-research-25 (2026-09-11, the flux cap pin round):** the
 audit's honest no-op — the flux style was already Hot-capped by
 construction (the speed ladder reads Ghost/Mid/Hot with no Core

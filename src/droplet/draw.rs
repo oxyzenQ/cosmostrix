@@ -535,11 +535,15 @@ impl super::Droplet {
                     //
                     // (chroma audit, A4): boost routes through chroma
                     // engine when active, legacy boost_rgb otherwise. Both
-                    // paths use the same `(c as f32 * (1.0 + factor)).round()
-                    // .clamp(0,255)` equation -- bit-identical output. The
-                    // audit proposed a future perceptual OKLab L lift variant
-                    // for the chroma path, but that is a separate behavior
-                    // change requiring owner approval.
+                    // paths use the same renormalized scale
+                    // `min(1.0 + wf, 255 / max(r, g, b))` -- bit-identical
+                    // output. NIGHT-research-26: the scale caps in-hue so
+                    // the boost never flattens the head's sub-dominant
+                    // channels onto their saturated sibling (the retired
+                    // hard clamp washed the tinted head toward white). The
+                    // audit proposed a future perceptual OKLab L lift
+                    // variant for the chroma path, but that is a separate
+                    // behavior change requiring owner approval.
                     const HEAD_BOOST: f32 = HEAD_SELFBLOOM_BASE; // ~0.234 — centralized
                     let layer_selfbloom = PARALLAX_HEAD_SELFBLOOM_MULT[self.layer as usize];
                     let wf = HEAD_BOOST * layer_selfbloom;

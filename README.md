@@ -492,7 +492,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 **Core atmospheres** (interactive cycle with `x`):
 
 - `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
-- `matrix` — classic Matrix glyph rain
+- `matrix` — classic Matrix glyph rain (the glyph style — the droplet family's sole member; the head self-bloom composes in-hue under the NIGHT-research-26 cap: the boost's scale renormalizes against the head's own max channel, so the channel ratios hold and a tinted head never washes toward white — the retired hard clamp flattened the sub-dominant channels onto their saturated sibling — while grey sources stay bit-identical to the legacy equation)
 - `monolith` — structured cosmostrix Monolith Rain with sparse structured segments (the NIGHT-research-17 soft-light ceiling: the standing Hero head reads the palette's warm Hot stop — no white blend, no standing strain — and a fresh cascade's arrival flash is the one Core moment, a ~1.5 s first-light reveal while the stream enters, then it settles warm for the whole fall)
 
 **Style flagships** (rain styles 3 through 9, task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2):

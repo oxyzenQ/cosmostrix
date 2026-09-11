@@ -9,6 +9,51 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-26 — the glyph in-hue self-bloom cap round
+
+- Tier three of the NIGHT-research-13 masterclass audit (the
+  pin-and-finish round), round three, closing the tier and the
+  audit — the audit's highest-scored scene (8.0): the glyph head
+  was already the soft kind by construction (the palette's last
+  stop, the self-bloom deliberately in-hue — "green to brighter
+  green, not white"), with two gaps: the front-layer self-bloom
+  (0.234 x 1.20) clamped sub-dominant channels onto their
+  saturated sibling (the NeonGreen head stop (195, 255, 205) washed
+  to (250, 255, 255) — exactly the white edge the themes' own
+  "head stays tinted" principle forbids), and nothing pinned the
+  composition.
+- The cap: boost_rgb (both the chroma and legacy paths,
+  bit-identical) renormalizes its scale against the source's own
+  max channel — `scale = min(1 + factor, 255 / max(r, g, b))`.
+  The channel ratios hold by construction (in-hue forever); a head
+  already at the display edge composes to identity (it has nowhere
+  in-hue to go); grey sources stay bit-identical to the retired
+  equation (the renormalized product lands at the same clamp); the
+  droplet draw-site comment re-pinned to the new equation.
+- The tree the audit called for: tests_glyph (the only major style
+  without one) — 6 contracts: scene resolution + family
+  classification, the in-hue cap (the audit's exact wash case, the
+  exact band reads, the grey parity, a 512-step tinted sweep with
+  cross-product ratio survival and sub-dominant saturation
+  checks), the chroma/legacy bit parity, the cinematic layer
+  distribution + length/tail clamps ([0.35, 0.30, 0.35], the
+  4-200 band, the 45-percent front tail), the sparse warm-start
+  pool lifecycle (seed count, free-list exactness, column
+  accounting, top-biased heads), and the entry-ramp fill. Full
+  suite 2831 green, fmt and clippy -D warnings clean, gate-keepers
+  12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup, the matrix scene as the glyph style's proxy):
+  the changed path is color-only and provably skipped in the mono
+  bench (mono resolves fg to None before the effects chain) — the
+  same-moment A/A comparison (stashed pre-change build) reads flat:
+  avg fps 643.1 vs 657.6-658.7 (within the load-sensitive scene's
+  run-to-run spread), dirty cells/frame 1209.2 vs 1207.7-1212.0,
+  gini within 0.005, heap retained 0 B. The formal baseline (the
+  04:58 batch, 628.7 avg) carries the morning's machine-load
+  offset, not a code effect. Docs updated: README scene bullet,
+  CHANGELOG feature entry, BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-25 — the flux cap pin round
 
 - Tier three of the NIGHT-research-13 masterclass audit (the

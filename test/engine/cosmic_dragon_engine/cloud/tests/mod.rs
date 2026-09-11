@@ -19,6 +19,7 @@ mod tests_edge_fade;
 mod tests_exp_decay;
 mod tests_flux;
 mod tests_ghost_ai;
+mod tests_glyph;
 mod tests_hud_toggle_hunt16;
 mod tests_hunt14;
 mod tests_lorenz;
