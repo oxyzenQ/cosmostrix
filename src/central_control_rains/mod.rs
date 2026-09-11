@@ -714,6 +714,18 @@ pub(crate) const MONOLITH_CORE_WHITE_BLEND: f32 = 140.0 / 256.0; // ~0.547
 /// v17 mastery: raised from 0.12 → 0.20 for stronger pulse visibility.
 pub(crate) const MONOLITH_WHITE_BOOST_CAP: f32 = 0.20;
 
+/// Duration of the Hero segment's arrival-reveal window, in seconds
+/// (NIGHT-research-17, the soft-light round).
+///
+/// A freshly activated stream stamps this countdown onto itself; while
+/// it counts down, the Hero segment's head rung reads Core (the one
+/// event-gated white-blend flash of the cascade's first light). When
+/// it expires the head settles to the Hot warm ceiling for the rest
+/// of the stream's fall — the black hole's NIGHT-research-11 ruling
+/// (no standing Core-white glyph) ported to the monolith family, with
+/// the dragon's entry-reveal flare as the duration precedent (1.5 s).
+pub(crate) const MONOLITH_HERO_REVEAL_SECS: f32 = 1.5;
+
 /// Minimum monolith stream span (rows).
 pub(crate) const MONOLITH_MIN_STREAM_SPAN: u16 = 14;
 

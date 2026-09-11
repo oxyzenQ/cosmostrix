@@ -171,11 +171,13 @@ fn color_for_level_resolves_the_ladder_stops_exactly() {
     assert_eq!(stop(BrightnessLevel::Dim), Some(colors[3]));
     assert_eq!(stop(BrightnessLevel::Mid), Some(colors[5]));
     assert_eq!(stop(BrightnessLevel::Hot), Some(colors[7]));
-    // Core blends toward white (MONOLITH_CORE_WHITE_BLEND) on top of
-    // stop 9, so it must differ from the raw stop while staying the
-    // brightest level (pinned by the depth suite); here we pin the
-    // exact base: a factor-1.0 Core must still be Some (never None
-    // for a non-empty palette).
+    // NIGHT-research-17 re-pin: Core blends toward white
+    // (MONOLITH_CORE_WHITE_BLEND) on top of stop 9 through the
+    // shared pipeline — the rung the monolith Hero head composes
+    // through ONLY inside the arrival-reveal window (see the
+    // segment_level standing pins in core.rs), and the rung the
+    // five sibling scenes keep as their transient ceiling. It must
+    // never be None for a non-empty palette.
     assert!(stop(BrightnessLevel::Core).is_some());
 }
 

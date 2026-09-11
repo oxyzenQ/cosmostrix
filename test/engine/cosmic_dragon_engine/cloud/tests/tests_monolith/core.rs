@@ -117,3 +117,148 @@ fn monolith_size_changes_segment_coverage() {
         "large monolith size should draw more segment cells than small (large={large_segments}, small={small_segments})"
     );
 }
+
+// -- NIGHT-research-17: the soft-light round (standing-Core sweep) --
+
+fn soft_rank(level: crate::cloud::type_rain::monolith::BrightnessLevel) -> u8 {
+    use crate::cloud::type_rain::monolith::BrightnessLevel::*;
+    match level {
+        Ghost => 0,
+        Dim => 1,
+        Mid => 2,
+        Hot => 3,
+        Core => 4,
+    }
+}
+
+#[test]
+fn monolith_segment_ladder_never_lands_core_standing() {
+    // The NIGHT-research-17 soft-light ruling (the black hole's
+    // NIGHT-research-11 precedent, dragon entry-reveal idiom): once
+    // a stream's arrival-reveal window has expired, the whole draw
+    // composes to the warm ceiling or below — no kind at any
+    // position in the ladder may land Core. The masterclass audit's
+    // monolith finding: the standing Hero head read Core (the 55%
+    // white blend) for every frame of the cascade's fall.
+    use crate::cloud::type_rain::monolith::monolith::SegmentKind;
+    use crate::cloud::type_rain::monolith::monolith_helpers::segment_level;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+
+    for kind in [
+        SegmentKind::Micro,
+        SegmentKind::Short,
+        SegmentKind::Medium,
+        SegmentKind::Hero,
+    ] {
+        for pos in 0u8..=10 {
+            let level = segment_level(kind, pos, false);
+            assert!(
+                soft_rank(level) <= soft_rank(BrightnessLevel::Hot),
+                "a standing segment cell must never land Core ({kind:?} at pos {pos})"
+            );
+        }
+    }
+    // The settled Hero head composes at the Hot warm ceiling (the
+    // palette's bright stop, no white blend), with its Hot/Hot/Mid
+    // body fade untouched.
+    assert_eq!(
+        soft_rank(segment_level(SegmentKind::Hero, 0, false)),
+        soft_rank(BrightnessLevel::Hot),
+        "the settled Hero head must read the soft warm ceiling"
+    );
+    assert_eq!(
+        soft_rank(segment_level(SegmentKind::Hero, 1, false)),
+        soft_rank(BrightnessLevel::Hot)
+    );
+    assert_eq!(
+        soft_rank(segment_level(SegmentKind::Hero, 3, false)),
+        soft_rank(BrightnessLevel::Mid)
+    );
+}
+
+#[test]
+fn monolith_hero_reveal_flashes_core_only_in_the_head_rung() {
+    // The transient contract: the arrival-reveal window is the Hero
+    // head's ONE Core moment — the cascade's first light while the
+    // fresh stream enters (the dragon entry-reveal precedent, 1.5 s
+    // window). The flag must touch only the Hero head rung: every
+    // other cell of every kind reads the same level with the
+    // window open or closed.
+    use crate::cloud::type_rain::monolith::monolith::SegmentKind;
+    use crate::cloud::type_rain::monolith::monolith_helpers::segment_level;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+
+    assert_eq!(
+        soft_rank(segment_level(SegmentKind::Hero, 0, true)),
+        soft_rank(BrightnessLevel::Core),
+        "the arrival reveal is the Hero head's one Core flash"
+    );
+    assert_eq!(
+        soft_rank(segment_level(SegmentKind::Hero, 0, false)),
+        soft_rank(BrightnessLevel::Hot),
+        "the settled Hero head reads the soft warm ceiling"
+    );
+    for kind in [SegmentKind::Micro, SegmentKind::Short, SegmentKind::Medium] {
+        for pos in 0u8..=10 {
+            assert_eq!(
+                soft_rank(segment_level(kind, pos, true)),
+                soft_rank(segment_level(kind, pos, false)),
+                "the reveal flag must not touch any non-Hero rung ({kind:?} at pos {pos})"
+            );
+        }
+    }
+    // The Hero body behind the flaring head also stays untouched.
+    for pos in 1u8..=10 {
+        assert_eq!(
+            soft_rank(segment_level(SegmentKind::Hero, pos, true)),
+            soft_rank(segment_level(SegmentKind::Hero, pos, false)),
+            "the reveal flag must not touch the Hero body rungs (pos {pos})"
+        );
+    }
+}
+
+#[test]
+fn monolith_fresh_streams_carry_the_arrival_reveal_window() {
+    // activate_stream stamps MONOLITH_HERO_REVEAL_SECS onto every
+    // fresh cascade: right after the first spawn burst, every
+    // active stream is inside its reveal window (the countdown
+    // strictly positive), so the scene's Core flash rides only the
+    // streams that are actually arriving.
+    let mut cloud = make_monolith_cloud(96, 36);
+    let mut frame = Frame::new(96, 36, cloud.palette.bg);
+    let start = Instant::now();
+
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+    cloud.rain_at(&mut frame, start);
+
+    let reveals = cloud.monolith_rain.hero_reveals_for_test();
+    assert!(
+        !reveals.is_empty(),
+        "the first spawn burst must activate streams"
+    );
+    assert!(
+        reveals.iter().all(|&r| r > 0.0),
+        "every fresh stream must carry the reveal countdown (got {reveals:?})"
+    );
+}
+
+#[test]
+fn monolith_reveal_window_expires_under_sim_time() {
+    // The window is a countdown, not a state: after MONOLITH_HERO_
+    // REVEAL_SECS of simulated time (200 frames at 16 ms = 3.2 s,
+    // more than double the window) no active stream may still hold
+    // a reveal countdown, so the standing frame composes entirely
+    // to the soft warm ceiling.
+    let mut cloud = make_monolith_cloud(96, 36);
+    let mut frame = Frame::new(96, 36, cloud.palette.bg);
+    run_frames(&mut cloud, &mut frame, 200, 16);
+
+    let heads = cloud.monolith_rain.active_heads_for_test();
+    let reveals = cloud.monolith_rain.hero_reveals_for_test();
+    assert!(!heads.is_empty(), "streams must still be active");
+    assert!(
+        reveals.iter().all(|&r| r == 0.0),
+        "the reveal window must expire for every active stream (got {reveals:?})"
+    );
+}

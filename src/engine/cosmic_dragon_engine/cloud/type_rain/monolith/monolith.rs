@@ -98,6 +98,15 @@ pub(crate) struct MonolithStream {
     pub(crate) span: u16,
     pub(crate) palette_slot: u8,
     pub(crate) layer: u8,
+    /// NIGHT-research-17: seconds remaining in this stream's
+    /// arrival-reveal window. `activate_stream` stamps
+    /// MONOLITH_HERO_REVEAL_SECS onto a fresh cascade; `advance`
+    /// counts it down; the draw pass reads it so the Hero head
+    /// burns Core only while the cascade arrives, then settles to
+    /// the Hot warm ceiling for the rest of the fall (the black
+    /// hole's no-standing-Core ruling, dragon entry-reveal
+    /// precedent).
+    pub(crate) hero_reveal: f32,
     pub(crate) segments: [Segment; MAX_SEGMENTS],
     pub(crate) segment_count: u8,
     pub(crate) last_time: Option<Instant>,
@@ -114,6 +123,7 @@ impl MonolithStream {
             span: MONOLITH_MIN_STREAM_SPAN,
             palette_slot: 0,
             layer: 0,
+            hero_reveal: 0.0,
             segments: [Segment::empty(); MAX_SEGMENTS],
             segment_count: 0,
             last_time: None,
@@ -129,6 +139,7 @@ impl MonolithStream {
         self.span = MONOLITH_MIN_STREAM_SPAN;
         self.palette_slot = 0;
         self.layer = 0;
+        self.hero_reveal = 0.0;
         self.segment_count = 0;
         self.last_time = None;
     }
@@ -281,6 +292,17 @@ impl MonolithRain {
             .collect()
     }
 
+    /// NIGHT-research-17: reveal countdowns of every active stream,
+    /// paired with the head positions for expiry-window pins.
+    #[cfg(test)]
+    pub(crate) fn hero_reveals_for_test(&self) -> Vec<f32> {
+        self.streams
+            .iter()
+            .filter(|stream| stream.active)
+            .map(|stream| stream.hero_reveal)
+            .collect()
+    }
+
     /// NIGHT-hunter-14: test hook — force the drawn-gen counter to probe
     /// the u32 wrap guard without running 4 billion frames.
     #[cfg(test)]
@@ -399,6 +421,11 @@ impl MonolithRain {
             if max_sim_delta > Duration::from_millis(0) {
                 elapsed = elapsed.min(max_sim_delta);
             }
+            // NIGHT-research-17: the arrival-reveal countdown decays
+            // with the same capped clock the head motion uses, so a
+            // pause (last_time shifted forward) and a resume ramp
+            // freeze and resume the window with the cascade itself.
+            stream.hero_reveal = (stream.hero_reveal - elapsed.as_secs_f32()).max(0.0);
             let motion = monolith_motion_factor(stream.phase, stream.head);
             let delta = elapsed.as_secs_f32() * speed * stream.speed_mult * motion * resume_blend;
             stream.head += delta.max(0.0);

@@ -189,11 +189,16 @@ fn monolith_color_for_level_ghost_is_faintest() {
     );
     assert_ne!(mid, ghost, "mid should differ from ghost/dim");
     assert_ne!(hot, mid, "hot should differ from mid");
-    assert_ne!(core, hot, "core should differ from hot");
+    // NIGHT-research-17 re-pin: Core still differs from Hot through
+    // the shared pipeline (the rung the arrival-reveal flash composes
+    // through), but the standing Hero head never rides it anymore —
+    // segment_level pins that standing contract now. The bloom below
+    // is the reveal flash's signature, not the standing cascade's.
+    assert_ne!(core, hot, "core (the reveal rung) should differ from hot");
     if let Color::Rgb { r, g, b } = core.unwrap() {
         assert!(
             r > 200 || g > 200 || b > 200,
-            "core should have a bright bloom"
+            "the reveal rung's white blend should still bloom past every standing stop"
         );
     }
 }

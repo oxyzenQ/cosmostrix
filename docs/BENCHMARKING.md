@@ -174,6 +174,23 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-17 (2026-09-11, the monolith soft-light round):**
+the Hero head rung re-graded Core to the Hot warm ceiling
+standing, with Core reserved for the fresh cascade's ~1.5 s
+arrival-reveal window (the dragon entry-reveal precedent; the
+reveal countdown stamps at activation and decays on advance's
+capped clock) — a pure level re-grade on the same drawn cells,
+the draw stream and RNG untouched, the cap at the monolith draw
+site while color_for_level stays the shared ladder for the five
+sibling scenes. 10s A/B at 120x40 wet IO (dev profile, two-run
+discard-warmup): monolith avg fps 6699.3 -> 6679.3 (-0.3%,
+flat), median 6660.1 -> 6721.8, p99 0.1939 -> 0.1918 ms, avg
+dirty cells/frame 107.3 -> 107.1, dirty ratio 2.24% -> 2.23%,
+entropy 3.92 -> 3.92, gini 0.8945 -> 0.8946, heap retained 0 B,
+peak RSS 8.94 -> 8.96 MiB, drift stable (-0.54% -> -0.71%).
+Mechanically honest-flat: the standing Hero heads repaint at the
+warm stop instead of the white-blended stop, nothing else moves.
+
 **NIGHT-research-16 (2026-09-11, the vortex lockstep round):** the
 per-mote spin/fall multipliers (0.85-1.15 / 0.80-1.25) retire for
 lockstep pace — every mote at the same radius advances identically

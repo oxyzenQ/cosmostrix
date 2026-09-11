@@ -9,6 +9,55 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-17 — the monolith soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep, the owner-approved round order):
+  the monolith carried the strain source the black hole's
+  NIGHT-research-11 round audited and retired — every Hero
+  segment's head cell read Core (the 100% palette + 55% white
+  blend, MONOLITH_CORE_WHITE_BLEND) for every frame of the
+  cascade's fall, with the breath/hero pulse stacking up to
+  +0.20 more white on top.
+- The soft-light ruling ported to the family (the dragon's
+  NIGHT-research-15 entry-reveal idiom): `segment_level` takes
+  the arrival-reveal flag — the Hero head rung reads Core ONLY
+  inside a fresh stream's ~1.5 s arrival window
+  (MONOLITH_HERO_REVEAL_SECS, stamped by activate_stream, decayed
+  by advance on the same capped clock the head motion uses), and
+  composes to the Hot warm ceiling for the rest of the fall.
+  The Hero body fade (Hot/Hot/Mid), the Medium/Short/Micro rungs
+  and the spine ladder are untouched. The per-stream speed spread
+  stays: varied cascade speed is deliberate classic semantics
+  (the audit's owner call — not a defect).
+- The cap lands at the monolith draw site
+  (`draw_segments`'s hoisted hero_revealing gate), NOT inside
+  color_for_level — that function is the shared brightness
+  ladder for lorenz, vortex, dragon, physarum and flux, and an
+  in-function cap would have silently re-graded five scenes. No
+  RNG draws were added or removed; the draw stream is unchanged.
+- The deliberate re-pin dance (the audit's three wrong-direction
+  sites): the depth suite's core-bloom assertions and the
+  palette-ladder suite's Core-blend comment re-pin to the reveal
+  contract — Core still blooms through the shared pipeline (the
+  rung the arrival flash composes through), but the standing
+  cascade never rides it.
+- Four new contracts in `tests_monolith/core.rs` — no kind at
+  any position lands Core with the reveal window closed, the
+  reveal flash touches only the Hero head rung, every fresh
+  stream carries the countdown, and the window expires under
+  simulated time (3.2 s). 32 -> 36 monolith tests, full suite
+  2813 green, fmt and clippy -D warnings clean, gate-keepers
+  12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): monolith avg fps 6699.3 -> 6679.3 (-0.3%,
+  flat), median 6660.1 -> 6721.8, p99 0.1939 -> 0.1918 ms, avg
+  dirty cells/frame 107.3 -> 107.1, entropy 3.92 -> 3.92, gini
+  0.8945 -> 0.8946, heap retained 0 B — mechanically
+  honest-flat, the same cells repainted at a softer standing
+  level, zero allocation. Docs updated: README scene bullet,
+  CHANGELOG feature entry, BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-16 — the vortex lockstep round
 
 - Tier one of the NIGHT-research-13 masterclass audit, round three

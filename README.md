@@ -493,7 +493,7 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 
 - `cinematic` — default signature Cosmic Binary with slow vast pacing and deep-space breathing room
 - `matrix` — classic Matrix glyph rain
-- `monolith` — structured cosmostrix Monolith Rain with sparse structured segments
+- `monolith` — structured cosmostrix Monolith Rain with sparse structured segments (the NIGHT-research-17 soft-light ceiling: the standing Hero head reads the palette's warm Hot stop — no white blend, no standing strain — and a fresh cascade's arrival flash is the one Core moment, a ~1.5 s first-light reveal while the stream enters, then it settles warm for the whole fall)
 
 **Style flagships** (rain styles 3 through 9, task-18/19 + NIGHT-research-4/5/6 + NIGHT-special-1/2):
 

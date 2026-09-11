@@ -46,6 +46,11 @@ pub(super) fn activate_stream(
     stream.span = varied_span(params.lines, rand_chance.sample(rng));
     stream.palette_slot = params.palette_slot;
     stream.layer = layer_from_roll(rand_chance.sample(rng));
+    // NIGHT-research-17: the fresh cascade's arrival-reveal window —
+    // the one span of the stream's life where a Hero head may read
+    // Core (the cascade's first light). No RNG is consumed here, so
+    // the draw stream below is unchanged.
+    stream.hero_reveal = MONOLITH_HERO_REVEAL_SECS;
     stream.last_time = Some(params.now);
     build_segments(stream, params.size, rand_chance, rng);
 }
@@ -208,6 +213,13 @@ pub(super) fn draw_segments(
 ) {
     let head_line = stream.head.floor() as i32;
     let frac = stream.head.fract().clamp(0.0, 1.0);
+    // NIGHT-research-17: the soft-light gate. Hoisted once per
+    // stream — the Hero head burns Core only while the cascade's
+    // arrival-reveal countdown still ticks, then the whole draw
+    // composes to the warm ceiling. This is the monolith draw
+    // site's cap; color_for_level stays the shared ladder for the
+    // five sibling scenes and is untouched by the round.
+    let hero_revealing = stream.hero_reveal > 0.0;
     for idx in 0..stream.segment_count as usize {
         let segment = stream.segments[idx];
         let bottom = head_line - segment.offset as i32;
@@ -230,7 +242,7 @@ pub(super) fn draw_segments(
                 debug_assert!(v <= 255, "pos_from_bottom must fit u8");
                 v as u8
             };
-            let level = segment_level(segment.kind, pos_from_bottom);
+            let level = segment_level(segment.kind, pos_from_bottom, hero_revealing);
             let edge_fade = ctx.edge_fade(line);
             let pulse = if matches!(level, BrightnessLevel::Hot | BrightnessLevel::Core) {
                 hero_pulse
@@ -276,7 +288,23 @@ pub(super) fn spine_envelope(kind: SegmentKind) -> i32 {
     }
 }
 
-pub(super) fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> BrightnessLevel {
+/// Brightness rung for one segment cell (NIGHT-research-17
+/// re-grade: the Hero head reads Core only inside the stream's
+/// arrival-reveal window — `hero_revealing` — and composes to the
+/// Hot warm ceiling for the rest of the fall; the black hole's
+/// NIGHT-research-11 no-standing-Core ruling, dragon
+/// entry-reveal precedent). Every other rung is unchanged: the
+/// Hero body keeps its Hot/Hot/Mid fade, Medium heads read Hot,
+/// Short heads Mid, Micro Dim.
+///
+/// Pinned in tests_monolith/core.rs: no kind at any position lands
+/// Core with `hero_revealing` false, and the flag touches only the
+/// Hero head rung.
+pub(crate) fn segment_level(
+    kind: SegmentKind,
+    pos_from_bottom: u8,
+    hero_revealing: bool,
+) -> BrightnessLevel {
     match kind {
         SegmentKind::Micro => BrightnessLevel::Dim,
         SegmentKind::Short => {
@@ -294,7 +322,13 @@ pub(super) fn segment_level(kind: SegmentKind, pos_from_bottom: u8) -> Brightnes
             }
         }
         SegmentKind::Hero => match pos_from_bottom {
-            0 => BrightnessLevel::Core,
+            0 => {
+                if hero_revealing {
+                    BrightnessLevel::Core
+                } else {
+                    BrightnessLevel::Hot
+                }
+            }
             1 | 2 => BrightnessLevel::Hot,
             _ => BrightnessLevel::Mid,
         },
