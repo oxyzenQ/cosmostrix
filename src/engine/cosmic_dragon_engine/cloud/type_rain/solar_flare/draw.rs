@@ -25,8 +25,7 @@ use rand::{
 use crate::frame::Frame;
 
 use crate::constants::{
-    SOLAR_FLASH_SECS, SOLAR_FLUX_LEVEL_HOT, SOLAR_SHIMMER_ARC, SOLAR_SHIMMER_HOT,
-    SOLAR_SHIMMER_SURFACE,
+    SOLAR_FLASH_SECS, SOLAR_SHIMMER_ARC, SOLAR_SHIMMER_HOT, SOLAR_SHIMMER_SURFACE,
 };
 
 use super::super::super::render::DrawCtx;
@@ -46,8 +45,9 @@ impl SolarFlareRain {
     ///
     /// Arc cells: the loop's ladder reads the flux (law 3); the
     /// footpoint cells step up while the flash is fresh (the landing
-    /// punch); the apex cells step up while the loop runs Hot or
-    /// brighter (the condensation glow); Emerging arcs fade in;
+    /// punch); the apex cells glow warm while the loop runs Hot or
+    /// brighter (the condensation glow, saturated at Hot — the
+    /// NIGHT-research-24 soft-light ruling); Emerging arcs fade in;
     /// Detaching arcs dim to nothing while they lift. Field cells
     /// keep the glyph the frame already carries (law 5's fabric
     /// identity — the static arc body never re-dirties its cells)
@@ -140,7 +140,7 @@ impl SolarFlareRain {
                     .round()
                     .clamp(0.0, (ctx.cols as f32 - 1.0).max(0.0)) as u16;
                 let boosted = if lp.flare_age < SOLAR_FLASH_SECS {
-                    step_up_level(foot_level)
+                    loops::step_up_level(foot_level)
                 } else {
                     foot_level
                 };
@@ -211,17 +211,20 @@ impl SolarFlareRain {
                 let line = y.round().clamp(0.0, (ctx.lines as f32 - 1.0).max(0.0)) as u16;
                 // Foot cells: the landing punch zone (two cells each
                 // side). Apex cells: the condensation glow zone while
-                // Hot or brighter.
+                // Hot or brighter. The whole composition lives in
+                // loops::arc_cell_level (the NR24 pure-ladder
+                // contract: no arc cell composes above Hot with the
+                // flash windows closed).
                 let near_foot = i <= 1 || i + 1 >= steps;
                 let near_apex = (s - 0.5).abs() <= 2.0 / steps.max(1) as f32;
-                let mut level = base;
-                let foot_flash = near_foot
-                    && lp.flare_age < SOLAR_FLASH_SECS
-                    && lp.phase != loops::LoopPhase::Erupting;
-                let apex_glow = near_apex && lp.flux > SOLAR_FLUX_LEVEL_HOT;
-                if foot_flash || apex_glow {
-                    level = step_up_level(level);
-                }
+                let level = loops::arc_cell_level(
+                    lp.phase,
+                    lp.phase_clock,
+                    lp.flux,
+                    lp.flare_age,
+                    near_foot,
+                    near_apex,
+                );
                 let ch = fabric_glyph(ctx, frame, col, line, shimmer, rng, rand_chance);
                 draw_solar_cell(
                     ctx,
@@ -382,16 +385,6 @@ fn step_down_level(level: BrightnessLevel, depth: u8) -> BrightnessLevel {
         BrightnessLevel::Hot => BrightnessLevel::Mid,
         BrightnessLevel::Mid => BrightnessLevel::Ghost,
         BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Ghost,
-    }
-}
-
-/// Step a brightness level up (toward Core) by one rung (the
-/// footpoint flash and the apex condensation glow).
-fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
-    match level {
-        BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Mid,
-        BrightnessLevel::Mid => BrightnessLevel::Hot,
-        BrightnessLevel::Hot | BrightnessLevel::Core => BrightnessLevel::Core,
     }
 }
 

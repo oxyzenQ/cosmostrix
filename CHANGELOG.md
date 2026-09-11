@@ -9,6 +9,44 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-24 — the solar flare apex soft-light round
+
+- Tier three of the NIGHT-research-13 masterclass audit (the
+  pin-and-finish round), round one — the audit's apex finding: the
+  corona was already flash-gated in three of four Core paths (the
+  0.6 s eruption window, the ladder's fresh-flare rung, the
+  footpoint landing punch), but the apex condensation glow was
+  flux-gated alone — a heavily-fed loop steps Hot to Core and holds
+  it for the whole cooling plateau (the 0.38/s flux decay from
+  FLUX_MAX crosses the HOT bound at about 3.4 s, the audit's
+  standing window).
+- The saturation (loops.rs apex_step_level, the black hole's
+  NIGHT-research-11 cap precedent): the apex glow lifts only the
+  lower rungs and holds the ceiling at Hot — the fed apex reads
+  warm for the whole plateau, never standing white; a Core base
+  passes through untouched so the flash windows keep their Core.
+- The whole pass-B arc-cell decision extracted into the pure
+  loops::arc_cell_level (phase base + landing punch + glow, the
+  quasar pure-ladder precedent), step_up_level moved from draw.rs
+  to the ladder home; the footpoint punch keeps its one Core rung
+  inside its flash window.
+- Two new contracts in tests_solar_flare/loops.rs — the standing
+  ceiling (no arc cell composes above Hot with the flash windows
+  closed, at any phase, flux, or cell zone; the fed apex reads the
+  warm ceiling exactly) and the flash windows (the eruption window,
+  the fresh-flare rung, and the landing punch all keep their Core).
+  22 -> 24 solar flare tree tests, full suite 2824 green, fmt and
+  clippy -D warnings clean, gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): solar_flare avg fps 2304.6 -> 2327.0 (confirmation
+  2325.1, +0.9%), p99 0.5261 -> 0.5364 ms, median 2330.6 -> 2358.7,
+  avg dirty cells/frame 116.5 -> 114.2 (-2.0% — the softer apex
+  composition repaints fewer contents through the frame-equality
+  fast path), entropy 5.93 -> 5.90, gini 0.5705 -> 0.5796, heap
+  retained 0 B — mechanically flat, zero allocation, same pools. Docs
+  updated: README scene bullet, CHANGELOG feature entry,
+  BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-23 — the lorenz soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

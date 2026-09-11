@@ -5,16 +5,20 @@
 //! (NIGHT-special-4, laws 1, 3, 4, 5): the loop-count scaling, the
 //! footpoint repulsion spread, the wall + drift + span clamps, the
 //! width breath bounds, the bounded flux charge, the flare cycle
-//! transitions, and the granulation surface bounds.
+//! transitions, the granulation surface bounds, and the
+//! NIGHT-research-24 arc-composition soft-light contracts (the
+//! standing ceiling and the flash windows).
 
 use rand::{distr::Uniform, rngs::StdRng, SeedableRng};
 
 use crate::cloud::solar_flare::loops::{
-    granule_level, height_band, loop_count_for_cols, loop_level, width_band, CoronaArcade,
-    LoopPhase, SolarRandom,
+    apex_step_level, arc_cell_level, granule_level, height_band, loop_count_for_cols, loop_level,
+    step_up_level, width_band, CoronaArcade, LoopPhase, SolarRandom,
 };
 use crate::constants::{
-    SOLAR_DRIFT_MAX, SOLAR_FLUX_MAX, SOLAR_GRANULE_MAX, SOLAR_GRANULE_MIN, SOLAR_W_MIN,
+    SOLAR_DRIFT_MAX, SOLAR_EMERGE_SECS, SOLAR_ERUPT_SECS, SOLAR_FLASH_SECS, SOLAR_FLUX_LEVEL_CORE,
+    SOLAR_FLUX_LEVEL_HOT, SOLAR_FLUX_LEVEL_MID, SOLAR_FLUX_MAX, SOLAR_GRANULE_MAX,
+    SOLAR_GRANULE_MIN, SOLAR_W_MIN,
 };
 
 use crate::cloud::monolith::BrightnessLevel;
@@ -283,4 +287,177 @@ fn law3_the_ladder_reads_the_flux() {
     assert!(matches!(granule_level(0.2), BrightnessLevel::Ghost));
     assert!(matches!(granule_level(0.6), BrightnessLevel::Mid));
     assert!(matches!(granule_level(0.9), BrightnessLevel::Hot));
+}
+
+fn soft_rank(level: BrightnessLevel) -> u8 {
+    use BrightnessLevel::*;
+    match level {
+        Ghost => 0,
+        Dim => 1,
+        Mid => 2,
+        Hot => 3,
+        Core => 4,
+    }
+}
+
+#[test]
+fn law3_the_arc_composition_never_lands_core_standing() {
+    // The NIGHT-research-24 soft-light ruling (the black hole's
+    // NIGHT-research-11 cap, the dragon's entry-reveal precedent):
+    // a heavily-fed loop rides the Hot plateau for seconds after
+    // the flash window closes (the 0.38/s flux decay from FLUX_MAX
+    // crosses the HOT bound at about 3.4 s — the audit's standing
+    // Core window), and the retired full apex step-up painted those
+    // cells Core-white the whole way. With every flash window
+    // closed (flare_age past FLASH_SECS, the Erupting base past its
+    // own flash), NO arc cell — foot, body, or apex — may compose
+    // above Hot, at any flux the ladder can carry.
+    let past_flash = SOLAR_FLASH_SECS * 2.0;
+    let flux_band = [
+        0.0,
+        SOLAR_FLUX_LEVEL_MID + 0.01,
+        SOLAR_FLUX_LEVEL_HOT + 0.01,
+        SOLAR_FLUX_LEVEL_CORE + 0.01,
+        SOLAR_FLUX_MAX,
+    ];
+    for phase in [LoopPhase::Stable, LoopPhase::Emerging, LoopPhase::Detaching] {
+        for &flux in &flux_band {
+            for &age in &[past_flash, f32::MAX] {
+                for near_foot in [false, true] {
+                    for near_apex in [false, true] {
+                        let level = arc_cell_level(phase, 0.0, flux, age, near_foot, near_apex);
+                        assert!(
+                            soft_rank(level) <= soft_rank(BrightnessLevel::Hot),
+                            "a standing arc cell composed Core: {phase:?} flux={flux} \
+                             age={age} foot={near_foot} apex={near_apex}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+    // The Erupting arc past its flash window: the base is Hot, the
+    // apex glow saturates (the retired step-up held Core through
+    // the whole ~1.4 s eruption — the same standing read).
+    for near_apex in [false, true] {
+        let level = arc_cell_level(
+            LoopPhase::Erupting,
+            SOLAR_ERUPT_SECS,
+            SOLAR_FLUX_MAX,
+            past_flash,
+            false,
+            near_apex,
+        );
+        assert_eq!(soft_rank(level), soft_rank(BrightnessLevel::Hot));
+    }
+    // The heavily-fed apex composes at the warm ceiling exactly —
+    // Hot, not one rung dimmer, not one rung hotter.
+    assert_eq!(
+        soft_rank(arc_cell_level(
+            LoopPhase::Stable,
+            0.0,
+            SOLAR_FLUX_MAX,
+            f32::MAX,
+            false,
+            true
+        )),
+        soft_rank(BrightnessLevel::Hot),
+        "the fed apex must read the warm ceiling"
+    );
+    // The saturation helper itself: the lower rungs lift, the
+    // ceiling holds, Core passes through only because a flash
+    // window already put it there.
+    assert!(matches!(
+        apex_step_level(BrightnessLevel::Ghost),
+        BrightnessLevel::Mid
+    ));
+    assert!(matches!(
+        apex_step_level(BrightnessLevel::Mid),
+        BrightnessLevel::Hot
+    ));
+    assert!(matches!(
+        apex_step_level(BrightnessLevel::Hot),
+        BrightnessLevel::Hot
+    ));
+    assert!(matches!(
+        apex_step_level(BrightnessLevel::Core),
+        BrightnessLevel::Core
+    ));
+}
+
+#[test]
+fn law3_the_flash_windows_keep_their_core() {
+    // The transient contract: Core belongs to the flash windows
+    // alone — the eruption window (the whole arc's first 0.6 s),
+    // the ladder's fresh-flare rung (flux past CORE with a fresh
+    // flare_age), and the footpoint landing punch (its ONE Core
+    // rung). Each must still land Core after the NR24 saturation —
+    // the fix dims nothing that the flash windows own.
+    // The eruption window: every cell of the arc burns Core.
+    for near_apex in [false, true] {
+        assert_eq!(
+            soft_rank(arc_cell_level(
+                LoopPhase::Erupting,
+                0.0,
+                SOLAR_FLUX_MAX,
+                0.0,
+                true,
+                near_apex
+            )),
+            soft_rank(BrightnessLevel::Core),
+            "the eruption window must burn Core (apex={near_apex})"
+        );
+    }
+    // The ladder's fresh-flare rung: flux past CORE, flash fresh —
+    // the apex glow passes the flash's own Core through untouched.
+    assert_eq!(
+        soft_rank(arc_cell_level(
+            LoopPhase::Stable,
+            SOLAR_EMERGE_SECS,
+            SOLAR_FLUX_LEVEL_CORE + 0.5,
+            0.0,
+            false,
+            true
+        )),
+        soft_rank(BrightnessLevel::Core),
+        "the fresh-flare rung must keep its Core at the apex"
+    );
+    // The landing punch: a fed-but-sub-Critical loop steps Hot to
+    // Core at the foot inside its flash window — the one rung the
+    // punch may lift — while the body composes at the plain base.
+    let punch_flux = (SOLAR_FLUX_LEVEL_HOT + SOLAR_FLUX_LEVEL_CORE) * 0.5;
+    assert_eq!(
+        soft_rank(arc_cell_level(
+            LoopPhase::Stable,
+            0.0,
+            punch_flux,
+            0.0,
+            true,
+            false
+        )),
+        soft_rank(BrightnessLevel::Core),
+        "the landing punch must keep its one Core rung"
+    );
+    assert_eq!(
+        soft_rank(arc_cell_level(
+            LoopPhase::Stable,
+            0.0,
+            punch_flux,
+            0.0,
+            false,
+            false
+        )),
+        soft_rank(BrightnessLevel::Hot),
+        "the mid-arc body must read the plain base inside the flash window"
+    );
+    // The punch steps the plain way (one rung up): the helper the
+    // footpoint pass shares.
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Mid),
+        BrightnessLevel::Hot
+    ));
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Hot),
+        BrightnessLevel::Core
+    ));
 }

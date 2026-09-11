@@ -174,6 +174,28 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-24 (2026-09-11, the solar flare apex soft-light
+round):** the tier-three pin-and-finish opener — the apex
+condensation glow's step-up saturated at Hot (the black hole's
+NR11 cap precedent). The audit's finding: the corona was
+flash-gated in three of four Core paths (the 0.6 s eruption
+window, the ladder's fresh-flare rung, the footpoint landing
+punch), but the apex glow was flux-gated alone — a heavily-fed
+loop stepped Hot to Core and held it through the whole cooling
+plateau (the 0.38/s decay from FLUX_MAX crosses HOT at about
+3.4 s). The glow now lifts only the lower rungs (the new
+loops::apex_step_level), a Core base passes through untouched
+(the flash windows keep their Core), and the whole pass-B
+decision extracted into the pure loops::arc_cell_level — no RNG
+change, no allocation, same pools. 10s A/B at 120x40 wet IO (dev
+profile, two-run discard-warmup): solar_flare avg fps 2304.6 ->
+2327.0 (+0.9%, confirmation run 2325.1 — flat), median 2330.6 ->
+2358.7, p99 0.5261 -> 0.5364 ms, avg dirty cells/frame 116.5 ->
+114.2 (-2.0% — the softer apex composition changes fewer drawn
+contents through the frame-equality fast path), entropy 5.93 ->
+5.90, gini 0.5705 -> 0.5796, heap retained 0 B, peak RSS 8.92 ->
+8.94 MiB, drift +0.39% -> +0.09% (stable).
+
 **NIGHT-research-23 (2026-09-11, the lorenz soft-light round):**
 one rung, Core to Hot — the cheapest fix in the audit's entire
 sweep: level_for_z sent every lobe-peak excursion (the peaks

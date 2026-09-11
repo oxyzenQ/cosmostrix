@@ -552,6 +552,76 @@ pub(crate) fn loop_level(flux: f32, flare_age: f32) -> BrightnessLevel {
     }
 }
 
+/// Step a brightness level up (toward Core) by one rung — the
+/// footpoint landing punch (fresh flash only: its window is
+/// FLASH_SECS, the same gate that arms the ladder's Core rung).
+pub(crate) fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Mid,
+        BrightnessLevel::Mid => BrightnessLevel::Hot,
+        BrightnessLevel::Hot | BrightnessLevel::Core => BrightnessLevel::Core,
+    }
+}
+
+/// The apex condensation glow's step-up, saturated at Hot (the
+/// NIGHT-research-24 soft-light ruling; the black hole's
+/// NIGHT-research-11 cap and the dragon's entry-reveal precedent,
+/// ported to the corona). A heavily-fed loop holds flux above the
+/// Hot bound for seconds after the flash window closes (the 0.38/s
+/// decay from FLUX_MAX crosses HOT at about 3.4 s), and the retired
+/// full step-up painted those apex cells Core-white for the whole
+/// plateau — a standing read. The glow now lifts only the lower
+/// rungs and holds the ceiling at Hot; Core belongs to the flash
+/// windows alone (the eruption window, the ladder's fresh-flare
+/// rung, the landing punch), so a Core base passes through
+/// untouched.
+pub(crate) fn apex_step_level(level: BrightnessLevel) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Mid,
+        BrightnessLevel::Mid => BrightnessLevel::Hot,
+        BrightnessLevel::Hot | BrightnessLevel::Core => level,
+    }
+}
+
+/// The arc cell's composed level — the whole pass-B ladder decision
+/// from raw loop state: the phase base (Erupting burns Core for the
+/// flash window then Hot; every other phase reads the flux ladder),
+/// then the footpoint landing punch (one rung up while the flash is
+/// fresh — the one path that may lift to Core, its window is
+/// FLASH_SECS) and the apex condensation glow (saturated at Hot).
+/// The NIGHT-research-24 contract: with the flash windows closed, no
+/// arc cell composes above Hot.
+pub(crate) fn arc_cell_level(
+    phase: LoopPhase,
+    phase_clock: f32,
+    flux: f32,
+    flare_age: f32,
+    near_foot: bool,
+    near_apex: bool,
+) -> BrightnessLevel {
+    let base = match phase {
+        LoopPhase::Erupting => {
+            // The flare: the whole arc reads Core for the flash
+            // window, then Hot (law 4).
+            if phase_clock < SOLAR_FLASH_SECS {
+                BrightnessLevel::Core
+            } else {
+                BrightnessLevel::Hot
+            }
+        }
+        _ => loop_level(flux, flare_age),
+    };
+    let foot_flash = near_foot && flare_age < SOLAR_FLASH_SECS && phase != LoopPhase::Erupting;
+    let apex_glow = near_apex && flux > SOLAR_FLUX_LEVEL_HOT;
+    if foot_flash {
+        step_up_level(base)
+    } else if apex_glow {
+        apex_step_level(base)
+    } else {
+        base
+    }
+}
+
 /// The granulation ladder (law 5's surface read): quiet grit reads
 /// Ghost, warm granules Mid, the hottest convection cells Hot.
 pub(crate) fn granule_level(heat: f32) -> BrightnessLevel {
