@@ -38,6 +38,17 @@
 //! and the disk's tier-0 crossing band floors at Hot inside the
 //! hot radius (`ring_head_base`) so the center ring burns white
 //! near the ball like the crowns.
+//!
+//! NIGHT-research-11 re-pins and adds (owner verdict 9.1/10, the
+//! consistency + soft light round): the glyph heads cap one rung
+//! below Core (`soft_head_level`) — the crowns, the crossing band
+//! and the snug stacks burn the SOFT warm ceiling (Hot) instead of
+//! the Core white blend; the five stream lanes unify with the
+//! center ring (lockstep pace at the ring's tier-0 mean motion,
+//! a doubled pool at `BLACK_HOLE_HALO_POOL_PER_COL` riders per
+//! column, and the even five-way round-robin tag split — the
+//! lower arcs carry the same population as the crowns); and the
+//! halo lifetime pins at the ring's 14 s cadence.
 
 use std::collections::HashSet;
 
@@ -49,7 +60,7 @@ use crate::cloud::type_rain::black_hole::halo::{
     HALO_STREAM_TAG_UPPER_TOP,
 };
 use crate::cloud::type_rain::black_hole::ring::{
-    occludes_ring_cell, project_ring_mote, proximity_level, ring_head_base,
+    occludes_ring_cell, project_ring_mote, proximity_level, ring_head_base, soft_head_level,
 };
 use crate::cloud::type_rain::black_hole::roll::RingRoll;
 use crate::cloud::type_rain::black_hole::RollFrame;
@@ -1500,17 +1511,88 @@ fn black_hole_halo_streams_spawn_and_ride_the_arcs() {
 }
 
 #[test]
+fn black_hole_halo_lanes_ride_lockstep_with_the_center_ring() {
+    // The NIGHT-research-11 lockstep ruling (the owner's wording:
+    // the rings above and below must match the center ring's
+    // speed): every halo lane advances at the ring's own tier-0
+    // mean motion — the per-lane Keplerian pace ladder (0.74 /
+    // 0.60 / 0.50) is retired, so the arcs circulate with the main
+    // line instead of visibly lagging it. Pure-pace contract: the
+    // Lorenz integration is frozen (dt-lorenz 0) so the wobble
+    // shear rests at exactly 1.0 and the seeded state's r_norm
+    // stays put — three motes on different lanes (the tier-0 ring
+    // anchor, an upper crown, an outer lower arc) then advance
+    // their orbital angle by EXACTLY the same amount on the shared
+    // clock, and the deltas are strictly positive (the streams
+    // circulate, never stall).
+    use crate::cloud::type_rain::black_hole::halo::advance_halo_mote;
+    use crate::cloud::type_rain::black_hole::ring::advance_ring_mote;
+
+    let make = |tier: u8, phi: f32| crate::cloud::type_rain::black_hole::ring::RingMote {
+        tier,
+        active: true,
+        phi,
+        x: crate::constants::BLACK_HOLE_RING_R_NORM_CENTER,
+        y: 0.0,
+        z: 20.0,
+        pace: 1.0,
+        sim_age: 30.0,
+        lifetime: 100.0,
+        ..crate::cloud::type_rain::black_hole::ring::RingMote::vacant()
+    };
+
+    // The ring's tier-0 anchor and two halo riders on opposite
+    // families (an upper crown and a lower arc).
+    let mut ring = make(0, 1.0);
+    let mut crown = make(HALO_STREAM_TAG_UPPER, 1.0);
+    let mut lower = make(HALO_STREAM_TAG_LOWER_OUTER, 1.0);
+
+    // 60 frames at 60 FPS on the scene-default mean motion; the
+    // frozen dt-lorenz isolates the pace (the shear modulation is
+    // covered by the wobble-band geometry tests).
+    let dt_wall = 1.0 / 60.0;
+    let omega_base = 12.0 * crate::constants::BLACK_HOLE_RING_OMEGA_PER_CPS;
+
+    let phi_before = ring.phi;
+    for _ in 0..60 {
+        advance_ring_mote(&mut ring, dt_wall, 0.0, omega_base, 1.0);
+        advance_halo_mote(&mut crown, dt_wall, 0.0, omega_base);
+        advance_halo_mote(&mut lower, dt_wall, 0.0, omega_base);
+    }
+
+    let ring_delta = ring.phi - phi_before;
+    assert!(
+        ring_delta > 0.05,
+        "the tier-0 anchor must circulate over the window (delta {ring_delta})"
+    );
+    assert!(
+        (crown.phi - ring.phi).abs() < 1.0e-5,
+        "the inner crown must advance lockstep with the center ring ({} vs {})",
+        crown.phi,
+        ring.phi
+    );
+    assert!(
+        (lower.phi - ring.phi).abs() < 1.0e-5,
+        "the outer lower arc must advance lockstep with the center ring ({} vs {})",
+        lower.phi,
+        ring.phi
+    );
+}
+
+#[test]
 fn black_hole_halo_doubles_the_upward_arc_density() {
     // The owner's stage-2.7 read grown into the NIGHT-research-10
-    // triple: the upward stream is now a TRIPLE crown band — three
-    // upper crowns of the same rider population (the inner
-    // co-riding the lensing circle, the mid and top on the wider
-    // arcs). The upward population is the far-side lensing arc
-    // riders (the ring's tier-0 far side) PLUS the three crowns;
-    // the contract holds when the crowns together at least match
-    // the far-side count, EVERY crown hosts visible riders (the
-    // triple, not one thickened band), and the wider crowns ride
-    // clear of the inner band (distinct arcs).
+    // triple and re-seated by NIGHT-research-11's pool-per-column
+    // ruling: the upward stream is a TRIPLE crown band — three
+    // upper crowns of one rider population (the inner co-riding
+    // the lensing circle, the mid and top on the wider arcs), each
+    // lane carrying the same per-lane population. The upward
+    // population is the far-side lensing arc riders (the ring's
+    // tier-0 far side) PLUS the three crowns; the contract holds
+    // when the crowns together at least match the far-side count,
+    // EVERY crown hosts visible riders (the triple, not one
+    // thickened band), and the wider crowns ride clear of the
+    // inner band (distinct arcs).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -1573,92 +1655,62 @@ fn black_hole_halo_doubles_the_upward_arc_density() {
 }
 
 #[test]
-fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
-    // The owner's stage-2.7 read grown into the NIGHT-research-10
-    // five-lane split: the lower family (now two mirrored arcs)
-    // stays the sparser one against the triple crown above. The
-    // split runs the deterministic Bresenham accumulator plus the
-    // crown round-robin and the lower lane toggle, so the TAG
-    // counts hold the exact 0.72 / 0.28 family split on every pool
-    // fill (no spawn luck — a random pick could invert a small pool
-    // on one seed); the visible populations follow the tags (every
-    // rider draws on its own semicircle). Contract: the tagged
-    // split sits within one mote of the exact share, the three
-    // crowns carry counts within one of each other (the round
-    // robin's strict rotation), the two lower arcs carry equal
-    // counts (their toggle), and the lower family stays well below
-    // the upper family.
+fn black_hole_halo_five_lanes_share_one_population() {
+    // The NIGHT-research-11 all-lanes-consistent ruling (the owner's
+    // wording: every ring above and below must read like the center
+    // ring): the pool carries one rider per lane per
+    // POOL_PER_COL columns, and the spawn split runs the strict
+    // five-step round robin, so every lane — crown or mirrored
+    // lower arc alike — holds EXACTLY 1/5 of the active pool on
+    // every fill (no spawn luck, no family split). Contract: the
+    // pool size is the multiplier times the column count, each of
+    // the five lanes' tagged counts sits within one mote of the
+    // exact 1/5 share, and the visible populations follow the tags
+    // on both semicircles (the handoff sweep keeps each side
+    // populated).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
     run_frames_to_steady(&mut cloud, &mut frame);
     run_frames(&mut cloud, &mut frame, 300, 16);
 
-    let tagged_upper_inner: usize = cloud
-        .black_hole_rain
-        .halo_motes_for_test()
-        .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER)
-        .count();
-    let tagged_upper_mid: usize = cloud
-        .black_hole_rain
-        .halo_motes_for_test()
-        .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER_OUTER)
-        .count();
-    let tagged_upper_top: usize = cloud
-        .black_hole_rain
-        .halo_motes_for_test()
-        .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_UPPER_TOP)
-        .count();
-    let tagged_lower_inner: usize = cloud
-        .black_hole_rain
-        .halo_motes_for_test()
-        .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER)
-        .count();
-    let tagged_lower_outer: usize = cloud
-        .black_hole_rain
-        .halo_motes_for_test()
-        .iter()
-        .filter(|m| m.active && m.tier == HALO_STREAM_TAG_LOWER_OUTER)
-        .count();
-    let tagged_upper = tagged_upper_inner + tagged_upper_mid + tagged_upper_top;
-    let tagged_lower = tagged_lower_inner + tagged_lower_outer;
+    let pool_len = cloud.black_hole_rain.halo_motes_for_test().len();
+    assert_eq!(
+        pool_len,
+        cols as usize * crate::constants::BLACK_HOLE_HALO_POOL_PER_COL,
+        "the halo pool must carry POOL_PER_COL riders per column ({pool_len})"
+    );
+
+    let tagged: [usize; 5] = {
+        let mut counts = [0usize; 5];
+        for m in cloud.black_hole_rain.halo_motes_for_test() {
+            if m.active {
+                let idx = match m.tier {
+                    HALO_STREAM_TAG_UPPER => 0,
+                    HALO_STREAM_TAG_UPPER_OUTER => 1,
+                    HALO_STREAM_TAG_UPPER_TOP => 2,
+                    HALO_STREAM_TAG_LOWER => 3,
+                    _ => 4,
+                };
+                counts[idx] += 1;
+            }
+        }
+        counts
+    };
     let active = cloud.black_hole_rain.active_halo_for_test();
-    let ideal_upper = (crate::constants::BLACK_HOLE_HALO_UPPER_WEIGHT
-        + crate::constants::BLACK_HOLE_HALO_OUTER_WEIGHT
-        + crate::constants::BLACK_HOLE_HALO_TOP_WEIGHT)
-        * active as f32;
+    let ideal = active as f32 / 5.0;
 
     assert!(active > 0, "the halo pool must be active (got {active})");
-    assert!(
-        (tagged_upper as f32 - ideal_upper).abs() <= 1.0,
-        "the Bresenham split must hold the exact family share ({tagged_upper} of {active}, ideal {ideal_upper})"
-    );
-    let crown_max = tagged_upper_inner
-        .max(tagged_upper_mid)
-        .max(tagged_upper_top);
-    let crown_min = tagged_upper_inner
-        .min(tagged_upper_mid)
-        .min(tagged_upper_top);
-    assert!(
-        crown_max - crown_min <= 1,
-        "the round robin must split the three crowns evenly ({tagged_upper_inner} / {tagged_upper_mid} / {tagged_upper_top})"
-    );
-    assert!(
-        (tagged_lower_inner as i32 - tagged_lower_outer as i32).abs() <= 1,
-        "the lane toggle must alternate the two lower arcs evenly ({tagged_lower_inner} vs {tagged_lower_outer})"
-    );
-    assert!(
-        4.0 * (tagged_lower as f32) < 3.0 * tagged_upper as f32,
-        "the lower family must read sparser against the triple crown ({tagged_lower} vs {tagged_upper})"
-    );
+    for (idx, lane) in tagged.iter().enumerate() {
+        assert!(
+            (*lane as f32 - ideal).abs() <= 1.0,
+            "lane {idx} must hold the exact 1/5 share ({lane} of {active}, ideal {ideal})"
+        );
+    }
 
     // The visible populations follow the tags: both semicircles host
-    // riders (the handoff sweep keeps each side populated), and the
-    // lower visible count sits below the upper family.
+    // riders (the handoff sweep keeps each side populated) and every
+    // lane shows riders on its own half.
     let visible_upper: usize = cloud
         .black_hole_rain
         .halo_motes_for_test()
@@ -1685,16 +1737,18 @@ fn black_hole_halo_lower_stream_runs_sparser_than_upper() {
 }
 
 #[test]
-fn black_hole_crowns_burn_head_white() {
-    // The NIGHT-research-10 head-white ruling, pinned on the pure
-    // ladder: every upper-family rider at its own arc's distance
-    // reads Core (the white head) regardless of the z state — the
-    // Hot floor plus the lensing gain seats all three crowns deep
-    // inside the proximity ladder's hot zone; the lower arcs take
-    // the plain z-graded path (a dim z base near the inner arc
-    // lands Mid, never the floor's Core), and the crowns' young
-    // entry-spiral riders still fade — the drift-in ignition read
-    // survives the gain.
+fn black_hole_stream_heads_read_soft_warm() {
+    // The NIGHT-research-11 soft-light ruling (the owner's verdict on
+    // the NIGHT-research-10 head-white read: the Core white blend
+    // strained his eyes — "soft elegant, cinematic" instead), pinned
+    // on the pure ladder: EVERY lane's settled rider at its own arc's
+    // distance reads the SOFT warm ceiling (Hot) regardless of the z
+    // state — the Hot floor plus the lensing gain seats every lane
+    // deep inside the proximity ladder's hot zone (crowns and
+    // mirrored lower arcs alike, the all-lanes-consistent ruling),
+    // and the soft-head cap steps the composed Core down one rung;
+    // the young entry-spiral riders still fade — the drift-in
+    // ignition read survives the gain.
     let crown = |tier: u8| crate::cloud::type_rain::black_hole::ring::RingMote {
         tier,
         active: true,
@@ -1704,40 +1758,29 @@ fn black_hole_crowns_burn_head_white() {
     let arc_mid = crate::constants::BLACK_HOLE_HALO_OUTER_ARC_FRACTION;
     let arc_top = crate::constants::BLACK_HOLE_HALO_TOP_ARC_FRACTION;
     let arc_lower = crate::constants::BLACK_HOLE_HALO_LOWER_ARC_FRACTION;
+    let arc_lower_outer = crate::constants::BLACK_HOLE_HALO_LOWER_OUTER_ARC_FRACTION;
 
-    // A dim z base (the attractor's saddle zone) — the floor still
-    // lands every crown at Core white.
-    for tier in [
-        HALO_STREAM_TAG_UPPER,
-        HALO_STREAM_TAG_UPPER_OUTER,
-        HALO_STREAM_TAG_UPPER_TOP,
+    // A dim z base (the attractor's saddle zone) — the floor plus the
+    // gain plus the cap land every settled rider at the soft warm
+    // ceiling: never Core (the retired white blend), never below Hot.
+    for (tier, arc) in [
+        (HALO_STREAM_TAG_UPPER, arc_upper),
+        (HALO_STREAM_TAG_UPPER_OUTER, arc_mid),
+        (HALO_STREAM_TAG_UPPER_TOP, arc_top),
+        (HALO_STREAM_TAG_LOWER, arc_lower),
+        (HALO_STREAM_TAG_LOWER_OUTER, arc_lower_outer),
     ] {
         let m = crown(tier);
-        let arc = match tier {
-            HALO_STREAM_TAG_UPPER_OUTER => arc_mid,
-            HALO_STREAM_TAG_UPPER_TOP => arc_top,
-            _ => arc_upper,
-        };
         assert_eq!(
             level_rank(halo_head_level(&m, arc)),
-            level_rank(BrightnessLevel::Core),
-            "crown rider at its arc must read Core white (tag {tier})"
+            level_rank(BrightnessLevel::Hot),
+            "settled rider at its arc must read the soft warm ceiling (tag {tier})"
         );
     }
 
-    // The lower family keeps the plain z-graded ladder: the same
-    // dim z base at the inner arc lands only Mid (the bump without
-    // the floor) — the mirrored echo stays dimmer than the crowns.
-    let lower = crown(HALO_STREAM_TAG_LOWER);
-    assert_eq!(
-        level_rank(halo_head_level(&lower, arc_lower)),
-        level_rank(BrightnessLevel::Mid),
-        "the lower echo must stay unfloored (dim z base lands Mid)"
-    );
-
     // The entry-spiral drift-in still reads dim: a young rider far
     // beyond its arc steps down the fade ladder — the accretion
-    // ignition read survives the crown gain.
+    // ignition read survives the lensing gain.
     let young = crown(HALO_STREAM_TAG_UPPER_TOP);
     let entry = arc_top * (1.0 + crate::constants::BLACK_HOLE_RING_ENTRY_BOOST);
     assert!(
@@ -1747,15 +1790,44 @@ fn black_hole_crowns_burn_head_white() {
 }
 
 #[test]
-fn black_hole_disk_crossing_band_burns_white_near_the_ball() {
-    // The NIGHT-research-10 near-ball ruling, pinned on the pure
-    // base ladder: the tier-0 equatorial band's head base floors
-    // at Hot whenever it rides inside the hot radius (so the
-    // proximity ladder's +2 bump lands Core white — the crossing
-    // band across the shadow matches the crowns), while the far
-    // arms keep the plain z-graded base (the dim saddle zone stays
-    // Ghost for the fade ladder to dissolve) and the snug tiers
-    // keep their stage-2.7 floor everywhere.
+fn black_hole_soft_head_cap_steps_core_down_one_rung() {
+    // The NIGHT-research-11 soft-head cap, pinned on the pure
+    // function: Core steps down to Hot (the retired glyph-head
+    // white), every other level passes through unchanged — the cap
+    // is a ceiling, not a regrade, so the distance key, the floors
+    // and the fade ladder keep shaping the band below it.
+    assert_eq!(
+        level_rank(soft_head_level(BrightnessLevel::Core)),
+        level_rank(BrightnessLevel::Hot),
+        "Core must step down to the soft warm ceiling"
+    );
+    for level in [
+        BrightnessLevel::Hot,
+        BrightnessLevel::Mid,
+        BrightnessLevel::Dim,
+        BrightnessLevel::Ghost,
+    ] {
+        assert_eq!(
+            level_rank(soft_head_level(level)),
+            level_rank(level),
+            "the cap must pass {level:?} through unchanged"
+        );
+    }
+}
+
+#[test]
+fn black_hole_disk_crossing_band_burns_soft_warm_near_the_ball() {
+    // The NIGHT-research-10 near-ball ruling, re-pinned for the
+    // NIGHT-research-11 soft-light round, on the pure base ladder:
+    // the tier-0 equatorial band's head base floors at Hot whenever
+    // it rides inside the hot radius (so the proximity ladder's +2
+    // bump lands the ladder's top — then the soft-head cap steps it
+    // to the SOFT warm ceiling, Hot, the owner's "not too bright,
+    // soft elegant" read on the crossing band that used to read
+    // blinding Core white), while the far arms keep the plain
+    // z-graded base (the dim saddle zone stays Ghost for the fade
+    // ladder to dissolve) and the snug tiers keep their stage-2.7
+    // floor everywhere.
     let hot = crate::constants::BLACK_HOLE_RING_HOT_RADIUS;
     let near = (hot - 0.10).max(0.5);
     let far = hot + 0.30;
@@ -1767,12 +1839,15 @@ fn black_hole_disk_crossing_band_burns_white_near_the_ball() {
         level_rank(BrightnessLevel::Hot),
         "the tier-0 crossing band must floor at Hot inside the hot radius"
     );
-    // Composed with the ladder's +2 bump the crossing band lands
-    // Core — the white head the owner asked for.
+    // Composed with the ladder's +2 bump the crossing band tops the
+    // ladder — and the soft-head cap lands it at the warm ceiling.
     assert_eq!(
-        level_rank(proximity_level(ring_head_base(0, near, ghost_z), near)),
-        level_rank(BrightnessLevel::Core),
-        "the near-ball crossing band must burn Core white after the bump"
+        level_rank(soft_head_level(proximity_level(
+            ring_head_base(0, near, ghost_z),
+            near
+        ))),
+        level_rank(BrightnessLevel::Hot),
+        "the near-ball crossing band must burn soft warm after the cap"
     );
     // Tier 0 far out: the plain z-graded base survives (the fade
     // ladder owns the arms).
@@ -1807,7 +1882,7 @@ fn black_hole_halo_orbits_in_the_disk_direction() {
         .iter()
         .map(|m| if m.active { Some(m.phi) } else { None })
         .collect();
-    // 30 frames at 60 FPS = 0.48 s — well under the 16 s minimum
+    // 30 frames at 60 FPS = 0.48 s — well under the 14 s minimum
     // lifetime, so every before-active rider is still comparable.
     run_frames(&mut cloud, &mut frame, 30, 16);
     let riders = cloud.black_hole_rain.halo_motes_for_test();
@@ -1854,8 +1929,9 @@ fn black_hole_style_supports_dynamic_screen_size() {
             "the ring pool must rebuild to the new width ({cols} cols)"
         );
         assert!(
-            cloud.black_hole_rain.halo_motes_for_test().len() == cols as usize,
-            "the halo pool must rebuild to the new width ({cols} cols)"
+            cloud.black_hole_rain.halo_motes_for_test().len()
+                == cols as usize * crate::constants::BLACK_HOLE_HALO_POOL_PER_COL,
+            "the halo pool must rebuild to the new width ({cols} cols x POOL_PER_COL)"
         );
         assert!(
             cloud.black_hole_rain.formed_for_test(),

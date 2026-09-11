@@ -558,11 +558,21 @@ fn black_hole_infall_shimmer_mutates_on_new_cells() {
     // The life-sign contract: motion-gated mutation — a glyph that
     // stays continuously in flight re-rolls its character as its
     // head lands on new cells (the only path an active mote's
-    // character can change; recycled motes are filtered out by the
-    // age comparison). The stage-4 sparse cadence hosts fewer glyphs
-    // with shorter lives at any instant, so the harness samples
-    // several short windows and accumulates the evidence — at least
-    // one continuously-flying glyph must have re-rolled somewhere.
+    // character can change). The stage-4 sparse cadence hosts few
+    // glyphs with short flights (the captured inspirals resolve in
+    // roughly one to two sim-seconds), so the harness tracks
+    // continuity PER FRAME — a mote absorbed mid-window goes
+    // inactive for at least the frame between its absorption and
+    // its respawn, and a recycled replacement resets its age, so a
+    // strict per-frame active-and-advancing watch rules the
+    // recycles out without the old end-state age heuristic (which
+    // could not distinguish a respawned early-window mote from a
+    // true survivor — NIGHT-research-11 hardened the check after
+    // the halo rework's RNG-stream shift exposed the fragility).
+    // The shorter 70-frame window (1.1 s) sits inside the flight
+    // distribution so the population reliably hosts survivors, and
+    // the harness samples several windows — at least one
+    // continuously-flying glyph must have re-rolled somewhere.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -570,7 +580,8 @@ fn black_hole_infall_shimmer_mutates_on_new_cells() {
 
     let mut tracked = 0usize;
     let mut changed = 0usize;
-    for _ in 0..4 {
+    for _ in 0..6 {
+        // Snapshot: every active mote's index, age and glyph.
         let start: Vec<(usize, f32, char)> = cloud
             .black_hole_rain
             .infall_motes_for_test()
@@ -579,15 +590,47 @@ fn black_hole_infall_shimmer_mutates_on_new_cells() {
             .filter(|(_, m)| m.active)
             .map(|(i, m)| (i, m.sim_age, m.ch))
             .collect();
-        run_frames(&mut cloud, &mut frame, 100, 16);
+        // Per-frame continuity watch: a qualifying mote must stay
+        // active and its age strictly advance at every frame of
+        // the window (absorption deactivates it; respawn resets
+        // the age — both break the chain and disqualify the slot).
+        // The window steps the SAME clock contract `run_frames`
+        // uses (one spawn-budget reset, then 16 ms frames on a
+        // synthetic timeline — calling `run_frames(1)` repeatedly
+        // would reset the clock per call and starve the sim), with
+        // the continuity sampled between the frames.
+        let mut last_age: Vec<f32> = start.iter().map(|(_, a, _)| *a).collect();
+        let t0 = Instant::now();
+        cloud.last_spawn_time = t0 - Duration::from_secs(1);
+        cloud.last_phosphor_time = t0;
+        for idx in 0..70u64 {
+            let now = t0 + Duration::from_millis(idx * 16);
+            cloud.rain_at(&mut frame, now);
+            frame.clear_dirty();
+            // Frame 0 re-anchors the window clock (dt 0 by the
+            // saturating-duration contract), so the continuity watch
+            // starts with frame 1.
+            if idx > 0 {
+                let motes = cloud.black_hole_rain.infall_motes_for_test();
+                for (slot, (i, _, _)) in start.iter().enumerate() {
+                    if !last_age[slot].is_finite() {
+                        continue;
+                    }
+                    if !motes[*i].active || motes[*i].sim_age <= last_age[slot] + 1.0e-6 {
+                        // Broken chain: mark the slot dead with an
+                        // impossible age so later frames cannot revive it.
+                        last_age[slot] = f32::INFINITY;
+                    } else {
+                        last_age[slot] = motes[*i].sim_age;
+                    }
+                }
+            }
+        }
         let motes = cloud.black_hole_rain.infall_motes_for_test();
-        for (i, age0, ch0) in &start {
-            let m = &motes[*i];
-            // Continuously alive across the window (an older age than
-            // the snapshot's rules out an absorbed-and-respawned recycle).
-            if m.active && m.sim_age > age0 + 1.5 {
+        for (slot, (i, age0, ch0)) in start.iter().enumerate() {
+            if last_age[slot].is_finite() && motes[*i].sim_age > age0 + 0.25 {
                 tracked += 1;
-                if m.ch != *ch0 {
+                if motes[*i].ch != *ch0 {
                     changed += 1;
                 }
             }

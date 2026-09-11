@@ -71,6 +71,13 @@
 //! to the hole at every tilt angle. Stage 2.7 (owner 9.95/10
 //! feedback) floors the snug upper bands' base at Hot
 //! (`floor_head_base_at_hot`) — their heads read Core (white).
+//! NIGHT-research-11 (owner verdict 9.1/10, the soft-light round)
+//! caps every ring head one rung below Core (`soft_head_level`):
+//! the composed ladder may still burn hot, but the glyph heads
+//! never land the Core white blend — the owner's report, the
+//! head-white read strained his eyes; the soft warm ceiling is the
+//! cinematic read, and the white stays reserved for the ball's own
+//! photon structures.
 //!
 //! The three-tier stack (stage 2.4, tightened stage 2.5, descended
 //! stage 2.7): the mote pool carries three bands whose geometry
@@ -593,24 +600,54 @@ pub(crate) fn floor_head_base_at_hot(level: BrightnessLevel) -> BrightnessLevel 
     }
 }
 
-/// The disk mote's head base ladder (NIGHT-research-10): tiers 1-2
-/// floor at Hot (the stage-2.7 white-stack ruling, unchanged), and
-/// the tier-0 equatorial band floors at Hot too whenever the head
-/// rides inside the hot radius — the owner's report, "the center
-/// ring reads a bit dark near the ball": a Ghost-zone z base stepped
-/// up two rungs by the proximity ladder lands only Mid, so the
-/// crossing band across the shadow dimmed exactly where the iconic
-/// imagery burns brightest. With the floor, the near-ball tier-0
-/// heads land Core (white) after the ladder's +2 bump — the disk's
-/// inner reach matches the crowns' head-white read — while the far
-/// arms keep the plain z-graded base and dissolve through the fade
-/// ladder as before.
+/// The disk mote's head base ladder (NIGHT-research-10, re-pinned
+/// NIGHT-research-11): tiers 1-2 floor at Hot (the stage-2.7
+/// white-stack ruling, unchanged), and the tier-0 equatorial band
+/// floors at Hot too whenever the head rides inside the hot radius
+/// — the owner's report, "the center ring reads a bit dark near the
+/// ball": a Ghost-zone z base stepped up two rungs by the proximity
+/// ladder lands only Mid, so the crossing band across the shadow
+/// dimmed exactly where the iconic imagery burns brightest. With
+/// the floor, the near-ball tier-0 heads burn at the top of the
+/// ladder after the +2 bump — the disk's inner reach matches the
+/// lanes' read — while the far arms keep the plain z-graded base
+/// and dissolve through the fade ladder as before. The composed
+/// head level then passes through the NIGHT-research-11 soft-head
+/// cap at the draw site: the crossing band lands the SOFT warm
+/// ceiling (Hot — the full-palette warm white without the Core
+/// blend toward white), the owner's "not too bright, soft elegant,
+/// cinematic" ruling on the near-ball band that used to read
+/// blinding Core white.
 pub(crate) fn ring_head_base(tier: u8, dist_norm: f32, z: f32) -> BrightnessLevel {
     let z_level = level_for_ring_z(z);
     if tier >= 1 || dist_norm < crate::constants::BLACK_HOLE_RING_HOT_RADIUS {
         floor_head_base_at_hot(z_level)
     } else {
         z_level
+    }
+}
+
+/// The soft-head cap (NIGHT-research-11, the owner's soft-light
+/// ruling): steps a composed glyph-head level down one rung
+/// whenever it lands Core — Hot in, Hot out; every other level
+/// passes through unchanged. The owner's report on the
+/// NIGHT-research-10 head-white read: the Core blend toward white
+/// (the renderer's brightest output, full palette plus the white
+/// lift) across the crowns, the crossing band and the snug stacks
+/// strained his eyes — the cinematic read he asked for instead is
+/// the SOFT warm ceiling: every glyph head tops out at Hot (85
+/// percent of the palette, no white blend), warm and elegant, while
+/// the Core white stays reserved for the ball's own thin photon
+/// structures (the horizon ring and the rim photon line — the
+/// signature lines, not the glyph heads) and the infall's transient
+/// whip-around flash. Applied at the ring and halo draw sites AFTER
+/// the proximity ladder composes the head level, so the distance
+/// key, the floors and the fade ladder all keep shaping the band
+/// below the ceiling exactly as before.
+pub(crate) fn soft_head_level(level: BrightnessLevel) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Core => BrightnessLevel::Hot,
+        other => other,
     }
 }
 

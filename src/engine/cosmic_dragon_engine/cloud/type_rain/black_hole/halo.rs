@@ -2,34 +2,35 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Black hole halo streams (NIGHT-special-1 stage 2.6, re-weighted
-//! stage 2.7, five lanes NIGHT-research-10): the arc-riding companion pool of the disk stack —
-//! the per-mote physics half, split from `black_hole.rs` exactly the
-//! way `ring.rs` splits the ring physics (the pool bookkeeping, the
+//! stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11):
+//! the arc-riding companion pool of the disk stack — the per-mote
+//! physics half, split from `black_hole.rs` exactly the way
+//! `ring.rs` splits the ring physics (the pool bookkeeping, the
 //! spawn/advance/draw orchestration and the diff-cleanup stream stay
 //! in the main file).
 //!
 //! Owner read (the 9.9/10 round): the particles curving upward over
 //! the hole must double their density, and a NEW mirrored stream must
-//! curve downward under it — the same motion, the opposite position,
-//! slightly fewer particles, the rotation following the disk. The
-//! owner read (the 9.95/10 round): the upward curve is now a DOUBLE
-//! upward stream — two distinct crowns over the shadow — and the
-//! lower stream drops to a RARE echo. The owner read
-//! (NIGHT-research-10, the Interstellar/NASA imagery round): the
-//! upper family grows to THREE crowns — the thick triple-crown band
-//! matching the disk stack's own three-tier read — and the lower
-//! family doubles to TWO mirrored arcs under the shadow. The design: a second mote pool
-//! (one lane per column, the family contract) whose riders orbit the
-//! ARC CIRCLE around the shadow instead of the flat ellipse. Each
-//! mote rides the full circle with the ring's own motion DNA — one
-//! RK4 Lorenz step per frame (the shared `rk4_lorenz_step` core: one
-//! attractor, one integrator, two projections), a Keplerian angular
-//! rate paced to each stream's own arc radius (the arcs sit beyond
-//! the disk, so the streams orbit visibly slower — the outer-lane
-//! read of Kepler's third law, the outer crown slowest of all), the
-//! radial coordinate wobbling the arc radius into a thin plasma band,
-//! the z coordinate grading the brightness through the shared
-//! ladder, the entry-spiral drift-in, the comet trail, the
+//! curve downward under it. The owner read (the 9.95/10 round): the
+//! upward curve becomes a DOUBLE upward stream, the lower stream a
+//! RARE echo. The owner read (NIGHT-research-10, the Interstellar/NASA
+//! imagery round): the upper family grows to THREE crowns and the
+//! lower family doubles to TWO mirrored arcs. The owner read
+//! (NIGHT-research-11, verdict 9.1/10 — the consistency + soft light
+//! round): ALL five lanes must read like the center ring — same
+//! SPEED (the lockstep ruling: every lane rides the ring's tier-0
+//! mean pace, the old slower Keplerian lane ladder retired), same
+//! DENSITY (the pool-per-column multiplier plus the even five-way
+//! tag split seats each lane's visible population at the tier-0
+//! main line's own linear density), same SMOOTHNESS (the doubled
+//! population at the lockstep pace reads as solid continuous arcs,
+//! not sparse dithered beads) — and the light must go SOFT: no more
+//! Core head-white (the eye strain), the warm Hot ceiling instead.
+//! The design keeps the original DNA: one lane per column-pair per
+//! stream, riders orbit the ARC CIRCLE around the shadow, one RK4
+//! Lorenz step per frame (the shared `rk4_lorenz_step` core), the
+//! radial coordinate wobbling the arc radius into a thin plasma
+//! band, the entry-spiral drift-in, the comet trail, the
 //! motion-gated shimmer.
 //!
 //! The streams: the mote's tag picks the semicircle AND the arc it
@@ -39,28 +40,30 @@
 //! rides the MID UPPER crown (the 1.48-radius circle, the second
 //! lane of the stage-2.7 double upward stream), tier byte 3 rides
 //! the TOP UPPER crown (the 1.66-radius circle, the third lane of
-//! the NIGHT-research-10 triple — the thick upper band the owner
-//! asked to match the center ring's three-tier stack), tier byte 1
-//! rides the INNER LOWER arc (the 1.30-radius mirrored circle under
-//! the shadow), and tier byte 4 rides the OUTER LOWER arc (the
-//! 1.48-radius mirrored circle, the NIGHT-research-10 second lower
-//! ring). The ride is the full circle; the draw
-//! filter hides each mote through the opposite semicircle, so the
-//! handoffs land at the extremes where the arcs meet the equatorial
-//! band — the read of plasma sweeping over the top and under the
-//! bottom of the shadow in the same rotational sense as the disk
-//! (the upper sweeps run left limb to apex to right limb, the
-//! far-side lensing direction).
+//! the NIGHT-research-10 triple), tier byte 1 rides the INNER LOWER
+//! arc (the 1.30-radius mirrored circle under the shadow), and tier
+//! byte 4 rides the OUTER LOWER arc (the 1.48-radius mirrored
+//! circle, the NIGHT-research-10 second lower ring). The ride is the
+//! full circle; the draw filter hides each mote through the opposite
+//! semicircle, so the handoffs land at the extremes where the arcs
+//! meet the equatorial band — the read of plasma sweeping over the
+//! top and under the bottom of the shadow in the same rotational
+//! sense as the disk (the upper sweeps run left limb to apex to
+//! right limb, the far-side lensing direction).
 //!
-//! Brightness (NIGHT-research-10, the owner's head-white ruling):
-//! the crown heads burn white — `halo_head_level` floors every
-//! upper-family base at Hot and pulls the proximity ladder's
-//! distance input inward by the lensing gain (the crowns are the
-//! lensed image of the far-side disk — the light-path compression
-//! that makes the photon ring the brightest structure in the iconic
-//! images), so the crown riders land Core, the head white of the
-//! rain-glyph heads. The lower arcs keep the plain z-graded ladder:
-//! the dimmer mirrored echo under the shadow.
+//! Brightness (NIGHT-research-11, the owner's soft-light ruling):
+//! every lane's heads read the SOFT warm ceiling — `halo_head_level`
+//! floors the z-ladder base at Hot (all five lanes, upper family and
+//! lower family alike — the consistency ruling) and pulls the
+//! proximity ladder's distance input inward by the lensing gain (both
+//! families are lensed images of the disk), then caps the composed
+//! level one rung below Core (`soft_head_level`): the settled riders
+//! burn Hot across their reach — warm, elegant, the full palette
+//! without the Core white blend that strained the owner's eyes —
+//! while the entry-spiral drift-in still reads dim and ignites as
+//! the rider settles (the accretion read survives), and the comet
+//! trails step down from the warm head (Mid, Ghost — the dimming
+//! tail of the family ladder).
 //!
 //! No occlusion rule: the arc circles sit at 1.30, 1.48 and 1.66
 //! outer radii with a 0.10 wobble band, so a rider never dips inside the
@@ -84,7 +87,7 @@ use super::super::monolith::BrightnessLevel;
 use super::black_hole::CELL_ASPECT_DIVISOR;
 use super::ring::{
     entry_radius_scale, floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm,
-    rk4_lorenz_step, RingMote,
+    rk4_lorenz_step, soft_head_level, RingMote,
 };
 use super::RollFrame;
 
@@ -125,15 +128,15 @@ pub(crate) fn halo_stream_is_upper(tier: u8) -> bool {
 }
 
 /// Activate a vacant halo stream mote with its stream tag chosen by
-/// the caller (the split runs a deterministic fractional accumulator
-/// plus lane toggles in the spawn pass — see `BlackHoleRain::spawn`
-/// — so the three crowns hold exactly equal shares, the two lower
-/// lanes hold exactly equal shares, and the lower family stays
-/// exactly the sparser one on every pool fill, no spawn luck). The
-/// rest is the ring motes' own recipe: a uniform random orbital
-/// phase (riders spread around the full circle from the first
-/// frame), the same textbook Lorenz seed and per-mote pace / lifetime
-/// variance — the pools differ only in what the state drives.
+/// the caller (the split runs the strict five-step round robin in
+/// the spawn pass — see `BlackHoleRain::spawn` — so all five lanes
+/// hold exactly equal shares of the pool on every fill, no spawn
+/// luck; NIGHT-research-11's all-lanes-consistent ruling: the lower
+/// arcs carry the same population as the crowns). The rest is the
+/// ring motes' own recipe: a uniform random orbital phase (riders
+/// spread around the full circle from the first frame), the same
+/// textbook Lorenz seed and per-mote pace / lifetime variance — the
+/// pools differ only in what the state drives.
 pub(crate) fn activate_halo_mote(
     m: &mut RingMote,
     stream_tag: u8,
@@ -164,14 +167,16 @@ pub(crate) fn activate_halo_mote(
 }
 
 /// Advance one stream mote by one frame: the shared RK4 Lorenz step,
-/// then the Keplerian angular advance paced to the mote's own arc
-/// radius. The shear input is the same wobble ratio (normalized
-/// around the arc's own mean radius), so the turbulence that
-/// thickens the band also speeds and slows the riders — the
-/// differential-rotation signature carried onto the arcs. The wider
-/// lanes' Keplerian pace is slower than the inner ones (Kepler's
-/// third law across the five lanes). Returns true when the mote
-/// was absorbed (lifetime reached).
+/// then the Keplerian angular advance. The lane pace is the ring's
+/// own tier-0 mean motion (NIGHT-research-11's lockstep ruling — the
+/// old per-lane Keplerian pace ladder, 0.74 / 0.60 / 0.50, read as
+/// visibly slower rings and the owner asked for the center ring's
+/// speed on every lane); the shear input stays the wobble ratio
+/// (normalized around the lane's own arc radius), so the turbulence
+/// that thickens the band also speeds and slows the riders — the
+/// differential-rotation signature carried onto the arcs exactly as
+/// the ring carries it. Returns true when the mote was absorbed
+/// (lifetime reached).
 pub(crate) fn advance_halo_mote(
     m: &mut RingMote,
     dt_wall: f32,
@@ -181,18 +186,15 @@ pub(crate) fn advance_halo_mote(
     let dt = dt_lorenz_base * m.pace;
     rk4_lorenz_step(&mut m.x, &mut m.y, &mut m.z, dt);
 
-    // Keplerian mean motion at the arc radius: the halo pace scales
-    // the base omega to the mote's lane (Kepler's third law between
-    // the disk's mean radius and each arc circle — the outer crown
-    // rides the slowest lane), sheared by the current wobbled radius
-    // exactly like the ring motes.
+    // Mean motion at the arc radius: the ring's own mean omega (the
+    // lockstep pace — every lane circulates with the disk's main
+    // line), sheared by the current wobbled radius exactly like the
+    // ring motes (the per-lane normalization keeps the shear
+    // amplitude matched to each arc's own scale).
     let arc_in_outer_r = halo_arc_fraction(m);
     let ratio =
         1.0 + (crate::constants::BLACK_HOLE_HALO_WOBBLE_FRACTION * ring_r_norm(m)) / arc_in_outer_r;
-    let omega = omega_base
-        * m.pace
-        * halo_kepler_pace(m)
-        * ratio.powf(-crate::constants::BLACK_HOLE_RING_KEPLER_EXP);
+    let omega = omega_base * m.pace * ratio.powf(-crate::constants::BLACK_HOLE_RING_KEPLER_EXP);
     m.phi += omega * dt_wall;
 
     m.sim_age += dt_wall;
@@ -280,40 +282,25 @@ fn halo_arc_fraction(m: &RingMote) -> f32 {
     }
 }
 
-/// The Keplerian pace multiplier of a mote's stream (the tag lookup
-/// — the lanes ride ever slower circles: the 1.30 lanes at the halo
-/// pace, the 1.48 lanes at the outer pace, the top crown slowest of
-/// the system, Kepler's third law across the five lanes).
-fn halo_kepler_pace(m: &RingMote) -> f32 {
-    match m.tier {
-        HALO_STREAM_TAG_UPPER_TOP => crate::constants::BLACK_HOLE_HALO_TOP_PACE,
-        HALO_STREAM_TAG_UPPER_OUTER | HALO_STREAM_TAG_LOWER_OUTER => {
-            crate::constants::BLACK_HOLE_HALO_OUTER_PACE
-        }
-        _ => crate::constants::BLACK_HOLE_HALO_PACE,
-    }
-}
-
-/// The stream mote's head brightness (NIGHT-research-10, the owner's
-/// head-white ruling): `dist_norm` is the head's projected distance
-/// from the hole's center in ball outer radii. The upper family's
-/// crowns burn white — the z-ladder base floors at Hot (the same
-/// floor the disk's snug tiers carry) and the proximity ladder's
-/// distance input is pulled inward by the lensing gain (the crowns
-/// are the lensed image of the far-side disk, the light-path
+/// The stream mote's head brightness (NIGHT-research-11, the owner's
+/// soft-light ruling): `dist_norm` is the head's projected distance
+/// from the hole's center in ball outer radii. EVERY lane — crown or
+/// mirrored arc, the consistency ruling — runs the same composed
+/// ladder: the z-ladder base floors at Hot, the proximity ladder's
+/// distance input is pulled inward by the lensing gain (both
+/// families are lensed images of the far-side disk, the light-path
 /// compression that makes the photon ring the brightest structure
-/// in the iconic images), so every crown rider lands Core — the
-/// head white of the rain-glyph heads — across its reach, while the
+/// in the iconic images), and the composed level passes through the
+/// soft-head cap — the settled riders burn at the SOFT warm ceiling
+/// (Hot, the full palette without the Core white blend that
+/// strained the owner's eyes) across their reach, while the
 /// entry-spiral drift-in still reads dim and ignites as the rider
-/// settles (the accretion read survives the gain). The lower family
-/// keeps the plain z-graded ladder composed with the raw distance —
-/// the dimmer mirrored echo under the shadow.
+/// settles (the accretion read survives the gain). The comet trails
+/// step down from the warm head through the family ladder, so the
+/// lanes read as glowing arcs with dimming tails — soft, elegant,
+/// cinematic.
 pub(crate) fn halo_head_level(m: &RingMote, dist_norm: f32) -> BrightnessLevel {
-    let base = level_for_ring_z(m.z);
-    if halo_stream_is_upper(m.tier) {
-        let lensed = dist_norm - crate::constants::BLACK_HOLE_HALO_CROWN_GAIN;
-        proximity_level(floor_head_base_at_hot(base), lensed)
-    } else {
-        proximity_level(base, dist_norm)
-    }
+    let base = floor_head_base_at_hot(level_for_ring_z(m.z));
+    let lensed = dist_norm - crate::constants::BLACK_HOLE_HALO_CROWN_GAIN;
+    soft_head_level(proximity_level(base, lensed))
 }

@@ -1045,7 +1045,7 @@ pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 5] = [60.0, 50.0, 45.0, 30.0, 
 /// continuous lever wave of the owner's example sequence.
 pub(crate) const BLACK_HOLE_ROLL_CHAIN_PCT: u32 = 35;
 
-// ── Black hole halo streams (stage 2.6, re-weighted stage 2.7, five lanes NIGHT-research-10 — NIGHT-special-1) ──
+// ── Black hole halo streams (stage 2.6, re-weighted stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11 — NIGHT-special-1) ──
 // The arc-riding companion streams of the disk stack. Stage 2.6
 // (owner 9.9/10 feedback) shipped the pool: stream motes ride the
 // ARC CIRCLE around the shadow instead of the flat ellipse — same
@@ -1055,22 +1055,21 @@ pub(crate) const BLACK_HOLE_ROLL_CHAIN_PCT: u32 = 35;
 // its own semicircle, handing off at the extremes where the arcs
 // meet the equatorial band, the read of plasma sweeping over the
 // top and under the bottom of the shadow in the disk's rotational
-// sense. Stage 2.7 (owner 9.95/10 feedback) re-weights the split
-// into the DOUBLE UPWARD STREAM: a second upper lane joins the
-// first on a wider arc (two distinct crowns of the same rider
-// population — the upward-curving read doubles through two arcs,
-// not one thickened band), while the lower stream drops to a RARE
-// echo (a sparse particle trickle under the shadow).
-// NIGHT-research-10 (owner feedback, the Interstellar/NASA imagery
-// round): the upper family grows to THREE crowns — the thick
-// triple-crown band over the shadow, matching the disk stack's own
-// three-tier read — and the lower family doubles to TWO mirrored
-// arcs under it. The crown heads burn head-white (the lensing gain
-// floors every crown rider at Core white through the shared
-// proximity ladder), while the lower echoes keep the plain z-graded
-// ladder — the dimmer mirrored family. Geometry is
-// fractions of the ball outer radius, so the streams scale with
-// any screen size.
+// sense. Stage 2.7 (owner 9.95/10 feedback) re-weighted the split
+// into the DOUBLE UPWARD STREAM. NIGHT-research-10 (the
+// Interstellar/NASA imagery round) grew the family to five lanes:
+// three crowns over the shadow, two mirrored arcs under it.
+// NIGHT-research-11 (owner verdict 9.1/10, the consistency + soft
+// light round) unifies the family with the center ring: every lane
+// rides at the ring's own mean pace (the lockstep ruling — the
+// owner's read, the top and bottom rings visibly ran slower and
+// sparser than the center line), every lane carries an equal
+// per-lane population dense enough to read as solid as the tier-0
+// main line (the pool-per-column multiplier), and every lane's
+// heads read the SOFT warm ceiling (Hot, never the Core head-white
+// that strained the owner's eyes — the soft-head cap in ring.rs).
+// Geometry is fractions of the ball outer radius, so the streams
+// scale with any screen size.
 
 /// Inner upper halo stream arc radius as a multiple of the ball
 /// outer radius (the INNER crown of the upper family). 1.30
@@ -1127,120 +1126,52 @@ pub(crate) const BLACK_HOLE_HALO_TOP_ARC_FRACTION: f32 = 1.66;
 /// rider).
 pub(crate) const BLACK_HOLE_HALO_WOBBLE_FRACTION: f32 = 0.10;
 
-/// Spawn share of the inner upper halo stream (the five stream
-/// weights sum to 1.0). NIGHT-research-10: the upper family's three
-/// crowns split the family's 0.72 share evenly (0.24 each) — the
-/// triple crown reads as three arcs of one rider population, the
-/// honest reading of the owner's "three stages, thick like the
-/// center ring" (the ring pool's tier shares are untouched).
-pub(crate) const BLACK_HOLE_HALO_UPPER_WEIGHT: f32 = 0.24;
+/// Halo pool size as a multiple of the terminal's column count
+/// (NIGHT-research-11, the owner's consistency ruling: every ring
+/// above and below must match the center ring's speed, density and
+/// smoothness). The pool is the five-lane family's shared lane
+/// model — one rider per lane per every `POOL_PER_COL` columns. 2
+/// seats each lane's visible population (the semicircle filter
+/// halves every lane's riders) at roughly the tier-0 main line's
+/// own linear cell density: the arcs read as SOLID as the center
+/// ring at every density setting (both pools' active ratios track
+/// the same base/mult/max constants, so the proportion holds when
+/// the density key scales either pool). The five lanes split the
+/// pool EXACTLY evenly through the spawn pass's five-step round
+/// robin (NIGHT-research-11 retired the weighted 0.72/0.28 family
+/// split — the lower arcs carry the same population as the crowns
+/// now, the owner's all-rings-consistent read).
+pub(crate) const BLACK_HOLE_HALO_POOL_PER_COL: usize = 2;
 
-/// Spawn share of the mid upper halo stream — the second lane of
-/// the upper family (the stage-2.7 double crown, now the middle
-/// rung of the NIGHT-research-10 triple). 0.24 mirrors the inner
-/// share exactly, so every crown carries the same rider
-/// population.
-pub(crate) const BLACK_HOLE_HALO_OUTER_WEIGHT: f32 = 0.24;
+const _: () = assert!(BLACK_HOLE_HALO_POOL_PER_COL >= 1);
 
-/// Spawn share of the top upper halo stream — the third and
-/// outermost lane of the NIGHT-research-10 triple crown (the
-/// owner's ask: the upper ring grows a third stage so it reads
-/// thick like the center ring's three-tier stack). 0.24 mirrors
-/// the other crowns exactly: three arcs of equal population.
-pub(crate) const BLACK_HOLE_HALO_TOP_WEIGHT: f32 = 0.24;
-
-/// Spawn share of the inner lower halo stream — the inner of the
-/// two mirrored lower arcs (NIGHT-research-10: the lower family
-/// doubles to two lanes). 0.14 keeps each lower lane sparser than
-/// any single crown (the lower family stays the rarer echo at 0.28
-/// combined against the crowns' 0.72), while the two lanes
-/// together read as the owner's two mirrored rings under the
-/// shadow.
-pub(crate) const BLACK_HOLE_HALO_LOWER_WEIGHT: f32 = 0.14;
-
-/// Spawn share of the outer lower halo stream — the outer of the
-/// two mirrored lower arcs (the NIGHT-research-10 second lower
-/// ring, mirroring the mid crown's 1.48 circle under the shadow).
-/// 0.14 mirrors the inner lower share exactly so the two lower
-/// lanes read as one family of two equal arcs.
-pub(crate) const BLACK_HOLE_HALO_LOWER_OUTER_WEIGHT: f32 = 0.14;
-
-/// The crowns' lensing brightness gain (NIGHT-research-10, the
-/// head-white ruling): the distance input to the shared proximity
-/// ladder is pulled inward by this many outer radii for every
-/// upper-family rider. The crowns are the lensed image of the
-/// far-side disk — the same light-path compression that makes the
-/// photon ring the brightest structure in the iconic images — so
-/// each crown rides deep inside the hot radius of the ladder and
-/// its heads land Core (the head white of the rain-glyph heads the
-/// owner asked the crowns to carry). 0.34 seats the mid crown
-/// (1.48) and the top crown (1.66) at effective 1.14 / 1.32 — both
-/// inside or at the hot radius — while the entry-spiral drift-in
-/// still reads dim and ignites as the rider settles (the accretion
-/// read survives the gain).
+/// The lensed-image brightness gain (NIGHT-research-10's head-white
+/// ruling, re-pinned NIGHT-research-11 for the soft-light round):
+/// the distance input to the shared proximity ladder is pulled
+/// inward by this many outer radii for EVERY stream rider — both
+/// the crowns and the lower arcs are lensed images of the disk
+/// (the same light-path compression that makes the photon ring the
+/// brightest structure in the iconic images), so every lane's
+/// settled riders sit inside the ladder's hot zone. 0.34 seats the
+/// 1.30 lanes at an effective 0.96, the 1.48 lanes at 1.14 and the
+/// top crown (1.66) at 1.32 — inside or at the hot radius — so the
+/// floored ladder burns every settled rider at the soft warm
+/// ceiling (Hot, after the NIGHT-research-11 soft-head cap; the
+/// Core head-white that strained the owner's eyes is retired from
+/// the glyph heads), while the entry-spiral drift-in still reads
+/// dim and ignites as the rider settles (the accretion read
+/// survives the gain).
 pub(crate) const BLACK_HOLE_HALO_CROWN_GAIN: f32 = 0.34;
 
-// Compile-time contracts on the stream weights: the five shares
-// partition the pool (sum to one — the halo activation walks the
-// upper family's combined bound and falls through to the lower
-// family), the three upper crowns carry EQUAL shares (the spawn
-// pass splits the upper family with a strict three-step round
-// robin, so the constants must agree with it), the two lower lanes
-// carry equal shares (their own toggle), and every lower lane
-// stays rarer than every crown (the owner's wording: the lower
-// curves read as the sparser mirrored echo of the thick crown
-// band).
-const _: () = assert!(
-    BLACK_HOLE_HALO_UPPER_WEIGHT
-        + BLACK_HOLE_HALO_OUTER_WEIGHT
-        + BLACK_HOLE_HALO_TOP_WEIGHT
-        + BLACK_HOLE_HALO_LOWER_WEIGHT
-        + BLACK_HOLE_HALO_LOWER_OUTER_WEIGHT
-        > 0.99
-        && BLACK_HOLE_HALO_UPPER_WEIGHT
-            + BLACK_HOLE_HALO_OUTER_WEIGHT
-            + BLACK_HOLE_HALO_TOP_WEIGHT
-            + BLACK_HOLE_HALO_LOWER_WEIGHT
-            + BLACK_HOLE_HALO_LOWER_OUTER_WEIGHT
-            < 1.01
-);
-const _: () = assert!(BLACK_HOLE_HALO_UPPER_WEIGHT == BLACK_HOLE_HALO_OUTER_WEIGHT);
-const _: () = assert!(BLACK_HOLE_HALO_UPPER_WEIGHT == BLACK_HOLE_HALO_TOP_WEIGHT);
-const _: () = assert!(BLACK_HOLE_HALO_LOWER_WEIGHT == BLACK_HOLE_HALO_LOWER_OUTER_WEIGHT);
-const _: () = assert!(BLACK_HOLE_HALO_LOWER_WEIGHT < BLACK_HOLE_HALO_UPPER_WEIGHT);
-
-/// Keplerian pace multiplier of the inner halo streams at their arc
-/// radius. (1.30 / 1.05)^(-3/2) is about 0.74: the inner lanes sit
-/// beyond the disk's mean radius, so their riders orbit visibly
-/// slower — Kepler's third law across the whole system (and the
-/// upper sweep still flows left-to-right over the top, matching the
-/// far-side lensing direction — the rotation follows the disk).
-pub(crate) const BLACK_HOLE_HALO_PACE: f32 = 0.74;
-
-/// Keplerian pace multiplier of the outer-lane streams at their arc
-/// radius (the mid crown above, its lower mirror below). (1.48 /
-/// 1.05)^(-3/2) is about 0.60: the 1.48 lanes orbit visibly slower
-/// than the inner ones — Kepler's third law across the arc ladder.
-pub(crate) const BLACK_HOLE_HALO_OUTER_PACE: f32 = 0.60;
-
-/// Keplerian pace multiplier of the top crown at its arc radius
-/// (NIGHT-research-10, the third lane of the triple crown).
-/// (1.66 / 1.05)^(-3/2) is about 0.50: the top crown orbits the
-/// slowest of the whole halo family — Kepler's third law across the
-/// three crowns, the layered outer-lane read that keeps the thick
-/// upper band reading as three distinct moving arcs, never one
-/// smearing sheet.
-pub(crate) const BLACK_HOLE_HALO_TOP_PACE: f32 = 0.50;
-
 /// Base active-mote ratio of the halo pool (pool = one stream mote
-/// per column, the family lane model). Mirrors the ring pool's own
-/// base exactly: the halo pool fills to the same fraction of its
-/// lanes as the ring does at every density setting, so the upper
-/// family's visible share (roughly 0.36 of the pool — the 0.72 tag
-/// split times the visible half-lap, split evenly across the three
-/// crowns) tracks the far-side lensing population proportionally —
-/// the triple-crown read holds across the whole density range, not
-/// just at one setting.
+/// per lane per `BLACK_HOLE_HALO_POOL_PER_COL` columns, the family
+/// lane model). Mirrors the ring pool's own base exactly: the halo
+/// pool fills to the same fraction of its lanes as the ring does at
+/// every density setting, so each lane's visible share (the
+/// semicircle-filtered half of its even 1/5 tag split) tracks the
+/// tier-0 main line's population proportionally — the all-lanes-
+/// consistent read holds across the whole density range, not just
+/// at one setting.
 pub(crate) const BLACK_HOLE_HALO_ACTIVE_BASE: f32 = 0.75;
 
 /// Density multiplier for the halo active-count target (mirrors the
@@ -1261,14 +1192,14 @@ pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_MULT: f32 = 0.35;
 pub(crate) const BLACK_HOLE_HALO_SPAWN_RATE_FLOOR: f32 = 1.5;
 
 /// Halo mote lifetime cap in seconds (with the same ±15% per-mote
-/// variance the ring motes carry). 16 s covers one full inner-lane
-/// lap at the scene default speed (the halo pace 0.74 stretches the
-/// ~11.6 s base lap to ~15.7 s); the mid and top lanes' slower pace
-/// (0.60 / 0.50, laps of ~19.3 / ~23.2 s) means their riders
-/// complete their visible half-lap sweep and recycle mid-transit —
-/// each rider's longer visibility offsets the fewer laps, so all
-/// five lanes stay evenly populated in the steady state.
-pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 16.0;
+/// variance the ring motes carry). NIGHT-research-11 pins it at the
+/// ring's own 14 s: the lanes now ride the lockstep pace (the
+/// ring's tier-0 mean motion), so a rider's lap is the ring's own
+/// ~11.6 s at the scene default speed and the lifetimes match the
+/// disk motes' one-lap-plus recycling cadence — the whole halo
+/// family turns over on the same clock as the ring (the
+/// consistency ruling extends to the spawn/absorb rhythm).
+pub(crate) const BLACK_HOLE_HALO_MAX_AGE_SECS: f32 = 14.0;
 
 // ── Black hole glyph infall (stage 3, NIGHT-special-1; stage 4 calm) ───
 // The third act: the rain itself becomes the accretion material.
