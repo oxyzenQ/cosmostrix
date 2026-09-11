@@ -9,6 +9,62 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-32 — the black hole crown blink root-caused and the hunt-31 genesis revert
+
+- Owner report (the hunt-31 follow-up): the three disks above the
+  black hole — the halo triple crown — intermittently glitch and
+  blink for seconds to minutes. NOT the startup intro: the genesis
+  visual is intended and stays.
+- Root cause (proven three ways): the stuck-cell sweep
+  (`phosphor_anomaly.rs`) is a droplet-family mechanism whose stuck
+  signature — visible glyph, zero phosphor energy, no droplet
+  coverage — describes live cells on every structured style.
+  `droplets` is empty by contract for the thirteen non-droplet
+  styles, the NIGHT-hunter-29 ownership rule zeroes phosphor on
+  every drawn cell, and `Frame::set`'s equality skip keeps
+  persistently-drawn cells (settled crown riders, the stable
+  annulus rungs) out of the dirty list so phosphor decay Pass 1
+  never re-arms their energy. Every 600 frames the sweep then
+  force-cleared up to 256 live cells row-major from the top of the
+  screen — the budget landing squarely on the crowns, the densest
+  structure above the ball annulus. Evidence: unit red-green (the
+  sweep booked exactly (256, 1) on a steady-state black hole
+  pipeline; (0, 0) after the fix), an instrumented real binary
+  (msg-mode=false, the owner's clean read: "sweep fired:
+  stuck_count=256" at frame 600, repeating every ~10 s), and a
+  PTY byte-stream audit (blank-count spikes gone). The default
+  message banner gates the sweep off entirely — which is why the
+  blink reads as intermittent: it only exists in msg-mode=false
+  runs, and pressure episodes (the phosphor pass's skip window)
+  widen it from scattered cells to the full 256-cell budget.
+- Fix: the sweep is now droplet-family-only
+  (`rain_style.is_droplet_family()`) — the same division the
+  phosphor pass already uses for trail protection. The thirteen
+  structured styles own their vacated cells through the
+  monolith-style diff cleanup contract, so the sweep adds nothing
+  for them and can no longer eat their live cells. The glyph
+  family keeps the full NIGHT-hunter-17 stuck-cell contract
+  (planted-cell contrast test).
+- Hunt-31 revert (the owner's correction): the intro-handover
+  fast-forward (`skip_formation_dwell`,
+  `advance_birth_for_intro_handover`, the `run_intro_sequence`
+  hook) is reverted whole — the startup keeps its genesis visual:
+  the full stellar-collapse formation (seed dot, collapse cross,
+  horizon bloom) plays after the intro handover exactly as the
+  formation contracts pin. The hunt-31 "flash" was the intended
+  cinematic, not a bug.
+- 6 new tests (tests_stuck_cells_hunt32.rs): the planted-live-cell
+  immunity (black hole + monolith), the glyph contrast contract,
+  the steady-state pipeline crossing the 600-frame boundary, the
+  pressure-window worst case (colored harness — `color_for_level`
+  returns fg None under Mono, which would mask the sweep's
+  candidacy), and the fourteen-style audit table (the owner's
+  "audit the other rain types" ask — the bug wore all thirteen
+  structured styles, monolith through neural). 4 hunt-31 dwell-skip
+  tests removed with the revert. Suite 2841 green, clippy
+  -D warnings clean, fmt clean, gate-keepers 16/16, build.sh
+  check-all pass.
+
 ### test: NIGHT-depthtest-2 e2e — the priority and duplicate-name contracts proven on the real binary
 
 - The depth test round the owner called for: CLI & config.toml

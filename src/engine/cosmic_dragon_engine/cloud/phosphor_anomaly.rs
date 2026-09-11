@@ -267,6 +267,12 @@ impl super::Cloud {
     /// runs. The sweep is a correctness mechanism, not a profiling one.
     /// The sweep also short-circuits when a message box is active
     /// (its overlay cells would be false positives).
+    /// NIGHT-hunt-32: the sweep is now droplet-family-only
+    /// (`rain_style.is_droplet_family()`). Structured styles own their
+    /// drawn cells through the diff-cleanup contract and keep
+    /// `droplets` empty, so the sweep's coverage predicate cannot
+    /// exempt their live cells — see the in-body comment for the full
+    /// chain (the owner's blinking-crowns report on the black hole).
     ///
     /// ## Cost
     ///
@@ -277,6 +283,43 @@ impl super::Cloud {
         // so the sweep's Vec growth (droplet_ranges SmallVec + dirty-list
         // churn from set_force) does not pollute realloc counters.
         if !self.enable_stuck_cell_sweep {
+            return;
+        }
+        // NIGHT-hunt-32 (owner hunt, the black hole crown blink): the
+        // sweep is a DROPLET-family mechanism and must not run for the
+        // thirteen structured styles. The stuck signature — visible
+        // glyph, zero phosphor energy, no droplet coverage — was built
+        // for the droplet rain's dirty-tracking gaps, but on a
+        // structured style every one of its three clauses misfires in
+        // combination:
+        //
+        // 1. `droplets` is empty by contract (spawn_reset clears the
+        //    pool for every non-droplet style), so the coverage check
+        //    never exempts a cell;
+        // 2. the phosphor ownership rule (NIGHT-hunter-29) zeroes the
+        //    phosphor state of every cell a structured family draws,
+        //    and `Frame::set`'s equality skip leaves a persistently
+        //    drawn cell (identical glyph + color frame over frame —
+        //    the ball annulus, settled crown riders, held band cells)
+        //    out of the dirty list, so phosphor decay Pass 1 never
+        //    re-arms its energy — the cell sits at phosphor == 0;
+        // 3. the cell carries a visible glyph because the family drew
+        //    it and keeps drawing it.
+        //
+        // Net effect: every 600 frames the sweep force-cleared up to
+        // 256 LIVE structured cells in row-major order — the budget
+        // landing squarely on the black hole's three upper crowns
+        // (the densest upper-screen structure, above the ball annulus)
+        // — the owner's report: the disks above the black hole blink
+        // for a frame every ~10 s, intermittently for minutes, worse
+        // during pressure episodes (the phosphor pass's skip window
+        // leaves even more cells at zero energy). The structured
+        // families own their own vacated-cell cleanup (the
+        // monolith-style diff cleanup contract: previous cells not
+        // redrawn are cleared by the family's draw pass), so the
+        // sweep adds nothing for them — this gate restores their
+        // immunity wholesale.
+        if !self.rain_style.is_droplet_family() {
             return;
         }
         // NIGHT-hunter-17: removed the `enable_component_timing` gate

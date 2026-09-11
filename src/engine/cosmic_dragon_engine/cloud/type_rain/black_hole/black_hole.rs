@@ -673,35 +673,6 @@ impl BlackHoleRain {
         self.roll.set_tilt_cap(self.roll_tilt_cap);
     }
 
-    /// NIGHT-hunt-31 (owner hunt, the intro-handover flash): fast-forward
-    /// the formation clock past the seed + collapse dwell — the two
-    /// near-invisible birth phases (one dim dot for 1.4 s, then a
-    /// five-cell cross flare for 0.5 s) — so the horizon bloom starts
-    /// on the very first post-intro frame. The logo/cosmic cinematic
-    /// ends with a one-frame full-screen wipe (the documented
-    /// `run_intro_sequence` handover contract); replaying a 1.9 s
-    /// near-empty dwell directly after that wipe reads as a flash to
-    /// black followed by a frozen screen — the owner's report. The
-    /// measured dead window was 1.62 s (237 empty frames at 120x40)
-    /// against <= 0.28 s for every other style's natural first-spawn
-    /// fill. Landing the handover on the bloom keeps continuous
-    /// visual content: the annulus grows from the center, photon ring
-    /// first, over the full 1.2 s ease-out. Monotone by construction:
-    /// a clock already at or past the dwell (a mid-bloom handover can
-    /// not happen today, but a future caller might) is left alone —
-    /// this is a dwell skip, never a rewind. Scene entries (x/X),
-    /// 'r' restarts, and intro-less launches keep the full
-    /// stellar-collapse sequence (their documented contracts — see
-    /// docs/research/NIGHT_LTS_3_RESTART_CONSISTENCY.md and the
-    /// formation.rs test contracts).
-    pub(crate) fn skip_formation_dwell(&mut self) {
-        let dwell = crate::constants::BLACK_HOLE_FORM_SEED_SECS
-            + crate::constants::BLACK_HOLE_FORM_COLLAPSE_SECS;
-        if self.formation_t < dwell {
-            self.formation_t = dwell;
-        }
-    }
-
     /// Rebuild the ring, halo and infall pools: one ring mote per
     /// column, and one stream rider per lane per
     /// `BLACK_HOLE_HALO_POOL_PER_COL` columns (NIGHT-research-11: the
