@@ -99,7 +99,10 @@ pub(crate) struct CharsetCustomDef {
 ///
 /// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (100) and
 /// `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars) to prevent config typos
-/// from bloating memory or stalling startup.
+/// from bloating memory or stalling startup. Since NIGHT-depthtest-3
+/// the length cap is fronted by a HARD validation error
+/// (`validate_charset_custom_name_len`), so an oversized name can no
+/// longer pass `--testconf` silently.
 #[must_use]
 pub(crate) fn collect_charset_custom(
     cfg: &HashMap<String, String>,
@@ -576,6 +579,9 @@ mod tests {
     fn collect_skips_oversized_names() {
         // A name longer than CHARSET_CUSTOM_MAX_NAME_LEN should be
         // silently skipped (no allocation, no BTreeMap entry).
+        // NIGHT-depthtest-3: the COLLECTOR still skips (this contract);
+        // the config gate now hard-errors via
+        // validate_charset_custom_name_len (see its tests).
         let mut cfg = HashMap::new();
         let long_name = "x".repeat(CHARSET_CUSTOM_MAX_NAME_LEN + 1);
         cfg.insert(format!("charset-custom.{long_name}.set"), "ab".to_string());

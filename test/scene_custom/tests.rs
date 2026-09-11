@@ -702,6 +702,9 @@ fn collect_custom_scenes_caps_total_blocks_at_max() {
 fn collect_custom_scenes_skips_oversized_names() {
     // A name longer than SCENE_CUSTOM_MAX_NAME_LEN should be
     // silently skipped (no allocation, no BTreeMap entry).
+    // NIGHT-depthtest-3: the COLLECTOR still skips (this contract);
+    // the config gate now hard-errors on the same shape — see the
+    // completeness_validation_rejects_oversized_name test below.
     let mut cfg = HashMap::new();
     let long_name = "x".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 1);
     cfg.insert(

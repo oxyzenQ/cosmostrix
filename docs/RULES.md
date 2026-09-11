@@ -200,9 +200,9 @@ When a cap is hit, behavior depends on the cap type:
 
 - **Content cap** (rain stops, charset chars): emits a runtime warning via `push_runtime_warning` (drained after Terminal::drop so it doesn't leak into the rain matrix). Example: `colors-custom: rain stops capped at 64 (extra stops ignored)`.
 - **Block cap** (total blocks per category): silently skipped (no warning — the user would have to define 100+ blocks to hit this, which is almost certainly a script-generated config, not a human typo).
-- **Name length cap**: silently skipped (no warning — almost certainly a typo, warning would be noise).
+- **Name length cap** (NIGHT-depthtest-3, 2026-09-11): HARD validation error on every surface — `--testconf` exit 2, startup exit 2, live-reload watcher reject. Previously the collector's silent skip made a complete block with a 65+-char name invisible to `--testconf` (PASS) and `--list-*` (never listed), and a `scene = <oversized>` reference died at startup with a misleading "unknown scene". The validators are `scene_custom::validate_scene_custom_name_len` (pre-scan inside `validate_scene_custom_completeness`), `colors_custom::validate_colors_custom_name_len` (pre-scan inside `validate_colors_custom_blocks`), and `charset_custom::validate_charset_custom_name_len`. The list printers additionally append a `hidden:` warning line for collector-dropped names. Exactly 64 chars stays legal (boundary pinned by tests).
 
-All 3 systems are now aligned: same max blocks (100), same max name len (64), same skip semantics. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
+All 3 systems are now aligned: same max blocks (100), same max name len (64), same error semantics (length gate hard-errors; block cap stays a silent skip). This makes the LTS contract predictable across colors, charset, and scene custom blocks.
 
 ### Config value quoting invariant (bug #19, v80.0.0-beta.1)
 

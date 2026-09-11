@@ -368,6 +368,10 @@ pub(crate) const SCENE_CUSTOM_MAX_BLOCKS: usize = 100;
 /// Aligned with colors-custom and charset-custom (all use 64 chars).
 /// Bounds BTreeMap key allocation. 64 chars is generous (built-in scene
 /// names are ≤16 chars like "cinematic"); longer names are likely typos.
+/// NIGHT-depthtest-3: oversized names are a HARD validation error
+/// (`validate_scene_custom_name_len`), not a silent collector skip —
+/// the owner's repro (a complete 65+-char block passed --testconf and
+/// never listed in --list-scenes) closed that blind spot.
 pub(crate) const SCENE_CUSTOM_MAX_NAME_LEN: usize = 64;
 
 /// explicit field allowlist for `[scene-custom.<name>]` blocks.

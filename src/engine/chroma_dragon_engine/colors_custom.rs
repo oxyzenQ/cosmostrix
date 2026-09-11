@@ -136,8 +136,10 @@ pub(crate) fn parse_hex_color(s: &str) -> Result<Color, String> {
 /// v50.0.0-beta.6 LTS: bounded by `COLORS_CUSTOM_MAX_BLOCKS` (100) and
 /// `COLORS_CUSTOM_MAX_RAIN_STOPS` (64) to prevent config typos from
 /// bloating memory or stalling startup. Names longer than
-/// `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars) are skipped silently —
-/// they are almost certainly typos.
+/// `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars) are skipped by the
+/// collector — and since NIGHT-depthtest-3 the skip is fronted by a
+/// HARD validation error (`validate_colors_custom_name_len`), so an
+/// oversized name can no longer pass `--testconf` silently.
 #[must_use]
 pub(crate) fn collect_colors_custom(
     cfg: &HashMap<String, String>,
@@ -690,6 +692,9 @@ mod tests {
     fn collect_skips_oversized_names() {
         // A name longer than COLORS_CUSTOM_MAX_NAME_LEN should be
         // silently skipped (no allocation, no BTreeMap entry).
+        // NIGHT-depthtest-3: the COLLECTOR still skips (this contract);
+        // the config gate now hard-errors via
+        // validate_colors_custom_name_len (colors_custom/name_len.rs).
         let mut cfg = HashMap::new();
         let long_name = "x".repeat(COLORS_CUSTOM_MAX_NAME_LEN + 1);
         cfg.insert(

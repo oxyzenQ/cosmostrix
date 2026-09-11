@@ -9,6 +9,68 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-depthtest-3 — oversized custom-block names: silent collector skip promoted to a hard validation error, plus the line-1-to-end config.toml depth stress e2e
+
+- Owner repro (2026-09-11): a complete `[scene-custom.<65+-char
+  name>]` block passed `--testconf` (expected: error at the 64-char
+  limit) and never appeared in `--list-scenes`, while 4-char names
+  listed fine. Root cause: all three custom-block collectors
+  (scene-custom, colors-custom, charset-custom) cap names at 64
+  chars as a SILENT skip — the dropped block was invisible to the
+  completeness/load validators (they iterate the collected map), to
+  the list printers, and to the runtime scene lookup, while the
+  raw-key reference scan in field_validation blessed the same key.
+  Split verdict: `--testconf` PASS vs startup fatal "unknown scene"
+  for a `scene = <oversized>` reference, zero listing signal. The
+  hunt-24 round had documented this exact edge as out-of-scope
+  known behavior; the owner's repro promoted it to a defect.
+- Fix (uniform-rejection contract, every surface in lockstep):
+  raw-key pre-scans front-load the three block-level validators —
+  `scene_custom::validate_scene_custom_name_len` (inside
+  `validate_scene_custom_completeness`, extracted to
+  name_len.rs for the 800-LOC cap),
+  `colors_custom::validate_colors_custom_name_len` (inside
+  `validate_colors_custom_blocks`), and the new
+  `charset_custom::validate_charset_custom_name_len` wired into
+  both shared entry points. `--testconf` exit 2, startup exit 2,
+  live-reload watcher reject. Exactly 64 chars stays legal
+  (boundary pinned); the collectors and their runtime caps are
+  unchanged — the gate sits IN FRONT of the skip.
+- CLI dead-ends now name the limit instead of a generic "unknown":
+  `--scene-custom`, `--scene`, `--show-scene`, `--colors-custom`
+  and the `--charset` built-in path all report the char count and
+  the 64-char limit when the name can never match a block.
+- `--list-scenes` / `--list-colors` / `--list-charsets` append a
+  visible `hidden:` warning line for collector-dropped oversized
+  names; the CUSTOM sections print even when every defined block is
+  hidden (the owner's exact case). The printers stay non-strict by
+  design.
+- New flagship e2e harness `scripts/depthtest3_config_e2e.py`
+  (44/44 PASS on the real binary via PTY): phase A soaks a config
+  with EVERY user key from line 1 (`scene = cinematic`) to the end
+  and asserts every applied value from the verbose startup dump;
+  phase B pins the name-length contract matrix (3 namespaces x 3
+  surfaces + boundary + CLI + listing visibility); phase C proves
+  live-reload depth key-by-key (fps/density/speed, color/charset/
+  msg-fill-style/glitch, message/scene) using the verbose FINAL
+  runtime state as the post-edit oracle, with hue classification
+  and a half-width-katakana census on the ANSI stream; phase D
+  proves the watcher rejects mid-run invalid and oversized-name
+  edits (exit 2). Methodology notes pinned in the research doc
+  (half-width katakana range, TOML section scoping, ambient key
+  form).
+- 17 new unit tests (owner repro shape, boundary, multi-block
+  count, CLI dead-end, strict lockstep x3, list helpers x2,
+  collector-vs-gate separation); full suite 2863/2863; clippy
+  --all-targets --all-features -D warnings clean; build.sh check
+  exit 0; gate-keepers 16/16.
+- A/B 10 s benchmark (same-pipeline worktree methodology, scenes
+  cinematic + sorgonemous_intrascals): FLAT — dirty cells ±0.22%,
+  frame entropy ±0.11%, density gini ±0.27% (contract 1%); fps
+  within the same-commit rebuild noise band. Evidence:
+  `benchmark/bench-labs/depthtest3_ab/`. Research detail:
+  `docs/research/NIGHT_DEPTHTEST_3_NAME_LEN_CONFIG_E2E.md`.
+
 ### fix: S-night-R4 — terminal escape injection closed in diagnostic sinks
 
 - LTS final audit (S-night-R1 to R8, combined pass). One real

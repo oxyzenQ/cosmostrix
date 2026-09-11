@@ -88,15 +88,20 @@ gate (old config kept, rejection logged) — no more silent
   exact root-cause shape of F-23-1. The canonical function is now
   `pub(crate)` and the twin is deleted.
 
-## Known edge (documented, not changed)
+## Known edge (RESOLVED by NIGHT-depthtest-3, 2026-09-11)
 
-Block names longer than `COLORS_CUSTOM_MAX_NAME_LEN` (64) pass the
-key-shape check (`is_valid_custom_name` has no length cap) but are
-silently skipped by `collect_colors_custom`. A REFERENCE to such a
-name now rejects cleanly ("unknown block" — the canonical helper
-does not see the entry). An unreferenced oversized block remains
-inert dead weight; flagging it would need a dedicated length check
-in the block gate, deliberately out of scope for this fix.
+Block names longer than `COLORS_CUSTOM_MAX_NAME_LEN` (64) passed the
+key-shape check (`is_valid_custom_name` has no length cap) and were
+silently skipped by `collect_colors_custom`, so an unreferenced
+oversized block remained inert dead weight. The dedicated length
+check in the block gate that this fix deliberately left out of scope
+now exists: `colors_custom::validate_colors_custom_name_len`
+(pre-scan inside `validate_colors_custom_blocks`) hard-errors on
+oversized names on every surface (`--testconf`, startup,
+live-reload watcher), with the same twin validators for
+scene-custom and charset-custom — see
+`docs/research/NIGHT_DEPTHTEST_3_NAME_LEN_CONFIG_E2E.md` for the
+full defect narrative and the e2e proof.
 
 ## Verification
 
