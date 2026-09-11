@@ -9,6 +9,44 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-22 — the neural soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round six: the audit's finding —
+  pulse heads held Core for the whole 1.8 s burst window (about
+  ten times the black hole's whip flash) and the output band
+  stepped a standing Hot answer node to Core.
+- The soft-light ruling (neural/draw.rs): the burst-lifted pulse
+  heads cap at the warm Hot ceiling — the retired flaring branch
+  is gone, the pulse-head ladder extracted into the pure
+  `pulse_head_level` (the quasar precedent: the ladder leaves the
+  inline draw pass so the composition can be pinned); the
+  machine's white lives on the neurons' fire flashes (the 0.35 s
+  fired-flash tau, untouched) and the genesis ramp. The output
+  band's step-up stops at the warm Hot ceiling (`step_up_level`:
+  a standing Hot answer node holds, a fired flash keeps its
+  white); the answer read survives below the ceiling (Mid steps
+  up to Hot). The burst's visible signature survives on the wires
+  (the flare rung steps the idle wires up) and the surge.
+- Two new contracts in tests_neural/core.rs — the pulse-head
+  ladder never lands Core at any genesis cap (the ramp included,
+  steady pinned at Hot), and the step-up holds at the warm
+  ceiling with the fired flash keeping its white. 16 -> 18 neural
+  tests, full suite 2821 green, fmt and clippy -D warnings clean,
+  gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): neural avg fps 13718.1 -> 13412.9 (-2.2%, the
+  honest mechanical cost of +16% dirty cells — 26.4 -> 30.7: the
+  softer ladder walks more rungs as the fired flashes decay, the
+  retired Core saturation collapsed several rungs into one, so
+  more decaying cells cross level boundaries per frame), median
+  13421.0 -> 13529.2, p99 0.1179 -> 0.1006 ms (-14.7%), entropy
+  4.42 -> 4.57, gini 0.8266 -> 0.8149 (the busier decay
+  transitions spread the dirt more evenly), heap retained 0 B —
+  zero allocation, same pools, RNG untouched. Docs updated:
+  README scene bullet, CHANGELOG feature entry, BENCHMARKING.md
+  A/B record.
+
 ### feature: NIGHT-research-21 — the murmuration soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

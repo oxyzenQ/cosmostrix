@@ -174,6 +174,27 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-22 (2026-09-11, the neural soft-light round):**
+the burst-lifted pulse heads cap at the warm Hot ceiling (the
+retired flaring branch held Core on every riding signal for the
+whole 1.8 s burst window — about ten times the black hole's whip
+flash; the pulse-head ladder extracted into the pure
+pulse_head_level for the pin) and the output band's step-up
+stops at Hot (a standing Hot answer node holds; a fired flash
+keeps its white through the step). No RNG change, no allocation.
+10s A/B at 120x40 wet IO (dev profile, two-run discard-warmup):
+neural avg fps 13718.1 -> 13412.9 (-2.2%), median 13421.0 ->
+13529.2, p99 0.1179 -> 0.1006 ms (-14.7%), avg dirty cells/frame
+26.4 -> 30.7 (+16% — an honest mechanical cost: the softer ladder
+walks more rungs as the fired flashes decay, the retired Core
+saturation collapsed several rungs into one, so more decaying
+cells cross level boundaries per frame), entropy 4.42 -> 4.57,
+gini 0.8266 -> 0.8149 (the busier decay transitions spread the
+dirt more evenly), heap retained 0 B, peak RSS 9.02 -> 8.98 MiB,
+drift improving (-6.23% -> +1.84%). The NIGHT-research-10 class:
+a visual ask with a measurable mechanical price, recorded
+honestly — p99 improved and the machine still clears 13K fps.
+
 **NIGHT-research-21 (2026-09-11, the murmuration soft-light round):**
 the two institutionalized standing-Core sources cap at the warm
 Hot ceiling (the retired 21-plus speed band a wheeling flock

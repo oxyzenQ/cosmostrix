@@ -215,9 +215,11 @@ impl NeuralRain {
             }
         }
 
-        // Pass B — the pulses: the signal heads (Hot, Core while
-        // the burst burns) and their one-deep wakes (Dim — the
-        // streak's dimmer half).
+        // Pass B — the pulses: the signal heads (the warm Hot
+        // ceiling, NIGHT-research-22 — the retired flaring branch
+        // lifted every head to Core for the whole 1.8 s burst
+        // window, about ten times the black hole's whip flash) and
+        // their one-deep wakes (Mid — the streak's dimmer half).
         for p in &mut self.pulses {
             if !p.active {
                 continue;
@@ -227,11 +229,7 @@ impl NeuralRain {
             let Some((col, line)) = head else {
                 continue;
             };
-            let mut level = BrightnessLevel::Hot;
-            if flaring {
-                level = BrightnessLevel::Core;
-            }
-            level = cap_level(level, cap_rank);
+            let level = pulse_head_level(cap_rank);
             let mut painter = NeurPainter {
                 ctx,
                 frame,
@@ -401,14 +399,34 @@ fn cap_level(level: BrightnessLevel, cap_rank: u8) -> BrightnessLevel {
     rank_level(level_rank(level).min(cap_rank))
 }
 
-/// Step a brightness level up (toward Core) — the burst's flare
-/// rung, the output band's answer.
-fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
+/// The pulse-head ladder (Pass B's draw read): a riding signal's
+/// head composes at the warm Hot ceiling under the genesis cap.
+///
+/// NIGHT-research-22 (the masterclass audit's soft-light ruling,
+/// tier two): the retired flaring branch lifted every pulse head
+/// to Core for the whole 1.8 s burst window — about ten times the
+/// black hole's whip flash, the audit's standing-Core finding.
+/// The machine's white lives on the neurons' fire flashes (the
+/// 0.35 s fired-flash tau) and the genesis ramp; a riding signal
+/// reads the warm ceiling, calm or flaring.
+pub(crate) fn pulse_head_level(cap_rank: u8) -> BrightnessLevel {
+    cap_level(BrightnessLevel::Hot, cap_rank)
+}
+
+/// Step a brightness level up by one rung (toward Core) — the
+/// burst's flare rung on the wires, the output band's answer.
+///
+/// NIGHT-research-22: the step-up stops at the warm Hot ceiling —
+/// the output band's standing Hot (a high-potential answer node)
+/// no longer steps to Core (the audit's second standing site);
+/// a fired flash (already Core from the fire moment) keeps its
+/// white through the step.
+pub(crate) fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
     match level {
         BrightnessLevel::Ghost => BrightnessLevel::Dim,
         BrightnessLevel::Dim => BrightnessLevel::Mid,
         BrightnessLevel::Mid => BrightnessLevel::Hot,
-        BrightnessLevel::Hot | BrightnessLevel::Core => BrightnessLevel::Core,
+        BrightnessLevel::Hot | BrightnessLevel::Core => level,
     }
 }
 

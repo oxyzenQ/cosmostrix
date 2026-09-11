@@ -318,3 +318,61 @@ fn neur_speed_scaling_rides_the_family_clock() {
         "the speed keys do not scale the machine: {t_fast} vs {t_slow}"
     );
 }
+
+// -- NIGHT-research-22: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn neur_pulse_heads_compose_at_the_warm_ceiling() {
+    // The audit's first standing site: the flaring branch lifted
+    // every pulse head to Core for the whole 1.8 s burst window —
+    // about ten times the black hole's whip flash. The pulse-head
+    // ladder now composes at the warm Hot ceiling under every
+    // genesis cap (the ramp included); the machine's white lives
+    // on the neurons' fire flashes (the 0.35 s fired-flash tau).
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::neural::draw::pulse_head_level;
+
+    for cap_rank in 0u8..=4 {
+        assert!(
+            !matches!(pulse_head_level(cap_rank), BrightnessLevel::Core),
+            "a riding signal head must never land Core (genesis cap {cap_rank})"
+        );
+    }
+    assert!(matches!(pulse_head_level(4), BrightnessLevel::Hot));
+}
+
+#[test]
+fn neur_step_up_stops_at_the_warm_ceiling() {
+    // The audit's second standing site: the output band's step-up
+    // lifted every standing Hot answer node to Core (the output
+    // is the machine's voice, but the voice reads warm now). The
+    // step-up holds at Hot, keeps the sub-ceiling answer read (Mid
+    // steps up to Hot), and a fired flash — already Core from the
+    // fire moment — keeps its white through the step.
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::neural::draw::step_up_level;
+
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Ghost),
+        BrightnessLevel::Dim
+    ));
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Dim),
+        BrightnessLevel::Mid
+    ));
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Mid),
+        BrightnessLevel::Hot
+    ));
+    // The cap: a standing Hot node holds the warm ceiling through
+    // the output band's step-up (was Core — the standing offender).
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Hot),
+        BrightnessLevel::Hot
+    ));
+    // The fired flash keeps its white.
+    assert!(matches!(
+        step_up_level(BrightnessLevel::Core),
+        BrightnessLevel::Core
+    ));
+}
