@@ -25,6 +25,17 @@
 //! the full law at first light. The infall is NOT capped — the
 //! cold cloud is the scene while the engine is dark (the DNA
 //! soup precedent).
+//!
+//! NIGHT-research-14 (the soft-light round, the black hole's
+//! NIGHT-research-11 precedent ported to this family): every
+//! standing surface composes to the Hot warm ceiling through
+//! `soft_head_level` — the disk's inner rung, the doppler and
+//! charge step-ups, and the jet launch collar never paint the
+//! Core white blend again. Core survives only in the engine's
+//! event-gated transients: the core cell's flare-window flash
+//! and the knot's traveling pulse up the beam (both applied
+//! after the cap, so the standing collar reads warm while the
+//! pulse rides over it).
 
 use rand::{
     distr::{Distribution, Uniform},
@@ -178,7 +189,8 @@ impl QuasarRain {
 
         // Pass B — the disk: the radial temperature ladder, the
         // doppler rung swing, the fresh-feed charge boost — all
-        // under the ignition cap.
+        // under the ignition cap, all under the soft-light
+        // ceiling (the composed level never lands Core).
         for p in &mut self.disk {
             if !p.active {
                 continue;
@@ -186,17 +198,7 @@ impl QuasarRain {
             let (x, y) = self.geom.project(p.f, p.theta, 1.0);
             let los = los_of(p.theta);
             let t = (p.f - QUAS_DISK_INNER) / (1.0 - QUAS_DISK_INNER);
-            let mut level = if t < 0.14 {
-                BrightnessLevel::Core
-            } else if t < 0.30 {
-                BrightnessLevel::Hot
-            } else if t < 0.52 {
-                BrightnessLevel::Mid
-            } else if t < 0.75 {
-                BrightnessLevel::Dim
-            } else {
-                BrightnessLevel::Ghost
-            };
+            let mut level = disk_level(t);
             if los > QUAS_DOPPLER_RUNG {
                 level = step_up_level(level);
             } else if los < -QUAS_DOPPLER_RUNG {
@@ -206,6 +208,7 @@ impl QuasarRain {
                 level = step_up_level(level);
             }
             level = cap_level(level, cap_rank);
+            level = soft_head_level(level);
             // The doppler brightness factor swings with the
             // line-of-sight velocity, riding in with the light.
             let factor = (1.0 + QUAS_DOPPLER_W * los * lum).max(0.1);
@@ -220,8 +223,11 @@ impl QuasarRain {
         }
 
         // Pass C — the jets: the energy ladder (hottest at the
-        // launch collar, dim at the tip), the knot's traveling
-        // pulse, the precessing helix.
+        // launch collar, dim at the tip) under the soft-light
+        // ceiling, then the knot's traveling pulse and the
+        // precessing helix — the knot steps up AFTER the cap, so
+        // its pulse is the beam's one transient Core flash while
+        // the collar underneath reads warm.
         if self.jets_fired {
             let prec_phase = self.prec_phase;
             for p in &mut self.jets {
@@ -229,15 +235,7 @@ impl QuasarRain {
                     continue;
                 }
                 let (x, y) = self.geom.project_jet(p.s, p.side, prec_phase, helix_amp);
-                let mut level = if p.s < 0.18 {
-                    BrightnessLevel::Core
-                } else if p.s < 0.45 {
-                    BrightnessLevel::Hot
-                } else if p.s < 0.70 {
-                    BrightnessLevel::Mid
-                } else {
-                    BrightnessLevel::Ghost
-                };
+                let mut level = soft_head_level(jet_level(p.s));
                 if let Some(k) = knot {
                     if (p.s - k).abs() < QUAS_KNOT_W {
                         level = step_up_level(level);
@@ -288,7 +286,9 @@ impl QuasarRain {
             painter.cell(p, x, y, level, 1.0);
         }
 
-        // Pass E — the core: the engine's cell (Core-bright, its
+        // Pass E — the core: the engine's cell (the soft warm
+        // ceiling standing, burning Core only inside the flare
+        // window — the engine's one standing-cell flash, its
         // glyph re-rolled on first light and every flare fire)
         // wrapped in the pulse-following glow ring.
         if core_visible {
@@ -311,13 +311,20 @@ impl QuasarRain {
                 rand_chance,
                 rng,
             };
+            // NIGHT-research-14: the standing core cell composes to
+            // the soft warm ceiling with a subtle pulse breathing
+            // (never static-flat, never the standing white blend);
+            // the flare window is the one moment the heart flashes
+            // Core (the event-gated read, the glyph re-roll's beat).
+            let core_level = core_cell_level(flaring);
+            let core_factor = core_cell_factor(pulse);
             painter.literal(
                 cx,
                 cy,
                 core,
                 self.field_palette_slot,
-                BrightnessLevel::Core,
-                1.0,
+                core_level,
+                core_factor,
             );
             for (dx, dy) in [(1.0, 0.0), (-1.0, 0.0), (0.0, 1.0), (0.0, -1.0)] {
                 painter.literal(
@@ -371,7 +378,7 @@ impl QuasarRain {
 /// The ignition's brightness cap as a ladder rank (0 = Ghost ..
 /// 4 = Core): Ghost through the dark cloud, Dim while the disk
 /// condenses, ramping to the full law with the luminosity.
-fn ignition_cap_rank(phase: IgnitionPhase, lum: f32) -> u8 {
+pub(crate) fn ignition_cap_rank(phase: IgnitionPhase, lum: f32) -> u8 {
     match phase {
         IgnitionPhase::Dark => 0,
         IgnitionPhase::Disk => 1,
@@ -380,7 +387,7 @@ fn ignition_cap_rank(phase: IgnitionPhase, lum: f32) -> u8 {
     }
 }
 
-fn level_rank(level: BrightnessLevel) -> u8 {
+pub(crate) fn level_rank(level: BrightnessLevel) -> u8 {
     match level {
         BrightnessLevel::Ghost => 0,
         BrightnessLevel::Dim => 1,
@@ -400,13 +407,92 @@ fn rank_level(rank: u8) -> BrightnessLevel {
     }
 }
 
-fn cap_level(level: BrightnessLevel, cap_rank: u8) -> BrightnessLevel {
+pub(crate) fn cap_level(level: BrightnessLevel, cap_rank: u8) -> BrightnessLevel {
     rank_level(level_rank(level).min(cap_rank))
+}
+
+/// The disk's radial temperature ladder (law 2, pure — the NR14
+/// extraction so the composition is pinnable): the orbit's
+/// normalized temperature t in [0, 1] grades the ignition rung
+/// at the white-hot inner edge down to Ghost at the rim. The
+/// draw site composes this with the doppler swing, the charge
+/// boost, the ignition cap and the soft-light ceiling.
+pub(crate) fn disk_level(t: f32) -> BrightnessLevel {
+    if t < 0.14 {
+        BrightnessLevel::Core
+    } else if t < 0.30 {
+        BrightnessLevel::Hot
+    } else if t < 0.52 {
+        BrightnessLevel::Mid
+    } else if t < 0.75 {
+        BrightnessLevel::Dim
+    } else {
+        BrightnessLevel::Ghost
+    }
+}
+
+/// The jets' energy ladder (law 4, pure — the NR14 extraction):
+/// s in [0, 1] (0 at the core, 1 at the tip) grades the launch
+/// collar's ignition rung down to Ghost at the tip. The draw site
+/// caps this through the soft-light ceiling BEFORE the knot's
+/// step-up, so the collar reads warm and the knot's pulse rides
+/// over it as the beam's one transient flash.
+pub(crate) fn jet_level(s: f32) -> BrightnessLevel {
+    if s < 0.18 {
+        BrightnessLevel::Core
+    } else if s < 0.45 {
+        BrightnessLevel::Hot
+    } else if s < 0.70 {
+        BrightnessLevel::Mid
+    } else {
+        BrightnessLevel::Ghost
+    }
+}
+
+/// The soft-light cap (NIGHT-research-14 — the black hole's
+/// NIGHT-research-11 `soft_head_level` ported to the quasar
+/// family): a composed standing level steps down one rung from
+/// Core to the Hot warm ceiling. The Core white blend (the 55%
+/// blend the owner reported straining his eyes) is reserved for
+/// the engine's event-gated transients — the core cell's flare
+/// window and the knot's traveling pulse — never a standing
+/// structure (the disk's inner rung, the doppler limb, the
+/// fresh-feed charge, the jet collar). The cap is a ceiling, not
+/// a regrade: every lower rung passes through unchanged, so the
+/// distance keys, the ignition ramp and the step-up swings keep
+/// shaping the band below it.
+pub(crate) fn soft_head_level(level: BrightnessLevel) -> BrightnessLevel {
+    match level {
+        BrightnessLevel::Core => BrightnessLevel::Hot,
+        other => other,
+    }
+}
+
+/// The core cell's composed level (law 1's presentation, pure —
+/// the NR14 ruling): the engine's heart reads the soft warm
+/// ceiling standing (the full palette's bright stop, no white
+/// blend, breathing on the pulse factor), and burns Core only
+/// inside the flare window — the event-gated flash that rides
+/// the same moment the glyph re-rolls (flare fire).
+pub(crate) fn core_cell_level(flaring: bool) -> BrightnessLevel {
+    if flaring {
+        BrightnessLevel::Core
+    } else {
+        BrightnessLevel::Hot
+    }
+}
+
+/// The core cell's brightness factor (pure): the luminosity
+/// pulse's subtle breathing, 0.85 to 1.0 — the heart is never
+/// static-flat, and never strains: the swell rides the same
+/// slow sine the glow ring follows.
+pub(crate) fn core_cell_factor(pulse: f32) -> f32 {
+    0.85 + 0.15 * pulse.clamp(0.0, 1.0)
 }
 
 /// Step a brightness level up (toward Core) — the doppler's
 /// approaching limb, the charge's fresh feed, the knot's pulse.
-fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
+pub(crate) fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
     match level {
         BrightnessLevel::Ghost => BrightnessLevel::Dim,
         BrightnessLevel::Dim => BrightnessLevel::Mid,
@@ -417,7 +503,7 @@ fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
 
 /// Step a brightness level down (toward Ghost) — the receding
 /// limb, the streak's wake (mirrors the family's step-down).
-fn step_down_level(level: BrightnessLevel) -> BrightnessLevel {
+pub(crate) fn step_down_level(level: BrightnessLevel) -> BrightnessLevel {
     match level {
         BrightnessLevel::Core => BrightnessLevel::Hot,
         BrightnessLevel::Hot => BrightnessLevel::Mid,

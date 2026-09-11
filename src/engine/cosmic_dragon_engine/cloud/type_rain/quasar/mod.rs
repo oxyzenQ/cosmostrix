@@ -11,8 +11,9 @@
 //! ferociously. Cold glyph gas falls out of the dark, spirals into
 //! a thin accretion disk of Keplerian orbits — the inner ring
 //! lapping the outer six times over, one limb doppler-brightened
-//! like the M87 photograph — while the core burns white-hot and
-//! breathes, and the poles fire two collimated jets that precess,
+//! like the M87 photograph — while the core burns warm and
+//! breathes (flashing white only on the flare event), and the
+//! poles fire two collimated jets that precess,
 //! pulse and knot. The matrix rain is reborn as accretion: every
 //! falling glyph is fuel, and where it lands, the disk carries the
 //! light of having been recently fed. The black hole rain style
@@ -60,13 +61,18 @@
 //!
 //! ### Law 1 — the engine (the core)
 //!
-//! The center: one cell of Core-bright glyph breathing on a slow
-//! pulse (the luminosity, a bounded sine), wrapped in a small glow
-//! ring that follows the pulse. On the feed-flare clock a clump
-//! arrives — the core locks above its peak for the window, the
-//! infall surges, and a knot climbs each beam: the drama event,
-//! the murmuration startle's heir. The core's glyph re-rolls only
-//! on flare fire (event-gated mutation — the family contract).
+//! The center: one cell of glyph at the soft warm ceiling
+//! (NIGHT-research-14 — the black hole's soft-light ruling
+//! ported to this family: the standing heart reads the palette's
+//! bright stop without the Core white blend, breathing on a slow
+//! pulse, the luminosity's bounded sine), wrapped in a small
+//! glow ring that follows the pulse. On the feed-flare clock a
+//! clump arrives — the core locks above its peak for the window
+//! (the engine's one event-gated Core flash, the same moment the
+//! glyph re-rolls), the infall surges, and a knot climbs each
+//! beam: the drama event, the murmuration startle's heir. The
+//! core's glyph re-rolls only on flare fire (event-gated mutation
+//! — the family contract).
 //!
 //! ### Law 2 — the disk (Kepler + doppler)
 //!
@@ -76,8 +82,9 @@
 //! laps the outer ~6x and the shear IS the rotation read. The
 //! orbit projects to a thin ellipse (the disk tilt — the classic
 //! quasar photograph's geometry). The radial temperature ladder
-//! maps the orbit to brightness (white-hot inner edge, dim rim),
-//! and the doppler beaming splits it: the limb where the plasma
+//! maps the orbit to brightness (warm-bright inner edge, dim rim,
+//! composed under the soft-light ceiling), and the doppler beaming
+//! splits it: the limb where the plasma
 //! approaches swings the brightness factor up and lifts the rung
 //! one step, the receding limb dims a step — mono-safe, the M87
 //! signature. Captured gas circularizes by exponential damping

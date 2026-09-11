@@ -9,6 +9,39 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-14 — the quasar soft-light round
+
+- Tier one of the NIGHT-research-13 masterclass audit (the owner
+  approved the round order): the quasar carried the single
+  brightest standing cell in the codebase — the permanently
+  Core-bright engine glyph at screen center (the 55% white blend
+  the black hole rounds retired), plus standing Core at the disk's
+  inner rung, the doppler limb's step-up, the fresh-feed charge
+  step-up, and the jet launch collar.
+- The soft-light cap ported whole from the black hole's
+  NIGHT-research-11 ruling (`quasar/draw.rs`): the disk ladder
+  composes through the new `soft_head_level` after the ignition
+  cap — the standing disk never lands Core; the jet ladder caps
+  BEFORE the knot's step-up so the collar reads warm while the
+  knot's traveling pulse remains the beam's one transient Core
+  flash; the core cell reads the soft warm ceiling standing with a
+  0.85-1.0 pulse breathing (never static-flat), burning Core only
+  inside the 2.0 s flare window (the event-gated flash that rides
+  the glyph re-roll moment).
+- The ladders extracted into pure functions (`disk_level`,
+  `jet_level`, `core_cell_level`, `core_cell_factor`) and pinned:
+  four new contracts in `tests_quasar/core.rs` — the cap steps
+  Core down one rung, the disk composition never lands Core at any
+  temperature / line-of-sight / charge state, the beam stays soft
+  warm with Core only inside the knot window, and the core cell
+  reads soft warm standing and flashes Core on flare. 25 quasar
+  tests (was 21), full suite 2804 green.
+- Mechanically honest-flat A/B (10 s, 120x40, wet IO, dev profile,
+  two-run discard-warmup): avg fps 12866.7 -> 12889.1, dirty
+  cells/frame 45.1 -> 45.1, entropy 3.90 -> 3.89, gini 0.8867 ->
+  0.8868, heap retained 0 B, drift stable — pure level re-grades,
+  zero allocation, same population.
+
 ### feature: NIGHT-research-12 — the black hole sparse lower echo, soft ball, rise hold, and arc concentration
 
 - Owner verdict round (9.8/10, four asks decoded): the lower rings'

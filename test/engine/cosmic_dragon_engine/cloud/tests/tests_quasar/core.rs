@@ -456,3 +456,164 @@ fn quas_adopt_palette_and_clear_draw_history() {
     cloud.quasar_rain.clear_draw_history();
     assert!(cloud.quasar_rain.drawn_cells_for_test().is_empty());
 }
+
+// ─── NIGHT-research-14: the soft-light contracts ─────────────────────
+
+#[test]
+fn quas_soft_head_cap_steps_core_down_one_rung() {
+    // The NIGHT-research-14 soft-light cap, pinned on the pure
+    // function (the black hole's soft_head_cap precedent): Core
+    // steps down to Hot (the retired standing white blend), every
+    // other level passes through unchanged — the cap is a
+    // ceiling, not a regrade, so the doppler swing, the charge
+    // boost, the ignition ramp and the step-up ladders keep
+    // shaping the band below it.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::quasar::draw::{level_rank, soft_head_level};
+    assert_eq!(
+        level_rank(soft_head_level(BrightnessLevel::Core)),
+        level_rank(BrightnessLevel::Hot),
+        "Core must step down to the soft warm ceiling"
+    );
+    for level in [
+        BrightnessLevel::Hot,
+        BrightnessLevel::Mid,
+        BrightnessLevel::Dim,
+        BrightnessLevel::Ghost,
+    ] {
+        assert_eq!(
+            level_rank(soft_head_level(level)),
+            level_rank(level),
+            "the cap must pass {level:?} through unchanged"
+        );
+    }
+}
+
+#[test]
+fn quas_disk_composes_soft_warm_never_core() {
+    // The NIGHT-research-14 disk composition, pinned on the pure
+    // ladders exactly as the draw site composes them (the black
+    // hole ball-surface precedent): the radial temperature ladder
+    // through BOTH step-ups (the doppler's approaching limb and
+    // the fresh-feed charge — the two standing sources that used
+    // to lift the inner disk to Core), the ignition cap at the
+    // full law, and the soft-light ceiling — the composed level
+    // never lands Core at any temperature, line-of-sight or
+    // charge state. The standing surface's absolute ceiling is
+    // the soft warm rung.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::quasar::draw::{
+        cap_level, disk_level, level_rank, soft_head_level, step_down_level, step_up_level,
+    };
+    use crate::constants::QUAS_DOPPLER_RUNG;
+    let full_law = cap_level_rank_steady();
+    for i in 0..=200 {
+        let t = i as f32 / 200.0;
+        for los in [-1.0_f32, -0.8, -0.5, 0.0, 0.5, 0.8, 1.0] {
+            for charged in [false, true] {
+                let mut level = disk_level(t);
+                if los > QUAS_DOPPLER_RUNG {
+                    level = step_up_level(level);
+                } else if los < -QUAS_DOPPLER_RUNG {
+                    level = step_down_level(level);
+                }
+                if charged {
+                    level = step_up_level(level);
+                }
+                level = cap_level(level, full_law);
+                level = soft_head_level(level);
+                assert!(
+                    level_rank(level) <= level_rank(BrightnessLevel::Hot),
+                    "the composed disk must never land Core (t {t}, los {los}, charged {charged})"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn quas_jet_collar_composes_soft_warm_core_only_in_the_knot_window() {
+    // The NIGHT-research-14 jet composition (the black hole
+    // stream-heads precedent): the energy ladder under the
+    // soft-light ceiling never lands Core along the beam — the
+    // launch collar reads the warm ceiling. The knot's step-up
+    // rides AFTER the cap, so Core appears only inside the knot's
+    // traveling window (QUAS_KNOT_W): the beam's one transient
+    // flash, never a standing structure.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::quasar::draw::{
+        jet_level, level_rank, soft_head_level, step_up_level,
+    };
+    use crate::constants::QUAS_KNOT_W;
+    let knot = 0.5_f32;
+    for i in 0..=200 {
+        let s = i as f32 / 200.0;
+        let capped = soft_head_level(jet_level(s));
+        assert!(
+            level_rank(capped) <= level_rank(BrightnessLevel::Hot),
+            "the capped beam must never land Core (s {s})"
+        );
+    }
+    // Inside the knot's window the step-up is applied (the draw
+    // site's condition) and the pulse is allowed to flash: at
+    // least one position of the band lifts Hot to Core.
+    let mut flashed = false;
+    let start = ((knot - QUAS_KNOT_W) * 100.0) as i32;
+    let end = ((knot + QUAS_KNOT_W) * 100.0) as i32;
+    for h in (start..end).step_by(2) {
+        let s = h as f32 / 100.0;
+        if level_rank(step_up_level(soft_head_level(jet_level(s))))
+            == level_rank(BrightnessLevel::Core)
+        {
+            flashed = true;
+            break;
+        }
+    }
+    assert!(flashed, "the knot pulse must flash Core inside its window");
+}
+
+#[test]
+fn quas_core_cell_reads_soft_warm_standing_flashes_core_on_flare() {
+    // The NIGHT-research-14 core-cell ruling (the owner's report:
+    // the permanently Core-bright center glyph — the single
+    // brightest standing cell in the codebase — strained his
+    // eyes): the engine's heart reads the soft warm ceiling
+    // standing and burns Core only inside the flare window (the
+    // event-gated flash that rides the glyph re-roll moment). The
+    // factor breathes 0.85 to 1.0 on the pulse — never
+    // static-flat, never a strain.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::quasar::draw::{core_cell_factor, core_cell_level, level_rank};
+    assert_eq!(
+        level_rank(core_cell_level(false)),
+        level_rank(BrightnessLevel::Hot),
+        "the standing core cell must read the soft warm ceiling"
+    );
+    assert_eq!(
+        level_rank(core_cell_level(true)),
+        level_rank(BrightnessLevel::Core),
+        "the flare window is the core cell's one Core flash"
+    );
+    for i in 0..=100 {
+        let pulse = i as f32 / 100.0;
+        let factor = core_cell_factor(pulse);
+        assert!(
+            (0.85..=1.0).contains(&factor),
+            "the core cell's breathing must stay in [0.85, 1.0] (pulse {pulse})"
+        );
+    }
+    assert_eq!(
+        core_cell_factor(-0.5),
+        0.85,
+        "the clamp must floor below range"
+    );
+    assert_eq!(core_cell_factor(1.7), 1.0, "the clamp must cap above range");
+}
+
+/// The ignition cap rank at the full law (Steady) — the worst
+/// case for Core the disk composition can reach.
+fn cap_level_rank_steady() -> u8 {
+    use crate::cloud::type_rain::quasar::draw::ignition_cap_rank;
+    use crate::cloud::type_rain::quasar::ignition::IgnitionPhase;
+    ignition_cap_rank(IgnitionPhase::Steady, 1.0)
+}

@@ -174,6 +174,25 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-14 (2026-09-11, the quasar soft-light round):** the
+disk ladder composes through the ported soft_head_level after the
+ignition cap (the inner rung, the doppler limb's step-up and the
+fresh-feed charge step-up never land Core), the jet ladder caps
+before the knot's step-up (the collar reads warm, the knot's
+traveling pulse stays the beam's one transient Core flash), and
+the core cell reads the soft warm ceiling standing with a 0.85-1.0
+pulse breathing, burning Core only inside the 2.0 s flare window —
+pure level re-grades, the retired Core white blend leaves every
+standing surface. 10s A/B at 120x40 wet IO (dev profile, two-run
+discard-warmup): quasar avg fps 12866.7 -> 12889.1 (+0.2%, flat),
+median 13639.0 -> 13587.8, p99 0.1007 -> 0.1012 ms, avg dirty
+cells/frame 45.1 -> 45.1, entropy 3.90 -> 3.89, gini 0.8867 ->
+0.8868, heap retained 0 B, peak RSS 8.96 -> 9.03 MiB, drift stable
+(+1.8% -> +0.9%). The round is mechanically honest-flat: same
+cells repainted at softer levels, zero allocation, same pools —
+the NR12 precedent class (the cheapest visual round in the audit's
+tier one).
+
 **NIGHT-research-13 (2026-09-11, the black hole lock verification):**
 the owner locked the scene at 10/10 after four rounds; this is the
 lock's stability record. Full suite 2800 green, cargo fmt clean,
