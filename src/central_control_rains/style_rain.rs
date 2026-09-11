@@ -491,7 +491,10 @@ pub(crate) const PHYSARUM_STEP_PER_CPS: f32 = 2.0;
 /// visited cell is deposit-per-step / (1 - decay) = (0.5/60)/0.10
 /// ~ 0.083 — above the PHYSARUM_BRIGHTNESS_DIM threshold, so
 /// single-particle cells reach Mid zone, and multi-particle cells
-/// accumulate into Hot/Core (the visible vein signature).
+/// accumulate into the Hot warm ceiling (the visible vein
+/// signature; NIGHT-research-18 — the retired Core rung once sent
+/// the saturated 4+-particle veins — equilibrium above ~0.30 —
+/// into the white blend; they read Hot like every vein now).
 pub(crate) const PHYSARUM_DEPOSIT_AMOUNT: f32 = 0.5;
 
 /// Trail decay rate (per-step multiplier, quoted at the 60 Hz
@@ -552,13 +555,12 @@ pub(crate) const PHYSARUM_SPAWN_RATE_FLOOR: f32 = 1.5;
 /// structured styles' shimmer gates).
 pub(crate) const PHYSARUM_SHIMMER_CHANCE: f32 = 0.4;
 
-/// Brightness zone boundary: trail value above this → Core (hot
-/// vein). Tuned so cells visited by 4+ particles reach this
-/// brightness (the visible network signature).
-pub(crate) const PHYSARUM_BRIGHTNESS_HOT: f32 = 0.30;
-
-/// Brightness zone boundary: trail value above this → Hot.
-/// Cells visited by 2-3 particles reach this brightness
+/// Brightness zone boundary: trail value above this → Hot — the
+/// vein warm ceiling (NIGHT-research-18 soft-light ruling: the
+/// saturated-vein zone above the retired ~0.30 saturation bound
+/// merged with this zone; every vein cell, sustained or saturated,
+/// reads the same warm Hot stop, never the Core white blend).
+/// Cells visited by 2+ particles reach this brightness
 /// (sustained vein paths).
 pub(crate) const PHYSARUM_BRIGHTNESS_MID: f32 = 0.15;
 

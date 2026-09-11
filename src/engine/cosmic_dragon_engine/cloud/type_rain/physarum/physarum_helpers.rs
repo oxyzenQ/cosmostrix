@@ -61,15 +61,24 @@ pub(super) fn sample_trail(field: &[f32], cols: usize, lines: usize, x: f32, y: 
 
 /// Brightness zone by trail field value at the head position. The
 /// threshold values are tuned so that the network veins (cells with
-/// accumulated trail from many particle passes) read as Core/Hot,
-/// while exploring particles (cells with low trail) read as Ghost.
-/// This makes the network visible via the heads themselves — the
-/// pattern emerges from the brightness distribution across active
+/// accumulated trail from many particle passes) read as Hot, while
+/// exploring particles (cells with low trail) read as Ghost. This
+/// makes the network visible via the heads themselves — the pattern
+/// emerges from the brightness distribution across active
 /// particles, not from a separate trail visualization pass.
-pub(super) fn level_for_trail(trail_val: f32) -> BrightnessLevel {
-    if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_HOT {
-        BrightnessLevel::Core
-    } else if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_MID {
+///
+/// NIGHT-research-18 (the masterclass audit's soft-light ruling,
+/// tier two): the retired top rung sent the saturated veins
+/// (equilibrium trail above the old 0.30 saturation bound, the
+/// 4+-particle cells) to Core — the 100% palette + 55% white blend,
+/// standing, forever, on the scene's own hero structure. The veins
+/// now read the Hot warm ceiling (the palette's bright stop, no
+/// white blend — warm-gold, the audit's exact wording); the ladder
+/// never lands Core at any trail value, pinned in
+/// tests_physarum/core.rs. The saturated-vein zone merged with the
+/// sustained-vein zone: both are the vein read, both the ceiling.
+pub(crate) fn level_for_trail(trail_val: f32) -> BrightnessLevel {
+    if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_MID {
         BrightnessLevel::Hot
     } else if trail_val > crate::constants::PHYSARUM_BRIGHTNESS_DIM {
         BrightnessLevel::Mid

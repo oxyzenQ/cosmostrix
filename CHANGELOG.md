@@ -9,6 +9,46 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-18 — the physarum soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round two: the physarum's own hero
+  structure was the offender — the vein network equilibrates above
+  the 0.30 trail saturation bound, so the whole signature surface
+  read standing Core (the 100% palette + 55% white blend, MONOLITH_
+  CORE_WHITE_BLEND) continuously, the code's own comment documenting
+  the grading at the 60 Hz reference.
+- The soft-light ruling (the vortex ceiling idiom, the audit's
+  exact wording "the veins read warm-gold"): `level_for_trail`
+  re-grades the top rung Core to Hot — the saturated-vein zone
+  merges with the sustained-vein zone, both read the Hot warm
+  ceiling (the palette's bright stop, no white blend). The ladder
+  now has three zones: vein (Hot), single-particle (Mid),
+  exploring (Ghost) — never Core at any trail value.
+- PHYSARUM_BRIGHTNESS_HOT (0.30, the retired saturation bound)
+  retires with the rung — its tuning knowledge (4+-particle cells
+  saturate there) folds into the PHYSARUM_BRIGHTNESS_MID and
+  deposit docs; the deposit equilibrium comment re-pins from
+  "Hot/Core" to "the Hot warm ceiling".
+- The per-particle pace multipliers (0.85-1.15 on turn/move/
+  deposit) stay: the audit's round sentence is cap-and-pin, and
+  per-particle variance is the organic slime-mold semantics (the
+  monolith speed-spread call, an owner decision if it changes).
+- One new contract in `tests_physarum/core.rs` — the trail ladder
+  never lands Core at any trail value (the sweep runs from the
+  exploring floor through the retired saturation region to 50.0),
+  with the vein/Mid/Ghost zone boundaries pinned. 15 -> 16 physarum
+  tests, full suite 2814 green, fmt and clippy -D warnings clean,
+  gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): physarum avg fps 7945.7 -> 7968.1 (+0.3%,
+  flat), median 8106.3 -> 8145.6, p99 0.1529 -> 0.1495 ms, avg
+  dirty cells/frame 78.5 -> 78.4, entropy 5.45 -> 5.43, gini
+  0.6890 -> 0.6923, heap retained 0 B — mechanically honest-flat,
+  the same vein cells repainted at the warm stop, zero allocation.
+  Docs updated: README scene bullet, CHANGELOG feature entry,
+  BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-17 — the monolith soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

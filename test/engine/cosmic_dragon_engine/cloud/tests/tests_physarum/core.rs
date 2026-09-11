@@ -347,3 +347,57 @@ fn physarum_heading_wraps_when_the_accumulator_drifts() {
         "heading must fold into [0, TAU] once past the wrap limit (got {h})"
     );
 }
+
+// -- NIGHT-research-18: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn physarum_trail_ladder_never_lands_core() {
+    // The NIGHT-research-18 soft-light ruling (the black hole's
+    // NIGHT-research-11 precedent, vortex ceiling idiom): the vein
+    // network is the scene's own hero structure, and it equilibrates
+    // ABOVE the retired 0.30 saturation bound — the masterclass
+    // audit's finding was the whole signature surface burning the
+    // Core white blend, standing, forever. The ladder now composes
+    // to the Hot warm ceiling at every trail value: no input, from
+    // the exploring Ghost floor to the deep saturation region, may
+    // land Core.
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::physarum::physarum_helpers::level_for_trail;
+
+    let mid = crate::constants::PHYSARUM_BRIGHTNESS_MID;
+    let dim = crate::constants::PHYSARUM_BRIGHTNESS_DIM;
+
+    // The sweep: the exploring floor, the single-particle zone, the
+    // sustained-vein zone, the retired saturation region (0.30, 1.0,
+    // 5.0) and beyond — never Core anywhere.
+    for trail in [
+        0.0, 0.005, dim, 0.10, mid, 0.20, 0.299, 0.30, 0.31, 1.0, 5.0, 50.0,
+    ] {
+        let level = level_for_trail(trail);
+        assert!(
+            !matches!(level, BrightnessLevel::Core),
+            "the trail ladder must never land Core (trail {trail})"
+        );
+    }
+
+    // Zone boundaries pinned: the vein ceiling (sustained AND
+    // saturated), the single-particle Mid, the exploring Ghost.
+    for vein in [mid + 1.0e-4, 0.30, 1.0, 5.0] {
+        assert!(
+            matches!(level_for_trail(vein), BrightnessLevel::Hot),
+            "every vein value reads the warm Hot ceiling (trail {vein})"
+        );
+    }
+    for single in [dim + 1.0e-4, 0.10, mid] {
+        assert!(
+            matches!(level_for_trail(single), BrightnessLevel::Mid),
+            "the single-particle zone reads Mid (trail {single})"
+        );
+    }
+    for exploring in [0.0, 0.005, dim] {
+        assert!(
+            matches!(level_for_trail(exploring), BrightnessLevel::Ghost),
+            "the exploring floor reads Ghost (trail {exploring})"
+        );
+    }
+}

@@ -174,6 +174,22 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-18 (2026-09-11, the physarum soft-light round):**
+the trail ladder's top rung re-graded Core to the Hot warm
+ceiling — the saturated-vein zone (equilibrium above the retired
+0.30 bound) merged with the sustained-vein zone, so the whole
+signature surface reads warm-gold instead of standing white
+blend; PHYSARUM_BRIGHTNESS_HOT retired with the rung, its tuning
+knowledge folded into the MID/deposit docs. A pure level
+re-grade on the same drawn cells — no RNG change, no allocation.
+10s A/B at 120x40 wet IO (dev profile, two-run discard-warmup):
+physarum avg fps 7945.7 -> 7968.1 (+0.3%, flat), median 8106.3
+-> 8145.6, p99 0.1529 -> 0.1495 ms, avg dirty cells/frame 78.5
+-> 78.4, entropy 5.45 -> 5.43, gini 0.6890 -> 0.6923, heap
+retained 0 B, peak RSS 9.03 -> 9.06 MiB, drift stable (-0.38%
+-> +0.47%). Mechanically honest-flat: the standing vein cells
+repaint at the palette's bright stop, nothing else moves.
+
 **NIGHT-research-17 (2026-09-11, the monolith soft-light round):**
 the Hero head rung re-graded Core to the Hot warm ceiling
 standing, with Core reserved for the fresh cascade's ~1.5 s
