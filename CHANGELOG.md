@@ -9,6 +9,47 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-19 — the aeolian soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round three: the audit's split
+  verdict — the instrument half already enforced the exact
+  NIGHT-research-11 rule (knots-only-Core, in prose and in code),
+  while the rain half's kinetic ladder sent drop heads to Core at
+  |vy| > 3.6 with terminal velocity 4.0. Gravity (1.6/s^2 from the
+  1.2 calm entry) drives every free fall past the threshold within
+  ~1.5 s, so most of each drop's visible flight stood Core-white —
+  the "punch flash" was a standing surface.
+- The soft-light ruling (drops.rs kinetic_level): the top rung
+  re-grades Core to the Hot warm ceiling — the rain half now
+  matches the instrument half's own knots-only-Core policy. Core
+  survives only where two packets cross (the interference knots,
+  untouched by the round). AEOLIAN_SPEED_CORE (3.6, the retired
+  punch threshold) retires with the rung along with its
+  compile-time assert; its tuning knowledge folds into the
+  AEOLIAN_SPEED_MID doc.
+- The comet trails compose one rung dimmer (step_down_level from
+  the Hot ceiling: Mid / Ghost / Ghost instead of Hot / Mid /
+  Mid) — the whole weather half reads softer, the knots carry the
+  scene's only white. Module and README prose re-pinned ("flare
+  bright", never white, on the drops).
+- One new contract in `tests_aeolian/core.rs` — the kinetic
+  ladder never lands Core on a falling glyph (the sweep runs from
+  the calm entry through the retired punch band at 3.6 to and past
+  terminal, mirrored negatives included), with the Ghost/Mid/Hot
+  zone boundaries pinned. 27 -> 28 aeolian tests, full suite 2815
+  green, fmt and clippy -D warnings clean, gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): aeolian avg fps 7599.5 -> 7944.2 (+4.5%,
+  confirmation 7870.0), median 7430.3 -> 7721.2, p99 0.1706 ->
+  0.1728 ms, avg dirty cells/frame 74.8 -> 71.0 (-5.1%, the
+  re-graded heads and dimmer trails change fewer drawn contents
+  through the frame-equality fast path; confirmation run 71.0),
+  entropy 5.65 -> 5.63, gini 0.6285 -> 0.6312, heap retained 0 B —
+  zero allocation, same pools, the RNG stream untouched. Docs
+  updated: README scene bullet, CHANGELOG feature entry,
+  BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-18 — the physarum soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

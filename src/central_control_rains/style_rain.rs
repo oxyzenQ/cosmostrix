@@ -1628,14 +1628,14 @@ pub(crate) const AEOLIAN_CHARGE_SEED: f32 = 0.4;
 pub(crate) const AEOLIAN_SPEED_GHOST: f32 = 1.45;
 
 /// Kinetic ladder rung 2: below this the drop reads Mid, above it
-/// Hot — the accelerating fall's band (a drop that has surfed a
-/// wavefront or fallen deep reads bright).
+/// Hot — the accelerating fall's band and the surfed streak, both
+/// the warm ceiling now. (NIGHT-research-19 soft-light ruling: the
+/// retired rung-3 threshold 3.6 sent the drop Core above this
+/// speed, but gravity alone drives every free fall past 3.6 within
+/// ~1.5 s from the 1.2 calm entry — terminal 4.0 — so most of
+/// every drop's visible flight stood white-blended. The rain half
+/// now matches the instrument half's knots-only-Core policy.)
 pub(crate) const AEOLIAN_SPEED_MID: f32 = 2.4;
-
-/// Kinetic ladder rung 3: above this fall speed the drop reads
-/// Core — the white streak of a drop punching a bright packet at
-/// full surf kick.
-pub(crate) const AEOLIAN_SPEED_CORE: f32 = 3.6;
 
 /// Comet trail length of the falling drops (cells behind the head,
 /// one brightness rung dimmer per cell).
@@ -1752,7 +1752,7 @@ pub(crate) const AEOLIAN_STRING_LINES_PER: u16 = 17;
 // no-tunneling guarantee; the signal threshold must sit under a
 // typical pluck so strikes sprint from birth).
 const _: () = assert!(AEOLIAN_SPEED_GHOST < AEOLIAN_SPEED_MID);
-const _: () = assert!(AEOLIAN_SPEED_MID < AEOLIAN_SPEED_CORE);
+const _: () = assert!(AEOLIAN_SPEED_MID < AEOLIAN_DROP_TERMINAL);
 const _: () = assert!(AEOLIAN_DRAW_FLOOR < AEOLIAN_LEVEL_MID);
 const _: () = assert!(AEOLIAN_LEVEL_MID < AEOLIAN_LEVEL_HOT);
 const _: () = assert!(AEOLIAN_KNOT_LEVEL > AEOLIAN_DRAW_FLOOR);

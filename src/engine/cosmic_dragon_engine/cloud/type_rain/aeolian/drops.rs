@@ -13,8 +13,8 @@
 //! string field's queries and the capture rolls).
 
 use crate::constants::{
-    AEOLIAN_DROP_DRIFT_FRACTION, AEOLIAN_DROP_FALL_BASE, AEOLIAN_SPEED_CORE, AEOLIAN_SPEED_GHOST,
-    AEOLIAN_SPEED_MID, AEOLIAN_TRAIL_LEN,
+    AEOLIAN_DROP_DRIFT_FRACTION, AEOLIAN_DROP_FALL_BASE, AEOLIAN_SPEED_GHOST, AEOLIAN_SPEED_MID,
+    AEOLIAN_TRAIL_LEN,
 };
 
 use super::super::monolith::BrightnessLevel;
@@ -124,12 +124,21 @@ impl AeolianDrop {
     /// The kinetic-heat ladder: fall speed to brightness rung. The
     /// Ghost rung sits ABOVE the fresh fall speed (the dim calm
     /// entry), Mid is the accelerating fall's band, Hot the surfed
-    /// streak, Core the full white punch through a bright packet.
+    /// streak — the warm ceiling.
+    ///
+    /// NIGHT-research-19 (the masterclass audit's soft-light
+    /// ruling, tier two): the retired Core rung (> the old 3.6
+    /// punch threshold) was meant as the white flash of a drop
+    /// punching a bright packet at full surf kick, but gravity
+    /// alone (1.6/s^2 from the 1.2 calm entry) drives every free
+    /// fall past it within ~1.5 s and the terminal cap is 4.0 —
+    /// the "flash" stood for most of every drop's visible flight.
+    /// The rain half now matches the instrument half's own
+    /// knots-only-Core policy: Core survives only where two
+    /// packets cross, never on a falling glyph.
     pub(crate) fn kinetic_level(&self) -> BrightnessLevel {
         let speed = self.vy.abs();
-        if speed > AEOLIAN_SPEED_CORE {
-            BrightnessLevel::Core
-        } else if speed > AEOLIAN_SPEED_MID {
+        if speed > AEOLIAN_SPEED_MID {
             BrightnessLevel::Hot
         } else if speed > AEOLIAN_SPEED_GHOST {
             BrightnessLevel::Mid

@@ -342,3 +342,50 @@ fn aeolian_resize_rebuilds_the_instrument() {
         "weather never restarted after resize"
     );
 }
+
+// -- NIGHT-research-19: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn aeolian_kinetic_ladder_never_lands_core() {
+    // The NIGHT-research-19 soft-light ruling (the masterclass
+    // audit's split verdict): the instrument half already enforced
+    // the knots-only-Core policy, but the rain half's kinetic ladder
+    // sent drop heads Core at |vy| > 3.6 with terminal velocity 4.0
+    // — gravity (1.6/s^2 from the 1.2 calm entry) drives every free
+    // fall past the threshold within ~1.5 s, so most of each drop's
+    // visible flight stood Core-white. The rain half now matches the
+    // instrument half's own policy: no falling glyph ever lands
+    // Core, at any speed from the calm entry to and past terminal.
+    use crate::cloud::type_rain::aeolian::drops::AeolianDrop;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+
+    let ghost = crate::constants::AEOLIAN_SPEED_GHOST;
+    let mid = crate::constants::AEOLIAN_SPEED_MID;
+    let terminal = crate::constants::AEOLIAN_DROP_TERMINAL;
+
+    let level_at = |vy: f32| {
+        let mut drop = AeolianDrop::vacant();
+        drop.vy = vy;
+        drop.kinetic_level()
+    };
+
+    // The sweep: the calm entry, every zone, the retired punch band
+    // (3.6), terminal and far beyond — and the mirrored negatives.
+    for speed in [
+        0.0, 1.2, ghost, 1.8, mid, 2.8, 3.5, 3.6, 3.7, terminal, 8.0, -1.2, -3.6, -4.0,
+    ] {
+        assert!(
+            !matches!(level_at(speed), BrightnessLevel::Core),
+            "the kinetic ladder must never land Core on a falling glyph (|vy| {speed})"
+        );
+    }
+
+    // Zone boundaries pinned: the calm entry reads Ghost, the
+    // accelerating fall Mid, the surfed streak and terminal the
+    // warm Hot ceiling.
+    assert!(matches!(level_at(1.2), BrightnessLevel::Ghost));
+    assert!(matches!(level_at(ghost + 1.0e-4), BrightnessLevel::Mid));
+    assert!(matches!(level_at(1.8), BrightnessLevel::Mid));
+    assert!(matches!(level_at(mid + 1.0e-4), BrightnessLevel::Hot));
+    assert!(matches!(level_at(terminal), BrightnessLevel::Hot));
+}

@@ -9,7 +9,9 @@
 //! impact in both directions, sharpens into a bright hook at its
 //! crest, races into the walls, and reflects back. Falling glyphs
 //! bend toward the passing wavefronts (they hear the music), flare
-//! white as they punch through them, and are captured where the
+//! bright as they punch through them (the NIGHT-research-19 ruling:
+//! the warm Hot streak, never the white blend — the white flash
+//! belongs to the knots alone), and are captured where the
 //! field is brightest — so the rain clusters onto the antinodes and
 //! the instrument amplifies the notes the weather prefers. Where
 //! two packets cross, a white knot flares. The architecture is

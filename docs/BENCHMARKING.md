@@ -174,6 +174,25 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-19 (2026-09-11, the aeolian soft-light round):**
+the drop kinetic ladder's top rung re-graded Core to the Hot warm
+ceiling (the rain half matching the instrument half's own
+knots-only-Core policy; AEOLIAN_SPEED_CORE retired with the rung),
+so the falling glyphs read the warm streak from the accelerating
+band to terminal while the interference knots keep the scene's
+only white; the comet trails compose one rung dimmer behind the
+softer heads. No RNG change, no allocation. 10s A/B at 120x40 wet
+IO (dev profile, two-run discard-warmup): aeolian avg fps 7599.5
+-> 7944.2 (+4.5%, confirmation 7870.0), median 7430.3 -> 7721.2,
+p99 0.1706 -> 0.1728 ms, avg dirty cells/frame 74.8 -> 71.0
+(-5.1%, stable across the confirmation run — the re-graded heads
+and dimmer trails change fewer drawn contents through the
+frame-equality fast path), entropy 5.65 -> 5.63, gini 0.6285 ->
+0.6312, heap retained 0 B, peak RSS 9.05 -> 9.01 MiB, drift
+improving (+2.63% -> +0.78%). A level re-grade with a small
+mechanical dividend: the same cells repaint softer and the diff
+engine finds fewer of them changed.
+
 **NIGHT-research-18 (2026-09-11, the physarum soft-light round):**
 the trail ladder's top rung re-graded Core to the Hot warm
 ceiling — the saturated-vein zone (equilibrium above the retired
