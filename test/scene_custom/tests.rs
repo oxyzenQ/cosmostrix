@@ -750,3 +750,105 @@ fn show_custom_scene_text_never_renders_removed_fields() {
         );
     }
 }
+
+// ── NIGHT-depthtest-3: oversized-name hard validation ──────────────
+
+/// Helper: a COMPLETE v2 block for `<name>` (all seven dimensions).
+fn complete_block(name: &str) -> HashMap<String, String> {
+    HashMap::from([
+        (format!("scene-custom.{name}.rain"), "glyph".to_string()),
+        (format!("scene-custom.{name}.color"), "aurora".to_string()),
+        (format!("scene-custom.{name}.charset"), "binary".to_string()),
+        (format!("scene-custom.{name}.fps"), "90".to_string()),
+        (format!("scene-custom.{name}.speed"), "12".to_string()),
+        (format!("scene-custom.{name}.density"), "0.90".to_string()),
+        (
+            format!("scene-custom.{name}.glitch-level"),
+            "none".to_string(),
+        ),
+    ])
+}
+
+#[test]
+fn completeness_validation_rejects_oversized_name() {
+    // The owner's repro (2026-09-11): a complete block with a 65+-
+    // char name passed --testconf because the collector silently
+    // dropped it before the completeness loop ever ran. The length
+    // gate must fire FIRST, naming the limit.
+    let long_name = "t".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 1);
+    let cfg = complete_block(&long_name);
+    let err = validate_scene_custom_completeness(&cfg).unwrap_err();
+    assert!(
+        err.contains("exceeds the 64-char name limit"),
+        "error must name the 64-char limit: {err}"
+    );
+    assert!(
+        err.contains(&format!("is {} chars", SCENE_CUSTOM_MAX_NAME_LEN + 1)),
+        "error must report the actual length: {err}"
+    );
+}
+
+#[test]
+fn completeness_validation_accepts_boundary_64_char_name() {
+    // Exactly 64 chars is legal — the collector keeps it, so the
+    // validator must not reject the boundary.
+    let name = "a".repeat(SCENE_CUSTOM_MAX_NAME_LEN);
+    let cfg = complete_block(&name);
+    assert!(
+        validate_scene_custom_completeness(&cfg).is_ok(),
+        "a 64-char name is within the limit"
+    );
+}
+
+#[test]
+fn oversized_name_error_reports_additional_hidden_blocks() {
+    let mut cfg = complete_block(&"a".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 1));
+    for k in complete_block(&"b".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 2)) {
+        cfg.insert(k.0, k.1);
+    }
+    let err = validate_scene_custom_completeness(&cfg).unwrap_err();
+    assert!(
+        err.contains("(+1 more oversized names)"),
+        "both oversized names must be counted: {err}"
+    );
+}
+
+#[test]
+fn oversized_name_with_unknown_field_is_not_a_length_error() {
+    // Unknown fields keep their own unknown-key error path — the
+    // length gate only counts keys shaped like the collector accepts.
+    let long_name = "x".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 1);
+    let cfg = HashMap::from([(
+        format!("scene-custom.{long_name}.base-scene"),
+        "hacker".to_string(),
+    )]);
+    assert!(
+        validate_scene_custom_completeness(&cfg).is_ok(),
+        "unknown fields are the unknown-key path's job, not the length gate's"
+    );
+}
+
+#[test]
+fn apply_scene_custom_layer_rejects_oversized_lookup_name() {
+    // CLI shape: `--scene-custom <65+-char name>` used to dead-end in
+    // the generic "unknown custom scene" error; now it says WHY (the
+    // name can never match a block the collector would keep).
+    use crate::config::Args;
+    use clap::Parser as _;
+    let name = "z".repeat(SCENE_CUSTOM_MAX_NAME_LEN + 5);
+    let cfg = HashMap::new();
+    let matches = clap::Command::new("cosmostrix")
+        .arg(clap::Arg::new("scene_custom").long("scene-custom"))
+        .try_get_matches_from(["cosmostrix"])
+        .unwrap();
+    let mut args = Args::try_parse_from(["cosmostrix"]).unwrap();
+    let err = apply_scene_custom_layer(&matches, &mut args, &cfg, &name, true).unwrap_err();
+    assert!(
+        err.contains("exceeds the 64-char limit"),
+        "must name the limit: {err}"
+    );
+    assert!(
+        !err.contains("unknown custom scene"),
+        "must not dead-end in the generic unknown error: {err}"
+    );
+}

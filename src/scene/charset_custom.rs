@@ -248,8 +248,19 @@ pub(crate) fn load_custom_charset(
         } else {
             available.join(", ")
         };
+        // NIGHT-depthtest-3: a >64-char name can never match a block
+        // (the collector drops oversized names) — surface the limit
+        // instead of a bare "not found" that reads as a missing block.
+        let limit_note = if normalized.len() > CHARSET_CUSTOM_MAX_NAME_LEN {
+            format!(
+                "\n  note: the name is {} chars — over the {CHARSET_CUSTOM_MAX_NAME_LEN}-char limit, so no [charset-custom.<name>] block can ever define it",
+                normalized.chars().count()
+            )
+        } else {
+            String::new()
+        };
         format!(
-            "custom charset '{name}' not found in config\nexpected one of: {list}\n\n  Use --list-charsets to see built-in and custom charsets."
+            "custom charset '{name}' not found in config{limit_note}\nexpected one of: {list}\n\n  Use --list-charsets to see built-in and custom charsets."
         )
     })?;
     if def.chars.is_empty() {
@@ -319,6 +330,45 @@ pub(crate) fn load_custom_charset_if_matches(
 #[must_use]
 pub(crate) fn validate_charset_custom_value(value: &str) -> Option<String> {
     parse_charset_value(value).err()
+}
+
+/// NIGHT-depthtest-3 (owner repro 2026-09-11): reject
+/// `charset-custom.<name>` blocks whose name exceeds
+/// [`CHARSET_CUSTOM_MAX_NAME_LEN`] (64 chars).
+///
+/// The collector drops oversized names, which made a valid
+/// `[charset-custom.<65+-char name>]` block invisible to `--testconf`
+/// (PASS) and `--list-charsets` (never listed) — the same blind-spot
+/// class the owner hit on scene-custom. Called from BOTH shared
+/// entry points (`testconf::run` and `validate_config_strictly`) so
+/// `--testconf`, startup, and the live-reload watcher reject in
+/// lockstep. Only `charset-custom.<name>.set` keys are scanned
+/// (the `set` field is the whole schema); other shapes keep their
+/// existing unknown-key error paths. Sorted + deduplicated: the
+/// reported name is deterministic across hash seeds.
+#[must_use]
+pub(crate) fn validate_charset_custom_name_len(cfg: &HashMap<String, String>) -> Option<String> {
+    let mut oversized: Vec<&str> = cfg
+        .keys()
+        .filter_map(|key| {
+            let rest = key.strip_prefix("charset-custom.")?;
+            let (name, field) = rest.split_once('.')?;
+            (field == "set" && name.len() > CHARSET_CUSTOM_MAX_NAME_LEN).then_some(name)
+        })
+        .collect();
+    oversized.sort_unstable();
+    oversized.dedup();
+    let name = *oversized.first()?;
+    let mut msg = format!(
+        "charset-custom name '{}...' is {} chars — exceeds the {}-char name limit; oversized-name blocks are dropped before validation and listing, so the charset would be invisible to --testconf and --list-charsets. Shorten the name.",
+        name.chars().take(24).collect::<String>(),
+        name.chars().count(),
+        CHARSET_CUSTOM_MAX_NAME_LEN
+    );
+    if oversized.len() > 1 {
+        msg.push_str(&format!(" (+{} more oversized names)", oversized.len() - 1));
+    }
+    Some(msg)
 }
 
 #[cfg(test)]
@@ -599,5 +649,48 @@ mod tests {
         assert!(parse_charset_value("\u{0007}")
             .unwrap_err()
             .contains("control character"));
+    }
+    // ── NIGHT-depthtest-3: oversized-name hard validation ──────────
+
+    #[test]
+    fn name_len_validation_rejects_oversized_name() {
+        // A valid set under a 65+-char name used to pass --testconf
+        // silently (the collector dropped the block before any
+        // validation saw it). The raw-key scan must flag it.
+        let mut cfg = HashMap::new();
+        let long_name = "x".repeat(CHARSET_CUSTOM_MAX_NAME_LEN + 1);
+        cfg.insert(format!("charset-custom.{long_name}.set"), "01".to_string());
+        let err = validate_charset_custom_name_len(&cfg).expect("must reject");
+        assert!(
+            err.contains("exceeds the 64-char name limit"),
+            "must name the limit: {err}"
+        );
+    }
+
+    #[test]
+    fn name_len_validation_accepts_boundary_64_char_name() {
+        let mut cfg = HashMap::new();
+        let name = "a".repeat(CHARSET_CUSTOM_MAX_NAME_LEN);
+        cfg.insert(format!("charset-custom.{name}.set"), "01".to_string());
+        assert!(
+            validate_charset_custom_name_len(&cfg).is_none(),
+            "a 64-char name with a valid set must pass"
+        );
+    }
+
+    #[test]
+    fn name_len_validation_ignores_unknown_fields() {
+        // Only `charset-custom.<name>.set` keys are scanned; other
+        // shapes belong to the unknown-key path.
+        let mut cfg = HashMap::new();
+        let long_name = "x".repeat(CHARSET_CUSTOM_MAX_NAME_LEN + 1);
+        cfg.insert(
+            format!("charset-custom.{long_name}.bogus"),
+            "01".to_string(),
+        );
+        assert!(
+            validate_charset_custom_name_len(&cfg).is_none(),
+            "unknown fields are not the length gate's job"
+        );
     }
 }

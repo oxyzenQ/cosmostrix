@@ -245,8 +245,12 @@ pub(crate) fn apply_config_and_runtime_defaults(
         let custom_scenes = crate::scene_custom::collect_custom_scenes(&cfg);
         let is_custom = custom_scenes.contains_key(&normalized);
         if !is_builtin && !is_custom {
+            // NIGHT-depthtest-3: the limit note is built by the
+            // diagnostics twin (over-limit names can never match a
+            // block — the collector drops oversized names).
+            let length_note = config_apply_diagnostics::scene_length_limit_note(&normalized);
             return Err(format!(
-                "error: unknown scene '{scene_name}'{}\n\n  Use --list-scenes to see available scenes.",
+                "error: unknown scene '{scene_name}'{length_note}{}\n\n  Use --list-scenes to see available scenes.",
                 scene_suggestion_tip(&normalized, &cfg)
             ));
         }
@@ -755,6 +759,7 @@ fn parse_color_bg_config(value: &str) -> Option<ColorBg> {
 // extracted to config_apply_scene_glitch.rs.
 mod config_apply_diagnostics;
 mod config_apply_scene_glitch;
+pub(crate) use config_apply_diagnostics::scene_length_limit_note;
 pub(crate) use config_apply_scene_glitch::{apply_glitch_level_values, apply_scene_values};
 
 /// v80.0.0-beta.1 did-you-mean audit: scene name typo suggestions.

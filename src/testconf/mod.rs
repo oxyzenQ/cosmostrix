@@ -270,6 +270,15 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         errors += 1;
     }
 
+    // NIGHT-depthtest-3: charset-custom oversized-name blocks are
+    // dropped by the collector before any value validation, so a
+    // 65+-char name passed silently. Same uniform-rejection contract
+    // as the two block validators above.
+    if let Some(msg) = crate::charset_custom::validate_charset_custom_name_len(&parsed.values) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
+    }
+
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
@@ -422,6 +431,15 @@ pub(crate) fn validate_config_strictly(
     // single-key errors — and the reject verdict is identical on all
     // three surfaces (startup, live-reload watcher, --testconf).
     if let Some(msg) = crate::colors_custom::validate_colors_custom_blocks(cfg) {
+        return Err(msg);
+    }
+
+    // NIGHT-depthtest-3: charset-custom oversized names — same
+    // blind-spot class as the two validators above (the collector
+    // drops the block before any validation sees it). Runs with the
+    // block-level gates so the reject verdict is identical on all
+    // three surfaces (startup, live-reload watcher, --testconf).
+    if let Some(msg) = crate::charset_custom::validate_charset_custom_name_len(cfg) {
         return Err(msg);
     }
 

@@ -174,6 +174,11 @@ pub(crate) fn missing_scene_custom_fields(profile: &UserProfile) -> Vec<String> 
 pub(crate) fn validate_scene_custom_completeness(
     cfg: &HashMap<String, String>,
 ) -> Result<(), String> {
+    // NIGHT-depthtest-3 (owner repro 2026-09-11): oversized block names
+    // are a HARD error, not a silent skip — see name_len.rs for the
+    // full defect narrative. Runs BEFORE the completeness loop so the
+    // length error names the block first.
+    name_len::validate_scene_custom_name_len(cfg)?;
     for (name, profile) in collect_custom_scenes(cfg) {
         let missing = missing_scene_custom_fields(&profile);
         if missing.is_empty() {
@@ -495,6 +500,19 @@ pub(crate) fn apply_scene_custom_layer(
     // preserved for display in error messages.
     let normalized = name.trim().to_ascii_lowercase();
 
+    // NIGHT-depthtest-3: a >64-char lookup name can never match a
+    // block (the collector drops oversized names before the map is
+    // built). Say WHY instead of letting it fall through to the
+    // generic "unknown custom scene" dead end.
+    if normalized.len() > SCENE_CUSTOM_MAX_NAME_LEN {
+        return Err(format!(
+            "error: custom scene name '{}' is {} chars — exceeds the {}-char limit; no [scene-custom.<name>] block with an oversized name can ever load. Shorten the name.",
+            name_len::truncate_name_for_error(&normalized),
+            normalized.chars().count(),
+            SCENE_CUSTOM_MAX_NAME_LEN
+        ));
+    }
+
     if custom_scenes.contains_key(&normalized) {
         let modified = apply_profile_layer(
             matches,
@@ -658,6 +676,10 @@ mod display;
 #[allow(unused_imports)]
 pub(crate) use display::{is_valid_custom_scene_name, validate_custom_scene_name};
 pub(crate) use display::{list_custom_scenes_text, show_custom_scene_text};
+
+// NIGHT-depthtest-3 LOC extraction: oversized-name validation (the
+// silent-skip blind-spot fix) lives in name_len.rs — same cap rule.
+mod name_len;
 
 // v50.0.0-beta.7 LOC refactor: parse helpers extracted to helpers.rs.
 mod helpers;

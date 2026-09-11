@@ -255,8 +255,19 @@ pub(crate) fn load_custom_palette(
         )
         .map(|s| crate::cli::ux::format_value_suggestion(&s))
         .unwrap_or_default();
+        // NIGHT-depthtest-3: a >64-char name can never match a block
+        // (the collector drops oversized names) — surface the limit
+        // instead of a bare "not found" that reads as a missing block.
+        let limit_note = if normalized.len() > COLORS_CUSTOM_MAX_NAME_LEN {
+            format!(
+                "\n  note: the name is {} chars — over the {COLORS_CUSTOM_MAX_NAME_LEN}-char limit, so no [colors-custom.<name>] block can ever define it",
+                normalized.chars().count()
+            )
+        } else {
+            String::new()
+        };
         format!(
-            "custom color '{name}' not found in config{tip}\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
+            "custom color '{name}' not found in config{tip}{limit_note}\nexpected one of: {list}\n\n  Use --list-colors to see built-in and custom palettes."
         )
     })?;
     def.to_palette()
@@ -326,6 +337,14 @@ pub(crate) fn validate_colors_custom_blocks(cfg: &HashMap<String, String>) -> Op
     if !cfg.keys().any(|k| k.starts_with("colors-custom.")) {
         return None;
     }
+    // NIGHT-depthtest-3 (owner repro 2026-09-11): oversized block
+    // names are a HARD error, not a silent skip — the pre-scan lives
+    // in name_len.rs (LOC cap extraction). Same blind-spot class as
+    // scene-custom: the collector cap dropped the block before any
+    // validation or listing ever saw it.
+    if let Some(msg) = name_len::validate_colors_custom_name_len(cfg) {
+        return Some(msg);
+    }
     for (name, def) in collect_colors_custom(cfg) {
         if let Err(e) = def.to_palette() {
             return Some(format!("colors-custom.{name}: {e}"));
@@ -333,6 +352,10 @@ pub(crate) fn validate_colors_custom_blocks(cfg: &HashMap<String, String>) -> Op
     }
     None
 }
+
+// NIGHT-depthtest-3 LOC extraction: the oversized-name pre-scan
+// lives in colors_custom/name_len.rs (800-LOC hard cap rule).
+mod name_len;
 
 #[cfg(test)]
 mod tests {

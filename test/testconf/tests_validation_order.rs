@@ -171,3 +171,59 @@ fn strict_validation_accepts_crystal_dragon_secs_bounds() {
         );
     }
 }
+
+// ── NIGHT-depthtest-3: oversized custom-block names (owner repro
+// 2026-09-11) — the strict validator must reject them on every
+// surface in lockstep (--testconf, startup, live-reload watcher). ──
+
+#[test]
+fn strict_validation_rejects_oversized_scene_custom_name() {
+    // The owner's exact shape: a COMPLETE block whose name is 65+ chars.
+    // Before the fix the collector dropped the block, the completeness
+    // gate never saw it, and --testconf passed while --list-scenes hid
+    // the block (and a `scene = <name>` reference died at startup with
+    // a misleading "unknown scene").
+    let long_name = "t".repeat(crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN + 8);
+    let mut cfg = HashMap::new();
+    for (k, v) in [
+        (format!("scene-custom.{long_name}.rain"), "glyph"),
+        (format!("scene-custom.{long_name}.color"), "aurora"),
+        (format!("scene-custom.{long_name}.charset"), "binary"),
+        (format!("scene-custom.{long_name}.fps"), "90"),
+        (format!("scene-custom.{long_name}.speed"), "12"),
+        (format!("scene-custom.{long_name}.density"), "0.90"),
+        (format!("scene-custom.{long_name}.glitch-level"), "none"),
+    ] {
+        cfg.insert(k, v.to_string());
+    }
+    let err = validate_config_strictly(&cfg).expect_err("must reject");
+    assert!(
+        err.contains("exceeds the 64-char name limit"),
+        "must name the limit: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_oversized_charset_custom_name() {
+    let long_name = "c".repeat(crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN + 1);
+    let cfg = HashMap::from([(format!("charset-custom.{long_name}.set"), "01".to_string())]);
+    let err = validate_config_strictly(&cfg).expect_err("must reject");
+    assert!(
+        err.contains("exceeds the 64-char name limit"),
+        "must name the limit: {err}"
+    );
+}
+
+#[test]
+fn strict_validation_rejects_oversized_colors_custom_name() {
+    let long_name = "p".repeat(crate::colors_custom::COLORS_CUSTOM_MAX_NAME_LEN + 1);
+    let cfg = HashMap::from([(
+        format!("colors-custom.{long_name}.rain"),
+        "#000000, #ffffff".to_string(),
+    )]);
+    let err = validate_config_strictly(&cfg).expect_err("must reject");
+    assert!(
+        err.contains("exceeds the 64-char name limit"),
+        "must name the limit: {err}"
+    );
+}

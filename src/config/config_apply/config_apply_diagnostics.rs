@@ -109,3 +109,22 @@ pub(crate) fn startup_duplicate_error(parsed: &ParsedConfig) -> Option<String> {
         dup_report.join("; ")
     ))
 }
+
+/// NIGHT-depthtest-3 (owner repro 2026-09-11): the note appended to
+/// the unknown-scene error when the requested name exceeds the
+/// 64-char custom-scene limit. Over-limit names can never match a
+/// [scene-custom.<name>] block (the collector drops oversized names
+/// before the lookup), so the bare "unknown scene" message would send
+/// the user hunting for a block they DID define.
+#[must_use]
+pub(crate) fn scene_length_limit_note(normalized: &str) -> String {
+    let limit = crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN;
+    if normalized.len() > limit {
+        format!(
+            "\n  note: the name is {} chars — over the {limit}-char custom-scene limit, so no [scene-custom.<name>] block can ever define it",
+            normalized.chars().count()
+        )
+    } else {
+        String::new()
+    }
+}

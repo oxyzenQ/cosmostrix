@@ -131,8 +131,21 @@ pub(crate) fn charset_from_str(spec: &str, default_to_ascii: bool) -> Result<Cha
             let tip = crate::cli::suggestion::closest_value_match(&spec, CHARSET_PRESET_NAMES)
                 .map(|s| crate::cli::ux::format_value_suggestion(&s))
                 .unwrap_or_default();
+            // NIGHT-depthtest-3: a >64-char name can never match a
+            // [charset-custom.<name>] block either (the collector drops
+            // oversized names) — surface the limit instead of a bare
+            // "unknown charset".
+            let limit_note = if spec.len() > crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN {
+                format!(
+                        "\n  note: the name is {} chars — over the {}-char custom-charset limit, so no [charset-custom.<name>] block can ever define it",
+                        spec.chars().count(),
+                        crate::charset_custom::CHARSET_CUSTOM_MAX_NAME_LEN
+                    )
+            } else {
+                String::new()
+            };
             format!(
-                "error: unknown charset '{spec}'{tip}\n\n  Use --list-charsets to see available charsets."
+                "error: unknown charset '{spec}'{tip}{limit_note}\n\n  Use --list-charsets to see available charsets."
             )
         }),
     }
