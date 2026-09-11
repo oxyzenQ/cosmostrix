@@ -1045,7 +1045,7 @@ pub(crate) const BLACK_HOLE_ROLL_TILT_DEGS: [f32; 5] = [60.0, 50.0, 45.0, 30.0, 
 /// continuous lever wave of the owner's example sequence.
 pub(crate) const BLACK_HOLE_ROLL_CHAIN_PCT: u32 = 35;
 
-// ── Black hole halo streams (stage 2.6, re-weighted stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11 — NIGHT-special-1) ──
+// ── Black hole halo streams (stage 2.6, re-weighted stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11, crown-dominant NIGHT-research-12 — NIGHT-special-1) ──
 // The arc-riding companion streams of the disk stack. Stage 2.6
 // (owner 9.9/10 feedback) shipped the pool: stream motes ride the
 // ARC CIRCLE around the shadow instead of the flat ellipse — same
@@ -1059,15 +1059,16 @@ pub(crate) const BLACK_HOLE_ROLL_CHAIN_PCT: u32 = 35;
 // into the DOUBLE UPWARD STREAM. NIGHT-research-10 (the
 // Interstellar/NASA imagery round) grew the family to five lanes:
 // three crowns over the shadow, two mirrored arcs under it.
-// NIGHT-research-11 (owner verdict 9.1/10, the consistency + soft
-// light round) unifies the family with the center ring: every lane
-// rides at the ring's own mean pace (the lockstep ruling — the
-// owner's read, the top and bottom rings visibly ran slower and
-// sparser than the center line), every lane carries an equal
-// per-lane population dense enough to read as solid as the tier-0
-// main line (the pool-per-column multiplier), and every lane's
-// heads read the SOFT warm ceiling (Hot, never the Core head-white
-// that strained the owner's eyes — the soft-head cap in ring.rs).
+// NIGHT-research-11 (owner verdict 9.1/10) unified speed (the
+// lockstep pace) and the soft warm head ceiling across the family.
+// NIGHT-research-12 (owner verdict 9.8/10, the final polish round)
+// re-cuts the density and the concentration: the CROWNS carry the
+// population (the owner's read: the upper arcs read scattered, the
+// lower arcs read spammy — the crowns grow denser and tighter, the
+// lower family drops to a rare elegant echo, "few but substantive"),
+// and the whole family concentrates onto its arcs (a halo-specific
+// tight entry spiral plus a thinner wobble band — the riders stop
+// flying in from far beyond and stop smearing across a wide band).
 // Geometry is fractions of the ball outer radius, so the streams
 // scale with any screen size.
 
@@ -1118,32 +1119,88 @@ pub(crate) const BLACK_HOLE_HALO_TOP_ARC_FRACTION: f32 = 1.66;
 
 /// Radial turbulence amplitude of the halo streams (multiple of the
 /// ball outer radius, driven by the attractor's radial coordinate —
-/// the same wobble source the ring motes use). 0.10 gives each arc a
-/// thin plasma thickness without ever dipping inside the ball
-/// silhouette (the inner crowns bottom out at 1.30 - 0.10 = 1.20
-/// outer radii, the outer crown at 1.48 - 0.10 = 1.38, the top crown
-/// at 1.66 - 0.10 = 1.56 — no occlusion rule needed for any stream
-/// rider).
-pub(crate) const BLACK_HOLE_HALO_WOBBLE_FRACTION: f32 = 0.10;
+/// the same wobble source the ring motes use). NIGHT-research-12
+/// (the owner's concentration ruling: the crowns read scattered
+/// across a wide band, "I want dense and concentrated, absolutely
+/// not spread out"): 0.055 halves the plasma band to roughly one
+/// cell of thickness at the standard terminal classes — the arcs
+/// read as thin dense lines hugging their circles while keeping the
+/// living wobble (the r_norm normalization still swings every rider
+/// through the band, so the lanes stay alive, not rigid hoops). The
+/// band extremes still clear the ball silhouette (the inner crowns
+/// bottom out at 1.30 - 0.055 = 1.245, the mid crown at 1.48 -
+/// 0.055 = 1.425, the top crown at 1.66 - 0.055 = 1.605 — no
+/// occlusion rule needed for any stream rider) and the three crowns
+/// still read as distinct arcs (the 0.18 lane spacings dwarf the
+/// 0.11 full band widths).
+pub(crate) const BLACK_HOLE_HALO_WOBBLE_FRACTION: f32 = 0.055;
+
+/// Halo entry-spiral radius excess for freshly spawned riders
+/// (NIGHT-research-12, the concentration ruling's second half): new
+/// riders materialize only 4 percent beyond their arc and settle
+/// with the halo's own short time constant — the ring's 0.55
+/// drift-in read as particles flying in from far outside the
+/// system (the owner's "still flying outward" report), so the halo
+/// family gets its own tight spiral: a rider appears at the arc's
+/// outer fringe and melts into the band over ~1.8 s, igniting at
+/// the warm ceiling from its first frame (even the top crown's
+/// fresh distance, 1.66 x 1.04, stays inside the lensed warm zone
+/// — the accretion read survives as a subtle settling, without a
+/// single wandering glyph or a dim drift-in).
+pub(crate) const BLACK_HOLE_HALO_ENTRY_BOOST: f32 = 0.04;
+
+/// Halo entry-spiral decay time constant in seconds (the halo
+/// twin of the ring's entry tau — shorter, so the tight spawn
+/// excess resolves before the eye reads it as scatter).
+pub(crate) const BLACK_HOLE_HALO_ENTRY_TAU: f32 = 0.6;
 
 /// Halo pool size as a multiple of the terminal's column count
 /// (NIGHT-research-11, the owner's consistency ruling: every ring
 /// above and below must match the center ring's speed, density and
 /// smoothness). The pool is the five-lane family's shared lane
 /// model — one rider per lane per every `POOL_PER_COL` columns. 2
-/// seats each lane's visible population (the semicircle filter
-/// halves every lane's riders) at roughly the tier-0 main line's
-/// own linear cell density: the arcs read as SOLID as the center
-/// ring at every density setting (both pools' active ratios track
-/// the same base/mult/max constants, so the proportion holds when
-/// the density key scales either pool). The five lanes split the
-/// pool EXACTLY evenly through the spawn pass's five-step round
-/// robin (NIGHT-research-11 retired the weighted 0.72/0.28 family
-/// split — the lower arcs carry the same population as the crowns
-/// now, the owner's all-rings-consistent read).
+/// seats the crown family's visible population (the semicircle
+/// filter halves every lane's riders) at roughly the tier-0 main
+/// line's own linear cell density: the arcs read as SOLID as the
+/// center ring at every density setting (both pools' active ratios
+/// track the same base/mult/max constants, so the proportion holds
+/// when the density key scales either pool). NIGHT-research-12
+/// re-cuts the lane shares inside the fixed pool: the crowns take
+/// the CROWN_SHARE family slice split three ways by round robin
+/// (denser than the retired even split — the concentrated crown
+/// read), the lower arcs take the LOWER_SHARE slice split two ways
+/// by toggle (a rare elegant echo — few riders, each well-formed:
+/// the warm head, the comet trail, the same lockstep ride).
 pub(crate) const BLACK_HOLE_HALO_POOL_PER_COL: usize = 2;
 
 const _: () = assert!(BLACK_HOLE_HALO_POOL_PER_COL >= 1);
+
+/// Share of every halo pool fill that seats the THREE crowns
+/// (NIGHT-research-12, the owner's density ruling: the crowns must
+/// read dense and concentrated while the lower family reads "only a
+/// few, not spam"). 0.84 of the pool split three ways by the strict
+/// crown round robin seats each crown at 0.28 of every fill (vs the
+/// retired even split's 0.20 — each crown grows ~40 percent denser),
+/// and the family's shared Bresenham accumulator keeps the split
+/// exact over every fill window (25 spawns seat 21 crown riders,
+/// seven per crown, and four lower riders, two per mirrored arc).
+pub(crate) const BLACK_HOLE_HALO_CROWN_SHARE: f32 = 0.84;
+
+/// Share of every halo pool fill that seats the TWO mirrored lower
+/// arcs (NIGHT-research-12, the owner's sparse-lower ruling: "the
+/// bottom ring's particles must be fewer, only a few, few but
+/// substantive and elegant"). 0.16 of the pool split two ways by
+/// the alternating toggle seats each lower lane at 0.08 of every
+/// fill (vs the retired even split's 0.20 — a 60 percent cut): at
+/// the standard 120-column terminal each lower arc shows roughly
+/// seven riders at the steady state, each burning the same soft
+/// warm head and comet trail as the crowns — a rare echo, not a
+/// spam band. The shares sum to 1.0 by the compile-time contract
+/// below.
+pub(crate) const BLACK_HOLE_HALO_LOWER_SHARE: f32 = 0.16;
+
+const _: () =
+    assert!((BLACK_HOLE_HALO_CROWN_SHARE + BLACK_HOLE_HALO_LOWER_SHARE - 1.0).abs() < 1.0e-6);
 
 /// The lensed-image brightness gain (NIGHT-research-10's head-white
 /// ruling, re-pinned NIGHT-research-11 for the soft-light round):
@@ -1167,11 +1224,12 @@ pub(crate) const BLACK_HOLE_HALO_CROWN_GAIN: f32 = 0.34;
 /// per lane per `BLACK_HOLE_HALO_POOL_PER_COL` columns, the family
 /// lane model). Mirrors the ring pool's own base exactly: the halo
 /// pool fills to the same fraction of its lanes as the ring does at
-/// every density setting, so each lane's visible share (the
-/// semicircle-filtered half of its even 1/5 tag split) tracks the
-/// tier-0 main line's population proportionally — the all-lanes-
-/// consistent read holds across the whole density range, not just
-/// at one setting.
+/// every density setting, so the crown family's visible share (the
+/// semicircle-filtered half of its CROWN_SHARE slice) tracks the
+/// tier-0 main line's population proportionally — the
+/// crowns-as-dense-as-the-center-ring read holds across the whole
+/// density range, not just at one setting, and the sparse lower
+/// echo scales with it (few at every density, never spam).
 pub(crate) const BLACK_HOLE_HALO_ACTIVE_BASE: f32 = 0.75;
 
 /// Density multiplier for the halo active-count target (mirrors the

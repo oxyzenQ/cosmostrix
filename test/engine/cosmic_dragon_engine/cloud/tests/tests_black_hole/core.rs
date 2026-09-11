@@ -4,11 +4,15 @@
 //! Core black-hole-style behavior contracts (NIGHT-special-1):
 //! scene resolution, dynamic geometry across viewport sizes, the empty
 //! event-horizon core, radial band coverage (plus the
-//! NIGHT-research-10 rim photon line), static-geometry stability
-//! across frames, and the drawn-cell bounds contract.
+//! NIGHT-research-10 rim photon line, both re-pinned soft at
+//! NIGHT-research-12), static-geometry stability across frames, and
+//! the drawn-cell bounds contract.
 
 use super::*;
+use crate::cloud::type_rain::black_hole::ball_helpers::{bump_level, level_for_ring_band};
 use crate::cloud::type_rain::black_hole::black_hole::level_rank;
+use crate::cloud::type_rain::black_hole::ring::soft_head_level;
+use crate::cloud::type_rain::monolith::BrightnessLevel;
 
 #[test]
 fn black_hole_scene_resolves_style_and_fields() {
@@ -157,13 +161,16 @@ fn black_hole_core_is_empty_and_ball_is_centered() {
 
 #[test]
 fn black_hole_radial_bands_all_present() {
-    // The photon-ring gradient with the NIGHT-research-10 rim line:
-    // Core band hugs the event horizon, Hot and Mid carry the body,
-    // and the outer band flips back up to Core — the thin photon
-    // LINE at the shadow's edge. At 120x40 every band is at least
-    // one cell wide. The Ghost fringe is retired: the Mid body runs
-    // right up to the rim line so the edge reads sharp against the
-    // sky (the EHT read) instead of dissolving through a dim fringe.
+    // The NIGHT-research-12 soft photon-ring gradient (the owner's
+    // 9.8/10 soft-ball ruling: the Core white blend strained his
+    // eyes even after the glyph-head fix, because the ball's own
+    // photon structures kept burning Core): a Hot band hugs the
+    // event horizon, the Mid body carries the annulus, and the
+    // outer band flips back up to Hot — the thin photon LINE at the
+    // shadow's edge. The standing surface NEVER lands Core (rank 4
+    // absent from the whole annulus — the white blend survives only
+    // in the formation's transient collapse flash and the infall's
+    // whip), and the horizon ring wraps the hole inside the body.
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -175,25 +182,22 @@ fn black_hole_radial_bands_all_present() {
         .iter()
         .map(|c| level_rank(c.level))
         .collect();
-    for expected in [2u8, 3u8, 4u8] {
+    for expected in [2u8, 3u8] {
         assert!(
             ranks.contains(&expected),
             "radial band rank {expected} missing from the annulus"
         );
     }
-    // The brightest band (Core, rank 4) must hug the INNER edge: at
-    // least one Core cell must sit closer to the center than every
-    // Hot cell (rank 3) — the horizon photon ring wraps the hole.
+    assert!(
+        !ranks.contains(&4u8),
+        "the standing ball surface must never burn the Core white blend (the soft-ball ruling)"
+    );
+    // The warm band (Hot, rank 3) must hug the INNER edge: at least
+    // one Hot cell must sit closer to the center than every Mid
+    // cell (rank 2) — the horizon photon ring wraps the hole.
     let cx = ((cols - 1) / 2) as f32;
     let cy = ((lines - 1) / 2) as f32;
     let dist = |col: u16, line: u16| ((col as f32 - cx) / 2.0).powi(2) + (line as f32 - cy).powi(2);
-    let core_min = cloud
-        .black_hole_rain
-        .ring_cells_for_test()
-        .iter()
-        .filter(|c| level_rank(c.level) == 4)
-        .map(|c| dist(c.col, c.line))
-        .fold(f32::MAX, f32::min);
     let hot_min = cloud
         .black_hole_rain
         .ring_cells_for_test()
@@ -201,24 +205,35 @@ fn black_hole_radial_bands_all_present() {
         .filter(|c| level_rank(c.level) == 3)
         .map(|c| dist(c.col, c.line))
         .fold(f32::MAX, f32::min);
+    let mid_min = cloud
+        .black_hole_rain
+        .ring_cells_for_test()
+        .iter()
+        .filter(|c| level_rank(c.level) == 2)
+        .map(|c| dist(c.col, c.line))
+        .fold(f32::MAX, f32::min);
     assert!(
-        core_min < hot_min,
-        "Core band must sit inside the Hot band (photon ring at the horizon)"
+        hot_min < mid_min,
+        "the Hot horizon band must sit inside the Mid body (photon ring at the horizon)"
     );
 }
 
 #[test]
 fn black_hole_ball_carries_the_rim_photon_line() {
-    // The NIGHT-research-10 rim photon line: the thin bright ring
-    // hugging the shadow's edge INSIDE the annulus (the owner's
-    // Interstellar/NASA imagery read — a thin line shaped like the
-    // ball). Contract: Core cells exist in the outer radial zone on
-    // every terminal class (the one-cell floor keeps the line alive
-    // even where the annulus is barely two cells wide), every
-    // rim-line cell sits farther from the center than every Hot
-    // cell (the line wraps the OUTSIDE, never a general brightening
-    // of the annulus), and the line stays a thin minority of the
-    // annulus population at the standard class (a line, not a band).
+    // The NIGHT-research-10 rim photon line, re-pinned soft at
+    // NIGHT-research-12 (the owner's 9.8/10 soft-ball ruling): the
+    // thin warm ring hugging the shadow's edge INSIDE the annulus
+    // (the owner's Interstellar/NASA imagery read — a thin line
+    // shaped like the ball) now burns the soft warm ceiling (Hot)
+    // like every other standing structure — never the retired Core
+    // white blend. Contract: Hot cells exist in the outer radial
+    // zone on every terminal class (the one-cell floor keeps the
+    // line alive even where the annulus is barely two cells wide),
+    // every rim-line cell sits farther from the center than every
+    // Mid cell (the line wraps the OUTSIDE, never a general
+    // brightening of the annulus), and the line stays a thin
+    // minority of the annulus population at the standard class (a
+    // line, not a band).
     let (cols, lines) = (120, 40);
     let mut cloud = make_black_hole_cloud(cols, lines);
     let mut frame = Frame::new(cols, lines, cloud.palette.bg);
@@ -232,8 +247,8 @@ fn black_hole_ball_carries_the_rim_photon_line() {
     let total = cells.len();
     assert!(total > 0, "the annulus must be non-empty at 120x40");
 
-    // The rim line: Core cells in the outer half of the annulus
-    // (the inner-zone Core cells are the horizon ring — the outer
+    // The rim line: Hot cells in the outer half of the annulus
+    // (the inner-zone Hot cells are the horizon ring — the outer
     // half filters them out).
     let half_w = cols as f32 / 4.0;
     let half_h = lines as f32 / 2.0;
@@ -249,18 +264,18 @@ fn black_hole_ball_carries_the_rim_photon_line() {
 
     let rim: Vec<&crate::cloud::type_rain::black_hole::black_hole::BlackHoleCell> = cells
         .iter()
-        .filter(|c| level_rank(c.level) == 4 && dist_real(c.col, c.line) > outer_zone)
+        .filter(|c| level_rank(c.level) == 3 && dist_real(c.col, c.line) > outer_zone)
         .collect();
     assert!(
         !rim.is_empty(),
-        "the rim photon line must host Core cells at 120x40"
+        "the rim photon line must host Hot cells at 120x40"
     );
 
     // The line wraps the outside: every rim-line cell sits farther
-    // from the center than every Hot cell (the inner body band).
-    let hot_max = cells
+    // from the center than every Mid cell (the body band).
+    let mid_max = cells
         .iter()
-        .filter(|c| level_rank(c.level) == 3)
+        .filter(|c| level_rank(c.level) == 2)
         .map(|c| dist(c.col, c.line))
         .fold(f32::MIN, f32::max);
     let rim_min = rim
@@ -268,8 +283,8 @@ fn black_hole_ball_carries_the_rim_photon_line() {
         .map(|c| dist(c.col, c.line))
         .fold(f32::MAX, f32::min);
     assert!(
-        rim_min > hot_max,
-        "the rim line must sit outside every Hot cell (the line at the shadow's edge)"
+        rim_min > mid_max,
+        "the rim line must sit outside every Mid cell (the line at the shadow's edge)"
     );
 
     // The line stays thin: a minority of the annulus population.
@@ -296,12 +311,44 @@ fn black_hole_ball_carries_the_rim_photon_line() {
     let s_outer_zone = s_core + 0.5 * (s_outer - s_core);
     let s_rim = small_cells.iter().filter(|c| {
         let d = (((c.col as f32 - s_cx) / 2.0).powi(2) + (c.line as f32 - s_cy).powi(2)).sqrt();
-        level_rank(c.level) == 4 && d > s_outer_zone
+        level_rank(c.level) == 3 && d > s_outer_zone
     });
     assert!(
         s_rim.count() > 0,
         "the rim photon line must survive the 80x24 floor (the one-cell width floor)"
     );
+}
+
+#[test]
+fn black_hole_ball_surface_composes_soft_never_core() {
+    // The NIGHT-research-12 soft-ball ruling, pinned on the pure
+    // composition the draw site runs: the band ladder's levels
+    // (Hot edges, Mid body) composed with the Doppler lobe's
+    // +/-1 bump and the soft-head cap NEVER land Core — the
+    // standing surface's absolute ceiling is the soft warm rung
+    // (the owner's report: the white blend on the ball still
+    // strained his eyes after the glyph-head fix). The band sweep
+    // covers every normalized radius at three annulus widths (the
+    // terminal classes), the lobe sweep covers both directions of
+    // the bump at both band levels.
+    let annuli = [2.0_f32, 3.78, 8.0];
+    for width in annuli {
+        for i in 0..=200 {
+            let t = i as f32 / 200.0;
+            let level = level_for_ring_band(t, width);
+            assert!(
+                level_rank(level) <= level_rank(BrightnessLevel::Hot),
+                "the band ladder must never land Core (t {t}, width {width})"
+            );
+            for delta in [-1i8, 0, 1] {
+                let composed = soft_head_level(bump_level(level, delta));
+                assert!(
+                    level_rank(composed) <= level_rank(BrightnessLevel::Hot),
+                    "the lobed ball surface must never land Core (t {t}, delta {delta})"
+                );
+            }
+        }
+    }
 }
 
 #[test]

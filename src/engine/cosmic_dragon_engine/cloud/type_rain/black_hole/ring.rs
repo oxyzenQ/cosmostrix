@@ -573,6 +573,33 @@ pub(crate) fn proximity_level(base: BrightnessLevel, dist_norm: f32) -> Brightne
     }
 }
 
+/// The far-side rise's ladder input (NIGHT-research-12, the owner's
+/// 9.8/10 wording: the center ring near the hole must read white
+/// soft "until the end where the particles rise to the top ring,
+/// right at the curve boundary — not too dim"). A tier-0 mote on
+/// the far side of the orbit is a lensing-arc rider: its projected
+/// path IS the rising curve from the disk's end over the top of the
+/// shadow to the crown handoff, and the plain fade ladder used to
+/// dim that curve's lower flank (the projected distance runs 1.30
+/// to ~1.9 outer radii through the fade zone before the apex
+/// re-enters the hot radius, so the rise read as a dark gap between
+/// the bright crossing band and the bright apex). The fix: arc
+/// riders never feed the fade — the ladder input clamps at the lens
+/// arc's own radius (1.30, inside both the hot floor and the +2
+/// bump, below the fade start), so the whole visible rising curve
+/// composes to the soft warm ceiling (Hot after the soft-head cap),
+/// continuous with the crossing band at the bottom and the crowns
+/// at the top. The near side keeps the plain distance — its arms
+/// still dissolve into sparse dim wisps past the fade start (the
+/// approved Interstellar read; only the rising curve is held).
+pub(crate) fn rise_ladder_dist(dist_norm: f32, arc_rider: bool) -> f32 {
+    if arc_rider {
+        dist_norm.min(crate::constants::BLACK_HOLE_RING_LENS_ARC_FRACTION)
+    } else {
+        dist_norm
+    }
+}
+
 /// Brightness zone by attractor z (the mote depth cue). Reuses the
 /// lorenz style's zone boundaries — the ring integrates the SAME
 /// canonical system, so the z semantics (lobe peaks near 40 hot,
@@ -628,22 +655,25 @@ pub(crate) fn ring_head_base(tier: u8, dist_norm: f32, z: f32) -> BrightnessLeve
 }
 
 /// The soft-head cap (NIGHT-research-11, the owner's soft-light
-/// ruling): steps a composed glyph-head level down one rung
-/// whenever it lands Core — Hot in, Hot out; every other level
+/// ruling; extended to the standing ball surface at
+/// NIGHT-research-12): steps a composed glyph-head level down one
+/// rung whenever it lands Core — Hot in, Hot out; every other level
 /// passes through unchanged. The owner's report on the
 /// NIGHT-research-10 head-white read: the Core blend toward white
 /// (the renderer's brightest output, full palette plus the white
 /// lift) across the crowns, the crossing band and the snug stacks
 /// strained his eyes — the cinematic read he asked for instead is
 /// the SOFT warm ceiling: every glyph head tops out at Hot (85
-/// percent of the palette, no white blend), warm and elegant, while
-/// the Core white stays reserved for the ball's own thin photon
-/// structures (the horizon ring and the rim photon line — the
-/// signature lines, not the glyph heads) and the infall's transient
-/// whip-around flash. Applied at the ring and halo draw sites AFTER
-/// the proximity ladder composes the head level, so the distance
-/// key, the floors and the fade ladder all keep shaping the band
-/// below the ceiling exactly as before.
+/// percent of the palette, no white blend), warm and elegant. The
+/// 9.8/10 round found the last standing Core sources — the ball's
+/// own photon structures and the Doppler lobe's +1 bump — so the
+/// cap now runs at the ball draw site too: the Core white blend
+/// survives ONLY in the formation intro's transient collapse flash
+/// and the infall's whip-around flash (two momentary cinematic
+/// blinks, never a standing surface). Applied at the ring, halo and
+/// ball draw sites AFTER the proximity ladder composes the head
+/// level, so the distance key, the floors and the fade ladder all
+/// keep shaping the band below the ceiling exactly as before.
 pub(crate) fn soft_head_level(level: BrightnessLevel) -> BrightnessLevel {
     match level {
         BrightnessLevel::Core => BrightnessLevel::Hot,

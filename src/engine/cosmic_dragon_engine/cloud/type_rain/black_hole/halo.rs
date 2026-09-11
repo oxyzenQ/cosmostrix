@@ -2,12 +2,12 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 //! Black hole halo streams (NIGHT-special-1 stage 2.6, re-weighted
-//! stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11):
-//! the arc-riding companion pool of the disk stack — the per-mote
-//! physics half, split from `black_hole.rs` exactly the way
-//! `ring.rs` splits the ring physics (the pool bookkeeping, the
-//! spawn/advance/draw orchestration and the diff-cleanup stream stay
-//! in the main file).
+//! stage 2.7, five lanes NIGHT-research-10, unified NIGHT-research-11,
+//! crown-dominant NIGHT-research-12): the arc-riding companion pool
+//! of the disk stack — the per-mote physics half, split from
+//! `black_hole.rs` exactly the way `ring.rs` splits the ring physics
+//! (the pool bookkeeping, the spawn/advance/draw orchestration and
+//! the diff-cleanup stream stay in the main file).
 //!
 //! Owner read (the 9.9/10 round): the particles curving upward over
 //! the hole must double their density, and a NEW mirrored stream must
@@ -17,21 +17,22 @@
 //! imagery round): the upper family grows to THREE crowns and the
 //! lower family doubles to TWO mirrored arcs. The owner read
 //! (NIGHT-research-11, verdict 9.1/10 — the consistency + soft light
-//! round): ALL five lanes must read like the center ring — same
-//! SPEED (the lockstep ruling: every lane rides the ring's tier-0
-//! mean pace, the old slower Keplerian lane ladder retired), same
-//! DENSITY (the pool-per-column multiplier plus the even five-way
-//! tag split seats each lane's visible population at the tier-0
-//! main line's own linear density), same SMOOTHNESS (the doubled
-//! population at the lockstep pace reads as solid continuous arcs,
-//! not sparse dithered beads) — and the light must go SOFT: no more
-//! Core head-white (the eye strain), the warm Hot ceiling instead.
-//! The design keeps the original DNA: one lane per column-pair per
-//! stream, riders orbit the ARC CIRCLE around the shadow, one RK4
-//! Lorenz step per frame (the shared `rk4_lorenz_step` core), the
-//! radial coordinate wobbling the arc radius into a thin plasma
-//! band, the entry-spiral drift-in, the comet trail, the
-//! motion-gated shimmer.
+//! round): every lane rides the ring's tier-0 mean pace (the
+//! lockstep ruling) and every head reads the SOFT warm ceiling (the
+//! Hot floor plus the lensing gain plus the soft-head cap — no Core
+//! white anywhere in the glyph heads). The owner read
+//! (NIGHT-research-12, verdict 9.8/10 — the final polish round): the
+//! CROWNS carry the population and must read dense and CONCENTRATED
+//! on their arcs (the tight entry spiral below — new riders no
+//! longer fly in from far beyond the system, they materialize at
+//! the arc's outer fringe and melt into the band — plus the halved
+//! wobble band of the concentration ruling), while the lower family
+//! drops to a rare elegant echo, few but substantive (the spawn
+//! split's LOWER_SHARE — see `BlackHoleRain::spawn`). The design
+//! keeps the original DNA: riders orbit the ARC CIRCLE around the
+//! shadow, one RK4 Lorenz step per frame (the shared `rk4_lorenz_step`
+//! core), the radial coordinate wobbling the arc radius into a thin
+//! plasma band, the comet trail, the motion-gated shimmer.
 //!
 //! The streams: the mote's tag picks the semicircle AND the arc it
 //! draws on — tier byte 0 rides the INNER UPPER crown (the
@@ -57,21 +58,24 @@
 //! lower family alike — the consistency ruling) and pulls the
 //! proximity ladder's distance input inward by the lensing gain (both
 //! families are lensed images of the disk), then caps the composed
-//! level one rung below Core (`soft_head_level`): the settled riders
-//! burn Hot across their reach — warm, elegant, the full palette
-//! without the Core white blend that strained the owner's eyes —
-//! while the entry-spiral drift-in still reads dim and ignites as
-//! the rider settles (the accretion read survives), and the comet
-//! trails step down from the warm head (Mid, Ghost — the dimming
-//! tail of the family ladder).
+//! level one rung below Core (`soft_head_level`): the riders burn
+//! Hot across their reach — warm, elegant, the full palette without
+//! the Core white blend that strained the owner's eyes — from the
+//! first breath after the NIGHT-research-12 tight entry (a fresh
+//! rider already sits inside the lensed hot zone, so it ignites at
+//! the arc's fringe instead of drifting in dim from far beyond),
+//! and the comet trails step down from the warm head (Mid, Ghost —
+//! the dimming tail of the family ladder).
 //!
 //! No occlusion rule: the arc circles sit at 1.30, 1.48 and 1.66
-//! outer radii with a 0.10 wobble band, so a rider never dips inside the
-//! 1.0-radius silhouette (the entry spiral only adds outward
-//! distance). The see-saw roll rotates the projection like every
-//! other body of the system — a circle maps onto itself, but the
-//! riders' phases pivot with the tilted disk extremes, keeping the
-//! handoff zone synced with the stack's ends at every attitude.
+//! outer radii with the NIGHT-research-12 0.055 wobble band (the
+//! concentration ruling's thin plasma ring), so a rider never dips
+//! inside the 1.0-radius silhouette (the tight entry spiral only
+//! adds outward distance). The see-saw roll rotates the projection
+//! like every other body of the system — a circle maps onto itself,
+//! but the riders' phases pivot with the tilted disk extremes,
+//! keeping the handoff zone synced with the stack's ends at every
+//! attitude.
 //!
 //! Geometry stays in fractions of the ball outer radius (which is
 //! itself a fraction of the viewport's limiting half-extent), so the
@@ -86,8 +90,8 @@ use rand::{
 use super::super::monolith::BrightnessLevel;
 use super::black_hole::CELL_ASPECT_DIVISOR;
 use super::ring::{
-    entry_radius_scale, floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm,
-    rk4_lorenz_step, soft_head_level, RingMote,
+    floor_head_base_at_hot, level_for_ring_z, proximity_level, ring_r_norm, rk4_lorenz_step,
+    soft_head_level, RingMote,
 };
 use super::RollFrame;
 
@@ -128,15 +132,16 @@ pub(crate) fn halo_stream_is_upper(tier: u8) -> bool {
 }
 
 /// Activate a vacant halo stream mote with its stream tag chosen by
-/// the caller (the split runs the strict five-step round robin in
-/// the spawn pass — see `BlackHoleRain::spawn` — so all five lanes
-/// hold exactly equal shares of the pool on every fill, no spawn
-/// luck; NIGHT-research-11's all-lanes-consistent ruling: the lower
-/// arcs carry the same population as the crowns). The rest is the
-/// ring motes' own recipe: a uniform random orbital phase (riders
-/// spread around the full circle from the first frame), the same
-/// textbook Lorenz seed and per-mote pace / lifetime variance — the
-/// pools differ only in what the state drives.
+/// the caller (the split runs the crown-dominant family shares in
+/// the spawn pass — see `BlackHoleRain::spawn` — so the three crowns
+/// seat the family's dense CROWN_SHARE slice through their strict
+/// round robin while the two mirrored arcs share the rare
+/// LOWER_SHARE echo; NIGHT-research-12's sparse-lower ruling: few
+/// riders, each well-formed). The rest is the ring motes' own
+/// recipe: a uniform random orbital phase (riders spread around
+/// the full circle from the first frame), the same textbook Lorenz
+/// seed and per-mote pace / lifetime variance — the pools differ
+/// only in what the state drives.
 pub(crate) fn activate_halo_mote(
     m: &mut RingMote,
     stream_tag: u8,
@@ -213,11 +218,15 @@ pub(crate) fn advance_halo_mote(
 /// direction, the rotational sense the owner asked the streams to
 /// follow. The attractor's radial coordinate wobbles the arc radius
 /// (the thin plasma band); the entry spiral scales the radius for
-/// young motes (drift-in from beyond the arc, never a pop-in); the
-/// see-saw roll rotates the disk-plane offset around the hole center
-/// like every other body of the system. Returns float cell
-/// coordinates — the caller rounds and bounds-checks (no occlusion:
-/// the arc band never enters the silhouette).
+/// young motes with the halo's own TIGHT excess
+/// (`halo_entry_radius_scale` — NIGHT-research-12: a fresh rider
+/// appears at the arc's outer fringe and settles within a couple
+/// seconds, never a pop-in and never a wandering glyph from far
+/// beyond the system); the see-saw roll rotates the disk-plane
+/// offset around the hole center like every other body of the
+/// system. Returns float cell coordinates — the caller rounds and
+/// bounds-checks (no occlusion: the arc band never enters the
+/// silhouette).
 pub(crate) fn project_halo_mote(
     m: &RingMote,
     cx: f32,
@@ -227,7 +236,7 @@ pub(crate) fn project_halo_mote(
 ) -> (f32, f32) {
     let arc_r = ball_outer_r * halo_arc_fraction(m);
     let r_norm = ring_r_norm(m);
-    let entry = entry_radius_scale(m.sim_age);
+    let entry = halo_entry_radius_scale(m.sim_age);
     let r = (arc_r + crate::constants::BLACK_HOLE_HALO_WOBBLE_FRACTION * ball_outer_r * r_norm)
         .max(0.2)
         * entry;
@@ -250,6 +259,22 @@ pub(crate) fn project_halo_mote(
     let col = cx + x_r * CELL_ASPECT_DIVISOR;
     let line = cy + y_r;
     (col, line)
+}
+
+/// Halo entry-spiral radius scale for a rider of the given
+/// simulation age (NIGHT-research-12, the owner's concentration
+/// ruling): 1 + the halo's own small ENTRY_BOOST at age 0, settling
+/// exponentially to 1.0 with the halo's short ENTRY_TAU. The ring
+/// motes keep their wide 0.55 drift-in (the disk's accretion read —
+/// material visibly falls toward the orbit from beyond the disk),
+/// but the ARC family rides tight circles where a 55 percent spawn
+/// excess read as particles flying loose of the system (the
+/// owner's "still flying outward" report on the crowns). The 0.06
+/// excess puts a fresh rider just past the arc's wobble fringe —
+/// the melt-in survives as a subtle ignition, the scatter is gone.
+pub(crate) fn halo_entry_radius_scale(sim_age: f32) -> f32 {
+    1.0 + crate::constants::BLACK_HOLE_HALO_ENTRY_BOOST
+        * (-sim_age / crate::constants::BLACK_HOLE_HALO_ENTRY_TAU).exp()
 }
 
 /// The stream-visibility filter: a mote draws only on its own
@@ -291,14 +316,15 @@ fn halo_arc_fraction(m: &RingMote) -> f32 {
 /// families are lensed images of the far-side disk, the light-path
 /// compression that makes the photon ring the brightest structure
 /// in the iconic images), and the composed level passes through the
-/// soft-head cap — the settled riders burn at the SOFT warm ceiling
-/// (Hot, the full palette without the Core white blend that
-/// strained the owner's eyes) across their reach, while the
-/// entry-spiral drift-in still reads dim and ignites as the rider
-/// settles (the accretion read survives the gain). The comet trails
-/// step down from the warm head through the family ladder, so the
-/// lanes read as glowing arcs with dimming tails — soft, elegant,
-/// cinematic.
+/// soft-head cap — the riders burn at the SOFT warm ceiling (Hot,
+/// the full palette without the Core white blend that strained the
+/// owner's eyes) across their reach, from the first breath of the
+/// NIGHT-research-12 tight entry (a fresh rider's 4 percent spawn
+/// excess already sits inside the lensed hot zone, so it ignites at
+/// the arc's fringe — the subtle melt-in, never a dim wanderer).
+/// The comet trails step down from the warm head through the family
+/// ladder, so the lanes read as glowing arcs with dimming tails —
+/// soft, elegant, cinematic.
 pub(crate) fn halo_head_level(m: &RingMote, dist_norm: f32) -> BrightnessLevel {
     let base = floor_head_base_at_hot(level_for_ring_z(m.z));
     let lensed = dist_norm - crate::constants::BLACK_HOLE_HALO_CROWN_GAIN;
