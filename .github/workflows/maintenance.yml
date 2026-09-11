@@ -33,7 +33,7 @@ env:
   CARGO_TERM_COLOR: always
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
-  RUST_VERSION: "1.98.0"
+  RUST_VERSION: "1.98.1"
   # GPG signing key fingerprint (master key). Full 40-char fingerprint.
   GPG_KEY_FINGERPRINT: "F5324E0967F104D58CE025F347A50AEF4B65AAC2"
   # Warn this many days before the signing subkey expires.

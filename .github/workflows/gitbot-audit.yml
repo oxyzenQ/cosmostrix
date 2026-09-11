@@ -50,7 +50,7 @@ env:
   CARGO_TERM_COLOR: always
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
-  RUST_VERSION: "1.98.0"
+  RUST_VERSION: "1.98.1"
 
 jobs:
   security-audit:

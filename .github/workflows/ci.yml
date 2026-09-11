@@ -45,7 +45,7 @@ env:
   FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
   # Single source of truth for Rust toolchain version.
   # Keep in sync with rust-toolchain.toml + Cargo.toml rust-version.
-  RUST_VERSION: "1.98.0"
+  RUST_VERSION: "1.98.1"
   # v80.0.0-beta.1 strict CI (owner mandate 2026-09-02): warnings are
   # NOT ignored — any rustc/cargo warning fails the build. This is the
   # global default; jobs that need target-cpu overrides append their
