@@ -318,7 +318,14 @@ pub(crate) fn strand_level(depth: f32) -> BrightnessLevel {
 
 /// Law 2's depth blend: the rung's base level (from the charge)
 /// stepped up on the front half, down on the back half.
-fn depth_level(level: BrightnessLevel, depth: f32) -> BrightnessLevel {
+///
+/// NIGHT-research-20: the step-up stops at the warm Hot ceiling —
+/// a standing Hot rung no longer composes Core on its front face
+/// (the audit's third standing site: every replication sweep left
+/// the re-synthesized rungs' front faces Core-white through the
+/// whole Hot decay band). A rung already inside its fresh-write
+/// blink keeps the flash across the whole face.
+pub(crate) fn depth_level(level: BrightnessLevel, depth: f32) -> BrightnessLevel {
     if depth > RUNG_DEPTH_BLEND_BAND {
         step_up_level(level)
     } else if depth < -RUNG_DEPTH_BLEND_BAND {
@@ -341,13 +348,15 @@ fn step_down_level(level: BrightnessLevel, depth: u8) -> BrightnessLevel {
     }
 }
 
-/// Step a brightness level up (toward Core) by one rung (the
-/// front-half rung glow).
+/// Step a brightness level up by one rung (the front-half rung
+/// glow), capped at the warm Hot ceiling (NIGHT-research-20: the
+/// glow never composes standing Core; a blinking rung — already
+/// at Core from the fresh-write flash — keeps its flash).
 fn step_up_level(level: BrightnessLevel) -> BrightnessLevel {
     match level {
         BrightnessLevel::Ghost | BrightnessLevel::Dim => BrightnessLevel::Mid,
         BrightnessLevel::Mid => BrightnessLevel::Hot,
-        BrightnessLevel::Hot | BrightnessLevel::Core => BrightnessLevel::Core,
+        BrightnessLevel::Hot | BrightnessLevel::Core => level,
     }
 }
 

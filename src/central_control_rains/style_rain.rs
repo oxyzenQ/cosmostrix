@@ -2153,10 +2153,15 @@ pub(crate) const DNA_CHARGE_MAX: f32 = 2.6;
 pub(crate) const DNA_CHARGE_DECAY: f32 = 0.35;
 
 /// The recency ladder rungs (Ghost the archive, Mid transcribed,
-/// Hot fresh, Core the replication window).
+/// Hot fresh — the warm ceiling, NIGHT-research-20 — and Core the
+/// fresh-write blink: the ~0.35 s flash at the write moment itself,
+/// while a freshly-stamped charge of CHARGE_MAX decays down to this
+/// bound. The retired replication-window rung (1.5) kept every
+/// written rung Core-white for ~1.6 s — the masterclass audit's
+/// standing-Core finding; the wake now reads the warm Hot ceiling).
 pub(crate) const DNA_CHARGE_LEVEL_MID: f32 = 0.25;
 pub(crate) const DNA_CHARGE_LEVEL_HOT: f32 = 0.7;
-pub(crate) const DNA_CHARGE_LEVEL_CORE: f32 = 1.5;
+pub(crate) const DNA_CHARGE_LEVEL_BLINK: f32 = 2.3;
 
 // The replication fork (law 4).
 
@@ -2313,8 +2318,8 @@ pub(crate) const DNA_GENESIS_ACTIVE_MAX: f32 = 0.28;
 const _: () = assert!(DNA_R_MIN < DNA_R_MAX);
 const _: () = assert!(DNA_R_FRAC > 0.0);
 const _: () = assert!(DNA_CHARGE_LEVEL_MID < DNA_CHARGE_LEVEL_HOT);
-const _: () = assert!(DNA_CHARGE_LEVEL_HOT < DNA_CHARGE_LEVEL_CORE);
-const _: () = assert!(DNA_CHARGE_LEVEL_CORE < DNA_CHARGE_MAX);
+const _: () = assert!(DNA_CHARGE_LEVEL_HOT < DNA_CHARGE_LEVEL_BLINK);
+const _: () = assert!(DNA_CHARGE_LEVEL_BLINK < DNA_CHARGE_MAX);
 const _: () = assert!(DNA_ACTIVE_BASE < DNA_ACTIVE_MAX);
 const _: () = assert!(DNA_FORK_RATE > 0.0);
 const _: () = assert!(DNA_FALL_MULT > 0.0);

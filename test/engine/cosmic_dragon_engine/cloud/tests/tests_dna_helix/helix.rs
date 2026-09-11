@@ -187,10 +187,53 @@ fn dna_charge_decays_exponentially_and_stays_bounded() {
 fn dna_charge_ladder_reads_the_recency() {
     // The family's BrightnessLevel carries no PartialEq (the
     // monolith enum is match-only) — the ladder pins use matches!.
+    //
+    // NIGHT-research-20 re-pin: the old contract pinned the wrong
+    // direction (charge 2.0 must equal Core) — that was the
+    // replication-window rung holding every written rung Core-white
+    // for ~1.6 s of its decay. The wake now reads the warm Hot
+    // ceiling; Core survives only inside the fresh-write blink
+    // (charge above the blink bound, the ~0.35 s flash at the
+    // write moment itself).
     assert!(matches!(charge_level(0.0), BrightnessLevel::Ghost));
     assert!(matches!(charge_level(0.3), BrightnessLevel::Mid));
     assert!(matches!(charge_level(0.8), BrightnessLevel::Hot));
-    assert!(matches!(charge_level(2.0), BrightnessLevel::Core));
+    // The settled wake (2.0, the old Core band) reads the warm
+    // ceiling, never Core.
+    assert!(matches!(charge_level(2.0), BrightnessLevel::Hot));
+    // The blink band: a freshly-written rung (charge near max)
+    // flashes Core — the write moment.
+    assert!(matches!(
+        charge_level(crate::constants::DNA_CHARGE_LEVEL_BLINK + 1.0e-4),
+        BrightnessLevel::Core
+    ));
+    assert!(matches!(
+        charge_level(DNA_CHARGE_MAX),
+        BrightnessLevel::Core
+    ));
+}
+
+#[test]
+fn dna_fresh_write_blink_expires_under_decay() {
+    // The blink is a moment, not a state: a freshly-written rung
+    // (charge at max) reads Core at the write instant, and after
+    // half a sim-second of law-3 decay the charge has fallen past
+    // the blink bound — the rung reads the warm Hot ceiling while
+    // its wake cools (the retired replication-window rung kept it
+    // Core for ~1.6 s).
+    let mut g = make_genome(80, 40);
+    g.plant_charge_for_test(0, DNA_CHARGE_MAX);
+    assert!(matches!(
+        charge_level(g.charge_for_test(0)),
+        BrightnessLevel::Core
+    ));
+    advance_genome(&mut g, 0.5);
+    let charge = g.charge_for_test(0);
+    assert!(
+        charge <= crate::constants::DNA_CHARGE_LEVEL_BLINK,
+        "half a second of decay must carry the charge past the blink bound (got {charge})"
+    );
+    assert!(matches!(charge_level(charge), BrightnessLevel::Hot));
 }
 
 #[test]

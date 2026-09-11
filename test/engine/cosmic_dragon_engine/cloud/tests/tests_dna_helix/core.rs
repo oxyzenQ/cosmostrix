@@ -379,3 +379,85 @@ fn dna_adopt_palette_and_clear_draw_history() {
     cloud.dna_helix_rain.clear_draw_history();
     assert!(cloud.dna_helix_rain.drawn_cells_for_test().is_empty());
 }
+
+// -- NIGHT-research-20: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn dna_age_ladder_never_lands_core_on_the_soup() {
+    // The audit's first standing site: fresh nucleotide heads read
+    // Core for the first 20% of every drop's lifetime (~3 s of
+    // standing white blend per drop). The age ladder now composes
+    // to the warm Hot ceiling from the moment a nucleotide enters
+    // the sky: no consumed fraction of any lifetime lands Core.
+    use crate::cloud::dna_helix::drops::NucleotideDrop;
+    use crate::cloud::monolith::BrightnessLevel;
+
+    let level_at = |fraction: f32| {
+        let mut drop = NucleotideDrop::vacant();
+        drop.lifetime = 10.0;
+        drop.sim_age = fraction * 10.0;
+        drop.age_level()
+    };
+
+    for fraction in [0.0, 0.05, 0.19, 0.2, 0.3, 0.44, 0.45, 0.6, 0.74, 0.75, 1.0] {
+        assert!(
+            !matches!(level_at(fraction), BrightnessLevel::Core),
+            "the soup ladder must never land Core (age fraction {fraction})"
+        );
+    }
+    // The fade pinned: fresh and young read the warm ceiling, the
+    // mid ages Mid, the drifters Ghost.
+    for fresh in [0.0, 0.05, 0.19, 0.3, 0.44] {
+        assert!(matches!(level_at(fresh), BrightnessLevel::Hot));
+    }
+    for mid in [0.45, 0.6, 0.74] {
+        assert!(matches!(level_at(mid), BrightnessLevel::Mid));
+    }
+    for old in [0.75, 1.0] {
+        assert!(matches!(level_at(old), BrightnessLevel::Ghost));
+    }
+}
+
+#[test]
+fn dna_rung_front_face_composes_to_the_warm_ceiling() {
+    // The audit's third standing site: the rung front-face step-up
+    // lifted every re-synthesized (Hot) rung to Core through the
+    // whole decay band after each replication sweep. The step-up
+    // now stops at the warm Hot ceiling; the 3D depth read survives
+    // (Mid bases step up, Hot bases hold, the back face steps
+    // down), and a rung inside its fresh-write blink keeps the
+    // flash across the whole face.
+    use crate::cloud::dna_helix::draw::depth_level;
+    use crate::cloud::monolith::BrightnessLevel;
+
+    // A standing Hot rung's front face holds the warm ceiling (was
+    // Core — the standing offender).
+    assert!(matches!(
+        depth_level(BrightnessLevel::Hot, 0.5),
+        BrightnessLevel::Hot
+    ));
+    // The depth read survives below the ceiling: Mid bases step up
+    // to Hot, Ghost fabric steps up to Mid, the back face steps
+    // down.
+    assert!(matches!(
+        depth_level(BrightnessLevel::Mid, 0.5),
+        BrightnessLevel::Hot
+    ));
+    assert!(matches!(
+        depth_level(BrightnessLevel::Ghost, 0.5),
+        BrightnessLevel::Mid
+    ));
+    assert!(matches!(
+        depth_level(BrightnessLevel::Hot, -0.5),
+        BrightnessLevel::Mid
+    ));
+    // The fresh-write blink keeps its flash across the whole face.
+    assert!(matches!(
+        depth_level(BrightnessLevel::Core, 0.5),
+        BrightnessLevel::Core
+    ));
+    assert!(matches!(
+        depth_level(BrightnessLevel::Core, 0.0),
+        BrightnessLevel::Core
+    ));
+}

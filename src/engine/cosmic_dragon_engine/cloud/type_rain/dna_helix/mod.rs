@@ -114,10 +114,15 @@
 //! needed). Fresh synthesis (a fork pass, law 4) sets it to the
 //! max; an absorbed nucleotide (law 5) deposits into it; it decays
 //! exponentially. The ladder reads it: Ghost is the ancient
-//! archive, Mid a transcribed pair, Hot a freshly-written one,
-//! Core the replication window. The light shows where the genome
-//! has been recently written — the same deposition economy the
-//! corona's footpoints carry, on a ladder instead of a star.
+//! archive, Mid a transcribed pair, Hot a freshly-written one (the
+//! warm ceiling, NIGHT-research-20 — the retired replication-window
+//! rung held every written rung Core-white for ~1.6 s of its
+//! decay), and Core only the fresh-write blink: the ~0.35 s flash
+//! at the write moment itself, while the freshly-stamped max
+//! charge still sits above the blink bound. The light shows where
+//! the genome has been recently written — the same deposition
+//! economy the corona's footpoints carry, on a ladder instead of a
+//! star.
 //!
 //! ### Law 4 — the replication (the traveling fork)
 //!
@@ -135,7 +140,10 @@
 //! re-enters from the top. The charge the fork stamps decays while
 //! the wave travels on, so the freshest rungs sit just above the
 //! fork — a brightness gradient that trails the wave down the
-//! molecule, the replication's wake.
+//! molecule, the replication's wake (a warm-gold wake under the
+//! NIGHT-research-20 soft-light ceiling: the wake reads Hot while
+//! it decays, the white flash confined to each rung's write
+//! moment).
 //!
 //! ### Law 5 — the soup (the nucleotide rain)
 //!

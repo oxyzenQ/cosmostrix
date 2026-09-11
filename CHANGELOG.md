@@ -9,6 +9,53 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-20 — the dna_helix soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round four — the audit's
+  strongest scene (7.5) and the only one whose tree already
+  pinned a brightness ladder, pinned in the wrong direction
+  (charge 2.0 must equal Core). Three standing Core sites
+  retired: fresh nucleotide heads read Core for the first 20% of
+  every drop's lifetime (~3 s per drop), the fork wake's charge
+  stamp (2.6) decayed through Core for ~1.6 s per written rung,
+  and the rung front-face step-up lifted every re-synthesized Hot
+  rung to Core through the whole decay band.
+- Site one (drops.rs age_level): the fresh soup reads the warm
+  Hot ceiling from the moment it enters the sky — the fresh and
+  young bands merge at the ceiling, AGE_FRACTION_HOT retires.
+- Site two (helix.rs charge_level): the fresh-write blink — a
+  new DNA_CHARGE_LEVEL_BLINK bound (2.3): a freshly-written rung
+  (charge at max) flashes Core for the ~0.35 s the charge sits
+  above the bound, then the replication wake reads the warm Hot
+  ceiling while it cools (the audit's "the fresh-write blink
+  stays Core" — a moment, not the retired 1.6 s window).
+  DNA_CHARGE_LEVEL_CORE (1.5) retires with its asserts at both
+  definition sites.
+- Site three (draw.rs step_up_level): the front-half rung glow
+  stops at the warm Hot ceiling — a standing Hot rung no longer
+  composes Core on its front face. The 3D depth read survives
+  (Mid bases step up, the back face steps down), and a rung
+  inside its fresh-write blink keeps the flash across the whole
+  face.
+- Re-pinned the wrong-direction ladder contract (charge 2.0 now
+  reads Hot, the blink band pinned at 2.3+ and max); three new
+  contracts — the fresh-write blink expires under law-3 decay,
+  the soup ladder never lands Core at any age fraction, and the
+  rung front-face composition (Hot holds, Mid steps up, back
+  steps down, the blink keeps its flash). 42 -> 45 dna_helix
+  tests, full suite 2818 green, fmt and clippy -D warnings clean,
+  gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): dna_helix avg fps 7469.1 -> 7814.4 (+4.6%),
+  median 7682.5 -> 7930.0, p99 0.1774 -> 0.1735 ms, avg dirty
+  cells/frame 55.6 -> 51.9 (-6.7% — the softer heads and capped
+  wake change fewer drawn contents through the frame-equality
+  fast path), entropy 4.55 -> 4.46, gini 0.8298 -> 0.8382, heap
+  retained 0 B — zero allocation, same pools, the RNG stream
+  untouched. Docs updated: README scene bullet, CHANGELOG feature
+  entry, BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-19 — the aeolian soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

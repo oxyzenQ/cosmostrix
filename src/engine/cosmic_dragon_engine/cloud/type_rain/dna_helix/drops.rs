@@ -18,11 +18,13 @@ use crate::constants::{DNA_FALL_MULT, DNA_TRAIL_LEN};
 use super::super::monolith::BrightnessLevel;
 
 /// Age-fraction ladder thresholds (law 5's draw read): a fresh
-/// nucleotide reads Core, a young one Hot, a mid-age one Mid, an
-/// old drifter Ghost — the fade toward the floor. Plain fractions
-/// of the lifetime (the solar ejecta precedent: the ladder reads
-/// the remaining life, not the speed — the fall is terminal).
-const AGE_FRACTION_HOT: f32 = 0.20;
+/// nucleotide reads the warm Hot ceiling (NIGHT-research-20: the
+/// retired fresh-Core rung stood for the first 20% of every drop's
+/// lifetime, ~3 s of standing white blend — the audit's first
+/// site), a mid-age one Mid, an old drifter Ghost — the fade toward
+/// the floor. Plain fractions of the lifetime (the solar ejecta
+/// precedent: the ladder reads the remaining life, not the speed —
+/// the fall is terminal).
 const AGE_FRACTION_MID: f32 = 0.45;
 const AGE_FRACTION_GHOST: f32 = 0.75;
 
@@ -126,15 +128,17 @@ impl NucleotideDrop {
     }
 
     /// The age ladder (law 5's draw read): a fresh nucleotide
-    /// reads Core (the soup is bright where it enters), a young
-    /// one Hot, a mid-age one Mid, an old drifter Ghost — the
-    /// fade toward the floor. The ladder reads the consumed
-    /// fraction of the lifetime, not the speed — the fall is
-    /// terminal (the solar ejecta precedent).
+    /// reads the warm Hot ceiling — the soup is bright where it
+    /// enters, without the Core white blend (NIGHT-research-20,
+    /// the audit's first standing site: the retired fresh-Core rung
+    /// stood for the first 20% of every drop's lifetime) — a
+    /// mid-age one Mid, an old drifter Ghost — the fade toward the
+    /// floor. The ladder reads the consumed fraction of the
+    /// lifetime, not the speed — the fall is terminal (the solar
+    /// ejecta precedent).
     pub(crate) fn age_level(&self) -> BrightnessLevel {
         let life = self.lifetime.max(0.001);
         match self.sim_age / life {
-            a if a < AGE_FRACTION_HOT => BrightnessLevel::Core,
             a if a < AGE_FRACTION_MID => BrightnessLevel::Hot,
             a if a < AGE_FRACTION_GHOST => BrightnessLevel::Mid,
             _ => BrightnessLevel::Ghost,

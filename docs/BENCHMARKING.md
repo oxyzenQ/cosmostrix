@@ -174,6 +174,25 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-20 (2026-09-11, the dna_helix soft-light round):**
+three standing Core sites re-graded to the Hot warm ceiling — the
+fresh nucleotide heads (Core stood for the first 20% of every
+drop's lifetime), the replication wake (the fork's 2.6 charge
+stamp decayed through Core for ~1.6 s per written rung; now a
+~0.35 s fresh-write blink above the new 2.3 bound, then the warm
+wake), and the rung front-face step-up (a standing Hot rung no
+longer composes Core; the blink keeps its flash across the whole
+face). No RNG change, no allocation. 10s A/B at 120x40 wet IO (dev
+profile, two-run discard-warmup): dna_helix avg fps 7469.1 ->
+7814.4 (+4.6%), median 7682.5 -> 7930.0, p99 0.1774 -> 0.1735 ms,
+avg dirty cells/frame 55.6 -> 51.9 (-6.7% — the softer soup heads
+and capped wake change fewer drawn contents through the
+frame-equality fast path), entropy 4.55 -> 4.46, gini 0.8298 ->
+0.8382, heap retained 0 B, peak RSS 8.98 -> 9.04 MiB, drift
+improving (-2.97% -> +0.57%). The level re-grades pay a mechanical
+dividend: the same cells repaint softer and the diff engine finds
+fewer of them changed.
+
 **NIGHT-research-19 (2026-09-11, the aeolian soft-light round):**
 the drop kinetic ladder's top rung re-graded Core to the Hot warm
 ceiling (the rain half matching the instrument half's own

@@ -27,7 +27,7 @@ use rand::{
 };
 
 use crate::constants::{
-    DNA_BOW_MAX, DNA_CHARGE_DECAY, DNA_CHARGE_LEVEL_CORE, DNA_CHARGE_LEVEL_HOT,
+    DNA_BOW_MAX, DNA_CHARGE_DECAY, DNA_CHARGE_LEVEL_BLINK, DNA_CHARGE_LEVEL_HOT,
     DNA_CHARGE_LEVEL_MID, DNA_CHARGE_MAX, DNA_FORK_GAP, DNA_FORK_RATE, DNA_REPLICATION_CLOCK_MEAN,
     DNA_ROT_RATE, DNA_RUNG_STEP, DNA_R_FRAC, DNA_R_MAX, DNA_R_MIN, DNA_TURN_LINES,
 };
@@ -663,10 +663,15 @@ pub(crate) fn rung_depth_blend(ad: f32, t: f32) -> f32 {
 }
 
 /// Law 3's draw read: the recency ladder (the genome's own
-/// brightness — Ghost the archive, Mid transcribed, Hot fresh,
-/// Core the replication window).
+/// brightness — Ghost the archive, Mid transcribed, Hot fresh, and
+/// Core only the fresh-write blink: the ~0.35 s flash while a
+/// freshly-stamped CHARGE_MAX charge still sits above the blink
+/// bound. The retired replication-window rung kept every written
+/// rung Core-white for ~1.6 s of its decay — the NIGHT-research-20
+/// soft-light ruling re-graded that standing wake to the Hot warm
+/// ceiling).
 pub(crate) fn charge_level(charge: f32) -> BrightnessLevel {
-    if charge > DNA_CHARGE_LEVEL_CORE {
+    if charge > DNA_CHARGE_LEVEL_BLINK {
         BrightnessLevel::Core
     } else if charge > DNA_CHARGE_LEVEL_HOT {
         BrightnessLevel::Hot
@@ -683,8 +688,8 @@ pub(crate) fn charge_level(charge: f32) -> BrightnessLevel {
 const _: () = assert!(DNA_R_MIN < DNA_R_MAX);
 const _: () = assert!(DNA_R_FRAC > 0.0);
 const _: () = assert!(DNA_CHARGE_LEVEL_MID < DNA_CHARGE_LEVEL_HOT);
-const _: () = assert!(DNA_CHARGE_LEVEL_HOT < DNA_CHARGE_LEVEL_CORE);
-const _: () = assert!(DNA_CHARGE_LEVEL_CORE < DNA_CHARGE_MAX);
+const _: () = assert!(DNA_CHARGE_LEVEL_HOT < DNA_CHARGE_LEVEL_BLINK);
+const _: () = assert!(DNA_CHARGE_LEVEL_BLINK < DNA_CHARGE_MAX);
 const _: () = assert!(DNA_RUNG_STEP >= 1);
 const _: () = assert!(DNA_TURN_LINES > DNA_RUNG_STEP);
 const _: () = assert!(DNA_FORK_RATE > 0.0);
