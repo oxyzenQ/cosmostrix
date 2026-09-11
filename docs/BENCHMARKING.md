@@ -174,6 +174,18 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-15 (2026-09-11, the dragon soft-light round):** the
+head rung re-graded Core to the Hot warm ceiling standing, with
+Core reserved for the ~1.5 s entry-reveal arrival flash (the
+formation-collapse precedent) — a pure level re-grade on the same
+drawn cells. 10s A/B at 120x40 wet IO (dev profile, two-run
+discard-warmup): cosmic_dragon avg fps 22678.9 -> 22809.1 (+0.6%,
+flat), median 23410.2 -> 23810.4, p99 0.0681 -> 0.0670 ms, avg
+dirty cells/frame 31.7 -> 31.8, entropy 4.07 -> 4.06, gini 0.8706
+-> 0.8709, heap retained 0 B, peak RSS 9.05 -> 8.93 MiB, drift
+stable (+0.04% -> +0.94%). The cheapest tier-one round: one
+ladder rung plus its draw-site flag, zero mechanical motion.
+
 **NIGHT-research-14 (2026-09-11, the quasar soft-light round):** the
 disk ladder composes through the ported soft_head_level after the
 ignition cap (the inner rung, the doppler limb's step-up and the

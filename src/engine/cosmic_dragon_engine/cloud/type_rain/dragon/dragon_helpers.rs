@@ -20,17 +20,35 @@ use super::super::monolith::monolith_helpers::{bold_for_level, color_for_level};
 use super::super::monolith::BrightnessLevel;
 use super::dragon::Dragon;
 
-/// Brightness zone by segment index along the body (head=Core,
-/// first third=Hot, middle third=Mid, tail third=Ghost). The
-/// serpentine fade is the Chinese-dragon body's visible signature.
-pub(super) fn level_for_segment(index: usize, body_len: usize) -> BrightnessLevel {
+/// Brightness zone by segment index along the body (head = the
+/// soft warm ceiling, first third = Hot, middle third = Mid,
+/// tail third = Ghost). The serpentine fade is the Chinese-dragon
+/// body's visible signature.
+///
+/// NIGHT-research-15 (the black hole's NIGHT-research-11
+/// soft-light ruling ported to the family): the standing head
+/// reads Hot — the palette's bright stop without the Core white
+/// blend that strained the owner's eyes — for the whole life of
+/// the flight. Core survives only in the entry-reveal flare: the
+/// ~1.5 s arrival flash while the body unfurls (the black hole
+/// formation-collapse precedent — the head burns white as the
+/// dragon arrives, then settles to warm for its lifetime).
+pub(crate) fn level_for_segment(
+    index: usize,
+    body_len: usize,
+    entry_flaring: bool,
+) -> BrightnessLevel {
     if body_len == 0 {
-        return BrightnessLevel::Core;
+        return BrightnessLevel::Hot;
     }
     let i = index.min(body_len - 1);
     let third = body_len / 3;
     if i == 0 {
-        BrightnessLevel::Core
+        if entry_flaring {
+            BrightnessLevel::Core
+        } else {
+            BrightnessLevel::Hot
+        }
     } else if i <= third {
         BrightnessLevel::Hot
     } else if i <= third * 2 {

@@ -367,3 +367,124 @@ fn dragon_heading_stays_bounded_after_prolonged_integration() {
         }
     }
 }
+
+// ─── NIGHT-research-15: the soft-light contracts ─────────────────────
+
+/// Rank helper for comparing BrightnessLevel without PartialEq.
+fn soft_rank(level: crate::cloud::type_rain::monolith::BrightnessLevel) -> u8 {
+    match level {
+        crate::cloud::type_rain::monolith::BrightnessLevel::Ghost => 0,
+        crate::cloud::type_rain::monolith::BrightnessLevel::Dim => 1,
+        crate::cloud::type_rain::monolith::BrightnessLevel::Mid => 2,
+        crate::cloud::type_rain::monolith::BrightnessLevel::Hot => 3,
+        crate::cloud::type_rain::monolith::BrightnessLevel::Core => 4,
+    }
+}
+
+#[test]
+fn dragon_head_composes_soft_warm_never_core_after_entry() {
+    // The NIGHT-research-15 soft-light ruling (the black hole's
+    // NIGHT-research-11 precedent ported to the family — the
+    // masterclass audit's finding: three permanent Core-white
+    // glyph heads, 20-second lifetimes, the standing strain the
+    // owner rejected): once the entry reveal completes, the whole
+    // body — head included — composes to the soft warm ceiling or
+    // below; the ladder never lands Core on a standing segment at
+    // any index or body length.
+    use crate::cloud::type_rain::dragon::dragon_helpers::level_for_segment;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::constants::DRAGON_BODY_LEN;
+
+    for body_len in [DRAGON_BODY_LEN, 6, 9, 12, 30] {
+        for i in 0..body_len {
+            let level = level_for_segment(i, body_len, false);
+            assert!(
+                soft_rank(level) <= soft_rank(BrightnessLevel::Hot),
+                "a standing segment must never land Core (i {i}, len {body_len})"
+            );
+        }
+    }
+}
+
+#[test]
+fn dragon_entry_reveal_flashes_the_head_core() {
+    // The transient contract: the entry-reveal flare is the head's
+    // ONE Core moment — the ~1.5 s arrival flash while the body
+    // unfurls (the black hole formation-collapse precedent). While
+    // entry is flaring the head reads Core; the body behind it
+    // stays soft; the degenerate empty-body guard reads Hot, not
+    // Core (no standing white on a zero-length chain).
+    use crate::cloud::type_rain::dragon::dragon_helpers::level_for_segment;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::constants::DRAGON_BODY_LEN;
+
+    assert_eq!(
+        soft_rank(level_for_segment(0, DRAGON_BODY_LEN, true)),
+        soft_rank(BrightnessLevel::Core),
+        "the entry flare is the head's one Core flash"
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(0, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Hot),
+        "the settled head reads the soft warm ceiling"
+    );
+    // The body behind the flaring head stays soft.
+    for i in 1..DRAGON_BODY_LEN {
+        assert_ne!(
+            soft_rank(level_for_segment(i, DRAGON_BODY_LEN, true)),
+            soft_rank(BrightnessLevel::Core),
+            "only the head flares Core during entry (i {i})"
+        );
+    }
+    assert_eq!(
+        soft_rank(level_for_segment(0, 0, false)),
+        soft_rank(BrightnessLevel::Hot),
+        "the empty-body guard must read the soft ceiling, never Core"
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(0, 0, true)),
+        soft_rank(BrightnessLevel::Hot),
+        "the empty-body guard must not flash Core either"
+    );
+}
+
+#[test]
+fn dragon_body_zones_pin_the_serpentine_fade() {
+    // The serpentine fade contract (unchanged by NR15 — the round
+    // re-grades the head rung only): first third of the body reads
+    // Hot, the middle third Mid, the tail third Ghost — the
+    // Chinese-dragon fade that is the style's visible signature.
+    use crate::cloud::type_rain::dragon::dragon_helpers::level_for_segment;
+    use crate::cloud::type_rain::monolith::BrightnessLevel;
+    use crate::constants::DRAGON_BODY_LEN;
+
+    let third = DRAGON_BODY_LEN / 3;
+    assert_eq!(
+        soft_rank(level_for_segment(1, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Hot)
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(third, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Hot)
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(third + 1, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Mid)
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(third * 2, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Mid)
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(third * 2 + 1, DRAGON_BODY_LEN, false)),
+        soft_rank(BrightnessLevel::Ghost)
+    );
+    assert_eq!(
+        soft_rank(level_for_segment(
+            DRAGON_BODY_LEN - 1,
+            DRAGON_BODY_LEN,
+            false
+        )),
+        soft_rank(BrightnessLevel::Ghost)
+    );
+}

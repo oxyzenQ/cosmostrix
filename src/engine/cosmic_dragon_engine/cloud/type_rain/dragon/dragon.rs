@@ -45,10 +45,12 @@
 //! and the state snaps to SOAR (escape any circle that would push
 //! the dragon back into the wall).
 //!
-//! Brightness gradient along the body: head = Core (brightest),
+//! Brightness gradient along the body: head = the soft warm
+//! ceiling (NIGHT-research-15 — Hot standing, Core only for the
+//! ~1.5 s entry-reveal flare while the body unfurls),
 //! first third of body = Hot, middle third = Mid, tail third =
 //! Ghost. This serpentine fade is the Chinese-dragon body's visible
-//! signature — the head leads brightly, the tail fades into mist.
+//! signature — the head leads warmly, the tail fades into mist.
 //!
 //! Glyphs: matrix-style re-roll on cell change (mutation tied to
 //! motion, parity with vortex/lorenz). Each segment carries its own
@@ -731,7 +733,9 @@ impl DragonRain {
     /// Draw pass — head + body chain + monolith-style diff cleanup
     /// (mirrors `VortexRain::draw` / `LorenzRain::draw`).
     ///
-    /// Brightness gradient: head = Core, first third of body = Hot,
+    /// Brightness gradient: head = the soft warm ceiling (the
+    /// NIGHT-research-15 ruling — Hot standing, Core only during
+    /// the entry-reveal flare), first third of body = Hot,
     /// middle third = Mid, tail third = Ghost. This serpentine fade
     /// is the Chinese-dragon body's visible signature.
     ///
@@ -797,7 +801,7 @@ impl DragonRain {
                 seg.last_col = col as i32;
                 seg.last_line = line as i32;
 
-                let level = level_for_segment(i, body_len);
+                let level = level_for_segment(i, body_len, d.entry_progress < 1.0);
                 draw_dragon_cell(ctx, frame, col, line, seg.ch, d.palette_slot, level);
                 self.current_cells.push(DragonCell { col, line });
             }

@@ -9,6 +9,35 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-15 — the dragon soft-light round
+
+- Tier one of the NIGHT-research-13 masterclass audit, round two
+  (after the quasar): the dragon carried three permanent
+  Core-white glyph heads — one per dragon, standing for every
+  frame of their 20-second lifetimes — the most literal instance
+  of the standing-strain pattern the black hole rounds retired.
+- The soft-light cap ported from the black hole's
+  NIGHT-research-11 ruling (`dragon/dragon_helpers.rs`):
+  `level_for_segment` re-grades the head rung Core to the Hot
+  warm ceiling (the palette's bright stop, no white blend) for
+  the whole life of the flight; Core survives only in the
+  entry-reveal flare — the ~1.5 s arrival flash while the body
+  unfurls (the black hole formation-collapse precedent: the head
+  burns white as the dragon arrives, then settles to warm for its
+  lifetime). The serpentine body fade (Hot / Mid / Ghost thirds)
+  is untouched.
+- Pinned with three new contracts in `tests_dragon/core.rs` — no
+  standing segment ever lands Core at any index or body length,
+  the entry flare is the head's one Core moment (body stays soft,
+  the empty-body guard reads Hot), and the serpentine zone
+  boundaries are pinned. 13 -> 16 dragon tests, full suite 2807
+  green.
+- Mechanically honest-flat A/B (10 s, 120x40, wet IO, dev profile,
+  two-run discard-warmup): cosmic_dragon avg fps 22678.9 ->
+  22809.1, dirty cells/frame 31.7 -> 31.8, entropy 4.07 -> 4.06,
+  gini 0.8706 -> 0.8709, heap retained 0 B — a level re-grade, the
+  same cells repainted softer, zero allocation.
+
 ### feature: NIGHT-research-14 — the quasar soft-light round
 
 - Tier one of the NIGHT-research-13 masterclass audit (the owner
