@@ -174,6 +174,22 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-23 (2026-09-11, the lorenz soft-light round):**
+one rung, Core to Hot — the cheapest fix in the audit's entire
+sweep: level_for_z sent every lobe-peak excursion (the peaks
+cluster near z=40) to Core, holding a standing Core cluster at
+both butterfly tips; the peaks now read the warm Hot ceiling,
+the depth read survives (Hot wings, Mid transition, Ghost saddle
+bridge). LORENZ_Z_HOT stays live for the black hole ring's
+locked composition. No RNG change, no allocation. 10s A/B at
+120x40 wet IO (dev profile, two-run discard-warmup): lorenz avg
+fps 8328.9 -> 8731.0 (+4.8%), median 8565.7 -> 8843.9, p99
+0.1526 -> 0.1467 ms, avg dirty cells/frame 56.9 -> 53.7 (-5.6%
+— the peaks' softer composition changes fewer drawn contents
+through the frame-equality fast path), entropy 5.19 -> 5.15,
+gini 0.7331 -> 0.7386, heap retained 0 B, peak RSS 9.05 -> 8.95
+MiB, drift improving (-2.00% -> -0.58%).
+
 **NIGHT-research-22 (2026-09-11, the neural soft-light round):**
 the burst-lifted pulse heads cap at the warm Hot ceiling (the
 retired flaring branch held Core on every riding signal for the

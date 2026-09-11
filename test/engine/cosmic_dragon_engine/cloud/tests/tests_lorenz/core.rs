@@ -201,3 +201,47 @@ fn lorenz_palette_adoption_updates_motes() {
     assert!(cloud.lorenz_rain.active_count() > 0);
     let _ = before;
 }
+
+// -- NIGHT-research-23: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn lorenz_z_ladder_never_lands_core() {
+    // The audit's cheapest fix in the entire sweep: level_for_z
+    // returned Core above the retired 38.0 hot bound, and every
+    // lobe-peak excursion lives there (the peaks cluster near
+    // z=40), so both butterfly tips held a standing Core cluster —
+    // the white blend, standing, on the attractor's own hero
+    // geometry. One rung, Core to Hot: the peaks now read the warm
+    // Hot ceiling, the attractor's depth read survives (Hot wings,
+    // Mid transition, Ghost saddle bridge).
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::lorenz::lorenz::level_for_z;
+
+    // The sweep: the saddle floor, the transition band, the lobe
+    // body, the retired peak zone (38-50) and beyond — never Core.
+    for z in [
+        0.0, 5.0, 13.0, 20.0, 27.0, 28.0, 35.0, 38.0, 40.0, 45.0, 50.0, 100.0,
+    ] {
+        assert!(
+            !matches!(level_for_z(z), BrightnessLevel::Core),
+            "the z ladder must never land Core (z {z})"
+        );
+    }
+
+    // The zones pinned: the peaks and the lobe body read the warm
+    // Hot ceiling, the saddle transition Mid, the bridge Ghost.
+    let mid = crate::constants::LORENZ_Z_MID;
+    let dim = crate::constants::LORENZ_Z_DIM;
+    for peak in [mid + 1.0e-4, 38.0, 40.0, 50.0, 100.0] {
+        assert!(
+            matches!(level_for_z(peak), BrightnessLevel::Hot),
+            "the lobe peaks read the warm Hot ceiling (z {peak})"
+        );
+    }
+    for body in [dim + 1.0e-4, 20.0, mid] {
+        assert!(matches!(level_for_z(body), BrightnessLevel::Mid));
+    }
+    for bridge in [0.0, 5.0, dim] {
+        assert!(matches!(level_for_z(bridge), BrightnessLevel::Ghost));
+    }
+}

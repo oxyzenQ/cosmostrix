@@ -643,16 +643,24 @@ fn lorenz_deriv(x: f32, y: f32, z: f32, sigma: f32, rho: f32, beta: f32) -> (f32
     (dx, dy, dz)
 }
 
-/// Brightness zone by Lorenz z-coordinate: z high = lobe peak hot;
-/// z mid = lobe body; z low = saddle transition dim. The z range of
-/// the canonical attractor is approximately [0, 50], with lobe peaks
-/// near z≈40 and saddle crossings near z≈13. Four brightness zones
-/// give the depth cue even in Color16 mode (palette index selection,
-/// not blend math).
+/// Brightness zone by Lorenz z-coordinate: z high = the lobe
+/// peaks' warm ceiling; z mid = lobe body; z low = saddle
+/// transition dim. The z range of the canonical attractor is
+/// approximately [0, 50], with lobe peaks near z≈40 and saddle
+/// crossings near z≈13. Four brightness zones give the depth cue
+/// even in Color16 mode (palette index selection, not blend
+/// math).
+///
+/// NIGHT-research-23 (the masterclass audit's soft-light ruling,
+/// tier two — the cheapest fix in the audit): the retired top rung
+/// sent every lobe-peak excursion (z above the old 38.0 hot bound,
+/// where the peaks cluster) to Core — both butterfly tips held a
+/// standing Core cluster. The peaks now read the warm Hot ceiling
+/// (the lobe-peak zone merged with the lobe-body zone); the
+/// attractor's depth read survives (Hot wings, Mid transition,
+/// Ghost saddle bridge).
 pub(crate) fn level_for_z(z: f32) -> BrightnessLevel {
-    if z > crate::constants::LORENZ_Z_HOT {
-        BrightnessLevel::Core
-    } else if z > crate::constants::LORENZ_Z_MID {
+    if z > crate::constants::LORENZ_Z_MID {
         BrightnessLevel::Hot
     } else if z > crate::constants::LORENZ_Z_DIM {
         BrightnessLevel::Mid

@@ -9,6 +9,36 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-23 — the lorenz soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round seven — the audit's
+  cheapest fix in the entire sweep: level_for_z returned Core
+  above the 38.0 hot bound, and every lobe-peak excursion lives
+  there (the canonical attractor's peaks cluster near z=40), so
+  both butterfly tips held a standing Core cluster — the white
+  blend standing on the attractor's own hero geometry.
+- One rung, Core to Hot (lorenz.rs level_for_z): the lobe-peak
+  zone merges with the lobe body — the peaks read the warm Hot
+  ceiling, and the attractor's depth read survives (Hot wings,
+  Mid transition, Ghost saddle bridge). LORENZ_Z_HOT stays live:
+  the black hole ring's locked composition (level_for_ring_z)
+  reuses the shared z semantics and is untouched by the round.
+- One new contract in tests_lorenz/core.rs — the z ladder never
+  lands Core at any z from the saddle floor to far past the peak
+  region, with the Hot/Mid/Ghost zone boundaries pinned. 10 ->
+  11 lorenz tests, full suite 2822 green, fmt and clippy -D
+  warnings clean, gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): lorenz avg fps 8328.9 -> 8731.0 (+4.8%), median
+  8565.7 -> 8843.9, p99 0.1526 -> 0.1467 ms, avg dirty cells/frame
+  56.9 -> 53.7 (-5.6% — the peaks' softer composition changes
+  fewer drawn contents through the frame-equality fast path),
+  entropy 5.19 -> 5.15, gini 0.7331 -> 0.7386, heap retained 0 B
+  — zero allocation, same pools, the RNG stream untouched. Docs
+  updated: README scene bullet, CHANGELOG feature entry,
+  BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-22 — the neural soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

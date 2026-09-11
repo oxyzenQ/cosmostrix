@@ -323,14 +323,24 @@ pub(crate) const LORENZ_X_HALF_RANGE: f32 = 25.0;
 /// approximately [-30, 30] in steady state). Half-range = 30.0.
 pub(crate) const LORENZ_Y_HALF_RANGE: f32 = 30.0;
 
-/// Brightness zone boundary: z above this → Core (lobe peak hot).
-/// The attractor's z range is approximately [0, 50]; lobe peaks
-/// cluster near z=40+, so 38.0 marks the hot zone cleanly.
+/// Brightness zone boundary for the black hole ring's attractor-z
+/// depth cue (level_for_ring_z — the locked 10/10 composition
+/// reuses the lorenz z semantics; its draw sites compose the Core
+/// rung through the soft-head caps the NR11/NR12 rounds already
+/// rule). The lorenz scene's own ladder stopped branching here
+/// under NIGHT-research-23 — its lobe peaks read the warm Hot
+/// ceiling now — but the constant stays live for the ring (the
+/// shared z semantics: the peaks cluster near z=40, so 38.0 marks
+/// the hot zone cleanly).
 pub(crate) const LORENZ_Z_HOT: f32 = 38.0;
 
-/// Brightness zone boundary: z above this → Hot (lobe body).
-/// Set at 28.0 — the equilibrium z value (rho - 1). Below this,
-/// motes are typically transiting the saddle region.
+/// Brightness zone boundary: z above this → the warm Hot ceiling
+/// (the lorenz scene's lobe-peak zone merged with the lobe body
+/// under NIGHT-research-23: the retired branch above 38.0 sent
+/// every lobe-peak excursion to Core, holding a standing Core
+/// cluster at both butterfly tips). Set at 28.0 — the equilibrium
+/// z value (rho - 1). Below this, motes are typically transiting
+/// the saddle region.
 pub(crate) const LORENZ_Z_MID: f32 = 28.0;
 
 /// Brightness zone boundary: z above this → Mid; below → Ghost.
