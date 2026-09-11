@@ -8,6 +8,25 @@
 
 ## LOCK
 
+> S-night-R8 3-dragon harmony re-verification (2026-09-11, commit
+> 3df685f, R1-R8 combined final audit): the crystal leg re-verified
+> at HEAD. ZERO crystal engine source changes this session (git log
+> since 4e8a01a; the session's only code change is the S-night-R4
+> diagnostic-sink hardening in src/output/). 117 crystal tests green
+> (ambient scheduler, control wiring, palette groups, point system,
+> sensor). The delegation chain (crystal_dragon_tick ->
+> set_color_scheme -> build_palette -> apply_tune_to_palette ->
+> transition wave) unchanged since the S-master-7-v2 verification;
+> drift Chance/DriftHistory wiring untouched. Dynamic 3-dragon
+> harmony probe (10s PTY, truecolor, 120x40): all three engines live
+> (9,381 distinct 24-bit colors evolving over the window), clean
+> exit, full terminal restore, no panic. A/B 10s same-pipeline
+> builds flat on every visual metric. Lock invariants intact — no
+> code changes, the lock is the appropriate action.
+> Detail: docs/audits/LTS_FINAL_AUDIT_2026-09-11.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-11 -- S-night-R8 harmony re-verification, crystal leg, lock intact
+
 > S-master-7-v2 3-dragon harmony re-verification + LTS (2026-09-01,
 > commit after bf6ef18): delegation chain re-verified at HEAD through
 > the S-master-1-v2 wiring changes — crystal_dragon_tick now reads

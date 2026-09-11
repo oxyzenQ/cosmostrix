@@ -8,6 +8,30 @@
 
 ## LOCK
 
+> S-night-R8 3-dragon harmony re-verification (2026-09-11, commit
+> 3df685f, R1-R8 combined final audit): the cosmic leg re-verified at
+> HEAD. ZERO cosmic engine source changes this session (verified by
+> git log since 4e8a01a; the session's only code change is the
+> S-night-R4 diagnostic-sink hardening in src/output/). Stability
+> sweep of the full scene catalog: all 20 built-in scenes 2s-benched
+> with zero panics, extreme geometries (1x1 through 2000x500)
+> handled clean, adversarial CLI values rejected at clap parse,
+> SIGTERM graceful with full terminal restore. Full suite 2846/2846
+> green. Dynamic 3-dragon harmony probe (10s PTY, truecolor, 120x40):
+> exit 0, no panic, terminal restored, 1.6 MiB ANSI stream, 9,381
+> distinct 24-bit SGR fg colors with zero 256-color fallback — the
+> three dragons (cosmic rain, chroma pipeline, crystal drift)
+> demonstrably running together. A/B 10s same-pipeline builds:
+> dirty/entropy/gini flat (max delta 0.13%), fps within the
+> same-commit rebuild noise band, allocs 563-564 bit-stable. The
+> harmony chain wiring (set_color_scheme -> build_palette ->
+> apply_new_palette slot rotation + 300ms wave) unchanged since the
+> S-master-7-v2 verification. Lock invariants intact — no code
+> changes, the lock is the appropriate action.
+> Detail: docs/audits/LTS_FINAL_AUDIT_2026-09-11.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-11 -- S-night-R8 harmony re-verification, cosmic leg, lock intact
+
 > S-master-7-v2 3-dragon harmony re-verification + LTS (2026-09-01,
 > commit after bf6ef18): the cosmic leg of the harmony chain
 > re-verified at HEAD. set_color_scheme (runtime_controls.rs:51)

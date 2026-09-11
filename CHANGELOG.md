@@ -9,6 +9,61 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: S-night-R4 — terminal escape injection closed in diagnostic sinks
+
+- LTS final audit (S-night-R1 to R8, combined pass). One real
+  defect found: a config value carrying a raw ESC byte reached the
+  terminal verbatim through the testconf and validation error echo
+  (proved with a scene-custom `rain = "glyph<ESC>[2Jx"` probe). On
+  the shared-config threat model that is terminal command
+  injection — OSC 52 clipboard writes, screen clears and DSR reply
+  spam become reachable from a config file the victim was told to
+  download.
+- Fix: new `src/output/escape_ctrl.rs` renders C0, DEL and C1
+  control characters as visible `\u00XX` literals (newline passes
+  through as the line separator). Wired at five cold-path sinks:
+  the labeled error/warning renderer (covers all labeled call
+  sites plus the `die_input` family), the suggestion line helper,
+  the three verbose emitters, the live-reload fatal error echo and
+  the post-exit debug trace drain. Clean input borrows unchanged —
+  every normal diagnostic line renders byte-identical to before.
+- Coverage already in place (verified, no changes needed): message
+  overlay sanitization on all three intake paths, charset-custom
+  control-char rejection, custom block name grammar lock at parse,
+  safepath config directory restriction, 1 MiB TOCTOU-safe config
+  read cap, 24 h time-scale ceiling.
+- Tests: 5 new escape_ctrl unit tests, 2 render_labeled_block
+  regression locks; full suite 2846 passed / 0 failed / 2 ignored.
+  Also restores the SPDX header on
+  `scripts/nh32_crown_blink_audit.py`.
+
+### docs: S-night R1-R8 LTS final audit — verdicts and dragon locks
+
+- R1 stability: 2846 tests green, all 20 scenes clean, extreme
+  geometries clean, adversarial CLI values rejected at parse,
+  signals follow the documented contracts.
+- R2 hygiene: already clean — stale refs are intentional history,
+  duplicates are mirrored test fixtures, dead_code sites are
+  documented deprecations. No over-engineering applied.
+- R3 optimization: at peak (0.002 allocs/frame, stability
+  excellent, engines bit-stable locked). Skipped per owner rule.
+- R5 LTS: config delete/recreate/empty lifecycle all take the
+  documented error path; atomic writes; watcher termination and
+  mutex poisoning handled; panic hook bulletproof.
+- R6 chroma integration: 350 chroma + 184 lock tests green;
+  `--doctor` discloses the chroma_dragon pipeline on truecolor
+  terminals.
+- R7 visual impact: re-verified at peak, zero code changes, chroma
+  KEY.md lock entry added (S-night-R7).
+- R8 three-dragon harmony: dynamic 10 s PTY probe shows all three
+  engines live together (9,381 distinct 24-bit colors, zero
+  256-color fallback, clean exit and restore); lock entries added
+  to all three dragon KEY.md files (S-night-R8).
+- A/B 10 s (same-pipeline builds): dirty cells, frame entropy and
+  density gini all within 0.13 percent — no visual or performance
+  regression. Audit detail:
+  `docs/audits/LTS_FINAL_AUDIT_2026-09-11.md`.
+
 ### fix: NIGHT-hunt-32 — the black hole crown blink root-caused and the hunt-31 genesis revert
 
 - Owner report (the hunt-31 follow-up): the three disks above the

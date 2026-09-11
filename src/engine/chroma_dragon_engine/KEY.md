@@ -8,6 +8,33 @@
 
 ## LOCK
 
+> S-night-R7 LTS visual-impact re-verification (2026-09-11, commit
+> 3df685f, R1-R8 combined final audit): the masterclass axis
+> re-verified at HEAD after the hunt-31/32 and depthtest-2 rounds.
+> Engine machinery untouched since the research-26 in-hue self-bloom
+> cap round (verified by git log — zero chroma source changes this
+> session; the session's only code change is the S-night-R4
+> diagnostic-sink hardening in src/output/, outside the engine).
+> 12/12 tuning constants still at their sweep-audit-verified sweet
+> spots (32 sweep-audit tests green); all six dragon-engine-v2
+> innovations still live; resource efficiency still at peak
+> (0.002 allocs/frame steady state, 563-564 total alloc calls on the
+> 10s benchmark probes, stability excellent, jitter 0.006 ms).
+> Chroma pipeline verified executing in production: --doctor on a
+> forced-truecolor terminal discloses chroma_dragon with oklab
+> gradient, perceptual blend, climate post-fx, head halo,
+> l-smoothing; the dynamic 10s PTY harmony run shows 9,381 distinct
+> 24-bit SGR colors with zero 256-color fallback. A/B 10s
+> (same-pipeline builds, cinematic + sorgonemous_intrascals +
+> aeolian probes): frame_entropy_bits +0.01/+0.01/+0.05%, density_gini
+> -0.02/-0.01/-0.10%, dirty cells -0.13/-0.01/+0.02% — flat, no
+> visual regression; fps within the same-commit rebuild noise band.
+> 350 chroma tests + 184 lock-suite tests green, full binary suite
+> 2846/2846. No code changes — the dragon stays LOCKED at visual
+> peak. Detail: docs/audits/LTS_FINAL_AUDIT_2026-09-11.md.
+>
+> Signoff: **oxyzenQ** -- 2026-09-11 -- S-night-R7 visual-impact re-verification, lock intact
+
 > Earth-element theme real-color data retune (2026-09-02, v80.0.0-beta.2):
 > owner directive — the non-planet builtin colors/themes were suspected
 > "not realisme" with earth-element references (ocean, forest, sky,
