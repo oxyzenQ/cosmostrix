@@ -108,6 +108,9 @@ pub(crate) fn handle_post_exit_errors(verbose: bool) {
     if crate::live_config::LIVE_RELOAD_EXIT_CODE.load(std::sync::atomic::Ordering::Acquire) != 0 {
         if let Ok(guard) = crate::live_config::LIVE_RELOAD_ERROR.lock() {
             if let Some(ref msg) = *guard {
+                // S-night-R4: the live-reload error text interpolates config
+                // values — escape before it reaches the terminal.
+                let msg = crate::output::escape_ctrl(msg);
                 crate::output::eprintln_safe!(
                     "{} [live-reload] ERROR: {}{}",
                     crate::output::error_bold_open(),
@@ -144,6 +147,8 @@ pub(crate) fn handle_post_exit_errors(verbose: bool) {
         let _ = crate::live_config::drain_runtime_diags();
     }
     for t in crate::live_config_trace::drain_debug_traces() {
-        crate::output::eprintln_safe!("{t}");
+        // S-night-R4: traces interpolate live-reload key/value text —
+        // escape at the sink.
+        crate::output::eprintln_safe!("{}", crate::output::escape_ctrl(&t));
     }
 }

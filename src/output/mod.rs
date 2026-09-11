@@ -582,16 +582,21 @@ fn render_labeled_block(
     let mut lines = msg.split('\n');
     let mut out = String::with_capacity(msg.len() + 32);
     // First line: always the labeled head, always the message semantic.
+    // S-night-R4: every line passes escape_ctrl so a control byte
+    // interpolated from a config value renders as a visible literal
+    // instead of reprogramming the terminal (see escape_ctrl.rs).
     if let Some(first) = lines.next() {
-        let _ = write!(out, "{} {}", label_wrap(label), body_wrap(first));
+        let first = escape_ctrl(first);
+        let _ = write!(out, "{} {}", label_wrap(label), body_wrap(&first));
     }
     // Subsequent lines: suggestion lines switch to the white semantic.
     for line in lines {
         out.push('\n');
-        let styled = if is_suggestion_line(line) {
-            suggestion(line)
+        let line = escape_ctrl(line);
+        let styled = if is_suggestion_line(&line) {
+            suggestion(&line)
         } else {
-            body_wrap(line)
+            body_wrap(&line)
         };
         out.push_str(&styled);
     }
@@ -607,7 +612,9 @@ fn render_labeled_block(
 /// [`eprintln_warn_labeled`] renderers; this helper is for the standalone
 /// case. Broken-pipe-safe via `eprintln_safe!`.
 pub(crate) fn eprintln_suggestion_line(msg: &str) {
-    eprintln_safe!("{}", suggestion(msg));
+    // S-night-R4: suggestion lines can embed config values (did-you-mean
+    // text) — escape before styling (see escape_ctrl.rs).
+    eprintln_safe!("{}", suggestion(&escape_ctrl(msg)));
 }
 
 /// v80.0.0-beta.1 killer-features hardening: route a warning that can fire on BOTH
@@ -730,7 +737,9 @@ pub(crate) fn verbose_line(label: &str, value: &str) -> String {
 /// Print a verbose line directly to stderr. Convenience wrapper for
 /// `eprintln!("{}", verbose_line(label, value))`.
 pub(crate) fn eprintln_verbose(label: &str, value: &str) {
-    eprintln_safe!("{}", verbose_line(label, value));
+    // S-night-R4: verbose dumps interpolate config values — escape
+    // the value half (labels are app constants).
+    eprintln_safe!("{}", verbose_line(label, &escape_ctrl(value)));
 }
 
 /// Print a raw verbose message (no label/value split) with the
@@ -739,6 +748,7 @@ pub(crate) fn eprintln_verbose(label: &str, value: &str) {
 /// diagnostics). The body remains default-colored.
 pub(crate) fn eprintln_verbose_raw(msg: &str) {
     let ts = now_hhmm();
+    let msg = escape_ctrl(msg);
     match color_capability() {
         ColorCapability::Mono => eprintln_safe!("[verbose] {ts} {msg}"),
         _ => eprintln_safe!("{}[verbose]{} {ts} {msg}", brand_bold_open(), reset()),
@@ -752,6 +762,7 @@ pub(crate) fn eprintln_verbose_raw(msg: &str) {
 /// use this: `ambient: startup phase ...`, `final runtime state`.
 pub(crate) fn eprintln_verbose_purple(msg: &str) {
     let ts = now_hhmm();
+    let msg = escape_ctrl(msg);
     match color_capability() {
         ColorCapability::Mono => eprintln_safe!("[verbose] {ts} {msg}"),
         _ => eprintln_safe!(
@@ -770,8 +781,13 @@ pub(crate) fn eprintln_verbose_purple(msg: &str) {
 mod tests;
 
 // Submodules (moved from src/ root for clean src/ layout)
+pub(crate) mod escape_ctrl;
 pub(crate) mod message;
 pub(crate) mod post_exit;
 pub(crate) mod report;
 pub(crate) mod startup_verbose;
 pub(crate) mod verbose;
+
+// S-night-R4 sink guard: renders control bytes as visible literals in
+// diagnostic lines (see escape_ctrl.rs for the threat model).
+use escape_ctrl::escape_ctrl;

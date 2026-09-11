@@ -1,4 +1,7 @@
 #!/usr/bin/env python3
+# Copyright (C) 2026 rezky_nightky
+# SPDX-License-Identifier: GPL-3.0-only
+
 # Internal research: NIGHT-hunt-32 PTY capture — black hole crown blink audit.
 #
 # Two checks on the real binary via PTY byte-stream analysis:

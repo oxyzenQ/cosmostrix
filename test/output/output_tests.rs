@@ -135,6 +135,41 @@ fn verbose_line_aligns_short_and_long_labels_to_one_value_column() {
 }
 
 #[test]
+fn render_labeled_block_escapes_control_bytes_in_message_lines() {
+    // S-night-R4 regression lock: the proved vector was a scene-custom
+    // config value carrying a raw escape byte into the testconf error
+    // echo. The sink guard must render it as a visible literal so no
+    // diagnostic line can reprogram the victim terminal. The styling
+    // wrappers are color functions; the body text they receive must
+    // already be escaped.
+    let rendered = render_labeled_block(
+        "error:",
+        error_bold,
+        error,
+        "invalid value 'glyph\u{1b}[2Jx' for 'rain'",
+    );
+    assert!(
+        rendered.contains("glyph\\u001b[2Jx"),
+        "escape byte must render as a visible literal, got: {rendered:?}"
+    );
+    assert!(
+        !rendered.contains('\u{1b}'),
+        "no raw escape byte may survive into rendered diagnostic text"
+    );
+}
+
+#[test]
+fn render_labeled_block_preserves_plain_lines_verbatim() {
+    // The fast path: a normal multi-line error (tip lines included)
+    // renders byte-identical to the pre-hardening output — the guard
+    // must be invisible for clean input.
+    let msg = "invalid value 'glyphj' for 'rain'\n  expected one of: glyph, monolith, vortex";
+    let rendered = render_labeled_block("error:", error_bold, error, msg);
+    assert!(rendered.contains("invalid value 'glyphj' for 'rain'"));
+    assert!(rendered.contains("expected one of: glyph, monolith, vortex"));
+}
+
+#[test]
 fn eprintln_verbose_purple_contains_prefix_and_body() {
     // The purple-body variant must wrap the body in brand_open (regular,
     // not bold) AFTER the [verbose] prefix. We verify the format pattern
