@@ -174,6 +174,22 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-25 (2026-09-11, the flux cap pin round):** the
+audit's honest no-op — the flux style was already Hot-capped by
+construction (the speed ladder reads Ghost/Mid/Hot with no Core
+rung; the comet trail only descends), the only scene of the
+thirteen needing no brightness change; the round pins the cap so
+the guarantee lives in contract, not accident (step_down_level
+promoted to the ladder surface, one new ceiling contract sweeping
+any speed, direction, and magnitude). The pin touches no runtime
+path (visibility only). 10s A/B at 120x40 wet IO (dev profile,
+two-run discard-warmup): flux avg fps 3623.3 -> 3636.4 (+0.4%,
+within the run-to-run spread), median 3688.1 -> 3689.0, p99
+0.3368 -> 0.3252 ms, avg dirty cells/frame 16.0 -> 16.1, entropy
+3.70 -> 3.71, gini 0.8937 -> 0.8931, heap retained 0 B, peak RSS
+9.05 -> 9.04 MiB — mechanically identical, as a pin-only round
+should read.
+
 **NIGHT-research-24 (2026-09-11, the solar flare apex soft-light
 round):** the tier-three pin-and-finish opener — the apex
 condensation glow's step-up saturated at Hot (the black hole's

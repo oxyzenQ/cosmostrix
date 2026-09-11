@@ -9,6 +9,37 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-25 — the flux cap pin round
+
+- Tier three of the NIGHT-research-13 masterclass audit (the
+  pin-and-finish round), round two — the audit's honest no-op: the
+  flux style was already Hot-capped by construction (the speed
+  ladder's three rungs read Ghost/Mid/Hot and it has no Core rung
+  at all; the comet trail only ever descends below its head), the
+  only scene of the thirteen needing no brightness change — but
+  the cap was unpinned, so the guarantee lived in accident, not
+  contract.
+- The pin: step_down_level promoted to the ladder surface
+  (pub(crate), documented as the trail arm with its defensive Core
+  arms explained as dead code that dims, never lifts) and one new
+  contract in tests_flux/core.rs — the speed ladder never composes
+  above Hot at any speed, direction, or magnitude (representative
+  bands, strict thresholds, terminal-velocity jets, f32 extremes,
+  and a 512-step deterministic angle/magnitude sweep), with the
+  trail pinned below the head at every depth. 21 -> 22 flux tree
+  tests, full suite 2825 green (one black-hole infall flake on
+  the first run — the documented machine-load class, clean in
+  isolation, 72/72 black hole, clean full re-run), fmt and clippy
+  -D warnings clean, gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): flux avg fps 3623.3 -> 3636.4 (+0.4%, within
+  the run-to-run spread), p99 0.3368 -> 0.3252 ms, median 3688.1
+  -> 3689.0, avg dirty cells/frame 16.0 -> 16.1, entropy 3.70 ->
+  3.71, gini 0.8937 -> 0.8931, heap retained 0 B — mechanically
+  identical, the pin touches no runtime path (visibility only). Docs
+  updated: README scene bullet, CHANGELOG feature entry,
+  BENCHMARKING.md A/B record.
+
 ### feature: NIGHT-research-24 — the solar flare apex soft-light round
 
 - Tier three of the NIGHT-research-13 masterclass audit (the

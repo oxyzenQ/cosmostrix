@@ -630,8 +630,13 @@ pub(crate) fn level_for_speed(vx: f32, vy: f32) -> BrightnessLevel {
     }
 }
 
-/// Step a brightness level down (toward Ghost) by `depth` rungs.
-fn step_down_level(level: BrightnessLevel, depth: u8) -> BrightnessLevel {
+/// Step a brightness level down (toward Ghost) by `depth` rungs —
+/// the trail arm of the ladder (the head's level is the ceiling,
+/// the comet trail only descends). The Core arms are defensive
+/// dead code (the speed ladder never produces Core — the
+/// NIGHT-research-25 pin) and step DOWN if ever reached; the whole
+/// flux pipeline composes at or below Hot by construction.
+pub(crate) fn step_down_level(level: BrightnessLevel, depth: u8) -> BrightnessLevel {
     match level {
         BrightnessLevel::Core if depth >= 2 => BrightnessLevel::Mid,
         BrightnessLevel::Core => BrightnessLevel::Hot,

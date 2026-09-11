@@ -33,6 +33,103 @@ fn flux_scene_order_position() {
     assert_eq!(crate::scene::cycle_scene("flux", 1), "cosmic_dragon");
 }
 
+// -- NIGHT-research-25: the pin-and-finish round (the cap pinned) --
+
+fn soft_rank(level: crate::cloud::monolith::BrightnessLevel) -> u8 {
+    use crate::cloud::monolith::BrightnessLevel::*;
+    match level {
+        Ghost => 0,
+        Dim => 1,
+        Mid => 2,
+        Hot => 3,
+        Core => 4,
+    }
+}
+
+#[test]
+fn flux_speed_ladder_caps_at_hot() {
+    // The NIGHT-research-25 ceiling pin (the masterclass audit's flux
+    // row: "already Hot-capped; the cap is unpinned"): the speed
+    // ladder is the flux style's ONLY brightness source, and its
+    // ceiling is the warm Hot stop by construction — no speed, any
+    // direction, any magnitude (gravity-driven terminal velocities,
+    // abusive jets, f32 extremes) ever composes the Core white
+    // blend. The bands read exact: calm drift Ghost, mid swirls Mid,
+    // fast jets Hot, strict thresholds.
+    use crate::cloud::flux::flux::{level_for_speed, step_down_level};
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::constants::{FLUX_BRIGHT_HOT, FLUX_BRIGHT_MID};
+
+    let hot_rank = soft_rank(BrightnessLevel::Hot);
+    // The band reads at representative speeds, axis-aligned and
+    // diagonal (the ladder consumes the speed magnitude only).
+    assert!(matches!(level_for_speed(0.0, 0.0), BrightnessLevel::Ghost));
+    assert!(matches!(level_for_speed(1.0, 0.0), BrightnessLevel::Ghost));
+    assert!(matches!(
+        level_for_speed(0.0, FLUX_BRIGHT_MID + 1.0),
+        BrightnessLevel::Mid
+    ));
+    assert!(matches!(level_for_speed(3.0, 3.0), BrightnessLevel::Mid));
+    assert!(matches!(
+        level_for_speed(0.0, FLUX_BRIGHT_HOT + 1.0),
+        BrightnessLevel::Hot
+    ));
+    // Strict thresholds (the family's band-boundary semantics).
+    assert!(matches!(
+        level_for_speed(0.0, FLUX_BRIGHT_MID),
+        BrightnessLevel::Ghost
+    ));
+    assert!(matches!(
+        level_for_speed(0.0, FLUX_BRIGHT_HOT),
+        BrightnessLevel::Mid
+    ));
+    // The cap: any magnitude, any direction, never above Hot —
+    // from the terminal-velocity band through abusive jets to the
+    // f32 extreme.
+    let speeds = [
+        (FLUX_BRIGHT_HOT * 10.0, 0.0),
+        (0.0, f32::MAX),
+        (f32::MAX, f32::MAX),
+        (-f32::MAX, -f32::MAX),
+        (1.0e12, -1.0e12),
+    ];
+    for (vx, vy) in speeds {
+        assert!(
+            soft_rank(level_for_speed(vx, vy)) <= hot_rank,
+            "the speed ladder must cap at Hot (vx={vx}, vy={vy})"
+        );
+    }
+    // A deterministic sweep: any angle, any magnitude up to the
+    // extreme (a plain u32 LCG walk — no RNG dependency).
+    let mut seed: u32 = 0x5eed_1234;
+    for _ in 0..512 {
+        seed = seed.wrapping_mul(1664525).wrapping_add(1013904223);
+        let angle = (seed as f32 / u32::MAX as f32) * std::f32::consts::TAU;
+        let mag = (seed >> 8) as f32;
+        let (vx, vy) = (angle.cos() * mag, angle.sin() * mag);
+        assert!(
+            soft_rank(level_for_speed(vx, vy)) <= hot_rank,
+            "the speed ladder must cap at Hot (angle={angle}, mag={mag})"
+        );
+    }
+    // The trail arm composes below the head: the ceiling is the
+    // head's own level, the comet only descends — at every depth.
+    for depth in 1u8..=3 {
+        assert!(soft_rank(step_down_level(BrightnessLevel::Hot, depth)) <= hot_rank);
+        assert!(matches!(
+            step_down_level(BrightnessLevel::Hot, depth),
+            BrightnessLevel::Mid | BrightnessLevel::Ghost
+        ));
+        assert!(matches!(
+            step_down_level(BrightnessLevel::Mid, depth),
+            BrightnessLevel::Ghost
+        ));
+        // The defensive Core arms step DOWN (dead code — the ladder
+        // never feeds them; if ever reached, they dim, never lift).
+        assert!(soft_rank(step_down_level(BrightnessLevel::Core, depth)) <= hot_rank);
+    }
+}
+
 #[test]
 fn flux_spawn_reaches_density_target() {
     let mut cloud = make_flux_cloud(60, 25);
