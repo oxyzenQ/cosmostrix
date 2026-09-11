@@ -147,6 +147,33 @@ intent: entropy 6.01 -> 6.05 and density gini 0.5655 -> 0.5544
 more evenly across the viewport — the consistent-rings read), color
 transition delta 0.00 -> 0.00 (the bench palette holds steady).
 
+**NIGHT-research-12 (2026-09-11, the black hole sparse lower echo,
+soft ball, rise hold, and arc concentration):** the crown-dominant
+lane re-split (the same halo pool, the rider population moved
+between lanes — 0.28 per crown, 0.08 per lower arc, zero new
+motes), the soft ball (the annulus band re-grading plus the
+soft-head cap after the Doppler lobe — pure level changes), the
+rise hold (a distance clamp on the far-side ladder input — one
+min() per tier-0 far-side head), and the concentration pair (the
+halo-specific tight entry scale plus the halved wobble — the same
+per-rider math, smaller amplitudes). 10s A/B at 120x40 wet IO vs
+the parent commit (before 9fa6f56, after 7646c6e, dev profile,
+same two-run discard-warmup protocol): sorgonemous_intrascals avg
+fps 1957.4 -> 1931.4 (-1.3%, confirmation run 1941.3 — call it
+about -1%, within the run-to-run spread), median 1980.3 -> 1959.5,
+p99 frame time 0.588 -> 0.623 ms (confirmation 0.586 — flat), avg
+dirty cells/frame 214.2 -> 215.2 (+0.5%), dirty ratio 4.46% ->
+4.48%, allocator flat (heap retained 0 B, peak RSS 8.94 -> 9.32 /
+9.02 MiB). The round is mechanically honest-flat: the density
+re-cut moves riders between lanes without changing totals, the
+brightness changes are level re-grades, and the tighter geometry
+trims a few off-arc wanderer cells while the denser crowns add a
+few — the dirty count nets out. Visual signature shifts track the
+intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
+(the crowns concentrate onto their tight arcs while the lower echo
+thins — the composition reads as a dense crown family over a rare
+mirrored echo, slightly more even overall).
+
 **NIGHT-research-10 (2026-09-11, the black hole photon line, triple
 crown, and head-white ladder):** the rim photon line (the annulus's
 outer band flipping to Core — a level re-banding, zero new cells),

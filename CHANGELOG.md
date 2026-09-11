@@ -9,6 +9,55 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-12 — the black hole sparse lower echo, soft ball, rise hold, and arc concentration
+
+- Owner verdict round (9.8/10, four asks decoded): the lower rings'
+  particles must be fewer — only a few, "few but substantive and
+  elegant", not spam; the ball's white still strains the eyes (the
+  soft-light fix had not reached the ball itself); the center ring
+  near the hole must read white soft all the way to the end where
+  the particles rise to the top ring — not too dim; and the crown
+  particles read scattered and flying outward instead of dense and
+  concentrated.
+- The sparse lower echo (`black_hole.rs` + `style_rain.rs`): the
+  halo lane split retires the five-way even round robin for a
+  crown-dominant Bresenham family accumulator — CROWN_SHARE 0.84
+  split three ways by the crown round robin (0.28 per crown, denser
+  than the retired 0.20) and LOWER_SHARE 0.16 split two ways by the
+  alternating toggle (0.08 per mirrored arc, a 60 percent cut): the
+  crowns read dense and concentrated while the lower family reads
+  as a rare elegant echo. The shares sum to 1.0 by a compile-time
+  contract.
+- The soft ball (`ball_helpers.rs` + `black_hole.rs`): the annulus
+  band ladder drops its two thin edge structures (the horizon ring
+  and the rim photon line) from Core to the Hot soft warm ceiling
+  over a Mid body, and the ball draw site caps the Doppler-lobed
+  level through the soft-head cap — the standing surface never
+  draws the Core white blend again. Core survives only in the
+  formation intro's transient collapse flash and the infall's
+  whip-around flash.
+- The rise hold (`ring.rs`): `rise_ladder_dist` clamps the
+  far-side tier-0 riders' proximity-ladder input at the lens arc's
+  radius, so the center ring's rising curve — the lensing arc from
+  the disk's end to the crown handoff — composes to the soft warm
+  ceiling at every projected distance. The plain fade ladder used
+  to dim the rise's flank between the bright crossing band and the
+  bright apex (the owner's "too dim" report); the near-side arms
+  keep the approved fade.
+- The arc concentration (`halo.rs` + `style_rain.rs`): the halo
+  family gains its own tight entry spiral (HALO_ENTRY_BOOST 0.04,
+  tau 0.6 — the ring's 0.55 drift-in read as riders flying loose of
+  the system) and the wobble band halves to 0.055: riders
+  materialize at the arc's fringe and melt into a thin dense band,
+  igniting at the warm ceiling from the first frame.
+- Tests: 72 black hole (was 69); re-pinned the radial band ladder,
+  the rim photon line, the halo population split and the stream
+  entry read; new contracts for the rise hold, the tight entry and
+  the soft ball composition. Full suite 2800 green. Mechanical A/B
+  ~flat (the lane re-cut moves population between lanes without
+  changing totals; the brightness changes are pure level
+  re-grades).
+
 ### feature: NIGHT-research-11 — the black hole soft-light cap and the all-lanes consistency
 
 - Owner verdict round (9.1/10, three asks): the head-white is too
