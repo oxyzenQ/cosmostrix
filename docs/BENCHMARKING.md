@@ -174,6 +174,23 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-13 (2026-09-11, the black hole lock verification):**
+the owner locked the scene at 10/10 after four rounds; this is the
+lock's stability record. Full suite 2800 green, cargo fmt clean,
+clippy -D warnings clean, gate-keepers 12/12 (yamllint and
+actionlint skip in the sandbox; CI covers both). Two-run 10s
+protocol at 120x40 wet IO on the NR12 code (f6466ad is docs-only):
+median fps 1954.9 / 1962.2 (NR12 exit 1959.5 — identical), avg
+dirty cells/frame 215.8 / 215.3 (exit 215.2), dirty ratio 4.50%,
+frame entropy 6.09 (6.08), density gini 0.5420 (0.5454), heap
+retained 0 B, peak RSS 9.18 / 9.29 MiB, p99 frame time 0.644 /
+0.600 ms, fps drift -5.3% / +3.2% both read stable. Avg fps read
+1876.0 / 1892.7 against the exit's 1931.4 — a 2-3% run-to-run
+spread on a loaded sandbox; every machine-independent signature
+metric (median, dirty, entropy, gini, heap) is identical, so the
+lock holds. The companion audit of the other thirteen rain styles
+lives in docs/research/NIGHT_RESEARCH_13_SCENE_AUDIT.md.
+
 **NIGHT-research-10 (2026-09-11, the black hole photon line, triple
 crown, and head-white ladder):** the rim photon line (the annulus's
 outer band flipping to Core — a level re-banding, zero new cells),
