@@ -9,6 +9,34 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-docs-1 — API stability contract re-pinned to the current major: v100.0.0 stable, v101.0.0 breaking window
+
+- Owner directive: the stability contract must state the current
+  epoch — the frozen surface is guaranteed from **v100.0.0**, and
+  the next breaking window is **v101.0.0**. Both contract
+  statements (README "API Stability" and MAINTENANCE §7) still
+  anchored the promise to v50.0.0 with stale example versions
+  (v80.0.0-beta.1.0, v50.1.0) that no longer match the versioning
+  reality of the v100 line.
+- README: baseline re-pinned to v100.0.0; the breaking-change
+  sentence now names v101.0.0 as the next window and v100.1.0 as
+  the minor-bump example; the MAINTENANCE cross-reference fixed
+  from §6 (stale — the promise moved to §7 when the Dormant Mode
+  Contract split out) to §7.
+- MAINTENANCE §7: same re-pin, with one sentence of historical
+  continuity (the freeze originally took effect at v50.0.0 and
+  carries forward through every major since) so the contract
+  stays honest about its own history.
+- Hunt beyond the owner's find: the stale "§6" cross-reference in
+  README (a second stale datum in the same paragraph the owner
+  flagged), and a sweep confirming no other doc anchors the
+  contract to v50.0.0 or the v80 examples. Historical test-run
+  records (ENDURANCE, TERMINAL_LIFECYCLE_MATRIX) reference actual
+  old build version strings at dated runs — point-in-time facts,
+  left untouched.
+- Docs-only change: no code touched, so no A/B benchmark (the
+  gatekeeper's own rule — do not burn runtime on doc deltas).
+
 ### feature: NIGHT-research-26 — the glyph in-hue self-bloom cap round
 
 - Tier three of the NIGHT-research-13 masterclass audit (the

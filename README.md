@@ -728,7 +728,7 @@ PRs and issues are welcome. Please run `cargo fmt` and `cargo clippy` before sub
 
 ## API Stability
 
-From **v50.0.0** onward, the following are **frozen** — no breaking changes without a major version bump:
+From **v100.0.0** onward, the following are **frozen** — no breaking changes without a major version bump:
 
 - CLI flags (names, short/long forms, value types)
 - Config format (`config.toml` keys, value types, TOML structure)
@@ -736,7 +736,7 @@ From **v50.0.0** onward, the following are **frozen** — no breaking changes wi
 - Runtime controls (keyboard shortcuts)
 - Output schemas (`--json` benchmark output, `--doctor` report format)
 
-Breaking changes require a major version bump (e.g. v80.0.0-beta.1.0). Minor versions (v50.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §6 for the full stability contract.
+Breaking changes require a major version bump — the next breaking window is **v101.0.0**. Minor versions (v100.1.0) may add features but must not change or remove existing API surface. See [docs/MAINTENANCE.md](docs/MAINTENANCE.md) §7 for the full stability contract.
 
 ## Support
 

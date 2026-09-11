@@ -126,7 +126,9 @@ After 5-10 years of dormancy, external services may be unavailable. The pinned t
 
 ## 7. API Stability Promise
 
-From v50.0.0 onward, the following are **frozen** (no breaking changes without a major version bump):
+From v100.0.0 onward, the following are **frozen** (no breaking changes
+without a major version bump; the freeze originally took effect at
+v50.0.0 and carries forward through every major since):
 
 - **CLI flags**: all flags in `--help` (names, short/long forms, value types)
 - **Config format**: `config.toml` keys, value types, and TOML structure
@@ -136,7 +138,9 @@ From v50.0.0 onward, the following are **frozen** (no breaking changes without a
 - **Runtime controls**: all keyboard shortcuts (q, Space, c/C, s/S, p, x, i, [/], Up/Down)
 - **Output format**: `--json` benchmark output schema, `--doctor` report format
 
-Breaking changes require a major version bump (e.g. v80.0.0-beta.1.0). Minor versions (v50.1.0) may add new features but must not change or remove existing API surface.
+Breaking changes require a major version bump — the next breaking
+window is **v101.0.0**. Minor versions (v100.1.0) may add new features
+but must not change or remove existing API surface.
 
 ## 8. Architecture Reference
 
