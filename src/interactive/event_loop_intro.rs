@@ -102,6 +102,30 @@ pub(super) fn run_intro_sequence(
     cloud.force_draw_everything();
     frame.clear_with_bg(cloud.palette.bg);
     re_read_terminal_size_after_intro(term, cloud, frame, w, h, cfg);
+    // NIGHT-hunt-31 (owner hunt, the black hole intro-handover flash):
+    // the cinematic drew full-screen content and the handover above
+    // just wiped it in one frame — fast-forward the choreographed
+    // birth sequences past their near-invisible dwell phases so the
+    // first post-intro frame lands on visual content (the black hole
+    // blooms instead of showing 1.9 s of a single seed dot). Fires
+    // only when the intro actually drew frames: a Completed run, or a
+    // CutShort on a terminal ABOVE the intro floor (the user pressed
+    // q mid-play — content is on screen and the wipe still follows).
+    // A below-floor CutShort never drew anything; the rain's own birth
+    // sequence is then the only cinematic and plays in full (the
+    // documented first-launch contract). Runs AFTER the resize
+    // re-read: a mid-intro resize rebuilds the cloud (re-entering the
+    // style and re-arming its birth clock), and the handover
+    // fast-forward must still apply to that rebuilt state.
+    let intro_drew_content = match outcome {
+        crate::intro_style::IntroOutcome::Completed => true,
+        crate::intro_style::IntroOutcome::CutShort => {
+            *w >= crate::intro_style::MIN_INTRO_COLS && *h >= crate::intro_style::MIN_INTRO_LINES
+        }
+    };
+    if intro_drew_content {
+        cloud.advance_birth_for_intro_handover();
+    }
     Ok(())
 }
 

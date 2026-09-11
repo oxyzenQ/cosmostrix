@@ -183,6 +183,31 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 _ => Some(format!("expected none/subtle/default/intense, got '{v}'")),
             }
         }
+        // NIGHT-hunt-31 (owner hunt, the strict-validation gap): the
+        // scene-custom `rain` field — must match a canonical RainStyle
+        // label. Previously this arm did not exist, so a typo'd value
+        // (e.g. `rain = "glyphj"`) fell through to the catch-all
+        // `_ => None` arm and silently passed --testconf, startup, and
+        // the live-reload watcher; at startup apply_profile_overrides
+        // rendered a soft warning and resolve_rain_style then fell
+        // back to Glyph — the exact silent-ignore class the owner
+        // rejected. Now all three surfaces reject in lockstep (the
+        // same uniform-rejection contract as `msg-fill-style` /
+        // `intro` before it): --testconf errors, startup exits 2,
+        // and the live-reload watcher rejects the edit (the running
+        // rain keeps its current style).
+        "rain" => {
+            // Case-insensitive to match the runtime parse
+            // (`RainStyle::from_label` trims + lowercases).
+            if crate::rain_style::RainStyle::from_label(v).is_some() {
+                None
+            } else {
+                Some(format!(
+                    "unknown rain style '{v}' (valid: {} — run `cosmostrix --list-scenes` for the styles each scene uses)",
+                    crate::rain_style::RainStyle::valid_labels_hint()
+                ))
+            }
+        }
         "color-bg" => {
             // Phase 5 closure (P2-6): case-insensitive to match CLI.
             let lower = v.trim().to_ascii_lowercase();

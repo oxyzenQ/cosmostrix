@@ -9,6 +9,67 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-31-supermassive — the rain-label validation gap, the intro-handover flash, and five stale mfs surfaces
+
+- Owner hunt 1 (the silent typo): `rain = "glyphj"` in a
+  `[scene-custom.<name>]` block used to fall through the strict
+  validator's catch-all arm — silently passing `--testconf`, startup,
+  and the live-reload watcher, then falling back to Glyph at runtime
+  (a soft startup warning at best). The `rain` arm now validates
+  against the same canonical labels `RainStyle::from_label` accepts
+  (case-insensitive, aliases included): `--testconf` errors, startup
+  exits 2, the watcher rejects + exits — the uniform-rejection
+  contract completed for every scene-custom field. 4 unit tests
+  (typo, full label set, case/alias parity, empty value).
+- Owner hunt 2 (the flash): the black hole's startup read as a fast
+  glitch/flash — the intro handover's one-frame full-screen wipe
+  followed by the stellar-collapse dwell (1.9 s of at most five dim
+  cells). PTY-audited empirically: the measured dead window was
+  1.62 s (237 consecutive empty frames at 120x40) against <= 0.28 s
+  for every one of the other thirteen styles (matrix, monolith,
+  vortex, flux, lorenz, dragon, physarum, aeolian, solar_flare,
+  dna_helix, murmuration, quasar, neural — all audited, all in the
+  natural first-spawn band). Fix: the intro handover fast-forwards
+  the formation clock past the invisible seed/collapse dwell
+  (`skip_formation_dwell`, monotone, black-hole-only) so the handover
+  lands on the horizon bloom — continuous content from the first
+  post-intro frame. Scene entries (x/X), 'r' restarts, and
+  intro-less launches keep the full sequence (their documented
+  contracts). Post-fix capture: zero empty runs, bloom content on
+  the frame after the wipe. 4 unit tests (landing, monotonicity,
+  steady-state reach, non-black-hole no-op).
+- Owner hunt 3 (stale docs): the mfs (msg-fill-style) list was stale
+  on five surfaces — the count said ten while the registry ships
+  eleven (radar, the first spatial reveal style, landed without the
+  lists catching up). Fixed: README feature bullet, README CLI-help
+  excerpt, the live `--help` style-count line ("Ten" -> "Eleven"),
+  the message_draw.rs renderer doc, and the cli/app.rs field doc
+  (which also still said the default was Typewriter — the actual
+  default is engrave since v80.0.0-beta.2).
+- Hunt beyond the owner's finds: the stale default in the app.rs
+  doc comment (Typewriter, pre-beta.2), the second stale README
+  mfs list (the CLI-help excerpt), and the full fourteen-style
+  dead-window audit table that isolated the black hole as the sole
+  outlier (the owner suspected the flash general; it was one style).
+- Stresstest (end-to-end, real binary): 17-scenario `--testconf`
+  matrix (typo, unknown label, over/under-limit numerics,
+  non-numeric, unknown key, unknown block field, incomplete block,
+  unknown scene, case/alias acceptance, mfs radar accept + typo
+  reject, duplicate key) — all expectations met; live-reload PTY
+  runs verified both directions (a mid-run typo edit rejects +
+  exits 2 with the post-restore error per the documented watcher
+  contract; a valid mid-run edit applies and the session runs to
+  its full duration, clean exit 0).
+- Behavior change note: a config that previously ran with a typo'd
+  rain label (silently as Glyph) now fails validation on startup —
+  strict by owner mandate ("should strict/error"), consistent with
+  the v14 silent-PASS-is-a-bug doctrine. The visual contract of the
+  black hole startup changes only in the intro-handover window (the
+  seed dot and collapse flare no longer play after the logo/cosmic
+  intro; the bloom and accretion are unchanged, and the full
+  sequence still plays on scene entry, restart, and intro-less
+  launch).
+
 ### docs: NIGHT-docs-1 — API stability contract re-pinned to the current major: v100.0.0 stable, v101.0.0 breaking window
 
 - Owner directive: the stability contract must state the current

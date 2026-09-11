@@ -656,4 +656,37 @@ impl Cloud {
             cfg,
         )
     }
+
+    /// NIGHT-hunt-31 (owner hunt, the intro-handover flash): the
+    /// birth-sequence fast-forward for the cinematic intro handover.
+    ///
+    /// The logo/cosmic intro ends with the documented handover contract
+    /// (`run_intro_sequence`: full clear + force redraw — a one-frame
+    /// full-screen wipe). Every style then refills the screen through
+    /// its own natural first frames: droplet families spawn from the
+    /// top, structured families seed their pools, and the choreographed
+    /// families (DNA soup, quasar cold cloud, neural data band) carry
+    /// early visual content. The black hole was the one outlier: its
+    /// stellar-collapse dwell (seed dot + collapse cross — 1.9 s of at
+    /// most five dim cells) left the screen near-empty directly after
+    /// the wipe, the owner-reported "fast glitch/flash screen"
+    /// (measured 1.62 s dead window, 237 empty frames at 120x40,
+    /// against <= 0.28 s for all thirteen other styles).
+    ///
+    /// This dispatch fast-forwards ONLY the invisible dwell phases;
+    /// the horizon bloom and accretion still play, so the handover
+    /// lands on the annulus reveal — continuous content from the first
+    /// post-intro frame. Style entries (x/X), 'r' restarts, and
+    /// intro-less launches are NOT routed here: their full birth
+    /// sequences are pinned by
+    /// docs/research/NIGHT_LTS_3_RESTART_CONSISTENCY.md and the
+    /// formation.rs test contracts. Only the black hole needs the
+    /// fast-forward today; the other choreographed families' dead
+    /// windows measured in the natural-fill band (<= 0.24 s) and are
+    /// left untouched (minimal diff).
+    pub(crate) fn advance_birth_for_intro_handover(&mut self) {
+        if self.rain_style == RainStyle::BlackHole {
+            self.black_hole_rain.skip_formation_dwell();
+        }
+    }
 }

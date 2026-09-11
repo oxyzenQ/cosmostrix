@@ -57,13 +57,16 @@ pub struct CloudConfig {
     pub message_border: bool,
     /// v80.0.0-beta.1 msg-fill-style: message overlay reveal style (typewriter /
     /// fade / words / slide / instant / engrave / hologram / glitch /
-    /// scorch / cascade). Default `Typewriter` = bit-identical
-    /// to the pre-v80.0.0-beta.1 renderer (LTS guarantee). Applied in `create_cloud`
+    /// scorch / cascade / radar). Default `Engrave` (v80.0.0-beta.2
+    /// owner champion winner; the pre-beta.2 default was `Typewriter`
+    /// for LTS bit-identical parity — set `msg-fill-style = "typewriter"`
+    /// to restore it). Applied in `create_cloud`
     /// via `cloud.set_msg_fill_style` (engrave arms the spark sidecar;
     /// hologram adds a stateless scanline pass; glitch extends
     /// `CellReveal` with `glyph_override`; scorch extends `CellReveal`
     /// with `tint` and adds a smoke sidecar; cascade reuses the signed
-    /// `slide_rows` field for drop-from-above).
+    /// `slide_rows` field for drop-from-above; radar is the first
+    /// spatial style — cells reveal by beam angle, not index).
     pub msg_fill_style: MsgFillStyle,
     pub target_fps: f64,
     /// (FPS-F1): xterm.js host + 30 FPS cap, copied from `TerminalCaps`

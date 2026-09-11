@@ -11,11 +11,11 @@
 //!
 //! v80.0.0-beta.2 msg-fill-style: the text reveal is style-driven (see
 //! `msg_fill_style/` — one file per style, dispatch in
-//! `msg_fill_style/mod.rs`). Ten styles are selectable via
+//! `msg_fill_style/mod.rs`). Eleven styles are selectable via
 //! `-mfs`/`--msg-fill-style` or the `msg-fill-style` config key:
 //! typewriter, fade, words, slide, instant, engrave (default since
 //! v80.0.0-beta.2, the owner champion), hologram, glitch, scorch,
-//! cascade. All timing constants, per-cell reveal math, and the
+//! cascade, radar. All timing constants, per-cell reveal math, and the
 //! style sidecars (engrave sparks, scorch smoke) live in the style
 //! files; this renderer only consumes the dispatch API. The stateful
 //! sidecar passes (engrave spark, scorch smoke) and the hologram

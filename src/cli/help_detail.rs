@@ -255,7 +255,7 @@ COMMON OPTIONS:
       CLI -m / -mb always wins over msg-mode=false.
 
   -mfs, --msg-fill-style <style>
-      Message overlay reveal animation (default: engrave — v80.0.0-beta.2 owner champion). Ten
+      Message overlay reveal animation (default: engrave — v80.0.0-beta.2 owner champion). Eleven
       styles — nine driven purely by elapsed time (stateless, zero
       per-frame cost), plus engrave and scorch (each adds a bounded
       particle sidecar):
@@ -419,7 +419,10 @@ COMMON OPTIONS:
       required; incomplete blocks are rejected by --testconf,
       startup, and live-reload). rain picks the motion style by label
       (glyph, monolith, vortex, flux, lorenz, dragon, physarum,
-      black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar, neural).
+      black_hole, aeolian, solar_flare, dna_helix, murmuration, quasar,
+      neural — a typo'd label is rejected by --testconf, startup, and
+      the live-reload watcher like any other invalid value, never
+      silently ignored).
       v80.0.0-beta.2: base-scene inheritance is REMOVED — the block's
       own rain field owns the motion style (NIGHT-research-5);
       bold/shading-mode/async-mode are top-level keys, not

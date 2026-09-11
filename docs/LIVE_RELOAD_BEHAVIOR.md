@@ -1099,6 +1099,16 @@ built-ins"), range checks on `fps`/`speed`/`density`, and
 `glitch-level` enum. Startup (exit 2), the live-reload watcher (reject +
 exit), and `--testconf` all reject in lockstep.
 
+NIGHT-hunt-31 (owner hunt) closed the last gap in this contract: the
+`rain` field label itself. A typo'd label (`rain = "glyphj"`) used to
+fall through the validator's catch-all arm — silently passing
+`--testconf`, startup, and the watcher, then falling back to Glyph at
+runtime (a soft startup warning at best). The `rain` arm now validates
+against the same canonical labels `RainStyle::from_label` accepts
+(case-insensitive, aliases included), so a typo is rejected on all
+three surfaces in lockstep — the uniform-rejection contract is
+complete for every scene-custom field.
+
 ### Changes shipped
 
 | Change | File(s) |

@@ -91,6 +91,99 @@ fn intro_empty_value_is_rejected() {
     );
 }
 
+// ── NIGHT-hunt-31: scene-custom `rain` field validation ──
+//
+// The owner's hunt: a typo'd rain value in a [scene-custom.<name>]
+// block (e.g. `rain = "glyphj"`) used to fall through the catch-all
+// arm and pass --testconf / startup / live-reload validation
+// silently, then resolve_rain_style fell back to Glyph at runtime
+// (a soft startup warning at best). The uniform-rejection contract
+// (the msg-fill-style / intro precedent) now rejects on all three
+// surfaces.
+
+#[test]
+fn rain_typo_is_rejected() {
+    let msg = validate_field_value("rain", "glyphj");
+    assert!(msg.is_some(), "'glyphj' (typo) must be rejected for rain");
+    let msg = msg.expect("checked Some above");
+    assert!(
+        msg.contains("unknown rain style 'glyphj'"),
+        "error must name the invalid value: {msg}"
+    );
+    assert!(
+        msg.contains("black_hole"),
+        "error must list the valid labels (hint): {msg}"
+    );
+}
+
+#[test]
+fn rain_valid_labels_pass() {
+    for v in [
+        "glyph",
+        "monolith",
+        "vortex",
+        "flux",
+        "lorenz",
+        "dragon",
+        "physarum",
+        "black_hole",
+        "aeolian",
+        "solar_flare",
+        "dna_helix",
+        "murmuration",
+        "quasar",
+        "neural",
+    ] {
+        assert!(
+            validate_field_value("rain", v).is_none(),
+            "'{v}' should be a valid rain style"
+        );
+    }
+}
+
+#[test]
+fn rain_case_insensitive_and_alias_forms_pass() {
+    // Case-insensitivity matches the runtime parse
+    // (`RainStyle::from_label` trims + lowercases), and the accepted
+    // alias forms (blackhole, flare, dna, starlings, agn, nn, ...)
+    // must pass validation exactly as they resolve at runtime —
+    // validation that rejects a value the runtime accepts would
+    // block working configs.
+    for v in [
+        "Glyph",
+        "BLACK_HOLE",
+        "  quasar  ",
+        "blackhole",
+        "flare",
+        "solarflare",
+        "dna",
+        "dnahelix",
+        "murmur",
+        "starlings",
+        "agn",
+        "neural_network",
+        "neuralnet",
+        "nn",
+    ] {
+        assert!(
+            validate_field_value("rain", v).is_none(),
+            "'{v}' should be accepted (case-insensitive/alias, matching runtime)"
+        );
+    }
+}
+
+#[test]
+fn rain_empty_value_is_rejected() {
+    assert!(
+        validate_field_value("rain", "").is_some(),
+        "empty rain must be rejected"
+    );
+    assert!(
+        validate_field_value("rain", "   ").is_some(),
+        "whitespace-only rain must be rejected"
+    );
+}
+
 // ── Numeric range validation ──
 
 #[test]
