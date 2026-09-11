@@ -174,6 +174,24 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-21 (2026-09-11, the murmuration soft-light round):**
+the two institutionalized standing-Core sources cap at the warm
+Hot ceiling (the retired 21-plus speed band a wheeling flock
+routinely held, and the panic floor's 1.2 s unconditional Core
+for every startled bird) — Core survives only in the predator
+flash's one glyph; and the jitter halves (16.0 -> 8.0, the
+NIGHT-research-12 halved-wobble precedent — the audit's largest
+scatter constant), the same two rolls per bird. 10s A/B at
+120x40 wet IO (dev profile, two-run discard-warmup): murmuration
+avg fps 3140.6 -> 3203.8 (+2.0%), median 3148.8 -> 3149.6, p99
+0.4061 -> 0.3778 ms (-7.0%), avg dirty cells/frame 117.3 ->
+111.7 (-4.8% — the tighter flock trims wandering cells, the
+NIGHT-research-16 concentration-signature class), entropy 5.26
+-> 5.26, gini 0.7243 -> 0.7246, heap retained 0 B, peak RSS
+8.92 -> 8.96 MiB, drift improving (+1.74% -> +0.27%). The
+signature shifts track the concentration intent; zero
+allocation, same pools, same roll count.
+
 **NIGHT-research-20 (2026-09-11, the dna_helix soft-light round):**
 three standing Core sites re-graded to the Hot warm ceiling — the
 fresh nucleotide heads (Core stood for the first 20% of every

@@ -9,6 +9,47 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-21 — the murmuration soft-light round
+
+- Tier two of the NIGHT-research-13 masterclass audit (the
+  standing-Core cleanup sweep), round five: the audit's two
+  institutionalized standing-Core sources — the speed band (any
+  bird above the retired 21 threshold read Core, and a wheeling
+  flock routinely holds that band) and the panic floor (panicked
+  birds returned Core unconditionally for the 1.2 s window — a
+  mass standing-Core event every startle).
+- The soft-light ruling (draw.rs speed_level): both standing
+  sources cap at the warm Hot ceiling — the scatter burns bright,
+  never white, while it lasts; the calm bands keep their gradient
+  (fast edge Hot, mid flight Mid, drift Ghost). Core survives
+  only in the predator flash — the draw pass's one glyph inside
+  its 0.8 s window, untouched by the round. MURM_SPEED_CORE
+  (21.0) retires with the rung and its two compile-time asserts.
+- The concentration ask (the audit's "halve the jitter the way
+  NIGHT-research-12 halved the wobble"): MURM_JITTER_W 16.0 ->
+  8.0 — the audit called the old value the largest scatter
+  constant in the codebase (about 290x the black hole's converged
+  wobble in comparable terms). The same two rolls per bird keep
+  the organic life; the flock reads tighter and more cohesive.
+- One new contract in tests_murmuration/core.rs — the speed
+  ladder never lands Core on a bird (calm or panicked, from the
+  drift floor to and past max), with the panic-floor ceiling and
+  the calm bands pinned. The startle re-gather test re-pins
+  honestly: the tighter flock puts more members inside the fixed
+  14-cell panic radius, so the scatter blooms wider and the
+  re-gather window doubles (240 -> 480 frames, 7.7 s of sim
+  time). 27 -> 28 murmuration tests, full suite 2819 green, fmt
+  and clippy -D warnings clean, gate-keepers 12/12.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run
+  discard-warmup): murmuration avg fps 3140.6 -> 3203.8 (+2.0%),
+  median 3148.8 -> 3149.6, p99 0.4061 -> 0.3778 ms (-7.0%), avg
+  dirty cells/frame 117.3 -> 111.7 (-4.8% — the tighter flock
+  trims wandering cells, the NR16 concentration-signature class),
+  entropy 5.26 -> 5.26, gini 0.7243 -> 0.7246, heap retained 0 B
+  — zero allocation, same pools, same roll count. Docs updated:
+  README scene bullet, CHANGELOG feature entry, BENCHMARKING.md
+  A/B record.
+
 ### feature: NIGHT-research-20 — the dna_helix soft-light round
 
 - Tier two of the NIGHT-research-13 masterclass audit (the

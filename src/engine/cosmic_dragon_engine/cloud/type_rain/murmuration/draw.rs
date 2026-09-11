@@ -18,7 +18,7 @@ use rand::{
     rngs::StdRng,
 };
 
-use crate::constants::{MURM_SPEED_CORE, MURM_SPEED_GHOST, MURM_SPEED_MID};
+use crate::constants::{MURM_SPEED_GHOST, MURM_SPEED_MID};
 use crate::frame::Frame;
 
 use super::super::super::render::DrawCtx;
@@ -155,15 +155,20 @@ impl MurmurationRain {
 }
 
 /// The kinetic ladder (the draw read): speed to brightness rung —
-/// the flock reads as a living gradient. A panicked bird reads
-/// Core during its flash window (the scatter burns).
+/// the flock reads as a living gradient, capped at the warm Hot
+/// ceiling (NIGHT-research-21, the masterclass audit's soft-light
+/// ruling: the two institutionalized standing-Core sources retire —
+/// a panicked bird returned Core unconditionally for its 1.2 s
+/// window, a mass standing-Core event every startle, and a wheeling
+/// flock routinely held the retired >21 speed band; the scatter now
+/// burns at the warm ceiling while it lasts). Core survives only
+/// in the predator flash — Pass B's one glyph inside its 0.8 s
+/// window, the visible cause of the panic.
 pub(crate) fn speed_level(speed: f32, panicked: bool) -> BrightnessLevel {
     if panicked {
-        return BrightnessLevel::Core;
+        return BrightnessLevel::Hot;
     }
-    if speed > MURM_SPEED_CORE {
-        BrightnessLevel::Core
-    } else if speed > MURM_SPEED_MID {
+    if speed > MURM_SPEED_MID {
         BrightnessLevel::Hot
     } else if speed > MURM_SPEED_GHOST {
         BrightnessLevel::Mid

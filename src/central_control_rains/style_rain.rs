@@ -2391,8 +2391,14 @@ pub(crate) const MURM_SPEED_MAX: f32 = 26.0;
 // The kinetic ladder (the draw read).
 
 pub(crate) const MURM_SPEED_GHOST: f32 = 10.0;
+
+/// Kinetic ladder rung 2: below this the bird reads Mid, above it
+/// the warm Hot ceiling — the wheeling flock's fast edge and the
+/// panic floor both compose here (NIGHT-research-21: the retired
+/// 21-and-above Core band routinely stood white-blended; the
+/// scatter now burns at the warm ceiling while it lasts, and the
+/// predator flash alone keeps the white).
 pub(crate) const MURM_SPEED_MID: f32 = 15.0;
-pub(crate) const MURM_SPEED_CORE: f32 = 21.0;
 
 // The thought (law 3, the roaming anchor).
 
@@ -2448,8 +2454,13 @@ pub(crate) const MURM_PANIC_FLOOR_SECS: f32 = 1.2;
 
 /// The jitter acceleration's magnitude (the clamped random walk
 /// that keeps the flock organic — no dead-locked symmetric
-/// configurations).
-pub(crate) const MURM_JITTER_W: f32 = 16.0;
+/// configurations). NIGHT-research-21: halved 16.0 -> 8.0 the way
+/// the black hole's NIGHT-research-12 round halved its halo wobble
+/// — the audit called the old value the largest scatter constant
+/// in the codebase (about 290x the black hole's converged wobble in
+/// comparable terms); the flock reads tighter and more cohesive
+/// while the same two rolls per bird keep the organic life.
+pub(crate) const MURM_JITTER_W: f32 = 8.0;
 
 /// Comet trail length in cells (the flight's wake).
 pub(crate) const MURM_TRAIL_LEN: usize = 2;
@@ -2480,8 +2491,7 @@ const _: () = assert!(MURM_MIN_BIRDS < MURM_MAX_BIRDS);
 const _: () = assert!(MURM_SEP_R < MURM_NEIGHBOR_R);
 const _: () = assert!(MURM_SPEED_MIN < MURM_SPEED_GHOST);
 const _: () = assert!(MURM_SPEED_GHOST < MURM_SPEED_MID);
-const _: () = assert!(MURM_SPEED_MID < MURM_SPEED_CORE);
-const _: () = assert!(MURM_SPEED_CORE < MURM_SPEED_MAX);
+const _: () = assert!(MURM_SPEED_MID < MURM_SPEED_MAX);
 const _: () = assert!(MURM_BREATH_BASE - MURM_BREATH_AMP > 0.0);
 const _: () = assert!(MURM_BREATH_BASE + MURM_BREATH_AMP < 3.0);
 const _: () = assert!(MURM_ANCHOR_W > 0.0);

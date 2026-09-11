@@ -205,12 +205,18 @@ fn murm_startle_fires_and_scatters() {
         "the startle collapsed the flock: {before:.2} -> {after:.2}"
     );
     // The re-gather: within a few sim-seconds the flock recovers
-    // toward its calm spread.
-    run_frames(&mut cloud, &mut frame, 240, 16);
+    // toward its calm spread. NIGHT-research-21 re-pin: the halved
+    // jitter tightened the flock, so the fixed 14-cell panic
+    // radius now catches MORE members per startle — the scatter
+    // blooms wider and the re-gather needs the longer window (240
+    // -> 480 frames, 7.7 s of sim time; the tighter flock is the
+    // round's concentration intent, the audit's "halve the jitter
+    // the way NR12 halved the wobble").
+    run_frames(&mut cloud, &mut frame, 480, 16);
     let recovered = spread(&cloud);
     assert!(
         recovered < after + 2.0 || recovered < before * 1.6,
-        "the flock never re-gathered: {recovered:.2}"
+        "the flock never re-gathered: {recovered:.2} (before {before:.2}, after {after:.2})"
     );
 }
 
@@ -220,7 +226,7 @@ fn murm_drawn_cells_stay_in_bounds() {
     // inside the viewport (heads, trails, the predator flash).
     let mut cloud = make_murm_cloud(80, 40);
     let mut frame = Frame::new(80, 40, cloud.palette.bg);
-    run_frames(&mut cloud, &mut frame, 240, 16);
+    run_frames(&mut cloud, &mut frame, 480, 16);
     for cell in cloud.murmuration_rain.drawn_cells_for_test() {
         assert!(cell.col < 80, "drawn cell col out of bounds: {}", cell.col);
         assert!(
@@ -357,7 +363,7 @@ fn murm_narrow_terminal_renders_degenerate_but_safe() {
         cloud.murmuration_rain.birds.len() >= crate::constants::MURM_MIN_BIRDS,
         "narrow terminal under the flock floor"
     );
-    run_frames(&mut cloud, &mut frame, 240, 16);
+    run_frames(&mut cloud, &mut frame, 480, 16);
     for (x, y, _, _) in cloud.murmuration_rain.bird_states_for_test() {
         assert!(
             (0.0..20.0).contains(&x) && (0.0..6.0).contains(&y),
@@ -392,4 +398,57 @@ fn murm_adopt_palette_and_clear_draw_history() {
     assert!(cells > 0, "no drawn cells to clear");
     cloud.murmuration_rain.clear_draw_history();
     assert!(cloud.murmuration_rain.drawn_cells_for_test().is_empty());
+}
+
+// -- NIGHT-research-21: the soft-light round (standing-Core sweep) --
+
+#[test]
+fn murm_speed_ladder_never_lands_core_on_a_bird() {
+    // The NIGHT-research-21 soft-light ruling (the black hole's
+    // NIGHT-research-11 precedent): the audit found two
+    // institutionalized standing-Core sources here — the speed band
+    // (any bird above the retired 21 threshold read Core, and a
+    // wheeling flock routinely holds that band) and the panic floor
+    // (panicked birds returned Core unconditionally for the 1.2 s
+    // window — a mass standing-Core event every startle). Every
+    // bird, panicked or calm, at any speed from the drifting floor
+    // to and past the max, now composes to the warm Hot ceiling or
+    // below; Core survives only in the predator flash (the draw
+    // pass's one glyph, its own contract).
+    use crate::cloud::monolith::BrightnessLevel;
+    use crate::cloud::type_rain::murmuration::draw::speed_level;
+
+    let ghost = crate::constants::MURM_SPEED_GHOST;
+    let mid = crate::constants::MURM_SPEED_MID;
+    let max = crate::constants::MURM_SPEED_MAX;
+
+    for speed in [0.0, ghost, 12.0, mid, 18.0, 21.0, max, 30.0, 100.0] {
+        assert!(
+            !matches!(speed_level(speed, false), BrightnessLevel::Core),
+            "a calm bird must never land Core (speed {speed})"
+        );
+    }
+    for speed in [0.0, 12.0, mid, 21.0, max, 100.0] {
+        assert!(
+            !matches!(speed_level(speed, true), BrightnessLevel::Core),
+            "a panicked bird must never land Core (speed {speed})"
+        );
+    }
+
+    // The panic floor reads the warm ceiling (the scatter burns
+    // bright, never white); the calm bands pinned: fast edge Hot,
+    // mid flight Mid, the drift Ghost.
+    assert!(matches!(speed_level(20.0, true), BrightnessLevel::Hot));
+    assert!(matches!(
+        speed_level(mid + 1.0e-4, false),
+        BrightnessLevel::Hot
+    ));
+    assert!(matches!(speed_level(max, false), BrightnessLevel::Hot));
+    assert!(matches!(
+        speed_level(ghost + 1.0e-4, false),
+        BrightnessLevel::Mid
+    ));
+    assert!(matches!(speed_level(12.0, false), BrightnessLevel::Mid));
+    assert!(matches!(speed_level(ghost, false), BrightnessLevel::Ghost));
+    assert!(matches!(speed_level(0.0, false), BrightnessLevel::Ghost));
 }
