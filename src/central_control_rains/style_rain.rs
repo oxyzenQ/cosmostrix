@@ -82,10 +82,14 @@ pub(crate) const VORTEX_CORE_R: f32 = 0.075;
 /// Radius floor for the angular-speed divisor (bounds core spin rate).
 pub(crate) const VORTEX_MIN_R: f32 = 0.08;
 
-/// Kepler constant K: orbital cells/sec = K × (cols/2). At 0.75 and 120
-/// cols → 45 cells/s along every orbit (rim orbit ≈ 8.4 s, visibly
-/// majestic; near-core ≈ 1 rev/s).
-pub(crate) const VORTEX_KEPLER_K: f32 = 0.75;
+/// Rotation-curve constant K: orbital cells/sec = K × (cols/2).
+/// NIGHT-research-16 label fix: omega = K / r is a FLAT rotation
+/// curve (tangential speed constant along every orbit, the galaxy
+/// rotation-curve read — rim ≈ 8.4 s per lap, near-core ≈ 1 rev/s),
+/// NOT Kepler's third law (that would be omega ∝ r^-1.5, which the
+/// quasar's disk implements). At 0.75 and 120 cols → 45 cells/s
+/// along every orbit (rim orbit ≈ 8.4 s, visibly majestic).
+pub(crate) const VORTEX_ROTATION_K: f32 = 0.75;
 
 /// Global speed headroom multiplier (1.0 = neutral; tuning reserve).
 pub(crate) const VORTEX_SPEED_SCALE: f32 = 1.0;

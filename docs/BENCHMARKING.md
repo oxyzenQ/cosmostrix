@@ -174,6 +174,23 @@ intent: entropy 6.04 -> 6.08 and density gini 0.5570 -> 0.5454
 thins — the composition reads as a dense crown family over a rare
 mirrored echo, slightly more even overall).
 
+**NIGHT-research-16 (2026-09-11, the vortex lockstep round):** the
+per-mote spin/fall multipliers (0.85-1.15 / 0.80-1.25) retire for
+lockstep pace — every mote at the same radius advances identically
+(the black hole's all-lanes-consistent precedent), two RNG draws
+retire with the rolls, the K/r law relabels honestly as a flat
+rotation curve (VORTEX_KEPLER_K -> VORTEX_ROTATION_K), and the
+radius ladder's Core rung re-grades to Hot (the ceiling by
+construction, not by pass-ordering accident). 10s A/B at 120x40
+wet IO (dev profile, two-run discard-warmup): vortex avg fps
+7712.9 -> 7817.8 (+1.4%), median 7367.7 -> 7581.8, p99 0.1733 ->
+0.1704 ms, avg dirty cells/frame 90.0 -> 88.2 (-2.0% — the
+tighter arcs trim off-arm wanderer cells), entropy 5.68 -> 5.67,
+gini 0.6342 -> 0.6361 (the arms concentrate — the signature the
+owner asked for), heap retained 0 B, peak RSS 9.01 -> 8.91 MiB.
+The signature shifts track the concentration intent; the round is
+otherwise mechanically flat.
+
 **NIGHT-research-15 (2026-09-11, the dragon soft-light round):** the
 head rung re-graded Core to the Hot warm ceiling standing, with
 Core reserved for the ~1.5 s entry-reveal arrival flash (the

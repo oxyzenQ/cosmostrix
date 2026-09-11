@@ -9,6 +9,50 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feature: NIGHT-research-16 — the vortex lockstep round
+
+- Tier one of the NIGHT-research-13 masterclass audit, round three
+  (after the quasar and the dragon; the audit's lowest score at
+  5/10): the vortex carried the owner's exact scattered/flying-
+  outward complaint class — every mote rolled its own `spin`
+  (0.85-1.15) and `fall` (0.80-1.25) multipliers, so motes spawned
+  together drifted apart in both angle and depth, dissolving the
+  arms into a smeared field.
+- The lockstep retirement (`vortex.rs`): the per-mote multipliers
+  are gone (fields, rolls and applications) — every mote at the
+  same radius advances at the SAME angular and radial speed (the
+  black hole's NIGHT-research-11 all-lanes-consistent precedent).
+  Under lockstep the motes of an annulus orbit in formation: arms
+  read dense, coherent, concentrated spirals, while the K/r
+  differential still provides all the shear (the inner annuli lap
+  the outer ones). Two RNG draws retire with the rolls.
+- The physics label fix: the law omega = K / r is a FLAT rotation
+  curve (constant tangential cells/sec — the galaxy rotation-curve
+  read), not "Keplerian" (Kepler's third law is r^-1.5, which the
+  quasar's disk implements). The constant renames
+  VORTEX_KEPLER_K -> VORTEX_ROTATION_K with the honest derivation;
+  the module docs, the advance-pass docs and the bounded-omega test
+  re-pin to the flat-curve language.
+- The soft-light ruling: `level_for_radius` re-grades the Core rung
+  to Hot — the retired rung was unreachable at the draw site only
+  by pass ordering (absorption deactivates motes below
+  VORTEX_CORE_R before draw), an accident a reorder would have
+  broken; the standing ceiling is now by construction. Pinned: the
+  ladder never lands Core at any radius, and the zone boundaries
+  (Ghost rim / Mid band / Hot core zone) are pinned at the
+  boundaries.
+- Two new contracts in `tests_vortex/core.rs` — the lockstep pace
+  (two motes placed at the same radius with different angles
+  advance by identical deltas matching the closed-form shared law,
+  frozen dt) and the soft warm ladder. 10 -> 12 vortex tests, full
+  suite 2809 green.
+- A/B (10 s, 120x40, wet IO, dev profile, two-run discard-warmup):
+  vortex avg fps 7712.9 -> 7817.8, dirty cells/frame 90.0 -> 88.2
+  (the tighter arcs trim off-arm wanderer cells), gini 0.6342 ->
+  0.6361 (the arms concentrate), entropy 5.68 -> 5.67, heap
+  retained 0 B — the signature shifts track the concentration
+  intent, mechanically flat otherwise.
+
 ### feature: NIGHT-research-15 — the dragon soft-light round
 
 - Tier one of the NIGHT-research-13 masterclass audit, round two

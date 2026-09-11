@@ -6,11 +6,25 @@
 //! Motion model — 100% distinct DNA from `cinematic` (column cascade)
 //! and `monolith` (segmented pillars): each mote is a glyph in polar
 //! coordinates `(angle, radius)` spiraling inward toward the screen
-//! center. Angular speed follows a Keplerian profile `omega ∝ 1/r`
-//! (constant cells/sec along the orbit), so the rim rotates slowly and
-//! the core spins fast — the "drain" look. Spawn angles are biased
-//! toward 3 slowly-precessing arm centers; differential rotation then
-//! shears those radial arms into living spirals within a few seconds.
+//! center. Angular speed follows a flat rotation curve `omega ∝ 1/r`
+//! (constant cells/sec along every orbit — the galaxy rotation-curve
+//! read; NIGHT-research-16 label fix: this is NOT Kepler's third law,
+//! which would be omega ∝ r^-1.5 — the quasar's disk implements that
+//! one), so the rim rotates slowly and the core spins fast — the
+//! "drain" look. Spawn angles are biased toward 3 slowly-precessing
+//! arm centers; differential rotation then shears those radial arms
+//! into living spirals within a few seconds.
+//!
+//! NIGHT-research-16 (the lockstep round, the black hole's
+//! NIGHT-research-11 all-lanes-consistent precedent): every mote at
+//! the same radius advances at the SAME angular and radial speed —
+//! the per-mote `spin`/`fall` multipliers (0.85-1.15 / 0.80-1.25) are
+//! retired. The owner's scattered/flying-outward read was exactly the
+//! smear those multipliers caused: motes spawned together drifted
+//! apart in both angle and depth, dissolving the arms. Under lockstep
+//! the motes of an annulus orbit in formation — arms read dense,
+//! coherent, concentrated spirals — while the K/r differential still
+//! provides all the shear (the inner annuli lap the outer ones).
 //!
 //! Motes are absorbed at the core (`radius <= VORTEX_CORE_R`, the
 //! "event horizon") and respawn at the rim, giving a perpetual galaxy
@@ -68,10 +82,6 @@ pub(crate) struct VortexMote {
     /// Normalized orbit radius: 0.0 = center, 1.0 = rim. Slightly above
     /// 1.0 at spawn (motes clip into view as they drift inward).
     pub(crate) radius: f32,
-    /// Per-mote angular velocity multiplier (0.85..1.15).
-    pub(crate) spin: f32,
-    /// Per-mote inward drift multiplier (0.8..1.25).
-    pub(crate) fall: f32,
     /// Glyph carried by the mote; re-rolled matrix-style when the head
     /// crosses into a new cell (see the shimmer gate in `draw`).
     pub(crate) ch: char,
@@ -89,8 +99,6 @@ impl VortexMote {
             active: false,
             angle: 0.0,
             radius: 0.0,
-            spin: 1.0,
-            fall: 1.0,
             ch: '0',
             palette_slot: 0,
             trail: [(0, 0); VORTEX_TRAIL_LEN],
@@ -310,26 +318,29 @@ impl VortexRain {
         let spread = (rand_chance.sample(rng) - 0.5) * 2.0 * crate::constants::VORTEX_ARM_SPREAD;
 
         // Rim entry just outside the visible radius (clips in immediately).
+        // NIGHT-research-16: no per-mote pace rolls — every mote rides
+        // the shared law (lockstep; the drift-apart smear the multipliers
+        // caused was the owner's scattered read).
         let radius = 1.0 + rand_chance.sample(rng) * crate::constants::VORTEX_RIM_JITTER;
-        let spin = 0.85 + rand_chance.sample(rng) * 0.30;
-        let fall = 0.80 + rand_chance.sample(rng) * 0.45;
 
         let m = &mut self.motes[idx];
         m.active = true;
         m.angle = arm_center + spread;
         m.radius = radius;
-        m.spin = spin;
-        m.fall = fall;
         m.palette_slot = palette_slot;
         m.trail_len = 0;
     }
 
     /// Motion pass — the polar physics core.
     ///
-    /// `omega(r) = K / max(r, VORTEX_MIN_R) * spin * speed_scale`:
-    /// Keplerian differential rotation. The inward drift accelerates
-    /// slightly toward the core (`fall` profile), and motes below
-    /// `VORTEX_CORE_R` are absorbed (deactivated → free slot).
+    /// `omega(r) = K / max(r, VORTEX_MIN_R) * speed_scale`: the flat
+    /// rotation curve (constant tangential cells/sec along every
+    /// orbit). The inward drift accelerates slightly toward the core
+    /// (the `fall` profile), and motes below `VORTEX_CORE_R` are
+    /// absorbed (deactivated → free slot). NIGHT-research-16: every
+    /// mote at the same radius advances identically — lockstep pace
+    /// (the per-mote multipliers are retired; the K/r differential
+    /// provides all the shear read).
     pub(crate) fn advance(&mut self, step: &VortexStep) {
         if self.active_count == 0 {
             self.last_step = Some(step.now);
@@ -362,17 +373,18 @@ impl VortexRain {
             if !m.active {
                 continue;
             }
-            // Keplerian angular speed: constant cells/sec along the orbit
-            // (v = omega * r * max_rx = K * max_rx — independent of r).
+            // Flat rotation curve (NIGHT-research-16 label fix): constant
+            // cells/sec along the orbit (v = omega * r * max_rx =
+            // K * max_rx — independent of r, the galaxy rotation-curve
+            // read; Kepler's third law would be r^-1.5).
             let r_safe = m.radius.max(crate::constants::VORTEX_MIN_R);
-            let omega = crate::constants::VORTEX_KEPLER_K / r_safe
-                * m.spin
-                * crate::constants::VORTEX_SPEED_SCALE;
-            // Inward drift with a mild core acceleration.
+            let omega =
+                crate::constants::VORTEX_ROTATION_K / r_safe * crate::constants::VORTEX_SPEED_SCALE;
+            // Inward drift with a mild core acceleration (the shared
+            // law — same radius, same speed; the lockstep ruling).
             let inward = vr
                 * (crate::constants::VORTEX_FALL_BASE
-                    + crate::constants::VORTEX_FALL_CORE_BOOST * (1.0 - m.radius.clamp(0.0, 1.0)))
-                * m.fall;
+                    + crate::constants::VORTEX_FALL_CORE_BOOST * (1.0 - m.radius.clamp(0.0, 1.0)));
 
             m.angle += omega * dt;
             m.radius -= inward * dt;
@@ -528,15 +540,19 @@ impl VortexRain {
 /// Brightness zone by normalized radius: rim dim → core hot. The three
 /// zone boundaries give the drain a visible luminance gradient even in
 /// Color16 mode (palette index selection, not blend math).
+/// NIGHT-research-16 (the soft-light ruling, the black hole's
+/// NIGHT-research-11 precedent): the ladder's standing ceiling is Hot —
+/// the retired Core rung was unreachable at the draw site (absorption
+/// deactivates motes below VORTEX_CORE_R before draw, and the draw
+/// order is fixed), so the ceiling is now by construction, not by
+/// pass-ordering accident: heads compose soft warm at every radius.
 pub(crate) fn level_for_radius(radius: f32) -> BrightnessLevel {
     if radius > crate::constants::VORTEX_ZONE_RIM {
         BrightnessLevel::Ghost
     } else if radius > crate::constants::VORTEX_ZONE_MID {
         BrightnessLevel::Mid
-    } else if radius > crate::constants::VORTEX_CORE_R {
-        BrightnessLevel::Hot
     } else {
-        BrightnessLevel::Core
+        BrightnessLevel::Hot
     }
 }
 
