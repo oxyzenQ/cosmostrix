@@ -13,7 +13,7 @@
 >
 > **Methodology**: cosmostrix numbers are from actual `--bench-frames` runs
 > (pro-linux-v4 build, v50.0.0-nightly.1). A naive full-redraw Python
-> renderer (`benchmark/naive_matrix.py`) was written as a baseline to
+> renderer (`benchmark/research/naive_matrix.py`) was written as a baseline to
 > measure the actual I/O cost of the full-redraw approach that ALL
 > competitors use. Competitor binaries (tmatrix, unimatrix, matrix-rain)
 > were installed but could not be benchmarked headless — they require a

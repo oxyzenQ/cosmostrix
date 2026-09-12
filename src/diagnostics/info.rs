@@ -113,11 +113,18 @@ pub(crate) fn version_report() -> String {
 /// terminal rain renderers. Output is plain text (no ANSI) so it pipes
 /// cleanly into `less`, `grep`, or documentation generators.
 ///
-/// The text is a single `&'static str` (no allocation, no formatting cost)
-/// because it never varies — the architecture is a fixed property of the
-/// binary, not a runtime-computed value. Version info is NOT included here
-/// to avoid duplicate versioning — the user gets the version from
-/// `--version` / `-V`, which is the single source of truth.
+/// NIGHT-docs-audit round 2026-09-12 (owner task: "audit to avoid stale
+/// data and simplify --docs"): every constant below was re-verified
+/// against its source (`central_control_rains/parallax.rs`, living_rain
+/// symbol names, engine folder paths), the stale chroma phase-history
+/// block was cut (RULES.md owns that detail), and the missing Crystal
+/// Dragon section was added so the three-engine architecture matches
+/// `docs/THREE_DRAGON_ENGINES.md`. Numbers cite their source location
+/// so future audits can re-verify mechanically.
+///
+/// Version info is NOT included here to avoid duplicate versioning —
+/// the user gets the version from `--version` / `-V`, which is the
+/// single source of truth.
 #[must_use]
 pub(crate) fn docs_report() -> String {
     format!(
@@ -126,178 +133,143 @@ COSMOSTRIX — The Cosmic Dragon Diff-Based Rendering Engine
 ==========================================================
 
 cosmostrix is not a Matrix clone. It is a novel diff-based terminal
-renderer that computes only the cells which change between frames,
-rather than redrawing the entire screen. The renderer is paired with
-the Chroma Dragon coloring engine, which owns every decision about
-what color a cell becomes. This document describes the five
-cooperating rendering subsystems plus the Chroma Dragon color
-pipeline that together make cosmostrix possible.
+renderer that emits only the cells which change between frames,
+paired with three cooperating dragon engines: the Cosmic Dragon
+(simulation + diff render loop), the Chroma Dragon (every color
+decision), and the Crystal Dragon (ambient intelligence — palette
+drift + time-of-day scenes). Full detail lives in
+`docs/THREE_DRAGON_ENGINES.md` and `docs/RENDER_ENGINE.md`.
 
 
-1. DIFF-BASED CELL RENDERER  (src/engine/cosmic_dragon_engine/frame.rs, src/engine/cosmic_dragon_engine/terminal/mod.rs, src/engine/cosmic_dragon_engine/terminal/terminal_tty.rs)
+1. DIFF-BASED CELL RENDERER  (src/engine/cosmic_dragon_engine/terminal/, frame.rs)
 -------------------------------------------------------------
 
 Every other Matrix rain renderer writes the full screen every frame.
-cosmostrix keeps a persistent back-buffer of `Cell` values (char +
-fg color + bg color + bold flag) and, at draw time, walks the buffer
-once comparing each cell against the previous frame's value. Only
-cells that differ are emitted as ANSI escape sequences, and consecutive
-dirty cells on the same row are batched into a single RLE-style run
-so the terminal receives the minimum bytes possible.
+cosmostrix keeps a `Frame` back-buffer of `Cell` values (char + fg +
+bg + bold, 16 bytes) and a `LastFrame` shadow of what the terminal
+physically holds; at draw time only cells that differ are emitted,
+and consecutive dirty cells on the same row are batched into one
+RLE-style run so the terminal receives the minimum bytes possible.
 
-  - Back-buffer: `Vec<Cell>`, sized once at startup to `cols * lines`.
-  - Dirty check: integer-compare `Cell` fields (char, fg, bg, bold).
-    Cost is O(cells) per frame but the inner loop is branch-predictable
-    and SIMD-friendly; on a 120x40 terminal the dirty pass costs
-    ~50us, vs ~2ms for the full redraw it replaces.
-  - RLE batching: consecutive dirty cells on the same row share one
-    SGR sequence and one cursor-absolute move, cutting I/O bytes by
-    ~13x on typical content and >90x at 400x200.
-  - Dirty region tracking: a bounding-box of changed rows lets us
-    skip even the comparison pass for untouched regions (important
-    when the rain is sparse, e.g. low-density scenes).
+  - Dirty tracking: double-buffered generation counters — a single
+    u32 bump clears the dirty map per frame (no memset); dirty
+    indices land in a SmallVec (no heap at typical sizes).
+  - Cell-skip: full redraws skip cells whose frame value matches the
+    shadow (HUNT-27); a shadow reset arms `force_full_emit` so the
+    unknown physical state is re-emitted once (NIGHT-hunter-34 —
+    the color-bg residue family).
+  - RLE batching: runs share one SGR sequence and one cursor move;
+    ~13x fewer I/O bytes on typical content, >90x at 400x200.
 
 
-2. THREE-LAYER PARALLAX  (src/engine/cosmic_dragon_engine/cloud/spawn.rs, src/engine/cosmic_dragon_engine/cloud/rain.rs)
+2. THREE-LAYER PARALLAX  (src/central_control_rains/parallax.rs)
 -----------------------------------------------------------------
 
-Rain is rendered as three independent layers (far / mid / near) with
-per-layer multipliers for speed, brightness, length, density, and
-phosphor decay. Three layers is the cinema-standard deep/mid/ground
-composition; more would collapse perceptually in a 24-row terminal
-and add per-cell cost without visible benefit.
+Rain is rendered as three independent layers (far / mid / near).
+Three layers is the cinema-standard deep/mid/ground composition;
+more would collapse perceptually in a 24-row terminal. Verified
+multipliers (PARALLAX_* in parallax.rs):
 
-  Layer   Speed   Bright   Length   Density   Decay
-  far     0.35x   0.40     0.50     0.30      2.20x (faster fade)
-  mid     1.00x   0.75     1.00     0.60      1.20x
-  near    1.70x   1.00     1.40     1.00      0.50x (slower fade)
+  Layer   Speed   Bright   Length   Density   Phosphor decay
+  far     0.35x   0.56     0.50     0.45      1.90x (faster fade)
+  mid     1.00x   0.82     1.00     0.62      1.15x
+  near    1.70x   1.08     1.40     0.85      0.65x (slower fade)
 
 Layers are composited in Z-order into the same back-buffer, so the
 diff renderer sees a single unified frame — parallax is invisible
-to the I/O layer. The per-layer multipliers live in `src/constants.rs`
-(`PARALLAX_SPEED_MULT`, `PARALLAX_LENGTH_MULT`, etc.) and are applied
-in `cloud::spawn::DropletSpawner` during droplet birth.
+to the I/O layer. Multipliers are applied at droplet birth.
 
 
 3. PHOSPHOR PERSISTENCE  (src/engine/cosmic_dragon_engine/cloud/phosphor.rs)
 -------------------------------------------------
 
-CRT afterglow: every glyph leaves a fading residual trail behind it.
-Most terminal rain renderers have zero afterglow (each cell is either
-'head' or 'blank'). cosmostrix tracks a per-cell residual energy value
-that decays exponentially each frame.
+CRT afterglow: every glyph leaves a fading residual trail. The
+per-cell residual energy decays exponentially each frame.
 
   PHOSPHOR_TAIL_RESIDUAL = 160   (initial residual after head passes)
-  PHOSPHOR_DECAY_RATE    = 5.0   (per-second exponential decay)
+  PHOSPHOR_DECAY_RATE    = 8.0   (per-second exponential decay)
   Per-layer decay multiplier (see parallax table above)
-  Bottom-row 3x acceleration (mimics CRT geometry distortion)
+  Bottom rows decay 1.8x faster (CRT geometry illusion)
   Edge energy cap (prevents phosphor buildup at borders)
 
-Result: ~400ms visible afterglow per glyph. The residual is mixed
-into the back-buffer's color value, so the diff renderer treats it
-as a normal color change — no special I/O path.
+Result: a few hundred ms of visible afterglow per glyph. The
+residual is mixed into the back-buffer's color value, so the diff
+renderer treats it as a normal color change — no special I/O path.
 
 
 4. DENSITY NOISE & WIND GUSTS  (src/engine/cosmic_dragon_engine/cloud/living_rain.rs)
 --------------------------------------------------------------------------------
 
 Density is driven by a value-noise function sampled at column
-position, so the pattern is deterministic per terminal size but
-never repeats row-by-row. (v80.0.0-beta.2: the related-but-separate
-`density-map` config feature — hand-authored per-column spawn
-weights for monolith pillar sculpting — was retired; the engine-side
-value-noise density described here is untouched.)
-
-Wind gusts are sparse global events that briefly accelerate all
-columns in a direction, then decay. They break the visual monotony
-of constant-velocity rain without the cost of per-column physics.
-Gusts are opt-in (atmospheric event subsystem) and disabled by
-default in benchmark mode for reproducibility.
-
-The per-column value-noise density + wind-gust state machine lives
-in `src/engine/cosmic_dragon_engine/cloud/living_rain.rs`
-(`GustState`, `density_noise_at`).
+position (`column_density_modifier`) — deterministic per terminal
+size, never repeating row-by-row. Wind gusts are sparse global
+events that briefly accelerate all columns in a direction, then
+decay (`GustState`). Gusts break the visual monotony of
+constant-velocity rain without per-column physics and are disabled
+in benchmark mode for reproducibility.
 
 
 5. CHROMA DRAGON COLORING ENGINE  (src/engine/chroma_dragon_engine/)
 -----------------------------------------------
 
-The coloring counterpart to the Cosmic Dragon. Where the Cosmic Dragon
-owns the diff-based render loop and droplet simulation, the Chroma
-Dragon owns every decision about *what color a cell becomes*.
-
-Module layout (under `src/engine/chroma_dragon_engine/`):
+The coloring counterpart to the Cosmic Dragon: it owns every
+decision about *what color a cell becomes*.
 
   palette    Palette struct, build_palette(), gradient + blend helpers,
-             Phase 7 palette-relative brightness floor.
-  catalog    THEMES registry, build_colors(), ThemeDef / ThemeColors.
-             Single source of truth for all 44 built-in themes.
-  gradient   OKLab polar interpolation (sole production path since v30).
-             Hue-preserving, perceptually uniform. The legacy sRGB-linear
-             variant was removed in v30 (see palette.rs:250 / gradient.rs:41).
-             Fallback behavior for non-truecolor terminals lives in the
-             `chroma_dragon_engine::legacy` module — same per-channel RGB
-             math the bypasses used to inline, now auditable side-by-side
-             with the chroma engine.
-  shaders    Base cell shader (resolve_cell_color), CharLoc enum,
-             TRAIL_EXP_LUT, Phase 4-D head halo, Phase 5/8 transition
-             L+chroma smoothing (TransitionLTable).
-  post       Climate post-processing (luminance, saturation,
-             persistence, instability), palette-aware ghost color,
-             palette-aware anomaly halo target.
-  tuning     All Chroma Dragon tuning constants in one auditable place:
-             PALETTE_FLOOR_RATIO, BODY_TAIL_MAX_GAP_RATIO,
-             SUBPIXEL_JITTER_AMPLITUDE, HEAD_HALO_FACTOR, etc.
+             palette-relative brightness floor.
+  catalog    THEMES registry — single source of truth for all 44
+             builtin themes.
+  gradient   OKLab polar interpolation — the sole production color
+             path since v30 (hue-preserving, perceptually uniform).
+  shaders    Base cell shader (resolve_cell_color), head halo,
+             transition L + chroma smoothing.
+  post       Climate post-FX (luminance, saturation, persistence,
+             instability), palette-aware ghost + anomaly halos.
+  tuning     All Chroma tuning constants in one auditable place.
 
-Phase history (locked at Phase 9-D):
+The engine is locked at Phase 9-D with 19 CI-enforced invariants
+(theme sweep, floor bounds, hierarchy, hue preservation, round-trip
+accuracy, ...). The phase history and the full invariant list live
+in `src/engine/chroma_dragon_engine/RULES.md` — not repeated here
+(NIGHT-docs-audit: single source of truth, no drifting copies).
 
-  Phase 1   Foundation: palette relocation (zero behavior change)
-  Phase 2   Shader extraction: resolve_cell_color pulled out of DrawCtx
-  Phase 3   OKLab gradient (default) + Innovations A-H
-  Phase 4   Dragon Awakening: Innovations C/D/E always-on
-  Phase 5   Perceptual L smoothing at palette transition wave
-  Phase 6   Palette-aware anomaly halos (LuminanceSurge + PulseWave)
-  Phase 7   Palette-relative brightness floor (replaces v17 global 180)
-  Phase 7-c Floor ratio 0.15 -> 0.20 (trail brightness +33%)
-  Phase 7-d Gap ratio 2.5 -> 2.0 (body-tail step -20%, kills line illusion)
-  Phase 8   Hue-preserving chroma smoothing at transitions (polar coords)
-  Phase 9-A Hue-preserving polar OKLab gradient (sole production path since v30)
-  Phase 9-B ENGINE LOCK: 18 invariants (now 19 — INV-19 added at Phase 9-D)
-  Phase 9-C sRGB-linear fallback removal (sole OKLab path)
-  Phase 9-D ColorPipeline + chroma::legacy audit: INV-19 added (19 invariants total)
 
-The 19 invariants cover: engine version sentinel, 44-theme build sweep,
-floor bounds, head->body->trail hierarchy, hue preservation, body-tail
-gap contract, continuity ceiling, OKLab round-trip accuracy, polar
-gradient endpoints, polar midpoint saturation, blend normalization,
-L-smoothing bounds, polar chroma smoothing saturation, subpixel jitter
-amplitude, head halo factor range, tuning constants in sweet spots,
-the lock report sentinel, polar sole production path, and pipeline
-disclosure. Any change to a chroma constant, helper,
-or shader path that silently regresses an invariant fails CI.
+6. CRYSTAL DRAGON AMBIENT ENGINE  (src/engine/crystal_dragon_engine/)
+--------------------------------------------------
+
+The ambient intelligence engine, two subsystems in harmony:
+
+  - Palette drift: CPU load (or UTC clock fallback) maps to a
+    1-99 point system -> Cold / Medium / Hot theme groups -> weighted
+    selection (calc-v2: CDF + a 8-entry DriftHistory recency ring
+    that prevents A->B->A oscillation). Cadence is tunable via
+    --crystal-dragon-secs (60s default, dwell floor min(60, cadence)).
+  - Ambient scheduler: time-of-day scene entries (config
+    `ambient.HH-MM = scene`), owner-override detection with snapback,
+    and the runtime priority contract Ambient > Config > CLI.
+
+The engines never share mutable state — they communicate through
+the immutable `Cloud` snapshot each frame.
 
 
 PERFORMANCE PROFILE
 -------------------
 
-// NOTE: These numbers are from a specific benchmark run and may drift
-// across hardware, compiler versions, or workloads.
-On an AMD Ryzen 7 5800HS (8C/16T, 3.2 GHz baseline):
+Representative reference hardware (AMD Ryzen 7 5800HS, 8C/16T,
+3.2 GHz baseline); numbers drift across hardware, compilers, and
+workloads — re-verify with `cosmostrix --benchmark`:
 
   Screen size   avg_fps   ns/cell   I/O share   allocs/frame   peak_rss
   120x40        38,000+    ~12      <2%         0              4.7 MiB
   400x200       8,000+     ~14      <3%         0              9.2 MiB
 
-  - Zero per-frame heap allocation (particle pools pre-allocated).
+  - Zero per-frame heap allocation (pools pre-allocated).
   - Single CPU core (no threads, no GPU, no SIMD required).
-  - I/O share is the fraction of frame time spent writing ANSI bytes
-    to the terminal; <5% means we are CPU-bound on simulation, not
-    I/O-bound on terminal writes — exactly what a diff engine should
-    deliver.
+  - I/O share <5% means the engine is CPU-bound on simulation, not
+    I/O-bound on terminal writes — what a diff engine should deliver.
 
 See `docs/PERFORMANCE_ACROSS_SCALES.md` for the full scaling audit
-from 6x6 to 400x200, including analysis of why `ns/cell` stays
-constant (O(1) per cell) across the entire range.
+from 6x6 to 400x200, including why `ns/cell` stays O(1) per cell.
 
 
 DESIGN CONSTRAINTS
@@ -573,6 +545,93 @@ mod tests {
         assert!(
             !report.contains("ADAPTIVE ATMOSPHERE ENGINE"),
             "docs_report must NOT mention the eliminated atmosphere engine"
+        );
+    }
+
+    /// NIGHT-docs-audit (2026-09-12): the --docs output must describe
+    /// all THREE dragon engines (the pre-audit text predates the Crystal
+    /// Dragon and claimed a "five subsystems + Chroma" architecture).
+    #[test]
+    fn docs_report_mentions_all_three_dragon_engines() {
+        let report = docs_report();
+        assert!(
+            report.contains("CHROMA DRAGON COLORING ENGINE"),
+            "docs_report must describe the Chroma Dragon engine"
+        );
+        assert!(
+            report.contains("CRYSTAL DRAGON AMBIENT ENGINE"),
+            "docs_report must describe the Crystal Dragon engine (added NIGHT-docs-audit 2026-09-12)"
+        );
+        assert!(
+            report.contains("crystal_dragon_engine"),
+            "docs_report must cite the crystal engine source folder"
+        );
+    }
+
+    /// NIGHT-docs-audit: the numbers in --docs must match the live
+    /// constants (the pre-audit text carried Deep-Focus-era brightness
+    /// 0.40/0.75/1.00, density 0.30/0.60/1.00, decay 2.20/1.20/0.50 and
+    /// PHOSPHOR_DECAY_RATE = 5.0 — all stale). Source of truth:
+    /// src/central_control_rains/parallax.rs.
+    #[test]
+    fn docs_report_parallax_and_phosphor_numbers_match_source() {
+        let report = docs_report();
+        // PARALLAX_BRIGHTNESS_MULT = [0.56, 0.82, 1.08]
+        assert!(
+            report.contains("0.56     0.50     0.45"),
+            "far-layer row must match parallax.rs"
+        );
+        assert!(
+            report.contains("1.00x   0.82     1.00     0.62"),
+            "mid-layer row must match parallax.rs"
+        );
+        assert!(
+            report.contains("1.70x   1.08     1.40     0.85"),
+            "near-layer row must match parallax.rs"
+        );
+        // PHOSPHOR_LAYER_DECAY_MULT = [1.9, 1.15, 0.65]; PHOSPHOR_DECAY_RATE = 8.0
+        assert!(
+            report.contains("PHOSPHOR_DECAY_RATE    = 8.0"),
+            "decay rate must match parallax.rs"
+        );
+        assert!(
+            report.contains("1.90x (faster fade)"),
+            "far decay mult must match parallax.rs"
+        );
+        // PHOSPHOR_BOTTOM_DECAY_MULT = 1.8
+        assert!(
+            report.contains("1.8x faster"),
+            "bottom-row decay must match parallax.rs"
+        );
+    }
+
+    /// NIGHT-docs-audit: stale symbol/path claims must stay gone —
+    /// the pre-audit text referenced `density_noise_at` (renamed to
+    /// `column_density_modifier`), `cloud::spawn::DropletSpawner`
+    /// (symbol no longer exists), and placed the PARALLAX constants in
+    /// `src/constants.rs` (they live in central_control_rains/parallax.rs).
+    #[test]
+    fn docs_report_has_no_stale_symbols_or_paths() {
+        let report = docs_report();
+        assert!(
+            !report.contains("density_noise_at"),
+            "stale symbol: density_noise_at was renamed column_density_modifier"
+        );
+        assert!(
+            !report.contains("DropletSpawner"),
+            "stale symbol: DropletSpawner no longer exists in cloud/spawn.rs"
+        );
+        assert!(
+            !report.contains("src/constants.rs"),
+            "stale path: PARALLAX constants live in central_control_rains/parallax.rs"
+        );
+        assert!(
+            report.contains("column_density_modifier"),
+            "the live density-noise symbol must be cited"
+        );
+        assert!(
+            report.contains("central_control_rains/parallax.rs"),
+            "the live parallax constant location must be cited"
         );
     }
 

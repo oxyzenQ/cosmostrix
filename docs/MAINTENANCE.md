@@ -144,7 +144,7 @@ but must not change or remove existing API surface.
 
 ## 8. Architecture Reference
 
-- [`docs/audits/COSMIC_DRAGON_AUDIT.md`](archive/audits/COSMIC_DRAGON_AUDIT.md) — comprehensive audit (visual quality, stability, power management, competitive depth)
+- [`docs/archive/audits/COSMIC_DRAGON_AUDIT.md`](archive/audits/COSMIC_DRAGON_AUDIT.md) — comprehensive audit (visual quality, stability, power management, competitive depth)
 - [`docs/archive/audits/UNSAFE_SOUNDNESS_AUDIT.md`](archive/audits/UNSAFE_SOUNDNESS_AUDIT.md) — unsafe block soundness audit + Miri methodology
 - [`docs/README.md`](README.md) — docs index with source module map
 

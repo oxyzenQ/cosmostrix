@@ -68,7 +68,7 @@ frame time** vs the non-PGO release build, zero visual change
 (deterministic per-frame metrics identical). See
 [`PGO_AB_20260823.md`](PGO_AB_20260823.md). IPC/mispredict not measurable
 in the container (perf counters blocked) — re-run on a bare-metal rig to
-complete the `docs/research/IPC_RESEARCH.md` verification.
+complete the `docs/archive/research/IPC_RESEARCH.md` verification.
 
 ## Notes
 

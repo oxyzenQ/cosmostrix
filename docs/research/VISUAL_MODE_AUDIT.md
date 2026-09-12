@@ -4,7 +4,7 @@
 
 > **SUPERSEDED (2026-08-17)**: The v30.2 masterclass retune documented here
 > was superseded by Option F "Film Matrix Hero" (see
-> [`docs/RAIN_DEPTH_AUDIT.md`](../RAIN_DEPTH_AUDIT.md)) and then by the
+> [`docs/RAIN_DEPTH_AUDIT.md`](../archive/RAIN_DEPTH_AUDIT.md)) and then by the
 > **Cinema Noir** preset (current champion). The 4-effect compounding model
 > and the top/bottom visibility analysis remain valid methodology. The
 > current visual identity is documented in

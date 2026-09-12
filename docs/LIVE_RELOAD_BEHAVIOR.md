@@ -974,13 +974,13 @@ Runtime:  user shortkeys
   family) + 2 removed-field inertness tests in
   `test/config/live_config/tests_cli_priority.rs`.
 - 5 completeness-validation tests + 6 `ambient_scene_fps` tests +
-  6 schema/display tests in `src/scene_custom/tests.rs`.
+  6 schema/display tests in `test/scene_custom/tests.rs`.
 - 2 ambient-owns-color regression tests (config palette loses to the
   ambient scene; same-scheme palette clear) in
   `cloud/tests/tests_scene/transitions.rs`.
 - 2 locked-family restore/sync tests in
   `src/interactive/event_loop_scene_sync.rs`.
-- Base-scene parse-rejection + hint test in `src/testconf/tests.rs`.
+- Base-scene parse-rejection + hint test in `test/testconf/tests.rs`.
 - Full suite: 2060+ tests green.
 
 ---
@@ -1141,7 +1141,7 @@ complete for every scene-custom field.
   `test/config/live_config/tests_cli_priority.rs`.
 - Block-value validation tests (removed-field rejection, missing
   colors-custom reference with the built-in hint, out-of-range fps) in
-  `test/config/live_config/tests.rs` + `src/testconf/tests.rs`.
+  `test/config/live_config/tests.rs` + `test/testconf/tests.rs`.
 - Full suite: 2070 passed / 0 failed / 2 ignored; fmt + clippy clean.
 
 > Owner note: the warning icons in the bug report's verbose paste come

@@ -252,7 +252,7 @@ errors and should be fixed rather than ignored.
 ### Run — v80.0.0-beta.1.0-beta.1 — 2026-08-30 — linux-amd64-v1-gnu (SHORT-RUN SMOKE, not a 2h soak)
 
 > Recorded by the LTS matrix mid-session retest audit
-> (`docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md`). These are short-run
+> (`docs/archive/audits/LTS_MATRIX_MIDSESSION_RETEST.md`). These are short-run
 > stability smoke points that re-establish a fresh baseline for the
 > v50/v80.0.0-beta.1 line — the previous record below is v4.0.1 (2026-06-11). A
 > full 2 h soak on target hardware is still recommended.

@@ -66,6 +66,39 @@ mechanical: `scripts/check-symbol-only-output.sh` runs in
 | `color-bg = black` (default) | Paints a solid black background. | Does not use terminal transparency. |
 | `color-bg = default-background` | Does not paint a solid background; it follows the terminal emulator background. | It does not change terminal emulator opacity. |
 
+NIGHT-hunter-34 (2026-09-12): under `default-background` the
+renderer's shadow-buffer reset could leave physical residue on
+semantic events (intro rain after the logo, old-scene glyphs after
+'x'/'X', pre-restart glyphs after 'r', stale black/custom cells after
+live-reloading `color-bg`). The shadow now re-emits the full frame
+once whenever its knowledge of the physical screen is discarded —
+all four owner scenarios are covered by the PTY E2E harness
+(`scripts/night_cbg34_e2e.py`). `black` mode was never affected
+(the reset cell differs from the black blank, forcing a full repaint
+by accident — which is why the bug family survived black-mode
+testing).
+
+### Platform verification (color-bg + custom palette, 2026-09-12)
+
+The renderer fix is platform-neutral (cell equality + SGR emission,
+no OS APIs), verified per platform:
+
+- **Android (Termux, `aarch64-linux-android`)**:
+  `RUSTFLAGS="-D warnings" cargo check --target aarch64-linux-android`
+  clean (CI parity cross-check); the Termux PTY transient-IO drain
+  path in the event loop is untouched by the fix; the PTY E2E harness
+  itself ran on this Android-family kernel (5.10.134) sandbox.
+- **FreeBSD (`x86_64-unknown-freebsd`)**:
+  `RUSTFLAGS="-D warnings" cargo check --target x86_64-unknown-freebsd`
+  clean; `/dev/tty` recovery is `cfg(unix)` and present on FreeBSD;
+  config live-reload uses the kqueue backend (Cargo.toml Bug 1 fix),
+  so live-reloading `color-bg` between `black` and
+  `default-background` on FreeBSD exercises the fixed rebuild path.
+- Runtime residue checks on real Termux/FreeBSD devices remain
+  owner-side (no CI runners for those platforms); re-run
+  `scripts/night_cbg34_e2e.py` there if residue is ever suspected —
+  it needs only Python 3 + the release binary.
+
 ## Reset Behavior
 
 Normal exit is non-destructive. Quit with `q` or duration end and cosmostrix

@@ -9,6 +9,36 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-docs-audit round — stale-data purge in live docs + simplified --docs
+
+- Owner task 2026-09-12: "cosmostrix audit to avoid stale data and
+  simplify --docs".
+- `--docs` rewritten (198 -> 163 lines): every constant re-verified
+  against source — the parallax brightness/density/decay table and
+  PHOSPHOR_DECAY_RATE were stale (Deep-Focus-era values), the
+  density-noise symbol and DropletSpawner ref were stale, PARALLAX
+  constants were pointed at the wrong file, and the 14-line chroma
+  phase-history block duplicated RULES.md (cut per single-source-of-
+  truth). The missing Crystal Dragon section was added so --docs
+  finally describes all THREE engines; the intro now matches
+  docs/THREE_DRAGON_ENGINES.md. 4 new pinning tests
+  (docs_report_mentions_all_three_dragon_engines,
+  docs_report_parallax_and_phosphor_numbers_match_source,
+  docs_report_has_no_stale_symbols_or_paths) keep the numbers and
+  symbols from drifting again.
+- Live-doc broken refs fixed per the FUTURE_BACKLOG fix strategy
+  (historical records untouched by policy): MAINTENANCE/PHILOSOPHY/
+  SECURITY_AUDIT/TERMINAL_LIFECYCLE_MATRIX/ENDURANCE/VISUAL_MODE_AUDIT
+  archive path re-points, BENCH_LABS + COMPETITOR_COMPARISON path
+  fixes, LIVE_RELOAD_BEHAVIOR test paths re-pointed to the mirrored
+  test/ tree, SECURITY_AUDIT unsafe-site paths re-pointed to the
+  post-refactor locations (clock/posix_time.rs localtime_r,
+  central_control_power_dragon/reclaim_state.rs madvise + callers).
+- Gates: fmt/clippy/gate-keepers 17/17 clean, full suite 2870/0;
+  check-all hit the 2-minute local cap at the cargo-test stage after
+  the recompile (per the owner timeout rule — CI owns the full run;
+  all sub-checks verified individually).
+
 ### docs: 3-dragon lock round (hunter-34 re-lock) + the simple engine-history method
 
 - Owner request 2026-09-12: lock the three dragon engines after the

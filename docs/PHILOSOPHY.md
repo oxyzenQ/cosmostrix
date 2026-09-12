@@ -50,7 +50,7 @@ The `--doctor` command prints `sigkill: cannot be caught or guaranteed` to every
 
 - [COSMIC_DRAGON_EXPLORATION.md (archived)](archive/cosmic_dragon/EXPLORATION.md) — §3.4 GPU Offload (rejected)
 - [COSMIC_DRAGON_FINDINGS.md (archived)](archive/cosmic_dragon/FINDINGS.md) — terminal bottleneck analysis
-- [SIMD_FEASIBILITY.md](archive/SIMD_FEASIBILITY.md) — manual SIMD rejection
+- [archive/SIMD_FEASIBILITY.md](archive/SIMD_FEASIBILITY.md) — manual SIMD rejection
 - [CINEMATIC_BREATHING.md (archived)](archive/specs/CINEMATIC_BREATHING.md) — scene-naming contract (vocabulary spec archived 2026-08-05 alongside atmosphere engine elimination; the scene-naming honesty rule still applies, see §4 of this doc)
 - [RELEASE_GUARD.md](RELEASE_GUARD.md) — honesty rules
 - [RENDER_ENGINE.md](RENDER_ENGINE.md) — renderer architecture
