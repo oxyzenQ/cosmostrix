@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: RUSTSEC-2024-0384 danger evaluation — the `instant` unmaintained advisory is informational, accepted, and tracked
+
+- Owner question (2026-09-12): "is this cargo audit warning
+  dangerous?" Verdict: no. The advisory class is `unmaintained`, not
+  a CVE — no exploit path, no unsafe surface, no direct usage in
+  `src/`. On every native target cosmostrix builds, `instant` is a
+  zero-cost passthrough to `std::time::Instant`.
+- Dependency chain documented end-to-end: cosmostrix → notify v7.0.0
+  (config live-reload watcher) → notify-types v1.0.1 → instant
+  0.1.13. The `instant` module under `src/msg_fill_style/` is an
+  unrelated internal text-reveal style that shares the name —
+  explicitly disambiguated so future audits do not chase a ghost.
+- Fix path: upstream only (notify-types migrating to `web-time`).
+  The `deny.toml` suppression (since v50.0.0-beta.7) stays, and the
+  `cargo audit` warning remains expected output until then; version
+  bumps remain an owner decision per project rules.
+- Full evaluation: `docs/DEPENDENCY_AUDIT.md` § RUSTSEC-2024-0384.
+- Docs-only change: no source touched, no benchmark (docs-only
+  rule).
+
 ### docs: NIGHT-docs-2 — the LTS docs completeness audit (source code = truth) and the stale-reference cleanup
 
 - Owner brief: all documents complete before the stable LTS

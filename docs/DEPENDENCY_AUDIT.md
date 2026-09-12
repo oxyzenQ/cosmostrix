@@ -58,6 +58,34 @@ The real signals to act on:
 None of cosmostrix's deps are unmaintained or have open CVEs as of
 2026-09-02. The available updates are "nice to have", not "must have".
 
+## RUSTSEC-2024-0384: `instant` 0.1.13 unmaintained (transitive, accepted risk)
+
+Owner question (2026-09-12): "is this cargo audit warning dangerous?"
+
+Verdict: **informational, not a vulnerability — accepted and tracked.**
+
+- Advisory class is `unmaintained`, not a CVE: no exploit path, no
+  input parsing, no unsafe surface exposed through the chain. The
+  crate is a wasm-era wrapper around `std::time::Instant`; on every
+  native target cosmostrix builds (gnu/musl/darwin/msvc) it is a
+  zero-cost passthrough to the standard library.
+- Dependency chain: cosmostrix → notify v7.0.0 (file watcher for
+  config live-reload) → notify-types v1.0.1 → instant 0.1.13. No
+  direct usage anywhere in `src/` (the `instant` module under
+  `src/msg_fill_style/` is an unrelated internal text-reveal style
+  that shares the name).
+- Mitigations already in place: `deny.toml` suppresses the advisory
+  with the full rationale (since v50.0.0-beta.7), and the watcher
+  does not rely on `instant` for correctness — its change detection
+  is mtime/size/SHA-512 snapshots plus native inotify events.
+- Fix path: upstream only. notify-types must migrate to `web-time`
+  (the advisory's recommended replacement). notify v8 was evaluated
+  in the table below and remains an owner decision per project rules
+  (version bumps are never agent-initiated).
+- Re-check at each LTS release: if notify-types publishes the
+  migration, drop the `deny.toml` ignore entry and the warning
+  disappears with a routine `cargo update`.
+
 ## Current state (cargo update --verbose, 2026-09-02)
 
 ```
