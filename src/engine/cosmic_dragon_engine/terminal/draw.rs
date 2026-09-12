@@ -10,7 +10,8 @@
 //!
 //! ## Two paths
 //!
-//! 1. Full redraw (≥12.5% cells dirty, or dim/semantic change): row-RLE
+//! 1. Full redraw (≥12.5% cells dirty, dim/semantic change, or an
+//!    unknown shadow — see `force_full_emit`): row-RLE
 //!    pass over all cells, accumulates into `ansi_buf`, one `write_all`.
 //! 2. Differential (<12.5% cells dirty): flat sorted dirty-index
 //!    iteration, contiguous-run detection, per-run MoveTo + SGR batching.
@@ -76,11 +77,20 @@ impl Terminal {
         }
 
         let can_reuse_last = !needs_full_redraw && self.last.is_some();
+        // NIGHT-hunter-34: a freshly (re)initialized shadow knows nothing
+        // about the physical screen — force the full-redraw path so the
+        // cell-skip below cannot treat "frame blank == shadow blank" as
+        // "nothing to emit" while the terminal still shows residue.
+        // (Needs_full_redraw already covers the reset triggers — this OR
+        // keeps the invariant airtight even if a write error interrupts
+        // a draw after the shadow reset but before the flag is cleared.)
+        let force_emit_all = self.last.as_ref().is_some_and(|l| l.force_full_emit);
         let total_cells = frame.width as usize * frame.height as usize;
         let dirty_count = frame.dirty_indices().len();
         let dirty_is_large =
             total_cells > 0 && dirty_count >= (total_cells / DIRTY_THRESHOLD_RATIO);
-        let do_full_redraw = !can_reuse_last || frame.is_dirty_all() || dirty_is_large;
+        let do_full_redraw =
+            !can_reuse_last || frame.is_dirty_all() || dirty_is_large || force_emit_all;
 
         // ── Idle-frame fast path (v30 Cosmic Dragon) ──
         //
@@ -123,6 +133,12 @@ impl Terminal {
             // Synchronize semantic generation so future differential frames
             // don't spuriously re-trigger full redraws for this generation.
             last.semantic_gen = frame.semantic_gen;
+            // NIGHT-hunter-34: re-read the flag AFTER the potential reset
+            // above — reuse_or_new arms it on the fresh shadow, and the
+            // pre-reset read (the do_full_redraw OR) only covers the
+            // preserved-shadow case (a write error interrupted a previous
+            // draw between the reset and the flag clear).
+            let force_emit_all = force_emit_all || last.force_full_emit;
 
             // S-master-HUNT-27: cell-level skip in the full-redraw path.
             //
@@ -178,8 +194,15 @@ impl Terminal {
                     let idx = y as usize * width_usize + x as usize;
                     let cell = frame.cell_at_index(idx);
 
-                    // HUNT-27: skip unchanged cells.
-                    if cell == last.cells[idx] {
+                    // HUNT-27: skip unchanged cells — EXCEPT while the
+                    // shadow is in the unknown state (NIGHT-hunter-34:
+                    // fresh reset claims blank bg=None cells, but the
+                    // physical screen can hold intro rain, old-scene
+                    // glyphs, or a black/custom background fill; with
+                    // color-bg=default-background the skip left them
+                    // on screen forever). force_emit_all emits every
+                    // cell once, then the shadow is exact again.
+                    if !force_emit_all && cell == last.cells[idx] {
                         // Flush accumulated row_buf before the skip —
                         // the contiguous char run ends here, and the
                         // cursor won't advance past this cell.
@@ -251,6 +274,11 @@ impl Terminal {
             // HUNT-23: flush through flush_stdout_timed so the (potentially
             // blocking) syscall latency feeds last_write_ns.
             ansi_buf.extend_from_slice(b"\x1b[0m");
+            // NIGHT-hunter-34: every cell was compared against (and, when
+            // needed, emitted into) the shadow this pass — the physical
+            // screen state is known again. Clear the unknown flag so the
+            // HUNT-27 skip resumes on the next full redraw.
+            last.force_full_emit = false;
             self.flush_ansi()?;
             self.flush_stdout_timed()?;
 

@@ -79,9 +79,10 @@ impl super::Terminal {
         // Tier 2 -- byte-budget backpressure (xterm.js hosts only).
         // If the rolling window exceeds the budget, suppress this flush.
         // Rain state still advances (event loop calls cloud.rain_at()
-        // BEFORE term.draw()), so the user sees a brief stutter rather
-        // than a permanent desync. The 0 byte count is pushed into the
-        // window so the budget recovers as old frames age out.
+        // BEFORE term.draw()), so the user sees a brief stutter. The 0
+        // byte count is pushed into the window so the budget recovers
+        // as old frames age out, and the shadow-honesty arm below makes
+        // the next draw re-emit the full frame once it does.
         if self.term_caps.xtermjs_host {
             let window_sum = self.byte_window.sum();
             if should_backpressure(window_sum, self.bytes_since_ris) {
@@ -93,6 +94,20 @@ impl super::Terminal {
                 // perf_pressure → self-healer never fires).
                 self.last_flush_suppressed = true;
                 self.ansi_buf.clear();
+                // NIGHT-hunter-34 (shadow honesty, sibling fix): the
+                // callers updated the LastFrame shadow BEFORE flushing,
+                // so dropping these bytes desyncs the shadow from the
+                // physical screen — every cell this frame changed is
+                // now believed-written but was never emitted, and the
+                // HUNT-27 cell-skip would refuse to re-emit it. The
+                // pre-34 comment ("a brief stutter rather than a
+                // permanent desync") was wrong: it IS a permanent
+                // desync of exactly those cells. Arm the unknown flag
+                // so the next draw re-emits the full current frame
+                // once the byte budget recovers.
+                if let Some(last) = self.last.as_mut() {
+                    last.force_full_emit = true;
+                }
                 return Ok(());
             }
         }
@@ -177,6 +192,16 @@ impl super::Terminal {
         self.ris_resets += 1;
         self.bytes_since_ris = 0;
         self.byte_window.reset();
+        // NIGHT-hunter-34 (shadow honesty, sibling fix): RIS resets the
+        // physical screen state (and re-entering the alternate screen
+        // starts it blank), but the LastFrame shadow still describes
+        // the pre-RIS screen. Every cell whose frame value is unchanged
+        // since then would be skipped by the HUNT-27 cell-skip and stay
+        // physically missing. Arm the unknown flag so the next draw
+        // repaints the full frame under the post-RIS reality.
+        if let Some(last) = self.last.as_mut() {
+            last.force_full_emit = true;
+        }
         Ok(())
     }
 

@@ -18,6 +18,33 @@ pub(crate) struct LastFrame {
     /// Semantic generation this LastFrame was rendered with.
     /// A mismatch with `Frame::semantic_gen` forces a full redraw.
     pub(crate) semantic_gen: u32,
+    /// NIGHT-hunter-34: the physical screen state is UNKNOWN.
+    ///
+    /// Set to `true` by every constructor path (`new`, `reuse_or_new`)
+    /// — both are only called when the previous shadow was discarded
+    /// (first draw, resize, semantic reset). A freshly initialized
+    /// shadow says "every cell is blank with bg=None", but the real
+    /// terminal still holds whatever was last emitted (intro rain, the
+    /// previous scene's glyphs, a `color-bg = "black"` fill). The
+    /// HUNT-27 cell-skip in the full-redraw path must therefore emit
+    /// EVERY cell at least once; `Terminal::draw` clears this flag
+    /// after that emit, making the shadow trustworthy again.
+    ///
+    /// Why this was invisible under `color-bg = "black"`: the frame's
+    /// blank cell carries `bg = Some(black)` while the fresh shadow
+    /// claims `bg = None` — the cells differ, so the full redraw
+    /// repainted everything by accident. Under
+    /// `color-bg = "default-background"` the frame blank is also
+    /// `bg = None`, the skip fires, and the physical residue survives
+    /// every semantic event (scene switch 'x'/'X', restart 'r',
+    /// live-reload rebuilds) — the owner's four NIGHT-hunter-34
+    /// reproductions.
+    ///
+    /// The idle-resync zero-emit optimization (HUNT-27's actual target:
+    /// `force_repaint` with no semantic change) is untouched — that
+    /// path preserves the shadow, so `force_full_emit` stays false and
+    /// the skip keeps working there.
+    pub(crate) force_full_emit: bool,
 }
 
 impl LastFrame {
@@ -28,6 +55,7 @@ impl LastFrame {
             height,
             cells: vec![Cell::blank_with_bg(None); len],
             semantic_gen: 0,
+            force_full_emit: true,
         }
     }
 
@@ -47,6 +75,10 @@ impl LastFrame {
     /// old cell values (which contained previous-frame content) so the
     /// resulting Vec is uniformly blank. The underlying allocation is
     /// reused — only the length changes.
+    ///
+    /// NIGHT-hunter-34: both paths set `force_full_emit = true` — the
+    /// discarded shadow's physical-screen knowledge is gone, so the
+    /// next draw must re-emit every cell (see the field doc above).
     pub(crate) fn reuse_or_new(existing: Option<Self>, width: u16, height: u16) -> Self {
         let Some(mut old) = existing else {
             return Self::new(width, height);
@@ -66,6 +98,7 @@ impl LastFrame {
         old.width = width;
         old.height = height;
         old.semantic_gen = 0;
+        old.force_full_emit = true;
         old
     }
 }

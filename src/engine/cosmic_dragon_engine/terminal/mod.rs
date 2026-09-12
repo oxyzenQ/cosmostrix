@@ -75,6 +75,9 @@ use crate::tier2::ByteWindow;
 // ── dragon-fight split: sub-modules ──────────────────────────────────────
 // Extracted from this file to keep mod.rs under the 800-LOC cap and isolate
 // concerns. See each module's docs for its responsibility.
+#[cfg(test)]
+#[path = "../../../../test/engine/cosmic_dragon_engine/terminal/cbg34_tests.rs"]
+mod cbg34_tests;
 mod cleanup;
 mod draw;
 mod io_recovery;

@@ -137,6 +137,7 @@ Terminal (src/engine/cosmic_dragon_engine/terminal/)
 ├── last: Option<LastFrame>       // snapshot of last sent frame
 │   ├── cells: Vec<Cell>          // 16 B/cell, mirrors terminal state
 │   ├── semantic_gen: u32         // for invalidation detection
+│   ├── force_full_emit: bool     // physical screen state unknown (NIGHT-hunter-34)
 │   └── width/height: u16         // for resize detection
 ├── ansi_buf: Vec<u8>             // 256 KiB cap, single write_all per frame
 ├── dirty_flat: Vec<usize>        // reusable sort buffer
@@ -315,6 +316,34 @@ generation counter and setting `dirty_all = true`.
 This is the escape hatch that prevents "stale cell residue" bugs
 (e.g., HUD text remaining visible after toggle-off in regions the
 rain didn't write this frame).
+
+### 2.8 Shadow honesty — the full-emit guarantee (NIGHT-hunter-34)
+
+The `LastFrame` shadow is a *belief* about the physical screen. Every
+path that discards or invalidates that belief must arm
+`force_full_emit`, and the next `draw()` then emits EVERY cell (blank
+cells included, each carrying its own fg/bg SGR) before clearing the
+flag. Armed paths:
+
+- shadow (re)creation — `LastFrame::new` / `reuse_or_new` (first draw,
+  resize, semantic reset: scene switch 'x'/'X', restart 'r',
+  live-reload rebuild);
+- RIS reset (xterm.js OOM mitigation) — the physical screen is wiped
+  while the shadow still describes the pre-RIS content;
+- backpressure-suppressed flush (xterm.js byte budget) — the frame's
+  bytes are dropped AFTER the shadow was updated, so the shadow
+  claims writes that never reached the terminal.
+
+Why this matters: the full-redraw cell-skip (HUNT-27) compares frame
+cells against the shadow. A fresh shadow claims "all blank, bg=None" —
+under `color-bg = "default-background"` the frame's blank cells are
+also bg=None, so the skip fires and physical residue (intro rain,
+old-scene glyphs, a previous black/custom fill) is never repainted.
+Under `color-bg = "black"` the reset cell (bg=None) differs from the
+frame blank (bg=Some(black)) and everything is repainted by accident —
+which is exactly why the bug family was invisible in black-mode
+testing. The idle-resync zero-emit optimization (force_repaint with a
+preserved shadow) is untouched: the flag stays false there.
 
 ---
 

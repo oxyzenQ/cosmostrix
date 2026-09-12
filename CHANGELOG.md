@@ -9,6 +9,55 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunter-34 — color-bg default-background residue family, shadow honesty for the terminal diff renderer
+
+- Owner report (2026-09-12, four reproductions on v100.0.0-beta.1):
+  with `color-bg = "default-background"` the screen kept physical
+  residue through every semantic event — (1) intro-rain glyphs stuck
+  after the logo cinematic and 'r' restart not cleaning them,
+  (2) old-scene glyphs/charset/colors stuck after 'x'/'X' scene
+  switches and live-reload scene edits, (3) black cells stuck behind
+  the moving rain after live-reloading `color-bg` black →
+  default-background, (4) the same with a colors-custom bg. Every
+  scenario was clean under `color-bg = "black"`.
+- Root cause: `LastFrame::reuse_or_new` resets the renderer's shadow
+  buffer to `Cell::blank_with_bg(None)` whenever the shadow is
+  discarded (semantic_gen mismatch, resize, first draw). The HUNT-27
+  cell-skip in the full-redraw path then treats "frame blank ==
+  shadow blank" as "nothing to emit" — while the physical screen
+  still holds the old content. `color-bg = "black"` masked the whole
+  family: the frame blank carries `bg = Some(black)`, differs from
+  the reset cell's `bg = None`, and everything gets repainted by
+  accident. Under default-background the frame blank is also `None`,
+  the skip fires, and the residue survives forever.
+- Fix: the shadow now carries `force_full_emit: bool` — every
+  constructor path arms it (the physical screen state is UNKNOWN
+  after a reset), `Terminal::draw` re-reads it AFTER the potential
+  shadow reset and emits EVERY cell once (blank cells included, each
+  with its own fg/bg SGR), then clears it. The HUNT-27 idle-resync
+  zero-emit optimization (force_repaint with a preserved shadow) is
+  untouched.
+- Two sibling bugs in the same "lying shadow" family, hunted beyond
+  the owner's list (both xterm.js-host paths): (a) the Tier 2
+  backpressure-suppressed flush dropped frame bytes AFTER the shadow
+  was updated — the old comment claimed "a brief stutter rather than
+  a permanent desync", but it was a permanent desync of exactly the
+  dropped frame's cells; (b) the RIS reset (xterm.js OOM mitigation)
+  wiped the physical screen while the shadow still described the
+  pre-RIS content. Both now arm the unknown flag.
+- New: `scripts/night_cbg34_e2e.py` — PTY + mini-terminal-emulator
+  E2E reproducing all four owner scenarios (plus the 'r' restart
+  variant); baseline measured 39/195/141/2554/2352 stuck cells, fixed
+  binary measures 0/0/≤2/0/0 (≤2 = single transient phosphor cell,
+  threshold 5). 4 new unit tests pin the shadow-side flag contract
+  (`test/engine/cosmic_dragon_engine/terminal/cbg34_tests.rs`).
+- A/B 10 s benches (release, cinematic + monolith, 2 runs each):
+  fps/entropy/gini/dirty-cells all within ±0.4 % — machine noise;
+  the steady-state frame path is byte-identical plus one false-bool
+  check. Report: `benchmark/bench-labs/night_cbg34/AB_REPORT.md`.
+- Docs: `docs/RENDER_ENGINE.md` § 2.8 (shadow honesty contract) +
+  the LastFrame data-structure tree updated.
+
 ### docs: RUSTSEC-2024-0384 danger evaluation — the `instant` unmaintained advisory is informational, accepted, and tracked
 
 - Owner question (2026-09-12): "is this cargo audit warning
