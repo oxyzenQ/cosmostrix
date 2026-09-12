@@ -133,8 +133,43 @@ This guard does NOT run if:
 
 If the main loop is truly stuck (deadlock inside a syscall, infinite loop
 that doesn't check `GRACEFUL_SHUTDOWN`), the watchdog thread detects the
-stuck state after 20 seconds and calls `restore_terminal_best_effort()`
-- `process::exit(1)` as a last resort.
+stuck state (frame counter frozen for `WATCHDOG_INTERVAL_SECS`) and
+force-exits via the raw-fd restore below as a last resort.
+
+## Jammed-PTY Exits (NIGHT-termux-hang, 2026-09-12)
+
+**Bug (owner report, Termux)**: when Android locks the screen, Termux
+stops draining its PTY master. The slave buffer fills, the render
+loop's write(2) parks — while holding the `std::io::stdout()`
+ReentrantMutex. Every exit path that touched std::io::stdout() then
+futex-wedged on that lock: the watchdog's is_terminal() probe, the
+SIGTERM thread's force exit, the restore writes. The result: frozen
+screen, dead shortcuts, `pkill -f cosmostrix` (SIGTERM) a no-op —
+only `kill -9` worked.
+
+**Fix**: all enforcement paths are now raw-fd and lock-free:
+
+- The watchdog's dead-PTY probe uses raw `isatty(1)` (no std lock).
+- `force_exit_terminal_restored()` (the watchdog's stuck/dead-PTY
+  arms, the SIGTERM thread's 3 s-grace fallback) flips fds 1 and 2
+  to O_NONBLOCK, disables raw mode (a termios ioctl — always
+  completes, and the one restore step the shell truly needs), writes
+  the restore escapes directly to fd 1 and the diagnostic to fd 2
+  (EAGAIN drops the bytes), then exits. It never touches
+  std::io::stdout()/stderr().
+- The SIGTSTP suspend handler uses the same raw-fd restore (dropped
+  bytes are safe: the SIGCONT resume re-initializes the terminal and
+  repaints the full frame).
+
+**Behavior on a jammed PTY**: the watchdog fires within ~2-3 s of the
+frame counter freezing (a jam during the intro included — the intro
+bumps the same counter), and SIGTERM kills within its 3 s grace
+window. Dropped restore escapes on a jammed terminal are cosmetic;
+`cosmostrix --reset-terminal` recovers the rest.
+
+Reproduction/verification harness: `scripts/termux_hang_harness.py`
+(spawns the binary on a PTY that is never drained; asserts both the
+jam-only exit and the jam + SIGTERM exit).
 
 ## Recovery Commands
 

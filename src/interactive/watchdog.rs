@@ -11,7 +11,6 @@ use std::sync::atomic::Ordering;
 use std::time::Duration;
 
 use crate::constants::*;
-use crate::terminal::restore_terminal_best_effort;
 
 /// Global flag set when mouse capture was successfully enabled.
 /// Signal handlers check this to decide whether DisableMouseCapture is needed.
@@ -118,13 +117,16 @@ pub(super) fn spawn_watchdog() {
             // or SSH disconnected. Exit immediately without waiting for
             // the frame-counter check (which may never fire if crossterm
             // is stuck).
-            restore_terminal_best_effort();
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[watchdog] stdout no longer a terminal — restoring and exiting\n"
-            ));
-            let _ = std::io::stderr().flush();
-            std::process::exit(1);
+            //
+            // NIGHT-termux-hang: the force-exit helper flips stdout AND
+            // stderr to O_NONBLOCK before the restore writes — the old
+            // inline path blocked on its own stderr/restore writes when
+            // the fd was jammed, deadlocking the watchdog that existed
+            // to break exactly that class of deadlock.
+            crate::terminal::force_exit_terminal_restored(
+                1,
+                "[watchdog] stdout no longer a terminal — restoring and exiting\n",
+            );
         }
 
         let current = counter.load(Ordering::Relaxed);
@@ -152,19 +154,21 @@ pub(super) fn spawn_watchdog() {
             // is trapped inside `crossterm::event::read()` and never
             // returns to check `GRACEFUL_SHUTDOWN`. The watchdog is the
             // only escape — restore the terminal and force-exit.
-            restore_terminal_best_effort();
-            // v25: use write_fmt with error discarded — eprintln!
-            // panics on broken stderr (terminal closed) → double-panic
-            // → abort → coredump. The watchdog specifically fires
-            // when the main loop is stuck, which is often caused by
-            // the terminal being gone, so this path is hot.
-            use std::io::Write;
-            let _ = std::io::stderr().write_fmt(format_args!(
-                "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
-                WATCHDOG_INTERVAL_SECS
-            ));
-            let _ = std::io::stderr().flush();
-            std::process::exit(1);
+            //
+            // NIGHT-termux-hang: "stuck" also covers the jammed-PTY case
+            // (Termux screen lock: the PTY reader stops draining, the
+            // frame flush blocks in write()). The old exit path could
+            // block on its own restore write into that same full PTY,
+            // wedging the watchdog — the owner's unkillable process
+            // (`pkill` dead, only `kill -9` worked). The nonblocking
+            // force-exit guarantees the process dies here.
+            crate::terminal::force_exit_terminal_restored(
+                1,
+                &format!(
+                    "[watchdog] main loop stuck for {}s — restoring terminal and exiting\n",
+                    WATCHDOG_INTERVAL_SECS
+                ),
+            );
         }
         last_counter = current;
     });
@@ -230,8 +234,24 @@ pub(crate) fn warn_if_stdout_not_terminal() {
 
 #[inline]
 fn stdout_is_terminal() -> bool {
-    use std::io::IsTerminal;
-    std::io::stdout().is_terminal()
+    #[cfg(unix)]
+    {
+        // NIGHT-termux-hang: raw isatty(1), never std::io::stdout() —
+        // std's IsTerminal takes the global stdout ReentrantMutex,
+        // which a main thread parked in a jammed-PTY write(2) holds
+        // forever. The old probe futex-wedged the watchdog on that
+        // lock (traced: the watchdog thread sat in futex_wait while
+        // the main thread sat in write), so the stuck-loop exit it
+        // existed to enforce never fired and only SIGKILL worked.
+        // SAFETY: isatty never blocks and fd 1 exists for the whole
+        // process lifetime; the return is a plain c_int.
+        unsafe { libc::isatty(1) == 1 }
+    }
+    #[cfg(not(unix))]
+    {
+        use std::io::IsTerminal;
+        std::io::stdout().is_terminal()
+    }
 }
 
 #[cfg(test)]

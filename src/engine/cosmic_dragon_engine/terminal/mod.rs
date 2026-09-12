@@ -103,9 +103,13 @@ pub(crate) mod tier2;
 // the allow(unused_imports).
 #[allow(unused_imports)]
 pub(crate) use restore::{
-    blank_cell, reset_terminal_emergency, restore_terminal_best_effort, TERMINAL_RESET_SEQUENCE,
-    TERMINAL_RESTORE_SEQUENCE,
+    blank_cell, force_exit_terminal_restored, reset_terminal_emergency,
+    restore_terminal_best_effort, TERMINAL_RESET_SEQUENCE, TERMINAL_RESTORE_SEQUENCE,
 };
+// NIGHT-termux-hang: unix-only sibling (O_NONBLOCK wrap) used by the
+// SIGTSTP suspend handler.
+#[cfg(unix)]
+pub(crate) use restore::restore_terminal_best_effort_nonblocking;
 
 use last_frame::LastFrame;
 

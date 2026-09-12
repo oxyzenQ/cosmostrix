@@ -61,6 +61,79 @@ pub(crate) fn restore_terminal_best_effort() {
     let _ = out.flush();
 }
 
+/// NIGHT-termux-hang (owner report, Termux screen lock): the
+/// deadlock-proof force exit — raw fds, no std locks, no blocking
+/// writes, unconditional exit.
+///
+/// The hang's anatomy (traced via /proc task syscalls on a
+/// never-drained PTY, the Termux screen-lock reproduction): when
+/// Android locks the screen, Termux stops reading its PTY master;
+/// the slave buffer fills and the main thread parks inside
+/// write(2) — WHILE HOLDING the `std::io::stdout()` ReentrantMutex
+/// (std takes it per write syscall). Every thread that then touches
+/// std::io::stdout() — the watchdog's is_terminal() probe, the
+/// SIGTERM thread's 3 s-grace force exit, the restore writes —
+/// futex-wedges on that lock, so nothing ever enforces the exit:
+/// screen frozen, no shortcut answered, `pkill -f cosmostrix`
+/// (SIGTERM) a no-op, only `kill -9` worked.
+///
+/// This path therefore never touches std::io::stdout()/stderr():
+/// 1. O_NONBLOCK is flipped on fds 1 and 2 (fcntl — lock-free).
+/// 2. `disable_raw_mode` runs FIRST — a termios ioctl, not a write;
+///    it always completes, and it is the one restore step the
+///    user's shell cannot live without after cosmostrix dies.
+/// 3. The restore escapes go straight to fd 1 via raw write()
+///    (EAGAIN drops them — a dropped escape is cosmetic; a blocked
+///    exit thread is the hang). The diagnostic note goes to fd 2.
+/// 4. `process::exit` is unconditional.
+///
+/// Windows: ConPTY has no paused-reader semantics; the body
+/// degrades to the previous restore + exit behavior.
+#[cold]
+#[allow(unused_variables)]
+pub(crate) fn force_exit_terminal_restored(code: i32, note: &str) -> ! {
+    #[cfg(unix)]
+    {
+        let _ = crate::terminal_tty::set_fd_nonblocking(1);
+        let _ = crate::terminal_tty::set_fd_nonblocking(2);
+        let _ = crossterm_terminal::disable_raw_mode();
+        // Raw-fd writes only: std::io::stdout()'s ReentrantMutex is
+        // held by the main thread's blocked write — touching it here
+        // would trade the exit for a futex wait.
+        crate::terminal_tty::write_fd_best_effort(1, TERMINAL_RESTORE_SEQUENCE.as_bytes());
+        crate::terminal_tty::write_fd_best_effort(2, note.as_bytes());
+        std::process::exit(code);
+    }
+    #[cfg(not(unix))]
+    {
+        restore_terminal_best_effort();
+        use std::io::Write;
+        let _ = std::io::stderr().write_fmt(format_args!("{note}"));
+        let _ = std::io::stderr().flush();
+        std::process::exit(code);
+    }
+}
+
+/// NIGHT-termux-hang: the raw-fd, lock-free, non-exiting restore.
+///
+/// For paths that must SURVIVE the restore (unlike
+/// `force_exit_terminal_restored`, which exits): the SIGTSTP suspend
+/// handler has to reach `raise(SIGSTOP)` even when the PTY is jammed
+/// and the main thread holds the std stdout lock inside a blocked
+/// write — so this restore never touches std::io::stdout(). Raw mode
+/// is restored via the termios ioctl; the escape bytes go to fd 1
+/// under a temporary O_NONBLOCK (dropped on EAGAIN — safe by design:
+/// the SIGCONT resume path re-initializes the terminal (TermReinit)
+/// and repaints the full frame); the original flags are put back so
+/// the post-resume render loop keeps its normal blocking semantics.
+#[cfg(unix)]
+pub(crate) fn restore_terminal_best_effort_nonblocking() {
+    let prev = crate::terminal_tty::set_fd_nonblocking(1);
+    let _ = crossterm_terminal::disable_raw_mode();
+    crate::terminal_tty::write_fd_best_effort(1, TERMINAL_RESTORE_SEQUENCE.as_bytes());
+    crate::terminal_tty::restore_fd_flags(1, prev);
+}
+
 /// Best-effort terminal restore sequence.
 ///
 /// Disables all optional terminal modes that cosmostrix may have enabled:

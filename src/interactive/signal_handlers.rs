@@ -25,10 +25,15 @@ use crate::platform::TermReinit;
 
 use super::watchdog::{spawn_watchdog, GRACEFUL_SHUTDOWN, MOUSE_CAPTURE_ACTIVE, SHUTDOWN};
 
-// restore_terminal_best_effort is used by BOTH the Unix SIGTSTP handler
-// AND the Windows Ctrl+Break handler, so the import must be unconditional.
-// The function itself is defined without a cfg gate in terminal.rs.
+// restore_terminal_best_effort is used by the Windows Ctrl+Break
+// handler only (the Unix SIGTSTP arm below uses the nonblocking
+// sibling — a jammed PTY must not wedge the suspend handler). The
+// function itself is defined without a cfg gate in terminal/restore.rs.
+#[cfg(windows)]
 use crate::terminal::restore_terminal_best_effort;
+// NIGHT-termux-hang: jammed-PTY-proof variants (Unix only).
+#[cfg(unix)]
+use crate::terminal::restore_terminal_best_effort_nonblocking;
 
 #[cfg(unix)]
 use signal_hook::consts::{SIGCONT, SIGHUP, SIGQUIT, SIGSTOP, SIGTERM, SIGTSTP};
@@ -72,6 +77,23 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
                         break;
                     }
                 }
+                // NIGHT-termux-hang (Termux screen lock): never quietly
+                // give up. The old thread simply ended here when the
+                // grace window elapsed, leaving the process alive with
+                // no one left to enforce the exit — a main loop blocked
+                // on a full PTY (Android locks the screen, Termux stops
+                // draining the PTY) then survived SIGTERM entirely: the
+                // owner's `pkill -f cosmostrix` no-op that only
+                // `kill -9` could end. The nonblocking force-exit makes
+                // SIGTERM lethal within its 3s grace window on every
+                // path, including the intro (where the watchdog's
+                // frame-stuck arm is still disarmed).
+                if !SHUTDOWN.load(Ordering::Acquire) {
+                    crate::terminal::force_exit_terminal_restored(
+                        143, // 128 + SIGTERM, the shell's convention
+                        "[signal] graceful shutdown did not complete in 3s — force exiting\n",
+                    );
+                }
             }
         });
     }
@@ -83,13 +105,21 @@ pub(crate) fn install_signal_handlers() -> (Arc<AtomicBool>, TermReinit) {
             for sig in signals.forever() {
                 match sig {
                     SIGTSTP => {
-                        if MOUSE_CAPTURE_ACTIVE.load(Ordering::Acquire) {
-                            use crossterm::ExecutableCommand;
-                            let _ =
-                                std::io::stdout().execute(crossterm::event::DisableMouseCapture);
-                            MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
-                        }
-                        restore_terminal_best_effort();
+                        // Clear the flag first; the restore below already
+                        // emits every mouse-disable escape (1000/1002/1003/
+                        // 1006/1015) inside its nonblocking window. A
+                        // separate blocking stdout().execute() here — the
+                        // old code's DisableMouseCapture — could wedge the
+                        // handler on a jammed PTY before it ever reached
+                        // raise(SIGSTOP), killing Ctrl+Z too.
+                        MOUSE_CAPTURE_ACTIVE.store(false, Ordering::Release);
+                        // NIGHT-termux-hang: the nonblocking restore — a
+                        // jammed PTY must not wedge the suspend handler
+                        // before it reaches raise(SIGSTOP). Dropped
+                        // restore bytes are safe by design: the SIGCONT
+                        // resume path re-initializes the terminal
+                        // (TermReinit) and repaints the full frame.
+                        restore_terminal_best_effort_nonblocking();
                         tr.store(true, Ordering::Release);
                         let _ = low_level::raise(SIGSTOP);
                     }

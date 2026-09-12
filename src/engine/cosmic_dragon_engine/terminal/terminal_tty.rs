@@ -55,6 +55,89 @@ pub(crate) fn open_tty_fallback() -> Option<File> {
     OpenOptions::new().write(true).open("/dev/tty").ok()
 }
 
+/// NIGHT-termux-hang: flip `fd` into O_NONBLOCK, returning the previous
+/// status flags (-1 on fcntl failure — the caller then proceeds exactly
+/// as the pre-fix code did; a failed flip means the fd is already
+/// unusable, where blocking vs non-blocking is moot).
+///
+/// Why this exists (the Termux screen-lock hang): when Android locks
+/// the screen, Termux stops draining the PTY master. The slave buffer
+/// (~64 KB) fills, and every further `write()` on stdout BLOCKS. The
+/// main render loop wedges in its frame flush — and so did every
+/// exit path that shared the fd (the watchdog's own
+/// `restore_terminal_best_effort` + stderr diagnostics, the SIGTERM
+/// thread's 3 s grace window) — so `pkill -f cosmostrix` (SIGTERM)
+/// silently did nothing and only `kill -9` could end the process.
+/// Non-blocking restore writes (EAGAIN -> bytes dropped) turn every
+/// exit path into one that always completes.
+#[cfg(unix)]
+pub(crate) fn set_fd_nonblocking(fd: libc::c_int) -> libc::c_int {
+    // SAFETY: fcntl(F_GETFL/F_SETFL) never blocks; both calls return
+    // -1 on failure, which is checked. `fd` is a numeric descriptor
+    // owned by the process (stdout/stderr, or a test pipe).
+    unsafe {
+        let flags = libc::fcntl(fd, libc::F_GETFL);
+        if flags < 0 {
+            return -1;
+        }
+        if libc::fcntl(fd, libc::F_SETFL, flags | libc::O_NONBLOCK) < 0 {
+            return -1;
+        }
+        flags
+    }
+}
+
+/// NIGHT-termux-hang: restore `fd` status flags previously saved by
+/// `set_fd_nonblocking`. No-op when the save returned -1 (nothing was
+/// changed, so nothing needs restoring).
+#[cfg(unix)]
+pub(crate) fn restore_fd_flags(fd: libc::c_int, flags: libc::c_int) {
+    if flags < 0 {
+        return;
+    }
+    // SAFETY: F_SETFL never blocks; `flags` came from F_GETFL on this
+    // same fd. Errors are discarded — the fd was valid a moment ago
+    // and the caller only uses this to return to normal blocking mode.
+    unsafe {
+        let _ = libc::fcntl(fd, libc::F_SETFL, flags);
+    }
+}
+
+/// NIGHT-termux-hang: best-effort raw-fd write — NEVER blocks, NEVER
+/// takes the std stdout/stderr lock.
+///
+/// The deadlock this exists for: a main-thread write() blocked on a
+/// full PTY holds the `std::io::stdout()` ReentrantMutex (std takes
+/// it per syscall). Any other thread that touches std::io::stdout() —
+/// the watchdog's is_terminal() probe, a signal path's restore —
+/// futex-wedges on that lock forever, so nothing ever enforces the
+/// exit. This helper writes straight to the numeric fd instead: with
+/// O_NONBLOCK set by the caller, the worst case is EAGAIN, and the
+/// remaining bytes are DROPPED (best-effort by contract — a dropped
+/// escape sequence is cosmetic, a blocked exit thread is the hang).
+/// EPIPE/EBADF (fd gone) also drop the remainder silently.
+#[cfg(unix)]
+pub(crate) fn write_fd_best_effort(fd: libc::c_int, bytes: &[u8]) {
+    let mut off = 0usize;
+    while off < bytes.len() {
+        // SAFETY: write() on a numeric fd the process owns; the
+        // caller set O_NONBLOCK so the worst case is an immediate
+        // EAGAIN. `n == 0` (nothing accepted) breaks like an error —
+        // retrying a zero-byte progress loop would spin.
+        let n = unsafe {
+            libc::write(
+                fd,
+                bytes[off..].as_ptr() as *const libc::c_void,
+                bytes.len() - off,
+            )
+        };
+        if n <= 0 {
+            return;
+        }
+        off += n as usize;
+    }
+}
+
 /// Check if an `io::Error` indicates the terminal (PTY) was closed/destroyed.
 ///
 /// Used by the main loop's `poll_event`/`read_event`/`draw` calls AND by the
@@ -197,5 +280,92 @@ mod p3_tests {
             assert!(f.write_all(b"").is_ok());
         }
         // No else: None is a valid outcome when no controlling terminal exists.
+    }
+
+    // ── NIGHT-termux-hang: the fd non-blocking helpers ──────────────
+
+    /// SAFETY helper for the tests below: create a pipe, return
+    /// (read_fd, write_fd). The caller closes both ends.
+    #[cfg(unix)]
+    fn test_pipe() -> (libc::c_int, libc::c_int) {
+        // SAFETY: pipe() writes two valid fds into the array on
+        // success; the test aborts if it fails.
+        unsafe {
+            let mut fds = [0 as libc::c_int; 2];
+            assert_eq!(libc::pipe(fds.as_mut_ptr()), 0, "pipe() failed");
+            (fds[0], fds[1])
+        }
+    }
+
+    /// The contract the Termux fix stands on: with O_NONBLOCK set, a
+    /// write into a FULL pipe returns EAGAIN immediately instead of
+    /// parking the thread forever. This is the property the watchdog
+    /// and signal exit paths rely on to never deadlock on a jammed
+    /// PTY (a full PTY slave behaves the same way).
+    #[cfg(unix)]
+    #[test]
+    fn termux_hang_nonblocking_write_on_full_pipe_returns_eagain() {
+        let (r, w) = test_pipe();
+        // The read end stays OPEN (a live-but-not-draining reader —
+        // exactly Termux's paused PTY master). A closed read end would
+        // give EPIPE, which is a different (already-handled) path.
+        let prev = set_fd_nonblocking(w);
+        assert!(prev >= 0, "set_fd_nonblocking failed on a fresh pipe");
+        // Fill the pipe: a 1 MB write into a ~64 KB pipe with a
+        // non-draining reader returns the partial count (the pipe
+        // accepted exactly its capacity).
+        // SAFETY: write() on our own pipe fd; return value checked.
+        let n = unsafe { libc::write(w, b"x".as_ptr() as *const libc::c_void, 1024 * 1024) };
+        assert!(
+            n > 0,
+            "the first write must partially fill the pipe, got {n}"
+        );
+        // The pipe is now full. The next write must fail FAST with
+        // EAGAIN — not block. This is the whole point of the fix.
+        // SAFETY: write() on our own pipe fd; return value checked.
+        let n = unsafe { libc::write(w, b"x".as_ptr() as *const libc::c_void, 1) };
+        assert_eq!(n, -1, "a write into a full pipe must fail, not block");
+        assert_eq!(
+            std::io::Error::last_os_error().raw_os_error(),
+            Some(libc::EAGAIN),
+            "the failure must be EAGAIN (non-blocking), not a hang or a close"
+        );
+        restore_fd_flags(w, prev);
+        // SAFETY: closing our own test fds.
+        unsafe {
+            libc::close(r);
+            libc::close(w);
+        }
+    }
+
+    /// Flags round-trip: set_fd_nonblocking returns the saved flags and
+    /// restore_fd_flags puts them back (the O_NONBLOCK bit is gone).
+    #[cfg(unix)]
+    #[test]
+    fn termux_hang_fd_flags_round_trip() {
+        let (r, w) = test_pipe();
+        // SAFETY: F_GETFL on our own pipe fd.
+        let before = unsafe { libc::fcntl(w, libc::F_GETFL) };
+        let prev = set_fd_nonblocking(w);
+        assert!(prev >= 0);
+        assert_eq!(prev, before, "the saved flags must be the pre-set state");
+        restore_fd_flags(w, prev);
+        // SAFETY: F_GETFL on our own pipe fd.
+        let after = unsafe { libc::fcntl(w, libc::F_GETFL) };
+        assert_eq!(after, before, "flags must round-trip to the original");
+        // SAFETY: closing our own test fds.
+        unsafe {
+            libc::close(r);
+            libc::close(w);
+        }
+    }
+
+    /// A broken fd degrades, never panics: set_fd_nonblocking returns
+    /// -1 and restore_fd_flags is a no-op.
+    #[cfg(unix)]
+    #[test]
+    fn termux_hang_bad_fd_returns_minus_one() {
+        assert_eq!(set_fd_nonblocking(-1), -1);
+        restore_fd_flags(-1, -1);
     }
 }
