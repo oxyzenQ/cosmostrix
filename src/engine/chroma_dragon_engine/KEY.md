@@ -8,6 +8,19 @@
 
 ## LOCK
 
+> NIGHT-hunter-34 round re-lock (2026-09-12, locked tree at commit
+> `1007714`): zero chroma engine source changes this session
+> (verified: git log 9c36a049..1007714 touches no
+> src/engine/chroma_dragon_engine file beyond the depthtest-3
+> retroactive unlock noted below). The color-bg/default-background
+> residue root cause lived entirely in the cosmic terminal diff
+> renderer (shadow honesty), not in palette construction —
+> build_palette's bg=None contract is unchanged and now provably
+> reaches the wire through the fixed emitter. 12/12 tuning constants
+> untouched; OKLab pipeline untouched. Dragon stays LOCKED.
+>
+> Signoff: **oxyzenQ** -- 2026-09-12 -- NIGHT-hunter-34 round, chroma leg, lock intact (retroactive depthtest-3 unlock noted)
+
 > S-night-R7 LTS visual-impact re-verification (2026-09-11, commit
 > 3df685f, R1-R8 combined final audit): the masterclass axis
 > re-verified at HEAD after the hunt-31/32 and depthtest-2 rounds.
@@ -244,6 +257,32 @@
 
 ## UNLOCK
 >
+> **UNLOCK chroma-dragon (retroactive, depthtest-3)** at commits
+> `164d37d` + `f04cd61`, 2026-09-11
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: NIGHT-depthtest-3 (owner brief: oversized
+> colors-custom/scene-custom block names were silently skipped —
+> they must be a hard error with a diagnostic). The same-commit KEY
+> entry was missed (the c1c7779 precedent documents this failure
+> mode; future unlocks MUST include the entry in the same commit).
+> Retroactively documented here so the lock audit trail is complete.
+>
+> **Files changed** (locked path — validation hardening, no pipeline
+> math):
+> - `colors_custom.rs` (oversized block/name validation: silent skip
+>   -> hard error with diagnostic)
+> - `colors_custom/name_len.rs` (shared name-length limit helpers +
+>   tests)
+>
+> **A/B delta**: none — the validation path runs at config-parse
+> time, zero per-frame surface.
+>
+> **Tests**: covered by the depthtest-3 e2e harness
+> (scripts/depthtest3_config_e2e.py) + unit tests in name_len.rs.
+>
+> Signoff: **oxyzenQ** -- 2026-09-12 -- retroactive depthtest-3 unlock entry, re-locked
+
 > **UNLOCK chroma-dragon (comment-only)** at commit `a5b9345`, 2026-08-24T00:30:00Z
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)

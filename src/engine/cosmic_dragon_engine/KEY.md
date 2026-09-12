@@ -8,6 +8,31 @@
 
 ## LOCK
 
+> NIGHT-hunter-34 re-lock (2026-09-12, locked tree at commit `1007714`
+> — this round's only engine commit; see the UNLOCK entry below for
+> the full record). Owner report: four residue reproductions under
+> `color-bg = "default-background"` (intro rain stuck, 'x'/'X'
+> scene-switch garbage, 'r' restart residue, live-reload black ->
+> default leaving black cells behind the moving rain; all clean
+> under black). Root cause: `LastFrame::reuse_or_new` resets the
+> shadow to `Cell::blank_with_bg(None)` and the HUNT-27 cell-skip
+> then believed the blank shadow while the physical screen held the
+> old content — the whole family was masked under `bg = Some(black)`
+> because the reset cell differs and everything repaints by
+> accident. Fix: shadow-honesty `force_full_emit` flag (armed on
+> every shadow (re)creation, RIS reset, backpressure-suppressed
+> flush; consumed once by the full-redraw emit). Locked invariants
+> preserved: diff pipeline bounds, LastFrame dimension coherence,
+> generation counter, Cloud::reset consistency, easing family — the
+> change is additive (one bool + one skip-guard + one re-read) and
+> the HUNT-25 idle-resync zero-emit contract is untouched. Evidence:
+> PTY E2E harness (4 owner scenarios + restart variant) 39/195/141/
+> 2554/2352 stuck cells before, 0/0/<=2/0/0 after; 4 new unit tests
+> (cbg34_tests); full binary suite 2867/0/2; A/B 10s (cinematic +
+> monolith x2) flat within +/-0.4% noise. Dragon re-locked.
+>
+> Signoff: **oxyzenQ** -- 2026-09-12 -- NIGHT-hunter-34 shadow-honesty unlock+re-lock, cosmic terminal files
+
 > S-night-R8 3-dragon harmony re-verification (2026-09-11, commit
 > 3df685f, R1-R8 combined final audit): the cosmic leg re-verified at
 > HEAD. ZERO cosmic engine source changes this session (verified by
@@ -191,6 +216,56 @@
 
 ## UNLOCK
 >
+> **UNLOCK cosmic-dragon (NIGHT-hunter-34 shadow honesty)** at commit
+> `1007714`, 2026-09-12
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: Owner-reported residue family under
+> `color-bg = "default-background"` (four reproductions, all clean
+> under black): physical screen residue survived every semantic event
+> — intro rain glyphs stuck after the logo cinematic, old-scene
+> glyphs stuck after 'x'/'X' scene switches and live-reload scene
+> edits, pre-restart glyphs stuck after 'r', black/custom bg cells
+> stuck behind the moving rain after color-bg live-reload changes.
+> Root cause: `LastFrame::reuse_or_new` resets the diff-renderer
+> shadow to `Cell::blank_with_bg(None)` on every shadow discard
+> (semantic_gen mismatch, resize, first draw); the HUNT-27
+> full-redraw cell-skip then treats frame-blank == shadow-blank as
+> nothing-to-emit while the physical screen still holds the old
+> content. Two same-family siblings hunted beyond the owner's list
+> (xterm.js hosts): backpressure-suppressed flush dropped frame bytes
+> after the shadow was updated; the RIS reset wiped the physical
+> screen while the shadow still described pre-RIS content.
+>
+> **Files changed** (locked path — production code):
+> - `terminal/last_frame.rs` (new `force_full_emit: bool` field,
+>   armed by `new` + `reuse_or_new`; contract docs)
+> - `terminal/draw.rs` (skip-guard `!force_emit_all`, re-read after
+>   the potential shadow reset, flag clear after the full emit,
+>   module docs)
+> - `terminal/io_recovery.rs` (backpressure + RIS arms)
+> - `terminal/mod.rs` (test-module wiring, 2 lines)
+>
+> **Files changed** (test only):
+> - `test/engine/cosmic_dragon_engine/terminal/cbg34_tests.rs` (4
+>   tests pinning the shadow-side flag contract)
+>
+> **Files changed** (non-locked, supporting):
+> - `scripts/night_cbg34_e2e.py` (PTY E2E harness)
+> - `benchmark/bench-labs/night_cbg34/*` (A/B evidence)
+> - `docs/RENDER_ENGINE.md` 2.8, `CHANGELOG.md`
+>
+> **A/B delta**: 10s benches (release, cinematic + monolith, 2 runs
+> each): fps/entropy/gini/dirty-cells all within +/-0.4% (sandbox
+> noise band); the steady-state frame path is byte-identical plus
+> one false-bool check per full-redraw cell; the full-emit path runs
+> only on reset events.
+>
+> **Tests**: full binary suite 2867/0/2 (4 new); PTY E2E
+> night_cbg34_e2e.py all 5 scenarios PASS.
+>
+> Signoff: **oxyzenQ** -- 2026-09-12 -- NIGHT-hunter-34 unlock, re-locked same commit
+
 > **UNLOCK cosmic-dragon (retroactive)** at commit `e564eb3`, 2026-08-26
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)

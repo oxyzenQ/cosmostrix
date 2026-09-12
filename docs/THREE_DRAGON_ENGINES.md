@@ -82,6 +82,50 @@ v80.0.0-alpha.1 both timing knobs are tunable (keep snapback <
 | `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |
 | `ambient_diag.rs` | Diagnostics counters (exit summary) |
 
+## Lock status + commit history (v100 LTS)
+
+All three dragons are LOCK-protocol engines: each engine's
+`KEY.md` (simplified signature log) and `RULES.md` (full unlock
+detail) record every lock/unlock round, signed oxyzenQ. Any commit
+that touches a locked engine folder after its lock boundary MUST
+carry an UNLOCK entry in the same commit (the `c1c7779` and
+depthtest-3 retroactive entries document the failure mode when it
+does not).
+
+Current lock round (2026-09-12, locked tree `1007714`):
+
+| Engine | Path | Status | Lock entry |
+|---|---|---|---|
+| Cosmic | `src/engine/cosmic_dragon_engine/` | LOCKED (hunter-34 unlock + re-lock: terminal shadow honesty) | `KEY.md` top |
+| Chroma | `src/engine/chroma_dragon_engine/` | LOCKED (lock intact; retroactive depthtest-3 unlock noted) | `KEY.md` top |
+| Crystal | `src/engine/crystal_dragon_engine/` | LOCKED (lock intact, zero commits since S-night-R8) | `KEY.md` top |
+
+### The simple history method (owner request 2026-09-12)
+
+One git command shows every commit that ever touched the dragon
+engine folders:
+
+```bash
+git log --oneline -- \
+  src/engine/chroma_dragon_engine \
+  src/engine/cosmic_dragon_engine \
+  src/engine/crystal_dragon_engine
+```
+
+The convenience wrapper (recommended — it also carries the lock
+boundary and the audit view):
+
+```bash
+./scripts/dragon-history.sh                # full history, all engines (newest first)
+./scripts/dragon-history.sh --since-lock   # engine commits since LOCK_AT — each needs an UNLOCK entry
+./scripts/dragon-history.sh --per-engine   # per-engine last commit + count
+./scripts/dragon-history.sh 9c36a049..HEAD # any commit range
+```
+
+Update `LOCK_AT` in `scripts/dragon-history.sh` every time a new
+lock round is signed, so `--since-lock` stays the authoritative
+audit trail for the frozen core.
+
 ---
 
 *Rezky / oxyzenQ — 2026*

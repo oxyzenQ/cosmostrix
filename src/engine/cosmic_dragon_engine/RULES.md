@@ -93,6 +93,52 @@ The lock is intentionally hard to break. Acceptable reasons include:
 This section is appended every time a locked file is modified after
 the lock commit. Newest entries go at the TOP.
 
+### UNLOCK cosmic-dragon (NIGHT-hunter-34 shadow honesty) at commit `1007714`, 2026-09-12
+
+**Author**: oxyzenQ (Cosmic Dragon AI Agent)
+**Reason**: Owner-reported residue family under
+`color-bg = "default-background"` (four reproductions, all clean
+under black). Root cause: `LastFrame::reuse_or_new` resets the
+diff-renderer shadow to `Cell::blank_with_bg(None)` on every shadow
+discard (semantic_gen mismatch, resize, first draw); the HUNT-27
+full-redraw cell-skip then treats frame-blank == shadow-blank as
+nothing-to-emit while the physical screen still holds the old
+content (intro rain, old-scene glyphs, a black/custom fill). Under
+`bg = Some(black)` the reset cell differs from the frame blank so
+everything repaints by accident — the family was invisible in
+black-mode testing. Two same-family siblings hunted beyond the
+owner's list (xterm.js hosts): the backpressure-suppressed flush
+dropped frame bytes after the shadow was updated (a permanent
+desync mis-documented as "a brief stutter"), and the RIS reset
+wiped the physical screen while the shadow still described the
+pre-RIS content.
+
+**Files changed** (locked path — production code):
+- `terminal/last_frame.rs` (new `force_full_emit: bool`, armed by
+  `new` + `reuse_or_new` + the two io-recovery arms; contract docs)
+- `terminal/draw.rs` (skip-guard `!force_emit_all` re-read AFTER the
+  potential shadow reset; flag cleared after the full emit)
+- `terminal/io_recovery.rs` (backpressure + RIS arms)
+- `terminal/mod.rs` (test-module wiring only)
+
+**Files changed** (test only): `test/engine/cosmic_dragon_engine/
+terminal/cbg34_tests.rs` (4 tests, the shadow-side flag contract).
+
+**A/B delta**: 10s release benches (cinematic + monolith, 2 runs
+each) — fps/entropy/gini/dirty-cells within +/-0.4% (noise); steady
+state is byte-identical plus one false-bool check per full-redraw
+cell. The full-emit path runs only on reset events. Evidence:
+`benchmark/bench-labs/night_cbg34/AB_REPORT.md`.
+
+**Tests**: full binary suite 2867/0/2 (+4 new);
+`scripts/night_cbg34_e2e.py` — the four owner scenarios + restart
+variant: baseline 39/195/141/2554/2352 stuck cells, fixed
+0/0/<=2/0/0.
+
+**Re-locked**: same commit (see `KEY.md` top LOCK entry).
+
+Signoff: **oxyzenQ** — 2026-09-12 — NIGHT-hunter-34 unlock, re-locked same commit
+
 ### UNLOCK cosmic-dragon (exp decay consolidation) at commit `5280ae1`, 2026-08-24
 
 **Author**: oxyzenQ (Cosmic Dragon AI Agent)

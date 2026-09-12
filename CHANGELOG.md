@@ -9,6 +9,27 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: 3-dragon lock round (hunter-34 re-lock) + the simple engine-history method
+
+- Owner request 2026-09-12: lock the three dragon engines after the
+  NIGHT-hunter-34 commit and provide a simple method to show the
+  commit history of the dragon engine folders via git log.
+- Lock round signed at tree `1007714`: cosmic re-locked after the
+  shadow-honesty unlock (terminal files — full UNLOCK entries in
+  `cosmic_dragon_engine/KEY.md` + `RULES.md`); chroma lock intact
+  with a retroactive depthtest-3 unlock entry (colors-custom
+  validation hardening, same-commit entry was missed — the c1c7779
+  failure mode); crystal lock intact (zero engine commits since
+  S-night-R8).
+- New: `scripts/dragon-history.sh` — the simple method: full engine
+  history, `--since-lock` audit trail (engine commits after LOCK_AT
+  each need an UNLOCK entry), `--per-engine` summary, and arbitrary
+  commit ranges. The raw one-liner is documented in
+  `docs/THREE_DRAGON_ENGINES.md` together with the lock status
+  table.
+- Docs-only + script change: no engine production code touched, no
+  benchmark (docs-only rule); gate-keepers 17/17.
+
 ### fix: NIGHT-hunter-34 — color-bg default-background residue family, shadow honesty for the terminal diff renderer
 
 - Owner report (2026-09-12, four reproductions on v100.0.0-beta.1):

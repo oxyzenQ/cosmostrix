@@ -8,6 +8,17 @@
 
 ## LOCK
 
+> NIGHT-hunter-34 round re-lock (2026-09-12, locked tree at commit
+> `1007714`): zero crystal engine source changes since the S-night-R8
+> lock (verified: git log 9c36a049..1007714 — no
+> src/engine/crystal_dragon_engine commits). The color-bg residue
+> root cause lived in the cosmic terminal diff renderer (shadow
+> honesty), not in drift/ambient scheduling — the delegation chain
+> (crystal_dragon_tick -> set_color_scheme -> build_palette ->
+> apply_tune -> transition wave) is untouched. Dragon stays LOCKED.
+>
+> Signoff: **oxyzenQ** -- 2026-09-12 -- NIGHT-hunter-34 round, crystal leg, lock intact
+
 > S-night-R8 3-dragon harmony re-verification (2026-09-11, commit
 > 3df685f, R1-R8 combined final audit): the crystal leg re-verified
 > at HEAD. ZERO crystal engine source changes this session (git log
