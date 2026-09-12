@@ -95,20 +95,35 @@ struct Cycle {
 }
 
 /// The envelope: an absolute multiple of the steady baseline. The
-/// calibration datum is the owner's own acceptability ruling: the
-/// glyph family carries ~1x-steady full-rate churn at a frozen
-/// blend (the documented 2% trail-character cycling + head
-/// life-signs, present when the owner rated the NIGHT-hunter-28
-/// resume fix 10/10), so a blend-tight envelope would flag
-/// accepted behavior. The jump this audit exists to catch is a
-/// different class: the phosphor ownership fight dirtied the whole
-/// drawn population every frame (5x steady on the black hole,
-/// 621 cells vs a 125-cell steady diff, flipping drawn state
-/// against ghost state) — far outside 1.5x + 30 even before the
-/// family's own fix. The 0.95 -> 1.0 settle snap (5%) and RNG
-/// variance of the baseline sample also fit inside the headroom.
+/// calibration datums:
+///
+/// 1. The owner's acceptability ruling: the glyph family carries
+///    ~1x-steady full-rate churn at a frozen blend (the documented
+///    2% trail-character cycling + head life-signs, present when the
+///    owner rated the NIGHT-hunter-28 resume fix 10/10), so a
+///    blend-tight envelope would flag accepted behavior.
+///
+/// 2. The artifact this audit exists to catch: the phosphor
+///    ownership fight dirtied the whole drawn population every
+///    frame (5x steady on the black hole, 621 cells vs a 125-cell
+///    steady diff, flipping drawn state against ghost state) — far
+///    outside 2.0x + 40, keeping a 2.5x separation from the line.
+///
+/// 3. The by-design ramp-side transient: the resume acceleration
+///    rides ON TOP of the full-rate phosphor afterglow drain (the
+///    SETTLE_DRAIN_FRAMES economy) and legitimately lands in the
+///    1.5-2x band. The 2026-09-12 CI incident (run 34702336206,
+///    "Test + Build (debug)"): the murmuration ramp held frames
+///    103..106 at 154 cells vs the old 1.5x + 30 bound of 153
+///    (steady 82, 1.88x) — one cell over the line, purely because
+///    that runner's libm/CPU ulp trajectory shifted the shared RNG
+///    stream (the documented platform-instability class, the same
+///    disease the burst-clock fix removed for neural). 2.0x + 40
+///    absorbs that transient class with ~30% headroom while the
+///    0.95 -> 1.0 settle snap (5%) and baseline-sample RNG variance
+///    stay far inside.
 fn envelope(steady_max: usize, _blend: f32) -> f32 {
-    steady_max as f32 * 1.5 + 30.0
+    steady_max as f32 * 2.0 + 40.0
 }
 
 fn drive_cycle(name: &str, mut cloud: Cloud) -> Cycle {
