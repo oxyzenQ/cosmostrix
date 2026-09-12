@@ -17,9 +17,7 @@
 
 use rand::distr::Distribution;
 
-use crate::constants::{
-    NEUR_BURST_INPUTS, NEUR_FANOUT, NEUR_REFRACTORY, NEUR_THRESHOLD, NEUR_WIRE_STAGGER_WINDOW,
-};
+use crate::constants::{NEUR_BURST_INPUTS, NEUR_FANOUT, NEUR_REFRACTORY, NEUR_WIRE_STAGGER_WINDOW};
 
 use super::genesis::GenesisPhase;
 use super::network::{pulse_speed, NeuralRandom, Synapse};
@@ -30,7 +28,12 @@ impl NeuralRain {
     /// arms the wire sweep (the staggered growth), the Thought
     /// entry completes the wiring (the deterministic no-seam
     /// handoff) and fires the first cascade.
-    pub(super) fn run_phase_seam(&mut self, phase: GenesisPhase) {
+    ///
+    /// The seam passes need the RNG because a force-fire IS a
+    /// `fire_node` call (pulse-speed rolls down the fanout) — see
+    /// the Thought arm for why nothing may prime potentials
+    /// instead of firing.
+    pub(super) fn run_phase_seam(&mut self, phase: GenesisPhase, random: &mut NeuralRandom<'_>) {
         match phase {
             GenesisPhase::Wire => {
                 // The build completes: any neurons the rain has
@@ -70,14 +73,25 @@ impl NeuralRain {
                     s.grown = 1.0;
                     s.grow_delay = 0.0;
                 }
+                // Force-FIRE the input clump directly. The old
+                // priming (`potential = NEUR_THRESHOLD`, `refract
+                // = 0`) could never survive its own frame: the
+                // physics pass runs BEFORE the firing gate and
+                // its leak pulled the primed potential back under
+                // the threshold, so the cascade only fired when a
+                // capture or spont kick happened to land on a
+                // primed node in the same window — a rescue dice
+                // roll that platform libm ulp differences (the
+                // shared RNG stream shift) finally lost on the
+                // MSRV CI runner. Calling fire_node makes the
+                // cascade deterministic by construction and
+                // launches the pulse wave the seam always promised.
                 let input_n = self.geom.nodes_per_layer.first().copied().unwrap_or(0);
                 let clamped = input_n.clamp(1, NEUR_BURST_INPUTS);
                 for i in 0..clamped {
-                    if let Some(n) = self.nodes.get_mut(i) {
-                        if n.active {
-                            n.potential = NEUR_THRESHOLD;
-                            n.refract = 0.0;
-                        }
+                    let active = self.nodes.get(i).is_some_and(|n| n.active);
+                    if active {
+                        self.fire_node(i, random);
                     }
                 }
             }
@@ -121,6 +135,14 @@ impl NeuralRain {
     /// The thought burst (the drama event): a clump of inputs
     /// force-fires together — the wave crosses the machine (the
     /// murmuration startle's heir).
+    ///
+    /// Force-fire means `fire_node`, never potential-priming: the
+    /// physics pass leaks potentials before the firing gate reads
+    /// them, so a primed node only fired when a rescue kick
+    /// (capture, spont) landed on it by luck — the MSRV CI flake
+    /// (`neur_burst_clock_fires_volleys` zero fires after an armed
+    /// burst). The direct call guarantees the volley and its pulse
+    /// wave on every platform.
     pub(super) fn fire_burst(&mut self, random: &mut NeuralRandom<'_>) {
         let input_n = self.geom.nodes_per_layer.first().copied().unwrap_or(0);
         if input_n == 0 {
@@ -130,11 +152,9 @@ impl NeuralRain {
         for _ in 0..count {
             let roll = random.rand_chance.sample(random.rng);
             let idx = (roll * input_n as f32) as usize % input_n;
-            if let Some(n) = self.nodes.get_mut(idx) {
-                if n.active {
-                    n.potential = NEUR_THRESHOLD;
-                    n.refract = 0.0;
-                }
+            let active = self.nodes.get(idx).is_some_and(|n| n.active);
+            if active {
+                self.fire_node(idx, random);
             }
         }
     }

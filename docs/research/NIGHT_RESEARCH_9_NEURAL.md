@@ -143,6 +143,17 @@ the drama).
   thought. The idle machine shows sparse input fires; only the
   burst clock produces whole waves. This is the sparseness real
   networks have — and it keeps the pulse pool honest.
+- The force-fires (the Thought seam's first cascade, the burst
+  clock's volley) are direct fire_node calls, never
+  potential-priming. The physics pass leaks every potential
+  before the firing gate reads it, so a primed node sat just
+  under the threshold and only fired when a capture or spont
+  kick happened to land on it in the window — a rescue dice
+  roll that platform libm ulp differences (the shared RNG
+  stream shift) lost on the MSRV CI runner: the armed burst
+  produced zero fires and the neur_burst_clock_fires_volleys
+  contract went red. Direct calls make the volley and the
+  money-shot cascade deterministic by construction.
 - The synapse pool is precomputed at reset (deterministic
   spread wiring, no RNG — the bench determinism contract) and
   the plasticity rewrites it in place: the rewire is a topology

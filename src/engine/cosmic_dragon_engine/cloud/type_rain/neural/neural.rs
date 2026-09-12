@@ -534,7 +534,7 @@ impl NeuralRain {
             self.genesis_t += dt_sim;
             let phase = self.phase();
             if phase != self.last_phase {
-                self.run_phase_seam(phase);
+                self.run_phase_seam(phase, random);
                 self.last_phase = phase;
             }
             if self.genesis_t >= genesis_total_secs() {
