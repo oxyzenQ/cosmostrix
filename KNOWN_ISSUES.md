@@ -439,6 +439,37 @@ stdout. Full catalog: `docs/USAGE_PIPE_REDIRECT.md`
 
 ---
 
+## All platforms: a config edit landing inside the cinematic intro window is absorbed by the watcher's initial snapshot
+
+### Symptom
+
+The live-reload watcher spawns only after the cinematic intro
+finishes (the intro owns the terminal before the rain loop starts).
+A config.toml edit that lands between process start and the watcher's
+initial file snapshot is silently folded into that snapshot: the
+startup values keep rendering, no rebuild fires, and the edit appears
+lost until the next edit (any later change re-parses the whole file,
+so the earlier keys apply then). With the default intro the window
+is roughly 4 seconds.
+
+### Hazard
+
+Low. The edit is not corrupted and the render state is not wrong —
+the change is simply deferred indefinitely. Users who edit configs
+immediately after launch (scripted demo setups, config bots) will
+see the stale state and may misread it as a failed reload.
+
+### Workaround
+
+Set `intro = "none"` in config.toml (or pass a CLI flag that skips
+the intro) before scripting rapid start-then-edit sequences; the
+harness `scripts/depthtest4_regression_e2e.py` does exactly this for
+its PTY probes. For manual use, wait until the rain is visible
+before editing the config. Found while designing the NIGHT-depthtest-4
+probe matrix (hunt-33, 2026-09-12).
+
+---
+
 ## Reporting new issues
 
 If you encounter an issue not listed here, please open a GitHub issue

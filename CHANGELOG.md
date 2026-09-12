@@ -29,6 +29,53 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 - Docs-only change: no source touched, no benchmark (docs-only
   rule).
 
+### test: NIGHT-depthtest-4 + hunt-33 — the v100 LTS quick regression matrix, 25 automated probes over the historical A1-J1 bug list
+
+- Owner brief: the historical bug list (broken pipe, CLI typo tips,
+  crystal-dragon-secs, config/CLI/ambient precedence, scene-custom
+  and colors-custom validation, final runtime state completeness,
+  symbol-only output, charset-custom edge cases, color-tune lock,
+  scene-custom block simplification) was fixed across v50-v100;
+  re-verify it quickly before the stable LTS cut instead of an
+  evening of manual terminal babysitting.
+- New: `scripts/depthtest4_regression_e2e.py` — one fast probe per
+  bug, mapped by id (A1-J1). Phase A asserts validation-surface
+  contracts (exit code 2 + exact stderr messages: unknown color,
+  BUILT-IN hints, incomplete-block missing-dimension lists, legacy
+  key removal hints, wide-char set errors, ambient scene-name
+  validation, human-duration secs parsing, custom block listing).
+  Phase B drives the real binary through a PTY (intro disabled so
+  the watcher spawns immediately) and asserts the runtime contracts:
+  cadence 3.0s dump, live-reload bold/fps edits surfacing as
+  was-annotations in the final runtime state, the v80 masterclass
+  temporal precedence (present config key wins over the CLI lock,
+  scene switch under a CLI color lock), the color-tune contract,
+  custom-scene loading with block-owned fps, ambient startup
+  deferral trace, and the symbol-only warning prefix with zero icon
+  glyphs in the stream. Phase C verifies broken-pipe graceful exits
+  (doctor/version piped into head). Full run: 25/25 probes PASS
+  against v100.0.0-beta.1 in ~41 seconds.
+- hunt-33 code audit: every fix site re-verified in source (master
+  snapshot diffing in `interactive/final_state.rs`, EPIPE-safe
+  `println_safe!` in `output/mod.rs`, the `SCENE_CUSTOM_FIELDS`
+  allowlist with the seven required dimensions, the temporal
+  precedence engine in `config/live_config/mod.rs`, the
+  `validate_field_value_with_cfg` custom-reference validators, and
+  the `notify` hybrid watcher with its 750ms content-hash
+  heartbeat).
+- New finding (low severity, documented): a config edit landing
+  inside the cinematic intro window is absorbed by the watcher's
+  initial snapshot — the edit is deferred until the next change.
+  KNOWN_ISSUES.md gained the section with the workaround
+  (`intro = "none"` for scripted start-then-edit sequences).
+- Note for the manual checklist: the I1 expectation in the owner's
+  historical matrix ("CLI wins permanently") predates the v80
+  masterclass temporal contract — current behavior (tested here and
+  in `tests_cli_fallback.rs`) is "present config key wins, commented
+  out falls back to the CLI lock". Flagged for the owner to confirm
+  the contract stands for LTS.
+- No source touched, no benchmark (test/docs-only rule).
+
 ### docs: NIGHT-docs-2 — the LTS docs completeness audit (source code = truth) and the stale-reference cleanup
 
 - Owner brief: all documents complete before the stable LTS
