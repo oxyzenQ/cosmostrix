@@ -115,6 +115,20 @@ the drama).
 
 ## Verification record
 
+- A/B bench evidence (2026-09-12, the force-fire fix round; local
+  debug profile, 10 s runs x3 per SHA, `--scene neural`, same
+  machine, COLORTERM=truecolor): c97f9aa -> 0a1df6a —
+  frame_entropy 4.758 -> 4.846 (+1.9%), density_gini 0.6951 ->
+  0.6771 (-2.6% — the volley spreads the activity more evenly
+  across the machine), color_transition_delta 41.2 -> 42.8 (+4%),
+  dirty cells/frame 40.7 -> 44.6 (+9.7% — the waves actually draw
+  now), avg_fps 11.1K -> 10.8K (-2.9%, the price of the extra
+  drawn cells). Run-to-run noise band is about +/-2%. The same
+  A/B across the jammed-PTY exit round (0a1df6a -> fbc73cd) kept
+  every metric inside that noise band: no render-path regression
+  (that round's changes live in the exit paths only, verified
+  functionally by scripts/termux_hang_harness.py: FAIL on the
+  pre-fix binary — jam + SIGTERM no-op — PASS 3/3 post-fix).
 - Local gates (this session, per the owner's light-verification
   mandate): cargo fmt --check clean; cargo clippy --all-targets
   --all-features -D warnings clean; check-rs-loc.sh OK (all
