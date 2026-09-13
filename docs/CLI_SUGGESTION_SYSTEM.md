@@ -177,10 +177,14 @@ The suggestion engine is stresstested at two levels:
 ### 5b. End-to-end stresstest script (`scripts/cli_suggestion_stresstest.sh`)
 
 Z-master-1X audit added a shell-based end-to-end stresstest that runs
-the actual `./target/debug/cosmostrix` binary with a battery of typo /
-wrong-value / edge-case inputs and verifies the output format. This
-catches integration issues the unit tests miss (clap's full error
-rendering, argv expansion, the ux-contract error shapes).
+the actual cosmostrix binary with a battery of typo / wrong-value /
+edge-case inputs and verifies the output format. This catches
+integration issues the unit tests miss (clap's full error rendering,
+argv expansion, the ux-contract error shapes). Binary resolution
+(NIGHT-hunt-35): `./target/debug/cosmostrix` preferred when present,
+`./target/release/cosmostrix` as the fallback, a clear error when
+neither exists — the old debug hard-pin made every case fail with a
+swallowed missing-binary message on a release-only checkout.
 
 Run it with:
 
@@ -189,7 +193,7 @@ cargo build --bin cosmostrix
 bash scripts/cli_suggestion_stresstest.sh
 ```
 
-26 cases covering:
+28 cases covering:
 
 - **Long-flag typos** (6 cases): `--no-effecs`, `--colr`, `--crystal-drago`,
   `--msg-fill-styl`, `--verbos`, `--power-drago` — each must produce
@@ -211,12 +215,19 @@ bash scripts/cli_suggestion_stresstest.sh
   a malformed config line stays footer-less (the config-file family
   keeps the die_config shape — see the `die_config_apply_error`
   classifier in `src/cli/ux.rs`).
+- **dump-config I/O failure** (2 cases): `--dump-config` into a path
+  whose parent component is a file (deterministic `NotADirectory`
+  trigger, no permission juggling) → guided `cannot write
+  --dump-config` error with the tip/footer — the I/O arm moved from
+  the footer-less die_config family to die_input (owner hunt
+  2026-09-04) — plus the retry-guidance + footer companion case.
 - **Case-insensitive flag rescue** (3 cases): `--LIS` suggests
   `--list-scenes`, `--HELPSS` suggests `--help` (both scored zero
   under clap's case-sensitive Jaro), and `--x` stays tip-less
   (silence parity with clap — single chars never clear 0.7).
 
-Last stresstest run: 26/26 PASS. The script is part of the gatekeeper
+Last stresstest run: 28/28 PASS (re-verified in the NIGHT-hunt-35
+script-fleet audit, 2026-09-13). The script is part of the gatekeeper
 suite (bash -n syntax-checked; run manually before releases).
 
 ## 6. Migration from `Did you mean`
