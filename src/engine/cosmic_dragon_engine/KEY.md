@@ -216,6 +216,130 @@
 
 ## UNLOCK
 >
+> **UNLOCK cosmic-dragon (retroactive, NIGHT-hunt-36 stuck-cell sweep)** at
+> commit `c523de9`, 2026-09-13
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: the retroactive entry documents a lock-protocol miss, not a
+> hidden change — the commit carried full tests/evidence but no UNLOCK
+> entry in this file (the c1c7779 failure mode). Owner report
+> (NIGHT-hunt-36): glyph rain cells near the top/bottom of the screen
+> stayed stuck for a long time, needing another droplet hit (or a long
+> wait) to clear. Root cause 1: the stuck-cell sweep kept a
+> whole-function message gate (`if !self.message.is_empty() { return; }`)
+> while the default interactive config always carries the built-in
+> fallback message, so the sweep NEVER executed on any default run —
+> hunt-17 and hunt-32 had removed the other gates; this was the last.
+> Root cause 2 (hunted while fixing 1): the sweep read
+> `self.phosphor[i]` with the frame's row-major walk index into the
+> COLUMN-major phosphor arrays — live decaying ghosts whose transposed
+> slot held energy were skipped while real orphans survived, and cells
+> whose transposed slot sat at zero were force-cleared while their own
+> slot carried live energy (phosphor afterglow flickering off). The
+> sweep was the only transposition site in the codebase (audited).
+>
+> **Files changed** (locked path — production code):
+> - `cloud/mod.rs` (4 new `message_sweep_top/bottom/left/right` rectangle
+>   fields, half-open bounds, no per-frame cost)
+> - `cloud/phosphor_anomaly.rs` (sweep: message gate removed, per-cell
+>   rectangle exemption, correct column-major pidx, 2D coords hoisted)
+> - `cloud/reset_message.rs` (`relayout_message` caches the rectangle for
+>   BOTH the bordered and borderless layouts, collapses when the box does
+>   not fit / no message)
+>
+> **Files changed** (test only):
+> - `cloud/tests/mod.rs`, `cloud/tests/tests_stuck_cells_hunt36.rs` (6 new
+>   regression tests), `cloud/tests/tests_phosphor_sweep.rs` +
+> `cloud/tests/tests_resync_hunt25.rs` (2 stale tests rewritten to the new
+> rectangle contract — they had pinned the old whole-function gate and the
+> transposition-bug clear counts)
+>
+> **Locked invariants preserved**: diff pipeline bounds, LastFrame
+> dimension coherence, generation counter, Cloud::reset consistency,
+> easing family — the change is additive (4 plain fields + a sweep-local
+> gate/pidx fix); the thirteen structured styles return before the sweep
+> path (hunt-32 droplet-family gate), so cross-style exposure is the pure
+> field write in `relayout_message`.
+>
+> **A/B delta**: 10s benches (baseline da449a0 vs fix c523de9, cinematic +
+> monolith, 2 runs each): fps/density-gini/frame-entropy/dirty-cells all
+> within 1% (sandbox noise band); bench mode disables the sweep + overlay,
+> so the steady-state frame path is untouched.
+>
+> **Tests**: full binary suite 2879/0/0.
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-hunt-36 retroactive unlock
+>
+> **UNLOCK cosmic-dragon (retroactive, NIGHT-termux-hang jammed-PTY exits)** at
+> commit `fbc73cd`, 2026-09-12
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: owner report (Termux, Android screen lock): screen frozen, no
+> shortcut answered, SIGTERM a no-op, only kill -9 worked. Root cause
+> (traced via /proc task syscalls on a never-drained PTY): when Termux
+> stops draining its PTY master, the slave buffer fills and the main
+> thread parks inside write(2) WHILE HOLDING the std stdout
+> ReentrantMutex; every enforcement path then futex-wedged on that lock.
+> Fix: every enforcement path is raw-fd and lock-free.
+>
+> **Files changed** (locked path — production code):
+> - `terminal/terminal_tty.rs` (new: set_fd_nonblocking /
+>   restore_fd_flags / write_fd_best_effort — raw fcntl + write() loop,
+>   EAGAIN/EPIPE drop, all unsafe FFI SAFETY-commented and
+>   runtime-verified in this depth round)
+> - `terminal/restore.rs` (force_exit_terminal_restored: O_NONBLOCK on
+>   fds 1+2, disable_raw_mode first, restore escapes + diagnostics
+>   written straight to the fds, unconditional exit;
+>   restore_terminal_best_effort_nonblocking)
+> - `terminal/mod.rs` (wiring, 8 lines)
+>
+> **Files changed** (non-locked, supporting): interactive/signal_handlers.rs,
+> interactive/watchdog.rs, docs/TERMINAL_KILL_CLEANUP.md,
+> scripts/termux_hang_harness.py (PTY harness).
+>
+> **Locked invariants preserved**: diff pipeline bounds, LastFrame
+> dimension coherence, generation counter, Cloud::reset consistency,
+> easing family — the change is exit-path plumbing (raw-fd writes on
+> the enforcement paths), the render loop and diff pipeline untouched.
+>
+> **Tests**: termux_hang_harness.py (new PTY harness) + full suite green
+> at the commit round.
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-termux-hang retroactive unlock
+>
+> **UNLOCK cosmic-dragon (retroactive, neural force-fires fire directly)** at
+> commit `0a1df6a`, 2026-09-12
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: the neur_burst_clock_fires_volleys contract went red on the
+> MSRV CI job (armed burst, zero fires afterwards). Root cause:
+> fire_burst and the genesis Thought seam only PRIMED the input clump,
+> and the physics pass's leak pulled the primed potential back under
+> the threshold in the same frame — the force-fire only fired when a
+> capture or spont kick happened to land on the primed node inside the
+> window (a rescue dice roll whose trajectory shifts across platforms
+> via libm ulp differences shifting the shared RNG stream). Fix: both
+> force-fire sites call fire_node directly — the volley and the
+> cascade fire deterministically on every platform.
+>
+> **Files changed** (locked path — production code):
+> - `cloud/type_rain/neural/firing.rs` (fire_node direct calls at both
+>   force-fire sites)
+> - `cloud/type_rain/neural/neural.rs` (2 lines)
+>
+> **Files changed** (non-locked, supporting):
+> docs/research/NIGHT_RESEARCH_9_NEURAL.md (burst force-fire A/B
+> evidence recorded in the 20e06a9 round).
+>
+> **Locked invariants preserved**: diff pipeline bounds, LastFrame
+> dimension coherence, generation counter, Cloud::reset consistency,
+> easing family — neural-internal firing semantics only.
+>
+> **Tests**: the contract suite (neur_burst_clock_fires_volleys) green
+> on MSRV after the fix; full suite green at the commit round.
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- neural force-fire retroactive unlock
+>
 > **UNLOCK cosmic-dragon (NIGHT-hunter-34 shadow honesty)** at commit
 > `1007714`, 2026-09-12
 >
