@@ -676,11 +676,19 @@ fn black_hole_infall_lights_up_on_approach() {
     // Continue the timeline comfortably past the clock the harness
     // already advanced, and seed both timers one frame back so every
     // sampled frame sees a clean inter-frame delta (no catch-up gap).
+    // The far zone is crossing traffic, not constant occupancy: an
+    // unlucky spawn-scan stretch can leave the upper corners
+    // unvisited for seconds (observed once on CI, run 34738564865;
+    // 100 consecutive local runs stayed green). The window therefore
+    // extends past the original 200 frames while the far zone is
+    // still empty, hard-capped at 1000 frames (16 s of virtual rain)
+    // so a genuine no-traffic regression still fails the assert below.
     let start = Instant::now() + Duration::from_secs(30);
     cloud.last_spawn_time = start - Duration::from_millis(16);
     cloud.last_phosphor_time = start - Duration::from_millis(16);
-    for idx in 0..200u64 {
-        let now = start + Duration::from_millis(idx * 16);
+    let mut sampled = 0u64;
+    while sampled < 1000 && (sampled < 200 || far_count == 0) {
+        let now = start + Duration::from_millis(sampled * 16);
         cloud.rain_at(&mut frame, now);
         for cell in cloud.black_hole_rain.drawn_cells_for_test() {
             // The upper screen only (line <= cy + 3): the halo crowns,
@@ -702,6 +710,7 @@ fn black_hole_infall_lights_up_on_approach() {
             }
         }
         frame.clear_dirty();
+        sampled += 1;
     }
     // Both zones populated (the crowns + near rain in the near band,
     // the ambient rain passing the upper corners in the far band);
