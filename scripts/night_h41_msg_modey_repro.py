@@ -159,12 +159,12 @@ def main():
     # The owner's exact repro: `msg-modey = true` in config.toml.
     case_startup_rejects(
         "msg-modey = true (owner's exact repro)",
-        'msg-modey = true\n',
+        "msg-modey = true\n",
         "msg-modey",
     )
     case_testconf_rejects(
         "msg-modey = true (testconf already worked)",
-        'msg-modey = true\n',
+        "msg-modey = true\n",
         "msg-modey",
     )
 
@@ -181,7 +181,7 @@ def main():
     # fix is not specific to msg-modey.
     case_startup_rejects(
         "msg-mode + msg-modey both present",
-        'msg-mode = true\nmsg-modey = false\n',
+        "msg-mode = true\nmsg-modey = false\n",
         "msg-modey",
     )
 
@@ -190,14 +190,14 @@ def main():
     # at startup, not just at --testconf.
     case_startup_rejects(
         "duplicate msg-mode key (Layer 1.5)",
-        'msg-mode = true\nmsg-mode = false\n',
+        "msg-mode = true\nmsg-mode = false\n",
         "duplicate",
     )
 
     # Sanity: a known-good config still starts.
     case_startup_accepts(
         "msg-mode = true (known-good control)",
-        'msg-mode = true\n',
+        "msg-mode = true\n",
     )
 
     print("\n" + "=" * 60)

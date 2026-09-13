@@ -170,16 +170,16 @@ def main():
         print(f"binary not found: {BIN}")
         return 1
     print(f"binary: {BIN}")
-    print(f"=" * 80)
-    print(f"depth-test-config.py -- NIGHT-hunt-41 flagship supermassive E2E")
-    print(f"=" * 80)
+    print("=" * 80)
+    print("depth-test-config.py -- NIGHT-hunt-41 flagship supermassive E2E")
+    print("=" * 80)
 
     # Helper to build a known-good baseline (for sanity at the end).
     baseline = (
-        'msg-mode = true\n'
-        'fps = 60\n'
-        'speed = 9\n'
-        'density = 0.75\n'
+        "msg-mode = true\n"
+        "fps = 60\n"
+        "speed = 9\n"
+        "density = 0.75\n"
         'color = "green"\n'
         'charset = "hacker"\n'
         'scene = "cinematic"\n'
@@ -187,97 +187,179 @@ def main():
 
     # 1. Key typos (the owner's exact class).
     print("\n== 1. Key typos ==")
-    case('msg-modey = true (owner repro)',
-         'msg-modey = true\n', 'startup', 'fail', 'msg-modey')
-    case('msg-modey = true (testconf)',
-         'msg-modey = true\n', 'testconf', 'fail', 'msg-modey')
-    case('scenee = "cinematic"',
-         'scenee = "cinematic"\n', 'startup', 'fail', 'scenee')
-    case('colors2 = "green"',
-         'colors2 = "green"\n', 'startup', 'fail', 'colors2')
-    case('intro-colors = "logo"',
-         'intro-colors = "logo"\n', 'startup', 'fail', 'intro-colors')
-    case('fps2 = 60',
-         'fps2 = 60\n', 'startup', 'fail', 'fps2')
-    case('msg-fill-styl = "fade"',
-         'msg-fill-styl = "fade"\n', 'startup', 'fail', 'msg-fill-styl')
+    case(
+        "msg-modey = true (owner repro)",
+        "msg-modey = true\n",
+        "startup",
+        "fail",
+        "msg-modey",
+    )
+    case(
+        "msg-modey = true (testconf)",
+        "msg-modey = true\n",
+        "testconf",
+        "fail",
+        "msg-modey",
+    )
+    case('scenee = "cinematic"', 'scenee = "cinematic"\n', "startup", "fail", "scenee")
+    case('colors2 = "green"', 'colors2 = "green"\n', "startup", "fail", "colors2")
+    case(
+        'intro-colors = "logo"',
+        'intro-colors = "logo"\n',
+        "startup",
+        "fail",
+        "intro-colors",
+    )
+    case("fps2 = 60", "fps2 = 60\n", "startup", "fail", "fps2")
+    case(
+        'msg-fill-styl = "fade"',
+        'msg-fill-styl = "fade"\n',
+        "startup",
+        "fail",
+        "msg-fill-styl",
+    )
 
     # 2. Value typos for enum/string fields.
     print("\n== 2. Value typos (enum/string) ==")
-    case('msg-mode = truee (NIGHT-hunt-38 class)',
-         'msg-mode = truee\n', 'startup', 'fail', 'msg-mode')
-    case('msg-mode = truee (testconf)',
-         'msg-mode = truee\n', 'testconf', 'fail', 'msg-mode')
-    case('intro = logos',
-         'intro = "logos"\n', 'startup', 'fail', 'intro')
-    case('msg-fill-style = "fades"',
-         'msg-fill-style = "fades"\n', 'startup', 'fail', 'msg-fill-style')
-    case('color-bg = "blacks"',
-         'color-bg = "blacks"\n', 'startup', 'fail', 'color-bg')
-    case('glitch-level = "heavys"',
-         'glitch-level = "heavys"\n', 'startup', 'fail', 'glitch-level')
-    case('monolith-size = "bigs"',
-         'monolith-size = "bigs"\n', 'startup', 'fail', 'monolith-size')
+    case(
+        "msg-mode = truee (NIGHT-hunt-38 class)",
+        "msg-mode = truee\n",
+        "startup",
+        "fail",
+        "msg-mode",
+    )
+    case(
+        "msg-mode = truee (testconf)",
+        "msg-mode = truee\n",
+        "testconf",
+        "fail",
+        "msg-mode",
+    )
+    case("intro = logos", 'intro = "logos"\n', "startup", "fail", "intro")
+    case(
+        'msg-fill-style = "fades"',
+        'msg-fill-style = "fades"\n',
+        "startup",
+        "fail",
+        "msg-fill-style",
+    )
+    case('color-bg = "blacks"', 'color-bg = "blacks"\n', "startup", "fail", "color-bg")
+    case(
+        'glitch-level = "heavys"',
+        'glitch-level = "heavys"\n',
+        "startup",
+        "fail",
+        "glitch-level",
+    )
+    case(
+        'monolith-size = "bigs"',
+        'monolith-size = "bigs"\n',
+        "startup",
+        "fail",
+        "monolith-size",
+    )
 
     # 3. Value range violations.
     print("\n== 3. Value range violations ==")
-    case('fps = 99999 (over 240)',
-         'fps = 99999\n', 'startup', 'fail', 'fps')
-    case('fps = 0 (under 1)',
-         'fps = 0\n', 'startup', 'fail', 'fps')
-    case('speed = 1000 (over 100)',
-         'speed = 1000\n', 'startup', 'fail', 'speed')
-    case('speed = 0 (under 1)',
-         'speed = 0\n', 'startup', 'fail', 'speed')
-    case('density = 99.0 (over 5.0)',
-         'density = 99.0\n', 'startup', 'fail', 'density')
-    case('density = 0.0 (under 0.01)',
-         'density = 0.0\n', 'startup', 'fail', 'density')
+    case("fps = 99999 (over 240)", "fps = 99999\n", "startup", "fail", "fps")
+    case("fps = 0 (under 1)", "fps = 0\n", "startup", "fail", "fps")
+    case("speed = 1000 (over 100)", "speed = 1000\n", "startup", "fail", "speed")
+    case("speed = 0 (under 1)", "speed = 0\n", "startup", "fail", "speed")
+    case("density = 99.0 (over 5.0)", "density = 99.0\n", "startup", "fail", "density")
+    case("density = 0.0 (under 0.01)", "density = 0.0\n", "startup", "fail", "density")
 
     # 4. Value type mismatches.
     print("\n== 4. Value type mismatches ==")
-    case('fps = "fast" (string for numeric)',
-         'fps = "fast"\n', 'startup', 'fail', 'fps')
-    case('density = "high" (string for float)',
-         'density = "high"\n', 'startup', 'fail', 'density')
-    case('speed = "fast" (string for int)',
-         'speed = "fast"\n', 'startup', 'fail', 'speed')
+    case(
+        'fps = "fast" (string for numeric)', 'fps = "fast"\n', "startup", "fail", "fps"
+    )
+    case(
+        'density = "high" (string for float)',
+        'density = "high"\n',
+        "startup",
+        "fail",
+        "density",
+    )
+    case(
+        'speed = "fast" (string for int)',
+        'speed = "fast"\n',
+        "startup",
+        "fail",
+        "speed",
+    )
 
     # 5. Duplicate keys.
     print("\n== 5. Duplicate keys ==")
-    case('duplicate msg-mode key',
-         'msg-mode = true\nmsg-mode = false\n', 'startup', 'fail', 'duplicate')
-    case('duplicate msg-mode key (testconf)',
-         'msg-mode = true\nmsg-mode = false\n', 'testconf', 'fail', 'duplicate')
-    case('duplicate fps key',
-         'fps = 60\nfps = 30\n', 'startup', 'fail', 'duplicate')
+    case(
+        "duplicate msg-mode key",
+        "msg-mode = true\nmsg-mode = false\n",
+        "startup",
+        "fail",
+        "duplicate",
+    )
+    case(
+        "duplicate msg-mode key (testconf)",
+        "msg-mode = true\nmsg-mode = false\n",
+        "testconf",
+        "fail",
+        "duplicate",
+    )
+    case("duplicate fps key", "fps = 60\nfps = 30\n", "startup", "fail", "duplicate")
 
     # 6. Duplicate [section] headers.
     print("\n== 6. Duplicate [section] headers ==")
-    case('duplicate [scene-custom.x]',
-         '[scene-custom.x]\nrain = "glyph"\ncolor = "green"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n[scene-custom.x]\nrain = "monolith"\ncolor = "blue"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
-         'startup', 'fail', 'duplicate')
+    case(
+        "duplicate [scene-custom.x]",
+        '[scene-custom.x]\nrain = "glyph"\ncolor = "green"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n[scene-custom.x]\nrain = "monolith"\ncolor = "blue"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
+        "startup",
+        "fail",
+        "duplicate",
+    )
 
     # 7. Empty values.
     print("\n== 7. Empty values ==")
-    case('msg-mode = "" (empty)',
-         'msg-mode = ""\n', 'startup', 'fail', 'msg-mode')
+    case('msg-mode = "" (empty)', 'msg-mode = ""\n', "startup", "fail", "msg-mode")
 
     # 8. Separator typos (NIGHT-hunt-38).
     print("\n== 8. Separator typos (NIGHT-hunt-38) ==")
-    case('set == "x" (double equals)',
-         '[charset-custom.t]\nset == "x"\n', 'startup', 'fail', 'double')
-    case('msg-mode : true (colon separator)',
-         'msg-mode : true\n', 'startup', 'fail', "':'")
+    case(
+        'set == "x" (double equals)',
+        '[charset-custom.t]\nset == "x"\n',
+        "startup",
+        "fail",
+        "double",
+    )
+    case(
+        "msg-mode : true (colon separator)",
+        "msg-mode : true\n",
+        "startup",
+        "fail",
+        "':'",
+    )
 
     # 9. Header-only blocks (NIGHT-hunt-37 completeness).
     print("\n== 9. Header-only blocks (zero-entry) ==")
-    case('header-only [scene-custom.x]',
-         '[scene-custom.x]\n', 'startup', 'fail', 'incomplete')
-    case('header-only [colors-custom.x]',
-         '[colors-custom.x]\n', 'startup', 'fail', 'incomplete')
-    case('header-only [charset-custom.x]',
-         '[charset-custom.x]\n', 'startup', 'fail', 'incomplete')
+    case(
+        "header-only [scene-custom.x]",
+        "[scene-custom.x]\n",
+        "startup",
+        "fail",
+        "incomplete",
+    )
+    case(
+        "header-only [colors-custom.x]",
+        "[colors-custom.x]\n",
+        "startup",
+        "fail",
+        "incomplete",
+    )
+    case(
+        "header-only [charset-custom.x]",
+        "[charset-custom.x]\n",
+        "startup",
+        "fail",
+        "incomplete",
+    )
 
     # 10. Over-cap block counts (NIGHT-hunt-40: max 24).
     print("\n== 10. Over-cap block counts (max 24) ==")
@@ -285,38 +367,75 @@ def main():
         f'\n[colors-custom.p{i}]\nbg = "#0a0a0a"\nrain = "#111111, #222222"\n'
         for i in range(25)
     )
-    case('25 colors-custom blocks (over cap 24)',
-         over_cap_colors, 'startup', 'fail', '25 blocks')
-    case('25 colors-custom blocks (testconf)',
-         over_cap_colors, 'testconf', 'fail', '25 blocks')
+    case(
+        "25 colors-custom blocks (over cap 24)",
+        over_cap_colors,
+        "startup",
+        "fail",
+        "25 blocks",
+    )
+    case(
+        "25 colors-custom blocks (testconf)",
+        over_cap_colors,
+        "testconf",
+        "fail",
+        "25 blocks",
+    )
 
     # 11. Over-cap ambient entries (NIGHT-hunt-40: max 24).
     print("\n== 11. Over-cap ambient entries (max 24) ==")
     over_cap_ambient = "".join(
         f'ambient.{i // 5:02d}-{i % 5:02d} = "cinematic"\n' for i in range(25)
     )
-    case('25 ambient entries (over cap 24)',
-         over_cap_ambient, 'startup', 'fail', '25 entries')
+    case(
+        "25 ambient entries (over cap 24)",
+        over_cap_ambient,
+        "startup",
+        "fail",
+        "25 entries",
+    )
 
     # 12. Over-length block names (max 64 chars).
     print("\n== 12. Over-length block names (max 64 chars) ==")
     long_name = "x" * 65
-    case('65-char colors-custom name (over 64)',
-         f'[colors-custom.{long_name}]\nbg = "#0a0a0a"\nrain = "#111111, #222222"\n',
-         'startup', 'fail', '65')
+    case(
+        "65-char colors-custom name (over 64)",
+        f'[colors-custom.{long_name}]\nbg = "#0a0a0a"\nrain = "#111111, #222222"\n',
+        "startup",
+        "fail",
+        "65",
+    )
 
     # 13. Missing required fields.
     print("\n== 13. Missing required fields ==")
-    case('colors-custom without bg',
-         '[colors-custom.p]\nrain = "#111111, #222222"\n', 'startup', 'fail', 'bg')
-    case('colors-custom without rain',
-         '[colors-custom.p]\nbg = "#0a0a0a"\n', 'startup', 'fail', 'rain')
-    case('scene-custom missing rain (7-field contract)',
-         '[scene-custom.x]\ncolor = "green"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
-         'startup', 'fail', 'rain')
-    case('scene-custom missing color',
-         '[scene-custom.x]\nrain = "glyph"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
-         'startup', 'fail', 'color')
+    case(
+        "colors-custom without bg",
+        '[colors-custom.p]\nrain = "#111111, #222222"\n',
+        "startup",
+        "fail",
+        "bg",
+    )
+    case(
+        "colors-custom without rain",
+        '[colors-custom.p]\nbg = "#0a0a0a"\n',
+        "startup",
+        "fail",
+        "rain",
+    )
+    case(
+        "scene-custom missing rain (7-field contract)",
+        '[scene-custom.x]\ncolor = "green"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
+        "startup",
+        "fail",
+        "rain",
+    )
+    case(
+        "scene-custom missing color",
+        '[scene-custom.x]\nrain = "glyph"\ncharset = "hacker"\nfps = 60\nspeed = 9\ndensity = 0.75\nglitch-level = "subtle"\n',
+        "startup",
+        "fail",
+        "color",
+    )
 
     # 14. Invalid hex colors. (The startup validator rejects these
     # with rc=2, but the error wording is "needs 'bg'/'rain' field"
@@ -325,34 +444,67 @@ def main():
     # assertion only checks rc=2 here. The exact-message wording is a
     # separate UX concern, out of scope for NIGHT-hunt-41.)
     print("\n== 14. Invalid hex colors ==")
-    case('bg = "#zzzzzz" (invalid hex)',
-         '[colors-custom.p]\nbg = "#zzzzzz"\nrain = "#111111, #222222"\n', 'startup', 'fail')
-    case('rain = "not-a-color"',
-         '[colors-custom.p]\nbg = "#0a0a0a"\nrain = "not-a-color"\n', 'startup', 'fail')
+    case(
+        'bg = "#zzzzzz" (invalid hex)',
+        '[colors-custom.p]\nbg = "#zzzzzz"\nrain = "#111111, #222222"\n',
+        "startup",
+        "fail",
+    )
+    case(
+        'rain = "not-a-color"',
+        '[colors-custom.p]\nbg = "#0a0a0a"\nrain = "not-a-color"\n',
+        "startup",
+        "fail",
+    )
 
     # 15. Unknown scene in ambient.
     print("\n== 15. Unknown scene in ambient ==")
-    case('ambient.06-00 = "nonexistent_scene"',
-         'ambient.06-00 = "nonexistent_scene"\n', 'startup', 'fail', 'nonexistent_scene')
+    case(
+        'ambient.06-00 = "nonexistent_scene"',
+        'ambient.06-00 = "nonexistent_scene"\n',
+        "startup",
+        "fail",
+        "nonexistent_scene",
+    )
 
     # 16. Mixed-syntax garbage.
     print("\n== 16. Mixed-syntax garbage ==")
-    case('random text without key=value',
-         'this is just random text\n', 'startup', 'fail', 'malformed')
-    case('pasted URL (no key=value)',
-         'https://example.com/path\n', 'startup', 'fail', 'malformed')
+    case(
+        "random text without key=value",
+        "this is just random text\n",
+        "startup",
+        "fail",
+        "malformed",
+    )
+    case(
+        "pasted URL (no key=value)",
+        "https://example.com/path\n",
+        "startup",
+        "fail",
+        "malformed",
+    )
 
     # 17. Custom-block field typos.
     print("\n== 17. Custom-block field typos ==")
-    case('colors-custom.x.background instead of .bg',
-         '[colors-custom.p]\nbackground = "#0a0a0a"\nrain = "#111111, #222222"\n', 'startup', 'fail', 'background')
-    case('colors-custom.x.rainbows instead of .rain',
-         '[colors-custom.p]\nbg = "#0a0a0a"\nrainbows = "#111111, #222222"\n', 'startup', 'fail', 'rainbows')
+    case(
+        "colors-custom.x.background instead of .bg",
+        '[colors-custom.p]\nbackground = "#0a0a0a"\nrain = "#111111, #222222"\n',
+        "startup",
+        "fail",
+        "background",
+    )
+    case(
+        "colors-custom.x.rainbows instead of .rain",
+        '[colors-custom.p]\nbg = "#0a0a0a"\nrainbows = "#111111, #222222"\n',
+        "startup",
+        "fail",
+        "rainbows",
+    )
 
     # 18. Valid baseline (sanity).
     print("\n== 18. Valid baseline (sanity) ==")
-    case('known-good baseline (testconf)', baseline, 'testconf', 'pass')
-    case('known-good baseline (startup)', baseline, 'startup', 'pass')
+    case("known-good baseline (testconf)", baseline, "testconf", "pass")
+    case("known-good baseline (startup)", baseline, "startup", "pass")
 
     print("\n" + "=" * 80)
     print(f"depth-test-config.py results: {PASS_COUNT} PASS, {FAIL_COUNT} FAIL")
