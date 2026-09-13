@@ -65,6 +65,7 @@ run_case "valid custom palette" "benchmark" -- --config "$TMPDIR_TEST/valid.toml
 # Single stop (min is 2)
 cat >"$TMPDIR_TEST/single_stop.toml" <<'EOF'
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = ["#ff0000"]
 EOF
 run_case "single rain stop (min 2)" "error|at least 2" -- --config "$TMPDIR_TEST/single_stop.toml" --colors-custom test --benchmark --bench-duration 1s
@@ -72,6 +73,7 @@ run_case "single rain stop (min 2)" "error|at least 2" -- --config "$TMPDIR_TEST
 # Empty rain array
 cat >"$TMPDIR_TEST/empty_rain.toml" <<'EOF'
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = []
 EOF
 run_case "empty rain array" "error|at least 2" -- --config "$TMPDIR_TEST/empty_rain.toml" --colors-custom test --benchmark --bench-duration 1s
@@ -81,11 +83,12 @@ cat >"$TMPDIR_TEST/no_rain.toml" <<'EOF'
 [colors-custom.test]
 bg = "#0a0a0a"
 EOF
-run_case "missing rain field" "error|at least 2" -- --config "$TMPDIR_TEST/no_rain.toml" --colors-custom test --benchmark --bench-duration 1s
+run_case "missing rain field" "error|rain" -- --config "$TMPDIR_TEST/no_rain.toml" --colors-custom test --benchmark --bench-duration 1s
 
 # Invalid hex color
 cat >"$TMPDIR_TEST/bad_hex.toml" <<'EOF'
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = ["#gg0000", "#00ff00"]
 EOF
 run_case "invalid hex color" "error|invalid" -- --config "$TMPDIR_TEST/bad_hex.toml" --colors-custom test --benchmark --bench-duration 1s
@@ -93,6 +96,7 @@ run_case "invalid hex color" "error|invalid" -- --config "$TMPDIR_TEST/bad_hex.t
 # 3-char hex shorthand (#rgb)
 cat >"$TMPDIR_TEST/short_hex.toml" <<'EOF'
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = ["#f00", "#0f0", "#00f"]
 EOF
 run_case "3-char hex shorthand" "benchmark" -- --config "$TMPDIR_TEST/short_hex.toml" --colors-custom test --benchmark --bench-duration 1s
@@ -104,25 +108,54 @@ rain = [#ff0000, "#00ff00"]
 EOF
 run_case "unquoted hex (# comment)" "error" -- --config "$TMPDIR_TEST/unquoted.toml" --colors-custom test --benchmark --bench-duration 1s
 
-# 64 rain stops (max allowed)
-STOPS=$(printf '"#%02x%02x%02x",' $(seq 0 4 252) $(seq 0 4 252) $(seq 0 4 252) | sed 's/,$//')
+# 9 rain stops (max allowed — NIGHT-hunt-37: the OKLab engine resamples
+# every palette to 9 perceptual samples, so 9 is the ceiling)
+STOPS9=$(printf '"#%02x3333",' $(seq 1 9) | sed 's/,$//')
 cat >"$TMPDIR_TEST/max_stops.toml" <<EOF
 [colors-custom.test]
-rain = [$STOPS]
+bg = "#0a0a0a"
+rain = [$STOPS9]
 EOF
-run_case "64 rain stops (max)" "benchmark" -- --config "$TMPDIR_TEST/max_stops.toml" --colors-custom test --benchmark --bench-duration 1s
+run_case "9 rain stops (max)" "benchmark" -- --config "$TMPDIR_TEST/max_stops.toml" --colors-custom test --benchmark --bench-duration 1s
 
-# 65 rain stops (over max — should be bounded/truncated)
-STOPS65=$(printf '"#%02x0000",' $(seq 0 4 256) | sed 's/,$//')
+# 10 rain stops (over max — NIGHT-hunt-37: hard error, not a silent cap)
+STOPS10=$(printf '"#%02x3333",' $(seq 1 10) | sed 's/,$//')
 cat >"$TMPDIR_TEST/over_max.toml" <<EOF
 [colors-custom.test]
-rain = [$STOPS65]
+bg = "#0a0a0a"
+rain = [$STOPS10]
 EOF
-run_case "65 rain stops (over max)" "" -- --config "$TMPDIR_TEST/over_max.toml" --colors-custom test --benchmark --bench-duration 1s
+run_case "10 rain stops (over max)" "error|maximum is 9" -- --config "$TMPDIR_TEST/over_max.toml" --colors-custom test --benchmark --bench-duration 1s
+
+# The owner's NIGHT-hunt-37 repro: a 67-stop rain array must be rejected
+STOPS67=$(printf '"#%02x3333",' $(seq 1 67) | sed 's/,$//')
+cat >"$TMPDIR_TEST/owner67.toml" <<EOF
+[colors-custom.test]
+bg = "#0a0a0a"
+rain = [$STOPS67]
+EOF
+run_case "67 rain stops (owner repro)" "error|67 rain stops" -- --config "$TMPDIR_TEST/owner67.toml" --colors-custom test --benchmark --bench-duration 1s
+
+# Missing bg field (NIGHT-hunt-37: a block must be COMPLETE)
+cat >"$TMPDIR_TEST/no_bg.toml" <<'EOF'
+[colors-custom.test]
+rain = ["#ff0000", "#00ff00"]
+EOF
+run_case "missing bg field" "error|'bg'" -- --config "$TMPDIR_TEST/no_bg.toml" --colors-custom test --benchmark --bench-duration 1s
+
+# rain + stops overload (NIGHT-hunt-37: exactly one of them)
+cat >"$TMPDIR_TEST/overload.toml" <<'EOF'
+[colors-custom.test]
+bg = "#0a0a0a"
+rain = ["#ff0000", "#00ff00"]
+stops = ["#0000ff", "#ffffff"]
+EOF
+run_case "rain + stops overload" "error|both 'rain'" -- --config "$TMPDIR_TEST/overload.toml" --colors-custom test --benchmark --bench-duration 1s
 
 # Nonexistent custom palette name
 cat >"$TMPDIR_TEST/nonexist.toml" <<'EOF'
 [colors-custom.exists]
+bg = "#0a0a0a"
 rain = ["#ff0000", "#00ff00"]
 EOF
 run_case "nonexistent palette name" "error|not found|unknown" -- --config "$TMPDIR_TEST/nonexist.toml" --colors-custom nonexistent --benchmark --bench-duration 1s
@@ -130,12 +163,14 @@ run_case "nonexistent palette name" "error|not found|unknown" -- --config "$TMPD
 # Duplicate palette names (last wins in TOML)
 cat >"$TMPDIR_TEST/dup_names.toml" <<'EOF'
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = ["#ff0000", "#00ff00"]
 
 [colors-custom.test]
+bg = "#0a0a0a"
 rain = ["#0000ff", "#ffffff"]
 EOF
-run_case "duplicate palette names" "" -- --config "$TMPDIR_TEST/dup_names.toml" --colors-custom test --benchmark --bench-duration 1s
+run_case "duplicate palette names" "error|defined more than once" -- --config "$TMPDIR_TEST/dup_names.toml" --colors-custom test --benchmark --bench-duration 1s
 
 # ── charset-custom stresstest ───────────────────────────────────────────
 echo "── charset-custom ──"
@@ -153,6 +188,14 @@ cat >"$TMPDIR_TEST/empty_charset.toml" <<'EOF'
 set = ""
 EOF
 run_case "empty charset set" "error|empty" -- --config "$TMPDIR_TEST/empty_charset.toml" --charset test --benchmark --bench-duration 1s
+
+# Missing set field entirely (NIGHT-hunt-37: a block must be COMPLETE —
+# a [charset-custom.<name>] header without set is a hard error)
+cat >"$TMPDIR_TEST/no_set.toml" <<'EOF'
+[charset-custom.zen]
+# set = "|" (commented out)
+EOF
+run_case "charset without set field" "error|'set' is missing" -- --config "$TMPDIR_TEST/no_set.toml" --charset zen --benchmark --bench-duration 1s
 
 # Single char charset
 cat >"$TMPDIR_TEST/single_char.toml" <<'EOF'
@@ -241,6 +284,7 @@ run_case "empty scene-custom block → incomplete error" "error|incomplete" -- -
 # and the run proceeds (verified: resolved scheme is the block color).
 cat >"$TMPDIR_TEST/dual_color.toml" <<'EOF'
 [colors-custom.pal]
+bg = "#0a0a0a"
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
@@ -312,6 +356,7 @@ run_case "all 3 custom features" "benchmark" -- --config "$TMPDIR_TEST/all_custo
 # --colors-custom + --charset (CLI overrides scene)
 cat >"$TMPDIR_TEST/cli_override.toml" <<'EOF'
 [colors-custom.pal]
+bg = "#0a0a0a"
 rain = ["#ff0000", "#00ff00"]
 
 [scene-custom.test]
@@ -395,6 +440,7 @@ run_case "CLI --colors-custom beats config color key" '"color_scheme":"green"' -
 # resolved scheme must be the block's color, not the palette placeholder.
 cat >"$TMPDIR_TEST/block_conflict.toml" <<'EOF'
 [colors-custom.pal]
+bg = "#0a0a0a"
 rain = "#ff0041,#ff6690"
 
 [scene-custom.dual]

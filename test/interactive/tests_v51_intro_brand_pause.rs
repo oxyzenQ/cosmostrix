@@ -327,8 +327,9 @@ mod cases_nh22_intro_palette_path {
         // 1. A palette defined in the active config MUST load — this is
         //    the exact `--config custom.toml --intro-color introfix`
         //    scenario that previously fell back to the brand intro.
-        let with_palette =
-            write_temp_config("[colors-custom.introfix]\nrain = \"#000000, #ffffff\"\n");
+        let with_palette = write_temp_config(
+            "[colors-custom.introfix]\nbg = \"#0a0a12\"\nrain = \"#000000, #ffffff\"\n",
+        );
         let mut cfg = make_test_config();
         cfg.config_path_for_watcher = Some(with_palette.clone());
         cfg.intro_color = Some("introfix".to_string());

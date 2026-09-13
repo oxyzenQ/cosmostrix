@@ -257,6 +257,46 @@
 
 ## UNLOCK
 >
+> **UNLOCK chroma-dragon (validation hardening, re-locked same commit)** at
+> the NIGHT-hunt-37 commit, 2026-09-13
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: NIGHT-hunt-37 (owner mandate: custom blocks must be complete
+> and strict). The colors-custom contract changed: rain-stop ceiling
+> 64 -> 9 (matching COLORS_CUSTOM_PALETTE_STEPS, the OKLab resample
+> count — stops beyond 9 are provably discarded input) and the change
+> is a HARD error, not a silent collector cap; bg became a required
+> field in the load contract; the rain/stops field overload and the
+> 100-block ceiling became hard errors. Also in this commit the inline
+> colors_custom tests moved to the test/ mirror tree (NIGHT-hunter-1
+> convention) to hold the 800-LOC cap while the strictness contract
+> grew.
+>
+> **Files changed** (locked path — validation contract only, no
+> pipeline math):
+> - `colors_custom.rs` (MAX_RAIN_STOPS 64 -> 9 + required-bg in
+>   `to_palette` + shared splitter wiring + test relocation)
+> - `colors_custom/strictness.rs` (NEW: rain-stop ceiling, rain/stops
+>   overload, block-count ceiling, the shared
+>   `split_rain_stop_entries`)
+>
+> The OKLab gradient, palette routing, floor/continuity/halo/shader
+> paths and all 12 tuning constants are untouched. The same commit
+> closes this unlock: the dragon is re-locked at the new validation
+> contract.
+>
+> **A/B delta**: none by construction — the validation path runs at
+> config-parse time, zero per-frame surface (10 s A/B bench recorded
+> in benchmark/bench-labs/night_hunt37/AB_REPORT.md).
+>
+> **Tests**: full suite 2905 passed / 0 failed / 2 ignored; the
+> strictness + header-completeness + parser-header regression set
+> lives in test/engine/chroma_dragon_engine/colors_custom/ and
+> test/testconf/tests_custom_block_headers.rs; e2e pinned in
+> scripts/custom_features_stresstest.sh (38/38).
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-hunt-37 validation hardening, re-locked
+>
 > **UNLOCK chroma-dragon (retroactive, depthtest-3)** at commits
 > `164d37d` + `f04cd61`, 2026-09-11
 >

@@ -131,8 +131,11 @@ pub(crate) fn dump_config_text() -> &'static str {
 # -- Custom palettes ----------------------------------------------------
 # Reference from a scene-custom block via: colors-custom = <name>.
 # Hex values MUST be quoted (unquoted # starts a TOML comment).
-# rain stops: min 2, max 64 — 7 is the sweet spot (the OKLab engine
-# expands all stops to 9 perceptual samples).
+# A block must be COMPLETE: bg AND rain (missing either field is a
+# hard error — NIGHT-hunt-37). rain stops: min 2, max 9 — 7 is the
+# sweet spot (the OKLab engine resamples every palette to 9
+# perceptual samples; more than 9 stops is rejected, not truncated).
+# Define rain OR the deprecated stops alias — never both.
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
@@ -150,6 +153,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # Reference from a scene-custom block via: charset-custom = <name>.
 # Printable single-width glyphs only (max 256; wide/zero-width are
 # skipped with a warning). Always quote the set (set = "[" works).
+# A block must be COMPLETE: the set field is required — a block
+# without set, or with an empty set, is a hard error (NIGHT-hunt-37).
 
 # [charset-custom.zen]
 # set = "|"

@@ -81,6 +81,8 @@ mod tests {
             format!("colors-custom.{name}.rain"),
             "#000000, #ffffff".to_string(),
         );
+        // NIGHT-hunt-37: bg is required for the load contract.
+        cfg.insert(format!("colors-custom.{name}.bg"), "#0a0a12".to_string());
         assert!(
             validate_colors_custom_blocks(&cfg).is_none(),
             "a 64-char name with a valid palette must pass"

@@ -50,7 +50,22 @@ pub(crate) struct ParsedConfig {
     /// the values map, but the repeat is recorded so the
     /// validation layers reject the file.
     pub duplicate_sections: Vec<String>,
-    /// NIGHT-depthtest-2: disk-level read failure for an EXPLICIT
+    /// NIGHT-hunt-37: every `[scene-custom.<name>]`,
+    /// `[colors-custom.<name>]` and `[charset-custom.<name>]` section
+    /// header the parser saw (plus the bare namespace forms),
+    /// deduplicated and sorted.
+    ///
+    /// The values map carries no trace of a header-only block — a
+    /// `[charset-custom.zen]` whose fields are all commented out
+    /// produces zero keys, so the block is invisible to every
+    /// key-level validator. Completeness validation needs this
+    /// record to see the block at all (the owner's incomplete-block
+    /// mandate: a custom block must be complete, never half-open).
+    /// Built by `custom_block_headers_from` from the seen-section
+    /// set at the end of the parse; duplicate headers land in
+    /// `duplicate_sections` and appear here once.
+    pub custom_block_headers: Vec<String>,
+    /// disk-level read failure for an EXPLICIT
     /// `--config <path>` (file missing, unreadable, or over the size
     /// cap). `parse_config_text` never sets this — only
     /// `configfile_load::parse_config_at` does, and only when no
@@ -61,4 +76,38 @@ pub(crate) struct ParsedConfig {
     /// and silently running defaults on a typo'd path is the exact
     /// silent-failure class NIGHT-depthtest-2 hunts.
     pub read_error: Option<String>,
+}
+
+impl ParsedConfig {
+    /// NIGHT-hunt-37: collect the custom-block section headers from
+    /// the parser's seen-section set, sorted for a deterministic
+    /// first-reported-block contract in the header-completeness
+    /// validator (`testconf::custom_block_headers`).
+    #[must_use]
+    pub(crate) fn custom_block_headers_from(
+        seen: &std::collections::HashSet<String>,
+    ) -> Vec<String> {
+        let mut headers: Vec<String> = seen
+            .iter()
+            .filter(|s| is_custom_block_section(s))
+            .cloned()
+            .collect();
+        headers.sort();
+        headers
+    }
+}
+
+/// NIGHT-hunt-37: true for section names that open a custom block —
+/// the three custom namespaces, with or without a trailing `.<name>`
+/// (a bare `[colors-custom]` header is a malformed block open: any
+/// key under it fails as unknown, and a header-only occurrence needs
+/// the completeness validator to see it).
+#[must_use]
+pub(crate) fn is_custom_block_section(section: &str) -> bool {
+    section == "scene-custom"
+        || section.starts_with("scene-custom.")
+        || section == "colors-custom"
+        || section.starts_with("colors-custom.")
+        || section == "charset-custom"
+        || section.starts_with("charset-custom.")
 }

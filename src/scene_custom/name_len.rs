@@ -17,10 +17,17 @@
 //! surface that calls `validate_scene_custom_completeness`:
 //! `--testconf` (exit 2), startup (exit 2), and the live-reload
 //! watcher (reject).
+//!
+//! NIGHT-hunt-37 adds the sibling block-count ceiling: the collector
+//! silently dropped blocks beyond [`SCENE_CUSTOM_MAX_BLOCKS`] (which
+//! ones survived was unspecified) — now a hard error from the same
+//! entry point.
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
-use super::{SCENE_CUSTOM_FIELDS, SCENE_CUSTOM_MAX_NAME_LEN, SCENE_CUSTOM_NAMESPACE};
+use super::{
+    SCENE_CUSTOM_FIELDS, SCENE_CUSTOM_MAX_BLOCKS, SCENE_CUSTOM_MAX_NAME_LEN, SCENE_CUSTOM_NAMESPACE,
+};
 
 /// Reject `scene-custom.<name>` blocks whose name exceeds
 /// [`SCENE_CUSTOM_MAX_NAME_LEN`] (64 chars). Called as a pre-scan by
@@ -77,4 +84,33 @@ pub(super) fn truncate_name_for_error(name: &str) -> String {
         let head: String = name.chars().take(NAME_ERROR_DISPLAY_CAP).collect();
         format!("{head}...")
     }
+}
+
+/// NIGHT-hunt-37: the number of distinct scene-custom blocks must not
+/// exceed [`SCENE_CUSTOM_MAX_BLOCKS`]. The collector silently dropped
+/// blocks beyond the cap; validation now rejects the config so the
+/// loss is loud (the uniform-rejection contract). BTreeSet iteration
+/// is sorted — the verdict does not depend on the hash seed. Called
+/// as a pre-scan by [`super::validate_scene_custom_completeness`]
+/// after the name-length check.
+pub(super) fn validate_scene_custom_block_count(
+    cfg: &HashMap<String, String>,
+) -> Result<(), String> {
+    let names: BTreeSet<&str> = cfg
+        .keys()
+        .filter_map(|key| {
+            let rest = key
+                .strip_prefix(SCENE_CUSTOM_NAMESPACE)?
+                .strip_prefix('.')?;
+            let (name, _field) = rest.rsplit_once('.')?;
+            Some(name)
+        })
+        .collect();
+    if names.len() > SCENE_CUSTOM_MAX_BLOCKS {
+        return Err(format!(
+            "scene-custom: {} blocks defined — maximum is {SCENE_CUSTOM_MAX_BLOCKS} (remove unused scenes or split the config)",
+            names.len()
+        ));
+    }
+    Ok(())
 }

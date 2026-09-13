@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-37 — custom blocks must be complete and strict (rain-stop ceiling 9, required bg, header-only blocks visible)
+
+- Owner mandate (2026-09-13): custom config blocks (charset, colors,
+  scene) must be COMPLETE — no missing fields, no overloads or
+  duplicates, no empty values, names capped at 64 chars — and the
+  caps must be hard errors, never silent drops. The owner's repro: a
+  `[colors-custom.test]` block with a 67-stop rain array passed every
+  gate (the documented limit was 64, enforced as a silent collector
+  truncation), and it must not run.
+- colors-custom strictness (`colors_custom/strictness.rs`):
+  - rain stops: min 2, max 9 — the ceiling now matches
+    `COLORS_CUSTOM_PALETTE_STEPS`, the count the OKLab engine
+    resamples every palette to, so stops beyond 9 are provably
+    discarded input. Over-limit blocks are a HARD error on all three
+    surfaces (startup exit 2, --testconf exit 2, live-reload watcher
+    reject). The collector's truncation remains only as
+    defense-in-depth for COSMOSTRIX_SKIP_STARTUP_VALIDATION bypass
+    runs.
+  - `bg` is now REQUIRED: `to_palette` (the load contract every
+    surface funnels through) rejects a rain-only block — a complete
+    `[colors-custom.<name>]` block defines BOTH bg and rain.
+  - `rain` + the deprecated `stops` alias in one block is an overload
+    error (both used to be silently concatenated into the gradient
+    stop list).
+  - the 100-block ceiling is a hard error (was the collectors' last
+    silent skip — survivors were unspecified HashMap-order drops).
+- Header-only custom blocks are now visible to validation: the config
+  parser records every `[scene-custom|colors-custom|charset-custom.
+  <name>]` section header in `ParsedConfig::custom_block_headers`
+  (dedup + sorted), and `testconf::custom_block_headers` rejects a
+  block that defines none of its required fields — a
+  `[charset-custom.zen]` with `set` commented out, a
+  `[colors-custom.test]` missing bg or rain, a `[scene-custom.x]`
+  with every field commented out. Previously such blocks produced
+  zero keys and were invisible to every key-level validator. Wired
+  into all three surfaces via `validate_config_strictly_parsed`
+  (startup + watcher) and inline in `--testconf`.
+- Name-shape checks now cover headers: empty names (a bare
+  `[colors-custom]` header), invalid characters, and oversized
+  names on header-only blocks (previously invisible to the
+  key-scanning name-length validators).
+- charset-custom and scene-custom gained the same block-count hard
+  error (`validate_charset_custom_block_count`,
+  `validate_scene_custom_block_count`).
+- One shared rain-stop splitter (`split_rain_stop_entries`) now
+  serves the collector, --testconf's value checker, and the
+  strictness validator — the three hand-written twins (the F-23-1
+  drift risk) are deleted.
+- Tests: 26 new regression tests (strictness contract, header
+  completeness, parser header recording); the colors-custom inline
+  tests moved to the test/ mirror tree (NIGHT-hunter-1 convention)
+  to hold the 800-LOC cap. Full suite 2905/0/2. e2e:
+  custom_features_stresstest.sh extended to 38 cases (all green),
+  including the owner's 67-stop repro. Chroma KEY.md UNLOCK entry in
+  the same commit (validation contract only — no pipeline math; the
+  dragon is re-locked at the new contract).
+
 ### fix: NIGHT-hunt-36 — the stuck-cell sweep still never ran on default runs (message gate) + a phosphor transposition in the sweep
 
 - Owner report (NIGHT-hunt-36, 2026-09-13): micro glitch shift rain on

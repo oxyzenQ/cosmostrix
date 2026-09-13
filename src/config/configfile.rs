@@ -122,11 +122,11 @@ const COLOR_TUNE_CONFIG_KEY_HINT: &str = "color.tune.<brightness|saturation|head
 /// See `src/engine/crystal_dragon_engine/ambient/mod.rs` and `src/engine/crystal_dragon_engine/ambient_scheduler/mod.rs`.
 const AMBIENT_CONFIG_KEY_HINT: &str = "ambient.<HH-MM> = <scene-name>";
 
-// NIGHT-depthtest-2: ParsedConfig (now carrying the duplicate-key /
-// duplicate-section / read-error diagnostics) extracted to
-// configfile_parsed.rs for the 800-LOC cap. Re-exported here so all
-// `configfile::ParsedConfig` call sites resolve unchanged.
+// NIGHT-depthtest-2: ParsedConfig extracted to configfile_parsed.rs
+// (800-LOC cap), re-exported here (+ the NIGHT-hunt-37 test-only predicate).
 mod configfile_parsed;
+#[cfg(test)]
+pub(crate) use configfile_parsed::is_custom_block_section;
 pub(crate) use configfile_parsed::ParsedConfig;
 
 #[must_use]
@@ -346,6 +346,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
         promoted_keys,
         duplicate_keys,
         duplicate_sections,
+        custom_block_headers: ParsedConfig::custom_block_headers_from(&seen_sections),
         // Text-level parse: no disk I/O happened, so no read error.
         // Only configfile_load::parse_config_at can set this.
         read_error: None,
@@ -682,8 +683,10 @@ fn is_colors_custom_key(key: &str) -> bool {
 }
 
 /// Check if a custom palette name is valid (non-empty, alphanumeric + -/_).
+/// NIGHT-hunt-37: pub(crate) — shared with the header-completeness
+/// validator (F-23-1: no hand-written twins).
 #[inline]
-fn is_valid_custom_name(name: &str) -> bool {
+pub(crate) fn is_valid_custom_name(name: &str) -> bool {
     !name.is_empty()
         && name
             .chars()

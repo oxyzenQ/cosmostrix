@@ -151,8 +151,9 @@ pub(crate) fn apply_config_and_runtime_defaults(
             return Err(err);
         }
 
-        // Layer 3: invalid values (out of range, unknown enum, etc.)
-        if let Err(msg) = crate::testconf::validate_config_strictly(&parsed_cfg.values) {
+        // Layer 3: invalid values. NIGHT-hunt-37: the parsed-record
+        // entry adds the header-completeness pre-pass (header-only blocks).
+        if let Err(msg) = crate::testconf::validate_config_strictly_parsed(&parsed_cfg) {
             return Err(format!(
                 "error: invalid config — {msg}\n\n  Fix the error above, or run 'cosmostrix --testconf' for details."
             ));

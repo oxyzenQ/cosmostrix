@@ -437,6 +437,11 @@ fn rebuild_switches_color_to_custom_palette_at_runtime() {
         "colors-custom.mycustompal.rain".to_string(),
         "#1a0033, #4d0080, #9933ff".to_string(),
     );
+    // NIGHT-hunt-37: bg is required for a loadable custom palette.
+    cfg.insert(
+        "colors-custom.mycustompal.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
     let base = minimal_cloud_config();
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
@@ -467,6 +472,11 @@ fn rebuild_switches_color_away_from_custom_palette() {
     cfg.insert(
         "colors-custom.mycustompal.rain".to_string(),
         "#1a0033, #4d0080, #9933ff".to_string(),
+    );
+    // NIGHT-hunt-37: bg is required for a loadable custom palette.
+    cfg.insert(
+        "colors-custom.mycustompal.bg".to_string(),
+        "#0a0a12".to_string(),
     );
     let new = rebuild_cloud_config(&base, &cfg);
     assert_eq!(new.color_scheme, crate::runtime::ColorScheme::Green);
@@ -665,6 +675,11 @@ fn rebuild_custom_scene_colors_custom_field_loads_palette() {
         "colors-custom.mycustompal.rain".to_string(),
         "#1a0033, #4d0080, #9933ff".to_string(),
     );
+    // NIGHT-hunt-37: bg is required for a loadable custom palette.
+    cfg.insert(
+        "colors-custom.mycustompal.bg".to_string(),
+        "#0a0a12".to_string(),
+    );
     let base = minimal_cloud_config();
     let new = rebuild_cloud_config(&base, &cfg);
     assert!(
@@ -821,18 +836,20 @@ fn rebuild_custom_scene_colors_custom_sets_palette_name() {
 // recognition as the `color =` key and the startup gate.
 
 #[test]
-fn rebuild_intro_color_keeps_rain_only_custom_palette() {
+fn rebuild_intro_color_keeps_custom_palette() {
     let mut cfg = HashMap::new();
     cfg.insert("intro-color".to_string(), "mine".to_string());
     cfg.insert(
         "colors-custom.mine.rain".to_string(),
         "#00ff66, #ffffff".to_string(),
     );
+    // NIGHT-hunt-37: bg is required for a loadable custom palette.
+    cfg.insert("colors-custom.mine.bg".to_string(), "#0a0a12".to_string());
     let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
     assert_eq!(
         new.intro_color.as_deref(),
         Some("mine"),
-        "rain-only custom palette must survive a live-reload intro-color edit"
+        "custom palette must survive a live-reload intro-color edit"
     );
 }
 
@@ -844,6 +861,8 @@ fn rebuild_intro_color_recognizes_mixed_case_value() {
         "colors-custom.mine.rain".to_string(),
         "#00ff66, #ffffff".to_string(),
     );
+    // NIGHT-hunt-37: bg is required for a loadable custom palette.
+    cfg.insert("colors-custom.mine.bg".to_string(), "#0a0a12".to_string());
     let new = rebuild_cloud_config(&minimal_cloud_config(), &cfg);
     assert_eq!(
         new.intro_color.as_deref(),

@@ -24,6 +24,10 @@ mod field_validation;
 #[allow(unused_imports)]
 pub(crate) use field_validation::{validate_field_value, validate_field_value_with_cfg};
 
+// NIGHT-hunt-37: custom-block header completeness validation (sees
+// header-only blocks the key-level validators cannot).
+mod custom_block_headers;
+
 /// Run the `--testconf` validation.
 pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     // Security (v16 audit): validate --config path BEFORE reading.
@@ -279,6 +283,27 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
         errors += 1;
     }
 
+    // NIGHT-hunt-37: charset-custom block-count ceiling (the
+    // collector's silent drop beyond 100 blocks is now a hard error).
+    if let Some(msg) = crate::charset_custom::validate_charset_custom_block_count(&parsed.values) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
+    }
+
+    // NIGHT-hunt-37 (owner mandate): header-only custom blocks — a
+    // [charset-custom.zen] without `set`, a [colors-custom.test]
+    // without bg/rain, a [scene-custom.x] with every field commented
+    // out. The values map carries no trace of these blocks; the
+    // parser's custom_block_headers record closes the blind spot.
+    // Same uniform-rejection contract as the validators above.
+    if let Some(msg) = custom_block_headers::validate_custom_block_headers(
+        &parsed.custom_block_headers,
+        &parsed.values,
+    ) {
+        crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
+        errors += 1;
+    }
+
     // Validate known value-ranges for top-level (non-block) keys.
     // v14: invalid values are now ERRORS, not warnings — silent PASS for
     // bad values is a bug. Owner requirement: strict value validation.
@@ -400,6 +425,25 @@ pub(crate) fn duplicate_diagnostics(parsed: &configfile::ParsedConfig) -> Vec<St
     out
 }
 
+/// NIGHT-hunt-37: strict validation entry for callers holding the
+/// full parse record — header completeness first (it names the block,
+/// the strongest signal for a half-written config), then the
+/// key-level strict pass. Startup (`config_apply`) and the
+/// live-reload watcher call this; `--testconf` layers the same two
+/// checks inline for incremental error reporting. All three surfaces
+/// therefore reject header-only custom blocks in lockstep.
+pub(crate) fn validate_config_strictly_parsed(
+    parsed: &configfile::ParsedConfig,
+) -> Result<(), String> {
+    if let Some(msg) = custom_block_headers::validate_custom_block_headers(
+        &parsed.custom_block_headers,
+        &parsed.values,
+    ) {
+        return Err(msg);
+    }
+    validate_config_strictly(&parsed.values)
+}
+
 /// Validate ALL fields in a parsed config HashMap — top-level keys AND
 /// custom-block keys (scene-custom.X.field values, colors-custom hex,
 /// charset-custom content, ambient.* scene references).
@@ -440,6 +484,13 @@ pub(crate) fn validate_config_strictly(
     // block-level gates so the reject verdict is identical on all
     // three surfaces (startup, live-reload watcher, --testconf).
     if let Some(msg) = crate::charset_custom::validate_charset_custom_name_len(cfg) {
+        return Err(msg);
+    }
+
+    // NIGHT-hunt-37: charset-custom block-count ceiling — the
+    // collector's silent drop beyond 100 blocks is now a hard error
+    // (the last silent-skip in the charset-custom namespace).
+    if let Some(msg) = crate::charset_custom::validate_charset_custom_block_count(cfg) {
         return Err(msg);
     }
 
@@ -564,25 +615,15 @@ fn validate_colors_custom_value(key: &str, value: &str) -> Option<String> {
 
     // stops/rain field: hex list (array or CSV format).
     if key.ends_with(".stops") || key.ends_with(".rain") {
-        // v25: handle TOML array format. If value starts with '[', strip
-        // the brackets before splitting by comma. This matches the
-        // parse_rain_array logic in colors_custom.rs.
-        let inner = if trimmed.starts_with('[') {
-            let s = trimmed.strip_prefix('[').unwrap_or(trimmed);
-            let s = s.strip_suffix(']').unwrap_or(s);
-            s
-        } else {
-            trimmed
-        };
-        for stop in inner.split(',') {
-            let s = stop.trim().trim_matches('"').trim();
-            // Skip empty stops (trailing comma after ] strip).
-            if s.is_empty() {
-                continue;
-            }
-            if !is_valid_hex_color(s) {
+        // NIGHT-hunt-37: split through the SAME shared splitter the
+        // collector and the strictness validator use
+        // (colors_custom::split_rain_stop_entries) — the pre-hunt-37
+        // hand-written twin here could drift from the runtime parse
+        // (the F-23-1 no-duplicated-predicate policy).
+        for stop in crate::colors_custom::split_rain_stop_entries(trimmed) {
+            if !is_valid_hex_color(stop) {
                 return Some(format!(
-                    "invalid hex color '{s}' in stops (expected #rrggbb or rrggbb)"
+                    "invalid hex color '{stop}' in stops (expected #rrggbb or rrggbb)"
                 ));
             }
         }

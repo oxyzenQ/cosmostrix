@@ -584,7 +584,11 @@ pub(crate) fn validate_and_send(
     let cfg = &parsed.values;
 
     // Strict validation: reject entire config if ANY field is invalid.
-    match crate::testconf::validate_config_strictly(cfg) {
+    // NIGHT-hunt-37: the parsed-record entry adds the header
+    // completeness pre-pass (header-only custom blocks) before the
+    // key-level strict validation — the watcher rejects what startup
+    // and --testconf reject (the uniform-rejection contract).
+    match crate::testconf::validate_config_strictly_parsed(parsed) {
         Ok(()) => {
             lr_trace!("strict validation OK — sending config to render thread");
             if tx.try_send(Ok(cfg.clone())).is_err() {

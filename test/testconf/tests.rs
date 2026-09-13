@@ -288,6 +288,8 @@ fn color_matching_custom_palette_via_legacy_stops_field_still_accepted() {
         "colors-custom.legacy.stops".to_string(),
         "#ff0000,#00ff00".to_string(),
     );
+    // NIGHT-hunt-37: bg is required for a loadable palette.
+    cfg.insert("colors-custom.legacy.bg".to_string(), "#0a0a12".to_string());
     assert!(
         validate_field_value_with_cfg("color", "legacy", &cfg).is_none(),
         "acceptance must fire via legacy .stops field"
@@ -1016,17 +1018,19 @@ fn strict_validation_rejects_empty_array_rain_deterministically() {
 }
 
 #[test]
-fn strict_validation_accepts_rain_only_two_stop_palette() {
-    // The F-23-1 acceptance holds under the load contract: bg is
-    // optional, rain-only with 2+ stops is a complete palette.
+fn strict_validation_accepts_two_stop_complete_palette() {
+    // The F-23-1 acceptance holds under the load contract. NIGHT-hunt-37
+    // (owner mandate): the block must be COMPLETE — bg AND rain
+    // (rain-only blocks are rejected on every surface now).
     let mut cfg = std::collections::HashMap::new();
     cfg.insert("color".to_string(), "mine".to_string());
     cfg.insert(
         "colors-custom.mine.rain".to_string(),
         "#00ff66,#ffffff".to_string(),
     );
+    cfg.insert("colors-custom.mine.bg".to_string(), "#0a0a12".to_string());
     assert!(
         validate_config_strictly(&cfg).is_ok(),
-        "rain-only 2-stop palette must pass (F-23-1 + F-24-1 together)"
+        "a complete 2-stop palette (bg + rain) must pass (F-23-1 + F-24-1 + hunt-37 together)"
     );
 }

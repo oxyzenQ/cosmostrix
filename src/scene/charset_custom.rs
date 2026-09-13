@@ -374,6 +374,33 @@ pub(crate) fn validate_charset_custom_name_len(cfg: &HashMap<String, String>) ->
     Some(msg)
 }
 
+/// NIGHT-hunt-37 (owner mandate 2026-09-13): the number of distinct
+/// charset-custom blocks must not exceed [`CHARSET_CUSTOM_MAX_BLOCKS`].
+/// The collector silently dropped blocks beyond the cap (which ones
+/// survived was unspecified — HashMap iteration order); validation now
+/// rejects the config so the loss is loud on all three surfaces
+/// (`--testconf`, startup, live-reload watcher — the same entry points
+/// that call `validate_charset_custom_name_len`). BTreeSet iteration
+/// is sorted — the verdict does not depend on the hash seed.
+#[must_use]
+pub(crate) fn validate_charset_custom_block_count(cfg: &HashMap<String, String>) -> Option<String> {
+    let names: std::collections::BTreeSet<&str> = cfg
+        .keys()
+        .filter_map(|key| {
+            let rest = key.strip_prefix("charset-custom.")?;
+            let (name, _field) = rest.split_once('.')?;
+            Some(name)
+        })
+        .collect();
+    if names.len() > CHARSET_CUSTOM_MAX_BLOCKS {
+        return Some(format!(
+            "charset-custom: {} blocks defined — maximum is {CHARSET_CUSTOM_MAX_BLOCKS} (remove unused charsets or split the config)",
+            names.len()
+        ));
+    }
+    None
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

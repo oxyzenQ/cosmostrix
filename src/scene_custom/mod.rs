@@ -179,6 +179,9 @@ pub(crate) fn validate_scene_custom_completeness(
     // full defect narrative. Runs BEFORE the completeness loop so the
     // length error names the block first.
     name_len::validate_scene_custom_name_len(cfg)?;
+    // NIGHT-hunt-37: the block-count ceiling (the collector's silent
+    // drop beyond SCENE_CUSTOM_MAX_BLOCKS is now a hard error).
+    name_len::validate_scene_custom_block_count(cfg)?;
     for (name, profile) in collect_custom_scenes(cfg) {
         let missing = missing_scene_custom_fields(&profile);
         if missing.is_empty() {
