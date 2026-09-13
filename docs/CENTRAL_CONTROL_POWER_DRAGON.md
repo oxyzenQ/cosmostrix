@@ -52,6 +52,7 @@ src/central_control_power_dragon/
 ├── mod.rs              — constants, PowerThresholds, re-exports
 ├── phase_predictor.rs  — P1 PhasePredictor + local_secs_since_midnight
 ├── reclaim_state.rs    — P2 adaptive_resync_interval + P4 ReclaimState
+│                          + reclaim_frame_cells (unified entry)
 ├── endurance_health.rs — P5 EnduranceHealth score
 ├── self_healer.rs      — PerformanceSelfHealer + SelfHealAction enum
 └── power_manager.rs    — PowerManager coordinator (Phase 3)
@@ -366,13 +367,27 @@ This reduces forced redraw CPU spikes during long idle periods. On a
 24-hour run with 13 hours of idle, this cuts ~46,800 forced redraws
 down to ~390 — a 99% reduction in idle CPU work.
 
-**P4 (MPAR) — `hint_reclaim_pages(ptr, len)` + `ReclaimState`.**
+**P4 (MPAR) — `reclaim_frame_cells(frame, state, now)` +
+`hint_reclaim_pages(ptr, len)` + `ReclaimState`.**
 During sustained idle, the previous-generation dirty regions in the
 frame buffer are no longer needed. `madvise(MADV_DONTNEED)` tells
 the Linux kernel these pages can be reclaimed without swapping —
 they'll be zero-filled on next access. This smooths the RSS
 step-down that the kernel would otherwise perform as a sudden event
 during memory pressure.
+
+The madvise is issued exclusively through the `reclaim_frame_cells`
+helper (NIGHT-hunt-43): the hint, the `normalize_reclaimed_cells`
+pass that re-blanks the zero-filled cells, and the cooldown mark
+travel together as one inseparable bundle. Before hunt-43 the two
+event-loop call sites (the P2 self-heal mitigation and the P4 idle
+resync) each assembled these steps inline, and the idle-resync site
+missed the normalize — its zeroed cells stayed gen-matched (the
+Glyph force path bumps no generation since HUNT-25), were emitted
+as raw NUL bytes that terminals silently drop, and left the
+pre-reclaim glyph stranded on screen while the model said blank
+(the owner's third-round "glitch shift rain" report). The helper
+makes that class of call-site drift structurally impossible.
 
 `ReclaimState` rate-limits the hints to once per hour. Without this,
 every idle resync would issue a madvise syscall, which on a 12-hour
@@ -381,12 +396,18 @@ loop could become a thundering herd. The 1-hour minimum is
 defensive, not load-driven.
 
 **Platform support.** `hint_reclaim_pages` is `cfg(target_os =
-"linux")`. On other platforms it's a no-op. `ReclaimState` is
+"linux")`. On other platforms it's a no-op and the normalize scan
+inside `reclaim_frame_cells` finds no zeroed cells, so the helper
+degrades to the cooldown-mark-only behavior. `ReclaimState` is
 cross-platform (it just tracks timestamps).
 
 **Tests.** Cover: standard interval under 1 hour, 60s after 1
 hour, 120s after 4 hours, initial state should-reclaim,
-min-interval respected.
+min-interval respected; plus the hunt-43 regressions in
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_stuck_cells_hunt43.rs`
+(reclaim re-blanks zeroed cells; zeroed cells are invisible to the
+stuck-cell sweep and phosphor arming; the Glyph resync frame does
+not heal an uncovered zeroed cell).
 
 ### 6.3 `endurance_health.rs` — P5 Endurance Health Score
 
@@ -734,20 +755,26 @@ control case with defaults still fires).
 
 **OKLab dithering for `colors-custom` — COMPLETED in prior sessions.**
 The `colors-custom` path already routes through the OKLab polar
-gradient engine (`colors_custom.rs:78` calls `colors_from_stops` which
+gradient engine (`engine/chroma_dragon_engine/colors_custom.rs:113`
+calls `colors_from_stops` which
 uses `gradient_from_stops_oklab`) and the base shader applies Bayer
 4×4 ordered dithering on both the `shading_distance` path
-(`base.rs:486-506`) and the short-droplet luminance-remap path
-(`base.rs:586-599`). Commits `2714153`, `d39c010`, `f5d037d`. The
+(`engine/chroma_dragon_engine/shaders/base/mod.rs:387`) and the
+short-droplet luminance-remap path
+(`engine/chroma_dragon_engine/shaders/base/mod.rs:505`). Commits
+`2714153`, `d39c010`, `f5d037d`. The
 `to_palette_routes_through_oklab_polar_engine` test verifies the
-routing. No further work needed.
+routing. No further work needed. (NIGHT-hunt-42 2026-09-14: refs
+re-pointed after the shader/configfile module splits.)
 
 **Stale FPS references in config template — COMPLETED.** The
-config template (`configfile.rs:603-609`), `docs/BENCHMARKING.md`,
+config template (`src/config/configfile/configfile_dump.rs:54` inside
+`dump_config_text()`), `docs/BENCHMARKING.md`,
 and `docs/RELEASE_CANDIDATE.md` now document the dynamic default
 (60 FPS standard, 144 FPS high-refresh) instead of the stale
 "default 60.0". Users on high-refresh terminals (Alacritty, kitty,
-WezTerm) no longer see misleading documentation.
+WezTerm) no longer see misleading documentation. (NIGHT-hunt-42
+2026-09-14: template ref re-pointed after the configfile split.)
 
 ---
 

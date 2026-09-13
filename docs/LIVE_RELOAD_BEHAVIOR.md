@@ -278,7 +278,11 @@ precedence:
 4. config `message` (no border)
 5. default fallback `Experience a masterpiece with cosmostrix v{}` with border
    (applied on live-reload when no config message key is present —
-   mirrors startup behavior at main.rs:1239-1258)
+   mirrors the startup fallback wired in `src/cli/build_cloud_cfg.rs`
+   (`default_message_text()` when no CLI `-m`/`-mb` and msg-mode on,
+   plus the forced-border rule when the fallback fires); re-pointed by
+   NIGHT-hunt-42 2026-09-14 — the old `main.rs:1239-1258` block moved
+   out of `main.rs` in the CLI-layer refactor)
 
 **v50.0.0-beta.7 follow-up**: the original fix preserved `base.message`
 when no config key was present, which leaked stale config values (e.g.

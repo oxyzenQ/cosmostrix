@@ -23,8 +23,10 @@ pub(crate) struct ThrottleResult {
 ///
 /// Captures loop_now, scene_generation_at_frame_start, begins PowerManager
 /// frame, computes idle resync interval, and if sustained idle exceeds the
-/// interval: forces full redraw + hints kernel to reclaim stale pages via
-/// madvise(MADV_DONTNEED).
+/// interval: forces full redraw + reclaims the frame buffer's stale pages
+/// via the `reclaim_frame_cells` helper (madvise(MADV_DONTNEED) + the
+/// zeroed-cell normalization of NIGHT-hunt-43 — see reclaim_state.rs for
+/// the full contract).
 pub(crate) fn run_adaptive_throttle(ctx: &mut LoopCtx) -> ThrottleResult {
     // Adaptive throttling: reduce FPS when idle to save CPU.
     let loop_now = Instant::now();

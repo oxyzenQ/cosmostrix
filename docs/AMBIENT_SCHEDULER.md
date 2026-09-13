@@ -171,7 +171,8 @@ changes the palette, sets `user_override_since_ambient = true`.
 `now - drift_start >= ambient-snapback-secs`, snapback reverts the
 palette to ambient and clears `drift_active = false` + `drift_start = None`.
 Snapback only runs when the ambient schedule is non-empty — it early-returns
-on `schedule.entries.is_empty()` (see `input.rs:481`).
+on `schedule.entries.is_empty()` (see `src/interactive/input.rs:591-596`,
+`try_auto_snapback`; re-pointed by NIGHT-hunt-42 2026-09-14).
 
 **Live-reload interaction** (Z-master-1X round 4, commit `<TBD>`): when a
 live config reload fires while a drift is visible (`drift_active = true`),

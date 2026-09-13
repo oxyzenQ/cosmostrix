@@ -79,8 +79,10 @@ pub(crate) enum SelfHealAction {
     RestoreScene,
     /// P2: EnduranceHealth dropped into the investigate band. Force a full
     /// redraw and bypass the ReclaimState cooldown to issue an madvise hint.
-    /// The event loop calls `cloud.force_draw_everything()` and
-    /// `hint_reclaim_pages()` directly.
+    /// The event loop calls `cloud.force_draw_everything()` and, since
+    /// NIGHT-hunt-43, the `reclaim_frame_cells()` helper (madvise +
+    /// normalize + cooldown mark bundled) instead of the raw
+    /// `hint_reclaim_pages()`.
     TriggerHealthMitigation,
     /// Dragon Engine v2: predictive throttle. The EMA trend shows pressure
     /// rising rapidly — activate aggressive_throttle BEFORE the reactive
