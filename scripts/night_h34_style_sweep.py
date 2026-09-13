@@ -38,7 +38,7 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from night_cbg34_e2e import Run, SyncScreen, TERM_COLS, TERM_ROWS, ANALYSIS_ROWS
+from night_cbg34_e2e import ANALYSIS_ROWS, Run
 
 CFG_DIR = os.path.expanduser("~/.config/cosmostrix/h34sweep")
 CFG = os.path.join(CFG_DIR, "config.toml")
