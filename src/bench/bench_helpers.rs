@@ -229,6 +229,17 @@ fn collect_bench_noop_warnings(args: &Args, fps_user_set: bool) -> Vec<&'static 
     {
         warns.push("--bench-duration ignored (--bench-frames is frame-count-based)");
     }
+    // NIGHT-hunt-47: --json is honored by --benchmark (the 13-section
+    // JSON report) and --bench-all (the scaling ladder JSON), but the
+    // legacy --bench-frames path emits the TEXT BENCH: format. Silence
+    // here would be hidden behavior against the honesty contract —
+    // the user asked for machine-readable output and got text.
+    if args.bench_frames.is_some() && args.json && !args.benchmark && !args.bench_all {
+        warns.push(
+            "--json ignored (--bench-frames emits the text BENCH: format; \
+             use --benchmark --json for the JSON report)",
+        );
+    }
     if fps_user_set {
         warns.push(
             "--fps (in benchmark mode sets simulation rate only — does NOT cap \
@@ -343,6 +354,7 @@ pub(crate) fn validate_bench_scene(cfg: &CloudConfig) {
 
 #[cfg(test)]
 mod tests {
+    use super::collect_bench_noop_warnings;
     use super::format_backpressure_section;
     use super::resolve_bench_duration;
     use super::BackpressureStats;
@@ -350,7 +362,45 @@ mod tests {
     use crate::bench_meta::AVG_DIRTY_CELL_RATIO_MEANING;
     use crate::bench_report::ACTIVE_FRAME_RATIO_MEANING;
     use crate::report::Report;
+    use clap::Parser;
     use std::time::Duration;
+
+    #[test]
+    fn bench_frames_with_json_warns_noop() {
+        // NIGHT-hunt-47: --bench-frames emits the text BENCH: format;
+        // --json is honored only by --benchmark/--bench-all. The
+        // silent-ignore was hidden behavior against the honesty
+        // contract — the warning must fire on the exact dispatch
+        // precedence shape (bench-frames is the dispatcher, neither
+        // --benchmark nor --bench-all set).
+        let args =
+            crate::config::Args::try_parse_from(["cosmostrix", "--bench-frames", "5", "--json"])
+                .expect("valid argv");
+        let warns = collect_bench_noop_warnings(&args, false);
+        assert!(
+            warns.iter().any(|w| w.contains("--json ignored")),
+            "--json + --bench-frames must warn, got {warns:?}"
+        );
+    }
+
+    #[test]
+    fn bench_frames_with_json_silent_when_benchmark_dispatches() {
+        // --benchmark takes precedence and DOES honor --json — the
+        // warning must not fire (it would be a false positive).
+        let args = crate::config::Args::try_parse_from([
+            "cosmostrix",
+            "--benchmark",
+            "--bench-frames",
+            "5",
+            "--json",
+        ])
+        .expect("valid argv");
+        let warns = collect_bench_noop_warnings(&args, false);
+        assert!(
+            !warns.iter().any(|w| w.contains("--json ignored")),
+            "--json with --benchmark dispatching must not warn, got {warns:?}"
+        );
+    }
 
     #[test]
     fn backpressure_section_emits_nonzero_budget_utilization_on_healthy_hw() {
