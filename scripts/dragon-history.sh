@@ -32,9 +32,17 @@
 set -euo pipefail
 
 # ── Lock boundary (update on every new lock round) ────────────────────────
-# 2026-09-12 round: NIGHT-hunter-34 shadow-honesty fix (cosmic terminal
-# files) + retroactive depthtest-3 chroma colors-custom hardening.
-LOCK_AT="100771483469daa179d74d3682c66f3c29f9c584"
+# 2026-09-13 round: NIGHT-hunt-39 + NIGHT-hunt-40 + NIGHT-hunt-41 closure
+# (ambient/chroma entry-budget 256->64->24, msg-modey startup validation,
+# template/docs stale-64 sweep, ruff canonicalization). All three engines
+# have UNLOCK entries for every code-touching commit since 10077148
+# (verified by per-commit audit: bb1915d chroma+crystal, f9b0a76 chroma+
+# crystal, 6198431 chroma, c523de9 cosmic, fbc73cd cosmic, 0a1df6a cosmic
+# -- the 5d55c0e and 5f67691 commits are KEY.md/RULES.md doc-only and do
+# not require unlock entries). New LOCK_AT is HEAD at commit time, so the
+# audit trail resets here; the next engine-folder commit will be the first
+# audit material of the new lock round.
+LOCK_AT="57c67a6afd3fda38242ed31db20f7a61c911da01"
 
 DRAGON_PATHS=(
 	src/engine/chroma_dragon_engine

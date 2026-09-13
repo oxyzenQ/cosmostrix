@@ -147,6 +147,75 @@
 
 ## UNLOCK
 
+> **UNLOCK crystal-dragon (entry-budget constant, re-locked same commit)** at
+> the NIGHT-hunt-39 commit `bb1915d`, 2026-09-13
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: NIGHT-hunt-39 (owner mandate: min 1 / max 64 entries for the
+> four custom namespaces). `AMBIENT_MAX_ENTRIES` changed 256 -> 64, one
+> constant in `src/engine/crystal_dragon_engine/ambient/mod.rs`. Same
+> validation-contract class as the chroma hunt-39 unlock: the entry-count
+> ceiling stays a HARD validation error on every surface
+> (`validate_ambient_entries` interpolates the constant), the collector's
+> silent truncate stays defense-in-depth for bypass runs
+> (`COSMOSTRIX_SKIP_STARTUP_VALIDATION`). The same commit also rewrote the
+> legacy-multi-field migration essay (removed the stale `base-scene` field
+> reference, replaced with the seven-field complete-block contract) and
+> added the NIGHT-hunt-38-supermassive parser guard note. None of those
+> touch crystal pipeline math.
+>
+> **Files changed** (locked path — validation contract only, no pipeline
+> math):
+> - `src/engine/crystal_dragon_engine/ambient/mod.rs`
+>   (`AMBIENT_MAX_ENTRIES` 256 -> 64, doc comment sync, essay rewrite,
+>   truncate-cap defense-in-depth aligned to the new ceiling)
+>
+> The drift decision chain (`crystal_dragon_tick -> set_color_scheme ->
+> build_palette -> apply_tune -> transition wave`) is untouched. The same
+> commit closes this unlock: the dragon is re-locked at the new ceiling.
+>
+> **A/B delta**: none by construction — the validation path runs at
+> config-parse time, zero per-frame surface (10s A/B bench recorded in
+> benchmark/bench-labs/night_hunt39/AB_REPORT.md, baseline 0641ee9 vs
+> fix bb1915d).
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-hunt-39 ambient entry-budget constant, re-locked
+
+> **UNLOCK crystal-dragon (entry-budget constant, re-locked same commit)** at
+> the NIGHT-hunt-40 commit `f9b0a76`, 2026-09-13
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: NIGHT-hunt-40 (owner mandate: tighten the entry budget from
+> min 1 / max 64 to min 1 / max 24 entries across all four custom
+> namespaces). `AMBIENT_MAX_ENTRIES` changed 64 -> 24, one constant, same
+> validation-contract class as the hunt-39 unlock: the entry-count ceiling
+> stays a HARD validation error on every surface
+> (`validate_ambient_entries` interpolates the constant), the collector's
+> silent truncate stays defense-in-depth for bypass runs. Same commit
+> also lowers the three sibling constants
+> (`CHARSET_CUSTOM_MAX_BLOCKS`, `COLORS_CUSTOM_MAX_BLOCKS`,
+> `SCENE_CUSTOM_MAX_BLOCKS`) 64 -> 24, but none of those are
+> crystal-dragon files (they live in `src/scene/charset_custom.rs`,
+> `src/engine/chroma_dragon_engine/colors_custom.rs`,
+> `src/scene_custom/mod.rs`), so they do not appear in this unlock trail.
+>
+> **Files changed** (locked path — validation contract only, no pipeline
+> math):
+> - `src/engine/crystal_dragon_engine/ambient/mod.rs`
+>   (`AMBIENT_MAX_ENTRIES` 64 -> 24, doc comment sync, truncate-cap
+>   defense-in-depth aligned to the new ceiling)
+>
+> The drift decision chain (`crystal_dragon_tick -> set_color_scheme ->
+> build_palette -> apply_tune -> transition wave`) is untouched. The same
+> commit closes this unlock: the dragon is re-locked at the new ceiling.
+>
+> **A/B delta**: none by construction — the validation path runs at
+> config-parse time, zero per-frame surface (no bench rerun needed; the
+> hunt-39 bench already proved zero visual delta for this exact contract
+> class).
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-hunt-40 ambient entry-budget constant, re-locked
+
 > **UNLOCK crystal-dragon (retroactive)** at commit `9de2f44`, 2026-08-23T09:10:00Z
 >
 > **Author**: oxyzenQ (Cosmic Dragon AI Agent)
