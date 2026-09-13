@@ -18,6 +18,11 @@
 #   8.  LOC guard      - .rs files <= 800 lines (src/RULES_LOC.md)
 #   9.  Rust version   - toolchain / MSRV / CI env in sync
 #  10.  Disclaimer     - all .md files carry the source-is-truth disclaimer
+#  11.  Symbol-only    - no icon glyphs in output surfaces
+#  12.  Comment style  - no markdown emphasis in comments
+#  13.  Language audit - pure-English rule on comments/strings/docs
+#  14.  Permissions    - tracked files 644, executables + dirs 755,
+#                       shebang parity (scripts/check-permissions.sh)
 #
 # Every tool listed above is installed below - a check that silently skips
 # because its tool is missing is a check that does not exist (incident:

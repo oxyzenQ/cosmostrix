@@ -28,7 +28,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 **Pinned toolchain**: Rust 1.98.1 (`rust-toolchain.toml`), MSRV 1.98 (`Cargo.toml` `rust-version`), profile: minimal + rustfmt + clippy.
 
-**Upgrading Rust**: (1) update `rust-toolchain.toml` channel; (2) update `Cargo.toml` `rust-version` if MSRV changed; (3) update all `.github/workflows/*.yml` `toolchain:` refs; (4) `./scripts/build.sh check-all`; (5) `cargo test --all --locked`; (6) commit `chore: bump Rust toolchain to X.Y.Z`.
+**Upgrading Rust**: one command — `./scripts/bump-rust-to.sh X.Y.Z` (owner-facing entry point; `scripts/rust-version-to.sh` is the implementation). It updates the `rust-toolchain.toml` channel plus its version comments, the `Cargo.toml` and `pgo-runner/Cargo.toml` `rust-version` MSRV pair, and every `.github/workflows/*.yml` `RUST_VERSION` pin, then verifies sync via `scripts/check-rust-version-sync.sh`. It also audits narrative docs (`docs/`, `README.md`, `CONTRIBUTING.md`) and warns about stale version references instead of auto-editing them — release dates and rationale need editorial review, so update those by hand. Afterwards: `rustup install X.Y.Z`, `./scripts/build.sh check-all`, `cargo test --all --locked`, then commit.
 
 **Dependencies**: `Cargo.lock` committed (reproducible builds), 64 direct deps / 98 total crates, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
 

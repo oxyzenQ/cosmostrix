@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
+#   systems only; not for Windows cmd.exe or PowerShell (use WSL or
+#   Git Bash on Windows).
 #
 #
 # COSMOSTRIX RUST SOURCE FILE LOC CHECK

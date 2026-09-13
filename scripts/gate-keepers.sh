@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
+#   systems only; not for Windows cmd.exe or PowerShell (use WSL or
+#   Git Bash on Windows).
 #
 # Pre-commit gatekeeper script for cosmostrix.
 # Runs all non-code linters/checks before allowing a commit.
@@ -38,6 +41,9 @@
 #       pure English: commit messages, comments, strings, docs and
 #       diagnostics; scripts/language_audit.py classifies functional
 #       glyph data, math notation and unicode-stress fixtures as kept)
+#  14.  File permission guard (2026-09-13 owner rule — git-tracked
+#       files 644, tracked executables and directories 755, shebang
+#       parity; scripts/check-permissions.sh, --fix-all chmods)
 #
 # Exit codes:
 #   0 = all checks passed
@@ -462,6 +468,34 @@ if [ -f scripts/language_audit.py ] && command -v python3 >/dev/null 2>&1; then
 	fi
 else
 	warn "language_audit.py or python3 not found — skipping"
+fi
+
+# ── 14. File Permission Guard (644/755 owner rule, 2026-09-13) ─────────────
+# Tracked files 644 (755 when executable), directories 755, shebang
+# parity. Generalizes the EXE001 lesson from CI run #1484 beyond
+# scripts/*.py to every tracked script, including .sh and benchmark/
+# tools. --fix-all runs the guard with --fix (chmod in place; the
+# 644/755 exec-bit flips are visible in git diff, the umask-level
+# 664/775 repairs are invisible because git records only the exec bit).
+header "Permission Guard (644/755)"
+if [ -f scripts/check-permissions.sh ]; then
+	if $FIX_MODE; then
+		if bash scripts/check-permissions.sh --fix 2>&1; then
+			info "permissions: violations auto-fixed (review git diff for exec-bit changes)"
+			PASS=$((PASS + 1))
+		else
+			fail "permissions: violations not fully auto-fixable (review output above)"
+		fi
+	else
+		if bash scripts/check-permissions.sh 2>&1; then
+			info "permissions: files 644, executables and directories 755"
+			PASS=$((PASS + 1))
+		else
+			fail "permissions: violations found (auto-fixable via --fix-all)"
+		fi
+	fi
+else
+	warn "check-permissions.sh not found — skipping"
 fi
 
 # ── Summary ────────────────────────────────────────────────────────────────

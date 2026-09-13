@@ -26,7 +26,8 @@
 #   4. .github/workflows/*.yml  RUST_VERSION: "X.Y.Z"       (CI install)
 #
 # Sources audited (warned, NOT auto-edited):
-#   - docs/SYSTEM_REQUIREMENTS.md, docs/SIMD_FEASIBILITY.md, etc.
+#   - docs/ tree (SYSTEM_REQUIREMENTS.md, SIMD_FEASIBILITY.md, etc.),
+#     README.md and CONTRIBUTING.md
 #     These contain narrative text ("Rust X.Y.Z was released on YYYY-MM-DD")
 #     that requires editorial judgement, not mechanical replacement.
 #
@@ -69,8 +70,11 @@ readonly SYNC_CHECK="${REPO_ROOT}/scripts/check-rust-version-sync.sh"
 # — see check-rust-version-sync.sh for rationale).
 readonly WORKFLOW_SKIP_SET=("miri.yml" "docs-ci.yml" "aur.yml")
 
-# Doc files that may contain Rust version references — audited only.
+# Doc paths that may contain Rust version references — audited only.
+# The docs/ tree plus the two narrative root files (README.md and
+# CONTRIBUTING.md), which both cite the pinned toolchain version.
 readonly DOC_AUDIT_DIRS=("${REPO_ROOT}/docs")
+readonly DOC_AUDIT_FILES=("${REPO_ROOT}/README.md" "${REPO_ROOT}/CONTRIBUTING.md")
 
 #
 # Colors (intentionally neutral escape codes — mirrors version-to.sh;
@@ -112,7 +116,7 @@ Updated (structural):
     .github/workflows/*.yml        RUST_VERSION: "X.Y.Z"         (CI install)
 
 Audited only (warned, NOT auto-edited — narrative text):
-    docs/SYSTEM_REQUIREMENTS.md, docs/SIMD_FEASIBILITY.md, etc.
+    docs/ tree, README.md, CONTRIBUTING.md (release dates, rationale)
 
 Safety:
     - Refuses to run on a dirty git tree (use --allow-dirty to override)
@@ -244,6 +248,10 @@ update_rust_toolchain_toml() {
 	# 2. header comment line (mentions the pinned version verbatim)
 	#    Pattern: `# Default toolchain: pinned to X.Y.Z (with rustfmt + clippy).`
 	sed -i -E "s|pinned to ${old_full}|pinned to ${new_full}|g" "${TOOLCHAIN_TOML}"
+
+	# 3. advisory-install comment (mentions the pinned version verbatim)
+	#    Pattern: `rustup toolchain install X.Y.Z --profile default`
+	sed -i -E "s|rustup toolchain install ${old_full}|rustup toolchain install ${new_full}|g" "${TOOLCHAIN_TOML}"
 
 	# Verify channel line
 	local got
@@ -405,10 +413,19 @@ audit_docs() {
 	local new_msrv
 	new_msrv="$(derive_msrv "${new_full}")"
 
-	log_info "Auditing docs/ for stale Rust version references..."
+	log_info "Auditing docs/, README.md and CONTRIBUTING.md for stale Rust version references..."
 
 	# Search for either the full version (1.98.0) or the MSRV form (1.98)
 	# in any doc file. Skip archive/ subdirs (frozen historical content).
+	# Root narrative files (README.md, CONTRIBUTING.md) join the docs/ tree
+	# so a bump warns about their prose references too.
+	local audit_paths=()
+	local p
+	for p in "${DOC_AUDIT_DIRS[@]}" "${DOC_AUDIT_FILES[@]}"; do
+		if [[ -e "${p}" ]]; then
+			audit_paths+=("${p}")
+		fi
+	done
 	local stale_count=0
 	while IFS= read -r match; do
 		# match format: "path:line:content"
@@ -425,7 +442,7 @@ audit_docs() {
 		log_warn "  ${file}:${line}: still references old version"
 		log_warn "    ${content}"
 		stale_count=$((stale_count + 1))
-	done < <(grep -rnE "(${old_full}|[^0-9.]${old_msrv}[^.0-9])" "${DOC_AUDIT_DIRS[@]}" 2>/dev/null |
+	done < <(grep -rnE "(${old_full}|[^0-9.]${old_msrv}[^.0-9])" "${audit_paths[@]}" 2>/dev/null |
 		grep -v '/docs/archive/' || true)
 
 	if [[ "${stale_count}" -gt 0 ]]; then

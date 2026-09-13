@@ -62,9 +62,10 @@ Zero hardcoded dependency versions in `.github/*`. The rule is
   floating. `rust-toolchain.toml` is the single source of truth; CI jobs
   that pass an explicit version use the `RUST_VERSION` env, which gate
   check 9 (`check-rust-version-sync.sh`) keeps in lockstep. Bumping is
-  one command: `./scripts/rust-version-to.sh X.Y.Z`. A floating Rust
-  toolchain can silently break the build the day a new stable ships;
-  the lock is what makes CI boring.
+  one command: `./scripts/bump-rust-to.sh X.Y.Z` (the owner-facing entry
+  point; it forwards to `scripts/rust-version-to.sh`, the implementation).
+  A floating Rust toolchain can silently break the build the day a new
+  stable ships; the lock is what makes CI boring.
 
 Trade-off accepted by the owner: a future tool release with new default
 rules (e.g. ruff, shfmt formatting) can turn the gate red. The fix is a

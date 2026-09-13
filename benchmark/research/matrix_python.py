@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
+# PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
+#   systems only; not for Windows cmd.exe or PowerShell (use WSL or
+#   Git Bash on Windows).
 # Minimal full-redraw Matrix rain in Python.
 # Writes every cell every frame via ANSI escape sequences to stdout.
 # Usage: BENCH_COLS=120 BENCH_LINES=40 BENCH_FRAMES=100 python3 matrix_python.py

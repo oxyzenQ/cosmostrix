@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-3.0-only
+# PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
+#   systems only; not for Windows cmd.exe or PowerShell (use WSL or
+#   Git Bash on Windows).
 # NIGHT-research-3 probe: replicates the OKLab polar gradient math from
 # src/engine/chroma_dragon_engine/gradient/mod.rs in Python and measures
 # how often interpolated samples exit the sRGB gamut (per-channel clamp

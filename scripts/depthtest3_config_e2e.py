@@ -1,6 +1,9 @@
 #!/usr/bin/env python3
 # Copyright (C) 2026 rezky_nightky
 # SPDX-License-Identifier: GPL-3.0-only
+# PLATFORM: UNIX-only (Linux, macOS, BSD). Optimal for Unix-like
+#   systems only; not for Windows cmd.exe or PowerShell (use WSL or
+#   Git Bash on Windows).
 
 """NIGHT-depthtest-3 e2e: the config.toml depth stress test on the
 REAL binary through a PTY (the ANSI stream + the --verbose startup
