@@ -2,17 +2,50 @@
 
 # Future Backlog — Doc Maintenance Cleanup
 
-> **Status**: DEFERRED (2026-09-03, S-master-HUNT-16). These items were
-> found by `scripts/docs-audit.py` and manually triaged. They are
-> documented here for a future dedicated doc-cleanup pass — NOT for
-> immediate action. Source code is the single source of truth; these
-> are doc-only issues that don't affect runtime behavior.
+> **Status**: EXECUTED (2026-09-14, NIGHT-hunt-45 + docs-6 — the pre-LTS
+> owner-mandated docs audit; this backlog WAS that "future dedicated
+> doc-cleanup pass"). Outcome of the full re-triage against the current
+> tree:
+>
+> - **FIXED in earlier staleness passes** (docs-5 `5b7e092` + the
+>   NIGHT-LTS-pre sweep `6f30ed6`): the CONTRIBUTING.md rows and the
+>   live-path rows for CENTRAL_CONTROL_RAINS_USAGE.md,
+>   LIVE_RELOAD_BEHAVIOR.md, MAINTENANCE.md, PHILOSOPHY.md,
+>   SECURITY_AUDIT.md, and TERMINAL_LIFECYCLE_MATRIX.md — none of them
+>   reproduce under `scripts/docs-audit.py` today.
+> - **RECLASSIFIED as intentional history** (kept, with their in-doc
+>   disclaimers): ENDURANCE.md and RELEASE_GUARD.md script mentions
+>   (explicit "removed in dead-script cleanup" notes), RULES.md's
+>   gen-density-presets.py mention (explicit "was deleted" note),
+>   VISUAL_IDENTITY.md's PRESET_BATTLE_VERDICT.md mention (explicit
+>   "deleted by the 2026-08 orphan-doc cleanup" note), HIST_BENCH.md
+>   helper mentions (same "historical ... removed" notes), the
+>   incubator-README rows ("at that time" / "moved from" narration),
+>   and the src/RULES.md example paths (illustrative
+>   NIGHT-hunter-1/re-export examples).
+> - **FIXED in this pass**: README.md CLI-reference block was missing 7
+>   live flags (--crystal-dragon-secs, -M/--shading-mode, --color-mode,
+>   -g/--glitch-ms, -l/--linger-ms, --perf-stats, --bench-frames);
+>   README.md + docs/BENCHMARKING.md claimed a 4x4 screen-size minimum
+>   (source truth: 1x1, MIN_TERMINAL_COLS/LINES); one stale
+>   src/constants.rs path in a src/diagnostics/info.rs doc comment;
+>   `scripts/stale-hunt.py` false-flagged clap `alias` flags
+>   (--charset-custom, 7 hits) and external curl/wget/cargo flags —
+>   alias parsing + allowlists added, stale-flag/path/module counts
+>   now 0.
+> - **ACCEPTED tool noise**: `scripts/docs-audit.py` still reports the
+>   intentional-history mentions above plus blockquoted per-commit
+>   "Files changed" records inside the engine KEY.md/RULES.md files —
+>   same historical-snapshot contract as CHANGELOG.md. The remaining
+>   "duplicate comment lines" candidates from stale-hunt.py are
+>   heuristic; the comment-style conventions intentionally repeat
+>   module-doc lines.
 >
 > **Owner directive**: "log broken links to FUTURE_BACKLOG.md (35+
 > historical broken refs in CHANGELOG/CONTRIBUTING — deferred per
 > historical record contract, but could be noted for future cleanup)."
 
-## 1. Broken references in LIVE docs (fix in future pass)
+## 1. Broken references in LIVE docs (triaged in the NIGHT-hunt-45 pass — see status header)
 
 These are live documentation files that reference paths which have
 moved, been archived, or been deleted. They should be updated to

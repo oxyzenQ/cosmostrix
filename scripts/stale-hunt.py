@@ -52,6 +52,23 @@ INTENTIONAL_REMOVED_FLAG_FILES = {
     "src/validation/mod.rs",  # REMOVED_FLAGS registry + did-you-mean examples
     "src/main.rs",  # prevalidation + argv expansion + typo examples
     "src/cli/app.rs",  # field definitions may document removed flags
+    # NIGHT-hunt-45: audited additions — each legitimately names removed
+    # flags (rename-history doc comments / interception + typo regression
+    # tests); verified in this audit, not blind allowlisting.
+    "src/config/mod.rs",  # --disable-effects rename-history doc comment
+    "test/validation/tests.rs",  # REMOVED_FLAGS interception tests
+    "test/tests/clap_suggestion.rs",  # typo-suggestion regression tests
+}
+
+# Documented typo strings that appear in the suggestion-machinery docs
+# (cli/suggestion.rs, cli/ux.rs, cli/argv_expand.rs) — they are the
+# INPUT examples of the typo-rescue system, not references to real
+# flags (NIGHT-hunt-45 triage: all intentional).
+TYPO_EXAMPLE_FLAGS = {
+    "--lis",
+    "--helpss",
+    "--msg-fill-styl",
+    "--no-effecs",
 }
 
 # NIGHT-hunter-5: scan BOTH trees — src/ (production) and test/
@@ -203,6 +220,13 @@ def collect_live_flags() -> set[str]:
             flags.add("--" + m.group(1))
         for m in re.finditer(r'long\s*\(\s*"([a-z0-9\-]+)"', src):
             flags.add("--" + m.group(1))
+        # clap alias attributes: `alias = "charset-custom"` and
+        # `visible_alias = "..."` register alternative long names that
+        # the binary accepts (verified: --charset-custom runs, clap
+        # suggests on its typos). NIGHT-hunt-45: v1 of this scan missed
+        # them and false-flagged 7 correct comment references.
+        for m in re.finditer(r'(?:visible_)?alias\s*=\s*"([a-z0-9\-]+)"', src):
+            flags.add("--" + m.group(1))
         for m in re.finditer(r"^\s*pub\s+([a-z_][a-z0-9_]*)\s*:", src, re.MULTILINE):
             flags.add("--" + m.group(1).replace("_", "-"))
         strings = re.findall(r'"([^"\n]*)"', src)
@@ -286,6 +310,17 @@ EXTERNAL_TOOL_FLAGS = {
     "--file",
     "--line",
     "--message",
+    # cargo test / curl / wget argv built by src/platform/update.rs
+    # (NIGHT-hunt-45: --write-out/--tries/--waitretry/--max-time and
+    # cargo's --threads appeared in update.rs + fps_intent.rs comments
+    # and were false-flagged as cosmostrix flags).
+    "--threads",
+    "--write-out",
+    "--tries",
+    "--waitretry",
+    "--max-time",
+    "--header",
+    "--server-response",
 }
 
 PLACEHOLDER_FLAGS = {"--foo", "--flag", "--bar", "--baz"}
@@ -456,6 +491,7 @@ def scan():
                     flag in live
                     or flag in EXTERNAL_TOOL_FLAGS
                     or flag in PLACEHOLDER_FLAGS
+                    or flag in TYPO_EXAMPLE_FLAGS
                 ):
                     continue
                 # Glob/placeholder patterns: `--list-*`, `--bench_X`.

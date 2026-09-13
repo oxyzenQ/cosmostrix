@@ -188,8 +188,8 @@ cosmostrix is a CPU-only terminal renderer with deliberate scope. The list below
 - **Interactive mode is not pipe-friendly.** The rain renders raw ANSI frames to stdout at full frame rate. Piping it (`cosmostrix | grep x`) or redirecting it (`cosmostrix > file`) produces megabytes of escape-sequence frame data with no line breaks until the periodic stdout-health probe ends the run (a stderr warning at frame zero names the correct tool). Never `cat` such a dump file into a live terminal. For pipelines and capture use `--benchmark` (plain text); for text reports use `--doctor`, `--dump-config`, or `--docs`. See [`docs/USAGE_PIPE_REDIRECT.md`](docs/USAGE_PIPE_REDIRECT.md) for the full fatal-usage catalog.
 
 - **Screen size limits.** `--screen-size WxH` clamps to a per-mode ceiling:
-  - **Interactive mode**: `4×4` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
-  - **Benchmark mode**: `4×4` minimum, `7680×4320` (8K UHD) maximum. 4K UHD is the recommended stress test; 8K is the ceiling.
+  - **Interactive mode**: `1×1` minimum, `1024×500` maximum. Larger sizes would degrade interactive FPS.
+  - **Benchmark mode**: `1×1` minimum, `7680×4320` (8K UHD) maximum. 4K UHD is the recommended stress test; 8K is the ceiling.
   - `--bench-all` runs a fixed ladder of sizes (`6×6` -> `20×20` -> `40×20` -> `80×24` -> `120×40` -> `200×60`).
 
   See [KNOWN_ISSUES.md](KNOWN_ISSUES.md) for platform-specific quirks and mitigations.
@@ -415,6 +415,9 @@ COMMON OPTIONS
       --monolith-size <size>          Monolith segment cell scale (small|normal|large)
       --async-mode <true|false>       Async variable column speeds (default: true)
       --crystal-dragon <true|false>   Crystal Dragon ambient color drift (default: false)
+      --crystal-dragon-secs <secs>    Crystal Dragon drift cadence in seconds (default: 60;
+                                      range 0.0-86400.0; human forms: 45, 45s, 1m, 1h30m;
+                                      config key crystal-dragon-secs, live-reloadable)
       --power-dragon <true|false>     Power Dragon adaptive protection (default: true)
       --msg-mode <true|false>         Message overlay master switch (default: true)
       --no-effects                    Disable ALL particle effects (quantum ripple, border spark, click flash waves, anomaly zones). Auto-enabled by --benchmark/--bench-all/--bench-frames (particles are input-driven, never spawn during bench)
@@ -458,10 +461,19 @@ HELP
   -V, --version                Print complete version and build information
       --check-update           Check the latest upstream release
 
-ADVANCED (stable, supported, documented in --help)
+ADVANCED (stable, supported; intentionally not in clap's auto-list — documented in --help)
   -b, --bold <0|1|2>           Bold style (0=off, 1=random, 2=all)
       --color-bg <mode>        Background mode (black, default-background)
+  -M, --shading-mode <0|1>     Shading mode (0=random, 1=cinematic [default])
+      --color-mode <0|16|256|24>
+                               Force color depth (auto-detected by default: 24-bit if
+                               COLORTERM, else 8-bit, else 16-color)
+  -g, --glitch-ms <LOW,HIGH>  Glitch duration range in ms (min 1, max 5000; default 300,400)
+  -l, --linger-ms <LOW,HIGH>  Linger time range in ms (min 1, max 60000; default 1,3000)
       --duration <seconds>     Interactive auto-exit after N seconds
+      --perf-stats            Print performance statistics summary on exit (interactive)
+      --bench-frames <N>       Headless benchmark for exactly N frames (dispatch precedence:
+                               --bench-all > --benchmark > --bench-frames)
 ```
 
 Explicit CLI flags always override scene and scene-custom values.

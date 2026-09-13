@@ -609,7 +609,9 @@ mod tests {
     /// the pre-audit text referenced `density_noise_at` (renamed to
     /// `column_density_modifier`), `cloud::spawn::DropletSpawner`
     /// (symbol no longer exists), and placed the PARALLAX constants in
-    /// `src/constants.rs` (they live in central_control_rains/parallax.rs).
+    /// the old flat constants module (they live in
+    /// central_control_rains/parallax.rs, re-exported from
+    /// src/types/constants.rs).
     #[test]
     fn docs_report_has_no_stale_symbols_or_paths() {
         let report = docs_report();

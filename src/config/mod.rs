@@ -712,7 +712,7 @@ pub struct Args {
     /// Default: false (effects on).
     ///
     /// Renamed from --disable-effects to --no-effects in v50.0.0-beta.7 for
-    /// CLI ergonomics (mirrors --no-color / --no-border convention). Typing
+    /// CLI ergonomics (the common `--no-*` CLI naming convention). Typing
     /// --disable-effects now triggers clap's built-in "did you mean?" hint
     /// (enabled via the `suggestions` clap feature in Cargo.toml).
     #[arg(
