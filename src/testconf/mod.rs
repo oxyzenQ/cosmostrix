@@ -284,7 +284,9 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
     }
 
     // NIGHT-hunt-37: charset-custom block-count ceiling (the
-    // collector's silent drop beyond 100 blocks is now a hard error).
+    // collector's silent drop beyond the cap is now a hard error;
+    // cap value: CHARSET_CUSTOM_MAX_BLOCKS, currently 24 per
+    // NIGHT-hunt-40).
     if let Some(msg) = crate::charset_custom::validate_charset_custom_block_count(&parsed.values) {
         crate::output::eprintln_error_labeled(&format!("testconf: {msg}"));
         errors += 1;
@@ -488,8 +490,9 @@ pub(crate) fn validate_config_strictly(
     }
 
     // NIGHT-hunt-37: charset-custom block-count ceiling — the
-    // collector's silent drop beyond 100 blocks is now a hard error
-    // (the last silent-skip in the charset-custom namespace).
+    // collector's silent drop beyond the cap is now a hard error
+    // (the last silent-skip in the charset-custom namespace; cap
+    // value: CHARSET_CUSTOM_MAX_BLOCKS, currently 24 per NIGHT-hunt-40).
     if let Some(msg) = crate::charset_custom::validate_charset_custom_block_count(cfg) {
         return Err(msg);
     }

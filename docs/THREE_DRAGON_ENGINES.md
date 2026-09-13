@@ -94,13 +94,13 @@ carry an UNLOCK entry in the same commit (the `c1c7779` and
 depthtest-3 retroactive entries document the failure mode when it
 does not).
 
-Current lock round (2026-09-12, locked tree `1007714`):
+Current lock round (2026-09-13, locked tree `57c67a6`):
 
 | Engine | Path | Status | Lock entry |
 |---|---|---|---|
-| Cosmic | `src/engine/cosmic_dragon_engine/` | LOCKED (hunter-34 unlock + re-lock: terminal shadow honesty) | `KEY.md` top |
-| Chroma | `src/engine/chroma_dragon_engine/` | LOCKED (lock intact; retroactive depthtest-3 unlock noted) | `KEY.md` top |
-| Crystal | `src/engine/crystal_dragon_engine/` | LOCKED (lock intact, zero commits since S-night-R8) | `KEY.md` top |
+| Cosmic | `src/engine/cosmic_dragon_engine/` | LOCKED (hunter-34 + retroactive hunt-36/termux-hang/neural-fire unlocks + re-lock) | `KEY.md` top |
+| Chroma | `src/engine/chroma_dragon_engine/` | LOCKED (retroactive depthtest-3 + hunt-37 completeness + hunt-39/hunt-40 entry-budget unlocks + re-lock) | `KEY.md` top |
+| Crystal | `src/engine/crystal_dragon_engine/` | LOCKED (retroactive 9de2f44 + hunt-39/hunt-40 ambient entry-budget unlocks + re-lock) | `KEY.md` top |
 
 ### The simple history method (owner request 2026-09-12)
 
