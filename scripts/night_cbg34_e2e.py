@@ -82,10 +82,23 @@ class SyncScreen(Screen):
         buf = bytes(self.pre) + bytes(data)
         self.pre = bytearray()
         buf = buf.replace(b"\x1b\x1b", b"\x1b")
-        buf = LONE_ESC_RE.sub(b"", buf)
+        # NIGHT-hunt-38 harness fix: hold back a TRAILING lone ESC
+        # BEFORE the lone-ESC strip. The old order (strip, then
+        # endswith-holdback) let the regex DELETE the trailing ESC
+        # first — when that ESC was a CSI introducer split across
+        # feed() chunks (the reader delivers bursts with arbitrary
+        # boundaries), the introducer was gone and the sequence body
+        # ("[19;92H", "[38;2;...", "[0m") was painted as GLYPHS on
+        # the grid. Those phantom cells persisted for seconds (the
+        # app never re-emits cells it believes unchanged), reading
+        # as "frozen" cells in the style sweep and as false orphans
+        # in the force-repaint classifier. Repro: replay the raw
+        # stream through feed() one byte at a time — the first two
+        # ESCs of "\x1b\x1b[?25l" vanish and "[?25l" paints at (0,0).
         if buf.endswith(b"\x1b"):
             self.pre = bytearray(buf[-1:])
             buf = buf[:-1]
+        buf = LONE_ESC_RE.sub(b"", buf)
         super().feed(buf)
         # Fold the parent's residual (incomplete sequence) plus our
         # held-back ESC into one prepend for the next feed call.

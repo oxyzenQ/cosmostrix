@@ -9,6 +9,46 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### feat: NIGHT-hunt-38 — the force-repaint classifier promoted to scripts/ as a standing audit tool + a harness parser fix it uncovered
+
+- Owner approval (2026-09-13, depth-hunt-1 follow-up): the
+  force-repaint frame-state membership probe — previously a one-off
+  method recorded in the depth-hunt-1 audit — is now
+  `scripts/night_h38_force_repaint_classifier.py`. Per style: five
+  checkpoints over a 12 s window freeze-detect (the sweep's
+  multi-checkpoint rule), then the HUD toggle ('i' on/off) fires
+  force_draw_everything, then the classification — frozen + survives
+  repaint identical = LIVE STATIC; frozen + changed = ADVANCING;
+  frozen + blanked = ORPHAN (a real cleanup bug). Exit 1 on any
+  orphan, exit 0 when every frozen cell is frame-state content.
+  Verdict on the current binary: all thirteen structured styles
+  clean; neural's frozen set is live static (dormant neurons) plus
+  advancing cells, matching the depth-hunt-1 probe.
+- The promotion immediately paid for itself: the first classifier
+  runs flagged 1-2 "orphans" per monolith run. Investigation chain:
+  the stuck-cell sweep exempts structured styles (they own their
+  cleanup); phosphor ghosts live ~0.4 s (cannot be 12 s frozen); an
+  in-process frame-ownership oracle
+  (`hunt38_monolith_oracle_no_orphan_cells_persist`, kept as a
+  regression test) proved the frame state clean; a raw-stream replay
+  with byte-exact write tracing traced the "frozen" glyphs to
+  CSI-fragment characters ('[', 'H', 'm', ';', digits) — the PTY
+  harness's own parser was painting escape-sequence bodies as
+  glyphs.
+- Root cause (night_cbg34_e2e.py SyncScreen.feed): the lone-ESC
+  strip regex ran BEFORE the trailing-ESC holdback, so a CSI
+  introducer split across feed() chunks (reader bursts have
+  arbitrary boundaries) was DELETED and the sequence body painted
+  as text; those phantom cells persisted for seconds (the app never
+  re-emits cells it believes unchanged) and read as frozen cells /
+  false orphans. Fix: hold back the trailing ESC before the strip.
+  Byte-exact replay repro (feed one byte at a time: the first two
+  ESCs of the stream vanished and "[?25l" painted at (0,0)) now
+  shows zero fragment glyphs. Every harness consumer — the h34
+  style sweep, the classifier, future probes — inherits the fix.
+- No runtime Rust code changed (a python harness, a new audit
+  script, one new test) — benchmark skipped per the A/B contract.
+
 ### docs: NIGHT-docs-3 — FAQ: the OKLab question and the custom-block contract, documented once
 
 - Owner question (2026-09-13): "is cosmostrix use OKlab when using

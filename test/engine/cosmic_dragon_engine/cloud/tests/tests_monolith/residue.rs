@@ -165,3 +165,62 @@ fn monolith_bottom_residue_stays_bounded() {
         ratio * 100.0
     );
 }
+
+/// NIGHT-hunt-38 (in-process oracle): a visible frame cell must always
+/// be OWNED — either by the monolith's current draw (previous_cells
+/// after the frame's swap) or by live phosphor energy (a decaying
+/// ghost). A glyph cell with neither is an ORPHAN: unbacked content
+/// that persists until the style's own motion happens to pass over it
+/// (the PTY force-repaint classifier's erased-cell finding — the
+/// classifier is scripts/night_h38_force_repaint_classifier.py).
+///
+/// The oracle runs every 60th frame (~1 s at 60 fps) for ~20 s — the
+/// horizon over which the PTY probe observed 12+ second frozen cells.
+#[test]
+fn hunt38_monolith_oracle_no_orphan_cells_persist() {
+    let (cols, lines) = (140u16, 46u16);
+    let lines_us = lines as usize;
+    let mut cloud = make_monolith_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+    let start = Instant::now();
+    cloud.last_spawn_time = start - Duration::from_secs(1);
+    cloud.last_phosphor_time = start;
+
+    let step_ms = 16;
+    let frames = 1200u64;
+    let mut orphans: Vec<(u16, u16)> = Vec::new();
+    for idx in 0..frames {
+        let now = start + Duration::from_millis(idx * step_ms);
+        cloud.rain_at(&mut frame, now);
+        if idx % 60 == 0 {
+            let drawn: std::collections::BTreeSet<(u16, u16)> = cloud
+                .monolith_rain
+                .drawn_cells_for_test()
+                .iter()
+                .map(|c| (c.col, c.line))
+                .collect();
+            for line in 0..lines {
+                for col in 0..cols {
+                    let cell = frame.get(col, line).expect("cell in bounds");
+                    if cell.ch == ' ' && cell.fg.is_none() {
+                        continue;
+                    }
+                    if drawn.contains(&(col, line)) {
+                        continue;
+                    }
+                    let pidx = col as usize * lines_us + line as usize;
+                    if cloud.phosphor[pidx] > 0 {
+                        continue;
+                    }
+                    orphans.push((col, line));
+                }
+            }
+        }
+        frame.clear_dirty();
+    }
+    assert!(
+        orphans.is_empty(),
+        "monolith orphan cells (visible glyph, not drawn, no phosphor energy): {:?}",
+        &orphans[..orphans.len().min(12)]
+    );
+}
