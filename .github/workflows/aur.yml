@@ -66,10 +66,22 @@ jobs:
       - name: Resolve release tag
         id: resolve
         shell: bash
+        # NIGHT-depth-hunt-1 hardening: the tag is passed via env
+        # indirection instead of inline `${{ }}` interpolation inside
+        # the run block. Inline template interpolation is expanded
+        # BEFORE the shell parses the script, so a crafted tag value
+        # could break out of the double quotes (classic GH Actions
+        # script-injection pattern). The trigger surface is trusted
+        # (repository_dispatch / workflow_dispatch require repo write
+        # access), so this is defense-in-depth, not an open vuln — but
+        # env indirection makes the injection structurally impossible
+        # (the value never becomes shell syntax).
+        env:
+          RAW_TAG: ${{ github.event.client_payload.tag || inputs.tag }}
         run: |
           set -euo pipefail
 
-          TAG="${{ github.event.client_payload.tag || inputs.tag }}"
+          TAG="${RAW_TAG}"
           if [[ -z "${TAG}" ]]; then
             echo "::error::No tag provided via repository_dispatch or workflow_dispatch"
             exit 1
