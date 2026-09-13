@@ -260,9 +260,11 @@ prevents perfect stabilization under sustained fullscreen load.
 ### Status
 
 **Particle stuck/hang FIXED (HUNT-21 + HUNT-22 + HUNT-23 + HUNT-24 +
-HUNT-25 + HUNT-26) — six layers, the last three strategic.** HUNT-23 (round 3) is the
+HUNT-25 + HUNT-26 + NIGHT-hunt-43) — seven layers, the last four
+strategic.** HUNT-23 (round 3) is the
 systemic output layer; HUNT-24 (round 4) is the terminal-class gate;
-HUNT-25 (round 5) is the resync redraw fix; the first three are
+HUNT-25 (round 5) is the resync redraw fix; NIGHT-hunt-43 (round 7) is
+the missed second MADV reclaim site; the first three are
 summarized below and detailed in the CHANGELOG.
 
 *Layer 6 (HUNT-26): the park-epoch bug + the P2 resync bomb — the ACTUAL
@@ -280,6 +282,26 @@ assumed. Fixes: per-frame write stamps for the park and capture paths,
 full-body draw only on true content invalidation, reclaimed-cell
 normalization, and an amortized post-skip thaw budget (600 cells/frame).
 See the CHANGELOG entry for the measured evidence.
+
+*Layer 7 (NIGHT-hunt-43): the P4 idle-resync reclaim site missed the
+HUNT-26 normalization — the residual "glitch shift rain" stuck cells.*
+The owner's third-round report (stuck glyph cells on the Glyph type
+after ~1:43 of an unattended `-v -s` screensaver run, surviving until a
+random droplet happened to pass through them) traced to the SECOND
+`hint_reclaim_pages` call site: the idle resync path advised
+`MADV_DONTNEED` on `frame.cells` without the `normalize_reclaimed_cells`
+fix HUNT-26 had applied to the P2 self-heal site, and its SAFETY comment
+still claimed the next `rain_at()` bumps the content generation — true
+only for the thirteen structured styles (their force path runs
+`clear_with_bg`), false for the Glyph droplet family since HUNT-25
+(`force_repaint`, no gen bump). A gen-matched zeroed cell was emitted as
+a raw NUL byte that terminals silently drop, so the pre-reclaim glyph
+stayed on screen while the model said blank — and no model-side cleanup
+could see it (the stuck-cell sweep skips fg-less cells; phosphor only
+arms cells written this frame). Fix: both event-loop reclaim sites route
+through the new `reclaim_frame_cells` helper (madvise + normalize +
+cooldown mark travel together), making the normalize step structural.
+Regression tests: `tests_stuck_cells_hunt43.rs`.
 
 *Layer 5 (HUNT-25): stop resetting render state at maintenance redraws —
 the "glitch rain shift" on ALL terminals.* The owner's post-HUNT-24

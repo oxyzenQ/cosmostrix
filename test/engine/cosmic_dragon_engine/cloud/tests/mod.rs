@@ -54,6 +54,7 @@ mod tests_solar_flare;
 mod tests_stuck_cells_hunt17;
 mod tests_stuck_cells_hunt32;
 mod tests_stuck_cells_hunt36;
+mod tests_stuck_cells_hunt43;
 mod tests_visual_depth;
 mod tests_vortex;
 

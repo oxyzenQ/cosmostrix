@@ -78,12 +78,24 @@ pub(crate) fn adaptive_resync_interval(idle_duration_secs: f64) -> f64 {
 /// "zero-fill-on-demand pages for anonymous private mappings"). Two
 /// consequences are handled explicitly:
 ///
-/// 1. Zeroed bytes inside the caller's buffer. Both call sites set
-///    `cloud.force_draw_everything()` BEFORE this call, and the next loop
-///    iteration runs `rain_at()` → `Frame::clear_with_bg()` (which bumps
-///    the content generation) before any cell is read. The generation
-///    mismatch makes every zeroed cell read as `blank` — the discarded
-///    content is never interpreted as a live `Cell` value.
+/// 1. Zeroed bytes inside the caller's buffer. Both call sites go
+///    through [`reclaim_frame_cells`], which calls
+///    `Frame::normalize_reclaimed_cells` IMMEDIATELY after this
+///    hint so the zeroed cells read as proper blanks (ch ' ') before
+///    the next emit. The pre-hunt-43 documentation claimed the next
+///    `rain_at()` runs `Frame::clear_with_bg()` (bumping the content
+///    generation) before any cell is read — that stopped being true
+///    for the Glyph droplet family when HUNT-25 moved its force path
+///    to `Frame::force_repaint` (no gen bump), and HUNT-26's
+///    normalization fix was applied to only one of the two call
+///    sites. A gen-matched zeroed cell is emitted as a RAW NUL byte
+///    (dropped by terminals — model/screen divergence) and is
+///    invisible to every model-side cleanup: the stuck-cell sweep
+///    skips fg-less cells and phosphor only arms cells written this
+///    frame. The old glyph stays on screen until a random droplet
+///    happens to pass through it — the owner's "glitch shift rain"
+///    report. The helper makes the normalize contract structural:
+///    no caller can advise the kernel without re-blanking.
 /// 2. Zeroed bytes OUTSIDE the caller's buffer — the cross-object
 ///    hazard. `madvise` operates at PAGE granularity, while malloc
 ///    chunks (glibc main arena, for allocations below the dynamic mmap
@@ -187,6 +199,63 @@ fn page_size() -> usize {
 #[cfg(not(target_os = "linux"))]
 pub(crate) unsafe fn hint_reclaim_pages(_ptr: *const u8, _len: usize) {
     // No-op on non-Linux platforms.
+}
+
+/// The single production entry point for the P4 reclaim: advise the
+/// kernel to drop the frame buffer's interior pages and immediately
+/// re-normalize the zeroed cells.
+///
+/// NIGHT-hunt-43: this helper exists because the two previous call
+/// sites (the P2 self-heal mitigation and the P4 idle resync) had
+/// drifted apart — HUNT-26 added `normalize_reclaimed_cells()` to the
+/// P2 site but missed the P4 idle site, whose SAFETY comment still
+/// claimed "the next rain_at() bumps the content generation before any
+/// cell is read". That claim was true only for the thirteen structured
+/// styles (their force path calls `clear_with_bg`, bumping the
+/// generation and making every zeroed cell read as blank). For the
+/// Glyph droplet family the force path has been `Frame::force_repaint`
+/// (no gen bump) since HUNT-25, so a zeroed cell stayed gen-matched and:
+///
+/// - the emitter emitted it as a RAW NUL byte, which terminals
+///   silently drop — the terminal kept showing the pre-reclaim glyph
+///   while the model said blank (model/screen divergence);
+/// - the stuck-cell sweep skipped it (`fg.is_none()`);
+/// - phosphor never armed it (Pass 1 only arms cells written this
+///   frame, and nothing rewrites a cell no droplet covers);
+/// - every later full repaint re-emitted the same dropped NUL.
+///
+/// The stranded glyph therefore stayed on screen until a random
+/// droplet happened to pass through that exact cell — the owner's
+/// report (stuck cells on the Glyph type, near the middle rows where
+/// the advised interior pages live, first visible after the first
+/// idle resync ~30 s into an unattended screensaver run).
+///
+/// Centralizing the three steps (madvise + normalize + cooldown mark)
+/// makes the normalize step structural: a future call site cannot
+/// forget it. On non-Linux platforms the madvise is a no-op and the
+/// normalize scan finds no zeroed cells, so the helper degrades to the
+/// cooldown-mark-only behavior those platforms had before.
+pub(crate) fn reclaim_frame_cells(
+    frame: &mut crate::frame::Frame,
+    reclaim_state: &mut ReclaimState,
+    now: Instant,
+) {
+    let cells_ptr = frame.cells.as_ptr();
+    let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
+    // SAFETY: frame.cells is a valid Vec allocation.
+    // hint_reclaim_pages advises only pages fully interior to the
+    // allocation (never shared arena edge pages) — see the function
+    // doc above for the corrected MADV_DONTNEED semantics.
+    unsafe {
+        hint_reclaim_pages(cells_ptr as *const u8, cells_len);
+    }
+    // Re-blank exactly the zeroed cells (ch == '\0' is the zero-fill
+    // signature; no legitimate cell ever stores it) so the next full
+    // repaint emits proper blanks instead of raw NUL bytes. See the
+    // helper doc for why every model-side cleanup is blind to a
+    // non-normalized zeroed cell.
+    frame.normalize_reclaimed_cells();
+    reclaim_state.mark_reclaimed(now);
 }
 
 /// Track whether memory reclaim has been performed recently to avoid

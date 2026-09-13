@@ -50,20 +50,25 @@ pub(crate) fn run_adaptive_throttle(ctx: &mut LoopCtx) -> ThrottleResult {
         ctx.next_frame = loop_now;
         // P4: Hint kernel to reclaim stale pages during sustained idle.
         if ctx.reclaim_state.should_reclaim(loop_now) {
-            let cells_ptr = ctx.frame.cells.as_ptr();
-            let cells_len = ctx.frame.cells.len() * std::mem::size_of_val(&ctx.frame.cells[0]);
-            // SAFETY: frame.cells is a valid Vec allocation.
-            // hint_reclaim_pages advises only pages fully interior to
-            // the allocation (never shared arena edge pages) — see
-            // reclaim_state.rs for the corrected MADV_DONTNEED
-            // semantics (zero-fill-on-demand). The zeroed interior
-            // cells read as blank: force_draw_everything() was set
-            // above, and the next rain_at() bumps the content
-            // generation before any cell is read.
-            unsafe {
-                super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
-            }
-            ctx.reclaim_state.mark_reclaimed(loop_now);
+            // NIGHT-hunt-43: route through reclaim_frame_cells, which
+            // normalizes the zeroed cells immediately after the madvise.
+            // The pre-fix code called hint_reclaim_pages directly here,
+            // with a SAFETY comment claiming "the next rain_at() bumps
+            // the content generation before any cell is read" — a
+            // stale assumption even then: HUNT-25 had already moved the
+            // Glyph (droplet family) force path to Frame::force_repaint,
+            // which does NOT bump the generation (only the thirteen
+            // structured styles still run clear_with_bg). A gen-matched
+            // zeroed cell was emitted as a raw NUL byte that terminals
+            // silently drop, so the pre-reclaim glyph stayed on screen
+            // while the model said blank — and no model-side cleanup
+            // could see it (the stuck-cell sweep skips fg-less cells;
+            // phosphor only arms cells written this frame). The stranded
+            // glyph persisted until a random droplet happened to pass
+            // through that exact cell: the owner's "glitch shift rain"
+            // report on the Glyph type, first visible after the first
+            // idle resync (~30 s into an unattended screensaver run).
+            super::adaptive::reclaim_frame_cells(&mut ctx.frame, &mut ctx.reclaim_state, loop_now);
         }
     }
     ThrottleResult {

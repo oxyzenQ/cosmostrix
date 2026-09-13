@@ -121,39 +121,17 @@ pub(crate) fn run_self_healer(
             if inputs.effective_pressure < SELF_HEAL_PRESSURE_LOW {
                 cloud.force_draw_everything();
             }
-            #[cfg(target_os = "linux")]
-            {
-                let cells_ptr = frame.cells.as_ptr();
-                let cells_len = frame.cells.len() * std::mem::size_of_val(&frame.cells[0]);
-                // SAFETY: frame.cells is a valid Vec allocation.
-                // hint_reclaim_pages advises only pages fully interior
-                // to the allocation (never shared arena edge pages) —
-                // see reclaim_state.rs for the corrected MADV_DONTNEED
-                // semantics (zero-fill-on-demand).
-                //
-                // S-master-HUNT-26 (NIGHT-hunter-2 round 2): the zeroed
-                // interior cells read back as Cell{ch:'\0', ...} — the
-                // OLD comment assumed the next rain_at() bumps the content
-                // generation before any cell is read, which stopped being
-                // true when HUNT-25 moved the glyph force path to
-                // force_repaint (no gen bump). A gen-matched zeroed cell
-                // was then emitted as a RAW NUL byte into the ANSI stream
-                // (silently dropped by terminals — a model/screen
-                // divergence until the cell was rewritten).
-                // normalize_reclaimed_cells() re-blanks exactly the
-                // zeroed cells so they emit as proper blanks.
-                unsafe {
-                    super::adaptive::hint_reclaim_pages(cells_ptr as *const u8, cells_len);
-                }
-                frame.normalize_reclaimed_cells();
-                reclaim_state.mark_reclaimed(inputs.loop_now);
-            }
-            #[cfg(not(target_os = "linux"))]
-            {
-                // Non-Linux: madvise no-op, but mark reclaim state for
-                // consistency with the P4 path.
-                reclaim_state.mark_reclaimed(inputs.loop_now);
-            }
+            // NIGHT-hunt-43: unified reclaim entry point — the madvise
+            // hint + normalize_reclaimed_cells + cooldown mark travel
+            // together (see reclaim_frame_cells' doc for the full
+            // chain). HUNT-26 originally added the normalization inline
+            // at this site only; the P4 idle resync site drifted
+            // without it, which is how the stranded-glyph bug came back
+            // for the Glyph family. The helper is cross-platform: on
+            // non-Linux the madvise is a no-op and the normalize scan
+            // finds no zeroed cells, so it degrades to the cooldown-mark
+            // behavior this site had before.
+            super::adaptive::reclaim_frame_cells(frame, reclaim_state, inputs.loop_now);
         }
         SelfHealAction::DowngradeScene => {
             // AB-11 (option 2): do NOT switch scenes. Set the
