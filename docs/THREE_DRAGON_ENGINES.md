@@ -1,8 +1,10 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# The Three Dragon Engines of cosmostrix v50
+# The Three Dragon Engines of cosmostrix
 
-> v50.0.0-alpha.6 — 2026-08-19
+> v100.0.0-beta.1 — 2026-09-13 (retitled from the v50 original; the
+> engine split, lock protocol, and history method below are current —
+> the lock round table records the v100 LTS state)
 
 cosmostrix runs three independent dragon engines, each owning a distinct
 rendering concern. They never share mutable state; they communicate only

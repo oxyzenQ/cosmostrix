@@ -76,6 +76,74 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
   legitimately re-arms cells written this frame. Suite 2879 green
   (0 failed), clippy -D warnings clean, fmt clean.
 
+### audit: NIGHT-depth-hunt-1 — the pre-super-LTS depth audit (security, hidden bugs, five prior-item verification)
+
+- Owner directive: cosmostrix should be 99 percent free of hidden
+  bugs, security vulnerabilities, and residual problems before the
+  super-LTS declaration. Full report:
+  docs/audits/NIGHT_DEPTH_HUNT_1_AUDIT_2026-09-13.md. Verdict: zero
+  security vulnerabilities, zero runtime panic defects, zero hidden
+  rendering bugs; three process/hardening items found and fixed in
+  the same round.
+- Five previously-reported items re-verified against the current
+  tree (not the commit messages): the three-dragon documentation
+  (README/PHILOSOPHY/THREE_DRAGON_ENGINES/RENDER_ENGINE — real
+  render code, no gimmick, CPU-only and no-emoji rationale
+  cross-checked against the binary's own gpu_usage: not_applicable
+  probe), the CI path filters (`src` + `test` + `scripts` trees in
+  ci.yml — the 5553174 test-only gap is closed), bump-rust-to.sh
+  --check 1.98.1 + the permission guard + the Unix-only notes, the
+  NIGHT-docs-2 freshness tools (docs-audit/stale-hunt re-run), and
+  the NIGHT-hunt-35 script fleet (gate-keepers 18/18 plus runtime
+  smokes of the style-sweep harness, dragon-history, and the audit
+  tools).
+- Security sweep beyond the archived audits: every unsafe-mentioning
+  file inspected (the post-refactor sites — terminal_tty fcntl/write
+  FFI, config_io fstat, watchdog isatty, fork_guard, posix_time —
+  all sound with SAFETY comments; hosts.rs and clock/mod.rs are
+  doc-comment false positives); 9 spawn sites all explicit argv with
+  zero shell interpolation anywhere; zero production env writes;
+  secrets scan clean; no pull_request_target; the 24h time-scale
+  ceiling re-verified in the parser error contract.
+- Hidden-bug sweep: a purpose-built production panic-surface scanner
+  (test modules stripped, compile-time const-contracts excluded)
+  found 36 runtime sites — every one reviewed, all local-invariant
+  expects guarded by preceding checks, 0 unsound. The
+  transposition-family index audit (the hunt-36 bug class):
+  physarum trail_field column-major at every access site, flux_field
+  row-major with clamped neighbors and degenerate guards (w,h >= 3),
+  the rain_post/phosphor row-major-to-column-major round trip is
+  correct with explicit bounds guards. Division sites guarded; zero
+  lock-unwraps; degenerate-dimension guards verified.
+- Dynamic evidence: release-binary probes (--version/--doctor/2s
+  headless bench: 86K fps, 5.10 MiB RSS, -0.42 percent drift), and
+  the thirteen-style stuck-cell sweep re-run — 12 styles at zero
+  frozen cells; neural's 3 scattered cells classified BENIGN by a
+  new, stronger method (force-repaint frame-state membership probe:
+  toggle HUD on/off fires force_draw_everything twice; zero cells
+  erased, 3 persisted as dormant neurons, 6 changed with brightness
+  actively advancing — live static structure per network.rs, not
+  orphans).
+- Fixes this round: aur.yml release-tag interpolation moved from the
+  run: block to env indirection (trusted-only trigger surface, so
+  defense-in-depth; the inline pattern was the only run-block
+  interpolation left in any workflow); retroactive UNLOCK entries in
+  cosmic_dragon_engine/KEY.md for THREE post-lock commits that
+  touched the locked engine without one — c523de9 (NIGHT-hunt-36),
+  fbc73cd (NIGHT-termux-hang), 0a1df6a (neural force-fires), found
+  via dragon-history.sh --since-lock (the c1c7779 failure mode,
+  repaired per the documented remedy); the night_hunt36 bench-lab directory fixed
+  from 775 to 755 (local-only, git-invisible); THREE_DRAGON_ENGINES
+  retitled from the stale v50 to the v100 LTS state; the
+  FUTURE_BACKLOG staleness registry's own dispositions corrected
+  where files had moved to docs/archive/ but were marked "deleted or
+  never created" (SIMD_FEASIBILITY, STABILITY_AUDIT,
+  LTS_AUDIT_CONFIG_LIVE_RELOAD, IPC_RESEARCH).
+- Gates: full suite 2879 passed / 0 failed / 2 ignored (59 s), cargo
+  fmt clean, clippy -D warnings clean, gate-keepers 18/18.
+  Benchmarks: not run — no runtime code changed (workflow yaml,
+  lock-ledger markdown, docs), the A/B contract does not apply.
+
 ### docs: NIGHT-docs-audit round — stale-data purge in live docs + simplified --docs
 
 - Owner task 2026-09-12: "cosmostrix audit to avoid stale data and

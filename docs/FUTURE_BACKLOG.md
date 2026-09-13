@@ -35,15 +35,15 @@ point to the current location or marked as archived.
 | `docs/ENDURANCE.md` | `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` | moved to `docs/archive/audits/` |
 | `docs/ENDURANCE.md` | `scripts/endurance-summary.sh` | deleted (script no longer exists) |
 | `docs/ENDURANCE.md` | `scripts/monitor-cosmostrix.sh` | deleted (script no longer exists) |
-| `docs/LIVE_RELOAD_BEHAVIOR.md` | `docs/LTS_AUDIT_CONFIG_LIVE_RELOAD.md` | moved to archive or deleted |
+| `docs/LIVE_RELOAD_BEHAVIOR.md` | `docs/LTS_AUDIT_CONFIG_LIVE_RELOAD.md` | moved to `docs/archive/LTS_AUDIT_CONFIG_LIVE_RELOAD.md` |
 | `docs/MAINTENANCE.md` | `audits/COSMIC_DRAGON_AUDIT.md` | path typo (missing `docs/` prefix) + moved to `docs/archive/audits/` |
 | `docs/MAINTENANCE.md` | `docs/audits/COSMIC_DRAGON_AUDIT.md` | moved to `docs/archive/audits/` |
-| `docs/PHILOSOPHY.md` | `SIMD_FEASIBILITY.md` | deleted or never created |
-| `docs/PHILOSOPHY.md` | `docs/SIMD_FEASIBILITY.md` | deleted or never created |
+| `docs/PHILOSOPHY.md` | `SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
+| `docs/PHILOSOPHY.md` | `docs/SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
 | `docs/RULES.md` | `scripts/gen-density-presets.py` | deleted (density-map feature removed in v80.0.0-beta.2) |
 | `docs/SECURITY_AUDIT.md` | `audits/SECURITY_VULNERABILITY_AUDIT.md` | path typo (missing `docs/` prefix) |
-| `docs/SECURITY_AUDIT.md` | `docs/SIMD_FEASIBILITY.md` | deleted or never created |
-| `docs/SECURITY_AUDIT.md` | `docs/STABILITY_AUDIT.md` | deleted or never created |
+| `docs/SECURITY_AUDIT.md` | `docs/SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
+| `docs/SECURITY_AUDIT.md` | `docs/STABILITY_AUDIT.md` | moved to `docs/archive/STABILITY_AUDIT.md` |
 | `docs/SECURITY_AUDIT.md` | `docs/audits/SECURITY_VULNERABILITY_AUDIT.md` | moved to `docs/archive/audits/` |
 | `docs/TERMINAL_LIFECYCLE_MATRIX.md` | `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` | moved to `docs/archive/audits/` |
 | `docs/VISUAL_IDENTITY.md` | `docs/RAIN_DEPTH_AUDIT.md` | moved to `docs/archive/RAIN_DEPTH_AUDIT.md` |
@@ -53,8 +53,8 @@ point to the current location or marked as archived.
 
 | File | Broken ref | Status |
 |------|-----------|--------|
-| `benchmark/bench-labs/BENCH_LABS.md` | `docs/research/IPC_RESEARCH.md` | deleted or never created |
-| `benchmark/bench-labs/PGO_AB_20260823.md` | `docs/research/IPC_RESEARCH.md` | deleted or never created |
+| `benchmark/bench-labs/BENCH_LABS.md` | `docs/research/IPC_RESEARCH.md` | moved to `docs/archive/research/IPC_RESEARCH.md` |
+| `benchmark/bench-labs/PGO_AB_20260823.md` | `docs/research/IPC_RESEARCH.md` | moved to `docs/archive/research/IPC_RESEARCH.md` |
 | `benchmark/research/COMPETITOR_COMPARISON.md` | `benchmark/naive_matrix.py` | deleted (naive matrix script removed) |
 
 ### src/ (4 broken refs)
