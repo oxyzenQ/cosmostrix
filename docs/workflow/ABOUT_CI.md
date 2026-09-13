@@ -7,15 +7,43 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | push + PR to `main` | fmt, clippy, test, build, security audit, version sync |
+| `ci.yml` | push + PR to `main` (path-filtered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` | 8-platform binaries + checksums + GPG sign + GitHub Release |
 | `maintenance.yml` | weekly cron (Mon 00:00 UTC) | `cargo update` + audit + commit if validation passes |
-| `gitbot-audit.yml` | daily cron | `cargo audit` + `cargo deny` (observation-only) |
+| `gitbot-audit.yml` | daily cron + push/PR (path-filtered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
-| `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection |
+| `miri.yml` | weekly cron (Sun 03:00 UTC) + push (path-filtered) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
+
+## Path filters (what triggers a CI run)
+
+The path-filtered workflows (`ci.yml`, `codeql.yml`, `gitbot-audit.yml`,
+`miri.yml`) gate on the Rust surface, mirroring `src/**` with `test/**`:
+
+- `src/**` — the implementation tree.
+- `test/**` — the cfg(test) mirror tree, all `.rs`, wired into the crate
+  via `#[path]` mod includes. `cargo test --all`, clippy `--all-targets`,
+  and rustfmt all compile or parse it, so a test-only change is a Rust
+  change.
+- Cargo/build inputs: `Cargo.toml`, `Cargo.lock`, `build.rs`,
+  `rust-toolchain.toml`, `.cargo/**` (plus `scripts/**` and `deny.toml`
+  in `ci.yml`, and the non-Rust language roots in `codeql.yml`).
+
+Deliberately outside the filters: `pgo-runner/` (standalone crate, not a
+workspace member — no main-branch CI job compiles it; the tag-triggered
+release PGO job builds it) and `benchmark/research/*.rs` (reference
+material, not a cargo target). The unconditional `cosmic-dragon-guard.yml`
+(run on every push/PR to `main`), the daily audit cron, and the weekly
+Miri/CodeQL crons back-stop everything the path filters skip.
+
+Incident (2026-09-13, commit 5553174): a push touching only
+`test/engine/cosmic_dragon_engine/cloud/tests/tests_black_hole/infall.rs`
+matched no `paths:` entry, so the Test + Build job never ran for the very
+commit that repaired a test contract. The standing rule since then: any
+`.rs` change under `src/` or `test/` must trigger every workflow whose
+jobs compile that tree.
 
 ## Dependency version policy (owner decision 2026-08-30)
 

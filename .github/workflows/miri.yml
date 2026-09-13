@@ -17,6 +17,7 @@ name: "Cosmic Dragon Guard - Miri"
     branches: [main]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'

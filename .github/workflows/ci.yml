@@ -10,6 +10,19 @@
 # was also removed from `paths:` because no ci.yml job reads it
 # after Hunt-C removed the `project_lint` job (codespell is now
 # handled by cosmic-dragon-guard.yml running gate-keepers.sh).
+#
+# 2026-09-13: `test/**` added to `paths:`. The top-level `test/`
+# tree is the cfg(test) mirror of `src/`, wired in via `#[path]`
+# mod includes — `cargo test --all`, clippy, and rustfmt all
+# compile or parse it. A push touching only `test/` (commit
+# 5553174) matched no filter entry, so the Test + Build job never
+# ran for it. Standing rule: every path-filtered workflow gates on
+# the full Rust surface (`src/**` + `test/**`), so any `.rs`
+# change triggers the jobs that compile it. `pgo-runner/**` and
+# `benchmark/research/*.rs` are deliberately NOT in the filter —
+# no ci.yml job compiles them on main (pgo-runner is a standalone
+# crate built only by the tag-triggered release PGO job;
+# benchmark/research is reference material, not a cargo target).
 
 name: Cosmic Dragon Guard - CI
 
@@ -18,6 +31,7 @@ name: Cosmic Dragon Guard - CI
     branches: ["main"]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
@@ -29,6 +43,7 @@ name: Cosmic Dragon Guard - CI
     branches: ["main"]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'

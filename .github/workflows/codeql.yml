@@ -26,6 +26,7 @@ name: "Cosmic Dragon Guard - CodeQL"
     paths:
       # Rust
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
@@ -56,6 +57,7 @@ name: "Cosmic Dragon Guard - CodeQL"
     branches: ["main"]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'

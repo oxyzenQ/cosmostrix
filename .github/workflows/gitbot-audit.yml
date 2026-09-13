@@ -19,6 +19,7 @@ name: "Cosmic Dragon Guard - Security Audit"
     branches: ["main"]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
@@ -28,6 +29,7 @@ name: "Cosmic Dragon Guard - Security Audit"
     branches: ["main"]
     paths:
       - 'src/**'
+      - 'test/**'
       - 'Cargo.toml'
       - 'Cargo.lock'
       - 'build.rs'
