@@ -266,6 +266,22 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
+        // NIGHT-hunt-38-supermassive (owner fatal report): msg-mode had NO
+        // arm here, so `msg-mode = truee` passed --testconf (PASS), then
+        // printed a bare one-line runtime error AND KEPT RUNNING with the
+        // default — three different verdicts for one typo. Now the same
+        // lenient bool vocabulary as parse_bool_config (config_apply.rs)
+        // rejects uniformly on all three surfaces: --testconf exit 2,
+        // startup exit 2, live-reload watcher reject.
+        "msg-mode" => {
+            let lower = v.trim().to_ascii_lowercase();
+            match lower.as_str() {
+                "true" | "yes" | "on" | "1" | "false" | "no" | "off" | "0" => None,
+                _ => Some(format!(
+                    "expected true/false (or yes/no, on/off, 1/0), got '{v}'"
+                )),
+            }
+        }
         // v80.0.0-beta.1 msg-fill-style: must match the clap ValueEnum accepted by
         // -mfs/--msg-fill-style. Same uniform-rejection contract as
         // `intro` (bug #17): --testconf, startup validation, and

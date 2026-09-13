@@ -457,6 +457,82 @@ run_case "block color+colors-custom resolves like startup" '"color_scheme":"gree
 	--config "$TMPDIR_TEST/block_conflict.toml" --scene-custom dual \
 	--benchmark --bench-duration 1s --json
 
+# ── NIGHT-hunt-38-supermassive: separator typos (owner repros) ─────────
+# `set == "x"` used to pass --testconf SILENTLY (the parser stored
+# `= "x"` as the charset — garbage glyphs). Now a malformed line with
+# the targeted double-equals note.
+cat >"$TMPDIR_TEST/double_eq.toml" <<'EOF'
+[charset-custom.test]
+set == "x"
+EOF
+run_case "set == typo → malformed, double '=' note" "double '='" -- --config "$TMPDIR_TEST/double_eq.toml" --testconf
+
+# `set : "x"` (YAML/JSON habit) — malformed with the colon note.
+cat >"$TMPDIR_TEST/colon_sep.toml" <<'EOF'
+[charset-custom.test]
+set : "x"
+EOF
+run_case "set : typo → malformed, colon note" "':' is not a TOML separator" -- --config "$TMPDIR_TEST/colon_sep.toml" --testconf
+
+# Quoted =-leading value stays legal (the bug #19 invariant).
+cat >"$TMPDIR_TEST/quoted_eq.toml" <<'EOF'
+[charset-custom.eq]
+set = "=x"
+EOF
+run_case "quoted set = \"=x\" stays legal" "PASS" -- --config "$TMPDIR_TEST/quoted_eq.toml" --testconf
+
+# msg-mode = truee — used to pass testconf and print a bare runtime
+# error while running. Now uniform reject on every surface.
+cat >"$TMPDIR_TEST/bool_typo.toml" <<'EOF'
+msg-mode = truee
+EOF
+run_case "msg-mode = truee → bool reject" "expected true/false" -- --config "$TMPDIR_TEST/bool_typo.toml" --testconf
+
+# ambient == typo — used to misfire the legacy multi-field essay; now
+# a syntax error at the parser level.
+cat >"$TMPDIR_TEST/ambient_eq.toml" <<'EOF'
+ambient.06-00 == "signal"
+EOF
+run_case "ambient == typo → syntax error, no legacy essay" "malformed line" -- --config "$TMPDIR_TEST/ambient_eq.toml" --testconf
+
+# Legacy multi-field ambient — still rejected, and the essay shows the
+# COMPLETE seven-field contract (no stale base-scene line).
+cat >"$TMPDIR_TEST/legacy_ambient.toml" <<'EOF'
+ambient.15-00 = "neon-purple, signal, speed=50, density=0.65"
+EOF
+run_case "legacy multi-field ambient → migration, no base-scene" "legacy multi-field" -- --config "$TMPDIR_TEST/legacy_ambient.toml" --testconf
+# (the no-base-scene essay contract is asserted precisely by
+#  scripts/night_h38_supermassive_testconf_repro.py case 4 and the
+#  ambient unit tests — shell grep on quoted output is too fragile
+#  for the multi-line essay.)
+
+# ── NIGHT-hunt-39: entry budget (min 1, max 64) ────────────────────────
+# 65 charset-custom blocks: hard error naming the count and the cap.
+{
+	for i in $(seq 0 64); do
+		printf '[charset-custom.c%d]\nset = "x"\n\n' "$i"
+	done
+} >"$TMPDIR_TEST/65_charsets.toml"
+run_case "65 charset-custom blocks → over cap" "65 blocks" -- --config "$TMPDIR_TEST/65_charsets.toml" --testconf
+
+# 64 charset-custom blocks: exactly at the cap, legal.
+{
+	for i in $(seq 0 63); do
+		printf '[charset-custom.c%d]\nset = "x"\n\n' "$i"
+	done
+} >"$TMPDIR_TEST/64_charsets.toml"
+run_case "64 charset-custom blocks → at cap, PASS" "PASS" -- --config "$TMPDIR_TEST/64_charsets.toml" --testconf
+
+# 65 ambient entries: hard error (was: silent 256-truncate).
+{
+	for i in $(seq 0 64); do
+		h=$((i / 5))
+		m=$((i % 5))
+		printf 'ambient.%02d-%02d = "cinematic"\n' "$h" "$m"
+	done
+} >"$TMPDIR_TEST/65_ambient.toml"
+run_case "65 ambient entries → over cap" "65 entries" -- --config "$TMPDIR_TEST/65_ambient.toml" --testconf
+
 # ── Summary ─────────────────────────────────────────────────────────────
 echo ""
 for r in "${RESULTS[@]}"; do

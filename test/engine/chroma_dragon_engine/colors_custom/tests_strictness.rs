@@ -115,7 +115,9 @@ fn rain_and_stops_in_one_block_is_an_overload() {
 }
 
 #[test]
-fn block_count_over_100_is_a_hard_error() {
+fn block_count_over_64_is_a_hard_error() {
+    // NIGHT-hunt-39: the owner's min-1/max-64 entry policy. 65 blocks
+    // (MAX + 1) must be a hard error naming the count and the cap.
     let mut cfg = HashMap::new();
     for i in 0..=COLORS_CUSTOM_MAX_BLOCKS {
         cfg.insert(
@@ -124,9 +126,11 @@ fn block_count_over_100_is_a_hard_error() {
         );
         cfg.insert(format!("colors-custom.p{i}.bg"), "#0a0a0a".to_string());
     }
-    let e = validate_colors_custom_blocks(&cfg).expect("101 blocks must be an error");
+    let over = COLORS_CUSTOM_MAX_BLOCKS + 1;
+    let e = validate_colors_custom_blocks(&cfg).expect("over-cap block count must be an error");
     assert!(
-        e.contains("101 blocks") && e.contains("maximum is 100"),
+        e.contains(&format!("{over} blocks"))
+            && e.contains(&format!("maximum is {COLORS_CUSTOM_MAX_BLOCKS}")),
         "error must name the count and the cap, got: {e}"
     );
     // Exactly at the cap passes.

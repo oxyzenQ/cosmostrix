@@ -154,7 +154,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
     let mut i = 0;
     while i < lines.len() {
         let line = lines[i];
-        let stripped = strip_inline_comment(line).trim();
+        let stripped = configfile_syntax::strip_inline_comment(line).trim();
         if stripped.is_empty() {
             i += 1;
             continue;
@@ -187,6 +187,19 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             let mut value = value.trim().to_string();
             if key.is_empty() || value.is_empty() {
                 malformed_lines.push(stripped.to_string());
+                i += 1;
+                continue;
+            }
+
+            // NIGHT-hunt-38-supermassive: `key == value` is a double-equals
+            // typo — split_once('=') would silently store `= "x"` as the
+            // value (a charset of garbage glyphs; an ambient entry that
+            // misfires the legacy-format migration essay). Real TOML has no
+            // `==` operator: reject as malformed with a targeted note. The
+            // check runs on the RAW value (before quote-stripping), so a
+            // legitimate quoted `set = "=x"` is unaffected.
+            if let Some(note) = configfile_syntax::double_equals_note(&value) {
+                malformed_lines.push(format!("{stripped}{note}"));
                 i += 1;
                 continue;
             }
@@ -234,7 +247,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             // exempt (bug #19): a quoted string is never an array.
             if !raw_is_quoted
                 && value.starts_with('[')
-                && unquoted_hash_inside_array(line).is_some()
+                && configfile_syntax::unquoted_hash_inside_array(line).is_some()
                 && !value.ends_with(']')
             {
                 malformed_lines.push(format!(
@@ -254,7 +267,7 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             if !raw_is_quoted && value.starts_with('[') && !value.ends_with(']') {
                 while i + 1 < lines.len() {
                     let raw_next = lines[i + 1];
-                    let next_line = strip_inline_comment(raw_next).trim();
+                    let next_line = configfile_syntax::strip_inline_comment(raw_next).trim();
                     if next_line.is_empty() {
                         i += 1;
                         continue;
@@ -333,8 +346,14 @@ pub(crate) fn parse_config_text(content: &str) -> ParsedConfig {
             map.insert(full_key, value);
         } else {
             // No `=` — malformed (unless we're inside a multi-line array,
-            // but those are consumed above).
-            malformed_lines.push(stripped.to_string());
+            // but those are consumed above). NIGHT-hunt-38-supermassive:
+            // a `key : value` shape (YAML/JSON habit) gets the targeted
+            // colon note instead of the generic diagnostic.
+            let line_out = match configfile_syntax::colon_separator_note(stripped) {
+                Some(note) => format!("{stripped}{note}"),
+                None => stripped.to_string(),
+            };
+            malformed_lines.push(line_out);
         }
         i += 1;
     }
@@ -729,59 +748,12 @@ fn is_charset_custom_key(key: &str) -> bool {
     field == "set"
 }
 
-/// Strip inline comments (`# ...`) from a config line, respecting quoted strings.
-///
-/// A `#` inside a double-quoted or single-quoted string is NOT treated as a
-/// comment — it's part of the value. This is critical for hex color values
-/// like `red = "#ff0000"` where `#` is the standard hex prefix.
-///
-/// Example:
-///   `color = green # my favorite`     → `color = green`
-///   `red = "#ff0000" # comment`       → `red = "#ff0000"`
-///   `msg = "it's #1" # note`          → `msg = "it's #1"`
-///
-/// Unquoted `#` still works as before for backward compatibility.
-#[inline]
-fn strip_inline_comment(line: &str) -> &str {
-    let mut in_dquote = false;
-    let mut in_squote = false;
-    for (i, ch) in line.char_indices() {
-        match ch {
-            '"' if !in_squote => in_dquote = !in_dquote,
-            '\'' if !in_dquote => in_squote = !in_squote,
-            '#' if !in_dquote && !in_squote => {
-                return &line[..i];
-            }
-            _ => {}
-        }
-    }
-    line
-}
-
-/// (bug #7): Detect unquoted '#' INSIDE an array value.
-/// Returns `Some(byte_idx)` if the line has an unquoted '#' while bracket
-/// depth > 0. Catches `rain = [#ff0000, #00ff00]` (user mistake — should
-/// quote hex). Returns `None` for legitimate cases: quoted '#' inside
-/// strings, or '#' AFTER the closing ']' (trailing comment).
-#[inline]
-pub(crate) fn unquoted_hash_inside_array(line: &str) -> Option<usize> {
-    let mut in_dquote = false;
-    let mut in_squote = false;
-    let mut bracket_depth: i32 = 0;
-    for (i, ch) in line.char_indices() {
-        match ch {
-            '"' if !in_squote => in_dquote = !in_dquote,
-            '\'' if !in_dquote => in_squote = !in_squote,
-            '[' if !in_dquote && !in_squote => bracket_depth += 1,
-            ']' if !in_dquote && !in_squote => bracket_depth -= 1,
-            '#' if !in_dquote && !in_squote && bracket_depth > 0 => {
-                return Some(i);
-            }
-            _ => {}
-        }
-    }
-    None
-}
+// NIGHT-hunt-38-supermassive: line-level syntax scanners (comment
+// strip, array-# detector, separator-typo diagnostics) extracted to
+// configfile_syntax.rs to keep this file under the 800-LOC cap.
+mod configfile_syntax;
+#[allow(unused_imports)]
+pub(crate) use configfile_syntax::unquoted_hash_inside_array;
 
 // v50.0.0-beta.7 LOC refactor: dump_config_text + dump_config_with_header
 // + sha512_hex + extract_template_fingerprint extracted to

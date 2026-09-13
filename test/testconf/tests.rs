@@ -567,6 +567,44 @@ fn boolean_keys_reject_non_bool() {
 }
 
 #[test]
+fn msg_mode_rejects_non_bool_and_matches_all_three_surfaces() {
+    // NIGHT-hunt-38-supermassive (owner fatal report): `msg-mode = truee`
+    // passed --testconf (no validator arm), then printed a bare one-line
+    // runtime error while KEEPING the default value running. The bool
+    // vocabulary must now match parse_bool_config exactly, so all three
+    // surfaces (--testconf, startup, live-reload watcher) reject in
+    // lockstep.
+    assert!(
+        validate_field_value("msg-mode", "truee").is_some(),
+        "the owner's exact typo must be rejected"
+    );
+    for v in ["true", "TRUE", "yes", "on", "1", "false", "no", "off", "0"] {
+        assert!(
+            validate_field_value("msg-mode", v).is_none(),
+            "'{v}' should be accepted (lenient bool vocabulary)"
+        );
+    }
+    for v in ["maybe", "trueee", "2", "enabled", ""] {
+        assert!(
+            validate_field_value("msg-mode", v).is_some(),
+            "'{v}' must be rejected"
+        );
+    }
+    // And the strict full-map validator (the startup/live-reload path)
+    // rejects the typo'd config outright.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("msg-mode".to_string(), "truee".to_string());
+    let err = validate_config_strictly(&cfg).expect_err("must reject msg-mode typo");
+    assert!(
+        err.contains("msg-mode") && err.contains("truee"),
+        "error must name the key and value, got: {err}"
+    );
+    // Valid values pass the strict path.
+    cfg.insert("msg-mode".to_string(), "false".to_string());
+    assert!(validate_config_strictly(&cfg).is_ok());
+}
+
+#[test]
 fn block_field_base_uses_scene_validator() {
     // 'base' in scene-custom blocks is validated as a scene name.
     // The caller maps 'base' -> 'scene' before calling validate_field_value.

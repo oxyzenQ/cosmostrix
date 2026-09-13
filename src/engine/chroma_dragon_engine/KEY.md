@@ -257,6 +257,42 @@
 
 ## UNLOCK
 >
+> **UNLOCK chroma-dragon (entry-budget constant, re-locked same commit)** at
+> the NIGHT-hunt-39 commit, 2026-09-13
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: NIGHT-hunt-39 (owner mandate: min 1 / max 64 entries for the
+> custom namespaces). `COLORS_CUSTOM_MAX_BLOCKS` changed 100 -> 64, one
+> constant, same validation-contract class as the hunt-37 unlock: the
+> block-count ceiling stays a HARD validation error on every surface
+> (`strictness::validate_block_count` interpolates the constant), the
+> collector's silent skip stays defense-in-depth for bypass runs. Same
+> session (NIGHT-hunt-38-supermassive, non-locked paths): separator-typo
+> rejection moved into the config parser
+> (`config/configfile/configfile_syntax.rs`) and the msg-mode bool arm
+> landed in `testconf/field_validation.rs` — neither touches a chroma
+> file.
+>
+> **Files changed** (locked path — validation contract only, no
+> pipeline math):
+> - `colors_custom.rs` (COLORS_CUSTOM_MAX_BLOCKS 100 -> 64 + doc
+>   comment sync)
+> - `test/engine/chroma_dragon_engine/colors_custom/tests_strictness.rs`
+>   (boundary test renamed to the 64 cap, count/cap strings built from
+>   the constant so they cannot drift)
+>
+> The OKLab gradient, palette routing, floor/continuity/halo/shader
+> paths and all 12 tuning constants are untouched. The same commit
+> closes this unlock: the dragon is re-locked at the new ceiling.
+>
+> **A/B delta**: none by construction — the validation path runs at
+> config-parse time, zero per-frame surface (10 s A/B bench recorded
+> in benchmark/bench-labs/night_hunt39/AB_REPORT.md).
+>
+> **Tests**: full suite 2918 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** -- 2026-09-13 -- NIGHT-hunt-39 entry-budget constant, re-locked
+>
 > **UNLOCK chroma-dragon (validation hardening, re-locked same commit)** at
 > the NIGHT-hunt-37 commit, 2026-09-13
 >

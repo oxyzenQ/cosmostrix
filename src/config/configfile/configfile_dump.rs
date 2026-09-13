@@ -100,6 +100,8 @@ pub(crate) fn dump_config_text() -> &'static str {
 # REMOVED in v80.0.0-beta.2: base-scene inheritance (the rain field owns
 # the style). bold/shading-mode/async-mode are top-level keys, not
 # per-scene.
+# Entry budget (NIGHT-hunt-39): each block needs >= 1 field entry (the
+# completeness contract above); at most 64 blocks per config.
 
 # [scene-custom.hacker-mode]
 # rain = "glyph"
@@ -136,6 +138,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 # sweet spot (the OKLab engine resamples every palette to 9
 # perceptual samples; more than 9 stops is rejected, not truncated).
 # Define rain OR the deprecated stops alias — never both.
+# Entry budget (NIGHT-hunt-39): at most 64 blocks per config.
 
 # [colors-custom.zen]
 # bg = "#0a0a0a"
@@ -151,10 +154,12 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # -- Custom charsets ----------------------------------------------------
 # Reference from a scene-custom block via: charset-custom = <name>.
-# Printable single-width glyphs only (max 256; wide/zero-width are
-# skipped with a warning). Always quote the set (set = "[" works).
+# Printable single-width glyphs only (max 256 glyphs in the set;
+# wide/zero-width are skipped with a warning). Always quote the set
+# (set = "[" works).
 # A block must be COMPLETE: the set field is required — a block
 # without set, or with an empty set, is a hard error (NIGHT-hunt-37).
+# Entry budget (NIGHT-hunt-39): at most 64 blocks per config.
 
 # [charset-custom.zen]
 # set = "|"
@@ -170,7 +175,7 @@ pub(crate) fn dump_config_text() -> &'static str {
 
 # -- Ambient Phase Scheduler -------------------------------------------
 # Time-of-day scene switches (config-only, live-reload on save,
-# max 256 entries):
+# min 1, max 64 entries — NIGHT-hunt-39):
 #   ambient.<HH-MM> = <scene-name>
 
 # ambient.06-00 = "signal"

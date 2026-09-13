@@ -291,7 +291,7 @@ fn to_palette_matches_builtin_gradient_path() {
     let def = CustomPaletteDef {
         rain: stops.clone(),
         // NIGHT-hunt-37: bg is required for to_palette to build.
-        bg: Some(stops[0].clone()),
+        bg: Some(stops[0]),
     };
     let palette = def.to_palette().expect("palette must build");
 

@@ -74,7 +74,11 @@ fn rejects_empty_value() {
 #[test]
 fn rejects_legacy_multifield_format_with_migration_message() {
     // User's exact  config from the bug report — must surface
-    // a migration error pointing to [scene-custom.*] + base-scene.
+    // a migration error pointing to a COMPLETE [scene-custom.*] block.
+    // NIGHT-hunt-38-supermassive: the essay previously recommended
+    // `base-scene` — a field REMOVED in v80.0.0-beta.2, so following it
+    // produced an unknown-field error (stale diagnostic). The essay now
+    // shows the seven required fields of the complete-block contract.
     let err = parse_ambient_value("neon-purple, signal, speed=50, density=0.65")
         .expect_err("legacy format must be rejected");
     assert!(
@@ -85,7 +89,25 @@ fn rejects_legacy_multifield_format_with_migration_message() {
         err.contains("[scene-custom.<name>]"),
         "missing scene-custom hint: {err}"
     );
-    assert!(err.contains("base-scene"), "missing base-scene hint: {err}");
+    assert!(
+        !err.contains("base-scene = "),
+        "stale base-scene recommendation must be gone: {err}"
+    );
+    for field in [
+        "rain = \"<rain-style>\"",
+        "color = \"<original-color>\"",
+        "charset = \"<original-charset>\"",
+        "fps = \"<original-fps>\"",
+        "speed = \"<original-speed>\"",
+        "density = \"<original-density>\"",
+        "glitch-level = \"<original-level>\"",
+    ] {
+        assert!(err.contains(field), "missing {field} guidance: {err}");
+    }
+    assert!(
+        err.contains("all seven dimensions are required"),
+        "missing completeness note: {err}"
+    );
     assert!(
         err.contains("ambient.<HH-MM> = <name>"),
         "missing new format example: {err}"
@@ -120,6 +142,16 @@ fn migration_message_includes_user_repro_example() {
     assert!(
         err.contains("[scene-custom.afternoon]"),
         "migration message should include the afternoon example: {err}"
+    );
+    // NIGHT-hunt-38-supermassive: the afternoon example is COMPLETE —
+    // all seven fields, copy-paste runnable (no base-scene anywhere).
+    assert!(
+        err.contains("[scene-custom.afternoon]\nrain = \"glyph\""),
+        "example must lead with rain: {err}"
+    );
+    assert!(
+        err.contains("glitch-level = \"subtle\""),
+        "example must close with glitch-level: {err}"
     );
 }
 
@@ -312,7 +344,75 @@ fn validate_rejects_legacy_format_with_migration_hint() {
     let err = validate_ambient_entries(&cfg).unwrap_err();
     assert!(err.contains("legacy multi-field format"), "got: {err}");
     assert!(err.contains("[scene-custom"), "got: {err}");
-    assert!(err.contains("base-scene"), "got: {err}");
+    // NIGHT-hunt-38-supermassive: base-scene guidance is stale (field
+    // removed in v80.0.0-beta.2) — the essay teaches the complete-block
+    // contract instead.
+    assert!(
+        !err.contains("base-scene = "),
+        "stale base-scene must be gone: {err}"
+    );
+    assert!(err.contains("rain = \"<rain-style>\""), "got: {err}");
+}
+
+// ── NIGHT-hunt-39: entry-count policy (1..=64) ──
+
+/// Insert `n` VALID `ambient.HH-MM` entries (hours 0..=23, minutes
+/// cycling 0..=4 — 5 per hour, so up to 120 unique keys stay inside the
+/// HH-MM grammar; invalid keys would be defensively skipped by the
+/// collector and change what the test measures).
+fn insert_n_ambient_entries(cfg: &mut HashMap<String, String>, n: usize) {
+    for i in 0..n {
+        let hour = (i / 5) as u32;
+        let minute = (i % 5) as u32;
+        cfg.insert(
+            format!("ambient.{hour:02}-{minute:02}"),
+            "cinematic".to_string(),
+        );
+    }
+}
+
+#[test]
+fn validate_rejects_schedule_over_64_entries() {
+    // The owner's min-1/max-64 entry policy: 65 entries is a hard error
+    // that names the count and the cap (was: a silent 256-truncate in the
+    // collector with zero signal).
+    let mut cfg = HashMap::new();
+    insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES + 1);
+    let over = AMBIENT_MAX_ENTRIES + 1;
+    let err = validate_ambient_entries(&cfg).unwrap_err();
+    assert!(
+        err.contains(&format!("{over} entries")),
+        "error must name the count, got: {err}"
+    );
+    assert!(
+        err.contains(&format!("maximum is {AMBIENT_MAX_ENTRIES}")),
+        "error must name the cap, got: {err}"
+    );
+}
+
+#[test]
+fn validate_accepts_exactly_64_entries() {
+    // Exactly at the cap: legal (boundary pinned).
+    let mut cfg = HashMap::new();
+    insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES);
+    assert!(validate_ambient_entries(&cfg).is_ok());
+    // And the collector keeps all of them (no silent truncate at the cap).
+    assert_eq!(
+        collect_ambient_schedule(&cfg).entries.len(),
+        AMBIENT_MAX_ENTRIES
+    );
+}
+
+#[test]
+fn collector_truncates_beyond_64_as_defense_in_depth() {
+    // Bypass runs (COSMOSTRIX_SKIP_STARTUP_VALIDATION) never see the
+    // validator; the collector still bounds the schedule at 64.
+    let mut cfg = HashMap::new();
+    insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES + 40);
+    assert_eq!(
+        collect_ambient_schedule(&cfg).entries.len(),
+        AMBIENT_MAX_ENTRIES
+    );
 }
 
 #[test]

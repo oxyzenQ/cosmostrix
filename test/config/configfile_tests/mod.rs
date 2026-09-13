@@ -22,6 +22,8 @@ mod bug19;
 mod bug7;
 // NIGHT-hunt-37: custom-block header recording tests.
 mod hunt37_headers;
+// NIGHT-hunt-38-supermassive: separator-typo (`==` / `:`) rejection tests.
+mod hunt38_typos;
 
 use crate::configfile::parse_config_text;
 

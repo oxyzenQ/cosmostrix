@@ -9,6 +9,67 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-38-supermassive + NIGHT-hunt-39 + NIGHT-docs-4 — separator-typo rejection, the msg-mode validator, the 1..=64 entry policy, and the rendering-engine Q/A
+
+- **NIGHT-hunt-38-supermassive** (owner fatal report, found by manual
+  testing on commit 6198431): three stale/inconsistent validation
+  behaviors for the SAME typo class, now closed with a
+  strength-repro script (`scripts/night_h38_supermassive_testconf_repro.py`)
+  driving the real binary through all four owner repros:
+  1. `set == "x"` silently passed — `split_once('=')` stored `= "x"`
+     as the charset value (garbage glyphs) while `--testconf` said
+     PASS. The parser now rejects the double-equals line as
+     malformed with a targeted `# ERROR: double '='` note
+     (`configfile/configfile_syntax.rs`; quoted `set = "=x"` stays
+     legal — the guard inspects the raw value before quote-stripping,
+     the bug #19 invariant).
+  2. `set : "x"` (YAML/JSON habit) got only the generic malformed
+     diagnostic; it now gets the targeted `':' is not a TOML
+     separator` note. Both typo forms of one mistake now behave
+     identically on every surface.
+  3. `msg-mode = truee` passed `--testconf` (no validator arm), then
+     the runtime printed a bare one-line error and KEPT RUNNING with
+     the default — three different verdicts for one typo. The
+     `msg-mode` bool arm now matches `parse_bool_config`'s lenient
+     vocabulary (true/false, yes/no, on/off, 1/0) uniformly:
+     `--testconf` exit 2, startup exit 2, live-reload reject.
+  4. The ambient legacy-format migration essay was STALE: it
+     recommended `base-scene` — a field removed in v80.0.0-beta.2 —
+     so following it produced a fresh unknown-field error. The essay
+     (and the module docs) now show the complete seven-field
+     `[scene-custom]` contract; a `==` typo on an ambient key can no
+     longer masquerade as the legacy multi-field format (the parser
+     rejects the line first).
+- **NIGHT-hunt-39** (owner mandate): min 1 / max 64 entries for all
+  four user-extensible namespaces — `[charset-custom]`,
+  `[colors-custom]`, `[scene-custom]` (64 blocks each, down from
+  100) and the ambient scheduler (`AMBIENT_MAX_ENTRIES` 64, down
+  from a silent 256-collector-truncate; 65+ entries is now a hard
+  error on every surface via `validate_ambient_entries`). The
+  min-1 side is the NIGHT-hunt-37 completeness contract restated:
+  a header-only (zero-entry) block is a hard error. Config
+  template comments updated; e2e boundary verification in
+  `scripts/night_h39_entry_budget_e2e.py` (64 PASS / 65 FAIL on
+  every namespace, both through the real binary).
+- **NIGHT-docs-4**: FAQ gains a "Rendering engine" Q/A section —
+  does cosmostrix really have an independent rendering engine (yes:
+  no TUI framework; crossterm is bounded to setup/teardown/input,
+  the hot draw path is hand-written SGR bytes), is the Cosmic
+  Dragon really rendering (it IS the renderer — cloud → Frame →
+  Terminal::draw), and which dragon paints (exactly one: Cosmic;
+  Chroma decides color, Crystal decides when, Power decides rate).
+  Plus a "Config validation" Q/A for the typo classes above, and
+  the ambient multi-field migration caveat. Stale-doc sweep in the
+  same round: `docs/AMBIENT_SCHEDULER.md`'s migration example was
+  missing its `rain` line (six of seven fields — copy-pasting it
+  failed the completeness rule it sits next to); fixed.
+- Tests: +14 (parser typo rejection, ambient essay content + the
+  1..=64 boundary trio, colors-custom 64-cap, msg-mode vocabulary
+  through both validators). Full suite 2918/0/2. chroma KEY.md:
+  UNLOCK + re-lock entry for the `COLORS_CUSTOM_MAX_BLOCKS`
+  100→64 constant change (validation contract only, zero pipeline
+  math — same class as the hunt-37 unlock).
+
 ### feat: NIGHT-hunt-38 — the force-repaint classifier promoted to scripts/ as a standing audit tool + a harness parser fix it uncovered
 
 - Owner approval (2026-09-13, depth-hunt-1 follow-up): the

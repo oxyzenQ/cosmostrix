@@ -45,13 +45,13 @@ const COLORS_CUSTOM_PALETTE_STEPS: usize = 9;
 /// `strictness.rs::validate_rain_stop_contract`.
 pub(crate) const COLORS_CUSTOM_MAX_RAIN_STOPS: usize = 9;
 
-/// v50.0.0-beta.6 LTS: maximum number of custom palette blocks accepted
-/// in a single config.toml. Aligned with charset-custom and scene-custom
-/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
-/// `collect_colors_custom`. 100 blocks is far beyond any realistic use
-/// case (built-in themes are ~44); the cap prevents a config typo from
-/// spawning hundreds of empty blocks.
-pub(crate) const COLORS_CUSTOM_MAX_BLOCKS: usize = 100;
+/// v50.0.0-beta.6 LTS, NIGHT-hunt-39 (2026-09-13): maximum number of
+/// custom palette blocks accepted in a single config.toml. Aligned with
+/// charset-custom, scene-custom AND the ambient entry count (all four
+/// namespaces use the owner's min-1/max-64 entry policy). Bounds the
+/// BTreeMap size + iteration cost in `collect_colors_custom`; 64 blocks
+/// is far beyond any realistic use case (built-in themes are ~44).
+pub(crate) const COLORS_CUSTOM_MAX_BLOCKS: usize = 64;
 
 /// v50.0.0-beta.6 LTS: maximum length of a custom palette block name.
 /// Bounds BTreeMap key allocation. 64 chars is generous (built-in names
@@ -147,13 +147,15 @@ pub(crate) fn parse_hex_color(s: &str) -> Result<Color, String> {
 
 /// Collect all custom color palette definitions from the config HashMap.
 ///
-/// v50.0.0-beta.6 LTS: bounded by `COLORS_CUSTOM_MAX_BLOCKS` (100) and
-/// `COLORS_CUSTOM_MAX_RAIN_STOPS` (64) to prevent config typos from
-/// bloating memory or stalling startup. Names longer than
-/// `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars) are skipped by the
-/// collector — and since NIGHT-depthtest-3 the skip is fronted by a
-/// HARD validation error (`validate_colors_custom_name_len`), so an
-/// oversized name can no longer pass `--testconf` silently.
+/// v50.0.0-beta.6 LTS, NIGHT-hunt-39: bounded by
+/// `COLORS_CUSTOM_MAX_BLOCKS` (64) and `COLORS_CUSTOM_MAX_RAIN_STOPS`
+/// (9) to prevent config typos from bloating memory or stalling
+/// startup. Names longer than `COLORS_CUSTOM_MAX_NAME_LEN` (64 chars)
+/// are skipped by the collector — and since NIGHT-depthtest-3 the skip
+/// is fronted by a HARD validation error
+/// (`validate_colors_custom_name_len`), so an oversized name can no
+/// longer pass `--testconf` silently. Since NIGHT-hunt-37 the block
+/// count is a hard error too (`strictness::validate_block_count`).
 #[must_use]
 pub(crate) fn collect_colors_custom(
     cfg: &HashMap<String, String>,

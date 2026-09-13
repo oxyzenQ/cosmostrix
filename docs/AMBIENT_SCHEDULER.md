@@ -35,6 +35,12 @@ The rest of this document is the engine-level reference for those facts.
 ambient.<HH-MM> = <scene-name>
 ```
 
+NIGHT-hunt-39 (2026-09-13): a schedule holds **1..=64 entries** — the
+same min-1/max-64 entry budget as the custom-block namespaces. Zero
+entries simply turns the scheduler off; 65+ entries is a hard error
+on every surface (`--testconf`, startup, live-reload watcher), never
+the silent 256-truncate the old collector applied.
+
 The value is a **single scene name** — either a built-in scene
 (`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via
 `[scene-custom.<name>]`. All parameters (color, charset, speed, density,
@@ -52,6 +58,7 @@ TOP-LEVEL `ambient.*` key (NEVER place the `ambient.*` key inside the
 
 ```toml
 [scene-custom.afternoon]
+rain = "glyph"                 # the rain style (NIGHT-research-5)
 color = "energy-zen"           # built-in color name OR colors-custom = "<palette>"
 charset = "retro"              # built-in preset    OR charset-custom = "<set>"
 fps = 60                       # v80.0.0-beta.2: the ambient scene owns fps too
@@ -62,6 +69,11 @@ glitch-level = "subtle"
 # Top-level — outside any [section] block:
 ambient.15-00 = afternoon
 ```
+
+(NIGHT-hunt-38-supermassive doc audit, 2026-09-13: this example was
+missing the `rain` line — six of seven fields, so copy-pasting it
+failed the very completeness rule the note below describes. It is now
+a complete, copy-paste-runnable block.)
 
 v80.0.0-beta.2 (S-master-LOGIC-3): the block is a COMPLETE seven-dimension
 profile — all fields required (incomplete blocks are rejected by
@@ -531,7 +543,7 @@ because the scheduler runs continuously).
 | **DST fall-back** (2:00 AM repeat) | Entries in the repeated hour (01:00–01:59) fire twice. Acceptable — `apply_ambient_entry` is idempotent. |
 | **Midnight wrap** | Handled in `AmbientSchedule::seconds_to_next_phase` — `(24*60 - now_min + next_min) * 60`. |
 | **Invalid scene name** | Strict reject via `--testconf` (exit 2). Same behavior as `colors-custom` / `scene-custom`. |
-| **Legacy multi-field format** | Strict reject via `--testconf` (exit 2) with a full migration message showing how to convert to `[scene-custom.<name>]` + `base-scene`. Live-reload silently drops the entry (no crash). |
+| **Legacy multi-field format** | Strict reject via `--testconf` (exit 2) with a full migration message showing how to convert to a COMPLETE `[scene-custom.<name>]` block (NIGHT-hunt-38-supermassive: the message previously recommended the removed `base-scene` field — it now shows the seven-field contract). Live-reload silently drops the entry (no crash). |
 | **Live-reload adds new entry** | Scheduler thread wakes (condvar), recomputes, fires current phase if changed. |
 | **Live-reload removes all entries** | Scheduler goes idle. Existing scene/params retained (sticky). User can manually cycle via `x`/`X` keys. |
 | **Custom scene referenced by ambient is later renamed** | `--testconf` catches this at validation time. At runtime, the ambient event is a no-op (unknown scene name -> `apply_scene_runtime_with_cfg` returns current charset preset unchanged). |

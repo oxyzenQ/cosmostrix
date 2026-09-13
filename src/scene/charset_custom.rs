@@ -68,12 +68,13 @@ use unicode_width::UnicodeWidthChar;
 /// memory bloat from a typo (e.g., pasting a 10 000-char string).
 pub(crate) const CHARSET_CUSTOM_MAX_LEN: usize = 256;
 
-/// v50.0.0-beta.6 LTS: maximum number of custom charset blocks accepted
-/// in a single config.toml. Aligned with colors-custom and scene-custom
-/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
-/// `collect_charset_custom`. 100 blocks is far beyond any realistic use
-/// case; the cap prevents a config typo from spawning hundreds of blocks.
-pub(crate) const CHARSET_CUSTOM_MAX_BLOCKS: usize = 100;
+/// v50.0.0-beta.6 LTS, NIGHT-hunt-39 (2026-09-13): maximum number of
+/// custom charset blocks accepted in a single config.toml. Aligned with
+/// colors-custom, scene-custom AND the ambient entry count (all four
+/// namespaces use the owner's min-1/max-64 entry policy). Bounds the
+/// BTreeMap size + iteration cost in `collect_charset_custom`; 64 blocks
+/// is far beyond any realistic use case (built-in charsets are ~25).
+pub(crate) const CHARSET_CUSTOM_MAX_BLOCKS: usize = 64;
 
 /// v50.0.0-beta.6 LTS: maximum length of a custom charset block name.
 /// Bounds BTreeMap key allocation. 64 chars is generous (built-in names
@@ -97,12 +98,13 @@ pub(crate) struct CharsetCustomDef {
 ///
 /// Names are normalized to lowercase for case-insensitive matching.
 ///
-/// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (100) and
-/// `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars) to prevent config typos
-/// from bloating memory or stalling startup. Since NIGHT-depthtest-3
-/// the length cap is fronted by a HARD validation error
+/// v50.0.0-beta.6 LTS: bounded by `CHARSET_CUSTOM_MAX_BLOCKS` (64,
+/// NIGHT-hunt-39) and `CHARSET_CUSTOM_MAX_NAME_LEN` (64 chars) to prevent
+/// config typos from bloating memory or stalling startup. Since
+/// NIGHT-depthtest-3 the length cap is fronted by a HARD validation error
 /// (`validate_charset_custom_name_len`), so an oversized name can no
-/// longer pass `--testconf` silently.
+/// longer pass `--testconf` silently; since NIGHT-hunt-37 the block count
+/// is a hard error too (`validate_charset_custom_block_count`).
 #[must_use]
 pub(crate) fn collect_charset_custom(
     cfg: &HashMap<String, String>,

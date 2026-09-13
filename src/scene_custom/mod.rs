@@ -360,12 +360,13 @@ pub(crate) fn apply_profile_layer(
 /// Config namespace prefix for custom scene blocks.
 pub(crate) const SCENE_CUSTOM_NAMESPACE: &str = "scene-custom";
 
-/// v50.0.0-beta.6 LTS: maximum number of custom scene blocks accepted
-/// in a single config.toml. Aligned with colors-custom and charset-custom
-/// (all 3 systems use 100). Bounds the BTreeMap size + iteration cost in
-/// `collect_custom_scenes`. 100 blocks is far beyond any realistic use
-/// case; the cap prevents a config typo from spawning hundreds of blocks.
-pub(crate) const SCENE_CUSTOM_MAX_BLOCKS: usize = 100;
+/// v50.0.0-beta.6 LTS, NIGHT-hunt-39 (2026-09-13): maximum number of
+/// custom scene blocks accepted in a single config.toml. Aligned with
+/// colors-custom, charset-custom AND the ambient entry count (all four
+/// namespaces use the owner's min-1/max-64 entry policy). Bounds the
+/// BTreeMap size + iteration cost in `collect_custom_scenes`; 64 blocks
+/// is far beyond any realistic use case (built-in scenes are ~10).
+pub(crate) const SCENE_CUSTOM_MAX_BLOCKS: usize = 64;
 
 /// v50.0.0-beta.6 LTS: maximum length of a custom scene block name.
 /// Aligned with colors-custom and charset-custom (all use 64 chars).

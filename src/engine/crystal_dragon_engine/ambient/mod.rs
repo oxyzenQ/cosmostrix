@@ -31,15 +31,23 @@
 //! `scene-custom.<name>.ambient.<HH-MM>`, which is rejected as unknown):
 //!
 //! ```toml
-//! [scene-custom.afternoon]
-//! base-scene = "signal"          # inherits signal's rain_style + defaults
-//! color = "neon-purple"          # overrides signal's color
-//! speed = "50"                   # overrides signal's speed
-//! density = "0.65"               # overrides signal's density
+//! [scene-custom.afternoon]        # v80.0.0-beta.2: COMPLETE profile —
+//! rain = "glyph"                  # all seven dimensions required
+//! color = "neon-purple"           # (base-scene inheritance removed)
+//! charset = "hacker"
+//! fps = "60"
+//! speed = "50"
+//! density = "0.65"
+//! glitch-level = "subtle"
 //!
 //! # Top-level — outside any [section] block:
 //! ambient.15-00 = afternoon
 //! ```
+//!
+//! NIGHT-hunt-38-supermassive (2026-09-13): the migration example above
+//! previously recommended `base-scene = "<scene>"` — a field REMOVED in
+//! v80.0.0-beta.2, so following it today produced an unknown-field error
+//! (a stale diagnostic). It now shows the current complete-block contract.
 //!
 //! This separates concerns cleanly: the schedule says WHEN, the scene says
 //! WHAT. There is no override-precedence bug surface because the scene IS
@@ -84,10 +92,15 @@ pub(crate) const AMBIENT_NAMESPACE: &str = "ambient";
 
 /// Maximum number of distinct phase entries a config may declare.
 ///
-/// Defensive cap — a healthy schedule has 2–6 entries (one per major time
-/// block). A config with 256+ entries is almost certainly a script-generated
-/// mistake. The cap also bounds the sort cost (O(n log n)) at parse time.
-pub(crate) const AMBIENT_MAX_ENTRIES: usize = 256;
+/// NIGHT-hunt-39 (owner mandate, 2026-09-13): 1..=64 entries — the same
+/// min-1/max-64 entry policy as the three custom-block namespaces
+/// (charset-custom, colors-custom, scene-custom). A healthy
+/// schedule has 2–6 entries (one per major time block); 64 is generous
+/// headroom (one phase every ~22 minutes). Beyond 64 the validation layer
+/// rejects the config (validate_ambient_entries — uniform on all three
+/// surfaces); the collector's truncate (defense-in-depth for
+/// validation-bypass runs) also caps at 64.
+pub(crate) const AMBIENT_MAX_ENTRIES: usize = 64;
 
 /// One entry in the ambient schedule. Parsed from `ambient.HH-MM = <scene>`.
 ///
@@ -279,22 +292,30 @@ pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
     // message. The user almost certainly has a config like
     // `ambient.15-00 = neon-purple, signal, speed=50, density=0.65` and
     // needs to convert it to a custom scene block.
+    //
+    // NIGHT-hunt-38-supermassive: a stray `=` can no longer masquerade as
+    // this class — the parser rejects `key == value` typos at the line
+    // level (configfile_syntax::double_equals_note), so only a genuine
+    // comma/equals-bearing multi-field value reaches this arm. The essay
+    // below was also stale: it recommended `base-scene`, a field REMOVED
+    // in v80.0.0-beta.2. It now shows the complete-block contract.
     if scene.contains(',') || scene.contains('=') {
         return Err(format!(
             "ambient: legacy multi-field format no longer supported (got '{value}').\n\
              \n\
               simplified ambient entries to a single scene name. To preserve\n\
-             this entry, define a custom scene that captures the same parameters\n\
-             and reference it by name:\n\
+             this entry, define a COMPLETE custom scene that captures the same\n\
+             parameters and reference it by name (v80.0.0-beta.2: base-scene\n\
+             inheritance is REMOVED — all seven dimensions are required):\n\
              \n\
              [scene-custom.<name>]\n\
-             base-scene = \"<original-scene>\"   # if you had a scene positional\n\
-             color = \"<original-color>\"         # if you had a color positional\n\
-             speed = \"<original-speed>\"         # if you had speed=...\n\
-             density = \"<original-density>\"     # if you had density=...\n\
-             fps = \"<original-fps>\"             # if you had fps=...\n\
-             charset = \"<original-charset>\"     # if you had charset=...\n\
-             glitch-level = \"<original-level>\"  # if you had glitch-level=...\n\
+             rain = \"<rain-style>\"              # glyph|monolith|vortex|flux|...\n\
+             color = \"<original-color>\"        # if you had a color positional\n\
+             charset = \"<original-charset>\"    # if you had a charset\n\
+             fps = \"<original-fps>\"            # if you had fps=...\n\
+             speed = \"<original-speed>\"        # if you had speed=...\n\
+             density = \"<original-density>\"    # if you had density=...\n\
+             glitch-level = \"<original-level>\" # if you had glitch-level=...\n\
              \n\
              ambient.<HH-MM> = <name>\n\
              \n\
@@ -302,10 +323,13 @@ pub(crate) fn parse_ambient_value(value: &str) -> Result<AmbientEntry, String> {
              becomes (ambient key at the TOP LEVEL — never inside the block):\n\
              \n\
              [scene-custom.afternoon]\n\
-             base-scene = \"signal\"\n\
+             rain = \"glyph\"\n\
              color = \"neon-purple\"\n\
+             charset = \"hacker\"\n\
+             fps = \"60\"\n\
              speed = \"50\"\n\
              density = \"0.65\"\n\
+             glitch-level = \"subtle\"\n\
              \n\
              ambient.15-00 = afternoon"
         ));
@@ -355,7 +379,10 @@ pub(crate) fn collect_ambient_schedule(cfg: &HashMap<String, String>) -> Ambient
     }
     entries.sort_by_key(AmbientEntry::minutes_of_day);
     // Defensive cap (DoS hardening — config is user-controlled, but a 10k
-    // entry file would still waste sort time).
+    // entry file would still waste sort time). NIGHT-hunt-39: aligned to
+    // AMBIENT_MAX_ENTRIES = 64; the validation layer rejects 65+ entries
+    // on every surface, so this truncate only guards bypass runs
+    // (COSMOSTRIX_SKIP_STARTUP_VALIDATION).
     entries.truncate(AMBIENT_MAX_ENTRIES);
     AmbientSchedule { entries }
 }
@@ -367,6 +394,8 @@ pub(crate) fn collect_ambient_schedule(cfg: &HashMap<String, String>) -> Ambient
 /// exit code 2 (matches the rest of the strict validation contract).
 ///
 /// validation rules:
+/// - Entry count must be 1..=64 (NIGHT-hunt-39 policy; 0 entries = the
+///   feature is simply off, not an error).
 /// - Value must parse as a single scene name (no commas, no `=`).
 /// - The scene name must be a recognized built-in scene OR a
 ///   `[scene-custom.<name>]` block that exists in the config.
@@ -374,6 +403,19 @@ pub(crate) fn validate_ambient_entries(cfg: &HashMap<String, String>) -> Result<
     // Sort keys for deterministic error ordering (BTreeMap iteration).
     let mut keys: Vec<&String> = cfg.keys().filter(|k| k.starts_with("ambient.")).collect();
     keys.sort();
+
+    // NIGHT-hunt-39 (owner mandate): entry-count ceiling — 1..=64 entries,
+    // the same policy as the custom-block namespaces. The old contract
+    // only TRUNCATED at 256 in the collector (silent drop, no error);
+    // now 65+ entries is a hard error on every surface that calls this
+    // validator (--testconf, startup, the live-reload watcher). Exactly
+    // 64 stays legal (boundary pinned by tests).
+    if keys.len() > AMBIENT_MAX_ENTRIES {
+        return Err(format!(
+            "ambient: {} entries — maximum is {AMBIENT_MAX_ENTRIES} (a schedule holds 1..={AMBIENT_MAX_ENTRIES} phases; trim the schedule)",
+            keys.len()
+        ));
+    }
 
     let custom_scenes = crate::scene_custom::collect_custom_scenes(cfg);
 

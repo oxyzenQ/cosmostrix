@@ -184,27 +184,38 @@ Glyph Policy above.)
 
 This policy is consistent across all 3 systems (charset, colors, scene). Previously they had inconsistent behavior: charset was custom-wins, colors was builtin-wins, scene was builtin-wins. Now all three are custom-wins with visible warning. The user can always use the explicit flags (`--colors-custom`, `--scene-custom`, `--charset-custom`) for unambiguous intent.
 
-### Custom Block LTS Bounds (v50.0.0-beta.6 + NIGHT-hunt-37)
+### Custom Block LTS Bounds (v50.0.0-beta.6 + NIGHT-hunt-37 + NIGHT-hunt-39)
 
-All 3 custom config systems use the same bounds for consistency. Max **100 blocks** per category (generous — built-in themes are ~44, built-in scenes ~10, built-in charsets ~25). Max **64 char names** (built-in names are ≤16 chars; longer = likely typo). Since NIGHT-hunt-37 (2026-09-13) every cap in this table is a HARD validation error on every surface — no silent drops remain (see the per-cap semantics below).
+All 4 user-extensible namespaces (the 3 custom-block systems plus the
+ambient scheduler) share ONE entry policy (NIGHT-hunt-39, owner
+mandate 2026-09-13): **min 1, max 64 entries**. A custom block with
+zero field entries is the header-only case — a hard error (the
+NIGHT-hunt-37 completeness contract); 64 blocks per namespace is the
+ceiling (generous — built-in themes are ~44, built-in scenes ~10,
+built-in charsets ~25); ambient schedules hold 1..=64 entries (0 = the
+scheduler is simply off). Max **64 char names** (built-in names are
+≤16 chars; longer = likely typo). Since NIGHT-hunt-37 (2026-09-13)
+every cap in this table is a HARD validation error on every surface —
+no silent drops remain (see the per-cap semantics below).
 
 **Unified bounds table:**
 
-| System | Max blocks | Max name len | Max content | Rationale |
-|--------|-----------|--------------|-------------|-----------|
-| colors-custom | 100 (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 9 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | the OKLab engine resamples every palette to exactly 9 perceptual samples (`COLORS_CUSTOM_PALETTE_STEPS`), so stops beyond 9 are provably discarded input; 100 blocks far exceeds realistic use |
-| charset-custom | 100 (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 chars (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
-| scene-custom | 100 (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | — | v80.0.0-beta.2 removed the density-map field (and its 1024-entry cap) entirely; no content cap remains for scene blocks |
+| System | Max entries | Max name len | Max content | Rationale |
+|--------|-------------|--------------|-------------|-----------|
+| colors-custom | 64 blocks (`COLORS_CUSTOM_MAX_BLOCKS`) | 64 (`COLORS_CUSTOM_MAX_NAME_LEN`) | 9 rain stops (`COLORS_CUSTOM_MAX_RAIN_STOPS`) | the OKLab engine resamples every palette to exactly 9 perceptual samples (`COLORS_CUSTOM_PALETTE_STEPS`), so stops beyond 9 are provably discarded input; 64 blocks far exceeds realistic use |
+| charset-custom | 64 blocks (`CHARSET_CUSTOM_MAX_BLOCKS`) | 64 (`CHARSET_CUSTOM_MAX_NAME_LEN`) | 256 glyphs (`CHARSET_CUSTOM_MAX_LEN`) | Bounded glyph pool; prevents 10K-char paste bloat |
+| scene-custom | 64 blocks (`SCENE_CUSTOM_MAX_BLOCKS`) | 64 (`SCENE_CUSTOM_MAX_NAME_LEN`) | 7 fields (completeness) | v80.0.0-beta.2 removed the density-map field (and its 1024-entry cap) entirely; the content bound is now the all-seven-fields completeness contract |
+| ambient schedule | 64 entries (`AMBIENT_MAX_ENTRIES`) | — (HH-MM grammar) | 1 scene name per entry | NIGHT-hunt-39: one phase every ~22 minutes is already dense; the old contract silently TRUNCATED at 256 in the collector with zero signal — now 65+ is a hard error on every surface (`validate_ambient_entries`), and exactly 64 stays legal |
 
 When a cap is hit, behavior depends on the cap type:
 
 - **Content cap** (rain stops): HARD validation error on every surface since NIGHT-hunt-37 (was: a silent collector truncation with a buffered runtime warning — the owner's 67-stop repro passed every gate). The collector's truncation remains as defense-in-depth for `COSMOSTRIX_SKIP_STARTUP_VALIDATION` bypass runs only, warning via `push_runtime_warning` (drained after Terminal::drop).
-- **Block cap** (total blocks per category): HARD validation error on every surface since NIGHT-hunt-37 (was: a silent skip with unspecified survivors — the last silent-skip in the collectors). Validators: `colors_custom::strictness::validate_block_count`, `charset_custom::validate_charset_custom_block_count`, `scene_custom::name_len::validate_scene_custom_block_count`.
+- **Block cap** (total blocks per category): HARD validation error on every surface since NIGHT-hunt-37 (was: a silent skip with unspecified survivors — the last silent-skip in the collectors). Validators: `colors_custom::strictness::validate_block_count`, `charset_custom::validate_charset_custom_block_count`, `scene_custom::name_len::validate_scene_custom_block_count`. NIGHT-hunt-39 lowered the shared ceiling from 100 to 64 (the owner's min-1/max-64 entry policy) and added the ambient sibling: `validate_ambient_entries` rejects 65+ schedule entries (the collector's silent 256-truncate is demoted to defense-in-depth for bypass runs).
 - **Name length cap** (NIGHT-depthtest-3, 2026-09-11): HARD validation error on every surface — `--testconf` exit 2, startup exit 2, live-reload watcher reject. Previously the collector's silent skip made a complete block with a 65+-char name invisible to `--testconf` (PASS) and `--list-*` (never listed), and a `scene = <oversized>` reference died at startup with a misleading "unknown scene". The validators are `scene_custom::validate_scene_custom_name_len` (pre-scan inside `validate_scene_custom_completeness`), `colors_custom::validate_colors_custom_name_len` (pre-scan inside `validate_colors_custom_blocks`), and `charset_custom::validate_charset_custom_name_len`. The list printers additionally append a `hidden:` warning line for collector-dropped names. Exactly 64 chars stays legal (boundary pinned by tests).
 
 NIGHT-hunt-37 (owner mandate, 2026-09-13) also closed the completeness gap: custom blocks must define ALL their required fields — `[colors-custom.<name>]` needs BOTH `bg` and `rain` (the deprecated `stops` alias satisfies the rain slot; `rain` + `stops` together is an overload error), `[charset-custom.<name>]` needs `set`, and a header-only block (every field line commented out or missing) is now visible to validation via the parser's `custom_block_headers` record. Values must not be empty (existing per-key validators). The header-completeness validator is `testconf::custom_block_headers::validate_custom_block_headers`, wired into all three surfaces.
 
-All 3 systems are now aligned: same max blocks (100), same max name len (64), same complete-fields contract, and the same error semantics — every cap hard-errors on every surface. This makes the LTS contract predictable across colors, charset, and scene custom blocks.
+All 4 namespaces are now aligned: same max entries (64), same max name len (64) where names exist, same complete-fields contract, and the same error semantics — every cap hard-errors on every surface. This makes the LTS contract predictable across colors, charset, scene custom blocks and the ambient schedule.
 
 ### Config value quoting invariant (bug #19, v80.0.0-beta.1)
 
@@ -224,6 +235,9 @@ charset-custom validation tests:
 - Any single-width glyph — including `[`, `]`, `#`, `=` — is a legal
   quoted `set` value and is stored verbatim.
 - Unquoted `[` values remain array openers (bug #7 semantics unchanged).
+- Unquoted values starting with `=` are rejected as the `==` typo class
+  (NIGHT-hunt-38-supermassive: `set == "x"` used to silently store
+  `= "x"` as the charset). Quote `=`-leading pools: `set = "=x"`.
 - No escape sequences exist: a lone `"` glyph is not expressible (the
   quote is the string delimiter); mid-pool quotes are kept.
 - Duplicate `[section]` headers are last-wins in the forgiving parser

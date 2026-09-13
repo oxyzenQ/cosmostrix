@@ -11,6 +11,8 @@ Index:
 
 - [Colors & OKLab](#colors--oklab)
 - [Custom blocks](#custom-blocks)
+- [Rendering engine](#rendering-engine)
+- [Config validation](#config-validation)
 
 ## Colors & OKLab
 
@@ -128,8 +130,14 @@ surface (startup, `--testconf`, the live-reload watcher):
   so these blocks cannot hide.
 - Duplicate keys, duplicate section headers, and unknown fields are
   hard errors (unknown keys carry did-you-mean hints).
-- Names: 1–64 chars, letters/digits/`-`/`_`. Max 100 blocks per
-  namespace.
+- Names: 1–64 chars, letters/digits/`-`/`_`. Since NIGHT-hunt-39
+  (2026-09-13) the entry budget is min 1 / max 64 per namespace:
+  every block needs at least one field entry (the completeness rules
+  above), and at most 64 blocks fit per namespace — the SAME 1..=64
+  policy the ambient scheduler uses for its entries.
+- `ambient.<HH-MM>` schedules: 1..=64 entries (0 entries simply turns
+  the scheduler off, not an error); 65+ is a hard error on every
+  surface, never the silent 256-truncate the old collector applied.
 
 The bounds table with rationale lives in `docs/RULES.md` ("Custom
 Block LTS Bounds"). The validators: `colors_custom::strictness`,
@@ -145,6 +153,140 @@ see it). Keys that cannot change mid-run (documented in
 `docs/LIVE_RELOAD_BEHAVIOR.md`) need a restart. The honest
 limitations of live reload are documented in
 `docs/CONFIG_LIVE_RELOAD_DISCLAIMER.md`.
+
+## Rendering engine
+
+(NIGHT-docs-4, 2026-09-13 — the recurring "is it real?" questions,
+answered once from source.)
+
+### Q: Does cosmostrix really have an independent rendering engine?
+
+A: YES — in the strongest sense: the entire paint pipeline is
+authored in this repo; there is no TUI framework underneath. The
+Cargo manifest pulls no ratatui/tui-rs/ncurses — the only terminal
+crate is `crossterm`, and its role is bounded to setup, teardown and
+input (see the next question). The rendering substrate itself is
+`src/engine/cosmic_dragon_engine/` with four cooperating subsystems:
+
+| Subsystem | Location | Role |
+|-----------|----------|------|
+| Cloud simulation | `cloud/` | rain simulation, monolith, phosphor decay, the render pipeline that decides each cell's glyph and color |
+| Frame buffer | `frame.rs` | differential 2D cell grid with double-buffered, generation-based dirty tracking (O(1) per-frame clear) |
+| Terminal output | `terminal/` | raw-mode guard, alternate screen, RLE-batched ANSI diff emission, 64 KiB buffered writer, `/dev/tty` fallback, I/O recovery |
+| Runtime types | `runtime.rs` | the `ColorScheme`/`ColorMode`/`ColorPipeline` vocabulary |
+
+The frame path, file by file (paths verified 2026-09-13):
+
+```text
+event loop            src/interactive/event_loop.rs
+  -> run_sim_and_draw src/interactive/event_loop_sim_draw.rs
+     -> cloud.rain_at(frame, now)   simulation writes Cell values into Frame
+     -> term.draw(frame)            only DIRTY cells re-emitted, RLE-batched
+        -> one write() syscall per frame (64 KiB buffer)
+```
+
+`Terminal::draw` is a two-path strategy: full redraw when dimensions
+or semantics changed (no blanket clear on semantic-only changes —
+that flickered), and the diff path otherwise: dirty indices grouped
+by row, sorted, scanned for contiguous same-style runs so cursor
+movement and SGR changes are minimized.
+
+### Q: Is crossterm the renderer?
+
+A: No. crossterm owns terminal *setup and teardown* (raw mode,
+alternate screen, line-wrap — `terminal/cleanup.rs`) and *input event
+decoding* (`crossterm::event` in the interactive loop). The hot draw
+path never routes through crossterm's command traits: `terminal/
+sgr_format.rs` formats ANSI SGR bytes directly into a `Vec<u8>` with
+the branchless `bolt` number formatter, and `terminal/draw.rs`
+appends raw `\x1b`-prefixed sequences run-by-run. crossterm command
+enums appear only on cold paths (mode switches, cleanup). That is
+why the `--benchmark` HUD reports dirty-cell counts and write sizes
+from first-party instrumentation — no third-party render layer sits
+in between to ask.
+
+### Q: Does the Cosmic Dragon really render?
+
+A: Yes — the Cosmic Dragon Diff-Based Rendering Engine IS the
+renderer described above; "Cosmic Dragon" is its name, not a
+metaphor. Every glyph you see is computed by `cloud/` (position,
+character, phosphor state), colored by the Chroma Dragon (see below),
+written into the `Frame` grid, and emitted by `Terminal::draw`.
+Do not confuse it with `src/cosmic_dragon_incubator/` — a small
+experimental namespace (~200 LOC), NOT a peer engine (the
+naming-disambiguation note lives at the top of
+`src/engine/cosmic_dragon_engine/mod.rs`).
+
+### Q: What do the other dragons do — which of them renders?
+
+A: Exactly ONE dragon paints. The others feed it:
+
+- **Cosmic Dragon** (`src/engine/cosmic_dragon_engine/`) — THE
+  renderer: simulation + frame buffer + ANSI terminal pipeline.
+- **Chroma Dragon** (`src/engine/chroma_dragon_engine/`) — the color
+  engine. It decides WHICH color each cell gets
+  (`shaders/base.rs::resolve_cell_color`), builds every palette
+  through OKLab (see the Colors section above), and quantizes to the
+  terminal's color mode. It never writes to the terminal — it hands
+  `crossterm::style::Color` values to the Cosmic Dragon's frame cells.
+- **Crystal Dragon** (`src/engine/crystal_dragon_engine/`) — ambient
+  intelligence: the time-of-day ambient scheduler and the palette
+  drift engine. It decides WHEN the palette changes; it does not
+  render. Its 300 ms palette wave is executed by Chroma's transition
+  shaders, then painted by Cosmic.
+- **Power Dragon** (`src/central_control_power_dragon/`) — adaptive
+  throttle: bands density and reduces FPS under CPU pressure. It
+  controls the frame RATE, not the frame CONTENT.
+
+So the pipeline's division of labor is: Crystal decides when,
+Chroma decides what color, Power decides how fast, Cosmic paints.
+Each engine directory carries its own `README.md`/`RULES.md` and the
+locked `KEY.md` (chroma) — the engine topology is documented in
+`src/engine/mod.rs` and `src/engine/cosmic_dragon_engine/mod.rs`.
+
+## Config validation
+
+(NIGHT-hunt-38-supermassive, 2026-09-13 — the typo classes the owner
+found by manual testing on commit 6198431, now closed.)
+
+### Q: I typo'd the separator (`set == "x"` or `set : "x"`). What happens?
+
+A: Both are rejected as malformed lines with a targeted `# ERROR:`
+note — the same verdict on all three surfaces (`--testconf` exit 2,
+startup exit 2, live-reload watcher reject). Before the fix these two
+typos of the SAME mistake behaved differently: the `:` form errored
+(no `=` in the line), but the `==` form SILENTLY PASSED — the parser
+split at the first `=`, stored `= "x"` as the value, and a
+`[charset-custom]` block happily ran with garbage glyphs while
+`--testconf` said PASS. The `==` typo on an `ambient` key was even
+worse: the stray `=` made the validator misfire the "legacy
+multi-field format" migration essay for a format the user never
+wrote. A QUOTED value whose content starts with `=` (`set = "=x"`)
+remains legal — the guard inspects the raw value before
+quote-stripping (the bug #19 quoting invariant).
+
+### Q: I typo'd a boolean (`msg-mode = truee`). What happens?
+
+A: Rejected, uniformly: `--testconf` fails with `expected true/false
+(or yes/no, on/off, 1/0)`, startup exits with code 2, and the
+live-reload watcher rejects the edit. Before the fix `--testconf`
+passed `truee` (no validator arm for `msg-mode`), while the runtime
+printed a bare one-line error and KEPT RUNNING with the default —
+two different verdicts for one typo. The accepted vocabulary matches
+`parse_bool_config` exactly: true/false, yes/no, on/off, 1/0,
+case-insensitive.
+
+### Q: Why did my old ambient multi-field entry stop working, and what do I migrate to?
+
+A: The multi-field format
+(`ambient.15-00 = neon-purple, signal, speed=50, density=0.65`) was
+removed in favor of a single scene name. The rejection message
+includes a copy-paste migration recipe. One caveat the NIGHT-hunt-38
+audit caught: the recipe used to recommend `base-scene` — a field
+REMOVED in v80.0.0-beta.2 — so following it produced a fresh error.
+The recipe now shows the complete-block contract (all seven
+`[scene-custom]` fields required). If you see the essay, migrate to a
+`[scene-custom.<name>]` block and reference it by name at top level.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
