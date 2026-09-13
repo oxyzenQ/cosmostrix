@@ -170,6 +170,11 @@ def main() -> int:
     )
 
     # Summary: the signatures NIGHT-hunter-2 locked.
+    # NIGHT-hunt-35: the summary reads only post-intro samples (t > 5.0),
+    # so a short RUN_SECS (<= 5s, or a run whose frames all land inside
+    # the intro window) produced empty lists and an IndexError on the
+    # percentile indexing. Guard on the filtered sample counts and report
+    # the shortfall instead of crashing.
     if len(frames) > 60:
         gaps = [
             (frames[i][0] - frames[i - 1][0]) * 1000
@@ -179,14 +184,20 @@ def main() -> int:
         sizes = sorted(b for t, b in frames if t > 5.0)
         big = sum(1 for b in sizes if b > 150 * 1024)
         gs = sorted(gaps)
-        print(
-            f"frame bytes: p50={sizes[len(sizes) // 2] / 1024:.0f}KB "
-            f"max={sizes[-1] / 1024:.0f}KB  frames>150KB={big}"
-        )
-        print(
-            f"gaps ms: p50={gs[len(gs) // 2]:.1f} p99={gs[int(len(gs) * 0.99)]:.1f} "
-            f"max={max(gs):.0f}  gaps>50ms={sum(1 for g in gaps if g > 50)}"
-        )
+        if len(sizes) >= 1 and len(gs) >= 1:
+            print(
+                f"frame bytes: p50={sizes[len(sizes) // 2] / 1024:.0f}KB "
+                f"max={sizes[-1] / 1024:.0f}KB  frames>150KB={big}"
+            )
+            print(
+                f"gaps ms: p50={gs[len(gs) // 2]:.1f} p99={gs[int(len(gs) * 0.99)]:.1f} "
+                f"max={max(gs):.0f}  gaps>50ms={sum(1 for g in gaps if g > 50)}"
+            )
+        else:
+            print(
+                "insufficient post-intro samples for the summary "
+                f"({len(sizes)} size samples, {len(gs)} gaps) — RUN_SECS too short"
+            )
     return 0
 
 

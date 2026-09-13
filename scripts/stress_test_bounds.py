@@ -190,16 +190,36 @@ def test_name_length():
     """Generate names longer than 64 chars."""
     long_name = "x" * 70
     # colors-custom
+    # NIGHT-hunt-35: updated to the current oversized-name contract (the
+    # depthtest4 Phase D pins): names over the 64-char limit are REJECTED
+    # with exit 2 and the "64-char name limit" error, not skipped. The old
+    # expect_pass=True expectations were written for the pre-rejection
+    # behavior and failed against the shipping binary.
     config = f'[colors-custom.{long_name}]\nrain = "#000000, #ffffff"\n'
-    test("colors_70char_name_skipped", config, expect_pass=True)
+    test(
+        "colors_70char_name_rejected",
+        config,
+        expect_pass=False,
+        expect_error_contains=["64-char name limit"],
+    )
 
     # charset-custom
     config = f'[charset-custom.{long_name}]\nset = "ab"\n'
-    test("charset_70char_name_skipped", config, expect_pass=True)
+    test(
+        "charset_70char_name_rejected",
+        config,
+        expect_pass=False,
+        expect_error_contains=["64-char name limit"],
+    )
 
     # scene-custom
     config = f"[scene-custom.{long_name}]\ncolor = green\n"
-    test("scene_70char_name_skipped", config, expect_pass=True)
+    test(
+        "scene_70char_name_rejected",
+        config,
+        expect_pass=False,
+        expect_error_contains=["64-char name limit"],
+    )
 
 
 # ── Stress Test 8: unknown field rejection all 3 systems ──

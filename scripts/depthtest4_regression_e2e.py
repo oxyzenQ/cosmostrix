@@ -113,9 +113,11 @@ FORBIDDEN_ICON_GLYPHS = [
     "\u2728",  # sparkles
 ]
 
-# Minimal config restored on exit so the owner's environment is not
-# left carrying a probe artifact.
-RESTORE_CONFIG = 'intro = "none"\nscene = "cosmos"\n'
+# NIGHT-hunt-35: RESTORE_CONFIG removed — the exit path now restores the
+# prior default config verbatim (or removes the file when none existed).
+# The old restore write left intro=none + scene=cosmos in the DEFAULT
+# config path, which disabled the owner's startup intro and broke every
+# test that runs without --config (intro_lead_e2e scenarios B and C).
 
 RESULTS = []
 FAILS = []
@@ -137,6 +139,31 @@ def write_cfg(body: str, path: str = CFG) -> None:
     os.makedirs(CFG_DIR, exist_ok=True)
     with open(path, "w") as f:
         f.write(body)
+
+
+def backup_prior_config() -> "tuple[bool, str | None]":
+    """NIGHT-hunt-35 (test isolation): snapshot the default config so the
+    exit path can restore it verbatim. The previous finally-block wrote
+    RESTORE_CONFIG (intro=none + scene=cosmos) to the DEFAULT config path —
+    despite its own comment calling the write a way to NOT leave a probe
+    artifact, the RESTORE_CONFIG content IS the artifact: it silently
+    disabled the owner's startup intro and made every test that runs
+    without --config (e.g. intro_lead_e2e scenarios B and C) read
+    intro=none and fail."""
+    if os.path.exists(CFG):
+        with open(CFG) as f:
+            return True, f.read()
+    return False, None
+
+
+def restore_prior_config(had_config: bool, content: "str | None") -> None:
+    """NIGHT-hunt-35: restore the prior file verbatim, or remove the file
+    this run created — leave the environment exactly as found."""
+    if had_config:
+        with open(CFG, "w") as f:
+            f.write(content or "")
+    elif os.path.exists(CFG):
+        os.remove(CFG)
 
 
 def run_plain(args, timeout=30):
@@ -538,12 +565,18 @@ def main() -> int:
         return 1
     print(f"NIGHT-depthtest-4 quick regression matrix — binary: {BIN}")
     print()
+    # NIGHT-hunt-35: snapshot the prior default config for the finally
+    # block's exact restore.
+    had_config, prior_config = backup_prior_config()
     try:
         phase_a()
         phase_b()
         phase_c()
     finally:
-        write_cfg(RESTORE_CONFIG)
+        # NIGHT-hunt-35: restore the PRIOR default config (or remove the
+        # file when none existed) instead of writing RESTORE_CONFIG — that
+        # write was itself the probe artifact it claimed to prevent.
+        restore_prior_config(had_config, prior_config)
     total = len(RESULTS)
     print(f"{'=' * 60}")
     print(f"{'PASSED' if not FAILS else 'FAILED'}: {total - len(FAILS)}/{total} probes")

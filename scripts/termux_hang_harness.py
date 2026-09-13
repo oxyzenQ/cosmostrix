@@ -49,7 +49,12 @@ import sys
 import termios
 import time
 
+# NIGHT-hunt-35: release fallback (the default pinned the debug build; a
+# release-only checkout hit the "binary not found" exit even though the
+# harness itself is fine). Debug stays preferred when present.
 BIN = os.environ.get("BIN", "target/debug/cosmostrix")
+if not os.path.exists(BIN):
+    BIN = "target/release/cosmostrix"
 COLS, ROWS = (int(v) for v in os.environ.get("SIZE", "120x40").split("x"))
 JAM_EXIT_TIMEOUT = float(os.environ.get("JAM_EXIT_TIMEOUT", "25"))
 TERM_EXIT_TIMEOUT = float(os.environ.get("TERM_EXIT_TIMEOUT", "8"))

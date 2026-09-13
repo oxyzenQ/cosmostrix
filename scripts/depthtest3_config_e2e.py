@@ -144,6 +144,28 @@ def write_cfg(body: str, path: str = CFG) -> None:
         f.write(body)
 
 
+def backup_prior_config() -> "tuple[bool, str | None]":
+    """NIGHT-hunt-35 (test isolation): snapshot the default config so the
+    exit path can restore it verbatim. The previous finally-block wrote
+    GOOD_CFG (scene=cinematic) to the DEFAULT config path — a probe
+    artifact that changed the owner's startup scene and leaked state into
+    every test that runs without --config (e.g. intro_lead_e2e)."""
+    if os.path.exists(CFG):
+        with open(CFG) as f:
+            return True, f.read()
+    return False, None
+
+
+def restore_prior_config(had_config: bool, content: "str | None") -> None:
+    """NIGHT-hunt-35: restore the prior file verbatim, or remove the file
+    this run created — leave the environment exactly as found."""
+    if had_config:
+        with open(CFG, "w") as f:
+            f.write(content or "")
+    elif os.path.exists(CFG):
+        os.remove(CFG)
+
+
 def run_plain(args, timeout=30):
     """Non-PTY subprocess (validation-surface checks)."""
     return subprocess.run(
@@ -523,13 +545,16 @@ def phase_d() -> None:
 
 
 def main() -> int:
+    # NIGHT-hunt-35: backup/restore the default config around the run so
+    # the exit path leaves no probe artifact in the owner's config.
+    had_config, prior_config = backup_prior_config()
     try:
         phase_a()
         phase_b()
         phase_c()
         phase_d()
     finally:
-        write_cfg(GOOD_CFG)
+        restore_prior_config(had_config, prior_config)
 
     print("\n=== NIGHT-depthtest-3 E2E SUMMARY ===")
     fails = [k for k, v in RESULTS.items() if not v]

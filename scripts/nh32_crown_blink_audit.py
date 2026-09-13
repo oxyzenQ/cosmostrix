@@ -34,7 +34,21 @@ import time
 
 TERM_COLS, TERM_ROWS = (int(x) for x in os.environ.get("SIZE", "120x40").split("x"))
 RUN_SECS = float(os.environ.get("RUN_SECS", "16"))
+# NIGHT-hunt-35: release fallback. The default pinned the debug build, so a
+# release-only checkout crashed with a raw FileNotFoundError inside
+# capture() instead of running. Debug stays preferred when present (a dev
+# workstation run is unchanged); a missing binary exits with a clear
+# message instead of a traceback.
 BIN = os.environ.get("BIN", "target/debug/cosmostrix")
+if not os.path.exists(BIN):
+    BIN = "target/release/cosmostrix"
+if not os.path.exists(BIN):
+    print(
+        "error: no cosmostrix binary — build release (cargo build --release) "
+        "or set BIN=",
+        file=sys.stderr,
+    )
+    sys.exit(1)
 SCENE = os.environ.get("SCENE", "sorgonemous_intrascals")
 INTRO = os.environ.get("INTRO", "1")  # 1 = logo intro (default), 0 = no intro
 

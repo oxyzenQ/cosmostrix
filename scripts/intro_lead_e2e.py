@@ -6,7 +6,7 @@
 
 Owner repro: `cosmostrix --mfs engrave -mb test` — with the default logo
 intro the message lands shortly after the cinematic (tuned, good). But
-`--intro none` and the Space runtime restart re-armed the 6 s lead with
+`--intro none` and the runtime restart re-armed the 6 s lead with
 nothing hiding the message, so the overlay dead-aired for 6 s.
 
 Detection strategy: run with `-C digits` so the rain can never emit the
@@ -19,9 +19,13 @@ Scenarios:
   B  --intro logo (default): NO X before the intro finishes (<= 3.8 s),
                              full reveal by 10 s — locks the tuned feel.
                              (Broken-skip behavior: X within ~1 s.)
-  C  --intro none + Space  : press Space at t=3 s (message fully typed),
+  C  --intro none + 'r'    : press 'r' at t=3 s (message fully typed),
                              the fresh replay re-reveals within 1.3 s.
                              (Pre-fix: single-char dead air for 6 s.)
+                             (NIGHT-hunt-35: was Space — the v52-era
+                             restart key. Space has no binding since the
+                             NIGHT-lts-3 'r' restart_from_zero contract;
+                             scenario C dead-ended with 0 X writes.)
 """
 
 import os
@@ -160,23 +164,27 @@ def main():
     if b_by_10 < 8:
         failures.append("B: full reveal must complete by 10 s (lead expires ~6.2 s)")
 
-    # ── Scenario C: Space restart replays immediately ────────────────────
+    # ── Scenario C: 'r' restart replays immediately ────────────────────
+    # NIGHT-hunt-35: was Space (the v52-era restart key). Space has no
+    # binding since the NIGHT-lts-3 'r' restart_from_zero contract, so
+    # the scenario dead-ended with 0 X writes. 'r' = full fresh restart
+    # + restart_message_typewriter (immediate replay, no lead).
     c = run_scenario(
         ["--intro", "none"],
-        actions=[(3.0, b" ")],  # Space at t=3 s: reset + message replay
+        actions=[(3.0, b"r")],  # 'r' at t=3 s: full fresh restart + replay
         duration=5.0,
     )
     c_pre = count_at(c, 3.0)
     c_window = count_at(c, 4.5) - count_at(c, 3.2)
     print(
-        f"C  --intro none +Space: X writes before Space = {c_pre}, "
+        f"C  --intro none +r    : X writes before 'r' = {c_pre}, "
         f"fresh replay X writes in [3.2s, 4.5s] = {c_window}"
     )
     if c_pre < 8:
-        failures.append("C precondition: initial reveal must be complete before Space")
+        failures.append("C precondition: initial reveal must be complete before 'r'")
     if c_window < 8:
         failures.append(
-            "C: Space restart must re-reveal within ~1.3 s (pre-fix: 6 s dead air)"
+            "C: 'r' restart must re-reveal within ~1.3 s (pre-fix: 6 s dead air)"
         )
 
     print()

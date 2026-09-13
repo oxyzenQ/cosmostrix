@@ -68,6 +68,32 @@ def write_cfg(body: str) -> None:
         f.write(body)
 
 
+def backup_prior_config() -> "tuple[bool, str | None]":
+    """NIGHT-hunt-35 (test isolation): snapshot the default config so the
+    exit path can restore it verbatim. Returns (existed, content). The
+    previous exit write left GOOD_CFG (color=blue, charset=katakana) in
+    the DEFAULT config path — a probe artifact that silently changed the
+    owner's startup (and leaked intro=none-style state into every test
+    that runs without --config, e.g. intro_lead_e2e scenario B)."""
+    if os.path.exists(CFG):
+        with open(CFG) as f:
+            return True, f.read()
+    return False, None
+
+
+def restore_prior_config(had_config: bool, content: "str | None") -> None:
+    """NIGHT-hunt-35: exact-inverse of backup_prior_config — restore the
+    prior file, or remove the file this run created (leave the environment
+    exactly as found, the hud_long_scene_e2e.py contract)."""
+    if had_config:
+        if content is None:
+            content = ""
+        with open(CFG, "w") as f:
+            f.write(content)
+    elif os.path.exists(CFG):
+        os.remove(CFG)
+
+
 def run_pty(argv, secs, edits=None, keys=None):
     """Run the binary in a PTY; edits = [(t, text)], keys = [(t, byte)].
 
@@ -192,7 +218,17 @@ def run_startup(body: str, label: str) -> bool:
 
 def main() -> int:
     results = {}
+    # NIGHT-hunt-35: backup the prior default config; the finally block
+    # restores it (or removes the file when none existed) so this e2e
+    # leaves no artifact behind.
+    had_config, prior_config = backup_prior_config()
+    try:
+        return _main_scenarios(results)
+    finally:
+        restore_prior_config(had_config, prior_config)
 
+
+def _main_scenarios(results: dict) -> int:
     # Scenario 1 + 2: one session, startup priority then runtime
     # config priority.
     write_cfg(GOOD_CFG)
@@ -256,7 +292,6 @@ def main() -> int:
     fails = [k for k, v in results.items() if not v]
     for k, v in results.items():
         print(f"  {'PASS' if v else 'FAIL'}: {k}")
-    write_cfg(GOOD_CFG)
     if fails:
         print(f"FAILED: {len(fails)}")
         return 1
