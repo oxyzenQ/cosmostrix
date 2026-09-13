@@ -229,7 +229,7 @@ fn hunt36_relayout_collapses_rect_when_box_does_not_fit() {
     assert!(cloud.message_sweep_bottom > cloud.message_sweep_top);
 
     // Shrink the terminal below the bordered box minimum (border=1 needs
-    // cols >= 2*border + 2*pad_x = 6). reset_with_bounds relayouts.
+    // cols >= 2 + 2 pad_x = 6). reset_with_bounds relayouts.
     cloud.reset(4, 3);
     assert!(
         cloud.message.is_empty() || cloud.message_sweep_bottom <= cloud.message_sweep_top,
