@@ -68,6 +68,15 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     let term_reinit = setup.term_reinit;
     let density = effective_density(cfg.base_density, w, cfg.density_auto);
 
+    // Live config reload: watcher spawns BEFORE the intro so intro-window
+    // edits are never baked into its baseline (NIGHT-hunt-44; docs/
+    // LIVE_RELOAD_BEHAVIOR.md §19). On update: full Cloud rebuild.
+    let config_rx = if let Some(path) = &cfg.config_path_for_watcher {
+        crate::live_config::spawn_watcher(path.clone())
+    } else {
+        None
+    };
+
     // v20/v31: modular cinematic intro (plays in screensaver too; 'q' skips).
     // Extracted to event_loop_intro.rs to keep this file under the 800-LOC
     // cap. The intro selection chain (intro_color unset / builtin theme /
@@ -98,15 +107,6 @@ pub(crate) fn run_interactive(cfg: &CloudConfig) -> std::io::Result<()> {
     // the `cfg` fn arg the siblings threaded as duplicate same-typed
     // refs).
     let startup_cfg = cfg.clone();
-    // Live config reload: spawn watcher for config.toml changes.
-    // The watcher thread sends validated config HashMaps via mpsc channel.
-    // We try_recv() each frame (non-blocking, ~1ns on empty channel).
-    // On update, rebuild CloudConfig + Cloud (full rebuild, not delta).
-    let config_rx = if let Some(path) = &cfg.config_path_for_watcher {
-        crate::live_config::spawn_watcher(path.clone())
-    } else {
-        None
-    };
     // Ambient scheduler: idle/wake thread sends AmbientEntry via mpsc.
     let ambient_handle = crate::crystal_dragon_engine::ambient_scheduler::spawn_ambient_scheduler(
         startup_cfg.ambient_schedule.clone(),

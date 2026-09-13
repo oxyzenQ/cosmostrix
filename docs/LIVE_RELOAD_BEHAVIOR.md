@@ -1377,3 +1377,69 @@ CRYSTAL_DRAGON_ENGINE.md).
 - Full suite: 2129 passed / 0 failed / 2 ignored; fmt + clippy
   (`--all-targets --all-features -D warnings`) clean; gate-keepers 9/9;
   windows-gnu + freebsd cross-checks 0 warnings.
+
+---
+
+## 19. NIGHT-hunt-44 — config-error verify+audit (owner mandate 2026-09-13, pre-LTS)
+
+The owner flagged that hunts 38/40/41 were marked done but the class
+still felt open: "when some function error on config like wrong input
+typo, duplicate, etc problems the error output is still on runtime
+not really exit so that is garbage on cinematic screen." The audit
+(`scripts/depthtest5_config_error_streams.py`) drove the real binary
+through a 95-case matrix — all 22 top-level keys × {key typo, invalid
+value, duplicate}, custom-namespace field typos, hunt-40 entry-budget
+BOUNDARIES (24 pass / 25 fail for all four namespaces, rain stops
+9/10, message 200/201), the owner's `-v` invocation style, and four
+PTY runtime windows — asserting for every error case: exit 2, stdout
+EMPTY (the screen never receives error text), and the diagnostic on
+stderr only.
+
+### Finding 1: `message`/`message-border` length cap broke the uniform-rejection contract
+
+An over-length `message = <201+ bytes>` config value passed `--testconf`
+silently ("0 errors") while the real run died LATE in
+`build_cloud_cfg` — misattributed to the CLI flag ("-m text exceeds")
+even though the user never typed `-m`. Live-reload already enforced the
+cap (S3 harden); `--testconf` blessed what startup rejected. Fixed by
+the shared strict layer: a `message | message-border` arm in
+`validate_field_value` (src/testconf/field_validation.rs) rejects
+over-MESSAGE_MAX_LEN values on all three surfaces in lockstep, with
+the CONFIG KEY named in the error. Length is measured in BYTES — the
+same measure as the CLI `-m` path and the live-reload reject (one
+measure, three surfaces). The `build_cloud_cfg` die remains as the
+CLI-only last resort, where its "-m text" wording is correct.
+
+### Finding 2: config edits during the intro were silently missed
+
+`spawn_watcher` ran AFTER `run_intro_sequence`, so the watcher's
+baseline snapshot was taken several seconds into the intro — an edit
+made DURING the intro (a very real window: start cosmostrix, edit
+config.toml) was baked into the baseline and never detected: neither
+applied nor rejected until the NEXT save or restart. Fixed by spawning
+the watcher BEFORE the intro (src/interactive/event_loop.rs): the
+baseline is the true startup state, intro-window events queue in the
+bounded channel (cap 64), and the first post-intro drain applies a
+valid edit or breaks the rain loop for an invalid one — always with
+the post-restore rejection shape (AB-10: never a mid-rain print).
+
+### Verified clean (no fix needed)
+
+- Startup/--testconf/-v: every error class exits 2 with stdout clean
+  and diagnostics on stderr; `--testconf` informational report stays
+  on stdout by design (text mode, never the cinematic screen).
+- Runtime rejection ordering (PTY): bad edit → rain loop breaks →
+  alt-screen leave (`ESC[?1049l`) → error text → exit 2. Zero error
+  text reaches the rain matrix or the intro, before or after the fix.
+- Valid edits (both windows) keep running with no rejection output.
+- Hunt-40 budgets hold at both edges for all four custom namespaces.
+
+### Verification
+
+- `depthtest5_config_error_streams.py`: 95 PASS / 0 FAIL (binary:
+  pro-native). Regression tests added:
+  `message_and_message_border_enforce_max_len_on_all_three_surfaces`
+  (at-cap passes, over-cap rejects, byte-measure parity, strict-path
+  key naming).
+- Full suite, fmt, clippy, gate-keepers: see the commit message — all
+  green at commit time.

@@ -282,6 +282,32 @@ pub(crate) fn validate_field_value(key: &str, value: &str) -> Option<String> {
                 )),
             }
         }
+        // NIGHT-hunt-44 (owner verify+audit of hunts 38/40/41): the
+        // message overlay text keys had NO arm here, so an over-length
+        // `message = <201+ chars>` config value passed --testconf
+        // silently ("0 errors") while the real run died LATE in
+        // build_cloud_cfg — with a misattributed "-m text exceeds"
+        // error, even though the user never typed -m (the text came
+        // from the config key). That broke the uniform-rejection
+        // contract for exactly one validator class: live-reload
+        // rejected (S3 harden, live_config/mod.rs), startup rejected
+        // (late, wrong attribution), --testconf blessed. This arm
+        // moves the cap into the shared strict layer so all three
+        // surfaces reject EARLY, with the config key named in the
+        // error. Length is measured in BYTES — the same measure as
+        // the CLI -m path (build_cloud_cfg) and the live-reload
+        // reject (one measure, three surfaces).
+        "message" | "message-border" => {
+            if v.len() > crate::types::constants::MESSAGE_MAX_LEN {
+                Some(format!(
+                    "value is {} bytes long — the maximum is {} (the overlay is a one-line banner; shorten the text)",
+                    v.len(),
+                    crate::types::constants::MESSAGE_MAX_LEN
+                ))
+            } else {
+                None
+            }
+        }
         // v80.0.0-beta.1 msg-fill-style: must match the clap ValueEnum accepted by
         // -mfs/--msg-fill-style. Same uniform-rejection contract as
         // `intro` (bug #17): --testconf, startup validation, and

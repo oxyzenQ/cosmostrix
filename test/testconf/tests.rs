@@ -605,6 +605,53 @@ fn msg_mode_rejects_non_bool_and_matches_all_three_surfaces() {
 }
 
 #[test]
+fn message_and_message_border_enforce_max_len_on_all_three_surfaces() {
+    // NIGHT-hunt-44 (owner verify+audit of hunts 38/40/41): an
+    // over-length `message = <201+ bytes>` config value passed
+    // --testconf silently ("0 errors") while the real run died LATE
+    // in build_cloud_cfg — misattributed to the CLI flag ("-m text
+    // exceeds") even though the user never typed -m. The cap now
+    // lives in the shared strict layer so --testconf, startup, and
+    // the live-reload watcher reject in lockstep, with the CONFIG
+    // KEY named in the error (the same contract as every other key).
+    let at_cap = "m".repeat(crate::types::constants::MESSAGE_MAX_LEN);
+    let over_cap = "m".repeat(crate::types::constants::MESSAGE_MAX_LEN + 1);
+    for key in ["message", "message-border"] {
+        assert!(
+            validate_field_value(key, &at_cap).is_none(),
+            "{key} at exactly MESSAGE_MAX_LEN must pass"
+        );
+        let err = validate_field_value(key, &over_cap).expect("over-cap must be rejected");
+        assert!(
+            err.contains("maximum"),
+            "error must state the cap, got: {err}"
+        );
+    }
+    // The strict full-map validator (the startup/live-reload path)
+    // rejects the over-length config outright and names the key.
+    let mut cfg = std::collections::HashMap::new();
+    cfg.insert("message".to_string(), over_cap.clone());
+    let err = validate_config_strictly(&cfg).expect_err("must reject over-length message");
+    assert!(
+        err.contains("message"),
+        "error must name the config key, got: {err}"
+    );
+    // A multi-byte value is measured in BYTES on every surface (the
+    // CLI -m path and the live-reload reject both use .len()) — 100
+    // two-byte glyphs are 200 bytes (at cap, passes), 101 are 202
+    // (over cap, rejected). One measure, three surfaces. (Written as
+    // a \u{..} escape: the project language audit is pure-ASCII.)
+    let two_byte = "\u{e9}"; // LATIN SMALL LETTER E WITH ACUTE (U+00E9)
+    let wide_at_cap = two_byte.repeat(crate::types::constants::MESSAGE_MAX_LEN / 2);
+    let wide_over = two_byte.repeat(crate::types::constants::MESSAGE_MAX_LEN / 2 + 1);
+    assert!(validate_field_value("message", &wide_at_cap).is_none());
+    assert!(validate_field_value("message", &wide_over).is_some());
+    // Valid-length values pass the strict path.
+    cfg.insert("message".to_string(), at_cap);
+    assert!(validate_config_strictly(&cfg).is_ok());
+}
+
+#[test]
 fn block_field_base_uses_scene_validator() {
     // 'base' in scene-custom blocks is validated as a scene name.
     // The caller maps 'base' -> 'scene' before calling validate_field_value.
