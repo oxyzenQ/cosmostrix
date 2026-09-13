@@ -165,9 +165,10 @@ COMMON OPTIONS:
       for any bench mode.
       cosmostrix --no-effects
 
-      Tip: typing the old name --disable-effects triggers clap's
-      built-in did-you-mean suggestion pointing to --no-effects
-      (no silent failure).
+      Tip: typing the old name --disable-effects gets a migration
+      hint pointing to --no-effects (no silent failure; NIGHT-hunt-46 —
+      the names are too distant for a typo tip, so the REMOVED_FLAGS
+      table carries the rename).
 
   --intro-color <name>
       Intro animation color override. Accepts any builtin theme name

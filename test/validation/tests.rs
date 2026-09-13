@@ -152,6 +152,26 @@ fn check_removed_flags_intercepts_show_preset() {
 }
 
 #[test]
+fn check_removed_flags_intercepts_disable_effects_rename() {
+    // NIGHT-hunt-46: --disable-effects was renamed to --no-effects in
+    // v50.0.0-beta.7 but missed the REMOVED_FLAGS table — the same
+    // rename-drift class the table's own header comment describes.
+    // Empirically jaro("disable-effects", "no-effects") = 0.6944 < 0.7,
+    // so neither clap's suggestion nor the case-insensitive rescue
+    // fired: users typing the old name got a bare "unexpected
+    // argument" with zero guidance, contradicting the --no-effects
+    // help text ("typing the old name --disable-effects triggers
+    // clap's built-in did-you-mean suggestion").
+    let argv = ["cosmostrix", "--disable-effects"]
+        .into_iter()
+        .map(OsString::from)
+        .collect::<Vec<_>>();
+    let err = check_removed_flags(&argv).expect_err("--disable-effects must be intercepted");
+    assert!(err.contains("--disable-effects has been removed"));
+    assert!(err.contains("--no-effects"));
+}
+
+#[test]
 fn check_removed_flags_intercepts_dump_profile() {
     let argv = ["cosmostrix", "--dump-profile", "nightcore"]
         .into_iter()

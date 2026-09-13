@@ -129,6 +129,10 @@ pub(crate) const REMOVED_FLAGS: &[(&str, &str)] = &[
         "error: --uniform has been removed in v50-beta.3.\n  Replaced by --async-mode false (same effect: uniform column speeds).\n  Example: cosmostrix --async-mode false",
     ),
     (
+        "--disable-effects",
+        "error: --disable-effects has been removed in v50.0.0-beta.7 (renamed).\n  Replaced by --no-effects (same effect: disable ALL cosmetic particle effects).\n  Example: cosmostrix --no-effects",
+    ),
+    (
         "--check-updated",
         "error: --check-updated has been removed in v50.0.0-alpha.7.\n  Replaced by --check-update (the canonical flag name).\n  Example: cosmostrix --check-update",
     ),
