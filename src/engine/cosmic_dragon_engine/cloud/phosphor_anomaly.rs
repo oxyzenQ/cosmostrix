@@ -265,8 +265,11 @@ impl super::Cloud {
     /// short-circuit — it meant the sweep NEVER ran unless `--perf-stats`
     /// was passed, leaving stuck rain cells on screen for interactive
     /// runs. The sweep is a correctness mechanism, not a profiling one.
-    /// The sweep also short-circuits when a message box is active
-    /// (its overlay cells would be false positives).
+    /// NIGHT-hunt-36: the message short-circuit was removed too (the
+    /// default interactive config always carries the built-in fallback
+    /// message, so it disabled the sweep on every default run). The
+    /// overlay is now protected per-cell by the cached exemption
+    /// rectangle (`message_sweep_*`), not by a whole-function return.
     /// NIGHT-hunt-32: the sweep is now droplet-family-only
     /// (`rain_style.is_droplet_family()`). Structured styles own their
     /// drawn cells through the diff-cleanup contract and keep
@@ -331,12 +334,20 @@ impl super::Cloud {
         // mechanism; it must run on every interactive session.
         // enable_stuck_cell_sweep (default true, benchmark false) is the
         // correct gate.
-        // Skip when a message box is active — overlay cells would trigger
-        // false positives (they're written this frame, have fg, but no
-        // droplet covers them by design).
-        if !self.message.is_empty() {
-            return;
-        }
+        // NIGHT-hunt-36: removed the whole-function message gate
+        // (`!self.message.is_empty() -> return`). The default interactive
+        // config ALWAYS carries the built-in fallback message
+        // ("Experience a masterpiece with cosmostrix vX", wired in
+        // build_cloud_cfg), so that gate meant the sweep NEVER ran on any
+        // default run — orphan glyph cells persisted until a random
+        // droplet happened to overwrite them: the owner's
+        // "stuck cell rain needs a rain passed/hit it or waiting long"
+        // report. The overlay false-positive concern the gate guarded
+        // against is now handled by a per-cell rectangle exemption
+        // (`message_sweep_top/bottom/left/right`, cached in
+        // `relayout_message`): only cells INSIDE the overlay box are
+        // spared; everything else stays sweepable with the overlay
+        // visible.
 
         self.frames_since_stuck_sweep += 1;
         if self.frames_since_stuck_sweep < STUCK_CELL_SWEEP_INTERVAL_FRAMES {
@@ -374,6 +385,15 @@ impl super::Cloud {
         }
 
         let mut stuck_count: usize = 0;
+        // NIGHT-hunt-36: per-cell overlay exemption bounds (half-open,
+        // cached in relayout_message — bordered AND borderless layouts).
+        let sweep_top = self.message_sweep_top;
+        let sweep_bottom = self.message_sweep_bottom;
+        let sweep_left = self.message_sweep_left;
+        let sweep_right = self.message_sweep_right;
+        // NIGHT-hunt-36: phosphor is column-major (pidx = col * lines +
+        // line) — hoisted lines count for the per-cell index math.
+        let lines_us = self.lines as usize;
         for i in 0..total {
             // NIGHT-hunter-17: the sweep must check ALL cells, not just
             // cells written this frame. A stuck cell is a cell whose
@@ -393,14 +413,35 @@ impl super::Cloud {
             if cell.fg.is_none() {
                 continue;
             }
+            // Frame index is row-major (i = line * width + col); compute
+            // the 2D coordinates once and reuse them for both the
+            // overlay exemption and the phosphor lookup below.
+            let col = (i % width as usize) as u16;
+            let line = (i / width as usize) as u16;
+            // NIGHT-hunt-36: cells inside the overlay box are owned and
+            // rewritten by `draw_message` every frame — not stuck. This
+            // replaces the old whole-function message gate (see the
+            // function doc for why that gate was fatal on default runs).
+            if line >= sweep_top && line < sweep_bottom && col >= sweep_left && col < sweep_right {
+                continue;
+            }
             // Phosphor must NOT be tracking this cell — that's the gap
             // the sweep is designed to catch.
-            if self.phosphor[i] != 0 {
+            //
+            // NIGHT-hunt-36: the phosphor arrays are COLUMN-major
+            // (pidx = col * lines + line — see phosphor.rs Pass 1) while
+            // the frame walk index `i` is row-major. The pre-hunt code
+            // read `self.phosphor[i]` directly — consulting a TRANSPOSED
+            // cell's energy: a live decaying ghost (phosphor > 0 at the
+            // transposed slot) made the sweep skip a REAL orphan, and an
+            // orphaned transposed slot at zero energy made it force-clear
+            // a LIVE decaying ghost. Both directions are wrong; index the
+            // actual cell's own slot.
+            let pidx = col as usize * lines_us + line as usize;
+            if pidx < self.phosphor.len() && self.phosphor[pidx] != 0 {
                 continue;
             }
             // Check if any active droplet covers (col, line).
-            let col = (i % width as usize) as u16;
-            let line = (i / width as usize) as u16;
             let covered = droplet_ranges
                 .iter()
                 .any(|&(bc, vs, he)| bc == col && line >= vs && line <= he);

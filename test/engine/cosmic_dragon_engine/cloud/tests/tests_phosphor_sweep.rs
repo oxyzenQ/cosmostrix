@@ -77,32 +77,51 @@ fn p4_sweep_runs_when_component_timing_disabled() {
 }
 
 #[test]
-fn p4_sweep_skips_when_message_active() {
-    // When a message box is visible, overlay cells would be false positives.
+fn p4_sweep_with_message_spares_only_overlay_box() {
+    // NIGHT-hunt-36 contract: the sweep runs even while a message overlay
+    // is active (the default interactive config always carries the built-in
+    // fallback message, so the old whole-function message gate disabled the
+    // sweep on every default run — the owner's stuck-rain-cell report).
+    // Only cells INSIDE the overlay box rectangle are spared; orphans
+    // outside the box must still be cleared.
     let mut cloud = make_cloud_with_timing();
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
 
-    // Plant a stuck cell.
+    // Activate a message box (borderless: pad_x=2, pad_y=1). "hello" is
+    // 5 wide, 1 tall -> box 9x3 centered on 20x10 at col [5,14), line [3,6).
+    cloud.set_message("hello");
+    assert!(!cloud.message.is_empty(), "message grid must be laid out");
+
     let stuck_cell = Cell {
         ch: 'X',
         fg: Some(Color::Green),
         bg: cloud.palette.bg,
         bold: false,
     };
+    // Orphan OUTSIDE the box (top-left corner).
     frame.set(0, 0, stuck_cell);
+    // Glyph INSIDE the box (center of the overlay region).
+    frame.set(9, 4, stuck_cell);
     if !cloud.phosphor.is_empty() {
         cloud.phosphor[0] = 0;
+        let inside_pidx = 9usize * cloud.lines as usize + 4usize;
+        if inside_pidx < cloud.phosphor.len() {
+            cloud.phosphor[inside_pidx] = 0;
+        }
     }
 
-    // Activate a message box.
-    cloud.set_message("hello");
     cloud.frames_since_stuck_sweep = STUCK_CELL_SWEEP_INTERVAL_FRAMES + 1;
     cloud.stuck_cell_sweep(&mut frame);
 
-    // The cell should still be there — sweep skipped due to message.
+    // Outside the box: cleared (the sweep is active with a message).
     assert!(
-        frame.get(0, 0).unwrap().fg.is_some(),
-        "sweep must skip when a message box is active"
+        frame.get(0, 0).unwrap().fg.is_none(),
+        "sweep must clear orphans outside the overlay box even with a message active"
+    );
+    // Inside the box: spared (overlay-owned, not stuck).
+    assert!(
+        frame.get(9, 4).unwrap().fg.is_some(),
+        "sweep must spare cells inside the overlay box rectangle"
     );
 }
 

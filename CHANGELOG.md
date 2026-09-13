@@ -9,6 +9,73 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-36 — the stuck-cell sweep still never ran on default runs (message gate) + a phosphor transposition in the sweep
+
+- Owner report (NIGHT-hunt-36, 2026-09-13): micro glitch shift rain on
+  the glyph type — some rain glyph cells near the top or bottom of the
+  screen stay stuck for a long time, needing another droplet to pass
+  over them (or a long wait) before they disappear. The hunt-17 sweep
+  (7247862) was supposed to own this class; the task re-audits it for
+  LTS, and extends the audit to all thirteen other rain types.
+- Root cause 1 (the sweep was still dead on every default run): the
+  sweep kept a whole-function message gate — `if !self.message.is_empty()
+  { return; }` — guarding against overlay false positives. But the
+  default interactive config ALWAYS carries the built-in fallback
+  message ("Experience a masterpiece with cosmostrix vX", wired in
+  build_cloud_cfg whenever msg-mode is on and no -m text is given), so
+  `self.message` is never empty on a default run and the sweep NEVER
+  executed. Hunt-17 removed the --perf-stats gate; hunt-32 removed the
+  structured-style exposure; this gate was the last thing keeping the
+  correctness mechanism off — exactly the hunt-32 side note ("the
+  default message banner gates the sweep off entirely") read as a
+  footnote instead of as the remaining bug.
+- Fix 1: per-cell rectangle exemption. `relayout_message` now caches
+  the overlay box bounds (`message_sweep_top/bottom/left/right`,
+  half-open, refreshed for BOTH the bordered and borderless layouts;
+  collapsed to empty when the box does not fit or no message exists).
+  The sweep runs with the overlay visible and spares only cells inside
+  the box — `draw_message` owns and rewrites that whole region via
+  set_force every frame, so nothing there can be stuck. Everything
+  outside the rectangle is back under sweep jurisdiction: 4 new fields
+  on Cloud, zero new per-frame cost (bounds hoisted once per sweep).
+- Root cause 2 (found while fixing 1 — the sweep consulted a
+  transposed cell's phosphor energy): the sweep read
+  `self.phosphor[i]` with the frame's ROW-major walk index, but the
+  phosphor arrays are COLUMN-major (pidx = col *lines + line, see
+  phosphor.rs Pass 1). Live decaying ghosts whose transposed slot held
+  energy were skipped (orphans stayed stuck), and cells whose
+  transposed slot sat at zero were force-cleared while their own slot
+  carried live energy — visible as phosphor afterglow flickering off.
+  The sweep was the ONLY transposition site in the codebase (audited:
+  every other phosphor access derives pidx as col* lines + line).
+- Fix 2: the sweep indexes the cell's own column-major slot, with the
+  2D coordinates hoisted once per cell (col/line are now computed
+  before the phosphor check and shared with the rectangle exemption).
+- Thirteen-style audit (the owner's ask): the two bugs live exclusively
+  in the Glyph-only sweep path — the hunt-32 droplet-family gate
+  returns before either line executes for the thirteen structured
+  styles, and the hunt-32 fourteen-style audit table still passes
+  untouched (their vacated cells are owned by the monolith-style diff
+  cleanup contract). The only cross-style change is the rectangle
+  cache write in relayout_message, a pure field assignment with no
+  behavioral surface for any style.
+- 6 new tests (tests_stuck_cells_hunt36.rs): the sweep runs with the
+  fallback message active (the headline regression), the column-major
+  phosphor lookup (live ghosts survive), the borderless and bordered
+  exemption rectangles (white-box bounds + behavioral edges/corners),
+  the rectangle collapse when the box stops fitting, and an end-to-end
+  orphan-cleared-through-rain_at repro with the fallback message. Two
+  stale tests rewritten to the new contract:
+  p4_sweep_skips_when_message_active became
+  p4_sweep_with_message_spares_only_overlay_box (outside-box orphans
+  are cleared with the overlay visible; inside-box glyphs are spared),
+  and hunt25_resync_still_emits_stuck_cell_clears now plants a STALE
+  orphan (plant, clear_dirty to stale the per-frame write stamp, zero
+  the phosphor slot) — the old plant-then-sweep sequence only ever
+  passed against the transposition bug, because phosphor decay Pass 1
+  legitimately re-arms cells written this frame. Suite 2879 green
+  (0 failed), clippy -D warnings clean, fmt clean.
+
 ### docs: NIGHT-docs-audit round — stale-data purge in live docs + simplified --docs
 
 - Owner task 2026-09-12: "cosmostrix audit to avoid stale data and

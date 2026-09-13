@@ -119,35 +119,74 @@ fn hunt25_resync_preserves_active_phosphor_glyph() {
 
 /// The stuck-cell sweep still works through the resync path: an orphaned
 /// glyph cell is cleared and the frame is flagged for a full re-emit.
+///
+/// NIGHT-hunt-36 rewrite: the orphan must be STALE (not written this frame)
+/// when the sweep fires. The pre-hunt-36 version of this test planted the
+/// orphan via `frame.set` immediately before `rain_at`, so phosphor decay
+/// Pass 1 legitimately captured it as a fresh droplet-class cell (per-frame
+/// write stamp, see HUNT-26) and re-armed its energy — with the corrected
+/// column-major phosphor lookup in the sweep, a tracked cell is correctly
+/// skipped, so the old plant-then-sweep sequence could only pass against
+/// the transposed-index bug. The true stuck-cell signature is a glyph that
+/// persists in `frame.cells` while its phosphor slot sits at zero and no
+/// droplet covers it — reproduced here by planting, staling the write
+/// stamp (`clear_dirty` bumps the dirty generation without touching
+/// content), and zeroing the phosphor slot before the resync frame.
 #[test]
 fn hunt25_resync_still_emits_stuck_cell_clears() {
     let mut cloud = make_cloud();
     cloud.enable_component_timing = true;
     let mut frame = Frame::new(cloud.cols, cloud.lines, cloud.palette.bg);
 
-    cloud.last_spawn_time = Instant::now() - Duration::from_secs(1);
-    cloud.rain_at(&mut frame, Instant::now());
-    frame.clear_dirty();
+    let now = Instant::now();
+    // Frame 1: natural rain — spawn droplets and populate phosphor.
+    cloud.last_spawn_time = now - Duration::from_secs(1);
+    cloud.rain_at(&mut frame, now);
 
-    // Plant an orphan: glyph cell, no phosphor tracking, no droplet.
+    // Pick a column no living droplet owns (the sweep's coverage check is
+    // per-column; the plant must sit outside every trail).
+    let mut free_col = 0u16;
+    'outer: for col in 0..cloud.cols {
+        for d in &cloud.droplets {
+            if d.is_alive && d.bound_col == col {
+                continue 'outer;
+            }
+        }
+        free_col = col;
+        break;
+    }
+
+    // Plant the orphan glyph.
     let stuck = Cell {
         ch: 'X',
         fg: Some(Color::Green),
         bg: cloud.palette.bg,
         bold: false,
     };
-    frame.set(2, 3, stuck);
-    if !cloud.phosphor.is_empty() {
-        let pidx = 2usize * cloud.lines as usize + 3usize;
-        cloud.phosphor[pidx] = 0;
-    }
+    frame.set(free_col, 3, stuck);
 
-    // Force the sweep to run on the next rain_at call.
+    // Stale the write stamp: content persists in frame.cells, but the
+    // per-frame stamp no longer matches, so Pass 1 will not re-capture
+    // (or re-arm) the cell on the next frame.
+    frame.clear_dirty();
+
+    // Simulate the orphan condition: phosphor bookkeeping lost for the
+    // cell's OWN column-major slot (pidx = col * lines + line).
+    let pidx = free_col as usize * cloud.lines as usize + 3usize;
+    assert!(pidx < cloud.phosphor.len());
+    cloud.phosphor[pidx] = 0;
+
+    // Force the sweep to run on the next rain_at call, through the
+    // force_repaint resync path (no new spawns: keep last_spawn_time
+    // fresh so the plant column stays droplet-free).
     cloud.frames_since_stuck_sweep = crate::constants::STUCK_CELL_SWEEP_INTERVAL_FRAMES;
     cloud.force_draw_everything = true;
-    cloud.rain_at(&mut frame, Instant::now() + Duration::from_millis(50));
+    cloud.rain_at(&mut frame, now + Duration::from_millis(50));
 
-    let cleared = frame.get(2, 3).map(|c| c.fg.is_none()).unwrap_or(true);
+    let cleared = frame
+        .get(free_col, 3)
+        .map(|c| c.fg.is_none())
+        .unwrap_or(true);
     assert!(
         cleared,
         "stuck-cell sweep must still clear orphaned glyphs through force_repaint"

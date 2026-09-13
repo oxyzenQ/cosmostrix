@@ -56,8 +56,21 @@ impl super::Cloud {
     /// in-flight sidecars, and the touch pulses running. A resize is an
     /// interrupt, not a replay — same philosophy as the Phase D
     /// drift-state contract in `reset_with_bounds`.
+    ///
+    /// NIGHT-hunt-36: this is also where the stuck-cell sweep's exemption
+    /// rectangle (`message_sweep_*`) is refreshed. The sweep must run even
+    /// while the overlay is visible (the default interactive config always
+    /// carries the built-in fallback message, so a whole-function message
+    /// gate meant the sweep NEVER ran on a default run — the owner's
+    /// stuck-rain-cell report); only the overlay box itself is spared.
     pub(crate) fn relayout_message(&mut self) {
         let Some(text) = self.message_text.as_deref() else {
+            // Defensive: no text means no overlay — collapse the sweep
+            // exemption rectangle so the sweep covers the full frame.
+            self.message_sweep_top = 0;
+            self.message_sweep_bottom = 0;
+            self.message_sweep_left = 0;
+            self.message_sweep_right = 0;
             return;
         };
 
@@ -75,6 +88,11 @@ impl super::Cloud {
         if self.cols < min_box_w || self.lines < min_box_h {
             self.message.clear();
             self.border_order.clear();
+            // NIGHT-hunt-36: the overlay does not fit — no exemption.
+            self.message_sweep_top = 0;
+            self.message_sweep_bottom = 0;
+            self.message_sweep_left = 0;
+            self.message_sweep_right = 0;
             return;
         }
 
@@ -258,6 +276,22 @@ impl super::Cloud {
                 }
             }
         }
+
+        // NIGHT-hunt-36: cache the overlay-box rectangle for the
+        // stuck-cell sweep. Half-open [top, bottom) x [left, right),
+        // covering border AND padding AND content for both the bordered
+        // (`-mb`) and borderless (`-m`) layouts — `draw_message` owns and
+        // rewrites every cell in this region via `set_force`, so any
+        // glyph found there is overlay-managed, not stuck. Cells OUTSIDE
+        // the rectangle are back under sweep jurisdiction even while the
+        // overlay is visible — that is the whole point of the fix (the
+        // old whole-function `!message.is_empty()` return turned the
+        // sweep off for every default interactive run, because the
+        // default config always carries the built-in fallback message).
+        self.message_sweep_top = start_line;
+        self.message_sweep_bottom = start_line.saturating_add(box_h);
+        self.message_sweep_left = start_col;
+        self.message_sweep_right = start_col.saturating_add(box_w);
 
         // RAIN_BORDER_TOUCH_GLOW: cache top-border geometry for the droplet
         // advance loop's touch detection. Only relevant when the overlay

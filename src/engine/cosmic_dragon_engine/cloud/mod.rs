@@ -379,6 +379,20 @@ pub struct Cloud {
     pub(crate) message_left_col: u16,
     pub(crate) message_right_col: u16,
 
+    /// NIGHT-hunt-36: cached overlay-box rectangle for the stuck-cell
+    /// sweep's per-cell exemption, refreshed in `relayout_message`.
+    /// Half-open bounds: a cell is exempt iff
+    /// `line in [top, bottom)` AND `col in [left, right)`.
+    /// Unlike the RAIN_BORDER_TOUCH_GLOW geometry above, this rectangle
+    /// covers the overlay for BOTH the bordered and borderless layouts
+    /// — the sweep must spare the whole box region either way.
+    /// All-zeros is the natural empty rectangle (`line < bottom == 0`
+    /// is never true for u16), used when no overlay is active.
+    pub(crate) message_sweep_top: u16,
+    pub(crate) message_sweep_bottom: u16,
+    pub(crate) message_sweep_left: u16,
+    pub(crate) message_sweep_right: u16,
+
     /// RAIN_BORDER_TOUCH_GLOW: active touch pulses. Drained of expired
     /// entries every frame in `draw_message`. Expected max size ~8 (one
     /// per active column crossing the top edge at any time).
@@ -625,6 +639,12 @@ impl Cloud {
             message_top_line: u16::MAX,
             message_left_col: 0,
             message_right_col: 0,
+            // NIGHT-hunt-36: empty rectangle — no overlay exemption until
+            // a message is laid out.
+            message_sweep_top: 0,
+            message_sweep_bottom: 0,
+            message_sweep_left: 0,
+            message_sweep_right: 0,
             border_pulses: Vec::new(),
             color_scheme,
             default_background,
