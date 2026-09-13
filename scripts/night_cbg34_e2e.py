@@ -110,7 +110,27 @@ DEFAULT_BG_MARKER = (-1, -1, -1)  # Screen default (SGR 39/49/reset)
 
 
 class Run:
-    """One PTY run: spawn, feed the emulator, schedule actions."""
+    """One PTY run: spawn, feed the emulator, schedule actions.
+
+    NIGHT-hunt-34 harness fix: the original run loop did select+read+feed
+    inline — one thread for everything. Python-side ANSI parsing
+    (Screen.feed) is far slower than the app's frame emission, so during
+    parse bursts the PTY buffer filled, the app blocked in write_all, and
+    the event loop stalled: a keypress written at t=3.0 was processed up
+    to ~2s late (measured: restart_from_zero firing at frame ~430 of an
+    86fps run). The 'r' restart then replayed the deterministic RNG
+    sequence, and the pre/post snapshot comparison degenerated into
+    comparing the same replay ~0.1s apart — live lingering droplet trails
+    read as "identical cells" and S2b failed with 0-24 flaky cells.
+
+    The fix decouples the three jobs:
+      - reader thread: os.read from the PTY into a queue (never waits on
+        parsing — the app's writes always drain);
+      - parser thread: owns the SyncScreen, feeds chunks, serves
+        snapshot requests through a handshake queue;
+      - main loop: fires actions on wall-clock schedule (key/cfg/snap),
+        independent of parse load.
+    """
 
     def __init__(self, argv, config_path, actions, run_secs):
         self.argv = argv
@@ -119,15 +139,6 @@ class Run:
         self.run_secs = run_secs
         self.snapshots = {}  # label -> grid copy
         self.proc = None
-
-    def _act(self, kind, payload):
-        if kind == "key":
-            os.write(self.master_fd, payload.encode())
-        elif kind == "cfg":
-            with open(self.config_path, "w") as f:
-                f.write(payload)
-        elif kind == "snap":
-            self.snapshots[payload] = [row[:] for row in self.screen.grid]
 
     def run(self):
         self.master_fd, slave_fd = pty.openpty()
@@ -159,6 +170,57 @@ class Run:
         )
         os.close(slave_fd)
         self.screen = SyncScreen(TERM_COLS, TERM_ROWS)
+
+        import queue as queue_mod
+        import threading
+
+        raw_q = queue_mod.Queue()
+        snap_q = queue_mod.Queue()
+        stop_flag = threading.Event()
+
+        def reader():
+            # Drain the PTY at full speed. 64 KiB reads keep the kernel
+            # buffer empty so the app never blocks on write_all.
+            while not stop_flag.is_set():
+                r, _, _ = select.select([self.master_fd], [], [], 0.005)
+                if not r:
+                    continue
+                try:
+                    chunk = os.read(self.master_fd, 1 << 16)
+                except (BlockingIOError, OSError):
+                    continue
+                if not chunk:
+                    break
+                raw_q.put(chunk)
+
+        def parser():
+            # Owns the screen. Chunks have priority; snapshot requests are
+            # served in the gaps so a snap lags at most one chunk-parse.
+            while not stop_flag.is_set():
+                try:
+                    chunk = raw_q.get(timeout=0.002)
+                except queue_mod.Empty:
+                    chunk = None
+                if chunk is not None:
+                    self.screen.feed(chunk)
+                    continue
+                try:
+                    label, done = snap_q.get_nowait()
+                except queue_mod.Empty:
+                    continue
+                self.snapshots[label] = [row[:] for row in self.screen.grid]
+                done.set()
+
+        reader_t = threading.Thread(target=reader, daemon=True)
+        parser_t = threading.Thread(target=parser, daemon=True)
+        reader_t.start()
+        parser_t.start()
+
+        def take_snapshot(label):
+            done = threading.Event()
+            snap_q.put((label, done))
+            done.wait(timeout=2.0)
+
         start = time.monotonic()
         pending_actions = sorted(self.actions, key=lambda a: a[0])
         ai = 0
@@ -169,22 +231,29 @@ class Run:
             while ai < len(pending_actions) and now - start >= pending_actions[ai][0]:
                 t, kind, payload = pending_actions[ai]
                 try:
-                    self._act(kind, payload)
+                    if kind == "key":
+                        os.write(self.master_fd, payload.encode())
+                    elif kind == "cfg":
+                        with open(self.config_path, "w") as f:
+                            f.write(payload)
+                    elif kind == "snap":
+                        take_snapshot(payload)
                     print(f"    [act] t={t:5.1f}s {kind}={payload!r:.60}", flush=True)
                 except OSError:
                     pass
                 ai += 1
-            r, _, _ = select.select([self.master_fd], [], [], 0.002)
-            if not r:
-                continue
+            time.sleep(0.002)
+
+        stop_flag.set()
+        reader_t.join(timeout=1.0)
+        parser_t.join(timeout=1.0)
+        # Drain any backlog in the main thread, then take the final snap.
+        while True:
             try:
-                chunk = os.read(self.master_fd, 1 << 20)
-            except (BlockingIOError, OSError):
-                continue
-            if not chunk:
+                chunk = raw_q.get_nowait()
+            except queue_mod.Empty:
                 break
             self.screen.feed(chunk)
-        # Snapshot whatever is on screen at the end (label "final").
         self.snapshots["final"] = [row[:] for row in self.screen.grid]
         if self.proc.poll() is None:
             self.proc.terminate()
@@ -292,16 +361,40 @@ def main() -> int:
     if "S2b" in which:
         print("[S2b] 'r' restart residue (default-background, intro none)")
         run, _ = scenario(cfg_dir)
+        # NIGHT-hunt-34: multi-checkpoint persistence. The single pre/post
+        # comparison flags live lingering trails as residue — a parked head
+        # freezes its trail (fixed dist-from-head colors) for up to 3s
+        # (rand_linger_ms max 3000), and the restart's deterministic RNG
+        # replay redraws near-identical trail layouts at the post snapshot,
+        # so 0-24 live cells read as "identical" (flaky FAIL). Real residue
+        # never changes: a cell must be identical across the pre snapshot
+        # AND every post-restart checkpoint (5.1s of total freeze) to count.
+        # A live parked trail always mutates within its <=3s linger window,
+        # so at least one checkpoint differs.
         snaps = run(
             ["--intro", "none"],
             [
                 (2.9, "snap", "pre"),
                 (3.0, "key", "r"),
+                (4.0, "snap", "p1"),
+                (5.0, "snap", "p2"),
+                (6.0, "snap", "p3"),
+                (7.0, "snap", "p4"),
                 (8.0, "snap", "post"),
             ],
             run_secs=8.5,
         )
-        stuck = glyph_residue(snaps["pre"], snaps["post"], ANALYSIS_ROWS)
+        labels = ["pre", "p1", "p2", "p3", "p4", "post"]
+        grids = [snaps[l] for l in labels]
+        row_cap = min(ANALYSIS_ROWS, *(len(g) for g in grids))
+        stuck = []
+        for y in range(row_cap):
+            for x in range(len(grids[0][y])):
+                c0 = grids[0][y][x]
+                if c0[0] in (" ", ""):
+                    continue
+                if all(g[y][x] == c0 for g in grids[1:]):
+                    stuck.append((x, y, c0))
         print(f"    glyph residue: {len(stuck)} cells")
         for x, y, cell in stuck[:8]:
             print(f"      ({x},{y}) {cell!r}")
