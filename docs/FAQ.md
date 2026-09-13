@@ -131,12 +131,13 @@ surface (startup, `--testconf`, the live-reload watcher):
 - Duplicate keys, duplicate section headers, and unknown fields are
   hard errors (unknown keys carry did-you-mean hints).
 - Names: 1–64 chars, letters/digits/`-`/`_`. Since NIGHT-hunt-39
-  (2026-09-13) the entry budget is min 1 / max 64 per namespace:
-  every block needs at least one field entry (the completeness rules
-  above), and at most 64 blocks fit per namespace — the SAME 1..=64
-  policy the ambient scheduler uses for its entries.
-- `ambient.<HH-MM>` schedules: 1..=64 entries (0 entries simply turns
-  the scheduler off, not an error); 65+ is a hard error on every
+  (2026-09-13), tightened by NIGHT-hunt-40 (2026-09-13), the entry
+  budget is min 1 / max 24 per namespace: every block needs at least
+  one field entry (the completeness rules above), and at most 24
+  blocks fit per namespace — the SAME 1..=24 policy the ambient
+  scheduler uses for its entries.
+- `ambient.<HH-MM>` schedules: 1..=24 entries (0 entries simply turns
+  the scheduler off, not an error); 25+ is a hard error on every
   surface, never the silent 256-truncate the old collector applied.
 
 The bounds table with rationale lives in `docs/RULES.md` ("Custom

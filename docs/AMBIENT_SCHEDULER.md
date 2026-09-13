@@ -35,11 +35,12 @@ The rest of this document is the engine-level reference for those facts.
 ambient.<HH-MM> = <scene-name>
 ```
 
-NIGHT-hunt-39 (2026-09-13): a schedule holds **1..=64 entries** — the
-same min-1/max-64 entry budget as the custom-block namespaces. Zero
-entries simply turns the scheduler off; 65+ entries is a hard error
-on every surface (`--testconf`, startup, live-reload watcher), never
-the silent 256-truncate the old collector applied.
+NIGHT-hunt-39 (2026-09-13), tightened by NIGHT-hunt-40 (2026-09-13):
+a schedule holds **1..=24 entries** — the same min-1/max-24 entry
+budget as the custom-block namespaces. Zero entries simply turns the
+scheduler off; 25+ entries is a hard error on every surface
+(`--testconf`, startup, live-reload watcher), never the silent
+256-truncate the old collector applied.
 
 The value is a **single scene name** — either a built-in scene
 (`cinematic`, `signal`, `monolith`, etc.) or a custom scene defined via

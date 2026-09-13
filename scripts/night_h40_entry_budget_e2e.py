@@ -5,16 +5,17 @@
 #   systems only; not for Windows cmd.exe or PowerShell (use WSL or
 #   Git Bash on Windows).
 
-"""NIGHT-hunt-39: end-to-end verification of the owner's min-1/max-64
-entry policy for the four config namespaces:
+"""NIGHT-hunt-40: end-to-end verification of the owner's min-1/max-24
+entry policy for the four config namespaces (tightened from the
+NIGHT-hunt-39 max-64 policy by the owner mandate 2026-09-13):
 
-- [charset-custom.<name>] blocks   (CHARSET_CUSTOM_MAX_BLOCKS = 64)
-- [colors-custom.<name>]  blocks   (COLORS_CUSTOM_MAX_BLOCKS   = 64)
-- [scene-custom.<name>]   blocks   (SCENE_CUSTOM_MAX_BLOCKS    = 64)
-- ambient.<HH-MM>         entries  (AMBIENT_MAX_ENTRIES        = 64)
+- [charset-custom.<name>] blocks   (CHARSET_CUSTOM_MAX_BLOCKS = 24)
+- [colors-custom.<name>]  blocks   (COLORS_CUSTOM_MAX_BLOCKS   = 24)
+- [scene-custom.<name>]   blocks   (SCENE_CUSTOM_MAX_BLOCKS    = 24)
+- ambient.<HH-MM>         entries  (AMBIENT_MAX_ENTRIES        = 24)
 
-Boundary contract: 64 entries PASS on every surface (--testconf,
-startup, live-reload), 65 entries FAIL with an error that names the
+Boundary contract: 24 entries PASS on every surface (--testconf,
+startup, live-reload), 25 entries FAIL with an error that names the
 count and the cap. The min-1 side is the NIGHT-hunt-37 completeness
 contract (a block with zero field entries is a hard error) - pinned
 here too, plus the ambient boundary (1 entry = a valid active
@@ -23,7 +24,7 @@ schedule).
 Drives the REAL binary (template dump + edit + --testconf). Exit 0 =
 all expectations met, exit 1 = at least one failure.
 
-Usage: python3 night_h39_entry_budget_e2e.py [path-to-cosmostrix]
+Usage: python3 night_h40_entry_budget_e2e.py [path-to-cosmostrix]
 Default binary: ./target/release/cosmostrix
 """
 
@@ -59,7 +60,7 @@ def run(home, extra_args, timeout=60):
 
 
 def sandbox():
-    home = tempfile.mkdtemp(prefix="h39_home_")
+    home = tempfile.mkdtemp(prefix="h40_home_")
     cfgdir = os.path.join(home, ".config", "cosmostrix")
     os.makedirs(cfgdir, exist_ok=True)
     cfg = os.path.join(cfgdir, "config.toml")
@@ -88,7 +89,7 @@ def testconf(cfg, text):
     )
 
 
-CAP = 64
+CAP = 24
 
 
 def charset_blocks(n):

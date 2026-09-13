@@ -9,6 +9,32 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-40 — tighten the custom-namespace entry budget from min 1 / max 64 to min 1 / max 24
+
+- **NIGHT-hunt-40** (owner mandate, 2026-09-13): the four
+  user-extensible namespaces (charset-custom, colors-custom,
+  scene-custom, ambient schedule) now share a single min-1/max-24
+  entry policy, tightening the NIGHT-hunt-39 max-64 ceiling. The
+  constants `COLORS_CUSTOM_MAX_BLOCKS`, `CHARSET_CUSTOM_MAX_BLOCKS`,
+  `SCENE_CUSTOM_MAX_BLOCKS`, and `AMBIENT_MAX_ENTRIES` all change
+  `64 -> 24`. Every cap stays a HARD validation error on every
+  surface (`--testconf` exit 2, startup exit 2, live-reload watcher
+  reject); the collector silent-skip / truncate stays as
+  defense-in-depth for `COSMOSTRIX_SKIP_STARTUP_VALIDATION` bypass
+  runs only. Boundary tests renamed `_over_64` -> `_over_24` /
+  `_exactly_64` -> `_exactly_24` and remain parameterized on the
+  constant. `docs/RULES.md`, `docs/FAQ.md`,
+  `docs/AMBIENT_SCHEDULER.md`, and the chroma-dragon `KEY.md` unlock
+  trail are updated. The hunt-39 e2e strength script is renamed to
+  `scripts/night_h40_entry_budget_e2e.py` and its `CAP` constant
+  tracks the new 24 ceiling (no test logic changes — the boundary
+  cases parameterize `CAP`). No visual/perf surface touched: the
+  validation path runs at config-parse time, so no A/B bench rerun
+  is needed (the hunt-39 bench already proved zero per-frame delta
+  for this exact contract class).
+
+---
+
 ### fix: NIGHT-hunt-38-supermassive + NIGHT-hunt-39 + NIGHT-docs-4 — separator-typo rejection, the msg-mode validator, the 1..=64 entry policy, and the rendering-engine Q/A
 
 - **NIGHT-hunt-38-supermassive** (owner fatal report, found by manual

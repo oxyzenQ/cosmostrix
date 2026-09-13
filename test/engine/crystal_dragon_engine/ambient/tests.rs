@@ -354,7 +354,7 @@ fn validate_rejects_legacy_format_with_migration_hint() {
     assert!(err.contains("rain = \"<rain-style>\""), "got: {err}");
 }
 
-// ── NIGHT-hunt-39: entry-count policy (1..=64) ──
+// ── NIGHT-hunt-39 + NIGHT-hunt-40: entry-count policy (1..=24) ──
 
 /// Insert `n` VALID `ambient.HH-MM` entries (hours 0..=23, minutes
 /// cycling 0..=4 — 5 per hour, so up to 120 unique keys stay inside the
@@ -372,10 +372,12 @@ fn insert_n_ambient_entries(cfg: &mut HashMap<String, String>, n: usize) {
 }
 
 #[test]
-fn validate_rejects_schedule_over_64_entries() {
-    // The owner's min-1/max-64 entry policy: 65 entries is a hard error
-    // that names the count and the cap (was: a silent 256-truncate in the
-    // collector with zero signal).
+fn validate_rejects_schedule_over_24_entries() {
+    // The owner's min-1/max-24 entry policy (NIGHT-hunt-39 lowered the
+    // ceiling from the silent 256-truncate to 64, NIGHT-hunt-40 lowered
+    // it further to 24): 25 entries is a hard error that names the
+    // count and the cap (was: a silent 256-truncate in the collector
+    // with zero signal).
     let mut cfg = HashMap::new();
     insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES + 1);
     let over = AMBIENT_MAX_ENTRIES + 1;
@@ -391,7 +393,7 @@ fn validate_rejects_schedule_over_64_entries() {
 }
 
 #[test]
-fn validate_accepts_exactly_64_entries() {
+fn validate_accepts_exactly_24_entries() {
     // Exactly at the cap: legal (boundary pinned).
     let mut cfg = HashMap::new();
     insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES);
@@ -404,9 +406,9 @@ fn validate_accepts_exactly_64_entries() {
 }
 
 #[test]
-fn collector_truncates_beyond_64_as_defense_in_depth() {
+fn collector_truncates_beyond_24_as_defense_in_depth() {
     // Bypass runs (COSMOSTRIX_SKIP_STARTUP_VALIDATION) never see the
-    // validator; the collector still bounds the schedule at 64.
+    // validator; the collector still bounds the schedule at 24.
     let mut cfg = HashMap::new();
     insert_n_ambient_entries(&mut cfg, AMBIENT_MAX_ENTRIES + 40);
     assert_eq!(
