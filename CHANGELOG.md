@@ -9,6 +9,26 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-docs-3 — FAQ: the OKLab question and the custom-block contract, documented once
+
+- Owner question (2026-09-13): "is cosmostrix use OKlab when using
+  color custom on config?" — YES, and the answer now lives in
+  `docs/FAQ.md` as the first entry of a Q/A record: a
+  `[colors-custom.<name>]` block routes through the same OKLab polar
+  gradient engine as built-in themes (`to_palette` ->
+  `colors_from_stops` -> `gradient_from_stops_oklab`), resampling the
+  user's 2-9 stops to 9 perceptually-uniform samples — which is also
+  why the hunt-37 rain-stop ceiling is 9.
+- Related entries cover: why OKLab (and why polar, not Cartesian),
+  where else OKLab appears (intro blends, transition smoothing, the
+  300 ms palette wave), built-in theme parity (steps: 9 in the
+  catalog), terminal color-mode fallbacks (256/16/mono quantization
+  after the OKLab build), the custom-block completeness contract
+  (post-hunt-37), and live-reload rejection semantics.
+- Indexed in docs/README.md (Quick Navigation + the docs table).
+  Source-file references in every entry (source code is truth).
+  Docs-only change — no benchmark per the A/B contract.
+
 ### fix: NIGHT-hunt-37 — custom blocks must be complete and strict (rain-stop ceiling 9, required bg, header-only blocks visible)
 
 - Owner mandate (2026-09-13): custom config blocks (charset, colors,

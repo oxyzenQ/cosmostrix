@@ -8,6 +8,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | I want to... | Go to |
 |-------------|-------|
 | Understand what cosmostrix is | [README.md](../README.md) |
+| Answer a config/rendering question | [FAQ.md](FAQ.md) |
 | Run a benchmark | [BENCHMARKING.md](BENCHMARKING.md) |
 | Tune the rain visuals | [CENTRAL_CONTROL_RAINS_USAGE.md](CENTRAL_CONTROL_RAINS_USAGE.md) |
 | Understand the render engine | [RENDER_ENGINE.md](RENDER_ENGINE.md) |
@@ -27,6 +28,7 @@ Master index of all cosmostrix documentation. Use this as your map when returnin
 | [LIVE_RELOAD_BEHAVIOR.md](LIVE_RELOAD_BEHAVIOR.md) | Per-key live-reload matrix (which config keys reload vs. require restart) + masterclass solution options |
 | [CONFIG_LIVE_RELOAD_DISCLAIMER.md](CONFIG_LIVE_RELOAD_DISCLAIMER.md) | Honest-limitations philosophy for config live-reload (the 99%, not 100% contract) |
 | [CLI_SUGGESTION_SYSTEM.md](CLI_SUGGESTION_SYSTEM.md) | Did-you-mean suggestion engine (edit-distance policy, shared by every value surface) |
+| [FAQ.md](FAQ.md) | Q/A record: OKLab and custom palettes, custom-block completeness contract, live-reload rejections |
 
 **Three cooperating engines**: the **Cosmic Dragon** diff-based rendering engine (owns *what cells changed* — `src/engine/cosmic_dragon_engine/`), the **Chroma Dragon** coloring engine (owns *what color a cell becomes* — `src/engine/chroma_dragon_engine/`), and the **Crystal Dragon** ambient intelligence engine (owns *what mood the rain should have* — `src/engine/crystal_dragon_engine/`). See [THREE_DRAGON_ENGINES.md](THREE_DRAGON_ENGINES.md) for the cooperation model.
 
