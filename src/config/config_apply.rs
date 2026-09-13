@@ -129,11 +129,35 @@ pub(crate) fn apply_config_and_runtime_defaults(
     // fallback. Message construction for layers 1/1.5/2 lives in
     // config_apply_diagnostics.rs (NIGHT-depthtest-2 extraction).
     //
+    // NIGHT-hunt-41 (2026-09-13, owner fatal report): the previous guard
+    // `!parsed_cfg.values.is_empty()` silently skipped the entire
+    // validation block when the config had ONLY unknown keys (e.g.
+    // `msg-modey = true` -- the owner's exact repro). A config whose
+    // sole line is an unknown key has empty `values` (unknown keys go to
+    // `parsed.unknown_keys`, not `parsed.values`), so the guard short-
+    // circuited and Layers 1/1.5/2/3 were ALL skipped. --testconf was
+    // NOT affected (it iterates `parsed.unknown_keys` directly at
+    // testconf/mod.rs:158), producing the asymmetric "testconf rejects
+    // but startup accepts" verdict the owner rejected. The same
+    // short-circuit also masked header-only custom blocks (NIGHT-hunt-37
+    // completeness contract): a config with only `[scene-custom.x]` and
+    // no field lines has empty `values` AND empty `unknown_keys` -- the
+    // only signal is `custom_block_headers`, so the guard must include
+    // it too. The guard now fires when ANY of the parsed-record
+    // vectors is non-empty; the diagnostic functions all safely early-
+    // return on empty inputs, so an empty config (legitimate first-run
+    // state) still passes through.
+    //
     // Test bypass: COSMOSTRIX_SKIP_STARTUP_VALIDATION=1 skips this check
     // so existing tests that verify apply/fallback logic with invalid values
     // still work. Production builds never set this env var.
-    if !parsed_cfg.values.is_empty() && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err()
-    {
+    let parsed_has_content = !parsed_cfg.values.is_empty()
+        || !parsed_cfg.unknown_keys.is_empty()
+        || !parsed_cfg.malformed_lines.is_empty()
+        || !parsed_cfg.duplicate_keys.is_empty()
+        || !parsed_cfg.duplicate_sections.is_empty()
+        || !parsed_cfg.custom_block_headers.is_empty();
+    if parsed_has_content && std::env::var("COSMOSTRIX_SKIP_STARTUP_VALIDATION").is_err() {
         // Layer 1: malformed lines (stray text without 'key = value').
         if let Some(err) = config_apply_diagnostics::startup_malformed_error(&parsed_cfg) {
             return Err(err);

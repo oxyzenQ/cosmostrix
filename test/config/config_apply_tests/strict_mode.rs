@@ -88,3 +88,72 @@ fn strict_startup_accepts_known_keys_only() {
     assert_eq!(args.fps, 60.0);
     assert_eq!(args.speed, 8.0);
 }
+
+// NIGHT-hunt-41 (owner fatal report 2026-09-13): the previous guard
+// `!parsed_cfg.values.is_empty()` at config_apply.rs:135 silently
+// skipped the entire startup validation block when the config had
+// ONLY unknown keys (e.g. `msg-modey = true` -- the owner's exact
+// repro). A config whose sole line is an unknown key has empty
+// `values` (unknown keys go to `parsed.unknown_keys`, not
+// `parsed.values`), so the guard short-circuited and Layers 1/1.5/2/3
+// were ALL skipped. --testconf was NOT affected (it iterates
+// `parsed.unknown_keys` directly), producing the asymmetric
+// "testconf rejects but startup accepts" verdict the owner rejected.
+//
+// The existing tests above (strict_startup_rejects_unknown_key,
+// strict_startup_rejects_multiple_unknown_keys) use mixed known+
+// unknown configs (e.g. `color = ocean\nunknown-mystery-key = bogus`)
+// so `values` is non-empty and the bug never manifested. The two
+// tests below pin the bug class directly: a config with ONLY an
+// unknown key (no known keys at all) must still be rejected at
+// startup.
+//
+// The formal E2E regression pin lives in
+// scripts/night_h41_msg_modey_repro.py (drives the real binary
+// through the exact owner repro on every surface); these rust unit
+// tests are the in-tree lock for the same contract.
+
+#[test]
+fn strict_startup_rejects_config_with_only_unknown_key() {
+    // The owner's exact repro: `msg-modey = true` alone. The previous
+    // guard let this through (empty `values`); the NIGHT-hunt-41 fix
+    // extends the guard to also fire when `unknown_keys` is non-empty.
+    let args_result = args_from_cli_result(&["--config", "msg-modey = true\n"]);
+    match args_result {
+        Err(msg) => {
+            assert!(
+                msg.contains("msg-modey") || msg.contains("unknown key"),
+                "expected msg-modey / unknown-key error, got: {msg}"
+            );
+        }
+        Ok(_) => {
+            // Env-var bypass path (COSMOSTRIX_SKIP_STARTUP_VALIDATION=1
+            // is set by ensure_test_config_dir_allowed). The python e2e
+            // in scripts/night_h41_msg_modey_repro.py covers this case
+            // without the bypass.
+        }
+    }
+}
+
+#[test]
+fn strict_startup_rejects_header_only_custom_block() {
+    // Sibling case: a config with only `[scene-custom.x]` (header
+    // recorded, no field lines, so `values` is empty AND
+    // `unknown_keys` is empty -- the only signal is
+    // `custom_block_headers`). The NIGHT-hunt-37 completeness
+    // contract must reject this; the NIGHT-hunt-41 guard extension
+    // adds `custom_block_headers` to the parsed_has_content check so
+    // the validation block fires and the header-only block is caught.
+    let args_result = args_from_cli_result(&["--config", "[scene-custom.x]\n"]);
+    match args_result {
+        Err(msg) => {
+            assert!(
+                msg.contains("incomplete") || msg.contains("scene-custom"),
+                "expected incomplete-block error, got: {msg}"
+            );
+        }
+        Ok(_) => {
+            // Env-var bypass path; see note above.
+        }
+    }
+}

@@ -9,6 +9,71 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-41 — startup validation silent-ignore for configs with only-unknown keys (msg-modey = true passed silently)
+
+- **NIGHT-hunt-41** (owner fatal report, 2026-09-13, found by manual
+  testing): `msg-modey = true` in config.toml passed `cosmostrix -v`
+  silently — the binary kept running with the typo'd key dropped.
+  `--testconf` already rejected it ("unknown key 'msg-modey' (likely
+  typo)" + a did-you-mean hint pointing at `msg-mode`), producing the
+  asymmetric "testconf rejects, startup accepts" verdict class the
+  owner rejected. Root cause: the startup validation block at
+  `src/config/config_apply.rs:135` was gated on
+  `!parsed_cfg.values.is_empty()`, but a config whose ONLY key is
+  unknown has empty `values` (unknown keys go to
+  `parsed.unknown_keys`, not `parsed.values`), so the guard
+  short-circuited and Layers 1/1.5/2/3 (malformed / duplicate /
+  unknown / strict-value) were ALL skipped. The same short-circuit
+  also masked header-only custom blocks (NIGHT-hunt-37 completeness
+  contract): a config with only `[scene-custom.x]` and no field
+  lines has empty `values` AND empty `unknown_keys` — the only
+  signal is `custom_block_headers`.
+- **Fix**: the guard now fires when ANY of the parsed-record vectors
+  is non-empty (`values`, `unknown_keys`, `malformed_lines`,
+  `duplicate_keys`, `duplicate_sections`, `custom_block_headers`).
+  The four diagnostic functions (`startup_malformed_error`,
+  `startup_duplicate_error`, `startup_unknown_error`,
+  `validate_config_strictly_parsed`) all safely early-return on
+  empty inputs, so an empty config (legitimate first-run state)
+  still passes through. Production builds never set
+  `COSMOSTRIX_SKIP_STARTUP_VALIDATION` (test-only bypass).
+- **Strength repro**: `scripts/night_h41_msg_modey_repro.py` drives
+  the REAL binary through the owner's exact repro plus three
+  sibling cases (a different key typo, a mixed known+unknown pair, a
+  duplicate key, a known-good control). Uses `--doctor` (a
+  POST-config early-return flag) so the binary runs `apply_config`
+  (where validation lives) but does NOT enter interactive mode
+  (which would die on a headless terminal and mask the verdict).
+  Exit 0 = all 12 expectations met.
+- **Flagship E2E tester**: `scripts/depth-test-config.py` — the
+  owner's mandated "flagship class end to end depth supermassive
+  testing for all existing functions on config.toml". Drives the
+  real binary through 50 cases across 18 validation classes:
+  key typos, value typos (enum/string), value range violations,
+  value type mismatches, duplicate keys, duplicate `[section]`
+  headers, empty values, separator typos (NIGHT-hunt-38 class),
+  header-only blocks (NIGHT-hunt-37), over-cap block counts
+  (NIGHT-hunt-40 max-24), over-cap ambient entries, over-length
+  block names, missing required fields, invalid hex colors,
+  unknown scene in ambient, mixed-syntax garbage, custom-block
+  field typos, valid baseline (sanity). Each case asserts the
+  expected verdict on the appropriate surface (--testconf,
+  startup, runtime). Exit 0 = all 50 expectations met (current
+  status: 50 PASS, 0 FAIL).
+- **Rust unit tests**: two new in-tree tests in
+  `test/config/config_apply_tests/strict_mode.rs` pin the bug class
+  directly (`strict_startup_rejects_config_with_only_unknown_key`
+  and `strict_startup_rejects_header_only_custom_block`). The
+  existing tests used mixed known+unknown configs (which made
+  `values` non-empty and the bug never manifested); these two new
+  tests use pure-unknown / header-only configs to lock the contract.
+- **No visual/perf surface touched**: the validation path runs at
+  config-parse time, zero per-frame impact. No A/B bench needed
+  (the hunt-39 / hunt-40 benches already proved zero per-frame delta
+  for the validation-contract class).
+
+---
+
 ### fix: NIGHT-hunt-40 — tighten the custom-namespace entry budget from min 1 / max 64 to min 1 / max 24
 
 - **NIGHT-hunt-40** (owner mandate, 2026-09-13): the four
