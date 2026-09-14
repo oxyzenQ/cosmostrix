@@ -9,6 +9,40 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-46 & docs-7 (second pass) — README flag audit + the audit tools' own stale truth columns
+
+- **README.md**: full flag-surface audit against the live binary
+  (`--help` + behavior probes) found one real stale flag — the
+  custom-palette bullet referenced `--colors <name>`, which the binary
+  rejects with "unexpected argument" (the correct surfaces are
+  `--color <name>`, which accepts custom palette names, and
+  `--colors-custom <name>`). Everything else verified against source:
+  14 rain styles, 44 themes, 19 chroma lock invariants (INV-1..19),
+  screen limits 1024x500 / 7680x4320, the 6-size bench ladder, ambient
+  1..=24 entries, notify channel cap 64, MSRV 1.98.1, 24-block charset
+  budget, 200-char message boundary, lock-test paths, config-path
+  whitelist, and every cross-referenced doc and script path.
+- **scripts/stale-hunt.py**: the `ls --version --all` analogy in
+  `src/cli/early_returns.rs` (standard early-exit semantics prose) is
+  an external-tool behavioral parallel, not a cosmostrix flag —
+  allowlisted in EXTERNAL_TOOL_FLAGS with the justification comment.
+  Stale flag/path/module counts: 0 across 505 scanned .rs files.
+- **scripts/docs-audit.py**: the audit tool's own truth columns were
+  the stale-data teacher — path notes still pointed at the
+  pre-`src/engine/` layout, and the power-subsystem note had the
+  module name words swapped (`central_control_dragon_power` for
+  `src/central_control_power_dragon/`, a path that does not exist).
+  Count truths refreshed: 2947 `#[test]` fns (2415 in `test/` + 532
+  in `src/`; last full run 2932 passing), 508 tracked .rs files,
+  44 themes, 19 invariants. All residual section-2/3 hits re-triaged
+  as timestamped historical records (CHANGELOG entries, KEY.md
+  signoff blockquotes, research snapshots with their headers, and
+  docs quoting audit output as its subject).
+- **docs/FUTURE_BACKLOG.md**: the registry's own "Current count is
+  2527" line refreshed to the current truth, and a second-pass
+  re-triage note added to the status header recording this audit's
+  findings.
+
 ### fix: NIGHT-hunt-48 — repo-wide emoji ban + gate-keepers check 15, and the CI shfmt regression it caught on the way
 
 - **Owner rule (2026-09-14): the project carries no emoji anywhere.**

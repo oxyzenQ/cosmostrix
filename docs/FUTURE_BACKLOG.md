@@ -41,6 +41,16 @@
 >   heuristic; the comment-style conventions intentionally repeat
 >   module-doc lines.
 >
+> - **RE-TRIAGED 2026-09-14 (NIGHT-hunt-46 & docs-7, second pass)**:
+>   README.md flag audit against the live binary surface found one
+>   real stale flag — `--colors <name>` in the custom-palette bullet
+>   (the binary rejects it; corrected to `--color`/`--colors-custom`);
+>   `scripts/docs-audit.py`'s own truth columns were stale (paths
+>   pointing at the pre-`src/engine/` layout, `central_control_dragon_power`
+>   with the words swapped for `central_control_power_dragon`, test
+>   truth 2527, .rs truth 438 — all refreshed to current); this
+>   backlog's "current count" line above refreshed with it.
+>
 > **Owner directive**: "log broken links to FUTURE_BACKLOG.md (35+
 > historical broken refs in CHANGELOG/CONTRIBUTING — deferred per
 > historical record contract, but could be noted for future cleanup)."
@@ -127,8 +137,10 @@ Files with "Historical research snapshot" headers:
 
 - `~1500+ tests` in `CHANGELOG.md` (3 occurrences) + `KEY.md` (2
   occurrences) — accurate at time of writing (the `~` prefix means
-  "approximately"). Current count is 2527 but historical entries
-  should not be retroactively updated.
+  "approximately"). Current count is 2947 `#[test]` fns across the
+  tracked tree (2415 in `test/` + 532 in `src/`; the last full
+  `cargo test` run reported 2932 passing — NIGHT-hunt-47-depthbore)
+  but historical entries should not be retroactively updated.
 - `43 themes` in `CHANGELOG.md` — accurate at time of writing
   (EnergyZen was added later, bumping to 44).
 - `Phase 9-B` in `CHANGELOG.md` — accurate at time of writing

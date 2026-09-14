@@ -253,6 +253,10 @@ EXTERNAL_TOOL_FLAGS = {
     "--target",
     "--jobs",
     "--features",
+    # ls (GNU coreutils) analogy in early_returns.rs: "standard
+    # early-exit semantics -- same as `ls --version --all`". It is
+    # an external-tool behavioral parallel, not a cosmostrix flag.
+    "--all",
     "--no-default-features",
     "--example",
     "--test",

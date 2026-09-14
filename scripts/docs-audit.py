@@ -76,38 +76,46 @@ if not broken:
     print("  (none)")
 
 # ── 2. Stale source paths (pre-refactor flat layout) ───────────────────
+# Truth notes refreshed 2026-09-14 (NIGHT-hunt-46 & docs-7): the engine
+# modules live under src/engine/ since the tree restructure, and the
+# power subsystem is src/central_control_power_dragon/ (power_dragon,
+# not dragon_power -- the previous notes had the words swapped, which
+# made the truth column itself a stale-path teacher).
 print("\n=== 2. STALE SOURCE PATHS (old flat layout, moved modules) ===")
 stale_patterns = [
-    (r"src/cloud/", "moved to src/cosmic_dragon_engine/cloud/"),
-    (r"src/frame\.rs", "moved to src/cosmic_dragon_engine/frame.rs"),
-    (r"src/terminal\.rs", "moved to src/cosmic_dragon_engine/terminal/"),
-    (r"src/chroma_dragon_engine\.rs", "moved to src/chroma_dragon_engine/"),
-    (r"src/chroma/", "moved to src/chroma_dragon_engine/"),
+    (r"src/cloud/", "moved to src/engine/cosmic_dragon_engine/cloud/"),
+    (r"src/frame\.rs", "moved to src/engine/cosmic_dragon_engine/frame.rs"),
+    (r"src/terminal\.rs", "moved to src/engine/cosmic_dragon_engine/terminal/"),
+    (r"src/chroma_dragon_engine\.rs", "moved to src/engine/chroma_dragon_engine/"),
+    (r"src/chroma/", "moved to src/engine/chroma_dragon_engine/"),
     (
         r"src/adaptive\.rs",
-        "moved to central_control_dragon_power/ + interactive/adaptive.rs",
+        "moved to src/central_control_power_dragon/ + src/interactive/adaptive.rs",
     ),
     (
         r"src/ambient_scheduler\.rs",
-        "moved to src/crystal_dragon_engine/ambient_scheduler/",
+        "moved to src/engine/crystal_dragon_engine/ambient_scheduler/",
     ),
-    (r"src/ambient\.rs", "moved to src/crystal_dragon_engine/ambient/"),
+    (r"src/ambient\.rs", "moved to src/engine/crystal_dragon_engine/ambient/"),
     (r"src/config\.rs", "moved to src/config/"),
-    (r"src/palette\.rs", "moved (palette types live in chroma_dragon_engine/)"),
+    (
+        r"src/palette\.rs",
+        "moved (palette types live in src/engine/chroma_dragon_engine/palette/)",
+    ),
     (r"src/constants\.rs(?! *\))", "lifted to src/types/constants.rs (re-exported)"),
-    (r"src/rain_style\.rs", "moved (RainStyle)"),
-    (r"src/self_healer\.rs", "moved to src/central_control_dragon_power/self_healer/"),
+    (r"src/rain_style\.rs", "moved to src/types/rain_style.rs"),
+    (r"src/self_healer\.rs", "moved to src/central_control_power_dragon/self_healer/"),
     (
         r"src/power_manager\.rs",
-        "moved to src/central_control_dragon_power/power_manager/",
+        "moved to src/central_control_power_dragon/power_manager/",
     ),
-    (r"src/endurance_health\.rs", "moved to src/central_control_dragon_power/"),
-    (r"src/reclaim_state\.rs", "moved to src/central_control_dragon_power/"),
-    (r"src/thermal_sampler\.rs", "moved to src/central_control_dragon_power/"),
-    (r"src/phase_predictor\.rs", "moved to src/central_control_dragon_power/"),
+    (r"src/endurance_health\.rs", "moved to src/central_control_power_dragon/"),
+    (r"src/reclaim_state\.rs", "moved to src/central_control_power_dragon/"),
+    (r"src/thermal_sampler\.rs", "moved to src/central_control_power_dragon/"),
+    (r"src/phase_predictor\.rs", "moved to src/central_control_power_dragon/"),
     (
         r"interactive/adaptive\.rs:\d+",
-        "adaptive.rs is a re-export hub; subsystems moved to central_control_dragon_power/",
+        "adaptive.rs is a re-export hub; subsystems moved to src/central_control_power_dragon/",
     ),
 ]
 stale_hits = defaultdict(lambda: defaultdict(list))
@@ -133,11 +141,11 @@ print("\n=== 3. STALE COUNT CLAIMS (source of truth in parens) ===")
 count_patterns = [
     (r"\b43 themes\b|\b43 builtin\b|themes\*? == 43", "44 themes (catalog.rs)"),
     (r"\b18 invariants\b", "19 invariants (chroma lock suite)"),
-    (r"\b1[45]\d\d\+? tests\b", "2527 tests (current suite)"),
-    (r"~1,?500 tests\b", "2527 tests (current suite)"),
-    (r"\b220\+ source files\b|\b226 source\b", "438 .rs files (current)"),
-    (r"\b2524 tests\b", "2527 tests (current suite)"),
-    (r"\b434 \.rs files\b", "438 .rs files (current)"),
+    (r"\b1[45]\d\d\+? tests\b", "2947 test fns (current static count)"),
+    (r"~1,?500 tests\b", "2947 test fns (current static count)"),
+    (r"\b220\+ source files\b|\b226 source\b", "508 tracked .rs files (current)"),
+    (r"~2,?500 tests\b|\b252[0-9] tests\b", "2947 test fns (current static count)"),
+    (r"\b43[0-9] \.rs files\b", "508 tracked .rs files (current)"),
     (r"Phase 9-B", "Phase 9-D (final form)"),
 ]
 count_hits = defaultdict(list)
