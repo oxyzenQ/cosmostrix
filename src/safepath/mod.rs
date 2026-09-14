@@ -532,4 +532,8 @@ pub(crate) fn validate_config_path(path_str: &str, verbose: bool) -> Result<Stri
 
 #[cfg(test)]
 #[path = "../../test/safepath/tests.rs"]
-mod tests;
+// pub(crate): the config tests (test/config/configfile_tests_inline.rs)
+// import this module's ENV_LOCK so HOME-family env mutation is
+// serialized across BOTH suites with ONE lock (test-parallelism audit
+// 2026-09-14). Test-build-only visibility — no production impact.
+pub(crate) mod tests;

@@ -34,6 +34,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
   pattern `EnvGuard` already used). 20/20 stress rounds clean at 32
   threads after the fix; suite still 2932/2932.
 
+### fix: test-parallelism audit — four more latent races hardened + two extreme-contention stragglers documented (32-thread stress)
+
+- Background: stress-running the full suite at `--test-threads 32`
+  (8x CI's default parallelism) surfaced the remaining members of the
+  same race family as the termdetect flake above. Every fix below is
+  verified by a 20-40-round 32-thread stress battery on the touched
+  filter; the full suite went from a storm of failures per round to at
+  most the two documented stragglers.
+- **output warning counter**: the 2026-08-19 audit locked only the two
+  exact-count tests in `test/output/output_tests.rs`, guessing the
+  concurrent emitters were "config apply tests". 32-thread
+  reproduction showed the REAL emitters: the `sanitize_message_text`
+  tests in `src/output/message.rs` — wide/CJK/emoji/control-char
+  replacement warns via `eprintln_warn_labeled` and bumps the global
+  `STARTUP_WARNING_COUNT` from a lock-free module (observed: count 4
+  instead of 3). `TEST_WARNING_COUNT_MUTEX` is now `pub(super)` and the
+  four warning-emitting sanitize tests hold it. 40/40 stress rounds
+  clean.
+- **msg reveal t=0 wall-clock leak**: `set_message_elapsed(cloud, text,
+  0)` backdated the reveal timeline by exactly 0 ms, so any scheduler
+  delay between the helper and the test's `draw_message()` flipped
+  alpha > 0 — "content visible at t=0" (observed: 10 cells at alpha 0).
+  t=0 now arms the timeline 10 s in the FUTURE, which is
+  production-identical to `hold_message_behind_intro`'s intro lead
+  (`Instant::elapsed()` saturates to zero until the start passes) and
+  makes every "nothing revealed at t=0" assertion deterministic. All
+  seven t=0 call sites across the msg_fill/cascade/scorch/radar/
+  hologram suites inherit the fix from the shared helper.
+- **reveal-budget boundary tests**: `typewriter_reveals_progressively_
+  like_pre_v51` and `engrave_reveals_progressively_like_typewriter_
+  pacing` asserted exact cell counts at exactly 160 ms — 160/80 = 2.0,
+  dead on the 80 ms/char reveal boundary, where 1 ms of harness delay
+  flips the count. The engrave champion-contract test compared two
+  clouds at 320 ms (320/80 = 4.0, also an exact boundary, with the two
+  `draw_message` calls sampling real time at different instants —
+  observed flipping one cloud to 3 cells). All three moved to
+  dead-center bucket values (200 ms / 360 ms) and the champion test
+  additionally pins both clouds to one shared start instant.
+- **config HOME race**: `test/config/configfile_tests_inline.rs` had
+  zero locks — its own HOME/XDG-removing resolver test could interleave
+  with its HOME-derived candidate-path reads (observed:
+  `config_candidate_paths_includes_default_path` comparing two reads
+  across a HOME swap), and the safepath suite's HOME mutations (guarded
+  by their own module-local lock) left the same cross-module window
+  open. safepath's `ENV_LOCK` is now the crate's ONE shared HOME-family
+  lock (`pub(crate)`, test-build-only visibility): the configfile
+  termux-detection, candidate-path and resolver tests import it.
+  20/20 stress rounds clean.
+- **documented stragglers**: `hunt26_resync_force_does_not_reseed_old_
+  writes` (roughly a third of 32-thread full-suite rounds) and
+  `dna_drops_spawn_to_sparse_calm_sky_target` (1 sighting in ~15
+  rounds) fire only under extreme full-suite contention — zero
+  failures at CI's 4-thread default (10 clean local rounds + all CI
+  history). Both carry evidence-trail doc comments at the test site;
+  left documented rather than chased per the no-over-engineering
+  rule.
+
 ### fix: NIGHT-hunt-46 & docs-7 (second pass) — README flag audit + the audit tools' own stale truth columns
 
 - **README.md**: full flag-surface audit against the live binary

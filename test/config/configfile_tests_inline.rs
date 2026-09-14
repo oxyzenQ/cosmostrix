@@ -2,6 +2,17 @@
 // SPDX-License-Identifier: GPL-3.0-only
 
 use super::*;
+// Test-parallelism audit 2026-09-14: HOME / XDG_CONFIG_HOME /
+// TERMUX_VERSION / PREFIX are process-global. The safepath suite
+// mutates HOME/TERMUX under its ENV_LOCK, and the tests below read
+// HOME-derived candidates or double-read TERMUX/PREFIX — without ONE
+// shared lock across both modules, a safepath HOME swap (or this
+// file's own HOME-removing resolver test) can land between two env
+// reads and flip an assertion (the 32-thread stress flake in
+// config_candidate_paths_includes_default_path). Import safepath's
+// lock — the single serialization point for HOME-family env mutation
+// across the crate's test modules.
+use crate::safepath::tests::ENV_LOCK;
 
 #[test]
 fn default_path_prefers_xdg_config_home() {
@@ -353,6 +364,7 @@ fn is_termux_environment_returns_false_off_termux() {
     // nor a "com.termux"-containing PREFIX is set. This test verifies
     // the detection returns false. (It would return true on an actual
     // Termux runner, where this assertion is skipped via env check.)
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let on_termux = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX")
             .map(|p| p.contains("com.termux"))
@@ -367,6 +379,7 @@ fn is_termux_environment_detects_termux_version() {
     // Simulate Termux by setting TERMUX_VERSION in a subprocess.
     // We can't actually set env vars in-process, so we replicate
     // the detection logic with a known-set value.
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let detected = std::env::var("TERMUX_VERSION").is_ok()
         || std::env::var("PREFIX")
             .map(|p| p.contains("com.termux"))
@@ -379,6 +392,7 @@ fn is_termux_environment_detects_termux_version() {
 #[test]
 fn config_candidate_paths_includes_default_path() {
     // The first candidate should always be default_config_file_path().
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let candidates = config_candidate_paths();
     assert!(!candidates.is_empty(), "candidate list must not be empty");
     assert_eq!(
@@ -393,6 +407,7 @@ fn config_candidate_paths_includes_system_path() {
     // /etc/cosmostrix/config.toml should always be in the candidate list
     // (it's a system-wide fallback). This is unconditional — even on
     // platforms where it doesn't exist, the candidate is listed so
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // the resolver can check it.
     let candidates = config_candidate_paths();
     let system = PathBuf::from("/etc")
@@ -406,6 +421,7 @@ fn config_candidate_paths_includes_system_path() {
 
 #[test]
 fn config_candidate_paths_includes_sdcard_path() {
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     // /sdcard/cosmostrix/config.toml should be in the candidate list
     // (Termux external storage fallback).
     let candidates = config_candidate_paths();
@@ -422,6 +438,7 @@ fn config_candidate_paths_includes_sdcard_path() {
 fn config_candidate_paths_no_duplicates() {
     // Even if XDG_CONFIG_HOME equals $HOME/.config, the candidate list
     // must not contain duplicate entries.
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let candidates = config_candidate_paths();
     let mut seen = std::collections::HashSet::new();
     for c in &candidates {
@@ -449,6 +466,7 @@ fn resolve_watcher_config_path_returns_default_when_no_candidates_exist() {
     // path. This is the "user hasn't created a config yet" case.
     // Save the current env, unset HOME/XDG_CONFIG_HOME so the default
     // path is the relative `.config/cosmostrix/config.toml`.
+    let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let saved_home = std::env::var("HOME").ok();
     let saved_xdg = std::env::var("XDG_CONFIG_HOME").ok();
     std::env::remove_var("HOME");

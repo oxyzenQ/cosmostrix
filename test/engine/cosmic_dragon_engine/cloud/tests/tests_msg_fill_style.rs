@@ -40,7 +40,22 @@ pub(super) fn set_message_elapsed(cloud: &mut Cloud, text: &str, elapsed_ms: u64
     // set_message starts the timeline at now (the intro lead, when one
     // plays, is armed separately by event_loop_intro). Rewind it:
     // start = now - elapsed.
-    cloud.message_start_time = Some(Instant::now() - Duration::from_millis(elapsed_ms));
+    //
+    // t = 0 arms the timeline 10 s in the FUTURE instead of backdating
+    // by exactly 0 ms. A zero backdate races the scheduler: under
+    // --test-threads contention a few ms can pass between this call and
+    // the test's draw_message(), flipping alpha > 0 so the frame shows
+    // content at "t = 0" (the 32-thread stress flake in
+    // fade_style_reveals_all_text_but_border_ramps_with_alpha). A future
+    // start is production-identical to hold_message_behind_intro's intro
+    // lead — Instant::elapsed() saturates to zero until the start passes
+    // — so every "nothing revealed at t = 0" assertion becomes
+    // deterministic regardless of harness scheduling delay.
+    cloud.message_start_time = Some(if elapsed_ms == 0 {
+        Instant::now() + Duration::from_secs(10)
+    } else {
+        Instant::now() - Duration::from_millis(elapsed_ms)
+    });
 }
 
 /// Count visible content cells (non-space, non-border glyphs) in the
@@ -91,10 +106,15 @@ fn total_content_cells(cloud: &Cloud) -> usize {
 
 #[test]
 fn typewriter_reveals_progressively_like_pre_v51() {
-    // "hello world" = 10 content chars. At 160 ms elapsed:
-    // reveal_count = 160/80 = 2 (max(1) floor, min(total)).
+    // "hello world" = 10 content chars. At 200 ms elapsed:
+    // reveal_count = 200/80 = 2 (max(1) floor, min(total)).
+    // 200, NOT 160: 160/80 = 2.0 sits EXACTLY on the reveal boundary —
+    // 1 ms of harness delay between the backdate and the draw flips
+    // the count to 3 under --test-threads contention. 200/80 = 2.5 —
+    // dead center, 40 ms of margin on both sides (test-parallelism
+    // audit 2026-09-14).
     let mut cloud = make_cloud_colored(MsgFillStyle::Typewriter);
-    set_message_elapsed(&mut cloud, "hello world", 160);
+    set_message_elapsed(&mut cloud, "hello world", 200);
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
     cloud.draw_message(&mut frame, Instant::now());
 
@@ -293,10 +313,13 @@ fn slide_style_defers_phase1_glyphs_one_row_below() {
 fn engrave_reveals_progressively_like_typewriter_pacing() {
     // Effects OFF isolates the reveal pacing from the spark sidecar
     // (sparks overwrite the head cell glyph — see the dedicated spark
-    // tests below). "hello world" = 10 content chars; 160 ms → 2.
+    // tests below). "hello world" = 10 content chars; 200 ms → 2
+    // (200/80 = 2.5 — dead center between buckets; 160 would sit
+    // exactly on the 2/3 boundary and flip under scheduler jitter —
+    // test-parallelism audit 2026-09-14).
     let mut cloud = make_cloud_colored(MsgFillStyle::Engrave);
     cloud.set_effects_enabled(false);
-    set_message_elapsed(&mut cloud, "hello world", 160);
+    set_message_elapsed(&mut cloud, "hello world", 200);
     let mut frame = Frame::new(30, 12, cloud.palette.bg);
     cloud.draw_message(&mut frame, Instant::now());
 
@@ -304,7 +327,7 @@ fn engrave_reveals_progressively_like_typewriter_pacing() {
     assert_eq!(
         visible.len(),
         2,
-        "engrave at 160ms must show exactly 2 chars (80ms/char), got {}",
+        "engrave at 200ms must show exactly 2 chars (80ms/char), got {}",
         visible.len()
     );
     let chars: String = visible.iter().map(|(_, _, c)| *c).collect();
@@ -557,8 +580,21 @@ fn default_style_is_engrave_champion_contract() {
 
     let mut engraved = make_cloud_colored(MsgFillStyle::Engrave);
     for cloud in [&mut plain, &mut engraved] {
-        set_message_elapsed(cloud, "hello world", 320);
+        // 360 ms, NOT 320: engrave paces 80 ms/char, so 320 sits
+        // EXACTLY on the 4-cell reveal boundary (320/80 = 4.0) — any
+        // 1 ms of harness delay between the two draws flips one cloud
+        // to 5 cells and breaks the equality (the 32-thread stress
+        // flake). 360/80 = 4.5 — dead center, 40 ms of margin on both
+        // sides of the bucket, so a few ms of scheduler jitter cannot
+        // flip either cloud's budget.
+        set_message_elapsed(cloud, "hello world", 360);
     }
+    // Pin both clouds to the SAME start instant. The two
+    // set_message_elapsed calls sample Instant::now() microseconds
+    // apart (milliseconds under --test-threads contention), which
+    // would otherwise re-introduce a start-sample delta on top of the
+    // draw-instant delta.
+    engraved.message_start_time = plain.message_start_time;
     let mut f1 = Frame::new(30, 12, plain.palette.bg);
     plain.draw_message(&mut f1, Instant::now());
     let mut f2 = Frame::new(30, 12, engraved.palette.bg);

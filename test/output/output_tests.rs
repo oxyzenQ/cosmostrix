@@ -59,19 +59,33 @@ fn eprintln_safe_compiles_with_complex_format() {
 // ── Phase 5 closure (P3-5): startup warning counter ──
 //
 // LTS audit 2026-08-19 (task 5/6): these 2 tests touch the global
-// `STARTUP_WARNING_COUNT` atomic. When run in parallel with config
-// apply tests that emit warnings (via `eprintln_warn_labeled`), the
-// global state races — causing the flaky test failure observed in
-// prior sessions (`output::tests::eprintln_warn_labeled_increments_counter`
+// `STARTUP_WARNING_COUNT` atomic. When run in parallel with other
+// tests that emit warnings (via `eprintln_warn_labeled`), the global
+// state races — causing the flaky test failure observed in prior
+// sessions (`output::tests::eprintln_warn_labeled_increments_counter`
 // failed once on first run, passed on re-run).
 //
-// Fix: serialize the 2 tests via a Mutex guard. The production code
-// path (single-threaded config apply) is unaffected — only the test
+// Fix: serialize via a Mutex guard. The production code path
+// (single-threaded config apply) is unaffected — only the test
 // parallelism is constrained.
+//
+// Test-parallelism audit 2026-09-14: the 2026-08-19 fix guessed the
+// concurrent emitters were "config apply tests" and locked only these
+// 2 tests — partial coverage, same class of bug as the termdetect
+// ENV_LOCK split. 32-thread stress reproduction showed the REAL
+// concurrent emitters: the `sanitize_message_text` tests in
+// `src/output/message.rs` (wide/CJK/emoji/control-char replacement
+// warns via eprintln_warn_labeled and bumps the counter from a
+// lock-free module). This mutex is therefore `pub(super)` — the
+// sanitize tests import it as `crate::output::tests::
+// TEST_WARNING_COUNT_MUTEX` so ALL counter-touching tests share ONE
+// lock.
 
 /// Mutex guarding tests that touch `STARTUP_WARNING_COUNT`. Without
-/// this, parallel test execution races on the global atomic.
-static TEST_WARNING_COUNT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
+/// this, parallel test execution races on the global atomic. Shared
+/// with the sanitize tests in `src/output/message.rs` (they emit
+/// warnings through production code paths).
+pub(super) static TEST_WARNING_COUNT_MUTEX: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[test]
 fn reset_clears_warning_count() {

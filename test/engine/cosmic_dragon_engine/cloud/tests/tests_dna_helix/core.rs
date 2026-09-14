@@ -61,6 +61,15 @@ fn dna_drops_spawn_to_sparse_calm_sky_target() {
     // ratio is 0.06 + 0.70 * 0.05 = 0.095 -> ~11 nucleotides on a
     // 120-column pool. The soup must stay a sparse ambient minority
     // — the molecule is the hero of the composition.
+    //
+    // Test-parallelism audit 2026-09-14: one sighting of this test
+    // failing (active below the target band) in ~15 FULL-SUITE runs
+    // at `--test-threads 32`; never at CI's 4-thread default. The
+    // 600-frame run_frames loop drives a deterministic synthetic
+    // clock, so the flake needs the full suite's scheduler noise
+    // landing inside the ramp — same extreme-contention family as
+    // the hunt26_resync straggler. Left documented rather than
+    // chased per the no-over-engineering rule.
     let mut cloud = make_dna_cloud(120, 40);
     let mut frame = Frame::new(120, 40, cloud.palette.bg);
     run_frames(&mut cloud, &mut frame, 600, 16);

@@ -10,7 +10,15 @@ use std::sync::Mutex;
 
 /// Mutex to serialize tests that mutate HOME env var.
 /// Without this, parallel tests race on the global env state.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+///
+/// pub(crate): this is the crate's ONE shared lock for HOME-family env
+/// mutation — the config tests (test/config/configfile_tests_inline.rs)
+/// import it so their HOME-derived candidate-path reads and this
+/// suite's HOME swaps cannot interleave. Module-local locks would
+/// leave the cross-module race open — the same partial-coverage class
+/// of bug as the termdetect ENV_LOCK split (test-parallelism audit
+/// 2026-09-14).
+pub(crate) static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 fn with_test_home<F: FnOnce()>(home: &str, f: F) {
     let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());

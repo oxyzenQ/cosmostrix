@@ -70,6 +70,15 @@ pub(crate) fn sanitize_message_text(input: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::sanitize_message_text;
+    // Test-parallelism audit 2026-09-14: the replacement branches below
+    // warn via eprintln_warn_labeled, bumping the global
+    // STARTUP_WARNING_COUNT. The exact-count tests in
+    // test/output/output_tests.rs assert on that counter, so every
+    // warning-emitting sanitize test must hold the SAME shared mutex
+    // (module-local locks would leave the cross-module race open —
+    // the same partial-coverage class of bug as the termdetect
+    // ENV_LOCK split).
+    use crate::output::tests::TEST_WARNING_COUNT_MUTEX;
 
     /// (bug #11): ASCII-only messages pass through unchanged.
     #[test]
@@ -91,6 +100,7 @@ mod tests {
     /// of the box to glitch.
     #[test]
     fn sanitize_replaces_wide_cjk_chars() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         let result = sanitize_message_text("Hello 世界");
         assert_eq!(result, "Hello ??");
     }
@@ -98,6 +108,7 @@ mod tests {
     /// (bug #11): emoji replaced with '?'.
     #[test]
     fn sanitize_replaces_emoji() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         let result = sanitize_message_text("Galaxy 🌌 emoji");
         assert_eq!(result, "Galaxy ? emoji");
     }
@@ -105,6 +116,7 @@ mod tests {
     /// (bug #11): control chars (except \n) stripped.
     #[test]
     fn sanitize_strips_control_chars() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         let result = sanitize_message_text("Tab\there\x07bell");
         assert_eq!(result, "Tabherebell");
     }
@@ -112,6 +124,7 @@ mod tests {
     /// (bug #11): mixed content — ASCII passes, wide/control filtered.
     #[test]
     fn sanitize_handles_mixed_content() {
+        let _guard = TEST_WARNING_COUNT_MUTEX.lock().unwrap();
         let result = sanitize_message_text("Hello 世界 🌌 αβγ #hash $var");
         // "Hello " (6) + "??" (世界) + " " + "?" (🌌) + " " + "αβγ" (3) + " #hash $var"
         assert_eq!(result, "Hello ?? ? αβγ #hash $var");
