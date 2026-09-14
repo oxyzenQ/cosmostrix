@@ -75,7 +75,16 @@ pub(crate) fn run(args: &Args) -> std::io::Result<()> {
 
     println_safe!("testconf: checking {}", path.display());
 
-    let content = match std::fs::read_to_string(&path) {
+    // NIGHT-hunt-47-depthbore: route through read_config_capped like
+    // every other config read path (the S-master-3-v2 invariant: "every
+    // config read path funnels through this helper"). The direct
+    // read_to_string here was the one bypass: a file past the 1 MiB cap
+    // read unbounded into memory AND reported rc=0 "valid" -- while the
+    // runtime loader refused the same file (capped read -> treated as
+    // unreadable -> defaults). testconf validating a file the runtime
+    // will silently ignore was a false-positive report; both surfaces
+    // now agree on the cap, and the error text names it.
+    let content = match crate::config::config_io::read_config_capped(&path) {
         Ok(c) => c,
         Err(e) => {
             crate::output::eprintln_error_labeled(&format!(
