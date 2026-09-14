@@ -124,8 +124,12 @@ def run(home, extra_args, timeout=15, verbose=False):
     argv = [BIN] + (["-v"] if verbose else []) + extra_args
     try:
         p = subprocess.run(
-            argv, env=env, capture_output=True, text=True,
-            timeout=timeout, check=False,
+            argv,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
@@ -145,7 +149,7 @@ def check(label, rc, out, err, must_contain=""):
     if must_contain and must_contain.lower() not in err.lower():
         problems.append(f"stderr missing '{must_contain}'")
     ok = not problems
-    detail = "; ".join(problems) if problems else f"rc=2, stdout clean"
+    detail = "; ".join(problems) if problems else "rc=2, stdout clean"
     status = "PASS" if ok else "FAIL"
     if ok:
         PASS_COUNT += 1
@@ -172,7 +176,9 @@ def part_a_startup_matrix():
         home, cfg = fresh_home()
         write_cfg(cfg, f"{key}y = xyz\n")
         rc, out, err = run(home, ["--doctor"])
-        check(f"{key}y = ... (key typo)", rc, out, err, key if key != "color" else "color")
+        check(
+            f"{key}y = ... (key typo)", rc, out, err, key if key != "color" else "color"
+        )
 
     print("\n== A2. Invalid values (per type) ==")
     for key, _valid, invalid, cls in KEYS:
@@ -218,36 +224,50 @@ def part_a_startup_matrix():
 
     print("\n== A6. Custom-namespace field typos ==")
     ns_cases = [
-        ("scene-custom.p.rains (field typo)",
-         '[scene-custom.p]\nrains = "glyph"\ncolor = "green"\ncharset = "zen"\n'
-         "fps = 60\nspeed = 9\ndensity = 0.8\nglitch-level = \"none\"\n",
-         "rains"),
-        ("colors-custom.p.background (field typo)",
-         '[colors-custom.p]\nbackground = "#0a0a0a"\nrain = ["#111111", "#222222"]\n',
-         "background"),
-        ("charset-custom.p.sett (field typo)",
-         '[charset-custom.p]\nsett = "ABC"\n',
-         "sett"),
-        ("color.tune.brightnes (field typo)",
-         "[color.tune]\nbrightnes = 1.0\n",
-         "brightnes"),
-        ("ambient.25-00 (hour over 23)",
-         'ambient.25-00 = "cinematic"\n',
-         "ambient"),
-        ("ambient.06-61 (minute over 59)",
-         'ambient.06-61 = "cinematic"\n',
-         "ambient"),
-        ("ambient.6-00 (non 2-digit hour format)",
-         'ambient.6-00 = "cinematic"\n',
-         "ambient"),
-        ("colors-custom rain 10 stops (max 9)",
-         '[colors-custom.p]\nbg = "#0a0a0a"\n'
-         'rain = ["#111111", "#222222", "#333333", "#444444", "#555555", '
-         '"#666666", "#777777", "#888888", "#999999", "#aaaaaa"]\n',
-         "rain"),
-        ("scene-custom missing fields (incomplete block)",
-         '[scene-custom.p]\nrain = "glyph"\n',
-         "scene-custom"),
+        (
+            "scene-custom.p.rains (field typo)",
+            (
+                '[scene-custom.p]\nrains = "glyph"\ncolor = "green"\ncharset = "zen"\n'
+                'fps = 60\nspeed = 9\ndensity = 0.8\nglitch-level = "none"\n'
+            ),
+            "rains",
+        ),
+        (
+            "colors-custom.p.background (field typo)",
+            '[colors-custom.p]\nbackground = "#0a0a0a"\nrain = ["#111111", "#222222"]\n',
+            "background",
+        ),
+        (
+            "charset-custom.p.sett (field typo)",
+            '[charset-custom.p]\nsett = "ABC"\n',
+            "sett",
+        ),
+        (
+            "color.tune.brightnes (field typo)",
+            "[color.tune]\nbrightnes = 1.0\n",
+            "brightnes",
+        ),
+        ("ambient.25-00 (hour over 23)", 'ambient.25-00 = "cinematic"\n', "ambient"),
+        ("ambient.06-61 (minute over 59)", 'ambient.06-61 = "cinematic"\n', "ambient"),
+        (
+            "ambient.6-00 (non 2-digit hour format)",
+            'ambient.6-00 = "cinematic"\n',
+            "ambient",
+        ),
+        (
+            "colors-custom rain 10 stops (max 9)",
+            (
+                '[colors-custom.p]\nbg = "#0a0a0a"\n'
+                'rain = ["#111111", "#222222", "#333333", "#444444", "#555555", '
+                '"#666666", "#777777", "#888888", "#999999", "#aaaaaa"]\n'
+            ),
+            "rain",
+        ),
+        (
+            "scene-custom missing fields (incomplete block)",
+            '[scene-custom.p]\nrain = "glyph"\n',
+            "scene-custom",
+        ),
     ]
     for label, text, needle in ns_cases:
         home, cfg = fresh_home()
@@ -272,28 +292,66 @@ def part_b_boundaries():
     # scene-custom: 7 required fields each.
     scene_body = (
         'rain = "glyph"\ncolor = "green"\ncharset = "zen"\n'
-        "fps = 60\nspeed = 9\ndensity = 0.8\nglitch-level = \"none\"\n"
+        'fps = 60\nspeed = 9\ndensity = 0.8\nglitch-level = "none"\n'
     )
 
     cases = [
-        ("scene-custom 24 blocks (at cap)", blocks(24, "[scene-custom.{}]", scene_body), 0),
-        ("scene-custom 25 blocks (over cap)", blocks(25, "[scene-custom.{}]", scene_body), 2),
-        ("colors-custom 24 blocks (at cap)",
-         blocks(24, "[colors-custom.{}]", 'bg = "#0a0a0a"\nrain = ["#111111", "#222222"]\n'), 0),
-        ("colors-custom 25 blocks (over cap)",
-         blocks(25, "[colors-custom.{}]", 'bg = "#0a0a0a"\nrain = ["#111111", "#222222"]\n'), 2),
-        ("charset-custom 24 blocks (at cap)",
-         blocks(24, "[charset-custom.{}]", 'set = "ABC"\n'), 0),
-        ("charset-custom 25 blocks (over cap)",
-         blocks(25, "[charset-custom.{}]", 'set = "ABC"\n'), 2),
-        ("ambient 24 entries (at cap)",
-         "".join(f'ambient.{h:02d}-30 = "cinematic"\n' for h in range(24)), 0),
-        ("ambient 25 entries (over cap)",
-         "".join(f'ambient.{h:02d}-30 = "cinematic"\n' for h in range(24))
-         + 'ambient.00-45 = "cinematic"\n', 2),
-        ("colors-custom rain 9 stops (at cap)",
-         '[colors-custom.p]\nbg = "#0a0a0a"\nrain = ['
-         + ", ".join(f'"#{i:06x}"' for i in range(0x111111, 0x999999, 0x111111)) + "]\n", 0),
+        (
+            "scene-custom 24 blocks (at cap)",
+            blocks(24, "[scene-custom.{}]", scene_body),
+            0,
+        ),
+        (
+            "scene-custom 25 blocks (over cap)",
+            blocks(25, "[scene-custom.{}]", scene_body),
+            2,
+        ),
+        (
+            "colors-custom 24 blocks (at cap)",
+            blocks(
+                24,
+                "[colors-custom.{}]",
+                'bg = "#0a0a0a"\nrain = ["#111111", "#222222"]\n',
+            ),
+            0,
+        ),
+        (
+            "colors-custom 25 blocks (over cap)",
+            blocks(
+                25,
+                "[colors-custom.{}]",
+                'bg = "#0a0a0a"\nrain = ["#111111", "#222222"]\n',
+            ),
+            2,
+        ),
+        (
+            "charset-custom 24 blocks (at cap)",
+            blocks(24, "[charset-custom.{}]", 'set = "ABC"\n'),
+            0,
+        ),
+        (
+            "charset-custom 25 blocks (over cap)",
+            blocks(25, "[charset-custom.{}]", 'set = "ABC"\n'),
+            2,
+        ),
+        (
+            "ambient 24 entries (at cap)",
+            "".join(f'ambient.{h:02d}-30 = "cinematic"\n' for h in range(24)),
+            0,
+        ),
+        (
+            "ambient 25 entries (over cap)",
+            "".join(f'ambient.{h:02d}-30 = "cinematic"\n' for h in range(24))
+            + 'ambient.00-45 = "cinematic"\n',
+            2,
+        ),
+        (
+            "colors-custom rain 9 stops (at cap)",
+            '[colors-custom.p]\nbg = "#0a0a0a"\nrain = ['
+            + ", ".join(f'"#{i:06x}"' for i in range(0x111111, 0x999999, 0x111111))
+            + "]\n",
+            0,
+        ),
         ("message 200 chars (at cap)", 'message = "' + "m" * 200 + '"\n', 0),
         ("message 201 chars (over cap)", 'message = "' + "m" * 201 + '"\n', 2),
     ]
@@ -327,8 +385,9 @@ def run_pty(argv, secs, edits, home):
     reason).
     """
     master, slave = pty.openpty()
-    fcntl.ioctl(master, termios.TIOCSWINSZ,
-                struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0))
+    fcntl.ioctl(
+        master, termios.TIOCSWINSZ, struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0)
+    )
     env = dict(os.environ)
     env["HOME"] = home
     env.pop("XDG_CONFIG_HOME", None)
@@ -392,7 +451,6 @@ def part_c_runtime_pty():
     print("\n" + "=" * 100)
     print("PART C — runtime PTY: error ordering + clean-exit contract")
     print("=" * 100)
-    global PASS_COUNT, FAIL_COUNT
 
     good = "msg-mode = true\nfps = 60\n"
     bad = "msg-modey = true\nfps = 60\n"
@@ -420,7 +478,9 @@ def part_c_runtime_pty():
                 head = s[:leave]
                 for needle in ("error:", "invalid config", "unknown key"):
                     if needle in head:
-                        problems.append(f"'{needle}' printed DURING rain (before restore)")
+                        problems.append(
+                            f"'{needle}' printed DURING rain (before restore)"
+                        )
             after = s[leave:] if leave != -1 else ""
             if "invalid config" not in after and "unknown key" not in after:
                 problems.append("no rejection diagnostic after restore")
@@ -430,7 +490,11 @@ def part_c_runtime_pty():
             print(f"  [FAIL] {label:58s} | {'; '.join(problems)}")
         else:
             PASS_COUNT += 1
-            note = "still running" if want_still_running else f"rc={want_rc}, error after restore"
+            note = (
+                "still running"
+                if want_still_running
+                else f"rc={want_rc}, error after restore"
+            )
             print(f"  [PASS] {label:58s} | {note}")
 
     # C1: bad edit DURING the intro window (~t=2s; the logo intro plays
@@ -441,11 +505,23 @@ def part_c_runtime_pty():
     # C2: bad edit AFTER the intro (steady state).
     run_case("C2: bad edit after intro -> clean exit", 9.0, bad, 2, False, 20)
     # C3: valid edit during the intro — must keep running (no exit).
-    run_case("C3: valid edit during intro keeps running", 2.0,
-             "msg-mode = true\nfps = 45\n", 0, True, 16)
+    run_case(
+        "C3: valid edit during intro keeps running",
+        2.0,
+        "msg-mode = true\nfps = 45\n",
+        0,
+        True,
+        16,
+    )
     # C4: valid edit after the intro — the classic live-reload control.
-    run_case("C4: valid edit after intro keeps running", 9.0,
-             "msg-mode = true\nfps = 45\n", 0, True, 16)
+    run_case(
+        "C4: valid edit after intro keeps running",
+        9.0,
+        "msg-mode = true\nfps = 45\n",
+        0,
+        True,
+        16,
+    )
 
 
 def main():
@@ -453,7 +529,7 @@ def main():
         print(f"binary not found: {BIN}")
         return 1
     print(f"binary: {BIN}")
-    print(f"harness: depthtest5_config_error_streams.py — NIGHT-hunt-44 verify + audit")
+    print("harness: depthtest5_config_error_streams.py — NIGHT-hunt-44 verify + audit")
     part_a_startup_matrix()
     part_b_boundaries()
     part_c_runtime_pty()

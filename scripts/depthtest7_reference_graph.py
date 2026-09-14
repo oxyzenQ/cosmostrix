@@ -85,8 +85,12 @@ def run(home, args, timeout=15):
     env["TERM"] = "xterm-256color"
     try:
         p = subprocess.run(
-            [BIN] + args, env=env, capture_output=True, text=True,
-            timeout=timeout, check=False,
+            [BIN] + args,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
@@ -156,7 +160,6 @@ def check_testconf(label, rc, out, err, must_contain=""):
 
 def part_a_static_matrix():
     print("\n── Part A: dangling-reference static matrix (startup + --testconf) ──")
-    global PASS_COUNT, FAIL_COUNT
 
     def both(label, cfg, frag):
         """Same config through both static surfaces."""
@@ -172,47 +175,88 @@ def part_a_static_matrix():
         lines = SC_T.strip().splitlines()
         key = field.split("|")[0]
         out_lines = [
-            ln for ln in lines
-            if not ln.startswith(key + " ") and not ln.startswith(field.split("|")[-1] + " ")
+            ln
+            for ln in lines
+            if not ln.startswith(key + " ")
+            and not ln.startswith(field.split("|")[-1] + " ")
         ]
-        out_lines.append(f'{field.split("|")[-1] if "|" in field else field} = "{value}"')
+        out_lines.append(
+            f'{field.split("|")[-1] if "|" in field else field} = "{value}"'
+        )
         return "\n".join(out_lines) + "\n"
 
     # The four scene-custom reference edges, dangling.
-    both("sc.color -> nonexistent builtin",
-         block_with("color", "nonexistentpal"), "unknown color")
-    both("sc.colors-custom -> undefined block",
-         block_with("colors-custom", "nosuchblock"), "unknown colors-custom block")
-    both("sc.charset -> nonexistent charset",
-         block_with("charset", "nosuchset"), "unknown charset")
-    both("sc.charset-custom -> undefined block",
-         block_with("charset-custom", "nosuchblock"), "unknown charset-custom block")
+    both(
+        "sc.color -> nonexistent builtin",
+        block_with("color", "nonexistentpal"),
+        "unknown color",
+    )
+    both(
+        "sc.colors-custom -> undefined block",
+        block_with("colors-custom", "nosuchblock"),
+        "unknown colors-custom block",
+    )
+    both(
+        "sc.charset -> nonexistent charset",
+        block_with("charset", "nosuchset"),
+        "unknown charset",
+    )
+    both(
+        "sc.charset-custom -> undefined block",
+        block_with("charset-custom", "nosuchblock"),
+        "unknown charset-custom block",
+    )
 
     # ambient edges.
-    both("ambient -> nonexistent scene",
-         'ambient.03-00 = "nosuchscene"\n', "unknown scene")
-    both("ambient hour out of range (25-00)",
-         'ambient.25-00 = "cinematic"\n', "unknown key")
-    both("ambient hour not zero-padded (3-00)",
-         'ambient.3-00 = "cinematic"\n', "unknown key")
+    both(
+        "ambient -> nonexistent scene",
+        'ambient.03-00 = "nosuchscene"\n',
+        "unknown scene",
+    )
+    both(
+        "ambient hour out of range (25-00)",
+        'ambient.25-00 = "cinematic"\n',
+        "unknown key",
+    )
+    both(
+        "ambient hour not zero-padded (3-00)",
+        'ambient.3-00 = "cinematic"\n',
+        "unknown key",
+    )
 
     # transitive: the referenced palette itself is broken.
-    both("transitive: referenced palette bad bg",
-         '[colors-custom.bad]\nbg = "nothex"\nrain = ["#112233", "#445566"]\n\n'
-         + SC_T.replace('color = "cosmos"', 'colors-custom = "bad"'),
-         "colors-custom")
-    both("transitive: referenced palette too few stops",
-         '[colors-custom.bad]\nbg = "#0a0a0a"\nrain = ["#112233"]\n\n'
-         + SC_T.replace('color = "cosmos"', 'colors-custom = "bad"'),
-         "colors-custom")
+    both(
+        "transitive: referenced palette bad bg",
+        '[colors-custom.bad]\nbg = "nothex"\nrain = ["#112233", "#445566"]\n\n'
+        + SC_T.replace('color = "cosmos"', 'colors-custom = "bad"'),
+        "colors-custom",
+    )
+    both(
+        "transitive: referenced palette too few stops",
+        '[colors-custom.bad]\nbg = "#0a0a0a"\nrain = ["#112233"]\n\n'
+        + SC_T.replace('color = "cosmos"', 'colors-custom = "bad"'),
+        "colors-custom",
+    )
 
     # color.tune value edges (config long forms only — short forms are
     # CLI-only vocabulary).
-    both("color.tune.saturation over range", 'color.tune.saturation = 9\n', "out of range")
-    both("color.tune.saturation negative", 'color.tune.saturation = -0.5\n', "out of range")
-    both("color.tune.brightness non-numeric", 'color.tune.brightness = "abc"\n', "expected number")
-    both("color.tune unknown field (typo)", 'color.tune.satt = 1.5\n', "unknown key")
-    both("color.tune short form (CLI vocab)", 'color.tune.sat = 1.5\n', "unknown key")
+    both(
+        "color.tune.saturation over range",
+        "color.tune.saturation = 9\n",
+        "out of range",
+    )
+    both(
+        "color.tune.saturation negative",
+        "color.tune.saturation = -0.5\n",
+        "out of range",
+    )
+    both(
+        "color.tune.brightness non-numeric",
+        'color.tune.brightness = "abc"\n',
+        "expected number",
+    )
+    both("color.tune unknown field (typo)", "color.tune.satt = 1.5\n", "unknown key")
+    both("color.tune short form (CLI vocab)", "color.tune.sat = 1.5\n", "unknown key")
 
 
 def part_b_positive_controls():
@@ -220,22 +264,22 @@ def part_b_positive_controls():
     global PASS_COUNT, FAIL_COUNT
 
     graph = (
-        '[colors-custom.pal]\n'
+        "[colors-custom.pal]\n"
         'bg = "#0a0a0a"\n'
         'rain = ["#1a0033", "#4d0080", "#9933ff"]\n\n'
-        '[charset-custom.zen]\n'
+        "[charset-custom.zen]\n"
         'set = "|+"\n\n'
-        '[scene-custom.t]\n'
+        "[scene-custom.t]\n"
         'rain = "glyph"\n'
         'colors-custom = "pal"\n'
         'charset-custom = "zen"\n'
-        'fps = 60\n'
-        'speed = 20\n'
-        'density = 0.75\n'
+        "fps = 60\n"
+        "speed = 20\n"
+        "density = 0.75\n"
         'glitch-level = "subtle"\n\n'
         'ambient.03-00 = "t"\n'
         'ambient.22-00 = "cinematic"\n'
-        'color.tune.saturation = 1.2\n'
+        "color.tune.saturation = 1.2\n"
     )
     home, cfg_path = fresh_home()
     write_cfg(cfg_path, graph)
@@ -244,7 +288,9 @@ def part_b_positive_controls():
     rc, out, err = run(home, ["--bench-frames", "3"], timeout=30)
     ok = rc == 0 and "frames" in out.lower()
     status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {'full graph runs (palette+charset+ambient+tune)':56s} | rc={rc}")
+    print(
+        f"  [{status}] {'full graph runs (palette+charset+ambient+tune)':56s} | rc={rc}"
+    )
     if ok:
         PASS_COUNT += 1
     else:
@@ -270,7 +316,9 @@ def part_b_positive_controls():
     rc, out, err = run(home, ["--bench-frames", "3", "--json"], timeout=30)
     ok = rc == 0 and "BENCH" in out and "--json ignored" in err
     status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {'--json + --bench-frames warns (no silent ignore)':56s} | rc={rc}")
+    print(
+        f"  [{status}] {'--json + --bench-frames warns (no silent ignore)':56s} | rc={rc}"
+    )
     if ok:
         PASS_COUNT += 1
     else:
@@ -284,7 +332,7 @@ def part_b_positive_controls():
     # (test/config/live_config/tests_cli_priority.rs ::
     #  rebuild_scene_custom_block_color_beats_colors_custom — Z1-2).
     conflict = (
-        '[colors-custom.pal]\n'
+        "[colors-custom.pal]\n"
         'bg = "#0a0a0a"\n'
         'rain = ["#1a0033", "#4d0080"]\n\n'
         + SC_T.replace('color = "cosmos"', 'colors-custom = "pal"\ncolor = "cosmos"')
@@ -292,14 +340,11 @@ def part_b_positive_controls():
     home2, cfg2 = fresh_home()
     write_cfg(cfg2, conflict)
     rc, out, err = run(home2, ["--show-scene", "t"])
-    ok = (
-        rc == 0
-        and "color" in out
-        and "colors-custom" in out
-        and "pal" in out
-    )
+    ok = rc == 0 and "color" in out and "colors-custom" in out and "pal" in out
     status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {'both-pairs present: dumped honestly, winner pinned':56s} | rc={rc}")
+    print(
+        f"  [{status}] {'both-pairs present: dumped honestly, winner pinned':56s} | rc={rc}"
+    )
     if ok:
         PASS_COUNT += 1
     else:
@@ -310,8 +355,9 @@ def part_b_positive_controls():
 def run_pty(argv, secs, edits, home):
     """hunt-44 PTY harness: run in a PTY, apply config edits at t."""
     master, slave = pty.openpty()
-    fcntl.ioctl(master, termios.TIOCSWINSZ,
-                struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0))
+    fcntl.ioctl(
+        master, termios.TIOCSWINSZ, struct.pack("HHHH", TERM_ROWS, TERM_COLS, 0, 0)
+    )
     env = dict(os.environ)
     env["HOME"] = home
     env.pop("XDG_CONFIG_HOME", None)
@@ -369,18 +415,18 @@ def part_c_live_reload_pty():
 
     # The running baseline: a fully-wired, valid graph.
     baseline = (
-        '[colors-custom.pal]\n'
+        "[colors-custom.pal]\n"
         'bg = "#0a0a0a"\n'
         'rain = ["#1a0033", "#4d0080", "#9933ff"]\n\n'
-        '[charset-custom.zen]\n'
+        "[charset-custom.zen]\n"
         'set = "|+"\n\n'
-        '[scene-custom.t]\n'
+        "[scene-custom.t]\n"
         'rain = "glyph"\n'
         'colors-custom = "pal"\n'
         'charset-custom = "zen"\n'
-        'fps = 60\n'
-        'speed = 20\n'
-        'density = 0.75\n'
+        "fps = 60\n"
+        "speed = 20\n"
+        "density = 0.75\n"
         'glitch-level = "subtle"\n'
     )
 
@@ -389,21 +435,43 @@ def part_c_live_reload_pty():
         return mutate(baseline)
 
     cases = [
-        ("C1: sc.colors-custom -> nonexistent mid-run",
-         breaker(lambda b: b.replace('colors-custom = "pal"', 'colors-custom = "nosuch"')),
-         "unknown colors-custom block", 11.0),
-        ("C2: referenced palette hex broken mid-run",
-         breaker(lambda b: b.replace('bg = "#0a0a0a"', 'bg = "nothex"')),
-         "colors-custom", 11.0),
-        ("C3: ambient -> nonexistent scene mid-run",
-         breaker(lambda b: b + 'ambient.03-00 = "nosuchscene"\n'),
-         "unknown scene", 11.0),
-        ("C4: color.tune out of range mid-run",
-         breaker(lambda b: b + 'color.tune.saturation = 9\n'),
-         "out of range", 11.0),
-        ("C5: DELETE referenced palette block mid-run",
-         breaker(lambda b: b.replace('[colors-custom.pal]\nbg = "#0a0a0a"\nrain = ["#1a0033", "#4d0080", "#9933ff"]\n\n', '')),
-         "unknown colors-custom block", 11.0),
+        (
+            "C1: sc.colors-custom -> nonexistent mid-run",
+            breaker(
+                lambda b: b.replace('colors-custom = "pal"', 'colors-custom = "nosuch"')
+            ),
+            "unknown colors-custom block",
+            11.0,
+        ),
+        (
+            "C2: referenced palette hex broken mid-run",
+            breaker(lambda b: b.replace('bg = "#0a0a0a"', 'bg = "nothex"')),
+            "colors-custom",
+            11.0,
+        ),
+        (
+            "C3: ambient -> nonexistent scene mid-run",
+            breaker(lambda b: b + 'ambient.03-00 = "nosuchscene"\n'),
+            "unknown scene",
+            11.0,
+        ),
+        (
+            "C4: color.tune out of range mid-run",
+            breaker(lambda b: b + "color.tune.saturation = 9\n"),
+            "out of range",
+            11.0,
+        ),
+        (
+            "C5: DELETE referenced palette block mid-run",
+            breaker(
+                lambda b: b.replace(
+                    '[colors-custom.pal]\nbg = "#0a0a0a"\nrain = ["#1a0033", "#4d0080", "#9933ff"]\n\n',
+                    "",
+                )
+            ),
+            "unknown colors-custom block",
+            11.0,
+        ),
     ]
 
     for label, bad_cfg, frag, edit_at in cases:
@@ -440,7 +508,7 @@ def part_c_live_reload_pty():
     home, cfg = fresh_home()
     write_cfg(cfg, baseline)
     run_pty._cfg = cfg
-    good_edit = baseline.replace('density = 0.75', 'density = 0.80')
+    good_edit = baseline.replace("density = 0.75", "density = 0.80")
     stream, rc = run_pty([BIN], secs=22, edits=[(11.0, good_edit)], home=home)
     s = stream.decode("utf-8", errors="replace")
     problems = []

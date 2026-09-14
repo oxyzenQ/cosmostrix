@@ -80,8 +80,12 @@ def run(args, timeout=15):
     env["TERM"] = "xterm-256color"
     try:
         p = subprocess.run(
-            [BIN] + args, env=env, capture_output=True, text=True,
-            timeout=timeout, check=False,
+            [BIN] + args,
+            env=env,
+            capture_output=True,
+            text=True,
+            timeout=timeout,
+            check=False,
         )
         return p.returncode, p.stdout, p.stderr
     except subprocess.TimeoutExpired:
@@ -116,26 +120,29 @@ def collect_live_long_flags():
     """Long flags from the clap Args struct (single source of truth),
     minus names the prevalidation registry blocks as direct long
     forms (the -mb/-mfs expansion targets are Args-internal)."""
-    src = open(ARGS_SRC, encoding="utf-8", errors="replace").read()
+    with open(ARGS_SRC, encoding="utf-8", errors="replace") as f:
+        src = f.read()
     m = re.search(r"pub struct Args \{.*?\n\}", src, re.DOTALL)
     if not m:
         sys.exit("FATAL: could not locate `pub struct Args` in src/config/mod.rs")
     body = m.group(0)
     names = set(re.findall(r'long = "([a-z0-9\-]+)"', body))
     names |= set(re.findall(r'alias = "([a-z0-9\-]+)"', body))
-    reg = open(VALIDATION_SRC, encoding="utf-8", errors="replace").read()
-    blocked = set(
+    with open(VALIDATION_SRC, encoding="utf-8", errors="replace") as f:
+        reg = f.read()
+    blocked = {
         "--" + f for f in re.findall(r'^\s+"(--[a-z0-9\-]+)",\s*$', reg, re.MULTILINE)
-    )
+    }
     return sorted("--" + n for n in names if ("--" + n) not in blocked)
 
 
 def collect_removed_flags():
-    reg = open(VALIDATION_SRC, encoding="utf-8", errors="replace").read()
+    with open(VALIDATION_SRC, encoding="utf-8", errors="replace") as f:
+        reg = f.read()
     m = re.search(r"REMOVED_FLAGS[^=]*=\s*&\[", reg)
     if not m:
         sys.exit("FATAL: could not locate REMOVED_FLAGS registry")
-    body = reg[m.end():]
+    body = reg[m.end() :]
     body = body[: body.find("];")]
     return sorted(set(re.findall(r'"(--[a-z0-9\-]+)"', body)))
 
@@ -155,7 +162,7 @@ def part_a_typo_sweep():
             continue
         # drop a middle character (position len//2) — deterministic
         idx = len(name) // 2
-        typo = "--" + name[:idx] + name[idx + 1:]
+        typo = "--" + name[:idx] + name[idx + 1 :]
         if typo in all_names:
             print(f"  [SKIP] {flag}: generated typo {typo} collides with a live flag")
             continue
@@ -167,12 +174,19 @@ def part_a_typo_sweep():
         # therefore only assert tip PRESENCE; names >= 4 chars keep
         # the strict point-back-at-the-original assertion.
         if len(name) <= 3:
-            check(f"typo {typo} -> a tip exists", rc, out, err,
-                  must_contain="tip: a similar argument exists:")
+            check(
+                f"typo {typo} -> a tip exists",
+                rc,
+                out,
+                err,
+                must_contain="tip: a similar argument exists:",
+            )
         else:
             check(
                 f"typo {typo} -> tip {flag}",
-                rc, out, err,
+                rc,
+                out,
+                err,
                 must_contain=f"tip: a similar argument exists: '{flag}'",
             )
         swept += 1
@@ -193,7 +207,11 @@ def part_b_value_matrix():
         ("bold above range", ["--bold", "3"], "0..=2"),
         ("shading-mode above range", ["--shading-mode", "2"], "0..=1"),
         ("color-mode invalid", ["--color-mode", "13"], "allowed"),
-        ("bench-scene typo (README case)", ["--bench-scene", "leanax"], "possible values"),
+        (
+            "bench-scene typo (README case)",
+            ["--bench-scene", "leanax"],
+            "possible values",
+        ),
         ("screen-size non-numeric", ["--screen-size", "abc"], "WxH"),
         ("screen-size missing x", ["--screen-size", "2"], "WxH"),
         ("screen-size empty height", ["--screen-size", "2x"], "height"),
@@ -208,7 +226,11 @@ def part_b_value_matrix():
         ("duration over max", ["--duration", "90000"], "86400"),
         ("crystal-dragon-secs negative", ["--crystal-dragon-secs=-1"], "negative"),
         ("crystal-dragon-secs over max", ["--crystal-dragon-secs", "86401"], "86400"),
-        ("crystal-dragon numeric hint", ["--crystal-dragon", "5"], "--crystal-dragon-secs"),
+        (
+            "crystal-dragon numeric hint",
+            ["--crystal-dragon", "5"],
+            "--crystal-dragon-secs",
+        ),
         ("async-mode bad bool", ["--async-mode", "truthy"], "boolean"),
         ("msg-mode bad bool", ["--msg-mode", "yep"], "boolean"),
         ("power-dragon bad bool", ["--power-dragon", "onoff"], "boolean"),
@@ -224,7 +246,11 @@ def part_b_value_matrix():
         ("monolith-size bad enum", ["--monolith-size", "huge"], "small"),
         ("glitch-level typo value", ["--glitch-level", "sutble"], "subtle"),
         ("color-bg bad enum", ["--color-bg", "blackest"], "black"),
-        ("msg-fill-style bad enum", ["--msg-fill-style", "wrongstyle"], "possible values"),
+        (
+            "msg-fill-style bad enum",
+            ["--msg-fill-style", "wrongstyle"],
+            "possible values",
+        ),
         ("color unknown name", ["--color", "nonexistent-theme-xyz"], "--list-colors"),
         ("scene unknown name", ["--scene", "nosuchscene"], "--list-scenes"),
         ("scene-custom unknown", ["--scene-custom", "nosuch"], "unknown custom scene"),
@@ -252,14 +278,18 @@ def part_c_removed_registry():
         rc, out, err = run([flag])
         check(
             f"removed {flag} -> migration hint",
-            rc, out, err,
+            rc,
+            out,
+            err,
             must_contain="has been removed",
         )
     # The equals form must be intercepted too (registry contract).
     rc, out, err = run(["--disable-effects=true"])
     check(
         "removed --disable-effects=<v> equals form",
-        rc, out, err,
+        rc,
+        out,
+        err,
         must_contain="has been removed",
     )
 
@@ -267,8 +297,16 @@ def part_c_removed_registry():
 def part_d_specials():
     print("\n── Part D: case-rescue, shorthand typo, alias, -v interplay ──")
     cases = [
-        ("--LIS case rescue", ["--LIS"], "tip: a similar argument exists: '--list-scenes'"),
-        ("--HELPSS case rescue", ["--HELPSS"], "tip: a similar argument exists: '--help'"),
+        (
+            "--LIS case rescue",
+            ["--LIS"],
+            "tip: a similar argument exists: '--list-scenes'",
+        ),
+        (
+            "--HELPSS case rescue",
+            ["--HELPSS"],
+            "tip: a similar argument exists: '--help'",
+        ),
         ("-mfss shorthand typo", ["-mfss", "engrave"], "--msg-fill-style"),
         ("typo with -v present", ["--colr", "-v"], "'--color'"),
         ("-v before typo", ["-v", "--scne", "x"], "'--scene'"),
@@ -280,7 +318,9 @@ def part_d_specials():
     # Alias positive control: --charset-custom is a live clap alias —
     # it must RUN (bench output on stdout is expected for a success
     # path; only the error paths demand an empty stdout).
-    rc, out, err = run(["--charset-custom", "binary", "--bench-frames", "3"], timeout=30)
+    rc, out, err = run(
+        ["--charset-custom", "binary", "--bench-frames", "3"], timeout=30
+    )
     global PASS_COUNT, FAIL_COUNT
     ok = rc == 0 and "frames" in out.lower()
     status = "PASS" if ok else "FAIL"
@@ -289,7 +329,9 @@ def part_d_specials():
         PASS_COUNT += 1
     else:
         FAIL_COUNT += 1
-        FAILURES.append(f"--charset-custom alias runs | rc={rc}, out={out[:80]!r}, err={err[:80]!r}")
+        FAILURES.append(
+            f"--charset-custom alias runs | rc={rc}, out={out[:80]!r}, err={err[:80]!r}"
+        )
 
 
 def part_e_pty_alt_screen():
@@ -354,7 +396,9 @@ def part_e_pty_alt_screen():
         problems.append("no diagnostic on the tty stream")
     ok = not problems
     status = "PASS" if ok else "FAIL"
-    print(f"  [{status}] {'startup error dies before alt-screen':56s} | {'; '.join(problems) if problems else 'rc=2, no ESC[?1049h'}")
+    print(
+        f"  [{status}] {'startup error dies before alt-screen':56s} | {'; '.join(problems) if problems else 'rc=2, no ESC[?1049h'}"
+    )
     if ok:
         PASS_COUNT += 1
     else:
@@ -371,9 +415,7 @@ def main():
     part_c_removed_registry()
     part_d_specials()
     part_e_pty_alt_screen()
-    print(
-        f"\n=== SUMMARY: {PASS_COUNT} PASS / {FAIL_COUNT} FAIL ==="
-    )
+    print(f"\n=== SUMMARY: {PASS_COUNT} PASS / {FAIL_COUNT} FAIL ===")
     if FAILURES:
         print("\nFAILURES:")
         for f in FAILURES:
