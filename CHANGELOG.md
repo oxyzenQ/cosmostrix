@@ -9,6 +9,57 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-47-depthbore — the LTS depth bore + three deep bugs it drilled out (doctor config blindness, testconf cap bypass, fork-guard reparent race)
+
+- **The depth bore** (owner mandate 2026-09-14, after the DeepSeek
+  review of where the surviving bugs hide): new flagship harness
+  `scripts/depthbore/depthbore.py` — five bores against the real binary
+  from a clean-slate zero state to the fully loaded hero state.
+  RACE-STORM (signal kills, spawn/kill storm with fork-guard tracking,
+  35-resize SIGWINCH storm, 20 ms startup config-write race, 70 ms
+  valid/broken live-reload churn), PLATFORM-MATRIX (Termux/tmux/ssh/
+  dumb-TERM/NO_COLOR/LANG=C environments; FreeBSD and Windows surfaces
+  honestly SKIPped, never claimed from a Linux box), EDGE-CRUSHER
+  (1x1 to 10000x10000 geometries, the 24-block-per-family custom
+  config bound, the 200-char message boundary, config byte edges),
+  CONFIG-FUZZ (38 deterministic mutants that must classify cleanly as
+  rc=2-with-stderr-diagnostic or rc=0), and DRIFT-SOAK (bounded 24 h
+  proxy: RSS/fd/thread sampling plus output-rate windows under a still
+  soak and a reload-churn soak). Inaugural run: 119 PASS / 0 FAIL,
+  2 platform skips.
+- **Bug 1 — doctor was blind to a present-but-unreadable config**: the
+  runtime loader treats an unreadable default config (invalid UTF-8,
+  EACCES, past the 1 MiB cap) as "no config" by design, and
+  `--testconf` reports it with rc=2 — but `cosmostrix --doctor` printed
+  a fully healthy report while the user's settings were silently
+  ignored. Fix: the CONFIG FILE report section (`status` + the
+  effective fallback source + a testconf hint; see
+  `src/doctor/mod.rs::config_file_status`, pinned by five new tests in
+  `test/doctor/tests.rs`). Exit codes unchanged — the strict rc=2
+  contract stays reserved for parse errors (hunt-44).
+- **Bug 2 — `--testconf` bypassed the 1 MiB size cap**: it was the one
+  config read path not funneling through `read_config_capped`
+  (the S-master-3-v2 invariant), so a 1.2 MB file read unbounded into
+  memory AND reported rc=0 "valid" while the runtime refused the very
+  same file. Fix: the capped read; both surfaces now agree, and the
+  error names the cap.
+- **Bug 3 — the fork guard lost the kernel reparent race**: PDEATHSIG
+  wakes `cx-term-guard` microseconds after the parent task exits, but
+  the kernel can take ~200 ms to finish reparenting, so the old
+  `getppid() == 1` check read the DEAD parent's pid and silently
+  skipped the terminal restore — the depthbore SIGKILL bore measured
+  only 25-75% restore rates (and subreaper containers lose that check
+  permanently). Fix: liveness polling on the renderer pid captured at
+  fork time (up to 6 s, covering the watchdog's force-exit window),
+  gated by a termios-still-broken check so a graceful exit stays
+  byte-identical (no trailing restore escapes after the parent's own
+  cleanup). Measured after: 8/8 restores on SIGKILL/SIGINT/SIGTERM.
+  See `docs/TERMINAL_KILL_CLEANUP.md` and `docs/DEPTHBORE.md`.
+- **Gate parity**: `scripts/gate-keepers.sh`'s ruff scan widened from
+  `scripts/*.py` (maxdepth 1) to the whole `scripts/` tree, mirroring
+  the `.sh` convention — a harness cannot escape the gate by living in
+  a subdirectory.
+
 ### fix: NIGHT-depthtest-5 & hunt-46 — the static post-config commands (--version/--docs/--check-update) died behind unrelated config errors
 
 - **Flow-separation matrix on the remaining surfaces** (owner
