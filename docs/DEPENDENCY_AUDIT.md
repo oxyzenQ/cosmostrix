@@ -226,8 +226,8 @@ Each major update PR MUST:
 
 ### Step 3: Ongoing maintenance
 
-The existing `maintenance.yml` weekly cron already runs `cargo update
---workspace` + `cargo audit` + `cargo deny check all`. This handles:
+The existing `maintenance.yml` weekly cron already runs
+`cargo update` + `cargo audit` + `cargo deny check all`. This handles:
 - Semver-compatible updates (applied automatically, CI verifies).
 - CVE monitoring (cargo audit, daily via `gitbot-audit.yml`).
 - License compliance (cargo deny, daily).
@@ -268,7 +268,7 @@ The "latest = best" assumption is wrong for LTS/dormant-mode projects:
 
 - `docs/SUPPLY_CHAIN.md` — dependency policy, license allow-list, lockfile discipline
 - `docs/MAINTENANCE.md` — dormant-mode maintenance guide (Section 4: dependency updates)
-- `.github/workflows/maintenance.yml` — weekly `cargo update --workspace` cron
+- `.github/workflows/maintenance.yml` — weekly `cargo update` cron
 - `.github/workflows/gitbot-audit.yml` — daily `cargo audit` + `cargo deny`
 - `deny.toml` — license/source/duplicate policy
 <!-- COSMOSTRIX-DISCLAIMER -->

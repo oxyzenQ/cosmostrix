@@ -170,7 +170,7 @@ jobs:
         run: cargo audit
 
       - name: Update dependencies
-        run: cargo update --workspace
+        run: cargo update
 
       - name: Enforce dependency-only diff
         id: changes
