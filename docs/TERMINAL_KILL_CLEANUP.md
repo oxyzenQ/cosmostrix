@@ -103,10 +103,12 @@ above.
 
 Follows the signal-exit path above. Both parent and child fork-guard
 process receive SIGTERM. The parent handles all terminal cleanup via
-`Terminal::drop()`. The child checks `getppid()` — if the parent is still
-alive (ppid != 1), the child exits silently without touching stdout,
-avoiding a race with the parent's buffered writer. If the parent is already
-dead (ppid == 1), the child performs terminal restoration.
+`Terminal::drop()`. The child polls the captured original parent pid
+(NIGHT-hunt-47-depthbore liveness semantics): while the parent is still
+alive it exits silently without touching stdout, avoiding a race with
+the parent's buffered writer; once the parent is gone (reparented to
+init or a subreaper) the restore is idempotent belt-and-suspenders on
+top of the parent's own cleanup.
 
 ### SIGHUP (terminal disconnect)
 
@@ -119,9 +121,23 @@ may be left in raw mode with the alternate screen active.
 
 On Linux, cosmostrix spawns a fork-based guard process (`cx-term-guard`)
 that watches for the parent's death. If the parent is killed with SIGKILL,
-the kernel sends SIGTERM to the child via `PR_SET_PDEATHSIG`, and the child
-(noticing `getppid() == 1`) restores the original `termios` state via
-`tcsetattr(TCSANOW)` and calls `restore_terminal_best_effort()`.
+the kernel sends SIGTERM to the child via `PR_SET_PDEATHSIG`, and the
+child restores the original `termios` state via `tcsetattr(TCSANOW)` and
+calls `restore_terminal_best_effort()`.
+
+NIGHT-hunt-47-depthbore race fix (2026-09-14): the old guard decided with
+`getppid() == 1`, which loses the kernel reparent race — PDEATHSIG wakes
+the guard microseconds after the parent task exits, but the reparent
+takes up to ~200 ms, so the guard read the DEAD parent's pid and silently
+skipped the restore (the depthbore SIGKILL bore measured only 25-75%
+restore rates). It also broke under subreaper containers, where orphans
+land on a subreaper pid instead of 1. The guard now captures the
+renderer's pid at fork time and polls up to 6 s for the reparent to land
+(`getppid() != orig_ppid` → parent gone → restore; unchanged after the
+wait → the pkill case, the parent's own cleanup owns the terminal). The
+6 s patience also covers the watchdog's force-exit window for a wedged
+parent. Measured after the fix: 8/8 restores on SIGKILL, SIGINT and
+SIGTERM kills.
 
 This guard does NOT run if:
 
@@ -230,7 +246,9 @@ stdout fd simultaneously, producing interleaved/garbled output.
 Fix: the child now checks `getppid()` before restoring. If ppid is not 1
 (parent still alive), the child exits silently. Only when the parent is
 already dead (ppid == 1, indicating SIGKILL or crash) does the child
-perform terminal restoration.
+perform terminal restoration. (NIGHT-hunt-47-depthbore later replaced
+the `ppid == 1` heuristic itself with orig-ppid liveness polling — see
+the SIGKILL section above for the reparent-window race it lost.)
 
 ### Root Cause 2: No Viewport Clear Before Alternate Screen Switch
 

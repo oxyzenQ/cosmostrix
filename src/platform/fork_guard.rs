@@ -82,6 +82,16 @@ pub fn spawn_kill9_terminal_guard() {
             return;
         }
 
+        // NIGHT-hunt-47-depthbore: capture the renderer's pid at the
+        // earliest possible instant (before the sigmask/prctl setup),
+        // so the fork-vs-prctl race window below is covered. Every
+        // liveness decision in this guard compares getppid() against
+        // THIS pid -- never against a magic value like 1, which loses
+        // in two real environments: the kernel reparent window (see
+        // the sigwait comment) and subreaper containers (an orphan
+        // lands on the subreaper, not on init).
+        let orig_ppid = libc::getppid();
+
         // Initialize sigset_t via MaybeUninit — sigemptyset will fully
         // initialize it, so this is safe.
         let mut set = std::mem::MaybeUninit::<libc::sigset_t>::uninit();
@@ -99,27 +109,99 @@ pub fn spawn_kill9_terminal_guard() {
         );
         let _ = libc::prctl(libc::PR_SET_PDEATHSIG, libc::SIGTERM, 0, 0, 0);
 
-        if libc::getppid() == 1 {
-            let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
-            restore_terminal_best_effort();
+        if libc::getppid() != orig_ppid {
+            // The fork-vs-prctl race: the parent died between fork() and
+            // prctl(), so PR_SET_PDEATHSIG never fires. The reparent has
+            // completed long ago; getppid() moved away from the renderer.
+            // Restore only if the terminal is still broken (raw): a
+            // parent that already ran its own cleanup leaves nothing
+            // for us to do, and re-issuing the escape sequence would
+            // only append trailing noise to an already-clean exit.
+            if termios_still_broken(&orig) {
+                let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
+                restore_terminal_best_effort();
+            }
             libc::_exit(0);
         }
 
         let mut sig: libc::c_int = 0;
         let _ = libc::sigwait(&set, &mut sig);
-        // Only restore terminal modes if the parent died abnormally
-        // (SIGKILL, crash). When pkill -TERM is used, both parent and
-        // child receive SIGTERM — the parent's Terminal::drop() handles
-        // all terminal cleanup. After PR_SET_PDEATHSIG, check ppid:
-        // - ppid == 1: parent already dead (SIGKILL or crash) → restore
-        // - ppid != 1: parent still alive or exiting normally → do nothing
-        if sig == libc::SIGTERM && libc::getppid() == 1 {
-            let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
-            restore_terminal_best_effort();
+        // PDEATHSIG wakes this guard microseconds after the parent task
+        // exits, but the kernel can take up to ~200 ms to finish
+        // reparenting us -- during that window getppid() still reports
+        // the DEAD renderer pid, and the old `getppid() == 1` check read
+        // exactly that stale value and silently skipped the restore (the
+        // depthbore SIGKILL bore measured ~25-75% restore rates). The
+        // decision is now liveness-based on the captured orig_ppid:
+        // - getppid() != orig_ppid: the reparent landed (init or a
+        //   subreaper took us) -- the parent is gone, and its exit path
+        //   has already flushed every buffered write (reparenting happens
+        //   in exit_notify, after all userspace exit handlers), so our
+        //   restore cannot interleave with the parent's writer.
+        // - getppid() == orig_ppid after the wait: the parent received
+        //   the same SIGTERM but is still alive -- the pkill case. Its
+        //   own Terminal::drop() owns the cleanup; exit silently.
+        // The 6 s patience (300 x 20 ms) also covers the watchdog's
+        // force-exit window for a wedged parent: it kills the parent,
+        // the reparent lands, and the guard still fires.
+        if sig == libc::SIGTERM {
+            let mut parent_gone = false;
+            for _ in 0..300 {
+                if libc::getppid() != orig_ppid {
+                    parent_gone = true;
+                    break;
+                }
+                let ts = libc::timespec {
+                    tv_sec: 0,
+                    tv_nsec: 20_000_000,
+                };
+                let _ = libc::nanosleep(&ts, std::ptr::null_mut());
+            }
+            if parent_gone && termios_still_broken(&orig) {
+                // Only a still-broken terminal needs the guard: after a
+                // graceful parent exit the current termios equals the
+                // saved snapshot, and a silent exit keeps the output
+                // stream exactly as the parent's cleanup left it.
+                let _ = libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &orig);
+                restore_terminal_best_effort();
+            }
         }
 
         libc::_exit(0);
     }
+}
+
+/// Compare the live stdin termios against the snapshot taken before
+/// the parent enabled raw mode. True when the terminal is still in the
+/// state the parent left it in (raw mode / alt screen active), i.e.
+/// the guard's restore is actually needed. A failed read is treated as
+/// broken -- restoring is the safe default (tcsetattr with the saved
+/// snapshot is idempotent and the escape writes are best-effort).
+///
+/// NIGHT-hunt-47-depthbore: without this gate the deterministic guard
+/// re-issued the full restore escape sequence after EVERY exit --
+/// including the graceful 'q' path where the parent's own Terminal
+/// drop already restored everything -- appending trailing escapes that
+/// shifted exit-output parsing windows downstream (the depthtest
+/// harnesses pin the deferred diagnostics to appear after the parent's
+/// last alt-screen leave).
+#[cfg(target_os = "linux")]
+fn termios_still_broken(orig: &libc::termios) -> bool {
+    let mut cur: std::mem::MaybeUninit<libc::termios> = std::mem::MaybeUninit::uninit();
+    // SAFETY: tcgetattr on stdin, which the caller verified is a TTY
+    // before forking; a raw syscall with no allocation.
+    unsafe {
+        if libc::tcgetattr(libc::STDIN_FILENO, cur.as_mut_ptr()) != 0 {
+            return true;
+        }
+    }
+    let cur = unsafe { cur.assume_init() };
+    orig.c_iflag != cur.c_iflag
+        || orig.c_oflag != cur.c_oflag
+        || orig.c_cflag != cur.c_cflag
+        || orig.c_lflag != cur.c_lflag
+        || orig.c_line != cur.c_line
+        || orig.c_cc.iter().zip(cur.c_cc.iter()).any(|(a, b)| a != b)
 }
 
 // ── All other Unix (macOS, BSD, Android/Termux): getppid polling ───────
