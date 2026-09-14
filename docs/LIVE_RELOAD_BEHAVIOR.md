@@ -1443,3 +1443,87 @@ the post-restore rejection shape (AB-10: never a mid-rain print).
   key naming).
 - Full suite, fmt, clippy, gate-keepers: see the commit message — all
   green at commit time.
+
+## 20. NIGHT-depthtest-5 & hunt-46 — remaining flow-separation surfaces + ambient/crystal-dragon PTY harmony (owner mandate 2026-09-14, pre-LTS)
+
+The owner approved the next pre-LTS step: "use the same
+flow-separation matrix to find the remaining surfaces (--doctor /
+--dump-config / --docs error paths), or a deep PTY audit of the
+ambient/crystal-dragon interaction — find more until no remainings
+again." Both directions were executed; the flagship harness is
+`scripts/depthtest8_ambient_crystal_pty.py` (33 assertions on the
+real binary, four parts).
+
+### Finding 1: the static post-config commands died behind unrelated config errors
+
+`--version`, `--docs`, and `--check-update` are post-config commands
+that render content no config value can alter (`version_report()` and
+`docs_report()` take no arguments; the release check only reads
+CARGO_PKG_VERSION). Yet a single typo'd key killed all three behind
+the rc=2 config error — while `--help`, the same class of static
+reference content, worked because it sits pre-config. A user with a
+broken config could not even run `cosmostrix --version` to get the
+string for a bug report, and `cosmostrix --docs | less` (a documented
+pipeline-safe surface) died behind the config error.
+
+Fixed by the Boundary-3-failure rescue
+(`cli/early_returns.rs::handle_config_apply_failure`, wired from
+main.rs): when a config-independent command wins the post-config
+ladder, it is dispatched before the die. The ladder is preserved
+exactly — `--doctor` (alone or combined with --version/--docs) keeps
+the hard death because a config failure IS its diagnostic surface
+(hunt-44 contract), pre-config commands are unaffected, and the
+order between the three rescued commands is unchanged because both
+dispatchers consume one shared `dispatch_post_config` table. Invalid
+runtime-flag values lose to the rescued command (`--version --scene
+typo` prints the version) — the same inert-flag contract `--help`
+follows. main.rs stayed under the 800-LOC cap (799) by keeping the
+wiring at six lines; the rationale lives in early_returns.rs.
+
+### Finding 2: stale drift-gate comment (rain.rs:923)
+
+`set_palette`'s comment cited "rain.rs:923
+`!custom_palette_active && !ambient_palette_locked`" as the drift
+gate — a file that no longer exists after the engine split, and a
+gate the current code does not have. The Crystal Dragon drift
+condition lives in `cloud/post_rain.rs` and deliberately does NOT
+check `custom_palette_active` (drift may replace a custom palette;
+ambient snapback reverts it). The comment now describes what the
+flag actually does (HUD/exit-summary honesty, rebuild gating,
+set_color_scheme clearing) and points at the real condition.
+
+### Verified clean (no fix needed)
+
+- `--dump-config` error-path matrix: redirect refusal (stdout file
+  stays 0 bytes, rc=2), overwrite refusal (suggested sibling ends in
+  `.new.toml` — the depthtest-2 contract — plus the `--force` escape
+  hatch), non-`.toml` extension, outside-whitelist, `--force`
+  overwrite (atomic write, rc=0), pipe-allowed control. Pinned as
+  depthtest-8 Part B.
+- Ambient/crystal-dragon PTY harmony (tuned cadence
+  crystal-dragon-secs=3, ambient-snapback-secs=2, observable via the
+  `-v` exit-summary `ambient_diag` counters, clean 'q' quit):
+  ambient startup on a builtin scene and on a custom scene+palette
+  (the set_palette lock path), mid-run ambient scene switch
+  (live-reload → scheduler refire → rx apply, last_scene_change
+  names the new scene), mid-run ambient removal (overlay lift →
+  revert, sked_empties/snapback_killed), crystal-only drift
+  self-reset (no wedge over four poll cycles), and error ordering
+  under the harmony load (broken ambient reference and
+  out-of-range crystal-dragon-secs edits die rc=2 with the
+  diagnostic after the alt-screen leave). Pinned as depthtest-8
+  Parts C/D.
+- Pre-existing depth suites re-run on the fixed binary:
+  depthtest-5 95 PASS, depthtest-6 155 PASS, depthtest-7 38 PASS,
+  cli_config_stresstest.sh 47 PASS (release binary).
+
+### Verification
+
+- `depthtest8_ambient_crystal_pty.py`: 33 PASS / 0 FAIL (binary:
+  debug). Lint: ruff check + format green (three pre-existing
+  violations in depthtest-5/6/7 were also fixed this round:
+  PLW0602 no-op globals, F541, ISC004, SIM115, C401).
+- fmt, clippy, build.sh check-all, gate-keepers (14/14): all green
+  at commit time. Benchmark A/B (10s, --benchmark): no render-loop
+  delta (the rescue only adds a branch on the config-ERROR path;
+  happy path untouched).

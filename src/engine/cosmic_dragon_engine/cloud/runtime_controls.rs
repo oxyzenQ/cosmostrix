@@ -94,15 +94,30 @@ impl Cloud {
     /// `--colors-custom` path). Callers without a meaningful name (unit
     /// tests constructing ad-hoc palettes) pass None.
     pub fn set_palette(&mut self, name: Option<&str>, palette: crate::palette::Palette) {
-        // (Color-#1): mark custom_palette_active so the drift gate
-        // (rain.rs:923 `!custom_palette_active && !ambient_palette_locked`)
-        // correctly suppresses palette drift while a custom palette is
-        // loaded at runtime (e.g. ambient fires a scene with
-        // `colors-custom = "morning_brand"`). Without this set, drift
-        // would silently overwrite the custom palette after the ambient
-        // lock clears — the exact "silent data loss" bug v30 strengthen
-        // (Bug #4) was supposed to prevent (it only covered the
-        // startup-time --colors-custom case, not the runtime ambient fire).
+        // (Color-#1): mark custom_palette_active so the runtime
+        // custom-palette state is honest across the engine: the HUD
+        // `clr:` line and the exit-summary color line show the palette
+        // name, the config-rebuild path gates palette re-application on
+        // the flag, and `set_color_scheme` clears it (a scheme switch
+        // drops the custom palette by definition). Set by every runtime
+        // activation path — ambient fire, scene-runtime custom-scene
+        // switch, live-reload rebuild — not just the startup
+        // `--colors-custom` path (v30 strengthen / Bug #4 closed that
+        // startup hole; this flag is the runtime-visible half).
+        //
+        // NOT a drift gate (NIGHT-depthtest-5 & hunt-46 comment audit,
+        // 2026-09-14: this comment used to cite "rain.rs:923
+        // `!custom_palette_active && !ambient_palette_locked`" — a file
+        // and gate that no longer exist after the engine split). The
+        // Crystal Dragon drift condition lives in
+        // `cloud/post_rain.rs` (`crystal_dragon && !drift_active &&
+        // (!user_override_since_ambient || !ambient_schedule_active)`)
+        // and deliberately does NOT check this flag: when the user
+        // enables crystal-dragon over a custom palette, drift is allowed
+        // to replace it, and when ambient is on the snapback reverts to
+        // the ambient entry's palette after ambient-snapback-secs (the
+        // documented masterclass harmony state machine — see
+        // docs/AMBIENT_SCHEDULER.md and LIVE_RELOAD_BEHAVIOR.md §18).
         self.custom_palette_active = true;
         self.custom_palette_name = name.map(str::to_string);
         self.apply_new_palette(palette);

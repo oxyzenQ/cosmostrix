@@ -9,6 +9,47 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-depthtest-5 & hunt-46 — the static post-config commands (--version/--docs/--check-update) died behind unrelated config errors
+
+- **Flow-separation matrix on the remaining surfaces** (owner
+  mandate 2026-09-14, pre-LTS): `--version`, `--docs`, and
+  `--check-update` render content no config value can alter, yet a
+  single typo'd key in config.toml killed all three behind the rc=2
+  config error — while `--help`, the same class of static reference
+  content, worked because it sits pre-config. A user with a broken
+  config could not even run `cosmostrix --version` for a bug report,
+  and `cosmostrix --docs | less` (a documented pipeline-safe surface)
+  died behind the config error.
+- **Fix**: the Boundary-3-failure rescue — when a config-independent
+  command wins the post-config ladder, it is dispatched before the
+  die (`cli/early_returns.rs::handle_config_apply_failure`, wired
+  from main.rs). Ladder preserved exactly: `--doctor` alone or
+  combined keeps the hard death (a config failure IS its diagnostic
+  surface, the hunt-44 contract), pre-config commands unaffected,
+  order between the rescued commands unchanged (one shared
+  `dispatch_post_config` table). Invalid runtime-flag values lose to
+  the rescued command — the same inert-flag contract `--help`
+  follows.
+- **Ambient/crystal-dragon PTY harmony audit** (the second approved
+  direction): flagship harness
+  `scripts/depthtest8_ambient_crystal_pty.py` (33 assertions) drives
+  both engines together at a tuned cadence and observes the
+  `ambient_diag` exit-summary counters via a clean 'q' quit —
+  ambient startup (builtin + custom scene/palette), mid-run scene
+  switch (scheduler refire → rx apply), ambient removal (overlay
+  lift → revert), crystal-only drift self-reset, and error ordering
+  under the harmony load. All green; the state machine is sound.
+- **Comment audit**: `set_palette`'s stale drift-gate reference
+  ("rain.rs:923", a file that no longer exists) corrected to point
+  at the real condition in `cloud/post_rain.rs`; depthtest-5/6/7
+  harnesses brought to ruff check + format green (PLW0602, F541,
+  ISC004, SIM115, C401 — pre-existing).
+- **Verification**: depthtest-8 33 PASS / 0 FAIL; regressions
+  depthtest-5 95, depthtest-6 155, depthtest-7 38, cli-config
+  stresstest 47 — all PASS; fmt/clippy/check-all/gate-keepers green;
+  benchmark A/B shows no render-loop delta (happy path untouched).
+  Full record: `docs/LIVE_RELOAD_BEHAVIOR.md` §20.
+
 ### fix: NIGHT-hunt-41 — startup validation silent-ignore for configs with only-unknown keys (msg-modey = true passed silently)
 
 - **NIGHT-hunt-41** (owner fatal report, 2026-09-13, found by manual
