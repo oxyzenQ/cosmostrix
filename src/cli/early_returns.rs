@@ -35,6 +35,16 @@
 //!  12. --docs            full engine documentation
 //!  13. --check-update    upstream release check
 //! ─────────────────────────────────────────────────────────────────────
+//! NIGHT-depthtest-5 & hunt-46 (2026-09-14) exception at Boundary 3: the
+//! config-independent commands (--version / --docs / --check-update)
+//! SURVIVE a config-apply failure — they render static build facts,
+//! engine documentation, and an upstream release check that no config
+//! value can alter, so dying behind an unrelated config error would
+//! hide the very string the user asked for (see
+//! handle_static_post_config_returns). --doctor keeps the strict
+//! death: a config failure IS its diagnostic surface (the error names
+//! --testconf, pinned by depthtest-5/night-hunt-44).
+//! ─────────────────────────────────────────────────────────────────────
 //! Boundary 5  benchmark modes, then the interactive rain loop
 //! ```
 //!
@@ -68,6 +78,40 @@ use crate::safepath::validate_config_path;
 use crate::terminal::reset_terminal_emergency;
 use crate::testconf;
 use crate::ux;
+
+// ── Post-config dispatch (shared) ─────────────────────────────────────────
+
+/// Execute one post-config early-return command.
+///
+/// Single dispatch table shared by [`handle_post_config_returns`] (the
+/// normal Boundary-3-success path) and [`handle_static_post_config_returns`]
+/// (the config-apply-failure rescue path) so the two can never drift —
+/// the same anti-drift contract the module docs pin for the classifiers.
+fn dispatch_post_config(cmd: PostConfigCmd, args: &Args) -> std::io::Result<()> {
+    match cmd {
+        PostConfigCmd::Doctor => {
+            doctor::print_doctor_report(args);
+            Ok(())
+        }
+        PostConfigCmd::Version => {
+            println_safe!("{}", info::version_report());
+            Ok(())
+        }
+        PostConfigCmd::Docs => {
+            // Print the full engine documentation and architecture
+            // overview, then exit. Plain text only (no ANSI) so it pipes
+            // cleanly into `less`, `grep`, or documentation generators.
+            println_safe!("{}", info::docs_report());
+            Ok(())
+        }
+        PostConfigCmd::CheckUpdate => {
+            if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
+                ux::die_config(format!("error: update check failed: {e}"));
+            }
+            Ok(())
+        }
+    }
+}
 
 /// Pre-config-apply early-return command kind.
 ///
@@ -400,35 +444,80 @@ pub(crate) fn handle_pre_config_returns(args: &mut Args) -> Option<std::io::Resu
 /// Returns `Some(Ok(()))` when an early return fires (caller should return
 /// the result immediately). Returns `None` when no early-return command
 /// matched and the caller should continue to argument validation.
+///
+/// The dispatch arms live in [`dispatch_post_config`] (shared with the
+/// Boundary-3-failure rescue, [`handle_static_post_config_returns`]).
 pub(crate) fn handle_post_config_returns(args: &Args) -> Option<std::io::Result<()>> {
+    classify_post_config(args).map(|cmd| dispatch_post_config(cmd, args))
+}
+
+/// Dispatch the config-independent post-config commands when one of them
+/// wins the post-config ladder — the Boundary-3-failure rescue path.
+///
+/// NIGHT-depthtest-5 & hunt-46 (2026-09-14, flow-separation matrix on the
+/// remaining surfaces): `--version`, `--docs`, and `--check-update` render
+/// static content (build facts, engine documentation, upstream release
+/// check) that no config value can alter — `info::version_report()` and
+/// `info::docs_report()` take no arguments at all. Before this rescue, a
+/// user with a single typo'd key in config.toml could not even run
+/// `cosmostrix --version` to get the string for a bug report, and
+/// `cosmostrix --docs | less` (a documented pipeline-safe surface,
+/// docs/USAGE_PIPE_REDIRECT.md) died behind the unrelated config error —
+/// while `--help`, the same class of static reference content, worked
+/// fine because it sits pre-config.
+///
+/// The rescue preserves the ladder EXACTLY:
+/// - `--doctor` is NOT dispatched here. When doctor wins the ladder
+///   (alone or combined with --version/--docs), a config-apply failure
+///   remains a hard death: the config error IS the diagnostics surface
+///   (it names `--testconf`) — the contract NIGHT-hunt-44/depthtest-5
+///   pinned on the real binary. So `--doctor --version` with a broken
+///   config still exits 2 with the config diagnostic.
+/// - Pre-config commands already fired above this point in main() and
+///   are unaffected.
+/// - Ladder order between the three rescued commands is unchanged
+///   (classify order: version -> docs -> check-update) because both
+///   dispatchers consume the same classifier through the same
+///   `dispatch_post_config` table.
+///
+/// Invalid runtime-flag VALUES silently lose to the rescued command
+/// (`cosmostrix --version --scene typo` prints the version) — the same
+/// inert-flag contract `--help` already follows ("standard early-exit
+/// semantics — same as `ls --version --all`").
+///
+/// Returns `None` when the ladder winner is `--doctor` or no post-config
+/// command was passed; the caller then dies on the config-apply error.
+pub(crate) fn handle_static_post_config_returns(args: &Args) -> Option<std::io::Result<()>> {
     match classify_post_config(args) {
-        Some(PostConfigCmd::Doctor) => {
-            doctor::print_doctor_report(args);
-            Some(Ok(()))
+        Some(cmd @ (PostConfigCmd::Version | PostConfigCmd::Docs | PostConfigCmd::CheckUpdate)) => {
+            Some(dispatch_post_config(cmd, args))
         }
-
-        Some(PostConfigCmd::Version) => {
-            println_safe!("{}", info::version_report());
-            Some(Ok(()))
-        }
-
-        Some(PostConfigCmd::Docs) => {
-            // Print the full engine documentation and architecture
-            // overview, then exit. Plain text only (no ANSI) so it pipes
-            // cleanly into `less`, `grep`, or documentation generators.
-            println_safe!("{}", info::docs_report());
-            Some(Ok(()))
-        }
-
-        Some(PostConfigCmd::CheckUpdate) => {
-            if let Err(e) = update::check_update(env!("CARGO_PKG_VERSION")) {
-                ux::die_config(format!("error: update check failed: {e}"));
-            }
-            Some(Ok(()))
-        }
-
-        None => None,
+        _ => None,
     }
+}
+
+/// Handle a config-apply failure with the static-command rescue.
+///
+/// The single exit path for `apply_config_and_runtime_defaults` failures
+/// (wired from main.rs). Resolution order:
+///
+/// 1. When a config-independent post-config command wins the ladder
+///    (`--version` / `--docs` / `--check-update`), dispatch it and
+///    return its result — the static content must not die behind the
+///    unrelated config error (NIGHT-depthtest-5 & hunt-46; see
+///    [`handle_static_post_config_returns`]).
+/// 2. Otherwise die with the ux-contract shape: config-file failures
+///    ("error: invalid config" prefix) keep the die_config shape (no
+///    footer — the message already points at `--testconf`, and a config
+///    problem is not an invocation problem); CLI value errors (--scene
+///    typos, invalid --intro-color) gain the die_input footer — same
+///    shape as every other typed-flag validator (see cli/ux.rs, owner
+///    report 2026-09-04 --scene cosmosm case).
+pub(crate) fn handle_config_apply_failure(args: &Args, e: String) -> std::io::Result<()> {
+    if let Some(result) = handle_static_post_config_returns(args) {
+        return result;
+    }
+    ux::die_config_apply_error(e);
 }
 
 /// Build the `--dump-config` overwrite-refusal message for an existing

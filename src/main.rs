@@ -348,12 +348,11 @@ fn main() -> std::io::Result<()> {
     }
 
     if let Err(e) = config_apply::apply_config_and_runtime_defaults(&matches, &mut args) {
-        // ux contract: config-file failures ("error: invalid config"
-        // prefix) keep the die_config shape; CLI value errors (--scene
-        // typos, invalid --intro-color) gain the die_input footer —
-        // same shape as every other typed-flag validator (see
-        // cli/ux.rs, owner report 2026-09-04 --scene cosmosm case).
-        ux::die_config_apply_error(e);
+        // NIGHT-depthtest-5 & hunt-46: --version/--docs/--check-update
+        // survive a config failure (static content, --help's class);
+        // --doctor stays strict. Rationale + ux family routing:
+        // cli/early_returns.rs handle_config_apply_failure.
+        return crate::cli::early_returns::handle_config_apply_failure(&args, e);
     }
     canonicalize_runtime_args(&mut args);
 
