@@ -6,7 +6,9 @@
 # Design goals:
 #   - Deterministic:  same tag always produces identical AUR state
 #   - Idempotent:     re-running for the same tag is safe
-#   - Retry-safe:     transient SSH failures can be retried
+#   - Retry-safe:     probe, clone, and push all retry transient SSH
+#                     failures (IP rate-limit drops from shared runner
+#                     IPs) with linear backoff; key rejections fail fast
 #   - Minimal:        only modifies pkgver, _tag, .SRCINFO
 #
 # SSH deployment policy:
@@ -367,16 +369,40 @@ jobs:
 
           # Probe AUR (BatchMode is pinned in the ssh config, so this
           # cannot hang waiting for a prompt).
-          set +e
-          SSH_OUT="$(ssh -v -T aur@aur.archlinux.org 2>&1)"
-          SSH_RC=$?
-          set -e
-          echo "ssh -T aur@aur.archlinux.org -> exit code ${SSH_RC}"
-          echo "${SSH_OUT}" | grep -E "Offering public key|Server accepts|Will attempt key|no such identity|Load key|Permission denied" || true
-          echo "${SSH_OUT}" | tail -2
-          echo ""
+          #
+          # Transient connection failures hit GitHub-hosted runners
+          # regularly: AUR rate-limits the shared runner IP ranges and
+          # drops connections BEFORE the auth stage
+          # (kex_exchange_identification / "Connection closed by remote
+          # host"). Observed 2026-09-14 run #50: a local ssh from a
+          # home IP authenticated at 15:50 while the runner connection
+          # was closed at the kex stage at 15:55 — same key, same
+          # minute, different egress IP. Because the failure is
+          # IP-dependent and intermittent, retrying with linear backoff
+          # lets transient drops self-heal instead of killing the job
+          # before the retry-protected push step is ever reached.
+          # A real key rejection ("Permission denied") fails fast:
+          # retrying a rejected key is pointless.
+          MAX_ATTEMPTS=5
+          ATTEMPT=1
+          while true; do
+            set +e
+            SSH_OUT="$(ssh -v -T aur@aur.archlinux.org 2>&1)"
+            SSH_RC=$?
+            set -e
+            echo "ssh -T aur@aur.archlinux.org (attempt ${ATTEMPT}/${MAX_ATTEMPTS}) -> exit code ${SSH_RC}"
+            echo "${SSH_OUT}" | grep -E "Offering public key|Server accepts|Will attempt key|no such identity|Load key|Permission denied" || true
+            echo "${SSH_OUT}" | tail -2
+            echo ""
 
-          if [[ "${SSH_RC}" -eq 255 ]]; then
+            # rc=1 is AUR's documented success ("hi <user>!" greeting,
+            # no interactive shell). rc=0 would be unusual but fine.
+            # All real failures come back as 255.
+            if [[ "${SSH_RC}" -ne 255 ]]; then
+              break
+            fi
+
+            # Key rejection: actionable, deterministic — no retry.
             if echo "${SSH_OUT}" | grep -q "Permission denied"; then
               echo "::error::AUR rejected the deploy key (Permission denied, publickey)."
               echo "From the verbose lines above, check which case applies:"
@@ -385,12 +411,24 @@ jobs:
               echo "    above does not match the key registered at"
               echo "    https://aur.archlinux.org (My Account -> SSH Keys)."
               echo "    Compare with the local key: ssh-keygen -lf aur_oxyzenQ.pub"
-            else
-              echo "::error::ssh to aur.archlinux.org failed without a pubkey rejection —"
-              echo "likely a network or AUR outage; retry the workflow later."
+              exit 1
             fi
-            exit 1
-          fi
+
+            # Anything else on rc=255 (connection closed at kex stage,
+            # timeouts, network unreachable) is transient-class.
+            if [[ "${ATTEMPT}" -ge "${MAX_ATTEMPTS}" ]]; then
+              echo "::error::ssh to aur.archlinux.org failed ${MAX_ATTEMPTS} times without a"
+              echo "pubkey rejection — AUR is refusing connections from this runner IP"
+              echo "(rate-limit or outage; home IPs often still work at the same time)."
+              echo "Retry the workflow later."
+              exit 1
+            fi
+
+            DELAY=$((ATTEMPT * 10))
+            echo "Transient connection failure; retrying in ${DELAY}s..."
+            sleep "${DELAY}"
+            ATTEMPT=$((ATTEMPT + 1))
+          done
 
           echo "AUR accepted the deploy key."
 
@@ -409,9 +447,38 @@ jobs:
 
           TAG="${{ steps.resolve.outputs.tag }}"
 
-          # Clone the existing AUR package repository
-          AUR_DIR="$(mktemp -d)"
-          git clone --branch "${{ env.AUR_BRANCH }}" "${{ env.AUR_REPO }}" "${AUR_DIR}"
+          # Clone the existing AUR package repository.
+          #
+          # The clone opens a NEW ssh connection to aur.archlinux.org, so
+          # it hits the same IP-based transient drops as the probe step
+          # (kex closed / connection reset on rate-limited runner IPs).
+          # Retry with linear backoff and a FRESH temp dir per attempt:
+          # a half-cloned directory from a dropped connection is not a
+          # valid git repository and would poison the next attempt.
+          AUR_DIR=""
+          CLONE_MAX_ATTEMPTS=5
+          CLONE_ATTEMPT=1
+          while true; do
+            AUR_DIR="$(mktemp -d)"
+            if git clone --branch "${{ env.AUR_BRANCH }}" "${{ env.AUR_REPO }}" "${AUR_DIR}"; then
+              echo "Cloned AUR repository (attempt ${CLONE_ATTEMPT}/${CLONE_MAX_ATTEMPTS})"
+              break
+            fi
+
+            rm -rf "${AUR_DIR}"
+            if [[ "${CLONE_ATTEMPT}" -ge "${CLONE_MAX_ATTEMPTS}" ]]; then
+              echo "::error::git clone from AUR failed ${CLONE_MAX_ATTEMPTS} times"
+              echo "(transient SSH drops from this runner IP; the probe step"
+              echo "succeeded earlier, so the key and agent are fine)."
+              echo "Retry the workflow later."
+              exit 1
+            fi
+
+            CLONE_DELAY=$((CLONE_ATTEMPT * 10))
+            echo "Clone attempt ${CLONE_ATTEMPT} failed, retrying in ${CLONE_DELAY}s..."
+            sleep "${CLONE_DELAY}"
+            CLONE_ATTEMPT=$((CLONE_ATTEMPT + 1))
+          done
 
           # Copy updated files from our repo into the AUR clone
           cp -f "${{ env.PKGBUILD_DIR }}/PKGBUILD" "${AUR_DIR}/PKGBUILD"
