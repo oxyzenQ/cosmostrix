@@ -9,6 +9,39 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: retire the version-prefixed demo asset scheme — tests and version-to.sh aligned with the 27f7d4f5 asset refresh
+
+- **Root cause**: the asset refresh in 27f7d4f5 moved the demo assets
+  to stable, version-less names (`cosmostrix-video.gif`,
+  `cosmostrix-video.webp`, `cosmostrix-4-scene.png`) and dropped the
+  five `cosmostrix-v100-demo-*.png` screenshots and
+  `cosmostrix-v100-demo.gif`. Three surfaces were still keyed to the
+  old scheme and went red: five `docs_tests::assets` guards (expected
+  `assets/cosmostrix-v100-demo.gif` and at least three
+  `cosmostrix-v100-demo-*.png` files), the `version-to.sh`
+  `update_assets`/`update_readme_demo_refs` machinery (would have
+  renamed nothing on the next major bump and silently skipped), plus
+  the gate-keepers fallout fixed separately (tools.md SPDX/disclaimer/
+  MD026 and 664→644 modes).
+- **Fix**: `test/docs_tests/assets.rs` rewritten around the new
+  invariants — video assets (gif + webp) exist, the 4-scene png
+  exists, README references the webp demo and the scene screenshot,
+  the video demo appears before the screenshot, and any
+  `cosmostrix-v*-demo` file or README reference (the retired scheme,
+  any major) is rejected. The version-prefix helpers
+  (`major_prefix`/`major_num`) are gone; guards are now
+  version-agnostic by construction, so version bumps no longer touch
+  asset tests. `version-to.sh` drops the dead
+  `update_assets`/`update_readme_demo_refs` functions and the
+  `ASSETS_DIR` tracking block (steps renumbered); its ABOUT_CI.md
+  documentation already described only the TAG= line, so no doc drift.
+- **Verification**: targeted `docs_tests::assets` run 7/7; full suite
+  2932 passed / 0 failed (59s); `version-to.sh --check
+  100.0.0-rc.1` all-consistent; shellcheck + shfmt clean on the
+  edited script; `build.sh check-all -q` exit 0; gate-keepers 18/18.
+- **Scope**: test + script + docs only — no production Rust code
+  touched, no A/B benchmark per house rule.
+
 ### fix: CI test flake — the termdetect env race was three split ENV_LOCKs (run #1970)
 
 - **Root cause**: CI run #1970 failed
