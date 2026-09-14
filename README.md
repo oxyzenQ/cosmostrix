@@ -35,19 +35,11 @@
 ## Demo
 
 <p align="center">
-  <img src="assets/cosmostrix-v100-demo.gif" alt="cosmostrix v100 demo" width="800">
+  <img src="assets/cosmostrix-video.webp" alt="cosmostrix video" width="800">
 </p>
 
 <p align="center">
-  <img src="assets/cosmostrix-v100-demo-binary.png" alt="cosmostrix v100 binary charset demo" width="800">
-  <br>
-  <img src="assets/cosmostrix-v100-demo-retro.png" alt="cosmostrix v100 retro charset demo" width="800">
-  <br>
-  <img src="assets/cosmostrix-v100-demo-braille.png" alt="cosmostrix v100 braille charset demo" width="800">
-  <br>
-  <img src="assets/cosmostrix-v100-demo-hacker.png" alt="cosmostrix v100 hacker charset demo" width="800">
-  <br>
-  <img src="assets/cosmostrix-v100-demo-green-retro.png" alt="cosmostrix v100 green retro charset demo" width="800">
+  <img src="assets/cosmostrix-4-scene.png" alt="cosmostrix 4 scene" width="800">
 </p>
 
 <p align="center">
