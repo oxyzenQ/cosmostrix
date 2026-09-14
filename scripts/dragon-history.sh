@@ -32,6 +32,21 @@
 set -euo pipefail
 
 # ── Lock boundary (update on every new lock round) ────────────────────────
+# 2026-09-14 round: pre-LTS v100.0.0-rc.1 lock. Since-lock audit of
+# 57c67a6..HEAD found exactly two engine-folder commits: 100c554 (the
+# 2026-09-13 lock round itself -- crystal KEY.md doc-only, exempt per the
+# established KEY.md/RULES.md doc-only rule) and 4915265 (cosmic,
+# comment-only -- the runtime_controls.rs stale rain.rs:923 drift-gate
+# reference rewrite), which shipped WITHOUT its cosmic KEY.md UNLOCK
+# entry. Gap closed retroactively in this round's commit, with the
+# same-commit rule reaffirmed in the entry note. All three engine
+# folders are otherwise clean since the 57c67a6 round: the depthtest-5,
+# hunt-46/47, hunt-48 and test-parallelism rounds that followed touched
+# only tests, docs, scripts and non-engine source. LOCK_AT bumped to
+# 9dce7a4 (v100.0.0-rc.1, the release-candidate version bump); the next
+# engine-folder commit is the first audit material of the LTS soak
+# round.
+#
 # 2026-09-13 round: NIGHT-hunt-39 + NIGHT-hunt-40 + NIGHT-hunt-41 closure
 # (ambient/chroma entry-budget 256->64->24, msg-modey startup validation,
 # template/docs stale-64 sweep, ruff canonicalization). All three engines
@@ -39,10 +54,8 @@ set -euo pipefail
 # (verified by per-commit audit: bb1915d chroma+crystal, f9b0a76 chroma+
 # crystal, 6198431 chroma, c523de9 cosmic, fbc73cd cosmic, 0a1df6a cosmic
 # -- the 5d55c0e and 5f67691 commits are KEY.md/RULES.md doc-only and do
-# not require unlock entries). New LOCK_AT is HEAD at commit time, so the
-# audit trail resets here; the next engine-folder commit will be the first
-# audit material of the new lock round.
-LOCK_AT="57c67a6afd3fda38242ed31db20f7a61c911da01"
+# not require unlock entries).
+LOCK_AT="9dce7a4f125eb60a08803fd1643c5dd0feac87d3"
 
 DRAGON_PATHS=(
 	src/engine/chroma_dragon_engine

@@ -681,6 +681,35 @@
 > (commit `3587ccb`) skipped these two large directories.
 >
 > Signoff: **oxyzenQ** — 2026-08-22T09:01:59Z — cosmic-dragon zombie audit
+
+> **UNLOCK cosmic-dragon (comment-only, retroactive)** at commit `4915265`, 2026-09-14T04:09:10Z
+>
+> **Author**: oxyzenQ (Cosmic Dragon AI Agent)
+> **Reason**: The set_palette comment in `runtime_controls.rs` cited
+> "rain.rs:923 !custom_palette_active && !ambient_palette_locked" as the
+> drift gate — a file that no longer exists after the engine split and a
+> gate the current code does not have. Rewritten to describe what the
+> flag actually gates today (HUD clr:-line and exit-summary honesty,
+> config-rebuild re-application gating, set_color_scheme clearing) and
+> to point at the real drift condition in `cloud/post_rain.rs`, including
+> the deliberate drift-over-custom-palette semantics with the ambient
+> snapback revert. No production code touched; comment text only.
+>
+> **Note**: RETROACTIVELY documented in the 2026-09-14 pre-LTS lock round
+> (the same-commit entry was missed — matching the crystal 100c554
+> precedent note). Future unlocks MUST include the entry in the same
+> commit.
+>
+> **Files changed** (comments only):
+> - `src/engine/cosmic_dragon_engine/cloud/runtime_controls.rs` (stale rain.rs:923 gate reference)
+>
+> **A/B delta**: none — zero production code touched.
+>
+> **Visual audit**: PASS — no code changes.
+>
+> **Tests**: full suite 2932 passed / 0 failed / 2 ignored.
+>
+> Signoff: **oxyzenQ** — 2026-09-14 — pre-LTS lock round gap closure
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.
