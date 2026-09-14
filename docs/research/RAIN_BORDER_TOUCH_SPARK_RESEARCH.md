@@ -92,11 +92,11 @@ pub(crate) const BORDER_SPARK_POOL_SIZE: usize = 48;
 **Visual feel:** A 3-pixel upward flicker lasting ¼ second. Reads as "tic" — a single rain-drop tap. Does not compete with the message text or the chroma gradient.
 
 **Trade-offs:**
-- ✅ Most subtle — does not distract from the rain or message.
-- ✅ Reuses `QuantumParticle` struct + render path (zero new infrastructure).
-- ✅ Upward-only emission respects the "ceiling" metaphor.
-- ✅ No trail = minimal cell writes (~3 cells × 15 frames = 45 cell-writes per spark).
-- ❌ May be too subtle — owner might not notice it on a busy 200-column terminal.
+- OK Most subtle — does not distract from the rain or message.
+- OK Reuses `QuantumParticle` struct + render path (zero new infrastructure).
+- OK Upward-only emission respects the "ceiling" metaphor.
+- OK No trail = minimal cell writes (~3 cells × 15 frames = 45 cell-writes per spark).
+- X May be too subtle — owner might not notice it on a busy 200-column terminal.
 - **Perf:** O(active_sparks) per frame, expected 6–15 particles — negligible (~50ns/particle).
 
 ---
@@ -124,11 +124,11 @@ pub(crate) const BORDER_SPARK_POOL_SIZE: usize = 96;  // 16 sparks × 6 particle
 **Visual feel:** A 6-particle semicircle splash that lasts ~⅓ second with short streaks. Reads as "plash" — a small water-crown. More visible than F1, still subtle enough not to compete with the message.
 
 **Trade-offs:**
-- ✅ Visually clear — owner will see it without tuning.
-- ✅ Semicircle fan reads naturally as "impact splash."
-- ✅ 1-cell trail adds motion without being noisy.
-- ❌ 6 particles × 21 frames × trail = ~126 cell-writes per spark (3× F1).
-- ❌ On high-density rain (many touches/sec), the border top may look "sparkly" — could be distracting.
+- OK Visually clear — owner will see it without tuning.
+- OK Semicircle fan reads naturally as "impact splash."
+- OK 1-cell trail adds motion without being noisy.
+- X 6 particles × 21 frames × trail = ~126 cell-writes per spark (3× F1).
+- X On high-density rain (many touches/sec), the border top may look "sparkly" — could be distracting.
 - **Perf:** O(active_sparks) per frame, expected 12–30 particles — ~1.5µs, negligible.
 
 ---
@@ -151,11 +151,11 @@ pub(crate) const BORDER_SPARK_RING_DURATION_SECS: f32 = 0.2;  // vs 1.8
 **Visual feel:** A small expanding ring + 6-particle upward splash. Reads as "kapow" — a mini water-impact. Most cinematic of the three, but also most attention-grabbing.
 
 **Trade-offs:**
-- ✅ Most cinematic — clearly conveys "rain hitting ceiling."
-- ✅ Ring + splash combination is visually rich.
-- ❌ Most intrusive — may compete with the message text on small terminals.
-- ❌ Requires reusing the `FlashWave` render path (additional DrawCtx field).
-- ❌ Highest perf cost: ring (O(box_w) per active ring) + 6 particles.
+- OK Most cinematic — clearly conveys "rain hitting ceiling."
+- OK Ring + splash combination is visually rich.
+- X Most intrusive — may compete with the message text on small terminals.
+- X Requires reusing the `FlashWave` render path (additional DrawCtx field).
+- X Highest perf cost: ring (O(box_w) per active ring) + 6 particles.
 - **Perf:** O(active_sparks × box_w) per frame — ~3µs at expected load, still negligible.
 
 ---

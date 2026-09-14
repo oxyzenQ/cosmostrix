@@ -7056,12 +7056,12 @@ extracted to respect the 800-LOC file cap). Suite green: 1957/0.
 
 - **Audit scope**: deep audit of Crystal Dragon engine for peak masterclass alternatives. Owner constraint: design stays intact (point system, 3 groups, calc-v1 probabilistic, 60s poll, 12% drift, CPU primary + CLOCK fallback, EMA alpha 0.25, weight penalty 0.1).
 - **6 options evaluated**:
-  1. **Stack-allocated CDF** `[f32; 16]` — eliminates 2 heap Vec allocations per drift. No design change. ✅ WORTH IT.
-  2. Precompute weight table — ~100ns per drift. Marginal (drift fires every ~5 min). ❌ skip.
-  3. Adaptive EMA alpha — responsive after gaps. Violates owner-locked fixed alpha. ❌ skip.
-  4. Sqrt lookup table — ~4ns per 60s. Over-engineering (sqrt is 1 instruction). ❌ skip.
-  5. CDF reuse across retries — already optimal (CDF built once, cdf_select just draws + searches). ✅ already peak.
-  6. Weight penalty tuning — owner-locked design parameter. ❌ skip.
+  1. **Stack-allocated CDF** `[f32; 16]` — eliminates 2 heap Vec allocations per drift. No design change. OK WORTH IT.
+  2. Precompute weight table — ~100ns per drift. Marginal (drift fires every ~5 min). X skip.
+  3. Adaptive EMA alpha — responsive after gaps. Violates owner-locked fixed alpha. X skip.
+  4. Sqrt lookup table — ~4ns per 60s. Over-engineering (sqrt is 1 instruction). X skip.
+  5. CDF reuse across retries — already optimal (CDF built once, cdf_select just draws + searches). OK already peak.
+  6. Weight penalty tuning — owner-locked design parameter. X skip.
 - **Implemented Option 1**: changed `calc_v1_select` from `Vec<f32>` (weights + CDF) to stack-allocated `[f32; CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP]` (16 slots, covers 14 themes + 2 reserved). Zero heap allocation on the drift path. Same algorithm, same output, just stack instead of heap.
 - **New constant**: `CRYSTAL_DRAGON_MAX_THEMES_PER_GROUP = 16` in `crystal_dragon_control/mod.rs` — sizes the stack arrays + documents the cap.
 - **Design impact**: NONE — same calc-v1 probabilistic weighted selection, same CDF, same binary search, same skip-current-scheme retry. Only the memory location changed (heap → stack).
@@ -7114,14 +7114,14 @@ extracted to respect the 800-LOC file cap). Suite green: 1957/0.
 - **Audit of all 24 metrics**: verified which metrics can exceed 1000 and need humanization:
   - `fps` (row 0): CAN exceed 1000 (high-refresh terminals, benchmark mode). Fixed — now humanizes at >=1000.
   - `dcel` count (row 19): CAN exceed 1000 (large terminals). Fixed — now humanizes.
-  - `tcel` (row 20): CAN exceed 1000 (large terminals). Already humanized. ✓
+  - `tcel` (row 20): CAN exceed 1000 (large terminals). Already humanized. OK
   - `max`/`p99` (rows 2-3): ms values, typically <10ms. No change needed.
   - `cpu` (row 4): percentage 0-100%. No change needed.
-  - `rss` (row 5): already uses MiB/KiB format. ✓
+  - `rss` (row 5): already uses MiB/KiB format. OK
   - `ehs` (row 6): 0-100 integer. No change needed.
   - `prs` (row 7): 0.00-1.00. No change needed.
   - `sped`/`dsty` (rows 11-12): typically 1-100. No change needed.
-  - All string/enum metrics (scn/chr/clr/prdr/crdr/ambt/glth/ctun/mnst/cid/up/screensize): no numeric formatting. ✓
+  - All string/enum metrics (scn/chr/clr/prdr/crdr/ambt/glth/ctun/mnst/cid/up/screensize): no numeric formatting. OK
 - **Format consistency**: all count-like HUD metrics now use the shared `humanize()` / `humanize_f64()` helpers from `src/diagnostics/humanize.rs`. Rules: <1000 = bare number, 1000-9999 = "X.XK" (1 decimal), 10000-999999 = "XXK" (no decimal), >=1M = "X.XXM". Uppercase "K" matches the existing benchmark + tcel convention.
 - **Files changed**: `src/interactive/hud/metrics.rs` (dcel humanize + fps threshold), `docs/HUD.md` (mockup updated).
 - **Tests**: 63 HUD tests pass. clippy clean, fmt clean, gatekeepers 9/9.
