@@ -6,12 +6,13 @@
 use std::env;
 
 use crate::charset::{charset_from_str, Charset};
-use crate::config::{Args, ColorBg};
+use crate::config::{config_io, configfile, configfile_load, Args, ColorBg};
 use crate::constants::{DENSITY_AUTO_DEFAULT_COLS, DENSITY_AUTO_DEFAULT_LINES};
 use crate::diagnostics;
 use crate::renderer_info;
 use crate::report::Report;
 use crate::runtime::{ColorMode, ColorPipeline};
+use std::path::Path;
 
 use super::{
     color_mode_label, default_to_ascii, detect_color_mode, detect_color_mode_auto,
@@ -264,6 +265,30 @@ pub(crate) fn print_doctor_report(args: &Args) {
         s.field("headless", if headless { "yes" } else { "no" });
     }
 
+    // CONFIG FILE section (NIGHT-hunt-47-depthbore).
+    //
+    // The runtime loader treats a present-but-unreadable default config
+    // as "no config" (S-master-3-v2: the size-capped read funnels every
+    // failure into the system-wide fallback or built-in defaults, by
+    // design), and --testconf reports the read failure with rc=2. But
+    // the doctor report showed nothing at all: `cosmostrix --doctor`
+    // printed a fully healthy report while the user's actual settings
+    // were silently ignored (invalid UTF-8, permission denied, or a
+    // file past the 1 MiB cap). This section closes that diagnostic
+    // asymmetry by naming the resolved path and the read outcome.
+    // Exit codes are unchanged: the strict rc=2 contract stays
+    // reserved for config parse errors (hunt-44); a read failure on
+    // the default path is a reportable condition, not a startup error.
+    {
+        let s = r.section("CONFIG FILE");
+        for (name, value) in config_file_status(
+            args.config.as_deref(),
+            &configfile::default_config_file_path(),
+        ) {
+            s.field(&name, &value);
+        }
+    }
+
     // TERMINAL section
     //
     // v30 audit: removed duplicate `color_mode` field. It was reading from
@@ -504,6 +529,74 @@ pub(crate) fn print_doctor_report(args: &Args) {
     }
 
     r.print();
+}
+
+/// Build the CONFIG FILE section fields for the doctor report
+/// (NIGHT-hunt-47-depthbore; see the section comment in
+/// `print_doctor_report` for the diagnostic asymmetry this closes).
+///
+/// Pure apart from one bounded disk read (`read_config_capped`, the same
+/// helper every config read path funnels through), so the regression
+/// suite can pin every branch: readable, missing on the default path
+/// (first run, with the effective fallback source), and each unreadable
+/// reason (invalid UTF-8, permission denied, past the 1 MiB cap) with
+/// the hint pointing at `--testconf`. The default path is injected
+/// (rather than resolved inside) so tests are deterministic regardless
+/// of the machine's real `~/.config/cosmostrix`. An explicit `--config`
+/// override never reports here in practice (an unreadable override
+/// hard-fails startup before the doctor report), but the branch is
+/// still covered for totality.
+#[must_use]
+pub(crate) fn config_file_status(explicit: Option<&Path>, default: &Path) -> Vec<(String, String)> {
+    let mut fields = Vec::new();
+    let path = explicit
+        .map(Path::to_path_buf)
+        .unwrap_or_else(|| default.to_path_buf());
+    fields.push(("path".to_string(), path.display().to_string()));
+    match config_io::read_config_capped(&path) {
+        Ok(content) => {
+            fields.push((
+                "status".to_string(),
+                format!("readable ({} bytes)", content.len()),
+            ));
+        }
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            if explicit.is_some() {
+                fields.push(("status".to_string(), format!("missing: {e}")));
+            } else {
+                fields.push(("status".to_string(), "missing (first run)".to_string()));
+                // Which source actually applies: the same chain as
+                // parse_config_at (user default, then system-wide, then
+                // built-in defaults).
+                let sys = configfile_load::system_wide_config_path();
+                if config_io::read_config_capped(&sys).is_ok() {
+                    fields.push((
+                        "effective".to_string(),
+                        format!("system-wide {} is readable and applies", sys.display()),
+                    ));
+                } else {
+                    fields.push(("effective".to_string(), "built-in defaults".to_string()));
+                }
+            }
+        }
+        Err(e) => {
+            fields.push(("status".to_string(), format!("unreadable: {e}")));
+            if explicit.is_none() {
+                let sys = configfile_load::system_wide_config_path();
+                let source = if config_io::read_config_capped(&sys).is_ok() {
+                    format!("system-wide {} is readable and applies", sys.display())
+                } else {
+                    "built-in defaults".to_string()
+                };
+                fields.push(("effective".to_string(), source));
+                fields.push((
+                    "hint".to_string(),
+                    "run `cosmostrix --testconf` for the read error and repair hints".to_string(),
+                ));
+            }
+        }
+    }
+    fields
 }
 
 #[must_use]
