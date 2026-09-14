@@ -9,6 +9,31 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: CI test flake — the termdetect env race was three split ENV_LOCKs (run #1970)
+
+- **Root cause**: CI run #1970 failed
+  `termdetect::tests_ancestor::dynamic_fps_source_records_term_substring_layer`
+  ("standard/unknown fallback" instead of "TERM substring"). The three
+  termdetect test modules (`tests.rs`, `tests_ancestor.rs`, `tests_hunt24.rs`)
+  each declared their OWN `static ENV_LOCK` — a module-local lock only
+  serializes that module's tests against itself, but the default test
+  harness runs tests from DIFFERENT modules in parallel threads. A
+  `tests.rs` test writing `TERM=xterm-256color` + `TERM_PROGRAM=
+  gnome-terminal` (the fallback fixture) could land between a
+  `tests_ancestor.rs` test's env setup and its `detect()` call, so the
+  substring test read the fallback fixture and recorded the wrong
+  layer. Local runs passed by timing luck; CI's smaller runner hit the
+  window.
+- **Reproduction**: first `--test-threads 32` run on the pre-fix tree
+  produced a storm of 15+ cross-module env-race failures across the
+  termdetect module — the race was wide open, not a 1-in-a-thousand
+  window.
+- **Fix**: ONE shared lock. `ENV_LOCK` in `tests.rs` is now
+  `pub(super)` and both sibling modules import it as
+  `use super::tests::{EnvGuard, ENV_LOCK}` (the same visibility/import
+  pattern `EnvGuard` already used). 20/20 stress rounds clean at 32
+  threads after the fix; suite still 2932/2932.
+
 ### fix: NIGHT-hunt-46 & docs-7 (second pass) — README flag audit + the audit tools' own stale truth columns
 
 - **README.md**: full flag-surface audit against the live binary

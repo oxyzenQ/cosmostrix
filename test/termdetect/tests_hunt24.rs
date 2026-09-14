@@ -6,15 +6,14 @@
 //! hard cap (see `src/RULES_LOC.md`). Pure test motion — same fixtures
 //! via `super::tests::EnvGuard`.
 
-use super::tests::EnvGuard;
+use super::tests::{EnvGuard, ENV_LOCK};
 use super::*;
 use std::env;
-use std::sync::Mutex;
 
-// env::set_var is process-global and not thread-safe; serialize the
-// tests that touch TERM/TERM_PROGRAM so they don't race with the other
-// env-mutating suites.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+// env::set_var is process-global and not thread-safe. All env-mutating
+// termdetect tests (this module, tests, tests_ancestor) share the ONE
+// ENV_LOCK declared in tests.rs — module-local locks would still let
+// cross-module tests run concurrently and tear each other's env.
 
 // ── S-master-HUNT-24: CPU-renderer / console-TTY effects gate tests ──
 

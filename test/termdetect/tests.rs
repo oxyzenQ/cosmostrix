@@ -6,8 +6,19 @@ use std::env;
 use std::sync::Mutex;
 
 // env::set_var is process-global and not thread-safe; serialize the
-// tests that touch TERM_PROGRAM so they don't race with each other.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+// tests that touch TERM/TERM_PROGRAM/WT_SESSION/KONSOLE_VERSION/
+// VTE_VERSION so they don't race with each other.
+//
+// This lock is the ONE shared env lock for ALL THREE termdetect test
+// modules (tests, tests_ancestor, tests_hunt24 import it as
+// `super::tests::ENV_LOCK`). Module-local locks are NOT enough: the
+// default test harness runs tests from different modules in parallel
+// threads, so three separate locks left a cross-module race window —
+// a tests.rs test writing TERM=xterm-256color concurrently with a
+// tests_ancestor.rs test's detect() call made the latter record
+// "standard/unknown fallback" instead of "TERM substring" (the CI
+// flake in dynamic_fps_source_records_term_substring_layer).
+pub(super) static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 /// Helper: restore TERM and TERM_PROGRAM after a test mutates them.
 /// Captures the prev values up-front and returns a closure that

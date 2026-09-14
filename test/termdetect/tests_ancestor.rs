@@ -5,14 +5,15 @@
 //! attribution. Extracted from `tests.rs` to keep the source file
 //! under the 800-LOC cap. Pure code motion — no behavior change.
 
-use super::tests::EnvGuard;
+use super::tests::{EnvGuard, ENV_LOCK};
 use super::*;
 use std::env;
-use std::sync::Mutex;
 
-// env::set_var is process-global and not thread-safe; serialize the
-// tests that touch TERM_PROGRAM so they don't race with each other.
-static ENV_LOCK: Mutex<()> = Mutex::new(());
+// env::set_var is process-global and not thread-safe. All env-mutating
+// termdetect tests (this module, tests, tests_hunt24) share the ONE
+// ENV_LOCK declared in tests.rs — module-local locks would still let
+// cross-module tests run concurrently and tear each other's env (the
+// CI flake in dynamic_fps_source_records_term_substring_layer).
 
 // ── hardening: /proc ancestor walk tests ──
 
