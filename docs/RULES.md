@@ -81,10 +81,19 @@ comment must never keep
 showcasing a stale icon-format output line). Exemptions are file-level,
 short, and justified in the script: the check script itself (it embeds
 the denylist) and `src/output/message.rs` (sanitizer test INPUT needs a
-real emoji as data to verify replacement). Doc-prose styling is out of
-scope for this gate — run `scripts/emoji-audit.py` for doc sweeps
-(its check/cross marks were reclassified as icons in this same rule:
-they map to `OK`/`X` under `--fix`).
+real emoji as data to verify replacement). Doc-prose styling was out of
+scope for this gate until NIGHT-hunt-48 (owner rule 2026-09-14): the
+project carries no emoji anywhere, so `scripts/emoji-audit.py` became a
+strict repo-wide detector wired into `gate-keepers.sh` as check #15 —
+it scans every git-tracked file that decodes as strict UTF-8 (`*.md`,
+`*.rs`, `*.sh`, `*.py`, `*.yml`, `*.toml`, extensionless text; binaries
+fail the decode and are skipped) with the same forbidden classes above,
+and exits 1 on any hit. `--fix` maps icons to `OK`/`X` (the check/cross
+marks were reclassified as icons in this same rule) and rewrites only
+fail-class characters, so allowed glyphs such as the geometric ART in
+doc-comment state diagrams survive a fix pass. Archive and bench-labs
+artifacts stay excluded (frozen/generated); the two data exemptions
+above carry over unchanged.
 
 History: pre-beta.2 the runtime warning prefix, bench status marks
 (check BETTER / cross WORSE), the Chroma Dragon lock-inventory banner,

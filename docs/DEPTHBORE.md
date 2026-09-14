@@ -23,6 +23,14 @@ python3 scripts/depthbore/depthbore.py --parts 15  # only RACE + DRIFT parts
 python3 scripts/depthbore/depthbore.py --soak-secs 120 --seed 7
 ```
 
+**Pre-push drill (owner rule, 2026-09-14):** before every big push, run
+`--parts 15 --quick` — the RACE-STORM and DRIFT-SOAK bores against the
+release binary, ~75 s. These are the two classes that a silent local
+regression is most likely to reopen (timing races and slow drift), and
+they are cheap enough to drill on every push. A push with a red drill
+is a push that ships the bug; full-bore runs stay the deeper
+pre-release checkpoint.
+
 Exit code 0 = every assertion passed; 1 = at least one FAIL. SKIPs are
 honest non-claims (a Linux run never claims to have verified the FreeBSD
 ports path or the Windows `%APPDATA%` expansion) and are never failures.

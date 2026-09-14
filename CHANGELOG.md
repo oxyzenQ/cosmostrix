@@ -9,6 +9,48 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-48 — repo-wide emoji ban + gate-keepers check 15, and the CI shfmt regression it caught on the way
+
+- **Owner rule (2026-09-14): the project carries no emoji anywhere.**
+  `scripts/emoji-audit.py` was a manual, non-blocking, .md-only sweep;
+  it is now a strict repo-wide detector wired into `gate-keepers.sh`
+  as check #15 (exit 1 on any hit). Scope: every git-tracked file that
+  decodes as strict UTF-8 — `.md`, `.rs`, `.sh`, `.py`, `.yml`,
+  `.toml`, extensionless text; binaries fail the decode and are
+  skipped, so file types cannot escape by extension. Fail classes
+  mirror the RULES.md Output Glyph Policy blocks (U+1F000-1FFFF,
+  U+2600-27BF, U+2300-23FF, U+2B00-2BFF, variation selectors, ZWJ) —
+  the emoji sweep and the symbol-only output gate now enforce the same
+  vocabulary. `docs/archive/**` and bench-labs artifacts stay excluded
+  (frozen/generated); the two data exemptions carry over (the denylist
+  script itself, the `message.rs` sanitizer test input).
+- **`--fix` is fail-class-scoped.** The first draft's fix pass replaced
+  U+25B6 in `src/engine/cosmic_dragon_engine/cloud/living_rain.rs` — a
+  geometric ART glyph in the doc-comment state diagram that the RULES
+  classes allow. Caught by diffing the tree before commit, never
+  shipped; the fix table is now the fail-class subset of the
+  replacement mapping and the two non-fail-class entries (U+25B6,
+  U+2139) are dropped.
+- **Inaugural strict run found the expected residue and purged it**:
+  24 hits across 2 live files — `CHANGELOG.md` (9 marks) and
+  `docs/research/RAIN_BORDER_TOUCH_SPARK_RESEARCH.md` (15 marks), all
+  check/cross marks from before the v80.0.0-beta.2 reclassification,
+  mapped to `OK`/`X` per the established house convention.
+- **CI regression found and fixed on the way**: the Gate-keepers
+  workflow had been red since the NIGHT-hunt-47-depthbore push —
+  commit 39b27e1's gate-keepers.sh edit silently re-indented the file
+  from tabs to 8 spaces, failing the CI `shfmt -d` canonical-format
+  check (locally invisible because shfmt was never installed).
+  Re-canonicalized with `shfmt -w` at the CI-resolved upstream
+  (v3.14.1); all other `.sh` files were already clean. Local gate
+  tooling now installs the full CI parity set (shellcheck, shfmt,
+  yamllint, codespell, ruff) so the gap cannot reopen.
+- **Pre-push drill protocol (owner rule, 2026-09-14)**: before every
+  big push, run `scripts/depthbore/depthbore.py --parts 15 --quick`
+  (RACE-STORM + DRIFT-SOAK, ~75 s) — documented in
+  `docs/DEPTHBORE.md`. First drill of this session: 15 PASS / 0 FAIL,
+  74 s, verdict CLEAN.
+
 ### fix: NIGHT-hunt-47-depthbore — the LTS depth bore + three deep bugs it drilled out (doctor config blindness, testconf cap bypass, fork-guard reparent race)
 
 - **The depth bore** (owner mandate 2026-09-14, after the DeepSeek
