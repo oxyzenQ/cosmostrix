@@ -13,7 +13,7 @@ current host.
 | CPU | Intel(R) Xeon(R) Processor (2 vCPUs) |
 | RAM | 4.1 GiB |
 | OS | Debian GNU/Linux 13 (trixie), glibc |
-| Rust | 1.98.0 |
+| Rust | 1.98.1 |
 | Build | `pro` |
 | Terminal | `dumb` |
 
@@ -24,16 +24,16 @@ All sizes use `--scene monolith`. Duration is adaptive:
 
 | Size | Cells | Avg FPS | Peak FPS | p99 (ms) | Dirty cells/f | RSS (MiB) | Stability |
 | ------ | ------: | --------: | ---------: | ---------: | ---------------: | -----------: | ---------- |
-| 1x1 | 1 | 1,619,760 | 985,222 | 0.001 | 0.1 | 4 | excellent |
-| 20x6 | 120 | 691,454 | 999,001 | 0.002 | 3.0 | 4 | excellent |
-| 80x24 | 1,920 | 97,029 | 131,251 | 0.014 | 56.8 | 5 | excellent |
-| 120x40 | 4,800 | 57,190 | 74,195 | 0.023 | 107.4 | 5 | excellent |
-| 200x80 | 16,000 | 30,609 | 37,291 | 0.041 | 220.8 | 5 | excellent |
-| 480x160 | 76,800 | 11,237 | 12,995 | 0.111 | 597.3 | 9 | excellent |
-| 960x270 | 259,200 | 4,601 | 5,504 | 0.277 | 1,273.2 | 20 | excellent |
-| 1920x540 | 1,036,800 | 1,432 | 1,708 | 0.875 | 2,619.6 | 65 | excellent |
-| 3840x1080 | 4,147,200 | 647 | 756 | 1.893 | 5,193.7 | 244 | good |
-| 7680x4320 | 33,177,600 | 271 | 341 | 4.062 | 11,130.4 | 1,812 | high |
+| 1x1 | 1 | 1,531,791 | 992,063 | 0.001 | 0.1 | 5 | excellent |
+| 20x6 | 120 | 633,109 | 999,001 | 0.002 | 3.0 | 5 | excellent |
+| 80x24 | 1,920 | 85,698 | 114,038 | 0.015 | 56.9 | 5 | excellent |
+| 120x40 | 4,800 | 49,711 | 64,666 | 0.026 | 107.1 | 5 | excellent |
+| 200x80 | 16,000 | 26,515 | 31,655 | 0.045 | 219.8 | 6 | excellent |
+| 480x160 | 76,800 | 9,773 | 11,063 | 0.125 | 588.5 | 10 | excellent |
+| 960x270 | 259,200 | 3,826 | 4,557 | 0.312 | 1,268.3 | 23 | excellent |
+| 1920x540 | 1,036,800 | 1,279 | 1,525 | 1.073 | 2,550.7 | 68 | excellent |
+| 3840x1080 | 4,147,200 | 584 | 664 | 2.090 | 5,130.9 | 253 | good |
+| 7680x4320 | 33,177,600 | 215 | 292 | 4.856 | 10,979.0 | 1,843 | high |
 
 FPS scales sub-linearly with cell count thanks to differential rendering;
 dirty cells now scale with grid size (~2x per 4x cell increase) because the
