@@ -61,8 +61,8 @@ structured-family dispatch the new style plugs into) and aeolian
   tree (44a73ce), captured before implementation.
 - `after_B_{cinematic,aeolian,solar_flare,dna_helix}.json` —
   post-change tree.
-- Comparison script: `scripts/ab_compare_nr7_dna.py` (the
-  hunter-20 comparator pattern).
+- Comparison script: a session-local comparator (never committed to
+  the repo; the hunter-20 comparator pattern).
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

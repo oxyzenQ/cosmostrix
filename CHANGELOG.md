@@ -22,6 +22,68 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-hunt-4 (post v100) — the stale/burden/duplicate cross-audit driven to zero true positives
+
+- **Method**: both house audit tools executed against the full tree,
+  then every finding adjudicated against the FUTURE_BACKLOG
+  migration table and the historical-record policy (source code =
+  truth; live claims fixed; as-of-writing records preserved).
+  Beyond the tools: present-tense count sweeps (themes, rain styles,
+  test totals, source-file totals), duplicate-heading analysis
+  across live docs, and duplicate-comment analysis in production
+  code.
+- **Fix 1 — the audit tool's own false positives**:
+  `scripts/stale-hunt.py` reported 5 stale CLI flags, all
+  `--test-threads` — the cargo/libtest harness flag referenced by
+  the test-parallelism audit comments (2026-09-14, the 32-thread
+  stress methodology). It belongs to the runner, not the cosmostrix
+  clap surface; added to `EXTERNAL_TOOL_FLAGS` (beside its sibling
+  `--nocapture`). Stale references: 5 -> 0.
+- **Fix 2 — a tracked fix that was never applied**: the
+  FUTURE_BACKLOG benchmark table row for
+  `benchmark/bench-labs/PGO_AB_20260823.md` says "moved to
+  docs/archive/research/IPC_RESEARCH.md", and the header note
+  claimed the BENCH_LABS sweep was done — but this file still
+  pointed at the pre-archive `docs/research/` path. Re-pointed;
+  the row is now truthful.
+- **Fix 3 — a misleading historical path**:
+  `benchmark/bench-labs/night_research7_dna/AB_REPORT.md` credited
+  its comparison to `scripts/ab_compare_nr7_dna.py` — a
+  session-local comparator never committed to the repo (the other
+  A/B reports name no such path). Reworded as a session-local,
+  never-committed script so no reader hunts for a file that does
+  not exist.
+- **Adjudicated (kept, now recorded so future auditors do not
+  re-litigate)**: the per-entry "Files changed" path records inside
+  `src/engine/cosmic_dragon_engine/RULES.md` — as-of-commit-time
+  paths (the test-mirror migration later moved `src/**/tests/` to
+  the `test/` tree); added to the FUTURE_BACKLOG intentional-history
+  note. Everything else the tools flag today is already covered by
+  the existing adjudication classes: changelog/era historical
+  entries, dated audit/research snapshots, the FUTURE_BACKLOG
+  migration table itself, ENDURANCE/RELEASE_GUARD/RULES removal
+  notes, incubator "at that time" narration, and illustrative
+  example paths.
+- **Hunted beyond the owner's brief, nothing stale found**: live-doc
+  present-tense claims verified accurate (44 themes / 13 rain
+  styles / 3 engines; the only "~1500+ tests"/"43 themes"/"2800
+  green" hits sit inside dated historical records where they were
+  accurate at time of writing); duplicate H2 headings across live
+  docs are generic structure ("See Also", "Defense-in-Depth"), not
+  content duplication; the production-code duplicate comments
+  ("Palette slot adopted at spawn" x12, the 800-LOC split notes,
+  per-scene field docs) are the intentional parallel-scene
+  architecture — de-duplicating them would need shared types
+  (an architecture change) or doc removal, both worse than the
+  duplication.
+- **Verification**: `scripts/stale-hunt.py` 0 stale flags/paths/
+  modules (505 .rs files scanned); `scripts/docs-audit.py` section-1
+  findings reduced to adjudicated classes only; markdownlint,
+  codespell, and shellcheck clean on every touched file.
+- **Scope**: 1 script (stale-hunt.py), 3 docs (PGO_AB report,
+  nr7-dna report, FUTURE_BACKLOG adjudication note). No production
+  Rust code, no benchmark per house rule.
+
 ### docs: NIGHT-docs-1 (post v100) — the monolithic CHANGELOG split into per-era files
 
 - **Root cause**: `CHANGELOG.md` had grown to 8,235 lines / 587 KB in a

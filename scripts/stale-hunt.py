@@ -248,6 +248,11 @@ EXTERNAL_TOOL_FLAGS = {
     "--all-targets",
     "--all-features",
     "--nocapture",
+    # cargo test-harness flag (libtest): comments documenting the
+    # 32-thread parallelism stress methodology legitimately name it
+    # (test-parallelism audit 2026-09-14). It belongs to the runner,
+    # not to the cosmostrix clap surface.
+    "--test-threads",
     "--bin",
     "--profile",
     "--target",

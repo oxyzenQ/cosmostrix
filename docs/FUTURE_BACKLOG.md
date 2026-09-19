@@ -13,6 +13,13 @@
 >   LIVE_RELOAD_BEHAVIOR.md, MAINTENANCE.md, PHILOSOPHY.md,
 >   SECURITY_AUDIT.md, and TERMINAL_LIFECYCLE_MATRIX.md — none of them
 >   reproduce under `scripts/docs-audit.py` today.
+> - **FIXED in the NIGHT-hunt-4 pass (post v100)**: the
+>   PGO_AB_20260823.md row (re-pointed to
+>   `docs/archive/research/IPC_RESEARCH.md` — tracked in the
+>   benchmark/ table below but missed by the earlier BENCH_LABS
+>   sweep), and the night_research7_dna AB_REPORT comparator row
+>   (reworded as a session-local, never-committed script — not a
+>   repo path).
 > - **RECLASSIFIED as intentional history** (kept, with their in-doc
 >   disclaimers): ENDURANCE.md and RELEASE_GUARD.md script mentions
 >   (explicit "removed in dead-script cleanup" notes), RULES.md's
@@ -22,7 +29,12 @@
 >   helper mentions (same "historical ... removed" notes), the
 >   incubator-README rows ("at that time" / "moved from" narration),
 >   and the src/RULES.md example paths (illustrative
->   NIGHT-hunter-1/re-export examples).
+>   NIGHT-hunter-1/re-export examples), plus (NIGHT-hunt-4) the
+>   per-entry "Files changed" path records inside
+>   src/engine/cosmic_dragon_engine/RULES.md — as-of-commit-time
+>   paths; the test-mirror migration later moved `src/**/tests/`
+>   to the `test/` tree, and retroactive rewrites would falsify
+>   the records).
 > - **FIXED in this pass**: README.md CLI-reference block was missing 7
 >   live flags (--crystal-dragon-secs, -M/--shading-mode, --color-mode,
 >   -g/--glitch-ms, -l/--linger-ms, --perf-stats, --bench-frames);
