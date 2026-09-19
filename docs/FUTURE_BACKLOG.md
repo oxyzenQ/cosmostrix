@@ -138,19 +138,26 @@ point to the current location or marked as archived.
 
 ## 2. Broken references in HISTORICAL records (leave as-is)
 
-These are in CHANGELOG.md entries and research snapshots with explicit
-"Historical research snapshot" headers. They cite paths that existed
-at the time of writing — rewriting them would falsify history. The
-`docs/archive/**` files are by-design historical records.
+These are in changelog era-file entries and research snapshots with
+explicit "Historical research snapshot" headers. They cite paths that
+existed at the time of writing — rewriting them would falsify history.
+The `docs/archive/**` files are by-design historical records.
 
-### CHANGELOG.md (14 broken refs — all historical)
+### CHANGELOG era files (historical broken refs — leave as-is)
 
-All cite paths that existed at the time of the changelog entry:
+The NIGHT-docs-1 era split moved the historical entries into
+`CHANGELOG-V50-ERA.md` / `CHANGELOG-V80-ERA.md` /
+`CHANGELOG-V100-ERA.md` together with their broken refs, verbatim.
+All cite paths that existed at the time of the entry:
 `docs/audits/DEPS_AUDIT.md`, `scripts/gen-density-presets.py`,
 `src/cosmic_dragon_engine/KEY.md`, `src/cosmic_dragon_engine/cloud/*.rs`,
-`src/msg_fill_style/pulse.rs`, etc. These paths are correct for the
+`src/msg_fill_style/pulse.rs`, the NIGHT-cleanup-1-retired one-off
+hunt harnesses, etc. These paths are correct for the
 commit they describe — they have since moved or been deleted, but the
-CHANGELOG is a historical record and should NOT be rewritten.
+changelog is a historical record and should NOT be rewritten. The
+live `CHANGELOG.md` carries exactly one citation of this class
+(`scripts/ab_compare_nr7_dna.py` inside the NIGHT-hunt-4 entry,
+quoting what that audit found).
 
 ### docs/research/ (8 broken refs — all historical)
 
@@ -162,15 +169,19 @@ Files with "Historical research snapshot" headers:
 
 ### Stale count claims (historical — leave as-is)
 
-- `~1500+ tests` in `CHANGELOG.md` (3 occurrences) + `KEY.md` (2
-  occurrences) — accurate at time of writing (the `~` prefix means
+- `~1500+ tests` in `CHANGELOG-V50-ERA.md` (3 occurrences) + `KEY.md`
+  (2 occurrences) — accurate at time of writing (the `~` prefix means
   "approximately"). Current count is 2947 `#[test]` fns across the
   tracked tree (2415 in `test/` + 532 in `src/`; the last full
   `cargo test` run reported 2932 passing — NIGHT-hunt-47-depthbore)
-  but historical entries should not be retroactively updated.
-- `43 themes` in `CHANGELOG.md` — accurate at time of writing
+  but historical entries should not be retroactively updated. The
+  only `~1500+ tests` hit in the live `CHANGELOG.md` is the
+  NIGHT-hunt-4 entry's meta-reference to these markers.
+- `43 themes` in `CHANGELOG.md`'s condensed origin story (the v11.1.0
+  line, "the 43 builtin palettes") — accurate at time of writing
   (EnergyZen was added later, bumping to 44).
-- `Phase 9-B` in `CHANGELOG.md` — accurate at time of writing
+- `Phase 9-B` in `docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md`
+  (historical research snapshot) — accurate at time of writing
   (engine has since progressed to Phase 9-D).
 
 ## 3. Fix strategy (when this backlog is picked up)

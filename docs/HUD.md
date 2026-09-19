@@ -9,8 +9,9 @@ mangoHUD, Steam FPS counter, and `nvidia-smi` — faster rates cause
 number flicker without improving diagnostic value).
 
 The HUD has grown across versions (expansion history in
-[CHANGELOG-V50-ERA.md](../CHANGELOG-V50-ERA.md) and
-[CHANGELOG-V80-ERA.md](../CHANGELOG-V80-ERA.md)),
+[CHANGELOG-V50-ERA.md](../CHANGELOG-V50-ERA.md),
+[CHANGELOG-V80-ERA.md](../CHANGELOG-V80-ERA.md), and
+[CHANGELOG-V100-ERA.md](../CHANGELOG-V100-ERA.md)),
 adding the owner-mandated metric lines (ehs / prs / sped / dsty / scn /
 chr / clr) plus the dragon indicator lines (prdr / crdr). The `h` shortkey
 that previously toggled the HUD position (left <-> right corner) was

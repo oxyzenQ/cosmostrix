@@ -122,7 +122,7 @@ file gets its own refactor commit, preserving exact behavior. The A/B
 benchmark (10s release) must show <2% avg_fps delta after each batch
 of refactors (performance-neutral mandate).
 
-See `CHANGELOG.md` "Refactor (LTS — 99% no visual/performance change)"
+See `CHANGELOG-V80-ERA.md` "Refactor (LTS — 99% no visual/performance change)"
 section for the commit log of extractions done under this policy.
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
