@@ -110,7 +110,14 @@ pub(crate) fn run_verbose_startup(vi: VerboseInputs<'_>) {
         crate::intro_style::IntroType::Logo => "logo",
         crate::intro_style::IntroType::None => "none",
     };
-    let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
+    // Commit id for the verbose banner. build.rs always sets the env var
+    // but may leave it EMPTY when no sha source existed at build time —
+    // a bare `unwrap_or` would then print a dangling label (NIGHT-hunt-2).
+    // Treat set-but-empty as "unknown", mirroring hud_init.rs.
+    let commit_sha = match option_env!("COSMOSTRIX_GIT_SHA") {
+        Some(sha) if !sha.is_empty() => sha,
+        _ => "unknown",
+    };
     let verbose_ambient_schedule = crate::crystal_dragon_engine::ambient::collect_ambient_schedule(
         &crate::configfile::load_config_file(args.config.as_deref()),
     );

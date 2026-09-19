@@ -82,7 +82,10 @@ pub(crate) fn build_premium_report(data: &BenchReportData) {
         // build.rs, surfaced here so benchmark reports are self-documenting
         // for cross-machine comparison).
         s.field("rustc_version", env!("COSMOSTRIX_RUSTC_VERSION"));
-        s.field("git_sha", env!("COSMOSTRIX_GIT_SHA"));
+        s.field(
+            "git_sha",
+            crate::diagnostics::info::build_commit_short().unwrap_or("unknown"),
+        );
         s.field("cpu_baseline", env!("COSMOSTRIX_CPU_BASELINE"));
         s.field("target_features", env!("COSMOSTRIX_TARGET_FEATURES"));
         s.field("lto", env!("COSMOSTRIX_LTO"));

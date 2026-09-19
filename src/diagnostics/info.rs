@@ -45,6 +45,15 @@ pub(crate) fn canonical_build_label() -> &'static str {
     option_env!("COSMOSTRIX_BUILD").unwrap_or("unknown")
 }
 
+/// Compile-time git short SHA (7-hex), `None` when unavailable.
+///
+/// Injected by build.rs via `COSMOSTRIX_GIT_SHA` using a three-step
+/// resolution chain: `git rev-parse --short=7 HEAD` (git checkouts),
+/// the `GITHUB_SHA` env var (CI), then `.cargo_vcs_info.json` (crates.io
+/// tarball builds — `cargo install cosmostrix` — where cargo embeds the
+/// packaging commit's sha1 in the published tarball; NIGHT-hunt-2 fix).
+/// `None` therefore means a build with no recoverable source revision;
+/// renderers should display "unknown" rather than an empty string.
 #[must_use]
 pub(crate) fn build_commit_short() -> Option<&'static str> {
     match option_env!("COSMOSTRIX_GIT_SHA") {

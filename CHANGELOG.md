@@ -9,6 +9,44 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-2 (post v100) — the commit id vanished from cargo-install builds (-V/--version showed "(unknown)", HUD cid went blank)
+
+- **Root cause**: `build.rs` resolved the commit sha through a
+  two-step chain (`git rev-parse --short=7 HEAD`, then the
+  `GITHUB_SHA` env var) and dead-ended at an empty string. A
+  `cargo install cosmostrix` build extracts the crates.io tarball to
+  `~/.cargo/registry/src/…` — there is no `.git` directory and no
+  `GITHUB_SHA`, so `COSMOSTRIX_GIT_SHA` was compiled in as `""`. The
+  version report fell back to "unknown" (`Build: … (unknown)`), and
+  the HUD cid row rendered a BLANK line because
+  `option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown")` returns
+  `Some("")` — set but empty — never reaching the fallback.
+- **Fix**: a third resolution step reads `.cargo_vcs_info.json` —
+  the file cargo itself embeds in every published tarball with the
+  sha1 of the packaging commit (verified against the real published
+  cosmostrix v100.0.0 tarball downloaded from crates.io: sha1
+  6c51147…). Zero workflow changes, zero new files, zero
+  build-dependencies: the parser is pure std string extraction, the
+  shared hex-validation/truncation logic was factored into
+  `normalize_short_sha`, and a `cargo:rerun-if-changed` trigger was
+  added for the file. Display sites hardened against set-but-empty:
+  `hud_init.rs` and `startup_verbose.rs` now treat empty as
+  "unknown" (mirroring `diagnostics::info::build_commit_short()`),
+  and the two bench sinks (`bench_json.rs`, `bench_report.rs`) route
+  through the same helper so reports never emit an empty git_sha.
+- **Verification**: `cargo check --all-targets` clean; the standalone
+  build-script suite passes 9/9 with three new tests covering the
+  vcs-info parser (real clean/dirty document shapes, uppercase hex,
+  malformed/truncated documents) and `normalize_short_sha`
+  (truncation, trimming, rejection). The real published v100.0.0
+  tarball was downloaded from crates.io and confirmed to carry
+  `.cargo_vcs_info.json` with the release sha1.
+- **Scope**: `build.rs` + four display sites + two doc files
+  (`docs/HUD.md` cid sections updated to describe the three-step
+  chain). No behavioral benchmark run — the change is compile-time
+  metadata plumbing with zero per-frame cost (the HUD string is
+  built once in `new()`).
+
 ### fix: NIGHT-hunt-3 (post v100) — the build-script epoch drift: two wrong constants that cargo test could never catch
 
 - **Root cause**: the `build.rs` test suite claimed two epoch

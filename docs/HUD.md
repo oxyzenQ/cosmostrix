@@ -78,7 +78,7 @@ each line means without reading the full reference below.
 | `%`             | Percent of one CPU core. 100% = one full core. Multi-threaded spills can exceed 100%.            |
 | `—` (em dash)   | Metric unavailable: unsupported platform (non-unix for `cpu:`) or pre-delta window (first ~1s).  |
 | `auto` / `fix`  | After screensize: `auto` = follows terminal resize, `fix` = `--screen-size WxH` locked.          |
-| `cid:`          | Commit id line — 7-char lowercase hex git short SHA injected at compile time by `build.rs`. Falls back to `unknown` for tarball builds without `.git`. |
+| `cid:`          | Commit id line — 7-char lowercase hex git short SHA injected at compile time by `build.rs` (git, `GITHUB_SHA`, or `.cargo_vcs_info.json` for crates.io builds). Falls back to `unknown` only when no source revision was recoverable. |
 
 ---
 
@@ -287,10 +287,13 @@ files). A growing `rss` over a long session suggests a memory leak
 ### 7. `cid: <short-SHA>`
 
 **Build commit id** — the 7-character lowercase hex git short SHA
-injected at compile time by `build.rs` (via `git rev-parse --short=7
-HEAD`, exposed as the `COSMOSTRIX_GIT_SHA` env var). Falls back to the
-literal string `unknown` for tarball/release builds that had no `.git`
-directory available at compile time.
+injected at compile time by `build.rs` via the `COSMOSTRIX_GIT_SHA`
+env var, resolved through a three-step chain: `git rev-parse
+--short=7 HEAD` (git checkouts), the `GITHUB_SHA` env var (CI), then
+`.cargo_vcs_info.json` (crates.io tarball builds such as `cargo
+install cosmostrix` — cargo embeds the packaging commit's sha1 in the
+published tarball). Falls back to the literal string `unknown` only
+for builds with no recoverable source revision.
 
 **Why this line exists:** the owner needs to verify which exact commit
 is running without quitting cosmostrix. Previously, checking the build

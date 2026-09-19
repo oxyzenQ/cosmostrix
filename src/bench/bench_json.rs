@@ -113,7 +113,10 @@ pub(crate) fn build_json_string(data: &BenchReportData) -> String {
         o.push_kv_str("optimization", env!("COSMOSTRIX_OPTIMIZATION"));
         o.push_kv_str("build", cpu.build_variant);
         o.push_kv_str("rustc_version", env!("COSMOSTRIX_RUSTC_VERSION"));
-        o.push_kv_str("git_sha", env!("COSMOSTRIX_GIT_SHA"));
+        o.push_kv_str(
+            "git_sha",
+            crate::diagnostics::info::build_commit_short().unwrap_or("unknown"),
+        );
         o.push_kv_str("cpu_baseline", env!("COSMOSTRIX_CPU_BASELINE"));
         o.push_kv_str("target_features", env!("COSMOSTRIX_TARGET_FEATURES"));
         o.push_kv_str("lto", env!("COSMOSTRIX_LTO"));

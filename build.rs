@@ -52,10 +52,21 @@ fn main() {
     println!("cargo:rustc-env=COSMOSTRIX_TARGET_FEATURES={target_features_display}");
     println!("cargo:rustc-env=COSMOSTRIX_PGO={pgo_label}");
 
+    // Commit-sha resolution chain (first hit wins):
+    //   1. `git rev-parse --short=7 HEAD` — local/git checkouts.
+    //   2. `GITHUB_SHA` env — CI environments.
+    //   3. `.cargo_vcs_info.json` — crates.io tarball builds (`cargo
+    //      install cosmostrix`): cargo embeds this file in the published
+    //      tarball with the sha1 of the commit the crate was packaged
+    //      from, so builds without a .git directory still recover the
+    //      exact source revision (NIGHT-hunt-2 fix; previously the chain
+    //      dead-ended here and `-V`/HUD showed an empty cid).
     let sha = git_short_sha()
         .or_else(|| env_short_sha("GITHUB_SHA"))
+        .or_else(packaged_vcs_sha)
         .unwrap_or_default();
     println!("cargo:rustc-env=COSMOSTRIX_GIT_SHA={sha}");
+    println!("cargo:rerun-if-changed=.cargo_vcs_info.json");
 
     let rustc_version = detect_rustc_version();
     println!("cargo:rustc-env=COSMOSTRIX_RUSTC_VERSION={rustc_version}");
@@ -522,7 +533,14 @@ fn fail_cpu_baseline(
 }
 
 fn env_short_sha(name: &str) -> Option<String> {
-    let v = std::env::var(name).ok()?;
+    normalize_short_sha(&std::env::var(name).ok()?)
+}
+
+/// Normalizes a full (40-hex) or already-short commit hash to the
+/// 7-char lowercase short form used by `COSMOSTRIX_GIT_SHA`. Returns
+/// `None` for empty or non-hex input so callers can fall through to
+/// the next resolution step.
+fn normalize_short_sha(v: &str) -> Option<String> {
     let v = v.trim();
     if v.is_empty() {
         return None;
@@ -534,6 +552,32 @@ fn env_short_sha(name: &str) -> Option<String> {
     } else {
         None
     }
+}
+
+/// Parses the `sha1` field out of a `.cargo_vcs_info.json` document.
+/// Pure string extraction — build.rs must stay dependency-free (std
+/// only), so there is no JSON crate here. The document shape is stable:
+/// `{"git":{"sha1":"<40 hex>","dirty":bool},"path_in_vcs":""}`
+/// (the `dirty` flag may be absent on clean publishes).
+fn parse_vcs_sha_json(text: &str) -> Option<String> {
+    let key = "\"sha1\"";
+    let key_at = text.find(key)?;
+    let after_key = &text[key_at + key.len()..];
+    let colon_at = after_key.find(':')?;
+    let value = after_key[colon_at + 1..].trim_start();
+    let value = value.strip_prefix('"')?;
+    let end = value.find('"')?;
+    normalize_short_sha(&value[..end])
+}
+
+/// Third step of the commit-sha chain: read `.cargo_vcs_info.json` from
+/// the package root. The build script's working directory is the package
+/// root, and the file sits there in extracted registry sources (verified
+/// against the real published cosmostrix v100.0.0 tarball). Returns
+/// `None` when the file is missing (dev builds) or carries no usable sha.
+fn packaged_vcs_sha() -> Option<String> {
+    let text = std::fs::read_to_string(".cargo_vcs_info.json").ok()?;
+    parse_vcs_sha_json(&text)
 }
 
 fn git_short_sha() -> Option<String> {
@@ -809,6 +853,71 @@ mod tests {
             format_unix_secs_as_build_time(1_709_210_040 + 60),
             "2/29/2024 12:35 (UTC)"
         );
+    }
+
+    #[test]
+    fn vcs_info_parser_extracts_sha_from_published_documents() {
+        // Exact shape of the real cosmostrix v100.0.0 tarball document
+        // (downloaded from crates.io and inspected while fixing
+        // NIGHT-hunt-2). A clean publish carries only the sha1:
+        let clean = concat!(
+            "{\"git\":{\"sha1\":\"6c51147732b79313b29f084b4da33dbd55b0ba82\"},",
+            "\"path_in_vcs\":\"\"}"
+        );
+        assert_eq!(parse_vcs_sha_json(clean), Some("6c51147".to_string()));
+
+        // A dirty publish (`cargo package --allow-dirty`) keeps the sha1
+        // of HEAD and additionally sets the dirty flag — the sha must
+        // still be recoverable.
+        let dirty = concat!(
+            "{\"git\":{\"sha1\":\"fa701c653ebee39e88e9b14453818630016f9a0f\",",
+            "\"dirty\":true},\"path_in_vcs\":\"\"}"
+        );
+        assert_eq!(parse_vcs_sha_json(dirty), Some("fa701c6".to_string()));
+
+        // Uppercase hex input is normalized to lowercase.
+        let upper = "{\"git\":{\"sha1\":\"ABCDEF0123456\"},\"path_in_vcs\":\"\"}";
+        assert_eq!(parse_vcs_sha_json(upper), Some("abcdef0".to_string()));
+    }
+
+    #[test]
+    fn vcs_info_parser_rejects_malformed_documents() {
+        // No sha1 key at all.
+        assert_eq!(
+            parse_vcs_sha_json("{\"git\":{},\"path_in_vcs\":\"\"}"),
+            None
+        );
+        // Non-hex sha1 value.
+        assert_eq!(
+            parse_vcs_sha_json("{\"git\":{\"sha1\":\"not-a-hash\"},\"path_in_vcs\":\"\"}"),
+            None
+        );
+        // Empty sha1 value.
+        assert_eq!(
+            parse_vcs_sha_json("{\"git\":{\"sha1\":\"\"},\"path_in_vcs\":\"\"}"),
+            None
+        );
+        // Truncated document cut off mid-value.
+        assert_eq!(parse_vcs_sha_json("{\"git\":{\"sha1\":\"6c51147"), None);
+    }
+
+    #[test]
+    fn normalize_short_sha_truncates_validates_and_lowercases() {
+        assert_eq!(
+            normalize_short_sha("6c51147732b79313b29f084b4da33dbd55b0ba82"),
+            Some("6c51147".to_string())
+        );
+        // Already-short input passes through unchanged.
+        assert_eq!(normalize_short_sha("6c51147"), Some("6c51147".to_string()));
+        // Surrounding whitespace is trimmed.
+        assert_eq!(
+            normalize_short_sha(" 6c51147 \n"),
+            Some("6c51147".to_string())
+        );
+        // Empty / whitespace-only / non-hex inputs fall through to None.
+        assert_eq!(normalize_short_sha(""), None);
+        assert_eq!(normalize_short_sha("   "), None);
+        assert_eq!(normalize_short_sha("zzzzzzz"), None);
     }
 
     #[test]

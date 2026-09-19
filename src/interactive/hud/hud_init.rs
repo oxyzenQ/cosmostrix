@@ -18,14 +18,20 @@ use crate::interactive::activity::FrameTimeTracker;
 impl super::HudState {
     pub(crate) fn new() -> Self {
         // Compile-time git short SHA injected by build.rs via the
-        // `COSMOSTRIX_GIT_SHA` env var (see `git_short_sha()` in
-        // build.rs — runs `git rev-parse --short=7 HEAD`). Falls back
-        // to the literal "unknown" when the build had no `.git` dir
-        // (e.g. a tarball release build) so the HUD never panics on a
-        // missing env. The value is a `&'static str`, so embedding it
-        // in the cached_lines String is a one-time alloc per session —
-        // zero per-frame cost.
-        let commit_sha = option_env!("COSMOSTRIX_GIT_SHA").unwrap_or("unknown");
+        // `COSMOSTRIX_GIT_SHA` env var (see the three-step resolution
+        // chain in build.rs: `git rev-parse`, then `GITHUB_SHA`, then
+        // `.cargo_vcs_info.json` for crates.io tarball builds). The env
+        // var is always SET by build.rs but may be EMPTY when no source
+        // of the commit id was available at build time, so a bare
+        // `unwrap_or` would embed an empty string and blank the cid row
+        // (NIGHT-hunt-2). Treat set-but-empty as "unknown" so the HUD
+        // never renders a blank cid line. The value is a `&'static str`,
+        // so embedding it in the cached_lines String is a one-time alloc
+        // per session — zero per-frame cost.
+        let commit_sha = match option_env!("COSMOSTRIX_GIT_SHA") {
+            Some(sha) if !sha.is_empty() => sha,
+            _ => "unknown",
+        };
         Self {
             visible: false,
             session_start: Instant::now(),
