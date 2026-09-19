@@ -22,6 +22,39 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-optimized-1 (post v100) — the master optimization audit: peak verified across ten dimensions, no change warranted
+
+- **Method**: dimension-by-dimension sweeps with on-host evidence,
+  each probed for a >5 % measurable gain (the cosmic-dragon UNLOCK
+  bar) or a zero-cost redundancy removal. None qualified; per the
+  owner's standing rule (already-peak = skip, no over-engineering)
+  the correct deliverable is the verification record.
+- **Verdicts (evidence in
+  `benchmark/bench-labs/night_optimized1/AUDIT_REPORT.md`)**:
+  hot-path allocation PEAK (0 allocs/frame steady-state); per-frame
+  clock discipline PEAK (per-frame/event only — the hidden per-cell
+  now() was hunted out long ago); frame pacing PEAK (hybrid
+  spin-sleep + dead-PTY/clock-jump/resize guards); release profile
+  PEAK (o3/lto-fat/cgu-1/strip; `panic=unwind` deliberate for the
+  catch_unwind containment contract); PGO PRESENT (+4.5 % median
+  fps on record); dead code MINIMAL + DELIBERATE (13 documented
+  allows; the unused_imports sites are LOC-split re-export
+  patterns); redundant functions INTENTIONAL PARALLELISM (the
+  13-scene / 12-style architecture, adjudicated); dependency surface
+  PEAK (11 direct deps, all production-used per-crate, minimal
+  features); cold start PEAK (`-V` in ~1 ms); long-run stability
+  PEAK (drift is warm-up, endurance machinery in place).
+- **Fresh HEAD measurements** captured on this host (cinematic
+  ≈ 28.9–29.2 K fps, monolith ≈ 85.3–85.9 K fps; gini/entropy/dirty
+  cells in the report table) sit on the historical regression line —
+  no drift since the last LTS round. The same-session
+  cybersecurity-1 commit is A/B-verified noise-neutral, so the
+  verdict carries forward.
+- **Scope**: documentation only (this entry + the bench-labs audit
+  record). No production code touched, no benchmark run per house
+  rule (docs-only); the cited measurements were already captured as
+  the cybersecurity A/B baseline.
+
 ### security: NIGHT-cybersecurity-1 (post v100) — the master security audit: report-family escape injection closed, unsafe inventory re-verified
 
 - **Method**: full capability-class re-sweeps (secrets, spawn sites,
