@@ -9,6 +9,63 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-1 (post v100) — the black hole center ball froze after ~1.6 days (unbounded f32 spin phase) + full 13-scene long-session audit
+
+- **Root cause**: the sorgonemous_intrascals ball rim's `spin_phase`
+  is the only ball clock that never resets, and it accumulated as an
+  UNBOUNDED f32 (`spin_phase += omega * dt`, read through `cos()` and
+  the rim conveyor's bucket floor). f32 carries a 24-bit mantissa: at
+  60 fps the per-frame increment (~0.0086 rad at the default speed 12)
+  falls below the ulp of the accumulated phase once the phase passes
+  1/(60 × 1.19e-7) ≈ 140,000 s of accumulated spin — about 1.6 days,
+  INDEPENDENT of speed (both sides of the inequality scale with
+  omega). The `+=` then rounds back to the same value every frame:
+  the rim conveyor and the Doppler lobe stop moving and the ball pins
+  at center — exactly the owner's report (fresh start plays the
+  orbital rotation, >1 day sticks).
+- **Fix**: the family's amortized wrap, applied to the last unwrapped
+  member. `spin_phase` wraps into [0, 2π) once past 128 turns
+  (`BLACK_HOLE_SPIN_PHASE_WRAP_LIMIT`, matching the vortex arm_phase
+  and dna_helix phase precedent; quasar wraps at 64). The wrap is
+  exact for both consumers: the Doppler lobe reads the phase through
+  `cos()` (2π-periodic), and the rim conveyor now reduces the angle
+  difference with `rem_euclid(TAU)` before the sector floor, so whole
+  turns from the wrap cancel identically and the glyph pattern never
+  scrambles at a wrap boundary. At the 128-turn limit the ulp is
+  ~6e-5 rad — three orders below the smallest per-frame increment
+  the slowest supported speed produces.
+- **Scene-family audit (all 13 rain types + both sibling engines)**:
+  quasar pulse/prec/disk/halo phases wrap at 64 turns (infall and
+  jets have bounded lifecycles); vortex arm_phase wraps at 128 turns
+  (NIGHT-hunter-10); dna_helix phase wraps at 128 turns; murmuration
+  breath_phase wraps (boid ages are threshold-only or write-only);
+  neural streamer/pulse ages are lifecycle-bounded (Neuron.age is
+  write-only); flux's fixed-step accumulator drains with a backlog
+  drop; monolith streams and solar_flare loops run bounded lifecycle
+  clocks (reset at each phase transition); physarum agents carry
+  per-particle lifetime caps; aeolian/dragon/glyph/lorenz have no
+  unbounded phase accumulators (event-driven or physically bounded);
+  the chroma gradient normalizes angles by += 2π (not an
+  accumulator); crystal's sensor timestamps are Instant-based pause
+  bookkeeping. The black hole spin phase was the single unguarded
+  member of the family.
+- **Verification**: new regression test
+  `black_hole_ball_spin_survives_multiday_sessions` fast-forwards
+  100 h of sim time in 1 h steps, then steps 60 real-time frames and
+  asserts the phase still advances at the co-rotation rate (mod 2π)
+  and stays under the wrap limit. Verified to FAIL on the pre-fix
+  tree (the phase hard-freezes at the accumulated scale) and PASS
+  with the fix. Full black_hole suite 69/69; the pre-existing
+  co-rotation contract test still green. A/B 10 s benchmark on the
+  scene (before vs after, dev profile): density_gini 0.5631 → 0.5589,
+  frame_entropy 5.421 → 5.434 bits, dirty cells/frame 113.26 →
+  113.37 (+0.10%, the per-cell `rem_euclid` cost), avg fps 3576 →
+  3533 (-1.2%, within debug-build run-to-run noise) — no visual or
+  performance regression.
+- **Scope**: one production file (`black_hole.rs`: wrap limit, wrap
+  step, conveyor consumer) + one regression test. No config, CLI,
+  or scene API surface touched.
+
 ### fix: NIGHT-hunt-2 (post v100) — the commit id vanished from cargo-install builds (-V/--version showed "(unknown)", HUD cid went blank)
 
 - **Root cause**: `build.rs` resolved the commit sha through a

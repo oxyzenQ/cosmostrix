@@ -682,6 +682,56 @@ fn black_hole_ball_spin_advances_with_the_ring() {
     );
 }
 
+#[test]
+fn black_hole_ball_spin_survives_multiday_sessions() {
+    // NIGHT-hunt-1 (post v100) regression: the rim spin phase was an
+    // unbounded f32 accumulator — the only ball clock that never
+    // resets. At 60 fps the per-frame increment (~0.0086 rad at the
+    // default speed 12) falls below the f32 ulp of the accumulated
+    // phase once the phase passes ~1/(60 × 1.19e-7) ≈ 140,000 s of
+    // accumulated spin, ≈ 1.6 days, speed-independent; the += then
+    // rounds back to the same value every frame and the ball visibly
+    // freezes (the owner's >1-day stuck-center report — fresh start
+    // plays the orbital rotation, long sessions pin the center).
+    // The amortized 128-turn wrap keeps the ulp at ~6e-5 rad, three
+    // orders below the smallest real increment.
+    let (cols, lines) = (120, 40);
+    let mut cloud = make_black_hole_cloud(cols, lines);
+    let mut frame = Frame::new(cols, lines, cloud.palette.bg);
+
+    // Fast-forward ~100 hours of sim time in coarse 1 h steps. The
+    // pre-fix accumulator lands around omega × 360,000 s ≈ 194,000 rad
+    // (an f32 ulp of ~0.0156 there — already past the freeze point);
+    // the wrapped accumulator stays under the 128-turn limit.
+    cloud.set_max_sim_delta(Duration::from_secs(3600));
+    run_frames(&mut cloud, &mut frame, 100, 3_600_000);
+
+    // Back to real-time 60 fps stepping — exactly the regime that
+    // froze pre-fix at this accumulated scale.
+    cloud.set_max_sim_delta(Duration::from_millis(16));
+    let before = cloud.black_hole_rain.spin_phase_for_test();
+    run_frames(&mut cloud, &mut frame, 60, 16);
+    let after = cloud.black_hole_rain.spin_phase_for_test();
+
+    // The phase must still advance — measured modulo TAU so the wrap
+    // itself (a legitimate phase reset, not a stall) never reads as
+    // a freeze — and must track the co-rotation contract's rate.
+    let advanced = (after - before).rem_euclid(std::f32::consts::TAU);
+    let omega = 12.0 * crate::constants::BLACK_HOLE_RING_OMEGA_PER_CPS;
+    let expected = omega * crate::constants::BLACK_HOLE_RING_SPIN_RATE * (59.0 * 0.016);
+    assert!(
+        (advanced - expected).abs() < 0.05,
+        "spin phase froze across the multi-day window (advanced {advanced}, want ~{expected})"
+    );
+    // The LTS invariant itself: the accumulator must stay bounded no
+    // matter how long the session runs.
+    assert!(
+        after.abs() <= 128.0 * std::f32::consts::TAU,
+        "spin phase must stay under the 128-turn wrap limit after multi-day \
+         accumulation (got {after})"
+    );
+}
+
 // -- Stage 2.3: the equatorial crossing, the disk radial profile,
 // and the solid-band density --
 

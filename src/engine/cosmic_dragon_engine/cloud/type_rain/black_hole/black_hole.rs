@@ -281,6 +281,15 @@ pub(crate) struct BlackHoleCell {
 /// line-height units as the ball raster).
 pub(crate) const CELL_ASPECT_DIVISOR: f32 = 2.0;
 
+/// Amortized wrap limit for the ball rim's spin phase: 128 turns.
+/// Matches the family precedent (VORTEX_ARM_PHASE_WRAP_LIMIT and
+/// DNA_PHASE_WRAP_LIMIT, both 128 turns; quasar's pulse/prec/disk
+/// phases wrap at 64). At the limit the f32 ulp is ~6e-5 rad — three
+/// orders of magnitude below the smallest per-frame spin increment
+/// the slowest supported speed produces, so the phase stays visually
+/// continuous while the accumulator never grows unbounded.
+const BLACK_HOLE_SPIN_PHASE_WRAP_LIMIT: f32 = 128.0 * std::f32::consts::TAU;
+
 /// Shorthand rank for the brightness ladder (Ghost = 0 ... Core = 4).
 /// BrightnessLevel carries no PartialEq, so band tests compare ranks.
 #[cfg(test)]
@@ -995,6 +1004,21 @@ impl BlackHoleRain {
         // (1.0 = lockstep with the disk's phase — the hole rotates
         // with its ring, per the owner's stage-2 feedback).
         self.spin_phase += omega_base * dt_wall * crate::constants::BLACK_HOLE_RING_SPIN_RATE;
+        // LTS wrap (NIGHT-hunt-1, post v100): spin_phase is a
+        // scene-lifetime f32 accumulator and the ball's ONLY clock
+        // that never resets — unwrapped, the ulp of the growing phase
+        // overtakes the per-frame increment at t = 1/(fps × 1.19e-7),
+        // ≈ 1.6 days at 60 fps, speed-independent, and the rim visibly
+        // freezes (the owner's multi-day stuck-center report). The
+        // amortized wrap at 128 turns follows the family precedent
+        // (vortex arm_phase, dna_helix phase; quasar wraps at 64).
+        // The wrap is exact for both consumers: the Doppler lobe reads
+        // the phase through cos() (2π-periodic), and the rim conveyor
+        // buckets the angle difference through rem_euclid(TAU) before
+        // the sector floor (see the draw pass).
+        if self.spin_phase.abs() > BLACK_HOLE_SPIN_PHASE_WRAP_LIMIT {
+            self.spin_phase = self.spin_phase.rem_euclid(std::f32::consts::TAU);
+        }
 
         // See-saw roll (stage 2.4, the lever): the stack's attitude
         // rides the same wall clock — pause freezes the lever
@@ -1143,7 +1167,14 @@ impl BlackHoleRain {
                     // deterministic character — motion-gated mutation, the same
                     // life-sign DNA as the family's shimmer gates.
                     if self.cell_angles.len() > idx && self.cell_buckets.len() > idx {
+                        // rem_euclid(TAU) before the floor: the bucket
+                        // arithmetic must be invariant to the spin
+                        // phase's amortized TAU wrap (NIGHT-hunt-1) —
+                        // the wrap shifts the raw difference by whole
+                        // turns, and rem_euclid cancels it exactly, so
+                        // the conveyor never scrambles at a wrap.
                         let bucket = ((self.cell_angles[idx] - self.spin_phase)
+                            .rem_euclid(std::f32::consts::TAU)
                             / crate::constants::BLACK_HOLE_RING_CONVEYOR_ARC)
                             .floor() as i32;
                         if bucket != self.cell_buckets[idx] {
