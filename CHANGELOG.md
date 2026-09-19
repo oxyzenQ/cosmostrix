@@ -9,6 +9,25 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### docs: NIGHT-docs-2 (post v100) — the donation addresses cryptographically verified, and the Solana line now names USDT (SPL)
+
+- **Verification**: all three README receive addresses were verified
+  offline before any edit: the Ethereum address passes the EIP-55
+  mixed-case checksum (keccak-256 of the lowercase hex — a single
+  mistyped character fails it), the Bitcoin address decodes as a
+  valid bech32m P2TR (witness version 1, 32-byte x-only program,
+  `bc` mainnet human-readable part — Taproot, not native SegWit),
+  and the Solana address base58-decodes to exactly 32 bytes (an
+  ed25519 public key encoding).
+- **Fix**: the Solana line said `SOL` only, while the owner's
+  donation intent includes USDT over the Solana network — the same
+  ed25519 address receives USDT (SPL) natively. The line now reads
+  `SOL` / `USDT` (SPL), matching the Ethereum line's explicit
+  ERC-20 naming, and the section intro records the verification
+  method so future edits re-verify instead of trusting copy-paste.
+- **Scope**: README donation section text only. No code, no
+  addresses changed, no benchmark (docs-only change per house rule).
+
 ### fix: NIGHT-hunt-1 (post v100) — the black hole center ball froze after ~1.6 days (unbounded f32 spin phase) + full 13-scene long-session audit
 
 - **Root cause**: the sorgonemous_intrascals ball rim's `spin_phase`
