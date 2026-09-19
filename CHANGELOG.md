@@ -9,6 +9,33 @@ Pre-v13 history is archived in [`docs/archive/CHANGELOG_PRE_V13.md`](docs/archiv
 
 ## Unreleased
 
+### fix: NIGHT-hunt-3 (post v100) — the build-script epoch drift: two wrong constants that cargo test could never catch
+
+- **Root cause**: the `build.rs` test suite claimed two epoch
+  constants that silently disagreed with their documented calendar
+  dates: `1_709_210_440` was labeled 2024-02-29 12:34:00 UTC but
+  actually decodes to 2024-02-29 12:40:40 UTC (`date -u
+  -d @1709210440`), and `1_787_930_200` was labeled 2026-08-04
+  15:30:00 UTC but actually decodes to 2026-08-28 15:16:40 UTC
+  (`date -u -d @1787930200`). The suite never failed in CI because
+  `cargo test` NEVER executes build-script tests — cargo compiles
+  `build.rs` as a build dependency, not a test target, so the
+  assertions were invisible to every green run.
+- **Fix**: both constants replaced with the date-verified values
+  (`1_709_210_040` and `1_785_857_400`, each recomputed via `date -u
+  -d '<ISO date>' +%s`), a new sub-minute truncation test added
+  (`build_time_format_truncates_sub_minute_seconds` — seconds are
+  truncated toward the past minute, never rounded up), and the
+  standalone runner documented in the test module header plus
+  `docs/MAINTENANCE.md` (Quick Reference row, dedicated section, and
+  a dormant-mode invariant): `rustc --edition 2021 --test build.rs
+  -o /tmp/cosmostrix-build-script-tests && /tmp/…`.
+- **Verification**: standalone runner executed locally — the
+  pre-fix suite failed 1 of 5 (`build_time_format_matches_known_unix_epochs`);
+  the post-fix suite passes 6/6. `cargo fmt --all --check` clean.
+- **Scope**: `build.rs` tests + `docs/MAINTENANCE.md` only — no
+  production code touched, no A/B benchmark per house rule.
+
 ### fix: retire the version-prefixed demo asset scheme — tests and version-to.sh aligned with the 27f7d4f5 asset refresh
 
 - **Root cause**: the asset refresh in 27f7d4f5 moved the demo assets

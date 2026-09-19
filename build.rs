@@ -688,6 +688,16 @@ fn format_unix_secs_as_build_time(total_secs: i64) -> String {
 mod tests {
     use super::*;
 
+    // NOTE: `cargo test` NEVER executes build-script tests — cargo treats
+    // build.rs as a build dependency, not a test target. These tests only
+    // run via the standalone runner (also documented in docs/MAINTENANCE.md):
+    //
+    //   rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests
+    //   /tmp/cosmostrix-build-script-tests
+    //
+    // The epoch constants below are date-verified via `date -u` so the
+    // suite stays trustworthy as a civil-calendar regression guard.
+
     #[test]
     fn resolves_inherited_profile_values() {
         let text = r#"
@@ -760,19 +770,44 @@ mod tests {
             "1/1/2000 00:00 (UTC)"
         );
 
-        // 2024-02-29 12:34:00 UTC = 1_709_210_440 seconds since epoch.
+        // 2024-02-29 12:34:00 UTC = 1_709_210_040 seconds since epoch.
         // Leap-day boundary check — Feb 29 must not roll to Mar 1.
         // Computed via: date -u -d '2024-02-29 12:34:00' +%s
+        // (NIGHT-hunt-3: the previous constant 1_709_210_440 actually
+        // decodes to 2024-02-29 12:40:40 UTC, verified via `date -u
+        // -d @1709210440`. The date-verified value is 1_709_210_040.)
         assert_eq!(
-            format_unix_secs_as_build_time(1_709_210_440),
+            format_unix_secs_as_build_time(1_709_210_040),
             "2/29/2024 12:34 (UTC)"
         );
 
-        // 2026-08-04 15:30:00 UTC = 1_787_930_200 seconds since epoch.
+        // 2026-08-04 15:30:00 UTC = 1_785_857_400 seconds since epoch.
         // Computed via: date -u -d '2026-08-04 15:30:00' +%s
+        // (NIGHT-hunt-3: the previous constant 1_787_930_200 actually
+        // decodes to 2026-08-28 15:16:40 UTC, verified via `date -u
+        // -d @1787930200`. The date-verified value is 1_785_857_400.)
         assert_eq!(
-            format_unix_secs_as_build_time(1_787_930_200),
+            format_unix_secs_as_build_time(1_785_857_400),
             "8/4/2026 15:30 (UTC)"
+        );
+    }
+
+    #[test]
+    fn build_time_format_truncates_sub_minute_seconds() {
+        // The formatter renders only H:MM (no seconds field), so
+        // sub-minute seconds must be TRUNCATED toward the past minute,
+        // never rounded up into the next minute. 12:34:00 + 59 seconds
+        // is still rendered as 12:34.
+        assert_eq!(
+            format_unix_secs_as_build_time(1_709_210_040 + 59),
+            "2/29/2024 12:34 (UTC)"
+        );
+
+        // One second past a whole minute rolls the rendered minute
+        // forward only at the :00 boundary (12:34:60 == 12:35:00).
+        assert_eq!(
+            format_unix_secs_as_build_time(1_709_210_040 + 60),
+            "2/29/2024 12:35 (UTC)"
         );
     }
 

@@ -14,6 +14,7 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 | Build (optimized, AVX-512) | `cargo pro-native` |
 | Build (PGO nitro) | `./scripts/build.sh pgo` |
 | Test (full suite) | `cargo test --all --locked` |
+| Test (build-script suite) | `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests` |
 | Gatekeeper (all checks) | `./scripts/build.sh check-all` |
 | Format check | `cargo fmt --all --check` |
 | Lint | `cargo clippy -- -D warnings` |
@@ -103,6 +104,25 @@ cosmostrix is designed for long-term stability. The owner may go dormant for 5-1
 - The project must be at a fully green CI state before any new development.
 - Do not batch unrelated changes with the return-from-dormancy commit. One commit per concern.
 
+### Build-script test suite (standalone runner)
+
+`cargo test` NEVER executes the `#[cfg(test)]` tests inside `build.rs` —
+cargo compiles the build script as a build dependency, not as a test
+target, so those assertions are invisible to `cargo test --all --locked`
+and CI. This is exactly how the NIGHT-hunt-3 epoch drift survived:
+two constants silently disagreed with their claimed calendar dates
+because nothing ever ran the suite. Run it standalone instead:
+
+```sh
+rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests
+/tmp/cosmostrix-build-script-tests
+```
+
+The runner needs only `rustc` (no cargo, no dependencies — `build.rs` is
+pure `std`), finishes in under a second, and must be green before any
+release tag. The epoch constants in the suite are date-verified via
+`date -u -d '<ISO date>' +%s` (see the comments in `build.rs`).
+
 ### Offline build resilience
 
 After 5-10 years of dormancy, external services may be unavailable. The pinned toolchain and locked dependencies provide a survival baseline:
@@ -115,6 +135,7 @@ After 5-10 years of dormancy, external services may be unavailable. The pinned t
 
 - `cargo build --release` compiles with zero warnings on the pinned toolchain.
 - `cargo test --all --locked` passes all tests.
+- The standalone build-script suite passes: `rustc --edition 2021 --test build.rs -o /tmp/cosmostrix-build-script-tests && /tmp/cosmostrix-build-script-tests`.
 - `./scripts/build.sh check-all -q` passes all quality gates.
 - `cargo deny check all` reports no advisories (or is skipped if offline).
 - `cosmostrix --testconf` validates the default config without errors.
