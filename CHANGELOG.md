@@ -22,6 +22,30 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### fix: the build.rs LOC-cap regression left by the hunt-2/hunt-3 test growth
+
+- **Root cause**: the NIGHT-hunt-2 vcs-info parser tests and the
+  NIGHT-hunt-3 epoch-constant/sub-minute suite grew `build.rs` to
+  939 lines, past the 800-line hard cap enforced by
+  `scripts/check-rs-loc.sh` — leaving `build.sh check-all` and
+  gate-keepers RED at the LOC stage ever since (the prior session
+  verified its edits via targeted runs, not the full gate).
+- **Fix**: the house-sanctioned self-declaring marker
+  (`// LOC_EXEMPT:` on line 3, per `src/RULES_LOC.md`): the build
+  script is a single-file cargo contract, its test suite must stay
+  in-file for the documented standalone runner
+  (`rustc --edition 2021 --test build.rs` — cargo never executes
+  build-script tests), and the helpers under test have no home
+  outside the build script. build.rs joins the eight existing
+  self-declared exemptions; no code moved.
+- **Verification**: `check-rs-loc.sh` OK (8 files self-declare
+  exemption, 0 unexempt violations); `build.sh check-all -q` exit 0
+  inside the 2-minute local cap; gate-keepers 16/16 (permissions
+  restored to the 644/755 convention after a clone-umask artifact,
+  no content change — git tracks only the exec bit).
+- **Scope**: 1 line in `build.rs`. No behavioral change, no
+  benchmark per house rule.
+
 ### audit: NIGHT-hunt-4 (post v100) — the stale/burden/duplicate cross-audit driven to zero true positives
 
 - **Method**: both house audit tools executed against the full tree,

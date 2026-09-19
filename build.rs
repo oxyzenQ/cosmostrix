@@ -1,5 +1,6 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
+// LOC_EXEMPT: build script is a single-file cargo contract; its test suite must stay in-file for the standalone runner (rustc --edition 2021 --test build.rs) and grew past the cap through the hunt-2/hunt-3 hardening.
 
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
