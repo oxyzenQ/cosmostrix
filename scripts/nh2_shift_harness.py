@@ -7,8 +7,12 @@
 
 """NIGHT-hunter-2 round 2: content-level "glitch rain shift" detector.
 
-The first round (nh2_pty_harness.py) measured the output CADENCE (frame
-sizes, gaps). The owner's post-e3d1834 report needs CONTENT analysis:
+Shared PTY Screen library: night_cbg34_e2e.py imports Screen from
+this module, so it stays a live helper regardless of hunt history.
+The first-round cadence harness (nh2_pty_harness.py, which measured
+frame sizes and gaps) was removed in the NIGHT-cleanup-1 dead-script
+sweep; this module is the surviving round-2 content analyzer. The
+owner's post-e3d1834 report needs CONTENT analysis:
 the shift reportedly (a) lands in the first 9-40 s, (b) re-appears for a
 few seconds on the FIRST charset/color shortkey after a long clean run,
 (c) never reproduces on the monolith scene. This harness renders the

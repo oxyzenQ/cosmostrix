@@ -63,6 +63,21 @@
 >   truth 2527, .rs truth 438 — all refreshed to current); this
 >   backlog's "current count" line above refreshed with it.
 >
+> - **DEAD-SCRIPT SWEEP 2026-09-20 (NIGHT-cleanup-1)**: 27 retired
+>   one-off hunt/repro harness scripts removed from `scripts/`
+>   (61 to 34 files, ~330 KB) after a full reference-map + import-graph
+>   verification found zero live wiring; the same triage contract as
+>   the endurance-summary/monitor-cosmostrix/gen-density-presets
+>   precedents above. Live-doc citations were reworded with removal
+>   notes (KNOWN_ISSUES.md, LIVE_RELOAD_BEHAVIOR.md sections 19-20,
+>   residue.rs / strict_mode.rs comments, the nh2_shift_harness.py
+>   docstring — nh2_shift_harness.py itself KEPT: it is the shared
+>   PTY Screen library the live night_cbg34_e2e.py imports). Mentions
+>   of the removed harnesses inside dated historical records (era
+>   changelogs, docs/research, docs/audits, KEY.md signoffs, bench-labs
+>   AB reports) are intentional history per section 2 and will show up
+>   as docs-audit noise, same as the pre-existing accepted set.
+>
 > **Owner directive**: "log broken links to FUTURE_BACKLOG.md (35+
 > historical broken refs in CHANGELOG/CONTRIBUTING — deferred per
 > historical record contract, but could be noted for future cleanup)."

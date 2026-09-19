@@ -108,9 +108,9 @@ fn strict_startup_accepts_known_keys_only() {
 // unknown key (no known keys at all) must still be rejected at
 // startup.
 //
-// The formal E2E regression pin lives in
-// scripts/night_h41_msg_modey_repro.py (drives the real binary
-// through the exact owner repro on every surface); these rust unit
+// The NIGHT-hunt-41 one-off E2E repro harness (which drove the real
+// binary through the exact owner repro on every surface) was removed
+// in the NIGHT-cleanup-1 dead-script sweep; these rust unit
 // tests are the in-tree lock for the same contract.
 
 #[test]
@@ -128,9 +128,9 @@ fn strict_startup_rejects_config_with_only_unknown_key() {
         }
         Ok(_) => {
             // Env-var bypass path (COSMOSTRIX_SKIP_STARTUP_VALIDATION=1
-            // is set by ensure_test_config_dir_allowed). The python e2e
-            // in scripts/night_h41_msg_modey_repro.py covers this case
-            // without the bypass.
+            // is set by ensure_test_config_dir_allowed). The removed
+            // NIGHT-hunt-41 python e2e covered this case without the
+            // bypass; the in-tree lock is the bypass-free unit above.
         }
     }
 }

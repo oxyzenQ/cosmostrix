@@ -485,10 +485,10 @@ see the stale state and may misread it as a failed reload.
 
 Set `intro = "none"` in config.toml (or pass a CLI flag that skips
 the intro) before scripting rapid start-then-edit sequences; the
-harness `scripts/depthtest4_regression_e2e.py` does exactly this for
-its PTY probes. For manual use, wait until the rain is visible
-before editing the config. Found while designing the NIGHT-depthtest-4
-probe matrix (hunt-33, 2026-09-12).
+NIGHT-depthtest-4 PTY probes did exactly this (hunt-33, 2026-09-12;
+that one-off harness was removed in the NIGHT-cleanup-1 dead-script
+sweep — the workaround stands on its own). For manual use, wait until
+the rain is visible before editing the config.
 
 ---
 

@@ -22,6 +22,53 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cleanup: NIGHT-cleanup-1 (post v100) — dead-script sweep: 27 retired one-off hunt harnesses removed, live references re-anchored
+
+- **Method**: a full reference map of every tracked file (CI workflows,
+  build.sh + gate-keepers.sh wiring, install/release scripts, active
+  docs, Rust tests, and the script-to-script Python import graph)
+  classified all 61 scripts by reference class. One-off hunt/repro
+  harnesses with zero live wiring — their contracts already locked
+  in-tree as Rust regression tests and their evidence already recorded
+  in docs/research, docs/audits, CHANGELOG, and benchmark/bench-labs —
+  were removed; every removal was individually verified against the
+  map before deletion.
+- **Removed (27 scripts, ~330 KB; scripts/ now 34 files)**: the
+  depthtest e2e family (depthtest-2 through -8 plus the shared
+  depth-test-config.py generator), the PTY helper cluster that nothing
+  live imports (ansi_screen.py, nh2_pty_harness.py, nh2_raw_capture.py,
+  nh15_restart_e2e.py), the NIGHT-hunt repro harnesses
+  (night_h34_style_sweep, night_h38_force_repaint_classifier,
+  night_h38_supermassive_testconf_repro, night_h41_msg_modey_repro,
+  night_h40_entry_budget_e2e, nh32_crown_blink_audit,
+  custom_features_stresstest.sh), the scene smoke probes
+  (genesis/neural/quasar_smoke), the HUD e2e island
+  (hud_long_scene_e2e, hud_order_e2e, intro_lead_e2e), and the
+  remaining one-offs (endurance_probe, stress_test_bounds).
+- **Hunt-beyond-the-signal catches**: (a) nh2_shift_harness.py was
+  initially dead-classified but the import graph showed the live
+  night_cbg34_e2e.py imports its Screen class — KEPT and re-documented
+  as the shared PTY Screen library; (b) ansi_screen.py looked wired
+  (two in-scripts references) but both referrers were themselves dead —
+  transitively dead, removed; (c) the depthtest family's "formal E2E
+  pin" claims inside Rust comments were stale the moment the harnesses
+  went away — the in-tree Rust locks are now named as the pins.
+- **Live references updated (stale-path domain)**: KNOWN_ISSUES.md
+  workaround section, docs/LIVE_RELOAD_BEHAVIOR.md sections 19-20
+  (four backticked harness citations reworded with removal notes),
+  tests_monolith/residue.rs and config_apply_tests/strict_mode.rs
+  comments (the stale-hunt.py file-path contract), and the
+  nh2_shift_harness.py module docstring. Historical records were left
+  untouched per the FUTURE_BACKLOG contract (era changelogs,
+  docs/research and docs/audits snapshots, KEY.md dated signoffs,
+  bench-labs AB evidence).
+- **Scope**: no production Rust code touched; the binary is bit-for-bit
+  unaffected, so no benchmark A/B was run per the house rule for
+  docs/scripts-only changes. Verification: docs-audit.py (no new
+  live-doc broken refs), stale-hunt.py (0 stale paths), ruff +
+  shellcheck on the surviving scripts, permissions/headers checks, and
+  the build.sh check-all gate.
+
 ### audit: NIGHT-optimized-1 (post v100) — the master optimization audit: peak verified across ten dimensions, no change warranted
 
 - **Method**: dimension-by-dimension sweeps with on-host evidence,

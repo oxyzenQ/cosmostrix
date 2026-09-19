@@ -1386,7 +1386,8 @@ The owner flagged that hunts 38/40/41 were marked done but the class
 still felt open: "when some function error on config like wrong input
 typo, duplicate, etc problems the error output is still on runtime
 not really exit so that is garbage on cinematic screen." The audit
-(`scripts/depthtest5_config_error_streams.py`) drove the real binary
+(the depthtest-5 harness, since removed in the NIGHT-cleanup-1
+dead-script sweep) drove the real binary
 through a 95-case matrix — all 22 top-level keys × {key typo, invalid
 value, duplicate}, custom-namespace field typos, hunt-40 entry-budget
 BOUNDARIES (24 pass / 25 fail for all four namespaces, rain stops
@@ -1436,7 +1437,8 @@ the post-restore rejection shape (AB-10: never a mid-rain print).
 
 ### Verification
 
-- `depthtest5_config_error_streams.py`: 95 PASS / 0 FAIL (binary:
+- The depthtest-5 harness (removed in NIGHT-cleanup-1): 95 PASS / 0 FAIL
+  (binary:
   pro-native). Regression tests added:
   `message_and_message_border_enforce_max_len_on_all_three_surfaces`
   (at-cap passes, over-cap rejects, byte-measure parity, strict-path
@@ -1450,9 +1452,9 @@ The owner approved the next pre-LTS step: "use the same
 flow-separation matrix to find the remaining surfaces (--doctor /
 --dump-config / --docs error paths), or a deep PTY audit of the
 ambient/crystal-dragon interaction — find more until no remainings
-again." Both directions were executed; the flagship harness is
-`scripts/depthtest8_ambient_crystal_pty.py` (33 assertions on the
-real binary, four parts).
+again." Both directions were executed; the flagship harness was
+the depthtest-8 PTY suite (33 assertions on the
+real binary, four parts; removed in NIGHT-cleanup-1).
 
 ### Finding 1: the static post-config commands died behind unrelated config errors
 
@@ -1519,7 +1521,8 @@ set_color_scheme clearing) and points at the real condition.
 
 ### Verification
 
-- `depthtest8_ambient_crystal_pty.py`: 33 PASS / 0 FAIL (binary:
+- The depthtest-8 harness (removed in NIGHT-cleanup-1): 33 PASS / 0 FAIL
+  (binary:
   debug). Lint: ruff check + format green (three pre-existing
   violations in depthtest-5/6/7 were also fixed this round:
   PLW0602 no-op globals, F541, ISC004, SIM115, C401).

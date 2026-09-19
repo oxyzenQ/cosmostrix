@@ -171,8 +171,10 @@ fn monolith_bottom_residue_stays_bounded() {
 /// after the frame's swap) or by live phosphor energy (a decaying
 /// ghost). A glyph cell with neither is an ORPHAN: unbacked content
 /// that persists until the style's own motion happens to pass over it
-/// (the PTY force-repaint classifier's erased-cell finding — the
-/// classifier is scripts/night_h38_force_repaint_classifier.py).
+/// (the PTY force-repaint classifier's erased-cell finding, first
+/// observed by the NIGHT-hunt-38 one-off classifier harness — since
+/// removed in the NIGHT-cleanup-1 dead-script sweep; this oracle is
+/// the in-tree lock for that finding).
 ///
 /// The oracle runs every 60th frame (~1 s at 60 fps) for ~20 s — the
 /// horizon over which the PTY probe observed 12+ second frozen cells.
