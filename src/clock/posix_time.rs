@@ -108,15 +108,23 @@ pub(crate) fn local_tm() -> Option<LocalTm> {
 pub(crate) fn utc_tm() -> UtcTm {
     use std::mem::MaybeUninit;
 
+    // SAFETY: libc::time(NULL) — writes nothing when the pointer is NULL,
+    // returns time_t or -1 on error. No preconditions. (Twin of the
+    // commented call in local_tm(); NIGHT-cybersecurity-1 restored the
+    // missing SAFETY twins so both time paths carry the same contract.)
     let now = unsafe { libc::time(std::ptr::null_mut()) };
     if now < 0 {
         return UtcTm::zero();
     }
 
     let mut tm: MaybeUninit<libc::tm> = MaybeUninit::uninit();
+    // SAFETY: gmtime_r is the thread-safe POSIX variant. It reads `now`
+    // (a valid time_t >= 0) and writes into our MaybeUninit<tm> buffer.
+    // Returns NULL on failure (handled below).
     if unsafe { libc::gmtime_r(&now, tm.as_mut_ptr()) }.is_null() {
         return UtcTm::zero();
     }
+    // SAFETY: gmtime_r returned non-NULL → tm fully initialized.
     let tm = unsafe { tm.assume_init() };
 
     UtcTm {

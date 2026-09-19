@@ -367,6 +367,71 @@ fn list_custom_scenes_text_renders_plain_names() {
 }
 
 #[test]
+fn list_custom_scenes_text_escapes_control_bytes_in_scene_name() {
+    // NIGHT-cybersecurity-1, two layers:
+    // (1) SOURCE: collect_custom_scenes rejects hostile names —
+    //     is_scene_custom_config_key runs is_valid_profile_name, so an
+    //     ESC-bearing scene name never enters the listing map.
+    // (2) SINK: list_custom_scenes_text still escapes whatever it is
+    //     handed — defense-in-depth so a future collector change cannot
+    //     silently reopen the shared-config injection class.
+    let hostile_name = "evil\u{1b}]52;c;a2V5"; // OSC 52 clipboard probe
+    let cfg = HashMap::from([(
+        format!("scene-custom.{hostile_name}.color"),
+        "storm".to_string(),
+    )]);
+    let scenes = collect_custom_scenes(&cfg);
+    assert!(
+        scenes.is_empty(),
+        "source layer: hostile name must be rejected by the collector"
+    );
+    // Sink layer: a synthetic map (as if a future collector regressed)
+    // must still render the control byte as a visible literal.
+    let mut synthetic = std::collections::BTreeMap::new();
+    synthetic.insert(
+        hostile_name.to_string(),
+        crate::scene_custom::UserProfile::default(),
+    );
+    let text = list_custom_scenes_text(&synthetic);
+    assert!(
+        !text.chars().any(|c| c != '\n' && c.is_control()),
+        "raw control byte leaked into --list-scenes output: {text:?}"
+    );
+    assert!(
+        text.contains("\\u001b"),
+        "ESC must render as the visible \\u001b literal: {text:?}"
+    );
+}
+
+#[test]
+fn show_custom_scene_text_escapes_control_bytes_in_name_and_values() {
+    // NIGHT-cybersecurity-1: the seven field values (rain, color, ...)
+    // are raw config VALUES, and the displayed name is a raw config key.
+    // The S-night-R4 probe shape (`rain = "glyph<ESC>[2Jx"`) must render
+    // as visible literals through --show-scene — never as live escapes.
+    let cfg = HashMap::from([
+        (
+            "scene-custom.evil.rain".to_string(),
+            "glyph\u{1b}[2Jx".to_string(),
+        ),
+        (
+            "scene-custom.evil.color".to_string(),
+            "green\u{7}".to_string(),
+        ),
+    ]);
+    let scenes = collect_custom_scenes(&cfg);
+    let text = show_custom_scene_text("evil\u{1b}]0;pwned", &scenes["evil"]);
+    assert!(
+        !text.chars().any(|c| c != '\n' && c.is_control()),
+        "raw control byte leaked into --show-scene output: {text:?}"
+    );
+    assert!(
+        text.contains("\\u001b") && text.contains("\\u0007"),
+        "ESC and BEL must render as visible literals: {text:?}"
+    );
+}
+
+#[test]
 fn show_custom_scene_text_includes_fields_and_usage() {
     let cfg = HashMap::from([
         (

@@ -25,8 +25,18 @@
 //! Charsets and the message overlay stay untouched: the charset
 //! validator already rejects control chars outright (the set never
 //! renders them), and `sanitize_message_text` strips them from
-//! overlay text before layout (bug #11). This module only guards the
-//! diagnostic echo of the rejected value.
+//! overlay text before layout (bug #11).
+//!
+//! NIGHT-cybersecurity-1 (2026-09-19) extended the same sink to the
+//! `--list-*`/`--show-scene` report family: config VALUES are not
+//! charset-gated at collection (a hostile `rain = "glyph<ESC>[2Jx"`
+//! PoC echoed a live escape byte through `--show-scene` on the pre-fix
+//! binary), and the charset/palette collectors gate name length and
+//! key shape, not name charset. The custom scene/charset/palette
+//! listing builders (`scene_custom::display`) and the report printers
+//! (`config::list_printers`) now route their user-derived strings
+//! through this module. Scene names and config KEYS remain
+//! source-gated upstream — the name-side guards are defense-in-depth.
 
 use std::borrow::Cow;
 use std::fmt::Write as _;

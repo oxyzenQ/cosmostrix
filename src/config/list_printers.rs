@@ -13,8 +13,17 @@
 //! Re-exported from `config/mod.rs` via `pub(crate) use` so all
 //! existing `crate::config::{print_list_*, print_show_scene}` call
 //! sites resolve unchanged.
+//!
+//! NIGHT-cybersecurity-1: every user-derived string printed here
+//! (custom charset names, custom palette names, hidden-block warning
+//! names) passes through `escape_ctrl` before reaching the terminal.
+//! `println_safe!` is flush-safe but NOT escape-safe, and the charset/
+//! palette collectors plus `oversized_custom_block_names` accept names
+//! with arbitrary bytes — the same shared-config injection class the
+//! S-night-R4 diagnostic guard closed.
 
 use super::color_enabled_stdout;
+use crate::output::escape_ctrl::escape_ctrl;
 use crate::output::println_safe;
 use std::collections::HashMap;
 
@@ -61,11 +70,26 @@ fn oversized_custom_block_names(
 
 /// NIGHT-depthtest-3: render the hidden-block warning lines shared by
 /// all three list printers (one per oversized name).
+///
+/// NIGHT-cybersecurity-1: the truncated name is passed through
+/// `escape_ctrl` before interpolation. Oversized names are raw config
+/// keys (arbitrary bytes the config parser accepts inside quoted
+/// values/keys), and these lines reach the terminal via
+/// `println_safe!` — which is flush-safe, NOT escape-safe. Without the
+/// guard a hostile >64-char block name containing an ESC could push a
+/// partial OSC/DCS sequence through `--list-scenes`/`--list-charsets`/
+/// `--list-colors` — the same shared-config injection class the
+/// S-night-R4 diagnostic guard closed.
 fn hidden_block_warning_lines(prefix: &str, hidden: &[String], limit: usize) -> Vec<String> {
     hidden
         .iter()
         .map(|name| {
-            let display: String = name.chars().take(24).collect();
+            // Truncate FIRST (raw chars, one char = one cell budget), then
+            // escape: escaping first could split a `\u00XX` literal across
+            // the 24-char cut; truncating first can never split a control
+            // char because each is a single char pre-escape.
+            let display: String = escape_ctrl(&name.chars().take(24).collect::<String>())
+                .into_owned();
             let suffix = if name.chars().count() > 24 { "..." } else { "" };
             format!(
                 "  hidden: {prefix}'{display}{suffix}' is {} chars — exceeds the {limit}-char name limit; the block is dropped. Shorten the name (run --testconf).",
@@ -138,7 +162,12 @@ pub(crate) fn print_list_charsets() {
         }
         println_safe!();
         for (name, def) in &custom_charsets {
-            println_safe!("  {name:<20} {} chars", def.chars.len());
+            // NIGHT-cybersecurity-1: `collect_charset_custom` gates only
+            // name LENGTH and key shape — not charset — so an
+            // ESC-bearing name IS collected and reaches this loop. Escape
+            // before it reaches the terminal.
+            let safe_name = escape_ctrl(name);
+            println_safe!("  {safe_name:<20} {} chars", def.chars.len());
         }
         for line in hidden_block_warning_lines(
             "charset-custom.",
@@ -191,7 +220,12 @@ pub(crate) fn print_list_colors() {
         }
         println_safe!();
         for name in custom_palettes.keys() {
-            println_safe!("  {name:<20} custom palette");
+            // NIGHT-cybersecurity-1: `collect_colors_custom` gates only
+            // name LENGTH and key shape — not charset — so an
+            // ESC-bearing name IS collected and reaches this loop. Escape
+            // before it reaches the terminal.
+            let safe_name = escape_ctrl(name);
+            println_safe!("  {safe_name:<20} custom palette");
         }
         for line in hidden_block_warning_lines(
             "colors-custom.",
@@ -412,5 +446,67 @@ mod tests {
             crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN
         )
         .is_empty());
+    }
+
+    // ── NIGHT-cybersecurity-1: escape hardening ─────────────────────
+
+    #[test]
+    fn hidden_block_warning_lines_escape_control_bytes_in_name() {
+        // Oversized names are raw config keys; the warning line reaches
+        // the terminal through println_safe! (flush-safe, NOT
+        // escape-safe). A >64-char name carrying an ESC byte must render
+        // as the visible \u001b literal — never as a live control byte.
+        use super::{hidden_block_warning_lines, oversized_custom_block_names};
+        use std::collections::HashMap;
+        // 70 chars total: "evil" (4) + ESC (1) + "]52;c;a2V5" (10) + 55 filler.
+        let hostile = format!("evil\u{1b}]52;c;a2V5{}", "x".repeat(55));
+        let mut cfg = HashMap::new();
+        cfg.insert(format!("scene-custom.{hostile}.rain"), "glyph".to_string());
+        let names = oversized_custom_block_names(
+            &cfg,
+            "scene-custom.",
+            crate::scene_custom::SCENE_CUSTOM_FIELDS,
+            crate::scene_custom::SCENE_CUSTOM_MAX_NAME_LEN,
+        );
+        assert_eq!(names, vec![hostile.clone()], "probe must be collected");
+        let lines = hidden_block_warning_lines("scene-custom.", &names, 64);
+        assert_eq!(lines.len(), 1);
+        let line = &lines[0];
+        assert!(
+            !line.chars().any(|c| c != '\n' && c.is_control()),
+            "raw control byte leaked into the hidden-block warning: {line:?}"
+        );
+        assert!(
+            line.contains("\\u001b"),
+            "ESC must render as the visible \\u001b literal: {line:?}"
+        );
+        // The truncation budget stays honest: the raw name is 70 chars,
+        // so the char count in the message must report 70 (pre-escape
+        // semantics — the count describes the config key, not the
+        // escaped display form).
+        assert!(
+            line.contains("is 70 chars"),
+            "raw char count must be reported pre-escape: {line:?}"
+        );
+    }
+
+    #[test]
+    fn hidden_block_warning_lines_plain_names_unchanged() {
+        // Clean names keep byte-identical output: the escape guard has a
+        // borrow fast path, and existing warnings must not churn.
+        use super::hidden_block_warning_lines;
+        let names = vec!["a".repeat(70)];
+        let lines = hidden_block_warning_lines("scene-custom.", &names, 64);
+        assert_eq!(lines.len(), 1);
+        assert!(
+            lines[0].contains(&"a".repeat(24)) && lines[0].contains("..."),
+            "plain oversized name renders truncated with ellipsis: {:?}",
+            lines[0]
+        );
+        assert!(
+            !lines[0].contains("\\u"),
+            "no escape literals may appear for clean input: {:?}",
+            lines[0]
+        );
     }
 }

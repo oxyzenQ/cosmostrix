@@ -22,6 +22,7 @@ use std::collections::BTreeMap;
 
 #[cfg(test)]
 use super::is_valid_profile_name;
+use crate::output::escape_ctrl::escape_ctrl;
 use crate::scene_custom::UserProfile;
 
 #[cfg(test)]
@@ -52,13 +53,22 @@ pub fn validate_custom_scene_name(name: &str) -> Result<String, String> {
 ///
 /// v80.0.0-beta.2: custom scenes are self-contained profiles (no
 /// `base-scene` inheritance) — every entry renders as just `name`.
+///
+/// NIGHT-cybersecurity-1: the whole built string passes through
+/// `escape_ctrl` at this single sink. Scene names are source-validated
+/// (`is_valid_profile_name` gates collection), so this is
+/// defense-in-depth: a future collector regression that lets a hostile
+/// `[scene-custom."<ESC>…"]` key through would still render the byte
+/// as a visible literal instead of echoing it live to the terminal
+/// through `--list-scenes` — the same shared-config injection class the
+/// S-night-R4 diagnostic guard closed.
 #[must_use]
 pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) -> String {
     let mut out = String::new();
     for name in scenes.keys() {
         out.push_str(&format!("  {name}\n"));
     }
-    out
+    escape_ctrl(&out).into_owned()
 }
 
 /// Render a detailed description of a single custom scene.
@@ -68,6 +78,16 @@ pub(crate) fn list_custom_scenes_text(scenes: &BTreeMap<String, UserProfile>) ->
 /// blocks by the owner contract (`SCENE_CUSTOM_FIELDS` excludes them, so
 /// `collect_custom_scenes` never sets those fields). The former display
 /// arms were unreachable dead code.
+///
+/// NIGHT-cybersecurity-1: the whole built string passes through
+/// `escape_ctrl` at this single sink. Unlike the NAME (which
+/// `is_valid_profile_name` gates at collection), the field VALUES
+/// (`rain`, `color`, `charset`, `fps`, `speed`, `density`,
+/// `glitch-level`, `colors-custom`, `charset-custom`) arrive raw from
+/// config values — `collect_custom_scenes` clones them unvalidated, and
+/// their source-level validation happens later, at cloud-config build
+/// time. Before this guard a hostile `rain = "glyph<ESC>[2Jx"` echoed a
+/// live control byte to the terminal through `--show-scene`.
 #[must_use]
 pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String {
     let mut out = String::new();
@@ -131,5 +151,5 @@ pub(crate) fn show_custom_scene_text(name: &str, scene: &UserProfile) -> String 
     out.push_str("\n  Use: cosmostrix --scene-custom ");
     out.push_str(name);
     out.push('\n');
-    out
+    escape_ctrl(&out).into_owned()
 }

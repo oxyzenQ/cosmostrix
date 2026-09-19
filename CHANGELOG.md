@@ -22,6 +22,59 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-cybersecurity-1 (post v100) — the master security audit: report-family escape injection closed, unsafe inventory re-verified
+
+- **Method**: full capability-class re-sweeps (secrets, spawn sites,
+  env surface, filesystem, panic vectors, dependency sources,
+  pipe-to-shell) plus a line-by-line soundness re-review of every
+  production `unsafe` site, and a sink-coverage analysis of every raw
+  `print!`/`println!`/`println_safe!` site in the tree.
+- **Finding (proven with a hostile-config PoC)**: the
+  `--list-*`/`--show-scene` report family interpolated user-derived
+  config strings RAW. `--show-scene` echoed a live `ESC [2J` byte
+  (od-verified `033`) from an unvalidated `scene-custom.<name>.rain`
+  VALUE — config VALUES are not charset-gated at collection (source
+  validation happens later, at cloud-config build time), and the
+  custom charset/palette name loops plus the hidden-block warning
+  lines held the same class (their collectors gate name length and
+  key shape, not name charset). Same shared-config threat model the
+  S-night-R4 diagnostic guard closed; this family was missed then.
+- **Fix (sink guards, S-night-R4 architecture)**: `escape_ctrl`
+  routing at the report sinks — `show_custom_scene_text` /
+  `list_custom_scenes_text` (whole-string sink, robust to future
+  field additions) in `src/scene_custom/display.rs`; the custom
+  charset + palette name loops and `hidden_block_warning_lines`
+  (truncate-first-then-escape, so a `\u00XX` literal can never split
+  across the 24-char cut) in `src/config/list_printers.rs`. Post-fix
+  the PoC renders as the visible `glyph\u001b[2Jx` literal. Scene
+  NAMES were already source-gated (`is_valid_profile_name`) and the
+  parser rejects control bytes in KEYS (name-vector probes did not
+  pass end-to-end) — the name-side guards are defense-in-depth,
+  pinned by unit tests at the sink.
+- **unsafe re-inventory (doc truth)**: the 2026-08-05 SECURITY_AUDIT
+  "15 sites + 1 unsafe fn" snapshot had drifted with the v100-era
+  refactors (terminal split, fork_guard extraction, posix_time
+  consolidation, config_io fstat, watchdog isatty, the Termux
+  non-blocking write family). Current classified truth: **47
+  occurrences across 14 files — 35 production + 12 test-gated**,
+  every production site re-reviewed sound with SAFETY documentation;
+  the one gap (`utc_tm()`'s time/gmtime_r/assume_init calls missing
+  the SAFETY twins their `local_tm()` counterparts carry) restored.
+  SECURITY_AUDIT.md §1/§5 refreshed with dated NIGHT-cybersecurity-1
+  notes; the escape_ctrl module doc now covers the report family.
+- **Other sweeps (all clean)**: no secrets in tree; all deps
+  registry-sourced and production-used; no shell spawns; no
+  curl|sh; production parse paths assert/panic/unwrap-free; the
+  message, charset and diagnostic escape hardening verified layered.
+- **Tests**: 4 new regression tests (2 display-sink hostile-input,
+  2 hidden-block-warning hostile/plain) — all green with the suite's
+  targeted modules.
+- **A/B**: 10 s release benches (cinematic + monolith, 2 runs each)
+  — fps/entropy/gini/dirty-cells all within ±1.1 % with the scenes
+  disagreeing on the sign (noise signature); the bench frame path
+  executes none of the changed code. Evidence:
+  `benchmark/bench-labs/night_cybersecurity1/AB_REPORT.md`.
+
 ### fix: the build.rs LOC-cap regression left by the hunt-2/hunt-3 test growth
 
 - **Root cause**: the NIGHT-hunt-2 vcs-info parser tests and the
