@@ -9,11 +9,11 @@ CI and release pipeline reference. Workflow files live under `.github/workflows/
 |----------|---------|---------|
 | `ci.yml` | push + PR to `main` (path-filtered) | fmt, clippy, test, build, security audit, version sync |
 | `release.yml` | tag push `v*` | 8-platform binaries + checksums + GPG sign + GitHub Release |
-| `maintenance.yml` | weekly cron (Mon 00:00 UTC) | `cargo update` + audit + commit if validation passes |
+| `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) | `cargo update` + audit + commit if validation passes |
 | `gitbot-audit.yml` | daily cron + push/PR (path-filtered) | `cargo audit` + `cargo deny` (observation-only) |
 | `aur.yml` | release | Update AUR `cosmostrix-bin` package |
 | `crates-io.yml` | tag push `v*` (stable + pre-release) | Publish the crate to crates.io (`cargo publish --locked`, idempotent) |
-| `miri.yml` | weekly cron (Sun 03:00 UTC) + push (path-filtered) | Undefined behavior detection |
+| `miri.yml` | weekly cron (Sun 00:00 UTC / 07:00 WIB) + push (path-filtered) | Undefined behavior detection |
 | `codeql.yml` | push + PR (path-filtered) + weekly cron | CodeQL static analysis, auto-detected languages |
 | `cosmic-dragon-guard.yml` | push + PR to `main` | `gate-keepers.sh`: shell triad, yamllint, actionlint, TOML, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
 

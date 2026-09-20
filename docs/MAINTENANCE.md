@@ -39,13 +39,13 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 |----------|------|---------|---------|
 | CI | `ci.yml` | push + PR (`src/**` + `test/**` + Cargo/toolchain/build/scripts config) | Build + test + clippy + fmt + deny + MSRV |
 | Cosmic Dragon Guard - Gate-keepers | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: bash -n + shellcheck + shfmt (all installed in CI, none skipped), yamllint, actionlint, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 03:00 UTC) + manual | Undefined behavior detection (6 audited modules) |
-| Security Audit | `gitbot-audit.yml` | daily cron (00:00 UTC) + push/PR (Rust paths) | Security advisory + dependency policy |
-| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |
+| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 00:00 UTC / 07:00 WIB) + manual | Undefined behavior detection (6 audited modules) |
+| Security Audit | `gitbot-audit.yml` | daily cron (00:00 UTC / 07:00 WIB) + push/PR (Rust paths) | Security advisory + dependency policy |
+| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Mon 00:00 UTC / 07:00 WIB) | GitHub CodeQL semantic analysis |
 | AUR | `aur.yml` | `repository_dispatch` (aur-sync) posted by `release.yml` after a release publishes | Update AUR package |
 | crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
 | Release | `release.yml` | tag push (v*) | Build 11 release archives across 7 OS/arch targets (linux amd64 v3/v4 + PGO + musl, linux aarch64, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign |
-| Maintenance | `maintenance.yml` | weekly cron (Mon 07:00 UTC) + manual dispatch | Dependency update + validate + commit |
+| Maintenance | `maintenance.yml` | weekly cron (Mon 00:00 UTC / 07:00 WIB) + manual dispatch | Dependency update + validate + commit |
 
 ## 4. Security Advisory Response
 

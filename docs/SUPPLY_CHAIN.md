@@ -74,7 +74,7 @@ Full deterministic reproduction (bit-for-bit identical binaries across different
 
 ## 4. Toolchain Requirements
 
-**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. Daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC as observation-only; if vulnerabilities detected, weekly `maintenance.yml` resolves them during next scheduled run (Monday 00:00 UTC) by `cargo update`, re-auditing, pushing updated lockfile.
+**`cargo audit`** (Rust Security Advisory working group): scans the project's dependency tree against the RustSec Advisory Database for known CVEs, advisory withdrawals, unmaintained crates. Installed via `taiki-e/install-action` in CI; runs as the first gate in the `security` job. Daily `gitbot-audit.yml` workflow runs `cargo audit` at 00:00 UTC (07:00 WIB) as observation-only; if vulnerabilities detected, weekly `maintenance.yml` resolves them during next scheduled run (Monday 00:00 UTC / 07:00 WIB) by `cargo update`, re-auditing, pushing updated lockfile.
 
 **`cargo deny`** enforces organizational policies across four dimensions, configured in `deny.toml`: advisories (cross-references RustSec, zero ignored); licenses (permits only the license set in §1, confidence threshold 0.8); bans (warns on duplicate crate versions, wildcard deps allowed for legitimate use); sources (restricts all crate origins to official crates.io registry, Git sources and unknown registries produce warnings). Both tools run in CI (`ci.yml` deny job, `release.yml` audit+deny) and in `maintenance.yml`.
 

@@ -23,6 +23,31 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### ci: unify all scheduled workflow crons at 00:00 UTC (07:00 WIB) — owner call closing the decision parked by NIGHT-hunt-6
+
+- **Change**: `maintenance.yml` fired Monday 07:00 UTC (14:00 WIB) while
+  the daily `gitbot-audit.yml` already fired at 00:00 UTC (07:00 WIB) —
+  the two security bots ran 7 hours apart, and the weekly `codeql.yml`
+  (Mon 03:00 UTC) + `miri.yml` (Sun 03:00 UTC) drifted further behind.
+  All four scheduled workflows now share one clock: `maintenance.yml`
+  `0 7 * * 1` -> `0 0 * * 1` (Mon 14:00 -> 07:00 WIB), `codeql.yml`
+  `0 3 * * 1` -> `0 0 * * 1` (Mon 10:00 -> 07:00 WIB), `miri.yml`
+  `0 3 * * 0` -> `0 0 * * 0` (Sun 10:00 -> 07:00 WIB); `gitbot-audit.yml`
+  unchanged (`0 0 * * *`) with its header + cron annotation carrying the
+  WIB offset. Doc resync: the "Monday 00:00 UTC" statements in
+  `docs/workflow/ABOUT_CI.md` and `docs/SUPPLY_CHAIN.md` — left stale by
+  the `b0a70ebd` cron rotation, flagged and parked (not silently fixed)
+  by NIGHT-hunt-6 — are now true again, with the WIB offset annotated in
+  both plus 4 trigger-table rows in `docs/MAINTENANCE.md` and the
+  `miri.yml` / `codeql.yml` workflow headers.
+- **Verification**: all four `cron:` expressions re-parsed via
+  `yaml.safe_load` (`0 0 * * 1`, `0 0 * * 1`, `0 0 * * 0`, `0 0 * * *`);
+  corpus re-sweep for the old schedule strings (`0 7 * * 1`, `0 3 * * 1`,
+  `0 3 * * 0`, `Mon 03:00`, `Mon 07:00`, `Sun 03:00`, `14:00 WIB`) hits
+  only framed-historical CHANGELOG text; actionlint + yamllint clean on
+  the four edited workflows; gate-keepers full suite green; zero Rust
+  surface touched (workflows + docs only, no benchmark run required).
+
 ### cleanup: NIGHT-hunt-6 (post v100.0.2) — second-sweep staleness hunt: key-details truth, CI-trigger table, dep counts, moved-doc citations
 
 - **Change**: a second, independent audit pass over axes the repo's own
