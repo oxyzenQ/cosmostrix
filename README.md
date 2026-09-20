@@ -572,17 +572,6 @@ cosmostrix --dump-config ~/.config/cosmostrix/config.toml
 
 Shell redirection (`cosmostrix --dump-config > file`) is **blocked** — cosmostrix detects stdout-redirected-to-file and refuses to write, because the shell bypasses the whitelist. Use the explicit path form above for file output. Piping to another command (`cosmostrix --dump-config | less`) is allowed for viewing.
 
-```
-scene = "monolith"
-color = "cosmos"
-charset = "binary"
-fps = 60
-speed = 20
-density = 0.75
-glitch-level = "subtle"
-intro = "logo"
-```
-
 Precedence: defaults -> config file -> scene/scene-custom layers -> explicit CLI flags.
 
 ### Custom Character Sets
@@ -703,8 +692,10 @@ Rendering architecture, benchmarking, ambient intelligence, terminal compatibili
 cargo fmt --all
 cargo clippy --locked --all-targets --all-features -- -D warnings
 cargo test --all --locked
+
 # print the Chroma Dragon engine lock report
 cargo test chroma_dragon_engine::tests::lock -- --nocapture
+
 # print the Cosmic Dragon engine lock report
 cargo test cosmic_dragon_incubator::tests::lock -- --nocapture
 scripts/verify-release-build.sh pro-linux-v3 pro-linux-v4 pro-linux-musl
