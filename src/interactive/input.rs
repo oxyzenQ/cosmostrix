@@ -91,6 +91,23 @@ pub(super) fn is_unmodified(modifiers: crossterm::event::KeyModifiers) -> bool {
     modifiers.is_empty()
 }
 
+/// NIGHT-improve-8: returns true when a mouse Down event carries any
+/// modifier bit (SHIFT / CONTROL / ALT / SUPER / HYPER / META).
+///
+/// Modified clicks are the terminal-native selection bypass: with mouse
+/// reporting active, terminals reserve Shift+click (and most other
+/// modified clicks) for their LOCAL selection engine and never deliver
+/// them to the application. The minority of terminals that do forward
+/// such events must receive zero visual acknowledgment in response.
+/// The event loop uses this predicate to suppress the click wave and
+/// instead fire a full-frame redraw, which erases the freshly painted
+/// native selection highlight in terminals that clear selection state
+/// when the grid content underneath updates. Plain unmodified clicks
+/// (the hover/click-wave interaction) are unaffected.
+pub(super) fn is_modifier_click(event: &crossterm::event::MouseEvent) -> bool {
+    matches!(event.kind, crossterm::event::MouseEventKind::Down(_)) && !event.modifiers.is_empty()
+}
+
 /// Returns true if the key event's modifiers are in the "safe" allowlist:
 /// only bare keys (KeyModifiers::NONE) or SHIFT (for capital S/C/X
 /// reverse-cycle bindings). Rejects ALL other modifier bits: CONTROL, ALT,

@@ -57,6 +57,11 @@ mod event_loop_ctx;
 mod event_loop_finalize;
 mod event_loop_hud;
 mod event_loop_intro;
+// NIGHT-improve-8: non-key runtime event arms (mouse / paste / focus)
+// extracted from `event_loop.rs` (800-LOC cap) — owns the anti-copy
+// policy for non-key events (capture-consumed mouse, zero-ack modified
+// clicks, discarded paste payload).
+mod event_loop_mouse;
 mod event_loop_p5;
 mod event_loop_perf_stats;
 mod event_loop_post_draw;
@@ -103,6 +108,13 @@ mod v51_intro_brand_pause;
 #[cfg(test)]
 #[path = "../../test/interactive/tests_night_hunter27.rs"]
 mod tests_night_hunter27;
+
+// NIGHT-improve-8: modified-click (shift+click and any other modifier
+// combination) selection-bypass hardening — zero visual acknowledgment
+// plus a selection-clearing full-frame redraw on forwarded events.
+#[cfg(test)]
+#[path = "../../test/interactive/tests_night_improve8.rs"]
+mod tests_night_improve8;
 
 // v80.0.0-beta.1 Z-master-1B: exhaustive shortkey no-op lock — every key outside the active set is a complete no-op.
 #[cfg(test)]

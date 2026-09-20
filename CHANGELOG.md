@@ -23,6 +23,40 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### security: NIGHT-improve-8 — modified-click selection-bypass hardening: shift+click and any modifier combination produce zero feedback plus a selection-clearing redraw
+
+- **Change**: owner request to disable copy/paste — rendered text/info
+  must not be extractable, including via shift+click. The audit found the
+  copy surface already closed everywhere except the terminal's local
+  selection bypass: mouse capture is held for the entire session
+  (startup enable, SIGCONT re-assert, exit/suspend-only release), no
+  clipboard crate or OSC 52 write exists, and pasted content is
+  structurally discarded (`Event::Paste(_)` never read). The one gap:
+  modified clicks (shift+click and any other modifier combination) are
+  reserved by terminals for their local selection engine, and the
+  minority of terminals that forward them previously triggered the same
+  click-wave arm as plain clicks. Now `is_modifier_click()`
+  (`src/interactive/input.rs`) classifies every modifier combination on
+  a mouse Down as a selection-bypass attempt: zero visual acknowledgment
+  (no click wave, no idle click wake) plus an immediate full-frame
+  redraw that erases the freshly painted native selection highlight in
+  terminals that clear selection state when grid content underneath
+  updates. Plain unmodified clicks keep the exact hover/click-wave
+  behavior; modifier bits on drag/move/up/scroll kinds do not trigger
+  spurious redraws. The trust boundary is documented honestly in
+  `docs/SECURITY_AUDIT.md` (new anti-copy/interaction-surface
+  paragraph): terminal-side features (select-all shortcuts, Ctrl+Shift+C,
+  screen capture, post-exit scrollback) are outside any TUI
+  application's control — no escape sequence can revoke them.
+- **Verification**: 4 new unit tests
+  (`test/interactive/tests_night_improve8.rs`, wired in
+  `src/interactive/mod.rs`) pin the classification contract — every
+  modifier bit and combination on Down is a modifier click, plain Down
+  on all three buttons stays on the normal path, non-Down kinds with
+  SHIFT never classify; `cargo fmt --check` + `cargo clippy` clean;
+  gate-keepers full suite green; runtime surface is event-path only
+  (render pipeline untouched), benchmark run post-commit as A/B record.
+
 ### ci: unify all scheduled workflow crons at 00:00 UTC (07:00 WIB) — owner call closing the decision parked by NIGHT-hunt-6
 
 - **Change**: `maintenance.yml` fired Monday 07:00 UTC (14:00 WIB) while
