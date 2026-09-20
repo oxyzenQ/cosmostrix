@@ -154,7 +154,7 @@ jobs:
         run: cargo test --all --locked lock_
 
   build_test:
-    name: Cosmic Dragon Guard - Test + Build (debug)
+    name: Cosmic Dragon Guard - Build (debug)
     runs-on: ubuntu-24.04
     needs: [security, msrv]
     timeout-minutes: 30
@@ -189,11 +189,63 @@ jobs:
           fi
           echo "CARGO_BUILD_JOBS=${JOBS}" >> "$GITHUB_ENV"
 
-      - name: Tests
-        run: cargo test --all --locked
-
+      # NIGHT-perf-2 (2026-09-20): the Tests step moved out of this job
+      # into the parallel test_partitions matrix below (cargo-nextest,
+      # 2-way count-balanced partition). This job is now the debug build
+      # gate; the job id stays `build_test` so the six downstream
+      # `needs: build_test` references are untouched.
       - name: Build (debug)
         run: bash scripts/ci-strict-build.sh -- build --profile dev --locked --jobs "${CARGO_BUILD_JOBS}"
+
+  # NIGHT-perf-2 (2026-09-20): the full suite (~2950 tests) executes here
+  # in two parallel, count-balanced partitions via cargo-nextest. Each
+  # partition restores the same rust-cache and compiles the same test
+  # build, then runs its half — the run stage halves, and it overlaps
+  # with build_test instead of sequencing after it.
+  test_partitions:
+    name: Cosmic Dragon Guard - Tests (nextest partition ${{ matrix.partition }}/2)
+    runs-on: ubuntu-24.04
+    needs: [security, msrv]
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        # Tunable: raise to 3 for more parallelism at the cost of one
+        # more cold-compile per run (partitioning splits execution,
+        # not compilation).
+        partition: [1, 2]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: ${{ env.RUST_VERSION }}
+
+      - name: Setup cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      # Unpinned on purpose (owner dependency policy 2026-08-30, see
+      # docs/workflow/ABOUT_CI.md): resolves the latest upstream
+      # cargo-nextest release at run time.
+      - name: Install cargo-nextest
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+
+      # --retries 1: one retry for tests that flake on a loaded shared
+      # runner (the suite carries 486 sleep/duration-based timing
+      # tests); nextest reports any retried test as "flaky", so the
+      # signal is never silently lost.
+      # Doc tests: none are compiled today (every fenced doc block in
+      # src/ is text/ignore). If a compiled doc test is ever added, a
+      # separate `cargo test --doc --workspace --locked` step must land
+      # in this job — nextest does not execute doc tests.
+      - name: Tests (nextest partition)
+        run: cargo nextest run --workspace --locked --partition count:${{ matrix.partition }}/2 --retries 1
 
   macos_build:
     name: Cosmic Dragon Guard - Build (macos native)

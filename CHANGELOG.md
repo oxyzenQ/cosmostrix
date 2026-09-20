@@ -23,6 +23,39 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### perf: NIGHT-perf-2 (post v100) — CI runs the suite through cargo-nextest in two parallel partitions
+
+- **Change** (ci.yml): the full-suite `cargo test --all --locked` step
+  moved out of the build_test job into a new `test_partitions` job —
+  a 2-way, count-balanced cargo-nextest matrix (`--partition
+  count:<i>/2`, `fail-fast: false`). Each partition restores the
+  shared rust-cache, compiles the same test build, and executes its
+  half; the run stage halves and now OVERLAPS the debug build instead
+  of sequencing after it. The build_test job id is unchanged, so the
+  six downstream `needs: build_test` references are untouched (its
+  display name is now "Build (debug)" — that is all it does).
+- **Why nextest**: per-test process isolation, better scheduling, and
+  first-class partition support. `--retries 1` gives one retry for
+  tests that flake on a loaded shared runner (the suite carries 486
+  sleep/duration-based timing tests); nextest reports any retried test
+  as "flaky", so the signal is never silently lost.
+- **Dependency policy compliant**: cargo-nextest installs via
+  taiki-e/install-action@v2 unpinned — latest upstream release resolved
+  at run time, same as cargo-audit in the security job (owner policy
+  2026-08-30, docs/workflow/ABOUT_CI.md).
+- **Doc-test contract documented**: nextest does not execute doc
+  tests; the crate has zero compiled doc tests today (all fenced doc
+  blocks are `text`/`ignore`). The ci.yml job comment states that a
+  compiled doc test must come with a `cargo test --doc` step.
+- **Local story documented** (CONTRIBUTING.md): scripts/build.sh
+  already auto-detects `cargo-nextest` on PATH (`NEXTEST_AVAILABLE`)
+  and prefers it over plain `cargo test` — a one-time
+  `cargo install cargo-nextest --locked` upgrades every local
+  build.sh/check-all test run with zero workflow change.
+- **Verification**: yamllint + actionlint clean on the restructured
+  ci.yml; gate-keepers 19 passed / 0 failed; no Rust source, script,
+  or manifest change — CI + docs only, no benchmark per house rule.
+
 ### perf: NIGHT-perf-1 (post v100) — the test suite accelerated: opt-level 1 test profile + the MSRV full-suite duplicate retired
 
 - **Problem**: the full suite (about 2950 tests; 2418 in the `test/**`

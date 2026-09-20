@@ -23,6 +23,19 @@ cargo test --all --locked      # run full test suite
 ./scripts/build.sh check-all   # full gatekeeper (fmt + clippy + test + audit)
 ```
 
+**Fast local test runs (optional, 2026-09-20)**: install
+[cargo-nextest](https://nexte.st) once (`cargo install cargo-nextest
+--locked`) and every build.sh test invocation automatically upgrades to
+it — the runner detects `cargo-nextest` on PATH and prefers it
+(`scripts/build.sh`, `NEXTEST_AVAILABLE`), with the plain `cargo test`
+path kept as the zero-dependency fallback. nextest schedules tests
+better and compiles with the same `[profile.test]` (opt-level 1, see
+Cargo.toml). CI runs the suite through nextest in two parallel
+count-balanced partitions (ci.yml `test_partitions`); locally the plain
+`cargo nextest run --workspace --locked` is the equivalent single-node
+form. Doc tests are not executed by nextest — the crate currently has
+zero compiled doc tests (every fenced doc block is `text`/`ignore`).
+
 All gatekeeper checks must pass before any commit.
 
 ## 2. Coding Conventions
