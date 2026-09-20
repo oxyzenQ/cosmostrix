@@ -142,8 +142,16 @@ jobs:
         with:
           cache-on-failure: true
 
-      - name: Tests (MSRV)
-        run: cargo test --all --locked
+      # NIGHT-perf-1 (2026-09-20): the suite no longer runs twice per
+      # push. This job and build_test below pin the SAME RUST_VERSION
+      # toolchain, so the MSRV contract here is: the full test tree
+      # (src/** + test/** mirror) compiles on the MSRV toolchain, plus
+      # the engine invariant lock suites (~175 tests, the `lock_`
+      # prefix families across all three dragon engines) run as the
+      # runtime smoke. The complete suite runs exactly once, on the
+      # stable build_test job.
+      - name: Tests (MSRV compile + invariant lock-suite smoke)
+        run: cargo test --all --locked lock_
 
   build_test:
     name: Cosmic Dragon Guard - Test + Build (debug)

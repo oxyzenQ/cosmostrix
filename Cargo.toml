@@ -106,6 +106,18 @@ split-debuginfo = "unpacked"
 incremental = true
 codegen-units = 256
 
+# NIGHT-perf-1 (2026-09-20): the test profile inherits dev, so the full
+# suite (about 2950 tests, 69k lines of test code compiled into the bin
+# target's cfg(test) harness) used to execute at opt-level = 0 — the
+# CPU-heavy simulation tests (engine invariant sweeps, black-hole spin
+# math, benchmark statistics) ran 10-30x slower than optimized code.
+# Level 1 costs ~20-30% more test-compile time and buys it back many
+# times over in runtime; debug info and incremental compilation stay
+# inherited from dev, so backtraces and rebuild speed are unchanged.
+# The dev profile itself (cargo run / cargo build) is untouched.
+[profile.test]
+opt-level = 1
+
 [profile.release]
 opt-level = 3
 debug = false

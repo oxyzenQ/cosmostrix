@@ -23,6 +23,43 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### perf: NIGHT-perf-1 (post v100) — the test suite accelerated: opt-level 1 test profile + the MSRV full-suite duplicate retired
+
+- **Problem**: the full suite (about 2950 tests; 2418 in the `test/**`
+  mirror wired via 48 `#[path]` includes, 534 inline) executed at
+  `profile.dev`'s opt-level = 0 because `profile.test` inherits dev.
+  The CPU-heavy simulation tests (engine invariant sweeps across all
+  44 themes, black-hole spin math, benchmark statistics) ran 10-30x
+  slower than optimized code, and 486 sleep/duration-based timing
+  tests padded the wall clock on top. CI made it worse: the msrv and
+  build_test jobs pin the SAME RUST_VERSION toolchain, so the complete
+  suite ran twice back-to-back on every push (msrv full run, then
+  build_test full run on a warm cache).
+- **Fix 1 — `[profile.test] opt-level = 1`** (Cargo.toml): the whole
+  test build now optimizes at level 1. Compile cost rises ~20-30%;
+  runtime drops hard on the compute-bound tests. Debug info, unpacked
+  split-debuginfo, incremental compilation, and codegen-units stay
+  inherited from dev, so backtraces and rebuild speed are unchanged.
+  `profile.dev` (cargo run / cargo build) and every release/pro
+  profile are untouched — zero production-surface change.
+- **Fix 2 — MSRV smoke** (ci.yml): the msrv job now runs
+  `cargo test --all --locked lock_` — the full test tree still
+  COMPILES on the MSRV toolchain (the MSRV contract), plus the ~175
+  engine invariant lock-suite tests (the `lock_` prefix families
+  across all three dragon engines) as the runtime smoke. The complete
+  suite runs exactly once per push, on the stable build_test job.
+  FreeBSD keeps its full run (cross-platform validation; a different
+  OS surface is a different contract).
+- **Test count unchanged**: nothing was deleted, skipped, or gated
+  behind features — this is pure execution speed. Zero compiled doc
+  tests exist (all 40 fenced doc blocks are `text`/`ignore`), so the
+  suite is exactly the bin-target unit tests.
+- **Verification**: manifest parsed and build-graph constructed under
+  the new profile (cargo test --no-run progress observed); yamllint +
+  actionlint clean on ci.yml; gate-keepers 19 passed / 0 failed
+  (incl. the version-sync guard that scans ci.yml for RUST_VERSION
+  drift — untouched).
+
 ### cleanup: NIGHT-cleanup-2 (post v100) — the dragon engine lock protocol retired: RULES.md/KEY.md/dragon-history.sh removed, engine READMEs simplified
 
 - **Owner decision (2026-09-20)**: the per-engine LOCK/UNLOCK protocol
