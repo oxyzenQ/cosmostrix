@@ -39,7 +39,7 @@ env:
 jobs:
   miri:
     name: Cosmic Dragon Guard - Miri UB verification (6 audited modules)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:

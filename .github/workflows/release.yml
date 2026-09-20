@@ -27,21 +27,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             platform: linux-amd64-v3
             profile: pro-linux-v3
             rustflags: "-C target-cpu=x86-64-v3"
             build: linux-amd64-v3-gnu
             checks: true
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
             platform: linux-amd64-v4
             profile: pro-linux-v4
             rustflags: "-C target-cpu=x86-64-v4"
             build: linux-amd64-v4-gnu
             checks: false
-          - os: ubuntu-latest
+          - os: ubuntu-24.04
             target: x86_64-unknown-linux-musl
             platform: linux-amd64-musl
             profile: pro-linux-musl
@@ -541,7 +541,7 @@ jobs:
 
   build_android:
     name: Cosmic Dragon - Build packages (android-aarch64-native)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
 
     steps:
@@ -733,13 +733,13 @@ jobs:
     #     support, gain nothing from PGO (ARM is already well-tuned by LLVM),
     #     or would burn CI minutes on builds that cannot be distributed.
     #   - The matrix below only lists linux-amd64-v3 / v4 and `runs-on` is
-    #     pinned to ubuntu-latest, so this job is structurally Linux-only.
+    #     pinned to ubuntu-24.04, so this job is structurally Linux-only.
     #     Other platforms fall through to the standard `build_packages` job
     #     which uses their normal optimized profile.
     #   - A job-level `if:` cannot reference the `runner` context (it is only
     #     populated after the runner is allocated), so the Linux guard is
     #     enforced structurally via `runs-on` rather than via an expression.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     strategy:
       fail-fast: false
@@ -871,7 +871,7 @@ jobs:
 
   build_freebsd:
     name: Cosmic Dragon - Build (freebsd native)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 40
     steps:
       - name: Checkout
@@ -931,7 +931,7 @@ jobs:
 
   publish_release:
     name: Cosmic Dragon - Publish GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     needs: [build_packages, build_android, build_pgo, build_freebsd]
     permissions:

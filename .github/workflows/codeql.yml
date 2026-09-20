@@ -95,7 +95,7 @@ env:
 jobs:
   detect-languages:
     name: Cosmic Dragon Guard - Detect languages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     outputs:
       has_rust: ${{ steps.detect.outputs.has_rust }}
@@ -163,7 +163,7 @@ jobs:
   analyze:
     name: Cosmic Dragon Guard - CodeQL Analyze
     needs: detect-languages
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
 
     steps:

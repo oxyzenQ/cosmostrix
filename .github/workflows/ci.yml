@@ -76,7 +76,7 @@ env:
 jobs:
   security:
     name: Cosmic Dragon Guard - Security audit
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - name: Checkout
@@ -108,7 +108,7 @@ jobs:
   # test job. Needs only bash + the repo files; no Rust toolchain, no cache.
   version-sync:
     name: Cosmic Dragon Guard - Version sync guard
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Checkout
@@ -125,7 +125,7 @@ jobs:
 
   msrv:
     name: Cosmic Dragon Guard - MSRV
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [security, version-sync]
     timeout-minutes: 30
     steps:
@@ -147,7 +147,7 @@ jobs:
 
   build_test:
     name: Cosmic Dragon Guard - Test + Build (debug)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: [security, msrv]
     timeout-minutes: 30
     steps:
@@ -265,7 +265,7 @@ jobs:
 
   android_build:
     name: Cosmic Dragon Guard - Build (android-aarch64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     if: github.event_name == 'push'
     timeout-minutes: 30
@@ -361,7 +361,7 @@ jobs:
 
   linux_aarch64_build:
     name: Cosmic Dragon Guard - Build (linux aarch64)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     timeout-minutes: 30
     steps:
@@ -489,7 +489,7 @@ jobs:
 
   freebsd_native_build:
     name: Cosmic Dragon Guard - Build (freebsd native)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     timeout-minutes: 40
     steps:
@@ -569,7 +569,7 @@ jobs:
 
   linux_cpu_variants:
     name: Cosmic Dragon Guard - Build (linux x86_64 variants)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     timeout-minutes: 30
     strategy:
@@ -759,7 +759,7 @@ jobs:
 
   fmt_clippy:
     name: Cosmic Dragon Guard - Format + Clippy
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     timeout-minutes: 30
     steps:
@@ -785,7 +785,7 @@ jobs:
 
   deny:
     name: Cosmic Dragon Guard - Dependency policy (cargo-deny)
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     needs: build_test
     timeout-minutes: 30
     steps:
