@@ -32,7 +32,8 @@ convenient location outside the repository.
 
 ### Resource log format (CSV)
 
-The current (extended) CSV format contains 19 fields per row:
+The extended CSV format (19 fields per row) written by the historical
+monitor:
 
 ```
 timestamp,pid,elapsed_sec,cpu_pct,rss_kb,hwm_kb,vmsize_kb,rssanon_kb,rssfile_kb,pss_kb,swap_kb,threads,fd_count,minflt,majflt,voluntary_ctxt,nonvoluntary_ctxt,read_bytes,write_bytes
@@ -62,88 +63,19 @@ timestamp,pid,elapsed_sec,cpu_pct,rss_kb,hwm_kb,vmsize_kb,rssanon_kb,rssfile_kb,
 
 #### Legacy format
 
-The summary script also supports the legacy 4-column format for backward
-compatibility:
+The legacy 4-column format predates the extended one:
 
 ```
 timestamp,rss_kb,fd_count,elapsed_secs
 ```
 
-The script auto-detects the format based on the presence of extended columns
-(`pid`, `cpu_pct`, `hwm_kb`, etc.).
+The removed summary script auto-detected the two formats by the presence
+of the extended columns (`pid`, `cpu_pct`, `hwm_kb`, etc.).
 
 ### Sampling interval
 
 The recommended interval is 60 seconds (`INTERVAL=60`). For shorter test runs
 (e.g. 1-hour smoke tests) a 10-second interval provides higher resolution.
-
-### How to run
-
-1. Build a release binary:
-
-```bash
-cargo build --release
-```
-
-1. Launch cosmostrix in the background with a duration cap:
-
-```bash
-./target/release/cosmostrix --duration 86400 &
-COSMO_PID=$!
-```
-
-1. Start the monitor script (run from a separate terminal or via nohup):
-
-```bash
-# Monitor by process name (resolves newest matching PID automatically)
-bash scripts/monitor-cosmostrix.sh cosmostrix
-
-# Or monitor by explicit PID
-bash scripts/monitor-cosmostrix.sh $COSMO_PID
-
-# Custom interval (default is 60 seconds)
-INTERVAL=10 bash scripts/monitor-cosmostrix.sh cosmostrix
-
-# Custom output directory (default is logs/)
-OUT_DIR=../logs bash scripts/monitor-cosmostrix.sh cosmostrix
-```
-
-The script writes a CSV file to `logs/<name>-resource-<pid>-<timestamp>.csv`
-by default. It exits automatically when the target process terminates.
-
-1. After the run, analyze with the summary script:
-
-```bash
-bash scripts/endurance-summary.sh "$CSV_PATH"
-```
-
-If logs are stored in a sibling `logs/` directory, this copy-paste command is
-safe to run even when no current files exist:
-
-```bash
-bash scripts/endurance-summary.sh '../logs/cosmostrix-resource-*.csv' || true
-```
-
-### Quick 1-hour smoke test
-
-For faster iteration, use a 1-hour run with 10-second sampling:
-
-```bash
-./target/release/cosmostrix --duration 3600 &
-INTERVAL=10 bash scripts/monitor-cosmostrix.sh cosmostrix
-```
-
-### Process resolution
-
-The monitor script accepts either a PID or a process name as its argument:
-
-- **PID**: If the argument is a numeric string, the script uses it directly
-  after verifying that `/proc/<pid>` exists.
-- **Process name**: If the argument is a name, the script calls `pgrep -xn`
-  to find the newest matching process. If `pgrep` fails, it falls back to
-  `pidof` and selects the last PID reported.
-
-If no argument is given, the default target is `cosmostrix`.
 
 ## Acceptance criteria
 
@@ -188,64 +120,6 @@ cosmostrix --doctor | rg "crystal_dragon"
 
 A transient FD spike (e.g. +/-2 handles) during a single sample is acceptable
 as long as the count returns to baseline by the next sample.
-
-## Summary script output
-
-`scripts/endurance-summary.sh` parses the CSV resource log and prints a
-summary table including:
-
-- Elapsed time (seconds + human-readable duration)
-- RSS: start / end / max / HWM / growth %
-- PSS: start / end / max (extended format only)
-- Swap: max (extended format only)
-- File descriptors: start / end / max / leak verdict
-- Threads: start / end / max (extended format only)
-- CPU: avg / min / max / P95 (extended format only)
-- Major page faults: delta / max (extended format only)
-- I/O bytes: read / write delta (extended format only)
-
-```bash
-# Extended format (current)
-bash scripts/endurance-summary.sh path/to/endurance.csv
-
-# Legacy 4-column format (backward compatible)
-bash scripts/endurance-summary.sh path/to/legacy-endurance.csv
-
-# Multiple files at once
-bash scripts/endurance-summary.sh endurance-1h.csv endurance-24h.csv
-```
-
-### Header validation
-
-The script resolves columns by header name, not hardcoded positions. Required
-fields are validated before processing:
-
-- **Extended format**: `elapsed_sec`, `rss_kb`, `fd_count`
-- **Legacy format**: `rss_kb`, `fd_count`, `elapsed_sec` or `elapsed_secs`
-
-If required fields are missing, the script exits with a clear error message
-identifying the missing column.
-
-### No logs found
-
-If a glob does not match any readable CSV files, the summary script prints a
-friendly usage message instead of a raw `file not found` error. For example:
-
-```bash
-bash scripts/endurance-summary.sh '../logs/cosmostrix-resource-*.csv' || true
-```
-
-If that reports no matching logs:
-
-- Confirm the logs were written to the path you passed.
-- Prefer a durable sibling directory such as `../logs/`.
-- Use a filename pattern like `cosmostrix-resource-YYYYMMDD-HHMM.csv`.
-- Run a short smoke sample first, then summarize the exact CSV path.
-- Quote glob patterns in zsh so the shell does not reject unmatched patterns
-  before the summary script can print its friendly no-logs message.
-
-Malformed CSV files and missing required columns are still treated as real
-errors and should be fixed rather than ignored.
 
 ## Past results
 

@@ -23,9 +23,10 @@
 name: "Cosmic Dragon Guard - AUR Sync"
 
 'on':
-  # repository_dispatch: backward compat for old release.yml that uses
-  # this trigger. Keep until all tagged releases use the new
-  # workflow_dispatch trigger from release.yml.
+  # repository_dispatch: the live automation path — release.yml posts an
+  # "aur-sync" event (tag in client_payload) right after a GitHub Release
+  # publishes successfully. workflow_dispatch below covers manual/retry
+  # runs for a tag (same idempotent sync body either way).
   repository_dispatch:
     types: [aur-sync]
   workflow_dispatch:

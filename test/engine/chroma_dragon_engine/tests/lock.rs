@@ -1,7 +1,7 @@
 // Copyright (C) 2026 rezky_nightky
 // SPDX-License-Identifier: GPL-3.0-only
 
-//! # Chroma Dragon Engine Lock — Phase 9-C
+//! # Chroma Dragon Engine Lock — Phase 9-D
 //!
 //! Comprehensive invariant suite that locks the Chroma Dragon coloring
 //! engine at its Phase 9 peak. Every public contract the engine guarantees

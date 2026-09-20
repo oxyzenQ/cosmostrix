@@ -166,7 +166,7 @@ confirmed no regression:
 | 8     | L+chroma smoothing at palette transitions | Done |
 | 9-A   | Hue-preserving polar gradient | Done |
 | 9-B   | Lock suite (19 invariants) | Done |
-| 9-C   | sRGB-linear fallback removal | Done |
+| 9-C   | Cartesian + sRGB-linear fallback removal (polar sole path) | Done |
 | 9-D   | ColorPipeline + legacy audit (19 invariants) | Done — current peak |
 
 <!-- COSMOSTRIX-DISCLAIMER -->

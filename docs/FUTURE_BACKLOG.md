@@ -2,204 +2,120 @@
 
 # Future Backlog — Doc Maintenance Cleanup
 
-> **Status**: EXECUTED (2026-09-14, NIGHT-hunt-45 + docs-6 — the pre-LTS
-> owner-mandated docs audit; this backlog WAS that "future dedicated
-> doc-cleanup pass"). Outcome of the full re-triage against the current
-> tree:
+> **Status**: EXECUTED and re-triaged (2026-09-20, NIGHT-hunt-5 — the
+> post-v100.0.2 total staleness pass). This backlog is the standing
+> doc-cleanup ledger. Earlier passes, in order: NIGHT-hunt-45 + docs-6
+> (2026-09-14, first full triage), NIGHT-hunt-46 + docs-7 (2026-09-14,
+> README flag audit + docs-audit truth-column refresh), NIGHT-cleanup-1
+> (2026-09-20, dead-script sweep — 27 one-off harnesses removed),
+> NIGHT-cleanup-2 (2026-09-20, engine lock-protocol retirement),
+> NIGHT-hunt-5 (2026-09-20, this pass).
 >
-> - **FIXED in earlier staleness passes** (docs-5 `5b7e092` + the
->   NIGHT-LTS-pre sweep `6f30ed6`): the CONTRIBUTING.md rows and the
->   live-path rows for CENTRAL_CONTROL_RAINS_USAGE.md,
->   LIVE_RELOAD_BEHAVIOR.md, MAINTENANCE.md, PHILOSOPHY.md,
->   SECURITY_AUDIT.md, and TERMINAL_LIFECYCLE_MATRIX.md — none of them
->   reproduce under `scripts/docs-audit.py` today.
-> - **FIXED in the NIGHT-hunt-4 pass (post v100)**: the
->   PGO_AB_20260823.md row (re-pointed to
->   `docs/archive/research/IPC_RESEARCH.md` — tracked in the
->   benchmark/ table below but missed by the earlier BENCH_LABS
->   sweep), and the night_research7_dna AB_REPORT comparator row
->   (reworded as a session-local, never-committed script — not a
->   repo path).
-> - **RECLASSIFIED as intentional history** (kept, with their in-doc
->   disclaimers): ENDURANCE.md and RELEASE_GUARD.md script mentions
->   (explicit "removed in dead-script cleanup" notes), RULES.md's
->   gen-density-presets.py mention (explicit "was deleted" note),
->   VISUAL_IDENTITY.md's PRESET_BATTLE_VERDICT.md mention (explicit
->   "deleted by the 2026-08 orphan-doc cleanup" note), HIST_BENCH.md
->   helper mentions (same "historical ... removed" notes), the
->   incubator-README rows ("at that time" / "moved from" narration),
->   and the src/RULES.md example paths (illustrative
->   NIGHT-hunter-1/re-export examples), plus (NIGHT-hunt-4) the
->   per-entry "Files changed" path records inside
->   src/engine/cosmic_dragon_engine/RULES.md — as-of-commit-time
->   paths; the test-mirror migration later moved `src/**/tests/`
->   to the `test/` tree, and retroactive rewrites would falsify
->   the records; the RULES.md file itself was later removed by the
->   2026-09-20 lock-protocol retirement, the blockquoted records
->   stay verbatim as history).
-> - **FIXED in this pass**: README.md CLI-reference block was missing 7
->   live flags (--crystal-dragon-secs, -M/--shading-mode, --color-mode,
->   -g/--glitch-ms, -l/--linger-ms, --perf-stats, --bench-frames);
->   README.md + docs/BENCHMARKING.md claimed a 4x4 screen-size minimum
->   (source truth: 1x1, MIN_TERMINAL_COLS/LINES); one stale
->   src/constants.rs path in a src/diagnostics/info.rs doc comment;
->   `scripts/stale-hunt.py` false-flagged clap `alias` flags
->   (--charset-custom, 7 hits) and external curl/wget/cargo flags —
->   alias parsing + allowlists added, stale-flag/path/module counts
->   now 0.
-> - **ACCEPTED tool noise**: `scripts/docs-audit.py` still reports the
->   intentional-history mentions above (the engine KEY.md/RULES.md
->   historical-snapshot records were removed with the lock-protocol
->   retirement of 2026-09-20 — remaining mentions live only in the
->   era changelogs and archived audits, same historical-snapshot
->   contract as CHANGELOG.md). The remaining
->   "duplicate comment lines" candidates from stale-hunt.py are
->   heuristic; the comment-style conventions intentionally repeat
->   module-doc lines.
+> **NIGHT-hunt-5 outcome** — fixed in this pass:
 >
-> - **RE-TRIAGED 2026-09-14 (NIGHT-hunt-46 & docs-7, second pass)**:
->   README.md flag audit against the live binary surface found one
->   real stale flag — `--colors <name>` in the custom-palette bullet
->   (the binary rejects it; corrected to `--color`/`--colors-custom`);
->   `scripts/docs-audit.py`'s own truth columns were stale (paths
->   pointing at the pre-`src/engine/` layout, `central_control_dragon_power`
->   with the words swapped for `central_control_power_dragon`, test
->   truth 2527, .rs truth 438 — all refreshed to current); this
->   backlog's "current count" line above refreshed with it.
+> - `docs/ENDURANCE.md` — the dead-script how-to sections (how to run,
+>   smoke test, process resolution, summary output, header validation,
+>   no-logs guidance) for the removed `monitor-cosmostrix.sh` +
+>   `endurance-summary.sh` were deleted (~127 lines); the historical
+>   record (CSV format spec, acceptance criteria, past results, run
+>   template) is kept and the format framing moved to past tense.
+> - `test/engine/chroma_dragon_engine/tests/lock.rs` — the suite header
+>   still said "Phase 9-C" while `CHROMA_DRAGON_ENGINE_VERSION` is
+>   "9-D (locked)"; the header is aligned to 9-D.
+> - `src/engine/chroma_dragon_engine/README.md` — the phase-history 9-C
+>   row now names both removed variants (Cartesian + sRGB-linear),
+>   matching commit `2e20f6cc` and the lock-suite narrative.
+> - `docs/THREE_DRAGON_ENGINES.md` — the lock-suite sentence pointed at
+>   a wrong glob; it now names the two real lock suites (Chroma 19
+>   invariants, Cosmic renderer 17 invariants) and the Crystal
+>   per-subsystem test suites.
+> - `docs/VERIFY_RELEASE.md` — the key-details "verified against" line
+>   was refreshed from the v100.0.1 to the v100.0.2 release signatures.
+> - `.github/workflows/aur.yml` — the `repository_dispatch` trigger
+>     comment described a "backward compat, keep until" state that no
+>     longer matched reality; it now describes the live mechanism
+>     (release.yml posts the event after a release publishes).
+> - `scripts/docs-audit.py` — truth notes refreshed (2952 `#[test]`
+>   fns = 2418 in `test/` + 534 in `src/`), the corpus rules encoded
+>   (see section 1), and sections 1-3 gained negation/history context
+>   awareness so intentional history is no longer tool noise.
 >
-> - **DEAD-SCRIPT SWEEP 2026-09-20 (NIGHT-cleanup-1)**: 27 retired
->   one-off hunt/repro harness scripts removed from `scripts/`
->   (61 to 34 files, ~330 KB) after a full reference-map + import-graph
->   verification found zero live wiring; the same triage contract as
->   the endurance-summary/monitor-cosmostrix/gen-density-presets
->   precedents above. Live-doc citations were reworded with removal
->   notes (KNOWN_ISSUES.md, LIVE_RELOAD_BEHAVIOR.md sections 19-20,
->   residue.rs / strict_mode.rs comments, the nh2_shift_harness.py
->   docstring — nh2_shift_harness.py itself KEPT: it is the shared
->   PTY Screen library the live night_cbg34_e2e.py imports). Mentions
->   of the removed harnesses inside dated historical records (era
->   changelogs, docs/research, docs/audits, KEY.md signoffs, bench-labs
->   AB reports) are intentional history per section 2 and will show up
->   as docs-audit noise, same as the pre-existing accepted set.
->
+> **Standing policy** — every remaining stale-path mention in the live
+> corpus is a negation-context record (see section 2); a bare path,
+> count, or phase claim with no history framing is a defect. The
+> "project ships 80+ .md files" line inside the injected
+> `COSMOSTRIX-DISCLAIMER` blocks is a lower bound that stays true and is
+> re-injected verbatim by `scripts/inject-disclaimer.sh` (updating it
+> would fork the disclaimer into two variants across the historical
+> corpus — accepted as-is).
+
 > **Owner directive**: "log broken links to FUTURE_BACKLOG.md (35+
 > historical broken refs in CHANGELOG/CONTRIBUTING — deferred per
 > historical record contract, but could be noted for future cleanup)."
 
-## 1. Broken references in LIVE docs (triaged in the NIGHT-hunt-45 pass — see status header)
+## 1. Corpus rules (what `scripts/docs-audit.py` audits)
 
-These are live documentation files that reference paths which have
-moved, been archived, or been deleted. They should be updated to
-point to the current location or marked as archived.
+The live corpus is every git-tracked `.md` file EXCEPT the historical
+snapshots, which are never rewritten:
 
-### CONTRIBUTING.md (3 broken refs)
+- `docs/archive/**` — archived everything (audits, research, specs).
+- `docs/research/**` — dated investigation logs.
+- `docs/audits/**` — dated audit reports.
+- `CHANGELOG-V50-ERA.md`, `CHANGELOG-V80-ERA.md`,
+  `CHANGELOG-V100-ERA.md` — the era changelog split; as historical as
+  `docs/archive/**`.
+- `benchmark/bench-labs/**` A/B artifacts, except the hand-maintained
+  index `benchmark/bench-labs/BENCH_LABS.md`.
+- `benchmark/bench-labs/sweep_*.md` — machine-generated (pre-existing
+  rule).
+- `CHANGELOG.md` below the `## Unreleased` section — released history;
+  only the `## Unreleased` section is live.
 
-| Line | Broken ref | Current location |
-|------|-----------|-----------------|
-| (varies) | `docs/audits/COSMIC_DRAGON_AUDIT.md` | `docs/archive/audits/COSMIC_DRAGON_AUDIT.md` |
-| (varies) | `src/cosmic_dragon_engine/frame.rs` | `src/engine/cosmic_dragon_engine/frame.rs` |
-| (varies) | `src/cosmic_dragon_engine/runtime.rs` | `src/engine/cosmic_dragon_engine/runtime.rs` |
+Within the live corpus, a reference to a path that no longer exists is
+a defect UNLESS its context marks it as intentional history — explicit
+removal/retirement/move/example framing on the line, in the preceding
+3 lines, or under the nearest markdown heading (the same awareness
+`scripts/stale-hunt.py` applies to Rust comments).
 
-### docs/ (18 broken refs across 9 files)
+## 2. Intentional-history register (live corpus, kept by design)
 
-| File | Broken ref | Status |
-|------|-----------|--------|
-| `docs/CENTRAL_CONTROL_RAINS_USAGE.md` | `./RAIN_DEPTH_AUDIT.md` | moved to `docs/archive/RAIN_DEPTH_AUDIT.md` |
-| `docs/CENTRAL_CONTROL_RAINS_USAGE.md` | `docs/RAIN_DEPTH_AUDIT.md` | moved to `docs/archive/RAIN_DEPTH_AUDIT.md` |
-| `docs/ENDURANCE.md` | `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` | moved to `docs/archive/audits/` |
-| `docs/ENDURANCE.md` | `scripts/endurance-summary.sh` | deleted (script no longer exists) |
-| `docs/ENDURANCE.md` | `scripts/monitor-cosmostrix.sh` | deleted (script no longer exists) |
-| `docs/LIVE_RELOAD_BEHAVIOR.md` | `docs/LTS_AUDIT_CONFIG_LIVE_RELOAD.md` | moved to `docs/archive/LTS_AUDIT_CONFIG_LIVE_RELOAD.md` |
-| `docs/MAINTENANCE.md` | `audits/COSMIC_DRAGON_AUDIT.md` | path typo (missing `docs/` prefix) + moved to `docs/archive/audits/` |
-| `docs/MAINTENANCE.md` | `docs/audits/COSMIC_DRAGON_AUDIT.md` | moved to `docs/archive/audits/` |
-| `docs/PHILOSOPHY.md` | `SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
-| `docs/PHILOSOPHY.md` | `docs/SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
-| `docs/RULES.md` | `scripts/gen-density-presets.py` | deleted (density-map feature removed in v80.0.0-beta.2) |
-| `docs/SECURITY_AUDIT.md` | `audits/SECURITY_VULNERABILITY_AUDIT.md` | path typo (missing `docs/` prefix) |
-| `docs/SECURITY_AUDIT.md` | `docs/SIMD_FEASIBILITY.md` | moved to `docs/archive/SIMD_FEASIBILITY.md` |
-| `docs/SECURITY_AUDIT.md` | `docs/STABILITY_AUDIT.md` | moved to `docs/archive/STABILITY_AUDIT.md` |
-| `docs/SECURITY_AUDIT.md` | `docs/audits/SECURITY_VULNERABILITY_AUDIT.md` | moved to `docs/archive/audits/` |
-| `docs/TERMINAL_LIFECYCLE_MATRIX.md` | `docs/audits/LTS_MATRIX_MIDSESSION_RETEST.md` | moved to `docs/archive/audits/` |
-| `docs/VISUAL_IDENTITY.md` | `docs/RAIN_DEPTH_AUDIT.md` | moved to `docs/archive/RAIN_DEPTH_AUDIT.md` |
-| `docs/VISUAL_IDENTITY.md` | `docs/research/PRESET_BATTLE_VERDICT.md` | deleted or never created |
+| File | Reference | Framing |
+|------|-----------|---------|
+| `docs/ENDURANCE.md` | removed `monitor-cosmostrix.sh` / `endurance-summary.sh` | removal note (commit `936c7ba`) + "historical sampling script" narration |
+| `docs/RELEASE_GUARD.md` | removed `rc-smoke.sh` / `release-benchmark-report.sh` | "previously ran ... removed" history notes |
+| `docs/RULES.md` | removed `gen-density-presets.py` | "was deleted" (density-map retirement) |
+| `docs/VISUAL_IDENTITY.md` | removed `PRESET_BATTLE_VERDICT.md` | "was deleted by the 2026-08 orphan-doc cleanup" |
+| `docs/THREE_DRAGON_ENGINES.md` | retired `KEY.md` / `RULES.md` / `dragon-history.sh` | "former ... was retired 2026-09-20" narration |
+| `benchmark/HIST_BENCH.md` | removed `bench-compare.sh` / `release-benchmark-report.sh` | "historical ... removed" measurement records |
+| `benchmark/research/COMPETITOR_COMPARISON.md` | removed `naive_matrix.py` | "was written as a baseline" |
+| `src/cosmic_dragon_incubator/README.md` | pre-restructure flat paths (`src/cloud/`, `src/frame.rs`, `src/runtime.rs`, the `cosmic_dragon_egg_io_uring` experiment) | "at that time" history section |
+| `src/RULES.md` | `src/A/B_tests.rs` → `test/A/B_tests.rs`, `src/my_group/submodule_a.rs` | illustrative mirror-mapping / re-export-pattern examples |
+| `CHANGELOG.md` (Unreleased) | removed scripts + paths inside cleanup entries | the entries document the removals themselves |
 
-### benchmark/ (3 broken refs)
+## 3. Stale count claims (historical — leave as-is)
 
-| File | Broken ref | Status |
-|------|-----------|--------|
-| `benchmark/bench-labs/BENCH_LABS.md` | `docs/research/IPC_RESEARCH.md` | moved to `docs/archive/research/IPC_RESEARCH.md` |
-| `benchmark/bench-labs/PGO_AB_20260823.md` | `docs/research/IPC_RESEARCH.md` | moved to `docs/archive/research/IPC_RESEARCH.md` |
-| `benchmark/research/COMPETITOR_COMPARISON.md` | `benchmark/naive_matrix.py` | deleted (naive matrix script removed) |
+The era files and dated records quote test counts and theme counts that
+were accurate at their time; they stay verbatim. Current numbers for
+anyone triaging: 2952 `#[test]` fns across the tracked tree (2418 in
+`test/` + 534 in `src/`), 44 builtin themes (`THEME_COUNT`,
+`src/theme/mod.rs`), 508 tracked `.rs` files, 33 scripts in
+`scripts/`. The chroma engine sits at Phase 9-D (the locked final
+form). Historical entries are never retroactively updated.
 
-### src/ (4 broken refs)
+## 4. Standing verification (run after any doc pass)
 
-| File | Broken ref | Status |
-|------|-----------|--------|
-| `src/RULES.md` | `src/my_group/submodule_a.rs` | example path (may be intentional) |
-| `src/cosmic_dragon_incubator/README.md` | `src/cosmic_dragon_egg_io_uring.rs` | moved or deleted |
-| `src/cosmic_dragon_incubator/README.md` | `src/frame.rs` | moved to `src/engine/cosmic_dragon_engine/frame.rs` |
-| `src/cosmic_dragon_incubator/README.md` | `src/runtime.rs` | moved to `src/engine/cosmic_dragon_engine/runtime.rs` |
-
-## 2. Broken references in HISTORICAL records (leave as-is)
-
-These are in changelog era-file entries and research snapshots with
-explicit "Historical research snapshot" headers. They cite paths that
-existed at the time of writing — rewriting them would falsify history.
-The `docs/archive/**` files are by-design historical records.
-
-### CHANGELOG era files (historical broken refs — leave as-is)
-
-The NIGHT-docs-1 era split moved the historical entries into
-`CHANGELOG-V50-ERA.md` / `CHANGELOG-V80-ERA.md` /
-`CHANGELOG-V100-ERA.md` together with their broken refs, verbatim.
-All cite paths that existed at the time of the entry:
-`docs/audits/DEPS_AUDIT.md`, `scripts/gen-density-presets.py`,
-`src/cosmic_dragon_engine/KEY.md`, `src/cosmic_dragon_engine/cloud/*.rs`,
-`src/msg_fill_style/pulse.rs`, the NIGHT-cleanup-1-retired one-off
-hunt harnesses, etc. These paths are correct for the
-commit they describe — they have since moved or been deleted, but the
-changelog is a historical record and should NOT be rewritten. The
-live `CHANGELOG.md` carries exactly one citation of this class
-(`scripts/ab_compare_nr7_dna.py` inside the NIGHT-hunt-4 entry,
-quoting what that audit found).
-
-### docs/research/ (8 broken refs — all historical)
-
-Files with "Historical research snapshot" headers:
-- `docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md` (6 refs to old flat
-  `src/*.rs` paths — modules moved to `src/engine/chroma_dragon_engine/`)
-- `docs/research/S_MASTER_V2_AUDIT.md` (1 ref to `src/validation.rs`)
-- `docs/research/VISUAL_MODE_AUDIT.md` (3 refs to old paths)
-
-### Stale count claims (historical — leave as-is)
-
-- `~1500+ tests` in `CHANGELOG-V50-ERA.md` (3 occurrences) + `KEY.md`
-  (2 occurrences) — accurate at time of writing (the `~` prefix means
-  "approximately"). Current count is 2947 `#[test]` fns across the
-  tracked tree (2415 in `test/` + 532 in `src/`; the last full
-  `cargo test` run reported 2932 passing — NIGHT-hunt-47-depthbore)
-  but historical entries should not be retroactively updated. The
-  only `~1500+ tests` hit in the live `CHANGELOG.md` is the
-  NIGHT-hunt-4 entry's meta-reference to these markers.
-- `43 themes` in `CHANGELOG.md`'s condensed origin story (the v11.1.0
-  line, "the 43 builtin palettes") — accurate at time of writing
-  (EnergyZen was added later, bumping to 44).
-- `Phase 9-B` in `docs/research/CHROMA_DRAGON_ENGINE_AUDIT.md`
-  (historical research snapshot) — accurate at time of writing
-  (engine has since progressed to Phase 9-D).
-
-## 3. Fix strategy (when this backlog is picked up)
-
-1. **Live docs (section 1)**: update each broken ref to point to the
-   current location. For deleted files (scripts/naive_matrix.py, etc.),
-   remove the reference or replace with a note ("deleted in vXX").
-2. **Historical records (section 2)**: leave as-is. These are accurate
-   for the time they were written.
-3. **Run `scripts/docs-audit.py` after the cleanup pass** to verify
-   the live-doc section 1 refs are resolved. The historical section 2
-   refs will remain (the script flags them but they are intentional).
-4. **Commit**: one micro-commit per file or per category (whichever
-   is smaller), per the micro-commit-push-per-task owner rule.
+1. `python3 scripts/docs-audit.py` — broken refs, stale paths, stale
+   counts, duplicates over the live corpus. Expected: sections 1-3
+   report nothing beyond context-exempt intentional history.
+2. `python3 scripts/stale-hunt.py` — comment-structure stale-reference
+   scan over `src/**` + `test/**`. Expected: 0 stale flags, paths,
+   modules. The duplicate-comment groups are the heuristic
+   mirror-test pattern (parallel test families repeat their contract
+   narration by design).
+3. `bash scripts/inject-disclaimer.sh --check` — every live `.md`
+   file carries the disclaimer marker.
+4. Commit: one micro-commit per task, per the micro-commit-push owner
+   rule.
 
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--

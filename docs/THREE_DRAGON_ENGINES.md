@@ -91,9 +91,14 @@ The former per-engine LOCK/UNLOCK protocol (`KEY.md` signature logs,
 `RULES.md` unlock detail, and the `scripts/dragon-history.sh` wrapper)
 was retired 2026-09-20 by owner decision — it was too strict a
 maintenance burden. The engines stay at LTS quality the simple way:
-the CI invariant suites (the `lock.rs` test families under
-`test/engine/*/`) assert each engine's public contract on every
-commit, and each engine's `README.md` records its audited-peak state.
+the CI invariant lock suites assert each engine's public contract on
+every commit — Chroma at
+`test/engine/chroma_dragon_engine/tests/lock.rs` (19 invariants) and
+the Cosmic Dragon renderer at
+`test/cosmic_dragon_incubator/tests/lock.rs` (17 invariants); the
+Crystal Dragon scheduler is held by its per-subsystem test suites
+under `test/engine/crystal_dragon_engine/`. Each engine's `README.md`
+records its audited-peak state.
 
 One git command shows every commit that ever touched the dragon
 engine folders:

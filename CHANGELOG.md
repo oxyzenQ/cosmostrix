@@ -23,6 +23,47 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cleanup: NIGHT-hunt-5 (post v100.0.2) — total staleness cross-audit of docs and commented code
+
+- **Change**: live-corpus sweep (55 .md files at audit time; `docs/archive/`,
+  `docs/research/`, `docs/audits/`, the CHANGELOG era files, bench-lab A/B
+  artifacts, and `CHANGELOG.md` below `## Unreleased` are historical
+  snapshots outside the sweep) eliminating stale data, dead how-to burden,
+  and stale commented-code references. Fixed: `docs/ENDURANCE.md` dropped
+  ~127 lines of present-tense how-to guidance for the removed
+  `monitor-cosmostrix.sh`/`endurance-summary.sh` helpers (the historical
+  record — CSV format spec, acceptance criteria, past results, run
+  template — is kept, reframed past tense); the chroma lock-suite header
+  still said "Phase 9-C" while `CHROMA_DRAGON_ENGINE_VERSION` is
+  "9-D (locked)" — aligned; the chroma README 9-C phase row now names both
+  removed variants (Cartesian + sRGB-linear) per commit `2e20f6cc`;
+  `docs/THREE_DRAGON_ENGINES.md` lock-suite sentence pointed at a wrong
+  glob — it now names the two real lock suites (19 + 17 invariants) and
+  the Crystal per-subsystem suites; `docs/VERIFY_RELEASE.md` key-details
+  line refreshed from the v100.0.1 to the v100.0.2 release signatures;
+  the `aur.yml` `repository_dispatch` trigger comment described a
+  superseded "backward compat, keep until" state — rewritten to describe
+  the live mechanism (release.yml posts the event after a release
+  publishes).
+- **Tooling** (`scripts/docs-audit.py`): truth notes refreshed (2952
+  `#[test]` fns = 2418 in `test/` + 534 in `src/`; was 2947), the corpus
+  rules encoded (historical snapshots excluded per
+  `docs/FUTURE_BACKLOG.md` section 1), and sections 1-3 gained
+  negation/history context awareness (line window + enclosing-section
+  markers, the same philosophy `scripts/stale-hunt.py` applies to Rust
+  comments) so intentional-history records are no longer tool noise.
+  `docs/FUTURE_BACKLOG.md` rewritten as the standing ledger: corpus
+  rules, the intentional-history register, and current counts.
+- **Verification**: `python3 scripts/docs-audit.py` — all four sections
+  clean over the 55-file live corpus, and a scratch-file self-test
+  proved both directions (an unframed stale ref is flagged;
+  removal/move/example-framed refs are exempt); `python3
+  scripts/stale-hunt.py` — 0 stale flags/paths/modules (the 223
+  duplicate-comment groups are the heuristic mirror-test narration
+  pattern, unchanged); `bash scripts/inject-disclaimer.sh --check` —
+  212/212 files carry the marker; ruff + rustfmt clean; gate-keepers
+  all green.
+
 ### fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
 
 - **Change** (scripts/generate-release-notes.sh): every classifier stage

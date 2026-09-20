@@ -19,7 +19,7 @@ gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AE
 gpg --keyserver keys.openpgp.org --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
 ```
 
-**Key fingerprint**: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. **Key details**: Master key (ed25519) `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — Certify + Sign, never expires. Signing subkeys (ed25519) rotate on the hygiene cycle described below; the active set as of 2026-09-20 (verified against the keyserver and the v100.0.1 release signatures): `3C9EB25BF0407781` — release artifacts (expires 2028-08-23), `2B52187D2AB618A7591D45C9C7F8B07418899C4E` — release tags (expires 2031-08-23), `56B96F3109F4B924` (expires 2028-08-14). The keyserver always carries the current set — trust it over this list after a rotation. UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`.
+**Key fingerprint**: `F532 4E09 67F1 04D5 8CE0  25F3 47A5 0AEF 4B65 AAC2`. **Key details**: Master key (ed25519) `F5324E0967F104D58CE025F347A50AEF4B65AAC2` — Certify + Sign, never expires. Signing subkeys (ed25519) rotate on the hygiene cycle described below; the active set as of 2026-09-20 (verified against the keyserver and the v100.0.2 release signatures): `3C9EB25BF0407781` — release artifacts (expires 2028-08-23), `2B52187D2AB618A7591D45C9C7F8B07418899C4E` — release tags (expires 2031-08-23), `56B96F3109F4B924` (expires 2028-08-14). The keyserver always carries the current set — trust it over this list after a rotation. UID: `Rezky Cahya Sahputra (cosmic dragon) <130107241+oxyzenQ@users.noreply.github.com>`.
 
 ### Signing key expiry policy
 
