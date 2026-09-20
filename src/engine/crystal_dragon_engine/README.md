@@ -1,23 +1,15 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Crystal Dragon Engine — LTS Lock
+# Crystal Dragon Engine
 
-> **Simplified lock/unlock signature log**: see [`KEY.md`](KEY.md).
-> This README holds the full audit detail (A/B benchmarks, file lists,
-> stability signals).
+The Crystal Dragon Ambient Intelligence Engine — CPU-aware palette
+drift and time-of-day ambient scheduling for cosmostrix. Audited at
+peak (commit `69af079`, 2026-08-19) and held at Long-Term Support
+quality by the per-subsystem test files: any change to this directory
+must keep `cargo test` green.
 
-> **3 Dragon Lock** in commit `69af079` after deeper audit for strengthening
-> and stability.
->
-> Signoff: **rezky_nightky** — 2026-08-19T14:40:05Z — vision & director
-> project cosmostrix
+## Stability Status
 
----
-
-## What This Lock Means
-
-The Crystal Dragon Ambient Intelligence Engine is locked at its current
-state (commit `69af079`, audited 2026-08-19) for Long-Term Support (LTS).
 The code in this directory has been audited for:
 
 - **Peak optimization** — sensor sampling at 60s intervals (cold path,
@@ -43,7 +35,7 @@ The audit confirmed the engine is already at peak. Specifically:
 
 - **CPU mode (primary)**: samples process CPU% via
   `crate::cpustat::current_cpu_ns()`, smooths with EMA (alpha=0.25),
-  maps linearly to 1–99 point. One syscall per 60s — negligible cost.
+  maps linearly to 1-99 point. One syscall per 60s — negligible cost.
 - **CLOCK fallback**: derives point from UTC hour+minute. No syscall
   beyond `SystemTime::now()` (already cached elsewhere). Monotonic
   ramp: 00:00->point 1, 23:59->point 99.
@@ -56,13 +48,13 @@ The audit confirmed the engine is already at peak. Specifically:
 
 - **calc-v1 algorithm** (the legacy selection method; calc-v2 adds a
   DriftHistory recency ring on the same CDF draw):
-  1. Determine temperature group from point (1–33 Cold, 34–66 Medium,
-     67–99 Hot).
+  1. Determine temperature group from point (1-33 Cold, 34-66 Medium,
+     67-99 Hot).
   2. Compute weight per theme: `1.0 / (1.0 + distance * 0.1)` where
      `distance = |current_point - theme_natural_point|`.
   3. Build CDF (cumulative distribution function) — `Vec<f32>` with
      capacity pre-allocated.
-  4. Draw uniform `u ∈ [0, 1)`, binary-search CDF via `partition_point`.
+  4. Draw uniform `u in [0, 1)`, binary-search CDF via `partition_point`.
   5. Skip current scheme if selected (retry once, then accept no-op).
 - **CDF binary search** uses `slice::partition_point` (O(log N), branch-
   optimized in stdlib). ~14 themes per group -> 4 comparisons worst case.
@@ -143,23 +135,22 @@ in the surrounding engine:
 | frame_jitter               |          low |         low |       — | MATCH   |
 | drift_interpretation       |       stable |      stable |       — | MATCH   |
 
-**Conclusion**: Engine is at peak. No code changes applied — the lock
-is the appropriate action.
+**Conclusion**: Engine is at peak. No code changes were required.
 
-## Dragon Engine Topology (Locked)
+## Engine Topology
 
 | Subsystem                                  | Role                                                                  |
 |--------------------------------------------|-----------------------------------------------------------------------|
 | `crystal_dragon_engine/ambient/mod.rs`     | Time-of-day schedule types, config parsing, validation, startup apply |
 | `crystal_dragon_engine/ambient_scheduler/mod.rs` | Dynamic idle/wake scheduler thread (zero CPU between phase boundaries) |
-| `crystal_dragon_engine/sensor/mod.rs`     | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1–99 point.    |
+| `crystal_dragon_engine/sensor/mod.rs`     | CPU sampling (procfs) + CLOCK fallback (UTC). Produces 1-99 point.    |
 | `crystal_dragon_engine/palette_groups/mod.rs` | The builtin themes -> Cold / Medium / Hot partition |
 | `crystal_dragon_engine/point_system/mod.rs` | calc-v2 (default): weighted CDF + DriftHistory recency ring; calc-v1: legacy no-memory CDF |
 | `crystal_dragon_engine/crystal_dragon_control/mod.rs` | Config struct + constants (polling, drift chance, EMA alpha, sensor mode, calc method) |
 | `crystal_dragon_engine/ambient_diag.rs`   | Atomic counters for diagnostics + exit summary                        |
 | `crystal_dragon_engine/mod.rs`            | Top-level module doc + re-exports                                    |
 
-## Owner Decisions (Locked)
+## Owner Decisions
 
 | Decision | Choice | Rationale |
 |----------|--------|-----------|
@@ -170,21 +161,6 @@ is the appropriate action.
 | Phase switching | **Instant** (no smoothstep blend) | Owner explicitly asked for snappy boundaries, not 5-minute cross-fades. |
 | Schedule format | **Single scene name** (no multi-field) | Eliminates override-precedence bug surface. Scene IS the source of truth. |
 
-## Modification Protocol
-
-See [`RULES.md`](RULES.md) in this directory for the UNLOCK protocol
-that MUST be followed if any file in this directory is modified after
-the lock.
-
----
-
-**Lock signature:**
-
-```
-3 Dragon Lock in commit 69af079 after deeper audit for strengthening
-and stability. Signoff by rezky_nightky 2026-08-19T14:40:05Z vision,
-& director project cosmostrix.
-```
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

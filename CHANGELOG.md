@@ -23,6 +23,46 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cleanup: NIGHT-cleanup-2 (post v100) — the dragon engine lock protocol retired: RULES.md/KEY.md/dragon-history.sh removed, engine READMEs simplified
+
+- **Owner decision (2026-09-20)**: the per-engine LOCK/UNLOCK protocol
+  was too strict a maintenance burden. Every engine change had to
+  carry an UNLOCK entry in the touched engine's `KEY.md` + `RULES.md`,
+  and the `dragon-history.sh --since-lock` audit trail had to be
+  re-anchored on every lock round. The engines keep their LTS quality
+  the simple way: the CI invariant suites (the `lock.rs` test families
+  under `test/engine/*/`) already assert each engine's public contract
+  on every commit — the protocol layered ceremony on top of what CI
+  enforces mechanically.
+- **Removed (7 files, ~2.4k lines)**: `src/engine/{cosmic,chroma,crystal}_dragon_engine/RULES.md`
+  (the full UNLOCK protocol + logs), the matching per-engine
+  `KEY.md` signature logs, and `scripts/dragon-history.sh` (the
+  history wrapper whose `LOCK_AT` boundary needed manual updates).
+  Historical content is preserved in the era changelogs and archived
+  audits, which follow the historical-snapshot contract and stay
+  untouched.
+- **Engine READMEs simplified**: each dragon engine README dropped the
+  lock ceremony (KEY.md/RULES.md callouts, Modification Protocol,
+  UNLOCK History, Documentation Lock, lock signature blocks) and keeps
+  the engineering reference: audit findings, A/B benchmark tables,
+  topology, phase history, and owner decisions. The "What This Lock
+  Means" framing became "Stability Status" pointing at the CI
+  invariant suites as the enforcement mechanism.
+- **Live references re-anchored**: `docs/THREE_DRAGON_ENGINES.md` lock
+  status section rewritten as "Engine history" (the plain
+  `git log --oneline -- src/engine/...` command stays as the history
+  method); `docs/FUTURE_BACKLOG.md` ACCEPTED-tool-noise note updated
+  for the removed KEY.md/RULES.md snapshots; `src/diagnostics/info.rs`
+  chroma phase-history pointer re-anchored to the engine README (2
+  comment sites); the chroma `colors_custom/strictness.rs` module doc
+  dropped its stale KEY.md UNLOCK reference. Historical mentions in
+  CHANGELOG era files, docs/archive, and docs/audits stay verbatim
+  (timestamped records).
+- **Not touched**: `docs/RULES.md` (project conventions), `src/RULES.md`
+  (module policy), and `src/RULES_LOC.md` (LOC cap) are separate live
+  files that share the name but not the protocol; the `lock.rs`
+  invariant suites themselves remain fully in force.
+
 ### cleanup: NIGHT-cleanup-1 (post v100) — dead-script sweep: 27 retired one-off hunt harnesses removed, live references re-anchored
 
 - **Method**: a full reference map of every tracked file (CI workflows,

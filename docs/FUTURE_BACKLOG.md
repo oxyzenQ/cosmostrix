@@ -34,7 +34,9 @@
 >   src/engine/cosmic_dragon_engine/RULES.md — as-of-commit-time
 >   paths; the test-mirror migration later moved `src/**/tests/`
 >   to the `test/` tree, and retroactive rewrites would falsify
->   the records).
+>   the records; the RULES.md file itself was later removed by the
+>   2026-09-20 lock-protocol retirement, the blockquoted records
+>   stay verbatim as history).
 > - **FIXED in this pass**: README.md CLI-reference block was missing 7
 >   live flags (--crystal-dragon-secs, -M/--shading-mode, --color-mode,
 >   -g/--glitch-ms, -l/--linger-ms, --perf-stats, --bench-frames);
@@ -46,9 +48,11 @@
 >   alias parsing + allowlists added, stale-flag/path/module counts
 >   now 0.
 > - **ACCEPTED tool noise**: `scripts/docs-audit.py` still reports the
->   intentional-history mentions above plus blockquoted per-commit
->   "Files changed" records inside the engine KEY.md/RULES.md files —
->   same historical-snapshot contract as CHANGELOG.md. The remaining
+>   intentional-history mentions above (the engine KEY.md/RULES.md
+>   historical-snapshot records were removed with the lock-protocol
+>   retirement of 2026-09-20 — remaining mentions live only in the
+>   era changelogs and archived audits, same historical-snapshot
+>   contract as CHANGELOG.md). The remaining
 >   "duplicate comment lines" candidates from stale-hunt.py are
 >   heuristic; the comment-style conventions intentionally repeat
 >   module-doc lines.

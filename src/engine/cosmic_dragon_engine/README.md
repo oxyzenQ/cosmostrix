@@ -1,23 +1,16 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Cosmic Dragon Engine — LTS Lock
+# Cosmic Dragon Engine
 
-> **Simplified lock/unlock signature log**: see [`KEY.md`](KEY.md).
-> This README holds the full audit detail (A/B benchmarks, file lists,
-> stability signals).
+The Cosmic Dragon Diff-Based Rendering Engine — the simulation core of
+cosmostrix. Audited at peak (commit `69af079`, 2026-08-19) and held at
+Long-Term Support quality by the CI invariant suites: any change to this
+directory must keep `cargo test` green, including the engine lock suites
+under `test/engine/cosmic_dragon_engine/` and
+`test/cosmic_dragon_incubator/tests/lock.rs`.
 
-> **3 Dragon Lock** in commit `69af079` after deeper audit for strengthening
-> and stability.
->
-> Signoff: **rezky_nightky** — 2026-08-19T14:40:05Z — vision & director
-> project cosmostrix
+## Stability Status
 
----
-
-## What This Lock Means
-
-The Cosmic Dragon Diff-Based Rendering Engine is locked at its current
-state (commit `69af079`, audited 2026-08-19) for Long-Term Support (LTS).
 The code in this directory has been audited for:
 
 - **Peak optimization** — every hot-path function reviewed for zero-cost
@@ -26,7 +19,7 @@ The code in this directory has been audited for:
 - **Efficient resource use** — generation-based dirty tracking (O(1)
   `clear_dirty` via single u32 bump, replaces O(N) memset),
   `SmallVec<[_; 256]>` for dirty indices (eliminates heap allocation
-  on common terminal sizes ≤90×24), palette slot table with direct
+  on common terminal sizes <=90x24), palette slot table with direct
   indexing (no hash lookup on hot path).
 - **Strong foundation** — Cargo.toml release profile maxed:
   `opt-level = 3`, `lto = "fat"`, `codegen-units = 1`,
@@ -45,9 +38,9 @@ The audit confirmed the engine is already at peak. Specifically:
 - **Double-buffered generation-based dirty tracking**: O(1) `clear_dirty`
   via single u32 bump (replaces standard O(N) `Vec<bool>` memset).
 - **`SmallVec<[_; 256]>`** for dirty indices — pre-grown from 64 -> 256
-  to cover typical dirty counts (100-500 per frame on 200×60 terminal)
-  without heap spill. Eliminates heap allocation for terminals ≤2048
-  cells (90×24=2160 still fits inline).
+  to cover typical dirty counts (100-500 per frame on 200x60 terminal)
+  without heap spill. Eliminates heap allocation for terminals <=2048
+  cells (90x24=2160 still fits inline).
 - **Generation reset threshold**: `u32::MAX - 50_000_000` (~2.1 years
   at 60 FPS) — adds 3-month safety margin before overflow.
 - **7 functions marked `#[inline]`** for hot-path accessors.
@@ -116,10 +109,9 @@ changing toolchain.
 | avg_dirty_cells_per_frame |         56.8 |        56.8 |       0 | MATCH   |
 | density_gini               |       0.8961 |      0.8955 |  -0.07% | NEUTRAL |
 
-**Conclusion**: Engine is at peak. No code changes applied — the lock
-is the appropriate action.
+**Conclusion**: Engine is at peak. No code changes were required.
 
-## Dragon Engine Topology (Locked)
+## Engine Topology
 
 | Subsystem                                  | Role                                                                  |
 |--------------------------------------------|-----------------------------------------------------------------------|
@@ -130,21 +122,6 @@ is the appropriate action.
 | `cosmic_dragon_engine/runtime.rs`          | Runtime type vocabulary: `ColorScheme`, `ColorMode`, `BoldMode`, `ColorPipeline` |
 | `cosmic_dragon_engine/mod.rs`             | Top-level module doc + re-exports                                         |
 
-## Modification Protocol
-
-See [`RULES.md`](RULES.md) in this directory for the UNLOCK protocol
-that MUST be followed if any file in this directory is modified after
-the lock.
-
----
-
-**Lock signature:**
-
-```
-3 Dragon Lock in commit 69af079 after deeper audit for strengthening
-and stability. Signoff by rezky_nightky 2026-08-19T14:40:05Z vision,
-& director project cosmostrix.
-```
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

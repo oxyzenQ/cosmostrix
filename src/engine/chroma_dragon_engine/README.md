@@ -1,26 +1,18 @@
 <!-- SPDX-License-Identifier: GPL-3.0-only -->
 
-# Chroma Dragon Engine — LTS Lock
+# Chroma Dragon Engine
 
-> **Simplified lock/unlock signature log**: see [`KEY.md`](KEY.md).
-> This README holds the full audit detail (A/B benchmarks, file lists,
-> stability signals).
+The Chroma Dragon Coloring Engine — the perceptual color pipeline of
+cosmostrix, at its Phase 9-D peak. Audited at peak (commit `69af079`,
+2026-08-19) and held at Long-Term Support quality by the CI lock suite
+(`test/engine/chroma_dragon_engine/tests/lock.rs`, 19 invariants): any
+change to this directory must keep the invariant suite green.
 
-> **3 Dragon Lock** in commit `69af079` after deeper audit for strengthening
-> and stability.
->
-> Signoff: **rezky_nightky** — 2026-08-19T14:40:05Z — vision & director
-> project cosmostrix
+## Stability Status
 
----
+The code in this directory has been audited for:
 
-## What This Lock Means
-
-The Chroma Dragon Coloring Engine is locked at its current state (commit
-`69af079`, audited 2026-08-19) for Long-Term Support (LTS). The code in
-this directory has been audited for:
-
-- **Peak optimization** — Phase 9-D locked (9 phases of perceptual color
+- **Peak optimization** — Phase 9-D (9 phases of perceptual color
   work). Every cell-color decision path reviewed for zero-cost
   abstractions, no `format!()` / `to_string()` / unnecessary `.clone()`
   in the hot path (`resolve_cell_color`).
@@ -31,9 +23,8 @@ this directory has been audited for:
   source of truth for color scheme -> palette mapping. OKLab gradient
   interpolation (`gradient.rs`) is the sole production path (Phase 9-A
   -> 9-D, sRGB-linear fallback removed).
-- **Stability** — full test suite green, 0 clippy warnings. A lock
-  suite (`chroma_dragon_engine/tests/lock.rs`) asserts the engine's
-  public contract on every commit.
+- **Stability** — full test suite green, 0 clippy warnings. The lock
+  suite asserts the engine's public contract on every commit.
 
 ## Audit Findings (No Code Changes Required)
 
@@ -45,7 +36,7 @@ The audit confirmed the engine is already at peak. Specifically:
   (cold path). Constructs `Palette` struct with pre-decoded RGB stops
   stored as `[Color; N]` array — no per-frame decode.
 - **`Palette` struct** — `bg: Color`, `colors: [Color; MAX_STOPS]`,
-  `color_count: u8`. Stack-friendly, no heap allocation for ≤MAX_STOPS
+  `color_count: u8`. Stack-friendly, no heap allocation for <=MAX_STOPS
   colors.
 - **`apply_brightness_rgb_unclamped()`** — `#[inline]`, called per cell
   from `rain_post.rs`. No allocation.
@@ -137,10 +128,9 @@ confirmed no regression:
 | color_transition_delta     |         0.00 |        0.00 |       0 | MATCH   |
 | frame_entropy_bits         |         3.29 |        3.30 |  +0.30% | NEUTRAL |
 
-**Conclusion**: Engine is at peak. No code changes applied — the lock
-is the appropriate action.
+**Conclusion**: Engine is at peak. No code changes were required.
 
-## Dragon Engine Topology (Locked)
+## Engine Topology
 
 | Subsystem                              | Role                                                                  |
 |----------------------------------------|-----------------------------------------------------------------------|
@@ -156,64 +146,29 @@ is the appropriate action.
 | `chroma_dragon_engine/colors_custom.rs`  | Custom palette loading from `[palette.<name>]` config sections        |
 | `chroma_dragon_engine/tests/`           | Lock suite, activation, bold audit, blend, floor, gradient, post tests |
 
-## Phase History (Locked at 9-D)
+## Phase History
 
 | Phase | Innovation | Status |
 |-------|-----------|--------|
-| 1     | Foundation (palette + catalog relocation) | OK Locked |
-| 2     | Shader extraction (`resolve_cell_color`) | OK Locked |
-| 3-A   | OKLab polar gradient (sole production path) | OK Locked |
-| 3-G   | Precomputed atmospheric shader | OK Locked |
-| 3-H   | Global hue drift | OK Locked |
-| 3-I   | Palette-aware ghost base color | OK Locked |
-| 4-A   | Temporal column hue coherence | OK Locked |
-| 4-B   | Subpixel hue jitter (amplitude=3) | OK Locked |
-| 4-D   | Head halo via background blend (factor=0.15) | OK Locked |
-| 5     | Perceptual L smoothing at transition wave | OK Locked |
-| 6     | Palette-aware anomaly halos | OK Locked |
-| 7-c   | Palette-relative brightness floor (replaces v17 global MIN_RGB_SUM=180) | OK Locked |
-| 7-d   | Body-tail continuity (2.0× max gap) | OK Locked |
-| 8     | L+chroma smoothing at palette transitions | OK Locked |
-| 9-A   | Hue-preserving polar gradient | OK Locked |
-| 9-B   | Lock suite (19 invariants) | OK Locked |
-| 9-C   | sRGB-linear fallback removal | OK Locked |
-| 9-D   | ColorPipeline + legacy audit (19 invariants) | OK **Locked here** |
+| 1     | Foundation (palette + catalog relocation) | Done |
+| 2     | Shader extraction (`resolve_cell_color`) | Done |
+| 3-A   | OKLab polar gradient (sole production path) | Done |
+| 3-G   | Precomputed atmospheric shader | Done |
+| 3-H   | Global hue drift | Done |
+| 3-I   | Palette-aware ghost base color | Done |
+| 4-A   | Temporal column hue coherence | Done |
+| 4-B   | Subpixel hue jitter (amplitude=3) | Done |
+| 4-D   | Head halo via background blend (factor=0.15) | Done |
+| 5     | Perceptual L smoothing at transition wave | Done |
+| 6     | Palette-aware anomaly halos | Done |
+| 7-c   | Palette-relative brightness floor (replaces v17 global MIN_RGB_SUM=180) | Done |
+| 7-d   | Body-tail continuity (2.0x max gap) | Done |
+| 8     | L+chroma smoothing at palette transitions | Done |
+| 9-A   | Hue-preserving polar gradient | Done |
+| 9-B   | Lock suite (19 invariants) | Done |
+| 9-C   | sRGB-linear fallback removal | Done |
+| 9-D   | ColorPipeline + legacy audit (19 invariants) | Done — current peak |
 
-## Modification Protocol
-
-See [`RULES.md`](RULES.md) in this directory for the UNLOCK protocol
-that MUST be followed if any file in this directory is modified after
-the lock.
-
-## UNLOCK History
-
-| Date (UTC) | Commit | Reason | Verdict |
-|------------|--------|--------|---------|
-| 2026-08-19T16:36:02Z | `809a897` | Stale path refs + EnergyZen missing from `all_schemes()` test helper (INV-2 silently skipped v50 masterclass theme). Real bug fix + 15+ doc updates. | OK PASS — 19/19 invariants, A/B NEUTRAL, visual preserved |
-
-See [`RULES.md`](RULES.md) § UNLOCK Log for the full detailed entry.
-
-## Documentation Lock
-
-> **Documentation Lock** after stale docs audit completion.
->
-> All documentation in `src/engine/chroma_dragon_engine/` (this README, RULES.md,
-> and inline `///` / `//` doc comments across every `.rs` file) has been
-> audited for stale, misleading, or outdated content. Documentation is now
-> locked — any doc changes must follow the UNLOCK protocol in
-> [RULES.md](RULES.md).
->
-> Signoff: **oxyzenQ** — 2026-08-20 — stale docs audit done
-
----
-
-**Lock signature:**
-
-```
-3 Dragon Lock in commit 69af079 after deeper audit for strengthening
-and stability. Signoff by rezky_nightky 2026-08-19T14:40:05Z vision,
-& director project cosmostrix.
-```
 <!-- COSMOSTRIX-DISCLAIMER -->
 <!--
   Documentation Disclaimer — read before relying on any data point.

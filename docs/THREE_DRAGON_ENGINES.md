@@ -2,9 +2,10 @@
 
 # The Three Dragon Engines of cosmostrix
 
-> v100.0.0-beta.1 — 2026-09-13 (retitled from the v50 original; the
-> engine split, lock protocol, and history method below are current —
-> the lock round table records the v100 LTS state)
+> v100.0.0-beta.1 — 2026-09-13, lock-protocol retirement noted
+> 2026-09-20 (retitled from the v50 original; the engine split and
+> architecture below are current — the lock-protocol era ended with
+> the 2026-09-20 retirement, see "Engine history")
 
 cosmostrix runs three independent dragon engines, each owning a distinct
 rendering concern. They never share mutable state; they communicate only
@@ -84,25 +85,15 @@ v80.0.0-alpha.1 both timing knobs are tunable (keep snapback <
 | `ambient_scheduler/mod.rs` | Background thread: fire entries on schedule |
 | `ambient_diag.rs` | Diagnostics counters (exit summary) |
 
-## Lock status + commit history (v100 LTS)
+## Engine history
 
-All three dragons are LOCK-protocol engines: each engine's
-`KEY.md` (simplified signature log) and `RULES.md` (full unlock
-detail) record every lock/unlock round, signed oxyzenQ. Any commit
-that touches a locked engine folder after its lock boundary MUST
-carry an UNLOCK entry in the same commit (the `c1c7779` and
-depthtest-3 retroactive entries document the failure mode when it
-does not).
-
-Current lock round (2026-09-13, locked tree `57c67a6`):
-
-| Engine | Path | Status | Lock entry |
-|---|---|---|---|
-| Cosmic | `src/engine/cosmic_dragon_engine/` | LOCKED (hunter-34 + retroactive hunt-36/termux-hang/neural-fire unlocks + re-lock) | `KEY.md` top |
-| Chroma | `src/engine/chroma_dragon_engine/` | LOCKED (retroactive depthtest-3 + hunt-37 completeness + hunt-39/hunt-40 entry-budget unlocks + re-lock) | `KEY.md` top |
-| Crystal | `src/engine/crystal_dragon_engine/` | LOCKED (retroactive 9de2f44 + hunt-39/hunt-40 ambient entry-budget unlocks + re-lock) | `KEY.md` top |
-
-### The simple history method (owner request 2026-09-12)
+The former per-engine LOCK/UNLOCK protocol (`KEY.md` signature logs,
+`RULES.md` unlock detail, and the `scripts/dragon-history.sh` wrapper)
+was retired 2026-09-20 by owner decision — it was too strict a
+maintenance burden. The engines stay at LTS quality the simple way:
+the CI invariant suites (the `lock.rs` test families under
+`test/engine/*/`) assert each engine's public contract on every
+commit, and each engine's `README.md` records its audited-peak state.
 
 One git command shows every commit that ever touched the dragon
 engine folders:
@@ -113,20 +104,6 @@ git log --oneline -- \
   src/engine/cosmic_dragon_engine \
   src/engine/crystal_dragon_engine
 ```
-
-The convenience wrapper (recommended — it also carries the lock
-boundary and the audit view):
-
-```bash
-./scripts/dragon-history.sh                # full history, all engines (newest first)
-./scripts/dragon-history.sh --since-lock   # engine commits since LOCK_AT — each needs an UNLOCK entry
-./scripts/dragon-history.sh --per-engine   # per-engine last commit + count
-./scripts/dragon-history.sh 9c36a049..HEAD # any commit range
-```
-
-Update `LOCK_AT` in `scripts/dragon-history.sh` every time a new
-lock round is signed, so `--since-lock` stays the authoritative
-audit trail for the frozen core.
 
 ---
 

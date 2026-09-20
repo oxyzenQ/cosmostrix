@@ -126,10 +126,10 @@ pub(crate) fn version_report() -> String {
 /// data and simplify --docs"): every constant below was re-verified
 /// against its source (`central_control_rains/parallax.rs`, living_rain
 /// symbol names, engine folder paths), the stale chroma phase-history
-/// block was cut (RULES.md owns that detail), and the missing Crystal
-/// Dragon section was added so the three-engine architecture matches
-/// `docs/THREE_DRAGON_ENGINES.md`. Numbers cite their source location
-/// so future audits can re-verify mechanically.
+/// block was cut (the engine README owns that detail), and the missing
+/// Crystal Dragon section was added so the three-engine architecture
+/// matches `docs/THREE_DRAGON_ENGINES.md`. Numbers cite their source
+/// location so future audits can re-verify mechanically.
 ///
 /// Version info is NOT included here to avoid duplicate versioning —
 /// the user gets the version from `--version` / `-V`, which is the
@@ -236,10 +236,10 @@ decision about *what color a cell becomes*.
              instability), palette-aware ghost + anomaly halos.
   tuning     All Chroma tuning constants in one auditable place.
 
-The engine is locked at Phase 9-D with 19 CI-enforced invariants
+The engine is at Phase 9-D with 19 CI-enforced invariants
 (theme sweep, floor bounds, hierarchy, hue preservation, round-trip
 accuracy, ...). The phase history and the full invariant list live
-in `src/engine/chroma_dragon_engine/RULES.md` — not repeated here
+in `src/engine/chroma_dragon_engine/README.md` — not repeated here
 (NIGHT-docs-audit: single source of truth, no drifting copies).
 
 

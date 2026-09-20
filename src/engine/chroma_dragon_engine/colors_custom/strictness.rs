@@ -29,8 +29,7 @@
 //!
 //! All three checks are value/structure-level validation: they run at
 //! config-parse time on all three validation surfaces and add zero
-//! per-frame work (the chroma pipeline math is untouched — see the
-//! chroma KEY.md UNLOCK entry for this round).
+//! per-frame work (the chroma pipeline math is untouched).
 
 use std::collections::{BTreeSet, HashMap};
 
