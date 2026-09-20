@@ -23,6 +23,60 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### cleanup: NIGHT-hunt-6 (post v100.0.2) — second-sweep staleness hunt: key-details truth, CI-trigger table, dep counts, moved-doc citations
+
+- **Change**: a second, independent audit pass over axes the repo's own
+  tooling does not cover (key IDs, workflow triggers, dependency counts,
+  non-`*.md` commented code) — source files were parsed as the truth column
+  and every divergent doc line was rewritten to match reality.
+  `docs/VERIFY_RELEASE.md`: the key-details line listed `56B96F3109F4B924`
+  in the active signing set with no role; keyserver ground truth (live
+  fetch) plus `gpg --list-packets` over every published release `.asc`
+  shows it is the pre-rotation artifact subkey — it last signed the
+  v50.0.0-rc.1 artifacts and was superseded by `3C9EB25BF0407781` from
+  v80.0.0-beta.1 onward — now labeled as such (still carried on the
+  master key, expires 2028-08-14, signs nothing in the current pipeline).
+  The tag subkey role now also names maintainer git commits (verified
+  Good on a84016ac, c110affc, 6c511477, 27f7d4f5).
+  `docs/MAINTENANCE.md`: dependency line corrected from "64 direct deps /
+  98 total crates" to the real 11 unique runtime direct deps (8
+  cross-platform + `signal-hook`/`libc` unix + `ctrlc` windows; `proptest`
+  dev-only) / 105 crates in the lock; the CI/CD table rows now state the
+  real triggers (Miri/CodeQL/Security Audit also run on push/PR, not
+  cron-only; `ci.yml` paths include `test/**` per its own standing rule;
+  `aur.yml` is `repository_dispatch`-triggered by `release.yml`, not
+  "release tag"; Release builds 11 archives across 7 OS/arch targets, not
+  "10 platform binaries"; Maintenance cron is Mon 07:00 UTC + manual
+  dispatch, not "Mon 07:00 WIB").
+  `maintenance.yml`: both schedule comments still said "Monday 00:00 UTC"
+  — stale since the deliberate cron change `0 0 * * 1` -> `0 7 * * 1` in
+  b0a70ebd ("maintenance cron 7AM Monday"); now "Monday 07:00 UTC
+  (14:00 WIB)" matching the expression. Behavior untouched: the cron
+  itself was NOT changed — if the original intent was 07:00 WIB
+  (= 00:00 UTC), the expression needs a separate one-character change
+  and that decision stays with the owner.
+  Moved-doc citations repaired: `.cargo/config.toml` still pointed at
+  `docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md` and `release.yml` at
+  `docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md` — both live under
+  `docs/archive/` since the docs restructure; paths updated.
+  `scripts/visual-mode-audit.py`: the constants-mirror comment named
+  `src/central_control_rains.rs` (a file that no longer exists — it is a
+  module directory); now names the real homes (`atmosphere.rs` for
+  `CRT_VIGNETTE_*`, `mod.rs` for `EDGE_FADE_*`).
+- **Verification**: keyserver re-fetch of the master key + `gpg
+  --list-packets` on the v50.0.0-rc.1 / v80.0.0-beta.1 / v100.0.0-
+  nightly.1 / rc.1 / v100.0.0 / v100.0.1 artifact signatures (rotation
+  boundary pinned between Aug 24-31); `git verify-commit` on four
+  maintainer commits (all Good from the tag subkey); trigger blocks
+  re-parsed from all 9 workflow files; dependency counts recounted from
+  `Cargo.toml` sections + `Cargo.lock` packages; dead-script sweep found
+  zero unreferenced scripts (33/33 referenced; `nh2_shift_harness.py` is
+  a live shared library — `night_cbg34_e2e.py` imports `Screen` from
+  it); repo-path existence check over the 52 non-`*.md` script/workflow/
+  toml files found 4 unframed stale paths (the 2 fixed citations, the
+  mirror comment, and one properly-framed `was previously` note left
+  as-is); gate-keepers all green; docs-audit + stale-hunt still clean.
+
 ### cleanup: NIGHT-hunt-5 (post v100.0.2) — total staleness cross-audit of docs and commented code
 
 - **Change**: live-corpus sweep (55 .md files at audit time; `docs/archive/`,

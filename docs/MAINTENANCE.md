@@ -31,21 +31,21 @@ cosmostrix is built to survive. The owner may go dormant for 5-10 years. When re
 
 **Upgrading Rust**: one command — `./scripts/bump-rust-to.sh X.Y.Z` (owner-facing entry point; `scripts/rust-version-to.sh` is the implementation). It updates the `rust-toolchain.toml` channel plus its version comments, the `Cargo.toml` and `pgo-runner/Cargo.toml` `rust-version` MSRV pair, and every `.github/workflows/*.yml` `RUST_VERSION` pin, then verifies sync via `scripts/check-rust-version-sync.sh`. It also audits narrative docs (`docs/`, `README.md`, `CONTRIBUTING.md`) and warns about stale version references instead of auto-editing them — release dates and rationale need editorial review, so update those by hand. Afterwards: `rustup install X.Y.Z`, `./scripts/build.sh check-all`, `cargo test --all --locked`, then commit.
 
-**Dependencies**: `Cargo.lock` committed (reproducible builds), 64 direct deps / 98 total crates, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
+**Dependencies**: `Cargo.lock` committed (reproducible builds), 11 unique runtime direct deps (8 cross-platform + `signal-hook`/`libc` on unix, `ctrlc` on windows; plus `proptest` as the single dev-dependency) / 105 crates in the lock, `deny.toml` + CI `cargo deny check all` daily. To update: `cargo update` -> `cargo deny check advisories` -> `cargo test --all --locked` -> `./scripts/build.sh check-all`. Commit `Cargo.lock` only if all checks pass.
 
 ## 3. CI/CD Pipeline
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| CI | `ci.yml` | push + PR (src/**) | Build + test + clippy + fmt + deny + MSRV |
+| CI | `ci.yml` | push + PR (`src/**` + `test/**` + Cargo/toolchain/build/scripts config) | Build + test + clippy + fmt + deny + MSRV |
 | Cosmic Dragon Guard - Gate-keepers | `cosmic-dragon-guard.yml` | push + PR | Gate-keepers: bash -n + shellcheck + shfmt (all installed in CI, none skipped), yamllint, actionlint, markdownlint, codespell, ruff, naming, SPDX, LOC, version sync, disclaimer |
-| Miri | `miri.yml` | weekly cron (Sun 03:00 UTC) | Undefined behavior detection (6 audited modules) |
-| Security Audit | `gitbot-audit.yml` | daily cron | Security advisory + dependency policy |
-| CodeQL | `codeql.yml` | weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |
-| AUR | `aur.yml` | release tag | Update AUR package |
+| Miri | `miri.yml` | push (main, Rust paths) + weekly cron (Sun 03:00 UTC) + manual | Undefined behavior detection (6 audited modules) |
+| Security Audit | `gitbot-audit.yml` | daily cron (00:00 UTC) + push/PR (Rust paths) | Security advisory + dependency policy |
+| CodeQL | `codeql.yml` | push + PR (Rust + scripts paths) + weekly cron (Mon 03:00 UTC) | GitHub CodeQL semantic analysis |
+| AUR | `aur.yml` | `repository_dispatch` (aur-sync) posted by `release.yml` after a release publishes | Update AUR package |
 | crates.io | `crates-io.yml` | tag push (v*, stable + pre-release) | `cargo publish --locked` to crates.io (idempotent, tag/version guard) |
-| Release | `release.yml` | tag push (v*) | Build 10 platform binaries + PGO + checksums + GPG sign |
-| Maintenance | `maintenance.yml` | weekly cron (Mon 07:00 WIB) | Dependency update + validate + commit |
+| Release | `release.yml` | tag push (v*) | Build 11 release archives across 7 OS/arch targets (linux amd64 v3/v4 + PGO + musl, linux aarch64, darwin aarch64, windows x64/arm64, freebsd amd64, android aarch64) + checksums + GPG sign |
+| Maintenance | `maintenance.yml` | weekly cron (Mon 07:00 UTC) + manual dispatch | Dependency update + validate + commit |
 
 ## 4. Security Advisory Response
 

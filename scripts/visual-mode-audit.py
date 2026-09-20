@@ -23,7 +23,8 @@ Run:    python3 scripts/visual-mode-audit.py
 
 from dataclasses import dataclass
 
-# ── Visual mode constants (mirrors src/central_control_rains.rs) ─────────────
+# ── Visual mode constants (mirrors src/central_control_rains/: ──────────────
+# CRT_VIGNETTE_* live in atmosphere.rs, EDGE_FADE_* in mod.rs)
 
 
 @dataclass

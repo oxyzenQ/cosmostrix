@@ -71,7 +71,7 @@ jobs:
             checks: false
           # Windows ARM64 (Snapdragon X / Copilot+ PCs): native build on the
           # windows-11-arm hosted runner. Verified compile-clean on 2026-08-23
-          # (docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md) — every
+          # (docs/archive/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md) — every
           # platform fork is cfg(unix)/cfg(target_os)-keyed, never arch-keyed.
           # target-cpu=native is safe here: the runner is real ARM64 hardware
           # (same policy as the linux-aarch64 and darwin-aarch64 entries).

@@ -10,7 +10,7 @@
 # does not know how to find the host's glibc shared libraries. Using
 # rust-lld on gnu targets requires `clang` as the linker driver with
 # `-fuse-ld=lld`, which adds a clang dependency. See
-# docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md §2.2 Finding A1 for the
+# docs/archive/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md §2.2 Finding A1 for the
 # full recommendation and the trade-off matrix.
 [target.aarch64-unknown-linux-musl]
 linker = "rust-lld"
