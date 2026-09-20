@@ -136,7 +136,7 @@ CHORE_KW='bump|pin|pinned|trim|trimmed|deps|dependencies|version|cleanup'
 # beyond word 8 must not reclassify the commit.
 scan_text() {
 	printf '%s' "$1" |
-		sed -E 's/^internal research:[[:space:]]*//' |
+		sed -E 's/^[Ii]nternal [Rr]esearch:[[:space:]]*//' |
 		tr '[:upper:]' '[:lower:]' |
 		sed -E 's/\([^)]*\)//g' |
 		sed -E 's/[^[:space:]]*[./:][^[:space:]]*//g' |
@@ -193,9 +193,10 @@ classify_subject() {
 	fi
 
 	# Stage 2 + 3: the repo's primary convention
-	# "internal research: <verb-or-noun> ...".
-	if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*[a-zA-Z]+'; then
-		verb="$(printf '%s' "$subject" | sed -nE 's/^internal research:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
+	# "internal research: <verb-or-noun> ..." (prefix matched
+	# case-tolerantly: the history writes "Internal research:").
+	if printf '%s' "$subject" | grep -qE '^[Ii]nternal [Rr]esearch:[[:space:]]*[a-zA-Z]+'; then
+		verb="$(printf '%s' "$subject" | sed -nE 's/^[Ii]nternal [Rr]esearch:[[:space:]]*([a-zA-Z]+).*/\1/p' | tr '[:upper:]' '[:lower:]')"
 		# Verb-first: the declared intent wins when it is recognized.
 		local mapped
 		mapped="$(verb_to_section "$verb")"
@@ -343,8 +344,8 @@ while IFS= read -r line; do
 
 	# Entry display text: strip process prefixes, keep the human part.
 	display="$subject"
-	if printf '%s' "$subject" | grep -qE '^internal research:[[:space:]]*'; then
-		display="$(printf '%s' "$subject" | sed -E 's/^internal research:[[:space:]]*//')"
+	if printf '%s' "$subject" | grep -qE '^[Ii]nternal [Rr]esearch:[[:space:]]*'; then
+		display="$(printf '%s' "$subject" | sed -E 's/^[Ii]nternal [Rr]esearch:[[:space:]]*//')"
 	elif printf '%s' "$subject" | grep -qE '^[a-zA-Z]+(\([^)]*\))?!?: .+'; then
 		scope="$(printf '%s' "$subject" | sed -nE 's/^[a-zA-Z]+\(([^)]*)\)!?: .+/\1/p')"
 		desc="$(printf '%s' "$subject" | sed -E 's/^[a-zA-Z]+(\([^)]*\))?!?: //')"

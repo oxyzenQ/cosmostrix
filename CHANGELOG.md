@@ -23,6 +23,29 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### fix: the release-note commit classifier never fired — case-sensitive prefix vs the capitalized history
+
+- **Change** (scripts/generate-release-notes.sh): every classifier stage
+  (`grep -qE '^internal research:...'` detection, verb extraction sed,
+  `scan_text` prefix stripper, and the display-text prefix stripper) matched
+  the prefix lowercase-only, while the entire commit history writes
+  `Internal research:` (capital I; 7/7 such subjects in the log). Result: the
+  verb table never fired and every prefixed commit fell into "others" — the
+  published v100.0.1 note shows `others x 13` of 18 commits, and entry
+  display kept the full `Internal research: ...` prefix. All six pattern
+  sites now match case-tolerantly (`[Ii]nternal [Rr]esearch:`), portable
+  POSIX classes only (no GNU-only operators, BSD-sed safe).
+- **Proof**: regeneration over `v100.0.0..v100.0.1` reclassifies the visible
+  commits into `ci x 1`, `chore x 1`, `docs x 1` (previously all "others");
+  the remaining `others x 3` are by-design falls (verbs "retire"/"accelerate"
+  are outside the verb table; the bare `release:` conventional type is
+  unknown to the map). The `v100.0.1..main` preview with TAG=v100.0.2 now
+  renders `fix x 1, chore x 1` with the process prefix stripped from the
+  entry display, exactly as the design notes intend.
+- **Verification**: bash -n + shellcheck + shfmt clean; release bodies
+  generated locally and diffed against the published classification;
+  gate-keepers all green.
+
 ### fix: the release-note GPG example shipped wrong asset names — missing `v` prefix + spurious `-gnu` (caught in the published v100.0.1 body)
 
 - **Change** (scripts/generate-release-notes.sh): the verification example in the
