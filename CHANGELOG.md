@@ -23,6 +23,42 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-improve-10 / security-3 — overflow & explode-data endurance audit: all surfaces verified at peak, zero code changes
+
+- **Change**: owner request to mitigate overflow/explode-data when
+  limits are reached, for long-endurance LTS operation. A
+  surface-by-surface audit (record:
+  `docs/audits/OVERFLOW_ENDURANCE_AUDIT_2026-09-21.md`) covered
+  every counter, accumulator, buffer, time computation, and
+  floating-point drift
+  state a running session advances. Verdict: everything is already
+  at peak — per-frame integer accumulators are u64 with saturating
+  adds (shortest wrap horizon ~42,700 years at the worst documented
+  byte rate) or u32 generation counters with the wraparound-safe
+  `GEN_RESET_THRESHOLD` proactive reset (~2.1 years at 60 FPS) and a
+  lock-test-verified invariant; every session-grown container is
+  bounded (fixed 60-slot frame-time ring, `ANOMALY_MAX_ZONES` cap +
+  expiry, phosphor BitVec dedup + swap_remove, moments expiry +
+  cooldown, 64-slot deduped warning/diag logs, droplet free-list
+  recycle); the 24 h duration ceiling is enforced inside the f64
+  parser (is_finite per component and on the total — a hostile
+  `99999999h` saturates to inf and is rejected, integer overflow
+  structurally unreachable); every `Duration::from_secs_f64(1.0/fps)`
+  site is floored upstream (base fps `max(1.0)` at construction and
+  in the setter, constant pause branch, explicit drain floor,
+  non-configurable 0.5 idle const) so the inf-panic path is
+  unreachable; the entropy drift phase is wrapped (`%= 1.0`) before
+  every sin evaluation and renderer-memory pressures are derived
+  from bounded history averages, not accumulated — no f32 drift
+  state can explode over months of uptime. Per the owner's
+  audit-if-peak-skip rule, zero over-engineering was applied: no
+  u128 widening, no checked arithmetic on the hot generation path,
+  no ring-buffer restructuring of the capped warning log. Docs-only
+  change — no benchmark run (owner rule).
+- **Verification**: source-verified per surface with worst-case
+  long-session math (24 h capped paths; indefinite screensaver runs
+  elsewhere); no code paths touched; gate-keepers full suite green.
+
 ### security: NIGHT-improve-8 follow-up — gesture-level selection-bypass hardening: the whole Down/Drag/Up/Moved motion family now gets zero acknowledgment plus per-event selection-clearing churn
 
 - **Change**: owner follow-up report — rendered text was still copyable
