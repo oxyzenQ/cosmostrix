@@ -23,6 +23,51 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### audit: NIGHT-ultimate-1 — comprehensive peak audit (security / mitigation / LTS / robustness): remaining surfaces verified at peak, zero code changes
+
+- **Change**: owner umbrella request for comprehensive peak coverage
+  ("security, mitigate, LTS, and other comprehensive aspects —
+  should be complete peak"). This closes every robustness surface
+  NOT already covered by the prior dedicated audits (record:
+  `docs/audits/NIGHT_ULTIMATE_1_AUDIT_2026-09-21.md`): runtime panic
+  paths, integer division/modulo, narrowing casts, unsafe-block
+  soundness, and allocation explode-at-the-limit guards. Method:
+  automated runtime-vs-test classification of every panic-adjacent
+  token across all 303 files under `src/` (brace-matched
+  `#[cfg(test)]` region tracking), then site-level reads of every
+  surviving runtime candidate. Verdict: everything is already at
+  peak — of 222 runtime panic-class hits, ~170 are compile-time
+  `const _: () = assert!` physics locks (the hardening technique
+  itself), the rest are infallible `Uniform` range constructions,
+  dev-build-only `debug_assert!` tripwires, predicate-gated expects
+  (`scene_custom` split_once behind `is_profile_config_key`'s
+  identical split), dispatch-gated expects (`run_bench`'s
+  `bench_frames` behind the `if let Some` dispatch arm), flow
+  invariants ("set above" / "checked above"), a set-union structural
+  unreachable, and a boot-time static-table fail-fast. Zero
+  literal-zero divisors exist anywhere in runtime code; every
+  variable divisor is guarded by the family-wide
+  `find_inactive_*` len==0 early-exit contract (verified
+  member-by-member across quasar/physarum/lorenz/solar-flare/
+  dna-helix/neural/aeolian/dragon/flux/vortex/black-hole/infall),
+  loop-range guards (monolith), explicit zero guards (neural
+  `wire_dst`), `.max(1)` floors, or validated/constant divisors.
+  All narrowing casts are validation-gated, saturating, bounded, or
+  modulo-bounded; the three unsafe blocks (allocator trace, fork
+  guard, sysctl) are SAFETY-documented and sound, with the fork
+  guard covering the fork-vs-prctl race and kernel reparent window;
+  allocation sizing is clamped at both ends (floor
+  `MIN_TERMINAL_COLS = 1`, interactive 1024x500 cap, bench 8K
+  ceiling via the Frame constructor and mirrored on reset). Per the
+  owner's audit-if-peak-skip rule, zero over-engineering was
+  applied: no dead `ok_or` plumbing on unreachable-by-predicate
+  expects, no `checked_div` on already-guarded hot loops, no
+  restructuring of compile-time locks. Docs-only change — no
+  benchmark run (owner rule).
+- **Verification**: automated classifier (1,354 test vs 222 runtime
+  hits) plus source-level reads of every runtime candidate; no code
+  paths touched; gate-keepers full suite green.
+
 ### audit: NIGHT-improve-10 / security-3 — overflow & explode-data endurance audit: all surfaces verified at peak, zero code changes
 
 - **Change**: owner request to mitigate overflow/explode-data when
