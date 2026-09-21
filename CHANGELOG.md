@@ -23,6 +23,50 @@ tripwire note in the pre-v13 archive).
 
 ## Unreleased
 
+### docs: NIGHT-docs-8 — usage deduplication across README and living docs (tell once, don't double)
+
+- **Change**: owner report — README.md carries duplicated usage info,
+  and the duplication crosses `*.md` files ("tell once don't double,
+  not just one docs but cross *.md and all existing files"). Audit
+  method: distinctive-string sweeps (checksum/GPG commands, wet-I/O
+  explanation, report-field lists, whitelist directories, recovery
+  phrasing, runtime-control tables) across the 55-file live corpus
+  (archive/research/audit snapshots excluded per the docs-audit
+  corpus rules). Findings and fixes:
+  (1) README Installation re-stated the full three-checksum command
+  block and the whole GPG key-import/verify subsection that
+  docs/VERIFY_RELEASE.md already documents — replaced with a compact
+  verify pointer (the quick install flow keeps one inline SHA-512
+  check); (2) README Benchmarking duplicated the wet-I/O explanation,
+  the `--bench-scene` lean/production-draw table, the report-field
+  inventory, and the strict-validation note from
+  docs/BENCHMARKING.md — slimmed to the honesty lines plus one quick
+  command and a mode-catalog pointer; (3) README Runtime Controls
+  enumerated the 19-line HUD metric list and the five-line paused
+  contract that docs/HUD.md owns, and the key table itself carried a
+  literal double entry (`Up / Down Speed` listed twice, `X` split
+  into its own row) — table deduped and metric/pause details now
+  point at HUD.md; (4) docs/RULES.md re-enumerated the config path
+  whitelist directories — now cites the README Configuration section
+  as the single enumeration site plus the safepath source, with the
+  tell-once rule recorded for contributors. Scope honesty: index
+  one-liners (docs/README.md), audit-evidence tables
+  (SECURITY_AUDIT.md, SCREENSAVER_MODE.md), issue workarounds
+  (KNOWN_ISSUES.md), and historical snapshots (archive/**) reference
+  the same facts in their own context and were deliberately left —
+  they are navigation or evidence, not usage re-telling. Also
+  repaired the two live-corpus broken refs docs-audit flagged in
+  CHANGELOG.md (historical moved-doc citations re-framed from "still
+  pointed at" to "previously pointed at" so the history marker
+  parses). Verification: scripts/docs-audit.py fully green post-edit
+  (0 broken refs, 0 stale paths, 0 stale counts, 0 duplicate
+  candidates); README metadata guards (canonical tagline, TAG=
+  current-release install example, --list-colors pointer, demo
+  assets) all preserved. Docs-only change — no benchmark run (owner
+  rule).
+- **Verification**: docs-audit.py green across all four sections;
+  gate-keepers full suite green; no code paths touched.
+
 ### audit: NIGHT-ultimate-1 — comprehensive peak audit (security / mitigation / LTS / robustness): remaining surfaces verified at peak, zero code changes
 
 - **Change**: owner umbrella request for comprehensive peak coverage
@@ -241,10 +285,11 @@ tripwire note in the pre-v13 archive).
   itself was NOT changed — if the original intent was 07:00 WIB
   (= 00:00 UTC), the expression needs a separate one-character change
   and that decision stays with the owner.
-  Moved-doc citations repaired: `.cargo/config.toml` still pointed at
-  `docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md` and `release.yml` at
-  `docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md` — both live under
-  `docs/archive/` since the docs restructure; paths updated.
+  Moved-doc citations repaired: `.cargo/config.toml` previously pointed at
+  `docs/audits/LTS_BUILD_AUDIT_v50.0.0-beta.7.md` and `release.yml`
+  previously pointed at `docs/research/PLATFORM_EXPANSION_IOS_WIN_ARM64.md`
+  — both live under `docs/archive/` since the docs restructure; paths
+  updated.
   `scripts/visual-mode-audit.py`: the constants-mirror comment named
   `src/central_control_rains.rs` (a file that no longer exists — it is a
   module directory); now names the real homes (`atmosphere.rs` for

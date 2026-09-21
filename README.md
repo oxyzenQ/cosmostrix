@@ -215,38 +215,7 @@ The chroma dragon border gradient (`-mb` message overlay) and HUD chroma gradien
 
 Download from [Releases](https://github.com/oxyzenQ/cosmostrix/releases), verify the checksum, and place `cosmostrix` in your `PATH`.
 
-Each release ships **three** checksums: classical SHA-512 + quantum-resistant
-BLAKE2b-512 + SHAKE256. Full instructions in
-[docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md).
-
-```bash
-# Classical (universal)
-sha512sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.sha512sum
-
-# Quantum-resistant — BLAKE2b (fastest, in coreutils)
-b2sum -c cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.b2sum
-
-# Quantum-resistant — SHAKE256 (NIST PQ standard, via Python)
-# openssl's -shake256 default output length varies; Python is consistent
-COMPUTED=$(python3 -c "import hashlib; print(hashlib.shake_256(open('cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz','rb').read()).hexdigest(64))")
-EXPECTED=$(awk '{print $1}' cosmostrix-vX.Y.Z-linux-amd64-musl.tar.gz.shake256)
-[ "$COMPUTED" = "$EXPECTED" ] && echo "OK" || echo "FAILED"
-```
-
-### GPG signature verification (official builds)
-
-Official release artifacts are GPG-signed with the maintainer's key, producing a `.tar.gz.asc` (or `.zip.asc`) detached signature alongside every archive. This lets you confirm the binary was produced from the official source tree by **Rezky Cahya Sahputra (cosmic dragon)** and not tampered with in transit. Third-party rebuilds will not carry a valid signature.
-
-```bash
-# 1. Import the maintainer's public key from a keyserver
-gpg --keyserver keyserver.ubuntu.com --recv-keys F5324E0967F104D58CE025F347A50AEF4B65AAC2
-
-# 2. Verify the detached signature against the downloaded archive
-gpg --verify cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz.asc \
-            cosmostrix-vX.Y.Z-linux-amd64-v3.tar.gz
-```
-
-A `Good signature from "Rezky Cahya Sahputra (cosmic dragon)"` line confirms authenticity. The full public key fingerprint (`F532 4E09 67F1 04D5 8CE0 25F3 47A5 0AEF 4B65 AAC2`) and detailed verification instructions live in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md). Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
+Every archive ships three checksums (classical SHA-512 plus quantum-resistant BLAKE2b-512 and SHAKE256) and one GPG detached signature from the maintainer's key. Verification — key import, `gpg --verify`, and all three checksum commands — is documented once in [docs/VERIFY_RELEASE.md](docs/VERIFY_RELEASE.md); the quick install flow below carries the classical SHA-512 check inline. Binaries produced locally via `cargo build` or `./scripts/build.sh release` carry the embedded `Cosmic Dragon — Official Build by rezky_nightky (oxyzenQ)` signature string, discoverable via `strings ./cosmostrix | grep "Cosmic Dragon"`.
 
 **Available platforms:**
 
@@ -477,19 +446,12 @@ Only `q` quits. All other unrecognized keys are silently ignored (no glitch, no 
 ```text
   q             Quit              p          Pause / resume
   c / C         Cycle theme       s / S      Cycle charset
-  x             Cycle scene       [ / ]      Density
-  X             Cycle scene (rev) Up/Down    Speed
+  x / X         Cycle scene       [ / ]      Density
   Up / Down     Speed             r          Reset animation
-  i             Toggle live HUD (fps / tgt / max / p99 / cpu / rss / ehs / prs /
-                speed / density / scene / charset / color / uptime / screensize /
-                prdr / crdr / ambt / glth / ctun / mnst / cid)
-
-  While paused: ONLY p (resume) and q (quit) respond. Every other key
-  (including i) is ignored, and all running HUD metrics freeze — uptime,
-  fps, max, p99, cpu, rss, prs, ehs hold their last active value and
-  resume with precision when unpaused (the tgt: line keeps rendering
-  its `paused` suffix). See docs/HUD.md.
+  i             Toggle the live HUD (every line: docs/HUD.md)
 ```
+
+While paused, only `p` (resume) and `q` (quit) respond — every other key is ignored and the HUD metrics freeze, resuming with precision when unpaused. Full paused-mode contract: [docs/HUD.md](docs/HUD.md).
 
 ## Scenes
 
@@ -611,7 +573,7 @@ For terminal behavior, background modes, tmux/SSH notes, and Windows recovery ex
 
 ## Benchmarking
 
-Benchmark results are machine-dependent. Use them to compare builds on the same machine, not as portable performance promises. Optimized builds remain comfortably above the 60 FPS target.
+Benchmark results are machine-dependent. Use them to compare builds on the same machine, not as portable performance promises. Optimized builds remain comfortably above the 60 FPS target. Benchmark mode measures engine throughput — synthetic FPS, not what the terminal draws; real interactive FPS is terminal-bounded (press `i` during a real run).
 
 ```bash
 cargo pro-linux-v3
@@ -619,62 +581,7 @@ COSMOSTRIX_BENCH_COLS=120 COSMOSTRIX_BENCH_LINES=40 \
   target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark
 ```
 
-The `--benchmark` report includes FPS, frame-time percentiles
-(avg -> p95 -> p99 -> p99.9 -> max), MEMORY (RSS), CPU usage %, sub-component
-timing (sim/render/io), and a DRIFT section for long-run analysis. The
-SYSTEM section records the CPU model, rustc version, LTO/PGO status, and
-git SHA so reports are self-documenting for cross-machine comparison. A
-RESOURCE section reports page faults + context switches via `getrusage`.
-A BENCHMARK ENVIRONMENT section records kernel, libc, terminal, CPU
-governor, and SMT status for reproducibility. The RENDERER section
-explicitly declares `gpu_usage: not_applicable` — cosmostrix is a CPU +
-stdout renderer, no GPU context is ever created.
-
-**Benchmark mode measures the engine without writing to the terminal.**
-FPS numbers are synthetic uncapped throughput — how many frames the
-renderer can *compute* per second, not how many frames the terminal
-*draws*. Real interactive FPS is bounded by the terminal emulator,
-refresh rate, and ANSI output bandwidth. Use `i` (live HUD) during a
-real run to see actual interactive FPS.
-
-Use `--bench-duration N` (min 1s, max 24h — the hard OS-protection ceiling) for sustained drift / leak detection:
-
-```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-duration 60
-```
-
-Use `--json` for machine-readable output (CI/scripts):
-
-```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --json | jq .performance.avg_fps
-```
-
-### Wet I/O benchmarking (`--bench-io` + `--bench-scene`)
-
-By default `--benchmark` runs **dry** — it computes frames but does not write ANSI to any file descriptor. This measures pure engine throughput. To measure real terminal write bandwidth and latency, add `--bench-io` (writes ANSI to `/dev/null` so the kernel syscall path is exercised without terminal emulator overhead):
-
-```bash
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix --benchmark --bench-io --bench-duration 30
-```
-
-`--bench-scene <name>` selects which I/O scene the wet benchmark exercises:
-
-| Scene | What it measures |
-|-------|------------------|
-| `lean` (default) | The `emit_cell_lean` path — per-dirty-cell SGR emission. The fastest path cosmostrix uses in interactive mode. |
-| `production-draw` | The full `Terminal::draw` redraw path — `MoveTo` per row + `ColorCache` SGR + BOLT bold escape. Mirrors what the terminal actually receives during interactive rendering. Use this when you want to benchmark the production render path the user sees. |
-
-```bash
-# Measure the BOLT-backed production render path with wet I/O
-target/x86_64-unknown-linux-gnu/pro-linux-v3/cosmostrix \
-    --benchmark --bench-io --bench-scene production-draw --bench-duration 30
-```
-
-Pair `--bench-scene production-draw` with `--save-baseline` to lock in a regression baseline for the production path; pair with `--bench-all` to see how the production path scales across screen sizes.
-
-> **Strict validation:** only `lean` and `production-draw` are accepted. Typos (e.g. `leanax`, `production-drawmadadadaxa`) are rejected with a clean error at parse time — cosmostrix never silently falls back to the default lean path. This is part of the honesty contract: no hidden flags, no hidden behavior.
-
-See [docs/BENCHMARKING.md](docs/BENCHMARKING.md) for the full benchmarking guide. See [benchmark/HIST_BENCH.md](benchmark/HIST_BENCH.md) for reference results across versions, and [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md) for advanced metrics.
+The mode catalog (`--bench-io` wet I/O, `--bench-scene lean|production-draw`, `--bench-all`, `--bench-duration` up to the 24 h ceiling, `--json`, baselines), the full report-field reference, and what benchmark mode skips are documented once in [docs/BENCHMARKING.md](docs/BENCHMARKING.md). Reference results across versions: [benchmark/HIST_BENCH.md](benchmark/HIST_BENCH.md); advanced microarchitecture + energy metrics: [docs/BENCHMARK_ADVANCED.md](docs/BENCHMARK_ADVANCED.md).
 
 ## Documentation
 

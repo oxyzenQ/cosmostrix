@@ -169,7 +169,7 @@ Watches `config.toml` via `notify` crate (background thread). Full Cloud rebuild
 
 **Removed feature (v80.0.0-beta.2)**: the `density-map` per-column spawn-weight config field was retired — a burden function that was rare to use and costly to maintain (CSV parser, `Box::leak` dedup cache, entry cap, testconf validation, generator script, doc surface). Monolith spawn distribution is uniform now; the value-noise density in `living_rain.rs` is untouched (different subsystem). Configs still carrying `scene-custom.<name>.density-map` or a top-level `density-map` get a targeted removal hint from `config_hints`. `scripts/gen-density-presets.py` was deleted.
 
-**Config path whitelist** (enforced by `safepath.rs`): Linux `~/.config/cosmostrix/`, `/etc/cosmostrix/`; macOS `~/.config/cosmostrix/`, `~/Library/Application Support/cosmostrix/`, `/etc/cosmostrix/`; Windows `%APPDATA%\cosmostrix\`, `%ProgramData%\cosmostrix\`. Rejected: current directory, `/tmp/`, `~/.local/`, `/usr/`, all others.
+**Config path whitelist** (enforced by `src/safepath/mod.rs`, `is_safe_path`): the platform-by-platform whitelist and rejection list are documented once in the README Configuration section — cite that section (or the source) instead of re-enumerating the directories here (NIGHT-docs-8 tell-once rule).
 
 ### Verbose Output + Install Script
 
